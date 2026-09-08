@@ -1,7 +1,7 @@
 ---
 status: active
 owner: producto
-last_reviewed: 2026-09-09T00:35Z
+last_reviewed: 2026-09-09T01:05Z
 source:
 ---
 
@@ -1019,6 +1019,110 @@ es refactor cosmético de tokens con riesgo de regresión visual.
 
 PR: merged directo a `main` (commit `23961c8d`). Vercel deployment
 status API: `success` (verificado `2026-09-09T00:42Z`).
+Vault actualizado: este changelog.
+
+## 2026-09-09 — PR 7 del critique Operate: app resolver dead-end (P1 #6 — CTA primaria a `/onboarding/owner` + bg-background + EmptyState primitive)
+
+**1 commit a `main`** cerrando el P1 #6 del critique `/impeccable`
+Operate. Único archivo modificado: `src/app/app/page.tsx`. La critique
+describe el loop exacto: "first-time owner who closes the tab, comes
+back, lands here, clicks Reintentar 3x — doesn't progress". Ahora
+hay un escape real.
+
+**Cambios:**
+
+1. **`src/app/app/page.tsx:65-83`** — el render del dead-end reemplaza
+   el `<button>Reintentar</button>` sin escapatoria por un `<EmptyState>`
+   con CTA primaria `<Link href="/onboarding/owner">Iniciar
+   onboarding</Link>`. La ruta `/onboarding/owner` es la única entrada
+   real de setup que existe (verificado: `Glob src/app/onboarding/**`
+   muestra solo `layout.tsx` + `owner/page.tsx`; no hay un
+   `onboarding/page.tsx` raíz). Antes la única acción era
+   `refresh()` que re-corria el resolver — útil para "me acaban de
+   agregar a una academia", pero no para "soy dueño nuevo, nunca he
+   tenido academia". Ahora la primaria es la ruta que sí crea academia.
+2. **`Reintentar` movido a `secondaryAction`** — sigue siendo útil
+   (caso "admin me acaba de invitar, refresh para recoger el cambio")
+   pero ya no compite con la primaria ni es el único path. El
+   styling cambia de `border-white/20 text-white` (invisible en light
+   theme, hallazgo explícito de B) a `border border-border bg-white
+   text-foreground hover:bg-muted/50` — neutral y consistente con el
+   resto del dashboard.
+3. **`bg-background` agregado al wrapper** — cierra el segundo hallazgo
+   de B: el botón blanco-on-white era invisible en light theme. Aplica
+   tanto al loading state (`Preparando tu panel...`) como al
+   dead-end resolved.
+4. **Loading state separado en rama explícita** (`if (isResolving)
+   return ...`) — antes el loading y el dead-end compartían el mismo
+   wrapper; ahora el loading es texto neutro sin el card visual de
+   `<EmptyState>` (porque NO es un empty state, es "todavía no sé qué
+   mostrarte"). El card solo aparece cuando el resolver confirma que
+   no hay academia.
+5. **Icono `Compass`** de lucide-react — semántica de "tu panel
+   todavía no está orientado a ninguna academia"; consistente con
+   el vocabulario visual del resto del dashboard.
+
+**Por qué este approach (no más opciones, no role differentiation):**
+
+- La critique sugiere "replace `Reintentar` with primary CTA → `/onboarding`".
+  Esa ruta (`/onboarding` sin suffix) NO existe — `onboarding/owner/page.tsx`
+  es la entrada real. La redirección a `/onboarding` directo sería un 404.
+  Por eso apuntamos a `/onboarding/owner`, que es lo que sí existe y
+  además resuelve automáticamente (`resolveUserHome` redirige si el
+  usuario no debería estar ahí).
+- La critique NO pide role differentiation (owner vs coach sin academia).
+  El resolver actual trata a coach/parent/athlete sin academia con un
+  redirect silencioso (no llegan acá — `layout.tsx:183` los manda a
+  `/dashboard/profile`). Los que SÍ caen en este dead-end son usuarios
+  con perfil `owner` o casos donde `authData.role` es null. Agregar
+  CTAs distintos por rol sería scope aparte y se justifica solo si
+  tenemos telemetría de "este path se hit >5 veces al día".
+- La critique NO pide un `<Skeleton>` con timeout para el loading
+  state. Esa mejora (mencionada en "Minor observations" del critique,
+  no en P1 #6) es scope aparte.
+
+**Verificación:**
+
+- `pnpm typecheck` → clean.
+- `npx eslint src/app/app/page.tsx` → 0 errors, 0 warnings.
+- `pnpm gate:all` → A2=1, A3=1, A4=0 (sin cambios; baseline).
+  `[orphan-app-route] OK — scanned 65 files, no findings`.
+- Diff: 1 archivo, +40 / -10 líneas netas (+30). El + incluye el
+  comentario explicativo del fix y el early-return del loading state.
+
+**Lo que NO se hace acá (scope discipline):**
+
+- **No** se crea un `/onboarding/page.tsx` raíz que sirva como
+  redirector a `/onboarding/owner`. No aporta — `resolveUserHome`
+  en `/onboarding/owner/page.tsx:36-43` ya redirige si el usuario no
+  pertenece al flow.
+- **No** se diferencian CTAs por role (owner ve "Iniciar onboarding",
+  coach/parent ven "Esperar invitación"). El resolver actual nunca
+  manda coach/parent sin academia a este dead-end (`layout.tsx:183`
+  los intercepta primero). Diferenciar sería código muerto para los
+  flujos reales.
+- **No** se agrega un timeout visual para el loading state
+  ("si después de 10s no resuelve, mostrar el dead-end de todas formas").
+  Ese cambio toca UX asíncrona con timers — necesita más diseño.
+- **No** se mueve el loading state a un `<Skeleton>` propio. La
+  critic lo menciona como minor, no en P1 #6 — scope aparte.
+- **No** se agrega un link a soporte ("¿No encuentras tu academia?
+  Contacta soporte"). Útil pero scope aparte — requiere decidir
+  URL destino + copy + tracking.
+
+**Próximo paso lógico:** PR 8 — candidatos restantes: P1 #5 (mixed
+shadow/pastel en `MyDashboardPage.tsx`, 4 sistemas de sombras en 6
+páginas), P2 (billing free-plan empty hero), P2 (top-nav no-op
+component), P2 (notifications 401), P2 (settings Zod nullable trap
+preventivo). De los P1, solo queda **P1 #5** — pero es refactor
+cosmético de tokens con riesgo de regresión visual. Recomiendo
+ordenar por valor real: si el usuario quiere cerrar el critique
+completo, P1 #5 es el siguiente item obligatorio; si prefiere
+mejorar el último tramo de UX sin riesgo, **P2 top-nav** (borrar
+un componente que retorna `null`, ~5 líneas, blast radius trivial)
+es el camino más barato.
+
+PR: #TBD (pendiente push + `gh pr create`).
 Vault actualizado: este changelog.
 
 ## 2026-09-07 — R2 cerrado: CSP bloqueaba hidratación de TODA página interactiva en producción (P0, no P1)

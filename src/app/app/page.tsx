@@ -2,8 +2,11 @@
 
 import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
+import Link from "next/link";
+import { Compass } from "lucide-react";
 
 import { useDevSession } from "@/components/dev-session-provider";
+import { EmptyState } from "@/components/ui/empty-state";
 
 export default function AppLanding() {
   const router = useRouter();
@@ -62,23 +65,49 @@ export default function AppLanding() {
 
   const isResolving = loading || resolving;
 
+  if (isResolving) {
+    return (
+      <div className="flex min-h-[60vh] flex-col items-center justify-center gap-4 bg-background p-8 text-center">
+        <h1 className="text-2xl font-semibold">Preparando tu panel...</h1>
+        <p className="max-w-md text-sm text-muted-foreground">
+          Buscando tu academia...
+        </p>
+      </div>
+    );
+  }
+
+  // Dead-end del resolver: usuario autenticado sin academia. Antes: solo
+  // un `<button>Reintentar</button>` sin escapatoria — la critique Operate
+  // P1 #6 describe el loop de "cierra la pestaña, vuelve, hace clic 3x,
+  // no progresa". Ahora: EmptyState con CTA primaria a `/onboarding/owner`
+  // (la única ruta real de setup que existe en el tree) + "Reintentar"
+  // como secundaria (caso "me acaban de agregar a una academia, refresh
+  // para recoger el cambio"). El wrapper gana `bg-background` para que el
+  // botón no quede invisible en light theme.
   return (
-    <div className="flex min-h-[60vh] flex-col items-center justify-center gap-4 p-8 text-center">
-      <h1 className="text-2xl font-semibold">Preparando tu panel...</h1>
-      <p className="max-w-md text-sm text-muted-foreground">
-        {isResolving
-          ? "Buscando tu academia..."
-          : "No encontramos una academia asociada a tu cuenta. Completa el onboarding para crear tu academia."}
-      </p>
-      {!isResolving && (
-        <button
-          type="button"
-          onClick={refresh}
-          className="rounded-full border border-white/20 px-4 py-2 text-sm font-semibold text-white hover:bg-white/10"
-        >
-          Reintentar
-        </button>
-      )}
+    <div className="flex min-h-[60vh] flex-col items-center justify-center bg-background p-8">
+      <EmptyState
+        icon={Compass}
+        title="Aún no tienes una academia asignada"
+        description="Si te registraste como dueño, completa el setup inicial para crear tu academia. Si te invitó un admin y acabas de ser agregado, reintenta para recoger el cambio."
+        action={
+          <Link
+            href="/onboarding/owner"
+            className="inline-flex min-h-11 items-center justify-center rounded-xl bg-zaltyko-teal px-4 py-2 text-sm font-semibold text-white shadow-soft transition hover:bg-primary-dark"
+          >
+            Iniciar onboarding
+          </Link>
+        }
+        secondaryAction={
+          <button
+            type="button"
+            onClick={refresh}
+            className="inline-flex min-h-11 items-center justify-center rounded-xl border border-border bg-white px-4 py-2 text-sm font-semibold text-foreground transition hover:bg-muted/50"
+          >
+            Reintentar
+          </button>
+        }
+      />
     </div>
   );
 }
