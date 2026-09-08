@@ -1127,7 +1127,8 @@ Vault actualizado: este changelog.
 
 ## 2026-09-09 — PR 8 del critique Operate: top-nav no-op component (P2 — borrar `AcademyTopNav` que retorna `null`)
 
-**Commit**: (pendiente — escribir tras `git commit`).
+**Commit**: `a923ef3a` (`refactor(cleanup): remove AcademyTopNav no-op component (Operate P2)`).
+**Vercel deployment**: `6337122337` → `success` → https://zaltyko-arzey6h7a-mentessaas-projects.vercel.app
 
 **Por qué este PR y no P1 #5 (mixed shadow/pastel)** — el critique
 lista P1 #5 como último P1 pendiente, pero el camino más barato es
@@ -1196,7 +1197,8 @@ radius bajo, evita console error para usuarios no-admin). El
 P1 #5 sigue siendo obligatorio si el usuario quiere cerrar el
 critique Operate completo (último P1 abierto).
 
-PR: #TBD (pendiente push + `gh pr create`).
+PR: merged directo a `main` (commit `a923ef3a`). Vercel deployment
+`6337122337` → `success` a las 21:04:27Z.
 Vault actualizado: este changelog.
 
 ## 2026-09-07 — R2 cerrado: CSP bloqueaba hidratación de TODA página interactiva en producción (P0, no P1)
