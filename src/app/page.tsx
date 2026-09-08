@@ -165,16 +165,48 @@ export default function HomePage() {
           logo: `${baseUrl}/branding/zaltyko/logo-zaltyko-dark.svg`,
           description:
             "Zaltyko es el sistema de dirección para academias de gimnasia artística femenina, artística masculina y rítmica.",
-          contactPoint: {
-            "@type": "ContactPoint",
-            email: "hola@zaltyko.com",
-            contactType: "customer service",
-            availableLanguage: ["Spanish", "English"],
-          },
+          foundingDate: "2023",
+          contactPoint: [
+            {
+              "@type": "ContactPoint",
+              email: "hola@zaltyko.com",
+              contactType: "customer support",
+              availableLanguage: ["Spanish", "English"],
+              areaServed: ["ES", "MX", "AR", "CO", "CL", "PE"],
+            },
+          ],
           address: {
             "@type": "PostalAddress",
             addressCountry: "ES",
           },
+          areaServed: [
+            { "@type": "Country", name: "Spain" },
+            { "@type": "Country", name: "Mexico" },
+            { "@type": "Country", name: "Argentina" },
+            { "@type": "Country", name: "Colombia" },
+            { "@type": "Country", name: "Chile" },
+            { "@type": "Country", name: "Peru" },
+          ],
+          sameAs: [
+            "https://linkedin.com/company/zaltyko",
+            "https://instagram.com/zaltyko",
+          ],
+        }}
+      />
+
+      {/* BreadcrumbList Schema */}
+      <Schema
+        json={{
+          "@context": "https://schema.org",
+          "@type": "BreadcrumbList",
+          itemListElement: [
+            {
+              "@type": "ListItem",
+              position: 1,
+              name: "Inicio",
+              item: baseUrl,
+            },
+          ],
         }}
       />
       
