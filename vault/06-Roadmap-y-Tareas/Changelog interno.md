@@ -1,9 +1,84 @@
 ---
 status: active
 owner: producto
-last_reviewed: 2026-09-07T11:30Z
+last_reviewed: 2026-09-08T16:15Z
 source:
 ---
+
+## 2026-09-08 — PR2: GEO Technical SEO quick wins (W1 + W2 + W3 + W5) cerrados
+
+Rama: `fix/geo-technical-quick-wins-2026-09-08` (4 commits, base
+`fix/dependabot-alerts-2026-09-08` / 50193b84). Auditoría
+`GEO-TECHNICAL-AUDIT.md` con baseline **84/100**; este PR cierra las 4
+W marcadas en el audit (W4 = robots/cluster policy ya estaba cubierta
+en PRs previos de ZAL-1110 / ZAL-984). Score objetivo post-merge:
+**~92/100**.
+
+**W1 — dedup de title template** (`4a3c13e1`). Layout root define
+`metadata.title.template = "%s | Zaltyko"` que se concatena a todos los
+títulos de página. 11 páginas hardcodeaban `| Zaltyko` en
+`metadata.title` y/o `openGraph.title`, produciendo duplicación visible
+("...| Zaltyko | Zaltyko") y títulos truncados a 60ch en SERP. Limpieza:
+9 archivos / 13 strings.
+
+Out-of-scope (pendiente): los 47 archivos JSON de contenido de cluster
+en `src/content/clusters/**/meta.title` también terminan en
+`| Zaltyko - {federation}`. Requiere un helper `cleanTitle()` en el loader
+para no tocar contenido a mano. Tracking: dejar para PR3.
+
+**W2 — hreflang matrix para clusters** (`5abd4511`). Las páginas
+`/[locale]/[modality]` y `/[locale]/[modality]/[country]` solo emitían
+`alternates.languages: { es, en }` literal. Ahora `getModalityHreflang()`
+y `getClusterHreflang()` (en `src/lib/seo/clusters.ts`) emiten la matriz
+completa: locale tags (`es`, `en`) + language-region tags
+(`es-AR`, `es-MX`, `es-CO`, ...) + `x-default` apuntando al root. Esto
+impide que Google colapse las variantes por país en un único cluster
+`es`. Helpers iteran `CLUSTER_LOCALES` tipado, no `Object.keys()`,
+porque la key `label` rompería la resolución de slugs.
+
+**W3 — IndexNow push** (`3da89a89`). Sin IndexNow, Bing (y por
+encadenamiento ChatGPT, Perplexity vía Bing) re-crawlan las páginas
+según su propio schedule — días a semanas. Con IndexNow, push en
+segundos.
+
+- `public/.well-known/indexnow-key.txt` con UUID `d1edd327-...` (no es
+  secreto: solo prueba ownership del dominio cuando Bing lo fetchea).
+- `submitIndexNow(urls, host?)` helper en `src/lib/seo/indexnow.ts` —
+  POST a `https://api.indexnow.org/indexnow`.
+- `GET /api/cron/indexnow-submit` (cron-auth) que somete una lista
+  curada de rutas públicas (landing, features, pricing, academias,
+  cluster homepages). Trigger post-deploy:
+  `curl -H "Authorization: Bearer $CRON_SECRET" \
+   https://zaltyko.com/api/cron/indexnow-submit`.
+  No toqué `vercel.json` porque añadir un cron ahí requiere redeploy
+  del config; el manual `curl` post-deploy basta mientras no
+ Scheduler desde Vercel Dashboard. Google no acepta IndexNow pero
+monitorea el protocolo.
+
+**W5 — preconnect a orígenes críticos** (`f10cebf6`). `<link
+rel="preconnect">` no acepta wildcards, solo subdominios concretos.
+Añadidos a `<head>` de `layout.tsx`: `fonts.googleapis.com`,
+`fonts.gstatic.com` (con `crossOrigin="anonymous"` para los woff2),
+`app.posthog.com`. Supabase y Stripe quedan fuera porque sus
+subdominios viven en `.env.local` y promoverlos a source filtraría
+secrets por entorno — el ahorro de TTFB no compensa el riesgo.
+
+**Pendiente**:
+
+- W4 ya estaba cubierta por ZAL-1110 / ZAL-984 (cluster policy +
+  robots fail-closed para terminales). Confirmado en auditor — sin
+  acción.
+- Cluster JSON `meta.title` normalization → PR3 con helper
+  `cleanTitle()`.
+- `vercel.json` cron para automatizar IndexNow post-deploy.
+- Re-correr auditoría geo-technical contra `https://zaltyko.com/`
+  post-merge para diff vs 84/100 baseline.
+
+PR: #TBD (gh pr create tras push).
+Vault actualizado: este changelog + `GEO-TECHNICAL-AUDIT.md` ya en
+repo (untracked, subo en el PR).
+
+## 2026-09-07 — R2 cerrado: CSP bloqueaba hidratación de TODA página interactiva en producción (P0, no P1)
 ## 2026-09-07 — R2 cerrado: CSP bloqueaba hidratación de TODA página interactiva en producción (P0, no P1)
 
 El "smoke rojo en test 3 (features tabs)" era la punta del iceberg. La causa
