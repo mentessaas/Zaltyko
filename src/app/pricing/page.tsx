@@ -11,13 +11,15 @@ const baseUrl = getPublicSiteUrl();
 
 export const metadata: Metadata = {
   title: "Planes y Precios para Academias de Gimnasia",
-  description: "Planes Free, Starter, Growth y Network para academias de gimnasia artística y rítmica.",
+  description:
+    "Compara los planes Free, Starter, Growth y Network para tu academia de gimnasia artística o rítmica. Prueba 7 días Starter sin tarjeta y sin compromiso.",
   alternates: {
     canonical: `${baseUrl}/pricing`,
   },
   openGraph: {
     title: "Precios",
-    description: "Compara planes Free, Starter, Growth y Network para academias de artística y rítmica.",
+    description:
+      "Compara planes Free, Starter, Growth y Network para academias de gimnasia artística y rítmica. 7 días Starter sin tarjeta.",
     url: `${baseUrl}/pricing`,
     siteName: "Zaltyko",
     type: "website",
@@ -25,7 +27,8 @@ export const metadata: Metadata = {
   twitter: {
     card: "summary_large_image",
     title: "Planes para Academias de Gimnasia",
-    description: "Planes por etapa y tamaño de academia.",
+    description:
+      "Planes Zaltyko por etapa y tamaño de academia. Free, Starter, Growth y Network.",
   },
 };
 
