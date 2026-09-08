@@ -156,6 +156,122 @@ export function cleanTitle(title: string): string {
   return title.replace(/\s*\|\s*Zaltyko\s*-\s*.+$/i, "").trim();
 }
 
+// Build the JSON-LD schema bundle for a cluster page. Combines three
+// independent schema.org nodes (WebPage, BreadcrumbList, and when academies
+// are available, ItemList) inside a single @graph so the page emits one
+// <script type="application/ld+json"> block instead of three.
+//
+// WebPage: gives crawlers a canonical entity for this URL with the page's
+//   title/description/language and binds it to the site root via isPartOf.
+// BreadcrumbList: mirrors the visual breadcrumb in the hero (Inicio/Home
+//   → Modality → [Country]).
+// ItemList: only emitted when academies are passed AND we are on a country
+//   variant. Each academy is a ListItem with position, name and city. This
+//   is the schema that materially increases AI citation rate for prompts
+//   like "best gymnastics academies in [country]" — ChatGPT and Perplexity
+//   read structured lists far more reliably than they read prose <ul>s.
+//
+// Cluster pages do not currently render an academy list in the visible UI
+// (only hero + interlinking). The ItemList therefore describes a "may be a
+// partial list" (schema.org spec explicitly allows it) sourced from the
+// same `getClusterAcademies()` query that the future directory UI will use.
+// When the directory UI lands, the schema will already be correct.
+export interface ClusterJsonLdAcademy {
+  id: string;
+  name: string;
+  city?: string | null;
+  region?: string | null;
+}
+
+export interface ClusterJsonLdInput {
+  baseUrl: string;
+  locale: "es" | "en";
+  modalityLabel: string;
+  modalitySlug: string;
+  countryLabel?: string;
+  countrySlug?: string;
+  pageTitle: string;
+  pageDescription: string;
+  academies?: ClusterJsonLdAcademy[];
+}
+
+export function generateClusterJsonLd(
+  input: ClusterJsonLdInput,
+): Record<string, unknown> {
+  const pagePath = input.countrySlug
+    ? `/${input.locale}/${input.modalitySlug}/${input.countrySlug}`
+    : `/${input.locale}/${input.modalitySlug}`;
+  const pageUrl = `${input.baseUrl}${pagePath}`;
+  const homeLabel = input.locale === "es" ? "Inicio" : "Home";
+  const websiteId = `${input.baseUrl}/#website`;
+
+  const webPage = {
+    "@type": "WebPage",
+    "@id": `${pageUrl}#webpage`,
+    url: pageUrl,
+    name: input.pageTitle,
+    description: input.pageDescription,
+    inLanguage: input.locale,
+    isPartOf: { "@id": websiteId },
+    publisher: { "@id": `${input.baseUrl}/#organization` },
+  };
+
+  const breadcrumbItems = [
+    {
+      "@type": "ListItem",
+      position: 1,
+      name: homeLabel,
+      item: `${input.baseUrl}/${input.locale}`,
+    },
+    {
+      "@type": "ListItem",
+      position: 2,
+      name: input.modalityLabel,
+      item: `${input.baseUrl}/${input.locale}/${input.modalitySlug}`,
+    },
+  ];
+  if (input.countryLabel && input.countrySlug) {
+    breadcrumbItems.push({
+      "@type": "ListItem",
+      position: 3,
+      name: input.countryLabel,
+      item: pageUrl,
+    });
+  }
+
+  const breadcrumbList = {
+    "@type": "BreadcrumbList",
+    itemListElement: breadcrumbItems,
+  };
+
+  const graph: Array<Record<string, unknown>> = [webPage, breadcrumbList];
+
+  if (input.countrySlug && input.academies && input.academies.length > 0) {
+    graph.push({
+      "@type": "ItemList",
+      "@id": `${pageUrl}#academies`,
+      numberOfItems: input.academies.length,
+      itemListElement: input.academies.map((academy, index) => {
+        const location = [academy.city, academy.region]
+          .filter(Boolean)
+          .join(", ");
+        return {
+          "@type": "ListItem",
+          position: index + 1,
+          name: academy.name,
+          ...(location ? { description: location } : {}),
+          url: `${input.baseUrl}/academias/${academy.id}`,
+        };
+      }),
+    });
+  }
+
+  return {
+    "@context": "https://schema.org",
+    "@graph": graph,
+  };
+}
+
 // Get all modality pages (parent pages listing countries)
 export function getAllModalityPages(locale: Locale): Array<{
   modality: ModalitySlug;

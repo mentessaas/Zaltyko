@@ -9,9 +9,11 @@ import {
   AVAILABLE_MODALITIES,
   getCountriesForModality,
   getModalityHreflang,
+  generateClusterJsonLd,
   type ModalitySlug,
   type CountrySlug,
 } from "@/lib/seo/clusters";
+import { Schema } from "@/components/Schema";
 import { cn } from "@/lib/utils";
 import { buttonVariants } from "@/components/ui/button";
 import { getPublicSiteUrl } from "@/lib/seo/site-url";
@@ -115,6 +117,26 @@ export default async function ModalityPage({ params }: ModalityPageProps) {
   const modalityLabel = MODALITIES[modalityKey].label[locale as Locale];
   const available = AVAILABLE_MODALITIES[modalityKey];
 
+  // W6 GEO audit: WebPage + BreadcrumbList schema for the modality landing.
+  // No ItemList here (parent page lists countries, not academies).
+  const baseUrl = getPublicSiteUrl();
+  const canonicalUrl = `${baseUrl}/${locale}/${modality}`;
+  const pageTitle = `${modalityLabel} ${
+    locale === "es" ? "en Latinoamérica" : "in Latin America"
+  }`;
+  const pageDescription =
+    locale === "es"
+      ? `Encuentra academias de ${modalityLabel.toLowerCase()} en España, México, Argentina, Colombia, Chile y Perú. Software de gestión especializado.`
+      : `Find ${modalityLabel.toLowerCase()} academies in Spain, Mexico, Argentina, Colombia, Chile and Peru. Specialized management software.`;
+  const modalitySchema = generateClusterJsonLd({
+    baseUrl,
+    locale: locale as "es" | "en",
+    modalityLabel,
+    modalitySlug: modality,
+    pageTitle,
+    pageDescription,
+  });
+
   const labels = {
     es: {
       title: `${modalityLabel} por país`,
@@ -148,6 +170,7 @@ export default async function ModalityPage({ params }: ModalityPageProps) {
 
   return (
     <>
+      <Schema json={modalitySchema} />
       {/* Hero */}
       <section className="relative min-h-[50vh] flex items-center overflow-hidden bg-gradient-to-br from-zaltyko-white via-white to-zaltyko-teal/5">
         <div className="absolute inset-0">

@@ -6,9 +6,11 @@ import {
   COUNTRIES,
   AVAILABLE_MODALITIES,
   getClusterContent,
+  getClusterAcademies,
   getRelatedByModality,
   getRelatedByCountry,
   getClusterHreflang,
+  generateClusterJsonLd,
   type ModalitySlug,
   type CountrySlug,
 } from "@/lib/seo/clusters";
@@ -147,35 +149,35 @@ export default async function ClusterPage({ params }: ClusterPageProps) {
   const baseUrl = getPublicSiteUrl();
   const canonicalUrl = `${baseUrl}/${locale}/${modality}/${country}`;
 
-  // BreadcrumbList schema
-  const breadcrumbSchema = {
-    "@context": "https://schema.org",
-    "@type": "BreadcrumbList",
-    itemListElement: [
-      {
-        "@type": "ListItem",
-        position: 1,
-        name: locale === "es" ? "Inicio" : "Home",
-        item: `${baseUrl}/${locale}`,
-      },
-      {
-        "@type": "ListItem",
-        position: 2,
-        name: modalityLabel,
-        item: `${baseUrl}/${locale}/${modality}`,
-      },
-      {
-        "@type": "ListItem",
-        position: 3,
-        name: countryLabel,
-        item: canonicalUrl,
-      },
-    ],
-  };
+  // Pull the public academy list for this cluster (12-item cap, same query
+  // the future directory UI will use). Items feed the ItemList node of the
+  // cluster JSON-LD; rendered output is unchanged.
+  const academyRows = await getClusterAcademies(locale as Locale, modalityKey, countryKey, 12);
+  const academiesForSchema = academyRows.map((row) => ({
+    id: row.id,
+    name: row.name,
+    city: row.city,
+    region: row.region,
+  }));
+
+  // W6 GEO audit: emit the unified cluster schema (WebPage + BreadcrumbList
+  // + ItemList of academies when available) instead of the previous inline
+  // BreadcrumbList-only block.
+  const clusterSchema = generateClusterJsonLd({
+    baseUrl,
+    locale: locale as "es" | "en",
+    modalityLabel,
+    modalitySlug: modality,
+    countryLabel,
+    countrySlug: country,
+    pageTitle: content.meta.title,
+    pageDescription: content.meta.description,
+    academies: academiesForSchema,
+  });
 
   return (
     <>
-      <Schema json={breadcrumbSchema} />
+      <Schema json={clusterSchema} />
       <ClusterHeroSection
         content={content}
         locale={locale as "es" | "en"}
