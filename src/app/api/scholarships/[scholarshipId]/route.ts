@@ -7,16 +7,19 @@ import { withTenant } from "@/lib/authz";
 import { apiSuccess, apiError } from "@/lib/api-response";
 import { authorizeAcademyCapability } from "@/lib/authz/resource-scope";
 
+// PR 10 (Operate P2): `.nullable().optional()` en campos de texto/uuid/number
+// que el form de edición de beca puede limpiar (clear field). Antes, `null`
+// → 400. Booleans (`autoRenew`/`isActive`) y `endDate` ya estaban correctos.
 const updateSchema = z.object({
-  athleteId: z.string().uuid().optional(),
-  name: z.string().min(1).optional(),
-  description: z.string().optional(),
-  discountType: z.enum(["percentage", "fixed"]).optional(),
-  discountValue: z.number().positive().optional(),
-  startDate: z.string().optional(),
+  athleteId: z.string().uuid().nullable().optional(),
+  name: z.string().min(1).nullable().optional(),
+  description: z.string().nullable().optional(),
+  discountType: z.enum(["percentage", "fixed"]).nullable().optional(),
+  discountValue: z.number().positive().nullable().optional(),
+  startDate: z.string().nullable().optional(),
   endDate: z.string().nullable().optional(),
   autoRenew: z.boolean().optional(),
-  requiredDocuments: z.array(z.string()).optional(),
+  requiredDocuments: z.array(z.string()).nullable().optional(),
   isActive: z.boolean().optional(),
 });
 

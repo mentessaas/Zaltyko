@@ -15,14 +15,17 @@ import { apiSuccess, apiError } from "@/lib/api-response";
 import { sendEmailWithLogging } from "@/lib/email/email-service";
 import { escapeHtml } from "@/lib/email/escape-html";
 
+// PR 10 (Operate P2): `.nullable().optional()` en `roleId`, `customMessage`,
+// `customPermissions` y `groupsAssigned` porque el form de invitación puede
+// limpiar esos campos (clear field). Antes, `null` → 400.
 const bodySchema = z.object({
   academyId: z.string().uuid(),
   email: z.string().email(),
   role: z.enum(["coach", "parent", "admin", "athlete"]),
-  roleId: z.string().uuid().optional(),
-  customPermissions: z.array(z.string()).optional(),
-  customMessage: z.string().optional(),
-  groupsAssigned: z.array(z.string().uuid()).optional(),
+  roleId: z.string().uuid().nullable().optional(),
+  customPermissions: z.array(z.string()).nullable().optional(),
+  customMessage: z.string().nullable().optional(),
+  groupsAssigned: z.array(z.string().uuid()).nullable().optional(),
   expiresInDays: z.number().int().min(1).max(30).default(7),
   sendEmail: z.boolean().default(true),
 });

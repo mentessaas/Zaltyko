@@ -27,11 +27,13 @@ import {
 } from "@/lib/sport-config/validation";
 import { NextResponse } from "next/server";
 
+// PR 10 (Operate P2): `.nullable().optional()` en campos de texto que el
+// form de creación de atleta puede limpiar (clear field). Antes, `null` → 400.
 const ContactSchema = z.object({
   name: z.string().min(1),
-  relationship: z.string().optional(),
-  email: z.string().email().optional(),
-  phone: z.string().optional(),
+  relationship: z.string().nullable().optional(),
+  email: z.string().email().nullable().optional(),
+  phone: z.string().nullable().optional(),
   notifyEmail: z.boolean().optional(),
   notifySms: z.boolean().optional(),
 });
@@ -58,7 +60,7 @@ const BodySchema = z.object({
   academyId: z.string().uuid(),
   name: z.string().min(1),
   dob: dateStringSchema,
-  level: z.string().optional(),
+  level: z.string().nullable().optional(),
   status: z.enum(athleteStatusOptions).optional(),
   age: z.number().int().min(0).optional(),
   contacts: z.array(ContactSchema).optional(),

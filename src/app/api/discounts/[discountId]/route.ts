@@ -7,10 +7,13 @@ import { db } from "@/db";
 import { discounts } from "@/db/schema";
 import { authorizeAcademyCapability } from "@/lib/authz/resource-scope";
 
+// PR 10 (Operate P2): `.nullable().optional()` en `description` porque el
+// form de edición de descuento puede limpiar ese campo (clear field).
+// Antes, `null` → 400.
 const updateSchema = z.object({
   code: z.string().nullable().optional(),
   name: z.string().min(1).optional(),
-  description: z.string().optional(),
+  description: z.string().nullable().optional(),
   discountType: z.enum(["percentage", "fixed"]).optional(),
   discountValue: z.number().positive().optional(),
   applicableTo: z.string().optional(),

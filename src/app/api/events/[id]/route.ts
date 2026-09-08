@@ -16,44 +16,48 @@ export const dynamic = "force-dynamic";
 const EVENT_LEVELS = ["internal", "local", "national", "international"] as const;
 const EVENT_DISCIPLINES = ["artistic_female", "artistic_male", "rhythmic"] as const;
 
+// PR 10 (Operate P2): `.nullable().optional()` en todos los campos de
+// texto/email/url/array/number que el form de edición de evento puede
+// limpiar (clear field). Antes, `null` → 400. Booleans (notify*/isPublic/
+// allowWaitlist) y campos ya nullable se quedan como estaban.
 const UpdateEventSchema = z.object({
-  title: z.string().min(1).max(200).optional(),
-  description: z.string().optional(),
-  category: z.array(z.string()).optional(),
+  title: z.string().min(1).max(200).nullable().optional(),
+  description: z.string().nullable().optional(),
+  category: z.array(z.string()).nullable().optional(),
   isPublic: z.boolean().optional(),
-  level: z.enum(EVENT_LEVELS).optional(),
-  discipline: z.enum(EVENT_DISCIPLINES).optional(),
+  level: z.enum(EVENT_LEVELS).nullable().optional(),
+  discipline: z.enum(EVENT_DISCIPLINES).nullable().optional(),
   sportConfigId: z.string().uuid().nullable().optional(),
-  eventType: z.enum(["competitions", "courses", "camps", "workshops", "clinics", "evaluations", "other"]).optional(),
+  eventType: z.enum(["competitions", "courses", "camps", "workshops", "clinics", "evaluations", "other"]).nullable().optional(),
   competitionTypeCode: z.string().trim().min(1).max(80).nullable().optional(),
-  startDate: z.string().optional(),
-  endDate: z.string().optional(),
-  registrationStartDate: z.string().optional(),
-  registrationEndDate: z.string().optional(),
-  countryCode: z.string().optional(),
-  countryName: z.string().optional(),
-  provinceName: z.string().optional(),
-  cityName: z.string().optional(),
+  startDate: z.string().nullable().optional(),
+  endDate: z.string().nullable().optional(),
+  registrationStartDate: z.string().nullable().optional(),
+  registrationEndDate: z.string().nullable().optional(),
+  countryCode: z.string().nullable().optional(),
+  countryName: z.string().nullable().optional(),
+  provinceName: z.string().nullable().optional(),
+  cityName: z.string().nullable().optional(),
   // Mantener campos antiguos para compatibilidad
-  country: z.string().optional(),
-  province: z.string().optional(),
-  city: z.string().optional(),
-  contactEmail: z.string().email().optional(),
-  contactPhone: z.string().optional(),
-  contactInstagram: z.string().optional(),
-  contactWebsite: z.string().url().optional(),
-  images: z.array(z.string().url()).optional(),
-  attachments: z.array(z.object({ name: z.string(), url: z.string().url() })).optional(),
+  country: z.string().nullable().optional(),
+  province: z.string().nullable().optional(),
+  city: z.string().nullable().optional(),
+  contactEmail: z.string().email().nullable().optional(),
+  contactPhone: z.string().nullable().optional(),
+  contactInstagram: z.string().nullable().optional(),
+  contactWebsite: z.string().url().nullable().optional(),
+  images: z.array(z.string().url()).nullable().optional(),
+  attachments: z.array(z.object({ name: z.string(), url: z.string().url() })).nullable().optional(),
   notifyInternalStaff: z.boolean().optional(),
   notifyCityAcademies: z.boolean().optional(),
   notifyProvinceAcademies: z.boolean().optional(),
   notifyCountryAcademies: z.boolean().optional(),
   // Nuevos campos para inscripciones
-  status: z.enum(["draft", "published", "cancelled", "completed"]).optional(),
-  maxCapacity: z.number().int().positive().optional(),
-  registrationFee: z.number().int().positive().optional(),
+  status: z.enum(["draft", "published", "cancelled", "completed"]).nullable().optional(),
+  maxCapacity: z.number().int().positive().nullable().optional(),
+  registrationFee: z.number().int().positive().nullable().optional(),
   allowWaitlist: z.boolean().optional(),
-  waitlistMaxSize: z.number().int().positive().optional(),
+  waitlistMaxSize: z.number().int().positive().nullable().optional(),
 }).refine((data) => {
   if (data.registrationStartDate && data.registrationEndDate) {
     return new Date(data.registrationStartDate) <= new Date(data.registrationEndDate);
@@ -230,16 +234,19 @@ const patchEventHandler = withTenant(async (request, context) => {
 
     // Construir objeto de actualización solo con campos presentes
     const updateData: Partial<typeof events.$inferInsert> = {};
-    if (body.title !== undefined) updateData.title = body.title;
+    // PR 10: tratar `null` como no-op para columnas DB requeridas (title,
+    // level, startDate, status). El form puede mandar `null` al limpiar el
+    // campo (clear field) y esos valores no deben pisar el contenido previo.
+    if (body.title !== undefined && body.title !== null) updateData.title = body.title;
     if (body.description !== undefined) updateData.description = body.description || null;
     if (body.category !== undefined) updateData.category = body.category || null;
     if (body.isPublic !== undefined) updateData.isPublic = body.isPublic;
-    if (body.level !== undefined) updateData.level = body.level;
+    if (body.level !== undefined && body.level !== null) updateData.level = body.level;
     if (body.discipline !== undefined || body.sportConfigId !== undefined) updateData.discipline = sportConfigDiscipline;
     if (body.sportConfigId !== undefined) updateData.sportConfigId = body.sportConfigId || null;
     if (body.eventType !== undefined) updateData.eventType = body.eventType || null;
     if (body.competitionTypeCode !== undefined) updateData.competitionTypeCode = body.competitionTypeCode || null;
-    if (body.startDate !== undefined) updateData.startDate = body.startDate;
+    if (body.startDate !== undefined && body.startDate !== null) updateData.startDate = body.startDate;
     if (body.endDate !== undefined) updateData.endDate = body.endDate || null;
     if (body.registrationStartDate !== undefined) updateData.registrationStartDate = body.registrationStartDate || null;
     if (body.registrationEndDate !== undefined) updateData.registrationEndDate = body.registrationEndDate || null;
@@ -262,7 +269,7 @@ const patchEventHandler = withTenant(async (request, context) => {
     if (body.notifyProvinceAcademies !== undefined) updateData.notifyProvinceAcademies = body.notifyProvinceAcademies;
     if (body.notifyCountryAcademies !== undefined) updateData.notifyCountryAcademies = body.notifyCountryAcademies;
     // Nuevos campos
-    if (body.status !== undefined) updateData.status = body.status;
+    if (body.status !== undefined && body.status !== null) updateData.status = body.status;
     if (body.maxCapacity !== undefined) updateData.maxCapacity = body.maxCapacity ?? null;
     if (body.registrationFee !== undefined) updateData.registrationFee = body.registrationFee ?? null;
     if (body.allowWaitlist !== undefined) updateData.allowWaitlist = body.allowWaitlist;

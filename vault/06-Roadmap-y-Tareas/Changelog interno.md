@@ -1,8 +1,65 @@
 ---
 status: active
 owner: producto
-last_reviewed: 2026-09-09T02:15Z
+last_reviewed: 2026-09-09T05:00Z
 source:
+---
+
+## 2026-09-09 — PR 10: settings Zod nullable fix (Operate P2)
+
+**Issue Operate P2** (auditoría 2026-09-08): los schemas Zod de los
+endpoints form-driven usaban `.optional()` que rechaza `null`. Cuando un
+form limpia un campo (clear field), envía `null` y la API devolvía 400
+silencioso. Patrón inseguro en 16 endpoints identificado por la nota de
+seguridad de `CLAUDE.md` (`.nullable().optional()` para campos que el
+form puede limpiar).
+
+**Schemas modificados (`.optional()` → `.nullable().optional()` en
+text/email/uuid/number/array):**
+
+  - `src/app/api/discounts/route.ts` + `/[discountId]/route.ts`
+    (`description`).
+  - `src/app/api/scholarships/route.ts` + `/[scholarshipId]/route.ts`
+    (`description`, `requiredDocuments`, y en update también `athleteId`,
+    `name`, `discountType`, `discountValue`, `startDate`).
+  - `src/app/api/communication/templates/route.ts` +
+    `/[templateId]/route.ts` (`description`, `subject`, `variables`, y en
+    update también `name`, `templateType`, `body`).
+  - `src/app/api/invitations/route.ts` (`roleId`, `customMessage`,
+    `customPermissions`, `groupsAssigned`).
+  - `src/app/api/licenses/route.ts` (`medicalCertificateExpiry`,
+    `annualFeeCents`, `notes`).
+  - `src/app/api/events/[id]/route.ts` + `events.lib.ts` (~20 campos
+    text/array/number en create + update).
+
+**No tocados** (sin cambios semánticos necesarios): booleans
+(`notify*`, `isPublic`, `allowWaitlist`, `isActive`, `isSystem`) —
+checkboxes siempre envían true/false. Enums con `.default()`
+(`level`, `status` en create). Enums requeridos sin form-clear
+(`channel`, `eventType` excepto donde se pueda limpiar).
+
+**Downstream null handling** (cuando la columna DB es NOT NULL y por
+tanto el handler no puede asignar `null`):
+
+  - `src/app/api/events/[id]/route.ts`: null guard explícito en
+    `title` / `level` / `startDate` / `status`. `null` = no-op (no pisa
+    contenido previo), trata el "clear field" del form como ausencia
+    de cambio.
+  - `src/app/api/profile/route.ts`: null guard en `name` / `email`,
+    mismo tratamiento.
+  - `src/app/api/communication/templates/[templateId]/route.ts`:
+    `NULLABLE_DB_COLUMNS = {description, subject, variables}` +
+    `Object.fromEntries(... .filter(v !== null || NULLABLE_DB_COLUMNS.has(key)))`.
+    Para columnas DB NOT NULL (`name`, `body`, `templateType`),
+    `null` se filtra como no-op. Para nullable, pasa `null` para
+    limpiar.
+
+**Verificación:** `pnpm typecheck` → 0 errores. Cambia el contrato del
+schema (acepta `null` para los campos cubiertos) sin regresiones TS.
+
+**Próximo:** commit + push a `fix/dependabot-alerts-2026-09-08`,
+verificar deploy de Vercel (PR preview), backfill SHA + deployment ID.
+
 ---
 
 ## 2026-09-08 — R6: preload Space_Grotesk + Manrope Latin woff2 (LCP en /pricing)

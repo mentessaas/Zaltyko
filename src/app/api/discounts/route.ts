@@ -8,11 +8,14 @@ import { withTenant } from "@/lib/authz";
 import { db } from "@/db";
 import { discounts } from "@/db/schema";
 
+// PR 10 (Operate P2): `.nullable().optional()` en `description` porque el
+// form de creación de descuento puede limpiar ese campo (clear field).
+// Antes, `null` → 400.
 const createSchema = z.object({
   academyId: z.string().uuid(),
   code: z.string().nullable().optional(),
   name: z.string().min(1),
-  description: z.string().optional(),
+  description: z.string().nullable().optional(),
   discountType: z.enum(["percentage", "fixed"]).default("percentage"),
   discountValue: z.number().positive(),
   applicableTo: z.string().default("all"),

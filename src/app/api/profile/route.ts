@@ -9,10 +9,12 @@ import { updateAuthUserEmail } from "@/lib/supabase/admin-operations";
 import { apiSuccess, apiError } from "@/lib/api-response";
 import { logger } from "@/lib/logger";
 
-// @service-role auth-admin:update-email. Required for Supabase Auth email changes.
+// PR 10 (Operate P2): `.nullable().optional()` en `name`/`email` para que el
+// form de perfil no devuelva 400 si el front manda `null` (clear field).
+// Phone/bio/photoUrl ya estaban correctos desde 2026-07-07.
 const UpdateProfileSchema = z.object({
-  name: z.string().min(1).max(200).optional(),
-  email: z.string().email().optional(),
+  name: z.string().min(1).max(200).nullable().optional(),
+  email: z.string().email().nullable().optional(),
   phone: z.string().max(50).optional().nullable(),
   bio: z.string().max(1000).optional().nullable(),
   photoUrl: z.string().url().optional().nullable(),
@@ -45,7 +47,7 @@ export async function PATCH(request: Request) {
     let responseEmail = user.email ?? null;
 
     // Actualizar nombre si se proporciona
-    if (body.name !== undefined && body.name.trim().length > 0) {
+    if (body.name !== undefined && body.name !== null && body.name.trim().length > 0) {
       const trimmedName = body.name.trim();
       if (trimmedName !== currentProfile.name) {
         updates.name = trimmedName;
@@ -53,7 +55,7 @@ export async function PATCH(request: Request) {
     }
 
     // Actualizar email si se proporciona
-    if (body.email !== undefined && body.email.trim().length > 0) {
+    if (body.email !== undefined && body.email !== null && body.email.trim().length > 0) {
       const trimmedEmail = body.email.trim();
       const currentEmail = user.email;
 

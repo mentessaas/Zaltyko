@@ -8,6 +8,9 @@ import { handleApiError } from "@/lib/api-error-handler";
 import { apiSuccess, apiError, apiCreated } from "@/lib/api-response";
 import { verifyAcademySportConfig } from "@/lib/sport-config/service";
 
+// PR 10 (Operate P2): `.nullable().optional()` en `medicalCertificateExpiry`,
+// `annualFeeCents` y `notes` porque el form de creación de licencia puede
+// limpiar esos campos (clear field). Antes, `null` → 400.
 const createLicenseSchema = z.object({
   personId: z.string().uuid(),
   personType: z.enum(["athlete", "coach", "judge"]),
@@ -18,10 +21,10 @@ const createLicenseSchema = z.object({
   country: z.string().optional().default("ES"),
   validFrom: z.string(),
   validUntil: z.string(),
-  medicalCertificateExpiry: z.string().optional(),
+  medicalCertificateExpiry: z.string().nullable().optional(),
   status: z.enum(["active", "expired", "suspended", "pending"]).optional(),
-  annualFeeCents: z.number().optional(),
-  notes: z.string().optional(),
+  annualFeeCents: z.number().nullable().optional(),
+  notes: z.string().nullable().optional(),
 });
 
 const querySchema = z.object({

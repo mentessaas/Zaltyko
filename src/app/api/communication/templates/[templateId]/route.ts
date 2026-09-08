@@ -8,15 +8,18 @@ import { authorizeAcademyCapability } from "@/lib/authz/resource-scope";
 
 export const dynamic = 'force-dynamic';
 
+// PR 10 (Operate P2): `.nullable().optional()` en campos que el form de
+// edición de plantilla puede limpiar (clear field). Antes, `null` → 400.
+// Booleans (`isSystem`/`isActive`) y enum `channel` se quedan como estaban.
 const updateTemplateSchema = z.object({
   sportConfigId: z.string().uuid().optional().nullable(),
-  name: z.string().min(1).max(200).optional(),
-  description: z.string().optional(),
+  name: z.string().min(1).max(200).nullable().optional(),
+  description: z.string().nullable().optional(),
   channel: z.enum(["whatsapp", "email", "push", "in_app"]).optional(),
-  templateType: z.string().min(1).max(100).optional(),
-  subject: z.string().max(200).optional(),
-  body: z.string().min(1).optional(),
-  variables: z.array(z.string()).optional(),
+  templateType: z.string().min(1).max(100).nullable().optional(),
+  subject: z.string().max(200).nullable().optional(),
+  body: z.string().min(1).nullable().optional(),
+  variables: z.array(z.string()).nullable().optional(),
   isSystem: z.boolean().optional(),
   isActive: z.boolean().optional(),
 });
@@ -83,6 +86,16 @@ export const PATCH = withTenant(async (request, context) => {
     const validated = updateTemplateSchema.parse(body);
     const { sportConfigId, ...templateData } = validated;
 
+    // PR 10: para columnas que NO admiten null en DB (`name`, `body`,
+    // `templateType`) tratamos `null` como no-op (igual que `undefined`).
+    // Para columnas que sí admiten null (`description`, `subject`,
+    // `variables`), dejamos pasar `null` para que el form pueda limpiar el
+    // campo. El resto de campos (booleanos, enum `channel`) ya estaban bien.
+    const NULLABLE_DB_COLUMNS = new Set(["description", "subject", "variables"]);
+    const cleanedTemplateData = Object.fromEntries(
+      Object.entries(templateData).filter(([key, value]) => value !== null || NULLABLE_DB_COLUMNS.has(key))
+    );
+
     if (sportConfigId) {
       const verifiedConfig = await verifyAcademySportConfig({
         academyId: existing.academyId,
@@ -96,7 +109,7 @@ export const PATCH = withTenant(async (request, context) => {
     }
 
     const template = await updateMessageTemplate(templateId, {
-      ...templateData,
+      ...cleanedTemplateData,
       ...(sportConfigId !== undefined ? { sportConfigId } : {}),
     });
 

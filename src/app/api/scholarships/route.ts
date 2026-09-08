@@ -6,17 +6,20 @@ import { db } from "@/db";
 import { scholarships, athletes } from "@/db/schema";
 import { apiSuccess, apiError, apiCreated } from "@/lib/api-response";
 
+// PR 10 (Operate P2): `.nullable().optional()` en `description` y
+// `requiredDocuments` porque el form de creación de beca puede limpiar
+// esos campos (clear field). Antes, `null` → 400.
 const createSchema = z.object({
   academyId: z.string().uuid(),
   athleteId: z.string().uuid(),
   name: z.string().min(1),
-  description: z.string().optional(),
+  description: z.string().nullable().optional(),
   discountType: z.enum(["percentage", "fixed"]).default("percentage"),
   discountValue: z.number().positive(),
   startDate: z.string(),
   endDate: z.string().nullable().optional(),
   autoRenew: z.boolean().default(false),
-  requiredDocuments: z.array(z.string()).optional(),
+  requiredDocuments: z.array(z.string()).nullable().optional(),
   isActive: z.boolean().default(true),
 });
 

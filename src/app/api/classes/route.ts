@@ -17,13 +17,15 @@ import { getAcademySportConfigOptions, verifyAcademySportConfig } from "@/lib/sp
 import { normalizeApparatusCodes } from "@/lib/sport-config/validation";
 import { NextResponse } from "next/server";
 
+// PR 10 (Operate P2): `.nullable().optional()` en startTime/endTime/capacity
+// porque el form de clase puede limpiarlos al crear/editar. Antes, `null` → 400.
 const bodySchema = z.object({
   academyId: z.string().uuid(),
   name: z.string().min(1),
   weekdays: z.array(z.number().int().min(0).max(6)).max(7).optional(),
-  startTime: z.string().optional(),
-  endTime: z.string().optional(),
-  capacity: z.number().int().positive().optional(),
+  startTime: z.string().nullable().optional(),
+  endTime: z.string().nullable().optional(),
+  capacity: z.number().int().positive().nullable().optional(),
   technicalFocus: z.string().max(500).optional().nullable(),
   apparatus: z.array(z.string().trim().min(1).max(120)).max(12).optional(),
   isExtra: z.boolean().optional().default(false),

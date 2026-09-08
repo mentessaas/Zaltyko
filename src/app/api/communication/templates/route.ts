@@ -7,16 +7,19 @@ import { verifyAcademySportConfig } from "@/lib/sport-config/service";
 
 export const dynamic = 'force-dynamic';
 
+// PR 10 (Operate P2): `.nullable().optional()` en `description`, `subject` y
+// `variables` porque el form de creación de plantilla puede limpiar esos
+// campos (clear field). Antes, `null` → 400.
 const createTemplateSchema = z.object({
   academyId: z.string().uuid(),
   sportConfigId: z.string().uuid().optional().nullable(),
   name: z.string().min(1).max(200),
-  description: z.string().optional(),
+  description: z.string().nullable().optional(),
   channel: z.enum(["whatsapp", "email", "push", "in_app"]).default("whatsapp"),
   templateType: z.string().min(1).max(100),
-  subject: z.string().max(200).optional(),
+  subject: z.string().max(200).nullable().optional(),
   body: z.string().min(1),
-  variables: z.array(z.string()).optional(),
+  variables: z.array(z.string()).nullable().optional(),
   isSystem: z.boolean().default(false),
   isActive: z.boolean().default(true),
 });

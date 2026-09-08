@@ -10,12 +10,14 @@ import { markChecklistItem, markWizardStep } from "@/lib/onboarding";
 import { apiSuccess, apiError, apiCreated } from "@/lib/api-response";
 import { replaceCoachSportConfigScope, validateSportConfigIdsForAcademy } from "@/lib/coaches/sport-scope";
 
+// PR 10 (Operate P2): `.nullable().optional()` en campos que el form de coach
+// puede limpiar (clear field). Antes, `null` → 400.
 const bodySchema = z.object({
   academyId: z.string().uuid(),
   name: z.string().min(1),
-  email: z.string().email().optional(),
-  phone: z.string().optional(),
-  profileId: z.string().uuid().optional(),
+  email: z.string().email().nullable().optional(),
+  phone: z.string().nullable().optional(),
+  profileId: z.string().uuid().nullable().optional(),
   sportConfigIds: z.array(z.string().uuid()).optional(),
 });
 

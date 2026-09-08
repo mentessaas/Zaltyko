@@ -20,6 +20,8 @@ import { isProgramCodeAllowed, normalizeApparatusCodes } from "@/lib/sport-confi
 
 const DISCIPLINES = ["artistica", "ritmica", "general"] as const;
 
+// PR 10 (Operate P2): `.nullable().optional()` en `level`/`coachId` porque el
+// form de grupo puede limpiar esos campos (clear field). Antes, `null` → 400.
 const GroupBodySchema = z.object({
   academyId: z.string().uuid(),
   name: z.string().min(1),
@@ -28,11 +30,11 @@ const GroupBodySchema = z.object({
   programCode: z.string().trim().min(1).max(80).optional().nullable(),
   levelCode: z.string().trim().min(1).max(80).optional().nullable(),
   categoryCode: z.string().trim().min(1).max(80).optional().nullable(),
-  level: z.string().max(120).optional(),
+  level: z.string().max(120).nullable().optional(),
   technicalFocus: z.string().max(500).optional().nullable(),
   apparatus: z.array(z.string().trim().min(1).max(120)).max(12).optional(),
   sessionBlocks: z.array(z.string().trim().min(1).max(160)).max(8).optional(),
-  coachId: z.string().uuid().optional(),
+  coachId: z.string().uuid().nullable().optional(),
   assistantIds: z.array(z.string().uuid()).optional(),
   athleteIds: z.array(z.string().uuid()).optional(),
   color: z
