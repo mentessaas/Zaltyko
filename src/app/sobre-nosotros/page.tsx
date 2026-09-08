@@ -206,13 +206,20 @@ export default function AboutPage() {
             contactPoint: {
               "@type": "ContactPoint",
               email: "hola@zaltyko.com",
-              contactType: "customer service",
+              contactType: "customer support",
               availableLanguage: ["Spanish", "English"],
+              areaServed: ["ES", "MX", "AR", "CO", "CL", "PE"],
             },
+            areaServed: [
+              { "@type": "Country", name: "Spain" },
+              { "@type": "Country", name: "Mexico" },
+              { "@type": "Country", name: "Argentina" },
+              { "@type": "Country", name: "Colombia" },
+              { "@type": "Country", name: "Chile" },
+              { "@type": "Country", name: "Peru" },
+            ],
             sameAs: [
-              "https://twitter.com/zaltyko",
-              "https://linkedin.com/company/zaltyko",
-              "https://instagram.com/zaltyko"
+              "https://instagram.com/zaltyko",
             ],
           },
         }}

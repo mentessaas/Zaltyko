@@ -1,5 +1,3 @@
-"use client";
-
 import Link from "next/link";
 import { ArrowRight, Play, Shield } from "lucide-react";
 import { cn } from "@/lib/utils";
