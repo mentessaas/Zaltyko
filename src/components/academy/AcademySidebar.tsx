@@ -35,10 +35,27 @@ export function AcademySidebar() {
     return isAcademyNavigationActive(pathname, href, context.academyId);
   };
 
+  // P1 #3 del critique `/impeccable` Operate: el buscador era role-blind.
+  // - athlete / parent con membership "viewer" caen en `/my-dashboard`,
+  //   `/my-events`, `/messages`, `/notifications` (whitelist de limited
+  //   access). El sidebar les renderiza pero la página `/athletes` los
+  //   redirige fuera. Mostrar el search era un dead-end trap.
+  // - coach con membership "coach" SÍ puede entrar a `/athletes`, pero
+  //   el placeholder genérico "Buscar gimnastas…" les invitaba a tipear
+  //   nombres de coaches (que devuelve 0 resultados en la lista de
+  //   atletas). "Buscar mis atletas…" refleja lo que realmente buscan.
+  // - owner / admin / super_admin: comportamiento previo intacto.
+  const effectiveProfileRole = isProfileRole(context.profileRole) ? context.profileRole : "owner";
+  const isLimitedMember = effectiveProfileRole === "athlete" || effectiveProfileRole === "parent";
+  const isCoachMember = context.membershipRole === "coach" && !context.isSuperAdmin;
+  const searchPlaceholder = isCoachMember ? "Buscar mis atletas…" : "Buscar atletas…";
+  const showSearch = !isLimitedMember;
+
   const handleSearch = (event: React.FormEvent) => {
     event.preventDefault();
     // La ruta /search no existe; el buscador lleva al listado de gimnastas,
-    // que ya filtra por ?q= en servidor.
+    // que ya filtra por ?q= en servidor. Para coach funciona (no es
+    // admin-only); para owner/admin/super_admin es la lista completa.
     if (searchQuery.trim()) {
       router.push(`${basePath}/athletes?q=${encodeURIComponent(searchQuery.trim())}`);
     }
@@ -60,18 +77,20 @@ export function AcademySidebar() {
         ) : null}
       </div>
 
-      <form onSubmit={handleSearch} className="mb-4">
-        <div className="relative">
-          <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-white/70" />
-          <input
-            type="search"
-            placeholder="Buscar gimnastas…"
-            value={searchQuery}
-            onChange={(event) => setSearchQuery(event.target.value)}
-            className="w-full rounded-card border border-white/10 bg-white/[0.06] py-2.5 pl-9 pr-3 text-sm text-white placeholder:text-white/70 focus:border-zaltyko-teal focus:outline-none focus:ring-4 focus:ring-zaltyko-teal/15"
-          />
-        </div>
-      </form>
+      {showSearch && (
+        <form onSubmit={handleSearch} className="mb-4">
+          <div className="relative">
+            <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-white/70" />
+            <input
+              type="search"
+              placeholder={searchPlaceholder}
+              value={searchQuery}
+              onChange={(event) => setSearchQuery(event.target.value)}
+              className="w-full rounded-card border border-white/10 bg-white/[0.06] py-2.5 pl-9 pr-3 text-sm text-white placeholder:text-white/70 focus:border-zaltyko-teal focus:outline-none focus:ring-4 focus:ring-zaltyko-teal/15"
+            />
+          </div>
+        </form>
+      )}
 
       {canCreateAthlete && (
       <div className="mb-5">

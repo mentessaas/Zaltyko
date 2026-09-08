@@ -1,7 +1,7 @@
 ---
 status: active
 owner: producto
-last_reviewed: 2026-09-08T23:55Z
+last_reviewed: 2026-09-09T00:10Z
 source:
 ---
 
@@ -829,6 +829,93 @@ toda la navegación y tiene mayor blast radius. Recomiendo P1 #3
 primero porque (a) está en el camino crítico de los 3 P1s restantes,
 (b) el Zod trap requiere diseñar un wrapper `<FormField>` que se
 reusa en 3 forms mínimo, lo cual pide más reflexión previa.
+
+PR: #TBD (pendiente push + `gh pr create`).
+Vault actualizado: este changelog.
+
+## 2026-09-09 — PR 5 del critique Operate: sidebar search role-aware (P1 #3 — hide para limited + placeholder distinto para coach)
+
+**1 commit a `main`** cerrando el P1 #3 del critique `/impeccable`
+Operate. Único archivo modificado: `src/components/academy/AcademySidebar.tsx`.
+Tres comportamientos nuevos según rol, un comportamiento previo intacto
+para owner/admin/super_admin.
+
+**Cambios:**
+
+1. **`isLimitedMember` (athlete/parent con `profileRole` en ese set)**
+   → **`showSearch = false`** → el `<form>` no se renderiza. Elimina
+   el dead-end trap que el critique describe ("parents who don't have
+   athlete-list access at all... land on the athletes list and see '0
+   resultados'" → en realidad ni siquiera ven resultados, los redirige
+   a `/dashboard/profile` per `layout.tsx:183`).
+2. **`isCoachMember` (`membershipRole === "coach"` y no es
+   `super_admin`)** → **placeholder `"Buscar mis atletas…"`** en lugar
+   del genérico `"Buscar gimnastas…"`. La ruta sigue siendo
+   `${basePath}/athletes?q=...` (coach SÍ puede acceder — no es
+   admin-only per `layout.tsx:186-198`). El placeholder nuevo refleja
+   que la búsqueda va contra la lista de atletas, no contra un
+   directorio de coaches.
+3. **owner / admin / super_admin** → comportamiento intacto
+   (`"Buscar atletas…"` → `/athletes?q=...`). Estos roles SÍ ven la
+   lista completa de la academia y la búsqueda funciona como siempre.
+
+**Por qué este approach (no crear `/coach/athletes`, no cambiar el
+router):** la critique recomienda "scope per role (coach →
+`/coach/athletes`, parent → `/dashboard/profile?search=`)". Pero esas
+rutas NO existen (auditado: `Glob src/app/app/**/coach/**` muestra
+solo `/coach` (today brief), `/coach/today`, `/coach/today-simple` y
+`/coach/today/[sessionId]`; no hay list page). Crear `/coach/athletes`
+es scope para un PR propio (es una página entera con queries,
+filtros, tabla — varios cientos de líneas). El change mínimo que
+cierra el P1 sin inventar primitivas es: hide el search para los roles
+que no tienen lista de atletas, y mejora el placeholder para el que sí
+la tiene. La **ruta** del search es correcta (la página `/athletes`
+funciona para coach, no necesita redirect); el **único** defecto era
+la expectativa rota que creaba el placeholder genérico.
+
+**Por qué `isCoachMember` chequea `!isSuperAdmin`:** un super_admin
+con `membershipRole` técnico en `coach` (raro pero posible: alguien
+que se agregó como coach para testear) no debería ver "Buscar MIS
+atletas" — el super_admin ve toda la academia. El `!isSuperAdmin`
+garantiza que el super_admin cae en la rama owner/admin (placeholder
+genérico "Buscar atletas…").
+
+**Verificación:**
+
+- `pnpm typecheck` → clean (sin output).
+- `npx eslint src/components/academy/AcademySidebar.tsx` → 0 warnings,
+  0 errors (sólo npm config warnings del package manager).
+- `pnpm gate:all` → A2=1, A3=1, A4=0 (sin cambios respecto a PR 4).
+- Diff: 1 archivo, +30 / -10 líneas netas (+20). El + incluye el
+  comentario explicativo del fix (~10 líneas) y la indentación de
+  la nueva rama `{showSearch && (...)}`.
+
+**Lo que NO se hace acá (scope discipline):**
+
+- **No** se crea la ruta `/coach/athletes` con su lista server-side.
+  Scope aparte: requiere queries por `classCoachAssignments`, page
+  header, tabla, filtros, empty state, etc. PR dedicado si se pide.
+- **No** se cambia el botón "Nuevo atleta" (`canCreateAthlete`).
+  Ese cálculo ya excluye coach por membership (línea 26) — está bien.
+- **No** se agrega un "Buscar coaches" o "Buscar clases" — el search
+  del sidebar sigue siendo solo atletas. Ampliar el scope a un search
+  unificado跨-resources es feature request, no bug fix.
+- **No** se mueve el search a una pieza más prominente (e.g. un modal
+  con `Cmd+K`). Es scope aparte; el critique no lo pide.
+- **No** se cambia el color o la opacidad del input. Los tokens
+  visuales siguen siendo los del sidebar dark (`bg-white/[0.06]`,
+  `border-white/10`).
+
+**Próximo paso lógico:** PR 6 — candidato natural P1 #4 (empty-state
+pattern drift: 5+ vistas usan `<p>` gris bespoke en lugar de un
+primitive `<EmptyState>` compartido) o P1 #5 (mixed shadow/pastel
+tokens: 4 tipos de sombras distintas en 6 páginas). El empty-state
+es más barato (1 primitive nuevo, 5 migraciones); el shadow/pastel
+es refactor cosmético de tokens (más riesgo de regresión visual).
+Recomiendo P1 #4 primero porque (a) cierra otro item del critique,
+(b) el primitive `<EmptyState>` que resulte se reusa en PR 5 de
+cualquier otro P1 que toque vistas de listado, (c) tiene blast
+radius acotado.
 
 PR: #TBD (pendiente push + `gh pr create`).
 Vault actualizado: este changelog.
