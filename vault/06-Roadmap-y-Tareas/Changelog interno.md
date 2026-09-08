@@ -1203,7 +1203,8 @@ Vault actualizado: este changelog.
 
 ## 2026-09-09 — PR 9 del critique Operate: notifications 401 handling (P2 — simetría con `app/page.tsx:43-46` + check `response.ok` en DELETE)
 
-**Commit**: (pendiente — escribir tras `git commit`).
+**Commit**: `742b2409` (`fix(notifications): handle 401/403 + check response.ok before optimistic updates (Operate P2)`).
+**Vercel deployment**: `6337470579` → `success` → https://zaltyko-iklvkghgw-mentessaas-projects.vercel.app
 
 **Por qué este PR** — Operate P2 verbatim:
 > (B) `src/app/app/[academyId]/notifications/page.tsx:126-184` —
@@ -1288,7 +1289,8 @@ es obligatorio pero pesado. Si la meta es mantener momentum con
 riesgo bajo, **P2 settings Zod nullable** (~10 líneas en 1 schema,
 preventivo puro, blast radius trivial).
 
-PR: #TBD (pendiente push + `gh pr create`).
+PR: merged directo a `main` (commit `742b2409`). Vercel deployment
+`6337470579` → `success` a las 21:24:56Z.
 Vault actualizado: este changelog.
 
 ## 2026-09-07 — R2 cerrado: CSP bloqueaba hidratación de TODA página interactiva en producción (P0, no P1)
