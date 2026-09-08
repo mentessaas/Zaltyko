@@ -34,9 +34,9 @@ export default function SocialProofSection() {
   return (
     <section className="py-16 bg-white border-y border-border">
       <div className="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8">
-        <p className="text-center text-xs font-semibold uppercase tracking-[0.08em] text-zaltyko-teal mb-10">
+        <h2 className="text-center text-xs font-semibold uppercase tracking-[0.08em] text-zaltyko-teal mb-10">
           Cómo te acompañamos en la puesta en marcha
-        </p>
+        </h2>
         <div className="grid gap-8 sm:grid-cols-2 lg:grid-cols-4">
           {steps.map((step, index) => (
             <Reveal key={step.title} delay={index * 90}>

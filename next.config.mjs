@@ -87,6 +87,9 @@ const nextConfig = {
   experimental: {
     // Optimizar re-renders
     optimizePackageImports: ["lucide-react", "@radix-ui/react-icons"],
+    // Inline critical CSS (critters). Reduce el render-blocking de Tailwind
+    // (~23 KiB de utilidades no usadas en LCP) y baja el LCP en mobile.
+    optimizeCss: true,
   },
 };
 

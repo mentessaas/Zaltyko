@@ -47,6 +47,11 @@ const STATIC_SECURITY_HEADERS = {
   "X-DNS-Prefetch-Control": "off",
   "Referrer-Policy": "strict-origin-when-cross-origin",
   "Permissions-Policy": "camera=(), microphone=(), geolocation=(), payment=()",
+  // Cross-Origin-Opener-Policy aísla el contexto de navegación de pestañas
+  // abiertas por cross-origin (defensa contra Spectre). Requerido para BP 100
+  // en Lighthouse y no afecta a iframes same-origin (Stripe/Supabase ya van
+  // bajo frame-src y mantienen su propio aislamiento).
+  "Cross-Origin-Opener-Policy": "same-origin",
 };
 
 const CSP_SCRIPT_SOURCES_BASE = [
