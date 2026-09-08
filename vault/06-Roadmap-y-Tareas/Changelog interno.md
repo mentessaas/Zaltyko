@@ -1,7 +1,7 @@
 ---
 status: active
 owner: producto
-last_reviewed: 2026-09-08T22:15Z
+last_reviewed: 2026-09-08T22:45Z
 source:
 ---
 
@@ -467,6 +467,72 @@ el marketing tree está limpio. Task #28 en la queue.
 PR: #TBD (pendiente push + `gh pr create`).
 Vault actualizado: este changelog + `.impeccable/critique/2026-09-08T10-38-02Z__src-app-site.md`
 + `PRODUCT.md` (ambos untracked, subo en el PR).
+
+## 2026-09-08 — PR 1 del critique Operate: cerrar regresión /app/admin huérfano (ZAL-588 reaparecido)
+
+**1 commit a `main`** cerrando el P0 #1 del critique `/impeccable` de
+`src/app/app/` (Persuade, score 18.5/32). Borrado de
+`src/app/app/admin/dashboard/page.tsx` (server component sin auth que
+ejecutaba queries anónimas a `academies`/`plans`/`subscriptions` desde
+`/app/admin/dashboard`).
+
+**Por qué reapareció:** el fix original de P&S (commit `69bcfdc8` en
+branch `gates/ZAL-556`, ahora `pr-85`) borraba el archivo + añadía el
+gate A4 + endurecía el walker. Esta rama tiene el A4 gate
+(`48d10ee3`) y el walker tolerante a dataless (`bc38c658`), pero
+**no** el borrado del archivo. El A4 gate funcionaba como detector
+de la regresión: `pnpm gate:orphan` la flaggeaba con `[A4/orphan-app-route]
+no auth primitive in this page and no parent layout.tsx was found`.
+El critique `/impeccable` lo redescubrió independientemente el
+2026-09-08; el verdict original `ZAL-588` está en `vault/` desde el
+2026-08-11.
+
+**Cambios:**
+
+1. Borrado `src/app/app/admin/dashboard/page.tsx` (155 líneas, sin
+   `supabase.auth.getUser`, sin `redirect`, sin wrapper, sin layout
+   padre — el leak exacto que el verdict documenta).
+2. Borrado de los directorios vacíos `src/app/app/admin/dashboard/` y
+   `src/app/app/admin/`.
+3. `docs/audit/ROUTES_AND_SCREENS.md`: removida la entrada del orphan
+   y ajustado el contador de `Legacy dashboard (32)` a
+   `Legacy dashboard (31)`.
+
+**Verificación:**
+
+- `pnpm gate:orphan` → `OK — scanned 65 files, no findings` (antes:
+  `1 finding`, el archivo borrado).
+- `pnpm gate:orphan:strict` → mismo resultado.
+- `pnpm gate:all` → A4 OK; A2 y A3 con violaciones preexistentes en
+  API routes (`/api/empleo/[id]/apply`, `/api/contact`,
+  `/api/onboarding/profile`, etc.) — ya documentadas como candidatos
+  a PR separado de Engineering Lead en el verdict original, **no**
+  introducidas ni afectadas por este fix.
+- `grep -rnE 'app/admin/dashboard' src/ docs/ scripts/ tests/` →
+  cero coincidencias. Solo quedan referencias en `vault/` (verdict
+  histórico, no live), `.impeccable/critique/` (snapshot del critique
+  que redescubrió el bug), y el fixture negativo del propio gate
+  A4 en `scripts/gates/__fixtures__/orphan-app-route/negative/...`
+  (correcto, debe quedar para que el gate tenga qué testear).
+
+**Lo que NO se hace acá:**
+
+- No se re-emite el verdict P&S: el original sigue vigente; este es
+  un follow-up que aplica la mitad del fix que faltaba en esta rama.
+- No se tocan los wrappers `withTenant`/`withSuperAdmin` de las API
+  routes con `A3/validate-before-auth` — eso es scope de otro PR.
+- No se mueve nada de `(super-admin)/`: el dashboard autenticado
+  en `src/app/(super-admin)/super-admin/dashboard/page.tsx` ya está
+  gated via `supabase.auth.getUser` + redirect, y rendea el
+  `<SuperAdminDashboard>` con `getGlobalStats()` / `getRecentEvents()`.
+  El orphan era una duplicación huérfana, no la fuente canónica.
+
+**Próximo paso lógico:** PR 2 del critique (recovery: `[academyId]/error.tsx`
++ `not-found.tsx` + mobile nav return affordance). Cierra los otros
+dos P0s. Task #29 al cerrar el PR.
+
+PR: #TBD (pendiente push + `gh pr create`).
+Vault actualizado: este changelog.
 
 ## 2026-09-07 — R2 cerrado: CSP bloqueaba hidratación de TODA página interactiva en producción (P0, no P1)
 ## 2026-09-07 — R2 cerrado: CSP bloqueaba hidratación de TODA página interactiva en producción (P0, no P1)

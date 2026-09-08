@@ -109,10 +109,9 @@ Inventario congelado desde el filesystem del snapshot. Se enumeran los 167 archi
 </details>
 
 <details>
-<summary>Legacy dashboard (32)</summary>
+<summary>Legacy dashboard (31)</summary>
 
 - `src/app/(super-admin)/super-admin/dashboard/page.tsx`
-- `src/app/app/admin/dashboard/page.tsx`
 - `src/app/dashboard/academies/page.tsx`
 - `src/app/dashboard/announcements/[id]/page.tsx`
 - `src/app/dashboard/announcements/new/page.tsx`
