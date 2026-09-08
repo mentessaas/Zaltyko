@@ -14,6 +14,7 @@ import {
 
 import { Button } from "@/components/ui/button";
 import { DashboardCard } from "@/components/dashboard/DashboardCard";
+import { EmptyState } from "@/components/ui/empty-state";
 import { useAcademyContext } from "@/hooks/use-academy-context";
 import TodayQuickActions from "@/components/coach/TodayQuickActions";
 
@@ -303,10 +304,20 @@ export function CoachDashboardPage({
           </div>
           <div className="max-h-96 divide-y divide-border overflow-y-auto">
             {athletes.length === 0 ? (
-              <div className="p-8 text-center text-muted-foreground">
-                <Users className="mx-auto h-8 w-8 mb-2 opacity-50" />
-                <p>No tienes {specialization.labels.athletesPlural.toLowerCase()} asignados</p>
-              </div>
+              <EmptyState
+                icon={Users}
+                title={`Aún no tienes ${specialization.labels.athletesPlural.toLowerCase()} asignados`}
+                description="Si acabas de aterrizar en esta academia, revisa el listado completo y pídele al admin que te asigne un grupo para empezar a tomar asistencia."
+                action={
+                  <Link
+                    href={`/app/${academyId}/athletes`}
+                    className="inline-flex min-h-11 items-center justify-center rounded-xl bg-zaltyko-teal px-4 py-2 text-sm font-semibold text-white shadow-soft transition hover:bg-primary-dark"
+                  >
+                    Ver listado de atletas
+                  </Link>
+                }
+                className="border-0 bg-transparent p-8 shadow-none"
+              />
             ) : (
               athletes.slice(0, 10).map((athlete) => (
                 <Link

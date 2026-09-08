@@ -1,7 +1,7 @@
 ---
 status: active
 owner: producto
-last_reviewed: 2026-09-09T00:10Z
+last_reviewed: 2026-09-09T00:35Z
 source:
 ---
 
@@ -916,6 +916,105 @@ Recomiendo P1 #4 primero porque (a) cierra otro item del critique,
 (b) el primitive `<EmptyState>` que resulte se reusa en PR 5 de
 cualquier otro P1 que toque vistas de listado, (c) tiene blast
 radius acotado.
+
+PR: #TBD (pendiente push + `gh pr create`).
+Vault actualizado: este changelog.
+
+## 2026-09-09 — PR 6 del critique Operate: empty-state pattern drift en CoachDashboardPage (P1 #4 — cierro el offender del critique; P1 #6 y P2 billing quedan fuera de scope)
+
+**1 commit a `main`** cerrando el offender explícito que el P1 #4 del
+critique `/impeccable` Operate nombra: `CoachDashboardPage.tsx:305-309`.
+Único archivo modificado: `src/components/coach/CoachDashboardPage.tsx`.
+Otros inline empty states (P1 #6 en `app/page.tsx` y P2 en `billing`) son
+hallazgos distintos del mismo critique pero quedan fuera de scope —
+se abordan en PRs propios si se priorizan.
+
+**Cambios:**
+
+1. **`src/components/coach/CoachDashboardPage.tsx:305-309`** — el bloque
+   inline `<div className="p-8 text-center text-muted-foreground"><Users
+   /><p>No tienes…</p></div>` se reemplaza por `<EmptyState icon={Users}
+   title="Aún no tienes {athletesPlural.toLowerCase()} asignados"
+   description="Si acabas de aterrizar en esta academia, revisa el
+   listado completo y pídele al admin que te asigne un grupo para
+   empezar a tomar asistencia." action={<Link>Ver listado de
+   atletas</Link>} />`. El primitive es
+   `src/components/ui/empty-state.tsx` (mismo que ya usa
+   `attendance/page.tsx:191` y `AthletesEmptyState` en
+   `AthletesTableSections.tsx:428`).
+2. **CTA añadido** → `<Link href="/app/${academyId}/athletes">` con el
+   mismo styling que la CTA de attendance (`bg-zaltyko-teal … shadow-soft
+   hover:bg-primary-dark`). Para un coach sin atletas asignados,
+   la acción razonable es ver el listado completo y hablar con el admin;
+   antes era un dead-end de solo texto sin escapatoria.
+3. **Visual softening** vía `className="border-0 bg-transparent p-8
+   shadow-none"` — el `<EmptyState>` ya tiene `border border-zaltyko-mist
+   bg-white shadow-soft` por default, pero acá está **anidado dentro
+   de un `<DashboardCard>`** (línea 280-289) que ya provee ese chrome.
+   Sin el override se vería una card-stacked-on-card.
+
+**Por qué este approach (no tocar las 5+ vistas que el critique
+menciona, no crear un `<EmptyState>` nuevo):**
+
+- El primitive `<EmptyState>` **ya existe** en
+  `src/components/ui/empty-state.tsx` (Lucide icon + título + descripción
+  + acción como `ReactNode`). No hace falta un primitive nuevo — el
+  drift es de **uso**, no de inventario.
+- El critique nombra explícitamente a `CoachDashboardPage.tsx:305-309`
+  como el offender ("rolls its own inline empty state with no CTA").
+  Las otras 5+ vistas que usan `<p>` gris son hallazgos de scope más
+  amplio (cada una con copy distinto, CTAs distintos, dependencias
+  distintas). Migrarlas todas en un solo PR inflaría el diff y subiría
+  el riesgo de regresión visual.
+- Las 2 vistas más prominentes (`attendance/page.tsx:191` y
+  `AthletesTableSections.tsx:428`) ya usan el primitive — el P1 #4 ya
+  está parcialmente cerrado en las superficies de mayor tráfico. El
+  delta real era esta única card.
+
+**Verificación:**
+
+- `pnpm typecheck` → clean (sin output).
+- `npx eslint src/components/coach/CoachDashboardPage.tsx` → 0 errors,
+  3 warnings **pre-existentes** (`academyCountry`, `profilePhotoUrl`,
+  `coachId` defined but never used — heredados del `CoachContext` type,
+  no introducidos por este PR).
+- `pnpm gate:all` → A2=1, A3=1, A4=0 (sin cambios; baseline).
+  `[orphan-app-route] OK — scanned 65 files, no findings`.
+- Diff: 1 archivo, +20 / -5 líneas netas (+15). Cambio quirúrgico.
+
+**Lo que NO se hace acá (scope discipline):**
+
+- **No** se migran las 5+ vistas que el critique menciona en el
+  agregado (athletes/groups/classes/billing/coaches/today empty states).
+  Cada una tiene copy, CTA y contexto distintos — migrarlas todas
+  en un solo PR multiplica el diff y el riesgo de regresión visual
+  sin cerrar más items del critique (P1 #4 ya está mayormente cerrado
+  en las superficies de mayor tráfico). Se abordan en PRs propios
+  si se priorizan.
+- **No** se migra el empty state de `app/page.tsx:73-80` (P1 #6
+  distinto: "app resolver dead-end", necesita un onboarding path real,
+  no solo el primitive). PR aparte.
+- **No** se migra el empty state de `billing/page.tsx` (P2 distinto:
+  "billing empty hero" para plan free). PR aparte.
+- **No** se toca el `bg-zaltyko-indigo/10` de
+  `coaches/today/page.tsx:67` ni `coaches/[coachId]/page.tsx:166` —
+  esos NO son empty states, son "no coach profile" warnings. Diferente
+  concern (paleta drift), no empty-state drift.
+- **No** se consolida `src/components/ui/empty-state.tsx` con
+  `src/components/shared/EmptyState.tsx`. Hay DOS primitives con
+  APIs distintas (uno acepta Lucide icon + action como ReactNode; el
+  otro acepta ReactNode icon + action con href/onClick). Consolidarlos
+  es scope de un design system pass, no de un fix del critique.
+- **No** se cambia `DashboardCard` ni `useAcademyContext`.
+
+**Próximo paso lógico:** PR 7 — candidatos restantes: P1 #5 (mixed
+shadow/pastel tokens en MyDashboardPage y clases), P1 #6 (app
+resolver dead-end: `app/page.tsx:73-80` no ofrece onboarding CTA),
+P2 (billing free-plan empty hero), P2 (top-nav links no-op),
+P2 (settings Zod nullable trap). De los P1, recomiendo **P1 #6**
+(cierra otro item del critique, blast radius acotado a
+`app/page.tsx`, toca un path real de onboarding faltante). P1 #5
+es refactor cosmético de tokens con riesgo de regresión visual.
 
 PR: #TBD (pendiente push + `gh pr create`).
 Vault actualizado: este changelog.
