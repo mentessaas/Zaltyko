@@ -155,6 +155,27 @@ export default async function RootLayout({
         {supabaseOrigin && (
           <link rel="preconnect" href={supabaseOrigin} crossOrigin="anonymous" />
         )}
+        {/* R6 LCP optimization: explicit preload of the two `.p.woff2` subsets
+            next/font/google generates for Latin (Space Grotesk for `font-display`
+            headings — H1 LCP element on /pricing; Manrope for `font-sans` body
+            paragraphs). next/font/google auto-injects preloads in dev but does
+            NOT inject them in this build's production HTML (verified — only the
+            webpack chunk is preloaded). URLs are content-addressed and stable
+            across builds as long as the next/font config above is unchanged. */}
+        <link
+          rel="preload"
+          href="/_next/static/media/36966cca54120369-s.p.woff2"
+          as="font"
+          type="font/woff2"
+          crossOrigin="anonymous"
+        />
+        <link
+          rel="preload"
+          href="/_next/static/media/4c9affa5bc8f420e-s.p.woff2"
+          as="font"
+          type="font/woff2"
+          crossOrigin="anonymous"
+        />
         <link rel="manifest" href="/manifest.json" />
         <meta name="theme-color" content="#0F172A" />
         <meta name="apple-mobile-web-app-capable" content="yes" />
