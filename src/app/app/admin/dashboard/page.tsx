@@ -1,5 +1,5 @@
 import { Metadata } from "next";
-import { and, count, desc, eq, gte, lt, sum } from "drizzle-orm";
+import { and, count, desc, eq, gte, isNotNull, lt, sum } from "drizzle-orm";
 
 import { db } from "@/db";
 import {
@@ -32,7 +32,12 @@ async function getEstimatedMRR() {
     .select({ amount: sum(plans.priceEur).as("amount") })
     .from(subscriptions)
     .innerJoin(plans, eq(subscriptions.planId, plans.id))
-    .where(eq(subscriptions.status, "active"));
+    .where(
+      and(
+        eq(subscriptions.status, "active"),
+        isNotNull(subscriptions.stripeSubscriptionId)
+      )
+    );
 
   return Number(row?.amount ?? 0);
 }

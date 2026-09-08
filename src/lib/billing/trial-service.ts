@@ -39,6 +39,7 @@ async function getAcademyBillingState(academyId: string) {
       name: academies.name,
       ownerUserId: profiles.userId,
       planCode: plans.code,
+      stripeSubscriptionId: subscriptions.stripeSubscriptionId,
       subscriptionStatus: subscriptions.status,
     })
     .from(academies)
@@ -101,7 +102,10 @@ export async function getAcademyTrialStatus(
   const hasPaidPlan =
     academy.planCode !== null &&
     academy.planCode !== "free" &&
-    hasSubscriptionAccess(academy.subscriptionStatus);
+    hasSubscriptionAccess({
+      stripeSubscriptionId: academy.stripeSubscriptionId,
+      status: academy.subscriptionStatus,
+    });
   if (hasPaidPlan) {
     const policy = evaluateTrialPolicy({ now, hasPaidPlan: true });
     return {
