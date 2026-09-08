@@ -136,10 +136,24 @@ export async function getClusterContent(
       (m) => m.default as ClusterContent
     );
 
+    // Cluster JSON `meta.title` ends with `| Zaltyko - {federation}`. Root layout
+    // appends the global `%s | Zaltyko` template, so leaving the suffix in place
+    // produces duplicate brand text in SERPs (e.g. `... | Zaltyko - RFEG | Zaltyko`).
+    // Strip the cluster-local brand suffix at read time so the global template
+    // owns the only `| Zaltyko` suffix in the rendered <title>.
+    content.meta.title = cleanTitle(content.meta.title);
+
     return content;
   } catch {
     return null;
   }
+}
+
+// Strip the cluster-local `| Zaltyko - {federation}` suffix from cluster JSON
+// titles before exposing them to Next.js metadata. Global brand suffix is
+// re-applied by `metadata.title.template` in `src/app/layout.tsx`.
+export function cleanTitle(title: string): string {
+  return title.replace(/\s*\|\s*Zaltyko\s*-\s*.+$/i, "").trim();
 }
 
 // Get all modality pages (parent pages listing countries)
