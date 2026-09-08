@@ -25,6 +25,7 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Switch } from "@/components/ui/switch";
 import { Select } from "@/components/ui/select";
 import { SearchableSelect } from "@/components/ui/searchable-select";
+import { PageHeader } from "@/components/ui/page-header";
 
 import { SettingsLayout } from "@/components/settings/SettingsLayout";
 import { BrandingEditor } from "@/components/settings/BrandingEditor";
@@ -236,29 +237,36 @@ export default function SettingsPage() {
   return (
     <SettingsLayout activeSection={activeTab}>
       <div className="mx-auto max-w-[1500px] space-y-6">
-        {/* Header */}
-        <div className="relative overflow-hidden rounded-[24px] border border-border/80 bg-card p-6 shadow-[0_18px_50px_-32px_rgba(15,23,42,0.45)]">
-          <div className="zaltyko-motion-lines pointer-events-none absolute inset-x-0 top-0 h-24 opacity-70" />
-          <div className="relative flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
-          <div>
-            <div className="mb-2 flex items-center gap-2 text-xs font-bold uppercase tracking-[0.14em] text-zaltyko-teal"><Settings2 className="h-4 w-4" /> Configuración</div>
-            <h1 className="font-display text-3xl font-bold tracking-[-0.03em] text-foreground">Ajustes de la academia</h1>
-            <p className="text-sm text-muted-foreground">
-              Gestiona la información, branding y configuración de tu academia
-            </p>
-          </div>
-          <Button onClick={handleSave} disabled={saving || error !== null}>
-            {saving ? (
-              <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-            ) : success ? (
-              <CheckCircle className="mr-2 h-4 w-4" />
-            ) : (
-              <Save className="mr-2 h-4 w-4" />
-            )}
-            {saving ? "Guardando..." : success ? "Guardado" : "Guardar cambios"}
-          </Button>
-          </div>
-        </div>
+        {/* Header — ahora usa PageHeader primitive (unifica con las otras 6 páginas
+            Operate que ya lo usan). Cierra P1 #2 del critique Operate: pattern drift
+            + /settings sin breadcrumbs. Se pierde el kicker "Configuración" arriba del
+            título (PageHeader no tiene slot); icon + title transmiten la sección. */}
+        <PageHeader
+          breadcrumbs={
+            context?.academyId
+              ? [
+                  { label: "Dashboard", href: `/app/${context.academyId}/dashboard` },
+                  { label: context.academyName ?? "Academia", href: `/app/${context.academyId}/dashboard` },
+                  { label: "Ajustes" },
+                ]
+              : undefined
+          }
+          title="Ajustes de la academia"
+          description="Gestiona la información, branding y configuración de tu academia"
+          icon={<Settings2 className="h-5 w-5" strokeWidth={1.8} />}
+          actions={
+            <Button onClick={handleSave} disabled={saving || error !== null}>
+              {saving ? (
+                <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+              ) : success ? (
+                <CheckCircle className="mr-2 h-4 w-4" />
+              ) : (
+                <Save className="mr-2 h-4 w-4" />
+              )}
+              {saving ? "Guardando..." : success ? "Guardado" : "Guardar cambios"}
+            </Button>
+          }
+        />
 
         {error && (
           <div className="flex items-center gap-2 rounded-xl border border-zaltyko-coral/35 bg-zaltyko-coral/10 p-4 text-sm text-zaltyko-coral">

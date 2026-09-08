@@ -8,6 +8,7 @@ import { getAcademySportConfigOptions } from "@/lib/sport-config/service";
 import { getTerminologyForSportConfig } from "@/lib/sport-config/terminology";
 
 import { CoachesTableView } from "@/components/coaches/CoachesTableView";
+import { PageHeader } from "@/components/ui/page-header";
 
 /**
  * AcademyCoachesPage - Vista principal de gestión de entrenadores
@@ -211,16 +212,20 @@ export default async function AcademyCoachesPage({ params, searchParams }: PageP
 
   return (
     <div className="space-y-6 py-6 lg:py-8">
-      <header className="relative overflow-hidden rounded-2xl border border-border bg-card p-6 shadow-soft">
-        <div className="zaltyko-motion-lines pointer-events-none absolute inset-x-0 top-0 h-24 opacity-70" />
-        <div className="relative space-y-2">
-          <p className="text-xs font-medium uppercase tracking-[0.05em] text-zaltyko-teal">Staff técnico</p>
-          <h1 className="font-display text-3xl font-semibold text-foreground">{terms.coach}s</h1>
-          <p className="text-sm text-muted-foreground">
-            Controla al staff técnico, asigna clases y mantén sus datos de contacto al día.
-          </p>
-        </div>
-      </header>
+      {/* Header — ahora usa PageHeader primitive (unifica con athletes, attendance,
+          etc.). Cierra P1 #2 del critique Operate: pattern drift + motion-lines
+          overlay como ruido visual. Se pierde el kicker "Staff técnico" arriba del
+          título (PageHeader no tiene slot); el icon queda a discreción del consumer
+          porque este header original no tenía uno. */}
+      <PageHeader
+        breadcrumbs={[
+          { label: "Dashboard", href: `/app/${academy.id}/dashboard` },
+          { label: academy.name ?? "Academia", href: `/app/${academy.id}/dashboard` },
+          { label: "Entrenadores" },
+        ]}
+        title={`${terms.coach}s`}
+        description="Controla al staff técnico, asigna clases y mantén sus datos de contacto al día."
+      />
 
       <CoachesTableView
         academyId={academy.id}

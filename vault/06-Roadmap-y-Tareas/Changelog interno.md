@@ -1,7 +1,7 @@
 ---
 status: active
 owner: producto
-last_reviewed: 2026-09-08T23:45Z
+last_reviewed: 2026-09-08T23:55Z
 source:
 ---
 
@@ -725,6 +725,110 @@ per-field). El header drift es más visible (afecta a 2 páginas y unifica
 con `PageHeader` que ya usan 6); el Zod trap es más barato pero requiere
 cambios coordinados API + UI. Recomiendo P1 #2 primero por visibilidad
 y porque cierra el último item puramente UI del critique.
+
+PR: #TBD (pendiente push + `gh pr create`).
+Vault actualizado: este changelog.
+
+## 2026-09-08 — PR 4 del critique Operate: header drift en settings + coaches (P1 #2 — `PageHeader` primitive unifica con las otras 6 páginas)
+
+**1 commit a `main`** cerrando el P1 #2 del critique `/impeccable`
+Operate (`src/app/app/`, score 18.5/32). Ambas páginas tenían un header
+hecho a mano con `relative overflow-hidden rounded-2xl border border-border
+bg-card p-6 shadow-soft` y un overlay decorativo `zaltyko-motion-lines`
+separado; las otras 6 páginas (athletes, attendance, billing, dashboard,
+support, audit-logs) ya usan el primitive `<PageHeader>`. El critique
+señaló la divergencia exactamente así: "hand-roll a header with decorative
+zaltyko-motion-lines overlay, instead of `PageHeader`".
+
+**Cambios:**
+
+1. **`src/app/app/[academyId]/settings/page.tsx`** — el `<header>` de
+   líneas 225-246 ahora es `<PageHeader>` con `breadcrumbs` de 3 niveles
+   (`[Dashboard, academyName, Ajustes]`), `icon={<Settings2 .../>}`,
+   `description` y `actions={<Button>...</Button>}` para el botón Guardar.
+   La acción del button queda intacta (`disabled={saving || error !== null}`
+   del PR 3 sigue funcionando porque `error` y `saving` siguen siendo
+   estado del componente).
+2. **`src/app/app/[academyId]/coaches/page.tsx`** — el `<header>` de
+   líneas 213-223 ahora es `<PageHeader>` con `breadcrumbs` de 3 niveles
+   (`[Dashboard, academy.name, Entrenadores]`) y título
+   `${terms.coach}s` (preserva el plural dinámico de la terminología del
+   sport config). Esta página es Server Component, ya tenía un
+   `db.select({ id, name })` para el academy en líneas 30-37 — la
+   `PageHeader` consume `academy.id` y `academy.name` directamente.
+   Sin icon (la original tampoco tenía).
+
+**Por qué este approach (no bespoke para siempre, no extraer a una
+variante nueva):** el `PageHeader` primitive ya absorbe el
+`zaltyko-motion-lines` como background interno (no como overlay
+separado encima del `relative`), ya tiene el icono en caja 11×11
+teal, ya tiene `font-display` 2xl con `tracking-[-0.03em]`, ya tiene
+las breadcrumbs con separador. Replicar todo eso en un segundo
+`<header>` para solo 2 páginas es duplicación exacta del problema que
+el critique señala. La pérdida real es el "kicker" — el texto chiquito
+arriba del título ("Configuración" en settings, "Staff técnico" en
+coaches) que `PageHeader` no tiene slot para. Acepto esa pérdida
+porque: (a) el icono + el título ya comunican la sección, (b) el
+breadcrumb crumb intermedio lleva el nombre de la academia y cierra el
+camino de regreso, (c) si en el futuro queremos kicker, lo agregamos
+al primitive y migra automáticamente.
+
+**Verificación:**
+
+- `pnpm typecheck` → clean (sin output).
+- `npx eslint src/app/app/[academyId]/settings/page.tsx
+  src/app/app/[academyId]/coaches/page.tsx` → 4 warnings, 0 errors.
+  - `settings/page.tsx:139` react-hooks/preserve-manual-memoization
+    en `handleSave` useCallback (pre-existente, mismo de PR 3).
+  - `coaches/page.tsx:1` `next/link` Link unused (la página original
+    importaba Link pero no lo usa; no introducido por este PR).
+  - `coaches/page.tsx:69` `@typescript-eslint/no-explicit-any` en
+    `conditions.filter(Boolean) as any[]` (pre-existente).
+  - `coaches/page.tsx:71` `@typescript-eslint/no-explicit-any` en
+    `whereClause.reduce<any>(...)` (pre-existente).
+  - Verificado con `git stash` + re-eslint que las 4 warnings existían
+    antes de este PR — ninguna regresión. Las warnings de any/Link
+    están fuera de scope (sería refactor de tipos, otro día).
+- `pnpm gate:all` → A2=1, A3=1, A4=0 (sin cambios respecto a PR 3).
+- Diff: 2 archivos, +46 líneas, -33 líneas (net +13). El + incluye el
+  comentario explicativo del fix (~15 líneas en settings, ~10 en
+  coaches documentando la pérdida del kicker y el porqué).
+
+**Lo que NO se hace acá (scope discipline):**
+
+- **No** se retrofit las otras 4 páginas con headers no-`PageHeader`.
+  Audité: las 6 que ya usan `PageHeader` (athletes, attendance,
+  billing, dashboard, support, audit-logs) están bien. Las que NO
+  usan `PageHeader` son precisamente settings + coaches (este PR las
+  cierra). No hay una 3ra página que esté en el mismo estado — el
+  patrón drift queda cerrado para siempre con este PR.
+- **No** se cambia la prop API de `<PageHeader>` para agregar un
+  `kicker?` slot. YAGNI: solo 2 páginas querían kicker, ahora ninguna.
+  Si en el futuro una página tercera necesita, se agrega al primitive
+  en su propio PR.
+- **No** se toca `${terms.coach}s` en el título. La terminología del
+  sport config es dinámica y crítica (gimnasia artística usa
+  "entrenadores", rítmica también, pero otras disciplinas podrían
+  cambiar el plural). Refactorizar a un helper de pluralización es
+  scope aparte y ortogonal al header.
+- **No** se cambia el orden de las queries en `coaches/page.tsx`
+  (siguen siendo 4 queries secuenciales: coaches → assignments →
+  classes → groups + un 5º para coach sport scope). Optimizar a un
+  JOIN sería trabajo aparte; funciona, es legible, no es P1.
+- **No** se mueven los `<PageHeader>` actions a una sub-acción con
+  `useTransition` para feedback visual inmediato. El botón Guardar ya
+  tiene sus 3 estados (`Guardando...` / `Guardado` / `Guardar
+  cambios`) con icono animado.
+
+**Próximo paso lógico:** PR 5 — candidato natural P2 #5 (settings
+Zod trap con `aria-invalid` per-field; requiere API + UI
+coordinadas, ya documentado en PR 3) o P1 #3 (sidebar search). El Zod
+trap cierra el último item del critique relacionado a la página de
+settings, lo cual da coherencia narrativa; el sidebar search afecta a
+toda la navegación y tiene mayor blast radius. Recomiendo P1 #3
+primero porque (a) está en el camino crítico de los 3 P1s restantes,
+(b) el Zod trap requiere diseñar un wrapper `<FormField>` que se
+reusa en 3 forms mínimo, lo cual pide más reflexión previa.
 
 PR: #TBD (pendiente push + `gh pr create`).
 Vault actualizado: este changelog.
