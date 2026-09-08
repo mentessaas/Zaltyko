@@ -1,7 +1,7 @@
 ---
 status: active
 owner: producto
-last_reviewed: 2026-09-08T22:45Z
+last_reviewed: 2026-09-08T23:20Z
 source:
 ---
 
@@ -530,6 +530,104 @@ El critique `/impeccable` lo redescubrió independientemente el
 **Próximo paso lógico:** PR 2 del critique (recovery: `[academyId]/error.tsx`
 + `not-found.tsx` + mobile nav return affordance). Cierra los otros
 dos P0s. Task #29 al cerrar el PR.
+
+PR: #TBD (pendiente push + `gh pr create`).
+Vault actualizado: este changelog.
+
+## 2026-09-08 — PR 2 del critique Operate: error.tsx + not-found.tsx + mobile nav return affordance (cierra los 2 P0s restantes)
+
+**1 commit a `main`** cerrando el P0 #2 (recovery: error + not-found
+boundaries) y el P0 #3 (mobile nav return affordance) del critique
+`/impeccable` Persuade de `src/app/app/` (score 18.5/32).
+
+**Cambios:**
+
+1. **Nuevo `src/app/app/[academyId]/error.tsx`** — boundary compartido
+   para ~60 rutas del árbol de academia que antes no tenían
+   `error.tsx` propio. Patrón lifted desde
+   `dashboard/at-a-glance/error.tsx` (que ya cumplía ZAL-619 AC-10):
+   `role="alert"`, digest-logged vía `console.warn` (nunca el stack),
+   tres acciones — `Reintentar` (`reset()`), `Volver al panel`
+   (`../dashboard`), `Contactar soporte` (`../support`). Las dos
+   boundaries locales (`coach/today-simple/` + `dashboard/at-a-glance/`)
+   siguen tomando precedencia para sus rutas; esta solo cubre las
+   ~60 que no tenían nada.
+
+2. **Nuevo `src/app/app/[academyId]/not-found.tsx`** — primer
+   `not-found.tsx` del árbol de academia (0/66 antes → 1/66 ahora).
+   Se activa desde:
+     - `layout.tsx:107` cuando el `academyId` no resuelve a una
+       academia accesible.
+     - Cualquier página descendiente que llame `notFound()` (atletas,
+       coaches, settings, billing, my-dashboard — el critique
+       documenta ≥5 sitios).
+   Antes solo existía el default del framework; ahora la persona
+   siempre tiene un siguiente paso: `Volver al panel` (`../dashboard`)
+   o `Cambiar de academia` (`/app`, el resolver).
+
+3. **Mod `src/components/navigation/MobileAcademyNav.tsx`** —
+   añadido grip persistente cuando la nav está oculta. Pill de ~32 px
+   centrado en el bottom edge con icono `ChevronUp` + texto "Menú".
+   Tap → `setIsVisible(true)`. El pill solo aparece cuando la nav
+   está oculta (`!isVisible`), así no hay coste de pantalla cuando
+   la nav ya está visible. La nav mantiene su comportamiento de
+   auto-hide en scroll-down (`>100px`), re-show en scroll-up, y
+   respeta el safe-area del notch iOS (`safe-area-bottom`). Se
+   añadió `aria-hidden={!isVisible}` al `<nav>` para que screen
+   readers no anuncien el menú mientras está oculto.
+
+**Por qué grip (no barra persistente de 56 px):** la Q4 provocativa del
+critique planteaba las dos opciones. El grip es la elección mínima:
+resuelve el problema real ("coach en el suelo del gimnasio con una mano:
+¿dónde está el menú?") sin sacrificar real estate cuando la nav está
+visible. Si el feedback en vivo indicara que el grip es demasiado
+sutil, migrar a barra persistente es un cambio de ~20 líneas en este
+mismo archivo.
+
+**Verificación:**
+
+- `pnpm gate:orphan` → `OK — scanned 65 files, no findings` (sin
+  nuevos orphans — los archivos añadidos son convention files, no
+  `page.tsx`).
+- `pnpm typecheck` → clean (pre-clear del `.next/types/` cache
+  residual que apuntaba al `src/app/app/admin/dashboard/page.js`
+  borrado en PR 1).
+- `npx eslint` sobre los 3 archivos cambiados → clean (sin warnings).
+- `pnpm gate:all` → A4 OK; A2 y A3 sin cambios (las violaciones
+  pre-existentes en API routes no se tocaron — siguen en el scope
+  del PR de Engineering Lead separado, como documenta el verdict
+  ZAL-588).
+- `find src/app -name "error.tsx"` → ahora 5 (3 nuevos en `[academyId]/`
+  + los 2 anteriores en `dashboard/` y root).
+- `find src/app -name "not-found.tsx"` → ahora 3 (1 nuevo en
+  `[academyId]/` + `dashboard/not-found.tsx` y `not-found.tsx` root).
+
+**Lo que NO se hace acá (scope discipline):**
+
+- **No** se borra `src/app/app/[academyId]/top-nav.tsx` (P2 del
+  critique, devuelve `null`). Merece su propio micro-PR de cleanup
+  con la entrada del layout correspondiente.
+- **No** se tocan los P1: settings `loadSettings()` silent fail,
+  header pattern drift (settings + coaches), sidebar search
+  athlete-only, empty-state drift en `CoachDashboardPage`, paleta
+  pastel+raw-shadow en `MyDashboardPage`, dead-end en
+  `app/page.tsx` resolver. Cada uno merece su PR focalizado para
+  mantener diffs revisables; este PR cierra 2 de los 3 P0s del
+  critique y nada más.
+- **No** se refactoriza `MyDashboardPage` (la otra P1 más visible):
+  la paleta pastel + raw-shadow es el único archivo que ignora
+  tokens de marca, pero el refactor correcto es introducir un
+  `StatCard` primitive y sustituir ~100 líneas — fuera de scope.
+- **No** se cambia el patrón `sky-700` de las boundaries nuevas al
+  `zaltyko-teal` de marca. Las dos boundaries pre-existentes
+  (`coach/today-simple/` + `dashboard/at-a-glance/`) usan `sky-700`,
+  y la nueva hereda el patrón para no introducir una tercera
+  paleta en paralelo. Unificar a `zaltyko-teal` es cleanup aparte.
+
+**Próximo paso lógico:** los 6 P1 + 5 P2 restantes del critique Operate
+(ver `/tmp/impeccable-critique-src-app-app-body.md`). Cada uno es un
+PR focalizado. Candidato #1: P1 #2 (settings silent fail) por ser el
+más daily-use para Marta y el más barato de cerrar (1 rama `else`).
 
 PR: #TBD (pendiente push + `gh pr create`).
 Vault actualizado: este changelog.

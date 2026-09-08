@@ -2,7 +2,7 @@
 
 import { usePathname, useRouter } from "next/navigation";
 import { useEffect, useRef, useState } from "react";
-import { MoreHorizontal, X } from "lucide-react";
+import { ChevronUp, MoreHorizontal, X } from "lucide-react";
 
 import { useAcademyContext } from "@/hooks/use-academy-context";
 import { isAcademyNavigationActive } from "@/lib/navigation/active";
@@ -60,11 +60,32 @@ export function MobileAcademyNav() {
   const secondaryItems = mobileNavItems.slice(4);
 
   return (
+    <>
+    {/* Grip persistente: aparece solo cuando la nav está oculta para
+        ofrecer una salida sin tener que hacer scroll hacia arriba. Coach
+        en el suelo del gimnasio con una mano: un toque y vuelve el menú. */}
+    {!isVisible && (
+      <div className="pointer-events-none fixed inset-x-0 bottom-0 z-50 lg:hidden">
+        <div className="safe-area-bottom flex justify-center pb-2">
+          <button
+            type="button"
+            onClick={() => setIsVisible(true)}
+            aria-label="Mostrar navegación inferior"
+            aria-expanded="false"
+            className="pointer-events-auto inline-flex items-center gap-1 rounded-full border border-border bg-white/95 px-3 py-1.5 text-xs font-semibold text-muted-foreground shadow-soft backdrop-blur transition-colors hover:bg-muted focus:outline-none focus-visible:ring-2 focus-visible:ring-zaltyko-teal"
+          >
+            <ChevronUp className="h-4 w-4" />
+            Menú
+          </button>
+        </div>
+      </div>
+    )}
     <nav
       className={cn(
         "fixed bottom-0 left-0 right-0 z-50 transition-transform duration-300 ease-in-out lg:hidden",
         isVisible ? "translate-y-0" : "translate-y-full"
       )}
+      aria-hidden={!isVisible}
     >
       <div className="border-t border-border/70 bg-white/95 shadow-soft backdrop-blur">
         <div className="safe-area-bottom grid h-[72px] grid-cols-5 items-center gap-1 px-2">
@@ -136,5 +157,6 @@ export function MobileAcademyNav() {
         )}
       </div>
     </nav>
+    </>
   );
 }
