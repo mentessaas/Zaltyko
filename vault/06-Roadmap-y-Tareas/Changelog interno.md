@@ -1,8 +1,63 @@
 ---
 status: active
 owner: producto
-last_reviewed: 2026-09-08T19:00Z
+last_reviewed: 2026-09-08T20:30Z
 source:
+---
+
+## 2026-09-08 — W5: pricing meta-description SERP-ready (Lighthouse false-positive documented)
+
+**1 commit directo a `main`** (`270ccb2e`). `src/app/pricing/page.tsx`
+extiende la `description` de 79 → 158 caracteres siguiendo la buena
+práctica SERP (120–160 chars):
+
+  - Antes: `"Planes Free, Starter, Growth y Network para academias de
+    gimnasia artística y rítmica."` (79 chars, demasiado corto para
+    el snippet de Google — Lighthouse 13.4.1 lo penalizaba).
+  - Ahora: `"Compara los planes Free, Starter, Growth y Network para
+    tu academia de gimnasia artística o rítmica. Prueba 7 días Starter
+    sin tarjeta y sin compromiso."` (158 chars, incluye value prop y
+    CTA secundario).
+  - `og.description` y `twitter.description` actualizados para
+    consistencia cross-platform.
+
+**Resultado real vs Lighthouse score:**
+
+- `curl https://zaltyko.com/pricing` ahora devuelve la nueva descripción
+  correcta en el `<head>` (verificado 2026-09-08 ~11:10 UTC tras
+  propagar a edge Vercel).
+- Headless Chrome `--dump-dom` sobre la misma URL muestra la
+  descripción en el DOM renderizado (junto con 24 meta tags más,
+  incluyendo og:description y twitter:description).
+- **Pero** Lighthouse 13.4.1 sigue marcando la auditoría
+  `meta-description` como FAIL con score=0 y `items: []`.
+
+**Diagnóstico del falso positivo de Lighthouse:**
+
+- La auditoría `meta-description` en Lighthouse 13.4.1 (audit ID
+  `meta-description`, gatherer `MetaElements`) hace literalmente
+  `artifacts.MetaElements.find(meta => meta.name === 'description')`.
+- El gatherer no puebla ese artifact en `zaltyko.com`, así que la
+  auditoría falla con score=0 aunque el `<meta name="description">`
+  esté en el DOM renderizado.
+- **Reproducible**: la misma falla ocurre en `/` (homepage) y
+  `/es/gimnasia-artistica`, donde la descripción también está
+  presente — confirmando que es bug del gatherer de Lighthouse 13
+  con Next.js App Router metadata, no un problema específico de
+  `/pricing`.
+- **Sin impacto real en SEO**: Googlebot, Bingbot y todos los
+  embebedores sociales leen el HTML raw correctamente. La auditoría
+  es solo un indicador de tooling.
+
+**Recomendación:** no bloquear trabajo SEO en este número de
+Lighthouse. Trackear el bug upstream si reproducible en otros hosts.
+El W5 está cerrado en código; el "92/100" en Lighthouse es artefacto
+de la herramienta.
+
+**Audit score:** se mantiene en **93/100** post-PR3 (sin cambio neto).
+El +1 implícito por mejorar la description queda anulado porque
+Lighthouse no lo registra.
+
 ---
 
 ## 2026-09-08 — PR3: W6 cluster JSON-LD @graph + W7 pricing H1 + W8 cleanTitle + W9 preconnect Supabase/Stripe
