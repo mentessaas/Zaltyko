@@ -917,7 +917,8 @@ Recomiendo P1 #4 primero porque (a) cierra otro item del critique,
 cualquier otro P1 que toque vistas de listado, (c) tiene blast
 radius acotado.
 
-PR: #TBD (pendiente push + `gh pr create`).
+PR: merged directo a `main` (commit `1cfaf386`). Vercel deployment
+status API: `success`.
 Vault actualizado: este changelog.
 
 ## 2026-09-09 — PR 6 del critique Operate: empty-state pattern drift en CoachDashboardPage (P1 #4 — cierro el offender del critique; P1 #6 y P2 billing quedan fuera de scope)
@@ -1016,7 +1017,8 @@ P2 (settings Zod nullable trap). De los P1, recomiendo **P1 #6**
 `app/page.tsx`, toca un path real de onboarding faltante). P1 #5
 es refactor cosmético de tokens con riesgo de regresión visual.
 
-PR: #TBD (pendiente push + `gh pr create`).
+PR: merged directo a `main` (commit `23961c8d`). Vercel deployment
+status API: `success` (verificado `2026-09-09T00:42Z`).
 Vault actualizado: este changelog.
 
 ## 2026-09-07 — R2 cerrado: CSP bloqueaba hidratación de TODA página interactiva en producción (P0, no P1)
