@@ -1,7 +1,7 @@
 ---
 status: active
 owner: producto
-last_reviewed: 2026-09-09T01:40Z
+last_reviewed: 2026-09-09T02:15Z
 source:
 ---
 
@@ -1199,6 +1199,96 @@ critique Operate completo (último P1 abierto).
 
 PR: merged directo a `main` (commit `a923ef3a`). Vercel deployment
 `6337122337` → `success` a las 21:04:27Z.
+Vault actualizado: este changelog.
+
+## 2026-09-09 — PR 9 del critique Operate: notifications 401 handling (P2 — simetría con `app/page.tsx:43-46` + check `response.ok` en DELETE)
+
+**Commit**: (pendiente — escribir tras `git commit`).
+
+**Por qué este PR** — Operate P2 verbatim:
+> (B) `src/app/app/[academyId]/notifications/page.tsx:126-184` —
+> `fetch("/api/notifications?...")` with no 401 handler. Compare
+> `src/app/app/page.tsx:40-43` which DOES redirect to `/auth/login`.
+> (B) Also: `notifications/page.tsx:184` calls
+> `DELETE /api/notifications/{id}` without checking `response.ok` —
+> silent failure.
+
+El primer finding es por simetría: `app/page.tsx` ya hace
+`if (res.status === 401 || res.status === 403) router.replace("/auth/login")`
+y notifications no. El segundo es el peor — el usuario borra una
+notificación, desaparece de la UI, al refrescar reaparece
+(porque el server la rechazó silenciosamente y el state local la
+removió igual).
+
+**Auditoría previa** (4 fetches, no 2 — el critique nombró el GET
+y el DELETE, pero los 2 PUT tienen el mismo bug):
+- Línea 126: `GET /api/notifications?...` (loadNotifications).
+  **Ya tenía** `if (!response.ok || !data.ok)` que mostraba error
+  en UI, **faltaba** 401/403 → redirect. El usuario veía "No se
+  pudieron cargar las notificaciones" en la página rota.
+- Línea 160: `PUT /api/notifications/{id}/read` (handleMarkAsRead).
+  **No chequeaba** `response.ok` para nada. Logueaba error pero
+  igual marcaba como leído en state local — silenciosamente.
+- Línea 173: `PUT /api/notifications/read-all` (handleMarkAllAsRead).
+  Mismo patrón: sin check, actualizaba state local igual.
+- Línea 184: `DELETE /api/notifications/{id}` (handleDelete).
+  Mismo patrón PERO con efecto peor: el state local filtraba la
+  notificación (UI dice "borrada"), server la conservó, próximo
+  refetch la traía de vuelta. Confuso.
+
+**Cambio aplicado** (en `src/app/app/[academyId]/notifications/page.tsx`):
+- **GET** (`loadNotifications`): agregar `if (response.status === 401
+  || response.status === 403) router.replace("/auth/login"); return;`
+  antes del check existente. Comentario inline apuntando al patrón
+  en `app/page.tsx:43-46` para futuros mantenedores.
+- **PUT mark-as-read**: capturar `response`, agregar 401/403 →
+  redirect, y `if (!response.ok) return` ANTES de `setNotifications`
+  para no mentirle al state local. Log del status para debugging.
+- **PUT mark-all-read**: mismo patrón.
+- **DELETE**: mismo patrón + comentario explícito: "NO remover del
+  state local si el server rechazó — antes, el delete fallaba
+  silenciosamente y la notificación reaparecía en el próximo
+  refetch, confundiendo al usuario."
+
+**Verificación post-cambio**:
+- `pnpm typecheck` → clean.
+- `pnpm lint` → clean.
+- `pnpm run gate:all` → A2=1, A3=1, A4=0 (sin cambios — solo
+  modifica cliente, no toca `/api/notifications/*` ni crea rutas).
+- 4 fetches ahora simétricos: GET redirige a login en 401; PUTs/DELETE
+  ya no mienten al state local.
+
+**Lo que NO se hace (scope discipline)**:
+- **No** se agrega feedback toast/UI para errores no-401 en los
+  handlers de acción. Hoy loguean y siguen (silent swallow).
+  Agregar UI feedback útil es scope aparte — necesita decidir
+  componente toast, copy, duración, accessibility.
+- **No** se tocan los otros 3 handlers de UI con el mismo patrón
+  (mark-read/mark-all-read ya están en este PR; pero existen
+  otros en `src/app/app/[academyId]/`) — buscar y migrar es un
+  PR de audit dedicado.
+- **No** se mueve la lógica 401 a un helper compartido
+  (`apiClient` con auth-redirect automático). Hoy son 4 lugares
+  con copy-paste del if. Refactor de helper es scope aparte.
+- **No** se aborda P1 #5 (mixed shadow/pastel) — sigue pendiente
+  como candidato a PR 10 si el usuario quiere cerrar el último P1.
+
+**Próximo paso lógico:** PR 10 — opciones restantes:
+- **P1 #5** mixed shadow/pastel (`MyDashboardPage.tsx`) — último P1
+  abierto. Cierra el Operate critique por completo pero con riesgo
+  de regresión visual en el dashboard de parent/athlete.
+- **P2 billing free-plan empty hero** — pequeño, mejora primera
+  impresión free→trial sin onboarding guidance.
+- **P2 settings Zod nullable trap preventivo** — defensivo,
+  blinda contra el bug ya recurrente (2 fixes históricos con el
+  mismo patrón).
+
+**Mi recomendación:** si la meta es cerrar el Operate critique, P1 #5
+es obligatorio pero pesado. Si la meta es mantener momentum con
+riesgo bajo, **P2 settings Zod nullable** (~10 líneas en 1 schema,
+preventivo puro, blast radius trivial).
+
+PR: #TBD (pendiente push + `gh pr create`).
 Vault actualizado: este changelog.
 
 ## 2026-09-07 — R2 cerrado: CSP bloqueaba hidratación de TODA página interactiva en producción (P0, no P1)

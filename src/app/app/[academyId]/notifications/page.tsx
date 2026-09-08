@@ -124,6 +124,13 @@ export default function NotificationsPage() {
         });
 
         const response = await fetch(`/api/notifications?${params}`);
+        // 401/403: sesión expirada o sin acceso — mandamos al login
+        // (mismo patrón que app/page.tsx:43-46). Antes: error genérico
+        // con texto, el usuario se queda en una página rota.
+        if (response.status === 401 || response.status === 403) {
+          router.replace("/auth/login");
+          return;
+        }
         const data = await response.json();
         if (!response.ok || !data.ok) {
           throw new Error(data.message ?? "No se pudieron cargar las notificaciones");
@@ -157,9 +164,17 @@ export default function NotificationsPage() {
 
   const handleMarkAsRead = async (notificationId: string) => {
     try {
-      await fetch(`/api/notifications/${notificationId}/read`, {
+      const response = await fetch(`/api/notifications/${notificationId}/read`, {
         method: "PUT",
       });
+      if (response.status === 401 || response.status === 403) {
+        router.replace("/auth/login");
+        return;
+      }
+      if (!response.ok) {
+        logger.error(`Mark-as-read ${notificationId} returned ${response.status}`);
+        return;
+      }
       setNotifications((prev) =>
         prev.map((n) => (n.id === notificationId ? { ...n, read: true } : n))
       );
@@ -170,9 +185,17 @@ export default function NotificationsPage() {
 
   const handleMarkAllAsRead = async () => {
     try {
-      await fetch("/api/notifications/read-all", {
+      const response = await fetch("/api/notifications/read-all", {
         method: "PUT",
       });
+      if (response.status === 401 || response.status === 403) {
+        router.replace("/auth/login");
+        return;
+      }
+      if (!response.ok) {
+        logger.error(`Mark-all-read returned ${response.status}`);
+        return;
+      }
       setNotifications((prev) => prev.map((n) => ({ ...n, read: true })));
     } catch (error) {
       logger.error("Error marking all as read:", error);
@@ -181,9 +204,20 @@ export default function NotificationsPage() {
 
   const handleDelete = async (notificationId: string) => {
     try {
-      await fetch(`/api/notifications/${notificationId}`, {
+      const response = await fetch(`/api/notifications/${notificationId}`, {
         method: "DELETE",
       });
+      if (response.status === 401 || response.status === 403) {
+        router.replace("/auth/login");
+        return;
+      }
+      // Crítico: NO remover del state local si el server rechazó —
+      // antes, el delete fallaba silenciosamente y la notificación
+      // reaparecía en el próximo refetch, confundiendo al usuario.
+      if (!response.ok) {
+        logger.error(`Delete ${notificationId} returned ${response.status}`);
+        return;
+      }
       setNotifications((prev) => prev.filter((n) => n.id !== notificationId));
     } catch (error) {
       logger.error("Error deleting notification:", error);
