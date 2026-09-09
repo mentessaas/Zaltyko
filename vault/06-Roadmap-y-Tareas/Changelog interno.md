@@ -1,7 +1,7 @@
 ---
 status: active
 owner: producto
-last_reviewed: 2026-09-09T08:30Z
+last_reviewed: 2026-09-09T09:00Z
 source:
 ---
 
@@ -283,6 +283,55 @@ Component.
     (~6 min build).
   - Branch protection: push directo a main con bypass admin (mismo
     patrón que PR 1–13).
+
+---
+
+## 2026-09-09 — PR 15: silent redirect → AccessDenied UI en /dashboard (Operate P2)
+
+**Issue Operate P2 #1** (cuarto archivo del mismo ítem de la lista P2
+— silent redirects del critique
+`.impeccable/critique/2026-09-08T11-00-47Z__src-app-app.md`). Cuando un
+coach/athlete/parent/prospect tocaba
+`/app/[academyId]/dashboard/page.tsx:90`, el `redirect()` silencioso
+mandaba a **todos** al mismo `/app/[academyId]/athletes` — sin
+explicación y sin importar el rol. Era el caso más problemático del
+P2 #1: además de no dar mensaje, el target era fijo.
+
+**Solución:** reusa el primitive `AccessDenied` de PR 12 con
+`variant="admin"` (**navy — primer uso de esta variante**, surfaces de
+admin que ahora se diferencian visualmente del coral de billing).
+Copy específico: "Dashboard solo para administradores". CTA
+diferenciado por rol:
+
+  - coach → "Ir a mi panel de coach"
+    (link a `/app/[academyId]/coach`)
+  - athlete / parent → "Ir a mi dashboard familiar"
+    (link a `/app/[academyId]/my-dashboard`)
+  - prospect / other → "Ver atletas"
+    (link a `/app/[academyId]/athletes` — **preserva el redirect
+    target original** para users sin perfil o sin rol conocido, así
+    no cambiamos comportamiento del public listing)
+
+**Lo que NO se tocó (a propósito):**
+
+  - `redirect("/auth/login")` línea 61 (ausencia de sesión).
+  - `redirect(`/app/${academyId}/athletes`)` línea 102 (devSession +
+    `getDashboardData` throw — caso edge del dev session, no
+    role-mismatch).
+
+**Quedan del mismo P2:** `layout.tsx:183 + :197` — 1 archivo, 2
+redirects por migrar.
+
+**Verificación:** `pnpm typecheck` → 0 errores. Sigue siendo Server
+Component.
+
+**Estado final:**
+
+  - Commit: `54f99712` en `main` (1 archivo, +40/-1).
+  - Vercel deployment: `FbKAgC1PejzFYbjut5pusgkTmTZz` → **success**
+    (~6 min build).
+  - Branch protection: push directo a main con bypass admin (mismo
+    patrón que PR 1–14).
 
 ---
 
