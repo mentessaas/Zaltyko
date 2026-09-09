@@ -19,6 +19,7 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/com
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Avatar, AvatarFallback } from "@/components/ui/avatar";
+import { StatCard } from "@/components/ui/stat-card";
 import {
   Select,
   SelectContent,
@@ -287,54 +288,27 @@ export function MyDashboardPage({
 
       {/* Stats rápidos */}
       <div className="grid gap-3 sm:grid-cols-3">
-        <div className="rounded-[20px] border border-border/80 bg-card p-4 shadow-[0_16px_36px_-30px_rgba(15,23,42,0.5)]">
-          <div className="flex items-center gap-3">
-            <div className="flex h-10 w-10 items-center justify-center rounded-full bg-emerald-100">
-              <TrendingUp className="h-5 w-5 text-emerald-600" />
-            </div>
-            <div>
-              <p className="text-sm text-muted-foreground">Asistencia</p>
-              <p className="text-xl font-bold">
-                {attendanceRate === null ? "—" : `${attendanceRate}%`}
-              </p>
-              {attendanceRate === null && (
-                <p className="text-xs text-muted-foreground">Sin registros aún</p>
-              )}
-            </div>
-          </div>
-        </div>
-        <div className="rounded-[20px] border border-border/80 bg-card p-4 shadow-[0_16px_36px_-30px_rgba(15,23,42,0.5)]">
-          <div className="flex items-center gap-3">
-            <div className="flex h-10 w-10 items-center justify-center rounded-full bg-blue-100">
-              <Calendar className="h-5 w-5 text-blue-600" />
-            </div>
-            <div>
-              <p className="text-sm text-muted-foreground">Clases esta semana</p>
-              <p className="text-xl font-bold">
-                {hasLinkedAthlete ? weeklySchedule.length : "—"}
-              </p>
-              {!hasLinkedAthlete && (
-                <p className="text-xs text-muted-foreground">Perfil pendiente</p>
-              )}
-            </div>
-          </div>
-        </div>
-        <div className="rounded-[20px] border border-border/80 bg-card p-4 shadow-[0_16px_36px_-30px_rgba(15,23,42,0.5)]">
-          <div className="flex items-center gap-3">
-            <div className="flex h-10 w-10 items-center justify-center rounded-full bg-purple-100">
-              <ClipboardList className="h-5 w-5 text-purple-600" />
-            </div>
-            <div>
-              <p className="text-sm text-muted-foreground">Evaluaciones</p>
-              <p className="text-xl font-bold">
-                {hasLinkedAthlete ? assessmentsData.length : "—"}
-              </p>
-              {!hasLinkedAthlete && (
-                <p className="text-xs text-muted-foreground">Perfil pendiente</p>
-              )}
-            </div>
-          </div>
-        </div>
+        <StatCard
+          variant="attendance"
+          icon={<TrendingUp className="h-5 w-5" />}
+          label="Asistencia"
+          value={attendanceRate === null ? "—" : `${attendanceRate}%`}
+          footnote={attendanceRate === null ? "Sin registros aún" : undefined}
+        />
+        <StatCard
+          variant="classes"
+          icon={<Calendar className="h-5 w-5" />}
+          label="Clases esta semana"
+          value={hasLinkedAthlete ? weeklySchedule.length : "—"}
+          footnote={!hasLinkedAthlete ? "Perfil pendiente" : undefined}
+        />
+        <StatCard
+          variant="assessments"
+          icon={<ClipboardList className="h-5 w-5" />}
+          label="Evaluaciones"
+          value={hasLinkedAthlete ? assessmentsData.length : "—"}
+          footnote={!hasLinkedAthlete ? "Perfil pendiente" : undefined}
+        />
       </div>
 
       {/* Header con información del perfil */}
