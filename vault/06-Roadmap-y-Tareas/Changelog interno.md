@@ -9559,3 +9559,62 @@ OK
 ```
 
 Vault: actualizado `Changelog interno.md`; no cambian `Decisiones.md`, `Pricing.md`, `Mensajes aprobados.md` ni `Backlog priorizado.md`.
+
+## 2026-09-06 — Engineering Lead: R9 — close-out completo del triage de 12 stale PRs
+
+Catálogo R9: `vault/06-Roadmap-y-Tareas/Pre-existing PRs stale 2026-09-06.md` (commit `8557007b`). Esta entrada documenta las acciones ejecutadas en el cierre.
+
+### Resumen ejecutivo
+
+- **12 PRs abiertos** pre-Fase 4 → 12 acciones distintas ejecutadas (no quedan en estado "sin triage").
+- **3 cherry-picks limpios** abiertos como PRs nuevos: #104 (#64), #105 (#70), más el presente changelog en rama.
+- **1 coordinación activa**: #99 (branch de trabajo mobile, no stale).
+- **1 hand-off cerrado**: #62 (gobierno con caducidad vencida).
+- **5 cierres con split plan detallado**: #57, #76, #67, #85, #60.
+- **Estado neto**: 12 PRs cerradas, 2 PRs nuevos abiertos (#104, #105), 1 PR con coordinación (#99).
+
+### Acciones por PR
+
+| PR original | Acción | Resultado |
+|---|---|---|
+| #65 | Cerrado en sesión R9.1 | Cerrado |
+| #73 | Comentario "ready to merge" (gate de reviews humano) | Comentario posted |
+| #99 | Coordinación detallada (scope + estrategia) | Comentario posted |
+| #102 (Dependabot mobile xmldom) | Merged en sesión anterior | Merged |
+| #104 (Política Antifabricación) | Cherry-pick limpio de `b30d9ec8` | **PR nuevo abierto** |
+| #105 (ZAL-542 Stripe backing) | Cherry-pick limpio de `e9d1689d` | **PR nuevo abierto** |
+| #57 | Hand-off: rebase vs cherry-pick aislado (3 conflictos en middleware) | Cerrado |
+| #76 | Split plan de 3 sub-PRs (T0b/T0a/docs) | Cerrado |
+| #70 | Cherry-pick de `e9d1689d` (billing check) — ver #105 | Cerrado |
+| #67 | Split plan de 6 sub-PRs (11 ZALs distintos) | Cerrado |
+| #85 | Split plan de 5 sub-PRs (13+ ZALs) | Cerrado |
+| #62 | Hand-off: caducidad vencida, paralelo a `vault/` | Cerrado |
+| #60 | Split plan de 5 sub-PRs (5 dominios) | Cerrado |
+
+### Hallazgos críticos durante R9
+
+1. **ZAL-542 ("PASS") era documentación sin código**: el veredicto P&S [`a0352c1b`](/mentessaas/Zaltyko/commit/a0352c1b) referenciaba commit `206fee6b3` que **nunca fue mergeado a main**. La verificación era documental sobre código que no llegó a la rama. El cherry-pick de `e9d1689d` (idéntico por diffstat) en #105 recupera el código real.
+
+2. **Política Antifabricación (ZAL-169)**: el PR #64 arrastraba 12 commits de proceso "board move execution" + frontmatter obsoleto. Cherry-pick limpio en #104 preserva el contenido sin el noise.
+
+3. **Kitchen sinks extremos**: #67 (28 commits / 11 ZALs), #85 (43 commits / 13+ ZALs), #60 (28 commits / 5 dominios). Ninguno es revisable como una unidad.
+
+4. **Mobile tiene rama activa propia** (`fix/zal-1031-input-tone`): #99 NO es stale. Coordina 8 commits nuevos sobre 50+ merges heredados de PRs cerrados.
+
+5. **#62 `.governance/` caducidad vencida**: la decisión del consejo tenía caducidad 30d (2026-08-01 → 2026-08-31). El estado layer ya está duplicado por `vault/` en main.
+
+### PRs abiertos al cierre
+
+- **#104** ([vault: Política Antifabricación](https://github.com/mentessaas/Zaltyko/pull/104)) — 58 líneas en `Decisiones.md`, sin código, pendiente de review humano.
+- **#105** ([fix(billing): require Stripe subscription backing for access](https://github.com/mentessaas/Zaltyko/pull/105)) — 6 archivos, 62 insertions / 9 deletions, tests focales pendientes de re-validación.
+- **#99** ([fix(mobile): Vitest gate isolation + ZAL-1031 Input tone + ZAL-1169 pressed state](https://github.com/mentessaas/Zaltyko/pull/99)) — coordinación con autor mobile pendiente de scope/estrategia.
+- **#73** ([docs(marketing): ZAL-584 reflejar first_value = academy_activated](https://github.com/mentessaas/Zaltyko/pull/73)) — ready-to-merge, pendiente de approval humano.
+
+### Próximo paso (no ejecutado)
+
+- Review y merge de #104 (vault doc, sin código).
+- Re-ejecutar `pnpm test tests/lib/subscription-status.test.ts` antes de mergear #105.
+- Esperar respuesta del autor mobile en #99 sobre scope/estrategia.
+- Aprobar #73 si marketing first_value = academy_activated sigue vigente.
+
+Vault: actualizado este changelog; `Decisiones.md` no requiere cambio (la política Antifabricación se gestiona en #104); `Estado actual de Zaltyko.md` y `Backlog priorizado.md` no requieren cambio.
