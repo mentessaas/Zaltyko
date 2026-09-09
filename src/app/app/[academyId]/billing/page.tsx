@@ -9,6 +9,7 @@ import { createClient } from "@/lib/supabase/server";
 import { BillingPanel } from "@/components/billing/BillingPanel";
 import { getAcademySportConfigOptions } from "@/lib/sport-config/service";
 import { PageHeader } from "@/components/ui/page-header";
+import { AccessDenied } from "@/components/ui/access-denied";
 
 /**
  * AcademyBillingPage - Vista principal de planes y cobros
@@ -61,7 +62,31 @@ export default async function AcademyBillingPage({ params }: PageProps) {
     membership?.role === "owner";
 
   if (!canSeeBilling) {
-    redirect(profile.role === "coach" ? `/app/${academyId}/coach` : `/app/${academyId}/dashboard`);
+    // PR 12 (Operate P2): antes redirigía silenciosamente al home del rol.
+    // Ahora muestra AccessDenied para que el coach/parent/athlete sepa
+    // por qué no ve la sección, con CTA a su home real.
+    const isCoach = profile.role === "coach";
+    const homeHref = isCoach ? `/app/${academyId}/coach` : `/app/${academyId}/dashboard`;
+    const roleLabel = isCoach ? "coach" : profile.role;
+    return (
+      <div className="mx-auto max-w-[1500px] space-y-6">
+        <PageHeader
+          breadcrumbs={[
+            { label: "Dashboard", href: `/app/${academyId}/dashboard` },
+            { label: "Planes y cobros" },
+          ]}
+          title="Planes y cobros"
+          icon={<CreditCard className="h-5 w-5" strokeWidth={1.8} />}
+        />
+        <AccessDenied
+          variant="billing"
+          title="Esta sección es solo para administradores"
+          description={`Tu rol actual (${roleLabel}) no tiene acceso a planes y cobros. Solo el owner o administradores de la academia pueden gestionarlos.`}
+          ctaLabel={isCoach ? "Volver a mi panel de coach" : "Volver a mi dashboard"}
+          ctaHref={homeHref}
+        />
+      </div>
+    );
   }
 
   const sportConfigs = await getAcademySportConfigOptions(academyId);
