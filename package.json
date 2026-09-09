@@ -6,6 +6,11 @@
     "node": ">=20 <23",
     "pnpm": "9.15.9"
   },
+  "pnpm": {
+    "overrides": {
+      "esbuild": "^0.25.0"
+    }
+  },
   "description": "Zaltyko — El sistema definitivo para gestionar academias de gimnasia",
   "scripts": {
     "dev": "next dev",
@@ -94,7 +99,7 @@
     "class-variance-authority": "^0.7.1",
     "clsx": "^2.1.1",
     "cmdk": "^1.1.1",
-    "csv-parse": "^6.1.0",
+    "csv-parse": "^7.0.2",
     "date-fns": "^4.1.0",
     "date-fns-tz": "^3.2.0",
     "dotenv": "^16.4.7",
