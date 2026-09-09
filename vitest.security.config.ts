@@ -14,7 +14,6 @@ export default defineConfig({
     globals: true,
     setupFiles: ["./tests/setup.ts"],
     maxWorkers: 2,
-    minWorkers: 1,
     include: ["tests/**/*.test.ts", "tests/**/*.test.tsx"],
     exclude: ["node_modules", ".next", "coverage"],
   },

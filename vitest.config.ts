@@ -5,9 +5,9 @@ import react from "@vitejs/plugin-react";
 export default defineConfig({
   test: {
     // API-heavy suites import large route graphs. Keep one worker globally;
-    // project-level configs do not accept maxWorkers/minWorkers.
+    // project-level configs do not accept maxWorkers (vitest 4 removed
+    // minWorkers — see vitest 4 migration guide).
     maxWorkers: 1,
-    minWorkers: 1,
     coverage: {
       provider: "v8",
       reporter: ["text", "json", "html", "lcov"],
