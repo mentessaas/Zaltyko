@@ -1,7 +1,7 @@
 ---
 status: active
 owner: producto
-last_reviewed: 2026-09-09T09:00Z
+last_reviewed: 2026-09-09T09:30Z
 source:
 ---
 
@@ -1161,6 +1161,69 @@ primero porque (a) está en el camino crítico de los 3 P1s restantes,
 reusa en 3 forms mínimo, lo cual pide más reflexión previa.
 
 PR: #TBD (pendiente push + `gh pr create`).
+Vault actualizado: este changelog.
+
+## 2026-09-09 — PR 16: silent redirect → AccessDenied UI en layout shell (Operate P2)
+
+**1 commit a `main`** cerrando el último archivo del batch Operate P2
+#1 (silent-redirect chains). Único archivo modificado:
+`src/app/app/[academyId]/layout.tsx`.
+
+**Diferencia clave vs PR 12-15:** este es layout-level, no page-level.
+Los PRs anteriores (billing, my-dashboard, coach, dashboard)
+reemplazaban `redirect()` en la página con un `return` de
+`<PageHeader>` + `<AccessDenied>`. Aquí el layout preserva el shell
+completo de `<AcademyProvider>` (sidebar + topnav) y solo sustituye
+`{children}` dentro de `<main>` cuando hay denegación. Decisión
+deliberada: el usuario sigue viendo la academia a la que intentó
+acceder (orientación contextual), solo que bloqueado del slot
+correspondiente.
+
+**Dos branches condicionales dentro de `<main>`:**
+
+  - `showGeneralDenied = !canAccess` (línea ~181) → cubre el caso
+    "no tienes acceso al workspace de esta academia".
+    - CTA: athlete/parent → `/dashboard/profile` (`Volver a mi
+      perfil`); otros → `/dashboard` (`Volver al inicio`). Mismos
+      targets que el `redirect()` original (preservados literal).
+  - `showAdminOnlyDenied = !showGeneralDenied && isAdminOnlyPath &&
+    !isAdmin` (línea ~194) → cubre los 4 admin-only paths:
+    `/billing`, `/settings`, `/coaches`, `/announcements`.
+    - CTA: coach → `/app/${academy.id}/coach` (`Ir a mi panel de
+      coach`); otros → `/app/${academy.id}/dashboard` (`Ir al
+      dashboard`). Mismos targets que el `redirect()` original
+      (preservados literal, incluso el caso "others → dashboard"
+      que tras PR 15 ahora también mostraría AccessDenied — no
+      se scope-creep, se preserva comportamiento).
+
+**Variantes elegidas:**
+
+  - General denied → `variant="default"` (coral). No es surface admin
+    ni billing, es "no deberías estar aquí".
+  - Admin-only denied → `variant="admin"` (navy). Mismo criterio que
+    PR 15 (dashboard), confirma que la variant admin es para
+    superficies de gestión, no solo para billing.
+
+**Lo que NO se cambia (preservado a propósito):**
+
+  - `redirect("/auth/login")` cuando no hay sesión efectiva (líneas
+    ~46). Es ausencia de datos, no control de acceso. Igual que PR 12-15.
+  - `redirect("/dashboard")` cuando el perfil no existe (líneas ~63).
+    Mismo motivo.
+  - `notFound()` cuando la academia no existe y no hay devSession
+    match (línea ~108). No aplica AccessDenied porque literalmente
+    no hay academia que mostrar.
+
+**Typecheck:** 0 errores. **Deploy:** `910ea1fb` → Vercel production
+`success` (~5 min).
+
+**Cierre del batch Operate P2 #1:** 5 archivos, 6 sitios de redirect
+silencioso reemplazados (billing, my-dashboard, coach, dashboard, layout).
+El patrón `<AccessDenied>` queda como primitiva canónica para control de
+acceso por rol — futuros PRs que necesiten bloquear sub-áreas deberían
+usarla en lugar de `redirect()`.
+
+PR: commit `910ea1fb` directo a `main` (admin PAT, consistente con PR 1-15).
 Vault actualizado: este changelog.
 
 ## 2026-09-09 — PR 5 del critique Operate: sidebar search role-aware (P1 #3 — hide para limited + placeholder distinto para coach)
