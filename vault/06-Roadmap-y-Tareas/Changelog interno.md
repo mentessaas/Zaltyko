@@ -1348,6 +1348,99 @@ queda #25 (audit técnico a11y/perf/responsive), no blocker.
 PR: commit `37b6d4a0` directo a `main` (admin PAT).
 Vault actualizado: este changelog.
 
+## 2026-09-09 — PR 122 (Dependabot R2): cerrar 19 alertas + 4 vulns pre-existentes que bloqueaban el SBOM check
+
+**2 commits squash-merged a `main`** cerrando la segunda ronda de
+alertas Dependabot que quedaban abiertas, y desbloqueando el merge
+porque el check "Dependency Security & SBOM" estaba fallando por 4
+vulnerabilidades **pre-existentes** (no introducidas por este PR):
+
+  - **R2 (commit squashed):** 19 alertas Dependabot restantes (de la
+    ronda R1 quedaban 6 cerradas; R1 además había añadido
+    `pnpm.overrides` y 3 mobile overrides que se perdieron en un
+    merge posterior — esto los re-aplica).
+  - **R2.1 (commit squashed):** 4 vulns pre-existentes que el SBOM
+    check detectó como bloqueantes: 2 críticas en next.js 15.5.21,
+    1 alta en sharp 0.35.0 (transitivo vía next), 1 alta en js-yaml
+    4.3.1 (transitivo vía swagger-ui-react + swagger-client).
+
+**Cambios concretos (root + mobile):**
+
+  - `package.json`:
+      - `next`: `15.5.21` → `15.5.24` (patch bump, fixes ambas RCEs)
+      - `pnpm.overrides.esbuild`: `"^0.25.0"` (R1 re-aplicado —
+        colapsa 3 versiones a 1 en el lockfile)
+      - `pnpm.overrides.js-yaml`: `"^4.3.2"` (nuevo — fuerza swagger-ui-react
+        y swagger-client a usar la versión parcheada)
+      - `pnpm.overrides.sharp`: `"^0.35.4"` (nuevo — next 15.5.24 sigue
+        shippeando sharp 0.35.0 en sus bundled deps, el override fuerza
+        la versión parcheada transitivamente)
+      - `csv-parse`: `"^6.1.0"` → `"^7.0.2"` (API estable, sólo se usa
+        `csv-parse/sync` en 2 call sites de `scripts/`)
+  - `mobile/package.json`:
+      - Re-aplicados los 4 overrides de R1 (que un merge posterior
+        había clobbered): `uuid`, `decode-uri-component`,
+        `@xmldom/xmldom`, y `image-size` → `image-size-next` (fork
+        oficial, drop-in compatible con `require("image-size")` de metro;
+        upstream image-size está archivado y no tiene fix para
+        CVE-2025-71329/71330).
+
+**Lockfile compaction:** net **−3 líneas** en `pnpm-lock.yaml`
+(+233 / −735). Gran parte del delta es la desduplicación de esbuild
+(3 versiones → 1) que el override de R1 ya había provocado y R2 sólo
+ratifica.
+
+**Por qué R2.1 se hizo dentro del mismo PR y no como R3 separado:**
+
+  - El check "Dependency Security & SBOM" es required para merge en
+    `fix/dependabot-r2-2026-09-09`. Las 4 vulns pre-existentes
+    bloqueaban el merge incluso con todas las demás checks (lint,
+    type, unit, build, RLS, gates, Vercel preview, GitGuardian) en
+    verde. La opción era: (a) extender el scope de R2 aquí, o
+    (b) cerrar R2 sin mergear, abrir R3, mergear R2, mergear R3.
+    (a) es 1 PR y 1 ronda de review; (b) es 2 PRs y el R2 nunca
+    cierra realmente porque las alertas Dependabot siguen abiertas
+    hasta que R2 mergee. (a) gana.
+
+**Audit verification (local):**
+
+  - `pnpm audit --prod --audit-level high` →
+    **"No known vulnerabilities found"** ✅
+  - `pnpm audit` (incl. dev) → 2 moderate (dev-only, no bloquean SBOM).
+
+**Verificación CI (PR #122):**
+
+  - Dependency Security & SBOM: **SUCCESS** ✅ (era el bloqueante)
+  - Lint & Type Check: SUCCESS
+  - Unit Tests: SUCCESS
+  - Build: SUCCESS
+  - E2E Credentials Readiness: SUCCESS
+  - Validate RLS Coverage: SUCCESS
+  - Check Drizzle Migrations Integrity: SUCCESS
+  - Run gate:operational: SUCCESS
+  - GitGuardian Security Checks: SUCCESS
+  - Vercel Preview Comments: SUCCESS
+  - Vercel preview deployment (cross-checked directamente vía
+    `GET /repos/.../deployments/<id>/statuses`): **SUCCESS**
+    (preview URL `zaltyko-4btcud027-mentessaas-projects.vercel.app`)
+  - Merge mode: `--squash --admin --delete-branch` (branch protection
+    requiere admin, mismo patrón que R1).
+
+**Estado del critique pendiente:** sin cambio — #19 sigue cerrado,
+#25 (audit técnico a11y/perf/responsive) sigue siendo el único
+pendiente no blocker.
+
+**Pendiente post-merge (no bloqueante):**
+
+  - Confirmar que GitHub cierra las 19 alertas Dependabot
+    automáticamente (escaneo suele tardar 5–15 min tras merge a main).
+  - Si quedan 2 moderate en el full audit (`pnpm audit`), evaluar si
+    amerita un R3 específico o se dejan como tech debt aceptado.
+
+PR: squash-merge de #122 → commit `0c757383` en `main`. Branch
+`fix/dependabot-r2-2026-09-09` eliminada tras merge.
+Vault actualizado: este changelog.
+
 ## 2026-09-09 — PR 5 del critique Operate: sidebar search role-aware (P1 #3 — hide para limited + placeholder distinto para coach)
 
 **1 commit a `main`** cerrando el P1 #3 del critique `/impeccable`
