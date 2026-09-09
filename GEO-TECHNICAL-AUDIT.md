@@ -1,5 +1,5 @@
 # GEO Technical SEO Audit — zaltyko.com
-Date: 2026-09-08 (post-R6 ship + measurement: LCP −327 ms, score unchanged at 93/100 — see R6 below)
+Date: 2026-09-09 (post-PR 18 — IndexNow ping fix; see PR 18 verification below)
 Auditor: geo-technical skill (live curl + header inspection + Lighthouse 13.4.1 mobile, no CrUX field data)
 Baseline: 84/100 from 2026-09-08 morning audit (pre-PR2); 92/100 post-PR2; 93/100 post-PR3 + post-R6
 
@@ -42,7 +42,7 @@ Note on Core Web Vitals: Lighthouse 13.4.1 lab measurements now exist. Lab LCP o
 | CCBot | CCBot | ✅ Allowed (via `*`) | Common Crawl training data allowed |
 | Bytespider | Bytespider | ✅ Allowed (via `*`) | TikTok / ByteDance allowed |
 
-**Verdict:** All major AI crawlers still allowed. Only protected paths are `/app`, `/api`, `/dashboard`, `/super-admin`. New: IndexNow key file is now live at `/.well-known/indexnow-key.txt` (200 OK), and Vercel cron `0 4 * * *` is scheduled to push the 12-route landing surface to Bing daily. Bing → ChatGPT indexing latency now bounded to 24h instead of "whenever Bingbot recrawls".
+**Verdict:** All major AI crawlers still allowed. Only protected paths are `/app`, `/api`, `/dashboard`, `/super-admin`. IndexNow key file is live at `/.well-known/indexnow-key.txt` (HTTP 200 `text/plain`, 37 bytes, content-addressed UUID, no BOM) and Vercel cron `0 4 * * *` is scheduled to push the 12-route landing surface to Bing daily. **PR 18 (2026-09-09):** verified the upstream ping now returns `HTTP 202` after dropping the explicit `keyLocation` from the helper payload (auto-derive from host). Bing → ChatGPT indexing latency bounded to 24h instead of "whenever Bingbot recrawls".
 
 ---
 
@@ -284,13 +284,24 @@ CSP remains best-in-class for a Next.js app.
 
 ---
 
+## Verification of PR 18 (IndexNow keyLocation → auto-derive)
+
+| Item | Verified in production | Status |
+|---|---|---|
+| **Key file** | `curl https://zaltyko.com/.well-known/indexnow-key.txt` → HTTP 200 `text/plain`, `content-length: 37`, body = `d1edd327-692d-48e2-899b-b68988f6e809\n` (matches `INDEXNOW_KEY` constant in `src/lib/seo/indexnow.ts`) | ✅ Resolved (PR 18) |
+| **Helper payload (old)** | POST with explicit `keyLocation` → `HTTP 422 "URLs are not related to your site verified through the keylocation parameter"` | ❌ Diagnosed |
+| **Helper payload (new)** | POST without `keyLocation` (auto-derive from host) → `HTTP 202` Verified end-to-end against `api.indexnow.org` with the exact 12-URL payload that `PUBLIC_ROUTES` builds | ✅ Resolved (PR 18) |
+| **Cron route** | `GET https://zaltyko.com/api/cron/indexnow-submit` → `HTTP 401 {ok:false, error:"UNAUTHORIZED"}` (correctly bearer-protected); Vercel cron `0 4 * * *` UTC will trigger actual upstream call | ✅ Resolved (PR 18) |
+
+**Score impact:** Category 1 (Crawlability) unchanged at 15/15 — the IndexNow helper was already counted as ✅ in W3; PR 18 fixed the actual upstream acceptance. Total audit score unchanged at **93/100**.
+
 ## What's NOT in this audit (next steps)
 
 1. **Field-data Core Web Vitals** — Lighthouse 13 lab data now exists (see Category 6); CrUX field data still needs PageSpeed Insights API + 28 days of production traffic. Lab LCP is consistently slower than field, so the 5.2s / 4.4s numbers may not reflect real-user experience.
 2. **Inner page image audit** — homepage only has logos. Need to crawl `/features`, `/pricing`, `/academias`, `/es/gimnasia-artistica/argentina` and inspect `<img>` tags for format/dimensions/lazy.
 3. **Code-split unused JS** — Lighthouse flagged ~394 KiB of unused JS on both audited pages. Dynamic-import opportunity for the `<TrackedPlanLink>` and Reveal motion components.
 4. **Cluster page content uniqueness** — if `/es/gimnasia-artistica/argentina` is thin or near-duplicate of `/es/gimnasia-artistica`, those cluster pages risk being treated as doorway pages by Google. Spot-check by diffing content ratios across 3-4 country variants.
-5. **IndexNow actual ping** — cron is scheduled at 04:00 UTC; first automatic fire is 2026-09-09 04:00 UTC. Need to verify the upstream `api.indexnow.org` returns 200 after first scheduled run. If it returns 422 (URL doesn't belong to host), the `getPublicSiteUrl()` resolver is probably hitting a non-canonical host (e.g. `www.zaltyko.com` vs `zaltyko.com`); fix would be in `src/lib/seo/site-url.ts`.
+5. ✅ **IndexNow actual ping** — fixed in PR 18 (`37b6d4a0`): `src/lib/seo/indexnow.ts` was passing `keyLocation` explicitly, which triggered IndexNow's strict URL-vs-keyLocation match and returned 422 even with a valid key file. Dropping the explicit field (letting IndexNow auto-derive from `host`) returns 202. Verified end-to-end against `api.indexnow.org` with the exact 12-URL payload that the cron submits. Cron route in prod responds 401 without bearer (correctly protected) — the actual upstream call will happen at the next 04:00 UTC scheduled fire.
 6. **Pricing meta-description** — W5 above; trivial 1-line fix to recover the +1 SEO point on `/pricing`.
 7. **LCP optimization** — R6 above; preload hero fonts + inline critical CSS.
 
@@ -310,6 +321,5 @@ CSP remains best-in-class for a Next.js app.
 1. Pricing `<meta name="description">` missing (W5, trivial 1-line fix)
 2. Lab LCP 4.4–5.2s on audited pages (R6, preload hero fonts + lazy-load heavy components)
 3. ~394 KiB unused JS per page (R3, code-split)
-4. IndexNow first ping verification pending (until 2026-09-09 04:00 UTC cron fire)
 
 **Net assessment:** Zaltyko's technical SEO foundation is now production-grade for both traditional search and GEO/AI citation. Lighthouse mobile audit confirms the cluster page is SEO-perfect (100/100 with valid structured data) and pricing page is SEO-near-perfect (92/100, missing only the meta-description). The remaining gaps are all incremental optimizations, not blockers. The site is correctly positioned for ChatGPT/Bing Copilot/Perplexity to surface Zaltyko academy listings when users ask "best gymnastics academy management software" or "academias de gimnasia artística en [país]".
