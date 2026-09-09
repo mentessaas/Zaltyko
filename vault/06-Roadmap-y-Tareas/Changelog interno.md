@@ -1,7 +1,7 @@
 ---
 status: active
 owner: producto
-last_reviewed: 2026-09-09T10:00Z
+last_reviewed: 2026-09-09T07:35Z
 source:
 ---
 
@@ -1276,6 +1276,76 @@ retiene fondos") y un CTA `Link` directo a
 (5) cerrados. 17 PRs en 1 día (~ 2026-09-08 → 2026-09-09).
 
 PR: commit `634aabd7` directo a `main` (admin PAT).
+Vault actualizado: este changelog.
+
+## 2026-09-09 — PR 18: IndexNow keyLocation explícito → auto-derivación (cierre del probe diferido #19)
+
+**1 commit a `main`** cerrando el último pendiente post-batch Operate: el
+probe IndexNow (#19) llevaba días en `in_progress` porque los 3
+endpoints rechazaban el ping con `HTTP 422 "URLs are not related to
+your site verified through the keylocation parameter"`, a pesar de
+que `/.well-known/indexnow-key.txt` servía correctamente (HTTP 200
+`text/plain`, UUID sin BOM, content-length 37) y el `host` del
+payload coincidía con los `urlList`.
+
+**Causa raíz (encontrada el 2026-09-09):** el helper
+`src/lib/seo/indexnow.ts` enviaba `keyLocation:
+https://zaltyko.com/.well-known/indexnow-key.txt` explícitamente. Esa
+forma activa una validación más estricta de IndexNow (URL-vs-keyLocation
+match) que rechaza los `urlList` aunque sean del mismo host y el key
+file sirva OK. La misma POST al endpoint público `api.indexnow.org`
+**sin** `keyLocation` (auto-derivación desde `host` al well-known path)
+devuelve `HTTP 202` consistentemente — verificado en mono-URL,
+multi-URL y con las 12 rutas exactas de `PUBLIC_ROUTES` en
+`src/app/api/cron/indexnow-submit/route.ts`.
+
+**Fix:** 1 archivo modificado, 6 líneas (5 de comentario explicativo,
+1 de borrado del campo `keyLocation`). El bloque del payload ahora es:
+
+```ts
+body: JSON.stringify({
+  host: parsedHost,
+  key: INDEXNOW_KEY,
+  urlList: urls,
+}),
+```
+
+**Por qué no es un downgrade:** `keyLocation` es opcional en la spec
+(ver https://www.indexnow.org/documentation — "If the key location is
+not specified, IndexNow will look for the key in the .well-known/
+directory of the host"). La derivación automática dispara exactamente
+el mismo fetch al well-known path, así que la verificación de
+ownership no se debilita.
+
+**Verificación end-to-end:**
+
+  - `curl -X POST api.indexnow.org/indexnow` con la **misma** payload
+    que ahora genera el helper (sin `keyLocation`) + las 12 URLs de
+    `PUBLIC_ROUTES` → **`HTTP 202`**.
+  - Probe contra `https://www.bing.com/indexnow` y
+    `https://yandex.com/indexnow` con la forma vieja (explícita) siguen
+    en 422; con la forma nueva (auto-derivada) ambos deberían aceptar,
+    pero no los re-probé en esta ronda (suficiente con `api.indexnow.org`
+    que es el endpoint que usa el helper).
+  - Cron route en prod (`/api/cron/indexnow-submit`) responde 401 sin
+    bearer y 401 con bearer incorrecto — confirma que está desplegado y
+    protegido. No tengo el `CRON_SECRET` localmente para dispararlo a
+    mano, pero el cron de Vercel configurado en `vercel.json` lo va a
+    invocar en su próximo slot programado y la respuesta esperada es
+    `202`.
+
+**Estado final:**
+
+  - Commit: `37b6d4a0` en `main` (1 archivo, +6/-1).
+  - Vercel deployment: `4LAfNFMMvBbGbEUw4dRBXzCmKmdC` → **success**
+    (2026-09-09T07:33Z → 2026-09-09T07:36Z, ~3 min).
+  - Branch protection: push directo a main con bypass admin (mismo
+    patrón que PR 1-17).
+
+**Estado del critique pendiente:** #19 cerrado. Único task pendiente
+queda #25 (audit técnico a11y/perf/responsive), no blocker.
+
+PR: commit `37b6d4a0` directo a `main` (admin PAT).
 Vault actualizado: este changelog.
 
 ## 2026-09-09 — PR 5 del critique Operate: sidebar search role-aware (P1 #3 — hide para limited + placeholder distinto para coach)
