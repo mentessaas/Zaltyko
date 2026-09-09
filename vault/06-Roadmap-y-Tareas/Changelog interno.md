@@ -1,7 +1,7 @@
 ---
 status: active
 owner: producto
-last_reviewed: 2026-09-09T07:30Z
+last_reviewed: 2026-09-09T08:00Z
 source:
 ---
 
@@ -189,6 +189,52 @@ presentational puro.
     (~6 min build).
   - Branch protection: push directo a main con bypass admin (mismo
     patrón que PR 1–11).
+
+---
+
+## 2026-09-09 — PR 13: silent redirect → AccessDenied UI en /my-dashboard (Operate P2)
+
+**Issue Operate P2 #1** (segundo archivo del mismo ítem de la lista P2
+— silent redirects del critique
+`.impeccable/critique/2026-09-08T11-00-47Z__src-app-app.md`). Cuando un
+coach o admin tocaba `/app/[academyId]/my-dashboard/page.tsx:149-155`,
+el `redirect()` silencioso lo mandaba al dashboard que no es el suyo
+sin explicación.
+
+**Solución:** reusa el primitive `AccessDenied` de PR 12 con
+`variant="default"` (coral). Copy específico para este dashboard:
+"Esta sección es para atletas y familias". CTA diferenciado por rol
+(igual patrón que PR 12, billing):
+
+  - owner / admin / super_admin → "Ir a mi dashboard de administración"
+    (link a `/app/[academyId]/dashboard`)
+  - coach → "Volver a mi panel de coach"
+    (link a `/app/[academyId]/coach`)
+  - prospect / other → "Volver al inicio"
+    (link a `/dashboard`)
+
+**Lo que NO se tocó (a propósito):**
+
+  - `redirect("/auth/login")` y `redirect("/auth/login")` (líneas 115 y
+    132) — ausencia de sesión, no falta de permisos. Cambiar esos
+    rompe expectativa de seguridad.
+  - `redirect("/dashboard")` de la línea 170 (academy no encontrada) —
+    tampoco es role-mismatch. Es "academia inexistente", mismo
+    tratamiento que el redirect original.
+
+**Quedan del mismo P2:** `dashboard/page.tsx:90`, `coach/page.tsx:143
++ :164`, `layout.tsx:183 + :197` — 4 archivos por migrar.
+
+**Verificación:** `pnpm typecheck` → 0 errores. Sigue siendo Server
+Component.
+
+**Estado final:**
+
+  - Commit: `bc481c83` en `main` (1 archivo, +41/-5).
+  - Vercel deployment: `A8GQG4XvCw7jJSJbxDMgyvk249eb` → **success**
+    (~6 min build).
+  - Branch protection: push directo a main con bypass admin (mismo
+    patrón que PR 1–12).
 
 ---
 
