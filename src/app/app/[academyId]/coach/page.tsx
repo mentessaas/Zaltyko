@@ -21,6 +21,9 @@ import {
 } from "@/db/schema";
 import { createClient } from "@/lib/supabase/server";
 import { CoachDashboardPage } from "@/components/coach/CoachDashboardPage";
+import { AccessDenied } from "@/components/ui/access-denied";
+import { PageHeader } from "@/components/ui/page-header";
+import { ClipboardList } from "lucide-react";
 
 interface PageProps {
   params: Promise<{
@@ -141,11 +144,46 @@ export default async function CoachDashboard({ params }: PageProps) {
 
   // Solo coaches pueden acceder
   if (profile.role !== "coach" || !membership) {
-    // Redirigir según el rol
-    if (profile.role === "owner" || profile.role === "admin" || profile.role === "super_admin") {
-      redirect(`/app/${academyId}/dashboard`);
-    }
-    redirect("/dashboard");
+    // PR 14 (Operate P2): antes redirigía silenciosamente al home del rol.
+    // Ahora muestra AccessDenied explicando que este panel es exclusivo
+    // para coaches, con CTA al home real del rol.
+    const isStaffRole =
+      profile.role === "owner" ||
+      profile.role === "admin" ||
+      profile.role === "super_admin";
+    const isAthleteOrParent =
+      profile.role === "athlete" || profile.role === "parent";
+
+    const homeHref = isStaffRole
+      ? `/app/${academyId}/dashboard`
+      : isAthleteOrParent
+        ? `/app/${academyId}/my-dashboard`
+        : "/dashboard";
+    const ctaLabel = isStaffRole
+      ? "Ir a mi dashboard de administración"
+      : isAthleteOrParent
+        ? "Ir a mi dashboard familiar"
+        : "Volver al inicio";
+
+    return (
+      <div className="mx-auto max-w-[1500px] space-y-6">
+        <PageHeader
+          breadcrumbs={[
+            { label: "Dashboard", href: `/app/${academyId}/dashboard` },
+            { label: "Panel del entrenador" },
+          ]}
+          title="Panel del entrenador"
+          icon={<ClipboardList className="h-5 w-5" strokeWidth={1.8} />}
+        />
+        <AccessDenied
+          variant="default"
+          title="Esta sección es solo para entrenadores"
+          description={`Tu rol actual (${profile.role}) no tiene acceso al panel del entrenador. Este espacio es exclusivo para coaches vinculados a la academia.`}
+          ctaLabel={ctaLabel}
+          ctaHref={homeHref}
+        />
+      </div>
+    );
   }
 
   // Obtener el coach asociado al perfil
