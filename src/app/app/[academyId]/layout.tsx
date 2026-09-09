@@ -18,6 +18,7 @@ import {
 } from "@/lib/product/roles";
 import { resolveAcademySpecialization } from "@/lib/specialization/registry";
 import { getDevSessionFromCookieStore } from "@/lib/dev-session";
+import { AccessDenied } from "@/components/ui/access-denied";
 
 import { logger } from "@/lib/logger";
 
@@ -178,9 +179,7 @@ export default async function AcademyLayout({ params, children }: LayoutProps) {
     (canAccessAcademyWorkspace(profile.role, membership?.role ?? null, isOwner) &&
       (isOwner || isMember));
 
-  if (!canAccess) {
-    redirect(profile.role === "athlete" || profile.role === "parent" ? "/dashboard/profile" : "/dashboard");
-  }
+  const showGeneralDenied = !canAccess;
 
   const adminOnlyPaths = [
     `/app/${academy.id}/billing`,
@@ -192,9 +191,25 @@ export default async function AcademyLayout({ params, children }: LayoutProps) {
     (path) => pathname === path || pathname?.startsWith(`${path}/`)
   );
 
-  if (isAdminOnlyPath && !isAdmin) {
-    redirect(profile.role === "coach" ? `/app/${academy.id}/coach` : `/app/${academy.id}/dashboard`);
-  }
+  const showAdminOnlyDenied = !showGeneralDenied && isAdminOnlyPath && !isAdmin;
+
+  const generalDeniedCtaHref =
+    profile.role === "athlete" || profile.role === "parent"
+      ? "/dashboard/profile"
+      : "/dashboard";
+  const generalDeniedCtaLabel =
+    profile.role === "athlete" || profile.role === "parent"
+      ? "Volver a mi perfil"
+      : "Volver al inicio";
+
+  const adminOnlyDeniedCtaHref =
+    profile.role === "coach"
+      ? `/app/${academy.id}/coach`
+      : `/app/${academy.id}/dashboard`;
+  const adminOnlyDeniedCtaLabel =
+    profile.role === "coach"
+      ? "Ir a mi panel de coach"
+      : "Ir al dashboard";
 
   const planCode = subscription?.planCode ?? "free";
   const planNickname = subscription?.planNickname ?? null;
@@ -258,7 +273,25 @@ export default async function AcademyLayout({ params, children }: LayoutProps) {
             <MobileAcademyNav />
             <div className="flex flex-1 flex-col">
               <main id="main-content" className="flex-1 bg-transparent px-4 py-5 pb-24 sm:px-6 lg:px-10 lg:py-7 lg:pb-8" tabIndex={-1}>
-                {children}
+                {showGeneralDenied ? (
+                  <AccessDenied
+                    variant="default"
+                    title="No tienes acceso a esta academia"
+                    description={`Tu rol actual (${profile.role}) no tiene acceso al espacio de trabajo de esta academia.`}
+                    ctaLabel={generalDeniedCtaLabel}
+                    ctaHref={generalDeniedCtaHref}
+                  />
+                ) : showAdminOnlyDenied ? (
+                  <AccessDenied
+                    variant="admin"
+                    title="Esta sección es solo para administradores"
+                    description={`Tu rol actual (${profile.role}) no tiene permisos para acceder a esta sección.`}
+                    ctaLabel={adminOnlyDeniedCtaLabel}
+                    ctaHref={adminOnlyDeniedCtaHref}
+                  />
+                ) : (
+                  children
+                )}
               </main>
             </div>
           </div>
