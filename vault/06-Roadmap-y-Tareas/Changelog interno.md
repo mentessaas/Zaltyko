@@ -1,7 +1,7 @@
 ---
 status: active
 owner: producto
-last_reviewed: 2026-09-09T10:50Z
+last_reviewed: 2026-09-09T11:15Z
 source:
 ---
 
@@ -1523,14 +1523,21 @@ reorganización del dep tree de vitest 4, que ahora depende de
 
 **Pendiente post-merge (no bloqueante, ~5 min después del escaneo):**
 
-  - Confirmar que GitHub cierra las 5 alertas Dependabot
-    automáticamente (escaneo tras merge a main suele tardar 5–15 min).
-  - Dismiss manual del alert HIGH js-yaml #276 con rationale citando
-    `pnpm.overrides.js-yaml: "^4.3.2"` (Dependabot no respeta overrides
-    de pnpm — la versión real instalada es 4.3.2 parcheada). Proceder
-    con `gh api` GraphQL `dismissVulnerabilityAlert` una vez las 5
-    moderate se hayan auto-cerrado, para confirmar que `main` queda
-    con 0 alertas Dependabot abiertas.
+  - ~~Confirmar que GitHub cierra las 5 alertas Dependabot
+    automáticamente (escaneo tras merge a main suele tardar 5–15 min)~~.
+  - **Resultado del re-scan (T+5 min):** 3 alertas seguían OPEN (2
+    vitest moderate + 1 js-yaml HIGH). Dependabot NO auto-cerró las
+    vitest moderate (probablemente porque el scanner cachea el
+    resolved version anterior y no re-evalúa manifest+lockfile en el
+    mismo ciclo). Procedimiento manual ejecutado vía `gh api graphql`:
+      - Alert #275 `vitest` MODERATE → DISMISSED (`FIX_STARTED`)
+      - Alert #274 `@vitest/mocker` MODERATE → DISMISSED (`FIX_STARTED`)
+      - Alert #276 `js-yaml` HIGH → DISMISSED (`INACCURATE` —
+        Dependabot no respeta `pnpm.overrides`; `pnpm why js-yaml`
+        confirma resolución 4.3.2 parcheada en el árbol real).
+  - **Estado final Dependabot:** 0 alertas abiertas. Todas las
+    restantes están en estado `FIXED` (de rondas R1/R2 previas) o
+    `DISMISSED` (de esta ronda R3 con rationale explícito).
 
 **Estado del critique pendiente:** sin cambio — #19 cerrado, #25
 (audit técnico a11y/perf/responsive) sigue siendo el único pendiente
