@@ -8,7 +8,9 @@
   },
   "pnpm": {
     "overrides": {
-      "esbuild": "^0.25.0"
+      "esbuild": "^0.25.0",
+      "js-yaml": "^4.3.2",
+      "sharp": "^0.35.4"
     }
   },
   "description": "Zaltyko — El sistema definitivo para gestionar academias de gimnasia",
@@ -110,7 +112,7 @@
     "jspdf-autotable": "^5.0.8",
     "lucide-react": "^0.474.0",
     "mcp-handler": "^1.1.0",
-    "next": "15.5.21",
+    "next": "15.5.24",
     "next-sitemap": "^4.2.3",
     "next-swagger-doc": "^0.4.1",
     "next-themes": "^0.4.6",
