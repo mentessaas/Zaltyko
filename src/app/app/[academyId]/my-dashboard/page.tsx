@@ -10,6 +10,9 @@ import { createClient } from "@/lib/supabase/server";
 import { getDevSessionFromCookieStore } from "@/lib/dev-session";
 import { canAccessFamilyFinancialData } from "@/lib/family/access-policy";
 import { MyDashboardPage } from "./MyDashboardPage";
+import { AccessDenied } from "@/components/ui/access-denied";
+import { PageHeader } from "@/components/ui/page-header";
+import { LayoutDashboard } from "lucide-react";
 
 interface PageProps {
   params: Promise<{
@@ -147,11 +150,44 @@ export default async function MyDashboard({ params, searchParams }: PageProps) {
   const hasAccess = profile.role === "athlete" || profile.role === "parent";
 
   if (!hasAccess || !membership) {
-    // Redirigir según el rol del perfil
-    if (profile.role === "owner" || profile.role === "admin" || profile.role === "super_admin") {
-      redirect(`/app/${academyId}/dashboard`);
-    }
-    redirect("/dashboard");
+    // PR 13 (Operate P2): antes redirigía silenciosamente al home del rol.
+    // Ahora muestra AccessDenied explicando que este dashboard es para
+    // atletas/padres, con CTA al home real del rol que sí tiene acceso.
+    const isStaffRole =
+      profile.role === "owner" ||
+      profile.role === "admin" ||
+      profile.role === "super_admin";
+    const isCoach = profile.role === "coach";
+
+    const homeHref = isStaffRole
+      ? `/app/${academyId}/dashboard`
+      : isCoach
+        ? `/app/${academyId}/coach`
+        : "/dashboard";
+    const ctaLabel = isStaffRole
+      ? "Ir a mi dashboard de administración"
+      : isCoach
+        ? "Volver a mi panel de coach"
+        : "Volver al inicio";
+
+    return (
+      <div className="mx-auto max-w-[1500px] space-y-6">
+        <PageHeader
+          breadcrumbs={[
+            { label: "Mi dashboard", href: `/app/${academyId}/my-dashboard` },
+          ]}
+          title="Mi dashboard"
+          icon={<LayoutDashboard className="h-5 w-5" strokeWidth={1.8} />}
+        />
+        <AccessDenied
+          variant="default"
+          title="Esta sección es para atletas y familias"
+          description={`Tu rol actual (${profile.role}) no tiene acceso al dashboard familiar. Este espacio es exclusivo para atletas y padres/tutores de la academia.`}
+          ctaLabel={ctaLabel}
+          ctaHref={homeHref}
+        />
+      </div>
+    );
   }
 
   // Obtener datos de la academia
