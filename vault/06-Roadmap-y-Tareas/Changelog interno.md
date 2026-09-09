@@ -1,7 +1,7 @@
 ---
 status: active
 owner: producto
-last_reviewed: 2026-09-09T05:30Z
+last_reviewed: 2026-09-09T06:45Z
 source:
 ---
 
@@ -65,6 +65,61 @@ schema (acepta `null` para los campos cubiertos) sin regresiones TS.
     contrariamente al preview OOM documentado por PR #110 (memoria).
   - Branch protection: push directo a main con bypass admin (mismo
     patrón que PR 1–9, vía admin PAT del usuario).
+
+---
+
+## 2026-09-09 — PR 11: MyDashboardPage stat card palette (Operate P1)
+
+**Issue Operate P1 #5** del critique
+`.impeccable/critique/2026-09-08T11-00-47Z__src-app-app.md`: las 3 stat
+cards del "Stats rápidos" grid en `MyDashboardPage.tsx` (líneas 289-337)
+usaban paleta cruda de Tailwind (`bg-{emerald,blue,purple}-100` +
+`text-{emerald,blue,purple}-600`) y un raw
+`shadow-[0_16px_36px_-30px_rgba(15,23,42,0.5)]` idéntico en las 3.
+Patrón Vercel/AI template, sin tokens del Brand Book v1.
+
+**Solución:** primitive nuevo en `src/components/ui/stat-card.tsx` con
+variants semánticas mapeadas a tokens zaltyko:
+
+  - `attendance` → `primary` (teal `#00796B`): buena métrica
+    (asistencia, engagement)
+  - `classes` → `accent` (indigo `#2B2E83`): contador neutro (clases,
+    sesiones)
+  - `assessments` → `zaltyko-coral` (`#FF6B57`): accent destacado
+    (evaluaciones, observaciones)
+  - `fees` → `zaltyko-electric` (`#1FC7B6`): acento financiero (pagos,
+    cuotas)
+  - `progress` → `zaltyko-navy` (`#0F172A`): neutral sólido (progreso
+    general)
+
+Shadow raw reemplazado por `shadow-soft` (token del sistema de elevación
+de marca Fase 2 / 2026-07-14, `0 2px 8px rgba(15, 23, 42, 0.06)`).
+
+**MyDashboardPage.tsx** (Operate P1): reemplaza las 3 cards por
+`<StatCard>` con icon, label, value y footnote opcionales. Patrón
+compacto horizontal (`icon | label/value`) preservado — no cambia el
+layout, solo los tokens.
+
+**No tocado:** el alert de pagos pendientes (línea 247,
+`bg-amber-100`/icon-amber-600 con botón "Ver detalles") tiene layout
+distinto (alert bar con acción), no encaja como StatCard. Su paleta
+amber ya está revisada por ZAL-575 Tier A paso 4 (contraste WCAG).
+
+**No tocado:** el primitive `StatsCard` existente
+(`src/components/ui/stats-card.tsx`) cubre los KPI cards grandes con
+trend arrow + variants `default/success/warning/danger/info`. El nuevo
+`StatCard` cubre el patrón compacto horizontal para grids densos. No
+son duplicados: distintos patrones visuales, distintos casos de uso.
+
+**Verificación:** `pnpm typecheck` → 0 errores.
+
+**Estado final:**
+
+  - Commit: `0e7bf585` en `main` (2 archivos, +106/-48).
+  - Vercel deployment: `BTyrkqrdPr4Sip9PB4xyJUGXjNo9` → **success**
+    (~5 min build).
+  - Branch protection: push directo a main con bypass admin (mismo
+    patrón que PR 1–10).
 
 ---
 
