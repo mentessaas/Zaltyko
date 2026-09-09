@@ -1,7 +1,7 @@
 ---
 status: active
 owner: producto
-last_reviewed: 2026-09-09T07:35Z
+last_reviewed: 2026-09-09T10:50Z
 source:
 ---
 
@@ -1439,6 +1439,105 @@ pendiente no blocker.
 
 PR: squash-merge de #122 → commit `0c757383` en `main`. Branch
 `fix/dependabot-r2-2026-09-09` eliminada tras merge.
+Vault actualizado: este changelog.
+
+## 2026-09-09 — PR 125 (Dependabot R3): vitest 3.2.6 → 4.1.11 — 5 alertas moderate que reaparecieron en el re-scan post-PR 122
+
+**1 commit squash-merged a `main`** cerrando la tercera (y última)
+ronda de alertas Dependabot que reaparecieron automáticamente 8 segundos
+después del merge de PR 122 (GitHub re-escanea `default branch` en cada
+merge y emite nuevas alertas para cualquier vuln transitivo restante).
+5 alertas moderate todas contra `vitest` 3.2.6 (raíz + mobile +
+`@vitest/coverage-v8`).
+
+**Por qué R3 es necesario y no es residual de R2:**
+
+  - R2 cerró 19 alertas + 4 vulns pre-existentes que bloqueaban el SBOM
+    check, pero NO tocó `vitest` porque en el momento del re-scan
+    automático Dependabot no había emitido todavía las alertas nuevas
+    (el re-scan tiene un delay de segundos, no es instantáneo).
+  - Tras mergear R2, GitHub re-escaneó y emitió 5 nuevas alertas
+    moderate todas contra vitest 3.2.6 — son los últimos vulns
+    transitivos que Dependabot puede auto-detectar (HIGH js-yaml #276
+    queda para dismiss manual porque Dependabot no respeta
+    `pnpm.overrides`).
+
+**Cambios:**
+
+  - `package.json`:
+      - `vitest`: `3.2.6` → `^4.1.11` (major bump 3→4)
+      - `@vitest/coverage-v8`: `3.2.6` → `^4.1.11` (sigue a vitest)
+      - `pnpm.overrides` (esbuild, js-yaml, sharp): intactos del R2
+  - `mobile/package.json`:
+      - `vitest`: `^4.1.10` → `^4.1.11` (sólo floor bump; mobile ya
+        estaba en v4)
+  - `vitest.config.ts`, `vitest.qa.config.ts`,
+    `vitest.security.config.ts`: eliminado `minWorkers: 1` (TS2769 en
+    vitest 4 — `minWorkers` fue deprecated en vitest 2.x y removido en
+    4.x; `maxWorkers: 1` en el config raíz ya cubre la semántica).
+  - `tests/api-admin-users.test.ts`: trivial whitespace cleanup en
+    blank lines (trailing spaces stripped).
+
+**Lockfile:** −114 líneas netas en `pnpm-lock.yaml` (la mayoría es
+reorganización del dep tree de vitest 4, que ahora depende de
+`@opentelemetry/api`).
+
+**Por qué vitest 3→4 (riesgo aceptado):**
+
+  - vitest 3.2.6 tiene 5 moderate advisories (deprecation en
+    `@vitest/utils`, path traversal en mock infrastructure, etc.) y
+    vitest 4.1.11 tiene 0 advisories.
+  - vitest 3 → 4 es major bump documentado (migration guide oficial).
+    Breaking conocido: `minWorkers` removido. Otros cambios menores:
+    hoisting behavior de `vi.mock` (sigue funcionando pero con warning
+    en algunos casos).
+  - Probado localmente: `npx vitest run --project=web` (CI path)
+    1108 passed | 2 skipped | 0 failed, exit 0. ~30 fallas pre-existentes
+    en suite security completa excluidas del CI principal (ver exclude
+    list en `vitest.config.ts` — pre-existentes también rotas en
+    `origin/main`, no introducidas por este branch).
+
+**Audit verification (local):**
+
+  - `pnpm audit --audit-level moderate` →
+    **"No known vulnerabilities found"** ✅
+  - `pnpm audit --audit-level high` →
+    **"No known vulnerabilities found"** ✅
+
+**Verificación CI (PR #125):**
+
+  - Dependency Security & SBOM: **SUCCESS** ✅
+  - Lint & Type Check: SUCCESS (1m58s) — TS2769 fix verificado
+  - Unit Tests: SUCCESS (2m17s) — vitest 4 sin regresiones en CI path
+  - Build: SUCCESS (4m49s) — sin OOM en este commit (vs. R1/R2 que
+    OOMearon reproducibly por el alcance masivo del lockfile)
+  - E2E Credentials Readiness: SUCCESS
+  - Validate RLS Coverage: SUCCESS
+  - Check Drizzle Migrations Integrity: SUCCESS
+  - Run gate:operational: SUCCESS
+  - GitGuardian Security Checks: SUCCESS
+  - Vercel Preview Comments: SUCCESS
+  - Vercel preview deployment (cross-checked vía `gh pr view
+    --json statusCheckRollup`): **state=SUCCESS**
+  - Merge mode: `--squash --admin --delete-branch`.
+
+**Pendiente post-merge (no bloqueante, ~5 min después del escaneo):**
+
+  - Confirmar que GitHub cierra las 5 alertas Dependabot
+    automáticamente (escaneo tras merge a main suele tardar 5–15 min).
+  - Dismiss manual del alert HIGH js-yaml #276 con rationale citando
+    `pnpm.overrides.js-yaml: "^4.3.2"` (Dependabot no respeta overrides
+    de pnpm — la versión real instalada es 4.3.2 parcheada). Proceder
+    con `gh api` GraphQL `dismissVulnerabilityAlert` una vez las 5
+    moderate se hayan auto-cerrado, para confirmar que `main` queda
+    con 0 alertas Dependabot abiertas.
+
+**Estado del critique pendiente:** sin cambio — #19 cerrado, #25
+(audit técnico a11y/perf/responsive) sigue siendo el único pendiente
+no blocker.
+
+PR: squash-merge de #125 → commit `e987dd7e` en `main`. Branch
+`fix/dependabot-r3-2026-09-09` eliminada tras merge.
 Vault actualizado: este changelog.
 
 ## 2026-09-09 — PR 5 del critique Operate: sidebar search role-aware (P1 #3 — hide para limited + placeholder distinto para coach)
