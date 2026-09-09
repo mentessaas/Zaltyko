@@ -1,7 +1,7 @@
 ---
 status: active
 owner: producto
-last_reviewed: 2026-09-09T08:00Z
+last_reviewed: 2026-09-09T08:30Z
 source:
 ---
 
@@ -235,6 +235,54 @@ Component.
     (~6 min build).
   - Branch protection: push directo a main con bypass admin (mismo
     patrón que PR 1–12).
+
+---
+
+## 2026-09-09 — PR 14: silent redirect → AccessDenied UI en /coach (Operate P2)
+
+**Issue Operate P2 #1** (tercer archivo del mismo ítem de la lista P2
+— silent redirects del critique
+`.impeccable/critique/2026-09-08T11-00-47Z__src-app-app.md`). Cuando un
+admin/athlete/parent tocaba `/app/[academyId]/coach/page.tsx:143`, el
+`redirect()` silencioso lo mandaba al dashboard que no es el suyo sin
+explicación.
+
+**Solución:** reusa el primitive `AccessDenied` de PR 12 con
+`variant="default"` (coral). Copy específico: "Esta sección es solo
+para entrenadores". CTA diferenciado por rol (un rol más que PR 12/13
+porque coach es un destino más visitado por family/athlete):
+
+  - owner / admin / super_admin → "Ir a mi dashboard de administración"
+    (link a `/app/[academyId]/dashboard`)
+  - athlete / parent → "Ir a mi dashboard familiar"
+    (link a `/app/[academyId]/my-dashboard`)
+  - prospect / other → "Volver al inicio"
+    (link a `/dashboard`)
+
+**Lo que NO se tocó (a propósito):**
+
+  - `redirect("/auth/login")` líneas 112 y 128 — ausencia de sesión o
+    perfil, no role-mismatch.
+  - `redirect("/dashboard")` línea 164 (coach record no encontrado) —
+    setup issue (usuario con role=coach pero sin coach row), no
+    access-denied. Distinto caso: el rol SÍ tiene acceso pero el
+    setup no terminó.
+  - `redirect("/dashboard")` línea 179 (academia no encontrada) —
+    ausencia de datos, no role-mismatch.
+
+**Quedan del mismo P2:** `dashboard/page.tsx:90`, `layout.tsx:183 +
+:197` — 2 archivos por migrar.
+
+**Verificación:** `pnpm typecheck` → 0 errores. Sigue siendo Server
+Component.
+
+**Estado final:**
+
+  - Commit: `0e4b311a` en `main` (1 archivo, +43/-5).
+  - Vercel deployment: `EaSkL8vqW1yre1Uhh6KZ8aE14KPE` → **success**
+    (~6 min build).
+  - Branch protection: push directo a main con bypass admin (mismo
+    patrón que PR 1–13).
 
 ---
 
