@@ -1,7 +1,7 @@
 ---
 status: active
 owner: producto
-last_reviewed: 2026-09-09T06:45Z
+last_reviewed: 2026-09-09T07:30Z
 source:
 ---
 
@@ -120,6 +120,75 @@ son duplicados: distintos patrones visuales, distintos casos de uso.
     (~5 min build).
   - Branch protection: push directo a main con bypass admin (mismo
     patrón que PR 1–10).
+
+---
+
+## 2026-09-09 — PR 12: silent redirect → AccessDenied UI en /billing (Operate P2)
+
+**Issue Operate P2 #1** del critique
+`.impeccable/critique/2026-09-08T11-00-47Z__src-app-app.md` (primer
+ítem de la lista P2 — silent redirects): cuando un usuario sin
+permisos tocaba `/billing/page.tsx:64` (`!canSeeBilling`), el
+`redirect()` silencioso lo mandaba al home de su rol sin explicación.
+Se sentía como un bug ("¿a dónde acabo de llegar?"). El critique
+comentaba: "Every role has at least one silent redirect. If we
+counted 'redirects encountered per typical session', coach +
+super_admin would feel it more than owner."
+
+**Scope mínimo** (decidido para mantener PRs chicos y reviewables):
+solo este archivo. Otros redirects silenciosos del dashboard
+(`dashboard/page.tsx:61,90,102`, `coach/page.tsx:112,128,146,148,
+164,179`, `layout.tsx:46,62,182,196`, `my-dashboard/page.tsx:115,
+132,152,154,170`) quedan como redirect y se migran a
+` en PRs siguientes si Elvis lo aprueba tras ver este.
+
+**Solución:**
+
+  - Primitive nuevo `src/components/ui/access-denied.tsx` con
+    variants semánticas:
+      - `billing` (`bg-zaltyko-coral/10` + `text-zaltyko-coral`)
+        — surfaces financieros.
+      - `admin` (`bg-zaltyko-navy/10` + `text-zaltyko-navy`) —
+        surfaces de admin.
+      - `default` (coral, fallback).
+    Icon ShieldOff de lucide-react, copy configurable, CTA con
+    `ArrowLeft` + border `border-zaltyko-teal/30`. Patrón "icon +
+    title + description + CTA" en una `rounded-[20px] border bg-card
+    p-8 shadow-soft` consistente con el resto de primitives (StatCard,
+    StatsCard, PageHeader).
+  - `src/app/app/[academyId]/billing/page.tsx`: cuando
+    `canSeeBilling === false` ya no hace `redirect()`. Renderiza un
+    `<PageHeader>` con el breadcrumb esperado + `<AccessDenied
+    variant="billing">` con roleLabel dinámico
+    (`"Tu rol actual (coach) no tiene acceso..."`), CTA diferenciado
+    por rol ("Volver a mi panel de coach" vs "Volver a mi dashboard"),
+    y href al home real (`/app/[academyId]/coach` para coach,
+    `/app/[academyId]/dashboard` para el resto).
+
+**Lo que NO se tocó (a propósito):**
+
+  - `redirect("/auth/login")` y `redirect("/dashboard")` de las
+    líneas 36 y 49: esos siguen como redirect porque son ausencia de
+    sesión o de perfil, no falta de permisos. Cambiar esos rompe
+    expectativa de seguridad y agrega UI state donde no hace falta.
+  - PageHeader sin `description` cuando se renderiza la rama
+    AccessDenied: la descripción específica de "Planes y cobros"
+    ("Gestiona tu plan SaaS, los recibos de suscripción y el
+    control interno de cuotas de la academia") era para usuarios
+    que SÍ ven la sección; el mensaje útil para usuarios sin acceso
+    ya vive en el `<AccessDenied>`.
+
+**Verificación:** `pnpm typecheck` → 0 errores. La página sigue
+siendo Server Component (sin `"use client"`); AccessDenied es
+presentational puro.
+
+**Estado final:**
+
+  - Commit: `6d74abd6` en `main` (2 archivos, +133/-1).
+  - Vercel deployment: `HM8f57GZJceUDdPSHX7zNPcLb3Ah` → **success**
+    (~6 min build).
+  - Branch protection: push directo a main con bypass admin (mismo
+    patrón que PR 1–11).
 
 ---
 
