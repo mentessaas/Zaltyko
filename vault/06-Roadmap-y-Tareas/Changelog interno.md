@@ -1,7 +1,7 @@
 ---
 status: active
 owner: producto
-last_reviewed: 2026-09-09T09:30Z
+last_reviewed: 2026-09-09T10:00Z
 source:
 ---
 
@@ -1224,6 +1224,58 @@ acceso por rol — futuros PRs que necesiten bloquear sub-áreas deberían
 usarla en lugar de `redirect()`.
 
 PR: commit `910ea1fb` directo a `main` (admin PAT, consistente con PR 1-15).
+Vault actualizado: este changelog.
+
+## 2026-09-09 — PR 17: billing first-run hero para academias Free (Operate P2 #2)
+
+**1 commit a `main`** cerrando el último item pendiente del batch
+Operate P2 (billing empty-state para academias Free). Único archivo
+modificado: `src/components/billing/BillingPanel.tsx`.
+
+**Gap detectado por la crítica:** una academia Free sin cliente de
+Stripe (y sin trial activo) que aterrizaba en `/billing` veía "Plan
+actual: Free" + el botón "Probar Starter 7 días", pero **cero**
+guidance sobre Stripe Connect — que es el prerequisite real para
+recibir pagos con tarjeta. `StripeConnectCard` vive en
+`/settings?tab=billing` y desde `/billing` era invisible.
+
+**Solución:** hero dentro de `<TabsContent value="plans">` que se
+renderiza cuando:
+
+  - `summary.planCode === "free"` AND
+  - `!summary.hasStripeCustomer` AND
+  - `!summary.trial.active`
+
+El hero usa el icono `Sparkles` de lucide-react en círculo teal,
+título "Configura cobros con tarjeta", un párrafo que reusa el copy
+de `StripeConnectCard` verbatim ("Zaltyko nunca guarda tus claves ni
+retiene fondos") y un CTA `Link` directo a
+`/app/${academyId}/settings?tab=billing` con botón `bg-zaltyko-teal`.
+
+**Por qué dentro del panel, no en `page.tsx`:**
+
+  - Reutiliza el fetch existente a `/api/billing/status` — sin nueva
+    query al servidor, sin prop drilling.
+  - Evita el flash de un hero "fantasma" antes de que llegue la data.
+  - Single-file change (un solo archivo tocado).
+
+**Lo que NO se hace (preservado a propósito):**
+
+  - **Sin estado dismiss.** El hero es informativo, no bloqueante:
+    academias que cobran en efectivo pueden ignorarlo. Si el feedback
+    de usuarios muestra necesidad de dismiss, follow-up separado.
+  - **Sin cambio en `page.tsx`.** El billing page sigue siendo un
+    wrapper mínimo (auth + role check + PageHeader + BillingPanel).
+  - **Sin nuevo componente.** Inline hero en BillingPanel — no es
+    reusable en otros contextos, no merece su propio archivo.
+
+**Typecheck:** 0 errores. **Deploy:** `634aabd7` → Vercel production
+`success` (~6 min).
+
+**Cierre total del critique Operate:** todos los P0 (3), P1 (6) y P2
+(5) cerrados. 17 PRs en 1 día (~ 2026-09-08 → 2026-09-09).
+
+PR: commit `634aabd7` directo a `main` (admin PAT).
 Vault actualizado: este changelog.
 
 ## 2026-09-09 — PR 5 del critique Operate: sidebar search role-aware (P1 #3 — hide para limited + placeholder distinto para coach)
