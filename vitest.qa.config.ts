@@ -11,7 +11,6 @@ export default defineConfig({
     globals: true,
     setupFiles: [fileURLToPath(new URL("./tests/setup.ts", import.meta.url))],
     maxWorkers: 2,
-    minWorkers: 1,
     testTimeout: 15000,
     reporters: ["dot"],
     include: ["tests/qa/**/*.test.ts", "tests/qa/**/*.test.tsx"],

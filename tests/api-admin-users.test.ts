@@ -23,9 +23,9 @@ describe("API /api/admin/users", () => {
       method: "POST",
       body: JSON.stringify({ email: "test@example.com", role: "coach" }),
     });
-    
+
     const response = await POST(request, {});
-    
+
     expect(response.status).toBe(401);
   });
 
