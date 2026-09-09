@@ -1,7 +1,9 @@
 "use client";
 
 import { memo, useEffect, useMemo, useState } from "react";
+import Link from "next/link";
 import { useSearchParams } from "next/navigation";
+import { Sparkles } from "lucide-react";
 import { TooltipOnboarding } from "@/components/tooltips/TooltipOnboarding";
 import { Tabs, TabsList, TabsTrigger, TabsContent } from "@/components/ui/tabs";
 import { Badge } from "@/components/ui/badge";
@@ -351,6 +353,17 @@ export const BillingPanel = memo(function BillingPanel({ academyId, userId, spor
     [summary, plans]
   );
 
+  // PR 17 (Operate P2 #2): primer uso de un Free academy que aún no
+  // tiene cliente de Stripe (ni trial activo) — no hay guidance visible
+  // para activar cobros con tarjeta. Signpost hacia Ajustes → Cobros,
+  // que es donde vive `StripeConnectCard`.
+  const showFirstRunHero = Boolean(
+    summary &&
+      summary.planCode === "free" &&
+      !summary.hasStripeCustomer &&
+      !summary.trial.active
+  );
+
   return (
     <div className="space-y-8">
       {error && (
@@ -366,6 +379,35 @@ export const BillingPanel = memo(function BillingPanel({ academyId, userId, spor
         </TabsList>
 
         <TabsContent value="plans" className="space-y-8">
+          {showFirstRunHero && (
+            <section
+              data-testid="billing-first-run-hero"
+              className="flex flex-col gap-4 rounded-2xl border border-zaltyko-teal/30 bg-zaltyko-teal/5 p-6 shadow-soft sm:flex-row sm:items-center sm:justify-between"
+            >
+              <div className="flex items-start gap-3">
+                <span className="mt-0.5 inline-flex h-9 w-10 shrink-0 items-center justify-center rounded-full bg-zaltyko-teal/15 text-zaltyko-teal">
+                  <Sparkles className="h-5 w-5" strokeWidth={1.8} aria-hidden />
+                </span>
+                <div className="space-y-1">
+                  <h2 className="font-display text-base font-semibold text-foreground">
+                    Configura cobros con tarjeta
+                  </h2>
+                  <p className="text-sm text-muted-foreground">
+                    Estás en el plan Free y aún no has conectado tu cuenta de Stripe. Para
+                    cobrar las cuotas con tarjeta a las familias, conecta Stripe desde
+                    Ajustes → Cobros. El dinero llega directo a tu cuenta bancaria: Zaltyko
+                    nunca guarda tus claves ni retiene fondos.
+                  </p>
+                </div>
+              </div>
+              <Link
+                href={`/app/${academyId}/settings?tab=billing`}
+                className="inline-flex min-h-11 items-center justify-center whitespace-nowrap rounded-xl bg-zaltyko-teal px-4 py-2 text-sm font-semibold text-white transition hover:bg-primary-dark"
+              >
+                Ir a Cobros
+              </Link>
+            </section>
+          )}
           <section className="rounded-2xl border border-border bg-card p-6 shadow-soft">
         <h2 className="font-display text-xl font-semibold text-foreground">Plan actual</h2>
         {loadingSummary ? (
