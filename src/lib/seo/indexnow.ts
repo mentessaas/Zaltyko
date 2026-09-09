@@ -38,13 +38,18 @@ export async function submitIndexNow(
   }
 
   try {
+    // NOTE: we intentionally do NOT pass `keyLocation` explicitly. Per the
+    // 2026-09-09 probe, sending it makes IndexNow's strict URL-vs-keyLocation
+    // validation reject the URLs as "not related to your site verified
+    // through the keylocation parameter" (HTTP 422), even though the key file
+    // serves correctly and the host matches. Letting IndexNow auto-derive the
+    // key location from `host` returns HTTP 202.
     const res = await fetch(INDEXNOW_ENDPOINT, {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({
         host: parsedHost,
         key: INDEXNOW_KEY,
-        keyLocation: `https://${parsedHost}/.well-known/indexnow-key.txt`,
         urlList: urls,
       }),
     });
