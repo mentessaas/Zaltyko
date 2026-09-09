@@ -2,8 +2,9 @@ import type { Metadata } from "next";
 import Link from "next/link";
 import { AcademiesFilters } from "@/components/public/AcademiesFilters";
 import { AcademiesGrid } from "@/components/public/AcademiesGrid";
-import { getPublicAcademies } from "@/app/actions/public/get-public-academies";
+import { getPublicAcademies, type PublicAcademy } from "@/app/actions/public/get-public-academies";
 import Reveal from "@/components/motion/Reveal";
+import { Schema } from "@/components/Schema";
 import { getPublicSiteUrl } from "@/lib/seo/site-url";
 
 export const metadata: Metadata = {
@@ -46,9 +47,46 @@ export default async function AcademiesPage({ searchParams }: AcademiesPageProps
   });
 
   const hasFilters = params.search || params.type || params.country || params.region || params.city;
+  const baseUrl = getPublicSiteUrl();
+
+  function academyToLocalBusiness(academy: PublicAcademy) {
+    const profileUrl = `${baseUrl}/academias/${academy.id}`;
+    const sameAs = [
+      academy.website,
+      academy.socialInstagram,
+      academy.socialFacebook,
+      academy.socialTwitter,
+      academy.socialYoutube,
+    ].filter((u): u is string => Boolean(u));
+
+    const address =
+      academy.address || academy.city || academy.region || academy.country
+        ? {
+            "@type": "PostalAddress",
+            ...(academy.address && { streetAddress: academy.address }),
+            ...(academy.city && { addressLocality: academy.city }),
+            ...(academy.region && { addressRegion: academy.region }),
+            ...(academy.country && { addressCountry: academy.country }),
+          }
+        : null;
+
+    return {
+      "@type": "LocalBusiness",
+      "@id": profileUrl,
+      name: academy.name,
+      ...(academy.publicDescription && { description: academy.publicDescription }),
+      ...(academy.logoUrl && { image: academy.logoUrl }),
+      url: academy.website || profileUrl,
+      ...(academy.contactEmail && { email: academy.contactEmail }),
+      ...(academy.contactPhone && { telephone: academy.contactPhone }),
+      ...(address && { address }),
+      ...(sameAs.length > 0 && { sameAs }),
+    };
+  }
 
   return (
-    <div className="min-h-screen bg-background">
+    <>
+      <div className="min-h-screen bg-background">
       {/* Hero Section */}
       <section className="relative overflow-hidden border-b border-border bg-gradient-to-br from-zaltyko-primary-light/30 via-zaltyko-primary-light/20 to-transparent">
         <div className="absolute inset-0 bg-[radial-gradient(circle_at_50%_50%,rgba(120,119,198,0.1),transparent_50%)]" />
@@ -175,6 +213,25 @@ export default async function AcademiesPage({ searchParams }: AcademiesPageProps
           </div>
         )}
       </section>
-    </div>
+      </div>
+
+      {result.items.length > 0 && (
+        <Schema
+          json={{
+            "@context": "https://schema.org",
+            "@type": "ItemList",
+            name: "Directorio de Academias de Gimnasia con Zaltyko",
+            description:
+              "Academias de gimnasia artística y rítmica que gestionan su operación con Zaltyko en España y Latinoamérica.",
+            numberOfItems: result.items.length,
+            itemListElement: result.items.map((academy, idx) => ({
+              "@type": "ListItem",
+              position: idx + 1,
+              item: academyToLocalBusiness(academy),
+            })),
+          }}
+        />
+      )}
+    </>
   );
 }
