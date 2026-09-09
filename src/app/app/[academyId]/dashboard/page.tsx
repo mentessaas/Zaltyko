@@ -10,6 +10,9 @@ import { createClient } from "@/lib/supabase/server";
 import { getDashboardData } from "@/lib/dashboard";
 import { DashboardPageSkeleton } from "@/components/dashboard/DashboardPage";
 import { getDevSessionFromCookieStore } from "@/lib/dev-session";
+import { AccessDenied } from "@/components/ui/access-denied";
+import { PageHeader } from "@/components/ui/page-header";
+import { LayoutDashboard } from "lucide-react";
 
 // Lazy load del DashboardPage (942 lineas, ~30 widgets) con code-splitting
 // automatico. Reduce el bundle inicial del segmento dashboard en ~70%.
@@ -87,7 +90,43 @@ export default async function AcademyDashboard({ params }: PageProps) {
     (membership && allowedMembershipRoles.has(membership.role));
 
   if (!hasAccess) {
-    redirect(`/app/${academyId}/athletes`);
+    // PR 15 (Operate P2): antes redirigía silenciosamente a
+    // /app/[academyId]/athletes. Ahora muestra AccessDenied explicando
+    // que el dashboard admin es solo para owner/admin, con CTA al home
+    // real del rol.
+    const isCoach = profile?.role === "coach";
+    const isAthleteOrParent =
+      profile?.role === "athlete" || profile?.role === "parent";
+
+    const homeHref = isCoach
+      ? `/app/${academyId}/coach`
+      : isAthleteOrParent
+        ? `/app/${academyId}/my-dashboard`
+        : `/app/${academyId}/athletes`;
+    const ctaLabel = isCoach
+      ? "Ir a mi panel de coach"
+      : isAthleteOrParent
+        ? "Ir a mi dashboard familiar"
+        : "Ver atletas";
+
+    return (
+      <div className="mx-auto max-w-[1500px] space-y-6">
+        <PageHeader
+          breadcrumbs={[
+            { label: "Dashboard", href: `/app/${academyId}/dashboard` },
+          ]}
+          title="Dashboard"
+          icon={<LayoutDashboard className="h-5 w-5" strokeWidth={1.8} />}
+        />
+        <AccessDenied
+          variant="admin"
+          title="Dashboard solo para administradores"
+          description={`Tu rol actual (${profile?.role ?? "sin perfil"}) no tiene acceso al dashboard de administración. Solo el owner o admin de la academia puede verlo.`}
+          ctaLabel={ctaLabel}
+          ctaHref={homeHref}
+        />
+      </div>
+    );
   }
 
   let academy;
