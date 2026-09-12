@@ -3,7 +3,7 @@ import { redirect } from "next/navigation";
 
 import { createClient } from "@/lib/supabase/server";
 import { getCurrentProfile } from "@/lib/authz";
-import { getSuperAdminLogs } from "@/lib/super-admin";
+import { getSuperAdminLogsPage } from "@/lib/super-admin";
 import { getDevSessionFromCookieStore } from "@/lib/dev-session";
 import { SuperAdminLogsTable } from "../components/SuperAdminLogsTable";
 
@@ -29,8 +29,16 @@ export default async function SuperAdminLogsPage() {
     redirect("/app");
   }
 
-  const logs = await getSuperAdminLogs(200);
+  const logs = await getSuperAdminLogsPage({ page: 1, pageSize: 50 });
 
-  return <SuperAdminLogsTable initialLogs={logs} initialUserId={user?.id ?? devSession?.userId ?? null} />;
+  return (
+    <SuperAdminLogsTable
+      initialLogs={logs.items}
+      initialTotal={logs.total}
+      initialPage={logs.page}
+      initialTotalPages={logs.totalPages}
+      initialUserId={user?.id ?? devSession?.userId ?? null}
+    />
+  );
 }
 
