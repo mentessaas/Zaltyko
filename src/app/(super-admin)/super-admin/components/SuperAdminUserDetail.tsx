@@ -857,7 +857,7 @@ export function SuperAdminUserDetail({ initialUser, userId, backHref = "/super-a
                     disabled={sendingMessage || !user.email}
                   >
                     <option value="email">Correo electrónico</option>
-                    <option value="notification">Notificación (próximamente)</option>
+                    <option value="notification">Notificación dentro de Zaltyko</option>
                   </select>
                 </div>
                 <div>
