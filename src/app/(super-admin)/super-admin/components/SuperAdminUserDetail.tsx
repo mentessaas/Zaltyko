@@ -116,6 +116,7 @@ export function SuperAdminUserDetail({ initialUser, userId, backHref = "/super-a
   const [plans, setPlans] = useState<Plan[]>([]);
   const [sendingMessage, setSendingMessage] = useState(false);
   const [activatingAccess, setActivatingAccess] = useState(false);
+  const [athleteAccessDialogOpen, setAthleteAccessDialogOpen] = useState(false);
   const [planViolations, setPlanViolations] = useState<{
     violations: Array<{
       resource: string;
@@ -171,11 +172,11 @@ export function SuperAdminUserDetail({ initialUser, userId, backHref = "/super-a
     window.location.href = `mailto:${user.email}?subject=Contacto desde Zaltyko`;
   };
 
-  const handleActivateAthleteAccess = async () => {
-    if (!confirm("¿Estás seguro de activar el acceso de este atleta? Se enviará un correo de invitación.")) {
-      return;
-    }
+  const handleActivateAthleteAccess = () => {
+    setAthleteAccessDialogOpen(true);
+  };
 
+  const executeActivateAthleteAccess = async (): Promise<boolean> => {
     setActivatingAccess(true);
     try {
       const response = await fetch("/api/super-admin/athletes/activate-access", {
@@ -198,7 +199,7 @@ export function SuperAdminUserDetail({ initialUser, userId, backHref = "/super-a
           description: data.message || data.error || "Error desconocido",
           variant: "error",
         });
-        return;
+        return false;
       }
 
       toast.pushToast({
@@ -206,11 +207,8 @@ export function SuperAdminUserDetail({ initialUser, userId, backHref = "/super-a
         description: data.message || "Acceso activado correctamente.",
         variant: "success",
       });
-      
-      // Refresh user data
+
       const refreshResponse = await fetch(`/api/super-admin/users/${user.id}`, {
-        headers: {
-        },
         cache: "no-store",
       });
 
@@ -220,6 +218,7 @@ export function SuperAdminUserDetail({ initialUser, userId, backHref = "/super-a
       }
 
       router.refresh();
+      return true;
     } catch (error) {
       logger.error("Error activating athlete access", error);
       toast.pushToast({
@@ -227,6 +226,7 @@ export function SuperAdminUserDetail({ initialUser, userId, backHref = "/super-a
         description: "Inténtalo de nuevo en unos segundos.",
         variant: "error",
       });
+      return false;
     } finally {
       setActivatingAccess(false);
     }
@@ -1026,6 +1026,17 @@ export function SuperAdminUserDetail({ initialUser, userId, backHref = "/super-a
           </Button>
         </div>
       </div>
+
+      <ConfirmDialog
+        open={athleteAccessDialogOpen}
+        onOpenChange={setAthleteAccessDialogOpen}
+        title="Activar acceso del atleta"
+        description="Se activará el acceso y se enviará un correo para que el atleta establezca su contraseña."
+        confirmText="Activar acceso"
+        variant="default"
+        onConfirm={executeActivateAthleteAccess}
+        loading={activatingAccess}
+      />
 
       <ConfirmDialog
         open={forcePlanDialogOpen}
