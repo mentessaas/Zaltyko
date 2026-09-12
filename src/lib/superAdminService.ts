@@ -506,6 +506,110 @@ export async function getAllAcademies(): Promise<SuperAdminAcademyRow[]> {
   });
 }
 
+export interface SuperAdminUsersPage {
+  items: SuperAdminUserRow[];
+  total: number;
+  page: number;
+}
+
+export async function getUsersPage(args: {
+  page?: number;
+  pageSize?: number;
+  role?: string;
+  status?: "active" | "suspended";
+  search?: string;
+} = {}): Promise<SuperAdminUsersPage> {
+  const { db } = await import("@/db");
+  const { authUsers, memberships, plans, profiles, subscriptions } = await import("@/db/schema");
+  const { and, count, desc, eq, ilike, inArray, or } = await import("drizzle-orm");
+
+  const page = Math.max(1, args.page ?? 1);
+  const pageSize = Math.min(200, Math.max(1, args.pageSize ?? 50));
+  const escapedSearch = args.search?.trim().replace(/[\\%_]/g, "\\export async function getAllUsers(): Promise<SuperAdminUserRow[]> {");
+  const conditions = [
+    args.role
+      ? eq(profiles.role, args.role as typeof profiles.role.enumValues[number])
+      : undefined,
+    args.status ? eq(profiles.isSuspended, args.status === "suspended") : undefined,
+    escapedSearch
+      ? or(
+          ilike(profiles.name, `%${escapedSearch}%`),
+          ilike(authUsers.email, `%${escapedSearch}%`)
+        )
+      : undefined,
+  ].filter(Boolean) as Array<ReturnType<typeof eq>>;
+  const where = conditions.length > 0 ? and(...conditions) : undefined;
+
+  const [totalRow] = await db
+    .select({ total: count(profiles.id) })
+    .from(profiles)
+    .leftJoin(authUsers, eq(profiles.userId, authUsers.id))
+    .where(where);
+
+  const total = Number(totalRow?.total ?? 0);
+  const totalPages = Math.max(1, Math.ceil(total / pageSize));
+  const effectivePage = Math.min(page, totalPages);
+
+  const rows = await db
+    .select({
+      id: profiles.id,
+      fullName: profiles.name,
+      email: authUsers.email,
+      role: profiles.role,
+      academyId: profiles.activeAcademyId,
+      createdAt: profiles.createdAt,
+      isSuspended: profiles.isSuspended,
+      planCode: plans.code,
+      planNickname: plans.nickname,
+      userId: profiles.userId,
+    })
+    .from(profiles)
+    .leftJoin(authUsers, eq(profiles.userId, authUsers.id))
+    .leftJoin(
+      subscriptions,
+      and(eq(subscriptions.userId, profiles.userId), eq(subscriptions.status, "active"))
+    )
+    .leftJoin(plans, eq(subscriptions.planId, plans.id))
+    .where(where)
+    .orderBy(desc(profiles.createdAt))
+    .limit(pageSize)
+    .offset((effectivePage - 1) * pageSize);
+
+  const userIds = rows.map((row) => row.userId).filter(Boolean);
+  const membershipRows =
+    userIds.length > 0
+      ? await db
+          .select({ userId: memberships.userId, role: memberships.role })
+          .from(memberships)
+          .where(inArray(memberships.userId, userIds))
+      : [];
+
+  const rolesByUser = new Map<string, string[]>();
+  for (const membership of membershipRows) {
+    if (!membership.userId || !membership.role) continue;
+    const roles = rolesByUser.get(membership.userId) ?? [];
+    if (!roles.includes(membership.role)) roles.push(membership.role);
+    rolesByUser.set(membership.userId, roles);
+  }
+
+  return {
+    total,
+    page: effectivePage,
+    items: rows.map((row) => ({
+      id: row.id,
+      fullName: row.fullName ?? null,
+      email: row.email ?? null,
+      role: row.role ?? null,
+      academyId: row.academyId ?? null,
+      createdAt: toIso(row.createdAt),
+      membershipRoles: rolesByUser.get(row.userId) ?? [],
+      isSuspended: Boolean(row.isSuspended),
+      planCode: row.planCode ?? null,
+      planNickname: row.planNickname ?? null,
+    })),
+  };
+}
+
 export async function getAllUsers(): Promise<SuperAdminUserRow[]> {
   // Use Drizzle directly to bypass RLS and get all profiles
   const { db } = await import("@/db");
