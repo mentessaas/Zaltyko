@@ -153,6 +153,7 @@ async function getGlobalStatsUncached(): Promise<SuperAdminMetrics> {
     monthlyAcademiesRows,
     monthlyRevenueRows,
     revenueByCurrencyRows,
+    previousRevenueByCurrencyRows,
     usersByRoleRows,
     userSummaryRows,
     plansData,
@@ -194,6 +195,17 @@ async function getGlobalStatsUncached(): Promise<SuperAdminMetrics> {
       .select({
         currency: billingInvoices.currency,
         total: sql<number>`COALESCE(SUM(${billingInvoices.amountPaid}) FILTER (WHERE ${billingInvoices.status} = 'paid'), 0)`,
+      })
+      .from(billingInvoices)
+      .groupBy(billingInvoices.currency),
+    db
+      .select({
+        currency: billingInvoices.currency,
+        total: sql<number>`COALESCE(SUM(${billingInvoices.amountPaid}) FILTER (
+          WHERE ${billingInvoices.status} = 'paid'
+            AND ${billingInvoices.createdAt} >= ${previousMonthStart}
+            AND ${billingInvoices.createdAt} < ${currentMonthStart}
+        ), 0)`,
       })
       .from(billingInvoices)
       .groupBy(billingInvoices.currency),
@@ -354,9 +366,15 @@ async function getGlobalStatsUncached(): Promise<SuperAdminMetrics> {
         total: (current?.total ?? 0) + Number(row.total ?? 0),
       });
     }
-    return [...totals.values()]
-      .sort((a, b) => a.label.localeCompare(b.label) || a.currency.localeCompare(b.currency))
-      .slice(-6);
+    const currencies = [...new Set([...totals.values()].map((row) => row.currency))];
+    return currencies
+      .flatMap((currency) =>
+        [...totals.values()]
+          .filter((row) => row.currency === currency)
+          .sort((a, b) => a.label.localeCompare(b.label))
+          .slice(-6)
+      )
+      .sort((a, b) => a.label.localeCompare(b.label) || a.currency.localeCompare(b.currency));
   })();
 
   const revenueByCurrency = aggregateCurrencyTotals(
@@ -364,6 +382,11 @@ async function getGlobalStatsUncached(): Promise<SuperAdminMetrics> {
   );
   // Preserve the legacy scalar only when the value is actually comparable.
   const comparableRevenue = revenueByCurrency.length === 1 ? revenueByCurrency[0].total : 0;
+  const comparablePreviousRevenue = revenueByCurrency.length === 1
+    ? aggregateCurrencyTotals(
+        previousRevenueByCurrencyRows.map((row) => ({ currency: row.currency, total: row.total }))
+      ).find((row) => row.currency === revenueByCurrency[0].currency)?.total ?? 0
+    : 0;
 
   const activeAcademyIds = new Set([
     ...athleteAcademyRows.map((row) => row.academyId),
@@ -396,7 +419,7 @@ async function getGlobalStatsUncached(): Promise<SuperAdminMetrics> {
       recentActivityAcademies: Number(recentActivitySummary?.total ?? 0),
       previousAcademies: Number(academySummary?.previousAcademies ?? 0),
       previousUsers: Number(userSummary?.previousUsers ?? 0),
-      previousRevenue: comparableRevenue > 0 ? Number(invoiceSummary?.previousRevenue ?? 0) : 0,
+      previousRevenue: comparablePreviousRevenue,
       // Subscription history has no creation timestamp in the current model;
       // keep this unavailable instead of presenting the current total as a trend.
       previousSubscriptions: 0,
@@ -698,221 +721,3 @@ export async function getUsersPage(args: {
       id: profiles.id,
       fullName: profiles.name,
       email: authUsers.email,
-      role: profiles.role,
-      academyId: profiles.activeAcademyId,
-      createdAt: profiles.createdAt,
-      isSuspended: profiles.isSuspended,
-      planCode: max(plans.code),
-      planNickname: max(plans.nickname),
-      userId: profiles.userId,
-    })
-    .from(profiles)
-    .leftJoin(authUsers, eq(profiles.userId, authUsers.id))
-    .leftJoin(
-      subscriptions,
-      and(
-        eq(subscriptions.userId, profiles.userId),
-        inArray(subscriptions.status, [...PLAN_VISIBLE_SUBSCRIPTION_STATUSES])
-      )
-    )
-    .leftJoin(plans, eq(subscriptions.planId, plans.id))
-    .where(where)
-    .groupBy(
-      profiles.id,
-      profiles.name,
-      authUsers.email,
-      profiles.role,
-      profiles.activeAcademyId,
-      profiles.createdAt,
-      profiles.isSuspended,
-      profiles.userId
-    )
-    .orderBy(desc(profiles.createdAt), desc(profiles.id))
-    .limit(pageSize)
-    .offset((effectivePage - 1) * pageSize);
-
-  const userIds = rows.map((row) => row.userId).filter(Boolean);
-  const membershipRows =
-    userIds.length > 0
-      ? await db
-          .select({ userId: memberships.userId, role: memberships.role })
-          .from(memberships)
-          .where(inArray(memberships.userId, userIds))
-      : [];
-
-  const rolesByUser = new Map<string, string[]>();
-  for (const membership of membershipRows) {
-    if (!membership.userId || !membership.role) continue;
-    const roles = rolesByUser.get(membership.userId) ?? [];
-    if (!roles.includes(membership.role)) roles.push(membership.role);
-    rolesByUser.set(membership.userId, roles);
-  }
-
-  return {
-    total,
-    page: effectivePage,
-    items: rows.map((row) => ({
-      id: row.id,
-      fullName: row.fullName ?? null,
-      email: row.email ?? null,
-      role: row.role ?? null,
-      academyId: row.academyId ?? null,
-      createdAt: toIso(row.createdAt),
-      membershipRoles: rolesByUser.get(row.userId) ?? [],
-      isSuspended: Boolean(row.isSuspended),
-      planCode: row.planCode ?? null,
-      planNickname: row.planNickname ?? null,
-    })),
-  };
-}
-
-export async function getAllUsers(): Promise<SuperAdminUserRow[]> {
-  // Use Drizzle directly to bypass RLS and get all profiles
-  const { db } = await import("@/db");
-  const { profiles, memberships, subscriptions, plans } = await import("@/db/schema");
-  const { eq, inArray } = await import("drizzle-orm");
-  const supabase = getClient();
-
-  const [profilesList, membershipsList, subscriptionsList, plansList, authUsers] = await Promise.all([
-    db.select({
-      id: profiles.id,
-      userId: profiles.userId,
-      name: profiles.name,
-      role: profiles.role,
-      activeAcademyId: profiles.activeAcademyId,
-      createdAt: profiles.createdAt,
-      isSuspended: profiles.isSuspended,
-    }).from(profiles),
-    db.select({
-      userId: memberships.userId,
-      role: memberships.role,
-    }).from(memberships),
-    db.select({
-      userId: subscriptions.userId,
-      planId: subscriptions.planId,
-      status: subscriptions.status,
-    }).from(subscriptions).where(inArray(subscriptions.status, [...PLAN_VISIBLE_SUBSCRIPTION_STATUSES])),
-    db.select({
-      id: plans.id,
-      code: plans.code,
-      nickname: plans.nickname,
-    }).from(plans),
-    fetchAllAuthUsers(supabase),
-  ]);
-
-  const authUserLookup = new Map<string, User>();
-  authUsers.forEach((user) => {
-    if (user?.id) {
-      authUserLookup.set(user.id, user);
-    }
-  });
-
-  const membershipLookup = new Map<string, Set<string>>();
-  for (const membership of membershipsList) {
-    if (!membership.userId || !membership.role) continue;
-    if (!membershipLookup.has(membership.userId)) {
-      membershipLookup.set(membership.userId, new Set());
-    }
-    membershipLookup.get(membership.userId)!.add(membership.role);
-  }
-
-  // Create plan lookup: planId -> plan info
-  const planLookup = new Map<string, { code: string; nickname: string | null }>();
-  for (const plan of plansList) {
-    planLookup.set(plan.id, { code: plan.code ?? "custom", nickname: plan.nickname ?? null });
-  }
-
-  // Create subscription lookup: userId -> plan info
-  const subscriptionLookup = new Map<string, { code: string; nickname: string | null }>();
-  for (const subscription of subscriptionsList) {
-    if (subscription.userId && subscription.planId) {
-      const planInfo = planLookup.get(subscription.planId);
-      if (planInfo) {
-        subscriptionLookup.set(subscription.userId, planInfo);
-      }
-    }
-  }
-
-  return profilesList.map((profile) => {
-    const userId = profile.userId;
-    const authUser = userId ? authUserLookup.get(userId) : undefined;
-    const planInfo = userId ? subscriptionLookup.get(userId) ?? null : null;
-    
-    return {
-      id: profile.id,
-      fullName: profile.name ?? null,
-      email: authUser?.email ?? null,
-      role: profile.role ?? null,
-      academyId: profile.activeAcademyId ?? null,
-      createdAt: toIso(profile.createdAt),
-      membershipRoles: userId ? Array.from(membershipLookup.get(userId) ?? []) : [],
-      isSuspended: Boolean(profile.isSuspended),
-      planCode: planInfo?.code ?? null,
-      planNickname: planInfo?.nickname ?? null,
-    };
-  });
-}
-
-async function fetchAllAuthUsers(client: SupabaseClient): Promise<User[]> {
-  const perPage = 200;
-  let page = 1;
-  const users: User[] = [];
-
-  while (true) {
-    const { data, error } = await client.auth.admin.listUsers({ page, perPage });
-    if (error) {
-      logger.error("Error fetching auth users", error);
-      break;
-    }
-
-    const batch = data?.users ?? [];
-    users.push(...batch);
-
-    if (!data || batch.length < perPage) {
-      break;
-    }
-
-    page += 1;
-  }
-
-  return users;
-}
-
-export interface EventLogEntry {
-  id: string;
-  academyId: string | null;
-  academyName: string | null;
-  eventType: string;
-  metadata: Record<string, unknown> | null;
-  createdAt: string;
-}
-
-export async function getRecentEvents(limit: number = 10): Promise<EventLogEntry[]> {
-  const { db } = await import("@/db");
-  const { eventLogs, academies } = await import("@/db/schema");
-  const { desc, eq } = await import("drizzle-orm");
-  const safeLimit = Math.min(50, Math.max(1, Math.floor(Number.isFinite(limit) ? limit : 10)));
-
-  const events = await db
-    .select({
-      id: eventLogs.id,
-      academyId: eventLogs.academyId,
-      eventType: eventLogs.eventType,
-      metadata: eventLogs.metadata,
-      createdAt: eventLogs.createdAt,
-      academyName: academies.name,
-    })
-    .from(eventLogs)
-    .leftJoin(academies, eq(eventLogs.academyId, academies.id))
-    .orderBy(desc(eventLogs.createdAt), desc(eventLogs.id))
-    .limit(safeLimit);
-
-  return events.map((event) => ({
-    id: event.id,
-    academyId: event.academyId,
-    academyName: event.academyName,
-    eventType: event.eventType,
-    metadata: event.metadata as Record<string, unknown> | null,
-    createdAt: event.createdAt ? (event.createdAt instanceof Date ? event.createdAt.toISOString() : String(event.createdAt)) : new Date().toISOString(),
-  }));
-}
