@@ -385,14 +385,23 @@ export const DELETE = withSuperAdmin(async (request, context) => {
     }
   }
 
-  await db.delete(profiles).where(eq(profiles.id, profileId));
-
+  // Delete Auth first so an Auth failure never leaves a deleted profile with a live login.
   if (target.userId) {
     try {
       await deleteAuthUser(target.userId);
     } catch (error) {
       logger.error("No se pudo borrar la cuenta de Auth", error, { profileId });
+      return apiError("AUTH_DELETE_FAILED", "No se pudo eliminar la cuenta de acceso", 502);
     }
+  }
+
+  const [removed] = await db
+    .delete(profiles)
+    .where(eq(profiles.id, profileId))
+    .returning({ id: profiles.id });
+
+  if (!removed) {
+    return apiError("PROFILE_NOT_FOUND", "Perfil no encontrado", 404);
   }
 
   await logAdminAction({
