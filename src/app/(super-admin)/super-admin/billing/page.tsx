@@ -84,7 +84,7 @@ export default async function SuperAdminBillingPage({ searchParams }: PageProps)
         invoices: count(billingInvoices.id),
         paidInvoices: sql<number>`count(*) filter (where ${billingInvoices.status} = 'paid')`,
         paidAmount: sum(billingInvoices.amountPaid),
-        dueAmount: sum(billingInvoices.amountDue),
+        dueAmount: sql<number>`COALESCE(SUM(GREATEST(COALESCE(${billingInvoices.amountDue}, 0) - COALESCE(${billingInvoices.amountPaid}, 0), 0)), 0)`,
       })
       .from(billingInvoices)
       .where(invoiceCondition)
