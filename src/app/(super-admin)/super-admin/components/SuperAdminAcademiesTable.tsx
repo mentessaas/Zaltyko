@@ -285,7 +285,8 @@ export function SuperAdminAcademiesTable({
       </div>
 
       <div className="overflow-hidden rounded-2xl border border-white/10 bg-white/5">
-        <table className="min-w-full divide-y divide-white/10 text-sm">
+        <div className="overflow-x-auto">
+          <table className="min-w-[760px] divide-y divide-white/10 text-sm">
           <thead className="bg-white/10 font-display text-xs uppercase tracking-wide text-white">
             <tr>
               <th className="px-4 py-3 text-left font-semibold">Academia</th>
@@ -401,7 +402,8 @@ export function SuperAdminAcademiesTable({
               </tr>
             ))}
           </tbody>
-        </table>
+          </table>
+        </div>
       </div>
 
       <p className="font-sans text-xs text-white/50">
