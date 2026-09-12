@@ -14,17 +14,34 @@ export const dynamic = "force-dynamic";
 const reasonSchema = z.string().trim().min(5).max(500);
 const academyTypeSchema = z.enum(["artistica", "ritmica", "trampolin", "general", "parkour", "danza"]);
 const managedAcademyStatusSchema = z.enum(["active", "trial", "suspended"]);
-const updateAcademySchema = z.object({
-  name: z.string().trim().min(1).max(160).optional(),
-  isSuspended: z.boolean().optional(),
-  status: managedAcademyStatusSchema.optional(),
-  reason: reasonSchema.optional(),
-  planId: z.string().uuid().nullable().optional(),
-  academyType: academyTypeSchema.optional(),
-  country: z.string().trim().max(120).nullable().optional(),
-  region: z.string().trim().max(120).nullable().optional(),
-  city: z.string().trim().max(120).nullable().optional(),
-});
+const updateAcademySchema = z
+  .object({
+    name: z.string().trim().min(1).max(160).optional(),
+    isSuspended: z.boolean().optional(),
+    status: managedAcademyStatusSchema.optional(),
+    reason: reasonSchema.optional(),
+    planId: z.string().uuid().nullable().optional(),
+    academyType: academyTypeSchema.optional(),
+    country: z.string().trim().max(120).nullable().optional(),
+    region: z.string().trim().max(120).nullable().optional(),
+    city: z.string().trim().max(120).nullable().optional(),
+  })
+  .superRefine((value, ctx) => {
+    if (value.status === "suspended" && value.isSuspended === false) {
+      ctx.addIssue({
+        code: z.ZodIssueCode.custom,
+        path: ["isSuspended"],
+        message: "Una academia suspendida debe mantener el acceso bloqueado",
+      });
+    }
+    if (value.status && value.status !== "suspended" && value.isSuspended === true) {
+      ctx.addIssue({
+        code: z.ZodIssueCode.custom,
+        path: ["isSuspended"],
+        message: "Una academia operativa no puede mantener el acceso bloqueado",
+      });
+    }
+  });
 
 export const GET = withSuperAdmin(async (_request, context) => {
   const params = context.params as { academyId?: string };
@@ -68,9 +85,18 @@ export const PATCH = withSuperAdmin(async (request, context) => {
     updates.name = body.name;
   }
 
-  if (typeof body?.isSuspended === "boolean") {
+  if (typeof body.isSuspended === "boolean") {
     updates.isSuspended = body.isSuspended;
     updates.suspendedAt = body.isSuspended ? new Date() : null;
+  }
+
+  if (body.status !== undefined) {
+    updates.status = body.status;
+    updates.statusUpdatedAt = new Date();
+    if (body.isSuspended === undefined) {
+      updates.isSuspended = body.status === "suspended";
+      updates.suspendedAt = body.status === "suspended" ? new Date() : null;
+    }
   }
 
   if (body.planId !== undefined) {
@@ -106,6 +132,27 @@ export const PATCH = withSuperAdmin(async (request, context) => {
   let updated;
   try {
     updated = await db.transaction(async (tx) => {
+      const [current] = await tx
+        .select({
+          id: academies.id,
+          name: academies.name,
+          status: academies.status,
+          isSuspended: academies.isSuspended,
+          ownerId: academies.ownerId,
+        })
+        .from(academies)
+        .where(eq(academies.id, academyId))
+        .limit(1);
+
+      if (!current) return null;
+
+      if (
+        (body.status !== undefined || body.isSuspended !== undefined) &&
+        (current.status === "fraud_hold" || current.status === "churned")
+      ) {
+        throw new Error("ACADEMY_STATUS_LOCKED");
+      }
+
       const [academy] = await tx
         .update(academies)
         .set(updates)
@@ -164,6 +211,9 @@ export const PATCH = withSuperAdmin(async (request, context) => {
     }
     if (code === "OWNER_NOT_FOUND") {
       return apiError(code, "Owner not found", 404);
+    }
+    if (code === "ACADEMY_STATUS_LOCKED") {
+      return apiError(code, "Las academias dadas de baja o en revisión de fraude requieren un flujo de seguridad específico", 409);
     }
     return apiError("ACADEMY_UPDATE_FAILED", "No se pudo actualizar la academia", 500);
   }
