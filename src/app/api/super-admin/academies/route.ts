@@ -5,7 +5,7 @@ import { apiSuccess, apiCreated, apiError } from "@/lib/api-response";
 import { db } from "@/db";
 import { profiles } from "@/db/schema";
 import { withSuperAdmin } from "@/lib/authz";
-import { getAllAcademies } from "@/lib/superAdminService";
+import { getAcademiesPage } from "@/lib/superAdminService";
 import { createAcademy } from "@/app/api/academies/academies.lib";
 import { createAuthUser } from "@/lib/supabase/admin-operations";
 import { logAdminAction } from "@/lib/admin-logs";
@@ -106,31 +106,23 @@ export const GET = withSuperAdmin(async (request) => {
     Math.max(1, parseInt(url.searchParams.get("limit") ?? String(DEFAULT_PAGE_SIZE), 10))
   );
 
-  const items = await getAllAcademies();
-
-  const filtered = items.filter((academy) => {
-    if (planFilter && academy.planCode !== planFilter) return false;
-    if (typeFilter && academy.academyType !== typeFilter) return false;
-    if (countryFilter && academy.country !== countryFilter) return false;
-    if (statusFilter) {
-      const isSuspended = statusFilter === "suspended";
-      if (academy.isSuspended !== isSuspended) return false;
-    }
-    return true;
+  const result = await getAcademiesPage({
+    page,
+    pageSize,
+    plan: planFilter,
+    type: typeFilter,
+    country: countryFilter,
+    status: statusFilter,
   });
-
-  const total = filtered.length;
-  const totalPages = Math.ceil(total / pageSize);
-  const offset = (page - 1) * pageSize;
-  const paginatedItems = filtered.slice(offset, offset + pageSize);
+  const totalPages = Math.ceil(result.total / pageSize);
 
   return apiSuccess({
-    total,
+    total: result.total,
     page,
     pageSize,
     totalPages,
     hasNextPage: page < totalPages,
     hasPreviousPage: page > 1,
-    items: paginatedItems,
+    items: result.items,
   });
 });
