@@ -72,7 +72,7 @@ export function SuperAdminAcademiesTable({
   const toast = useToast();
   const [userId, setUserId] = useState<string | null>(initialUserId ?? null);
   const [items, setItems] = useState<SuperAdminAcademyRow[]>(initialItems);
-  const [total, setTotal] = useState(initialTotal || initialItems.length);
+  const [total, setTotal] = useState(initialTotal ?? initialItems.length);
   const [page, setPage] = useState(initialPage);
   const PAGE_SIZE = 50;
   const [loading, setLoading] = useState(false);
