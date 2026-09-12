@@ -36,8 +36,10 @@ export function PublicAcademiesTable({ academies: initialAcademies }: PublicAcad
   return (
     <div className="space-y-6">
       {/* Filtros */}
-      <div className="flex items-center gap-4">
+      <div className="flex items-center gap-4" role="group" aria-label="Filtrar academias por visibilidad">
         <button
+          type="button"
+          aria-pressed={filter === "all"}
           onClick={() => setFilter("all")}
           className={`rounded-lg px-4 py-2 text-sm font-medium transition ${
             filter === "all"
@@ -48,6 +50,8 @@ export function PublicAcademiesTable({ academies: initialAcademies }: PublicAcad
           Todas ({academies.length})
         </button>
         <button
+          type="button"
+          aria-pressed={filter === "public"}
           onClick={() => setFilter("public")}
           className={`rounded-lg px-4 py-2 text-sm font-medium transition ${
             filter === "public"
@@ -58,6 +62,8 @@ export function PublicAcademiesTable({ academies: initialAcademies }: PublicAcad
           Públicas ({academies.filter((a) => a.isPublic).length})
         </button>
         <button
+          type="button"
+          aria-pressed={filter === "private"}
           onClick={() => setFilter("private")}
           className={`rounded-lg px-4 py-2 text-sm font-medium transition ${
             filter === "private"
@@ -71,7 +77,7 @@ export function PublicAcademiesTable({ academies: initialAcademies }: PublicAcad
 
       {/* Tabla */}
       <div className="overflow-x-auto rounded-lg border border-white/10">
-        <table className="w-full">
+        <table className="w-full" aria-label="Academias y visibilidad pública">
           <thead className="bg-white/5">
             <tr>
               <th className="px-6 py-3 text-left text-xs font-medium uppercase text-white/60">
