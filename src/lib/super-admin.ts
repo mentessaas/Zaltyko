@@ -18,6 +18,8 @@ export async function getSuperAdminAcademyDetail(academyId: string) {
       city: academies.city,
       ownerId: academies.ownerId,
       isSuspended: academies.isSuspended,
+      status: academies.status,
+      statusUpdatedAt: academies.statusUpdatedAt,
       suspendedAt: academies.suspendedAt,
       createdAt: academies.createdAt,
       tenantId: academies.tenantId,
@@ -68,6 +70,8 @@ export async function getSuperAdminAcademyDetail(academyId: string) {
 
   return {
     ...academy,
+    status: academy.status,
+    statusUpdatedAt: academy.statusUpdatedAt ? new Date(academy.statusUpdatedAt).toISOString() : null,
     suspendedAt: academy.suspendedAt ? new Date(academy.suspendedAt).toISOString() : null,
     createdAt: academy.createdAt ? new Date(academy.createdAt).toISOString() : null,
     subscription,
