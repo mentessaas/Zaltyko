@@ -52,21 +52,22 @@ export default async function SuperAdminPublicAcademiesPage({ searchParams }: Pa
       ? params.visibility
       : "all";
   const search = params.search?.trim().slice(0, 160) ?? "";
-  const escapedSearch = search.replace(/[\\%_]/g, "\\  const escapedSearch = search.replace(/[\\%_]/g, "\\$&");
+  const escapedSearch = search.replace(/[\\%_]/g, "\\$&");
+  const searchCondition = escapedSearch
+    ? or(
+        ilike(academies.name, `%${escapedSearch}%`),
+        ilike(academies.country, `%${escapedSearch}%`),
+        ilike(academies.region, `%${escapedSearch}%`),
+        ilike(academies.city, `%${escapedSearch}%`)
+      )
+    : undefined;
   const conditions = [
     visibility === "public"
       ? eq(academies.isPublic, true)
       : visibility === "private"
         ? eq(academies.isPublic, false)
         : undefined,
-    escapedSearch
-      ? or(
-          ilike(academies.name, `%${escapedSearch}%`),
-          ilike(academies.country, `%${escapedSearch}%`),
-          ilike(academies.region, `%${escapedSearch}%`),
-          ilike(academies.city, `%${escapedSearch}%`)
-        )
-      : undefined,
+    searchCondition,
   ].filter(Boolean) as Array<ReturnType<typeof eq>>;
 ");
   const searchCondition = escapedSearch
