@@ -14,8 +14,15 @@ import { TicketStatus } from "@/components/support/TicketFilters";
 
 export const dynamic = "force-dynamic";
 
+type SearchParamValue = string | string[] | undefined;
+
 interface PageProps {
   params: Promise<{ ticketId: string }>;
+  searchParams: Promise<{ returnTo?: SearchParamValue }>;
+}
+
+function firstSearchParam(value: SearchParamValue) {
+  return Array.isArray(value) ? value[0] : value;
 }
 
 async function getTicket(ticketId: string) {
@@ -82,8 +89,14 @@ async function getTicket(ticketId: string) {
   };
 }
 
-export default async function SuperAdminTicketDetailPage({ params }: PageProps) {
+export default async function SuperAdminTicketDetailPage({ params, searchParams }: PageProps) {
   const { ticketId } = await params;
+  const { returnTo } = await searchParams;
+  const safeReturnTo = firstSearchParam(returnTo);
+  const backHref =
+    safeReturnTo === "/super-admin/support" || safeReturnTo?.startsWith("/super-admin/support?")
+      ? safeReturnTo
+      : "/super-admin/support";
   const cookieStore = await cookies();
   const supabase = await createClient(cookieStore);
   const devSession = await getDevSessionFromCookieStore(cookieStore);
@@ -148,6 +161,7 @@ export default async function SuperAdminTicketDetailPage({ params }: PageProps) 
         currentUserId={profile.id}
         isAdmin
         onStatusChange={handleStatusChange}
+        backHref={backHref}
       />
     </div>
   );
