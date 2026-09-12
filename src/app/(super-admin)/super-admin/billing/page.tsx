@@ -73,8 +73,9 @@ export default async function SuperAdminBillingPage({ searchParams }: PageProps)
   const effectiveProfile = profile ?? (devSession ? { role: "super_admin" } : null);
   if (!effectiveProfile || effectiveProfile.role !== "super_admin") redirect("/app");
 
+  const isRiskView = status === "risky";
   const invoiceCondition =
-    status === "risky"
+    isRiskView
       ? inArray(billingInvoices.status, [...RISKY_STATUSES])
       : undefined;
 
@@ -134,6 +135,11 @@ export default async function SuperAdminBillingPage({ searchParams }: PageProps)
           <h1 className="mt-2 font-display text-3xl font-semibold text-white">
             Cobros globales
           </h1>
+          <div className="mt-2 flex flex-wrap items-center gap-2">
+            <span className="inline-flex rounded-full border border-white/15 bg-white/5 px-2.5 py-1 text-xs font-semibold text-white/70">
+              {isRiskView ? "Vista: recibos en riesgo" : "Vista: todos los recibos"}
+            </span>
+          </div>
           <p className="mt-2 max-w-2xl text-sm text-white/60">
             Visión operativa de recibos sincronizados desde Stripe. Las acciones de cobro
             siguen centralizadas en Stripe Billing para evitar estados divergentes.
@@ -141,11 +147,13 @@ export default async function SuperAdminBillingPage({ searchParams }: PageProps)
         </div>
         <div className="flex flex-wrap gap-2">
           <Link
-            href="/super-admin/billing?status=risky"
-            className="inline-flex min-h-11 items-center gap-2 rounded-xl border border-rose-300/30 bg-rose-300/10 px-4 text-sm font-semibold text-rose-100 transition hover:bg-rose-300/20"
+            href={isRiskView ? "/super-admin/billing" : "/super-admin/billing?status=risky"}
+            className={isRiskView
+              ? "inline-flex min-h-11 items-center gap-2 rounded-xl border border-white/15 bg-white/5 px-4 text-sm font-semibold text-white transition hover:bg-white/10"
+              : "inline-flex min-h-11 items-center gap-2 rounded-xl border border-rose-300/30 bg-rose-300/10 px-4 text-sm font-semibold text-rose-100 transition hover:bg-rose-300/20"}
           >
             <AlertTriangle className="h-4 w-4" aria-hidden="true" />
-            Ver riesgos
+            {isRiskView ? "Ver todos" : "Ver riesgos"}
           </Link>
           <Link
             href="/super-admin/logs"
@@ -157,7 +165,7 @@ export default async function SuperAdminBillingPage({ searchParams }: PageProps)
         </div>
       </header>
 
-      <section aria-label="Resumen financiero" className="grid gap-4 sm:grid-cols-2 xl:grid-cols-4">
+      <section aria-label={isRiskView ? "Resumen financiero de recibos en riesgo" : "Resumen financiero global"} className="grid gap-4 sm:grid-cols-2 xl:grid-cols-4">
         {[
           { label: "Cobrado acumulado", value: formatMoney(summary?.paidAmount), icon: CircleDollarSign },
           { label: "Recibos pagados", value: Number(summary?.paidInvoices ?? 0).toLocaleString("es-ES"), icon: FileText },
