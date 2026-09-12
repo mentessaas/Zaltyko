@@ -359,8 +359,8 @@ export async function getAcademiesPage(args: {
   const { academies, profiles, subscriptions, plans } = await import("@/db/schema");
   const { and, count, desc, eq } = await import("drizzle-orm");
 
-  const page = Math.max(1, args.page ?? 1);
-  const pageSize = Math.min(200, Math.max(1, args.pageSize ?? 50));
+  const page = Math.max(1, Math.floor(Number.isFinite(args.page) ? args.page! : 1));
+  const pageSize = Math.min(200, Math.max(1, Math.floor(Number.isFinite(args.pageSize) ? args.pageSize! : 50)));
   const conditions = [
     args.plan ? eq(plans.code, args.plan) : undefined,
     args.type ? eq(academies.academyType, args.type as typeof academies.academyType.enumValues[number]) : undefined,
@@ -523,8 +523,8 @@ export async function getUsersPage(args: {
   const { authUsers, memberships, plans, profiles, subscriptions } = await import("@/db/schema");
   const { and, count, desc, eq, ilike, inArray, or } = await import("drizzle-orm");
 
-  const page = Math.max(1, args.page ?? 1);
-  const pageSize = Math.min(200, Math.max(1, args.pageSize ?? 50));
+  const page = Math.max(1, Math.floor(Number.isFinite(args.page) ? args.page! : 1));
+  const pageSize = Math.min(200, Math.max(1, Math.floor(Number.isFinite(args.pageSize) ? args.pageSize! : 50)));
   const escapedSearch = args.search?.trim().replace(/[\\%_]/g, "\\$&");
   const conditions = [
     args.role
