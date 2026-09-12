@@ -450,7 +450,7 @@ export function SuperAdminUsersTable({
                 onKeyDown={(e) => {
                   if ((e.key !== "Enter" && e.key !== " ") || (e.target as HTMLElement).closest("button, select")) return;
                   e.preventDefault();
-                  router.push(`/super-admin/users/${user.id}`);
+                  openUserDetail(user.id);
                 }}
               >
                 <td className="px-4 py-4">
