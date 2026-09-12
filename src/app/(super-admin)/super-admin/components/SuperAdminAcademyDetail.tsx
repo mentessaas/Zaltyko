@@ -240,8 +240,8 @@ export function SuperAdminAcademyDetail({ initialAcademy, userId, backHref = "/s
           "Content-Type": "application/json",
         },
         body: JSON.stringify({
-          isSuspended: !formData.isSuspended,
-          status: !formData.isSuspended
+          isSuspended: !academy.isSuspended,
+          status: !academy.isSuspended
             ? "suspended"
             : academy.status === "trial"
               ? "trial"
