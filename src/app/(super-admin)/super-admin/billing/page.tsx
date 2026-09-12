@@ -11,7 +11,7 @@ import {
 } from "lucide-react";
 
 import { db } from "@/db";
-import { academies, billingInvoices } from "@/db/schema";
+import { academies, billingInvoices, plans, profiles, subscriptions } from "@/db/schema";
 import { createClient } from "@/lib/supabase/server";
 import { getCurrentProfile } from "@/lib/authz";
 import { getDevSessionFromCookieStore } from "@/lib/dev-session";
@@ -23,7 +23,8 @@ type PageProps = {
 };
 
 const RISKY_STATUSES = ["past_due", "canceled", "unpaid"] as const;
-const BILLING_STATUS_VALUES = ["paid", "past_due", "unpaid", "canceled", "open", "trialing"] as const;
+const BILLING_STATUS_VALUES = ["draft", "open", "paid", "uncollectible", "void"] as const;
+const SUBSCRIPTION_STATUS_VALUES = ["active", "trialing", "past_due", "canceled", "unpaid", "incomplete", "incomplete_expired", "paused"] as const;
 
 function formatMoney(value: number | string | null | undefined, currency = "eur") {
   const amount = Number(value ?? 0) / 100;
@@ -38,6 +39,20 @@ function statusLabel(status: string) {
   switch (status) {
     case "paid":
       return "Pagada";
+    case "draft":
+      return "Borrador";
+    case "uncollectible":
+      return "Incobrable";
+    case "void":
+      return "Anulada";
+    case "active":
+      return "Activa";
+    case "incomplete":
+      return "Incompleta";
+    case "incomplete_expired":
+      return "Incompleta expirada";
+    case "paused":
+      return "Pausada";
     case "past_due":
       return "Vencida";
     case "unpaid":
@@ -54,10 +69,11 @@ function statusLabel(status: string) {
 }
 
 function statusClasses(status: string) {
-  if (status === "paid") return "bg-emerald-400/15 text-emerald-200";
+  if (status === "paid" || status === "active") return "bg-emerald-400/15 text-emerald-200";
   if (RISKY_STATUSES.includes(status as (typeof RISKY_STATUSES)[number])) {
     return "bg-rose-400/15 text-rose-200";
   }
+  if (status === "void" || status === "incomplete_expired") return "bg-slate-400/15 text-slate-200";
   return "bg-amber-400/15 text-amber-100";
 }
 
@@ -76,22 +92,45 @@ export default async function SuperAdminBillingPage({ searchParams }: PageProps)
   const effectiveProfile = profile ?? (devSession ? { role: "super_admin" } : null);
   if (!effectiveProfile || effectiveProfile.role !== "super_admin") redirect("/app");
 
-  const selectedStatus = status && BILLING_STATUS_VALUES.includes(status as (typeof BILLING_STATUS_VALUES)[number])
+  const selectedStatus = status && (
+    BILLING_STATUS_VALUES.includes(status as (typeof BILLING_STATUS_VALUES)[number]) ||
+    SUBSCRIPTION_STATUS_VALUES.includes(status as (typeof SUBSCRIPTION_STATUS_VALUES)[number])
+  )
     ? status
+    : undefined;
+  const selectedInvoiceStatus = selectedStatus && BILLING_STATUS_VALUES.includes(
+    selectedStatus as (typeof BILLING_STATUS_VALUES)[number]
+  )
+    ? selectedStatus
+    : undefined;
+  const selectedSubscriptionStatus = selectedStatus && SUBSCRIPTION_STATUS_VALUES.includes(
+    selectedStatus as (typeof SUBSCRIPTION_STATUS_VALUES)[number]
+  )
+    ? selectedStatus
     : undefined;
   const isRiskView = status === "risky";
   const isFiltered = isRiskView || Boolean(selectedStatus);
   const invoiceCondition =
     isRiskView
       ? inArray(billingInvoices.status, [...RISKY_STATUSES])
-      : selectedStatus
-        ? eq(billingInvoices.status, selectedStatus)
-        : undefined;
+      : selectedInvoiceStatus
+        ? eq(billingInvoices.status, selectedInvoiceStatus)
+        : selectedSubscriptionStatus
+          ? sql`1 = 0`
+          : undefined;
+  const subscriptionCondition =
+    isRiskView
+      ? inArray(subscriptions.status, [...RISKY_STATUSES])
+      : selectedSubscriptionStatus
+        ? eq(subscriptions.status, selectedSubscriptionStatus)
+        : selectedInvoiceStatus
+          ? sql`1 = 0`
+          : undefined;
   const scopeLabel = isRiskView
-    ? "Vista: recibos en riesgo"
+    ? "Vista: recibos y suscripciones en riesgo"
     : selectedStatus
       ? `Vista: ${statusLabel(selectedStatus)}`
-      : "Vista: todos los recibos";
+      : "Vista: todos los recibos y suscripciones";
 
   const [summary, statusRows, invoices] = await Promise.all([
     db
@@ -132,6 +171,24 @@ export default async function SuperAdminBillingPage({ searchParams }: PageProps)
       .leftJoin(academies, eq(billingInvoices.academyId, academies.id))
       .where(invoiceCondition)
       .orderBy(desc(billingInvoices.createdAt))
+      .limit(50),
+    db
+      .select({
+        id: subscriptions.id,
+        status: subscriptions.status,
+        currentPeriodEnd: subscriptions.currentPeriodEnd,
+        cancelAtPeriodEnd: subscriptions.cancelAtPeriodEnd,
+        academyId: academies.id,
+        academyName: academies.name,
+        planCode: plans.code,
+        planNickname: plans.nickname,
+      })
+      .from(subscriptions)
+      .leftJoin(profiles, eq(subscriptions.userId, profiles.userId))
+      .leftJoin(academies, eq(academies.ownerId, profiles.id))
+      .leftJoin(plans, eq(subscriptions.planId, plans.id))
+      .where(subscriptionCondition)
+      .orderBy(desc(subscriptions.currentPeriodEnd))
       .limit(50),
   ]);
 
@@ -197,6 +254,64 @@ export default async function SuperAdminBillingPage({ searchParams }: PageProps)
             </article>
           );
         })}
+      </section>
+
+      <section aria-label="Suscripciones globales" className="overflow-hidden rounded-2xl border border-white/10 bg-white/[0.045]">
+        <div className="flex flex-col gap-2 border-b border-white/10 p-5 sm:flex-row sm:items-center sm:justify-between sm:p-6">
+          <div>
+            <p className="text-xs uppercase tracking-[0.2em] text-white/50">Control de ciclo de vida</p>
+            <h2 className="mt-1 font-display text-xl font-semibold text-white">Suscripciones</h2>
+            <p className="mt-1 text-sm text-white/55">Estado actual de la relación de cada academia con su plan.</p>
+          </div>
+          <span className="text-xs text-white/45">Hasta 50 resultados</span>
+        </div>
+        <div className="overflow-x-auto">
+          <table className="min-w-full text-left text-sm">
+            <thead className="border-b border-white/10 text-xs uppercase tracking-wide text-white/45">
+              <tr>
+                <th className="px-5 py-3 font-semibold">Academia</th>
+                <th className="px-5 py-3 font-semibold">Plan</th>
+                <th className="px-5 py-3 font-semibold">Estado</th>
+                <th className="px-5 py-3 font-semibold">Renovación</th>
+              </tr>
+            </thead>
+            <tbody className="divide-y divide-white/5">
+              {subscriptionRows.map((subscription) => (
+                <tr key={subscription.id} className="hover:bg-white/[0.03]">
+                  <td className="px-5 py-4">
+                    {subscription.academyId ? (
+                      <Link href={`/super-admin/academies/${subscription.academyId}`} className="font-medium text-zaltyko-electric hover:underline">
+                        {subscription.academyName ?? "Academia"}
+                      </Link>
+                    ) : (
+                      <span className="text-white/50">Academia no vinculada</span>
+                    )}
+                  </td>
+                  <td className="px-5 py-4">
+                    <p className="font-medium text-white">{subscription.planNickname ?? subscription.planCode ?? "Plan no asignado"}</p>
+                    {subscription.planCode && subscription.planNickname && <p className="mt-1 text-xs text-white/45">{subscription.planCode}</p>}
+                  </td>
+                  <td className="px-5 py-4">
+                    <span className={`inline-flex rounded-full px-2.5 py-1 text-xs font-semibold ${statusClasses(subscription.status ?? "unknown")}`}>
+                      {statusLabel(subscription.status ?? "unknown")}
+                    </span>
+                    {subscription.cancelAtPeriodEnd && <p className="mt-1 text-xs text-amber-200/70">Cancela al final del periodo</p>}
+                  </td>
+                  <td className="whitespace-nowrap px-5 py-4 text-white/65">
+                    {subscription.currentPeriodEnd ? new Date(subscription.currentPeriodEnd).toLocaleDateString("es-ES") : "Sin fecha"}
+                  </td>
+                </tr>
+              ))}
+              {subscriptionRows.length === 0 && (
+                <tr>
+                  <td colSpan={4} className="px-5 py-12 text-center text-sm text-white/50">
+                    {isFiltered ? "No hay suscripciones que coincidan con el filtro actual." : "No hay suscripciones registradas todavía."}
+                  </td>
+                </tr>
+              )}
+            </tbody>
+          </table>
+        </div>
       </section>
 
       <section className="grid gap-6 xl:grid-cols-[0.8fr_1.7fr]">
