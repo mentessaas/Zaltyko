@@ -3,7 +3,7 @@ import { redirect } from "next/navigation";
 
 import { createClient } from "@/lib/supabase/server";
 import { getCurrentProfile } from "@/lib/authz";
-import { getAllAcademies } from "@/lib/superAdminService";
+import { getAcademiesPage } from "@/lib/superAdminService";
 import { getDevSessionFromCookieStore } from "@/lib/dev-session";
 import { SuperAdminAcademiesTable } from "../components/SuperAdminAcademiesTable";
 
@@ -29,8 +29,8 @@ export default async function SuperAdminAcademiesPage() {
     redirect("/app");
   }
 
-  const items = await getAllAcademies();
+  const { items, total } = await getAcademiesPage({ page: 1, pageSize: 50 });
 
-  return <SuperAdminAcademiesTable initialItems={items} initialTotal={items.length} />;
+  return <SuperAdminAcademiesTable initialItems={items} initialTotal={total} />;
 }
 
