@@ -111,17 +111,18 @@ const handler = withSuperAdmin(async (request) => {
   });
 
   const total = filtered.length;
-  const totalPages = Math.ceil(total / pageSize);
-  const offset = (page - 1) * pageSize;
+  const totalPages = Math.max(1, Math.ceil(total / pageSize));
+  const effectivePage = Math.min(page, totalPages);
+  const offset = (effectivePage - 1) * pageSize;
   const paginatedItems = filtered.slice(offset, offset + pageSize);
 
   return apiSuccess({
     total,
-    page,
+    page: effectivePage,
     pageSize,
     totalPages,
-    hasNextPage: page < totalPages,
-    hasPreviousPage: page > 1,
+    hasNextPage: effectivePage < totalPages,
+    hasPreviousPage: effectivePage > 1,
     items: paginatedItems,
   });
 });
