@@ -25,16 +25,18 @@ type SuperAdminAcademyFilters = {
 interface SuperAdminAcademiesTableProps {
   initialItems: SuperAdminAcademyRow[];
   initialTotal: number;
+  initialUserId?: string | null;
 }
 
 export function SuperAdminAcademiesTable({
   initialItems,
   initialTotal,
+  initialUserId,
 }: SuperAdminAcademiesTableProps) {
   const supabase = createClient();
   const router = useRouter();
   const toast = useToast();
-  const [userId, setUserId] = useState<string | null>(null);
+  const [userId, setUserId] = useState<string | null>(initialUserId ?? null);
   const [items, setItems] = useState<SuperAdminAcademyRow[]>(initialItems);
   const [total, setTotal] = useState(initialTotal || initialItems.length);
   const [page, setPage] = useState(1);
@@ -51,7 +53,7 @@ export function SuperAdminAcademiesTable({
 
   useEffect(() => {
     supabase.auth.getUser().then(({ data }) => {
-      setUserId(data.user?.id ?? null);
+      if (data.user?.id) setUserId(data.user.id);
     });
   }, [supabase]);
 
