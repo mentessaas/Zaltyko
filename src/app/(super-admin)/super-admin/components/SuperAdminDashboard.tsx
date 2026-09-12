@@ -305,16 +305,16 @@ export function SuperAdminDashboard({ initialMetrics, initialEvents = [] }: Supe
         ))}
       </section>
 
-      <section className="grid w-full grid-cols-2 gap-3 rounded-[22px] border border-slate-200/80 bg-white p-4 shadow-[0_18px_50px_-32px_rgba(15,23,42,0.45)] sm:grid-cols-3 lg:grid-cols-5">
+      <section className="grid w-full grid-cols-2 gap-3 rounded-2xl border border-white/10 bg-white/[0.045] p-4 sm:grid-cols-3 lg:grid-cols-5">
         {cards.slice(5).map((card) => (
           <Link
             key={card.title}
             href={card.href}
-            className="group rounded-2xl border border-slate-100 bg-slate-50/70 px-3 py-3 transition hover:border-zaltyko-teal/30 hover:bg-white"
+            className="group rounded-xl border border-white/10 bg-white/[0.035] px-3 py-3 transition hover:border-zaltyko-teal/30 hover:bg-white/[0.08]"
           >
-            <p className="truncate text-[11px] font-bold uppercase tracking-[0.08em] text-slate-400">{card.title}</p>
-            <p className="mt-1 font-display text-xl font-bold tracking-[-0.03em] text-slate-950">{card.value}</p>
-            <p className="mt-1 truncate text-xs text-slate-500">{card.subtitle}</p>
+            <p className="truncate text-[11px] font-bold uppercase tracking-[0.08em] text-white/50">{card.title}</p>
+            <p className="mt-1 font-display text-xl font-bold tracking-normal text-white">{card.value}</p>
+            <p className="mt-1 truncate text-xs text-white/60">{card.subtitle}</p>
           </Link>
         ))}
       </section>
