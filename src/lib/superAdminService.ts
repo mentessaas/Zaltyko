@@ -297,10 +297,22 @@ async function getGlobalStatsUncached(): Promise<SuperAdminMetrics> {
   const athleteSummary = athleteSummaryRows[0];
   const recentActivitySummary = recentActivityRows[0];
 
-  const chargesPaidByCurrency = chargesSummaryRows
-    .map((row) => ({ currency: normalizeCurrency(row.currency), total: Number(row.paid ?? 0) }))
-    .filter((row) => row.total > 0)
-    .sort((a, b) => b.total - a.total || a.currency.localeCompare(b.currency));
+    const aggregateCurrencyTotals = (rows: Array<{ currency: string | null; total: unknown }>) => {
+    const totals = new Map<string, number>();
+    for (const row of rows) {
+      const currency = normalizeCurrency(row.currency);
+      const total = Number(row.total ?? 0);
+      totals.set(currency, (totals.get(currency) ?? 0) + total);
+    }
+    return [...totals.entries()]
+      .map(([currency, total]) => ({ currency, total }))
+      .filter((row) => row.total > 0)
+      .sort((a, b) => b.total - a.total || a.currency.localeCompare(b.currency));
+  };
+
+  const chargesPaidByCurrency = aggregateCurrencyTotals(
+    chargesSummaryRows.map((row) => ({ currency: row.currency, total: row.paid }))
+  );
   const chargesCreatedThisMonth = chargesSummaryRows.reduce(
     (total, row) => total + Number(row.created ?? 0),
     0
@@ -329,20 +341,27 @@ async function getGlobalStatsUncached(): Promise<SuperAdminMetrics> {
     .sort((a, b) => a.label.localeCompare(b.label))
     .slice(-6);
 
-  const monthlyRevenue = monthlyRevenueRows
-    .filter((row) => row.label)
-    .map((row) => ({
-      label: row.label,
-      currency: normalizeCurrency(row.currency),
-      total: Number(row.total ?? 0),
-    }))
-    .sort((a, b) => a.label.localeCompare(b.label) || a.currency.localeCompare(b.currency))
-    .slice(-6);
+  const monthlyRevenue = (() => {
+    const totals = new Map<string, { label: string; currency: string; total: number }>();
+    for (const row of monthlyRevenueRows) {
+      if (!row.label) continue;
+      const currency = normalizeCurrency(row.currency);
+      const key = row.label + ":" + currency;
+      const current = totals.get(key);
+      totals.set(key, {
+        label: row.label,
+        currency,
+        total: (current?.total ?? 0) + Number(row.total ?? 0),
+      });
+    }
+    return [...totals.values()]
+      .sort((a, b) => a.label.localeCompare(b.label) || a.currency.localeCompare(b.currency))
+      .slice(-6);
+  })();
 
-  const revenueByCurrency = revenueByCurrencyRows
-    .map((row) => ({ currency: normalizeCurrency(row.currency), total: Number(row.total ?? 0) }))
-    .filter((row) => row.total > 0)
-    .sort((a, b) => b.total - a.total || a.currency.localeCompare(b.currency));
+  const revenueByCurrency = aggregateCurrencyTotals(
+    revenueByCurrencyRows.map((row) => ({ currency: row.currency, total: row.total }))
+  );
   // Preserve the legacy scalar only when the value is actually comparable.
   const comparableRevenue = revenueByCurrency.length === 1 ? revenueByCurrency[0].total : 0;
 
@@ -433,9 +452,11 @@ export async function getAcademyFilterOptions(): Promise<SuperAdminAcademyFilter
   ]);
 
   return {
-    plans: planRows
-      .map((row) => row.code?.trim())
-      .filter((code): code is string => Boolean(code)),
+    plans: [...new Set(
+      planRows
+        .map((row) => row.code?.trim())
+        .filter((code): code is string => Boolean(code))
+    )],
     types: ["artistica", "ritmica", "trampolin", "general", "parkour", "danza"],
     countries: countryRows
       .map((row) => row.country?.trim())
