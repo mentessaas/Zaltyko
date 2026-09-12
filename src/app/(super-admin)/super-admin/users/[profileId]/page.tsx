@@ -1,4 +1,4 @@
-import { cookies } from "next/headers";
+import { cookies, headers } from "next/headers";
 import { redirect, notFound } from "next/navigation";
 import { ArrowLeft } from "lucide-react";
 import Link from "next/link";
@@ -35,9 +35,15 @@ export default async function SuperAdminUserDetailPage({
   }
 
   const { profileId } = await params;
+  const requestHeaders = await headers();
+  const forwardedHost = requestHeaders.get("x-forwarded-host") ?? requestHeaders.get("host");
+  const forwardedProto = requestHeaders.get("x-forwarded-proto")?.split(",")[0]?.trim() || "https";
+  const appOrigin = forwardedHost
+    ? `${forwardedProto}://${forwardedHost}`
+    : process.env.NEXT_PUBLIC_APP_URL || "http://localhost:3000";
 
   const response = await fetch(
-    `${process.env.NEXT_PUBLIC_APP_URL || "http://localhost:3000"}/api/super-admin/users/${profileId}`,
+    `${appOrigin}/api/super-admin/users/${profileId}`,
     {
       headers: {
         cookie: cookieStore.getAll().map((c) => `${c.name}=${c.value}`).join("; "),
