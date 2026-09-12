@@ -60,6 +60,8 @@ export function TicketFilters({
       } else {
         params.delete(key);
       }
+      // A new filter always starts at the first result page.
+      params.delete("page");
       router.push(`?${params.toString()}`);
     },
     [router, searchParams]
