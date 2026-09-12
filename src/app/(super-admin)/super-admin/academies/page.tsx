@@ -31,6 +31,6 @@ export default async function SuperAdminAcademiesPage() {
 
   const { items, total } = await getAcademiesPage({ page: 1, pageSize: 50 });
 
-  return <SuperAdminAcademiesTable initialItems={items} initialTotal={total} />;
+  return <SuperAdminAcademiesTable initialItems={items} initialTotal={total} initialUserId={user?.id ?? devSession?.userId ?? null} />;
 }
 
