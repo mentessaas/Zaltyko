@@ -471,7 +471,7 @@ export function SuperAdminUserDetail({ initialUser, userId, backHref = "/super-a
           "Content-Type": "application/json",
         },
         body: JSON.stringify({
-          isSuspended: !formData.isSuspended,
+          isSuspended: !user.isSuspended,
           reason: trimmedReason,
         }),
       });
