@@ -18,6 +18,12 @@ interface SuperAdminLogsTableProps {
 
 const PAGE_SIZE = 50;
 
+function formatLogDate(value: string | null | undefined) {
+  if (!value) return "—";
+  const date = new Date(value);
+  return Number.isNaN(date.getTime()) ? "Fecha no disponible" : date.toLocaleString("es-ES");
+}
+
 export function SuperAdminLogsTable({
   initialLogs,
   initialTotal,
@@ -150,9 +156,7 @@ export function SuperAdminLogsTable({
                     </pre>
                   </td>
                   <td className="px-4 py-4 text-right text-xs text-white/70">
-                    {log.createdAt
-                      ? new Date(log.createdAt).toLocaleString("es-ES")
-                      : "—"}
+                    {formatLogDate(log.createdAt)}
                   </td>
                 </tr>
               ))}
