@@ -257,7 +257,7 @@ export default async function SuperAdminBillingPage({ searchParams }: PageProps)
       .from(billingInvoices)
       .leftJoin(academies, eq(billingInvoices.academyId, academies.id))
       .where(invoiceCondition)
-      .orderBy(desc(billingInvoices.createdAt))
+      .orderBy(desc(billingInvoices.createdAt), desc(billingInvoices.id))
       .limit(PAGE_SIZE)
       .offset((currentPage - 1) * PAGE_SIZE),
     db
@@ -276,7 +276,7 @@ export default async function SuperAdminBillingPage({ searchParams }: PageProps)
       .leftJoin(academies, eq(academies.ownerId, profiles.id))
       .leftJoin(plans, eq(subscriptions.planId, plans.id))
       .where(subscriptionCondition)
-      .orderBy(desc(subscriptions.currentPeriodEnd))
+      .orderBy(desc(subscriptions.currentPeriodEnd), desc(subscriptions.id))
       .limit(PAGE_SIZE)
       .offset((currentPage - 1) * PAGE_SIZE),
   ]);
