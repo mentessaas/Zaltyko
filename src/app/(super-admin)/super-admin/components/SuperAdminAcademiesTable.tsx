@@ -2,7 +2,6 @@
 
 import { useEffect, useMemo, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
-import Link from "next/link";
 import { ChevronLeft, ChevronRight, PauseCircle, PlayCircle, Trash2, Loader2 } from "lucide-react";
 
 import type { SuperAdminAcademyRow } from "@/lib/superAdminService";
