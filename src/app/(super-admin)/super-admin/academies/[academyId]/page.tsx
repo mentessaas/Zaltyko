@@ -13,8 +13,10 @@ export const dynamic = "force-dynamic";
 
 export default async function SuperAdminAcademyDetailPage({
   params,
+  searchParams,
 }: {
   params: Promise<{ academyId: string }>;
+  searchParams: Promise<{ returnTo?: string }>;
 }) {
   const cookieStore = await cookies();
   const supabase = await createClient(cookieStore);
@@ -36,6 +38,11 @@ export default async function SuperAdminAcademyDetailPage({
   }
 
   const { academyId } = await params;
+  const { returnTo } = await searchParams;
+  const backHref =
+    returnTo === "/super-admin/academies" || returnTo?.startsWith("/super-admin/academies?")
+      ? returnTo
+      : "/super-admin/academies";
 
   const academy = await getSuperAdminAcademyDetail(academyId);
 
@@ -47,7 +54,7 @@ export default async function SuperAdminAcademyDetailPage({
     <div className="space-y-6">
       <div className="flex items-center gap-4">
         <Link
-          href="/super-admin/academies"
+          href={backHref}
           className="inline-flex items-center gap-2 rounded-xl border border-white/10 bg-white/5 px-3 py-2 text-sm text-slate-300 transition hover:border-white/20 hover:bg-white/10 hover:text-white"
         >
           <ArrowLeft className="h-4 w-4" strokeWidth={1.8} />
