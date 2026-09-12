@@ -631,7 +631,12 @@ export function SuperAdminUsersTable({
                 ? `¿Estás seguro de suspender a ${pendingAction.userData.fullName || pendingAction.userData.email}? No podrá acceder al sistema hasta que sea reactivado.`
                 : `¿Estás seguro de reactivar a ${pendingAction.userData.fullName || pendingAction.userData.email}? Podrá acceder al sistema nuevamente.`
           }
-          variant="destructive"
+          variant={
+            pendingAction.body.delete === true ||
+            (pendingAction.body.isSuspended !== undefined && !pendingAction.userData.isSuspended)
+              ? "destructive"
+              : "default"
+          }
           confirmText={
             pendingAction.body.delete === true
               ? "Eliminar"
