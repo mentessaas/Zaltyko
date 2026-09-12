@@ -34,5 +34,5 @@ export default async function SuperAdminDashboardPage() {
     getRecentEvents(10),
   ]);
 
-  return <SuperAdminDashboard initialMetrics={metrics} initialEvents={recentEvents} />;
+  return <SuperAdminDashboard initialMetrics={metrics} initialEvents={recentEvents} initialUserId={user?.id ?? devSession?.userId ?? null} />;
 }
