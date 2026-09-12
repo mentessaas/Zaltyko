@@ -265,10 +265,22 @@ export const DELETE = withSuperAdmin(async (request, context) => {
     return apiError("REASON_REQUIRED", "Indica el motivo de la eliminación", 400);
   }
 
-  const [removed] = await db
-    .delete(academies)
-    .where(eq(academies.id, academyId))
-    .returning({ id: academies.id, name: academies.name });
+  const removed = await db.transaction(async (tx) => {
+    const [deletedAcademy] = await tx
+      .delete(academies)
+      .where(eq(academies.id, academyId))
+      .returning({ id: academies.id, name: academies.name });
+
+    if (!deletedAcademy) return null;
+
+    // activeAcademyId no es una FK: limpiarlo evita sesiones apuntando a una academia borrada.
+    await tx
+      .update(profiles)
+      .set({ activeAcademyId: null })
+      .where(eq(profiles.activeAcademyId, academyId));
+
+    return deletedAcademy;
+  });
 
   if (!removed) {
     return apiError("ACADEMY_NOT_FOUND", "Academy not found", 404);
