@@ -86,7 +86,7 @@ function formatMonthLabel(label: string) {
 }
 
 export function SuperAdminDashboard({ initialMetrics, initialEvents = [] }: SuperAdminDashboardProps) {
-  const { metrics, loading, refresh } = useSuperAdminData(initialMetrics);
+  const { metrics, events, loading, refresh } = useSuperAdminData(initialMetrics, initialEvents);
   const safeMetrics = useMemo(() => normalizeSuperAdminMetrics(metrics), [metrics]);
 
   // Drill-down state for charts
@@ -99,8 +99,8 @@ export function SuperAdminDashboard({ initialMetrics, initialEvents = [] }: Supe
 
   // Academy comparison state
   // Calculate pagination
-  const totalPages = Math.ceil(initialEvents.length / ITEMS_PER_PAGE);
-  const paginatedEvents = initialEvents.slice(
+  const totalPages = Math.ceil(events.length / ITEMS_PER_PAGE);
+  const paginatedEvents = events.slice(
     (currentPage - 1) * ITEMS_PER_PAGE,
     currentPage * ITEMS_PER_PAGE
   );
@@ -708,7 +708,7 @@ export function SuperAdminDashboard({ initialMetrics, initialEvents = [] }: Supe
         </div>
       </section>
 
-      {initialEvents.length > 0 && (
+      {events.length > 0 && (
         <section className="group relative overflow-hidden rounded-2xl border border-white/10 bg-white/5 p-6">
 
           <header className="relative mb-6 flex items-center justify-between">
@@ -716,10 +716,10 @@ export function SuperAdminDashboard({ initialMetrics, initialEvents = [] }: Supe
               <h3 className="font-display text-sm font-semibold uppercase tracking-wide text-zaltyko-accent-light">
                 Actividad reciente
               </h3>
-              <p className="text-xs text-white/50 mt-1">Últimos {initialEvents.length} eventos del sistema</p>
+              <p className="text-xs text-white/50 mt-1">Últimos {events.length} eventos del sistema</p>
             </div>
             <span className="rounded-full bg-white/10 px-3 py-1 text-xs font-medium text-white/80">
-              {initialEvents.length} eventos
+              {events.length} eventos
             </span>
           </header>
 
