@@ -13,13 +13,19 @@ export const dynamic = "force-dynamic";
 
 const PAGE_SIZE = 50;
 
+type SearchParamValue = string | string[] | undefined;
+
 type PageProps = {
   searchParams: Promise<{
-    visibility?: string;
-    search?: string;
-    page?: string;
+    visibility?: SearchParamValue;
+    search?: SearchParamValue;
+    page?: SearchParamValue;
   }>;
 };
+
+function firstSearchParam(value: SearchParamValue) {
+  return Array.isArray(value) ? value[0] : value;
+}
 
 function parsePage(value: string | undefined) {
   const parsed = Number.parseInt(value ?? "1", 10);
@@ -48,10 +54,10 @@ export default async function SuperAdminPublicAcademiesPage({ searchParams }: Pa
 
   const params = await searchParams;
   const visibility =
-    params.visibility === "public" || params.visibility === "private"
-      ? params.visibility
+    firstSearchParam(params.visibility) === "public" || firstSearchParam(params.visibility) === "private"
+      ? firstSearchParam(params.visibility)
       : "all";
-  const search = params.search?.trim().slice(0, 160) ?? "";
+  const search = firstSearchParam(params.search)?.trim().slice(0, 160) ?? "";
   const escapedSearch = search.replace(/[\\%_]/g, "\\$&");
   const searchCondition = escapedSearch
     ? or(
@@ -84,7 +90,7 @@ export default async function SuperAdminPublicAcademiesPage({ searchParams }: Pa
   ]);
   const total = Number(totalRow[0]?.total ?? 0);
   const totalPages = Math.max(1, Math.ceil(total / PAGE_SIZE));
-  const page = Math.min(parsePage(params.page), totalPages);
+  const page = Math.min(parsePage(firstSearchParam(params.page)), totalPages);
 
   const items = await db
     .select({
