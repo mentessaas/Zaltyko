@@ -61,8 +61,12 @@ export function TogglePublicVisibility({
 
   return (
     <button
+      type="button"
       onClick={handleToggle}
       disabled={isLoading}
+      aria-pressed={isPublic}
+      aria-busy={isLoading}
+      aria-label={isPublic ? "Ocultar academia del directorio público" : "Publicar academia en el directorio público"}
       className={`relative inline-flex h-6 w-11 items-center rounded-full transition-colors focus:outline-none focus:ring-2 focus:ring-offset-2 ${
         isPublic
           ? "bg-zaltyko-accent"
