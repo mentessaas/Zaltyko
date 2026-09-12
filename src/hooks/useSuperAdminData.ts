@@ -5,11 +5,11 @@ import { isSuperAdminMetrics, normalizeSuperAdminMetrics } from "@/lib/super-adm
 import { createClient } from "@/lib/supabase/client";
 import { logger } from "@/lib/logger";
 
-export function useSuperAdminData(initial: SuperAdminMetrics, initialEvents: EventLogEntry[] = []) {
+export function useSuperAdminData(initial: SuperAdminMetrics, initialEvents: EventLogEntry[] = [], initialUserId?: string | null) {
   const supabase = useMemo(() => createClient(), []);
   const [metrics, setMetrics] = useState<SuperAdminMetrics>(() => normalizeSuperAdminMetrics(initial));
   const [events, setEvents] = useState<EventLogEntry[]>(initialEvents);
-  const [userId, setUserId] = useState<string | null>(null);
+  const [userId, setUserId] = useState<string | null>(initialUserId ?? null);
   const [loading, setLoading] = useState(false);
 
   useEffect(() => {
@@ -21,13 +21,13 @@ export function useSuperAdminData(initial: SuperAdminMetrics, initialEvents: Eve
     let mounted = true;
     supabase.auth.getUser().then(({ data }) => {
       if (mounted) {
-        setUserId(data.user?.id ?? null);
+        setUserId(data.user?.id ?? initialUserId ?? null);
       }
     });
     return () => {
       mounted = false;
     };
-  }, [supabase]);
+  }, [supabase, initialUserId]);
 
   const refresh = useCallback(async () => {
     if (!userId) return;
