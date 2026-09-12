@@ -58,6 +58,7 @@ const CHART_COLORS = ["#1FC7B6", "#2B2E83", "#CBD5E1", "#FF6B57", "#0F172A", "#5
 interface SuperAdminDashboardProps {
   initialMetrics: SuperAdminMetrics;
   initialEvents?: EventLogEntry[];
+  initialUserId?: string | null;
 }
 
 const CURRENCY_FORMATTER = new Intl.NumberFormat("es-ES", {
@@ -85,8 +86,8 @@ function formatMonthLabel(label: string) {
   return MONTH_LABEL_FORMATTER.format(new Date(year, month - 1, 1));
 }
 
-export function SuperAdminDashboard({ initialMetrics, initialEvents = [] }: SuperAdminDashboardProps) {
-  const { metrics, events, loading, refresh } = useSuperAdminData(initialMetrics, initialEvents);
+export function SuperAdminDashboard({ initialMetrics, initialEvents = [], initialUserId }: SuperAdminDashboardProps) {
+  const { metrics, events, loading, refresh } = useSuperAdminData(initialMetrics, initialEvents, initialUserId);
   const safeMetrics = useMemo(() => normalizeSuperAdminMetrics(metrics), [metrics]);
 
   // Drill-down state for charts
