@@ -130,13 +130,23 @@ async function activateAthleteAccess(
  * POST /api/super-admin/athletes/activate-access
  */
 export const POST = withSuperAdmin(async (request) => {
-  const body = ActivateAthleteSchema.parse(await request.json());
+  let rawBody: unknown;
+  try {
+    rawBody = await request.json();
+  } catch {
+    return apiError("INVALID_JSON", "El cuerpo de la solicitud no es JSON válido", 400);
+  }
+
+  const parsed = ActivateAthleteSchema.safeParse(rawBody);
+  if (!parsed.success) {
+    return apiError("VALIDATION_ERROR", parsed.error.issues[0]?.message ?? "Datos inválidos", 400);
+  }
 
   try {
     const result = await activateAthleteAccess(
-      body.profileId,
-      body.email,
-      body.sendInvitation
+      parsed.data.profileId,
+      parsed.data.email,
+      parsed.data.sendInvitation
     );
 
     if (!result.ok) {
@@ -145,9 +155,14 @@ export const POST = withSuperAdmin(async (request) => {
 
     return apiSuccess({
       ok: true,
-      message: "Acceso de atleta activado correctamente",
+      message: result.invitationSent
+        ? "Acceso activado y correo de invitación enviado"
+        : parsed.data.sendInvitation
+          ? "Acceso activado, pero no se pudo enviar el correo de invitación"
+          : "Acceso de atleta activado correctamente",
       userId: result.userId,
       email: result.email,
+      invitationSent: result.invitationSent,
     });
   } catch (error: unknown) {
     logger.error("Error activando acceso de atleta:", error);
