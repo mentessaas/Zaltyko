@@ -983,7 +983,7 @@ export function SuperAdminUserDetail({ initialUser, userId, backHref = "/super-a
           <Button
             variant="outline"
             className="border-white/20 bg-white/5 text-slate-100 hover:border-white/40 hover:bg-white/10"
-            onClick={() => router.back()}
+            onClick={() => router.push(backHref)}
           >
             Cancelar
           </Button>
