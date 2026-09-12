@@ -75,9 +75,6 @@ export const PATCH = withSuperAdmin(async (request, context) => {
     );
   }
   const body = parsedBody.data;
-  if ((typeof body.isSuspended === "boolean" || body.status !== undefined) && !body.reason) {
-    return apiError("REASON_REQUIRED", "Indica el motivo del cambio de acceso", 400);
-  }
   const updates: Record<string, unknown> = {};
   let planUpdate: { planId: string | null } | null = null;
 
@@ -146,6 +143,14 @@ export const PATCH = withSuperAdmin(async (request, context) => {
 
       if (!current) return null;
 
+      const statusChanged = body.status !== undefined && body.status !== current.status;
+      const suspensionChanged =
+        typeof body.isSuspended === "boolean" && body.isSuspended !== current.isSuspended;
+
+      if ((statusChanged || suspensionChanged) && !body.reason) {
+        throw new Error("REASON_REQUIRED");
+      }
+
       if (
         (body.status !== undefined || body.isSuspended !== undefined) &&
         (current.status === "fraud_hold" || current.status === "churned")
@@ -206,6 +211,9 @@ export const PATCH = withSuperAdmin(async (request, context) => {
     });
   } catch (error) {
     const code = error instanceof Error ? error.message : "ACADEMY_UPDATE_FAILED";
+    if (code === "REASON_REQUIRED") {
+      return apiError(code, "Indica el motivo del cambio de acceso", 400);
+    }
     if (code === "ACADEMY_HAS_NO_OWNER") {
       return apiError(code, "Academy has no owner", 400);
     }
