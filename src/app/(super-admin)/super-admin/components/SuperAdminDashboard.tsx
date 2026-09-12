@@ -1,7 +1,7 @@
 "use client";
 
 import Link from "next/link";
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import dynamic from "next/dynamic";
 import {
   Activity,
@@ -87,7 +87,7 @@ function formatMonthLabel(label: string) {
 }
 
 export function SuperAdminDashboard({ initialMetrics, initialEvents = [], initialUserId }: SuperAdminDashboardProps) {
-  const { metrics, events, loading, refresh } = useSuperAdminData(initialMetrics, initialEvents, initialUserId);
+  const { metrics, events, loading, refresh, error, lastUpdatedAt } = useSuperAdminData(initialMetrics, initialEvents, initialUserId);
   const safeMetrics = useMemo(() => normalizeSuperAdminMetrics(metrics), [metrics]);
 
   // Drill-down state for charts
@@ -154,7 +154,7 @@ export function SuperAdminDashboard({ initialMetrics, initialEvents = [], initia
 
   const planPieData = useMemo(() => {
     return safeMetrics.planDistribution.map((plan, idx) => ({
-      name: plan.code,
+      name: plan.nickname ? `${plan.nickname} (${plan.code})` : plan.code,
       value: plan.total,
       color: CHART_COLORS[idx % CHART_COLORS.length],
     }));
@@ -735,7 +735,7 @@ export function SuperAdminDashboard({ initialMetrics, initialEvents = [], initia
                   </tr>
                 </thead>
                 <tbody className="divide-y divide-white/5">
-                  {paginatedEvents.map((event, idx) => (
+                  {paginatedEvents.map((event) => (
                     <tr key={event.id} className="transition-colors hover:bg-white/5">
                       <td className="whitespace-nowrap px-4 py-3 text-white/70">
                         {new Date(event.createdAt).toLocaleDateString("es-ES", {
