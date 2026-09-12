@@ -106,6 +106,7 @@ export function useSuperAdminData(initial: SuperAdminMetrics, initialEvents: Eve
 
   useEffect(() => {
     if (!userId) return;
+    let mounted = true;
 
     const channel = supabase.channel("super-admin:global");
 
@@ -129,12 +130,13 @@ export function useSuperAdminData(initial: SuperAdminMetrics, initialEvents: Eve
     listen("event_logs");
 
     channel.subscribe((status) => {
-      if (status === "CHANNEL_ERROR" || status === "TIMED_OUT") {
+      if (mounted && (status === "CHANNEL_ERROR" || status === "TIMED_OUT")) {
         setError("La actualización en tiempo real no está disponible. Usa Refrescar para consultar los datos.");
       }
     });
 
     return () => {
+      mounted = false;
       if (refreshTimer.current) {
         clearTimeout(refreshTimer.current);
         refreshTimer.current = null;
