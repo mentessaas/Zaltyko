@@ -92,6 +92,22 @@ export function SuperAdminAcademiesTable({
     academyName: string;
   } | null>(null);
 
+  const syncUrl = (activeFilters: SuperAdminAcademyFilters, targetPage: number) => {
+    if (typeof window === "undefined") return;
+    const params = new URLSearchParams();
+    if (activeFilters.plan) params.set("plan", activeFilters.plan);
+    if (activeFilters.type) params.set("type", activeFilters.type);
+    if (activeFilters.country) params.set("country", activeFilters.country);
+    if (activeFilters.status) params.set("status", activeFilters.status);
+    if (targetPage > 1) params.set("page", String(targetPage));
+    const query = params.toString();
+    window.history.replaceState(
+      window.history.state,
+      "",
+      window.location.pathname + (query ? "?" + query : "")
+    );
+  };
+
   useEffect(() => {
     supabase.auth.getUser().then(({ data }) => {
       if (data.user?.id) setUserId(data.user.id);
@@ -150,7 +166,9 @@ export function SuperAdminAcademiesTable({
       if (requestId !== requestSequence.current) return;
       setItems(payload.items ?? []);
       setTotal(payload.total ?? payload.items?.length ?? 0);
-      setPage(payload.page ?? requestedPage);
+      const effectivePage = Number(payload.page ?? requestedPage);
+      setPage(effectivePage);
+      syncUrl(activeFilters, effectivePage);
       if (payload.options) {
         setFilterOptions({
           plans: Array.isArray(payload.options.plans) ? payload.options.plans : [],
