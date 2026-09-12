@@ -66,6 +66,22 @@ function safeExternalUrl(value: string | null | undefined) {
   }
 }
 
+function normalizeCurrency(value: string | null | undefined) {
+  const normalized = value?.trim().toUpperCase();
+  return normalized && /^[A-Z]{3}$/.test(normalized) ? normalized : "EUR";
+}
+
+function formatCurrencyBreakdown(
+  rows: Array<{ currency: string; total: number }>,
+  fallback: number | string | null | undefined
+) {
+  if (rows.length === 0) return formatMoney(fallback);
+  return rows
+    .slice(0, 3)
+    .map((row) => formatMoney(row.total, row.currency))
+    .join(" · ");
+}
+
 function statusLabel(status: string) {
   switch (status) {
     case "paid":
@@ -171,7 +187,7 @@ export default async function SuperAdminBillingPage({ searchParams }: PageProps)
 
   const requestedPage = parsePage(pageParam);
 
-  const [summary, statusRows, subscriptionCount] = await Promise.all([
+  const [summary, statusRows, subscriptionCount, riskySubscriptionCount, currencyRows] = await Promise.all([
     db
       .select({
         invoices: count(billingInvoices.id),
@@ -185,18 +201,34 @@ export default async function SuperAdminBillingPage({ searchParams }: PageProps)
     db
       .select({
         status: billingInvoices.status,
+        currency: billingInvoices.currency,
         total: count(billingInvoices.id),
         amountPaid: sum(billingInvoices.amountPaid),
       })
       .from(billingInvoices)
       .where(invoiceCondition)
-      .groupBy(billingInvoices.status)
+      .groupBy(billingInvoices.status, billingInvoices.currency)
       .orderBy(desc(count(billingInvoices.id))),
     db
       .select({ total: count(subscriptions.id) })
       .from(subscriptions)
       .where(subscriptionCondition)
       .then(([row]) => row),
+    db
+      .select({ total: count(subscriptions.id) })
+      .from(subscriptions)
+      .where(inArray(subscriptions.status, [...RISKY_STATUSES]))
+      .then(([row]) => row),
+    db
+      .select({
+        currency: billingInvoices.currency,
+        paid: sql<number>`COALESCE(SUM(${billingInvoices.amountPaid}) FILTER (WHERE ${billingInvoices.status} = 'paid'), 0)`,
+        due: sql<number>`COALESCE(SUM(GREATEST(COALESCE(${billingInvoices.amountDue}, 0) - COALESCE(${billingInvoices.amountPaid}, 0), 0)), 0)`,
+      })
+      .from(billingInvoices)
+      .where(invoiceCondition)
+      .groupBy(billingInvoices.currency),
+  ]);
   ]);
 
   const totalResults = Math.max(
@@ -248,9 +280,19 @@ export default async function SuperAdminBillingPage({ searchParams }: PageProps)
       .offset((currentPage - 1) * PAGE_SIZE),
   ]);
 
-  const riskyCount = statusRows
+  const invoiceRiskCount = statusRows
     .filter((row) => RISKY_STATUSES.includes(row.status as (typeof RISKY_STATUSES)[number]))
     .reduce((total, row) => total + Number(row.total), 0);
+  const riskyCount = invoiceRiskCount + Number(riskySubscriptionCount?.total ?? 0);
+  const normalizedCurrencyRows = currencyRows.map((row) => ({
+    currency: normalizeCurrency(row.currency),
+    paid: Number(row.paid ?? 0),
+    due: Number(row.due ?? 0),
+  }));
+  const paidCurrencyRows = normalizedCurrencyRows.map((row) => ({ currency: row.currency, total: row.paid }));
+  const dueCurrencyRows = normalizedCurrencyRows.map((row) => ({ currency: row.currency, total: row.due }));
+  const revenueSummaryLabel = formatCurrencyBreakdown(paidCurrencyRows, summary?.paidAmount);
+  const dueSummaryLabel = formatCurrencyBreakdown(dueCurrencyRows, summary?.dueAmount);
 
   return (
     <div className="space-y-8">
@@ -294,9 +336,9 @@ export default async function SuperAdminBillingPage({ searchParams }: PageProps)
 
       <section aria-label={isFiltered ? "Resumen financiero filtrado" : "Resumen financiero global"} className="grid gap-4 sm:grid-cols-2 xl:grid-cols-4">
         {[
-          { label: "Cobrado acumulado", value: formatMoney(summary?.paidAmount), icon: CircleDollarSign },
+          { label: "Cobrado acumulado", value: revenueSummaryLabel, icon: CircleDollarSign },
           { label: "Recibos pagados", value: Number(summary?.paidInvoices ?? 0).toLocaleString("es-ES"), icon: FileText },
-          { label: "Importe pendiente", value: formatMoney(summary?.dueAmount), icon: AlertTriangle },
+          { label: "Importe pendiente", value: dueSummaryLabel, icon: AlertTriangle },
           { label: "En riesgo", value: riskyCount.toLocaleString("es-ES"), icon: RefreshCw },
         ].map((metric) => {
           const Icon = metric.icon;
@@ -311,6 +353,20 @@ export default async function SuperAdminBillingPage({ searchParams }: PageProps)
           );
         })}
       </section>
+
+      {normalizedCurrencyRows.length > 1 && (
+        <section
+          aria-label="Desglose de importes por divisa"
+          className="flex flex-wrap items-center gap-3 rounded-2xl border border-zaltyko-teal/20 bg-zaltyko-teal/5 px-5 py-4 text-sm"
+        >
+          <span className="font-semibold text-white">Importes por divisa</span>
+          {normalizedCurrencyRows.map((row) => (
+            <span key={row.currency} className="rounded-full border border-white/10 bg-white/5 px-3 py-1 text-white/75">
+              {row.currency}: {formatMoney(row.paid, row.currency)} cobrados · {formatMoney(row.due, row.currency)} pendientes
+            </span>
+          ))}
+        </section>
+      )}
 
       <section aria-label="Suscripciones globales" className="overflow-hidden rounded-2xl border border-white/10 bg-white/[0.045]">
         <div className="flex flex-col gap-2 border-b border-white/10 p-5 sm:flex-row sm:items-center sm:justify-between sm:p-6">
@@ -386,12 +442,12 @@ export default async function SuperAdminBillingPage({ searchParams }: PageProps)
               </p>
             ) : (
               statusRows.map((row) => (
-                <div key={row.status} className="flex items-center justify-between gap-4 rounded-xl border border-white/10 bg-black/10 p-3">
+                <div key={`${row.status}-${row.currency}`} className="flex items-center justify-between gap-4 rounded-xl border border-white/10 bg-black/10 p-3">
                   <div>
                     <p className="text-sm font-semibold capitalize text-white">{statusLabel(row.status)}</p>
                     <p className="mt-1 text-xs text-white/45">{Number(row.total).toLocaleString("es-ES")} recibo(s)</p>
                   </div>
-                  <p className="text-sm font-semibold text-white">{formatMoney(row.amountPaid)}</p>
+                  <p className="text-sm font-semibold text-white">{formatMoney(row.amountPaid, row.currency)}</p>
                 </div>
               ))
             )}
