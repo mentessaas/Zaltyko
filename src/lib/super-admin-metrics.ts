@@ -32,6 +32,7 @@ export const DEFAULT_SUPER_ADMIN_METRICS: SuperAdminMetrics = {
   planStatuses: [],
   planDistribution: [],
   monthlyAcademies: [],
+  monthlyRevenue: [],
   subscriptionAlerts: [],
 };
 
@@ -96,6 +97,17 @@ function normalizeMonthlyAcademies(value: unknown): SuperAdminMetrics["monthlyAc
     }));
 }
 
+function normalizeMonthlyRevenue(value: unknown): SuperAdminMetrics["monthlyRevenue"] {
+  if (!Array.isArray(value)) return [];
+
+  return value
+    .filter(isRecord)
+    .map((entry) => ({
+      label: typeof entry.label === "string" ? entry.label : "unknown",
+      total: toNumber(entry.total, 0),
+    }));
+}
+
 function normalizeSubscriptionAlerts(value: unknown): SuperAdminMetrics["subscriptionAlerts"] {
   if (!Array.isArray(value)) return [];
 
@@ -147,6 +159,7 @@ export function normalizeSuperAdminMetrics(value: unknown): SuperAdminMetrics {
     planStatuses: normalizePlanStatuses(value.planStatuses),
     planDistribution: normalizePlanDistribution(value.planDistribution),
     monthlyAcademies: normalizeMonthlyAcademies(value.monthlyAcademies),
+    monthlyRevenue: normalizeMonthlyRevenue(value.monthlyRevenue),
     subscriptionAlerts: normalizeSubscriptionAlerts(value.subscriptionAlerts),
   };
 }
@@ -166,6 +179,7 @@ export function isSuperAdminMetrics(value: unknown): value is SuperAdminMetrics 
     Array.isArray(value.planStatuses) &&
     Array.isArray(value.planDistribution) &&
     Array.isArray(value.monthlyAcademies) &&
+    Array.isArray(value.monthlyRevenue) &&
     Array.isArray(value.subscriptionAlerts)
   );
 }
