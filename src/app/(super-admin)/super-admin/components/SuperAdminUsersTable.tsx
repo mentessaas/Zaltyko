@@ -1,6 +1,6 @@
 "use client";
 
-import { useCallback, useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
 import { ChevronLeft, ChevronRight, ShieldAlert, UserCog, Users, Loader2 } from "lucide-react";
 
@@ -59,6 +59,7 @@ export function SuperAdminUsersTable({ initialItems, initialTotal, initialUserId
   const PAGE_SIZE = 50;
   const [loading, setLoading] = useState(false);
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
+  const requestSequence = useRef(0);
   const [syncing, setSyncing] = useState(false);
   const [mutatingUserId, setMutatingUserId] = useState<string | null>(null);
   const [filters, setFilters] = useState<SuperAdminUsersFilters>({});
@@ -80,6 +81,7 @@ export function SuperAdminUsersTable({ initialItems, initialTotal, initialUserId
 
   const fetchUsers = useCallback(async (activeFilters: SuperAdminUsersFilters, requestedPage = page) => {
     if (!userId) return;
+    const requestId = ++requestSequence.current;
     setLoading(true);
     setErrorMessage(null);
     try {
@@ -96,18 +98,23 @@ export function SuperAdminUsersTable({ initialItems, initialTotal, initialUserId
       });
       if (!response.ok) {
         logger.error("Fetch users failed", await response.text());
-        setErrorMessage("No se pudieron cargar los usuarios. Reintenta en unos segundos.");
+        if (requestId === requestSequence.current) {
+          setErrorMessage("No se pudieron cargar los usuarios. Reintenta en unos segundos.");
+        }
         return;
       }
       const { data: payload } = await response.json();
+      if (requestId !== requestSequence.current) return;
       setItems(payload.items ?? []);
       setTotal(Number(payload.total ?? payload.items?.length ?? 0));
       setPage(Number(payload.page ?? requestedPage));
     } catch (error) {
       logger.error("Fetch users failed", error);
-      setErrorMessage("No se pudieron cargar los usuarios. Revisa la conexión y reintenta.");
+      if (requestId === requestSequence.current) {
+        setErrorMessage("No se pudieron cargar los usuarios. Revisa la conexión y reintenta.");
+      }
     } finally {
-      setLoading(false);
+      if (requestId === requestSequence.current) setLoading(false);
     }
   }, [userId, page]);
 
