@@ -81,6 +81,7 @@ interface Plan {
 interface SuperAdminUserDetailProps {
   initialUser: UserDetail;
   userId: string;
+  backHref?: string;
 }
 
 function formatRole(role: string | null) {
