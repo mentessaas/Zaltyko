@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { toggleAcademyVisibility } from "@/app/actions/admin/toggle-academy-visibility";
 import { useToast } from "@/components/ui/toast-provider";
 
@@ -18,6 +18,10 @@ export function TogglePublicVisibility({
   const [isLoading, setIsLoading] = useState(false);
   const [isPublic, setIsPublic] = useState(currentValue);
   const { pushToast } = useToast();
+
+  useEffect(() => {
+    setIsPublic(currentValue);
+  }, [currentValue]);
 
   const handleToggle = async () => {
     setIsLoading(true);
