@@ -4,7 +4,10 @@ import { useEffect, useMemo, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
 import { ChevronLeft, ChevronRight, PauseCircle, PlayCircle, Trash2, Loader2 } from "lucide-react";
 
-import type { SuperAdminAcademyRow } from "@/lib/superAdminService";
+import type {
+  SuperAdminAcademyFilterOptions,
+  SuperAdminAcademyRow,
+} from "@/lib/superAdminService";
 import type { AcademyStatus } from "@/db/schema/academies";
 import { createClient } from "@/lib/supabase/client";
 import { Button } from "@/components/ui/button";
@@ -50,12 +53,14 @@ function getEffectiveAcademyStatus(academy: SuperAdminAcademyRow): AcademyStatus
 interface SuperAdminAcademiesTableProps {
   initialItems: SuperAdminAcademyRow[];
   initialTotal: number;
+  initialFilterOptions?: SuperAdminAcademyFilterOptions;
   initialUserId?: string | null;
 }
 
 export function SuperAdminAcademiesTable({
   initialItems,
   initialTotal,
+  initialFilterOptions,
   initialUserId,
 }: SuperAdminAcademiesTableProps) {
   const supabase = useMemo(() => createClient(), []);
@@ -71,6 +76,11 @@ export function SuperAdminAcademiesTable({
   const requestSequence = useRef(0);
   const [mutatingAcademyId, setMutatingAcademyId] = useState<string | null>(null);
   const [filters, setFilters] = useState<SuperAdminAcademyFilters>({});
+  const [filterOptions, setFilterOptions] = useState<SuperAdminAcademyFilterOptions>(() => ({
+    plans: initialFilterOptions?.plans ?? [],
+    types: initialFilterOptions?.types ?? [...ACADEMY_TYPE_OPTIONS],
+    countries: initialFilterOptions?.countries ?? [],
+  }));
   const [confirmDialogOpen, setConfirmDialogOpen] = useState(false);
   const [pendingAction, setPendingAction] = useState<{
     academyId: string;
@@ -86,29 +96,9 @@ export function SuperAdminAcademiesTable({
     });
   }, [supabase]);
 
-  const planOptions = useMemo(() => {
-    const set = new Set<string>();
-    items.forEach((academy) => {
-      if (academy.planCode) set.add(academy.planCode);
-    });
-    return Array.from(set).sort();
-  }, [items]);
-
-  const typeOptions = useMemo(() => {
-    const set = new Set<string>(ACADEMY_TYPE_OPTIONS);
-    items.forEach((academy) => {
-      if (academy.academyType) set.add(academy.academyType);
-    });
-    return Array.from(set).sort();
-  }, [items]);
-
-  const countryOptions = useMemo(() => {
-    const set = new Set<string>();
-    items.forEach((academy) => {
-      if (academy.country) set.add(academy.country);
-    });
-    return Array.from(set).sort((a, b) => a.localeCompare(b, "es"));
-  }, [items]);
+  const planOptions = filterOptions.plans;
+  const typeOptions = filterOptions.types.length > 0 ? filterOptions.types : [...ACADEMY_TYPE_OPTIONS];
+  const countryOptions = filterOptions.countries;
 
   const handleFilterChange = async (partial: Partial<SuperAdminAcademyFilters>) => {
     const nextFilters = { ...filters, ...partial };
@@ -150,6 +140,15 @@ export function SuperAdminAcademiesTable({
       setItems(payload.items ?? []);
       setTotal(payload.total ?? payload.items?.length ?? 0);
       setPage(payload.page ?? requestedPage);
+      if (payload.options) {
+        setFilterOptions({
+          plans: Array.isArray(payload.options.plans) ? payload.options.plans : [],
+          types: Array.isArray(payload.options.types) && payload.options.types.length > 0
+            ? payload.options.types
+            : [...ACADEMY_TYPE_OPTIONS],
+          countries: Array.isArray(payload.options.countries) ? payload.options.countries : [],
+        });
+      }
     } catch (error) {
       logger.error("Error fetching academias", error);
       if (requestId === requestSequence.current) {
