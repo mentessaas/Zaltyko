@@ -34,6 +34,10 @@ export function useSuperAdminData(initial: SuperAdminMetrics, initialEvents: Eve
 
   const refresh = useCallback(async () => {
     if (!userId) return;
+    if (refreshTimer.current) {
+      clearTimeout(refreshTimer.current);
+      refreshTimer.current = null;
+    }
     setLoading(true);
 
     const failures: string[] = [];
