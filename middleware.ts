@@ -125,7 +125,10 @@ function apexRedirectResponse(request: NextRequest): NextResponse | null {
 }
 
 function redirectToLogin(req: NextRequest) {
-  return NextResponse.redirect(new URL(LOGIN_PATH, req.url));
+  const loginUrl = new URL(LOGIN_PATH, req.url);
+  const next = `${req.nextUrl.pathname}${req.nextUrl.search}`;
+  loginUrl.searchParams.set("callbackUrl", next);
+  return NextResponse.redirect(loginUrl);
 }
 
 function extractAccessToken(req: NextRequest) {
