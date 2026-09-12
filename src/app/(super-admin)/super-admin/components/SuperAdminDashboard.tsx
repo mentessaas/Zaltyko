@@ -328,6 +328,8 @@ export function SuperAdminDashboard({ initialMetrics, initialEvents = [], initia
           </div>
           <div className="flex items-center gap-3">
             <div
+              role="status"
+              aria-live="polite"
               className="inline-flex items-center gap-2 rounded-xl border border-white/15 bg-white/5 px-3 py-2 text-xs font-medium"
               title={error ?? "Estado de sincronización del control plane"}
             >
