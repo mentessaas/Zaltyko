@@ -122,7 +122,11 @@ export function useSuperAdminData(initial: SuperAdminMetrics, initialEvents: Eve
     listen("subscriptions");
     listen("plans");
     listen("billing_invoices");
+    listen("charges");
+    listen("athletes");
+    listen("groups");
     listen("athlete_assessments");
+    listen("event_logs");
 
     channel.subscribe();
 
