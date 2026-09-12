@@ -511,7 +511,7 @@ export async function getAcademiesPage(args: {
     )
     .leftJoin(plans, eq(subscriptions.planId, plans.id))
     .where(where)
-    .orderBy(desc(academies.createdAt))
+    .orderBy(desc(academies.createdAt), desc(academies.id))
     .limit(pageSize)
     .offset((effectivePage - 1) * pageSize);
 
@@ -684,7 +684,7 @@ export async function getUsersPage(args: {
     )
     .leftJoin(plans, eq(subscriptions.planId, plans.id))
     .where(where)
-    .orderBy(desc(profiles.createdAt))
+    .orderBy(desc(profiles.createdAt), desc(profiles.id))
     .limit(pageSize)
     .offset((effectivePage - 1) * pageSize);
 
