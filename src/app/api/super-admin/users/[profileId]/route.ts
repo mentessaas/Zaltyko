@@ -11,6 +11,13 @@ import { getAppUrl } from "@/lib/env";
 import { logger } from "@/lib/logger";
 
 export const dynamic = "force-dynamic";
+
+const profileIdSchema = z.string().uuid();
+
+function parseProfileId(value: unknown): string | null {
+  const parsed = profileIdSchema.safeParse(value);
+  return parsed.success ? parsed.data : null;
+}
 // @service-role auth-admin:read-update-email. Super-admin user management requires Supabase Auth admin APIs.
 /** @resource-scope super-admin — withSuperAdmin verifies the global authority. */
 
@@ -47,9 +54,13 @@ export const GET = withSuperAdmin(async (_request, context) => {
   }
 
   const resolvedParams = await resolveParams(context.params);
-  const profileId = resolvedParams?.profileId;
-  if (!profileId) {
+  const rawProfileId = resolvedParams?.profileId;
+  if (!rawProfileId) {
     return apiError("PROFILE_ID_REQUIRED", "Profile ID is required", 400);
+  }
+  const profileId = parseProfileId(rawProfileId);
+  if (!profileId) {
+    return apiError("PROFILE_ID_INVALID", "Profile ID is invalid", 400);
   }
 
   const [profile] = await db
@@ -169,9 +180,13 @@ export const PATCH = withSuperAdmin(async (request, context) => {
   }
 
   const resolvedParams = await resolveParams(context.params);
-  const profileId = resolvedParams?.profileId;
-  if (!profileId) {
+  const rawProfileId = resolvedParams?.profileId;
+  if (!rawProfileId) {
     return apiError("PROFILE_ID_REQUIRED", "Profile ID is required", 400);
+  }
+  const profileId = parseProfileId(rawProfileId);
+  if (!profileId) {
+    return apiError("PROFILE_ID_INVALID", "Profile ID is invalid", 400);
   }
 
   const [existing] = await db
@@ -370,9 +385,13 @@ export const DELETE = withSuperAdmin(async (request, context) => {
   if (!context?.profile) {
     return apiError("UNAUTHORIZED", "Unauthorized", 401);
   }
-  const { profileId } = await resolveParams(context.params);
-  if (!profileId) {
+  const { profileId: rawProfileId } = await resolveParams(context.params);
+  if (!rawProfileId) {
     return apiError("PROFILE_ID_REQUIRED", "Profile ID is required", 400);
+  }
+  const profileId = parseProfileId(rawProfileId);
+  if (!profileId) {
+    return apiError("PROFILE_ID_INVALID", "Profile ID is invalid", 400);
   }
 
   const body = await request.json().catch(() => ({}));
