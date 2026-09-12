@@ -151,7 +151,7 @@ export function SuperAdminAcademyDetail({ initialAcademy, userId }: SuperAdminAc
               }
             : {}),
           planId: formData.planId || null,
-          academyType: formData.academyType || null,
+          academyType: formData.academyType || "artistica",
           country: formData.country.trim() || null,
           region: formData.region.trim() || null,
           city: formData.city.trim() || null,
