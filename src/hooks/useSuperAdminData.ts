@@ -47,7 +47,7 @@ export function useSuperAdminData(initial: SuperAdminMetrics, initialEvents: Eve
     try {
       const [metricsResponse, eventsResponse] = await Promise.all([
         fetch("/api/super-admin/metrics", { cache: "no-store" }),
-        fetch("/api/super-admin/events?limit=10", { cache: "no-store" }),
+        fetch("/api/super-admin/events?limit=50", { cache: "no-store" }),
       ]);
 
       if (!metricsResponse.ok) {
