@@ -220,6 +220,10 @@ export const PATCH = withSuperAdmin(async (request, context) => {
     return apiError("REASON_REQUIRED", "Indica el motivo del cambio de acceso", 400);
   }
 
+  if (body.force && body.planId !== undefined && !body.reason) {
+    return apiError("REASON_REQUIRED", "Indica el motivo del cambio forzado de plan", 400);
+  }
+
   if (body.role && body.role !== existing.role) {
     updates.role = body.role;
     auditChanges.role = { from: existing.role, to: body.role };
