@@ -463,7 +463,7 @@ export function SuperAdminAcademiesTable({
                 onKeyDown={(e) => {
                   if ((e.key !== "Enter" && e.key !== " ") || (e.target as HTMLElement).closest("button")) return;
                   e.preventDefault();
-                  router.push(`/super-admin/academies/${academy.id}`);
+                  openAcademyDetail(academy.id);
                 }}
               >
                 <td className="px-4 py-4">
