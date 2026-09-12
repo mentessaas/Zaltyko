@@ -38,7 +38,9 @@ export interface SuperAdminMetrics {
   planDistribution: Array<{ code: string; nickname: string | null; total: number }>;
   monthlyAcademies: Array<{ label: string; total: number }>;
   // Monthly paid revenue in cents, sourced from Stripe invoice records.
-  monthlyRevenue: Array<{ label: string; total: number }>;
+  monthlyRevenue: Array<{ label: string; total: number; currency: string }>;
+  // Revenue totals are kept separate by currency; summing unlike currencies is invalid.
+  revenueByCurrency: Array<{ currency: string; total: number }>;
   // Alerts for risky subscriptions
   subscriptionAlerts: Array<{ status: string; count: number; academies: string[] }>;
 }
@@ -81,6 +83,11 @@ function toIso(value: string | Date | null | undefined) {
   } catch {
     return null;
   }
+}
+
+function normalizeCurrency(value: string | null | undefined) {
+  const normalized = value?.trim().toUpperCase();
+  return normalized && /^[A-Z]{3}$/.test(normalized) ? normalized : "EUR";
 }
 
 const GLOBAL_STATS_CACHE_TTL_MS = 15_000;
@@ -135,6 +142,7 @@ async function getGlobalStatsUncached(): Promise<SuperAdminMetrics> {
     academySummaryRows,
     monthlyAcademiesRows,
     monthlyRevenueRows,
+    revenueByCurrencyRows,
     usersByRoleRows,
     userSummaryRows,
     plansData,
@@ -166,11 +174,19 @@ async function getGlobalStatsUncached(): Promise<SuperAdminMetrics> {
     db
       .select({
         label: sql<string>`to_char(${billingInvoices.createdAt}, 'YYYY-MM')`,
+        currency: billingInvoices.currency,
         total: sql<number>`COALESCE(SUM(${billingInvoices.amountPaid}) FILTER (WHERE ${billingInvoices.status} = 'paid'), 0)`,
       })
       .from(billingInvoices)
       .where(isNotNull(billingInvoices.createdAt))
-      .groupBy(sql`to_char(${billingInvoices.createdAt}, 'YYYY-MM')`),
+      .groupBy(sql`to_char(${billingInvoices.createdAt}, 'YYYY-MM')`, billingInvoices.currency),
+    db
+      .select({
+        currency: billingInvoices.currency,
+        total: sql<number>`COALESCE(SUM(${billingInvoices.amountPaid}) FILTER (WHERE ${billingInvoices.status} = 'paid'), 0)`,
+      })
+      .from(billingInvoices)
+      .groupBy(billingInvoices.currency),
     db
       .select({
         role: profiles.role,
@@ -294,9 +310,17 @@ async function getGlobalStatsUncached(): Promise<SuperAdminMetrics> {
 
   const monthlyRevenue = monthlyRevenueRows
     .filter((row) => row.label)
-    .map((row) => ({ label: row.label, total: Number(row.total ?? 0) }))
-    .sort((a, b) => a.label.localeCompare(b.label))
+    .map((row) => ({
+      label: row.label,
+      currency: normalizeCurrency(row.currency),
+      total: Number(row.total ?? 0),
+    }))
+    .sort((a, b) => a.label.localeCompare(b.label) || a.currency.localeCompare(b.currency))
     .slice(-6);
+
+  const revenueByCurrency = revenueByCurrencyRows
+    .map((row) => ({ currency: normalizeCurrency(row.currency), total: Number(row.total ?? 0) }))
+    .sort((a, b) => b.total - a.total || a.currency.localeCompare(b.currency));
 
   const activeAcademyIds = new Set([
     ...athleteAcademyRows.map((row) => row.academyId),
@@ -347,6 +371,7 @@ async function getGlobalStatsUncached(): Promise<SuperAdminMetrics> {
     planDistribution,
     monthlyAcademies,
     monthlyRevenue,
+    revenueByCurrency,
     subscriptionAlerts,
   };
 }
