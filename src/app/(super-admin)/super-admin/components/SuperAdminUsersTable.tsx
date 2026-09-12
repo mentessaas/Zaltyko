@@ -80,6 +80,21 @@ export function SuperAdminUsersTable({
     userData: SuperAdminUserRow;
   } | null>(null);
 
+  const syncUrl = useCallback((activeFilters: SuperAdminUsersFilters, targetPage: number) => {
+    if (typeof window === "undefined") return;
+    const params = new URLSearchParams();
+    if (activeFilters.role) params.set("role", activeFilters.role);
+    if (activeFilters.status) params.set("status", activeFilters.status);
+    if (activeFilters.search) params.set("q", activeFilters.search);
+    if (targetPage > 1) params.set("page", String(targetPage));
+    const query = params.toString();
+    window.history.replaceState(
+      window.history.state,
+      "",
+      window.location.pathname + (query ? "?" + query : "")
+    );
+  }, []);
+
   useEffect(() => {
     supabase.auth.getUser().then(({ data }) => {
       if (data.user?.id) setUserId(data.user.id);
@@ -124,7 +139,9 @@ export function SuperAdminUsersTable({
       if (requestId !== requestSequence.current) return;
       setItems(payload.items ?? []);
       setTotal(Number(payload.total ?? payload.items?.length ?? 0));
-      setPage(Number(payload.page ?? requestedPage));
+      const effectivePage = Number(payload.page ?? requestedPage);
+      setPage(effectivePage);
+      syncUrl(activeFilters, effectivePage);
     } catch (error) {
       logger.error("Fetch users failed", error);
       if (requestId === requestSequence.current) {
@@ -133,7 +150,7 @@ export function SuperAdminUsersTable({
     } finally {
       if (requestId === requestSequence.current) setLoading(false);
     }
-  }, [userId, page]);
+  }, [userId, page, syncUrl]);
 
   const handleFilterChange = useCallback(async (partial: Partial<SuperAdminUsersFilters>) => {
     const next = { ...filters, ...partial };
