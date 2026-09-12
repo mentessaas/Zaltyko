@@ -41,7 +41,7 @@ export const PATCH = withSuperAdmin(async (request, context) => {
     return apiError("REASON_REQUIRED", "Indica el motivo del cambio de acceso", 400);
   }
   const updates: Record<string, unknown> = {};
-  let planUpdate: { planId: string } | null = null;
+  let planUpdate: { planId: string | null } | null = null;
 
   if (typeof body?.name === "string" && body.name.trim().length > 0) {
     updates.name = body.name.trim();
@@ -52,12 +52,16 @@ export const PATCH = withSuperAdmin(async (request, context) => {
     updates.suspendedAt = body.isSuspended ? new Date() : null;
   }
 
-  if (typeof body?.planId === "string" && body.planId.trim().length > 0) {
-    const [plan] = await db.select({ id: plans.id }).from(plans).where(eq(plans.id, body.planId)).limit(1);
-    if (!plan) {
-      return apiError("PLAN_NOT_FOUND", "El plan seleccionado no existe", 404);
+  if (Object.prototype.hasOwnProperty.call(body ?? {}, "planId") && body.planId !== undefined) {
+    if (body.planId === null) {
+      planUpdate = { planId: null };
+    } else if (typeof body.planId === "string" && body.planId.trim().length > 0) {
+      const [plan] = await db.select({ id: plans.id }).from(plans).where(eq(plans.id, body.planId)).limit(1);
+      if (!plan) {
+        return apiError("PLAN_NOT_FOUND", "El plan seleccionado no existe", 404);
+      }
+      planUpdate = { planId: plan.id };
     }
-    planUpdate = { planId: plan.id };
   }
 
   // Edición completa: tipo, país, región y ciudad.
@@ -95,33 +99,38 @@ export const PATCH = withSuperAdmin(async (request, context) => {
       if (!academy) return null;
 
       if (planUpdate) {
-        if (!academy.ownerId) throw new Error("ACADEMY_HAS_NO_OWNER");
-
-        const [owner] = await tx
-          .select({ userId: profiles.userId })
-          .from(profiles)
-          .where(eq(profiles.id, academy.ownerId))
-          .limit(1);
-
-        if (!owner) throw new Error("OWNER_NOT_FOUND");
-
-        const [existingSubscription] = await tx
-          .select({ id: subscriptions.id })
-          .from(subscriptions)
-          .where(eq(subscriptions.userId, owner.userId))
-          .limit(1);
-
-        if (existingSubscription) {
-          await tx
-            .update(subscriptions)
-            .set({ planId: planUpdate.planId })
-            .where(eq(subscriptions.id, existingSubscription.id));
+        if (!academy.ownerId) {
+          if (planUpdate.planId !== null) throw new Error("ACADEMY_HAS_NO_OWNER");
         } else {
-          await tx.insert(subscriptions).values({
-            userId: owner.userId,
-            planId: planUpdate.planId,
-            status: "active",
-          });
+          const [owner] = await tx
+            .select({ userId: profiles.userId })
+            .from(profiles)
+            .where(eq(profiles.id, academy.ownerId))
+            .limit(1);
+
+          if (!owner) throw new Error("OWNER_NOT_FOUND");
+
+          const [existingSubscription] = await tx
+            .select({ id: subscriptions.id })
+            .from(subscriptions)
+            .where(eq(subscriptions.userId, owner.userId))
+            .limit(1);
+
+          if (existingSubscription) {
+            await tx
+              .update(subscriptions)
+              .set({
+                planId: planUpdate.planId,
+                status: planUpdate.planId ? "active" : "canceled",
+              })
+              .where(eq(subscriptions.id, existingSubscription.id));
+          } else if (planUpdate.planId) {
+            await tx.insert(subscriptions).values({
+              userId: owner.userId,
+              planId: planUpdate.planId,
+              status: "active",
+            });
+          }
         }
       }
 
@@ -156,7 +165,7 @@ export const PATCH = withSuperAdmin(async (request, context) => {
       : `Super Admin actualizó la academia ${updated.name ?? academyId}`,
     meta: {
       academyId,
-      updates,
+      updates: { ...updates, ...(planUpdate ? { planId: planUpdate.planId } : {}) },
       reason: typeof body?.reason === "string" ? body.reason.trim() : null,
     },
   });
