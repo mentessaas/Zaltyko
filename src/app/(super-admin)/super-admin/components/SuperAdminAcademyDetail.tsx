@@ -23,6 +23,15 @@ import { cn } from "@/lib/utils";
 import { getRegionLabel } from "@/lib/countryRegions";
 import { useToast } from "@/components/ui/toast-provider";
 import { logger } from "@/lib/logger";
+import type { AcademyStatus } from "@/db/schema/academies";
+
+const ACADEMY_STATUS_LABELS: Record<AcademyStatus, string> = {
+  active: "Activa",
+  trial: "En prueba",
+  suspended: "Suspendida",
+  churned: "Baja",
+  fraud_hold: "Revisión de fraude",
+};
 
 const ACADEMY_TYPES = [
   { value: "artistica", label: "Gimnasia artística" },
@@ -42,6 +51,8 @@ interface AcademyDetail {
   city: string | null;
   ownerId: string | null;
   isSuspended: boolean;
+  status: AcademyStatus;
+  statusUpdatedAt: string | null;
   suspendedAt: string | null;
   createdAt: string | null;
   tenantId: string | null;
@@ -111,6 +122,11 @@ export function SuperAdminAcademyDetail({ initialAcademy, userId }: SuperAdminAc
   }, []);
 
   const handleSave = async () => {
+    const trimmedName = formData.name.trim();
+    if (!trimmedName) {
+      toast.pushToast({ title: "Nombre requerido", description: "La academia debe tener un nombre.", variant: "warning" });
+      return;
+    }
     if (formData.isSuspended !== academy.isSuspended && actionReason.trim().length < 5) {
       toast.pushToast({ title: "Indica el motivo", description: "Suspender o reactivar requiere un motivo de al menos 5 caracteres.", variant: "warning" });
       return;
@@ -123,8 +139,17 @@ export function SuperAdminAcademyDetail({ initialAcademy, userId }: SuperAdminAc
           "Content-Type": "application/json",
         },
         body: JSON.stringify({
-          name: formData.name.trim() || null,
-          isSuspended: formData.isSuspended,
+          name: trimmedName,
+          ...(formData.isSuspended !== academy.isSuspended
+            ? {
+                isSuspended: formData.isSuspended,
+                status: formData.isSuspended
+                  ? "suspended"
+                  : academy.status === "trial"
+                    ? "trial"
+                    : "active",
+              }
+            : {}),
           planId: formData.planId || null,
           academyType: formData.academyType || null,
           country: formData.country.trim() || null,
@@ -181,6 +206,14 @@ export function SuperAdminAcademyDetail({ initialAcademy, userId }: SuperAdminAc
   };
 
   const handleToggleSuspension = async () => {
+    if (academy.status === "fraud_hold" || academy.status === "churned") {
+      toast.pushToast({
+        title: "Cambio bloqueado",
+        description: "Este estado requiere el flujo específico de Seguridad.",
+        variant: "warning",
+      });
+      return;
+    }
     if (actionReason.trim().length < 5) {
       toast.pushToast({ title: "Indica el motivo", description: "Suspender o reactivar requiere un motivo de al menos 5 caracteres.", variant: "warning" });
       return;
@@ -198,6 +231,11 @@ export function SuperAdminAcademyDetail({ initialAcademy, userId }: SuperAdminAc
         },
         body: JSON.stringify({
           isSuspended: !formData.isSuspended,
+          status: !formData.isSuspended
+            ? "suspended"
+            : academy.status === "trial"
+              ? "trial"
+              : "active",
           reason: actionReason.trim(),
         }),
       });
@@ -228,6 +266,12 @@ export function SuperAdminAcademyDetail({ initialAcademy, userId }: SuperAdminAc
     }
   };
 
+  const effectiveStatus: AcademyStatus =
+    academy.isSuspended && (academy.status === "active" || academy.status === "trial")
+      ? "suspended"
+      : academy.status;
+  const terminalStatus = effectiveStatus === "fraud_hold" || effectiveStatus === "churned";
+
   return (
     <div className="space-y-6">
       <div className="rounded-2xl border border-white/10 bg-white/5 p-6">
@@ -244,7 +288,7 @@ export function SuperAdminAcademyDetail({ initialAcademy, userId }: SuperAdminAc
               size="sm"
               className="border-zaltyko-primary/40 bg-zaltyko-primary/10 text-zaltyko-primary-light hover:border-zaltyko-primary-light hover:bg-zaltyko-primary-light/20"
               onClick={() => router.push(`/app/${academy.id}/dashboard`)}
-              disabled={academy.isSuspended}
+              disabled={academy.isSuspended || terminalStatus}
             >
               <ExternalLink className="mr-2 h-4 w-4" strokeWidth={1.8} />
               Ver academia
@@ -252,21 +296,28 @@ export function SuperAdminAcademyDetail({ initialAcademy, userId }: SuperAdminAc
             <span
               className={cn(
                 "inline-flex rounded-full px-3 py-1.5 text-xs font-semibold uppercase tracking-wide",
-                academy.isSuspended
+                effectiveStatus === "suspended"
                   ? "bg-zaltyko-coral/15 text-zaltyko-coral"
-                  : "bg-zaltyko-primary/15 text-zaltyko-primary-light",
+                  : effectiveStatus === "trial"
+                    ? "bg-amber-400/15 text-amber-200"
+                    : effectiveStatus === "fraud_hold"
+                      ? "bg-fuchsia-400/15 text-fuchsia-200"
+                      : effectiveStatus === "churned"
+                        ? "bg-white/10 text-white/60"
+                        : "bg-zaltyko-primary/15 text-zaltyko-primary-light",
               )}
             >
-              {academy.isSuspended ? "Suspendida" : "Activa"}
+              {ACADEMY_STATUS_LABELS[effectiveStatus]}
             </span>
             <Button
               variant="outline"
               size="sm"
               className="border-white/20 bg-white/5 text-slate-100 hover:border-white/40 hover:bg-white/10"
               onClick={handleToggleSuspension}
-              disabled={saving}
+              disabled={saving || terminalStatus}
+              title={terminalStatus ? "Este estado requiere el flujo de Seguridad" : undefined}
             >
-              {academy.isSuspended ? (
+              {effectiveStatus === "suspended" ? (
                 <>
                   <PlayCircle className="mr-2 h-4 w-4" strokeWidth={1.8} />
                   Reactivar
@@ -427,6 +478,18 @@ export function SuperAdminAcademyDetail({ initialAcademy, userId }: SuperAdminAc
                       : "—"}
                   </p>
                 </div>
+                {academy.statusUpdatedAt && (
+                  <div>
+                    <p className="text-xs text-white/50">Estado actualizado</p>
+                    <p className="mt-1 text-white">
+                      {new Date(academy.statusUpdatedAt).toLocaleDateString("es-ES", {
+                        year: "numeric",
+                        month: "long",
+                        day: "numeric",
+                      })}
+                    </p>
+                  </div>
+                )}
                 {academy.suspendedAt && (
                   <div>
                     <p className="text-xs text-white/50">Suspendida desde</p>
