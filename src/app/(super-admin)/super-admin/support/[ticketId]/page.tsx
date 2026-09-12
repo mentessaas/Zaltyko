@@ -12,6 +12,8 @@ import { logAdminAction } from "@/lib/admin-logs";
 import { TicketDetail } from "@/components/support/TicketDetail";
 import { TicketStatus } from "@/components/support/TicketFilters";
 
+const TICKET_STATUS_VALUES = ["open", "in_progress", "waiting", "resolved", "closed"] as const;
+
 export const dynamic = "force-dynamic";
 
 type SearchParamValue = string | string[] | undefined;
@@ -116,6 +118,7 @@ export default async function SuperAdminTicketDetailPage({ params, searchParams 
 
   async function handleStatusChange(newStatus: TicketStatus) {
     "use server";
+    if (!TICKET_STATUS_VALUES.includes(newStatus)) return;
     const actionCookieStore = await cookies();
     const actionDevSession = await getDevSessionFromCookieStore(actionCookieStore);
     const current = await getCurrentProfile(userId);
