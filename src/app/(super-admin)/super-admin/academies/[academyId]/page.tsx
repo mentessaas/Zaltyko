@@ -61,7 +61,11 @@ export default async function SuperAdminAcademyDetailPage({
           Volver a academias
         </Link>
       </div>
-      <SuperAdminAcademyDetail initialAcademy={academy} userId={user?.id ?? devSession?.userId ?? ""} />
+      <SuperAdminAcademyDetail
+        initialAcademy={academy}
+        userId={user?.id ?? devSession?.userId ?? ""}
+        backHref={backHref}
+      />
     </div>
   );
 }
