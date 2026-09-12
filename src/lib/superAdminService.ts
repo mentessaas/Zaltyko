@@ -18,7 +18,7 @@ export interface SuperAdminMetrics {
     activeAcademies: number; // Academies with at least 1 athlete/group
     totalAthletes: number;
     chargesCreatedThisMonth: number;
-    chargesPaidThisMonth: number; // Amount in cents
+    chargesPaidThisMonth: number; // Amount in cents when a single currency is present; 0 for mixed currencies
     recentActivityAcademies: number; // Academies with events in last 7 days
     // Previous month totals for trend calculation
     previousAcademies?: number;
@@ -41,6 +41,8 @@ export interface SuperAdminMetrics {
   monthlyRevenue: Array<{ label: string; total: number; currency: string }>;
   // Revenue totals are kept separate by currency; summing unlike currencies is invalid.
   revenueByCurrency: Array<{ currency: string; total: number }>;
+  // Current-month paid charge totals, kept separate by currency for the same reason.
+  chargesPaidByCurrency: Array<{ currency: string; total: number }>;
   // Alerts for risky subscriptions
   subscriptionAlerts: Array<{ status: string; count: number; academies: string[] }>;
 }
@@ -275,11 +277,13 @@ async function getGlobalStatsUncached(): Promise<SuperAdminMetrics> {
       .groupBy(groups.academyId),
     db
       .select({
+        currency: charges.currency,
         created: sql<number>`count(*)`,
         paid: sql<number>`COALESCE(SUM(${charges.amountCents}) FILTER (WHERE ${charges.status} = 'paid'), 0)`,
       })
       .from(charges)
-      .where(eq(charges.period, currentMonth)),
+      .where(eq(charges.period, currentMonth))
+      .groupBy(charges.currency),
     db
       .select({ total: sql<number>`COUNT(DISTINCT ${eventLogs.academyId})` })
       .from(eventLogs)
@@ -293,6 +297,16 @@ async function getGlobalStatsUncached(): Promise<SuperAdminMetrics> {
   const athleteSummary = athleteSummaryRows[0];
   const chargesSummary = chargesSummaryRows[0];
   const recentActivitySummary = recentActivityRows[0];
+
+  const chargesPaidByCurrency = chargesSummaryRows
+    .map((row) => ({ currency: normalizeCurrency(row.currency), total: Number(row.paid ?? 0) }))
+    .filter((row) => row.total > 0)
+    .sort((a, b) => b.total - a.total || a.currency.localeCompare(b.currency));
+  const chargesCreatedThisMonth = chargesSummaryRows.reduce(
+    (total, row) => total + Number(row.created ?? 0),
+    0
+  );
+  const chargesPaidThisMonth = chargesPaidByCurrency.length === 1 ? chargesPaidByCurrency[0].total : 0;
 
   const usersByRole = usersByRoleRows.map((row) => ({
     role: row.role ?? "unknown",
@@ -357,8 +371,8 @@ async function getGlobalStatsUncached(): Promise<SuperAdminMetrics> {
       latestAcademyAt: toIso(academySummary?.latestAcademyAt),
       activeAcademies: activeAcademyIds.size,
       totalAthletes: Number(athleteSummary?.total ?? 0),
-      chargesCreatedThisMonth: Number(chargesSummary?.created ?? 0),
-      chargesPaidThisMonth: Number(chargesSummary?.paid ?? 0),
+      chargesCreatedThisMonth,
+      chargesPaidThisMonth,
       recentActivityAcademies: Number(recentActivitySummary?.total ?? 0),
       previousAcademies: Number(academySummary?.previousAcademies ?? 0),
       previousUsers: Number(userSummary?.previousUsers ?? 0),
@@ -381,6 +395,7 @@ async function getGlobalStatsUncached(): Promise<SuperAdminMetrics> {
     monthlyAcademies,
     monthlyRevenue,
     revenueByCurrency,
+    chargesPaidByCurrency,
     subscriptionAlerts,
   };
 }
