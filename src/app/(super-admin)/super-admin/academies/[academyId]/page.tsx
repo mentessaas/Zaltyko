@@ -11,12 +11,18 @@ import { SuperAdminAcademyDetail } from "../../components/SuperAdminAcademyDetai
 
 export const dynamic = "force-dynamic";
 
+type SearchParamValue = string | string[] | undefined;
+
+function firstSearchParam(value: SearchParamValue) {
+  return Array.isArray(value) ? value[0] : value;
+}
+
 export default async function SuperAdminAcademyDetailPage({
   params,
   searchParams,
 }: {
   params: Promise<{ academyId: string }>;
-  searchParams: Promise<{ returnTo?: string }>;
+  searchParams: Promise<{ returnTo?: SearchParamValue }>;
 }) {
   const cookieStore = await cookies();
   const supabase = await createClient(cookieStore);
@@ -39,9 +45,10 @@ export default async function SuperAdminAcademyDetailPage({
 
   const { academyId } = await params;
   const { returnTo } = await searchParams;
+  const safeReturnTo = firstSearchParam(returnTo);
   const backHref =
-    returnTo === "/super-admin/academies" || returnTo?.startsWith("/super-admin/academies?")
-      ? returnTo
+    safeReturnTo === "/super-admin/academies" || safeReturnTo?.startsWith("/super-admin/academies?")
+      ? safeReturnTo
       : "/super-admin/academies";
 
   const academy = await getSuperAdminAcademyDetail(academyId);
