@@ -85,7 +85,7 @@ interface Plan {
   priceEur: number | null;
 }
 
-export function SuperAdminAcademyDetail({ initialAcademy, userId }: SuperAdminAcademyDetailProps) {
+export function SuperAdminAcademyDetail({ initialAcademy, userId, backHref = "/super-admin/academies" }: SuperAdminAcademyDetailProps) {
   const router = useRouter();
   const toast = useToast();
   const [academy, setAcademy] = useState<AcademyDetail>(initialAcademy);
