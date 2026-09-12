@@ -128,7 +128,11 @@ export function useSuperAdminData(initial: SuperAdminMetrics, initialEvents: Eve
     listen("athlete_assessments");
     listen("event_logs");
 
-    channel.subscribe();
+    channel.subscribe((status) => {
+      if (status === "CHANNEL_ERROR" || status === "TIMED_OUT") {
+        setError("La actualización en tiempo real no está disponible. Usa Refrescar para consultar los datos.");
+      }
+    });
 
     return () => {
       if (refreshTimer.current) {
