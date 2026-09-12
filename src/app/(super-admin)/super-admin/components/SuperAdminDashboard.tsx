@@ -91,10 +91,12 @@ function formatRevenueBreakdown(
   fallbackCents: number
 ) {
   if (rows.length === 0) return formatCurrencyCents(fallbackCents);
-  return rows
-    .slice(0, 3)
+  const visibleRows = rows.slice(0, 3);
+  const formatted = visibleRows
     .map((row) => formatCurrencyCents(row.total, row.currency))
     .join(" · ");
+  const remaining = rows.length - visibleRows.length;
+  return remaining > 0 ? `${formatted} · +${remaining} divisas` : formatted;
 }
 
 const EVENT_TYPE_LABELS: Record<string, string> = {
@@ -341,8 +343,14 @@ export function SuperAdminDashboard({ initialMetrics, initialEvents = [], initia
       },
       {
         title: "Cobrado este mes",
-        value: formatCurrencyCents(safeMetrics.totals.chargesPaidThisMonth),
-        subtitle: "Cargos pagados registrados",
+        value: formatRevenueBreakdown(
+          safeMetrics.chargesPaidByCurrency,
+          safeMetrics.totals.chargesPaidThisMonth
+        ),
+        subtitle:
+          safeMetrics.chargesPaidByCurrency.length > 1
+            ? "Cargos pagados · importes separados por divisa"
+            : "Cargos pagados registrados",
         href: "/super-admin/billing",
         icon: DollarSign,
         accent: "emerald" as const,
