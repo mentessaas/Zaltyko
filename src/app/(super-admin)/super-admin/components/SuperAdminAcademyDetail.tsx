@@ -28,6 +28,9 @@ const ACADEMY_TYPES = [
   { value: "artistica", label: "Gimnasia artística" },
   { value: "ritmica", label: "Gimnasia rítmica" },
   { value: "general", label: "General" },
+  { value: "trampolin", label: "Trampolín" },
+  { value: "parkour", label: "Parkour" },
+  { value: "danza", label: "Danza" },
 ] as const;
 
 interface AcademyDetail {
