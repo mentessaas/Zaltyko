@@ -403,7 +403,7 @@ export function SuperAdminDashboard({ initialMetrics, initialEvents = [], initia
               <p className="text-xs text-white/50 mt-1">Total: {safeMetrics.totals.users}</p>
             </div>
             <span className="text-xs text-white/40">
-              {pieChartData.length > 0 ? "Abrir desglose" : "Sin desglose disponible"}
+              {pieChartData.length > 0 ? "Abrir desglose" : "Sin distribución disponible"}
             </span>
           </header>
 
@@ -459,10 +459,10 @@ export function SuperAdminDashboard({ initialMetrics, initialEvents = [], initia
         <button
           type="button"
           disabled={planPieData.length === 0}
-          aria-label={planPieData.length === 0 ? "Planes activos: sin datos" : "Abrir desglose de planes activos"}
+          aria-label={planPieData.length === 0 ? "Distribución de suscripciones: sin datos" : "Abrir desglose de suscripciones por plan"}
           onClick={() => {
             if (planPieData.length === 0) return;
-            setDrillDownData({ title: "Planes Activos", items: planPieData });
+            setDrillDownData({ title: "Distribución de suscripciones", items: planPieData });
             setSelectedChart("planDistribution");
           }}
           className={cn(
@@ -474,9 +474,9 @@ export function SuperAdminDashboard({ initialMetrics, initialEvents = [], initia
           <header className="relative flex items-center justify-between mb-6">
             <div>
               <h3 className="font-display text-sm font-semibold uppercase tracking-wide text-zaltyko-accent-light">
-                Planes activos
+                Distribución de suscripciones
               </h3>
-              <p className="text-xs text-white/50 mt-1">{safeMetrics.planDistribution.length} tipos de plan</p>
+              <p className="text-xs text-white/50 mt-1">{safeMetrics.totals.subscriptions} suscripciones · {safeMetrics.planDistribution.length} planes</p>
             </div>
             <span className="text-xs text-white/40">
               {planPieData.length > 0 ? "Abrir desglose" : "Sin desglose disponible"}
