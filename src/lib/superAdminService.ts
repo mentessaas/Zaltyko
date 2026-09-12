@@ -347,7 +347,7 @@ export async function getAcademiesPage(args: {
 } = {}): Promise<SuperAdminAcademiesPage> {
   const { db } = await import("@/db");
   const { academies, profiles, subscriptions, plans } = await import("@/db/schema");
-  const { and, count, desc, eq, or } = await import("drizzle-orm");
+  const { and, count, countDistinct, desc, eq, or } = await import("drizzle-orm");
 
   const page = Math.max(1, Math.floor(Number.isFinite(args.page) ? args.page! : 1));
   const pageSize = Math.min(200, Math.max(1, Math.floor(Number.isFinite(args.pageSize) ? args.pageSize! : 50)));
@@ -366,7 +366,7 @@ export async function getAcademiesPage(args: {
   const where = conditions.length > 0 ? and(...conditions) : undefined;
 
   const [totalRow] = await db
-    .select({ total: count(academies.id) })
+    .select({ total: countDistinct(academies.id) })
     .from(academies)
     .leftJoin(profiles, eq(academies.ownerId, profiles.id))
     .leftJoin(
@@ -735,6 +735,7 @@ export async function getRecentEvents(limit: number = 10): Promise<EventLogEntry
   const { db } = await import("@/db");
   const { eventLogs, academies } = await import("@/db/schema");
   const { desc, eq } = await import("drizzle-orm");
+  const safeLimit = Math.min(50, Math.max(1, Math.floor(Number.isFinite(limit) ? limit : 10)));
 
   const events = await db
     .select({
@@ -748,7 +749,7 @@ export async function getRecentEvents(limit: number = 10): Promise<EventLogEntry
     .from(eventLogs)
     .leftJoin(academies, eq(eventLogs.academyId, academies.id))
     .orderBy(desc(eventLogs.createdAt))
-    .limit(limit);
+    .limit(safeLimit);
 
   return events.map((event) => ({
     id: event.id,
