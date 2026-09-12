@@ -4,6 +4,7 @@ import { z } from "zod";
 
 import { db } from "@/db";
 import { academies, subscriptions, plans, profiles } from "@/db/schema";
+import { academyStatusValues } from "@/db/schema/academies";
 import { withSuperAdmin } from "@/lib/authz";
 import { logAdminAction } from "@/lib/admin-logs";
 import { getSuperAdminAcademyDetail } from "@/lib/super-admin";
@@ -12,6 +13,17 @@ import { revalidatePublicAcademySeo } from "@/lib/seo/revalidate-academy";
 export const dynamic = "force-dynamic";
 
 const reasonSchema = z.string().trim().min(5).max(500);
+const academyTypeSchema = z.enum(["artistica", "ritmica", "trampolin", "general", "parkour", "danza"]);
+const updateAcademySchema = z.object({
+  name: z.string().trim().min(1).max(160).optional(),
+  isSuspended: z.boolean().optional(),
+  reason: reasonSchema.optional(),
+  planId: z.string().uuid().nullable().optional(),
+  academyType: academyTypeSchema.optional(),
+  country: z.string().trim().max(120).nullable().optional(),
+  region: z.string().trim().max(120).nullable().optional(),
+  city: z.string().trim().max(120).nullable().optional(),
+});
 
 export const GET = withSuperAdmin(async (_request, context) => {
   const params = context.params as { academyId?: string };
@@ -36,15 +48,23 @@ export const PATCH = withSuperAdmin(async (request, context) => {
     return apiError("ACADEMY_ID_REQUIRED", "Academy ID is required", 400);
   }
 
-  const body = await request.json().catch(() => ({}));
-  if (typeof body?.isSuspended === "boolean" && !reasonSchema.safeParse(body?.reason).success) {
+  const parsedBody = updateAcademySchema.safeParse(await request.json().catch(() => ({})));
+  if (!parsedBody.success) {
+    return apiError(
+      "VALIDATION_ERROR",
+      parsedBody.error.issues[0]?.message ?? "Datos inválidos",
+      400
+    );
+  }
+  const body = parsedBody.data;
+  if (typeof body.isSuspended === "boolean" && !body.reason) {
     return apiError("REASON_REQUIRED", "Indica el motivo del cambio de acceso", 400);
   }
   const updates: Record<string, unknown> = {};
   let planUpdate: { planId: string | null } | null = null;
 
-  if (typeof body?.name === "string" && body.name.trim().length > 0) {
-    updates.name = body.name.trim();
+  if (body.name !== undefined) {
+    updates.name = body.name;
   }
 
   if (typeof body?.isSuspended === "boolean") {
@@ -52,7 +72,7 @@ export const PATCH = withSuperAdmin(async (request, context) => {
     updates.suspendedAt = body.isSuspended ? new Date() : null;
   }
 
-  if (Object.prototype.hasOwnProperty.call(body ?? {}, "planId") && body.planId !== undefined) {
+  if (body.planId !== undefined) {
     if (body.planId === null) {
       planUpdate = { planId: null };
     } else if (typeof body.planId === "string" && body.planId.trim().length > 0) {
@@ -65,17 +85,17 @@ export const PATCH = withSuperAdmin(async (request, context) => {
   }
 
   // Edición completa: tipo, país, región y ciudad.
-  if (typeof body?.academyType === "string" && body.academyType.trim().length > 0) {
-    updates.academyType = body.academyType.trim();
+  if (body.academyType !== undefined) {
+    updates.academyType = body.academyType;
   }
-  if (typeof body?.country === "string") {
-    updates.country = body.country.trim() || null;
+  if (body.country !== undefined) {
+    updates.country = body.country;
   }
-  if (typeof body?.region === "string") {
-    updates.region = body.region.trim() || null;
+  if (body.region !== undefined) {
+    updates.region = body.region;
   }
-  if (typeof body?.city === "string") {
-    updates.city = body.city.trim() || null;
+  if (body.city !== undefined) {
+    updates.city = body.city;
   }
 
   if (Object.keys(updates).length === 0 && !planUpdate) {
@@ -156,17 +176,17 @@ export const PATCH = withSuperAdmin(async (request, context) => {
   await logAdminAction({
     userId: context.userId,
     tenantId: null,
-    action: body?.isSuspended ? "academy.suspended" : "academy.updated",
+    action: body.isSuspended ? "academy.suspended" : "academy.updated",
     resourceType: "academy",
     resourceId: academyId,
     resourceName: updated.name,
-    description: body?.isSuspended
+    description: body.isSuspended
       ? `Super Admin suspendió la academia ${updated.name ?? academyId}`
       : `Super Admin actualizó la academia ${updated.name ?? academyId}`,
     meta: {
       academyId,
       updates: { ...updates, ...(planUpdate ? { planId: planUpdate.planId } : {}) },
-      reason: typeof body?.reason === "string" ? body.reason.trim() : null,
+      reason: body.reason ?? null,
     },
   });
 
