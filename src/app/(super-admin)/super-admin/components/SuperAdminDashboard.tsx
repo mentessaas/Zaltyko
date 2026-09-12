@@ -296,9 +296,9 @@ export function SuperAdminDashboard({ initialMetrics, initialEvents = [], initia
         accent: "red" as const,
       },
       {
-        title: "Ingresos este mes",
+        title: "Cobrado este mes",
         value: CURRENCY_FORMATTER.format(safeMetrics.totals.chargesPaidThisMonth / 100),
-        subtitle: "Total cobrado",
+        subtitle: "Cargos pagados registrados",
         href: "/super-admin/billing",
         icon: DollarSign,
         accent: "emerald" as const,
