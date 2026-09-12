@@ -8,6 +8,7 @@ import { withSuperAdmin } from "@/lib/authz";
 import { logAdminAction } from "@/lib/admin-logs";
 import { getAuthUserEmail, updateAuthUserEmail, deleteAuthUser } from "@/lib/supabase/admin-operations";
 import { getAppUrl } from "@/lib/env";
+import { revalidatePublicAcademySeo } from "@/lib/seo/revalidate-academy";
 import { logger } from "@/lib/logger";
 
 export const dynamic = "force-dynamic";
@@ -461,6 +462,12 @@ export const DELETE = withSuperAdmin(async (request, context) => {
   // successful, idempotent deletion instead of returning a misleading 404.
   if (!removed && !authDeleted) {
     return apiError("PROFILE_NOT_FOUND", "Perfil no encontrado", 404);
+  }
+
+  // Deleting an owner cascades its academies. Purge the public routes and
+  // sitemap entries as part of the same successful cleanup.
+  for (const { id: academyId } of ownedAcademies) {
+    revalidatePublicAcademySeo(academyId);
   }
 
   await logAdminAction({
