@@ -229,7 +229,6 @@ export default async function SuperAdminBillingPage({ searchParams }: PageProps)
       .where(invoiceCondition)
       .groupBy(billingInvoices.currency),
   ]);
-  ]);
 
   const totalResults = Math.max(
     Number(summary?.invoices ?? 0),
