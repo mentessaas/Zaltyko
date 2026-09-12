@@ -1,4 +1,5 @@
 import { desc, eq } from "drizzle-orm";
+import type { AcademyStatus } from "@/db/schema/academies";
 import { db } from "@/db";
 import { academies, auditLogs, authUsers, plans, profiles, subscriptions } from "@/db/schema";
 
@@ -71,7 +72,7 @@ export async function getSuperAdminAcademyDetail(academyId: string) {
 
   return {
     ...academy,
-    status: academy.status,
+    status: (academy.status as AcademyStatus) ?? "active",
     statusUpdatedAt: academy.statusUpdatedAt ? new Date(academy.statusUpdatedAt).toISOString() : null,
     suspendedAt: academy.suspendedAt ? new Date(academy.suspendedAt).toISOString() : null,
     createdAt: academy.createdAt ? new Date(academy.createdAt).toISOString() : null,
