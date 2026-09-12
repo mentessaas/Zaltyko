@@ -4,6 +4,7 @@ import { apiSuccess, apiCreated, apiError } from "@/lib/api-response";
 
 import { db } from "@/db";
 import { profiles } from "@/db/schema";
+import { academyStatusValues, type AcademyStatus } from "@/db/schema/academies";
 import { withSuperAdmin } from "@/lib/authz";
 import { getAcademiesPage } from "@/lib/superAdminService";
 import { createAcademy } from "@/app/api/academies/academies.lib";
@@ -15,10 +16,11 @@ export const dynamic = "force-dynamic";
 const DEFAULT_PAGE_SIZE = 50;
 const MAX_PAGE_SIZE = 200;
 const ACADEMY_TYPES = ["artistica", "ritmica", "trampolin", "general", "parkour", "danza"] as const;
+const AcademyTypeSchema = z.enum(ACADEMY_TYPES);
 
 const CreateAcademySchema = z.object({
   academyName: z.string().min(3, "El nombre debe tener al menos 3 caracteres"),
-  academyType: z.string().optional(),
+  academyType: AcademyTypeSchema.optional(),
   country: z.string().optional(),
   countryCode: z.string().optional(),
   region: z.string().optional(),
@@ -87,7 +89,7 @@ export const POST = withSuperAdmin(async (request, context) => {
     result = await createAcademy(
       {
         name: d.academyName,
-        academyType: d.academyType as never,
+        academyType: d.academyType,
         country: d.country,
         countryCode: d.countryCode,
         region: d.region,
@@ -128,7 +130,9 @@ export const GET = withSuperAdmin(async (request) => {
   const typeFilter = ACADEMY_TYPES.includes(typeParam as (typeof ACADEMY_TYPES)[number]) ? typeParam ?? undefined : undefined;
   const countryFilter = url.searchParams.get("country") ?? undefined;
   const statusParam = url.searchParams.get("status");
-  const statusFilter = statusParam === "active" || statusParam === "suspended" ? statusParam : undefined;
+  const statusFilter = academyStatusValues.includes(statusParam as AcademyStatus)
+    ? (statusParam as AcademyStatus)
+    : undefined;
 
   const page = Math.max(1, Number.parseInt(url.searchParams.get("page") ?? "1", 10) || 1);
   const pageSize = Math.min(
