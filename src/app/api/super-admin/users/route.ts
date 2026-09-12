@@ -7,7 +7,7 @@ import { db } from "@/db";
 import { profiles } from "@/db/schema";
 import { withSuperAdmin } from "@/lib/authz";
 import { withRateLimit, getUserIdentifier } from "@/lib/rate-limit";
-import { getAllUsers } from "@/lib/superAdminService";
+import { getUsersPage } from "@/lib/superAdminService";
 import { createAuthUser, deleteAuthUser } from "@/lib/supabase/admin-operations";
 import { logAdminAction } from "@/lib/admin-logs";
 
@@ -84,46 +84,34 @@ const MAX_PAGE_SIZE = 200;
 // Aplicar rate limiting: 50 requests por minuto para Super Admin
 const handler = withSuperAdmin(async (request) => {
   const url = new URL(request.url);
-  const roleFilter = url.searchParams.get("role") ?? undefined;
-  const searchQuery = url.searchParams.get("q")?.toLowerCase() ?? undefined;
-  const statusFilter = url.searchParams.get("status") as "active" | "suspended" | undefined;
+  const roleFilter = url.searchParams.get("role") || undefined;
+  const searchQuery = url.searchParams.get("q") || undefined;
+  const statusParam = url.searchParams.get("status");
+  const statusFilter =
+    statusParam === "active" || statusParam === "suspended" ? statusParam : undefined;
 
-  // Paginación
-  const page = Math.max(1, parseInt(url.searchParams.get("page") ?? "1", 10));
+  const page = Math.max(1, Number.parseInt(url.searchParams.get("page") ?? "1", 10) || 1);
   const pageSize = Math.min(
     MAX_PAGE_SIZE,
-    Math.max(1, parseInt(url.searchParams.get("limit") ?? String(DEFAULT_PAGE_SIZE), 10))
+    Math.max(1, Number.parseInt(url.searchParams.get("limit") ?? String(DEFAULT_PAGE_SIZE), 10) || DEFAULT_PAGE_SIZE)
   );
-
-  const items = await getAllUsers();
-
-  const filtered = items.filter((user) => {
-    if (roleFilter && user.role !== roleFilter) return false;
-    if (statusFilter) {
-      const isSuspended = statusFilter === "suspended";
-      if (user.isSuspended !== isSuspended) return false;
-    }
-    if (searchQuery) {
-      const haystack = `${user.fullName ?? ""} ${user.email ?? ""}`.toLowerCase();
-      if (!haystack.includes(searchQuery)) return false;
-    }
-    return true;
+  const result = await getUsersPage({
+    page,
+    pageSize,
+    role: roleFilter,
+    status: statusFilter,
+    search: searchQuery,
   });
-
-  const total = filtered.length;
-  const totalPages = Math.max(1, Math.ceil(total / pageSize));
-  const effectivePage = Math.min(page, totalPages);
-  const offset = (effectivePage - 1) * pageSize;
-  const paginatedItems = filtered.slice(offset, offset + pageSize);
+  const totalPages = Math.max(1, Math.ceil(result.total / pageSize));
 
   return apiSuccess({
-    total,
-    page: effectivePage,
+    total: result.total,
+    page: result.page,
     pageSize,
     totalPages,
-    hasNextPage: effectivePage < totalPages,
-    hasPreviousPage: effectivePage > 1,
-    items: paginatedItems,
+    hasNextPage: result.page < totalPages,
+    hasPreviousPage: result.page > 1,
+    items: result.items,
   });
 });
 
