@@ -522,9 +522,14 @@ export function SuperAdminUserDetail({ initialUser, userId, backHref = "/super-a
       {/* Modal de violaciones de límites */}
       {planViolations && planViolations.requiresAction && (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4">
-          <div className="max-w-2xl rounded-2xl border border-zaltyko-coral/50 bg-zaltyko-navy/90 p-6 shadow-xl">
+          <div
+            role="dialog"
+            aria-modal="true"
+            aria-labelledby="plan-violations-title"
+            className="max-w-2xl rounded-2xl border border-zaltyko-coral/50 bg-zaltyko-navy/90 p-6 shadow-xl"
+          >
             <div className="mb-4">
-              <h2 className="text-2xl font-semibold text-white">Atención: Límites del plan excedidos</h2>
+              <h2 id="plan-violations-title" className="text-2xl font-semibold text-white">Atención: Límites del plan excedidos</h2>
               <p className="mt-2 text-sm text-white/70">
                 El nuevo plan tiene límites más restrictivos. El usuario tiene los siguientes recursos que exceden el límite:
               </p>
