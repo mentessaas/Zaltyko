@@ -306,7 +306,7 @@ export function SuperAdminUserDetail({ initialUser, userId }: SuperAdminUserDeta
       });
 
       if (!response.ok) {
-        let errorData: { error?: string; violations?: unknown; requiresAction?: boolean };
+        let errorData: { error?: string; details?: { violations?: unknown; requiresAction?: boolean } };
         try {
           errorData = await response.json();
         } catch {
@@ -315,15 +315,19 @@ export function SuperAdminUserDetail({ initialUser, userId }: SuperAdminUserDeta
         }
         
         // Handle plan limit violations
-        if (errorData.error === "PLAN_LIMIT_VIOLATIONS" && errorData.violations) {
+        const violationPayload = errorData.details as {
+          violations?: unknown;
+          requiresAction?: boolean;
+        } | undefined;
+        if (errorData.error === "PLAN_LIMIT_VIOLATIONS" && violationPayload?.violations) {
           setPlanViolations({
-            violations: errorData.violations as Array<{
+            violations: violationPayload.violations as Array<{
               resource: string;
               currentCount: number;
               limit: number | null;
               items: Array<{ id: string; name: string | null }>;
             }>,
-            requiresAction: errorData.requiresAction ?? true,
+            requiresAction: violationPayload.requiresAction ?? true,
           });
           return;
         }
