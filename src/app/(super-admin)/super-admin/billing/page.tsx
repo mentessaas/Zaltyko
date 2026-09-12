@@ -132,7 +132,7 @@ export default async function SuperAdminBillingPage({ searchParams }: PageProps)
       ? `Vista: ${statusLabel(selectedStatus)}`
       : "Vista: todos los recibos y suscripciones";
 
-  const [summary, statusRows, invoices] = await Promise.all([
+  const [summary, statusRows, invoices, subscriptionRows] = await Promise.all([
     db
       .select({
         invoices: count(billingInvoices.id),
