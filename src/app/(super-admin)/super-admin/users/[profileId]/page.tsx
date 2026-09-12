@@ -79,7 +79,11 @@ export default async function SuperAdminUserDetailPage({
           Volver a usuarios
         </Link>
       </div>
-      <SuperAdminUserDetail initialUser={userData} userId={user?.id ?? devSession?.userId ?? ""} />
+      <SuperAdminUserDetail
+        initialUser={userData}
+        userId={user?.id ?? devSession?.userId ?? ""}
+        backHref={backHref}
+      />
     </div>
   );
 }
