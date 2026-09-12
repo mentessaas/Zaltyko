@@ -386,9 +386,11 @@ export const DELETE = withSuperAdmin(async (request, context) => {
   }
 
   // Delete Auth first so an Auth failure never leaves a deleted profile with a live login.
+  let authDeleted = false;
   if (target.userId) {
     try {
       await deleteAuthUser(target.userId);
+      authDeleted = true;
     } catch (error) {
       logger.error("No se pudo borrar la cuenta de Auth", error, { profileId });
       return apiError("AUTH_DELETE_FAILED", "No se pudo eliminar la cuenta de acceso", 502);
@@ -400,7 +402,9 @@ export const DELETE = withSuperAdmin(async (request, context) => {
     .where(eq(profiles.id, profileId))
     .returning({ id: profiles.id });
 
-  if (!removed) {
+  // Supabase may cascade the profile row when Auth is deleted; treat that as a
+  // successful, idempotent deletion instead of returning a misleading 404.
+  if (!removed && !authDeleted) {
     return apiError("PROFILE_NOT_FOUND", "Perfil no encontrado", 404);
   }
 
@@ -409,7 +413,7 @@ export const DELETE = withSuperAdmin(async (request, context) => {
     tenantId: null,
     action: "user.deleted",
     resourceType: "profile",
-    resourceId: profileId,
+    resourceId: removed?.id ?? profileId,
     description: `Super Admin eliminó el usuario ${profileId}`,
     meta: { profileId, role: target.role, reason: reason.data },
   });
