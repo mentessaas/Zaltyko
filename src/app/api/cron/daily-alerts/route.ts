@@ -3,7 +3,7 @@ import { createPaymentNotifications } from "@/lib/alerts/payment-alerts";
 import { createAttendanceNotifications } from "@/lib/alerts/attendance/createAttendanceNotifications";
 import { db } from "@/db";
 import { academies, profiles } from "@/db/schema";
-import { and, inArray } from "drizzle-orm";
+import { and, eq, inArray } from "drizzle-orm";
 import { logger } from "@/lib/logger";
 import { apiSuccess, apiError } from "@/lib/api-response";
 import { requireCronAuth } from "@/lib/cron-auth";
@@ -21,7 +21,13 @@ export async function GET(request: Request) {
         id: academies.id,
         tenantId: academies.tenantId,
       })
-      .from(academies);
+      .from(academies)
+      .where(
+        and(
+          eq(academies.isSuspended, false),
+          inArray(academies.status, ["active", "trial"])
+        )
+      );
 
     const results = {
       capacityAlerts: 0,
