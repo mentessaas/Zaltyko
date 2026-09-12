@@ -214,7 +214,7 @@ export const PATCH = withSuperAdmin(async (request, context) => {
     auditChanges.isSuspended = { from: existing.isSuspended, to: body.isSuspended };
   }
 
-  if (body.name && body.name !== existing.name) {
+  if (body.name !== undefined && body.name !== existing.name) {
     updates.name = body.name;
     auditChanges.name = { from: existing.name, to: body.name };
   }
@@ -239,7 +239,10 @@ export const PATCH = withSuperAdmin(async (request, context) => {
     );
 
     if (violations.requiresAction && !body.force) {
-      return apiError("PLAN_LIMIT_VIOLATIONS", "Plan limit violations detected", 400);
+      return apiError("PLAN_LIMIT_VIOLATIONS", "Plan limit violations detected", 400, {
+        violations: violations.violations,
+        requiresAction: violations.requiresAction,
+      });
     }
 
     planToApply = { id: plan.id, code: plan.code, violations };
