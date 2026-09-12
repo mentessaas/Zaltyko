@@ -42,10 +42,12 @@ describe("daily alerts cron", () => {
   it("reporta operaciones y academias fallidas sin detener las demás", async () => {
     mocks.select
       .mockReturnValueOnce({
-        from: () => Promise.resolve([
-          { id: "academy-1", tenantId: "tenant-1" },
-          { id: "academy-2", tenantId: "tenant-2" },
-        ]),
+        from: () => ({
+          where: () => Promise.resolve([
+            { id: "academy-1", tenantId: "tenant-1" },
+            { id: "academy-2", tenantId: "tenant-2" },
+          ]),
+        }),
       })
       .mockReturnValueOnce({
         from: () => ({
