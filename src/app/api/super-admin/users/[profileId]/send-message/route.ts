@@ -20,8 +20,19 @@ const BodySchema = z.object({
 // @service-role auth-admin:read-email. Super-admin messaging needs the target Supabase Auth email.
 /** @resource-scope super-admin — withSuperAdmin verifies the global authority. */
 
-export const POST = withSuperAdmin(async (request, context) => {
-  const body = BodySchema.parse(await request.json());
+export const POST = withSuperAdmin(async (request, _context) => {
+  let rawBody: unknown;
+  try {
+    rawBody = await request.json();
+  } catch {
+    return apiError("INVALID_JSON", "El cuerpo de la solicitud no es JSON válido", 400);
+  }
+
+  const parsed = BodySchema.safeParse(rawBody);
+  if (!parsed.success) {
+    return apiError("VALIDATION_ERROR", parsed.error.issues[0]?.message ?? "Datos inválidos", 400);
+  }
+  const body = parsed.data;
 
   // Get target user profile
   const [targetProfile] = await db
