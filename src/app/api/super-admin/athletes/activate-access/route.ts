@@ -28,7 +28,7 @@ async function activateAthleteAccess(
   profileId: string,
   email?: string,
   sendInvitation: boolean = true
-): Promise<{ ok: boolean; userId: string; email: string; error?: string }> {
+): Promise<{ ok: boolean; userId: string; email: string; invitationSent: boolean; error?: string }> {
   // Obtener el perfil del atleta
   const [profile] = await db
     .select({
@@ -79,6 +79,7 @@ async function activateAthleteAccess(
     .where(eq(profiles.id, profileId));
 
   // Enviar correo de invitación si se solicita
+  let invitationSent = !sendInvitation;
   if (sendInvitation) {
     try {
       // Generar token de reset de contraseña
@@ -109,6 +110,7 @@ async function activateAthleteAccess(
         text: `Tu cuenta de atleta ha sido activada. Visita ${resetLink} para establecer tu contraseña.`,
         replyTo: config.brevo.supportEmail,
       });
+      invitationSent = true;
     } catch (emailError) {
       logger.error("Error enviando correo de activación:", emailError);
       // No fallar si el correo no se puede enviar
@@ -119,6 +121,7 @@ async function activateAthleteAccess(
     ok: true,
     userId: profile.userId,
     email: targetEmail,
+    invitationSent,
   };
 }
 
