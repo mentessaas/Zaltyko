@@ -52,7 +52,7 @@ export default async function SuperAdminPublicAcademiesPage({ searchParams }: Pa
       ? params.visibility
       : "all";
   const search = params.search?.trim().slice(0, 160) ?? "";
-  const escapedSearch = search.replace(/[\\%_]/g, "\\$&");
+  const escapedSearch = search.replace(/[\\%_]/g, "\\  const escapedSearch = search.replace(/[\\%_]/g, "\\$&");
   const conditions = [
     visibility === "public"
       ? eq(academies.isPublic, true)
@@ -68,6 +68,23 @@ export default async function SuperAdminPublicAcademiesPage({ searchParams }: Pa
         )
       : undefined,
   ].filter(Boolean) as Array<ReturnType<typeof eq>>;
+");
+  const searchCondition = escapedSearch
+    ? or(
+        ilike(academies.name, `%${escapedSearch}%`),
+        ilike(academies.country, `%${escapedSearch}%`),
+        ilike(academies.region, `%${escapedSearch}%`),
+        ilike(academies.city, `%${escapedSearch}%`)
+      )
+    : undefined;
+  const conditions = [
+    visibility === "public"
+      ? eq(academies.isPublic, true)
+      : visibility === "private"
+        ? eq(academies.isPublic, false)
+        : undefined,
+    searchCondition,
+  ].filter(Boolean) as Array<ReturnType<typeof eq>>;
 
   const where = conditions.length > 0 ? and(...conditions) : undefined;
   const [totalRow, visibilityRows] = await Promise.all([
@@ -78,6 +95,7 @@ export default async function SuperAdminPublicAcademiesPage({ searchParams }: Pa
     db
       .select({ isPublic: academies.isPublic, total: count(academies.id) })
       .from(academies)
+      .where(searchCondition)
       .groupBy(academies.isPublic),
   ]);
   const total = Number(totalRow[0]?.total ?? 0);
