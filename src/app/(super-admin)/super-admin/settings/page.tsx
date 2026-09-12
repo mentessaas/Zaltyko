@@ -61,7 +61,9 @@ export default async function SuperAdminSettingsPage() {
   ]);
 
   const activePlans = planRows.filter((plan) => !plan.isArchived);
-  const unconfiguredStripePlans = activePlans.filter((plan) => !plan.stripePriceId);
+  const unconfiguredStripePlans = activePlans.filter(
+    (plan) => Number(plan.priceEur ?? 0) > 0 && !plan.stripePriceId
+  );
   const checks = [
     { label: "Autorización Super Admin", detail: "Gate JWT + perfil verificado", ok: true },
     {
