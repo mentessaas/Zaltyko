@@ -391,6 +391,42 @@ export interface SuperAdminAcademiesPage {
   page: number;
 }
 
+export interface SuperAdminAcademyFilterOptions {
+  plans: string[];
+  types: string[];
+  countries: string[];
+}
+
+export async function getAcademyFilterOptions(): Promise<SuperAdminAcademyFilterOptions> {
+  const { db } = await import("@/db");
+  const { academies, plans } = await import("@/db/schema");
+  const { asc, isNotNull } = await import("drizzle-orm");
+
+  const [planRows, countryRows] = await Promise.all([
+    db
+      .select({ code: plans.code })
+      .from(plans)
+      .where(isNotNull(plans.code))
+      .orderBy(asc(plans.code)),
+    db
+      .select({ country: academies.country })
+      .from(academies)
+      .where(isNotNull(academies.country))
+      .groupBy(academies.country)
+      .orderBy(asc(academies.country)),
+  ]);
+
+  return {
+    plans: planRows
+      .map((row) => row.code?.trim())
+      .filter((code): code is string => Boolean(code)),
+    types: ["artistica", "ritmica", "trampolin", "general", "parkour", "danza"],
+    countries: countryRows
+      .map((row) => row.country?.trim())
+      .filter((country): country is string => Boolean(country)),
+  };
+}
+
 export async function getAcademiesPage(args: {
   page?: number;
   pageSize?: number;
