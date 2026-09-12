@@ -145,30 +145,30 @@ async function getGlobalStatsUncached(): Promise<SuperAdminMetrics> {
   ] = await Promise.all([
     db
       .select({
-        total: sql<number>\`count(*)\`,
-        latestAcademyAt: sql<Date | string | null>\`max(\${academies.createdAt})\`,
-        previousAcademies: sql<number>\`count(*) filter (where \${academies.createdAt} < \${currentMonthStart})\`,
+        total: sql<number>`count(*)`,
+        latestAcademyAt: sql<Date | string | null>`max(\${academies.createdAt})`,
+        previousAcademies: sql<number>`count(*) filter (where \${academies.createdAt} < \${currentMonthStart})`,
       })
       .from(academies),
     db
       .select({
-        label: sql<string>\`to_char(\${academies.createdAt}, 'YYYY-MM')\`,
-        total: sql<number>\`count(*)\`,
+        label: sql<string>`to_char(\${academies.createdAt}, 'YYYY-MM')`,
+        total: sql<number>`count(*)`,
       })
       .from(academies)
       .where(isNotNull(academies.createdAt))
-      .groupBy(sql\`to_char(\${academies.createdAt}, 'YYYY-MM')\`),
+      .groupBy(sql`to_char(\${academies.createdAt}, 'YYYY-MM')`),
     db
       .select({
         role: profiles.role,
-        total: sql<number>\`count(*)\`,
+        total: sql<number>`count(*)`,
       })
       .from(profiles)
       .groupBy(profiles.role),
     db
       .select({
-        total: sql<number>\`count(*)\`,
-        previousUsers: sql<number>\`count(*) filter (where \${profiles.createdAt} < \${currentMonthStart})\`,
+        total: sql<number>`count(*)`,
+        previousUsers: sql<number>`count(*) filter (where \${profiles.createdAt} < \${currentMonthStart})`,
       })
       .from(profiles),
     db
@@ -181,7 +181,7 @@ async function getGlobalStatsUncached(): Promise<SuperAdminMetrics> {
     db
       .select({
         status: subscriptions.status,
-        total: sql<number>\`count(*)\`,
+        total: sql<number>`count(*)`,
       })
       .from(subscriptions)
       .groupBy(subscriptions.status),
@@ -189,27 +189,27 @@ async function getGlobalStatsUncached(): Promise<SuperAdminMetrics> {
       .select({
         code: plans.code,
         nickname: plans.nickname,
-        total: sql<number>\`count(*)\`,
+        total: sql<number>`count(*)`,
       })
       .from(subscriptions)
       .leftJoin(plans, eq(subscriptions.planId, plans.id))
       .groupBy(plans.code, plans.nickname),
     db
       .select({
-        revenue: sql<number>\`COALESCE(SUM(\${billingInvoices.amountPaid}) FILTER (WHERE \${billingInvoices.status} = 'paid'), 0)\`,
-        paidInvoices: sql<number>\`COUNT(*) FILTER (WHERE \${billingInvoices.status} = 'paid')\`,
-        previousRevenue: sql<number>\`COALESCE(SUM(\${billingInvoices.amountPaid}) FILTER (
+        revenue: sql<number>`COALESCE(SUM(\${billingInvoices.amountPaid}) FILTER (WHERE \${billingInvoices.status} = 'paid'), 0)`,
+        paidInvoices: sql<number>`COUNT(*) FILTER (WHERE \${billingInvoices.status} = 'paid')`,
+        previousRevenue: sql<number>`COALESCE(SUM(\${billingInvoices.amountPaid}) FILTER (
           WHERE \${billingInvoices.status} = 'paid'
             AND \${billingInvoices.createdAt} >= \${previousMonthStart}
             AND \${billingInvoices.createdAt} < \${currentMonthStart}
-        ), 0)\`,
+        ), 0)`,
       })
       .from(billingInvoices),
     db
-      .select({ total: sql<number>\`count(*)\` })
+      .select({ total: sql<number>`count(*)` })
       .from(athleteAssessments),
     db
-      .select({ total: sql<number>\`count(*)\` })
+      .select({ total: sql<number>`count(*)` })
       .from(athletes),
     db
       .select({ academyId: athletes.academyId })
@@ -221,13 +221,13 @@ async function getGlobalStatsUncached(): Promise<SuperAdminMetrics> {
       .groupBy(groups.academyId),
     db
       .select({
-        created: sql<number>\`count(*)\`,
-        paid: sql<number>\`COALESCE(SUM(\${charges.amountCents}) FILTER (WHERE \${charges.status} = 'paid'), 0)\`,
+        created: sql<number>`count(*)`,
+        paid: sql<number>`COALESCE(SUM(\${charges.amountCents}) FILTER (WHERE \${charges.status} = 'paid'), 0)`,
       })
       .from(charges)
       .where(eq(charges.period, currentMonth)),
     db
-      .select({ total: sql<number>\`COUNT(DISTINCT \${eventLogs.academyId})\` })
+      .select({ total: sql<number>`COUNT(DISTINCT \${eventLogs.academyId})` })
       .from(eventLogs)
       .where(gte(eventLogs.createdAt, sevenDaysAgo)),
   ]);
