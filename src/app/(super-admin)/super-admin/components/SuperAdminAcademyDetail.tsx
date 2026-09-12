@@ -68,6 +68,7 @@ interface AcademyDetail {
     id: string;
     name: string | null;
     userId: string;
+    email: string | null;
   } | null;
 }
 
@@ -407,9 +408,10 @@ export function SuperAdminAcademyDetail({ initialAcademy, userId }: SuperAdminAc
                   {academy.owner?.name ?? "Sin propietario asignado"}
                 </p>
                 {academy.owner && (
-                  <p className="mt-1 text-xs text-white/50">
-                    ID: <span className="font-mono">{academy.owner.id}</span>
-                  </p>
+                  <div className="mt-1 space-y-1 text-xs text-white/50">
+                    {academy.owner.email && <p>{academy.owner.email}</p>}
+                    <p>ID: <span className="font-mono">{academy.owner.id}</span></p>
+                  </div>
                 )}
               </div>
             </div>
