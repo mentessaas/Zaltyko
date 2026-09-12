@@ -270,7 +270,7 @@ export function SuperAdminUserDetail({ initialUser, userId, backHref = "/super-a
       const result = await response.json();
       toast.pushToast({
         title: "Mensaje enviado",
-        description: result.message || "Mensaje enviado correctamente.",
+        description: result.data?.message || result.message || "Mensaje enviado correctamente.",
         variant: "success",
       });
       setMessageForm({ subject: "", message: "", type: "email" });
