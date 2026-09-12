@@ -749,7 +749,7 @@ export function SuperAdminDashboard({ initialMetrics, initialEvents = [], initia
 
           <div className="relative overflow-hidden rounded-xl border border-white/10 bg-white/5">
             <div className="overflow-x-auto">
-              <table className="min-w-full text-xs">
+              <table className="min-w-full text-xs" aria-label="Actividad reciente del sistema">
                 <thead>
                   <tr className="border-b border-white/10 bg-white/5 text-left text-[10px] uppercase tracking-wide text-white/50">
                     <th className="px-4 py-3 font-medium">Fecha</th>
