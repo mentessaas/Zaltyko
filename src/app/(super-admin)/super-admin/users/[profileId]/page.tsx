@@ -12,8 +12,10 @@ export const dynamic = "force-dynamic";
 
 export default async function SuperAdminUserDetailPage({
   params,
+  searchParams,
 }: {
   params: Promise<{ profileId: string }>;
+  searchParams: Promise<{ returnTo?: string }>;
 }) {
   const cookieStore = await cookies();
   const supabase = await createClient(cookieStore);
@@ -35,6 +37,11 @@ export default async function SuperAdminUserDetailPage({
   }
 
   const { profileId } = await params;
+  const { returnTo } = await searchParams;
+  const backHref =
+    returnTo === "/super-admin/users" || returnTo?.startsWith("/super-admin/users?")
+      ? returnTo
+      : "/super-admin/users";
   const requestHeaders = await headers();
   const forwardedHost = requestHeaders.get("x-forwarded-host") ?? requestHeaders.get("host");
   const forwardedProto = requestHeaders.get("x-forwarded-proto")?.split(",")[0]?.trim() || "https";
@@ -65,7 +72,7 @@ export default async function SuperAdminUserDetailPage({
     <div className="space-y-6">
       <div className="flex items-center gap-4">
         <Link
-          href="/super-admin/users"
+          href={backHref}
           className="inline-flex items-center gap-2 rounded-xl border border-white/10 bg-white/5 px-3 py-2 text-sm text-slate-300 transition hover:border-white/20 hover:bg-white/10 hover:text-white"
         >
           <ArrowLeft className="h-4 w-4" strokeWidth={1.8} />
