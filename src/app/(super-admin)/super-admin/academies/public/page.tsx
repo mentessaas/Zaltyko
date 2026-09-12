@@ -69,23 +69,6 @@ export default async function SuperAdminPublicAcademiesPage({ searchParams }: Pa
         : undefined,
     searchCondition,
   ].filter(Boolean) as Array<ReturnType<typeof eq>>;
-");
-  const searchCondition = escapedSearch
-    ? or(
-        ilike(academies.name, `%${escapedSearch}%`),
-        ilike(academies.country, `%${escapedSearch}%`),
-        ilike(academies.region, `%${escapedSearch}%`),
-        ilike(academies.city, `%${escapedSearch}%`)
-      )
-    : undefined;
-  const conditions = [
-    visibility === "public"
-      ? eq(academies.isPublic, true)
-      : visibility === "private"
-        ? eq(academies.isPublic, false)
-        : undefined,
-    searchCondition,
-  ].filter(Boolean) as Array<ReturnType<typeof eq>>;
 
   const where = conditions.length > 0 ? and(...conditions) : undefined;
   const [totalRow, visibilityRows] = await Promise.all([
