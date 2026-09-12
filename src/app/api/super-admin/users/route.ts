@@ -14,9 +14,9 @@ import { logAdminAction } from "@/lib/admin-logs";
 export const dynamic = "force-dynamic";
 
 const CreateUserSchema = z.object({
-  email: z.string().email(),
-  password: z.string().min(8, "La contraseña debe tener al menos 8 caracteres"),
-  name: z.string().trim().optional(),
+  email: z.string().trim().email().max(320),
+  password: z.string().min(8, "La contraseña debe tener al menos 8 caracteres").max(128),
+  name: z.string().trim().max(160).optional(),
   role: z.enum(["owner", "admin", "coach", "athlete", "parent", "super_admin"]),
 });
 
@@ -87,7 +87,8 @@ const handler = withSuperAdmin(async (request) => {
   const url = new URL(request.url);
   const roleParam = url.searchParams.get("role");
   const roleFilter = USER_ROLES.includes(roleParam as (typeof USER_ROLES)[number]) ? roleParam ?? undefined : undefined;
-  const searchQuery = url.searchParams.get("q") || undefined;
+  const rawSearch = url.searchParams.get("q")?.trim() ?? "";
+  const searchQuery = rawSearch.length > 0 && rawSearch.length <= 160 ? rawSearch : undefined;
   const statusParam = url.searchParams.get("status");
   const statusFilter =
     statusParam === "active" || statusParam === "suspended" ? statusParam : undefined;
