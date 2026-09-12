@@ -196,8 +196,8 @@ export function SuperAdminUsersTable({
     }
   }, [userId, syncing, fetchUsers, filters, page, toast]);
 
-  const executeMutation = useCallback(async (profileId: string, body: Record<string, unknown>, optimisticUpdate = true) => {
-    if (!userId) return;
+  const executeMutation = useCallback(async (profileId: string, body: Record<string, unknown>, optimisticUpdate = true): Promise<boolean> => {
+    if (!userId) return false;
     
     // Optimistic update: actualizar UI inmediatamente
     if (optimisticUpdate) {
@@ -236,7 +236,7 @@ export function SuperAdminUsersTable({
           description: error.message || "No se pudo completar la operación",
           variant: "error",
         });
-        return;
+        return false;
       }
       
       toast.pushToast({
@@ -249,6 +249,7 @@ export function SuperAdminUsersTable({
       
       // Refrescar datos para asegurar sincronización
       await fetchUsers(filters, page);
+      return true;
     } catch (error: any) {
       // Revertir optimistic update en caso de error
       if (optimisticUpdate) {
@@ -260,6 +261,7 @@ export function SuperAdminUsersTable({
         description: error.message || "Ocurrió un error inesperado",
         variant: "error",
       });
+      return false;
     } finally {
       setMutatingUserId(null);
     }
@@ -278,32 +280,45 @@ export function SuperAdminUsersTable({
     await executeMutation(profileId, body);
   }, [userId, executeMutation]);
 
-  const deleteUser = useCallback(async (profileId: string, reason: string) => {
-    const res = await fetch(`/api/super-admin/users/${profileId}`, {
-      method: "DELETE",
-      headers: { "Content-Type": "application/json" },
-      credentials: "include",
-      body: JSON.stringify({ reason }),
-    });
-    const payload = await res.json().catch(() => ({}));
-    if (!res.ok) {
-      toast.pushToast({ title: "No se pudo eliminar", description: payload?.message ?? "Error", variant: "error" });
-      return;
+  const deleteUser = useCallback(async (profileId: string, reason: string): Promise<boolean> => {
+    try {
+      const res = await fetch(`/api/super-admin/users/${profileId}`, {
+        method: "DELETE",
+        headers: { "Content-Type": "application/json" },
+        credentials: "include",
+        body: JSON.stringify({ reason }),
+      });
+      const payload = await res.json().catch(() => ({}));
+      if (!res.ok) {
+        toast.pushToast({ title: "No se pudo eliminar", description: payload?.message ?? "Error", variant: "error" });
+        return false;
+      }
+      toast.pushToast({ title: "Usuario eliminado", variant: "success" });
+      router.refresh();
+      return true;
+    } catch (error) {
+      logger.error("Delete user failed", error);
+      toast.pushToast({
+        title: "No se pudo eliminar",
+        description: "No se pudo conectar con el servidor. Inténtalo de nuevo.",
+        variant: "error",
+      });
+      return false;
     }
-    toast.pushToast({ title: "Usuario eliminado", variant: "success" });
-    router.refresh();
   }, [router, toast]);
 
   const handleConfirmAction = useCallback(async (reason?: string) => {
-    if (pendingAction) {
-      if (pendingAction.body.delete === true) {
-        await deleteUser(pendingAction.profileId, reason ?? "");
-      } else {
-        await executeMutation(pendingAction.profileId, { ...pendingAction.body, reason });
-      }
+    if (!pendingAction) return false;
+
+    const succeeded = pendingAction.body.delete === true
+      ? await deleteUser(pendingAction.profileId, reason ?? "")
+      : await executeMutation(pendingAction.profileId, { ...pendingAction.body, reason });
+
+    if (succeeded) {
       setPendingAction(null);
       setConfirmDialogOpen(false);
     }
+    return succeeded;
   }, [pendingAction, executeMutation, deleteUser]);
 
   return (
