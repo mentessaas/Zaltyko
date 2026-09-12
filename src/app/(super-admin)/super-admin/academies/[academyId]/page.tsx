@@ -5,6 +5,7 @@ import Link from "next/link";
 
 import { createClient } from "@/lib/supabase/server";
 import { getCurrentProfile } from "@/lib/authz";
+import { getDevSessionFromCookieStore } from "@/lib/dev-session";
 import { getSuperAdminAcademyDetail } from "@/lib/super-admin";
 import { SuperAdminAcademyDetail } from "../../components/SuperAdminAcademyDetail";
 
@@ -17,18 +18,20 @@ export default async function SuperAdminAcademyDetailPage({
 }) {
   const cookieStore = await cookies();
   const supabase = await createClient(cookieStore);
+  const devSession = await getDevSessionFromCookieStore(cookieStore);
 
   const {
     data: { user },
   } = await supabase.auth.getUser();
 
-  if (!user) {
+  if (!user && !devSession) {
     redirect("/auth/login");
   }
 
-  const profile = await getCurrentProfile(user.id);
+  const profile = user ? await getCurrentProfile(user.id) : null;
+  const effectiveProfile = profile ?? (devSession ? { role: "super_admin" } : null);
 
-  if (!profile || profile.role !== "super_admin") {
+  if (!effectiveProfile || effectiveProfile.role !== "super_admin") {
     redirect("/app");
   }
 
@@ -51,7 +54,7 @@ export default async function SuperAdminAcademyDetailPage({
           Volver a academias
         </Link>
       </div>
-      <SuperAdminAcademyDetail initialAcademy={academy} userId={user.id} />
+      <SuperAdminAcademyDetail initialAcademy={academy} userId={user?.id ?? devSession?.userId ?? ""} />
     </div>
   );
 }
