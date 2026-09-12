@@ -295,7 +295,6 @@ async function getGlobalStatsUncached(): Promise<SuperAdminMetrics> {
   const invoiceSummary = invoiceSummaryRows[0];
   const assessmentSummary = assessmentSummaryRows[0];
   const athleteSummary = athleteSummaryRows[0];
-  const chargesSummary = chargesSummaryRows[0];
   const recentActivitySummary = recentActivityRows[0];
 
   const chargesPaidByCurrency = chargesSummaryRows
