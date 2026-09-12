@@ -8,7 +8,7 @@ import { profiles } from "@/db/schema";
 import { withSuperAdmin } from "@/lib/authz";
 import { withRateLimit, getUserIdentifier } from "@/lib/rate-limit";
 import { getAllUsers } from "@/lib/superAdminService";
-import { createAuthUser } from "@/lib/supabase/admin-operations";
+import { createAuthUser, deleteAuthUser } from "@/lib/supabase/admin-operations";
 import { logAdminAction } from "@/lib/admin-logs";
 
 export const dynamic = "force-dynamic";
@@ -37,19 +37,31 @@ export const POST = withSuperAdmin(async (request, context) => {
   }
 
   // El trigger handle_new_user crea el perfil (rol owner). Lo ajustamos al rol/nombre pedido.
-  const updated = await db
-    .update(profiles)
-    .set({ role, name: name ?? null })
-    .where(eq(profiles.userId, userId))
-    .returning({ id: profiles.id });
-
-  let profileId = updated[0]?.id ?? null;
-  if (!updated.length) {
-    const [createdProfile] = await db
-      .insert(profiles)
-      .values({ userId, role, name: name ?? null, tenantId: crypto.randomUUID() })
+  let profileId: string | null = null;
+  try {
+    const updated = await db
+      .update(profiles)
+      .set({ role, name: name ?? null })
+      .where(eq(profiles.userId, userId))
       .returning({ id: profiles.id });
-    profileId = createdProfile?.id ?? null;
+
+    profileId = updated[0]?.id ?? null;
+    if (!updated.length) {
+      const [createdProfile] = await db
+        .insert(profiles)
+        .values({ userId, role, name: name ?? null, tenantId: crypto.randomUUID() })
+        .returning({ id: profiles.id });
+      profileId = createdProfile?.id ?? null;
+    }
+
+    if (!profileId) throw new Error("No se pudo crear el perfil");
+  } catch (error) {
+    try {
+      await deleteAuthUser(userId);
+    } catch {
+      // Preserve the original failure; cleanup can be retried from audit logs.
+    }
+    return apiError("PROFILE_CREATE_FAILED", error instanceof Error ? error.message : "No se pudo crear el perfil", 500);
   }
 
   await logAdminAction({
