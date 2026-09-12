@@ -453,7 +453,7 @@ export async function getAcademiesPage(args: {
 } = {}): Promise<SuperAdminAcademiesPage> {
   const { db } = await import("@/db");
   const { academies, profiles, subscriptions, plans } = await import("@/db/schema");
-  const { and, count, countDistinct, desc, eq, inArray, or } = await import("drizzle-orm");
+  const { and, count, countDistinct, desc, eq, inArray, max, or } = await import("drizzle-orm");
 
   const page = Math.max(1, Math.floor(Number.isFinite(args.page) ? args.page! : 1));
   const pageSize = Math.min(200, Math.max(1, Math.floor(Number.isFinite(args.pageSize) ? args.pageSize! : 50)));
@@ -499,8 +499,8 @@ export async function getAcademiesPage(args: {
       createdAt: academies.createdAt,
       status: academies.status,
       isSuspended: academies.isSuspended,
-      planCode: plans.code,
-      planNickname: plans.nickname,
+      planCode: max(plans.code),
+      planNickname: max(plans.nickname),
     })
     .from(academies)
     .leftJoin(profiles, eq(academies.ownerId, profiles.id))
@@ -513,6 +513,16 @@ export async function getAcademiesPage(args: {
     )
     .leftJoin(plans, eq(subscriptions.planId, plans.id))
     .where(where)
+    .groupBy(
+      academies.id,
+      academies.name,
+      academies.academyType,
+      academies.country,
+      academies.region,
+      academies.createdAt,
+      academies.status,
+      academies.isSuspended
+    )
     .orderBy(desc(academies.createdAt), desc(academies.id))
     .limit(pageSize)
     .offset((effectivePage - 1) * pageSize);
