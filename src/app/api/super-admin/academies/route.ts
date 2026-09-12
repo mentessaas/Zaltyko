@@ -20,16 +20,16 @@ const CREATE_ACADEMY_TYPES = ["artistica", "ritmica", "general"] as const;
 const AcademyTypeSchema = z.enum(CREATE_ACADEMY_TYPES);
 
 const CreateAcademySchema = z.object({
-  academyName: z.string().min(3, "El nombre debe tener al menos 3 caracteres"),
+  academyName: z.string().trim().min(3, "El nombre debe tener al menos 3 caracteres").max(160),
   academyType: AcademyTypeSchema.optional(),
-  country: z.string().optional(),
-  countryCode: z.string().optional(),
-  region: z.string().optional(),
-  city: z.string().optional(),
-  disciplineVariant: z.string().optional(),
-  ownerEmail: z.string().email(),
-  ownerPassword: z.string().min(8, "La contraseña debe tener al menos 8 caracteres"),
-  ownerName: z.string().trim().optional(),
+  country: z.string().trim().max(120).optional(),
+  countryCode: z.string().trim().max(8).optional(),
+  region: z.string().trim().max(120).optional(),
+  city: z.string().trim().max(120).optional(),
+  disciplineVariant: z.string().trim().max(120).optional(),
+  ownerEmail: z.string().trim().email().max(320),
+  ownerPassword: z.string().min(8, "La contraseña debe tener al menos 8 caracteres").max(128),
+  ownerName: z.string().trim().max(160).optional(),
 });
 
 // POST /api/super-admin/academies — crea una academia junto a su cuenta de dueño.
@@ -126,10 +126,14 @@ export const POST = withSuperAdmin(async (request, context) => {
 
 export const GET = withSuperAdmin(async (request) => {
   const url = new URL(request.url);
-  const planFilter = url.searchParams.get("plan") ?? undefined;
+  const readTextFilter = (name: string, maxLength = 120) => {
+    const value = url.searchParams.get(name)?.trim();
+    return value && value.length <= maxLength ? value : undefined;
+  };
+  const planFilter = readTextFilter("plan", 80);
   const typeParam = url.searchParams.get("type");
   const typeFilter = ACADEMY_TYPES.includes(typeParam as (typeof ACADEMY_TYPES)[number]) ? typeParam ?? undefined : undefined;
-  const countryFilter = url.searchParams.get("country") ?? undefined;
+  const countryFilter = readTextFilter("country");
   const statusParam = url.searchParams.get("status");
   const statusFilter = academyStatusValues.includes(statusParam as AcademyStatus)
     ? (statusParam as AcademyStatus)
