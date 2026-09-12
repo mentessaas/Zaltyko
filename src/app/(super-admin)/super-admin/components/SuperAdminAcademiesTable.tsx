@@ -413,9 +413,16 @@ export function SuperAdminAcademiesTable({
             {items.map((academy) => (
               <tr
                 key={academy.id}
-                className="cursor-pointer transition hover:bg-white/5"
+                tabIndex={0}
+                aria-label={`Abrir academia ${academy.name ?? "Sin nombre"}`}
+                className="cursor-pointer transition hover:bg-white/5 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-zaltyko-teal"
                 onClick={(e) => {
                   if ((e.target as HTMLElement).closest("button")) return;
+                  router.push(`/super-admin/academies/${academy.id}`);
+                }}
+                onKeyDown={(e) => {
+                  if ((e.key !== "Enter" && e.key !== " ") || (e.target as HTMLElement).closest("button")) return;
+                  e.preventDefault();
                   router.push(`/super-admin/academies/${academy.id}`);
                 }}
               >
