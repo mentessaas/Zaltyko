@@ -407,6 +407,20 @@ export const DELETE = withSuperAdmin(async (request, context) => {
     }
   }
 
+  // academy.ownerId cascades when the profile is deleted, but activeAcademyId
+  // is intentionally not a FK. Clear those pointers before Auth deletion so
+  // the cascade cannot leave other profiles targeting removed academies.
+  const ownedAcademies = await db
+    .select({ id: academies.id })
+    .from(academies)
+    .where(eq(academies.ownerId, profileId));
+  if (ownedAcademies.length > 0) {
+    await db
+      .update(profiles)
+      .set({ activeAcademyId: null })
+      .where(inArray(profiles.activeAcademyId, ownedAcademies.map(({ id }) => id)));
+  }
+
   // Delete Auth first so an Auth failure never leaves a deleted profile with a live login.
   let authDeleted = false;
   if (target.userId) {
