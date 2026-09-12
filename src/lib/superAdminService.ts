@@ -525,7 +525,7 @@ export async function getUsersPage(args: {
 
   const page = Math.max(1, args.page ?? 1);
   const pageSize = Math.min(200, Math.max(1, args.pageSize ?? 50));
-  const escapedSearch = args.search?.trim().replace(/[\\%_]/g, "\\export async function getAllUsers(): Promise<SuperAdminUserRow[]> {");
+  const escapedSearch = args.search?.trim().replace(/[\\%_]/g, "\\$&");
   const conditions = [
     args.role
       ? eq(profiles.role, args.role as typeof profiles.role.enumValues[number])
