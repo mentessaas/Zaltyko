@@ -317,6 +317,82 @@ export async function getGlobalStats(): Promise<SuperAdminMetrics> {
   };
 }
 
+export interface SuperAdminAcademiesPage {
+  items: SuperAdminAcademyRow[];
+  total: number;
+}
+
+export async function getAcademiesPage(args: {
+  page?: number;
+  pageSize?: number;
+  plan?: string;
+  type?: string;
+  country?: string;
+  status?: "active" | "suspended";
+} = {}): Promise<SuperAdminAcademiesPage> {
+  const { db } = await import("@/db");
+  const { academies, profiles, subscriptions, plans } = await import("@/db/schema");
+  const { and, count, desc, eq } = await import("drizzle-orm");
+
+  const page = Math.max(1, args.page ?? 1);
+  const pageSize = Math.min(200, Math.max(1, args.pageSize ?? 50));
+  const conditions = [
+    args.plan ? eq(plans.code, args.plan) : undefined,
+    args.type ? eq(academies.academyType, args.type as typeof academies.academyType.enumValues[number]) : undefined,
+    args.country ? eq(academies.country, args.country) : undefined,
+    args.status ? eq(academies.isSuspended, args.status === "suspended") : undefined,
+  ].filter(Boolean) as Array<ReturnType<typeof eq>>;
+  const where = conditions.length > 0 ? and(...conditions) : undefined;
+
+  const from = () =>
+    db
+      .select()
+      .from(academies)
+      .leftJoin(profiles, eq(academies.ownerId, profiles.id))
+      .leftJoin(
+        subscriptions,
+        and(eq(subscriptions.userId, profiles.userId), eq(subscriptions.status, "active"))
+      )
+      .leftJoin(plans, eq(subscriptions.planId, plans.id));
+
+  const [rows, totalRows] = await Promise.all([
+    from()
+      .select({
+        id: academies.id,
+        name: academies.name,
+        academyType: academies.academyType,
+        country: academies.country,
+        region: academies.region,
+        createdAt: academies.createdAt,
+        isSuspended: academies.isSuspended,
+        planCode: plans.code,
+        planNickname: plans.nickname,
+      })
+      .where(where)
+      .orderBy(desc(academies.createdAt))
+      .limit(pageSize)
+      .offset((page - 1) * pageSize),
+    from()
+      .select({ total: count(academies.id) })
+      .where(where),
+  ]);
+
+  return {
+    items: rows.map((academy) => ({
+      id: academy.id,
+      name: academy.name ?? null,
+      academyType: academy.academyType ?? null,
+      country: academy.country ?? null,
+      region: academy.region ?? null,
+      planCode: academy.planCode ?? null,
+      planNickname: academy.planNickname ?? null,
+      createdAt: toIso(academy.createdAt),
+      isSuspended: Boolean(academy.isSuspended),
+    })),
+    total: Number(totalRows[0]?.total ?? 0),
+  };
+}
+
 export async function getAllAcademies(): Promise<SuperAdminAcademyRow[]> {
   // Use Drizzle directly to bypass RLS and get all academies
   const { db } = await import("@/db");
