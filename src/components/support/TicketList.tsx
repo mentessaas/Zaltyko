@@ -65,6 +65,13 @@ const categoryConfig: Record<TicketCategory, { label: string }> = {
   other: { label: "Otro" },
 };
 
+function formatTicketDate(value: string | Date) {
+  const date = value instanceof Date ? value : new Date(value);
+  return Number.isNaN(date.getTime())
+    ? "Fecha no disponible"
+    : format(date, "d MMM yyyy", { locale: es });
+}
+
 export function TicketList({ tickets, academyId, isAdmin = false, emptyMessage = "No hay tickets" }: TicketListProps) {
   if (tickets.length === 0) {
     return (
@@ -84,9 +91,9 @@ export function TicketList({ tickets, academyId, isAdmin = false, emptyMessage =
   return (
     <div className="space-y-3">
       {tickets.map((ticket) => {
-        const status = statusConfig[ticket.status];
-        const priority = priorityConfig[ticket.priority];
-        const category = categoryConfig[ticket.category];
+        const status = statusConfig[ticket.status] ?? { label: "Desconocido", variant: "outline" as const };
+        const priority = priorityConfig[ticket.priority] ?? { label: "Sin prioridad", variant: "outline" as const };
+        const category = categoryConfig[ticket.category] ?? { label: "Sin categoría" };
 
         return (
           <Card key={ticket.id} className="hover:shadow-md transition-shadow">
@@ -112,7 +119,7 @@ export function TicketList({ tickets, academyId, isAdmin = false, emptyMessage =
                 <Badge variant={status.variant}>{status.label}</Badge>
                 <span>{category.label}</span>
                 <span>
-                  Creado: {format(new Date(ticket.createdAt), "d MMM yyyy", { locale: es })}
+                  Creado: {formatTicketDate(ticket.createdAt)}
                 </span>
                 {ticket._count && (
                   <span>{ticket._count.responses} respuesta(s)</span>
