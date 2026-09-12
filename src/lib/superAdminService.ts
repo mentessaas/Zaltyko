@@ -146,18 +146,18 @@ async function getGlobalStatsUncached(): Promise<SuperAdminMetrics> {
     db
       .select({
         total: sql<number>`count(*)`,
-        latestAcademyAt: sql<Date | string | null>`max(\${academies.createdAt})`,
-        previousAcademies: sql<number>`count(*) filter (where \${academies.createdAt} < \${currentMonthStart})`,
+        latestAcademyAt: sql<Date | string | null>`max(${academies.createdAt})`,
+        previousAcademies: sql<number>`count(*) filter (where ${academies.createdAt} < ${currentMonthStart})`,
       })
       .from(academies),
     db
       .select({
-        label: sql<string>`to_char(\${academies.createdAt}, 'YYYY-MM')`,
+        label: sql<string>`to_char(${academies.createdAt}, 'YYYY-MM')`,
         total: sql<number>`count(*)`,
       })
       .from(academies)
       .where(isNotNull(academies.createdAt))
-      .groupBy(sql`to_char(\${academies.createdAt}, 'YYYY-MM')`),
+      .groupBy(sql`to_char(${academies.createdAt}, 'YYYY-MM')`),
     db
       .select({
         role: profiles.role,
@@ -168,7 +168,7 @@ async function getGlobalStatsUncached(): Promise<SuperAdminMetrics> {
     db
       .select({
         total: sql<number>`count(*)`,
-        previousUsers: sql<number>`count(*) filter (where \${profiles.createdAt} < \${currentMonthStart})`,
+        previousUsers: sql<number>`count(*) filter (where ${profiles.createdAt} < ${currentMonthStart})`,
       })
       .from(profiles),
     db
@@ -196,12 +196,12 @@ async function getGlobalStatsUncached(): Promise<SuperAdminMetrics> {
       .groupBy(plans.code, plans.nickname),
     db
       .select({
-        revenue: sql<number>`COALESCE(SUM(\${billingInvoices.amountPaid}) FILTER (WHERE \${billingInvoices.status} = 'paid'), 0)`,
-        paidInvoices: sql<number>`COUNT(*) FILTER (WHERE \${billingInvoices.status} = 'paid')`,
-        previousRevenue: sql<number>`COALESCE(SUM(\${billingInvoices.amountPaid}) FILTER (
-          WHERE \${billingInvoices.status} = 'paid'
-            AND \${billingInvoices.createdAt} >= \${previousMonthStart}
-            AND \${billingInvoices.createdAt} < \${currentMonthStart}
+        revenue: sql<number>`COALESCE(SUM(${billingInvoices.amountPaid}) FILTER (WHERE ${billingInvoices.status} = 'paid'), 0)`,
+        paidInvoices: sql<number>`COUNT(*) FILTER (WHERE ${billingInvoices.status} = 'paid')`,
+        previousRevenue: sql<number>`COALESCE(SUM(${billingInvoices.amountPaid}) FILTER (
+          WHERE ${billingInvoices.status} = 'paid'
+            AND ${billingInvoices.createdAt} >= ${previousMonthStart}
+            AND ${billingInvoices.createdAt} < ${currentMonthStart}
         ), 0)`,
       })
       .from(billingInvoices),
@@ -222,12 +222,12 @@ async function getGlobalStatsUncached(): Promise<SuperAdminMetrics> {
     db
       .select({
         created: sql<number>`count(*)`,
-        paid: sql<number>`COALESCE(SUM(\${charges.amountCents}) FILTER (WHERE \${charges.status} = 'paid'), 0)`,
+        paid: sql<number>`COALESCE(SUM(${charges.amountCents}) FILTER (WHERE ${charges.status} = 'paid'), 0)`,
       })
       .from(charges)
       .where(eq(charges.period, currentMonth)),
     db
-      .select({ total: sql<number>`COUNT(DISTINCT \${eventLogs.academyId})` })
+      .select({ total: sql<number>`COUNT(DISTINCT ${eventLogs.academyId})` })
       .from(eventLogs)
       .where(gte(eventLogs.createdAt, sevenDaysAgo)),
   ]);
