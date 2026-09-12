@@ -643,7 +643,7 @@ export async function getUsersPage(args: {
 } = {}): Promise<SuperAdminUsersPage> {
   const { db } = await import("@/db");
   const { authUsers, memberships, plans, profiles, subscriptions } = await import("@/db/schema");
-  const { and, count, desc, eq, ilike, inArray, or } = await import("drizzle-orm");
+  const { and, count, desc, eq, ilike, inArray, max, or } = await import("drizzle-orm");
 
   const page = Math.max(1, Math.floor(Number.isFinite(args.page) ? args.page! : 1));
   const pageSize = Math.min(200, Math.max(1, Math.floor(Number.isFinite(args.pageSize) ? args.pageSize! : 50)));
@@ -681,8 +681,8 @@ export async function getUsersPage(args: {
       academyId: profiles.activeAcademyId,
       createdAt: profiles.createdAt,
       isSuspended: profiles.isSuspended,
-      planCode: plans.code,
-      planNickname: plans.nickname,
+      planCode: max(plans.code),
+      planNickname: max(plans.nickname),
       userId: profiles.userId,
     })
     .from(profiles)
@@ -696,6 +696,16 @@ export async function getUsersPage(args: {
     )
     .leftJoin(plans, eq(subscriptions.planId, plans.id))
     .where(where)
+    .groupBy(
+      profiles.id,
+      profiles.name,
+      authUsers.email,
+      profiles.role,
+      profiles.activeAcademyId,
+      profiles.createdAt,
+      profiles.isSuspended,
+      profiles.userId
+    )
     .orderBy(desc(profiles.createdAt), desc(profiles.id))
     .limit(pageSize)
     .offset((effectivePage - 1) * pageSize);
