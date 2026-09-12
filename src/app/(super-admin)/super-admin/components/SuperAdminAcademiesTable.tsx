@@ -3,7 +3,7 @@
 import { useEffect, useMemo, useState } from "react";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
-import { PauseCircle, PlayCircle, Trash2, Loader2 } from "lucide-react";
+import { ChevronLeft, ChevronRight, PauseCircle, PlayCircle, Trash2, Loader2 } from "lucide-react";
 
 import type { SuperAdminAcademyRow } from "@/lib/superAdminService";
 import { createClient } from "@/lib/supabase/client";
@@ -37,6 +37,8 @@ export function SuperAdminAcademiesTable({
   const [userId, setUserId] = useState<string | null>(null);
   const [items, setItems] = useState<SuperAdminAcademyRow[]>(initialItems);
   const [total, setTotal] = useState(initialTotal || initialItems.length);
+  const [page, setPage] = useState(1);
+  const PAGE_SIZE = 50;
   const [loading, setLoading] = useState(false);
   const [mutatingAcademyId, setMutatingAcademyId] = useState<string | null>(null);
   const [filters, setFilters] = useState<SuperAdminAcademyFilters>({});
@@ -72,10 +74,11 @@ export function SuperAdminAcademiesTable({
   const handleFilterChange = async (partial: Partial<SuperAdminAcademyFilters>) => {
     const nextFilters = { ...filters, ...partial };
     setFilters(nextFilters);
-    await fetchAcademies(nextFilters);
+    setPage(1);
+    await fetchAcademies(nextFilters, 1);
   };
 
-  const fetchAcademies = async (activeFilters: SuperAdminAcademyFilters) => {
+  const fetchAcademies = async (activeFilters: SuperAdminAcademyFilters, requestedPage = page) => {
     if (!userId) return;
     setLoading(true);
     try {
@@ -84,6 +87,8 @@ export function SuperAdminAcademiesTable({
       if (activeFilters.type) params.set("type", activeFilters.type);
       if (activeFilters.country) params.set("country", activeFilters.country);
       if (activeFilters.status) params.set("status", activeFilters.status);
+      params.set("page", String(requestedPage));
+      params.set("limit", String(PAGE_SIZE));
 
       const response = await fetch(`/api/super-admin/academies?${params.toString()}`, {
         headers: {
@@ -99,6 +104,7 @@ export function SuperAdminAcademiesTable({
       const { data: payload } = await response.json();
       setItems(payload.items ?? []);
       setTotal(payload.total ?? payload.items?.length ?? 0);
+      setPage(payload.page ?? requestedPage);
     } finally {
       setLoading(false);
     }
@@ -405,6 +411,46 @@ export function SuperAdminAcademiesTable({
           </table>
         </div>
       </div>
+
+      {total > 0 && (
+        <div className="flex items-center justify-between gap-3 text-sm text-white/60">
+          <span>
+            Página {page} de {Math.max(1, Math.ceil(total / PAGE_SIZE))} · {total.toLocaleString("es-ES")} academias
+          </span>
+          <div className="flex items-center gap-2">
+            <Button
+              type="button"
+              variant="outline"
+              size="sm"
+              aria-label="Página anterior"
+              title="Página anterior"
+              className="border-white/20 bg-white/5 text-white hover:border-white/40 hover:bg-white/10"
+              onClick={() => {
+                const nextPage = Math.max(1, page - 1);
+                void fetchAcademies(filters, nextPage);
+              }}
+              disabled={loading || page <= 1}
+            >
+              <ChevronLeft className="h-4 w-4" aria-hidden="true" />
+            </Button>
+            <Button
+              type="button"
+              variant="outline"
+              size="sm"
+              aria-label="Página siguiente"
+              title="Página siguiente"
+              className="border-white/20 bg-white/5 text-white hover:border-white/40 hover:bg-white/10"
+              onClick={() => {
+                const nextPage = Math.min(Math.ceil(total / PAGE_SIZE), page + 1);
+                void fetchAcademies(filters, nextPage);
+              }}
+              disabled={loading || page >= Math.ceil(total / PAGE_SIZE)}
+            >
+              <ChevronRight className="h-4 w-4" aria-hidden="true" />
+            </Button>
+          </div>
+        </div>
+      )}
 
       <p className="font-sans text-xs text-white/50">
         ¿Necesitas editar detalles avanzados de una academia? Abre su panel operativo desde{" "}
