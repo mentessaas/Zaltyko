@@ -128,18 +128,4 @@ export function ConfirmDialog({
       </DialogPrimitive.Portal>
     </DialogPrimitive.Root>
   );
-}</Button>
-            <Button
-              type="button"
-              variant={variant === "destructive" ? "destructive" : "default"}
-              onClick={handleConfirm}
-              disabled={isLoading || loading}
-            >
-              {isLoading || loading ? "Procesando..." : confirmText}
-            </Button>
-          </div>
-        </DialogPrimitive.Content>
-      </DialogPrimitive.Portal>
-    </DialogPrimitive.Root>
-  );
 }
