@@ -28,11 +28,22 @@ const SUBSCRIPTION_STATUS_VALUES = ["active", "trialing", "past_due", "canceled"
 
 function formatMoney(value: number | string | null | undefined, currency = "eur") {
   const amount = Number(value ?? 0) / 100;
-  return new Intl.NumberFormat("es-ES", {
-    style: "currency",
-    currency: currency.toUpperCase(),
-    maximumFractionDigits: 0,
-  }).format(amount);
+  const normalizedCurrency = currency.trim().toUpperCase();
+  const safeCurrency = /^[A-Z]{3}$/.test(normalizedCurrency) ? normalizedCurrency : "EUR";
+
+  try {
+    return new Intl.NumberFormat("es-ES", {
+      style: "currency",
+      currency: safeCurrency,
+      maximumFractionDigits: 0,
+    }).format(amount);
+  } catch {
+    return new Intl.NumberFormat("es-ES", {
+      style: "currency",
+      currency: "EUR",
+      maximumFractionDigits: 0,
+    }).format(amount);
+  }
 }
 
 function statusLabel(status: string) {
