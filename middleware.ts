@@ -252,7 +252,7 @@ async function verifySuperAdminWithSupabase(accessToken: string): Promise<boolea
 }
 
 function isSuperAdminPath(pathname: string) {
-  return pathname.startsWith(SUPER_ADMIN_PATH);
+  return pathname === SUPER_ADMIN_PATH || pathname.startsWith(`${SUPER_ADMIN_PATH}/`);
 }
 
 function isApiPath(pathname: string) {
