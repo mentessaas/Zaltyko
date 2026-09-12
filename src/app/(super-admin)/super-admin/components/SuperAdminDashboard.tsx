@@ -390,9 +390,11 @@ export function SuperAdminDashboard({ initialMetrics, initialEvents = [], initia
 
           <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
             {safeMetrics.subscriptionAlerts.map((alert) => (
-              <div
+              <Link
                 key={alert.status}
-                className={`flex items-center justify-between rounded-xl border p-4 ${
+                href={`/super-admin/billing?status=${encodeURIComponent(alert.status)}`}
+                aria-label={`Abrir Billing filtrado por ${alert.status === "past_due" ? "pagos vencidos" : alert.status === "canceled" ? "suscripciones canceladas" : "suscripciones en prueba"}`}
+                className={`flex items-center justify-between rounded-xl border p-4 transition hover:border-white/40 hover:bg-white/10 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-zaltyko-teal ${
                   alert.status === "past_due"
                     ? "border-zaltyko-coral/30 bg-zaltyko-coral/10"
                     : alert.status === "canceled"
@@ -416,7 +418,7 @@ export function SuperAdminDashboard({ initialMetrics, initialEvents = [], initia
                   </div>
                 </div>
                 <ChevronRight className="h-4 w-4 text-white/40" />
-              </div>
+              </Link>
             ))}
           </div>
         </section>
