@@ -142,15 +142,16 @@ export const GET = withSuperAdmin(async (request) => {
     country: countryFilter,
     status: statusFilter,
   });
-  const totalPages = Math.ceil(result.total / pageSize);
+  const totalPages = Math.max(1, Math.ceil(result.total / pageSize));
+  const effectivePage = result.page;
 
   return apiSuccess({
     total: result.total,
-    page,
+    page: effectivePage,
     pageSize,
     totalPages,
-    hasNextPage: page < totalPages,
-    hasPreviousPage: page > 1,
+    hasNextPage: effectivePage < totalPages,
+    hasPreviousPage: effectivePage > 1,
     items: result.items,
   });
 });
