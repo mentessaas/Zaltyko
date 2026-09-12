@@ -31,6 +31,6 @@ export default async function SuperAdminUsersPage() {
 
   const users = await getAllUsers();
 
-  return <SuperAdminUsersTable initialItems={users} />;
+  return <SuperAdminUsersTable initialItems={users.slice(0, 50)} initialTotal={users.length} />;
 }
 
