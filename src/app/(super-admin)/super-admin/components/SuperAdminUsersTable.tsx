@@ -401,9 +401,16 @@ export function SuperAdminUsersTable({ initialItems, initialTotal, initialUserId
             {items.map((user) => (
               <tr
                 key={user.id}
-                className="cursor-pointer transition hover:bg-white/5"
+                tabIndex={0}
+                aria-label={`Abrir usuario ${user.fullName ?? user.email ?? "usuario"}`}
+                className="cursor-pointer transition hover:bg-white/5 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-zaltyko-teal"
                 onClick={(e) => {
                   if ((e.target as HTMLElement).closest("button, select")) return;
+                  router.push(`/super-admin/users/${user.id}`);
+                }}
+                onKeyDown={(e) => {
+                  if ((e.key !== "Enter" && e.key !== " ") || (e.target as HTMLElement).closest("button, select")) return;
+                  e.preventDefault();
                   router.push(`/super-admin/users/${user.id}`);
                 }}
               >
