@@ -260,6 +260,13 @@ export function SuperAdminAcademiesTable({
     setConfirmDialogOpen(true);
   };
 
+  const pendingAcademy = pendingAction
+    ? items.find((academy) => academy.id === pendingAction.academyId)
+    : undefined;
+  const pendingIsSuspended = pendingAcademy
+    ? getEffectiveAcademyStatus(pendingAcademy) === "suspended"
+    : false;
+
   const handleConfirmAction = async (reason?: string) => {
     if (!pendingAction) return;
 
@@ -584,29 +591,27 @@ export function SuperAdminAcademiesTable({
           title={
             pendingAction.action === "delete"
               ? "Eliminar academia"
-              : items.find((academy) => academy.id === pendingAction.academyId) &&
-                  getEffectiveAcademyStatus(items.find((academy) => academy.id === pendingAction.academyId)!) === "suspended"
+              : pendingIsSuspended
                 ? "Reactivar academia"
                 : "Suspender academia"
           }
           description={
             pendingAction.action === "delete"
               ? `¿Estás seguro de eliminar "${pendingAction.academyName}"? Se borrarán la academia y sus datos asociados. La cuenta personal del dueño se conserva y debe revisarse aparte si ya no debe existir. Esta acción no se puede deshacer.`
-              : items.find((academy) => academy.id === pendingAction.academyId) &&
-                  getEffectiveAcademyStatus(items.find((academy) => academy.id === pendingAction.academyId)!) === "suspended"
+              : pendingIsSuspended
                 ? `¿Quieres reactivar "${pendingAction.academyName}"? Recuperará el acceso de la academia y quedará en su estado operativo anterior.`
                 : `¿Estás seguro de suspender "${pendingAction.academyName}"? Los usuarios no podrán acceder hasta que sea reactivada.`
           }
           variant={
             pendingAction.action === "delete" ||
-            getEffectiveAcademyStatus(items.find((academy) => academy.id === pendingAction.academyId)!) !== "suspended"
+            !pendingIsSuspended
               ? "destructive"
               : "default"
           }
           confirmText={
             pendingAction.action === "delete"
               ? "Eliminar"
-              : getEffectiveAcademyStatus(items.find((academy) => academy.id === pendingAction.academyId)!) === "suspended"
+              : pendingIsSuspended
                 ? "Reactivar"
                 : "Suspender"
           }
