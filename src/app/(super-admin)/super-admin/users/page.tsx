@@ -7,9 +7,21 @@ import { getUsersPage } from "@/lib/superAdminService";
 import { getDevSessionFromCookieStore } from "@/lib/dev-session";
 import { SuperAdminUsersTable } from "../components/SuperAdminUsersTable";
 
+const USER_ROLES = ["owner", "admin", "coach", "athlete", "parent", "super_admin"] as const;
+type UserRole = (typeof USER_ROLES)[number];
+
+type PageProps = {
+  searchParams: Promise<{
+    role?: string;
+    status?: string;
+    q?: string;
+    page?: string;
+  }>;
+};
+
 export const dynamic = "force-dynamic";
 
-export default async function SuperAdminUsersPage() {
+export default async function SuperAdminUsersPage({ searchParams }: PageProps) {
   const cookieStore = await cookies();
   const supabase = await createClient(cookieStore);
   const devSession = await getDevSessionFromCookieStore(cookieStore);
@@ -29,12 +41,35 @@ export default async function SuperAdminUsersPage() {
     redirect("/app");
   }
 
-  const { items, total } = await getUsersPage({ page: 1, pageSize: 50 });
+  const params = await searchParams;
+  const roleParam = params.role;
+  const roleFilter = USER_ROLES.includes(roleParam as UserRole)
+    ? (roleParam as UserRole)
+    : undefined;
+  const statusFilter =
+    params.status === "active" || params.status === "suspended"
+      ? params.status
+      : undefined;
+  const search = params.q?.trim().slice(0, 160) ?? "";
+  const requestedPage = Math.max(1, Number.parseInt(params.page ?? "1", 10) || 1);
+  const result = await getUsersPage({
+    page: requestedPage,
+    pageSize: 50,
+    role: roleFilter,
+    status: statusFilter,
+    search: search || undefined,
+  });
 
   return (
     <SuperAdminUsersTable
-      initialItems={items}
-      initialTotal={total}
+      initialItems={result.items}
+      initialTotal={result.total}
+      initialPage={result.page}
+      initialFilters={{
+        role: roleFilter,
+        status: statusFilter,
+        search: search || undefined,
+      }}
       initialUserId={user?.id ?? devSession?.userId ?? null}
     />
   );
