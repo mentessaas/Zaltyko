@@ -37,6 +37,8 @@ export interface SuperAdminMetrics {
   planStatuses: Array<{ status: string; total: number }>;
   planDistribution: Array<{ code: string; nickname: string | null; total: number }>;
   monthlyAcademies: Array<{ label: string; total: number }>;
+  // Monthly paid revenue in cents, sourced from Stripe invoice records.
+  monthlyRevenue: Array<{ label: string; total: number }>;
   // Alerts for risky subscriptions
   subscriptionAlerts: Array<{ status: string; count: number; academies: string[] }>;
 }
@@ -132,6 +134,7 @@ async function getGlobalStatsUncached(): Promise<SuperAdminMetrics> {
   const [
     academySummaryRows,
     monthlyAcademiesRows,
+    monthlyRevenueRows,
     usersByRoleRows,
     userSummaryRows,
     plansData,
@@ -160,6 +163,14 @@ async function getGlobalStatsUncached(): Promise<SuperAdminMetrics> {
       .from(academies)
       .where(isNotNull(academies.createdAt))
       .groupBy(sql`to_char(${academies.createdAt}, 'YYYY-MM')`),
+    db
+      .select({
+        label: sql<string>`to_char(${billingInvoices.createdAt}, 'YYYY-MM')`,
+        total: sql<number>`COALESCE(SUM(${billingInvoices.amountPaid}) FILTER (WHERE ${billingInvoices.status} = 'paid'), 0)`,
+      })
+      .from(billingInvoices)
+      .where(isNotNull(billingInvoices.createdAt))
+      .groupBy(sql`to_char(${billingInvoices.createdAt}, 'YYYY-MM')`),
     db
       .select({
         role: profiles.role,
@@ -281,6 +292,12 @@ async function getGlobalStatsUncached(): Promise<SuperAdminMetrics> {
     .sort((a, b) => a.label.localeCompare(b.label))
     .slice(-6);
 
+  const monthlyRevenue = monthlyRevenueRows
+    .filter((row) => row.label)
+    .map((row) => ({ label: row.label, total: Number(row.total ?? 0) }))
+    .sort((a, b) => a.label.localeCompare(b.label))
+    .slice(-6);
+
   const activeAcademyIds = new Set([
     ...athleteAcademyRows.map((row) => row.academyId),
     ...groupAcademyRows.map((row) => row.academyId),
@@ -327,6 +344,7 @@ async function getGlobalStatsUncached(): Promise<SuperAdminMetrics> {
     planStatuses,
     planDistribution,
     monthlyAcademies,
+    monthlyRevenue,
     subscriptionAlerts,
   };
 }
