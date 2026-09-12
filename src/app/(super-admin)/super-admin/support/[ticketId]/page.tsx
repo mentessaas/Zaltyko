@@ -99,6 +99,7 @@ export default async function SuperAdminTicketDetailPage({ params }: PageProps) 
 
   const ticket = await getTicket(ticketId);
   if (!ticket) redirect("/super-admin/support");
+  const ticketRecord = ticket!;
 
   async function handleStatusChange(newStatus: TicketStatus) {
     "use server";
@@ -125,12 +126,12 @@ export default async function SuperAdminTicketDetailPage({ params }: PageProps) 
         action: "support.ticket_status_changed",
         resourceType: "ticket",
         resourceId: ticketId,
-        resourceName: ticket.title,
-        description: `Super Admin cambió el ticket ${ticket.title} de ${ticket.status} a ${newStatus}`,
+        resourceName: ticketRecord.title,
+        description: `Super Admin cambió el ticket ${ticketRecord.title} de ${ticketRecord.status} a ${newStatus}`,
         meta: {
           ticketId,
           academyId: updatedTicket.academyId,
-          from: ticket.status,
+          from: ticketRecord.status,
           to: newStatus,
         },
       });
@@ -143,7 +144,7 @@ export default async function SuperAdminTicketDetailPage({ params }: PageProps) 
   return (
     <div className="container mx-auto max-w-4xl py-8">
       <TicketDetail
-        ticket={ticket}
+        ticket={ticketRecord}
         currentUserId={profile.id}
         isAdmin
         onStatusChange={handleStatusChange}
