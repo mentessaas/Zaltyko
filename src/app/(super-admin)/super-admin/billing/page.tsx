@@ -23,6 +23,7 @@ type PageProps = {
 };
 
 const RISKY_STATUSES = ["past_due", "canceled", "unpaid"] as const;
+const BILLING_STATUS_VALUES = ["paid", "past_due", "unpaid", "canceled", "open", "trialing"] as const;
 
 function formatMoney(value: number | string | null | undefined, currency = "eur") {
   const amount = Number(value ?? 0) / 100;
@@ -45,6 +46,8 @@ function statusLabel(status: string) {
       return "Cancelada";
     case "open":
       return "Abierta";
+    case "trialing":
+      return "En prueba";
     default:
       return status.replace(/_/g, " ");
   }
@@ -73,11 +76,22 @@ export default async function SuperAdminBillingPage({ searchParams }: PageProps)
   const effectiveProfile = profile ?? (devSession ? { role: "super_admin" } : null);
   if (!effectiveProfile || effectiveProfile.role !== "super_admin") redirect("/app");
 
+  const selectedStatus = status && BILLING_STATUS_VALUES.includes(status as (typeof BILLING_STATUS_VALUES)[number])
+    ? status
+    : undefined;
   const isRiskView = status === "risky";
+  const isFiltered = isRiskView || Boolean(selectedStatus);
   const invoiceCondition =
     isRiskView
       ? inArray(billingInvoices.status, [...RISKY_STATUSES])
-      : undefined;
+      : selectedStatus
+        ? eq(billingInvoices.status, selectedStatus)
+        : undefined;
+  const scopeLabel = isRiskView
+    ? "Vista: recibos en riesgo"
+    : selectedStatus
+      ? `Vista: ${statusLabel(selectedStatus)}`
+      : "Vista: todos los recibos";
 
   const [summary, statusRows, invoices] = await Promise.all([
     db
@@ -137,7 +151,7 @@ export default async function SuperAdminBillingPage({ searchParams }: PageProps)
           </h1>
           <div className="mt-2 flex flex-wrap items-center gap-2">
             <span className="inline-flex rounded-full border border-white/15 bg-white/5 px-2.5 py-1 text-xs font-semibold text-white/70">
-              {isRiskView ? "Vista: recibos en riesgo" : "Vista: todos los recibos"}
+              {scopeLabel}
             </span>
           </div>
           <p className="mt-2 max-w-2xl text-sm text-white/60">
@@ -147,13 +161,13 @@ export default async function SuperAdminBillingPage({ searchParams }: PageProps)
         </div>
         <div className="flex flex-wrap gap-2">
           <Link
-            href={isRiskView ? "/super-admin/billing" : "/super-admin/billing?status=risky"}
+            href={isFiltered ? "/super-admin/billing" : "/super-admin/billing?status=risky"}
             className={isRiskView
               ? "inline-flex min-h-11 items-center gap-2 rounded-xl border border-white/15 bg-white/5 px-4 text-sm font-semibold text-white transition hover:bg-white/10"
               : "inline-flex min-h-11 items-center gap-2 rounded-xl border border-rose-300/30 bg-rose-300/10 px-4 text-sm font-semibold text-rose-100 transition hover:bg-rose-300/20"}
           >
             <AlertTriangle className="h-4 w-4" aria-hidden="true" />
-            {isRiskView ? "Ver todos" : "Ver riesgos"}
+            {isFiltered ? "Ver todos" : "Ver riesgos"}
           </Link>
           <Link
             href="/super-admin/logs"
@@ -165,7 +179,7 @@ export default async function SuperAdminBillingPage({ searchParams }: PageProps)
         </div>
       </header>
 
-      <section aria-label={isRiskView ? "Resumen financiero de recibos en riesgo" : "Resumen financiero global"} className="grid gap-4 sm:grid-cols-2 xl:grid-cols-4">
+      <section aria-label={isFiltered ? "Resumen financiero filtrado" : "Resumen financiero global"} className="grid gap-4 sm:grid-cols-2 xl:grid-cols-4">
         {[
           { label: "Cobrado acumulado", value: formatMoney(summary?.paidAmount), icon: CircleDollarSign },
           { label: "Recibos pagados", value: Number(summary?.paidInvoices ?? 0).toLocaleString("es-ES"), icon: FileText },
