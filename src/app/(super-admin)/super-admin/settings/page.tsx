@@ -1,11 +1,11 @@
-import { count, asc } from "drizzle-orm";
+import { and, asc, count, eq, inArray } from "drizzle-orm";
 import Link from "next/link";
 import { cookies } from "next/headers";
 import { redirect } from "next/navigation";
 import { CheckCircle2, CircleAlert, ExternalLink, ShieldCheck } from "lucide-react";
 
 import { db } from "@/db";
-import { academies, plans } from "@/db/schema";
+import { academies, auditLogs, plans } from "@/db/schema";
 import { createClient } from "@/lib/supabase/server";
 import { getCurrentProfile } from "@/lib/authz";
 import { getDevSessionFromCookieStore } from "@/lib/dev-session";
@@ -34,7 +34,7 @@ export default async function SuperAdminSettingsPage() {
   const effectiveProfile = profile ?? (devSession ? { role: "super_admin" } : null);
   if (!effectiveProfile || effectiveProfile.role !== "super_admin") redirect("/app");
 
-  const [planRows, academyCount] = await Promise.all([
+  const [planRows, academyCount, auditLogCount] = await Promise.all([
     db
       .select({
         id: plans.id,
@@ -48,15 +48,44 @@ export default async function SuperAdminSettingsPage() {
       })
       .from(plans)
       .orderBy(asc(plans.priceEur)),
-    db.select({ total: count(academies.id) }).from(academies),
+    db
+      .select({ total: count(academies.id) })
+      .from(academies)
+      .where(
+        and(
+          eq(academies.isSuspended, false),
+          inArray(academies.status, ["active", "trial"])
+        )
+      ),
+    db.select({ total: count(auditLogs.id) }).from(auditLogs),
   ]);
 
   const activePlans = planRows.filter((plan) => !plan.isArchived);
+  const unconfiguredStripePlans = activePlans.filter((plan) => !plan.stripePriceId);
   const checks = [
     { label: "Autorización Super Admin", detail: "Gate JWT + perfil verificado", ok: true },
-    { label: "Registro de auditoría", detail: "Acciones administrativas persistidas", ok: true },
-    { label: "Catálogo de planes", detail: `${activePlans.length} planes activos en base de datos`, ok: activePlans.length > 0 },
-    { label: "Academias operativas", detail: `${Number(academyCount[0]?.total ?? 0).toLocaleString("es-ES")} registros actuales`, ok: true },
+    {
+      label: "Registro de auditoría",
+      detail: `${Number(auditLogCount[0]?.total ?? 0).toLocaleString("es-ES")} eventos disponibles para revisión`,
+      ok: true,
+    },
+    {
+      label: "Catálogo de planes",
+      detail: `${activePlans.length} planes activos en base de datos`,
+      ok: activePlans.length > 0,
+    },
+    {
+      label: "Precios Stripe",
+      detail: unconfiguredStripePlans.length === 0
+        ? "Todos los planes activos tienen precio conectado"
+        : `${unconfiguredStripePlans.length} plan(es) activo(s) sin precio Stripe`,
+      ok: activePlans.length > 0 && unconfiguredStripePlans.length === 0,
+    },
+    {
+      label: "Academias operativas",
+      detail: `${Number(academyCount[0]?.total ?? 0).toLocaleString("es-ES")} academias activas o en prueba`,
+      ok: true,
+    },
   ];
 
   return (
@@ -84,7 +113,7 @@ export default async function SuperAdminSettingsPage() {
           </div>
           <ShieldCheck className="h-5 w-5 text-zaltyko-electric" aria-hidden="true" />
         </div>
-        <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-4">
+        <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-5">
           {checks.map((check) => (
             <article key={check.label} className="rounded-2xl border border-white/10 bg-white/[0.055] p-4">
               <div className="flex items-start gap-3">
