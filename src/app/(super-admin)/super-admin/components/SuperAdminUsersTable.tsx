@@ -283,6 +283,7 @@ export function SuperAdminUsersTable({ initialItems, initialTotal }: SuperAdminU
             )}
           </Button>
           <select
+            aria-label="Filtrar usuarios por rol"
             className="h-10 w-full rounded-lg border-2 border-white/20 bg-white/10 px-3 py-2 text-sm font-medium text-white transition-all duration-200 hover:border-white/40 focus:border-white/60 focus:outline-none focus:ring-2 focus:ring-white/20 min-h-[44px] sm:min-h-[40px] sm:w-auto"
             value={filters.role ?? ""}
             onChange={(event) => {
@@ -298,6 +299,7 @@ export function SuperAdminUsersTable({ initialItems, initialTotal }: SuperAdminU
             ))}
           </select>
           <select
+            aria-label="Filtrar usuarios por estado"
             className="h-10 w-full rounded-lg border-2 border-white/20 bg-white/10 px-3 py-2 text-sm font-medium text-white transition-all duration-200 hover:border-white/40 focus:border-white/60 focus:outline-none focus:ring-2 focus:ring-white/20 min-h-[44px] sm:min-h-[40px] sm:w-auto"
             value={filters.status ?? ""}
             onChange={(event) =>
@@ -387,6 +389,7 @@ export function SuperAdminUsersTable({ initialItems, initialTotal }: SuperAdminU
                 </td>
                 <td className="px-4 py-4">
                   <select
+                    aria-label={`Cambiar rol de ${user.fullName ?? user.email ?? "usuario"}`}
                     className="rounded-lg border border-white/20 bg-white/10 px-2 py-1 text-xs font-semibold uppercase tracking-wide text-white focus:border-white/40 focus:outline-none"
                     value={user.role ?? ""}
                     onChange={(event) => {
