@@ -266,7 +266,7 @@ export const DELETE = withSuperAdmin(async (request, context) => {
     return apiError("REASON_REQUIRED", "Indica el motivo de la eliminación", 400);
   }
 
-  let removed;
+  let removed: { id: string; name: string | null } | null;
   try {
     removed = await db.transaction(async (tx) => {
       const [deletedAcademy] = await tx
