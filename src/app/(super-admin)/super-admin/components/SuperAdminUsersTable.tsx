@@ -2,7 +2,7 @@
 
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { useRouter } from "next/navigation";
-import { ShieldAlert, UserCog, Users, Loader2 } from "lucide-react";
+import { ChevronLeft, ChevronRight, ShieldAlert, UserCog, Users, Loader2 } from "lucide-react";
 
 import type { SuperAdminUserRow } from "@/lib/superAdminService";
 import { createClient } from "@/lib/supabase/client";
@@ -23,6 +23,7 @@ type SuperAdminUsersFilters = {
 
 interface SuperAdminUsersTableProps {
   initialItems: SuperAdminUserRow[];
+  initialTotal?: number;
 }
 
 function formatRole(role: string | null) {
@@ -46,12 +47,15 @@ function formatRole(role: string | null) {
 }
 
 
-export function SuperAdminUsersTable({ initialItems }: SuperAdminUsersTableProps) {
+export function SuperAdminUsersTable({ initialItems, initialTotal }: SuperAdminUsersTableProps) {
   const supabase = createClient();
   const router = useRouter();
   const toast = useToast();
   const [userId, setUserId] = useState<string | null>(null);
   const [items, setItems] = useState<SuperAdminUserRow[]>(initialItems);
+  const [total, setTotal] = useState(initialTotal ?? initialItems.length);
+  const [page, setPage] = useState(1);
+  const PAGE_SIZE = 50;
   const [loading, setLoading] = useState(false);
   const [syncing, setSyncing] = useState(false);
   const [mutatingUserId, setMutatingUserId] = useState<string | null>(null);
@@ -79,7 +83,7 @@ export function SuperAdminUsersTable({ initialItems }: SuperAdminUsersTableProps
     return counts;
   }, [items]);
 
-  const fetchUsers = useCallback(async (activeFilters: SuperAdminUsersFilters) => {
+  const fetchUsers = useCallback(async (activeFilters: SuperAdminUsersFilters, requestedPage = page) => {
     if (!userId) return;
     setLoading(true);
     try {
@@ -87,6 +91,8 @@ export function SuperAdminUsersTable({ initialItems }: SuperAdminUsersTableProps
       if (activeFilters.role) params.set("role", activeFilters.role);
       if (activeFilters.status) params.set("status", activeFilters.status);
       if (activeFilters.search) params.set("q", activeFilters.search);
+      params.set("page", String(requestedPage));
+      params.set("limit", String(PAGE_SIZE));
 
       const response = await fetch(`/api/super-admin/users?${params.toString()}`, {
         headers: {},
@@ -98,15 +104,18 @@ export function SuperAdminUsersTable({ initialItems }: SuperAdminUsersTableProps
       }
       const { data: payload } = await response.json();
       setItems(payload.items ?? []);
+      setTotal(Number(payload.total ?? payload.items?.length ?? 0));
+      setPage(Number(payload.page ?? requestedPage));
     } finally {
       setLoading(false);
     }
-  }, [userId]);
+  }, [userId, page]);
 
   const handleFilterChange = useCallback(async (partial: Partial<SuperAdminUsersFilters>) => {
     const next = { ...filters, ...partial };
     setFilters(next);
-    await fetchUsers(next);
+    setPage(1);
+    await fetchUsers(next, 1);
   }, [filters, fetchUsers]);
 
   const handleSyncAthletes = useCallback(async () => {
@@ -123,7 +132,7 @@ export function SuperAdminUsersTable({ initialItems }: SuperAdminUsersTableProps
           title: data.message || "Atletas sincronizados correctamente",
           variant: "success",
         });
-        await fetchUsers(filters);
+        await fetchUsers(filters, page);
       } else {
         toast.pushToast({
           title: data.message || "Error al sincronizar atletas",
@@ -139,7 +148,7 @@ export function SuperAdminUsersTable({ initialItems }: SuperAdminUsersTableProps
     } finally {
       setSyncing(false);
     }
-  }, [userId, syncing, fetchUsers, filters, toast]);
+  }, [userId, syncing, fetchUsers, filters, page, toast]);
 
   const executeMutation = useCallback(async (profileId: string, body: Record<string, unknown>, optimisticUpdate = true) => {
     if (!userId) return;
@@ -208,7 +217,7 @@ export function SuperAdminUsersTable({ initialItems }: SuperAdminUsersTableProps
     } finally {
       setMutatingUserId(null);
     }
-  }, [userId, fetchUsers, filters, toast]);
+  }, [userId, fetchUsers, filters, page, toast]);
 
   const mutateUser = useCallback(async (profileId: string, body: Record<string, unknown>, userData?: SuperAdminUserRow) => {
     if (!userId) return;
@@ -258,10 +267,7 @@ export function SuperAdminUsersTable({ initialItems }: SuperAdminUsersTableProps
           <p className="font-display text-xs uppercase tracking-wide text-zaltyko-accent-light">Usuarios</p>
           <h2 className="font-display text-lg font-semibold text-white sm:text-xl">Control de roles y estados</h2>
           <p className="break-words text-xs text-white/70 sm:text-sm">
-            {items.length} usuarios listados ·{" "}
-            {Object.entries(roleCounts)
-              .map(([role, count]) => `${formatRole(role)}: ${count}`)
-              .join(" · ")}
+            {total} usuarios en la plataforma · Página {page} de {Math.max(1, Math.ceil(total / PAGE_SIZE))}
           </p>
         </div>
         <div className="flex w-full flex-col gap-2 sm:w-auto sm:flex-row sm:flex-wrap sm:items-center sm:gap-3">
@@ -478,6 +484,41 @@ export function SuperAdminUsersTable({ initialItems }: SuperAdminUsersTableProps
         </table>
         </div>
       </div>
+      {Math.ceil(total / PAGE_SIZE) > 1 && (
+        <nav
+          aria-label="Paginación de usuarios"
+          className="flex flex-col gap-3 border-t border-white/10 pt-4 text-sm text-white/60 sm:flex-row sm:items-center sm:justify-between"
+        >
+          <span>
+            Página {page} de {Math.ceil(total / PAGE_SIZE)} · {total} usuarios
+          </span>
+          <div className="flex items-center gap-2">
+            <Button
+              variant="outline"
+              size="sm"
+              className="border-white/20 bg-white/10 text-white hover:border-white/40 hover:bg-white/20"
+              onClick={() => void fetchUsers(filters, page - 1)}
+              disabled={loading || page <= 1}
+              aria-label="Página anterior"
+            >
+              <ChevronLeft className="mr-1 h-4 w-4" aria-hidden="true" />
+              Anterior
+            </Button>
+            <Button
+              variant="outline"
+              size="sm"
+              className="border-white/20 bg-white/10 text-white hover:border-white/40 hover:bg-white/20"
+              onClick={() => void fetchUsers(filters, page + 1)}
+              disabled={loading || page >= Math.ceil(total / PAGE_SIZE)}
+              aria-label="Página siguiente"
+            >
+              Siguiente
+              <ChevronRight className="ml-1 h-4 w-4" aria-hidden="true" />
+            </Button>
+          </div>
+        </nav>
+      )}
+
       {pendingAction && (
         <ConfirmDialog
           open={confirmDialogOpen}
