@@ -80,11 +80,13 @@ export const POST = withSuperAdmin(async (request, context) => {
 
 const DEFAULT_PAGE_SIZE = 50;
 const MAX_PAGE_SIZE = 200;
+const USER_ROLES = ["owner", "admin", "coach", "athlete", "parent", "super_admin"] as const;
 
 // Aplicar rate limiting: 50 requests por minuto para Super Admin
 const handler = withSuperAdmin(async (request) => {
   const url = new URL(request.url);
-  const roleFilter = url.searchParams.get("role") || undefined;
+  const roleParam = url.searchParams.get("role");
+  const roleFilter = USER_ROLES.includes(roleParam as (typeof USER_ROLES)[number]) ? roleParam ?? undefined : undefined;
   const searchQuery = url.searchParams.get("q") || undefined;
   const statusParam = url.searchParams.get("status");
   const statusFilter =
