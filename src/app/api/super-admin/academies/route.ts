@@ -14,6 +14,7 @@ export const dynamic = "force-dynamic";
 
 const DEFAULT_PAGE_SIZE = 50;
 const MAX_PAGE_SIZE = 200;
+const ACADEMY_TYPES = ["artistica", "ritmica", "trampolin", "general", "parkour", "danza"] as const;
 
 const CreateAcademySchema = z.object({
   academyName: z.string().min(3, "El nombre debe tener al menos 3 caracteres"),
@@ -123,15 +124,16 @@ export const POST = withSuperAdmin(async (request, context) => {
 export const GET = withSuperAdmin(async (request) => {
   const url = new URL(request.url);
   const planFilter = url.searchParams.get("plan") ?? undefined;
-  const typeFilter = url.searchParams.get("type") ?? undefined;
+  const typeParam = url.searchParams.get("type");
+  const typeFilter = ACADEMY_TYPES.includes(typeParam as (typeof ACADEMY_TYPES)[number]) ? typeParam ?? undefined : undefined;
   const countryFilter = url.searchParams.get("country") ?? undefined;
-  const statusFilter = url.searchParams.get("status") as "active" | "suspended" | undefined;
-  
-  // Paginación
-  const page = Math.max(1, parseInt(url.searchParams.get("page") ?? "1", 10));
+  const statusParam = url.searchParams.get("status");
+  const statusFilter = statusParam === "active" || statusParam === "suspended" ? statusParam : undefined;
+
+  const page = Math.max(1, Number.parseInt(url.searchParams.get("page") ?? "1", 10) || 1);
   const pageSize = Math.min(
     MAX_PAGE_SIZE,
-    Math.max(1, parseInt(url.searchParams.get("limit") ?? String(DEFAULT_PAGE_SIZE), 10))
+    Math.max(1, Number.parseInt(url.searchParams.get("limit") ?? String(DEFAULT_PAGE_SIZE), 10) || DEFAULT_PAGE_SIZE)
   );
 
   const result = await getAcademiesPage({
