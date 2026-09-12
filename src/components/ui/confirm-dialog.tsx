@@ -15,7 +15,7 @@ interface ConfirmDialogProps {
   confirmText?: string;
   cancelText?: string;
   variant?: "default" | "destructive";
-  onConfirm: (reason?: string) => void | Promise<void>;
+  onConfirm: (reason?: string) => void | boolean | Promise<void | boolean>;
   onCancel?: () => void;
   loading?: boolean;
   requireReason?: boolean;
@@ -42,7 +42,8 @@ export function ConfirmDialog({
   const handleConfirm = async () => {
     setIsLoading(true);
     try {
-      await onConfirm(reason.trim() || undefined);
+      const result = await onConfirm(reason.trim() || undefined);
+      if (result === false) return;
       setReason("");
       onOpenChange?.(false);
     } catch (error) {
@@ -114,6 +115,20 @@ export function ConfirmDialog({
             >
               {cancelText}
             </Button>
+            <Button
+              type="button"
+              variant={variant === "destructive" ? "destructive" : "default"}
+              onClick={handleConfirm}
+              disabled={isLoading || loading}
+            >
+              {isLoading || loading ? "Procesando..." : confirmText}
+            </Button>
+          </div>
+        </DialogPrimitive.Content>
+      </DialogPrimitive.Portal>
+    </DialogPrimitive.Root>
+  );
+}</Button>
             <Button
               type="button"
               variant={variant === "destructive" ? "destructive" : "default"}
