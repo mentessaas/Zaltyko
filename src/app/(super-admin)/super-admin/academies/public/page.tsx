@@ -1,6 +1,6 @@
+import { and, asc, count, eq, ilike, or } from "drizzle-orm";
 import { cookies } from "next/headers";
 import { redirect } from "next/navigation";
-import { eq } from "drizzle-orm";
 
 import { createClient } from "@/lib/supabase/server";
 import { getCurrentProfile } from "@/lib/authz";
@@ -11,7 +11,22 @@ import { PublicAcademiesTable } from "@/components/admin/PublicAcademiesTable";
 
 export const dynamic = "force-dynamic";
 
-export default async function SuperAdminPublicAcademiesPage() {
+const PAGE_SIZE = 50;
+
+type PageProps = {
+  searchParams: Promise<{
+    visibility?: string;
+    search?: string;
+    page?: string;
+  }>;
+};
+
+function parsePage(value: string | undefined) {
+  const parsed = Number.parseInt(value ?? "1", 10);
+  return Number.isFinite(parsed) ? Math.max(1, parsed) : 1;
+}
+
+export default async function SuperAdminPublicAcademiesPage({ searchParams }: PageProps) {
   const cookieStore = await cookies();
   const supabase = await createClient(cookieStore);
   const devSession = await getDevSessionFromCookieStore(cookieStore);
@@ -31,7 +46,44 @@ export default async function SuperAdminPublicAcademiesPage() {
     redirect("/app");
   }
 
-  // Obtener todas las academias con su estado de visibilidad
+  const params = await searchParams;
+  const visibility =
+    params.visibility === "public" || params.visibility === "private"
+      ? params.visibility
+      : "all";
+  const search = params.search?.trim().slice(0, 160) ?? "";
+  const escapedSearch = search.replace(/[\\%_]/g, "\\$&");
+  const conditions = [
+    visibility === "public"
+      ? eq(academies.isPublic, true)
+      : visibility === "private"
+        ? eq(academies.isPublic, false)
+        : undefined,
+    escapedSearch
+      ? or(
+          ilike(academies.name, `%${escapedSearch}%`),
+          ilike(academies.country, `%${escapedSearch}%`),
+          ilike(academies.region, `%${escapedSearch}%`),
+          ilike(academies.city, `%${escapedSearch}%`)
+        )
+      : undefined,
+  ].filter(Boolean) as Array<ReturnType<typeof eq>>;
+
+  const where = conditions.length > 0 ? and(...conditions) : undefined;
+  const [totalRow, visibilityRows] = await Promise.all([
+    db
+      .select({ total: count(academies.id) })
+      .from(academies)
+      .where(where),
+    db
+      .select({ isPublic: academies.isPublic, total: count(academies.id) })
+      .from(academies)
+      .groupBy(academies.isPublic),
+  ]);
+  const total = Number(totalRow[0]?.total ?? 0);
+  const totalPages = Math.max(1, Math.ceil(total / PAGE_SIZE));
+  const page = Math.min(parsePage(params.page), totalPages);
+
   const items = await db
     .select({
       id: academies.id,
@@ -53,14 +105,26 @@ export default async function SuperAdminPublicAcademiesPage() {
       isPublic: academies.isPublic,
     })
     .from(academies)
-    .orderBy(academies.name);
+    .where(where)
+    .orderBy(asc(academies.name), asc(academies.id))
+    .limit(PAGE_SIZE)
+    .offset((page - 1) * PAGE_SIZE);
+
+  const visibilityCounts = visibilityRows.reduce(
+    (result, row) => {
+      if (row.isPublic) result.public += Number(row.total ?? 0);
+      else result.private += Number(row.total ?? 0);
+      return result;
+    },
+    { public: 0, private: 0 }
+  );
 
   return (
     <div className="space-y-6 p-8">
       <div>
         <h1 className="text-2xl font-bold text-white">Gestión de Academias Públicas</h1>
         <p className="mt-2 text-white/70">
-          Activa o desactiva la visibilidad pública de las academias en el directorio.
+          Controla el directorio público con búsqueda, visibilidad y cambios auditables.
         </p>
       </div>
 
@@ -69,8 +133,13 @@ export default async function SuperAdminPublicAcademiesPage() {
           ...item,
           academyType: String(item.academyType),
         })) as any}
+        initialFilter={visibility}
+        initialSearch={search}
+        total={total}
+        page={page}
+        totalPages={totalPages}
+        visibilityCounts={visibilityCounts}
       />
     </div>
   );
 }
-
