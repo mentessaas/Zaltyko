@@ -75,6 +75,7 @@ interface AcademyDetail {
 interface SuperAdminAcademyDetailProps {
   initialAcademy: AcademyDetail;
   userId: string;
+  backHref?: string;
 }
 
 interface Plan {
