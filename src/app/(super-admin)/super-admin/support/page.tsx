@@ -5,7 +5,7 @@ import { redirect } from "next/navigation";
 import { z } from "zod";
 
 import { db } from "@/db";
-import { academies, profiles, ticketResponses, tickets } from "@/db/schema";
+import { academies, authUsers, profiles, ticketResponses, tickets } from "@/db/schema";
 import { createClient } from "@/lib/supabase/server";
 import { getCurrentProfile } from "@/lib/authz";
 import { getDevSessionFromCookieStore } from "@/lib/dev-session";
@@ -83,11 +83,13 @@ async function getAllTickets(filters: {
       updatedAt: tickets.updatedAt,
       creatorId: profiles.id,
       creatorName: profiles.name,
+      creatorEmail: authUsers.email,
       academyId: academies.id,
       academyName: academies.name,
     })
     .from(tickets)
     .leftJoin(profiles, eq(tickets.createdBy, profiles.id))
+    .leftJoin(authUsers, eq(profiles.userId, authUsers.id))
     .leftJoin(academies, eq(tickets.academyId, academies.id))
     .where(conditions.length > 0 ? and(...conditions) : undefined)
     .orderBy(desc(tickets.createdAt))
@@ -118,7 +120,7 @@ async function getAllTickets(filters: {
     createdBy: {
       id: ticket.creatorId ?? "unknown",
       fullName: ticket.creatorName ?? "Usuario",
-      email: "",
+      email: ticket.creatorEmail ?? "",
     },
     academy: ticket.academyId
       ? { id: ticket.academyId, name: ticket.academyName ?? "Academia" }
