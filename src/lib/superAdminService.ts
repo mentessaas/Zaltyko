@@ -883,7 +883,7 @@ export async function getRecentEvents(limit: number = 10): Promise<EventLogEntry
     })
     .from(eventLogs)
     .leftJoin(academies, eq(eventLogs.academyId, academies.id))
-    .orderBy(desc(eventLogs.createdAt))
+    .orderBy(desc(eventLogs.createdAt), desc(eventLogs.id))
     .limit(safeLimit);
 
   return events.map((event) => ({
