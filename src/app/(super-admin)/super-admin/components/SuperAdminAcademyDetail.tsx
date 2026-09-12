@@ -23,6 +23,7 @@ import { cn } from "@/lib/utils";
 import { getRegionLabel } from "@/lib/countryRegions";
 import { useToast } from "@/components/ui/toast-provider";
 import { logger } from "@/lib/logger";
+import { ConfirmDialog } from "@/components/ui/confirm-dialog";
 import type { AcademyStatus } from "@/db/schema/academies";
 
 const ACADEMY_STATUS_LABELS: Record<AcademyStatus, string> = {
@@ -102,6 +103,7 @@ export function SuperAdminAcademyDetail({ initialAcademy, userId, backHref = "/s
     city: academy.city ?? "",
   });
   const [actionReason, setActionReason] = useState("");
+  const [suspensionDialogOpen, setSuspensionDialogOpen] = useState(false);
 
   useEffect(() => {
     const fetchPlans = async () => {
@@ -207,7 +209,7 @@ export function SuperAdminAcademyDetail({ initialAcademy, userId, backHref = "/s
     }
   };
 
-  const handleToggleSuspension = async () => {
+  const handleToggleSuspension = () => {
     if (academy.status === "fraud_hold" || academy.status === "churned") {
       toast.pushToast({
         title: "Cambio bloqueado",
@@ -216,12 +218,18 @@ export function SuperAdminAcademyDetail({ initialAcademy, userId, backHref = "/s
       });
       return;
     }
-    if (actionReason.trim().length < 5) {
-      toast.pushToast({ title: "Indica el motivo", description: "Suspender o reactivar requiere un motivo de al menos 5 caracteres.", variant: "warning" });
-      return;
-    }
-    if (!confirm(formData.isSuspended ? "¿Reactivar la academia?" : "¿Suspender la academia?")) {
-      return;
+    setSuspensionDialogOpen(true);
+  };
+
+  const executeToggleSuspension = async (reason?: string): Promise<boolean> => {
+    const trimmedReason = reason?.trim() ?? "";
+    if (trimmedReason.length < 5) {
+      toast.pushToast({
+        title: "Indica el motivo",
+        description: "Suspender o reactivar requiere un motivo de al menos 5 caracteres.",
+        variant: "warning",
+      });
+      return false;
     }
 
     setSaving(true);
@@ -238,7 +246,7 @@ export function SuperAdminAcademyDetail({ initialAcademy, userId, backHref = "/s
             : academy.status === "trial"
               ? "trial"
               : "active",
-          reason: actionReason.trim(),
+          reason: trimmedReason,
         }),
       });
 
@@ -249,13 +257,15 @@ export function SuperAdminAcademyDetail({ initialAcademy, userId, backHref = "/s
           description: error || "Inténtalo de nuevo en unos segundos.",
           variant: "error",
         });
-        return;
+        return false;
       }
 
       const { data: updated } = await response.json();
       setAcademy({ ...academy, ...updated });
       setFormData({ ...formData, isSuspended: updated.isSuspended });
+      setActionReason("");
       router.refresh();
+      return true;
     } catch (error) {
       logger.error("Error toggling suspension", error);
       toast.pushToast({
@@ -263,11 +273,11 @@ export function SuperAdminAcademyDetail({ initialAcademy, userId, backHref = "/s
         description: "Inténtalo de nuevo en unos segundos.",
         variant: "error",
       });
+      return false;
     } finally {
       setSaving(false);
     }
   };
-
   const effectiveStatus: AcademyStatus =
     academy.isSuspended && (academy.status === "active" || academy.status === "trial")
       ? "suspended"
@@ -553,5 +563,22 @@ export function SuperAdminAcademyDetail({ initialAcademy, userId, backHref = "/s
         </div>
       </div>
     </div>
+
+    <ConfirmDialog
+      open={suspensionDialogOpen}
+      onOpenChange={setSuspensionDialogOpen}
+      title={effectiveStatus === "suspended" ? "Reactivar academia" : "Suspender academia"}
+      description={
+        effectiveStatus === "suspended"
+          ? "La academia recuperará el acceso y volverá a su estado operativo anterior."
+          : "Los usuarios de la academia perderán el acceso hasta que se reactive."
+      }
+      confirmText={effectiveStatus === "suspended" ? "Reactivar" : "Suspender"}
+      variant={effectiveStatus === "suspended" ? "default" : "destructive"}
+      requireReason
+      reasonLabel="Motivo del cambio de acceso"
+      onConfirm={executeToggleSuspension}
+      loading={saving}
+    />
   );
 }
