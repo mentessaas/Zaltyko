@@ -10,6 +10,7 @@ import { profiles } from "@/db/schema";
 import { eq } from "drizzle-orm";
 import { getAuthUserEmail } from "@/lib/supabase/admin-operations";
 import { logger } from "@/lib/logger";
+import { createNotification } from "@/lib/notifications/notification-service";
 
 const BodySchema = z.object({
   profileId: z.string().uuid(),
@@ -43,6 +44,28 @@ export const POST = withSuperAdmin(async (request, _context) => {
 
   if (!targetProfile) {
     return apiError("USER_NOT_FOUND", "User not found", 404);
+  }
+
+  if (body.type === "notification") {
+    if (!targetProfile.tenantId) {
+      return apiError("USER_TENANT_NOT_FOUND", "User tenant not found", 400);
+    }
+
+    try {
+      await createNotification({
+        tenantId: targetProfile.tenantId,
+        userId: targetProfile.id,
+        type: "admin_message",
+        title: body.subject,
+        message: body.message,
+        data: { source: "super-admin", channel: "notification" },
+      });
+
+      return apiSuccess({ ok: true, message: "Notificación enviada correctamente" });
+    } catch (error: unknown) {
+      logger.error("Error creating notification", error);
+      return apiError("NOTIFICATION_SEND_FAILED", "Error al enviar la notificación", 500);
+    }
   }
 
   const authEmail = await getAuthUserEmail(targetProfile.userId);
@@ -81,7 +104,5 @@ export const POST = withSuperAdmin(async (request, _context) => {
     }
   }
 
-  // For notifications, we could store them in a notifications table
-  // For now, we'll just send an email
-  return apiError("NOTIFICATION_TYPE_NOT_IMPLEMENTED", "Notification type not implemented", 400);
+  return apiError("VALIDATION_ERROR", "Tipo de mensaje no soportado", 400);
 });
