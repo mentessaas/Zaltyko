@@ -12,6 +12,7 @@ import {
 import { sendEmail } from "@/lib/brevo";
 import { config } from "@/config";
 import { logger } from "@/lib/logger";
+import { escapeHtml } from "@/lib/email/escape-html";
 
 const ActivateAthleteSchema = z.object({
   profileId: z.string().uuid(),
@@ -89,7 +90,7 @@ async function activateAthleteAccess(
         html: `
           <div style="font-family: Inter, Arial, sans-serif; max-width: 600px; margin: 0 auto;">
             <h2 style="color: #0D47A1; font-family: Poppins, sans-serif; font-weight: 700;">¡Bienvenido a Zaltyko!</h2>
-            <p>Hola ${profile.name ?? "Atleta"},</p>
+            <p>Hola ${escapeHtml(profile.name ?? "Atleta")},</p>
             <p>Tu cuenta de atleta ha sido activada. Ahora puedes acceder a tu perfil y ver tus clases, sesiones y evaluaciones.</p>
             <p>Para comenzar, necesitas establecer una contraseña. Haz clic en el siguiente enlace:</p>
             <div style="text-align: center; margin: 30px 0;">
