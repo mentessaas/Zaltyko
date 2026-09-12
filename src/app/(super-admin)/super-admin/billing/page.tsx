@@ -237,7 +237,7 @@ export default async function SuperAdminBillingPage({ searchParams }: PageProps)
       .offset((currentPage - 1) * PAGE_SIZE),
   ]);
 
-  const riskyCount = statusRows = statusRows
+  const riskyCount = statusRows
     .filter((row) => RISKY_STATUSES.includes(row.status as (typeof RISKY_STATUSES)[number]))
     .reduce((total, row) => total + Number(row.total), 0);
 
