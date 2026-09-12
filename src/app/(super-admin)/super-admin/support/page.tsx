@@ -16,14 +16,20 @@ import { PageHeader } from "@/components/ui/page-header";
 
 export const dynamic = "force-dynamic";
 
+type SearchParamValue = string | string[] | undefined;
+
 interface PageProps {
   searchParams: Promise<{
-    status?: string;
-    priority?: string;
-    category?: string;
-    academyId?: string;
-    page?: string;
+    status?: SearchParamValue;
+    priority?: SearchParamValue;
+    category?: SearchParamValue;
+    academyId?: SearchParamValue;
+    page?: SearchParamValue;
   }>;
+}
+
+function firstSearchParam(value: SearchParamValue) {
+  return Array.isArray(value) ? value[0] : value;
 }
 
 const TICKET_STATUS_VALUES = ["open", "in_progress", "waiting", "resolved", "closed"] as const;
@@ -241,8 +247,13 @@ async function TicketsContent({
 
 export default async function SuperAdminSupportPage({ searchParams }: PageProps) {
   const rawSearchParams = await searchParams;
-  const filters = normalizeSupportFilters(rawSearchParams);
-  const requestedPage = Number.parseInt(rawSearchParams.page ?? "1", 10);
+  const filters = normalizeSupportFilters({
+    status: firstSearchParam(rawSearchParams.status),
+    priority: firstSearchParam(rawSearchParams.priority),
+    category: firstSearchParam(rawSearchParams.category),
+    academyId: firstSearchParam(rawSearchParams.academyId),
+  });
+  const requestedPage = Number.parseInt(firstSearchParam(rawSearchParams.page) ?? "1", 10);
   const page = Number.isFinite(requestedPage) ? Math.max(1, requestedPage) : 1;
   const cookieStore = await cookies();
   const supabase = await createClient(cookieStore);
