@@ -76,9 +76,19 @@ export function PublicAcademiesTable({
   };
 
   const handleToggle = (academyId: string, newValue: boolean) => {
+    const remainsInCurrentFilter =
+      filter === "all" ||
+      (filter === "public" && newValue) ||
+      (filter === "private" && !newValue);
+
     setAcademies((prev) =>
-      prev.map((academy) => (academy.id === academyId ? { ...academy, isPublic: newValue } : academy))
+      remainsInCurrentFilter
+        ? prev.map((academy) => (academy.id === academyId ? { ...academy, isPublic: newValue } : academy))
+        : prev.filter((academy) => academy.id !== academyId)
     );
+
+    // Recalculate server counts and pagination after a visibility mutation.
+    router.refresh();
   };
 
   return (
