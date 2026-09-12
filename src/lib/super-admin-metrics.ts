@@ -210,7 +210,6 @@ export function isSuperAdminMetrics(value: unknown): value is SuperAdminMetrics 
     Array.isArray(value.monthlyAcademies) &&
     Array.isArray(value.monthlyRevenue) &&
     Array.isArray(value.revenueByCurrency) &&
-    Array.isArray(value.chargesPaidByCurrency) &&
     Array.isArray(value.subscriptionAlerts)
   );
 }
