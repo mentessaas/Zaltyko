@@ -152,7 +152,7 @@ async function getGlobalStatsUncached(): Promise<SuperAdminMetrics> {
       .select({
         total: sql<number>`count(*)`,
         latestAcademyAt: sql<Date | string | null>`max(${academies.createdAt})`,
-        previousAcademies: sql<number>`count(*) filter (where ${academies.createdAt} >= ${previousMonthStart} and ${academies.createdAt} < ${currentMonthStart})`,
+        previousAcademies: sql<number>`count(*) filter (where ${academies.createdAt} < ${currentMonthStart})`,
       })
       .from(academies),
     db
@@ -181,7 +181,7 @@ async function getGlobalStatsUncached(): Promise<SuperAdminMetrics> {
     db
       .select({
         total: sql<number>`count(*)`,
-        previousUsers: sql<number>`count(*) filter (where ${profiles.createdAt} >= ${previousMonthStart} and ${profiles.createdAt} < ${currentMonthStart})`,
+        previousUsers: sql<number>`count(*) filter (where ${profiles.createdAt} < ${currentMonthStart})`,
       })
       .from(profiles),
     db
