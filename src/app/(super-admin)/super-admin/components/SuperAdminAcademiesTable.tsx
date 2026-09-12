@@ -92,6 +92,11 @@ export function SuperAdminAcademiesTable({
     academyName: string;
   } | null>(null);
 
+  const openAcademyDetail = (academyId: string) => {
+    if (typeof window === "undefined") return;
+    const returnTo = window.location.pathname + window.location.search;
+    router.push(`/super-admin/academies/${academyId}?returnTo=${encodeURIComponent(returnTo)}`);
+  };
   const syncUrl = (activeFilters: SuperAdminAcademyFilters, targetPage: number) => {
     if (typeof window === "undefined") return;
     const params = new URLSearchParams();
@@ -453,7 +458,7 @@ export function SuperAdminAcademiesTable({
                 className="cursor-pointer transition hover:bg-white/5 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-zaltyko-teal"
                 onClick={(e) => {
                   if ((e.target as HTMLElement).closest("button")) return;
-                  router.push(`/super-admin/academies/${academy.id}`);
+                  openAcademyDetail(academy.id);
                 }}
                 onKeyDown={(e) => {
                   if ((e.key !== "Enter" && e.key !== " ") || (e.target as HTMLElement).closest("button")) return;
