@@ -158,9 +158,28 @@ export const PATCH = withSuperAdmin(async (request, context) => {
 
       if (!current) return null;
 
-      const statusChanged = body.status !== undefined && body.status !== current.status;
-      const suspensionChanged =
-        typeof body.isSuspended === "boolean" && body.isSuspended !== current.isSuspended;
+      const nextUpdates = { ...updates };
+      // Enforce the status/access invariant even when a client sends only
+      // isSuspended. API consumers should not be able to create a contradictory
+      // row that the UI then has to interpret heuristically.
+      if (typeof body.isSuspended === "boolean" && body.status === undefined) {
+        const nextStatus = body.isSuspended
+          ? "suspended"
+          : current.status === "trial"
+            ? "trial"
+            : "active";
+        nextUpdates.status = nextStatus;
+        nextUpdates.statusUpdatedAt = new Date();
+      }
+
+      const nextStatus =
+        typeof nextUpdates.status === "string" ? nextUpdates.status : current.status;
+      const nextIsSuspended =
+        typeof nextUpdates.isSuspended === "boolean"
+          ? nextUpdates.isSuspended
+          : current.isSuspended;
+      const statusChanged = nextStatus !== current.status;
+      const suspensionChanged = nextIsSuspended !== current.isSuspended;
 
       if ((statusChanged || suspensionChanged) && !body.reason) {
         throw new Error("REASON_REQUIRED");
@@ -175,7 +194,7 @@ export const PATCH = withSuperAdmin(async (request, context) => {
 
       const [academy] = await tx
         .update(academies)
-        .set(updates)
+        .set(nextUpdates)
         .where(eq(academies.id, academyId))
         .returning({
           id: academies.id,
