@@ -11,6 +11,8 @@ export function useSuperAdminData(initial: SuperAdminMetrics, initialEvents: Eve
   const [events, setEvents] = useState<EventLogEntry[]>(initialEvents);
   const [userId, setUserId] = useState<string | null>(initialUserId ?? null);
   const [loading, setLoading] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+  const [lastUpdatedAt, setLastUpdatedAt] = useState<Date | null>(null);
 
   useEffect(() => {
     setMetrics(normalizeSuperAdminMetrics(initial));
@@ -32,29 +34,53 @@ export function useSuperAdminData(initial: SuperAdminMetrics, initialEvents: Eve
   const refresh = useCallback(async () => {
     if (!userId) return;
     setLoading(true);
+
+    const failures: string[] = [];
+    let metricsUpdated = false;
+    let eventsUpdated = false;
+
     try {
       const [metricsResponse, eventsResponse] = await Promise.all([
         fetch("/api/super-admin/metrics", { cache: "no-store" }),
         fetch("/api/super-admin/events?limit=10", { cache: "no-store" }),
       ]);
 
-      if (metricsResponse.ok) {
-        const json = await metricsResponse.json();
-        const unwrapped = json.ok ? json.data : json;
+      if (!metricsResponse.ok) {
+        failures.push(`métricas (HTTP ${metricsResponse.status})`);
+      } else {
+        const json = await metricsResponse.json().catch(() => null);
+        const unwrapped = json?.ok ? json.data : json;
         if (isSuperAdminMetrics(unwrapped)) {
           setMetrics(normalizeSuperAdminMetrics(unwrapped));
+          metricsUpdated = true;
         } else {
+          failures.push("métricas (respuesta inválida)");
           logger.warn("[useSuperAdminData] Invalid metrics payload from API:", unwrapped);
         }
       }
 
-      if (eventsResponse.ok) {
-        const json = await eventsResponse.json();
-        const unwrapped = json.ok ? json.data : json;
-        if (Array.isArray(unwrapped)) setEvents(unwrapped);
+      if (!eventsResponse.ok) {
+        failures.push(`actividad (HTTP ${eventsResponse.status})`);
+      } else {
+        const json = await eventsResponse.json().catch(() => null);
+        const unwrapped = json?.ok ? json.data : json;
+        if (Array.isArray(unwrapped)) {
+          setEvents(unwrapped);
+          eventsUpdated = true;
+        } else {
+          failures.push("actividad (respuesta inválida)");
+        }
       }
+
+      setLastUpdatedAt(metricsUpdated || eventsUpdated ? new Date() : null);
+      setError(
+        failures.length > 0
+          ? `No se pudo sincronizar ${failures.join(" y ")}. Los datos anteriores siguen visibles.`
+          : null
+      );
     } catch (err) {
       logger.error("[useSuperAdminData] Failed to refresh metrics and activity:", err);
+      setError("No se pudo conectar con el control plane. Los datos anteriores siguen visibles.");
     } finally {
       setLoading(false);
     }
@@ -99,5 +125,7 @@ export function useSuperAdminData(initial: SuperAdminMetrics, initialEvents: Eve
     events,
     refresh,
     loading,
+    error,
+    lastUpdatedAt,
   };
 }
