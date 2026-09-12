@@ -152,6 +152,18 @@ export function SuperAdminDashboard({ initialMetrics, initialEvents = [], initia
 
   const chartDataset = useMemo(() => safeMetrics.monthlyAcademies, [safeMetrics.monthlyAcademies]);
 
+  const syncState = loading
+    ? { label: "Actualizando datos", className: "text-zaltyko-teal", iconClassName: "animate-pulse" }
+    : error
+      ? { label: "Sincronización parcial", className: "text-amber-300", iconClassName: "" }
+      : lastUpdatedAt
+        ? {
+            label: `Actualizado ${lastUpdatedAt.toLocaleTimeString("es-ES", { hour: "2-digit", minute: "2-digit" })}`,
+            className: "text-zaltyko-teal",
+            iconClassName: "",
+          }
+        : { label: "Datos iniciales", className: "text-white/70", iconClassName: "" };
+
   const metricTrends = useMemo(() => {
     const calculateTrend = (current: number, previous: number | undefined) => {
       if (previous === undefined || previous === 0) return undefined;
@@ -271,7 +283,7 @@ export function SuperAdminDashboard({ initialMetrics, initialEvents = [], initia
         title: "Cobros este mes",
         value: safeMetrics.totals.chargesCreatedThisMonth,
         subtitle: "Cargos creados",
-        href: "/super-admin/academies",
+        href: "/super-admin/billing",
         icon: TrendingUp,
         accent: "red" as const,
       },
@@ -279,7 +291,7 @@ export function SuperAdminDashboard({ initialMetrics, initialEvents = [], initia
         title: "Ingresos este mes",
         value: CURRENCY_FORMATTER.format(safeMetrics.totals.chargesPaidThisMonth / 100),
         subtitle: "Total cobrado",
-        href: "/super-admin/academies",
+        href: "/super-admin/billing",
         icon: DollarSign,
         accent: "emerald" as const,
       },
@@ -307,9 +319,12 @@ export function SuperAdminDashboard({ initialMetrics, initialEvents = [], initia
             </p>
           </div>
           <div className="flex items-center gap-3">
-            <div className="inline-flex items-center gap-2 rounded-xl border border-white/15 bg-white/5 px-3 py-2 text-xs font-medium text-white/70">
-              <Clock className="h-3.5 w-3.5 text-zaltyko-teal" strokeWidth={1.8} />
-              Datos actuales
+            <div
+              className="inline-flex items-center gap-2 rounded-xl border border-white/15 bg-white/5 px-3 py-2 text-xs font-medium"
+              title={error ?? "Estado de sincronización del control plane"}
+            >
+              <Clock className={cn("h-3.5 w-3.5", syncState.className, syncState.iconClassName)} strokeWidth={1.8} />
+              <span className={syncState.className}>{syncState.label}</span>
             </div>
             <Button
               onClick={refresh}
