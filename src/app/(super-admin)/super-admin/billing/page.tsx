@@ -5,6 +5,8 @@ import { redirect } from "next/navigation";
 import {
   AlertTriangle,
   ArrowUpRight,
+  ChevronLeft,
+  ChevronRight,
   CircleDollarSign,
   FileText,
   RefreshCw,
@@ -19,8 +21,15 @@ import { getDevSessionFromCookieStore } from "@/lib/dev-session";
 export const dynamic = "force-dynamic";
 
 type PageProps = {
-  searchParams: Promise<{ status?: string }>;
+  searchParams: Promise<{ status?: string; page?: string }>;
 };
+
+const PAGE_SIZE = 50;
+
+function parsePage(value: string | undefined) {
+  const parsed = Number.parseInt(value ?? "1", 10);
+  return Number.isFinite(parsed) ? Math.min(1000, Math.max(1, parsed)) : 1;
+}
 
 const RISKY_STATUSES = ["past_due", "canceled", "unpaid"] as const;
 const BILLING_STATUS_VALUES = ["draft", "open", "paid", "uncollectible", "void"] as const;
@@ -89,7 +98,7 @@ function statusClasses(status: string) {
 }
 
 export default async function SuperAdminBillingPage({ searchParams }: PageProps) {
-  const { status } = await searchParams;
+  const { status, page: pageParam } = await searchParams;
   const cookieStore = await cookies();
   const supabase = await createClient(cookieStore);
   const devSession = await getDevSessionFromCookieStore(cookieStore);
@@ -142,8 +151,16 @@ export default async function SuperAdminBillingPage({ searchParams }: PageProps)
     : selectedStatus
       ? `Vista: ${statusLabel(selectedStatus)}`
       : "Vista: todos los recibos y suscripciones";
+  const pageHref = (targetPage: number) => {
+    const params = new URLSearchParams();
+    if (isFiltered && status) params.set("status", status);
+    params.set("page", String(targetPage));
+    return `/super-admin/billing?${params.toString()}`;
+  };
 
-  const [summary, statusRows, invoices, subscriptionRows] = await Promise.all([
+  const requestedPage = parsePage(pageParam);
+
+  const [summary, statusRows, subscriptionCount] = await Promise.all([
     db
       .select({
         invoices: count(billingInvoices.id),
@@ -165,6 +182,21 @@ export default async function SuperAdminBillingPage({ searchParams }: PageProps)
       .groupBy(billingInvoices.status)
       .orderBy(desc(count(billingInvoices.id))),
     db
+      .select({ total: count(subscriptions.id) })
+      .from(subscriptions)
+      .where(subscriptionCondition)
+      .then(([row]) => row),
+  ]);
+
+  const totalResults = Math.max(
+    Number(summary?.invoices ?? 0),
+    Number(subscriptionCount?.total ?? 0)
+  );
+  const totalPages = Math.max(1, Math.ceil(totalResults / PAGE_SIZE));
+  const currentPage = Math.min(requestedPage, totalPages);
+
+  const [invoices, subscriptionRows] = await Promise.all([
+    db
       .select({
         id: billingInvoices.id,
         status: billingInvoices.status,
@@ -182,7 +214,8 @@ export default async function SuperAdminBillingPage({ searchParams }: PageProps)
       .leftJoin(academies, eq(billingInvoices.academyId, academies.id))
       .where(invoiceCondition)
       .orderBy(desc(billingInvoices.createdAt))
-      .limit(50),
+      .limit(PAGE_SIZE)
+      .offset((currentPage - 1) * PAGE_SIZE),
     db
       .select({
         id: subscriptions.id,
@@ -200,10 +233,11 @@ export default async function SuperAdminBillingPage({ searchParams }: PageProps)
       .leftJoin(plans, eq(subscriptions.planId, plans.id))
       .where(subscriptionCondition)
       .orderBy(desc(subscriptions.currentPeriodEnd))
-      .limit(50),
+      .limit(PAGE_SIZE)
+      .offset((currentPage - 1) * PAGE_SIZE),
   ]);
 
-  const riskyCount = statusRows
+  const riskyCount = statusRows = statusRows
     .filter((row) => RISKY_STATUSES.includes(row.status as (typeof RISKY_STATUSES)[number]))
     .reduce((total, row) => total + Number(row.total), 0);
 
@@ -421,6 +455,33 @@ export default async function SuperAdminBillingPage({ searchParams }: PageProps)
           </div>
         </article>
       </section>
+      {totalPages > 1 && (
+        <nav aria-label="Paginación de Billing" className="flex flex-col gap-3 rounded-2xl border border-white/10 bg-white/[0.045] p-4 text-sm text-white/60 sm:flex-row sm:items-center sm:justify-between">
+          <span>Página {currentPage} de {totalPages} · hasta {PAGE_SIZE} registros por bloque</span>
+          <div className="flex items-center gap-2">
+            <Link
+              href={pageHref(Math.max(1, currentPage - 1))}
+              aria-label="Página anterior"
+              aria-disabled={currentPage === 1}
+              tabIndex={currentPage === 1 ? -1 : 0}
+              className={`inline-flex min-h-10 items-center gap-1 rounded-xl border border-white/15 bg-white/5 px-3 font-semibold text-white transition hover:bg-white/10 ${currentPage === 1 ? "pointer-events-none opacity-40" : ""}`}
+            >
+              <ChevronLeft className="h-4 w-4" aria-hidden="true" />
+              Anterior
+            </Link>
+            <Link
+              href={pageHref(Math.min(totalPages, currentPage + 1))}
+              aria-label="Página siguiente"
+              aria-disabled={currentPage === totalPages}
+              tabIndex={currentPage === totalPages ? -1 : 0}
+              className={`inline-flex min-h-10 items-center gap-1 rounded-xl border border-white/15 bg-white/5 px-3 font-semibold text-white transition hover:bg-white/10 ${currentPage === totalPages ? "pointer-events-none opacity-40" : ""}`}
+            >
+              Siguiente
+              <ChevronRight className="h-4 w-4" aria-hidden="true" />
+            </Link>
+          </div>
+        </nav>
+      )}
     </div>
   );
 }
