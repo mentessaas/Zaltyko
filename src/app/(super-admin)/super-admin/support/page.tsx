@@ -106,7 +106,7 @@ async function getAllTickets(
     .leftJoin(authUsers, eq(profiles.userId, authUsers.id))
     .leftJoin(academies, eq(tickets.academyId, academies.id))
     .where(where)
-    .orderBy(desc(tickets.createdAt))
+    .orderBy(desc(tickets.createdAt), desc(tickets.id))
     .limit(PAGE_SIZE)
     .offset((page - 1) * PAGE_SIZE);
 
