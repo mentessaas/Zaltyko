@@ -34,6 +34,7 @@ export const DEFAULT_SUPER_ADMIN_METRICS: SuperAdminMetrics = {
   monthlyAcademies: [],
   monthlyRevenue: [],
   revenueByCurrency: [],
+  chargesPaidByCurrency: [],
   subscriptionAlerts: [],
 };
 
@@ -122,6 +123,18 @@ function normalizeRevenueByCurrency(value: unknown): SuperAdminMetrics["revenueB
     .filter((entry) => /^[A-Z]{3}$/.test(entry.currency));
 }
 
+function normalizeChargesPaidByCurrency(value: unknown): SuperAdminMetrics["chargesPaidByCurrency"] {
+  if (!Array.isArray(value)) return [];
+
+  return value
+    .filter(isRecord)
+    .map((entry) => ({
+      currency: typeof entry.currency === "string" ? entry.currency.toUpperCase() : "EUR",
+      total: toNumber(entry.total, 0),
+    }))
+    .filter((entry) => /^[A-Z]{3}$/.test(entry.currency) && entry.total > 0);
+}
+
 function normalizeSubscriptionAlerts(value: unknown): SuperAdminMetrics["subscriptionAlerts"] {
   if (!Array.isArray(value)) return [];
 
@@ -175,6 +188,7 @@ export function normalizeSuperAdminMetrics(value: unknown): SuperAdminMetrics {
     monthlyAcademies: normalizeMonthlyAcademies(value.monthlyAcademies),
     monthlyRevenue: normalizeMonthlyRevenue(value.monthlyRevenue),
     revenueByCurrency: normalizeRevenueByCurrency(value.revenueByCurrency),
+    chargesPaidByCurrency: normalizeChargesPaidByCurrency(value.chargesPaidByCurrency),
     subscriptionAlerts: normalizeSubscriptionAlerts(value.subscriptionAlerts),
   };
 }
@@ -196,6 +210,7 @@ export function isSuperAdminMetrics(value: unknown): value is SuperAdminMetrics 
     Array.isArray(value.monthlyAcademies) &&
     Array.isArray(value.monthlyRevenue) &&
     Array.isArray(value.revenueByCurrency) &&
+    Array.isArray(value.chargesPaidByCurrency) &&
     Array.isArray(value.subscriptionAlerts)
   );
 }
