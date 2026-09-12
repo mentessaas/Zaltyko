@@ -36,7 +36,7 @@ export async function GET(request: Request) {
     // Traer todos los perfiles relevantes en una sola query (evita N+1)
     const tenantIds = [...new Set(allAcademies.map((a) => a.tenantId))];
     const allRelevantProfiles = await db
-      .select({ userId: profiles.userId, tenantId: profiles.tenantId, role: profiles.role })
+      .select({ profileId: profiles.id, tenantId: profiles.tenantId, role: profiles.role })
       .from(profiles)
       .where(
         and(
@@ -48,15 +48,15 @@ export async function GET(request: Request) {
     // Agrupar por tenantId para acceso O(1) dentro del loop
     const profilesByTenant = new Map<
       string,
-      { adminUserIds: string[]; coachUserIds: string[] }
+      { adminProfileIds: string[]; coachProfileIds: string[] }
     >();
     for (const p of allRelevantProfiles) {
       if (!p.tenantId) continue;
-      const entry = profilesByTenant.get(p.tenantId) ?? { adminUserIds: [], coachUserIds: [] };
+      const entry = profilesByTenant.get(p.tenantId) ?? { adminProfileIds: [], coachProfileIds: [] };
       if (p.role === "coach") {
-        entry.coachUserIds.push(p.userId);
+        entry.coachProfileIds.push(p.profileId);
       } else {
-        entry.adminUserIds.push(p.userId);
+        entry.adminProfileIds.push(p.profileId);
       }
       profilesByTenant.set(p.tenantId, entry);
     }
@@ -64,11 +64,11 @@ export async function GET(request: Request) {
     // Procesar alertas para cada academia
     for (const academy of allAcademies) {
       try {
-        const { adminUserIds = [], coachUserIds = [] } = profilesByTenant.get(academy.tenantId) ?? {};
+        const { adminProfileIds = [], coachProfileIds = [] } = profilesByTenant.get(academy.tenantId) ?? {};
 
         // Alertas de capacidad
         try {
-          await createCapacityNotifications(academy.id, academy.tenantId, adminUserIds);
+          await createCapacityNotifications(academy.id, academy.tenantId, adminProfileIds);
           results.capacityAlerts++;
         } catch (error) {
           logger.error(`Error creating capacity alerts for academy ${academy.id}`, error, { academyId: academy.id });
@@ -76,7 +76,7 @@ export async function GET(request: Request) {
 
         // Alertas de pagos
         try {
-          await createPaymentNotifications(academy.id, academy.tenantId, adminUserIds);
+          await createPaymentNotifications(academy.id, academy.tenantId, adminProfileIds);
           results.paymentAlerts++;
         } catch (error) {
           logger.error(`Error creating payment alerts for academy ${academy.id}`, error, { academyId: academy.id });
@@ -87,8 +87,8 @@ export async function GET(request: Request) {
           await createAttendanceNotifications(
             academy.id,
             academy.tenantId,
-            adminUserIds,
-            coachUserIds
+            adminProfileIds,
+            coachProfileIds
           );
           results.attendanceAlerts++;
         } catch (error) {
