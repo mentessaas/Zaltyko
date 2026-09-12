@@ -8,6 +8,7 @@ import { db } from "@/db";
 import { academies, plans } from "@/db/schema";
 import { createClient } from "@/lib/supabase/server";
 import { getCurrentProfile } from "@/lib/authz";
+import { getDevSessionFromCookieStore } from "@/lib/dev-session";
 
 export const dynamic = "force-dynamic";
 
@@ -22,14 +23,16 @@ function formatPrice(cents: number) {
 export default async function SuperAdminSettingsPage() {
   const cookieStore = await cookies();
   const supabase = await createClient(cookieStore);
+  const devSession = await getDevSessionFromCookieStore(cookieStore);
   const {
     data: { user },
   } = await supabase.auth.getUser();
 
-  if (!user) redirect("/auth/login");
+  if (!user && !devSession) redirect("/auth/login");
 
-  const profile = await getCurrentProfile(user.id);
-  if (!profile || profile.role !== "super_admin") redirect("/app");
+  const profile = user ? await getCurrentProfile(user.id) : null;
+  const effectiveProfile = profile ?? (devSession ? { role: "super_admin" } : null);
+  if (!effectiveProfile || effectiveProfile.role !== "super_admin") redirect("/app");
 
   const [planRows, academyCount] = await Promise.all([
     db
