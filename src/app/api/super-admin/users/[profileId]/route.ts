@@ -17,9 +17,9 @@ export const dynamic = "force-dynamic";
 const updateUserSchema = z.object({
   role: z.enum(["owner", "admin", "coach", "athlete", "parent", "super_admin"]).nullable().optional(),
   isSuspended: z.boolean().optional(),
-  name: z.string().trim().min(1).nullable().optional(),
-  email: z.string().trim().email().nullable().optional(),
-  planId: z.string().trim().min(1).nullable().optional(),
+  name: z.string().trim().min(1).max(160).nullable().optional(),
+  email: z.string().trim().email().max(320).nullable().optional(),
+  planId: z.string().uuid().nullable().optional(),
   force: z.boolean().optional(),
   reason: z.string().trim().min(5).max(500).optional(),
 });
@@ -252,15 +252,23 @@ export const PATCH = withSuperAdmin(async (request, context) => {
     auditChanges.planId = null;
   }
 
-  if (body.email) {
-    await updateAuthUserEmail({
-      userId: existing.userId,
-      email: body.email,
-    });
-    auditChanges.email = "updated";
+  const previousEmail = body.email ? await getAuthUserEmail(existing.userId) : null;
+  const emailChanged = Boolean(body.email && body.email !== previousEmail);
+
+  if (emailChanged) {
+    try {
+      await updateAuthUserEmail({
+        userId: existing.userId,
+        email: body.email!,
+      });
+      auditChanges.email = "updated";
+    } catch (error) {
+      logger.error("Error updating super-admin user email", error);
+      return apiError("EMAIL_UPDATE_FAILED", "No se pudo actualizar el correo del usuario", 502);
+    }
   }
 
-  if (Object.keys(updates).length === 0 && !body.email && !planToApply) {
+  if (Object.keys(updates).length === 0 && !emailChanged && !planToApply) {
     return apiError("NO_CHANGES", "No changes provided", 400);
   }
 
@@ -308,6 +316,13 @@ export const PATCH = withSuperAdmin(async (request, context) => {
       return profileUpdated;
     });
   } catch (error) {
+    if (emailChanged && previousEmail) {
+      try {
+        await updateAuthUserEmail({ userId: existing.userId, email: previousEmail });
+      } catch (rollbackError) {
+        logger.error("Error rolling back super-admin user email after profile failure", rollbackError);
+      }
+    }
     if (error instanceof Error && error.message === "PROFILE_NOT_FOUND") {
       return apiError("PROFILE_NOT_FOUND", "Profile not found", 404);
     }
