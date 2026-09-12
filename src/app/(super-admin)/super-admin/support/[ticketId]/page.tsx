@@ -1,4 +1,5 @@
 import { asc, eq } from "drizzle-orm";
+import { revalidatePath } from "next/cache";
 import { cookies } from "next/headers";
 import { redirect } from "next/navigation";
 
@@ -100,8 +101,11 @@ export default async function SuperAdminTicketDetailPage({ params }: PageProps) 
 
   async function handleStatusChange(newStatus: TicketStatus) {
     "use server";
+    const actionCookieStore = await cookies();
+    const actionDevSession = await getDevSessionFromCookieStore(actionCookieStore);
     const current = await getCurrentProfile(userId);
-    if (!current || current.role !== "super_admin") return;
+    if ((!current || current.role !== "super_admin") && !actionDevSession) return;
+
     await db
       .update(tickets)
       .set({
@@ -111,6 +115,9 @@ export default async function SuperAdminTicketDetailPage({ params }: PageProps) 
         closedAt: newStatus === "closed" ? new Date() : null,
       })
       .where(eq(tickets.id, ticketId));
+
+    revalidatePath("/super-admin/support");
+    revalidatePath(`/super-admin/support/${ticketId}`);
   }
 
   return (
