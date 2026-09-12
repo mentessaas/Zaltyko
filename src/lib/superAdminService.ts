@@ -119,7 +119,7 @@ async function getGlobalStatsUncached(): Promise<SuperAdminMetrics> {
     charges,
     eventLogs,
   } = await import("@/db/schema");
-  const { eq, gte, isNotNull, sql } = await import("drizzle-orm");
+  const { and, eq, gte, inArray, isNotNull, isNull, sql } = await import("drizzle-orm");
 
   const now = new Date();
   const currentMonth = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, "0")}`;
@@ -210,14 +210,31 @@ async function getGlobalStatsUncached(): Promise<SuperAdminMetrics> {
       .from(athleteAssessments),
     db
       .select({ total: sql<number>`count(*)` })
-      .from(athletes),
+      .from(athletes)
+      .where(isNull(athletes.deletedAt)),
     db
       .select({ academyId: athletes.academyId })
       .from(athletes)
+      .innerJoin(academies, eq(athletes.academyId, academies.id))
+      .where(
+        and(
+          isNull(athletes.deletedAt),
+          eq(academies.isSuspended, false),
+          inArray(academies.status, ["active", "trial"])
+        )
+      )
       .groupBy(athletes.academyId),
     db
       .select({ academyId: groups.academyId })
       .from(groups)
+      .innerJoin(academies, eq(groups.academyId, academies.id))
+      .where(
+        and(
+          isNull(groups.deletedAt),
+          eq(academies.isSuspended, false),
+          inArray(academies.status, ["active", "trial"])
+        )
+      )
       .groupBy(groups.academyId),
     db
       .select({
