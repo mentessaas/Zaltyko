@@ -11,15 +11,21 @@ import { academyStatusValues, type AcademyStatus } from "@/db/schema/academies";
 const ACADEMY_TYPES = ["artistica", "ritmica", "trampolin", "general", "parkour", "danza"] as const;
 type AcademyType = (typeof ACADEMY_TYPES)[number];
 
+type SearchParamValue = string | string[] | undefined;
+
 type PageProps = {
   searchParams: Promise<{
-    plan?: string;
-    type?: string;
-    country?: string;
-    status?: string;
-    page?: string;
+    plan?: SearchParamValue;
+    type?: SearchParamValue;
+    country?: SearchParamValue;
+    status?: SearchParamValue;
+    page?: SearchParamValue;
   }>;
 };
+
+function firstSearchParam(value: SearchParamValue) {
+  return Array.isArray(value) ? value[0] : value;
+}
 
 export const dynamic = "force-dynamic";
 
@@ -44,15 +50,17 @@ export default async function SuperAdminAcademiesPage({ searchParams }: PageProp
   }
 
   const params = await searchParams;
-  const plan = params.plan?.trim().slice(0, 80) || undefined;
-  const type = ACADEMY_TYPES.includes(params.type as AcademyType)
-    ? (params.type as AcademyType)
+  const plan = firstSearchParam(params.plan)?.trim().slice(0, 80) || undefined;
+  const typeParam = firstSearchParam(params.type);
+  const type = ACADEMY_TYPES.includes(typeParam as AcademyType)
+    ? (typeParam as AcademyType)
     : undefined;
-  const country = params.country?.trim().slice(0, 120) || undefined;
-  const status = academyStatusValues.includes(params.status as AcademyStatus)
-    ? (params.status as AcademyStatus)
+  const country = firstSearchParam(params.country)?.trim().slice(0, 120) || undefined;
+  const statusParam = firstSearchParam(params.status);
+  const status = academyStatusValues.includes(statusParam as AcademyStatus)
+    ? (statusParam as AcademyStatus)
     : undefined;
-  const requestedPage = Math.max(1, Number.parseInt(params.page ?? "1", 10) || 1);
+  const requestedPage = Math.max(1, Number.parseInt(firstSearchParam(params.page) ?? "1", 10) || 1);
 
   const [{ items, total, page }, filterOptions] = await Promise.all([
     getAcademiesPage({
