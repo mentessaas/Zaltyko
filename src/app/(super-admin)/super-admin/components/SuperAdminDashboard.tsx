@@ -75,6 +75,15 @@ const EVENT_TYPE_LABELS: Record<string, string> = {
   charge_marked_paid: "Cargo pagado",
 };
 
+const SUBSCRIPTION_STATUS_LABELS: Record<string, string> = {
+  active: "Activa",
+  trialing: "En prueba",
+  past_due: "Pago vencido",
+  canceled: "Cancelada",
+  incomplete: "Incompleta",
+  unpaid: "Impagada",
+};
+
 const MONTH_LABEL_FORMATTER = new Intl.DateTimeFormat("es-ES", {
   month: "short",
   year: "2-digit",
@@ -84,6 +93,17 @@ function formatMonthLabel(label: string) {
   const [year, month] = label.split("-").map(Number);
   if (!year || !month) return label;
   return MONTH_LABEL_FORMATTER.format(new Date(year, month - 1, 1));
+}
+
+function formatEventDate(value: string) {
+  const date = new Date(value);
+  if (Number.isNaN(date.getTime())) return "Fecha no disponible";
+  return date.toLocaleDateString("es-ES", {
+    day: "2-digit",
+    month: "short",
+    hour: "2-digit",
+    minute: "2-digit",
+  });
 }
 
 export function SuperAdminDashboard({ initialMetrics, initialEvents = [], initialUserId }: SuperAdminDashboardProps) {
@@ -100,11 +120,15 @@ export function SuperAdminDashboard({ initialMetrics, initialEvents = [], initia
 
   // Academy comparison state
   // Calculate pagination
-  const totalPages = Math.ceil(events.length / ITEMS_PER_PAGE);
+  const totalPages = Math.max(1, Math.ceil(events.length / ITEMS_PER_PAGE));
   const paginatedEvents = events.slice(
     (currentPage - 1) * ITEMS_PER_PAGE,
     currentPage * ITEMS_PER_PAGE
   );
+
+  useEffect(() => {
+    setCurrentPage((page) => Math.min(page, totalPages));
+  }, [totalPages]);
 
   const latestAcademyDate = useMemo(() => {
     if (!safeMetrics.totals.latestAcademyAt) {
@@ -162,7 +186,7 @@ export function SuperAdminDashboard({ initialMetrics, initialEvents = [], initia
 
   const subscriptionBarData = useMemo(() => {
     return safeMetrics.planStatuses.map((status) => ({
-      name: status.status,
+      name: SUBSCRIPTION_STATUS_LABELS[status.status] || status.status,
       total: status.total,
       fill: status.status === "active" ? "#10B981" :
             status.status === "past_due" ? "#F59E0B" :
@@ -553,7 +577,7 @@ export function SuperAdminDashboard({ initialMetrics, initialEvents = [], initia
               Estado de suscripciones
             </h3>
             <p className="text-xs text-white/50 mt-1">
-              Ingresos: {CURRENCY_FORMATTER.format(safeMetrics.totals.revenue / 100)} · {safeMetrics.totals.paidInvoices} recibos de suscripción cobrados
+              Ingresos acumulados: {CURRENCY_FORMATTER.format(safeMetrics.totals.revenue / 100)} · {safeMetrics.totals.paidInvoices} recibos cobrados
             </p>
           </div>
           <span className="text-xs text-white/40">
@@ -578,7 +602,7 @@ export function SuperAdminDashboard({ initialMetrics, initialEvents = [], initia
                   tickLine={false}
                   axisLine={false}
                   width={80}
-                  tickFormatter={(value) => value.charAt(0).toUpperCase() + value.slice(1).replace("_", " ")}
+                  tickFormatter={(value) => String(value)}
                 />
                 <Tooltip
                   contentStyle={{
@@ -709,8 +733,7 @@ export function SuperAdminDashboard({ initialMetrics, initialEvents = [], initia
         </div>
       </section>
 
-      {events.length > 0 && (
-        <section className="group relative overflow-hidden rounded-2xl border border-white/10 bg-white/5 p-6">
+      <section className="group relative overflow-hidden rounded-2xl border border-white/10 bg-white/5 p-6">
 
           <header className="relative mb-6 flex items-center justify-between">
             <div>
@@ -735,15 +758,16 @@ export function SuperAdminDashboard({ initialMetrics, initialEvents = [], initia
                   </tr>
                 </thead>
                 <tbody className="divide-y divide-white/5">
-                  {paginatedEvents.map((event) => (
+                  {paginatedEvents.length === 0 ? (
+                    <tr>
+                      <td colSpan={3} className="px-4 py-10 text-center text-sm text-white/55">
+                        No hay actividad reciente registrada.
+                      </td>
+                    </tr>
+                  ) : paginatedEvents.map((event) => (
                     <tr key={event.id} className="transition-colors hover:bg-white/5">
                       <td className="whitespace-nowrap px-4 py-3 text-white/70">
-                        {new Date(event.createdAt).toLocaleDateString("es-ES", {
-                          day: "2-digit",
-                          month: "short",
-                          hour: "2-digit",
-                          minute: "2-digit",
-                        })}
+                        {formatEventDate(event.createdAt)}
                       </td>
                       <td className="px-4 py-3">
                         <span className="inline-flex items-center gap-1.5 rounded-full bg-red-500/20 px-2.5 py-1 text-xs font-medium text-red-300">
@@ -788,8 +812,7 @@ export function SuperAdminDashboard({ initialMetrics, initialEvents = [], initia
               </div>
             </div>
           )}
-        </section>
-      )}
+      </section>
 
       {/* Drill-down Modal */}
       <Dialog open={!!selectedChart} onOpenChange={() => { setSelectedChart(null); setDrillDownData(null); }}>
