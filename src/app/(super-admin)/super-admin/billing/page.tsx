@@ -76,10 +76,12 @@ function formatCurrencyBreakdown(
   fallback: number | string | null | undefined
 ) {
   if (rows.length === 0) return formatMoney(fallback);
-  return rows
-    .slice(0, 3)
+  const visibleRows = rows.slice(0, 3);
+  const formatted = visibleRows
     .map((row) => formatMoney(row.total, row.currency))
     .join(" · ");
+  const remaining = rows.length - visibleRows.length;
+  return remaining > 0 ? `${formatted} · +${remaining} divisas` : formatted;
 }
 
 function statusLabel(status: string) {
@@ -288,8 +290,12 @@ export default async function SuperAdminBillingPage({ searchParams }: PageProps)
     paid: Number(row.paid ?? 0),
     due: Number(row.due ?? 0),
   }));
-  const paidCurrencyRows = normalizedCurrencyRows.map((row) => ({ currency: row.currency, total: row.paid }));
-  const dueCurrencyRows = normalizedCurrencyRows.map((row) => ({ currency: row.currency, total: row.due }));
+  const paidCurrencyRows = normalizedCurrencyRows
+    .filter((row) => row.paid > 0)
+    .map((row) => ({ currency: row.currency, total: row.paid }));
+  const dueCurrencyRows = normalizedCurrencyRows
+    .filter((row) => row.due > 0)
+    .map((row) => ({ currency: row.currency, total: row.due }));
   const revenueSummaryLabel = formatCurrencyBreakdown(paidCurrencyRows, summary?.paidAmount);
   const dueSummaryLabel = formatCurrencyBreakdown(dueCurrencyRows, summary?.dueAmount);
 
