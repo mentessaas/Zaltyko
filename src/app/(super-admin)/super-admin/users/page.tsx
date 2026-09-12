@@ -52,9 +52,10 @@ export default async function SuperAdminUsersPage({ searchParams }: PageProps) {
   const roleFilter = USER_ROLES.includes(roleParam as UserRole)
     ? (roleParam as UserRole)
     : undefined;
+  const statusParam = firstSearchParam(params.status);
   const statusFilter =
-    firstSearchParam(params.status) === "active" || firstSearchParam(params.status) === "suspended"
-      ? firstSearchParam(params.status)
+    statusParam === "active" || statusParam === "suspended"
+      ? statusParam
       : undefined;
   const search = firstSearchParam(params.q)?.trim().slice(0, 160) ?? "";
   const requestedPage = Math.max(1, Number.parseInt(firstSearchParam(params.page) ?? "1", 10) || 1);
