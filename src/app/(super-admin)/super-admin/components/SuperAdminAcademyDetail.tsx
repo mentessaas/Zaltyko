@@ -137,6 +137,13 @@ export function SuperAdminAcademyDetail({ initialAcademy, userId, backHref = "/s
     }
     setSaving(true);
     try {
+      const isCurrentlySuspended = academy.status === "suspended" || academy.isSuspended;
+      const nextIsSuspended = !isCurrentlySuspended;
+      const nextStatus = nextIsSuspended
+        ? "suspended"
+        : academy.status === "trial"
+          ? "trial"
+          : "active";
       const response = await fetch(`/api/super-admin/academies/${academy.id}`, {
         method: "PATCH",
         headers: {
@@ -240,12 +247,8 @@ export function SuperAdminAcademyDetail({ initialAcademy, userId, backHref = "/s
           "Content-Type": "application/json",
         },
         body: JSON.stringify({
-          isSuspended: !academy.isSuspended,
-          status: !academy.isSuspended
-            ? "suspended"
-            : academy.status === "trial"
-              ? "trial"
-              : "active",
+          isSuspended: nextIsSuspended,
+          status: nextStatus,
           reason: trimmedReason,
         }),
       });
