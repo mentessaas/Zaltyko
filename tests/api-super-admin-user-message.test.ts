@@ -89,7 +89,10 @@ describe("API /api/super-admin/users/[profileId]/send-message", () => {
     expect(response.status).toBe(200);
     expect(body).toMatchObject({
       ok: true,
-      message: "Notificación enviada correctamente",
+      data: {
+        ok: true,
+        message: "Notificación enviada correctamente",
+      },
     });
     expect(mocks.createNotification).toHaveBeenCalledWith({
       tenantId: profile.tenantId,
