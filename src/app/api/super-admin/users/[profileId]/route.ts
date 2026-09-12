@@ -219,7 +219,7 @@ export const PATCH = withSuperAdmin(async (request, context) => {
     auditChanges.name = { from: existing.name, to: body.name };
   }
 
-  let planToApply: { id: string; code: string; violations: any } | null = null;
+  let planToApply: { id: string | null; code: string | null; violations: any } | null = null;
 
   if (body.planId) {
     const [plan] = await db
@@ -244,6 +244,9 @@ export const PATCH = withSuperAdmin(async (request, context) => {
 
     planToApply = { id: plan.id, code: plan.code, violations };
     auditChanges.planId = plan.id;
+  } else if (body.planId === null) {
+    planToApply = { id: null, code: null, violations: null };
+    auditChanges.planId = null;
   }
 
   if (body.email) {
@@ -288,9 +291,9 @@ export const PATCH = withSuperAdmin(async (request, context) => {
         if (existingSubscription) {
           await tx
             .update(subscriptions)
-            .set({ planId: planToApply.id })
+            .set({ planId: planToApply.id, status: planToApply.id ? "active" : "canceled" })
             .where(eq(subscriptions.id, existingSubscription.id));
-        } else {
+        } else if (planToApply.id) {
           await tx.insert(subscriptions).values({
             userId: existing.userId,
             planId: planToApply.id,
