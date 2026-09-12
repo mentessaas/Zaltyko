@@ -320,6 +320,7 @@ export async function getGlobalStats(): Promise<SuperAdminMetrics> {
 export interface SuperAdminAcademiesPage {
   items: SuperAdminAcademyRow[];
   total: number;
+  page: number;
 }
 
 export async function getAcademiesPage(args: {
@@ -396,6 +397,7 @@ export async function getAcademiesPage(args: {
       isSuspended: Boolean(academy.isSuspended),
     })),
     total,
+    page: effectivePage,
   };
 }
 
