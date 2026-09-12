@@ -18,10 +18,26 @@ const BodySchema = z.object({
   message: z.string().min(1).max(5000),
   type: z.enum(["email", "notification"]).default("email"),
 });
+
+async function resolveRouteProfileId(context: unknown): Promise<string | null> {
+  if (!context || typeof context !== "object") return null;
+  const rawParams = (context as { params?: unknown }).params;
+  const params =
+    rawParams &&
+    typeof rawParams === "object" &&
+    "then" in rawParams &&
+    typeof (rawParams as { then?: unknown }).then === "function"
+      ? await (rawParams as Promise<unknown>)
+      : rawParams;
+
+  if (!params || typeof params !== "object") return null;
+  const profileId = (params as { profileId?: unknown }).profileId;
+  return typeof profileId === "string" ? profileId : null;
+}
 // @service-role auth-admin:read-email. Super-admin messaging needs the target Supabase Auth email.
 /** @resource-scope super-admin — withSuperAdmin verifies the global authority. */
 
-export const POST = withSuperAdmin(async (request, _context) => {
+export const POST = withSuperAdmin(async (request, context) => {
   let rawBody: unknown;
   try {
     rawBody = await request.json();
@@ -34,6 +50,10 @@ export const POST = withSuperAdmin(async (request, _context) => {
     return apiError("VALIDATION_ERROR", parsed.error.issues[0]?.message ?? "Datos inválidos", 400);
   }
   const body = parsed.data;
+  const routeProfileId = await resolveRouteProfileId(context);
+  if (routeProfileId && routeProfileId !== body.profileId) {
+    return apiError("PROFILE_ID_MISMATCH", "El perfil de la URL no coincide con el perfil solicitado", 400);
+  }
 
   // Get target user profile
   const [targetProfile] = await db
