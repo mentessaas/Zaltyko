@@ -50,8 +50,8 @@ describe("daily alerts cron", () => {
       .mockReturnValueOnce({
         from: () => ({
           where: () => Promise.resolve([
-            { userId: "admin-1", tenantId: "tenant-1", role: "admin" },
-            { userId: "coach-2", tenantId: "tenant-2", role: "coach" },
+            { profileId: "profile-admin-1", tenantId: "tenant-1", role: "admin" },
+            { profileId: "profile-coach-2", tenantId: "tenant-2", role: "coach" },
           ]),
         }),
       });
@@ -74,5 +74,13 @@ describe("daily alerts cron", () => {
       },
     });
     expect(mocks.payments).toHaveBeenCalledTimes(2);
+    expect(mocks.payments).toHaveBeenNthCalledWith(1, "academy-1", "tenant-1", ["profile-admin-1"]);
+    expect(mocks.attendance).toHaveBeenNthCalledWith(
+      2,
+      "academy-2",
+      "tenant-2",
+      [],
+      ["profile-coach-2"]
+    );
   });
 });
