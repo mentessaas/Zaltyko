@@ -7,6 +7,7 @@ import { db } from "@/db";
 import { academies, profiles, ticketResponses, tickets } from "@/db/schema";
 import { createClient } from "@/lib/supabase/server";
 import { getCurrentProfile } from "@/lib/authz";
+import { getDevSessionFromCookieStore } from "@/lib/dev-session";
 import { TicketList } from "@/components/support/TicketList";
 import { TicketFilters } from "@/components/support/TicketFilters";
 import { Skeleton } from "@/components/ui/skeleton";
@@ -137,14 +138,16 @@ export default async function SuperAdminSupportPage({ searchParams }: PageProps)
   const filters = await searchParams;
   const cookieStore = await cookies();
   const supabase = await createClient(cookieStore);
+  const devSession = await getDevSessionFromCookieStore(cookieStore);
   const {
     data: { user },
   } = await supabase.auth.getUser();
 
-  if (!user) redirect("/auth/login");
+  if (!user && !devSession) redirect("/auth/login");
 
-  const profile = await getCurrentProfile(user.id);
-  if (!profile || profile.role !== "super_admin") redirect("/dashboard");
+  const profile = user ? await getCurrentProfile(user.id) : null;
+  const effectiveProfile = profile ?? (devSession ? { role: "super_admin" } : null);
+  if (!effectiveProfile || effectiveProfile.role !== "super_admin") redirect("/dashboard");
 
   return (
     <div className="container mx-auto py-8">
