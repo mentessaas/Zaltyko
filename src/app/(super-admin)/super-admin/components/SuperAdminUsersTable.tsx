@@ -1,6 +1,6 @@
 "use client";
 
-import { useCallback, useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 import { ChevronLeft, ChevronRight, ShieldAlert, UserCog, Users, Loader2 } from "lucide-react";
 
@@ -73,15 +73,6 @@ export function SuperAdminUsersTable({ initialItems, initialTotal }: SuperAdminU
       setUserId(data.user?.id ?? null);
     });
   }, [supabase]);
-
-  const roleCounts = useMemo(() => {
-    const counts: Record<string, number> = {};
-    items.forEach((item) => {
-      const roleKey = item.role ?? "unknown";
-      counts[roleKey] = (counts[roleKey] ?? 0) + 1;
-    });
-    return counts;
-  }, [items]);
 
   const fetchUsers = useCallback(async (activeFilters: SuperAdminUsersFilters, requestedPage = page) => {
     if (!userId) return;
@@ -182,7 +173,7 @@ export function SuperAdminUsersTable({ initialItems, initialTotal }: SuperAdminU
       if (!response.ok) {
         // Revertir optimistic update en caso de error
         if (optimisticUpdate) {
-          await fetchUsers(filters);
+          await fetchUsers(filters, page);
         }
         const error = await response.json().catch(() => ({}));
         toast.pushToast({
@@ -202,11 +193,11 @@ export function SuperAdminUsersTable({ initialItems, initialTotal }: SuperAdminU
       });
       
       // Refrescar datos para asegurar sincronización
-      await fetchUsers(filters);
+      await fetchUsers(filters, page);
     } catch (error: any) {
       // Revertir optimistic update en caso de error
       if (optimisticUpdate) {
-        await fetchUsers(filters);
+        await fetchUsers(filters, page);
       }
       logger.error("Update user failed", error);
       toast.pushToast({
