@@ -55,6 +55,17 @@ function formatMoney(value: number | string | null | undefined, currency = "eur"
   }
 }
 
+function safeExternalUrl(value: string | null | undefined) {
+  if (!value) return null;
+
+  try {
+    const url = new URL(value);
+    return url.protocol === "http:" || url.protocol === "https:" ? url.toString() : null;
+  } catch {
+    return null;
+  }
+}
+
 function statusLabel(status: string) {
   switch (status) {
     case "paid":
@@ -430,9 +441,9 @@ export default async function SuperAdminBillingPage({ searchParams }: PageProps)
                     </td>
                     <td className="px-5 py-4 text-right">
                       <p className="font-semibold text-white">{formatMoney(invoice.amountPaid ?? invoice.amountDue, invoice.currency)}</p>
-                      {(invoice.hostedInvoiceUrl || invoice.invoicePdf) && (
+                      {(safeExternalUrl(invoice.hostedInvoiceUrl) || safeExternalUrl(invoice.invoicePdf)) && (
                         <a
-                          href={invoice.hostedInvoiceUrl ?? invoice.invoicePdf ?? "#"}
+                          href={safeExternalUrl(invoice.hostedInvoiceUrl) ?? safeExternalUrl(invoice.invoicePdf) ?? "#"}
                           target="_blank"
                           rel="noopener noreferrer"
                           className="mt-1 inline-flex items-center gap-1 text-xs text-zaltyko-electric hover:underline"
