@@ -274,6 +274,8 @@ export const DELETE = withSuperAdmin(async (request, context) => {
     return apiError("ACADEMY_NOT_FOUND", "Academy not found", 404);
   }
 
+  revalidatePublicAcademySeo(academyId);
+
   await logAdminAction({
     userId: context.userId,
     tenantId: null,
