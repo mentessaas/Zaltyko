@@ -6,7 +6,7 @@ import { db } from "@/db";
 import { profiles } from "@/db/schema";
 import { academyStatusValues, type AcademyStatus } from "@/db/schema/academies";
 import { withSuperAdmin } from "@/lib/authz";
-import { getAcademiesPage } from "@/lib/superAdminService";
+import { getAcademiesPage, getAcademyFilterOptions } from "@/lib/superAdminService";
 import { createAcademy } from "@/app/api/academies/academies.lib";
 import { createAuthUser, deleteAuthUser } from "@/lib/supabase/admin-operations";
 import { logAdminAction } from "@/lib/admin-logs";
@@ -145,14 +145,17 @@ export const GET = withSuperAdmin(async (request) => {
     Math.max(1, Number.parseInt(url.searchParams.get("limit") ?? String(DEFAULT_PAGE_SIZE), 10) || DEFAULT_PAGE_SIZE)
   );
 
-  const result = await getAcademiesPage({
-    page,
-    pageSize,
-    plan: planFilter,
-    type: typeFilter,
-    country: countryFilter,
-    status: statusFilter,
-  });
+  const [result, filterOptions] = await Promise.all([
+    getAcademiesPage({
+      page,
+      pageSize,
+      plan: planFilter,
+      type: typeFilter,
+      country: countryFilter,
+      status: statusFilter,
+    }),
+    getAcademyFilterOptions(),
+  ]);
   const totalPages = Math.max(1, Math.ceil(result.total / pageSize));
   const effectivePage = result.page;
 
@@ -163,6 +166,7 @@ export const GET = withSuperAdmin(async (request) => {
     totalPages,
     hasNextPage: effectivePage < totalPages,
     hasPreviousPage: effectivePage > 1,
+    options: filterOptions,
     items: result.items,
   });
 });
