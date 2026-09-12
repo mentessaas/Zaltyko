@@ -4,7 +4,6 @@ import { z } from "zod";
 
 import { db } from "@/db";
 import { academies, subscriptions, plans, profiles } from "@/db/schema";
-import { academyStatusValues } from "@/db/schema/academies";
 import { withSuperAdmin } from "@/lib/authz";
 import { logAdminAction } from "@/lib/admin-logs";
 import { getSuperAdminAcademyDetail } from "@/lib/super-admin";
