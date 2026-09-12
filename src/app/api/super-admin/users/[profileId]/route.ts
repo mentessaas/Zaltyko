@@ -1,5 +1,5 @@
 import { apiSuccess, apiError } from "@/lib/api-response";
-import { eq, count, inArray, sql } from "drizzle-orm";
+import { and, eq, count, inArray, isNull, sql } from "drizzle-orm";
 import { z } from "zod";
 
 import { db } from "@/db";
@@ -131,7 +131,7 @@ export const GET = withSuperAdmin(async (_request, context) => {
     const [athletesResult] = await db
       .select({ count: sql<number>`count(*)` })
       .from(athletes)
-      .where(inArray(athletes.academyId, academyIds));
+      .where(and(inArray(athletes.academyId, academyIds), isNull(athletes.deletedAt)));
 
     const [coachesResult] = await db
       .select({ count: sql<number>`count(*)` })
@@ -141,7 +141,7 @@ export const GET = withSuperAdmin(async (_request, context) => {
     const [classesResult] = await db
       .select({ count: sql<number>`count(*)` })
       .from(classes)
-      .where(inArray(classes.academyId, academyIds));
+      .where(and(inArray(classes.academyId, academyIds), isNull(classes.deletedAt)));
 
     stats.totalAthletes = Number(athletesResult?.count ?? 0);
     stats.totalCoaches = Number(coachesResult?.count ?? 0);
