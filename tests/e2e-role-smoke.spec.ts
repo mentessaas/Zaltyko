@@ -64,14 +64,14 @@ test.describe("role smoke: super admin", () => {
     test.skip(!superAdminAcademyId, "Set E2E_SUPER_ADMIN_ACADEMY_ID to run academy detail smoke.");
     await gotoAppPath(page, `${baseURL}/super-admin/academies/${superAdminAcademyId}`);
     await expectNoRouteError(page);
-    await expect(page).not.toHaveURL(/\\/auth\\/login/);
+    await expect(page).not.toHaveURL(/\/auth\/login/);
   });
 
   test("can open user detail when configured", async ({ page }) => {
     test.skip(!superAdminProfileId, "Set E2E_SUPER_ADMIN_PROFILE_ID to run user detail smoke.");
     await gotoAppPath(page, `${baseURL}/super-admin/users/${superAdminProfileId}`);
     await expectNoRouteError(page);
-    await expect(page).not.toHaveURL(/\\/auth\\/login/);
+    await expect(page).not.toHaveURL(/\/auth\/login/);
   });
 });
 
