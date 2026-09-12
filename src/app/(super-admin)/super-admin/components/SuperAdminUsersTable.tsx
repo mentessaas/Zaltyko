@@ -1,6 +1,6 @@
 "use client";
 
-import { useCallback, useEffect, useState } from "react";
+import { useCallback, useEffect, useMemo, useState } from "react";
 import { useRouter } from "next/navigation";
 import { ChevronLeft, ChevronRight, ShieldAlert, UserCog, Users, Loader2 } from "lucide-react";
 
@@ -49,7 +49,7 @@ function formatRole(role: string | null) {
 
 
 export function SuperAdminUsersTable({ initialItems, initialTotal, initialUserId }: SuperAdminUsersTableProps) {
-  const supabase = createClient();
+  const supabase = useMemo(() => createClient(), []);
   const router = useRouter();
   const toast = useToast();
   const [userId, setUserId] = useState<string | null>(initialUserId ?? null);
