@@ -13,7 +13,10 @@ const superAdminStorageState = process.env.E2E_SUPER_ADMIN_STORAGE_STATE;
 const superAdminPaths = [
   "/super-admin/dashboard",
   "/super-admin/academies",
+  "/super-admin/academies/public",
   "/super-admin/users",
+  "/super-admin/growth",
+  "/super-admin/logs",
   "/super-admin/billing",
   "/super-admin/support",
   "/super-admin/settings",
