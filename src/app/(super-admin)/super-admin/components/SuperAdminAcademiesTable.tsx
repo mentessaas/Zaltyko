@@ -569,11 +569,7 @@ export function SuperAdminAcademiesTable({
       )}
 
       <p className="font-sans text-xs text-white/50">
-        ¿Necesitas editar detalles avanzados de una academia? Abre su panel operativo desde{" "}
-        <Link href="/dashboard/academies" className="font-semibold text-zaltyko-primary-light hover:underline">
-          panel de academias
-        </Link>{" "}
-        mientras desarrollamos la delegación directa.
+        Selecciona una fila para abrir el detalle operativo y revisar propietario, ubicación, plan y estado.
       </p>
 
       {pendingAction && (
