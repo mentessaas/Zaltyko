@@ -58,6 +58,7 @@ export function SuperAdminUsersTable({ initialItems, initialTotal, initialUserId
   const [page, setPage] = useState(1);
   const PAGE_SIZE = 50;
   const [loading, setLoading] = useState(false);
+  const [errorMessage, setErrorMessage] = useState<string | null>(null);
   const [syncing, setSyncing] = useState(false);
   const [mutatingUserId, setMutatingUserId] = useState<string | null>(null);
   const [filters, setFilters] = useState<SuperAdminUsersFilters>({});
@@ -72,12 +73,15 @@ export function SuperAdminUsersTable({ initialItems, initialTotal, initialUserId
   useEffect(() => {
     supabase.auth.getUser().then(({ data }) => {
       if (data.user?.id) setUserId(data.user.id);
+    }).catch((error) => {
+      logger.warn("Unable to resolve super-admin session", error);
     });
   }, [supabase]);
 
   const fetchUsers = useCallback(async (activeFilters: SuperAdminUsersFilters, requestedPage = page) => {
     if (!userId) return;
     setLoading(true);
+    setErrorMessage(null);
     try {
       const params = new URLSearchParams();
       if (activeFilters.role) params.set("role", activeFilters.role);
@@ -92,12 +96,16 @@ export function SuperAdminUsersTable({ initialItems, initialTotal, initialUserId
       });
       if (!response.ok) {
         logger.error("Fetch users failed", await response.text());
+        setErrorMessage("No se pudieron cargar los usuarios. Reintenta en unos segundos.");
         return;
       }
       const { data: payload } = await response.json();
       setItems(payload.items ?? []);
       setTotal(Number(payload.total ?? payload.items?.length ?? 0));
       setPage(Number(payload.page ?? requestedPage));
+    } catch (error) {
+      logger.error("Fetch users failed", error);
+      setErrorMessage("No se pudieron cargar los usuarios. Revisa la conexión y reintenta.");
     } finally {
       setLoading(false);
     }
@@ -346,6 +354,22 @@ export function SuperAdminUsersTable({ initialItems, initialTotal, initialUserId
           </Button>
         </div>
       </div>
+
+      {errorMessage && (
+        <div role="alert" className="flex flex-col gap-3 rounded-xl border border-zaltyko-coral/30 bg-zaltyko-coral/10 px-4 py-3 text-sm text-zaltyko-coral sm:flex-row sm:items-center sm:justify-between">
+          <span>{errorMessage}</span>
+          <Button
+            type="button"
+            variant="outline"
+            size="sm"
+            className="border-zaltyko-coral/40 bg-transparent text-zaltyko-coral hover:bg-zaltyko-coral/10"
+            onClick={() => void fetchUsers(filters, page)}
+            disabled={loading}
+          >
+            Reintentar
+          </Button>
+        </div>
+      )}
 
       <div className="w-full overflow-hidden rounded-xl border border-white/10 bg-white/5 shadow-md sm:rounded-2xl">
         <div className="w-full overflow-x-auto">
