@@ -580,5 +580,6 @@ export function SuperAdminAcademyDetail({ initialAcademy, userId, backHref = "/s
       onConfirm={executeToggleSuspension}
       loading={saving}
     />
+    </div>
   );
 }
