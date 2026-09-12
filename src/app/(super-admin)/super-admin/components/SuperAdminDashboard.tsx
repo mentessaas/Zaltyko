@@ -189,7 +189,7 @@ export function SuperAdminDashboard({ initialMetrics, initialEvents = [], initia
       {
         title: "Usuarios",
         value: safeMetrics.totals.users,
-        subtitle: `Última alta: ${latestAcademyDate}`,
+        subtitle: "Usuarios con perfil registrado",
         trend: metricTrends.users,
         href: "/super-admin/users",
         icon: Users,
@@ -212,9 +212,9 @@ export function SuperAdminDashboard({ initialMetrics, initialEvents = [], initia
         accent: "coral" as const,
       },
       {
-        title: "Planes activos",
+        title: "Planes configurados",
         value: safeMetrics.totals.plans,
-        subtitle: "Planes configurados en el SaaS",
+        subtitle: "Catálogo disponible para suscripciones",
         href: "/super-admin/billing",
         icon: LayoutGrid,
         accent: "red" as const,
@@ -222,7 +222,7 @@ export function SuperAdminDashboard({ initialMetrics, initialEvents = [], initia
       {
         title: "Suscripciones",
         value: safeMetrics.totals.subscriptions,
-        subtitle: `${safeMetrics.totals.paidInvoices} recibos de suscripción cobrados`,
+        subtitle: "Suscripciones registradas",
         href: "/super-admin/billing",
         icon: CreditCard,
         accent: "amber" as const,
