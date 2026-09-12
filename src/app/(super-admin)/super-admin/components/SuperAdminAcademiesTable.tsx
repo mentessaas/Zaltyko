@@ -6,6 +6,7 @@ import Link from "next/link";
 import { ChevronLeft, ChevronRight, PauseCircle, PlayCircle, Trash2, Loader2 } from "lucide-react";
 
 import type { SuperAdminAcademyRow } from "@/lib/superAdminService";
+import type { AcademyStatus } from "@/db/schema/academies";
 import { createClient } from "@/lib/supabase/client";
 import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
@@ -19,8 +20,31 @@ type SuperAdminAcademyFilters = {
   plan?: string;
   type?: string;
   country?: string;
-  status?: "active" | "suspended";
+  status?: AcademyStatus;
 };
+
+const ACADEMY_STATUS_LABELS: Record<AcademyStatus, string> = {
+  active: "Activa",
+  trial: "En prueba",
+  suspended: "Suspendida",
+  churned: "Baja",
+  fraud_hold: "Revisión de fraude",
+};
+
+const ACADEMY_STATUS_CLASSES: Record<AcademyStatus, string> = {
+  active: "bg-zaltyko-primary/15 text-zaltyko-primary-light",
+  trial: "bg-amber-400/15 text-amber-200",
+  suspended: "bg-zaltyko-coral/15 text-zaltyko-coral",
+  churned: "bg-white/10 text-white/60",
+  fraud_hold: "bg-fuchsia-400/15 text-fuchsia-200",
+};
+
+function getEffectiveAcademyStatus(academy: SuperAdminAcademyRow): AcademyStatus {
+  if (academy.isSuspended && (academy.status === "active" || academy.status === "trial")) {
+    return "suspended";
+  }
+  return academy.status;
+}
 
 interface SuperAdminAcademiesTableProps {
   initialItems: SuperAdminAcademyRow[];
@@ -74,6 +98,14 @@ export function SuperAdminAcademiesTable({
       if (academy.academyType) set.add(academy.academyType);
     });
     return Array.from(set).sort();
+  }, [items]);
+
+  const countryOptions = useMemo(() => {
+    const set = new Set<string>();
+    items.forEach((academy) => {
+      if (academy.country) set.add(academy.country);
+    });
+    return Array.from(set).sort((a, b) => a.localeCompare(b, "es"));
   }, [items]);
 
   const handleFilterChange = async (partial: Partial<SuperAdminAcademyFilters>) => {
@@ -202,6 +234,8 @@ export function SuperAdminAcademiesTable({
   };
 
   const handleSuspend = (academy: SuperAdminAcademyRow) => {
+    const status = getEffectiveAcademyStatus(academy);
+    if (status === "fraud_hold" || status === "churned") return;
     setPendingAction({
       academyId: academy.id,
       action: "suspend",
@@ -227,7 +261,18 @@ export function SuperAdminAcademiesTable({
     } else {
       const academy = items.find((a) => a.id === pendingAction.academyId);
       if (academy) {
-        await mutateAcademy(pendingAction.academyId, { isSuspended: !academy.isSuspended, reason }, "PATCH");
+        const currentStatus = getEffectiveAcademyStatus(academy);
+        const shouldSuspend = currentStatus !== "suspended";
+        const nextStatus: AcademyStatus = shouldSuspend
+          ? "suspended"
+          : academy.status === "trial"
+            ? "trial"
+            : "active";
+        await mutateAcademy(
+          pendingAction.academyId,
+          { isSuspended: shouldSuspend, status: nextStatus, reason },
+          "PATCH"
+        );
       }
     }
 
@@ -276,18 +321,36 @@ export function SuperAdminAcademiesTable({
             ))}
           </select>
           <select
+            aria-label="Filtrar academias por país"
+            className="rounded-xl border border-white/20 bg-white/10 px-3 py-2 font-display text-xs font-semibold text-white hover:border-white/40 focus:border-white/60 focus:outline-none"
+            value={filters.country ?? ""}
+            onChange={(event) =>
+              handleFilterChange({ country: event.target.value || undefined })
+            }
+          >
+            <option value="">País (todos)</option>
+            {countryOptions.map((country) => (
+              <option key={country} value={country}>
+                {country}
+              </option>
+            ))}
+          </select>
+          <select
             aria-label="Filtrar academias por estado"
             className="rounded-xl border border-white/20 bg-white/10 px-3 py-2 font-display text-xs font-semibold text-white hover:border-white/40 focus:border-white/60 focus:outline-none"
             value={filters.status ?? ""}
             onChange={(event) =>
               handleFilterChange({
-                status: (event.target.value as "active" | "suspended" | "") || undefined,
+                status: (event.target.value as AcademyStatus | "") || undefined,
               })
             }
           >
-            <option value="">Estado</option>
-            <option value="active">Activa</option>
-            <option value="suspended">Suspendida</option>
+            <option value="">Estado (todos)</option>
+            {(Object.keys(ACADEMY_STATUS_LABELS) as AcademyStatus[]).map((status) => (
+              <option key={status} value={status}>
+                {ACADEMY_STATUS_LABELS[status]}
+              </option>
+            ))}
           </select>
           <Button
             variant="outline"
@@ -365,16 +428,19 @@ export function SuperAdminAcademiesTable({
                   </div>
                 </td>
                 <td className="px-4 py-4">
-                  <span
-                    className={cn(
-                      "inline-flex rounded-full px-2.5 py-1 text-xs font-semibold uppercase tracking-wide",
-                      academy.isSuspended
-                        ? "bg-zaltyko-coral/15 text-zaltyko-coral"
-                        : "bg-zaltyko-primary/15 text-zaltyko-primary-light",
-                    )}
-                  >
-                    {academy.isSuspended ? "Suspendida" : "Activa"}
-                  </span>
+                  {(() => {
+                    const status = getEffectiveAcademyStatus(academy);
+                    return (
+                      <span
+                        className={cn(
+                          "inline-flex max-w-[12rem] rounded-full px-2.5 py-1 text-xs font-semibold uppercase tracking-wide",
+                          ACADEMY_STATUS_CLASSES[status],
+                        )}
+                      >
+                        {ACADEMY_STATUS_LABELS[status]}
+                      </span>
+                    );
+                  })()}
                 </td>
                 <td className="px-4 py-4 font-sans text-xs text-white/70">
                   {academy.createdAt
@@ -391,14 +457,26 @@ export function SuperAdminAcademiesTable({
                         e.stopPropagation();
                         handleSuspend(academy);
                       }}
-                      disabled={loading || mutatingAcademyId === academy.id}
+                      disabled={
+                        loading ||
+                        mutatingAcademyId === academy.id ||
+                        getEffectiveAcademyStatus(academy) === "fraud_hold" ||
+                        getEffectiveAcademyStatus(academy) === "churned"
+                      }
+                      title={
+                        getEffectiveAcademyStatus(academy) === "fraud_hold"
+                          ? "La revisión de fraude requiere una decisión de seguridad"
+                          : getEffectiveAcademyStatus(academy) === "churned"
+                            ? "Una academia dada de baja no se reactiva desde esta vista"
+                            : undefined
+                      }
                     >
                       {mutatingAcademyId === academy.id ? (
                         <>
                           <Loader2 className="mr-2 h-4 w-4 animate-spin" strokeWidth={1.8} />
                           Procesando...
                         </>
-                      ) : academy.isSuspended ? (
+                      ) : getEffectiveAcademyStatus(academy) === "suspended" ? (
                         <>
                           <PlayCircle className="mr-2 h-4 w-4" strokeWidth={1.8} />
                           Reactivar
@@ -496,15 +574,32 @@ export function SuperAdminAcademiesTable({
           title={
             pendingAction.action === "delete"
               ? "Eliminar academia"
-              : `Suspender academia`
+              : items.find((academy) => academy.id === pendingAction.academyId) &&
+                  getEffectiveAcademyStatus(items.find((academy) => academy.id === pendingAction.academyId)!) === "suspended"
+                ? "Reactivar academia"
+                : "Suspender academia"
           }
           description={
             pendingAction.action === "delete"
               ? `¿Estás seguro de eliminar "${pendingAction.academyName}"? Se borrarán la academia y sus datos asociados. La cuenta personal del dueño se conserva y debe revisarse aparte si ya no debe existir. Esta acción no se puede deshacer.`
-              : `¿Estás seguro de suspender "${pendingAction.academyName}"? Los usuarios no podrán acceder hasta que sea reactivada.`
+              : items.find((academy) => academy.id === pendingAction.academyId) &&
+                  getEffectiveAcademyStatus(items.find((academy) => academy.id === pendingAction.academyId)!) === "suspended"
+                ? `¿Quieres reactivar "${pendingAction.academyName}"? Recuperará el acceso de la academia y quedará en su estado operativo anterior.`
+                : `¿Estás seguro de suspender "${pendingAction.academyName}"? Los usuarios no podrán acceder hasta que sea reactivada.`
           }
-          variant="destructive"
-          confirmText={pendingAction.action === "delete" ? "Eliminar" : "Suspender"}
+          variant={
+            pendingAction.action === "delete" ||
+            getEffectiveAcademyStatus(items.find((academy) => academy.id === pendingAction.academyId)!) !== "suspended"
+              ? "destructive"
+              : "default"
+          }
+          confirmText={
+            pendingAction.action === "delete"
+              ? "Eliminar"
+              : getEffectiveAcademyStatus(items.find((academy) => academy.id === pendingAction.academyId)!) === "suspended"
+                ? "Reactivar"
+                : "Suspender"
+          }
           onConfirm={handleConfirmAction}
           requireReason
           onCancel={() => {
