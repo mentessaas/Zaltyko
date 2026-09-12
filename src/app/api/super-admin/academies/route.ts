@@ -7,7 +7,7 @@ import { profiles } from "@/db/schema";
 import { withSuperAdmin } from "@/lib/authz";
 import { getAcademiesPage } from "@/lib/superAdminService";
 import { createAcademy } from "@/app/api/academies/academies.lib";
-import { createAuthUser } from "@/lib/supabase/admin-operations";
+import { createAuthUser, deleteAuthUser } from "@/lib/supabase/admin-operations";
 import { logAdminAction } from "@/lib/admin-logs";
 
 export const dynamic = "force-dynamic";
@@ -45,36 +45,64 @@ export const POST = withSuperAdmin(async (request, context) => {
     return apiError("OWNER_CREATE_FAILED", e instanceof Error ? e.message : "No se pudo crear el dueño", 400);
   }
 
-  // 2) Asegurar el perfil owner con su nombre.
-  let [owner] = await db
-    .update(profiles)
-    .set({ role: "owner", name: d.ownerName ?? null })
-    .where(eq(profiles.userId, ownerUserId))
-    .returning({ id: profiles.id, userId: profiles.userId, role: profiles.role, tenantId: profiles.tenantId });
+  const cleanupOwner = async () => {
+    try {
+      await db.delete(profiles).where(eq(profiles.userId, ownerUserId));
+    } catch {
+      // Best effort: Auth deletion below still prevents a usable orphan account.
+    }
+    try {
+      await deleteAuthUser(ownerUserId);
+    } catch {
+      // Keep the original creation error; cleanup can be retried from audit logs.
+    }
+  };
 
-  if (!owner) {
+  // 2) Asegurar el perfil owner con su nombre.
+  let owner;
+  try {
     [owner] = await db
-      .insert(profiles)
-      .values({ userId: ownerUserId, role: "owner", name: d.ownerName ?? null, tenantId: crypto.randomUUID() })
+      .update(profiles)
+      .set({ role: "owner", name: d.ownerName ?? null })
+      .where(eq(profiles.userId, ownerUserId))
       .returning({ id: profiles.id, userId: profiles.userId, role: profiles.role, tenantId: profiles.tenantId });
+
+    if (!owner) {
+      [owner] = await db
+        .insert(profiles)
+        .values({ userId: ownerUserId, role: "owner", name: d.ownerName ?? null, tenantId: crypto.randomUUID() })
+        .returning({ id: profiles.id, userId: profiles.userId, role: profiles.role, tenantId: profiles.tenantId });
+    }
+
+    if (!owner) throw new Error("No se pudo crear el perfil del dueño");
+  } catch (error) {
+    await cleanupOwner();
+    return apiError("OWNER_PROFILE_CREATE_FAILED", error instanceof Error ? error.message : "No se pudo crear el perfil", 500);
   }
 
   // 3) Crear la academia para ese dueño (createAcademy asigna tenant y membership).
-  const result = await createAcademy(
-    {
-      name: d.academyName,
-      academyType: d.academyType as never,
-      country: d.country,
-      countryCode: d.countryCode,
-      region: d.region,
-      city: d.city,
-      disciplineVariant: d.disciplineVariant as never,
-      ownerProfileId: owner.id,
-    },
-    { profile: { id: owner.id, userId: owner.userId, role: owner.role, tenantId: owner.tenantId } }
-  );
+  let result;
+  try {
+    result = await createAcademy(
+      {
+        name: d.academyName,
+        academyType: d.academyType as never,
+        country: d.country,
+        countryCode: d.countryCode,
+        region: d.region,
+        city: d.city,
+        disciplineVariant: d.disciplineVariant as never,
+        ownerProfileId: owner.id,
+      },
+      { profile: { id: owner.id, userId: owner.userId, role: owner.role, tenantId: owner.tenantId } }
+    );
+  } catch (error) {
+    await cleanupOwner();
+    return apiError("ACADEMY_CREATE_FAILED", error instanceof Error ? error.message : "No se pudo crear la academia", 500);
+  }
 
   if ("error" in result) {
+    await cleanupOwner();
     return result.error ?? apiError("ACADEMY_CREATE_FAILED", "No se pudo crear la academia", 500);
   }
 
