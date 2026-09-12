@@ -343,6 +343,8 @@ async function getGlobalStatsUncached(): Promise<SuperAdminMetrics> {
     .map((row) => ({ currency: normalizeCurrency(row.currency), total: Number(row.total ?? 0) }))
     .filter((row) => row.total > 0)
     .sort((a, b) => b.total - a.total || a.currency.localeCompare(b.currency));
+  // Preserve the legacy scalar only when the value is actually comparable.
+  const comparableRevenue = revenueByCurrency.length === 1 ? revenueByCurrency[0].total : 0;
 
   const activeAcademyIds = new Set([
     ...athleteAcademyRows.map((row) => row.academyId),
@@ -362,7 +364,7 @@ async function getGlobalStatsUncached(): Promise<SuperAdminMetrics> {
     totals: {
       academies: Number(academySummary?.total ?? 0),
       users: Number(userSummary?.total ?? 0),
-      revenue: Number(invoiceSummary?.revenue ?? 0),
+      revenue: comparableRevenue,
       paidInvoices: Number(invoiceSummary?.paidInvoices ?? 0),
       assessments: Number(assessmentSummary?.total ?? 0),
       plans: plansData.length,
@@ -375,7 +377,7 @@ async function getGlobalStatsUncached(): Promise<SuperAdminMetrics> {
       recentActivityAcademies: Number(recentActivitySummary?.total ?? 0),
       previousAcademies: Number(academySummary?.previousAcademies ?? 0),
       previousUsers: Number(userSummary?.previousUsers ?? 0),
-      previousRevenue: Number(invoiceSummary?.previousRevenue ?? 0),
+      previousRevenue: comparableRevenue > 0 ? Number(invoiceSummary?.previousRevenue ?? 0) : 0,
       // Subscription history has no creation timestamp in the current model;
       // keep this unavailable instead of presenting the current total as a trend.
       previousSubscriptions: 0,
