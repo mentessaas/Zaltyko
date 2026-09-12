@@ -39,6 +39,10 @@ export function ConfirmDialog({
   const [isLoading, setIsLoading] = React.useState(false);
   const [reason, setReason] = React.useState("");
 
+  React.useEffect(() => {
+    if (!open) setReason("");
+  }, [open]);
+
   const handleConfirm = async () => {
     setIsLoading(true);
     try {
