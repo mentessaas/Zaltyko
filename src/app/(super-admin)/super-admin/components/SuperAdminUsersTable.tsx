@@ -56,6 +56,7 @@ export function SuperAdminUsersTable({ initialItems }: SuperAdminUsersTableProps
   const [syncing, setSyncing] = useState(false);
   const [mutatingUserId, setMutatingUserId] = useState<string | null>(null);
   const [filters, setFilters] = useState<SuperAdminUsersFilters>({});
+  const [searchInput, setSearchInput] = useState("");
   const [confirmDialogOpen, setConfirmDialogOpen] = useState(false);
   const [pendingAction, setPendingAction] = useState<{
     profileId: string;
@@ -314,15 +315,31 @@ export function SuperAdminUsersTable({ initialItems }: SuperAdminUsersTableProps
           </select>
           <input
             type="search"
+            value={searchInput}
             placeholder="Buscar por nombre o correo"
+            aria-label="Buscar usuarios por nombre o correo"
             className="h-10 w-full rounded-lg border-2 border-white/20 bg-white/10 px-3 py-2 text-sm text-white placeholder:text-white/50 transition-all duration-200 focus:border-white/60 focus:outline-none focus:ring-2 focus:ring-white/20 min-h-[44px] sm:min-h-[40px] sm:max-w-xs"
-            onBlur={(event) => handleFilterChange({ search: event.target.value || undefined })}
+            onChange={(event) => setSearchInput(event.target.value)}
+            onKeyDown={(event) => {
+              if (event.key === "Enter") {
+                void handleFilterChange({ search: searchInput.trim() || undefined });
+              }
+            }}
+            onBlur={() => {
+              const nextSearch = searchInput.trim() || undefined;
+              if (nextSearch !== filters.search) {
+                void handleFilterChange({ search: nextSearch });
+              }
+            }}
           />
           <Button
             variant="outline"
             size="sm"
             className="border-white/20 bg-white/10 text-white hover:border-white/40 hover:bg-white/20"
-            onClick={() => handleFilterChange({ role: undefined, status: undefined, search: undefined })}
+            onClick={() => {
+              setSearchInput("");
+              void handleFilterChange({ role: undefined, status: undefined, search: undefined });
+            }}
             disabled={loading}
           >
             Restablecer
