@@ -13,6 +13,12 @@ import { logger } from "@/lib/logger";
 export const dynamic = "force-dynamic";
 
 const reasonSchema = z.string().trim().min(5).max(500);
+const academyIdSchema = z.string().uuid();
+
+function parseAcademyId(value: unknown): string | null {
+  const parsed = academyIdSchema.safeParse(value);
+  return parsed.success ? parsed.data : null;
+}
 const academyTypeSchema = z.enum(["artistica", "ritmica", "trampolin", "general", "parkour", "danza"]);
 const managedAcademyStatusSchema = z.enum(["active", "trial", "suspended"]);
 const updateAcademySchema = z
@@ -46,9 +52,13 @@ const updateAcademySchema = z
 
 export const GET = withSuperAdmin(async (_request, context) => {
   const params = context.params as { academyId?: string };
-  const academyId = params?.academyId;
-  if (!academyId) {
+  const rawAcademyId = params?.academyId;
+  if (!rawAcademyId) {
     return apiError("ACADEMY_ID_REQUIRED", "Academy ID is required", 400);
+  }
+  const academyId = parseAcademyId(rawAcademyId);
+  if (!academyId) {
+    return apiError("ACADEMY_ID_INVALID", "Academy ID is invalid", 400);
   }
 
   const academy = await getSuperAdminAcademyDetail(academyId);
@@ -62,9 +72,13 @@ export const GET = withSuperAdmin(async (_request, context) => {
 
 export const PATCH = withSuperAdmin(async (request, context) => {
   const params = context.params as { academyId?: string };
-  const academyId = params?.academyId;
-  if (!academyId) {
+  const rawAcademyId = params?.academyId;
+  if (!rawAcademyId) {
     return apiError("ACADEMY_ID_REQUIRED", "Academy ID is required", 400);
+  }
+  const academyId = parseAcademyId(rawAcademyId);
+  if (!academyId) {
+    return apiError("ACADEMY_ID_INVALID", "Academy ID is invalid", 400);
   }
 
   const parsedBody = updateAcademySchema.safeParse(await request.json().catch(() => ({})));
@@ -255,9 +269,13 @@ export const PATCH = withSuperAdmin(async (request, context) => {
 
 export const DELETE = withSuperAdmin(async (request, context) => {
   const params = context.params as { academyId?: string };
-  const academyId = params?.academyId;
-  if (!academyId) {
+  const rawAcademyId = params?.academyId;
+  if (!rawAcademyId) {
     return apiError("ACADEMY_ID_REQUIRED", "Academy ID is required", 400);
+  }
+  const academyId = parseAcademyId(rawAcademyId);
+  if (!academyId) {
+    return apiError("ACADEMY_ID_INVALID", "Academy ID is invalid", 400);
   }
 
   const body = await request.json().catch(() => ({}));
