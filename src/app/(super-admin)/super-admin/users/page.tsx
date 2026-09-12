@@ -3,7 +3,7 @@ import { redirect } from "next/navigation";
 
 import { createClient } from "@/lib/supabase/server";
 import { getCurrentProfile } from "@/lib/authz";
-import { getAllUsers } from "@/lib/superAdminService";
+import { getUsersPage } from "@/lib/superAdminService";
 import { getDevSessionFromCookieStore } from "@/lib/dev-session";
 import { SuperAdminUsersTable } from "../components/SuperAdminUsersTable";
 
@@ -29,8 +29,14 @@ export default async function SuperAdminUsersPage() {
     redirect("/app");
   }
 
-  const users = await getAllUsers();
+  const { items, total } = await getUsersPage({ page: 1, pageSize: 50 });
 
-  return <SuperAdminUsersTable initialItems={users.slice(0, 50)} initialTotal={users.length} initialUserId={user?.id ?? devSession?.userId ?? null} />;
+  return (
+    <SuperAdminUsersTable
+      initialItems={items}
+      initialTotal={total}
+      initialUserId={user?.id ?? devSession?.userId ?? null}
+    />
+  );
 }
 
