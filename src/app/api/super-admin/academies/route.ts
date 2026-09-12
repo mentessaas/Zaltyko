@@ -16,7 +16,8 @@ export const dynamic = "force-dynamic";
 const DEFAULT_PAGE_SIZE = 50;
 const MAX_PAGE_SIZE = 200;
 const ACADEMY_TYPES = ["artistica", "ritmica", "trampolin", "general", "parkour", "danza"] as const;
-const AcademyTypeSchema = z.enum(ACADEMY_TYPES);
+const CREATE_ACADEMY_TYPES = ["artistica", "ritmica", "general"] as const;
+const AcademyTypeSchema = z.enum(CREATE_ACADEMY_TYPES);
 
 const CreateAcademySchema = z.object({
   academyName: z.string().min(3, "El nombre debe tener al menos 3 caracteres"),
