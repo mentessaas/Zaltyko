@@ -3,8 +3,6 @@
 import Link from "next/link";
 import Image from "next/image";
 import { usePathname } from "next/navigation";
-import { BarChart3 } from "lucide-react";
-
 import { isSuperAdminNavigationActive } from "@/lib/navigation/active";
 import { cn } from "@/lib/utils";
 import { SUPER_ADMIN_NAV_ITEMS } from "./nav-items";
@@ -48,16 +46,6 @@ export function SuperAdminSidebar() {
             );
           })}
         </nav>
-        <div className="rounded-xl border border-white/10 bg-white/5 px-3 py-3 font-sans text-xs text-white/70">
-          <p className="flex items-center gap-2 font-display text-[11px] uppercase tracking-wide text-zaltyko-accent-light">
-            <BarChart3 className="h-3.5 w-3.5" strokeWidth={1.8} />
-            Panel global
-          </p>
-          <p className="mt-2 font-sans leading-relaxed text-white/60">
-            Controla academias, usuarios y cobros desde un único lugar. Todos los cambios quedan
-            registrados.
-          </p>
-        </div>
       </div>
     </aside>
   );
