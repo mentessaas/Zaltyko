@@ -111,7 +111,7 @@ export function ConfirmDialog({
               type="button"
               variant="outline"
               onClick={handleCancel}
-              disabled={isLoading || loading || (requireReason && reason.trim().length < 5)}
+              disabled={isLoading || loading}
             >
               {cancelText}
             </Button>
@@ -119,7 +119,7 @@ export function ConfirmDialog({
               type="button"
               variant={variant === "destructive" ? "destructive" : "default"}
               onClick={handleConfirm}
-              disabled={isLoading || loading}
+              disabled={isLoading || loading || (requireReason && reason.trim().length < 5)}
             >
               {isLoading || loading ? "Procesando..." : confirmText}
             </Button>
