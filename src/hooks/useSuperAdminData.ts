@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 
 import type { EventLogEntry, SuperAdminMetrics } from "@/lib/superAdminService";
 import { isSuperAdminMetrics, normalizeSuperAdminMetrics } from "@/lib/super-admin-metrics";
@@ -13,6 +13,7 @@ export function useSuperAdminData(initial: SuperAdminMetrics, initialEvents: Eve
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [lastUpdatedAt, setLastUpdatedAt] = useState<Date | null>(null);
+  const refreshTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   useEffect(() => {
     setMetrics(normalizeSuperAdminMetrics(initial));
@@ -91,6 +92,14 @@ export function useSuperAdminData(initial: SuperAdminMetrics, initialEvents: Eve
     refresh();
   }, [userId, refresh]);
 
+  const scheduleRefresh = useCallback(() => {
+    if (refreshTimer.current) return;
+    refreshTimer.current = setTimeout(() => {
+      refreshTimer.current = null;
+      void refresh();
+    }, 400);
+  }, [refresh]);
+
   useEffect(() => {
     if (!userId) return;
 
@@ -100,9 +109,7 @@ export function useSuperAdminData(initial: SuperAdminMetrics, initialEvents: Eve
       channel.on(
         "postgres_changes",
         { schema: "public", table, event: "*" },
-        () => {
-          refresh();
-        }
+        scheduleRefresh
       );
     };
 
@@ -116,9 +123,13 @@ export function useSuperAdminData(initial: SuperAdminMetrics, initialEvents: Eve
     channel.subscribe();
 
     return () => {
+      if (refreshTimer.current) {
+        clearTimeout(refreshTimer.current);
+        refreshTimer.current = null;
+      }
       supabase.removeChannel(channel);
     };
-  }, [userId, supabase, refresh]);
+  }, [userId, supabase, scheduleRefresh]);
 
   return {
     metrics,
