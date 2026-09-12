@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { History } from "lucide-react";
 
 import type { SuperAdminLogEntry } from "@/lib/super-admin";
@@ -10,34 +10,51 @@ import { logger } from "@/lib/logger";
 
 interface SuperAdminLogsTableProps {
   initialLogs: SuperAdminLogEntry[];
+  initialUserId?: string | null;
 }
 
-export function SuperAdminLogsTable({ initialLogs }: SuperAdminLogsTableProps) {
-  const supabase = createClient();
+export function SuperAdminLogsTable({
+  initialLogs,
+  initialUserId,
+}: SuperAdminLogsTableProps) {
+  const supabase = useMemo(() => createClient(), []);
   const [logs, setLogs] = useState(initialLogs);
-  const [userId, setUserId] = useState<string | null>(null);
+  const [userId, setUserId] = useState<string | null>(initialUserId ?? null);
   const [loading, setLoading] = useState(false);
+  const [errorMessage, setErrorMessage] = useState<string | null>(null);
 
   useEffect(() => {
-    supabase.auth.getUser().then(({ data }) => {
-      setUserId(data.user?.id ?? null);
-    });
+    supabase.auth
+      .getUser()
+      .then(({ data }) => {
+        if (data.user?.id) setUserId(data.user.id);
+      })
+      .catch((error) => {
+        logger.warn("Unable to resolve super-admin session for logs", {
+          error: error instanceof Error ? error.message : String(error),
+        });
+      });
   }, [supabase]);
 
   const refresh = async () => {
     if (!userId) return;
     setLoading(true);
+    setErrorMessage(null);
     try {
       const response = await fetch("/api/super-admin/logs?limit=200", {
-        headers: {},
         cache: "no-store",
       });
       if (!response.ok) {
         logger.error("Failed to fetch logs", await response.text());
+        setErrorMessage("No se pudieron cargar los logs. Revisa la conexión y reintenta.");
         return;
       }
-      const { data: payload } = await response.json();
-      setLogs(payload.items ?? []);
+      const body = await response.json();
+      const payload = body.ok ? body.data : body.data ?? body;
+      setLogs(payload?.items ?? []);
+    } catch (error) {
+      logger.error("Failed to refresh logs", error);
+      setErrorMessage("No se pudieron cargar los logs. Revisa la conexión y reintenta.");
     } finally {
       setLoading(false);
     }
@@ -64,8 +81,28 @@ export function SuperAdminLogsTable({ initialLogs }: SuperAdminLogsTableProps) {
         </Button>
       </div>
 
+      {errorMessage && (
+        <div
+          role="alert"
+          className="flex flex-col gap-3 rounded-xl border border-zaltyko-coral/30 bg-zaltyko-coral/10 px-4 py-3 text-sm text-zaltyko-coral sm:flex-row sm:items-center sm:justify-between"
+        >
+          <span>{errorMessage}</span>
+          <Button
+            type="button"
+            variant="outline"
+            size="sm"
+            className="border-zaltyko-coral/40 bg-transparent text-zaltyko-coral hover:bg-zaltyko-coral/10"
+            onClick={() => void refresh()}
+            disabled={loading}
+          >
+            Reintentar
+          </Button>
+        </div>
+      )}
+
       <div className="overflow-hidden rounded-2xl border border-white/10 bg-white/5">
-        <table className="min-w-full divide-y divide-white/10 text-sm">
+        <div className="overflow-x-auto">
+        <table className="min-w-[760px] divide-y divide-white/10 text-sm">
           <thead className="bg-white/10 text-xs uppercase tracking-wide text-white/90">
             <tr>
               <th className="px-4 py-3 text-left font-semibold">Acción</th>
@@ -105,6 +142,7 @@ export function SuperAdminLogsTable({ initialLogs }: SuperAdminLogsTableProps) {
             ))}
           </tbody>
         </table>
+        </div>
       </div>
     </div>
   );
