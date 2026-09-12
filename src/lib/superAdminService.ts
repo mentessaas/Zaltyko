@@ -344,19 +344,8 @@ export async function getAcademiesPage(args: {
   ].filter(Boolean) as Array<ReturnType<typeof eq>>;
   const where = conditions.length > 0 ? and(...conditions) : undefined;
 
-  const from = () =>
-    db
-      .select()
-      .from(academies)
-      .leftJoin(profiles, eq(academies.ownerId, profiles.id))
-      .leftJoin(
-        subscriptions,
-        and(eq(subscriptions.userId, profiles.userId), eq(subscriptions.status, "active"))
-      )
-      .leftJoin(plans, eq(subscriptions.planId, plans.id));
-
   const [rows, totalRows] = await Promise.all([
-    from()
+    db
       .select({
         id: academies.id,
         name: academies.name,
@@ -368,12 +357,26 @@ export async function getAcademiesPage(args: {
         planCode: plans.code,
         planNickname: plans.nickname,
       })
+      .from(academies)
+      .leftJoin(profiles, eq(academies.ownerId, profiles.id))
+      .leftJoin(
+        subscriptions,
+        and(eq(subscriptions.userId, profiles.userId), eq(subscriptions.status, "active"))
+      )
+      .leftJoin(plans, eq(subscriptions.planId, plans.id))
       .where(where)
       .orderBy(desc(academies.createdAt))
       .limit(pageSize)
       .offset((page - 1) * pageSize),
-    from()
+    db
       .select({ total: count(academies.id) })
+      .from(academies)
+      .leftJoin(profiles, eq(academies.ownerId, profiles.id))
+      .leftJoin(
+        subscriptions,
+        and(eq(subscriptions.userId, profiles.userId), eq(subscriptions.status, "active"))
+      )
+      .leftJoin(plans, eq(subscriptions.planId, plans.id))
       .where(where),
   ]);
 
