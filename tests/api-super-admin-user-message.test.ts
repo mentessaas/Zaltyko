@@ -133,4 +133,30 @@ describe("API /api/super-admin/users/[profileId]/send-message", () => {
     expect(body.error).toBe("USER_TENANT_NOT_FOUND");
     expect(mocks.createNotification).not.toHaveBeenCalled();
   });
+
+  it("rechaza cuando la URL y el cuerpo apuntan a perfiles distintos", async () => {
+    const request = new NextRequest(
+      "https://zaltyko.com/api/super-admin/users/00000000-0000-0000-0000-000000000999/send-message",
+      {
+        method: "POST",
+        body: JSON.stringify({
+          profileId: profile.id,
+          subject: "Revisión de cuenta",
+          message: "Necesitamos revisar tu configuración.",
+          type: "notification",
+        }),
+      }
+    );
+
+    const response = await POST(request, {
+      profile: { role: "super_admin" },
+      params: { profileId: "00000000-0000-0000-0000-000000000999" },
+    });
+    const body = await response.json();
+
+    expect(response.status).toBe(400);
+    expect(body.error).toBe("PROFILE_ID_MISMATCH");
+    expect(mocks.select).not.toHaveBeenCalled();
+    expect(mocks.createNotification).not.toHaveBeenCalled();
+  });
 });
