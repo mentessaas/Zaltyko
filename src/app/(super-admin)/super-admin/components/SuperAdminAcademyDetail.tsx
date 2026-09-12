@@ -228,14 +228,14 @@ export function SuperAdminAcademyDetail({ initialAcademy, userId }: SuperAdminAc
   return (
     <div className="space-y-6">
       <div className="rounded-2xl border border-white/10 bg-white/5 p-6">
-        <div className="mb-6 flex items-start justify-between">
+        <div className="mb-6 flex flex-col gap-4 md:flex-row md:items-start md:justify-between">
           <div>
             <h1 className="text-3xl font-semibold text-white">{academy.name ?? "Sin nombre"}</h1>
             <p className="mt-2 text-sm text-white/70">
               ID: <span className="font-mono text-xs">{academy.id}</span>
             </p>
           </div>
-          <div className="flex items-center gap-3">
+          <div className="flex flex-wrap items-center gap-3">
             <Button
               variant="outline"
               size="sm"
