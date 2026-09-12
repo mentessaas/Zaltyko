@@ -91,6 +91,14 @@ function normalizeCurrency(value: string | null | undefined) {
 }
 
 const GLOBAL_STATS_CACHE_TTL_MS = 15_000;
+const PLAN_VISIBLE_SUBSCRIPTION_STATUSES = [
+  "active",
+  "trialing",
+  "past_due",
+  "unpaid",
+  "incomplete",
+  "paused",
+] as const;
 let globalStatsCache: { value: SuperAdminMetrics; expiresAt: number } | null = null;
 let globalStatsInFlight: Promise<SuperAdminMetrics> | null = null;
 
@@ -393,7 +401,7 @@ export async function getAcademiesPage(args: {
 } = {}): Promise<SuperAdminAcademiesPage> {
   const { db } = await import("@/db");
   const { academies, profiles, subscriptions, plans } = await import("@/db/schema");
-  const { and, count, countDistinct, desc, eq, or } = await import("drizzle-orm");
+  const { and, count, countDistinct, desc, eq, inArray, or } = await import("drizzle-orm");
 
   const page = Math.max(1, Math.floor(Number.isFinite(args.page) ? args.page! : 1));
   const pageSize = Math.min(200, Math.max(1, Math.floor(Number.isFinite(args.pageSize) ? args.pageSize! : 50)));
@@ -417,7 +425,10 @@ export async function getAcademiesPage(args: {
     .leftJoin(profiles, eq(academies.ownerId, profiles.id))
     .leftJoin(
       subscriptions,
-      and(eq(subscriptions.userId, profiles.userId), eq(subscriptions.status, "active"))
+      and(
+        eq(subscriptions.userId, profiles.userId),
+        inArray(subscriptions.status, [...PLAN_VISIBLE_SUBSCRIPTION_STATUSES])
+      )
     )
     .leftJoin(plans, eq(subscriptions.planId, plans.id))
     .where(where);
@@ -443,7 +454,10 @@ export async function getAcademiesPage(args: {
     .leftJoin(profiles, eq(academies.ownerId, profiles.id))
     .leftJoin(
       subscriptions,
-      and(eq(subscriptions.userId, profiles.userId), eq(subscriptions.status, "active"))
+      and(
+        eq(subscriptions.userId, profiles.userId),
+        inArray(subscriptions.status, [...PLAN_VISIBLE_SUBSCRIPTION_STATUSES])
+      )
     )
     .leftJoin(plans, eq(subscriptions.planId, plans.id))
     .where(where)
@@ -473,7 +487,7 @@ export async function getAllAcademies(): Promise<SuperAdminAcademyRow[]> {
   // Use Drizzle directly to bypass RLS and get all academies
   const { db } = await import("@/db");
   const { academies, profiles, subscriptions, plans } = await import("@/db/schema");
-  const { eq } = await import("drizzle-orm");
+  const { eq, inArray } = await import("drizzle-orm");
 
   const [academiesList, profilesList, subscriptionsList, plansList] = await Promise.all([
     db.select({
@@ -613,7 +627,10 @@ export async function getUsersPage(args: {
     .leftJoin(authUsers, eq(profiles.userId, authUsers.id))
     .leftJoin(
       subscriptions,
-      and(eq(subscriptions.userId, profiles.userId), eq(subscriptions.status, "active"))
+      and(
+        eq(subscriptions.userId, profiles.userId),
+        inArray(subscriptions.status, [...PLAN_VISIBLE_SUBSCRIPTION_STATUSES])
+      )
     )
     .leftJoin(plans, eq(subscriptions.planId, plans.id))
     .where(where)
@@ -660,7 +677,7 @@ export async function getAllUsers(): Promise<SuperAdminUserRow[]> {
   // Use Drizzle directly to bypass RLS and get all profiles
   const { db } = await import("@/db");
   const { profiles, memberships, subscriptions, plans } = await import("@/db/schema");
-  const { eq } = await import("drizzle-orm");
+  const { eq, inArray } = await import("drizzle-orm");
   const supabase = getClient();
 
   const [profilesList, membershipsList, subscriptionsList, plansList, authUsers] = await Promise.all([
@@ -681,7 +698,7 @@ export async function getAllUsers(): Promise<SuperAdminUserRow[]> {
       userId: subscriptions.userId,
       planId: subscriptions.planId,
       status: subscriptions.status,
-    }).from(subscriptions),
+    }).from(subscriptions).where(inArray(subscriptions.status, [...PLAN_VISIBLE_SUBSCRIPTION_STATUSES])),
     db.select({
       id: plans.id,
       code: plans.code,
