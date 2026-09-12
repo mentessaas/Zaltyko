@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
 import { ChevronLeft, ChevronRight, PauseCircle, PlayCircle, Trash2, Loader2 } from "lucide-react";
@@ -67,6 +67,7 @@ export function SuperAdminAcademiesTable({
   const PAGE_SIZE = 50;
   const [loading, setLoading] = useState(false);
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
+  const requestSequence = useRef(0);
   const [mutatingAcademyId, setMutatingAcademyId] = useState<string | null>(null);
   const [filters, setFilters] = useState<SuperAdminAcademyFilters>({});
   const [confirmDialogOpen, setConfirmDialogOpen] = useState(false);
@@ -117,6 +118,7 @@ export function SuperAdminAcademiesTable({
 
   const fetchAcademies = async (activeFilters: SuperAdminAcademyFilters, requestedPage = page) => {
     if (!userId) return;
+    const requestId = ++requestSequence.current;
     setLoading(true);
     setErrorMessage(null);
     try {
@@ -136,19 +138,24 @@ export function SuperAdminAcademiesTable({
 
       if (!response.ok) {
         logger.error("Error fetching academias", await response.text());
-        setErrorMessage("No se pudieron cargar las academias. Reintenta en unos segundos.");
+        if (requestId === requestSequence.current) {
+          setErrorMessage("No se pudieron cargar las academias. Reintenta en unos segundos.");
+        }
         return;
       }
 
       const { data: payload } = await response.json();
+      if (requestId !== requestSequence.current) return;
       setItems(payload.items ?? []);
       setTotal(payload.total ?? payload.items?.length ?? 0);
       setPage(payload.page ?? requestedPage);
     } catch (error) {
       logger.error("Error fetching academias", error);
-      setErrorMessage("No se pudieron cargar las academias. Revisa la conexión y reintenta.");
+      if (requestId === requestSequence.current) {
+        setErrorMessage("No se pudieron cargar las academias. Revisa la conexión y reintenta.");
+      }
     } finally {
-      setLoading(false);
+      if (requestId === requestSequence.current) setLoading(false);
     }
   };
 
