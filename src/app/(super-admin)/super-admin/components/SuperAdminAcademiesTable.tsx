@@ -198,11 +198,11 @@ export function SuperAdminAcademiesTable({
     payload: Record<string, unknown>,
     method: "PATCH" | "DELETE",
     optimisticUpdate = true,
-  ) => {
-    if (!userId) return;
+  ): Promise<boolean> => {
+    if (!userId) return false;
 
     const academy = items.find((a) => a.id === academyId);
-    if (!academy) return;
+    if (!academy) return false;
 
     // Optimistic update: actualizar UI inmediatamente
     if (optimisticUpdate) {
@@ -245,7 +245,7 @@ export function SuperAdminAcademiesTable({
           description: error.message || "No se pudo completar la operación",
           variant: "error",
         });
-        return;
+        return false;
       }
 
       toast.pushToast({
@@ -258,6 +258,7 @@ export function SuperAdminAcademiesTable({
 
       // Refrescar datos para asegurar sincronización
       await fetchAcademies(filters);
+      return true;
     } catch (error: any) {
       // Revertir optimistic update en caso de error
       if (optimisticUpdate) {
@@ -269,6 +270,7 @@ export function SuperAdminAcademiesTable({
         description: error.message || "Ocurrió un error inesperado",
         variant: "error",
       });
+      return false;
     } finally {
       setMutatingAcademyId(null);
     }
@@ -302,10 +304,11 @@ export function SuperAdminAcademiesTable({
     : false;
 
   const handleConfirmAction = async (reason?: string) => {
-    if (!pendingAction) return;
+    if (!pendingAction) return false;
 
+    let succeeded = false;
     if (pendingAction.action === "delete") {
-      await mutateAcademy(pendingAction.academyId, { reason }, "DELETE");
+      succeeded = await mutateAcademy(pendingAction.academyId, { reason }, "DELETE");
     } else {
       const academy = items.find((a) => a.id === pendingAction.academyId);
       if (academy) {
@@ -316,7 +319,7 @@ export function SuperAdminAcademiesTable({
           : academy.status === "trial"
             ? "trial"
             : "active";
-        await mutateAcademy(
+        succeeded = await mutateAcademy(
           pendingAction.academyId,
           { isSuspended: shouldSuspend, status: nextStatus, reason },
           "PATCH"
@@ -324,8 +327,11 @@ export function SuperAdminAcademiesTable({
       }
     }
 
-    setPendingAction(null);
-    setConfirmDialogOpen(false);
+    if (succeeded) {
+      setPendingAction(null);
+      setConfirmDialogOpen(false);
+    }
+    return succeeded;
   };
 
   return (
