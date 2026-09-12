@@ -42,6 +42,7 @@ export function SuperAdminAcademiesTable({
   const [page, setPage] = useState(1);
   const PAGE_SIZE = 50;
   const [loading, setLoading] = useState(false);
+  const [errorMessage, setErrorMessage] = useState<string | null>(null);
   const [mutatingAcademyId, setMutatingAcademyId] = useState<string | null>(null);
   const [filters, setFilters] = useState<SuperAdminAcademyFilters>({});
   const [confirmDialogOpen, setConfirmDialogOpen] = useState(false);
@@ -54,6 +55,8 @@ export function SuperAdminAcademiesTable({
   useEffect(() => {
     supabase.auth.getUser().then(({ data }) => {
       if (data.user?.id) setUserId(data.user.id);
+    }).catch((error) => {
+      logger.warn("Unable to resolve super-admin session", error);
     });
   }, [supabase]);
 
@@ -83,6 +86,7 @@ export function SuperAdminAcademiesTable({
   const fetchAcademies = async (activeFilters: SuperAdminAcademyFilters, requestedPage = page) => {
     if (!userId) return;
     setLoading(true);
+    setErrorMessage(null);
     try {
       const params = new URLSearchParams();
       if (activeFilters.plan) params.set("plan", activeFilters.plan);
@@ -100,6 +104,7 @@ export function SuperAdminAcademiesTable({
 
       if (!response.ok) {
         logger.error("Error fetching academias", await response.text());
+        setErrorMessage("No se pudieron cargar las academias. Reintenta en unos segundos.");
         return;
       }
 
@@ -107,6 +112,9 @@ export function SuperAdminAcademiesTable({
       setItems(payload.items ?? []);
       setTotal(payload.total ?? payload.items?.length ?? 0);
       setPage(payload.page ?? requestedPage);
+    } catch (error) {
+      logger.error("Error fetching academias", error);
+      setErrorMessage("No se pudieron cargar las academias. Revisa la conexión y reintenta.");
     } finally {
       setLoading(false);
     }
@@ -294,6 +302,22 @@ export function SuperAdminAcademiesTable({
           </Button>
         </div>
       </div>
+
+      {errorMessage && (
+        <div role="alert" className="flex flex-col gap-3 rounded-xl border border-zaltyko-coral/30 bg-zaltyko-coral/10 px-4 py-3 text-sm text-zaltyko-coral sm:flex-row sm:items-center sm:justify-between">
+          <span>{errorMessage}</span>
+          <Button
+            type="button"
+            variant="outline"
+            size="sm"
+            className="border-zaltyko-coral/40 bg-transparent text-zaltyko-coral hover:bg-zaltyko-coral/10"
+            onClick={() => void fetchAcademies(filters, page)}
+            disabled={loading}
+          >
+            Reintentar
+          </Button>
+        </div>
+      )}
 
       <div className="overflow-hidden rounded-2xl border border-white/10 bg-white/5">
         <div className="overflow-x-auto">
