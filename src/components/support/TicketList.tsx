@@ -40,6 +40,7 @@ interface TicketListProps {
   academyId?: string;
   isAdmin?: boolean;
   emptyMessage?: string;
+  returnTo?: string;
 }
 
 const statusConfig: Record<TicketStatus, { label: string; variant: "default" | "outline" | "success" | "pending" | "error" }> = {
@@ -72,7 +73,7 @@ function formatTicketDate(value: string | Date) {
     : format(date, "d MMM yyyy", { locale: es });
 }
 
-export function TicketList({ tickets, academyId, isAdmin = false, emptyMessage = "No hay tickets" }: TicketListProps) {
+export function TicketList({ tickets, academyId, isAdmin = false, emptyMessage = "No hay tickets", returnTo }: TicketListProps) {
   if (tickets.length === 0) {
     return (
       <Card>
@@ -94,13 +95,18 @@ export function TicketList({ tickets, academyId, isAdmin = false, emptyMessage =
         const status = statusConfig[ticket.status] ?? { label: "Desconocido", variant: "outline" as const };
         const priority = priorityConfig[ticket.priority] ?? { label: "Sin prioridad", variant: "outline" as const };
         const category = categoryConfig[ticket.category] ?? { label: "Sin categoría" };
+        const detailHref = isAdmin
+          ? `/super-admin/support/${ticket.id}${returnTo ? `?returnTo=${encodeURIComponent(returnTo)}` : ""}`
+          : academyId
+            ? `/app/${academyId}/support/${ticket.id}`
+            : `/support/${ticket.id}`;
 
         return (
           <Card key={ticket.id} className="hover:shadow-md transition-shadow">
             <CardHeader className="pb-2">
               <div className="flex items-start justify-between gap-4">
                 <div className="flex-1 min-w-0">
-                  <Link href={isAdmin ? `/super-admin/support/${ticket.id}` : academyId ? `/app/${academyId}/support/${ticket.id}` : `/support/${ticket.id}`}>
+                  <Link href={detailHref}>
                     <CardTitle className="text-base hover:text-primary transition-colors truncate">
                       {ticket.title}
                     </CardTitle>
