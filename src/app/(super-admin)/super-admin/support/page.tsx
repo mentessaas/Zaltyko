@@ -2,6 +2,7 @@ import { and, count, desc, eq, inArray } from "drizzle-orm";
 import { Suspense } from "react";
 import { cookies } from "next/headers";
 import { redirect } from "next/navigation";
+import { z } from "zod";
 
 import { db } from "@/db";
 import { academies, profiles, ticketResponses, tickets } from "@/db/schema";
@@ -22,6 +23,31 @@ interface PageProps {
     category?: string;
     academyId?: string;
   }>;
+}
+
+const TICKET_STATUS_VALUES = ["open", "in_progress", "waiting", "resolved", "closed"] as const;
+const TICKET_PRIORITY_VALUES = ["low", "medium", "high", "urgent"] as const;
+const TICKET_CATEGORY_VALUES = ["technical", "billing", "account", "feature_request", "other"] as const;
+
+function pickFilter<T extends string>(value: string | undefined, values: readonly T[]) {
+  return value && values.includes(value as T) ? (value as T) : undefined;
+}
+
+function normalizeSupportFilters(filters: {
+  status?: string;
+  priority?: string;
+  category?: string;
+  academyId?: string;
+}) {
+  return {
+    status: pickFilter(filters.status, TICKET_STATUS_VALUES),
+    priority: pickFilter(filters.priority, TICKET_PRIORITY_VALUES),
+    category: pickFilter(filters.category, TICKET_CATEGORY_VALUES),
+    academyId:
+      filters.academyId && z.string().uuid().safeParse(filters.academyId).success
+        ? filters.academyId
+        : undefined,
+  };
 }
 
 async function getAllTickets(filters: {
@@ -135,7 +161,7 @@ async function TicketsContent({
 }
 
 export default async function SuperAdminSupportPage({ searchParams }: PageProps) {
-  const filters = await searchParams;
+  const filters = normalizeSupportFilters(await searchParams);
   const cookieStore = await cookies();
   const supabase = await createClient(cookieStore);
   const devSession = await getDevSessionFromCookieStore(cookieStore);
