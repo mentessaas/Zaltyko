@@ -152,7 +152,7 @@ async function getGlobalStatsUncached(): Promise<SuperAdminMetrics> {
       .select({
         total: sql<number>`count(*)`,
         latestAcademyAt: sql<Date | string | null>`max(${academies.createdAt})`,
-        previousAcademies: sql<number>`count(*) filter (where ${academies.createdAt} < ${currentMonthStart})`,
+        previousAcademies: sql<number>`count(*) filter (where ${academies.createdAt} >= ${previousMonthStart} and ${academies.createdAt} < ${currentMonthStart})`,
       })
       .from(academies),
     db
@@ -181,7 +181,7 @@ async function getGlobalStatsUncached(): Promise<SuperAdminMetrics> {
     db
       .select({
         total: sql<number>`count(*)`,
-        previousUsers: sql<number>`count(*) filter (where ${profiles.createdAt} < ${currentMonthStart})`,
+        previousUsers: sql<number>`count(*) filter (where ${profiles.createdAt} >= ${previousMonthStart} and ${profiles.createdAt} < ${currentMonthStart})`,
       })
       .from(profiles),
     db
@@ -330,7 +330,9 @@ async function getGlobalStatsUncached(): Promise<SuperAdminMetrics> {
       previousAcademies: Number(academySummary?.previousAcademies ?? 0),
       previousUsers: Number(userSummary?.previousUsers ?? 0),
       previousRevenue: Number(invoiceSummary?.previousRevenue ?? 0),
-      previousSubscriptions: subscriptionTotal,
+      // Subscription history has no creation timestamp in the current model;
+      // keep this unavailable instead of presenting the current total as a trend.
+      previousSubscriptions: 0,
       // Engagement metrics require a session analytics source. Keep them at
       // zero until a real source is integrated; the UI hides them meanwhile.
       dailyActiveUsers: 0,
