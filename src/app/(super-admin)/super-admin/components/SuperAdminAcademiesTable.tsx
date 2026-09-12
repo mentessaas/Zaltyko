@@ -236,6 +236,7 @@ export function SuperAdminAcademiesTable({
         <div className="flex flex-wrap items-center gap-3">
           <SuperAdminCreateAcademyDialog />
           <select
+            aria-label="Filtrar academias por plan"
             className="rounded-xl border border-white/20 bg-white/10 px-3 py-2 font-display text-xs font-semibold text-white hover:border-white/40 focus:border-white/60 focus:outline-none"
             value={filters.plan ?? ""}
             onChange={(event) =>
@@ -250,6 +251,7 @@ export function SuperAdminAcademiesTable({
             ))}
           </select>
           <select
+            aria-label="Filtrar academias por tipo"
             className="rounded-xl border border-white/20 bg-white/10 px-3 py-2 font-display text-xs font-semibold text-white hover:border-white/40 focus:border-white/60 focus:outline-none"
             value={filters.type ?? ""}
             onChange={(event) =>
@@ -264,6 +266,7 @@ export function SuperAdminAcademiesTable({
             ))}
           </select>
           <select
+            aria-label="Filtrar academias por estado"
             className="rounded-xl border border-white/20 bg-white/10 px-3 py-2 font-display text-xs font-semibold text-white hover:border-white/40 focus:border-white/60 focus:outline-none"
             value={filters.status ?? ""}
             onChange={(event) =>
