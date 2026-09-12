@@ -54,9 +54,10 @@ export const PATCH = withSuperAdmin(async (request, context) => {
 
   if (typeof body?.planId === "string" && body.planId.trim().length > 0) {
     const [plan] = await db.select({ id: plans.id }).from(plans).where(eq(plans.id, body.planId)).limit(1);
-    if (plan) {
-      planUpdate = { planId: plan.id };
+    if (!plan) {
+      return apiError("PLAN_NOT_FOUND", "El plan seleccionado no existe", 404);
     }
+    planUpdate = { planId: plan.id };
   }
 
   // Edición completa: tipo, país, región y ciudad.
@@ -77,59 +78,71 @@ export const PATCH = withSuperAdmin(async (request, context) => {
     return apiError("NO_CHANGES", "No changes provided", 400);
   }
 
-  const [updated] = await db
-    .update(academies)
-    .set(updates)
-    .where(eq(academies.id, academyId))
-    .returning({
-      id: academies.id,
-      name: academies.name,
-      isSuspended: academies.isSuspended,
-      ownerId: academies.ownerId,
+  let updated;
+  try {
+    updated = await db.transaction(async (tx) => {
+      const [academy] = await tx
+        .update(academies)
+        .set(updates)
+        .where(eq(academies.id, academyId))
+        .returning({
+          id: academies.id,
+          name: academies.name,
+          isSuspended: academies.isSuspended,
+          ownerId: academies.ownerId,
+        });
+
+      if (!academy) return null;
+
+      if (planUpdate) {
+        if (!academy.ownerId) throw new Error("ACADEMY_HAS_NO_OWNER");
+
+        const [owner] = await tx
+          .select({ userId: profiles.userId })
+          .from(profiles)
+          .where(eq(profiles.id, academy.ownerId))
+          .limit(1);
+
+        if (!owner) throw new Error("OWNER_NOT_FOUND");
+
+        const [existingSubscription] = await tx
+          .select({ id: subscriptions.id })
+          .from(subscriptions)
+          .where(eq(subscriptions.userId, owner.userId))
+          .limit(1);
+
+        if (existingSubscription) {
+          await tx
+            .update(subscriptions)
+            .set({ planId: planUpdate.planId })
+            .where(eq(subscriptions.id, existingSubscription.id));
+        } else {
+          await tx.insert(subscriptions).values({
+            userId: owner.userId,
+            planId: planUpdate.planId,
+            status: "active",
+          });
+        }
+      }
+
+      return academy;
     });
+  } catch (error) {
+    const code = error instanceof Error ? error.message : "ACADEMY_UPDATE_FAILED";
+    if (code === "ACADEMY_HAS_NO_OWNER") {
+      return apiError(code, "Academy has no owner", 400);
+    }
+    if (code === "OWNER_NOT_FOUND") {
+      return apiError(code, "Owner not found", 404);
+    }
+    return apiError("ACADEMY_UPDATE_FAILED", "No se pudo actualizar la academia", 500);
+  }
 
   if (!updated) {
     return apiError("ACADEMY_NOT_FOUND", "Academy not found", 404);
   }
 
   revalidatePublicAcademySeo(academyId);
-
-  if (planUpdate) {
-    if (!updated.ownerId) {
-      return apiError("ACADEMY_HAS_NO_OWNER", "Academy has no owner", 400);
-    }
-
-    const [owner] = await db
-      .select({
-        userId: profiles.userId,
-      })
-      .from(profiles)
-      .where(eq(profiles.id, updated.ownerId))
-      .limit(1);
-
-    if (!owner) {
-      return apiError("OWNER_NOT_FOUND", "Owner not found", 404);
-    }
-
-    const [existingSubscription] = await db
-      .select({ id: subscriptions.id })
-      .from(subscriptions)
-      .where(eq(subscriptions.userId, owner.userId))
-      .limit(1);
-
-    if (existingSubscription) {
-      await db
-        .update(subscriptions)
-        .set({ planId: planUpdate.planId })
-        .where(eq(subscriptions.id, existingSubscription.id));
-    } else {
-      await db.insert(subscriptions).values({
-        userId: owner.userId,
-        planId: planUpdate.planId,
-        status: "active",
-      });
-    }
-  }
 
   await logAdminAction({
     userId: context.userId,
