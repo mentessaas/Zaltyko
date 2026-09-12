@@ -854,7 +854,7 @@ export function SuperAdminUserDetail({ initialUser, userId, backHref = "/super-a
                       setMessageForm({ ...messageForm, type: e.target.value as "email" | "notification" })
                     }
                     className="w-full rounded-xl border border-white/20 bg-white/10 px-3 py-2 text-sm font-semibold text-white hover:border-white/40 focus:border-white/60 focus:outline-none"
-                    disabled={sendingMessage || !user.email}
+                    disabled={sendingMessage}
                   >
                     <option value="email">Correo electrónico</option>
                     <option value="notification">Notificación dentro de Zaltyko</option>
@@ -867,7 +867,7 @@ export function SuperAdminUserDetail({ initialUser, userId, backHref = "/super-a
                     onChange={(e) => setMessageForm({ ...messageForm, subject: e.target.value })}
                     className="border-white/20 bg-white/10 text-white placeholder:text-white/40"
                     placeholder="Asunto del mensaje"
-                    disabled={sendingMessage || !user.email}
+                    disabled={sendingMessage || (messageForm.type === "email" && !user.email)}
                   />
                 </div>
                 <div>
@@ -877,19 +877,19 @@ export function SuperAdminUserDetail({ initialUser, userId, backHref = "/super-a
                     onChange={(e) => setMessageForm({ ...messageForm, message: e.target.value })}
                     className="min-h-[120px] w-full rounded-xl border border-white/20 bg-white/10 px-3 py-2 text-sm text-white placeholder:text-white/40 focus:border-white/60 focus:outline-none"
                     placeholder="Escribe tu mensaje aquí..."
-                    disabled={sendingMessage || !user.email}
+                    disabled={sendingMessage || (messageForm.type === "email" && !user.email)}
                   />
                 </div>
-                {!user.email && (
+                {!user.email && messageForm.type === "email" && (
                   <p className="text-xs text-amber-400">
-                    Este usuario no tiene correo electrónico registrado. No se pueden enviar mensajes.
+                    Este usuario no tiene correo electrónico registrado. Selecciona una notificación interna o añade un correo.
                   </p>
                 )}
                 <Button
                   variant="outline"
                   className="w-full border-blue-500/60 bg-blue-500/20 text-blue-100 font-semibold shadow-sm hover:border-blue-400 hover:bg-blue-500/30 hover:text-white"
                   onClick={handleSendMessage}
-                  disabled={sendingMessage || !user.email || !messageForm.subject.trim() || !messageForm.message.trim()}
+                  disabled={sendingMessage || (messageForm.type === "email" && !user.email) || !messageForm.subject.trim() || !messageForm.message.trim()}
                 >
                   {sendingMessage ? (
                     <>
