@@ -151,6 +151,14 @@ export function SuperAdminDashboard({ initialMetrics, initialEvents = [], initia
   );
 
   const chartDataset = useMemo(() => safeMetrics.monthlyAcademies, [safeMetrics.monthlyAcademies]);
+  const revenueChartData = useMemo(
+    () => safeMetrics.monthlyRevenue.map((entry) => ({ label: entry.label, total: entry.total / 100 })),
+    [safeMetrics.monthlyRevenue]
+  );
+  const revenueDelta = useMemo(() => {
+    if (revenueChartData.length < 2) return null;
+    return revenueChartData[revenueChartData.length - 1].total - revenueChartData[0].total;
+  }, [revenueChartData]);
 
   const syncState = loading
     ? { label: "Actualizando datos", className: "text-zaltyko-teal", iconClassName: "animate-pulse" }
@@ -721,30 +729,88 @@ export function SuperAdminDashboard({ initialMetrics, initialEvents = [], initia
 
       {/* Revenue Trend Chart */}
       <section className="group relative overflow-hidden rounded-2xl border border-white/10 bg-white/5 p-6">
-
         <header className="relative mb-6 flex flex-col gap-1 sm:flex-row sm:items-center sm:justify-between">
           <div>
             <h3 className="font-display text-sm font-semibold uppercase tracking-wide text-zaltyko-accent-light">
-              Ingresos Mensuales
+              Ingresos mensuales
             </h3>
-            <p className="text-xs text-white/50 mt-1">Pendiente de serie real por mes desde recibos/cobros</p>
+            <p className="mt-1 text-xs text-white/50">
+              {revenueChartData.length > 0 ? `Últimos ${revenueChartData.length} meses con cobros pagados` : "Sin serie disponible"}
+            </p>
           </div>
-          <div className="flex items-center gap-2 mt-2 sm:mt-0">
+          <div className="mt-2 flex items-center gap-2 sm:mt-0">
             <div className="flex items-center gap-1.5 rounded-full bg-emerald-500/20 px-3 py-1.5">
-              <DollarSign className="h-3.5 w-3.5 text-emerald-400" />
+              <DollarSign className="h-3.5 w-3.5 text-emerald-400" aria-hidden="true" />
               <span className="text-xs font-semibold text-emerald-300">
-                {CURRENCY_FORMATTER.format(safeMetrics.totals.chargesPaidThisMonth / 100)}
+                Acumulado {CURRENCY_FORMATTER.format(safeMetrics.totals.revenue / 100)}
               </span>
             </div>
           </div>
         </header>
 
-        <div className="flex h-48 min-w-0 flex-col items-center justify-center rounded-xl border border-dashed border-white/20 bg-white/5 px-6 text-center">
-          <Info className="mb-3 h-5 w-5 text-white/50" />
-          <p className="text-sm font-medium text-white/70">Serie de ingresos no disponible</p>
-          <p className="mt-1 max-w-md text-xs text-white/45">
-            El total cobrado se muestra arriba. Para graficar la evolución mensual hace falta persistir agregados reales por periodo.
-          </p>
+        {revenueChartData.length === 0 ? (
+          <div className="flex h-48 min-w-0 flex-col items-center justify-center rounded-xl border border-dashed border-white/20 bg-white/5 px-6 text-center">
+            <Info className="mb-3 h-5 w-5 text-white/50" aria-hidden="true" />
+            <p className="text-sm font-medium text-white/70">Serie de ingresos no disponible</p>
+            <p className="mt-1 max-w-md text-xs text-white/45">
+              El total acumulado se muestra arriba cuando existen recibos pagados. La serie aparece al sincronizar periodos reales.
+            </p>
+          </div>
+        ) : (
+          <div className="h-56 min-w-0">
+            <ResponsiveContainer width="100%" height={224}>
+              <AreaChart data={revenueChartData}>
+                <defs>
+                  <linearGradient id="colorRevenue" x1="0" y1="0" x2="0" y2="1">
+                    <stop offset="0%" stopColor="#10B981" stopOpacity={0.35} />
+                    <stop offset="100%" stopColor="#10B981" stopOpacity={0} />
+                  </linearGradient>
+                </defs>
+                <XAxis
+                  dataKey="label"
+                  stroke="#ffffff50"
+                  fontSize={11}
+                  tickLine={false}
+                  axisLine={false}
+                  tickFormatter={formatMonthLabel}
+                />
+                <YAxis
+                  stroke="#ffffff50"
+                  fontSize={11}
+                  tickLine={false}
+                  axisLine={false}
+                  tickFormatter={(value) => CURRENCY_FORMATTER.format(Number(value))}
+                />
+                <Tooltip
+                  contentStyle={{
+                    backgroundColor: "rgba(0,0,0,0.8)",
+                    border: "1px solid rgba(255,255,255,0.1)",
+                    borderRadius: "12px",
+                    color: "#fff",
+                  }}
+                  labelFormatter={(label) => `Mes: ${formatMonthLabel(String(label))}`}
+                />
+                <Area
+                  type="monotone"
+                  dataKey="total"
+                  stroke="#10B981"
+                  strokeWidth={3}
+                  fillOpacity={1}
+                  fill="url(#colorRevenue)"
+                  dot={{ fill: "#10B981", strokeWidth: 0, r: 4 }}
+                  activeDot={{ fill: "#10B981", strokeWidth: 2, stroke: "#fff", r: 6 }}
+                />
+              </AreaChart>
+            </ResponsiveContainer>
+          </div>
+        )}
+        <div className="mt-4 flex items-center justify-between text-xs text-white/50">
+          <span>Fuente: billing_invoices · estado paid</span>
+          <span>
+            {revenueDelta === null
+              ? "Sin variación comparable"
+              : `${revenueDelta >= 0 ? "+" : ""}${CURRENCY_FORMATTER.format(revenueDelta)} vs. primer mes`}
+          </span>
         </div>
       </section>
 
