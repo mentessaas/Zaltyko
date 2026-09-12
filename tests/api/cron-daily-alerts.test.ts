@@ -44,17 +44,36 @@ describe("daily alerts cron", () => {
       .mockReturnValueOnce({
         from: () => ({
           where: () => Promise.resolve([
-            { id: "academy-1", tenantId: "tenant-1" },
-            { id: "academy-2", tenantId: "tenant-2" },
+            { id: "academy-1", tenantId: "tenant-1", ownerId: "owner-1" },
+            { id: "academy-2", tenantId: "tenant-2", ownerId: "owner-2" },
           ]),
         }),
       })
       .mockReturnValueOnce({
         from: () => ({
-          where: () => Promise.resolve([
-            { profileId: "profile-admin-1", tenantId: "tenant-1", role: "admin" },
-            { profileId: "profile-coach-2", tenantId: "tenant-2", role: "coach" },
-          ]),
+          innerJoin: () => ({
+            where: () => Promise.resolve([
+              {
+                academyId: "academy-1",
+                profileId: "profile-admin-1",
+                role: "admin",
+                membershipRole: "viewer",
+              },
+              {
+                academyId: "academy-2",
+                profileId: "profile-coach-2",
+                role: "coach",
+                membershipRole: "coach",
+              },
+            ]),
+          }),
+        }),
+      })
+      .mockReturnValueOnce({
+        from: () => ({
+          innerJoin: () => ({
+            where: () => Promise.resolve([]),
+          }),
         }),
       });
     mocks.capacity.mockResolvedValue(undefined);
@@ -77,6 +96,7 @@ describe("daily alerts cron", () => {
     });
     expect(mocks.payments).toHaveBeenCalledTimes(2);
     expect(mocks.payments).toHaveBeenNthCalledWith(1, "academy-1", "tenant-1", ["profile-admin-1"]);
+    expect(mocks.payments).toHaveBeenNthCalledWith(2, "academy-2", "tenant-2", []);
     expect(mocks.attendance).toHaveBeenNthCalledWith(
       2,
       "academy-2",
@@ -84,5 +104,54 @@ describe("daily alerts cron", () => {
       [],
       ["profile-coach-2"]
     );
+  });
+
+  it("no mezcla destinatarios entre academias que comparten tenant", async () => {
+    mocks.select
+      .mockReturnValueOnce({
+        from: () => ({
+          where: () => Promise.resolve([
+            { id: "academy-1", tenantId: "shared-tenant", ownerId: "owner-1" },
+            { id: "academy-2", tenantId: "shared-tenant", ownerId: "owner-2" },
+          ]),
+        }),
+      })
+      .mockReturnValueOnce({
+        from: () => ({
+          innerJoin: () => ({
+            where: () => Promise.resolve([
+              {
+                academyId: "academy-1",
+                profileId: "coach-1",
+                role: "coach",
+                membershipRole: "coach",
+              },
+              {
+                academyId: "academy-2",
+                profileId: "admin-2",
+                role: "admin",
+                membershipRole: "viewer",
+              },
+            ]),
+          }),
+        }),
+      })
+      .mockReturnValueOnce({
+        from: () => ({
+          innerJoin: () => ({
+            where: () => Promise.resolve([]),
+          }),
+        }),
+      });
+    mocks.capacity.mockResolvedValue(undefined);
+    mocks.payments.mockResolvedValue(undefined);
+    mocks.attendance.mockResolvedValue(undefined);
+
+    await GET(new Request("https://zaltyko.com/api/cron/daily-alerts"));
+
+    expect(mocks.payments).toHaveBeenNthCalledWith(1, "academy-1", "shared-tenant", []);
+    expect(mocks.payments).toHaveBeenNthCalledWith(2, "academy-2", "shared-tenant", ["admin-2"]);
+    expect(mocks.attendance).toHaveBeenNthCalledWith(1, "academy-1", "shared-tenant", [], ["coach-1"]);
+    expect(mocks.attendance).toHaveBeenNthCalledWith(2, "academy-2", "shared-tenant", ["admin-2"], []);
   });
 });
