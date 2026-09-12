@@ -31,6 +31,6 @@ export default async function SuperAdminLogsPage() {
 
   const logs = await getSuperAdminLogs(200);
 
-  return <SuperAdminLogsTable initialLogs={logs} />;
+  return <SuperAdminLogsTable initialLogs={logs} initialUserId={user?.id ?? devSession?.userId ?? null} />;
 }
 
