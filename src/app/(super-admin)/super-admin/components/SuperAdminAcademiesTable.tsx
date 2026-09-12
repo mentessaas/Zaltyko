@@ -33,7 +33,7 @@ export function SuperAdminAcademiesTable({
   initialTotal,
   initialUserId,
 }: SuperAdminAcademiesTableProps) {
-  const supabase = createClient();
+  const supabase = useMemo(() => createClient(), []);
   const router = useRouter();
   const toast = useToast();
   const [userId, setUserId] = useState<string | null>(initialUserId ?? null);
