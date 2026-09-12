@@ -126,6 +126,7 @@ export function SuperAdminUserDetail({ initialUser, userId, backHref = "/super-a
     requiresAction: boolean;
   } | null>(null);
   const [forcePlanDialogOpen, setForcePlanDialogOpen] = useState(false);
+  const [suspensionDialogOpen, setSuspensionDialogOpen] = useState(false);
   const [messageForm, setMessageForm] = useState({
     subject: "",
     message: "",
@@ -446,13 +447,20 @@ export function SuperAdminUserDetail({ initialUser, userId, backHref = "/super-a
       setSaving(false);
     }
   };
-  const handleToggleSuspension = async () => {
-    if (actionReason.trim().length < 5) {
-      toast.pushToast({ title: "Indica el motivo", description: "Suspender o reactivar requiere un motivo de al menos 5 caracteres.", variant: "warning" });
-      return;
-    }
-    if (!confirm(formData.isSuspended ? "¿Reactivar al usuario?" : "¿Suspender al usuario?")) {
-      return;
+  const handleToggleSuspension = () => {
+    if (user.role === "super_admin") return;
+    setSuspensionDialogOpen(true);
+  };
+
+  const executeToggleSuspension = async (reason?: string): Promise<boolean> => {
+    const trimmedReason = reason?.trim() ?? "";
+    if (trimmedReason.length < 5) {
+      toast.pushToast({
+        title: "Indica el motivo",
+        description: "Suspender o reactivar requiere un motivo de al menos 5 caracteres.",
+        variant: "warning",
+      });
+      return false;
     }
 
     setSaving(true);
@@ -464,7 +472,7 @@ export function SuperAdminUserDetail({ initialUser, userId, backHref = "/super-a
         },
         body: JSON.stringify({
           isSuspended: !formData.isSuspended,
-          reason: actionReason.trim(),
+          reason: trimmedReason,
         }),
       });
 
@@ -475,12 +483,10 @@ export function SuperAdminUserDetail({ initialUser, userId, backHref = "/super-a
           description: error || "Inténtalo de nuevo en unos segundos.",
           variant: "error",
         });
-        return;
+        return false;
       }
 
       const refreshResponse = await fetch(`/api/super-admin/users/${user.id}`, {
-        headers: {
-        },
         cache: "no-store",
       });
 
@@ -488,8 +494,10 @@ export function SuperAdminUserDetail({ initialUser, userId, backHref = "/super-a
         const { data: refreshed } = await refreshResponse.json();
         setUser(refreshed);
         setFormData({ ...formData, isSuspended: refreshed.isSuspended });
-        router.refresh();
       }
+      setActionReason("");
+      router.refresh();
+      return true;
     } catch (error) {
       logger.error("Error toggling suspension", error);
       toast.pushToast({
@@ -497,11 +505,11 @@ export function SuperAdminUserDetail({ initialUser, userId, backHref = "/super-a
         description: "Inténtalo de nuevo en unos segundos.",
         variant: "error",
       });
+      return false;
     } finally {
       setSaving(false);
     }
   };
-
   const hasChanges =
     formData.name !== (user.name ?? "") ||
     formData.email !== (user.email ?? "") ||
@@ -1024,6 +1032,23 @@ export function SuperAdminUserDetail({ initialUser, userId, backHref = "/super-a
         requireReason
         reasonLabel="Motivo del cambio forzado"
         onConfirm={handleForcePlanChange}
+        loading={saving}
+      />
+
+      <ConfirmDialog
+        open={suspensionDialogOpen}
+        onOpenChange={setSuspensionDialogOpen}
+        title={user.isSuspended ? "Reactivar usuario" : "Suspender usuario"}
+        description={
+          user.isSuspended
+            ? "El usuario recuperará el acceso a Zaltyko."
+            : "El usuario perderá el acceso hasta que sea reactivado."
+        }
+        confirmText={user.isSuspended ? "Reactivar" : "Suspender"}
+        variant={user.isSuspended ? "default" : "destructive"}
+        requireReason
+        reasonLabel="Motivo del cambio de acceso"
+        onConfirm={executeToggleSuspension}
         loading={saving}
       />
     </div>
