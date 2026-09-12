@@ -22,6 +22,18 @@ function parseProfileId(value: unknown): string | null {
 // @service-role auth-admin:read-update-email. Super-admin user management requires Supabase Auth admin APIs.
 /** @resource-scope super-admin — withSuperAdmin verifies the global authority. */
 
+type PlanLimitViolations = {
+  violations: Array<{
+    resource: string;
+    currentCount: number;
+    limit: number | null;
+    items: Array<{ id: string; name: string | null }>;
+    academyId?: string;
+    academyName?: string | null;
+  }>;
+  requiresAction: boolean;
+};
+
 const updateUserSchema = z.object({
   role: z.enum(["owner", "admin", "coach", "athlete", "parent", "super_admin"]).nullable().optional(),
   isSuspended: z.boolean().optional(),
@@ -239,7 +251,7 @@ export const PATCH = withSuperAdmin(async (request, context) => {
     auditChanges.name = { from: existing.name, to: body.name };
   }
 
-  let planToApply: { id: string | null; code: string | null; violations: any } | null = null;
+  let planToApply: { id: string | null; code: string | null; violations: PlanLimitViolations | null } | null = null;
 
   if (body.planId) {
     const [plan] = await db
