@@ -320,6 +320,7 @@ async function getGlobalStatsUncached(): Promise<SuperAdminMetrics> {
 
   const revenueByCurrency = revenueByCurrencyRows
     .map((row) => ({ currency: normalizeCurrency(row.currency), total: Number(row.total ?? 0) }))
+    .filter((row) => row.total > 0)
     .sort((a, b) => b.total - a.total || a.currency.localeCompare(b.currency));
 
   const activeAcademyIds = new Set([
