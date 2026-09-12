@@ -1,7 +1,8 @@
 "use client";
 
 import Link from "next/link";
-import { FormEvent, useEffect, useState } from "react";
+import { useEffect, useState } from "react";
+import type { FormEvent } from "react";
 import { ChevronLeft, ChevronRight, Search, X } from "lucide-react";
 import { useRouter } from "next/navigation";
 
@@ -61,8 +62,12 @@ export function PublicAcademiesTable({
   }, [initialAcademies, initialFilter, initialSearch]);
 
   const navigate = (nextFilter: VisibilityFilter, nextSearch: string, nextPage = 1) => {
+    const href = buildHref(nextFilter, nextSearch, nextPage);
+    if (typeof window !== "undefined" && `${window.location.pathname}${window.location.search}` === href) {
+      return;
+    }
     setNavigating(true);
-    router.push(buildHref(nextFilter, nextSearch, nextPage));
+    router.push(href);
   };
 
   const handleSearchSubmit = (event: FormEvent<HTMLFormElement>) => {
