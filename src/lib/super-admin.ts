@@ -149,7 +149,7 @@ export async function getSuperAdminLogsPage(args: {
     .from(auditLogs)
     .leftJoin(profiles, eq(auditLogs.userId, profiles.userId))
     .leftJoin(authUsers, eq(auditLogs.userId, authUsers.id))
-    .orderBy(desc(auditLogs.createdAt))
+    .orderBy(desc(auditLogs.createdAt), desc(auditLogs.id))
     .limit(pageSize)
     .offset((page - 1) * pageSize);
 
