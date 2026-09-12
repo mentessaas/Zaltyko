@@ -53,9 +53,10 @@ export default async function SuperAdminPublicAcademiesPage({ searchParams }: Pa
   }
 
   const params = await searchParams;
+  const visibilityParam = firstSearchParam(params.visibility);
   const visibility =
-    firstSearchParam(params.visibility) === "public" || firstSearchParam(params.visibility) === "private"
-      ? firstSearchParam(params.visibility)
+    visibilityParam === "public" || visibilityParam === "private"
+      ? visibilityParam
       : "all";
   const search = firstSearchParam(params.search)?.trim().slice(0, 160) ?? "";
   const escapedSearch = search.replace(/[\\%_]/g, "\\$&");
