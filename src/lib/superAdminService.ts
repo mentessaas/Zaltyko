@@ -285,7 +285,7 @@ async function getGlobalStatsUncached(): Promise<SuperAdminMetrics> {
     ...athleteAcademyRows.map((row) => row.academyId),
     ...groupAcademyRows.map((row) => row.academyId),
   ]);
-  const subscriptions = planStatuses.reduce((total, row) => total + row.total, 0);
+  const subscriptionTotal = planStatuses.reduce((total, row) => total + row.total, 0);
 
   const subscriptionAlerts: Array<{ status: string; count: number; academies: string[] }> = [];
   for (const status of ["past_due", "canceled", "trialing"] as const) {
@@ -303,7 +303,7 @@ async function getGlobalStatsUncached(): Promise<SuperAdminMetrics> {
       paidInvoices: Number(invoiceSummary?.paidInvoices ?? 0),
       assessments: Number(assessmentSummary?.total ?? 0),
       plans: plansData.length,
-      subscriptions,
+      subscriptions: subscriptionTotal,
       latestAcademyAt: toIso(academySummary?.latestAcademyAt),
       activeAcademies: activeAcademyIds.size,
       totalAthletes: Number(athleteSummary?.total ?? 0),
@@ -313,7 +313,7 @@ async function getGlobalStatsUncached(): Promise<SuperAdminMetrics> {
       previousAcademies: Number(academySummary?.previousAcademies ?? 0),
       previousUsers: Number(userSummary?.previousUsers ?? 0),
       previousRevenue: Number(invoiceSummary?.previousRevenue ?? 0),
-      previousSubscriptions: subscriptions,
+      previousSubscriptions: subscriptionTotal,
       // Engagement metrics require a session analytics source. Keep them at
       // zero until a real source is integrated; the UI hides them meanwhile.
       dailyActiveUsers: 0,
