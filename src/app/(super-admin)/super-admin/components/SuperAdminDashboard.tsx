@@ -669,7 +669,7 @@ export function SuperAdminDashboard({ initialMetrics, initialEvents = [] }: Supe
                   stroke="#1FC7B6"
                   strokeWidth={3}
                   fillOpacity={1}
-                  fill="url(#colorAcademias)"
+                  fill="url(#colorAcademies)"
                   dot={{ fill: "#1FC7B6", strokeWidth: 0, r: 4 }}
                   activeDot={{ fill: "#1FC7B6", strokeWidth: 2, stroke: "#fff", r: 6 }}
                 />
