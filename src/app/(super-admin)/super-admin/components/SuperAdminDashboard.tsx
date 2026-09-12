@@ -61,11 +61,41 @@ interface SuperAdminDashboardProps {
   initialUserId?: string | null;
 }
 
-const CURRENCY_FORMATTER = new Intl.NumberFormat("es-ES", {
-  style: "currency",
-  currency: "EUR",
-  maximumFractionDigits: 0,
-});
+function normalizeCurrency(value: string | null | undefined) {
+  const normalized = value?.trim().toUpperCase();
+  return normalized && /^[A-Z]{3}$/.test(normalized) ? normalized : "EUR";
+}
+
+function formatCurrencyValue(value: number, currency = "EUR") {
+  try {
+    return new Intl.NumberFormat("es-ES", {
+      style: "currency",
+      currency: normalizeCurrency(currency),
+      maximumFractionDigits: 0,
+    }).format(value);
+  } catch {
+    return new Intl.NumberFormat("es-ES", {
+      style: "currency",
+      currency: "EUR",
+      maximumFractionDigits: 0,
+    }).format(value);
+  }
+}
+
+function formatCurrencyCents(value: number | null | undefined, currency = "EUR") {
+  return formatCurrencyValue(Number(value ?? 0) / 100, currency);
+}
+
+function formatRevenueBreakdown(
+  rows: Array<{ currency: string; total: number }>,
+  fallbackCents: number
+) {
+  if (rows.length === 0) return formatCurrencyCents(fallbackCents);
+  return rows
+    .slice(0, 3)
+    .map((row) => formatCurrencyCents(row.total, row.currency))
+    .join(" · ");
+}
 
 const EVENT_TYPE_LABELS: Record<string, string> = {
   academy_created: "Academia creada",
@@ -151,9 +181,23 @@ export function SuperAdminDashboard({ initialMetrics, initialEvents = [], initia
   );
 
   const chartDataset = useMemo(() => safeMetrics.monthlyAcademies, [safeMetrics.monthlyAcademies]);
+  const revenueCurrencies = useMemo(
+    () => [...new Set(safeMetrics.revenueByCurrency.map((entry) => normalizeCurrency(entry.currency)))],
+    [safeMetrics.revenueByCurrency]
+  );
+  const revenueChartCurrency = revenueCurrencies.length === 1 ? revenueCurrencies[0] : null;
   const revenueChartData = useMemo(
-    () => safeMetrics.monthlyRevenue.map((entry) => ({ label: entry.label, total: entry.total / 100 })),
-    [safeMetrics.monthlyRevenue]
+    () =>
+      revenueChartCurrency
+        ? safeMetrics.monthlyRevenue
+            .filter((entry) => normalizeCurrency(entry.currency) === revenueChartCurrency)
+            .map((entry) => ({ label: entry.label, total: entry.total / 100 }))
+        : [],
+    [revenueChartCurrency, safeMetrics.monthlyRevenue]
+  );
+  const revenueSummaryLabel = useMemo(
+    () => formatRevenueBreakdown(safeMetrics.revenueByCurrency, safeMetrics.totals.revenue),
+    [safeMetrics.revenueByCurrency, safeMetrics.totals.revenue]
   );
   const revenueDelta = useMemo(() => {
     if (revenueChartData.length < 2) return null;
@@ -297,7 +341,7 @@ export function SuperAdminDashboard({ initialMetrics, initialEvents = [], initia
       },
       {
         title: "Cobrado este mes",
-        value: CURRENCY_FORMATTER.format(safeMetrics.totals.chargesPaidThisMonth / 100),
+        value: formatCurrencyCents(safeMetrics.totals.chargesPaidThisMonth),
         subtitle: "Cargos pagados registrados",
         href: "/super-admin/billing",
         icon: DollarSign,
@@ -604,7 +648,7 @@ export function SuperAdminDashboard({ initialMetrics, initialEvents = [], initia
               Estado de suscripciones
             </h3>
             <p className="text-xs text-white/50 mt-1">
-              Ingresos acumulados: {CURRENCY_FORMATTER.format(safeMetrics.totals.revenue / 100)} · {safeMetrics.totals.paidInvoices} recibos cobrados
+              Ingresos acumulados: {revenueSummaryLabel} · {safeMetrics.totals.paidInvoices} recibos cobrados
             </p>
           </div>
           <span className="text-xs text-white/40">
@@ -739,14 +783,18 @@ export function SuperAdminDashboard({ initialMetrics, initialEvents = [], initia
               Ingresos mensuales
             </h3>
             <p className="mt-1 text-xs text-white/50">
-              {revenueChartData.length > 0 ? `Últimos ${revenueChartData.length} meses con cobros pagados` : "Sin serie disponible"}
+              {revenueChartData.length > 0
+                ? `Últimos ${revenueChartData.length} meses con cobros pagados en ${revenueChartCurrency}`
+                : revenueCurrencies.length > 1
+                  ? "Serie no comparable: hay varias divisas"
+                  : "Sin serie disponible"}
             </p>
           </div>
           <div className="mt-2 flex items-center gap-2 sm:mt-0">
             <div className="flex items-center gap-1.5 rounded-full bg-emerald-500/20 px-3 py-1.5">
               <DollarSign className="h-3.5 w-3.5 text-emerald-400" aria-hidden="true" />
               <span className="text-xs font-semibold text-emerald-300">
-                Acumulado {CURRENCY_FORMATTER.format(safeMetrics.totals.revenue / 100)}
+                Acumulado {revenueSummaryLabel}
               </span>
             </div>
           </div>
@@ -755,9 +803,13 @@ export function SuperAdminDashboard({ initialMetrics, initialEvents = [], initia
         {revenueChartData.length === 0 ? (
           <div className="flex h-48 min-w-0 flex-col items-center justify-center rounded-xl border border-dashed border-white/20 bg-white/5 px-6 text-center">
             <Info className="mb-3 h-5 w-5 text-white/50" aria-hidden="true" />
-            <p className="text-sm font-medium text-white/70">Serie de ingresos no disponible</p>
+            <p className="text-sm font-medium text-white/70">
+              {revenueCurrencies.length > 1 ? "Serie no comparable entre divisas" : "Serie de ingresos no disponible"}
+            </p>
             <p className="mt-1 max-w-md text-xs text-white/45">
-              El total acumulado se muestra arriba cuando existen recibos pagados. La serie aparece al sincronizar periodos reales.
+              {revenueCurrencies.length > 1
+                ? "El total se mantiene separado por moneda para evitar sumar importes incompatibles."
+                : "El total acumulado se muestra arriba cuando existen recibos pagados. La serie aparece al sincronizar periodos reales."}
             </p>
           </div>
         ) : (
@@ -783,7 +835,7 @@ export function SuperAdminDashboard({ initialMetrics, initialEvents = [], initia
                   fontSize={11}
                   tickLine={false}
                   axisLine={false}
-                  tickFormatter={(value) => CURRENCY_FORMATTER.format(Number(value))}
+                  tickFormatter={(value) => formatCurrencyValue(Number(value), revenueChartCurrency ?? "EUR")}
                 />
                 <Tooltip
                   contentStyle={{
@@ -813,7 +865,7 @@ export function SuperAdminDashboard({ initialMetrics, initialEvents = [], initia
           <span>
             {revenueDelta === null
               ? "Sin variación comparable"
-              : `${revenueDelta >= 0 ? "+" : ""}${CURRENCY_FORMATTER.format(revenueDelta)} vs. primer mes`}
+              : `${revenueDelta >= 0 ? "+" : ""}${formatCurrencyValue(revenueDelta, revenueChartCurrency ?? "EUR")} vs. primer mes`}
           </span>
         </div>
       </section>
