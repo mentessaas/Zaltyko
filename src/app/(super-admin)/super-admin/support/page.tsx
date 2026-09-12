@@ -22,6 +22,7 @@ interface PageProps {
     priority?: string;
     category?: string;
     academyId?: string;
+    page?: string;
   }>;
 }
 
