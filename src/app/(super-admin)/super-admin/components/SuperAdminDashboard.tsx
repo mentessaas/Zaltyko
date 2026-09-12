@@ -853,6 +853,10 @@ export function SuperAdminDashboard({ initialMetrics, initialEvents = [], initia
                     color: "#fff",
                   }}
                   labelFormatter={(label) => `Mes: ${formatMonthLabel(String(label))}`}
+                  formatter={(value) => [
+                    formatCurrencyValue(Number(value), revenueChartCurrency ?? "EUR"),
+                    "Ingresos",
+                  ]}
                 />
                 <Area
                   type="monotone"
