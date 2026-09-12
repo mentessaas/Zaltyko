@@ -80,6 +80,11 @@ export function SuperAdminUsersTable({
     userData: SuperAdminUserRow;
   } | null>(null);
 
+  const openUserDetail = (profileId: string) => {
+    if (typeof window === "undefined") return;
+    const returnTo = window.location.pathname + window.location.search;
+    router.push(`/super-admin/users/${profileId}?returnTo=${encodeURIComponent(returnTo)}`);
+  };
   const syncUrl = useCallback((activeFilters: SuperAdminUsersFilters, targetPage: number) => {
     if (typeof window === "undefined") return;
     const params = new URLSearchParams();
@@ -440,7 +445,7 @@ export function SuperAdminUsersTable({
                 className="cursor-pointer transition hover:bg-white/5 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-zaltyko-teal"
                 onClick={(e) => {
                   if ((e.target as HTMLElement).closest("button, select")) return;
-                  router.push(`/super-admin/users/${user.id}`);
+                  openUserDetail(user.id);
                 }}
                 onKeyDown={(e) => {
                   if ((e.key !== "Enter" && e.key !== " ") || (e.target as HTMLElement).closest("button, select")) return;
