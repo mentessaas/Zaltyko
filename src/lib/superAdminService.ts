@@ -1,4 +1,5 @@
 import type { SupabaseClient, User } from "@supabase/supabase-js";
+import type { AcademyStatus } from "@/db/schema/academies";
 
 import { getSupabaseAdminClient } from "@/lib/supabase/admin";
 import { logger } from "@/lib/logger";
@@ -49,6 +50,7 @@ export interface SuperAdminAcademyRow {
   planCode: string | null;
   planNickname: string | null;
   createdAt: string | null;
+  status: AcademyStatus;
   isSuspended: boolean;
 }
 
@@ -341,11 +343,11 @@ export async function getAcademiesPage(args: {
   plan?: string;
   type?: string;
   country?: string;
-  status?: "active" | "suspended";
+  status?: AcademyStatus;
 } = {}): Promise<SuperAdminAcademiesPage> {
   const { db } = await import("@/db");
   const { academies, profiles, subscriptions, plans } = await import("@/db/schema");
-  const { and, count, desc, eq } = await import("drizzle-orm");
+  const { and, count, desc, eq, or } = await import("drizzle-orm");
 
   const page = Math.max(1, Math.floor(Number.isFinite(args.page) ? args.page! : 1));
   const pageSize = Math.min(200, Math.max(1, Math.floor(Number.isFinite(args.pageSize) ? args.pageSize! : 50)));
@@ -353,8 +355,14 @@ export async function getAcademiesPage(args: {
     args.plan ? eq(plans.code, args.plan) : undefined,
     args.type ? eq(academies.academyType, args.type as typeof academies.academyType.enumValues[number]) : undefined,
     args.country ? eq(academies.country, args.country) : undefined,
-    args.status ? eq(academies.isSuspended, args.status === "suspended") : undefined,
-  ].filter(Boolean) as Array<ReturnType<typeof eq>>;
+    args.status === "active"
+      ? and(eq(academies.isSuspended, false), eq(academies.status, "active"))
+      : args.status === "suspended"
+        ? or(eq(academies.isSuspended, true), eq(academies.status, "suspended"))
+        : args.status
+          ? eq(academies.status, args.status)
+          : undefined,
+  ].filter((condition): condition is NonNullable<typeof condition> => Boolean(condition));
   const where = conditions.length > 0 ? and(...conditions) : undefined;
 
   const [totalRow] = await db
@@ -380,6 +388,7 @@ export async function getAcademiesPage(args: {
       country: academies.country,
       region: academies.region,
       createdAt: academies.createdAt,
+      status: academies.status,
       isSuspended: academies.isSuspended,
       planCode: plans.code,
       planNickname: plans.nickname,
@@ -406,6 +415,7 @@ export async function getAcademiesPage(args: {
       planCode: academy.planCode ?? null,
       planNickname: academy.planNickname ?? null,
       createdAt: toIso(academy.createdAt),
+      status: (academy.status as AcademyStatus) ?? "active",
       isSuspended: Boolean(academy.isSuspended),
     })),
     total,
@@ -427,6 +437,7 @@ export async function getAllAcademies(): Promise<SuperAdminAcademyRow[]> {
       country: academies.country,
       region: academies.region,
       createdAt: academies.createdAt,
+      status: academies.status,
       isSuspended: academies.isSuspended,
       ownerId: academies.ownerId,
     }).from(academies),
@@ -489,6 +500,7 @@ export async function getAllAcademies(): Promise<SuperAdminAcademyRow[]> {
       planCode: planInfo?.code ?? null,
       planNickname: planInfo?.nickname ?? null,
       createdAt: toIso(academy.createdAt),
+      status: (academy.status as AcademyStatus) ?? "active",
       isSuspended: Boolean(academy.isSuspended),
     };
   });
