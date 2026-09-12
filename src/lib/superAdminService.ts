@@ -309,7 +309,7 @@ async function getGlobalStatsUncached(): Promise<SuperAdminMetrics> {
   const athleteSummary = athleteSummaryRows[0];
   const recentActivitySummary = recentActivityRows[0];
 
-    const aggregateCurrencyTotals = (rows: Array<{ currency: string | null; total: unknown }>) => {
+  const aggregateCurrencyTotals = (rows: Array<{ currency: string | null; total: unknown }>) => {
     const totals = new Map<string, number>();
     for (const row of rows) {
       const currency = normalizeCurrency(row.currency);
