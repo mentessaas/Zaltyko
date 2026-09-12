@@ -13,9 +13,11 @@ export const dynamic = "force-dynamic";
 
 const reasonSchema = z.string().trim().min(5).max(500);
 const academyTypeSchema = z.enum(["artistica", "ritmica", "trampolin", "general", "parkour", "danza"]);
+const managedAcademyStatusSchema = z.enum(["active", "trial", "suspended"]);
 const updateAcademySchema = z.object({
   name: z.string().trim().min(1).max(160).optional(),
   isSuspended: z.boolean().optional(),
+  status: managedAcademyStatusSchema.optional(),
   reason: reasonSchema.optional(),
   planId: z.string().uuid().nullable().optional(),
   academyType: academyTypeSchema.optional(),
@@ -56,7 +58,7 @@ export const PATCH = withSuperAdmin(async (request, context) => {
     );
   }
   const body = parsedBody.data;
-  if (typeof body.isSuspended === "boolean" && !body.reason) {
+  if ((typeof body.isSuspended === "boolean" || body.status !== undefined) && !body.reason) {
     return apiError("REASON_REQUIRED", "Indica el motivo del cambio de acceso", 400);
   }
   const updates: Record<string, unknown> = {};
@@ -175,11 +177,11 @@ export const PATCH = withSuperAdmin(async (request, context) => {
   await logAdminAction({
     userId: context.userId,
     tenantId: null,
-    action: body.isSuspended ? "academy.suspended" : "academy.updated",
+    action: body.status === "suspended" || body.isSuspended ? "academy.suspended" : "academy.updated",
     resourceType: "academy",
     resourceId: academyId,
     resourceName: updated.name,
-    description: body.isSuspended
+    description: body.status === "suspended" || body.isSuspended
       ? `Super Admin suspendió la academia ${updated.name ?? academyId}`
       : `Super Admin actualizó la academia ${updated.name ?? academyId}`,
     meta: {
