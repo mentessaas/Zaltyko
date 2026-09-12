@@ -49,7 +49,7 @@ export const POST = withSuperAdmin(async (request, context) => {
           <div style="font-family: Inter, Arial, sans-serif; max-width: 600px; margin: 0 auto;">
             <h2 style="color: #0D47A1; font-family: Poppins, sans-serif; font-weight: 700;">Mensaje de Zaltyko</h2>
             <div style="background-color: #f9fafb; padding: 20px; border-radius: 8px; margin: 20px 0;">
-              ${body.message.replace(/\n/g, "<br>")}
+              ${escapeHtml(body.message).replace(/\n/g, "<br>")}
             </div>
             <p style="color: #6b7280; font-size: 12px;">
               Este mensaje fue enviado por el equipo de soporte de Zaltyko.
