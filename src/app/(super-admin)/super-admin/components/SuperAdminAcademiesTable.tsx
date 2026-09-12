@@ -53,6 +53,8 @@ function getEffectiveAcademyStatus(academy: SuperAdminAcademyRow): AcademyStatus
 interface SuperAdminAcademiesTableProps {
   initialItems: SuperAdminAcademyRow[];
   initialTotal: number;
+  initialPage?: number;
+  initialFilters?: SuperAdminAcademyFilters;
   initialFilterOptions?: SuperAdminAcademyFilterOptions;
   initialUserId?: string | null;
 }
@@ -60,6 +62,8 @@ interface SuperAdminAcademiesTableProps {
 export function SuperAdminAcademiesTable({
   initialItems,
   initialTotal,
+  initialPage = 1,
+  initialFilters = {},
   initialFilterOptions,
   initialUserId,
 }: SuperAdminAcademiesTableProps) {
@@ -69,13 +73,13 @@ export function SuperAdminAcademiesTable({
   const [userId, setUserId] = useState<string | null>(initialUserId ?? null);
   const [items, setItems] = useState<SuperAdminAcademyRow[]>(initialItems);
   const [total, setTotal] = useState(initialTotal || initialItems.length);
-  const [page, setPage] = useState(1);
+  const [page, setPage] = useState(initialPage);
   const PAGE_SIZE = 50;
   const [loading, setLoading] = useState(false);
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
   const requestSequence = useRef(0);
   const [mutatingAcademyId, setMutatingAcademyId] = useState<string | null>(null);
-  const [filters, setFilters] = useState<SuperAdminAcademyFilters>({});
+  const [filters, setFilters] = useState<SuperAdminAcademyFilters>(initialFilters);
   const [filterOptions, setFilterOptions] = useState<SuperAdminAcademyFilterOptions>(() => ({
     plans: initialFilterOptions?.plans ?? [],
     types: initialFilterOptions?.types ?? [...ACADEMY_TYPE_OPTIONS],
@@ -95,6 +99,13 @@ export function SuperAdminAcademiesTable({
       logger.warn("Unable to resolve super-admin session", { error: error instanceof Error ? error.message : String(error) });
     });
   }, [supabase]);
+
+  useEffect(() => {
+    setItems(initialItems);
+    setTotal(initialTotal ?? initialItems.length);
+    setPage(initialPage);
+    setFilters(initialFilters);
+  }, [initialItems, initialTotal, initialPage, initialFilters]);
 
   const planOptions = filterOptions.plans;
   const typeOptions = filterOptions.types.length > 0 ? filterOptions.types : [...ACADEMY_TYPE_OPTIONS];
