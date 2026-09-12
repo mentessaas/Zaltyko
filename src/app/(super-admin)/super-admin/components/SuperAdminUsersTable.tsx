@@ -74,7 +74,7 @@ export function SuperAdminUsersTable({ initialItems, initialTotal, initialUserId
     supabase.auth.getUser().then(({ data }) => {
       if (data.user?.id) setUserId(data.user.id);
     }).catch((error) => {
-      logger.warn("Unable to resolve super-admin session", error);
+      logger.warn("Unable to resolve super-admin session", { error: error instanceof Error ? error.message : String(error) });
     });
   }, [supabase]);
 
