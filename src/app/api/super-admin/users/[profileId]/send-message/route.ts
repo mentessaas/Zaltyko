@@ -4,6 +4,7 @@ import { z } from "zod";
 import { withSuperAdmin } from "@/lib/authz";
 import { sendEmail } from "@/lib/brevo";
 import { config } from "@/config";
+import { escapeHtml } from "@/lib/email/escape-html";
 import { db } from "@/db";
 import { profiles } from "@/db/schema";
 import { eq } from "drizzle-orm";
