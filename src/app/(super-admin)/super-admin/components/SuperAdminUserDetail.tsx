@@ -106,7 +106,7 @@ function formatRole(role: string | null) {
 
 const ROLE_OPTIONS = ["owner", "admin", "coach", "athlete", "parent", "super_admin"] as const;
 
-export function SuperAdminUserDetail({ initialUser, userId }: SuperAdminUserDetailProps) {
+export function SuperAdminUserDetail({ initialUser, userId, backHref = "/super-admin/users" }: SuperAdminUserDetailProps) {
   const router = useRouter();
   const toast = useToast();
   const [user, setUser] = useState<UserDetail>(initialUser);
