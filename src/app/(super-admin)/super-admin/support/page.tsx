@@ -28,6 +28,7 @@ interface PageProps {
 const TICKET_STATUS_VALUES = ["open", "in_progress", "waiting", "resolved", "closed"] as const;
 const TICKET_PRIORITY_VALUES = ["low", "medium", "high", "urgent"] as const;
 const TICKET_CATEGORY_VALUES = ["technical", "billing", "account", "feature_request", "other"] as const;
+const PAGE_SIZE = 50;
 
 function pickFilter<T extends string>(value: string | undefined, values: readonly T[]) {
   return value && values.includes(value as T) ? (value as T) : undefined;
@@ -50,12 +51,15 @@ function normalizeSupportFilters(filters: {
   };
 }
 
-async function getAllTickets(filters: {
-  status?: string;
-  priority?: string;
-  category?: string;
-  academyId?: string;
-}) {
+async function getAllTickets(
+  filters: {
+    status?: string;
+    priority?: string;
+    category?: string;
+    academyId?: string;
+  },
+  requestedPage: number
+) {
   const conditions = [
     filters.status && filters.status !== "all"
       ? eq(tickets.status, filters.status as typeof tickets.status.enumValues[number])
@@ -70,6 +74,15 @@ async function getAllTickets(filters: {
       ? eq(tickets.academyId, filters.academyId)
       : undefined,
   ].filter(Boolean) as Array<ReturnType<typeof eq>>;
+
+  const where = conditions.length > 0 ? and(...conditions) : undefined;
+  const [totalRow] = await db
+    .select({ total: count(tickets.id) })
+    .from(tickets)
+    .where(where);
+  const total = Number(totalRow?.total ?? 0);
+  const totalPages = Math.max(1, Math.ceil(total / PAGE_SIZE));
+  const page = Math.min(Math.max(1, requestedPage), totalPages);
 
   const rows = await db
     .select({
@@ -91,9 +104,10 @@ async function getAllTickets(filters: {
     .leftJoin(profiles, eq(tickets.createdBy, profiles.id))
     .leftJoin(authUsers, eq(profiles.userId, authUsers.id))
     .leftJoin(academies, eq(tickets.academyId, academies.id))
-    .where(conditions.length > 0 ? and(...conditions) : undefined)
+    .where(where)
     .orderBy(desc(tickets.createdAt))
-    .limit(200);
+    .limit(PAGE_SIZE)
+    .offset((page - 1) * PAGE_SIZE);
 
   const responseCounts = new Map<string, number>();
   if (rows.length > 0) {
@@ -108,29 +122,49 @@ async function getAllTickets(filters: {
     }
   }
 
-  return rows.map((ticket) => ({
-    id: ticket.id,
-    title: ticket.title,
-    description: ticket.description,
-    status: ticket.status,
-    priority: ticket.priority,
-    category: ticket.category,
-    createdAt: ticket.createdAt,
-    updatedAt: ticket.updatedAt,
-    createdBy: {
-      id: ticket.creatorId ?? "unknown",
-      fullName: ticket.creatorName ?? "Usuario",
-      email: ticket.creatorEmail ?? "",
-    },
-    academy: ticket.academyId
-      ? { id: ticket.academyId, name: ticket.academyName ?? "Academia" }
-      : undefined,
-    _count: { responses: responseCounts.get(ticket.id) ?? 0 },
-  }));
+  return {
+    items: rows.map((ticket) => ({
+      id: ticket.id,
+      title: ticket.title,
+      description: ticket.description,
+      status: ticket.status,
+      priority: ticket.priority,
+      category: ticket.category,
+      createdAt: ticket.createdAt,
+      updatedAt: ticket.updatedAt,
+      createdBy: {
+        id: ticket.creatorId ?? "unknown",
+        fullName: ticket.creatorName ?? "Usuario",
+        email: ticket.creatorEmail ?? "",
+      },
+      academy: ticket.academyId
+        ? { id: ticket.academyId, name: ticket.academyName ?? "Academia" }
+        : undefined,
+      _count: { responses: responseCounts.get(ticket.id) ?? 0 },
+    })),
+    total,
+    page,
+    totalPages,
+  };
+}
+
+function pageHref(filters: {
+  status?: string;
+  priority?: string;
+  category?: string;
+  academyId?: string;
+}, page: number) {
+  const params = new URLSearchParams();
+  for (const [key, value] of Object.entries(filters)) {
+    if (value) params.set(key, value);
+  }
+  params.set("page", String(page));
+  return `?${params.toString()}`;
 }
 
 async function TicketsContent({
   filters,
+  page: requestedPage,
 }: {
   filters: {
     status?: string;
@@ -138,8 +172,9 @@ async function TicketsContent({
     category?: string;
     academyId?: string;
   };
+  page: number;
 }) {
-  const tickets = await getAllTickets(filters);
+  const result = await getAllTickets(filters, requestedPage);
 
   return (
     <>
@@ -151,19 +186,63 @@ async function TicketsContent({
         showPriority
         showCategory
       />
-      <div className="mt-6">
+      <div className="mt-4 flex flex-wrap items-center justify-between gap-2 text-xs text-muted-foreground">
+        <span>
+          Mostrando {result.items.length} de {result.total} tickets
+        </span>
+        <span>
+          Página {result.page} de {result.totalPages}
+        </span>
+      </div>
+      <div className="mt-4">
         <TicketList
-          tickets={tickets}
+          tickets={result.items}
           isAdmin
           emptyMessage="No hay tickets de soporte"
         />
       </div>
+      {result.totalPages > 1 && (
+        <nav aria-label="Paginación de tickets" className="mt-6 flex items-center justify-between">
+          <span className="text-xs text-muted-foreground">
+            {PAGE_SIZE} por página
+          </span>
+          <div className="flex items-center gap-2">
+            <a
+              href={pageHref(filters, Math.max(1, result.page - 1))}
+              aria-disabled={result.page === 1}
+              tabIndex={result.page === 1 ? -1 : 0}
+              className={`inline-flex min-h-10 items-center rounded-md border px-3 text-sm font-medium transition ${
+                result.page === 1
+                  ? "pointer-events-none opacity-40"
+                  : "border-border hover:bg-muted"
+              }`}
+            >
+              Anteriores
+            </a>
+            <a
+              href={pageHref(filters, Math.min(result.totalPages, result.page + 1))}
+              aria-disabled={result.page === result.totalPages}
+              tabIndex={result.page === result.totalPages ? -1 : 0}
+              className={`inline-flex min-h-10 items-center rounded-md border px-3 text-sm font-medium transition ${
+                result.page === result.totalPages
+                  ? "pointer-events-none opacity-40"
+                  : "border-border hover:bg-muted"
+              }`}
+            >
+              Siguientes
+            </a>
+          </div>
+        </nav>
+      )}
     </>
   );
 }
 
 export default async function SuperAdminSupportPage({ searchParams }: PageProps) {
-  const filters = normalizeSupportFilters(await searchParams);
+  const rawSearchParams = await searchParams;
+  const filters = normalizeSupportFilters(rawSearchParams);
+  const requestedPage = Number.parseInt(rawSearchParams.page ?? "1", 10);
+  const page = Number.isFinite(requestedPage) ? Math.max(1, requestedPage) : 1;
   const cookieStore = await cookies();
   const supabase = await createClient(cookieStore);
   const devSession = await getDevSessionFromCookieStore(cookieStore);
@@ -185,7 +264,7 @@ export default async function SuperAdminSupportPage({ searchParams }: PageProps)
       />
 
       <Suspense fallback={<TicketFiltersSkeleton />}>
-        <TicketsContent filters={filters} />
+        <TicketsContent filters={filters} page={page} />
       </Suspense>
     </div>
   );
