@@ -45,22 +45,22 @@ async function activateAthleteAccess(
     .limit(1);
 
   if (!profile) {
-    return { ok: false, userId: "", email: "", error: "PROFILE_NOT_FOUND" };
+    return { ok: false, userId: "", email: "", invitationSent: false, error: "PROFILE_NOT_FOUND" };
   }
 
   if (profile.role !== "athlete") {
-    return { ok: false, userId: "", email: "", error: "NOT_AN_ATHLETE" };
+    return { ok: false, userId: "", email: "", invitationSent: false, error: "NOT_AN_ATHLETE" };
   }
 
   const currentEmail = await getAuthUserEmail(profile.userId);
   if (!currentEmail && !email) {
-    return { ok: false, userId: profile.userId, email: "", error: "AUTH_USER_NOT_FOUND" };
+    return { ok: false, userId: profile.userId, email: "", invitationSent: false, error: "AUTH_USER_NOT_FOUND" };
   }
 
   const targetEmail = email ?? currentEmail ?? "";
 
   if (!targetEmail) {
-    return { ok: false, userId: profile.userId, email: "", error: "EMAIL_REQUIRED" };
+    return { ok: false, userId: profile.userId, email: "", invitationSent: false, error: "EMAIL_REQUIRED" };
   }
 
   // Actualizar el email del usuario si es diferente
