@@ -79,7 +79,31 @@ function toIso(value: string | Date | null | undefined) {
   }
 }
 
+const GLOBAL_STATS_CACHE_TTL_MS = 15_000;
+let globalStatsCache: { value: SuperAdminMetrics; expiresAt: number } | null = null;
+let globalStatsInFlight: Promise<SuperAdminMetrics> | null = null;
+
 export async function getGlobalStats(): Promise<SuperAdminMetrics> {
+  const now = Date.now();
+  if (globalStatsCache && globalStatsCache.expiresAt > now) {
+    return globalStatsCache.value;
+  }
+
+  if (!globalStatsInFlight) {
+    globalStatsInFlight = getGlobalStatsUncached()
+      .then((value) => {
+        globalStatsCache = { value, expiresAt: Date.now() + GLOBAL_STATS_CACHE_TTL_MS };
+        return value;
+      })
+      .finally(() => {
+        globalStatsInFlight = null;
+      });
+  }
+
+  return globalStatsInFlight;
+}
+
+async function getGlobalStatsUncached(): Promise<SuperAdminMetrics> {
   // Use Drizzle directly to bypass RLS and get all data
   const { db } = await import("@/db");
   const { academies, profiles, plans, subscriptions, billingInvoices, athleteAssessments, athletes, groups, charges, eventLogs } = await import("@/db/schema");
