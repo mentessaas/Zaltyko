@@ -2,7 +2,7 @@
 
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
-import { ChevronLeft, ChevronRight, ShieldAlert, UserCog, Users, Loader2 } from "lucide-react";
+import { ChevronLeft, ChevronRight, ShieldAlert, UserCog, Users, Loader2, Trash2 } from "lucide-react";
 
 import type { SuperAdminUserRow } from "@/lib/superAdminService";
 import { createClient } from "@/lib/supabase/client";
@@ -559,8 +559,11 @@ export function SuperAdminUsersTable({
                         setConfirmDialogOpen(true);
                       }}
                       disabled={loading}
-                      className="inline-flex items-center rounded-lg border border-red-500/40 px-3 py-1.5 text-xs font-semibold text-red-300 transition hover:bg-red-500/10 disabled:opacity-40"
+                      aria-label={`Eliminar usuario ${user.fullName || user.email || user.id}`}
+                      title="Eliminar usuario"
+                      className="inline-flex min-h-9 items-center gap-1.5 rounded-lg border border-red-500/40 px-3 py-1.5 text-xs font-semibold text-red-300 transition hover:bg-red-500/10 disabled:opacity-40"
                     >
+                      <Trash2 className="h-3.5 w-3.5" aria-hidden="true" />
                       Eliminar
                     </button>
                   </div>
