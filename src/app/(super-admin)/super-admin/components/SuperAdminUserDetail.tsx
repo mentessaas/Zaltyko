@@ -31,6 +31,7 @@ import { cn } from "@/lib/utils";
 import { formatAcademyType } from "@/lib/formatters";
 import { useToast } from "@/components/ui/toast-provider";
 import { logger } from "@/lib/logger";
+import { ConfirmDialog } from "@/components/ui/confirm-dialog";
 
 interface UserMembership {
   id: string;
@@ -124,6 +125,7 @@ export function SuperAdminUserDetail({ initialUser, userId, backHref = "/super-a
     }>;
     requiresAction: boolean;
   } | null>(null);
+  const [forcePlanDialogOpen, setForcePlanDialogOpen] = useState(false);
   const [messageForm, setMessageForm] = useState({
     subject: "",
     message: "",
@@ -377,9 +379,14 @@ export function SuperAdminUserDetail({ initialUser, userId, backHref = "/super-a
     }
   };
 
-  const handleForcePlanChange = async () => {
-    if (!confirm("¿Estás seguro de cambiar el plan aunque exceda los límites? El usuario deberá ajustar manualmente sus academias.")) {
-      return;
+  const handleForcePlanChange = async (reason?: string): Promise<boolean> => {
+    if (!reason || reason.trim().length < 5) {
+      toast.pushToast({
+        title: "Indica el motivo",
+        description: "Los cambios forzados de plan requieren un motivo de al menos 5 caracteres.",
+        variant: "warning",
+      });
+      return false;
     }
 
     setSaving(true);
@@ -392,6 +399,7 @@ export function SuperAdminUserDetail({ initialUser, userId, backHref = "/super-a
         body: JSON.stringify({
           planId: formData.planId || null,
           force: true,
+          reason: reason.trim(),
         }),
       });
 
@@ -402,12 +410,10 @@ export function SuperAdminUserDetail({ initialUser, userId, backHref = "/super-a
           description: error || "Inténtalo de nuevo en unos segundos.",
           variant: "error",
         });
-        return;
+        return false;
       }
 
       const refreshResponse = await fetch(`/api/super-admin/users/${user.id}`, {
-        headers: {
-        },
         cache: "no-store",
       });
 
@@ -427,6 +433,7 @@ export function SuperAdminUserDetail({ initialUser, userId, backHref = "/super-a
         variant: "success",
       });
       router.refresh();
+      return true;
     } catch (error) {
       logger.error("Error forcing plan change", error);
       toast.pushToast({
@@ -434,11 +441,11 @@ export function SuperAdminUserDetail({ initialUser, userId, backHref = "/super-a
         description: "Inténtalo de nuevo en unos segundos.",
         variant: "error",
       });
+      return false;
     } finally {
       setSaving(false);
     }
   };
-
   const handleToggleSuspension = async () => {
     if (actionReason.trim().length < 5) {
       toast.pushToast({ title: "Indica el motivo", description: "Suspender o reactivar requiere un motivo de al menos 5 caracteres.", variant: "warning" });
@@ -563,7 +570,7 @@ export function SuperAdminUserDetail({ initialUser, userId, backHref = "/super-a
               </Button>
               <Button
                 className="flex-1 bg-zaltyko-coral text-white hover:bg-zaltyko-coral/90"
-                onClick={handleForcePlanChange}
+                onClick={() => setForcePlanDialogOpen(true)}
                 disabled={saving}
               >
                 {saving ? (
@@ -1006,6 +1013,19 @@ export function SuperAdminUserDetail({ initialUser, userId, backHref = "/super-a
           </Button>
         </div>
       </div>
+
+      <ConfirmDialog
+        open={forcePlanDialogOpen}
+        onOpenChange={setForcePlanDialogOpen}
+        title="Forzar cambio de plan"
+        description="El nuevo plan supera los límites actuales. Confirma el cambio solo si has documentado por qué debe aplicarse y qué ajuste queda pendiente."
+        confirmText="Cambiar plan"
+        variant="destructive"
+        requireReason
+        reasonLabel="Motivo del cambio forzado"
+        onConfirm={handleForcePlanChange}
+        loading={saving}
+      />
     </div>
   );
 }
