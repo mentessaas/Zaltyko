@@ -10,12 +10,18 @@ import { SuperAdminUserDetail } from "../../components/SuperAdminUserDetail";
 
 export const dynamic = "force-dynamic";
 
+type SearchParamValue = string | string[] | undefined;
+
+function firstSearchParam(value: SearchParamValue) {
+  return Array.isArray(value) ? value[0] : value;
+}
+
 export default async function SuperAdminUserDetailPage({
   params,
   searchParams,
 }: {
   params: Promise<{ profileId: string }>;
-  searchParams: Promise<{ returnTo?: string }>;
+  searchParams: Promise<{ returnTo?: SearchParamValue }>;
 }) {
   const cookieStore = await cookies();
   const supabase = await createClient(cookieStore);
@@ -38,9 +44,10 @@ export default async function SuperAdminUserDetailPage({
 
   const { profileId } = await params;
   const { returnTo } = await searchParams;
+  const safeReturnTo = firstSearchParam(returnTo);
   const backHref =
-    returnTo === "/super-admin/users" || returnTo?.startsWith("/super-admin/users?")
-      ? returnTo
+    safeReturnTo === "/super-admin/users" || safeReturnTo?.startsWith("/super-admin/users?")
+      ? safeReturnTo
       : "/super-admin/users";
   const requestHeaders = await headers();
   const forwardedHost = requestHeaders.get("x-forwarded-host") ?? requestHeaders.get("host");
