@@ -23,6 +23,8 @@ type SuperAdminAcademyFilters = {
   status?: AcademyStatus;
 };
 
+const ACADEMY_TYPE_OPTIONS = ["artistica", "ritmica", "trampolin", "general", "parkour", "danza"] as const;
+
 const ACADEMY_STATUS_LABELS: Record<AcademyStatus, string> = {
   active: "Activa",
   trial: "En prueba",
@@ -94,7 +96,7 @@ export function SuperAdminAcademiesTable({
   }, [items]);
 
   const typeOptions = useMemo(() => {
-    const set = new Set<string>();
+    const set = new Set<string>(ACADEMY_TYPE_OPTIONS);
     items.forEach((academy) => {
       if (academy.academyType) set.add(academy.academyType);
     });
