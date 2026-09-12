@@ -562,7 +562,7 @@ export function SuperAdminAcademyDetail({ initialAcademy, userId, backHref = "/s
           </Button>
         </div>
       </div>
-    </div>
+
 
     <ConfirmDialog
       open={suspensionDialogOpen}
