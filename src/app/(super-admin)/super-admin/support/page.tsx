@@ -206,6 +206,7 @@ async function TicketsContent({
           tickets={result.items}
           isAdmin
           emptyMessage="No hay tickets de soporte"
+          returnTo={`/super-admin/support${pageHref(filters, result.page)}`}
         />
       </div>
       {result.totalPages > 1 && (
