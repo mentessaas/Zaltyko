@@ -38,6 +38,7 @@ export function ConfirmDialog({
 }: ConfirmDialogProps) {
   const [isLoading, setIsLoading] = React.useState(false);
   const [reason, setReason] = React.useState("");
+  const reasonId = React.useId();
 
   React.useEffect(() => {
     if (!open) setReason("");
@@ -97,11 +98,11 @@ export function ConfirmDialog({
           </div>
           {requireReason && (
             <div className="space-y-2">
-              <label htmlFor="confirm-dialog-reason" className="text-sm font-medium text-foreground">
+              <label htmlFor={reasonId} className="text-sm font-medium text-foreground">
                 {reasonLabel}
               </label>
               <Textarea
-                id="confirm-dialog-reason"
+                id={reasonId}
                 value={reason}
                 onChange={(event) => setReason(event.target.value)}
                 placeholder="Explica brevemente por qué es necesaria esta acción"
