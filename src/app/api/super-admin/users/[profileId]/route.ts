@@ -219,14 +219,6 @@ export const PATCH = withSuperAdmin(async (request, context) => {
     auditChanges.name = { from: existing.name, to: body.name };
   }
 
-  if (body.email) {
-    await updateAuthUserEmail({
-      userId: existing.userId,
-      email: body.email,
-    });
-    auditChanges.email = "updated";
-  }
-
   let planToApply: { id: string; code: string; violations: any } | null = null;
 
   if (body.planId) {
@@ -262,21 +254,79 @@ export const PATCH = withSuperAdmin(async (request, context) => {
     auditChanges.email = "updated";
   }
 
-  if (Object.keys(updates).length === 0 && !body.email && !body.planId) {
+  if (Object.keys(updates).length === 0 && !body.email && !planToApply) {
     return apiError("NO_CHANGES", "No changes provided", 400);
   }
 
-  const [updated] = await db
-    .update(profiles)
-    .set(updates)
-    .where(eq(profiles.id, profileId))
-    .returning({
-      id: profiles.id,
-      userId: profiles.userId,
-      name: profiles.name,
-      role: profiles.role,
-      isSuspended: profiles.isSuspended,
+  let updated;
+  try {
+    updated = await db.transaction(async (tx) => {
+      let profileUpdated = existing;
+      if (Object.keys(updates).length > 0) {
+        const [nextProfile] = await tx
+          .update(profiles)
+          .set(updates)
+          .where(eq(profiles.id, profileId))
+          .returning({
+            id: profiles.id,
+            userId: profiles.userId,
+            name: profiles.name,
+            role: profiles.role,
+            isSuspended: profiles.isSuspended,
+          });
+        if (!nextProfile) throw new Error("PROFILE_NOT_FOUND");
+        profileUpdated = nextProfile as typeof existing;
+      }
+
+      if (planToApply) {
+        const [existingSubscription] = await tx
+          .select({ id: subscriptions.id })
+          .from(subscriptions)
+          .where(eq(subscriptions.userId, existing.userId))
+          .limit(1);
+
+        if (existingSubscription) {
+          await tx
+            .update(subscriptions)
+            .set({ planId: planToApply.id })
+            .where(eq(subscriptions.id, existingSubscription.id));
+        } else {
+          await tx.insert(subscriptions).values({
+            userId: existing.userId,
+            planId: planToApply.id,
+            status: "active",
+          });
+        }
+      }
+
+      return profileUpdated;
     });
+  } catch (error) {
+    if (error instanceof Error && error.message === "PROFILE_NOT_FOUND") {
+      return apiError("PROFILE_NOT_FOUND", "Profile not found", 404);
+    }
+    logger.error("Error applying super-admin user changes", error);
+    return apiError("USER_UPDATE_FAILED", "No se pudieron aplicar todos los cambios", 500);
+  }
+
+  if (planToApply?.violations?.requiresAction && body.force) {
+    const authEmail = await getAuthUserEmail(existing.userId);
+    if (authEmail) {
+      try {
+        const { sendEmail } = await import("@/lib/brevo");
+        const { config } = await import("@/config");
+        await sendEmail({
+          to: authEmail,
+          subject: "Cambio de plan completado - Zaltyko",
+          html: `<p>Tu plan de Zaltyko ha cambiado a <strong>${planToApply.code.toUpperCase()}</strong>. Algunos recursos superan los límites actuales; revisa tu panel para ajustarlos.</p>`,
+          text: `Tu plan ha cambiado a ${planToApply.code.toUpperCase()}. Revisa los recursos que superan los límites.`,
+          replyTo: config.brevo.supportEmail,
+        });
+      } catch (error) {
+        logger.error("Error sending plan change notification", error);
+      }
+    }
+  }
 
   await logAdminAction({
     userId: context.userId,
@@ -357,77 +407,3 @@ export const DELETE = withSuperAdmin(async (request, context) => {
 
   return apiSuccess({ ok: true });
 });
-  if (Object.keys(updates).length === 0 && !body.email && !planToApply) {
-    return apiError("NO_CHANGES", "No changes provided", 400);
-  }
-
-  let updated;
-  try {
-    updated = await db.transaction(async (tx) => {
-      let profileUpdated = existing;
-      if (Object.keys(updates).length > 0) {
-        const [nextProfile] = await tx
-          .update(profiles)
-          .set(updates)
-          .where(eq(profiles.id, profileId))
-          .returning({
-            id: profiles.id,
-            userId: profiles.userId,
-            name: profiles.name,
-            role: profiles.role,
-            isSuspended: profiles.isSuspended,
-          });
-        if (!nextProfile) throw new Error("PROFILE_NOT_FOUND");
-        profileUpdated = nextProfile as typeof existing;
-      }
-
-      if (planToApply) {
-        const [existingSubscription] = await tx
-          .select({ id: subscriptions.id })
-          .from(subscriptions)
-          .where(eq(subscriptions.userId, existing.userId))
-          .limit(1);
-
-        if (existingSubscription) {
-          await tx
-            .update(subscriptions)
-            .set({ planId: planToApply.id })
-            .where(eq(subscriptions.id, existingSubscription.id));
-        } else {
-          await tx.insert(subscriptions).values({
-            userId: existing.userId,
-            planId: planToApply.id,
-            status: "active",
-          });
-        }
-      }
-
-      return profileUpdated;
-    });
-  } catch (error) {
-    if (error instanceof Error && error.message === "PROFILE_NOT_FOUND") {
-      return apiError("PROFILE_NOT_FOUND", "Profile not found", 404);
-    }
-    logger.error("Error applying super-admin user changes", error);
-    return apiError("USER_UPDATE_FAILED", "No se pudieron aplicar todos los cambios", 500);
-  }
-
-  if (planToApply?.violations?.requiresAction && body.force) {
-    const authEmail = await getAuthUserEmail(existing.userId);
-    if (authEmail) {
-      try {
-        const { sendEmail } = await import("@/lib/brevo");
-        const { config } = await import("@/config");
-        await sendEmail({
-          to: authEmail,
-          subject: "Cambio de plan completado - Zaltyko",
-          html: `<p>Tu plan de Zaltyko ha cambiado a <strong>${planToApply.code.toUpperCase()}</strong>. Algunos recursos superan los límites actuales; revisa tu panel para ajustarlos.</p>`,
-          text: `Tu plan ha cambiado a ${planToApply.code.toUpperCase()}. Revisa los recursos que superan los límites.`,
-          replyTo: config.brevo.supportEmail,
-        });
-      } catch (error) {
-        logger.error("Error sending plan change notification", error);
-      }
-    }
-  }
-
