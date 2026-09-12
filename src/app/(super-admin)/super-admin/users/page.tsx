@@ -10,14 +10,20 @@ import { SuperAdminUsersTable } from "../components/SuperAdminUsersTable";
 const USER_ROLES = ["owner", "admin", "coach", "athlete", "parent", "super_admin"] as const;
 type UserRole = (typeof USER_ROLES)[number];
 
+type SearchParamValue = string | string[] | undefined;
+
 type PageProps = {
   searchParams: Promise<{
-    role?: string;
-    status?: string;
-    q?: string;
-    page?: string;
+    role?: SearchParamValue;
+    status?: SearchParamValue;
+    q?: SearchParamValue;
+    page?: SearchParamValue;
   }>;
 };
+
+function firstSearchParam(value: SearchParamValue) {
+  return Array.isArray(value) ? value[0] : value;
+}
 
 export const dynamic = "force-dynamic";
 
@@ -42,16 +48,16 @@ export default async function SuperAdminUsersPage({ searchParams }: PageProps) {
   }
 
   const params = await searchParams;
-  const roleParam = params.role;
+  const roleParam = firstSearchParam(params.role);
   const roleFilter = USER_ROLES.includes(roleParam as UserRole)
     ? (roleParam as UserRole)
     : undefined;
   const statusFilter =
-    params.status === "active" || params.status === "suspended"
-      ? params.status
+    firstSearchParam(params.status) === "active" || firstSearchParam(params.status) === "suspended"
+      ? firstSearchParam(params.status)
       : undefined;
-  const search = params.q?.trim().slice(0, 160) ?? "";
-  const requestedPage = Math.max(1, Number.parseInt(params.page ?? "1", 10) || 1);
+  const search = firstSearchParam(params.q)?.trim().slice(0, 160) ?? "";
+  const requestedPage = Math.max(1, Number.parseInt(firstSearchParam(params.page) ?? "1", 10) || 1);
   const result = await getUsersPage({
     page: requestedPage,
     pageSize: 50,
