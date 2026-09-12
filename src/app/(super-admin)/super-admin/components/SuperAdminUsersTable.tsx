@@ -24,6 +24,8 @@ type SuperAdminUsersFilters = {
 interface SuperAdminUsersTableProps {
   initialItems: SuperAdminUserRow[];
   initialTotal?: number;
+  initialPage?: number;
+  initialFilters?: SuperAdminUsersFilters;
   initialUserId?: string | null;
 }
 
@@ -48,22 +50,29 @@ function formatRole(role: string | null) {
 }
 
 
-export function SuperAdminUsersTable({ initialItems, initialTotal, initialUserId }: SuperAdminUsersTableProps) {
+export function SuperAdminUsersTable({
+  initialItems,
+  initialTotal,
+  initialPage = 1,
+  initialFilters = {},
+  initialUserId,
+}: SuperAdminUsersTableProps) {
   const supabase = useMemo(() => createClient(), []);
   const router = useRouter();
   const toast = useToast();
   const [userId, setUserId] = useState<string | null>(initialUserId ?? null);
   const [items, setItems] = useState<SuperAdminUserRow[]>(initialItems);
   const [total, setTotal] = useState(initialTotal ?? initialItems.length);
-  const [page, setPage] = useState(1);
+  const [page, setPage] = useState(initialPage);
+
   const PAGE_SIZE = 50;
   const [loading, setLoading] = useState(false);
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
   const requestSequence = useRef(0);
   const [syncing, setSyncing] = useState(false);
   const [mutatingUserId, setMutatingUserId] = useState<string | null>(null);
-  const [filters, setFilters] = useState<SuperAdminUsersFilters>({});
-  const [searchInput, setSearchInput] = useState("");
+  const [filters, setFilters] = useState<SuperAdminUsersFilters>(initialFilters);
+  const [searchInput, setSearchInput] = useState(initialFilters.search ?? "");
   const [confirmDialogOpen, setConfirmDialogOpen] = useState(false);
   const [pendingAction, setPendingAction] = useState<{
     profileId: string;
@@ -78,6 +87,14 @@ export function SuperAdminUsersTable({ initialItems, initialTotal, initialUserId
       logger.warn("Unable to resolve super-admin session", { error: error instanceof Error ? error.message : String(error) });
     });
   }, [supabase]);
+
+  useEffect(() => {
+    setItems(initialItems);
+    setTotal(initialTotal ?? initialItems.length);
+    setPage(initialPage);
+    setFilters(initialFilters);
+    setSearchInput(initialFilters.search ?? "");
+  }, [initialItems, initialTotal, initialPage, initialFilters]);
 
   const fetchUsers = useCallback(async (activeFilters: SuperAdminUsersFilters, requestedPage = page) => {
     if (!userId) return;
