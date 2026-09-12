@@ -40,12 +40,13 @@ export async function getSuperAdminAcademyDetail(academyId: string) {
     planNickname: string | null;
     planPrice: number | null;
   } | null = null;
-  let owner: { id: string; name: string | null; userId: string } | null = null;
+  let owner: { id: string; name: string | null; userId: string; email: string | null } | null = null;
 
   if (academy.ownerId) {
     const [ownerRow] = await db
-      .select({ id: profiles.id, name: profiles.name, userId: profiles.userId })
+      .select({ id: profiles.id, name: profiles.name, userId: profiles.userId, email: authUsers.email })
       .from(profiles)
+      .leftJoin(authUsers, eq(profiles.userId, authUsers.id))
       .where(eq(profiles.id, academy.ownerId))
       .limit(1);
     owner = ownerRow ?? null;
