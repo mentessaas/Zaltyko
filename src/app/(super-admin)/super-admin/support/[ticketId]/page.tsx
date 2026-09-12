@@ -8,6 +8,7 @@ import { academies, profiles, ticketResponses, tickets } from "@/db/schema";
 import { getCurrentProfile } from "@/lib/authz";
 import { getDevSessionFromCookieStore } from "@/lib/dev-session";
 import { createClient } from "@/lib/supabase/server";
+import { logAdminAction } from "@/lib/admin-logs";
 import { TicketDetail } from "@/components/support/TicketDetail";
 import { TicketStatus } from "@/components/support/TicketFilters";
 
@@ -106,7 +107,7 @@ export default async function SuperAdminTicketDetailPage({ params }: PageProps) 
     const current = await getCurrentProfile(userId);
     if ((!current || current.role !== "super_admin") && !actionDevSession) return;
 
-    await db
+    const [updatedTicket] = await db
       .update(tickets)
       .set({
         status: newStatus,
@@ -114,7 +115,26 @@ export default async function SuperAdminTicketDetailPage({ params }: PageProps) 
         resolvedAt: newStatus === "resolved" ? new Date() : null,
         closedAt: newStatus === "closed" ? new Date() : null,
       })
-      .where(eq(tickets.id, ticketId));
+      .where(eq(tickets.id, ticketId))
+      .returning({ id: tickets.id, academyId: tickets.academyId });
+
+    if (updatedTicket) {
+      await logAdminAction({
+        userId,
+        tenantId: null,
+        action: "support.ticket_status_changed",
+        resourceType: "ticket",
+        resourceId: ticketId,
+        resourceName: ticket.title,
+        description: `Super Admin cambió el ticket ${ticket.title} de ${ticket.status} a ${newStatus}`,
+        meta: {
+          ticketId,
+          academyId: updatedTicket.academyId,
+          from: ticket.status,
+          to: newStatus,
+        },
+      });
+    }
 
     revalidatePath("/super-admin/support");
     revalidatePath(`/super-admin/support/${ticketId}`);
