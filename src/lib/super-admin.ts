@@ -1,4 +1,4 @@
-import { desc, eq } from "drizzle-orm";
+import { count, desc, eq } from "drizzle-orm";
 import type { AcademyStatus } from "@/db/schema/academies";
 import { db } from "@/db";
 import { academies, auditLogs, authUsers, plans, profiles, subscriptions } from "@/db/schema";
@@ -90,8 +90,52 @@ export interface SuperAdminLogEntry {
   createdAt: string | null;
 }
 
-export async function getSuperAdminLogs(limit: number = 100): Promise<SuperAdminLogEntry[]> {
-  const safeLimit = Math.min(500, Math.max(1, Number.isFinite(limit) ? Math.floor(limit) : 100));
+export interface SuperAdminLogsPage {
+  items: SuperAdminLogEntry[];
+  total: number;
+  page: number;
+  totalPages: number;
+}
+
+function mapSuperAdminLog(log: {
+  id: string;
+  action: string;
+  meta: unknown;
+  createdAt: Date | null;
+  userName: string | null;
+  cachedEmail: string | null;
+  authEmail: string | null;
+}): SuperAdminLogEntry {
+  return {
+    id: log.id,
+    action: log.action,
+    userName: log.userName ?? null,
+    userEmail: log.cachedEmail ?? log.authEmail ?? null,
+    meta: (log.meta as Record<string, unknown>) ?? null,
+    createdAt: log.createdAt?.toISOString() ?? null,
+  };
+}
+
+export async function getSuperAdminLogsPage(args: {
+  page?: number;
+  pageSize?: number;
+} = {}): Promise<SuperAdminLogsPage> {
+  const pageSize = Math.min(
+    200,
+    Math.max(1, Number.isFinite(args.pageSize) ? Math.floor(args.pageSize!) : 100)
+  );
+  const requestedPage = Math.max(
+    1,
+    Number.isFinite(args.page) ? Math.floor(args.page!) : 1
+  );
+
+  const [totalRow] = await db
+    .select({ total: count(auditLogs.id) })
+    .from(auditLogs);
+  const total = Number(totalRow?.total ?? 0);
+  const totalPages = Math.max(1, Math.ceil(total / pageSize));
+  const page = Math.min(requestedPage, totalPages);
+
   const logs = await db
     .select({
       id: auditLogs.id,
@@ -106,14 +150,17 @@ export async function getSuperAdminLogs(limit: number = 100): Promise<SuperAdmin
     .leftJoin(profiles, eq(auditLogs.userId, profiles.userId))
     .leftJoin(authUsers, eq(auditLogs.userId, authUsers.id))
     .orderBy(desc(auditLogs.createdAt))
-    .limit(safeLimit);
+    .limit(pageSize)
+    .offset((page - 1) * pageSize);
 
-  return logs.map((log) => ({
-    id: log.id,
-    action: log.action,
-    userName: log.userName ?? null,
-    userEmail: log.cachedEmail ?? log.authEmail ?? null,
-    meta: (log.meta as Record<string, unknown>) ?? null,
-    createdAt: log.createdAt?.toISOString() ?? null,
-  }));
+  return {
+    items: logs.map(mapSuperAdminLog),
+    total,
+    page,
+    totalPages,
+  };
+}
+
+export async function getSuperAdminLogs(limit: number = 100): Promise<SuperAdminLogEntry[]> {
+  return (await getSuperAdminLogsPage({ page: 1, pageSize: limit })).items;
 }
