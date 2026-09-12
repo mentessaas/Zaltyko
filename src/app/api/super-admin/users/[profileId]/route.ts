@@ -321,11 +321,12 @@ export const PATCH = withSuperAdmin(async (request, context) => {
       try {
         const { sendEmail } = await import("@/lib/brevo");
         const { config } = await import("@/config");
+        const planCode = planToApply.code ?? "nuevo plan";
         await sendEmail({
           to: authEmail,
           subject: "Cambio de plan completado - Zaltyko",
-          html: `<p>Tu plan de Zaltyko ha cambiado a <strong>${planToApply.code.toUpperCase()}</strong>. Algunos recursos superan los límites actuales; revisa tu panel para ajustarlos.</p>`,
-          text: `Tu plan ha cambiado a ${planToApply.code.toUpperCase()}. Revisa los recursos que superan los límites.`,
+          html: `<p>Tu plan de Zaltyko ha cambiado a <strong>${planCode.toUpperCase()}</strong>. Algunos recursos superan los límites actuales; revisa tu panel para ajustarlos.</p>`,
+          text: `Tu plan ha cambiado a ${planCode.toUpperCase()}. Revisa los recursos que superan los límites.`,
           replyTo: config.brevo.supportEmail,
         });
       } catch (error) {
