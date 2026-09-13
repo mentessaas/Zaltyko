@@ -172,8 +172,6 @@ export function SuperAdminAcademiesTable({
       params.set("limit", String(PAGE_SIZE));
 
       const response = await fetch(`/api/super-admin/academies?${params.toString()}`, {
-        headers: {
-        },
         cache: "no-store",
       });
 

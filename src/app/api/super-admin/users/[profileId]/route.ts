@@ -284,7 +284,14 @@ export const PATCH = withSuperAdmin(async (request, context) => {
     auditChanges.planId = null;
   }
 
-  const previousEmail = body.email ? await getAuthUserEmail(existing.userId) : null;
+  const previousEmail = body.email !== undefined ? await getAuthUserEmail(existing.userId) : null;
+  if (body.email === null && previousEmail) {
+    return apiError(
+      "EMAIL_REQUIRED",
+      "No se puede borrar el correo de una cuenta de acceso",
+      400
+    );
+  }
   const emailChanged = Boolean(body.email && body.email !== previousEmail);
 
   if (emailChanged) {

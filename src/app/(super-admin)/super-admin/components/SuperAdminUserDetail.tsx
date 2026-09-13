@@ -302,6 +302,15 @@ export function SuperAdminUserDetail({ initialUser, userId, backHref = "/super-a
       toast.pushToast({ title: "Indica el motivo", description: "Los cambios de acceso requieren un motivo de al menos 5 caracteres.", variant: "warning" });
       return;
     }
+    const normalizedEmail = formData.email.trim();
+    if (user.email && !normalizedEmail) {
+      toast.pushToast({
+        title: "Correo requerido",
+        description: "No se puede borrar el correo de una cuenta de acceso. Introduce otro correo o cancela el cambio.",
+        variant: "warning",
+      });
+      return;
+    }
     setSaving(true);
     try {
       const response = await fetch(`/api/super-admin/users/${user.id}`, {
@@ -311,7 +320,7 @@ export function SuperAdminUserDetail({ initialUser, userId, backHref = "/super-a
         },
         body: JSON.stringify({
           name: formData.name.trim() || null,
-          email: formData.email.trim() || null,
+          ...(normalizedEmail ? { email: normalizedEmail } : {}),
           role: formData.role || null,
           isSuspended: formData.isSuspended,
           planId: formData.planId || null,

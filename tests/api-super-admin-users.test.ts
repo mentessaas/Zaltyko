@@ -84,4 +84,42 @@ describe("API /api/super-admin/users/[profileId]", () => {
     const data = await response.json();
     expect(data.error).toBe("IMMUTABLE_SUPER_ADMIN");
   });
+
+  it("debe rechazar el borrado silencioso del correo de Auth", async () => {
+    vi.mock("@/lib/authz", () => ({
+      withSuperAdmin: (handler: any) => handler,
+    }));
+    vi.doMock("@/lib/supabase/admin-operations", () => ({
+      getAuthUserEmail: vi.fn().mockResolvedValue("old@example.com"),
+      updateAuthUserEmail: vi.fn(),
+      deleteAuthUser: vi.fn(),
+    }));
+
+    selectQueue = [
+      createSelectChain([
+        {
+          id: "00000000-0000-0000-0000-000000000002",
+          userId: "00000000-0000-0000-0000-000000000003",
+          role: "owner",
+          name: "Owner",
+          isSuspended: false,
+        },
+      ]),
+    ];
+
+    const { PATCH } = await import("@/app/api/super-admin/users/[profileId]/route");
+    const request = new NextRequest("http://localhost/api/super-admin/users/00000000-0000-0000-0000-000000000002", {
+      method: "PATCH",
+      body: JSON.stringify({ email: null }),
+    });
+
+    const response = await PATCH(request, {
+      params: Promise.resolve({ profileId: "00000000-0000-0000-0000-000000000002" }),
+      profile: { id: "profile-1", role: "super_admin", tenantId: "tenant-123" },
+    });
+
+    expect(response.status).toBe(400);
+    const data = await response.json();
+    expect(data.error).toBe("EMAIL_REQUIRED");
+  });
 });

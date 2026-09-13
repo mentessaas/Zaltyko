@@ -132,7 +132,6 @@ export function SuperAdminUsersTable({
       params.set("limit", String(PAGE_SIZE));
 
       const response = await fetch(`/api/super-admin/users?${params.toString()}`, {
-        headers: {},
         cache: "no-store",
       });
       if (!response.ok) {
