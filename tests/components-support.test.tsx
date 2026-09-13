@@ -108,6 +108,12 @@ describe("TicketResponseForm", () => {
     await user.click(trigger);
     expect(screen.getByRole("dialog", { name: title })).toBeVisible();
 
+    const dialog = screen.getByRole("dialog", { name: title });
+    const focusable = dialog.querySelectorAll<HTMLElement>("button, input, select");
+    focusable[focusable.length - 1]?.focus();
+    await user.tab();
+    expect(focusable[0]).toHaveFocus();
+
     await user.keyboard("{Escape}");
     await waitFor(() => expect(screen.queryByRole("dialog", { name: title })).not.toBeInTheDocument());
     expect(trigger).toHaveFocus();
