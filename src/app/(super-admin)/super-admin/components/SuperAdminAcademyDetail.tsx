@@ -26,6 +26,8 @@ import { logger } from "@/lib/logger";
 import { ConfirmDialog } from "@/components/ui/confirm-dialog";
 import type { AcademyStatus } from "@/db/schema/academies";
 
+const DISPLAY_TIME_ZONE = "Europe/Madrid";
+
 const ACADEMY_STATUS_LABELS: Record<AcademyStatus, string> = {
   active: "Activa",
   trial: "En prueba",
@@ -491,6 +493,7 @@ export function SuperAdminAcademyDetail({ initialAcademy, userId, backHref = "/s
                           year: "numeric",
                           month: "long",
                           day: "numeric",
+                          timeZone: DISPLAY_TIME_ZONE,
                         })
                       : "—"}
                   </p>
@@ -500,10 +503,11 @@ export function SuperAdminAcademyDetail({ initialAcademy, userId, backHref = "/s
                     <p className="text-xs text-white/50">Estado actualizado</p>
                     <p className="mt-1 text-white">
                       {new Date(academy.statusUpdatedAt).toLocaleDateString("es-ES", {
-                        year: "numeric",
-                        month: "long",
-                        day: "numeric",
-                      })}
+                          year: "numeric",
+                          month: "long",
+                          day: "numeric",
+                          timeZone: DISPLAY_TIME_ZONE,
+                        })}
                     </p>
                   </div>
                 )}
@@ -512,10 +516,11 @@ export function SuperAdminAcademyDetail({ initialAcademy, userId, backHref = "/s
                     <p className="text-xs text-white/50">Suspendida desde</p>
                     <p className="mt-1 text-white">
                       {new Date(academy.suspendedAt).toLocaleDateString("es-ES", {
-                        year: "numeric",
-                        month: "long",
-                        day: "numeric",
-                      })}
+                          year: "numeric",
+                          month: "long",
+                          day: "numeric",
+                          timeZone: DISPLAY_TIME_ZONE,
+                        })}
                     </p>
                   </div>
                 )}
