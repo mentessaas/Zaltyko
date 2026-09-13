@@ -259,7 +259,7 @@ export function SuperAdminAcademiesTable({
       // Refrescar datos para asegurar sincronización
       await fetchAcademies(filters);
       return true;
-    } catch (error: any) {
+    } catch (error: unknown) {
       // Revertir optimistic update en caso de error
       if (optimisticUpdate) {
         await fetchAcademies(filters);
@@ -267,7 +267,7 @@ export function SuperAdminAcademiesTable({
       logger.error("Mutation failed", error);
       toast.pushToast({
         title: "Error",
-        description: error.message || "Ocurrió un error inesperado",
+        description: error instanceof Error ? error.message : "Ocurrió un error inesperado",
         variant: "error",
       });
       return false;
