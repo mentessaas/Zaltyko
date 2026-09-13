@@ -7,6 +7,7 @@ import {
   inArray,
   isNotNull,
   lte,
+  sql,
 } from "drizzle-orm";
 
 import { db } from "@/db";
@@ -86,7 +87,29 @@ export interface GrowthDashboardData {
     averageTimeToValueHours: number | null;
   };
   interviews: CommercialInterviewRow[];
+  interviewsPage: number;
+  interviewsPageSize: number;
+  interviewsTotal: number;
+  interviewsTotalPages: number;
   leads: CommercialLeadRow[];
+}
+
+export const GROWTH_INTERVIEW_PAGE_SIZE = 50;
+
+export function getGrowthInterviewPagination(total: number, requestedPage = 1) {
+  const safeTotal = Math.max(0, Math.floor(Number.isFinite(total) ? total : 0));
+  const totalPages = Math.max(1, Math.ceil(safeTotal / GROWTH_INTERVIEW_PAGE_SIZE));
+  const page = Math.min(
+    totalPages,
+    Math.max(1, Math.floor(Number.isFinite(requestedPage) ? requestedPage : 1))
+  );
+
+  return {
+    page,
+    pageSize: GROWTH_INTERVIEW_PAGE_SIZE,
+    total: safeTotal,
+    totalPages,
+  };
 }
 
 export function getSafeRate(
@@ -97,13 +120,18 @@ export function getSafeRate(
   return Math.round((numerator / denominator) * 1_000) / 10;
 }
 
-export async function getGrowthDashboardData(): Promise<GrowthDashboardData> {
+export async function getGrowthDashboardData(args: { interviewPage?: number } = {}): Promise<GrowthDashboardData> {
+  const requestedInterviewPage = Math.max(
+    1,
+    Math.floor(Number.isFinite(args.interviewPage) ? args.interviewPage! : 1)
+  );
   const cohortEnd = new Date();
   const cohortStart = new Date(
     cohortEnd.getTime() - PRICING_TO_CONTACT_WINDOW_DAYS * 24 * 60 * 60 * 1_000
   );
   const [
     interviewRows,
+    interviewSummaryRows,
     leadRows,
     leadCountRows,
     eventRows,
@@ -115,7 +143,20 @@ export async function getGrowthDashboardData(): Promise<GrowthDashboardData> {
     db
       .select()
       .from(commercialInterviews)
-      .orderBy(desc(commercialInterviews.createdAt)),
+      .orderBy(desc(commercialInterviews.createdAt), desc(commercialInterviews.id))
+      .limit(GROWTH_INTERVIEW_PAGE_SIZE)
+      .offset((requestedInterviewPage - 1) * GROWTH_INTERVIEW_PAGE_SIZE),
+    db
+      .select({
+        total: sql<number>`count(*)`,
+        completed: sql<number>`count(*) filter (where ${commercialInterviews.status} = 'completed')`,
+        scheduled: sql<number>`count(*) filter (where ${commercialInterviews.status} = 'scheduled')`,
+        betaInterested: sql<number>`count(*) filter (where ${commercialInterviews.status} = 'completed' and ${commercialInterviews.betaInterest} = 'yes')`,
+        willingToPay: sql<number>`count(*) filter (where ${commercialInterviews.status} = 'completed' and ${commercialInterviews.willingnessToPay} = 'yes')`,
+        averageEasyPriceEurCents: sql<number | null>`avg(${commercialInterviews.easyPriceEurCents}) filter (where ${commercialInterviews.status} = 'completed' and ${commercialInterviews.easyPriceEurCents} is not null)`,
+        averageLimitPriceEurCents: sql<number | null>`avg(${commercialInterviews.limitPriceEurCents}) filter (where ${commercialInterviews.status} = 'completed' and ${commercialInterviews.limitPriceEurCents} is not null)`,
+      })
+      .from(commercialInterviews),
     db
       .select({
         id: leads.id,
@@ -159,8 +200,8 @@ export async function getGrowthDashboardData(): Promise<GrowthDashboardData> {
     db
       .select({
         academyId: growthEvents.academyId,
-        eventName: growthEvents.eventName,
-        occurredAt: growthEvents.occurredAt,
+        createdAt: sql<Date | null>`min(${growthEvents.occurredAt}) filter (where ${growthEvents.eventName} = 'academy_created')`,
+        activatedAt: sql<Date | null>`min(${growthEvents.occurredAt}) filter (where ${growthEvents.eventName} = 'academy_activated')`,
       })
       .from(growthEvents)
       .where(
@@ -171,7 +212,8 @@ export async function getGrowthDashboardData(): Promise<GrowthDashboardData> {
             "academy_activated",
           ])
         )
-      ),
+      )
+      .groupBy(growthEvents.academyId),
     db
       .select({ status: academyTrials.status, total: count(academyTrials.id) })
       .from(academyTrials)
@@ -187,17 +229,32 @@ export async function getGrowthDashboardData(): Promise<GrowthDashboardData> {
       ),
   ]);
 
+  const interviewTotal = Number(interviewSummaryRows[0]?.total ?? 0);
+  const interviewPagination = getGrowthInterviewPagination(
+    interviewTotal,
+    requestedInterviewPage
+  );
+  const effectiveInterviewRows =
+    interviewPagination.page === requestedInterviewPage
+      ? interviewRows
+      : await db
+          .select()
+          .from(commercialInterviews)
+          .orderBy(desc(commercialInterviews.createdAt), desc(commercialInterviews.id))
+          .limit(GROWTH_INTERVIEW_PAGE_SIZE)
+          .offset((interviewPagination.page - 1) * GROWTH_INTERVIEW_PAGE_SIZE);
+
   const eventMap = new Map(eventRows.map((row) => [row.eventName, row]));
   const trialMap = new Map(
     trialRows.map((row) => [row.status, Number(row.total)])
   );
-  const completed = interviewRows.filter((row) => row.status === "completed");
-  const easyPrices = completed.flatMap((row) =>
-    row.easyPriceEurCents === null ? [] : [row.easyPriceEurCents / 100]
-  );
-  const limitPrices = completed.flatMap((row) =>
-    row.limitPriceEurCents === null ? [] : [row.limitPriceEurCents / 100]
-  );
+  const interviewSummary = interviewSummaryRows[0];
+  const completedCount = Number(interviewSummary?.completed ?? 0);
+  const scheduledCount = Number(interviewSummary?.scheduled ?? 0);
+  const betaInterestedCount = Number(interviewSummary?.betaInterested ?? 0);
+  const willingToPayCount = Number(interviewSummary?.willingToPay ?? 0);
+  const averageEasyPriceEurCents = interviewSummary?.averageEasyPriceEurCents;
+  const averageLimitPriceEurCents = interviewSummary?.averageLimitPriceEurCents;
   const pricingToContact = calculatePricingToContactMetric(
     pricingContactRows,
     cohortEnd
@@ -219,58 +276,34 @@ export async function getGrowthDashboardData(): Promise<GrowthDashboardData> {
   const activatedAcademies = Number(
     eventMap.get("academy_activated")?.academies ?? 0
   );
-  const activationByAcademy = new Map<
-    string,
-    { createdAt?: Date; activatedAt?: Date }
-  >();
-  for (const row of activationRows) {
-    if (!row.academyId) continue;
-    const entry = activationByAcademy.get(row.academyId) ?? {};
-    if (row.eventName === "academy_created") entry.createdAt = row.occurredAt;
-    if (row.eventName === "academy_activated")
-      entry.activatedAt = row.occurredAt;
-    activationByAcademy.set(row.academyId, entry);
-  }
-  const timeToValueHours = [...activationByAcademy.values()]
-    .filter((entry): entry is { createdAt: Date; activatedAt: Date } =>
-      Boolean(
-        entry.createdAt &&
-          entry.activatedAt &&
-          entry.activatedAt >= entry.createdAt
-      )
-    )
-    .map(
-      (entry) =>
-        (entry.activatedAt.getTime() - entry.createdAt.getTime()) / 3_600_000
-    );
+  const timeToValueHours = activationRows.flatMap((entry) => {
+    if (
+      !entry.createdAt ||
+      !entry.activatedAt ||
+      entry.activatedAt < entry.createdAt
+    ) {
+      return [];
+    }
+    return [
+      (entry.activatedAt.getTime() - entry.createdAt.getTime()) / 3_600_000,
+    ];
+  });
 
   return {
     metrics: {
       interviewGoal: 10,
-      interviewsCompleted: completed.length,
-      interviewsScheduled: interviewRows.filter(
-        (row) => row.status === "scheduled"
-      ).length,
-      betaInterested: completed.filter((row) => row.betaInterest === "yes")
-        .length,
-      willingToPay: completed.filter((row) => row.willingnessToPay === "yes")
-        .length,
+      interviewsCompleted: completedCount,
+      interviewsScheduled: scheduledCount,
+      betaInterested: betaInterestedCount,
+      willingToPay: willingToPayCount,
       averageEasyPriceEur:
-        easyPrices.length > 0
-          ? Math.round(
-              (easyPrices.reduce((sum, value) => sum + value, 0) /
-                easyPrices.length) *
-                100
-            ) / 100
-          : null,
+        averageEasyPriceEurCents === null || averageEasyPriceEurCents === undefined
+          ? null
+          : Math.round((Number(averageEasyPriceEurCents) / 100) * 100) / 100,
       averageLimitPriceEur:
-        limitPrices.length > 0
-          ? Math.round(
-              (limitPrices.reduce((sum, value) => sum + value, 0) /
-                limitPrices.length) *
-                100
-            ) / 100
-          : null,
+        averageLimitPriceEurCents === null || averageLimitPriceEurCents === undefined
+          ? null
+          : Math.round((Number(averageLimitPriceEurCents) / 100) * 100) / 100,
       pricingVisitors,
       planSelectors,
       contactSubmitters,
@@ -293,7 +326,7 @@ export async function getGrowthDashboardData(): Promise<GrowthDashboardData> {
             ) / 10
           : null,
     },
-    interviews: interviewRows.map((row) => ({
+    interviews: effectiveInterviewRows.map((row) => ({
       id: row.id,
       leadId: row.leadId,
       academyName: row.academyName,
@@ -324,6 +357,10 @@ export async function getGrowthDashboardData(): Promise<GrowthDashboardData> {
       notes: row.notes,
       createdAt: row.createdAt.toISOString(),
     })),
+    interviewsPage: interviewPagination.page,
+    interviewsPageSize: interviewPagination.pageSize,
+    interviewsTotal: interviewPagination.total,
+    interviewsTotalPages: interviewPagination.totalPages,
     leads: leadRows.map((row) => ({
       ...row,
       createdAt: row.createdAt.toISOString(),

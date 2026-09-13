@@ -15,8 +15,17 @@ function rateLabel(rate: number | null) {
   return rate === null ? "— sin base" : `${rate}%`;
 }
 
-export default async function SuperAdminGrowthPage() {
-  const data = await getGrowthDashboardData();
+export default async function SuperAdminGrowthPage({
+  searchParams,
+}: {
+  searchParams: Promise<{ interviewPage?: string }>;
+}) {
+  const params = await searchParams;
+  const parsedInterviewPage = Number.parseInt(params.interviewPage ?? "1", 10);
+  const interviewPage = Number.isFinite(parsedInterviewPage)
+    ? Math.max(1, parsedInterviewPage)
+    : 1;
+  const data = await getGrowthDashboardData({ interviewPage });
   const { metrics } = data;
   const interviewProgress = Math.min(
     100,
@@ -219,6 +228,10 @@ export default async function SuperAdminGrowthPage() {
 
       <CommercialInterviewWorkspace
         interviews={data.interviews}
+        interviewsPage={data.interviewsPage}
+        interviewsPageSize={data.interviewsPageSize}
+        interviewsTotal={data.interviewsTotal}
+        interviewsTotalPages={data.interviewsTotalPages}
         leads={data.leads}
       />
     </div>
