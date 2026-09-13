@@ -9577,3 +9577,11 @@ Vault: actualizado este `Changelog interno.md` y `Backlog priorizado.md`; no cam
 - El cambio es código de interfaz sobre PR #126; no introduce migraciones, cambios de pricing, permisos ni publicación remota.
 
 Vault: actualizado este `Changelog interno.md`; `Backlog priorizado.md` conserva los pendientes de walkthrough autenticado y publicación controlada.
+
+## 2026-09-13 — Codex: reactivación del contrato de navegación por roles
+
+- Se corrigió la expectativa del portal limitado para incluir `my-events` y se eliminó la exclusión histórica de `tests/product-roles-navigation.test.ts` en `vitest.config.ts`; la suite vuelve a ejecutarse en la configuración por defecto y pasa 9/9.
+- La suite completa queda en 161 archivos correctos y 1.476 tests correctos, con 1 archivo y 2 tests omitidos por condiciones explícitas del repositorio; `typecheck`, `lint:app` y `git diff --check` siguen en verde.
+- El cambio solo restituye cobertura de contrato y no introduce migraciones, cambios de pricing, permisos, secretos ni publicación remota. Los pendientes de walkthrough autenticado y release controlado permanecen en el backlog.
+
+Vault: actualizado este `Changelog interno.md`; `Backlog priorizado.md` no cambia porque los pendientes ya están registrados.
