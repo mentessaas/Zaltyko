@@ -19,6 +19,7 @@ type PageProps = {
     type?: SearchParamValue;
     country?: SearchParamValue;
     status?: SearchParamValue;
+    q?: SearchParamValue;
     page?: SearchParamValue;
   }>;
 };
@@ -56,6 +57,7 @@ export default async function SuperAdminAcademiesPage({ searchParams }: PageProp
     ? (typeParam as AcademyType)
     : undefined;
   const country = firstSearchParam(params.country)?.trim().slice(0, 120) || undefined;
+  const search = firstSearchParam(params.q)?.trim().slice(0, 160) || undefined;
   const statusParam = firstSearchParam(params.status);
   const status = academyStatusValues.includes(statusParam as AcademyStatus)
     ? (statusParam as AcademyStatus)
@@ -70,6 +72,7 @@ export default async function SuperAdminAcademiesPage({ searchParams }: PageProp
       type,
       country,
       status,
+      search,
     }),
     getAcademyFilterOptions(),
   ]);
@@ -79,10 +82,9 @@ export default async function SuperAdminAcademiesPage({ searchParams }: PageProp
       initialItems={items}
       initialTotal={total}
       initialPage={page}
-      initialFilters={{ plan, type, country, status }}
+      initialFilters={{ plan, type, country, status, search }}
       initialFilterOptions={filterOptions}
       initialUserId={user?.id ?? devSession?.userId ?? null}
     />
   );
 }
-

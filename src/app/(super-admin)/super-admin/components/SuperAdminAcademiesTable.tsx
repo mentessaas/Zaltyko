@@ -2,7 +2,7 @@
 
 import { useEffect, useMemo, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
-import { ChevronLeft, ChevronRight, PauseCircle, PlayCircle, Trash2, Loader2 } from "lucide-react";
+import { ChevronLeft, ChevronRight, Loader2, PauseCircle, PlayCircle, Search, Trash2 } from "lucide-react";
 
 import type {
   SuperAdminAcademyFilterOptions,
@@ -23,6 +23,7 @@ type SuperAdminAcademyFilters = {
   type?: string;
   country?: string;
   status?: AcademyStatus;
+  search?: string;
 };
 
 const DISPLAY_TIME_ZONE = "Europe/Madrid";
@@ -82,6 +83,7 @@ export function SuperAdminAcademiesTable({
   const requestSequence = useRef(0);
   const [mutatingAcademyId, setMutatingAcademyId] = useState<string | null>(null);
   const [filters, setFilters] = useState<SuperAdminAcademyFilters>(initialFilters);
+  const [searchInput, setSearchInput] = useState(initialFilters.search ?? "");
   const [filterOptions, setFilterOptions] = useState<SuperAdminAcademyFilterOptions>(() => ({
     plans: initialFilterOptions?.plans ?? [],
     types: initialFilterOptions?.types ?? [...ACADEMY_TYPE_OPTIONS],
@@ -106,6 +108,7 @@ export function SuperAdminAcademiesTable({
     if (activeFilters.type) params.set("type", activeFilters.type);
     if (activeFilters.country) params.set("country", activeFilters.country);
     if (activeFilters.status) params.set("status", activeFilters.status);
+    if (activeFilters.search) params.set("q", activeFilters.search);
     if (targetPage > 1) params.set("page", String(targetPage));
     const query = params.toString();
     window.history.replaceState(
@@ -128,6 +131,7 @@ export function SuperAdminAcademiesTable({
     setTotal(initialTotal ?? initialItems.length);
     setPage(initialPage);
     setFilters(initialFilters);
+    setSearchInput(initialFilters.search ?? "");
   }, [initialItems, initialTotal, initialPage, initialFilters]);
 
   const planOptions = filterOptions.plans;
@@ -141,6 +145,17 @@ export function SuperAdminAcademiesTable({
     await fetchAcademies(nextFilters, 1);
   };
 
+  const handleResetFilters = () => {
+    setSearchInput("");
+    void handleFilterChange({
+      plan: undefined,
+      type: undefined,
+      country: undefined,
+      status: undefined,
+      search: undefined,
+    });
+  };
+
   const fetchAcademies = async (activeFilters: SuperAdminAcademyFilters, requestedPage = page) => {
     if (!userId) return;
     const requestId = ++requestSequence.current;
@@ -152,6 +167,7 @@ export function SuperAdminAcademiesTable({
       if (activeFilters.type) params.set("type", activeFilters.type);
       if (activeFilters.country) params.set("country", activeFilters.country);
       if (activeFilters.status) params.set("status", activeFilters.status);
+      if (activeFilters.search) params.set("q", activeFilters.search);
       params.set("page", String(requestedPage));
       params.set("limit", String(PAGE_SIZE));
 
@@ -346,6 +362,29 @@ export function SuperAdminAcademiesTable({
         </div>
         <div className="flex flex-wrap items-center gap-3">
           <SuperAdminCreateAcademyDialog />
+          <div className="relative w-full sm:w-auto">
+            <Search className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-white/50" aria-hidden="true" />
+            <input
+              type="search"
+              value={searchInput}
+              placeholder="Buscar academia o dueño"
+              aria-label="Buscar academias por nombre, dueño o correo"
+              maxLength={160}
+              className="h-10 w-full rounded-xl border border-white/20 bg-white/10 py-2 pl-9 pr-3 text-xs font-semibold text-white placeholder:text-white/50 focus:border-white/60 focus:outline-none focus:ring-2 focus:ring-white/20 sm:w-56"
+              onChange={(event) => setSearchInput(event.target.value)}
+              onKeyDown={(event) => {
+                if (event.key === "Enter") {
+                  void handleFilterChange({ search: searchInput.trim() || undefined });
+                }
+              }}
+              onBlur={() => {
+                const nextSearch = searchInput.trim() || undefined;
+                if (nextSearch !== filters.search) {
+                  void handleFilterChange({ search: nextSearch });
+                }
+              }}
+            />
+          </div>
           <select
             aria-label="Filtrar academias por plan"
             className="rounded-xl border border-white/20 bg-white/10 px-3 py-2 font-display text-xs font-semibold text-white hover:border-white/40 focus:border-white/60 focus:outline-none"
@@ -412,9 +451,7 @@ export function SuperAdminAcademiesTable({
             variant="outline"
             size="sm"
             className="border-white/20 bg-white/10 text-white hover:border-white/40 hover:bg-white/20"
-            onClick={() =>
-              handleFilterChange({ plan: undefined, type: undefined, country: undefined, status: undefined })
-            }
+            onClick={handleResetFilters}
             disabled={loading}
           >
             Restablecer

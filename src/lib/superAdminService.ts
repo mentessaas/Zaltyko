@@ -499,13 +499,15 @@ export async function getAcademiesPage(args: {
   type?: string;
   country?: string;
   status?: AcademyStatus;
+  search?: string;
 } = {}): Promise<SuperAdminAcademiesPage> {
   const { db } = await import("@/db");
-  const { academies, profiles, subscriptions, plans } = await import("@/db/schema");
-  const { and, count, countDistinct, desc, eq, inArray, max, or } = await import("drizzle-orm");
+  const { academies, authUsers, profiles, subscriptions, plans } = await import("@/db/schema");
+  const { and, count, countDistinct, desc, eq, ilike, inArray, max, or } = await import("drizzle-orm");
 
   const page = Math.max(1, Math.floor(Number.isFinite(args.page) ? args.page! : 1));
   const pageSize = Math.min(200, Math.max(1, Math.floor(Number.isFinite(args.pageSize) ? args.pageSize! : 50)));
+  const escapedSearch = args.search?.trim().slice(0, 160).replace(/[\\%_]/g, "\\$&");
   const conditions = [
     args.plan ? eq(plans.code, args.plan) : undefined,
     args.type ? eq(academies.academyType, args.type as typeof academies.academyType.enumValues[number]) : undefined,
@@ -517,6 +519,13 @@ export async function getAcademiesPage(args: {
         : args.status
           ? eq(academies.status, args.status)
           : undefined,
+    escapedSearch
+      ? or(
+          ilike(academies.name, `%${escapedSearch}%`),
+          ilike(profiles.name, `%${escapedSearch}%`),
+          ilike(authUsers.email, `%${escapedSearch}%`),
+        )
+      : undefined,
   ].filter((condition): condition is NonNullable<typeof condition> => Boolean(condition));
   const where = conditions.length > 0 ? and(...conditions) : undefined;
 
@@ -524,6 +533,7 @@ export async function getAcademiesPage(args: {
     .select({ total: countDistinct(academies.id) })
     .from(academies)
     .leftJoin(profiles, eq(academies.ownerId, profiles.id))
+    .leftJoin(authUsers, eq(profiles.userId, authUsers.id))
     .leftJoin(
       subscriptions,
       and(
@@ -553,6 +563,7 @@ export async function getAcademiesPage(args: {
     })
     .from(academies)
     .leftJoin(profiles, eq(academies.ownerId, profiles.id))
+    .leftJoin(authUsers, eq(profiles.userId, authUsers.id))
     .leftJoin(
       subscriptions,
       and(

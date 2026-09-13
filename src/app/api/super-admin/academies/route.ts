@@ -134,6 +134,7 @@ export const GET = withSuperAdmin(async (request) => {
   const typeParam = url.searchParams.get("type");
   const typeFilter = ACADEMY_TYPES.includes(typeParam as (typeof ACADEMY_TYPES)[number]) ? typeParam ?? undefined : undefined;
   const countryFilter = readTextFilter("country");
+  const searchFilter = readTextFilter("q", 160);
   const statusParam = url.searchParams.get("status");
   const statusFilter = academyStatusValues.includes(statusParam as AcademyStatus)
     ? (statusParam as AcademyStatus)
@@ -153,6 +154,7 @@ export const GET = withSuperAdmin(async (request) => {
       type: typeFilter,
       country: countryFilter,
       status: statusFilter,
+      search: searchFilter,
     }),
     getAcademyFilterOptions(),
   ]);
