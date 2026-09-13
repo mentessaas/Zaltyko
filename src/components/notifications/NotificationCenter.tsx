@@ -365,8 +365,9 @@ export function NotificationCenter({
               </Button>
             </div>
           </DialogTitle>
-          <DialogDescription>
-            {/* Filters Row */}
+          <DialogDescription asChild>
+            <div>
+              {/* Filters Row */}
             <div className="flex gap-2 mt-2 flex-wrap">
               <Select value={typeFilter} onValueChange={setTypeFilter}>
                 <SelectTrigger className="h-8 w-[140px]">
@@ -455,7 +456,8 @@ export function NotificationCenter({
                 <CheckCheck className="mr-1 h-3 w-3" />
                 Marcar todas como leídas
               </Button>
-            )}
+              )}
+            </div>
           </DialogDescription>
         </DialogHeader>
 
