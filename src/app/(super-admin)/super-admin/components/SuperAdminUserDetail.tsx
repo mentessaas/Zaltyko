@@ -742,6 +742,8 @@ export function SuperAdminUserDetail({ initialUser, userId, backHref = "/super-a
                         size="sm"
                         className="border-blue-500/40 bg-blue-500/10 text-blue-200 hover:border-blue-400 hover:bg-blue-400/20"
                         onClick={handleSendEmail}
+                        aria-label="Enviar correo al usuario"
+                        title="Enviar correo al usuario"
                       >
                         <Mail className="h-4 w-4" strokeWidth={1.8} />
                       </Button>
@@ -1003,6 +1005,8 @@ export function SuperAdminUserDetail({ initialUser, userId, backHref = "/super-a
                             size="sm"
                             className="ml-3 border-white/20 bg-white/5 text-slate-100 hover:border-white/40 hover:bg-white/10"
                             onClick={() => router.push(`/super-admin/academies/${membership.academyId}`)}
+                            aria-label={`Abrir academia ${membership.academyName ?? "sin nombre"}`}
+                            title="Abrir academia"
                           >
                             <ExternalLink className="h-4 w-4" strokeWidth={1.8} />
                           </Button>
