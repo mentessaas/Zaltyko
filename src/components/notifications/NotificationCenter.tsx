@@ -119,6 +119,12 @@ function formatNotificationDate(dateStr: string): string {
   return format(date, "dd MMM, HH:mm", { locale: es });
 }
 
+async function assertNotificationResponse(response: Response) {
+  if (!response.ok) {
+    throw new Error(`La acción de notificación falló (${response.status})`);
+  }
+}
+
 export function NotificationCenter({
   open,
   onClose,
@@ -210,9 +216,14 @@ export function NotificationCenter({
 
   const handleMarkAsRead = async (notificationId: string) => {
     try {
-      await fetch(`/api/notifications/${notificationId}/read`, {
+      const response = await fetch(`/api/notifications/${notificationId}/read`, {
         method: "PUT",
       });
+      if (response.status === 401 || response.status === 403) {
+        router.replace("/auth/login");
+        return;
+      }
+      await assertNotificationResponse(response);
       setNotifications((prev) =>
         prev.map((n) => (n.id === notificationId ? { ...n, read: true } : n))
       );
@@ -224,9 +235,14 @@ export function NotificationCenter({
 
   const handleMarkAllAsRead = async () => {
     try {
-      await fetch("/api/notifications/read-all", {
+      const response = await fetch("/api/notifications/read-all", {
         method: "PUT",
       });
+      if (response.status === 401 || response.status === 403) {
+        router.replace("/auth/login");
+        return;
+      }
+      await assertNotificationResponse(response);
       setNotifications((prev) => prev.map((n) => ({ ...n, read: true })));
       setSelectedIds(new Set());
       onNotificationRead?.();
@@ -237,9 +253,14 @@ export function NotificationCenter({
 
   const handleDelete = async (notificationId: string) => {
     try {
-      await fetch(`/api/notifications/${notificationId}`, {
+      const response = await fetch(`/api/notifications/${notificationId}`, {
         method: "DELETE",
       });
+      if (response.status === 401 || response.status === 403) {
+        router.replace("/auth/login");
+        return;
+      }
+      await assertNotificationResponse(response);
       setNotifications((prev) => prev.filter((n) => n.id !== notificationId));
       setSelectedIds((prev) => {
         const next = new Set(prev);
@@ -257,11 +278,16 @@ export function NotificationCenter({
 
     setIsBatchAction(true);
     try {
-      await Promise.all(
+      const responses = await Promise.all(
         Array.from(selectedIds).map((id) =>
           fetch(`/api/notifications/${id}`, { method: "DELETE" })
         )
       );
+      if (responses.some((response) => response.status === 401 || response.status === 403)) {
+        router.replace("/auth/login");
+        return;
+      }
+      await Promise.all(responses.map(assertNotificationResponse));
       setNotifications((prev) =>
         prev.filter((n) => !selectedIds.has(n.id))
       );
@@ -279,11 +305,16 @@ export function NotificationCenter({
 
     setIsBatchAction(true);
     try {
-      await Promise.all(
+      const responses = await Promise.all(
         Array.from(selectedIds).map((id) =>
           fetch(`/api/notifications/${id}/read`, { method: "PUT" })
         )
       );
+      if (responses.some((response) => response.status === 401 || response.status === 403)) {
+        router.replace("/auth/login");
+        return;
+      }
+      await Promise.all(responses.map(assertNotificationResponse));
       setNotifications((prev) =>
         prev.map((n) => (selectedIds.has(n.id) ? { ...n, read: true } : n))
       );
@@ -360,7 +391,7 @@ export function NotificationCenter({
               >
                 {soundEnabled ? <Volume2 className="h-4 w-4" /> : <VolumeX className="h-4 w-4" />}
               </Button>
-              <Button variant="ghost" size="icon" onClick={onClose}>
+              <Button variant="ghost" size="icon" onClick={onClose} aria-label="Cerrar notificaciones">
                 <X className="h-4 w-4" />
               </Button>
             </div>
@@ -370,7 +401,7 @@ export function NotificationCenter({
               {/* Filters Row */}
             <div className="flex gap-2 mt-2 flex-wrap">
               <Select value={typeFilter} onValueChange={setTypeFilter}>
-                <SelectTrigger className="h-8 w-[140px]">
+                <SelectTrigger className="h-8 w-[140px]" aria-label="Filtrar notificaciones por tipo">
                   <Filter className="h-3 w-3 mr-1" />
                   <SelectValue placeholder="Tipo" />
                 </SelectTrigger>
@@ -388,7 +419,7 @@ export function NotificationCenter({
               </Select>
 
               <Select value={dateFilter} onValueChange={(v) => setDateFilter(v as "all" | "week" | "today")}>
-                <SelectTrigger className="h-8 w-[120px]">
+                <SelectTrigger className="h-8 w-[120px]" aria-label="Filtrar notificaciones por fecha">
                   <SelectValue placeholder="Fecha" />
                 </SelectTrigger>
                 <SelectContent>
@@ -479,6 +510,7 @@ export function NotificationCenter({
                 <Checkbox
                   checked={selectedIds.size === filteredNotifications.length && filteredNotifications.length > 0}
                   onChange={toggleSelectAll}
+                  aria-label="Seleccionar todas las notificaciones"
                 />
                 <span className="text-xs text-muted-foreground">
                   {selectedIds.size === filteredNotifications.length ? "Deseleccionar todo" : "Seleccionar todo"}
@@ -513,6 +545,7 @@ export function NotificationCenter({
                           checked={selectedIds.has(notification.id)}
                           onChange={() => toggleSelect(notification.id)}
                           className="mt-1"
+                          aria-label={`Seleccionar notificación: ${notification.title}`}
                           onClick={(e) => e.stopPropagation()}
                         />
 
@@ -555,6 +588,7 @@ export function NotificationCenter({
                               className="h-7 w-7"
                               onClick={() => handleMarkAsRead(notification.id)}
                               title="Marcar como leída"
+                              aria-label="Marcar como leída"
                             >
                               <Check className="h-3 w-3" />
                             </Button>
@@ -565,6 +599,7 @@ export function NotificationCenter({
                             className="h-7 w-7 text-destructive"
                             onClick={() => handleDelete(notification.id)}
                             title="Eliminar"
+                            aria-label="Eliminar notificación"
                           >
                             <Trash2 className="h-3 w-3" />
                           </Button>
