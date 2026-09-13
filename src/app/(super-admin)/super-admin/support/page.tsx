@@ -58,15 +58,9 @@ function normalizeSupportFilters(filters: {
   };
 }
 
-async function getAllTickets(
-  filters: {
-    status?: string;
-    priority?: string;
-    category?: string;
-    academyId?: string;
-  },
-  requestedPage: number
-) {
+type SupportFilters = ReturnType<typeof normalizeSupportFilters>;
+
+async function getAllTickets(filters: SupportFilters, requestedPage: number) {
   const conditions = [
     filters.status && filters.status !== "all"
       ? eq(tickets.status, filters.status as typeof tickets.status.enumValues[number])
@@ -155,12 +149,7 @@ async function getAllTickets(
   };
 }
 
-function pageHref(filters: {
-  status?: string;
-  priority?: string;
-  category?: string;
-  academyId?: string;
-}, page: number) {
+function pageHref(filters: SupportFilters, page: number) {
   const params = new URLSearchParams();
   for (const [key, value] of Object.entries(filters)) {
     if (value) params.set(key, value);
@@ -173,12 +162,7 @@ async function TicketsContent({
   filters,
   page: requestedPage,
 }: {
-  filters: {
-    status?: string;
-    priority?: string;
-    category?: string;
-    academyId?: string;
-  };
+  filters: SupportFilters;
   page: number;
 }) {
   const result = await getAllTickets(filters, requestedPage);
@@ -186,9 +170,9 @@ async function TicketsContent({
   return (
     <>
       <TicketFilters
-        currentStatus={filters.status as any}
-        currentPriority={filters.priority as any}
-        currentCategory={filters.category as any}
+        currentStatus={filters.status}
+        currentPriority={filters.priority}
+        currentCategory={filters.category}
         showStatus
         showPriority
         showCategory
