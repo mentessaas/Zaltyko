@@ -31,6 +31,13 @@ function matchPath(
   return current.startsWith(`${target}/`);
 }
 
+export function isSuperAdminPath(pathname: string | null | undefined): boolean {
+  if (!pathname) return false;
+
+  const current = normalize(pathname);
+  return current === "/super-admin" || current.startsWith("/super-admin/");
+}
+
 export function isAcademyNavigationActive(
   pathname: string | null | undefined,
   href: string,

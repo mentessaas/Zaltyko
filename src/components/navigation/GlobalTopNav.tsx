@@ -23,6 +23,7 @@ import { GlobalSearch } from "@/components/search/GlobalSearch";
 import {
   isAcademyNavigationActive,
   isGlobalNavigationActive,
+  isSuperAdminPath,
   isSuperAdminNavigationActive,
 } from "@/lib/navigation/active";
 import {
@@ -87,7 +88,7 @@ export function GlobalTopNav({
   const mobileDrawerRef = useRef<HTMLDivElement>(null);
 
   const isSuperAdmin = userRole === "super_admin";
-  const isInSuperAdminArea = pathname?.startsWith("/super-admin") ?? false;
+  const isInSuperAdminArea = isSuperAdminPath(pathname);
   const isDarkTheme = isInSuperAdminArea;
   const normalizedRole = isProfileRole(userRole) ? userRole : "owner";
   const homePath = getPreferredHomePath({
