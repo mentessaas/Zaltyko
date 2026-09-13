@@ -42,6 +42,10 @@ function pickFilter<T extends string>(value: string | undefined, values: readonl
   return value && values.includes(value as T) ? (value as T) : undefined;
 }
 
+function escapeLikePattern(value: string) {
+  return value.replace(/[\\%_]/g, "\\$&");
+}
+
 function normalizeSupportFilters(filters: {
   status?: string;
   priority?: string;
@@ -64,6 +68,7 @@ function normalizeSupportFilters(filters: {
 type SupportFilters = ReturnType<typeof normalizeSupportFilters>;
 
 async function getAllTickets(filters: SupportFilters, requestedPage: number) {
+  const searchPattern = filters.search ? `%${escapeLikePattern(filters.search)}%` : undefined;
   const conditions = [
     filters.status
       ? eq(tickets.status, filters.status as typeof tickets.status.enumValues[number])
@@ -79,11 +84,11 @@ async function getAllTickets(filters: SupportFilters, requestedPage: number) {
       : undefined,
     filters.search
       ? or(
-          ilike(tickets.title, `%${filters.search}%`),
-          ilike(tickets.description, `%${filters.search}%`),
-          ilike(academies.name, `%${filters.search}%`),
-          ilike(profiles.name, `%${filters.search}%`),
-          ilike(authUsers.email, `%${filters.search}%`)
+          ilike(tickets.title, searchPattern!),
+          ilike(tickets.description, searchPattern!),
+          ilike(academies.name, searchPattern!),
+          ilike(profiles.name, searchPattern!),
+          ilike(authUsers.email, searchPattern!)
         )
       : undefined,
   ].filter(Boolean) as Array<ReturnType<typeof eq>>;

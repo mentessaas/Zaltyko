@@ -1,4 +1,4 @@
-import { desc, eq } from "drizzle-orm";
+import { and, desc, eq } from "drizzle-orm";
 import { revalidatePath } from "next/cache";
 import { cookies } from "next/headers";
 import { redirect } from "next/navigation";
@@ -131,8 +131,30 @@ export default async function SuperAdminTicketDetailPage({ params, searchParams 
     if (!TICKET_STATUS_VALUES.includes(newStatus)) return false;
     const actionCookieStore = await cookies();
     const actionDevSession = await getDevSessionFromCookieStore(actionCookieStore);
-    const current = await getCurrentProfile(userId);
-    if ((!current || current.role !== "super_admin") && !actionDevSession) return false;
+    const actionSupabase = await createClient(actionCookieStore);
+    const {
+      data: { user: actionUser },
+    } = await actionSupabase.auth.getUser();
+    const actionUserId = actionUser?.id ?? actionDevSession?.userId ?? null;
+    if (!actionUserId) return false;
+
+    const current = actionUser
+      ? await getCurrentProfile(actionUser.id)
+      : actionDevSession
+        ? { id: actionDevSession.profileId, role: "super_admin" as const }
+        : null;
+    if (!current || current.role !== "super_admin") return false;
+
+    const [currentTicket] = await db
+      .select({ status: tickets.status, title: tickets.title, academyId: tickets.academyId })
+      .from(tickets)
+      .where(eq(tickets.id, ticketId))
+      .limit(1);
+    if (!currentTicket) return false;
+    // A closed ticket is terminal. Repeating the same state is harmless, but
+    // reopening it must go through a deliberate support workflow.
+    if (currentTicket.status === "closed" && newStatus !== "closed") return false;
+    if (currentTicket.status === newStatus) return true;
 
     const [updatedTicket] = await db
       .update(tickets)
@@ -142,24 +164,24 @@ export default async function SuperAdminTicketDetailPage({ params, searchParams 
         resolvedAt: newStatus === "resolved" ? new Date() : null,
         closedAt: newStatus === "closed" ? new Date() : null,
       })
-      .where(eq(tickets.id, ticketId))
+      .where(and(eq(tickets.id, ticketId), eq(tickets.status, currentTicket.status)))
       .returning({ id: tickets.id, academyId: tickets.academyId });
 
     if (!updatedTicket) return false;
 
     try {
       await logAdminAction({
-        userId,
+        userId: actionUserId,
         tenantId: null,
         action: "support.ticket_status_changed",
         resourceType: "ticket",
         resourceId: ticketId,
-        resourceName: ticketRecord.title,
-        description: `Super Admin cambió el ticket ${ticketRecord.title} de ${ticketRecord.status} a ${newStatus}`,
+        resourceName: currentTicket.title,
+        description: `Super Admin cambió el ticket ${currentTicket.title} de ${currentTicket.status} a ${newStatus}`,
         meta: {
           ticketId,
           academyId: updatedTicket.academyId,
-          from: ticketRecord.status,
+          from: currentTicket.status,
           to: newStatus,
         },
       });
