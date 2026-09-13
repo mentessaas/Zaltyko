@@ -14,7 +14,7 @@ import { sendEmail } from "@/lib/brevo";
 import { getNotificationPreferences, getNotificationPreferenceByChannel } from "@/lib/communication-service";
 import { db } from "@/db";
 import { profiles } from "@/db/schema/profiles";
-import { eq } from "drizzle-orm";
+import { and, eq } from "drizzle-orm";
 
 // Types
 export type NotificationType =
@@ -72,7 +72,7 @@ const FALLBACK_ORDER: Channel[] = ["push", "email", "in_app"];
 /**
  * Get user profile with contact info
  */
-async function getUserProfile(userId: string) {
+async function getUserProfile(userId: string, tenantId: string) {
   const [profile] = await db
     .select({
       id: profiles.id,
@@ -81,7 +81,7 @@ async function getUserProfile(userId: string) {
       phone: profiles.phone,
     })
     .from(profiles)
-    .where(eq(profiles.id, userId))
+    .where(and(eq(profiles.id, userId), eq(profiles.tenantId, tenantId)))
     .limit(1);
   return profile;
 }
@@ -103,7 +103,7 @@ async function isChannelAvailable(
       return false;
 
     case "whatsapp":
-      const phoneProfile = await getUserProfile(userId);
+      const phoneProfile = await getUserProfile(userId, tenantId);
       return Boolean(phoneProfile?.phone);
 
     case "in_app":
@@ -144,7 +144,7 @@ async function sendViaChannel(
   userId: string,
   options: DispatchOptions
 ): Promise<{ success: boolean; error?: string }> {
-  const profile = await getUserProfile(userId);
+  const profile = await getUserProfile(userId, options.tenantId);
 
   try {
     switch (channel) {
