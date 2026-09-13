@@ -46,7 +46,7 @@ function escapeLikePattern(value: string) {
   return value.replace(/[\\%_]/g, "\\$&");
 }
 
-function normalizeSupportFilters(filters: {
+export function normalizeSupportFilters(filters: {
   status?: string;
   priority?: string;
   category?: string;
@@ -67,7 +67,7 @@ function normalizeSupportFilters(filters: {
 
 type SupportFilters = ReturnType<typeof normalizeSupportFilters>;
 
-async function getAllTickets(filters: SupportFilters, requestedPage: number) {
+export async function getAllTickets(filters: SupportFilters, requestedPage: number) {
   const searchPattern = filters.search ? `%${escapeLikePattern(filters.search)}%` : undefined;
   const conditions = [
     filters.status
@@ -97,6 +97,9 @@ async function getAllTickets(filters: SupportFilters, requestedPage: number) {
   const [totalRow] = await db
     .select({ total: count(tickets.id) })
     .from(tickets)
+    .leftJoin(profiles, eq(tickets.createdBy, profiles.id))
+    .leftJoin(authUsers, eq(profiles.userId, authUsers.id))
+    .leftJoin(academies, eq(tickets.academyId, academies.id))
     .where(where);
   const total = Number(totalRow?.total ?? 0);
   const totalPages = Math.max(1, Math.ceil(total / PAGE_SIZE));
