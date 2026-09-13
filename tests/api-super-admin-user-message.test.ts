@@ -159,4 +159,26 @@ describe("API /api/super-admin/users/[profileId]/send-message", () => {
     expect(mocks.select).not.toHaveBeenCalled();
     expect(mocks.createNotification).not.toHaveBeenCalled();
   });
+
+  it("rechaza asuntos o mensajes en blanco", async () => {
+    const request = new NextRequest(
+      "https://zaltyko.com/api/super-admin/users/${profile.id}/send-message",
+      {
+        method: "POST",
+        body: JSON.stringify({
+          profileId: profile.id,
+          subject: "   ",
+          message: "   ",
+          type: "notification",
+        }),
+      }
+    );
+
+    const response = await POST(request, { profile: { role: "super_admin" } });
+    const body = await response.json();
+
+    expect(response.status).toBe(400);
+    expect(body.error).toBe("VALIDATION_ERROR");
+    expect(mocks.select).not.toHaveBeenCalled();
+  });
 });
