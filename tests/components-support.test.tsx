@@ -188,4 +188,40 @@ describe("TicketDetail", () => {
       expect(routerMock.refresh).toHaveBeenCalled();
     });
   });
+
+  it("revierte el estado optimista si el servidor rechaza el cambio", async () => {
+    const user = userEvent.setup();
+    const onStatusChange = vi.fn().mockResolvedValue(false);
+
+    render(
+      <TicketDetail
+        ticket={{
+          id: "ticket-2",
+          title: "Error de cobro",
+          description: "El cobro no se completa.",
+          status: "open",
+          priority: "urgent",
+          category: "billing",
+          createdAt: "2026-09-13T08:00:00.000Z",
+          updatedAt: "2026-09-13T08:00:00.000Z",
+          createdBy: { id: "profile-2", fullName: "Luis", email: "luis@example.com" },
+          responses: [],
+        }}
+        currentUserId="profile-admin"
+        isAdmin
+        onStatusChange={onStatusChange}
+      />,
+    );
+
+    await user.click(screen.getByRole("button", { name: "Resolver" }));
+
+    await waitFor(() => {
+      expect(screen.getByText("Abierto")).toBeInTheDocument();
+      expect(toastMock.pushToast).toHaveBeenCalledWith(expect.objectContaining({
+        title: "No se pudo actualizar el ticket",
+        variant: "error",
+      }));
+    });
+    expect(routerMock.refresh).not.toHaveBeenCalled();
+  });
 });
