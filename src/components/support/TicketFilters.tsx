@@ -77,12 +77,12 @@ export function TicketFilters({
     <div className="flex flex-wrap items-center gap-3 p-4 bg-card rounded-lg border">
       {showStatus && (
         <div className="flex flex-col gap-1">
-          <label className="text-xs font-medium text-muted-foreground">Estado</label>
+          <label htmlFor="support-status-filter" className="text-xs font-medium text-muted-foreground">Estado</label>
           <Select
             value={currentStatus || "all"}
             onValueChange={(value) => updateFilter("status", value)}
           >
-            <SelectTrigger className="w-[160px]">
+            <SelectTrigger id="support-status-filter" aria-label="Filtrar tickets por estado" className="w-[160px]">
               <SelectValue placeholder="Todos los estados" />
             </SelectTrigger>
             <SelectContent>
@@ -99,12 +99,12 @@ export function TicketFilters({
 
       {showPriority && (
         <div className="flex flex-col gap-1">
-          <label className="text-xs font-medium text-muted-foreground">Prioridad</label>
+          <label htmlFor="support-priority-filter" className="text-xs font-medium text-muted-foreground">Prioridad</label>
           <Select
             value={currentPriority || "all"}
             onValueChange={(value) => updateFilter("priority", value)}
           >
-            <SelectTrigger className="w-[160px]">
+            <SelectTrigger id="support-priority-filter" aria-label="Filtrar tickets por prioridad" className="w-[160px]">
               <SelectValue placeholder="Todas las prioridades" />
             </SelectTrigger>
             <SelectContent>
@@ -121,12 +121,12 @@ export function TicketFilters({
 
       {showCategory && (
         <div className="flex flex-col gap-1">
-          <label className="text-xs font-medium text-muted-foreground">Categoría</label>
+          <label htmlFor="support-category-filter" className="text-xs font-medium text-muted-foreground">Categoría</label>
           <Select
             value={currentCategory || "all"}
             onValueChange={(value) => updateFilter("category", value)}
           >
-            <SelectTrigger className="w-[180px]">
+            <SelectTrigger id="support-category-filter" aria-label="Filtrar tickets por categoría" className="w-[180px]">
               <SelectValue placeholder="Todas las categorías" />
             </SelectTrigger>
             <SelectContent>
