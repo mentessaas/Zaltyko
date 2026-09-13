@@ -25,6 +25,8 @@ type SuperAdminAcademyFilters = {
   status?: AcademyStatus;
 };
 
+const DISPLAY_TIME_ZONE = "Europe/Madrid";
+
 const ACADEMY_TYPE_OPTIONS = ["artistica", "ritmica", "trampolin", "general", "parkour", "danza"] as const;
 
 const ACADEMY_STATUS_LABELS: Record<AcademyStatus, string> = {
@@ -505,7 +507,7 @@ export function SuperAdminAcademiesTable({
                 </td>
                 <td className="px-4 py-4 font-sans text-xs text-white/70">
                   {academy.createdAt
-                    ? new Date(academy.createdAt).toLocaleDateString("es-ES")
+                    ? new Date(academy.createdAt).toLocaleDateString("es-ES", { timeZone: DISPLAY_TIME_ZONE })
                     : "—"}
                 </td>
                 <td className="px-4 py-4 text-right">
