@@ -13,6 +13,8 @@ import { ConfirmDialog } from "@/components/ui/confirm-dialog";
 import { SuperAdminCreateUserDialog } from "./SuperAdminCreateUserDialog";
 import { logger } from "@/lib/logger";
 
+const DISPLAY_TIME_ZONE = "Europe/Madrid";
+
 const ROLE_OPTIONS = ["owner", "admin", "coach", "athlete", "parent", "super_admin"] as const;
 
 type SuperAdminUsersFilters = {
@@ -475,7 +477,7 @@ export function SuperAdminUsersTable({
                     <p className="text-xs text-white/50">
                       Registrado:{" "}
                       {user.createdAt
-                        ? new Date(user.createdAt).toLocaleDateString("es-ES")
+                        ? new Date(user.createdAt).toLocaleDateString("es-ES", { timeZone: DISPLAY_TIME_ZONE })
                         : "—"}
                     </p>
                   </div>
