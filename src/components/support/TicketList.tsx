@@ -1,12 +1,11 @@
 "use client";
 
 import Link from "next/link";
-import { format } from "date-fns";
-import { es } from "date-fns/locale";
 import { Badge } from "@/components/ui/badge";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { TicketStatus, TicketPriority, TicketCategory } from "./TicketFilters";
+import { formatTicketDate } from "./ticket-date";
 
 interface Ticket {
   id: string;
@@ -41,6 +40,8 @@ interface TicketListProps {
   isAdmin?: boolean;
   emptyMessage?: string;
   returnTo?: string;
+  /** Optional fixed zone for operational consoles; end-user views keep browser-local dates. */
+  timeZone?: string;
 }
 
 const statusConfig: Record<TicketStatus, { label: string; variant: "default" | "outline" | "success" | "pending" | "error" }> = {
@@ -66,14 +67,14 @@ const categoryConfig: Record<TicketCategory, { label: string }> = {
   other: { label: "Otro" },
 };
 
-function formatTicketDate(value: string | Date) {
-  const date = value instanceof Date ? value : new Date(value);
-  return Number.isNaN(date.getTime())
-    ? "Fecha no disponible"
-    : format(date, "d MMM yyyy", { locale: es });
-}
-
-export function TicketList({ tickets, academyId, isAdmin = false, emptyMessage = "No hay tickets", returnTo }: TicketListProps) {
+export function TicketList({
+  tickets,
+  academyId,
+  isAdmin = false,
+  emptyMessage = "No hay tickets",
+  returnTo,
+  timeZone,
+}: TicketListProps) {
   if (tickets.length === 0) {
     return (
       <Card>
@@ -125,7 +126,7 @@ export function TicketList({ tickets, academyId, isAdmin = false, emptyMessage =
                 <Badge variant={status.variant}>{status.label}</Badge>
                 <span>{category.label}</span>
                 <span>
-                  Creado: {formatTicketDate(ticket.createdAt)}
+                  Creado: {formatTicketDate(ticket.createdAt, { timeZone })}
                 </span>
                 {ticket._count && (
                   <span>{ticket._count.responses} respuesta(s)</span>

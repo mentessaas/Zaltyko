@@ -21,6 +21,7 @@ vi.mock("next/navigation", () => ({
 
 import { TicketResponseForm } from "@/components/support/TicketResponse";
 import { TicketFilters } from "@/components/support/TicketFilters";
+import { TicketList } from "@/components/support/TicketList";
 import { TicketDetail } from "@/components/support/TicketDetail";
 import { TogglePublicVisibility } from "@/components/admin/TogglePublicVisibility";
 import { SuperAdminCreateAcademyDialog } from "@/app/(super-admin)/super-admin/components/SuperAdminCreateAcademyDialog";
@@ -189,6 +190,36 @@ describe("TicketDetail", () => {
     });
   });
 
+  it("mantiene la fecha y hora del soporte en la zona operativa configurada", () => {
+    render(
+      <TicketDetail
+        ticket={{
+          id: "ticket-timezone",
+          title: "Cambio de día",
+          description: "La fecha cruza medianoche en Madrid.",
+          status: "open",
+          priority: "medium",
+          category: "technical",
+          createdAt: "2026-09-13T22:30:00.000Z",
+          updatedAt: "2026-09-13T22:30:00.000Z",
+          createdBy: { id: "profile-1", fullName: "Ana", email: "ana@example.com" },
+          responses: [{
+            id: "response-1",
+            message: "Respuesta nocturna",
+            isInternal: false,
+            createdAt: "2026-09-13T22:30:00.000Z",
+            user: { id: "profile-2", fullName: "Soporte" },
+          }],
+        }}
+        currentUserId="profile-admin"
+        timeZone="Europe/Madrid"
+      />,
+    );
+
+    expect(screen.getByText("14 sept 2026")).toBeInTheDocument();
+    expect(screen.getByText("14 sept 2026 a las 00:30")).toBeInTheDocument();
+  });
+
   it("revierte el estado optimista si el servidor rechaza el cambio", async () => {
     const user = userEvent.setup();
     const onStatusChange = vi.fn().mockResolvedValue(false);
@@ -223,5 +254,28 @@ describe("TicketDetail", () => {
       }));
     });
     expect(routerMock.refresh).not.toHaveBeenCalled();
+  });
+});
+
+describe("TicketList", () => {
+  it("usa la zona operativa en el listado del panel", () => {
+    render(
+      <TicketList
+        isAdmin
+        timeZone="Europe/Madrid"
+        tickets={[{
+          id: "ticket-list-timezone",
+          title: "Cambio de día",
+          description: "Descripción",
+          status: "open",
+          priority: "low",
+          category: "other",
+          createdAt: "2026-09-13T22:30:00.000Z",
+          updatedAt: "2026-09-13T22:30:00.000Z",
+        }]}
+      />,
+    );
+
+    expect(screen.getByText("Creado: 14 sept 2026")).toBeInTheDocument();
   });
 });

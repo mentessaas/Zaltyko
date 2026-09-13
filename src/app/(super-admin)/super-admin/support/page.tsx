@@ -210,6 +210,7 @@ async function TicketsContent({
           isAdmin
           emptyMessage="No hay tickets de soporte"
           returnTo={`/super-admin/support${pageHref(filters, result.page)}`}
+          timeZone="Europe/Madrid"
         />
       </div>
       {result.totalPages > 1 && (

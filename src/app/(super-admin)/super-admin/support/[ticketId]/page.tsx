@@ -203,6 +203,7 @@ export default async function SuperAdminTicketDetailPage({ params, searchParams 
         isAdmin
         onStatusChange={handleStatusChange}
         backHref={backHref}
+        timeZone="Europe/Madrid"
       />
     </div>
   );

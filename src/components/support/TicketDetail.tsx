@@ -3,8 +3,6 @@
 import { useEffect, useState } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
-import { format } from "date-fns";
-import { es } from "date-fns/locale";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -12,6 +10,7 @@ import { Separator } from "@/components/ui/separator";
 import { TicketResponseForm } from "./TicketResponse";
 import { TicketStatus, TicketPriority, TicketCategory } from "./TicketFilters";
 import { useToast } from "@/components/ui/toast-provider";
+import { formatTicketDate } from "./ticket-date";
 
 interface Ticket {
   id: string;
@@ -68,6 +67,8 @@ interface TicketDetailProps {
   onStatusChange?: (newStatus: TicketStatus) => Promise<void | boolean>;
   onAssign?: (userId: string) => Promise<void>;
   backHref?: string;
+  /** Optional fixed zone for operational consoles; end-user views keep browser-local dates. */
+  timeZone?: string;
 }
 
 const statusConfig: Record<TicketStatus, { label: string; variant: "default" | "outline" | "success" | "pending" | "error" }> = {
@@ -93,13 +94,15 @@ const categoryConfig: Record<TicketCategory, { label: string }> = {
   other: { label: "Otro" },
 };
 
-function formatTicketDate(value: string | Date, withTime = false) {
-  const date = value instanceof Date ? value : new Date(value);
-  if (Number.isNaN(date.getTime())) return "Fecha no disponible";
-  return format(date, withTime ? "d MMM yyyy 'a las' HH:mm" : "d MMM yyyy", { locale: es });
-}
-
-export function TicketDetail({ ticket, currentUserId, isAdmin = false, onStatusChange, onAssign, backHref }: TicketDetailProps) {
+export function TicketDetail({
+  ticket,
+  currentUserId,
+  isAdmin = false,
+  onStatusChange,
+  onAssign,
+  backHref,
+  timeZone,
+}: TicketDetailProps) {
   const [isUpdating, setIsUpdating] = useState(false);
   const [currentStatus, setCurrentStatus] = useState<TicketStatus>(ticket.status);
   const router = useRouter();
@@ -183,7 +186,7 @@ export function TicketDetail({ ticket, currentUserId, isAdmin = false, onStatusC
           </div>
           <div>
             <span className="text-muted-foreground">Fecha:</span>
-            <p className="font-medium">{formatTicketDate(ticket.createdAt)}</p>
+            <p className="font-medium">{formatTicketDate(ticket.createdAt, { timeZone })}</p>
           </div>
           {ticket.assignedTo && (
             <div>
@@ -228,7 +231,7 @@ export function TicketDetail({ ticket, currentUserId, isAdmin = false, onStatusC
                     )}
                   </div>
                   <span className="text-xs text-muted-foreground">
-                    {formatTicketDate(response.createdAt, true)}
+                    {formatTicketDate(response.createdAt, { withTime: true, timeZone })}
                   </span>
                 </div>
               </CardHeader>
