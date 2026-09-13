@@ -33,6 +33,8 @@ import { useToast } from "@/components/ui/toast-provider";
 import { logger } from "@/lib/logger";
 import { ConfirmDialog } from "@/components/ui/confirm-dialog";
 
+const DISPLAY_TIME_ZONE = "Europe/Madrid";
+
 interface UserMembership {
   id: string;
   academyId: string | null;
@@ -831,6 +833,7 @@ export function SuperAdminUserDetail({ initialUser, userId, backHref = "/super-a
                           year: "numeric",
                           month: "long",
                           day: "numeric",
+                          timeZone: DISPLAY_TIME_ZONE,
                         })
                       : "—"}
                   </p>
