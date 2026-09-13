@@ -9569,3 +9569,11 @@ Vault: actualizado `Changelog interno.md`; no cambian `Decisiones.md`, `Pricing.
 - No hubo merge, publicación ni mutación de producción. Producción continúa en `main` (`a1e7e68`) y conserva el error FK de `daily-alerts` observado en su deployment actual; requiere publicar en ventana autorizada y repetir verificación. El walkthrough autenticado del preview también queda pendiente de una sesión super-admin válida.
 
 Vault: actualizado este `Changelog interno.md` y `Backlog priorizado.md`; no cambian `Decisiones.md`, `Pricing.md` ni `Mensajes aprobados.md` porque no se modificó la dirección de producto, pricing o copy comercial.
+
+## 2026-09-13 — Codex: cierre adicional de navegación y accesibilidad del dashboard
+
+- Se alineó la detección de rutas Super Admin entre middleware, barra global y breadcrumb: solo `/super-admin` y sus subrutas activan el contexto visual, evitando falsos positivos en rutas con prefijos parecidos.
+- Se etiquetaron los controles solo-icono de paginación de actividad del dashboard y se añadió el contrato incluido `tests/navigation-active.test.ts` (`1/1`); `typecheck`, `lint:app` y `git diff --check` siguen en verde.
+- El cambio es código de interfaz sobre PR #126; no introduce migraciones, cambios de pricing, permisos ni publicación remota.
+
+Vault: actualizado este `Changelog interno.md`; `Backlog priorizado.md` conserva los pendientes de walkthrough autenticado y publicación controlada.
