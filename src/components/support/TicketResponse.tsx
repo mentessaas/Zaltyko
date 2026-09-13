@@ -6,12 +6,7 @@ import { Textarea } from "@/components/ui/textarea";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Switch } from "@/components/ui/switch";
 import { Label } from "@/components/ui/label";
-
-// Toast placeholder - replace with actual toast implementation
-const toast = {
-  error: (_msg: string) => { /* Handle error toast */ },
-  success: (_msg: string) => { /* Handle success toast */ },
-};
+import { useToast } from "@/components/ui/toast-provider";
 
 interface TicketResponseFormProps {
   ticketId: string;
@@ -20,6 +15,7 @@ interface TicketResponseFormProps {
 }
 
 export function TicketResponseForm({ ticketId, isAdmin = false, onSuccess }: TicketResponseFormProps) {
+  const { pushToast } = useToast();
   const [isLoading, setIsLoading] = useState(false);
   const [message, setMessage] = useState("");
   const [isInternal, setIsInternal] = useState(false);
@@ -28,7 +24,11 @@ export function TicketResponseForm({ ticketId, isAdmin = false, onSuccess }: Tic
     e.preventDefault();
 
     if (!message.trim()) {
-      toast.error("Por favor escribe un mensaje");
+      pushToast({
+        title: "Escribe una respuesta",
+        description: "El mensaje no puede estar vacío.",
+        variant: "warning",
+      });
       return;
     }
 
@@ -46,11 +46,21 @@ export function TicketResponseForm({ ticketId, isAdmin = false, onSuccess }: Tic
       });
 
       if (!response.ok) {
-        const data = await response.json();
-        throw new Error(data.error || "Error al enviar la respuesta");
+        const data = await response.json().catch(() => null);
+        const apiMessage =
+          data && typeof data === "object" && "message" in data && typeof data.message === "string"
+            ? data.message
+            : data && typeof data === "object" && "error" in data && typeof data.error === "string"
+              ? data.error
+              : "No se pudo enviar la respuesta.";
+        throw new Error(apiMessage);
       }
 
-      toast.success("Respuesta enviada correctamente");
+      pushToast({
+        title: "Respuesta enviada",
+        description: isInternal ? "Solo visible para el equipo de soporte." : "El ticket se ha actualizado.",
+        variant: "success",
+      });
       setMessage("");
       if (onSuccess) {
         onSuccess();
@@ -58,7 +68,11 @@ export function TicketResponseForm({ ticketId, isAdmin = false, onSuccess }: Tic
         window.location.reload();
       }
     } catch (error) {
-      toast.error(error instanceof Error ? error.message : "Error al enviar la respuesta");
+      pushToast({
+        title: "No se pudo enviar la respuesta",
+        description: error instanceof Error ? error.message : "Inténtalo de nuevo.",
+        variant: "error",
+      });
     } finally {
       setIsLoading(false);
     }
@@ -76,7 +90,8 @@ export function TicketResponseForm({ ticketId, isAdmin = false, onSuccess }: Tic
             value={message}
             onChange={(e) => setMessage(e.target.value)}
             rows={4}
-            required
+            maxLength={10_000}
+            aria-label="Respuesta"
           />
 
           <div className="flex items-center justify-between">
