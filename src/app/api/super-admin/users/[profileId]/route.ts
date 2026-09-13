@@ -1,15 +1,16 @@
 import { apiSuccess, apiError } from "@/lib/api-response";
-import { and, eq, count, inArray, isNull, sql } from "drizzle-orm";
+import { count, eq, inArray } from "drizzle-orm";
 import { z } from "zod";
 
 import { db } from "@/db";
-import { profiles, memberships, academies, subscriptions, plans, athletes, coaches, classes } from "@/db/schema";
+import { profiles, academies, subscriptions, plans } from "@/db/schema";
 import { withSuperAdmin } from "@/lib/authz";
 import { logAdminAction } from "@/lib/admin-logs";
 import { getAuthUserEmail, updateAuthUserEmail, deleteAuthUser } from "@/lib/supabase/admin-operations";
 import { getAppUrl } from "@/lib/env";
 import { revalidatePublicAcademySeo } from "@/lib/seo/revalidate-academy";
 import { logger } from "@/lib/logger";
+import { getSuperAdminUserDetail } from "@/lib/superAdminUserService";
 
 export const dynamic = "force-dynamic";
 
@@ -76,115 +77,11 @@ export const GET = withSuperAdmin(async (_request, context) => {
     return apiError("PROFILE_ID_INVALID", "Profile ID is invalid", 400);
   }
 
-  const [profile] = await db
-    .select({
-      id: profiles.id,
-      userId: profiles.userId,
-      name: profiles.name,
-      role: profiles.role,
-      tenantId: profiles.tenantId,
-      activeAcademyId: profiles.activeAcademyId,
-      isSuspended: profiles.isSuspended,
-      canLogin: profiles.canLogin,
-      createdAt: profiles.createdAt,
-    })
-    .from(profiles)
-    .where(eq(profiles.id, profileId))
-    .limit(1);
-
+  const profile = await getSuperAdminUserDetail(profileId);
   if (!profile) {
     return apiError("PROFILE_NOT_FOUND", "Profile not found", 404);
   }
-
-  const userMemberships = await db
-    .select({
-      id: memberships.id,
-      academyId: memberships.academyId,
-      role: memberships.role,
-      academyName: academies.name,
-      academyType: academies.academyType,
-    })
-    .from(memberships)
-    .leftJoin(academies, eq(memberships.academyId, academies.id))
-    .where(eq(memberships.userId, profile.userId));
-
-  // Get user subscription separately
-  const [userSubscription] = await db
-    .select({
-      id: subscriptions.id,
-      planId: subscriptions.planId,
-      planCode: plans.code,
-      planNickname: plans.nickname,
-      status: subscriptions.status,
-      stripeCustomerId: subscriptions.stripeCustomerId,
-      stripeSubscriptionId: subscriptions.stripeSubscriptionId,
-    })
-    .from(subscriptions)
-    .leftJoin(plans, eq(subscriptions.planId, plans.id))
-    .where(eq(subscriptions.userId, profile.userId))
-    .limit(1);
-
-  // Get statistics: academies owned, total athletes, coaches, classes
-  const ownedAcademies = await db
-    .select({ id: academies.id })
-    .from(academies)
-    .where(eq(academies.ownerId, profile.id));
-
-  const academyIds = ownedAcademies.map((a) => a.id);
-
-  const stats = {
-    academiesOwned: ownedAcademies.length,
-    totalAthletes: 0,
-    totalCoaches: 0,
-    totalClasses: 0,
-  };
-
-  if (academyIds.length > 0) {
-    const [athletesResult] = await db
-      .select({ count: sql<number>`count(*)` })
-      .from(athletes)
-      .where(and(inArray(athletes.academyId, academyIds), isNull(athletes.deletedAt)));
-
-    const [coachesResult] = await db
-      .select({ count: sql<number>`count(*)` })
-      .from(coaches)
-      .where(inArray(coaches.academyId, academyIds));
-
-    const [classesResult] = await db
-      .select({ count: sql<number>`count(*)` })
-      .from(classes)
-      .where(and(inArray(classes.academyId, academyIds), isNull(classes.deletedAt)));
-
-    stats.totalAthletes = Number(athletesResult?.count ?? 0);
-    stats.totalCoaches = Number(coachesResult?.count ?? 0);
-    stats.totalClasses = Number(classesResult?.count ?? 0);
-  }
-
-  const authEmail = await getAuthUserEmail(profile.userId);
-
-  return apiSuccess({
-    ...profile,
-    email: authEmail,
-    subscription: userSubscription
-      ? {
-          id: userSubscription.id,
-          planId: userSubscription.planId,
-          planCode: userSubscription.planCode,
-          planNickname: userSubscription.planNickname,
-          status: userSubscription.status,
-          stripeCustomerId: userSubscription.stripeCustomerId,
-          stripeSubscriptionId: userSubscription.stripeSubscriptionId,
-        }
-      : null,
-    memberships: userMemberships.map((m) => ({
-      id: m.id,
-      academyId: m.academyId,
-      role: m.role,
-      academyName: m.academyName,
-      academyType: m.academyType,
-    })),
-    stats,
-  });
+  return apiSuccess(profile);
 });
 
 export const PATCH = withSuperAdmin(async (request, context) => {

@@ -1,4 +1,4 @@
-import { cookies, headers } from "next/headers";
+import { cookies } from "next/headers";
 import { redirect, notFound } from "next/navigation";
 import { ArrowLeft } from "lucide-react";
 import Link from "next/link";
@@ -6,6 +6,7 @@ import Link from "next/link";
 import { createClient } from "@/lib/supabase/server";
 import { getCurrentProfile } from "@/lib/authz";
 import { getDevSessionFromCookieStore } from "@/lib/dev-session";
+import { getSuperAdminUserDetail } from "@/lib/superAdminUserService";
 import { SuperAdminUserDetail } from "../../components/SuperAdminUserDetail";
 
 export const dynamic = "force-dynamic";
@@ -49,31 +50,8 @@ export default async function SuperAdminUserDetailPage({
     safeReturnTo === "/super-admin/users" || safeReturnTo?.startsWith("/super-admin/users?")
       ? safeReturnTo
       : "/super-admin/users";
-  const requestHeaders = await headers();
-  const forwardedHost = requestHeaders.get("x-forwarded-host") ?? requestHeaders.get("host");
-  const forwardedProto = requestHeaders.get("x-forwarded-proto")?.split(",")[0]?.trim() || "https";
-  const appOrigin = forwardedHost
-    ? `${forwardedProto}://${forwardedHost}`
-    : process.env.NEXT_PUBLIC_APP_URL || "http://localhost:3000";
-
-  const response = await fetch(
-    `${appOrigin}/api/super-admin/users/${profileId}`,
-    {
-      headers: {
-        cookie: cookieStore.getAll().map((c) => `${c.name}=${c.value}`).join("; "),
-      },
-      cache: "no-store",
-    },
-  );
-
-  if (!response.ok) {
-    if (response.status === 404) {
-      notFound();
-    }
-    throw new Error("Failed to fetch user details");
-  }
-
-  const { data: userData } = await response.json();
+  const userData = await getSuperAdminUserDetail(profileId);
+  if (!userData) notFound();
 
   return (
     <div className="space-y-6">
@@ -94,4 +72,3 @@ export default async function SuperAdminUserDetailPage({
     </div>
   );
 }
-

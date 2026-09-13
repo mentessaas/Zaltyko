@@ -172,16 +172,25 @@ export function SuperAdminUsersTable({
       const response = await fetch("/api/super-admin/athletes/sync-users", {
         method: "POST",
       });
-      const data = await response.json();
-      if (data.ok) {
+      const payload = await response.json().catch(() => ({}));
+      const data = payload?.ok ? payload.data ?? payload : payload;
+      const message = typeof data?.message === "string"
+        ? data.message
+        : typeof payload?.message === "string"
+          ? payload.message
+          : null;
+      if (response.ok && payload?.ok && data?.ok) {
         toast.pushToast({
-          title: data.message || "Atletas sincronizados correctamente",
+          title: message || "Atletas sincronizados correctamente",
+          description: data.detailsTruncated
+            ? "La operación terminó; se conserva una muestra de 100 detalles para no sobrecargar la consola."
+            : undefined,
           variant: "success",
         });
         await fetchUsers(filters, page);
       } else {
         toast.pushToast({
-          title: data.message || "Error al sincronizar atletas",
+          title: message || "Error al sincronizar atletas",
           variant: "error",
         });
       }
@@ -468,7 +477,7 @@ export function SuperAdminUsersTable({
                   openUserDetail(user.id);
                 }}
               >
-                <td className="px-4 py-4">
+                <td className="hidden px-4 py-4 sm:table-cell">
                   <div className="space-y-1">
                     <p className="font-semibold text-white">{user.fullName ?? "Sin nombre"}</p>
                     <p className="text-xs text-white/70">{user.email ?? "Sin correo"}</p>

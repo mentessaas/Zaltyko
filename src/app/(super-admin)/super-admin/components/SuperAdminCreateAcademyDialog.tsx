@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useRef, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
 import { Building2, Eye, EyeOff, Loader2 } from "lucide-react";
 
@@ -31,6 +31,27 @@ export function SuperAdminCreateAcademyDialog() {
     ownerName: "",
   });
 
+  const resetForm = useCallback(() => {
+    setForm({
+      academyName: "",
+      academyType: "artistica",
+      country: "",
+      region: "",
+      city: "",
+      ownerEmail: "",
+      ownerPassword: "",
+      ownerName: "",
+    });
+    setShowOwnerPassword(false);
+  }, []);
+
+  const closeDialog = useCallback(() => {
+    if (submitting) return;
+    setOpen(false);
+    // Do not retain a temporary owner password after the dialog closes.
+    resetForm();
+  }, [resetForm, submitting]);
+
   function set(k: keyof typeof form, v: string) {
     setForm((f) => ({ ...f, [k]: v }));
   }
@@ -45,7 +66,7 @@ export function SuperAdminCreateAcademyDialog() {
       dialogRef.current?.querySelector<HTMLElement>("input, select, textarea, button")?.focus();
     }, 0);
     const handleKeyDown = (event: KeyboardEvent) => {
-      if (event.key === "Escape" && !submitting) setOpen(false);
+      if (event.key === "Escape") closeDialog();
       if (event.key !== "Tab" || !dialogRef.current) return;
 
       const focusable = Array.from(
@@ -71,7 +92,7 @@ export function SuperAdminCreateAcademyDialog() {
       window.clearTimeout(focusTimer);
       document.removeEventListener("keydown", handleKeyDown);
     };
-  }, [open, submitting]);
+  }, [closeDialog, open]);
 
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
@@ -99,6 +120,7 @@ export function SuperAdminCreateAcademyDialog() {
       }
       toast.pushToast({ title: "Academia creada", description: form.academyName, variant: "success" });
       setOpen(false);
+      resetForm();
       router.refresh();
     } catch (error) {
       toast.pushToast({
@@ -136,7 +158,7 @@ export function SuperAdminCreateAcademyDialog() {
           aria-modal="true"
           aria-labelledby="create-academy-dialog-title"
           className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 p-4 overflow-y-auto"
-          onClick={() => !submitting && setOpen(false)}
+          onClick={closeDialog}
         >
           <form
             ref={dialogRef}
@@ -216,7 +238,7 @@ export function SuperAdminCreateAcademyDialog() {
             </div>
 
             <div className="flex justify-end gap-2 pt-2">
-              <button type="button" onClick={() => setOpen(false)} className="rounded-lg px-4 py-2 text-sm text-white/70 hover:text-white">
+              <button type="button" onClick={closeDialog} className="rounded-lg px-4 py-2 text-sm text-white/70 hover:text-white">
                 Cancelar
               </button>
               <button

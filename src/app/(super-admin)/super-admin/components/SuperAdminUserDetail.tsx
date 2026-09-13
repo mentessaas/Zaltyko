@@ -716,8 +716,9 @@ export function SuperAdminUserDetail({ initialUser, userId, backHref = "/super-a
               </Label>
               <div className="mt-2 space-y-3 rounded-xl border border-white/10 bg-white/5 p-4">
                 <div>
-                  <p className="mb-2 text-xs text-white/50">Nombre</p>
+                  <Label htmlFor="user-name" className="mb-2 text-xs text-white/50">Nombre</Label>
                   <Input
+                    id="user-name"
                     value={formData.name}
                     onChange={(e) => setFormData({ ...formData, name: e.target.value })}
                     className="border-white/20 bg-white/10 text-white placeholder:text-white/40"
@@ -726,9 +727,10 @@ export function SuperAdminUserDetail({ initialUser, userId, backHref = "/super-a
                   />
                 </div>
                 <div>
-                  <p className="mb-2 text-xs text-white/50">Correo electrónico</p>
+                  <Label htmlFor="user-email" className="mb-2 text-xs text-white/50">Correo electrónico</Label>
                   <div className="flex gap-2">
                     <Input
+                      id="user-email"
                       type="email"
                       value={formData.email}
                       onChange={(e) => setFormData({ ...formData, email: e.target.value })}
@@ -751,8 +753,9 @@ export function SuperAdminUserDetail({ initialUser, userId, backHref = "/super-a
                   </div>
                 </div>
                 <div>
-                  <p className="mb-2 text-xs text-white/50">Rol</p>
+                  <Label htmlFor="user-role" className="mb-2 text-xs text-white/50">Rol</Label>
                   <select
+                    id="user-role"
                     value={formData.role}
                     onChange={(e) => setFormData({ ...formData, role: e.target.value })}
                     className="w-full rounded-xl border border-white/20 bg-white/10 px-3 py-2 text-sm font-semibold text-white hover:border-white/40 focus:border-white/60 focus:outline-none"
@@ -775,7 +778,7 @@ export function SuperAdminUserDetail({ initialUser, userId, backHref = "/super-a
               </Label>
               <div className="mt-2 space-y-3 rounded-xl border border-white/10 bg-white/5 p-4">
                 <div>
-                  <p className="mb-2 text-xs text-white/50">Plan</p>
+                  <Label htmlFor="user-plan" className="mb-2 text-xs text-white/50">Plan</Label>
                   {loadingPlans ? (
                     <div className="flex items-center gap-2 rounded-xl border border-white/20 bg-white/10 px-3 py-2 text-sm text-white/50">
                       <Loader2 className="h-4 w-4 animate-spin" />
@@ -783,6 +786,7 @@ export function SuperAdminUserDetail({ initialUser, userId, backHref = "/super-a
                     </div>
                   ) : (
                     <select
+                      id="user-plan"
                       value={formData.planId}
                       onChange={(e) => setFormData({ ...formData, planId: e.target.value })}
                       className="w-full rounded-xl border border-white/20 bg-white/10 px-3 py-2 text-sm font-semibold text-white hover:border-white/40 focus:border-white/60 focus:outline-none"
@@ -872,8 +876,9 @@ export function SuperAdminUserDetail({ initialUser, userId, backHref = "/super-a
               </Label>
               <div className="mt-2 space-y-3 rounded-xl border border-white/10 bg-white/5 p-4">
                 <div>
-                  <p className="mb-2 text-xs text-white/50">Tipo de mensaje</p>
+                  <Label htmlFor="user-message-type" className="mb-2 text-xs text-white/50">Tipo de mensaje</Label>
                   <select
+                    id="user-message-type"
                     value={messageForm.type}
                     onChange={(e) =>
                       setMessageForm({ ...messageForm, type: e.target.value as "email" | "notification" })
@@ -886,8 +891,9 @@ export function SuperAdminUserDetail({ initialUser, userId, backHref = "/super-a
                   </select>
                 </div>
                 <div>
-                  <p className="mb-2 text-xs text-white/50">Asunto</p>
+                  <Label htmlFor="user-message-subject" className="mb-2 text-xs text-white/50">Asunto</Label>
                   <Input
+                    id="user-message-subject"
                     value={messageForm.subject}
                     onChange={(e) => setMessageForm({ ...messageForm, subject: e.target.value })}
                     className="border-white/20 bg-white/10 text-white placeholder:text-white/40"
@@ -896,8 +902,9 @@ export function SuperAdminUserDetail({ initialUser, userId, backHref = "/super-a
                   />
                 </div>
                 <div>
-                  <p className="mb-2 text-xs text-white/50">Mensaje</p>
+                  <Label htmlFor="user-message-body" className="mb-2 text-xs text-white/50">Mensaje</Label>
                   <textarea
+                    id="user-message-body"
                     value={messageForm.message}
                     onChange={(e) => setMessageForm({ ...messageForm, message: e.target.value })}
                     className="min-h-[120px] w-full rounded-xl border border-white/20 bg-white/10 px-3 py-2 text-sm text-white placeholder:text-white/40 focus:border-white/60 focus:outline-none"

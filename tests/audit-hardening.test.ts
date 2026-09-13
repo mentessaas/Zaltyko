@@ -383,6 +383,34 @@ describe("audit hardening", () => {
       expect(source).not.toContain("user_metadata");
       expect(source).toContain("app_metadata");
     });
+
+    it("keeps the user detail page on the shared server-side service", () => {
+      const pagePath = fileURLToPath(
+        new URL(
+          "../src/app/(super-admin)/super-admin/users/[profileId]/page.tsx",
+          import.meta.url
+        )
+      );
+      const source = readFileSync(pagePath, "utf8");
+
+      expect(source).toContain("getSuperAdminUserDetail");
+      expect(source).not.toContain("x-forwarded-host");
+      expect(source).not.toContain("x-forwarded-proto");
+      expect(source).not.toContain("fetch(");
+    });
+
+    it("bounds athlete sync detail retention", () => {
+      const syncPath = fileURLToPath(
+        new URL("../src/lib/athletes/sync-users.ts", import.meta.url)
+      );
+      const source = readFileSync(syncPath, "utf8");
+
+      expect(source).toContain("SYNC_DETAIL_LIMIT = 100");
+      expect(source).toContain("detailsTruncated");
+      expect(source).toContain("recordDetail");
+      expect(source.match(/details\.push\(/g)).toHaveLength(1);
+      expect(source).toContain("if (details.length < SYNC_DETAIL_LIMIT)");
+    });
   });
 
   describe("class waiting list tenancy", () => {

@@ -9585,3 +9585,14 @@ Vault: actualizado este `Changelog interno.md`; `Backlog priorizado.md` conserva
 - El cambio solo restituye cobertura de contrato y no introduce migraciones, cambios de pricing, permisos, secretos ni publicación remota. Los pendientes de walkthrough autenticado y release controlado permanecen en el backlog.
 
 Vault: actualizado este `Changelog interno.md`; `Backlog priorizado.md` no cambia porque los pendientes ya están registrados.
+
+## 2026-09-13 — Codex: segunda pasada de seguridad, UX y límites operativos del Super Admin
+
+- Se eliminó el self-fetch con origen derivado de `x-forwarded-host` en el detalle de usuario: página y endpoint reutilizan `getSuperAdminUserDetail`, evitando SSRF, una llamada HTTP interna y divergencias entre preview/producción.
+- Se etiquetaron los campos editables del detalle de academia/usuario para lectores de pantalla, se corrigió la columna Plan en móvil y se limpia la contraseña temporal del modal de alta de academia al cerrar o completar.
+- La sincronización de atletas limita los detalles retenidos a 100 entradas y expone `detailsTruncated` para evitar respuestas y auditorías sin límite; el cliente muestra esa condición.
+- Las lecturas independientes del detalle de usuario se ejecutan en paralelo para reducir latencia sin cambiar el contrato de datos.
+- Evidencia local: `pnpm exec vitest run` pasa `161` archivos y omite `1`; pasan `1.478` tests y se omiten `2`. También pasan `pnpm typecheck`, `pnpm lint:app` y `git diff --check`; las suites focalizadas de API Super Admin, navegación por roles, componentes y contratos de hardening pasan.
+- Sin migraciones, pricing, permisos de producción o publicación. Los pendientes de walkthrough autenticado, verificación de claves foráneas y release controlado permanecen en el backlog.
+
+Vault: actualizado este `Changelog interno.md`; `Backlog priorizado.md` no cambia porque sus pendientes siguen vigentes.

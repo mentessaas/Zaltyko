@@ -5,6 +5,7 @@ import { getSupabaseAdminClient } from "@/lib/supabase/admin";
 import { logger } from "@/lib/logger";
 
 const AUTH_USERS_PAGE_SIZE = 1000;
+const SYNC_DETAIL_LIMIT = 100;
 
 async function getAuthUsersByEmail(
   adminClient: ReturnType<typeof getSupabaseAdminClient>,
@@ -42,6 +43,7 @@ export async function syncAthletesWithUsers(): Promise<{
   skipped: number;
   errors: number;
   details: Array<{ athleteId: string; athleteName: string; userId: string | null; error?: string }>;
+  detailsTruncated: boolean;
 }> {
   const adminClient = getSupabaseAdminClient();
   // Load Auth users once. Calling listUsers inside the athlete loop creates
@@ -51,6 +53,15 @@ export async function syncAthletesWithUsers(): Promise<{
   let synced = 0;
   const skipped = 0;
   let errors = 0;
+  let detailsTruncated = false;
+
+  const recordDetail = (detail: { athleteId: string; athleteName: string; userId: string | null; error?: string }) => {
+    if (details.length < SYNC_DETAIL_LIMIT) {
+      details.push(detail);
+    } else {
+      detailsTruncated = true;
+    }
+  };
 
   // Obtener todos los atletas sin user_id
   const athletesWithoutUser = await db
@@ -110,7 +121,7 @@ export async function syncAthletesWithUsers(): Promise<{
           .where(eq(athletes.id, athlete.athleteId));
 
         synced++;
-        details.push({
+        recordDetail({
           athleteId: athlete.athleteId,
           athleteName: athlete.athleteName,
           userId,
@@ -131,7 +142,7 @@ export async function syncAthletesWithUsers(): Promise<{
 
       if (userError || !userData?.user) {
         errors++;
-        details.push({
+        recordDetail({
           athleteId: athlete.athleteId,
           athleteName: athlete.athleteName,
           userId: null,
@@ -178,14 +189,14 @@ export async function syncAthletesWithUsers(): Promise<{
         .where(eq(athletes.id, athlete.athleteId));
 
       synced++;
-      details.push({
+      recordDetail({
         athleteId: athlete.athleteId,
         athleteName: athlete.athleteName,
         userId,
       });
     } catch (error: unknown) {
       errors++;
-      details.push({
+      recordDetail({
         athleteId: athlete.athleteId,
         athleteName: athlete.athleteName,
         userId: null,
@@ -201,5 +212,6 @@ export async function syncAthletesWithUsers(): Promise<{
     skipped,
     errors,
     details,
+    detailsTruncated,
   };
 }

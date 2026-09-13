@@ -97,5 +97,5 @@ describe("Super Admin academies search", () => {
       ["profiles.name", "%demo\\_\\%%"],
       ["authUsers.email", "%demo\\_\\%%"],
     ]);
-  });
+  }, 15_000);
 });

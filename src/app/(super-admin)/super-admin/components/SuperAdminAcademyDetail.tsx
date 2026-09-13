@@ -359,8 +359,9 @@ export function SuperAdminAcademyDetail({ initialAcademy, userId, backHref = "/s
               </Label>
               <div className="mt-2 space-y-3 rounded-xl border border-white/10 bg-white/5 p-4">
                 <div>
-                  <p className="text-xs text-white/50">Nombre</p>
+                  <Label htmlFor="academy-name" className="text-xs text-white/50">Nombre</Label>
                   <Input
+                    id="academy-name"
                     value={formData.name}
                     onChange={(e) => setFormData({ ...formData, name: e.target.value })}
                     className="mt-1 border-white/20 bg-white/10 text-white placeholder:text-slate-500"
@@ -368,8 +369,9 @@ export function SuperAdminAcademyDetail({ initialAcademy, userId, backHref = "/s
                   />
                 </div>
                 <div>
-                  <p className="text-xs text-white/50">Tipo</p>
+                  <Label htmlFor="academy-type" className="text-xs text-white/50">Tipo</Label>
                   <select
+                    id="academy-type"
                     value={formData.academyType}
                     onChange={(e) => setFormData({ ...formData, academyType: e.target.value })}
                     className="mt-1 w-full rounded-md border border-white/20 bg-white/10 px-3 py-2 text-sm font-medium text-white hover:border-white/40 focus:border-white/60 focus:outline-none"
@@ -383,8 +385,9 @@ export function SuperAdminAcademyDetail({ initialAcademy, userId, backHref = "/s
                 </div>
                 <div className="grid grid-cols-2 gap-3">
                   <div>
-                    <p className="text-xs text-white/50">País</p>
+                    <Label htmlFor="academy-country" className="text-xs text-white/50">País</Label>
                     <Input
+                      id="academy-country"
                       value={formData.country}
                       onChange={(e) => setFormData({ ...formData, country: e.target.value })}
                       className="mt-1 border-white/20 bg-white/10 text-white placeholder:text-slate-500"
@@ -392,8 +395,9 @@ export function SuperAdminAcademyDetail({ initialAcademy, userId, backHref = "/s
                     />
                   </div>
                   <div>
-                    <p className="text-xs text-white/50">{getRegionLabel(formData.country) || "Provincia/Región"}</p>
+                    <Label htmlFor="academy-region" className="text-xs text-white/50">{getRegionLabel(formData.country) || "Provincia/Región"}</Label>
                     <Input
+                      id="academy-region"
                       value={formData.region}
                       onChange={(e) => setFormData({ ...formData, region: e.target.value })}
                       className="mt-1 border-white/20 bg-white/10 text-white placeholder:text-slate-500"
@@ -401,8 +405,9 @@ export function SuperAdminAcademyDetail({ initialAcademy, userId, backHref = "/s
                   </div>
                 </div>
                 <div>
-                  <p className="text-xs text-white/50">Ciudad</p>
+                  <Label htmlFor="academy-city" className="text-xs text-white/50">Ciudad</Label>
                   <Input
+                    id="academy-city"
                     value={formData.city}
                     onChange={(e) => setFormData({ ...formData, city: e.target.value })}
                     className="mt-1 border-white/20 bg-white/10 text-white placeholder:text-slate-500"
@@ -442,7 +447,7 @@ export function SuperAdminAcademyDetail({ initialAcademy, userId, backHref = "/s
               </Label>
               <div className="mt-2 space-y-3 rounded-xl border border-white/10 bg-white/5 p-4">
                 <div>
-                  <p className="mb-2 text-xs text-white/50">Plan</p>
+                  <Label htmlFor="academy-plan" className="mb-2 text-xs text-white/50">Plan</Label>
                   {loading ? (
                     <div className="flex items-center gap-2 rounded-xl border border-white/20 bg-white/10 px-3 py-2 text-sm text-white/50">
                       <Loader2 className="h-4 w-4 animate-spin" />
@@ -450,6 +455,7 @@ export function SuperAdminAcademyDetail({ initialAcademy, userId, backHref = "/s
                     </div>
                   ) : (
                     <select
+                      id="academy-plan"
                       value={formData.planId}
                       onChange={(e) => setFormData({ ...formData, planId: e.target.value })}
                       className="w-full rounded-xl border border-white/20 bg-white/10 px-3 py-2 text-sm font-semibold text-white hover:border-white/40 focus:border-white/60 focus:outline-none"
