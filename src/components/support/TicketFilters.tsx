@@ -107,7 +107,7 @@ export function TicketFilters({
                 type="search"
                 value={searchInput}
                 onChange={(event) => setSearchInput(event.target.value)}
-                placeholder="Título, descripción o academia"
+                placeholder="Título, academia o usuario"
                 maxLength={160}
                 className="h-10 w-full rounded-md border border-input bg-background pl-9 pr-3 text-sm outline-none transition focus-visible:ring-2 focus-visible:ring-ring"
               />

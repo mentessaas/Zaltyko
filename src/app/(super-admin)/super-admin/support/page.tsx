@@ -81,7 +81,9 @@ async function getAllTickets(filters: SupportFilters, requestedPage: number) {
       ? or(
           ilike(tickets.title, `%${filters.search}%`),
           ilike(tickets.description, `%${filters.search}%`),
-          ilike(academies.name, `%${filters.search}%`)
+          ilike(academies.name, `%${filters.search}%`),
+          ilike(profiles.name, `%${filters.search}%`),
+          ilike(authUsers.email, `%${filters.search}%`)
         )
       : undefined,
   ].filter(Boolean) as Array<ReturnType<typeof eq>>;
