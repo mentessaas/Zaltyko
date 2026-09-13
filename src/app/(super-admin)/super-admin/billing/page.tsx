@@ -25,6 +25,7 @@ type PageProps = {
 };
 
 const PAGE_SIZE = 50;
+const DISPLAY_TIME_ZONE = "Europe/Madrid";
 
 function parsePage(value: string | undefined) {
   const parsed = Number.parseInt(value ?? "1", 10);
@@ -415,7 +416,7 @@ export default async function SuperAdminBillingPage({ searchParams }: PageProps)
                     {subscription.cancelAtPeriodEnd && <p className="mt-1 text-xs text-amber-200/70">Cancela al final del periodo</p>}
                   </td>
                   <td className="whitespace-nowrap px-5 py-4 text-white/65">
-                    {subscription.currentPeriodEnd ? new Date(subscription.currentPeriodEnd).toLocaleDateString("es-ES") : "Sin fecha"}
+                    {subscription.currentPeriodEnd ? new Date(subscription.currentPeriodEnd).toLocaleDateString("es-ES", { timeZone: DISPLAY_TIME_ZONE }) : "Sin fecha"}
                   </td>
                 </tr>
               ))}
@@ -483,7 +484,7 @@ export default async function SuperAdminBillingPage({ searchParams }: PageProps)
                     <td className="whitespace-nowrap px-5 py-4">
                       <p className="font-medium text-white">{invoice.billingReason ?? "Cobro Stripe"}</p>
                       <p className="mt-1 text-xs text-white/45">
-                        {invoice.createdAt ? new Date(invoice.createdAt).toLocaleDateString("es-ES") : "—"}
+                        {invoice.createdAt ? new Date(invoice.createdAt).toLocaleDateString("es-ES", { timeZone: DISPLAY_TIME_ZONE }) : "—"}
                       </p>
                     </td>
                     <td className="px-5 py-4">
