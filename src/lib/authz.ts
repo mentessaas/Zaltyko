@@ -58,6 +58,11 @@ export function assertSuperAdmin(profile: ProfileRow | null | undefined): void {
 
 const MUTATING_METHODS = new Set(["POST", "PUT", "PATCH", "DELETE"]);
 
+function applyPrivateNoStore(response: Response): Response {
+  response.headers.set("Cache-Control", "private, no-store");
+  return response;
+}
+
 /**
  * La capa edge limita por IP antes de alcanzar la aplicación. Aquí añadimos
  * una segunda clave por tenant solo después de resolver ownership/membership
@@ -124,41 +129,42 @@ export function withSuperAdmin<Ctx extends Record<string, unknown>>(
       const userId = await resolveUserId(request, contextWithParams);
 
       if (!userId) {
-        return NextResponse.json({ error: "UNAUTHENTICATED" }, { status: 401 });
+        return applyPrivateNoStore(NextResponse.json({ error: "UNAUTHENTICATED" }, { status: 401 }));
       }
 
       const profile = await getCurrentProfile(userId);
 
       if (!profile) {
-        return NextResponse.json(
+        return applyPrivateNoStore(NextResponse.json(
           { error: "PROFILE_NOT_FOUND" },
           { status: 404 }
-        );
+        ));
       }
 
       assertSuperAdmin(profile);
 
-      return handler(request, {
+      const response = await handler(request, {
         ...contextWithParams,
         userId,
         profile,
       });
+      return applyPrivateNoStore(response);
     } catch (error) {
       if (error instanceof SuperAdminRequiredError) {
-        return NextResponse.json(
+        return applyPrivateNoStore(NextResponse.json(
           { error: error.code },
           { status: error.statusCode }
-        );
+        ));
       }
 
       logger.error("Error in withSuperAdmin", error);
-      return NextResponse.json(
+      return applyPrivateNoStore(NextResponse.json(
         {
           error: "INTERNAL_ERROR",
           message: "Error interno del servidor",
         },
         { status: 500 }
-      );
+      ));
     }
   };
 }

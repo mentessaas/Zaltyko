@@ -1,12 +1,11 @@
 "use client";
 
 import Link from "next/link";
-import { format } from "date-fns";
-import { es } from "date-fns/locale";
 import { Badge } from "@/components/ui/badge";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { TicketStatus, TicketPriority, TicketCategory } from "./TicketFilters";
+import { formatTicketDate } from "./ticket-date";
 
 interface Ticket {
   id: string;
@@ -40,6 +39,9 @@ interface TicketListProps {
   academyId?: string;
   isAdmin?: boolean;
   emptyMessage?: string;
+  returnTo?: string;
+  /** Optional fixed zone for operational consoles; end-user views keep browser-local dates. */
+  timeZone?: string;
 }
 
 const statusConfig: Record<TicketStatus, { label: string; variant: "default" | "outline" | "success" | "pending" | "error" }> = {
@@ -65,7 +67,14 @@ const categoryConfig: Record<TicketCategory, { label: string }> = {
   other: { label: "Otro" },
 };
 
-export function TicketList({ tickets, academyId, isAdmin = false, emptyMessage = "No hay tickets" }: TicketListProps) {
+export function TicketList({
+  tickets,
+  academyId,
+  isAdmin = false,
+  emptyMessage = "No hay tickets",
+  returnTo,
+  timeZone,
+}: TicketListProps) {
   if (tickets.length === 0) {
     return (
       <Card>
@@ -84,16 +93,21 @@ export function TicketList({ tickets, academyId, isAdmin = false, emptyMessage =
   return (
     <div className="space-y-3">
       {tickets.map((ticket) => {
-        const status = statusConfig[ticket.status];
-        const priority = priorityConfig[ticket.priority];
-        const category = categoryConfig[ticket.category];
+        const status = statusConfig[ticket.status] ?? { label: "Desconocido", variant: "outline" as const };
+        const priority = priorityConfig[ticket.priority] ?? { label: "Sin prioridad", variant: "outline" as const };
+        const category = categoryConfig[ticket.category] ?? { label: "Sin categoría" };
+        const detailHref = isAdmin
+          ? `/super-admin/support/${ticket.id}${returnTo ? `?returnTo=${encodeURIComponent(returnTo)}` : ""}`
+          : academyId
+            ? `/app/${academyId}/support/${ticket.id}`
+            : `/support/${ticket.id}`;
 
         return (
           <Card key={ticket.id} className="hover:shadow-md transition-shadow">
             <CardHeader className="pb-2">
               <div className="flex items-start justify-between gap-4">
                 <div className="flex-1 min-w-0">
-                  <Link href={isAdmin ? `/super-admin/support/${ticket.id}` : academyId ? `/app/${academyId}/support/${ticket.id}` : `/support/${ticket.id}`}>
+                  <Link href={detailHref}>
                     <CardTitle className="text-base hover:text-primary transition-colors truncate">
                       {ticket.title}
                     </CardTitle>
@@ -112,7 +126,7 @@ export function TicketList({ tickets, academyId, isAdmin = false, emptyMessage =
                 <Badge variant={status.variant}>{status.label}</Badge>
                 <span>{category.label}</span>
                 <span>
-                  Creado: {format(new Date(ticket.createdAt), "d MMM yyyy", { locale: es })}
+                  Creado: {formatTicketDate(ticket.createdAt, { timeZone })}
                 </span>
                 {ticket._count && (
                   <span>{ticket._count.responses} respuesta(s)</span>

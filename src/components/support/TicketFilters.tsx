@@ -1,9 +1,11 @@
 "use client";
 
 import { useRouter, useSearchParams } from "next/navigation";
-import { useCallback } from "react";
+import { useCallback, useEffect, useState } from "react";
+import type { FormEvent } from "react";
 import { Button } from "@/components/ui/button";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { Search } from "lucide-react";
 
 export type TicketStatus = "open" | "in_progress" | "waiting" | "resolved" | "closed";
 export type TicketPriority = "low" | "medium" | "high" | "urgent";
@@ -13,9 +15,11 @@ interface TicketFiltersProps {
   currentStatus?: TicketStatus;
   currentPriority?: TicketPriority;
   currentCategory?: TicketCategory;
+  currentSearch?: string;
   showStatus?: boolean;
   showPriority?: boolean;
   showCategory?: boolean;
+  showSearch?: boolean;
 }
 
 const statusOptions: { value: TicketStatus; label: string }[] = [
@@ -45,12 +49,19 @@ export function TicketFilters({
   currentStatus,
   currentPriority,
   currentCategory,
+  currentSearch = "",
   showStatus = true,
   showPriority = true,
   showCategory = true,
+  showSearch = false,
 }: TicketFiltersProps) {
   const router = useRouter();
   const searchParams = useSearchParams();
+  const [searchInput, setSearchInput] = useState(currentSearch);
+
+  useEffect(() => {
+    setSearchInput(currentSearch);
+  }, [currentSearch]);
 
   const updateFilter = useCallback(
     (key: string, value: string) => {
@@ -60,6 +71,8 @@ export function TicketFilters({
       } else {
         params.delete(key);
       }
+      // A new filter always starts at the first result page.
+      params.delete("page");
       router.push(`?${params.toString()}`);
     },
     [router, searchParams]
@@ -69,18 +82,51 @@ export function TicketFilters({
     router.push(window.location.pathname);
   }, [router]);
 
-  const hasFilters = currentStatus || currentPriority || currentCategory;
+  const submitSearch = useCallback(
+    (event: FormEvent<HTMLFormElement>) => {
+      event.preventDefault();
+      updateFilter("q", searchInput.trim());
+    },
+    [searchInput, updateFilter]
+  );
+
+  const hasFilters = currentStatus || currentPriority || currentCategory || currentSearch;
 
   return (
     <div className="flex flex-wrap items-center gap-3 p-4 bg-card rounded-lg border">
+      {showSearch && (
+        <form onSubmit={submitSearch} className="flex min-w-[min(100%,18rem)] flex-1 flex-col gap-1 sm:max-w-sm">
+          <label htmlFor="support-search-filter" className="text-xs font-medium text-muted-foreground">
+            Buscar tickets
+          </label>
+          <div className="flex gap-2">
+            <div className="relative min-w-0 flex-1">
+              <Search className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" aria-hidden="true" />
+              <input
+                id="support-search-filter"
+                type="search"
+                value={searchInput}
+                onChange={(event) => setSearchInput(event.target.value)}
+                placeholder="Título, academia o usuario"
+                maxLength={160}
+                className="h-10 w-full rounded-md border border-input bg-background pl-9 pr-3 text-sm outline-none transition focus-visible:ring-2 focus-visible:ring-ring"
+              />
+            </div>
+            <Button type="submit" size="sm" className="h-10 shrink-0 gap-2">
+              <Search className="h-4 w-4" aria-hidden="true" />
+              Buscar
+            </Button>
+          </div>
+        </form>
+      )}
       {showStatus && (
         <div className="flex flex-col gap-1">
-          <label className="text-xs font-medium text-muted-foreground">Estado</label>
+          <label htmlFor="support-status-filter" className="text-xs font-medium text-muted-foreground">Estado</label>
           <Select
             value={currentStatus || "all"}
             onValueChange={(value) => updateFilter("status", value)}
           >
-            <SelectTrigger className="w-[160px]">
+            <SelectTrigger id="support-status-filter" aria-label="Filtrar tickets por estado" className="w-[160px]">
               <SelectValue placeholder="Todos los estados" />
             </SelectTrigger>
             <SelectContent>
@@ -97,12 +143,12 @@ export function TicketFilters({
 
       {showPriority && (
         <div className="flex flex-col gap-1">
-          <label className="text-xs font-medium text-muted-foreground">Prioridad</label>
+          <label htmlFor="support-priority-filter" className="text-xs font-medium text-muted-foreground">Prioridad</label>
           <Select
             value={currentPriority || "all"}
             onValueChange={(value) => updateFilter("priority", value)}
           >
-            <SelectTrigger className="w-[160px]">
+            <SelectTrigger id="support-priority-filter" aria-label="Filtrar tickets por prioridad" className="w-[160px]">
               <SelectValue placeholder="Todas las prioridades" />
             </SelectTrigger>
             <SelectContent>
@@ -119,12 +165,12 @@ export function TicketFilters({
 
       {showCategory && (
         <div className="flex flex-col gap-1">
-          <label className="text-xs font-medium text-muted-foreground">Categoría</label>
+          <label htmlFor="support-category-filter" className="text-xs font-medium text-muted-foreground">Categoría</label>
           <Select
             value={currentCategory || "all"}
             onValueChange={(value) => updateFilter("category", value)}
           >
-            <SelectTrigger className="w-[180px]">
+            <SelectTrigger id="support-category-filter" aria-label="Filtrar tickets por categoría" className="w-[180px]">
               <SelectValue placeholder="Todas las categorías" />
             </SelectTrigger>
             <SelectContent>

@@ -234,7 +234,7 @@ export const POST = withTenant(async (request, context) => {
       });
 
       // Push notification
-      sendPushToUser(recipientId, {
+      sendPushToUser(recipient.userId, {
         title: "Nuevo mensaje",
         body: content.substring(0, 100),
         icon: "/icons/icon-192x192.png",

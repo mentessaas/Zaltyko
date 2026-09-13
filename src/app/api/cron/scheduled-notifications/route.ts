@@ -35,7 +35,7 @@ async function processNotification(
     templateId: string | null;
     groupId: string | null;
   },
-  recipients: Array<{ userId: string; email?: string; name?: string; phone?: string }>
+  recipients: Array<{ profileId: string; authUserId: string; email?: string; name?: string; phone?: string }>
 ): Promise<{ sent: number; failed: number }> {
   let template = null;
   let sent = 0;
@@ -53,7 +53,7 @@ async function processNotification(
           if (template) {
             await createNotification({
               tenantId: notification.tenantId,
-              userId: recipient.userId,
+              userId: recipient.profileId,
               type: template.templateType,
               title: interpolateTemplate(template.subject || template.name, variables),
               message: interpolateTemplate(template.body, variables),
@@ -63,12 +63,16 @@ async function processNotification(
           break;
 
         case "push":
-          if (template) {
-            await sendPushToUser(recipient.userId, {
+          if (template && recipient.authUserId) {
+            const delivery = await sendPushToUser(recipient.authUserId, {
               title: interpolateTemplate(template.subject || template.name, variables),
               body: interpolateTemplate(template.body, variables),
             });
-            sent++;
+            if (delivery.sent > 0 && delivery.failed === 0) {
+              sent++;
+            } else {
+              failed++;
+            }
           }
           break;
 
@@ -119,7 +123,12 @@ export async function POST(request: Request) {
       try {
         // For now, get recipients from the notification's group or a default
         // In a full implementation, you'd query the group members
-        const recipients: Array<{ userId: string; email?: string; name?: string }> = [];
+        const recipients: Array<{
+          profileId: string;
+          authUserId: string;
+          email?: string;
+          name?: string;
+        }> = [];
 
         if (notification.groupId) {
           // Query group members - placeholder
@@ -143,7 +152,8 @@ export async function POST(request: Request) {
             adminProfiles.map(async (profile) => {
               const profileWithTestEmail = profile as typeof profile & { email?: string | null };
               return {
-                userId: profile.id,
+                profileId: profile.id,
+                authUserId: profile.userId,
                 name: profile.name || undefined,
                 email:
                   profileWithTestEmail.email !== undefined

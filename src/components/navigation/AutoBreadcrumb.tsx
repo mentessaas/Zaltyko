@@ -5,6 +5,7 @@ import { useContext } from "react";
 import { Breadcrumb } from "@/components/ui/breadcrumb";
 import { AcademyContext } from "@/hooks/use-academy-context";
 import { getAcademyBreadcrumbLabel, getGlobalBreadcrumbLabel } from "@/lib/navigation/registry";
+import { isSuperAdminPath } from "@/lib/navigation/active";
 
 // Mapeo de rutas a nombres legibles
 const routeLabels: Record<string, string> = {
@@ -105,7 +106,7 @@ export function AutoBreadcrumb() {
   }
 
   // Detectar si estamos en super-admin (fondo oscuro)
-  const isSuperAdmin = pathname.startsWith("/super-admin");
+  const isSuperAdmin = isSuperAdminPath(pathname);
   
   return (
     <div className={isSuperAdmin ? "mb-4" : "mb-4"}>

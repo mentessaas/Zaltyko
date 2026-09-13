@@ -10,6 +10,7 @@ import { apiSuccess, apiError } from "@/lib/api-response";
 import { db } from "@/db";
 import { announcements as announcementsTable, announcementReadStatus } from "@/db/schema/announcements";
 import { memberships } from "@/db/schema/memberships";
+import { profiles } from "@/db/schema/profiles";
 import { createNotification } from "@/lib/notifications/notification-service";
 import { sendPushToUser } from "@/lib/notifications/push-service";
 import { logger } from "@/lib/logger";
@@ -221,19 +222,26 @@ export const POST = withTenant(async (request, context) => {
     // Get all academy members to notify
     const members = await db
       .select({
-        userId: memberships.userId,
+        profileId: profiles.id,
+        authUserId: profiles.userId,
       })
       .from(memberships)
-      .where(eq(memberships.academyId, academyId));
+      .innerJoin(profiles, eq(memberships.userId, profiles.userId))
+      .where(
+        and(
+          eq(memberships.academyId, academyId),
+          eq(profiles.tenantId, context.tenantId)
+        )
+      );
 
     // Send notifications to all members
     let notifiedCount = 0;
     for (const member of members) {
-      if (member.userId === profile.userId) continue; // Don't notify self
+      if (member.authUserId === profile.userId) continue; // Don't notify self
 
       // In-app notification
       await createNotification({
-        userId: member.userId,
+        userId: member.profileId,
         tenantId: context.tenantId,
         type: "announcement",
         title: `Nuevo anuncio: ${title}`,
@@ -247,7 +255,7 @@ export const POST = withTenant(async (request, context) => {
 
       // Push notification for high priority
       if (priority === "high" || priority === "urgent") {
-        sendPushToUser(member.userId, {
+        sendPushToUser(member.authUserId, {
           title: `Nuevo anuncio${priority === "urgent" ? " urgente" : ""}: ${title}`,
           body: content.substring(0, 100),
           icon: "/icons/icon-192x192.png",

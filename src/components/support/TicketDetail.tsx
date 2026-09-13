@@ -1,15 +1,16 @@
 "use client";
 
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import Link from "next/link";
-import { format } from "date-fns";
-import { es } from "date-fns/locale";
+import { useRouter } from "next/navigation";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Separator } from "@/components/ui/separator";
 import { TicketResponseForm } from "./TicketResponse";
 import { TicketStatus, TicketPriority, TicketCategory } from "./TicketFilters";
+import { useToast } from "@/components/ui/toast-provider";
+import { formatTicketDate } from "./ticket-date";
 
 interface Ticket {
   id: string;
@@ -36,6 +37,7 @@ interface Ticket {
     id: string;
     name: string;
   };
+  responsesTruncated?: boolean;
   responses: TicketResponse[];
 }
 
@@ -62,8 +64,11 @@ interface TicketDetailProps {
   ticket: Ticket;
   currentUserId: string;
   isAdmin?: boolean;
-  onStatusChange?: (newStatus: TicketStatus) => Promise<void>;
+  onStatusChange?: (newStatus: TicketStatus) => Promise<void | boolean>;
   onAssign?: (userId: string) => Promise<void>;
+  backHref?: string;
+  /** Optional fixed zone for operational consoles; end-user views keep browser-local dates. */
+  timeZone?: string;
 }
 
 const statusConfig: Record<TicketStatus, { label: string; variant: "default" | "outline" | "success" | "pending" | "error" }> = {
@@ -89,31 +94,71 @@ const categoryConfig: Record<TicketCategory, { label: string }> = {
   other: { label: "Otro" },
 };
 
-export function TicketDetail({ ticket, currentUserId, isAdmin = false, onStatusChange, onAssign }: TicketDetailProps) {
+export function TicketDetail({
+  ticket,
+  currentUserId,
+  isAdmin = false,
+  onStatusChange,
+  onAssign,
+  backHref,
+  timeZone,
+}: TicketDetailProps) {
   const [isUpdating, setIsUpdating] = useState(false);
+  const [currentStatus, setCurrentStatus] = useState<TicketStatus>(ticket.status);
+  const router = useRouter();
+  const { pushToast } = useToast();
 
-  const status = statusConfig[ticket.status];
-  const priority = priorityConfig[ticket.priority];
-  const category = categoryConfig[ticket.category];
+  useEffect(() => {
+    setCurrentStatus(ticket.status);
+  }, [ticket.status]);
+
+  const status = statusConfig[currentStatus] ?? { label: "Desconocido", variant: "outline" as const };
+  const priority = priorityConfig[ticket.priority] ?? { label: "Sin prioridad", variant: "outline" as const };
+  const category = categoryConfig[ticket.category] ?? { label: "Sin categoría" };
+  const backLink = backHref ?? (isAdmin ? "/super-admin/support" : "/support");
 
   const handleStatusChange = async (newStatus: TicketStatus) => {
     if (!onStatusChange) return;
+    const previousStatus = currentStatus;
     setIsUpdating(true);
+    setCurrentStatus(newStatus);
     try {
-      await onStatusChange(newStatus);
+      const result = await onStatusChange(newStatus);
+      if (result === false) {
+        setCurrentStatus(previousStatus);
+        pushToast({
+          title: "No se pudo actualizar el ticket",
+          description: "El estado no ha cambiado. Vuelve a intentarlo.",
+          variant: "error",
+        });
+        return;
+      }
+      pushToast({
+        title: "Estado actualizado",
+        description: `El ticket ahora está ${statusConfig[newStatus]?.label.toLowerCase() ?? newStatus}.`,
+        variant: "success",
+      });
+      router.refresh();
+    } catch (error) {
+      setCurrentStatus(previousStatus);
+      pushToast({
+        title: "No se pudo actualizar el ticket",
+        description: error instanceof Error ? error.message : "Vuelve a intentarlo.",
+        variant: "error",
+      });
     } finally {
       setIsUpdating(false);
     }
   };
 
-  const canRespond = ticket.status !== "closed" && ticket.status !== "resolved";
+  const canRespond = currentStatus !== "closed" && currentStatus !== "resolved";
   const isOwner = ticket.createdBy.id === currentUserId;
 
   return (
     <div className="space-y-6">
       <div className="flex items-start justify-between gap-4">
         <div>
-          <Link href={isAdmin ? "/super-admin/support" : "/support"}>
+          <Link href={backLink}>
             <Button variant="ghost" size="sm" className="mb-2">
               ← Volver
             </Button>
@@ -141,7 +186,7 @@ export function TicketDetail({ ticket, currentUserId, isAdmin = false, onStatusC
           </div>
           <div>
             <span className="text-muted-foreground">Fecha:</span>
-            <p className="font-medium">{format(new Date(ticket.createdAt), "d MMM yyyy", { locale: es })}</p>
+            <p className="font-medium">{formatTicketDate(ticket.createdAt, { timeZone })}</p>
           </div>
           {ticket.assignedTo && (
             <div>
@@ -170,6 +215,11 @@ export function TicketDetail({ ticket, currentUserId, isAdmin = false, onStatusC
       {ticket.responses.length > 0 && (
         <div className="space-y-4">
           <h2 className="text-lg font-semibold">Respuestas ({ticket.responses.length})</h2>
+          {ticket.responsesTruncated && (
+            <p className="rounded-md border border-amber-200 bg-amber-50 px-3 py-2 text-sm text-amber-900">
+              Se muestran las 500 respuestas más recientes de este ticket.
+            </p>
+          )}
           {ticket.responses.map((response) => (
             <Card key={response.id} className={response.isInternal ? "border-yellow-300 bg-yellow-50" : ""}>
               <CardHeader className="pb-2">
@@ -181,7 +231,7 @@ export function TicketDetail({ ticket, currentUserId, isAdmin = false, onStatusC
                     )}
                   </div>
                   <span className="text-xs text-muted-foreground">
-                    {format(new Date(response.createdAt), "d MMM yyyy 'a las' HH:mm", { locale: es })}
+                    {formatTicketDate(response.createdAt, { withTime: true, timeZone })}
                   </span>
                 </div>
               </CardHeader>
@@ -215,16 +265,17 @@ export function TicketDetail({ ticket, currentUserId, isAdmin = false, onStatusC
         <TicketResponseForm
           ticketId={ticket.id}
           isAdmin={isAdmin}
+          onSuccess={() => router.refresh()}
         />
       )}
 
-      {isAdmin && onStatusChange && ticket.status !== "closed" && (
+      {isAdmin && onStatusChange && currentStatus !== "closed" && (
         <Card>
           <CardHeader>
             <CardTitle>Acciones de administrador</CardTitle>
           </CardHeader>
           <CardContent className="flex flex-wrap gap-2">
-            {ticket.status === "open" && (
+            {currentStatus === "open" && (
               <Button
                 variant="outline"
                 onClick={() => handleStatusChange("in_progress")}
@@ -233,7 +284,7 @@ export function TicketDetail({ ticket, currentUserId, isAdmin = false, onStatusC
                 Marcar En Progreso
               </Button>
             )}
-            {(ticket.status === "open" || ticket.status === "in_progress") && (
+            {(currentStatus === "open" || currentStatus === "in_progress") && (
               <Button
                 variant="outline"
                 onClick={() => handleStatusChange("waiting")}
@@ -242,7 +293,7 @@ export function TicketDetail({ ticket, currentUserId, isAdmin = false, onStatusC
                 Esperar Respuesta
               </Button>
             )}
-            {(ticket.status as string) !== "resolved" && (ticket.status as string) !== "closed" && (
+            {currentStatus !== "resolved" && (
               <>
                 <Button
                   variant="default"
@@ -260,7 +311,7 @@ export function TicketDetail({ ticket, currentUserId, isAdmin = false, onStatusC
                 </Button>
               </>
             )}
-            {(ticket.status === "resolved" || ticket.status === "waiting") && (
+            {(currentStatus === "resolved" || currentStatus === "waiting") && (
               <Button
                 variant="outline"
                 onClick={() => handleStatusChange("open")}

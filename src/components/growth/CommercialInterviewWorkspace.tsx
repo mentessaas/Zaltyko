@@ -1,8 +1,17 @@
 "use client";
 
 import { useState } from "react";
+import Link from "next/link";
 import { useRouter } from "next/navigation";
-import { CalendarPlus, CheckCircle2, Loader2, Pencil, RotateCcw } from "lucide-react";
+import {
+  CalendarPlus,
+  CheckCircle2,
+  ChevronLeft,
+  ChevronRight,
+  Loader2,
+  Pencil,
+  RotateCcw,
+} from "lucide-react";
 
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -21,6 +30,10 @@ import type { CommercialInterviewRow, CommercialLeadRow } from "@/lib/growth/das
 
 interface CommercialInterviewWorkspaceProps {
   interviews: CommercialInterviewRow[];
+  interviewsPage: number;
+  interviewsPageSize: number;
+  interviewsTotal: number;
+  interviewsTotalPages: number;
   leads: CommercialLeadRow[];
 }
 
@@ -58,7 +71,14 @@ function statusBadge(status: string) {
   return <Badge variant="outline">Cancelada</Badge>;
 }
 
-export function CommercialInterviewWorkspace({ interviews, leads }: CommercialInterviewWorkspaceProps) {
+export function CommercialInterviewWorkspace({
+  interviews,
+  interviewsPage,
+  interviewsPageSize,
+  interviewsTotal,
+  interviewsTotalPages,
+  leads,
+}: CommercialInterviewWorkspaceProps) {
   const router = useRouter();
   const [editing, setEditing] = useState<CommercialInterviewRow | null>(null);
   const [status, setStatus] = useState("scheduled");
@@ -300,6 +320,9 @@ export function CommercialInterviewWorkspace({ interviews, leads }: CommercialIn
           <p className="text-xs uppercase tracking-[0.2em] text-white/65">Registro verificable</p>
           <h2 className="mt-1 font-display text-xl font-semibold text-white">Academias entrevistadas</h2>
           <p className="mt-2 text-sm text-white/50">Programar no suma al 10/10. Solo “Completada” con evidencia mínima cuenta.</p>
+          <p className="mt-2 text-xs text-white/45">
+            {interviewsTotal.toLocaleString("es-ES")} registros · página {interviewsPage} de {interviewsTotalPages} · hasta {interviewsPageSize} por página
+          </p>
         </div>
         <div className="mt-6 overflow-hidden rounded-xl border border-white/10 bg-card">
           <Table>
@@ -319,6 +342,34 @@ export function CommercialInterviewWorkspace({ interviews, leads }: CommercialIn
             </TableBody>
           </Table>
         </div>
+        {interviewsTotalPages > 1 && (
+          <nav className="mt-4 flex items-center justify-between gap-3" aria-label="Paginación de entrevistas comerciales">
+            <span className="text-xs text-white/45">
+              Mostrando {(interviewsPage - 1) * interviewsPageSize + 1}–{Math.min(interviewsPage * interviewsPageSize, interviewsTotal)} de {interviewsTotal}
+            </span>
+            <div className="flex items-center gap-2">
+              <Link
+                href={`/super-admin/growth?interviewPage=${Math.max(1, interviewsPage - 1)}`}
+                aria-label="Ir a la página anterior de entrevistas"
+                aria-disabled={interviewsPage <= 1}
+                tabIndex={interviewsPage <= 1 ? -1 : 0}
+                className={`inline-flex min-h-10 min-w-10 items-center justify-center rounded-lg border border-white/15 text-white transition hover:bg-white/10 ${interviewsPage <= 1 ? "pointer-events-none opacity-40" : ""}`}
+              >
+                <ChevronLeft className="h-4 w-4" aria-hidden="true" />
+              </Link>
+              <span className="min-w-16 text-center text-xs text-white/60">{interviewsPage} / {interviewsTotalPages}</span>
+              <Link
+                href={`/super-admin/growth?interviewPage=${Math.min(interviewsTotalPages, interviewsPage + 1)}`}
+                aria-label="Ir a la página siguiente de entrevistas"
+                aria-disabled={interviewsPage >= interviewsTotalPages}
+                tabIndex={interviewsPage >= interviewsTotalPages ? -1 : 0}
+                className={`inline-flex min-h-10 min-w-10 items-center justify-center rounded-lg border border-white/15 text-white transition hover:bg-white/10 ${interviewsPage >= interviewsTotalPages ? "pointer-events-none opacity-40" : ""}`}
+              >
+                <ChevronRight className="h-4 w-4" aria-hidden="true" />
+              </Link>
+            </div>
+          </nav>
+        )}
       </article>
     </section>
   );

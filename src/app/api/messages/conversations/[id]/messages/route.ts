@@ -13,6 +13,7 @@ import {
   conversationMessages,
 } from "@/db/schema/direct-messages";
 import { db } from "@/db";
+import { profiles } from "@/db/schema/profiles";
 import { sendPushToUser } from "@/lib/notifications/push-service";
 import { createNotification } from "@/lib/notifications/notification-service";
 import { trackEvent } from "@/lib/analytics";
@@ -239,11 +240,13 @@ export const POST = withTenant(async (request: Request, context: RouteContext) =
     // Get all other participants
     const otherParticipants = await db
       .select({
-        userId: conversationParticipants.userId,
+        profileId: conversationParticipants.userId,
+        authUserId: profiles.userId,
         notificationsEnabled: conversationParticipants.notificationsEnabled,
         mutedUntil: conversationParticipants.mutedUntil,
       })
       .from(conversationParticipants)
+      .innerJoin(profiles, eq(conversationParticipants.userId, profiles.id))
       .where(
         and(
           eq(conversationParticipants.conversationId, conversationId),
@@ -253,12 +256,14 @@ export const POST = withTenant(async (request: Request, context: RouteContext) =
 
     // Send notifications to other participants
     const notificationsToSend: Array<{
-      userId: string;
+      profileId: string;
+      authUserId: string;
       type: "in_app" | "push";
       enabled: boolean;
       muted: boolean;
     }> = otherParticipants.map((p) => ({
-      userId: p.userId,
+      profileId: p.profileId,
+      authUserId: p.authUserId,
       type: p.notificationsEnabled === "true" ? "in_app" : "in_app",
       enabled: p.notificationsEnabled === "true",
       muted: p.mutedUntil ? new Date(p.mutedUntil) > new Date() : false,
@@ -274,7 +279,7 @@ export const POST = withTenant(async (request: Request, context: RouteContext) =
 
       // In-app notification
       await createNotification({
-        userId: p.userId,
+        userId: p.profileId,
         tenantId: conversation?.tenantId || "",
         type: "new_message",
         title: "Nuevo mensaje",
@@ -288,7 +293,7 @@ export const POST = withTenant(async (request: Request, context: RouteContext) =
       });
 
       // Push notification (fire and forget)
-      sendPushToUser(p.userId, {
+      sendPushToUser(p.authUserId, {
         title: "Nuevo mensaje",
         body: content.substring(0, 100),
         icon: "/icons/icon-192x192.png",

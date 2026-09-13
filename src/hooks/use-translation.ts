@@ -51,16 +51,23 @@ function getInitialLocale(): Locale {
 }
 
 export function useTranslation(localeProp?: Locale) {
-  const [locale, setLocaleState] = useState<Locale>(() => {
-    if (localeProp) return localeProp;
-    return getInitialLocale();
-  });
+  // Keep the first render identical on server and client. Browser storage and
+  // navigator.language are only read after hydration to avoid React mismatches.
+  const [locale, setLocaleState] = useState<Locale>(() => localeProp ?? defaultLocale);
 
-  // Sync with prop changes
+  // Sync with an explicit prop or the user's persisted/browser locale after mount.
   useEffect(() => {
-    if (localeProp && localeProp !== locale) {
-      setLocaleState(localeProp);
-      setStoredLocale(localeProp);
+    if (localeProp) {
+      if (localeProp !== locale) {
+        setLocaleState(localeProp);
+        setStoredLocale(localeProp);
+      }
+      return;
+    }
+
+    const detectedLocale = getInitialLocale();
+    if (detectedLocale !== locale) {
+      setLocaleState(detectedLocale);
     }
   }, [localeProp, locale]);
 

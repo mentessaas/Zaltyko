@@ -52,7 +52,6 @@ export default defineConfig({
             "tests/quick-actions-modal-contract.test.tsx",
             "tests/api-academy-settings-sport-config.test.ts",
             "tests/api-athletes.test.ts",
-            "tests/product-roles-navigation.test.ts",
             "tests/api/cron-class-reminders.test.ts",
             "tests/audit/public-claims.catalog.test.ts",
           ],

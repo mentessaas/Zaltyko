@@ -31,6 +31,17 @@ import { cn } from "@/lib/utils";
 import { formatAcademyType } from "@/lib/formatters";
 import { useToast } from "@/components/ui/toast-provider";
 import { logger } from "@/lib/logger";
+import { ConfirmDialog } from "@/components/ui/confirm-dialog";
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+} from "@/components/ui/dialog";
+
+const DISPLAY_TIME_ZONE = "Europe/Madrid";
 
 interface UserMembership {
   id: string;
@@ -81,6 +92,7 @@ interface Plan {
 interface SuperAdminUserDetailProps {
   initialUser: UserDetail;
   userId: string;
+  backHref?: string;
 }
 
 function formatRole(role: string | null) {
@@ -105,7 +117,7 @@ function formatRole(role: string | null) {
 
 const ROLE_OPTIONS = ["owner", "admin", "coach", "athlete", "parent", "super_admin"] as const;
 
-export function SuperAdminUserDetail({ initialUser, userId }: SuperAdminUserDetailProps) {
+export function SuperAdminUserDetail({ initialUser, userId, backHref = "/super-admin/users" }: SuperAdminUserDetailProps) {
   const router = useRouter();
   const toast = useToast();
   const [user, setUser] = useState<UserDetail>(initialUser);
@@ -114,6 +126,7 @@ export function SuperAdminUserDetail({ initialUser, userId }: SuperAdminUserDeta
   const [plans, setPlans] = useState<Plan[]>([]);
   const [sendingMessage, setSendingMessage] = useState(false);
   const [activatingAccess, setActivatingAccess] = useState(false);
+  const [athleteAccessDialogOpen, setAthleteAccessDialogOpen] = useState(false);
   const [planViolations, setPlanViolations] = useState<{
     violations: Array<{
       resource: string;
@@ -123,6 +136,8 @@ export function SuperAdminUserDetail({ initialUser, userId }: SuperAdminUserDeta
     }>;
     requiresAction: boolean;
   } | null>(null);
+  const [forcePlanDialogOpen, setForcePlanDialogOpen] = useState(false);
+  const [suspensionDialogOpen, setSuspensionDialogOpen] = useState(false);
   const [messageForm, setMessageForm] = useState({
     subject: "",
     message: "",
@@ -167,11 +182,11 @@ export function SuperAdminUserDetail({ initialUser, userId }: SuperAdminUserDeta
     window.location.href = `mailto:${user.email}?subject=Contacto desde Zaltyko`;
   };
 
-  const handleActivateAthleteAccess = async () => {
-    if (!confirm("¿Estás seguro de activar el acceso de este atleta? Se enviará un correo de invitación.")) {
-      return;
-    }
+  const handleActivateAthleteAccess = () => {
+    setAthleteAccessDialogOpen(true);
+  };
 
+  const executeActivateAthleteAccess = async (): Promise<boolean> => {
     setActivatingAccess(true);
     try {
       const response = await fetch("/api/super-admin/athletes/activate-access", {
@@ -194,7 +209,7 @@ export function SuperAdminUserDetail({ initialUser, userId }: SuperAdminUserDeta
           description: data.message || data.error || "Error desconocido",
           variant: "error",
         });
-        return;
+        return false;
       }
 
       toast.pushToast({
@@ -202,11 +217,8 @@ export function SuperAdminUserDetail({ initialUser, userId }: SuperAdminUserDeta
         description: data.message || "Acceso activado correctamente.",
         variant: "success",
       });
-      
-      // Refresh user data
+
       const refreshResponse = await fetch(`/api/super-admin/users/${user.id}`, {
-        headers: {
-        },
         cache: "no-store",
       });
 
@@ -216,6 +228,7 @@ export function SuperAdminUserDetail({ initialUser, userId }: SuperAdminUserDeta
       }
 
       router.refresh();
+      return true;
     } catch (error) {
       logger.error("Error activating athlete access", error);
       toast.pushToast({
@@ -223,6 +236,7 @@ export function SuperAdminUserDetail({ initialUser, userId }: SuperAdminUserDeta
         description: "Inténtalo de nuevo en unos segundos.",
         variant: "error",
       });
+      return false;
     } finally {
       setActivatingAccess(false);
     }
@@ -266,7 +280,7 @@ export function SuperAdminUserDetail({ initialUser, userId }: SuperAdminUserDeta
       const result = await response.json();
       toast.pushToast({
         title: "Mensaje enviado",
-        description: result.message || "Mensaje enviado correctamente.",
+        description: result.data?.message || result.message || "Mensaje enviado correctamente.",
         variant: "success",
       });
       setMessageForm({ subject: "", message: "", type: "email" });
@@ -288,6 +302,15 @@ export function SuperAdminUserDetail({ initialUser, userId }: SuperAdminUserDeta
       toast.pushToast({ title: "Indica el motivo", description: "Los cambios de acceso requieren un motivo de al menos 5 caracteres.", variant: "warning" });
       return;
     }
+    const normalizedEmail = formData.email.trim();
+    if (user.email && !normalizedEmail) {
+      toast.pushToast({
+        title: "Correo requerido",
+        description: "No se puede borrar el correo de una cuenta de acceso. Introduce otro correo o cancela el cambio.",
+        variant: "warning",
+      });
+      return;
+    }
     setSaving(true);
     try {
       const response = await fetch(`/api/super-admin/users/${user.id}`, {
@@ -297,7 +320,7 @@ export function SuperAdminUserDetail({ initialUser, userId }: SuperAdminUserDeta
         },
         body: JSON.stringify({
           name: formData.name.trim() || null,
-          email: formData.email.trim() || null,
+          ...(normalizedEmail ? { email: normalizedEmail } : {}),
           role: formData.role || null,
           isSuspended: formData.isSuspended,
           planId: formData.planId || null,
@@ -306,7 +329,7 @@ export function SuperAdminUserDetail({ initialUser, userId }: SuperAdminUserDeta
       });
 
       if (!response.ok) {
-        let errorData: { error?: string; violations?: unknown; requiresAction?: boolean };
+        let errorData: { error?: string; details?: { violations?: unknown; requiresAction?: boolean } };
         try {
           errorData = await response.json();
         } catch {
@@ -315,15 +338,19 @@ export function SuperAdminUserDetail({ initialUser, userId }: SuperAdminUserDeta
         }
         
         // Handle plan limit violations
-        if (errorData.error === "PLAN_LIMIT_VIOLATIONS" && errorData.violations) {
+        const violationPayload = errorData.details as {
+          violations?: unknown;
+          requiresAction?: boolean;
+        } | undefined;
+        if (errorData.error === "PLAN_LIMIT_VIOLATIONS" && violationPayload?.violations) {
           setPlanViolations({
-            violations: errorData.violations as Array<{
+            violations: violationPayload.violations as Array<{
               resource: string;
               currentCount: number;
               limit: number | null;
               items: Array<{ id: string; name: string | null }>;
             }>,
-            requiresAction: errorData.requiresAction ?? true,
+            requiresAction: violationPayload.requiresAction ?? true,
           });
           return;
         }
@@ -372,9 +399,14 @@ export function SuperAdminUserDetail({ initialUser, userId }: SuperAdminUserDeta
     }
   };
 
-  const handleForcePlanChange = async () => {
-    if (!confirm("¿Estás seguro de cambiar el plan aunque exceda los límites? El usuario deberá ajustar manualmente sus academias.")) {
-      return;
+  const handleForcePlanChange = async (reason?: string): Promise<boolean> => {
+    if (!reason || reason.trim().length < 5) {
+      toast.pushToast({
+        title: "Indica el motivo",
+        description: "Los cambios forzados de plan requieren un motivo de al menos 5 caracteres.",
+        variant: "warning",
+      });
+      return false;
     }
 
     setSaving(true);
@@ -387,6 +419,7 @@ export function SuperAdminUserDetail({ initialUser, userId }: SuperAdminUserDeta
         body: JSON.stringify({
           planId: formData.planId || null,
           force: true,
+          reason: reason.trim(),
         }),
       });
 
@@ -397,12 +430,10 @@ export function SuperAdminUserDetail({ initialUser, userId }: SuperAdminUserDeta
           description: error || "Inténtalo de nuevo en unos segundos.",
           variant: "error",
         });
-        return;
+        return false;
       }
 
       const refreshResponse = await fetch(`/api/super-admin/users/${user.id}`, {
-        headers: {
-        },
         cache: "no-store",
       });
 
@@ -422,6 +453,7 @@ export function SuperAdminUserDetail({ initialUser, userId }: SuperAdminUserDeta
         variant: "success",
       });
       router.refresh();
+      return true;
     } catch (error) {
       logger.error("Error forcing plan change", error);
       toast.pushToast({
@@ -429,18 +461,25 @@ export function SuperAdminUserDetail({ initialUser, userId }: SuperAdminUserDeta
         description: "Inténtalo de nuevo en unos segundos.",
         variant: "error",
       });
+      return false;
     } finally {
       setSaving(false);
     }
   };
+  const handleToggleSuspension = () => {
+    if (user.role === "super_admin") return;
+    setSuspensionDialogOpen(true);
+  };
 
-  const handleToggleSuspension = async () => {
-    if (actionReason.trim().length < 5) {
-      toast.pushToast({ title: "Indica el motivo", description: "Suspender o reactivar requiere un motivo de al menos 5 caracteres.", variant: "warning" });
-      return;
-    }
-    if (!confirm(formData.isSuspended ? "¿Reactivar al usuario?" : "¿Suspender al usuario?")) {
-      return;
+  const executeToggleSuspension = async (reason?: string): Promise<boolean> => {
+    const trimmedReason = reason?.trim() ?? "";
+    if (trimmedReason.length < 5) {
+      toast.pushToast({
+        title: "Indica el motivo",
+        description: "Suspender o reactivar requiere un motivo de al menos 5 caracteres.",
+        variant: "warning",
+      });
+      return false;
     }
 
     setSaving(true);
@@ -451,8 +490,8 @@ export function SuperAdminUserDetail({ initialUser, userId }: SuperAdminUserDeta
           "Content-Type": "application/json",
         },
         body: JSON.stringify({
-          isSuspended: !formData.isSuspended,
-          reason: actionReason.trim(),
+          isSuspended: !user.isSuspended,
+          reason: trimmedReason,
         }),
       });
 
@@ -463,12 +502,10 @@ export function SuperAdminUserDetail({ initialUser, userId }: SuperAdminUserDeta
           description: error || "Inténtalo de nuevo en unos segundos.",
           variant: "error",
         });
-        return;
+        return false;
       }
 
       const refreshResponse = await fetch(`/api/super-admin/users/${user.id}`, {
-        headers: {
-        },
         cache: "no-store",
       });
 
@@ -476,8 +513,10 @@ export function SuperAdminUserDetail({ initialUser, userId }: SuperAdminUserDeta
         const { data: refreshed } = await refreshResponse.json();
         setUser(refreshed);
         setFormData({ ...formData, isSuspended: refreshed.isSuspended });
-        router.refresh();
       }
+      setActionReason("");
+      router.refresh();
+      return true;
     } catch (error) {
       logger.error("Error toggling suspension", error);
       toast.pushToast({
@@ -485,11 +524,11 @@ export function SuperAdminUserDetail({ initialUser, userId }: SuperAdminUserDeta
         description: "Inténtalo de nuevo en unos segundos.",
         variant: "error",
       });
+      return false;
     } finally {
       setSaving(false);
     }
   };
-
   const hasChanges =
     formData.name !== (user.name ?? "") ||
     formData.email !== (user.email ?? "") ||
@@ -499,84 +538,92 @@ export function SuperAdminUserDetail({ initialUser, userId }: SuperAdminUserDeta
 
   return (
     <div className="space-y-6">
-      {/* Modal de violaciones de límites */}
-      {planViolations && planViolations.requiresAction && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4">
-          <div className="max-w-2xl rounded-2xl border border-zaltyko-coral/50 bg-zaltyko-navy/90 p-6 shadow-xl">
-            <div className="mb-4">
-              <h2 className="text-2xl font-semibold text-white">Atención: Límites del plan excedidos</h2>
-              <p className="mt-2 text-sm text-white/70">
-                El nuevo plan tiene límites más restrictivos. El usuario tiene los siguientes recursos que exceden el límite:
-              </p>
-            </div>
+      {/* Radix supplies focus management and Escape handling for this modal. */}
+      <Dialog
+        open={Boolean(planViolations?.requiresAction)}
+        onOpenChange={(open) => {
+          if (!open) {
+            setPlanViolations(null);
+            setFormData((current) => ({ ...current, planId: user.subscription?.planId ?? "" }));
+          }
+        }}
+      >
+        <DialogContent className="max-h-[85vh] overflow-y-auto border-zaltyko-coral/50 bg-zaltyko-navy text-white sm:max-w-2xl">
+          <DialogHeader>
+            <DialogTitle className="text-white">Atención: Límites del plan excedidos</DialogTitle>
+            <DialogDescription className="text-white/70">
+              El nuevo plan tiene límites más restrictivos. Estos recursos superan el límite actual:
+            </DialogDescription>
+          </DialogHeader>
 
-            <div className="space-y-4 max-h-96 overflow-y-auto">
-              {planViolations.violations.map((violation, idx) => (
-                <div key={idx} className="rounded-lg border border-zaltyko-coral/30 bg-zaltyko-coral/10 p-4">
-                  <div className="mb-2 flex items-center justify-between">
-                    <h3 className="font-semibold text-white capitalize">
-                      {violation.resource === "academies" && "Academias"}
-                      {violation.resource === "athletes" && "Atletas"}
-                      {violation.resource === "classes" && "Clases"}
-                      {violation.resource === "groups" && "Grupos"}
-                    </h3>
-                    <span className="text-sm text-zaltyko-coral">
-                      {violation.currentCount} / {violation.limit ?? "∞"}
-                    </span>
-                  </div>
-                  <p className="mb-2 text-xs text-white/50">
-                    Tienes {violation.currentCount} {violation.resource}, pero el plan solo permite {violation.limit ?? "ilimitados"}.
-                  </p>
-                  {violation.items.length > 0 && (
-                    <div className="mt-2 max-h-32 overflow-y-auto">
-                      <p className="mb-1 text-xs font-semibold text-white/70">Items afectados:</p>
-                      <ul className="space-y-1 text-xs text-white/50">
-                        {violation.items.slice(0, 5).map((item) => (
-                          <li key={item.id}>• {item.name ?? `ID: ${item.id}`}</li>
-                        ))}
-                        {violation.items.length > 5 && (
-                          <li className="text-white/40">... y {violation.items.length - 5} más</li>
-                        )}
-                      </ul>
-                    </div>
-                  )}
+          <div className="space-y-4">
+            {planViolations?.violations.map((violation, idx) => (
+              <div key={`${violation.resource}-${idx}`} className="rounded-lg border border-zaltyko-coral/30 bg-zaltyko-coral/10 p-4">
+                <div className="mb-2 flex items-center justify-between">
+                  <h3 className="font-semibold capitalize text-white">
+                    {violation.resource === "academies" && "Academias"}
+                    {violation.resource === "athletes" && "Atletas"}
+                    {violation.resource === "classes" && "Clases"}
+                    {violation.resource === "groups" && "Grupos"}
+                  </h3>
+                  <span className="text-sm text-zaltyko-coral">
+                    {violation.currentCount} / {violation.limit ?? "∞"}
+                  </span>
                 </div>
-              ))}
-            </div>
-
-            <div className="mt-6 flex gap-3 border-t border-white/10 pt-4">
-              <Button
-                variant="outline"
-                className="flex-1 border-white/20 bg-white/5 text-slate-100 hover:border-white/40 hover:bg-white/10"
-                onClick={() => {
-                  setPlanViolations(null);
-                  // Revert plan change
-                  setFormData({ ...formData, planId: user.subscription?.planId ?? "" });
-                }}
-              >
-                Cancelar cambio de plan
-              </Button>
-              <Button
-                className="flex-1 bg-zaltyko-coral text-white hover:bg-zaltyko-coral/90"
-                onClick={handleForcePlanChange}
-                disabled={saving}
-              >
-                {saving ? (
-                  <>
-                    <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                    Cambiando...
-                  </>
-                ) : (
-                  "Cambiar plan de todas formas"
+                <p className="mb-2 text-xs text-white/50">
+                  Tienes {violation.currentCount} {violation.resource}, pero el plan solo permite {violation.limit ?? "ilimitados"}.
+                </p>
+                {violation.items.length > 0 && (
+                  <div className="mt-2 max-h-32 overflow-y-auto">
+                    <p className="mb-1 text-xs font-semibold text-white/70">Elementos afectados:</p>
+                    <ul className="space-y-1 text-xs text-white/50">
+                      {violation.items.slice(0, 5).map((item) => (
+                        <li key={item.id}>{item.name ?? `ID: ${item.id}`}</li>
+                      ))}
+                      {violation.items.length > 5 && (
+                        <li className="text-white/40">... y {violation.items.length - 5} más</li>
+                      )}
+                    </ul>
+                  </div>
                 )}
-              </Button>
-            </div>
-            <p className="mt-4 text-xs text-white/50">
-              Nota: Si cambias el plan de todas formas, se notificará al usuario para que ajuste manualmente sus recursos.
-            </p>
+              </div>
+            ))}
           </div>
-        </div>
-      )}
+
+          <DialogFooter className="gap-3 border-t border-white/10 pt-4 sm:justify-end">
+            <Button
+              variant="outline"
+              className="border-white/20 bg-white/5 text-slate-100 hover:border-white/40 hover:bg-white/10"
+              onClick={() => {
+                setPlanViolations(null);
+                setFormData((current) => ({ ...current, planId: user.subscription?.planId ?? "" }));
+              }}
+            >
+              Cancelar cambio de plan
+            </Button>
+            <Button
+              className="bg-zaltyko-coral text-white hover:bg-zaltyko-coral/90"
+              onClick={() => {
+                setPlanViolations(null);
+                setForcePlanDialogOpen(true);
+              }}
+              disabled={saving}
+            >
+              {saving ? (
+                <>
+                  <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                  Cambiando...
+                </>
+              ) : (
+                "Cambiar plan de todas formas"
+              )}
+            </Button>
+          </DialogFooter>
+          <p className="text-xs text-white/50">
+            Si cambias el plan de todas formas, se notificará al usuario para que ajuste manualmente sus recursos.
+          </p>
+        </DialogContent>
+      </Dialog>
 
       <div className="rounded-2xl border border-white/10 bg-white/5 p-6">
         <div className="mb-6 flex items-start justify-between">
@@ -669,8 +716,9 @@ export function SuperAdminUserDetail({ initialUser, userId }: SuperAdminUserDeta
               </Label>
               <div className="mt-2 space-y-3 rounded-xl border border-white/10 bg-white/5 p-4">
                 <div>
-                  <p className="mb-2 text-xs text-white/50">Nombre</p>
+                  <Label htmlFor="user-name" className="mb-2 text-xs text-white/50">Nombre</Label>
                   <Input
+                    id="user-name"
                     value={formData.name}
                     onChange={(e) => setFormData({ ...formData, name: e.target.value })}
                     className="border-white/20 bg-white/10 text-white placeholder:text-white/40"
@@ -679,9 +727,10 @@ export function SuperAdminUserDetail({ initialUser, userId }: SuperAdminUserDeta
                   />
                 </div>
                 <div>
-                  <p className="mb-2 text-xs text-white/50">Correo electrónico</p>
+                  <Label htmlFor="user-email" className="mb-2 text-xs text-white/50">Correo electrónico</Label>
                   <div className="flex gap-2">
                     <Input
+                      id="user-email"
                       type="email"
                       value={formData.email}
                       onChange={(e) => setFormData({ ...formData, email: e.target.value })}
@@ -695,6 +744,8 @@ export function SuperAdminUserDetail({ initialUser, userId }: SuperAdminUserDeta
                         size="sm"
                         className="border-blue-500/40 bg-blue-500/10 text-blue-200 hover:border-blue-400 hover:bg-blue-400/20"
                         onClick={handleSendEmail}
+                        aria-label="Enviar correo al usuario"
+                        title="Enviar correo al usuario"
                       >
                         <Mail className="h-4 w-4" strokeWidth={1.8} />
                       </Button>
@@ -702,8 +753,9 @@ export function SuperAdminUserDetail({ initialUser, userId }: SuperAdminUserDeta
                   </div>
                 </div>
                 <div>
-                  <p className="mb-2 text-xs text-white/50">Rol</p>
+                  <Label htmlFor="user-role" className="mb-2 text-xs text-white/50">Rol</Label>
                   <select
+                    id="user-role"
                     value={formData.role}
                     onChange={(e) => setFormData({ ...formData, role: e.target.value })}
                     className="w-full rounded-xl border border-white/20 bg-white/10 px-3 py-2 text-sm font-semibold text-white hover:border-white/40 focus:border-white/60 focus:outline-none"
@@ -726,7 +778,7 @@ export function SuperAdminUserDetail({ initialUser, userId }: SuperAdminUserDeta
               </Label>
               <div className="mt-2 space-y-3 rounded-xl border border-white/10 bg-white/5 p-4">
                 <div>
-                  <p className="mb-2 text-xs text-white/50">Plan</p>
+                  <Label htmlFor="user-plan" className="mb-2 text-xs text-white/50">Plan</Label>
                   {loadingPlans ? (
                     <div className="flex items-center gap-2 rounded-xl border border-white/20 bg-white/10 px-3 py-2 text-sm text-white/50">
                       <Loader2 className="h-4 w-4 animate-spin" />
@@ -734,6 +786,7 @@ export function SuperAdminUserDetail({ initialUser, userId }: SuperAdminUserDeta
                     </div>
                   ) : (
                     <select
+                      id="user-plan"
                       value={formData.planId}
                       onChange={(e) => setFormData({ ...formData, planId: e.target.value })}
                       className="w-full rounded-xl border border-white/20 bg-white/10 px-3 py-2 text-sm font-semibold text-white hover:border-white/40 focus:border-white/60 focus:outline-none"
@@ -806,6 +859,7 @@ export function SuperAdminUserDetail({ initialUser, userId }: SuperAdminUserDeta
                           year: "numeric",
                           month: "long",
                           day: "numeric",
+                          timeZone: DISPLAY_TIME_ZONE,
                         })
                       : "—"}
                   </p>
@@ -822,49 +876,52 @@ export function SuperAdminUserDetail({ initialUser, userId }: SuperAdminUserDeta
               </Label>
               <div className="mt-2 space-y-3 rounded-xl border border-white/10 bg-white/5 p-4">
                 <div>
-                  <p className="mb-2 text-xs text-white/50">Tipo de mensaje</p>
+                  <Label htmlFor="user-message-type" className="mb-2 text-xs text-white/50">Tipo de mensaje</Label>
                   <select
+                    id="user-message-type"
                     value={messageForm.type}
                     onChange={(e) =>
                       setMessageForm({ ...messageForm, type: e.target.value as "email" | "notification" })
                     }
                     className="w-full rounded-xl border border-white/20 bg-white/10 px-3 py-2 text-sm font-semibold text-white hover:border-white/40 focus:border-white/60 focus:outline-none"
-                    disabled={sendingMessage || !user.email}
+                    disabled={sendingMessage}
                   >
                     <option value="email">Correo electrónico</option>
-                    <option value="notification">Notificación (próximamente)</option>
+                    <option value="notification">Notificación dentro de Zaltyko</option>
                   </select>
                 </div>
                 <div>
-                  <p className="mb-2 text-xs text-white/50">Asunto</p>
+                  <Label htmlFor="user-message-subject" className="mb-2 text-xs text-white/50">Asunto</Label>
                   <Input
+                    id="user-message-subject"
                     value={messageForm.subject}
                     onChange={(e) => setMessageForm({ ...messageForm, subject: e.target.value })}
                     className="border-white/20 bg-white/10 text-white placeholder:text-white/40"
                     placeholder="Asunto del mensaje"
-                    disabled={sendingMessage || !user.email}
+                    disabled={sendingMessage || (messageForm.type === "email" && !user.email)}
                   />
                 </div>
                 <div>
-                  <p className="mb-2 text-xs text-white/50">Mensaje</p>
+                  <Label htmlFor="user-message-body" className="mb-2 text-xs text-white/50">Mensaje</Label>
                   <textarea
+                    id="user-message-body"
                     value={messageForm.message}
                     onChange={(e) => setMessageForm({ ...messageForm, message: e.target.value })}
                     className="min-h-[120px] w-full rounded-xl border border-white/20 bg-white/10 px-3 py-2 text-sm text-white placeholder:text-white/40 focus:border-white/60 focus:outline-none"
                     placeholder="Escribe tu mensaje aquí..."
-                    disabled={sendingMessage || !user.email}
+                    disabled={sendingMessage || (messageForm.type === "email" && !user.email)}
                   />
                 </div>
-                {!user.email && (
+                {!user.email && messageForm.type === "email" && (
                   <p className="text-xs text-amber-400">
-                    Este usuario no tiene correo electrónico registrado. No se pueden enviar mensajes.
+                    Este usuario no tiene correo electrónico registrado. Selecciona una notificación interna o añade un correo.
                   </p>
                 )}
                 <Button
                   variant="outline"
                   className="w-full border-blue-500/60 bg-blue-500/20 text-blue-100 font-semibold shadow-sm hover:border-blue-400 hover:bg-blue-500/30 hover:text-white"
                   onClick={handleSendMessage}
-                  disabled={sendingMessage || !user.email || !messageForm.subject.trim() || !messageForm.message.trim()}
+                  disabled={sendingMessage || (messageForm.type === "email" && !user.email) || !messageForm.subject.trim() || !messageForm.message.trim()}
                 >
                   {sendingMessage ? (
                     <>
@@ -955,6 +1012,8 @@ export function SuperAdminUserDetail({ initialUser, userId }: SuperAdminUserDeta
                             size="sm"
                             className="ml-3 border-white/20 bg-white/5 text-slate-100 hover:border-white/40 hover:bg-white/10"
                             onClick={() => router.push(`/super-admin/academies/${membership.academyId}`)}
+                            aria-label={`Abrir academia ${membership.academyName ?? "sin nombre"}`}
+                            title="Abrir academia"
                           >
                             <ExternalLink className="h-4 w-4" strokeWidth={1.8} />
                           </Button>
@@ -978,7 +1037,7 @@ export function SuperAdminUserDetail({ initialUser, userId }: SuperAdminUserDeta
           <Button
             variant="outline"
             className="border-white/20 bg-white/5 text-slate-100 hover:border-white/40 hover:bg-white/10"
-            onClick={() => router.back()}
+            onClick={() => router.push(backHref)}
           >
             Cancelar
           </Button>
@@ -1001,6 +1060,47 @@ export function SuperAdminUserDetail({ initialUser, userId }: SuperAdminUserDeta
           </Button>
         </div>
       </div>
+
+      <ConfirmDialog
+        open={athleteAccessDialogOpen}
+        onOpenChange={setAthleteAccessDialogOpen}
+        title="Activar acceso del atleta"
+        description="Se activará el acceso y se enviará un correo para que el atleta establezca su contraseña."
+        confirmText="Activar acceso"
+        variant="default"
+        onConfirm={executeActivateAthleteAccess}
+        loading={activatingAccess}
+      />
+
+      <ConfirmDialog
+        open={forcePlanDialogOpen}
+        onOpenChange={setForcePlanDialogOpen}
+        title="Forzar cambio de plan"
+        description="El nuevo plan supera los límites actuales. Confirma el cambio solo si has documentado por qué debe aplicarse y qué ajuste queda pendiente."
+        confirmText="Cambiar plan"
+        variant="destructive"
+        requireReason
+        reasonLabel="Motivo del cambio forzado"
+        onConfirm={handleForcePlanChange}
+        loading={saving}
+      />
+
+      <ConfirmDialog
+        open={suspensionDialogOpen}
+        onOpenChange={setSuspensionDialogOpen}
+        title={user.isSuspended ? "Reactivar usuario" : "Suspender usuario"}
+        description={
+          user.isSuspended
+            ? "El usuario recuperará el acceso a Zaltyko."
+            : "El usuario perderá el acceso hasta que sea reactivado."
+        }
+        confirmText={user.isSuspended ? "Reactivar" : "Suspender"}
+        variant={user.isSuspended ? "default" : "destructive"}
+        requireReason
+        reasonLabel="Motivo del cambio de acceso"
+        onConfirm={executeToggleSuspension}
+        loading={saving}
+      />
     </div>
   );
 }

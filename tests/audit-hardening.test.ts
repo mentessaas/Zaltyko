@@ -26,6 +26,7 @@ async function loadDevModule(env: Record<string, string | undefined>) {
   vi.resetModules();
   const previous = {
     NODE_ENV: process.env.NODE_ENV,
+    VERCEL_ENV: process.env.VERCEL_ENV,
     NEXT_PUBLIC_ENABLE_DEV_SESSION: process.env.NEXT_PUBLIC_ENABLE_DEV_SESSION,
     NEXT_PUBLIC_USE_MOCK_AUTH: process.env.NEXT_PUBLIC_USE_MOCK_AUTH,
   };
@@ -154,6 +155,56 @@ describe("audit hardening", () => {
 
       expect(disabled.isDevSessionEnabled).toBe(false);
       expect(enabled.isDevSessionEnabled).toBe(true);
+    });
+
+    it("keeps dev sessions disabled in Vercel preview", async () => {
+      const preview = await loadDevModule({
+        NODE_ENV: "development",
+        VERCEL_ENV: "preview",
+        NEXT_PUBLIC_ENABLE_DEV_SESSION: "true",
+        NEXT_PUBLIC_USE_MOCK_AUTH: undefined,
+      });
+
+      expect(preview.isDevSessionEnabled).toBe(false);
+    });
+
+    it("verifies signed dev-session cookies before parsing them", async () => {
+      const previous = {
+        NODE_ENV: process.env.NODE_ENV,
+        VERCEL_ENV: process.env.VERCEL_ENV,
+        NEXT_PUBLIC_ENABLE_DEV_SESSION: process.env.NEXT_PUBLIC_ENABLE_DEV_SESSION,
+        NEXT_PUBLIC_USE_MOCK_AUTH: process.env.NEXT_PUBLIC_USE_MOCK_AUTH,
+        INTERNAL_AUTH_SECRET: process.env.INTERNAL_AUTH_SECRET,
+        DEV_SESSION_SECRET: process.env.DEV_SESSION_SECRET,
+      };
+
+      try {
+        process.env.NODE_ENV = "development";
+        delete process.env.VERCEL_ENV;
+        process.env.NEXT_PUBLIC_ENABLE_DEV_SESSION = "true";
+        delete process.env.NEXT_PUBLIC_USE_MOCK_AUTH;
+        delete process.env.INTERNAL_AUTH_SECRET;
+        process.env.DEV_SESSION_SECRET = "audit-secret";
+        vi.resetModules();
+
+        const { parseDevSessionCookie, serializeDevSession } = await import("@/lib/dev-session");
+        const payload = {
+          userId: "11111111-1111-4111-8111-111111111111",
+          profileId: "22222222-2222-4222-8222-222222222222",
+          tenantId: "33333333-3333-4333-8333-333333333333",
+          academyId: "44444444-4444-4444-8444-444444444444",
+        };
+        const cookie = serializeDevSession(payload);
+
+        expect(parseDevSessionCookie(cookie)).toEqual(payload);
+        expect(parseDevSessionCookie(`${cookie}0`)).toBeNull();
+        expect(parseDevSessionCookie(cookie.replace(/\.[^.]+$/, ".00"))).toBeNull();
+      } finally {
+        for (const [key, value] of Object.entries(previous)) {
+          if (value === undefined) delete process.env[key];
+          else process.env[key] = value;
+        }
+      }
     });
   });
 
@@ -331,6 +382,49 @@ describe("audit hardening", () => {
 
       expect(source).not.toContain("user_metadata");
       expect(source).toContain("app_metadata");
+    });
+
+    it("keeps the user detail page on the shared server-side service", () => {
+      const pagePath = fileURLToPath(
+        new URL(
+          "../src/app/(super-admin)/super-admin/users/[profileId]/page.tsx",
+          import.meta.url
+        )
+      );
+      const source = readFileSync(pagePath, "utf8");
+
+      expect(source).toContain("getSuperAdminUserDetail");
+      expect(source).not.toContain("x-forwarded-host");
+      expect(source).not.toContain("x-forwarded-proto");
+      expect(source).not.toContain("fetch(");
+    });
+
+    it("bounds athlete sync detail retention", () => {
+      const syncPath = fileURLToPath(
+        new URL("../src/lib/athletes/sync-users.ts", import.meta.url)
+      );
+      const source = readFileSync(syncPath, "utf8");
+
+      expect(source).toContain("SYNC_DETAIL_LIMIT = 100");
+      expect(source).toContain("detailsTruncated");
+      expect(source).toContain("recordDetail");
+      expect(source.match(/details\.push\(/g)).toHaveLength(1);
+      expect(source).toContain("if (details.length < SYNC_DETAIL_LIMIT)");
+    });
+
+    it("bounds and stabilizes public academy search", () => {
+      const actionPath = fileURLToPath(
+        new URL(
+          "../src/app/actions/public/get-public-academies.ts",
+          import.meta.url
+        )
+      );
+      const source = readFileSync(actionPath, "utf8");
+
+      expect(source).toContain('search: z.string().trim().max(160).optional()');
+      expect(source).toContain('replace(/[\\\\%_]/g, "\\\\$&")');
+      expect(source).toContain(".orderBy(asc(academies.name), asc(academies.id))");
+      expect(source).toContain('query.order("id", { ascending: true })');
     });
   });
 

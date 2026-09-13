@@ -114,11 +114,22 @@ describe("SEO de academias fail-closed", () => {
   });
 
   it("revalida sitemap, directorio y detalle tras cambios públicos", () => {
+    mockRevalidatePath.mockReset();
     revalidatePublicAcademySeo("academy-1");
     expect(mockRevalidatePath.mock.calls).toEqual([
       ["/sitemap.xml"],
       ["/academias"],
       ["/academias/academy-1"],
     ]);
+  });
+
+  it("mantiene la mutación operativa aunque falle una invalidación de caché", () => {
+    mockRevalidatePath.mockReset();
+    mockRevalidatePath.mockImplementationOnce(() => {
+      throw new Error("cache unavailable");
+    });
+
+    expect(() => revalidatePublicAcademySeo("academy-1")).not.toThrow();
+    expect(mockRevalidatePath).toHaveBeenCalledTimes(3);
   });
 });

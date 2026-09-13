@@ -44,7 +44,7 @@ export const POST = withTenant(async (request, context) => {
     const validated = sendPushSchema.parse(body);
 
     const [recipient] = await db
-      .select({ id: profiles.id })
+      .select({ id: profiles.id, userId: profiles.userId })
       .from(profiles)
       .where(and(eq(profiles.id, validated.userId), eq(profiles.tenantId, context.tenantId)))
       .limit(1);
@@ -53,7 +53,7 @@ export const POST = withTenant(async (request, context) => {
     }
 
     // Send push notification
-    const pushResult = await sendPushToUser(validated.userId, {
+    const pushResult = await sendPushToUser(recipient.userId, {
       title: validated.title,
       body: validated.body,
       icon: validated.icon,

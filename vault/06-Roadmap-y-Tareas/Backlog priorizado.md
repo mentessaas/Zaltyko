@@ -326,3 +326,9 @@ Trabajo de auditoria mergeado a `security/audit-remediation` via **PR #8 (`cf092
 - **Media / Luna:** obtener sesiones aisladas por rol y autorización para axe/Playwright antes de afirmar WCAG AA o cerrar UI-003/A11Y-001.
 - **Media / Sol:** configurar bucket Supabase privado, URLs firmadas/proxy autorizado y escaneo antimalware para uploads; validar descarga anónima denegada.
 - **Baja / Terra:** archivar o etiquetar documentos históricos que aún describen NextAuth; no reintroducir `NEXTAUTH_*` en nuevos entornos.
+
+## 2026-09-13 — Super Admin: verificación autenticada y publicación controlada
+
+- **Pendiente operativo:** ejecutar el walkthrough autenticado de las 9 rutas `/super-admin/*` y la auditoría WCAG con una sesión aislada `E2E_SUPER_ADMIN_STORAGE_STATE` sobre el preview READY de PR #126.
+- **Pendiente de release:** publicar el PR solo con autorización explícita, repetir E2E autenticado y comprobar que el error FK de `daily-alerts` desaparece en producción. Hasta entonces, la rama `codex/super-admin-wow` no se presenta como producción.
+- **Evidencia actual:** CI #579 y Static Gates #304 verdes; preview SHA `76ddbe8` READY; producción sigue en `main` (`a1e7e68`) y el fallo FK no está verificado como resuelto.

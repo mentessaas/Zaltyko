@@ -4,6 +4,33 @@ import { athletes, profiles, academies } from "@/db/schema";
 import { getSupabaseAdminClient } from "@/lib/supabase/admin";
 import { logger } from "@/lib/logger";
 
+const AUTH_USERS_PAGE_SIZE = 1000;
+const SYNC_DETAIL_LIMIT = 100;
+
+async function getAuthUsersByEmail(
+  adminClient: ReturnType<typeof getSupabaseAdminClient>,
+): Promise<Map<string, string>> {
+  const usersByEmail = new Map<string, string>();
+  let page = 1;
+
+  while (true) {
+    const { data, error } = await adminClient.auth.admin.listUsers({
+      page,
+      perPage: AUTH_USERS_PAGE_SIZE,
+    });
+    if (error) throw error;
+
+    for (const user of data.users) {
+      if (user.email) usersByEmail.set(user.email.toLowerCase(), user.id);
+    }
+
+    if (data.users.length < AUTH_USERS_PAGE_SIZE) break;
+    page += 1;
+  }
+
+  return usersByEmail;
+}
+
 /**
  * Sincroniza atletas existentes con perfiles de usuario.
  * Crea usuarios en auth.users y perfiles en profiles para atletas que no tienen user_id.
@@ -16,12 +43,25 @@ export async function syncAthletesWithUsers(): Promise<{
   skipped: number;
   errors: number;
   details: Array<{ athleteId: string; athleteName: string; userId: string | null; error?: string }>;
+  detailsTruncated: boolean;
 }> {
   const adminClient = getSupabaseAdminClient();
+  // Load Auth users once. Calling listUsers inside the athlete loop creates
+  // O(n) remote requests and misses users beyond the first Auth page.
+  const authUsersByEmail = await getAuthUsersByEmail(adminClient);
   const details: Array<{ athleteId: string; athleteName: string; userId: string | null; error?: string }> = [];
   let synced = 0;
   const skipped = 0;
   let errors = 0;
+  let detailsTruncated = false;
+
+  const recordDetail = (detail: { athleteId: string; athleteName: string; userId: string | null; error?: string }) => {
+    if (details.length < SYNC_DETAIL_LIMIT) {
+      details.push(detail);
+    } else {
+      detailsTruncated = true;
+    }
+  };
 
   // Obtener todos los atletas sin user_id
   const athletesWithoutUser = await db
@@ -50,11 +90,10 @@ export async function syncAthletesWithUsers(): Promise<{
       const email = `${sanitizedName}_${athlete.athleteId.substring(0, 8)}@zaltyko.local`;
 
       // Verificar si ya existe un usuario con este email (por si acaso)
-      const { data: usersData } = await adminClient.auth.admin.listUsers();
-      const existingAuthUser = usersData.users.find(u => u.email === email);
-      if (existingAuthUser) {
+      const existingUserId = authUsersByEmail.get(email.toLowerCase());
+      if (existingUserId) {
         // Si ya existe, usar ese usuario
-        const userId = existingAuthUser.id;
+        const userId = existingUserId;
         
         // Verificar si ya tiene un perfil
         const [existingProfile] = await db
@@ -82,7 +121,7 @@ export async function syncAthletesWithUsers(): Promise<{
           .where(eq(athletes.id, athlete.athleteId));
 
         synced++;
-        details.push({
+        recordDetail({
           athleteId: athlete.athleteId,
           athleteName: athlete.athleteName,
           userId,
@@ -103,7 +142,7 @@ export async function syncAthletesWithUsers(): Promise<{
 
       if (userError || !userData?.user) {
         errors++;
-        details.push({
+        recordDetail({
           athleteId: athlete.athleteId,
           athleteName: athlete.athleteName,
           userId: null,
@@ -113,6 +152,7 @@ export async function syncAthletesWithUsers(): Promise<{
       }
 
       const userId = userData.user.id;
+      authUsersByEmail.set(email.toLowerCase(), userId);
 
       // Crear perfil en profiles
       try {
@@ -149,14 +189,14 @@ export async function syncAthletesWithUsers(): Promise<{
         .where(eq(athletes.id, athlete.athleteId));
 
       synced++;
-      details.push({
+      recordDetail({
         athleteId: athlete.athleteId,
         athleteName: athlete.athleteName,
         userId,
       });
     } catch (error: unknown) {
       errors++;
-      details.push({
+      recordDetail({
         athleteId: athlete.athleteId,
         athleteName: athlete.athleteName,
         userId: null,
@@ -172,6 +212,6 @@ export async function syncAthletesWithUsers(): Promise<{
     skipped,
     errors,
     details,
+    detailsTruncated,
   };
 }
-

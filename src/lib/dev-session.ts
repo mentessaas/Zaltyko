@@ -58,7 +58,7 @@ export function parseDevSessionCookie(rawValue?: string | null): DevSessionPaylo
       const [payload, sig] = rawValue.split(".", 2);
       if (!payload || !sig) return null;
       const expected = signPayload(payload, secret);
-      if (payload.length !== expected.length && sig.length !== expected.length) return null;
+      if (sig.length !== expected.length) return null;
       // timingSafeEqual requires same length buffers
       const a = Buffer.from(sig, "hex");
       const b = Buffer.from(expected, "hex");

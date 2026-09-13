@@ -5,7 +5,11 @@ import {
   PublicGrowthEventSchema,
   toCommercialPlanSlug,
 } from "@/lib/growth/contracts";
-import { getSafeRate } from "@/lib/growth/dashboard";
+import {
+  getGrowthInterviewPagination,
+  getSafeRate,
+  GROWTH_INTERVIEW_PAGE_SIZE,
+} from "@/lib/growth/dashboard";
 import { createAcademyFingerprint, toCommercialInterviewValues } from "@/lib/growth/interviews";
 import { PRODUCT_PLAN_BY_CODE } from "@/lib/plans/catalog";
 
@@ -201,5 +205,15 @@ describe("Phase 4 commercial validation contracts", () => {
   it("never reports a conversion percentage without a denominator", () => {
     expect(getSafeRate(0, 0)).toBeNull();
     expect(getSafeRate(2, 5)).toBe(40);
+  });
+
+  it("paginates the interview history without losing the last page", () => {
+    expect(getGrowthInterviewPagination(GROWTH_INTERVIEW_PAGE_SIZE * 2 + 1, 99)).toEqual({
+      page: 3,
+      pageSize: GROWTH_INTERVIEW_PAGE_SIZE,
+      total: GROWTH_INTERVIEW_PAGE_SIZE * 2 + 1,
+      totalPages: 3,
+    });
+    expect(getGrowthInterviewPagination(0, 0).page).toBe(1);
   });
 });

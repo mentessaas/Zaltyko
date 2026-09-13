@@ -8,16 +8,57 @@ import { withSuperAdmin } from "@/lib/authz";
 import { logAdminAction } from "@/lib/admin-logs";
 import { getSuperAdminAcademyDetail } from "@/lib/super-admin";
 import { revalidatePublicAcademySeo } from "@/lib/seo/revalidate-academy";
+import { logger } from "@/lib/logger";
 
 export const dynamic = "force-dynamic";
 
 const reasonSchema = z.string().trim().min(5).max(500);
+const academyIdSchema = z.string().uuid();
+
+function parseAcademyId(value: unknown): string | null {
+  const parsed = academyIdSchema.safeParse(value);
+  return parsed.success ? parsed.data : null;
+}
+const academyTypeSchema = z.enum(["artistica", "ritmica", "trampolin", "general", "parkour", "danza"]);
+const managedAcademyStatusSchema = z.enum(["active", "trial", "suspended"]);
+const updateAcademySchema = z
+  .object({
+    name: z.string().trim().min(1).max(160).optional(),
+    isSuspended: z.boolean().optional(),
+    status: managedAcademyStatusSchema.optional(),
+    reason: reasonSchema.optional(),
+    planId: z.string().uuid().nullable().optional(),
+    academyType: academyTypeSchema.optional(),
+    country: z.string().trim().max(120).nullable().optional(),
+    region: z.string().trim().max(120).nullable().optional(),
+    city: z.string().trim().max(120).nullable().optional(),
+  })
+  .superRefine((value, ctx) => {
+    if (value.status === "suspended" && value.isSuspended === false) {
+      ctx.addIssue({
+        code: z.ZodIssueCode.custom,
+        path: ["isSuspended"],
+        message: "Una academia suspendida debe mantener el acceso bloqueado",
+      });
+    }
+    if (value.status && value.status !== "suspended" && value.isSuspended === true) {
+      ctx.addIssue({
+        code: z.ZodIssueCode.custom,
+        path: ["isSuspended"],
+        message: "Una academia operativa no puede mantener el acceso bloqueado",
+      });
+    }
+  });
 
 export const GET = withSuperAdmin(async (_request, context) => {
   const params = context.params as { academyId?: string };
-  const academyId = params?.academyId;
-  if (!academyId) {
+  const rawAcademyId = params?.academyId;
+  if (!rawAcademyId) {
     return apiError("ACADEMY_ID_REQUIRED", "Academy ID is required", 400);
+  }
+  const academyId = parseAcademyId(rawAcademyId);
+  if (!academyId) {
+    return apiError("ACADEMY_ID_INVALID", "Academy ID is invalid", 400);
   }
 
   const academy = await getSuperAdminAcademyDetail(academyId);
@@ -31,62 +72,193 @@ export const GET = withSuperAdmin(async (_request, context) => {
 
 export const PATCH = withSuperAdmin(async (request, context) => {
   const params = context.params as { academyId?: string };
-  const academyId = params?.academyId;
-  if (!academyId) {
+  const rawAcademyId = params?.academyId;
+  if (!rawAcademyId) {
     return apiError("ACADEMY_ID_REQUIRED", "Academy ID is required", 400);
   }
-
-  const body = await request.json().catch(() => ({}));
-  if (typeof body?.isSuspended === "boolean" && !reasonSchema.safeParse(body?.reason).success) {
-    return apiError("REASON_REQUIRED", "Indica el motivo del cambio de acceso", 400);
+  const academyId = parseAcademyId(rawAcademyId);
+  if (!academyId) {
+    return apiError("ACADEMY_ID_INVALID", "Academy ID is invalid", 400);
   }
+
+  const parsedBody = updateAcademySchema.safeParse(await request.json().catch(() => ({})));
+  if (!parsedBody.success) {
+    return apiError(
+      "VALIDATION_ERROR",
+      parsedBody.error.issues[0]?.message ?? "Datos inválidos",
+      400
+    );
+  }
+  const body = parsedBody.data;
   const updates: Record<string, unknown> = {};
-  let planUpdate: { planId: string } | null = null;
+  let planUpdate: { planId: string | null } | null = null;
 
-  if (typeof body?.name === "string" && body.name.trim().length > 0) {
-    updates.name = body.name.trim();
+  if (body.name !== undefined) {
+    updates.name = body.name;
   }
 
-  if (typeof body?.isSuspended === "boolean") {
+  if (typeof body.isSuspended === "boolean") {
     updates.isSuspended = body.isSuspended;
     updates.suspendedAt = body.isSuspended ? new Date() : null;
   }
 
-  if (typeof body?.planId === "string" && body.planId.trim().length > 0) {
-    const [plan] = await db.select({ id: plans.id }).from(plans).where(eq(plans.id, body.planId)).limit(1);
-    if (plan) {
+  if (body.status !== undefined) {
+    updates.status = body.status;
+    updates.statusUpdatedAt = new Date();
+    if (body.isSuspended === undefined) {
+      updates.isSuspended = body.status === "suspended";
+      updates.suspendedAt = body.status === "suspended" ? new Date() : null;
+    }
+  }
+
+  if (body.planId !== undefined) {
+    if (body.planId === null) {
+      planUpdate = { planId: null };
+    } else if (typeof body.planId === "string" && body.planId.trim().length > 0) {
+      const [plan] = await db.select({ id: plans.id }).from(plans).where(eq(plans.id, body.planId)).limit(1);
+      if (!plan) {
+        return apiError("PLAN_NOT_FOUND", "El plan seleccionado no existe", 404);
+      }
       planUpdate = { planId: plan.id };
     }
   }
 
   // Edición completa: tipo, país, región y ciudad.
-  if (typeof body?.academyType === "string" && body.academyType.trim().length > 0) {
-    updates.academyType = body.academyType.trim();
+  if (body.academyType !== undefined) {
+    updates.academyType = body.academyType;
   }
-  if (typeof body?.country === "string") {
-    updates.country = body.country.trim() || null;
+  if (body.country !== undefined) {
+    updates.country = body.country;
   }
-  if (typeof body?.region === "string") {
-    updates.region = body.region.trim() || null;
+  if (body.region !== undefined) {
+    updates.region = body.region;
   }
-  if (typeof body?.city === "string") {
-    updates.city = body.city.trim() || null;
+  if (body.city !== undefined) {
+    updates.city = body.city;
   }
 
   if (Object.keys(updates).length === 0 && !planUpdate) {
     return apiError("NO_CHANGES", "No changes provided", 400);
   }
 
-  const [updated] = await db
-    .update(academies)
-    .set(updates)
-    .where(eq(academies.id, academyId))
-    .returning({
-      id: academies.id,
-      name: academies.name,
-      isSuspended: academies.isSuspended,
-      ownerId: academies.ownerId,
+  let updated;
+  try {
+    updated = await db.transaction(async (tx) => {
+      const [current] = await tx
+        .select({
+          id: academies.id,
+          name: academies.name,
+          status: academies.status,
+          isSuspended: academies.isSuspended,
+          ownerId: academies.ownerId,
+        })
+        .from(academies)
+        .where(eq(academies.id, academyId))
+        .limit(1);
+
+      if (!current) return null;
+
+      const nextUpdates = { ...updates };
+      // Enforce the status/access invariant even when a client sends only
+      // isSuspended. API consumers should not be able to create a contradictory
+      // row that the UI then has to interpret heuristically.
+      if (typeof body.isSuspended === "boolean" && body.status === undefined) {
+        const nextStatus = body.isSuspended
+          ? "suspended"
+          : current.status === "trial"
+            ? "trial"
+            : "active";
+        nextUpdates.status = nextStatus;
+        nextUpdates.statusUpdatedAt = new Date();
+      }
+
+      const nextStatus =
+        typeof nextUpdates.status === "string" ? nextUpdates.status : current.status;
+      const nextIsSuspended =
+        typeof nextUpdates.isSuspended === "boolean"
+          ? nextUpdates.isSuspended
+          : current.isSuspended;
+      const statusChanged = nextStatus !== current.status;
+      const suspensionChanged = nextIsSuspended !== current.isSuspended;
+
+      if ((statusChanged || suspensionChanged) && !body.reason) {
+        throw new Error("REASON_REQUIRED");
+      }
+
+      if (
+        (body.status !== undefined || body.isSuspended !== undefined) &&
+        (current.status === "fraud_hold" || current.status === "churned")
+      ) {
+        throw new Error("ACADEMY_STATUS_LOCKED");
+      }
+
+      const [academy] = await tx
+        .update(academies)
+        .set(nextUpdates)
+        .where(eq(academies.id, academyId))
+        .returning({
+          id: academies.id,
+          name: academies.name,
+          isSuspended: academies.isSuspended,
+          ownerId: academies.ownerId,
+        });
+
+      if (!academy) return null;
+
+      if (planUpdate) {
+        if (!academy.ownerId) {
+          if (planUpdate.planId !== null) throw new Error("ACADEMY_HAS_NO_OWNER");
+        } else {
+          const [owner] = await tx
+            .select({ userId: profiles.userId })
+            .from(profiles)
+            .where(eq(profiles.id, academy.ownerId))
+            .limit(1);
+
+          if (!owner) throw new Error("OWNER_NOT_FOUND");
+
+          const [existingSubscription] = await tx
+            .select({ id: subscriptions.id })
+            .from(subscriptions)
+            .where(eq(subscriptions.userId, owner.userId))
+            .limit(1);
+
+          if (existingSubscription) {
+            await tx
+              .update(subscriptions)
+              .set({
+                planId: planUpdate.planId,
+                status: planUpdate.planId ? "active" : "canceled",
+              })
+              .where(eq(subscriptions.id, existingSubscription.id));
+          } else if (planUpdate.planId) {
+            await tx.insert(subscriptions).values({
+              userId: owner.userId,
+              planId: planUpdate.planId,
+              status: "active",
+            });
+          }
+        }
+      }
+
+      return academy;
     });
+  } catch (error) {
+    const code = error instanceof Error ? error.message : "ACADEMY_UPDATE_FAILED";
+    if (code === "REASON_REQUIRED") {
+      return apiError(code, "Indica el motivo del cambio de acceso", 400);
+    }
+    if (code === "ACADEMY_HAS_NO_OWNER") {
+      return apiError(code, "Academy has no owner", 400);
+    }
+    if (code === "OWNER_NOT_FOUND") {
+      return apiError(code, "Owner not found", 404);
+    }
+    if (code === "ACADEMY_STATUS_LOCKED") {
+      return apiError(code, "Las academias dadas de baja o en revisión de fraude requieren un flujo de seguridad específico", 409);
+    }
+    return apiError("ACADEMY_UPDATE_FAILED", "No se pudo actualizar la academia", 500);
+  }
 
   if (!updated) {
     return apiError("ACADEMY_NOT_FOUND", "Academy not found", 404);
@@ -94,57 +266,20 @@ export const PATCH = withSuperAdmin(async (request, context) => {
 
   revalidatePublicAcademySeo(academyId);
 
-  if (planUpdate) {
-    if (!updated.ownerId) {
-      return apiError("ACADEMY_HAS_NO_OWNER", "Academy has no owner", 400);
-    }
-
-    const [owner] = await db
-      .select({
-        userId: profiles.userId,
-      })
-      .from(profiles)
-      .where(eq(profiles.id, updated.ownerId))
-      .limit(1);
-
-    if (!owner) {
-      return apiError("OWNER_NOT_FOUND", "Owner not found", 404);
-    }
-
-    const [existingSubscription] = await db
-      .select({ id: subscriptions.id })
-      .from(subscriptions)
-      .where(eq(subscriptions.userId, owner.userId))
-      .limit(1);
-
-    if (existingSubscription) {
-      await db
-        .update(subscriptions)
-        .set({ planId: planUpdate.planId })
-        .where(eq(subscriptions.id, existingSubscription.id));
-    } else {
-      await db.insert(subscriptions).values({
-        userId: owner.userId,
-        planId: planUpdate.planId,
-        status: "active",
-      });
-    }
-  }
-
   await logAdminAction({
     userId: context.userId,
     tenantId: null,
-    action: body?.isSuspended ? "academy.suspended" : "academy.updated",
+    action: body.status === "suspended" || body.isSuspended ? "academy.suspended" : "academy.updated",
     resourceType: "academy",
     resourceId: academyId,
     resourceName: updated.name,
-    description: body?.isSuspended
+    description: body.status === "suspended" || body.isSuspended
       ? `Super Admin suspendió la academia ${updated.name ?? academyId}`
       : `Super Admin actualizó la academia ${updated.name ?? academyId}`,
     meta: {
       academyId,
-      updates,
-      reason: typeof body?.reason === "string" ? body.reason.trim() : null,
+      updates: { ...updates, ...(planUpdate ? { planId: planUpdate.planId } : {}) },
+      reason: body.reason ?? null,
     },
   });
 
@@ -153,9 +288,13 @@ export const PATCH = withSuperAdmin(async (request, context) => {
 
 export const DELETE = withSuperAdmin(async (request, context) => {
   const params = context.params as { academyId?: string };
-  const academyId = params?.academyId;
-  if (!academyId) {
+  const rawAcademyId = params?.academyId;
+  if (!rawAcademyId) {
     return apiError("ACADEMY_ID_REQUIRED", "Academy ID is required", 400);
+  }
+  const academyId = parseAcademyId(rawAcademyId);
+  if (!academyId) {
+    return apiError("ACADEMY_ID_INVALID", "Academy ID is invalid", 400);
   }
 
   const body = await request.json().catch(() => ({}));
@@ -164,14 +303,34 @@ export const DELETE = withSuperAdmin(async (request, context) => {
     return apiError("REASON_REQUIRED", "Indica el motivo de la eliminación", 400);
   }
 
-  const [removed] = await db
-    .delete(academies)
-    .where(eq(academies.id, academyId))
-    .returning({ id: academies.id, name: academies.name });
+  let removed: { id: string; name: string | null } | null;
+  try {
+    removed = await db.transaction(async (tx) => {
+      const [deletedAcademy] = await tx
+        .delete(academies)
+        .where(eq(academies.id, academyId))
+        .returning({ id: academies.id, name: academies.name });
+
+      if (!deletedAcademy) return null;
+
+      // activeAcademyId no es una FK: limpiarlo evita sesiones apuntando a una academia borrada.
+      await tx
+        .update(profiles)
+        .set({ activeAcademyId: null })
+        .where(eq(profiles.activeAcademyId, academyId));
+
+      return deletedAcademy;
+    });
+  } catch (error) {
+    logger.error("Error deleting super-admin academy", error, { academyId });
+    return apiError("ACADEMY_DELETE_FAILED", "No se pudo eliminar la academia", 500);
+  }
 
   if (!removed) {
     return apiError("ACADEMY_NOT_FOUND", "Academy not found", 404);
   }
+
+  revalidatePublicAcademySeo(academyId);
 
   await logAdminAction({
     userId: context.userId,

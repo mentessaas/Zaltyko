@@ -88,7 +88,7 @@ describe("product roles and navigation", () => {
       membershipRole: "viewer",
     }).map((item) => item.key);
 
-    expect(parentNav).toEqual(["my-dashboard", "messages", "notifications"]);
+    expect(parentNav).toEqual(["my-dashboard", "my-events", "messages", "notifications"]);
   });
 
   it("does not derive academy privileges from the global profile role", () => {

@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { useMemo, useRef, useState, useEffect } from "react";
 import Link from "next/link";
 import Image from "next/image";
 import { usePathname, useRouter } from "next/navigation";
@@ -23,6 +23,7 @@ import { GlobalSearch } from "@/components/search/GlobalSearch";
 import {
   isAcademyNavigationActive,
   isGlobalNavigationActive,
+  isSuperAdminPath,
   isSuperAdminNavigationActive,
 } from "@/lib/navigation/active";
 import {
@@ -79,13 +80,15 @@ export function GlobalTopNav({
 }: GlobalTopNavProps) {
   const pathname = usePathname();
   const router = useRouter();
-  const supabase = createClient();
+  const supabase = useMemo(() => createClient(), []);
   const [loading, setLoading] = useState(false);
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
   const [profileMenuOpen, setProfileMenuOpen] = useState(false);
+  const mobileMenuTriggerRef = useRef<HTMLButtonElement>(null);
+  const mobileDrawerRef = useRef<HTMLDivElement>(null);
 
   const isSuperAdmin = userRole === "super_admin";
-  const isInSuperAdminArea = pathname?.startsWith("/super-admin") ?? false;
+  const isInSuperAdminArea = isSuperAdminPath(pathname);
   const isDarkTheme = isInSuperAdminArea;
   const normalizedRole = isProfileRole(userRole) ? userRole : "owner";
   const homePath = getPreferredHomePath({
@@ -111,6 +114,68 @@ export function GlobalTopNav({
       setProfileMenuOpen(false);
     }
   }, [pathname]);
+
+  useEffect(() => {
+    if (!mobileMenuOpen) return;
+    const previousActiveElement = document.activeElement as HTMLElement | null;
+    const previousOverflow = document.body.style.overflow;
+    const drawer = mobileDrawerRef.current;
+    const getFocusableElements = () =>
+      Array.from(
+        drawer?.querySelectorAll<HTMLElement>(
+          'a[href], button:not([disabled]), input:not([disabled]), select:not([disabled]), textarea:not([disabled]), [tabindex]:not([tabindex="-1"])',
+        ) ?? [],
+      );
+
+    document.body.style.overflow = "hidden";
+    getFocusableElements()[0]?.focus();
+
+    const handleKeyDown = (event: KeyboardEvent) => {
+      if (event.key === "Escape") {
+        event.preventDefault();
+        setMobileMenuOpen(false);
+        return;
+      }
+      if (event.key !== "Tab") return;
+
+      const focusableElements = getFocusableElements();
+      if (focusableElements.length === 0) {
+        event.preventDefault();
+        return;
+      }
+      const firstElement = focusableElements[0];
+      const lastElement = focusableElements[focusableElements.length - 1];
+      if (event.shiftKey && document.activeElement === firstElement) {
+        event.preventDefault();
+        lastElement.focus();
+      } else if (!event.shiftKey && document.activeElement === lastElement) {
+        event.preventDefault();
+        firstElement.focus();
+      }
+    };
+    document.addEventListener("keydown", handleKeyDown);
+    return () => {
+      document.removeEventListener("keydown", handleKeyDown);
+      document.body.style.overflow = previousOverflow;
+      if (previousActiveElement && document.contains(previousActiveElement)) {
+        previousActiveElement.focus();
+      } else {
+        mobileMenuTriggerRef.current?.focus();
+      }
+    };
+  }, [mobileMenuOpen]);
+
+  useEffect(() => {
+    if (!profileMenuOpen) return;
+    const handleEscape = (event: KeyboardEvent) => {
+      if (event.key === "Escape") {
+        event.preventDefault();
+        setProfileMenuOpen(false);
+      }
+    };
+    document.addEventListener("keydown", handleEscape);
+    return () => document.removeEventListener("keydown", handleEscape);
+  }, [profileMenuOpen]);
 
   const handleSignOut = async () => {
     if (loading) return;
@@ -247,6 +312,7 @@ export function GlobalTopNav({
           {/* Menú global (móvil) */}
           <button
             type="button"
+            ref={mobileMenuTriggerRef}
             onClick={() => setMobileMenuOpen(true)}
             className={cn(
               "inline-flex items-center justify-center rounded-lg p-2.5 transition-all duration-200 active:scale-95 md:hidden min-h-[44px] min-w-[44px]",
@@ -254,6 +320,7 @@ export function GlobalTopNav({
             )}
             aria-label="Abrir menú"
             aria-expanded={mobileMenuOpen}
+            aria-controls="global-mobile-navigation"
           >
             <Menu className="h-6 w-6" strokeWidth={1.8} />
           </button>
@@ -453,7 +520,14 @@ export function GlobalTopNav({
 
       {/* Drawer móvil para navegación */}
       {mobileMenuOpen && (
-        <div className={cn("fixed inset-0 z-[1000] h-screen w-screen overflow-y-auto md:hidden", isDarkTheme ? "bg-zaltyko-navy text-white" : "bg-background")}>
+        <div
+          ref={mobileDrawerRef}
+          id="global-mobile-navigation"
+          role="dialog"
+          aria-modal="true"
+          aria-label="Menú de navegación"
+          className={cn("fixed inset-0 z-[1000] h-screen w-screen overflow-y-auto md:hidden", isDarkTheme ? "bg-zaltyko-navy text-white" : "bg-background")}
+        >
           <div className={cn("flex items-center justify-between border-b px-4 py-4", isDarkTheme ? "border-white/10" : "border-border")}>
             <div className="flex items-center gap-2">
               {isDarkTheme ? (

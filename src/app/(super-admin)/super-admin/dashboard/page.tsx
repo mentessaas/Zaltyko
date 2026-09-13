@@ -31,8 +31,8 @@ export default async function SuperAdminDashboardPage() {
 
   const [metrics, recentEvents] = await Promise.all([
     getGlobalStats(),
-    getRecentEvents(10),
+    getRecentEvents(50),
   ]);
 
-  return <SuperAdminDashboard initialMetrics={metrics} initialEvents={recentEvents} />;
+  return <SuperAdminDashboard initialMetrics={metrics} initialEvents={recentEvents} initialUserId={user?.id ?? devSession?.userId ?? null} />;
 }

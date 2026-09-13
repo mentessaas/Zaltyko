@@ -40,7 +40,7 @@ export const POST = withTenant(async (request, context) => {
     const body = await request.json();
     const validated = subscribeSchema.parse(body);
 
-    const subscription = await subscribeUser(profile.id, {
+    const subscription = await subscribeUser(profile.userId, {
       endpoint: validated.endpoint,
       p256dh: validated.keys.p256dh,
       auth: validated.keys.auth,

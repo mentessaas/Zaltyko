@@ -7,16 +7,16 @@ import { db } from "@/db";
 import { profiles } from "@/db/schema";
 import { withSuperAdmin } from "@/lib/authz";
 import { withRateLimit, getUserIdentifier } from "@/lib/rate-limit";
-import { getAllUsers } from "@/lib/superAdminService";
-import { createAuthUser } from "@/lib/supabase/admin-operations";
+import { getUsersPage } from "@/lib/superAdminService";
+import { createAuthUser, deleteAuthUser } from "@/lib/supabase/admin-operations";
 import { logAdminAction } from "@/lib/admin-logs";
 
 export const dynamic = "force-dynamic";
 
 const CreateUserSchema = z.object({
-  email: z.string().email(),
-  password: z.string().min(8, "La contraseña debe tener al menos 8 caracteres"),
-  name: z.string().trim().optional(),
+  email: z.string().trim().email().max(320),
+  password: z.string().min(8, "La contraseña debe tener al menos 8 caracteres").max(128),
+  name: z.string().trim().max(160).optional(),
   role: z.enum(["owner", "admin", "coach", "athlete", "parent", "super_admin"]),
 });
 
@@ -37,19 +37,31 @@ export const POST = withSuperAdmin(async (request, context) => {
   }
 
   // El trigger handle_new_user crea el perfil (rol owner). Lo ajustamos al rol/nombre pedido.
-  const updated = await db
-    .update(profiles)
-    .set({ role, name: name ?? null })
-    .where(eq(profiles.userId, userId))
-    .returning({ id: profiles.id });
-
-  let profileId = updated[0]?.id ?? null;
-  if (!updated.length) {
-    const [createdProfile] = await db
-      .insert(profiles)
-      .values({ userId, role, name: name ?? null, tenantId: crypto.randomUUID() })
+  let profileId: string | null = null;
+  try {
+    const updated = await db
+      .update(profiles)
+      .set({ role, name: name ?? null })
+      .where(eq(profiles.userId, userId))
       .returning({ id: profiles.id });
-    profileId = createdProfile?.id ?? null;
+
+    profileId = updated[0]?.id ?? null;
+    if (!updated.length) {
+      const [createdProfile] = await db
+        .insert(profiles)
+        .values({ userId, role, name: name ?? null, tenantId: crypto.randomUUID() })
+        .returning({ id: profiles.id });
+      profileId = createdProfile?.id ?? null;
+    }
+
+    if (!profileId) throw new Error("No se pudo crear el perfil");
+  } catch (error) {
+    try {
+      await deleteAuthUser(userId);
+    } catch {
+      // Preserve the original failure; cleanup can be retried from audit logs.
+    }
+    return apiError("PROFILE_CREATE_FAILED", error instanceof Error ? error.message : "No se pudo crear el perfil", 500);
   }
 
   await logAdminAction({
@@ -68,49 +80,41 @@ export const POST = withSuperAdmin(async (request, context) => {
 
 const DEFAULT_PAGE_SIZE = 50;
 const MAX_PAGE_SIZE = 200;
+const USER_ROLES = ["owner", "admin", "coach", "athlete", "parent", "super_admin"] as const;
 
 // Aplicar rate limiting: 50 requests por minuto para Super Admin
 const handler = withSuperAdmin(async (request) => {
   const url = new URL(request.url);
-  const roleFilter = url.searchParams.get("role") ?? undefined;
-  const searchQuery = url.searchParams.get("q")?.toLowerCase() ?? undefined;
-  const statusFilter = url.searchParams.get("status") as "active" | "suspended" | undefined;
+  const roleParam = url.searchParams.get("role");
+  const roleFilter = USER_ROLES.includes(roleParam as (typeof USER_ROLES)[number]) ? roleParam ?? undefined : undefined;
+  const rawSearch = url.searchParams.get("q")?.trim() ?? "";
+  const searchQuery = rawSearch.length > 0 && rawSearch.length <= 160 ? rawSearch : undefined;
+  const statusParam = url.searchParams.get("status");
+  const statusFilter =
+    statusParam === "active" || statusParam === "suspended" ? statusParam : undefined;
 
-  // Paginación
-  const page = Math.max(1, parseInt(url.searchParams.get("page") ?? "1", 10));
+  const page = Math.max(1, Number.parseInt(url.searchParams.get("page") ?? "1", 10) || 1);
   const pageSize = Math.min(
     MAX_PAGE_SIZE,
-    Math.max(1, parseInt(url.searchParams.get("limit") ?? String(DEFAULT_PAGE_SIZE), 10))
+    Math.max(1, Number.parseInt(url.searchParams.get("limit") ?? String(DEFAULT_PAGE_SIZE), 10) || DEFAULT_PAGE_SIZE)
   );
-
-  const items = await getAllUsers();
-
-  const filtered = items.filter((user) => {
-    if (roleFilter && user.role !== roleFilter) return false;
-    if (statusFilter) {
-      const isSuspended = statusFilter === "suspended";
-      if (user.isSuspended !== isSuspended) return false;
-    }
-    if (searchQuery) {
-      const haystack = `${user.fullName ?? ""} ${user.email ?? ""}`.toLowerCase();
-      if (!haystack.includes(searchQuery)) return false;
-    }
-    return true;
-  });
-
-  const total = filtered.length;
-  const totalPages = Math.ceil(total / pageSize);
-  const offset = (page - 1) * pageSize;
-  const paginatedItems = filtered.slice(offset, offset + pageSize);
-
-  return apiSuccess({
-    total,
+  const result = await getUsersPage({
     page,
     pageSize,
+    role: roleFilter,
+    status: statusFilter,
+    search: searchQuery,
+  });
+  const totalPages = Math.max(1, Math.ceil(result.total / pageSize));
+
+  return apiSuccess({
+    total: result.total,
+    page: result.page,
+    pageSize,
     totalPages,
-    hasNextPage: page < totalPages,
-    hasPreviousPage: page > 1,
-    items: paginatedItems,
+    hasNextPage: result.page < totalPages,
+    hasPreviousPage: result.page > 1,
+    items: result.items,
   });
 });
 

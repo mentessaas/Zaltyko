@@ -23,7 +23,7 @@ export const POST = withTenant(async (request, context) => {
     const validated = unsubscribeSchema.parse(body);
 
     if (validated.unsubscribeAll) {
-      const deleted = await unsubscribeAllUser(profile.id);
+      const deleted = await unsubscribeAllUser(profile.userId);
       return apiSuccess({
         ok: true,
         count: deleted.length,
@@ -34,7 +34,7 @@ export const POST = withTenant(async (request, context) => {
       return apiError("ENDPOINT_REQUIRED", "Endpoint is required", 400);
     }
 
-    const deleted = await unsubscribeUser(profile.id, validated.endpoint);
+    const deleted = await unsubscribeUser(profile.userId, validated.endpoint);
 
     if (!deleted) {
       return apiError("NOT_FOUND", "Subscription not found", 404);
