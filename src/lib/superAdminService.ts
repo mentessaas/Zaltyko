@@ -3,6 +3,7 @@ import type { AcademyStatus } from "@/db/schema/academies";
 
 import { getSupabaseAdminClient } from "@/lib/supabase/admin";
 import { logger } from "@/lib/logger";
+import { formatDateToISOString, getMonthBoundariesInCountryTimezone } from "@/lib/date-utils";
 
 export interface SuperAdminMetrics {
   totals: {
@@ -143,9 +144,13 @@ async function getGlobalStatsUncached(): Promise<SuperAdminMetrics> {
   const { and, eq, gte, inArray, isNotNull, isNull, sql } = await import("drizzle-orm");
 
   const now = new Date();
-  const currentMonth = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, "0")}`;
-  const currentMonthStart = new Date(now.getFullYear(), now.getMonth(), 1);
-  const previousMonthStart = new Date(now.getFullYear(), now.getMonth() - 1, 1);
+  const superAdminCountry = "ES";
+  const currentMonth = formatDateToISOString(now, superAdminCountry).slice(0, 7);
+  const currentMonthStart = getMonthBoundariesInCountryTimezone(now, superAdminCountry).start;
+  const previousMonthStart = getMonthBoundariesInCountryTimezone(
+    new Date(currentMonthStart.getTime() - 1),
+    superAdminCountry,
+  ).start;
   const sevenDaysAgo = new Date(now.getTime() - 7 * 24 * 60 * 60 * 1000);
 
   const [
