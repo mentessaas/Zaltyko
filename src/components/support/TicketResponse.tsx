@@ -1,6 +1,7 @@
 "use client";
 
 import { useState } from "react";
+import { useRouter } from "next/navigation";
 import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -16,6 +17,7 @@ interface TicketResponseFormProps {
 
 export function TicketResponseForm({ ticketId, isAdmin = false, onSuccess }: TicketResponseFormProps) {
   const { pushToast } = useToast();
+  const router = useRouter();
   const [isLoading, setIsLoading] = useState(false);
   const [message, setMessage] = useState("");
   const [isInternal, setIsInternal] = useState(false);
@@ -65,7 +67,7 @@ export function TicketResponseForm({ ticketId, isAdmin = false, onSuccess }: Tic
       if (onSuccess) {
         onSuccess();
       } else {
-        window.location.reload();
+        router.refresh();
       }
     } catch (error) {
       pushToast({
