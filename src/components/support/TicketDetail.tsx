@@ -134,6 +134,7 @@ export function TicketDetail({ ticket, currentUserId, isAdmin = false, onStatusC
         description: `El ticket ahora está ${statusConfig[newStatus]?.label.toLowerCase() ?? newStatus}.`,
         variant: "success",
       });
+      router.refresh();
     } catch (error) {
       setCurrentStatus(previousStatus);
       pushToast({

@@ -185,6 +185,7 @@ describe("TicketDetail", () => {
         title: "Estado actualizado",
         variant: "success",
       }));
+      expect(routerMock.refresh).toHaveBeenCalled();
     });
   });
 });
