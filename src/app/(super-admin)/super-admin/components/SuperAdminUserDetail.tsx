@@ -32,6 +32,14 @@ import { formatAcademyType } from "@/lib/formatters";
 import { useToast } from "@/components/ui/toast-provider";
 import { logger } from "@/lib/logger";
 import { ConfirmDialog } from "@/components/ui/confirm-dialog";
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+} from "@/components/ui/dialog";
 
 const DISPLAY_TIME_ZONE = "Europe/Madrid";
 
@@ -521,89 +529,92 @@ export function SuperAdminUserDetail({ initialUser, userId, backHref = "/super-a
 
   return (
     <div className="space-y-6">
-      {/* Modal de violaciones de límites */}
-      {planViolations && planViolations.requiresAction && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4">
-          <div
-            role="dialog"
-            aria-modal="true"
-            aria-labelledby="plan-violations-title"
-            className="max-w-2xl rounded-2xl border border-zaltyko-coral/50 bg-zaltyko-navy/90 p-6 shadow-xl"
-          >
-            <div className="mb-4">
-              <h2 id="plan-violations-title" className="text-2xl font-semibold text-white">Atención: Límites del plan excedidos</h2>
-              <p className="mt-2 text-sm text-white/70">
-                El nuevo plan tiene límites más restrictivos. El usuario tiene los siguientes recursos que exceden el límite:
-              </p>
-            </div>
+      {/* Radix supplies focus management and Escape handling for this modal. */}
+      <Dialog
+        open={Boolean(planViolations?.requiresAction)}
+        onOpenChange={(open) => {
+          if (!open) {
+            setPlanViolations(null);
+            setFormData((current) => ({ ...current, planId: user.subscription?.planId ?? "" }));
+          }
+        }}
+      >
+        <DialogContent className="max-h-[85vh] overflow-y-auto border-zaltyko-coral/50 bg-zaltyko-navy text-white sm:max-w-2xl">
+          <DialogHeader>
+            <DialogTitle className="text-white">Atención: Límites del plan excedidos</DialogTitle>
+            <DialogDescription className="text-white/70">
+              El nuevo plan tiene límites más restrictivos. Estos recursos superan el límite actual:
+            </DialogDescription>
+          </DialogHeader>
 
-            <div className="space-y-4 max-h-96 overflow-y-auto">
-              {planViolations.violations.map((violation, idx) => (
-                <div key={idx} className="rounded-lg border border-zaltyko-coral/30 bg-zaltyko-coral/10 p-4">
-                  <div className="mb-2 flex items-center justify-between">
-                    <h3 className="font-semibold text-white capitalize">
-                      {violation.resource === "academies" && "Academias"}
-                      {violation.resource === "athletes" && "Atletas"}
-                      {violation.resource === "classes" && "Clases"}
-                      {violation.resource === "groups" && "Grupos"}
-                    </h3>
-                    <span className="text-sm text-zaltyko-coral">
-                      {violation.currentCount} / {violation.limit ?? "∞"}
-                    </span>
-                  </div>
-                  <p className="mb-2 text-xs text-white/50">
-                    Tienes {violation.currentCount} {violation.resource}, pero el plan solo permite {violation.limit ?? "ilimitados"}.
-                  </p>
-                  {violation.items.length > 0 && (
-                    <div className="mt-2 max-h-32 overflow-y-auto">
-                      <p className="mb-1 text-xs font-semibold text-white/70">Items afectados:</p>
-                      <ul className="space-y-1 text-xs text-white/50">
-                        {violation.items.slice(0, 5).map((item) => (
-                          <li key={item.id}>• {item.name ?? `ID: ${item.id}`}</li>
-                        ))}
-                        {violation.items.length > 5 && (
-                          <li className="text-white/40">... y {violation.items.length - 5} más</li>
-                        )}
-                      </ul>
-                    </div>
-                  )}
+          <div className="space-y-4">
+            {planViolations?.violations.map((violation, idx) => (
+              <div key={`${violation.resource}-${idx}`} className="rounded-lg border border-zaltyko-coral/30 bg-zaltyko-coral/10 p-4">
+                <div className="mb-2 flex items-center justify-between">
+                  <h3 className="font-semibold capitalize text-white">
+                    {violation.resource === "academies" && "Academias"}
+                    {violation.resource === "athletes" && "Atletas"}
+                    {violation.resource === "classes" && "Clases"}
+                    {violation.resource === "groups" && "Grupos"}
+                  </h3>
+                  <span className="text-sm text-zaltyko-coral">
+                    {violation.currentCount} / {violation.limit ?? "∞"}
+                  </span>
                 </div>
-              ))}
-            </div>
-
-            <div className="mt-6 flex gap-3 border-t border-white/10 pt-4">
-              <Button
-                variant="outline"
-                className="flex-1 border-white/20 bg-white/5 text-slate-100 hover:border-white/40 hover:bg-white/10"
-                onClick={() => {
-                  setPlanViolations(null);
-                  // Revert plan change
-                  setFormData({ ...formData, planId: user.subscription?.planId ?? "" });
-                }}
-              >
-                Cancelar cambio de plan
-              </Button>
-              <Button
-                className="flex-1 bg-zaltyko-coral text-white hover:bg-zaltyko-coral/90"
-                onClick={() => setForcePlanDialogOpen(true)}
-                disabled={saving}
-              >
-                {saving ? (
-                  <>
-                    <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                    Cambiando...
-                  </>
-                ) : (
-                  "Cambiar plan de todas formas"
+                <p className="mb-2 text-xs text-white/50">
+                  Tienes {violation.currentCount} {violation.resource}, pero el plan solo permite {violation.limit ?? "ilimitados"}.
+                </p>
+                {violation.items.length > 0 && (
+                  <div className="mt-2 max-h-32 overflow-y-auto">
+                    <p className="mb-1 text-xs font-semibold text-white/70">Elementos afectados:</p>
+                    <ul className="space-y-1 text-xs text-white/50">
+                      {violation.items.slice(0, 5).map((item) => (
+                        <li key={item.id}>{item.name ?? `ID: ${item.id}`}</li>
+                      ))}
+                      {violation.items.length > 5 && (
+                        <li className="text-white/40">... y {violation.items.length - 5} más</li>
+                      )}
+                    </ul>
+                  </div>
                 )}
-              </Button>
-            </div>
-            <p className="mt-4 text-xs text-white/50">
-              Nota: Si cambias el plan de todas formas, se notificará al usuario para que ajuste manualmente sus recursos.
-            </p>
+              </div>
+            ))}
           </div>
-        </div>
-      )}
+
+          <DialogFooter className="gap-3 border-t border-white/10 pt-4 sm:justify-end">
+            <Button
+              variant="outline"
+              className="border-white/20 bg-white/5 text-slate-100 hover:border-white/40 hover:bg-white/10"
+              onClick={() => {
+                setPlanViolations(null);
+                setFormData((current) => ({ ...current, planId: user.subscription?.planId ?? "" }));
+              }}
+            >
+              Cancelar cambio de plan
+            </Button>
+            <Button
+              className="bg-zaltyko-coral text-white hover:bg-zaltyko-coral/90"
+              onClick={() => {
+                setPlanViolations(null);
+                setForcePlanDialogOpen(true);
+              }}
+              disabled={saving}
+            >
+              {saving ? (
+                <>
+                  <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                  Cambiando...
+                </>
+              ) : (
+                "Cambiar plan de todas formas"
+              )}
+            </Button>
+          </DialogFooter>
+          <p className="text-xs text-white/50">
+            Si cambias el plan de todas formas, se notificará al usuario para que ajuste manualmente sus recursos.
+          </p>
+        </DialogContent>
+      </Dialog>
 
       <div className="rounded-2xl border border-white/10 bg-white/5 p-6">
         <div className="mb-6 flex items-start justify-between">

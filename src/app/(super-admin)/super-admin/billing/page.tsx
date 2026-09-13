@@ -17,6 +17,11 @@ import { academies, billingInvoices, plans, profiles, subscriptions } from "@/db
 import { createClient } from "@/lib/supabase/server";
 import { getCurrentProfile } from "@/lib/authz";
 import { getDevSessionFromCookieStore } from "@/lib/dev-session";
+import {
+  RISKY_INVOICE_STATUSES,
+  RISKY_SUBSCRIPTION_STATUSES,
+  isRiskyBillingStatus,
+} from "@/lib/super-admin-billing";
 
 export const dynamic = "force-dynamic";
 
@@ -32,7 +37,6 @@ function parsePage(value: string | undefined) {
   return Number.isFinite(parsed) ? Math.min(1000, Math.max(1, parsed)) : 1;
 }
 
-const RISKY_STATUSES = ["past_due", "canceled", "unpaid"] as const;
 const BILLING_STATUS_VALUES = ["draft", "open", "paid", "uncollectible", "void"] as const;
 const SUBSCRIPTION_STATUS_VALUES = ["active", "trialing", "past_due", "canceled", "unpaid", "incomplete", "incomplete_expired", "paused"] as const;
 
@@ -120,7 +124,7 @@ function statusLabel(status: string) {
 
 function statusClasses(status: string) {
   if (status === "paid" || status === "active") return "bg-emerald-400/15 text-emerald-200";
-  if (RISKY_STATUSES.includes(status as (typeof RISKY_STATUSES)[number])) {
+  if (isRiskyBillingStatus(status)) {
     return "bg-rose-400/15 text-rose-200";
   }
   if (status === "void" || status === "incomplete_expired") return "bg-slate-400/15 text-slate-200";
@@ -162,7 +166,7 @@ export default async function SuperAdminBillingPage({ searchParams }: PageProps)
   const isFiltered = isRiskView || Boolean(selectedStatus);
   const invoiceCondition =
     isRiskView
-      ? inArray(billingInvoices.status, [...RISKY_STATUSES])
+      ? inArray(billingInvoices.status, [...RISKY_INVOICE_STATUSES])
       : selectedInvoiceStatus
         ? eq(billingInvoices.status, selectedInvoiceStatus)
         : selectedSubscriptionStatus
@@ -170,7 +174,7 @@ export default async function SuperAdminBillingPage({ searchParams }: PageProps)
           : undefined;
   const subscriptionCondition =
     isRiskView
-      ? inArray(subscriptions.status, [...RISKY_STATUSES])
+      ? inArray(subscriptions.status, [...RISKY_SUBSCRIPTION_STATUSES])
       : selectedSubscriptionStatus
         ? eq(subscriptions.status, selectedSubscriptionStatus)
         : selectedInvoiceStatus
@@ -217,10 +221,10 @@ export default async function SuperAdminBillingPage({ searchParams }: PageProps)
       .from(subscriptions)
       .where(subscriptionCondition)
       .then(([row]) => row),
-    db
+      db
       .select({ total: count(subscriptions.id) })
       .from(subscriptions)
-      .where(inArray(subscriptions.status, [...RISKY_STATUSES]))
+      .where(inArray(subscriptions.status, [...RISKY_SUBSCRIPTION_STATUSES]))
       .then(([row]) => row),
     db
       .select({
@@ -283,7 +287,7 @@ export default async function SuperAdminBillingPage({ searchParams }: PageProps)
   ]);
 
   const invoiceRiskCount = statusRows
-    .filter((row) => RISKY_STATUSES.includes(row.status as (typeof RISKY_STATUSES)[number]))
+    .filter((row) => RISKY_INVOICE_STATUSES.includes(row.status as (typeof RISKY_INVOICE_STATUSES)[number]))
     .reduce((total, row) => total + Number(row.total), 0);
   const riskyCount = invoiceRiskCount + Number(riskySubscriptionCount?.total ?? 0);
   const normalizedCurrencyRows = currencyRows.map((row) => ({
