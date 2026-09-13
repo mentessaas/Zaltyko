@@ -18,6 +18,7 @@ import {
   Clock,
   AlertCircle,
   Mail,
+  ShieldCheck,
 } from "lucide-react";
 import { format, formatDistanceToNow } from "date-fns";
 import { es } from "date-fns/locale";
@@ -64,6 +65,7 @@ const NOTIFICATION_TYPES = [
   { value: "invoice_paid", label: "Recibo pagado", icon: CreditCard },
   { value: "event", label: "Evento", icon: Calendar },
   { value: "message", label: "Mensaje", icon: MessageSquare },
+  { value: "admin_message", label: "Mensaje del equipo", icon: ShieldCheck },
   { value: "new_message", label: "Mensaje nuevo", icon: MessageSquare },
   { value: "class_group_alert", label: "Aviso de clase", icon: MessageSquare },
   { value: "renewal", label: "Renovación", icon: RefreshCw },
@@ -76,6 +78,7 @@ const getNotificationIcon = (type: string) => {
 };
 
 const getNotificationColor = (type: string) => {
+  if (type === "admin_message") return "bg-indigo-100 text-indigo-700";
   // ZAL-575 Tier A paso 2: sobre fondos -100 ninguna variante -600 alcanza 4.5:1.
   // -700 sí (blue 5.49, green 4.57, red 5.30, pink 5.14); yellow usa -800 (6.38)
   // porque su -700 queda en 4.58, demasiado justo.
