@@ -22,11 +22,20 @@ export function useSuperAdminData(initial: SuperAdminMetrics, initialEvents: Eve
 
   useEffect(() => {
     let mounted = true;
-    supabase.auth.getUser().then(({ data }) => {
-      if (mounted) {
-        setUserId(data.user?.id ?? initialUserId ?? null);
-      }
-    });
+    supabase.auth
+      .getUser()
+      .then(({ data }) => {
+        if (mounted) {
+          setUserId(data.user?.id ?? initialUserId ?? null);
+        }
+      })
+      .catch((error) => {
+        if (mounted) {
+          logger.warn("Unable to resolve super-admin session for dashboard", {
+            error: error instanceof Error ? error.message : String(error),
+          });
+        }
+      });
     return () => {
       mounted = false;
     };
