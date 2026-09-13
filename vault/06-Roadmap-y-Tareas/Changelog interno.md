@@ -9559,3 +9559,13 @@ OK
 ```
 
 Vault: actualizado `Changelog interno.md`; no cambian `Decisiones.md`, `Pricing.md`, `Mensajes aprobados.md` ni `Backlog priorizado.md`.
+
+## 2026-09-13 — Codex: auditoría y endurecimiento del control plane Super Admin (PR #126)
+
+- Se auditó y elevó `/super-admin` sobre la rama `codex/super-admin-wow`: dashboard, academias, academias públicas, usuarios, Growth, Billing, Soporte, Logs y Settings con paginación server-side, filtros reproducibles, deep links, orden estable, estados de error y acciones auditables.
+- Se corrigieron riesgos de operación y datos: joins de búsqueda/COUNT, histórico de entrevistas acotado a 50 filas con KPIs SQL, normalización de páginas fuera de rango, aislamiento `profileId`/`authUserId`, protección de correo Auth contra borrado silencioso y etiquetas accesibles para acciones solo-icono.
+- Evidencia local: `pnpm exec vitest run` → 159 archivos correctos, 1 omitido; 1.466 tests correctos, 2 omitidos. `pnpm typecheck`, `pnpm lint:app` y `git diff --check` terminan con código 0.
+- Evidencia remota: CI #579 y Static Gates #304 en verde; preview Vercel del SHA `76ddbe895206ec246a0cbeae22acd43d16de9804` en estado `READY`; auditoría WCAG pública Playwright 6/6 pasadas en Chromium, Firefox y WebKit. Los checks autenticados (33) quedaron omitidos porque no existe `E2E_SUPER_ADMIN_STORAGE_STATE` en este checkout.
+- No hubo merge, publicación ni mutación de producción. Producción continúa en `main` (`a1e7e68`) y conserva el error FK de `daily-alerts` observado en su deployment actual; requiere publicar en ventana autorizada y repetir verificación. El walkthrough autenticado del preview también queda pendiente de una sesión super-admin válida.
+
+Vault: actualizado este `Changelog interno.md` y `Backlog priorizado.md`; no cambian `Decisiones.md`, `Pricing.md` ni `Mensajes aprobados.md` porque no se modificó la dirección de producto, pricing o copy comercial.
