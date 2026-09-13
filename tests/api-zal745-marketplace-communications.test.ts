@@ -249,7 +249,7 @@ describe("ZAL-745: push y push-tokens", () => {
   beforeEach(reset);
 
   it("envía push solo al destinatario del tenant y crea aviso in-app si se pide", async () => {
-    mocks.selectQueue.push([{ id: RECIPIENT_ID }]);
+    mocks.selectQueue.push([{ id: RECIPIENT_ID, userId: OTHER_USER_ID }]);
     const { POST } = await import("@/app/api/push/send/route");
     const response = await POST(request("/api/push/send", "POST", {
       userId: RECIPIENT_ID,
@@ -259,7 +259,7 @@ describe("ZAL-745: push y push-tokens", () => {
     }));
 
     expect(response.status).toBe(200);
-    expect(mocks.sendPush).toHaveBeenCalledWith(RECIPIENT_ID, expect.objectContaining({ title: "Aviso" }));
+    expect(mocks.sendPush).toHaveBeenCalledWith(OTHER_USER_ID, expect.objectContaining({ title: "Aviso" }));
     expect(mocks.createNotification).toHaveBeenCalledOnce();
   });
 

@@ -76,6 +76,7 @@ async function getUserProfile(userId: string) {
   const [profile] = await db
     .select({
       id: profiles.id,
+      userId: profiles.userId,
       name: profiles.name,
       phone: profiles.phone,
     })
@@ -162,7 +163,10 @@ async function sendViaChannel(
         if (!isPushAvailable()) {
           return { success: false, error: "Push not configured" };
         }
-        const pushResult = await sendPushToUser(userId, {
+        if (!profile?.userId) {
+          return { success: false, error: "Profile not found" };
+        }
+        const pushResult = await sendPushToUser(profile.userId, {
           title: options.title,
           body: options.body,
           data: options.data,
