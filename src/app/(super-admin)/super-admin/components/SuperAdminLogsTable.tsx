@@ -17,11 +17,12 @@ interface SuperAdminLogsTableProps {
 }
 
 const PAGE_SIZE = 50;
+const DISPLAY_TIME_ZONE = "Europe/Madrid";
 
 function formatLogDate(value: string | null | undefined) {
   if (!value) return "—";
   const date = new Date(value);
-  return Number.isNaN(date.getTime()) ? "Fecha no disponible" : date.toLocaleString("es-ES");
+  return Number.isNaN(date.getTime()) ? "Fecha no disponible" : date.toLocaleString("es-ES", { timeZone: DISPLAY_TIME_ZONE });
 }
 
 export function SuperAdminLogsTable({
