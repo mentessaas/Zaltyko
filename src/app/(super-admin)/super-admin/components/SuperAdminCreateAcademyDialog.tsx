@@ -60,6 +60,12 @@ export function SuperAdminCreateAcademyDialog() {
       toast.pushToast({ title: "Academia creada", description: form.academyName, variant: "success" });
       setOpen(false);
       router.refresh();
+    } catch (error) {
+      toast.pushToast({
+        title: "No se pudo crear la academia",
+        description: error instanceof Error ? error.message : "Revisa la conexión e inténtalo de nuevo.",
+        variant: "error",
+      });
     } finally {
       setSubmitting(false);
     }
@@ -82,13 +88,19 @@ export function SuperAdminCreateAcademyDialog() {
       </button>
 
       {open && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 p-4 overflow-y-auto" onClick={() => !submitting && setOpen(false)}>
+        <div
+          role="dialog"
+          aria-modal="true"
+          aria-labelledby="create-academy-dialog-title"
+          className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 p-4 overflow-y-auto"
+          onClick={() => !submitting && setOpen(false)}
+        >
           <form
             onClick={(e) => e.stopPropagation()}
             onSubmit={handleSubmit}
             className="my-8 w-full max-w-lg space-y-4 rounded-2xl border border-white/10 bg-[#0f1729] p-6 shadow-xl"
           >
-            <h3 className="text-lg font-semibold text-white">Crear academia + dueño</h3>
+            <h3 id="create-academy-dialog-title" className="text-lg font-semibold text-white">Crear academia + dueño</h3>
 
             <label className="block text-sm text-white/70">
               Nombre de la academia

@@ -46,6 +46,12 @@ export function SuperAdminCreateUserDialog() {
       setOpen(false);
       reset();
       router.refresh();
+    } catch (error) {
+      toast.pushToast({
+        title: "No se pudo crear el usuario",
+        description: error instanceof Error ? error.message : "Revisa la conexión e inténtalo de nuevo.",
+        variant: "error",
+      });
     } finally {
       setSubmitting(false);
     }
@@ -63,13 +69,19 @@ export function SuperAdminCreateUserDialog() {
       </button>
 
       {open && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 p-4" onClick={() => !submitting && setOpen(false)}>
+        <div
+          role="dialog"
+          aria-modal="true"
+          aria-labelledby="create-user-dialog-title"
+          className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 p-4"
+          onClick={() => !submitting && setOpen(false)}
+        >
           <form
             onClick={(e) => e.stopPropagation()}
             onSubmit={handleSubmit}
             className="w-full max-w-md space-y-4 rounded-2xl border border-white/10 bg-[#0f1729] p-6 shadow-xl"
           >
-            <h3 className="text-lg font-semibold text-white">Crear usuario</h3>
+            <h3 id="create-user-dialog-title" className="text-lg font-semibold text-white">Crear usuario</h3>
 
             <label className="block text-sm text-white/70">
               Email

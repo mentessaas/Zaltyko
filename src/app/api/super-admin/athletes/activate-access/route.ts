@@ -12,6 +12,7 @@ import {
 import { sendEmail } from "@/lib/brevo";
 import { config } from "@/config";
 import { logger } from "@/lib/logger";
+import { logAdminAction } from "@/lib/admin-logs";
 import { escapeHtml } from "@/lib/email/escape-html";
 
 const ActivateAthleteSchema = z.object({
@@ -129,7 +130,7 @@ async function activateAthleteAccess(
  * Endpoint para activar acceso de un atleta
  * POST /api/super-admin/athletes/activate-access
  */
-export const POST = withSuperAdmin(async (request) => {
+export const POST = withSuperAdmin(async (request, context) => {
   let rawBody: unknown;
   try {
     rawBody = await request.json();
@@ -152,6 +153,23 @@ export const POST = withSuperAdmin(async (request) => {
     if (!result.ok) {
       return apiError(result.error ?? "ACTIVATION_FAILED", getErrorMessage(result.error), 400);
     }
+
+    await logAdminAction({
+      userId: context.userId,
+      tenantId: null,
+      action: "athlete.access_activated",
+      resourceType: "profile",
+      resourceId: parsed.data.profileId,
+      resourceName: result.email,
+      description: `Super Admin activó el acceso del atleta ${result.email}`,
+      meta: {
+        profileId: parsed.data.profileId,
+        email: result.email,
+        sendInvitation: parsed.data.sendInvitation,
+        invitationSent: result.invitationSent,
+      },
+      status: result.invitationSent || !parsed.data.sendInvitation ? "success" : "warning",
+    });
 
     return apiSuccess({
       ok: true,
