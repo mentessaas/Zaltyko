@@ -949,18 +949,22 @@ export function SuperAdminDashboard({ initialMetrics, initialEvents = [], initia
                   size="sm"
                   onClick={() => setCurrentPage((p) => Math.max(1, p - 1))}
                   disabled={currentPage === 1}
+                  aria-label="Página anterior de actividad"
+                  title="Página anterior de actividad"
                   className="border-white/20 text-white hover:bg-white/10"
                 >
-                  <ChevronLeft className="h-4 w-4" />
+                  <ChevronLeft className="h-4 w-4" aria-hidden="true" />
                 </Button>
                 <Button
                   variant="outline"
                   size="sm"
                   onClick={() => setCurrentPage((p) => Math.min(totalPages, p + 1))}
                   disabled={currentPage === totalPages}
+                  aria-label="Página siguiente de actividad"
+                  title="Página siguiente de actividad"
                   className="border-white/20 text-white hover:bg-white/10"
                 >
-                  <ChevronRight className="h-4 w-4" />
+                  <ChevronRight className="h-4 w-4" aria-hidden="true" />
                 </Button>
               </div>
             </div>
