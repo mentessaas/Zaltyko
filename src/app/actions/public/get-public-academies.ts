@@ -12,7 +12,7 @@ import { INDEXABLE_ACADEMY_STATUS_VALUES } from "@/lib/seo/academy-indexability"
 const ACADEMY_TYPES = ["artistica", "ritmica", "general"] as const;
 
 const GetPublicAcademiesSchema = z.object({
-  search: z.string().optional(),
+  search: z.string().trim().max(160).optional(),
   type: z.enum(ACADEMY_TYPES).optional(),
   country: z.string().optional(),
   region: z.string().optional(),
@@ -63,6 +63,7 @@ export async function getPublicAcademies(
 ): Promise<GetPublicAcademiesResult> {
   const parsed = GetPublicAcademiesSchema.parse(input);
   const { search, type, country, region, city, page, limit } = parsed;
+  const escapedSearch = search?.replace(/[\\%_]/g, "\\$&");
 
   // Construir filtros
   const filters: Array<ReturnType<typeof eq> | ReturnType<typeof ilike> | ReturnType<typeof inArray>> = [
@@ -71,8 +72,8 @@ export async function getPublicAcademies(
     inArray(academies.status, INDEXABLE_ACADEMY_STATUS_VALUES),
   ];
 
-  if (search) {
-    filters.push(ilike(academies.name, `%${search}%`));
+  if (escapedSearch) {
+    filters.push(ilike(academies.name, `%${escapedSearch}%`));
   }
 
   if (type) {
@@ -145,7 +146,7 @@ export async function getPublicAcademies(
       })
       .from(academies)
       .where(and(...filters))
-      .orderBy(asc(academies.name))
+      .orderBy(asc(academies.name), asc(academies.id))
       .limit(limit)
       .offset(offset);
 
@@ -185,8 +186,8 @@ export async function getPublicAcademies(
         .eq("is_suspended", false)
         .in("status", INDEXABLE_ACADEMY_STATUS_VALUES);
       
-      if (search) {
-        query = query.ilike("name", `%${search}%`);
+      if (escapedSearch) {
+        query = query.ilike("name", `%${escapedSearch}%`);
       }
       if (type) {
         query = query.eq("academy_type", type);
@@ -205,6 +206,7 @@ export async function getPublicAcademies(
       const offset = (page - 1) * limit;
       query = query.range(offset, offset + limit - 1);
       query = query.order("name", { ascending: true });
+      query = query.order("id", { ascending: true });
       
       const { data, error: supabaseError, count } = await query;
       

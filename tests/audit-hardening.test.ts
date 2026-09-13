@@ -411,6 +411,21 @@ describe("audit hardening", () => {
       expect(source.match(/details\.push\(/g)).toHaveLength(1);
       expect(source).toContain("if (details.length < SYNC_DETAIL_LIMIT)");
     });
+
+    it("bounds and stabilizes public academy search", () => {
+      const actionPath = fileURLToPath(
+        new URL(
+          "../src/app/actions/public/get-public-academies.ts",
+          import.meta.url
+        )
+      );
+      const source = readFileSync(actionPath, "utf8");
+
+      expect(source).toContain('search: z.string().trim().max(160).optional()');
+      expect(source).toContain('replace(/[\\\\%_]/g, "\\\\$&")');
+      expect(source).toContain(".orderBy(asc(academies.name), asc(academies.id))");
+      expect(source).toContain('query.order("id", { ascending: true })');
+    });
   });
 
   describe("class waiting list tenancy", () => {

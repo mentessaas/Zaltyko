@@ -9592,6 +9592,7 @@ Vault: actualizado este `Changelog interno.md`; `Backlog priorizado.md` no cambi
 - Se etiquetaron los campos editables del detalle de academia/usuario para lectores de pantalla, se corrigió la columna Plan en móvil y se limpia la contraseña temporal del modal de alta de academia al cerrar o completar.
 - La sincronización de atletas limita los detalles retenidos a 100 entradas y expone `detailsTruncated` para evitar respuestas y auditorías sin límite; el cliente muestra esa condición.
 - Las lecturas independientes del detalle de usuario se ejecutan en paralelo para reducir latencia sin cambiar el contrato de datos.
+- La búsqueda de Academias Públicas limita la entrada a 160 caracteres, trata `%` y `_` como texto literal y ordena por nombre + ID tanto en Drizzle como en el fallback REST.
 - Evidencia local: `pnpm exec vitest run` pasa `161` archivos y omite `1`; pasan `1.478` tests y se omiten `2`. También pasan `pnpm typecheck`, `pnpm lint:app` y `git diff --check`; las suites focalizadas de API Super Admin, navegación por roles, componentes y contratos de hardening pasan.
 - Sin migraciones, pricing, permisos de producción o publicación. Los pendientes de walkthrough autenticado, verificación de claves foráneas y release controlado permanecen en el backlog.
 
