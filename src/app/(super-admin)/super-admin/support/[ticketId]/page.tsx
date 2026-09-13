@@ -118,11 +118,11 @@ export default async function SuperAdminTicketDetailPage({ params, searchParams 
 
   async function handleStatusChange(newStatus: TicketStatus) {
     "use server";
-    if (!TICKET_STATUS_VALUES.includes(newStatus)) return;
+    if (!TICKET_STATUS_VALUES.includes(newStatus)) return false;
     const actionCookieStore = await cookies();
     const actionDevSession = await getDevSessionFromCookieStore(actionCookieStore);
     const current = await getCurrentProfile(userId);
-    if ((!current || current.role !== "super_admin") && !actionDevSession) return;
+    if ((!current || current.role !== "super_admin") && !actionDevSession) return false;
 
     const [updatedTicket] = await db
       .update(tickets)
@@ -135,26 +135,27 @@ export default async function SuperAdminTicketDetailPage({ params, searchParams 
       .where(eq(tickets.id, ticketId))
       .returning({ id: tickets.id, academyId: tickets.academyId });
 
-    if (updatedTicket) {
-      await logAdminAction({
-        userId,
-        tenantId: null,
-        action: "support.ticket_status_changed",
-        resourceType: "ticket",
-        resourceId: ticketId,
-        resourceName: ticketRecord.title,
-        description: `Super Admin cambió el ticket ${ticketRecord.title} de ${ticketRecord.status} a ${newStatus}`,
-        meta: {
-          ticketId,
-          academyId: updatedTicket.academyId,
-          from: ticketRecord.status,
-          to: newStatus,
-        },
-      });
-    }
+    if (!updatedTicket) return false;
+
+    await logAdminAction({
+      userId,
+      tenantId: null,
+      action: "support.ticket_status_changed",
+      resourceType: "ticket",
+      resourceId: ticketId,
+      resourceName: ticketRecord.title,
+      description: `Super Admin cambió el ticket ${ticketRecord.title} de ${ticketRecord.status} a ${newStatus}`,
+      meta: {
+        ticketId,
+        academyId: updatedTicket.academyId,
+        from: ticketRecord.status,
+        to: newStatus,
+      },
+    });
 
     revalidatePath("/super-admin/support");
     revalidatePath(`/super-admin/support/${ticketId}`);
+    return true;
   }
 
   return (

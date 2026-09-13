@@ -21,6 +21,7 @@ vi.mock("next/navigation", () => ({
 
 import { TicketResponseForm } from "@/components/support/TicketResponse";
 import { TicketFilters } from "@/components/support/TicketFilters";
+import { TicketDetail } from "@/components/support/TicketDetail";
 import { TogglePublicVisibility } from "@/components/admin/TogglePublicVisibility";
 import { SuperAdminCreateAcademyDialog } from "@/app/(super-admin)/super-admin/components/SuperAdminCreateAcademyDialog";
 import { SuperAdminCreateUserDialog } from "@/app/(super-admin)/super-admin/components/SuperAdminCreateUserDialog";
@@ -143,5 +144,47 @@ describe("TicketFilters", () => {
     await user.click(screen.getByRole("button", { name: "Buscar" }));
 
     expect(routerMock.push).toHaveBeenCalledWith("?q=academia+demo");
+  });
+});
+
+describe("TicketDetail", () => {
+  beforeEach(() => {
+    toastMock.pushToast.mockReset();
+  });
+
+  it("actualiza el estado al instante y muestra feedback de éxito", async () => {
+    const user = userEvent.setup();
+    const onStatusChange = vi.fn().mockResolvedValue(true);
+
+    render(
+      <TicketDetail
+        ticket={{
+          id: "ticket-1",
+          title: "No puedo acceder",
+          description: "El acceso falla.",
+          status: "open",
+          priority: "high",
+          category: "technical",
+          createdAt: "2026-09-13T08:00:00.000Z",
+          updatedAt: "2026-09-13T08:00:00.000Z",
+          createdBy: { id: "profile-1", fullName: "Ana", email: "ana@example.com" },
+          responses: [],
+        }}
+        currentUserId="profile-admin"
+        isAdmin
+        onStatusChange={onStatusChange}
+      />,
+    );
+
+    await user.click(screen.getByRole("button", { name: "Resolver" }));
+
+    await waitFor(() => {
+      expect(onStatusChange).toHaveBeenCalledWith("resolved");
+      expect(screen.getByText("Resuelto")).toBeInTheDocument();
+      expect(toastMock.pushToast).toHaveBeenCalledWith(expect.objectContaining({
+        title: "Estado actualizado",
+        variant: "success",
+      }));
+    });
   });
 });
