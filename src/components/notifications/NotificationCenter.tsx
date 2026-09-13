@@ -1,7 +1,7 @@
 "use client";
 
 import { useState, useEffect, useCallback, useRef } from "react";
-import { X, Check, CheckCheck, Trash2, Loader2, Bell, Calendar, CreditCard, MessageSquare, AlertCircle, Volume2, VolumeX, ChevronDown, Filter } from "lucide-react";
+import { X, Check, CheckCheck, Trash2, Loader2, Bell, Calendar, CreditCard, MessageSquare, AlertCircle, Volume2, VolumeX, ChevronDown, Filter, ShieldCheck } from "lucide-react";
 import { format, isToday, isYesterday, parseISO } from "date-fns";
 import { es } from "date-fns/locale";
 import { useRouter } from "next/navigation";
@@ -52,6 +52,7 @@ const NOTIFICATION_TYPE_LABELS: Record<string, string> = {
   invoice_paid: "Pago",
   event: "Evento",
   message: "Mensaje",
+  admin_message: "Mensaje del equipo",
   new_message: "Mensaje nuevo",
   class_group_alert: "Aviso de clase",
   renewal: "Renovación",
@@ -87,6 +88,7 @@ function getNotificationDestination(notification: Notification): string | null {
 }
 
 const getNotificationIcon = (type: string) => {
+  if (type === "admin_message") return ShieldCheck;
   if (type.includes("invoice") || type.includes("payment")) return CreditCard;
   if (type.includes("class") || type.includes("schedule") || type.includes("reminder")) return Calendar;
   if (type.includes("message") || type.includes("contact")) return MessageSquare;
@@ -96,6 +98,7 @@ const getNotificationIcon = (type: string) => {
 };
 
 const getNotificationColor = (type: string) => {
+  if (type === "admin_message") return "bg-indigo-100 text-indigo-700";
   if (type.includes("invoice_pending") || type.includes("invoice_overdue")) return "bg-amber-100 text-amber-600";
   if (type.includes("invoice_paid")) return "bg-green-100 text-green-600";
   if (type.includes("class") || type.includes("schedule") || type.includes("reminder")) return "bg-blue-100 text-blue-600";
@@ -379,6 +382,7 @@ export function NotificationCenter({
                   <SelectItem value="invoice_paid">Facturas pagadas</SelectItem>
                   <SelectItem value="event">Eventos</SelectItem>
                   <SelectItem value="message">Mensajes</SelectItem>
+                  <SelectItem value="admin_message">Mensajes del equipo</SelectItem>
                 </SelectContent>
               </Select>
 
