@@ -8,6 +8,7 @@ const toastMock = vi.hoisted(() => ({
 }));
 const routerMock = vi.hoisted(() => ({
   refresh: vi.fn(),
+  push: vi.fn(),
 }));
 
 vi.mock("@/components/ui/toast-provider", () => ({
@@ -15,9 +16,11 @@ vi.mock("@/components/ui/toast-provider", () => ({
 }));
 vi.mock("next/navigation", () => ({
   useRouter: () => routerMock,
+  useSearchParams: () => new URLSearchParams(),
 }));
 
 import { TicketResponseForm } from "@/components/support/TicketResponse";
+import { TicketFilters } from "@/components/support/TicketFilters";
 import { TogglePublicVisibility } from "@/components/admin/TogglePublicVisibility";
 import { SuperAdminCreateAcademyDialog } from "@/app/(super-admin)/super-admin/components/SuperAdminCreateAcademyDialog";
 import { SuperAdminCreateUserDialog } from "@/app/(super-admin)/super-admin/components/SuperAdminCreateUserDialog";
@@ -117,5 +120,28 @@ describe("TicketResponseForm", () => {
     await user.keyboard("{Escape}");
     await waitFor(() => expect(screen.queryByRole("dialog", { name: title })).not.toBeInTheDocument());
     expect(trigger).toHaveFocus();
+  });
+});
+
+describe("TicketFilters", () => {
+  beforeEach(() => {
+    routerMock.push.mockReset();
+  });
+
+  it("envía la búsqueda y reinicia la página", async () => {
+    const user = userEvent.setup();
+    render(
+      <TicketFilters
+        showSearch
+        showStatus={false}
+        showPriority={false}
+        showCategory={false}
+      />,
+    );
+
+    await user.type(screen.getByRole("searchbox", { name: "Buscar tickets" }), "academia demo");
+    await user.click(screen.getByRole("button", { name: "Buscar" }));
+
+    expect(routerMock.push).toHaveBeenCalledWith("?q=academia+demo");
   });
 });

@@ -1,4 +1,4 @@
-import { and, count, desc, eq, inArray } from "drizzle-orm";
+import { and, count, desc, eq, ilike, inArray, or } from "drizzle-orm";
 import { Suspense } from "react";
 import { cookies } from "next/headers";
 import { redirect } from "next/navigation";
@@ -24,6 +24,7 @@ interface PageProps {
     priority?: SearchParamValue;
     category?: SearchParamValue;
     academyId?: SearchParamValue;
+    q?: SearchParamValue;
     page?: SearchParamValue;
   }>;
 }
@@ -46,6 +47,7 @@ function normalizeSupportFilters(filters: {
   priority?: string;
   category?: string;
   academyId?: string;
+  search?: string;
 }) {
   return {
     status: pickFilter(filters.status, TICKET_STATUS_VALUES),
@@ -55,6 +57,7 @@ function normalizeSupportFilters(filters: {
       filters.academyId && z.string().uuid().safeParse(filters.academyId).success
         ? filters.academyId
         : undefined,
+    search: filters.search?.trim().slice(0, 160) || undefined,
   };
 }
 
@@ -73,6 +76,13 @@ async function getAllTickets(filters: SupportFilters, requestedPage: number) {
       : undefined,
     filters.academyId && filters.academyId !== "all"
       ? eq(tickets.academyId, filters.academyId)
+      : undefined,
+    filters.search
+      ? or(
+          ilike(tickets.title, `%${filters.search}%`),
+          ilike(tickets.description, `%${filters.search}%`),
+          ilike(academies.name, `%${filters.search}%`)
+        )
       : undefined,
   ].filter(Boolean) as Array<ReturnType<typeof eq>>;
 
@@ -152,7 +162,7 @@ async function getAllTickets(filters: SupportFilters, requestedPage: number) {
 function pageHref(filters: SupportFilters, page: number) {
   const params = new URLSearchParams();
   for (const [key, value] of Object.entries(filters)) {
-    if (value) params.set(key, value);
+    if (value) params.set(key === "search" ? "q" : key, value);
   }
   params.set("page", String(page));
   return `?${params.toString()}`;
@@ -173,9 +183,11 @@ async function TicketsContent({
         currentStatus={filters.status}
         currentPriority={filters.priority}
         currentCategory={filters.category}
+        currentSearch={filters.search}
         showStatus
         showPriority
         showCategory
+        showSearch
       />
       <div className="mt-4 flex flex-wrap items-center justify-between gap-2 text-xs text-muted-foreground">
         <span>
@@ -237,6 +249,7 @@ export default async function SuperAdminSupportPage({ searchParams }: PageProps)
     priority: firstSearchParam(rawSearchParams.priority),
     category: firstSearchParam(rawSearchParams.category),
     academyId: firstSearchParam(rawSearchParams.academyId),
+    search: firstSearchParam(rawSearchParams.q),
   });
   const requestedPage = Number.parseInt(firstSearchParam(rawSearchParams.page) ?? "1", 10);
   const page = Number.isFinite(requestedPage) ? Math.max(1, requestedPage) : 1;
