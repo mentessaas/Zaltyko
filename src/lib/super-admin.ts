@@ -1,8 +1,7 @@
-import { desc, eq, inArray } from "drizzle-orm";
+import { count, desc, eq } from "drizzle-orm";
+import type { AcademyStatus } from "@/db/schema/academies";
 import { db } from "@/db";
-import { academies, auditLogs, plans, profiles, subscriptions } from "@/db/schema";
-import { getSupabaseAdminClient } from "@/lib/supabase/admin";
-import { logger } from "@/lib/logger";
+import { academies, auditLogs, authUsers, plans, profiles, subscriptions } from "@/db/schema";
 
 /**
  * Detalle de una academia para el panel super-admin.
@@ -20,6 +19,8 @@ export async function getSuperAdminAcademyDetail(academyId: string) {
       city: academies.city,
       ownerId: academies.ownerId,
       isSuspended: academies.isSuspended,
+      status: academies.status,
+      statusUpdatedAt: academies.statusUpdatedAt,
       suspendedAt: academies.suspendedAt,
       createdAt: academies.createdAt,
       tenantId: academies.tenantId,
@@ -40,12 +41,13 @@ export async function getSuperAdminAcademyDetail(academyId: string) {
     planNickname: string | null;
     planPrice: number | null;
   } | null = null;
-  let owner: { id: string; name: string | null; userId: string } | null = null;
+  let owner: { id: string; name: string | null; userId: string; email: string | null } | null = null;
 
   if (academy.ownerId) {
     const [ownerRow] = await db
-      .select({ id: profiles.id, name: profiles.name, userId: profiles.userId })
+      .select({ id: profiles.id, name: profiles.name, userId: profiles.userId, email: authUsers.email })
       .from(profiles)
+      .leftJoin(authUsers, eq(profiles.userId, authUsers.id))
       .where(eq(profiles.id, academy.ownerId))
       .limit(1);
     owner = ownerRow ?? null;
@@ -70,6 +72,8 @@ export async function getSuperAdminAcademyDetail(academyId: string) {
 
   return {
     ...academy,
+    status: (academy.status as AcademyStatus) ?? "active",
+    statusUpdatedAt: academy.statusUpdatedAt ? new Date(academy.statusUpdatedAt).toISOString() : null,
     suspendedAt: academy.suspendedAt ? new Date(academy.suspendedAt).toISOString() : null,
     createdAt: academy.createdAt ? new Date(academy.createdAt).toISOString() : null,
     subscription,
@@ -86,85 +90,77 @@ export interface SuperAdminLogEntry {
   createdAt: string | null;
 }
 
-export async function getSuperAdminLogs(limit: number = 100): Promise<SuperAdminLogEntry[]> {
-  // Obtener los logs más recientes
+export interface SuperAdminLogsPage {
+  items: SuperAdminLogEntry[];
+  total: number;
+  page: number;
+  totalPages: number;
+}
+
+function mapSuperAdminLog(log: {
+  id: string;
+  action: string;
+  meta: unknown;
+  createdAt: Date | null;
+  userName: string | null;
+  cachedEmail: string | null;
+  authEmail: string | null;
+}): SuperAdminLogEntry {
+  return {
+    id: log.id,
+    action: log.action,
+    userName: log.userName ?? null,
+    userEmail: log.cachedEmail ?? log.authEmail ?? null,
+    meta: (log.meta as Record<string, unknown>) ?? null,
+    createdAt: log.createdAt?.toISOString() ?? null,
+  };
+}
+
+export async function getSuperAdminLogsPage(args: {
+  page?: number;
+  pageSize?: number;
+} = {}): Promise<SuperAdminLogsPage> {
+  const pageSize = Math.min(
+    200,
+    Math.max(1, Number.isFinite(args.pageSize) ? Math.floor(args.pageSize!) : 100)
+  );
+  const requestedPage = Math.max(
+    1,
+    Number.isFinite(args.page) ? Math.floor(args.page!) : 1
+  );
+
+  const [totalRow] = await db
+    .select({ total: count(auditLogs.id) })
+    .from(auditLogs);
+  const total = Number(totalRow?.total ?? 0);
+  const totalPages = Math.max(1, Math.ceil(total / pageSize));
+  const page = Math.min(requestedPage, totalPages);
+
   const logs = await db
     .select({
       id: auditLogs.id,
-      userId: auditLogs.userId,
       action: auditLogs.action,
       meta: auditLogs.meta,
       createdAt: auditLogs.createdAt,
+      userName: profiles.name,
+      cachedEmail: auditLogs.userEmail,
+      authEmail: authUsers.email,
     })
     .from(auditLogs)
-    .orderBy(desc(auditLogs.createdAt))
-    .limit(limit);
+    .leftJoin(profiles, eq(auditLogs.userId, profiles.userId))
+    .leftJoin(authUsers, eq(auditLogs.userId, authUsers.id))
+    .orderBy(desc(auditLogs.createdAt), desc(auditLogs.id))
+    .limit(pageSize)
+    .offset((page - 1) * pageSize);
 
-  if (logs.length === 0) {
-    return [];
-  }
-
-  // Obtener todos los userIds únicos
-  const userIds = [...new Set(logs.map((log) => log.userId).filter(Boolean))] as string[];
-
-  if (userIds.length === 0) {
-    return logs.map((log) => ({
-      id: log.id,
-      action: log.action,
-      userName: null,
-      userEmail: null,
-      meta: (log.meta as Record<string, unknown>) ?? null,
-      createdAt: log.createdAt?.toISOString() ?? null,
-    }));
-  }
-
-  // Obtener perfiles de usuarios
-  const userProfiles = await db
-    .select({
-      userId: profiles.userId,
-      name: profiles.name,
-    })
-    .from(profiles)
-    .where(inArray(profiles.userId, userIds));
-
-  // Crear un mapa de userId -> profile
-  const profileMap = new Map<string, { name: string | null }>();
-  for (const profile of userProfiles) {
-    if (profile.userId) {
-      profileMap.set(profile.userId, { name: profile.name });
-    }
-  }
-
-  // Obtener emails de Supabase Auth
-  const adminClient = getSupabaseAdminClient();
-  const authUsersMap = new Map<string, string | null>();
-
-  // Obtener usuarios en lotes
-  for (const userId of userIds) {
-    try {
-      const { data } = await adminClient.auth.admin.getUserById(userId);
-      if (data?.user?.email) {
-        authUsersMap.set(userId, data.user.email);
-      }
-    } catch (error) {
-      logger.error(`Error fetching user ${userId}`, error);
-    }
-  }
-
-  // Combinar datos
-  return logs.map((log) => {
-    const userId = log.userId;
-    const profile = userId ? profileMap.get(userId) : null;
-    const email = userId ? authUsersMap.get(userId) ?? null : null;
-
-    return {
-      id: log.id,
-      action: log.action,
-      userName: profile?.name ?? null,
-      userEmail: email,
-      meta: (log.meta as Record<string, unknown>) ?? null,
-      createdAt: log.createdAt?.toISOString() ?? null,
-    };
-  });
+  return {
+    items: logs.map(mapSuperAdminLog),
+    total,
+    page,
+    totalPages,
+  };
 }
 
+export async function getSuperAdminLogs(limit: number = 100): Promise<SuperAdminLogEntry[]> {
+  return (await getSuperAdminLogsPage({ page: 1, pageSize: limit })).items;
+}

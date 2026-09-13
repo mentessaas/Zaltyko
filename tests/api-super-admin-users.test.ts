@@ -39,8 +39,8 @@ describe("API /api/super-admin/users/[profileId]", () => {
     }));
 
     const { GET } = await import("@/app/api/super-admin/users/[profileId]/route");
-    const request = new NextRequest("http://localhost/api/super-admin/users/test-id");
-    const response = await GET(request, { params: Promise.resolve({ profileId: "test-id" }) });
+    const request = new NextRequest("http://localhost/api/super-admin/users/00000000-0000-0000-0000-000000000001");
+    const response = await GET(request, { params: Promise.resolve({ profileId: "00000000-0000-0000-0000-000000000001" }) });
     
     expect(response.status).toBe(401);
   });
@@ -53,9 +53,9 @@ describe("API /api/super-admin/users/[profileId]", () => {
     selectQueue = [createSelectChain([])];
 
     const { GET } = await import("@/app/api/super-admin/users/[profileId]/route");
-    const request = new NextRequest("http://localhost/api/super-admin/users/non-existent");
+    const request = new NextRequest("http://localhost/api/super-admin/users/00000000-0000-0000-0000-000000000404");
     const response = await GET(request, {
-      params: Promise.resolve({ profileId: "non-existent" }),
+      params: Promise.resolve({ profileId: "00000000-0000-0000-0000-000000000404" }),
       profile: { id: "profile-1", role: "super_admin", tenantId: "tenant-123" },
     });
     
@@ -67,16 +67,16 @@ describe("API /api/super-admin/users/[profileId]", () => {
       withSuperAdmin: (handler: any) => handler,
     }));
 
-    selectQueue = [createSelectChain([{ id: "test-id", role: "super_admin", isSuspended: false }])];
+    selectQueue = [createSelectChain([{ id: "00000000-0000-0000-0000-000000000001", role: "super_admin", isSuspended: false }])];
 
     const { PATCH } = await import("@/app/api/super-admin/users/[profileId]/route");
-    const request = new NextRequest("http://localhost/api/super-admin/users/test-id", {
+    const request = new NextRequest("http://localhost/api/super-admin/users/00000000-0000-0000-0000-000000000001", {
       method: "PATCH",
       body: JSON.stringify({ isSuspended: true }),
     });
     
     const response = await PATCH(request, {
-      params: Promise.resolve({ profileId: "test-id" }),
+      params: Promise.resolve({ profileId: "00000000-0000-0000-0000-000000000001" }),
       profile: { id: "profile-1", role: "super_admin", tenantId: "tenant-123" },
     });
     
@@ -85,4 +85,3 @@ describe("API /api/super-admin/users/[profileId]", () => {
     expect(data.error).toBe("IMMUTABLE_SUPER_ADMIN");
   });
 });
-

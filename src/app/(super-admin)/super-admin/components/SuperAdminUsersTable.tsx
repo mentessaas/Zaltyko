@@ -1,8 +1,8 @@
 "use client";
 
-import { useCallback, useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
-import { ShieldAlert, UserCog, Users, Loader2 } from "lucide-react";
+import { ChevronLeft, ChevronRight, ShieldAlert, UserCog, Users, Loader2, Trash2 } from "lucide-react";
 
 import type { SuperAdminUserRow } from "@/lib/superAdminService";
 import { createClient } from "@/lib/supabase/client";
@@ -12,6 +12,8 @@ import { useToast } from "@/components/ui/toast-provider";
 import { ConfirmDialog } from "@/components/ui/confirm-dialog";
 import { SuperAdminCreateUserDialog } from "./SuperAdminCreateUserDialog";
 import { logger } from "@/lib/logger";
+
+const DISPLAY_TIME_ZONE = "Europe/Madrid";
 
 const ROLE_OPTIONS = ["owner", "admin", "coach", "athlete", "parent", "super_admin"] as const;
 
@@ -23,6 +25,10 @@ type SuperAdminUsersFilters = {
 
 interface SuperAdminUsersTableProps {
   initialItems: SuperAdminUserRow[];
+  initialTotal?: number;
+  initialPage?: number;
+  initialFilters?: SuperAdminUsersFilters;
+  initialUserId?: string | null;
 }
 
 function formatRole(role: string | null) {
@@ -46,16 +52,29 @@ function formatRole(role: string | null) {
 }
 
 
-export function SuperAdminUsersTable({ initialItems }: SuperAdminUsersTableProps) {
-  const supabase = createClient();
+export function SuperAdminUsersTable({
+  initialItems,
+  initialTotal,
+  initialPage = 1,
+  initialFilters = {},
+  initialUserId,
+}: SuperAdminUsersTableProps) {
+  const supabase = useMemo(() => createClient(), []);
   const router = useRouter();
   const toast = useToast();
-  const [userId, setUserId] = useState<string | null>(null);
+  const [userId, setUserId] = useState<string | null>(initialUserId ?? null);
   const [items, setItems] = useState<SuperAdminUserRow[]>(initialItems);
+  const [total, setTotal] = useState(initialTotal ?? initialItems.length);
+  const [page, setPage] = useState(initialPage);
+
+  const PAGE_SIZE = 50;
   const [loading, setLoading] = useState(false);
+  const [errorMessage, setErrorMessage] = useState<string | null>(null);
+  const requestSequence = useRef(0);
   const [syncing, setSyncing] = useState(false);
   const [mutatingUserId, setMutatingUserId] = useState<string | null>(null);
-  const [filters, setFilters] = useState<SuperAdminUsersFilters>({});
+  const [filters, setFilters] = useState<SuperAdminUsersFilters>(initialFilters);
+  const [searchInput, setSearchInput] = useState(initialFilters.search ?? "");
   const [confirmDialogOpen, setConfirmDialogOpen] = useState(false);
   const [pendingAction, setPendingAction] = useState<{
     profileId: string;
@@ -63,29 +82,54 @@ export function SuperAdminUsersTable({ initialItems }: SuperAdminUsersTableProps
     userData: SuperAdminUserRow;
   } | null>(null);
 
+  const openUserDetail = (profileId: string) => {
+    if (typeof window === "undefined") return;
+    const returnTo = window.location.pathname + window.location.search;
+    router.push(`/super-admin/users/${profileId}?returnTo=${encodeURIComponent(returnTo)}`);
+  };
+  const syncUrl = useCallback((activeFilters: SuperAdminUsersFilters, targetPage: number) => {
+    if (typeof window === "undefined") return;
+    const params = new URLSearchParams();
+    if (activeFilters.role) params.set("role", activeFilters.role);
+    if (activeFilters.status) params.set("status", activeFilters.status);
+    if (activeFilters.search) params.set("q", activeFilters.search);
+    if (targetPage > 1) params.set("page", String(targetPage));
+    const query = params.toString();
+    window.history.replaceState(
+      window.history.state,
+      "",
+      window.location.pathname + (query ? "?" + query : "")
+    );
+  }, []);
+
   useEffect(() => {
     supabase.auth.getUser().then(({ data }) => {
-      setUserId(data.user?.id ?? null);
+      if (data.user?.id) setUserId(data.user.id);
+    }).catch((error) => {
+      logger.warn("Unable to resolve super-admin session", { error: error instanceof Error ? error.message : String(error) });
     });
   }, [supabase]);
 
-  const roleCounts = useMemo(() => {
-    const counts: Record<string, number> = {};
-    items.forEach((item) => {
-      const roleKey = item.role ?? "unknown";
-      counts[roleKey] = (counts[roleKey] ?? 0) + 1;
-    });
-    return counts;
-  }, [items]);
+  useEffect(() => {
+    setItems(initialItems);
+    setTotal(initialTotal ?? initialItems.length);
+    setPage(initialPage);
+    setFilters(initialFilters);
+    setSearchInput(initialFilters.search ?? "");
+  }, [initialItems, initialTotal, initialPage, initialFilters]);
 
-  const fetchUsers = useCallback(async (activeFilters: SuperAdminUsersFilters) => {
+  const fetchUsers = useCallback(async (activeFilters: SuperAdminUsersFilters, requestedPage = page) => {
     if (!userId) return;
+    const requestId = ++requestSequence.current;
     setLoading(true);
+    setErrorMessage(null);
     try {
       const params = new URLSearchParams();
       if (activeFilters.role) params.set("role", activeFilters.role);
       if (activeFilters.status) params.set("status", activeFilters.status);
       if (activeFilters.search) params.set("q", activeFilters.search);
+      params.set("page", String(requestedPage));
+      params.set("limit", String(PAGE_SIZE));
 
       const response = await fetch(`/api/super-admin/users?${params.toString()}`, {
         headers: {},
@@ -93,19 +137,33 @@ export function SuperAdminUsersTable({ initialItems }: SuperAdminUsersTableProps
       });
       if (!response.ok) {
         logger.error("Fetch users failed", await response.text());
+        if (requestId === requestSequence.current) {
+          setErrorMessage("No se pudieron cargar los usuarios. Reintenta en unos segundos.");
+        }
         return;
       }
       const { data: payload } = await response.json();
+      if (requestId !== requestSequence.current) return;
       setItems(payload.items ?? []);
+      setTotal(Number(payload.total ?? payload.items?.length ?? 0));
+      const effectivePage = Number(payload.page ?? requestedPage);
+      setPage(effectivePage);
+      syncUrl(activeFilters, effectivePage);
+    } catch (error) {
+      logger.error("Fetch users failed", error);
+      if (requestId === requestSequence.current) {
+        setErrorMessage("No se pudieron cargar los usuarios. Revisa la conexión y reintenta.");
+      }
     } finally {
-      setLoading(false);
+      if (requestId === requestSequence.current) setLoading(false);
     }
-  }, [userId]);
+  }, [userId, page, syncUrl]);
 
   const handleFilterChange = useCallback(async (partial: Partial<SuperAdminUsersFilters>) => {
     const next = { ...filters, ...partial };
     setFilters(next);
-    await fetchUsers(next);
+    setPage(1);
+    await fetchUsers(next, 1);
   }, [filters, fetchUsers]);
 
   const handleSyncAthletes = useCallback(async () => {
@@ -122,14 +180,14 @@ export function SuperAdminUsersTable({ initialItems }: SuperAdminUsersTableProps
           title: data.message || "Atletas sincronizados correctamente",
           variant: "success",
         });
-        await fetchUsers(filters);
+        await fetchUsers(filters, page);
       } else {
         toast.pushToast({
           title: data.message || "Error al sincronizar atletas",
           variant: "error",
         });
       }
-    } catch (error: any) {
+    } catch (error: unknown) {
       logger.error("Error sincronizando atletas:", error);
       toast.pushToast({
         title: "Error al sincronizar atletas",
@@ -138,10 +196,10 @@ export function SuperAdminUsersTable({ initialItems }: SuperAdminUsersTableProps
     } finally {
       setSyncing(false);
     }
-  }, [userId, syncing, fetchUsers, filters, toast]);
+  }, [userId, syncing, fetchUsers, filters, page, toast]);
 
-  const executeMutation = useCallback(async (profileId: string, body: Record<string, unknown>, optimisticUpdate = true) => {
-    if (!userId) return;
+  const executeMutation = useCallback(async (profileId: string, body: Record<string, unknown>, optimisticUpdate = true): Promise<boolean> => {
+    if (!userId) return false;
     
     // Optimistic update: actualizar UI inmediatamente
     if (optimisticUpdate) {
@@ -172,7 +230,7 @@ export function SuperAdminUsersTable({ initialItems }: SuperAdminUsersTableProps
       if (!response.ok) {
         // Revertir optimistic update en caso de error
         if (optimisticUpdate) {
-          await fetchUsers(filters);
+          await fetchUsers(filters, page);
         }
         const error = await response.json().catch(() => ({}));
         toast.pushToast({
@@ -180,7 +238,7 @@ export function SuperAdminUsersTable({ initialItems }: SuperAdminUsersTableProps
           description: error.message || "No se pudo completar la operación",
           variant: "error",
         });
-        return;
+        return false;
       }
       
       toast.pushToast({
@@ -192,22 +250,24 @@ export function SuperAdminUsersTable({ initialItems }: SuperAdminUsersTableProps
       });
       
       // Refrescar datos para asegurar sincronización
-      await fetchUsers(filters);
-    } catch (error: any) {
+      await fetchUsers(filters, page);
+      return true;
+    } catch (error: unknown) {
       // Revertir optimistic update en caso de error
       if (optimisticUpdate) {
-        await fetchUsers(filters);
+        await fetchUsers(filters, page);
       }
       logger.error("Update user failed", error);
       toast.pushToast({
         title: "Error al actualizar usuario",
-        description: error.message || "Ocurrió un error inesperado",
+        description: error instanceof Error ? error.message : "Ocurrió un error inesperado",
         variant: "error",
       });
+      return false;
     } finally {
       setMutatingUserId(null);
     }
-  }, [userId, fetchUsers, filters, toast]);
+  }, [userId, fetchUsers, filters, page, toast]);
 
   const mutateUser = useCallback(async (profileId: string, body: Record<string, unknown>, userData?: SuperAdminUserRow) => {
     if (!userId) return;
@@ -222,32 +282,45 @@ export function SuperAdminUsersTable({ initialItems }: SuperAdminUsersTableProps
     await executeMutation(profileId, body);
   }, [userId, executeMutation]);
 
-  const deleteUser = useCallback(async (profileId: string, reason: string) => {
-    const res = await fetch(`/api/super-admin/users/${profileId}`, {
-      method: "DELETE",
-      headers: { "Content-Type": "application/json" },
-      credentials: "include",
-      body: JSON.stringify({ reason }),
-    });
-    const payload = await res.json().catch(() => ({}));
-    if (!res.ok) {
-      toast.pushToast({ title: "No se pudo eliminar", description: payload?.message ?? "Error", variant: "error" });
-      return;
+  const deleteUser = useCallback(async (profileId: string, reason: string): Promise<boolean> => {
+    try {
+      const res = await fetch(`/api/super-admin/users/${profileId}`, {
+        method: "DELETE",
+        headers: { "Content-Type": "application/json" },
+        credentials: "include",
+        body: JSON.stringify({ reason }),
+      });
+      const payload = await res.json().catch(() => ({}));
+      if (!res.ok) {
+        toast.pushToast({ title: "No se pudo eliminar", description: payload?.message ?? "Error", variant: "error" });
+        return false;
+      }
+      toast.pushToast({ title: "Usuario eliminado", variant: "success" });
+      router.refresh();
+      return true;
+    } catch (error) {
+      logger.error("Delete user failed", error);
+      toast.pushToast({
+        title: "No se pudo eliminar",
+        description: "No se pudo conectar con el servidor. Inténtalo de nuevo.",
+        variant: "error",
+      });
+      return false;
     }
-    toast.pushToast({ title: "Usuario eliminado", variant: "success" });
-    router.refresh();
   }, [router, toast]);
 
   const handleConfirmAction = useCallback(async (reason?: string) => {
-    if (pendingAction) {
-      if (pendingAction.body.delete === true) {
-        await deleteUser(pendingAction.profileId, reason ?? "");
-      } else {
-        await executeMutation(pendingAction.profileId, { ...pendingAction.body, reason });
-      }
+    if (!pendingAction) return false;
+
+    const succeeded = pendingAction.body.delete === true
+      ? await deleteUser(pendingAction.profileId, reason ?? "")
+      : await executeMutation(pendingAction.profileId, { ...pendingAction.body, reason });
+
+    if (succeeded) {
       setPendingAction(null);
       setConfirmDialogOpen(false);
     }
+    return succeeded;
   }, [pendingAction, executeMutation, deleteUser]);
 
   return (
@@ -257,10 +330,7 @@ export function SuperAdminUsersTable({ initialItems }: SuperAdminUsersTableProps
           <p className="font-display text-xs uppercase tracking-wide text-zaltyko-accent-light">Usuarios</p>
           <h2 className="font-display text-lg font-semibold text-white sm:text-xl">Control de roles y estados</h2>
           <p className="break-words text-xs text-white/70 sm:text-sm">
-            {items.length} usuarios listados ·{" "}
-            {Object.entries(roleCounts)
-              .map(([role, count]) => `${formatRole(role)}: ${count}`)
-              .join(" · ")}
+            {total} usuarios en la plataforma · Página {page} de {Math.max(1, Math.ceil(total / PAGE_SIZE))}
           </p>
         </div>
         <div className="flex w-full flex-col gap-2 sm:w-auto sm:flex-row sm:flex-wrap sm:items-center sm:gap-3">
@@ -285,6 +355,7 @@ export function SuperAdminUsersTable({ initialItems }: SuperAdminUsersTableProps
             )}
           </Button>
           <select
+            aria-label="Filtrar usuarios por rol"
             className="h-10 w-full rounded-lg border-2 border-white/20 bg-white/10 px-3 py-2 text-sm font-medium text-white transition-all duration-200 hover:border-white/40 focus:border-white/60 focus:outline-none focus:ring-2 focus:ring-white/20 min-h-[44px] sm:min-h-[40px] sm:w-auto"
             value={filters.role ?? ""}
             onChange={(event) => {
@@ -300,6 +371,7 @@ export function SuperAdminUsersTable({ initialItems }: SuperAdminUsersTableProps
             ))}
           </select>
           <select
+            aria-label="Filtrar usuarios por estado"
             className="h-10 w-full rounded-lg border-2 border-white/20 bg-white/10 px-3 py-2 text-sm font-medium text-white transition-all duration-200 hover:border-white/40 focus:border-white/60 focus:outline-none focus:ring-2 focus:ring-white/20 min-h-[44px] sm:min-h-[40px] sm:w-auto"
             value={filters.status ?? ""}
             onChange={(event) =>
@@ -314,21 +386,53 @@ export function SuperAdminUsersTable({ initialItems }: SuperAdminUsersTableProps
           </select>
           <input
             type="search"
+            value={searchInput}
             placeholder="Buscar por nombre o correo"
+            aria-label="Buscar usuarios por nombre o correo"
             className="h-10 w-full rounded-lg border-2 border-white/20 bg-white/10 px-3 py-2 text-sm text-white placeholder:text-white/50 transition-all duration-200 focus:border-white/60 focus:outline-none focus:ring-2 focus:ring-white/20 min-h-[44px] sm:min-h-[40px] sm:max-w-xs"
-            onBlur={(event) => handleFilterChange({ search: event.target.value || undefined })}
+            onChange={(event) => setSearchInput(event.target.value)}
+            onKeyDown={(event) => {
+              if (event.key === "Enter") {
+                void handleFilterChange({ search: searchInput.trim() || undefined });
+              }
+            }}
+            onBlur={() => {
+              const nextSearch = searchInput.trim() || undefined;
+              if (nextSearch !== filters.search) {
+                void handleFilterChange({ search: nextSearch });
+              }
+            }}
           />
           <Button
             variant="outline"
             size="sm"
             className="border-white/20 bg-white/10 text-white hover:border-white/40 hover:bg-white/20"
-            onClick={() => handleFilterChange({ role: undefined, status: undefined, search: undefined })}
+            onClick={() => {
+              setSearchInput("");
+              void handleFilterChange({ role: undefined, status: undefined, search: undefined });
+            }}
             disabled={loading}
           >
             Restablecer
           </Button>
         </div>
       </div>
+
+      {errorMessage && (
+        <div role="alert" className="flex flex-col gap-3 rounded-xl border border-zaltyko-coral/30 bg-zaltyko-coral/10 px-4 py-3 text-sm text-zaltyko-coral sm:flex-row sm:items-center sm:justify-between">
+          <span>{errorMessage}</span>
+          <Button
+            type="button"
+            variant="outline"
+            size="sm"
+            className="border-zaltyko-coral/40 bg-transparent text-zaltyko-coral hover:bg-zaltyko-coral/10"
+            onClick={() => void fetchUsers(filters, page)}
+            disabled={loading}
+          >
+            Reintentar
+          </Button>
+        </div>
+      )}
 
       <div className="w-full overflow-hidden rounded-xl border border-white/10 bg-white/5 shadow-md sm:rounded-2xl">
         <div className="w-full overflow-x-auto">
@@ -353,10 +457,17 @@ export function SuperAdminUsersTable({ initialItems }: SuperAdminUsersTableProps
             {items.map((user) => (
               <tr
                 key={user.id}
-                className="cursor-pointer transition hover:bg-white/5"
+                tabIndex={0}
+                aria-label={`Abrir usuario ${user.fullName ?? user.email ?? "usuario"}`}
+                className="cursor-pointer transition hover:bg-white/5 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-zaltyko-teal"
                 onClick={(e) => {
                   if ((e.target as HTMLElement).closest("button, select")) return;
-                  router.push(`/super-admin/users/${user.id}`);
+                  openUserDetail(user.id);
+                }}
+                onKeyDown={(e) => {
+                  if ((e.key !== "Enter" && e.key !== " ") || (e.target as HTMLElement).closest("button, select")) return;
+                  e.preventDefault();
+                  openUserDetail(user.id);
                 }}
               >
                 <td className="px-4 py-4">
@@ -366,13 +477,14 @@ export function SuperAdminUsersTable({ initialItems }: SuperAdminUsersTableProps
                     <p className="text-xs text-white/50">
                       Registrado:{" "}
                       {user.createdAt
-                        ? new Date(user.createdAt).toLocaleDateString("es-ES")
+                        ? new Date(user.createdAt).toLocaleDateString("es-ES", { timeZone: DISPLAY_TIME_ZONE })
                         : "—"}
                     </p>
                   </div>
                 </td>
                 <td className="px-4 py-4">
                   <select
+                    aria-label={`Cambiar rol de ${user.fullName ?? user.email ?? "usuario"}`}
                     className="rounded-lg border border-white/20 bg-white/10 px-2 py-1 text-xs font-semibold uppercase tracking-wide text-white focus:border-white/40 focus:outline-none"
                     value={user.role ?? ""}
                     onChange={(event) => {
@@ -449,8 +561,11 @@ export function SuperAdminUsersTable({ initialItems }: SuperAdminUsersTableProps
                         setConfirmDialogOpen(true);
                       }}
                       disabled={loading}
-                      className="inline-flex items-center rounded-lg border border-red-500/40 px-3 py-1.5 text-xs font-semibold text-red-300 transition hover:bg-red-500/10 disabled:opacity-40"
+                      aria-label={`Eliminar usuario ${user.fullName || user.email || user.id}`}
+                      title="Eliminar usuario"
+                      className="inline-flex min-h-9 items-center gap-1.5 rounded-lg border border-red-500/40 px-3 py-1.5 text-xs font-semibold text-red-300 transition hover:bg-red-500/10 disabled:opacity-40"
                     >
+                      <Trash2 className="h-3.5 w-3.5" aria-hidden="true" />
                       Eliminar
                     </button>
                   </div>
@@ -461,6 +576,41 @@ export function SuperAdminUsersTable({ initialItems }: SuperAdminUsersTableProps
         </table>
         </div>
       </div>
+      {Math.ceil(total / PAGE_SIZE) > 1 && (
+        <nav
+          aria-label="Paginación de usuarios"
+          className="flex flex-col gap-3 border-t border-white/10 pt-4 text-sm text-white/60 sm:flex-row sm:items-center sm:justify-between"
+        >
+          <span>
+            Página {page} de {Math.ceil(total / PAGE_SIZE)} · {total} usuarios
+          </span>
+          <div className="flex items-center gap-2">
+            <Button
+              variant="outline"
+              size="sm"
+              className="border-white/20 bg-white/10 text-white hover:border-white/40 hover:bg-white/20"
+              onClick={() => void fetchUsers(filters, page - 1)}
+              disabled={loading || page <= 1}
+              aria-label="Página anterior"
+            >
+              <ChevronLeft className="mr-1 h-4 w-4" aria-hidden="true" />
+              Anterior
+            </Button>
+            <Button
+              variant="outline"
+              size="sm"
+              className="border-white/20 bg-white/10 text-white hover:border-white/40 hover:bg-white/20"
+              onClick={() => void fetchUsers(filters, page + 1)}
+              disabled={loading || page >= Math.ceil(total / PAGE_SIZE)}
+              aria-label="Página siguiente"
+            >
+              Siguiente
+              <ChevronRight className="ml-1 h-4 w-4" aria-hidden="true" />
+            </Button>
+          </div>
+        </nav>
+      )}
+
       {pendingAction && (
         <ConfirmDialog
           open={confirmDialogOpen}
@@ -483,7 +633,12 @@ export function SuperAdminUsersTable({ initialItems }: SuperAdminUsersTableProps
                 ? `¿Estás seguro de suspender a ${pendingAction.userData.fullName || pendingAction.userData.email}? No podrá acceder al sistema hasta que sea reactivado.`
                 : `¿Estás seguro de reactivar a ${pendingAction.userData.fullName || pendingAction.userData.email}? Podrá acceder al sistema nuevamente.`
           }
-          variant="destructive"
+          variant={
+            pendingAction.body.delete === true ||
+            (pendingAction.body.isSuspended !== undefined && !pendingAction.userData.isSuspended)
+              ? "destructive"
+              : "default"
+          }
           confirmText={
             pendingAction.body.delete === true
               ? "Eliminar"

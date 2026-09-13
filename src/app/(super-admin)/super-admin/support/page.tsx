@@ -1,135 +1,257 @@
+import { and, count, desc, eq, inArray } from "drizzle-orm";
 import { Suspense } from "react";
 import { cookies } from "next/headers";
-import { createClient } from "@/lib/supabase/server";
 import { redirect } from "next/navigation";
+import { z } from "zod";
+
+import { db } from "@/db";
+import { academies, authUsers, profiles, ticketResponses, tickets } from "@/db/schema";
+import { createClient } from "@/lib/supabase/server";
+import { getCurrentProfile } from "@/lib/authz";
+import { getDevSessionFromCookieStore } from "@/lib/dev-session";
 import { TicketList } from "@/components/support/TicketList";
 import { TicketFilters } from "@/components/support/TicketFilters";
 import { Skeleton } from "@/components/ui/skeleton";
 import { PageHeader } from "@/components/ui/page-header";
-import { logger } from "@/lib/logger";
 
 export const dynamic = "force-dynamic";
 
+type SearchParamValue = string | string[] | undefined;
+
 interface PageProps {
   searchParams: Promise<{
-    status?: string;
-    priority?: string;
-    category?: string;
-    academyId?: string;
+    status?: SearchParamValue;
+    priority?: SearchParamValue;
+    category?: SearchParamValue;
+    academyId?: SearchParamValue;
+    page?: SearchParamValue;
   }>;
 }
 
-async function getAllTickets(filters: {
+function firstSearchParam(value: SearchParamValue) {
+  return Array.isArray(value) ? value[0] : value;
+}
+
+const TICKET_STATUS_VALUES = ["open", "in_progress", "waiting", "resolved", "closed"] as const;
+const TICKET_PRIORITY_VALUES = ["low", "medium", "high", "urgent"] as const;
+const TICKET_CATEGORY_VALUES = ["technical", "billing", "account", "feature_request", "other"] as const;
+const PAGE_SIZE = 50;
+
+function pickFilter<T extends string>(value: string | undefined, values: readonly T[]) {
+  return value && values.includes(value as T) ? (value as T) : undefined;
+}
+
+function normalizeSupportFilters(filters: {
   status?: string;
   priority?: string;
   category?: string;
   academyId?: string;
 }) {
-  const cookieStore = await cookies();
-  const supabase = await createClient(cookieStore);
-  const { data: { user } } = await supabase.auth.getUser();
-
-  if (!user) {
-    redirect("/auth/login");
-  }
-
-  // Verificar que es super admin
-  const { data: profile } = await supabase
-    .from("profiles")
-    .select("role")
-    .eq("id", user.id)
-    .single();
-
-  if (profile?.role !== "super_admin") {
-    redirect("/dashboard");
-  }
-
-  let query = supabase
-    .from("tickets")
-    .select(`
-      *,
-      createdBy:profiles!tickets_created_by_fkey(id, fullName, email),
-      assignedTo:profiles(id, fullName),
-      academy:academies(id, name),
-      ticket_responses(count)
-    `)
-    .order("created_at", { ascending: false });
-
-  if (filters.status && filters.status !== "all") {
-    query = query.eq("status", filters.status);
-  }
-  if (filters.priority && filters.priority !== "all") {
-    query = query.eq("priority", filters.priority);
-  }
-  if (filters.category && filters.category !== "all") {
-    query = query.eq("category", filters.category);
-  }
-  if (filters.academyId && filters.academyId !== "all") {
-    query = query.eq("academy_id", filters.academyId);
-  }
-
-  const { data: tickets, error } = await query;
-
-  if (error) {
-    logger.error("Error fetching tickets:", error);
-    return [];
-  }
-
-  return tickets?.map((ticket: any) => ({
-    ...ticket,
-    createdBy: ticket.createdBy?.[0],
-    assignedTo: ticket.assignedTo?.[0],
-    academy: ticket.academy?.[0],
-    _count: {
-      responses: ticket.ticket_responses?.[0]?.count || 0,
-    },
-  })) || [];
+  return {
+    status: pickFilter(filters.status, TICKET_STATUS_VALUES),
+    priority: pickFilter(filters.priority, TICKET_PRIORITY_VALUES),
+    category: pickFilter(filters.category, TICKET_CATEGORY_VALUES),
+    academyId:
+      filters.academyId && z.string().uuid().safeParse(filters.academyId).success
+        ? filters.academyId
+        : undefined,
+  };
 }
 
-async function TicketsContent({ filters }: { filters: { status?: string; priority?: string; category?: string; academyId?: string } }) {
-  const tickets = await getAllTickets(filters);
+type SupportFilters = ReturnType<typeof normalizeSupportFilters>;
+
+async function getAllTickets(filters: SupportFilters, requestedPage: number) {
+  const conditions = [
+    filters.status
+      ? eq(tickets.status, filters.status as typeof tickets.status.enumValues[number])
+      : undefined,
+    filters.priority
+      ? eq(tickets.priority, filters.priority as typeof tickets.priority.enumValues[number])
+      : undefined,
+    filters.category
+      ? eq(tickets.category, filters.category as typeof tickets.category.enumValues[number])
+      : undefined,
+    filters.academyId && filters.academyId !== "all"
+      ? eq(tickets.academyId, filters.academyId)
+      : undefined,
+  ].filter(Boolean) as Array<ReturnType<typeof eq>>;
+
+  const where = conditions.length > 0 ? and(...conditions) : undefined;
+  const [totalRow] = await db
+    .select({ total: count(tickets.id) })
+    .from(tickets)
+    .where(where);
+  const total = Number(totalRow?.total ?? 0);
+  const totalPages = Math.max(1, Math.ceil(total / PAGE_SIZE));
+  const page = Math.min(Math.max(1, requestedPage), totalPages);
+
+  const rows = await db
+    .select({
+      id: tickets.id,
+      title: tickets.title,
+      description: tickets.description,
+      status: tickets.status,
+      priority: tickets.priority,
+      category: tickets.category,
+      createdAt: tickets.createdAt,
+      updatedAt: tickets.updatedAt,
+      creatorId: profiles.id,
+      creatorName: profiles.name,
+      creatorEmail: authUsers.email,
+      academyId: academies.id,
+      academyName: academies.name,
+    })
+    .from(tickets)
+    .leftJoin(profiles, eq(tickets.createdBy, profiles.id))
+    .leftJoin(authUsers, eq(profiles.userId, authUsers.id))
+    .leftJoin(academies, eq(tickets.academyId, academies.id))
+    .where(where)
+    .orderBy(desc(tickets.createdAt), desc(tickets.id))
+    .limit(PAGE_SIZE)
+    .offset((page - 1) * PAGE_SIZE);
+
+  const responseCounts = new Map<string, number>();
+  if (rows.length > 0) {
+    const counts = await db
+      .select({ ticketId: ticketResponses.ticketId, total: count(ticketResponses.id) })
+      .from(ticketResponses)
+      .where(inArray(ticketResponses.ticketId, rows.map((row) => row.id)))
+      .groupBy(ticketResponses.ticketId);
+
+    for (const row of counts) {
+      responseCounts.set(row.ticketId, Number(row.total));
+    }
+  }
+
+  return {
+    items: rows.map((ticket) => ({
+      id: ticket.id,
+      title: ticket.title,
+      description: ticket.description,
+      status: ticket.status,
+      priority: ticket.priority,
+      category: ticket.category,
+      createdAt: ticket.createdAt,
+      updatedAt: ticket.updatedAt,
+      createdBy: {
+        id: ticket.creatorId ?? "unknown",
+        fullName: ticket.creatorName ?? "Usuario",
+        email: ticket.creatorEmail ?? "",
+      },
+      academy: ticket.academyId
+        ? { id: ticket.academyId, name: ticket.academyName ?? "Academia" }
+        : undefined,
+      _count: { responses: responseCounts.get(ticket.id) ?? 0 },
+    })),
+    total,
+    page,
+    totalPages,
+  };
+}
+
+function pageHref(filters: SupportFilters, page: number) {
+  const params = new URLSearchParams();
+  for (const [key, value] of Object.entries(filters)) {
+    if (value) params.set(key, value);
+  }
+  params.set("page", String(page));
+  return `?${params.toString()}`;
+}
+
+async function TicketsContent({
+  filters,
+  page: requestedPage,
+}: {
+  filters: SupportFilters;
+  page: number;
+}) {
+  const result = await getAllTickets(filters, requestedPage);
 
   return (
     <>
       <TicketFilters
-        currentStatus={filters.status as any}
-        currentPriority={filters.priority as any}
-        currentCategory={filters.category as any}
+        currentStatus={filters.status}
+        currentPriority={filters.priority}
+        currentCategory={filters.category}
         showStatus
         showPriority
         showCategory
       />
-      <div className="mt-6">
+      <div className="mt-4 flex flex-wrap items-center justify-between gap-2 text-xs text-muted-foreground">
+        <span>
+          Mostrando {result.items.length} de {result.total} tickets
+        </span>
+        <span>
+          Página {result.page} de {result.totalPages}
+        </span>
+      </div>
+      <div className="mt-4">
         <TicketList
-          tickets={tickets}
-          isAdmin={true}
+          tickets={result.items}
+          isAdmin
           emptyMessage="No hay tickets de soporte"
+          returnTo={`/super-admin/support${pageHref(filters, result.page)}`}
         />
       </div>
+      {result.totalPages > 1 && (
+        <nav aria-label="Paginación de tickets" className="mt-6 flex items-center justify-between">
+          <span className="text-xs text-muted-foreground">
+            {PAGE_SIZE} por página
+          </span>
+          <div className="flex items-center gap-2">
+            <a
+              href={pageHref(filters, Math.max(1, result.page - 1))}
+              aria-disabled={result.page === 1}
+              tabIndex={result.page === 1 ? -1 : 0}
+              className={`inline-flex min-h-10 items-center rounded-md border px-3 text-sm font-medium transition ${
+                result.page === 1
+                  ? "pointer-events-none opacity-40"
+                  : "border-border hover:bg-muted"
+              }`}
+            >
+              Anteriores
+            </a>
+            <a
+              href={pageHref(filters, Math.min(result.totalPages, result.page + 1))}
+              aria-disabled={result.page === result.totalPages}
+              tabIndex={result.page === result.totalPages ? -1 : 0}
+              className={`inline-flex min-h-10 items-center rounded-md border px-3 text-sm font-medium transition ${
+                result.page === result.totalPages
+                  ? "pointer-events-none opacity-40"
+                  : "border-border hover:bg-muted"
+              }`}
+            >
+              Siguientes
+            </a>
+          </div>
+        </nav>
+      )}
     </>
   );
 }
 
 export default async function SuperAdminSupportPage({ searchParams }: PageProps) {
-  const filters = await searchParams;
+  const rawSearchParams = await searchParams;
+  const filters = normalizeSupportFilters({
+    status: firstSearchParam(rawSearchParams.status),
+    priority: firstSearchParam(rawSearchParams.priority),
+    category: firstSearchParam(rawSearchParams.category),
+    academyId: firstSearchParam(rawSearchParams.academyId),
+  });
+  const requestedPage = Number.parseInt(firstSearchParam(rawSearchParams.page) ?? "1", 10);
+  const page = Number.isFinite(requestedPage) ? Math.max(1, requestedPage) : 1;
   const cookieStore = await cookies();
   const supabase = await createClient(cookieStore);
-  const { data: { user } } = await supabase.auth.getUser();
+  const devSession = await getDevSessionFromCookieStore(cookieStore);
+  const {
+    data: { user },
+  } = await supabase.auth.getUser();
 
-  if (!user) {
-    redirect("/auth/login");
-  }
+  if (!user && !devSession) redirect("/auth/login");
 
-  // Verificar que es super admin
-  const { data: profile } = await supabase
-    .from("profiles")
-    .select("role")
-    .eq("id", user.id)
-    .single();
-
-  if (profile?.role !== "super_admin") {
-    redirect("/dashboard");
-  }
+  const profile = user ? await getCurrentProfile(user.id) : null;
+  const effectiveProfile = profile ?? (devSession ? { role: "super_admin" } : null);
+  if (!effectiveProfile || effectiveProfile.role !== "super_admin") redirect("/dashboard");
 
   return (
     <div className="container mx-auto py-8">
@@ -139,7 +261,7 @@ export default async function SuperAdminSupportPage({ searchParams }: PageProps)
       />
 
       <Suspense fallback={<TicketFiltersSkeleton />}>
-        <TicketsContent filters={filters} />
+        <TicketsContent filters={filters} page={page} />
       </Suspense>
     </div>
   );
@@ -147,7 +269,7 @@ export default async function SuperAdminSupportPage({ searchParams }: PageProps)
 
 function TicketFiltersSkeleton() {
   return (
-    <div className="flex flex-wrap items-center gap-3 p-4 bg-card rounded-lg border">
+    <div className="flex flex-wrap items-center gap-3 rounded-lg border bg-card p-4">
       <Skeleton className="h-10 w-[160px]" />
       <Skeleton className="h-10 w-[160px]" />
       <Skeleton className="h-10 w-[180px]" />

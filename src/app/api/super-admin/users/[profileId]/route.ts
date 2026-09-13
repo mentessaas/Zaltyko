@@ -1,5 +1,5 @@
 import { apiSuccess, apiError } from "@/lib/api-response";
-import { eq, count, inArray, sql } from "drizzle-orm";
+import { and, eq, count, inArray, isNull, sql } from "drizzle-orm";
 import { z } from "zod";
 
 import { db } from "@/db";
@@ -8,18 +8,38 @@ import { withSuperAdmin } from "@/lib/authz";
 import { logAdminAction } from "@/lib/admin-logs";
 import { getAuthUserEmail, updateAuthUserEmail, deleteAuthUser } from "@/lib/supabase/admin-operations";
 import { getAppUrl } from "@/lib/env";
+import { revalidatePublicAcademySeo } from "@/lib/seo/revalidate-academy";
 import { logger } from "@/lib/logger";
 
 export const dynamic = "force-dynamic";
+
+const profileIdSchema = z.string().uuid();
+
+function parseProfileId(value: unknown): string | null {
+  const parsed = profileIdSchema.safeParse(value);
+  return parsed.success ? parsed.data : null;
+}
 // @service-role auth-admin:read-update-email. Super-admin user management requires Supabase Auth admin APIs.
 /** @resource-scope super-admin — withSuperAdmin verifies the global authority. */
+
+type PlanLimitViolations = {
+  violations: Array<{
+    resource: string;
+    currentCount: number;
+    limit: number | null;
+    items: Array<{ id: string; name: string | null }>;
+    academyId?: string;
+    academyName?: string | null;
+  }>;
+  requiresAction: boolean;
+};
 
 const updateUserSchema = z.object({
   role: z.enum(["owner", "admin", "coach", "athlete", "parent", "super_admin"]).nullable().optional(),
   isSuspended: z.boolean().optional(),
-  name: z.string().trim().min(1).nullable().optional(),
-  email: z.string().trim().email().nullable().optional(),
-  planId: z.string().trim().min(1).nullable().optional(),
+  name: z.string().trim().min(1).max(160).nullable().optional(),
+  email: z.string().trim().email().max(320).nullable().optional(),
+  planId: z.string().uuid().nullable().optional(),
   force: z.boolean().optional(),
   reason: z.string().trim().min(5).max(500).optional(),
 });
@@ -47,9 +67,13 @@ export const GET = withSuperAdmin(async (_request, context) => {
   }
 
   const resolvedParams = await resolveParams(context.params);
-  const profileId = resolvedParams?.profileId;
-  if (!profileId) {
+  const rawProfileId = resolvedParams?.profileId;
+  if (!rawProfileId) {
     return apiError("PROFILE_ID_REQUIRED", "Profile ID is required", 400);
+  }
+  const profileId = parseProfileId(rawProfileId);
+  if (!profileId) {
+    return apiError("PROFILE_ID_INVALID", "Profile ID is invalid", 400);
   }
 
   const [profile] = await db
@@ -119,7 +143,7 @@ export const GET = withSuperAdmin(async (_request, context) => {
     const [athletesResult] = await db
       .select({ count: sql<number>`count(*)` })
       .from(athletes)
-      .where(inArray(athletes.academyId, academyIds));
+      .where(and(inArray(athletes.academyId, academyIds), isNull(athletes.deletedAt)));
 
     const [coachesResult] = await db
       .select({ count: sql<number>`count(*)` })
@@ -129,7 +153,7 @@ export const GET = withSuperAdmin(async (_request, context) => {
     const [classesResult] = await db
       .select({ count: sql<number>`count(*)` })
       .from(classes)
-      .where(inArray(classes.academyId, academyIds));
+      .where(and(inArray(classes.academyId, academyIds), isNull(classes.deletedAt)));
 
     stats.totalAthletes = Number(athletesResult?.count ?? 0);
     stats.totalCoaches = Number(coachesResult?.count ?? 0);
@@ -169,9 +193,13 @@ export const PATCH = withSuperAdmin(async (request, context) => {
   }
 
   const resolvedParams = await resolveParams(context.params);
-  const profileId = resolvedParams?.profileId;
-  if (!profileId) {
+  const rawProfileId = resolvedParams?.profileId;
+  if (!rawProfileId) {
     return apiError("PROFILE_ID_REQUIRED", "Profile ID is required", 400);
+  }
+  const profileId = parseProfileId(rawProfileId);
+  if (!profileId) {
+    return apiError("PROFILE_ID_INVALID", "Profile ID is invalid", 400);
   }
 
   const [existing] = await db
@@ -204,6 +232,10 @@ export const PATCH = withSuperAdmin(async (request, context) => {
     return apiError("REASON_REQUIRED", "Indica el motivo del cambio de acceso", 400);
   }
 
+  if (body.force && body.planId !== undefined && !body.reason) {
+    return apiError("REASON_REQUIRED", "Indica el motivo del cambio forzado de plan", 400);
+  }
+
   if (body.role && body.role !== existing.role) {
     updates.role = body.role;
     auditChanges.role = { from: existing.role, to: body.role };
@@ -214,148 +246,141 @@ export const PATCH = withSuperAdmin(async (request, context) => {
     auditChanges.isSuspended = { from: existing.isSuspended, to: body.isSuspended };
   }
 
-  if (body.name && body.name !== existing.name) {
+  if (body.name !== undefined && body.name !== existing.name) {
     updates.name = body.name;
     auditChanges.name = { from: existing.name, to: body.name };
   }
 
-  if (body.email) {
-    await updateAuthUserEmail({
-      userId: existing.userId,
-      email: body.email,
-    });
-    auditChanges.email = "updated";
+  let planToApply: { id: string | null; code: string | null; violations: PlanLimitViolations | null } | null = null;
+
+  if (body.planId) {
+    const [plan] = await db
+      .select({ id: plans.id, code: plans.code })
+      .from(plans)
+      .where(eq(plans.id, body.planId))
+      .limit(1);
+
+    if (!plan) {
+      return apiError("PLAN_NOT_FOUND", "El plan seleccionado no existe", 404);
+    }
+
+    const { checkPlanLimitViolations } = await import("@/lib/limits");
+    const violations = await checkPlanLimitViolations(
+      existing.userId,
+      plan.code as "free" | "pro" | "premium"
+    );
+
+    if (violations.requiresAction && !body.force) {
+      return apiError("PLAN_LIMIT_VIOLATIONS", "Plan limit violations detected", 400, {
+        violations: violations.violations,
+        requiresAction: violations.requiresAction,
+      });
+    }
+
+    planToApply = { id: plan.id, code: plan.code, violations };
+    auditChanges.planId = plan.id;
+  } else if (body.planId === null) {
+    planToApply = { id: null, code: null, violations: null };
+    auditChanges.planId = null;
   }
 
-  // Handle plan update
-  if (body.planId) {
-    const [plan] = await db.select({ id: plans.id, code: plans.code }).from(plans).where(eq(plans.id, body.planId)).limit(1);
-    if (plan) {
-      // Check for limit violations before changing plan
-      const { checkPlanLimitViolations } = await import("@/lib/limits");
-      const violations = await checkPlanLimitViolations(existing.userId, plan.code as "free" | "pro" | "premium");
+  const previousEmail = body.email ? await getAuthUserEmail(existing.userId) : null;
+  const emailChanged = Boolean(body.email && body.email !== previousEmail);
 
-      // If there are violations and force flag is not set, return violations info
-      if (violations.requiresAction && !body.force) {
-        return apiError("PLAN_LIMIT_VIOLATIONS", "Plan limit violations detected", 400);
-      }
-
-      const [existingSubscription] = await db
-        .select({ id: subscriptions.id })
-        .from(subscriptions)
-        .where(eq(subscriptions.userId, existing.userId))
-        .limit(1);
-
-      if (existingSubscription) {
-        await db
-          .update(subscriptions)
-          .set({ planId: plan.id })
-          .where(eq(subscriptions.id, existingSubscription.id));
-      } else {
-        await db.insert(subscriptions).values({
-          userId: existing.userId,
-          planId: plan.id,
-          status: "active",
-        });
-      }
-      auditChanges.planId = plan.id;
-
-      // If violations exist and force is true, send notification email
-      if (violations.requiresAction && body.force) {
-        const authEmail = await getAuthUserEmail(existing.userId);
-
-        if (authEmail) {
-          try {
-            const { sendEmail } = await import("@/lib/brevo");
-            const { config } = await import("@/config");
-
-            const academyViolation = violations.violations.find((v) => v.resource === "academies");
-            const athleteViolation = violations.violations.find((v) => v.resource === "athletes");
-            const classViolation = violations.violations.find((v) => v.resource === "classes");
-            const groupViolation = violations.violations.find((v) => v.resource === "groups");
-
-            await sendEmail({
-              to: authEmail,
-              subject: "⚠️ Cambio de plan - Ajustes necesarios - Zaltyko",
-              html: `
-                <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto;">
-                  <h2 style="color: #f59e0b;">Cambio de plan completado</h2>
-                  <p>Hola ${existing.name ?? "Usuario"},</p>
-                  <p>Tu plan ha sido cambiado a <strong>${plan.code.toUpperCase()}</strong>. Sin embargo, algunos de tus recursos exceden los límites del nuevo plan.</p>
-                  
-                  ${academyViolation ? `
-                    <div style="background-color: #fef3c7; padding: 15px; border-radius: 8px; margin: 15px 0;">
-                      <h3 style="color: #92400e; margin-top: 0;">Academias</h3>
-                      <p style="color: #78350f;">Tienes <strong>${academyViolation.currentCount}</strong> academias, pero tu plan solo permite <strong>${academyViolation.limit}</strong>.</p>
-                      <p style="color: #78350f; font-size: 14px;">Debes elegir qué academias mantener activas.</p>
-                    </div>
-                  ` : ""}
-                  
-                  ${athleteViolation ? `
-                    <div style="background-color: #fef3c7; padding: 15px; border-radius: 8px; margin: 15px 0;">
-                      <h3 style="color: #92400e; margin-top: 0;">Atletas</h3>
-                      <p style="color: #78350f;">Tienes <strong>${athleteViolation.currentCount}</strong> atletas en ${athleteViolation.academyName ? `la academia "${athleteViolation.academyName}"` : "una academia"}, pero tu plan solo permite <strong>${athleteViolation.limit}</strong>.</p>
-                      <p style="color: #78350f; font-size: 14px;">Debes reducir el número de atletas activos.</p>
-                    </div>
-                  ` : ""}
-                  
-                  ${classViolation ? `
-                    <div style="background-color: #fef3c7; padding: 15px; border-radius: 8px; margin: 15px 0;">
-                      <h3 style="color: #92400e; margin-top: 0;">Clases</h3>
-                      <p style="color: #78350f;">Tienes <strong>${classViolation.currentCount}</strong> clases en ${classViolation.academyName ? `la academia "${classViolation.academyName}"` : "una academia"}, pero tu plan solo permite <strong>${classViolation.limit}</strong>.</p>
-                      <p style="color: #78350f; font-size: 14px;">Debes reducir el número de clases activas.</p>
-                    </div>
-                  ` : ""}
-                  
-                  ${groupViolation ? `
-                    <div style="background-color: #fef3c7; padding: 15px; border-radius: 8px; margin: 15px 0;">
-                      <h3 style="color: #92400e; margin-top: 0;">Grupos</h3>
-                      <p style="color: #78350f;">Tienes <strong>${groupViolation.currentCount}</strong> grupos en ${groupViolation.academyName ? `la academia "${groupViolation.academyName}"` : "una academia"}, pero tu plan solo permite <strong>${groupViolation.limit}</strong>.</p>
-                      <p style="color: #78350f; font-size: 14px;">Debes reducir el número de grupos activos.</p>
-                    </div>
-                  ` : ""}
-                  
-                  <div style="background-color: #dbeafe; padding: 15px; border-radius: 8px; margin: 20px 0;">
-                    <h3 style="color: #1e40af; margin-top: 0;">¿Qué hacer ahora?</h3>
-                    <ol style="color: #1e3a8a; padding-left: 20px;">
-                      <li>Visita tu <a href="${getAppUrl()}/dashboard/plan-limits" style="color: #2563eb; font-weight: bold;">panel de ajustes de plan</a></li>
-                      <li>Revisa los recursos que exceden los límites</li>
-                      <li>Elige qué mantener activo según tu plan</li>
-                      <li>O considera <a href="${getAppUrl()}/dashboard" style="color: #2563eb; font-weight: bold;">actualizar tu plan</a> para mantener todos tus recursos</li>
-                    </ol>
-                  </div>
-                  
-                  <p style="color: #6b7280; font-size: 12px; margin-top: 30px;">
-                    Si tienes alguna pregunta, contacta a nuestro equipo de soporte en ${config.brevo.supportEmail}
-                  </p>
-                </div>
-              `,
-              text: `Tu plan ha sido cambiado a ${plan.code.toUpperCase()}. Algunos recursos exceden los límites. Visita tu panel para ajustar.`,
-              replyTo: config.brevo.supportEmail,
-            });
-          } catch (error) {
-            logger.error("Error sending plan change notification", error);
-          }
-        }
-      }
+  if (emailChanged) {
+    try {
+      await updateAuthUserEmail({
+        userId: existing.userId,
+        email: body.email!,
+      });
+      auditChanges.email = "updated";
+    } catch (error) {
+      logger.error("Error updating super-admin user email", error);
+      return apiError("EMAIL_UPDATE_FAILED", "No se pudo actualizar el correo del usuario", 502);
     }
   }
 
-  if (Object.keys(updates).length === 0 && !body.email && !body.planId) {
+  if (Object.keys(updates).length === 0 && !emailChanged && !planToApply) {
     return apiError("NO_CHANGES", "No changes provided", 400);
   }
 
-  const [updated] = await db
-    .update(profiles)
-    .set(updates)
-    .where(eq(profiles.id, profileId))
-    .returning({
-      id: profiles.id,
-      userId: profiles.userId,
-      name: profiles.name,
-      role: profiles.role,
-      isSuspended: profiles.isSuspended,
+  let updated;
+  try {
+    updated = await db.transaction(async (tx) => {
+      let profileUpdated = existing;
+      if (Object.keys(updates).length > 0) {
+        const [nextProfile] = await tx
+          .update(profiles)
+          .set(updates)
+          .where(eq(profiles.id, profileId))
+          .returning({
+            id: profiles.id,
+            userId: profiles.userId,
+            name: profiles.name,
+            role: profiles.role,
+            isSuspended: profiles.isSuspended,
+          });
+        if (!nextProfile) throw new Error("PROFILE_NOT_FOUND");
+        profileUpdated = nextProfile as typeof existing;
+      }
+
+      if (planToApply) {
+        const [existingSubscription] = await tx
+          .select({ id: subscriptions.id })
+          .from(subscriptions)
+          .where(eq(subscriptions.userId, existing.userId))
+          .limit(1);
+
+        if (existingSubscription) {
+          await tx
+            .update(subscriptions)
+            .set({ planId: planToApply.id, status: planToApply.id ? "active" : "canceled" })
+            .where(eq(subscriptions.id, existingSubscription.id));
+        } else if (planToApply.id) {
+          await tx.insert(subscriptions).values({
+            userId: existing.userId,
+            planId: planToApply.id,
+            status: "active",
+          });
+        }
+      }
+
+      return profileUpdated;
     });
+  } catch (error) {
+    if (emailChanged && previousEmail) {
+      try {
+        await updateAuthUserEmail({ userId: existing.userId, email: previousEmail });
+      } catch (rollbackError) {
+        logger.error("Error rolling back super-admin user email after profile failure", rollbackError);
+      }
+    }
+    if (error instanceof Error && error.message === "PROFILE_NOT_FOUND") {
+      return apiError("PROFILE_NOT_FOUND", "Profile not found", 404);
+    }
+    logger.error("Error applying super-admin user changes", error);
+    return apiError("USER_UPDATE_FAILED", "No se pudieron aplicar todos los cambios", 500);
+  }
+
+  if (planToApply?.violations?.requiresAction && body.force) {
+    const authEmail = await getAuthUserEmail(existing.userId);
+    if (authEmail) {
+      try {
+        const { sendEmail } = await import("@/lib/brevo");
+        const { config } = await import("@/config");
+        const planCode = planToApply.code ?? "nuevo plan";
+        await sendEmail({
+          to: authEmail,
+          subject: "Cambio de plan completado - Zaltyko",
+          html: `<p>Tu plan de Zaltyko ha cambiado a <strong>${planCode.toUpperCase()}</strong>. Algunos recursos superan los límites actuales; revisa tu panel para ajustarlos.</p>`,
+          text: `Tu plan ha cambiado a ${planCode.toUpperCase()}. Revisa los recursos que superan los límites.`,
+          replyTo: config.brevo.supportEmail,
+        });
+      } catch (error) {
+        logger.error("Error sending plan change notification", error);
+      }
+    }
+  }
 
   await logAdminAction({
     userId: context.userId,
@@ -377,9 +402,13 @@ export const DELETE = withSuperAdmin(async (request, context) => {
   if (!context?.profile) {
     return apiError("UNAUTHORIZED", "Unauthorized", 401);
   }
-  const { profileId } = await resolveParams(context.params);
-  if (!profileId) {
+  const { profileId: rawProfileId } = await resolveParams(context.params);
+  if (!rawProfileId) {
     return apiError("PROFILE_ID_REQUIRED", "Profile ID is required", 400);
+  }
+  const profileId = parseProfileId(rawProfileId);
+  if (!profileId) {
+    return apiError("PROFILE_ID_INVALID", "Profile ID is invalid", 400);
   }
 
   const body = await request.json().catch(() => ({}));
@@ -414,14 +443,47 @@ export const DELETE = withSuperAdmin(async (request, context) => {
     }
   }
 
-  await db.delete(profiles).where(eq(profiles.id, profileId));
+  // academy.ownerId cascades when the profile is deleted, but activeAcademyId
+  // is intentionally not a FK. Clear those pointers before Auth deletion so
+  // the cascade cannot leave other profiles targeting removed academies.
+  const ownedAcademies = await db
+    .select({ id: academies.id })
+    .from(academies)
+    .where(eq(academies.ownerId, profileId));
+  if (ownedAcademies.length > 0) {
+    await db
+      .update(profiles)
+      .set({ activeAcademyId: null })
+      .where(inArray(profiles.activeAcademyId, ownedAcademies.map(({ id }) => id)));
+  }
 
+  // Delete Auth first so an Auth failure never leaves a deleted profile with a live login.
+  let authDeleted = false;
   if (target.userId) {
     try {
       await deleteAuthUser(target.userId);
+      authDeleted = true;
     } catch (error) {
       logger.error("No se pudo borrar la cuenta de Auth", error, { profileId });
+      return apiError("AUTH_DELETE_FAILED", "No se pudo eliminar la cuenta de acceso", 502);
     }
+  }
+
+  const [removed] = await db
+    .delete(profiles)
+    .where(eq(profiles.id, profileId))
+    .returning({ id: profiles.id });
+
+  // Supabase may cascade the profile row when Auth is deleted; treat that as a
+  // successful, idempotent deletion instead of returning a misleading 404.
+  if (!removed && !authDeleted) {
+    return apiError("PROFILE_NOT_FOUND", "Perfil no encontrado", 404);
+  }
+
+  // Deleting an owner cascades its academies. Purge the public routes and
+  // sitemap entries as part of the same successful cleanup.
+  for (const { id: academyId } of ownedAcademies) {
+    revalidatePublicAcademySeo(academyId);
   }
 
   await logAdminAction({
@@ -429,7 +491,7 @@ export const DELETE = withSuperAdmin(async (request, context) => {
     tenantId: null,
     action: "user.deleted",
     resourceType: "profile",
-    resourceId: profileId,
+    resourceId: removed?.id ?? profileId,
     description: `Super Admin eliminó el usuario ${profileId}`,
     meta: { profileId, role: target.role, reason: reason.data },
   });

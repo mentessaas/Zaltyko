@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
 import { Eye, EyeOff, UserPlus, Loader2 } from "lucide-react";
 
@@ -18,6 +18,46 @@ export function SuperAdminCreateUserDialog() {
   const [showPassword, setShowPassword] = useState(false);
   const [name, setName] = useState("");
   const [role, setRole] = useState<(typeof ROLES)[number]>("owner");
+  const triggerRef = useRef<HTMLButtonElement | null>(null);
+  const dialogRef = useRef<HTMLFormElement | null>(null);
+
+  useEffect(() => {
+    if (!open) {
+      triggerRef.current?.focus();
+      return;
+    }
+
+    const focusTimer = window.setTimeout(() => {
+      dialogRef.current?.querySelector<HTMLElement>("input, select, textarea, button")?.focus();
+    }, 0);
+    const handleKeyDown = (event: KeyboardEvent) => {
+      if (event.key === "Escape" && !submitting) setOpen(false);
+      if (event.key !== "Tab" || !dialogRef.current) return;
+
+      const focusable = Array.from(
+        dialogRef.current.querySelectorAll<HTMLElement>(
+          'button:not([disabled]), input:not([disabled]), select:not([disabled]), textarea:not([disabled]), a[href], [tabindex]:not([tabindex="-1"])',
+        ),
+      );
+      if (focusable.length === 0) return;
+
+      const first = focusable[0];
+      const last = focusable[focusable.length - 1];
+      if (event.shiftKey && document.activeElement === first) {
+        event.preventDefault();
+        last.focus();
+      } else if (!event.shiftKey && document.activeElement === last) {
+        event.preventDefault();
+        first.focus();
+      }
+    };
+    document.addEventListener("keydown", handleKeyDown);
+
+    return () => {
+      window.clearTimeout(focusTimer);
+      document.removeEventListener("keydown", handleKeyDown);
+    };
+  }, [open, submitting]);
 
   function reset() {
     setEmail("");
@@ -46,6 +86,12 @@ export function SuperAdminCreateUserDialog() {
       setOpen(false);
       reset();
       router.refresh();
+    } catch (error) {
+      toast.pushToast({
+        title: "No se pudo crear el usuario",
+        description: error instanceof Error ? error.message : "Revisa la conexión e inténtalo de nuevo.",
+        variant: "error",
+      });
     } finally {
       setSubmitting(false);
     }
@@ -55,7 +101,10 @@ export function SuperAdminCreateUserDialog() {
     <>
       <button
         type="button"
-        onClick={() => setOpen(true)}
+        onClick={(event) => {
+          triggerRef.current = event.currentTarget;
+          setOpen(true);
+        }}
         className="inline-flex items-center gap-2 rounded-xl border border-white/15 bg-white/10 px-4 py-2 text-sm font-semibold text-white transition hover:bg-white/15"
       >
         <UserPlus className="h-4 w-4" strokeWidth={1.8} />
@@ -63,13 +112,20 @@ export function SuperAdminCreateUserDialog() {
       </button>
 
       {open && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 p-4" onClick={() => !submitting && setOpen(false)}>
+        <div
+          role="dialog"
+          aria-modal="true"
+          aria-labelledby="create-user-dialog-title"
+          className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 p-4"
+          onClick={() => !submitting && setOpen(false)}
+        >
           <form
+            ref={dialogRef}
             onClick={(e) => e.stopPropagation()}
             onSubmit={handleSubmit}
             className="w-full max-w-md space-y-4 rounded-2xl border border-white/10 bg-[#0f1729] p-6 shadow-xl"
           >
-            <h3 className="text-lg font-semibold text-white">Crear usuario</h3>
+            <h3 id="create-user-dialog-title" className="text-lg font-semibold text-white">Crear usuario</h3>
 
             <label className="block text-sm text-white/70">
               Email

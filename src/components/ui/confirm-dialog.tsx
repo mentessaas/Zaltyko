@@ -15,7 +15,7 @@ interface ConfirmDialogProps {
   confirmText?: string;
   cancelText?: string;
   variant?: "default" | "destructive";
-  onConfirm: (reason?: string) => void | Promise<void>;
+  onConfirm: (reason?: string) => void | boolean | Promise<void | boolean>;
   onCancel?: () => void;
   loading?: boolean;
   requireReason?: boolean;
@@ -38,11 +38,17 @@ export function ConfirmDialog({
 }: ConfirmDialogProps) {
   const [isLoading, setIsLoading] = React.useState(false);
   const [reason, setReason] = React.useState("");
+  const reasonId = React.useId();
+
+  React.useEffect(() => {
+    if (!open) setReason("");
+  }, [open]);
 
   const handleConfirm = async () => {
     setIsLoading(true);
     try {
-      await onConfirm(reason.trim() || undefined);
+      const result = await onConfirm(reason.trim() || undefined);
+      if (result === false) return;
       setReason("");
       onOpenChange?.(false);
     } catch (error) {
@@ -92,11 +98,11 @@ export function ConfirmDialog({
           </div>
           {requireReason && (
             <div className="space-y-2">
-              <label htmlFor="confirm-dialog-reason" className="text-sm font-medium text-foreground">
+              <label htmlFor={reasonId} className="text-sm font-medium text-foreground">
                 {reasonLabel}
               </label>
               <Textarea
-                id="confirm-dialog-reason"
+                id={reasonId}
                 value={reason}
                 onChange={(event) => setReason(event.target.value)}
                 placeholder="Explica brevemente por qué es necesaria esta acción"
@@ -110,7 +116,7 @@ export function ConfirmDialog({
               type="button"
               variant="outline"
               onClick={handleCancel}
-              disabled={isLoading || loading || (requireReason && reason.trim().length < 5)}
+              disabled={isLoading || loading}
             >
               {cancelText}
             </Button>
@@ -118,7 +124,7 @@ export function ConfirmDialog({
               type="button"
               variant={variant === "destructive" ? "destructive" : "default"}
               onClick={handleConfirm}
-              disabled={isLoading || loading}
+              disabled={isLoading || loading || (requireReason && reason.trim().length < 5)}
             >
               {isLoading || loading ? "Procesando..." : confirmText}
             </Button>

@@ -9,6 +9,18 @@ config({ path: resolve(process.cwd(), ".env") });
 
 const academyId = process.env.E2E_ACADEMY_ID;
 const storageState = process.env.E2E_STORAGE_STATE;
+const superAdminStorageState = process.env.E2E_SUPER_ADMIN_STORAGE_STATE;
+const superAdminPaths = [
+  "/super-admin/dashboard",
+  "/super-admin/academies",
+  "/super-admin/academies/public",
+  "/super-admin/users",
+  "/super-admin/growth",
+  "/super-admin/logs",
+  "/super-admin/billing",
+  "/super-admin/support",
+  "/super-admin/settings",
+];
 const axeTags = ["wcag2a", "wcag2aa", "wcag21a", "wcag21aa", "wcag22aa"];
 
 async function analyzeStablePage(page: Page) {
@@ -67,4 +79,20 @@ test.describe("Zaltyko authenticated accessibility audit", () => {
     test.skip(!academyId, "Set E2E_ACADEMY_ID to run authenticated academy a11y checks.");
     await scanPage(page, `/app/${academyId}/athletes`);
   });
+});
+
+
+test.describe("Zaltyko super-admin accessibility audit", () => {
+  test.use(superAdminStorageState ? { storageState: superAdminStorageState } : {});
+  test.describe.configure({ timeout: 120_000 });
+
+  for (const path of superAdminPaths) {
+    test(`super-admin ${path} has no WCAG A/AA violations`, async ({ page }) => {
+      test.skip(
+        !superAdminStorageState,
+        "Set E2E_SUPER_ADMIN_STORAGE_STATE to run authenticated super-admin a11y checks."
+      );
+      await scanPage(page, path);
+    });
+  }
 });

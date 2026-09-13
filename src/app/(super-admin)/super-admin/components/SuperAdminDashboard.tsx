@@ -1,7 +1,7 @@
 "use client";
 
 import Link from "next/link";
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import dynamic from "next/dynamic";
 import {
   Activity,
@@ -58,13 +58,46 @@ const CHART_COLORS = ["#1FC7B6", "#2B2E83", "#CBD5E1", "#FF6B57", "#0F172A", "#5
 interface SuperAdminDashboardProps {
   initialMetrics: SuperAdminMetrics;
   initialEvents?: EventLogEntry[];
+  initialUserId?: string | null;
 }
 
-const CURRENCY_FORMATTER = new Intl.NumberFormat("es-ES", {
-  style: "currency",
-  currency: "EUR",
-  maximumFractionDigits: 0,
-});
+function normalizeCurrency(value: string | null | undefined) {
+  const normalized = value?.trim().toUpperCase();
+  return normalized && /^[A-Z]{3}$/.test(normalized) ? normalized : "EUR";
+}
+
+function formatCurrencyValue(value: number, currency = "EUR") {
+  try {
+    return new Intl.NumberFormat("es-ES", {
+      style: "currency",
+      currency: normalizeCurrency(currency),
+      maximumFractionDigits: 0,
+    }).format(value);
+  } catch {
+    return new Intl.NumberFormat("es-ES", {
+      style: "currency",
+      currency: "EUR",
+      maximumFractionDigits: 0,
+    }).format(value);
+  }
+}
+
+function formatCurrencyCents(value: number | null | undefined, currency = "EUR") {
+  return formatCurrencyValue(Number(value ?? 0) / 100, currency);
+}
+
+function formatRevenueBreakdown(
+  rows: Array<{ currency: string; total: number }>,
+  fallbackCents: number
+) {
+  if (rows.length === 0) return formatCurrencyCents(fallbackCents);
+  const visibleRows = rows.slice(0, 3);
+  const formatted = visibleRows
+    .map((row) => formatCurrencyCents(row.total, row.currency))
+    .join(" · ");
+  const remaining = rows.length - visibleRows.length;
+  return remaining > 0 ? `${formatted} · +${remaining} divisas` : formatted;
+}
 
 const EVENT_TYPE_LABELS: Record<string, string> = {
   academy_created: "Academia creada",
@@ -74,19 +107,43 @@ const EVENT_TYPE_LABELS: Record<string, string> = {
   charge_marked_paid: "Cargo pagado",
 };
 
+const SUBSCRIPTION_STATUS_LABELS: Record<string, string> = {
+  active: "Activa",
+  trialing: "En prueba",
+  past_due: "Pago vencido",
+  canceled: "Cancelada",
+  incomplete: "Incompleta",
+  unpaid: "Impagada",
+};
+
+const DISPLAY_TIME_ZONE = "Europe/Madrid";
+
 const MONTH_LABEL_FORMATTER = new Intl.DateTimeFormat("es-ES", {
   month: "short",
   year: "2-digit",
+  timeZone: DISPLAY_TIME_ZONE,
 });
 
 function formatMonthLabel(label: string) {
   const [year, month] = label.split("-").map(Number);
   if (!year || !month) return label;
-  return MONTH_LABEL_FORMATTER.format(new Date(year, month - 1, 1));
+  return MONTH_LABEL_FORMATTER.format(new Date(Date.UTC(year, month - 1, 1)));
 }
 
-export function SuperAdminDashboard({ initialMetrics, initialEvents = [] }: SuperAdminDashboardProps) {
-  const { metrics, loading, refresh } = useSuperAdminData(initialMetrics);
+function formatEventDate(value: string) {
+  const date = new Date(value);
+  if (Number.isNaN(date.getTime())) return "Fecha no disponible";
+  return date.toLocaleDateString("es-ES", {
+    day: "2-digit",
+    month: "short",
+    hour: "2-digit",
+    minute: "2-digit",
+    timeZone: DISPLAY_TIME_ZONE,
+  });
+}
+
+export function SuperAdminDashboard({ initialMetrics, initialEvents = [], initialUserId }: SuperAdminDashboardProps) {
+  const { metrics, events, loading, refresh, error, lastUpdatedAt } = useSuperAdminData(initialMetrics, initialEvents, initialUserId);
   const safeMetrics = useMemo(() => normalizeSuperAdminMetrics(metrics), [metrics]);
 
   // Drill-down state for charts
@@ -99,11 +156,15 @@ export function SuperAdminDashboard({ initialMetrics, initialEvents = [] }: Supe
 
   // Academy comparison state
   // Calculate pagination
-  const totalPages = Math.ceil(initialEvents.length / ITEMS_PER_PAGE);
-  const paginatedEvents = initialEvents.slice(
+  const totalPages = Math.max(1, Math.ceil(events.length / ITEMS_PER_PAGE));
+  const paginatedEvents = events.slice(
     (currentPage - 1) * ITEMS_PER_PAGE,
     currentPage * ITEMS_PER_PAGE
   );
+
+  useEffect(() => {
+    setCurrentPage((page) => Math.min(page, totalPages));
+  }, [totalPages]);
 
   const latestAcademyDate = useMemo(() => {
     if (!safeMetrics.totals.latestAcademyAt) {
@@ -113,7 +174,7 @@ export function SuperAdminDashboard({ initialMetrics, initialEvents = [] }: Supe
     if (Number.isNaN(parsedDate.getTime())) {
       return "Sin registros";
     }
-    return parsedDate.toLocaleDateString("es-ES");
+    return parsedDate.toLocaleDateString("es-ES", { timeZone: DISPLAY_TIME_ZONE });
   }, [safeMetrics.totals.latestAcademyAt]);
 
   const ownerCount = useMemo(
@@ -126,6 +187,40 @@ export function SuperAdminDashboard({ initialMetrics, initialEvents = [] }: Supe
   );
 
   const chartDataset = useMemo(() => safeMetrics.monthlyAcademies, [safeMetrics.monthlyAcademies]);
+  const revenueCurrencies = useMemo(
+    () => [...new Set(safeMetrics.revenueByCurrency.map((entry) => normalizeCurrency(entry.currency)))],
+    [safeMetrics.revenueByCurrency]
+  );
+  const revenueChartCurrency = revenueCurrencies.length === 1 ? revenueCurrencies[0] : null;
+  const revenueChartData = useMemo(
+    () =>
+      revenueChartCurrency
+        ? safeMetrics.monthlyRevenue
+            .filter((entry) => normalizeCurrency(entry.currency) === revenueChartCurrency)
+            .map((entry) => ({ label: entry.label, total: entry.total / 100 }))
+        : [],
+    [revenueChartCurrency, safeMetrics.monthlyRevenue]
+  );
+  const revenueSummaryLabel = useMemo(
+    () => formatRevenueBreakdown(safeMetrics.revenueByCurrency, safeMetrics.totals.revenue),
+    [safeMetrics.revenueByCurrency, safeMetrics.totals.revenue]
+  );
+  const revenueDelta = useMemo(() => {
+    if (revenueChartData.length < 2) return null;
+    return revenueChartData[revenueChartData.length - 1].total - revenueChartData[0].total;
+  }, [revenueChartData]);
+
+  const syncState = loading
+    ? { label: "Actualizando datos", className: "text-zaltyko-teal", iconClassName: "animate-pulse" }
+    : error
+      ? { label: "Sincronización parcial", className: "text-amber-300", iconClassName: "" }
+      : lastUpdatedAt
+        ? {
+            label: `Actualizado ${lastUpdatedAt.toLocaleTimeString("es-ES", { hour: "2-digit", minute: "2-digit", timeZone: DISPLAY_TIME_ZONE })}`,
+            className: "text-zaltyko-teal",
+            iconClassName: "",
+          }
+        : { label: "Datos iniciales", className: "text-white/70", iconClassName: "" };
 
   const metricTrends = useMemo(() => {
     const calculateTrend = (current: number, previous: number | undefined) => {
@@ -153,7 +248,7 @@ export function SuperAdminDashboard({ initialMetrics, initialEvents = [] }: Supe
 
   const planPieData = useMemo(() => {
     return safeMetrics.planDistribution.map((plan, idx) => ({
-      name: plan.code,
+      name: plan.nickname ? `${plan.nickname} (${plan.code})` : plan.code,
       value: plan.total,
       color: CHART_COLORS[idx % CHART_COLORS.length],
     }));
@@ -161,7 +256,7 @@ export function SuperAdminDashboard({ initialMetrics, initialEvents = [] }: Supe
 
   const subscriptionBarData = useMemo(() => {
     return safeMetrics.planStatuses.map((status) => ({
-      name: status.status,
+      name: SUBSCRIPTION_STATUS_LABELS[status.status] || status.status,
       total: status.total,
       fill: status.status === "active" ? "#10B981" :
             status.status === "past_due" ? "#F59E0B" :
@@ -188,7 +283,7 @@ export function SuperAdminDashboard({ initialMetrics, initialEvents = [] }: Supe
       {
         title: "Usuarios",
         value: safeMetrics.totals.users,
-        subtitle: `Última alta: ${latestAcademyDate}`,
+        subtitle: "Usuarios con perfil registrado",
         trend: metricTrends.users,
         href: "/super-admin/users",
         icon: Users,
@@ -211,9 +306,9 @@ export function SuperAdminDashboard({ initialMetrics, initialEvents = [] }: Supe
         accent: "coral" as const,
       },
       {
-        title: "Planes activos",
+        title: "Planes configurados",
         value: safeMetrics.totals.plans,
-        subtitle: "Planes configurados en el SaaS",
+        subtitle: "Catálogo disponible para suscripciones",
         href: "/super-admin/billing",
         icon: LayoutGrid,
         accent: "red" as const,
@@ -221,7 +316,7 @@ export function SuperAdminDashboard({ initialMetrics, initialEvents = [] }: Supe
       {
         title: "Suscripciones",
         value: safeMetrics.totals.subscriptions,
-        subtitle: `${safeMetrics.totals.paidInvoices} recibos de suscripción cobrados`,
+        subtitle: "Suscripciones registradas",
         href: "/super-admin/billing",
         icon: CreditCard,
         accent: "amber" as const,
@@ -246,15 +341,21 @@ export function SuperAdminDashboard({ initialMetrics, initialEvents = [] }: Supe
         title: "Cobros este mes",
         value: safeMetrics.totals.chargesCreatedThisMonth,
         subtitle: "Cargos creados",
-        href: "/super-admin/academies",
+        href: "/super-admin/billing",
         icon: TrendingUp,
         accent: "red" as const,
       },
       {
-        title: "Ingresos este mes",
-        value: CURRENCY_FORMATTER.format(safeMetrics.totals.chargesPaidThisMonth / 100),
-        subtitle: "Total cobrado",
-        href: "/super-admin/academies",
+        title: "Cobrado este mes",
+        value: formatRevenueBreakdown(
+          safeMetrics.chargesPaidByCurrency,
+          safeMetrics.totals.chargesPaidThisMonth
+        ),
+        subtitle:
+          safeMetrics.chargesPaidByCurrency.length > 1
+            ? "Cargos pagados · importes separados por divisa"
+            : "Cargos pagados registrados",
+        href: "/super-admin/billing",
         icon: DollarSign,
         accent: "emerald" as const,
       },
@@ -282,9 +383,14 @@ export function SuperAdminDashboard({ initialMetrics, initialEvents = [] }: Supe
             </p>
           </div>
           <div className="flex items-center gap-3">
-            <div className="inline-flex items-center gap-2 rounded-xl border border-white/15 bg-white/5 px-3 py-2 text-xs font-medium text-white/70">
-              <Clock className="h-3.5 w-3.5 text-zaltyko-teal" strokeWidth={1.8} />
-              Datos actuales
+            <div
+              role="status"
+              aria-live="polite"
+              className="inline-flex items-center gap-2 rounded-xl border border-white/15 bg-white/5 px-3 py-2 text-xs font-medium"
+              title={error ?? "Estado de sincronización del control plane"}
+            >
+              <Clock className={cn("h-3.5 w-3.5", syncState.className, syncState.iconClassName)} strokeWidth={1.8} />
+              <span className={syncState.className}>{syncState.label}</span>
             </div>
             <Button
               onClick={refresh}
@@ -305,16 +411,16 @@ export function SuperAdminDashboard({ initialMetrics, initialEvents = [] }: Supe
         ))}
       </section>
 
-      <section className="grid w-full grid-cols-2 gap-3 rounded-[22px] border border-slate-200/80 bg-white p-4 shadow-[0_18px_50px_-32px_rgba(15,23,42,0.45)] sm:grid-cols-3 lg:grid-cols-5">
+      <section className="grid w-full grid-cols-2 gap-3 rounded-2xl border border-white/10 bg-white/[0.045] p-4 sm:grid-cols-3 lg:grid-cols-5">
         {cards.slice(5).map((card) => (
           <Link
             key={card.title}
             href={card.href}
-            className="group rounded-2xl border border-slate-100 bg-slate-50/70 px-3 py-3 transition hover:border-zaltyko-teal/30 hover:bg-white"
+            className="group rounded-xl border border-white/10 bg-white/[0.035] px-3 py-3 transition hover:border-zaltyko-teal/30 hover:bg-white/[0.08]"
           >
-            <p className="truncate text-[11px] font-bold uppercase tracking-[0.08em] text-slate-400">{card.title}</p>
-            <p className="mt-1 font-display text-xl font-bold tracking-[-0.03em] text-slate-950">{card.value}</p>
-            <p className="mt-1 truncate text-xs text-slate-500">{card.subtitle}</p>
+            <p className="truncate text-[11px] font-bold uppercase tracking-[0.08em] text-white/50">{card.title}</p>
+            <p className="mt-1 font-display text-xl font-bold tracking-normal text-white">{card.value}</p>
+            <p className="mt-1 truncate text-xs text-white/60">{card.subtitle}</p>
           </Link>
         ))}
       </section>
@@ -340,9 +446,11 @@ export function SuperAdminDashboard({ initialMetrics, initialEvents = [] }: Supe
 
           <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
             {safeMetrics.subscriptionAlerts.map((alert) => (
-              <div
+              <Link
                 key={alert.status}
-                className={`flex items-center justify-between rounded-xl border p-4 ${
+                href={`/super-admin/billing?status=${encodeURIComponent(alert.status)}`}
+                aria-label={`Abrir Billing filtrado por ${alert.status === "past_due" ? "pagos vencidos" : alert.status === "canceled" ? "suscripciones canceladas" : "suscripciones en prueba"}`}
+                className={`flex items-center justify-between rounded-xl border p-4 transition hover:border-white/40 hover:bg-white/10 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-zaltyko-teal ${
                   alert.status === "past_due"
                     ? "border-zaltyko-coral/30 bg-zaltyko-coral/10"
                     : alert.status === "canceled"
@@ -366,7 +474,7 @@ export function SuperAdminDashboard({ initialMetrics, initialEvents = [] }: Supe
                   </div>
                 </div>
                 <ChevronRight className="h-4 w-4 text-white/40" />
-              </div>
+              </Link>
             ))}
           </div>
         </section>
@@ -402,7 +510,7 @@ export function SuperAdminDashboard({ initialMetrics, initialEvents = [] }: Supe
               <p className="text-xs text-white/50 mt-1">Total: {safeMetrics.totals.users}</p>
             </div>
             <span className="text-xs text-white/40">
-              {pieChartData.length > 0 ? "Abrir desglose" : "Sin desglose disponible"}
+              {pieChartData.length > 0 ? "Abrir desglose" : "Sin distribución disponible"}
             </span>
           </header>
 
@@ -458,10 +566,10 @@ export function SuperAdminDashboard({ initialMetrics, initialEvents = [] }: Supe
         <button
           type="button"
           disabled={planPieData.length === 0}
-          aria-label={planPieData.length === 0 ? "Planes activos: sin datos" : "Abrir desglose de planes activos"}
+          aria-label={planPieData.length === 0 ? "Distribución de suscripciones: sin datos" : "Abrir desglose de suscripciones por plan"}
           onClick={() => {
             if (planPieData.length === 0) return;
-            setDrillDownData({ title: "Planes Activos", items: planPieData });
+            setDrillDownData({ title: "Distribución de suscripciones", items: planPieData });
             setSelectedChart("planDistribution");
           }}
           className={cn(
@@ -473,9 +581,9 @@ export function SuperAdminDashboard({ initialMetrics, initialEvents = [] }: Supe
           <header className="relative flex items-center justify-between mb-6">
             <div>
               <h3 className="font-display text-sm font-semibold uppercase tracking-wide text-zaltyko-accent-light">
-                Planes activos
+                Distribución de suscripciones
               </h3>
-              <p className="text-xs text-white/50 mt-1">{safeMetrics.planDistribution.length} tipos de plan</p>
+              <p className="text-xs text-white/50 mt-1">{safeMetrics.totals.subscriptions} suscripciones · {safeMetrics.planDistribution.length} planes</p>
             </div>
             <span className="text-xs text-white/40">
               {planPieData.length > 0 ? "Abrir desglose" : "Sin desglose disponible"}
@@ -552,7 +660,7 @@ export function SuperAdminDashboard({ initialMetrics, initialEvents = [] }: Supe
               Estado de suscripciones
             </h3>
             <p className="text-xs text-white/50 mt-1">
-              Ingresos: {CURRENCY_FORMATTER.format(safeMetrics.totals.revenue / 100)} · {safeMetrics.totals.paidInvoices} recibos de suscripción cobrados
+              Ingresos acumulados: {revenueSummaryLabel} · {safeMetrics.totals.paidInvoices} recibos cobrados
             </p>
           </div>
           <span className="text-xs text-white/40">
@@ -577,7 +685,7 @@ export function SuperAdminDashboard({ initialMetrics, initialEvents = [] }: Supe
                   tickLine={false}
                   axisLine={false}
                   width={80}
-                  tickFormatter={(value) => value.charAt(0).toUpperCase() + value.slice(1).replace("_", " ")}
+                  tickFormatter={(value) => String(value)}
                 />
                 <Tooltip
                   contentStyle={{
@@ -669,7 +777,7 @@ export function SuperAdminDashboard({ initialMetrics, initialEvents = [] }: Supe
                   stroke="#1FC7B6"
                   strokeWidth={3}
                   fillOpacity={1}
-                  fill="url(#colorAcademias)"
+                  fill="url(#colorAcademies)"
                   dot={{ fill: "#1FC7B6", strokeWidth: 0, r: 4 }}
                   activeDot={{ fill: "#1FC7B6", strokeWidth: 2, stroke: "#fff", r: 6 }}
                 />
@@ -681,51 +789,120 @@ export function SuperAdminDashboard({ initialMetrics, initialEvents = [] }: Supe
 
       {/* Revenue Trend Chart */}
       <section className="group relative overflow-hidden rounded-2xl border border-white/10 bg-white/5 p-6">
-
         <header className="relative mb-6 flex flex-col gap-1 sm:flex-row sm:items-center sm:justify-between">
           <div>
             <h3 className="font-display text-sm font-semibold uppercase tracking-wide text-zaltyko-accent-light">
-              Ingresos Mensuales
+              Ingresos mensuales
             </h3>
-            <p className="text-xs text-white/50 mt-1">Pendiente de serie real por mes desde recibos/cobros</p>
+            <p className="mt-1 text-xs text-white/50">
+              {revenueChartData.length > 0
+                ? `Últimos ${revenueChartData.length} meses con cobros pagados en ${revenueChartCurrency}`
+                : revenueCurrencies.length > 1
+                  ? "Serie no comparable: hay varias divisas"
+                  : "Sin serie disponible"}
+            </p>
           </div>
-          <div className="flex items-center gap-2 mt-2 sm:mt-0">
+          <div className="mt-2 flex items-center gap-2 sm:mt-0">
             <div className="flex items-center gap-1.5 rounded-full bg-emerald-500/20 px-3 py-1.5">
-              <DollarSign className="h-3.5 w-3.5 text-emerald-400" />
+              <DollarSign className="h-3.5 w-3.5 text-emerald-400" aria-hidden="true" />
               <span className="text-xs font-semibold text-emerald-300">
-                {CURRENCY_FORMATTER.format(safeMetrics.totals.chargesPaidThisMonth / 100)}
+                Acumulado {revenueSummaryLabel}
               </span>
             </div>
           </div>
         </header>
 
-        <div className="flex h-48 min-w-0 flex-col items-center justify-center rounded-xl border border-dashed border-white/20 bg-white/5 px-6 text-center">
-          <Info className="mb-3 h-5 w-5 text-white/50" />
-          <p className="text-sm font-medium text-white/70">Serie de ingresos no disponible</p>
-          <p className="mt-1 max-w-md text-xs text-white/45">
-            El total cobrado se muestra arriba. Para graficar la evolución mensual hace falta persistir agregados reales por periodo.
-          </p>
+        {revenueChartData.length === 0 ? (
+          <div className="flex h-48 min-w-0 flex-col items-center justify-center rounded-xl border border-dashed border-white/20 bg-white/5 px-6 text-center">
+            <Info className="mb-3 h-5 w-5 text-white/50" aria-hidden="true" />
+            <p className="text-sm font-medium text-white/70">
+              {revenueCurrencies.length > 1 ? "Serie no comparable entre divisas" : "Serie de ingresos no disponible"}
+            </p>
+            <p className="mt-1 max-w-md text-xs text-white/45">
+              {revenueCurrencies.length > 1
+                ? "El total se mantiene separado por moneda para evitar sumar importes incompatibles."
+                : "El total acumulado se muestra arriba cuando existen recibos pagados. La serie aparece al sincronizar periodos reales."}
+            </p>
+          </div>
+        ) : (
+          <div className="h-56 min-w-0">
+            <ResponsiveContainer width="100%" height={224}>
+              <AreaChart data={revenueChartData}>
+                <defs>
+                  <linearGradient id="colorRevenue" x1="0" y1="0" x2="0" y2="1">
+                    <stop offset="0%" stopColor="#10B981" stopOpacity={0.35} />
+                    <stop offset="100%" stopColor="#10B981" stopOpacity={0} />
+                  </linearGradient>
+                </defs>
+                <XAxis
+                  dataKey="label"
+                  stroke="#ffffff50"
+                  fontSize={11}
+                  tickLine={false}
+                  axisLine={false}
+                  tickFormatter={formatMonthLabel}
+                />
+                <YAxis
+                  stroke="#ffffff50"
+                  fontSize={11}
+                  tickLine={false}
+                  axisLine={false}
+                  tickFormatter={(value) => formatCurrencyValue(Number(value), revenueChartCurrency ?? "EUR")}
+                />
+                <Tooltip
+                  contentStyle={{
+                    backgroundColor: "rgba(0,0,0,0.8)",
+                    border: "1px solid rgba(255,255,255,0.1)",
+                    borderRadius: "12px",
+                    color: "#fff",
+                  }}
+                  labelFormatter={(label) => `Mes: ${formatMonthLabel(String(label))}`}
+                  formatter={(value) => [
+                    formatCurrencyValue(Number(value), revenueChartCurrency ?? "EUR"),
+                    "Ingresos",
+                  ]}
+                />
+                <Area
+                  type="monotone"
+                  dataKey="total"
+                  stroke="#10B981"
+                  strokeWidth={3}
+                  fillOpacity={1}
+                  fill="url(#colorRevenue)"
+                  dot={{ fill: "#10B981", strokeWidth: 0, r: 4 }}
+                  activeDot={{ fill: "#10B981", strokeWidth: 2, stroke: "#fff", r: 6 }}
+                />
+              </AreaChart>
+            </ResponsiveContainer>
+          </div>
+        )}
+        <div className="mt-4 flex items-center justify-between text-xs text-white/50">
+          <span>Fuente: billing_invoices · estado paid</span>
+          <span>
+            {revenueDelta === null
+              ? "Sin variación comparable"
+              : `${revenueDelta >= 0 ? "+" : ""}${formatCurrencyValue(revenueDelta, revenueChartCurrency ?? "EUR")} vs. primer mes`}
+          </span>
         </div>
       </section>
 
-      {initialEvents.length > 0 && (
-        <section className="group relative overflow-hidden rounded-2xl border border-white/10 bg-white/5 p-6">
+      <section className="group relative overflow-hidden rounded-2xl border border-white/10 bg-white/5 p-6">
 
           <header className="relative mb-6 flex items-center justify-between">
             <div>
               <h3 className="font-display text-sm font-semibold uppercase tracking-wide text-zaltyko-accent-light">
                 Actividad reciente
               </h3>
-              <p className="text-xs text-white/50 mt-1">Últimos {initialEvents.length} eventos del sistema</p>
+              <p className="text-xs text-white/50 mt-1">Últimos {events.length} eventos del sistema</p>
             </div>
             <span className="rounded-full bg-white/10 px-3 py-1 text-xs font-medium text-white/80">
-              {initialEvents.length} eventos
+              {events.length} eventos
             </span>
           </header>
 
           <div className="relative overflow-hidden rounded-xl border border-white/10 bg-white/5">
             <div className="overflow-x-auto">
-              <table className="min-w-full text-xs">
+              <table className="min-w-full text-xs" aria-label="Actividad reciente del sistema">
                 <thead>
                   <tr className="border-b border-white/10 bg-white/5 text-left text-[10px] uppercase tracking-wide text-white/50">
                     <th className="px-4 py-3 font-medium">Fecha</th>
@@ -734,15 +911,16 @@ export function SuperAdminDashboard({ initialMetrics, initialEvents = [] }: Supe
                   </tr>
                 </thead>
                 <tbody className="divide-y divide-white/5">
-                  {paginatedEvents.map((event, idx) => (
+                  {paginatedEvents.length === 0 ? (
+                    <tr>
+                      <td colSpan={3} className="px-4 py-10 text-center text-sm text-white/55">
+                        No hay actividad reciente registrada.
+                      </td>
+                    </tr>
+                  ) : paginatedEvents.map((event) => (
                     <tr key={event.id} className="transition-colors hover:bg-white/5">
                       <td className="whitespace-nowrap px-4 py-3 text-white/70">
-                        {new Date(event.createdAt).toLocaleDateString("es-ES", {
-                          day: "2-digit",
-                          month: "short",
-                          hour: "2-digit",
-                          minute: "2-digit",
-                        })}
+                        {formatEventDate(event.createdAt)}
                       </td>
                       <td className="px-4 py-3">
                         <span className="inline-flex items-center gap-1.5 rounded-full bg-red-500/20 px-2.5 py-1 text-xs font-medium text-red-300">
@@ -787,8 +965,7 @@ export function SuperAdminDashboard({ initialMetrics, initialEvents = [] }: Supe
               </div>
             </div>
           )}
-        </section>
-      )}
+      </section>
 
       {/* Drill-down Modal */}
       <Dialog open={!!selectedChart} onOpenChange={() => { setSelectedChart(null); setDrillDownData(null); }}>

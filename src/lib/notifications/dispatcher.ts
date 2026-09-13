@@ -14,7 +14,7 @@ import { sendEmail } from "@/lib/brevo";
 import { getNotificationPreferences, getNotificationPreferenceByChannel } from "@/lib/communication-service";
 import { db } from "@/db";
 import { profiles } from "@/db/schema/profiles";
-import { eq } from "drizzle-orm";
+import { and, eq } from "drizzle-orm";
 
 // Types
 export type NotificationType =
@@ -72,15 +72,16 @@ const FALLBACK_ORDER: Channel[] = ["push", "email", "in_app"];
 /**
  * Get user profile with contact info
  */
-async function getUserProfile(userId: string) {
+async function getUserProfile(userId: string, tenantId: string) {
   const [profile] = await db
     .select({
       id: profiles.id,
+      userId: profiles.userId,
       name: profiles.name,
       phone: profiles.phone,
     })
     .from(profiles)
-    .where(eq(profiles.id, userId))
+    .where(and(eq(profiles.id, userId), eq(profiles.tenantId, tenantId)))
     .limit(1);
   return profile;
 }
@@ -102,7 +103,7 @@ async function isChannelAvailable(
       return false;
 
     case "whatsapp":
-      const phoneProfile = await getUserProfile(userId);
+      const phoneProfile = await getUserProfile(userId, tenantId);
       return Boolean(phoneProfile?.phone);
 
     case "in_app":
@@ -143,7 +144,7 @@ async function sendViaChannel(
   userId: string,
   options: DispatchOptions
 ): Promise<{ success: boolean; error?: string }> {
-  const profile = await getUserProfile(userId);
+  const profile = await getUserProfile(userId, options.tenantId);
 
   try {
     switch (channel) {
@@ -162,7 +163,10 @@ async function sendViaChannel(
         if (!isPushAvailable()) {
           return { success: false, error: "Push not configured" };
         }
-        const pushResult = await sendPushToUser(userId, {
+        if (!profile?.userId) {
+          return { success: false, error: "Profile not found" };
+        }
+        const pushResult = await sendPushToUser(profile.userId, {
           title: options.title,
           body: options.body,
           data: options.data,
@@ -223,6 +227,14 @@ export async function dispatch(options: DispatchOptions): Promise<DispatchResult
     channelsSucceeded: [],
     errors: {} as Record<Channel, string>,
   };
+
+  // Notification user IDs are profile IDs. Verify the profile belongs to the
+  // requested tenant before attempting any external channel or fallback insert.
+  const scopedProfile = await getUserProfile(userId, tenantId);
+  if (!scopedProfile) {
+    result.errors.in_app = "Profile not found for tenant";
+    return result;
+  }
 
   for (const channel of channelOrder) {
     result.channelsAttempted.push(channel);

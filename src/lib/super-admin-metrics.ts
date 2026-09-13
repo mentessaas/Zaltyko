@@ -32,6 +32,9 @@ export const DEFAULT_SUPER_ADMIN_METRICS: SuperAdminMetrics = {
   planStatuses: [],
   planDistribution: [],
   monthlyAcademies: [],
+  monthlyRevenue: [],
+  revenueByCurrency: [],
+  chargesPaidByCurrency: [],
   subscriptionAlerts: [],
 };
 
@@ -96,6 +99,42 @@ function normalizeMonthlyAcademies(value: unknown): SuperAdminMetrics["monthlyAc
     }));
 }
 
+function normalizeMonthlyRevenue(value: unknown): SuperAdminMetrics["monthlyRevenue"] {
+  if (!Array.isArray(value)) return [];
+
+  return value
+    .filter(isRecord)
+    .map((entry) => ({
+      label: typeof entry.label === "string" ? entry.label : "unknown",
+      currency: typeof entry.currency === "string" ? entry.currency.toUpperCase() : "EUR",
+      total: toNumber(entry.total, 0),
+    }));
+}
+
+function normalizeRevenueByCurrency(value: unknown): SuperAdminMetrics["revenueByCurrency"] {
+  if (!Array.isArray(value)) return [];
+
+  return value
+    .filter(isRecord)
+    .map((entry) => ({
+      currency: typeof entry.currency === "string" ? entry.currency.toUpperCase() : "EUR",
+      total: toNumber(entry.total, 0),
+    }))
+    .filter((entry) => /^[A-Z]{3}$/.test(entry.currency));
+}
+
+function normalizeChargesPaidByCurrency(value: unknown): SuperAdminMetrics["chargesPaidByCurrency"] {
+  if (!Array.isArray(value)) return [];
+
+  return value
+    .filter(isRecord)
+    .map((entry) => ({
+      currency: typeof entry.currency === "string" ? entry.currency.toUpperCase() : "EUR",
+      total: toNumber(entry.total, 0),
+    }))
+    .filter((entry) => /^[A-Z]{3}$/.test(entry.currency) && entry.total > 0);
+}
+
 function normalizeSubscriptionAlerts(value: unknown): SuperAdminMetrics["subscriptionAlerts"] {
   if (!Array.isArray(value)) return [];
 
@@ -147,6 +186,9 @@ export function normalizeSuperAdminMetrics(value: unknown): SuperAdminMetrics {
     planStatuses: normalizePlanStatuses(value.planStatuses),
     planDistribution: normalizePlanDistribution(value.planDistribution),
     monthlyAcademies: normalizeMonthlyAcademies(value.monthlyAcademies),
+    monthlyRevenue: normalizeMonthlyRevenue(value.monthlyRevenue),
+    revenueByCurrency: normalizeRevenueByCurrency(value.revenueByCurrency),
+    chargesPaidByCurrency: normalizeChargesPaidByCurrency(value.chargesPaidByCurrency),
     subscriptionAlerts: normalizeSubscriptionAlerts(value.subscriptionAlerts),
   };
 }
@@ -166,6 +208,8 @@ export function isSuperAdminMetrics(value: unknown): value is SuperAdminMetrics 
     Array.isArray(value.planStatuses) &&
     Array.isArray(value.planDistribution) &&
     Array.isArray(value.monthlyAcademies) &&
+    Array.isArray(value.monthlyRevenue) &&
+    Array.isArray(value.revenueByCurrency) &&
     Array.isArray(value.subscriptionAlerts)
   );
 }

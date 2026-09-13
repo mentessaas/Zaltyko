@@ -1,11 +1,14 @@
 "use client";
 
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
-import Link from "next/link";
-import { PauseCircle, PlayCircle, Trash2, Loader2 } from "lucide-react";
+import { ChevronLeft, ChevronRight, PauseCircle, PlayCircle, Trash2, Loader2 } from "lucide-react";
 
-import type { SuperAdminAcademyRow } from "@/lib/superAdminService";
+import type {
+  SuperAdminAcademyFilterOptions,
+  SuperAdminAcademyRow,
+} from "@/lib/superAdminService";
+import type { AcademyStatus } from "@/db/schema/academies";
 import { createClient } from "@/lib/supabase/client";
 import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
@@ -19,27 +22,71 @@ type SuperAdminAcademyFilters = {
   plan?: string;
   type?: string;
   country?: string;
-  status?: "active" | "suspended";
+  status?: AcademyStatus;
 };
+
+const DISPLAY_TIME_ZONE = "Europe/Madrid";
+
+const ACADEMY_TYPE_OPTIONS = ["artistica", "ritmica", "trampolin", "general", "parkour", "danza"] as const;
+
+const ACADEMY_STATUS_LABELS: Record<AcademyStatus, string> = {
+  active: "Activa",
+  trial: "En prueba",
+  suspended: "Suspendida",
+  churned: "Baja",
+  fraud_hold: "Revisión de fraude",
+};
+
+const ACADEMY_STATUS_CLASSES: Record<AcademyStatus, string> = {
+  active: "bg-zaltyko-primary/15 text-zaltyko-primary-light",
+  trial: "bg-amber-400/15 text-amber-200",
+  suspended: "bg-zaltyko-coral/15 text-zaltyko-coral",
+  churned: "bg-white/10 text-white/60",
+  fraud_hold: "bg-fuchsia-400/15 text-fuchsia-200",
+};
+
+function getEffectiveAcademyStatus(academy: SuperAdminAcademyRow): AcademyStatus {
+  if (academy.isSuspended && (academy.status === "active" || academy.status === "trial")) {
+    return "suspended";
+  }
+  return academy.status;
+}
 
 interface SuperAdminAcademiesTableProps {
   initialItems: SuperAdminAcademyRow[];
   initialTotal: number;
+  initialPage?: number;
+  initialFilters?: SuperAdminAcademyFilters;
+  initialFilterOptions?: SuperAdminAcademyFilterOptions;
+  initialUserId?: string | null;
 }
 
 export function SuperAdminAcademiesTable({
   initialItems,
   initialTotal,
+  initialPage = 1,
+  initialFilters = {},
+  initialFilterOptions,
+  initialUserId,
 }: SuperAdminAcademiesTableProps) {
-  const supabase = createClient();
+  const supabase = useMemo(() => createClient(), []);
   const router = useRouter();
   const toast = useToast();
-  const [userId, setUserId] = useState<string | null>(null);
+  const [userId, setUserId] = useState<string | null>(initialUserId ?? null);
   const [items, setItems] = useState<SuperAdminAcademyRow[]>(initialItems);
-  const [total, setTotal] = useState(initialTotal || initialItems.length);
+  const [total, setTotal] = useState(initialTotal ?? initialItems.length);
+  const [page, setPage] = useState(initialPage);
+  const PAGE_SIZE = 50;
   const [loading, setLoading] = useState(false);
+  const [errorMessage, setErrorMessage] = useState<string | null>(null);
+  const requestSequence = useRef(0);
   const [mutatingAcademyId, setMutatingAcademyId] = useState<string | null>(null);
-  const [filters, setFilters] = useState<SuperAdminAcademyFilters>({});
+  const [filters, setFilters] = useState<SuperAdminAcademyFilters>(initialFilters);
+  const [filterOptions, setFilterOptions] = useState<SuperAdminAcademyFilterOptions>(() => ({
+    plans: initialFilterOptions?.plans ?? [],
+    types: initialFilterOptions?.types ?? [...ACADEMY_TYPE_OPTIONS],
+    countries: initialFilterOptions?.countries ?? [],
+  }));
   const [confirmDialogOpen, setConfirmDialogOpen] = useState(false);
   const [pendingAction, setPendingAction] = useState<{
     academyId: string;
@@ -47,43 +94,66 @@ export function SuperAdminAcademiesTable({
     academyName: string;
   } | null>(null);
 
+  const openAcademyDetail = (academyId: string) => {
+    if (typeof window === "undefined") return;
+    const returnTo = window.location.pathname + window.location.search;
+    router.push(`/super-admin/academies/${academyId}?returnTo=${encodeURIComponent(returnTo)}`);
+  };
+  const syncUrl = (activeFilters: SuperAdminAcademyFilters, targetPage: number) => {
+    if (typeof window === "undefined") return;
+    const params = new URLSearchParams();
+    if (activeFilters.plan) params.set("plan", activeFilters.plan);
+    if (activeFilters.type) params.set("type", activeFilters.type);
+    if (activeFilters.country) params.set("country", activeFilters.country);
+    if (activeFilters.status) params.set("status", activeFilters.status);
+    if (targetPage > 1) params.set("page", String(targetPage));
+    const query = params.toString();
+    window.history.replaceState(
+      window.history.state,
+      "",
+      window.location.pathname + (query ? "?" + query : "")
+    );
+  };
+
   useEffect(() => {
     supabase.auth.getUser().then(({ data }) => {
-      setUserId(data.user?.id ?? null);
+      if (data.user?.id) setUserId(data.user.id);
+    }).catch((error) => {
+      logger.warn("Unable to resolve super-admin session", { error: error instanceof Error ? error.message : String(error) });
     });
   }, [supabase]);
 
-  const planOptions = useMemo(() => {
-    const set = new Set<string>();
-    items.forEach((academy) => {
-      if (academy.planCode) set.add(academy.planCode);
-    });
-    return Array.from(set).sort();
-  }, [items]);
+  useEffect(() => {
+    setItems(initialItems);
+    setTotal(initialTotal ?? initialItems.length);
+    setPage(initialPage);
+    setFilters(initialFilters);
+  }, [initialItems, initialTotal, initialPage, initialFilters]);
 
-  const typeOptions = useMemo(() => {
-    const set = new Set<string>();
-    items.forEach((academy) => {
-      if (academy.academyType) set.add(academy.academyType);
-    });
-    return Array.from(set).sort();
-  }, [items]);
+  const planOptions = filterOptions.plans;
+  const typeOptions = filterOptions.types.length > 0 ? filterOptions.types : [...ACADEMY_TYPE_OPTIONS];
+  const countryOptions = filterOptions.countries;
 
   const handleFilterChange = async (partial: Partial<SuperAdminAcademyFilters>) => {
     const nextFilters = { ...filters, ...partial };
     setFilters(nextFilters);
-    await fetchAcademies(nextFilters);
+    setPage(1);
+    await fetchAcademies(nextFilters, 1);
   };
 
-  const fetchAcademies = async (activeFilters: SuperAdminAcademyFilters) => {
+  const fetchAcademies = async (activeFilters: SuperAdminAcademyFilters, requestedPage = page) => {
     if (!userId) return;
+    const requestId = ++requestSequence.current;
     setLoading(true);
+    setErrorMessage(null);
     try {
       const params = new URLSearchParams();
       if (activeFilters.plan) params.set("plan", activeFilters.plan);
       if (activeFilters.type) params.set("type", activeFilters.type);
       if (activeFilters.country) params.set("country", activeFilters.country);
       if (activeFilters.status) params.set("status", activeFilters.status);
+      params.set("page", String(requestedPage));
+      params.set("limit", String(PAGE_SIZE));
 
       const response = await fetch(`/api/super-admin/academies?${params.toString()}`, {
         headers: {
@@ -93,14 +163,35 @@ export function SuperAdminAcademiesTable({
 
       if (!response.ok) {
         logger.error("Error fetching academias", await response.text());
+        if (requestId === requestSequence.current) {
+          setErrorMessage("No se pudieron cargar las academias. Reintenta en unos segundos.");
+        }
         return;
       }
 
       const { data: payload } = await response.json();
+      if (requestId !== requestSequence.current) return;
       setItems(payload.items ?? []);
       setTotal(payload.total ?? payload.items?.length ?? 0);
+      const effectivePage = Number(payload.page ?? requestedPage);
+      setPage(effectivePage);
+      syncUrl(activeFilters, effectivePage);
+      if (payload.options) {
+        setFilterOptions({
+          plans: Array.isArray(payload.options.plans) ? payload.options.plans : [],
+          types: Array.isArray(payload.options.types) && payload.options.types.length > 0
+            ? payload.options.types
+            : [...ACADEMY_TYPE_OPTIONS],
+          countries: Array.isArray(payload.options.countries) ? payload.options.countries : [],
+        });
+      }
+    } catch (error) {
+      logger.error("Error fetching academias", error);
+      if (requestId === requestSequence.current) {
+        setErrorMessage("No se pudieron cargar las academias. Revisa la conexión y reintenta.");
+      }
     } finally {
-      setLoading(false);
+      if (requestId === requestSequence.current) setLoading(false);
     }
   };
 
@@ -109,11 +200,11 @@ export function SuperAdminAcademiesTable({
     payload: Record<string, unknown>,
     method: "PATCH" | "DELETE",
     optimisticUpdate = true,
-  ) => {
-    if (!userId) return;
+  ): Promise<boolean> => {
+    if (!userId) return false;
 
     const academy = items.find((a) => a.id === academyId);
-    if (!academy) return;
+    if (!academy) return false;
 
     // Optimistic update: actualizar UI inmediatamente
     if (optimisticUpdate) {
@@ -156,7 +247,7 @@ export function SuperAdminAcademiesTable({
           description: error.message || "No se pudo completar la operación",
           variant: "error",
         });
-        return;
+        return false;
       }
 
       toast.pushToast({
@@ -169,7 +260,8 @@ export function SuperAdminAcademiesTable({
 
       // Refrescar datos para asegurar sincronización
       await fetchAcademies(filters);
-    } catch (error: any) {
+      return true;
+    } catch (error: unknown) {
       // Revertir optimistic update en caso de error
       if (optimisticUpdate) {
         await fetchAcademies(filters);
@@ -177,15 +269,18 @@ export function SuperAdminAcademiesTable({
       logger.error("Mutation failed", error);
       toast.pushToast({
         title: "Error",
-        description: error.message || "Ocurrió un error inesperado",
+        description: error instanceof Error ? error.message : "Ocurrió un error inesperado",
         variant: "error",
       });
+      return false;
     } finally {
       setMutatingAcademyId(null);
     }
   };
 
   const handleSuspend = (academy: SuperAdminAcademyRow) => {
+    const status = getEffectiveAcademyStatus(academy);
+    if (status === "fraud_hold" || status === "churned") return;
     setPendingAction({
       academyId: academy.id,
       action: "suspend",
@@ -203,20 +298,42 @@ export function SuperAdminAcademiesTable({
     setConfirmDialogOpen(true);
   };
 
-  const handleConfirmAction = async (reason?: string) => {
-    if (!pendingAction) return;
+  const pendingAcademy = pendingAction
+    ? items.find((academy) => academy.id === pendingAction.academyId)
+    : undefined;
+  const pendingIsSuspended = pendingAcademy
+    ? getEffectiveAcademyStatus(pendingAcademy) === "suspended"
+    : false;
 
+  const handleConfirmAction = async (reason?: string) => {
+    if (!pendingAction) return false;
+
+    let succeeded = false;
     if (pendingAction.action === "delete") {
-      await mutateAcademy(pendingAction.academyId, { reason }, "DELETE");
+      succeeded = await mutateAcademy(pendingAction.academyId, { reason }, "DELETE");
     } else {
       const academy = items.find((a) => a.id === pendingAction.academyId);
       if (academy) {
-        await mutateAcademy(pendingAction.academyId, { isSuspended: !academy.isSuspended, reason }, "PATCH");
+        const currentStatus = getEffectiveAcademyStatus(academy);
+        const shouldSuspend = currentStatus !== "suspended";
+        const nextStatus: AcademyStatus = shouldSuspend
+          ? "suspended"
+          : academy.status === "trial"
+            ? "trial"
+            : "active";
+        succeeded = await mutateAcademy(
+          pendingAction.academyId,
+          { isSuspended: shouldSuspend, status: nextStatus, reason },
+          "PATCH"
+        );
       }
     }
 
-    setPendingAction(null);
-    setConfirmDialogOpen(false);
+    if (succeeded) {
+      setPendingAction(null);
+      setConfirmDialogOpen(false);
+    }
+    return succeeded;
   };
 
   return (
@@ -230,6 +347,7 @@ export function SuperAdminAcademiesTable({
         <div className="flex flex-wrap items-center gap-3">
           <SuperAdminCreateAcademyDialog />
           <select
+            aria-label="Filtrar academias por plan"
             className="rounded-xl border border-white/20 bg-white/10 px-3 py-2 font-display text-xs font-semibold text-white hover:border-white/40 focus:border-white/60 focus:outline-none"
             value={filters.plan ?? ""}
             onChange={(event) =>
@@ -244,6 +362,7 @@ export function SuperAdminAcademiesTable({
             ))}
           </select>
           <select
+            aria-label="Filtrar academias por tipo"
             className="rounded-xl border border-white/20 bg-white/10 px-3 py-2 font-display text-xs font-semibold text-white hover:border-white/40 focus:border-white/60 focus:outline-none"
             value={filters.type ?? ""}
             onChange={(event) =>
@@ -258,17 +377,36 @@ export function SuperAdminAcademiesTable({
             ))}
           </select>
           <select
+            aria-label="Filtrar academias por país"
+            className="rounded-xl border border-white/20 bg-white/10 px-3 py-2 font-display text-xs font-semibold text-white hover:border-white/40 focus:border-white/60 focus:outline-none"
+            value={filters.country ?? ""}
+            onChange={(event) =>
+              handleFilterChange({ country: event.target.value || undefined })
+            }
+          >
+            <option value="">País (todos)</option>
+            {countryOptions.map((country) => (
+              <option key={country} value={country}>
+                {country}
+              </option>
+            ))}
+          </select>
+          <select
+            aria-label="Filtrar academias por estado"
             className="rounded-xl border border-white/20 bg-white/10 px-3 py-2 font-display text-xs font-semibold text-white hover:border-white/40 focus:border-white/60 focus:outline-none"
             value={filters.status ?? ""}
             onChange={(event) =>
               handleFilterChange({
-                status: (event.target.value as "active" | "suspended" | "") || undefined,
+                status: (event.target.value as AcademyStatus | "") || undefined,
               })
             }
           >
-            <option value="">Estado</option>
-            <option value="active">Activa</option>
-            <option value="suspended">Suspendida</option>
+            <option value="">Estado (todos)</option>
+            {(Object.keys(ACADEMY_STATUS_LABELS) as AcademyStatus[]).map((status) => (
+              <option key={status} value={status}>
+                {ACADEMY_STATUS_LABELS[status]}
+              </option>
+            ))}
           </select>
           <Button
             variant="outline"
@@ -284,8 +422,25 @@ export function SuperAdminAcademiesTable({
         </div>
       </div>
 
+      {errorMessage && (
+        <div role="alert" className="flex flex-col gap-3 rounded-xl border border-zaltyko-coral/30 bg-zaltyko-coral/10 px-4 py-3 text-sm text-zaltyko-coral sm:flex-row sm:items-center sm:justify-between">
+          <span>{errorMessage}</span>
+          <Button
+            type="button"
+            variant="outline"
+            size="sm"
+            className="border-zaltyko-coral/40 bg-transparent text-zaltyko-coral hover:bg-zaltyko-coral/10"
+            onClick={() => void fetchAcademies(filters, page)}
+            disabled={loading}
+          >
+            Reintentar
+          </Button>
+        </div>
+      )}
+
       <div className="overflow-hidden rounded-2xl border border-white/10 bg-white/5">
-        <table className="min-w-full divide-y divide-white/10 text-sm">
+        <div className="overflow-x-auto">
+          <table className="min-w-[760px] divide-y divide-white/10 text-sm">
           <thead className="bg-white/10 font-display text-xs uppercase tracking-wide text-white">
             <tr>
               <th className="px-4 py-3 text-left font-semibold">Academia</th>
@@ -306,10 +461,17 @@ export function SuperAdminAcademiesTable({
             {items.map((academy) => (
               <tr
                 key={academy.id}
-                className="cursor-pointer transition hover:bg-white/5"
+                tabIndex={0}
+                aria-label={`Abrir academia ${academy.name ?? "Sin nombre"}`}
+                className="cursor-pointer transition hover:bg-white/5 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-zaltyko-teal"
                 onClick={(e) => {
                   if ((e.target as HTMLElement).closest("button")) return;
-                  router.push(`/super-admin/academies/${academy.id}`);
+                  openAcademyDetail(academy.id);
+                }}
+                onKeyDown={(e) => {
+                  if ((e.key !== "Enter" && e.key !== " ") || (e.target as HTMLElement).closest("button")) return;
+                  e.preventDefault();
+                  openAcademyDetail(academy.id);
                 }}
               >
                 <td className="px-4 py-4">
@@ -329,20 +491,23 @@ export function SuperAdminAcademiesTable({
                   </div>
                 </td>
                 <td className="px-4 py-4">
-                  <span
-                    className={cn(
-                      "inline-flex rounded-full px-2.5 py-1 text-xs font-semibold uppercase tracking-wide",
-                      academy.isSuspended
-                        ? "bg-zaltyko-coral/15 text-zaltyko-coral"
-                        : "bg-zaltyko-primary/15 text-zaltyko-primary-light",
-                    )}
-                  >
-                    {academy.isSuspended ? "Suspendida" : "Activa"}
-                  </span>
+                  {(() => {
+                    const status = getEffectiveAcademyStatus(academy);
+                    return (
+                      <span
+                        className={cn(
+                          "inline-flex max-w-[12rem] rounded-full px-2.5 py-1 text-xs font-semibold uppercase tracking-wide",
+                          ACADEMY_STATUS_CLASSES[status],
+                        )}
+                      >
+                        {ACADEMY_STATUS_LABELS[status]}
+                      </span>
+                    );
+                  })()}
                 </td>
                 <td className="px-4 py-4 font-sans text-xs text-white/70">
                   {academy.createdAt
-                    ? new Date(academy.createdAt).toLocaleDateString("es-ES")
+                    ? new Date(academy.createdAt).toLocaleDateString("es-ES", { timeZone: DISPLAY_TIME_ZONE })
                     : "—"}
                 </td>
                 <td className="px-4 py-4 text-right">
@@ -355,14 +520,26 @@ export function SuperAdminAcademiesTable({
                         e.stopPropagation();
                         handleSuspend(academy);
                       }}
-                      disabled={loading || mutatingAcademyId === academy.id}
+                      disabled={
+                        loading ||
+                        mutatingAcademyId === academy.id ||
+                        getEffectiveAcademyStatus(academy) === "fraud_hold" ||
+                        getEffectiveAcademyStatus(academy) === "churned"
+                      }
+                      title={
+                        getEffectiveAcademyStatus(academy) === "fraud_hold"
+                          ? "La revisión de fraude requiere una decisión de seguridad"
+                          : getEffectiveAcademyStatus(academy) === "churned"
+                            ? "Una academia dada de baja no se reactiva desde esta vista"
+                            : undefined
+                      }
                     >
                       {mutatingAcademyId === academy.id ? (
                         <>
                           <Loader2 className="mr-2 h-4 w-4 animate-spin" strokeWidth={1.8} />
                           Procesando...
                         </>
-                      ) : academy.isSuspended ? (
+                      ) : getEffectiveAcademyStatus(academy) === "suspended" ? (
                         <>
                           <PlayCircle className="mr-2 h-4 w-4" strokeWidth={1.8} />
                           Reactivar
@@ -401,15 +578,52 @@ export function SuperAdminAcademiesTable({
               </tr>
             ))}
           </tbody>
-        </table>
+          </table>
+        </div>
       </div>
 
+      {total > 0 && (
+        <div className="flex items-center justify-between gap-3 text-sm text-white/60">
+          <span>
+            Página {page} de {Math.max(1, Math.ceil(total / PAGE_SIZE))} · {total.toLocaleString("es-ES")} academias
+          </span>
+          <div className="flex items-center gap-2">
+            <Button
+              type="button"
+              variant="outline"
+              size="sm"
+              aria-label="Página anterior"
+              title="Página anterior"
+              className="border-white/20 bg-white/5 text-white hover:border-white/40 hover:bg-white/10"
+              onClick={() => {
+                const nextPage = Math.max(1, page - 1);
+                void fetchAcademies(filters, nextPage);
+              }}
+              disabled={loading || page <= 1}
+            >
+              <ChevronLeft className="h-4 w-4" aria-hidden="true" />
+            </Button>
+            <Button
+              type="button"
+              variant="outline"
+              size="sm"
+              aria-label="Página siguiente"
+              title="Página siguiente"
+              className="border-white/20 bg-white/5 text-white hover:border-white/40 hover:bg-white/10"
+              onClick={() => {
+                const nextPage = Math.min(Math.ceil(total / PAGE_SIZE), page + 1);
+                void fetchAcademies(filters, nextPage);
+              }}
+              disabled={loading || page >= Math.ceil(total / PAGE_SIZE)}
+            >
+              <ChevronRight className="h-4 w-4" aria-hidden="true" />
+            </Button>
+          </div>
+        </div>
+      )}
+
       <p className="font-sans text-xs text-white/50">
-        ¿Necesitas editar detalles avanzados de una academia? Abre su panel operativo desde{" "}
-        <Link href="/dashboard/academies" className="font-semibold text-zaltyko-primary-light hover:underline">
-          panel de academias
-        </Link>{" "}
-        mientras desarrollamos la delegación directa.
+        Selecciona una fila para abrir el detalle operativo y revisar propietario, ubicación, plan y estado.
       </p>
 
       {pendingAction && (
@@ -419,15 +633,30 @@ export function SuperAdminAcademiesTable({
           title={
             pendingAction.action === "delete"
               ? "Eliminar academia"
-              : `Suspender academia`
+              : pendingIsSuspended
+                ? "Reactivar academia"
+                : "Suspender academia"
           }
           description={
             pendingAction.action === "delete"
               ? `¿Estás seguro de eliminar "${pendingAction.academyName}"? Se borrarán la academia y sus datos asociados. La cuenta personal del dueño se conserva y debe revisarse aparte si ya no debe existir. Esta acción no se puede deshacer.`
-              : `¿Estás seguro de suspender "${pendingAction.academyName}"? Los usuarios no podrán acceder hasta que sea reactivada.`
+              : pendingIsSuspended
+                ? `¿Quieres reactivar "${pendingAction.academyName}"? Recuperará el acceso de la academia y quedará en su estado operativo anterior.`
+                : `¿Estás seguro de suspender "${pendingAction.academyName}"? Los usuarios no podrán acceder hasta que sea reactivada.`
           }
-          variant="destructive"
-          confirmText={pendingAction.action === "delete" ? "Eliminar" : "Suspender"}
+          variant={
+            pendingAction.action === "delete" ||
+            !pendingIsSuspended
+              ? "destructive"
+              : "default"
+          }
+          confirmText={
+            pendingAction.action === "delete"
+              ? "Eliminar"
+              : pendingIsSuspended
+                ? "Reactivar"
+                : "Suspender"
+          }
           onConfirm={handleConfirmAction}
           requireReason
           onCancel={() => {

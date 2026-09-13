@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { useMemo, useState, useEffect } from "react";
 import Link from "next/link";
 import Image from "next/image";
 import { usePathname, useRouter } from "next/navigation";
@@ -79,7 +79,7 @@ export function GlobalTopNav({
 }: GlobalTopNavProps) {
   const pathname = usePathname();
   const router = useRouter();
-  const supabase = createClient();
+  const supabase = useMemo(() => createClient(), []);
   const [loading, setLoading] = useState(false);
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
   const [profileMenuOpen, setProfileMenuOpen] = useState(false);
@@ -111,6 +111,15 @@ export function GlobalTopNav({
       setProfileMenuOpen(false);
     }
   }, [pathname]);
+
+  useEffect(() => {
+    if (!mobileMenuOpen) return;
+    const handleEscape = (event: KeyboardEvent) => {
+      if (event.key === "Escape") setMobileMenuOpen(false);
+    };
+    document.addEventListener("keydown", handleEscape);
+    return () => document.removeEventListener("keydown", handleEscape);
+  }, [mobileMenuOpen]);
 
   const handleSignOut = async () => {
     if (loading) return;
@@ -453,7 +462,12 @@ export function GlobalTopNav({
 
       {/* Drawer móvil para navegación */}
       {mobileMenuOpen && (
-        <div className={cn("fixed inset-0 z-[1000] h-screen w-screen overflow-y-auto md:hidden", isDarkTheme ? "bg-zaltyko-navy text-white" : "bg-background")}>
+        <div
+          role="dialog"
+          aria-modal="true"
+          aria-label="Menú de navegación"
+          className={cn("fixed inset-0 z-[1000] h-screen w-screen overflow-y-auto md:hidden", isDarkTheme ? "bg-zaltyko-navy text-white" : "bg-background")}
+        >
           <div className={cn("flex items-center justify-between border-b px-4 py-4", isDarkTheme ? "border-white/10" : "border-border")}>
             <div className="flex items-center gap-2">
               {isDarkTheme ? (

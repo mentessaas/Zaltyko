@@ -23,11 +23,26 @@ import { cn } from "@/lib/utils";
 import { getRegionLabel } from "@/lib/countryRegions";
 import { useToast } from "@/components/ui/toast-provider";
 import { logger } from "@/lib/logger";
+import { ConfirmDialog } from "@/components/ui/confirm-dialog";
+import type { AcademyStatus } from "@/db/schema/academies";
+
+const DISPLAY_TIME_ZONE = "Europe/Madrid";
+
+const ACADEMY_STATUS_LABELS: Record<AcademyStatus, string> = {
+  active: "Activa",
+  trial: "En prueba",
+  suspended: "Suspendida",
+  churned: "Baja",
+  fraud_hold: "Revisión de fraude",
+};
 
 const ACADEMY_TYPES = [
   { value: "artistica", label: "Gimnasia artística" },
   { value: "ritmica", label: "Gimnasia rítmica" },
   { value: "general", label: "General" },
+  { value: "trampolin", label: "Trampolín" },
+  { value: "parkour", label: "Parkour" },
+  { value: "danza", label: "Danza" },
 ] as const;
 
 interface AcademyDetail {
@@ -39,6 +54,8 @@ interface AcademyDetail {
   city: string | null;
   ownerId: string | null;
   isSuspended: boolean;
+  status: AcademyStatus;
+  statusUpdatedAt: string | null;
   suspendedAt: string | null;
   createdAt: string | null;
   tenantId: string | null;
@@ -54,12 +71,14 @@ interface AcademyDetail {
     id: string;
     name: string | null;
     userId: string;
+    email: string | null;
   } | null;
 }
 
 interface SuperAdminAcademyDetailProps {
   initialAcademy: AcademyDetail;
   userId: string;
+  backHref?: string;
 }
 
 interface Plan {
@@ -69,7 +88,7 @@ interface Plan {
   priceEur: number | null;
 }
 
-export function SuperAdminAcademyDetail({ initialAcademy, userId }: SuperAdminAcademyDetailProps) {
+export function SuperAdminAcademyDetail({ initialAcademy, userId, backHref = "/super-admin/academies" }: SuperAdminAcademyDetailProps) {
   const router = useRouter();
   const toast = useToast();
   const [academy, setAcademy] = useState<AcademyDetail>(initialAcademy);
@@ -86,6 +105,7 @@ export function SuperAdminAcademyDetail({ initialAcademy, userId }: SuperAdminAc
     city: academy.city ?? "",
   });
   const [actionReason, setActionReason] = useState("");
+  const [suspensionDialogOpen, setSuspensionDialogOpen] = useState(false);
 
   useEffect(() => {
     const fetchPlans = async () => {
@@ -108,6 +128,11 @@ export function SuperAdminAcademyDetail({ initialAcademy, userId }: SuperAdminAc
   }, []);
 
   const handleSave = async () => {
+    const trimmedName = formData.name.trim();
+    if (!trimmedName) {
+      toast.pushToast({ title: "Nombre requerido", description: "La academia debe tener un nombre.", variant: "warning" });
+      return;
+    }
     if (formData.isSuspended !== academy.isSuspended && actionReason.trim().length < 5) {
       toast.pushToast({ title: "Indica el motivo", description: "Suspender o reactivar requiere un motivo de al menos 5 caracteres.", variant: "warning" });
       return;
@@ -120,10 +145,19 @@ export function SuperAdminAcademyDetail({ initialAcademy, userId }: SuperAdminAc
           "Content-Type": "application/json",
         },
         body: JSON.stringify({
-          name: formData.name.trim() || null,
-          isSuspended: formData.isSuspended,
+          name: trimmedName,
+          ...(formData.isSuspended !== academy.isSuspended
+            ? {
+                isSuspended: formData.isSuspended,
+                status: formData.isSuspended
+                  ? "suspended"
+                  : academy.status === "trial"
+                    ? "trial"
+                    : "active",
+              }
+            : {}),
           planId: formData.planId || null,
-          academyType: formData.academyType || null,
+          academyType: formData.academyType || "artistica",
           country: formData.country.trim() || null,
           region: formData.region.trim() || null,
           city: formData.city.trim() || null,
@@ -177,14 +211,36 @@ export function SuperAdminAcademyDetail({ initialAcademy, userId }: SuperAdminAc
     }
   };
 
-  const handleToggleSuspension = async () => {
-    if (actionReason.trim().length < 5) {
-      toast.pushToast({ title: "Indica el motivo", description: "Suspender o reactivar requiere un motivo de al menos 5 caracteres.", variant: "warning" });
+  const handleToggleSuspension = () => {
+    if (academy.status === "fraud_hold" || academy.status === "churned") {
+      toast.pushToast({
+        title: "Cambio bloqueado",
+        description: "Este estado requiere el flujo específico de Seguridad.",
+        variant: "warning",
+      });
       return;
     }
-    if (!confirm(formData.isSuspended ? "¿Reactivar la academia?" : "¿Suspender la academia?")) {
-      return;
+    setSuspensionDialogOpen(true);
+  };
+
+  const executeToggleSuspension = async (reason?: string): Promise<boolean> => {
+    const trimmedReason = reason?.trim() ?? "";
+    if (trimmedReason.length < 5) {
+      toast.pushToast({
+        title: "Indica el motivo",
+        description: "Suspender o reactivar requiere un motivo de al menos 5 caracteres.",
+        variant: "warning",
+      });
+      return false;
     }
+
+    const isCurrentlySuspended = academy.status === "suspended" || academy.isSuspended;
+    const nextIsSuspended = !isCurrentlySuspended;
+    const nextStatus = nextIsSuspended
+      ? "suspended"
+      : academy.status === "trial"
+        ? "trial"
+        : "active";
 
     setSaving(true);
     try {
@@ -194,8 +250,9 @@ export function SuperAdminAcademyDetail({ initialAcademy, userId }: SuperAdminAc
           "Content-Type": "application/json",
         },
         body: JSON.stringify({
-          isSuspended: !formData.isSuspended,
-          reason: actionReason.trim(),
+          isSuspended: nextIsSuspended,
+          status: nextStatus,
+          reason: trimmedReason,
         }),
       });
 
@@ -206,13 +263,15 @@ export function SuperAdminAcademyDetail({ initialAcademy, userId }: SuperAdminAc
           description: error || "Inténtalo de nuevo en unos segundos.",
           variant: "error",
         });
-        return;
+        return false;
       }
 
       const { data: updated } = await response.json();
       setAcademy({ ...academy, ...updated });
       setFormData({ ...formData, isSuspended: updated.isSuspended });
+      setActionReason("");
       router.refresh();
+      return true;
     } catch (error) {
       logger.error("Error toggling suspension", error);
       toast.pushToast({
@@ -220,28 +279,34 @@ export function SuperAdminAcademyDetail({ initialAcademy, userId }: SuperAdminAc
         description: "Inténtalo de nuevo en unos segundos.",
         variant: "error",
       });
+      return false;
     } finally {
       setSaving(false);
     }
   };
+  const effectiveStatus: AcademyStatus =
+    academy.isSuspended && (academy.status === "active" || academy.status === "trial")
+      ? "suspended"
+      : academy.status;
+  const terminalStatus = effectiveStatus === "fraud_hold" || effectiveStatus === "churned";
 
   return (
     <div className="space-y-6">
       <div className="rounded-2xl border border-white/10 bg-white/5 p-6">
-        <div className="mb-6 flex items-start justify-between">
+        <div className="mb-6 flex flex-col gap-4 md:flex-row md:items-start md:justify-between">
           <div>
             <h1 className="text-3xl font-semibold text-white">{academy.name ?? "Sin nombre"}</h1>
             <p className="mt-2 text-sm text-white/70">
               ID: <span className="font-mono text-xs">{academy.id}</span>
             </p>
           </div>
-          <div className="flex items-center gap-3">
+          <div className="flex flex-wrap items-center gap-3">
             <Button
               variant="outline"
               size="sm"
               className="border-zaltyko-primary/40 bg-zaltyko-primary/10 text-zaltyko-primary-light hover:border-zaltyko-primary-light hover:bg-zaltyko-primary-light/20"
               onClick={() => router.push(`/app/${academy.id}/dashboard`)}
-              disabled={academy.isSuspended}
+              disabled={academy.isSuspended || terminalStatus}
             >
               <ExternalLink className="mr-2 h-4 w-4" strokeWidth={1.8} />
               Ver academia
@@ -249,21 +314,28 @@ export function SuperAdminAcademyDetail({ initialAcademy, userId }: SuperAdminAc
             <span
               className={cn(
                 "inline-flex rounded-full px-3 py-1.5 text-xs font-semibold uppercase tracking-wide",
-                academy.isSuspended
+                effectiveStatus === "suspended"
                   ? "bg-zaltyko-coral/15 text-zaltyko-coral"
-                  : "bg-zaltyko-primary/15 text-zaltyko-primary-light",
+                  : effectiveStatus === "trial"
+                    ? "bg-amber-400/15 text-amber-200"
+                    : effectiveStatus === "fraud_hold"
+                      ? "bg-fuchsia-400/15 text-fuchsia-200"
+                      : effectiveStatus === "churned"
+                        ? "bg-white/10 text-white/60"
+                        : "bg-zaltyko-primary/15 text-zaltyko-primary-light",
               )}
             >
-              {academy.isSuspended ? "Suspendida" : "Activa"}
+              {ACADEMY_STATUS_LABELS[effectiveStatus]}
             </span>
             <Button
               variant="outline"
               size="sm"
               className="border-white/20 bg-white/5 text-slate-100 hover:border-white/40 hover:bg-white/10"
               onClick={handleToggleSuspension}
-              disabled={saving}
+              disabled={saving || terminalStatus}
+              title={terminalStatus ? "Este estado requiere el flujo de Seguridad" : undefined}
             >
-              {academy.isSuspended ? (
+              {effectiveStatus === "suspended" ? (
                 <>
                   <PlayCircle className="mr-2 h-4 w-4" strokeWidth={1.8} />
                   Reactivar
@@ -353,9 +425,10 @@ export function SuperAdminAcademyDetail({ initialAcademy, userId }: SuperAdminAc
                   {academy.owner?.name ?? "Sin propietario asignado"}
                 </p>
                 {academy.owner && (
-                  <p className="mt-1 text-xs text-white/50">
-                    ID: <span className="font-mono">{academy.owner.id}</span>
-                  </p>
+                  <div className="mt-1 space-y-1 text-xs text-white/50">
+                    {academy.owner.email && <p>{academy.owner.email}</p>}
+                    <p>ID: <span className="font-mono">{academy.owner.id}</span></p>
+                  </div>
                 )}
               </div>
             </div>
@@ -420,19 +493,34 @@ export function SuperAdminAcademyDetail({ initialAcademy, userId }: SuperAdminAc
                           year: "numeric",
                           month: "long",
                           day: "numeric",
+                          timeZone: DISPLAY_TIME_ZONE,
                         })
                       : "—"}
                   </p>
                 </div>
+                {academy.statusUpdatedAt && (
+                  <div>
+                    <p className="text-xs text-white/50">Estado actualizado</p>
+                    <p className="mt-1 text-white">
+                      {new Date(academy.statusUpdatedAt).toLocaleDateString("es-ES", {
+                          year: "numeric",
+                          month: "long",
+                          day: "numeric",
+                          timeZone: DISPLAY_TIME_ZONE,
+                        })}
+                    </p>
+                  </div>
+                )}
                 {academy.suspendedAt && (
                   <div>
                     <p className="text-xs text-white/50">Suspendida desde</p>
                     <p className="mt-1 text-white">
                       {new Date(academy.suspendedAt).toLocaleDateString("es-ES", {
-                        year: "numeric",
-                        month: "long",
-                        day: "numeric",
-                      })}
+                          year: "numeric",
+                          month: "long",
+                          day: "numeric",
+                          timeZone: DISPLAY_TIME_ZONE,
+                        })}
                     </p>
                   </div>
                 )}
@@ -451,7 +539,7 @@ export function SuperAdminAcademyDetail({ initialAcademy, userId }: SuperAdminAc
           <Button
             variant="outline"
             className="border-white/20 bg-white/5 text-slate-100 hover:border-white/40 hover:bg-white/10"
-            onClick={() => router.back()}
+            onClick={() => router.push(backHref)}
           >
             Cancelar
           </Button>
@@ -483,6 +571,24 @@ export function SuperAdminAcademyDetail({ initialAcademy, userId }: SuperAdminAc
           </Button>
         </div>
       </div>
+
+
+    <ConfirmDialog
+      open={suspensionDialogOpen}
+      onOpenChange={setSuspensionDialogOpen}
+      title={effectiveStatus === "suspended" ? "Reactivar academia" : "Suspender academia"}
+      description={
+        effectiveStatus === "suspended"
+          ? "La academia recuperará el acceso y volverá a su estado operativo anterior."
+          : "Los usuarios de la academia perderán el acceso hasta que se reactive."
+      }
+      confirmText={effectiveStatus === "suspended" ? "Reactivar" : "Suspender"}
+      variant={effectiveStatus === "suspended" ? "default" : "destructive"}
+      requireReason
+      reasonLabel="Motivo del cambio de acceso"
+      onConfirm={executeToggleSuspension}
+      loading={saving}
+    />
     </div>
   );
 }

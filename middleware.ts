@@ -125,7 +125,10 @@ function apexRedirectResponse(request: NextRequest): NextResponse | null {
 }
 
 function redirectToLogin(req: NextRequest) {
-  return NextResponse.redirect(new URL(LOGIN_PATH, req.url));
+  const loginUrl = new URL(LOGIN_PATH, req.url);
+  const next = `${req.nextUrl.pathname}${req.nextUrl.search}`;
+  loginUrl.searchParams.set("callbackUrl", next);
+  return NextResponse.redirect(loginUrl);
 }
 
 function extractAccessToken(req: NextRequest) {
@@ -249,7 +252,7 @@ async function verifySuperAdminWithSupabase(accessToken: string): Promise<boolea
 }
 
 function isSuperAdminPath(pathname: string) {
-  return pathname.startsWith(SUPER_ADMIN_PATH);
+  return pathname === SUPER_ADMIN_PATH || pathname.startsWith(`${SUPER_ADMIN_PATH}/`);
 }
 
 function isApiPath(pathname: string) {

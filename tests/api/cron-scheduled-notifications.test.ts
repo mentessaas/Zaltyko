@@ -132,6 +132,28 @@ describe("scheduled notifications cron route", () => {
     expect(mocks.markSent).toHaveBeenCalledWith("notification-1");
   });
 
+  it("usa el UUID de autenticación para el canal push y el UUID de perfil para el interno", async () => {
+    mocks.getPending.mockResolvedValue([{ ...scheduled, channel: "push" }]);
+    mocks.adminProfiles.mockResolvedValue([
+      {
+        id: "00000000-0000-0000-0000-000000000002",
+        userId: "00000000-0000-0000-0000-000000000003",
+        name: "Elvis",
+        email: "elvis@example.com",
+        phone: null,
+      },
+    ]);
+
+    await GET(new Request("https://zaltyko.com/api/cron/scheduled-notifications"));
+
+    expect(mocks.sendPush).toHaveBeenCalledWith(
+      "00000000-0000-0000-0000-000000000003",
+      expect.objectContaining({ title: "Aviso", body: "Hola Elvis" })
+    );
+    expect(mocks.createNotification).not.toHaveBeenCalled();
+    expect(mocks.markSent).toHaveBeenCalledWith("notification-1");
+  });
+
   it("marca failed cuando el canal no puede entregar", async () => {
     mocks.getPending.mockResolvedValue([{ ...scheduled, channel: "email" }]);
     mocks.adminProfiles.mockResolvedValue([
@@ -149,6 +171,27 @@ describe("scheduled notifications cron route", () => {
     expect(mocks.sendEmail).not.toHaveBeenCalled();
     expect(mocks.markFailed).toHaveBeenCalledWith("notification-1");
     expect(mocks.markSent).not.toHaveBeenCalled();
+    expect(body).toEqual({ processed: 0, failed: 1, total: 1 });
+  });
+
+  it("no marca push como entregado sin suscripciones activas", async () => {
+    mocks.getPending.mockResolvedValue([{ ...scheduled, channel: "push" }]);
+    mocks.adminProfiles.mockResolvedValue([
+      {
+        id: "00000000-0000-0000-0000-000000000002",
+        userId: "00000000-0000-0000-0000-000000000003",
+        name: "Elvis",
+        email: "elvis@example.com",
+        phone: null,
+      },
+    ]);
+    mocks.sendPush.mockResolvedValue({ sent: 0, failed: 0 });
+
+    const response = await GET(new Request("https://zaltyko.com/api/cron/scheduled-notifications"));
+    const body = await response.json();
+
+    expect(mocks.markSent).not.toHaveBeenCalled();
+    expect(mocks.markFailed).toHaveBeenCalledWith("notification-1");
     expect(body).toEqual({ processed: 0, failed: 1, total: 1 });
   });
 });

@@ -1,18 +1,30 @@
 import { asc, eq } from "drizzle-orm";
+import { revalidatePath } from "next/cache";
 import { cookies } from "next/headers";
 import { redirect } from "next/navigation";
 
 import { db } from "@/db";
 import { academies, profiles, ticketResponses, tickets } from "@/db/schema";
 import { getCurrentProfile } from "@/lib/authz";
+import { getDevSessionFromCookieStore } from "@/lib/dev-session";
 import { createClient } from "@/lib/supabase/server";
+import { logAdminAction } from "@/lib/admin-logs";
 import { TicketDetail } from "@/components/support/TicketDetail";
 import { TicketStatus } from "@/components/support/TicketFilters";
 
+const TICKET_STATUS_VALUES = ["open", "in_progress", "waiting", "resolved", "closed"] as const;
+
 export const dynamic = "force-dynamic";
+
+type SearchParamValue = string | string[] | undefined;
 
 interface PageProps {
   params: Promise<{ ticketId: string }>;
+  searchParams: Promise<{ returnTo?: SearchParamValue }>;
+}
+
+function firstSearchParam(value: SearchParamValue) {
+  return Array.isArray(value) ? value[0] : value;
 }
 
 async function getTicket(ticketId: string) {
@@ -79,25 +91,40 @@ async function getTicket(ticketId: string) {
   };
 }
 
-export default async function SuperAdminTicketDetailPage({ params }: PageProps) {
+export default async function SuperAdminTicketDetailPage({ params, searchParams }: PageProps) {
   const { ticketId } = await params;
+  const { returnTo } = await searchParams;
+  const safeReturnTo = firstSearchParam(returnTo);
+  const backHref =
+    safeReturnTo === "/super-admin/support" || safeReturnTo?.startsWith("/super-admin/support?")
+      ? safeReturnTo
+      : "/super-admin/support";
   const cookieStore = await cookies();
   const supabase = await createClient(cookieStore);
+  const devSession = await getDevSessionFromCookieStore(cookieStore);
   const { data: { user } } = await supabase.auth.getUser();
-  if (!user) redirect("/auth/login");
-  const userId = user.id;
+  if (!user && !devSession) redirect("/auth/login");
+  const userId = user?.id ?? devSession?.userId ?? "";
 
-  const profile = await getCurrentProfile(userId);
+  const profile = user ? await getCurrentProfile(userId) : devSession ? {
+    id: devSession.profileId,
+    role: "super_admin" as const,
+  } : null;
   if (!profile || profile.role !== "super_admin") redirect("/dashboard");
 
   const ticket = await getTicket(ticketId);
   if (!ticket) redirect("/super-admin/support");
+  const ticketRecord = ticket!;
 
   async function handleStatusChange(newStatus: TicketStatus) {
     "use server";
+    if (!TICKET_STATUS_VALUES.includes(newStatus)) return;
+    const actionCookieStore = await cookies();
+    const actionDevSession = await getDevSessionFromCookieStore(actionCookieStore);
     const current = await getCurrentProfile(userId);
-    if (!current || current.role !== "super_admin") return;
-    await db
+    if ((!current || current.role !== "super_admin") && !actionDevSession) return;
+
+    const [updatedTicket] = await db
       .update(tickets)
       .set({
         status: newStatus,
@@ -105,16 +132,39 @@ export default async function SuperAdminTicketDetailPage({ params }: PageProps) 
         resolvedAt: newStatus === "resolved" ? new Date() : null,
         closedAt: newStatus === "closed" ? new Date() : null,
       })
-      .where(eq(tickets.id, ticketId));
+      .where(eq(tickets.id, ticketId))
+      .returning({ id: tickets.id, academyId: tickets.academyId });
+
+    if (updatedTicket) {
+      await logAdminAction({
+        userId,
+        tenantId: null,
+        action: "support.ticket_status_changed",
+        resourceType: "ticket",
+        resourceId: ticketId,
+        resourceName: ticketRecord.title,
+        description: `Super Admin cambió el ticket ${ticketRecord.title} de ${ticketRecord.status} a ${newStatus}`,
+        meta: {
+          ticketId,
+          academyId: updatedTicket.academyId,
+          from: ticketRecord.status,
+          to: newStatus,
+        },
+      });
+    }
+
+    revalidatePath("/super-admin/support");
+    revalidatePath(`/super-admin/support/${ticketId}`);
   }
 
   return (
     <div className="container mx-auto max-w-4xl py-8">
       <TicketDetail
-        ticket={ticket}
+        ticket={ticketRecord}
         currentUserId={profile.id}
         isAdmin
         onStatusChange={handleStatusChange}
+        backHref={backHref}
       />
     </div>
   );

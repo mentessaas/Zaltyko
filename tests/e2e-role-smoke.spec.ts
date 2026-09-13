@@ -11,7 +11,19 @@ const academyId = process.env.E2E_ACADEMY_ID;
 const ownerStorageState = process.env.E2E_OWNER_STORAGE_STATE ?? process.env.E2E_STORAGE_STATE;
 const coachStorageState = process.env.E2E_COACH_STORAGE_STATE;
 const superAdminStorageState = process.env.E2E_SUPER_ADMIN_STORAGE_STATE;
-const superAdminPaths = ["/super-admin/dashboard", "/super-admin/academies", "/super-admin/users"];
+const superAdminAcademyId = process.env.E2E_SUPER_ADMIN_ACADEMY_ID;
+const superAdminProfileId = process.env.E2E_SUPER_ADMIN_PROFILE_ID;
+const superAdminPaths = [
+  "/super-admin/dashboard",
+  "/super-admin/academies",
+  "/super-admin/academies/public",
+  "/super-admin/users",
+  "/super-admin/growth",
+  "/super-admin/logs",
+  "/super-admin/billing",
+  "/super-admin/support",
+  "/super-admin/settings",
+];
 const ownerAcademyPaths = ["dashboard", "athletes", "groups", "classes", "billing", "settings"];
 
 async function expectNoRouteError(page: import("@playwright/test").Page) {
@@ -47,6 +59,20 @@ test.describe("role smoke: super admin", () => {
       await expect(page).not.toHaveURL(/\/auth\/login/);
     });
   }
+
+  test("can open academy detail when configured", async ({ page }) => {
+    test.skip(!superAdminAcademyId, "Set E2E_SUPER_ADMIN_ACADEMY_ID to run academy detail smoke.");
+    await gotoAppPath(page, `${baseURL}/super-admin/academies/${superAdminAcademyId}`);
+    await expectNoRouteError(page);
+    await expect(page).not.toHaveURL(/\/auth\/login/);
+  });
+
+  test("can open user detail when configured", async ({ page }) => {
+    test.skip(!superAdminProfileId, "Set E2E_SUPER_ADMIN_PROFILE_ID to run user detail smoke.");
+    await gotoAppPath(page, `${baseURL}/super-admin/users/${superAdminProfileId}`);
+    await expectNoRouteError(page);
+    await expect(page).not.toHaveURL(/\/auth\/login/);
+  });
 });
 
 test.describe("role smoke: academy owner", () => {

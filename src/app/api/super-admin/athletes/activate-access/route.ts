@@ -12,6 +12,8 @@ import {
 import { sendEmail } from "@/lib/brevo";
 import { config } from "@/config";
 import { logger } from "@/lib/logger";
+import { logAdminAction } from "@/lib/admin-logs";
+import { escapeHtml } from "@/lib/email/escape-html";
 
 const ActivateAthleteSchema = z.object({
   profileId: z.string().uuid(),
@@ -27,7 +29,7 @@ async function activateAthleteAccess(
   profileId: string,
   email?: string,
   sendInvitation: boolean = true
-): Promise<{ ok: boolean; userId: string; email: string; error?: string }> {
+): Promise<{ ok: boolean; userId: string; email: string; invitationSent: boolean; error?: string }> {
   // Obtener el perfil del atleta
   const [profile] = await db
     .select({
@@ -44,22 +46,22 @@ async function activateAthleteAccess(
     .limit(1);
 
   if (!profile) {
-    return { ok: false, userId: "", email: "", error: "PROFILE_NOT_FOUND" };
+    return { ok: false, userId: "", email: "", invitationSent: false, error: "PROFILE_NOT_FOUND" };
   }
 
   if (profile.role !== "athlete") {
-    return { ok: false, userId: "", email: "", error: "NOT_AN_ATHLETE" };
+    return { ok: false, userId: "", email: "", invitationSent: false, error: "NOT_AN_ATHLETE" };
   }
 
   const currentEmail = await getAuthUserEmail(profile.userId);
   if (!currentEmail && !email) {
-    return { ok: false, userId: profile.userId, email: "", error: "AUTH_USER_NOT_FOUND" };
+    return { ok: false, userId: profile.userId, email: "", invitationSent: false, error: "AUTH_USER_NOT_FOUND" };
   }
 
   const targetEmail = email ?? currentEmail ?? "";
 
   if (!targetEmail) {
-    return { ok: false, userId: profile.userId, email: "", error: "EMAIL_REQUIRED" };
+    return { ok: false, userId: profile.userId, email: "", invitationSent: false, error: "EMAIL_REQUIRED" };
   }
 
   // Actualizar el email del usuario si es diferente
@@ -78,6 +80,7 @@ async function activateAthleteAccess(
     .where(eq(profiles.id, profileId));
 
   // Enviar correo de invitación si se solicita
+  let invitationSent = !sendInvitation;
   if (sendInvitation) {
     try {
       // Generar token de reset de contraseña
@@ -89,7 +92,7 @@ async function activateAthleteAccess(
         html: `
           <div style="font-family: Inter, Arial, sans-serif; max-width: 600px; margin: 0 auto;">
             <h2 style="color: #0D47A1; font-family: Poppins, sans-serif; font-weight: 700;">¡Bienvenido a Zaltyko!</h2>
-            <p>Hola ${profile.name ?? "Atleta"},</p>
+            <p>Hola ${escapeHtml(profile.name ?? "Atleta")},</p>
             <p>Tu cuenta de atleta ha sido activada. Ahora puedes acceder a tu perfil y ver tus clases, sesiones y evaluaciones.</p>
             <p>Para comenzar, necesitas establecer una contraseña. Haz clic en el siguiente enlace:</p>
             <div style="text-align: center; margin: 30px 0;">
@@ -108,6 +111,7 @@ async function activateAthleteAccess(
         text: `Tu cuenta de atleta ha sido activada. Visita ${resetLink} para establecer tu contraseña.`,
         replyTo: config.brevo.supportEmail,
       });
+      invitationSent = true;
     } catch (emailError) {
       logger.error("Error enviando correo de activación:", emailError);
       // No fallar si el correo no se puede enviar
@@ -118,6 +122,7 @@ async function activateAthleteAccess(
     ok: true,
     userId: profile.userId,
     email: targetEmail,
+    invitationSent,
   };
 }
 
@@ -125,25 +130,57 @@ async function activateAthleteAccess(
  * Endpoint para activar acceso de un atleta
  * POST /api/super-admin/athletes/activate-access
  */
-export const POST = withSuperAdmin(async (request) => {
-  const body = ActivateAthleteSchema.parse(await request.json());
+export const POST = withSuperAdmin(async (request, context) => {
+  let rawBody: unknown;
+  try {
+    rawBody = await request.json();
+  } catch {
+    return apiError("INVALID_JSON", "El cuerpo de la solicitud no es JSON válido", 400);
+  }
+
+  const parsed = ActivateAthleteSchema.safeParse(rawBody);
+  if (!parsed.success) {
+    return apiError("VALIDATION_ERROR", parsed.error.issues[0]?.message ?? "Datos inválidos", 400);
+  }
 
   try {
     const result = await activateAthleteAccess(
-      body.profileId,
-      body.email,
-      body.sendInvitation
+      parsed.data.profileId,
+      parsed.data.email,
+      parsed.data.sendInvitation
     );
 
     if (!result.ok) {
       return apiError(result.error ?? "ACTIVATION_FAILED", getErrorMessage(result.error), 400);
     }
 
+    await logAdminAction({
+      userId: context.userId,
+      tenantId: null,
+      action: "athlete.access_activated",
+      resourceType: "profile",
+      resourceId: parsed.data.profileId,
+      resourceName: result.email,
+      description: `Super Admin activó el acceso del atleta ${result.email}`,
+      meta: {
+        profileId: parsed.data.profileId,
+        email: result.email,
+        sendInvitation: parsed.data.sendInvitation,
+        invitationSent: result.invitationSent,
+      },
+      status: result.invitationSent || !parsed.data.sendInvitation ? "success" : "warning",
+    });
+
     return apiSuccess({
       ok: true,
-      message: "Acceso de atleta activado correctamente",
+      message: result.invitationSent
+        ? "Acceso activado y correo de invitación enviado"
+        : parsed.data.sendInvitation
+          ? "Acceso activado, pero no se pudo enviar el correo de invitación"
+          : "Acceso de atleta activado correctamente",
       userId: result.userId,
       email: result.email,
+      invitationSent: result.invitationSent,
     });
   } catch (error: unknown) {
     logger.error("Error activando acceso de atleta:", error);

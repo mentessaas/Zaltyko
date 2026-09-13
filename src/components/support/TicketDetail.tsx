@@ -64,6 +64,7 @@ interface TicketDetailProps {
   isAdmin?: boolean;
   onStatusChange?: (newStatus: TicketStatus) => Promise<void>;
   onAssign?: (userId: string) => Promise<void>;
+  backHref?: string;
 }
 
 const statusConfig: Record<TicketStatus, { label: string; variant: "default" | "outline" | "success" | "pending" | "error" }> = {
@@ -89,12 +90,19 @@ const categoryConfig: Record<TicketCategory, { label: string }> = {
   other: { label: "Otro" },
 };
 
-export function TicketDetail({ ticket, currentUserId, isAdmin = false, onStatusChange, onAssign }: TicketDetailProps) {
+function formatTicketDate(value: string | Date, withTime = false) {
+  const date = value instanceof Date ? value : new Date(value);
+  if (Number.isNaN(date.getTime())) return "Fecha no disponible";
+  return format(date, withTime ? "d MMM yyyy 'a las' HH:mm" : "d MMM yyyy", { locale: es });
+}
+
+export function TicketDetail({ ticket, currentUserId, isAdmin = false, onStatusChange, onAssign, backHref }: TicketDetailProps) {
   const [isUpdating, setIsUpdating] = useState(false);
 
-  const status = statusConfig[ticket.status];
-  const priority = priorityConfig[ticket.priority];
-  const category = categoryConfig[ticket.category];
+  const status = statusConfig[ticket.status] ?? { label: "Desconocido", variant: "outline" as const };
+  const priority = priorityConfig[ticket.priority] ?? { label: "Sin prioridad", variant: "outline" as const };
+  const category = categoryConfig[ticket.category] ?? { label: "Sin categoría" };
+  const backLink = backHref ?? (isAdmin ? "/super-admin/support" : "/support");
 
   const handleStatusChange = async (newStatus: TicketStatus) => {
     if (!onStatusChange) return;
@@ -113,7 +121,7 @@ export function TicketDetail({ ticket, currentUserId, isAdmin = false, onStatusC
     <div className="space-y-6">
       <div className="flex items-start justify-between gap-4">
         <div>
-          <Link href={isAdmin ? "/super-admin/support" : "/support"}>
+          <Link href={backLink}>
             <Button variant="ghost" size="sm" className="mb-2">
               ← Volver
             </Button>
@@ -141,7 +149,7 @@ export function TicketDetail({ ticket, currentUserId, isAdmin = false, onStatusC
           </div>
           <div>
             <span className="text-muted-foreground">Fecha:</span>
-            <p className="font-medium">{format(new Date(ticket.createdAt), "d MMM yyyy", { locale: es })}</p>
+            <p className="font-medium">{formatTicketDate(ticket.createdAt)}</p>
           </div>
           {ticket.assignedTo && (
             <div>
@@ -181,7 +189,7 @@ export function TicketDetail({ ticket, currentUserId, isAdmin = false, onStatusC
                     )}
                   </div>
                   <span className="text-xs text-muted-foreground">
-                    {format(new Date(response.createdAt), "d MMM yyyy 'a las' HH:mm", { locale: es })}
+                    {formatTicketDate(response.createdAt, true)}
                   </span>
                 </div>
               </CardHeader>

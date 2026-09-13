@@ -26,6 +26,7 @@ async function loadDevModule(env: Record<string, string | undefined>) {
   vi.resetModules();
   const previous = {
     NODE_ENV: process.env.NODE_ENV,
+    VERCEL_ENV: process.env.VERCEL_ENV,
     NEXT_PUBLIC_ENABLE_DEV_SESSION: process.env.NEXT_PUBLIC_ENABLE_DEV_SESSION,
     NEXT_PUBLIC_USE_MOCK_AUTH: process.env.NEXT_PUBLIC_USE_MOCK_AUTH,
   };
@@ -154,6 +155,56 @@ describe("audit hardening", () => {
 
       expect(disabled.isDevSessionEnabled).toBe(false);
       expect(enabled.isDevSessionEnabled).toBe(true);
+    });
+
+    it("keeps dev sessions disabled in Vercel preview", async () => {
+      const preview = await loadDevModule({
+        NODE_ENV: "development",
+        VERCEL_ENV: "preview",
+        NEXT_PUBLIC_ENABLE_DEV_SESSION: "true",
+        NEXT_PUBLIC_USE_MOCK_AUTH: undefined,
+      });
+
+      expect(preview.isDevSessionEnabled).toBe(false);
+    });
+
+    it("verifies signed dev-session cookies before parsing them", async () => {
+      const previous = {
+        NODE_ENV: process.env.NODE_ENV,
+        VERCEL_ENV: process.env.VERCEL_ENV,
+        NEXT_PUBLIC_ENABLE_DEV_SESSION: process.env.NEXT_PUBLIC_ENABLE_DEV_SESSION,
+        NEXT_PUBLIC_USE_MOCK_AUTH: process.env.NEXT_PUBLIC_USE_MOCK_AUTH,
+        INTERNAL_AUTH_SECRET: process.env.INTERNAL_AUTH_SECRET,
+        DEV_SESSION_SECRET: process.env.DEV_SESSION_SECRET,
+      };
+
+      try {
+        process.env.NODE_ENV = "development";
+        delete process.env.VERCEL_ENV;
+        process.env.NEXT_PUBLIC_ENABLE_DEV_SESSION = "true";
+        delete process.env.NEXT_PUBLIC_USE_MOCK_AUTH;
+        delete process.env.INTERNAL_AUTH_SECRET;
+        process.env.DEV_SESSION_SECRET = "audit-secret";
+        vi.resetModules();
+
+        const { parseDevSessionCookie, serializeDevSession } = await import("@/lib/dev-session");
+        const payload = {
+          userId: "11111111-1111-4111-8111-111111111111",
+          profileId: "22222222-2222-4222-8222-222222222222",
+          tenantId: "33333333-3333-4333-8333-333333333333",
+          academyId: "44444444-4444-4444-8444-444444444444",
+        };
+        const cookie = serializeDevSession(payload);
+
+        expect(parseDevSessionCookie(cookie)).toEqual(payload);
+        expect(parseDevSessionCookie(`${cookie}0`)).toBeNull();
+        expect(parseDevSessionCookie(cookie.replace(/\.[^.]+$/, ".00"))).toBeNull();
+      } finally {
+        for (const [key, value] of Object.entries(previous)) {
+          if (value === undefined) delete process.env[key];
+          else process.env[key] = value;
+        }
+      }
     });
   });
 
