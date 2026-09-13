@@ -38,6 +38,7 @@ interface Ticket {
     id: string;
     name: string;
   };
+  responsesTruncated?: boolean;
   responses: TicketResponse[];
 }
 
@@ -211,6 +212,11 @@ export function TicketDetail({ ticket, currentUserId, isAdmin = false, onStatusC
       {ticket.responses.length > 0 && (
         <div className="space-y-4">
           <h2 className="text-lg font-semibold">Respuestas ({ticket.responses.length})</h2>
+          {ticket.responsesTruncated && (
+            <p className="rounded-md border border-amber-200 bg-amber-50 px-3 py-2 text-sm text-amber-900">
+              Se muestran las 500 respuestas más recientes de este ticket.
+            </p>
+          )}
           {ticket.responses.map((response) => (
             <Card key={response.id} className={response.isInternal ? "border-yellow-300 bg-yellow-50" : ""}>
               <CardHeader className="pb-2">

@@ -1,7 +1,8 @@
-import { asc, eq } from "drizzle-orm";
+import { desc, eq } from "drizzle-orm";
 import { revalidatePath } from "next/cache";
 import { cookies } from "next/headers";
 import { redirect } from "next/navigation";
+import { z } from "zod";
 
 import { db } from "@/db";
 import { academies, profiles, ticketResponses, tickets } from "@/db/schema";
@@ -14,6 +15,7 @@ import { TicketDetail } from "@/components/support/TicketDetail";
 import { TicketStatus } from "@/components/support/TicketFilters";
 
 const TICKET_STATUS_VALUES = ["open", "in_progress", "waiting", "resolved", "closed"] as const;
+const MAX_TICKET_RESPONSES = 500;
 
 export const dynamic = "force-dynamic";
 
@@ -29,6 +31,8 @@ function firstSearchParam(value: SearchParamValue) {
 }
 
 async function getTicket(ticketId: string) {
+  if (!z.string().uuid().safeParse(ticketId).success) return null;
+
   const [row] = await db
     .select({
       id: tickets.id,
@@ -66,7 +70,11 @@ async function getTicket(ticketId: string) {
     .from(ticketResponses)
     .leftJoin(profiles, eq(ticketResponses.userId, profiles.id))
     .where(eq(ticketResponses.ticketId, ticketId))
-    .orderBy(asc(ticketResponses.createdAt));
+    .orderBy(desc(ticketResponses.createdAt), desc(ticketResponses.id))
+    .limit(MAX_TICKET_RESPONSES + 1);
+
+  const responsesTruncated = responseRows.length > MAX_TICKET_RESPONSES;
+  const visibleResponses = responseRows.slice(0, MAX_TICKET_RESPONSES).reverse();
 
   return {
     id: row.id,
@@ -81,7 +89,8 @@ async function getTicket(ticketId: string) {
     closedAt: row.closedAt ?? undefined,
     createdBy: { id: row.createdById, fullName: row.creatorName ?? "Academia", email: "" },
     academy: row.academyId ? { id: row.academyId, name: row.academyName ?? "Academia" } : undefined,
-    responses: responseRows.map((response) => ({
+    responsesTruncated,
+    responses: visibleResponses.map((response) => ({
       id: response.id,
       message: response.message,
       isInternal: response.isInternal ?? false,
