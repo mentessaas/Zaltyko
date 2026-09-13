@@ -9,6 +9,7 @@ import { getCurrentProfile } from "@/lib/authz";
 import { getDevSessionFromCookieStore } from "@/lib/dev-session";
 import { createClient } from "@/lib/supabase/server";
 import { logAdminAction } from "@/lib/admin-logs";
+import { logger } from "@/lib/logger";
 import { TicketDetail } from "@/components/support/TicketDetail";
 import { TicketStatus } from "@/components/support/TicketFilters";
 
@@ -137,21 +138,26 @@ export default async function SuperAdminTicketDetailPage({ params, searchParams 
 
     if (!updatedTicket) return false;
 
-    await logAdminAction({
-      userId,
-      tenantId: null,
-      action: "support.ticket_status_changed",
-      resourceType: "ticket",
-      resourceId: ticketId,
-      resourceName: ticketRecord.title,
-      description: `Super Admin cambió el ticket ${ticketRecord.title} de ${ticketRecord.status} a ${newStatus}`,
-      meta: {
-        ticketId,
-        academyId: updatedTicket.academyId,
-        from: ticketRecord.status,
-        to: newStatus,
-      },
-    });
+    try {
+      await logAdminAction({
+        userId,
+        tenantId: null,
+        action: "support.ticket_status_changed",
+        resourceType: "ticket",
+        resourceId: ticketId,
+        resourceName: ticketRecord.title,
+        description: `Super Admin cambió el ticket ${ticketRecord.title} de ${ticketRecord.status} a ${newStatus}`,
+        meta: {
+          ticketId,
+          academyId: updatedTicket.academyId,
+          from: ticketRecord.status,
+          to: newStatus,
+        },
+      });
+    } catch (error) {
+      // La mutación ya está confirmada; un fallo de auditoría no debe mentir al operador.
+      logger.error("Failed to audit support ticket status change", error, { ticketId, newStatus });
+    }
 
     revalidatePath("/super-admin/support");
     revalidatePath(`/super-admin/support/${ticketId}`);
