@@ -171,7 +171,6 @@ export function SuperAdminUsersTable({
     try {
       const response = await fetch("/api/super-admin/athletes/sync-users", {
         method: "POST",
-        headers: {},
       });
       const data = await response.json();
       if (data.ok) {
