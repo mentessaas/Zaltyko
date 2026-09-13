@@ -116,15 +116,18 @@ const SUBSCRIPTION_STATUS_LABELS: Record<string, string> = {
   unpaid: "Impagada",
 };
 
+const DISPLAY_TIME_ZONE = "Europe/Madrid";
+
 const MONTH_LABEL_FORMATTER = new Intl.DateTimeFormat("es-ES", {
   month: "short",
   year: "2-digit",
+  timeZone: DISPLAY_TIME_ZONE,
 });
 
 function formatMonthLabel(label: string) {
   const [year, month] = label.split("-").map(Number);
   if (!year || !month) return label;
-  return MONTH_LABEL_FORMATTER.format(new Date(year, month - 1, 1));
+  return MONTH_LABEL_FORMATTER.format(new Date(Date.UTC(year, month - 1, 1)));
 }
 
 function formatEventDate(value: string) {
@@ -135,6 +138,7 @@ function formatEventDate(value: string) {
     month: "short",
     hour: "2-digit",
     minute: "2-digit",
+    timeZone: DISPLAY_TIME_ZONE,
   });
 }
 
@@ -170,7 +174,7 @@ export function SuperAdminDashboard({ initialMetrics, initialEvents = [], initia
     if (Number.isNaN(parsedDate.getTime())) {
       return "Sin registros";
     }
-    return parsedDate.toLocaleDateString("es-ES");
+    return parsedDate.toLocaleDateString("es-ES", { timeZone: DISPLAY_TIME_ZONE });
   }, [safeMetrics.totals.latestAcademyAt]);
 
   const ownerCount = useMemo(
@@ -212,7 +216,7 @@ export function SuperAdminDashboard({ initialMetrics, initialEvents = [], initia
       ? { label: "Sincronización parcial", className: "text-amber-300", iconClassName: "" }
       : lastUpdatedAt
         ? {
-            label: `Actualizado ${lastUpdatedAt.toLocaleTimeString("es-ES", { hour: "2-digit", minute: "2-digit" })}`,
+            label: `Actualizado ${lastUpdatedAt.toLocaleTimeString("es-ES", { hour: "2-digit", minute: "2-digit", timeZone: DISPLAY_TIME_ZONE })}`,
             className: "text-zaltyko-teal",
             iconClassName: "",
           }
