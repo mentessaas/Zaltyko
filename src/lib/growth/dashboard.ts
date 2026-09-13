@@ -130,7 +130,6 @@ export async function getGrowthDashboardData(args: { interviewPage?: number } = 
     cohortEnd.getTime() - PRICING_TO_CONTACT_WINDOW_DAYS * 24 * 60 * 60 * 1_000
   );
   const [
-    interviewRows,
     interviewSummaryRows,
     leadRows,
     leadCountRows,
@@ -140,12 +139,6 @@ export async function getGrowthDashboardData(args: { interviewPage?: number } = 
     trialRows,
     paidRows,
   ] = await Promise.all([
-    db
-      .select()
-      .from(commercialInterviews)
-      .orderBy(desc(commercialInterviews.createdAt), desc(commercialInterviews.id))
-      .limit(GROWTH_INTERVIEW_PAGE_SIZE)
-      .offset((requestedInterviewPage - 1) * GROWTH_INTERVIEW_PAGE_SIZE),
     db
       .select({
         total: sql<number>`count(*)`,
@@ -234,15 +227,12 @@ export async function getGrowthDashboardData(args: { interviewPage?: number } = 
     interviewTotal,
     requestedInterviewPage
   );
-  const effectiveInterviewRows =
-    interviewPagination.page === requestedInterviewPage
-      ? interviewRows
-      : await db
-          .select()
-          .from(commercialInterviews)
-          .orderBy(desc(commercialInterviews.createdAt), desc(commercialInterviews.id))
-          .limit(GROWTH_INTERVIEW_PAGE_SIZE)
-          .offset((interviewPagination.page - 1) * GROWTH_INTERVIEW_PAGE_SIZE);
+  const effectiveInterviewRows = await db
+    .select()
+    .from(commercialInterviews)
+    .orderBy(desc(commercialInterviews.createdAt), desc(commercialInterviews.id))
+    .limit(GROWTH_INTERVIEW_PAGE_SIZE)
+    .offset((interviewPagination.page - 1) * GROWTH_INTERVIEW_PAGE_SIZE);
 
   const eventMap = new Map(eventRows.map((row) => [row.eventName, row]));
   const trialMap = new Map(
