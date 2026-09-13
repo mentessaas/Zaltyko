@@ -8,6 +8,7 @@ import { getDevSessionFromCookieStore } from "@/lib/dev-session";
 import { db } from "@/db";
 import { academies } from "@/db/schema";
 import { PublicAcademiesTable } from "@/components/admin/PublicAcademiesTable";
+import type { PublicAcademy } from "@/app/actions/public/get-public-academies";
 
 export const dynamic = "force-dynamic";
 
@@ -128,6 +129,11 @@ export default async function SuperAdminPublicAcademiesPage({ searchParams }: Pa
     { public: 0, private: 0 }
   );
 
+  const tableAcademies: Array<PublicAcademy & { isPublic: boolean }> = items.map((item) => ({
+    ...item,
+    academyType: String(item.academyType),
+  }));
+
   return (
     <div className="space-y-6 p-8">
       <div>
@@ -138,10 +144,7 @@ export default async function SuperAdminPublicAcademiesPage({ searchParams }: Pa
       </div>
 
       <PublicAcademiesTable
-        academies={items.map((item) => ({
-          ...item,
-          academyType: String(item.academyType),
-        })) as any}
+        academies={tableAcademies}
         initialFilter={visibility}
         initialSearch={search}
         total={total}
