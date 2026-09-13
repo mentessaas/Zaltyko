@@ -12,6 +12,7 @@ vi.mock("@/components/ui/toast-provider", () => ({
 }));
 
 import { TicketResponseForm } from "@/components/support/TicketResponse";
+import { TogglePublicVisibility } from "@/components/admin/TogglePublicVisibility";
 
 describe("TicketResponseForm", () => {
   beforeEach(() => {
@@ -53,6 +54,37 @@ describe("TicketResponseForm", () => {
         title: "No se pudo enviar la respuesta",
         description: "El ticket está cerrado",
         variant: "error",
+      }));
+    });
+  });
+
+  it("actualiza visibilidad a través del endpoint super-admin", async () => {
+    const user = userEvent.setup();
+    const onToggle = vi.fn();
+    const fetchMock = vi.fn().mockResolvedValue({
+      ok: true,
+      json: vi.fn().mockResolvedValue({ ok: true, data: { isPublic: true, changed: true } }),
+    });
+    vi.stubGlobal("fetch", fetchMock);
+
+    render(
+      <TogglePublicVisibility
+        academyId="11111111-1111-4111-8111-111111111111"
+        currentValue={false}
+        onToggle={onToggle}
+      />,
+    );
+    await user.click(screen.getByRole("button", { name: "Publicar academia en el directorio público" }));
+
+    await waitFor(() => {
+      expect(fetchMock).toHaveBeenCalledWith(
+        "/api/super-admin/academies/11111111-1111-4111-8111-111111111111/public",
+        expect.objectContaining({ method: "PUT" }),
+      );
+      expect(onToggle).toHaveBeenCalledWith(true);
+      expect(toastMock.pushToast).toHaveBeenCalledWith(expect.objectContaining({
+        title: "Visibilidad actualizada",
+        variant: "success",
       }));
     });
   });
