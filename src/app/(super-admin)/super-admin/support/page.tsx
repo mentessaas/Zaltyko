@@ -62,13 +62,13 @@ type SupportFilters = ReturnType<typeof normalizeSupportFilters>;
 
 async function getAllTickets(filters: SupportFilters, requestedPage: number) {
   const conditions = [
-    filters.status && filters.status !== "all"
+    filters.status
       ? eq(tickets.status, filters.status as typeof tickets.status.enumValues[number])
       : undefined,
-    filters.priority && filters.priority !== "all"
+    filters.priority
       ? eq(tickets.priority, filters.priority as typeof tickets.priority.enumValues[number])
       : undefined,
-    filters.category && filters.category !== "all"
+    filters.category
       ? eq(tickets.category, filters.category as typeof tickets.category.enumValues[number])
       : undefined,
     filters.academyId && filters.academyId !== "all"
