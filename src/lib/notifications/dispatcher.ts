@@ -228,6 +228,14 @@ export async function dispatch(options: DispatchOptions): Promise<DispatchResult
     errors: {} as Record<Channel, string>,
   };
 
+  // Notification user IDs are profile IDs. Verify the profile belongs to the
+  // requested tenant before attempting any external channel or fallback insert.
+  const scopedProfile = await getUserProfile(userId, tenantId);
+  if (!scopedProfile) {
+    result.errors.in_app = "Profile not found for tenant";
+    return result;
+  }
+
   for (const channel of channelOrder) {
     result.channelsAttempted.push(channel);
 
