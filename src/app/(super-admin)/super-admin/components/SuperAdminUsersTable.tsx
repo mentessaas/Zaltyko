@@ -185,7 +185,7 @@ export function SuperAdminUsersTable({
           variant: "error",
         });
       }
-    } catch (error: any) {
+    } catch (error: unknown) {
       logger.error("Error sincronizando atletas:", error);
       toast.pushToast({
         title: "Error al sincronizar atletas",
@@ -250,7 +250,7 @@ export function SuperAdminUsersTable({
       // Refrescar datos para asegurar sincronización
       await fetchUsers(filters, page);
       return true;
-    } catch (error: any) {
+    } catch (error: unknown) {
       // Revertir optimistic update en caso de error
       if (optimisticUpdate) {
         await fetchUsers(filters, page);
@@ -258,7 +258,7 @@ export function SuperAdminUsersTable({
       logger.error("Update user failed", error);
       toast.pushToast({
         title: "Error al actualizar usuario",
-        description: error.message || "Ocurrió un error inesperado",
+        description: error instanceof Error ? error.message : "Ocurrió un error inesperado",
         variant: "error",
       });
       return false;
