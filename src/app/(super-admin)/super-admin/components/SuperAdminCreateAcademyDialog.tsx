@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
 import { Building2, Eye, EyeOff, Loader2 } from "lucide-react";
 
@@ -18,6 +18,8 @@ export function SuperAdminCreateAcademyDialog() {
   const [open, setOpen] = useState(false);
   const [submitting, setSubmitting] = useState(false);
   const [showOwnerPassword, setShowOwnerPassword] = useState(false);
+  const triggerRef = useRef<HTMLButtonElement | null>(null);
+  const dialogRef = useRef<HTMLFormElement | null>(null);
   const [form, setForm] = useState({
     academyName: "",
     academyType: "artistica",
@@ -32,6 +34,26 @@ export function SuperAdminCreateAcademyDialog() {
   function set(k: keyof typeof form, v: string) {
     setForm((f) => ({ ...f, [k]: v }));
   }
+
+  useEffect(() => {
+    if (!open) {
+      triggerRef.current?.focus();
+      return;
+    }
+
+    const focusTimer = window.setTimeout(() => {
+      dialogRef.current?.querySelector<HTMLElement>("input, select, textarea, button")?.focus();
+    }, 0);
+    const handleKeyDown = (event: KeyboardEvent) => {
+      if (event.key === "Escape" && !submitting) setOpen(false);
+    };
+    document.addEventListener("keydown", handleKeyDown);
+
+    return () => {
+      window.clearTimeout(focusTimer);
+      document.removeEventListener("keydown", handleKeyDown);
+    };
+  }, [open, submitting]);
 
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
@@ -80,7 +102,10 @@ export function SuperAdminCreateAcademyDialog() {
     <>
       <button
         type="button"
-        onClick={() => setOpen(true)}
+        onClick={(event) => {
+          triggerRef.current = event.currentTarget;
+          setOpen(true);
+        }}
         className="inline-flex items-center gap-2 rounded-xl bg-emerald-600 px-4 py-2 text-sm font-semibold text-white transition hover:bg-emerald-500"
       >
         <Building2 className="h-4 w-4" strokeWidth={1.8} />
@@ -96,6 +121,7 @@ export function SuperAdminCreateAcademyDialog() {
           onClick={() => !submitting && setOpen(false)}
         >
           <form
+            ref={dialogRef}
             onClick={(e) => e.stopPropagation()}
             onSubmit={handleSubmit}
             className="my-8 w-full max-w-lg space-y-4 rounded-2xl border border-white/10 bg-[#0f1729] p-6 shadow-xl"

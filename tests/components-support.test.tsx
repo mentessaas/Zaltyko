@@ -6,13 +6,21 @@ import userEvent from "@testing-library/user-event";
 const toastMock = vi.hoisted(() => ({
   pushToast: vi.fn(),
 }));
+const routerMock = vi.hoisted(() => ({
+  refresh: vi.fn(),
+}));
 
 vi.mock("@/components/ui/toast-provider", () => ({
   useToast: () => toastMock,
 }));
+vi.mock("next/navigation", () => ({
+  useRouter: () => routerMock,
+}));
 
 import { TicketResponseForm } from "@/components/support/TicketResponse";
 import { TogglePublicVisibility } from "@/components/admin/TogglePublicVisibility";
+import { SuperAdminCreateAcademyDialog } from "@/app/(super-admin)/super-admin/components/SuperAdminCreateAcademyDialog";
+import { SuperAdminCreateUserDialog } from "@/app/(super-admin)/super-admin/components/SuperAdminCreateUserDialog";
 
 describe("TicketResponseForm", () => {
   beforeEach(() => {
@@ -87,5 +95,21 @@ describe("TicketResponseForm", () => {
         variant: "success",
       }));
     });
+  });
+
+  it.each([
+    ["academia", SuperAdminCreateAcademyDialog, "Crear academia + dueño", "Crear academia"],
+    ["usuario", SuperAdminCreateUserDialog, "Crear usuario", "Crear"],
+  ] as const)("gestiona Escape y devuelve el foco al crear %s", async (_label, Dialog, title, submitLabel) => {
+    const user = userEvent.setup();
+    render(<Dialog />);
+
+    const trigger = screen.getByRole("button", { name: new RegExp(`^${submitLabel === "Crear" ? "Crear usuario" : "Crear academia"}`) });
+    await user.click(trigger);
+    expect(screen.getByRole("dialog", { name: title })).toBeVisible();
+
+    await user.keyboard("{Escape}");
+    await waitFor(() => expect(screen.queryByRole("dialog", { name: title })).not.toBeInTheDocument());
+    expect(trigger).toHaveFocus();
   });
 });
