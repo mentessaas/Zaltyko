@@ -1,4 +1,23 @@
+import type { Metadata } from "next";
 import Link from "next/link";
+
+// 404 de academia autenticada: nunca indexable. El middleware ya emite
+// X-Robots-Tag en academias no-indexables; replicamos la regla aqui para
+// el caso 404 dentro del area autenticada.
+export const metadata: Metadata = {
+  title: "Sección no encontrada",
+  robots: {
+    index: false,
+    follow: false,
+    nocache: true,
+    googleBot: {
+      index: false,
+      follow: false,
+      noarchive: true,
+      "max-snippet": -1,
+    },
+  },
+};
 
 /**
  * Fallback compartido para `notFound()` en `/app/[academyId]/...`.

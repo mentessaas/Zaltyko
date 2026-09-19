@@ -61,6 +61,14 @@ export const metadata: Metadata = {
   authors: [{ name: "Zaltyko" }],
   creator: "Zaltyko",
   metadataBase: new URL(getPublicSiteUrl()),
+  alternates: {
+    canonical: getPublicSiteUrl(),
+    languages: {
+      "es-ES": `${getPublicSiteUrl()}/es`,
+      "en-US": `${getPublicSiteUrl()}/en`,
+      "x-default": getPublicSiteUrl(),
+    },
+  },
   openGraph: {
     type: "website",
     locale: "es_ES",

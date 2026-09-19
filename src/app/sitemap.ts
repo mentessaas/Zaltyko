@@ -230,5 +230,19 @@ export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
       changeFrequency: "monthly" as const,
       priority: 0.6,
     })),
+    // AI/GEO resources. Prioridad baja para no canibalizar paginas
+    // comerciales; los crawlers AI las encuentran igual sin alta prioridad.
+    {
+      url: `${baseUrl}/llms.txt`,
+      lastModified: parseLastUpdated("2026-09-18", today),
+      changeFrequency: "monthly" as const,
+      priority: 0.4,
+    },
+    {
+      url: `${baseUrl}/llms-full.txt`,
+      lastModified: parseLastUpdated("2026-09-18", today),
+      changeFrequency: "monthly" as const,
+      priority: 0.4,
+    },
   ];
 }

@@ -1,4 +1,22 @@
+import type { Metadata } from "next";
 import Link from "next/link";
+
+// 404s nunca deben indexarse. `nocache: true` ademas bloquea caches que
+// podrian servir la pagina 404 desde un crawl siguiente.
+export const metadata: Metadata = {
+  title: "Página no encontrada",
+  robots: {
+    index: false,
+    follow: false,
+    nocache: true,
+    googleBot: {
+      index: false,
+      follow: false,
+      noarchive: true,
+      "max-snippet": -1,
+    },
+  },
+};
 
 export default function NotFound() {
   return (
