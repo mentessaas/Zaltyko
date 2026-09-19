@@ -12,6 +12,7 @@ import { buttonVariants } from "@/components/ui/button";
 const links = [
   { href: "/academias", label: "Academias" },
   { href: "/events", label: "Eventos" },
+  { href: "/blog", label: "Blog" },
   { href: "/features", label: "Producto" },
   { href: "/pricing", label: "Precios" },
   { href: "/ayuda", label: "Ayuda" },
@@ -37,14 +38,30 @@ export default function Navbar() {
     return () => window.removeEventListener("scroll", handleScroll);
   }, [mounted]);
 
+  useEffect(() => {
+    if (!isMenuOpen) return;
+
+    const previousOverflow = document.body.style.overflow;
+    document.body.style.overflow = "hidden";
+    const handleKeyDown = (event: KeyboardEvent) => {
+      if (event.key === "Escape") setIsMenuOpen(false);
+    };
+    document.addEventListener("keydown", handleKeyDown);
+
+    return () => {
+      document.body.style.overflow = previousOverflow;
+      document.removeEventListener("keydown", handleKeyDown);
+    };
+  }, [isMenuOpen]);
+
   return (
     <header className="fixed left-0 right-0 top-0 z-50">
       <nav
         className={cn(
           "transition-all duration-300",
           scrolled
-            ? "border-b border-zaltyko-border/50 bg-white/95 py-2 shadow-soft backdrop-blur-lg"
-            : "border-b border-transparent bg-white/80 py-3 backdrop-blur-md"
+            ? "border-b border-zaltyko-border/50 bg-white/95 dark:border-border dark:bg-background/95 py-2 shadow-soft backdrop-blur-lg"
+            : "border-b border-transparent bg-white/80 dark:bg-background/80 py-3 backdrop-blur-md"
         )}
       >
         <div className="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8">
@@ -61,7 +78,7 @@ export default function Navbar() {
               />
             </Link>
 
-            <div className="hidden items-center gap-2 rounded-2xl border border-zaltyko-mist/70 bg-white/80 px-2 py-1 shadow-soft md:flex">
+            <div className="hidden items-center gap-2 rounded-2xl border border-zaltyko-mist/70 bg-white/80 dark:border-border dark:bg-card/80 px-2 py-1 shadow-soft lg:flex">
               {links.map((link) => (
                 <Link
                   key={link.href}
@@ -71,7 +88,7 @@ export default function Navbar() {
                     "inline-flex min-h-10 items-center rounded-xl border border-transparent px-4 py-2 text-sm font-medium transition-colors",
                     isPublicNavigationActive(pathname, link.href)
                       ? "border-zaltyko-teal/20 bg-zaltyko-teal/10 text-zaltyko-teal"
-                      : "text-zaltyko-text-secondary hover:bg-zaltyko-white hover:text-zaltyko-teal"
+                      : "text-zaltyko-text-secondary dark:text-muted-foreground hover:bg-zaltyko-white dark:hover:bg-muted hover:text-zaltyko-teal"
                   )}
                 >
                   {link.label}
@@ -82,7 +99,7 @@ export default function Navbar() {
             <div className="flex items-center gap-2 sm:gap-4">
               <Link
                 href="/auth/login"
-                className="hidden text-sm font-semibold text-zaltyko-navy transition-colors hover:text-zaltyko-teal sm:inline"
+                className="hidden text-sm font-semibold text-zaltyko-navy dark:text-foreground transition-colors hover:text-zaltyko-teal sm:inline"
               >
                 Iniciar sesión
               </Link>
@@ -101,8 +118,10 @@ export default function Navbar() {
               <button
                 type="button"
                 onClick={() => setIsMenuOpen((prev) => !prev)}
-                className="inline-flex min-h-[44px] min-w-[44px] items-center justify-center rounded-lg p-2 text-zaltyko-text-secondary hover:bg-zaltyko-warm-white md:hidden"
+                className="inline-flex min-h-[44px] min-w-[44px] items-center justify-center rounded-lg p-2 text-zaltyko-text-secondary dark:text-muted-foreground hover:bg-zaltyko-warm-white dark:hover:bg-muted lg:hidden"
                 aria-label={isMenuOpen ? "Cerrar menú" : "Abrir menú"}
+                aria-expanded={isMenuOpen}
+                aria-controls="public-mobile-menu"
               >
                 {isMenuOpen ? <X className="h-6 w-6" /> : <Menu className="h-6 w-6" />}
               </button>
@@ -111,14 +130,25 @@ export default function Navbar() {
         </div>
 
         {isMenuOpen && (
-          <div className="absolute left-0 right-0 top-full animate-in border-b border-zaltyko-mist bg-white shadow-soft md:hidden slide-in-from-top-5">
+          <>
+            <div
+              className="fixed inset-0 z-40 bg-zaltyko-navy/25 backdrop-blur-[2px] lg:hidden"
+              aria-hidden="true"
+              onClick={() => setIsMenuOpen(false)}
+            />
+            <div
+              id="public-mobile-menu"
+              className="absolute left-0 right-0 top-full z-50 max-h-[calc(100dvh-5rem)] animate-in overflow-y-auto border-b border-zaltyko-mist dark:border-border bg-white dark:bg-card shadow-medium lg:hidden slide-in-from-top-5"
+              role="navigation"
+              aria-label="Navegación principal"
+            >
             <div className="space-y-1 px-4 py-6">
               {links.map((link) => (
                 <Link
                   key={link.href}
                   href={link.href}
                   aria-current={isPublicNavigationActive(pathname, link.href) ? "page" : undefined}
-                  className="block rounded-lg px-4 py-3 text-base font-medium text-zaltyko-text-secondary hover:bg-zaltyko-warm-white hover:text-zaltyko-teal"
+                  className="block rounded-lg px-4 py-3 text-base font-medium text-zaltyko-text-secondary dark:text-muted-foreground hover:bg-zaltyko-warm-white dark:hover:bg-muted hover:text-zaltyko-teal"
                   onClick={() => setIsMenuOpen(false)}
                 >
                   {link.label}
@@ -144,7 +174,8 @@ export default function Navbar() {
                 </Link>
               </div>
             </div>
-          </div>
+            </div>
+          </>
         )}
       </nav>
     </header>

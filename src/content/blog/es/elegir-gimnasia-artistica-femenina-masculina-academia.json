@@ -14,6 +14,8 @@
     "academia mixta gimnasia"
   ],
   "relatedRoutes": ["/es/gimnasia-artistica/espana", "/modules/gestion-atletas"],
+  "relatedPosts": ["ficha-federativa-rfeg-gestion"],
+  "relatedComparativas": [],
   "content": [
     "## Qué son GAF y GAM",
     "GAF (Gimnasia Artística Femenina) y GAM (Gimnasia Artística Masculina) son modalidades distintas de la gimnasia artística. Comparten filosofía de entrenamiento (técnica, fuerza, flexibilidad, expresión) pero difieren en aparatos, ratios y operativa.",

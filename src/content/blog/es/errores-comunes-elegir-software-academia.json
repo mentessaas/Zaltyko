@@ -14,6 +14,8 @@
     "software gimnasio decisión"
   ],
   "relatedRoutes": ["/pricing", "/comparativas"],
+  "relatedPosts": ["migrar-excel-software-academia-gimnasia", "cuanto-cuesta-gestionar-academia-gimnasia"],
+  "relatedComparativas": ["zaltyko-vs-excel", "zaltyko-vs-sportmember", "zaltyko-vs-glofox"],
   "content": [
     "## Error 1: mirar solo el precio del plan",
     "Un plan barato con cobros manuales sigue siendo caro. Un plan más caro que automatiza cobros y recordatorios puede salir gratis. Compara coste total, no cuota mensual.",

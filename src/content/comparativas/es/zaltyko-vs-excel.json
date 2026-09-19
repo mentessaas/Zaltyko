@@ -115,5 +115,7 @@
       "a": "Si la academia no cobra cuotas mensuales y la operación es muy simple, puede bastar. El momento natural de saltar a un sistema es cuando los cobros manuales, los recordatorios por WhatsApp o los duplicados empiezan a consumir tiempo de dirección."
     }
   ],
-  "verdict": "Excel es una herramienta potente y gratuita, pero no es un sistema de gestión: es una herramienta de cálculo. Cuando la academia pasa cierto tamaño o necesita trazabilidad de cobros y comunicación con familias, el coste oculto de mantener todo a mano suele superar al coste del software especializado."
+  "verdict": "Excel es una herramienta potente y gratuita, pero no es un sistema de gestión: es una herramienta de cálculo. Cuando la academia pasa cierto tamaño o necesita trazabilidad de cobros y comunicación con familias, el coste oculto de mantener todo a mano suele superar al coste del software especializado.",
+  "relatedPosts": ["migrar-excel-software-academia-gimnasia", "errores-comunes-elegir-software-academia", "cuanto-cuesta-gestionar-academia-gimnasia"],
+  "relatedComparativas": []
 }

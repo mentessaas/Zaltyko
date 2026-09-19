@@ -14,6 +14,8 @@
     "migrar datos academia gimnasia"
   ],
   "relatedRoutes": ["/pricing", "/features"],
+  "relatedPosts": ["errores-comunes-elegir-software-academia"],
+  "relatedComparativas": ["zaltyko-vs-excel"],
   "content": [
     "## Por qué migrar (o no)",
     "Excel sigue siendo válido para academias muy pequeñas o casos puntuales. Pero cuando aparecen cobros recurrentes, recordatorios automáticos y comunicación con familias, el tiempo invertido en mantener fórmulas y versiones se dispara.",

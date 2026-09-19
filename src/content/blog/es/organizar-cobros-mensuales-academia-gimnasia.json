@@ -14,6 +14,8 @@
     "morosidad academia"
   ],
   "relatedRoutes": ["/pricing", "/features"],
+  "relatedPosts": ["cuanto-cuesta-gestionar-academia-gimnasia"],
+  "relatedComparativas": [],
   "content": [
     "## Define tipos de cuota antes de cobrar",
     "No todas las familias pagan lo mismo: cuota mensual estándar, descuento por hermanos, beca, tarifa plana trimestral, clase suelta, masterclass. Definir los tipos de cuota antes de empezar a cobrar evita improvisar sobre la marcha.",

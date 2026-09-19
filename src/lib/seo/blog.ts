@@ -11,6 +11,8 @@ export interface BlogPost {
   category: string;
   keywords: string[];
   relatedRoutes: string[];
+  relatedPosts?: string[];
+  relatedComparativas?: string[];
   content: string[];
 }
 

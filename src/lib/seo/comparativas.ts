@@ -30,6 +30,8 @@ export interface ComparisonContent {
   idealForCompetitor: string[];
   faq: Array<{ q: string; a: string }>;
   verdict: string;
+  relatedPosts?: string[];
+  relatedComparativas?: string[];
 }
 
 export interface ComparisonSummary {

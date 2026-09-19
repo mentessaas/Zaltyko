@@ -5,12 +5,14 @@ import { Check, X, ArrowLeft, ArrowRight, Sparkles } from "lucide-react";
 import Navbar from "@/app/(site)/Navbar";
 import Footer from "@/app/(site)/Footer";
 import { Schema } from "@/components/Schema";
+import RelatedContent from "@/components/seo/RelatedContent";
 import { getPublicSiteUrl } from "@/lib/seo/site-url";
 import {
   getComparisonSlugs,
   isComparisonSlug,
   loadComparison,
 } from "@/lib/seo/comparativas";
+import { loadComparisonCrossLinks } from "@/lib/seo/related";
 
 interface PageProps {
   params: Promise<{ slug: string }>;
@@ -63,6 +65,7 @@ export default async function ComparisonDetailPage({ params }: PageProps) {
   if (!content) notFound();
 
   const baseUrl = getPublicSiteUrl();
+  const crossLinks = await loadComparisonCrossLinks(content);
   const pageUrl = `${baseUrl}/comparativas/${slug}`;
 
   // Schema: Article + BreadcrumbList + FAQPage inline (Google acepta los 3
@@ -347,6 +350,32 @@ export default async function ComparisonDetailPage({ params }: PageProps) {
             </div>
           </div>
         </section>
+
+        {/* Cross-links: blog posts + otras comparativas */}
+        <div className="mx-auto max-w-3xl px-4 sm:px-6 lg:px-8 pb-16">
+          <RelatedContent
+            posts={crossLinks.posts.map((p) => ({
+              slug: p.slug,
+              title: p.title,
+              category: p.category,
+            }))}
+            comparisons={crossLinks.comparisons.map((c) => {
+              // Slug canonico derivado del nombre del competidor. Si Zaltyko
+              // anade mas comparativas, ajustar el mapping.
+              const slug = c.competitor.name.toLowerCase().includes("excel")
+                ? "zaltyko-vs-excel"
+                : c.competitor.name.toLowerCase().includes("sportmember")
+                  ? "zaltyko-vs-sportmember"
+                  : c.competitor.name.toLowerCase().includes("glofox")
+                    ? "zaltyko-vs-glofox"
+                    : "zaltyko-vs-excel";
+              return {
+                slug,
+                competitorName: c.competitor.name,
+              };
+            })}
+          />
+        </div>
       </main>
 
       <Footer />

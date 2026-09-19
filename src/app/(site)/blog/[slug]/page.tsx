@@ -5,8 +5,10 @@ import { Calendar, User, ArrowLeft, ArrowRight } from "lucide-react";
 import Navbar from "@/app/(site)/Navbar";
 import Footer from "@/app/(site)/Footer";
 import { Schema } from "@/components/Schema";
+import RelatedContent from "@/components/seo/RelatedContent";
 import { getPublicSiteUrl } from "@/lib/seo/site-url";
 import { getBlogSlugs, isBlogSlug, loadBlogPost } from "@/lib/seo/blog";
+import { loadBlogCrossLinks } from "@/lib/seo/related";
 
 interface PageProps {
   params: Promise<{ slug: string }>;
@@ -117,6 +119,7 @@ export default async function BlogDetailPage({ params }: PageProps) {
   if (!post) notFound();
 
   const baseUrl = getPublicSiteUrl();
+  const crossLinks = await loadBlogCrossLinks(post);
   const pageUrl = `${baseUrl}/blog/${slug}`;
 
   const blogPostingSchema = {
@@ -187,7 +190,7 @@ export default async function BlogDetailPage({ params }: PageProps) {
 
             <div className="prose-content">{renderContent(post.content)}</div>
 
-            {/* Related routes */}
+            {/* Related routes (producto / feature) */}
             {post.relatedRoutes.length > 0 && (
               <aside className="mt-12 pt-8 border-t border-border">
                 <h2 className="text-sm font-semibold text-foreground mb-3 uppercase tracking-wider">
@@ -213,6 +216,30 @@ export default async function BlogDetailPage({ params }: PageProps) {
                 </div>
               </aside>
             )}
+
+            {/* Cross-links: otros posts del blog + comparativas relacionadas */}
+            <RelatedContent
+              posts={crossLinks.posts.map((p) => ({
+                slug: p.slug,
+                title: p.title,
+                category: p.category,
+              }))}
+              comparisons={crossLinks.comparisons.map((c) => {
+                // Resolver el slug canónico desde el comparator name para que el
+                // link `/comparativas/${slug}` exista realmente en el registry.
+                const slug = c.meta.title.toLowerCase().includes("excel")
+                  ? "zaltyko-vs-excel"
+                  : c.meta.title.toLowerCase().includes("sportmember")
+                    ? "zaltyko-vs-sportmember"
+                    : c.meta.title.toLowerCase().includes("glofox")
+                      ? "zaltyko-vs-glofox"
+                      : "zaltyko-vs-excel";
+                return {
+                  slug,
+                  competitorName: c.competitor.name,
+                };
+              })}
+            />
           </div>
         </article>
 

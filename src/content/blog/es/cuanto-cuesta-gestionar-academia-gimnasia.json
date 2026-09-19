@@ -14,6 +14,8 @@
     "software academia precio"
   ],
   "relatedRoutes": ["/pricing", "/features"],
+  "relatedPosts": ["errores-comunes-elegir-software-academia", "organizar-cobros-mensuales-academia-gimnasia"],
+  "relatedComparativas": ["zaltyko-vs-excel", "zaltyko-vs-glofox"],
   "content": [
     "## Lo que se ve: el precio del software",
     "Un plan de gestión para academias de gimnasia cuesta desde 0 € (Free) hasta 49 €/mes (Growth) o más en planes multi-sede. Pero el coste del software es solo una fracción de lo que cuesta operar una academia.",

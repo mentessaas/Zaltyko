@@ -5,14 +5,25 @@ const footerLinks = {
   producto: [
     { label: "Producto", href: "/features" },
     { label: "Precios", href: "/pricing" },
+    { label: "Comparativas", href: "/comparativas" },
     { label: "Integraciones", href: "/integraciones" },
     { label: "Documentación", href: "/docs" },
   ],
   recursos: [
+    { label: "Blog", href: "/blog" },
     { label: "Directorio de Academias", href: "/academias" },
     { label: "Eventos", href: "/events" },
     { label: "Centro de Ayuda", href: "/ayuda" },
     { label: "Crear cuenta gratis", href: "/auth/register?role=owner" },
+  ],
+  // Clusteres principales para SEO local (es + en). Anchor text descriptivo
+  // refuerza autoridad topical en SERPs por país/modalidad.
+  descubre: [
+    { label: "Gimnasia artística en España", href: "/es/gimnasia-artistica/espana" },
+    { label: "Gimnasia rítmica en España", href: "/es/gimnasia-ritmica/espana" },
+    { label: "Gimnasia artística en México", href: "/es/gimnasia-artistica/mexico" },
+    { label: "Gimnasia artística en Argentina", href: "/es/gimnasia-artistica/argentina" },
+    { label: "Gimnasia rítmica en Colombia", href: "/es/gimnasia-ritmica/colombia" },
   ],
   empresa: [
     { label: "Sobre nosotros", href: "/sobre-nosotros" },
@@ -53,8 +64,8 @@ export default function Footer() {
           </div>
         </div>
 
-        <div className="grid grid-cols-2 gap-8 py-16 md:grid-cols-5">
-          <div className="col-span-2 md:col-span-1">
+        <div className="grid grid-cols-2 gap-8 py-16 md:grid-cols-6">
+          <div className="col-span-2 md:col-span-2">
             <Link href="/" className="group flex items-center gap-2">
               <Image
                 src="/branding/zaltyko/logo-zaltyko-dark.svg"
