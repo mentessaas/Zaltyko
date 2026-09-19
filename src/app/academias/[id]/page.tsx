@@ -7,6 +7,9 @@ import { ContactAcademyForm } from "@/components/public/ContactAcademyForm";
 import { NearbyAcademies } from "@/components/public/NearbyAcademies";
 import { getPublicAcademy } from "@/app/actions/public/get-public-academy";
 import { getAcademyRobotsMetadata } from "@/lib/seo/academy-robots-directives";
+import { getPublicSiteUrl } from "@/lib/seo/site-url";
+import { academyJsonLd } from "@/lib/seo/academy-schema";
+import { Schema } from "@/components/Schema";
 
 interface AcademyDetailPageProps {
   params: Promise<{ id: string }>;
@@ -27,6 +30,9 @@ export async function generateMetadata({ params }: AcademyDetailPageProps): Prom
     title: `${academy.name} | Directorio de Academias`,
     description: academy.publicDescription || `Información sobre ${academy.name}`,
     robots: getAcademyRobotsMetadata(true),
+    alternates: {
+      canonical: `${getPublicSiteUrl()}/academias/${id}`,
+    },
   };
 }
 
@@ -37,6 +43,27 @@ export default async function AcademyDetailPage({ params }: AcademyDetailPagePro
   if (!academy) {
     notFound();
   }
+
+  const baseUrl = getPublicSiteUrl();
+  const academySchema = academyJsonLd({
+    baseUrl,
+    pagePath: `/academias/${id}`,
+    id: academy.id,
+    name: academy.name,
+    description: academy.publicDescription,
+    city: academy.city,
+    region: academy.region,
+    country: academy.country,
+    address: academy.address,
+    website: academy.website,
+    contactEmail: academy.contactEmail,
+    contactPhone: academy.contactPhone,
+    logoUrl: academy.logoUrl,
+    schedule: academy.schedule,
+    socialInstagram: academy.socialInstagram,
+    socialFacebook: academy.socialFacebook,
+    socialTwitter: academy.socialTwitter,
+  });
 
   return (
     <div className="min-h-screen bg-background">
@@ -67,6 +94,8 @@ export default async function AcademyDetailPage({ params }: AcademyDetailPagePro
           country: academy.country,
         }}
       />
+
+      {academySchema && <Schema json={academySchema} />}
     </div>
   );
 }

@@ -1,0 +1,34 @@
+{
+  "slug": "cuanto-cuesta-gestionar-academia-gimnasia",
+  "title": "Cuánto cuesta realmente gestionar una academia de gimnasia",
+  "description": "Desglose realista de los costes ocultos de gestionar una academia: horas administrativas, errores en cobros, morosidad, fuga de información. Herramientas, tiempo y software.",
+  "datePublished": "2026-09-18",
+  "dateModified": "2026-09-18",
+  "author": "Equipo Zaltyko",
+  "excerpt": "El coste de gestionar una academia no es solo la cuota del software. Hay horas administrativas, errores en cobros, morosidad y fugas de información que se pagan con tiempo y dinero. Te ayudamos a cuantificarlo.",
+  "category": "Finanzas",
+  "keywords": [
+    "coste gestión academia",
+    "cuánto cuesta administrar academia",
+    "costes academia gimnasia",
+    "software academia precio"
+  ],
+  "relatedRoutes": ["/pricing", "/features"],
+  "content": [
+    "## Lo que se ve: el precio del software",
+    "Un plan de gestión para academias de gimnasia cuesta desde 0 € (Free) hasta 49 €/mes (Growth) o más en planes multi-sede. Pero el coste del software es solo una fracción de lo que cuesta operar una academia.",
+    "## Lo que no se ve: horas administrativas",
+    "Hacer cobros manuales, perseguir morosos, enviar recordatorios uno a uno, copiar datos entre hojas, generar recibos, responder consultas de familias por WhatsApp. Estas tareas consumen entre 5 y 20 horas semanales según el tamaño de la academia.",
+    "## Errores que cuestan dinero",
+    "Un recibo duplicado, una cuota olvidada, un cobro a la persona equivocada, una fecha de baja mal registrada. Cada error tiene un coste: tiempo de gestión, pérdida de confianza de la familia, en casos extremos, devolución del importe.",
+    "## Morosidad silenciosa",
+    "Una academia con 80 gimnastas que cobra 60 €/mes pierde 4.800 €/mes. Si la morosidad es del 8%, son 384 €/mes que no se cobran. El software de cobros automáticos reduce esta cifra entre el 30% y el 60% según operaciones.",
+    "## Fuga de información",
+    "Una hoja de cálculo compartida por email, en un USB, en el móvil del dueño. Cuando se pierde, no hay backup. Cuando un entrenador cambia de academia, se va con la información. El software con aislamiento por academia y backups automáticos elimina este riesgo.",
+    "## Coste total: una fórmula simple",
+    "Coste mensual ≈ (horas administrativas × coste/hora) + (errores y correcciones) + (morosidad no cobrada) + (coste del software) + (coste de oportunidad por no escalar).",
+    "Para una academia de 50 gimnastas, el coste administrativo suele estar entre 800 € y 2.000 € al mes. Un software a 49 €/mes se paga solo si reduce 1 hora administrativa semanal.",
+    "## Qué hacer con este análisis",
+    "Calcula tus horas administrativas reales durante una semana. Multiplica por tu coste hora. Compara con el coste del software. Si el software reduce al menos 4 horas semanales, está justificado."
+  ]
+}

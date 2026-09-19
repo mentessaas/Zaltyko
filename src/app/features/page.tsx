@@ -11,7 +11,7 @@ import { getPublicSiteUrl } from "@/lib/seo/site-url";
 const baseUrl = getPublicSiteUrl();
 
 export const metadata: Metadata = {
-  title: "Funcionalidades | Software para academias de gimnasia",
+  title: "Funcionalidades para academias de gimnasia",
   description:
     "Gestión de gimnastas, grupos, cobros, eventos y familias para academias de gimnasia artística y rítmica.",
   alternates: {
@@ -60,7 +60,7 @@ export default function FeaturesPage() {
                 Funcionalidades para tu academia de gimnasia
               </h1>
               <p className="mt-6 mx-auto max-w-2xl text-lg text-zaltyko-text-secondary">
-                Gimnastas, coaches, cobros, evaluaciones y eventos en una sola plataforma pensada para gimnasia artística y rítmica.
+                Gimnastas, entrenadores, cobros, evaluaciones y eventos en una sola plataforma pensada para gimnasia artística y rítmica.
               </p>
             </Reveal>
           </div>
@@ -75,12 +75,12 @@ export default function FeaturesPage() {
                 Prueba Zaltyko con tu academia
               </h2>
               <p className="mt-4 text-lg text-zaltyko-text-secondary">
-                Crea tu academia gratis, importa a tus gimnastas y explora cada funcionalidad en un clic.
+                Crea tu cuenta gratis, configura tu academia, importa a tus gimnastas y explora cada funcionalidad en un clic.
               </p>
               <div className="mt-8 flex flex-col gap-4 sm:flex-row sm:justify-center">
                 <Link
                   href="/auth/register?role=owner"
-                  className="inline-flex items-center justify-center rounded-full bg-zaltyko-primary px-8 py-3 font-semibold text-white hover:bg-primary-dark"
+                  className="inline-flex items-center justify-center rounded-full bg-zaltyko-primary px-8 py-3 font-semibold text-white hover:bg-zaltyko-primary-dark"
                 >
                   Crear academia gratis
                 </Link>

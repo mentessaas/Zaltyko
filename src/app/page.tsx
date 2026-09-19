@@ -9,6 +9,7 @@ import SocialProofSection from "@/app/(site)/home/SocialProofSection";
 import ModulesSection from "@/app/(site)/home/ModulesSection";
 import ClusterDiscoverySection from "@/app/(site)/home/ClusterDiscoverySection";
 import ComparisonSection from "@/app/(site)/home/ComparisonSection";
+import LatestArticlesSection from "@/app/(site)/home/LatestArticlesSection";
 import SeoExtendedSection from "@/app/(site)/home/SeoExtendedSection";
 import FaqSection from "@/app/(site)/home/FaqSection";
 import FinalCtaSection from "@/app/(site)/home/FinalCtaSection";
@@ -21,7 +22,7 @@ const HOME_MARQUEE_ITEMS = [
   "Gimnastas por nivel y aparato",
   "Cuotas recurrentes",
   "Asistencia por sesión",
-  "Portal de familias",
+  "Portal familiar limitado",
   "Evaluaciones técnicas",
   "Eventos y competiciones",
   "Recibos automáticos",
@@ -121,6 +122,9 @@ export default function HomePage() {
         {/* FAQ con preguntas de negocio */}
         <FaqSection />
 
+        {/* Últimos artículos del blog */}
+        <LatestArticlesSection />
+
         {/* CTA Final */}
         <FinalCtaSection />
       </main>
@@ -155,14 +159,20 @@ export default function HomePage() {
         }}
       />
       
-      {/* Organization Schema */}
+      {/* Organization Schema — @id estable para que las cluster pages y
+          breadcrumbs puedan referenciarlo sin duplicar el nodo. areaServed y
+          knowsAbout refuerzan E-E-A-T sin inventar claims verificables. */}
       <Schema
         json={{
           "@context": "https://schema.org",
           "@type": "Organization",
+          "@id": `${baseUrl}/#organization`,
           name: "Zaltyko",
           url: baseUrl,
-          logo: `${baseUrl}/branding/zaltyko/logo-zaltyko-dark.svg`,
+          logo: {
+            "@type": "ImageObject",
+            url: `${baseUrl}/branding/zaltyko/logo-zaltyko-dark.svg`,
+          },
           description:
             "Zaltyko es el sistema de dirección para academias de gimnasia artística femenina, artística masculina y rítmica.",
           contactPoint: {
@@ -175,6 +185,22 @@ export default function HomePage() {
             "@type": "PostalAddress",
             addressCountry: "ES",
           },
+          areaServed: [
+            { "@type": "Country", name: "España" },
+            { "@type": "Country", name: "México" },
+            { "@type": "Country", name: "Argentina" },
+            { "@type": "Country", name: "Colombia" },
+            { "@type": "Country", name: "Chile" },
+            { "@type": "Country", name: "Perú" },
+          ],
+          knowsAbout: [
+            "Gimnasia artística femenina",
+            "Gimnasia artística masculina",
+            "Gimnasia rítmica",
+            "Gestión deportiva",
+            "Cobros recurrentes",
+            "Gestión de academias",
+          ],
         }}
       />
       
@@ -197,7 +223,7 @@ export default function HomePage() {
               name: "¿Cuánto cuesta Zaltyko?",
               acceptedAnswer: {
                 "@type": "Answer",
-                text: "Free es gratis hasta 30 gimnastas y 1 academia. Starter cuesta 19€/mes (hasta 75 gimnastas), Growth 49€/mes (hasta 200 gimnastas) y Network, para academias multi-sede, cuesta 99€/mes con onboarding acompañado. Puedes ver el detalle completo en la página de planes.",
+                text: "Free es gratis hasta 30 gimnastas y 1 academia. Starter cuesta 19€/mes (hasta 75 gimnastas), Growth 49€/mes (hasta 200 gimnastas) y Network parte de 99€/mes para academias multi-sede, con onboarding acompañado y propuesta final según sedes y necesidades. Puedes ver el detalle completo en la página de planes.",
               },
             },
             {

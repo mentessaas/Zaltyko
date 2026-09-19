@@ -11,11 +11,12 @@ export default function robots(): MetadataRoute.Robots {
       { userAgent: "ClaudeBot", allow: "/" },
       { userAgent: "PerplexityBot", allow: "/" },
       { userAgent: "Google-Extended", allow: "/" },
-      // Default rules
+      // Default rules. /dev bloqueado defensivamente por si llega a desplegar
+      // una preview o un theme playground en producción.
       {
         userAgent: "*",
         allow: "/",
-        disallow: ["/app", "/api", "/dashboard", "/super-admin"],
+        disallow: ["/app", "/api", "/dashboard", "/super-admin", "/dev"],
       },
     ],
     sitemap: `${baseUrl}/sitemap.xml`,

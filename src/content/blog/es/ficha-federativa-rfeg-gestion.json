@@ -1,0 +1,33 @@
+{
+  "slug": "ficha-federativa-rfeg-gestion",
+  "title": "Qué es la ficha federativa RFEG y cómo gestionarla",
+  "description": "Qué cubre la ficha federativa de la Real Federación Española de Gimnasia, qué datos incluye, plazos de renovación y cómo llevar el registro sin errores.",
+  "datePublished": "2026-09-18",
+  "dateModified": "2026-09-18",
+  "author": "Equipo Zaltyko",
+  "excerpt": "La ficha federativa RFEG es el documento que acredita a cada gimnasta ante la Real Federación Española de Gimnasia. Te explicamos qué datos lleva, plazos típicos y errores que vemos en academias.",
+  "category": "Federaciones",
+  "keywords": [
+    "ficha federativa rfeg",
+    "licencia rfeg",
+    "renovar licencia rfeg",
+    "rfeg gestión academias"
+  ],
+  "relatedRoutes": ["/es/gimnasia-artistica/espana"],
+  "content": [
+    "## Qué es la ficha federativa RFEG",
+    "Es el documento que acredita a una gimnasta o gimnasta ante la Real Federación Española de Gimnasia. Sin ella, el gimnasta no puede competir en pruebas oficiales: Campeonatos de España, Copas, Ligas autonómicas, selectivos.",
+    "## Qué datos incluye",
+    "Datos del gimnasta (nombre, DNI/NIE, fecha de nacimiento), datos del club (academia), categoría (Alevín, Infantil, etc.), temporada, y firma de la federación autonómica correspondiente.",
+    "## Cuándo se renueva",
+    "La temporada federativa suele ir de septiembre a septiembre, con renovaciones masivas en septiembre y altas puntuales durante el año para nuevos ingresos en categorías inferiores o cambios de club.",
+    "## Errores frecuentes en academias",
+    "Renovar tarde y perder la primera competición, no actualizar cambios de club, mezclar fichas de diferentes federaciones autonómicas, no validar el DNI antes de presentar la ficha.",
+    "## Cómo llevarlas sin errores",
+    "Llevar un registro centralizado por academia con: estado de la ficha (activa, pendiente, baja), fecha de renovación, temporada, federación autonómica, observaciones. Una hoja basta si está bien mantenida; un software evita perder el control cuando la academia crece.",
+    "## Qué pasa si un gimnasta cambia de club",
+    "La ficha se da de baja en el club anterior y se tramita el alta en el nuevo. La academia saliente debe confirmar la baja con la federación autonómica para evitar duplicidades.",
+    "## Relación con el alta en Zaltyko",
+    "El software de gestión de la academia no reemplaza la ficha federativa, pero ayuda a llevar el registro operativo: estado, fechas, alertas antes de competiciones."
+  ]
+}

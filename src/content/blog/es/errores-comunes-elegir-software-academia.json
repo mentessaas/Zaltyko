@@ -1,0 +1,31 @@
+{
+  "slug": "errores-comunes-elegir-software-academia",
+  "title": "5 errores comunes al elegir software para tu academia de gimnasia",
+  "description": "Errores frecuentes al evaluar software para academias: precio vs coste total, demo vs试用 real, idioma y soporte, especializacion deportiva. Cómo evitarlos.",
+  "datePublished": "2026-09-18",
+  "dateModified": "2026-09-18",
+  "author": "Equipo Zaltyko",
+  "excerpt": "Antes de firmar con un proveedor de software, conviene revisar estos cinco errores frecuentes que vemos en academias que cambian de sistema cada año o dos.",
+  "category": "Decisión de compra",
+  "keywords": [
+    "elegir software academia",
+    "errores elegir software",
+    "comparar software academias",
+    "software gimnasio decisión"
+  ],
+  "relatedRoutes": ["/pricing", "/comparativas"],
+  "content": [
+    "## Error 1: mirar solo el precio del plan",
+    "Un plan barato con cobros manuales sigue siendo caro. Un plan más caro que automatiza cobros y recordatorios puede salir gratis. Compara coste total, no cuota mensual.",
+    "## Error 2: quedarse en la demo",
+    "La demo del comercial siempre es la mejor versión: datos preparados, casos favorables, ningún fallo. Pide acceso a un entorno de prueba real, importa 10-20 gimnastas ficticios y opera una semana. Solo así ves fricciones reales.",
+    "## Error 3: ignorar idioma y soporte",
+    "Si el software está en danés con interfaz traducida al español, cada duda técnica termina siendo un email en inglés con captura de pantalla. Comprueba: idioma del producto, idioma del soporte, horario de atención, tiempo medio de respuesta.",
+    "## Error 4: elegir un software genérico",
+    "Un software de gestión de clubes genérico cubre fútbol, hockey, natación, gimnasio. Para gimnasia artística o rítmica necesitas niveles federativos, aparatos, evaluaciones con rúbrica, ligas. Si el software no distingue entre Pre-iniciación y FIG, no es para ti.",
+    "## Error 5: olvidar la migración de salida",
+    "El día que quieras cambiar de proveedor, ¿puedes llevarte tus datos en CSV? ¿Y el histórico de cobros, las evaluaciones, las fotos? Un software que te atrapa con datos propietarios es una trampa a medio plazo.",
+    "## Bonus: no medir después",
+    "Tras 3 meses con el nuevo software, mide: horas administrativas, morosidad, errores en cobros, satisfacción de familias. Si nada ha mejorado respecto a tu situación anterior, el cambio no ha servido."
+  ]
+}

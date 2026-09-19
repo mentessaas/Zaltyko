@@ -1,0 +1,119 @@
+{
+  "meta": {
+    "title": "Zaltyko vs Excel para Academias de Gimnasia | Comparativa honesta",
+    "description": "Comparamos Zaltyko y Excel para academias de gimnasia: cobros, asistencia, comunicación con familias, inscripciones a competiciones. Tabla, pros, contras y para quién tiene sentido cada opción.",
+    "keywords": [
+      "zaltyko vs excel",
+      "excel para academias de gimnasia",
+      "software vs excel",
+      "migrar de excel a software",
+      "gestión academia excel"
+    ]
+  },
+  "hero": {
+    "badge": "Comparativa",
+    "headline": "Excel vs Zaltyko para tu academia de gimnasia",
+    "subheadline": "Si hoy llevas la academia en hojas de cálculo, esta comparativa te ayuda a decidir cuándo Excel sigue siendo suficiente y cuándo tiene sentido dar el salto a un sistema especializado."
+  },
+  "competitor": {
+    "name": "Microsoft Excel o Google Sheets",
+    "tagline": "La herramienta que probablemente ya usas para llevar la academia."
+  },
+  "table": [
+    {
+      "feature": "Coste inicial",
+      "zaltyko": "Gratis hasta 30 gimnastas",
+      "competitor": "Gratis si ya lo tienes; suscripción Microsoft/Google si lo contratas"
+    },
+    {
+      "feature": "Cobros automáticos a familias",
+      "zaltyko": "Cuotas recurrentes, recibos automáticos, recordatorios",
+      "competitor": "Manual: fórmulas, copiar/pegar, mail uno a uno"
+    },
+    {
+      "feature": "Pase de lista por sesión",
+      "zaltyko": "Un toque desde el móvil, optimizado para pista",
+      "competitor": "No nativo; suele ser hoja aparte con check manual"
+    },
+    {
+      "feature": "Comunicación con familias",
+      "zaltyko": "Avisos, notificaciones, mensajes internos por canal",
+      "competitor": "Sin trazabilidad; mezcla con WhatsApp y email"
+    },
+    {
+      "feature": "Inscripciones a competiciones",
+      "zaltyko": "Listas por evento, niveles, cupos, lista de espera",
+      "competitor": "Manual en hoja separada"
+    },
+    {
+      "feature": "Evaluaciones técnicas",
+      "zaltyko": "Rúbricas, histórico por gimnasta, progreso por aparato",
+      "competitor": "Casillas propias; sin historial consolidado"
+    },
+    {
+      "feature": "Reportes para dirección",
+      "zaltyko": "Ocupación, morosidad, retención, asistencia",
+      "competitor": "Lo que te dé tiempo a montar a mano cada mes"
+    },
+    {
+      "feature": "Aislamiento por academia",
+      "zaltyko": "Sí, controles de acceso por rol y academia",
+      "competitor": "No aplicable: depende de quién tenga el archivo"
+    },
+    {
+      "feature": "Riesgo de error humano",
+      "zaltyko": "Bajo: cálculos automáticos, validaciones",
+      "competitor": "Alto: fórmulas rotas, versiones desactualizadas, duplicados"
+    },
+    {
+      "feature": "Específico para gimnasia",
+      "zaltyko": "Sí: niveles, aparatos, federaciones, evaluaciones",
+      "competitor": "No: lo construyes tú"
+    }
+  ],
+  "zaltykoPros": [
+    "Pensado para gimnasia artística y rítmica desde el primer día.",
+    "Cobros, asistencia y comunicación con familias en un solo sistema.",
+    "Histórico y reportes automáticos sin montar fórmulas."
+  ],
+  "zaltykoContras": [
+    "Requiere puesta en marcha (importación de gimnastas, configuración de grupos).",
+    "Plan de pago a partir de cierto volumen; Free tiene límite de 30 gimnastas.",
+    "Dependes del proveedor para cambios urgentes."
+  ],
+  "competitorPros": [
+    "Cero coste de adopción si ya lo tienes en tu equipo.",
+    "Flexibilidad total para adaptarlo a tu operación concreta.",
+    "No dependes de un proveedor externo."
+  ],
+  "competitorContras": [
+    "Sin automatización: cobros, recordatorios y reportes son manuales.",
+    "Las versiones se pierden; los datos se duplican o se borran.",
+    "Cuando la academia crece, el tiempo administrativo escala con ella."
+  ],
+  "idealForZaltyko": [
+    "Academias con más de 30 gimnastas regulares.",
+    "Operaciones con cobros mensuales a familias y morosidad recurrente.",
+    "Equipos que necesitan reportes para dirección o junta."
+  ],
+  "idealForCompetitor": [
+    "Academias muy pequeñas que aún no cobran cuotas mensuales.",
+    "Casos puntuales donde la flexibilidad puntual de una hoja basta.",
+    "Uso temporal durante una migración o prueba piloto."
+  ],
+  "faq": [
+    {
+      "q": "¿Puedo importar mis datos de Excel a Zaltyko?",
+      "a": "Sí. Zaltyko permite importar gimnastas desde CSV o Excel con un mapeo de columnas. Para familias, cobros o histórico amplio, el equipo de Zaltyko puede revisar el formato y acompañar una migración guiada."
+    },
+    {
+      "q": "¿Cuánto tarda la migración?",
+      "a": "Depende del volumen de datos y del equipo. Una academia pequeña con 50-80 gimnastas suele configurar academia, gimnastas y grupos en una sesión. Migraciones amplias se evalúan caso a caso."
+    },
+    {
+      "q": "¿Excel es una opción válida para una academia de 20 gimnastas?",
+      "a": "Si la academia no cobra cuotas mensuales y la operación es muy simple, puede bastar. El momento natural de saltar a un sistema es cuando los cobros manuales, los recordatorios por WhatsApp o los duplicados empiezan a consumir tiempo de dirección."
+    }
+  ],
+  "verdict": "Excel es una herramienta potente y gratuita, pero no es un sistema de gestión: es una herramienta de cálculo. Cuando la academia pasa cierto tamaño o necesita trazabilidad de cobros y comunicación con familias, el coste oculto de mantener todo a mano suele superar al coste del software especializado."
+}

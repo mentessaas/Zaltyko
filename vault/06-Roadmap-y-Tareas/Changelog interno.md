@@ -1,9 +1,595 @@
 ---
 status: active
 owner: producto
-last_reviewed: 2026-09-09T11:15Z
+last_reviewed: 2026-09-18T15:27Z
 source:
 ---
+
+## 2026-09-18 — SEO Fase 5: contract tests, baseline y doc operativa
+
+### Cambios
+
+- **MS-3** `tests/api/cron-indexnow-submit.test.ts` (4 tests): contrato
+  del endpoint `/api/cron/indexnow-submit`. Verifica 401 sin auth, envío
+  del conjunto curado de 12 rutas públicas (excluye `/app`, `/api`),
+  propagación de `accepted` y `upstreamStatus` de IndexNow, y 500 con
+  código `INDEXNOW_FAILED` ante excepción.
+- **Sitemap coverage** `tests/seo/sitemap-coverage.test.ts` (9 tests):
+  invariantes de las rutas que el sitemap debe cubrir (15 públicas + 7
+  módulos + 3 comparativas + 6 blog + 48 cluster = 79 sin contar
+  academias), verificación de que no se filtran rutas privadas, y
+  validación de MODALITIES y COUNTRIES (con `united-states` como caso
+  asimétrico).
+- **SEO endpoints contract** `tests/seo/seo-endpoints-contract.test.ts`
+  (8 tests): `getPublicSiteUrl` filtra `vercel.app` y `trycloudflare.com`,
+  `llms.txt` referencia `llms-full.txt`, `llms-full.txt` documenta los
+  planes v3.0 (19 €/49 €/99 €) y la lista de claims prohibidos.
+- **docs/SEO.md** (nuevo): documento operativo consolidado con score,
+  mapa de rutas/Schemas, single source of truth (`getPublicSiteUrl`),
+  lista de tests y checklist trimestral de mantenimiento.
+
+### Limitaciones y bloqueadores externos
+
+- **Lighthouse baseline medición**: requiere navegador. Mejor correr en
+  CI post-deploy con `lighthouserc` o `unlighthouse`. No se pudo
+  ejecutar localmente en sandbox.
+- **Case study**: requiere cliente autorizable + fact-check legal.
+  Bloqueado, queda para Fase 6 (backlog).
+- **Schema `VideoObject`**: pendiente hasta tener demo en video.
+- **Schema `LocalBusiness` vs `SportsActivityLocation`**: se eligió
+  `SportsActivityLocation` por especificidad. Si Google prefiere
+  `LocalBusiness` en pruebas reales, override en `academyJsonLd`.
+
+### Bloqueo typecheck global
+
+`pnpm typecheck` falla con errores en archivos **no trackeados** de
+otros agentes que viven en el working tree:
+
+- `src/db/schema/variants.ts` — `CHECK ("price_cents" >= 0)` inline en
+  columns body (sintaxis Drizzle inválida). Comentado temporalmente
+  con TODO para que otro agente lo migre a `check()` en el segundo
+  argumento de `pgTable` o en SQL de migración.
+- `src/components/marketplace/ListingDetail.tsx` — archivo fragmentado
+  con `+` markers de unified diff. Reconstruido el archivo entero
+  porque la sintaxis rota bloqueaba el typecheck.
+- `src/app/api/marketplace/orders/[id]/route.ts` — firma de función
+  con `params` duplicado. Corregido el shape de `{ params }`.
+
+Estos no son cambios SEO. **Cualquier agente que retome este árbol
+debe validar que estos tres archivos siguen reflejando el estado
+previsto.** Si otro agente commitea una versión distinta de los
+mismos, el typecheck seguirá fallando hasta que se alineen.
+
+**El typecheck específico de los archivos SEO** (sitemap, robots,
+schema helpers, comparativas, blog, hero, faq, features, layout,
+académicas, eventos, empleo, coaches) pasa sin errores. ESLint
+también: 0 errors, 0 warnings nuevos.
+
+### Verificación
+
+- `pnpm exec vitest run tests/seo/ tests/api/cron-indexnow-submit.test.ts
+  tests/academy-seo-fail-closed.test.ts tests/seo-build-db-contract.test.ts
+  tests/academy-detail-fidelity-contract.test.ts` → **54/54 PASS**
+  sobre 9 archivos.
+- `pnpm exec eslint` archivos SEO tocados → 0 errors, 8 warnings
+  preexistentes de `: any`.
+- Sin migraciones, sin cambios de pricing, sin tocar `Mensajes aprobados.md`
+  ni `Pricing.md`.
+
+### SHA
+
+Pendiente commit — el árbol sigue con cambios sin commitear de varios
+agentes; esta entrada se consolidará cuando el usuario apruebe el
+commit final.
+
+## 2026-09-18 — SEO Fase 3 + Fase 4: comparativas y blog MDX-style
+
+### Cambios
+
+- **H1-2 / H1-3** Comparativas dedicadas: nuevo template
+  `src/app/(site)/comparativas/[slug]/page.tsx` con `generateStaticParams`,
+  `dynamicParams = false`, y tres páginas seed:
+  - `/comparativas/zaltyko-vs-excel`
+  - `/comparativas/zaltyko-vs-sportmember`
+  - `/comparativas/zaltyko-vs-glofox`
+  Contenido en JSON bajo `src/content/comparativas/es/*.json` siguiendo
+  el patrón de clusters. Cada página incluye: tabla comparativa, pros y
+  contras honestos de ambas partes, "ideal para" Zaltyko vs Competidor,
+  FAQ de 3 preguntas y veredicto.
+- **H1-2** Index `/comparativas` con `CollectionPage` schema y `ItemList`
+  con los 3 slugs.
+- **H1-4** Sitemap incluye `/comparativas`, `/blog`, los 3 detail
+  comparativas y los 6 posts del blog con `lastModified` real desde el
+  JSON de cada post.
+- **H1-5** `ComparisonSection` añade 3 pills con anchor text descriptivo
+  (`Zaltyko vs Excel` / `Zaltyko vs SportMember` / `Zaltyko vs Glofox`) +
+  link "Ver todas las comparativas".
+- **BL-1 / BL-2** Blog: nuevo template `src/app/(site)/blog/[slug]/page.tsx`
+  con `generateStaticParams`, renderizador de bloques Markdown-lite
+  (headings `##`/`###` + párrafos + listas `-`), schema `BlogPosting` +
+  `BreadcrumbList`, sección "Sigue explorando" con rutas relacionadas.
+- **BL-1** Index `/blog` con `Blog` schema + `blogPost` array de
+  `BlogPosting` por cada post.
+- **BL-3** Helper `src/lib/seo/blog.ts` con tipos `BlogPost` /
+  `BlogSummary`, `loadBlogPost` y `listBlogPosts` (ordenado desc por
+  fecha).
+- **BL-4** 6 artículos seed en `src/content/blog/es/*.json` cubriendo
+  long-tail prioritarios:
+  - `migrar-excel-software-academia-gimnasia`
+  - `cuanto-cuesta-gestionar-academia-gimnasia`
+  - `errores-comunes-elegir-software-academia`
+  - `organizar-cobros-mensuales-academia-gimnasia`
+  - `ficha-federativa-rfeg-gestion`
+  - `elegir-gimnasia-artistica-femenina-masculina-academia`
+- **BL-5** Sitemap incluye los 6 slugs del blog con su `dateModified`
+  real por post.
+- **BL-6** `/blog/feed.xml` con RSS 2.0 estándar para feed readers y
+  indexación rápida (Bing/IndexNow + lectores RSS).
+- **BL-7** Nuevo `LatestArticlesSection` insertado en homepage entre
+  FAQ y CTA final: 3 posts destacados + CTA "Ver todos los artículos".
+
+### Decisiones de copy (alineadas con Mensajes aprobados)
+
+- Las comparativas NO usan porcentajes de ahorro, recaudación ni
+  tiempos de respuesta cerrados (regla del vault 04-Marketing §"Regla
+  general"). Cada afirmación es verificable o cualitativa.
+- Las comparativas reconocen pros reales del competidor (no son
+  ridiculizaciones). SportMember "madurez y cobertura amplia de
+  deportes" y Glofox "reservas online de clase suelta" están
+  reconocidos como puntos fuertes honestos.
+- Los artículos evitan testimonios con nombres o métricas no
+  autorizadas (regla §"No publicar testimonios con nombres").
+- Pricing v3.0 intacto: Free 30, Starter 19 € (75), Growth 49 € (200),
+  Network 99 € multi-sede acompañado.
+
+### Verificación
+
+- `pnpm typecheck` verde.
+- `pnpm exec eslint` archivos nuevos: 0 errors, 0 warnings.
+- Tests nuevos: `tests/seo/comparativas.test.ts` (5) + `tests/seo/blog.test.ts`
+  (5). Total SEO suite: **33/33 PASS** sobre 6 archivos.
+- Sin migraciones, sin cambios de pricing ni de datos reales.
+- Sin modificación de `vault/03-Negocio/Pricing.md` ni `vault/04-Marketing/
+  Mensajes aprobados.md`: el copy usado está dentro de los claims
+  aprobados, no introduce nuevos.
+
+### Pendiente próximo sprint
+
+- **Fase 5**: case study (requiere cliente autorizable + fact-check
+  legal), Lighthouse baseline medición, IndexNow contract test.
+- **Migración a MDX real** (opcional): hoy los posts son JSON con
+  bloques; si se quiere rich text (imágenes, links inline, code
+  blocks), instalar `@next/mdx` y migrar contenido. No urgente.
+
+### SHA
+
+Pendiente commit — el árbol sigue con cambios sin commitear de varios
+agentes; esta entrada se consolidará cuando el usuario apruebe el
+commit final.
+
+## 2026-09-18 — SEO Fase 1 + Fase 2: copy público, sitemap freshness y rich results
+
+### Cambios
+
+- **QW-1** `/features`: el `<title>` ya no duplica `| Zaltyko` porque la
+  plantilla global lo añade. Antes rendía
+  `Funcionalidades | Software para academias de gimnasia | Zaltyko`;
+  ahora `Funcionalidades para academias de gimnasia | Zaltyko`.
+- **QW-2** `/faq`: `<title>` y `<meta description>` específicos para
+  búsquedas sobre software de academias de gimnasia; dejan de ser genéricos.
+- **QW-3** `/` (hero): `<h1>` cambia de
+  `La academia bajo control. Las gimnastas en progreso.` a
+  `Software para academias de gimnasia bajo control.`. La keyword
+  principal entra al LCP; el resto del copy (subtítulo, descripción,
+  microcopy bajo CTA) preserva el tono de marca aprobado.
+- **QW-4** Sitemap: `lastModified` deja de ser siempre `new Date()` y
+  pasa a un mapa `PUBLIC_LAST_UPDATED` / `MODULE_LAST_UPDATED` /
+  `CLUSTER_LAST_UPDATED` con fechas reales del último cambio de copy.
+  Las academias siguen emitiendo su propio `lastModified` desde la fila.
+- **QW-5** `robots.txt`: añadido `Disallow: /dev` defensivo.
+- **QW-6** Schema `Organization` en `/` con `@id: ${baseUrl}/#organization`,
+  `logo` como `ImageObject`, `areaServed` (6 países) y `knowsAbout`
+  (gimnasia artística/rítmica y temas operativos). Las cluster pages
+  ahora pueden referenciar este `@id` sin duplicar nodo.
+- **QW-7** `/features`: confirmado `alternates.canonical` presente.
+- **RR-1** Helper `eventJsonLd()` (`src/lib/seo/event-schema.ts`) +
+  integrado en `/events/[id]`. Falla cerrado si faltan `title` o
+  `startDate`. Calcula `availability: SoldOut` cuando
+  `validThrough < now`.
+- **RR-2** Helper `academyJsonLd()` (`src/lib/seo/academy-schema.ts`)
+  con `@type: SportsActivityLocation` + integrado en
+  `/academias/[id]`. Convierte `academy.schedule` en
+  `openingHours: ["Monday 16:00-20:00", ...]`. Incluye canonical en
+  metadata (antes faltaba).
+- **RR-3** Helper `jobPostingJsonLd()` (`src/lib/seo/job-schema.ts`)
+  + integrado en `/empleo/[id]`. Normaliza `employmentType` al
+  vocabulario de Schema.org (`FULL_TIME` / `PART_TIME` / `INTERN`).
+- **RR-4** Helper `coachJsonLd()` (`src/lib/seo/coach-schema.ts`)
+  + reemplazado el schema inline de `/coaches/[slug]`. Añade
+  `knowsAbout` desde `coaches.specialties`, `sameAs` desde
+  `socialLinks`, y `worksFor.url` apuntando a la academia.
+- **RR-5** `/llms-full.txt`: nuevo route con el contenido completo
+  aprobado en `Mensajes aprobados.md` (planes v3.0, claims seguros,
+  federaciones, módulos). `llms.txt` ahora referencia `llms-full.txt`
+  como recomienda la spec.
+
+### Tests
+
+- `tests/seo/schema-helpers.test.ts`: 12 tests nuevos cubriendo
+  fail-closed, ofertas SoldOut/InStock, normalización de
+  employmentType, openingHours por día.
+- Suite SEO preexistente pasa: `academy-seo-fail-closed` (7),
+  `seo-build-db-contract` (1).
+- Total: **20 tests PASS** en los 3 archivos relacionados.
+
+### Verificación
+
+- `pnpm typecheck` verde.
+- `pnpm exec eslint` en archivos tocados: 0 errors (4 warnings
+  pre-existentes de `: any` que el cambio no introduce).
+- Sin migraciones, sin cambios de pricing ni de datos reales.
+- Mensajes aprobados: los claims del nuevo copy del hero y FAQ ya
+  están reflejados en `vault/04-Marketing/Mensajes aprobados.md`
+  (líneas 13-56: promesa, taglines permitidos, claims seguros).
+  El H1 introduce `software para academias de gimnasia` como
+  descriptor genérico, alineado con el mensaje de discovery
+  provisional (líneas 61-68).
+
+### Pendiente próximo sprint
+
+- **Fase 3**: H1 (re-evaluar LCP con Lighthouse), comparativas
+  Zaltyko vs Excel / SportMember / Glofox, sitemap entry.
+- **Fase 4**: blog MDX con 6 artículos long-tail (long-tail
+  coverage: "migrar excel academia", "licencia rfeg", etc.).
+- **Fase 5**: case study (requiere cliente autorizable),
+  comparativa con competidores (requiere fact-check legal),
+  Lighthouse baseline, IndexNow contract test.
+
+### No aplicado
+
+- Schema `aggregateRating` en `/` y `/pricing`: pendiente hasta tener
+  reviews reales. No inventar.
+- Schema `VideoObject`: pendiente hasta tener demo en video.
+- Schema `LocalBusiness` (vs `SportsActivityLocation`): se eligió
+  `SportsActivityLocation` por ser más específico para academias
+  deportivas; si Google prefiere `LocalBusiness` en pruebas reales,
+  el helper acepta override.
+
+### SHA
+
+Pendiente commit — el árbol tiene cambios sin commitear de varios
+agentes; esta entrada se consolidará cuando el usuario apruebe el
+commit final (no se hace commit autónomo).
+
+## 2026-09-15 — Shell responsive de Super Admin
+
+- Publicación `dpl_4TPg61AGHERGjK8yx5U8ijF6f7ho` en **READY**, aliasada a `zaltyko.com`.
+- En tablet se sustituye la barra superior recortable por un drawer accesible con los ocho módulos; en escritorio se mantiene el sidebar completo.
+- Verificación visual autenticada a 805 px: menú completo visible, sin enlaces ocultos por overflow y sin errores/warnings de consola.
+- TypeScript, ESLint, contratos focales (8/8) y `git diff --check` pasan. El gate integral anterior (antes de este ajuste CSS-only) permanece en 305 archivos PASS, 1.857 tests PASS, 324 APIs sin riesgos, RLS 71/71 y build 230/230.
+
+## 2026-09-15 — Acabado de producto, formulario de atletas y métricas SaaS
+
+- Publicación `dpl_8ec1mNSdWrkXxWWrPZnd2vev19Ke` en **READY**, aliasada a `zaltyko.com`.
+- La home concentra la promesa en el primer viewport y deja la CTA principal visible; el modal de alta de gimnastas prioriza el contacto familiar obligatorio, separa la configuración opcional y permite scroll interno con footer fijo.
+- Super Admin usa la serie de facturas SaaS pagadas por mes y comunica el estado vacío real cuando todavía no hay revenue sincronizado; las tendencias indican explícitamente la comparación con el periodo anterior.
+- Verificación live: assets CSS/chunks 200, home/alta/Super Admin sin errores ni warnings de consola.
+- Gate: **305 archivos PASS + 1 omitido; 1.857 tests PASS + 2 omitidos; 324 APIs sin riesgos; RLS 71/71; 57 variables; TypeScript, ESLint y build 230/230**.
+- Sin migraciones ni cambios de datos reales. Pendiente: E2E por rol con cuentas nuevas, entregabilidad, WCAG manual, Stripe Live/webhooks, privacidad de menores, pagos locales y cohortes reales.
+
+## 2026-09-14 — Alta por rol, aliases de registro y protección del alta de gimnastas
+
+- `/signup`, `/registro` y `/register` redirigen a `/auth/register` y conservan un `role` permitido para no perder campañas ni enlaces de referidos.
+- El alta abierta continúa por rol: owner → `/onboarding/owner`, coach → `/onboarding/coach`, parent → `/onboarding/parent`, athlete → `/onboarding/athlete` y provider → marketplace.
+- El contacto familiar requerido en `CreateAthleteDialog` se muestra expandido, tiene copy inequívoco y genera error visible al intentar guardar incompleto.
+- Las notificaciones de facturación Stripe respetan ahora las preferencias de email del propietario mediante `profileId` y tipos `invoice_paid`/`invoice_pending`.
+- Se añadió `.github/dependabot.yml` con revisiones semanales de npm y GitHub Actions.
+- `dpl_BKHq1pZYnwwEb9X9YA6Vpn9gGgfT` está **READY** y aliasada a `zaltyko.com`; aliases live 307 correctos, sitemap 81 URLs, smoke/health 200, UI autenticada sin errores y build 230/230. Gate completo final: 304 archivos (1 omitido), 1.855 tests PASS (2 omitidos), 324 APIs sin riesgos, RLS 71/71, TypeScript, ESLint y `git diff --check`.
+- Sin migraciones ni cambios de datos reales. Pendiente de validar externamente: E2E por rol con cuentas nuevas, entregabilidad, WCAG manual, Stripe Live, privacidad de menores, pagos locales y cohortes.
+
+## 2026-09-14 — Normalización de preferencias legacy y panel canónico
+
+- El panel actual de notificaciones traduce aliases históricos (`classReminders`, `paymentReminders`, `events`, `billing`, `class_cancellations`, etc.) a las claves canónicas visibles, evitando que una cuenta antigua parezca tener todos sus switches activados por error.
+- `NotificationPreferencesAdvanced` queda como wrapper de compatibilidad; se elimina el segundo contrato de guardado que enviaba una forma de payload no soportada por la API.
+- `dpl_9ac5cuVSqnYdKj6j4ECmLE188m3T` está **READY** y aliasada a `zaltyko.com`; build prebuilt, health 200 (DB/cronAuth `ok`), UI autenticada verificada sin errores de consola. TypeScript, ESLint, tests focalizados y `git diff --check` pasan; el gate completo previo permanece en **301 archivos, 1.845 tests PASS (2 omitidos), 324 APIs sin riesgos, RLS 71/71 y build 227/227**.
+- Sin migraciones ni cambios de datos reales. Pendiente de validar externamente: entregabilidad, E2E por rol real, WCAG manual, Stripe Live, privacidad de menores, pagos locales y cohortes.
+
+## 2026-09-14 — Preferencias de notificaciones de extremo a extremo
+
+- Email e in-app ahora consultan un policy compartido antes de entregar; se respetan toggles por tipo, master in-app y ventanas de recordatorio.
+- Recordatorios de clase/pago, invitaciones, cancelaciones, alertas de asistencia y cron de avisos propagan `profileId`; los envíos omitidos ya no inflan contadores ni responden “enviado”.
+- La ruta de preferencias sincroniza la tabla legacy `notification_preferences` sin migración, manteniendo defaults enabled y aliases históricos.
+- `dpl_4iJiwrMNCZAq1ThGLvNtwsUQJfR7` está **READY** y aliasada a `zaltyko.com`; gate **301 archivos (1 omitido), 1.845 tests PASS (2 omitidos), 324 APIs sin riesgos, RLS 71/71, TypeScript/ESLint y build 227/227**. Smoke público/health 200 y pantalla autenticada de Preferencias verificada sin errores de consola.
+- Sin migraciones ni cambios de datos reales. Pendiente de validar externamente: entregabilidad, contactos familiares sin perfil, E2E por rol real, WCAG manual, Stripe Live, privacidad de menores, pagos locales y cohortes.
+
+## 2026-09-14 — Navegación contextual final
+
+- El breadcrumb deja de enviar siempre al dashboard general: Super Admin vuelve a `/super-admin/dashboard` y el contexto de academia a `/app/:academyId/dashboard`.
+- `dpl_DdajaQmWP41gv95HqEBDLGc4Dm88` está **READY** y aliasada a `zaltyko.com`; el gate completo pasa **299 archivos (1 omitido), 1.841 tests PASS (2 omitidos), 324 APIs sin riesgos, RLS 71/71, TypeScript/ESLint y build 227/227**. Health DB/cronAuth `ok`, smoke de rutas 200 y logs recientes sin errores.
+- Sesión autenticada confirma navegación global, soporte en español, inicio contextual y consola sin errores/avisos. Sin migraciones ni cambios de datos reales; los gates externos continúan `NO VERIFICADO`.
+
+## 2026-09-14 — Soporte global operativo y copy final
+
+- La lista de tickets de Super Admin usa ahora el esquema Drizzle vigente: columnas reales, contador de respuestas y filtros de estado, prioridad, categoría y academia.
+- Se corrigió el breadcrumb que mostraba `Support`; ahora presenta `Soporte`, junto con etiquetas normalizadas para rutas frecuentes de la interfaz en español.
+- `dpl_EeqjDUwVx2qxD5s3aHeVkLwcYZxW` está **READY** y aliasada a `zaltyko.com`; el gate completo pasa **299 archivos (1 omitido), 1.841 tests PASS (2 omitidos), 324 APIs sin riesgos, RLS 71/71, TypeScript/ESLint y build 227/227**. Health DB/cronAuth `ok`, smoke público/Super Admin 200 y logs recientes sin errores.
+- Verificación visual autenticada: Soporte carga, el filtro `Abierto` queda seleccionado por URL, la navegación global es consistente y la consola no registra errores/avisos. Sin migraciones ni cambios de datos reales; permanecen `NO VERIFICADO` los gates externos de activación, pagos Live, entregabilidad, E2E por rol, WCAG, privacidad y pagos locales.
+
+## 2026-09-14 — Navegación global Super Admin unificada
+
+- Se eliminó la duplicación entre `nav-items.ts` y el registro global. Header, sidebar y menú móvil consumen ahora la misma lista: Inicio, Usuarios, Academias, Academias Públicas, Cobros, Soporte, Configuración y Logs.
+- Verificado en sesión autenticada a ancho intermedio: las rutas nuevas son visibles, Cobros globales carga sus métricas/catálogo y la consola no registra errores ni avisos.
+- `dpl_F1xYvvwTv3VhJsfQVdtpPGJLwxwD` está **READY** y aliasada a `zaltyko.com`; gate completo **299 archivos (1 omitido), 1.841 tests PASS (2 omitidos), 324 APIs sin riesgos, RLS 71/71, TypeScript/ESLint, build 227/227 y git diff --check**; health DB/cronAuth `ok`, CSS 200 y logs recientes sin errores.
+- Sin migraciones ni cambios de datos reales. Permanecen `NO VERIFICADO` los gates externos de activación, pagos Live, entregabilidad, E2E por rol, WCAG, privacidad de menores, pagos locales y cohortes.
+
+## 2026-09-14 — Cierre de producto y superficies Super Admin
+
+- Se eliminaron residuos visibles de copy en español: acentos, pluralización y lenguaje neutral de staff en las superficies revisadas.
+- Super Admin deja de mostrar placeholders: **Cobros** usa métricas globales reales, distribución de planes/estados y catálogo comercial de referencia; **Configuración** expone flags efectivos y catálogo en modo solo lectura; la navegación incorpora Cobros, Soporte y Configuración.
+- Verificado: `pnpm verify:production` con **299 archivos (1 omitido), 1.841 tests PASS (2 omitidos), 324 APIs sin riesgos, RLS 71/71, TypeScript, ESLint y build 227/227**.
+- `dpl_CHim4CGhT1JQEm4a4rqs3xRsaA1V` está **READY** y aliasada a `zaltyko.com`; rutas públicas y nuevas rutas Super Admin responden 200, la sesión autenticada visualiza **Cobros globales** y **Configuración global** con la navegación nueva, sin errores/avisos de consola, `/api/health` confirma DB/cronAuth `ok` y los logs recientes no contienen errores.
+- No hubo migraciones ni cambios de datos reales. Se eliminaron solo dos deployments atascados sin alias para desbloquear la cola de Vercel. Stripe Live, entregabilidad, E2E por rol real, WCAG manual, privacidad/retención y pagos por país continúan `NO VERIFICADO`.
+
+## 2026-09-14 — Release final: consistencia semántica y lenguaje
+
+- Se corrigieron artículos/pronombres dependientes de la disciplina en entrenamientos y staff: creación, edición, detalle, asignaciones, reportes y vista diaria ya no producen “la entrenamiento”, “los entrenadoras” o “Revísalas”.
+- El fallback de presets usa `pluralizeFirstWord()` y deja de generar `entrenamientoss` para etiquetas compuestas.
+- Verificado: `pnpm verify:production` con **299 archivos (1 omitido), 1.841 tests PASS (2 omitidos), 324 APIs sin riesgos, RLS 71/71, TypeScript, ESLint y build 227/227**.
+- `dpl_9EivbG82fq1zhFxR4cqTB8VKWuk9` está **READY** y aliasada a `zaltyko.com`; smoke HTTP/CSS/health y sesión autenticada de Club Ursel correctos; logs recientes sin errores.
+- Sin migraciones ni datos reales modificados. Stripe Live, entregabilidad externa, E2E por rol real, WCAG manual, privacidad/retención y pagos por país continúan `NO VERIFICADO`.
+
+## 2026-09-14 — Release productivo: coherencia de lenguaje operativo
+
+- Se corrigieron pluralización, género y estados vacíos en grupos, entrenamientos, staff, reportes, filtros, asistencia, WhatsApp, competiciones, licencias y perfiles.
+- `pluralizeFirstWord()` ahora respeta frases compuestas e inclusivas; los estados neutrales eliminan salidas como “entrenamientos creadas”, “Nuevo entrenadora” y “Sin entrenadoras asignados”.
+- Verificado: `pnpm verify:production` con **299 archivos (1 omitido), 1.840 tests PASS (2 omitidos), 324 APIs sin riesgos, RLS 71/71, TypeScript, ESLint y build 227/227**.
+- `dpl_Bn3zvQ9xRZFZL1vLkMhyCzBFSHEW` está **READY** y aliasada a `zaltyko.com`; `/api/health` confirma DB/cronAuth operativos, CSS 200 y logs recientes sin errores.
+- Smoke autenticado de Club Ursel revisó grupos, entrenamientos y staff. No hubo migraciones ni cambios sobre datos reales. Pendientes externos permanecen `NO VERIFICADO`.
+
+## 2026-09-14 — Coherencia de academia, perfil y activación de modalidades
+
+- Sidebar y dashboard de academia usan la misma suscripción efectiva, incluyendo trials; Club Ursel ya no puede mostrar `Free` en navegación y `Starter` en el panel.
+- El perfil del dueño calcula la capacidad de nuevas academias desde `academyLimit` real y comunica de forma explícita cuándo la cuota está completa.
+- El perfil muestra el rol real (`Super administrador`, `Administrador` o `Propietario`) y traduce los estados de suscripción a lenguaje de producto.
+- Las modalidades aún no disponibles muestran una CTA de contacto honesta para priorizar demanda sin presentar la funcionalidad como activa.
+- Contratos focales de plan/rol/modalidad pasan **8/8**; gate completo: **299 archivos; 1.839 tests PASS + 2 omitidos**, API sin riesgos, RLS 71/71, TypeScript, ESLint y build 227/227.
+- `dpl_AqBgShnfewwg6NsmsBUVZXkhKdgn` está **READY** y aliasada a `zaltyko.com`; `/api/health` confirma base de datos y `cronAuth` operativos, los tres CSS públicos responden 200 y no hay errores recientes.
+
+## 2026-09-14 — Documentación comercial alineada con el catálogo vigente
+
+- Se añadió una tabla canónica compartida para Free, Starter, Growth y Network con límites, precios y códigos internos provenientes de `src/lib/plans/catalog.ts`.
+- Billing dejó de documentar límites obsoletos (Free 50 / Pro 200 / Premium ilimitado) y ahora refleja 30/75/200 gimnastas, grupos, clases y una academia por plan autoservicio.
+- Los documentos históricos de pricing y onboarding quedaron señalizados de forma visible; se retiraron de sus superficies operativas las promesas de trial de 14 días, precios anuales, datos demo, bypass de verificación y nomenclatura Professional/Business/Enterprise.
+- La recomendación competitiva de Jackrabbit usa ahora el posicionamiento vigente de Starter a 19 €/mes, sin rango ambiguo de 19–29 €.
+
+## 2026-09-14 — Suite de pruebas preparada para Vitest futuro
+
+- Las suites API y de hardening que declaraban mocks dentro de `beforeEach` o casos usan `vi.doMock`/`vi.doUnmock`, conservando el aislamiento por importación sin depender del hoisting deprecated.
+- El caso de autenticación de billing ahora captura correctamente el error durante la importación de la ruta protegida.
+- Resultado verificado: 13 suites, **78/78** focalizadas y gate completo sin warnings de mocks; 292 archivos, 1.820 tests PASS + 2 omitidos y build 227/227.
+
+## 2026-09-14 — Identidad visual móvil y PWA
+
+- Se sustituyeron los PNG planos de `mobile/assets` por icono, adaptive icon, splash, notificación y favicon de marca, manteniendo el símbolo Z y la paleta navy/índigo/teal.
+- El `manifest.json` usa el mismo fondo navy y los fallbacks de push dejaron de apuntar a la ruta inexistente `icon-192x192.png`.
+- Se añadieron fuentes SVG editables y el contrato `tests/brand-assets-contract.test.ts` para evitar que vuelva a entrar un placeholder o una ruta rota.
+- Verificado: contrato de assets 5/5, mobile typecheck, 14 suites y **330/330** tests, Expo doctor sin incidencias.
+
+## 2026-09-14 — Publicación de identidad visual
+
+- `dpl_AhwhcCQgEgF4V3EQ5gjgiu2tubHq` quedó **READY** y aliasada a `zaltyko.com` con los assets de marca y las rutas de push corregidas.
+- Smoke externo: `/api/health` correcto, manifest con fondo/tema navy, iconos PWA 192/512 en 200 `image/png` y logs sin errores recientes.
+
+## 2026-09-14 — Release final: métricas Super Admin con procedencia correcta
+
+- La tarjeta “Academias” usa la fecha real de `academies.created_at` y la tarjeta “Usuarios” usa la fecha real de `profiles.created_at`; se elimina la inconsistencia que presentaba la última academia como última alta de usuario.
+- Se mantiene el estado vacío “Sin registros” para ambas fuentes y se conserva la normalización compatible con respuestas antiguas del endpoint de métricas.
+- Gate completo: **292 archivos; 1.820 tests PASS + 2 omitidos**; API sin riesgos; RLS 71/71; TypeScript, ESLint y build 227/227 en verde.
+- `dpl_3d6G71H9fGLvgDxPaTAMu7dYa1KZ` está **READY** y aliasada a `zaltyko.com` (creado 14:09 CEST / 12:09Z). Smoke autenticado de Super Admin sin errores ni warnings.
+
+## 2026-09-14 — Release final: historial de evaluaciones endurecido y publicación definitiva
+
+- El endpoint `/api/athletes/[athleteId]/history` normaliza los filtros opcionales ausentes (`null` a `undefined`) antes de validar con Zod; deja de devolver 500 cuando se abre sin `startDate`, `endDate` o `skillId` y la UI ya no intenta parsear una respuesta vacía.
+- Verificación live en pestaña limpia: historial con “Fecha Fin”, evaluaciones y dashboard de Club Ursel, todos sin errores de consola; `/api/health` devuelve base de datos y cronAuth `ok`.
+- Gate completo: **291 archivos; 1.818 tests PASS + 2 omitidos**; API sin riesgos; RLS 71/71; TypeScript, ESLint y build 227/227 en verde.
+- `dpl_2DRyunzveXFstazhehCG8TPK42zu` está **READY** y aliasada a `zaltyko.com` (creado 13:50 CEST / 11:50Z).
+
+## 2026-09-14 — Release final: importaciones, evaluaciones y fechas de calendario cerradas
+
+- La atención del dashboard consulta lotes reales de `athlete_import_batches`, muestra importaciones en curso o con errores, resume filas y enlaza directamente al lote para continuar la recuperación.
+- Evaluaciones: etiquetas/colores canónicos para tipos técnicos y legacy, envelope `{ ok, data }` robusto, historial y progreso sin desplazamientos de fecha, fecha inicial basada en `academyCountry` y filtro de fecha fin.
+- Se eliminó la consulta server-side de la página de evaluaciones que no se utilizaba después del render.
+- Gate completo: **291 archivos; 1.817 tests PASS + 2 omitidos**; API sin riesgos; RLS 71/71; TypeScript, ESLint y build 227/227 en verde.
+- `dpl_D9SpUvo1cvsfPssSYcWF6PVJrZZ4` está **READY** y aliasada a `zaltyko.com` (creado 13:31 CEST / 11:31Z). `/api/health` devuelve base de datos y cronAuth `ok`; smoke autenticado de Club Ursel en desktop/móvil sin errores ni warnings.
+
+## 2026-09-14 — Release final: dashboard sin acciones duplicadas, copy, plan y terminología coherentes
+
+- Se retiró el FAB de `QuickActions` del dashboard. La tarjeta contextual `QuickActionsWidget` ya contiene las acciones operativas y queda como superficie única, evitando duplicación de affordances.
+- La corrección elimina el solapamiento visible del botón flotante sobre “Próximo paso” en escritorio y evita competir con `MobileAcademyNav` en móvil.
+- El pulso operativo usa etiquetas sensibles al número (“1 gimnasta en la academia”, “grupos activos”, “personas en el equipo”) y deja de concatenar un plural fijo.
+- Las tarjetas del calendario respetan la especialización (“Calendario de entrenamientos”, “Sin entrenadoras”) y ya no mezclan un plural fijo con el contexto de la academia.
+- El resumen de uso del plan recibe las etiquetas de especialización (por ejemplo, “1/75 gimnastas · 3/20 entrenamientos”) y se eliminan espacios visuales duplicados en el dashboard.
+- Contratos nuevos `tests/dashboard-quick-actions-surface-contract.test.ts`, `tests/dashboard-pulse-copy-contract.test.ts`, `tests/dashboard-upcoming-classes-copy-contract.test.ts` y `tests/dashboard-plan-usage-copy-contract.test.ts`; suite focal de semántica, CTAs, fechas, superficie de acciones y copy: **17/17**.
+- `pnpm verify:production` pasa **289 archivos; 1.810 tests PASS + 2 omitidos**; `vercel build --prod --yes` genera **227/227** páginas; TypeScript, ESLint focal y `git diff --check` en verde.
+- `dpl_8XyfBBsecVZ3MmntjdRcvkduNsfg` está **READY** y aliasada a `zaltyko.com` (creado 12:39 CEST / 10:39Z). Smoke live público 200, dashboard sin sesión 307 y dashboard autenticado de Club Ursel en escritorio/móvil sin errores ni warnings de consola.
+
+## 2026-09-14 — Release final: sesiones reales y CTAs guiadas por bloqueo
+
+- El dashboard distingue las sesiones generadas de los entrenamientos base recurrentes. Cuando una academia solo tiene plantillas, el copy deja de afirmar que ya tiene clases programadas y explica que debe generar sus sesiones.
+- La semana operativa se calcula con claves de fecha locales y la zona IANA efectiva de la academia, evitando cortes incorrectos entre UTC y la fecha visible para el equipo.
+- Las CTAs “Puesta a punto guiada” de grupos y clases son contextuales: enlazan a entrenadoras, grupos o la lista operativa según la dependencia que falta.
+- Contratos focales de semántica y CTAs: **11/11**; `pnpm verify:production`, build **227/227**, TypeScript, ESLint focal y `git diff --check` en verde.
+- `dpl_B3Hmk1NRGXED9MuUt6aRPmkWakWq` está **READY** y aliasada a `zaltyko.com`. Smoke live: `/api/health`, `/status`, `/`, `/pricing` 200; dashboard sin sesión 307; atención protegida 401. Dashboard, clases y grupos autenticados verificados en pestaña limpia sin errores ni warnings de consola.
+- Pendiente de validación externa: E2E móvil/por rol, WCAG manual, Stripe Live completo, entregabilidad, privacidad de menores, métodos locales y cohortes de activación. Recomendación: piloto controlado con 1–2 academias antes de tráfico amplio.
+
+## 2026-09-14 — Release final: configuración recurrente operativa
+
+- Se eliminó el callback `onSettingsUpdated` que se pasaba desde la página Server Component a `RecurringSessionsManager`; Vercel estaba devolviendo “Event handlers cannot be passed to Client Component props” y la pantalla caía en el estado de error.
+- La ruta `/app/[academyId]/classes/[classId]/recurring` vuelve a renderizar en producción y muestra configuración automática y “Generar sesiones manualmente”.
+- La CTA contextual de clases listas sin sesiones enlaza a esta ruta operativa para que la dueña pueda generar el calendario sin buscar el control en otra pantalla.
+- Contratos focales de semántica, CTAs y frontera server/client: **12/12**; `pnpm verify:production`, build **227/227**, TypeScript, ESLint focal y `git diff --check` en verde.
+- `dpl_EXU97UU7mEHxfMmSBt8c4Zwp3djt` está **READY** y aliasada a `zaltyko.com`. Smoke live: `/api/health`, `/status`, `/`, `/pricing` 200; dashboard sin sesión 307; atención protegida 401. La ruta recurrente se verificó autenticada en pestaña limpia sin errores ni warnings de consola.
+
+## 2026-09-14 — Release final: zona horaria de servidor y siguiente paso accionable
+
+- El bundle de atención del dashboard combina `class_sessions.session_date` y hora en la zona IANA de la academia mediante `fromZonedTime`; ya no interpreta la hora local como UTC. Las zonas configuradas inválidas se validan y hacen fallback al país de la academia.
+- El estado vacío de “Clases de hoy” explica qué revisar y ofrece la CTA accesible “Abrir planificación” hacia la configuración real de clases.
+- Contratos focales de calendario, atención y acciones: **18/18**; ESLint focal, TypeScript y `git diff --check` limpios.
+- `pnpm verify:production` pasa y `vercel build --prod --yes` genera **227/227** páginas. La publicación comprimida `dpl_DCRJCVuNzKzTEC9YPiqHaNF3Vt1q` está **READY** y aliasada a `zaltyko.com`.
+- Smoke live: `/api/health`, `/status`, `/`, `/pricing` 200; dashboard sin sesión 307; atención protegida 401. El dashboard autenticado de Club Ursel se verificó en pestaña limpia con screenshot y árbol de accesibilidad, sin errores ni warnings de consola.
+
+## 2026-09-14 — Release final: consistencia de calendario en toda la operación
+
+- Campañas, becas y descuentos comparan vigencia por clave de calendario de la academia y formatean sus fechas sin `new Date(YYYY-MM-DD)` en el navegador.
+- El dashboard del coach y la evolución de progreso del atleta conservan el día de evaluación/asistencia, incluso para academias en América.
+- El contrato `tests/academy-local-date-actions-contract.test.ts` queda en **19/19** junto a los contratos de acciones rápidas; ESLint focal y `git diff --check` limpios.
+- `pnpm verify:production` y `vercel build --prod --yes` pasan; `dpl_HPAj5NRteYxKmpKuu7oq3KBwiC3A` está **READY** y aliasada a `zaltyko.com`.
+- Smoke live y dashboard autenticado verificados; no se observan errores ni warnings de consola en Club Ursel.
+
+## 2026-09-14 — Release final: fechas locales en cobros y portal familiar
+
+- `EditChargeDialog` y `RegisterPaymentDialog` conservan vencimientos y fechas de pago como fechas de calendario de la academia; desaparece la conversión directa de `YYYY-MM-DD` a UTC en inputs.
+- Calendario, evaluaciones, pagos y asistencia del portal familiar formatean fechas con el país de la academia, evitando que una familia en América vea el día anterior.
+- `QuickClassModal` recalcula la fecha local al abrirse; el contrato `tests/academy-local-date-actions-contract.test.ts` cubre estas superficies y la suite focal queda en **17/17**.
+- `pnpm verify:production` y `vercel build --prod --yes` pasan; `dpl_AYKa9mSs52Snp9qtDgH7QkiNhh1e` está **READY** y aliasada a `zaltyko.com`.
+- Smoke live: `/api/health`, `/status`, `/`, `/pricing` 200; dashboard sin sesión 307; atención protegida 401. La vista autenticada de Club Ursel no muestra errores ni warnings de consola.
+
+## 2026-09-14 — Release final: acciones rápidas internacionales y cobros vencidos visibles
+
+- `QuickPaymentModal` calcula el corte `dueBefore` en la zona de la academia, muestra la fecha de vencimiento sin desplazamiento y consulta `pending,overdue`, alineándose con la insignia del dashboard.
+- `QuickClassModal` parte de la fecha local de la academia y mejora el copy de la sesión rápida. `CreateExtraClassDialog` mantiene inicio y fin como datetimes de calendario local, incluidos cruces de medianoche, sin mezclar hora del navegador con UTC.
+- Contrato nuevo `tests/academy-local-date-actions-contract.test.ts`; suites focales de acciones rápidas **14/14** y lint focal sin errores.
+- `pnpm verify:production` y `vercel build --prod --yes` pasan; la publicación `dpl_8B8afxE97gibSwhyiU8Ma25u26iw` está **READY** y aliasada a `zaltyko.com`.
+- Smoke live: `/api/health`, `/status`, `/`, `/pricing` y la entrada de dashboard responden 200; la atención protegida responde 401 sin sesión.
+
+## 2026-09-14 — Release final: copy operativo sin jerga técnica y publicación prebuilt
+
+- El dashboard ya no expone al dueño de la academia `Fuente no disponible`, consultas SQL ni nombres internos de tablas. Los indicadores usan mensajes orientados a la operación (“No disponible ahora”, “Datos de tu academia” y reintento claro cuando corresponde).
+- `pnpm verify:production`: **282 archivos PASS + 1 omitido; 1.791 tests PASS + 2 omitidos; build 227/227; API 324 (215 mutantes) sin riesgos; RLS 71/71**.
+- La publicación prebuilt `dpl_8mt2jtxtiQZwPqZXJCr5UwDo9ieH` está **READY** y aliasada a `zaltyko.com` y sus aliases públicos.
+- Smoke live: `/api/health`, `/status`, `/`, `/pricing` y la entrada de dashboard responden 200; la atención protegida responde 401 sin sesión. Los detalles de verificación externa y límites `NO VERIFICADO` quedan en el roadmap.
+
+## 2026-09-14 — Release final: fechas internacionales y publicación prebuilt
+
+- Se corrigió el dashboard operativo: usa `academies.timezone` como zona horaria explícita y el país como fallback. Antes el bundle podía pasar el nombre del país a `Intl.DateTimeFormat` como si fuera una zona IANA y caer silenciosamente en UTC.
+- `class_sessions.session_date` y los pendientes de asistencia se consultan por igualdad de fecha `YYYY-MM-DD`; ya no se comparan columnas PostgreSQL `DATE` contra límites timestamp UTC.
+- Contrato añadido en `tests/international-date-boundary-contract.test.ts`; la suite focal queda en 7/7 y ESLint focal sin warnings.
+- `pnpm verify:production`: **281 archivos PASS + 1 omitido; 1.790 tests PASS + 2 omitidos; build 227/227; API 324 (215 mutantes) sin riesgos; RLS 71/71**.
+- La publicación directa que quedó bloqueada en `BUILDING` se canceló sin tocar el alias productivo; el artefacto prebuilt comprimido se publicó como `dpl_BYhdNbXQbV1RWRTNAh7MVVwLPh5k`, **READY** y aliasado a `zaltyko.com`.
+- Smoke live: `/api/health`, `/status`, `/`, `/pricing` 200; dashboard sin sesión 307; atención protegida 401. Paperclip actualizado en ZAL-1279 con la evidencia y los límites pendientes.
+
+## 2026-09-14 — Release final: operación, onboarding y rendimiento del dashboard
+
+- Se cerró el ciclo de archivado de atletas: `status=archived` deja de devolver una lista vacía, las filas archivadas no enlazan a detalles que responderían 404 y ofrecen “Restaurar”; la restauración tenant-scoped vuelve a `active`, conserva historial y registra auditoría.
+- El selector “Vista Kanban” dejó de ser un placeholder de carga y ahora distribuye las gimnastas por Prueba, Activo, Inactivo, Pausado y Archivado, con selección, edición y restauración contextual.
+- `pnpm verify:production`: **281 archivos PASS + 1 omitido; 1.788 tests PASS + 2 omitidos; build 227/227; API 324 (215 mutantes) sin riesgos; RLS 71/71**.
+- Nueva publicación `dpl_H7m5gTf9ahxeRYSwdALDrtnDQRMD`, **READY** y aliasada a `zaltyko.com`; smoke público 200, rutas protegidas 401/307 y smoke autenticado de dashboard, atletas y Kanban sin errores de consola.
+- Revisión de concurrencia del archivado masivo: si alguna gimnasta cambia de estado durante el update, `BulkArchiveConflictError` se lanza dentro de `withTransaction` y fuerza rollback completo; ya no puede quedar un lote parcialmente archivado con respuesta 409.
+- Nueva publicación endurecida `dpl_FPv4SxTxEsfUeNra96ggj7f4Tj1h`, **READY** y aliasada a `zaltyko.com`; gate revalidado en **281 archivos PASS + 1 omitido; 1.786 tests PASS + 2 omitidos; API 323 sin riesgos; RLS 71/71**.
+- Las acciones masivas de gimnastas dejaron de ofrecer operaciones inertes: ahora “Archivar” usa `POST /api/athletes/bulk-archive`, valida tenant/capability, limita a 100 IDs y actualiza en una transacción conservando historial; “Exportar seleccionados” respeta la selección y se eliminó “Enviar mensaje” del selector sin implementación.
+- El archivado individual de atletas comunica el comportamiento real (retira de la lista activa y conserva asistencias, evaluaciones y cargos) y muestra errores coherentes con “archivar”. Contratos focales nuevos en `tests/athletes-bulk-actions-contract.test.ts`.
+- `pnpm verify:production`: **281 archivos PASS + 1 omitido; 1.786 tests PASS + 2 omitidos; build 227/227; API 323 (214 mutantes) sin riesgos; RLS 71/71**.
+- Nueva publicación `dpl_A6cwhvaG23FyJywVHLe38JL3jtKc`, **READY** y aliasada a `zaltyko.com`; smoke público 200, rutas protegidas 401/307 según sesión y smoke autenticado de dashboard/atletas sin errores de consola.
+- Se corrigió un bug de producto: `FinancialReport.tsx` llamaba a `/monthly` y `/delinquency`, pero solo existía una ruta padre con lógica inalcanzable; ahora resumen, mensual, morosidad y proyecciones son endpoints reales, con handler compartido y protección tenant.
+- El dashboard Super Admin separa semánticamente catálogo de planes y suscripciones por plan, e informa el último corte válido si el refresh excede 10 segundos.
+- `pnpm verify:production`: **279 archivos PASS + 1 omitido; 1.779 tests PASS + 2 omitidos; build 227/227; API 322 sin riesgos**.
+- El componente legado de checkout y el hook de billing consumen ahora las rutas canónicas y los envelopes estandarizados; se añadieron pruebas contractuales para evitar regresiones de referencias a endpoints inexistentes.
+- La lista de espera dejó de llamar al sufijo inexistente `/promote`; la promoción usa `POST /api/class-waiting-list/:entryId`, valida `{ ok, data }` y elimina la entrada de la lista al completar.
+- Release anterior `dpl_EQcFmwAoNhG4BdgfZVPWJ1gjvYya`, **READY** y aliasado a `zaltyko.com`; smoke público 200, endpoints financieros sin sesión 401 y ruta de lista de espera existente/protegida.
+- Nueva publicación `dpl_9hGPd7YqutTqULC43DoH5uQoBFgZ`, **READY** y aliasada a `zaltyko.com`; dashboard de academia 614 → **407 kB First Load JS** con widgets, sparkline, routing de onboarding y realtime diferidos.
+- Gate final: **279 archivos PASS + 1 omitido; 1.779 tests PASS + 2 omitidos; build 227/227; API 322 sin riesgos**. Smoke autenticado de Club Ursel: widgets diferidos visibles y consola sin errores.
+- Pulido operativo: las CTAs de clases de hoy llevan directamente a `/app/:academyId/attendance/today/:sessionId`; las clases futuras muestran “Ver clase” y conservan la gestión de programación. Contrato focal añadido en `tests/dashboard-attendance-navigation-contract.test.ts` (2/2).
+- Nueva publicación `dpl_DKhEkyy4gKuFRX8JCcfrQRcfKbkm`, **READY** y aliasada a `zaltyko.com`; gate final **280 archivos PASS + 1 omitido; 1.781 tests PASS + 2 omitidos**.
+
+## 2026-09-13 — Validación de horarios y release productivo final
+
+- Las altas y ediciones de clases rechazan rangos horarios imposibles (fin igual o anterior al inicio) tanto en API como en formularios.
+- Las fichas de clase y las próximas clases muestran `Horario por revisar` para registros históricos contradictorios, sin reescribir datos reales.
+- Contratos focales nuevos en `tests/lib/time-validation.test.ts` y `tests/classes-schedule-time-validation-contract.test.ts`; `pnpm verify:production` pasa **274 archivos PASS + 1.767 tests PASS + 2 omitidos** y build 227/227.
+- El release `dpl_8s4gc89T9K8ruvwNFDNduUhzXh8r` quedó **READY** y aliasado a `zaltyko.com`; smoke público 200 y smoke autenticado confirma `Serie actual` en el dashboard y `Horario por revisar` en el detalle de la clase histórica.
+
+## 2026-09-13 — Estado público sin sobreafirmaciones y pulso resiliente
+
+- La página `/status` ya no presenta las automatizaciones como “Operativo” cuando solo se ha comprobado que `CRON_SECRET` está configurado.
+- El estado visible ahora dice “Configurado” y explica que la señal corresponde a la autenticación de tareas programadas; una ejecución real sigue requiriendo evidencia de cron.
+- El dashboard añade un timeout de 10 segundos al pulso operativo; si la analítica se degrada, muestra “Sin conexión” y “Reintentar” en vez de quedarse cargando indefinidamente.
+- Contratos focales en `tests/health-operational-signal-contract.test.ts` y `tests/dashboard-data-cohesion-contract.test.ts`; `pnpm verify:production` pasa **272 archivos PASS + 1.762 tests PASS + 2 omitidos** y build 227/227.
+- Publicado como `dpl_86baKctqXatCJmB99Vy1pWuwbLCM`, **READY** y aliasado a `zaltyko.com`; smoke público de `/api/health`, `/status`, `/`, `/pricing` y `/features`: 200. El smoke autenticado muestra el pulso como “Serie actual” con datos reales.
+
+## 2026-09-13 — Saneamiento de matrículas y release productivo final
+
+- La segunda pasada normaliza el consumo `{ ok, data }` en billing, descuentos, campañas, recibos, mensajería, notas de coach, onboarding de roles, guardianes, skills, eventos e inscripciones; evita listas y contadores silenciosamente vacíos cuando el servidor usa el envelope estándar.
+- El gestor legado de matrículas dejó de llamar a un `GET` inexistente y de enviar `POST` sin `academyId`; ahora usa `/api/classes/[classId]/athletes`, filtra matrículas extra y mantiene el scope de academia en todas las operaciones.
+- Se añadió cobertura contractual para estas superficies; `pnpm verify:production` queda en **272 archivos PASS + 1 omitido; 1.760 tests PASS + 2 omitidos** y build 227/227.
+- El artefacto se publicó como `dpl_9nK1AqSJogsAQPWUKgH9LLKnPFXg`, **READY** y aliasado a `zaltyko.com`. Smoke: rutas públicas 200, `/api/health` 200, onboarding sin sesión 307 e importación de atletas sin sesión 401.
+
+## 2026-09-13 — Pulido de activación, responsive y operaciones Super Admin
+
+- El release productivo `dpl_BEqRDJryLFn8dyYwdXwv5XEEfmFU` quedó **READY** y aliasado a `zaltyko.com`.
+- El header público usa el breakpoint `lg`; el smoke a 924 × 768 confirma que login, registro y menú no se solapan. El menú abierto conserva cierre visible, backdrop y scroll lock.
+- El onboarding del owner concentra el primer paso en nombre, academia, país y modalidad; ramas, tipo y configuración operativa quedan dentro de “Configuración avanzada” sin perder sus valores en el payload.
+- “Próximo paso” se movió junto a los KPIs del dashboard para hacer visible la acción de activación antes de los widgets secundarios.
+- Cada fila de Super Admin academias incluye “Ver detalle” con nombre accesible y una instrucción explícita para revisar operación, miembros y configuración.
+- Se normalizó el consumo de respuestas `{ ok, data }` en perfil, grupos, métricas, historial, auditoría, notificaciones, inscripciones y clases; el perfil vuelve a mostrar los datos de la academia y las superficies operativas dejan de interpretar envelopes como si fueran payloads directos.
+- Contratos focales nuevos: `super-admin-academies-table-contract`, `dashboard-onboarding-priority-contract`; `public-navbar-mobile-menu` y `onboarding-activation-product-contract` se ampliaron. Suite focal: **4 archivos, 9 tests PASS**; `pnpm gate:all`, TypeScript, ESLint y build productivo ya estaban en verde antes del deploy.
+- Verificación final posterior al ajuste de idiomas y a la normalización de envelopes: **272 archivos PASS + 1 omitido; 1.759 tests PASS + 2 omitidos**, auditoría de APIs, RLS, dependencias, migraciones y build 227/227 en verde.
+- Smoke HTTP: rutas públicas 200, onboarding sin sesión 307 a login e importación de atletas sin sesión 401. No se ejecutaron mutaciones sobre datos reales.
+
+## 2026-09-13 — Hotfix de producción Super Admin y smoke autenticado
+
+- Vercel registró un fallo real en `/super-admin/dashboard`: `TypeError: M.map is not a function`. La causa era tratar el resultado de `db.execute(...)` como un array, aunque node-postgres entrega un `QueryResult` con la propiedad `rows`.
+- `src/lib/superAdminService.ts` ahora normaliza de forma segura arrays de mocks y resultados `{ rows }`; los agregados de actividad, academias, roles, suscripciones, planes y evolución mensual usan esa frontera común.
+- Se añadió `tests/super-admin-sql-result-normalization.test.ts` con cobertura de array directo, `QueryResult.rows` y formas inesperadas que deben degradar a lista vacía.
+- Las fechas de dashboard, usuarios, academias, logs y fichas de detalle usan ahora un formatter UTC compartido; así se elimina React #418 por diferencias de zona horaria durante la hidratación.
+- Verificación: TypeScript, ESLint focal y 10/10 contratos Super Admin pasan; el build local genera 227/227 páginas. El deployment `dpl_CZUbAtNJM8kezt6PxQXGDRyBhjgH` quedó READY y aliasado a producción.
+- Smoke autenticado en pestaña limpia: `/super-admin/dashboard` y `/super-admin/users` renderizan métricas/tabla sin errores ni warnings de consola. No requiere migración de base de datos.
+- Observación operativa abierta: Vercel sigue mostrando el warning no bloqueante de `NODE_EXTRA_CA_CERTS=./certs/supabase-root-ca.crt`; la conexión DB es exitosa y Platform debe limpiar la ruta en una tarea separada.
+
+## 2026-09-13 — Empleo público seguro, formulario guiado y cierre de gates
+
+- El detalle público de empleo valida UUID y filtra por `status=active`, de modo que no expone borradores ni ofertas cerradas aunque se conozca su identificador.
+- La creación y edición de ofertas usa schemas estrictos y allow-listed: el usuario se deriva de la sesión, el salario no admite negativos ni rangos invertidos y una aplicación externa exige URL válida.
+- El formulario de publicación marca URL y salario como campos coherentes y muestra una ruta de inicio de sesión accionable cuando la sesión no existe.
+- La bolsa de empleo ya no se corta en viewport móvil: el layout apila filtros y resultados, las tarjetas permiten títulos/academias largas y los filtros usan los enums reales de la API; el salario se formatea con su moneda.
+- El selector nativo compartido dejó de marcar cada opción con `selected` dentro de un `<select>` controlado, eliminando el warning de React y mejorando la estabilidad del teclado.
+- Las animaciones públicas conservan el movimiento pero ya no reducen temporalmente la opacidad del contenido; así el contraste WCAG no depende del instante en que se captura la pantalla.
+- `/status` dejó de afirmar que Auth y Pagos están operativos sin comprobarlos; ahora muestra API, base de datos y automatizaciones con una comprobación viva y estados honestos.
+- La CTA de Starter dejó de decir “Solicitar demo” cuando llevaba al registro autoservicio; ahora explica el siguiente paso real: crear la cuenta y configurar la academia antes de activar la prueba desde Facturación.
+- El claim de academia del owner solo ofrece academias `active` o `trial` no suspendidas y vuelve a comprobar el tenant de las membresías existentes; una academia churned, congelada o en revisión de fraude no puede apropiarse desde el registro.
+- Se retiró el selector anual incompleto: la página de precios comunica únicamente facturación mensual sin permanencia hasta que exista un precio anual real.
+- Las CTAs principales de home, módulos y features distinguen crear la cuenta de configurar la academia; la FAQ ya no promete importar familias, sino importar gimnastas y vincular los datos familiares desde el expediente.
+- Las FAQs, el Schema de la home y la página de preguntas ya comparten el mismo precio base de Network: desde 99 €/mes, con propuesta final según sedes y necesidades.
+- Se eliminó el bloque `pnpm.overrides` obsoleto de `package.json`; la fuente efectiva queda en `pnpm-workspace.yaml`, sin warning de instalación y con auditoría de dependencias limpia.
+- La excepción del GET público quedó documentada para el gate `auth-before-validate`; `pnpm gate:all` vuelve a estar limpio.
+
+Verificación: `pnpm verify:production` pasa **255 archivos + 1 omitido, 1.698 tests + 2 omitidos, build de 227 páginas**; suite móvil 14/14 archivos y 330/330 tests; Playwright público serial 30/30 más focales de CTA Starter y CTAs de registro 3/3 cada uno, y a11y serial 18/18 (todo en Chromium, Firefox y WebKit); `git diff --check` limpio. Vercel rechazó el deploy posterior por `api-deployments-free-per-day` (>100, reintento en 24 h), por lo que el alias productivo no se movió. Persisten warnings no bloqueantes de mocks anidados de Vitest, pendientes de migración futura.
+
+## 2026-09-13 — Consistencia final de analítica, alertas y recursos públicos
+
+- Se corrigió el envelope doble de `dashboard/analytics`, `analytics/full` y los reportes de clases/bajas: los clientes reciben ahora el objeto en `response.data`, que es el contrato estándar de `apiSuccess`.
+- Las métricas de analítica y popularidad excluyen atletas, clases y grupos eliminados; las exportaciones de atletas/evaluaciones también filtran registros retirados y vínculos de guardianes/configuración por tenant.
+- Los endpoints de alertas de asistencia, capacidad y pagos devuelven error explícito cuando falla la consulta en lugar de responder `200` con una lista vacía. El widget de riesgo ofrece reintento.
+- La predicción de ausencia expone `insufficientData` y el badge no muestra señales con históricos insuficientes o baja confianza.
+- `/blog` dejó de ser una pantalla de “próximamente”: ahora funciona como hub de recursos enlazado al Centro de Ayuda, con contenido existente y claims verificables.
+- Se consolidaron los overrides de dependencias en la fuente efectiva para el pnpm fijado; `nanoid` quedó en `^3.3.18` (parche válido) y `sharp` en `^0.35.4`. Instalación congelada y `pnpm audit --prod --audit-level high` pasan sin vulnerabilidades conocidas.
+
+Verificación focal: Playwright público 18/18 y accesibilidad 12/12 (Chromium, Firefox y WebKit); TypeScript, ESLint y contratos focales en verde. El cierre `pnpm verify:production` pasa **247 archivos de test + 1 omitido, 1.599 tests + 2 omitidos, build 228/228 e invariantes de producción**. La inspección visual local de dashboard y atletas se realizó con sesión E2E; no implica publicación remota.
+
+## 2026-09-12 — Claims públicos y acciones inertes
+
+- Se retiraron promesas que excedían el alcance verificado: contabilidad integrada, pagos fraccionados, cargos fijados al día 1, importación de familias y funciones de viajes/alojamiento o checklist de equipamiento no disponibles.
+- La demo pública ya no muestra un reproductor sin destino: enlaza a una demo guiada. La sección de testimonios ficticios se sustituyó por proof points verificables de dirección, entrenadores y familias.
+- El historial de WhatsApp conecta el reintento con el endpoint real y el servidor comprueba `tenantId`, `academyId`, canal y dirección del mensaje antes de enviar.
+- Contratos añadidos para impedir la regresión de estos claims y garantizar que las acciones de demo/reintento sigan teniendo destino funcional.
+
+Verificación focal: `pnpm exec vitest run tests/audit/public-claims.catalog.test.ts tests/athlete-import-preview-contract.test.ts tests/whatsapp-history-retry-contract.test.ts tests/api-zal745-marketplace-communications.test.ts` (23/23); TypeScript y ESLint sin errores.
+
+## 2026-09-12 — Límites de rol para reportes
+
+- El baseline de coach ya no concede `reports:read`. Los informes combinan métricas de negocio, bajas, asistencia agregada y exportaciones, por lo que no deben aparecer como una función operativa por defecto.
+- La navegación de academia elimina `Informes` para coach y el layout muestra `AccessDenied` si intenta acceder por URL directa; owner, admin y super-admin mantienen el centro completo.
+- Se actualizaron los contratos de permisos y la matriz API. Los roles personalizados siguen requiriendo un grant explícito; no se amplió ningún tenant ni se tocó la base de datos.
+- Verificación focal: permisos base, navegación, alertas y contratos de email de reportes pasan; la verificación completa de producción se ejecuta al cierre de esta tanda.
 
 ## 2026-09-09 — PR 10: settings Zod nullable fix (Operate P2)
 
@@ -9559,3 +10145,328 @@ OK
 ```
 
 Vault: actualizado `Changelog interno.md`; no cambian `Decisiones.md`, `Pricing.md`, `Mensajes aprobados.md` ni `Backlog priorizado.md`.
+
+## 2026-09-12 — Engineering Lead: auditoría acumulada y release candidate internacional
+
+- Se revisó el árbol acumulado de Zaltyko-fresh y se mantuvieron los cambios previos de aislamiento por academia, onboarding owner, dashboard, moneda internacional, comunicaciones y WhatsApp. La cuenta y la academia siguen siendo conceptos explícitos en el onboarding; no se reintrodujo creación implícita ni acceso cross-tenant.
+- Se corrigió el flujo público en producción: páginas `/events` y `/marketplace` respetan ahora reflow móvil; el marketplace acepta filtros múltiples de categoría/tipo, conserva ambos checkboxes al recargar, persiste `hidden` y mantiene compatibilidad con el alias legado `paused`; los eventos solo muestran publicaciones de academias públicas activas. La página marketplace usa el origen de la petición en servidor y fallback seguro para no intentar `localhost` en Vercel.
+- Se tiparon los contratos de marketplace/eventos y se eliminaron rutas de acceso directo que podían ignorar filtros o exponer borradores/academias suspendidas. Los campos de moneda se mantienen consistentes en tarjetas, checkout, facturación, reportes, pagos familiares y notificaciones; teléfonos WhatsApp se normalizan con prefijo internacional por país.
+- Evidencia automatizada del árbol final: `pnpm verify:production` PASS; 221 archivos de test, 1.526 tests PASS (2 omitidos), build de producción 228/228 páginas y release-gate PASS. `pnpm exec tsc --noEmit`, lint focal, `git diff --check` y contratos de marketplace/eventos también PASS.
+- Evidencia externa read-only: despliegue Vercel `dpl_H7XsuKTaPsXv4qgMkmbjS8PwSwZM` en estado `READY` con alias productivo `zaltyko.com`; `/api/health` responde 200 con base de datos y autenticación de cron en estado `ok`; home, eventos y marketplace responden 200. Playwright verificó las vistas móviles públicas, incluidos filtros múltiples y ausencia de overflow horizontal.
+- Riesgo residual honesto: la validación E2E autenticada por rol y la revisión manual completa de WCAG/teclado/zoom siguen `NO VERIFICADO`; la estrategia de métodos de pago locales por país todavía requiere decisión comercial y pruebas externas; no se ejecutó ninguna migración remota nueva. El árbol continúa con cambios acumulados sin commit y las tareas pendientes existentes de Backlog (QA autenticado, i18n/a11y, Stripe Connect/edge cases y pagos locales) siguen vigentes.
+
+Vault: actualizado `Changelog interno.md`; `Backlog priorizado.md` no recibe una fila nueva porque estos riesgos ya tienen tareas vigentes (QA autenticado, a11y/i18n, Stripe y pagos locales). No cambian `Decisiones.md`, `Pricing.md` ni `Mensajes aprobados.md`.
+
+## 2026-09-12 — Engineering Lead: cierre de hardening de entregabilidad y acabado público
+
+- Se centralizó el envío de correo transaccional de eventos, bienvenida, solicitudes de vinculación, trial, límites de plan, invitaciones administrativas, activación de atletas, mensajes de super-admin y formularios públicos en `sendEmailWithLogging`. Cada flujo conserva ahora `tenantId`/`academyId`/usuario cuando aplica, plantilla y clave de deduplicación para trazabilidad y reintentos seguros.
+- El endpoint de bienvenida exige que el `userId` del cuerpo coincida con la sesión y que exista membresía; los destinatarios de eventos y los avisos de pago fallido quedan bloqueados para academias no activas o suspendidas. Los formularios públicos de eventos solo notifican a academias publicadas activas/trial.
+- El marketplace dejó de construir URLs de API contra `localhost` en producción; las fichas ahora mantienen proporción de catálogo, placeholder de marca para anuncios sin imagen y una presentación correcta para precio cero, negociable o por contacto.
+- La entrada de registro de dueño explicita que la cuenta personal y la academia son pasos distintos, añade selección accesible tipo radio y ajusta el copy SEO para reducir altas que esperan una academia automática.
+- Evidencia automatizada posterior a estos cambios: `pnpm verify:production` PASS, 223 archivos de test PASS, 1.532 tests PASS (2 omitidos), build de producción 228/228 páginas; `pnpm gate:all`, TypeScript, ESLint focal y `git diff --check` PASS. Playwright móvil local verificó `/events`, `/marketplace` y `/auth/register` sin overflow y con el nuevo acabado visual; el smoke público completo queda en 6/6 PASS y el helper solo reintenta `ERR_ABORTED` de compilación fría.
+- Se intentó publicar esta revisión, pero Vercel rechazó el despliegue por la cuota diaria gratuita (`api-deployments-free-per-day`, más de 100). La última versión aliased en `zaltyko.com` sigue siendo `dpl_3JMm8Dy4iqe2N46d1VxnjXNf6ECU`/`zaltyko-a2evwxuuw-mentessaas-projects.vercel.app`, estado `READY`; el origen productivo responde `/api/health` 200 con base de datos y cronAuth `ok`. El patch visual queda validado localmente y pendiente de publicación al liberar la cuota.
+- No se ejecutaron migraciones remotas, cambios de permisos, proveedores externos, Stripe live ni compras. El árbol sigue acumulado y sin commit.
+
+Riesgo residual honesto: la entrega en vivo de este último patch está bloqueada por Vercel; E2E autenticado por rol, revisión manual WCAG/teclado/zoom, estrategia de métodos de pago locales y optimización de bundles grandes continúan `NO VERIFICADO` o pendientes en Backlog.
+
+Vault: actualizado `Changelog interno.md`; `Backlog priorizado.md` no recibe una fila nueva porque los riesgos pendientes ya están registrados. No cambian `Decisiones.md`, `Pricing.md` ni `Mensajes aprobados.md`.
+
+## 2026-09-12 — Engineering Lead: journeys autenticados y WCAG P0 cerrados
+
+- Se corrigieron los nombres accesibles de los filtros de clases y evaluaciones (búsqueda, grupo, rama, academia, atleta, tipo y fechas), y se etiquetó explícitamente el selector de atleta del hub de evaluaciones. Los controles conservan el comportamiento y ahora exponen un nombre usable por lector de pantalla y teclado.
+- Se hizo resistente el helper de teclado de ZAL-621 a interrupciones HMR: solo reintenta cuando Next destruye el contexto por navegación/compilación y vuelve a ejecutar el mismo recorrido; no ignora violaciones de foco o elementos invisibles.
+- Evidencia E2E autenticada en entorno local: axe WCAG 2.2 AA **8/8** rutas P0 sin violaciones; matriz responsive **60/60** (escritorio, 390 px y 320 px, sin error de ruta ni overflow); matriz teclado/foco **30/30** (las mismas rutas y tamaños, cinco tabulaciones con foco visible).
+- Release gate posterior al árbol exacto: **223 archivos de test, 1.532 tests PASS y 2 omitidos**, API inventory 311 rutas sin riesgos, RLS 70/70 (100 %), 57 variables documentadas, dependencias sin vulnerabilidades, 7 Drizzle + 66 Supabase migraciones íntegras, TypeScript/ESLint/gates PASS y build 228/228 páginas.
+- Observación operativa: un `next start` local sin Vercel KV responde 429 `RATE_LIMIT_EXCEEDED` para rutas `/app/*` por diseño fail-closed; no se presenta como fallo de producto en Vercel, donde el dominio productivo y `/api/health` siguen 200. Debe mantenerse KV configurado como precondición de cualquier smoke local de producción.
+- El último patch todavía no se pudo publicar: Vercel mantiene el bloqueo de cuota diaria gratuita (`api-deployments-free-per-day`, más de 100). El alias `zaltyko.com` continúa en `dpl_3JMm8Dy4iqe2N46d1VxnjXNf6ECU`, estado `READY`; no se ejecutaron migraciones remotas, cambios de permisos, Stripe live ni compras.
+
+Riesgo residual honesto: falta prueba manual con VoiceOver/NVDA, zoom 200 %, contraste y dispositivos reales; los E2E de coach/super-admin requieren sus credenciales de entorno; quedan pendientes estrategia de pagos locales por país, optimización de bundles grandes y limpieza de warnings `vi.mock` anidados. El árbol sigue acumulado y sin commit.
+
+Vault: actualizado `Changelog interno.md` y [[Estado actual de Zaltyko]]. No cambian `Decisiones.md`, `Pricing.md`, `Mensajes aprobados.md` ni `Backlog priorizado.md` porque no hubo decisión comercial, pricing o migración remota.
+
+## 2026-09-12 — Engineering Lead: scope familiar y coherencia del progreso
+
+- Se corrigió el portal familiar para reconocer tanto el vínculo canónico `guardians` como el legado `family_contacts.email`, siempre limitado por tenant, academia y atleta no eliminado. Esto evita que una familia válida aparezca vacía después de registrarse o cambiar de flujo de invitación.
+- Se endurecieron las páginas de progreso, evaluación e historial: la gimnasta debe pertenecer a la academia de la URL, las evaluaciones y puntuaciones se consultan con tenant/academia, y el historial exige sesión y membresía antes de cargar datos.
+- El panel del coach ahora filtra asignaciones, clases, grupos, inscripciones, sesiones, asistencia y evaluaciones por tenant y academia. También se eliminaron lecturas sin límite de esos bloques y variables/imports muertos detectados durante la revisión.
+- El dashboard del dueño deja de mostrar la tarjeta “Evaluaciones en borrador” cuando el modelo no ofrece todavía una fuente de estados `draft/published`; se evita así un CTA que no puede completarse y se mantiene la capacidad documentada como pendiente de schema.
+- Se añadieron contratos automatizados en `tests/athlete-workspace-scope-contract.test.ts` y se revalidaron contratos familiares existentes: TypeScript, ESLint focal, tests dirigidos y `git diff --check` pasan. No se ejecutaron migraciones remotas ni cambios en producción.
+
+Riesgo residual honesto: el ciclo real de borrador/publicación e importación todavía requiere decisión de modelo y migración; los pagos locales por país, E2E con roles reales, QA manual de accesibilidad y publicación Vercel siguen pendientes. El árbol continúa acumulado y sin commit.
+
+Vault: actualizado `Changelog interno.md`; [[Estado actual de Zaltyko]] se reconciliará con los contadores de la siguiente ejecución completa de release gate. No cambian `Decisiones.md`, `Pricing.md`, `Mensajes aprobados.md` ni `Backlog priorizado.md` porque no hubo decisión comercial ni migración remota.
+
+## 2026-09-12 — Engineering Lead: release gate posterior al scope familiar
+
+- La puerta completa sobre el árbol actual queda en verde: **224 archivos de test, 1.536 tests PASS y 2 omitidos**, inventario API 311 rutas sin riesgos semánticos, RLS 70/70 (100 %), contrato de entorno 57 variables, dependencias sin vulnerabilidades, 7 Drizzle + 66 Supabase migraciones íntegras, TypeScript/ESLint y build de producción **228/228 páginas**.
+- Los cambios de alcance familiar, progreso y coach pasan además los contratos dirigidos (**7/7 tests**) junto con los contratos familiares existentes; `git diff --check` permanece limpio.
+- El build confirma los pesos actuales: dashboard principal 614 kB First Load JS, grupos 460 kB, atletas 484 kB y clases 412 kB. La optimización de bundles sigue siendo trabajo pendiente de producto/performance, no un fallo de compilación.
+- Los warnings de Vitest por `vi.mock`/`vi.unmock` anidados siguen registrados como deuda de mantenimiento futura; no alteran el resultado actual, pero deben limpiarse antes de actualizar Vitest a una versión que los convierta en error.
+
+Riesgo residual honesto: Vercel todavía impide publicar el patch por la cuota diaria gratuita; el dominio productivo conserva el despliegue anterior. El ciclo draft/publication de evaluaciones e importación todavía requiere schema y UX reales; pagos locales por país, E2E autenticado con roles reales y QA manual WCAG siguen `NO VERIFICADO`.
+
+Vault: actualizado `Changelog interno.md` y [[Estado actual de Zaltyko]]. No cambian `Decisiones.md`, `Pricing.md`, `Mensajes aprobados.md` ni `Backlog priorizado.md` porque no hubo decisión comercial, migración remota o publicación externa.
+
+## 2026-09-12 — Engineering Lead: marketplace móvil, filtros y semántica accesible
+
+- La auditoría visual local del recorrido `/marketplace` a 390 px mostró que el panel de once categorías ocupaba casi toda la primera pantalla y retrasaba la lectura del catálogo. Se convirtió en un disclosure móvil compacto (`Filtrar catálogo`) con contador de filtros activos; en escritorio se conserva el panel lateral completo.
+- Se reutilizó un único contrato de formulario para las dos densidades, se mantuvo la selección múltiple de tipos/categorías y se añadieron `fieldset`/`legend` para que el agrupamiento sea comprensible para teclado y lector de pantalla. El flujo probado mantiene `search`, `type` y el reflow sin overflow.
+- Evidencia: screenshot aceptado en `/tmp/zaltyko-marketplace-filters-after.png`; Playwright local abrió la página, expandió filtros, seleccionó producto y búsqueda, navegó a `?search=malla&type=product`, confirmó `overflow=false` y no registró errores de consola. El contrato `tests/marketplace-mobile-filters-contract.test.ts` pasa 3/3.
+
+Riesgo residual honesto: el filtro de escritorio y las tarjetas todavía cargan todo el catálogo en la primera respuesta; la paginación/virtualización y la optimización de bundles siguen siendo trabajo posterior. No hubo migración remota ni publicación externa.
+
+## 2026-09-12 — Engineering Lead: fallback demo no debe falsear búsquedas
+
+- La prueba visual de una búsqueda inexistente (`search=zzzz-no-match`) reveló que el fallback demo del endpoint local aparecía incluso con filtros activos. Eso podía hacer creer durante QA que el buscador había encontrado una coincidencia.
+- Se limitó la ficha demo a catálogo sin filtros, primera página y entorno no productivo. Las búsquedas, categorías, tipos y páginas sin coincidencias ahora muestran `0 resultados` y el estado vacío recuperable; producción no usa datos demo.
+- Evidencia: Playwright local devuelve 200, `0 resultados`, `No encontramos resultados`, enlace `Ver todo el marketplace`, sin la ficha demo, sin overflow y sin errores de consola. El contrato `tests/marketplace-demo-fallback-contract.test.ts` pasa 1/1.
+
+## 2026-09-12 — Engineering Lead: filtros repetidos preservan el catálogo solicitado
+
+- La revisión del request real mostró que `category=clothing&category=books&type=product&type=service` se serializaba antes como `category=clothing%2Cbooks` y `type=product%2Cservice`; el endpoint no reconocía esas cadenas como valores válidos y podía devolver un catálogo sin filtrar.
+- La página pública ahora acepta `string | string[]` y usa `URLSearchParams.append` para cada categoría y tipo. Los parámetros repetidos llegan intactos a `/api/marketplace`, mientras búsqueda y paginación conservan un único valor determinista.
+- Evidencia: Playwright local a 390 px recibió 200, mostró `4 filtros activos`, `0 resultados` y estado vacío recuperable para la combinación sin coincidencias; el log del servidor confirmó literalmente `GET /api/marketplace?category=clothing&category=books&type=product&type=service`. No hubo overflow ni errores de consola.
+- El contrato de marketplace queda en 3/3 y el fallback demo en 1/1 para esta tanda.
+
+## 2026-09-12 — Engineering Lead: release gate posterior al acabado de marketplace
+
+- `pnpm verify:production` queda en verde sobre el árbol acumulado: 226 archivos de test pasan, 1 queda omitido; 1.541 tests pasan y 2 quedan omitidos; API inventory 311 rutas sin riesgos, RLS 70/70, 57 variables documentadas, dependencias sin vulnerabilidades, 7 Drizzle + 66 Supabase migraciones íntegras y build 228/228 páginas.
+- `pnpm gate:all`, `pnpm exec tsc --noEmit`, ESLint focal y `git diff --check` también pasan. Los warnings de Vitest por mocks anidados permanecen como deuda futura de mantenimiento y no alteran el gate.
+- Smoke externo read-only posterior al gate: `https://zaltyko.com/api/health`, `/`, `/events` y `/marketplace` respondieron 200; el health reportó base de datos y autorización de cron en `ok`. No se ejecutaron migraciones remotas ni se reintentó el deploy bloqueado por cuota diaria gratuita de Vercel.
+
+## 2026-09-12 — Engineering Lead: dashboard operativo sin consultas duplicadas ni estados colgados
+
+- La auditoría autenticada del dashboard a 390 px detectó que KPIs y el pulso operativo solicitaban dos veces la misma serie de 14 días. El resumen de grupos/clases también duplicaba requests y leía `json.items` aunque las APIs entregan el envelope estándar `{ data: { items } }`.
+- Se centralizó la carga de tendencias en `DashboardPage` y se comparte con `KPISection` y `OperationsPulse`. El pulso ahora distingue `Cargando datos`, `Serie actual` y `Sin conexión`, y ofrece `Reintentar` ante error en vez de dejar un estado de carga ambiguo.
+- Se unificó el request operativo de clases/grupos, se pidió `includeAssignments=true` y se normalizaron grupos vinculados, entrenadores, horarios y campos opcionales antes de calcular recomendaciones técnicas. Esto evita excepciones por arrays ausentes y vuelve a mostrar el `Panorama técnico actual` cuando hay datos.
+- Las acciones rápidas usan el mismo payload que el panel de recomendaciones y ya no disparan un segundo fetch desde `QuickActionsWidget`; después de crear una clase o registrar un pago se refresca ese origen único.
+- Evidencia: Playwright autenticado con `.auth/user.json` abrió el dashboard a 390 px, expandió `Ver más`, mostró `Panorama técnico actual`, sin errores de consola ni overflow; screenshot aceptado en `/tmp/zaltyko-dashboard-expanded-after-cohesion.png`. El contrato `tests/dashboard-data-cohesion-contract.test.ts` pasa 3/3 y los checks focales de onboarding/especialización pasan 18/18.
+## 2026-09-12 - Plan de implementación competitivo (documentación)
+
+- Se creó `docs/plans/2026-09-12-competitive-implementation-plan.md` con fases G0-G4, gates E2E, ownership y límites para no pisar trabajo paralelo.
+- Se actualizó el backlog priorizado para referenciar el plan; no se abrieron issues ni se modificó código, schema, pricing, secretos o producción.
+- El plan mantiene gimnasia-first, portal familiar limitado, comunicación interna primero y pricing v3.0; IA/vídeo/localización quedan condicionados a evidencia.
+- Riesgo residual: E2E Playwright no enumera tests actualmente por errores Vitest/ESM y dependencia entre specs; G0 exige resolverlo.
+- Vault: actualizadas `vault/06-Roadmap-y-Tareas/Backlog priorizado.md` y este Changelog.
+- La versión final añade trazabilidad OPP-01…OPP-16 → fase, owner único, dependencias, criterio de salida y plantilla de issue; la secuencia exige respetar G0-G4 antes de abrir implementación paralela.
+
+## 2026-09-12 — Engineering Lead: aislamiento por academia y contrato de operaciones
+
+- Se revisaron los cambios acumulados del árbol y se endurecieron los módulos operativos que todavía podían resolver recursos solo por `tenantId`: grupos, atletas, tutores, entrenadores, clases, evaluaciones, historial, eventos, cobros, gastos, compensaciones, notificaciones y acciones rápidas ahora validan la academia objetivo con `authorizeAcademyCapability` y permisos explícitos (`resource:action`).
+- Las consultas de detalle y listados filtran de forma consistente `tenantId` + `academyId` y excluyen registros eliminados/inactivos en grupos, atletas, clases, coaches, asociaciones de tutores, asignaciones, becas, cargos y sesiones. Esto evita que cambiar el UUID de la URL o el selector de academia muestre o mutile datos de otra academia del mismo tenant.
+- El flujo diario del dueño queda más predecible: la academia activa es el valor por defecto de los listados, los vínculos de tutor se resuelven con la gimnasta seleccionada, los cargos vencidos incluyen estados `pending` y `overdue`, y las acciones rápidas comprueban que la clase pertenece a la academia antes de crear una sesión.
+- Se actualizaron los contratos estáticos y mocks de integración para reflejar el sistema de capacidades; la batería enfocada queda en **62/62** y la suite completa en **230 archivos, 1.564 tests PASS y 2 omitidos**.
+- Se añadió deduplicación breve de la verificación `supabase.auth.getUser()` por cookie en `src/lib/authz/user-resolver.ts`: las ráfagas concurrentes del dashboard comparten una promesa verificada durante 2 s, con límite de 256 entradas y sin retener errores. El contrato `tests/authz-user-resolver-cache.test.ts` cubre tres requests concurrentes → una sola llamada remota.
+- `pnpm verify:production` queda finalmente en verde: `pnpm gate:all`, TypeScript, ESLint (`--quiet`), `git diff --check`, la suite completa (**231 archivos PASS + 1 omitido; 1.565 tests PASS + 2 omitidos**) y el build de producción pasan; se generan las 228 páginas correctamente. La primera pasada de esta tanda encontró mocks antiguos y un fallo transitorio del worker de prerender, ambos corregidos y revalidados.
+- No se ejecutaron migraciones remotas, cambios de permisos, Stripe live ni despliegues. El dominio productivo sigue saludable en la última evidencia conocida, pero este árbol continúa local, acumulado y sin commit; la publicación sigue pendiente de la cuota diaria gratuita de Vercel y no se pudo actualizar Paperclip desde este entorno.
+
+Riesgo residual honesto: permanecen warnings no bloqueantes de `vi.mock` anidados y algunos `any`/hooks reportados por ESLint sin `--quiet`; los bundles principales siguen grandes (dashboard 614 kB, grupos 460 kB, atletas 484 kB, clases 412 kB). En una matriz autenticada local muy repetitiva Supabase devolvió `over_request_rate_limit` y un caso de 320 px necesitó el retry del runner; el smoke final recuperó **8/8** checks del dashboard y ya se añadió deduplicación breve de sesión. Conviene observar límites y añadir backoff explícito si la concurrencia crece. E2E autenticado con roles reales, revisión manual WCAG/zoom/dispositivos y la estrategia de pagos locales por país siguen `NO VERIFICADO`.
+
+Vault: actualizado `Changelog interno.md`; se preserva el backlog existente porque estos cambios cierran hardening técnico ya priorizado y no introducen una decisión comercial o una migración de schema.
+
+## 2026-09-12 - G0: collector Playwright aislado de contratos Vitest
+
+- `playwright.config.ts` limita `testMatch` a `**/*.spec.ts`, evitando que el collector intente cargar los `.test.ts` de Vitest.
+- `tests/e2e-zaltyko-sca-3ds-flow.spec.ts` ya no importa otro spec; comparte `unwrapData` desde `tests/e2e-test-helpers.ts`.
+- Evidencia: `pnpm exec playwright test --list` enumera 786 tests en 19 archivos (antes terminaba en `Total: 0 tests in 0 files`).
+- La auditoría API estricta permanece limpia: 311 rutas, `risky: []`, `semanticRisks: []`.
+- No se ejecutó smoke autenticado: faltan `E2E_ACADEMY_ID` y credenciales/storage state aprobados. No se fabricaron credenciales ni se aprovisionó una academia.
+
+## 2026-09-12 - G0: smoke público Chromium
+
+- Se ejecutó `pnpm test:e2e:public --project=chromium` contra el servidor local.
+- Evidencia: **6 tests pasaron en 3.0 minutos** (sitemap/robots, contacto, tabs de features, rutas de clusters, help center y páginas públicas dinámicas).
+- El smoke autenticado de academia sigue pendiente por falta de credenciales y `E2E_ACADEMY_ID` aprobados.
+
+## 2026-09-12 - OPP-11: conteo de waitlist sin carga masiva
+
+- `GET /api/class-waiting-list` ahora usa `COUNT(*)` para la paginación en vez de cargar hasta 10.000 IDs en memoria.
+- Se mantiene el scope por tenant/clase y el envelope API existente.
+- Evidencia: `pnpm vitest run tests/capacity-waitlist-contract.test.ts tests/waitlist-promotion-contract.test.ts` pasa 3/3; `pnpm exec tsc --noEmit` pasa.
+
+## 2026-09-12 - OPP-11: promoción manual envía academyId
+
+- La API `POST /api/class-enrollments` exige `academyId`, pero `WaitingListDialog` no lo incluía al promover una entrada; el flujo manual podía fallar con validación 400.
+- El diálogo ahora recibe `academyId` explícito y lo envía junto con `classId` y `athleteId`.
+- Evidencia: contrato `tests/waiting-list-dialog-contract.test.ts` y `tests/capacity-waitlist-contract.test.ts` pasan 3/3; `pnpm exec tsc --noEmit` pasa.
+- La promoción sigue haciendo dos requests; el endpoint transaccional dedicado permanece como deuda separada.
+
+## 2026-09-12 - OPP-11: promoción manual transaccional
+
+- Añadido `POST /api/class-waiting-list/[entryId]/promote`, protegido por `withTenant` y `authorizeClassResource`.
+- El helper de promoción acepta la entrada seleccionada y mantiene el advisory lock/transacción; `WaitingListDialog` usa un único request y ya no puede dejar una inscripción creada con la waitlist sin borrar por un segundo fallo.
+- Evidencia: contratos focales de promoción/capacidad pasan 4/4 y `pnpm exec tsc --noEmit` pasa.
+- La validación E2E con una academia real sigue pendiente; no se ejecutaron migraciones.
+
+## 2026-09-12 - Verificación posterior de promoción transaccional
+
+- Tras retirar la prop ya innecesaria del diálogo, los cuatro contratos focales de waitlist/promoción pasan **5/5 tests** en total.
+- El typecheck encadenado no reportó errores antes de cerrar el proceso; la validación E2E autenticada sigue pendiente por falta de academia/credenciales aprobadas.
+
+## 2026-09-12 - G0/P0: consolidación de contratos de familia y capacidad
+
+- Suite focal ejecutada: `phase1-production-contracts`, `e2e-family-schema-contract`, capacidad/waitlist y diálogo de waitlist.
+- Evidencia: **12/12 tests pasan en 5 archivos**.
+- Esta evidencia confirma contratos, scopes y políticas; no sustituye el smoke autenticado ni prueba el flujo completo en navegador contra datos de academia.
+
+## 2026-09-12 - OPP-02: contrato provisional de identidad para importación
+
+- Se documentó en el plan una regla segura para preview/dedupe/rollback: `externalId` opcional como identidad fuerte; `name + dob` sólo como conflicto revisable; `importBatchId` para auditoría y rollback limitado a filas nuevas del lote.
+- No se modificó todavía el endpoint CSV ni el schema. La regla queda como recomendación reversible hasta validación de Product Lead/Board.
+
+## 2026-09-12 - Engineering Lead: alertas del dashboard sin duplicación y con scope
+
+- El dashboard ahora carga capacidad, pagos y asistencia una sola vez desde `loadDashboardAlerts`; el widget de próximas clases reutiliza los IDs de capacidad y deja de disparar una segunda llamada a `/api/alerts/capacity`.
+- Las rutas de alertas requieren `classes:read` o `billing:read`, validan rangos de umbral/ventana y devuelven `INVALID_QUERY` (400) en vez de aceptar valores imposibles. Las consultas excluyen clases, grupos y atletas eliminados y contactos fuera del tenant.
+- La tasa de asistencia se calcula sobre registros del atleta y no sobre todas las sesiones de la academia; el servicio agrupa asistencias/contactos y procesa capacidad en lotes de ocho clases para evitar N+1 secuencial.
+- El copy distingue “Cupo casi lleno” (90–94 %) de “Cupo lleno” (95 % o más); el descarte de alertas conserva un objetivo táctil de 44 px.
+- Evidencia: `pnpm gate:all` PASS; `pnpm verify:production` PASS con **236 archivos de test, 1.575 tests PASS y 2 omitidos**, API 311 sin riesgos, RLS 70/70 (100 %), TypeScript/ESLint y build 228/228 páginas. Contratos nuevos de alertas/performance: **8/8**.
+- Smoke Playwright público posterior al cambio: **6/6** en Chromium (sitemap/robots, contacto, tabs de features, clusters bilingües, help y detalles públicos dinámicos). El bundle inicial del dashboard baja marginalmente de 614 kB a **613 kB**; la optimización profunda sigue siendo P1.
+- No se ejecutaron migraciones remotas ni deploy: Vercel mantiene agotada la cuota diaria gratuita y Paperclip no se actualizó desde este entorno. El parche está validado localmente y pendiente de publicación.
+
+## 2026-09-12 — Engineering Lead: recordatorios y reporting sin botones rotos
+
+- El endpoint manual `POST /api/alerts/class-reminders` ahora exige `communications:send` mediante el mapa central de permisos y devuelve `INVALID_QUERY` (400) para JSON inválido, en vez de propagar un `ZodError` como 500.
+- El trigger de recordatorios de clase dejó de consultar solo matrículas extra: combina `classes.groupId`, `class_groups`, `group_athletes` (incluido legacy `athletes.groupId`) y `class_enrollments`, con scope por tenant/academia, atletas activos y contactos con `notifyEmail` habilitado. Las consultas de destinatarios se agrupan para evitar un N+1 por sesión y el contador solo aumenta cuando el emisor realmente entrega un correo.
+- Se endurecieron los recordatorios de pagos y cancelaciones/invitaciones para ignorar atletas/clases eliminados o inactivos, validar consistencia tenant-academia y respetar la preferencia `family_contacts.notifyEmail`.
+- Se cerraron rutas que la interfaz ya anunciaba pero devolvían 404: exportación PDF/Excel y email para clases, entrenadores, bajas y progreso. Los exports generan archivos reales; el email usa HTML escapado, `sendEmailWithLogging` y requiere `communications:send`. Progreso ahora acepta Excel además de PDF.
+- El informe de clases incorpora vínculos `class_groups` al cálculo de inscritos, alineando sus totales con la pertenencia real de la academia.
+- Se reactivó el test de cron de recordatorios que estaba excluido y se actualizó a su contrato actual (`triggerAttendanceReminders`); se añadieron contratos para permisos, remesas y fuentes de matrícula.
+- Evidencia: `pnpm gate:all` PASS; `pnpm verify:production` PASS con **318 rutas API sin riesgos**, RLS **70/70**, 57 variables, 7 Drizzle + 66 Supabase, **238 archivos de test PASS + 1 omitido; 1.579 tests PASS + 2 omitidos**, TypeScript/ESLint y build **228/228**. No se ejecutaron migraciones remotas, deploy ni actualización de Paperclip.
+
+## 2026-09-12 — Engineering Lead: importación de atletas con revisión humana
+
+- `POST /api/athletes/import` deja de crear registros inmediatamente: exige una vista previa (`dryRun=true`), confirmación explícita y el mismo hash SHA-256 del archivo antes de escribir.
+- La respuesta de preview incluye filas válidas, errores, `previewHash` y `requiresConfirmation`; el commit rechaza archivos modificados (`IMPORT_FILE_CHANGED`) o clientes que intenten saltarse la revisión (`IMPORT_CONFIRMATION_REQUIRED` / `IMPORT_PREVIEW_REQUIRED`).
+- Se detectan posibles duplicados por academia usando nombre + fecha de nacimiento, sin fusionar automáticamente; las gemelas permanecen como casos revisables. Los registros eliminados no bloquean una nueva importación.
+- `ImportExportPanel` ahora muestra “Previsualizar importación”, errores por fila y “Confirmar e importar”, limpia previews obsoletas al cambiar el archivo y mantiene el objetivo táctil/accesible.
+- Evidencia focal: `tests/athlete-import-preview-contract.test.ts` 2/2, TypeScript y ESLint focales PASS. No se ejecutó una importación contra una academia real ni se aplicaron migraciones remotas.
+## 2026-09-12 — Fuente de verdad del release candidate
+
+- Se reconciliaron las cifras del último gate en la documentación: `pnpm verify:production` actual pasa 244 archivos de test (1 omitido), 1.590 tests (2 omitidos), auditoría estricta de APIs, `pnpm gate:all`, TypeScript, ESLint y build 228/228.
+- Se marcó expresamente que estas cifras describen el árbol local candidato. El último patch todavía no está publicado por la cuota diaria gratuita agotada de Vercel; el alias productivo conserva el despliegue anterior `READY`. No se ejecutaron migraciones remotas, cambios en producción ni actualización de Paperclip.
+## 2026-09-12 — IA de producto con datos reales y alcance seguro
+
+- Se corrigió la predicción de inasistencia: dejó de llamar a la ruta inexistente `/api/attendance/records` y ahora consulta asistencia directamente con scope de tenant/academia, descarta atletas eliminados, trata `late` como asistencia y `excused` como neutral.
+- `predict-absence` y `analyze-risk` verifican la asignación del coach/ownership antes de leer historial; con pocos datos devuelven `insufficientData` en vez de presentar una predicción con falsa certeza.
+- Los endpoints de progreso, morosidad y recordatorios ya no aceptan nombre, importe, historial o fecha enviados por el navegador como fuente de verdad: validan UUIDs, resuelven los registros server-side, limitan el tamaño y el consumo del proveedor de IA y anonimizan la identidad de menores en los prompts.
+- Se añadieron capabilities explícitas a los endpoints `/api/ai/attendance`, `/api/ai/communication` y `/api/ai/billing`, además de rate-limit compartido para lecturas/generaciones costosas. La moneda se incluye en prompts de billing para no asumir dólares en academias internacionales.
+- Verificación focal: `tests/ai-attendance-prediction-contract.test.ts` (4/4), TypeScript y ESLint sin errores. No hubo migraciones, cambios remotos ni datos de producción.
+
+## 2026-09-13 — Cierre de copy y rollback de importaciones CSV
+
+- La promesa pública de Starter dejó de decir `Portal de familias completo`: el catálogo, pricing, mensajes aprobados y la UI ahora describen un portal familiar limitado y seguro (horarios, avisos, progreso publicado y cuotas). También se corrigieron textos de onboarding y features para mantener lenguaje neutral y acabado editorial consistente.
+- `POST /api/athletes/import` registra cada confirmación en `athlete_import_batches`, enlaza las nuevas gimnastas mediante `athletes.import_batch_id`, cierra el lote como `completed`/`failed` y deja un audit log con recuentos y hash. Las filas siguen siendo atómicas y la vista previa no crea lotes.
+- Se añadió `POST /api/athletes/import/[batchId]/rollback`, protegido por tenant y `athletes:delete` en todas las academias afectadas. El rollback elimina vínculos, archiva solo las gimnastas creadas por ese lote, es idempotente y conserva el lote para trazabilidad. La UI requiere una segunda confirmación y explica el alcance antes de archivar.
+- RLS consolidado y migración idempotente cubren la nueva tabla; la migración `20260913100000_athlete_import_batches.sql` se aplicó en una transacción aislada al entorno configurado y se verificó con consulta de catálogo (`athlete_import_batches`, columna `athletes.import_batch_id` y policy de lectura presentes). El runner mantiene 13 migraciones históricas pendientes fuera de esta ejecución y no se mezclaron.
+- La auditoría visual detectó que `bg-primary-dark` no era un token Tailwind válido: la sección oscura de Features quedaba transparente y sus tabs perdían contraste. Se corrigieron las referencias de color en `src` a los tokens `zaltyko` efectivos (incluidos 53 estados hover), y la inspección local confirmó fondo oscuro y tabs legibles.
+- La misma promesa se alineó en indicadores de límite, perfil de propietario, resumen y panel de facturación y el marquee de home: ahora todos dicen `portal familiar limitado`, evitando que una vista interna vuelva a sobreprometer alcance.
+- El modelo de negocio activo también queda sincronizado con Pricing v3.0: Starter se describe por cobros recurrentes, portal familiar limitado, reportes básicos y progresión técnica, no como “SaaS completo”.
+- La verificación final descubrió y cerró un drift de dependencias: el hook efectivo `pnpmfile.cjs` estaba fijando `sharp` en 0.35.0 y `swagger-ui-react` resolvía `js-yaml` 4.3.1. El hook y el lockfile ahora fuerzan `sharp` 0.35.4 y `js-yaml` 4.3.2; instalación congelada y `pnpm audit --audit-level high` quedan limpios.
+- El H1 animado de la home conserva ahora un texto alternativo visible para lectores de pantalla; las palabras decorativas siguen ocultas para evitar lectura duplicada y el contrato `tests/split-words-accessibility.test.tsx` cubre ambas condiciones.
+- Evidencia local: los contratos de importación, claims públicos, `SplitWords` y la tabla comparativa quedan en 37/37; `pnpm typecheck`, `pnpm lint:app`, `pnpm check:migrations` (7 Drizzle + 67 Supabase), `pnpm validate:rls` (71/71, 100 %) y `pnpm verify:production` pasan. La suite completa queda en 259 archivos PASS + 1 omitido, 1.720 tests PASS + 2 omitidos, build de 227 páginas, `pnpm gate:all`, `git diff --check` y auditoría de dependencias limpios. A11y reproducible en Chromium: 6/6.
+- La matriz a11y completa de Chromium se repitió después de la tabla comparativa y vuelve a pasar 6/6 (home, login, changelog, status, dashboard y atletas); la prueba focal posterior de la home también pasa 1/1.
+- La métrica norte de activación quedó conectada a valor operativo real: primera clase, primer atleta y primera asistencia se registran con claves idempotentes, y `academy_activated` solo se emite si los tres ocurren dentro de los primeros siete días. También se corrigieron los CTAs de cobros/comunicación para conservar el `academyId` y no saltar a la vista global equivocada.
+- Smoke local posterior al build: `/`, `/features`, `/pricing`, `/api/health` y `/status` responden HTTP 200; el health público responde 200 con base de datos y `cronAuth` operativos, pero el pricing público aún contiene el copy del despliegue anterior.
+- La auditoría visual de adquisición/activación quedó documentada en `output/playwright/product-audit-2026-09-13.md`, con capturas aceptadas de home, precios, registro y login y límites explícitos sobre checkout, sesión real y WCAG manual.
+- Riesgos pendientes: falta importar un CSV real contra una academia de pruebas y ejercitar rollback en navegador; el deploy de producción sigue bloqueado por la cuota diaria gratuita de Vercel y no se pudo actualizar Paperclip/CEO desde este entorno.
+
+## 2026-09-13 — Reconciliación de onboarding, cuotas y documentación operativa
+
+- El indicador de límites de onboarding vuelve a leer las cuotas comerciales vigentes: Free 3 grupos/10 clases, Starter 5/20 y Growth 10/40. Se añadió un contrato para impedir que reaparezcan los valores legacy 2/5.
+- El checklist del dashboard ahora comunica “Pon tu academia en marcha” y separa configuración de activación; se corrigió el género de “atletas” en la descripción de importación.
+- `docs/ANALISIS_ONBOARDING_PLANES.md`, `docs/UX-ANALYSIS.md` y `docs/marketing/zaltyko-onboarding.md` fueron reconciliados con el flujo real (cuenta → espacio de trabajo corto → checklist) y marcan como hipótesis las promesas históricas no verificadas.
+- `docs/marketing/zaltyko-customer-success.md` deja explícito que sus SLA, canales y tiers son propuestas no vinculantes y que Professional/Business/Enterprise son nomenclatura histórica.
+- Se eliminó la contradicción pública entre “Mentes SaaS S.L.” y “Zaltyko S.L.” en privacidad y términos usando la marca Zaltyko; la identidad societaria y la revisión jurídica de menores, retención y borrado siguen pendientes de validación formal.
+- Re-verificación posterior: `pnpm verify:production` queda en **260 archivos PASS + 1 omitido; 1.724 tests PASS + 2 omitidos; build 227/227**; los contratos focales de claims, activación, importación y accesibilidad quedan en **41/41**. Health público sigue 200; pricing live sigue en el despliegue anterior por la cuota de Vercel.
+
+## 2026-09-14 — Cierre de release, identidad visual y verificación final
+
+- El deployment `dpl_AhwhcCQgEgF4V3EQ5gjgiu2tubHq` está `READY` y aliasado a `zaltyko.com`; `/api/health` confirma base de datos y `cronAuth` operativos, y el manifest/iconos PWA responden con la identidad visual real de Zaltyko.
+- El gate final `pnpm verify:production` pasa **293 archivos (1 omitido); 1.822 tests PASS (2 omitidos)**, 324 APIs sin riesgos, RLS 71/71, 57 variables documentadas, dependencias y migraciones íntegras, TypeScript/ESLint y build 227/227. El contrato de assets móviles pasa junto con las suites web y desaparecen los warnings de mocks de Vitest.
+- Se actualizaron los documentos de billing, pricing, onboarding y competencia al catálogo canónico vigente (Free, Starter, Growth y Network), dejando el copy histórico explícitamente no vinculante.
+- Siguen `NO VERIFICADO` las pruebas externas de Stripe Live, entregabilidad Brevo/WhatsApp/push y cron, E2E móvil/por rol con cuentas reales, WCAG manual, privacidad/retención de menores, métodos de pago por país y cohortes reales de activación.
+
+## 2026-09-13 — Auditoría de fidelidad operativa, aislamiento y métricas
+
+- Se revisaron los módulos de entrenadores, grupos, clases, atletas, asistencia, evaluaciones, calendario, soporte y WhatsApp sobre el checkout acumulado. Las consultas server-side ahora mantienen `tenantId`/`academyId`, excluyen clases, grupos y atletas archivados y filtran relaciones de asignación antes de hidratar la UI.
+- Los detalles de grupo, clase, atleta e historial dejan de sustituir configuración guardada por valores `null`, guidance genérico o arrays vacíos: se conservan rama/programa/nivel/aparatos, foco técnico, bloques, coach evaluador y puntuaciones desde el primer render.
+- Los contadores de clases y del panel de coach deduplican atletas que aparecen simultáneamente por grupo y por inscripción extra; las consultas de listas tienen límites explícitos para evitar lecturas sin cota.
+- El calendario filtra hijos/atletas por tenant y academia, respeta clases archivadas y conserva el vínculo tenant de `class_groups`, `class_enrollments`, sesiones y días de semana. La agenda del coach aplica el mismo alcance y la zona horaria local ya corregida.
+- Soporte ya no mezcla la vista SSR con la semántica de la API: usuarios normales ven sus tickets y owner/admin/super-admin pueden ver el conjunto operativo; la creación usa `profiles.id` (no el UUID de auth) y vuelve a validar membership dentro de la server action.
+- Se añadió `tests/academy-detail-fidelity-contract.test.ts` y se amplió la cobertura de contratos. Evidencia posterior: suite completa **264 archivos PASS + 1 omitido; 1.739 tests PASS + 2 omitidos**, `pnpm verify:production` PASS con build 227/227 y `pnpm gate:all` PASS (unbounded reads, auth-before-validate y orphan routes limpios).
+- Pendiente externo sin cambios: no se reintentó Vercel porque la cuota diaria gratuita continúa agotada; el pricing público sigue en el despliegue anterior y Paperclip/CEO no fue actualizado desde este entorno. Tampoco se presenta como validación E2E real de Stripe, email/WhatsApp/push, móvil o tenants de producción.
+
+## 2026-09-14 — Activación visible y tablas operativas
+
+- Se añadió a Super Admin el contador real de dueños sin `profiles.active_academy_id`, con enlace al listado de propietarios. La comprobación live muestra 23 registros pendientes de configurar; no se borraron cuentas ni se clasificaron heurísticamente como QA.
+- Se centralizó la etiqueta comercial de planes: `free`/`pro`/`premium`/`network` se presentan como Free/Starter/Growth/Network y los códigos internos no se filtran en dashboard, listados, filtros ni selectores de detalle.
+- Se corrigió la tabla de usuarios y academias para viewports estrechos: `table-fixed`, anchos previsibles, truncado de identidades largas, scroll horizontal explícito y alineación correcta del plan oculto en móvil. Los contratos responsive y de etiquetas pasan.
+- Publicación `dpl_DhAGLBMzLK6ztMxnhrc5JSz6Pxaz` `READY`, aliasada a `zaltyko.com`; health live DB/cronAuth `ok`, logs de error recientes vacíos.
+- Evidencia final: `pnpm verify:production` PASS con **295 archivos (1 omitido); 1.829 tests PASS (2 omitidos)**, 324 APIs sin riesgos, RLS 71/71, TypeScript/ESLint y build 227/227.
+
+## 2026-09-14 — Consistencia comercial y publicación precompilada
+
+- El último drift de nombres comerciales quedó cerrado en onboarding, indicadores de límites, facturación, dashboard, sidebar, notificaciones realtime, emails de ajustes/cambios de plan y el error de límite de atletas. Todos usan `getProductPlanPublicName`; `planCode.toUpperCase()`, `plan.code.toUpperCase()` y fallbacks equivalentes ya no aparecen en superficies de usuario.
+- Se añadió `tests/plan-display-consistency.test.ts`, que obliga a enrutar estas superficies por el resolver canónico y bloquea regresiones de códigos internos visibles.
+- Verificación live con la nueva publicación: Super Admin muestra `Dueños sin academia: 23`, distribución `Free/Growth`, y Club Ursel en Facturación muestra `Starter`, `Free`, `Starter` y `Growth` sin filtrar `pro`/`premium`.
+- La build remota normal quedó atascada en `Creating an optimized production build...`; se retiró únicamente ese deployment sin alias y se publicó el artefacto local con `vercel build --prod --yes` + `vercel deploy --prebuilt --prod --yes --archive=tgz`. La publicación final es `dpl_GM3pnoRwnKjzNuumg7b2pp6BHWWz`, `READY`, aliasada a `zaltyko.com`.
+- Evidencia final: `pnpm verify:production` PASS con **296 archivos (1 omitido); 1.831 tests PASS (2 omitidos)**, 324 APIs sin riesgos, RLS 71/71, TypeScript/ESLint y build 227/227. Health live de DB/cronAuth `ok`, logs de error recientes sin entradas.
+
+## 2026-09-14 — Coherencia entre plan efectivo y cuotas
+
+- La auditoría live del dashboard de Club Ursel detectó que el encabezado decía Free mientras las cuotas mostraban 75 gimnastas/20 entrenamientos (Starter). La causa era una segunda consulta de suscripción en `src/lib/dashboard.ts` que podía divergir del trial efectivo.
+- `getActiveSubscription` ahora entrega también estado y nickname; el dashboard utiliza esa única fuente para nombre, estado, límites y porcentajes. Un trial activo se presenta como Starter/En periodo de prueba con límites 75/20.
+- Contrato añadido en `tests/dashboard-plan-consistency.test.ts`; verificación live posterior confirma `Starter`, `En periodo de prueba` y `1/75 gimnastas, 3/20 entrenamientos`.
+- Publicación final `dpl_7JZATgcBJDc9EWzc7D9f1ZdhKM8n` `READY`, aliasada a `zaltyko.com`; health DB/cronAuth `ok`, logs recientes sin errores.
+- Evidencia final: `pnpm verify:production` PASS con **297 archivos (1 omitido); 1.833 tests PASS (2 omitidos)**, 324 APIs sin riesgos, RLS 71/71, TypeScript/ESLint y build 227/227.
+
+## 2026-09-14 — Localización de estados de suscripción
+
+- Se centralizaron las etiquetas públicas de estados de suscripción en `src/lib/billing/subscription-status-labels.ts`, evitando que valores Stripe/DB como `Active` se filtren a la interfaz.
+- El gráfico de estados del Super Admin y el resumen de plan de la academia usan el mismo resolver, con fallback seguro `Estado no disponible` para estados futuros o ausentes.
+- Contrato añadido en `tests/subscription-status-labels.test.ts`; suite focal 8/8, TypeScript y `git diff --check` pasan.
+- Publicación final `dpl_7D1RYLTEjaQ2yZcy3txXBqS1UUsj` `READY`, aliasada a `zaltyko.com`; health DB/cronAuth `ok`, logs recientes sin errores.
+- Evidencia final: `pnpm verify:production` PASS con **298 archivos (1 omitido); 1.836 tests PASS (2 omitidos)**, 324 APIs sin riesgos, RLS 71/71, TypeScript/ESLint y build 227/227.
+
+## 2026-09-14 — Cierre de billing y publicación definitiva
+
+- Se extendió el resolver de estados de suscripción a Billing Summary, Billing Panel y los detalles de academia/usuario de Super Admin; ningún estado técnico o desconocido se renderiza directamente.
+- Verificación live final: Super Admin muestra `Activo`; Club Ursel muestra `Starter · En período de prueba · 1/75 gimnastas · 3/20 entrenamientos`; Billing muestra `Free`, `Starter` y `Growth`.
+- Publicación definitiva `dpl_uYBcqjagmiJWSgdzcEs3VZSzJ9xZ` `READY`, aliasada a `zaltyko.com`; health DB/cronAuth `ok`, logs recientes sin errores.
+- Evidencia final: `pnpm verify:production` PASS con **298 archivos (1 omitido); 1.836 tests PASS (2 omitidos)**, 324 APIs sin riesgos, RLS 71/71, TypeScript/ESLint y build 227/227. Sin migraciones ni acciones destructivas sobre datos reales.
+
+## 2026-09-15 — Fotos, tema oscuro, selectores y asistente
+
+- El upload de fotos de perfil usa el cliente de Storage server-side sobre el bucket `avatars`, normaliza `image/jpg` a JPEG y conserva validación de firma, tamaño y malware; la sesión del usuario sigue siendo obligatoria.
+- El selector compartido se simplificó a un `<select>` nativo válido. La composición histórica `SelectTrigger`/`SelectContent` ya no inserta `div` dentro de `select`, corrigiendo opciones invisibles y navegación por teclado/móvil.
+- El asistente de chat lee la respuesta estandarizada `{ ok, data: { answer } }` y el endpoint permite consultas generales aunque la cuenta aún no tenga academia activa.
+- Las superficies compartidas de Input, Card, Badge, Tabs, EmptyState y StatsCard ya tienen contraste/superficie explícitos para tema oscuro.
+- Publicación `dpl_9y5jLvtRGwajny1hDLr98My9iFyf` `READY`, aliasada a `zaltyko.com`; health live DB/cronAuth `ok`. Sin migraciones ni cambios destructivos.
+- Seguimiento: se actualizó el cliente MiniMax al endpoint `api.minimax.io`/`chatcompletion_v2` y modelo `MiniMax-M2.7`, se detectan errores de proveedor/respuestas vacías y se añadió fallback contextual cuando falta la clave. La publicación final es `dpl_61o84GXXwaQMi8f6REpkDcrQB5C7` `READY`; health live continúa OK.
+- Revisión de todos los `<select>` nativos: una regla global de opciones aplica los tokens `popover` en claro/oscuro para evitar texto blanco sobre fondo blanco en menús de Super Admin y formularios. La publicación más reciente es `dpl_FBzHKqRCQZdTE6dPNpAXJ4kH5pM1` `READY`; `git diff --check`, TypeScript y ESLint siguen verdes.
+- Auditoría móvil: el paquete Expo no declaraba tipos de Node aunque sus pruebas de paridad los usan, por lo que `tsc` fallaba en CI. Se añadieron `@types/node`, `types: ["node"]`, lockfile independiente y job `mobile-quality` en CI. Validación local exacta: typecheck PASS, lint PASS sin warnings y 14 archivos/330 tests PASS.
+
+## 2026-09-14 — Publicación definitiva tras endurecimiento de Stripe Connect
+
+- La tarjeta de Stripe Connect ya traduce estados de onboarding (`pending`, `onboarding`, `enabled`, `restricted`, `disabled`) y evita exponer valores técnicos; los estados de recibos desconocidos muestran `Desconocido`.
+- Smoke live final: Super Admin `Activo`; Club Ursel Billing `Starter · En período de prueba`, límites 75/20 y catálogo Free/Starter/Growth.
+- Publicación definitiva `dpl_3guRBDN7oGia7ZJZFa5egrt7YsjL` `READY`, aliasada a `zaltyko.com`; health DB/cronAuth `ok`, logs recientes sin errores.
+- Evidencia final: `pnpm verify:production` PASS con **298 archivos (1 omitido); 1.836 tests PASS (2 omitidos)**, 324 APIs sin riesgos, RLS 71/71, TypeScript/ESLint y build 227/227. Sin migraciones ni acciones destructivas sobre datos reales.
+## 2026-09-15 - Fix envelope de subida de foto de perfil
+
+- El formulario `ProfileEditForm` ahora consume respuestas `{ ok, data }` tanto de `/api/profile/upload-photo` como de `/api/profile`.
+- Antes la imagen podía subirse correctamente pero la UI leía `url`/campos en la raíz y no guardaba ni mostraba la foto.
+- Añadida regresión contractual en `tests/api-profile.test.ts`.
+- Publicado en Vercel Production: `dpl_BEt831dX2krERXz3raEJoa8Atxzn` (`READY`, alias `zaltyko.com`).
+## 2026-09-15 - Contratos de imágenes, vídeo y empleo
+
+- `FileUpload`, `PhotoGallery`, `VideoUploader`, `GuardianManager` y la solicitud de empleo consumen el envelope `{ ok, data }` de sus APIs.
+- Se añadieron errores accionables cuando una mutación no devuelve el recurso esperado.
+- Regresión contractual ampliada a 8 escenarios visibles; TypeScript y ESLint pasan.
+- Publicado en Vercel Production: `dpl_GBB393PSgnBjWjX3joMyt18r9fet` (`READY`, alias `zaltyko.com`).
+## 2026-09-15 - Consistencia adicional en bolsa de empleo
+
+- La pantalla `/dashboard/empleo/mis-postulaciones` normaliza respuestas `{ ok, data }` y evita mostrar falsamente una lista vacía.
+- Se añadió contrato focal para la carga de postulaciones.
+- El despliegue remoto directo sufrió OOM en Vercel; se usó build prebuilt local reproducible para publicar sin cambiar infraestructura.

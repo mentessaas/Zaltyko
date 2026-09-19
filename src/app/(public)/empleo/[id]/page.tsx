@@ -4,9 +4,11 @@ import { notFound } from "next/navigation";
 import { headers } from "next/headers";
 import { ArrowLeft, MapPin, Calendar, Briefcase, Building } from "lucide-react";
 import { AdBanner } from "@/components/advertising/AdBanner";
+import { Schema } from "@/components/Schema";
 import { canUsePublicDemoData, demoEmploymentListing } from "@/lib/public/demo-listings";
 import { logger } from "@/lib/logger";
 import { getPublicSiteUrl } from "@/lib/seo/site-url";
+import { jobPostingJsonLd } from "@/lib/seo/job-schema";
 
 interface Props {
   params: Promise<{ id: string }>;
@@ -98,6 +100,7 @@ export default async function EmpleoDetailPage({ params }: Props) {
   }
 
   const listing = data.item;
+  const baseUrl = getPublicSiteUrl();
 
   const formatSalary = (salary: any) => {
     if (!salary || salary.type === "contact") return "A consultar";
@@ -117,6 +120,34 @@ export default async function EmpleoDetailPage({ params }: Props) {
       day: "numeric",
     });
   };
+
+  // Google for Jobs exige: title, description (texto plano), datePosted,
+  // hiringOrganization.name y jobLocation.address. Sin estos campos no
+  // emitimos el nodo (preferible a un JobPosting inválido que Google ignora).
+  const jobSchema = jobPostingJsonLd({
+    baseUrl,
+    pagePath: `/empleo/${id}`,
+    id,
+    title: listing.title,
+    description:
+      [listing.description, listing.requirements].filter(Boolean).join("\n\n") ||
+      listing.title,
+    datePosted: listing.createdAt ?? new Date().toISOString(),
+    validThrough: listing.deadline ?? null,
+    employmentType: listing.jobType ?? null,
+    jobLocation: listing.location ?? null,
+    hiringOrganization: {
+      name: listing.academyName || "Academia Zaltyko",
+      sameAs: listing.academyId ? `${baseUrl}/academias/${listing.academyId}` : null,
+    },
+    salary: listing.salary
+      ? {
+          min: listing.salary.min ?? null,
+          max: listing.salary.max ?? null,
+          currency: listing.salary.currency || "EUR",
+        }
+      : null,
+  });
 
   return (
     <div className="container mx-auto px-4 py-8">
@@ -260,6 +291,8 @@ export default async function EmpleoDetailPage({ params }: Props) {
           </div>
         </div>
       </div>
+
+      {jobSchema && <Schema json={jobSchema} />}
     </div>
   );
 }

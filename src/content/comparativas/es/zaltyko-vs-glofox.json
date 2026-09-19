@@ -1,0 +1,124 @@
+{
+  "meta": {
+    "title": "Zaltyko vs Glofox para Academias de Gimnasia | Comparativa",
+    "description": "Comparamos Zaltyko y Glofox para academias de gimnasia: precios, idioma, soporte, portal familiar, cobertura federativa. Tabla, pros, contras y para quién encaja cada uno.",
+    "keywords": [
+      "zaltyko vs glofox",
+      "glofox alternativa",
+      "software para academias de gimnasia",
+      "software gestión gimnasios",
+      "glofox precio"
+    ]
+  },
+  "hero": {
+    "badge": "Comparativa",
+    "headline": "Glofox vs Zaltyko para tu academia de gimnasia",
+    "subheadline": "Glofox es un software popular para estudios de fitness y academias con foco en reservas y cobros. Lo comparamos con Zaltyko para que veas las diferencias de enfoque, idioma y cobertura federativa."
+  },
+  "competitor": {
+    "name": "Glofox",
+    "tagline": "Software para estudios de fitness con foco en reservas y member experience."
+  },
+  "table": [
+    {
+      "feature": "Idioma principal",
+      "zaltyko": "Español nativo, soporte y copy en español",
+      "competitor": "Inglés nativo; interfaz traducida parcialmente al español"
+    },
+    {
+      "feature": "Cobertura específica de gimnasia",
+      "zaltyko": "Especializado en gimnasia artística y rítmica",
+      "competitor": "Fitness genérico: yoga, pilates, boxeo, crossfit"
+    },
+    {
+      "feature": "Niveles y aparatos específicos",
+      "zaltyko": "Sí: Pre-iniciación a FIG, evaluación por aparato",
+      "competitor": "Genérico por tipo de clase, no por nivel federativo"
+    },
+    {
+      "feature": "Federaciones integradas",
+      "zaltyko": "RFEG, FMGM, CGG, FCG, FGCh, FPG (nomenclatura local)",
+      "competitor": "Cobertura limitada de federaciones hispanas"
+    },
+    {
+      "feature": "Reservas online (clase suelta)",
+      "zaltyko": "Limitado: foco en clases recurrentes con gimnastas fijos",
+      "competitor": "Punto fuerte: reserva de plaza por sesión, integración web/app"
+    },
+    {
+      "feature": "Cobros recurrentes",
+      "zaltyko": "Cuotas mensuales, automáticos, recordatorios",
+      "competitor": "Membresías y packs de clases"
+    },
+    {
+      "feature": "Pase de lista en pista",
+      "zaltyko": "Optimizado para móvil, un toque por sesión",
+      "competitor": "Check-in por app o web, foco en fitness"
+    },
+    {
+      "feature": "Inscripciones a competiciones",
+      "zaltyko": "Sí, con niveles, cupos y lista de espera",
+      "competitor": "Funcionalidad genérica de eventos"
+    },
+    {
+      "feature": "Trial sin tarjeta",
+      "zaltyko": "7 días de Starter, sin tarjeta",
+      "competitor": "Demo comercial guiada, no trial auto-servicio"
+    },
+    {
+      "feature": "Plan gratis",
+      "zaltyko": "Sí, hasta 30 gimnastas y 1 academia",
+      "competitor": "No publica plan free sostenido"
+    },
+    {
+      "feature": "Atención al cliente",
+      "zaltyko": "Email en español, días laborables",
+      "competitor": "Email en inglés, horario anglosajón"
+    }
+  ],
+  "zaltykoPros": [
+    "Especialización en gimnasia: niveles, aparatos, federaciones hispanas.",
+    "Plan Free útil (hasta 30 gimnastas) y trial sin tarjeta.",
+    "Soporte, copy y documentación en español."
+  ],
+  "zaltykoContras": [
+    "Reserva online de clase suelta es limitada: foco en academias con gimnastas fijos.",
+    "Menos pulido en member experience / branded app que un producto fitness genérico.",
+    "Comunidad fuera de mercado hispano reducida."
+  ],
+  "competitorPros": [
+    "Reservas online de clase suelta y member experience bien trabajadas.",
+    "Branding para academia (app y web con tu marca) más maduro.",
+    "Comunidad global de estudios fitness."
+  ],
+  "competitorContras": [
+    "Genérico para fitness: niveles y federaciones de gimnasia hay que configurarlos a mano.",
+    "Idioma y soporte principalmente en inglés.",
+    "Sin plan free sostenido: trial guiado, no auto-servicio."
+  ],
+  "idealForZaltyko": [
+    "Academias de gimnasia artística o rítmica con grupos fijos.",
+    "Clubes que trabajan con federaciones hispanas.",
+    "Operaciones con trial sin tarjeta y plan Free útil."
+  ],
+  "idealForCompetitor": [
+    "Estudios de fitness con modelo de reservas (clase suelta).",
+    "Negocios que priorizan member experience con app branded.",
+    "Academias fuera del mercado hispano."
+  ],
+  "faq": [
+    {
+      "q": "¿Glofox sirve para gimnasia artística?",
+      "a": "Sirve para academias mixtas o con foco en reservas de clase, pero no está especializado en niveles federativos de gimnasia artística ni en federaciones hispanas. Requiere configuración manual."
+    },
+    {
+      "q": "¿Cuál es más barato?",
+      "a": "Zaltyko tiene plan Free hasta 30 gimnastas y Starter desde 19 €/mes. Glofox no publica plan free y su pricing suele ser superior para academias pequeñas. Para academias medianas o grandes conviene comparar el coste total con el número de plazas."
+    },
+    {
+      "q": "¿Puedo migrar de Glofox a Zaltyko?",
+      "a": "Sí. Zaltyko permite importar gimnastas desde CSV o Excel. Para histórico de cobros o reservas, el equipo de Zaltyko puede revisar el formato y proponer una migración guiada."
+    }
+  ],
+  "verdict": "Glofox brilla en reservas online y member experience para estudios de fitness con modelo de clase suelta. Zaltyko está especializado en gimnasia artística y rítmica con grupos fijos y federaciones hispanas. Si tu academia encaja con el segundo perfil, Zaltyko es la opción más coherente; si tu modelo es reservas de plaza por sesión, Glofox puede ser mejor."
+}

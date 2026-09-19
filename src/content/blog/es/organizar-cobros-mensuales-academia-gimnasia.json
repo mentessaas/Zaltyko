@@ -1,0 +1,35 @@
+{
+  "slug": "organizar-cobros-mensuales-academia-gimnasia",
+  "title": "Cómo organizar los cobros mensuales en una academia de gimnasia",
+  "description": "Estrategia práctica para cobrar cuotas mensuales: tipos de cuota, fechas de cobro, gestión de morosos, qué automatizar y qué dejar manual. Errores comunes.",
+  "datePublished": "2026-09-18",
+  "dateModified": "2026-09-18",
+  "author": "Equipo Zaltyko",
+  "excerpt": "Cobrar las cuotas mensuales a tiempo es uno de los puntos más delicados de cualquier academia. Esta guía cubre tipos de cuota, fechas, morosidad y qué conviene automatizar.",
+  "category": "Finanzas",
+  "keywords": [
+    "cobros academia",
+    "cobrar cuotas mensuales",
+    "gestión cobros gimnasio",
+    "morosidad academia"
+  ],
+  "relatedRoutes": ["/pricing", "/features"],
+  "content": [
+    "## Define tipos de cuota antes de cobrar",
+    "No todas las familias pagan lo mismo: cuota mensual estándar, descuento por hermanos, beca, tarifa plana trimestral, clase suelta, masterclass. Definir los tipos de cuota antes de empezar a cobrar evita improvisar sobre la marcha.",
+    "## Elige una fecha de cobro coherente",
+    "El 1 o el 5 del mes suelen ser buenas fechas. Evita cobrar a final de mes (las familias están ajustadas). Define el día y mantenlo: las familias se acostumbran y la morosidad cae.",
+    "## Cobra por domiciliación o tarjeta, no por transferencia",
+    "La transferencia manual genera: impagos silenciosos, conciliaciones manuales, devoluciones. La domiciliación o el cargo a tarjeta automatiza el ciclo y reduce la morosidad.",
+    "## Morosidad: política clara y por escrito",
+    "Una academia sin política de morosidad acaba escribiendo mensajes uno a uno a las familias que pagan tarde. Define: días de gracia, recordatorio automático, segundo aviso, suspensión temporal del acceso, baja. Comunícalo en la inscripción y aplícalo por igual.",
+    "## Qué automatizar",
+    "Generación de cuotas, envío de recibos, recordatorios automáticos, marcar impagos, suspender acceso a clases si la cuota está vencida. El software de gestión cubre todo esto.",
+    "## Qué dejar manual",
+    "Negociaciones puntuales (becas, descuentos especiales, casos familiares), bajas definitivas con conversación humana, devoluciones y ajustes contables. La automatización no sustituye el juicio.",
+    "## Conciliación mensual",
+    "Reserva una hora al mes para conciliar: lo que el banco dice, lo que el software dice, lo que la familia esperaba pagar. Tres fuentes que deben coincidir.",
+    "## Errores frecuentes",
+    "Olvidar dar de baja a un gimnasta y seguir cobrando, no documentar becas y descuentos, mezclar cuotas personales con cuotas de eventos, olvidar el IVA o el impuesto local aplicable."
+  ]
+}

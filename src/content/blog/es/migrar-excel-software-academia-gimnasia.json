@@ -1,0 +1,39 @@
+{
+  "slug": "migrar-excel-software-academia-gimnasia",
+  "title": "Cómo migrar tu academia de gimnasia de Excel a un software especializado",
+  "description": "Pasos concretos para dejar Excel sin perder datos: qué exportar, cómo limpiar el CSV y qué validar antes del primer cobro con familias.",
+  "datePublished": "2026-09-18",
+  "dateModified": "2026-09-18",
+  "author": "Equipo Zaltyko",
+  "excerpt": "Si llevas la academia en hojas de cálculo, la migración a un software especializado no tiene que ser traumática. Esta guía ordena los pasos: qué exportar, cómo limpiar el CSV, qué validar antes del primer cobro.",
+  "category": "Operación",
+  "keywords": [
+    "migrar excel academia",
+    "importar gimnastas",
+    "software academia desde excel",
+    "migrar datos academia gimnasia"
+  ],
+  "relatedRoutes": ["/pricing", "/features"],
+  "content": [
+    "## Por qué migrar (o no)",
+    "Excel sigue siendo válido para academias muy pequeñas o casos puntuales. Pero cuando aparecen cobros recurrentes, recordatorios automáticos y comunicación con familias, el tiempo invertido en mantener fórmulas y versiones se dispara.",
+    "## Antes de empezar: qué tienes en Excel",
+    "Haz un inventario realista de las hojas que usas: gimnastas con datos personales, familias, grupos y horarios, cuotas mensuales, pagos y morosidad, asistencia, evaluaciones técnicas. Separa lo crítico (nombres, contactos, datos de pago) de lo decorativo (colores, formatos).",
+    "## El primer paso: exportar a CSV",
+    "Excel y Google Sheets permiten exportar a CSV (valores separados por comas). Para cada hoja crítica, exporta un CSV con codificación UTF-8. Evita CSVs con celdas combinadas, fórmulas o comentarios.",
+    "## Limpiar antes de importar",
+    "Los campos obligatorios suelen ser: nombre completo, fecha de nacimiento, contacto familiar principal, email y teléfono. Revisa:",
+    "- Emails con formato válido (sin espacios, sin caracteres raros).",
+    "- Teléfonos con prefijo de país (+34, +52, etc.).",
+    "- Fechas en formato ISO (YYYY-MM-DD).",
+    "- Nombres sin caracteres de control.",
+    "## Importación por goteo, no toda de golpe",
+    "Empieza por 10-20 gimnastas de prueba. Verifica que aparecen correctamente en el software, que los grupos se asignan y que las búsquedas funcionan. Después importa el resto.",
+    "## Qué validar antes del primer cobro",
+    "Antes de activar cobros automáticos, confirma con cada familia que el importe y la fecha son correctos. Empieza con un grupo pequeño y expande. Si el software permite simular cobros sin enviar, hazlo: detecta errores de configuración sin tocar dinero real.",
+    "## Después de migrar: qué dejar en Excel",
+    "Puedes mantener Excel como copia de seguridad offline o para análisis puntuales (informes de junta, comparativas manuales). El software especializado pasa a ser la fuente operativa principal.",
+    "## Cuándo NO migrar",
+    "Si la academia tiene menos de 20 gimnastas y no cobra cuotas mensuales, Excel puede bastar. La migración tiene sentido cuando el coste del tiempo administrativo (cobros manuales, duplicados, errores) supera al coste del software."
+  ]
+}

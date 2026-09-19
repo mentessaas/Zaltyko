@@ -1,6 +1,7 @@
 "use client";
 
-import { Check, X } from "lucide-react";
+import Link from "next/link";
+import { Check, X, ArrowRight } from "lucide-react";
 import { cn } from "@/lib/utils";
 import Reveal from "@/components/motion/Reveal";
 
@@ -73,10 +74,14 @@ function CellValue({ value, highlight }: { value: boolean | string; highlight?: 
       <div className="flex items-center justify-center">
         {highlight ? (
           <span className="flex h-6 w-6 items-center justify-center rounded-full bg-zaltyko-teal/15">
-            <Check className="h-4 w-4 text-zaltyko-teal" />
+            <span className="sr-only">Sí</span>
+            <Check aria-hidden="true" className="h-4 w-4 text-zaltyko-teal" />
           </span>
         ) : (
-          <Check className="h-5 w-5 text-green-600" />
+          <span className="flex items-center justify-center">
+            <span className="sr-only">Sí</span>
+            <Check aria-hidden="true" className="h-5 w-5 text-green-600" />
+          </span>
         )}
       </div>
     );
@@ -84,7 +89,8 @@ function CellValue({ value, highlight }: { value: boolean | string; highlight?: 
   if (value === false) {
     return (
       <div className="flex items-center justify-center">
-        <X className="h-5 w-5 text-gray-300" />
+        <span className="sr-only">No</span>
+        <X aria-hidden="true" className="h-5 w-5 text-gray-300" />
       </div>
     );
   }
@@ -103,10 +109,10 @@ export default function ComparisonSection() {
             <span className="inline-block px-4 py-1.5 bg-zaltyko-teal/10 text-zaltyko-indigo text-sm font-semibold rounded-full mb-4">
               Comparativa
             </span>
-            <h2 className="text-4xl sm:text-5xl font-bold text-gray-900 mb-4">
+            <h2 className="text-4xl sm:text-5xl font-bold text-gray-900 dark:text-foreground mb-4">
               ¿Por qué no seguir con Excel?
             </h2>
-            <p className="text-xl text-gray-600 max-w-2xl mx-auto">
+            <p className="text-xl text-gray-600 dark:text-muted-foreground max-w-2xl mx-auto">
               Comparamos Zaltyko con las alternativas más comunes para que veas la diferencia.
             </p>
           </div>
@@ -116,7 +122,7 @@ export default function ComparisonSection() {
         <Reveal delay={120}>
         <div className="relative">
           <div className="overflow-x-auto rounded-2xl border border-gray-200 shadow-lg">
-          <table className="w-full bg-white">
+          <table className="w-full bg-white dark:bg-card">
             {/* Header */}
             <thead>
               <tr>
@@ -145,10 +151,10 @@ export default function ComparisonSection() {
                   key={row.feature}
                   className={cn(
                     "border-b border-gray-100 last:border-0",
-                    i % 2 === 0 ? "bg-white" : "bg-muted/40"
+                    i % 2 === 0 ? "bg-white dark:bg-card" : "bg-muted/40"
                   )}
                 >
-                  <td className="px-6 py-3.5 text-sm font-medium text-gray-700">
+                  <td className="px-6 py-3.5 text-sm font-medium text-gray-700 dark:text-muted-foreground">
                     {row.feature}
                   </td>
                   <td className="px-4 py-3.5 bg-zaltyko-teal/[0.06] border-x-2 border-zaltyko-teal/20">
@@ -178,6 +184,38 @@ export default function ComparisonSection() {
         <p className="text-center text-sm text-gray-500 mt-6">
           * Software genérico se refiere a herramientas de gestión sin especialización en gimnasia artística o rítmica.
         </p>
+
+        {/* Comparativas dedicadas */}
+        <div className="mt-10 flex flex-wrap items-center justify-center gap-3">
+          <Link
+            href="/comparativas/zaltyko-vs-excel"
+            className="inline-flex items-center gap-1.5 rounded-full border border-border bg-card px-4 py-2 text-sm font-medium text-foreground hover:border-zaltyko-teal/40 hover:bg-zaltyko-teal/5"
+          >
+            Zaltyko vs Excel
+            <ArrowRight aria-hidden="true" className="h-3 w-3" />
+          </Link>
+          <Link
+            href="/comparativas/zaltyko-vs-sportmember"
+            className="inline-flex items-center gap-1.5 rounded-full border border-border bg-card px-4 py-2 text-sm font-medium text-foreground hover:border-zaltyko-teal/40 hover:bg-zaltyko-teal/5"
+          >
+            Zaltyko vs SportMember
+            <ArrowRight aria-hidden="true" className="h-3 w-3" />
+          </Link>
+          <Link
+            href="/comparativas/zaltyko-vs-glofox"
+            className="inline-flex items-center gap-1.5 rounded-full border border-border bg-card px-4 py-2 text-sm font-medium text-foreground hover:border-zaltyko-teal/40 hover:bg-zaltyko-teal/5"
+          >
+            Zaltyko vs Glofox
+            <ArrowRight aria-hidden="true" className="h-3 w-3" />
+          </Link>
+          <Link
+            href="/comparativas"
+            className="inline-flex items-center gap-1 text-sm font-semibold text-zaltyko-teal hover:underline"
+          >
+            Ver todas las comparativas
+            <ArrowRight aria-hidden="true" className="h-4 w-4" />
+          </Link>
+        </div>
       </div>
     </section>
   );

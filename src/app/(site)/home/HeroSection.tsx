@@ -37,7 +37,7 @@ export default function HeroSection() {
     <section className="relative bg-white">
       {/* pt-28+ despeja el Navbar fijo (~88px con blur translúcido); py-20 dejaba
           el eyebrow parcialmente detrás del nav en el primer viewport. */}
-      <div className="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8 pt-28 pb-20 lg:pt-36 lg:pb-32">
+      <div className="mx-auto max-w-7xl px-4 pb-16 pt-28 sm:px-6 lg:px-8 lg:pb-24 lg:pt-28">
         <div className="grid lg:grid-cols-2 gap-16 lg:gap-20 items-center">
           {/* Left Content */}
           <div className="max-w-2xl">
@@ -45,13 +45,15 @@ export default function HeroSection() {
               Gimnasia artística · Rítmica
             </p>
 
-            {/* H1 */}
-            <h1 className="mb-6 font-display font-bold leading-[1.05] tracking-tight text-zaltyko-navy text-[clamp(1.875rem,6vw,4.5rem)]">
-              <SplitWords text="Las cuotas cobradas, los grupos montados y la lista pasada." />
+            {/* H1 — primary keyword al inicio para relevancia semántica del LCP.
+                Resto del copy (subtítulo, descripción, microcopy bajo CTA)
+                preserva el tono de marca de Mensajes aprobados. */}
+            <h1 className="mb-6 font-display text-[clamp(1.875rem,5vw,4rem)] font-bold leading-[1.05] tracking-tight text-zaltyko-navy">
+              <SplitWords text="Software para academias de gimnasia bajo control." />
             </h1>
             <Reveal delay={550}>
               <p className="mb-3 font-display text-xl font-medium text-zaltyko-text-secondary sm:text-2xl">
-                Sin Excel y sin los chats de WhatsApp del club.
+                Cuotas cobradas, grupos montados y lista pasada.
               </p>
             </Reveal>
 
@@ -70,10 +72,10 @@ export default function HeroSection() {
                   href="/auth/register?role=owner"
                   className={cn(
                     buttonVariants({ variant: "default", size: "lg" }),
-                    "group bg-zaltyko-teal px-8 py-6 text-base text-white shadow-brand transition-all duration-200 hover:bg-primary-dark hover:shadow-lift"
+                    "group bg-zaltyko-teal px-8 py-6 text-base text-white shadow-brand transition-all duration-200 hover:bg-zaltyko-primary-dark hover:shadow-lift"
                   )}
                 >
-                  Crea tu academia gratis
+                  Crear cuenta y configurar academia
                   <ArrowRight className="ml-2 h-5 w-5 group-hover:translate-x-1 transition-transform" />
                 </Link>
                 <Link

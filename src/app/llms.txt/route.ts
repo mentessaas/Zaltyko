@@ -3,6 +3,9 @@ import { NextResponse } from "next/server";
 const LLMS_CONTENT = `
 # Zaltyko - Software para Gestión de Academias de Gimnasia
 
+> Para el detalle completo de planes, copy aprobado y mensajes de marketing,
+> consulta también \`/llms-full.txt\` (la spec llms.txt recomienda ambos).
+
 ## Descripción General
 
 Zaltyko es una plataforma especializada en la dirección de academias de gimnasia artística femenina, gimnasia artística masculina y gimnasia rítmica. La plataforma cubre gestión de gimnastas, grupos, horarios, cobros, eventos, familias y seguimiento técnico.
@@ -65,8 +68,8 @@ El sitio incluye páginas de cluster específicas por país y modalidad para art
 export async function GET() {
   return new NextResponse(LLMS_CONTENT, {
     headers: {
-      "Content-Type": "text/plain",
-      "Cache-Control": "public, max-age=3600",
+      "Content-Type": "text/plain; charset=utf-8",
+      "Cache-Control": "public, max-age=3600, s-maxage=3600",
     },
   });
 }

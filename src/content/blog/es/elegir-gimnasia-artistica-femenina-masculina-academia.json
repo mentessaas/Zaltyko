@@ -1,0 +1,35 @@
+{
+  "slug": "elegir-gimnasia-artistica-femenina-masculina-academia",
+  "title": "Cómo elegir entre gimnasia artística femenina y masculina para tu academia",
+  "description": "Diferencias operativas entre gimnasia artística femenina (GAF) y masculina (GAM): aparatos, categorías, ratios, demanda. Cómo decidir si tu academia abre una, otra o ambas.",
+  "datePublished": "2026-09-18",
+  "dateModified": "2026-09-18",
+  "author": "Equipo Zaltyko",
+  "excerpt": "GAF y GAM comparten entrenamiento pero difieren en aparatos, ratios, demanda y operativa. Si tu academia está decidiendo cuál abrir o cómo equilibrar ambas, esta guía te ayuda.",
+  "category": "Operación",
+  "keywords": [
+    "gimnasia artística femenina",
+    "gimnasia artística masculina",
+    "GAF vs GAM",
+    "academia mixta gimnasia"
+  ],
+  "relatedRoutes": ["/es/gimnasia-artistica/espana", "/modules/gestion-atletas"],
+  "content": [
+    "## Qué son GAF y GAM",
+    "GAF (Gimnasia Artística Femenina) y GAM (Gimnasia Artística Masculina) son modalidades distintas de la gimnasia artística. Comparten filosofía de entrenamiento (técnica, fuerza, flexibilidad, expresión) pero difieren en aparatos, ratios y operativa.",
+    "## Aparatos: la diferencia más visible",
+    "GAF: salto, barras asimétricas, viga, suelo. GAM: suelo, caballo con arcos, anillas, salto, paralelas, barra fija. Esto implica inversiones distintas en aparatos, mantenimiento y espacio.",
+    "## Categorías y ratios",
+    "Las categorías federativas van desde Pre-iniciación hasta Absoluta, con niveles técnicos crecientes. Los ratios de entrenadora:gimnasta suelen ser más altos en GAF por la naturaleza de los aparatos (viga y barras asimétricas requieren spotting cercano).",
+    "## Demanda y mercado",
+    "En España, GAF tiene mayor tradición y suele concentrar mayor volumen en categorías base. GAM ha crecido en los últimos años pero sigue siendo nicho en muchas regiones. La demanda local define la viabilidad.",
+    "## Cómo decidir",
+    "Pregúntate: ¿qué demanda hay en mi zona? ¿qué entrenador o entrenadora tengo disponible? ¿qué aparatos puedo mantener? Empezar por una modalidad y añadir la segunda con demanda demostrada es más seguro que abrir ambas desde el inicio.",
+    "## Academias mixtas",
+    "Muchas academias operan GAF y GAM en el mismo espacio con horarios separados. Requieren planificación cuidadosa de uso de aparatos y ratios por sesión. Un software de gestión ayuda a separar grupos, horarios y cobros por modalidad.",
+    "## Equipamiento mínimo",
+    "GAF: colchoneta de suelo, viga, barras asimétricas, pista de salto. GAM: colchoneta de suelo, caballo con arcos, anillas, paralelas, barra fija, pista de salto. La inversión inicial en GAM suele ser mayor.",
+    "## Federaciones",
+    "Las licencias federativas son distintas por modalidad y categoría. La ficha federativa se tramita en la federación autonómica correspondiente. Un registro ordenado evita errores en competiciones."
+  ]
+}

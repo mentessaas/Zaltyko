@@ -6,6 +6,8 @@ import { EventContact } from "@/components/public/EventContact";
 import { ShareButton } from "@/components/public/ShareButton";
 import { getPublicEvent } from "@/app/actions/public/get-public-event";
 import { getPublicSiteUrl } from "@/lib/seo/site-url";
+import { eventJsonLd } from "@/lib/seo/event-schema";
+import { Schema } from "@/components/Schema";
 
 interface EventDetailPageProps {
   params: Promise<{ id: string }>;
@@ -38,6 +40,22 @@ export default async function EventDetailPage({ params }: EventDetailPageProps) 
     notFound();
   }
 
+  const baseUrl = getPublicSiteUrl();
+  const eventSchema = eventJsonLd({
+    baseUrl,
+    pagePath: `/events/${id}`,
+    title: event.title,
+    description: event.description,
+    startDate: event.startDate ?? null,
+    endDate: event.endDate ?? null,
+    cityName: event.cityName ?? event.city ?? null,
+    provinceName: event.provinceName ?? event.province ?? null,
+    countryName: event.countryName ?? event.country ?? null,
+    organizerName: event.academyName || undefined,
+    organizerUrl: event.academy ? `${baseUrl}/academias/${event.academy.id}` : undefined,
+    registrationEndDate: event.registrationEndDate ?? null,
+  });
+
   return (
     <div className="min-h-screen bg-background">
       <EventHero event={event} />
@@ -64,6 +82,8 @@ export default async function EventDetailPage({ params }: EventDetailPageProps) 
           </div>
         </div>
       </section>
+
+      {eventSchema && <Schema json={eventSchema} />}
     </div>
   );
 }

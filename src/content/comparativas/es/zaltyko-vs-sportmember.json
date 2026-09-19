@@ -1,0 +1,119 @@
+{
+  "meta": {
+    "title": "Zaltyko vs SportMember para Academias de Gimnasia | Comparativa",
+    "description": "Comparamos Zaltyko y SportMember para academias de gimnasia: idioma, soporte, precios, cobertura federativa. Tabla, pros, contras y para quién encaja cada uno.",
+    "keywords": [
+      "zaltyko vs sportmember",
+      "sportmember alternativa",
+      "software para academias de gimnasia",
+      "software gestión clubes deportivos",
+      "sportmember españa"
+    ]
+  },
+  "hero": {
+    "badge": "Comparativa",
+    "headline": "SportMember vs Zaltyko para tu academia de gimnasia",
+    "subheadline": "SportMember es uno de los softwares europeos más conocidos para clubes deportivos. Aquí lo comparamos con Zaltyko para que decidas con información: idioma, soporte, cobertura federativa y para quién tiene sentido cada uno."
+  },
+  "competitor": {
+    "name": "SportMember",
+    "tagline": "Software europeo de gestión de clubes con cobertura amplia de deportes."
+  },
+  "table": [
+    {
+      "feature": "Idioma principal",
+      "zaltyko": "Español nativo, soporte y copy en español",
+      "competitor": "Danés nativo, soporte en inglés; interfaz traducida al español"
+    },
+    {
+      "feature": "Cobertura específica de gimnasia",
+      "zaltyko": "Especializado en gimnasia artística y rítmica",
+      "competitor": "Genérico para clubes deportivos: fútbol, hockey, etc."
+    },
+    {
+      "feature": "Niveles y aparatos específicos",
+      "zaltyko": "Sí: Pre-iniciación a FIG, evaluación por aparato",
+      "competitor": "Genérico, configurable por el club"
+    },
+    {
+      "feature": "Federaciones integradas",
+      "zaltyko": "RFEG, FMGM, CGG, FCG, FGCh, FPG (nomenclatura local)",
+      "competitor": "Cobertura danesa/escandinava principalmente"
+    },
+    {
+      "feature": "Portal familiar",
+      "zaltyko": "Limitado y seguro: horarios, avisos, progreso publicado, cuotas",
+      "competitor": "Portal de miembro con foco en reservas y pagos"
+    },
+    {
+      "feature": "Pase de lista en pista",
+      "zaltyko": "Optimizado para móvil, un toque por sesión",
+      "competitor": "Funcionalidad genérica de asistencia"
+    },
+    {
+      "feature": "Inscripciones a competiciones",
+      "zaltyko": "Sí, con niveles, cupos y lista de espera",
+      "competitor": "Funcionalidad genérica de eventos"
+    },
+    {
+      "feature": "Trial sin tarjeta",
+      "zaltyko": "7 días de Starter, sin tarjeta",
+      "competitor": "No publica trial gratuito equivalente"
+    },
+    {
+      "feature": "Plan gratis",
+      "zaltyko": "Sí, hasta 30 gimnastas y 1 academia",
+      "competitor": "Modelo de prueba/demo, no plan free sostenido"
+    },
+    {
+      "feature": "Atención al cliente",
+      "zaltyko": "Email en español, días laborables",
+      "competitor": "Email en inglés/horario europeo"
+    }
+  ],
+  "zaltykoPros": [
+    "Especialización en gimnasia: terminología, niveles y federaciones hispanas.",
+    "Plan Free útil (hasta 30 gimnastas) y trial sin tarjeta.",
+    "Soporte, copy y documentación en español."
+  ],
+  "zaltykoContras": [
+    "Cobertura geográfica limitada a mercado hispano (España + LATAM).",
+    "Menos integraciones de terceros que un software europeo genérico.",
+    "Funcionalidades específicas de deportes no gimnásticos no aplican."
+  ],
+  "competitorPros": [
+    "Producto maduro con años en el mercado europeo.",
+    "Cobertura amplia de deportes no gimnásticos.",
+    "Comunidad grande de clubes fuera del mercado hispano."
+  ],
+  "competitorContras": [
+    "Genérico: requiere configuración manual para niveles y aparatos de gimnasia.",
+    "Soporte en inglés/horario europeo aunque la interfaz esté traducida.",
+    "Cobertura federativa débil para federaciones hispanas (RFEG, FMGM, etc.)."
+  ],
+  "idealForZaltyko": [
+    "Academias de gimnasia artística o rítmica en España o LATAM.",
+    "Clubes que necesitan niveles, aparatos y federaciones hispanas.",
+    "Operaciones con trial sin tarjeta y plan Free útil."
+  ],
+  "idealForCompetitor": [
+    "Clubes europeos con deportes variados (fútbol, hockey, etc.).",
+    "Operaciones fuera del mercado hispano.",
+    "Proyectos que necesiten integraciones con sistemas nórdicos."
+  ],
+  "faq": [
+    {
+      "q": "¿SportMember tiene versión en español?",
+      "a": "La interfaz puede traducirse, pero la operación, soporte y documentación se realizan principalmente en inglés/horario europeo. Zaltyko, en cambio, está construido y atendido en español."
+    },
+    {
+      "q": "¿Zaltyko sirve para academias fuera de España?",
+      "a": "Sí. Zaltyko opera en España, México, Argentina, Colombia, Chile y Perú, con federaciones y cobertura local. Para academias fuera de esos mercados, conviene revisar caso a caso."
+    },
+    {
+      "q": "¿Y si mi academia combina gimnasia con otros deportes?",
+      "a": "Zaltyko está especializado en gimnasia artística y rítmica. Academias con oferta amplia (natación, fútbol, etc.) suelen preferir software genérico de clubes como SportMember."
+    }
+  ],
+  "verdict": "SportMember es un buen software genérico de clubes con años de madurez. Zaltyko está especializado en gimnasia con foco hispano. Si tu academia es de gimnasia en España o LATAM, Zaltyko encaja mejor; si gestionas varios deportes fuera del mercado hispano, SportMember puede ser una mejor opción."
+}

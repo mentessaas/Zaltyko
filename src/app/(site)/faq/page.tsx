@@ -8,16 +8,16 @@ import { getPublicSiteUrl } from "@/lib/seo/site-url";
 const baseUrl = getPublicSiteUrl();
 
 export const metadata: Metadata = {
-  title: "Preguntas Frecuentes",
+  title: "Preguntas frecuentes sobre software para academias de gimnasia",
   description:
-    "Resolvemos las dudas más comunes sobre Zaltyko: precios, funciones, cancelación y más.",
+    "Resolvemos las dudas más comunes sobre Zaltyko: precios, planes, modalidades, cancelación, importación desde Excel y comunicación con familias para tu academia de gimnasia.",
   alternates: {
     canonical: `${baseUrl}/faq`,
   },
   openGraph: {
-    title: "Preguntas Frecuentes",
+    title: "Preguntas frecuentes sobre Zaltyko",
     description:
-      "Resolvemos las dudas más comunes sobre Zaltyko: precios, funciones, cancelación y más.",
+      "Precios, planes, modalidades, cancelación, importación desde Excel y comunicación con familias para tu academia de gimnasia.",
     url: `${baseUrl}/faq`,
     type: "website",
   },
@@ -30,7 +30,7 @@ const categories = [
     questions: [
       {
         q: "¿Cuánto cuesta Zaltyko?",
-        a: "Zaltyko tiene 3 planes por etapa de academia: Starter, Growth y Network. Recomendamos una demo para elegir según gimnastas, grupos, sedes y cobros.",
+        a: "Zaltyko tiene un plan Free y tres opciones por etapa de academia: Starter cuesta 19€/mes, Growth 49€/mes y Network parte de 99€/mes para academias multi-sede. Network incluye onboarding acompañado y la propuesta final se ajusta a sedes y necesidades.",
       },
       {
         q: "¿Puedo ver el producto antes de contratar?",
@@ -38,7 +38,7 @@ const categories = [
       },
       {
         q: "¿Cómo funcionan los planes?",
-        a: "Se renuevan automáticamente cada mes. Puedes cancelar cuando quieras desde tu panel de suscripción.",
+        a: "Los planes de pago se renuevan mensualmente; Free no tiene coste ni renovación. Puedes cancelar cuando quieras desde tu panel de suscripción.",
       },
       {
         q: "¿Puedo cambiar de plan?",
@@ -52,7 +52,7 @@ const categories = [
     questions: [
       {
         q: "¿Puedo importar gimnastas desde otro sistema?",
-        a: "Sí, puedes importar gimnastas y familias desde archivos CSV. Para migraciones grandes, el equipo de Zaltyko puede ayudarte con una puesta en marcha guiada.",
+        a: "Sí, puedes importar gimnastas desde Excel o CSV. Los datos de familias se vinculan después desde cada expediente; para migraciones grandes, el equipo de Zaltyko puede ayudarte con una puesta en marcha guiada.",
       },
       {
         q: "¿Cómo funciona la gestión de grupos y niveles?",
@@ -140,7 +140,7 @@ export default function FaqPage() {
     <div className="min-h-screen flex flex-col bg-background">
       <Navbar />
 
-      <main className="flex-1">
+      <main className="flex-1 pt-20">
         {/* Hero */}
         <section className="py-20 bg-gradient-to-b from-blue-50 to-white">
           <div className="mx-auto max-w-4xl px-4 sm:px-6 lg:px-8 text-center">
@@ -209,7 +209,7 @@ export default function FaqPage() {
             </p>
             <Link
               href="/contact"
-              className="mt-6 inline-flex items-center gap-2 rounded-full bg-zaltyko-primary px-8 py-3 font-semibold text-white hover:bg-primary-dark"
+              className="mt-6 inline-flex items-center gap-2 rounded-full bg-zaltyko-primary px-8 py-3 font-semibold text-white hover:bg-zaltyko-primary-dark"
             >
               Contactar
               <ArrowRight className="w-4 h-4" />
