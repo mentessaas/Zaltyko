@@ -122,3 +122,113 @@ Total suite SEO: **54 tests** sobre 9 archivos.
 | Lighthouse SEO medio (5 páginas) | desconocido | ≥ 95 |
 | Posición media "software academias gimnasia" | desconocida | Top 10 |
 | CTR medio SERP homepage | desconocido | +25% |
+
+## Performance budget (Lighthouse CI)
+
+Configurado en `.lighthouserc.json`, ejecutado en CI por el job
+`lighthouse` solo en push a main (`needs: build`).
+
+| Categoría | Threshold | Severidad |
+|---|---|---|
+| `categories:seo` | `>= 0.95` | **hard-fail** (CI rompe si no se cumple) |
+| `categories:performance` | `>= 0.85` | warn (no rompe CI, queda en artifact) |
+| `categories:accessibility` | `>= 0.9` | warn |
+| `categories:best-practices` | `>= 0.9` | warn |
+
+Páginas auditadas (5):
+- `/` — homepage
+- `/pricing`
+- `/features`
+- `/blog/migrar-excel-software-academia-gimnasia` (post long-tail prioritario)
+- `/es/gimnasia-artistica/espana` (cluster page SEO principal)
+
+Configuración: `preset: desktop`, `numberOfRuns: 3` (mediana para suavizar
+flakiness), chrome flags `--no-sandbox --headless`.
+
+Para correr local: `pnpm lhci` (requiere `@lhci/cli` instalado en devDeps).
+
+## 404 contract
+
+Toda página `not-found.tsx` debe emitir `metadata` con:
+
+```ts
+{
+  robots: {
+    index: false,
+    follow: false,
+    nocache: true,
+    googleBot: {
+      index: false,
+      follow: false,
+      noarchive: true,
+      "max-snippet": -1,
+    },
+  },
+}
+```
+
+Aplicado en:
+- `src/app/not-found.tsx` (root)
+- `src/app/dashboard/not-found.tsx`
+- `src/app/app/[academyId]/not-found.tsx`
+
+Cubierto por `tests/seo/not-found-noindex.test.ts` (5 tests).
+
+## Hreflang
+
+- `/` emite `alternates.languages` con `es-ES`, `en-US` y `x-default`
+  apuntando a la raíz (cierra el gap de hreflang en root).
+- `/es/[modality]` y `/es/[modality]/[country]` emiten su matriz completa
+  vía `getModalityHreflang` / `getClusterHreflang` en `src/lib/seo/clusters.ts`.
+
+## Internal linking map
+
+Cross-linking entre contenidos Zaltyko para distribuir profundidad de
+crawl y reforzar autoridad topical.
+
+### Blog → Comparativas (4 posts → 6 links)
+
+| Blog post | Comparativas linkeadas |
+|---|---|
+| `migrar-excel-software-academia-gimnasia` | `zaltyko-vs-excel` |
+| `cuanto-cuesta-gestionar-academia-gimnasia` | `zaltyko-vs-excel`, `zaltyko-vs-glofox` |
+| `errores-comunes-elegir-software-academia` | las 3 comparativas |
+| `organizar-cobros-mensuales-academia-gimnasia` | (sin comparativas) |
+
+### Blog → Blog (5 pares cruzados)
+
+| Blog post | Posts linkeados |
+|---|---|
+| `migrar-excel-software-...` | `errores-comunes-...` |
+| `cuanto-cuesta-gestionar-...` | `errores-comunes-...`, `organizar-cobros-...` |
+| `errores-comunes-...` | `migrar-excel-...`, `cuanto-cuesta-...` |
+| `organizar-cobros-...` | `cuanto-cuesta-gestionar-...` |
+| `ficha-federativa-rfeg-...` | `elegir-gimnasia-artistica-...` |
+| `elegir-gimnasia-artistica-...` | `ficha-federativa-rfeg-...` |
+
+### Comparativas → Blog (3 links)
+
+| Comparativa | Posts linkeados |
+|---|---|
+| `zaltyko-vs-excel` | `migrar-excel-...`, `errores-comunes-...`, `cuanto-cuesta-...` |
+| `zaltyko-vs-sportmember` | `errores-comunes-...` |
+| `zaltyko-vs-glofox` | `errores-comunes-...`, `cuanto-cuesta-...` |
+
+### Footer SEO
+
+- Bloque "Producto" incluye `/comparativas`.
+- Bloque "Recursos" incluye `/blog`.
+- Bloque "Descubre" con 5 clusteres principales:
+  `/es/gimnasia-artistica/{espana,mexico,argentina}`,
+  `/es/gimnasia-ritmica/{espana,colombia}`.
+
+### Navbar pública
+
+- Link "Blog" entre "Eventos" y "Producto".
+
+Componente `src/components/seo/RelatedContent.tsx` renderiza los
+cross-links con anchor text descriptivo. Helper `src/lib/seo/related.ts`
+carga los slugs con fail-closed (slugs inválidos se descartan).
+
+Cubierto por `tests/seo/related-content.test.ts` (10 tests).
+

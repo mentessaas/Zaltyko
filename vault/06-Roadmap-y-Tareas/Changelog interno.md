@@ -1,9 +1,99 @@
 ---
 status: active
 owner: producto
-last_reviewed: 2026-09-18T15:27Z
+last_reviewed: 2026-09-19T09:32Z
 source:
 ---
+
+## 2026-09-19 — SEO Post-Fase 5: Lighthouse CI, polish y cross-linking
+
+Plan ejecutado en 3 commits sobre `main`:
+
+### Fase A — Lighthouse CI gate (`ecc41a42`)
+
+- `.lighthouserc.json`: audita 5 paginas SEO clave (`/`, `/pricing`,
+  `/features`, `/blog/[slug]`, `/es/gimnasia-artistica/espana`) en
+  desktop con `numberOfRuns: 3` para suavizar flakiness.
+- `categories:seo >= 0.95` hard-fail. Performance/a11y/best-practices
+  warn (no rompen CI hasta tener baseline real).
+- Job `lighthouse` en `.github/workflows/ci.yml`: `needs: build`,
+  `if: push to main`, action `treosh/lighthouse-ci-action@v12`.
+- DevDep `@lhci/cli` para `pnpm lhci` local.
+- Tests: `tests/seo/lighthouserc-contract.test.ts` (6 tests) verifica
+  URLs, thresholds, desktop preset, runs.
+
+### Fase B — Polish SEO (`ecc41a42`)
+
+- B.1 `getPublicSiteUrl()`: en `NODE_ENV=development` devuelve
+  `http://localhost:3000`. Permite sitemap/canonical/og:url coherentes
+  en `pnpm dev` sin contaminar el canonico de produccion.
+- B.2 Sitemap incluye `/llms.txt` y `/llms-full.txt` con priority 0.4
+  (recurso AI, no canibalizar paginas comerciales).
+- B.3 `not-found.tsx` (root + dashboard + `/app/[academyId]`) emiten
+  `metadata` con `robots: { index: false, follow: false, nocache: true }`.
+  Replica el patron del middleware para academias no-indexables.
+- B.4 Root layout anade `alternates.languages` con `es-ES`, `en-US` y
+  `x-default` apuntando a la raiz. Cierra el gap de hreflang en `/`.
+- Tests: `tests/seo/getPublicSiteUrl-dev.test.ts` (5) +
+  `tests/seo/not-found-noindex.test.ts` (5).
+
+### Fase C — Cross-linking interno (`57ece1ed`)
+
+- `src/lib/seo/blog.ts`: `BlogPost` acepta `relatedPosts[]` y
+  `relatedComparativas[]`.
+- `src/lib/seo/comparativas.ts`: `ComparisonContent` acepta los mismos
+  campos.
+- 6 posts del blog y 3 comparativas ampliados con cross-links
+  coherentes (ver `docs/SEO.md#internal-linking-map`).
+- `src/lib/seo/related.ts`: helpers `loadBlogPostsSafe` /
+  `loadComparisonsSafe` con fail-closed (slugs invalidos descartados).
+  `loadBlogCrossLinks` / `loadComparisonCrossLinks` resuelven los
+  enlaces desde el contenido.
+- `src/components/seo/RelatedContent.tsx`: bloque visual con dos
+  secciones (articulos + comparativas), anchor text descriptivo,
+  null-safe.
+- `/blog/[slug]` y `/comparativas/[slug]` renderizan `RelatedContent`
+  al final.
+- Footer SEO: anade "Producto → /comparativas", "Recursos → /blog", y
+  nuevo bloque "Descubre" con 5 clusteres principales
+  (`/es/gimnasia-{artistica,ritmica}/{espana,mexico,argentina,colombia}`).
+  Grid pasa de 5 a 6 columnas.
+- Navbar: link "Blog" entre "Eventos" y "Producto".
+- Tests: `tests/seo/related-content.test.ts` (10 tests).
+
+### Verificacion
+
+- `pnpm typecheck` SEO files: verde
+- `pnpm exec eslint` SEO files: 0 errors, 1 warning preexistente
+  (Navbar useEffect, no introducido por estos commits)
+- `pnpm vitest tests/seo/ + api/cron-indexnow-submit`: **80/80 PASS**
+  sobre 13 archivos (26 nuevos en este bloque).
+- `pnpm typecheck` global: BLOQUEADO por archivos untracked de otros
+  agentes (variants.ts, PublicPageRenderer.tsx, ListingDetail.tsx,
+  marketplace/orders/[id]/route.ts). No incluidos en estos commits.
+
+### Vault
+
+- `docs/SEO.md`: actualizado con secciones Performance budget, 404
+  contract, Hreflang, Internal linking map.
+- `vault/04-Marketing/Mensajes aprobados.md`: sin cambios (claims
+  usados ya aprobados).
+- `vault/03-Negocio/Pricing.md`: sin cambios (pricing intacto).
+
+### Score SEO estimado post-3 fases
+
+- Antes Fase A-C: ~85/100 (post-Fase 5)
+- Despues Fase A-C: **~88/100** (medible: Lighthouse CI gate asegura
+  SEO >= 95; cross-linking mejora profundidad de crawl en ~1 click;
+  hreflang + llms en sitemap cierran gaps AI)
+
+### Pendiente externo
+
+- **Lighthouse baseline medición real**: el primer push a main tras
+  este commit generara el primer reporte. Si SEO < 0.95, el CI
+  fallara y habra que intervenir.
+- **Case study / VideoObject / LocalBusiness override**: bloqueados
+  externamente.
 
 ## 2026-09-18 — SEO Fase 5: contract tests, baseline y doc operativa
 
