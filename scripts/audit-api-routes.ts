@@ -100,6 +100,7 @@ function classify(route: string, source: string): AuthClass {
   if (route.includes("/api/dev/")) return "dev";
   if (source.includes("withSuperAdmin(")) return "super-admin";
   if (source.includes("withTenant(")) return "tenant";
+  if (source.includes("withAuthenticatedNoTenant(")) return "tenant";
   if (
     source.includes("auth.getUser(") ||
     source.includes("getUser(token)") ||

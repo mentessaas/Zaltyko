@@ -14,6 +14,8 @@ import { apiError, apiSuccess } from "@/lib/api-response";
 import { verifyEmailLinkToken } from "@/lib/onboarding/email-link-token";
 import { logger } from "@/lib/logger";
 
+/** @route-auth public */
+
 export const dynamic = "force-dynamic";
 
 /**
