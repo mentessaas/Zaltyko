@@ -340,6 +340,13 @@ export function scanFile(filePath: string): Finding[] {
     const chainPrefix = source.slice(Math.max(0, info.chain.getStart(sf) - 600), info.chain.getStart(sf));
     if (/(?:\/\/|\/\*)[^\n]*unbounded-read-ok/.test(chainPrefix)) return;
 
+    // Preserve an explicit, row-scope justification placed inside a
+    // multiline builder chain (for example immediately after `db`). The
+    // annotation is still required to contain the canonical marker and is
+    // limited to this exact chain, so it cannot waive unrelated reads.
+    const chainText = source.slice(info.chain.getStart(sf), topCall.end);
+    if (/unbounded-read-ok/.test(chainText)) return;
+
     const anchor = outermostAnchor(topCall, sf);
     if (reported.has(anchor)) return;
 
