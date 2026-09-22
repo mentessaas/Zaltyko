@@ -300,48 +300,51 @@ const handler = withTenant(async (request, context) => {
       }
 
       const athleteId = crypto.randomUUID();
+      const academyId = record.academyId;
 
-      await db.insert(athletes).values({
-        id: athleteId,
-        tenantId: effectiveTenantId,
-        academyId: record.academyId,
-        name: record.name,
-        dob: dobDate ? formatDateForDB(dobDate) : null,
-        level: record.level ?? null,
-        status: record.status ?? "active",
-        groupId: selectedGroup?.id ?? null,
-        primarySportConfigId: effectiveSportConfigId,
-        programCode: effectiveProgramCode,
-        levelCode: effectiveLevelCode,
-        categoryCode: effectiveCategoryCode,
+      await db.transaction(async (tx) => {
+        await tx.insert(athletes).values({
+          id: athleteId,
+          tenantId: effectiveTenantId,
+          academyId,
+          name: record.name,
+          dob: dobDate ? formatDateForDB(dobDate) : null,
+          level: record.level ?? null,
+          status: record.status ?? "active",
+          groupId: selectedGroup?.id ?? null,
+          primarySportConfigId: effectiveSportConfigId,
+          programCode: effectiveProgramCode,
+          levelCode: effectiveLevelCode,
+          categoryCode: effectiveCategoryCode,
+        });
+
+        if (selectedGroup) {
+          await tx
+            .insert(groupAthletes)
+            .values({
+              id: crypto.randomUUID(),
+              tenantId: effectiveTenantId,
+              groupId: selectedGroup.id,
+              athleteId,
+            })
+            .onConflictDoNothing();
+        }
+
+        if (effectiveSportConfigId) {
+          await tx
+            .insert(athleteSportConfigs)
+            .values({
+              id: crypto.randomUUID(),
+              tenantId: effectiveTenantId,
+              athleteId,
+              academySportConfigId: effectiveSportConfigId,
+              programCode: effectiveProgramCode,
+              levelCode: effectiveLevelCode,
+              categoryCode: effectiveCategoryCode,
+            })
+            .onConflictDoNothing();
+        }
       });
-
-      if (selectedGroup) {
-        await db
-          .insert(groupAthletes)
-          .values({
-            id: crypto.randomUUID(),
-            tenantId: effectiveTenantId,
-            groupId: selectedGroup.id,
-            athleteId,
-          })
-          .onConflictDoNothing();
-      }
-
-      if (effectiveSportConfigId) {
-        await db
-          .insert(athleteSportConfigs)
-          .values({
-            id: crypto.randomUUID(),
-            tenantId: effectiveTenantId,
-            athleteId,
-            academySportConfigId: effectiveSportConfigId,
-            programCode: effectiveProgramCode,
-            levelCode: effectiveLevelCode,
-            categoryCode: effectiveCategoryCode,
-          })
-          .onConflictDoNothing();
-      }
 
       summary.created += 1;
     } catch (error) {
@@ -410,4 +413,3 @@ const handlerWithPayloadCheck = async (request: NextRequest) => {
 };
 
 export const POST = withRateLimit(handlerWithPayloadCheck, { identifier: getUserIdentifier });
-
