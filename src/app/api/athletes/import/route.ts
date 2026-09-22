@@ -142,7 +142,8 @@ const handler = withTenant(async (request, context) => {
     errors: [] as Array<{ row: number; reason: string }>,
   };
 
-  for (const [index, record] of records.entries()) {
+  await db.transaction(async (batchTx) => {
+    for (const [index, record] of records.entries()) {
     if (!record.academyId) {
       summary.skipped += 1;
       summary.errors.push({
@@ -307,7 +308,7 @@ const handler = withTenant(async (request, context) => {
       const athleteId = crypto.randomUUID();
       const academyId = record.academyId;
 
-      await db.transaction(async (tx) => {
+      await batchTx.transaction(async (tx) => {
         await tx.insert(athletes).values({
           id: athleteId,
           tenantId: effectiveTenantId,
@@ -354,13 +355,14 @@ const handler = withTenant(async (request, context) => {
       summary.created += 1;
     } catch (error) {
       logger.error("Import athlete error", error);
-      summary.skipped += 1;
-      summary.errors.push({
-        row: index + 2,
-        reason: error instanceof Error ? error.message : "Error desconocido",
-      });
+      // Una excepción después de iniciar la escritura no puede dejar un lote
+      // parcialmente aplicado. Las filas rechazadas por validación se
+      // manejan con `continue` antes de llegar aquí; los errores de persistencia
+      // abortan la transacción completa para permitir reintento seguro.
+      throw error;
     }
-  }
+    }
+  });
 
     // Igual que en el alta manual: la importación cuenta para el paso
     // "Añade al menos 5 atletas" del checklist de onboarding.

@@ -85,7 +85,8 @@ describe("API limits and feature contracts", () => {
       join(process.cwd(), "src/app/api/athletes/import/route.ts"),
       "utf8"
     );
-    expect(route).toContain("await db.transaction(async (tx) => {");
+    expect(route).toContain("await db.transaction(async (batchTx) => {");
+    expect(route).toContain("await batchTx.transaction(async (tx) => {");
     expect(route).toContain("await tx.insert(athletes)");
     expect(route).toContain("await tx\n            .insert(groupAthletes)");
     expect(route).toContain("await tx\n            .insert(athleteSportConfigs)");
