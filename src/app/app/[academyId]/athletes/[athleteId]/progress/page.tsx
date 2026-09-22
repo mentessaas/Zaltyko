@@ -145,7 +145,8 @@ export default async function AthleteProgressPage({ params }: AthleteProgressPag
     })
     .from(athleteAssessments)
     .where(eq(athleteAssessments.athleteId, athleteId))
-    .orderBy(desc(athleteAssessments.assessmentDate));
+    .orderBy(desc(athleteAssessments.assessmentDate))
+    .limit(500);
 
   // Enrich with scores
   const assessments: AssessmentWithScores[] = await Promise.all(
@@ -160,7 +161,8 @@ export default async function AthleteProgressPage({ params }: AthleteProgressPag
         })
         .from(assessmentScores)
         .innerJoin(skillCatalog, eq(assessmentScores.skillId, skillCatalog.id))
-        .where(eq(assessmentScores.assessmentId, row.id));
+        .where(eq(assessmentScores.assessmentId, row.id))
+        .limit(100);
 
       const avgScore = scores.length > 0 ? scores.reduce((sum, s) => sum + s.score, 0) / scores.length : null;
 

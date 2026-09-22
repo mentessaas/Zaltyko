@@ -68,7 +68,8 @@ export default async function AthleteAssessmentsPage({ params }: PageProps) {
       eq(athleteAssessments.athleteId, athleteId),
       eq(athleteAssessments.tenantId, athlete.tenantId)
     ))
-    .orderBy(desc(athleteAssessments.assessmentDate));
+    .orderBy(desc(athleteAssessments.assessmentDate))
+    .limit(500);
 
   // Transform to expected format
   const formattedAssessments = assessments.map((a) => ({
