@@ -85,6 +85,7 @@ export async function unsubscribeAllUser(userId: string) {
  * Get all push subscriptions for a user
  */
 export async function getUserPushSubscriptions(userId: string) {
+  // unbounded-read-ok: all active endpoints for one user are required for fan-out delivery.
   return db
     .select()
     .from(pushSubscriptions)

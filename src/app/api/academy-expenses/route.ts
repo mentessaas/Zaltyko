@@ -40,7 +40,8 @@ export const GET = withTenant(async (request, context) => {
     .select()
     .from(academyExpenses)
     .where(and(eq(academyExpenses.tenantId, context.tenantId), eq(academyExpenses.academyId, parsed.data.academyId)))
-    .orderBy(desc(academyExpenses.createdAt));
+    .orderBy(desc(academyExpenses.createdAt))
+    .limit(1000);
 
   return apiSuccess({ items: rows, total: rows.length });
 });

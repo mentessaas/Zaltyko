@@ -70,6 +70,7 @@ export async function analyzeAthleteProgress(
   }
 
   // Obtener evaluaciones
+  // unbounded-read-ok: progress analysis needs the complete assessment history in the requested scope.
   const assessments = await db
     .select({
       id: athleteAssessments.id,
@@ -100,6 +101,7 @@ export async function analyzeAthleteProgress(
   const assessmentIds = assessments.map((a) => a.id);
 
   // Obtener todos los scores
+  // unbounded-read-ok: every score belonging to those assessments contributes to the progress result.
   const scores = await db
     .select({
       assessmentId: assessmentScores.assessmentId,

@@ -67,7 +67,8 @@ export default async function AssessmentsPage({ params, searchParams }: PageProp
     .from(athletes)
     .leftJoin(groups, eq(athletes.groupId, groups.id))
     .where(eq(athletes.academyId, academyId))
-    .orderBy(asc(athletes.name));
+    .orderBy(asc(athletes.name))
+    .limit(500);
 
   const athletesForHub = athleteRows.map((athlete) => {
     const contextualApparatus = resolveSpecializedApparatusCodes(specialization, [

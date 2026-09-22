@@ -28,7 +28,8 @@ export async function GET(request: Request) {
       const readyAccounts = await db
         .select({ academyId: stripeAccounts.academyId })
         .from(stripeAccounts)
-        .where(eq(stripeAccounts.chargesEnabled, true));
+        .where(eq(stripeAccounts.chargesEnabled, true))
+        .limit(5000);
 
       const totals = { academies: 0, attempted: 0, paid: 0, failed: 0, skipped: 0 };
       for (const account of readyAccounts) {

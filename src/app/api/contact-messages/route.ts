@@ -73,18 +73,17 @@ export const GET = withTenant(async (request, context) => {
   }
 
   // Construir query
+  const requestedLimit = validated.limit ? Number.parseInt(validated.limit, 10) : 100;
+  const safeLimit = Number.isFinite(requestedLimit) && requestedLimit > 0
+    ? Math.min(requestedLimit, 100)
+    : 100;
+
   let query = db
     .select()
     .from(contactMessages)
     .where(and(...whereConditions))
-    .orderBy(desc(contactMessages.createdAt));
-
-  if (validated.limit) {
-    const limit = parseInt(validated.limit);
-    if (limit > 0 && limit <= 100) {
-      query = query.limit(limit) as typeof query;
-    }
-  }
+    .orderBy(desc(contactMessages.createdAt))
+    .limit(safeLimit);
 
   const messages = await query;
 

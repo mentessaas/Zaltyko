@@ -12,7 +12,7 @@ vi.mock("@/db", () => ({
   db: {
     select: () => ({
       from: () => ({
-        where: () => mocks.accounts(),
+        where: () => ({ limit: () => mocks.accounts() }),
       }),
     }),
   },

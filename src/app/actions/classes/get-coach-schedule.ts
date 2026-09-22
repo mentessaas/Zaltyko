@@ -104,7 +104,9 @@ export async function getCoachSchedule(params: {
           eq(classCoachAssignments.coachId, coachId),
           eq(classes.academyId, academyId)
         )
-      );
+      )
+      // Non-paginated schedule action; cap the UI payload while preserving a generous class ceiling.
+      .limit(500);
 
     const scheduleItems: CoachScheduleItem[] = [];
 
@@ -113,7 +115,8 @@ export async function getCoachSchedule(params: {
       const weekdays = await db
         .select({ weekday: classWeekdays.weekday })
         .from(classWeekdays)
-        .where(eq(classWeekdays.classId, cls.id));
+        .where(eq(classWeekdays.classId, cls.id))
+        .limit(7);
 
       scheduleItems.push({
         id: cls.id,
@@ -157,4 +160,3 @@ export async function getCoachSchedule(params: {
     return { items: [], error: error.message ?? "Error al obtener el horario del entrenador" };
   }
 }
-

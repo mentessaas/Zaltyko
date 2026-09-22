@@ -43,7 +43,8 @@ export default async function AttendanceTodayPage({ params }: PageProps) {
     .innerJoin(classes, eq(classSessions.classId, classes.id))
     .leftJoin(coaches, eq(classSessions.coachId, coaches.id))
     .where(and(eq(classes.academyId, academyId), eq(classSessions.sessionDate, todayStr)))
-    .orderBy(asc(classSessions.startTime));
+    .orderBy(asc(classSessions.startTime))
+    .limit(500);
 
   const sessionIds = todaySessions.map((row) => row.id);
 
@@ -51,6 +52,7 @@ export default async function AttendanceTodayPage({ params }: PageProps) {
     sessionIds.length === 0
       ? []
       : await db
+          // unbounded-read-ok: grouped aggregate is bounded by todaySessions.
           .select({ sessionId: attendanceRecords.sessionId, total: count(attendanceRecords.id) })
           .from(attendanceRecords)
           .where(inArray(attendanceRecords.sessionId, sessionIds))

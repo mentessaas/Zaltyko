@@ -33,6 +33,7 @@ export async function detectAttendanceAlerts(
     const cutoffDateStr = cutoffDate.toISOString().split("T")[0];
 
     // Obtener todos los atletas de la academia
+    // unbounded-read-ok: alert worker evaluates every athlete in this academy/window.
     const academyAthletes = await db
       .select({
         athleteId: athletes.id,
@@ -78,6 +79,7 @@ export async function detectAttendanceAlerts(
 
       if (attendanceRate < threshold && total > 0) {
         // Obtener contactos de familia
+        // unbounded-read-ok: contacts are bounded by the current athlete id.
         const contacts = await db
           .select({ contactId: familyContacts.id })
           .from(familyContacts)
@@ -103,4 +105,3 @@ export async function detectAttendanceAlerts(
 
 // Re-exportar función de notificaciones desde su módulo dedicado
 export * from "./attendance/createAttendanceNotifications";
-

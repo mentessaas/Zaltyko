@@ -28,7 +28,8 @@ export async function GET() {
       .select()
       .from(marketplaceListings)
       .where(eq(marketplaceListings.userId, user.id))
-      .orderBy(desc(marketplaceListings.createdAt));
+      .orderBy(desc(marketplaceListings.createdAt))
+      .limit(100);
 
     return NextResponse.json({ listings });
   } catch (error) {

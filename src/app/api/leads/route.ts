@@ -7,6 +7,8 @@ import { LeadCaptureSchema } from "@/lib/growth/contracts";
 import { recordGrowthEvent } from "@/lib/growth/events";
 
 // @route-auth public
+// @auth-flexible route-guard-reason: public lead capture validates an unauthenticated submission by design.
+// @auth-flexible route-guard-reason: public lead capture validates an unauthenticated submission by design.
 const handler = withRateLimit(async (req) => {
   try {
     const json = await req.json().catch(() => null);
@@ -49,4 +51,5 @@ const handler = withRateLimit(async (req) => {
   }
 });
 
+// @auth-flexible route-guard-reason: public lead capture validates an unauthenticated submission by design.
 export const POST = handler;

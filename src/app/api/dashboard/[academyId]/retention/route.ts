@@ -38,6 +38,7 @@ export const GET = withTenant(async (_request, context) => {
     const currentMonthStart = new Date(now.getFullYear(), now.getMonth(), 1);
     const currentMonthEnd = new Date(now.getFullYear(), now.getMonth() + 1, 1);
 
+    // unbounded-read-ok: full academy-scoped athlete history is required for retention cohorts.
     const allAthletes = await db
       .select({
         id: athletes.id,

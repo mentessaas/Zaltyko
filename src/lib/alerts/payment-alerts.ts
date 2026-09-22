@@ -27,6 +27,7 @@ export async function detectPaymentAlerts(
     const today = new Date();
     const cutoffDate = subDays(today, daysOverdue);
 
+    // unbounded-read-ok: alert worker intentionally scans all overdue charges for one academy.
     const overdueCharges = await db
       .select({
         chargeId: charges.id,
@@ -50,6 +51,7 @@ export async function detectPaymentAlerts(
 
     for (const charge of overdueCharges) {
       // Obtener contactos de familia
+      // unbounded-read-ok: contacts are bounded by the current charge's athlete id.
       const contacts = await db
         .select({ contactId: familyContacts.id })
         .from(familyContacts)
@@ -114,4 +116,3 @@ export async function createPaymentNotifications(
     // TODO: Enviar email a padres usando el servicio de email
   }
 }
-

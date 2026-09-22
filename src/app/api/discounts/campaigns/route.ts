@@ -55,7 +55,8 @@ export const GET = withTenant(async (request, context) => {
         eq(discountCampaigns.academyId, academyId),
         eq(discountCampaigns.tenantId, context.tenantId)
       )
-    );
+    )
+    .limit(500);
 
   return apiSuccess({
     items: items.map((item) => ({

@@ -70,7 +70,8 @@ export async function getClassAthletes(
         eq(classGroups.tenantId, classRow.tenantId),
         eq(classGroups.classId, classId)
       )
-    );
+    )
+    .limit(100);
 
   const groupIdsList = Array.from(
     new Set(
@@ -110,7 +111,8 @@ export async function getClassAthletes(
             isNull(groups.deletedAt)
           )
         )
-        .orderBy(asc(athletes.name)),
+        .orderBy(asc(athletes.name))
+        .limit(5000),
       db
         .select({
           id: athletes.id,
@@ -134,7 +136,8 @@ export async function getClassAthletes(
             isNull(groups.deletedAt)
           )
         )
-        .orderBy(asc(athletes.name)),
+        .orderBy(asc(athletes.name))
+        .limit(5000),
     ]);
 
     groupedAthletes.push(
@@ -176,7 +179,8 @@ export async function getClassAthletes(
         isNull(athletes.deletedAt)
       )
     )
-    .orderBy(asc(athletes.name));
+    .orderBy(asc(athletes.name))
+    .limit(5000);
 
   const enrollmentAthletes: ClassAthlete[] = enrollmentRows.map((row) => ({
     id: row.id,

@@ -49,10 +49,12 @@ export const POST = withTenant(async (_request, context) => {
     return apiError("FORBIDDEN", "No tienes permiso para iniciar esta conversacion", 403);
   }
 
+  // unbounded-read-ok: all members of this single group are conversation recipients.
   const groupMembers = await db
     .select({ athleteId: groupAthletes.athleteId })
     .from(groupAthletes)
-    .where(eq(groupAthletes.groupId, group.id));
+    .where(eq(groupAthletes.groupId, group.id))
+    .limit(1000);
 
   const athleteIds = groupMembers.map((member) => member.athleteId);
 
@@ -60,6 +62,7 @@ export const POST = withTenant(async (_request, context) => {
     return apiError("GROUP_EMPTY", "Este grupo no tiene gimnastas asignados", 409);
   }
 
+  // unbounded-read-ok: guardians are bounded by the resolved group athlete ids.
   const guardianRows = await db
     .select({
       guardianId: guardians.id,
@@ -73,7 +76,8 @@ export const POST = withTenant(async (_request, context) => {
         eq(guardians.tenantId, group.tenantId),
         sql`${guardians.profileId} IS NOT NULL`
       )
-    );
+    )
+    .limit(200);
 
   const guardianProfileIds = Array.from(
     new Set(
@@ -109,7 +113,8 @@ export const POST = withTenant(async (_request, context) => {
     const participantRows = await db
       .select({ userId: conversationParticipants.userId })
       .from(conversationParticipants)
-      .where(eq(conversationParticipants.conversationId, existingConversation.id));
+      .where(eq(conversationParticipants.conversationId, existingConversation.id))
+      .limit(1000);
     const existingParticipantIds = new Set(participantRows.map((row) => row.userId));
     const missingParticipantIds = [context.profile.id, ...guardianProfileIds].filter(
       (profileId) => !existingParticipantIds.has(profileId)

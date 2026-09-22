@@ -65,7 +65,9 @@ const {
   const insertChain: any = {
     values: vi.fn((values: any) => {
       state.insertedAttempts.push(values);
-      return Promise.resolve(undefined);
+      return {
+        onConflictDoNothing: vi.fn(() => Promise.resolve(undefined)),
+      };
     }),
   };
 
@@ -121,6 +123,7 @@ vi.mock("@/db", () => ({ db: dbLike }));
 vi.mock("@/db/schema", () => ({
   charges: { id: "charges.id" },
   paymentAttempts: { id: "payment_attempts.id" },
+  refunds: { chargeId: "refunds.charge_id" },
 }));
 
 import { collectCharge } from "@/lib/stripe/charge-collection-service";
@@ -372,7 +375,7 @@ describe("charge-reconcile-service", () => {
   it("charge.refunded marca el cargo como reembolsado", async () => {
     state.chargeRow = { id: "charge_5", status: "paid", stripeAccountId: "acct_123" };
 
-    await reconcileChargeRefunded({ id: "ch_10" } as any, "acct_123");
+    await reconcileChargeRefunded({ id: "ch_10", amount: 5000, amount_refunded: 5000 } as any, "acct_123");
 
     expect(state.updateSets.at(-1)).toMatchObject({ status: "refunded" });
   });

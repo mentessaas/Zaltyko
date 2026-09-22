@@ -32,6 +32,7 @@ export const GET = withTenant(async (_request, context) => {
     }
 
     // Get all registrations for this event
+    // unbounded-read-ok: payment report is scoped to registrations of this single event.
     const registrations = await db
       .select({
         id: eventRegistrations.id,

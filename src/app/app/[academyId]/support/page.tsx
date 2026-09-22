@@ -54,7 +54,8 @@ async function getTickets(academyId: string, filters: { status?: string; priorit
       .leftJoin(ticketResponses, eq(ticketResponses.ticketId, tickets.id))
       .where(and(...conditions))
       .groupBy(tickets.id, profiles.name)
-      .orderBy(desc(tickets.createdAt));
+      .orderBy(desc(tickets.createdAt))
+      .limit(200);
 
     return rows.map((row) => ({
       ...row,

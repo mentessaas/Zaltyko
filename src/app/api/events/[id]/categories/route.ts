@@ -29,6 +29,7 @@ export const GET = withTenant(async (_request, context) => {
     }
 
     // Get categories for this event
+    // unbounded-read-ok: categories are bounded by this single event and form its complete configuration.
     const categories = await db
       .select({
         id: eventCategories.id,

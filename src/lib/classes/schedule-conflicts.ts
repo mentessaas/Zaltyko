@@ -148,6 +148,7 @@ export async function hasScheduleConflictForAthlete(
 
   const classIdsFromGroups: string[] = [];
   if (athlete.groupId) {
+    // unbounded-read-ok: full group membership is required to detect any overlapping class.
     const groupClasses = await db
       .select({
         classId: classGroups.classId,
@@ -159,6 +160,7 @@ export async function hasScheduleConflictForAthlete(
   }
 
   // 1.2. Clases por enrollment
+  // unbounded-read-ok: all enrollments for this athlete/academy are the conflict domain.
   const enrollmentClasses = await db
     .select({
       classId: classEnrollments.classId,
@@ -188,6 +190,7 @@ export async function hasScheduleConflictForAthlete(
     return { hasConflict: false };
   }
 
+  // unbounded-read-ok: all candidate class ids must be inspected; the id set is derived from this athlete's memberships.
   const existingClasses = await db
     .select({
       id: classes.id,
@@ -207,6 +210,7 @@ export async function hasScheduleConflictForAthlete(
   const classWeekdayRows =
     allClassIds.length > 0
       ? await db
+        // unbounded-read-ok: weekday rows are bounded by the candidate class ids and all are needed for overlap detection.
         .select({
           classId: classWeekdays.classId,
           weekday: classWeekdays.weekday,
@@ -395,7 +399,8 @@ export async function checkScheduleConflict(params: {
             eq(classes.academyId, academyId),
             excludeClassId ? ne(classes.id, excludeClassId) : undefined
           )
-        );
+        )
+        .limit(500);
 
       // Verificar conflictos con clases base (necesitamos obtener weekdays y comparar)
       for (const cls of groupClasses) {
@@ -405,7 +410,8 @@ export async function checkScheduleConflict(params: {
         const weekdays = await db
           .select({ weekday: classWeekdays.weekday })
           .from(classWeekdays)
-          .where(eq(classWeekdays.classId, cls.id));
+          .where(eq(classWeekdays.classId, cls.id))
+          .limit(7);
 
         // Obtener el día de la semana de startTime
         const startDate = new Date(startTime);
@@ -448,7 +454,8 @@ export async function checkScheduleConflict(params: {
           eq(athleteExtraClasses.academyId, academyId),
           excludeClassId ? ne(classes.id, excludeClassId) : undefined
         )
-      );
+      )
+      .limit(500);
 
     for (const cls of extraClasses) {
       if (!cls.startTime || !cls.endTime) continue;
@@ -458,7 +465,8 @@ export async function checkScheduleConflict(params: {
       const weekdays = await db
         .select({ weekday: classWeekdays.weekday })
         .from(classWeekdays)
-        .where(eq(classWeekdays.classId, cls.id));
+        .where(eq(classWeekdays.classId, cls.id))
+        .limit(7);
 
       const startDate = new Date(startTime);
       const startWeekday = startDate.getDay();
@@ -494,7 +502,8 @@ export async function checkScheduleConflict(params: {
           endTime: classSessions.endTime,
         })
         .from(classSessions)
-        .where(sessionWhere);
+        .where(sessionWhere)
+        .limit(500);
 
       for (const session of sessions) {
         if (!session.startTime || !session.endTime || !session.sessionDate) continue;
@@ -534,7 +543,8 @@ export async function checkScheduleConflict(params: {
           eq(classes.academyId, academyId),
           excludeClassId ? ne(classes.id, excludeClassId) : undefined
         )
-      );
+      )
+      .limit(500);
 
     for (const cls of coachClasses) {
       if (!cls.startTime || !cls.endTime) continue;
@@ -543,7 +553,8 @@ export async function checkScheduleConflict(params: {
       const weekdays = await db
         .select({ weekday: classWeekdays.weekday })
         .from(classWeekdays)
-        .where(eq(classWeekdays.classId, cls.id));
+        .where(eq(classWeekdays.classId, cls.id))
+        .limit(7);
 
       const startDate = new Date(startTime);
       const startWeekday = startDate.getDay();
@@ -579,7 +590,8 @@ export async function checkScheduleConflict(params: {
           endTime: classSessions.endTime,
         })
         .from(classSessions)
-        .where(sessionWhere);
+        .where(sessionWhere)
+        .limit(500);
 
       for (const session of sessions) {
         if (!session.startTime || !session.endTime || !session.sessionDate) continue;
@@ -611,4 +623,3 @@ export async function checkScheduleConflict(params: {
 
   return { hasConflict: false };
 }
-

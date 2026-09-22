@@ -48,6 +48,7 @@ export async function calculateCoachReport(filters: CoachReportFilters): Promise
     filters.coachId ? eq(coaches.id, filters.coachId) : undefined,
   ].filter(Boolean);
 
+  // unbounded-read-ok: report output includes every coach in the requested academy/scope.
   const allCoaches = await db
     .select({
       id: coaches.id,
@@ -73,6 +74,7 @@ export async function calculateCoachReport(filters: CoachReportFilters): Promise
   ].filter(Boolean);
 
   const [allClasses, allGroups, totalClassesResult] = await Promise.all([
+    // unbounded-read-ok: all in-scope classes are needed for coach performance aggregation.
     db
       .select({
         id: classes.id,
@@ -84,6 +86,7 @@ export async function calculateCoachReport(filters: CoachReportFilters): Promise
       })
       .from(classes)
       .where(and(...classWhere)),
+    // unbounded-read-ok: all in-scope groups contribute athletes and technical metadata.
     db
       .select({
         id: groups.id,
@@ -112,6 +115,7 @@ export async function calculateCoachReport(filters: CoachReportFilters): Promise
   const classGroupLinks =
     allClassIds.length > 0
       ? await db
+          // unbounded-read-ok: class ids were derived from the scoped class set above.
           .select({
             classId: classGroups.classId,
             groupId: classGroups.groupId,
@@ -150,6 +154,7 @@ export async function calculateCoachReport(filters: CoachReportFilters): Promise
   const [assignments, groupMemberships, classEnrollmentRows, sessionRows] = await Promise.all([
     classIds.length > 0
       ? db
+          // unbounded-read-ok: all group memberships are needed for athlete counts.
           .select({
             classId: classCoachAssignments.classId,
             coachId: classCoachAssignments.coachId,
@@ -164,6 +169,7 @@ export async function calculateCoachReport(filters: CoachReportFilters): Promise
       : Promise.resolve([]),
     groupIds.length > 0
       ? db
+          // unbounded-read-ok: all enrollments are needed for coach athlete counts.
           .select({
             groupId: groupAthletes.groupId,
             athleteId: groupAthletes.athleteId,
@@ -178,6 +184,7 @@ export async function calculateCoachReport(filters: CoachReportFilters): Promise
       : Promise.resolve([]),
     classIds.length > 0
       ? db
+          // unbounded-read-ok: sessions are bounded by scoped classes and optional report date window.
           .select({
             classId: classEnrollments.classId,
             athleteId: classEnrollments.athleteId,
@@ -218,6 +225,7 @@ export async function calculateCoachReport(filters: CoachReportFilters): Promise
   const attendanceRows =
     sessionIds.length > 0
       ? await db
+          // unbounded-read-ok: attendance rows are bounded by the selected session ids.
           .select({
             sessionId: attendanceRecords.sessionId,
             status: attendanceRecords.status,

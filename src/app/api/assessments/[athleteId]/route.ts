@@ -256,7 +256,8 @@ export const GET = withTenant(async (request, context) => {
         eq(athleteAssessments.athleteId, athleteId),
         eq(athleteAssessments.tenantId, context.tenantId)
       ))
-      .orderBy(desc(athleteAssessments.assessmentDate));
+      .orderBy(desc(athleteAssessments.assessmentDate))
+      .limit(500);
 
     // N+1 FIX: Fetch all scores in ONE query instead of N queries
     const assessmentIds = assessmentRows.map(a => a.id);
@@ -275,6 +276,7 @@ export const GET = withTenant(async (request, context) => {
           .from(assessmentScores)
           .leftJoin(skillCatalog, eq(assessmentScores.skillId, skillCatalog.id))
           .where(inArray(assessmentScores.assessmentId, assessmentIds))
+          .limit(5000)
       : [];
 
     // Group scores by assessmentId in memory

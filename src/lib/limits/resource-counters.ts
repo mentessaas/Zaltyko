@@ -53,12 +53,12 @@ export async function getGroupCount(
  * Obtiene el conteo actual de academias de un usuario
  */
 export async function getAcademyCount(ownerId: string): Promise<number> {
-  const ownedAcademies = await db
-    .select({ id: academies.id })
+  const [{ value: academyCount }] = await db
+    .select({ value: count() })
     .from(academies)
     .where(eq(academies.ownerId, ownerId));
 
-  return ownedAcademies.length;
+  return Number(academyCount ?? 0);
 }
 
 /**
@@ -86,4 +86,3 @@ export async function getResourceCount(
       throw new Error(`Unknown resource: ${resource}`);
   }
 }
-

@@ -37,7 +37,8 @@ export async function GET() {
         academyType: academies.academyType,
       })
       .from(academies)
-      .where(eq(academies.ownerId, profile.id));
+      .where(eq(academies.ownerId, profile.id))
+      .limit(100);
 
     return apiSuccess({
       academies: userAcademies,

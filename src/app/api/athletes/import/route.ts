@@ -86,6 +86,9 @@ const handler = withTenant(async (request, context) => {
       };
       return CsvRowSchema.parse(normalized);
     });
+    if (records.length > 5000) {
+      return apiError("CSV_TOO_LARGE", "El CSV no puede contener más de 5000 filas", 413);
+    }
   } catch (error) {
     logger.error("CSV parse error", error);
     return apiError("INVALID_CSV", "Invalid CSV format", 400);
@@ -108,7 +111,8 @@ const handler = withTenant(async (request, context) => {
     const tenantAcademies = await db
       .select({ id: academies.id })
       .from(academies)
-      .where(eq(academies.tenantId, effectiveTenantId));
+      .where(eq(academies.tenantId, effectiveTenantId))
+      .limit(2);
     if (tenantAcademies.length === 1) {
       defaultAcademyId = tenantAcademies[0].id;
     }
@@ -125,7 +129,8 @@ const handler = withTenant(async (request, context) => {
   const academiesRows = await db
     .select({ id: academies.id })
     .from(academies)
-    .where(and(eq(academies.tenantId, effectiveTenantId), inArray(academies.id, academyIds)));
+    .where(and(eq(academies.tenantId, effectiveTenantId), inArray(academies.id, academyIds)))
+    .limit(1000);
 
   const validAcademyIds = new Set(academiesRows.map((row) => row.id));
   const configsByAcademy = new Map<string, Awaited<ReturnType<typeof getAcademySportConfigOptions>>>();
@@ -137,7 +142,8 @@ const handler = withTenant(async (request, context) => {
     errors: [] as Array<{ row: number; reason: string }>,
   };
 
-  for (const [index, record] of records.entries()) {
+  await db.transaction(async (batchTx) => {
+    for (const [index, record] of records.entries()) {
     if (!record.academyId) {
       summary.skipped += 1;
       summary.errors.push({
@@ -300,59 +306,63 @@ const handler = withTenant(async (request, context) => {
       }
 
       const athleteId = crypto.randomUUID();
+      const academyId = record.academyId;
 
-      await db.insert(athletes).values({
-        id: athleteId,
-        tenantId: effectiveTenantId,
-        academyId: record.academyId,
-        name: record.name,
-        dob: dobDate ? formatDateForDB(dobDate) : null,
-        level: record.level ?? null,
-        status: record.status ?? "active",
-        groupId: selectedGroup?.id ?? null,
-        primarySportConfigId: effectiveSportConfigId,
-        programCode: effectiveProgramCode,
-        levelCode: effectiveLevelCode,
-        categoryCode: effectiveCategoryCode,
+      await batchTx.transaction(async (tx) => {
+        await tx.insert(athletes).values({
+          id: athleteId,
+          tenantId: effectiveTenantId,
+          academyId,
+          name: record.name,
+          dob: dobDate ? formatDateForDB(dobDate) : null,
+          level: record.level ?? null,
+          status: record.status ?? "active",
+          groupId: selectedGroup?.id ?? null,
+          primarySportConfigId: effectiveSportConfigId,
+          programCode: effectiveProgramCode,
+          levelCode: effectiveLevelCode,
+          categoryCode: effectiveCategoryCode,
+        });
+
+        if (selectedGroup) {
+          await tx
+            .insert(groupAthletes)
+            .values({
+              id: crypto.randomUUID(),
+              tenantId: effectiveTenantId,
+              groupId: selectedGroup.id,
+              athleteId,
+            })
+            .onConflictDoNothing();
+        }
+
+        if (effectiveSportConfigId) {
+          await tx
+            .insert(athleteSportConfigs)
+            .values({
+              id: crypto.randomUUID(),
+              tenantId: effectiveTenantId,
+              athleteId,
+              academySportConfigId: effectiveSportConfigId,
+              programCode: effectiveProgramCode,
+              levelCode: effectiveLevelCode,
+              categoryCode: effectiveCategoryCode,
+            })
+            .onConflictDoNothing();
+        }
       });
-
-      if (selectedGroup) {
-        await db
-          .insert(groupAthletes)
-          .values({
-            id: crypto.randomUUID(),
-            tenantId: effectiveTenantId,
-            groupId: selectedGroup.id,
-            athleteId,
-          })
-          .onConflictDoNothing();
-      }
-
-      if (effectiveSportConfigId) {
-        await db
-          .insert(athleteSportConfigs)
-          .values({
-            id: crypto.randomUUID(),
-            tenantId: effectiveTenantId,
-            athleteId,
-            academySportConfigId: effectiveSportConfigId,
-            programCode: effectiveProgramCode,
-            levelCode: effectiveLevelCode,
-            categoryCode: effectiveCategoryCode,
-          })
-          .onConflictDoNothing();
-      }
 
       summary.created += 1;
     } catch (error) {
       logger.error("Import athlete error", error);
-      summary.skipped += 1;
-      summary.errors.push({
-        row: index + 2,
-        reason: error instanceof Error ? error.message : "Error desconocido",
-      });
+      // Una excepción después de iniciar la escritura no puede dejar un lote
+      // parcialmente aplicado. Las filas rechazadas por validación se
+      // manejan con `continue` antes de llegar aquí; los errores de persistencia
+      // abortan la transacción completa para permitir reintento seguro.
+      throw error;
     }
-  }
+    }
+  });
 
     // Igual que en el alta manual: la importación cuenta para el paso
     // "Añade al menos 5 atletas" del checklist de onboarding.
@@ -410,4 +420,3 @@ const handlerWithPayloadCheck = async (request: NextRequest) => {
 };
 
 export const POST = withRateLimit(handlerWithPayloadCheck, { identifier: getUserIdentifier });
-

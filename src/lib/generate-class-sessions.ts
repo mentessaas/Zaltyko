@@ -40,10 +40,12 @@ export async function generateClassSessions(
         }
 
         // 2. Obtener días de la semana configurados
+        // unbounded-read-ok: a class has a small, complete weekday configuration; truncation would change generated sessions.
         const weekdays = await db
             .select()
             .from(classWeekdays)
-            .where(eq(classWeekdays.classId, classId));
+            .where(eq(classWeekdays.classId, classId))
+            .limit(7);
 
         if (weekdays.length === 0) {
             throw new Error(`Clase ${classId} no tiene días de la semana configurados`);
@@ -54,6 +56,7 @@ export async function generateClassSessions(
         const endDate = addWeeks(today, weeksAhead);
 
         const exceptions = await db
+            // unbounded-read-ok: all exceptions in the bounded generation window must be loaded to avoid creating cancelled sessions.
             .select()
             .from(classExceptions)
             .where(
@@ -62,7 +65,8 @@ export async function generateClassSessions(
                     gte(classExceptions.exceptionDate, format(today, "yyyy-MM-dd")),
                     lte(classExceptions.exceptionDate, format(endDate, "yyyy-MM-dd"))
                 )
-            );
+            )
+            .limit(5000);
 
         const exceptionDates = new Set(
             exceptions.map((e) => format(new Date(e.exceptionDate), "yyyy-MM-dd"))
@@ -70,6 +74,7 @@ export async function generateClassSessions(
 
         // 4. Obtener sesiones ya existentes para evitar duplicados
         const existingSessions = await db
+            // unbounded-read-ok: the date window is bounded by weeksAhead and every existing session is needed for deduplication.
             .select()
             .from(classSessions)
             .where(
@@ -78,7 +83,8 @@ export async function generateClassSessions(
                     gte(classSessions.sessionDate, format(today, "yyyy-MM-dd")),
                     lte(classSessions.sessionDate, format(endDate, "yyyy-MM-dd"))
                 )
-            );
+            )
+            .limit(5000);
 
         const existingDates = new Set(
             existingSessions.map((s) => format(new Date(s.sessionDate), "yyyy-MM-dd"))
@@ -155,6 +161,7 @@ export async function generateSessionsForTenant(
 }> {
     try {
         // Obtener todas las clases con auto-generación activada del tenant
+        // unbounded-read-ok: this worker must process every active class for the requested tenant.
         const activeClasses = await db
             .select()
             .from(classes)
@@ -212,6 +219,7 @@ export async function generateSessionsForAllTenants(
 }> {
     try {
         // Obtener todos los tenants únicos con clases auto-generables
+        // unbounded-read-ok: cron intentionally drains every tenant with eligible classes.
         const tenantsWithClasses = await db
             .selectDistinct({ tenantId: classes.tenantId })
             .from(classes)

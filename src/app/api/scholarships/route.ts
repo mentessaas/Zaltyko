@@ -59,7 +59,8 @@ export const GET = withTenant(async (request, context) => {
         eq(scholarships.tenantId, context.tenantId),
         sportConfigId ? eq(athletes.primarySportConfigId, sportConfigId) : undefined
       )
-    );
+    )
+    .limit(500);
 
   return apiSuccess({
     items: items.map((item) => ({

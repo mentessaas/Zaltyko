@@ -112,7 +112,8 @@ export async function getWhatsAppTemplateByType(templateType: string): Promise<W
         eq(messageTemplates.templateType, templateType),
         eq(messageTemplates.isActive, true)
       )
-    );
+    )
+    .limit(1);
   return template || null;
 }
 
@@ -130,7 +131,8 @@ export async function getWhatsAppTemplates(tenantId?: string) {
             eq(messageTemplates.tenantId, tenantId)
           )
         : eq(messageTemplates.channel, "whatsapp")
-    );
+    )
+    .limit(100);
 }
 
 /**

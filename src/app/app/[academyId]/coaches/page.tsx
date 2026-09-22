@@ -73,6 +73,7 @@ export default async function AcademyCoachesPage({ params, searchParams }: PageP
     undefined
   );
 
+  // unbounded-read-ok: the coaches screen renders the complete filtered academy catalogue.
   const coachRows = await db
     .select({
       id: coaches.id,
@@ -87,6 +88,7 @@ export default async function AcademyCoachesPage({ params, searchParams }: PageP
     .where(whereClause)
     .orderBy(asc(coaches.name));
 
+  // unbounded-read-ok: all assignments are needed to show each coach's classes.
   const assignmentRows = await db
     .select({
       coachId: classCoachAssignments.coachId,
@@ -98,6 +100,7 @@ export default async function AcademyCoachesPage({ params, searchParams }: PageP
     .innerJoin(classes, eq(classCoachAssignments.classId, classes.id))
     .where(eq(classes.academyId, academyId));
 
+  // unbounded-read-ok: class options are required for coach assignment management.
   const classRows = await db
     .select({
       id: classes.id,
@@ -108,6 +111,7 @@ export default async function AcademyCoachesPage({ params, searchParams }: PageP
     .where(eq(classes.academyId, academyId))
     .orderBy(asc(classes.name));
 
+  // unbounded-read-ok: group options are required for coach assignment management.
   const groupRows = await db
     .select({
       id: groups.id,
@@ -125,6 +129,7 @@ export default async function AcademyCoachesPage({ params, searchParams }: PageP
   const coachSportScopeRows =
     coachIds.length > 0
       ? await db
+          // unbounded-read-ok: scopes are bounded by the displayed coach ids.
           .select({
             coachId: coachSportConfigs.coachId,
             sportConfigId: coachSportConfigs.academySportConfigId,

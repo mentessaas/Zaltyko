@@ -57,7 +57,8 @@ async function getTicket(ticketId: string, academyId: string, profileId: string)
     .leftJoin(profiles, eq(ticketResponses.userId, profiles.id))
     .leftJoin(ticketAttachments, eq(ticketAttachments.responseId, ticketResponses.id))
     .where(and(eq(ticketResponses.ticketId, ticketId), eq(ticketResponses.isInternal, false)))
-    .orderBy(asc(ticketResponses.createdAt));
+    .orderBy(asc(ticketResponses.createdAt))
+    .limit(500);
 
   const responses = responseRows.reduce<Array<{
     id: string;

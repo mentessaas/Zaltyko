@@ -54,7 +54,8 @@ export async function calculateAgeCategoryForAthlete(params: {
     const categories = await db
       .select()
       .from(templateAgeCategories)
-      .where(eq(templateAgeCategories.templateId, fallbackTemplate.id));
+      .where(eq(templateAgeCategories.templateId, fallbackTemplate.id))
+      .limit(100);
 
     const matchingCategory = categories.find(
       (cat) => age >= cat.minAge && age <= cat.maxAge
@@ -74,7 +75,8 @@ export async function calculateAgeCategoryForAthlete(params: {
   const categories = await db
     .select()
     .from(templateAgeCategories)
-    .where(eq(templateAgeCategories.templateId, template.id));
+    .where(eq(templateAgeCategories.templateId, template.id))
+    .limit(100);
 
   // Find category where age falls within minAge-maxAge range
   const matchingCategory = categories.find(

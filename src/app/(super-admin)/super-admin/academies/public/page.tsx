@@ -50,7 +50,8 @@ export default async function SuperAdminPublicAcademiesPage() {
       isPublic: academies.isPublic,
     })
     .from(academies)
-    .orderBy(academies.name);
+    .orderBy(academies.name)
+    .limit(500);
 
   return (
     <div className="space-y-6 p-8">
@@ -70,4 +71,3 @@ export default async function SuperAdminPublicAcademiesPage() {
     </div>
   );
 }
-

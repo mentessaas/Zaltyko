@@ -138,6 +138,7 @@ export default async function DashboardLayout({
         .select({ id: academies.id, name: academies.name })
         .from(academies)
         .where(eq(academies.tenantId, profile.tenantId))
+        .limit(100)
     : [];
 
   const canCreateAcademies =

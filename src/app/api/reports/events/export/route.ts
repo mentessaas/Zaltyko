@@ -43,6 +43,7 @@ export const GET = withTenant(async (request, context) => {
     endDate ? lte(events.startDate, endDate) : undefined,
   ].filter(Boolean);
 
+  // unbounded-read-ok: export intentionally returns the complete filtered report; date/academy filters are required above.
   const rows = await db
     .select({
       eventId: events.id,

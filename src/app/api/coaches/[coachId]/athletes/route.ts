@@ -46,7 +46,8 @@ export const GET = withTenant(async (_request, context) => {
     .select({ classId: classCoachAssignments.classId, sportConfigId: classes.sportConfigId })
     .from(classCoachAssignments)
     .innerJoin(classes, eq(classCoachAssignments.classId, classes.id))
-    .where(and(eq(classCoachAssignments.coachId, coachId), eq(classes.academyId, coach.academyId)));
+    .where(and(eq(classCoachAssignments.coachId, coachId), eq(classes.academyId, coach.academyId)))
+    .limit(500);
 
   const assignedClassIds = assignedClasses.filter((c) => isInScope(c.sportConfigId)).map((c) => c.classId);
 
@@ -57,7 +58,8 @@ export const GET = withTenant(async (_request, context) => {
       .select({ groupId: classGroups.groupId, sportConfigId: groups.sportConfigId })
       .from(classGroups)
       .innerJoin(groups, eq(classGroups.groupId, groups.id))
-      .where(inArray(classGroups.classId, assignedClassIds));
+      .where(inArray(classGroups.classId, assignedClassIds))
+      .limit(1000);
 
     groupIds = linkedClassGroups
       .filter((g) => isInScope(g.sportConfigId))
@@ -84,7 +86,8 @@ export const GET = withTenant(async (_request, context) => {
           inArray(groupAthletes.groupId, groupIds),
           isNull(athletes.deletedAt)
         )
-      );
+      )
+      .limit(5000);
 
     athletesFromGroups = groupAthleteRows.map((a) => ({
       id: a.athleteId,
@@ -115,7 +118,8 @@ export const GET = withTenant(async (_request, context) => {
           inArray(classEnrollments.classId, assignedClassIds),
           isNull(athletes.deletedAt)
         )
-      );
+      )
+      .limit(5000);
 
     athletesFromEnrollments = enrollmentRows.map((a) => ({
       id: a.athleteId,

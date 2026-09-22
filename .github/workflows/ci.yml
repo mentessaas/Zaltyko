@@ -140,7 +140,7 @@ jobs:
     name: Smoke Tests
     runs-on: ubuntu-latest
     needs: build
-    if: github.event_name == 'push' && github.ref == 'refs/heads/main'
+    if: (github.event_name == 'push' && github.ref == 'refs/heads/main') || github.event_name == 'pull_request'
     steps:
       - uses: actions/checkout@v4
 
@@ -191,9 +191,33 @@ jobs:
 
           if [ "$missing" -eq 0 ]; then
             echo "enabled=true" >> "$GITHUB_OUTPUT"
+            echo "### Authenticated E2E readiness: enabled" >> "$GITHUB_STEP_SUMMARY"
           else
             echo "enabled=false" >> "$GITHUB_OUTPUT"
+            echo "::warning::Authenticated E2E is disabled because required Actions secrets are missing"
+            {
+              echo "### Authenticated E2E readiness: disabled"
+              echo "Missing one or more required secrets; authenticated E2E will be skipped."
+              echo "Required names: E2E_AUTH_EMAIL, E2E_AUTH_PASSWORD, E2E_ACADEMY_ID"
+            } >> "$GITHUB_STEP_SUMMARY"
           fi
+
+  go-authenticated-e2e-gate:
+    name: GO Gate - Authenticated E2E required
+    runs-on: ubuntu-latest
+    needs: e2e-readiness
+    if: (github.event_name == 'push' && github.ref == 'refs/heads/main') || github.event_name == 'pull_request'
+    steps:
+      - name: Block GO when authenticated E2E is not enabled
+        env:
+          E2E_READY: ${{ needs.e2e-readiness.outputs.enabled }}
+        run: |
+          if [ "$E2E_READY" != "true" ]; then
+            echo "Authenticated E2E credentials are not configured; GO release is blocked."
+            echo "Required Actions secrets: E2E_AUTH_EMAIL, E2E_AUTH_PASSWORD, E2E_ACADEMY_ID"
+            exit 1
+          fi
+          echo "Authenticated E2E is enabled; the authenticated flow job must pass before GO."
 
   validate-rls:
     name: Validate RLS Coverage
@@ -241,7 +265,7 @@ jobs:
     name: E2E Public (no auth)
     runs-on: ubuntu-latest
     needs: smoke-test
-    if: github.event_name == 'push' && github.ref == 'refs/heads/main'
+    if: (github.event_name == 'push' && github.ref == 'refs/heads/main') || github.event_name == 'pull_request'
     steps:
       - uses: actions/checkout@v4
 
@@ -269,7 +293,7 @@ jobs:
     name: E2E Authenticated Flows
     runs-on: ubuntu-latest
     needs: [e2e-public, e2e-readiness]
-    if: github.event_name == 'push' && github.ref == 'refs/heads/main' && needs.e2e-readiness.outputs.enabled == 'true'
+    if: ((github.event_name == 'push' && github.ref == 'refs/heads/main') || github.event_name == 'pull_request') && needs.e2e-readiness.outputs.enabled == 'true'
     steps:
       - uses: actions/checkout@v4
 

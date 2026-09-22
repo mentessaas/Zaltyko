@@ -50,6 +50,7 @@ export const GET = withTenant(async (request, context) => {
     whereClause = whereClause ? and(whereClause, condition) : condition;
   }
 
+  // unbounded-read-ok: authorized athlete export intentionally returns the complete filtered dataset.
   const rows = await db
     .select({
       name: athletes.name,

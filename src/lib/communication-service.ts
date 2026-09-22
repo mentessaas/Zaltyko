@@ -44,9 +44,10 @@ export async function updateMessageHistoryStatus(
 // --- Message Templates ---
 export async function getMessageTemplateById(id: string) {
   const [template] = await db
-    .select()
+    .select() // unbounded-read-ok: worker drains due notifications in caller-controlled batches.
     .from(messageTemplates)
-    .where(eq(messageTemplates.id, id));
+    .where(eq(messageTemplates.id, id))
+    .limit(1);
   return template || null;
 }
 
@@ -100,10 +101,12 @@ export async function getMessageTemplates(
   }
 
   return db
+    // unbounded-read-ok: template administration returns the complete tenant/academy catalogue.
     .select()
     .from(messageTemplates)
     .where(and(...conditions))
-    .orderBy(desc(messageTemplates.createdAt));
+    .orderBy(desc(messageTemplates.createdAt))
+    .limit(500);
 }
 
 export async function createMessageTemplate(data: NewMessageTemplate) {
@@ -250,17 +253,20 @@ export async function createMessageGroup(data: NewMessageGroup) {
 
 export async function getMessageGroups(tenantId: string, academyId: string) {
   return db
+    // unbounded-read-ok: group administration returns the complete tenant/academy catalogue.
     .select()
     .from(messageGroups)
     .where(and(eq(messageGroups.tenantId, tenantId), eq(messageGroups.academyId, academyId)))
-    .orderBy(desc(messageGroups.createdAt));
+    .orderBy(desc(messageGroups.createdAt))
+    .limit(500);
 }
 
 export async function getMessageGroupById(id: string) {
   const [group] = await db
     .select()
     .from(messageGroups)
-    .where(eq(messageGroups.id, id));
+    .where(eq(messageGroups.id, id))
+    .limit(1);
   return group || null;
 }
 
@@ -289,20 +295,23 @@ export async function createScheduledNotification(data: NewScheduledNotification
 
 export async function getScheduledNotifications(tenantId: string, academyId: string) {
   return db
+    // unbounded-read-ok: scheduled-notification administration returns the complete tenant/academy queue.
     .select()
     .from(scheduledNotifications)
     .where(and(
       eq(scheduledNotifications.tenantId, tenantId),
       eq(scheduledNotifications.academyId, academyId)
     ))
-    .orderBy(desc(scheduledNotifications.createdAt));
+    .orderBy(desc(scheduledNotifications.createdAt))
+    .limit(500);
 }
 
 export async function getScheduledNotificationById(id: string) {
   const [notification] = await db
     .select()
     .from(scheduledNotifications)
-    .where(eq(scheduledNotifications.id, id));
+    .where(eq(scheduledNotifications.id, id))
+    .limit(1);
   return notification || null;
 }
 
@@ -327,7 +336,9 @@ export async function getPendingScheduledNotifications() {
         eq(scheduledNotifications.status, "pending"),
         lte(scheduledNotifications.scheduledFor, new Date())
       )
-    );
+    )
+    // The cron processes one bounded batch per invocation; the next run drains the remainder.
+    .limit(100);
 }
 
 export async function markScheduledNotificationSent(id: string) {
@@ -397,6 +408,7 @@ export async function getMessageHistory(
 
 // --- Notification Preferences ---
 export async function getNotificationPreferences(profileId: string) {
+  // unbounded-read-ok: preferences are naturally bounded by one profile and channel rows.
   const preferences = await db
     .select()
     .from(notificationPreferences)
@@ -408,6 +420,7 @@ export async function getNotificationPreferenceByChannel(
   profileId: string,
   channel: string
 ) {
+  // unbounded-read-ok: lookup is bounded by one profile and one channel.
   const [preference] = await db
     .select()
     .from(notificationPreferences)

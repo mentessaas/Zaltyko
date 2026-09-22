@@ -39,7 +39,8 @@ export default async function NewAthletePage({ params }: PageProps) {
       })
       .from(groups)
       .where(eq(groups.academyId, academyId))
-      .orderBy(asc(groups.name)),
+      .orderBy(asc(groups.name))
+      .limit(500),
     getAcademySportConfigOptions(academyId),
   ]);
 

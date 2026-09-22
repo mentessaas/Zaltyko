@@ -93,7 +93,8 @@ export default async function LicensesPage({ params }: LicensesPageProps) {
     })
     .from(athletes)
     .where(eq(athletes.academyId, academyId))
-    .orderBy(athletes.name);
+    .orderBy(athletes.name)
+    .limit(500);
 
   const athleteIds = academyAthletes.map((a) => a.id);
 
@@ -117,6 +118,7 @@ export default async function LicensesPage({ params }: LicensesPageProps) {
         .from(federativeLicenses)
         .where(and(eq(federativeLicenses.tenantId, academy.tenantId), inArray(federativeLicenses.personId, athleteIds)))
         .orderBy(desc(federativeLicenses.validUntil))
+        .limit(1000)
     : [];
   const sportConfigs = await getAcademySportConfigOptions(academyId);
   const terms = getTerminologyForSportConfig(sportConfigs);

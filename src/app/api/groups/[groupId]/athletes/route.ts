@@ -36,6 +36,7 @@ export const GET = withTenant(async (request, context: RouteContext) => {
     return apiError("FORBIDDEN", "Access denied", 403);
   }
 
+  // unbounded-read-ok: all athlete ids belong to this single group.
   const athleteRows = await db
     .select({ athleteId: groupAthletes.athleteId })
     .from(groupAthletes)
@@ -45,4 +46,3 @@ export const GET = withTenant(async (request, context: RouteContext) => {
 
   return apiSuccess({ athleteIds });
 });
-

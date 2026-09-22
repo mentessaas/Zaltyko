@@ -4,6 +4,7 @@ import { db } from "@/db";
 import { academySportConfigs, coachSportConfigs, coaches } from "@/db/schema";
 
 export async function getCoachSportConfigIds(coachId: string, tenantId: string): Promise<string[]> {
+  // unbounded-read-ok: all sport scopes for this coach/tenant are returned to enforce authorization.
   const rows = await db
     .select({ sportConfigId: coachSportConfigs.academySportConfigId })
     .from(coachSportConfigs)
@@ -20,6 +21,7 @@ export async function validateSportConfigIdsForAcademy(params: {
   const uniqueIds = Array.from(new Set(params.sportConfigIds));
   if (uniqueIds.length === 0) return [];
 
+  // unbounded-read-ok: lookup is bounded by the caller-provided unique id set.
   const rows = await db
     .select({ id: academySportConfigs.id })
     .from(academySportConfigs)
@@ -76,6 +78,7 @@ export async function assertCoachesCanHandleSportConfig(params: {
     return { ok: true as const };
   }
 
+  // unbounded-read-ok: lookup is bounded by the caller-provided unique coach id set.
   const coachRows = await db
     .select({ id: coaches.id })
     .from(coaches)
@@ -87,6 +90,7 @@ export async function assertCoachesCanHandleSportConfig(params: {
     return { ok: false as const, reason: "COACH_NOT_FOUND" as const };
   }
 
+  // unbounded-read-ok: all scopes for the selected coaches are required for validation.
   const scopeRows = await db
     .select({
       coachId: coachSportConfigs.coachId,
@@ -111,4 +115,3 @@ export async function assertCoachesCanHandleSportConfig(params: {
 
   return { ok: true as const };
 }
-

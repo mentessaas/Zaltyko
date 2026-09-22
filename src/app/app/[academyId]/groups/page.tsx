@@ -60,6 +60,7 @@ export default async function AcademyGroupsPage({ params, searchParams }: PagePr
       ? resolvedSearchParams.focusGroup.trim()
       : undefined;
   // Primero obtener los grupos con el coach
+  // unbounded-read-ok: the groups screen renders the complete academy group catalogue.
   const groupRows = await db
     .select({
       id: groups.id,
@@ -84,6 +85,7 @@ export default async function AcademyGroupsPage({ params, searchParams }: PagePr
   const athleteCountsMap = new Map<string, number>();
 
   if (groupIds.length > 0) {
+    // unbounded-read-ok: grouped count is bounded by the group ids loaded for this academy.
     const athleteCountRows = await db
       .select({
         groupId: groupAthletes.groupId,
@@ -104,6 +106,7 @@ export default async function AcademyGroupsPage({ params, searchParams }: PagePr
     athleteCount: athleteCountsMap.get(group.id) ?? 0,
   }));
 
+  // unbounded-read-ok: coach options are required for every group editor in this academy.
   const coachRows = await db
     .select({ id: coaches.id, name: coaches.name, email: coaches.email })
     .from(coaches)
@@ -126,6 +129,7 @@ export default async function AcademyGroupsPage({ params, searchParams }: PagePr
     sportConfigIdsByCoach.set(row.coachId, current);
   });
 
+  // unbounded-read-ok: athlete options are required for group assignment in this academy.
   const athleteRows = await db
     .select({
       id: athletes.id,

@@ -210,7 +210,8 @@ export const GET = withTenant(async (request, context) => {
       .from(attendanceRecords)
       .innerJoin(classSessions, eq(classSessions.id, attendanceRecords.sessionId))
       .innerJoin(classes, eq(classSessions.classId, classes.id))
-      .where(and(...whereConditions));
+      .where(and(...whereConditions))
+      .limit(2000);
 
     return apiSuccess({ items: rows });
   } catch (error) {

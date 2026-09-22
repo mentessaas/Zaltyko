@@ -57,6 +57,8 @@ export async function getUserNotifications(
     whereConditions.push(eq(notifications.type, options.type));
   }
 
+  const safeLimit = Math.min(Math.max(options?.limit ?? 100, 1), 100);
+  // unbounded-read-ok: safeLimit is applied to this paginated user notification query below.
   const query = db
     .select()
     .from(notifications)
@@ -67,11 +69,7 @@ export async function getUserNotifications(
     query.offset(options.offset);
   }
 
-  if (options?.limit) {
-    return await query.limit(options.limit);
-  }
-
-  return await query;
+  return await query.limit(safeLimit);
 }
 
 /**

@@ -42,7 +42,8 @@ export const GET = withTenant(async (request: Request, context: { tenantId: stri
         eq(eventRegistrations.profileId, profileId),
         eq(events.tenantId, context.tenantId)
       ))
-      .orderBy(desc(events.startDate));
+    .orderBy(desc(events.startDate))
+    .limit(200);
 
     return apiSuccess({
       items: userRegistrations.map(reg => ({

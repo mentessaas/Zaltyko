@@ -60,7 +60,8 @@ export const GET = withTenant(async (_request, context) => {
     })
     .from(ticketResponses)
     .leftJoin(profiles, eq(ticketResponses.userId, profiles.id))
-    .where(eq(ticketResponses.ticketId, id));
+    .where(eq(ticketResponses.ticketId, id))
+    .limit(500);
 
   return apiSuccess({ ticket, responses });
 });

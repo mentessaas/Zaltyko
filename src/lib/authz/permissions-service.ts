@@ -288,7 +288,8 @@ export async function getAcademyRoles(academyId: string): Promise<RoleWithPermis
     .select()
     .from(academyRoles)
     .where(eq(academyRoles.academyId, academyId))
-    .orderBy(desc(academyRoles.isDefault));
+    .orderBy(desc(academyRoles.isDefault))
+    .limit(100);
 
   return roles.map((r) => ({
     id: r.id,
@@ -406,7 +407,8 @@ export async function getRoleMembers(roleId: string) {
     })
     .from(roleMembers)
     .leftJoin(profiles, eq(roleMembers.userId, profiles.userId))
-    .where(eq(roleMembers.roleId, roleId));
+    .where(eq(roleMembers.roleId, roleId))
+    .limit(500);
 }
 
 export async function removeRoleFromUser(userId: string, roleId: string, academyId: string) {

@@ -60,7 +60,9 @@ export const GET = withTenant(async (request, context) => {
     .from(coaches)
     .innerJoin(academies, eq(coaches.academyId, academies.id))
     .where(coachFilter)
-    .orderBy(asc(coaches.name));
+    .orderBy(asc(coaches.name))
+    // Tenant-scoped list endpoint; cap the current non-paginated UI response.
+    .limit(500);
 
   const sportScopeRows =
     coachRows.length === 0
@@ -71,7 +73,8 @@ export const GET = withTenant(async (request, context) => {
             sportConfigId: coachSportConfigs.academySportConfigId,
           })
           .from(coachSportConfigs)
-          .where(inArray(coachSportConfigs.coachId, coachRows.map((coach) => coach.id)));
+          .where(inArray(coachSportConfigs.coachId, coachRows.map((coach) => coach.id)))
+          .limit(2000);
 
   const sportScopesByCoach = new Map<string, string[]>();
   sportScopeRows.forEach((row) => {
@@ -102,7 +105,8 @@ export const GET = withTenant(async (request, context) => {
       academyId
         ? and(eq(classes.academyId, academyId), eq(classCoachAssignments.tenantId, context.tenantId))
         : eq(classCoachAssignments.tenantId, context.tenantId)
-    );
+    )
+    .limit(2000);
 
   const enriched = coachesWithScopes.map((coach) => {
     const classesForCoach = assignmentRows

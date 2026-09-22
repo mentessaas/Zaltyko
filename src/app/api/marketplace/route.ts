@@ -1,4 +1,5 @@
 export const dynamic = 'force-dynamic';
+// @route-auth bearer
 
 import { db } from "@/db";
 import { marketplaceListings } from "@/db/schema";

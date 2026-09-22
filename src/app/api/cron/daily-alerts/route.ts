@@ -21,7 +21,8 @@ export async function GET(request: Request) {
         id: academies.id,
         tenantId: academies.tenantId,
       })
-      .from(academies);
+      .from(academies)
+      .limit(5000);
 
     const results = {
       capacityAlerts: 0,
@@ -43,7 +44,8 @@ export async function GET(request: Request) {
           inArray(profiles.tenantId, tenantIds),
           inArray(profiles.role, ["owner", "admin", "super_admin", "coach"])
         )
-      );
+      )
+      .limit(20000);
 
     // Agrupar por tenantId para acceso O(1) dentro del loop
     const profilesByTenant = new Map<

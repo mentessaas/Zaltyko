@@ -206,7 +206,8 @@ export async function getAcademySendingEligibilityBulk(
         isSuspended: academies.isSuspended,
       })
       .from(academies)
-      .where(sql`${academies.id} = ANY(${uniqueIds}::uuid[])`);
+      .where(sql`${academies.id} = ANY(${uniqueIds}::uuid[])`)
+      .limit(uniqueIds.length);
 
     const found = new Set<string>();
     for (const row of rows) {

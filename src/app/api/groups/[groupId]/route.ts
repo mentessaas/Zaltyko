@@ -119,6 +119,7 @@ const patchGroupHandler = withTenant(async (request, context: RouteContext) => {
 
   const assistantIds = payload.assistantIds ? Array.from(new Set(payload.assistantIds)) : undefined;
   if (assistantIds && assistantIds.length) {
+    // unbounded-read-ok: assistant lookup is bounded by the payload assistant ids and group academy.
     const assistantRows = await db
       .select({ id: coaches.id })
       .from(coaches)
@@ -152,6 +153,7 @@ const patchGroupHandler = withTenant(async (request, context: RouteContext) => {
 
   const athleteIds = payload.athleteIds ? Array.from(new Set(payload.athleteIds)) : undefined;
   if (athleteIds && athleteIds.length) {
+    // unbounded-read-ok: athlete validation is bounded by the payload athlete ids and group academy/tenant.
     const athleteRows = await db
       .select({ id: athletes.id })
       .from(athletes)
@@ -202,6 +204,7 @@ const patchGroupHandler = withTenant(async (request, context: RouteContext) => {
     }
 
     if (athleteIds) {
+      // unbounded-read-ok: current memberships belong to this single group.
       const current = await tx
         .select({ athleteId: groupAthletes.athleteId })
         .from(groupAthletes)

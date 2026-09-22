@@ -41,7 +41,8 @@ export default async function RecurringSessionsPage({ params }: PageProps) {
       weekday: classWeekdays.weekday,
     })
     .from(classWeekdays)
-    .where(eq(classWeekdays.classId, classId));
+    .where(eq(classWeekdays.classId, classId))
+    .limit(7);
 
   const weekdays = weekdayRows.map((row) => row.weekday).sort((a, b) => a - b);
 
@@ -79,4 +80,3 @@ export default async function RecurringSessionsPage({ params }: PageProps) {
     </div>
   );
 }
-

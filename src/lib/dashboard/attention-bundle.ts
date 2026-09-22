@@ -113,6 +113,7 @@ async function loadTodaySessions(
     }
 
     const sessionIds = rows.map((r) => r.sessionId);
+    // unbounded-read-ok: grouped aggregate is bounded by the attention session page.
     const attendanceCounts = await db
       .select({
         sessionId: attendanceRecords.sessionId,
@@ -273,6 +274,7 @@ async function loadChargesOverdue(
   const source =
     "charges.status IN ('overdue','failed') AND charges.tenantId=ctx.tenantId";
   try {
+    // unbounded-read-ok: grouped status counts are a scalar dashboard aggregate.
     const summary = await db
       .select({ status: charges.status, value: count() })
       .from(charges)

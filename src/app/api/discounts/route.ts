@@ -42,7 +42,8 @@ export const GET = withTenant(async (request, context) => {
   const items = await db
     .select()
     .from(discounts)
-    .where(and(eq(discounts.academyId, academyId), eq(discounts.tenantId, context.tenantId)));
+    .where(and(eq(discounts.academyId, academyId), eq(discounts.tenantId, context.tenantId)))
+    .limit(500);
 
   return apiSuccess({
     items: items.map((item) => ({
@@ -105,4 +106,3 @@ export const POST = withTenant(async (request, context) => {
 
   return apiSuccess({ ok: true, id: newDiscount.id });
 });
-

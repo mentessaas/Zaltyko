@@ -49,6 +49,7 @@ export async function calculateChurnReport(filters: ChurnReportFilters): Promise
     filters.sportConfigId ? eq(athletes.primarySportConfigId, filters.sportConfigId) : undefined,
   ].filter(Boolean);
 
+  // unbounded-read-ok: churn denominator and candidates require the complete filtered academy population.
   const athleteRows = await db
     .select({
       id: athletes.id,
@@ -64,6 +65,7 @@ export async function calculateChurnReport(filters: ChurnReportFilters): Promise
   const statusChangeLogs =
     athleteIds.length > 0
       ? await db
+          // unbounded-read-ok: every matching status-change log is required to infer churn reasons.
           .select({
             resourceId: auditLogs.resourceId,
             createdAt: auditLogs.createdAt,

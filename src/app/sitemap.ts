@@ -118,7 +118,8 @@ export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
           eq(academies.isSuspended, false),
           inArray(academies.status, INDEXABLE_ACADEMY_STATUS_VALUES)
         )
-      );
+      )
+      .limit(5000);
 
     academyPages = academyRows
       .filter(isAcademyIndexable)

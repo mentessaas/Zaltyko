@@ -101,7 +101,8 @@ export default async function CoachTodayPage({ params }: PageProps) {
         eq(classes.academyId, academyId)
       )
     )
-    .orderBy(asc(classSessions.startTime));
+    .orderBy(asc(classSessions.startTime))
+    .limit(100);
 
   // Obtener horario completo del entrenador (para mostrar todas sus clases)
   const scheduleResult = await getCoachSchedule({

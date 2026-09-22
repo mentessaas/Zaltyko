@@ -67,7 +67,8 @@ export const POST = withTenant(async (request, context) => {
         weekday: classWeekdays.weekday,
       })
       .from(classWeekdays)
-      .where(eq(classWeekdays.classId, body.classId));
+      .where(eq(classWeekdays.classId, body.classId))
+      .limit(7);
 
     const weekdays = weekdayRows.map((row) => row.weekday);
 

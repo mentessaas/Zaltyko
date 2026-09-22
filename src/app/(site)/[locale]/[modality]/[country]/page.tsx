@@ -152,7 +152,15 @@ export default async function ClusterPage({ params }: ClusterPageProps) {
   // Pull the public academy list for this cluster (12-item cap, same query
   // the future directory UI will use). Items feed the ItemList node of the
   // cluster JSON-LD; rendered output is unchanged.
-  const academyRows = await getClusterAcademies(locale as Locale, modalityKey, countryKey, 12);
+  // Academy directory data enriches the schema but must not make the static
+  // public cluster page fail when the optional directory database is
+  // unavailable during build, preview, or a transient runtime incident.
+  let academyRows: Awaited<ReturnType<typeof getClusterAcademies>> = [];
+  try {
+    academyRows = await getClusterAcademies(locale as Locale, modalityKey, countryKey, 12);
+  } catch (error) {
+    console.error("[cluster] academy enrichment unavailable; rendering content-only page", error);
+  }
   const academiesForSchema = academyRows.map((row) => ({
     id: row.id,
     name: row.name,

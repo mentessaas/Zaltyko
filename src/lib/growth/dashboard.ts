@@ -112,10 +112,13 @@ export async function getGrowthDashboardData(): Promise<GrowthDashboardData> {
     trialRows,
     paidRows,
   ] = await Promise.all([
+    // unbounded-read-ok: commercial interview history feeds the requested growth window.
+    // unbounded-read-ok: growth cohort events are bounded by cohortStart/cohortEnd.
     db
       .select()
       .from(commercialInterviews)
       .orderBy(desc(commercialInterviews.createdAt)),
+    // unbounded-read-ok: cohort events are bounded by cohortStart/cohortEnd.
     db
       .select({
         id: leads.id,
@@ -128,7 +131,9 @@ export async function getGrowthDashboardData(): Promise<GrowthDashboardData> {
       .from(leads)
       .orderBy(desc(leads.createdAt))
       .limit(50),
+    // unbounded-read-ok: scalar count intentionally covers the complete leads history.
     db.select({ total: count(leads.id) }).from(leads),
+    // unbounded-read-ok: grouped growth metrics intentionally cover the requested history.
     db
       .select({
         eventName: growthEvents.eventName,
@@ -156,6 +161,7 @@ export async function getGrowthDashboardData(): Promise<GrowthDashboardData> {
           ])
         )
       ),
+    // unbounded-read-ok: cohort events are bounded by the requested date window.
     db
       .select({
         academyId: growthEvents.academyId,

@@ -80,6 +80,18 @@ describe("API limits and feature contracts", () => {
     );
   });
 
+  it("keeps each CSV athlete row atomic across related inserts", () => {
+    const route = readFileSync(
+      join(process.cwd(), "src/app/api/athletes/import/route.ts"),
+      "utf8"
+    );
+    expect(route).toContain("await db.transaction(async (batchTx) => {");
+    expect(route).toContain("await batchTx.transaction(async (tx) => {");
+    expect(route).toContain("await tx.insert(athletes)");
+    expect(route).toContain("await tx\n            .insert(groupAthletes)");
+    expect(route).toContain("await tx\n            .insert(athleteSportConfigs)");
+  });
+
   it("checks class limits before inserting a class", () => {
     const route = readFileSync(
       join(process.cwd(), "src/app/api/classes/route.ts"),

@@ -1,7 +1,7 @@
 export const dynamic = 'force-dynamic';
 
 import { z } from "zod";
-import { eq, and, gte, lte, desc } from "drizzle-orm";
+import { eq, and, gte, lte, desc, inArray } from "drizzle-orm";
 import { withTenant } from "@/lib/authz";
 import { apiSuccess, apiError } from "@/lib/api-response";
 
@@ -77,7 +77,8 @@ export const GET = withTenant(async (request, context) => {
     .leftJoin(coaches, eq(athleteAssessments.assessedBy, coaches.id))
     .leftJoin(profiles, eq(athleteAssessments.assessedBy, profiles.id))
     .where(and(...whereConditions))
-    .orderBy(desc(athleteAssessments.assessmentDate));
+    .orderBy(desc(athleteAssessments.assessmentDate))
+    .limit(100);
 
   const assessmentIds = assessments.map((a) => a.id);
 
@@ -93,7 +94,12 @@ export const GET = withTenant(async (request, context) => {
         })
         .from(assessmentScores)
         .innerJoin(skillCatalog, eq(assessmentScores.skillId, skillCatalog.id))
-        .where(eq(assessmentScores.tenantId, context.tenantId))
+        .where(and(
+          eq(assessmentScores.tenantId, context.tenantId),
+          inArray(assessmentScores.assessmentId, assessmentIds),
+          ...(validated.skillId ? [eq(assessmentScores.skillId, validated.skillId)] : []),
+        ))
+        .limit(5000)
     : [];
 
   // Agrupar scores por evaluación
@@ -129,4 +135,3 @@ export const GET = withTenant(async (request, context) => {
 
   return apiSuccess({ items });
 });
-

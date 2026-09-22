@@ -59,5 +59,6 @@
 /output
 /promts /
 /tmp
+/.local
 .vercel
 .env*

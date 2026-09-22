@@ -45,6 +45,7 @@ export async function calculateClassReport(filters: ClassReportFilters): Promise
     isNull(classes.deletedAt),
   ].filter(Boolean);
 
+  // unbounded-read-ok: full scoped class set is required for report totals.
   const classRows = await db
     .select({
       id: classes.id,
@@ -68,6 +69,7 @@ export async function calculateClassReport(filters: ClassReportFilters): Promise
   const groupIds = classRows.map((item) => item.groupId).filter((value): value is string => Boolean(value));
 
   const [enrollmentRows, groupMemberships, sessionRows] = await Promise.all([
+    // unbounded-read-ok: full scoped enrollment set is required for report totals.
     db
       .select({
         classId: classEnrollments.classId,
@@ -83,6 +85,7 @@ export async function calculateClassReport(filters: ClassReportFilters): Promise
       ),
     groupIds.length > 0
       ? db
+          // unbounded-read-ok: full scoped group membership set is required for report totals.
           .select({
             groupId: groupAthletes.groupId,
             athleteId: groupAthletes.athleteId,
@@ -95,6 +98,7 @@ export async function calculateClassReport(filters: ClassReportFilters): Promise
             )
           )
       : Promise.resolve([]),
+    // unbounded-read-ok: full scoped session set is required for report totals.
     db
       .select({
         id: classSessions.id,
@@ -119,6 +123,7 @@ export async function calculateClassReport(filters: ClassReportFilters): Promise
   const attendanceRows =
     sessionIds.length > 0
       ? await db
+          // unbounded-read-ok: attendance rows are bounded by the selected session ids.
           .select({
             sessionId: attendanceRecords.sessionId,
             status: attendanceRecords.status,

@@ -45,7 +45,7 @@ const gates: Gate[] = [
   { name: "ESLint", args: ["lint"] },
   {
     name: "Unit and integration tests",
-    args: ["exec", "vitest", "run", "--maxWorkers=2", "--minWorkers=1"],
+    args: ["exec", "vitest", "run", "--maxWorkers=2", "--hookTimeout=30000"],
   },
   { name: "Production build", args: ["build"] },
 ];

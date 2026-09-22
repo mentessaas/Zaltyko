@@ -67,7 +67,8 @@ export async function GET(request: NextRequest) {
       .from(charges)
       .innerJoin(athletes, eq(charges.athleteId, athletes.id))
       .where(and(inArray(charges.athleteId, Array.from(athleteIds))))
-      .orderBy(desc(charges.dueDate));
+      .orderBy(desc(charges.dueDate))
+      .limit(1000);
 
     const data = rows.map((c) => ({
       id: c.id,

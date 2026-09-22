@@ -43,7 +43,8 @@ export async function GET(
       .from(marketplaceRatings)
       .leftJoin(profiles, eq(marketplaceRatings.reviewerId, profiles.id))
       .where(eq(marketplaceRatings.listingId, id))
-      .orderBy(desc(marketplaceRatings.createdAt));
+      .orderBy(desc(marketplaceRatings.createdAt))
+      .limit(100);
 
     const [{ avgRating, totalCount }] = await db
       .select({

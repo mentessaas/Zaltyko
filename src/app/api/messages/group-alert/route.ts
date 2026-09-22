@@ -98,6 +98,7 @@ const groupAlertHandler = withTenant(async (request, context) => {
   }
 
   const [enrolledAthletes, groupedAthletes] = await Promise.all([
+    // unbounded-read-ok: all enrolled athletes in the selected class are notification recipients.
     db
       .select({ athleteId: classEnrollments.athleteId })
       .from(classEnrollments)
@@ -114,6 +115,7 @@ const groupAlertHandler = withTenant(async (request, context) => {
       ),
     session.groupId
       ? db
+          // unbounded-read-ok: all group members in the selected session group are recipients.
           .select({ athleteId: groupAthletes.athleteId })
           .from(groupAthletes)
           .innerJoin(athletes, eq(groupAthletes.athleteId, athletes.id))
@@ -137,6 +139,7 @@ const groupAlertHandler = withTenant(async (request, context) => {
   }
 
   const [guardianProfiles, athleteProfiles] = await Promise.all([
+    // unbounded-read-ok: all linked guardian profiles for the resolved athlete ids are candidates.
     db
       .select({ id: profiles.id, userId: profiles.userId })
       .from(guardianAthletes)
@@ -150,6 +153,7 @@ const groupAlertHandler = withTenant(async (request, context) => {
           inArray(guardianAthletes.athleteId, athleteIds)
         )
       ),
+    // unbounded-read-ok: all athlete profiles for the resolved athlete ids are candidates.
     db
       .select({ id: profiles.id, userId: profiles.userId })
       .from(athletes)
@@ -177,6 +181,7 @@ const groupAlertHandler = withTenant(async (request, context) => {
     );
   }
 
+  // unbounded-read-ok: membership lookup is bounded by the resolved candidate user ids.
   const academyMembers = await db
     .select({ userId: memberships.userId })
     .from(memberships)

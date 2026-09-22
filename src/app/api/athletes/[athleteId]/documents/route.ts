@@ -46,7 +46,8 @@ export const GET = withTenant(async (request, context) => {
         eq(athleteDocuments.athleteId, athleteId),
         eq(athleteDocuments.tenantId, context.tenantId)
       ))
-      .orderBy(desc(athleteDocuments.createdAt));
+      .orderBy(desc(athleteDocuments.createdAt))
+      .limit(500);
 
     return apiSuccess({ items: documents }, { total: documents.length });
   } catch (error) {

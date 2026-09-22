@@ -39,6 +39,7 @@ export const GET = withTenant(async (request, context) => {
     }
 
     // Get registrations with profile info
+    // unbounded-read-ok: registration list is scoped to this single event for administration.
     const registrations = await db
       .select({
         id: eventRegistrations.id,

@@ -75,8 +75,8 @@ const updateSchema = z.object({
   capacity: z.number().int().positive().nullable().optional(),
   technicalFocus: z.string().max(500).nullable().optional(),
   apparatus: z.array(z.string().trim().min(1).max(120)).max(12).optional(),
-  coachIds: z.array(z.string().uuid()).optional(),
-  groupIds: z.array(z.string().uuid()).optional(),
+  coachIds: z.array(z.string().uuid()).max(100).optional(),
+  groupIds: z.array(z.string().uuid()).max(100).optional(),
   isExtra: z.boolean().optional(),
   groupId: z.string().uuid().nullable().optional(),
   sportConfigId: z.string().uuid().nullable().optional(),
@@ -124,13 +124,16 @@ export const GET = withTenant(async (_request, context) => {
     return apiError("CLASS_NOT_FOUND", "Class not found", 404);
   }
 
+  // unbounded-read-ok: all weekday rows belong to this single class detail.
   const weekdayRows = await db
     .select({
       weekday: classWeekdays.weekday,
     })
     .from(classWeekdays)
-    .where(eq(classWeekdays.classId, classId));
+    .where(eq(classWeekdays.classId, classId))
+    .limit(7);
 
+  // unbounded-read-ok: all coach assignments belong to this single class detail.
   const assignments = await db
     .select({
       coachId: classCoachAssignments.coachId,
@@ -140,8 +143,10 @@ export const GET = withTenant(async (_request, context) => {
     .from(classCoachAssignments)
     .innerJoin(coaches, eq(classCoachAssignments.coachId, coaches.id))
     .where(eq(classCoachAssignments.classId, classId))
-    .orderBy(asc(coaches.name));
+    .orderBy(asc(coaches.name))
+    .limit(100);
 
+  // unbounded-read-ok: all group assignments belong to this single class detail.
   const groupAssignments = await db
     .select({
       groupId: classGroups.groupId,
@@ -151,7 +156,8 @@ export const GET = withTenant(async (_request, context) => {
     })
     .from(classGroups)
     .innerJoin(groups, eq(classGroups.groupId, groups.id))
-    .where(eq(classGroups.classId, classId));
+    .where(eq(classGroups.classId, classId))
+    .limit(100);
 
   return apiSuccess({
     item: {
@@ -226,7 +232,8 @@ export const PUT = withTenant(async (request, context) => {
     const currentGroupIds = await db
       .select({ groupId: classGroups.groupId })
       .from(classGroups)
-      .where(eq(classGroups.classId, classId));
+      .where(eq(classGroups.classId, classId))
+      .limit(100);
 
     const uniqueCandidateGroupIds = resolveCandidateGroupIds({
       groupIds: body.groupIds,
@@ -248,6 +255,7 @@ export const PUT = withTenant(async (request, context) => {
                 inArray(groups.id, uniqueCandidateGroupIds)
               )
             )
+            .limit(100)
         : [];
 
     if (selectedGroups.length !== uniqueCandidateGroupIds.length) {
@@ -342,6 +350,7 @@ export const PUT = withTenant(async (request, context) => {
               .select({ weekday: classWeekdays.weekday })
               .from(classWeekdays)
               .where(eq(classWeekdays.classId, classId))
+              .limit(7)
               .then((rows) => rows.map((r) => r.weekday).sort((a, b) => a - b));
       const {
         weekdays: finalWeekdays,
@@ -367,7 +376,8 @@ export const PUT = withTenant(async (request, context) => {
         const currentGroups = await db
           .select({ groupId: classGroups.groupId })
           .from(classGroups)
-          .where(eq(classGroups.classId, classId));
+          .where(eq(classGroups.classId, classId))
+          .limit(100);
         groupsToCheck = currentGroups.map((r) => r.groupId);
       }
 
@@ -380,7 +390,8 @@ export const PUT = withTenant(async (request, context) => {
               eq(athletes.academyId, currentClass.academyId),
               inArray(athletes.groupId, groupsToCheck)
             )
-          );
+          )
+          .limit(5000);
 
         groupAthletes.forEach((a) => athleteIds.add(a.athleteId));
       }
@@ -389,7 +400,8 @@ export const PUT = withTenant(async (request, context) => {
       const enrollmentAthletes = await db
         .select({ athleteId: classEnrollments.athleteId })
         .from(classEnrollments)
-        .where(eq(classEnrollments.classId, classId));
+        .where(eq(classEnrollments.classId, classId))
+        .limit(5000);
 
       enrollmentAthletes.forEach((e) => athleteIds.add(e.athleteId));
 

@@ -148,6 +148,7 @@ export const POST = withTenant(async (request, context) => {
     const idFilter = body.applyAll ? undefined : body.ids;
 
     if (body.entityType === "athletes") {
+      // unbounded-read-ok: migration intentionally scans all eligible athletes or the explicit id subset.
       const rows = await db
         .select({ id: athletes.id })
         .from(athletes)
@@ -181,6 +182,7 @@ export const POST = withTenant(async (request, context) => {
     }
 
     if (body.entityType === "groups") {
+      // unbounded-read-ok: migration intentionally scans all eligible groups or the explicit id subset.
       const rows = await db
         .select({ id: groups.id })
         .from(groups)
@@ -202,6 +204,7 @@ export const POST = withTenant(async (request, context) => {
     }
 
     if (body.entityType === "coaches") {
+      // unbounded-read-ok: migration intentionally scans all eligible coaches or the explicit id subset.
       const rows = await db
         .select({ id: coaches.id })
         .from(coaches)
@@ -230,6 +233,7 @@ export const POST = withTenant(async (request, context) => {
       return apiSuccess({ updated: ids.length });
     }
 
+    // unbounded-read-ok: migration intentionally scans all eligible classes or the explicit id subset.
     const rows = await db
       .select({ id: classes.id })
       .from(classes)

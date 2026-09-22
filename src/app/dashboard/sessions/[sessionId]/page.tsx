@@ -94,7 +94,8 @@ export default async function SessionPage({ params }: SessionPageProps) {
       notes: attendanceRecords.notes,
     })
     .from(attendanceRecords)
-    .where(eq(attendanceRecords.sessionId, sessionId));
+    .where(eq(attendanceRecords.sessionId, sessionId))
+    .limit(Math.max(classAthletes.length, 1));
 
   return (
     <div className="space-y-6 p-8">
@@ -120,5 +121,4 @@ export default async function SessionPage({ params }: SessionPageProps) {
     </div>
   );
 }
-
 

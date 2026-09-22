@@ -306,7 +306,8 @@ export async function getChecklist(academyId: string) {
     .select()
     .from(onboardingChecklistItems)
     .where(eq(onboardingChecklistItems.academyId, academyId))
-    .orderBy(onboardingChecklistItems.createdAt);
+    .orderBy(onboardingChecklistItems.createdAt)
+    .limit(50);
 }
 
 // calculateDaysLeft moved to onboarding-utils.ts to avoid importing db in client components

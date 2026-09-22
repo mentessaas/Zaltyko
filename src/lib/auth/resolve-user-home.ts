@@ -119,6 +119,8 @@ export async function resolveUserHome(args: {
     };
   }
 
+  // unbounded-read-ok: a user can legitimately belong to many academies; the
+  // full membership set is required to select the active academy deterministically.
   const membershipsRows = await db
     .select({
       academyId: memberships.academyId,

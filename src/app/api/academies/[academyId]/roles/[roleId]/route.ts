@@ -89,7 +89,8 @@ export const PATCH = withTenant(async (request, context) => {
     const siblingRoles = await db
       .select({ id: academyRoles.id, name: academyRoles.name })
       .from(academyRoles)
-      .where(eq(academyRoles.academyId, academyId));
+      .where(eq(academyRoles.academyId, academyId))
+      .limit(100);
     if (
       siblingRoles.some(
         (candidate) =>

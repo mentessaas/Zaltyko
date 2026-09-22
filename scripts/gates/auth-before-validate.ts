@@ -56,6 +56,7 @@ const AUTH_PRIMITIVES = new Set([
   "withTenant",
   "withBearerTenant",
   "withSuperAdmin",
+  "withAuthenticatedNoTenant",
   "requireAuth",
   "resolveUserId",
   "getBearerToken",

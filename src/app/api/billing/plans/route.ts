@@ -54,9 +54,9 @@ export const GET = withTenant(async () => {
     })
     .from(plans)
     .where(eq(plans.isArchived, false))
-    .orderBy(asc(plans.priceEur));
+    .orderBy(asc(plans.priceEur))
+    .limit(100);
 
   return apiSuccess(items);
 });
-
 

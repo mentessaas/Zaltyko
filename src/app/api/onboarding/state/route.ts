@@ -25,7 +25,11 @@ const querySchema = z.object({
 
 export const GET = async (request: Request) => {
   try {
-    // Intentar usar withTenant primero, pero si falla por autenticación, permitir acceso básico
+    const cookieStore = await cookies();
+    const supabase = await createClient(cookieStore);
+    const { data: { user } } = await supabase.auth.getUser();
+    if (!user) return apiError("UNAUTHENTICATED", "No autenticado", 401);
+
     const url = new URL(request.url);
     const params = querySchema.safeParse(Object.fromEntries(url.searchParams));
 
@@ -36,17 +40,6 @@ export const GET = async (request: Request) => {
     const academyId = params.data.academyId;
 
     if (!academyId) {
-      // Intentar obtener de la sesión si no está en query params
-      const cookieStore = await cookies();
-      const supabase = await createClient(cookieStore);
-      const {
-        data: { user },
-      } = await supabase.auth.getUser();
-
-      if (!user) {
-        return apiError("UNAUTHENTICATED", "No autenticado", 401);
-      }
-
       // Si no hay academyId, retornar estado vacío
       return apiSuccess({ state: null });
     }

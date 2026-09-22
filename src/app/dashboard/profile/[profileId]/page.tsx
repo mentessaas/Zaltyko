@@ -82,7 +82,8 @@ export default async function ProfilePage({ params }: ProfilePageProps) {
       .from(memberships)
       .innerJoin(academies, eq(memberships.academyId, academies.id))
       .where(eq(memberships.userId, targetProfile.userId))
-      .orderBy(academies.name);
+      .orderBy(academies.name)
+      .limit(100);
 
     const academiesWithSubscription = await Promise.all(
       academyMemberships.map(async (academy) => {
@@ -378,7 +379,8 @@ export default async function ProfilePage({ params }: ProfilePageProps) {
       .innerJoin(guardians, eq(guardianAthletes.guardianId, guardians.id))
       .innerJoin(athletes, eq(guardianAthletes.athleteId, athletes.id))
       .innerJoin(academies, eq(athletes.academyId, academies.id))
-      .where(eq(guardians.profileId, targetProfile.id));
+      .where(eq(guardians.profileId, targetProfile.id))
+      .limit(100);
 
     const childrenWithAge = await Promise.all(
       children.map(async (child) => {

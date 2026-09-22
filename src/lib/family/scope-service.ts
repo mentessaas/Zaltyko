@@ -54,7 +54,8 @@ export async function getFamilyChildrenForUser({
         eq(academies.tenantId, profile.tenantId),
         sql`lower(${familyContacts.email}) = ${parentEmail}`
       )
-    );
+    )
+    .limit(500);
 
   const guardianChildren = await db
     .select({
@@ -80,7 +81,8 @@ export async function getFamilyChildrenForUser({
           sql`lower(${guardians.email}) = ${parentEmail}`
         )
       )
-    );
+    )
+    .limit(500);
 
   const childrenById = new Map<string, FamilyChildSummary>();
   for (const child of [...legacyChildren, ...guardianChildren]) {

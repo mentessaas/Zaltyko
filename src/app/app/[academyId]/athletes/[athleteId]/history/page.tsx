@@ -89,7 +89,8 @@ export default async function AthleteHistoryPage({ params }: PageProps) {
     })
     .from(athleteAssessments)
     .where(eq(athleteAssessments.athleteId, athleteId))
-    .orderBy(athleteAssessments.assessmentDate);
+    .orderBy(athleteAssessments.assessmentDate)
+    .limit(500);
 
   // Crear eventos para timeline
   const timelineEvents = initialAssessments.map((assessment) => {

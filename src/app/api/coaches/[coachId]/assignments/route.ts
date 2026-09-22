@@ -14,7 +14,7 @@ import { withTransaction } from "@/lib/db-transactions";
 import { assertCoachesCanHandleSportConfig } from "@/lib/coaches/sport-scope";
 
 const updateSchema = z.object({
-  classIds: z.array(z.string().uuid()),
+  classIds: z.array(z.string().uuid()).max(1000),
 });
 
 export const GET = withTenant(async (_request, context) => {
@@ -33,7 +33,8 @@ export const GET = withTenant(async (_request, context) => {
     })
     .from(classCoachAssignments)
     .innerJoin(classes, eq(classCoachAssignments.classId, classes.id))
-    .where(eq(classCoachAssignments.coachId, coachId));
+    .where(eq(classCoachAssignments.coachId, coachId))
+    .limit(1000);
 
   return apiSuccess({ items: assignmentRows });
 });
@@ -69,7 +70,8 @@ export const PUT = withTenant(async (request, context) => {
         .from(classes)
         .where(
           and(eq(classes.tenantId, context.tenantId), eq(classes.academyId, coachRow.academyId), inArray(classes.id, uniqueClassIds))
-        );
+        )
+        .limit(1000);
 
       if (classRows.length !== uniqueClassIds.length) {
         return apiError("CLASS_NOT_FOUND", "Una o más clases no pertenecen a esta academia", 404);
@@ -115,4 +117,3 @@ export const PUT = withTenant(async (request, context) => {
     return handleApiError(error, { endpoint: `/api/coaches/${coachId}/assignments`, method: "PUT" });
   }
 });
-

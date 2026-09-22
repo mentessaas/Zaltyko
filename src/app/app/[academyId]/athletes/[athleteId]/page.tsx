@@ -92,7 +92,8 @@ export default async function AthleteDetailPage({ params }: PageProps) {
     })
     .from(familyContacts)
     .where(eq(familyContacts.athleteId, athleteId))
-    .orderBy(asc(familyContacts.name));
+    .orderBy(asc(familyContacts.name))
+    .limit(100);
 
   const guardiansList = await db
     .select({
@@ -106,9 +107,11 @@ export default async function AthleteDetailPage({ params }: PageProps) {
     .from(guardianAthletes)
     .innerJoin(guardians, eq(guardianAthletes.guardianId, guardians.id))
     .where(eq(guardianAthletes.athleteId, athleteId))
-    .orderBy(desc(guardianAthletes.isPrimary), asc(guardians.name));
+    .orderBy(desc(guardianAthletes.isPrimary), asc(guardians.name))
+    .limit(100);
 
   const attendanceSummary = await db
+    // unbounded-read-ok: grouped aggregate is bounded by the single athlete.
     .select({
       status: attendanceRecords.status,
       total: count(attendanceRecords.id),
@@ -144,7 +147,8 @@ export default async function AthleteDetailPage({ params }: PageProps) {
     })
     .from(coaches)
     .where(eq(coaches.academyId, academyId))
-    .orderBy(asc(coaches.name));
+    .orderBy(asc(coaches.name))
+    .limit(200);
   const sportConfigs = await getAcademySportConfigOptions(academyId);
   const athleteTerms = getTerminologyForSportConfig(
     sportConfigs,

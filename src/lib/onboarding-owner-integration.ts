@@ -59,7 +59,8 @@ export async function getNextPending(
     })
     .from(onboardingChecklistItems)
     .where(eq(onboardingChecklistItems.academyId, academyId))
-    .orderBy(asc(onboardingChecklistItems.createdAt));
+    .orderBy(asc(onboardingChecklistItems.createdAt))
+    .limit(50);
   // Solo claves conocidas cuentan como pendientes: una fila con key
   // desconocido se salta (no cierra la secuencia por error de datos).
   const row = rows.find(
@@ -314,7 +315,8 @@ export async function processOnboardingOwnerStep(step: "d2" | "d7") {
         gte(academies.createdAt, new Date(now.getTime() - target - tolerance)),
         lte(academies.createdAt, new Date(now.getTime() - target + tolerance))
       )
-    );
+    )
+    .limit(500);
   let sent = 0;
   let skipped = 0;
   for (const academy of candidates) {

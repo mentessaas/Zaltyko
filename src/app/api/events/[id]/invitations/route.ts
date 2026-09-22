@@ -35,6 +35,7 @@ export const GET = withTenant(async (request: Request, context: { tenantId: stri
     }
 
     // Get invitations with related info
+    // unbounded-read-ok: invitation list is scoped to this single event for administration.
     const invitations = await db
       .select({
         id: eventInvitations.id,

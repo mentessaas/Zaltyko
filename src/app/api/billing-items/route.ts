@@ -55,7 +55,8 @@ export const GET = withTenant(async (request, context) => {
       .select()
       .from(billingItems)
       .where(and(...conditions))
-      .orderBy(asc(billingItems.name));
+      .orderBy(asc(billingItems.name))
+      .limit(500);
 
     return apiSuccess({ items });
   } catch (error) {

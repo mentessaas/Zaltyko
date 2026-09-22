@@ -44,6 +44,7 @@ export const POST = withTenant(async (request, context) => {
     let recipients: { profileId: string; status: string }[] = [];
 
     if (body.sendTo === "all" || body.sendTo === "registered") {
+      // unbounded-read-ok: all registered profiles for this event are notification recipients.
       const registered = await db
         .select({
           profileId: eventRegistrations.profileId,
@@ -60,6 +61,7 @@ export const POST = withTenant(async (request, context) => {
     if (body.sendTo === "all" || body.sendTo === "waitlisted") {
       // Note: eventWaitlist status is stored differently, need to check schema
       // For now, include all registrations with waitlisted status
+      // unbounded-read-ok: all waitlisted profiles for this event are notification recipients.
       const waitlisted = await db
         .select({
           profileId: eventRegistrations.profileId,
@@ -81,6 +83,7 @@ export const POST = withTenant(async (request, context) => {
 
     // Get profile emails for notification
     const profileIds = uniqueRecipients.map((r) => r.profileId);
+    // unbounded-read-ok: profile lookup is bounded by the event recipient ids.
     const profileRows = await db
       .select({
         id: profiles.id,
