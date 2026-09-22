@@ -32,6 +32,7 @@
     "test:e2e:auth:provision": "pnpm e2e:prepare-auth && pnpm test:e2e:auth",
     "test:e2e:verify-supabase": "tsx scripts/verify-supabase-auth.ts",
     "test:e2e": "playwright test tests/e2e-zaltyko-full.spec.ts",
+    "e2e:storage-state": "node scripts/create-e2e-dev-storage-state.mjs",
     "test:e2e:public": "playwright test tests/e2e-zaltyko-public.spec.ts",
     "test:e2e:public:ci": "playwright test tests/e2e-zaltyko-public.spec.ts --project=chromium",
     "test:a11y": "playwright test tests/a11y-zaltyko.spec.ts",
