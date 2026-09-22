@@ -175,6 +175,7 @@ async function calculateFullAnalytics(
 
   // 6. Athletes by level
   const athletesByLevelResult = await db
+    // unbounded-read-ok: grouped aggregate returns one row per level.
     .select({
       level: athletes.level,
       count: count(),

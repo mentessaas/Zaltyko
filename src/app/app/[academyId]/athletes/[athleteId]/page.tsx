@@ -111,6 +111,7 @@ export default async function AthleteDetailPage({ params }: PageProps) {
     .limit(100);
 
   const attendanceSummary = await db
+    // unbounded-read-ok: grouped aggregate is bounded by the single athlete.
     .select({
       status: attendanceRecords.status,
       total: count(attendanceRecords.id),

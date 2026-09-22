@@ -103,6 +103,7 @@ export async function getKpiTrends(
   );
 
   const [athleteRows, coachRows, groupRows, attendanceRows] = await Promise.all([
+    // unbounded-read-ok: trend rows are aggregated over the selected academy range.
     db
       .select({ createdAt: athletes.createdAt, deletedAt: athletes.deletedAt })
       .from(athletes)

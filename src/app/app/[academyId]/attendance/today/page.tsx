@@ -52,6 +52,7 @@ export default async function AttendanceTodayPage({ params }: PageProps) {
     sessionIds.length === 0
       ? []
       : await db
+          // unbounded-read-ok: grouped aggregate is bounded by todaySessions.
           .select({ sessionId: attendanceRecords.sessionId, total: count(attendanceRecords.id) })
           .from(attendanceRecords)
           .where(inArray(attendanceRecords.sessionId, sessionIds))

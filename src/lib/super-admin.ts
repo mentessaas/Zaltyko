@@ -119,6 +119,7 @@ export async function getSuperAdminLogs(limit: number = 100): Promise<SuperAdmin
   }
 
   // Obtener perfiles de usuarios
+  // unbounded-read-ok: lookup is bounded by the requested userIds set.
   const userProfiles = await db
     .select({
       userId: profiles.userId,
@@ -167,4 +168,3 @@ export async function getSuperAdminLogs(limit: number = 100): Promise<SuperAdmin
     };
   });
 }
-

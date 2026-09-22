@@ -75,6 +75,7 @@ export default async function AttendanceOverviewPage({ params }: PageProps) {
     sessionIds.length === 0
       ? []
       : await db
+          // unbounded-read-ok: grouped aggregate is bounded by the selected session page.
           .select({
             sessionId: attendanceRecords.sessionId,
             total: count(attendanceRecords.id),

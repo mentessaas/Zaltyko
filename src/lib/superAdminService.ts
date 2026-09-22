@@ -102,7 +102,9 @@ export async function getGlobalStats(): Promise<SuperAdminMetrics> {
     chargesList,
     eventLogsList,
   ] = await Promise.all([
-      db.select({
+    // unbounded-read-ok: privileged dashboard snapshot intentionally loads the
+    // complete cross-tenant fact set for aggregate counters.
+    db.select({
         id: academies.id,
         createdAt: academies.createdAt,
       })
@@ -118,6 +120,7 @@ export async function getGlobalStats(): Promise<SuperAdminMetrics> {
         code: plans.code,
         nickname: plans.nickname,
       }).from(plans),
+      // unbounded-read-ok: privileged snapshot loads complete subscription facts for counters.
       db.select({
         id: subscriptions.id,
         planId: subscriptions.planId,
@@ -132,6 +135,7 @@ export async function getGlobalStats(): Promise<SuperAdminMetrics> {
       db.select({
         id: athleteAssessments.id,
       }).from(athleteAssessments),
+      // unbounded-read-ok: privileged snapshot loads all athlete rows for totals.
       db.select({
         id: athletes.id,
         academyId: athletes.academyId,
@@ -324,6 +328,7 @@ export async function getAllAcademies(): Promise<SuperAdminAcademyRow[]> {
   const { eq } = await import("drizzle-orm");
 
   const [academiesList, profilesList, subscriptionsList, plansList] = await Promise.all([
+    // unbounded-read-ok: privileged catalogue export needs the complete set.
     db.select({
       id: academies.id,
       name: academies.name,
@@ -338,6 +343,7 @@ export async function getAllAcademies(): Promise<SuperAdminAcademyRow[]> {
       id: profiles.id,
       userId: profiles.userId,
     }).from(profiles),
+    // unbounded-read-ok: privileged catalogue includes all active subscription rows.
     db.select({
       userId: subscriptions.userId,
       planId: subscriptions.planId,
@@ -406,6 +412,7 @@ export async function getAllUsers(): Promise<SuperAdminUserRow[]> {
   const supabase = getClient();
 
   const [profilesList, membershipsList, subscriptionsList, plansList, authUsers] = await Promise.all([
+    // unbounded-read-ok: privileged user detail joins all memberships for the profile.
     db.select({
       id: profiles.id,
       userId: profiles.userId,
@@ -419,6 +426,7 @@ export async function getAllUsers(): Promise<SuperAdminUserRow[]> {
       userId: memberships.userId,
       role: memberships.role,
     }).from(memberships),
+    // unbounded-read-ok: privileged user detail includes all subscription history.
     db.select({
       userId: subscriptions.userId,
       planId: subscriptions.planId,

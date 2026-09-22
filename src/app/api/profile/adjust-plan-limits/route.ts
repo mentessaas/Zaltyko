@@ -62,7 +62,8 @@ export const POST = withTenant(async (request, context) => {
       const ownedAcademies = await db
         .select({ id: academies.id })
         .from(academies)
-        .where(eq(academies.ownerId, profile.id));
+        .where(eq(academies.ownerId, profile.id))
+        .limit(500);
 
       // Deactivate academies not in the keep list
       const academiesToDeactivate = ownedAcademies

@@ -113,6 +113,7 @@ async function loadTodaySessions(
     }
 
     const sessionIds = rows.map((r) => r.sessionId);
+    // unbounded-read-ok: grouped aggregate is bounded by the attention session page.
     const attendanceCounts = await db
       .select({
         sessionId: attendanceRecords.sessionId,

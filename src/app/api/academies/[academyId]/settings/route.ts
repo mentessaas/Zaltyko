@@ -174,7 +174,8 @@ async function findSportConfigUsageConflict(params: {
         .where(and(
           eq(competitionResults.tenantId, params.tenantId),
           eq(competitionResults.sportConfigId, params.sportConfigId)
-        )),
+        ))
+        .limit(5000),
     ]);
 
     const usedApparatus = [
