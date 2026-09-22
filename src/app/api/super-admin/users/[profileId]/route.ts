@@ -104,7 +104,8 @@ export const GET = withSuperAdmin(async (_request, context) => {
   const ownedAcademies = await db
     .select({ id: academies.id })
     .from(academies)
-    .where(eq(academies.ownerId, profile.id));
+    .where(eq(academies.ownerId, profile.id))
+    .limit(500);
 
   const academyIds = ownedAcademies.map((a) => a.id);
 

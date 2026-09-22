@@ -129,7 +129,8 @@ const handler = withTenant(async (request, context) => {
   const academiesRows = await db
     .select({ id: academies.id })
     .from(academies)
-    .where(and(eq(academies.tenantId, effectiveTenantId), inArray(academies.id, academyIds)));
+    .where(and(eq(academies.tenantId, effectiveTenantId), inArray(academies.id, academyIds)))
+    .limit(1000);
 
   const validAcademyIds = new Set(academiesRows.map((row) => row.id));
   const configsByAcademy = new Map<string, Awaited<ReturnType<typeof getAcademySportConfigOptions>>>();

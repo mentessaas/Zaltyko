@@ -276,6 +276,7 @@ export const GET = withTenant(async (request, context) => {
           .from(assessmentScores)
           .leftJoin(skillCatalog, eq(assessmentScores.skillId, skillCatalog.id))
           .where(inArray(assessmentScores.assessmentId, assessmentIds))
+          .limit(5000)
       : [];
 
     // Group scores by assessmentId in memory

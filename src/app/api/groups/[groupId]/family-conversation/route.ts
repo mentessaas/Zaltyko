@@ -113,7 +113,8 @@ export const POST = withTenant(async (_request, context) => {
     const participantRows = await db
       .select({ userId: conversationParticipants.userId })
       .from(conversationParticipants)
-      .where(eq(conversationParticipants.conversationId, existingConversation.id));
+      .where(eq(conversationParticipants.conversationId, existingConversation.id))
+      .limit(1000);
     const existingParticipantIds = new Set(participantRows.map((row) => row.userId));
     const missingParticipantIds = [context.profile.id, ...guardianProfileIds].filter(
       (profileId) => !existingParticipantIds.has(profileId)
