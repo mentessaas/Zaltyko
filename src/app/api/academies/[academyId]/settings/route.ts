@@ -108,6 +108,7 @@ async function findSportConfigUsageConflict(params: {
   if (params.programCodes) {
     const allowedPrograms = new Set(params.programCodes);
     const [athleteProgramRows, groupProgramRows] = await Promise.all([
+      // unbounded-read-ok: inspect every active row before allowing a program to be disabled.
       db
         .select({ programCode: athletes.programCode })
         .from(athletes)
@@ -139,6 +140,7 @@ async function findSportConfigUsageConflict(params: {
   if (params.apparatusCodes) {
     const allowedApparatus = new Set(params.apparatusCodes);
     const [groupRows, classRows, assessmentRows, resultRows] = await Promise.all([
+      // unbounded-read-ok: inspect every active row before allowing apparatus to be disabled.
       db
         .select({ apparatus: groups.apparatus })
         .from(groups)
@@ -216,6 +218,7 @@ async function getSportConfigUsageById(params: {
   let resultRows: Array<{ sportConfigId: string | null; apparatus: string | null }> = [];
 
   try {
+    // unbounded-read-ok: usage inventory must inspect every matching athlete row.
     athleteRows = await db
       .select({ sportConfigId: athletes.primarySportConfigId, programCode: athletes.programCode })
       .from(athletes)
@@ -230,6 +233,7 @@ async function getSportConfigUsageById(params: {
   }
 
   try {
+    // unbounded-read-ok: usage inventory must inspect every matching group row.
     groupRows = await db
       .select({ sportConfigId: groups.sportConfigId, programCode: groups.programCode, apparatus: groups.apparatus })
       .from(groups)
@@ -244,6 +248,7 @@ async function getSportConfigUsageById(params: {
   }
 
   try {
+    // unbounded-read-ok: usage inventory must inspect every matching class row.
     classRows = await db
       .select({ sportConfigId: classes.sportConfigId, apparatus: classes.apparatus })
       .from(classes)
@@ -258,6 +263,7 @@ async function getSportConfigUsageById(params: {
   }
 
   try {
+    // unbounded-read-ok: usage inventory must inspect every matching assessment row.
     assessmentRows = await db
       .select({ sportConfigId: athleteAssessments.sportConfigId, apparatus: athleteAssessments.apparatus })
       .from(athleteAssessments)
@@ -271,6 +277,7 @@ async function getSportConfigUsageById(params: {
   }
 
   try {
+    // unbounded-read-ok: usage inventory must inspect every matching competition row.
     resultRows = await db
       .select({ sportConfigId: competitionResults.sportConfigId, apparatus: competitionResults.apparatus })
       .from(competitionResults)
@@ -570,6 +577,7 @@ export const PATCH = withTenant(async (request, context) => {
       data.activeApparatusCodesByVariant !== undefined ||
       data.terminologyOverridesByVariant !== undefined
     ) {
+      // unbounded-read-ok: validate every current config against the submitted variant set.
       const currentConfigs = await db
         .select({
           academySportConfigId: academySportConfigs.id,

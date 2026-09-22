@@ -84,6 +84,7 @@ export async function calculateAthleteAttendance(
   }
 
   // Obtener registros de asistencia
+  // unbounded-read-ok: the detailed athlete report intentionally returns every matching attendance record.
   const records = await db
     .select({
       status: attendanceRecords.status,
@@ -151,6 +152,7 @@ export async function calculateGroupAttendance(
   }
 
   // Obtener atletas del grupo
+  // unbounded-read-ok: all athletes in the requested group are required for the group report.
   const groupAthletes = await db
     .select({
       athleteId: athletes.id,
@@ -183,6 +185,7 @@ export async function calculateGroupAttendance(
   }
 
   // Obtener estadísticas por atleta
+  // unbounded-read-ok: grouped result is bounded by the selected athletes and attendance status.
   const stats = await db
     .select({
       athleteId: attendanceRecords.athleteId,
@@ -272,6 +275,7 @@ export async function calculateGeneralAttendance(
     );
   }
 
+  // unbounded-read-ok: grouped result is bounded by the finite attendance status domain.
   const stats = await db
     .select({
       status: attendanceRecords.status,
@@ -310,6 +314,7 @@ export async function calculateGeneralAttendance(
 
   const attendanceRate = totalSessions > 0 ? (present / totalSessions) * 100 : 0;
 
+  // unbounded-read-ok: grouped result is bounded by sport configuration and attendance status.
   const bySportRows = await db
     .select({
       sportConfigId: sql<string | null>`coalesce(${classSessions.sportConfigId}, ${classes.sportConfigId})`,

@@ -94,7 +94,9 @@ describe("API /api/billing/plans", () => {
                 select: vi.fn(() => ({
                     from: vi.fn(() => ({
                         where: vi.fn(() => ({
-                            orderBy: vi.fn(() => Promise.resolve(plansFixture)),
+                            orderBy: vi.fn(() => ({
+                                limit: vi.fn(() => Promise.resolve(plansFixture)),
+                            })),
                         })),
                     })),
                 })),
@@ -122,7 +124,9 @@ describe("API /api/billing/plans", () => {
                 select: vi.fn(() => ({
                     from: vi.fn(() => ({
                         where: vi.fn(() => ({
-                            orderBy: vi.fn(() => Promise.resolve(plansFixture)),
+                            orderBy: vi.fn(() => ({
+                                limit: vi.fn(() => Promise.resolve(plansFixture)),
+                            })),
                         })),
                     })),
                 })),

@@ -17,14 +17,6 @@ const BodySchema = z.object({
 
 export async function POST(request: Request) {
   try {
-    const body = BodySchema.safeParse(await request.json());
-
-    if (!body.success) {
-      return apiError("INVALID_PAYLOAD", "Payload inválido", 400);
-    }
-
-    const { academyId, userId } = body.data;
-
     // Obtener usuario y perfil
     const cookieStore = await cookies();
     const supabase = await createClient(cookieStore);
@@ -32,7 +24,17 @@ export async function POST(request: Request) {
       data: { user },
     } = await supabase.auth.getUser();
 
-    if (!user || user.id !== userId) {
+    if (!user) {
+      return apiError("UNAUTHORIZED", "No autorizado", 401);
+    }
+
+    const body = BodySchema.safeParse(await request.json());
+    if (!body.success) {
+      return apiError("INVALID_PAYLOAD", "Payload inválido", 400);
+    }
+
+    const { academyId, userId } = body.data;
+    if (user.id !== userId) {
       return apiError("UNAUTHORIZED", "No autorizado", 401);
     }
 

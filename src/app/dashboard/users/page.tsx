@@ -128,6 +128,7 @@ export default async function UsersAdminPage({ searchParams }: UsersPageProps) {
         .innerJoin(academies, eq(academies.id, memberships.academyId))
         .where(eq(profiles.tenantId, effectiveTenantId!))
         .orderBy(asc(academies.name))
+        .limit(1000)
     : [];
 
   const membershipsByProfileId = listedMemberships.reduce((acc, membership) => {
@@ -185,6 +186,7 @@ export default async function UsersAdminPage({ searchParams }: UsersPageProps) {
         .from(academies)
         .where(eq(academies.tenantId, effectiveTenantId!))
         .orderBy(asc(academies.name))
+        .limit(100)
     : [];
 
   const availableRoles = validRoles.filter((role) =>

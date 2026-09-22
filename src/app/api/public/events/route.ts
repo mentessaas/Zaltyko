@@ -43,6 +43,7 @@ const QuerySchema = z.object({
  * - page: Número de página (default: 1)
  * - limit: Tamaño de página (default: 50, max: 1000)
  */
+// @auth-flexible route-guard-reason: public catalogue filters are intentionally validated before session lookup.
 export async function GET(request: Request) {
   try {
     const url = new URL(request.url);
@@ -177,6 +178,7 @@ export async function GET(request: Request) {
     // Obtener información de academias para los eventos
     const academyIds = Array.from(new Set(eventItems.map(e => e.academyId)));
     const academyData = academyIds.length > 0 ? await db
+      // unbounded-read-ok: lookup is bounded by the already paginated event result.
       .select({
         id: academies.id,
         name: academies.name,

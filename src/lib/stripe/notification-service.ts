@@ -29,7 +29,8 @@ async function getOwnerEmails(academyId: string): Promise<string[]> {
     .from(memberships)
     .innerJoin(profiles, eq(memberships.userId, profiles.userId))
     .innerJoin(authUsers, eq(authUsers.id, profiles.userId))
-    .where(and(eq(memberships.academyId, academyId), eq(memberships.role, "owner")));
+    .where(and(eq(memberships.academyId, academyId), eq(memberships.role, "owner")))
+    .limit(100);
 
   const emails = recipients
     .map((recipient) => recipient.email)
@@ -294,7 +295,8 @@ export async function sendChargePaymentFailedNotification(
         eq(guardians.tenantId, notification.tenantId),
         eq(guardians.notifyEmail, true)
       )
-    );
+    )
+    .limit(100);
 
   const normalizedEmails = Array.from(
     new Set(

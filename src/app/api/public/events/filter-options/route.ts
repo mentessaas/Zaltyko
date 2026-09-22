@@ -13,6 +13,7 @@ import { handleApiError } from "@/lib/api-error-handler";
 export async function GET() {
   try {
     // Obtener todos los eventos públicos
+    // unbounded-read-ok: filter options intentionally derive the complete public event facet set.
     const publicEvents = await db
       .select({
         country: events.country,
@@ -65,4 +66,3 @@ export async function GET() {
     return handleApiError(error, { endpoint: "/api/public/events/filter-options", method: "GET" });
   }
 }
-

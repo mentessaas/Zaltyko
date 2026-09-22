@@ -88,10 +88,11 @@ export default async function AcademiesPage() {
         isTrialActive: academies.isTrialActive,
         trialEndsAt: academies.trialEndsAt,
       })
-      .from(memberships)
-      .innerJoin(academies, eq(memberships.academyId, academies.id))
-      .where(eq(memberships.userId, currentProfile.userId))
-      .orderBy(academies.name);
+    .from(memberships)
+    .innerJoin(academies, eq(memberships.academyId, academies.id))
+    .where(eq(memberships.userId, currentProfile.userId))
+    .orderBy(academies.name)
+    .limit(100);
   } catch (error: any) {
     logger.error("dashboard/academies memberships query error", error);
     throw error;

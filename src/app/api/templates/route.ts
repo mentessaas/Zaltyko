@@ -55,7 +55,8 @@ export const GET = withTenant(async (request) => {
       })
       .from(templates)
       .where(whereClause)
-      .orderBy(templates.name);
+      .orderBy(templates.name)
+      .limit(500);
 
     return apiSuccess({ items: rows });
   } catch (error) {

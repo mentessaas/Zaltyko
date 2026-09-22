@@ -18,6 +18,7 @@ import { logger } from "@/lib/logger";
 /** @route-auth public */
 
 export const dynamic = "force-dynamic";
+// @route-auth public
 
 /**
  * Ruta publica `/api/unsubscribe` para cumplir el footer de baja obligatorio
@@ -63,6 +64,7 @@ export const GET = withRateLimit(
   { limit: RATE_LIMITS.STRICT.limit, window: RATE_LIMITS.STRICT.window }
 );
 
+// @auth-flexible route-guard-reason: email-link token validation is the authentication mechanism for this public endpoint.
 export const POST = withRateLimit(
   async (request: NextRequest) => {
     let body: unknown;

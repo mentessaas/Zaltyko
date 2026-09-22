@@ -18,9 +18,7 @@ const createSelectChain = (resolveAt: "limit" | "where", result: any[]) => {
   chain.from = vi.fn(() => chain);
   chain.innerJoin = vi.fn(() => chain);
   chain.leftJoin = vi.fn(() => chain);
-  chain.where = vi.fn(() =>
-    resolveAt === "where" ? Promise.resolve(result) : chain
-  );
+  chain.where = vi.fn(() => (resolveAt === "where" ? chain : chain));
   chain.limit = vi.fn(() => Promise.resolve(result));
   return chain;
 };

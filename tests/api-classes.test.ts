@@ -86,7 +86,7 @@ describe("API /api/classes", () => {
 
   it("lista clases sin asignaciones", async () => {
     selectQueue.push(
-      createSelectChain("orderBy", [
+      createSelectChain("limit", [
         {
           id: "class-1",
           name: "Equipo FIG Avanzado",
@@ -98,7 +98,7 @@ describe("API /api/classes", () => {
         },
       ])
     );
-    selectQueue.push(createSelectChain("where", []));
+    selectQueue.push(createSelectChain("limit", []));
 
     const request = new Request(`http://localhost/api/classes?academyId=${ACADEMY_ID}`);
     const response = await GET(request, {} as any);
@@ -115,7 +115,7 @@ describe("API /api/classes", () => {
 
   it("lista clases con entrenadores cuando includeAssignments=true", async () => {
     selectQueue.push(
-      createSelectChain("orderBy", [
+      createSelectChain("limit", [
         {
           id: "class-1",
           name: "Equipo FIG Avanzado",
@@ -128,7 +128,7 @@ describe("API /api/classes", () => {
       ])
     );
     selectQueue.push(
-      createSelectChain("where", [
+      createSelectChain("limit", [
         {
           classId: "class-1",
           weekday: 1,
@@ -136,7 +136,7 @@ describe("API /api/classes", () => {
       ])
     );
     selectQueue.push(
-      createSelectChain("where", [
+      createSelectChain("limit", [
         {
           classId: "class-1",
           coachId: "coach-1",

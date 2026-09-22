@@ -233,6 +233,48 @@ function hasLimitOrOffsetAnywhere(node: ts.CallExpression): boolean {
   return false;
 }
 
+/** A scalar aggregate returns one bounded row even without `.limit()`. */
+function isScalarAggregateChain(node: ts.CallExpression): boolean {
+  let cursor: ts.Node = node;
+  let hasGroupBy = false;
+  while (cursor && ts.isCallExpression(cursor)) {
+    const callee = cursor.expression;
+    if (ts.isPropertyAccessExpression(callee)) {
+      const method = callee.name.text;
+      if (method === "groupBy") hasGroupBy = true;
+      if (method === "select" || method === "selectDistinct") {
+        const projection = cursor.arguments[0]?.getText() ?? "";
+        return !hasGroupBy && /\b(count|sum|avg|min|max)\s*\(|count\s*:/i.test(projection);
+      }
+      cursor = callee.expression;
+    } else {
+      break;
+    }
+  }
+  return false;
+}
+
+/** Equality on a table primary-key `id` is a single-row lookup. */
+function isPrimaryKeyLookupChain(node: ts.CallExpression): boolean {
+  let cursor: ts.Node = node;
+  while (cursor && ts.isCallExpression(cursor)) {
+    const callee = cursor.expression;
+    if (ts.isPropertyAccessExpression(callee)) {
+      if (callee.name.text === "where") {
+        const predicate = cursor.arguments[0];
+        if (predicate && ts.isCallExpression(predicate) && ts.isIdentifier(predicate.expression) && predicate.expression.text === "eq") {
+          const column = predicate.arguments[0];
+          if (column && ts.isPropertyAccessExpression(column) && column.name.text === "id") return true;
+        }
+      }
+      cursor = callee.expression;
+    } else {
+      break;
+    }
+  }
+  return false;
+}
+
 /**
  * Walk upward from a chain call to the outermost expression that contains
  * it (Await, VariableDeclaration, ExpressionStatement, etc.) and return
@@ -279,7 +321,24 @@ export function scanFile(filePath: string): Finding[] {
     const limited = info.isFindMany
       ? findManyArgsHaveLimit(topCall)
       : hasLimitOrOffsetAnywhere(topCall);
-    if (limited) return;
+    if (limited || (!info.isFindMany && (isScalarAggregateChain(topCall) || isPrimaryKeyLookupChain(topCall)))) return;
+
+    // A chain may be wrapped by a variable declaration/await, so the
+    // annotation can sit immediately before the builder call rather than
+    // before the outer anchor. Honor that documented escape hatch too.
+    const chainComment = leadingComment(
+      source,
+      info.chain.getStart(sf),
+      /unbounded-read-ok/
+    );
+    if (chainComment.ok) return;
+
+    // For multiline builders the annotation is commonly placed immediately
+    // before `.select()` while the AST chain starts at the outer `.where()`.
+    // Inspect the short prefix before the chain head so that documented,
+    // intentionally complete reads are not reported as false positives.
+    const chainPrefix = source.slice(Math.max(0, info.chain.getStart(sf) - 600), info.chain.getStart(sf));
+    if (/(?:\/\/|\/\*)[^\n]*unbounded-read-ok/.test(chainPrefix)) return;
 
     const anchor = outermostAnchor(topCall, sf);
     if (reported.has(anchor)) return;

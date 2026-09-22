@@ -48,9 +48,10 @@ export const GET = withTenant(async (request, context) => {
         athleteId: guardianAthletes.athleteId,
         relationship: guardianAthletes.relationship,
         isPrimary: guardianAthletes.isPrimary,
-      })
-      .from(guardianAthletes)
-      .where(eq(guardianAthletes.guardianId, guardianId));
+    })
+    .from(guardianAthletes)
+    .where(eq(guardianAthletes.guardianId, guardianId))
+    .limit(500);
 
     return apiSuccess({
       ...guardian,

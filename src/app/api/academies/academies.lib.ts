@@ -384,7 +384,8 @@ export async function listAcademies(
       ? await baseQuery
           .where(filters.length === 1 ? filters[0]! : and(...filters))
           .orderBy(asc(academies.name))
-      : await baseQuery.orderBy(asc(academies.name));
+          .limit(500)
+      : await baseQuery.orderBy(asc(academies.name)).limit(500);
 
   return { items: rows };
 }

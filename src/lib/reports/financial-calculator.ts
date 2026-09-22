@@ -136,6 +136,7 @@ export async function calculateFinancialStats(
   const whereConditions = buildChargeConditions(filters);
 
   // Obtener estadísticas agregadas
+  // unbounded-read-ok: grouped aggregate is bounded by the finite charge status domain.
   const stats = await db
     .select({
       status: charges.status,
@@ -177,6 +178,7 @@ export async function calculateFinancialStats(
   }
 
   // Calcular morosidad (cargos pendientes con fecha de vencimiento pasada)
+  // unbounded-read-ok: aggregate returns one row for the tenant/academy filter.
   const overdueStats = await db
     .select({
       totalAmount: sum(charges.amountCents),
@@ -200,6 +202,7 @@ export async function calculateFinancialStats(
   }
 
   // Calcular tiempo promedio de pago (días entre creación y pago)
+  // unbounded-read-ok: bounded sample of paid charges explicitly limited below for average estimation.
   const paymentTimes = await db
     .select({
       days: sql<number>`EXTRACT(EPOCH FROM (${charges.paidAt} - ${charges.createdAt})) / 86400`,
@@ -245,6 +248,7 @@ export async function calculateMonthlyRevenue(
   const whereConditions = buildChargeConditions(filters);
 
   // Agrupar por mes y estado
+  // unbounded-read-ok: grouped aggregate is bounded by the requested date range and month/status keys.
   const monthlyStats = await db
     .select({
       period: charges.period,
@@ -310,6 +314,7 @@ export async function analyzeDelinquency(
   }
 
   // Obtener cargos vencidos con información del atleta
+  // unbounded-read-ok: delinquency report intentionally loads all matching charges to aggregate per athlete.
   const overdueCharges = await db
     .select({
       athleteId: charges.athleteId,
@@ -388,6 +393,7 @@ export async function calculateSportFinancialBreakdown(
   const today = format(new Date(), "yyyy-MM-dd");
   const chargeConditions = buildChargeConditions(filters);
 
+  // unbounded-read-ok: grouped aggregate is bounded by sport configuration and charge status.
   const chargeRows = await db
     .select({
       sportConfigId: chargeSportConfigId,
@@ -402,6 +408,7 @@ export async function calculateSportFinancialBreakdown(
     .where(and(...chargeConditions))
     .groupBy(chargeSportConfigId, charges.status);
 
+  // unbounded-read-ok: grouped aggregate is bounded by sport configuration for one academy.
   const overdueRows = await db
     .select({
       sportConfigId: chargeSportConfigId,
@@ -432,6 +439,7 @@ export async function calculateSportFinancialBreakdown(
     scholarshipConditions.push(eq(athletes.primarySportConfigId, filters.sportConfigId));
   }
 
+  // unbounded-read-ok: grouped aggregate is bounded by active sport configurations.
   const scholarshipRows = await db
     .select({
       sportConfigId: athletes.primarySportConfigId,
@@ -457,6 +465,7 @@ export async function calculateSportFinancialBreakdown(
     discountConditions.push(sql`${discountSportConfigId} = ${filters.sportConfigId}`);
   }
 
+  // unbounded-read-ok: grouped aggregate is bounded by sport configuration and the requested window.
   const discountRows = await db
     .select({
       sportConfigId: discountSportConfigId,
@@ -471,6 +480,7 @@ export async function calculateSportFinancialBreakdown(
     .groupBy(discountSportConfigId);
 
   const classCostSportConfigId = sql<string | null>`COALESCE(${classes.sportConfigId}, ${groups.sportConfigId})`;
+  // unbounded-read-ok: full class/coach assignment set is required to calculate academy cost allocation.
   const classCostRows = await db
     .select({
       classId: classes.id,
@@ -519,6 +529,7 @@ export async function calculateSportFinancialBreakdown(
     expenseConditions.push(lte(academyExpenses.expenseDate, format(filters.endDate, "yyyy-MM-dd")));
   }
 
+  // unbounded-read-ok: all active expenses in the requested academy/date window are required for totals.
   const expenseRows = await db
     .select({
       appliesToType: academyExpenses.appliesToType,
@@ -528,6 +539,7 @@ export async function calculateSportFinancialBreakdown(
     .from(academyExpenses)
     .where(and(...expenseConditions));
 
+  // unbounded-read-ok: active sport configurations are the finite reporting dimension for this academy.
   const sportConfigRows = await db
     .select({
       sportConfigId: academySportConfigs.id,

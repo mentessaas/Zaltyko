@@ -32,6 +32,7 @@ export const GET = withTenant(async (_request, context) => {
     const currentMonth = periodFor(now);
     const lastMonthLabel = periodFor(new Date(now.getFullYear(), now.getMonth() - 1, 1));
 
+    // unbounded-read-ok: full academy-scoped charge history is reduced to six monthly buckets below.
     const allCharges = await db
       .select({
         id: charges.id,

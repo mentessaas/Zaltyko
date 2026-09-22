@@ -99,6 +99,7 @@ export async function getAthleteSchedule(params: {
     // - A través de classes.groupId (campo directo)
     if (athlete.groupId) {
       // Obtener clases a través de class_groups
+      // unbounded-read-ok: class-group lookup is bounded by the athlete's single group and academy.
       const baseClassesViaTable = await db
         .select({
           id: classes.id,
@@ -119,6 +120,7 @@ export async function getAthleteSchedule(params: {
         );
 
       // Obtener clases a través de groupId directo
+      // unbounded-read-ok: direct group classes are bounded by the athlete's single group and academy.
       const baseClassesViaDirect = await db
         .select({
           id: classes.id,
@@ -152,6 +154,7 @@ export async function getAthleteSchedule(params: {
 
       // Obtener weekdays y coaches para cada clase base
       for (const cls of baseClasses) {
+        // unbounded-read-ok: weekdays belong to this one class.
         const weekdays = await db
           .select({ weekday: classWeekdays.weekday })
           .from(classWeekdays)
@@ -178,6 +181,7 @@ export async function getAthleteSchedule(params: {
     }
 
     // 2. Obtener clases extra
+    // unbounded-read-ok: extra classes are bounded by this athlete and academy.
     const extraClasses = await db
       .select({
         id: classes.id,
@@ -196,6 +200,7 @@ export async function getAthleteSchedule(params: {
 
     // Obtener weekdays y coaches para cada clase extra
     for (const cls of extraClasses) {
+      // unbounded-read-ok: weekdays belong to this one extra class.
       const weekdays = await db
         .select({ weekday: classWeekdays.weekday })
         .from(classWeekdays)
@@ -268,4 +273,3 @@ export async function getAthleteSchedule(params: {
     return { items: [], error: error.message ?? "Error al obtener el horario del atleta" };
   }
 }
-

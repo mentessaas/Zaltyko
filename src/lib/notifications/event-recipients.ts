@@ -8,6 +8,7 @@ import { logger } from "@/lib/logger";
  * Obtiene los emails del personal interno de una academia
  */
 export async function getInternalStaffEmails(academyId: string): Promise<string[]> {
+  // unbounded-read-ok: every staff member in the academy is an internal notification recipient.
   const recipients = await db
     .select({
       userId: profiles.userId,
@@ -76,6 +77,7 @@ export async function getAcademiesEmailsByLocation(
   }
 
   // Obtener academias en la misma ubicación
+  // unbounded-read-ok: location-based event fan-out intentionally targets every matching academy.
   const targetAcademies = await db
     .select({
       id: academies.id,
@@ -117,4 +119,3 @@ export async function getAcademiesEmailsByLocation(
 
   return Array.from(new Set(emails)); // Eliminar duplicados
 }
-

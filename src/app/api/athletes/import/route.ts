@@ -86,6 +86,9 @@ const handler = withTenant(async (request, context) => {
       };
       return CsvRowSchema.parse(normalized);
     });
+    if (records.length > 5000) {
+      return apiError("CSV_TOO_LARGE", "El CSV no puede contener más de 5000 filas", 413);
+    }
   } catch (error) {
     logger.error("CSV parse error", error);
     return apiError("INVALID_CSV", "Invalid CSV format", 400);
@@ -108,7 +111,8 @@ const handler = withTenant(async (request, context) => {
     const tenantAcademies = await db
       .select({ id: academies.id })
       .from(academies)
-      .where(eq(academies.tenantId, effectiveTenantId));
+      .where(eq(academies.tenantId, effectiveTenantId))
+      .limit(2);
     if (tenantAcademies.length === 1) {
       defaultAcademyId = tenantAcademies[0].id;
     }

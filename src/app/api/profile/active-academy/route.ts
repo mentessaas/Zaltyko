@@ -13,8 +13,6 @@ const BodySchema = z.object({
 });
 
 export async function PATCH(request: Request) {
-  const body = BodySchema.parse(await request.json());
-
   const cookieStore = await cookies();
   const supabase = await createClient(cookieStore);
   const {
@@ -24,6 +22,8 @@ export async function PATCH(request: Request) {
   if (!user) {
     return apiError("UNAUTHORIZED", "No autorizado", 401);
   }
+
+  const body = BodySchema.parse(await request.json());
 
   const [currentProfile] = await db
     .select()

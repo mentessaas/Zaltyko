@@ -178,6 +178,7 @@ function interpolateTemplate(template: string, variables: Record<string, string>
  * Get email template by type from DB
  */
 export async function getEmailTemplateByType(templateType: string): Promise<EmailTemplateRecord | null> {
+  // unbounded-read-ok: active templates are uniquely selected by channel and type.
   const [template] = await db
     .select()
     .from(messageTemplates)
@@ -195,6 +196,7 @@ export async function getEmailTemplateByType(templateType: string): Promise<Emai
  * Get all email templates
  */
 export async function getEmailTemplates(tenantId?: string) {
+  // unbounded-read-ok: template administration returns the complete email catalogue for the tenant.
   return db
     .select()
     .from(messageTemplates)

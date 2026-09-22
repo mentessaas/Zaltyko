@@ -43,7 +43,8 @@ export default async function AttendanceTodayPage({ params }: PageProps) {
     .innerJoin(classes, eq(classSessions.classId, classes.id))
     .leftJoin(coaches, eq(classSessions.coachId, coaches.id))
     .where(and(eq(classes.academyId, academyId), eq(classSessions.sessionDate, todayStr)))
-    .orderBy(asc(classSessions.startTime));
+    .orderBy(asc(classSessions.startTime))
+    .limit(500);
 
   const sessionIds = todaySessions.map((row) => row.id);
 

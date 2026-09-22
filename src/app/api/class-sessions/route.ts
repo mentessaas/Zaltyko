@@ -86,7 +86,8 @@ export const GET = withTenant(async (request, context) => {
     .innerJoin(academies, eq(classes.academyId, academies.id))
     .leftJoin(coaches, eq(classSessions.coachId, coaches.id))
     .where(whereClause)
-    .orderBy(asc(classSessions.sessionDate), asc(classSessions.startTime));
+    .orderBy(asc(classSessions.sessionDate), asc(classSessions.startTime))
+    .limit(1000);
 
   return apiSuccess({ items: rows });
 });

@@ -35,8 +35,8 @@ const GroupBodySchema = z.object({
   apparatus: z.array(z.string().trim().min(1).max(120)).max(12).optional(),
   sessionBlocks: z.array(z.string().trim().min(1).max(160)).max(8).optional(),
   coachId: z.string().uuid().nullable().optional(),
-  assistantIds: z.array(z.string().uuid()).optional(),
-  athleteIds: z.array(z.string().uuid()).optional(),
+  assistantIds: z.array(z.string().uuid()).max(100).optional(),
+  athleteIds: z.array(z.string().uuid()).max(500).optional(),
   color: z
     .string()
     .regex(/^#([0-9a-fA-F]{3}){1,2}$/)
@@ -100,7 +100,9 @@ export const GET = withTenant(async (request, context) => {
           eq(groups.academyId, targetAcademyId)
         )
       )
-      .orderBy(asc(groups.name));
+      .orderBy(asc(groups.name))
+      // Tenant-scoped list endpoint; cap the current non-paginated UI response.
+      .limit(500);
 
     // Luego obtener los conteos de atletas por grupo
     const groupIds = groupRows.map((g) => g.id);
@@ -113,6 +115,7 @@ export const GET = withTenant(async (request, context) => {
           .from(groupAthletes)
           .where(inArray(groupAthletes.groupId, groupIds))
           .groupBy(groupAthletes.groupId)
+          .limit(500)
       : [];
 
     // Combinar los resultados
@@ -182,7 +185,8 @@ const createGroupHandler = withTenant(async (request, context) => {
     const assistantRows = await db
       .select({ id: coaches.id })
       .from(coaches)
-      .where(and(eq(coaches.academyId, body.academyId), inArray(coaches.id, assistantIds)));
+      .where(and(eq(coaches.academyId, body.academyId), inArray(coaches.id, assistantIds)))
+      .limit(100);
 
     if (assistantRows.length !== assistantIds.length) {
       return apiError("ASSISTANT_NOT_FOUND", "Assistant not found", 404);
@@ -195,7 +199,8 @@ const createGroupHandler = withTenant(async (request, context) => {
       .from(athletes)
       .where(
         and(eq(athletes.academyId, body.academyId), eq(athletes.tenantId, tenantId), inArray(athletes.id, athleteIds))
-      );
+      )
+      .limit(500);
 
     if (athleteRows.length !== athleteIds.length) {
       return apiError("ATHLETE_NOT_FOUND", "Athlete not found", 404);

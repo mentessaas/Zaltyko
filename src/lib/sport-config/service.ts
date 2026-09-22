@@ -42,7 +42,8 @@ export async function getAcademySportConfigOptions(academyId: string) {
     .innerJoin(sportBranches, eq(sportLocaleConfigs.branchId, sportBranches.id))
     .leftJoin(terminologyDictionary, eq(terminologyDictionary.sportLocaleConfigId, sportLocaleConfigs.id))
     .where(and(eq(academySportConfigs.academyId, academyId), eq(academySportConfigs.isActive, true)))
-    .orderBy(asc(sportLocaleConfigs.name));
+    .orderBy(asc(sportLocaleConfigs.name))
+    .limit(50);
 
   if (configs.length === 0) return [];
 
@@ -52,27 +53,32 @@ export async function getAcademySportConfigOptions(academyId: string) {
       .select()
       .from(apparatus)
       .where(inArray(apparatus.sportLocaleConfigId, localeConfigIds))
-      .orderBy(asc(apparatus.sortOrder)),
+      .orderBy(asc(apparatus.sortOrder))
+      .limit(1000),
     db
       .select()
       .from(programs)
       .where(inArray(programs.sportLocaleConfigId, localeConfigIds))
-      .orderBy(asc(programs.sortOrder)),
+      .orderBy(asc(programs.sortOrder))
+      .limit(1000),
     db
       .select()
       .from(levels)
       .where(inArray(levels.sportLocaleConfigId, localeConfigIds))
-      .orderBy(asc(levels.sortOrder)),
+      .orderBy(asc(levels.sortOrder))
+      .limit(1000),
     db
       .select()
       .from(categories)
       .where(inArray(categories.sportLocaleConfigId, localeConfigIds))
-      .orderBy(asc(categories.sortOrder)),
+      .orderBy(asc(categories.sortOrder))
+      .limit(1000),
     db
       .select()
       .from(competitionTypes)
       .where(inArray(competitionTypes.sportLocaleConfigId, localeConfigIds))
-      .orderBy(asc(competitionTypes.sortOrder)),
+      .orderBy(asc(competitionTypes.sortOrder))
+      .limit(1000),
   ]);
 
   return configs.map((config) => {

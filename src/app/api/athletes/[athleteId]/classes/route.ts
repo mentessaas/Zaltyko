@@ -87,7 +87,8 @@ const getAthleteClassesHandler = withTenant(async (request, context) => {
             eq(classGroups.groupId, athleteRow.groupId),
             eq(classes.academyId, academyId)
           )
-        );
+        )
+        .limit(100);
 
       for (const row of groupClassRows) {
         if (!classMap.has(row.classId)) {
@@ -114,12 +115,13 @@ const getAthleteClassesHandler = withTenant(async (request, context) => {
       })
       .from(classEnrollments)
       .innerJoin(classes, eq(classEnrollments.classId, classes.id))
-      .where(
+        .where(
         and(
           eq(classEnrollments.athleteId, athleteId),
           eq(classEnrollments.academyId, academyId)
         )
-      );
+        )
+        .limit(100);
 
     for (const row of enrollmentClassRows) {
       if (!classMap.has(row.classId)) {
@@ -151,7 +153,8 @@ const getAthleteClassesHandler = withTenant(async (request, context) => {
           weekday: classWeekdays.weekday,
         })
         .from(classWeekdays)
-        .where(inArray(classWeekdays.classId, classIds));
+        .where(inArray(classWeekdays.classId, classIds))
+        .limit(700);
 
       for (const row of weekdayRows) {
         const classInfo = classMap.get(row.classId);
@@ -168,7 +171,8 @@ const getAthleteClassesHandler = withTenant(async (request, context) => {
         })
         .from(classCoachAssignments)
         .innerJoin(coaches, eq(classCoachAssignments.coachId, coaches.id))
-        .where(inArray(classCoachAssignments.classId, classIds));
+        .where(inArray(classCoachAssignments.classId, classIds))
+        .limit(1000);
 
       for (const row of coachRows) {
         const classInfo = classMap.get(row.classId);

@@ -13,6 +13,7 @@ let currentParams: Record<string, string> = {};
 type SelectChainConfig =
   | { resolveAt: "orderBy"; result: any[] }
   | { resolveAt: "where"; result: any[] }
+  | { resolveAt: "whereLimit"; result: any[] }
   | { resolveAt: "limit"; result: any[] };
 
 const createSelectChain = ({ resolveAt, result }: SelectChainConfig) => {
@@ -23,15 +24,17 @@ const createSelectChain = ({ resolveAt, result }: SelectChainConfig) => {
 
   if (resolveAt === "orderBy") {
     chain.where = vi.fn(() => chain);
-    chain.orderBy = vi.fn(() => Promise.resolve(result));
+    chain.orderBy = vi.fn(() => ({ limit: vi.fn(() => Promise.resolve(result)) }));
   } else if (resolveAt === "where") {
     chain.where = vi.fn(() => Promise.resolve(result));
     chain.orderBy = vi.fn();
+  } else if (resolveAt === "whereLimit") {
+    chain.where = vi.fn(() => chain);
+    chain.limit = vi.fn(() => Promise.resolve(result));
   } else if (resolveAt === "limit") {
-    chain.where = vi.fn(() => ({
-      limit: vi.fn(() => Promise.resolve(result)),
-    }));
-    chain.orderBy = vi.fn();
+    chain.where = vi.fn(() => chain);
+    chain.orderBy = vi.fn(() => chain);
+    chain.limit = vi.fn(() => Promise.resolve(result));
   }
 
   return chain;
@@ -157,7 +160,7 @@ describe("API /api/coaches", () => {
   it("lista coaches con clases asignadas", async () => {
     selectQueue.push(
       createSelectChain({
-        resolveAt: "orderBy",
+        resolveAt: "limit",
         result: [
           {
             id: "coach-1",
@@ -174,14 +177,14 @@ describe("API /api/coaches", () => {
 
     selectQueue.push(
       createSelectChain({
-        resolveAt: "where",
+        resolveAt: "whereLimit",
         result: [],
       })
     );
 
     selectQueue.push(
       createSelectChain({
-        resolveAt: "where",
+        resolveAt: "whereLimit",
         result: [
           {
             coachId: "coach-1",
@@ -252,4 +255,3 @@ describe("API /api/coaches", () => {
     expect(response.status).toBe(200);
   });
 });
-

@@ -35,6 +35,7 @@ export const GET = withTenant(async (request: Request, context: { tenantId: stri
     }
 
     // Get registration stats
+    // unbounded-read-ok: grouped statistics are bounded by the finite registration status domain.
     const registrationStats = await db
       .select({
         status: eventRegistrations.status,
@@ -45,12 +46,14 @@ export const GET = withTenant(async (request: Request, context: { tenantId: stri
       .groupBy(eventRegistrations.status);
 
     // Get waitlist count
+    // unbounded-read-ok: scalar count is restricted to this single event.
     const [{ total: waitlistTotal }] = await db
       .select({ total: count() })
       .from(eventWaitlist)
       .where(eq(eventWaitlist.eventId, eventId));
 
     // Get invitation stats
+    // unbounded-read-ok: grouped statistics are bounded by the finite invitation status domain.
     const invitationStats = await db
       .select({
         status: eventInvitations.status,

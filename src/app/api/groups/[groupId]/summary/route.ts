@@ -49,6 +49,7 @@ export const GET = withTenant(async (request, context) => {
     }
 
     // Get active athletes in the group
+    // unbounded-read-ok: all active members belong to this single group.
     const groupAthletesList = await db
       .select({
         athleteId: athletes.id,
@@ -62,7 +63,8 @@ export const GET = withTenant(async (request, context) => {
           eq(groupAthletes.tenantId, context.tenantId),
           eq(athletes.status, "active")
         )
-      );
+      )
+      .limit(1000);
 
     const athleteIds = groupAthletesList.map((ga) => ga.athleteId);
     const activeAthletesCount = athleteIds.length;
@@ -83,6 +85,7 @@ export const GET = withTenant(async (request, context) => {
     // Get charges for this group and period
     const chargesList = athleteIds.length > 0
       ? await db
+          // unbounded-read-ok: charges are bounded by this group's athlete ids and requested period.
           .select({
             amountCents: charges.amountCents,
             status: charges.status,

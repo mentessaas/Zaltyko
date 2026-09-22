@@ -60,7 +60,8 @@ export const GET = withTenant(async (request, context) => {
         eq(athleteExtraClasses.athleteId, athleteId),
         eq(athleteExtraClasses.tenantId, context.tenantId)
       ))
-      .orderBy(desc(athleteExtraClasses.createdAt));
+      .orderBy(desc(athleteExtraClasses.createdAt))
+      .limit(500);
 
     // Get coaches for each class
     const classIds = extraClasses.map(ec => ec.classId);
@@ -76,6 +77,7 @@ export const GET = withTenant(async (request, context) => {
             (acc, cond) => acc ? and(acc, cond) : cond,
             undefined as ReturnType<typeof eq> | undefined
           ))
+          .limit(1000)
       : [];
 
     // Group coaches by classId

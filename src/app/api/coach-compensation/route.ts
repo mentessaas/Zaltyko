@@ -37,7 +37,8 @@ export const GET = withTenant(async (request, context) => {
     .select()
     .from(coachCompensation)
     .where(and(eq(coachCompensation.tenantId, context.tenantId), eq(coachCompensation.academyId, parsed.data.academyId)))
-    .orderBy(desc(coachCompensation.createdAt));
+    .orderBy(desc(coachCompensation.createdAt))
+    .limit(500);
 
   return apiSuccess({ items: rows, total: rows.length });
 });
@@ -76,4 +77,3 @@ export const POST = withTenant(async (request, context) => {
 
   return apiCreated(row);
 });
-

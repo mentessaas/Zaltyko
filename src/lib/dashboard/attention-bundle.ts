@@ -273,6 +273,7 @@ async function loadChargesOverdue(
   const source =
     "charges.status IN ('overdue','failed') AND charges.tenantId=ctx.tenantId";
   try {
+    // unbounded-read-ok: grouped status counts are a scalar dashboard aggregate.
     const summary = await db
       .select({ status: charges.status, value: count() })
       .from(charges)

@@ -71,7 +71,8 @@ export const POST = withTenant(async (request, context) => {
           eq(charges.period, body.period),
           inArray(charges.athleteId, athleteIds)
         )
-      );
+      )
+      .limit(1000);
 
     const existingAthleteIds = new Set(existingCharges.map((c) => c.athleteId));
 

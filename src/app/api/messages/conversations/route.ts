@@ -87,6 +87,7 @@ export const GET = withTenant(async (request, context) => {
     // Obtener información de los otros participantes
     const conversationsWithParticipants = await Promise.all(
       userConversations.map(async (conv) => {
+        // unbounded-read-ok: participant rows are bounded by one paginated conversation id.
         const participants = await db
           .select({
             id: conversationParticipants.id,
@@ -97,7 +98,7 @@ export const GET = withTenant(async (request, context) => {
           .where(eq(conversationParticipants.conversationId, conv.id));
 
         // Get profile info for each participant
-        const participantProfiles = await Promise.all(
+      const participantProfiles = await Promise.all(
           participants
             .filter((p) => p.userId !== profile.id)
             .map(async (p) => {
@@ -200,6 +201,7 @@ export const POST = withTenant(async (request, context) => {
     if (uniqueParticipantIds.length === 0) {
       return apiError("VALIDATION_ERROR", "Se requiere al menos un destinatario distinto", 400);
     }
+    // unbounded-read-ok: profile lookup is bounded by the caller-provided participant ids.
     const participantProfiles = await db
       .select({ id: profiles.id, userId: profiles.userId, tenantId: profiles.tenantId })
       .from(profiles)
@@ -217,6 +219,7 @@ export const POST = withTenant(async (request, context) => {
         .limit(1);
       if (!academy) return apiError("FORBIDDEN", "Academia no válida para este tenant", 403);
 
+      // unbounded-read-ok: membership lookup is bounded by the sender and participant ids.
       const academyMembers = await db
         .select({ userId: memberships.userId })
         .from(memberships)
@@ -239,6 +242,7 @@ export const POST = withTenant(async (request, context) => {
     // recipient are the two exact participants. Checking one arbitrary P2P
     // conversation could otherwise expose a conversation between other users.
     if (uniqueParticipantIds.length === 1) {
+      // unbounded-read-ok: all prior P2P conversations for this profile are inspected to prove exact participant reuse.
       const existingConversations = await db
         .select({ id: conversations.id })
         .from(conversations)
@@ -258,6 +262,7 @@ export const POST = withTenant(async (request, context) => {
         );
 
       for (const existingConversation of existingConversations) {
+        // unbounded-read-ok: participant set is bounded by one candidate conversation.
         const existingParticipants = await db
           .select({ userId: conversationParticipants.userId })
           .from(conversationParticipants)

@@ -27,6 +27,7 @@ export async function getAthleteMetrics(args: {
     effectiveGroupIds.add(args.groupId);
   }
 
+  // unbounded-read-ok: all groups linked to this athlete contribute to the metric scope.
   const extraGroups = await db
     .select({ groupId: groupAthletes.groupId })
     .from(groupAthletes)
@@ -41,6 +42,7 @@ export async function getAthleteMetrics(args: {
   const groupIds = Array.from(effectiveGroupIds);
 
   if (groupIds.length > 0) {
+    // unbounded-read-ok: all classes linked to the athlete's groups are needed for the count.
     const groupLinkedClasses = await db
       .select({ classId: classes.id })
       .from(classes)
@@ -58,6 +60,7 @@ export async function getAthleteMetrics(args: {
     groupLinkedClasses.forEach((row) => classIdSet.add(row.classId));
   }
 
+  // unbounded-read-ok: all direct enrollments define the athlete's class set.
   const enrollmentRows = await db
     .select({ classId: classEnrollments.classId })
     .from(classEnrollments)
@@ -84,6 +87,7 @@ export async function getAthleteMetrics(args: {
   thirtyDaysFromNow.setDate(thirtyDaysFromNow.getDate() + 30);
   const thirtyDaysIso = thirtyDaysFromNow.toISOString().split("T")[0];
 
+  // unbounded-read-ok: all scheduled sessions in the explicit 30-day window are counted.
   const upcomingSessions = await db
     .select({ id: classSessions.id })
     .from(classSessions)

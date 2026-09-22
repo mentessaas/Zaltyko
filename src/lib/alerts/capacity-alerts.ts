@@ -31,7 +31,8 @@ export async function detectCapacityAlerts(
       })
       .from(classes)
       .leftJoin(groups, eq(classes.groupId, groups.id))
-      .where(and(eq(classes.academyId, academyId), eq(classes.tenantId, tenantId)));
+      .where(and(eq(classes.academyId, academyId), eq(classes.tenantId, tenantId)))
+      .limit(500);
 
     const alerts: CapacityAlert[] = [];
 
@@ -109,4 +110,3 @@ export async function createCapacityNotifications(
     }
   }
 }
-

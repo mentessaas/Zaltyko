@@ -52,7 +52,8 @@ export async function generateRecurringSessions(
   const weekdayRows = await db
     .select({ weekday: classWeekdays.weekday })
     .from(classWeekdays)
-    .where(eq(classWeekdays.classId, classId));
+    .where(eq(classWeekdays.classId, classId))
+    .limit(7);
 
   const weekdays = weekdayRows.map((row) => row.weekday).sort((a, b) => a - b);
 
@@ -99,7 +100,8 @@ export async function generateRecurringSessions(
         gte(classSessions.sessionDate, format(start, "yyyy-MM-dd")),
         lte(classSessions.sessionDate, format(end, "yyyy-MM-dd"))
       )
-    );
+    )
+    .limit(366);
 
   const existingDates = new Set(
     existingSessions.map((s) => format(new Date(s.sessionDate), "yyyy-MM-dd"))

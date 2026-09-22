@@ -14,6 +14,7 @@ import { INDEXABLE_ACADEMY_STATUS_VALUES } from "@/lib/seo/academy-indexability"
 export async function GET() {
   try {
     // Obtener todas las academias no suspendidas
+    // unbounded-read-ok: filter options intentionally derive the complete active academy facet set.
     const allAcademies = await db
       .select({
         country: academies.country,

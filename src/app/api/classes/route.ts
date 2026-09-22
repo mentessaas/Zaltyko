@@ -79,7 +79,9 @@ export const GET = withTenant(async (request, context) => {
       .from(classes)
       .innerJoin(academies, eq(classes.academyId, academies.id))
       .where(classFilter)
-      .orderBy(asc(classes.name));
+      .orderBy(asc(classes.name))
+      // Protect tenant-wide list calls; the UI does not currently paginate this endpoint.
+      .limit(500);
 
     const classIds = classRows.map((item) => item.id);
     const weekdayRows =
@@ -91,7 +93,8 @@ export const GET = withTenant(async (request, context) => {
               weekday: classWeekdays.weekday,
             })
             .from(classWeekdays)
-            .where(inArray(classWeekdays.classId, classIds));
+            .where(inArray(classWeekdays.classId, classIds))
+            .limit(classIds.length * 7);
 
     const weekdayMap = new Map<string, number[]>();
     weekdayRows.forEach((row) => {
@@ -132,7 +135,8 @@ export const GET = withTenant(async (request, context) => {
       .from(classCoachAssignments)
       .innerJoin(classes, eq(classCoachAssignments.classId, classes.id))
       .leftJoin(coaches, eq(classCoachAssignments.coachId, coaches.id))
-      .where(classFilter);
+      .where(classFilter)
+      .limit(2000);
 
     const enriched = baseItems.map((clazz) => {
       const coachesForClass = assignmentRows

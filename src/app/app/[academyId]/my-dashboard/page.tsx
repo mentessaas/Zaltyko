@@ -298,6 +298,7 @@ export default async function MyDashboard({ params, searchParams }: PageProps) {
       .limit(1);
 
     if (guardian) {
+      // unbounded-read-ok: all athletes linked to this guardian in the selected academy are displayed.
       const athletesData = await db
         .select({
           athleteId: guardianAthletes.athleteId,
@@ -368,6 +369,7 @@ export default async function MyDashboard({ params, searchParams }: PageProps) {
 
   if (targetAthleteId) {
     // Buscar inscripciones del atleta en clases
+    // unbounded-read-ok: all direct enrollments define the selected athlete's class scope.
     const enrollments = await db
       .select({ classId: classEnrollments.classId })
       .from(classEnrollments)
@@ -382,6 +384,7 @@ export default async function MyDashboard({ params, searchParams }: PageProps) {
     const enrolledClassIds = enrollments.map((e) => e.classId);
 
     // Buscar si el atleta pertenece a algún grupo
+    // unbounded-read-ok: all group memberships define the selected athlete's class scope.
     const athleteGroupMemberships = await db
       .select({ groupId: groupAthletes.groupId })
       .from(groupAthletes)
@@ -398,6 +401,7 @@ export default async function MyDashboard({ params, searchParams }: PageProps) {
     let classIds: string[] = [...enrolledClassIds];
 
     if (groupIds.length > 0) {
+      // unbounded-read-ok: all classes in the athlete's groups are required for the dashboard.
       const groupClasses = await db
         .select({ id: classes.id })
         .from(classes)
@@ -422,6 +426,7 @@ export default async function MyDashboard({ params, searchParams }: PageProps) {
       const todayStr = today.toISOString().split("T")[0];
       const nextWeekStr = nextWeek.toISOString().split("T")[0];
 
+      // unbounded-read-ok: sessions are bounded by selected class ids and the seven-day window.
       const sessions = await db
         .select({
           id: classSessions.id,
@@ -542,6 +547,7 @@ export default async function MyDashboard({ params, searchParams }: PageProps) {
   let chargesData: ChargeData[] = [];
 
   if (canAccessFamilyFinancialData(profile.role) && targetAthleteId) {
+    // unbounded-read-ok: billing cards are bounded by the selected athlete and limited to ten rows below.
     const chargesList = await db
       .select({
         id: charges.id,
@@ -591,6 +597,7 @@ export default async function MyDashboard({ params, searchParams }: PageProps) {
   let weeklySchedule: { day: number; className: string; time: string }[] = [];
 
   if (targetAthleteId && targetGroupId) {
+    // unbounded-read-ok: weekly schedule includes every active class in the athlete's group.
     const weeklyClasses = await db
       .select({
         weekday: classes.weekday,
@@ -625,6 +632,7 @@ export default async function MyDashboard({ params, searchParams }: PageProps) {
   }[] = [];
 
   if (targetAthleteId) {
+    // unbounded-read-ok: assessment history is explicitly limited to five rows below.
     const assessmentRows = await db
       .select({
         id: athleteAssessments.id,
@@ -646,6 +654,7 @@ export default async function MyDashboard({ params, searchParams }: PageProps) {
     const assessmentIds = assessmentRows.map((r) => r.id);
     const scoresMap = new Map<string, { skillName: string; score: number }[]>();
     if (assessmentIds.length > 0) {
+      // unbounded-read-ok: scores are bounded by the five assessment ids above.
       const scoreRows = await db
         .select({
           assessmentId: assessmentScores.assessmentId,
@@ -689,6 +698,7 @@ export default async function MyDashboard({ params, searchParams }: PageProps) {
   }[] = [];
 
   if (targetAthleteId) {
+    // unbounded-read-ok: all direct enrollments define the selected athlete's calendar scope.
     const enrollments = await db
       .select({ classId: classEnrollments.classId })
       .from(classEnrollments)
@@ -701,6 +711,7 @@ export default async function MyDashboard({ params, searchParams }: PageProps) {
       );
 
     const enrolledClassIds = enrollments.map((e) => e.classId);
+    // unbounded-read-ok: all group memberships define the selected athlete's calendar scope.
     const athleteGroupMemberships = await db
       .select({ groupId: groupAthletes.groupId })
       .from(groupAthletes)
@@ -715,6 +726,7 @@ export default async function MyDashboard({ params, searchParams }: PageProps) {
     let relatedClassIds: string[] = [...enrolledClassIds];
 
     if (athleteGroupIds.length > 0) {
+      // unbounded-read-ok: all classes in the athlete's groups are required for the calendar.
       const groupClasses = await db
         .select({ id: classes.id })
         .from(classes)
@@ -737,6 +749,7 @@ export default async function MyDashboard({ params, searchParams }: PageProps) {
       const todayStr = today.toISOString().split("T")[0];
       const nextStr = nextFourteenDays.toISOString().split("T")[0];
 
+      // unbounded-read-ok: calendar rows are bounded by related class ids and the fourteen-day window.
       const calendarRows = await db
         .select({
           id: classSessions.id,

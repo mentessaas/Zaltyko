@@ -17,6 +17,7 @@ function stripHtml(input: string): string {
     .trim();
 }
 
+// @auth-flexible route-guard-reason: public contact form validates an unauthenticated submission by design.
 export const POST = withRateLimit(
   async (request: NextRequest) => {
     try {

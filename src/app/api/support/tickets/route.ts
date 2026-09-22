@@ -67,7 +67,8 @@ export const GET = withTenant(async (request, context) => {
     .from(tickets)
     .leftJoin(profiles, eq(tickets.createdBy, profiles.id))
     .where(filters.length > 0 ? and(...filters) : undefined)
-    .orderBy(desc(tickets.createdAt));
+    .orderBy(desc(tickets.createdAt))
+    .limit(200);
 
   return apiSuccess(rows, { total: rows.length });
 });

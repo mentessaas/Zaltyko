@@ -107,6 +107,7 @@ export default async function WhatsAppRoutePage({ params }: PageProps) {
 
   // Get classes for recipient selection
   const { classes } = await import("@/db/schema");
+  // unbounded-read-ok: recipient selector renders all classes in the current academy.
   const classRows = await db
     .select({
       id: classes.id,
@@ -119,6 +120,7 @@ export default async function WhatsAppRoutePage({ params }: PageProps) {
 
   // Get groups for recipient selection
   const { groups } = await import("@/db/schema");
+  // unbounded-read-ok: recipient selector renders all groups in the current academy.
   const groupRows = await db
     .select({
       id: groups.id,
@@ -130,6 +132,7 @@ export default async function WhatsAppRoutePage({ params }: PageProps) {
     .orderBy(groups.name);
 
   // Get athletes with family contact phones for recipient selection
+  // unbounded-read-ok: recipient selector renders all athletes with a family phone in the academy.
   const recipientRows = await db
     .select({
       id: athletes.id,
@@ -164,6 +167,7 @@ export default async function WhatsAppRoutePage({ params }: PageProps) {
   }
 
   const sportConfigs = await getAcademySportConfigOptions(academyId);
+  // unbounded-read-ok: active WhatsApp templates are the complete tenant catalogue for selection.
   const templateRows = await db
     .select({
       id: messageTemplates.id,

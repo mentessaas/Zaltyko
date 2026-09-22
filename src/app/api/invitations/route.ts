@@ -224,7 +224,8 @@ export const GET = withTenant(async (request, context) => {
         eq(invitations.defaultAcademyId, academyId),
         eq(invitations.status, "pending")
       )
-    );
+    )
+    .limit(500);
 
   return apiSuccess({ invitations: invites });
 });

@@ -137,6 +137,7 @@ export async function POST(request: Request) {
         .select({ academyId: memberships.academyId, role: memberships.role })
         .from(memberships)
         .where(eq(memberships.userId, user.id))
+        .limit(100)
     : [];
 
   if (profile && existingMemberships.length > 0) {

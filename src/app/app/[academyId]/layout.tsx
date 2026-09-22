@@ -150,7 +150,8 @@ export default async function AcademyLayout({ params, children }: LayoutProps) {
     tenantAcademies = await db
       .select({ id: academies.id, name: academies.name })
       .from(academies)
-      .where(eq(academies.tenantId, academy.tenantId));
+      .where(eq(academies.tenantId, academy.tenantId))
+      .limit(100);
   } catch (error) {
     logger.error("Failed to fetch tenant academies:", error);
     tenantAcademies = [{ id: academy.id, name: academy.name }];

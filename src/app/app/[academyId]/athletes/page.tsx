@@ -130,7 +130,8 @@ export default async function AcademyAthletesPage({ params, searchParams }: Page
     .selectDistinct({ level: athletes.level })
     .from(athletes)
     .where(eq(athletes.academyId, academyId))
-    .orderBy(asc(athletes.level));
+    .orderBy(asc(athletes.level))
+    .limit(100);
 
   const levels = levelRows
     .map((entry) => entry.level)
@@ -144,7 +145,8 @@ export default async function AcademyAthletesPage({ params, searchParams }: Page
     })
     .from(groups)
     .where(eq(groups.academyId, academyId))
-    .orderBy(asc(groups.name));
+    .orderBy(asc(groups.name))
+    .limit(500);
 
   const sportConfigs = await getAcademySportConfigOptions(academyId);
 

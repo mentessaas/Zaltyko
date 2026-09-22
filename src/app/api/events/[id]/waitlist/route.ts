@@ -29,6 +29,7 @@ export const GET = withTenant(async (_request, context) => {
     }
 
     // Get waitlist entries with profile info
+    // unbounded-read-ok: waitlist entries are bounded by this single event and ordered for position display.
     const waitlistEntries = await db
       .select({
         id: eventWaitlist.id,

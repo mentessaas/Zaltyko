@@ -1,7 +1,7 @@
 export const dynamic = 'force-dynamic';
 
 import { apiSuccess, apiError } from "@/lib/api-response";
-import { and, asc, eq, sql } from "drizzle-orm";
+import { and, asc, count, eq, sql } from "drizzle-orm";
 import { z } from "zod";
 
 import { db } from "@/db";
@@ -128,12 +128,12 @@ export const GET = withTenant(async (request, context) => {
     }
 
     // Obtener total
-    const allEntries = await db
-      .select({ id: classWaitingList.id })
+    const [{ total: totalEntries }] = await db
+      .select({ total: count(classWaitingList.id) })
       .from(classWaitingList)
       .where(conditions);
 
-    const total = allEntries.length;
+    const total = Number(totalEntries);
 
     // Obtener entradas paginadas
     const entries = await db

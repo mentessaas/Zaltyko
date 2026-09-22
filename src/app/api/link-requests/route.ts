@@ -218,7 +218,8 @@ export const GET = withTenant(async (request, context) => {
       .innerJoin(profiles, eq(profiles.id, academyLinkRequests.targetProfileId))
       .innerJoin(authUsers, eq(authUsers.id, profiles.userId))
       .where(eq(academyLinkRequests.academyId, academyId))
-      .orderBy(desc(academyLinkRequests.createdAt));
+      .orderBy(desc(academyLinkRequests.createdAt))
+      .limit(100);
 
     return apiSuccess({ requests });
   }
@@ -243,7 +244,8 @@ export const GET = withTenant(async (request, context) => {
       .innerJoin(profiles, eq(profiles.id, academyLinkRequests.targetProfileId))
       .innerJoin(authUsers, eq(authUsers.id, profiles.userId))
       .where(eq(academyLinkRequests.requestedByProfileId, context.profile.id))
-      .orderBy(desc(academyLinkRequests.createdAt));
+      .orderBy(desc(academyLinkRequests.createdAt))
+      .limit(100);
 
     return apiSuccess({ requests });
   }
@@ -263,7 +265,8 @@ export const GET = withTenant(async (request, context) => {
     .from(academyLinkRequests)
     .innerJoin(academies, eq(academies.id, academyLinkRequests.academyId))
     .where(eq(academyLinkRequests.targetProfileId, context.profile.id))
-    .orderBy(desc(academyLinkRequests.createdAt));
+    .orderBy(desc(academyLinkRequests.createdAt))
+    .limit(100);
 
   return apiSuccess({ requests });
 });

@@ -44,6 +44,7 @@ export default async function ClassDetailPage({ params }: PageProps) {
     .where(eq(classes.id, classId))
     .limit(1);
 
+  // unbounded-read-ok: all weekday rows belong to this single class detail.
   const weekdayRows = await db
     .select({
       weekday: classWeekdays.weekday,
@@ -56,6 +57,7 @@ export default async function ClassDetailPage({ params }: PageProps) {
     notFound();
   }
 
+  // unbounded-read-ok: all coach assignments belong to this single class detail.
   const coachAssignments = await db
     .select({
       coachId: coaches.id,
@@ -87,6 +89,7 @@ export default async function ClassDetailPage({ params }: PageProps) {
 
   const sessionIds = sessionRows.map((session) => session.id);
 
+  // unbounded-read-ok: grouped attendance is bounded by the 30 session ids loaded above.
   const attendanceSummaryRows =
     sessionIds.length === 0
       ? []
@@ -127,6 +130,7 @@ export default async function ClassDetailPage({ params }: PageProps) {
 
   // También obtener todos los atletas de la academia para el AttendanceDialog
   // (necesario para permitir añadir atletas a la asistencia)
+  // unbounded-read-ok: attendance dialog needs the complete academy athlete selector.
   const athleteRows = await db
     .select({
       id: athletes.id,
@@ -141,6 +145,7 @@ export default async function ClassDetailPage({ params }: PageProps) {
     .where(eq(athletes.academyId, academyId))
     .orderBy(asc(athletes.name));
 
+  // unbounded-read-ok: attendance/class management needs all coaches in this academy.
   const coachOptions = await db
     .select({
       id: coaches.id,

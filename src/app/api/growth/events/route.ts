@@ -4,6 +4,7 @@ import { recordGrowthEvent } from "@/lib/growth/events";
 import { withRateLimit } from "@/lib/rate-limit";
 
 // @route-auth public
+// @auth-flexible route-guard-reason: anonymous product telemetry is intentionally accepted without a session.
 export const POST = withRateLimit(
   async (request) => {
     const json = await request.json().catch(() => null);

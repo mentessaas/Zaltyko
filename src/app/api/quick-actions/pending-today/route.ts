@@ -3,7 +3,7 @@ export const dynamic = 'force-dynamic';
 import { withTenant } from "@/lib/authz";
 import { db } from "@/db";
 import { classSessions, classes, charges, athletes, groupAthletes } from "@/db/schema";
-import { eq, and, gte, lte, isNull } from "drizzle-orm";
+import { eq, and, count, lte, isNull } from "drizzle-orm";
 import { apiSuccess, apiError } from "@/lib/api-response";
 import { logger } from "@/lib/logger";
 
@@ -55,18 +55,23 @@ export const GET = withTenant(async (req, context) => {
             .limit(10);
 
         // 3. Atletas sin grupo asignado
-        const allAthletes = await db
-            .select({ id: athletes.id })
+        const [unassignedRow] = await db
+            .select({ total: count(athletes.id) })
             .from(athletes)
-            .where(eq(athletes.tenantId, tenantId));
-
-        const athletesWithGroups = await db
-            .select({ athleteId: groupAthletes.athleteId })
-            .from(groupAthletes)
-            .where(eq(groupAthletes.tenantId, tenantId));
-
-        const assignedIds = new Set(athletesWithGroups.map((a) => a.athleteId));
-        const unassignedCount = allAthletes.filter((a) => !assignedIds.has(a.id)).length;
+            .leftJoin(
+                groupAthletes,
+                and(
+                    eq(groupAthletes.athleteId, athletes.id),
+                    eq(groupAthletes.tenantId, tenantId)
+                )
+            )
+            .where(
+                and(
+                    eq(athletes.tenantId, tenantId),
+                    isNull(groupAthletes.athleteId)
+                )
+            );
+        const unassignedCount = Number(unassignedRow?.total ?? 0);
 
         return apiSuccess({
             pendingClasses: todaysSessions.length,

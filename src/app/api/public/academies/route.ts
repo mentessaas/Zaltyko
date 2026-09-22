@@ -38,6 +38,7 @@ const QuerySchema = z.object({
  * - page: Número de página (default: 1)
  * - limit: Tamaño de página (default: 50, max: 1000)
  */
+// @auth-flexible route-guard-reason: public directory filters are intentionally validated before session lookup.
 export async function GET(request: Request) {
   try {
     const url = new URL(request.url);

@@ -58,7 +58,8 @@ export const GET = withTenant(async (request, context) => {
       const guardianIds = await db
         .select({ guardianId: guardianAthletes.guardianId })
         .from(guardianAthletes)
-        .where(eq(guardianAthletes.athleteId, athleteId));
+        .where(eq(guardianAthletes.athleteId, athleteId))
+        .limit(500);
 
       const ids = guardianIds.map(g => g.guardianId).filter(Boolean);
       if (ids.length > 0) {
@@ -113,7 +114,8 @@ export const GET = withTenant(async (request, context) => {
         })
         .from(guardianAthletes)
         .leftJoin(athletes, eq(guardianAthletes.athleteId, athletes.id))
-        .where(sql`${guardianAthletes.guardianId} = ANY(${guardianIds})`);
+        .where(sql`${guardianAthletes.guardianId} = ANY(${guardianIds})`)
+        .limit(2000);
 
       for (const assoc of associations) {
         if (!athleteAssociations[assoc.guardianId]) {

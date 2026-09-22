@@ -62,7 +62,8 @@ export default async function CoachDetailPage({ params }: PageProps) {
     .from(classCoachAssignments)
     .innerJoin(classes, eq(classCoachAssignments.classId, classes.id))
     .where(eq(classCoachAssignments.coachId, coachId))
-    .orderBy(asc(classes.name));
+    .orderBy(asc(classes.name))
+    .limit(500);
 
   const assignmentClassIds = classAssignments.map((entry) => entry.id);
   const assignmentWeekdays =
@@ -74,7 +75,8 @@ export default async function CoachDetailPage({ params }: PageProps) {
             weekday: classWeekdays.weekday,
           })
           .from(classWeekdays)
-          .where(inArray(classWeekdays.classId, assignmentClassIds));
+          .where(inArray(classWeekdays.classId, assignmentClassIds))
+          .limit(assignmentClassIds.length * 7);
 
   const assignmentWeekdayMap = new Map<string, number[]>();
   assignmentWeekdays.forEach((row) => {
@@ -97,7 +99,8 @@ export default async function CoachDetailPage({ params }: PageProps) {
     })
     .from(groups)
     .where(eq(groups.academyId, academyId))
-    .orderBy(asc(groups.name));
+    .orderBy(asc(groups.name))
+    .limit(500);
 
   const principalGroups = groupRows
     .filter((group) => group.coachId === coachId)

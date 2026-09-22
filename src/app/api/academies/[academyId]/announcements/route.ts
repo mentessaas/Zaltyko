@@ -219,6 +219,7 @@ export const POST = withTenant(async (request, context) => {
       .returning();
 
     // Get all academy members to notify
+    // unbounded-read-ok: announcement publication intentionally notifies every academy member.
     const members = await db
       .select({
         userId: memberships.userId,

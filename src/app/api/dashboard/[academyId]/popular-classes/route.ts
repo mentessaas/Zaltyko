@@ -45,14 +45,16 @@ export const GET = withTenant(async (_request, context) => {
       })
       .from(classesTable)
       .leftJoin(groups, eq(classesTable.groupId, groups.id))
-      .where(and(eq(classesTable.academyId, academyId), eq(classesTable.tenantId, context.tenantId)));
+      .where(and(eq(classesTable.academyId, academyId), eq(classesTable.tenantId, context.tenantId)))
+      .limit(1000);
 
     const classesWithCounts = await Promise.all(
       classesData.map(async (cls) => {
         const classGroupRows = await db
           .select({ groupId: classGroups.groupId })
           .from(classGroups)
-          .where(and(eq(classGroups.classId, cls.id), eq(classGroups.tenantId, context.tenantId)));
+          .where(and(eq(classGroups.classId, cls.id), eq(classGroups.tenantId, context.tenantId)))
+          .limit(100);
 
         const groupIds = classGroupRows.length > 0
           ? classGroupRows.map((group) => group.groupId)

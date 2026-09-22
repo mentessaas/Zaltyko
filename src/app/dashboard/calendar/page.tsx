@@ -95,7 +95,7 @@ export default async function CalendarPage({ searchParams }: CalendarPageProps) 
       .from(profiles)
       .where(eq(profiles.id, profileIdParam))
       .limit(1);
-    
+
     if (profile) {
       targetProfile = profile;
     }
@@ -192,6 +192,7 @@ export default async function CalendarPage({ searchParams }: CalendarPageProps) 
       const classIdSet = new Set<string>();
 
       if (athleteRow.groupId) {
+        // unbounded-read-ok: all classes linked to this athlete's group are required for the personal calendar.
         const groupClassRows = await db
           .select({ classId: classes.id })
           .from(classes)
@@ -201,12 +202,14 @@ export default async function CalendarPage({ searchParams }: CalendarPageProps) 
               eq(classes.academyId, athleteRow.academyId),
               or(eq(classes.groupId, athleteRow.groupId), eq(classGroups.groupId, athleteRow.groupId))
             )
-          );
+          )
+          .limit(500);
 
         groupClassRows.forEach((row) => classIdSet.add(row.classId));
       }
 
       const enrollmentRows = await db
+        // unbounded-read-ok: all direct enrollments define the athlete's allowed calendar scope.
         .select({ classId: classEnrollments.classId })
         .from(classEnrollments)
         .where(
@@ -214,7 +217,8 @@ export default async function CalendarPage({ searchParams }: CalendarPageProps) 
             eq(classEnrollments.athleteId, athleteRow.id),
             eq(classEnrollments.academyId, athleteRow.academyId)
           )
-        );
+        )
+        .limit(500);
 
       enrollmentRows.forEach((row) => classIdSet.add(row.classId));
       allowedClassIds = Array.from(classIdSet);
@@ -229,6 +233,7 @@ export default async function CalendarPage({ searchParams }: CalendarPageProps) 
 
   if (targetProfile.role === "parent") {
     const linkedChildren = await db
+      // unbounded-read-ok: all guardian-child links are required to build the family calendar scope.
       .select({
         athleteId: athletes.id,
         academyId: athletes.academyId,
@@ -238,7 +243,9 @@ export default async function CalendarPage({ searchParams }: CalendarPageProps) 
       .from(guardianAthletes)
       .innerJoin(guardians, eq(guardianAthletes.guardianId, guardians.id))
       .innerJoin(athletes, eq(guardianAthletes.athleteId, athletes.id))
-      .where(eq(guardians.profileId, targetProfile.id));
+      .where(eq(guardians.profileId, targetProfile.id))
+      .limit(100);
+
 
     const selectedChildren =
       athleteIdParam && linkedChildren.some((child) => child.athleteId === athleteIdParam)
@@ -250,6 +257,7 @@ export default async function CalendarPage({ searchParams }: CalendarPageProps) 
     for (const child of selectedChildren) {
       if (child.groupId) {
         const groupClassRows = await db
+          // unbounded-read-ok: all group-linked classes are required for the selected child calendar.
           .select({ classId: classes.id })
           .from(classes)
           .leftJoin(classGroups, eq(classGroups.classId, classes.id))
@@ -258,12 +266,14 @@ export default async function CalendarPage({ searchParams }: CalendarPageProps) 
               eq(classes.academyId, child.academyId),
               or(eq(classes.groupId, child.groupId), eq(classGroups.groupId, child.groupId))
             )
-          );
+          )
+          .limit(500);
 
         groupClassRows.forEach((row) => classIdSet.add(row.classId));
       }
 
       const enrollmentRows = await db
+        // unbounded-read-ok: all direct enrollments define the selected child's calendar scope.
         .select({ classId: classEnrollments.classId })
         .from(classEnrollments)
         .where(
@@ -271,7 +281,8 @@ export default async function CalendarPage({ searchParams }: CalendarPageProps) 
             eq(classEnrollments.athleteId, child.athleteId),
             eq(classEnrollments.academyId, child.academyId)
           )
-        );
+        )
+        .limit(500);
 
       enrollmentRows.forEach((row) => classIdSet.add(row.classId));
     }
@@ -289,6 +300,7 @@ export default async function CalendarPage({ searchParams }: CalendarPageProps) 
       : "Mostramos solo las actividades vinculadas a tus hijos.";
   }
 
+  // unbounded-read-ok: sessions are bounded by tenant, selected role scope, and the visible week/month date window.
   const sessions = await db
     .select({
       id: classSessions.id,
@@ -355,6 +367,7 @@ export default async function CalendarPage({ searchParams }: CalendarPageProps) 
 
     const classIds = fallbackClasses.map((item) => item.id);
     if (fallbackClasses.length > 0 && classIds.length > 0) {
+      // unbounded-read-ok: weekday rows are bounded by the 15 fallback class ids.
       const weekdayRows = await db
         .select({
           classId: classWeekdays.classId,

@@ -71,7 +71,8 @@ const getGuardiansHandler = withTenant(async (_request, context) => {
     })
     .from(guardianAthletes)
     .innerJoin(guardians, eq(guardianAthletes.guardianId, guardians.id))
-    .where(eq(guardianAthletes.athleteId, athleteId));
+    .where(eq(guardianAthletes.athleteId, athleteId))
+    .limit(100);
 
   // Obtener contactos de family_contacts (sistema antiguo, para retrocompatibilidad)
   const familyContactRows = await db
@@ -86,7 +87,8 @@ const getGuardiansHandler = withTenant(async (_request, context) => {
       createdAt: familyContacts.createdAt,
     })
     .from(familyContacts)
-    .where(eq(familyContacts.athleteId, athleteId));
+    .where(eq(familyContacts.athleteId, athleteId))
+    .limit(100);
 
   // Combinar ambos tipos de contactos
   const allItems = [
@@ -244,4 +246,3 @@ export const POST = withRateLimit(
   },
   { identifier: getUserIdentifier, limit: 10, window: 60 }
 );
-

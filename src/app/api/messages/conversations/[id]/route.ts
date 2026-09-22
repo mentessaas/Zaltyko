@@ -76,6 +76,7 @@ export const GET = withTenant(async (request: Request, context: RouteContext) =>
     }
 
     // Get all participants
+    // unbounded-read-ok: all participants belong to this single conversation detail request.
     const participants = await db
       .select({
         id: conversationParticipants.id,

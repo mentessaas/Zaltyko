@@ -1,7 +1,7 @@
 import { cookies } from "next/headers";
 import { redirect } from "next/navigation";
 import { Metadata } from "next";
-import { and, eq, inArray, isNull, desc } from "drizzle-orm";
+import { and, eq, inArray, isNull, desc, gte } from "drizzle-orm";
 
 import { db } from "@/db";
 import {
@@ -218,6 +218,7 @@ export default async function CoachDashboard({ params }: PageProps) {
   }
 
   // === OBTENER ATLETAS DEL COACH ===
+  // unbounded-read-ok: all assignments define this coach's class scope.
   const assignedClasses = await db
     .select({ classId: classCoachAssignments.classId })
     .from(classCoachAssignments)
@@ -228,6 +229,7 @@ export default async function CoachDashboard({ params }: PageProps) {
   // Obtener grupos de esas clases
   let groupIds: string[] = [];
   if (assignedClassIds.length > 0) {
+    // unbounded-read-ok: lookup is bounded by the coach's assigned class ids.
     const classGroups = await db
       .select({ groupId: classes.groupId })
       .from(classes)
@@ -241,6 +243,7 @@ export default async function CoachDashboard({ params }: PageProps) {
   // Obtener atletas via groupAthletes
   let coachAthletes: CoachAthlete[] = [];
   if (groupIds.length > 0) {
+    // unbounded-read-ok: all athletes in the coach's groups are required for the dashboard.
     const athleteRows = await db
       .select({
         athleteId: groupAthletes.athleteId,
@@ -274,6 +277,7 @@ export default async function CoachDashboard({ params }: PageProps) {
 
   // Obtener atletas via classEnrollments
   if (assignedClassIds.length > 0) {
+    // unbounded-read-ok: all direct enrollments in the coach's assigned classes are required.
     const enrollmentRows = await db
       .select({
         athleteId: classEnrollments.athleteId,
@@ -311,6 +315,7 @@ export default async function CoachDashboard({ params }: PageProps) {
   // === OBTENER CLASES DEL COACH ===
   const coachClasses: CoachClass[] = [];
   if (assignedClassIds.length > 0) {
+    // unbounded-read-ok: class rows are bounded by the coach's assigned class ids.
     const classRows = await db
       .select({
         id: classes.id,
@@ -336,6 +341,7 @@ export default async function CoachDashboard({ params }: PageProps) {
       // Count from groupAthletes (via group)
       const groupForClass = classRows.find((c) => c.id === classId)?.groupId;
       if (groupForClass) {
+        // unbounded-read-ok: group count is bounded by one class's group id.
         const count = await db
           .select({ count: groupAthletes.id })
           .from(groupAthletes)
@@ -343,7 +349,8 @@ export default async function CoachDashboard({ params }: PageProps) {
         athleteCountMap.set(classId, (athleteCountMap.get(classId) ?? 0) + count.length);
       }
       // Count from classEnrollments
-      const enrollCount = await db
+        // unbounded-read-ok: enrollment count is bounded by one assigned class id.
+        const enrollCount = await db
         .select({ count: classEnrollments.id })
         .from(classEnrollments)
         .where(eq(classEnrollments.classId, classId));
@@ -353,6 +360,7 @@ export default async function CoachDashboard({ params }: PageProps) {
     // Obtener grupos para cada clase
     const classGroupMap = new Map<string, { name: string | null; color: string | null }>();
     if (groupIds.length > 0) {
+      // unbounded-read-ok: lookup is bounded by group ids derived from assigned classes.
       const groupsData = await db
         .select({ id: groups.id, name: groups.name, color: groups.color })
         .from(groups)
@@ -387,6 +395,7 @@ export default async function CoachDashboard({ params }: PageProps) {
   let todaySessions: TodaySession[] = [];
 
   if (assignedClassIds.length > 0) {
+    // unbounded-read-ok: today sessions are bounded by assigned class ids and today's date.
     const sessionRows = await db
       .select({
         id: classSessions.id,
@@ -438,13 +447,15 @@ export default async function CoachDashboard({ params }: PageProps) {
   if (coachAthletes.length > 0) {
     const athleteIds = coachAthletes.map((a) => a.id);
 
+    // unbounded-read-ok: attendance is bounded in SQL by coach athletes and the seven-day window.
     const recentAttendance = await db
       .select({ status: attendanceRecords.status, recordedAt: attendanceRecords.recordedAt })
       .from(attendanceRecords)
       .where(
         and(
           inArray(attendanceRecords.athleteId, athleteIds),
-          inArray(attendanceRecords.status, ["present", "absent", "excused"])
+          inArray(attendanceRecords.status, ["present", "absent", "excused"]),
+          gte(attendanceRecords.recordedAt, sevenDaysAgo)
         )
       );
 

@@ -89,6 +89,7 @@ export default async function AcademyClassesPage({ params, searchParams }: PageP
     undefined
   );
 
+  // unbounded-read-ok: the classes screen renders the complete filtered academy catalogue.
   const classRows = await db
     .select({
       id: classes.id,
@@ -104,6 +105,7 @@ export default async function AcademyClassesPage({ params, searchParams }: PageP
     classIds.length === 0
       ? []
       : await db
+          // unbounded-read-ok: weekday rows are bounded by the displayed class ids.
           .select({
             classId: classWeekdays.classId,
             weekday: classWeekdays.weekday,
@@ -122,6 +124,7 @@ export default async function AcademyClassesPage({ params, searchParams }: PageP
     weekdayMap.set(key, list);
   });
 
+  // unbounded-read-ok: all tenant assignments are needed to decorate the academy classes.
   const assignmentRows = await db
     .select({
       classId: classCoachAssignments.classId,
@@ -134,6 +137,7 @@ export default async function AcademyClassesPage({ params, searchParams }: PageP
     .where(eq(classCoachAssignments.tenantId, academy.tenantId))
     .orderBy(asc(coaches.name));
 
+  // unbounded-read-ok: coach options are required for class assignment management.
   const coachRows = await db
     .select({
       id: coaches.id,
@@ -148,6 +152,7 @@ export default async function AcademyClassesPage({ params, searchParams }: PageP
     coachRows.length === 0
       ? []
       : await db
+          // unbounded-read-ok: scopes are bounded by the displayed coach ids.
           .select({
             coachId: coachSportConfigs.coachId,
             sportConfigId: coachSportConfigs.academySportConfigId,
@@ -161,6 +166,7 @@ export default async function AcademyClassesPage({ params, searchParams }: PageP
     sportConfigIdsByCoach.set(row.coachId, current);
   });
 
+  // unbounded-read-ok: group options are required for class assignment management.
   const groupRows = await db
     .select({
       id: groups.id,
@@ -204,6 +210,7 @@ export default async function AcademyClassesPage({ params, searchParams }: PageP
     classIds.length === 0
       ? []
       : await db
+          // unbounded-read-ok: direct class-group links are bounded by the displayed class ids.
           .select({
             classId: classGroups.classId,
             groupId: groups.id,
@@ -212,7 +219,8 @@ export default async function AcademyClassesPage({ params, searchParams }: PageP
           })
           .from(classGroups)
           .innerJoin(groups, eq(classGroups.groupId, groups.id))
-          .where(inArray(classGroups.classId, classIds));
+          .where(inArray(classGroups.classId, classIds))
+          .limit(Math.min(Math.max(classIds.length * 50, 100), 5000));
 
   const classGroupsMap = new Map<string, { id: string; name: string; color: string | null; sportConfigId: string | null }[]>();
   classGroupRows.forEach((row) => {
@@ -232,6 +240,7 @@ export default async function AcademyClassesPage({ params, searchParams }: PageP
   // Atletas de grupos
   if (groupRows.length > 0 && classIds.length > 0) {
     const groupIds = groupRows.map((g) => g.id);
+    // unbounded-read-ok: grouped count is bounded by the displayed class and group ids.
     const athleteFromGroups = await db
       .select({
         classId: classGroups.classId,
@@ -254,6 +263,7 @@ export default async function AcademyClassesPage({ params, searchParams }: PageP
 
   // Atletas extra (enrollments)
   if (classIds.length > 0) {
+    // unbounded-read-ok: grouped count is bounded by the displayed class ids.
     const extraAthletes = await db
       .select({
         classId: classEnrollments.classId,

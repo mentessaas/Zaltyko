@@ -49,7 +49,8 @@ export async function createAttendanceNotifications(
         .from(guardianAthletes)
         .innerJoin(guardians, eq(guardianAthletes.guardianId, guardians.id))
         .innerJoin(athletes, eq(athletes.id, alert.athleteId))
-        .where(eq(guardianAthletes.athleteId, alert.athleteId));
+        .where(eq(guardianAthletes.athleteId, alert.athleteId))
+        .limit(100);
 
       for (const guardian of athleteGuardians) {
         if (!guardian.email) continue;
@@ -70,4 +71,3 @@ export async function createAttendanceNotifications(
     }
   }
 }
-

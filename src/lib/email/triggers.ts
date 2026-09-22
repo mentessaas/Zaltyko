@@ -19,6 +19,7 @@ export async function triggerAttendanceReminders(): Promise<number> {
   const tomorrowStr = tomorrow.toISOString().split("T")[0];
 
   // Obtener sesiones programadas para mañana
+  // unbounded-read-ok: cron processes every scheduled session for tomorrow across tenants.
   const sessions = await db
     .select({
       sessionId: classSessions.id,
@@ -46,6 +47,7 @@ export async function triggerAttendanceReminders(): Promise<number> {
   for (const session of sessions) {
     // Solo atletas inscritos en ESA clase (antes: todos los atletas de la
     // academia recibían el recordatorio de cada sesión).
+    // unbounded-read-ok: all athletes enrolled in this one session's class are recipients.
     const enrolledAthletes = await db
       .select({
         athleteId: athletes.id,
@@ -110,6 +112,7 @@ export async function triggerPaymentReminders(): Promise<number> {
 
   // Obtener cargos vencidos o próximos a vencer
   const todayStr = today.toISOString().split("T")[0];
+  // unbounded-read-ok: payment reminder cron drains every due charge across tenants.
   const overdueCharges = await db
     .select({
       chargeId: charges.id,
@@ -217,6 +220,7 @@ export async function triggerScheduledPaymentReminders(now: Date = new Date()): 
     windowEnd.setDate(windowEnd.getDate() + 1);
     const windowEndStr = toDateOnly(windowEnd);
 
+    // unbounded-read-ok: due charges are bounded by the explicit one-day recovery window.
     const dueCharges = await db
       .select({
         chargeId: charges.id,
@@ -408,6 +412,7 @@ export async function triggerEventInvitations(eventId: string): Promise<number> 
   }
 
   // Obtener atletas de la academia
+  // unbounded-read-ok: this event invitation flow intentionally targets every athlete in the event academy.
   const academyAthletes = await db
     .select({
       athleteId: athletes.id,
@@ -494,6 +499,7 @@ export async function triggerClassCancellation(
   }
 
   // Obtener atletas inscritos
+  // unbounded-read-ok: cancellation notifications intentionally target all athletes in the session academy.
   const enrolledAthletes = await db
     .select({
       athleteId: athletes.id,

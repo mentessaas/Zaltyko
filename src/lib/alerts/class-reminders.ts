@@ -28,6 +28,7 @@ export async function getClassesNeedingReminders(
   const reminderTimeEndStr = reminderTimeEnd.toISOString().split("T")[0];
 
   // Obtener sesiones en el rango de tiempo para recordatorios
+  // unbounded-read-ok: reminder window is explicitly bounded to this academy and tenant.
   const sessions = await db
     .select({
       sessionId: classSessions.id,
@@ -54,6 +55,7 @@ export async function getClassesNeedingReminders(
 
     if (session.groupId) {
       // Obtener atletas del grupo
+      // unbounded-read-ok: all members of this session's group are recipients.
       const groupAthletesList = await db
         .select({ athleteId: groupAthletes.athleteId })
         .from(groupAthletes)
@@ -89,13 +91,14 @@ export async function sendClassReminders(
 
   for (const reminder of reminders) {
     // Obtener información de atletas
+    // unbounded-read-ok: recipient scan is bounded to the current academy and tenant.
     const athletesList = await db
       .select({
         athleteId: athletes.id,
         athleteName: athletes.name,
       })
       .from(athletes)
-      .where(eq(athletes.tenantId, tenantId));
+      .where(and(eq(athletes.tenantId, tenantId), eq(athletes.academyId, academyId)));
 
     for (const athlete of athletesList) {
       if (reminder.athleteIds.includes(athlete.athleteId)) {
@@ -113,4 +116,3 @@ export async function sendClassReminders(
     }
   }
 }
-

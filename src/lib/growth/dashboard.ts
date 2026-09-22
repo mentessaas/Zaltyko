@@ -128,7 +128,9 @@ export async function getGrowthDashboardData(): Promise<GrowthDashboardData> {
       .from(leads)
       .orderBy(desc(leads.createdAt))
       .limit(50),
+    // unbounded-read-ok: scalar count intentionally covers the complete leads history.
     db.select({ total: count(leads.id) }).from(leads),
+    // unbounded-read-ok: grouped growth metrics intentionally cover the requested history.
     db
       .select({
         eventName: growthEvents.eventName,

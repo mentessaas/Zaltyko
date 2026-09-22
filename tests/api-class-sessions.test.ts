@@ -28,7 +28,9 @@ const createSelectChain = ({ resolveAt, result }: SelectChainConfig) => {
     innerJoin: vi.fn(() => chain),
     leftJoin: vi.fn(() => chain),
     where: vi.fn(() => chain),
-    orderBy: vi.fn(() => Promise.resolve(result)),
+    orderBy: vi.fn(() => ({
+      limit: vi.fn(() => Promise.resolve(result)),
+    })),
   };
   return chain;
 };

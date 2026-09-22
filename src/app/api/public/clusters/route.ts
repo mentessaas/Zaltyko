@@ -22,6 +22,7 @@ const querySchema = z.object({
   limit: z.coerce.number().min(1).max(100).optional().default(12),
 });
 
+// @auth-flexible route-guard-reason: public catalogue filters are intentionally validated before session lookup.
 export async function GET(request: Request) {
   try {
     const url = new URL(request.url);

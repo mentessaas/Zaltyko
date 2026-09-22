@@ -50,18 +50,22 @@ export const GET = withTenant(async (request, context) => {
 
   const [classRows, enrollmentRows, waitlistRows, chargeRows, assignmentRows, compensationRows, expenseRows, churnRows] =
     await Promise.all([
+      // unbounded-read-ok: complete academy-scoped dataset required to calculate leak counts.
       db
         .select({ id: classes.id, name: classes.name, capacity: classes.capacity })
         .from(classes)
         .where(and(eq(classes.tenantId, context.tenantId), eq(classes.academyId, parsed.data.academyId))),
+      // unbounded-read-ok: complete academy-scoped dataset required to calculate leak counts.
       db
         .select({ classId: classEnrollments.classId, athleteId: classEnrollments.athleteId })
         .from(classEnrollments)
         .where(and(eq(classEnrollments.tenantId, context.tenantId), eq(classEnrollments.academyId, parsed.data.academyId))),
+      // unbounded-read-ok: complete academy-scoped dataset required to calculate leak counts.
       db
         .select({ classId: classWaitingList.classId, athleteId: classWaitingList.athleteId })
         .from(classWaitingList)
         .where(and(eq(classWaitingList.tenantId, context.tenantId), eq(classWaitingList.academyId, parsed.data.academyId))),
+      // unbounded-read-ok: complete period-scoped dataset required to calculate leak counts.
       db
         .select({
           classId: charges.classId,
@@ -71,10 +75,12 @@ export const GET = withTenant(async (request, context) => {
         })
         .from(charges)
         .where(and(eq(charges.tenantId, context.tenantId), eq(charges.academyId, parsed.data.academyId), eq(charges.period, period))),
+      // unbounded-read-ok: complete tenant assignment dataset is reduced to report classes below.
       db
         .select({ classId: classCoachAssignments.classId, coachId: classCoachAssignments.coachId })
         .from(classCoachAssignments)
         .where(eq(classCoachAssignments.tenantId, context.tenantId)),
+      // unbounded-read-ok: complete academy-scoped active compensation dataset required by report.
       db
         .select()
         .from(coachCompensation)
@@ -85,6 +91,7 @@ export const GET = withTenant(async (request, context) => {
             eq(coachCompensation.isActive, true)
           )
         ),
+      // unbounded-read-ok: complete academy-scoped active expense dataset required by report.
       db
         .select()
         .from(academyExpenses)
@@ -95,6 +102,7 @@ export const GET = withTenant(async (request, context) => {
             eq(academyExpenses.isActive, true)
           )
         ),
+      // unbounded-read-ok: complete academy-scoped churn dataset required by report.
       db
         .select({ id: churnReasons.id, athleteId: churnReasons.athleteId, reason: churnReasons.reason })
         .from(churnReasons)
@@ -209,4 +217,3 @@ export const GET = withTenant(async (request, context) => {
     },
   });
 });
-

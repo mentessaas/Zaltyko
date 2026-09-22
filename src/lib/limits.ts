@@ -286,7 +286,8 @@ export async function checkPlanLimitViolations(userId: string, newPlanCode: Plan
       const ownedAcademies = await db
         .select({ id: academies.id, name: academies.name })
         .from(academies)
-        .where(eq(academies.ownerId, profile.id));
+        .where(eq(academies.ownerId, profile.id))
+        .limit(100);
       
       violations.push({
         resource: "academies",
@@ -301,7 +302,8 @@ export async function checkPlanLimitViolations(userId: string, newPlanCode: Plan
   const ownedAcademies = await db
     .select({ id: academies.id, name: academies.name, tenantId: academies.tenantId })
     .from(academies)
-    .where(eq(academies.ownerId, profile.id));
+    .where(eq(academies.ownerId, profile.id))
+    .limit(100);
 
   const athleteLimit = ATHLETE_LIMITS[newPlanCode];
   const classLimit = CLASS_LIMITS[newPlanCode];
@@ -317,7 +319,8 @@ export async function checkPlanLimitViolations(userId: string, newPlanCode: Plan
         const academyAthletes = await db
           .select({ id: athletes.id, name: athletes.name })
           .from(athletes)
-          .where(eq(athletes.academyId, academy.id));
+          .where(eq(athletes.academyId, academy.id))
+          .limit(500);
 
         violations.push({
           resource: "athletes",
@@ -337,7 +340,8 @@ export async function checkPlanLimitViolations(userId: string, newPlanCode: Plan
         const classesList = await db
           .select({ id: classes.id, name: classes.name })
           .from(classes)
-          .where(eq(classes.academyId, academy.id));
+          .where(eq(classes.academyId, academy.id))
+          .limit(500);
 
         violations.push({
           resource: "classes",
@@ -357,7 +361,8 @@ export async function checkPlanLimitViolations(userId: string, newPlanCode: Plan
         const groupsList = await db
           .select({ id: groups.id, name: groups.name })
           .from(groups)
-          .where(eq(groups.academyId, academy.id));
+          .where(eq(groups.academyId, academy.id))
+          .limit(500);
 
         violations.push({
           resource: "groups",

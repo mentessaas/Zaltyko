@@ -46,7 +46,8 @@ export const GET = withTenant(async (request, context) => {
     .innerJoin(athletes, eq(coachNotes.athleteId, athletes.id))
     .leftJoin(profiles, eq(coachNotes.authorId, profiles.id))
     .where(and(...whereConditions))
-    .orderBy(desc(coachNotes.createdAt));
+    .orderBy(desc(coachNotes.createdAt))
+    .limit(500);
 
   return apiSuccess({
     items: notes.map((note) => ({

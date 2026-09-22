@@ -27,6 +27,7 @@ export async function calculateGrMetrics(params: GrMetricsParams): Promise<GrDas
 
   let athletesByCategory: AthleteCategoryCount[] = [];
   try {
+    // unbounded-read-ok: grouped level counts are a scalar dashboard aggregate.
     const athleteLevelsResult = await db
       .select({
         level: athletes.level,

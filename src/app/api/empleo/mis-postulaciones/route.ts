@@ -54,7 +54,8 @@ export async function GET() {
       .leftJoin(empleoListings, eq(empleoApplications.listingId, empleoListings.id))
       .leftJoin(academies, eq(empleoListings.academyId, academies.id))
       .where(eq(empleoApplications.userId, profile.id))
-      .orderBy(desc(empleoApplications.createdAt));
+      .orderBy(desc(empleoApplications.createdAt))
+      .limit(100);
 
     return apiSuccess({ applications });
   } catch (error) {

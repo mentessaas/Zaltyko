@@ -2,22 +2,44 @@
 set -euo pipefail
 
 ROOT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
-PG_DIR="$(mktemp -d "${TMPDIR:-/tmp}/zaltyko-rls.XXXXXX")"
+PERSISTENT_DIR="${RLS_TEST_PG_DIR:-}"
+if [[ -n "${PERSISTENT_DIR}" ]]; then
+  case "${PERSISTENT_DIR}" in
+    "${ROOT_DIR}"/*) ;;
+    *) echo "RLS_TEST_PG_DIR must be inside the checkout: ${ROOT_DIR}/..." >&2; exit 2 ;;
+  esac
+  PG_DIR="${PERSISTENT_DIR}"
+  mkdir -p "${PG_DIR}"
+  if [[ -f "${PG_DIR}/PG_VERSION" && "${RLS_TEST_RESET:-0}" == "1" ]]; then
+    pg_ctl -D "${PG_DIR}" -m fast stop >/dev/null 2>&1 || true
+    rm -rf "${PG_DIR:?}"/*
+  fi
+  if [[ -f "${PG_DIR}/PG_VERSION" ]]; then
+    echo "Refusing to overwrite existing persistent cluster: ${PG_DIR}" >&2
+    echo "Set RLS_TEST_RESET=1 only for the explicit local lab reset." >&2
+    exit 2
+  fi
+  CLEANUP_DIR=0
+else
+  PG_DIR="$(mktemp -d "${TMPDIR:-/tmp}/zaltyko-rls.XXXXXX")"
+  CLEANUP_DIR=1
+fi
 PG_PORT="${RLS_TEST_PG_PORT:-55439}"
 PG_LOG="${PG_DIR}/postgres.log"
+SOCKET_DIR="${RLS_TEST_SOCKET_DIR:-${TMPDIR:-/tmp}}"
 
 cleanup() {
   if [[ -f "${PG_DIR}/postmaster.pid" ]]; then
     pg_ctl -D "${PG_DIR}" -m fast stop >/dev/null
   fi
-  rm -rf "${PG_DIR}"
+  if [[ "${CLEANUP_DIR}" == "1" ]]; then rm -rf "${PG_DIR}"; fi
 }
 trap cleanup EXIT
 
 initdb -D "${PG_DIR}" -A trust --no-locale -E UTF8 >/dev/null
-pg_ctl -D "${PG_DIR}" -o "-p ${PG_PORT} -k ${PG_DIR}" -l "${PG_LOG}" start >/dev/null
+pg_ctl -D "${PG_DIR}" -o "-p ${PG_PORT} -k ${SOCKET_DIR}" -l "${PG_LOG}" start >/dev/null
 
-PSQL=(psql -X -v ON_ERROR_STOP=1 -h "${PG_DIR}" -p "${PG_PORT}" -d postgres)
+PSQL=(psql -X -v ON_ERROR_STOP=1 -h "${SOCKET_DIR}" -p "${PG_PORT}" -d postgres)
 
 "${PSQL[@]}" <<'SQL'
 CREATE ROLE anon NOLOGIN;

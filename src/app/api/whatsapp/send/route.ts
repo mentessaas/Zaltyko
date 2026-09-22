@@ -65,6 +65,7 @@ async function resolveAthleteIds({
   sportConfigId: string | null;
 }) {
   if (recipientType === "all") {
+    // unbounded-read-ok: sending to "all" intentionally resolves every eligible athlete in the academy.
     const rows = await db
       .select({ id: athletes.id })
       .from(athletes)
@@ -80,6 +81,7 @@ async function resolveAthleteIds({
   if (recipientIds.length === 0) return [];
 
   if (recipientType === "selected") {
+    // unbounded-read-ok: selected recipients are bounded by the caller-provided recipient ids.
     const rows = await db
       .select({ id: athletes.id })
       .from(athletes)
@@ -94,6 +96,7 @@ async function resolveAthleteIds({
   }
 
   if (recipientType === "group") {
+    // unbounded-read-ok: group lookup is bounded by the caller-provided recipient ids.
     const groupRows = await db
       .select({ id: groups.id })
       .from(groups)
@@ -107,6 +110,7 @@ async function resolveAthleteIds({
 
     if (groupRows.length === 0) return [];
 
+    // unbounded-read-ok: all athletes in the selected groups are required recipients.
     const rows = await db
       .select({ athleteId: groupAthletes.athleteId })
       .from(groupAthletes)
@@ -121,6 +125,7 @@ async function resolveAthleteIds({
     return rows.map((row) => row.athleteId);
   }
 
+  // unbounded-read-ok: class lookup is bounded by the caller-provided recipient ids.
   const classRows = await db
     .select({ id: classes.id })
     .from(classes)
@@ -168,6 +173,7 @@ async function resolveRecipients({
 
   if (athleteIds.length === 0) return [];
 
+  // unbounded-read-ok: contacts are bounded by the resolved athlete id set.
   const contactRows = await db
     .select({
       athleteId: athletes.id,

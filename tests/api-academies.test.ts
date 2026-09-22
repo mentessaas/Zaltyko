@@ -21,7 +21,9 @@ const createSelectChain = (config: { resolveAt: "limit" | "orderBy"; result: any
   if (config.resolveAt === "limit") {
     chain.limit = vi.fn(() => Promise.resolve(config.result));
   } else {
-    chain.orderBy = vi.fn(() => Promise.resolve(config.result));
+    chain.orderBy = vi.fn(() => ({
+      limit: vi.fn(() => Promise.resolve(config.result)),
+    }));
   }
 
   return chain;

@@ -357,7 +357,9 @@ export async function processTrialLifecycle(now = new Date()) {
         eq(academyTrials.status, "active"),
         and(eq(academyTrials.status, "expired"), isNull(academyTrials.expiryNotifiedAt))
       )
-    );
+    )
+    // Process a bounded batch; unclaimed rows remain eligible for the next cron run.
+    .limit(100);
 
   let reminded = 0;
   let expired = 0;

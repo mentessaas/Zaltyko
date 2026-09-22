@@ -42,6 +42,7 @@ export const GET = withTenant(async (_request, context) => {
     }
 
     // Get all athlete IDs for this academy
+    // unbounded-read-ok: GR metrics require the complete scoped athlete population.
     const athleteRows = await db
       .select({ id: athletes.id })
       .from(athletes)

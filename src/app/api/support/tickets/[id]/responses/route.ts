@@ -60,7 +60,8 @@ export const GET = withTenant(async (_request, context) => {
         context.profile.role === "super_admin" ? undefined : eq(ticketResponses.isInternal, false),
       ),
     )
-    .orderBy(asc(ticketResponses.createdAt));
+    .orderBy(asc(ticketResponses.createdAt))
+    .limit(500);
 
   return apiSuccess(responses);
 });

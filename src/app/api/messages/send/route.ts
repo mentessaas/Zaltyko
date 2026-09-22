@@ -88,6 +88,7 @@ export const POST = withTenant(async (request, context) => {
     if (academyId) {
       const [[academy], academyMemberships] = await Promise.all([
         db.select({ id: academies.id }).from(academies).where(and(eq(academies.id, academyId), eq(academies.tenantId, tenantId))).limit(1),
+        // unbounded-read-ok: membership lookup is bounded by the two message participants.
         db.select({ userId: memberships.userId }).from(memberships).where(and(
           eq(memberships.academyId, academyId),
           inArray(memberships.userId, [profile.userId, recipient.userId])
@@ -100,6 +101,7 @@ export const POST = withTenant(async (request, context) => {
 
     // Check for existing P2P conversation
     // Look for a conversation where both users are participants
+    // unbounded-read-ok: all candidate P2P conversations are inspected to prove exact participant reuse.
     const existingConversations = await db
       .select({ id: conversations.id })
       .from(conversations)
@@ -119,6 +121,7 @@ export const POST = withTenant(async (request, context) => {
 
     // Find conversation where both users are participants
     for (const conv of existingConversations) {
+      // unbounded-read-ok: participant set is bounded by one candidate conversation.
       const participants = await db
         .select({ userId: conversationParticipants.userId })
         .from(conversationParticipants)

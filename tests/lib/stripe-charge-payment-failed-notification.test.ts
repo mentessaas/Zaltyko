@@ -113,7 +113,10 @@ vi.mock("@/db", () => {
       }
       // guardian path
       chain.innerJoin = vi.fn(() => chain);
-      chain.where = vi.fn(() => Promise.resolve(recipients));
+      chain.where = vi.fn(() => {
+        chain.limit = vi.fn(() => Promise.resolve(recipients));
+        return chain;
+      });
       return chain;
     });
     return chain;

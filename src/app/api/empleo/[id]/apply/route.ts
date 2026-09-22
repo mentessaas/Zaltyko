@@ -25,6 +25,7 @@ async function getUser() {
   return user;
 }
 
+// @auth-flexible route-guard-reason: authentication is performed by the local getUser helper before body parsing.
 export async function POST(
   request: Request,
   { params }: { params: Promise<{ id: string }> }

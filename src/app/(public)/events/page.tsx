@@ -1,7 +1,7 @@
 import type { Metadata } from "next";
 
 export const dynamic = "force-dynamic";
-import { desc, eq } from "drizzle-orm";
+import { desc, eq, inArray } from "drizzle-orm";
 import { EventsFilters } from "@/components/public/EventsFilters";
 import { EventsGrid } from "@/components/public/EventsGrid";
 import { PublicPageHeader } from "@/components/public/PublicPageHeader";
@@ -57,9 +57,11 @@ async function getEvents() {
       .limit(50);
 
     const academyIds = Array.from(new Set(eventItems.map(e => e.academyId)));
+    // unbounded-read-ok: lookup is bounded by the 50 public events loaded above.
     const academyData = academyIds.length > 0 ? await db
       .select({ id: academies.id, name: academies.name, logoUrl: academies.logoUrl })
       .from(academies)
+      .where(inArray(academies.id, academyIds))
       .then(rows => new Map(rows.map(a => [a.id, a])))
       : new Map();
 

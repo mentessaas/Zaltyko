@@ -1,7 +1,19 @@
 import { expect, test, type Locator } from "@playwright/test";
 
 async function gotoPublic(page: import("@playwright/test").Page, path: string) {
-  await page.goto(path, { waitUntil: "domcontentloaded", timeout: 120_000 });
+  // Vercel can abort a document navigation while replacing a streamed
+  // response. Retry only that transport-level error; HTTP failures must still
+  // fail the smoke test normally.
+  for (let attempt = 0; attempt < 2; attempt += 1) {
+    try {
+      await page.goto(path, { waitUntil: "domcontentloaded", timeout: 120_000 });
+      break;
+    } catch (error) {
+      const message = error instanceof Error ? error.message : String(error);
+      if (attempt === 0 && message.includes("ERR_ABORTED")) continue;
+      throw error;
+    }
+  }
   await page.waitForLoadState("networkidle", { timeout: 30_000 }).catch(() => undefined);
   await page.waitForTimeout(500);
 }

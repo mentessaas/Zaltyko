@@ -311,6 +311,7 @@ export async function getDashboardData(academyId: string): Promise<{
   const [athleteSportCounts, groupSportCounts, classSportCounts] =
     activeSportConfigIds.length > 0
       ? await Promise.all([
+          // unbounded-read-ok: grouped count is bounded by active academy sport configurations.
           db
             .select({
               sportConfigId: athletes.primarySportConfigId,
@@ -319,6 +320,7 @@ export async function getDashboardData(academyId: string): Promise<{
             .from(athletes)
             .where(and(eq(athletes.academyId, academyId), inArray(athletes.primarySportConfigId, activeSportConfigIds)))
             .groupBy(athletes.primarySportConfigId),
+          // unbounded-read-ok: grouped count is bounded by active academy sport configurations.
           db
             .select({
               sportConfigId: groups.sportConfigId,
@@ -327,6 +329,7 @@ export async function getDashboardData(academyId: string): Promise<{
             .from(groups)
             .where(and(eq(groups.academyId, academyId), inArray(groups.sportConfigId, activeSportConfigIds)))
             .groupBy(groups.sportConfigId),
+          // unbounded-read-ok: grouped count is bounded by active academy sport configurations.
           db
             .select({
               sportConfigId: classes.sportConfigId,
@@ -434,6 +437,7 @@ export async function getDashboardData(academyId: string): Promise<{
 
   let classCoachRows: Array<{ classId: string; coachId: string; coachName: string | null }> = [];
   if (classIds.length > 0) {
+    // unbounded-read-ok: lookup is bounded by the ten upcoming session class ids.
     classCoachRows = await db
       .select({
         classId: classCoachAssignments.classId,
@@ -451,6 +455,7 @@ export async function getDashboardData(academyId: string): Promise<{
 
   let groupsByCoach: Map<string, { name: string | null; color: string | null }> = new Map();
   if (coachIds.length > 0) {
+    // unbounded-read-ok: lookup is bounded by coaches attached to upcoming sessions.
     const coachGroups = await db
       .select({
         coachId: groups.coachId,
@@ -519,7 +524,8 @@ export async function getDashboardData(academyId: string): Promise<{
                 weekday: classWeekdays.weekday,
               })
               .from(classWeekdays)
-              .where(inArray(classWeekdays.classId, fallbackIds));
+              .where(inArray(classWeekdays.classId, fallbackIds))
+              .limit(21);
 
       const weekdayMap = weekdayRows.reduce((acc, row) => {
         const current = acc.get(row.classId) ?? [];
@@ -685,6 +691,7 @@ export async function getDashboardData(academyId: string): Promise<{
       const firstDayOfMonth = new Date(today.getFullYear(), today.getMonth(), 1);
       const firstDayOfMonthIso = formatISO(firstDayOfMonth, { representation: "date" });
 
+      // unbounded-read-ok: all academy athletes are required to scope license reporting.
       const academyAthletesResult = await db
         .select({ id: athletes.id })
         .from(athletes)
@@ -714,6 +721,7 @@ export async function getDashboardData(academyId: string): Promise<{
       let totalAthletesWithActiveLicense = 0;
 
       if (athleteIdsForLicenses.length > 0) {
+        // unbounded-read-ok: license lookup is bounded by the academy athlete ids above.
         const athleteLicensesResult = await db
           .select({
             id: federativeLicenses.id,

@@ -80,6 +80,7 @@ export default async function GroupDetailPage({ params }: PageProps) {
     : [];
 
   const assistantIds = Array.isArray(groupRow.assistantIds) ? groupRow.assistantIds : [];
+  // unbounded-read-ok: assistant lookup is bounded by the group's assistant id list.
   const assistantRows = assistantIds.length
     ? await db
         .select({ id: coaches.id, name: coaches.name, email: coaches.email })
@@ -91,6 +92,7 @@ export default async function GroupDetailPage({ params }: PageProps) {
     .map((id) => assistantRows.find((assistant) => assistant.id === id))
     .filter(Boolean) as CoachOption[];
 
+  // unbounded-read-ok: member list is scoped to this single group.
   const members = await db
     .select({
       id: athletes.id,
@@ -103,6 +105,7 @@ export default async function GroupDetailPage({ params }: PageProps) {
     .where(eq(groupAthletes.groupId, groupId))
     .orderBy(asc(athletes.name));
 
+  // unbounded-read-ok: group editor needs all coach options in this academy.
   const availableCoaches: CoachOption[] = await db
     .select({ id: coaches.id, name: coaches.name, email: coaches.email })
     .from(coaches)
@@ -128,6 +131,7 @@ export default async function GroupDetailPage({ params }: PageProps) {
     coach.sportConfigIds = sportConfigIdsByCoach.get(coach.id) ?? [];
   });
 
+  // unbounded-read-ok: group editor needs all athlete options in this academy.
   const availableAthletes: AthleteOption[] = await db
     .select({
       id: athletes.id,
@@ -147,6 +151,7 @@ export default async function GroupDetailPage({ params }: PageProps) {
   let classSummaries: GroupDetail["classes"] = [];
 
   if (coachIdsForClasses.length > 0) {
+    // unbounded-read-ok: class summaries are bounded by this group's coach/assistant ids and academy.
     const classRows = await db
       .select({
         classId: classes.id,
@@ -161,19 +166,22 @@ export default async function GroupDetailPage({ params }: PageProps) {
       .where(
         and(eq(classes.academyId, academyId), inArray(classCoachAssignments.coachId, coachIdsForClasses))
       )
-      .orderBy(asc(classes.name));
+      .orderBy(asc(classes.name))
+      .limit(500);
 
     const classIdSet = Array.from(new Set(classRows.map((row) => row.classId)));
 
     const weekdayRows =
       classIdSet.length > 0
         ? await db
+            // unbounded-read-ok: weekday rows are bounded by the class ids in this group summary.
             .select({
               classId: classWeekdays.classId,
               weekday: classWeekdays.weekday,
             })
             .from(classWeekdays)
             .where(inArray(classWeekdays.classId, classIdSet))
+            .limit(classIdSet.length * 7)
         : [];
 
     const weekdayMap = new Map<string, number[]>();

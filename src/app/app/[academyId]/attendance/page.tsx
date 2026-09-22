@@ -98,7 +98,8 @@ export default async function AttendanceOverviewPage({ params }: PageProps) {
     })
     .from(groups)
     .where(eq(groups.academyId, academyId))
-    .orderBy(asc(groups.name));
+    .orderBy(asc(groups.name))
+    .limit(500);
 
   const groupsByCoach = new Map<string, { id: string; name: string; color: string | null }[]>();
   groupRows.forEach((group) => {
@@ -134,7 +135,8 @@ export default async function AttendanceOverviewPage({ params }: PageProps) {
             coachId: classCoachAssignments.coachId,
           })
           .from(classCoachAssignments)
-          .where(inArray(classCoachAssignments.classId, classIds));
+          .where(inArray(classCoachAssignments.classId, classIds))
+          .limit(Math.min(Math.max(classIds.length * 10, 100), 2000));
 
   const classCoachMap = new Map<string, string[]>();
   classAssignments.forEach((assignment) => {
@@ -337,4 +339,3 @@ export default async function AttendanceOverviewPage({ params }: PageProps) {
     </div>
   );
 }
-

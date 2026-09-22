@@ -237,6 +237,7 @@ export const POST = withTenant(async (request: Request, context: RouteContext) =
 
     // Get conversation info for notifications
     // Get all other participants
+    // unbounded-read-ok: notification recipients are bounded by this single conversation.
     const otherParticipants = await db
       .select({
         userId: conversationParticipants.userId,

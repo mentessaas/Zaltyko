@@ -111,7 +111,8 @@ export const POST = withTenant(async (request, context) => {
       const groupsList = await db
         .select({ id: groups.id, name: groups.name })
         .from(groups)
-        .where(and(eq(groups.academyId, body.academyId), inArray(groups.id, groupIds)));
+        .where(and(eq(groups.academyId, body.academyId), inArray(groups.id, groupIds)))
+        .limit(1000);
 
       groupsList.forEach((g) => {
         groupsMap.set(g.id, g.name);

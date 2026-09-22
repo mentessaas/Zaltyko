@@ -159,6 +159,7 @@ export async function getPublicEvents(
 
   // Obtener información de academias para los eventos
   const academyIds = Array.from(new Set(eventItems.map(e => e.academyId)));
+  // unbounded-read-ok: lookup is bounded by the paginated public event results.
   const academyData = academyIds.length > 0 ? await db
     .select({
       id: academies.id,
