@@ -166,7 +166,8 @@ async function findSportConfigUsageConflict(params: {
           eq(athleteAssessments.academyId, params.academyId),
           eq(athleteAssessments.tenantId, params.tenantId),
           eq(athleteAssessments.sportConfigId, params.sportConfigId)
-        )),
+        ))
+        .limit(5000),
       db
         .select({ apparatus: competitionResults.apparatus })
         .from(competitionResults)

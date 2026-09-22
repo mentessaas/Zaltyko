@@ -370,6 +370,7 @@ export async function listAcademies(
     );
   }
 
+  // unbounded-read-ok: each branch applies the bounded catalogue limit below.
   const baseQuery = db
     .select({
       id: academies.id,
