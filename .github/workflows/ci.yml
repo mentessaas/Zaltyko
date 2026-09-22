@@ -140,7 +140,7 @@ jobs:
     name: Smoke Tests
     runs-on: ubuntu-latest
     needs: build
-    if: github.event_name == 'push' && github.ref == 'refs/heads/main'
+    if: (github.event_name == 'push' && github.ref == 'refs/heads/main') || github.event_name == 'pull_request'
     steps:
       - uses: actions/checkout@v4
 
@@ -241,7 +241,7 @@ jobs:
     name: E2E Public (no auth)
     runs-on: ubuntu-latest
     needs: smoke-test
-    if: github.event_name == 'push' && github.ref == 'refs/heads/main'
+    if: (github.event_name == 'push' && github.ref == 'refs/heads/main') || github.event_name == 'pull_request'
     steps:
       - uses: actions/checkout@v4
 
@@ -269,7 +269,7 @@ jobs:
     name: E2E Authenticated Flows
     runs-on: ubuntu-latest
     needs: [e2e-public, e2e-readiness]
-    if: github.event_name == 'push' && github.ref == 'refs/heads/main' && needs.e2e-readiness.outputs.enabled == 'true'
+    if: ((github.event_name == 'push' && github.ref == 'refs/heads/main') || github.event_name == 'pull_request') && needs.e2e-readiness.outputs.enabled == 'true'
     steps:
       - uses: actions/checkout@v4
 
