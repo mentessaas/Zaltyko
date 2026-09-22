@@ -191,8 +191,15 @@ jobs:
 
           if [ "$missing" -eq 0 ]; then
             echo "enabled=true" >> "$GITHUB_OUTPUT"
+            echo "### Authenticated E2E readiness: enabled" >> "$GITHUB_STEP_SUMMARY"
           else
             echo "enabled=false" >> "$GITHUB_OUTPUT"
+            echo "::warning::Authenticated E2E is disabled because required Actions secrets are missing"
+            {
+              echo "### Authenticated E2E readiness: disabled"
+              echo "Missing one or more required secrets; authenticated E2E will be skipped."
+              echo "Required names: E2E_AUTH_EMAIL, E2E_AUTH_PASSWORD, E2E_ACADEMY_ID"
+            } >> "$GITHUB_STEP_SUMMARY"
           fi
 
   validate-rls:
