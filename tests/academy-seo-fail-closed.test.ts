@@ -46,6 +46,7 @@ function buildSelectChain<T>(rows: T[]) {
   const chain: Record<string, unknown> = {};
   chain.from = vi.fn(() => chain);
   chain.where = vi.fn(() => chain);
+  chain.limit = vi.fn(() => chain);
   Object.defineProperty(chain, "then", {
     value: (resolve: (value: T[]) => unknown) => Promise.resolve(rows).then(resolve),
     configurable: true,
