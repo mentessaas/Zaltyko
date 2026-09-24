@@ -2,7 +2,10 @@
 
 ## Overview
 
-Zaltyko supports offline access, install prompt, and background sync as a Progressive Web App.
+Zaltyko se puede instalar como Progressive Web App y muestra un estado offline
+claro. Las mutaciones offline y la sincronización en segundo plano están
+deliberadamente desactivadas hasta cerrar la idempotencia, resolución de
+conflictos y aislamiento tenant necesarios para datos de menores y cobros.
 
 ## Key Files
 
@@ -63,14 +66,15 @@ if (installPrompt) {
 }
 ```
 
-### Background Sync
+### Background Sync (pendiente)
 
-When offline, operations are queued in IndexedDB:
+No se encolan escrituras mientras no haya conectividad. El código de la cola se
+mantiene aislado para una futura implementación, pero `queueOperation` falla
+de forma explícita y segura mientras `OFFLINE_MUTATIONS_ENABLED` siga apagado:
 
 ```typescript
 // src/lib/offline/operations-queue.ts
-// Queues: athlete:create, athlete:update, attendance:record, etc.
-// When back online, syncs automatically
+// No se ejecuta en producción todavía: requiere sync idempotente y conflictos.
 ```
 
 ## PWA Configuration
@@ -81,7 +85,7 @@ Configured in `next.config.js` with manifest generation.
 
 | Variable | Description |
 |----------|-------------|
-| `NEXT_PUBLIC_DISABLE_ANALYTICS` | Disable PostHog when offline |
+| `NEXT_PUBLIC_DISABLE_ANALYTICS` | Desactiva PostHog de forma global cuando vale `true` |
 
 ## More Info
 

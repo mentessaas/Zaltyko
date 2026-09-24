@@ -85,10 +85,10 @@ function sqlFiles(): Array<{ path: string; name: string }> {
   return files;
 }
 
-function extractPolicies(filePath: string, fileName: string): SqlPolicy[] {
+export function extractPolicies(filePath: string, fileName: string): SqlPolicy[] {
   const content = readFileSync(filePath, "utf8");
   const policies: SqlPolicy[] = [];
-  const policyRegex = /CREATE\s+POLICY\s+"([^"]+)"\s+ON\s+"?([a-zA-Z0-9_]+)"?/gi;
+  const policyRegex = /CREATE\s+POLICY\s+"([^"]+)"\s+ON\s+(?:"?public"?\s*\.\s*)?"?([a-zA-Z0-9_]+)"?(?=\s|;|$)/gi;
 
   let match;
   while ((match = policyRegex.exec(content)) !== null) {
@@ -103,10 +103,10 @@ function extractPolicies(filePath: string, fileName: string): SqlPolicy[] {
   return policies;
 }
 
-function extractRlsTables(filePath: string): Set<string> {
+export function extractRlsTables(filePath: string): Set<string> {
   const content = readFileSync(filePath, "utf8");
   const tables = new Set<string>();
-  const rlsRegex = /ALTER\s+TABLE\s+"?([a-zA-Z0-9_]+)"?\s+ENABLE\s+ROW\s+LEVEL\s+SECURITY/gi;
+  const rlsRegex = /ALTER\s+TABLE\s+(?:"?public"?\s*\.\s*)?"?([a-zA-Z0-9_]+)"?\s+ENABLE\s+ROW\s+LEVEL\s+SECURITY/gi;
 
   let match;
   while ((match = rlsRegex.exec(content)) !== null) {

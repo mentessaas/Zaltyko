@@ -100,8 +100,11 @@ este doc conserva los flujos técnicos 3.x para soporte fuera del piloto.
   - Envía avisos con Brevo (`billing.invoice_paid`, `billing.invoice_issue`).
   - Registra auditoría en `billing_events`.
 
-### 3.6 Evaluaciones (placeholder)
-- `/app/[academyId]/assessments` mantiene la vista anterior; pendiente integrar con nuevo panel.
+### 3.6 Evaluaciones
+- **Panel operativo**: `/app/[academyId]/assessments` permite seleccionar una gimnasta, registrar una evaluación técnica por aparato y acceder directamente a su progreso e historial.
+- El panel adapta aparatos, niveles y etiquetas a la especialización activa de la academia; una academia sin gimnastas muestra un estado vacío con la siguiente acción.
+- La ruta legacy `/app/[academyId]/evaluations` redirige al panel canónico para no romper marcadores ni enlaces antiguos.
+- Para incidencias, comprobar primero que la gimnasta pertenece a la academia y que el rol tiene permiso de evaluación; después revisar `/api/assessments` y el historial de la gimnasta.
 
 ## 4. Checklist de soporte
 1. **Usuario no puede iniciar sesión**

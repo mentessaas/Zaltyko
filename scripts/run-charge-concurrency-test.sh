@@ -131,6 +131,21 @@ CREATE TABLE public.payment_attempts (
   created_at timestamp with time zone NOT NULL DEFAULT now()
 );
 
+CREATE TABLE public.receipts (
+  id uuid PRIMARY KEY DEFAULT gen_random_uuid(),
+  tenant_id uuid NOT NULL,
+  academy_id uuid NOT NULL REFERENCES academies(id) ON DELETE CASCADE,
+  charge_id uuid REFERENCES charges(id) ON DELETE SET NULL,
+  athlete_id uuid REFERENCES athletes(id) ON DELETE SET NULL,
+  receipt_number text NOT NULL,
+  amount numeric(10,2) NOT NULL,
+  currency text NOT NULL DEFAULT 'EUR',
+  payment_method text, payment_date date, pdf_url text, template_id text,
+  metadata jsonb, created_by uuid,
+  created_at timestamptz NOT NULL DEFAULT now(),
+  updated_at timestamptz NOT NULL DEFAULT now()
+);
+
 CREATE INDEX charges_academy_period_idx ON public.charges (academy_id, period);
 CREATE INDEX charges_academy_status_idx ON public.charges (academy_id, status);
 CREATE INDEX payment_attempts_charge_idx ON public.payment_attempts (charge_id);

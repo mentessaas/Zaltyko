@@ -4,6 +4,8 @@ Audit date: 2026-09-04
 Scope: repository evidence at `cc525884` plus the uncommitted working tree present on the audit date.  
 Method: read-only inspection of schema, migrations, API routes, UI components, authorization, reports, tests, vault, and current official federation sources. No product code, schema, migration, configuration, production data, or credentials were changed.
 
+**Follow-up 2026-09-15:** the legacy class-reminder wrapper now delegates to the canonical attendance-reminder trigger. The trigger resolves group, multi-group and extra class enrollments in tenant scope, respects notification preferences, and deduplicates deliveries; the original TODO reference in the historical matrix is therefore superseded for reminder dispatch. The remaining communication gap is external deliverability verification (provider credentials, bounce handling and a real inbox), not an unimplemented sender.
+
 ## 1. Executive Verdict
 
 **NO**
@@ -110,7 +112,7 @@ with independent joins for `Athlete ↔ Group`, `Coach ↔ Class`, attendance, a
 | Camp for external children | No | Public event pages exist | No external participant/guardian intake and consent workflow | BLOCKER |
 | Attendance | Yes | Session attendance records and coach workflow | Depends on correct roster | HIGH dependency |
 | Evaluation/progress | Yes, with friction | Dated assessments, skill scores, charts | Promotion/level history absent | MEDIUM |
-| Internal messaging | Yes | Conversations, alerts, notifications | Scheduled reminder delivery has TODOs | MEDIUM |
+| Internal messaging | Yes | Conversations, alerts, notifications | External deliverability, bounce handling and real-inbox E2E remain unverified | MEDIUM |
 | Official competition records | Partial | Licenses, competition event types/results | No season, entry/submission lifecycle, team/ensemble model | P2 / not launch blocker |
 
 ## 7. Critical Blockers

@@ -1,40 +1,28 @@
 # Análisis Profundo: Lógica del Onboarding y Planes de Usuario
 
+> **Fuente de verdad (13/09/2026):** los nombres, precios y límites comerciales se leen de `src/lib/plans/catalog.ts`. Este análisis documenta el comportamiento técnico del checkout y del onboarding; cualquier cifra que no coincida con ese catálogo está obsoleta y no debe copiarse a interfaces, emails ni propuestas comerciales.
+
 ## 📋 Resumen Ejecutivo
 
-El sistema de onboarding de Zaltyko SaaS es un wizard de 7 pasos que guía a los usuarios desde la creación de cuenta hasta la configuración completa de su academia. El sistema está integrado con pricing v3.0: Free, Starter, Growth y Network comercial.
+El flujo actual de onboarding separa deliberadamente la cuenta del espacio de trabajo. Primero se crea la identidad del usuario; después, el owner configura la academia en un formulario corto y entra al dashboard; por último, el checklist del dashboard acompaña la activación operativa. El sistema está integrado con los planes Free, Starter, Growth y Network.
 
 ---
 
 ## 🎯 Estructura del Onboarding
 
-### Pasos del Wizard
+### Etapas actuales
 
-El onboarding consta de **7 pasos secuenciales**:
+1. **Cuenta** — registro y autenticación del usuario.
+2. **Espacio de trabajo** — nombre, país, disciplina y tipo de academia; los grupos, programas, clases y ubicación detallada quedan como ajustes opcionales.
+3. **Dashboard** — checklist para crear grupo, añadir atletas, calendario, entrenador, cobros y primera comunicación.
+4. **Activación operativa** — métrica de producto basada en datos: al menos una clase, una gimnasta y una asistencia dentro de los primeros siete días.
 
-1. **Cuenta** - Creación de usuario y autenticación
-2. **Academia** - Creación de la academia con ubicación y tipo
-3. **Estructura** - Definición de disciplinas y grupos sugeridos (opcional)
-4. **Primer grupo** - Creación del primer grupo de entrenamiento
-5. **Atletas** - Agregar primeros atletas
-6. **Entrenadores** - Invitar entrenadores (opcional)
-7. **Pagos** - Configuración de Stripe para pagos (opcional)
-
-### Flujo de Navegación
-
-```typescript
-// Control de pasos accesibles
-const [maxStep, setMaxStep] = useState<StepKey>(1);
-
-// Los usuarios solo pueden avanzar hasta maxStep
-// No pueden saltar pasos futuros hasta completarlos
-```
-
-**Características clave:**
-- ✅ Los usuarios pueden retroceder a pasos anteriores
-- ✅ No pueden avanzar más allá de `maxStep`
-- ✅ El estado se persiste en `localStorage` y en la base de datos
-- ✅ Si un usuario autenticado entra, salta automáticamente al paso 2
+**Características verificadas:**
+- ✅ La cuenta no se presenta como si ya hubiera creado una academia.
+- ✅ El formulario guarda un borrador local no sensible para recuperarse de interrupciones.
+- ✅ La configuración avanzada está colapsada por defecto y puede completarse después.
+- ✅ Los hitos `first_class_created`, `first_athlete_added`, `first_attendance_recorded` y `academy_activated` usan claves idempotentes.
+- ⚠️ La métrica está instrumentada, pero todavía necesita cohortes reales para validar conversión y tiempo a valor.
 
 ---
 
@@ -44,9 +32,9 @@ const [maxStep, setMaxStep] = useState<StepKey>(1);
 
 | Plan | Precio | Límites |
 |------|--------|---------|
-| **Free** | €0/mes | • 1 academia<br>• 30 gimnastas<br>• 2 grupos<br>• 5 clases |
-| **Starter** (`pro`) | €19/mes | • 1 academia<br>• 75 gimnastas<br>• 10 grupos<br>• 40 clases |
-| **Growth** (`premium`) | €49/mes | • 1 academia<br>• 200 gimnastas<br>• 20 grupos<br>• 80 clases |
+| **Free** | €0/mes | • 1 academia<br>• 30 gimnastas<br>• 3 grupos<br>• 10 clases |
+| **Starter** (`pro`) | €19/mes | • 1 academia<br>• 75 gimnastas<br>• 5 grupos<br>• 20 clases |
+| **Growth** (`premium`) | €49/mes | • 1 academia<br>• 200 gimnastas<br>• 10 grupos<br>• 40 clases |
 | **Network** | €99/mes | • Multi-sede acompanado<br>• Limites operativos amplios<br>• CTA comercial sin checkout autoservicio |
 
 ### Límites por Recurso
@@ -61,15 +49,15 @@ const ACADEMY_LIMITS: Record<PlanCode, number | null> = {
 };
 
 const CLASS_LIMITS: Record<PlanCode, number | null> = {
-  free: 5,
-  pro: 40,
-  premium: 80
+  free: 10,
+  pro: 20,
+  premium: 40
 };
 
 const GROUP_LIMITS: Record<PlanCode, number | null> = {
-  free: 2,
-  pro: 10,
-  premium: 20
+  free: 3,
+  pro: 5,
+  premium: 10
 };
 
 // Los límites de atletas vienen de la tabla `plans` en la BD
@@ -80,100 +68,38 @@ const GROUP_LIMITS: Record<PlanCode, number | null> = {
 
 ## 🔄 Integración Onboarding ↔ Planes
 
-### 1. Creación de Academia (Paso 2)
+### 1. Creación del espacio de trabajo
 
-**Endpoint:** `POST /api/academies`
+**Endpoint principal:** `POST /api/onboarding/owner`.
 
-**Validación de límites:**
-```typescript
-// En handleCreateAcademy (onboarding/page.tsx:458)
-try {
-  await assertUserAcademyLimit(ownerProfile.userId);
-} catch (error) {
-  if (error.code === "ACADEMY_LIMIT_REACHED") {
-    // Error 402 con mensaje de upgrade
-    throw new Error(
-      `Has alcanzado el límite de academias de tu plan actual. 
-       Actualiza a ${upgradeTo} para crear más academias.`
-    );
-  }
-}
-```
+**Comportamiento verificado:**
+- ✅ La cuenta autenticada y la academia se crean en pasos explícitos.
+- ✅ La suscripción Free se asegura si el usuario todavía no tiene una.
+- ✅ El límite de academias se comprueba antes de crear otra; Network se ofrece como conversación comercial para multi-sede.
+- ✅ La configuración avanzada (ubicación detallada, grupos, programas y clases) está colapsada por defecto y puede completarse después desde el dashboard.
 
-**Comportamiento:**
-- ✅ Usuarios nuevos reciben automáticamente el plan **Free**
-- ✅ Se crea una suscripción automática al plan Free si no existe
-- ✅ Si el usuario ya tiene 1 academia (límite Free), se bloquea la creación
-- ✅ El error incluye sugerencia de hablar con Zaltyko para Network si necesita varias sedes
-
-**Código relevante:**
-```typescript
-// src/app/api/academies/route.ts:150-172
-// Crear o asegurar suscripción Free si no existe
-if (!existingSubscription) {
-  const [freePlan] = await db
-    .select({ id: plans.id })
-    .from(plans)
-    .where(eq(plans.code, "free"))
-    .limit(1);
-
-  await db.insert(subscriptions).values({
-    userId: ownerProfile.userId,
-    planId: freePlan?.id ?? null,
-    status: "active",
-  });
-}
-```
-
-### 2. Creación de Atletas (Paso 5)
+### 2. Creación de Atletas
 
 **Endpoint:** `POST /api/athletes`
 
-**Validación de límites:**
-```typescript
-// En handleCreateAthletes (onboarding/page.tsx:673)
-for (const athlete of payload) {
-  const response = await fetch("/api/athletes", { ... });
-  
-  if (response.status === 402 && data.error === "LIMIT_REACHED") {
-    limitError = {
-      message: "Has alcanzado el límite de atletas de tu plan.",
-      upgradeTo: data.details?.upgradeTo
-    };
-    break; // Detener creación de más atletas
-  }
-}
-```
-
-**Comportamiento:**
-- ✅ Se valida el límite **antes** de crear cada atleta
-- ✅ Si se alcanza el límite, se detiene la creación pero **no se bloquea el paso**
-- ✅ Se muestra un mensaje informativo con los atletas creados parcialmente
-- ✅ El usuario puede continuar al siguiente paso aunque haya límite
-
-**Manejo de errores parciales:**
-```typescript
-// Si se crearon algunos atletas pero se alcanzó el límite
-if (limitError && createdCount > 0) {
-  setError(
-    `${limitError.message} Se crearon ${createdCount} de ${payload.length} atletas. 
-     Puedes actualizar tu plan más adelante desde facturación.`
-  );
-  // Continuar al siguiente paso
-  setStep(5);
-  setMaxStep((prev) => (prev < 5 ? 5 : prev));
-}
-```
+**Comportamiento verificado:**
+- ✅ `POST /api/athletes` valida el límite antes de insertar y mantiene el alcance por academia/tenant.
+- ✅ Una importación puede terminar parcialmente: los registros válidos se conservan y el usuario recibe el conteo creado y la opción de upgrade.
+- ✅ La importación CSV dispone de preview, hash del archivo y rollback explícito por lote.
 
 ### 3. Creación de Grupos y Clases
 
 **Grupos:** Validados en `POST /api/groups`
 **Clases:** Validadas en `POST /api/classes`
 
-**Comportamiento:**
-- ✅ Los límites se validan en tiempo real
-- ✅ Si se alcanza el límite, se retorna error 402
-- ✅ El usuario debe actualizar su plan para continuar
+**Comportamiento verificado:**
+- ✅ Los límites se validan en tiempo real y también dentro de la transacción para grupos y clases.
+- ✅ Si se alcanza el límite, se retorna `402` con un CTA de upgrade que conserva el `academyId`.
+- ✅ El usuario puede continuar configurando la academia y volver a facturación sin perder el contexto de su sede.
+
+### 4. Activación medible
+
+La métrica norte no depende de marcar pasos manualmente: una academia cuenta como activada si, dentro de sus primeros siete días, tiene al menos una clase no eliminada, una gimnasta no eliminada y una asistencia vinculada a una sesión válida. Los hitos se registran una sola vez mediante claves idempotentes; falta validar cohortes reales antes de fijar objetivos comerciales.
 
 ---
 
@@ -181,20 +107,18 @@ if (limitError && createdCount > 0) {
 
 ### 1. Estado Local (localStorage)
 
-**Clave:** `gymna_onboarding_state`
+**Clave:** `zaltyko:owner-onboarding-draft:v1`
 
 **Datos guardados:**
 ```typescript
 {
-  step: StepKey,
-  academyId: string | null,
-  tenantId: string | null,
-  academyType: string,
-  selectedCountry: string,
-  selectedRegion: string,
-  selectedCity: string,
-  fullName: string,
-  email: string
+  academyName: string,
+  countryCode: string,
+  region: string,
+  city: string,
+  academyKind: string,
+  disciplineVariant: string,
+  fullName: string
 }
 ```
 
@@ -213,13 +137,10 @@ if (limitError && createdCount > 0) {
   academyId: UUID,
   tenantId: UUID,
   ownerProfileId: UUID,
-  currentStep: number,        // Paso actual del wizard
-  completedWizard: boolean,   // Si completó todos los pasos
-  steps: {                    // Flags de pasos completados
-    account?: boolean,
-    academy?: boolean,
-    structure?: boolean,
-    // ...
+  currentStep: number,        // Índice de WIZARD_STEPS
+  completedWizard: boolean,
+  steps: {                    // academy, athletes, payments-team, brand, activation
+    [key: string]: boolean | undefined,
   },
   notes: string,
   lastCompletedAt: timestamp,
@@ -229,11 +150,11 @@ if (limitError && createdCount > 0) {
 
 **Sincronización:**
 ```typescript
-// Al completar cada paso, se marca en el servidor
+// Al completar una etapa, se marca en el servidor
 await markWizardStep({
   academyId,
   tenantId,
-  step: "academy" // o "structure", "athletes", etc.
+  step: "academy" // también: athletes, payments-team, brand, activation
 });
 
 // Al cargar, se consulta el estado del servidor
@@ -248,20 +169,20 @@ const serverStep = data?.state?.currentStep ?? 0;
 
 ### Manejo de Límites en el Onboarding
 
-**Filosofía:** "No bloquear, informar"
+**Filosofía:** "No bloquear la puesta en marcha, informar con precisión"
 
 1. **Academias:**
    - ❌ **Bloquea** la creación si se alcanza el límite
-   - ✅ Muestra mensaje claro con opción de upgrade
+   - ✅ Muestra mensaje claro con opción de upgrade o conversación Network
 
 2. **Atletas:**
-   - ✅ **Permite** crear parcialmente
-   - ✅ Informa cuántos se crearon vs cuántos se intentaron
-   - ✅ Permite continuar al siguiente paso
+   - ✅ **Permite** crear parcialmente cuando una importación llega al límite
+   - ✅ Informa cuántos se crearon frente a cuántos se intentaron
+   - ✅ Permite corregir, reintentar o hacer rollback del lote sin perder los registros válidos
 
 3. **Grupos/Clases:**
    - ❌ **Bloquea** si se alcanza el límite
-   - ✅ Muestra mensaje con opción de upgrade
+   - ✅ Muestra mensaje con opción de upgrade y mantiene el contexto de la academia
 
 ### Mensajes de Error
 
@@ -280,41 +201,17 @@ ${upgradeTo ? `Actualiza a ${upgradeTo.toUpperCase()} para [ACCION].` :
 
 ## 🔐 Seguridad y Validaciones
 
-### Validaciones por Paso
+### Validaciones actuales
 
-**Paso 1 (Cuenta):**
-- ✅ Email válido
-- ✅ Contraseña mínimo 6 caracteres
-- ✅ Confirmación de contraseña coincide
+**Cuenta:** Supabase valida email, contraseña y sesión; el formulario de owner solo se muestra a un usuario autenticado.
 
-**Paso 2 (Academia):**
-- ✅ Nombre mínimo 3 caracteres
-- ✅ País seleccionado
-- ✅ Región válida para el país
-- ✅ Ciudad válida para la región
-- ✅ Tipo de academia seleccionado
-- ✅ **Límite de academias del plan**
+**Espacio de trabajo:** nombre, país, disciplina y tipo se validan server-side; la academia se comprueba contra el tenant y el límite de academias antes de insertar.
 
-**Paso 3 (Estructura):**
-- ✅ Al menos una disciplina seleccionada
-- ✅ Al menos un grupo con nombre válido
-- ⚠️ **Opcional** - puede saltarse
+**Configuración avanzada:** programas, aparatos, grupos base y clases se normalizan y validan por rama deportiva. La sección es opcional y está colapsada por defecto.
 
-**Paso 4 (Primer Grupo):**
-- ✅ Nombre del grupo requerido
-- ✅ Hora de inicio y fin válidas
-- ✅ **Límite de grupos del plan** (implícito)
+**Operación posterior:** atletas, grupos, clases, asistencia, invitaciones y pagos pasan por autorización de academia, límites del plan y validaciones específicas del recurso. La importación de atletas añade preview, hash, lote y rollback explícito.
 
-**Paso 5 (Atletas):**
-- ✅ Al menos un atleta con nombre
-- ✅ **Límite de atletas del plan** (validado por atleta)
-
-**Paso 6 (Entrenadores):**
-- ✅ Emails válidos (si se proporcionan)
-- ⚠️ **Opcional** - puede saltarse
-
-**Paso 7 (Pagos):**
-- ⚠️ **Opcional** - puede saltarse
+**Pendiente de verificación externa:** pruebas E2E con cuentas de cada rol, recuperación de pagos Stripe, entrega real de email/WhatsApp/push y revisión jurídica formal de datos de menores, retención y borrado.
 
 ---
 
@@ -323,40 +220,21 @@ ${upgradeTo ? `Actualiza a ${upgradeTo.toUpperCase()} para [ACCION].` :
 ### Escenario 1: Usuario Nuevo (Plan Free)
 
 ```
-1. Usuario crea cuenta → Paso 1 completado
-   └─> Se crea perfil automáticamente
-   └─> Se asigna plan Free automáticamente
+1. Usuario crea cuenta
+   └─> Se crea el perfil y se asigna Free si no existe suscripción
 
-2. Usuario crea academia → Paso 2 completado
-   └─> Valida límite: ¿Tiene 0 academias? ✅
-   └─> Crea academia exitosamente
-   └─> Crea suscripción Free si no existe
-   └─> Marca paso "academy" en onboarding_states
+2. Usuario completa el espacio de trabajo
+   └─> Nombre, país, disciplina y tipo
+   └─> Opcional: grupos, programas, clases y ubicación detallada
+   └─> Entra al dashboard sin confundir cuenta con academia
 
-3. Usuario define estructura → Paso 3 completado
-   └─> Guarda disciplinas y grupos sugeridos
-   └─> Marca paso "structure"
+3. Usuario sigue el checklist del dashboard
+   └─> Crea grupo, añade atletas, configura calendario e invita equipo
+   └─> Activa cobros y envía la primera comunicación cuando esté listo
 
-4. Usuario crea primer grupo → Paso 4 completado
-   └─> Valida límite: ¿Tiene < 3 grupos? ✅
-   └─> Crea grupo y clase asociada
-   └─> Marca paso "first_group"
-
-5. Usuario agrega atletas → Paso 5 completado
-   └─> Intenta crear 5 atletas
-   └─> Valida límite por cada atleta
-   └─> Si alcanza límite (50), crea parcialmente
-   └─> Muestra mensaje informativo
-   └─> Marca paso "athletes"
-
-6. Usuario invita entrenadores → Paso 6 completado
-   └─> Envía invitaciones por email
-   └─> Marca paso "coaches"
-
-7. Usuario configura pagos → Paso 7 completado
-   └─> Conecta con Stripe (opcional)
-   └─> Redirige a dashboard
-   └─> Marca wizard como completado
+4. Usuario registra una asistencia
+   └─> Si ya existe clase y atleta dentro de los primeros 7 días,
+       se registra `academy_activated` una sola vez
 ```
 
 ### Escenario 2: Usuario Free Intenta Segunda Academia
@@ -377,19 +255,10 @@ ${upgradeTo ? `Actualiza a ${upgradeTo.toUpperCase()} para [ACCION].` :
 ```
 1. Usuario tiene 28 gimnastas (2 disponibles en Free)
 
-2. Intenta agregar 5 gimnastas en onboarding → ⚠️ PARCIAL
-   └─> Gimnasta 1: ✅ Creada (29 total)
-   └─> Gimnasta 2: ✅ Creada (30 total - LÍMITE ALCANZADO)
-   └─> Gimnasta 3: ❌ Error LIMIT_REACHED
-   └─> Gimnasta 4: ❌ No se intenta (loop detenido)
-   └─> Gimnasta 5: ❌ No se intenta (loop detenido)
-   
-   └─> Mensaje mostrado:
-       "Has alcanzado el límite de gimnastas de tu plan. 
-        Se crearon 2 de 5 gimnastas. 
-        Puedes actualizar tu plan más adelante desde facturación."
-   
-   └─> Usuario puede continuar al siguiente paso
+2. Intenta importar 5 gimnastas → ⚠️ PARCIAL
+   └─> Se crean las filas permitidas hasta 30
+   └─> El lote conserva preview/hash y muestra el resultado parcial
+   └─> El usuario puede corregir, actualizar el plan o hacer rollback
 ```
 
 ---
@@ -398,25 +267,9 @@ ${upgradeTo ? `Actualiza a ${upgradeTo.toUpperCase()} para [ACCION].` :
 
 ### 1. Asignación Automática de Plan Free
 
-**Cuándo:** Al crear la primera academia
-**Dónde:** `src/app/api/academies/route.ts:150-172`
+**Cuándo:** al crear la primera academia desde `POST /api/onboarding/owner`.
 
-```typescript
-// Si no existe suscripción, crear una con plan Free
-if (!existingSubscription) {
-  const [freePlan] = await db
-    .select({ id: plans.id })
-    .from(plans)
-    .where(eq(plans.code, "free"))
-    .limit(1);
-
-  await db.insert(subscriptions).values({
-    userId: ownerProfile.userId,
-    planId: freePlan?.id ?? null,
-    status: "active",
-  });
-}
-```
+La ruta asegura una suscripción Free dentro del flujo de creación y devuelve la URL del workspace recién creado. La emisión de eventos de producto se realiza después del commit para no contar academias que luego hayan hecho rollback.
 
 ### 2. Validación de Límites en Tiempo Real
 
@@ -430,10 +283,7 @@ export async function assertWithinPlanLimits(
   resource: LimitResource // "athletes" | "classes" | "groups" | "academies"
 ) {
   const subscription = await getActiveSubscription(academyId);
-  
-  // Contar recursos actuales
-  // Comparar con límite del plan
-  // Lanzar error 402 si se excede
+  // Cuenta recursos por tenant/academia y lanza LimitError (402) si excede.
 }
 ```
 
@@ -443,28 +293,11 @@ export async function assertWithinPlanLimits(
 **Razón:** Mejor UX - permite progreso parcial
 
 ```typescript
-// En handleCreateAthletes
-let createdCount = 0;
-let limitError: { message: string; upgradeTo?: string } | null = null;
-
-for (const athlete of payload) {
-  try {
-    // Intentar crear
-    if (response.status === 402) {
-      limitError = { ... };
-      break; // Detener pero no fallar completamente
-    }
-    createdCount++;
-  } catch (err) {
-    if (limitError) break;
-    throw err;
-  }
-}
-
-// Continuar aunque haya límite parcial
-if (createdCount > 0) {
-  setStep(5); // Avanzar al siguiente paso
-}
+// La importación se confirma por lote y puede hacer rollback explícito.
+// Las creaciones individuales siguen devolviendo el límite de forma clara.
+const preview = await fetch("/api/athletes/import", { method: "POST" });
+// confirmar: POST /api/athletes/import con batchId + hash
+// rollback: POST /api/athletes/import/:batchId/rollback
 ```
 
 ### 4. Sincronización Estado Cliente-Servidor
@@ -473,12 +306,10 @@ if (createdCount > 0) {
 **Servidor:** `onboarding_states` para persistencia permanente
 
 ```typescript
-// Cliente guarda en localStorage
-useEffect(() => {
-  window.localStorage.setItem(STORAGE_KEY, JSON.stringify({
-    step, academyId, tenantId, ...
-  }));
-}, [step, academyId, ...]);
+// El formulario de owner guarda solo un borrador no sensible.
+window.localStorage.setItem("zaltyko:owner-onboarding-draft:v1", JSON.stringify({
+  fullName, academyName, countryCode, region, city, academyKind, disciplineVariant,
+}));
 
 // Servidor marca pasos completados
 await markWizardStep({
@@ -548,7 +379,9 @@ if (canCreateMore.remaining === 0) {
 
 | Archivo | Propósito |
 |---------|-----------|
-| `src/app/onboarding/page.tsx` | Componente principal del wizard |
+| `src/app/onboarding/owner/page.tsx` | Entrada del onboarding del owner |
+| `src/components/onboarding/OwnerOnboardingForm.tsx` | Formulario de espacio de trabajo y configuración avanzada |
+| `src/components/dashboard/OnboardingChecklist.tsx` | Checklist operativo posterior a la creación |
 | `src/lib/limits.ts` | Lógica de validación de límites |
 | `src/app/api/academies/route.ts` | Endpoint creación academia |
 | `src/app/api/athletes/route.ts` | Endpoint creación atletas |

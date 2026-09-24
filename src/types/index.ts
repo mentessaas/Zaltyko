@@ -137,8 +137,19 @@ export interface Registration {
   updatedAt: string;
 }
 
-// Tipo de evaluación
-export type AssessmentType = "technical" | "artistic" | "physical" | "behavioral" | "overall";
+// Tipo de evaluación. Mantiene los valores históricos de la UI y los valores
+// canónicos del catálogo deportivo/DB para que ningún registro válido pierda
+// su etiqueta al cambiar de módulo.
+export type AssessmentType =
+  | "technical"
+  | "artistic"
+  | "execution"
+  | "coach_feedback"
+  | "competition"
+  | "practice"
+  | "physical"
+  | "behavioral"
+  | "overall";
 
 // Rúbrica de evaluación
 export interface AssessmentRubric {
@@ -169,6 +180,7 @@ export interface AssessmentWithScores {
   assessmentType: AssessmentType;
   apparatus: string | null;
   overallComment: string | null;
+  visibleToGuardians?: boolean;
   assessedByName: string | null;
   scores: AssessmentScore[];
   videos: AssessmentVideo[];

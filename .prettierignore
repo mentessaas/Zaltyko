@@ -1,0 +1,13 @@
+# Build and runtime artifacts are not source code and may contain binary packs
+.next/
+.next-stale-*/
+output/
+coverage/
+test-results/
+playwright-report*/
+.vercel/
+node_modules/
+
+# Generated reports and local caches
+docs/audit/evidence/gates/
+supabase/.temp/

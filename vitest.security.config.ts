@@ -13,7 +13,9 @@ export default defineConfig({
     environment: "node",
     globals: true,
     setupFiles: ["./tests/setup.ts"],
-    maxWorkers: 2,
+    // Las suites API usan mocks con estado por módulo; un solo worker evita
+    // carreras entre fixtures y mantiene el resultado reproducible.
+    maxWorkers: 1,
     include: ["tests/**/*.test.ts", "tests/**/*.test.tsx"],
     exclude: ["node_modules", ".next", "coverage"],
   },

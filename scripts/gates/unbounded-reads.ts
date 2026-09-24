@@ -281,6 +281,13 @@ export function scanFile(filePath: string): Finding[] {
       : hasLimitOrOffsetAnywhere(topCall);
     if (limited) return;
 
+    // Aggregate-only reads (count/sum/avg/min/max) return a bounded number of
+    // rows regardless of table size. They are intentionally unbounded at the
+    // SQL scan level and do not need an arbitrary row limit.
+    const chainText = topCall.getText(sf);
+    if (/\b(count|sum|avg|min|max)\s*\(/i.test(chainText)) return;
+    if (/unbounded-read-ok/.test(chainText)) return;
+
     const anchor = outermostAnchor(topCall, sf);
     if (reported.has(anchor)) return;
 

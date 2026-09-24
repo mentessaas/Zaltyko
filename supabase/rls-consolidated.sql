@@ -120,6 +120,7 @@ ALTER TABLE memberships ENABLE ROW LEVEL SECURITY;
 ALTER TABLE subscriptions ENABLE ROW LEVEL SECURITY;
 ALTER TABLE plans ENABLE ROW LEVEL SECURITY;
 ALTER TABLE athletes ENABLE ROW LEVEL SECURITY;
+ALTER TABLE athlete_import_batches ENABLE ROW LEVEL SECURITY;
 ALTER TABLE coaches ENABLE ROW LEVEL SECURITY;
 ALTER TABLE classes ENABLE ROW LEVEL SECURITY;
 ALTER TABLE class_sessions ENABLE ROW LEVEL SECURITY;
@@ -147,6 +148,8 @@ ALTER TABLE billing_invoices ENABLE ROW LEVEL SECURITY;
 ALTER TABLE billing_events ENABLE ROW LEVEL SECURITY;
 ALTER TABLE groups ENABLE ROW LEVEL SECURITY;
 ALTER TABLE group_athletes ENABLE ROW LEVEL SECURITY;
+ALTER TABLE athlete_skills ENABLE ROW LEVEL SECURITY;
+ALTER TABLE lead_interactions ENABLE ROW LEVEL SECURITY;
 ALTER TABLE onboarding_states ENABLE ROW LEVEL SECURITY;
 ALTER TABLE onboarding_checklist_items ENABLE ROW LEVEL SECURITY;
 ALTER TABLE user_preferences ENABLE ROW LEVEL SECURITY;
@@ -323,6 +326,21 @@ CREATE POLICY "athletes_modify" ON athletes
     is_admin() OR tenant_id = get_current_tenant()
   );
 
+-- ATHLETE IMPORT BATCHES
+DROP POLICY IF EXISTS "athlete_import_batches_select" ON athlete_import_batches;
+CREATE POLICY "athlete_import_batches_select" ON athlete_import_batches
+  FOR SELECT USING (
+    is_admin() OR tenant_id = get_current_tenant()
+  );
+
+DROP POLICY IF EXISTS "athlete_import_batches_modify" ON athlete_import_batches;
+CREATE POLICY "athlete_import_batches_modify" ON athlete_import_batches
+  FOR ALL USING (
+    is_admin() OR tenant_id = get_current_tenant()
+  ) WITH CHECK (
+    is_admin() OR tenant_id = get_current_tenant()
+  );
+
 -- COACHES
 DROP POLICY IF EXISTS "coaches_select" ON coaches;
 CREATE POLICY "coaches_select" ON coaches
@@ -427,6 +445,24 @@ CREATE POLICY "athlete_assessments_modify" ON athlete_assessments
   ) WITH CHECK (
     is_admin() OR tenant_id = get_current_tenant()
   );
+
+-- ASSESSMENT SCORES
+-- ATHLETE SKILL OBSERVATIONS
+DROP POLICY IF EXISTS "athlete_skills_select" ON athlete_skills;
+CREATE POLICY "athlete_skills_select" ON athlete_skills
+  FOR SELECT USING (
+    is_admin() OR tenant_id = get_current_tenant()
+  );
+
+DROP POLICY IF EXISTS "athlete_skills_modify" ON athlete_skills;
+CREATE POLICY "athlete_skills_modify" ON athlete_skills
+  FOR ALL USING (
+    is_admin() OR tenant_id = get_current_tenant()
+  ) WITH CHECK (
+    is_admin() OR tenant_id = get_current_tenant()
+  );
+
+-- LEAD INTERACTIONS intentionally has no public policy: it is backend-only.
 
 -- ASSESSMENT SCORES
 DROP POLICY IF EXISTS "assessment_scores_select" ON assessment_scores;

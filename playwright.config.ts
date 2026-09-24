@@ -5,6 +5,9 @@ const isCI = Boolean(process.env.CI);
 
 export default defineConfig({
   testDir: "./tests",
+  // Playwright suites use .spec.ts; Vitest contracts use .test.ts and must
+  // never be loaded by the Playwright collector.
+  testMatch: "**/*.spec.ts",
   testIgnore: [
     ".claude/**",
     ".worktrees/**",

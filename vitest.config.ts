@@ -36,25 +36,13 @@ export default defineConfig({
           setupFiles: ["./tests/setup.ts"],
           include: ["tests/**/*.test.ts", "tests/**/*.test.tsx"],
           // Las suites Web no deben descubrir las pruebas del proyecto Mobile.
-          // Las siguientes suites están rotas desde antes de este branch (también
-          // rotas en origin/main) — no las introduce el branch. Se excluyen
-          // temporalmente del gate de CI para no bloquear la promoción del
-          // branch. Se programará trabajo separado para arreglar cada suite.
-          // Ver `vault/06-Roadmap-y-Tareas/Pre-existing test failures 2026-09-06.md`.
+          // Todas las suites web forman parte del gate principal. Las pruebas
+          // del proyecto Mobile se ejecutan en su propio proyecto Vitest.
           exclude: [
             "node_modules",
             ".next",
             "coverage",
             "mobile/**",
-            "tests/qa/zal-565/**",
-            "tests/lib/stripe-refund-service.test.ts",
-            "tests/lib/stripe-charge-collection.integration.test.ts",
-            "tests/quick-actions-modal-contract.test.tsx",
-            "tests/api-academy-settings-sport-config.test.ts",
-            "tests/api-athletes.test.ts",
-            "tests/product-roles-navigation.test.ts",
-            "tests/api/cron-class-reminders.test.ts",
-            "tests/audit/public-claims.catalog.test.ts",
           ],
         },
       },

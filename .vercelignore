@@ -1,6 +1,7 @@
 node_modules
 .vercel
 .next
+.next-stale-*
 .auth
 .env
 .env.*
@@ -17,13 +18,17 @@ smoke-test.ts
 src/app/agents
 ZaltykoMobile
 mobile
+mobile
 zaltyko-branding
 .playwright-mcp
 .worktrees
+.worktrees/
 waitlist
 waitlist.tar.gz
 waitlist.zip
 test-results
+output
+playwright-report*
 *.md
 tsconfig.tsbuildinfo
 drizzle.config.ts

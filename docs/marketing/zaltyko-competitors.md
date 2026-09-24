@@ -364,7 +364,7 @@ El éxito de Zaltyko dependerá de su capacidad para ejecutar consistentemente e
 2. **Online Class Registration optimizado**: el flujo de "elige clase → elige horario → paga → recibe confirmación" tiene que ser 3 pasos máximo.
 3. **Parent portal detallado**: dashboard para padres con historial de pagos, próximas clases, progreso de la hija. Referencia para `ParentExperience`.
 
-**Posicionamiento vs Zaltyko:** Jackrabbit es el competidor con mejor pricing accesible. Zaltyko debe undercut en mercado hispanohablante con un Starter de €19-29/mes para ganar mercado LATAM en academias pequeñas.
+**Posicionamiento vs Zaltyko:** Jackrabbit es el competidor con mejor pricing accesible. Zaltyko se posiciona en el mercado hispanohablante con un Starter de **19 €/mes** (hasta 75 gimnastas), un precio único para España y LATAM definido en `src/lib/plans/catalog.ts`. No usar el rango histórico de 19–29 € en copy o contratos.
 
 ---
 

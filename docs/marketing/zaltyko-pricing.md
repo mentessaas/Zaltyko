@@ -20,6 +20,21 @@
 >
 > Este documento se conserva como referencia histórica de la discusión de buyer personas y buyer journey que llevó a la decisión v3.0. NO usar para tomar decisiones de pricing actuales.
 
+## Catálogo vigente (14/09/2026)
+
+Esta es la única tabla válida para producto, marketing, soporte y Stripe. La implementación se mantiene en [`src/lib/plans/catalog.ts`](../../src/lib/plans/catalog.ts).
+
+| Plan público | Código interno | Gimnastas | Grupos | Clases activas | Academias | Precio mensual |
+|-------------|----------------|-----------|--------|----------------|-----------|----------------|
+| Free | `free` | 30 | 3 | 10 | 1 | Incluido |
+| Starter | `pro` | 75 | 5 | 20 | 1 | 19 € |
+| Growth | `premium` | 200 | 10 | 40 | 1 | 49 € |
+| Network | `network` | Ilimitadas | Ilimitados | Ilimitadas | Ilimitadas | 99 € · venta asistida |
+
+La prueba actual es de **7 días de Starter sin tarjeta**, con una activación por academia cada 12 meses y sin cargo automático. La página pública ofrece facturación mensual sin permanencia; no hay precios anuales publicados en la superficie vigente.
+
+> Todo lo que aparece después de esta sección es la propuesta histórica que originó el documento. Conservamos sus buyer personas y razonamientos para contexto, pero sus nombres de planes, límites, precios, trial, descuentos y features **no representan el producto actual**.
+
 ---
 
 **Fecha:** 2026-03-17
@@ -79,7 +94,7 @@ El modelo híbrido seleccionado balancea simplicidad con escalabilidad realista.
 
 ---
 
-## 3. Estructura de Tiers
+## 3. Estructura de Tiers (histórica, no vigente)
 
 ### 3.1 Visión General de Planes
 
@@ -193,7 +208,7 @@ El modelo híbrido seleccionado balancea simplicidad con escalabilidad realista.
 
 ---
 
-## 4. Matriz de Features por Tier
+## 4. Matriz de Features por Tier (histórica, no vigente)
 
 | Feature | Starter | Professional | Business | Enterprise |
 |---------|---------|--------------|----------|------------|
@@ -217,7 +232,7 @@ El modelo híbrido seleccionado balancea simplicidad con escalabilidad realista.
 
 ---
 
-## 5. Estrategia de Trial
+## 5. Estrategia de Trial (histórica, no vigente)
 
 ### 5.1 Free Trial de 14 Días
 
@@ -254,7 +269,7 @@ El modelo híbrido seleccionado balancea simplicidad con escalabilidad realista.
 
 ---
 
-## 6. Incentivos para Pago Anual
+## 6. Incentivos para Pago Anual (histórica, no vigente)
 
 ### 6.1 Descuento por Anual
 
@@ -278,7 +293,7 @@ Para cadenas grandes, negociar descuentos personalizados basados en:
 
 ---
 
-## 7. Upsells y Cross-sells
+## 7. Upsells y Cross-sells (histórica, no vigente)
 
 ### 7.1 Upsells Naturales
 
@@ -302,7 +317,7 @@ Para cadenas grandes, negociar descuentos personalizados basados en:
 
 ---
 
-## 8. Consideraciones de Implementación
+## 8. Consideraciones de Implementación (histórica, no vigente)
 
 ### 8.1 Pricing en Moneda Local
 
@@ -331,7 +346,7 @@ Iniciar con precios en euros (EUR) para el mercado español. Considerar:
 
 ---
 
-## 9. Próximos Pasos
+## 9. Próximos Pasos (histórica, no vigente)
 
 1. **Validar con clientes existentes:** Testar percepción de valor con 5-10 usuarios actuales.
 2. **Ajustar precios:** Si el mercado responde muy sensible, considerar reducir 10-15%.
