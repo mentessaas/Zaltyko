@@ -1,4 +1,4 @@
-// Lock biométrico para la app. MVP: si el usuario ha habilitado el
+// Lock biométrico para la app. Si el usuario lo ha habilitado, el
 // flag (default true), al volver del background tras >30s pide Face ID
 // o huella antes de mostrar contenido.
 //

@@ -2,6 +2,7 @@ import { index, pgTable, text, timestamp, uniqueIndex, uuid } from "drizzle-orm/
 import { sql } from "drizzle-orm";
 
 import { academies } from "./academies";
+import { leads } from "./leads";
 import { profiles } from "./profiles";
 
 export const academyTrials = pgTable(
@@ -12,6 +13,9 @@ export const academyTrials = pgTable(
     academyId: uuid("academy_id")
       .notNull()
       .references(() => academies.id, { onDelete: "cascade" }),
+    // Nullable during the additive pipeline migration: self-serve trials and
+    // historical rows may not have originated from a captured lead.
+    leadId: uuid("lead_id").references(() => leads.id, { onDelete: "set null" }),
     status: text("status").notNull().default("active"),
     grantedPlanCode: text("granted_plan_code").notNull().default("pro"),
     source: text("source").notNull().default("self_serve"),
@@ -30,6 +34,7 @@ export const academyTrials = pgTable(
       table.academyId,
       table.startedAt
     ),
+    leadIdx: index("academy_trials_lead_idx").on(table.leadId),
     tenantStatusIdx: index("academy_trials_tenant_status_idx").on(table.tenantId, table.status),
     activeAcademyUnique: uniqueIndex("academy_trials_active_academy_unique").on(
       table.academyId,

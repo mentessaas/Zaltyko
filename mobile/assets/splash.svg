@@ -1,0 +1,27 @@
+<svg width="1284" height="2778" viewBox="0 0 1284 2778" fill="none" xmlns="http://www.w3.org/2000/svg" role="img" aria-label="Zaltyko">
+  <defs>
+    <radialGradient id="zaltyko-splash-glow" cx="0" cy="0" r="1" gradientUnits="userSpaceOnUse" gradientTransform="translate(642 1260) rotate(90) scale(470)">
+      <stop stop-color="#1FC7B6" stop-opacity="0.18"/>
+      <stop offset="1" stop-color="#1FC7B6" stop-opacity="0"/>
+    </radialGradient>
+    <linearGradient id="zaltyko-splash-gradient" x1="10" y1="12" x2="56" y2="48" gradientUnits="userSpaceOnUse">
+      <stop offset="0" stop-color="#5B5FC7"/>
+      <stop offset="0.54" stop-color="#3159B1"/>
+      <stop offset="1" stop-color="#1FC7B6"/>
+    </linearGradient>
+    <linearGradient id="zaltyko-splash-highlight" x1="18" y1="41" x2="48" y2="16" gradientUnits="userSpaceOnUse">
+      <stop offset="0" stop-color="#1FC7B6"/>
+      <stop offset="1" stop-color="#5B5FC7"/>
+    </linearGradient>
+  </defs>
+  <rect width="1284" height="2778" fill="#0F172A"/>
+  <circle cx="642" cy="1260" r="470" fill="url(#zaltyko-splash-glow)"/>
+  <path d="M188 1215H1096" stroke="#1FC7B6" stroke-opacity="0.08" stroke-width="2"/>
+  <path d="M282 1164H1002" stroke="#A5B4FC" stroke-opacity="0.06" stroke-width="2"/>
+  <g transform="translate(342 1302) scale(3)">
+    <path d="M18.5 13.5H49.6C54.1 13.5 56.6 18.7 53.8 22.2L29.2 52H15.2L39.5 22.6H12.5L18.5 13.5Z" fill="url(#zaltyko-splash-gradient)"/>
+    <path d="M16.2 44.7C22.3 35.7 31.3 28 43.4 21.9H55.2C48 30.5 39.4 37.7 28.5 44.7H16.2Z" fill="url(#zaltyko-splash-highlight)" opacity="0.95"/>
+    <path d="M15.2 52H44.8C48.5 52 51.9 49.9 53.5 46.6L56.2 41H28.2L15.2 52Z" fill="#1FC7B6"/>
+    <text x="70" y="39" font-family="Space Grotesk, Inter, Arial, sans-serif" font-size="29" font-weight="700" fill="#F8FAFC">Zaltyko</text>
+  </g>
+</svg>

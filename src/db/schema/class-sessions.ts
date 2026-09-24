@@ -1,4 +1,4 @@
-import { date, index, pgTable, text, timestamp, uuid } from "drizzle-orm/pg-core";
+import { date, index, pgTable, text, timestamp, uniqueIndex, uuid } from "drizzle-orm/pg-core";
 
 import { classes } from "./classes";
 import { coaches } from "./coaches";
@@ -25,6 +25,7 @@ export const classSessions = pgTable(
   (table) => ({
     tenantIdx: index("class_sessions_tenant_idx").on(table.tenantId),
     classDateIdx: index("class_sessions_class_date_idx").on(table.classId, table.sessionDate),
+    classDateUniqueIdx: uniqueIndex("class_sessions_class_date_unique").on(table.classId, table.sessionDate),
     sportConfigIdx: index("class_sessions_sport_config_idx").on(table.sportConfigId),
   })
 );

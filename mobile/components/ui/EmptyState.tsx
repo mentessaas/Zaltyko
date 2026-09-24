@@ -1,7 +1,7 @@
 // Estado vacío reutilizable. Se muestra cuando una query devuelve []
 // o cuando el filtro activo excluye todo.
 
-import { memo, useId, type ReactNode } from 'react';
+import { memo, type ReactNode } from 'react';
 import { StyleSheet, Text, View } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 

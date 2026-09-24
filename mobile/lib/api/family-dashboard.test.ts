@@ -12,6 +12,13 @@
 //   5. renderFamilyCount distingue value / empty / unavailable.
 
 import { describe, it, expect, vi, beforeEach } from 'vitest';
+import { getFamilyDashboard, getMyDashboard, renderFamilyCount } from './family-dashboard';
+import {
+  getMySchedule,
+  getUnreadCount,
+  getConversations,
+  getMyCharges,
+} from './endpoints';
 
 // Mock del cliente base para controlar respuestas. NO se mockea
 // `endpoints` directamente porque `family-dashboard.ts` los invoca
@@ -70,14 +77,6 @@ vi.mock('./endpoints', () => {
       status === 'failed',
   };
 });
-
-import { getFamilyDashboard, getMyDashboard, renderFamilyCount } from './family-dashboard';
-import {
-  getMySchedule,
-  getUnreadCount,
-  getConversations,
-  getMyCharges,
-} from './endpoints';
 
 const mockedGetMySchedule = vi.mocked(getMySchedule);
 const mockedGetUnreadCount = vi.mocked(getUnreadCount);

@@ -1,0 +1,6 @@
+<svg width="96" height="96" viewBox="0 0 96 96" fill="none" xmlns="http://www.w3.org/2000/svg" role="img" aria-label="Zaltyko">
+  <!-- Android notification icons must be a single-color foreground on transparency. -->
+  <path d="M29 18H70.5C76 18 79 24.5 75.5 29L44.5 72H25L56.5 32H21L29 18Z" fill="#FFFFFF"/>
+  <path d="M27 63C35 51 47.5 40 64.5 31H78C68 43.5 55.5 54.5 40.5 63H27Z" fill="#FFFFFF"/>
+  <path d="M25 72H64C69 72 73.5 69 75.5 64.5L79 57H41.5L25 72Z" fill="#FFFFFF"/>
+</svg>

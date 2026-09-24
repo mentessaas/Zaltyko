@@ -1,9 +1,8 @@
 "use client";
 
-import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 
 import type { DashboardData } from "@/lib/dashboard";
-import { createClient } from "@/lib/supabase/client";
 import { logger } from "@/lib/logger";
 
 interface UseDashboardDataOptions {
@@ -13,9 +12,7 @@ interface UseDashboardDataOptions {
 }
 
 export function useDashboardData({ academyId, tenantId, initialData }: UseDashboardDataOptions) {
-  const supabase = useMemo(() => createClient(), []);
   const [data, setData] = useState<DashboardData>(initialData);
-  const [userId, setUserId] = useState<string | null>(null);
   const [loading, setLoading] = useState(false);
   const abortControllerRef = useRef<AbortController | null>(null);
 
@@ -23,20 +20,8 @@ export function useDashboardData({ academyId, tenantId, initialData }: UseDashbo
     setData(initialData);
   }, [initialData]);
 
-  useEffect(() => {
-    let active = true;
-    supabase.auth.getUser().then(({ data }) => {
-      if (active) {
-        setUserId(data.user?.id ?? null);
-      }
-    });
-    return () => {
-      active = false;
-    };
-  }, [supabase]);
-
   const refresh = useCallback(async () => {
-    if (!academyId || !userId) {
+    if (!academyId) {
       return;
     }
 
@@ -90,11 +75,11 @@ export function useDashboardData({ academyId, tenantId, initialData }: UseDashbo
         setLoading(false);
       }
     }
-  }, [academyId, userId]);
+  }, [academyId]);
 
   useEffect(() => {
-    if (!academyId || !userId) return;
-    refresh();
+    if (!academyId) return;
+    void refresh();
 
     // Cleanup: cancelar petición al desmontar o cambiar dependencias
     return () => {
@@ -102,50 +87,77 @@ export function useDashboardData({ academyId, tenantId, initialData }: UseDashbo
         abortControllerRef.current.abort();
       }
     };
-  }, [academyId, userId]); // Removido refresh de dependencias para evitar loops
+  }, [academyId, refresh]);
 
   useEffect(() => {
     if (!academyId || !tenantId) return;
 
-    const channel = supabase.channel(`dashboard:${academyId}`);
+    let disposed = false;
+    let cleanupChannel: (() => void) | undefined;
+    const refreshTimers = new Set<ReturnType<typeof setTimeout>>();
 
-    const subscribe = (table: string, filter?: string) => {
-      channel.on(
-        "postgres_changes",
-        {
-          event: "*",
-          schema: "public",
-          table,
-          filter,
-        },
-        () => {
-          // Usar setTimeout para evitar múltiples refreshes simultáneos
-          setTimeout(() => {
-            refresh();
-          }, 100);
+    const setupRealtime = async () => {
+      try {
+        // Realtime es una mejora posterior al primer paint; no debe bloquear ni
+        // inflar el chunk crítico del dashboard.
+        const { createClient } = await import("@/lib/supabase/client");
+        if (disposed) return;
+
+        const supabase = createClient();
+        const channel = supabase.channel(`dashboard:${academyId}`);
+
+        const subscribe = (table: string, filter?: string) => {
+          channel.on(
+            "postgres_changes",
+            {
+              event: "*",
+              schema: "public",
+              table,
+              filter,
+            },
+            () => {
+              // Agrupar cambios próximos para evitar una petición por fila.
+              const timer = setTimeout(() => {
+                refreshTimers.delete(timer);
+                if (!disposed) void refresh();
+              }, 100);
+              refreshTimers.add(timer);
+            }
+          );
+        };
+
+        subscribe("athletes", `academy_id=eq.${academyId}`);
+        subscribe("coaches", `academy_id=eq.${academyId}`);
+        subscribe("groups", `academy_id=eq.${academyId}`);
+        subscribe("group_athletes", `tenant_id=eq.${tenantId}`);
+        subscribe("classes", `academy_id=eq.${academyId}`);
+        subscribe("class_sessions", `tenant_id=eq.${tenantId}`);
+        subscribe("class_coach_assignments", `tenant_id=eq.${tenantId}`);
+        subscribe("athlete_assessments", `academy_id=eq.${academyId}`);
+        subscribe("audit_logs", `tenant_id=eq.${tenantId}`);
+        // La API filtra las suscripciones por usuario/academia.
+        subscribe("subscriptions");
+
+        channel.subscribe();
+        cleanupChannel = () => {
+          void supabase.removeChannel(channel);
+        };
+      } catch (error) {
+        if (!disposed) {
+          logger.warn("Dashboard realtime unavailable", { error });
         }
-      );
+      }
     };
 
-    subscribe("athletes", `academy_id=eq.${academyId}`);
-    subscribe("coaches", `academy_id=eq.${academyId}`);
-    subscribe("groups", `academy_id=eq.${academyId}`);
-    subscribe("group_athletes", `tenant_id=eq.${tenantId}`);
-    subscribe("classes", `academy_id=eq.${academyId}`);
-    subscribe("class_sessions", `tenant_id=eq.${tenantId}`);
-    subscribe("class_coach_assignments", `tenant_id=eq.${tenantId}`);
-    subscribe("athlete_assessments", `academy_id=eq.${academyId}`);
-    subscribe("audit_logs", `tenant_id=eq.${tenantId}`);
-    // Subscribe to all subscription changes (since we can't filter by academy owner easily)
-    // The refresh will handle filtering correctly
-    subscribe("subscriptions");
-
-    channel.subscribe();
+    void setupRealtime();
 
     return () => {
-      supabase.removeChannel(channel);
+      disposed = true;
+      refreshTimers.forEach((timer) => clearTimeout(timer));
+      refreshTimers.clear();
+      cleanupChannel?.();
     };
-  }, [academyId, tenantId, supabase]); // Removido refresh de dependencias
+  }, [academyId, tenantId, refresh]);
 
   return {
     data,

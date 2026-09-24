@@ -1,6 +1,6 @@
 // Pantalla de login con email + contraseña usando Supabase Auth.
-// "Crear cuenta" abre la web (no implementamos signup nativo en MVP —
-// el funnel de alta es más complejo y vive en /auth/signup de la web).
+// "Crear cuenta" abre el alta web para mantener un único flujo de onboarding
+// completo (cuenta, academia, disciplina y configuración inicial).
 
 import { useCallback, useState } from 'react';
 import {

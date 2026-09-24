@@ -1,4 +1,4 @@
-import { boolean, index, integer, pgTable, text, timestamp, uuid, jsonb, date } from "drizzle-orm/pg-core";
+import { boolean, index, integer, pgTable, text, timestamp, uuid, jsonb, date, uniqueIndex } from "drizzle-orm/pg-core";
 import { jobCategoryEnum, jobTypeEnum, jobListingStatusEnum, applicationStatusEnum } from "./enums";
 import { profiles } from "./profiles";
 import { academies } from "./academies";
@@ -50,4 +50,5 @@ export const empleoApplications = pgTable("empleo_applications", {
 }, (table) => ({
   listingIdx: index("application_listing_idx").on(table.listingId),
   userIdx: index("application_user_idx").on(table.userId),
+  listingUserUnique: uniqueIndex("empleo_application_listing_user_unique").on(table.listingId, table.userId),
 }));

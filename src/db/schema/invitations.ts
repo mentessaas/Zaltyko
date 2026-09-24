@@ -1,4 +1,5 @@
 import { index, pgTable, text, timestamp, uniqueIndex, uuid } from "drizzle-orm/pg-core";
+import { sql } from "drizzle-orm";
 
 import { academies } from "./academies";
 import { profileRoleEnum } from "./enums";
@@ -36,7 +37,9 @@ export const invitations = pgTable(
     tenantIdx: index("invitations_tenant_idx").on(table.tenantId),
     statusIdx: index("invitations_status_idx").on(table.status),
     tokenUnique: uniqueIndex("invitations_token_unique").on(table.token),
-    emailTenantUnique: uniqueIndex("invitations_email_tenant_unique").on(table.tenantId, table.email),
+    pendingEmailTenantUnique: uniqueIndex("invitations_pending_email_tenant_unique")
+      .on(table.tenantId, table.email)
+      .where(sql`${table.status} = 'pending'`),
     roleIdx: index("invitations_role_idx").on(table.roleId),
   })
 );

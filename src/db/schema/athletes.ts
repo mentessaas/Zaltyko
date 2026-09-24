@@ -5,6 +5,7 @@ import { groups } from "./groups";
 import { profiles } from "./profiles";
 import { academySportConfigs } from "./sport-config";
 import { templates } from "./templates/templates";
+import { athleteImportBatches } from "./athlete-import-batches";
 
 export const athletes = pgTable(
   "athletes",
@@ -25,6 +26,7 @@ export const athletes = pgTable(
     programCode: text("program_code"),
     levelCode: text("level_code"),
     categoryCode: text("category_code"),
+    importBatchId: uuid("import_batch_id").references(() => athleteImportBatches.id, { onDelete: "set null" }),
     /**
      * @deprecated Usar groupAthletes en lugar de este campo para la pertenencia a grupos
      */

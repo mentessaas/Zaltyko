@@ -112,7 +112,7 @@ Verificar:
 
 ### Bloque 0.5 — Disparador de upgrade Free → Starter
 
-Mensaje claro al owner cuando academia Free llega a 31 gimnastas O intenta activar pagos recurrentes O activa portal padres completo:
+Mensaje claro al owner cuando la academia Free llega a 31 gimnastas o intenta activar pagos recurrentes. El portal familiar se mantiene limitado y seguro; cualquier ampliación se documentará como decisión comercial separada:
 
 - Modal in-app: "Tu academia esta creciendo. Pasa a Starter (19 €/mes) para [feature]."
 - Email automatico (Brevo): "Has alcanzado el limite del plan Free."

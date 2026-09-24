@@ -169,8 +169,8 @@
     "assignedClasses": "Clases Asignadas",
     "schedule": "Horario",
     "availability": "Disponibilidad",
-    "noCoaches": "No hay trainers registrados",
-    "searchPlaceholder": "Buscar trainers...",
+    "noCoaches": "No hay entrenadores registrados",
+    "searchPlaceholder": "Buscar entrenadores...",
     "salary": "Salario",
     " hireDate": "Fecha de Contratación"
   },

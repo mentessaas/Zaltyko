@@ -48,6 +48,7 @@ export const chargeStatusEnum = pgEnum("charge_status", [
   "cancelled",
   "partial",
   "failed",
+  "requires_action",
   "refunded",
 ]);
 

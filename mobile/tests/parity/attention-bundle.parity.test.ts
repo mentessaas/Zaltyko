@@ -98,11 +98,11 @@ describe('paridad Web ↔ Mobile — attention bundle (ZAL-622 AC-11)', () => {
    * Si la Web renombra `TodaySessionAttention` a `TodaySessionItem`,
    * esta tabla es donde se actualiza el contrato de paridad.
    */
-  const parity: Array<{
+  const parity: {
     label: string;
     webName: string;
     mobileName: string;
-  }> = [
+  }[] = [
     { label: 'TodaySession', webName: 'TodaySessionAttention', mobileName: 'TodaySession' },
     { label: 'AttendancePending', webName: 'AttendanceAttention', mobileName: 'AttendancePendingBlock' },
     { label: 'MessagesPending', webName: 'MessagesAttention', mobileName: 'MessagesPendingBlock' },
@@ -151,7 +151,6 @@ describe('paridad Web ↔ Mobile — attention bundle (ZAL-622 AC-11)', () => {
         // Permitimos campos extra en Mobile como helpers de UI, pero los
         // listamos en el mensaje para que sean visibles si alguien revisa.
         if (onlyInMobile.length > 0) {
-          // eslint-disable-next-line no-console
           console.warn(
             `${label}: Mobile tiene campos extra [${onlyInMobile.join(', ')}] no presentes en Web. ` +
               'Verificar que son helpers de UI, no payloads que el backend no devuelve.',

@@ -1,4 +1,4 @@
-import { date, index, integer, jsonb, pgTable, text, timestamp, uuid, pgEnum, varchar } from "drizzle-orm/pg-core";
+import { boolean, date, index, integer, jsonb, pgTable, text, timestamp, uuid, pgEnum, varchar } from "drizzle-orm/pg-core";
 
 import { athletes } from "./athletes";
 import { classSessions } from "./class-sessions";
@@ -90,6 +90,7 @@ export const athleteAssessments = pgTable(
     apparatus: text("apparatus"),
     overallComment: text("overall_comment"),
     totalScore: text("total_score"), // Stored as JSON or text for flexibility
+    visibleToGuardians: boolean("visible_to_guardians").notNull().default(false),
     createdAt: timestamp("created_at", { withTimezone: true }).defaultNow(),
   },
   (table) => ({

@@ -76,7 +76,7 @@ export function usePushNotifications(options: UsePushNotificationsOptions = {}) 
         if (permission === "granted") {
           new window.Notification(data.title, {
             body: data.body,
-            icon: data.icon || "/icons/icon-192x192.png",
+            icon: data.icon || "/icons/icon-192.png",
             tag: data.tag,
           });
         }

@@ -12,7 +12,7 @@
  *  - Consent por owner (no por academia).
  *  - `unset` NO se persiste. Cliente infiere "no hay fila".
  *  - Audit append-only enforced en DB (no en código).
- *  - MVP: source ∈ {signup, claim, settings}. `imported` rechazado en DB.
+ *  - Contrato actual: source ∈ {signup, claim, settings}. `imported` rechazado en DB.
  */
 
 import { sql } from "drizzle-orm";

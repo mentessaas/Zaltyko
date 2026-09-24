@@ -1,7 +1,7 @@
 ---
 status: active
 owner: negocio
-last_reviewed: 2026-07-13
+last_reviewed: 2026-09-14
 source:
   - ../BUSINESS-ANALYSIS.md
   - ../docs/marketing/zaltyko-pricing.md
@@ -27,7 +27,7 @@ Esta nota debe revisarse antes de cambiar landing, checkout, limites de plan o d
 
 | Capa | Fuente | Estado |
 | --- | --- | --- |
-| Copy publico | `src/app/(site)/pricing.tsx` + `src/lib/plans/catalog.ts` | Usa Free/Starter/Growth/Network v3.0. Free registra; Starter/Growth solicitan demo; Network abre contacto acompañado. |
+| Copy publico | `src/app/(site)/pricing.tsx` + `src/lib/plans/catalog.ts` | Usa Free/Starter/Growth/Network v3.0. Free y Starter registran; Starter activa el trial desde Facturación; Growth conserva demo comercial hasta validar su handoff; Network abre contacto acompañado. |
 | Limites de producto | `src/lib/plans/catalog.ts` y tabla `plans` | Free 30 gimnastas, Starter 75, Growth 200; todos con 1 academia. Network multi-sede acompanado. |
 | Enforcements | `src/lib/limits.ts` | Lee limites desde el catalogo canonico y permite override de atletas/academias desde `plans`. |
 | Checkout activo | `src/app/api/billing/checkout/route.ts` | Owner-only, usa `plans.stripePriceId`, `mode: subscription`, metadata de academia e idempotencia. |
@@ -38,7 +38,7 @@ Esta nota debe revisarse antes de cambiar landing, checkout, limites de plan o d
 
 | Tema | Riesgo | Accion |
 | --- | --- | --- |
-| Annual billing | UI muestra anual solo como "proximamente", sin calcular precio ni descuento; checkout usa un `stripePriceId` mensual por plan. | Implementar price anual real antes de permitir compra o anunciar descuento. |
+| Annual billing | La UI comunica únicamente facturación mensual; no existe precio anual ni descuento publicado. | Mantener mensualidad hasta implementar y verificar Prices anuales reales antes de anunciar compra o descuento. |
 | DB seed placeholders | `scripts/seed.ts` usa `price_pro_PLACEHOLDER` y `price_premium_PLACEHOLDER` si faltan env vars. | En entornos reales ejecutar `pnpm stripe:sync` o setear `SEED_STRIPE_PRICE_*`. |
 | Cambios de plan | Checkout contrata; Stripe Billing Portal cambia o cancela. Los endpoints manuales legacy devuelven 410. | Mantener una sola fuente de verdad y tests de webhooks. |
 | Nombres historicos | Docs antiguas hablan de Professional/Business o Free/Pro/Premium publico. | Usar Starter/Growth/Network en marketing; free/pro/premium solo interno. |
@@ -68,8 +68,8 @@ Estado: oficial para producto, marketing, landing y limites.
 | Plan | Precio unico | Gimnastas | Sedes | Feature principal | Disparador de upgrade |
 | --- | --- | --- | --- | --- | --- |
 | **Trial 7 dias** | 0 € (sin tarjeta) | hasta 75 | 1 | Todas las funciones y limites del Starter activas. | Downgrade automatico a Free al dia 7. Un trial por academia cada 12 meses. |
-| **Free** | 0 €/mes perpetuo | hasta 30 | 1 | Crear academia, gimnastas, grupos/clases, asistencia basica, comunicacion interna limitada. | >30 gimnastas O activar portal padres completo O activar pagos recurrentes. |
-| **Starter** | **19 €/mes** (≈ 20 USD) | hasta 75 | 1 | Pagos/cuotas recurrentes, portal padres completo, reportes basicos, progresion tecnica, comunicacion interna. | >75 gimnastas O necesidad de automatizaciones O reportes ejecutivos. |
+| **Free** | 0 €/mes perpetuo | hasta 30 | 1 | Crear academia, gimnastas, grupos/clases, asistencia basica, comunicacion interna limitada. | >30 gimnastas O activar pagos recurrentes. |
+| **Starter** | **19 €/mes** (≈ 20 USD) | hasta 75 | 1 | Pagos/cuotas recurrentes, portal familiar limitado (horarios, avisos, progreso publicado y cuotas), reportes basicos, progresion tecnica, comunicacion interna. | >75 gimnastas O necesidad de automatizaciones O reportes ejecutivos. |
 | **Growth** | 49 €/mes (≈ 52 USD) | hasta 200 | 1 | Todo Starter + automatizaciones, reportes ejecutivos, add-ons premium, soporte prioritario. | >200 gimnastas O multi-sede. |
 | **Network** | 99 €/mes (≈ 105 USD) | ilimitado | multi-sede | Todo Growth + multi-sede acompanada, reportes de direccion y soporte prioritario. | Bajo onboarding acompanado (ver [[Decisiones#2026-06-22 - V1 comercial con una academia por cliente]]). |
 
@@ -99,7 +99,7 @@ Features premium que se cobran aparte del plan.
 | Add-on | Precio | Notas |
 | --- | --- | --- |
 | Make-up Tokens ilimitados | +5 €/mes | Free: 5 tokens/mes. Starter: 20/mes. Growth+: ilimitado. |
-| App branded por academia | +9 €/mes | Logo + colores propios en portal padres. iClassPro cobra 299 USD/mes por esto. |
+| App branded por academia | +9 €/mes | Logo + colores propios en el portal familiar. iClassPro cobra 299 USD/mes por esto. |
 | Reportes ejecutivos avanzados | +7 €/mes | Prediccion de abandono, segmentacion por aparato, comparativas interanual. |
 | Multi-sede (cuando este listo) | +20 €/mes/sede extra | Network + extras. |
 | Integraciones premium | +5-15 €/mes | Zapier, Mailchimp, contabilidad regional. |
@@ -160,7 +160,7 @@ Baseline 2026-07-13: 2 academias, 0 leads, 0 trials, 0 checkouts observados, 0 s
 - Medir conversion Free -> Starter al llegar a 30 gimnastas.
 - Medir conversion Starter -> Growth al acercarse a 75 gimnastas.
 - Confirmar que trial sin tarjeta no genera abuso academias pequenas que renuevan cada 11 meses.
-- Confirmar que el disparador de upgrade "portal padres completo" funciona (que active suficiente valor para pagar).
+- Confirmar que el portal familiar limitado activa suficiente valor para convertir a Starter sin ampliar por accidente el acceso administrativo.
 - Confirmar pricing LATAM unico a 19 € (no PPP diferenciado) es bien recibido.
 - Confirmar interes en add-ons Make-up Tokens, App branded, Reportes ejecutivos.
 - Completar 10 entrevistas de academias distintas con tamaño, herramientas, dolor, objeción y rango de precio. No cambiar v3.0 por comentarios aislados ni datos de QA.

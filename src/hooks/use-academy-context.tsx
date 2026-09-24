@@ -18,6 +18,8 @@ export interface AcademyContextValue {
   isSuperAdmin: boolean;
   planCode: string;
   planNickname: string | null;
+  /** Estado de la suscripción efectiva (incluye trials). */
+  planStatus: string;
   canCreateAcademies: boolean;
   academyCount: number;
   planLimitLabel: string;
@@ -46,4 +48,3 @@ export function useAcademyContext() {
 
   return context;
 }
-

@@ -1,7 +1,7 @@
 ---
 status: active
 owner: producto
-last_reviewed: 2026-08-03
+last_reviewed: 2026-09-14
 source:
   - ../PRODUCT-ANALYSIS.md
   - ../BUSINESS-ANALYSIS.md
@@ -44,6 +44,31 @@ Code changes verificados: tsc OK, eslint OK, next build OK.
 
 
 # Backlog priorizado
+
+## Plan competitivo 2026-09-12
+
+El plan de implementación derivado de la investigación competitiva está en `docs/plans/2026-09-12-competitive-implementation-plan.md`. No abre issues automáticamente: primero exige el gate G0 (baseline/E2E/coordinación), después prioriza núcleo operativo, desarrollo, localización e IA en fases. Pricing v3.0, comunicación interna primero, portal familiar limitado y gimnasia-first permanecen sin cambios.
+
+## Revisión técnica de producción — 2026-09-14
+
+- **Resuelto:** los reportes financieros tenían llamadas frontend a tres subrutas inexistentes, por lo que mensual, morosidad y proyecciones podían quedarse vacíos con 404. Se añadieron endpoints reales con handler compartido y scope tenant; smoke sin sesión devuelve 401.
+- **Resuelto:** el gráfico de Super Admin mezclaba el concepto de catálogo de planes con el de suscripciones. Ahora el título, la leyenda y el desglose dicen explícitamente “Suscripciones por plan”, y el refresh tiene timeout/fallback al último corte válido.
+- **Resuelto:** el hook de billing y el componente legado de checkout apuntaban a endpoints antiguos (`/api/billing/summary`, `/api/billing/invoices`, `/api/checkout`) y omitían el envelope estándar. Ambos consumen ahora las rutas canónicas y exponen errores accesibles.
+- **Release vigente:** `dpl_EQcFmwAoNhG4BdgfZVPWJ1gjvYya` está **READY** y aliasado a `zaltyko.com`; `pnpm verify:production` queda en **278 archivos PASS + 1 omitido; 1.775 tests PASS + 2 omitidos; API 322 sin riesgos; build 227/227**.
+- **Resuelto:** la promoción de lista de espera llamaba a `/api/class-waiting-list/:entryId/promote`, ruta inexistente. El diálogo ahora usa la ruta canónica `POST /api/class-waiting-list/:entryId`, comprueba el envelope y retira la entrada solo tras una respuesta válida.
+- **Resuelto:** las clases podían conservar o mostrar una hora de fin anterior a la de inicio. La API y los formularios bloquean nuevos rangos imposibles, y las superficies existentes muestran `Horario por revisar` sin mutar datos históricos. Incluido en `dpl_8s4gc89T9K8ruvwNFDNduUhzXh8r`.
+- **Release vigente:** `dpl_8s4gc89T9K8ruvwNFDNduUhzXh8r` está **READY** y aliasado a `zaltyko.com`; `pnpm verify:production` queda en **274 archivos PASS + 1 omitido; 1.767 tests PASS + 2 omitidos**, con build 227/227.
+- **Resuelto:** la página pública de estado confundía autenticación de cron con ejecución operativa. “Automatizaciones” ahora aparece como “Configurado” y explicita el alcance real de la señal; una ejecución de cron sigue marcada como evidencia externa pendiente. Incluido en `dpl_86baKctqXatCJmB99Vy1pWuwbLCM`.
+- **Resuelto:** el dashboard Super Admin podía romperse solo en producción porque los agregados SQL recibían `QueryResult` de node-postgres y se trataban como arrays. El helper `normalizeSqlRows` y su contrato focal cubren arrays de mocks, `{ rows }` reales y formas inesperadas; el hotfix se validó primero en `dpl_A3CG5XucmUKcbKH7qnx4KQyroQh4` y queda incluido en el release vigente `dpl_9nK1AqSJogsAQPWUKgH9LLKnPFXg`, verificado con sesión autenticada.
+- **Resuelto:** dashboard, usuarios, academias, logs y fichas Super Admin tenían fechas client sin zona explícita, provocando React #418 durante la hidratación según el navegador. Un formatter UTC compartido y contratos de fechas dejan el smoke live sin errores de consola.
+- **Resuelto:** la activación inicial tenía demasiadas decisiones visibles y el siguiente paso quedaba demasiado abajo; el owner ahora ve un recorrido corto con configuración avanzada opcional y “Próximo paso” junto a los KPIs.
+- **Resuelto:** las filas de academias Super Admin no ofrecían una acción de detalle explícita ni un nombre accesible; cada fila incluye ahora “Ver detalle” y la ayuda inferior explica cuándo usar el panel avanzado.
+- **Resuelto:** varias superficies interpretaban el envelope `{ ok, data }` como si fuera el payload directo. Perfil, grupos, métricas, historial, auditoría, notificaciones, inscripciones y clases ahora desempaquetan la respuesta estándar y muestran datos reales sin falsos estados vacíos.
+- **Resuelto:** la segunda pasada de clientes cubre también billing, descuentos, campañas, recibos, comunicación, notas de coach, onboarding de roles, guardianes, skills y eventos; las listas, contadores y confirmaciones ya leen de forma explícita el envelope estándar. Incluido en `dpl_9nK1AqSJogsAQPWUKgH9LLKnPFXg` y cubierto por contrato focal.
+- **Resuelto:** el header público podía solaparse en tablet por el breakpoint `md`; se ajustó a `lg` y se verificó el menú a 924 × 768.
+- **Pendiente P1 de infraestructura:** Vercel aún emite el warning `Ignoring extra certs from ./certs/supabase-root-ca.crt` por `NODE_EXTRA_CA_CERTS` relativo, aunque la base de datos conecta correctamente con el CA explícito del pool. Platform debe resolver la ruta en runtime o retirar la variable solo después de verificar el fallback TLS; no es un incidente funcional actual.
+- **Pendiente P0 operativo:** repetir una matriz autenticada completa por rol y dos tenants; el smoke actual cubre Super Admin dashboard/usuarios, pero no sustituye la prueba de aislamiento ni el recorrido owner → academia → primera asistencia.
+- **Pendiente P0 externo:** Stripe SCA/3DS, rechazos, reembolsos, reconciliación y entregabilidad Brevo/cron siguen requiriendo proveedores configurados y evidencia controlada.
 
 ## Bloqueador actual — 2026-09-04 — ZAL-1091 / ZAL-1081
 

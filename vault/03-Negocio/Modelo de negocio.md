@@ -1,7 +1,7 @@
 ---
 status: active
 owner: negocio
-last_reviewed: 2026-06-22
+last_reviewed: 2026-09-13
 source:
   - ../BUSINESS-ANALYSIS.md
   - ../docs/marketing/zaltyko-pricing.md
@@ -22,7 +22,7 @@ El ICP (academias pequenas/medianas de gimnasia artistica/ritmica en espanol, ho
 | --- | --- | --- | --- |
 | Trial 7 dias | 0 € (sin tarjeta) | hasta 75 | Todas las funciones y limites del Starter. Downgrade automatico a Free. |
 | Free | 0 €/mes | hasta 30 | Operar academia basica sin pagar. Loss-leader. |
-| Starter | **19 €/mes** | hasta 75 | SaaS completo: pagos recurrentes, portal padres, progresion. |
+| Starter | **19 €/mes** | hasta 75 | Cobros recurrentes, portal familiar limitado, reportes básicos y progresión técnica. |
 | Growth | 49 €/mes | hasta 200 | Automatizaciones + reportes ejecutivos. |
 | Network | 99 €/mes | multi-sede | Bajo onboarding acompanado. |
 
@@ -91,7 +91,7 @@ Pricing: 500-5.000 €/ano por informe premium. Partnerships federaciones pueden
 | Segmento | Necesidad | Plan esperado | Monetizacion complementaria |
 | --- | --- | --- | --- |
 | Academia pequena (Free) | Ordenar operaciones sin pagar | Free | Marketplace B2B (compra calleras, mallas, etc). |
-| Academia pequena que cobra cuotas | SaaS completo accesible | Starter 19 € | Upsells + marketplace. |
+| Academia pequena que cobra cuotas | Cobros recurrentes y portal familiar limitado | Starter 19 € | Upsells + marketplace. |
 | Academia establecida | Escalar y reportes | Growth 49 € | Upsells + eventos + advertising en `/descubre`. |
 | Cadena pequena | Multi-sede y reporting | Network 99 € | Partnerships con federaciones. |
 | Enterprise/federacion | Tecnologia oficial | Network custom | Contratos 6 cifras. |

@@ -1,6 +1,7 @@
 // Pantalla Agenda: consume /api/me/schedule (clases recurrentes del
 // atleta logueado o, si es coach/parent, las del atleta bajo su
-// responsabilidad). MVP: solo lectura.
+// responsabilidad). La agenda móvil es de solo lectura; las modificaciones
+// de horarios y sesiones se gestionan desde la web de la academia.
 
 import { StyleSheet, Text, View } from 'react-native';
 import { useQuery } from '@tanstack/react-query';

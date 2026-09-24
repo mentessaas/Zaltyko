@@ -1,5 +1,5 @@
 // Communication schema
-import { boolean, index, integer, jsonb, pgTable, text, timestamp, uuid, varchar } from "drizzle-orm/pg-core";
+import { boolean, index, integer, jsonb, pgTable, text, timestamp, uniqueIndex, uuid, varchar } from "drizzle-orm/pg-core";
 
 import { academySportConfigs } from "./sport-config";
 import { academies } from "./academies";
@@ -81,5 +81,6 @@ export const notificationPreferences = pgTable(
   },
   (table) => ({
     profileIdx: index("notification_preferences_profile_idx").on(table.profileId),
+    profileChannelUnique: uniqueIndex("notification_preferences_profile_channel_unique").on(table.profileId, table.channel),
   })
 );

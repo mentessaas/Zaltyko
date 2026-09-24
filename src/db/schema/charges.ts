@@ -1,4 +1,4 @@
-import { date, index, integer, pgTable, text, timestamp, uuid } from "drizzle-orm/pg-core";
+import { date, index, integer, pgTable, text, timestamp, uniqueIndex, uuid } from "drizzle-orm/pg-core";
 
 import { academies } from "./academies";
 import { athletes } from "./athletes";
@@ -49,6 +49,10 @@ export const charges = pgTable(
     academyStatusIdx: index("charges_academy_status_idx").on(table.academyId, table.status),
     classIdIdx: index("charges_class_id_idx").on(table.classId),
     paymentIntentIdx: index("charges_payment_intent_idx").on(table.stripePaymentIntentId),
+    academyAthletePeriodUnique: uniqueIndex("charges_academy_athlete_period_uq").on(
+      table.academyId,
+      table.athleteId,
+      table.period
+    ),
   })
 );
-

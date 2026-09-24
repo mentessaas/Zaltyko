@@ -82,12 +82,14 @@ export interface ProgressDraftsBlock {
 }
 
 export type ImportJobState =
+  | 'processing'
+  | 'completed'
+  | 'rolled_back'
   | 'created'
   | 'preview_ready'
   | 'mapping_required'
   | 'validated'
   | 'committed'
-  | 'rolled_back'
   | 'failed'
   | 'cancelled';
 
@@ -95,6 +97,11 @@ export interface ImportActiveBlock {
   jobId: string;
   state: ImportJobState;
   filename: string | null;
+  /** Totales del lote; opcionales para payloads emitidos por versiones legacy. */
+  totalRows?: number;
+  createdCount?: number;
+  skippedCount?: number;
+  createdAt?: string | null;
   source: string;
   href: string;
 }
@@ -125,7 +132,7 @@ export interface OwnerAttentionBundle extends AttentionBase {
 }
 
 /** Bundle que ve el coach (subset read-only, sin cobros ni import). */
-export interface CoachAttentionBundle extends AttentionBase {}
+export type CoachAttentionBundle = AttentionBase;
 
 /** Helper para que la UI decida cómo renderizar un contador. */
 export type CountDisplay =

@@ -1,5 +1,5 @@
 // Wrapper ligero sobre Supabase Realtime para la app móvil.
-// Solo cubre el caso de uso del MVP: avisos en vivo del usuario actual.
+// Cubre el caso de uso actual: avisos en vivo del usuario autenticado.
 //
 // Contrato:
 //   - subscribeToUserNotifications(profileId, onNew) se conecta al

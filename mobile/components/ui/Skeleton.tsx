@@ -1,5 +1,5 @@
 // Skeleton rectangular con pulso. Sin librería externa —
-// Animated.loop + opacity es suficiente para el MVP.
+// Animated.loop + opacity ofrece una carga ligera y consistente.
 
 import { memo, useEffect, useState } from 'react';
 import {
