@@ -24,6 +24,9 @@ export function useBillingData(academyId: string | null): UseBillingDataResult {
   const fetchData = async () => {
     if (!academyId) {
       setLoading(false);
+      setBillingSummary(null);
+      setPlans([]);
+      setInvoices([]);
       return;
     }
 
@@ -31,32 +34,34 @@ export function useBillingData(academyId: string | null): UseBillingDataResult {
       setLoading(true);
       setError(null);
 
-      // Fetch billing summary
-      const summaryResponse = await fetch(`/api/billing/summary?academyId=${academyId}`, {
-        credentials: "include",
-      });
-      if (summaryResponse.ok) {
-        const summary = await summaryResponse.json();
-        setBillingSummary(summary);
-      }
+      // These are the canonical tenant-scoped billing endpoints. Status and
+      // history intentionally use POST because the academy context belongs in
+      // the validated request body, not in an untrusted query-only read.
+      const [summaryResponse, plansResponse, invoicesResponse] = await Promise.all([
+        fetch("/api/billing/status", {
+          method: "POST",
+          credentials: "include",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ academyId }),
+        }),
+        fetch("/api/billing/plans", { credentials: "include" }),
+        fetch("/api/billing/history", {
+          method: "POST",
+          credentials: "include",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ academyId, limit: 50 }),
+        }),
+      ]);
 
-      // Fetch plans
-      const plansResponse = await fetch("/api/plans", {
-        credentials: "include",
-      });
-      if (plansResponse.ok) {
-        const plansData = await plansResponse.json();
-        setPlans(plansData.plans || []);
-      }
+      const [summary, planRows, invoiceRows] = await Promise.all([
+        readApiData<BillingSummary>(summaryResponse, "el estado de cobros"),
+        readApiData<PlanSummary[]>(plansResponse, "los planes"),
+        readApiData<InvoiceRow[]>(invoicesResponse, "el historial de recibos"),
+      ]);
 
-      // Fetch invoices
-      const invoicesResponse = await fetch(`/api/billing/invoices?academyId=${academyId}`, {
-        credentials: "include",
-      });
-      if (invoicesResponse.ok) {
-        const invoicesData = await invoicesResponse.json();
-        setInvoices(invoicesData.invoices || []);
-      }
+      setBillingSummary(summary);
+      setPlans(planRows);
+      setInvoices(invoiceRows);
     } catch (err) {
       const errorMessage = err instanceof Error ? err.message : "Error al cargar datos de billing";
       setError(errorMessage);
@@ -79,3 +84,18 @@ export function useBillingData(academyId: string | null): UseBillingDataResult {
   };
 }
 
+async function readApiData<T>(response: Response, resourceLabel: string): Promise<T> {
+  const payload = (await response.json().catch(() => null)) as
+    | { ok?: boolean; data?: T; message?: string; error?: string }
+    | null;
+
+  if (!response.ok || payload?.ok === false) {
+    throw new Error(payload?.message || `No se pudo cargar ${resourceLabel}`);
+  }
+
+  if (payload && payload.ok === true && "data" in payload) {
+    return payload.data as T;
+  }
+
+  throw new Error(`La respuesta de ${resourceLabel} no es válida`);
+}

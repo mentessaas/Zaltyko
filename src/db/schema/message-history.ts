@@ -1,6 +1,7 @@
 import { index, jsonb, pgTable, text, timestamp, uuid } from "drizzle-orm/pg-core";
 
 import { academySportConfigs } from "./sport-config";
+import { academies } from "./academies";
 
 /**
  * Tabla para historial de mensajes (WhatsApp, SMS, email, etc.)
@@ -10,6 +11,7 @@ export const messageHistory = pgTable(
   {
     id: uuid("id").primaryKey().defaultRandom(),
     tenantId: uuid("tenant_id"),
+    academyId: uuid("academy_id").references(() => academies.id, { onDelete: "set null" }),
     profileId: uuid("profile_id"),
     sportConfigId: uuid("sport_config_id").references(() => academySportConfigs.id, { onDelete: "set null" }),
     phone: text("phone").notNull(),

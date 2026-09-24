@@ -89,8 +89,9 @@ export function tabsForRole(role: ZaltykoRole | undefined): TabConfig[] {
   return TABS_BY_ROLE[role] ?? TABS_BY_ROLE[UNKNOWN_ROLE_FALLBACK];
 }
 
-// Para Fase 2: decidir si un rol debería ser redirigido a la web
-// (admin con mucha superficie). En MVP, todo el mundo entra a la app.
+// La app móvil funciona como superficie companion para todos los roles.
+// El acceso web sigue disponible para las tareas de administración con más
+// profundidad, pero el router no fuerza una salida automática de la app.
 export function shouldRedirectToWeb(role: ZaltykoRole | undefined): boolean {
   return false;
 }

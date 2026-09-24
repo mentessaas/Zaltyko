@@ -21,9 +21,9 @@ export const roleMembers = pgTable(
   "role_members",
   {
     id: uuid("id").primaryKey().defaultRandom(),
-    roleId: uuid("role_id").notNull(),
-    userId: uuid("user_id").notNull(),
-    academyId: uuid("academy_id").notNull(),
+    roleId: uuid("role_id").notNull().references(() => academyRoles.id, { onDelete: "cascade" }),
+    userId: uuid("user_id").notNull().references(() => profiles.userId, { onDelete: "cascade" }),
+    academyId: uuid("academy_id").notNull().references(() => academies.id, { onDelete: "cascade" }),
     memberRole: text("member_role").notNull().default("viewer"),
     permissions: jsonb("permissions"), // Custom permissions override
     assignedAt: timestamp("assigned_at", { withTimezone: true }).defaultNow(),
@@ -36,7 +36,9 @@ export const roleMembers = pgTable(
     roleIdx: index("role_members_role_idx").on(table.roleId),
     userIdx: index("role_members_user_idx").on(table.userId),
     academyIdx: index("role_members_academy_idx").on(table.academyId),
-    uq: uniqueIndex("role_members_uq").on(table.roleId, table.userId),
+    // Un usuario solo puede tener un rol personalizado activo por academia;
+    // la unicidad no debe impedir que use el mismo rol en otra academia.
+    uq: uniqueIndex("role_members_uq").on(table.academyId, table.userId),
   })
 );
 

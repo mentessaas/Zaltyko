@@ -223,22 +223,22 @@ export function useEditAthlete({
       });
       if (!response.ok) {
         const data = await response.json().catch(() => ({}));
-        throw new Error(data.error ?? "No se pudo eliminar el atleta.");
+        throw new Error(data.message ?? data.error ?? "No se pudo archivar el atleta.");
       }
       
       toast.pushToast({
-        title: "Atleta eliminado",
-        description: "El atleta ha sido eliminado correctamente.",
+        title: "Atleta archivado",
+        description: "El atleta ha sido archivado y su historial se ha conservado.",
         variant: "success",
       });
       
       onDeleted();
       setDeleteDialogOpen(false);
     } catch (err) {
-      const errorMessage = (err as Error)?.message ?? "Error al eliminar el atleta.";
+      const errorMessage = (err as Error)?.message ?? "Error al archivar el atleta.";
       setError(errorMessage);
       toast.pushToast({
-        title: "Error al eliminar",
+        title: "Error al archivar",
         description: errorMessage,
         variant: "error",
       });

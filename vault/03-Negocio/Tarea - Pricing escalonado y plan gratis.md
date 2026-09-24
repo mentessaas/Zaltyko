@@ -14,6 +14,8 @@ source:
 > **⚠️ SUPERSEDED 2026-06-23** — Esta tarea queda como referencia historica con la discusion inicial de numeros. La implementacion concreta esta en [[../01-Producto/Tarea - Sprint 0 decision v3.0]].
 >
 > Los numeros finales validados son: Free 30 atletas, Starter 19 €/mes (75 atletas), Growth 49 €/mes (200 atletas), Network 99 €/mes (multi-sede), trial 7 dias sin tarjeta con anti-abuso 1 cada 12 meses, fee 0 € markup sobre Stripe directo, un solo precio para Espana + LATAM.
+>
+> Actualización 2026-09-13: esta referencia histórica conserva el debate inicial; el portal familiar vigente es limitado y seguro. Para copy y triggers actuales prevalece `vault/03-Negocio/Pricing.md`.
 
 ## Objetivo
 

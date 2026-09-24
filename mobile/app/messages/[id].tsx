@@ -117,7 +117,7 @@ export default function ConversationThreadScreen() {
   const serverItems = messagesQuery.data?.items ?? [];
   // Concatenamos el pending al final para que se vea abajo (orden
   // cronológico de un chat: más reciente abajo).
-  const items: Array<ConversationMessage | PendingMessage> = pending
+  const items: (ConversationMessage | PendingMessage)[] = pending
     ? [...serverItems, pending]
     : serverItems;
 

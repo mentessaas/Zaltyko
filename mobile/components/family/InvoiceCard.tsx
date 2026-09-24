@@ -23,7 +23,7 @@ interface Props {
 
 function formatAmount(cents: number, currency: string): string {
   const amount = cents / 100;
-  // Euro por defecto (mercado principal Zaltyko MVP).
+  // Euro por defecto (mercado principal actual de Zaltyko).
   const symbol = currency === 'EUR' ? '€' : currency;
   return `${amount.toFixed(2)} ${symbol}`;
 }

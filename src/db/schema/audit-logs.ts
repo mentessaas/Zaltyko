@@ -53,6 +53,7 @@ export const auditActionEnum = [
   "athletes.update",
   "athletes.delete",
   "athletes.import",
+  "athletes.import_rollback",
   "athletes.export",
   "athletes.status_change",
 

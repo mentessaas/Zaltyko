@@ -32,6 +32,7 @@ import {
   getAttention,
   renderCount,
   type OwnerAttentionBundle,
+  type ImportJobState,
   type TodaySession,
 } from '@/lib/api/dashboard';
 import {
@@ -549,6 +550,9 @@ function AdminHome({ academyId }: { academyId: string | null }) {
         <ImportActiveCard
           state={bundle.importActive.state}
           filename={bundle.importActive.filename}
+          totalRows={bundle.importActive.totalRows}
+          createdCount={bundle.importActive.createdCount}
+          skippedCount={bundle.importActive.skippedCount}
           onOpen={() => openHref(router, bundle.importActive!.href)}
         />
       ) : null}
@@ -628,16 +632,39 @@ function PriorityActionBanner({
 function ImportActiveCard({
   state,
   filename,
+  totalRows,
+  createdCount,
+  skippedCount,
   onOpen,
 }: {
-  state: string;
+  state: ImportJobState;
   filename: string | null;
+  totalRows?: number;
+  createdCount?: number;
+  skippedCount?: number;
   onOpen: () => void;
 }) {
+  const stateLabel: Record<ImportJobState, string> = {
+    processing: 'En curso',
+    completed: 'Completada',
+    rolled_back: 'Archivada',
+    created: 'Creada',
+    preview_ready: 'Vista previa lista',
+    mapping_required: 'Requiere revisión',
+    validated: 'Validada',
+    committed: 'Aplicada',
+    failed: 'Con errores',
+    cancelled: 'Cancelada',
+  };
   return (
-    <Card title="Importación en curso">
-      <Text style={styles.importState}>{state}</Text>
+    <Card title={state === 'failed' ? 'Importación con errores' : 'Importación en curso'}>
+      <Text style={styles.importState}>{stateLabel[state]}</Text>
       {filename ? <Text style={styles.importFilename}>{filename}</Text> : null}
+      <Text style={styles.importFilename}>
+        {state === 'failed'
+          ? `${skippedCount ?? 0} filas requieren revisión`
+          : `${createdCount ?? 0} filas creadas de ${totalRows ?? 0}`}
+      </Text>
       <Button title="Ver detalle" variant="secondary" fullWidth onPress={onOpen} />
     </Card>
   );

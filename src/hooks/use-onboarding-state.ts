@@ -2,6 +2,10 @@ import { useState, useCallback, useEffect } from "react";
 
 import type { StepKey } from "@/types/onboarding";
 
+// Legacy compatibility hook. The active owner flow uses
+// `zaltyko:owner-onboarding-draft:v1` in OwnerOnboardingForm and persists the
+// server state in onboarding_states; keep this key isolated until downstream
+// consumers are removed.
 const STORAGE_KEY = "gymna_onboarding_state";
 
 interface OnboardingState {
@@ -19,7 +23,8 @@ interface OnboardingState {
 const DEFAULT_STEP: StepKey = "academy";
 
 /**
- * Hook para manejar el estado del onboarding con persistencia
+ * @deprecated Use OwnerOnboardingForm + the dashboard checklist for the active
+ * owner onboarding flow. This hook remains only for legacy consumers.
  */
 export function useOnboardingState() {
   const [step, setStep] = useState<StepKey>(DEFAULT_STEP);
@@ -108,4 +113,3 @@ export function useOnboardingState() {
     setEmail,
   };
 }
-

@@ -181,7 +181,7 @@ describe('idempotency', () => {
       await getOrCreateIdempotencyKey('communication.send', { x: 1 });
 
       // Dos getItem con claves compuestas distintas.
-      const composites = (storage.setItem.mock.calls as Array<[string, string]>).map(
+      const composites = (storage.setItem.mock.calls as [string, string][]).map(
         ([k]) => k
       );
       expect(new Set(composites).size).toBe(2);

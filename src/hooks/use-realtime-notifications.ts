@@ -4,6 +4,8 @@ import { useEffect, useCallback, useRef, useState } from "react";
 import { createClient } from "@/lib/supabase/client";
 import { useToast } from "@/components/ui/toast-provider";
 import { logger } from "@/lib/logger";
+import { formatMinorCurrency } from "@/lib/currency";
+import { getProductPlanPublicName } from "@/lib/plans/catalog";
 
 interface RealtimeNotification {
   id: string;
@@ -43,7 +45,7 @@ const playNotificationSound = () => {
 
     oscillator.start(audioContext.currentTime);
     oscillator.stop(audioContext.currentTime + 0.3);
-  } catch (error) {
+  } catch {
     logger.info("Notification sound not available");
   }
 };
@@ -144,7 +146,7 @@ export function useRealtimeNotifications({
                 id: `subscription-${newRecord.user_id}-${Date.now()}`,
                 type: "plan_changed",
                 title: "Plan actualizado",
-                description: `Tu plan ha sido cambiado a ${plan.nickname || plan.code.toUpperCase()}.`,
+                description: `Tu plan ha sido cambiado a ${getProductPlanPublicName(plan.code, plan.nickname)}.`,
                 userId: newRecord.user_id,
                 timestamp: new Date().toISOString(),
               });
@@ -174,6 +176,7 @@ export function useRealtimeNotifications({
           event: "*",
           schema: "public",
           table: "academies",
+          filter: tenantId ? `tenant_id=eq.${tenantId}` : undefined,
         },
         (payload) => {
           const record = (payload as any).new_record as { id: string; name?: string; owner_id?: string } | null;
@@ -213,6 +216,7 @@ export function useRealtimeNotifications({
           event: "*",
           schema: "public",
           table: "classes",
+          filter: tenantId ? `tenant_id=eq.${tenantId}` : undefined,
         },
         (payload) => {
           const record = (payload as any).new_record as { id: string; name?: string; academy_id?: string } | null;
@@ -251,6 +255,7 @@ export function useRealtimeNotifications({
             academy_id: string;
             amount_paid?: number | null;
             amount_due?: number | null;
+            currency?: string | null;
             status?: string;
           } | null;
 
@@ -262,7 +267,9 @@ export function useRealtimeNotifications({
           }
 
           const amount = record.amount_paid ?? record.amount_due ?? 0;
-          const amountFormatted = amount > 0 ? `€${(amount / 100).toFixed(2)}` : "un monto pendiente";
+          const amountFormatted = amount > 0
+            ? formatMinorCurrency(amount, record.currency ?? "EUR")
+            : "un monto pendiente";
 
           handleNotification({
             id: `billing-invoice-${record.id}-${Date.now()}`,
@@ -286,6 +293,7 @@ export function useRealtimeNotifications({
           event: "INSERT",
           schema: "public",
           table: "contact_messages",
+          filter: tenantId ? `tenant_id=eq.${tenantId}` : undefined,
         },
         async (payload: any) => {
           const record = payload.new_record as {

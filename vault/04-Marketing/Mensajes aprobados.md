@@ -1,7 +1,7 @@
 ---
 status: active
 owner: marketing
-last_reviewed: 2026-07-13
+last_reviewed: 2026-09-13
 source:
   - ../docs/marketing/zaltyko-messaging.md
   - ../PRODUCT-ANALYSIS.md
@@ -40,12 +40,13 @@ Para discovery, beta y mensajes de venta tempranos, enfocar Zaltyko en academias
 ## CTAs y claims seguros a 2026-07-12
 
 - Free puede dirigir al registro de owner.
-- Actualización 2026-07-13: el CTA principal de la landing (hero, navbar, CTA final, sticky bar) dirige a `/auth/register?role=owner` ("Crea tu academia gratis" / "Crear cuenta gratis") en vez de a `/contact?type=demo`. Sigue siendo registro Free, ya autorizado por la regla anterior; el cambio es de prioridad visual, no de alcance. Los CTA de los planes Starter/Growth en `/pricing` siguen apuntando a demo/contacto hasta que exista el handoff registro → checkout validado (ver regla siguiente). Ver [[Auditoria producto-CRO-SEO 2026-07-13]].
-- Starter y Growth usan la CTA pública **"Solicitar demo"** mientras no exista handoff registro → checkout validado end-to-end. No usar "Contratar" si el enlace abre contacto.
+- Actualización 2026-09-13: el CTA principal de la landing (hero, navbar, CTA final, sticky bar) dirige a `/auth/register?role=owner` ("Crear cuenta gratis") y las CTAs de home, módulos y features explican que primero se crea la cuenta y después se configura la academia.
+- Starter usa la CTA pública **"Crear cuenta y configurar"** y dirige a `/auth/register?role=owner`: el trial de 7 días se activa de forma explícita desde Facturación una vez creada la academia. Growth mantiene **"Solicitar demo"** y `/contact?type=demo&plan=growth` hasta validar su handoff registro → checkout end-to-end. No usar "Contratar" si el enlace abre contacto.
 - Network siempre dirige a contacto/onboarding acompanado, nunca a checkout.
 - Usar "aislamiento por academia" y "controles de acceso"; no usar "100% seguro" ni "cumplimiento RGPD garantizado".
 - Usar “privacidad por diseño” y “atención por email”; no publicar “RGPD Compliant” ni tiempos de respuesta cerrados sin evidencia operativa.
 - Usar "puesta en marcha guiada"; no prometer una duracion cerrada sin evidencia operativa.
+- Describir el portal familiar como limitado y seguro (horarios, avisos, progreso publicado y cuotas); no usar "portal completo" mientras las capacidades administrativas sigan fuera del alcance familiar.
 - Describir importación CSV/Excel como base principal; migraciones históricas, familias, cobros o formatos complejos requieren revisión de alcance y pueden ser acompañadas.
 - Usar resultados como beneficios esperados (menos trabajo manual, más trazabilidad); no publicar porcentajes de ahorro, recaudación o adopción sin trials y denominadores verificables.
 - No publicar testimonios con nombres, academias, volúmenes o resultados concretos sin autorización y evidencia trazable. Mientras no exista esa evidencia, usar proof points de capacidad.

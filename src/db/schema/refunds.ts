@@ -1,4 +1,4 @@
-import { index, integer, pgTable, text, timestamp, uuid } from "drizzle-orm/pg-core";
+import { index, integer, pgTable, text, timestamp, uniqueIndex, uuid } from "drizzle-orm/pg-core";
 
 import { academies } from "./academies";
 import { charges } from "./charges";
@@ -35,5 +35,6 @@ export const refunds = pgTable(
     chargeIdx: index("refunds_charge_idx").on(table.chargeId),
     tenantIdx: index("refunds_tenant_idx").on(table.tenantId),
     refundIdIdx: index("refunds_refund_id_idx").on(table.stripeRefundId),
+    stripeRefundUniqueIdx: uniqueIndex("refunds_stripe_refund_id_unique").on(table.stripeRefundId),
   })
 );

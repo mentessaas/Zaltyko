@@ -1,5 +1,5 @@
 // Class waiting list schema
-import { index, integer, pgTable, timestamp, uuid, varchar } from "drizzle-orm/pg-core";
+import { index, integer, pgTable, timestamp, uniqueIndex, uuid, varchar } from "drizzle-orm/pg-core";
 
 import { academies } from "./academies";
 import { classes } from "./classes";
@@ -25,5 +25,6 @@ export const classWaitingList = pgTable(
     tenantAcademyIdx: index("class_waiting_list_tenant_academy_idx").on(table.tenantId, table.academyId),
     classIdx: index("class_waiting_list_class_idx").on(table.classId),
     athleteIdx: index("class_waiting_list_athlete_idx").on(table.athleteId),
+    uniqueAthletePerClass: uniqueIndex("class_waiting_list_class_athlete_unique").on(table.tenantId, table.classId, table.athleteId),
   })
 );
