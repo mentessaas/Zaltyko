@@ -1,14 +1,15 @@
 import { cookies } from "next/headers";
 import { redirect } from "next/navigation";
 import { Metadata } from "next";
-import { and, eq, gte, inArray, isNull, lte } from "drizzle-orm";
+import { and, eq, gte, inArray, isNull, lte, or, sql } from "drizzle-orm";
 
 import { db } from "@/db";
 import { assessmentScores, skillCatalog } from "@/db/schema";
-import { academies, memberships, profiles, athletes, guardians, guardianAthletes, groups, classes, classSessions, classEnrollments, attendanceRecords, charges, groupAthletes, coaches, billingItems, athleteAssessments } from "@/db/schema";
+import { academies, memberships, profiles, athletes, familyContacts, guardians, guardianAthletes, groups, classes, classSessions, classEnrollments, attendanceRecords, charges, groupAthletes, coaches, billingItems, athleteAssessments } from "@/db/schema";
 import { createClient } from "@/lib/supabase/server";
 import { getDevSessionFromCookieStore } from "@/lib/dev-session";
 import { canAccessFamilyFinancialData } from "@/lib/family/access-policy";
+import { formatDateToISOString } from "@/lib/date-utils";
 import { MyDashboardPage } from "./MyDashboardPage";
 import { AccessDenied } from "@/components/ui/access-denied";
 import { PageHeader } from "@/components/ui/page-header";
@@ -67,6 +68,7 @@ interface ChargeData {
   id: string;
   label: string;
   amountCents: number;
+  currency: string | null;
   period: string;
   status: string;
   dueDate: string | null;
@@ -113,6 +115,7 @@ export default async function MyDashboard({ params, searchParams }: PageProps) {
   } = await supabase.auth.getUser();
   const devSession = await getDevSessionFromCookieStore(cookieStore);
   const userId = user?.id ?? devSession?.userId;
+  const userEmail = user?.email?.trim().toLowerCase() ?? null;
 
   if (!userId) {
     redirect("/auth/login");
@@ -284,22 +287,29 @@ export default async function MyDashboard({ params, searchParams }: PageProps) {
     }
   } else if (profile.role === "parent") {
     // El usuario es un padre/tutor - buscar los atletas asociados
-    const [guardian] = await db
+    const guardianRows = await db
       .select({
         id: guardians.id,
       })
       .from(guardians)
       .where(
         and(
-          eq(guardians.profileId, profile.id),
-          eq(guardians.tenantId, academy.tenantId)
+          eq(guardians.tenantId, academy.tenantId),
+          or(
+            eq(guardians.profileId, profile.id),
+            ...(userEmail
+              ? [sql`lower(${guardians.email}) = ${userEmail}`]
+              : [])
+          )
         )
       )
-      .limit(1);
+      .limit(100);
 
-    if (guardian) {
+    const guardianIds = guardianRows.map((guardian) => guardian.id);
+    if (guardianIds.length > 0) {
       const athletesData = await db
         .select({
+          guardianId: guardianAthletes.guardianId,
           athleteId: guardianAthletes.athleteId,
           athleteName: athletes.name,
           athleteLevel: athletes.level,
@@ -328,16 +338,17 @@ export default async function MyDashboard({ params, searchParams }: PageProps) {
         )
         .where(
           and(
-            eq(guardianAthletes.guardianId, guardian.id),
+            inArray(guardianAthletes.guardianId, guardianIds),
             eq(guardianAthletes.tenantId, academy.tenantId),
             eq(athletes.tenantId, academy.tenantId),
             eq(athletes.academyId, academyId),
             isNull(athletes.deletedAt)
           )
-        );
+        )
+        .limit(100);
 
       guardianAthletesList = athletesData.map((a) => ({
-        guardianId: guardian.id,
+        guardianId: a.guardianId,
         athleteId: a.athleteId,
         athleteName: a.athleteName ?? "Sin nombre",
         athleteLevel: a.athleteLevel ?? null,
@@ -346,6 +357,71 @@ export default async function MyDashboard({ params, searchParams }: PageProps) {
         athleteGroupColor: a.groupColor ?? null,
         athleteCoachName: a.coachName ?? null,
       }));
+    }
+
+    // Compatibilidad con academias antiguas que todavía vinculan a la familia
+    // mediante `family_contacts.email` y aún no tienen fila en guardians.
+    // Este fallback mantiene el alcance limitado al tenant y a la academia
+    // activa, sin convertir un email en una autorización global.
+    if (userEmail) {
+      const legacyAthletes = await db
+        .select({
+          athleteId: familyContacts.athleteId,
+          athleteName: athletes.name,
+          athleteLevel: athletes.level,
+          athleteGroupId: athletes.groupId,
+          groupName: groups.name,
+          groupColor: groups.color,
+          coachName: coaches.name,
+          contactId: familyContacts.id,
+        })
+        .from(familyContacts)
+        .innerJoin(athletes, eq(familyContacts.athleteId, athletes.id))
+        .leftJoin(
+          groups,
+          and(
+            eq(athletes.groupId, groups.id),
+            eq(groups.tenantId, academy.tenantId),
+            eq(groups.academyId, academyId)
+          )
+        )
+        .leftJoin(
+          coaches,
+          and(
+            eq(groups.coachId, coaches.id),
+            eq(coaches.tenantId, academy.tenantId),
+            eq(coaches.academyId, academyId)
+          )
+        )
+        .where(
+          and(
+            eq(familyContacts.tenantId, academy.tenantId),
+            sql`lower(${familyContacts.email}) = ${userEmail}`,
+            eq(athletes.tenantId, academy.tenantId),
+            eq(athletes.academyId, academyId),
+            isNull(athletes.deletedAt)
+          )
+        )
+        .limit(100);
+
+      const existingAthleteIds = new Set(
+        guardianAthletesList.map((athlete) => athlete.athleteId)
+      );
+      guardianAthletesList = [
+        ...guardianAthletesList,
+        ...legacyAthletes
+          .filter((athlete) => !existingAthleteIds.has(athlete.athleteId))
+          .map((a) => ({
+            guardianId: `legacy:${a.contactId}`,
+            athleteId: a.athleteId,
+            athleteName: a.athleteName ?? "Sin nombre",
+            athleteLevel: a.athleteLevel ?? null,
+            athleteGroupId: a.athleteGroupId ?? null,
+            athleteGroupName: a.groupName ?? null,
+            athleteGroupColor: a.groupColor ?? null,
+            athleteCoachName: a.coachName ?? null,
+          })),
+      ];
     }
   }
 
@@ -377,7 +453,8 @@ export default async function MyDashboard({ params, searchParams }: PageProps) {
           eq(classEnrollments.tenantId, academy.tenantId),
           eq(classEnrollments.academyId, academyId)
         )
-      );
+      )
+      .limit(100);
 
     const enrolledClassIds = enrollments.map((e) => e.classId);
 
@@ -390,7 +467,8 @@ export default async function MyDashboard({ params, searchParams }: PageProps) {
           eq(groupAthletes.athleteId, targetAthleteId),
           eq(groupAthletes.tenantId, academy.tenantId)
         )
-      );
+      )
+      .limit(100);
 
     const groupIds = athleteGroupMemberships.map((g) => g.groupId);
 
@@ -408,7 +486,8 @@ export default async function MyDashboard({ params, searchParams }: PageProps) {
             eq(classes.academyId, academyId),
             isNull(classes.deletedAt)
           )
-        );
+        )
+        .limit(100);
 
       classIds = [...new Set([...classIds, ...groupClasses.map((c) => c.id)])];
     }
@@ -419,8 +498,8 @@ export default async function MyDashboard({ params, searchParams }: PageProps) {
       const nextWeek = new Date(today);
       nextWeek.setDate(nextWeek.getDate() + 7);
 
-      const todayStr = today.toISOString().split("T")[0];
-      const nextWeekStr = nextWeek.toISOString().split("T")[0];
+      const todayStr = formatDateToISOString(today, academy.country);
+      const nextWeekStr = formatDateToISOString(nextWeek, academy.country);
 
       const sessions = await db
         .select({
@@ -493,7 +572,7 @@ export default async function MyDashboard({ params, searchParams }: PageProps) {
     // Obtener últimos 30 días de asistencia
     const thirtyDaysAgo = new Date();
     thirtyDaysAgo.setDate(thirtyDaysAgo.getDate() - 30);
-    const thirtyDaysAgoStr = thirtyDaysAgo.toISOString().split("T")[0];
+    const thirtyDaysAgoStr = formatDateToISOString(thirtyDaysAgo, academy.country);
 
     const attendanceRecordsList = await db
       .select({
@@ -515,7 +594,7 @@ export default async function MyDashboard({ params, searchParams }: PageProps) {
           eq(classes.academyId, academyId),
           inArray(attendanceRecords.status, ["present", "absent", "excused"]),
           gte(classSessions.sessionDate, thirtyDaysAgoStr),
-          lte(classSessions.sessionDate, new Date().toISOString().split("T")[0])
+          lte(classSessions.sessionDate, formatDateToISOString(new Date(), academy.country))
         )
       )
       .orderBy(classSessions.sessionDate)
@@ -547,6 +626,7 @@ export default async function MyDashboard({ params, searchParams }: PageProps) {
         id: charges.id,
         label: charges.label,
         amountCents: charges.amountCents,
+        currency: charges.currency,
         period: charges.period,
         status: charges.status,
         dueDate: charges.dueDate,
@@ -578,6 +658,7 @@ export default async function MyDashboard({ params, searchParams }: PageProps) {
       id: c.id,
       label: c.label,
       amountCents: c.amountCents,
+      currency: c.currency ?? null,
       period: c.period,
       status: c.status,
       dueDate: c.dueDate,
@@ -606,7 +687,8 @@ export default async function MyDashboard({ params, searchParams }: PageProps) {
           eq(classes.academyId, academyId),
           isNull(classes.deletedAt)
         )
-      );
+      )
+      .limit(100);
 
     weeklySchedule = weeklyClasses.map((c) => ({
       day: c.weekday ?? 0,
@@ -654,7 +736,8 @@ export default async function MyDashboard({ params, searchParams }: PageProps) {
         })
         .from(assessmentScores)
         .innerJoin(skillCatalog, eq(skillCatalog.id, assessmentScores.skillId))
-        .where(inArray(assessmentScores.assessmentId, assessmentIds));
+        .where(inArray(assessmentScores.assessmentId, assessmentIds))
+        .limit(500);
       for (const row of scoreRows) {
         const arr = scoresMap.get(row.assessmentId) ?? [];
         arr.push({ skillName: row.skillName, score: row.score });
@@ -698,7 +781,8 @@ export default async function MyDashboard({ params, searchParams }: PageProps) {
           eq(classEnrollments.tenantId, academy.tenantId),
           eq(classEnrollments.academyId, academyId)
         )
-      );
+      )
+      .limit(100);
 
     const enrolledClassIds = enrollments.map((e) => e.classId);
     const athleteGroupMemberships = await db
@@ -709,7 +793,8 @@ export default async function MyDashboard({ params, searchParams }: PageProps) {
           eq(groupAthletes.athleteId, targetAthleteId),
           eq(groupAthletes.tenantId, academy.tenantId)
         )
-      );
+      )
+      .limit(100);
 
     const athleteGroupIds = athleteGroupMemberships.map((g) => g.groupId);
     let relatedClassIds: string[] = [...enrolledClassIds];
@@ -725,7 +810,8 @@ export default async function MyDashboard({ params, searchParams }: PageProps) {
             eq(classes.academyId, academyId),
             isNull(classes.deletedAt)
           )
-        );
+        )
+        .limit(100);
 
       relatedClassIds = [...new Set([...relatedClassIds, ...groupClasses.map((c) => c.id)])];
     }
@@ -734,8 +820,8 @@ export default async function MyDashboard({ params, searchParams }: PageProps) {
       const today = new Date();
       const nextFourteenDays = new Date(today);
       nextFourteenDays.setDate(nextFourteenDays.getDate() + 14);
-      const todayStr = today.toISOString().split("T")[0];
-      const nextStr = nextFourteenDays.toISOString().split("T")[0];
+      const todayStr = formatDateToISOString(today, academy.country);
+      const nextStr = formatDateToISOString(nextFourteenDays, academy.country);
 
       const calendarRows = await db
         .select({
@@ -771,7 +857,8 @@ export default async function MyDashboard({ params, searchParams }: PageProps) {
             lte(classSessions.sessionDate, nextStr)
           )
         )
-        .orderBy(classSessions.sessionDate, classSessions.startTime);
+        .orderBy(classSessions.sessionDate, classSessions.startTime)
+        .limit(100);
 
       const grouped = new Map<
         string,

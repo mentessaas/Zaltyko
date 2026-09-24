@@ -6,13 +6,13 @@ import { getPublicSiteUrl } from "@/lib/seo/site-url";
 
 const baseUrl = getPublicSiteUrl();
 
-const updatedAt = "8 de noviembre de 2025";
+const updatedAt = "13 de septiembre de 2026";
 
 const sections = [
   {
     title: "1. Quiénes somos",
     content: [
-      "Zaltyko es una plataforma software-as-a-service operada por Mentes SaaS S.L. que ayuda a academias de gimnasia a gestionar atletas, coaches, clases y cobros internos en múltiples sedes.",
+      "Zaltyko es una plataforma software-as-a-service operada bajo la marca Zaltyko que ayuda a academias de gimnasia a gestionar atletas, coaches, clases y cobros internos en múltiples sedes.",
       "Esta política describe cómo tratamos los datos personales cuando utilizas nuestro sitio web, la aplicación web y las APIs asociadas.",
     ],
   },

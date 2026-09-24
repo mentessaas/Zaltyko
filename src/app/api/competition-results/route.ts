@@ -75,7 +75,8 @@ export const GET = withTenant(async (request, context) => {
       .innerJoin(athletes, eq(competitionResults.athleteId, athletes.id))
       .leftJoin(events, eq(competitionResults.eventId, events.id))
       .where(and(...conditions))
-      .orderBy(desc(competitionResults.createdAt));
+      .orderBy(desc(competitionResults.createdAt))
+      .limit(500);
 
     return apiSuccess({ items: rows });
   } catch (error) {
@@ -146,7 +147,8 @@ export const POST = withTenant(async (request, context) => {
       const athleteConfigRows = await db
         .select({ sportConfigId: athleteSportConfigs.academySportConfigId })
         .from(athleteSportConfigs)
-        .where(and(eq(athleteSportConfigs.tenantId, context.tenantId), eq(athleteSportConfigs.athleteId, athlete.id)));
+      .where(and(eq(athleteSportConfigs.tenantId, context.tenantId), eq(athleteSportConfigs.athleteId, athlete.id)))
+      .limit(100);
 
       const athleteSportIds = new Set([
         athlete.primarySportConfigId,

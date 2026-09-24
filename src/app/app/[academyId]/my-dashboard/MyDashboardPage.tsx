@@ -35,6 +35,7 @@ import { MyAssessmentsWidget } from "@/components/my-dashboard/MyAssessmentsWidg
 import { MyCalendarWidget } from "@/components/my-dashboard/MyCalendarWidget";
 import { getInitials } from "@/lib/string-utils";
 import { useAcademyContext } from "@/hooks/use-academy-context";
+import { formatMinorCurrency, getCurrencyForCountry } from "@/lib/currency";
 
 interface AthleteWithDetails {
   id: string;
@@ -61,6 +62,7 @@ interface ChargeData {
   id: string;
   label: string;
   amountCents: number;
+  currency: string | null;
   period: string;
   status: string;
   dueDate: string | null;
@@ -222,7 +224,15 @@ export function MyDashboardPage({
     (c) => c.status === "pending" || c.status === "overdue"
   );
   const hasPendingPayments = canViewPayments && hasLinkedAthlete && pendingPayments.length > 0;
-  const totalPendingAmount = pendingPayments.reduce((sum, p) => sum + p.amountCents, 0);
+  // No sumamos céntimos de divisas distintas: una academia internacional puede
+  // conservar cargos legacy en EUR y nuevos cargos en moneda local. Mostrar una
+  // cifra mezclada produciría un total financiero incorrecto para la familia.
+  const pendingTotalsByCurrency = pendingPayments.reduce<Record<string, number>>((totals, payment) => {
+    const currency = (payment.currency ?? getCurrencyForCountry(academyCountry)).toUpperCase();
+    totals[currency] = (totals[currency] ?? 0) + payment.amountCents;
+    return totals;
+  }, {});
+  const pendingTotals = Object.entries(pendingTotalsByCurrency);
 
   // Calcular tasa de asistencia
   const attendanceRate =
@@ -230,32 +240,37 @@ export function MyDashboardPage({
       ? Math.round((attendanceData.present / attendanceData.total) * 100)
       : null;
 
-  // Format currency
-  const formatCurrency = (cents: number) => {
-    return new Intl.NumberFormat("es-ES", {
-      style: "currency",
-      currency: "EUR",
-    }).format(cents / 100);
-  };
-
   return (
     <div className="mx-auto max-w-[1200px] space-y-6">
       {/* Alerta de pagos pendientes */}
       {hasPendingPayments && (
-        <div className="flex flex-col gap-4 rounded-[22px] border border-amber-200/80 bg-gradient-to-r from-amber-50 to-white p-4 shadow-[0_18px_42px_-32px_rgba(146,64,14,0.45)] sm:flex-row sm:items-center sm:justify-between">
+        <div className="flex flex-col gap-4 rounded-[22px] border border-amber-200/80 bg-gradient-to-r from-amber-50 to-white p-4 shadow-[0_18px_42px_-32px_rgba(146,64,14,0.45)] dark:border-amber-900/60 dark:from-amber-950/50 dark:to-card sm:flex-row sm:items-center sm:justify-between">
           <div className="flex items-center gap-3">
-            <div className="flex h-10 w-10 items-center justify-center rounded-full bg-amber-100">
-              <CreditCard className="h-5 w-5 text-amber-600" />
+            <div className="flex h-10 w-10 items-center justify-center rounded-full bg-amber-100 dark:bg-amber-950/70">
+              <CreditCard className="h-5 w-5 text-amber-600 dark:text-amber-300" />
             </div>
             <div>
-              <p className="font-semibold text-amber-900">
+              <p className="font-semibold text-amber-900 dark:text-amber-100">
                 Tienes {pendingPayments.length} {pendingPayments.length === 1 ? "pago pendiente" : "pagos pendientes"}
               </p>
-              <p className="text-sm text-amber-700">Total: {formatCurrency(totalPendingAmount)}</p>
+      <div className="text-sm text-amber-700 dark:text-amber-200">
+        {pendingTotals.length === 1 ? (
+          <p>Total: {formatMinorCurrency(pendingTotals[0][1], pendingTotals[0][0])}</p>
+        ) : (
+          <div className="space-y-0.5">
+            <p>Total pendiente por moneda:</p>
+            {pendingTotals.map(([currency, amount]) => (
+              <p key={currency} className="font-medium">
+                {formatMinorCurrency(amount, currency)}
+              </p>
+            ))}
+          </div>
+        )}
+      </div>
             </div>
           </div>
           {/* ZAL-575 Tier A paso 4: blanco sobre amber-600 = 3.19:1 (falla AA). amber-700 = 5.02:1. */}
-          <Button asChild size="sm" className="bg-amber-700 hover:bg-amber-800">
+          <Button asChild size="sm" className="bg-amber-700 text-white hover:bg-amber-800 dark:bg-amber-600 dark:hover:bg-amber-500">
             <Link href="#payments">
               Ver detalles
             </Link>

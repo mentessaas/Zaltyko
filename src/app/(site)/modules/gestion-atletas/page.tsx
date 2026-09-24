@@ -59,7 +59,7 @@ const benefits = [
   {
     icon: Shield,
     title: "Documentación bajo control",
-    description: "Alertas automáticas para documentos vencidos y requisitos federativos pendientes.",
+    description: "Avisos visibles para documentos por vencer y requisitos federativos pendientes.",
   },
   {
     icon: TrendingUp,

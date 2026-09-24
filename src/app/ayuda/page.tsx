@@ -147,7 +147,7 @@ export default function HelpPage() {
           <div className="mt-8 flex justify-center gap-4">
             <Link
               href="/contact"
-              className="inline-flex items-center rounded-full bg-zaltyko-primary px-8 py-3 font-semibold text-white hover:bg-primary-dark"
+              className="inline-flex items-center rounded-full bg-zaltyko-primary px-8 py-3 font-semibold text-white hover:bg-zaltyko-primary-dark"
             >
               <MessageCircle className="mr-2 h-5 w-5" />
               Contactar soporte

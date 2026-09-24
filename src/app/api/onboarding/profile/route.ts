@@ -68,6 +68,11 @@ export async function GET(request: Request) {
 
 export async function POST(request: Request) {
   try {
+    const userId = await resolveUserId(request);
+    if (!userId) {
+      return apiError("UNAUTHENTICATED", "No autenticado", 401);
+    }
+
     let body: unknown;
     try {
       body = await request.json();
@@ -83,12 +88,6 @@ export async function POST(request: Request) {
     const name = typeof bodyObj.name === "string" && bodyObj.name.trim().length > 0
       ? bodyObj.name.trim()
       : null;
-
-    const userId = await resolveUserId(request);
-
-    if (!userId) {
-      return apiError("UNAUTHENTICATED", "No autenticado", 401);
-    }
 
     try {
       // Check if profile exists first

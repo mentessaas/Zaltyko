@@ -94,7 +94,8 @@ export default async function SessionPage({ params }: SessionPageProps) {
       notes: attendanceRecords.notes,
     })
     .from(attendanceRecords)
-    .where(eq(attendanceRecords.sessionId, sessionId));
+    .where(eq(attendanceRecords.sessionId, sessionId))
+    .limit(1000);
 
   return (
     <div className="space-y-6 p-8">
@@ -116,9 +117,8 @@ export default async function SessionPage({ params }: SessionPageProps) {
         athletes={athleteRows}
         existingAttendance={attendanceRows}
         academyCountry={sessionRow.academyCountry ?? null}
+        academyId={sessionRow.academyId}
       />
     </div>
   );
 }
-
-

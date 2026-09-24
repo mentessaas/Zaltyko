@@ -44,8 +44,12 @@ export const GET = withTenant(async (): Promise<NextResponse> => {
  * POST /api/metrics/reset
  * Resetea las métricas (solo disponible en desarrollo)
  */
-export async function POST(req: Request): Promise<NextResponse> {
+export const POST = withTenant(async (_req: Request, context): Promise<NextResponse> => {
   if (isProduction()) {
+    return NextResponse.json({ error: "Forbidden" }, { status: 403 });
+  }
+
+  if (!context.profile || !["owner", "admin", "super_admin"].includes(context.profile.role)) {
     return NextResponse.json({ error: "Forbidden" }, { status: 403 });
   }
 
@@ -63,7 +67,7 @@ export async function POST(req: Request): Promise<NextResponse> {
     message: "Metrics reset successfully",
     timestamp: metrics.lastReset,
   });
-}
+});
 
 function formatUptime(ms: number): string {
   const seconds = Math.floor(ms / 1000);

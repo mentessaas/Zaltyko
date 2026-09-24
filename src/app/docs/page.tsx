@@ -17,7 +17,7 @@ export default function ApiDoc() {
   return (
     <div className="min-h-screen flex flex-col bg-background">
       <Navbar />
-      <main className="flex-1 container mx-auto py-10">
+      <main className="flex-1 container mx-auto pt-20 pb-10">
         <div className="rounded-lg border bg-card shadow-sm">
           <SwaggerUI url="/api/docs" />
         </div>

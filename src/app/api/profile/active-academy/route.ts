@@ -1,9 +1,9 @@
-import { and, eq } from "drizzle-orm";
+import { and, eq, inArray } from "drizzle-orm";
 import { cookies } from "next/headers";
 import { z } from "zod";
 
 import { db } from "@/db";
-import { memberships, profiles } from "@/db/schema";
+import { academies, memberships, profiles } from "@/db/schema";
 import { createClient } from "@/lib/supabase/server";
 import { apiSuccess, apiError } from "@/lib/api-response";
 
@@ -13,8 +13,6 @@ const BodySchema = z.object({
 });
 
 export async function PATCH(request: Request) {
-  const body = BodySchema.parse(await request.json());
-
   const cookieStore = await cookies();
   const supabase = await createClient(cookieStore);
   const {
@@ -23,6 +21,11 @@ export async function PATCH(request: Request) {
 
   if (!user) {
     return apiError("UNAUTHORIZED", "No autorizado", 401);
+  }
+
+  const body = BodySchema.safeParse(await request.json());
+  if (!body.success) {
+    return apiError("INVALID_PAYLOAD", "Payload inválido", 400);
   }
 
   const [currentProfile] = await db
@@ -37,7 +40,7 @@ export async function PATCH(request: Request) {
 
   // Si se proporciona profileId y el usuario es Super Admin, actualizar el perfil objetivo
   const isSuperAdmin = currentProfile.role === "super_admin";
-  const targetProfileId = body.profileId && isSuperAdmin ? body.profileId : currentProfile.id;
+  const targetProfileId = body.data.profileId && isSuperAdmin ? body.data.profileId : currentProfile.id;
 
   const [targetProfile] = await db
     .select()
@@ -49,13 +52,23 @@ export async function PATCH(request: Request) {
     return apiError("TARGET_PROFILE_NOT_FOUND", "Perfil objetivo no encontrado", 404);
   }
 
-  const academyId = body.academyId ?? null;
+  const academyId = body.data.academyId ?? null;
 
   if (academyId) {
     const [membership] = await db
       .select({ id: memberships.id })
       .from(memberships)
-      .where(and(eq(memberships.userId, targetProfile.userId), eq(memberships.academyId, academyId)))
+      .innerJoin(academies, eq(academies.id, memberships.academyId))
+      .where(and(
+        eq(memberships.userId, targetProfile.userId),
+        eq(memberships.academyId, academyId),
+        // La membresía debe pertenecer al mismo tenant del perfil objetivo;
+        // así ni siquiera el modo super-admin puede dejar un contexto activo
+        // cruzado que luego contamine rutas legacy.
+        targetProfile.tenantId ? eq(academies.tenantId, targetProfile.tenantId) : undefined,
+        eq(academies.isSuspended, false),
+        inArray(academies.status, ["active", "trial"])
+      ))
       .limit(1);
 
     if (!membership) {

@@ -15,9 +15,9 @@ import { AnnouncementForm } from "@/components/announcements/AnnouncementForm";
 
 const PRIORITY_LABELS: Record<string, { label: string; class: string }> = {
   low: { label: "Baja", class: "bg-muted text-muted-foreground" },
-  normal: { label: "Normal", class: "bg-blue-100 text-blue-800" },
-  high: { label: "Alta", class: "bg-amber-100 text-amber-800" },
-  urgent: { label: "Urgente", class: "bg-red-100 text-red-800" },
+  normal: { label: "Normal", class: "bg-blue-100 text-blue-800 dark:bg-blue-950/40 dark:text-blue-300" },
+  high: { label: "Alta", class: "bg-amber-100 text-amber-800 dark:bg-amber-950/40 dark:text-amber-300" },
+  urgent: { label: "Urgente", class: "bg-red-100 text-red-800 dark:bg-red-950/40 dark:text-red-300" },
 };
 
 const CATEGORY_LABELS: Record<string, string> = {

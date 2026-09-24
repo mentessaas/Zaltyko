@@ -24,13 +24,14 @@ function academyIdFromContext(context: Record<string, unknown>) {
 
 async function canManageRoles(
   academyId: string,
-  context: { userId: string; profile: { id: string; role: string } }
+  context: { userId: string; profile: { id: string; role: string; tenantId: string | null } }
 ) {
   return getBillingAcademyAccess({
     academyId,
     userId: context.userId,
     profileId: context.profile.id,
     profileRole: context.profile.role,
+    tenantId: context.profile.tenantId ?? undefined,
   });
 }
 

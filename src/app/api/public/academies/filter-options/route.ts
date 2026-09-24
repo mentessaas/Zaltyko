@@ -28,7 +28,8 @@ export async function GET() {
           eq(academies.isSuspended, false),
           inArray(academies.status, INDEXABLE_ACADEMY_STATUS_VALUES)
         )
-      );
+      )
+      .limit(5000);
 
     const countriesSet = new Set<string>();
     const regionsSet = new Set<string>();

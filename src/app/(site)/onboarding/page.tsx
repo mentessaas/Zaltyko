@@ -5,8 +5,9 @@ import { resolveUserEntry } from "@/lib/auth/resolve-user-entry";
 
 /**
  * Canonical onboarding entrypoint.
- * Public signup only continues through owner setup. Invited users follow
- * their invitation flow or are redirected to their current home.
+ * La entrada genérica conserva el wizard de owner; las altas de coach,
+ * parent y athlete llegan a sus rutas específicas desde el resolver de auth.
+ * Los usuarios invitados siguen su flujo de invitación.
  */
 export default async function OnboardingPage() {
   const cookieStore = await cookies();

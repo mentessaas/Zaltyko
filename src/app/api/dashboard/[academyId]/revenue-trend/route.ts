@@ -41,7 +41,8 @@ export const GET = withTenant(async (_request, context) => {
       })
       .from(charges)
       .where(and(eq(charges.academyId, academyId), eq(charges.tenantId, context.tenantId)))
-      .orderBy(desc(charges.period));
+      .orderBy(desc(charges.period))
+      .limit(10000);
 
     const paidRevenueForPeriod = (period: string) =>
       allCharges

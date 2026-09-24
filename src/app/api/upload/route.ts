@@ -47,6 +47,9 @@ export const POST = withTenant(async (request, context) => {
     if (!validation.ok && validation.code === "FILE_SIGNATURE_INVALID") {
       return apiError("FILE_SIGNATURE_INVALID", "El contenido no coincide con el tipo declarado", 400);
     }
+    if (!validation.ok && validation.code === "MALWARE_DETECTED") {
+      return apiError("MALWARE_DETECTED", "El archivo fue rechazado por seguridad", 400);
+    }
     if (!validation.ok) {
       return apiError("FILE_TOO_LARGE", "El archivo no puede ser mayor a 5MB", 400);
     }
@@ -55,9 +58,13 @@ export const POST = withTenant(async (request, context) => {
     const fileName = generateFilePath(context.tenantId, parsed.data.academyId, parsed.data.folder, file.name);
 
     // Subir a Supabase Storage
+    // Coach gallery images are public by design because they appear on the
+    // academy directory. Other upload consumers keep using the legacy bucket.
+    const isPublicGallery = parsed.data.folder === "coach-gallery";
     const { url, path } = await uploadFile(file, fileName, {
       contentType: file.type,
       upsert: false,
+      bucket: isPublicGallery ? "avatars" : "uploads",
     });
 
     return apiSuccess({

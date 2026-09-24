@@ -1,15 +1,14 @@
 import { z } from "zod";
-import { eq } from "drizzle-orm";
-import { cookies } from "next/headers";
+import { and, eq } from "drizzle-orm";
 
 import { db } from "@/db";
 import { onboardingStates } from "@/db/schema";
 import { withTenant } from "@/lib/authz";
 import { markWizardStep, getOnboardingStatus } from "@/lib/onboarding";
 import { WIZARD_STEP_KEYS } from "@/lib/onboarding-utils";
-import { createClient } from "@/lib/supabase/server";
 import { handleApiError } from "@/lib/api-error-handler";
 import { apiSuccess, apiError } from "@/lib/api-response";
+import { verifyAcademyAccess } from "@/lib/permissions";
 
 export const dynamic = 'force-dynamic';
 
@@ -23,9 +22,8 @@ const querySchema = z.object({
   academyId: z.string().uuid().optional(),
 });
 
-export const GET = async (request: Request) => {
+export const GET = withTenant(async (request, context) => {
   try {
-    // Intentar usar withTenant primero, pero si falla por autenticación, permitir acceso básico
     const url = new URL(request.url);
     const params = querySchema.safeParse(Object.fromEntries(url.searchParams));
 
@@ -35,31 +33,23 @@ export const GET = async (request: Request) => {
 
     const academyId = params.data.academyId;
 
-    if (!academyId) {
-      // Intentar obtener de la sesión si no está en query params
-      const cookieStore = await cookies();
-      const supabase = await createClient(cookieStore);
-      const {
-        data: { user },
-      } = await supabase.auth.getUser();
-
-      if (!user) {
-        return apiError("UNAUTHENTICATED", "No autenticado", 401);
-      }
-
-      // Si no hay academyId, retornar estado vacío
+    if (!academyId && !context.profile.activeAcademyId) {
       return apiSuccess({ state: null });
     }
 
-    const state = await getOnboardingStatus(academyId);
+    const scopedAcademyId = academyId ?? context.profile.activeAcademyId!;
+    const access = await verifyAcademyAccess(scopedAcademyId, context.tenantId);
+    if (!access.allowed) return apiError("ACADEMY_NOT_FOUND", "Academia no encontrada", 404);
+
+    const state = await getOnboardingStatus(scopedAcademyId);
     return apiSuccess({ state });
   } catch (error) {
     return handleApiError(error, { endpoint: "/api/onboarding/state", method: "GET" });
   }
-};
+});
 
 export const POST = withTenant(async (request, context) => {
-  const body = bodySchema.safeParse(await request.json());
+  const body = bodySchema.safeParse(await request.json().catch(() => null));
 
   if (!body.success) {
     return apiError("INVALID_PAYLOAD", "Payload inválido", 400);
@@ -69,6 +59,9 @@ export const POST = withTenant(async (request, context) => {
   if (!academyId) {
     return apiError("ACADEMY_REQUIRED", "Academy requerido", 400);
   }
+
+  const access = await verifyAcademyAccess(academyId, context.tenantId);
+  if (!access.allowed) return apiError("ACADEMY_NOT_FOUND", "Academia no encontrada", 404);
 
   await markWizardStep({
     academyId,
@@ -83,7 +76,12 @@ export const POST = withTenant(async (request, context) => {
         notes: body.data.notes,
         updatedAt: new Date(),
       })
-      .where(eq(onboardingStates.academyId, academyId));
+      .where(
+        and(
+          eq(onboardingStates.academyId, academyId),
+          eq(onboardingStates.tenantId, context.tenantId)
+        )
+      );
   }
 
   const state = await getOnboardingStatus(academyId);

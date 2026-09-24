@@ -81,26 +81,26 @@ export default async function DashboardLayout({
         <div className="min-h-screen bg-zaltyko-neutral-light flex items-center justify-center p-4">
           <div className="max-w-md w-full bg-card rounded-lg shadow-lg p-6 space-y-4">
             <h1 className="text-2xl font-bold text-red-600">Error de Configuración</h1>
-            <p className="text-gray-700">
+            <p className="text-muted-foreground">
               La aplicación necesita una conexión a la base de datos para funcionar.
             </p>
-            <div className="bg-yellow-50 border border-yellow-200 rounded p-4">
-              <p className="text-sm font-semibold text-yellow-800 mb-2">Para solucionarlo:</p>
-              <ol className="text-sm text-yellow-700 list-decimal list-inside space-y-1">
+            <div className="bg-yellow-50 border border-yellow-200 rounded p-4 dark:bg-yellow-950/30 dark:border-yellow-900/60">
+              <p className="text-sm font-semibold text-yellow-800 dark:text-yellow-200 mb-2">Para solucionarlo:</p>
+              <ol className="text-sm text-yellow-700 dark:text-yellow-300 list-decimal list-inside space-y-1">
                 <li>
-                  Crea un archivo <code className="bg-yellow-100 px-1 rounded">.env.local</code> en la raíz del
+                  Crea un archivo <code className="bg-yellow-100 dark:bg-yellow-900/50 px-1 rounded">.env.local</code> en la raíz del
                   proyecto (si aún no existe)
                 </li>
                 <li>
                   Asegúrate de que exista una variable{" "}
-                  <code className="bg-yellow-100 px-1 rounded">DATABASE_URL</code> o{" "}
-                  <code className="bg-yellow-100 px-1 rounded">DATABASE_URL_DIRECT</code> con una URL válida de
+                  <code className="bg-yellow-100 dark:bg-yellow-900/50 px-1 rounded">DATABASE_URL</code> o{" "}
+                  <code className="bg-yellow-100 dark:bg-yellow-900/50 px-1 rounded">DATABASE_URL_DIRECT</code> con una URL válida de
                   PostgreSQL
                 </li>
                 <li>Reinicia el servidor de desarrollo</li>
               </ol>
             </div>
-            <p className="text-xs text-gray-500">
+            <p className="text-xs text-muted-foreground">
               Error: {error?.message || "No se pudo conectar a la base de datos"}
             </p>
           </div>
@@ -138,6 +138,7 @@ export default async function DashboardLayout({
         .select({ id: academies.id, name: academies.name })
         .from(academies)
         .where(eq(academies.tenantId, profile.tenantId))
+        .limit(500)
     : [];
 
   const canCreateAcademies =

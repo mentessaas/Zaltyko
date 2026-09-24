@@ -1,7 +1,7 @@
 import { cookies } from "next/headers";
 import { redirect } from "next/navigation";
 import { Metadata } from "next";
-import { and, eq, inArray, isNull, desc } from "drizzle-orm";
+import { and, eq, inArray, isNull, desc, gte } from "drizzle-orm";
 
 import { db } from "@/db";
 import {
@@ -24,6 +24,7 @@ import { CoachDashboardPage } from "@/components/coach/CoachDashboardPage";
 import { AccessDenied } from "@/components/ui/access-denied";
 import { PageHeader } from "@/components/ui/page-header";
 import { ClipboardList } from "lucide-react";
+import { formatDateToISOString } from "@/lib/date-utils";
 
 interface PageProps {
   params: Promise<{
@@ -44,8 +45,8 @@ export async function generateMetadata({ params }: PageProps): Promise<Metadata>
   const name = academy?.name ?? "Academia";
 
   return {
-    title: `${name} · Panel del Entrenador`,
-    description: `Tu panel personal como entrenador en ${name}.`,
+    title: `${name} · Panel del staff`,
+    description: `Tu panel personal dentro del staff de ${name}.`,
   };
 }
 
@@ -170,36 +171,20 @@ export default async function CoachDashboard({ params }: PageProps) {
         <PageHeader
           breadcrumbs={[
             { label: "Dashboard", href: `/app/${academyId}/dashboard` },
-            { label: "Panel del entrenador" },
+            { label: "Panel del staff" },
           ]}
-          title="Panel del entrenador"
+          title="Panel del staff"
           icon={<ClipboardList className="h-5 w-5" strokeWidth={1.8} />}
         />
         <AccessDenied
           variant="default"
-          title="Esta sección es solo para entrenadores"
-          description={`Tu rol actual (${profile.role}) no tiene acceso al panel del entrenador. Este espacio es exclusivo para coaches vinculados a la academia.`}
+          title="Esta sección es solo para el staff"
+          description={`Tu rol actual (${profile.role}) no tiene acceso al panel del staff. Este espacio es exclusivo para perfiles técnicos vinculados a la academia.`}
           ctaLabel={ctaLabel}
           ctaHref={homeHref}
         />
       </div>
     );
-  }
-
-  // Obtener el coach asociado al perfil
-  const [coach] = await db
-    .select({ id: coaches.id })
-    .from(coaches)
-    .where(
-      and(
-        eq(coaches.profileId, profile.id),
-        eq(coaches.academyId, academyId)
-      )
-    )
-    .limit(1);
-
-  if (!coach) {
-    redirect("/dashboard");
   }
 
   // Obtener datos de la academia
@@ -208,6 +193,7 @@ export default async function CoachDashboard({ params }: PageProps) {
       id: academies.id,
       name: academies.name,
       country: academies.country,
+      tenantId: academies.tenantId,
     })
     .from(academies)
     .where(eq(academies.id, academyId))
@@ -217,11 +203,38 @@ export default async function CoachDashboard({ params }: PageProps) {
     redirect("/dashboard");
   }
 
+  // Obtener el coach asociado al perfil
+  const [coach] = await db
+    .select({ id: coaches.id })
+    .from(coaches)
+    .where(
+      and(
+        eq(coaches.profileId, profile.id),
+        eq(coaches.academyId, academyId),
+        eq(coaches.tenantId, academy.tenantId)
+      )
+    )
+    .limit(1);
+
+  if (!coach) {
+    redirect("/dashboard");
+  }
+
   // === OBTENER ATLETAS DEL COACH ===
   const assignedClasses = await db
     .select({ classId: classCoachAssignments.classId })
     .from(classCoachAssignments)
-    .where(eq(classCoachAssignments.coachId, coach.id));
+    .innerJoin(classes, eq(classCoachAssignments.classId, classes.id))
+    .where(
+      and(
+        eq(classCoachAssignments.coachId, coach.id),
+        eq(classCoachAssignments.tenantId, academy.tenantId),
+        eq(classes.tenantId, academy.tenantId),
+        eq(classes.academyId, academyId),
+        isNull(classes.deletedAt)
+      )
+    )
+    .limit(500);
 
   const assignedClassIds = assignedClasses.map((c) => c.classId);
 
@@ -231,7 +244,15 @@ export default async function CoachDashboard({ params }: PageProps) {
     const classGroups = await db
       .select({ groupId: classes.groupId })
       .from(classes)
-      .where(inArray(classes.id, assignedClassIds));
+      .where(
+        and(
+          inArray(classes.id, assignedClassIds),
+          eq(classes.tenantId, academy.tenantId),
+          eq(classes.academyId, academyId),
+          isNull(classes.deletedAt)
+        )
+      )
+      .limit(500);
 
     groupIds = classGroups
       .map((g) => g.groupId)
@@ -252,14 +273,31 @@ export default async function CoachDashboard({ params }: PageProps) {
         groupColor: groups.color,
       })
       .from(groupAthletes)
-      .innerJoin(athletes, eq(groupAthletes.athleteId, athletes.id))
-      .leftJoin(groups, eq(groupAthletes.groupId, groups.id))
+      .innerJoin(
+        athletes,
+        and(
+          eq(groupAthletes.athleteId, athletes.id),
+          eq(athletes.tenantId, academy.tenantId),
+          eq(athletes.academyId, academyId)
+        )
+      )
+      .leftJoin(
+        groups,
+        and(
+          eq(groupAthletes.groupId, groups.id),
+          eq(groups.tenantId, academy.tenantId),
+          eq(groups.academyId, academyId),
+          isNull(groups.deletedAt)
+        )
+      )
       .where(
         and(
           inArray(groupAthletes.groupId, groupIds),
+          eq(groupAthletes.tenantId, academy.tenantId),
           isNull(athletes.deletedAt)
         )
-      );
+      )
+      .limit(5000);
 
     coachAthletes = athleteRows.map((a) => ({
       id: a.athleteId,
@@ -283,13 +321,23 @@ export default async function CoachDashboard({ params }: PageProps) {
         athleteCompetitiveLevel: athletes.competitiveLevel,
       })
       .from(classEnrollments)
-      .innerJoin(athletes, eq(classEnrollments.athleteId, athletes.id))
+      .innerJoin(
+        athletes,
+        and(
+          eq(classEnrollments.athleteId, athletes.id),
+          eq(athletes.tenantId, academy.tenantId),
+          eq(athletes.academyId, academyId)
+        )
+      )
       .where(
         and(
           inArray(classEnrollments.classId, assignedClassIds),
+          eq(classEnrollments.tenantId, academy.tenantId),
+          eq(classEnrollments.academyId, academyId),
           isNull(athletes.deletedAt)
         )
-      );
+      )
+      .limit(5000);
 
     const existingIds = new Set(coachAthletes.map((a) => a.id));
     enrollmentRows.forEach((a) => {
@@ -326,28 +374,54 @@ export default async function CoachDashboard({ params }: PageProps) {
       .where(
         and(
           inArray(classes.id, assignedClassIds),
+          eq(classes.tenantId, academy.tenantId),
+          eq(classes.academyId, academyId),
           isNull(classes.deletedAt)
         )
-      );
+      )
+      .limit(500);
 
     // Obtener athlete counts por clase
     const athleteCountMap = new Map<string, number>();
     for (const classId of assignedClassIds) {
+      const athleteIdsForClass = new Set<string>();
       // Count from groupAthletes (via group)
       const groupForClass = classRows.find((c) => c.id === classId)?.groupId;
       if (groupForClass) {
-        const count = await db
-          .select({ count: groupAthletes.id })
+        const groupMembers = await db
+          .select({ athleteId: groupAthletes.athleteId })
           .from(groupAthletes)
-          .where(eq(groupAthletes.groupId, groupForClass));
-        athleteCountMap.set(classId, (athleteCountMap.get(classId) ?? 0) + count.length);
+          .innerJoin(athletes, eq(groupAthletes.athleteId, athletes.id))
+          .where(
+            and(
+              eq(groupAthletes.groupId, groupForClass),
+              eq(groupAthletes.tenantId, academy.tenantId),
+              eq(athletes.tenantId, academy.tenantId),
+              eq(athletes.academyId, academyId),
+              isNull(athletes.deletedAt)
+            )
+          )
+          .limit(5000);
+        groupMembers.forEach(({ athleteId }) => athleteIdsForClass.add(athleteId));
       }
       // Count from classEnrollments
-      const enrollCount = await db
-        .select({ count: classEnrollments.id })
+      const enrolledAthletes = await db
+        .select({ athleteId: classEnrollments.athleteId })
         .from(classEnrollments)
-        .where(eq(classEnrollments.classId, classId));
-      athleteCountMap.set(classId, (athleteCountMap.get(classId) ?? 0) + enrollCount.length);
+        .innerJoin(athletes, eq(classEnrollments.athleteId, athletes.id))
+        .where(
+          and(
+            eq(classEnrollments.classId, classId),
+            eq(classEnrollments.tenantId, academy.tenantId),
+            eq(classEnrollments.academyId, academyId),
+            eq(athletes.tenantId, academy.tenantId),
+            eq(athletes.academyId, academyId),
+            isNull(athletes.deletedAt)
+          )
+        )
+        .limit(5000);
+      enrolledAthletes.forEach(({ athleteId }) => athleteIdsForClass.add(athleteId));
+      athleteCountMap.set(classId, athleteIdsForClass.size);
     }
 
     // Obtener grupos para cada clase
@@ -356,7 +430,15 @@ export default async function CoachDashboard({ params }: PageProps) {
       const groupsData = await db
         .select({ id: groups.id, name: groups.name, color: groups.color })
         .from(groups)
-        .where(inArray(groups.id, groupIds));
+        .where(
+          and(
+            inArray(groups.id, groupIds),
+            eq(groups.tenantId, academy.tenantId),
+            eq(groups.academyId, academyId),
+            isNull(groups.deletedAt)
+          )
+        )
+        .limit(500);
 
       groupsData.forEach((g) => {
         classGroupMap.set(g.id, { name: g.name, color: g.color });
@@ -383,7 +465,10 @@ export default async function CoachDashboard({ params }: PageProps) {
   }
 
   // === OBTENER SESIONES DE HOY ===
-  const today = new Date().toISOString().split("T")[0];
+  // La jornada operativa pertenece a la zona horaria de la academia, no a
+  // la del servidor. Esto evita que un coach en América vea las sesiones del
+  // día anterior/correcto desplazadas alrededor de medianoche UTC.
+  const today = formatDateToISOString(new Date(), academy.country);
   let todaySessions: TodaySession[] = [];
 
   if (assignedClassIds.length > 0) {
@@ -402,16 +487,33 @@ export default async function CoachDashboard({ params }: PageProps) {
         apparatus: classes.apparatus,
       })
       .from(classSessions)
-      .leftJoin(classes, eq(classSessions.classId, classes.id))
-      .leftJoin(groups, eq(classes.groupId, groups.id))
+      .leftJoin(
+        classes,
+        and(
+          eq(classSessions.classId, classes.id),
+          eq(classes.tenantId, academy.tenantId),
+          eq(classes.academyId, academyId)
+        )
+      )
+      .leftJoin(
+        groups,
+        and(
+          eq(classes.groupId, groups.id),
+          eq(groups.tenantId, academy.tenantId),
+          eq(groups.academyId, academyId),
+          isNull(groups.deletedAt)
+        )
+      )
       .where(
         and(
           inArray(classSessions.classId, assignedClassIds),
+          eq(classSessions.tenantId, academy.tenantId),
           eq(classSessions.sessionDate, today),
           inArray(classSessions.status, ["scheduled", "in_progress"])
         )
       )
-      .orderBy(classSessions.startTime);
+      .orderBy(classSessions.startTime)
+      .limit(500);
 
     todaySessions = sessionRows.map((s) => ({
       id: s.id,
@@ -431,7 +533,6 @@ export default async function CoachDashboard({ params }: PageProps) {
   // === OBTENER ESTADÍSTICAS DE ASISTENCIA (últimos 7 días) ===
   const sevenDaysAgo = new Date();
   sevenDaysAgo.setDate(sevenDaysAgo.getDate() - 7);
-  const sevenDaysAgoStr = sevenDaysAgo.toISOString().split("T")[0];
 
   const attendanceStats: AttendanceStats = { total: 0, present: 0, absent: 0, excused: 0 };
 
@@ -444,9 +545,12 @@ export default async function CoachDashboard({ params }: PageProps) {
       .where(
         and(
           inArray(attendanceRecords.athleteId, athleteIds),
-          inArray(attendanceRecords.status, ["present", "absent", "excused"])
+          eq(attendanceRecords.tenantId, academy.tenantId),
+          inArray(attendanceRecords.status, ["present", "absent", "excused"]),
+          gte(attendanceRecords.recordedAt, sevenDaysAgo)
         )
-      );
+      )
+      .limit(5000);
 
     // Filtrar por fecha - últimos 7 días
     const last7DaysAttendance = recentAttendance.filter((r) => {
@@ -476,8 +580,21 @@ export default async function CoachDashboard({ params }: PageProps) {
         totalScore: athleteAssessments.totalScore,
       })
       .from(athleteAssessments)
-      .innerJoin(athletes, eq(athleteAssessments.athleteId, athletes.id))
-      .where(inArray(athleteAssessments.athleteId, athleteIds))
+      .innerJoin(
+        athletes,
+        and(
+          eq(athleteAssessments.athleteId, athletes.id),
+          eq(athletes.tenantId, academy.tenantId),
+          eq(athletes.academyId, academyId)
+        )
+      )
+      .where(
+        and(
+          inArray(athleteAssessments.athleteId, athleteIds),
+          eq(athleteAssessments.tenantId, academy.tenantId),
+          eq(athleteAssessments.academyId, academyId)
+        )
+      )
       .orderBy(desc(athleteAssessments.assessmentDate))
       .limit(5);
 

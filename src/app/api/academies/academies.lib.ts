@@ -296,20 +296,26 @@ export async function createAcademy(
       .onConflictDoNothing();
   }
 
-  await trackEvent("academy_created", {
-    academyId,
-    tenantId,
-    userId: ownerProfile.userId,
-    metadata: {
-      country: countryName,
-      countryCode: normalizedCountryCode,
-      academyType,
-      disciplineVariant,
-      utm_source: utmSource,
-      utm_medium: utmMedium,
-      utm_campaign: utmCampaign,
-    },
-  });
+  // Un caller transaccional todavía no ha hecho commit en este punto. Un
+  // insert first-party por otra conexión podría perder la FK o quedar
+  // visible aunque la creación se revierta; el caller lo registra después.
+  if (!context.tx) {
+    await trackEvent("academy_created", {
+      academyId,
+      tenantId,
+      userId: ownerProfile.userId,
+      metadata: {
+        country: countryName,
+        countryCode: normalizedCountryCode,
+        academyType,
+        disciplineVariant,
+        utm_source: utmSource,
+        utm_medium: utmMedium,
+        utm_campaign: utmCampaign,
+      },
+      idempotencyKey: `academy_created:v1:${academyId}`,
+    });
+  }
 
   // A transactional caller records the audit event after commit. Writing it
   // through a separate pool connection before commit can race the academy FK.
@@ -370,6 +376,7 @@ export async function listAcademies(
     );
   }
 
+  // unbounded-read-ok: both execution branches apply a hard result cap
   const baseQuery = db
     .select({
       id: academies.id,
@@ -384,7 +391,8 @@ export async function listAcademies(
       ? await baseQuery
           .where(filters.length === 1 ? filters[0]! : and(...filters))
           .orderBy(asc(academies.name))
-      : await baseQuery.orderBy(asc(academies.name));
+          .limit(5000)
+      : await baseQuery.orderBy(asc(academies.name)).limit(5000);
 
   return { items: rows };
 }

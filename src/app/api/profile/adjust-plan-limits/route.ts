@@ -5,12 +5,14 @@ import { db } from "@/db";
 import { academies, profiles, subscriptions, plans } from "@/db/schema";
 import { withTenant } from "@/lib/authz";
 import { checkPlanLimitViolations } from "@/lib/limits";
-import { sendEmail } from "@/lib/brevo";
 import { config } from "@/config";
 import { cookies } from "next/headers";
 import { createClient } from "@/lib/supabase/server";
 import { apiSuccess, apiError } from "@/lib/api-response";
 import { logger } from "@/lib/logger";
+import { sendEmailWithLogging } from "@/lib/email/email-service";
+import { escapeHtml } from "@/lib/email/escape-html";
+import { getProductPlanPublicName } from "@/lib/plans/catalog";
 
 const BodySchema = z.object({
   academyIdsToKeep: z.array(z.string().uuid()).optional(),
@@ -62,7 +64,8 @@ export const POST = withTenant(async (request, context) => {
       const ownedAcademies = await db
         .select({ id: academies.id })
         .from(academies)
-        .where(eq(academies.ownerId, profile.id));
+        .where(eq(academies.ownerId, profile.id))
+        .limit(1000);
 
       // Deactivate academies not in the keep list
       const academiesToDeactivate = ownedAcademies
@@ -103,14 +106,16 @@ export const POST = withTenant(async (request, context) => {
 
   if (user?.email) {
     try {
-      await sendEmail({
+      const displayName = context.profile.name ?? "Usuario";
+      const planName = getProductPlanPublicName(subscription.planCode);
+      await sendEmailWithLogging({
         to: user.email,
         subject: "Ajustes de plan completados - Zaltyko",
         html: `
           <div style="font-family: Inter, Arial, sans-serif; max-width: 600px; margin: 0 auto;">
             <h2 style="color: #0D47A1; font-family: Poppins, sans-serif; font-weight: 700;">Cambio de plan completado</h2>
-            <p>Hola ${context.profile.name ?? "Usuario"},</p>
-            <p>Has completado los ajustes necesarios para tu plan ${subscription.planCode.toUpperCase()}.</p>
+            <p>Hola ${escapeHtml(displayName)},</p>
+            <p>Has completado los ajustes necesarios para tu plan ${escapeHtml(planName)}.</p>
             ${academyViolation && body.academyIdsToKeep ? `
               <p>Se han mantenido activas las siguientes academias:</p>
               <ul>
@@ -121,8 +126,13 @@ export const POST = withTenant(async (request, context) => {
             <p>Si tienes alguna pregunta, contacta a nuestro equipo de soporte.</p>
           </div>
         `,
-        text: `Has completado los ajustes necesarios para tu plan ${subscription.planCode.toUpperCase()}. Puedes continuar usando Zaltyko normalmente.`,
+        text: `Has completado los ajustes necesarios para tu plan ${planName}. Puedes continuar usando Zaltyko normalmente.`,
         replyTo: config.brevo.supportEmail,
+        template: "plan-limits-adjusted",
+        tenantId: context.tenantId,
+        academyId: context.profile.activeAcademyId ?? undefined,
+        userId: context.profile.id,
+        dedupeKey: `plan-limits-adjusted:${context.userId}:${subscription.planCode}:${body.academyIdsToKeep?.join(",") ?? "none"}`,
       });
     } catch (error) {
       logger.error("Error sending notification email", error);

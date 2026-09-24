@@ -27,16 +27,17 @@ export default function DemoSection() {
             Demo
           </span>
           <h2 className="text-4xl sm:text-5xl font-bold text-gray-900 mb-4">
-            Mira cómo funciona Zaltyko
+            Descubre cómo funciona Zaltyko
           </h2>
           <p className="text-xl text-gray-600 max-w-2xl mx-auto">
-            En menos de 2 minutos verás cómo gestionar gimnastas, grupos, clases y cobros desde un solo panel.
+            En una demo guiada verás cómo gestionar gimnastas, grupos, clases y cobros desde un solo panel.
           </p>
         </div>
 
         {/* Video Container */}
         <div className="relative rounded-3xl overflow-hidden shadow-2xl border border-gray-200 bg-black aspect-video max-w-3xl mx-auto">
-          {/* Placeholder thumbnail con overlay de play */}
+          {/* Vista previa honesta: la demo se realiza de forma guiada hasta
+              disponer de un vídeo público validado y actualizado. */}
           <div className="absolute inset-0 bg-gradient-to-br from-gray-900 via-gray-800 to-gray-900 flex flex-col items-center justify-center">
             {/* Preview del panel */}
             <div className="absolute inset-0 opacity-20">
@@ -47,15 +48,16 @@ export default function DemoSection() {
             </div>
 
             {/* Play button */}
-            <button
-              className="relative z-10 w-20 h-20 bg-zaltyko-teal hover:bg-primary-dark rounded-full flex items-center justify-center shadow-2xl shadow-[0_10px_30px_rgba(31,199,182,0.22)] transition-all duration-300 hover:scale-110 group"
-              aria-label="Reproducir demo"
+            <Link
+              href="/contact?type=demo"
+              className="relative z-10 flex h-20 w-20 items-center justify-center rounded-full bg-zaltyko-teal shadow-2xl shadow-[0_10px_30px_rgba(31,199,182,0.22)] transition-all duration-300 hover:scale-110 hover:bg-zaltyko-primary-dark group"
+              aria-label="Solicitar demo guiada"
             >
               <Play className="w-8 h-8 text-white ml-1 group-hover:scale-110 transition-transform" fill="white" />
-            </button>
+            </Link>
 
             <p className="relative z-10 mt-4 text-white/60 text-sm">
-              Haz clic para ver el demo (90 segundos)
+              Solicita una demo guiada
             </p>
           </div>
 
@@ -66,7 +68,7 @@ export default function DemoSection() {
         {/* Key points */}
         <div className="mt-10 grid sm:grid-cols-2 gap-4 max-w-2xl mx-auto">
           {demoPoints.map((point) => (
-            <div key={point} className="flex items-center gap-3 bg-white rounded-xl px-4 py-3 border border-gray-100 shadow-sm">
+            <div key={point} className="flex items-center gap-3 bg-white dark:bg-card rounded-xl px-4 py-3 border border-gray-100 dark:border-border shadow-sm">
               <div className="w-6 h-6 bg-green-100 rounded-full flex items-center justify-center shrink-0">
                 <Check className="w-4 h-4 text-green-600" />
               </div>
@@ -82,7 +84,7 @@ export default function DemoSection() {
             href="/contact?type=demo"
             className={cn(
               buttonVariants({ variant: "default", size: "lg" }),
-              "bg-zaltyko-teal hover:bg-primary-dark text-white shadow-lg shadow-[0_2px_8px_rgba(15,23,42,0.06)] hover:shadow-[0_10px_30px_rgba(31,199,182,0.22)] transition-all duration-300 text-base"
+              "bg-zaltyko-teal hover:bg-zaltyko-primary-dark text-white shadow-lg shadow-[0_2px_8px_rgba(15,23,42,0.06)] hover:shadow-[0_10px_30px_rgba(31,199,182,0.22)] transition-all duration-300 text-base"
             )}
           >
             Solicitar demo

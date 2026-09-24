@@ -33,6 +33,7 @@ body {
 
 @layer base {
   :root {
+    color-scheme: light;
     /* Zaltyko Brand Book v1 */
     --background: 210 33% 97%; /* Quiet canvas #F5F8F8 */
     --foreground: 222 47% 11%; /* Midnight Navy #0F172A */
@@ -76,6 +77,7 @@ body {
   }
  
   .dark {
+    color-scheme: dark;
     --background: 222 47% 11%;
     --foreground: 210 40% 98%;
  
@@ -114,11 +116,11 @@ body {
 
 @layer utilities {
   .glass-panel {
-    @apply border border-zaltyko-mist/70 bg-white shadow-soft;
+    @apply border border-zaltyko-mist/70 bg-white shadow-soft dark:border-slate-700 dark:bg-slate-900;
   }
   
   .glass-card {
-    @apply border border-zaltyko-mist/70 bg-white shadow-soft transition-colors duration-150;
+    @apply border border-zaltyko-mist/70 bg-white shadow-soft transition-colors duration-150 dark:border-slate-700 dark:bg-slate-900;
   }
 
   .text-gradient {
@@ -162,6 +164,20 @@ body {
     overflow-x: hidden;
     background-image: radial-gradient(circle at 10% 0%, rgba(31, 199, 182, 0.05), transparent 24rem);
   }
+
+  /* Los menús nativos de <select> no heredan de forma fiable el color del
+     trigger (especialmente en Super Admin, donde el trigger es text-white).
+     Fijar ambos tokens evita opciones blancas sobre fondo claro y mantiene
+     contraste en claro/oscuro en todos los módulos. */
+  select option,
+  select optgroup {
+    background-color: hsl(var(--popover));
+    color: hsl(var(--popover-foreground));
+  }
+
+  select {
+    color-scheme: inherit;
+  }
   
   html {
     overflow-x: hidden;
@@ -199,6 +215,8 @@ body {
   /* Mejoras de accesibilidad */
   :focus-visible {
     @apply outline-none ring-2 ring-ring ring-offset-2 ring-offset-background;
+    scroll-margin-top: 5rem;
+    scroll-margin-bottom: 4rem;
   }
 
   ::selection {

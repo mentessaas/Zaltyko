@@ -9,8 +9,6 @@ import {
   profiles,
   academies,
   memberships,
-  subscriptions,
-  plans,
   coaches,
   athletes,
   classCoachAssignments,
@@ -30,6 +28,7 @@ import { ParentProfile } from "@/components/profiles/ParentProfile";
 import { LinkRequestsPanel } from "@/components/profiles/LinkRequestsPanel";
 import { resolveAcademySpecialization } from "@/lib/specialization/registry";
 import { logger } from "@/lib/logger";
+import { getActiveSubscription } from "@/lib/limits";
 
 interface ProfilePageProps {
   params: Promise<{ profileId?: string }>;
@@ -110,7 +109,8 @@ export default async function ProfilePage({ params }: ProfilePageProps) {
         .from(memberships)
         .innerJoin(academies, eq(memberships.academyId, academies.id))
         .where(eq(memberships.userId, targetProfile.userId))
-        .orderBy(academies.name);
+        .orderBy(academies.name)
+        .limit(1000);
     } catch (error: any) {
       logger.error("dashboard/profile memberships query error", error);
       if (
@@ -121,22 +121,22 @@ export default async function ProfilePage({ params }: ProfilePageProps) {
           <div className="min-h-screen bg-zaltyko-neutral-light flex items-center justify-center p-4">
             <div className="max-w-md w-full bg-card rounded-lg shadow-lg p-6 space-y-4">
               <h1 className="text-2xl font-bold text-red-600">Error de Configuración</h1>
-              <p className="text-gray-700">
+              <p className="text-muted-foreground">
                 La aplicación necesita una conexión a la base de datos para funcionar.
               </p>
-              <div className="bg-yellow-50 border border-yellow-200 rounded p-4">
-                <p className="text-sm font-semibold text-yellow-800 mb-2">Para solucionarlo:</p>
-                <ol className="text-sm text-yellow-700 list-decimal list-inside space-y-1">
-                  <li>Verifica tu archivo <code className="bg-yellow-100 px-1 rounded">.env.local</code></li>
+              <div className="bg-yellow-50 border border-yellow-200 rounded p-4 dark:bg-yellow-950/30 dark:border-yellow-900/60">
+                <p className="text-sm font-semibold text-yellow-800 dark:text-yellow-200 mb-2">Para solucionarlo:</p>
+                <ol className="text-sm text-yellow-700 dark:text-yellow-300 list-decimal list-inside space-y-1">
+                  <li>Verifica tu archivo <code className="bg-yellow-100 dark:bg-yellow-900/50 px-1 rounded">.env.local</code></li>
                   <li>
-                    Asegúrate de tener <code className="bg-yellow-100 px-1 rounded">DATABASE_URL</code> (o{" "}
-                    <code className="bg-yellow-100 px-1 rounded">DATABASE_URL_DIRECT</code>) apuntando a tu
+                    Asegúrate de tener <code className="bg-yellow-100 dark:bg-yellow-900/50 px-1 rounded">DATABASE_URL</code> (o{" "}
+                    <code className="bg-yellow-100 dark:bg-yellow-900/50 px-1 rounded">DATABASE_URL_DIRECT</code>) apuntando a tu
                     base de datos PostgreSQL
                   </li>
                   <li>Reinicia el servidor de desarrollo</li>
                 </ol>
               </div>
-              <p className="text-xs text-gray-500">
+              <p className="text-xs text-muted-foreground">
                 Error: {error?.message ?? "No se pudo conectar a la base de datos"}
               </p>
             </div>
@@ -150,47 +150,17 @@ export default async function ProfilePage({ params }: ProfilePageProps) {
 
     const academiesWithSubscription = await Promise.all(
       academyMemberships.map(async (academy) => {
-        let planCode: string | null = null;
-        let planNickname: string | null = null;
-        let subscriptionStatus: string | null = null;
-
-        if (academy.ownerId) {
-          const [owner] = await db
-            .select({
-              userId: profiles.userId,
-            })
-            .from(profiles)
-            .where(eq(profiles.id, academy.ownerId))
-            .limit(1);
-
-          if (owner) {
-            const [sub] = await db
-              .select({
-                planCode: plans.code,
-                planNickname: plans.nickname,
-                status: subscriptions.status,
-              })
-              .from(subscriptions)
-              .leftJoin(plans, eq(subscriptions.planId, plans.id))
-              .where(eq(subscriptions.userId, owner.userId))
-              .limit(1);
-
-            if (sub) {
-              planCode = sub.planCode ?? null;
-              planNickname = sub.planNickname ?? null;
-              subscriptionStatus = sub.status ?? null;
-            }
-          }
-        }
+        const activePlan = await getActiveSubscription(academy.id);
 
         return {
           id: academy.id,
           name: academy.name,
           academyType: academy.academyType,
           createdAt: academy.createdAt,
-          planCode,
-          planNickname,
-          subscriptionStatus,
+          planCode: activePlan.planCode,
+          planNickname: activePlan.planNickname ?? null,
+          subscriptionStatus: activePlan.status ?? "active",
+          academyLimit: activePlan.academyLimit,
           trialStartsAt: academy.trialStartsAt,
           trialEndsAt: academy.trialEndsAt,
           isTrialActive: academy.isTrialActive,
@@ -234,7 +204,7 @@ export default async function ProfilePage({ params }: ProfilePageProps) {
         <div className="space-y-6 p-4 sm:p-6 lg:p-8">
           <LinkRequestsPanel />
           <div className="rounded-lg border border-amber-400/60 bg-amber-400/10 p-6">
-            <p className="text-sm text-amber-900">
+            <p className="text-sm text-amber-900 dark:text-amber-200">
               No se encontró un perfil de entrenador asociado a tu cuenta. Contacta con el administrador.
             </p>
           </div>
@@ -266,7 +236,7 @@ export default async function ProfilePage({ params }: ProfilePageProps) {
       return (
         <div className="space-y-6 p-4 sm:p-6 lg:p-8">
           <div className="rounded-lg border border-amber-400/60 bg-amber-400/10 p-6">
-            <p className="text-sm text-amber-900">
+            <p className="text-sm text-amber-900 dark:text-amber-200">
               No se encontró un perfil de entrenador asociado a tu cuenta. Contacta con el administrador.
             </p>
           </div>
@@ -330,7 +300,7 @@ export default async function ProfilePage({ params }: ProfilePageProps) {
         <div className="space-y-6 p-4 sm:p-6 lg:p-8">
           <LinkRequestsPanel />
           <div className="rounded-lg border border-amber-400/60 bg-amber-400/10 p-6">
-            <p className="text-sm text-amber-900">
+            <p className="text-sm text-amber-900 dark:text-amber-200">
               No se encontró un perfil de atleta asociado a tu cuenta. Contacta con el administrador.
             </p>
           </div>
@@ -371,7 +341,7 @@ export default async function ProfilePage({ params }: ProfilePageProps) {
       return (
         <div className="space-y-6 p-4 sm:p-6 lg:p-8">
           <div className="rounded-lg border border-amber-400/60 bg-amber-400/10 p-6">
-            <p className="text-sm text-amber-900">
+            <p className="text-sm text-amber-900 dark:text-amber-200">
               No se encontró un perfil de atleta asociado a tu cuenta. Contacta con el administrador.
             </p>
           </div>
@@ -452,7 +422,8 @@ export default async function ProfilePage({ params }: ProfilePageProps) {
       .innerJoin(guardians, eq(guardianAthletes.guardianId, guardians.id))
       .innerJoin(athletes, eq(guardianAthletes.athleteId, athletes.id))
       .innerJoin(academies, eq(athletes.academyId, academies.id))
-      .where(eq(guardians.profileId, targetProfile.id));
+      .where(eq(guardians.profileId, targetProfile.id))
+      .limit(5000);
 
     const childrenWithAge = await Promise.all(
       children.map(async (child) => {
@@ -532,7 +503,7 @@ export default async function ProfilePage({ params }: ProfilePageProps) {
           <div className="mt-5 flex flex-wrap gap-3">
             <Link
               href="/dashboard/marketplace/mis-productos"
-              className="inline-flex min-h-11 items-center justify-center rounded-xl bg-zaltyko-teal px-5 py-2.5 text-sm font-semibold text-white shadow-soft transition hover:bg-primary-dark"
+              className="inline-flex min-h-11 items-center justify-center rounded-xl bg-zaltyko-teal px-5 py-2.5 text-sm font-semibold text-white shadow-soft transition hover:bg-zaltyko-primary-dark"
             >
               Gestionar mis productos
             </Link>
@@ -552,7 +523,7 @@ export default async function ProfilePage({ params }: ProfilePageProps) {
   return (
     <div className="space-y-6 p-4 sm:p-6 lg:p-8">
       <div className="rounded-lg border border-amber-400/60 bg-amber-400/10 p-6">
-        <p className="text-sm text-amber-900">
+        <p className="text-sm text-amber-900 dark:text-amber-200">
           Tipo de perfil no reconocido: {role}. Contacta con el administrador.
         </p>
       </div>

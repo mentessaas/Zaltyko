@@ -46,8 +46,9 @@ export default function MyEventsPage() {
         throw new Error("Error al cargar tus eventos");
       }
 
-      const data = await response.json();
-      setRegistrations(data.items || []);
+      const payload = await response.json();
+      const data = payload?.data ?? payload;
+      setRegistrations(data?.items || []);
     } catch (err) {
       setError(err instanceof Error ? err.message : "Error desconocido");
     } finally {
@@ -76,25 +77,25 @@ export default function MyEventsPage() {
       label: "Pendiente",
       icon: Clock,
       variant: "outline" as const,
-      className: "bg-yellow-100 text-yellow-700",
+      className: "bg-yellow-100 text-yellow-700 dark:bg-yellow-950/40 dark:text-yellow-300",
     },
     confirmed: {
       label: "Confirmado",
       icon: CheckCircle,
       variant: "default" as const,
-      className: "bg-green-100 text-green-700",
+      className: "bg-green-100 text-green-700 dark:bg-green-950/40 dark:text-green-300",
     },
     cancelled: {
       label: "Cancelado",
       icon: XCircle,
       variant: "error" as const,
-      className: "bg-red-100 text-red-700",
+      className: "bg-red-100 text-red-700 dark:bg-red-950/40 dark:text-red-300",
     },
     waitlisted: {
       label: "En espera",
       icon: AlertCircle,
       variant: "outline" as const,
-      className: "bg-orange-100 text-orange-700",
+      className: "bg-orange-100 text-orange-700 dark:bg-orange-950/40 dark:text-orange-300",
     },
   };
 
@@ -134,28 +135,28 @@ export default function MyEventsPage() {
               <p className="text-xs text-muted-foreground">Total inscrito</p>
             </CardContent>
           </Card>
-          <Card className="border-green-200 bg-green-50">
+          <Card className="border-green-200 bg-green-50 dark:border-green-900/60 dark:bg-green-950/30">
             <CardContent className="pt-4">
-              <div className="text-2xl font-bold text-green-600">
+                <div className="text-2xl font-bold text-green-600 dark:text-green-300">
                 {registrations.filter((r) => r.registrationStatus === "confirmed").length}
               </div>
-              <p className="text-xs text-green-600">Confirmados</p>
+              <p className="text-xs text-green-600 dark:text-green-300">Confirmados</p>
             </CardContent>
           </Card>
-          <Card className="border-yellow-200 bg-yellow-50">
+          <Card className="border-yellow-200 bg-yellow-50 dark:border-yellow-900/60 dark:bg-yellow-950/30">
             <CardContent className="pt-4">
-              <div className="text-2xl font-bold text-yellow-600">
+                <div className="text-2xl font-bold text-yellow-600 dark:text-yellow-300">
                 {registrations.filter((r) => r.registrationStatus === "pending").length}
               </div>
-              <p className="text-xs text-yellow-600">Pendientes</p>
+              <p className="text-xs text-yellow-600 dark:text-yellow-300">Pendientes</p>
             </CardContent>
           </Card>
-          <Card className="border-orange-200 bg-orange-50">
+          <Card className="border-orange-200 bg-orange-50 dark:border-orange-900/60 dark:bg-orange-950/30">
             <CardContent className="pt-4">
-              <div className="text-2xl font-bold text-orange-600">
+                <div className="text-2xl font-bold text-orange-600 dark:text-orange-300">
                 {registrations.filter((r) => r.registrationStatus === "waitlisted").length}
               </div>
-              <p className="text-xs text-orange-600">En espera</p>
+              <p className="text-xs text-orange-600 dark:text-orange-300">En espera</p>
             </CardContent>
           </Card>
         </div>

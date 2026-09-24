@@ -1,6 +1,6 @@
 export const dynamic = 'force-dynamic';
 
-import { and, eq, sql } from "drizzle-orm";
+import { and, eq, inArray } from "drizzle-orm";
 import { NextResponse } from "next/server";
 import { z } from "zod";
 
@@ -8,11 +8,12 @@ import { db } from "@/db";
 import { academies, profiles } from "@/db/schema";
 import { handleApiError } from "@/lib/api-error-handler";
 import { authUsers } from "@/db/schema";
-import { sendEmail } from "@/lib/brevo";
 import { config } from "@/config";
 import { escapeHtml } from "@/lib/email/escape-html";
+import { sendEmailWithLogging } from "@/lib/email/email-service";
 import { withRateLimit, getClientIdentifier } from "@/lib/rate-limit";
 import { logger } from "@/lib/logger";
+import { INDEXABLE_ACADEMY_STATUS_VALUES } from "@/lib/seo/academy-indexability";
 
 const ContactSchema = z.object({
   name: z.string().min(2).max(100),
@@ -33,10 +34,14 @@ const ContactSchema = z.object({
  * - phone: Teléfono (opcional)
  * - message: Mensaje
  */
+// @auth-flexible route-guard-reason: public academy contact form; published/public academy is validated before accepting contact data.
 async function contactHandler(request: Request, context?: { params?: Promise<{ id: string }> }) {
   try {
     const params = context?.params ? await context.params : { id: new URL(request.url).pathname.split('/').pop() || '' };
     const { id } = params;
+    if (!z.string().uuid().safeParse(id).success) {
+      return NextResponse.json({ error: "INVALID_ACADEMY_ID" }, { status: 400 });
+    }
 
     // Verificar que la academia existe y es pública
     const [academy] = await db
@@ -44,6 +49,7 @@ async function contactHandler(request: Request, context?: { params?: Promise<{ i
         id: academies.id,
         name: academies.name,
         ownerId: academies.ownerId,
+        tenantId: academies.tenantId,
       })
       .from(academies)
       .where(
@@ -51,7 +57,7 @@ async function contactHandler(request: Request, context?: { params?: Promise<{ i
           eq(academies.id, id),
           eq(academies.isPublic, true),
           eq(academies.isSuspended, false),
-          sql`${academies.status} NOT IN ('churned', 'fraud_hold')`
+          inArray(academies.status, INDEXABLE_ACADEMY_STATUS_VALUES)
         )
       )
       .limit(1);
@@ -105,23 +111,21 @@ async function contactHandler(request: Request, context?: { params?: Promise<{ i
     const safePhone = escapeHtml(phone || "No indicado");
     const safeMessage = escapeHtml(message).replace(/\n/g, "<br />");
 
-    await sendEmail({
+    await sendEmailWithLogging({
       to: recipient,
       replyTo: email,
       subject: `Nuevo contacto para ${academy.name}`,
       text: `Academia: ${academy.name}\nNombre: ${name}\nEmail: ${email}\nTeléfono: ${phone || "No indicado"}\n\n${message}`,
       html: `<h2>Nuevo contacto para ${escapeHtml(academy.name)}</h2><p><strong>Nombre:</strong> ${safeName}</p><p><strong>Email:</strong> ${safeEmail}</p><p><strong>Teléfono:</strong> ${safePhone}</p><p><strong>Mensaje:</strong><br />${safeMessage}</p>`,
+      template: "public-academy-contact",
+      tenantId: academy.tenantId,
+      academyId: academy.id,
     });
 
-    // Log del contacto (opcional, para debugging)
+    // Registrar solo metadatos mínimos; nunca almacenar PII ni el contenido.
     logger.info("Contact form submitted", {
       academyId: id,
       academyName: academy.name,
-      contactName: name,
-      contactEmail: email,
-      contactPhone: phone,
-      message,
-      ownerName: ownerProfile?.name,
     });
 
     return NextResponse.json({

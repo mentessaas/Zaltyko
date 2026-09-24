@@ -39,7 +39,7 @@ const solutionContent = `El panel de Zaltyko centraliza todas las métricas impo
 
 Profundiza en los datos que necesites con reportes especializados. Analiza asistencia por grupo, entrenador o período. Revisa la evolución de inscripciones y bajas mes a mes. Compara rendimiento financiero entre temporadas. Identifica qué horarios tienen mayor demanda y cuáles están infrautilizados para optimizar tu oferta.
 
-Genera reportes profesionales con un clic. Exporta a Excel para trabajo adicional o a PDF para presentaciones. Incluye el período deseado, los indicadores relevantes y comparte con socios, contables o entidades que lo requieran. Datos precisos que respaldan tu gestión profesional.`;
+Genera reportes profesionales con un clic. Exporta a Excel para trabajo adicional o a PDF para presentaciones. Incluye el período deseado, los indicadores relevantes y compártelos con tu equipo, socios o entidades que lo requieran. Datos precisos que respaldan tu gestión profesional.`;
 
 const solutionFeatures = [
   "Panel con métricas actualizadas",
@@ -83,8 +83,8 @@ const useCases = [
   {
     role: "Administrativos",
     icon: Briefcase,
-    title: "Reportes para contabilidad",
-    description: "Genera reportes financieros mensuales para tu contable o asesoría. Desglose de ingresos por concepto, estado de morosidad y proyecciones de cobro en formato exportable.",
+    title: "Reportes para tu equipo",
+    description: "Genera reportes financieros mensuales para revisar con tu equipo. Consulta ingresos por concepto, estado de morosidad y proyecciones de cobro en formato exportable.",
   },
   {
     role: "Dueños de academia",

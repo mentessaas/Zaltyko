@@ -6,6 +6,7 @@ import { logger } from "@/lib/logger";
 import { LeadCaptureSchema } from "@/lib/growth/contracts";
 import { recordGrowthEvent } from "@/lib/growth/events";
 
+// @auth-flexible route-guard-reason: public lead capture endpoint
 // @route-auth public
 const handler = withRateLimit(async (req) => {
   try {
@@ -49,4 +50,5 @@ const handler = withRateLimit(async (req) => {
   }
 });
 
+// @auth-flexible route-guard-reason: public lead capture endpoint
 export const POST = handler;

@@ -29,13 +29,14 @@ function ids(context: Record<string, unknown>) {
 async function authorize(
   academyId: string,
   roleId: string,
-  context: { userId: string; profile: { id: string; role: string } }
+  context: { userId: string; profile: { id: string; role: string; tenantId: string | null } }
 ) {
   const access = await getBillingAcademyAccess({
     academyId,
     userId: context.userId,
     profileId: context.profile.id,
     profileRole: context.profile.role,
+    tenantId: context.profile.tenantId ?? undefined,
   });
   if (!access) return null;
   const [role] = await db
@@ -46,7 +47,7 @@ async function authorize(
   return role ?? null;
 }
 
-async function createsInheritanceCycle(roleId: string, parentId: string | null) {
+async function createsInheritanceCycle(roleId: string, parentId: string | null, academyId: string) {
   const visited = new Set<string>();
   let current = parentId;
   while (current) {
@@ -55,7 +56,7 @@ async function createsInheritanceCycle(roleId: string, parentId: string | null) 
     const [parent] = await db
       .select({ inheritsFrom: academyRoles.inheritsFrom })
       .from(academyRoles)
-      .where(eq(academyRoles.id, current))
+      .where(and(eq(academyRoles.id, current), eq(academyRoles.academyId, academyId)))
       .limit(1);
     current = parent?.inheritsFrom ?? null;
   }
@@ -89,7 +90,8 @@ export const PATCH = withTenant(async (request, context) => {
     const siblingRoles = await db
       .select({ id: academyRoles.id, name: academyRoles.name })
       .from(academyRoles)
-      .where(eq(academyRoles.academyId, academyId));
+      .where(eq(academyRoles.academyId, academyId))
+      .limit(1000);
     if (
       siblingRoles.some(
         (candidate) =>
@@ -99,7 +101,7 @@ export const PATCH = withTenant(async (request, context) => {
       return apiError("ROLE_NAME_EXISTS", "Ya existe un rol con ese nombre", 409);
     }
   }
-  if (await createsInheritanceCycle(roleId, parsed.data.inheritsFrom ?? null)) {
+  if (await createsInheritanceCycle(roleId, parsed.data.inheritsFrom ?? null, academyId)) {
     return apiError("ROLE_INHERITANCE_CYCLE", "Un rol no puede heredarse a sí mismo", 409);
   }
   if (role.isDefault && (parsed.data.name || parsed.data.isActive === false)) {

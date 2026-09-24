@@ -49,16 +49,35 @@ export default async function OwnerOnboardingPage() {
   return (
     <div className="mx-auto flex min-h-screen max-w-3xl flex-col justify-center gap-8 px-4 py-12">
       <div className="space-y-3">
-        <p className="text-sm font-medium uppercase tracking-wide text-primary">Configuración inicial</p>
+        <p className="text-sm font-medium uppercase tracking-wide text-primary">Primer paso: crear tu espacio de trabajo</p>
         <h1 className="text-3xl font-semibold tracking-tight text-foreground sm:text-4xl">
           {claimable ? "Confirma tu academia" : "Crea tu primera academia"}
         </h1>
         <p className="max-w-2xl text-base text-muted-foreground">
           {claimable
             ? "Detectamos una academia registrada a tu nombre. Confirma para entrar — no te pediremos teléfono ni datos adicionales."
-            : "Vamos a dejar lista tu cuenta para trabajar de inmediato. Tu equipo y tus atletas entrarán más adelante mediante invitación, no con registro libre."}
+            : "Tu cuenta y tu academia son pasos distintos: aquí crearás el espacio de trabajo de Zaltyko. Después podrás añadir grupos, clases, entrenadores y atletas desde el panel."}
         </p>
       </div>
+
+      <ol
+        aria-label="Progreso de configuración"
+        className="grid gap-2 text-sm sm:grid-cols-3"
+        data-testid="owner-onboarding-progress"
+      >
+        <li className="rounded-lg border border-emerald-500/30 bg-emerald-500/10 px-3 py-2 text-emerald-800 dark:text-emerald-200">
+          <span className="font-semibold">1. Cuenta personal</span>
+          <span className="mt-0.5 block text-xs opacity-80">Completada</span>
+        </li>
+        <li className="rounded-lg border border-primary/40 bg-primary/10 px-3 py-2 text-primary">
+          <span className="font-semibold">2. Tu academia</span>
+          <span className="mt-0.5 block text-xs opacity-80">Ahora</span>
+        </li>
+        <li className="rounded-lg border border-border bg-muted/30 px-3 py-2 text-muted-foreground">
+          <span className="font-semibold">3. Configuración</span>
+          <span className="mt-0.5 block text-xs opacity-80">Después, desde el panel</span>
+        </li>
+      </ol>
 
       <div className="rounded-xl border bg-card p-6 shadow-sm sm:p-8">
         {claimable ? (

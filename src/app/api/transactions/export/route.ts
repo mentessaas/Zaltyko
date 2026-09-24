@@ -2,23 +2,41 @@ export const dynamic = 'force-dynamic';
 
 import { NextResponse } from "next/server";
 import { and, asc, eq, gte, lte, sql } from "drizzle-orm";
+import { z } from "zod";
 
 import { db } from "@/db";
 import { academies, athletes, charges } from "@/db/schema";
 import { withTenant } from "@/lib/authz";
+import { authorizeAcademyCapability } from "@/lib/authz/resource-scope";
 
 export const runtime = "nodejs";
 
 export const GET = withTenant(async (request, context) => {
   const url = new URL(request.url);
   const tenantOverride = url.searchParams.get("tenantId");
-  const effectiveTenantId = context.tenantId ?? tenantOverride ?? null;
+  const effectiveTenantId = context.profile.role === "super_admin"
+    ? tenantOverride ?? context.tenantId ?? null
+    : context.tenantId;
 
   if (!effectiveTenantId) {
     return NextResponse.json({ error: "TENANT_REQUIRED" }, { status: 400 });
   }
 
   const academyId = url.searchParams.get("academyId");
+  if (academyId && !z.string().uuid().safeParse(academyId).success) {
+    return NextResponse.json({ error: "INVALID_ACADEMY_ID" }, { status: 400 });
+  }
+  if (academyId) {
+    const scope = await authorizeAcademyCapability({
+      context,
+      resourceTenantId: effectiveTenantId,
+      academyId,
+      permission: "billing:read",
+    });
+    if (!scope.allowed) {
+      return NextResponse.json({ error: "NOT_FOUND" }, { status: 404 });
+    }
+  }
   const startDate = url.searchParams.get("startDate");
   const endDate = url.searchParams.get("endDate");
   const status = url.searchParams.get("status");
@@ -52,10 +70,25 @@ export const GET = withTenant(async (request, context) => {
       academyName: academies.name,
     })
     .from(charges)
-    .leftJoin(athletes, eq(charges.athleteId, athletes.id))
-    .leftJoin(academies, eq(charges.academyId, academies.id))
+    .leftJoin(
+      athletes,
+      and(
+        eq(charges.athleteId, athletes.id),
+        eq(athletes.tenantId, effectiveTenantId),
+        eq(athletes.academyId, charges.academyId)
+      )
+    )
+    .leftJoin(academies, and(eq(charges.academyId, academies.id), eq(academies.tenantId, effectiveTenantId)))
     .where(whereClause)
-    .orderBy(asc(charges.dueDate));
+    .orderBy(asc(charges.dueDate))
+    .limit(10000);
+
+  // Evita CSV/XLSX injection cuando un usuario controla nombres o etiquetas
+  // que empiezan por =, +, -, @ y Excel los interpreta como fórmulas.
+  const safeSpreadsheetText = (value: string | null | undefined): string => {
+    const text = value ?? "";
+    return /^[=+\-@]/.test(text) ? `'${text}` : text;
+  };
 
   // Helper para formatear fecha
   const formatDate = (date: Date | string | null | undefined): string => {
@@ -103,7 +136,7 @@ export const GET = withTenant(async (request, context) => {
 
     const exportRows = rows.map((row) => ({
       ID: row.id,
-      Descripción: row.label,
+      Descripción: safeSpreadsheetText(row.label),
       Monto: formatAmount(row.amountCents, row.currency),
       Moneda: row.currency,
       Periodo: row.period,
@@ -111,8 +144,8 @@ export const GET = withTenant(async (request, context) => {
       Estado: formatStatus(row.status),
       "Método de pago": formatPaymentMethod(row.paymentMethod),
       "Fecha de pago": formatDate(row.paidAt),
-      Atleta: row.athleteName || "",
-      Academia: row.academyName || "",
+      Atleta: safeSpreadsheetText(row.athleteName),
+      Academia: safeSpreadsheetText(row.academyName),
     }));
 
     const worksheet = XLSX.utils.json_to_sheet(exportRows);
@@ -148,7 +181,7 @@ export const GET = withTenant(async (request, context) => {
 
   const csvRows = rows.map((row) => [
     row.id,
-    `"${(row.label || "").replace(/"/g, '""')}"`,
+    `"${safeSpreadsheetText(row.label).replace(/"/g, '""')}"`,
     formatAmount(row.amountCents, row.currency),
     row.currency,
     row.period,
@@ -156,8 +189,8 @@ export const GET = withTenant(async (request, context) => {
     formatStatus(row.status),
     formatPaymentMethod(row.paymentMethod),
     formatDate(row.paidAt),
-    `"${(row.athleteName || "").replace(/"/g, '""')}"`,
-    `"${(row.academyName || "").replace(/"/g, '""')}"`,
+    `"${safeSpreadsheetText(row.athleteName).replace(/"/g, '""')}"`,
+    `"${safeSpreadsheetText(row.academyName).replace(/"/g, '""')}"`,
   ]);
 
   const csvContent = [

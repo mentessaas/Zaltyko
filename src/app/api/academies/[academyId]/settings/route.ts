@@ -116,7 +116,7 @@ async function findSportConfigUsageConflict(params: {
           eq(athletes.tenantId, params.tenantId),
           eq(athletes.primarySportConfigId, params.sportConfigId),
           isNull(athletes.deletedAt)
-        )),
+        )).limit(5000),
       db
         .select({ programCode: groups.programCode })
         .from(groups)
@@ -125,7 +125,7 @@ async function findSportConfigUsageConflict(params: {
           eq(groups.tenantId, params.tenantId),
           eq(groups.sportConfigId, params.sportConfigId),
           isNull(groups.deletedAt)
-        )),
+        )).limit(5000),
     ]);
     const usedProgram = [...athleteProgramRows, ...groupProgramRows]
       .map((row) => row.programCode)
@@ -147,7 +147,7 @@ async function findSportConfigUsageConflict(params: {
           eq(groups.tenantId, params.tenantId),
           eq(groups.sportConfigId, params.sportConfigId),
           isNull(groups.deletedAt)
-        )),
+        )).limit(5000),
       db
         .select({ apparatus: classes.apparatus })
         .from(classes)
@@ -156,7 +156,7 @@ async function findSportConfigUsageConflict(params: {
           eq(classes.tenantId, params.tenantId),
           eq(classes.sportConfigId, params.sportConfigId),
           isNull(classes.deletedAt)
-        )),
+        )).limit(5000),
       db
         .select({ apparatus: athleteAssessments.apparatus })
         .from(athleteAssessments)
@@ -164,14 +164,14 @@ async function findSportConfigUsageConflict(params: {
           eq(athleteAssessments.academyId, params.academyId),
           eq(athleteAssessments.tenantId, params.tenantId),
           eq(athleteAssessments.sportConfigId, params.sportConfigId)
-        )),
+        )).limit(5000),
       db
         .select({ apparatus: competitionResults.apparatus })
         .from(competitionResults)
         .where(and(
           eq(competitionResults.tenantId, params.tenantId),
           eq(competitionResults.sportConfigId, params.sportConfigId)
-        )),
+        )).limit(5000),
     ]);
 
     const usedApparatus = [
@@ -224,7 +224,7 @@ async function getSportConfigUsageById(params: {
         eq(athletes.tenantId, params.tenantId),
         isNull(athletes.deletedAt),
         inArray(athletes.primarySportConfigId, uniqueIds)
-      ));
+        )).limit(5000);
   } catch {
     athleteRows = [];
   }
@@ -238,7 +238,7 @@ async function getSportConfigUsageById(params: {
         eq(groups.tenantId, params.tenantId),
         isNull(groups.deletedAt),
         inArray(groups.sportConfigId, uniqueIds)
-      ));
+      )).limit(5000);
   } catch {
     groupRows = [];
   }
@@ -252,7 +252,7 @@ async function getSportConfigUsageById(params: {
         eq(classes.tenantId, params.tenantId),
         isNull(classes.deletedAt),
         inArray(classes.sportConfigId, uniqueIds)
-      ));
+      )).limit(5000);
   } catch {
     classRows = [];
   }
@@ -265,7 +265,7 @@ async function getSportConfigUsageById(params: {
         eq(athleteAssessments.academyId, params.academyId),
         eq(athleteAssessments.tenantId, params.tenantId),
         inArray(athleteAssessments.sportConfigId, uniqueIds)
-      ));
+      )).limit(5000);
   } catch {
     assessmentRows = [];
   }
@@ -277,7 +277,7 @@ async function getSportConfigUsageById(params: {
       .where(and(
         eq(competitionResults.tenantId, params.tenantId),
         inArray(competitionResults.sportConfigId, uniqueIds)
-      ));
+      )).limit(5000);
   } catch {
     resultRows = [];
   }
@@ -578,7 +578,8 @@ export const PATCH = withTenant(async (request, context) => {
         })
         .from(academySportConfigs)
         .innerJoin(sportLocaleConfigs, eq(academySportConfigs.sportLocaleConfigId, sportLocaleConfigs.id))
-        .where(eq(academySportConfigs.academyId, academyId));
+        .where(eq(academySportConfigs.academyId, academyId))
+        .limit(20);
 
       const uniqueVariants = Array.from(
         new Set(

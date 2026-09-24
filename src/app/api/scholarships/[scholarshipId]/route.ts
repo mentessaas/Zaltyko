@@ -1,8 +1,8 @@
 import { z } from "zod";
-import { eq, and } from "drizzle-orm";
+import { eq, and, isNull } from "drizzle-orm";
 
 import { db } from "@/db";
-import { scholarships } from "@/db/schema";
+import { athletes, scholarships } from "@/db/schema";
 import { withTenant } from "@/lib/authz";
 import { apiSuccess, apiError } from "@/lib/api-response";
 import { authorizeAcademyCapability } from "@/lib/authz/resource-scope";
@@ -49,6 +49,25 @@ export const PUT = withTenant(async (request, context) => {
     permission: "billing:update",
   });
   if (!scope.allowed) return apiError("SCHOLARSHIP_NOT_FOUND", "Beca no encontrada", 404);
+
+  if (body.athleteId) {
+    const [athlete] = await db
+      .select({ id: athletes.id })
+      .from(athletes)
+      .where(
+        and(
+          eq(athletes.id, body.athleteId),
+          eq(athletes.tenantId, resource.tenantId),
+          eq(athletes.academyId, resource.academyId),
+          isNull(athletes.deletedAt)
+        )
+      )
+      .limit(1);
+
+    if (!athlete) {
+      return apiError("ATHLETE_NOT_FOUND", "La persona deportista no pertenece a esta academia", 404);
+    }
+  }
 
   const updateData: any = {
     updatedAt: new Date(),

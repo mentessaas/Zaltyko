@@ -45,7 +45,8 @@ export const GET = withTenant(async (_request, context) => {
     const athleteRows = await db
       .select({ id: athletes.id })
       .from(athletes)
-      .where(and(eq(athletes.academyId, academyId), eq(athletes.tenantId, context.tenantId)));
+      .where(and(eq(athletes.academyId, academyId), eq(athletes.tenantId, context.tenantId)))
+      .limit(10000);
 
     const athleteIds = athleteRows.map((a) => a.id);
 

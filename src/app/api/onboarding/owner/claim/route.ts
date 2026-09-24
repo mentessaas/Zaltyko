@@ -1,4 +1,4 @@
-import { eq } from "drizzle-orm";
+import { and, eq, inArray } from "drizzle-orm";
 import { cookies } from "next/headers";
 import { sql } from "drizzle-orm";
 import { z } from "zod";
@@ -75,7 +75,13 @@ export async function POST(request: Request) {
         contactEmail: academies.contactEmail,
       })
       .from(academies)
-      .where(eq(academies.id, parsed.data.academyId))
+      .where(
+        and(
+          eq(academies.id, parsed.data.academyId),
+          inArray(academies.status, ["active", "trial"]),
+          eq(academies.isSuspended, false),
+        ),
+      )
       .limit(1);
 
     if (!academy) {
@@ -92,11 +98,22 @@ export async function POST(request: Request) {
       };
     }
 
-    // Si el user ya tiene profile + membership, devolvemos redirect existente.
+    // Si el user ya tiene profile + membership en el tenant de esta academia,
+    // devolvemos el redirect existente. No usar una membership global sin
+    // tenant: una relación antigua de otra academia no debe secuestrar el
+    // claim ni cambiar el contexto de la cuenta.
     const [existingMembership] = await tx
       .select({ academyId: memberships.academyId, role: memberships.role })
       .from(memberships)
-      .where(eq(memberships.userId, user.id))
+      .innerJoin(academies, eq(academies.id, memberships.academyId))
+      .where(
+        and(
+          eq(memberships.userId, user.id),
+          eq(academies.tenantId, academy.tenantId),
+          inArray(academies.status, ["active", "trial"]),
+          eq(academies.isSuspended, false),
+        ),
+      )
       .limit(1);
 
     if (existingMembership) {

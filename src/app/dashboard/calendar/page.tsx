@@ -1,7 +1,7 @@
 import { cookies } from "next/headers";
 import { redirect } from "next/navigation";
 import { addDays } from "date-fns";
-import { and, asc, eq, gte, inArray, lte, or } from "drizzle-orm";
+import { and, asc, eq, gte, inArray, isNull, lte, or } from "drizzle-orm";
 import Link from "next/link";
 import { ArrowLeft, Shield, Calendar, CalendarDays } from "lucide-react";
 
@@ -136,6 +136,16 @@ export default async function CalendarPage({ searchParams }: CalendarPageProps) 
 
   // Optimización: Obtener el país de la primera academia del tenant para usar su zona horaria
   // Si hay múltiples academias, usamos la primera para determinar la zona horaria del calendario
+  const requestedAcademyId = typeof params.academyId === "string" ? params.academyId : undefined;
+  const [requestedAcademy] = requestedAcademyId
+    ? await db
+        .select({ id: academies.id, name: academies.name, country: academies.country })
+        .from(academies)
+        .where(and(eq(academies.id, requestedAcademyId), eq(academies.tenantId, tenantId)))
+        .limit(1)
+    : [];
+  const calendarAcademyId = requestedAcademy?.id ?? null;
+
   const [firstAcademy] = await db
     .select({ country: academies.country })
     .from(academies)
@@ -143,7 +153,7 @@ export default async function CalendarPage({ searchParams }: CalendarPageProps) 
     .orderBy(asc(academies.createdAt)) // Usar la academia más antigua para consistencia
     .limit(1);
   
-  const academyCountry = firstAcademy?.country ?? null;
+  const academyCountry = requestedAcademy?.country ?? firstAcademy?.country ?? null;
 
   const viewParam =
     typeof params.view === "string" && ["week", "month"].includes(params.view)
@@ -185,7 +195,13 @@ export default async function CalendarPage({ searchParams }: CalendarPageProps) 
         groupId: athletes.groupId,
       })
       .from(athletes)
-      .where(eq(athletes.userId, targetProfile.userId))
+      .where(
+        and(
+          eq(athletes.userId, targetProfile.userId),
+          eq(athletes.tenantId, tenantId),
+          calendarAcademyId ? eq(athletes.academyId, calendarAcademyId) : undefined
+        )
+      )
       .limit(1);
 
     if (athleteRow) {
@@ -195,13 +211,19 @@ export default async function CalendarPage({ searchParams }: CalendarPageProps) 
         const groupClassRows = await db
           .select({ classId: classes.id })
           .from(classes)
-          .leftJoin(classGroups, eq(classGroups.classId, classes.id))
+          .leftJoin(
+            classGroups,
+            and(eq(classGroups.classId, classes.id), eq(classGroups.tenantId, tenantId))
+          )
           .where(
             and(
               eq(classes.academyId, athleteRow.academyId),
+              eq(classes.tenantId, tenantId),
+              isNull(classes.deletedAt),
               or(eq(classes.groupId, athleteRow.groupId), eq(classGroups.groupId, athleteRow.groupId))
             )
-          );
+          )
+          .limit(500);
 
         groupClassRows.forEach((row) => classIdSet.add(row.classId));
       }
@@ -212,9 +234,11 @@ export default async function CalendarPage({ searchParams }: CalendarPageProps) 
         .where(
           and(
             eq(classEnrollments.athleteId, athleteRow.id),
-            eq(classEnrollments.academyId, athleteRow.academyId)
+            eq(classEnrollments.academyId, athleteRow.academyId),
+            eq(classEnrollments.tenantId, tenantId)
           )
-        );
+        )
+        .limit(100);
 
       enrollmentRows.forEach((row) => classIdSet.add(row.classId));
       allowedClassIds = Array.from(classIdSet);
@@ -236,9 +260,25 @@ export default async function CalendarPage({ searchParams }: CalendarPageProps) 
         athleteName: athletes.name,
       })
       .from(guardianAthletes)
-      .innerJoin(guardians, eq(guardianAthletes.guardianId, guardians.id))
-      .innerJoin(athletes, eq(guardianAthletes.athleteId, athletes.id))
-      .where(eq(guardians.profileId, targetProfile.id));
+      .innerJoin(
+        guardians,
+        and(
+          eq(guardianAthletes.guardianId, guardians.id),
+          eq(guardians.tenantId, tenantId)
+        )
+      )
+      .innerJoin(
+        athletes,
+        and(eq(guardianAthletes.athleteId, athletes.id), eq(athletes.tenantId, tenantId), isNull(athletes.deletedAt))
+      )
+      .where(
+        and(
+          eq(guardians.profileId, targetProfile.id),
+          eq(guardianAthletes.tenantId, tenantId),
+          calendarAcademyId ? eq(athletes.academyId, calendarAcademyId) : undefined
+        )
+      )
+      .limit(100);
 
     const selectedChildren =
       athleteIdParam && linkedChildren.some((child) => child.athleteId === athleteIdParam)
@@ -252,13 +292,19 @@ export default async function CalendarPage({ searchParams }: CalendarPageProps) 
         const groupClassRows = await db
           .select({ classId: classes.id })
           .from(classes)
-          .leftJoin(classGroups, eq(classGroups.classId, classes.id))
+          .leftJoin(
+            classGroups,
+            and(eq(classGroups.classId, classes.id), eq(classGroups.tenantId, tenantId))
+          )
           .where(
             and(
               eq(classes.academyId, child.academyId),
+              eq(classes.tenantId, tenantId),
+              isNull(classes.deletedAt),
               or(eq(classes.groupId, child.groupId), eq(classGroups.groupId, child.groupId))
             )
-          );
+          )
+          .limit(500);
 
         groupClassRows.forEach((row) => classIdSet.add(row.classId));
       }
@@ -269,9 +315,11 @@ export default async function CalendarPage({ searchParams }: CalendarPageProps) 
         .where(
           and(
             eq(classEnrollments.athleteId, child.athleteId),
-            eq(classEnrollments.academyId, child.academyId)
+            eq(classEnrollments.academyId, child.academyId),
+            eq(classEnrollments.tenantId, tenantId)
           )
-        );
+        )
+        .limit(100);
 
       enrollmentRows.forEach((row) => classIdSet.add(row.classId));
     }
@@ -305,16 +353,28 @@ export default async function CalendarPage({ searchParams }: CalendarPageProps) 
     .from(classSessions)
     .innerJoin(classes, eq(classSessions.classId, classes.id))
     .innerJoin(academies, eq(classes.academyId, academies.id))
-    .leftJoin(coaches, eq(classSessions.coachId, coaches.id))
+    .leftJoin(
+      coaches,
+      and(
+        eq(classSessions.coachId, coaches.id),
+        eq(coaches.tenantId, tenantId),
+        eq(coaches.academyId, classes.academyId)
+      )
+    )
     .where(
       and(
         eq(classSessions.tenantId, tenantId),
+        eq(classes.tenantId, tenantId),
+        eq(academies.tenantId, tenantId),
+        isNull(classes.deletedAt),
         gte(classSessions.sessionDate, toISODate(rangeStart, academyCountry)),
         lte(classSessions.sessionDate, toISODate(rangeEnd, academyCountry)),
+        calendarAcademyId ? eq(classes.academyId, calendarAcademyId) : undefined,
         allowedClassIds !== null ? inArray(classes.id, allowedClassIds.length > 0 ? allowedClassIds : ["__no-match__"]) : undefined
       )
     )
-    .orderBy(asc(classSessions.sessionDate), asc(classSessions.startTime));
+    .orderBy(asc(classSessions.sessionDate), asc(classSessions.startTime))
+    .limit(1000);
 
   let sessionsForCalendar: CalendarSessionEntry[] = sessions.map((session) => ({
     id: session.id,
@@ -347,6 +407,9 @@ export default async function CalendarPage({ searchParams }: CalendarPageProps) 
       .where(
         and(
           eq(classes.tenantId, tenantId),
+          eq(academies.tenantId, tenantId),
+          isNull(classes.deletedAt),
+          calendarAcademyId ? eq(classes.academyId, calendarAcademyId) : undefined,
           allowedClassIds !== null ? inArray(classes.id, allowedClassIds.length > 0 ? allowedClassIds : ["__no-match__"]) : undefined
         )
       )
@@ -361,7 +424,8 @@ export default async function CalendarPage({ searchParams }: CalendarPageProps) 
           weekday: classWeekdays.weekday,
         })
         .from(classWeekdays)
-        .where(inArray(classWeekdays.classId, classIds));
+        .where(and(inArray(classWeekdays.classId, classIds), eq(classWeekdays.tenantId, tenantId)))
+        .limit(105);
 
       const weekdayMap = weekdayRows.reduce((acc, row) => {
         const current = acc.get(row.classId) ?? [];
@@ -475,8 +539,8 @@ export default async function CalendarPage({ searchParams }: CalendarPageProps) 
           <p className="font-semibold">No hay sesiones generadas todavía.</p>
           <p className="text-amber-800">
             {canOpenSessionDetails
-              ? "Mostramos tus clases según los dias configurados para que puedas visualizar la carga semanal. Usa la opcion Generar sesiones en el modulo de clases para convertirlas en sesiones reales del calendario."
-              : "Mostramos las actividades segun los dias configurados para que puedas visualizar la agenda prevista aunque todavia no existan sesiones generadas."}
+              ? "Mostramos tus clases según los días configurados para que puedas visualizar la carga semanal. Usa la opción Generar sesiones en el módulo de clases para convertirlas en sesiones reales del calendario."
+              : "Mostramos las actividades según los días configurados para que puedas visualizar la agenda prevista aunque todavía no existan sesiones generadas."}
           </p>
         </div>
       )}

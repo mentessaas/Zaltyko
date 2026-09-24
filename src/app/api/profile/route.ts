@@ -17,7 +17,7 @@ const UpdateProfileSchema = z.object({
   email: z.string().email().nullable().optional(),
   phone: z.string().max(50).optional().nullable(),
   bio: z.string().max(1000).optional().nullable(),
-  photoUrl: z.string().url().optional().nullable(),
+  photoUrl: z.string().url().refine((value) => value.startsWith("https://") || value.startsWith("http://"), "La URL de la foto debe usar HTTPS o HTTP").optional().nullable(),
 });
 
 export async function PATCH(request: Request) {

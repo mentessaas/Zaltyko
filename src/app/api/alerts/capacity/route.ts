@@ -8,7 +8,7 @@ import { logger } from "@/lib/logger";
 
 const querySchema = z.object({
   academyId: z.string().uuid(),
-  threshold: z.string().optional(),
+  threshold: z.coerce.number().finite().min(0).max(100).optional(),
 });
 
 export const GET = withTenant(async (request, context) => {
@@ -22,20 +22,24 @@ export const GET = withTenant(async (request, context) => {
     threshold: url.searchParams.get("threshold"),
   };
 
-  const validated = querySchema.parse({
+  const validated = querySchema.safeParse({
     ...params,
     academyId: params.academyId || undefined,
     threshold: params.threshold || undefined,
   });
 
-  if (!validated.academyId) {
+  if (!validated.success) {
+    return apiError("INVALID_QUERY", "Parámetros de alertas inválidos", 400);
+  }
+
+  if (!validated.data.academyId) {
     return apiError("ACADEMY_ID_REQUIRED", "academyId requerido", 400);
   }
 
   try {
-    const threshold = validated.threshold ? parseFloat(validated.threshold) : 90;
+    const threshold = validated.data.threshold ?? 90;
     const alerts = await detectCapacityAlerts(
-      validated.academyId,
+      validated.data.academyId,
       context.tenantId,
       threshold
     );
@@ -43,6 +47,10 @@ export const GET = withTenant(async (request, context) => {
     return apiSuccess({ items: alerts });
   } catch (error: unknown) {
     logger.error("Error detecting capacity alerts:", error);
-    return apiSuccess({ items: [] });
+    return apiError(
+      "CAPACITY_ALERTS_FAILED",
+      "No se pudo analizar la capacidad de las clases. Inténtalo de nuevo.",
+      500,
+    );
   }
 });

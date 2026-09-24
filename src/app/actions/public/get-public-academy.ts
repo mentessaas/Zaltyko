@@ -1,6 +1,6 @@
 "use server";
 
-import { and, eq, inArray } from "drizzle-orm";
+import { and, eq, inArray, isNull } from "drizzle-orm";
 import { createClient } from "@supabase/supabase-js";
 
 import { db } from "@/db";
@@ -26,6 +26,13 @@ export type PublicAcademyDetail = {
   socialTwitter: string | null;
   socialYoutube: string | null;
   schedule: Record<number, Array<{ name: string; startTime: string | null; endTime: string | null }>>;
+};
+
+type FallbackScheduleRow = {
+  name: string | null;
+  start_time: string | null;
+  end_time: string | null;
+  class_weekdays?: Array<{ weekday: number | null }> | null;
 };
 
 /**
@@ -87,7 +94,8 @@ export async function getPublicAcademy(
       .where(
         and(
           eq(classes.academyId, academyId),
-          eq(classes.isExtra, false) // Solo clases base
+          eq(classes.isExtra, false), // Solo clases base
+          isNull(classes.deletedAt),
         )
       )
       .limit(20); // Limitar a 20 clases
@@ -153,14 +161,15 @@ export async function getPublicAcademy(
         `)
         .eq("academy_id", academyId)
         .eq("is_extra", false)
+        .is("deleted_at", null)
         .limit(20);
       
       // Agrupar horarios por día
       const scheduleByDay: Record<number, Array<{ name: string; startTime: string | null; endTime: string | null }>> = {};
       
       if (scheduleData) {
-        for (const schedule of scheduleData) {
-          const weekday = (schedule.class_weekdays as any)?.[0]?.weekday ?? 0;
+        for (const schedule of scheduleData as FallbackScheduleRow[]) {
+          const weekday = schedule.class_weekdays?.[0]?.weekday ?? 0;
           if (!scheduleByDay[weekday]) {
             scheduleByDay[weekday] = [];
           }

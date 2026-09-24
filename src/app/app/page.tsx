@@ -93,7 +93,7 @@ export default function AppLanding() {
         action={
           <Link
             href="/onboarding/owner"
-            className="inline-flex min-h-11 items-center justify-center rounded-xl bg-zaltyko-teal px-4 py-2 text-sm font-semibold text-white shadow-soft transition hover:bg-primary-dark"
+            className="inline-flex min-h-11 items-center justify-center rounded-xl bg-zaltyko-teal px-4 py-2 text-sm font-semibold text-white shadow-soft transition hover:bg-zaltyko-primary-dark"
           >
             Iniciar onboarding
           </Link>
@@ -102,7 +102,7 @@ export default function AppLanding() {
           <button
             type="button"
             onClick={refresh}
-            className="inline-flex min-h-11 items-center justify-center rounded-xl border border-border bg-white px-4 py-2 text-sm font-semibold text-foreground transition hover:bg-muted/50"
+            className="inline-flex min-h-11 items-center justify-center rounded-xl border border-border bg-white px-4 py-2 text-sm font-semibold text-foreground transition hover:bg-muted/50 dark:bg-card"
           >
             Reintentar
           </button>

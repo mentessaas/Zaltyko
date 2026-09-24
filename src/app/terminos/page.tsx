@@ -6,7 +6,7 @@ import { getPublicSiteUrl } from "@/lib/seo/site-url";
 
 const baseUrl = getPublicSiteUrl();
 
-const updatedAt = "8 de noviembre de 2025";
+const updatedAt = "13 de septiembre de 2026";
 
 const sections = [
   {
@@ -35,13 +35,13 @@ const sections = [
     title: "4. Uso aceptable",
     paragraphs: [
       "Queda prohibido subir contenido ilegal, difamatorio o que infrinja derechos de terceros. También se prohíbe el uso del servicio para spam, scraping o cualquier actividad que comprometa la seguridad.",
-      "Zaltyko S.L. se reserva el derecho de auditar logs de auditoría para detectar uso indebido y tomar medidas correctivas.",
+      "Zaltyko se reserva el derecho de auditar logs de auditoría para detectar uso indebido y tomar medidas correctivas.",
     ],
   },
   {
     title: "5. Propiedad intelectual",
     paragraphs: [
-      "Zaltyko y sus componentes son propiedad de Zaltyko S.L. El uso del servicio no concede derechos de propiedad intelectual sobre el software, salvo las licencias limitadas contempladas en estos términos.",
+      "El software, la marca Zaltyko y sus componentes son propiedad de Zaltyko. El uso del servicio no concede derechos de propiedad intelectual sobre ellos, salvo las licencias limitadas contempladas en estos términos.",
       "La información cargada por tu academia seguirá siendo tuya. Tienes derecho a exportarla mientras la cuenta esté activa o durante los 30 días posteriores a la cancelación.",
     ],
   },
