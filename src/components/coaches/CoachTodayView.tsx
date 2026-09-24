@@ -93,7 +93,7 @@ export default function CoachTodayView({
   return (
     <div className="space-y-6">
       <header className="space-y-2">
-        <h1 className="text-3xl font-semibold">Vista diaria del {specialization.labels.coachLabel.toLowerCase()}</h1>
+        <h1 className="text-3xl font-semibold">Vista diaria del staff</h1>
         <p className="text-muted-foreground">
           {format(todayDate, "EEEE, d 'de' MMMM 'de' yyyy", { locale: es })}
         </p>
@@ -176,7 +176,7 @@ export default function CoachTodayView({
                     href={`/app/${academy.id}/coach/today/${session.id}`}
                     className="inline-flex min-h-11 items-center rounded-lg bg-primary px-3 text-xs font-semibold text-primary-foreground transition hover:bg-primary/90"
                   >
-                    Abrir clase de hoy
+                    Abrir sesión de hoy
                   </Link>
                 </div>
               </div>

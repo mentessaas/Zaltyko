@@ -42,8 +42,10 @@ export function SkipLink({ href, children, className }: SkipLinkProps) {
       target.setAttribute("tabindex", "-1");
       (target as HTMLElement).focus();
 
-      // Scroll to the element
-      target.scrollIntoView({ behavior: "smooth" });
+      // Respect users who request reduced motion; keyboard navigation should
+      // never trigger an animated scroll for them.
+      const reducedMotion = window.matchMedia("(prefers-reduced-motion: reduce)").matches;
+      target.scrollIntoView({ behavior: reducedMotion ? "auto" : "smooth", block: "start" });
     }
   };
 

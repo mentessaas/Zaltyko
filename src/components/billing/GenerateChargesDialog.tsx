@@ -123,7 +123,8 @@ export function GenerateChargesDialog({
           throw new Error(errorData.message || "Error al generar cargos.");
         }
 
-        const data = await res.json();
+        const payload = await res.json();
+        const data = payload?.data ?? payload;
         toast.pushToast({
           title: "Cargos generados",
           description: `Se generaron ${data.created} cargo${data.created === 1 ? "" : "s"}. ${data.skipped > 0 ? `${data.skipped} ya existían.` : ""}`,

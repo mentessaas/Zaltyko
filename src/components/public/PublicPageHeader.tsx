@@ -57,9 +57,9 @@ export function PublicPageHeader({
       : publishHref;
 
   return (
-    <div className="flex items-center justify-between mb-8">
+    <div className="mb-8 flex flex-col items-start gap-4 sm:flex-row sm:items-center sm:justify-between">
       <h1 className="text-3xl font-bold">{title}</h1>
-      <div className="flex items-center gap-3">
+      <div className="flex w-full flex-wrap items-center gap-3 sm:w-auto">
         {isAuthenticated && (
           <Button asChild variant="outline">
             <Link href={resolvedDashboardHref}>
@@ -68,7 +68,7 @@ export function PublicPageHeader({
             </Link>
           </Button>
         )}
-        <Button asChild>
+        <Button asChild className="sm:w-auto">
           <Link href={resolvedPublishHref}>
             <Plus className="mr-2 h-4 w-4" />
             {publishLabel}

@@ -53,10 +53,11 @@ export function AuditLogsViewer({ academyId }: AuditLogsViewerProps) {
       });
 
       const response = await fetch(`/api/audit-logs?${params}`);
-      const data = await response.json();
+      const payload = await response.json();
+      const data = payload?.data ?? payload;
 
-      if (data.items) {
-        setLogs(data.items);
+      if (data.logs) {
+        setLogs(data.logs);
       }
     } catch (error) {
       logger.error("Error loading audit logs:", error);
@@ -255,4 +256,3 @@ export function AuditLogsViewer({ academyId }: AuditLogsViewerProps) {
     </div>
   );
 }
-

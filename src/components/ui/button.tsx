@@ -10,14 +10,14 @@ const buttonVariants = cva(
     variants: {
       variant: {
         default:
-          "border border-transparent bg-zaltyko-teal text-white shadow-soft hover:bg-primary-dark hover:shadow-medium",
+          "border border-transparent bg-zaltyko-teal text-white shadow-soft hover:bg-zaltyko-primary-dark hover:shadow-medium",
         destructive:
           "border border-transparent bg-zaltyko-coral text-white shadow-soft hover:bg-zaltyko-coral/90",
         outline:
           "border border-zaltyko-indigo bg-transparent text-zaltyko-indigo hover:bg-zaltyko-indigo/5",
         secondary:
           "border border-zaltyko-indigo/15 bg-zaltyko-indigo/10 text-zaltyko-indigo hover:bg-zaltyko-indigo/15",
-        ghost: "text-zaltyko-text-main hover:bg-zaltyko-teal/10 hover:text-zaltyko-teal",
+        ghost: "text-zaltyko-text-main dark:text-slate-100 hover:bg-zaltyko-teal/10 hover:text-zaltyko-teal",
         link: "min-h-0 rounded-none px-0 text-zaltyko-teal underline-offset-4 hover:underline hover:text-zaltyko-primary-dark",
       },
       size: {

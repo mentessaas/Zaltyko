@@ -58,7 +58,7 @@ export function Modal({
 
   return (
     <div
-      className="fixed inset-0 z-50 flex items-start justify-center overflow-y-auto bg-zaltyko-navy/55 px-4 py-10 backdrop-blur-sm"
+      className="fixed inset-0 z-50 flex items-center justify-center overflow-y-auto bg-zaltyko-navy/55 px-4 py-4 backdrop-blur-sm sm:py-8"
       role="dialog"
       aria-modal="true"
       aria-labelledby="modal-title"
@@ -68,19 +68,19 @@ export function Modal({
       <div
         ref={modalRef}
         tabIndex={-1}
-        className={`rounded-2xl border border-zaltyko-mist bg-zaltyko-warm-white shadow-soft ${widthClassName}`}
+        className={`flex max-h-[calc(100dvh-2rem)] min-h-0 flex-col overflow-hidden rounded-2xl border border-zaltyko-mist bg-zaltyko-warm-white text-zaltyko-text-main shadow-soft dark:border-slate-700 dark:bg-slate-950 dark:text-slate-50 sm:max-h-[calc(100dvh-4rem)] ${widthClassName}`}
         onClick={(event) => event.stopPropagation()}
       >
         <div className="border-b border-zaltyko-mist px-6 py-4">
-          <h2 id="modal-title" className="font-display text-xl font-semibold text-zaltyko-navy">{title}</h2>
+          <h2 id="modal-title" className="font-display text-xl font-semibold text-zaltyko-navy dark:text-slate-50">{title}</h2>
           {description && (
-            <p id="modal-description" className="mt-1 text-sm text-zaltyko-text-secondary">
+            <p id="modal-description" className="mt-1 text-sm text-zaltyko-text-secondary dark:text-slate-300">
               {description}
             </p>
           )}
         </div>
-        <div className="max-h-[calc(100vh-12rem)] overflow-y-auto px-6 py-4">{children}</div>
-        {footer && <div className="border-t border-zaltyko-mist px-6 py-4">{footer}</div>}
+        <div className="min-h-0 flex-1 overflow-y-auto px-6 py-4">{children}</div>
+        {footer && <div className="shrink-0 border-t border-zaltyko-mist dark:border-slate-700 px-6 py-4">{footer}</div>}
       </div>
     </div>
   );

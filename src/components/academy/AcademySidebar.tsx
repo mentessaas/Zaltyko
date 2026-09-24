@@ -11,6 +11,7 @@ import { getAcademyNavigation } from "@/lib/navigation/registry";
 import { isAcademyNavigationActive } from "@/lib/navigation/active";
 import { isProfileRole, type MembershipRole } from "@/lib/product/roles";
 import { cn } from "@/lib/utils";
+import { getProductPlanPublicName } from "@/lib/plans/catalog";
 
 export function AcademySidebar() {
   const pathname = usePathname();
@@ -72,7 +73,7 @@ export function AcademySidebar() {
         </p>
         {context.planNickname || context.planCode ? (
           <p className="mt-1 text-xs text-white/75">
-            {context.planNickname ?? context.planCode?.toUpperCase()}
+            {getProductPlanPublicName(context.planCode, context.planNickname)}
           </p>
         ) : null}
       </div>

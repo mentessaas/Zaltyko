@@ -2,7 +2,6 @@
 
 import { useMemo } from "react";
 import Link from "next/link";
-import { useRouter } from "next/navigation";
 import { CalendarClock, Clock, Users, ArrowRight, ClipboardCheck } from "lucide-react";
 
 import { Button } from "@/components/ui/button";
@@ -16,8 +15,6 @@ interface TodayClassesWidgetProps {
 }
 
 export function TodayClassesWidget({ classes, academyId, academyCountry }: TodayClassesWidgetProps) {
-  const router = useRouter();
-  
   // Filtrar solo las clases de hoy según la zona horaria del país
   const todayClasses = useMemo(() => {
     const today = getTodayInCountryTimezone(academyCountry);
@@ -67,7 +64,7 @@ export function TodayClassesWidget({ classes, academyId, academyCountry }: Today
         {sortedClasses.slice(0, 3).map((item) => (
           <div
             key={item.id}
-            className="flex items-center justify-between gap-3 rounded-xl border border-zaltyko-teal/20 bg-card px-4 py-3 transition hover:border-zaltyko-teal/40 hover:bg-zaltyko-white"
+            className="flex items-center justify-between gap-3 rounded-xl border border-zaltyko-teal/20 bg-card px-4 py-3 transition hover:border-zaltyko-teal/40 hover:bg-muted"
           >
             <div className="flex-1 min-w-0">
               <div className="flex items-center gap-2">
@@ -96,14 +93,11 @@ export function TodayClassesWidget({ classes, academyId, academyCountry }: Today
                 )}
               </div>
             </div>
-            <Button
-              variant="default"
-              size="sm"
-              className="gap-1.5 shrink-0"
-              onClick={() => router.push(`/app/${academyId}/classes/${item.classId}`)}
-            >
-              <ClipboardCheck className="h-3.5 w-3.5" />
-              Asistencia
+            <Button asChild variant="default" size="sm" className="gap-1.5 shrink-0">
+              <Link href={`/app/${academyId}/attendance/today/${item.id}`}>
+                <ClipboardCheck className="h-3.5 w-3.5" />
+                Pasar asistencia
+              </Link>
             </Button>
           </div>
         ))}

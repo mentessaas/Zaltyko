@@ -86,7 +86,7 @@ function ClusterHeroSectionImpl({
                 href="/auth/register?role=owner"
                 className={cn(
                   buttonVariants({ variant: "default", size: "lg" }),
-                  "bg-zaltyko-teal hover:bg-primary-dark text-white shadow-soft transition-all duration-300 text-base px-8 py-6 group"
+                  "bg-zaltyko-teal hover:bg-zaltyko-primary-dark text-white shadow-soft transition-all duration-300 text-base px-8 py-6 group"
                 )}
               >
                 <Sparkles className="mr-2 h-5 w-5" />

@@ -8,11 +8,15 @@ import { Button } from "@/components/ui/button";
 import { FamilyPaymentMethodCard } from "@/components/billing/FamilyPaymentMethodCard";
 import { confirmScaChallenge, parseScaRecoveryDetails } from "@/lib/stripe/confirm-sca-client";
 import { waitForChargePaid } from "@/lib/billing/wait-for-charge-paid";
+import { formatMinorCurrency, getCurrencyForCountry } from "@/lib/currency";
+import { formatDateForCountry } from "@/lib/date-utils";
+import { useAcademyContext } from "@/hooks/use-academy-context";
 
 interface ChargeData {
   id: string;
   label: string;
   amountCents: number;
+  currency?: string | null;
   period: string;
   status: string;
   dueDate: string | null;
@@ -26,9 +30,11 @@ interface MyPaymentsWidgetProps {
   academyId?: string;
 }
 
-const PAYABLE_STATUSES = new Set(["pending", "overdue", "failed"]);
+const PAYABLE_STATUSES = new Set(["pending", "overdue", "failed", "requires_action"]);
 
 export function MyPaymentsWidget({ charges, academyId }: MyPaymentsWidgetProps) {
+  const { academyCountry } = useAcademyContext();
+  const defaultCurrency = getCurrencyForCountry(academyCountry);
   const [showAll, setShowAll] = useState(false);
   const [payingId, setPayingId] = useState<string | null>(null);
   const [actionError, setActionError] = useState<string | null>(null);
@@ -114,20 +120,12 @@ export function MyPaymentsWidget({ charges, academyId }: MyPaymentsWidgetProps) 
     );
   }
 
-  const formatCurrency = (cents: number) => {
-    return new Intl.NumberFormat("es-ES", {
-      style: "currency",
-      currency: "EUR",
-    }).format(cents / 100);
-  };
+  const formatChargeAmount = (charge: Pick<ChargeData, "amountCents" | "currency">) =>
+    formatMinorCurrency(charge.amountCents, charge.currency ?? defaultCurrency);
 
   const formatDate = (dateStr: string | null) => {
     if (!dateStr) return "Sin fecha";
-    const date = new Date(dateStr);
-    return date.toLocaleDateString("es-ES", {
-      day: "numeric",
-      month: "short",
-    });
+    return formatDateForCountry(dateStr, academyCountry, "d MMM");
   };
 
   const formatPeriod = (period: string) => {
@@ -156,13 +154,13 @@ export function MyPaymentsWidget({ charges, academyId }: MyPaymentsWidgetProps) 
         return {
           icon: Clock,
           label: "Pendiente",
-          color: "text-amber-600",
-          bgColor: "bg-amber-50",
+          color: "text-amber-600 dark:text-amber-300",
+          bgColor: "bg-amber-50 dark:bg-amber-950/40",
           borderColor: "border-amber-500/50",
           badge: (
             <Badge
               variant="outline"
-              className="border-amber-500/50 text-amber-600 bg-amber-50"
+              className="border-amber-500/50 text-amber-600 bg-amber-50 dark:bg-amber-950/40 dark:text-amber-300"
             >
               Pendiente
             </Badge>
@@ -172,11 +170,11 @@ export function MyPaymentsWidget({ charges, academyId }: MyPaymentsWidgetProps) 
         return {
           icon: AlertCircle,
           label: "Vencido",
-          color: "text-red-600",
-          bgColor: "bg-red-50",
+          color: "text-red-600 dark:text-red-300",
+          bgColor: "bg-red-50 dark:bg-red-950/40",
           borderColor: "border-red-500/50",
           badge: (
-            <Badge variant="outline" className="border-red-500/50 text-red-600 bg-red-50">
+            <Badge variant="outline" className="border-red-500/50 text-red-600 bg-red-50 dark:bg-red-950/40 dark:text-red-300">
               Vencido
             </Badge>
           ),
@@ -185,13 +183,13 @@ export function MyPaymentsWidget({ charges, academyId }: MyPaymentsWidgetProps) 
         return {
           icon: CheckCircle,
           label: "Pagado",
-          color: "text-emerald-600",
-          bgColor: "bg-emerald-50",
+          color: "text-emerald-600 dark:text-emerald-300",
+          bgColor: "bg-emerald-50 dark:bg-emerald-950/40",
           borderColor: "border-emerald-500/50",
           badge: (
             <Badge
               variant="outline"
-              className="border-emerald-500/50 text-emerald-600 bg-emerald-50"
+              className="border-emerald-500/50 text-emerald-600 bg-emerald-50 dark:bg-emerald-950/40 dark:text-emerald-300"
             >
               Pagado
             </Badge>
@@ -201,12 +199,25 @@ export function MyPaymentsWidget({ charges, academyId }: MyPaymentsWidgetProps) 
         return {
           icon: AlertCircle,
           label: "Pago fallido",
-          color: "text-red-600",
-          bgColor: "bg-red-50",
+          color: "text-red-600 dark:text-red-300",
+          bgColor: "bg-red-50 dark:bg-red-950/40",
           borderColor: "border-red-500/50",
           badge: (
-            <Badge variant="outline" className="border-red-500/50 text-red-600 bg-red-50">
+            <Badge variant="outline" className="border-red-500/50 text-red-600 bg-red-50 dark:bg-red-950/40 dark:text-red-300">
               Pago fallido
+            </Badge>
+          ),
+        };
+      case "requires_action":
+        return {
+          icon: AlertCircle,
+          label: "Autenticación pendiente",
+          color: "text-orange-600 dark:text-orange-300",
+          bgColor: "bg-orange-50 dark:bg-orange-950/40",
+          borderColor: "border-orange-500/50",
+          badge: (
+            <Badge variant="outline" className="border-orange-500/50 text-orange-600 bg-orange-50 dark:bg-orange-950/40 dark:text-orange-300">
+              Autenticación pendiente
             </Badge>
           ),
         };
@@ -214,11 +225,11 @@ export function MyPaymentsWidget({ charges, academyId }: MyPaymentsWidgetProps) 
         return {
           icon: CreditCard,
           label: "Reembolsado",
-          color: "text-amber-600",
-          bgColor: "bg-amber-50",
+          color: "text-amber-600 dark:text-amber-300",
+          bgColor: "bg-amber-50 dark:bg-amber-950/40",
           borderColor: "border-amber-500/50",
           badge: (
-            <Badge variant="outline" className="border-amber-500/50 text-amber-600 bg-amber-50">
+            <Badge variant="outline" className="border-amber-500/50 text-amber-600 bg-amber-50 dark:bg-amber-950/40 dark:text-amber-300">
               Reembolsado
             </Badge>
           ),
@@ -243,12 +254,16 @@ export function MyPaymentsWidget({ charges, academyId }: MyPaymentsWidgetProps) 
     (sum, c) => sum + c.amountCents,
     0
   );
+  const pendingCurrencies = new Set(
+    pendingCharges.map((charge) => (charge.currency ?? defaultCurrency).toUpperCase())
+  );
+  const pendingCurrency = pendingCurrencies.size === 1 ? [...pendingCurrencies][0] : null;
 
   return (
     <div className="space-y-4">
       {/* Resumen de pagos pendientes */}
       {pendingCharges.length > 0 && (
-        <div className="rounded-lg border border-amber-500/30 bg-amber-50/50 p-3">
+          <div className="rounded-lg border border-amber-500/30 bg-amber-50/50 p-3 dark:bg-amber-950/30">
           <div className="flex items-center justify-between">
             <div className="flex items-center gap-2">
               <AlertCircle className="h-5 w-5 text-amber-600" />
@@ -256,8 +271,8 @@ export function MyPaymentsWidget({ charges, academyId }: MyPaymentsWidgetProps) 
                 Total pendiente
               </span>
             </div>
-            <span className="text-xl font-bold text-amber-700">
-              {formatCurrency(totalPending)}
+            <span className="text-xl font-bold text-amber-700 dark:text-amber-300">
+              {pendingCurrency ? formatMinorCurrency(totalPending, pendingCurrency) : "Varias monedas"}
             </span>
           </div>
           <p className="mt-1 text-xs text-muted-foreground">
@@ -292,7 +307,7 @@ export function MyPaymentsWidget({ charges, academyId }: MyPaymentsWidgetProps) 
                 </div>
                 <div className="text-right">
                   <p className="font-semibold text-foreground">
-                    {formatCurrency(charge.amountCents)}
+                    {formatChargeAmount(charge)}
                   </p>
                   <p className="text-xs text-muted-foreground">
                     {charge.dueDate && `Vence: ${formatDate(charge.dueDate)}`}
@@ -339,7 +354,7 @@ export function MyPaymentsWidget({ charges, academyId }: MyPaymentsWidgetProps) 
         })}
       </div>
 
-      {actionError && <p className="text-sm text-red-600">{actionError}</p>}
+      {actionError && <p className="text-sm text-red-600 dark:text-red-300" role="alert">{actionError}</p>}
 
       {academyId && <FamilyPaymentMethodCard academyId={academyId} />}
 

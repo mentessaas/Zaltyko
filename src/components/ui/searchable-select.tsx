@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useRef, useEffect } from "react";
+import { useState, useRef, useEffect, useId, useMemo } from "react";
 import { ChevronDown, Search, X } from "lucide-react";
 import { cn } from "@/lib/utils";
 
@@ -34,8 +34,10 @@ export function SearchableSelect({
 }: SearchableSelectProps) {
   const [isOpen, setIsOpen] = useState(false);
   const [searchTerm, setSearchTerm] = useState("");
+  const [highlightedIndex, setHighlightedIndex] = useState(0);
   const containerRef = useRef<HTMLDivElement>(null);
   const inputRef = useRef<HTMLInputElement>(null);
+  const listboxId = useId();
 
   useEffect(() => {
     const handleClickOutside = (event: MouseEvent) => {
@@ -47,16 +49,18 @@ export function SearchableSelect({
 
     if (isOpen) {
       document.addEventListener("mousedown", handleClickOutside);
+      setHighlightedIndex(Math.max(0, filteredOptions.findIndex((option) => option.value === value)));
       setTimeout(() => inputRef.current?.focus(), 100);
     }
 
     return () => {
       document.removeEventListener("mousedown", handleClickOutside);
     };
-  }, [isOpen]);
+  }, [isOpen, value, options, searchTerm]);
 
-  const filteredOptions = options.filter((option) =>
-    option.label.toLowerCase().includes(searchTerm.toLowerCase())
+  const filteredOptions = useMemo(
+    () => options.filter((option) => option.label.toLowerCase().includes(searchTerm.toLowerCase())),
+    [options, searchTerm]
   );
 
   const selectedOption = options.find((opt) => opt.value === value);
@@ -67,11 +71,38 @@ export function SearchableSelect({
     setSearchTerm("");
   };
 
+  const handleListKeyDown = (event: React.KeyboardEvent<HTMLElement>) => {
+    if (!isOpen) return;
+    if (event.key === "Escape") {
+      event.preventDefault();
+      setIsOpen(false);
+      setSearchTerm("");
+      return;
+    }
+    if (event.key === "ArrowDown" || event.key === "ArrowUp") {
+      event.preventDefault();
+      if (filteredOptions.length === 0) return;
+      setHighlightedIndex((current) => {
+        const delta = event.key === "ArrowDown" ? 1 : -1;
+        return (current + delta + filteredOptions.length) % filteredOptions.length;
+      });
+      return;
+    }
+    if ((event.key === "Enter" || event.key === " ") && filteredOptions[highlightedIndex]) {
+      event.preventDefault();
+      handleSelect(filteredOptions[highlightedIndex].value);
+    }
+  };
+
   return (
     <div ref={containerRef} className="relative">
       <button
         type="button"
         onClick={() => !disabled && setIsOpen(!isOpen)}
+        onKeyDown={handleListKeyDown}
+        aria-expanded={isOpen}
+        aria-haspopup="listbox"
+        aria-controls={listboxId}
         disabled={disabled}
         className={cn(
           "flex w-full items-center justify-between rounded-md border border-border bg-background px-3 py-2 text-sm shadow-sm transition-colors",
@@ -102,6 +133,9 @@ export function SearchableSelect({
                 type="text"
                 value={searchTerm}
                 onChange={(e) => setSearchTerm(e.target.value)}
+                onKeyDown={handleListKeyDown}
+                aria-controls={listboxId}
+                aria-activedescendant={filteredOptions[highlightedIndex] ? `${listboxId}-${filteredOptions[highlightedIndex].value}` : undefined}
                 placeholder={searchPlaceholder}
                 className="w-full rounded-md border border-border bg-background pl-8 pr-8 py-1.5 text-sm focus:border-primary focus:outline-none focus:ring-1 focus:ring-primary"
               />
@@ -118,22 +152,27 @@ export function SearchableSelect({
           </div>
 
           {/* Lista de opciones */}
-          <div className="max-h-60 overflow-auto p-1">
+          <div id={listboxId} role="listbox" aria-label={placeholder} className="max-h-60 overflow-auto p-1">
             {filteredOptions.length === 0 ? (
               <div className="px-3 py-2 text-sm text-muted-foreground">
                 No se encontraron resultados
               </div>
             ) : (
-              filteredOptions.map((option) => (
-                <button
-                  key={option.value}
-                  type="button"
-                  onClick={() => handleSelect(option.value)}
-                  className={cn(
-                    "w-full rounded-md px-3 py-2 text-left text-sm transition-colors",
+                filteredOptions.map((option) => (
+                  <button
+                    key={option.value}
+                    id={`${listboxId}-${option.value}`}
+                    type="button"
+                    onClick={() => handleSelect(option.value)}
+                    role="option"
+                    aria-selected={value === option.value}
+                    onMouseEnter={() => setHighlightedIndex(filteredOptions.indexOf(option))}
+                    className={cn(
+                      "w-full rounded-md px-3 py-2 text-left text-sm transition-colors",
                     "hover:bg-muted",
-                    value === option.value && "bg-primary/10 text-primary font-medium"
-                  )}
+                    value === option.value && "bg-primary/10 text-primary font-medium",
+                    highlightedIndex === filteredOptions.indexOf(option) && "bg-muted"
+                    )}
                 >
                   {option.label}
                 </button>
@@ -150,4 +189,3 @@ export function SearchableSelect({
     </div>
   );
 }
-

@@ -3,7 +3,7 @@
 import { useState, useEffect } from "react";
 import { GraduationCap, Download, FileText, BarChart3, Loader2, Users } from "lucide-react";
 import { format, subMonths } from "date-fns";
-import { formatLongDateForCountry } from "@/lib/date-utils";
+import { formatDateToISOString, formatLongDateForCountry } from "@/lib/date-utils";
 
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
@@ -12,6 +12,7 @@ import { useToast } from "@/components/ui/toast-provider";
 import { ReportFilters, ReportFilters as ReportFiltersType } from "@/components/reports/ReportFilters";
 import { ExportButtons } from "@/components/reports/ExportButtons";
 import { useAcademyContext } from "@/hooks/use-academy-context";
+import { pluralizeFirstWord } from "@/lib/specialization/registry";
 
 interface ClassStats {
   totalClasses: number;
@@ -37,9 +38,10 @@ interface ClassReportProps {
 export function ClassReport({ academyId, academyCountry }: ClassReportProps) {
   const toast = useToast();
   const { specialization } = useAcademyContext();
+  const classLabelPlural = pluralizeFirstWord(specialization.labels.classLabel);
   const [filters, setFilters] = useState<ReportFiltersType>({
-    startDate: format(subMonths(new Date(), 1), "yyyy-MM-dd"),
-    endDate: format(new Date(), "yyyy-MM-dd"),
+    startDate: formatDateToISOString(subMonths(new Date(), 1), academyCountry),
+    endDate: formatDateToISOString(new Date(), academyCountry),
     datePreset: "last-30-days",
   });
   const [reportData, setReportData] = useState<ClassStats | null>(null);
@@ -146,14 +148,16 @@ export function ClassReport({ academyId, academyCountry }: ClassReportProps) {
 
   const handleSendEmail = async (email: string) => {
     try {
-      const params = new URLSearchParams({
-        academyId,
-        email,
-        startDate: filters.startDate,
-        endDate: filters.endDate,
+      const response = await fetch("/api/reports/class/email", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          academyId,
+          email,
+          startDate: filters.startDate,
+          endDate: filters.endDate,
+        }),
       });
-
-      const response = await fetch(`/api/reports/class/email?${params}`);
       if (!response.ok) throw new Error("Error al enviar email");
 
       toast.pushToast({
@@ -183,10 +187,10 @@ export function ClassReport({ academyId, academyCountry }: ClassReportProps) {
         <CardHeader>
           <CardTitle className="flex items-center gap-2">
             <BarChart3 className="h-5 w-5" />
-            {specialization.labels.classLabel}s Más Populares
+            {classLabelPlural} más populares
           </CardTitle>
           <CardDescription>
-            {specialization.labels.classLabel}s con mayor inscripción y asistencia
+            {classLabelPlural} con mayor inscripción y asistencia
           </CardDescription>
         </CardHeader>
         <CardContent>
@@ -206,7 +210,7 @@ export function ClassReport({ academyId, academyCountry }: ClassReportProps) {
                   </div>
                 </div>
                 <div className="text-right">
-                  <Badge variant="outline" className="bg-green-50">
+                  <Badge variant="outline" className="bg-green-50 dark:bg-green-950/40 dark:text-green-300">
                     {cls.attendanceRate}% asistencia
                   </Badge>
                   <p className="text-xs text-muted-foreground mt-1">
@@ -227,7 +231,7 @@ export function ClassReport({ academyId, academyCountry }: ClassReportProps) {
         <div>
           <h2 className="text-2xl font-bold">Reporte de Clases</h2>
           <p className="text-muted-foreground mt-1">
-            Análisis de {specialization.labels.classLabel.toLowerCase()}s populares y asistencia
+            Análisis de {classLabelPlural.toLowerCase()} populares y asistencia
           </p>
         </div>
         <ExportButtons
@@ -243,6 +247,7 @@ export function ClassReport({ academyId, academyCountry }: ClassReportProps) {
         <div className="lg:col-span-1">
           <ReportFilters
             academyId={academyId}
+            academyCountry={academyCountry}
             onFilterChange={setFilters}
             onGenerate={loadReport}
             isLoading={isLoading}
@@ -254,7 +259,7 @@ export function ClassReport({ academyId, academyCountry }: ClassReportProps) {
           {error && (
             <Card>
               <CardContent className="pt-6">
-                <div className="rounded-lg border border-red-200 bg-red-50 p-3 text-sm text-red-900">
+                <div className="rounded-lg border border-red-200 bg-red-50 p-3 text-sm text-red-900 dark:border-red-900/60 dark:bg-red-950/30 dark:text-red-200">
                   {error}
                 </div>
               </CardContent>

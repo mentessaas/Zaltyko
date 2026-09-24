@@ -2,9 +2,6 @@
 
 import { useState } from "react";
 import { Edit, Trash2, Calendar, Users, Tag } from "lucide-react";
-import { format } from "date-fns";
-import { es } from "date-fns/locale";
-
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import {
@@ -22,6 +19,9 @@ import {
   TableHeader,
   TableRow,
 } from "@/components/ui/table";
+import { useAcademyContext } from "@/hooks/use-academy-context";
+import { formatCurrency, getCurrencyForCountry } from "@/lib/currency";
+import { formatDateForCountry, formatDateToISOString } from "@/lib/date-utils";
 
 export interface Campaign {
   id: string;
@@ -53,6 +53,8 @@ export function CampaignList({
   onDelete,
   onToggleActive,
 }: CampaignListProps) {
+  const { academyCountry } = useAcademyContext();
+  const currency = getCurrencyForCountry(academyCountry);
   const [viewMode, setViewMode] = useState<"grid" | "list">("grid");
 
   if (campaigns.length === 0) {
@@ -72,19 +74,17 @@ export function CampaignList({
   }
 
   const getStatusBadge = (campaign: Campaign) => {
-    const today = new Date();
-    const startDate = new Date(campaign.startDate);
-    const endDate = campaign.endDate ? new Date(campaign.endDate) : null;
+    const today = formatDateToISOString(new Date(), academyCountry);
 
     if (!campaign.isActive) {
       return <Badge variant="outline">Inactiva</Badge>;
     }
 
-    if (startDate > today) {
+    if (campaign.startDate > today) {
       return <Badge variant="outline">Próxima</Badge>;
     }
 
-    if (endDate && endDate < today) {
+    if (campaign.endDate && campaign.endDate < today) {
       return <Badge variant="error">Expirada</Badge>;
     }
 
@@ -145,19 +145,15 @@ export function CampaignList({
                     <span className="font-medium">
                       {campaign.discountType === "percentage"
                         ? `${campaign.discountValue}%`
-                        : `${campaign.discountValue} EUR`}
+                        : formatCurrency(campaign.discountValue, currency)}
                     </span>
                   </div>
                   <div className="flex items-center gap-2">
                     <Calendar className="h-4 w-4 text-muted-foreground" />
                     <span>
-                      {format(new Date(campaign.startDate), "dd MMM", {
-                        locale: es,
-                      })}
+                      {formatDateForCountry(campaign.startDate, academyCountry, "dd MMM")}
                       {campaign.endDate
-                        ? ` - ${format(new Date(campaign.endDate), "dd MMM yyyy", {
-                            locale: es,
-                          })}`
+                        ? ` - ${formatDateForCountry(campaign.endDate, academyCountry, "dd MMM yyyy")}`
                         : " - Sin fecha fin"}
                     </span>
                   </div>
@@ -229,15 +225,11 @@ export function CampaignList({
                     </div>
                   </TableCell>
                   <TableCell>
-                    {format(new Date(campaign.startDate), "dd/MM/yyyy", {
-                      locale: es,
-                    })}
+                    {formatDateForCountry(campaign.startDate, academyCountry, "dd/MM/yyyy")}
                   </TableCell>
                   <TableCell>
                     {campaign.endDate
-                      ? format(new Date(campaign.endDate), "dd/MM/yyyy", {
-                          locale: es,
-                        })
+                      ? formatDateForCountry(campaign.endDate, academyCountry, "dd/MM/yyyy")
                       : "Sin límite"}
                   </TableCell>
                   <TableCell>

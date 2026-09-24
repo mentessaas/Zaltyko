@@ -174,7 +174,7 @@ export default function CalendarView({
                 "flex items-center gap-2 rounded-md px-4 py-2 text-sm font-medium transition-all",
                 currentView === "week"
                   ? "bg-zaltyko-teal text-white shadow-soft"
-                  : "text-muted-foreground hover:bg-zaltyko-white"
+                  : "text-muted-foreground hover:bg-muted"
               )}
             >
               <CalendarIcon className="h-4 w-4" />
@@ -187,7 +187,7 @@ export default function CalendarView({
                 "flex items-center gap-2 rounded-md px-4 py-2 text-sm font-medium transition-all",
                 currentView === "month"
                   ? "bg-zaltyko-teal text-white shadow-soft"
-                  : "text-muted-foreground hover:bg-zaltyko-white"
+                  : "text-muted-foreground hover:bg-muted"
               )}
             >
               <CalendarIcon className="h-4 w-4" />
@@ -200,7 +200,7 @@ export default function CalendarView({
                 "flex items-center gap-2 rounded-md px-4 py-2 text-sm font-medium transition-all",
                 currentView === "agenda"
                   ? "bg-zaltyko-teal text-white shadow-soft"
-                  : "text-muted-foreground hover:bg-zaltyko-white"
+                  : "text-muted-foreground hover:bg-muted"
               )}
             >
               <List className="h-4 w-4" />
@@ -353,7 +353,7 @@ export default function CalendarView({
                   className={cn(
                     "flex min-h-[200px] flex-col bg-card p-4 transition-colors",
                     isDayToday && "bg-zaltyko-teal/5",
-                    isWeekend && "bg-zaltyko-white"
+                    isWeekend && "bg-muted/40"
                   )}
                 >
                   {/* Header del día */}
@@ -388,7 +388,7 @@ export default function CalendarView({
                   {/* Sesiones */}
                   <div className="flex-1 space-y-2">
                     {daySessions.length === 0 ? (
-                      <div className="flex h-full items-center justify-center rounded-xl border border-dashed border-border bg-zaltyko-white py-8">
+                      <div className="flex h-full items-center justify-center rounded-xl border border-dashed border-border bg-muted/40 py-8">
                         <p className="text-xs text-muted-foreground">Sin sesiones</p>
                       </div>
                     ) : (
@@ -407,7 +407,7 @@ export default function CalendarView({
             {["L", "M", "X", "J", "V", "S", "D"].map((day, index) => (
               <div
                 key={index}
-                className="bg-zaltyko-white px-3 py-2 text-center text-xs font-semibold uppercase tracking-wide text-muted-foreground"
+                className="bg-muted px-3 py-2 text-center text-xs font-semibold uppercase tracking-wide text-muted-foreground"
               >
                 {day}
               </div>
@@ -433,7 +433,7 @@ export default function CalendarView({
                       "flex min-h-[120px] flex-col bg-card p-2 transition-colors",
                       !isCurrentMonth && "opacity-40",
                       isDayToday && "bg-zaltyko-teal/5 ring-2 ring-zaltyko-teal/20",
-                      isWeekend && isCurrentMonth && "bg-zaltyko-white"
+                      isWeekend && isCurrentMonth && "bg-muted/40"
                     )}
                   >
                     {/* Número del día */}
@@ -459,7 +459,7 @@ export default function CalendarView({
                         renderSessionChip(session, true)
                       )}
                       {daySessions.length > 2 && (
-                        <div className="rounded bg-zaltyko-white px-1.5 py-0.5 text-[9px] font-semibold text-muted-foreground">
+                        <div className="rounded bg-muted px-1.5 py-0.5 text-[9px] font-semibold text-muted-foreground">
                           +{daySessions.length - 2} más
                         </div>
                       )}
@@ -474,4 +474,3 @@ export default function CalendarView({
     </div>
   );
 }
-

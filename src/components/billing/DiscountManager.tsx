@@ -21,13 +21,16 @@ export function DiscountManager({
   const [isDialogOpen, setIsDialogOpen] = useState(false);
   const [editingDiscount, setEditingDiscount] = useState<Discount | null>(null);
   const [isSaving, setIsSaving] = useState(false);
+  const [error, setError] = useState<string | null>(null);
 
   const loadDiscounts = async () => {
     try {
       const response = await fetch(`/api/discounts?academyId=${academyId}`);
-      const data = await response.json();
-      if (data.items) {
-        setDiscounts(data.items);
+      const payload = await response.json();
+      const data = payload?.data ?? payload;
+      const items = Array.isArray(data) ? data : data?.items;
+      if (items) {
+        setDiscounts(items);
       }
     } catch (error) {
       logger.error("Error loading discounts:", error);
@@ -42,6 +45,7 @@ export function DiscountManager({
 
   const handleSubmit = async (formData: any) => {
     setIsSaving(true);
+    setError(null);
 
     try {
       const url = editingDiscount
@@ -70,6 +74,7 @@ export function DiscountManager({
       loadDiscounts();
     } catch (error) {
       logger.error("Error saving discount:", error);
+      setError(error instanceof Error ? error.message : "No se pudo guardar el descuento.");
     } finally {
       setIsSaving(false);
     }
@@ -79,25 +84,29 @@ export function DiscountManager({
     if (!confirm("¿Estás seguro de eliminar este descuento?")) return;
 
     try {
-      await fetch(`/api/discounts/${id}`, { method: "DELETE" });
+      const response = await fetch(`/api/discounts/${id}`, { method: "DELETE" });
+      if (!response.ok) throw new Error("No se pudo eliminar el descuento.");
       loadDiscounts();
     } catch (error) {
       logger.error("Error deleting discount:", error);
+      setError(error instanceof Error ? error.message : "No se pudo eliminar el descuento.");
     }
   };
 
   const handleToggleActive = async (discount: Discount) => {
     try {
-      await fetch(`/api/discounts/${discount.id}`, {
+      const response = await fetch(`/api/discounts/${discount.id}`, {
         method: "PUT",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
           isActive: !discount.isActive,
         }),
       });
+      if (!response.ok) throw new Error("No se pudo actualizar el estado del descuento.");
       loadDiscounts();
     } catch (error) {
       logger.error("Error toggling discount:", error);
+      setError(error instanceof Error ? error.message : "No se pudo actualizar el descuento.");
     }
   };
 
@@ -125,6 +134,13 @@ export function DiscountManager({
           Nuevo Descuento
         </Button>
       </div>
+
+      {error && (
+        <div role="alert" className="flex items-center justify-between gap-3 rounded-lg border border-destructive/30 bg-destructive/10 p-3 text-sm text-destructive">
+          <span>{error}</span>
+          <button type="button" className="font-semibold underline" onClick={() => setError(null)}>Cerrar</button>
+        </div>
+      )}
 
       <DiscountList
         discounts={discounts}

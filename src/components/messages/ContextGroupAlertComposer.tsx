@@ -46,16 +46,20 @@ export const ContextGroupAlertComposer = memo(function ContextGroupAlertComposer
       );
       const payload = await response.json();
       if (!response.ok || !payload.ok) {
-        throw new Error(payload.message ?? "No se pudo enviar el aviso.");
+        throw new Error(payload?.message ?? payload?.error?.message ?? payload?.error ?? "No se pudo enviar el aviso.");
+      }
+      const result = payload?.data ?? payload;
+      if (!Number.isFinite(result?.recipientCount) || typeof result?.conversationId !== "string") {
+        throw new Error("El aviso se envió, pero la respuesta no incluyó su seguimiento.");
       }
 
       setContent("");
       setSuccess(
-        `Aviso enviado a ${payload.data.recipientCount} ${
-          payload.data.recipientCount === 1 ? "cuenta vinculada" : "cuentas vinculadas"
+        `Aviso enviado a ${result.recipientCount} ${
+          result.recipientCount === 1 ? "cuenta vinculada" : "cuentas vinculadas"
         }.`
       );
-      await onSent(payload.data.conversationId);
+      await onSent(result.conversationId);
     } catch (sendError) {
       setError(sendError instanceof Error ? sendError.message : "No se pudo enviar el aviso.");
     } finally {

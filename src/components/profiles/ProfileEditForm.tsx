@@ -33,6 +33,7 @@ export function ProfileEditForm({ user, profile, onUpdated, onCancel }: ProfileE
   const [photoUrl, setPhotoUrl] = useState(profile?.photoUrl ?? "");
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [isUploadingPhoto, setIsUploadingPhoto] = useState(false);
+  const [photoUploadSuccess, setPhotoUploadSuccess] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [success, setSuccess] = useState(false);
   const [phoneError, setPhoneError] = useState<string | null>(null);
@@ -61,8 +62,21 @@ export function ProfileEditForm({ user, profile, onUpdated, onCancel }: ProfileE
     const file = event.target.files?.[0];
     if (!file) return;
 
+    const acceptedTypes = new Set(["image/jpeg", "image/jpg", "image/png", "image/webp"]);
+    if (!acceptedTypes.has(file.type)) {
+      setError("Solo se permiten imágenes JPG, PNG o WebP.");
+      event.target.value = "";
+      return;
+    }
+    if (file.size === 0 || file.size > 5 * 1024 * 1024) {
+      setError("La imagen no puede ser mayor a 5 MB.");
+      event.target.value = "";
+      return;
+    }
+
     setIsUploadingPhoto(true);
     setError(null);
+    setPhotoUploadSuccess(false);
 
     try {
       const formData = new FormData();
@@ -78,8 +92,13 @@ export function ProfileEditForm({ user, profile, onUpdated, onCancel }: ProfileE
         throw new Error(data.message || data.error || "Error al subir la imagen");
       }
 
-      const { url } = await response.json();
+      const payload = await response.json();
+      const url = payload?.data?.url ?? payload?.url;
+      if (!url) {
+        throw new Error("El servidor no devolvió la URL de la imagen");
+      }
       setPhotoUrl(url);
+      setPhotoUploadSuccess(true);
     } catch (err: unknown) {
       setError((err instanceof Error ? err.message : "Error desconocido") || "Error al subir la imagen");
     } finally {
@@ -165,7 +184,8 @@ export function ProfileEditForm({ user, profile, onUpdated, onCancel }: ProfileE
         throw new Error(data.message || data.error || "Error al actualizar el perfil");
       }
 
-      const updated = await response.json();
+      const payload = await response.json();
+      const updated = payload?.data ?? payload;
       setSuccess(true);
       
       if (onUpdated) {
@@ -206,9 +226,14 @@ export function ProfileEditForm({ user, profile, onUpdated, onCancel }: ProfileE
           {photoUrl && (
             <button
               type="button"
-              onClick={() => setPhotoUrl("")}
+              onClick={() => {
+                setPhotoUrl("");
+                setPhotoUploadSuccess(false);
+              }}
               className="absolute -top-2 -right-2 rounded-full bg-destructive p-1 text-white hover:bg-destructive/90"
               disabled={isSubmitting || isUploadingPhoto}
+              aria-label="Quitar foto de perfil"
+              title="Quitar foto de perfil"
             >
               <X className="h-3 w-3" />
             </button>
@@ -238,14 +263,22 @@ export function ProfileEditForm({ user, profile, onUpdated, onCancel }: ProfileE
             <Input
               type="url"
               value={photoUrl}
-              onChange={(e) => setPhotoUrl(e.target.value)}
+              onChange={(e) => {
+                setPhotoUrl(e.target.value);
+                setPhotoUploadSuccess(false);
+              }}
               placeholder="O pega una URL de imagen"
               disabled={isSubmitting || isUploadingPhoto}
               className="flex-1"
             />
           </div>
+          {photoUploadSuccess && (
+            <p role="status" className="text-xs text-emerald-700 dark:text-emerald-400">
+              Imagen subida. Pulsa «Guardar cambios» para aplicarla a tu perfil.
+            </p>
+          )}
           <p className="text-xs text-muted-foreground">
-            Sube una imagen (JPG, PNG, WebP, máx. 5MB) o usa una URL. La imagen se redimensionará automáticamente.
+            Sube una imagen JPG, PNG o WebP (máx. 5 MB) o pega una URL segura. La mostramos optimizada dentro de tu perfil.
           </p>
         </div>
       </div>
@@ -326,7 +359,7 @@ export function ProfileEditForm({ user, profile, onUpdated, onCancel }: ProfileE
       </div>
 
       {error && (
-        <div className="rounded-lg border border-destructive/50 bg-destructive/10 p-3 text-sm text-destructive">
+        <div className="rounded-lg border border-destructive/50 bg-destructive/10 p-3 text-sm text-destructive" role="alert" aria-live="assertive">
           {error}
         </div>
       )}
@@ -350,4 +383,3 @@ export function ProfileEditForm({ user, profile, onUpdated, onCancel }: ProfileE
     </form>
   );
 }
-

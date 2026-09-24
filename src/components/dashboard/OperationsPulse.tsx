@@ -1,19 +1,49 @@
 "use client";
 
-import { useEffect, useMemo, useState } from "react";
+import { useMemo, useState } from "react";
 import { Activity, ArrowUpRight, BarChart3, Users, UserCheck } from "lucide-react";
 
 import { cn } from "@/lib/utils";
 import { CountUp } from "@/components/motion/dashboard";
+import type { KpiTrends } from "@/lib/dashboard/kpi-trends";
 
 type PulseMetric = "athletes" | "coaches" | "groups" | "attendance";
-type TrendSeries = Record<PulseMetric, number[]>;
 
-const METRICS: Array<{ key: PulseMetric; label: string; icon: typeof Users; color: string }> = [
-  { key: "athletes", label: "Gimnastas", icon: Users, color: "#00796B" },
-  { key: "coaches", label: "Equipo", icon: UserCheck, color: "#2B2E83" },
-  { key: "groups", label: "Grupos", icon: BarChart3, color: "#1FC7B6" },
-  { key: "attendance", label: "Asistencia", icon: Activity, color: "#FF6B57" },
+const METRICS: Array<{
+  key: PulseMetric;
+  label: string;
+  icon: typeof Users;
+  color: string;
+  currentLabel: (value: number) => string;
+}> = [
+  {
+    key: "athletes",
+    label: "Gimnastas",
+    icon: Users,
+    color: "#00796B",
+    currentLabel: (value) => (value === 1 ? "gimnasta en la academia" : "gimnastas en la academia"),
+  },
+  {
+    key: "coaches",
+    label: "Equipo",
+    icon: UserCheck,
+    color: "#2B2E83",
+    currentLabel: (value) => (value === 1 ? "persona en el equipo" : "personas en el equipo"),
+  },
+  {
+    key: "groups",
+    label: "Grupos",
+    icon: BarChart3,
+    color: "#1FC7B6",
+    currentLabel: (value) => (value === 1 ? "grupo activo" : "grupos activos"),
+  },
+  {
+    key: "attendance",
+    label: "Asistencia",
+    icon: Activity,
+    color: "#FF6B57",
+    currentLabel: () => "asistencia actual",
+  },
 ];
 
 function linePath(values: number[], width: number, height: number, padding = 10) {
@@ -30,23 +60,16 @@ function linePath(values: number[], width: number, height: number, padding = 10)
     .join(" ");
 }
 
-export function OperationsPulse({ academyId }: { academyId: string }) {
+export type OperationsPulseStatus = "loading" | "ready" | "error";
+
+interface OperationsPulseProps {
+  series: KpiTrends | null;
+  status: OperationsPulseStatus;
+  onRetry: () => void;
+}
+
+export function OperationsPulse({ series, status, onRetry }: OperationsPulseProps) {
   const [metric, setMetric] = useState<PulseMetric>("athletes");
-  const [series, setSeries] = useState<TrendSeries | null>(null);
-
-  useEffect(() => {
-    const controller = new AbortController();
-    fetch(`/api/dashboard/kpi-trends?academyId=${academyId}&days=14`, {
-      signal: controller.signal,
-    })
-      .then((response) => (response.ok ? response.json() : null))
-      .then((json) => {
-        if (json?.ok && json.data) setSeries(json.data as TrendSeries);
-      })
-      .catch(() => undefined);
-
-    return () => controller.abort();
-  }, [academyId]);
 
   const activeMetric = METRICS.find((item) => item.key === metric) ?? METRICS[0];
   const values = series?.[metric] ?? [];
@@ -64,10 +87,10 @@ export function OperationsPulse({ academyId }: { academyId: string }) {
             <h2 className="font-display text-xl font-bold tracking-[-0.02em] text-foreground">Pulso operativo</h2>
             <span className={cn(
               "inline-flex items-center gap-1 rounded-full px-2 py-1 text-[11px] font-semibold",
-              series ? "bg-muted text-muted-foreground" : "bg-amber-50 text-amber-700 dark:bg-amber-500/10 dark:text-amber-400"
+              status === "ready" ? "bg-muted text-muted-foreground" : status === "error" ? "bg-red-50 text-red-700 dark:bg-red-500/10 dark:text-red-400" : "bg-amber-50 text-amber-700 dark:bg-amber-500/10 dark:text-amber-400"
             )}>
-              <span className={cn("h-1.5 w-1.5 rounded-full", series ? "bg-zaltyko-electric" : "bg-amber-500 animate-pulse")} />
-              {series ? "Serie actual" : "Cargando datos"}
+              <span className={cn("h-1.5 w-1.5 rounded-full", status === "ready" ? "bg-zaltyko-electric" : status === "error" ? "bg-red-500" : "bg-amber-500 animate-pulse")} />
+              {status === "ready" ? "Serie actual" : status === "error" ? "Sin conexión" : "Cargando datos"}
             </span>
           </div>
           <p className="mt-1 text-sm text-muted-foreground">Evolución de los últimos 14 días</p>
@@ -109,7 +132,9 @@ export function OperationsPulse({ academyId }: { academyId: string }) {
               />
             )}
           </p>
-          <p className="mt-1 text-sm font-medium text-muted-foreground">{activeMetric.label.toLowerCase()} actuales</p>
+          <p className="mt-1 text-sm font-medium text-muted-foreground">
+            {activeMetric.currentLabel(current ?? 0)}
+          </p>
           {delta === null ? (
             <p className="mt-3 text-xs font-semibold text-muted-foreground">Sin serie comparable</p>
           ) : (
@@ -144,7 +169,22 @@ export function OperationsPulse({ academyId }: { academyId: string }) {
             </svg>
           ) : (
             <div className="flex h-full min-h-[150px] items-center justify-center text-sm text-muted-foreground">
-              {series ? "Aún no hay suficientes datos para dibujar la evolución." : "Cargando evolución…"}
+              {status === "loading" ? (
+                "Cargando evolución…"
+              ) : status === "error" ? (
+                <div className="flex flex-col items-center gap-2 text-center">
+                  <span>No pudimos cargar la evolución.</span>
+                  <button
+                    type="button"
+                    onClick={onRetry}
+                    className="min-h-9 rounded-lg border border-border bg-card px-3 text-xs font-semibold text-foreground transition hover:border-zaltyko-teal focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-zaltyko-teal focus-visible:ring-offset-2"
+                  >
+                    Reintentar
+                  </button>
+                </div>
+              ) : (
+                "Aún no hay suficientes datos para dibujar la evolución."
+              )}
             </div>
           )}
         </div>

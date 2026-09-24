@@ -3,7 +3,7 @@
 import { useState, useEffect, useMemo } from "react";
 import { Calendar, Download, FileText, BarChart3, Loader2, Filter } from "lucide-react";
 import { format, subDays, subMonths } from "date-fns";
-import { formatLongDateForCountry } from "@/lib/date-utils";
+import { formatDateToISOString, formatLongDateForCountry } from "@/lib/date-utils";
 
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
@@ -52,8 +52,8 @@ export function AttendanceReport({
   const toast = useToast();
   const { specialization } = useAcademyContext();
   const [reportType, setReportType] = useState<"general" | "athlete" | "group">("general");
-  const [startDate, setStartDate] = useState(format(subMonths(new Date(), 1), "yyyy-MM-dd"));
-  const [endDate, setEndDate] = useState(format(new Date(), "yyyy-MM-dd"));
+  const [startDate, setStartDate] = useState(formatDateToISOString(subMonths(new Date(), 1), academyCountry));
+  const [endDate, setEndDate] = useState(formatDateToISOString(new Date(), academyCountry));
   const [athleteId, setAthleteId] = useState("");
   const [groupId, setGroupId] = useState("");
   const [classId, setClassId] = useState("");
@@ -259,25 +259,25 @@ export function AttendanceReport({
           <div className="space-y-2">
             <div className="flex justify-between">
               <span>Presentes:</span>
-              <Badge variant="outline" className="bg-green-50">
+              <Badge variant="outline" className="bg-green-50 dark:bg-green-950/40 dark:text-green-300">
                 {stats.present}
               </Badge>
             </div>
             <div className="flex justify-between">
               <span>Ausentes:</span>
-              <Badge variant="outline" className="bg-red-50">
+              <Badge variant="outline" className="bg-red-50 dark:bg-red-950/40 dark:text-red-300">
                 {stats.absent}
               </Badge>
             </div>
             <div className="flex justify-between">
               <span>Tarde:</span>
-              <Badge variant="outline" className="bg-yellow-50">
+              <Badge variant="outline" className="bg-yellow-50 dark:bg-yellow-950/40 dark:text-yellow-300">
                 {stats.late}
               </Badge>
             </div>
             <div className="flex justify-between">
               <span>Justificados:</span>
-              <Badge variant="outline" className="bg-blue-50">
+              <Badge variant="outline" className="bg-blue-50 dark:bg-blue-950/40 dark:text-blue-300">
                 {stats.excused}
               </Badge>
             </div>
@@ -300,7 +300,7 @@ export function AttendanceReport({
                 <span>Presentes</span>
                 <span>{stats.totalSessions > 0 ? Math.round((stats.present / stats.totalSessions) * 100) : 0}%</span>
               </div>
-              <div className="w-full bg-gray-200 rounded-full h-2">
+              <div className="w-full bg-muted rounded-full h-2">
                 <div
                   className="bg-green-600 h-2 rounded-full"
                   style={{ width: `${stats.totalSessions > 0 ? (stats.present / stats.totalSessions) * 100 : 0}%` }}
@@ -312,7 +312,7 @@ export function AttendanceReport({
                 <span>Ausentes</span>
                 <span>{stats.totalSessions > 0 ? Math.round((stats.absent / stats.totalSessions) * 100) : 0}%</span>
               </div>
-              <div className="w-full bg-gray-200 rounded-full h-2">
+              <div className="w-full bg-muted rounded-full h-2">
                 <div
                   className="bg-red-600 h-2 rounded-full"
                   style={{ width: `${stats.totalSessions > 0 ? (stats.absent / stats.totalSessions) * 100 : 0}%` }}
@@ -490,7 +490,7 @@ export function AttendanceReport({
       {error && (
         <Card>
           <CardContent className="pt-6">
-            <div className="rounded-lg border border-red-200 bg-red-50 p-3 text-sm text-red-900">
+            <div className="rounded-lg border border-red-200 bg-red-50 p-3 text-sm text-red-900 dark:border-red-900/60 dark:bg-red-950/30 dark:text-red-200">
               {error}
             </div>
           </CardContent>

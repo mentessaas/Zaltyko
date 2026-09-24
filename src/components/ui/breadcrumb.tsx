@@ -13,13 +13,14 @@ interface BreadcrumbItem {
 interface BreadcrumbProps {
   items: BreadcrumbItem[];
   className?: string;
+  homeHref?: string;
 }
 
-export function Breadcrumb({ items, className }: BreadcrumbProps) {
+export function Breadcrumb({ items, className, homeHref = "/dashboard" }: BreadcrumbProps) {
   return (
     <nav aria-label="Breadcrumb" className={cn("flex items-center space-x-2 text-sm py-2", className)}>
       <Link
-        href="/dashboard"
+        href={homeHref}
         className="text-muted-foreground hover:text-foreground transition-colors flex items-center"
         aria-label="Inicio"
       >
@@ -48,4 +49,3 @@ export function Breadcrumb({ items, className }: BreadcrumbProps) {
     </nav>
   );
 }
-

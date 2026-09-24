@@ -4,7 +4,8 @@ import { FormEvent, useEffect, useMemo, useState, useTransition } from "react";
 
 import { Modal } from "@/components/ui/modal";
 import type { SportConfigOption } from "@/components/groups/types";
-import { getTerminology, getTerminologyForSportConfig } from "@/lib/sport-config/terminology";
+import { getTerminologyForSportConfig } from "@/lib/sport-config/terminology";
+import { pluralizeFirstWord } from "@/lib/specialization/registry";
 
 type AttendanceStatus = "present" | "absent" | "late" | "excused";
 
@@ -24,6 +25,7 @@ interface AthleteOption {
   groupId: string | null;
   groupName: string | null;
   groupColor: string | null;
+  groups?: { id: string; name: string; color?: string | null }[];
   primarySportConfigId?: string | null;
   groupSportConfigId?: string | null;
 }
@@ -113,7 +115,11 @@ export function AttendanceDialog({
   const filteredAthletes = useMemo(() => {
     const needle = search.trim().toLowerCase();
     return athletes.filter((athlete) => {
-      if (groupFilter && athlete.groupId !== groupFilter) {
+      if (
+        groupFilter &&
+        athlete.groupId !== groupFilter &&
+        !athlete.groups?.some((group) => group.id === groupFilter)
+      ) {
         return false;
       }
       const athleteSportConfigId = athlete.primarySportConfigId ?? athlete.groupSportConfigId ?? "";
@@ -131,6 +137,7 @@ export function AttendanceDialog({
   const athleteTermLower = terms.athlete.toLowerCase();
   const athleteTermPluralLower = terms.athletes.toLowerCase();
   const groupTermLower = terms.group.toLowerCase();
+  const groupTermPluralLower = pluralizeFirstWord(terms.group).toLowerCase();
   const attendanceTermLower = terms.attendance.toLowerCase();
 
   const groupOptions = useMemo(() => {
@@ -143,6 +150,11 @@ export function AttendanceDialog({
           color: athlete.groupColor ?? null,
         });
       }
+      athlete.groups?.forEach((group) => {
+        if (!map.has(group.id)) {
+          map.set(group.id, { id: group.id, name: group.name, color: group.color ?? null });
+        }
+      });
     });
     return Array.from(map.values());
   }, [athletes, terms.group]);
@@ -232,7 +244,7 @@ export function AttendanceDialog({
           <button
             type="submit"
             form="attendance-form"
-            className="min-h-11 rounded-xl bg-zaltyko-teal px-4 py-2 text-sm font-semibold text-white shadow-soft transition hover:bg-primary-dark disabled:cursor-not-allowed disabled:opacity-60"
+            className="min-h-11 rounded-xl bg-zaltyko-teal px-4 py-2 text-sm font-semibold text-white shadow-soft transition hover:bg-zaltyko-primary-dark disabled:cursor-not-allowed disabled:opacity-60"
             disabled={isPending}
           >
             {isPending ? "Guardando…" : `Guardar ${attendanceTermLower}`}
@@ -260,7 +272,7 @@ export function AttendanceDialog({
             onChange={(event) => setGroupFilter(event.target.value)}
             className={`${fieldClassName} min-w-[200px]`}
           >
-            <option value="">Todos los {groupTermLower}s</option>
+            <option value="">Todos los {groupTermPluralLower}</option>
             {groupOptions.map((group) => (
               <option key={group.id} value={group.id}>
                 {group.name}

@@ -5,15 +5,24 @@ import { useState } from "react";
 import Link from "next/link";
 
 import { Button } from "@/components/ui/button";
+import type { SpecializedLabels } from "@/lib/specialization/registry";
+import { pluralizeFirstWord } from "@/lib/specialization/registry";
 
 interface WelcomeBannerProps {
   academyName: string | null;
   userName: string | null;
   academyId: string;
   isNewUser?: boolean;
+  labels?: Pick<SpecializedLabels, "athleteSingular" | "groupLabel">;
 }
 
-export function WelcomeBanner({ academyName, userName, academyId, isNewUser = false }: WelcomeBannerProps) {
+export function WelcomeBanner({
+  academyName,
+  userName,
+  academyId,
+  isNewUser = false,
+  labels = { athleteSingular: "Atleta", groupLabel: "Grupo" },
+}: WelcomeBannerProps) {
   const [dismissed, setDismissed] = useState(false);
 
   if (dismissed) {
@@ -21,6 +30,7 @@ export function WelcomeBanner({ academyName, userName, academyId, isNewUser = fa
   }
 
   const displayName = userName || "equipo";
+  const athletePlural = pluralizeFirstWord(labels.athleteSingular).toLowerCase();
 
   return (
     <div className="relative rounded-card border border-border border-b-2 border-b-zaltyko-teal bg-card p-6 shadow-soft">
@@ -45,7 +55,7 @@ export function WelcomeBanner({ academyName, userName, academyId, isNewUser = fa
           {isNewUser ? (
             <>
               <strong className="text-zaltyko-teal">{academyName || "Tu academia"}</strong> ya está creada.
-              Importa tus gimnastas y monta el primer grupo para empezar a ver el panel con datos reales.
+              Añade tus {athletePlural} y crea el primer {labels.groupLabel.toLowerCase()} para empezar a ver el panel con datos reales.
             </>
           ) : (
             <>
@@ -57,7 +67,7 @@ export function WelcomeBanner({ academyName, userName, academyId, isNewUser = fa
           <div className="mt-6 flex flex-wrap gap-3">
             <Button asChild size="sm">
               <Link href={`/app/${academyId}/athletes`}>
-                Importar gimnastas
+                Añadir {athletePlural}
               </Link>
             </Button>
             <Button variant="outline" size="sm" asChild>
@@ -71,4 +81,3 @@ export function WelcomeBanner({ academyName, userName, academyId, isNewUser = fa
     </div>
   );
 }
-

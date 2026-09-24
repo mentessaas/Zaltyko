@@ -1,20 +1,17 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import { format } from "date-fns";
-import { es } from "date-fns/locale";
 import {
   BookOpen,
   ClipboardCheck,
   FileText,
-  TrendingUp,
-  Calendar,
   Award,
 } from "lucide-react";
 
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Progress } from "@/components/ui/progress";
 import type { AthleteStats } from "@/types/athletes";
+import { formatDateForCountry } from "@/lib/date-utils";
 
 interface AthleteStatsOverviewProps {
   athleteId: string;
@@ -60,7 +57,7 @@ function StatCard({
         {trend !== null && trend !== undefined && trend !== 0 && (
           <p
             className={`text-xs mt-1 ${
-              trend > 0 ? "text-green-600" : "text-red-600"
+              trend > 0 ? "text-green-600 dark:text-green-300" : "text-red-600 dark:text-red-300"
             }`}
           >
             {trend > 0 ? "+" : ""}
@@ -82,13 +79,10 @@ export function AthleteStatsOverview({
   );
   const [loading, setLoading] = useState(!initialStats);
   const [error, setError] = useState<string | null>(null);
+  const [retryCount, setRetryCount] = useState(0);
 
   useEffect(() => {
-    if (initialStats) {
-      setStats(initialStats);
-      setLoading(false);
-      return;
-    }
+    if (initialStats) return;
 
     const fetchStats = async () => {
       try {
@@ -131,10 +125,10 @@ export function AthleteStatsOverview({
             lastAssessmentScore = scores[0];
             const latestAssessment = assessments[0];
             if (latestAssessment?.assessmentDate) {
-              lastAssessmentDate = format(
-                new Date(latestAssessment.assessmentDate),
-                "d MMM yyyy",
-                { locale: es }
+              lastAssessmentDate = formatDateForCountry(
+                latestAssessment.assessmentDate,
+                athlete.country,
+                "d MMM yyyy"
               );
             }
           }
@@ -162,7 +156,7 @@ export function AthleteStatsOverview({
     };
 
     fetchStats();
-  }, [athleteId, academyId, initialStats]);
+  }, [athleteId, academyId, initialStats, retryCount]);
 
   if (loading) {
     return (
@@ -184,8 +178,15 @@ export function AthleteStatsOverview({
 
   if (error || !stats) {
     return (
-      <div className="rounded-xl border border-red-200 bg-red-50 p-6">
-        <p className="text-sm text-red-700">{error ?? "Error al cargar estadísticas."}</p>
+      <div className="rounded-xl border border-red-200 bg-red-50 p-6 dark:border-red-900/60 dark:bg-red-950/30" role="alert">
+        <p className="text-sm text-red-700 dark:text-red-300">{error ?? "Error al cargar estadísticas."}</p>
+        <button
+          type="button"
+          onClick={() => setRetryCount((count) => count + 1)}
+          className="mt-3 rounded-md border border-red-300 px-3 py-1.5 text-sm font-medium text-red-700 hover:bg-red-100 dark:border-red-800 dark:text-red-300 dark:hover:bg-red-950/50"
+        >
+          Reintentar
+        </button>
       </div>
     );
   }

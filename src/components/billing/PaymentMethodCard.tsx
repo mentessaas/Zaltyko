@@ -128,11 +128,11 @@ export function PaymentMethodCard({ paymentMethod, onUpdate, loading = false }: 
             </Button>
 
             {isExpired && (
-                <div className="p-4 rounded-lg bg-red-50 border border-red-200">
-                    <p className="text-sm text-red-900 font-semibold mb-1">
+                <div className="p-4 rounded-lg bg-red-50 border border-red-200 dark:bg-red-950/30 dark:border-red-900/60">
+                    <p className="text-sm text-red-900 dark:text-red-200 font-semibold mb-1">
                         Tarjeta vencida
                     </p>
-                    <p className="text-sm text-red-700">
+                    <p className="text-sm text-red-700 dark:text-red-300">
                         Por favor actualiza tu método de pago para evitar interrupciones en tu servicio.
                     </p>
                 </div>

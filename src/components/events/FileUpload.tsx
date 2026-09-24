@@ -34,6 +34,32 @@ export function FileUpload({
     if (!selectedFiles || selectedFiles.length === 0) return;
 
     setError(null);
+
+    // Validate the whole batch before starting any network request. This
+    // prevents a mixed selection from uploading the first files and then
+    // failing halfway through, leaving orphaned media in Storage.
+    const allowedTypes = type === "image"
+      ? new Set(["image/jpeg", "image/png", "image/gif", "image/webp"])
+      : new Set([
+        "application/pdf",
+        "application/msword",
+        "application/vnd.openxmlformats-officedocument.wordprocessingml.document",
+      ]);
+    for (const file of Array.from(selectedFiles)) {
+      if (file.size === 0 || file.size > maxSizeMB * 1024 * 1024) {
+        setError(`El archivo ${file.name} excede el tamaño máximo de ${maxSizeMB}MB o está vacío`);
+        e.target.value = "";
+        return;
+      }
+      if (!allowedTypes.has(file.type)) {
+        setError(type === "image"
+          ? `El archivo ${file.name} no es una imagen compatible (JPG, PNG, GIF o WebP)`
+          : `El archivo ${file.name} no es un documento compatible (PDF, DOC o DOCX)`);
+        e.target.value = "";
+        return;
+      }
+    }
+
     setUploading(true);
 
     try {
@@ -50,9 +76,6 @@ export function FileUpload({
         // Subir archivo
         const response = await fetch("/api/events/upload", {
           method: "POST",
-          headers: {
-            "x-academy-id": eventId || "",
-          },
           credentials: "include",
           body: (() => {
             const formData = new FormData();
@@ -64,11 +87,13 @@ export function FileUpload({
         });
 
         if (!response.ok) {
-          const data = await response.json();
+          const data = await response.json().catch(() => ({}));
           throw new Error(data.message || "Error al subir archivo");
         }
 
-        const { url } = await response.json();
+        const payload = await response.json();
+        const url = payload?.data?.url ?? payload?.url;
+        if (!url) throw new Error("El servidor no devolvió la URL del archivo");
         newFiles.push(url);
       }
 
@@ -168,4 +193,3 @@ export function FileUpload({
     </div>
   );
 }
-

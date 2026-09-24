@@ -10,6 +10,7 @@ import { Label } from "@/components/ui/label";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { useToast } from "@/components/ui/toast-provider";
 import { logger } from "@/lib/logger";
+import { getNotificationTypePreference } from "@/lib/notifications/preference-policy";
 
 interface NotificationPreferencesData {
   emailNotifications: Record<string, boolean>;
@@ -119,24 +120,43 @@ export function NotificationPreferences() {
         if (response.ok) {
           const data = await response.json();
           if (data.data?.preferences) {
+            const persisted = data.data.preferences;
             setPreferences({
               ...DEFAULT_PREFERENCES,
-              ...data.data.preferences,
+              ...persisted,
               inAppNotifications: {
                 ...DEFAULT_PREFERENCES.inAppNotifications,
-                ...data.data.preferences.inAppNotifications,
+                ...persisted.inAppNotifications,
                 types: {
                   ...DEFAULT_PREFERENCES.inAppNotifications.types,
-                  ...data.data.preferences.inAppNotifications?.types,
+                  ...persisted.inAppNotifications?.types,
+                  ...Object.fromEntries(
+                    NOTIFICATION_TYPES.map((type) => [
+                      type.key,
+                      getNotificationTypePreference(
+                        persisted.inAppNotifications?.types,
+                        type.key
+                      ),
+                    ])
+                  ),
                 },
               },
               emailNotifications: {
                 ...DEFAULT_PREFERENCES.emailNotifications,
-                ...data.data.preferences.emailNotifications,
+                ...persisted.emailNotifications,
+                ...Object.fromEntries(
+                  NOTIFICATION_TYPES.map((type) => [
+                    type.key,
+                    getNotificationTypePreference(
+                      persisted.emailNotifications,
+                      type.key
+                    ),
+                  ])
+                ),
               },
               classReminders: {
                 ...DEFAULT_PREFERENCES.classReminders,
-                ...data.data.preferences.classReminders,
+                ...persisted.classReminders,
               },
             });
           }

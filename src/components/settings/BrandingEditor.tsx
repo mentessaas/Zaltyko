@@ -1,7 +1,7 @@
 "use client";
 
-import { useState, useEffect } from "react";
-import { Palette, Type, Image } from "lucide-react";
+import { useState, useEffect, useRef } from "react";
+import { Palette, Type, Image, Loader2, Upload } from "lucide-react";
 
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
@@ -19,6 +19,7 @@ export interface BrandingData {
 }
 
 interface BrandingEditorProps {
+  academyId: string;
   data: BrandingData;
   onChange: (data: BrandingData) => void;
   disabled?: boolean;
@@ -84,8 +85,11 @@ function ColorPicker({
   );
 }
 
-export function BrandingEditor({ data, onChange, disabled = false, preview = true }: BrandingEditorProps) {
+export function BrandingEditor({ academyId, data, onChange, disabled = false, preview = true }: BrandingEditorProps) {
   const [localData, setLocalData] = useState<BrandingData>(data || DEFAULT_BRANDING);
+  const [isUploadingLogo, setIsUploadingLogo] = useState(false);
+  const [uploadError, setUploadError] = useState<string | null>(null);
+  const logoInputRef = useRef<HTMLInputElement>(null);
 
   useEffect(() => {
     if (data) {
@@ -97,6 +101,40 @@ export function BrandingEditor({ data, onChange, disabled = false, preview = tru
     const newData = { ...localData, [field]: value };
     setLocalData(newData);
     onChange(newData);
+  };
+
+  const handleLogoUpload = async (event: React.ChangeEvent<HTMLInputElement>) => {
+    const file = event.target.files?.[0];
+    event.target.value = "";
+    if (!file) return;
+    const acceptedTypes = new Set(["image/jpeg", "image/png", "image/gif", "image/webp"]);
+    if (!acceptedTypes.has(file.type)) {
+      setUploadError("El logo debe ser JPG, PNG, GIF o WebP.");
+      return;
+    }
+    if (file.size === 0 || file.size > 5 * 1024 * 1024) {
+      setUploadError("El logo no puede superar los 5 MB.");
+      return;
+    }
+
+    setIsUploadingLogo(true);
+    setUploadError(null);
+    try {
+      const body = new FormData();
+      body.append("file", file);
+      body.append("academyId", academyId);
+      body.append("folder", "academy-logo");
+      const response = await fetch("/api/upload", { method: "POST", body });
+      const payload = await response.json().catch(() => ({}));
+      if (!response.ok) throw new Error(payload?.message || payload?.error || "No se pudo subir el logo");
+      const url = payload?.data?.url ?? payload?.url;
+      if (typeof url !== "string" || !url) throw new Error("El servidor no devolvió la URL del logo");
+      handleChange("logoUrl", url);
+    } catch (error) {
+      setUploadError(error instanceof Error ? error.message : "No se pudo subir el logo");
+    } finally {
+      setIsUploadingLogo(false);
+    }
   };
 
   return (
@@ -184,7 +222,15 @@ export function BrandingEditor({ data, onChange, disabled = false, preview = tru
           </h4>
           <div className="grid gap-4 md:grid-cols-2">
             <div className="space-y-2">
-              <Label>URL del logo</Label>
+              <Label>Logo de la academia</Label>
+              <div className="flex items-center gap-3">
+                <input ref={logoInputRef} type="file" accept="image/jpeg,image/png,image/gif,image/webp" onChange={handleLogoUpload} className="hidden" disabled={disabled || isUploadingLogo} />
+                <Button type="button" variant="outline" size="sm" onClick={() => logoInputRef.current?.click()} disabled={disabled || isUploadingLogo}>
+                  {isUploadingLogo ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <Upload className="mr-2 h-4 w-4" />}
+                  {isUploadingLogo ? "Subiendo…" : "Subir logo"}
+                </Button>
+                <span className="text-xs text-muted-foreground">JPG, PNG, GIF o WebP · máximo 5 MB</span>
+              </div>
               <Input
                 type="url"
                 value={localData.logoUrl}
@@ -192,6 +238,7 @@ export function BrandingEditor({ data, onChange, disabled = false, preview = tru
                 placeholder="https://ejemplo.com/logo.png"
                 disabled={disabled}
               />
+              {uploadError ? <p className="text-xs text-destructive" role="alert">{uploadError}</p> : null}
             </div>
             <div className="space-y-2">
               <Label>URL del favicon</Label>

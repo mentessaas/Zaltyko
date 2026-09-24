@@ -2,7 +2,7 @@
 
 import { CalendarClock, MapPin, Users } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
-import { formatShortDateForCountry, formatTimeForCountry } from "@/lib/date-utils";
+import { formatDateToISOString, formatTimeForCountry } from "@/lib/date-utils";
 import { useAcademyContext } from "@/hooks/use-academy-context";
 
 interface SessionData {
@@ -49,14 +49,18 @@ export function MyScheduleWidget({ sessions, academyCountry }: MyScheduleWidgetP
   const displaySessions = sessions.slice(0, 5);
 
   const isToday = (dateStr: string) => {
-    const today = new Date().toISOString().split("T")[0];
+    const today = formatDateToISOString(new Date(), academyCountry);
     return dateStr === today;
   };
 
   const getDayName = (dateStr: string) => {
-    const date = new Date(dateStr);
+    // Las fechas de sesión son claves calendarias (no instantes UTC). Usar
+    // Date.parse aquí desplaza el día en navegadores de América y marca la
+    // clase con el día equivocado.
+    const [year, month, day] = dateStr.split("-").map(Number);
+    const date = new Date(Date.UTC(year, month - 1, day));
     const days = ["Dom", "Lun", "Mar", "Mié", "Jue", "Vie", "Sáb"];
-    return days[date.getDay()];
+    return days[date.getUTCDay()];
   };
 
   return (
@@ -78,7 +82,7 @@ export function MyScheduleWidget({ sessions, academyCountry }: MyScheduleWidgetP
               {getDayName(session.sessionDate)}
             </span>
             <span className="text-lg font-bold leading-none">
-              {new Date(session.sessionDate).getDate()}
+              {Number(session.sessionDate.slice(8, 10))}
             </span>
           </div>
 

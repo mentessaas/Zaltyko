@@ -32,6 +32,7 @@ interface ContactFormProps {
 }
 
 const publicPlans = new Set<CommercialPlanSlug>(["free", "starter", "growth", "network"]);
+const CONTACT_REQUEST_TIMEOUT_MS = 20_000;
 
 export function ContactForm({ defaultReason = "demo", defaultPlan }: ContactFormProps) {
   const [state, setState] = useState<SubmitState>({ status: "idle" });
@@ -78,6 +79,8 @@ export function ContactForm({ defaultReason = "demo", defaultPlan }: ContactForm
     });
 
     let failureReported = false;
+    const controller = new AbortController();
+    const timeoutId = window.setTimeout(() => controller.abort(), CONTACT_REQUEST_TIMEOUT_MS);
 
     try {
       const response = await fetch("/api/contact", {
@@ -95,6 +98,7 @@ export function ContactForm({ defaultReason = "demo", defaultPlan }: ContactForm
           visitorId: getGrowthVisitorId(),
           submissionId: crypto.randomUUID(),
         }),
+        signal: controller.signal,
       });
 
       if (!response.ok) {
@@ -142,9 +146,15 @@ export function ContactForm({ defaultReason = "demo", defaultPlan }: ContactForm
       }
       setState({
         status: "error",
-        message: error instanceof Error ? error.message : "No se pudo enviar el mensaje.",
+        message:
+          error instanceof DOMException && error.name === "AbortError"
+            ? "La solicitud está tardando demasiado. Comprueba tu conexión e inténtalo de nuevo."
+            : error instanceof Error
+              ? error.message
+              : "No se pudo enviar el mensaje.",
       });
     } finally {
+      window.clearTimeout(timeoutId);
       setSubmitting(false);
     }
   }
@@ -172,7 +182,7 @@ export function ContactForm({ defaultReason = "demo", defaultPlan }: ContactForm
           name="name"
           required
           autoComplete="name"
-          className="mt-1 block w-full rounded-lg border border-gray-300 px-4 py-2 focus:border-zaltyko-primary focus:ring-2 focus:ring-zaltyko-primary/20"
+          className="mt-1 block w-full rounded-lg border border-gray-300 bg-white px-4 py-2 text-zaltyko-text-main placeholder:text-gray-400 focus:border-zaltyko-primary focus:ring-2 focus:ring-zaltyko-primary/20 dark:border-border dark:bg-card dark:text-foreground dark:placeholder:text-muted-foreground"
           placeholder="Tu nombre"
         />
       </div>
@@ -187,7 +197,7 @@ export function ContactForm({ defaultReason = "demo", defaultPlan }: ContactForm
           name="email"
           required
           autoComplete="email"
-          className="mt-1 block w-full rounded-lg border border-gray-300 px-4 py-2 focus:border-zaltyko-primary focus:ring-2 focus:ring-zaltyko-primary/20"
+          className="mt-1 block w-full rounded-lg border border-gray-300 bg-white px-4 py-2 text-zaltyko-text-main placeholder:text-gray-400 focus:border-zaltyko-primary focus:ring-2 focus:ring-zaltyko-primary/20 dark:border-border dark:bg-card dark:text-foreground dark:placeholder:text-muted-foreground"
           placeholder="tu@email.com"
         />
       </div>
@@ -201,7 +211,7 @@ export function ContactForm({ defaultReason = "demo", defaultPlan }: ContactForm
           name="reason"
           required
           defaultValue={reasons.some((item) => item.value === defaultReason) ? defaultReason : "demo"}
-          className="mt-1 block w-full rounded-lg border border-gray-300 px-4 py-2 focus:border-zaltyko-primary focus:ring-2 focus:ring-zaltyko-primary/20"
+          className="mt-1 block w-full rounded-lg border border-gray-300 bg-white px-4 py-2 text-zaltyko-text-main focus:border-zaltyko-primary focus:ring-2 focus:ring-zaltyko-primary/20 dark:border-border dark:bg-card dark:text-foreground"
         >
           {reasons.map((reason) => (
             <option key={reason.value} value={reason.value}>
@@ -220,7 +230,7 @@ export function ContactForm({ defaultReason = "demo", defaultPlan }: ContactForm
           id="academy"
           name="academy"
           autoComplete="organization"
-          className="mt-1 block w-full rounded-lg border border-gray-300 px-4 py-2 focus:border-zaltyko-primary focus:ring-2 focus:ring-zaltyko-primary/20"
+          className="mt-1 block w-full rounded-lg border border-gray-300 bg-white px-4 py-2 text-zaltyko-text-main placeholder:text-gray-400 focus:border-zaltyko-primary focus:ring-2 focus:ring-zaltyko-primary/20 dark:border-border dark:bg-card dark:text-foreground dark:placeholder:text-muted-foreground"
           placeholder="Ej: Club Gimnasia Centro"
         />
       </div>
@@ -235,7 +245,7 @@ export function ContactForm({ defaultReason = "demo", defaultPlan }: ContactForm
           rows={5}
           required
           minLength={10}
-          className="mt-1 block w-full rounded-lg border border-gray-300 px-4 py-2 focus:border-zaltyko-primary focus:ring-2 focus:ring-zaltyko-primary/20"
+          className="mt-1 block w-full rounded-lg border border-gray-300 bg-white px-4 py-2 text-zaltyko-text-main placeholder:text-gray-400 focus:border-zaltyko-primary focus:ring-2 focus:ring-zaltyko-primary/20 dark:border-border dark:bg-card dark:text-foreground dark:placeholder:text-muted-foreground"
           placeholder="Cuéntanos qué necesitas resolver."
         />
       </div>
@@ -257,7 +267,7 @@ export function ContactForm({ defaultReason = "demo", defaultPlan }: ContactForm
       <button
         type="submit"
         disabled={submitting || !isHydrated}
-        className="inline-flex w-full items-center justify-center rounded-full bg-zaltyko-primary px-8 py-3 font-semibold text-white transition-colors hover:bg-primary-dark disabled:cursor-not-allowed disabled:opacity-70"
+        className="inline-flex w-full items-center justify-center rounded-full bg-zaltyko-primary px-8 py-3 font-semibold text-white transition-colors hover:bg-zaltyko-primary-dark disabled:cursor-not-allowed disabled:opacity-70"
       >
         {submitting ? <Loader2 className="mr-2 h-5 w-5 animate-spin" /> : <Send className="mr-2 h-5 w-5" />}
         {!isHydrated ? "Preparando formulario..." : submitting ? "Enviando..." : "Enviar mensaje"}

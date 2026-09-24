@@ -136,7 +136,7 @@ function SessionAttendancePanelImpl({
         </Button>
       </div>
 
-      <div className="flex flex-col gap-3 rounded-2xl border border-border/70 bg-zaltyko-white p-3 sm:flex-row sm:items-center sm:justify-between">
+      <div className="flex flex-col gap-3 rounded-2xl border border-border/70 bg-card p-3 sm:flex-row sm:items-center sm:justify-between">
         <label className="relative block flex-1">
           <span className="sr-only">Buscar {athleteTerm.toLowerCase()}</span>
           <Search className="pointer-events-none absolute left-3 top-3.5 h-4 w-4 text-muted-foreground" aria-hidden="true" />
@@ -198,7 +198,7 @@ function SessionAttendancePanelImpl({
                 placeholder="Nota opcional"
                 aria-label={`Nota de asistencia para ${athlete.name}`}
                 maxLength={500}
-                className="mt-3 min-h-11 bg-zaltyko-white"
+                className="mt-3 min-h-11 bg-card"
               />
             ) : null}
           </article>

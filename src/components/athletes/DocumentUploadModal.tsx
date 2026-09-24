@@ -80,9 +80,17 @@ export function DocumentUploadModal({
       setLoading(true);
       setError(null);
 
-      // In a real implementation, you would upload the file to storage
-      // and get back a URL. For now, we'll use a placeholder.
-      const fileUrl = `/uploads/${selectedFile.name}`;
+      const uploadData = new FormData();
+      uploadData.set("file", selectedFile);
+      uploadData.set("academyId", academyId);
+      const uploadResponse = await fetch(
+        `/api/athletes/${athleteId}/documents/upload`,
+        { method: "POST", body: uploadData }
+      );
+      const uploaded = await uploadResponse.json();
+      if (!uploadResponse.ok || !uploaded.data?.path) {
+        throw new Error(uploaded.message || uploaded.error || "Error al subir el documento.");
+      }
 
       const response = await fetch(
         `/api/athletes/${athleteId}/documents?academyId=${academyId}`,
@@ -92,9 +100,9 @@ export function DocumentUploadModal({
           body: JSON.stringify({
             documentType: data.documentType,
             fileName: selectedFile.name,
-            fileUrl,
-            fileSize: selectedFile.size.toString(),
-            mimeType: selectedFile.type,
+            fileUrl: uploaded.data.path,
+            fileSize: String(uploaded.data.fileSize),
+            mimeType: uploaded.data.mimeType,
             issuedDate: data.issuedDate || null,
             expiryDate: data.expiryDate || null,
             notes: data.notes || null,
@@ -140,7 +148,7 @@ export function DocumentUploadModal({
         <DialogHeader>
           <DialogTitle>Subir Documento</DialogTitle>
           <DialogDescription>
-            Sube un documento para este {athleteSingular}. El archivo puede ser PDF, imagen u otro formato común.
+            Sube un documento para este {athleteSingular}. Se aceptan PDF, JPEG, PNG o WEBP de hasta 10 MB.
           </DialogDescription>
         </DialogHeader>
 
@@ -179,7 +187,7 @@ export function DocumentUploadModal({
               <Input
                 id="file"
                 type="file"
-                accept=".pdf,.jpg,.jpeg,.png,.doc,.docx"
+                accept=".pdf,.jpg,.jpeg,.png,.webp"
                 onChange={handleFileChange}
                 className="flex-1"
               />

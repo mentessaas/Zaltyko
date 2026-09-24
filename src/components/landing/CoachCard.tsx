@@ -37,6 +37,8 @@ const CoachCard = memo(function CoachCard({ coach, locale }: CoachCardProps) {
               <img
                 src={coach.photoUrl}
                 alt={coach.name}
+                width={64}
+                height={64}
                 className="w-full h-full object-cover"
               />
             </div>

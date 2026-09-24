@@ -1,7 +1,7 @@
 "use client";
 
 import type { PlanSummary, BillingSummary, PlanCode } from "@/types/billing";
-import { PRODUCT_PLAN_BY_CODE, formatPlanAmount } from "@/lib/plans/catalog";
+import { PRODUCT_PLAN_BY_CODE, formatPlanAmount, getProductPlanPublicName } from "@/lib/plans/catalog";
 
 const PLAN_COPY: Record<string, { title: string; description: string }> = {
   free: {
@@ -32,7 +32,7 @@ function formatPlanPrice(plan: PlanSummary) {
 }
 
 function resolvePlanTitle(plan: PlanSummary) {
-  return PLAN_COPY[plan.code]?.title ?? plan.nickname ?? plan.code.toUpperCase();
+  return getProductPlanPublicName(plan.code, PLAN_COPY[plan.code]?.title ?? plan.nickname);
 }
 
 function resolvePlanDescription(plan: PlanSummary) {

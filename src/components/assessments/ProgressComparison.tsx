@@ -1,24 +1,21 @@
 "use client";
 
 import { useMemo, useState } from "react";
-import { format } from "date-fns";
-import { es } from "date-fns/locale";
-import { TrendingUp, TrendingDown, Minus, Calendar, ChevronLeft, ChevronRight } from "lucide-react";
+import { TrendingUp, TrendingDown, Minus } from "lucide-react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Badge } from "@/components/ui/badge";
 import { cn } from "@/lib/utils";
-import type { AssessmentWithScores, ProgressData, AssessmentType } from "@/types";
+import type { AssessmentWithScores, ProgressData } from "@/types";
+import { ASSESSMENT_TYPE_LABELS } from "@/lib/assessments/presentation";
+import { formatDateForCountry } from "@/lib/date-utils";
 
 interface ProgressComparisonProps {
   assessments: AssessmentWithScores[];
   athleteName: string;
 }
 
-type ViewMode = "chart" | "table";
-
 export function ProgressComparison({ assessments, athleteName }: ProgressComparisonProps) {
-  const [viewMode, setViewMode] = useState<ViewMode>("chart");
   const [selectedSkill, setSelectedSkill] = useState<string>("all");
   const [timeRange, setTimeRange] = useState<"3m" | "6m" | "1y" | "all">("all");
 
@@ -233,11 +230,11 @@ export function ProgressComparison({ assessments, athleteName }: ProgressCompari
                     return (
                       <tr key={assessment.id} className="border-b last:border-0">
                         <td className="py-2 px-2">
-                          {format(new Date(assessment.assessmentDate), "dd MMM yyyy", { locale: es })}
+                          {formatDateForCountry(assessment.assessmentDate, null, "dd MMM yyyy")}
                         </td>
                         <td className="py-2 px-2">
                           <Badge variant="outline" className="text-xs">
-                            {assessment.assessmentType}
+                            {ASSESSMENT_TYPE_LABELS[assessment.assessmentType] ?? assessment.assessmentType}
                           </Badge>
                         </td>
                         <td className="py-2 px-2 text-right font-medium">{currentAvg.toFixed(1)}</td>

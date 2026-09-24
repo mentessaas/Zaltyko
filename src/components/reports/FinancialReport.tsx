@@ -1,9 +1,10 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { useState } from "react";
 import { DollarSign, Download, FileText, TrendingUp, AlertCircle, Loader2 } from "lucide-react";
 import { format, subMonths } from "date-fns";
-import { formatLongDateForCountry, formatDateForCountry } from "@/lib/date-utils";
+import { formatDateToISOString, formatLongDateForCountry, formatDateForCountry } from "@/lib/date-utils";
+import { formatCurrency, getCurrencyForCountry } from "@/lib/currency";
 
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
@@ -57,9 +58,26 @@ interface SportFinancialBreakdown {
   profitabilityStatus: "profitable" | "at_risk" | "loss" | "unknown";
 }
 
+interface MonthlyRevenueRow {
+  month: string;
+  revenue: number;
+  paid: number;
+  pending: number;
+}
+
+interface DelinquencyRow {
+  athleteId: string;
+  athleteName: string;
+  sportConfigLabel: string;
+  totalOverdue: number;
+  overdueCharges: number;
+  oldestOverdue?: string | Date | null;
+}
+
 interface FinancialReportProps {
   academyId: string;
   academyCountry?: string | null;
+  academyCountryCode?: string | null;
   initialData?: FinancialStats;
   sportConfigs?: Array<{
     id: string;
@@ -71,20 +89,21 @@ interface FinancialReportProps {
 export function FinancialReport({
   academyId,
   academyCountry,
+  academyCountryCode,
   initialData,
   sportConfigs = [],
 }: FinancialReportProps) {
   const { specialization } = useAcademyContext();
   const toast = useToast();
-  const [startDate, setStartDate] = useState(format(subMonths(new Date(), 3), "yyyy-MM-dd"));
-  const [endDate, setEndDate] = useState(format(new Date(), "yyyy-MM-dd"));
+  const [startDate, setStartDate] = useState(formatDateToISOString(subMonths(new Date(), 3), academyCountry));
+  const [endDate, setEndDate] = useState(formatDateToISOString(new Date(), academyCountry));
   const [sportConfigId, setSportConfigId] = useState("");
   const [reportData, setReportData] = useState<FinancialStats | null>(initialData || null);
-  const [monthlyData, setMonthlyData] = useState<any[]>([]);
-  const [delinquencyData, setDelinquencyData] = useState<any[]>([]);
+  const [monthlyData, setMonthlyData] = useState<MonthlyRevenueRow[]>([]);
+  const [delinquencyData, setDelinquencyData] = useState<DelinquencyRow[]>([]);
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
-  const [activeTab, setActiveTab] = useState<"overview" | "monthly" | "delinquency">("overview");
+  const currency = getCurrencyForCountry(academyCountryCode ?? academyCountry);
 
   const loadReport = async () => {
     setIsLoading(true);
@@ -126,12 +145,6 @@ export function FinancialReport({
       setIsLoading(false);
     }
   };
-
-  useEffect(() => {
-    if (initialData) {
-      setReportData(initialData);
-    }
-  }, [initialData]);
 
   const handleExportPDF = async () => {
     try {
@@ -289,7 +302,7 @@ export function FinancialReport({
       {error && (
         <Card>
           <CardContent className="pt-6">
-            <div className="rounded-lg border border-red-200 bg-red-50 p-3 text-sm text-red-900">
+            <div className="rounded-lg border border-red-200 bg-red-50 p-3 text-sm text-red-900 dark:border-red-900/60 dark:bg-red-950/30 dark:text-red-200">
               {error}
             </div>
           </CardContent>
@@ -304,7 +317,7 @@ export function FinancialReport({
                 <CardTitle className="text-sm font-medium">Ingresos Totales</CardTitle>
               </CardHeader>
               <CardContent>
-                <div className="text-2xl font-bold">{reportData.totalRevenue.toFixed(2)} €</div>
+                <div className="text-2xl font-bold">{formatCurrency(reportData.totalRevenue, currency)}</div>
               </CardContent>
             </Card>
             <Card>
@@ -312,8 +325,8 @@ export function FinancialReport({
                 <CardTitle className="text-sm font-medium">Pagado</CardTitle>
               </CardHeader>
               <CardContent>
-                <div className="text-2xl font-bold text-green-600">
-                  {reportData.paidAmount.toFixed(2)} €
+                <div className="text-2xl font-bold text-green-600 dark:text-green-400">
+                  {formatCurrency(reportData.paidAmount, currency)}
                 </div>
               </CardContent>
             </Card>
@@ -322,8 +335,8 @@ export function FinancialReport({
                 <CardTitle className="text-sm font-medium">Pendiente</CardTitle>
               </CardHeader>
               <CardContent>
-                <div className="text-2xl font-bold text-yellow-600">
-                  {reportData.pendingAmount.toFixed(2)} €
+                <div className="text-2xl font-bold text-yellow-600 dark:text-yellow-300">
+                  {formatCurrency(reportData.pendingAmount, currency)}
                 </div>
               </CardContent>
             </Card>
@@ -335,8 +348,8 @@ export function FinancialReport({
                 </CardTitle>
               </CardHeader>
               <CardContent>
-                <div className="text-2xl font-bold text-red-600">
-                  {reportData.overdueAmount.toFixed(2)} €
+                <div className="text-2xl font-bold text-red-600 dark:text-red-400">
+                  {formatCurrency(reportData.overdueAmount, currency)}
                 </div>
               </CardContent>
             </Card>
@@ -355,19 +368,19 @@ export function FinancialReport({
                   </div>
                   <div className="flex justify-between">
                     <span>Pagados:</span>
-                    <Badge variant="outline" className="bg-green-50">
+                    <Badge variant="outline" className="bg-green-50 dark:bg-green-950/40 dark:text-green-300">
                       {reportData.paidCharges}
                     </Badge>
                   </div>
                   <div className="flex justify-between">
                     <span>Pendientes:</span>
-                    <Badge variant="outline" className="bg-yellow-50">
+                    <Badge variant="outline" className="bg-yellow-50 dark:bg-yellow-950/40 dark:text-yellow-300">
                       {reportData.pendingCharges}
                     </Badge>
                   </div>
                   <div className="flex justify-between">
                     <span>Vencidos:</span>
-                    <Badge variant="outline" className="bg-red-50">
+                    <Badge variant="outline" className="bg-red-50 dark:bg-red-950/40 dark:text-red-300">
                       {reportData.overdueCharges}
                     </Badge>
                   </div>
@@ -432,16 +445,16 @@ export function FinancialReport({
                       {reportData.bySportConfig.map((item) => (
                         <tr key={item.sportConfigId ?? "unassigned"} className="border-b last:border-0">
                           <td className="py-3 pr-3 font-medium text-foreground">{item.label}</td>
-                          <td className="py-3 pr-3">{item.totalRevenue.toFixed(2)} €</td>
-                          <td className="py-3 pr-3 text-green-700">{item.paidAmount.toFixed(2)} €</td>
-                          <td className="py-3 pr-3 text-yellow-700">{item.pendingAmount.toFixed(2)} €</td>
-                          <td className="py-3 pr-3 text-red-700">{item.overdueAmount.toFixed(2)} €</td>
+                          <td className="py-3 pr-3">{formatCurrency(item.totalRevenue, currency)}</td>
+                          <td className="py-3 pr-3 text-green-700 dark:text-green-300">{formatCurrency(item.paidAmount, currency)}</td>
+                          <td className="py-3 pr-3 text-yellow-700 dark:text-yellow-300">{formatCurrency(item.pendingAmount, currency)}</td>
+                          <td className="py-3 pr-3 text-red-700 dark:text-red-300">{formatCurrency(item.overdueAmount, currency)}</td>
                           <td className="py-3 pr-3">{item.totalCharges}</td>
                           <td className="py-3 pr-3">{item.activeScholarships}</td>
-                          <td className="py-3 pr-3">{item.discountAmount.toFixed(2)} €</td>
-                          <td className="py-3 pr-3">{item.estimatedCostAmount.toFixed(2)} €</td>
-                          <td className={item.estimatedMarginAmount < 0 ? "py-3 pr-3 text-red-700" : "py-3 pr-3 text-green-700"}>
-                            {item.estimatedMarginAmount.toFixed(2)} €
+                          <td className="py-3 pr-3">{formatCurrency(item.discountAmount, currency)}</td>
+                          <td className="py-3 pr-3">{formatCurrency(item.estimatedCostAmount, currency)}</td>
+                          <td className={item.estimatedMarginAmount < 0 ? "py-3 pr-3 text-red-700 dark:text-red-300" : "py-3 pr-3 text-green-700 dark:text-green-300"}>
+                            {formatCurrency(item.estimatedMarginAmount, currency)}
                           </td>
                           <td className="py-3 pr-3">
                             {item.estimatedMarginRate === null
@@ -481,7 +494,7 @@ export function FinancialReport({
                             ` · Más antiguo: ${formatLongDateForCountry(item.oldestOverdue, academyCountry)}`}
                         </p>
                       </div>
-                      <Badge variant="error">{item.totalOverdue.toFixed(2)} €</Badge>
+                      <Badge variant="error">{formatCurrency(item.totalOverdue, currency)}</Badge>
                     </div>
                   ))}
                 </div>
@@ -503,13 +516,13 @@ export function FinancialReport({
                       </span>
                       <div className="flex gap-4">
                         <span className="text-sm text-muted-foreground">
-                          Total: {month.revenue.toFixed(2)} €
+                          Total: {formatCurrency(month.revenue, currency)}
                         </span>
-                        <span className="text-sm text-green-600">
-                          Pagado: {month.paid.toFixed(2)} €
+                        <span className="text-sm text-green-600 dark:text-green-300">
+                          Pagado: {formatCurrency(month.paid, currency)}
                         </span>
-                        <span className="text-sm text-yellow-600">
-                          Pendiente: {month.pending.toFixed(2)} €
+                        <span className="text-sm text-yellow-600 dark:text-yellow-300">
+                          Pendiente: {formatCurrency(month.pending, currency)}
                         </span>
                       </div>
                     </div>

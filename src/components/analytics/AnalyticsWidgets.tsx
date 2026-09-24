@@ -2,12 +2,13 @@
 
 import { useState, useEffect, useCallback } from "react";
 import dynamic from "next/dynamic";
-import { Calendar, Download, FileText, Loader2, Users, DollarSign, Activity, GraduationCap } from "lucide-react";
+import { Calendar, Download, Loader2, Users, DollarSign, Activity, GraduationCap } from "lucide-react";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { StatsCard } from "@/components/ui/stats-card";
 import { cn } from "@/lib/utils";
+import { formatCurrency, getCurrencyForCountry } from "@/lib/currency";
+import { useAcademyContext } from "@/hooks/use-academy-context";
 
 // Lazy load recharts components (~120KB savings)
 const AreaChart = dynamic(() => import("recharts").then((mod) => mod.AreaChart), { ssr: false });
@@ -60,11 +61,6 @@ interface AnalyticsData {
   retentionChurn: { month: string; retained: number; churned: number; newAthletes: number }[];
 }
 
-interface Filters {
-  dateRange: string;
-  classId: string;
-  coachId: string;
-}
 
 // Skeleton components
 function ChartSkeleton({ height = 300 }: { height?: number }) {
@@ -100,31 +96,20 @@ function CustomTooltip({ active, payload, label, formatter }: any) {
 }
 
 // Currency formatter
-const formatCurrency = (value: number) => `${value.toFixed(2)} €`;
 const formatNumber = (value: number) => value.toLocaleString();
 
 export function AnalyticsWidgets({ academyId }: { academyId: string }) {
+  const { academyCountry } = useAcademyContext();
+  const currency = getCurrencyForCountry(academyCountry);
   const [data, setData] = useState<AnalyticsData | null>(null);
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
-  const [filters, setFilters] = useState<Filters>({
-    dateRange: "12m",
-    classId: "all",
-    coachId: "all",
-  });
-
   const fetchData = useCallback(async () => {
     setIsLoading(true);
     setError(null);
 
     try {
-      const params = new URLSearchParams({
-        dateRange: filters.dateRange,
-        classId: filters.classId,
-        coachId: filters.coachId,
-      });
-
-      const response = await fetch(`/api/dashboard/${academyId}/analytics/full?${params}`);
+      const response = await fetch(`/api/dashboard/${academyId}/analytics/full`);
       const result = await response.json();
 
       if (!response.ok) {
@@ -138,7 +123,7 @@ export function AnalyticsWidgets({ academyId }: { academyId: string }) {
     } finally {
       setIsLoading(false);
     }
-  }, [academyId, filters]);
+  }, [academyId]);
 
   useEffect(() => {
     fetchData();
@@ -170,10 +155,6 @@ export function AnalyticsWidgets({ academyId }: { academyId: string }) {
     a.download = `analytics-${new Date().toISOString().split("T")[0]}.csv`;
     a.click();
     window.URL.revokeObjectURL(url);
-  };
-
-  const handleExportPDF = () => {
-    setError("La exportación PDF todavía no está disponible en esta versión.");
   };
 
   if (isLoading) {
@@ -216,60 +197,17 @@ export function AnalyticsWidgets({ academyId }: { academyId: string }) {
       {/* Filters and Export */}
       <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
         <div className="flex flex-wrap gap-2">
-          <Select
-            value={filters.dateRange}
-            onValueChange={(value) => setFilters((f) => ({ ...f, dateRange: value }))}
-          >
-            <SelectTrigger className="w-[140px]">
-              <Calendar className="h-4 w-4 mr-2" />
-              <SelectValue placeholder="Rango" />
-            </SelectTrigger>
-            <SelectContent>
-              <SelectItem value="30d">Últimos 30 días</SelectItem>
-              <SelectItem value="3m">Últimos 3 meses</SelectItem>
-              <SelectItem value="6m">Últimos 6 meses</SelectItem>
-              <SelectItem value="12m">Últimos 12 meses</SelectItem>
-            </SelectContent>
-          </Select>
+          <span className="inline-flex items-center gap-2 rounded-md border border-border px-3 py-2 text-sm text-muted-foreground">
+            <Calendar className="h-4 w-4" />
+            Últimos 12 meses
+          </span>
 
-          <Select
-            value={filters.classId}
-            onValueChange={(value) => setFilters((f) => ({ ...f, classId: value }))}
-          >
-            <SelectTrigger className="w-[160px]">
-              <SelectValue placeholder="Clase" />
-            </SelectTrigger>
-            <SelectContent>
-              <SelectItem value="all">Todas las clases</SelectItem>
-              <SelectItem value="class1">Karate Principiantes</SelectItem>
-              <SelectItem value="class2">Karate Avanzados</SelectItem>
-              <SelectItem value="class3">Jiu Jitsu</SelectItem>
-            </SelectContent>
-          </Select>
-
-          <Select
-            value={filters.coachId}
-            onValueChange={(value) => setFilters((f) => ({ ...f, coachId: value }))}
-          >
-            <SelectTrigger className="w-[160px]">
-              <SelectValue placeholder="Entrenador" />
-            </SelectTrigger>
-            <SelectContent>
-              <SelectItem value="all">Todos</SelectItem>
-              <SelectItem value="coach1">Juan Pérez</SelectItem>
-              <SelectItem value="coach2">María García</SelectItem>
-            </SelectContent>
-          </Select>
         </div>
 
         <div className="flex gap-2">
           <Button variant="outline" size="sm" onClick={handleExportCSV}>
             <Download className="h-4 w-4 mr-2" />
             CSV
-          </Button>
-          <Button variant="outline" size="sm" onClick={handleExportPDF}>
-            <FileText className="h-4 w-4 mr-2" />
-            PDF
           </Button>
         </div>
       </div>
@@ -286,7 +224,7 @@ export function AnalyticsWidgets({ academyId }: { academyId: string }) {
         />
         <StatsCard
           title="Ingresos del Mes"
-          value={formatCurrency(data.monthlyRevenue)}
+          value={formatCurrency(data.monthlyRevenue, currency)}
           subtitle="Cobros"
           icon={<DollarSign className="h-6 w-6" strokeWidth={1.5} />}
           trend={{ value: data.revenueTrend, label: "vs mes anterior" }}
@@ -355,8 +293,8 @@ export function AnalyticsWidgets({ academyId }: { academyId: string }) {
               <BarChart data={data.revenueByMonth}>
                 <CartesianGrid strokeDasharray="3 3" stroke="#E2E8F0" />
                 <XAxis dataKey="month" tick={{ fontSize: 12 }} stroke="#64748B" />
-                <YAxis tick={{ fontSize: 12 }} stroke="#64748B" tickFormatter={(v) => `${v}€`} />
-                <Tooltip content={<CustomTooltip formatter={formatCurrency} />} />
+                <YAxis tick={{ fontSize: 12 }} stroke="#64748B" tickFormatter={(v) => formatCurrency(Number(v), currency)} />
+                <Tooltip content={<CustomTooltip formatter={(value: number) => formatCurrency(value, currency)} />} />
                 <Bar dataKey="revenue" fill={COLORS.emerald} radius={[4, 4, 0, 0]} name="Ingresos" />
               </BarChart>
             </ResponsiveContainer>

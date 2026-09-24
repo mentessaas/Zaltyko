@@ -10,11 +10,12 @@ import {
   List,
   Search,
   Square,
+  RotateCcw,
   Upload,
   Users,
 } from "lucide-react";
 
-import { athleteStatusOptions } from "@/lib/athletes/constants";
+import { athleteStatusOptions, getAthleteStatusLabel } from "@/lib/athletes/constants";
 import { Button } from "@/components/ui/button";
 import { EmptyState } from "@/components/ui/empty-state";
 import { AlertBadge } from "@/components/shared/AlertBadge";
@@ -32,7 +33,7 @@ export interface AthleteTerms {
 export interface AthleteCommonText {
   search: string;
   cancel: string;
-  delete: string;
+  archive: string;
 }
 
 export interface AgeRange {
@@ -59,6 +60,7 @@ export function AthletesToolbar({
   viewMode,
   isPending,
   selectedCount,
+  allowArchive,
   onSubmit,
   onQueryChange,
   onStatusChange,
@@ -88,6 +90,7 @@ export function AthletesToolbar({
   viewMode: ViewMode;
   isPending: boolean;
   selectedCount: number;
+  allowArchive: boolean;
   onSubmit: (event: FormEvent<HTMLFormElement>) => void;
   onQueryChange: (value: string) => void;
   onStatusChange: (value: string) => void;
@@ -151,7 +154,7 @@ export function AthletesToolbar({
             <option value="">Estado</option>
             {athleteStatusOptions.map((option) => (
               <option key={option} value={option}>
-                {option}
+                {getAthleteStatusLabel(option)}
               </option>
             ))}
           </select>
@@ -296,7 +299,7 @@ export function AthletesToolbar({
             <button
               type="submit"
               disabled={isPending}
-              className="min-h-10 rounded-full bg-zaltyko-teal px-4 py-2 text-xs font-semibold text-white transition-colors hover:bg-primary-dark disabled:opacity-60"
+              className="min-h-10 rounded-full bg-zaltyko-teal px-4 py-2 text-xs font-semibold text-white transition-colors hover:bg-zaltyko-primary-dark disabled:opacity-60"
             >
               {isPending ? "Filtrando…" : "Aplicar"}
             </button>
@@ -372,9 +375,8 @@ export function AthletesToolbar({
                   }}
                 >
                   <option value="">Acciones…</option>
-                  <option value="delete">{text.delete}</option>
+                  {allowArchive && <option value="archive">{text.archive}</option>}
                   <option value="export">Exportar seleccionados</option>
-                  <option value="message">Enviar mensaje</option>
                 </select>
                 <button
                   type="button"
@@ -411,7 +413,7 @@ export function AthletesToolbar({
               <button
                 type="button"
                 onClick={onCreate}
-                className="inline-flex min-h-10 items-center justify-center rounded-xl bg-zaltyko-teal px-4 py-2 text-sm font-semibold text-white shadow-soft transition-all hover:-translate-y-0.5 hover:bg-primary-dark hover:shadow-lift"
+                className="inline-flex min-h-10 items-center justify-center rounded-xl bg-zaltyko-teal px-4 py-2 text-sm font-semibold text-white shadow-soft transition-all hover:-translate-y-0.5 hover:bg-zaltyko-primary-dark hover:shadow-lift"
               >
                 <Users className="mr-2 h-4 w-4" />
                 Nuevo {terms.athlete.toLowerCase()}
@@ -465,7 +467,7 @@ export function AthletesEmptyState({
           <button
             type="button"
             onClick={onCreate}
-            className="inline-flex min-h-11 items-center justify-center rounded-xl bg-zaltyko-teal px-4 py-2 text-sm font-semibold text-white shadow-soft transition-all hover:bg-primary-dark"
+            className="inline-flex min-h-11 items-center justify-center rounded-xl bg-zaltyko-teal px-4 py-2 text-sm font-semibold text-white shadow-soft transition-all hover:bg-zaltyko-primary-dark"
           >
             Crear primer {terms.athlete.toLowerCase()}
           </button>
@@ -493,6 +495,7 @@ export function AthletesDataTable({
   onToggleSelectAthlete,
   onSortChange,
   onEdit,
+  onRestore,
   onPageChange,
 }: {
   academyId: string;
@@ -512,6 +515,7 @@ export function AthletesDataTable({
   onToggleSelectAthlete: (id: string) => void;
   onSortChange: (sortBy: SortBy) => void;
   onEdit: (athlete: AthleteListItem) => void;
+  onRestore: (athlete: AthleteListItem) => void;
   onPageChange: (page: number) => void;
 }) {
   return (
@@ -528,6 +532,7 @@ export function AthletesDataTable({
             terms={terms}
             onToggleSelect={() => onToggleSelectAthlete(athlete.id)}
             onEdit={() => onEdit(athlete)}
+            onRestore={() => onRestore(athlete)}
           />
         ))}
       </div>
@@ -578,6 +583,7 @@ export function AthletesDataTable({
               terms={terms}
               onToggleSelect={() => onToggleSelectAthlete(athlete.id)}
               onEdit={() => onEdit(athlete)}
+              onRestore={() => onRestore(athlete)}
             />
           ))}
         </tbody>
@@ -625,6 +631,7 @@ function AthleteMobileCard({
   terms,
   onToggleSelect,
   onEdit,
+  onRestore,
 }: {
   academyId: string;
   athlete: AthleteListItem;
@@ -634,6 +641,7 @@ function AthleteMobileCard({
   terms: AthleteTerms;
   onToggleSelect: () => void;
   onEdit: () => void;
+  onRestore: () => void;
 }) {
   return (
     <article className="p-4">
@@ -649,13 +657,17 @@ function AthleteMobileCard({
         <div className="min-w-0 flex-1">
           <div className="flex items-start justify-between gap-3">
             <div className="min-w-0">
-              <Link href={`/app/${academyId}/athletes/${athlete.id}`} className="truncate font-display text-base font-bold text-foreground hover:text-zaltyko-teal">
-                {athlete.name}
-              </Link>
+              {athlete.status === "archived" ? (
+                <span className="truncate font-display text-base font-bold text-foreground">{athlete.name}</span>
+              ) : (
+                <Link href={`/app/${academyId}/athletes/${athlete.id}`} className="truncate font-display text-base font-bold text-foreground hover:text-zaltyko-teal">
+                  {athlete.name}
+                </Link>
+              )}
               <div className="mt-1 flex flex-wrap items-center gap-2 text-xs text-muted-foreground">
                 <span>{athlete.level ?? "Sin nivel"}</span>
                 <span aria-hidden="true">·</span>
-                <span className="capitalize">{athlete.status}</span>
+                        <span>{getAthleteStatusLabel(athlete.status)}</span>
                 {athlete.age !== null && <><span aria-hidden="true">·</span><span>{athlete.age} años</span></>}
               </div>
             </div>
@@ -672,7 +684,14 @@ function AthleteMobileCard({
             {sportConfigName && <span className="rounded-full bg-teal-50 px-2.5 py-1 font-semibold text-teal-700">{sportConfigName}</span>}
           </div>
           <div className="mt-3 flex justify-end">
-            <button type="button" onClick={onEdit} className="min-h-9 rounded-lg px-3 text-xs font-bold text-zaltyko-teal hover:bg-teal-50">Editar ficha</button>
+            {athlete.status === "archived" ? (
+              <button type="button" onClick={onRestore} className="inline-flex min-h-9 items-center gap-1.5 rounded-lg px-3 text-xs font-bold text-zaltyko-teal hover:bg-teal-50">
+                <RotateCcw className="h-3.5 w-3.5" />
+                Restaurar
+              </button>
+            ) : (
+              <button type="button" onClick={onEdit} className="min-h-9 rounded-lg px-3 text-xs font-bold text-zaltyko-teal hover:bg-teal-50">Editar ficha</button>
+            )}
           </div>
         </div>
       </div>
@@ -714,6 +733,7 @@ function AthletesTableRow({
   terms,
   onToggleSelect,
   onEdit,
+  onRestore,
 }: {
   academyId: string;
   athlete: AthleteListItem;
@@ -723,6 +743,7 @@ function AthletesTableRow({
   terms: AthleteTerms;
   onToggleSelect: () => void;
   onEdit: () => void;
+  onRestore: () => void;
 }) {
   return (
     <tr className="odd:bg-card even:bg-muted/40 transition-colors hover:bg-zaltyko-teal/[0.05]">
@@ -739,12 +760,16 @@ function AthletesTableRow({
       <td className="px-4 py-3">
         <div className="space-y-2">
           <div className="flex items-center gap-2">
-            <Link
-              href={`/app/${academyId}/athletes/${athlete.id}`}
-              className="font-semibold text-zaltyko-teal transition hover:underline"
-            >
-              {athlete.name}
-            </Link>
+            {athlete.status === "archived" ? (
+              <span className="font-semibold text-foreground">{athlete.name}</span>
+            ) : (
+              <Link
+                href={`/app/${academyId}/athletes/${athlete.id}`}
+                className="font-semibold text-zaltyko-teal transition hover:underline"
+              >
+                {athlete.name}
+              </Link>
+            )}
             {hasAlert && <AlertBadge type="attendance" severity="medium" className="text-[10px]" />}
           </div>
           {athlete.dob && (
@@ -760,7 +785,7 @@ function AthletesTableRow({
         </div>
       </td>
       <td className="px-4 py-3">{athlete.level ?? "—"}</td>
-      <td className="px-4 py-3 capitalize">{athlete.status}</td>
+      <td className="px-4 py-3">{getAthleteStatusLabel(athlete.status)}</td>
       <td className="px-4 py-3 text-right tabular-nums">{athlete.age ?? "—"}</td>
       <td className="px-4 py-3 text-right tabular-nums">{Number(athlete.guardianCount ?? 0)}</td>
       <td className="px-4 py-3">
@@ -782,9 +807,16 @@ function AthletesTableRow({
         )}
       </td>
       <td className="px-4 py-3 text-right">
-        <button type="button" onClick={onEdit} className="text-xs font-semibold text-zaltyko-teal hover:underline">
-          Editar
-        </button>
+        {athlete.status === "archived" ? (
+          <button type="button" onClick={onRestore} className="inline-flex items-center gap-1 text-xs font-semibold text-zaltyko-teal hover:underline">
+            <RotateCcw className="h-3.5 w-3.5" />
+            Restaurar
+          </button>
+        ) : (
+          <button type="button" onClick={onEdit} className="text-xs font-semibold text-zaltyko-teal hover:underline">
+            Editar
+          </button>
+        )}
       </td>
     </tr>
   );

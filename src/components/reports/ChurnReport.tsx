@@ -3,7 +3,7 @@
 import { useState, useEffect } from "react";
 import { UserMinus, Download, FileText, BarChart3, Loader2, TrendingDown, AlertTriangle } from "lucide-react";
 import { format, subMonths } from "date-fns";
-import { formatLongDateForCountry } from "@/lib/date-utils";
+import { formatDateToISOString, formatLongDateForCountry } from "@/lib/date-utils";
 
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
@@ -47,8 +47,8 @@ export function ChurnReport({ academyId, academyCountry }: ChurnReportProps) {
   const athletesPlural = specialization.labels.athletesPlural.toLowerCase();
   const toast = useToast();
   const [filters, setFilters] = useState<ReportFiltersType>({
-    startDate: format(subMonths(new Date(), 3), "yyyy-MM-dd"),
-    endDate: format(new Date(), "yyyy-MM-dd"),
+    startDate: formatDateToISOString(subMonths(new Date(), 3), academyCountry),
+    endDate: formatDateToISOString(new Date(), academyCountry),
     datePreset: "last-90-days",
   });
   const [reportData, setReportData] = useState<ChurnStats | null>(null);
@@ -143,14 +143,16 @@ export function ChurnReport({ academyId, academyCountry }: ChurnReportProps) {
 
   const handleSendEmail = async (email: string) => {
     try {
-      const params = new URLSearchParams({
-        academyId,
-        email,
-        startDate: filters.startDate,
-        endDate: filters.endDate,
+      const response = await fetch("/api/reports/churn/email", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          academyId,
+          email,
+          startDate: filters.startDate,
+          endDate: filters.endDate,
+        }),
       });
-
-      const response = await fetch(`/api/reports/churn/email?${params}`);
       if (!response.ok) throw new Error("Error al enviar email");
 
       toast.pushToast({
@@ -190,13 +192,13 @@ export function ChurnReport({ academyId, academyCountry }: ChurnReportProps) {
 
   const getReasonColor = (reason: string) => {
     const colors: Record<string, string> = {
-      "financial": "bg-red-100 text-red-800",
-      "relocation": "bg-blue-100 text-blue-800",
-      "dissatisfaction": "bg-orange-100 text-orange-800",
-      "injury": "bg-yellow-100 text-yellow-800",
-      "schedule": "bg-red-100 text-red-800",
+      "financial": "bg-red-100 text-red-800 dark:bg-red-950/40 dark:text-red-200",
+      "relocation": "bg-blue-100 text-blue-800 dark:bg-blue-950/40 dark:text-blue-200",
+      "dissatisfaction": "bg-orange-100 text-orange-800 dark:bg-orange-950/40 dark:text-orange-200",
+      "injury": "bg-yellow-100 text-yellow-800 dark:bg-yellow-950/40 dark:text-yellow-200",
+      "schedule": "bg-red-100 text-red-800 dark:bg-red-950/40 dark:text-red-200",
       "other": "bg-muted text-muted-foreground",
-      "payment_failed": "bg-red-100 text-red-800",
+      "payment_failed": "bg-red-100 text-red-800 dark:bg-red-950/40 dark:text-red-200",
       "archived": "bg-muted text-foreground",
       "deleted": "bg-muted text-foreground",
       "unregistered": "bg-muted text-muted-foreground",
@@ -310,6 +312,7 @@ export function ChurnReport({ academyId, academyCountry }: ChurnReportProps) {
         <div className="lg:col-span-1">
           <ReportFilters
             academyId={academyId}
+            academyCountry={academyCountry}
             onFilterChange={setFilters}
             onGenerate={loadReport}
             isLoading={isLoading}
@@ -320,7 +323,7 @@ export function ChurnReport({ academyId, academyCountry }: ChurnReportProps) {
           {error && (
             <Card>
               <CardContent className="pt-6">
-                <div className="rounded-lg border border-red-200 bg-red-50 p-3 text-sm text-red-900">
+                <div className="rounded-lg border border-red-200 bg-red-50 p-3 text-sm text-red-900 dark:border-red-900/60 dark:bg-red-950/30 dark:text-red-200">
                   {error}
                 </div>
               </CardContent>
@@ -347,7 +350,7 @@ export function ChurnReport({ academyId, academyCountry }: ChurnReportProps) {
                     </CardTitle>
                   </CardHeader>
                   <CardContent>
-                    <div className="text-2xl font-bold text-red-600">{reportData.churnRate}%</div>
+                    <div className="text-2xl font-bold text-red-600 dark:text-red-300">{reportData.churnRate}%</div>
                   </CardContent>
                 </Card>
                 <Card>

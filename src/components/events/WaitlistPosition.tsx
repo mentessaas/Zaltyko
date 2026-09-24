@@ -70,11 +70,11 @@ export function WaitlistPosition({
 
   if (isOnWaitlist && currentPosition !== null) {
     return (
-      <Card className="border-amber-200 bg-amber-50">
+      <Card className="border-amber-200 bg-amber-50 dark:border-amber-900/60 dark:bg-amber-950/30">
         <CardHeader className="pb-2">
           <div className="flex items-center justify-between">
             <CardTitle className="text-lg flex items-center gap-2">
-              <Clock className="h-5 w-5 text-amber-600" />
+              <Clock className="h-5 w-5 text-amber-600 dark:text-amber-300" />
               Lista de Espera
             </CardTitle>
             <Badge variant="pending">#{currentPosition}</Badge>
@@ -85,7 +85,7 @@ export function WaitlistPosition({
         </CardHeader>
         <CardContent>
           <p className="text-sm text-muted-foreground mb-4">
-            Estás en posición <span className="font-semibold text-amber-700">#{currentPosition}</span> de la lista de espera.
+            Estás en posición <span className="font-semibold text-amber-700 dark:text-amber-300">#{currentPosition}</span> de la lista de espera.
             Te notificaremos cuando haya un lugar disponible.
           </p>
 
@@ -96,7 +96,7 @@ export function WaitlistPosition({
           )}
 
           {error && (
-            <div className="flex items-center gap-2 text-sm text-destructive mb-4">
+            <div className="flex items-center gap-2 text-sm text-destructive mb-4" role="alert">
               <AlertCircle className="h-4 w-4" />
               {error}
             </div>
@@ -204,7 +204,7 @@ export function WaitlistList({ entries, onRemove, isLoading }: WaitlistListProps
         <Card key={entry.id}>
           <CardContent className="flex items-center justify-between p-4">
             <div className="flex items-center gap-3">
-              <div className="flex h-8 w-8 items-center justify-center rounded-full bg-amber-100 text-amber-700 font-semibold text-sm">
+                <div className="flex h-8 w-8 items-center justify-center rounded-full bg-amber-100 text-amber-700 font-semibold text-sm dark:bg-amber-950/40 dark:text-amber-300">
                 #{entry.position}
               </div>
               <div>

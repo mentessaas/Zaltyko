@@ -8,7 +8,9 @@ import { CoachOption, AthleteOption, GroupSummary, SportConfigOption } from "./t
 import { createClient } from "@/lib/supabase/client";
 import { useAcademyContext } from "@/hooks/use-academy-context";
 import { getGroupTechnicalGuidance } from "@/lib/specialization/technical-guidance";
+import { pluralizeFirstWord } from "@/lib/specialization/registry";
 import { getTerminology } from "@/lib/sport-config/terminology";
+import { getCurrencyForCountry } from "@/lib/currency";
 
 interface EditGroupDialogProps {
   academyId: string;
@@ -36,7 +38,8 @@ export function EditGroupDialog({
   sportConfigs = [],
 }: EditGroupDialogProps) {
   const { pushToast } = useToast();
-  const { specialization, academyType } = useAcademyContext();
+  const { specialization, academyType, academyCountry } = useAcademyContext();
+  const currency = getCurrencyForCountry(academyCountry);
   const [name, setName] = useState(group.name);
   const [discipline, setDiscipline] = useState<string>(group.discipline || academyType || "artistica");
   const [sportConfigId, setSportConfigId] = useState(group.sportConfigId ?? "");
@@ -72,6 +75,7 @@ export function EditGroupDialog({
   const groupTermLower = groupTerm.toLowerCase();
   const athleteTermPlural = terms.athletes;
   const athleteTermPluralLower = athleteTermPlural.toLowerCase();
+  const coachTermPluralLower = pluralizeFirstWord(terms.coach).toLowerCase();
   const availablePrograms = selectedSportConfig?.programs ?? [];
   const availableLevels =
     selectedSportConfig?.levels.filter((item) => !programCode || !item.programCode || item.programCode === programCode) ?? [];
@@ -382,7 +386,7 @@ export function EditGroupDialog({
             </div>
           )}
           <div className="space-y-1">
-            <label className="font-medium">Cuota mensual (€)</label>
+            <label className="font-medium">Cuota mensual ({currency})</label>
             <input
               type="number"
               step="0.01"
@@ -496,7 +500,7 @@ export function EditGroupDialog({
             <div className="grid max-h-40 gap-2 overflow-y-auto rounded-md border border-border p-3">
               {compatibleCoaches.length === 0 ? (
                 <p className="text-xs text-muted-foreground">
-                  No hay {terms.coach.toLowerCase()}s registrados.
+                  No hay {coachTermPluralLower} disponibles.
                 </p>
               ) : (
                 compatibleCoaches.map((coach) => (
@@ -537,7 +541,7 @@ export function EditGroupDialog({
           <div className="grid max-h-56 gap-2 overflow-y-auto rounded-md border border-border p-3">
             {athletes.length === 0 ? (
               <p className="text-xs text-muted-foreground">
-                No hay {athleteTermPluralLower} registrados en la academia todavía.
+                No hay {athleteTermPluralLower} disponibles en la academia todavía.
               </p>
             ) : (
               athletes.map((athlete) => (

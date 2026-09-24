@@ -6,6 +6,7 @@ import { ClipboardList, ArrowRight } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { useAcademyContext } from "@/hooks/use-academy-context";
+import { formatDateForCountry } from "@/lib/date-utils";
 
 interface MyAssessmentsWidgetProps {
   academyId: string;
@@ -27,7 +28,7 @@ export function MyAssessmentsWidget({
   assessments = [],
   athleteName,
 }: MyAssessmentsWidgetProps) {
-  const { specialization } = useAcademyContext();
+  const { academyCountry, specialization } = useAcademyContext();
   const apparatusLabels = Object.fromEntries(
     specialization.evaluation.apparatus.map((item) => [item.code, item.label])
   );
@@ -58,11 +59,7 @@ export function MyAssessmentsWidget({
                       : "Evaluación general"}
                   </p>
                   <p className="text-xs text-muted-foreground">
-                    {new Date(assessment.assessmentDate).toLocaleDateString("es-ES", {
-                      day: "numeric",
-                      month: "short",
-                      year: "numeric",
-                    })}
+                    {formatDateForCountry(assessment.assessmentDate, academyCountry, "d MMM yyyy")}
                     {assessment.assessedByName ? ` · ${assessment.assessedByName}` : ""}
                   </p>
                 </div>

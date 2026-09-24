@@ -41,6 +41,8 @@ import { ProfileTabs } from "@/components/profiles/ProfileTabs";
 import { formatPhoneNumber } from "@/lib/validation/phone";
 import { formatAcademyType } from "@/lib/formatters";
 import { logger } from "@/lib/logger";
+import { getProductPlanPublicName } from "@/lib/plans/catalog";
+import { getSubscriptionStatusLabel } from "@/lib/billing/subscription-status-labels";
 
 interface AcademySummary {
   id: string;
@@ -50,6 +52,7 @@ interface AcademySummary {
   planCode: string | null;
   planNickname: string | null;
   subscriptionStatus: string | null;
+  academyLimit: number | null;
   trialStartsAt: Date | string | null;
   trialEndsAt: Date | string | null;
   isTrialActive: boolean | null;
@@ -73,7 +76,7 @@ const PLAN_COPY: Record<string, { label: string; description: string; cta: strin
   },
   pro: {
     label: "Plan Starter",
-    description: "Hasta 75 gimnastas, portal familias y pagos recurrentes.",
+    description: "Hasta 75 gimnastas, portal familiar limitado y pagos recurrentes.",
     cta: "Gestionar suscripción",
     color: "bg-blue-100 text-blue-800",
   },
@@ -93,6 +96,19 @@ function formatDate(value: Date | string | null | undefined) {
     month: "long",
     year: "numeric",
   });
+}
+
+function formatOwnerProfileRole(role: string | null | undefined) {
+  switch (role) {
+    case "super_admin":
+      return "Super administrador";
+    case "admin":
+      return "Administrador";
+    case "owner":
+      return "Propietario";
+    default:
+      return "Responsable de academia";
+  }
 }
 
 export function OptimizedOwnerProfile({
@@ -125,7 +141,8 @@ export function OptimizedOwnerProfile({
       try {
         const response = await fetch("/api/profile/check-limits", { cache: "no-store" });
         if (response.ok) {
-          const data = await response.json();
+          const payload = await response.json();
+          const data = payload?.data ?? payload;
           if (data.requiresAction) {
             setLimitViolations(data);
           }
@@ -147,16 +164,21 @@ export function OptimizedOwnerProfile({
 
   const planCode = activeAcademy?.planCode?.toLowerCase() ?? "free";
   const planCopy = PLAN_COPY[planCode] ?? {
-    label: activeAcademy?.planNickname ?? "Plan personalizado",
+    label: getProductPlanPublicName(activeAcademy?.planCode, activeAcademy?.planNickname),
     description: "Gestiona tu suscripción desde planes y cobros.",
     cta: "Ver planes",
     color: "bg-muted text-muted-foreground",
   };
 
-  const canCreateAcademies = planCode !== "free" || profile?.role === "super_admin";
+  const canCreateAcademies =
+    profile?.role === "super_admin" ||
+    activeAcademy?.academyLimit === null ||
+    (activeAcademy?.academyLimit != null && academies.length < activeAcademy.academyLimit);
   const planLimitLabel = canCreateAcademies
-    ? `Gestionas ${academies.length} academia${academies.length === 1 ? "" : "s"}.`
-    : "Tu plan actual no permite crear nuevas academias. Actualiza tu plan para ampliarlo.";
+    ? activeAcademy?.academyLimit === null
+      ? `Gestionas ${academies.length} academia${academies.length === 1 ? "" : "s"}.`
+      : `Gestionas ${academies.length} de ${activeAcademy?.academyLimit ?? 1} academias incluidas en tu plan.`
+    : `Has alcanzado el límite de ${activeAcademy?.academyLimit ?? 1} academia. Actualiza tu plan para añadir otra.`;
 
   const trialDaysLeft = activeAcademy?.trialEndsAt ? calculateDaysLeft(activeAcademy.trialEndsAt) : null;
 
@@ -202,17 +224,17 @@ export function OptimizedOwnerProfile({
             <div className="flex items-center gap-3">
               <Shield className="h-5 w-5 text-amber-600" strokeWidth={2} />
               <div>
-                <p className="font-semibold text-amber-900">
+                <p className="font-semibold text-amber-900 dark:text-amber-200">
                   Modo Super Admin: Viendo perfil de {profile?.name ?? "Usuario"}
                 </p>
-                <p className="text-sm text-amber-700">
+                <p className="text-sm text-amber-700 dark:text-amber-300">
                   Estás viendo el perfil de este usuario. Los cambios que hagas afectarán a su cuenta.
                 </p>
               </div>
             </div>
             <Link
               href={`/super-admin/users/${targetProfileId}`}
-              className="inline-flex items-center gap-2 rounded-md border border-amber-600/40 bg-card px-3 py-2 text-sm font-semibold text-amber-900 transition hover:bg-amber-50"
+              className="inline-flex items-center gap-2 rounded-md border border-amber-600/40 bg-card px-3 py-2 text-sm font-semibold text-amber-900 transition hover:bg-amber-50 dark:text-amber-200 dark:hover:bg-amber-950/40"
             >
               <ArrowLeft className="h-4 w-4" strokeWidth={2} />
               Volver a Super Admin
@@ -226,14 +248,14 @@ export function OptimizedOwnerProfile({
           <div className="flex items-start gap-3">
             <AlertTriangle className="h-6 w-6 text-amber-600 flex-shrink-0" strokeWidth={2} />
             <div className="flex-1">
-              <h2 className="text-lg font-semibold text-amber-900">Ajustes necesarios en tu plan</h2>
-              <p className="mt-1 text-sm text-amber-700">
+              <h2 className="text-lg font-semibold text-amber-900 dark:text-amber-200">Ajustes necesarios en tu plan</h2>
+              <p className="mt-1 text-sm text-amber-700 dark:text-amber-300">
                 Tu plan actual tiene límites que están siendo excedidos. Para continuar usando Zaltyko normalmente,
                 necesitas ajustar los siguientes recursos:
               </p>
               <ul className="mt-3 space-y-2">
                 {limitViolations.violations.map((violation, idx) => (
-                  <li key={idx} className="text-sm text-amber-800">
+                  <li key={idx} className="text-sm text-amber-800 dark:text-amber-200">
                     • <strong className="capitalize">
                       {violation.resource === "academies" && "Academias"}
                       {violation.resource === "athletes" && "Atletas"}
@@ -271,7 +293,7 @@ export function OptimizedOwnerProfile({
                     {currentProfile?.name || "Usuario sin nombre"}
                   </h1>
                   <Badge variant="outline" className="border-primary/30 bg-primary/5 text-primary">
-                    Propietario
+                    {formatOwnerProfileRole(currentProfile?.role)}
                   </Badge>
                 </div>
                 <div className="flex flex-wrap items-center gap-4 text-sm text-muted-foreground">
@@ -346,7 +368,9 @@ export function OptimizedOwnerProfile({
             <div className="flex items-center gap-2">
               <div className="text-2xl font-bold text-foreground">{planCopy.label}</div>
               <Badge className={planCopy.color} variant="outline">
-                {activeAcademy?.subscriptionStatus || "Sin suscripción"}
+                {activeAcademy?.subscriptionStatus
+                  ? getSubscriptionStatusLabel(activeAcademy.subscriptionStatus)
+                  : "Sin suscripción"}
               </Badge>
             </div>
             <p className="text-xs text-muted-foreground mt-1">{planCopy.description}</p>
@@ -446,7 +470,7 @@ export function OptimizedOwnerProfile({
                 className={`rounded-lg border px-4 py-3 text-sm ${
                   activeAcademy.isTrialActive
                     ? "border-primary/40 bg-primary/5 text-primary"
-                    : "border-amber-400/60 bg-amber-50 text-amber-900"
+                    : "border-amber-400/60 bg-amber-50 text-amber-900 dark:border-amber-900/60 dark:bg-amber-950/30 dark:text-amber-200"
                 }`}
               >
                 {activeAcademy.isTrialActive ? (
@@ -517,7 +541,9 @@ export function OptimizedOwnerProfile({
                   <p className="text-xs text-muted-foreground">{planCopy.description}</p>
                   <p className="text-xs text-muted-foreground">
                     Creada el {formatDate(activeAcademy.createdAt)} · Estado:{" "}
-                    {activeAcademy.subscriptionStatus ?? "sin suscripción"}
+                    {activeAcademy.subscriptionStatus
+                      ? getSubscriptionStatusLabel(activeAcademy.subscriptionStatus)
+                      : "Sin suscripción"}
                   </p>
                   {canCreateAcademies && (
                     <Button variant="outline" size="sm" onClick={() => router.push("/onboarding/owner")} className="w-full">

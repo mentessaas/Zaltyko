@@ -184,20 +184,22 @@ export function GlobalTopNav({
           </div>
         )}
 
-        {/* Navegación centrada - scroll horizontal en sm/md, no-wrap */}
+        {/* Navegación centrada para áreas globales; Super Admin usa sidebar/drawer */}
         {!currentAcademyId && (
         <nav
           className={cn(
-            "hidden min-w-0 w-full items-center md:flex",
-            // En sm mostramos en el drawer; en md/ lg mostramos centrado con scroll horizontal
+            "hidden min-w-0 w-full items-center overflow-x-auto overscroll-x-contain [scrollbar-width:thin]",
+            // Super Admin ya tiene sidebar completo en escritorio; en tablet usa el drawer
+            // para no recortar una navegación larga en una barra estrecha.
+            !isSuperAdmin && "md:flex",
           )}
           role="navigation"
           aria-label="Navegación principal"
         >
-          <div className="flex w-full items-center justify-center">
+          <div className="flex w-max min-w-full items-center justify-center">
             <div
               className={cn(
-                "flex max-w-full items-center gap-1 overflow-x-auto rounded-2xl px-2 py-1 lg:gap-1.5 lg:px-3",
+                "flex w-max items-center gap-1 rounded-2xl px-2 py-1 lg:gap-1.5 lg:px-3",
                 isDarkTheme
                   ? "border border-white/10 bg-white/5 shadow-none"
                   : "border border-border/60 bg-card/80 shadow-soft"
@@ -249,7 +251,7 @@ export function GlobalTopNav({
             type="button"
             onClick={() => setMobileMenuOpen(true)}
             className={cn(
-              "inline-flex items-center justify-center rounded-lg p-2.5 transition-all duration-200 active:scale-95 md:hidden min-h-[44px] min-w-[44px]",
+              "inline-flex items-center justify-center rounded-lg p-2.5 transition-all duration-200 active:scale-95 lg:hidden min-h-[44px] min-w-[44px]",
               isDarkTheme ? "text-white/80 hover:bg-white/5" : "text-muted-foreground hover:bg-muted",
             )}
             aria-label="Abrir menú"
@@ -453,7 +455,7 @@ export function GlobalTopNav({
 
       {/* Drawer móvil para navegación */}
       {mobileMenuOpen && (
-        <div className={cn("fixed inset-0 z-[1000] h-screen w-screen overflow-y-auto md:hidden", isDarkTheme ? "bg-zaltyko-navy text-white" : "bg-background")}>
+        <div className={cn("fixed inset-0 z-[1000] h-screen w-screen overflow-y-auto lg:hidden", isDarkTheme ? "bg-zaltyko-navy text-white" : "bg-background")}>
           <div className={cn("flex items-center justify-between border-b px-4 py-4", isDarkTheme ? "border-white/10" : "border-border")}>
             <div className="flex items-center gap-2">
               {isDarkTheme ? (

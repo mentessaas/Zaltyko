@@ -1,7 +1,6 @@
 "use client";
 
 import { useCallback, useEffect, useState, useTransition } from "react";
-import { createClient } from "@/lib/supabase/client";
 import { Modal } from "@/components/ui/modal";
 import { Button } from "@/components/ui/button";
 import { Loader2, UserPlus, UserMinus, AlertCircle, Search } from "lucide-react";
@@ -21,12 +20,13 @@ interface AthleteOption {
   level: string | null;
 }
 
-interface EnrollmentApiItem {
+interface ClassAthleteApiItem {
   id: string;
-  athleteId: string;
-  athleteName?: string;
-  athleteLevel?: string | null;
-  createdAt: string;
+  name: string;
+  level?: string | null;
+  createdAt?: string | null;
+  origin?: "group" | "enrollment";
+  enrollmentId?: string;
 }
 
 interface AthleteApiItem {
@@ -37,6 +37,7 @@ interface AthleteApiItem {
 
 interface EnrollmentManagerProps {
   classId: string;
+  academyId: string;
   className: string;
   open: boolean;
   onClose: () => void;
@@ -45,6 +46,7 @@ interface EnrollmentManagerProps {
 
 export function EnrollmentManager({
   classId,
+  academyId,
   className,
   open,
   onClose,
@@ -59,23 +61,17 @@ export function EnrollmentManager({
   const [isPending, startTransition] = useTransition();
 
   // Cargar inscripciones
-  const fetchEnrollments = useCallback(async () => {
+  const fetchEnrollments = useCallback(async (): Promise<EnrollmentItem[]> => {
     setIsLoading(true);
     setError(null);
 
     try {
-      const supabase = createClient();
-      const {
-        data: { user },
-      } = await supabase.auth.getUser();
-
       const headers: Record<string, string> = {
         "Content-Type": "application/json",
+        "x-academy-id": academyId,
       };
-      if (user?.id) {
-      }
 
-      const response = await fetch(`/api/class-enrollments?classId=${classId}`, {
+      const response = await fetch(`/api/classes/${classId}/athletes`, {
         method: "GET",
         headers,
       });
@@ -84,40 +80,39 @@ export function EnrollmentManager({
         throw new Error("Error al cargar inscripciones");
       }
 
-      const data = await response.json();
-      setEnrollments(
-        (data.items ?? []).map((item: EnrollmentApiItem) => ({
-          id: item.id,
-          athleteId: item.athleteId,
-          athleteName: item.athleteName ?? "Sin nombre",
-          athleteLevel: item.athleteLevel,
-          enrolledAt: item.createdAt,
-        }))
-      );
+      const payload = await response.json();
+      const data = payload?.data ?? payload;
+      const items = Array.isArray(data?.items) ? data.items : [];
+      const loaded = items
+        .filter((item: ClassAthleteApiItem) => item.origin === "enrollment" && item.enrollmentId)
+        .map((item: ClassAthleteApiItem) => ({
+          id: item.enrollmentId as string,
+          athleteId: item.id,
+          athleteName: item.name ?? "Sin nombre",
+          athleteLevel: item.level ?? null,
+          enrolledAt: item.createdAt ?? new Date().toISOString(),
+        }));
+      setEnrollments(loaded);
+      return loaded;
     } catch (err: unknown) {
       logger.error("Error fetching enrollments:", err);
       setError((err instanceof Error ? err.message : "Error desconocido") ?? "Error al cargar las inscripciones");
+      return [];
     } finally {
       setIsLoading(false);
     }
-  }, [classId]);
+  }, [academyId, classId]);
 
   // Cargar atletas disponibles (para añadir)
-  const fetchAvailableAthletes = useCallback(async () => {
+  const fetchAvailableAthletes = useCallback(async (enrolledAthleteIds: Set<string>) => {
     try {
-      const supabase = createClient();
-      const {
-        data: { user },
-      } = await supabase.auth.getUser();
-
       const headers: Record<string, string> = {
         "Content-Type": "application/json",
+        "x-academy-id": academyId,
       };
-      if (user?.id) {
-      }
 
       // Obtener atletas del tenant (limitado para evitar sobrecarga)
-      const response = await fetch("/api/athletes?limit=100", {
+      const response = await fetch(`/api/athletes?academyId=${encodeURIComponent(academyId)}&limit=100`, {
         method: "GET",
         headers,
       });
@@ -126,11 +121,12 @@ export function EnrollmentManager({
         throw new Error("Error al cargar atletas");
       }
 
-      const data = await response.json();
-      const enrolledAthleteIds = new Set(enrollments.map((e) => e.athleteId));
+      const payload = await response.json();
+      const data = payload?.data ?? payload;
+      const items = Array.isArray(data) ? data : Array.isArray(data?.items) ? data.items : [];
 
       setAvailableAthletes(
-        (data.items ?? [])
+        items
           .filter((athlete: AthleteApiItem) => !enrolledAthleteIds.has(athlete.id))
           .map((athlete: AthleteApiItem) => ({
             id: athlete.id,
@@ -141,12 +137,14 @@ export function EnrollmentManager({
     } catch (err: unknown) {
       logger.error("Error fetching athletes:", err);
     }
-  }, [enrollments]);
+  }, [academyId]);
 
   useEffect(() => {
     if (open) {
-      fetchEnrollments();
-      fetchAvailableAthletes();
+      void (async () => {
+        const loaded = await fetchEnrollments();
+        await fetchAvailableAthletes(new Set(loaded.map((item) => item.athleteId)));
+      })();
     }
   }, [open, fetchEnrollments, fetchAvailableAthletes]);
 
@@ -156,34 +154,29 @@ export function EnrollmentManager({
     setError(null);
 
     try {
-      const supabase = createClient();
-      const {
-        data: { user },
-      } = await supabase.auth.getUser();
-
       const headers: Record<string, string> = {
         "Content-Type": "application/json",
+        "x-academy-id": academyId,
       };
-      if (user?.id) {
-      }
 
       const response = await fetch("/api/class-enrollments", {
         method: "POST",
         headers,
         body: JSON.stringify({
+          academyId,
           classId,
           athleteId,
         }),
       });
 
       if (!response.ok) {
-        const data = await response.json();
-        throw new Error(data.error ?? "Error al inscribir");
+        const data = await response.json().catch(() => ({}));
+        throw new Error(data.message ?? data.error ?? "Error al inscribir");
       }
 
       // Refrescar listas
-      await fetchEnrollments();
-      await fetchAvailableAthletes();
+      const loaded = await fetchEnrollments();
+      await fetchAvailableAthletes(new Set(loaded.map((item) => item.athleteId)));
       onRefresh?.();
     } catch (err: unknown) {
       logger.error("Error enrolling athlete:", err);
@@ -201,16 +194,10 @@ export function EnrollmentManager({
 
     startTransition(async () => {
       try {
-        const supabase = createClient();
-        const {
-          data: { user },
-        } = await supabase.auth.getUser();
-
         const headers: Record<string, string> = {
           "Content-Type": "application/json",
+          "x-academy-id": academyId,
         };
-        if (user?.id) {
-        }
 
         const response = await fetch(`/api/class-enrollments/${enrollmentId}`, {
           method: "DELETE",
@@ -218,12 +205,13 @@ export function EnrollmentManager({
         });
 
         if (!response.ok) {
-          throw new Error("Error al desinscribir");
+          const data = await response.json().catch(() => ({}));
+          throw new Error(data.message ?? data.error ?? "Error al desinscribir");
         }
 
         // Refrescar listas
-        await fetchEnrollments();
-        await fetchAvailableAthletes();
+        const loaded = await fetchEnrollments();
+        await fetchAvailableAthletes(new Set(loaded.map((item) => item.athleteId)));
         onRefresh?.();
       } catch (err: unknown) {
         setError((err instanceof Error ? err.message : "Error desconocido") ?? "Error al desinscribir");

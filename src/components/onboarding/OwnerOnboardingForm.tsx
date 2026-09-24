@@ -29,6 +29,8 @@ const ACADEMY_KIND_OPTIONS = [
   { value: "mixed", label: "Mixta" },
 ] as const;
 
+const OWNER_ONBOARDING_DRAFT_KEY = "zaltyko:owner-onboarding-draft:v1";
+
 export function OwnerOnboardingForm() {
   const initialSeed = getSportConfigSeedsByCountry("es")[0];
   const router = useRouter();
@@ -89,6 +91,44 @@ export function OwnerOnboardingForm() {
 
   const regionOptions = useMemo(() => findRegionsByCountry(countryCode), [countryCode]);
   const cityOptions = useMemo(() => findCitiesByRegion(countryCode, region), [countryCode, region]);
+
+  // Conserva únicamente datos de configuración no sensibles para que una
+  // interrupción no obligue a repetir el onboarding desde cero.
+  useEffect(() => {
+    try {
+      const raw = window.localStorage.getItem(OWNER_ONBOARDING_DRAFT_KEY);
+      if (!raw) return;
+      const draft = JSON.parse(raw) as Partial<{
+        fullName: string;
+        academyName: string;
+        countryCode: string;
+        region: string;
+        city: string;
+        academyKind: string;
+        disciplineVariant: string;
+      }>;
+      if (draft.fullName) setFullName(draft.fullName);
+      if (draft.academyName) setAcademyName(draft.academyName);
+      if (draft.countryCode) setCountryCode(draft.countryCode);
+      if (draft.region) setRegion(draft.region);
+      if (draft.city) setCity(draft.city);
+      if (draft.academyKind) setAcademyKind(draft.academyKind);
+      if (draft.disciplineVariant) setDisciplineVariant(draft.disciplineVariant);
+    } catch {
+      window.localStorage.removeItem(OWNER_ONBOARDING_DRAFT_KEY);
+    }
+  }, []);
+
+  useEffect(() => {
+    try {
+      window.localStorage.setItem(
+        OWNER_ONBOARDING_DRAFT_KEY,
+        JSON.stringify({ fullName, academyName, countryCode, region, city, academyKind, disciplineVariant })
+      );
+    } catch {
+      // El almacenamiento local puede estar deshabilitado; el formulario sigue funcionando.
+    }
+  }, [fullName, academyName, countryCode, region, city, academyKind, disciplineVariant]);
 
   useEffect(() => {
     if (disciplineOptions.length === 0) return;
@@ -215,7 +255,7 @@ export function OwnerOnboardingForm() {
       const payload = await response.json().catch(() => null);
 
       if (!response.ok) {
-        throw new Error(payload?.error ?? "No se pudo completar la configuracion inicial.");
+        throw new Error(payload?.error ?? "No se pudo completar la configuración inicial.");
       }
 
       toast.pushToast({
@@ -224,7 +264,19 @@ export function OwnerOnboardingForm() {
         variant: "success",
       });
 
-      router.push(payload.data.redirectUrl);
+      window.localStorage.removeItem(OWNER_ONBOARDING_DRAFT_KEY);
+
+      const redirectUrl = payload?.data?.redirectUrl ?? payload?.redirectUrl;
+      if (typeof redirectUrl !== "string" || !redirectUrl.startsWith("/")) {
+        toast.pushToast({
+          title: "Academia creada",
+          description: "No pudimos abrir el acceso directo; te llevamos al dashboard.",
+          variant: "warning",
+        });
+        router.push("/dashboard");
+        return;
+      }
+      router.push(redirectUrl);
       router.refresh();
     } catch (error) {
       toast.pushToast({
@@ -239,6 +291,18 @@ export function OwnerOnboardingForm() {
 
   return (
     <form onSubmit={handleSubmit} className="space-y-6">
+      <div className="rounded-lg border border-primary/20 bg-primary/5 px-4 py-3" aria-label="Paso 1 de 5 de la configuración">
+        <div className="flex items-center justify-between gap-3 text-sm">
+          <span className="font-medium text-foreground">Paso 1 de 5 · Crear el espacio de trabajo</span>
+          <span className="text-muted-foreground">≈ 2 minutos</span>
+        </div>
+        <div className="mt-2 h-1.5 overflow-hidden rounded-full bg-primary/15" aria-hidden="true">
+          <div className="h-full w-1/5 rounded-full bg-primary" />
+        </div>
+        <p className="mt-2 text-xs text-muted-foreground">
+            Tu cuenta personal ya está creada. Al completar este formulario crearás la academia y entrarás a su espacio de trabajo; los grupos, programas, clases y ajustes avanzados se pueden completar después desde allí.
+        </p>
+      </div>
       <div className="grid gap-4 sm:grid-cols-2">
         <div className="space-y-2 sm:col-span-2">
           <Label htmlFor="fullName">Nombre completo</Label>
@@ -246,7 +310,7 @@ export function OwnerOnboardingForm() {
             id="fullName"
             value={fullName}
             onChange={(event) => setFullName(event.target.value)}
-            placeholder="Maria Garcia"
+            placeholder="María García"
             required
             disabled={pending}
           />
@@ -257,13 +321,13 @@ export function OwnerOnboardingForm() {
             id="academyName"
             value={academyName}
             onChange={(event) => setAcademyName(event.target.value)}
-            placeholder="Club Gimnasia Elite"
+            placeholder="Club Gimnasia Élite"
             required
             disabled={pending}
           />
         </div>
         <div className="space-y-2 sm:col-span-2">
-          <Label htmlFor="countryCode">Pais base</Label>
+          <Label htmlFor="countryCode">País base</Label>
           <SearchableSelect
             options={COUNTRY_REGION_OPTIONS.map((country) => ({
               value: country.value,
@@ -275,9 +339,9 @@ export function OwnerOnboardingForm() {
               setRegion("");
               setCity("");
             }}
-            placeholder="Selecciona un pais"
+            placeholder="Selecciona un país"
             name="countryCode"
-            searchPlaceholder="Buscar pais..."
+            searchPlaceholder="Buscar país..."
             disabled={pending}
           />
         </div>
@@ -308,6 +372,23 @@ export function OwnerOnboardingForm() {
             Esta especialización define aparatos, categorías y lenguaje técnico por defecto.
           </p>
         </div>
+      </div>
+
+      <button
+        type="button"
+        onClick={() => setShowAdvanced((current) => !current)}
+        className="flex min-h-11 w-full items-center justify-between rounded-lg border border-border bg-muted/20 px-4 py-3 text-sm font-medium text-foreground"
+        aria-expanded={showAdvanced}
+      >
+        Configuración avanzada (opcional)
+        {showAdvanced ? <ChevronUp className="h-4 w-4" /> : <ChevronDown className="h-4 w-4" />}
+      </button>
+      <p className="text-xs text-muted-foreground">
+        Ya dejamos programas, aparatos y grupos base preseleccionados según tu disciplina. Abre esto solo si quieres ajustarlos antes de crear la academia.
+      </p>
+
+      {showAdvanced && (
+      <div className="grid gap-4 sm:grid-cols-2">
         <div className="space-y-3 sm:col-span-2">
           <div className="space-y-1">
             <Label>Ramas activas</Label>
@@ -365,23 +446,6 @@ export function OwnerOnboardingForm() {
             </SelectContent>
           </Select>
         </div>
-      </div>
-
-      <button
-        type="button"
-        onClick={() => setShowAdvanced((current) => !current)}
-        className="flex min-h-11 w-full items-center justify-between rounded-lg border border-border bg-muted/20 px-4 py-3 text-sm font-medium text-foreground"
-        aria-expanded={showAdvanced}
-      >
-        Configuración avanzada (opcional)
-        {showAdvanced ? <ChevronUp className="h-4 w-4" /> : <ChevronDown className="h-4 w-4" />}
-      </button>
-      <p className="text-xs text-muted-foreground">
-        Ya dejamos programas, aparatos y grupos base preseleccionados según tu disciplina. Abre esto solo si quieres ajustarlos antes de crear la academia.
-      </p>
-
-      {showAdvanced && (
-      <div className="grid gap-4 sm:grid-cols-2">
         <div className="space-y-2">
           <Label htmlFor="region">{getRegionLabel(countryCode)}</Label>
           <SearchableSelect
@@ -570,7 +634,7 @@ export function OwnerOnboardingForm() {
         ) : (
           <>
             <Building2 className="mr-2 h-4 w-4" />
-            Entrar a mi academia
+            Crear mi academia y entrar
           </>
         )}
       </Button>

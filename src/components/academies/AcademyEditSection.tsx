@@ -1,6 +1,7 @@
 "use client";
 
 import { useState, useEffect } from "react";
+import { useRouter } from "next/navigation";
 import { Building2, Edit2, X } from "lucide-react";
 
 import { Button } from "@/components/ui/button";
@@ -33,6 +34,7 @@ interface AcademyData {
 }
 
 export function AcademyEditSection({ academyId }: AcademyEditSectionProps) {
+  const router = useRouter();
   const [academy, setAcademy] = useState<AcademyData | null>(null);
   const [loading, setLoading] = useState(true);
   const [editing, setEditing] = useState(false);
@@ -48,7 +50,8 @@ export function AcademyEditSection({ academyId }: AcademyEditSectionProps) {
           throw new Error("Error al cargar los datos de la academia");
         }
         
-        const data = await response.json();
+        const payload = await response.json();
+        const data = payload?.data ?? payload;
         setAcademy(data);
       } catch (err: unknown) {
         setError((err instanceof Error ? err.message : "Error desconocido") || "Error al cargar la academia");
@@ -105,8 +108,9 @@ export function AcademyEditSection({ academyId }: AcademyEditSectionProps) {
             academy={academy}
             onSaved={() => {
               setEditing(false);
-              // Recargar datos
-              window.location.reload();
+              // El formulario ya persiste; actualiza los Server Components sin
+              // recargar toda la página ni perder la posición del usuario.
+              router.refresh();
             }}
             onCancel={() => setEditing(false)}
           />
@@ -133,6 +137,23 @@ export function AcademyEditSection({ academyId }: AcademyEditSectionProps) {
         </div>
       </CardHeader>
       <CardContent className="space-y-4">
+        {academy.logoUrl ? (
+          <div className="flex items-center gap-4 rounded-xl border border-border bg-muted/20 p-4">
+            <img
+              src={academy.logoUrl}
+              alt={`Logo de ${academy.name}`}
+              className="h-16 w-16 rounded-lg object-contain"
+            />
+            <div>
+              <p className="text-sm font-medium text-foreground">Logo público configurado</p>
+              <p className="text-xs text-muted-foreground">Aparecerá en tu ficha del directorio de academias.</p>
+            </div>
+          </div>
+        ) : (
+          <div className="rounded-xl border border-dashed border-border bg-muted/20 p-4 text-sm text-muted-foreground">
+            Añade un logo para que las familias reconozcan tu academia en el directorio público.
+          </div>
+        )}
         <div className="grid gap-4 md:grid-cols-2">
           <div>
             <p className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">Nombre</p>
@@ -235,4 +256,3 @@ export function AcademyEditSection({ academyId }: AcademyEditSectionProps) {
     </Card>
   );
 }
-

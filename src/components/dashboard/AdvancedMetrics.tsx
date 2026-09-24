@@ -4,6 +4,8 @@ import { useState, useEffect } from "react";
 import { TrendingUp, TrendingDown, Users, DollarSign, Activity, Loader2 } from "lucide-react";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
+import { useAcademyContext } from "@/hooks/use-academy-context";
+import { formatCurrency, getCurrencyForCountry } from "@/lib/currency";
 
 interface AdvancedMetricsData {
   retentionRate: number;
@@ -35,6 +37,8 @@ interface AdvancedMetricsProps {
 }
 
 export function AdvancedMetrics({ academyId }: AdvancedMetricsProps) {
+  const { academyCountry } = useAcademyContext();
+  const currency = getCurrencyForCountry(academyCountry);
   const [metrics, setMetrics] = useState<AdvancedMetricsData | null>(null);
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -124,7 +128,7 @@ export function AdvancedMetrics({ academyId }: AdvancedMetricsProps) {
             </CardTitle>
           </CardHeader>
           <CardContent>
-            <div className="text-2xl font-bold">{metrics.monthlyRecurringRevenue.toFixed(2)} €</div>
+            <div className="text-2xl font-bold">{formatCurrency(metrics.monthlyRecurringRevenue, currency)}</div>
             <p className="text-xs text-muted-foreground mt-1">Mes actual</p>
           </CardContent>
         </Card>
@@ -133,7 +137,7 @@ export function AdvancedMetrics({ academyId }: AdvancedMetricsProps) {
           <CardHeader>
             <CardTitle className="text-sm font-medium flex items-center gap-2">
               <TrendingUp className="h-4 w-4" />
-              Proyección de Crecimiento
+              Tendencia de Ingresos
             </CardTitle>
           </CardHeader>
           <CardContent>
@@ -141,7 +145,7 @@ export function AdvancedMetrics({ academyId }: AdvancedMetricsProps) {
               {metrics.growthProjection > 0 ? "+" : ""}
               {metrics.growthProjection.toFixed(1)}%
             </div>
-            <p className="text-xs text-muted-foreground mt-1">Próximo mes</p>
+            <p className="text-xs text-muted-foreground mt-1">Comparado con el mes anterior; no es una predicción</p>
           </CardContent>
         </Card>
       </div>
@@ -157,7 +161,7 @@ export function AdvancedMetrics({ academyId }: AdvancedMetricsProps) {
               <p className="text-sm text-muted-foreground mb-2">Ingresos</p>
               <div className="flex items-center gap-2">
                 <span className="text-lg font-semibold">
-                  {metrics.periodComparison.current.revenue.toFixed(2)} €
+                  {formatCurrency(metrics.periodComparison.current.revenue, currency)}
                 </span>
                 {metrics.periodComparison.change.revenue !== 0 && (
                   <Badge
@@ -175,7 +179,7 @@ export function AdvancedMetrics({ academyId }: AdvancedMetricsProps) {
                 )}
               </div>
               <p className="text-xs text-muted-foreground mt-1">
-                Anterior: {metrics.periodComparison.previous.revenue.toFixed(2)} €
+                Anterior: {formatCurrency(metrics.periodComparison.previous.revenue, currency)}
               </p>
             </div>
 
@@ -223,4 +227,3 @@ export function AdvancedMetrics({ academyId }: AdvancedMetricsProps) {
     </div>
   );
 }
-

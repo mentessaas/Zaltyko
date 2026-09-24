@@ -50,10 +50,10 @@ export function InstallPrompt() {
 
   return (
     <div className="fixed bottom-20 left-4 right-4 z-50 animate-in slide-in-from-bottom-4 fade-in duration-300">
-      <div className="bg-white border border-zaltyko-border rounded-2xl shadow-lg p-4">
+      <div className="bg-white border border-zaltyko-border rounded-2xl shadow-lg p-4 dark:bg-slate-900 dark:border-slate-700">
         <button
           onClick={dismissPrompt}
-          className="absolute top-2 right-2 p-1 text-zaltyko-text-muted hover:text-zaltyko-text-main"
+          className="absolute top-2 right-2 p-1 text-zaltyko-text-muted hover:text-zaltyko-text-main dark:text-slate-400 dark:hover:text-slate-100"
           aria-label="Cerrar"
         >
           <X className="h-4 w-4" />
@@ -77,7 +77,7 @@ export function InstallPrompt() {
           </div>
 
           <div className="flex-1 min-w-0">
-            <p className="font-display font-semibold text-zaltyko-text-main">
+            <p className="font-display font-semibold text-zaltyko-text-main dark:text-slate-50">
               Instalar Zaltyko
             </p>
             <p className="text-sm text-zaltyko-text-muted mt-0.5">

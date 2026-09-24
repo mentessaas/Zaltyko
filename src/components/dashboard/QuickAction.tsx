@@ -28,10 +28,10 @@ export function QuickAction({
             disabled={disabled}
             className={cn(
                 "group relative flex w-full items-center gap-4 rounded-2xl border border-border bg-card p-4 text-left shadow-soft transition-all duration-150",
-                "hover:border-zaltyko-teal/40 hover:bg-zaltyko-white",
+                "hover:border-zaltyko-teal/40 hover:bg-muted",
                 "disabled:cursor-not-allowed disabled:opacity-50 disabled:hover:border-border disabled:hover:bg-card disabled:hover:shadow-soft",
                 variant === "destructive" && "border-zaltyko-coral/40 bg-zaltyko-coral/5",
-                variant === "secondary" && "border-zaltyko-indigo/25 bg-zaltyko-indigo/5"
+                variant === "secondary" && "border-zaltyko-indigo/25 bg-zaltyko-indigo/5 dark:border-zaltyko-electric/30 dark:bg-zaltyko-electric/10"
             )}
         >
             <div
@@ -39,8 +39,8 @@ export function QuickAction({
                     "flex h-12 w-12 shrink-0 items-center justify-center rounded-xl transition-colors",
                     variant === "default" && "bg-zaltyko-teal/12 text-zaltyko-teal",
                     variant === "destructive" && "bg-zaltyko-coral/12 text-zaltyko-coral",
-                    variant === "secondary" && "bg-zaltyko-indigo/10 text-zaltyko-indigo",
-                    variant === "outline" && "bg-zaltyko-white text-zaltyko-indigo"
+                    variant === "secondary" && "bg-zaltyko-indigo/10 text-zaltyko-indigo dark:bg-zaltyko-electric/15 dark:text-zaltyko-electric",
+                    variant === "outline" && "bg-muted text-foreground"
                 )}
             >
                 {icon}

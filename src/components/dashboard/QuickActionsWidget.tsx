@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useState } from "react";
 import { useRouter } from "next/navigation";
 import { Calendar, DollarSign, UserPlus, Users, TrendingUp } from "lucide-react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -8,9 +8,10 @@ import { QuickAction } from "./QuickAction";
 import { QuickClassModal } from "./QuickClassModal";
 import { QuickPaymentModal } from "./QuickPaymentModal";
 import { useAcademyContext } from "@/hooks/use-academy-context";
-import { logger } from "@/lib/logger";
+import { formatMinorCurrency } from "@/lib/currency";
+import { pluralizeFirstWord } from "@/lib/specialization/registry";
 
-interface QuickActionsData {
+export interface QuickActionsData {
     pendingClasses: number;
     overduePayments: number;
     unassignedAthletes: number;
@@ -21,40 +22,24 @@ interface QuickActionsData {
         classId: string;
     }>;
     overduePaymentsTotal: number;
+    overduePaymentsCurrency: string | null;
 }
 
 interface QuickActionsWidgetProps {
     academyId: string;
+    data: QuickActionsData | null;
+    loading: boolean;
+    onRefresh: () => void;
 }
 
-export function QuickActionsWidget({ academyId }: QuickActionsWidgetProps) {
+export function QuickActionsWidget({ academyId, data, loading, onRefresh }: QuickActionsWidgetProps) {
     const router = useRouter();
     const { specialization } = useAcademyContext();
-    const [data, setData] = useState<QuickActionsData | null>(null);
-    const [loading, setLoading] = useState(true);
     const [showClassModal, setShowClassModal] = useState(false);
     const [showPaymentModal, setShowPaymentModal] = useState(false);
     const pendingClasses = data?.pendingClasses ?? 0;
     const overduePayments = data?.overduePayments ?? 0;
     const unassignedAthletes = data?.unassignedAthletes ?? 0;
-
-    useEffect(() => {
-        fetchPendingData();
-    }, []);
-
-    const fetchPendingData = async () => {
-        try {
-            const res = await fetch("/api/quick-actions/pending-today");
-            const json = await res.json();
-            if (json.ok) {
-                setData(json.data ?? null);
-            }
-        } catch (error) {
-            logger.error("Error fetching quick actions:", error);
-        } finally {
-            setLoading(false);
-        }
-    };
 
     if (loading) {
         return (
@@ -92,7 +77,7 @@ export function QuickActionsWidget({ academyId }: QuickActionsWidgetProps) {
                         <QuickAction
                             icon={<Calendar className="h-5 w-5" />}
                             label="Registrar Asistencia"
-                            description={`${pendingClasses} ${pendingClasses === 1 ? specialization.labels.classLabel.toLowerCase() : `${specialization.labels.classLabel.toLowerCase()}s`} de hoy`}
+                            description={`${pendingClasses} ${pendingClasses === 1 ? specialization.labels.classLabel.toLowerCase() : pluralizeFirstWord(specialization.labels.classLabel).toLowerCase()} de hoy`}
                             badge={pendingClasses}
                             onClick={() => {
                                 if (data?.todaysSessions && data.todaysSessions.length > 0) {
@@ -107,7 +92,7 @@ export function QuickActionsWidget({ academyId }: QuickActionsWidgetProps) {
                         <QuickAction
                             icon={<DollarSign className="h-5 w-5" />}
                             label="Cobros Pendientes"
-                            description={`${overduePayments} ${overduePayments === 1 ? "pago vencido" : "pagos vencidos"} - €${((data?.overduePaymentsTotal || 0) / 100).toFixed(2)}`}
+                            description={`${overduePayments} ${overduePayments === 1 ? "pago vencido" : "pagos vencidos"} · ${data?.overduePaymentsCurrency ? formatMinorCurrency(data.overduePaymentsTotal, data.overduePaymentsCurrency) : "varias monedas"}`}
                             badge={overduePayments}
                             onClick={() => setShowPaymentModal(true)}
                             variant="destructive"
@@ -139,22 +124,24 @@ export function QuickActionsWidget({ academyId }: QuickActionsWidgetProps) {
 
             {showClassModal && (
                 <QuickClassModal
+                    academyId={academyId}
                     isOpen={showClassModal}
                     onClose={() => setShowClassModal(false)}
                     onSuccess={() => {
                         setShowClassModal(false);
-                        fetchPendingData();
+                        onRefresh();
                     }}
                 />
             )}
 
             {showPaymentModal && (
                 <QuickPaymentModal
+                    academyId={academyId}
                     isOpen={showPaymentModal}
                     onClose={() => setShowPaymentModal(false)}
                     onSuccess={() => {
                         setShowPaymentModal(false);
-                        fetchPendingData();
+                        onRefresh();
                     }}
                 />
             )}

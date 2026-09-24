@@ -61,6 +61,7 @@ export function InvoiceList({
             <option value="void">Anuladas</option>
           </select>
           <button
+            type="button"
             onClick={onSync}
             disabled={isSyncing || loading || disabled}
             className="inline-flex items-center justify-center rounded-md border border-primary/20 bg-primary/10 px-4 py-2 text-sm font-semibold text-primary hover:bg-primary/20 disabled:cursor-not-allowed disabled:opacity-50"
@@ -105,13 +106,13 @@ export function InvoiceList({
                       <span
                         className={`inline-flex rounded-full px-2.5 py-0.5 text-xs font-semibold capitalize ${
                           invoice.status === "paid"
-                            ? "bg-green-100 text-green-800"
+                            ? "bg-emerald-500/15 text-emerald-400"
                             : invoice.status === "open"
-                            ? "bg-blue-100 text-blue-800"
+                            ? "bg-blue-500/15 text-blue-400"
                             : invoice.status === "draft"
                             ? "bg-muted text-muted-foreground"
                             : invoice.status === "uncollectible"
-                            ? "bg-red-100 text-red-800"
+                            ? "bg-red-500/15 text-red-400"
                             : invoice.status === "void"
                             ? "bg-muted text-muted-foreground"
                             : "bg-muted text-muted-foreground"

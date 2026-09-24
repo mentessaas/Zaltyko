@@ -78,9 +78,11 @@ export function NoteForm({
   const loadAthletes = async () => {
     try {
       const response = await fetch(`/api/athletes?academyId=${academyId}`);
-      const data = await response.json();
-      if (data.items) {
-        setAthletes(data.items);
+      const payload = await response.json();
+      const data = payload?.data ?? payload;
+      const items = Array.isArray(data) ? data : data?.items;
+      if (items) {
+        setAthletes(items);
       }
     } catch (error) {
       logger.error("Error loading athletes:", error);
@@ -278,4 +280,3 @@ export function NoteForm({
     </Dialog>
   );
 }
-

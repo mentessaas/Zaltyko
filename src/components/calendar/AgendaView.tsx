@@ -35,7 +35,7 @@ const statusColors: Record<string, string> = {
 };
 
 function getStatusColor(status: string) {
-    return statusColors[status] ?? "bg-zaltyko-white text-muted-foreground border-border";
+    return statusColors[status] ?? "bg-muted text-muted-foreground border-border";
 }
 
 export function AgendaView({ sessions, rangeStart, rangeEnd }: AgendaViewProps) {
@@ -67,7 +67,7 @@ export function AgendaView({ sessions, rangeStart, rangeEnd }: AgendaViewProps) 
 
     if (sortedDates.length === 0) {
         return (
-            <div className="flex min-h-[400px] items-center justify-center rounded-2xl border border-dashed border-border bg-zaltyko-white">
+            <div className="flex min-h-[400px] items-center justify-center rounded-2xl border border-dashed border-border bg-muted/40">
                 <div className="text-center">
                     <Calendar className="mx-auto h-12 w-12 text-muted-foreground" />
                     <p className="mt-4 text-lg font-medium text-muted-foreground">
@@ -122,7 +122,7 @@ export function AgendaView({ sessions, rangeStart, rangeEnd }: AgendaViewProps) 
                                         )}
                                     >
                                         {/* Time */}
-                                        <div className="flex min-w-[80px] flex-col items-center rounded-xl bg-zaltyko-white px-3 py-2">
+                                        <div className="flex min-w-[80px] flex-col items-center rounded-xl bg-muted/40 px-3 py-2">
                                             <Clock className="h-4 w-4 text-muted-foreground" />
                                             {session.startTime ? (
                                                 <>

@@ -1,68 +1,56 @@
 "use client";
 
-import { useState, useEffect, memo } from "react";
+import { memo } from "react";
 import Link from "next/link";
-import { useRouter } from "next/navigation";
 import { CalendarClock, Users, ClipboardCheck, ArrowRight } from "lucide-react";
 
 import { Button } from "@/components/ui/button";
 import { AlertBadge } from "@/components/shared/AlertBadge";
+import { useAcademyContext } from "@/hooks/use-academy-context";
 import type { DashboardUpcomingClass } from "@/lib/dashboard";
-import { formatShortDateForCountry, formatTimeForCountry } from "@/lib/date-utils";
-import { logger } from "@/lib/logger";
+import {
+  formatShortDateForCountry,
+  formatTimeForCountry,
+  getTodayInCountryTimezone,
+  isSameDayInTimezone,
+} from "@/lib/date-utils";
+import { isValidClassTimeRange } from "@/lib/classes/time-validation";
+import { pluralizeFirstWord } from "@/lib/specialization/registry";
 
 interface UpcomingClassesProps {
   classes: DashboardUpcomingClass[];
   academyId: string;
   academyCountry: string | null;
+  capacityAlertClassIds?: ReadonlySet<string>;
 }
 
-function UpcomingClassesImpl({ classes, academyId, academyCountry }: UpcomingClassesProps) {
-  const router = useRouter();
-  const [capacityAlerts, setCapacityAlerts] = useState<Set<string>>(new Set());
-  
+function UpcomingClassesImpl({
+  classes,
+  academyId,
+  academyCountry,
+  capacityAlertClassIds = EMPTY_CAPACITY_ALERTS,
+}: UpcomingClassesProps) {
+  const { specialization } = useAcademyContext();
+  const classLabelPlural = pluralizeFirstWord(specialization.labels.classLabel).toLowerCase();
+  const coachLabelPlural = pluralizeFirstWord(specialization.labels.coachLabel).toLowerCase();
+
   // Limitar a 5 clases para el dashboard
   const displayedClasses = classes.slice(0, 5);
-
-  useEffect(() => {
-    // Obtener alertas de capacidad para mostrar badges
-    const fetchCapacityAlerts = async () => {
-      try {
-        const response = await fetch(`/api/alerts/capacity?academyId=${academyId}`);
-        if (response.ok) {
-          const data = await response.json();
-          if (data.alerts && Array.isArray(data.alerts)) {
-            // Crear un Set con los IDs de clases con cupo >= 95%
-            const alertClassIds = new Set<string>(
-              data.alerts
-                .filter((alert: { percentage: number }) => alert.percentage >= 95)
-                .map((alert: { classId: string }) => String(alert.classId))
-            );
-            setCapacityAlerts(alertClassIds);
-          }
-        }
-      } catch (error) {
-        logger.error("Error fetching capacity alerts:", error);
-      }
-    };
-
-    fetchCapacityAlerts();
-  }, [academyId]);
 
   return (
     <div className="space-y-5 rounded-2xl border border-border bg-card p-6 shadow-soft">
       <header className="flex items-center justify-between gap-3">
         <div>
           <p className="text-xs font-medium uppercase tracking-[0.12em] text-muted-foreground">
-            Próximas clases
+            {`Calendario de ${classLabelPlural}`}
           </p>
           <h3 className="mt-1 font-display text-xl font-semibold text-foreground">
-            {classes.length > 0 ? "Programadas para los próximos días" : "Sin clases programadas"}
+            {classes.length > 0 ? "Programadas para los próximos días" : `Sin ${classLabelPlural} en el calendario`}
           </h3>
           <p className="mt-1 text-xs text-muted-foreground">
             {classes.length > 0
               ? "Tus próximas sesiones programadas. Pasa asistencia directamente desde aquí."
-              : "Agenda nuevas clases para visualizar tu calendario aquí."}
+              : `Crea ${classLabelPlural} para ver el calendario aquí.`}
           </p>
         </div>
         {classes.length > 0 && (
@@ -78,20 +66,20 @@ function UpcomingClassesImpl({ classes, academyId, academyCountry }: UpcomingCla
 
       <div className="space-y-3">
         {displayedClasses.length === 0 ? (
-          <div className="flex flex-col items-center justify-center rounded-xl border border-dashed border-border bg-zaltyko-white px-4 py-8 text-center">
+          <div className="flex flex-col items-center justify-center rounded-xl border border-dashed border-border bg-muted/40 px-4 py-8 text-center">
             <CalendarClock className="mb-2 h-8 w-8 text-muted-foreground/60" />
             <p className="text-sm text-muted-foreground">
-              No hay clases próximas programadas
+              No hay {classLabelPlural} en el calendario
             </p>
             <p className="text-xs text-muted-foreground/70">
-              Agenda nuevas clases para visualizar tu calendario aquí
+              Crea {classLabelPlural} para ver el calendario aquí
             </p>
           </div>
         ) : (
           displayedClasses.map((item) => (
             <div
               key={item.id}
-              className="flex flex-col gap-3 rounded-xl border border-border bg-card px-4 py-3 text-sm transition hover:border-zaltyko-teal/40 hover:bg-zaltyko-white"
+              className="flex flex-col gap-3 rounded-xl border border-border bg-card px-4 py-3 text-sm transition hover:border-zaltyko-teal/40 hover:bg-muted"
             >
               <div className="flex items-start justify-between gap-3">
                 <div className="flex-1 min-w-0">
@@ -100,9 +88,9 @@ function UpcomingClassesImpl({ classes, academyId, academyCountry }: UpcomingCla
                       href={`/app/${academyId}/classes/${item.classId}`}
                       className="font-semibold text-foreground transition hover:text-zaltyko-teal"
                     >
-                      {item.className ?? "Clase sin nombre"}
+                      {item.className ?? `${specialization.labels.classLabel} sin nombre`}
                     </Link>
-                    {capacityAlerts.has(item.classId) && (
+                    {capacityAlertClassIds.has(item.classId) && (
                       <AlertBadge type="capacity" />
                     )}
                   </div>
@@ -114,10 +102,12 @@ function UpcomingClassesImpl({ classes, academyId, academyCountry }: UpcomingCla
                     ) : (
                       <>
                         {formatShortDateForCountry(item.sessionDate, academyCountry)} ·{" "}
-                        {item.startTime && item.endTime
+                        {item.startTime && item.endTime && isValidClassTimeRange(item.startTime, item.endTime)
                           ? `${formatTimeForCountry(item.sessionDate + "T" + item.startTime, academyCountry)} – ${formatTimeForCountry(item.sessionDate + "T" + item.endTime, academyCountry)}`
                           : item.startTime
-                          ? `Desde ${formatTimeForCountry(item.sessionDate + "T" + item.startTime, academyCountry)}`
+                          ? isValidClassTimeRange(item.startTime, item.endTime)
+                            ? `Desde ${formatTimeForCountry(item.sessionDate + "T" + item.startTime, academyCountry)}`
+                            : "Horario por revisar"
                           : "Horario por definir"}
                       </>
                     )}
@@ -126,11 +116,11 @@ function UpcomingClassesImpl({ classes, academyId, academyCountry }: UpcomingCla
                 <CalendarClock className="h-4 w-4 shrink-0 text-muted-foreground" strokeWidth={1.6} />
               </div>
               <div className="flex flex-wrap items-center gap-2 text-xs text-muted-foreground">
-                <div className="inline-flex items-center gap-1 rounded-full bg-zaltyko-white px-2 py-1 text-xs">
+                <div className="inline-flex items-center gap-1 rounded-full bg-muted px-2 py-1 text-xs">
                   <Users className="h-3 w-3" strokeWidth={1.8} />
                   {item.coaches.length > 0
                     ? item.coaches.map((coach) => coach.name ?? "Sin nombre").join(", ")
-                    : "Sin entrenador"}
+                    : `Sin ${coachLabelPlural}`}
                 </div>
                 {item.groupName && (
                   <span
@@ -150,19 +140,41 @@ function UpcomingClassesImpl({ classes, academyId, academyCountry }: UpcomingCla
                   </span>
                 )}
               </div>
-              {!item.isSessionPlaceholder && (
+              {item.isSessionPlaceholder && (
                 <div className="flex items-center gap-2 border-t border-border/60 pt-1">
-                  <Button
-                    variant="outline"
-                    size="sm"
-                    className="h-8 gap-1.5 text-xs"
-                    onClick={() => router.push(`/app/${academyId}/classes/${item.classId}`)}
-                  >
-                    <ClipboardCheck className="h-3.5 w-3.5" />
-                    Ver / Pasar asistencia
+                  <Button asChild variant="outline" size="sm" className="h-8 gap-1.5 text-xs">
+                    <Link href={`/app/${academyId}/classes/${item.classId}`}>
+                      <CalendarClock className="h-3.5 w-3.5" />
+                      Configurar sesiones
+                    </Link>
                   </Button>
                 </div>
               )}
+              {!item.isSessionPlaceholder && (() => {
+                const isToday = isSameDayInTimezone(
+                  item.sessionDate,
+                  getTodayInCountryTimezone(academyCountry),
+                  academyCountry,
+                );
+                const actionHref = isToday
+                  ? `/app/${academyId}/attendance/today/${item.id}`
+                  : `/app/${academyId}/classes/${item.classId}`;
+
+                return (
+                <div className="flex items-center gap-2 border-t border-border/60 pt-1">
+                  <Button asChild variant="outline" size="sm" className="h-8 gap-1.5 text-xs">
+                    <Link href={actionHref}>
+                      {isToday ? (
+                        <ClipboardCheck className="h-3.5 w-3.5" />
+                      ) : (
+                        <CalendarClock className="h-3.5 w-3.5" />
+                      )}
+                      {isToday ? "Pasar asistencia" : "Ver clase"}
+                    </Link>
+                  </Button>
+                </div>
+                );
+              })()}
             </div>
           ))
         )}
@@ -170,5 +182,7 @@ function UpcomingClassesImpl({ classes, academyId, academyCountry }: UpcomingCla
     </div>
   );
 }
+
+const EMPTY_CAPACITY_ALERTS: ReadonlySet<string> = new Set();
 
 export const UpcomingClasses = memo(UpcomingClassesImpl);

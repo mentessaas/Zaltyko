@@ -118,7 +118,7 @@ export const AttendanceSheet = memo(function AttendanceSheet({
         <div className="flex items-center gap-3">
           <Link
             href={backHref}
-            className="flex h-11 w-11 shrink-0 items-center justify-center rounded-xl text-muted-foreground hover:bg-zaltyko-white"
+            className="flex h-11 w-11 shrink-0 items-center justify-center rounded-xl text-muted-foreground hover:bg-muted"
             aria-label="Volver a las sesiones de hoy"
           >
             <ChevronLeft className="h-5 w-5" />
@@ -166,7 +166,7 @@ export const AttendanceSheet = memo(function AttendanceSheet({
                     onClick={() => saveEntry(athlete.id, key)}
                     className={cn(
                       "flex h-11 w-11 items-center justify-center rounded-lg border transition-colors",
-                      selected ? activeClass : "border-border text-zaltyko-text-light hover:bg-zaltyko-white"
+                      selected ? activeClass : "border-border text-muted-foreground hover:bg-muted"
                     )}
                   >
                     <Icon className="h-5 w-5" />

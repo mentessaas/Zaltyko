@@ -1,10 +1,9 @@
 "use client";
 
 import { Calendar, TrendingUp, Award } from "lucide-react";
-import { format } from "date-fns";
-import { es } from "date-fns/locale";
 import { Card, CardContent } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
+import { formatDateForCountry } from "@/lib/date-utils";
 
 interface TimelineEvent {
   id: string;
@@ -12,7 +11,7 @@ interface TimelineEvent {
   date: string;
   title: string;
   description?: string;
-  metadata?: Record<string, any>;
+  metadata?: Record<string, unknown>;
 }
 
 interface ProgressTimelineProps {
@@ -30,7 +29,7 @@ export function ProgressTimeline({ events }: ProgressTimelineProps) {
       <div className="relative">
         <div className="absolute left-4 top-0 bottom-0 w-0.5 bg-border" />
         <div className="space-y-6">
-          {sortedEvents.map((event, index) => (
+          {sortedEvents.map((event) => (
             <div key={event.id} className="relative flex gap-4">
               <div className="relative z-10 flex h-8 w-8 items-center justify-center rounded-full bg-primary text-primary-foreground">
                 {event.type === "assessment" && <Calendar className="h-4 w-4" />}
@@ -45,7 +44,7 @@ export function ProgressTimeline({ events }: ProgressTimelineProps) {
                         <div className="flex items-center gap-2 mb-1">
                           <p className="font-medium">{event.title}</p>
                           <Badge variant="outline">
-                            {format(new Date(event.date), "PPP", { locale: es })}
+                            {formatDateForCountry(event.date, null, "PPP")}
                           </Badge>
                         </div>
                         {event.description && (
@@ -72,4 +71,3 @@ export function ProgressTimeline({ events }: ProgressTimelineProps) {
     </div>
   );
 }
-

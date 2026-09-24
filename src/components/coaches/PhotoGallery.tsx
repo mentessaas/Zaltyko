@@ -24,6 +24,23 @@ export function PhotoGallery({ photos, onChange, academyId }: PhotoGalleryProps)
     const file = e.target.files?.[0];
     if (!file) return;
 
+    if (photos.length >= 10) {
+      toast.pushToast({ title: "Límite alcanzado", description: "Puedes añadir hasta 10 fotos a tu galería.", variant: "error" });
+      e.target.value = "";
+      return;
+    }
+    const allowedTypes = new Set(["image/jpeg", "image/png", "image/webp"]);
+    if (!allowedTypes.has(file.type)) {
+      toast.pushToast({ title: "Formato no compatible", description: "Usa una imagen JPG, PNG o WebP.", variant: "error" });
+      e.target.value = "";
+      return;
+    }
+    if (file.size > 5 * 1024 * 1024) {
+      toast.pushToast({ title: "Imagen demasiado grande", description: "La imagen no puede superar 5 MB.", variant: "error" });
+      e.target.value = "";
+      return;
+    }
+
     setUploading(true);
     try {
       // Upload a Supabase Storage mediante API
@@ -38,11 +55,14 @@ export function PhotoGallery({ photos, onChange, academyId }: PhotoGalleryProps)
       });
 
       if (!response.ok) {
-        throw new Error("Error al subir la imagen");
+        const payload = await response.json().catch(() => null);
+        throw new Error(payload?.message ?? payload?.data?.message ?? "No se pudo subir la imagen");
       }
 
-      const data = await response.json();
-      onChange([...photos, data.url]);
+      const payload = await response.json();
+      const url = payload?.data?.url ?? payload?.url;
+      if (!url) throw new Error("El servidor no devolvió la URL de la imagen");
+      onChange([...photos, url]);
     } catch (error) {
       logger.error("Error uploading photo:", error);
       toast.pushToast({
@@ -52,6 +72,8 @@ export function PhotoGallery({ photos, onChange, academyId }: PhotoGalleryProps)
       });
     } finally {
       setUploading(false);
+      // Permite volver a elegir el mismo archivo después de quitarlo o de un error.
+      e.target.value = "";
     }
   };
 
@@ -76,6 +98,7 @@ export function PhotoGallery({ photos, onChange, academyId }: PhotoGalleryProps)
                 className="object-cover"
               />
               <Button
+                type="button"
                 variant="destructive"
                 size="sm"
                 className="absolute right-2 top-2"
@@ -104,7 +127,7 @@ export function PhotoGallery({ photos, onChange, academyId }: PhotoGalleryProps)
         </Card>
       </div>
       <p className="text-sm text-muted-foreground">
-        Puedes añadir hasta 10 fotos a tu galería. Las fotos deben ser en formato JPG o PNG.
+        Puedes añadir hasta 10 fotos a tu galería. Las fotos deben ser en formato JPG, PNG o WebP.
       </p>
     </div>
   );

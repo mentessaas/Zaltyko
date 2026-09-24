@@ -9,6 +9,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Badge } from "@/components/ui/badge";
 import { cn } from "@/lib/utils";
 import { getTerminologyForSportConfig } from "@/lib/sport-config/terminology";
+import { pluralizeFirstWord } from "@/lib/specialization/registry";
 
 type RecipientType = "all" | "class" | "group" | "selected";
 type ScheduleTime = "now" | "later";
@@ -73,8 +74,9 @@ export function WhatsAppMessagePanel({
   );
   const terms = getTerminologyForSportConfig(sportConfigs, selectedSportConfig);
   const athleteTermPluralLower = terms.athletes.toLowerCase();
-  const parentTermPluralLower = `${terms.parent.toLowerCase()}s`;
+  const parentTermPluralLower = pluralizeFirstWord(terms.parent).toLowerCase();
   const groupTermLower = terms.group.toLowerCase();
+  const groupTermPluralLower = pluralizeFirstWord(terms.group).toLowerCase();
 
   const filteredClasses = useMemo(() => {
     if (!selectedSportConfig) return classes;
@@ -151,7 +153,9 @@ export function WhatsAppMessagePanel({
 
   const charCount = message.length;
   const maxChars = 4096;
-  const isValid = message.length > 0 && (recipientType === "all" || selectedClass || selectedGroup || selectedRecipients.length > 0);
+  const scheduledDate = scheduleTime === "later" && scheduledAt ? new Date(scheduledAt) : null;
+  const hasValidSchedule = scheduleTime === "now" || Boolean(scheduledDate && !Number.isNaN(scheduledDate.getTime()) && scheduledDate.getTime() > Date.now());
+  const isValid = message.trim().length > 0 && message.length <= maxChars && hasValidSchedule && (recipientType === "all" || (recipientType === "class" && Boolean(selectedClass)) || (recipientType === "group" && Boolean(selectedGroup)) || (recipientType === "selected" && selectedRecipients.length > 0));
 
   return (
     <Card>
@@ -161,7 +165,7 @@ export function WhatsAppMessagePanel({
           Enviar mensaje de WhatsApp
         </CardTitle>
         <CardDescription>
-          Envía mensajes masivos a {athleteTermPluralLower}, {parentTermPluralLower} o {groupTermLower}s específicos
+          Envía mensajes masivos a {athleteTermPluralLower}, {parentTermPluralLower} o {groupTermPluralLower} específicos
         </CardDescription>
       </CardHeader>
       <CardContent className="space-y-6">
@@ -382,7 +386,7 @@ export function WhatsAppMessagePanel({
         {result && (
           <div className={cn(
             "rounded-lg border p-4 flex items-center gap-3",
-            result.success ? "bg-green-50 border-green-200 text-green-800" : "bg-red-50 border-red-200 text-red-800"
+            result.success ? "bg-green-50 border-green-200 text-green-800 dark:bg-green-950/30 dark:border-green-900/60 dark:text-green-200" : "bg-red-50 border-red-200 text-red-800 dark:bg-red-950/30 dark:border-red-900/60 dark:text-red-200"
           )}>
             {result.success ? (
               <CheckCircle className="h-4 w-4" />

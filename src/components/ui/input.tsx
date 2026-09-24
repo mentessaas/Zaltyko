@@ -42,9 +42,9 @@ const Input = React.forwardRef<HTMLInputElement, InputProps>(
           aria-describedby={error ? errorId : helpText ? helpTextId : undefined}
           aria-required={required}
           className={cn(
-            "flex h-11 min-h-[44px] w-full rounded-card border border-zaltyko-mist bg-white px-4 py-2 text-sm shadow-none transition-all duration-150",
+            "flex h-11 min-h-[44px] w-full rounded-card border border-zaltyko-mist bg-white text-zaltyko-text-main dark:border-slate-700 dark:bg-slate-900 dark:text-slate-50 px-4 py-2 text-sm shadow-none transition-all duration-150",
             "file:border-0 file:bg-transparent file:text-sm file:font-medium file:text-zaltyko-text-main",
-            "placeholder:text-zaltyko-mist",
+            "placeholder:text-zaltyko-text-secondary dark:placeholder:text-slate-400",
             "focus-visible:border-zaltyko-teal focus-visible:outline-none focus-visible:ring-4 focus-visible:ring-zaltyko-teal/15",
             "disabled:cursor-not-allowed disabled:opacity-50",
             error && "border-zaltyko-coral focus-visible:border-zaltyko-coral focus-visible:ring-zaltyko-coral/15",

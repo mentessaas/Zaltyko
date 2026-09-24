@@ -6,6 +6,7 @@ import { useRouter, useSearchParams } from "next/navigation";
 import { getRegionLabel, getRegionPlaceholder, getCityPlaceholder, COUNTRY_REGION_OPTIONS, findRegionsByCountry } from "@/lib/countryRegions";
 import { findCitiesByRegion } from "@/lib/citiesByRegion";
 import { logger } from "@/lib/logger";
+import { pluralizeFirstWord } from "@/lib/specialization/registry";
 
 const EVENT_LEVELS = [
   { value: "internal", label: "Interno" },
@@ -64,6 +65,7 @@ export function EventsFilters({ onFiltersChange }: EventsFiltersProps) {
   const [regions, setRegions] = useState<string[]>([]);
   const [cities, setCities] = useState<string[]>([]);
   const [loading, setLoading] = useState(true);
+  const regionLabelPlural = pluralizeFirstWord(getRegionLabel(country)).toLowerCase();
   
   const onFiltersChangeRef = useRef(onFiltersChange);
   useEffect(() => {
@@ -278,7 +280,7 @@ export function EventsFilters({ onFiltersChange }: EventsFiltersProps) {
             className="rounded-lg border border-border bg-card px-3 py-2.5 text-sm text-foreground disabled:opacity-50 disabled:cursor-not-allowed focus:border-zaltyko-primary focus:outline-none focus:ring-2 focus:ring-zaltyko-primary/20"
           >
             <option value="">
-              {!country ? "Selecciona un país primero" : regions.length === 0 ? `No hay ${getRegionLabel(country).toLowerCase()}s disponibles` : `Todas las ${getRegionLabel(country).toLowerCase()}s`}
+              {!country ? "Selecciona un país primero" : regions.length === 0 ? `No hay ${regionLabelPlural} disponibles` : `Todas las ${regionLabelPlural}`}
             </option>
             {regions.map((r) => (
               <option key={r} value={r}>

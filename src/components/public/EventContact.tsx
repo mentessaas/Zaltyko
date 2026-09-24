@@ -124,7 +124,7 @@ export function EventContact({ eventId, eventTitle, contactEmail }: EventContact
       <button
         type="submit"
         disabled={isSubmitting}
-        className="flex w-full items-center justify-center gap-2 rounded-lg bg-zaltyko-primary px-6 py-3 text-sm font-semibold text-white transition-all hover:bg-primary-dark disabled:opacity-50 disabled:cursor-not-allowed"
+        className="flex w-full items-center justify-center gap-2 rounded-lg bg-zaltyko-primary px-6 py-3 text-sm font-semibold text-white transition-all hover:bg-zaltyko-primary-dark disabled:opacity-50 disabled:cursor-not-allowed"
       >
         {isSubmitting ? (
           <>

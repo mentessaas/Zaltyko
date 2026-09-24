@@ -1,8 +1,7 @@
 "use client";
 
 import { useState } from "react";
-import { Calendar, Loader2, Plus } from "lucide-react";
-import { format, addDays, differenceInDays, getDay } from "date-fns";
+import { Loader2, Plus } from "lucide-react";
 
 import { Button } from "@/components/ui/button";
 import {
@@ -15,6 +14,13 @@ import {
 } from "@/components/ui/dialog";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
+import {
+  addCalendarDays,
+  addDaysToCalendarDate,
+  formatDateToISOString,
+  formatCalendarDate,
+  parseCalendarDate,
+} from "@/lib/date-utils";
 
 const WEEKDAY_LABELS: Record<number, string> = {
   0: "Domingo",
@@ -32,6 +38,7 @@ interface GenerateSessionsDialogProps {
   weekdays: number[];
   startTime: string | null;
   endTime: string | null;
+  academyCountry?: string | null;
   open: boolean;
   onClose: () => void;
   onGenerated: () => void;
@@ -43,18 +50,17 @@ export function GenerateSessionsDialog({
   weekdays,
   startTime,
   endTime,
+  academyCountry = null,
   open,
   onClose,
   onGenerated,
 }: GenerateSessionsDialogProps) {
   const [startDate, setStartDate] = useState(() => {
-    const today = new Date();
-    return format(today, "yyyy-MM-dd");
+    return formatDateToISOString(new Date(), academyCountry);
   });
   const [endDate, setEndDate] = useState(() => {
-    const today = new Date();
-    const nextMonth = addDays(today, 30);
-    return format(nextMonth, "yyyy-MM-dd");
+    const today = formatDateToISOString(new Date(), academyCountry);
+    return addDaysToCalendarDate(today, 30) ?? today;
   });
   const [isGenerating, setIsGenerating] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -67,10 +73,10 @@ export function GenerateSessionsDialog({
     }
 
     try {
-      const start = new Date(startDate);
-      const end = new Date(endDate);
+      const start = parseCalendarDate(startDate);
+      const end = parseCalendarDate(endDate);
 
-      if (isNaN(start.getTime()) || isNaN(end.getTime()) || start > end) {
+      if (!start || !end || start > end) {
         setPreview(null);
         return;
       }
@@ -78,7 +84,7 @@ export function GenerateSessionsDialog({
       let total = 0;
       for (const targetWeekday of weekdays) {
         let currentDate = new Date(start);
-        const startWeekday = getDay(currentDate);
+        const startWeekday = currentDate.getUTCDay();
         const targetDay = targetWeekday === 0 ? 7 : targetWeekday;
         const currentDay = startWeekday === 0 ? 7 : startWeekday;
         let daysToAdd = (targetDay - currentDay + 7) % 7;
@@ -87,15 +93,15 @@ export function GenerateSessionsDialog({
           daysToAdd = 7;
         }
 
-        currentDate = addDays(currentDate, daysToAdd);
+        currentDate = addCalendarDays(currentDate, daysToAdd);
 
         if (currentDate < start) {
-          currentDate = addDays(currentDate, 7);
+          currentDate = addCalendarDays(currentDate, 7);
         }
 
         while (currentDate <= end) {
           total++;
-          currentDate = addDays(currentDate, 7);
+          currentDate = addCalendarDays(currentDate, 7);
         }
       }
 
@@ -124,14 +130,14 @@ export function GenerateSessionsDialog({
     }
 
     if (weekdays.length === 0) {
-      setError("Esta clase no tiene días configurados");
+      setError("Este entrenamiento no tiene días configurados");
       return;
     }
 
-    const start = new Date(startDate);
-    const end = new Date(endDate);
+    const start = parseCalendarDate(startDate);
+    const end = parseCalendarDate(endDate);
 
-    if (isNaN(start.getTime()) || isNaN(end.getTime())) {
+    if (!start || !end) {
       setError("Fechas inválidas");
       return;
     }
@@ -141,7 +147,7 @@ export function GenerateSessionsDialog({
       return;
     }
 
-    const daysDiff = differenceInDays(end, start);
+    const daysDiff = Math.round((end.getTime() - start.getTime()) / 86_400_000);
     if (daysDiff > 365) {
       setError("El rango máximo es de 365 días (1 año)");
       return;
@@ -158,8 +164,8 @@ export function GenerateSessionsDialog({
         },
         body: JSON.stringify({
           classId,
-          startDate: start.toISOString().split("T")[0],
-          endDate: end.toISOString().split("T")[0],
+          startDate: formatCalendarDate(start),
+          endDate: formatCalendarDate(end),
         }),
       });
 
@@ -185,8 +191,8 @@ export function GenerateSessionsDialog({
           <DialogHeader>
             <DialogTitle>Generar sesiones recurrentes</DialogTitle>
             <DialogDescription>
-              Esta clase no tiene días semanales configurados. Configura al menos un día en
-              la clase antes de generar sesiones recurrentes.
+              Este entrenamiento no tiene días semanales configurados. Configura al menos un día
+              en el entrenamiento antes de generar sesiones recurrentes.
             </DialogDescription>
           </DialogHeader>
           <DialogFooter>

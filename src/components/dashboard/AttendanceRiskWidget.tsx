@@ -19,6 +19,7 @@ export function AttendanceRiskWidget({ academyId }: AttendanceRiskWidgetProps) {
   const [alerts, setAlerts] = useState<AttendanceAlert[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  const [retryCount, setRetryCount] = useState(0);
 
   useEffect(() => {
     const controller = new AbortController();
@@ -54,7 +55,7 @@ export function AttendanceRiskWidget({ academyId }: AttendanceRiskWidgetProps) {
     loadAlerts();
 
     return () => controller.abort();
-  }, [academyId]);
+  }, [academyId, retryCount]);
 
   const highestRisk = useMemo(
     () => [...alerts].sort((a, b) => a.attendanceRate - b.attendanceRate).slice(0, 3),
@@ -69,7 +70,7 @@ export function AttendanceRiskWidget({ academyId }: AttendanceRiskWidgetProps) {
           <p className="text-xs text-muted-foreground">Últimos 30 días</p>
         </div>
         {!isLoading && !error ? (
-          <span className="rounded-full bg-zaltyko-white px-2.5 py-1 text-xs font-semibold text-foreground">
+          <span className="rounded-full bg-muted px-2.5 py-1 text-xs font-semibold text-foreground">
             {alerts.length}
           </span>
         ) : null}
@@ -78,7 +79,16 @@ export function AttendanceRiskWidget({ academyId }: AttendanceRiskWidgetProps) {
       {isLoading ? (
         <p className="text-sm text-muted-foreground">Analizando asistencia…</p>
       ) : error ? (
-        <p className="text-sm text-zaltyko-coral">{error}</p>
+        <div className="space-y-3" role="alert">
+          <p className="text-sm text-zaltyko-coral">{error}</p>
+          <button
+            type="button"
+            onClick={() => setRetryCount((count) => count + 1)}
+            className="rounded-lg border border-border px-3 py-2 text-xs font-semibold text-foreground transition hover:border-zaltyko-teal/50 hover:bg-muted focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-zaltyko-teal/50"
+          >
+            Reintentar
+          </button>
+        </div>
       ) : alerts.length === 0 ? (
         <p className="text-sm text-muted-foreground">Sin atletas en riesgo detectado.</p>
       ) : (
@@ -87,7 +97,7 @@ export function AttendanceRiskWidget({ academyId }: AttendanceRiskWidgetProps) {
             <Link
               key={alert.athleteId}
               href={`/app/${academyId}/athletes/${alert.athleteId}`}
-              className="block rounded-xl border border-border px-3 py-2 transition hover:border-zaltyko-teal/50 hover:bg-zaltyko-white"
+            className="block rounded-xl border border-border px-3 py-2 transition hover:border-zaltyko-teal/50 hover:bg-muted"
             >
               <p className="truncate text-sm font-semibold text-foreground">{alert.athleteName}</p>
               <p className="text-xs text-muted-foreground">

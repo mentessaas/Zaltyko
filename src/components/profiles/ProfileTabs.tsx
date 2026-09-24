@@ -26,8 +26,8 @@ export function ProfileTabs({ user, profile, onProfileUpdated }: ProfileTabsProp
       try {
         const response = await fetch("/api/profile/preferences");
         if (response.ok) {
-          const data = await response.json();
-          setPreferences(data);
+          const payload = await response.json();
+          setPreferences(payload?.data ?? payload);
         }
       } catch (error) {
         logger.error("Error fetching preferences:", error);
@@ -113,7 +113,7 @@ export function ProfileTabs({ user, profile, onProfileUpdated }: ProfileTabsProp
                   // Recargar preferencias
                   fetch("/api/profile/preferences")
                     .then((res) => res.json())
-                    .then((data) => setPreferences(data))
+                    .then((payload) => setPreferences(payload?.data ?? payload))
                     .catch(console.error);
                 }}
               />
@@ -124,4 +124,3 @@ export function ProfileTabs({ user, profile, onProfileUpdated }: ProfileTabsProp
     </Tabs>
   );
 }
-

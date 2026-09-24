@@ -10,9 +10,10 @@ import { GenerateSessionsDialog } from "@/components/classes/GenerateSessionsDia
 import { AddAthleteToClassDialog } from "@/components/classes/AddAthleteToClassDialog";
 import { ClassExceptionsDialog } from "@/components/classes/ClassExceptionsDialog";
 import { useToast } from "@/components/ui/toast-provider";
-import { createClient } from "@/lib/supabase/client";
 import type { SportConfigOption } from "@/components/groups/types";
 import { getTerminology } from "@/lib/sport-config/terminology";
+import { pluralizeFirstWord } from "@/lib/specialization/registry";
+import { formatClassTimeRange } from "@/lib/classes/time-validation";
 
 const WEEKDAY_LABELS: Record<number, string> = {
   0: "Domingo",
@@ -34,6 +35,7 @@ interface CoachOption {
 interface ClassInfo {
   id: string;
   academyId: string;
+  academyCountry?: string | null;
   name: string;
   weekdays: number[];
   startTime: string | null;
@@ -114,10 +116,12 @@ export function ClassDetailView({
   const terms = getTerminology(selectedSportConfig);
   const classTerm = "Clase";
   const classTermLower = classTerm.toLowerCase();
+  const classTermPluralLower = pluralizeFirstWord(classTerm).toLowerCase();
   const athleteTermLower = terms.athlete.toLowerCase();
   const athleteTermPlural = terms.athletes;
   const athleteTermPluralLower = athleteTermPlural.toLowerCase();
   const groupTermLower = terms.group.toLowerCase();
+  const groupTermPluralLower = pluralizeFirstWord(terms.group).toLowerCase();
   const attendanceTermLower = terms.attendance.toLowerCase();
 
   const refresh = () => {
@@ -131,12 +135,7 @@ export function ClassDetailView({
       classInfo.weekdays.length > 0
         ? classInfo.weekdays.map((day) => WEEKDAY_LABELS[day] ?? `Día ${day}`).join(", ")
         : "Día variable";
-    const time =
-      classInfo.startTime && classInfo.endTime
-        ? `${classInfo.startTime} – ${classInfo.endTime}`
-        : classInfo.startTime
-          ? `Desde ${classInfo.startTime}`
-          : "Horario flexible";
+    const time = formatClassTimeRange(classInfo.startTime, classInfo.endTime);
     return `${dayLabel} · ${time}`;
   };
 
@@ -146,23 +145,15 @@ export function ClassDetailView({
   };
 
   const handleRemoveEnrollment = async (enrollmentId: string) => {
-    if (!window.confirm(`¿Quitar este ${athleteTermLower} de la ${classTermLower}? Esto solo elimina la inscripción extra, no afecta su ${groupTermLower} principal.`)) {
+    if (!window.confirm(`¿Quitar este ${athleteTermLower} del ${classTermLower}? Esto solo elimina la inscripción extra, no afecta su ${groupTermLower} principal.`)) {
       return;
     }
 
     setRemovingEnrollmentId(enrollmentId);
     try {
-      const supabase = createClient();
-      const {
-        data: { user: currentUser },
-      } = await supabase.auth.getUser();
-
       const headers: Record<string, string> = {
         "x-academy-id": classInfo.academyId,
       };
-
-      if (currentUser?.id) {
-      }
 
       const response = await fetch(`/api/class-enrollments/${enrollmentId}`, {
         method: "DELETE",
@@ -171,12 +162,12 @@ export function ClassDetailView({
 
       if (!response.ok) {
         const data = await response.json().catch(() => ({}));
-        throw new Error(data.error ?? `No se pudo quitar el ${athleteTermLower} de la ${classTermLower}.`);
+        throw new Error(data.error ?? `No se pudo quitar el ${athleteTermLower} del ${classTermLower}.`);
       }
 
       toast.pushToast({
         title: `${terms.athlete} quitado`,
-        description: `El ${athleteTermLower} ha sido quitado de la ${classTermLower}.`,
+        description: `El ${athleteTermLower} ha sido quitado del ${classTermLower}.`,
         variant: "success",
       });
 
@@ -184,7 +175,7 @@ export function ClassDetailView({
     } catch (err: unknown) {
       toast.pushToast({
         title: "Error",
-        description: (err instanceof Error ? err.message : "Error desconocido") ?? `Error al quitar el ${athleteTermLower} de la ${classTermLower}.`,
+        description: (err instanceof Error ? err.message : "Error desconocido") ?? `Error al quitar el ${athleteTermLower} del ${classTermLower}.`,
         variant: "error",
       });
     } finally {
@@ -195,7 +186,7 @@ export function ClassDetailView({
   const outlineButtonClass =
     "inline-flex min-h-11 items-center justify-center rounded-xl border border-zaltyko-indigo px-4 py-2 text-sm font-medium text-zaltyko-indigo transition hover:bg-zaltyko-indigo/5";
   const primaryButtonClass =
-    "inline-flex min-h-11 items-center justify-center rounded-xl bg-zaltyko-teal px-4 py-2 text-sm font-semibold text-white shadow-soft transition hover:bg-primary-dark disabled:cursor-not-allowed disabled:opacity-60";
+    "inline-flex min-h-11 items-center justify-center rounded-xl bg-zaltyko-teal px-4 py-2 text-sm font-semibold text-white shadow-soft transition hover:bg-zaltyko-primary-dark disabled:cursor-not-allowed disabled:opacity-60";
   const subtlePanelClass =
     "rounded-xl border border-border/70 bg-zaltyko-warm-white";
 
@@ -229,7 +220,7 @@ export function ClassDetailView({
             <div className="flex flex-wrap gap-2 text-xs">
               {classInfo.coaches.length === 0 ? (
                 <span className="rounded-full bg-zaltyko-mist/30 px-3 py-1 text-muted-foreground">
-                  Sin {terms.coach.toLowerCase()}s asignados
+                  Sin responsables asignados
                 </span>
               ) : (
                 classInfo.coaches.map((coach) => (
@@ -248,7 +239,7 @@ export function ClassDetailView({
               href={`/app/${classInfo.academyId}/classes`}
               className={outlineButtonClass}
             >
-              Volver a {classTermLower}s
+              Volver a {classTermPluralLower}
             </Link>
             {classInfo.weekdays.length > 0 && (
               <>
@@ -318,11 +309,7 @@ export function ClassDetailView({
                       )}
                     </td>
                     <td className="px-4 py-3">
-                      {session.startTime && session.endTime
-                        ? `${session.startTime} – ${session.endTime}`
-                        : session.startTime
-                          ? `Desde ${session.startTime}`
-                          : "Sin horario"}
+                      {formatClassTimeRange(session.startTime, session.endTime).replace("Horario flexible", "Sin horario")}
                     </td>
                     <td className="px-4 py-3">{session.coachName ?? "Sin asignar"}</td>
                     <td className="px-4 py-3 capitalize">
@@ -351,9 +338,9 @@ export function ClassDetailView({
       <section className="space-y-4 rounded-2xl border border-border bg-card p-6 shadow-soft">
         <header className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
           <div>
-            <h2 className="font-display text-xl font-semibold text-foreground">{athleteTermPlural} de esta {classTermLower}</h2>
+            <h2 className="font-display text-xl font-semibold text-foreground">{athleteTermPlural} de este {classTermLower}</h2>
             <p className="text-xs text-muted-foreground">
-              Lista de {athleteTermPluralLower} que participan en esta {classTermLower}. Incluye {athleteTermPluralLower} del {groupTermLower} base y extras añadidos manualmente.
+              Lista de {athleteTermPluralLower} que participan en este {classTermLower}. Incluye {athleteTermPluralLower} del {groupTermLower} base y extras añadidos manualmente.
             </p>
           </div>
           <button
@@ -367,7 +354,7 @@ export function ClassDetailView({
 
         {classAthletes.length === 0 ? (
           <p className="text-sm text-muted-foreground">
-            No hay {athleteTermPluralLower} asignados a esta {classTermLower}. Añade {groupTermLower}s a la {classTermLower} o {athleteTermPluralLower} extra manualmente.
+            No hay {athleteTermPluralLower} en este {classTermLower}. Añade {groupTermPluralLower} al {classTermLower} o {athleteTermPluralLower} extra manualmente.
           </p>
         ) : (
           <div className="space-y-2">
@@ -429,6 +416,7 @@ export function ClassDetailView({
         weekdays={classInfo.weekdays}
         startTime={classInfo.startTime}
         endTime={classInfo.endTime}
+        academyCountry={classInfo.academyCountry}
         open={generateSessionsOpen}
         onClose={() => setGenerateSessionsOpen(false)}
         onGenerated={refresh}

@@ -12,6 +12,7 @@ import { useAcademyContext } from "@/hooks/use-academy-context";
 import { getStarterClassPresets, getStarterGroupPresets } from "@/lib/specialization/operational-presets";
 import type { SportConfigOption } from "@/components/groups/types";
 import { getTerminologyForSportConfig } from "@/lib/sport-config/terminology";
+import { pluralizeFirstWord } from "@/lib/specialization/registry";
 
 const WEEKDAY_LABELS: Record<number, string> = {
   0: "Domingo",
@@ -150,8 +151,10 @@ export function ClassesTableView({
   const terms = getTerminologyForSportConfig(sportConfigs, sportConfigFilter || filters.sportConfigId);
   const classTerm = specialization.labels.classLabel;
   const classTermLower = classTerm.toLowerCase();
+  const classTermPluralLower = pluralizeFirstWord(classTerm).toLowerCase();
   const groupTermLower = terms.group.toLowerCase();
-  const coachTermPluralLower = `${terms.coach.toLowerCase()}s`;
+  const groupTermPluralLower = pluralizeFirstWord(terms.group).toLowerCase();
+  const coachTermPlural = pluralizeFirstWord(terms.coach);
   const isEmpty = classes.length === 0;
   const starterClassNames = new Set(
     getStarterClassPresets(specialization, getStarterGroupPresets(specialization)).map((preset) => preset.name)
@@ -167,26 +170,38 @@ export function ClassesTableView({
     <div className="space-y-6">
       <section className="flex flex-col gap-4 rounded-2xl border border-border bg-card p-5 shadow-soft lg:flex-row lg:items-center lg:justify-between">
         <form className="flex flex-1 flex-wrap items-center gap-3" onSubmit={applyFilters}>
+          <label htmlFor="classes-search" className="sr-only">
+            Buscar clases
+          </label>
           <input
+            id="classes-search"
             type="search"
             placeholder="Buscar por nombre"
             value={query}
             onChange={(event) => setQuery(event.target.value)}
             className="min-h-11 min-w-[220px] flex-1 rounded-card border border-border bg-card px-3 py-2 text-sm focus:border-zaltyko-teal focus:outline-none focus:ring-4 focus:ring-zaltyko-teal/15"
           />
+          <label htmlFor="classes-group-filter" className="sr-only">
+            Filtrar por grupo
+          </label>
           <select
+            id="classes-group-filter"
             value={groupFilter}
             onChange={(event) => setGroupFilter(event.target.value)}
             className="min-h-11 min-w-[200px] rounded-card border border-border bg-card px-3 py-2 text-sm focus:border-zaltyko-teal focus:outline-none focus:ring-4 focus:ring-zaltyko-teal/15"
           >
-            <option value="">Todos los {groupTermLower}s</option>
+            <option value="">Todos los {groupTermPluralLower}</option>
             {groupOptions.map((group) => (
               <option key={group.id} value={group.id}>
                 {group.name}
               </option>
             ))}
           </select>
+          <label htmlFor="classes-sport-config-filter" className="sr-only">
+            Filtrar por rama y disciplina
+          </label>
           <select
+            id="classes-sport-config-filter"
             value={sportConfigFilter}
             onChange={(event) => setSportConfigFilter(event.target.value)}
             className="min-h-11 min-w-[210px] rounded-card border border-border bg-card px-3 py-2 text-sm focus:border-zaltyko-teal focus:outline-none focus:ring-4 focus:ring-zaltyko-teal/15"
@@ -201,7 +216,7 @@ export function ClassesTableView({
           <button
             type="submit"
             disabled={isPending}
-            className="min-h-10 rounded-full bg-zaltyko-teal px-4 py-2 text-xs font-semibold text-white hover:bg-primary-dark disabled:opacity-60"
+            className="min-h-10 rounded-full bg-zaltyko-teal px-4 py-2 text-xs font-semibold text-white hover:bg-zaltyko-primary-dark disabled:opacity-60"
           >
             Filtrar
           </button>
@@ -211,7 +226,7 @@ export function ClassesTableView({
           <button
             type="button"
             onClick={() => setCreateOpen(true)}
-            className="inline-flex min-h-11 items-center justify-center rounded-xl bg-zaltyko-teal px-4 py-2 text-sm font-semibold text-white shadow-soft hover:bg-primary-dark"
+            className="inline-flex min-h-11 items-center justify-center rounded-xl bg-zaltyko-teal px-4 py-2 text-sm font-semibold text-white shadow-soft hover:bg-zaltyko-primary-dark"
           >
             Crear {classTermLower}
           </button>
@@ -222,16 +237,16 @@ export function ClassesTableView({
         <div className="rounded-2xl border border-border bg-card p-12 text-center shadow-soft">
           <p className="mb-4 text-sm text-muted-foreground">
             {hasActiveFilters
-              ? `No se encontraron ${classTermLower}s con esos criterios.`
-              : `Aún no has creado ninguna ${classTermLower}. Crea tu primera ${classTermLower} para organizar horarios y sesiones de entrenamiento.`}
+              ? `No se encontraron ${classTermPluralLower} con esos criterios.`
+              : `Aún no has creado ningún ${classTermLower}. Crea tu primer ${classTermLower} para organizar horarios y sesiones de entrenamiento.`}
           </p>
           {!hasActiveFilters && (
             <button
               type="button"
               onClick={() => setCreateOpen(true)}
-              className="inline-flex min-h-11 items-center justify-center rounded-xl bg-zaltyko-teal px-4 py-2 text-sm font-semibold text-white shadow-soft hover:bg-primary-dark"
+              className="inline-flex min-h-11 items-center justify-center rounded-xl bg-zaltyko-teal px-4 py-2 text-sm font-semibold text-white shadow-soft hover:bg-zaltyko-primary-dark"
             >
-              Crear primera {classTermLower}
+              Crear primer {classTermLower}
             </button>
           )}
         </div>
@@ -275,7 +290,7 @@ export function ClassesTableView({
               <div className="mt-3 flex flex-wrap gap-2 text-xs">
                 {item.coaches.length === 0 ? (
                   <span className="rounded-full bg-muted px-3 py-1 text-muted-foreground">
-                    Sin {coachTermPluralLower} asignados
+                    Sin responsables asignados
                   </span>
                 ) : (
                   item.coaches.map((coach) => (
@@ -311,19 +326,19 @@ export function ClassesTableView({
         {/* Tabla — escritorio */}
         <div className="hidden overflow-x-auto rounded-2xl border border-border bg-card shadow-soft md:block">
           <table className="min-w-full divide-y divide-border text-sm">
-            <thead className="bg-zaltyko-white">
+            <thead className="bg-muted">
               <tr className="text-left text-xs uppercase tracking-[0.05em] text-muted-foreground">
                 <th className="px-4 py-3 font-medium">Nombre</th>
                 <th className="px-4 py-3 font-medium">Horario</th>
                 <th className="px-4 py-3 font-medium text-right">Capacidad</th>
-                <th className="px-4 py-3 font-medium">{terms.coach}s</th>
+                <th className="px-4 py-3 font-medium">{coachTermPlural}</th>
                 <th className="px-4 py-3 font-medium">{terms.groups} vinculados</th>
                 <th className="px-4 py-3 font-medium text-right">Acciones</th>
               </tr>
             </thead>
             <tbody className="divide-y divide-border bg-card text-foreground">
             {classes.map((item) => (
-              <tr key={item.id} className="hover:bg-zaltyko-white/80">
+              <tr key={item.id} className="hover:bg-muted/80">
                 <td className="px-4 py-3">
                   <div className="space-y-2">
                     <div className="flex items-center gap-2">
@@ -352,7 +367,7 @@ export function ClassesTableView({
                       </p>
                     )}
                     {item.sportConfigId && (
-                      <span className="inline-flex w-fit rounded-full border border-border bg-zaltyko-white px-2.5 py-1 text-[11px] font-medium text-muted-foreground">
+                      <span className="inline-flex w-fit rounded-full border border-border bg-muted px-2.5 py-1 text-[11px] font-medium text-muted-foreground">
                         {sportConfigNameById.get(item.sportConfigId) ?? "Configuración deportiva"}
                       </span>
                     )}
@@ -388,7 +403,7 @@ export function ClassesTableView({
                   <div className="flex flex-wrap gap-2 text-xs">
                     {item.coaches.length === 0 ? (
                       <span className="rounded-full bg-muted px-3 py-1 text-muted-foreground">
-                        Sin {coachTermPluralLower} asignados
+                        Sin responsables asignados
                       </span>
                     ) : (
                       item.coaches.map((coach) => (

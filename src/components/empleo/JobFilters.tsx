@@ -6,19 +6,20 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 
 const CATEGORIES = [
-  { value: "", label: "Todas las categorias" },
+  { value: "", label: "Todas las categorías" },
   { value: "coach", label: "Entrenador" },
-  { value: "assistant", label: "Auxiliar" },
-  { value: "admin", label: "Administrativo" },
-  { value: "judge", label: "Juez/Arbitro" },
+  { value: "assistant_coach", label: "Asistente de entrenador" },
+  { value: "administrative", label: "Administrativo" },
+  { value: "physiotherapist", label: "Fisioterapia" },
+  { value: "psychologist", label: "Psicología deportiva" },
+  { value: "other", label: "Otro" },
 ];
 
 const JOB_TYPES = [
   { value: "", label: "Todos los tipos" },
   { value: "full_time", label: "Tiempo completo" },
   { value: "part_time", label: "Tiempo parcial" },
-  { value: "contract", label: "Contrato" },
-  { value: "freelance", label: "Freelance" },
+  { value: "internship", label: "Prácticas" },
 ];
 
 export function JobFilters() {
@@ -39,8 +40,9 @@ export function JobFilters() {
   return (
     <div className="space-y-4">
       <div>
-        <label className="text-sm font-medium mb-2 block">Buscar</label>
+        <label htmlFor="job-search" className="mb-2 block text-sm font-medium">Buscar</label>
         <Input
+          id="job-search"
           placeholder="Puesto, academia..."
           value={search}
           onChange={(e) => setSearch(e.target.value)}
@@ -48,9 +50,10 @@ export function JobFilters() {
         />
       </div>
       <div>
-        <label className="text-sm font-medium mb-2 block">Categoria</label>
+        <label htmlFor="job-category" className="mb-2 block text-sm font-medium">Categoría</label>
         <select
-          className="w-full border rounded-md px-3 py-2 text-sm"
+          id="job-category"
+          className="w-full rounded-md border border-input bg-background px-3 py-2 text-sm"
           value={category}
           onChange={(e) => setCategory(e.target.value)}
         >
@@ -60,9 +63,10 @@ export function JobFilters() {
         </select>
       </div>
       <div>
-        <label className="text-sm font-medium mb-2 block">Tipo</label>
+        <label htmlFor="job-type" className="mb-2 block text-sm font-medium">Tipo de jornada</label>
         <select
-          className="w-full border rounded-md px-3 py-2 text-sm"
+          id="job-type"
+          className="w-full rounded-md border border-input bg-background px-3 py-2 text-sm"
           value={jobType}
           onChange={(e) => setJobType(e.target.value)}
         >
@@ -71,7 +75,7 @@ export function JobFilters() {
           ))}
         </select>
       </div>
-      <Button onClick={applyFilters} className="w-full">
+      <Button type="button" onClick={applyFilters} className="w-full">
         Filtrar
       </Button>
     </div>

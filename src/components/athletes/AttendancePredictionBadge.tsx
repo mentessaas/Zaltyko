@@ -17,6 +17,8 @@ interface PredictionData {
   probability: number;
   date: string;
   confidence: number;
+  insufficientData?: boolean;
+  dataPoints?: number;
 }
 
 export function AttendancePredictionBadge({
@@ -32,6 +34,7 @@ export function AttendancePredictionBadge({
     const fetchPrediction = async () => {
       if (!athleteId || !academyId) return;
 
+      setPrediction(null);
       setLoading(true);
       try {
         const res = await fetch(
@@ -39,7 +42,8 @@ export function AttendancePredictionBadge({
         );
 
         if (res.ok) {
-          const data = await res.json();
+          const payload = await res.json();
+          const data = payload?.data ?? payload;
           setPrediction(data);
         }
       } catch (error) {
@@ -79,7 +83,14 @@ export function AttendancePredictionBadge({
     );
   }
 
-  if (!prediction || prediction.probability < 0.3) {
+  // No mostramos una predicción que el modelo no puede respaldar todavía.
+  // Evita convertir la falta de históricos en una falsa señal de riesgo.
+  if (
+    !prediction ||
+    prediction.insufficientData ||
+    prediction.confidence < 0.6 ||
+    prediction.probability < 0.3
+  ) {
     return null;
   }
 

@@ -16,6 +16,7 @@ import { Button } from "@/components/ui/button";
 import { type ProfileRow } from "@/lib/authz";
 import { calculateAge } from "@/lib/date-utils";
 import type { SpecializedLabels } from "@/lib/specialization/registry";
+import { pluralizeFirstWord } from "@/lib/specialization/registry";
 
 interface AthleteProfileProps {
   user: User | null;
@@ -44,6 +45,8 @@ export function AthleteProfile({ user, profile, athleteData, labels, targetProfi
   const athleteLabel = labels?.athleteSingular ?? "Atleta";
   const classLabel = labels?.classLabel ?? "Clase";
   const sessionLabel = labels?.sessionLabel ?? "Sesión";
+  const classLabelPlural = pluralizeFirstWord(classLabel);
+  const sessionLabelPlural = pluralizeFirstWord(sessionLabel);
   const levelLabel = labels?.levelLabel ?? "Nivel";
 
   return (
@@ -54,17 +57,17 @@ export function AthleteProfile({ user, profile, athleteData, labels, targetProfi
             <div className="flex items-center gap-3">
               <Shield className="h-5 w-5 text-amber-600" strokeWidth={2} />
               <div>
-                <p className="font-semibold text-amber-900">
+                <p className="font-semibold text-amber-900 dark:text-amber-200">
                   Modo Super Admin: Viendo perfil de {athleteData.name ?? "Usuario"}
                 </p>
-                <p className="text-sm text-amber-700">
+                <p className="text-sm text-amber-700 dark:text-amber-300">
                   Estás viendo el perfil de este usuario. Los cambios que hagas afectarán a su cuenta.
                 </p>
               </div>
             </div>
             <Link
               href={`/super-admin/users/${targetProfileId}`}
-              className="inline-flex items-center gap-2 rounded-md border border-amber-600/40 bg-card px-3 py-2 text-sm font-semibold text-amber-900 transition hover:bg-amber-50"
+              className="inline-flex items-center gap-2 rounded-md border border-amber-600/40 bg-card px-3 py-2 text-sm font-semibold text-amber-900 transition hover:bg-amber-50 dark:text-amber-200 dark:hover:bg-amber-950/40"
             >
               <ArrowLeft className="h-4 w-4" strokeWidth={2} />
               Volver a Super Admin
@@ -96,12 +99,12 @@ export function AthleteProfile({ user, profile, athleteData, labels, targetProfi
           <CardHeader className="p-4">
             <CardTitle className="flex items-center gap-2 text-base">
               <Calendar className="h-4 w-4" />
-              {classLabel}s
+              {classLabelPlural}
             </CardTitle>
           </CardHeader>
           <CardContent className="p-4 pt-0">
             <p className="text-2xl font-bold">{athleteData.classesCount}</p>
-            <p className="text-xs text-muted-foreground">{classLabel}s inscritas</p>
+            <p className="text-xs text-muted-foreground">{classLabelPlural} inscritas</p>
           </CardContent>
           <CardHeader className="p-4 pt-0">
             <Button variant="outline" size="sm" className="w-full" asChild>
@@ -114,12 +117,12 @@ export function AthleteProfile({ user, profile, athleteData, labels, targetProfi
           <CardHeader className="p-4">
             <CardTitle className="flex items-center gap-2 text-base">
               <Calendar className="h-4 w-4" />
-              Próximas {sessionLabel.toLowerCase()}es
+              Próximas {sessionLabelPlural.toLowerCase()}
             </CardTitle>
           </CardHeader>
           <CardContent className="p-4 pt-0">
             <p className="text-2xl font-bold">{athleteData.upcomingSessionsCount}</p>
-            <p className="text-xs text-muted-foreground">{sessionLabel}es programadas</p>
+            <p className="text-xs text-muted-foreground">{sessionLabelPlural} programadas</p>
           </CardContent>
           <CardHeader className="p-4 pt-0">
             <Button variant="outline" size="sm" className="w-full" asChild>

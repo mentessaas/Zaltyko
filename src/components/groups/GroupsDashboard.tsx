@@ -77,6 +77,26 @@ export function GroupsDashboard({
     () => summarizeStarterGroupSetup(specialization, groups),
     [groups, specialization]
   );
+  const guidedSetupAction = useMemo(() => {
+    if (starterSetup.missingCoachCount > 0 && coaches.length === 0) {
+      return {
+        href: `/app/${academyId}/coaches`,
+        label: `Agregar ${pluralizeFirstWord(specialization.labels.coachLabel).toLowerCase()}`,
+      };
+    }
+
+    if (starterSetup.emptyGroupCount > 0 && athletes.length === 0) {
+      return {
+        href: `/app/${academyId}/athletes`,
+        label: `Añadir ${specialization.labels.athletesPlural.toLowerCase()}`,
+      };
+    }
+
+    return {
+      href: "#groups-list",
+      label: `Revisar ${pluralizeFirstWord(specialization.labels.groupLabel).toLowerCase()}`,
+    };
+  }, [academyId, athletes.length, coaches.length, specialization, starterSetup.emptyGroupCount, starterSetup.missingCoachCount]);
   const selectedSportConfig = useMemo(
     () => sportConfigs.find((config) => config.id === sportConfigFilter) ?? null,
     [sportConfigFilter, sportConfigs]
@@ -131,7 +151,8 @@ export function GroupsDashboard({
         return;
       }
 
-      const data = await response.json();
+      const payload = await response.json();
+      const data = payload?.data ?? payload;
       if (Array.isArray(data.athleteIds)) {
         setCurrentAthleteIds(data.athleteIds);
       } else {
@@ -257,7 +278,7 @@ export function GroupsDashboard({
         <section className="space-y-4 rounded-lg border border-primary/20 bg-primary/5 p-4">
           <div className="space-y-1">
             <p className="text-sm font-semibold text-foreground">
-              Ya tienes {starterSetup.starterGroupCount} {starterSetup.starterGroupCount === 1 ? specialization.labels.groupLabel.toLowerCase() : pluralizeFirstWord(specialization.labels.groupLabel).toLowerCase()} creadas desde la plantilla inicial
+              La plantilla inicial ya incluye {starterSetup.starterGroupCount} {starterSetup.starterGroupCount === 1 ? specialization.labels.groupLabel.toLowerCase() : pluralizeFirstWord(specialization.labels.groupLabel).toLowerCase()}.
             </p>
             <p className="text-sm text-muted-foreground">
               Termina de asignar responsables, niveles y {specialization.labels.athletesPlural.toLowerCase()} para que la estructura base quede lista para operar.
@@ -280,7 +301,7 @@ export function GroupsDashboard({
               </p>
               <p className="mt-1 text-2xl font-bold text-foreground">{starterSetup.missingCoachCount}</p>
               <p className="mt-1 text-xs text-muted-foreground">
-                {pluralizeFirstWord(specialization.labels.groupLabel)} sin responsable principal
+                {pluralizeFirstWord(specialization.labels.groupLabel).toLowerCase()} sin responsable principal
               </p>
             </div>
             <div className="rounded-md border bg-background/80 p-3">
@@ -315,8 +336,8 @@ export function GroupsDashboard({
                   </p>
                 </div>
                 <Button variant="outline" asChild>
-                  <Link href={`/app/${academyId}/classes`}>
-                    Revisar {pluralizeFirstWord(specialization.labels.classLabel).toLowerCase()}
+                  <Link href={guidedSetupAction.href}>
+                    {guidedSetupAction.label}
                     <ChevronRight className="ml-2 h-4 w-4" />
                   </Link>
                 </Button>
@@ -431,7 +452,7 @@ export function GroupsDashboard({
                 setSelectedPreset(null);
                 setCreateOpen(true);
               }}
-              className="inline-flex min-h-11 items-center justify-center rounded-xl bg-zaltyko-teal px-4 py-2 text-sm font-semibold text-white shadow-soft transition hover:bg-primary-dark"
+              className="inline-flex min-h-11 items-center justify-center rounded-xl bg-zaltyko-teal px-4 py-2 text-sm font-semibold text-white shadow-soft transition hover:bg-zaltyko-primary-dark"
             >
               Nuevo grupo
             </button>
@@ -462,13 +483,13 @@ export function GroupsDashboard({
               setSelectedPreset(null);
               setCreateOpen(true);
             }}
-            className="inline-flex min-h-11 items-center justify-center rounded-xl bg-zaltyko-teal px-4 py-2 text-sm font-semibold text-white shadow-soft transition hover:bg-primary-dark"
+            className="inline-flex min-h-11 items-center justify-center rounded-xl bg-zaltyko-teal px-4 py-2 text-sm font-semibold text-white shadow-soft transition hover:bg-zaltyko-primary-dark"
           >
             Crear primer grupo
           </button>
         </div>
       ) : (
-        <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-3">
+        <div id="groups-list" className="grid gap-4 md:grid-cols-2 xl:grid-cols-3">
           {groups.map((group) => (
             <GroupCard
               key={group.id}

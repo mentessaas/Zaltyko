@@ -2,6 +2,7 @@ import { Badge } from "@/components/ui/badge";
 import { Card, CardContent } from "@/components/ui/card";
 import { Users } from "lucide-react";
 import { cn } from "@/lib/utils";
+import { formatMinorCurrency, getCurrencyForCountry } from "@/lib/currency";
 
 interface EventCategory {
   id: string;
@@ -18,6 +19,7 @@ interface EventCategory {
 
 interface EventCategoriesListProps {
   categories: EventCategory[];
+  countryName?: string | null;
   className?: string;
 }
 
@@ -34,9 +36,9 @@ function formatAgeRange(minAge?: number | null, maxAge?: number | null): string 
   return "";
 }
 
-function formatPrice(cents: number | null | undefined): string {
+function formatPrice(cents: number | null | undefined, countryName?: string | null): string {
   if (!cents) return "Gratis";
-  return `${(cents / 100).toFixed(2)} €`;
+  return formatMinorCurrency(cents, getCurrencyForCountry(countryName));
 }
 
 function getGenderLabel(gender?: string | null): string {
@@ -63,7 +65,7 @@ function getLevelLabels(levels?: string[] | null): string[] {
   return levels.map((l) => labels[l] || l);
 }
 
-export function EventCategoriesList({ categories, className }: EventCategoriesListProps) {
+export function EventCategoriesList({ categories, countryName, className }: EventCategoriesListProps) {
   if (categories.length === 0) {
     return null;
   }
@@ -113,7 +115,7 @@ export function EventCategoriesList({ categories, className }: EventCategoriesLi
                 <div className="text-right shrink-0">
                   {category.registrationFee !== null && (
                     <span className="font-semibold text-sm text-zaltyko-primary">
-                      {formatPrice(category.registrationFee)}
+                      {formatPrice(category.registrationFee, countryName)}
                     </span>
                   )}
                   {category.maxCapacity !== null && (

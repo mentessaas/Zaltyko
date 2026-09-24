@@ -1,6 +1,6 @@
 "use client";
 
-import { athleteStatusOptions } from "@/lib/athletes/constants";
+import { athleteStatusOptions, getAthleteStatusLabel } from "@/lib/athletes/constants";
 import { CATEGORY_OPTIONS, LEVEL_OPTIONS } from "@/types/athlete-edit";
 import type { CategoryOption, LevelOption } from "@/types/athlete-edit";
 import type { SportConfigOption } from "@/components/groups/types";
@@ -144,7 +144,7 @@ export function AthleteLevelForm({
           >
             {athleteStatusOptions.map((option) => (
               <option key={option} value={option}>
-                {option}
+                {getAthleteStatusLabel(option)}
               </option>
             ))}
           </select>

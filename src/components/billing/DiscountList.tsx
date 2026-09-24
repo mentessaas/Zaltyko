@@ -2,9 +2,6 @@
 
 import { useState } from "react";
 import { Edit, Trash2, Copy, CheckCircle, XCircle } from "lucide-react";
-import { format } from "date-fns";
-import { es } from "date-fns/locale";
-
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import {
@@ -22,6 +19,9 @@ import {
   TableHeader,
   TableRow,
 } from "@/components/ui/table";
+import { useAcademyContext } from "@/hooks/use-academy-context";
+import { formatCurrency, getCurrencyForCountry } from "@/lib/currency";
+import { formatDateForCountry } from "@/lib/date-utils";
 
 export interface Discount {
   id: string;
@@ -53,6 +53,8 @@ export function DiscountList({
   onDelete,
   onToggleActive,
 }: DiscountListProps) {
+  const { academyCountry } = useAcademyContext();
+  const currency = getCurrencyForCountry(academyCountry);
   const [viewMode, setViewMode] = useState<"grid" | "list">("grid");
 
   const copyCode = (code: string) => {
@@ -131,7 +133,7 @@ export function DiscountList({
                     <span className="font-medium">
                       {discount.discountType === "percentage"
                         ? `${discount.discountValue}%`
-                        : `${discount.discountValue} EUR`}
+                        : formatCurrency(discount.discountValue, currency)}
                     </span>
                   </div>
                   <div className="flex justify-between">
@@ -154,15 +156,9 @@ export function DiscountList({
                   <div className="flex justify-between">
                     <span className="text-muted-foreground">Vigencia:</span>
                     <span className="text-xs">
-                      {format(new Date(discount.startDate), "dd/MM/yyyy", {
-                        locale: es,
-                      })}
+                      {formatDateForCountry(discount.startDate, academyCountry, "dd/MM/yyyy")}
                       {discount.endDate
-                        ? ` - ${format(
-                            new Date(discount.endDate),
-                            "dd/MM/yyyy",
-                            { locale: es }
-                          )}`
+                        ? ` - ${formatDateForCountry(discount.endDate, academyCountry, "dd/MM/yyyy")}`
                         : " - Sin límite"}
                     </span>
                   </div>
@@ -246,20 +242,16 @@ export function DiscountList({
                   <TableCell>
                     {discount.discountType === "percentage"
                       ? `${discount.discountValue}%`
-                      : `${discount.discountValue} EUR`}
+                        : formatCurrency(discount.discountValue, currency)}
                   </TableCell>
                   <TableCell>
                     {discount.currentUses}
                     {discount.maxUses && ` / ${discount.maxUses}`}
                   </TableCell>
                   <TableCell className="text-sm">
-                    {format(new Date(discount.startDate), "dd/MM/yyyy", {
-                      locale: es,
-                    })}
+                    {formatDateForCountry(discount.startDate, academyCountry, "dd/MM/yyyy")}
                     {discount.endDate
-                      ? ` - ${format(new Date(discount.endDate), "dd/MM/yyyy", {
-                          locale: es,
-                        })}`
+                      ? ` - ${formatDateForCountry(discount.endDate, academyCountry, "dd/MM/yyyy")}`
                       : " - Sin límite"}
                   </TableCell>
                   <TableCell>

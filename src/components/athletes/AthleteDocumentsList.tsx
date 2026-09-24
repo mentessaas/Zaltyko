@@ -58,7 +58,7 @@ export function AthleteDocumentsList({
   const getStatusBadge = (doc: AthleteDocumentWithUrl) => {
     if (doc.isVerified) {
       return (
-        <Badge className="bg-green-100 text-green-800 border-green-200">
+        <Badge className="bg-green-100 text-green-800 border-green-200 dark:bg-green-950/40 dark:text-green-300 dark:border-green-900/60">
           <CheckCircle2 className="h-3 w-3 mr-1" />
           Verificado
         </Badge>
@@ -72,7 +72,7 @@ export function AthleteDocumentsList({
 
       if (expiry < new Date()) {
         return (
-          <Badge className="bg-red-100 text-red-800 border-red-200">
+          <Badge className="bg-red-100 text-red-800 border-red-200 dark:bg-red-950/40 dark:text-red-300 dark:border-red-900/60">
             <AlertTriangle className="h-3 w-3 mr-1" />
             Expirado
           </Badge>
@@ -81,7 +81,7 @@ export function AthleteDocumentsList({
 
       if (expiry <= thirtyDaysFromNow) {
         return (
-          <Badge className="bg-yellow-100 text-yellow-800 border-yellow-200">
+          <Badge className="bg-yellow-100 text-yellow-800 border-yellow-200 dark:bg-yellow-950/40 dark:text-yellow-300 dark:border-yellow-900/60">
             <Clock className="h-3 w-3 mr-1" />
             Por expirar
           </Badge>
@@ -111,8 +111,14 @@ export function AthleteDocumentsList({
   };
 
   const handleDownload = (doc: AthleteDocumentWithUrl) => {
-    // In a real implementation, this would open the file URL
-    window.open(doc.fileUrl, "_blank");
+    // Never let a persisted/legacy URL execute a non-web protocol.
+    try {
+      const url = new URL(doc.fileUrl, window.location.origin);
+      if (url.protocol !== "https:" && url.protocol !== "http:") return;
+      window.open(url.toString(), "_blank", "noopener,noreferrer");
+    } catch {
+      // Invalid legacy links are shown in the list but cannot be opened.
+    }
   };
 
   if (documents.length === 0) {
@@ -164,19 +170,25 @@ export function AthleteDocumentsList({
             {/* Actions */}
             <div className="flex items-center gap-1">
               <Button
+                type="button"
                 variant="ghost"
                 size="icon"
                 className="h-8 w-8"
                 onClick={() => handleDownload(doc)}
+                aria-label={`Descargar ${DOCUMENT_TYPE_LABELS[doc.documentType as DocumentType] ?? "documento"}`}
+                title="Descargar documento"
               >
                 <Download className="h-4 w-4" />
               </Button>
               {onDelete && (
                 <Button
+                  type="button"
                   variant="ghost"
                   size="icon"
                   className="h-8 w-8 text-red-600 hover:text-red-700 hover:bg-red-50"
                   onClick={() => handleDeleteClick(doc.id)}
+                  aria-label="Eliminar documento"
+                  title="Eliminar documento"
                 >
                   <Trash2 className="h-4 w-4" />
                 </Button>

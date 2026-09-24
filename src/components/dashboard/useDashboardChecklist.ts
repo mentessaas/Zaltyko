@@ -15,6 +15,14 @@ interface ChecklistItem {
   status: "pending" | "completed" | "skipped";
 }
 
+interface ChecklistResponse {
+  ok?: boolean;
+  data?: {
+    items?: ChecklistItem[];
+    summary?: ChecklistProgress;
+  };
+}
+
 export function useDashboardChecklist(academyId: string) {
   const [progress, setProgress] = useState<ChecklistProgress | null>(null);
   const [items, setItems] = useState<ChecklistItem[]>([]);
@@ -26,12 +34,12 @@ export function useDashboardChecklist(academyId: string) {
           cache: "no-store",
         });
         if (response.ok) {
-          const json = await response.json();
-          if (json.summary) {
-            setProgress(json.summary);
+          const json = (await response.json()) as ChecklistResponse;
+          if (json.data?.summary) {
+            setProgress(json.data.summary);
           }
-          if (json.items) {
-            setItems(json.items);
+          if (json.data?.items) {
+            setItems(json.data.items);
           }
         }
       } catch (error) {

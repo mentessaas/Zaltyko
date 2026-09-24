@@ -15,6 +15,7 @@ import {
 import { Button } from "@/components/ui/button";
 import { type ProfileRow } from "@/lib/authz";
 import type { SpecializedLabels } from "@/lib/specialization/registry";
+import { pluralizeFirstWord } from "@/lib/specialization/registry";
 
 interface ChildAthlete {
   id: string;
@@ -46,6 +47,8 @@ export function ParentProfile({ user, profile, children, labels, targetProfileId
   const athletePlural = labels?.athletesPlural ?? "Atletas";
   const classLabel = labels?.classLabel ?? "Clase";
   const sessionLabel = labels?.sessionLabel ?? "Sesión";
+  const classLabelPlural = pluralizeFirstWord(classLabel);
+  const sessionLabelPlural = pluralizeFirstWord(sessionLabel);
 
   return (
     <div className="space-y-8">
@@ -55,17 +58,17 @@ export function ParentProfile({ user, profile, children, labels, targetProfileId
             <div className="flex items-center gap-3">
               <Shield className="h-5 w-5 text-amber-600" strokeWidth={2} />
               <div>
-                <p className="font-semibold text-amber-900">
+                <p className="font-semibold text-amber-900 dark:text-amber-200">
                   Modo Super Admin: Viendo perfil de {profile?.name ?? "Usuario"}
                 </p>
-                <p className="text-sm text-amber-700">
+                <p className="text-sm text-amber-700 dark:text-amber-300">
                   Estás viendo el perfil de este usuario. Los cambios que hagas afectarán a su cuenta.
                 </p>
               </div>
             </div>
             <Link
               href={`/super-admin/users/${targetProfileId}`}
-              className="inline-flex items-center gap-2 rounded-md border border-amber-600/40 bg-card px-3 py-2 text-sm font-semibold text-amber-900 transition hover:bg-amber-50"
+              className="inline-flex items-center gap-2 rounded-md border border-amber-600/40 bg-card px-3 py-2 text-sm font-semibold text-amber-900 transition hover:bg-amber-50 dark:text-amber-200 dark:hover:bg-amber-950/40"
             >
               <ArrowLeft className="h-4 w-4" strokeWidth={2} />
               Volver a Super Admin
@@ -100,16 +103,16 @@ export function ParentProfile({ user, profile, children, labels, targetProfileId
               <CardTitle className="text-3xl font-semibold">{totalClasses}</CardTitle>
             </CardHeader>
             <CardContent className="p-4 pt-0 text-sm text-muted-foreground">
-              Suma de {classLabel.toLowerCase()}s asociadas a tus hijos según sus grupos y asignaciones actuales.
+              Suma de {classLabelPlural.toLowerCase()} asociados a tus hijos según sus grupos y asignaciones actuales.
             </CardContent>
           </Card>
           <Card>
             <CardHeader className="p-4 pb-2">
-              <CardDescription>Proximas sesiones</CardDescription>
+              <CardDescription>Próximas sesiones</CardDescription>
               <CardTitle className="text-3xl font-semibold">{totalUpcomingSessions}</CardTitle>
             </CardHeader>
             <CardContent className="p-4 pt-0 text-sm text-muted-foreground">
-              {sessionLabel}es programadas para los próximos 30 días dentro de su agenda deportiva.
+              {sessionLabelPlural} programadas para los próximos 30 días dentro de su agenda deportiva.
             </CardContent>
           </Card>
         </div>
@@ -161,7 +164,7 @@ export function ParentProfile({ user, profile, children, labels, targetProfileId
                         <dd className="font-medium">{child.classesCount}</dd>
                       </div>
                       <div className="flex justify-between">
-                        <dt className="text-muted-foreground">Proximas sesiones</dt>
+                        <dt className="text-muted-foreground">Próximas sesiones</dt>
                         <dd className="font-medium">{child.upcomingSessionsCount}</dd>
                       </div>
                     </dl>
@@ -170,6 +173,11 @@ export function ParentProfile({ user, profile, children, labels, targetProfileId
                     <Button variant="outline" size="sm" className="w-full" asChild>
                       <Link href={`/dashboard/calendar?athleteId=${child.id}`}>
                         Ver calendario
+                      </Link>
+                    </Button>
+                    <Button variant="default" size="sm" className="mt-2 w-full" asChild>
+                      <Link href={`/app/${child.academyId}/athletes/${child.id}/progress`}>
+                        Ver progreso técnico
                       </Link>
                     </Button>
                   </CardHeader>

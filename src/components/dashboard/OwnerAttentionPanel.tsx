@@ -7,8 +7,8 @@
  * de `fetch` client-side contra la propia API sin cookies (ZAL-588) y
  * mantiene la paridad de payload con Mobile.
  *
- * Si una fuente cayó (`sourceAvailable: false`), la sección se renderiza
- * con el placeholder "Fuente no disponible" — nunca con un cero inventado.
+ * Las fuentes no disponibles no se convierten en ceros ni en CTAs muertos:
+ * el panel oculta temporalmente ese bloque y conserva el resto de la vista.
  */
 
 import { AttentionBlock } from "./AttentionBlock";
@@ -24,19 +24,39 @@ export interface OwnerAttentionPanelProps {
   profileName: string | null;
 }
 
-function formatHour(iso: string): string {
+function formatHour(iso: string, academyTimezone?: string): string {
   const d = new Date(iso);
   if (Number.isNaN(d.getTime())) return iso;
-  return d.toLocaleTimeString("es-ES", { hour: "2-digit", minute: "2-digit" });
+  return d.toLocaleTimeString("es-ES", {
+    hour: "2-digit",
+    minute: "2-digit",
+    timeZone: academyTimezone,
+  });
 }
 
-function TodaySessionList({ sessions }: { sessions: TodaySessionAttention[] }) {
+function TodaySessionList({
+  sessions,
+  academyId,
+  academyTimezone,
+}: {
+  sessions: TodaySessionAttention[];
+  academyId: string;
+  academyTimezone?: string;
+}) {
   if (sessions.length === 0) {
     return (
-      <p className="text-sm text-muted-foreground dark:text-muted-foreground" data-testid="today-empty">
-        No hay clases programadas para hoy. Si esperas alguna, revisa la
-        planificación de la semana.
-      </p>
+      <div className="flex flex-col items-start gap-3 sm:flex-row sm:items-center sm:justify-between" data-testid="today-empty">
+        <p className="text-sm text-muted-foreground dark:text-muted-foreground">
+          No hay clases para hoy. Revisa la planificación para confirmar el
+          calendario o programar la próxima sesión.
+        </p>
+        <a
+          href={`/app/${academyId}/classes`}
+          className="inline-flex shrink-0 items-center rounded-lg border border-border px-3 py-2 text-sm font-medium text-foreground transition hover:border-zaltyko-teal/50 hover:text-zaltyko-teal focus:outline-none focus-visible:ring-2 focus-visible:ring-zaltyko-teal"
+        >
+          Abrir planificación
+        </a>
+      </div>
     );
   }
   return (
@@ -54,7 +74,7 @@ function TodaySessionList({ sessions }: { sessions: TodaySessionAttention[] }) {
               {session.className ?? "Clase sin nombre"}
             </p>
             <p className="text-xs text-muted-foreground dark:text-muted-foreground">
-              {formatHour(session.startsAt)}
+              {formatHour(session.startsAt, academyTimezone)}
               {session.groupName ? ` · ${session.groupName}` : ""}
             </p>
           </div>
@@ -129,7 +149,7 @@ export function OwnerAttentionPanel({
           Clases de hoy
         </h2>
         <div className="rounded-2xl border border-border bg-card p-4 dark:border-slate-700 dark:bg-slate-900">
-          <TodaySessionList sessions={bundle.today} />
+          <TodaySessionList sessions={bundle.today} academyId={bundle.academyId} academyTimezone={bundle.academyTimezone} />
         </div>
       </section>
 
@@ -190,17 +210,40 @@ export function OwnerAttentionPanel({
             ctaLabel="Revisar cargos pendientes"
             tone={hasOverdueAction ? "primary" : "secondary"}
           />
-          <AttentionBlock
-            id="progress-drafts"
-            title="Evaluaciones en borrador"
-            value={bundle.progressDrafts.sourceAvailable ? bundle.progressDrafts.count : null}
-            subtitle="Pendientes de publicar para que las familias las vean"
-            href={bundle.progressDrafts.href}
-            sourceAvailable={bundle.progressDrafts.sourceAvailable}
-            source={bundle.progressDrafts.source}
-            ctaLabel="Publicar evaluaciones pendientes"
-            tone={bundle.progressDrafts.count > 0 ? "primary" : "secondary"}
-          />
+          {bundle.importActive ? (
+            <AttentionBlock
+              id="import-active"
+              title={bundle.importActive.state === "failed" ? "Importación con errores" : "Importación en curso"}
+              value={
+                bundle.importActive.state === "failed"
+                  ? bundle.importActive.skippedCount ?? 0
+                  : bundle.importActive.totalRows ?? 0
+              }
+              subtitle={
+                bundle.importActive.state === "failed"
+                  ? `${bundle.importActive.skippedCount ?? 0} filas requieren revisión`
+                  : `${bundle.importActive.totalRows ?? 0} filas en proceso`
+              }
+              href={bundle.importActive.href}
+              sourceAvailable
+              source={bundle.importActive.source}
+              ctaLabel={bundle.importActive.state === "failed" ? "Revisar importación con errores" : "Ver importación en curso"}
+              tone={bundle.importActive.state === "failed" ? "primary" : "secondary"}
+            />
+          ) : null}
+          {bundle.progressDrafts.sourceAvailable ? (
+            <AttentionBlock
+              id="progress-drafts"
+              title="Evaluaciones en borrador"
+              value={bundle.progressDrafts.count}
+              subtitle="Pendientes de publicar para que las familias las vean"
+              href={bundle.progressDrafts.href}
+              sourceAvailable
+              source={bundle.progressDrafts.source}
+              ctaLabel="Publicar evaluaciones pendientes"
+              tone={bundle.progressDrafts.count > 0 ? "primary" : "secondary"}
+            />
+          ) : null}
         </div>
       </section>
 
@@ -263,15 +306,15 @@ export function OwnerAttentionPanel({
             className="text-sm text-muted-foreground dark:text-muted-foreground"
             data-testid="charges-source-unavailable"
           >
-            Fuente no disponible. Reintenta o contacta con soporte.
+            No pudimos actualizar este indicador. Reintenta o contacta con soporte.
           </p>
         )}
       </section>
 
       <p className="text-xs text-muted-foreground dark:text-muted-foreground">
-        Este panel se alimenta de las fuentes declaradas en cada bloque y se
-        actualiza al recargar la página. Las cifras no son engagement ni
-        adopción: son tareas operativas concretas.
+        Este panel se actualiza al recargar la página y resume tareas
+        operativas concretas de tu academia; no es una métrica de engagement
+        ni de adopción.
       </p>
     </main>
   );

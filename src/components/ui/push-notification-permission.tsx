@@ -4,6 +4,7 @@ import { useState, useEffect, useCallback } from "react";
 import { Bell, BellOff, Check, X, Loader2 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { logger } from "@/lib/logger";
+import { useToast } from "@/components/ui/toast-provider";
 import {
   Card,
   CardContent,
@@ -19,15 +20,11 @@ interface PushNotificationPermissionProps {
   className?: string;
 }
 
-// Simple toast helper (replace with your actual toast implementation)
-function showToast(_title: string, _description?: string, _variant?: "default" | "destructive") {
-  // Toast implementation placeholder - replace with actual toast
-}
-
 export function PushNotificationPermission({
   onPermissionChange,
   className,
 }: PushNotificationPermissionProps) {
+  const toast = useToast();
   const [permissionStatus, setPermissionStatus] = useState<PermissionStatus>("default");
   const [isLoading, setIsLoading] = useState(false);
   const [subscription, setSubscription] = useState<PushSubscription | null>(null);
@@ -52,20 +49,12 @@ export function PushNotificationPermission({
 
   const requestPermission = useCallback(async () => {
     if (typeof window === "undefined" || !("Notification" in window)) {
-      showToast(
-        "Notificaciones no soportadas",
-        "Tu navegador no soporta notificaciones push",
-        "destructive"
-      );
+      toast.pushToast({ title: "Notificaciones no soportadas", description: "Tu navegador no soporta notificaciones push", variant: "error" });
       return;
     }
 
     if (!("serviceWorker" in navigator)) {
-      showToast(
-        "Service Worker no disponible",
-        "Tu navegador no soporta Service Workers",
-        "destructive"
-      );
+      toast.pushToast({ title: "Service Worker no disponible", description: "Tu navegador no soporta Service Workers", variant: "error" });
       return;
     }
 
@@ -77,48 +66,42 @@ export function PushNotificationPermission({
       setPermissionStatus(permission as PermissionStatus);
 
       if (permission === "granted") {
+        const vapidPublicKey = process.env.NEXT_PUBLIC_VAPID_PUBLIC_KEY;
+        if (!vapidPublicKey) {
+          throw new Error("PUSH_NOT_CONFIGURED");
+        }
         // Subscribe to push notifications
         const registration = await navigator.serviceWorker.ready;
         const pushSubscription = await registration.pushManager.subscribe({
           userVisibleOnly: true,
-          applicationServerKey: urlBase64ToUint8Array(
-            process.env.NEXT_PUBLIC_VAPID_PUBLIC_KEY || ""
-          ) as any,
+          applicationServerKey: urlBase64ToUint8Array(vapidPublicKey) as any,
         });
 
         // Send subscription to server
-        await fetch("/api/push/subscribe", {
+        const subscribeResponse = await fetch("/api/push/subscribe", {
           method: "POST",
           headers: { "Content-Type": "application/json" },
           body: JSON.stringify(pushSubscription),
         });
+        if (!subscribeResponse.ok) {
+          throw new Error("PUSH_SUBSCRIBE_FAILED");
+        }
 
         setSubscription(pushSubscription as PushSubscription);
         onPermissionChange?.(true);
 
-        showToast(
-          "Notificaciones activadas",
-          "Recibirás notificaciones de Zaltyko"
-        );
+        toast.pushToast({ title: "Notificaciones activadas", description: "Recibirás notificaciones de Zaltyko", variant: "success" });
       } else {
         onPermissionChange?.(false);
-        showToast(
-          "Notificaciones bloqueadas",
-          "Bloquea las notificaciones en la configuración del navegador",
-          "destructive"
-        );
+        toast.pushToast({ title: "Notificaciones bloqueadas", description: "Bloquea las notificaciones en la configuración del navegador", variant: "error" });
       }
     } catch (error) {
       logger.error("Error requesting notification permission:", error);
-      showToast(
-        "Error",
-        "No se pudieron activar las notificaciones",
-        "destructive"
-      );
+      toast.pushToast({ title: "No se pudieron activar las notificaciones", description: error instanceof Error && error.message === "PUSH_NOT_CONFIGURED" ? "El servicio aún no está configurado para esta academia." : "Inténtalo de nuevo en unos segundos.", variant: "error" });
     } finally {
       setIsLoading(false);
     }
-  }, [onPermissionChange]);
+  }, [onPermissionChange, toast]);
 
   const unsubscribe = useCallback(async () => {
     if (!subscription) return;
@@ -129,31 +112,27 @@ export function PushNotificationPermission({
       await subscription.unsubscribe();
 
       // Notify server
-      await fetch("/api/push/unsubscribe", {
+      const unsubscribeResponse = await fetch("/api/push/unsubscribe", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ endpoint: subscription.endpoint }),
       });
+      if (!unsubscribeResponse.ok) {
+        throw new Error("PUSH_UNSUBSCRIBE_FAILED");
+      }
 
       setSubscription(null);
       setPermissionStatus("default");
       onPermissionChange?.(false);
 
-      showToast(
-        "Notificaciones desactivadas",
-        "Ya no recibirás notificaciones push"
-      );
+      toast.pushToast({ title: "Notificaciones desactivadas", description: "Ya no recibirás notificaciones push", variant: "success" });
     } catch (error) {
       logger.error("Error unsubscribing:", error);
-      showToast(
-        "Error",
-        "No se pudieron desactivar las notificaciones",
-        "destructive"
-      );
+      toast.pushToast({ title: "No se pudieron desactivar las notificaciones", description: "Inténtalo de nuevo en unos segundos.", variant: "error" });
     } finally {
       setIsLoading(false);
     }
-  }, [subscription, onPermissionChange]);
+  }, [subscription, onPermissionChange, toast]);
 
   // Check if notifications are supported
   const isSupported =
@@ -229,9 +208,7 @@ export function PushNotificationPermission({
               navegador.
             </p>
             <Button
-              onClick={() => {
-                Notification.requestPermission();
-              }}
+              onClick={requestPermission}
               variant="outline"
               className="w-full"
               size="sm"

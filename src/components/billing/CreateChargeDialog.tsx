@@ -4,6 +4,8 @@ import { FormEvent, useEffect, useState } from "react";
 import { Modal } from "@/components/ui/modal";
 import { Button } from "@/components/ui/button";
 import { getTerminologyForSportConfig } from "@/lib/sport-config/terminology";
+import { formatCurrency, getCurrencyForCountry, isBizumAvailableInCountry } from "@/lib/currency";
+import { useAcademyContext } from "@/hooks/use-academy-context";
 
 interface BillingItem {
   id: string;
@@ -42,6 +44,8 @@ export function CreateChargeDialog({
   onCreated,
   athleteId: preselectedAthleteId,
 }: CreateChargeDialogProps) {
+  const { academyCountry } = useAcademyContext();
+  const currency = getCurrencyForCountry(academyCountry);
   const [athleteId, setAthleteId] = useState(preselectedAthleteId || "");
   const [billingItemId, setBillingItemId] = useState("");
   const [label, setLabel] = useState("");
@@ -75,7 +79,10 @@ export function CreateChargeDialog({
     // Load billing items
     fetch(`/api/billing-items?academyId=${academyId}&isActive=true`)
       .then((res) => res.json())
-      .then((data) => setBillingItems(data.items || []))
+      .then((payload) => {
+        const data = payload?.data ?? payload;
+        setBillingItems(data?.items || []);
+      })
       .catch(console.error);
 
     // Load athletes
@@ -86,7 +93,10 @@ export function CreateChargeDialog({
     });
     fetch(`/api/athletes?${athleteParams}`)
       .then((res) => res.json())
-      .then((data) => setAthletes(data.items || []))
+      .then((payload) => {
+        const data = payload?.data ?? payload;
+        setAthletes(Array.isArray(data) ? data : data?.items || []);
+      })
       .catch(console.error);
   }, [open, academyId, preselectedAthleteId, sportConfigId]);
 
@@ -157,7 +167,7 @@ export function CreateChargeDialog({
           billingItemId: billingItemId || undefined,
           label: finalLabel,
           amountCents,
-          currency: "EUR",
+          currency: billingItems.find((item) => item.id === billingItemId)?.currency?.toUpperCase() ?? currency,
           period,
           dueDate: dueDate || undefined,
           notes: notes || undefined,
@@ -231,7 +241,7 @@ export function CreateChargeDialog({
             <option value="">Otro / Sin concepto</option>
             {billingItems.map((item) => (
               <option key={item.id} value={item.id}>
-                {item.name} ({item.amountCents / 100}€)
+                {item.name} ({formatCurrency(item.amountCents / 100, item.currency || currency)})
               </option>
             ))}
           </select>
@@ -253,7 +263,7 @@ export function CreateChargeDialog({
         </div>
 
         <div>
-          <label className="block text-sm font-medium mb-1">Importe (€) *</label>
+          <label className="block text-sm font-medium mb-1">Importe ({currency}) *</label>
           <input
             type="number"
             step="0.01"
@@ -297,7 +307,7 @@ export function CreateChargeDialog({
             <option value="">Sin especificar</option>
             <option value="cash">Efectivo</option>
             <option value="transfer">Transferencia</option>
-            <option value="bizum">Bizum</option>
+            {isBizumAvailableInCountry(academyCountry) && <option value="bizum">Bizum</option>}
             <option value="card_manual">Tarjeta</option>
             <option value="other">Otro</option>
           </select>

@@ -2,9 +2,7 @@
 
 import { useState, useCallback } from "react";
 import Link from "next/link";
-import { useRouter } from "next/navigation";
 
-import { Button } from "@/components/ui/button";
 import { GuardiansSection } from "./GuardiansSection";
 import type { GuardianSummary, GuardianFormData } from "@/types/athlete-edit";
 
@@ -23,9 +21,8 @@ export function GuardiansPage({
   academyName,
   guardians: initialGuardians,
 }: GuardiansPageProps) {
-  const router = useRouter();
   const [guardians, setGuardians] = useState<GuardianSummary[]>(initialGuardians);
-  const [guardiansLoading, setGuardiansLoading] = useState(false);
+  const guardiansLoading = false;
   const [guardianError, setGuardianError] = useState<string | null>(null);
   const [guardianForm, setGuardianForm] = useState<GuardianFormData>({
     name: "",
@@ -82,8 +79,9 @@ export function GuardiansPage({
           `/api/guardians?athleteId=${athleteId}&academyId=${academyId}`
         );
         if (refreshResponse.ok) {
-          const data = await refreshResponse.json();
-          setGuardians(data.items || []);
+          const payload = await refreshResponse.json();
+          const data = payload?.data ?? payload;
+          setGuardians(Array.isArray(data) ? data : data?.items || []);
         }
 
         setGuardianForm({
@@ -129,7 +127,9 @@ export function GuardiansPage({
         const guardian = guardians.find((g) => g.linkId === editingGuardianId);
         if (!guardian) throw new Error("Guardian not found");
 
-        const response = await fetch(`/api/guardians/${guardian.guardianId}`, {
+        const response = await fetch(
+          `/api/guardians/${guardian.guardianId}?athleteId=${encodeURIComponent(athleteId)}`,
+          {
           method: "PUT",
           headers: { "Content-Type": "application/json" },
           body: JSON.stringify({
@@ -140,7 +140,8 @@ export function GuardiansPage({
             notifyEmail: editingGuardianForm.notifyEmail,
             notifySms: editingGuardianForm.notifySms,
           }),
-        });
+          }
+        );
 
         if (!response.ok) {
           const error = await response.json();
@@ -152,8 +153,9 @@ export function GuardiansPage({
           `/api/guardians?athleteId=${athleteId}&academyId=${academyId}`
         );
         if (refreshResponse.ok) {
-          const data = await refreshResponse.json();
-          setGuardians(data.items || []);
+          const payload = await refreshResponse.json();
+          const data = payload?.data ?? payload;
+          setGuardians(Array.isArray(data) ? data : data?.items || []);
         }
 
         setEditingGuardianId(null);
@@ -195,8 +197,9 @@ export function GuardiansPage({
           `/api/guardians?athleteId=${athleteId}&academyId=${academyId}`
         );
         if (refreshResponse.ok) {
-          const data = await refreshResponse.json();
-          setGuardians(data.items || []);
+          const payload = await refreshResponse.json();
+          const data = payload?.data ?? payload;
+          setGuardians(Array.isArray(data) ? data : data?.items || []);
         }
       } catch (error) {
         setGuardianError(error instanceof Error ? error.message : "Error desconocido");

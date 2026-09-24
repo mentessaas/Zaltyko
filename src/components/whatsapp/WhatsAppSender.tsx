@@ -66,13 +66,15 @@ export function WhatsAppSender({ academyId, defaultRecipient, onMessageSent }: W
         ]);
 
         if (templatesRes.ok) {
-          const templatesData = await templatesRes.json();
-          setTemplates(templatesData.items || []);
+          const templatesPayload = await templatesRes.json();
+          const templatesData = templatesPayload?.data ?? templatesPayload;
+          setTemplates(templatesData?.items || []);
         }
 
         if (groupsRes.ok) {
-          const groupsData = await groupsRes.json();
-          setGroups(groupsData.items || []);
+          const groupsPayload = await groupsRes.json();
+          const groupsData = groupsPayload?.data ?? groupsPayload;
+          setGroups(groupsData?.items || []);
         }
       } catch (error) {
         logger.error("Error loading data:", error);
@@ -125,21 +127,27 @@ export function WhatsAppSender({ academyId, defaultRecipient, onMessageSent }: W
 
     setIsSending(true);
     try {
-      // Primero, registrar en historial
-      await fetch("/api/communication/history", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          templateId: selectedTemplate,
-          groupId: selectedGroup,
-          channel: "whatsapp",
-          body: getProcessedMessage(),
-          recipients: selectedGroup
-            ? { type: "group", ids: [selectedGroup], count: 1 }
-            : { type: "individual", ids: [recipient], count: 1 },
-          status: "pending",
-        }),
-      });
+      let historyId: string | undefined;
+      // Group sends create one history row per resolved family contact in the
+      // send endpoint. Only pre-create history for a direct phone send, and
+      // pass its id so it cannot remain stuck in "pending".
+      if (!selectedGroup) {
+        const historyResponse = await fetch("/api/communication/history", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            academyId,
+            templateId: selectedTemplate,
+            channel: "whatsapp",
+            body: getProcessedMessage(),
+            recipients: { type: "individual", ids: [recipient], count: 1 },
+            status: "pending",
+          }),
+        });
+        const historyPayload = await historyResponse.json().catch(() => ({}));
+        if (!historyResponse.ok) throw new Error(historyPayload.message || "No se pudo registrar el envío");
+        historyId = historyPayload?.data?.id ?? historyPayload?.id;
+      }
 
       // Luego, enviar via WhatsApp
       const response = await fetch("/api/whatsapp/send", {
@@ -149,12 +157,15 @@ export function WhatsAppSender({ academyId, defaultRecipient, onMessageSent }: W
           phone: recipient,
           message: getProcessedMessage(),
           academyId,
+          ...(selectedGroup ? { recipientType: "group", recipientIds: [selectedGroup] } : {}),
+          ...(historyId ? { historyId } : {}),
         }),
       });
 
-      const data = await response.json();
+      const payload = await response.json();
+      const data = payload?.data ?? payload;
 
-      if (response.ok && data.success) {
+      if (response.ok && (data?.success === true || payload?.ok === true)) {
         // Incrementar uso del template
         if (selectedTemplate) {
           await fetch(`/api/communication/templates/${selectedTemplate}/use`, { method: "PUT" });

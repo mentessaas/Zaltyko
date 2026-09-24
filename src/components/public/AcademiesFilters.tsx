@@ -6,6 +6,7 @@ import { useRouter, useSearchParams } from "next/navigation";
 import { getRegionLabel, getRegionPlaceholder, getCityPlaceholder, COUNTRY_REGION_OPTIONS, findRegionsByCountry } from "@/lib/countryRegions";
 import { findCitiesByRegion } from "@/lib/citiesByRegion";
 import { logger } from "@/lib/logger";
+import { pluralizeFirstWord } from "@/lib/specialization/registry";
 
 const ACADEMY_TYPES = [
   { value: "artistica", label: "Gimnasia Artística" },
@@ -42,6 +43,7 @@ export function AcademiesFilters({ onFiltersChange }: AcademiesFiltersProps) {
   const [regions, setRegions] = useState<string[]>([]);
   const [cities, setCities] = useState<string[]>([]);
   const [loading, setLoading] = useState(true);
+  const regionLabelPlural = pluralizeFirstWord(getRegionLabel(country)).toLowerCase();
   
   // Usar useRef para mantener una referencia estable a onFiltersChange
   const onFiltersChangeRef = useRef(onFiltersChange);
@@ -317,7 +319,7 @@ export function AcademiesFilters({ onFiltersChange }: AcademiesFiltersProps) {
             title={getRegionLabel(country)}
           >
             <option value="">
-              {!country ? "Selecciona un país primero" : regions.length === 0 ? `No hay ${getRegionLabel(country).toLowerCase()}s disponibles` : `Todas las ${getRegionLabel(country).toLowerCase()}s`}
+              {!country ? "Selecciona un país primero" : regions.length === 0 ? `No hay ${regionLabelPlural} disponibles` : `Todas las ${regionLabelPlural}`}
             </option>
             {regions.length > 0 ? (
               regions.map((r) => (

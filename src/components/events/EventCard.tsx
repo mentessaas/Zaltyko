@@ -7,6 +7,7 @@ import { EventDateDisplay } from "./EventDateDisplay";
 import { EventCountdown } from "./EventCountdown";
 import { Users, MapPin, Ticket } from "lucide-react";
 import { cn } from "@/lib/utils";
+import { formatMinorCurrency, getCurrencyForCountry } from "@/lib/currency";
 
 type EventStatus = "draft" | "published" | "cancelled" | "completed";
 type EventLevel = "internal" | "local" | "national" | "international";
@@ -53,9 +54,9 @@ const disciplineLabels: Record<string, string> = {
   rhythmic: "Rítmica",
 };
 
-function formatPrice(cents: number | null | undefined): string {
+function formatPrice(cents: number | null | undefined, country?: string | null): string {
   if (!cents) return "Gratis";
-  return `${(cents / 100).toFixed(2)} €`;
+  return formatMinorCurrency(cents, getCurrencyForCountry(country));
 }
 
 export function EventCard({
@@ -149,7 +150,9 @@ export function EventCard({
           {event.registrationFee !== undefined && (
             <div className="flex items-center gap-1.5">
               <Ticket className="h-3.5 w-3.5 text-muted-foreground" />
-              <span className="text-sm font-medium text-foreground">{formatPrice(event.registrationFee)}</span>
+              <span className="text-sm font-medium text-foreground">
+                {formatPrice(event.registrationFee, event.countryName)}
+              </span>
             </div>
           )}
         </div>

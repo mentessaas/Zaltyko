@@ -7,6 +7,7 @@ import { Badge } from "@/components/ui/badge";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { getTerminology } from "@/lib/sport-config/terminology";
+import { pluralizeFirstWord } from "@/lib/specialization/registry";
 
 interface SportDashboardItem {
   id: string;
@@ -73,6 +74,7 @@ export function SportConfigurationDashboard({ academyId }: SportConfigurationDas
     );
   }, [data]);
   const fallbackTerms = useMemo(() => getTerminology(data?.items[0] ?? null), [data]);
+  const fallbackCoachPlural = pluralizeFirstWord(fallbackTerms.coach);
 
   if (isLoading) {
     return (
@@ -117,7 +119,7 @@ export function SportConfigurationDashboard({ academyId }: SportConfigurationDas
               <div>
                 <p className="font-medium">Datos legacy pendientes de clasificar</p>
                 <p className="mt-1 text-muted-foreground">
-                  {fallbackTerms.athletes}: {data.gaps.athletesWithoutSportConfig} · {fallbackTerms.groups}: {data.gaps.groupsWithoutSportConfig} · Clases: {data.gaps.classesWithoutSportConfig} · {fallbackTerms.coach}s sin scope: {data.gaps.coachesWithoutSportScope}
+                  {fallbackTerms.athletes}: {data.gaps.athletesWithoutSportConfig} · {fallbackTerms.groups}: {data.gaps.groupsWithoutSportConfig} · Clases: {data.gaps.classesWithoutSportConfig} · {fallbackCoachPlural} sin scope: {data.gaps.coachesWithoutSportScope}
                 </p>
               </div>
             </div>
@@ -169,6 +171,8 @@ function SportDashboardBranchCard({
   item: SportDashboardItem;
 }) {
   const terms = getTerminology(item);
+  const apparatusLabelPlural = pluralizeFirstWord(terms.apparatus);
+  const coachLabelPlural = pluralizeFirstWord(terms.coach);
 
   return (
     <div className="rounded-xl border border-border bg-zaltyko-warm-white p-4">
@@ -179,7 +183,7 @@ function SportDashboardBranchCard({
                     {item.disciplineName} · {item.countryName}
                   </p>
                 </div>
-                <Badge variant="outline">{item.apparatusCount} {terms.apparatus.toLowerCase()}s</Badge>
+                <Badge variant="outline">{item.apparatusCount} {apparatusLabelPlural.toLowerCase()}</Badge>
               </div>
 
               <div className="mt-4 grid grid-cols-3 gap-2 text-center">
@@ -189,7 +193,7 @@ function SportDashboardBranchCard({
               </div>
 
               <div className="mt-3 grid grid-cols-3 gap-2 text-center">
-                <Metric label={`${terms.coach}s`} value={item.coachCount} icon={<Users className="h-4 w-4" />} />
+                <Metric label={coachLabelPlural} value={item.coachCount} icon={<Users className="h-4 w-4" />} />
                 <Metric label={terms.license} value={item.licenseCount} icon={<Shield className="h-4 w-4" />} />
                 <Metric label="Mensajes" value={item.messageCount} icon={<MessageSquare className="h-4 w-4" />} />
               </div>
@@ -205,7 +209,7 @@ function SportDashboardBranchCard({
                   <a href={`/app/${academyId}/classes?sportConfigId=${item.id}`}>Clases</a>
                 </Button>
                 <Button asChild size="sm" variant="outline">
-                  <a href={`/app/${academyId}/coaches?sportConfigId=${item.id}`}>{terms.coach}s</a>
+                  <a href={`/app/${academyId}/coaches?sportConfigId=${item.id}`}>{coachLabelPlural}</a>
                 </Button>
                 <Button asChild size="sm" variant="outline">
                   <a href={`/app/${academyId}/reports?sportConfigId=${item.id}`}>Reportes</a>

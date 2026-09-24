@@ -3,6 +3,7 @@
 import type { SportConfigOption } from "@/components/groups/types";
 import { WEEKDAY_OPTIONS } from "@/lib/classes/constants";
 import type { CoachOption, GroupOption } from "./edit-class-dialog-model";
+import { pluralizeFirstWord } from "@/lib/specialization/registry";
 
 const fieldClassName =
   "w-full rounded-card border border-border bg-card px-3 py-2 text-sm shadow-none focus:border-zaltyko-teal focus:outline-none focus:ring-4 focus:ring-zaltyko-teal/15";
@@ -59,7 +60,7 @@ export function EditClassFooter({
         <button
           type="submit"
           form="edit-class-form"
-          className="min-h-11 rounded-xl bg-zaltyko-teal px-4 py-2 text-sm font-semibold text-white shadow-soft transition hover:bg-primary-dark disabled:cursor-not-allowed disabled:opacity-60"
+          className="min-h-11 rounded-xl bg-zaltyko-teal px-4 py-2 text-sm font-semibold text-white shadow-soft transition hover:bg-zaltyko-primary-dark disabled:cursor-not-allowed disabled:opacity-60"
           disabled={isPending}
           title={!hasChanges ? "No hay cambios detectados. Haz clic para guardar de todas formas." : undefined}
         >
@@ -81,7 +82,7 @@ export function ClassNameSection({
 }) {
   return (
     <div className="space-y-2">
-      <label className={labelClassName}>Nombre de la {classTermLower}</label>
+      <label className={labelClassName}>Nombre del {classTermLower}</label>
       <input value={name} onChange={(event) => onNameChange(event.target.value)} className={fieldClassName} required />
     </div>
   );
@@ -110,6 +111,8 @@ export function ClassScheduleSection({
   onStartTimeChange: (value: string) => void;
   onToggleWeekday: (value: string) => void;
 }) {
+  const classLabelPlural = pluralizeFirstWord(classTermLower);
+
   return (
     <>
       <div className="grid gap-4 md:grid-cols-[minmax(0,1.4fr)_minmax(0,1fr)]">
@@ -142,7 +145,7 @@ export function ClassScheduleSection({
             })}
           </div>
           <p className="text-xs text-muted-foreground">
-            Selecciona uno o varios días. Déjalo vacío para {classTermLower}s flexibles.
+            Selecciona uno o varios días. Déjalo vacío para {classLabelPlural} flexibles.
           </p>
         </div>
         <div className="space-y-2">
@@ -224,9 +227,12 @@ export function ClassSportSection({
   onApparatusToggle: (value: string) => void;
   onSportConfigChange: (value: string, availableGroups: GroupOption[]) => void;
 }) {
+  const apparatusLabelPlural = pluralizeFirstWord(apparatusLabel);
+  const groupLabelPlural = pluralizeFirstWord(groupTermLower);
+
   return (
     <div className="space-y-2">
-      <label className={labelClassName}>{apparatusLabel}s / material principal</label>
+      <label className={labelClassName}>{apparatusLabelPlural} / material principal</label>
       {sportConfigs.length > 0 && (
         <div className="mb-3 max-w-md">
           <select
@@ -246,7 +252,7 @@ export function ClassSportSection({
       )}
       {groupSportConfigIds.length > 1 && (
         <p className="text-xs text-zaltyko-coral">
-          Hay {groupTermLower}s de distintas ramas. Selecciona una modalidad/rama explícita antes de guardar.
+          Hay {groupLabelPlural.toLowerCase()} de distintas ramas. Selecciona una modalidad/rama explícita antes de guardar.
         </p>
       )}
       <div className="flex flex-wrap gap-2">
@@ -295,13 +301,16 @@ export function ClassAssignmentsSection({
   onToggleCoach: (coachId: string) => void;
   onToggleGroup: (groupId: string) => void;
 }) {
+  const coachLabelPlural = pluralizeFirstWord(terms.coach);
+  const groupLabelPlural = pluralizeFirstWord(groupTermLower);
+
   return (
     <div className="grid gap-4 md:grid-cols-2">
       <section className="space-y-3 rounded-2xl border border-dashed border-border p-4">
         <header>
-          <h3 className="text-sm font-semibold text-foreground">{terms.coach}s asignados</h3>
+          <h3 className="text-sm font-semibold text-foreground">{coachLabelPlural}</h3>
           <p className="text-xs text-muted-foreground">
-            Selecciona quiénes tienen acceso directo a esta {classTermLower}.
+            Selecciona quiénes tienen acceso directo a este {classTermLower}.
           </p>
         </header>
 
@@ -325,16 +334,16 @@ export function ClassAssignmentsSection({
 
       <section className="space-y-3 rounded-2xl border border-dashed border-border p-4">
         <header>
-          <h3 className="text-sm font-semibold text-foreground">{terms.groups} asignados</h3>
+          <h3 className="text-sm font-semibold text-foreground">{terms.groups}</h3>
           <p className="text-xs text-muted-foreground">
-            Selecciona los {groupTermLower}s que participan en esta {classTermLower}.
+            Selecciona los {groupLabelPlural.toLowerCase()} que participan en este {classTermLower}.
           </p>
         </header>
 
         <div className="grid gap-2">
           {!hasGroups ? (
             <p className="text-sm text-muted-foreground">
-              No hay {groupTermLower}s registrados en la academia.
+              No hay {groupLabelPlural.toLowerCase()} disponibles en la academia.
             </p>
           ) : (
             compatibleGroups.map((group) => (
@@ -422,7 +431,7 @@ export function ClassAdvancedOptionsSection({
             onChange={(event) => onCancellationHoursBeforeChange(Number(event.target.value))}
             className={fieldClassName}
           />
-          <p className="text-xs text-muted-foreground">Horas antes de la {classTermLower}</p>
+          <p className="text-xs text-muted-foreground">Horas antes del {classTermLower}</p>
         </div>
       </div>
     </div>

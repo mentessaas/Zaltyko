@@ -148,7 +148,9 @@ export function VideoUploader({
           throw new Error(errorData.message || "Error uploading video");
         }
 
-        const data = await response.json();
+        const payload = await response.json();
+        const data = payload?.data ?? payload;
+        if (!data?.url || !data?.id) throw new Error("El servidor no devolvió el vídeo procesado");
         url = data.url;
         serverId = data.id as string;
       } else {

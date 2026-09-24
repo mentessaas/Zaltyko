@@ -74,8 +74,9 @@ export function AthleteAccountSection({ academyId, athleteId }: AthleteAccountSe
       const res = await fetch(`/api/charges?academyId=${academyId}&athleteId=${athleteId}&limit=200`);
       if (!res.ok) throw new Error("Error al cargar cargos");
 
-      const data = await res.json();
-      const allCharges = data.items || [];
+      const payload = await res.json();
+      const data = payload?.data ?? payload;
+      const allCharges = data?.items || [];
       
       // Show last 5 for the table
       setCharges(allCharges.slice(0, 5));
@@ -216,4 +217,3 @@ export function AthleteAccountSection({ academyId, athleteId }: AthleteAccountSe
     </div>
   );
 }
-

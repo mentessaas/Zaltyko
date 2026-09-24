@@ -122,7 +122,7 @@ export function EditAthleteDialog({
             className="text-sm font-semibold text-red-600 hover:underline"
             disabled={isPending || isDeleting}
           >
-            Eliminar {terms.athlete.toLowerCase()}
+            Archivar {terms.athlete.toLowerCase()}
           </button>
           <div className="flex gap-2">
             <button
@@ -221,10 +221,10 @@ export function EditAthleteDialog({
       <ConfirmDialog
         open={deleteDialogOpen}
         onOpenChange={setDeleteDialogOpen}
-        title={`Eliminar ${terms.athlete.toLowerCase()}`}
-        description={`¿Estás seguro de eliminar a "${athlete.name}"? Esta acción no se puede deshacer y eliminará todos los datos asociados al ${terms.athlete.toLowerCase()}.`}
+        title={`Archivar ${terms.athlete.toLowerCase()}`}
+        description={`¿Quieres archivar a "${athlete.name}"? Dejará de aparecer entre los ${terms.athletes.toLowerCase()} activos, pero conservaremos su historial de asistencia, evaluaciones y cobros.`}
         variant="destructive"
-        confirmText="Eliminar"
+        confirmText="Archivar"
         onConfirm={handleDelete}
         onCancel={() => setDeleteDialogOpen(false)}
         loading={isDeleting}

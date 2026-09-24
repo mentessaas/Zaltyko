@@ -17,6 +17,8 @@ import {
   DialogHeader,
   DialogTitle,
 } from "@/components/ui/dialog";
+import { useAcademyContext } from "@/hooks/use-academy-context";
+import { getCurrencyForCountry } from "@/lib/currency";
 
 interface DiscountFormData {
   code: string;
@@ -80,6 +82,8 @@ export function DiscountForm({
   discount,
   isLoading = false,
 }: DiscountFormProps) {
+  const { academyCountry } = useAcademyContext();
+  const currency = getCurrencyForCountry(academyCountry);
   const [formData, setFormData] = useState<DiscountFormData>(defaultFormData);
   const [errors, setErrors] = useState<Record<string, string>>({});
 
@@ -235,12 +239,12 @@ export function DiscountForm({
                   className="flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm"
                 >
                   <option value="percentage">Porcentaje (%)</option>
-                  <option value="fixed">Cantidad Fija (EUR)</option>
+                  <option value="fixed">Cantidad Fija ({currency})</option>
                 </select>
               </div>
               <div className="space-y-2">
                 <Label htmlFor="discount-value">
-                  Valor {formData.discountType === "percentage" ? "(%)" : "(EUR)"} *
+                  Valor {formData.discountType === "percentage" ? "(%)" : `(${currency})`} *
                 </Label>
                 <Input
                   id="discount-value"
@@ -279,7 +283,7 @@ export function DiscountForm({
 
             <div className="grid gap-4 md:grid-cols-2">
               <div className="space-y-2">
-                <Label htmlFor="minAmount">Monto Mínimo (EUR)</Label>
+                <Label htmlFor="minAmount">Monto Mínimo ({currency})</Label>
                 <Input
                   id="minAmount"
                   type="number"
@@ -294,7 +298,7 @@ export function DiscountForm({
               </div>
               <div className="space-y-2">
                 <Label htmlFor="maxDiscount">
-                  Descuento Máximo (EUR)
+                  Descuento Máximo ({currency})
                   {formData.discountType === "percentage" && " (para %)"}
                 </Label>
                 <Input

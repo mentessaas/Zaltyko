@@ -50,7 +50,8 @@ export function AthleteClassesSection({ athleteId, academyId }: AthleteClassesSe
           throw new Error(`No se pudieron cargar las clases del ${athleteSingular}.`);
         }
 
-        const data = await response.json();
+        const payload = await response.json();
+        const data = payload?.data ?? payload;
         setClasses(data.items || []);
       } catch (err) {
         setError((err as Error).message ?? "Error al cargar las clases.");
@@ -143,4 +144,3 @@ export function AthleteClassesSection({ athleteId, academyId }: AthleteClassesSe
     </div>
   );
 }
-

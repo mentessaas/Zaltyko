@@ -52,9 +52,9 @@ export function ContactMessagesList({ academyId, initialMessages }: ContactMessa
       });
 
       const response = await fetch(`/api/contact-messages?${params}`);
-      const data = await response.json();
-
-      if (data.items) {
+      const payload = await response.json();
+      const data = payload?.data ?? payload;
+      if (data?.items) {
         setMessages(data.items);
       }
     } catch (error) {
@@ -374,4 +374,3 @@ export function ContactMessagesList({ academyId, initialMessages }: ContactMessa
     </div>
   );
 }
-

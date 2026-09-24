@@ -10,13 +10,16 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Label } from "@/components/ui/label";
 import { useToast } from "@/components/ui/toast-provider";
 import { paymentMethodEnum } from "@/db/schema/enums";
+import { formatDateToISOString } from "@/lib/date-utils";
+import { useAcademyContext } from "@/hooks/use-academy-context";
+import { isBizumAvailableInCountry } from "@/lib/currency";
 
 interface ChargeItem {
   id: string;
   label: string;
   amountCents: number;
   currency: string;
-  status: "pending" | "paid" | "overdue" | "cancelled" | "partial" | "failed" | "refunded";
+  status: "pending" | "paid" | "overdue" | "cancelled" | "partial" | "failed" | "requires_action" | "refunded";
 }
 
 interface RegisterPaymentDialogProps {
@@ -59,23 +62,22 @@ export function RegisterPaymentDialog({
   onClose,
   onRegistered,
 }: RegisterPaymentDialogProps) {
+  const { academyCountry } = useAcademyContext();
   const toast = useToast();
   const [isPending, startTransition] = useTransition();
   const [paymentDate, setPaymentDate] = useState<string>(() => {
-    const today = new Date();
-    return `${today.getFullYear()}-${String(today.getMonth() + 1).padStart(2, "0")}-${String(today.getDate()).padStart(2, "0")}`;
+    return formatDateToISOString(new Date(), academyCountry);
   });
   const [paymentMethod, setPaymentMethod] = useState<PaymentMethod | null>(null);
   const [error, setError] = useState<string | null>(null);
 
   useEffect(() => {
     if (open) {
-      const today = new Date();
-      setPaymentDate(`${today.getFullYear()}-${String(today.getMonth() + 1).padStart(2, "0")}-${String(today.getDate()).padStart(2, "0")}`);
+      setPaymentDate(formatDateToISOString(new Date(), academyCountry));
       setPaymentMethod(null);
       setError(null);
     }
-  }, [open]);
+  }, [open, academyCountry]);
 
   const handleSubmit = async (event: FormEvent) => {
     event.preventDefault();
@@ -171,7 +173,7 @@ export function RegisterPaymentDialog({
             value={paymentDate}
             onChange={(e) => setPaymentDate(e.target.value)}
             disabled={isPending}
-            max={new Date().toISOString().split("T")[0]}
+            max={formatDateToISOString(new Date(), academyCountry)}
           />
         </div>
 
@@ -190,7 +192,7 @@ export function RegisterPaymentDialog({
             <SelectContent>
               <SelectItem value="">Sin especificar</SelectItem>
               {paymentMethodEnum.enumValues
-                .filter((method): method is Exclude<PaymentMethod, "card"> => method !== "card")
+                .filter((method): method is Exclude<PaymentMethod, "card"> => method !== "card" && (method !== "bizum" || isBizumAvailableInCountry(academyCountry) || paymentMethod === "bizum"))
                 .map((method) => (
                   <SelectItem key={method} value={method}>
                     {PAYMENT_METHOD_LABELS[method]}
@@ -203,4 +205,3 @@ export function RegisterPaymentDialog({
     </Modal>
   );
 }
-

@@ -72,7 +72,7 @@ export function MobileAcademyNav() {
             onClick={() => setIsVisible(true)}
             aria-label="Mostrar navegación inferior"
             aria-expanded="false"
-            className="pointer-events-auto inline-flex items-center gap-1 rounded-full border border-border bg-white/95 px-3 py-1.5 text-xs font-semibold text-muted-foreground shadow-soft backdrop-blur transition-colors hover:bg-muted focus:outline-none focus-visible:ring-2 focus-visible:ring-zaltyko-teal"
+            className="pointer-events-auto inline-flex items-center gap-1 rounded-full border border-border bg-card/95 px-3 py-1.5 text-xs font-semibold text-muted-foreground shadow-soft backdrop-blur transition-colors hover:bg-muted focus:outline-none focus-visible:ring-2 focus-visible:ring-zaltyko-teal"
           >
             <ChevronUp className="h-4 w-4" />
             Menú
@@ -87,7 +87,7 @@ export function MobileAcademyNav() {
       )}
       aria-hidden={!isVisible}
     >
-      <div className="border-t border-border/70 bg-white/95 shadow-soft backdrop-blur">
+      <div className="border-t border-border/70 bg-card/95 shadow-soft backdrop-blur">
         <div className="safe-area-bottom grid h-[72px] grid-cols-5 items-center gap-1 px-2">
           {primaryItems.map((item) => {
             const Icon = item.icon;
@@ -96,12 +96,13 @@ export function MobileAcademyNav() {
             return (
               <button
                 key={item.key}
+                type="button"
                 onClick={() => router.push(item.href)}
                 className={cn(
                   "flex h-14 min-h-[44px] min-w-0 flex-col items-center justify-center rounded-xl border border-transparent transition-colors",
                   active
                     ? "border-zaltyko-teal/20 bg-zaltyko-teal/12 text-zaltyko-teal"
-                    : "text-muted-foreground hover:bg-zaltyko-white hover:text-foreground"
+                    : "text-muted-foreground hover:bg-muted hover:text-foreground"
                 )}
                 aria-label={item.label}
                 aria-current={active ? "page" : undefined}

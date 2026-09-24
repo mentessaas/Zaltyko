@@ -98,11 +98,16 @@ export function MessagesPage({
     try {
       const res = await fetch(`/api/messages/conversations/${conversationId}`);
       const data = await res.json();
-      if (data.ok) {
-        setSelectedConversation(data.data.conversation);
-        setMessages(data.data.messages);
-        setError(null);
+      if (!res.ok || !data.ok) {
+        throw new Error(data?.message ?? data?.error?.message ?? data?.error ?? "No se pudo cargar la conversación.");
       }
+      const result = data?.data ?? data;
+      if (!result?.conversation || !Array.isArray(result?.messages)) {
+        throw new Error("La conversación devolvió datos incompletos. Inténtalo de nuevo.");
+      }
+      setSelectedConversation(result.conversation);
+      setMessages(result.messages);
+      setError(null);
     } catch (err) {
       logger.error("Error fetching messages:", err);
       setError("Error al cargar mensajes");
@@ -121,31 +126,39 @@ export function MessagesPage({
     async (content: string) => {
       if (!selectedConversation) return;
 
-      const res = await fetch(
-        `/api/messages/conversations/${selectedConversation.id}/messages`,
-        {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ content }),
-        }
-      );
+      try {
+        const res = await fetch(
+          `/api/messages/conversations/${selectedConversation.id}/messages`,
+          {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({ content }),
+          }
+        );
 
-      const data = await res.json();
-      if (data.ok) {
+        const data = await res.json();
+        if (!res.ok || !data.ok) {
+          throw new Error(data?.message ?? data?.error?.message ?? data?.error ?? "No se pudo enviar el mensaje.");
+        }
+        const result = data?.data ?? data;
+        if (typeof result?.id !== "string" || typeof result?.createdAt !== "string") {
+          throw new Error("El mensaje no devolvió una confirmación válida.");
+        }
         // Add new message to list
         setMessages((prev) => [
           ...prev,
           {
-            id: data.data.id,
+            id: result.id,
             senderId: currentUserId,
             content,
-            createdAt: data.data.createdAt,
+            createdAt: result.createdAt,
           },
         ]);
         // Refresh conversations to update last message
-        fetchConversations();
-      } else {
-        setError(data?.message || "No se pudo enviar el mensaje.");
+        void fetchConversations();
+      } catch (sendError) {
+        setError(sendError instanceof Error ? sendError.message : "No se pudo enviar el mensaje.");
+        throw sendError;
       }
     },
     [selectedConversation, currentUserId, fetchConversations]
@@ -198,7 +211,7 @@ export function MessagesPage({
           />
         ) : null}
         {error && (
-          <div role="alert" className="border-b border-border bg-amber-50 px-4 py-3 text-sm text-amber-900">
+          <div role="alert" aria-live="polite" className="border-b border-border bg-amber-50 px-4 py-3 text-sm text-amber-900 dark:bg-amber-950/30 dark:text-amber-200">
             {error}
           </div>
         )}
@@ -208,6 +221,7 @@ export function MessagesPage({
             <div className="p-4 border-b flex items-center gap-3">
               {/* Back button on mobile */}
               <button
+                type="button"
                 onClick={() => setSelectedConversation(null)}
                 className="md:hidden p-2 -ml-2 rounded-full hover:bg-muted"
                 aria-label="Volver a conversaciones"

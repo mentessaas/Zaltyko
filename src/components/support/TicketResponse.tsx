@@ -6,12 +6,7 @@ import { Textarea } from "@/components/ui/textarea";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Switch } from "@/components/ui/switch";
 import { Label } from "@/components/ui/label";
-
-// Toast placeholder - replace with actual toast implementation
-const toast = {
-  error: (_msg: string) => { /* Handle error toast */ },
-  success: (_msg: string) => { /* Handle success toast */ },
-};
+import { useToast } from "@/components/ui/toast-provider";
 
 interface TicketResponseFormProps {
   ticketId: string;
@@ -23,12 +18,13 @@ export function TicketResponseForm({ ticketId, isAdmin = false, onSuccess }: Tic
   const [isLoading, setIsLoading] = useState(false);
   const [message, setMessage] = useState("");
   const [isInternal, setIsInternal] = useState(false);
+  const { pushToast } = useToast();
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
 
     if (!message.trim()) {
-      toast.error("Por favor escribe un mensaje");
+      pushToast({ title: "Mensaje requerido", description: "Por favor escribe un mensaje", variant: "error" });
       return;
     }
 
@@ -50,7 +46,7 @@ export function TicketResponseForm({ ticketId, isAdmin = false, onSuccess }: Tic
         throw new Error(data.error || "Error al enviar la respuesta");
       }
 
-      toast.success("Respuesta enviada correctamente");
+      pushToast({ title: "Respuesta enviada", description: "La respuesta se ha enviado correctamente", variant: "success" });
       setMessage("");
       if (onSuccess) {
         onSuccess();
@@ -58,7 +54,7 @@ export function TicketResponseForm({ ticketId, isAdmin = false, onSuccess }: Tic
         window.location.reload();
       }
     } catch (error) {
-      toast.error(error instanceof Error ? error.message : "Error al enviar la respuesta");
+      pushToast({ title: "No se pudo enviar", description: error instanceof Error ? error.message : "Error al enviar la respuesta", variant: "error" });
     } finally {
       setIsLoading(false);
     }

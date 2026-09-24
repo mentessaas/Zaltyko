@@ -1,15 +1,19 @@
 "use client";
 
 import { useState, useMemo } from "react";
-import { format } from "date-fns";
-import { es } from "date-fns/locale";
-import { Calendar, User, FileText, ChevronDown, ChevronUp, Play, X } from "lucide-react";
+import { Calendar, User, FileText, ChevronDown, ChevronUp, Play } from "lucide-react";
 import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
-import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { cn } from "@/lib/utils";
 import type { AssessmentWithScores, AssessmentType } from "@/types";
+import {
+  ASSESSMENT_TYPE_COLORS,
+  ASSESSMENT_TYPE_FILTERS,
+  ASSESSMENT_TYPE_LABELS,
+} from "@/lib/assessments/presentation";
+import { formatDateForCountry } from "@/lib/date-utils";
 
 interface AssessmentHistoryProps {
   assessments: AssessmentWithScores[];
@@ -17,22 +21,6 @@ interface AssessmentHistoryProps {
   onSelectAssessment?: (assessment: AssessmentWithScores) => void;
   onVideoClick?: (videoUrl: string) => void;
 }
-
-const typeLabels: Record<AssessmentType, string> = {
-  technical: "Técnica",
-  artistic: "Artística",
-  physical: "Condición Física",
-  behavioral: "Comportamental",
-  overall: "General",
-};
-
-const typeColors: Record<AssessmentType, string> = {
-  technical: "bg-blue-100 text-blue-800 border-blue-200",
-  artistic: "bg-purple-100 text-purple-800 border-purple-200",
-  physical: "bg-green-100 text-green-800 border-green-200",
-  behavioral: "bg-amber-100 text-amber-800 border-amber-200",
-  overall: "bg-muted text-muted-foreground border-border",
-};
 
 export function AssessmentHistory({ assessments, athleteName, onSelectAssessment, onVideoClick }: AssessmentHistoryProps) {
   const [expandedId, setExpandedId] = useState<string | null>(null);
@@ -51,8 +39,7 @@ export function AssessmentHistory({ assessments, athleteName, onSelectAssessment
   const groupedAssessments = useMemo(() => {
     const groups: Record<string, AssessmentWithScores[]> = {};
     filteredAssessments.forEach((assessment) => {
-      const date = new Date(assessment.assessmentDate);
-      const key = `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, "0")}`;
+      const key = formatDateForCountry(assessment.assessmentDate, null, "yyyy-MM");
       if (!groups[key]) groups[key] = [];
       groups[key].push(assessment);
     });
@@ -81,11 +68,11 @@ export function AssessmentHistory({ assessments, athleteName, onSelectAssessment
       <Tabs value={selectedType} onValueChange={(v) => setSelectedType(v as AssessmentType | "all")}>
         <TabsList className="w-full justify-start h-auto flex-wrap">
           <TabsTrigger value="all">Todas ({assessments.length})</TabsTrigger>
-          {(["technical", "artistic", "physical", "behavioral", "overall"] as AssessmentType[]).map((type) => {
+          {ASSESSMENT_TYPE_FILTERS.map((type) => {
             const count = assessments.filter((a) => a.assessmentType === type).length;
             return (
               <TabsTrigger key={type} value={type} disabled={count === 0}>
-                {typeLabels[type]} ({count})
+                {ASSESSMENT_TYPE_LABELS[type]} ({count})
               </TabsTrigger>
             );
           })}
@@ -96,7 +83,7 @@ export function AssessmentHistory({ assessments, athleteName, onSelectAssessment
       <div className="space-y-4">
         {sortedGroupKeys.map((groupKey) => {
           const [year, month] = groupKey.split("-");
-          const dateLabel = format(new Date(parseInt(year), parseInt(month) - 1), "MMMM yyyy", { locale: es });
+          const dateLabel = formatDateForCountry(`${year}-${month}-01`, null, "MMMM yyyy");
           const groupAssessments = groupedAssessments[groupKey];
 
           return (
@@ -125,8 +112,8 @@ export function AssessmentHistory({ assessments, athleteName, onSelectAssessment
                         <div className="flex items-start justify-between">
                           <div className="flex-1 min-w-0">
                             <div className="flex items-center gap-2 flex-wrap mb-1">
-                              <Badge variant="outline" className={cn(typeColors[assessment.assessmentType])}>
-                                {typeLabels[assessment.assessmentType]}
+                              <Badge variant="outline" className={cn(ASSESSMENT_TYPE_COLORS[assessment.assessmentType])}>
+                                {ASSESSMENT_TYPE_LABELS[assessment.assessmentType] ?? assessment.assessmentType}
                               </Badge>
                               {assessment.apparatus && (
                                 <span className="text-sm text-muted-foreground">
@@ -136,14 +123,19 @@ export function AssessmentHistory({ assessments, athleteName, onSelectAssessment
                               {hasVideos && (
                                 <Badge variant="outline" className="bg-red-50 text-red-700 border-red-200">
                                   <Play className="h-3 w-3 mr-1" />
-                                  {assessment.videos.length} video{assessment.videos.length > 1 ? "s" : ""}
+                              {assessment.videos.length} video{assessment.videos.length > 1 ? "s" : ""}
+                                </Badge>
+                              )}
+                              {assessment.visibleToGuardians !== undefined && (
+                                <Badge variant="outline" className={assessment.visibleToGuardians ? "border-emerald-500/40 text-emerald-700 dark:text-emerald-300" : "text-muted-foreground"}>
+                                  {assessment.visibleToGuardians ? "Visible al tutor" : "Privada"}
                                 </Badge>
                               )}
                             </div>
                             <div className="flex items-center gap-3 text-sm text-muted-foreground">
                               <span className="flex items-center gap-1">
                                 <Calendar className="h-3 w-3" />
-                                {format(new Date(assessment.assessmentDate), "PPP", { locale: es })}
+                                {formatDateForCountry(assessment.assessmentDate, null, "PPP")}
                               </span>
                               {assessment.assessedByName && (
                                 <span className="flex items-center gap-1">
