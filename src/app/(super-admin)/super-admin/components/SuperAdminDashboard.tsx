@@ -21,7 +21,6 @@ import {
   ChevronRight,
   ChevronLeft,
   Clock,
-  Info,
 } from "lucide-react";
 
 // Lazy load recharts components
@@ -52,6 +51,13 @@ import {
 import { cn } from "@/lib/utils";
 import { PAGE_SIZES } from "@/lib/constants";
 import { getRoleLabel } from "@/lib/product/roles";
+import { getProductPlanPublicName } from "@/lib/plans/catalog";
+import { getSubscriptionStatusLabel } from "@/lib/billing/subscription-status-labels";
+import {
+  formatSuperAdminDate,
+  formatSuperAdminDateTime,
+  formatSuperAdminMonth,
+} from "@/lib/super-admin-date";
 
 const CHART_COLORS = ["#1FC7B6", "#2B2E83", "#CBD5E1", "#FF6B57", "#0F172A", "#5CE0D4", "#818CF8"];
 
@@ -74,19 +80,8 @@ const EVENT_TYPE_LABELS: Record<string, string> = {
   charge_marked_paid: "Cargo pagado",
 };
 
-const MONTH_LABEL_FORMATTER = new Intl.DateTimeFormat("es-ES", {
-  month: "short",
-  year: "2-digit",
-});
-
-function formatMonthLabel(label: string) {
-  const [year, month] = label.split("-").map(Number);
-  if (!year || !month) return label;
-  return MONTH_LABEL_FORMATTER.format(new Date(year, month - 1, 1));
-}
-
 export function SuperAdminDashboard({ initialMetrics, initialEvents = [] }: SuperAdminDashboardProps) {
-  const { metrics, loading, refresh } = useSuperAdminData(initialMetrics);
+  const { metrics, loading, refresh, refreshError } = useSuperAdminData(initialMetrics);
   const safeMetrics = useMemo(() => normalizeSuperAdminMetrics(metrics), [metrics]);
 
   // Drill-down state for charts
@@ -113,8 +108,19 @@ export function SuperAdminDashboard({ initialMetrics, initialEvents = [] }: Supe
     if (Number.isNaN(parsedDate.getTime())) {
       return "Sin registros";
     }
-    return parsedDate.toLocaleDateString("es-ES");
+    return formatSuperAdminDate(parsedDate) ?? "Sin registros";
   }, [safeMetrics.totals.latestAcademyAt]);
+
+  const latestUserDate = useMemo(() => {
+    if (!safeMetrics.totals.latestUserAt) {
+      return "Sin registros";
+    }
+    const parsedDate = new Date(safeMetrics.totals.latestUserAt);
+    if (Number.isNaN(parsedDate.getTime())) {
+      return "Sin registros";
+    }
+    return formatSuperAdminDate(parsedDate) ?? "Sin registros";
+  }, [safeMetrics.totals.latestUserAt]);
 
   const ownerCount = useMemo(
     () => safeMetrics.usersByRole.find((entry) => entry.role === "owner")?.total ?? 0,
@@ -126,6 +132,7 @@ export function SuperAdminDashboard({ initialMetrics, initialEvents = [] }: Supe
   );
 
   const chartDataset = useMemo(() => safeMetrics.monthlyAcademies, [safeMetrics.monthlyAcademies]);
+  const revenueDataset = useMemo(() => safeMetrics.monthlyRevenue, [safeMetrics.monthlyRevenue]);
 
   const metricTrends = useMemo(() => {
     const calculateTrend = (current: number, previous: number | undefined) => {
@@ -153,7 +160,7 @@ export function SuperAdminDashboard({ initialMetrics, initialEvents = [] }: Supe
 
   const planPieData = useMemo(() => {
     return safeMetrics.planDistribution.map((plan, idx) => ({
-      name: plan.code,
+      name: getProductPlanPublicName(plan.code, plan.nickname),
       value: plan.total,
       color: CHART_COLORS[idx % CHART_COLORS.length],
     }));
@@ -161,7 +168,7 @@ export function SuperAdminDashboard({ initialMetrics, initialEvents = [] }: Supe
 
   const subscriptionBarData = useMemo(() => {
     return safeMetrics.planStatuses.map((status) => ({
-      name: status.status,
+      name: getSubscriptionStatusLabel(status.status),
       total: status.total,
       fill: status.status === "active" ? "#10B981" :
             status.status === "past_due" ? "#F59E0B" :
@@ -179,7 +186,7 @@ export function SuperAdminDashboard({ initialMetrics, initialEvents = [] }: Supe
       {
         title: "Academias",
         value: safeMetrics.totals.academies,
-        subtitle: "Total de academias registradas",
+        subtitle: `Última academia: ${latestAcademyDate}`,
         trend: metricTrends.academies,
         href: "/super-admin/academies",
         icon: Building2,
@@ -188,11 +195,19 @@ export function SuperAdminDashboard({ initialMetrics, initialEvents = [] }: Supe
       {
         title: "Usuarios",
         value: safeMetrics.totals.users,
-        subtitle: `Última alta: ${latestAcademyDate}`,
+        subtitle: `Último usuario: ${latestUserDate}`,
         trend: metricTrends.users,
         href: "/super-admin/users",
         icon: Users,
         accent: "sky" as const,
+      },
+      {
+        title: "Dueños sin academia",
+        value: safeMetrics.totals.pendingAcademyOwners,
+        subtitle: "Registros que aún no han configurado su academia",
+        href: "/super-admin/users?role=owner",
+        icon: Users,
+        accent: "amber" as const,
       },
       {
         title: "Dueños",
@@ -211,15 +226,15 @@ export function SuperAdminDashboard({ initialMetrics, initialEvents = [] }: Supe
         accent: "coral" as const,
       },
       {
-        title: "Planes activos",
+        title: "Planes configurados",
         value: safeMetrics.totals.plans,
-        subtitle: "Planes configurados en el SaaS",
+        subtitle: "Opciones disponibles en el catálogo SaaS",
         href: "/super-admin/billing",
         icon: LayoutGrid,
         accent: "red" as const,
       },
       {
-        title: "Suscripciones",
+        title: "Suscripciones SaaS",
         value: safeMetrics.totals.subscriptions,
         subtitle: `${safeMetrics.totals.paidInvoices} recibos de suscripción cobrados`,
         href: "/super-admin/billing",
@@ -251,15 +266,15 @@ export function SuperAdminDashboard({ initialMetrics, initialEvents = [] }: Supe
         accent: "red" as const,
       },
       {
-        title: "Ingresos este mes",
+        title: "Cuotas cobradas este mes",
         value: CURRENCY_FORMATTER.format(safeMetrics.totals.chargesPaidThisMonth / 100),
-        subtitle: "Total cobrado",
+        subtitle: "Cobros internos de las academias",
         href: "/super-admin/academies",
         icon: DollarSign,
         accent: "emerald" as const,
       },
     ],
-    [safeMetrics, latestAcademyDate, ownerCount, coachCount, metricTrends]
+    [safeMetrics, latestAcademyDate, latestUserDate, ownerCount, coachCount, metricTrends]
   );
 
   return (
@@ -296,6 +311,11 @@ export function SuperAdminDashboard({ initialMetrics, initialEvents = [] }: Supe
             </Button>
           </div>
         </div>
+        {refreshError && (
+          <p className="relative mt-4 max-w-2xl text-sm text-white/75" role="status" aria-live="polite">
+            {refreshError}
+          </p>
+        )}
       </section>
 
       {/* Stats Cards with Trends */}
@@ -454,14 +474,14 @@ export function SuperAdminDashboard({ initialMetrics, initialEvents = [] }: Supe
           </div>
         </button>
 
-        {/* Plans Distribution - Pie Chart */}
+        {/* Subscription distribution - Pie Chart */}
         <button
           type="button"
           disabled={planPieData.length === 0}
-          aria-label={planPieData.length === 0 ? "Planes activos: sin datos" : "Abrir desglose de planes activos"}
+          aria-label={planPieData.length === 0 ? "Suscripciones por plan: sin datos" : "Abrir desglose de suscripciones por plan"}
           onClick={() => {
             if (planPieData.length === 0) return;
-            setDrillDownData({ title: "Planes Activos", items: planPieData });
+            setDrillDownData({ title: "Suscripciones por plan", items: planPieData });
             setSelectedChart("planDistribution");
           }}
           className={cn(
@@ -473,9 +493,11 @@ export function SuperAdminDashboard({ initialMetrics, initialEvents = [] }: Supe
           <header className="relative flex items-center justify-between mb-6">
             <div>
               <h3 className="font-display text-sm font-semibold uppercase tracking-wide text-zaltyko-accent-light">
-                Planes activos
+                Suscripciones por plan
               </h3>
-              <p className="text-xs text-white/50 mt-1">{safeMetrics.planDistribution.length} tipos de plan</p>
+              <p className="text-xs text-white/50 mt-1">
+                {safeMetrics.planDistribution.length} {safeMetrics.planDistribution.length === 1 ? "plan con suscripciones" : "planes con suscripciones"}
+              </p>
             </div>
             <span className="text-xs text-white/40">
               {planPieData.length > 0 ? "Abrir desglose" : "Sin desglose disponible"}
@@ -485,7 +507,7 @@ export function SuperAdminDashboard({ initialMetrics, initialEvents = [] }: Supe
           <div className="relative flex items-center justify-center">
             {safeMetrics.planDistribution.length === 0 ? (
               <div className="flex h-48 items-center justify-center rounded-xl border border-dashed border-white/20 bg-white/5">
-                <p className="text-sm text-white/50">Sin suscripciones</p>
+                <p className="text-sm text-white/50">Sin suscripciones con plan asignado</p>
               </div>
             ) : (
               <ResponsiveContainer width="100%" height={220}>
@@ -552,7 +574,7 @@ export function SuperAdminDashboard({ initialMetrics, initialEvents = [] }: Supe
               Estado de suscripciones
             </h3>
             <p className="text-xs text-white/50 mt-1">
-              Ingresos: {CURRENCY_FORMATTER.format(safeMetrics.totals.revenue / 100)} · {safeMetrics.totals.paidInvoices} recibos de suscripción cobrados
+              Ingresos de suscripciones SaaS acumulados: {CURRENCY_FORMATTER.format(safeMetrics.totals.revenue / 100)} · {safeMetrics.totals.paidInvoices} recibos cobrados
             </p>
           </div>
           <span className="text-xs text-white/40">
@@ -645,7 +667,7 @@ export function SuperAdminDashboard({ initialMetrics, initialEvents = [] }: Supe
                   fontSize={11}
                   tickLine={false}
                   axisLine={false}
-                  tickFormatter={formatMonthLabel}
+                  tickFormatter={formatSuperAdminMonth}
                 />
                 <YAxis
                   stroke="#ffffff50"
@@ -661,7 +683,7 @@ export function SuperAdminDashboard({ initialMetrics, initialEvents = [] }: Supe
                     borderRadius: "12px",
                     color: "#fff",
                   }}
-                  labelFormatter={(label) => `Mes: ${formatMonthLabel(String(label))}`}
+                  labelFormatter={(label) => `Mes: ${formatSuperAdminMonth(String(label))}`}
                 />
                 <Area
                   type="monotone"
@@ -687,25 +709,78 @@ export function SuperAdminDashboard({ initialMetrics, initialEvents = [] }: Supe
             <h3 className="font-display text-sm font-semibold uppercase tracking-wide text-zaltyko-accent-light">
               Ingresos Mensuales
             </h3>
-            <p className="text-xs text-white/50 mt-1">Pendiente de serie real por mes desde recibos/cobros</p>
+            <p className="text-xs text-white/50 mt-1">
+              {revenueDataset.length > 0
+                ? `Facturas SaaS pagadas · últimos ${revenueDataset.length} meses`
+                : "Sin facturas SaaS pagadas por mes"}
+            </p>
           </div>
           <div className="flex items-center gap-2 mt-2 sm:mt-0">
             <div className="flex items-center gap-1.5 rounded-full bg-emerald-500/20 px-3 py-1.5">
               <DollarSign className="h-3.5 w-3.5 text-emerald-400" />
-              <span className="text-xs font-semibold text-emerald-300">
-                {CURRENCY_FORMATTER.format(safeMetrics.totals.chargesPaidThisMonth / 100)}
+              <span className="text-xs font-semibold text-emerald-300" title="Ingresos SaaS acumulados">
+                {CURRENCY_FORMATTER.format(safeMetrics.totals.revenue / 100)} acumulados
               </span>
             </div>
           </div>
         </header>
 
-        <div className="flex h-48 min-w-0 flex-col items-center justify-center rounded-xl border border-dashed border-white/20 bg-white/5 px-6 text-center">
-          <Info className="mb-3 h-5 w-5 text-white/50" />
-          <p className="text-sm font-medium text-white/70">Serie de ingresos no disponible</p>
-          <p className="mt-1 max-w-md text-xs text-white/45">
-            El total cobrado se muestra arriba. Para graficar la evolución mensual hace falta persistir agregados reales por periodo.
-          </p>
-        </div>
+        {revenueDataset.length === 0 ? (
+          <div className="flex h-48 min-w-0 flex-col items-center justify-center rounded-xl border border-dashed border-white/20 bg-white/5 px-6 text-center">
+            <p className="text-sm font-medium text-white/70">Aún no hay ingresos SaaS por mes</p>
+            <p className="mt-1 max-w-md text-xs text-white/45">
+              Cuando se cobre la primera factura sincronizada con Stripe, la evolución aparecerá aquí.
+            </p>
+          </div>
+        ) : (
+          <div className="h-56 min-w-0">
+            <ResponsiveContainer width="100%" height={224}>
+              <AreaChart data={revenueDataset}>
+                <defs>
+                  <linearGradient id="colorRevenue" x1="0" y1="0" x2="0" y2="1">
+                    <stop offset="0%" stopColor="#34D399" stopOpacity={0.35} />
+                    <stop offset="100%" stopColor="#34D399" stopOpacity={0} />
+                  </linearGradient>
+                </defs>
+                <XAxis
+                  dataKey="label"
+                  stroke="#ffffff50"
+                  fontSize={11}
+                  tickLine={false}
+                  axisLine={false}
+                  tickFormatter={formatSuperAdminMonth}
+                />
+                <YAxis
+                  stroke="#ffffff50"
+                  fontSize={11}
+                  tickLine={false}
+                  axisLine={false}
+                  tickFormatter={(value) => CURRENCY_FORMATTER.format(Number(value) / 100)}
+                />
+                <Tooltip
+                  contentStyle={{
+                    backgroundColor: "rgba(0,0,0,0.8)",
+                    border: "1px solid rgba(255,255,255,0.1)",
+                    borderRadius: "12px",
+                    color: "#fff",
+                  }}
+                  labelFormatter={(label) => `Mes: ${formatSuperAdminMonth(String(label))}`}
+                  formatter={(value) => [CURRENCY_FORMATTER.format(Number(value ?? 0) / 100), "Cobrado"]}
+                />
+                <Area
+                  type="monotone"
+                  dataKey="total"
+                  stroke="#34D399"
+                  strokeWidth={3}
+                  fillOpacity={1}
+                  fill="url(#colorRevenue)"
+                  dot={{ fill: "#34D399", strokeWidth: 0, r: 4 }}
+                  activeDot={{ fill: "#34D399", strokeWidth: 2, stroke: "#fff", r: 6 }}
+                />
+              </AreaChart>
+            </ResponsiveContainer>
+          </div>
+        )}
       </section>
 
       {initialEvents.length > 0 && (
@@ -737,12 +812,7 @@ export function SuperAdminDashboard({ initialMetrics, initialEvents = [] }: Supe
                   {paginatedEvents.map((event, idx) => (
                     <tr key={event.id} className="transition-colors hover:bg-white/5">
                       <td className="whitespace-nowrap px-4 py-3 text-white/70">
-                        {new Date(event.createdAt).toLocaleDateString("es-ES", {
-                          day: "2-digit",
-                          month: "short",
-                          hour: "2-digit",
-                          minute: "2-digit",
-                        })}
+                        {formatSuperAdminDateTime(event.createdAt) ?? "—"}
                       </td>
                       <td className="px-4 py-3">
                         <span className="inline-flex items-center gap-1.5 rounded-full bg-red-500/20 px-2.5 py-1 text-xs font-medium text-red-300">

@@ -7,6 +7,7 @@ import type { SuperAdminLogEntry } from "@/lib/super-admin";
 import { createClient } from "@/lib/supabase/client";
 import { Button } from "@/components/ui/button";
 import { logger } from "@/lib/logger";
+import { formatSuperAdminDateTime } from "@/lib/super-admin-date";
 
 interface SuperAdminLogsTableProps {
   initialLogs: SuperAdminLogEntry[];
@@ -97,9 +98,7 @@ export function SuperAdminLogsTable({ initialLogs }: SuperAdminLogsTableProps) {
                   </pre>
                 </td>
                 <td className="px-4 py-4 text-right text-xs text-white/70">
-                  {log.createdAt
-                    ? new Date(log.createdAt).toLocaleString("es-ES")
-                    : "—"}
+                  {formatSuperAdminDateTime(log.createdAt) ?? "—"}
                 </td>
               </tr>
             ))}
@@ -109,4 +108,3 @@ export function SuperAdminLogsTable({ initialLogs }: SuperAdminLogsTableProps) {
     </div>
   );
 }
-

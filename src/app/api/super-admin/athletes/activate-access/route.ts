@@ -9,9 +9,10 @@ import {
   getAuthUserEmail,
   updateAuthUserEmail,
 } from "@/lib/supabase/admin-operations";
-import { sendEmail } from "@/lib/brevo";
 import { config } from "@/config";
 import { logger } from "@/lib/logger";
+import { sendEmailWithLogging } from "@/lib/email/email-service";
+import { escapeHtml } from "@/lib/email/escape-html";
 
 const ActivateAthleteSchema = z.object({
   profileId: z.string().uuid(),
@@ -83,17 +84,17 @@ async function activateAthleteAccess(
       // Generar token de reset de contraseña
       const resetLink = await generatePasswordRecoveryLink(targetEmail) ?? `${config.appUrl}/auth/reset-password`;
       
-      await sendEmail({
+      await sendEmailWithLogging({
         to: targetEmail,
         subject: "Activa tu cuenta de atleta - Zaltyko",
         html: `
           <div style="font-family: Inter, Arial, sans-serif; max-width: 600px; margin: 0 auto;">
             <h2 style="color: #0D47A1; font-family: Poppins, sans-serif; font-weight: 700;">¡Bienvenido a Zaltyko!</h2>
-            <p>Hola ${profile.name ?? "Atleta"},</p>
+            <p>Hola ${escapeHtml(profile.name ?? "Atleta")},</p>
             <p>Tu cuenta de atleta ha sido activada. Ahora puedes acceder a tu perfil y ver tus clases, sesiones y evaluaciones.</p>
             <p>Para comenzar, necesitas establecer una contraseña. Haz clic en el siguiente enlace:</p>
             <div style="text-align: center; margin: 30px 0;">
-              <a href="${resetLink}" style="background-color: #0D47A1; color: white; padding: 12px 24px; text-decoration: none; border-radius: 8px; display: inline-block; font-weight: 600;">
+              <a href="${escapeHtml(resetLink)}" style="background-color: #0D47A1; color: white; padding: 12px 24px; text-decoration: none; border-radius: 8px; display: inline-block; font-weight: 600;">
                 Establecer contraseña
               </a>
             </div>
@@ -107,6 +108,11 @@ async function activateAthleteAccess(
         `,
         text: `Tu cuenta de atleta ha sido activada. Visita ${resetLink} para establecer tu contraseña.`,
         replyTo: config.brevo.supportEmail,
+        template: "athlete-access-activation",
+        tenantId: profile.tenantId,
+        academyId: profile.activeAcademyId ?? undefined,
+        userId: profile.id,
+        dedupeKey: `athlete-access-activation:${profile.id}:${targetEmail.toLowerCase()}`,
       });
     } catch (emailError) {
       logger.error("Error enviando correo de activación:", emailError);

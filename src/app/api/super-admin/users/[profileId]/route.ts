@@ -9,6 +9,10 @@ import { logAdminAction } from "@/lib/admin-logs";
 import { getAuthUserEmail, updateAuthUserEmail, deleteAuthUser } from "@/lib/supabase/admin-operations";
 import { getAppUrl } from "@/lib/env";
 import { logger } from "@/lib/logger";
+import { config } from "@/config";
+import { sendEmailWithLogging } from "@/lib/email/email-service";
+import { escapeHtml } from "@/lib/email/escape-html";
+import { getProductPlanPublicName } from "@/lib/plans/catalog";
 
 export const dynamic = "force-dynamic";
 // @service-role auth-admin:read-update-email. Super-admin user management requires Supabase Auth admin APIs.
@@ -82,7 +86,8 @@ export const GET = withSuperAdmin(async (_request, context) => {
     })
     .from(memberships)
     .leftJoin(academies, eq(memberships.academyId, academies.id))
-    .where(eq(memberships.userId, profile.userId));
+    .where(eq(memberships.userId, profile.userId))
+    .limit(500);
 
   // Get user subscription separately
   const [userSubscription] = await db
@@ -104,7 +109,8 @@ export const GET = withSuperAdmin(async (_request, context) => {
   const ownedAcademies = await db
     .select({ id: academies.id })
     .from(academies)
-    .where(eq(academies.ownerId, profile.id));
+    .where(eq(academies.ownerId, profile.id))
+    .limit(1000);
 
   const academyIds = ownedAcademies.map((a) => a.id);
 
@@ -266,22 +272,22 @@ export const PATCH = withSuperAdmin(async (request, context) => {
 
         if (authEmail) {
           try {
-            const { sendEmail } = await import("@/lib/brevo");
-            const { config } = await import("@/config");
-
             const academyViolation = violations.violations.find((v) => v.resource === "academies");
             const athleteViolation = violations.violations.find((v) => v.resource === "athletes");
             const classViolation = violations.violations.find((v) => v.resource === "classes");
             const groupViolation = violations.violations.find((v) => v.resource === "groups");
 
-            await sendEmail({
+            const safeName = escapeHtml(existing.name ?? "Usuario");
+            const safePlanName = escapeHtml(getProductPlanPublicName(plan.code));
+
+            await sendEmailWithLogging({
               to: authEmail,
               subject: "⚠️ Cambio de plan - Ajustes necesarios - Zaltyko",
               html: `
                 <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto;">
                   <h2 style="color: #f59e0b;">Cambio de plan completado</h2>
-                  <p>Hola ${existing.name ?? "Usuario"},</p>
-                  <p>Tu plan ha sido cambiado a <strong>${plan.code.toUpperCase()}</strong>. Sin embargo, algunos de tus recursos exceden los límites del nuevo plan.</p>
+                  <p>Hola ${safeName},</p>
+                  <p>Tu plan ha sido cambiado a <strong>${safePlanName}</strong>. Sin embargo, algunos de tus recursos exceden los límites del nuevo plan.</p>
                   
                   ${academyViolation ? `
                     <div style="background-color: #fef3c7; padding: 15px; border-radius: 8px; margin: 15px 0;">
@@ -294,7 +300,7 @@ export const PATCH = withSuperAdmin(async (request, context) => {
                   ${athleteViolation ? `
                     <div style="background-color: #fef3c7; padding: 15px; border-radius: 8px; margin: 15px 0;">
                       <h3 style="color: #92400e; margin-top: 0;">Atletas</h3>
-                      <p style="color: #78350f;">Tienes <strong>${athleteViolation.currentCount}</strong> atletas en ${athleteViolation.academyName ? `la academia "${athleteViolation.academyName}"` : "una academia"}, pero tu plan solo permite <strong>${athleteViolation.limit}</strong>.</p>
+                      <p style="color: #78350f;">Tienes <strong>${athleteViolation.currentCount}</strong> atletas en ${athleteViolation.academyName ? `la academia "${escapeHtml(athleteViolation.academyName)}"` : "una academia"}, pero tu plan solo permite <strong>${athleteViolation.limit}</strong>.</p>
                       <p style="color: #78350f; font-size: 14px;">Debes reducir el número de atletas activos.</p>
                     </div>
                   ` : ""}
@@ -302,7 +308,7 @@ export const PATCH = withSuperAdmin(async (request, context) => {
                   ${classViolation ? `
                     <div style="background-color: #fef3c7; padding: 15px; border-radius: 8px; margin: 15px 0;">
                       <h3 style="color: #92400e; margin-top: 0;">Clases</h3>
-                      <p style="color: #78350f;">Tienes <strong>${classViolation.currentCount}</strong> clases en ${classViolation.academyName ? `la academia "${classViolation.academyName}"` : "una academia"}, pero tu plan solo permite <strong>${classViolation.limit}</strong>.</p>
+                      <p style="color: #78350f;">Tienes <strong>${classViolation.currentCount}</strong> clases en ${classViolation.academyName ? `la academia "${escapeHtml(classViolation.academyName)}"` : "una academia"}, pero tu plan solo permite <strong>${classViolation.limit}</strong>.</p>
                       <p style="color: #78350f; font-size: 14px;">Debes reducir el número de clases activas.</p>
                     </div>
                   ` : ""}
@@ -310,7 +316,7 @@ export const PATCH = withSuperAdmin(async (request, context) => {
                   ${groupViolation ? `
                     <div style="background-color: #fef3c7; padding: 15px; border-radius: 8px; margin: 15px 0;">
                       <h3 style="color: #92400e; margin-top: 0;">Grupos</h3>
-                      <p style="color: #78350f;">Tienes <strong>${groupViolation.currentCount}</strong> grupos en ${groupViolation.academyName ? `la academia "${groupViolation.academyName}"` : "una academia"}, pero tu plan solo permite <strong>${groupViolation.limit}</strong>.</p>
+                      <p style="color: #78350f;">Tienes <strong>${groupViolation.currentCount}</strong> grupos en ${groupViolation.academyName ? `la academia "${escapeHtml(groupViolation.academyName)}"` : "una academia"}, pero tu plan solo permite <strong>${groupViolation.limit}</strong>.</p>
                       <p style="color: #78350f; font-size: 14px;">Debes reducir el número de grupos activos.</p>
                     </div>
                   ` : ""}
@@ -330,8 +336,13 @@ export const PATCH = withSuperAdmin(async (request, context) => {
                   </p>
                 </div>
               `,
-              text: `Tu plan ha sido cambiado a ${plan.code.toUpperCase()}. Algunos recursos exceden los límites. Visita tu panel para ajustar.`,
+              text: `Tu plan ha sido cambiado a ${getProductPlanPublicName(plan.code)}. Algunos recursos exceden los límites. Visita tu panel para ajustar.`,
               replyTo: config.brevo.supportEmail,
+              template: "super-admin-plan-limit-warning",
+              tenantId: existing.tenantId,
+              academyId: existing.activeAcademyId ?? undefined,
+              userId: existing.id,
+              dedupeKey: `super-admin-plan-limit-warning:${existing.id}:${plan.id}`,
             });
           } catch (error) {
             logger.error("Error sending plan change notification", error);
