@@ -5,6 +5,7 @@ import Link from "next/link";
 import { GroupSummary } from "./types";
 import { useAcademyContext } from "@/hooks/use-academy-context";
 import { getStarterGroupPresets } from "@/lib/specialization/operational-presets";
+import { pluralizeFirstWord } from "@/lib/specialization/registry";
 
 interface GroupCardProps {
   academyId: string;
@@ -16,6 +17,7 @@ interface GroupCardProps {
 export function GroupCard({ academyId, group, sportConfigLabel, onEdit }: GroupCardProps) {
   const { specialization } = useAcademyContext();
   const coachCount = (group.coachId ? 1 : 0) + group.assistantIds.length;
+  const coachLabelPlural = pluralizeFirstWord(specialization.labels.coachLabel).toLowerCase();
   const apparatusLabels = Object.fromEntries(
     specialization.evaluation.apparatus.map((item) => [item.code, item.label])
   );
@@ -92,7 +94,7 @@ export function GroupCard({ academyId, group, sportConfigLabel, onEdit }: GroupC
 
       <footer className="mt-auto flex items-center justify-between gap-4 border-t border-border pt-4">
         <span className="inline-flex items-center gap-2 rounded-full bg-muted px-3 py-1 text-xs text-muted-foreground">
-          {coachCount} {coachCount === 1 ? specialization.labels.coachLabel.toLowerCase() : `${specialization.labels.coachLabel.toLowerCase()}es`} · {group.athleteCount} {group.athleteCount === 1 ? specialization.labels.athleteSingular.toLowerCase() : specialization.labels.athletesPlural.toLowerCase()}
+          {coachCount} {coachCount === 1 ? specialization.labels.coachLabel.toLowerCase() : coachLabelPlural} · {group.athleteCount} {group.athleteCount === 1 ? specialization.labels.athleteSingular.toLowerCase() : specialization.labels.athletesPlural.toLowerCase()}
         </span>
         <div className="flex items-center gap-3">
           {onEdit && (

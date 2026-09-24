@@ -5,7 +5,6 @@ import { FormEvent, useMemo, useState, useTransition } from "react";
 import { Modal } from "@/components/ui/modal";
 import { createClient } from "@/lib/supabase/client";
 import type { SportConfigOption } from "@/components/groups/types";
-import { getTerminology } from "@/lib/sport-config/terminology";
 
 const fieldClassName =
   "w-full rounded-card border border-border bg-card px-3 py-2 text-sm shadow-none focus:border-zaltyko-teal focus:outline-none focus:ring-4 focus:ring-zaltyko-teal/15";
@@ -53,13 +52,6 @@ export function CreateSessionDialog({
         : coaches,
     [coaches, sportConfigId]
   );
-  const selectedSportConfig = useMemo(
-    () => sportConfigs.find((config) => config.id === sportConfigId) ?? null,
-    [sportConfigId, sportConfigs]
-  );
-  const terms = getTerminology(selectedSportConfig);
-  const coachTermLower = terms.coach.toLowerCase();
-
   const resetForm = () => {
     setSessionDate("");
     setStartTime("");
@@ -130,7 +122,7 @@ export function CreateSessionDialog({
       open={open}
       onClose={handleClose}
       title="Programar sesión"
-      description={`Define la próxima sesión y asigna ${coachTermLower} responsable.`}
+      description="Define la próxima sesión y asigna una persona responsable."
       footer={
         <div className="flex justify-end gap-2">
           <button
@@ -144,7 +136,7 @@ export function CreateSessionDialog({
           <button
             type="submit"
             form="create-session-form"
-            className="min-h-11 rounded-xl bg-zaltyko-teal px-4 py-2 text-sm font-semibold text-white shadow-soft transition hover:bg-primary-dark disabled:cursor-not-allowed disabled:opacity-60"
+            className="min-h-11 rounded-xl bg-zaltyko-teal px-4 py-2 text-sm font-semibold text-white shadow-soft transition hover:bg-zaltyko-primary-dark disabled:cursor-not-allowed disabled:opacity-60"
             disabled={isPending}
           >
             {isPending ? "Guardando…" : "Guardar sesión"}
@@ -192,7 +184,7 @@ export function CreateSessionDialog({
         </div>
 
         <div className="space-y-1">
-          <label className={labelClassName}>{terms.coach} responsable</label>
+          <label className={labelClassName}>Persona responsable</label>
           <select
             value={coachId}
             onChange={(event) => setCoachId(event.target.value)}

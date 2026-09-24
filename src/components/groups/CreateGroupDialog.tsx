@@ -9,7 +9,9 @@ import { createClient } from "@/lib/supabase/client";
 import { useAcademyContext } from "@/hooks/use-academy-context";
 import type { StarterGroupPreset } from "@/lib/specialization/operational-presets";
 import { getGroupTechnicalGuidance } from "@/lib/specialization/technical-guidance";
+import { pluralizeFirstWord } from "@/lib/specialization/registry";
 import { getTerminology } from "@/lib/sport-config/terminology";
+import { getCurrencyForCountry } from "@/lib/currency";
 
 interface CreateGroupDialogProps {
   academyId: string;
@@ -37,7 +39,8 @@ export function CreateGroupDialog({
   initialSportConfigId,
 }: CreateGroupDialogProps) {
   const { pushToast } = useToast();
-  const { specialization, academyType } = useAcademyContext();
+  const { specialization, academyType, academyCountry } = useAcademyContext();
+  const currency = getCurrencyForCountry(academyCountry);
   const [name, setName] = useState("");
   const [discipline, setDiscipline] = useState<string>(academyType ?? "artistica");
   const [sportConfigId, setSportConfigId] = useState("");
@@ -76,6 +79,8 @@ export function CreateGroupDialog({
   const terms = getTerminology(selectedSportConfig);
   const groupTerm = terms.group || specialization.labels.groupLabel;
   const groupTermLower = groupTerm.toLowerCase();
+  const groupTermPluralLower = pluralizeFirstWord(groupTerm).toLowerCase();
+  const coachTermPluralLower = pluralizeFirstWord(terms.coach).toLowerCase();
   const athleteTermPlural = terms.athletes || specialization.labels.athletesPlural;
   const athleteTermPluralLower = athleteTermPlural.toLowerCase();
   const availableApparatus = selectedSportConfig?.apparatus ?? [];
@@ -246,9 +251,9 @@ export function CreateGroupDialog({
           const data = await response.json().catch(() => ({}));
           if (data.error === "LIMIT_REACHED") {
             pushToast({
-              title: `Límite de ${groupTerm.toLowerCase()}s alcanzado`,
+              title: `Límite de ${groupTermPluralLower} alcanzado`,
               description:
-                `Tu plan actual alcanzó el máximo de ${groupTerm.toLowerCase()}s permitidos. Actualiza el plan para crear más.`,
+                `Tu plan actual alcanzó el máximo de ${groupTermPluralLower} permitidos. Actualiza el plan para crear más.`,
               variant: "error",
             });
           }
@@ -418,7 +423,7 @@ export function CreateGroupDialog({
             </div>
           )}
           <div className="space-y-1">
-            <label className="font-medium">Cuota mensual (€)</label>
+            <label className="font-medium">Cuota mensual ({currency})</label>
             <input
               type="number"
               step="0.01"
@@ -532,7 +537,7 @@ export function CreateGroupDialog({
             <div className="grid max-h-40 gap-2 overflow-y-auto rounded-md border border-border p-3">
               {compatibleCoaches.length === 0 ? (
                 <p className="text-xs text-muted-foreground">
-                  No hay {terms.coach.toLowerCase()}s registrados.
+                  No hay {coachTermPluralLower} disponibles.
                 </p>
               ) : (
                 compatibleCoaches.map((coach) => (
@@ -573,7 +578,7 @@ export function CreateGroupDialog({
           <div className="grid max-h-56 gap-2 overflow-y-auto rounded-md border border-border p-3">
             {athletes.length === 0 ? (
               <p className="text-xs text-muted-foreground">
-                No hay {athleteTermPluralLower} registrados en la academia todavía.
+                No hay {athleteTermPluralLower} disponibles en la academia todavía.
               </p>
             ) : (
               athletes.map((athlete) => (

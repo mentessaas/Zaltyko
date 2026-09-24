@@ -9,6 +9,7 @@ export default function SplitWords({ text }: { text: string }) {
   const words = text.split(/\s+/).filter(Boolean);
   return (
     <>
+      <span className="sr-only">{text}</span>
       {words.map((word, i) => (
         <span
           key={`${word}-${i}`}

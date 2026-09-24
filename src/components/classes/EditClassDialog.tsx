@@ -6,6 +6,7 @@ import { Modal } from "@/components/ui/modal";
 import { useAcademyContext } from "@/hooks/use-academy-context";
 import type { SportConfigOption } from "@/components/groups/types";
 import { getTerminology } from "@/lib/sport-config/terminology";
+import { pluralizeFirstWord } from "@/lib/specialization/registry";
 import {
   ClassAdvancedOptionsSection,
   ClassAssignmentsSection,
@@ -25,6 +26,7 @@ import {
   type GroupOption,
 } from "@/components/classes/edit-class-dialog-model";
 import { logger } from "@/lib/logger";
+import { isValidClassTimeRange } from "@/lib/classes/time-validation";
 
 interface EditClassDialogProps {
   classItem: ClassItem;
@@ -122,7 +124,9 @@ export const EditClassDialog = memo(function EditClassDialog({
   const classTerm = specialization.labels.classLabel;
   const classTermLower = classTerm.toLowerCase();
   const groupTermLower = terms.group.toLowerCase();
-  const coachTermPluralLower = `${terms.coach.toLowerCase()}s`;
+  const coachTermPluralLower = pluralizeFirstWord(terms.coach).toLowerCase();
+  const groupTermPluralLower = pluralizeFirstWord(terms.group).toLowerCase();
+  const apparatusTermPluralLower = pluralizeFirstWord(terms.apparatus).toLowerCase();
   const apparatusOptions =
     selectedSportConfig?.apparatus.map((item) => ({ code: item.code, label: item.name })) ??
     specialization.evaluation.apparatus.map((item) => ({ code: item.code, label: item.label }));
@@ -198,6 +202,11 @@ export const EditClassDialog = memo(function EditClassDialog({
   const handleSubmit = (event: FormEvent<HTMLFormElement>) => {
     event.preventDefault();
     setError(null);
+
+    if (!isValidClassTimeRange(startTime, endTime)) {
+      setError("La hora de fin debe ser posterior a la hora de inicio.");
+      return;
+    }
 
     startTransition(async () => {
       try {
@@ -351,7 +360,7 @@ export const EditClassDialog = memo(function EditClassDialog({
       open={open}
       onClose={handleClose}
       title={`Editar ${classTermLower}`}
-      description={`Actualiza horario, capacidad, ${coachTermPluralLower}, ${terms.group.toLowerCase()}s y ${terms.apparatus.toLowerCase()}s.`}
+      description={`Actualiza horario, capacidad, ${coachTermPluralLower}, ${groupTermPluralLower} y ${apparatusTermPluralLower}.`}
       footer={
         <EditClassFooter
           classTermLower={classTermLower}

@@ -9,7 +9,7 @@ import { cn } from "@/lib/utils";
 
 type MessageStatus = "pending" | "sent" | "delivered" | "read" | "failed";
 
-interface WhatsAppMessage {
+export interface WhatsAppMessage {
   id: string;
   content: string;
   recipientCount: number;
@@ -19,6 +19,7 @@ interface WhatsAppMessage {
   scheduledAt?: string;
   sentAt?: string;
   failureReason?: string;
+  phone?: string;
 }
 
 interface WhatsAppHistoryProps {
@@ -26,38 +27,42 @@ interface WhatsAppHistoryProps {
   isLoading?: boolean;
   onLoadMore?: () => void;
   hasMore?: boolean;
+  onRetry?: (message: WhatsAppMessage) => Promise<boolean>;
 }
 
 const STATUS_CONFIG: Record<MessageStatus, { label: string; icon: typeof CheckCircle; className: string }> = {
   pending: {
     label: "Pendiente",
     icon: Clock,
-    className: "bg-yellow-100 text-yellow-800",
+    className: "bg-yellow-100 text-yellow-800 dark:bg-yellow-950/40 dark:text-yellow-300",
   },
   sent: {
     label: "Enviado",
     icon: CheckCircle,
-    className: "bg-blue-100 text-blue-800",
+    className: "bg-blue-100 text-blue-800 dark:bg-blue-950/40 dark:text-blue-300",
   },
   delivered: {
     label: "Entregado",
     icon: CheckCircle,
-    className: "bg-green-100 text-green-800",
+    className: "bg-green-100 text-green-800 dark:bg-green-950/40 dark:text-green-300",
   },
   read: {
     label: "Leído",
     icon: CheckCircle,
-    className: "bg-red-100 text-red-800",
+    className: "bg-red-100 text-red-800 dark:bg-red-950/40 dark:text-red-300",
   },
   failed: {
     label: "Fallido",
     icon: XCircle,
-    className: "bg-red-100 text-red-800",
+    className: "bg-red-100 text-red-800 dark:bg-red-950/40 dark:text-red-300",
   },
 };
 
-export function WhatsAppHistory({ messages, isLoading, onLoadMore, hasMore }: WhatsAppHistoryProps) {
+export function WhatsAppHistory({ messages, isLoading, onLoadMore, hasMore, onRetry }: WhatsAppHistoryProps) {
   const [expandedId, setExpandedId] = useState<string | null>(null);
+  const [retryingId, setRetryingId] = useState<string | null>(null);
+  const [retryError, setRetryError] = useState<string | null>(null);
+  const [retryErrorId, setRetryErrorId] = useState<string | null>(null);
 
   if (messages.length === 0 && !isLoading) {
     return (
@@ -171,16 +176,44 @@ export function WhatsAppHistory({ messages, isLoading, onLoadMore, hasMore }: Wh
                   </div>
 
                   {message.failureReason && (
-                    <div className="bg-red-50 border border-red-200 rounded p-3">
-                      <p className="text-sm text-red-800 font-medium">Razón del fallo:</p>
-                      <p className="text-sm text-red-700">{message.failureReason}</p>
+                    <div className="bg-red-50 border border-red-200 rounded p-3 dark:bg-red-950/30 dark:border-red-900/60">
+                      <p className="text-sm text-red-800 dark:text-red-200 font-medium">Razón del fallo:</p>
+                      <p className="text-sm text-red-700 dark:text-red-300">{message.failureReason}</p>
                     </div>
                   )}
 
-                  {message.status === "failed" && (
-                    <Button variant="outline" size="sm" className="w-full">
-                      Reintentar envío
-                    </Button>
+                  {message.status === "failed" && onRetry && message.phone && (
+                    <div className="space-y-2">
+                      <Button
+                        variant="outline"
+                        size="sm"
+                        className="w-full"
+                        disabled={retryingId === message.id}
+                        onClick={async (event) => {
+                          event.stopPropagation();
+                          setRetryError(null);
+                          setRetryErrorId(null);
+                          setRetryingId(message.id);
+                          try {
+                            const retried = await onRetry(message);
+                            if (!retried) {
+                              setRetryError("No se pudo reintentar el envío.");
+                              setRetryErrorId(message.id);
+                            }
+                          } catch {
+                            setRetryError("No se pudo reintentar el envío.");
+                            setRetryErrorId(message.id);
+                          } finally {
+                            setRetryingId(null);
+                          }
+                        }}
+                      >
+                        {retryingId === message.id ? "Reintentando…" : "Reintentar envío"}
+                      </Button>
+                      {retryError && retryErrorId === message.id && retryingId === null && (
+                        <p className="text-xs text-red-700 dark:text-red-300" role="alert">{retryError}</p>
+                      )}
+                    </div>
                   )}
                 </div>
               )}
@@ -208,4 +241,4 @@ export function WhatsAppHistory({ messages, isLoading, onLoadMore, hasMore }: Wh
   );
 }
 
-export type { WhatsAppMessage, MessageStatus };
+export type { MessageStatus };

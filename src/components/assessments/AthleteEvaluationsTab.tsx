@@ -1,12 +1,12 @@
 "use client";
 
 import { useState, useEffect } from "react";
-import { Plus } from "lucide-react";
 import Link from "next/link";
 import { AssessmentHistory } from "./AssessmentHistory";
 import type { AssessmentWithScores } from "@/types";
 import { Button } from "@/components/ui/button";
 import { useAcademyContext } from "@/hooks/use-academy-context";
+import { extractAssessmentRows } from "@/lib/assessments/response";
 
 interface AthleteEvaluationsTabProps {
   academyId: string;
@@ -23,7 +23,7 @@ export default function AthleteEvaluationsTab({ academyId, athleteId, athleteNam
   useEffect(() => {
     fetch(`/api/assessments/${athleteId}`)
       .then((r) => r.json())
-      .then((data) => setAssessments(data.assessments ?? []))
+      .then((payload) => setAssessments(extractAssessmentRows(payload)))
       .catch(() => setAssessments([]))
       .finally(() => setLoading(false));
   }, [athleteId]);
@@ -45,7 +45,7 @@ export default function AthleteEvaluationsTab({ academyId, athleteId, athleteNam
             : `${assessments.length} evaluación${assessments.length !== 1 ? "es" : ""} registrada${assessments.length === 1 ? "" : "s"}.`}
         </p>
         <Button variant="outline" size="sm" asChild>
-          <Link href={`/app/${academyId}/assessments?athlete=${athleteId}`}>
+          <Link href={`/app/${academyId}/assessments?athleteId=${athleteId}`}>
             Ver todas en evaluaciones
           </Link>
         </Button>

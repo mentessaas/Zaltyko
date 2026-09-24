@@ -1,7 +1,7 @@
 "use client";
 
 import { useState, useEffect } from "react";
-import { useRouter } from "next/navigation";
+import Link from "next/link";
 import { format } from "date-fns";
 import { es } from "date-fns/locale";
 import { UserPlus, Users, Clock, List } from "lucide-react";
@@ -17,6 +17,7 @@ import { logger } from "@/lib/logger";
 
 interface Event {
   id: string;
+  academyId?: string | null;
   title: string;
   startDate: string | Date | null;
   endDate?: string | Date | null;
@@ -34,7 +35,6 @@ interface EventRegistrationsPanelProps {
 }
 
 export function EventRegistrationsPanel({ event }: EventRegistrationsPanelProps) {
-  const router = useRouter();
   const [registrations, setRegistrations] = useState<Registration[]>([]);
   const [waitlist, setWaitlist] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
@@ -44,7 +44,8 @@ export function EventRegistrationsPanel({ event }: EventRegistrationsPanelProps)
     try {
       const response = await fetch(`/api/events/${event.id}/registrations`);
       if (response.ok) {
-        const data = await response.json();
+        const payload = await response.json();
+        const data = payload?.data ?? payload;
         setRegistrations(data.items || []);
       }
     } catch (error) {
@@ -56,7 +57,8 @@ export function EventRegistrationsPanel({ event }: EventRegistrationsPanelProps)
     try {
       const response = await fetch(`/api/events/${event.id}/waitlist`);
       if (response.ok) {
-        const data = await response.json();
+        const payload = await response.json();
+        const data = payload?.data ?? payload;
         setWaitlist(data.items || []);
       }
     } catch (error) {
@@ -76,6 +78,12 @@ export function EventRegistrationsPanel({ event }: EventRegistrationsPanelProps)
 
   const confirmedCount = registrations.filter((r) => r.status === "confirmed").length;
   const pendingCount = registrations.filter((r) => r.status === "pending").length;
+  const eventDetailHref = event.academyId
+    ? `/app/${event.academyId}/events/${event.id}`
+    : `/dashboard/events/${event.id}`;
+  const registrationHref = event.academyId
+    ? `/app/${event.academyId}/events/${event.id}/register`
+    : eventDetailHref;
 
   return (
     <Card>
@@ -85,9 +93,11 @@ export function EventRegistrationsPanel({ event }: EventRegistrationsPanelProps)
             <CardTitle className="font-display text-xl text-foreground">Inscripciones</CardTitle>
             <CardDescription>Gestiona las inscripciones al evento</CardDescription>
           </div>
-          <Button size="sm">
-            <UserPlus className="h-4 w-4 mr-2" />
-            Nueva inscripción
+          <Button size="sm" asChild>
+            <Link href={registrationHref}>
+              <UserPlus className="mr-2 h-4 w-4" />
+              Nueva inscripción
+            </Link>
           </Button>
         </div>
       </CardHeader>
@@ -141,9 +151,11 @@ export function EventRegistrationsPanel({ event }: EventRegistrationsPanelProps)
               <div className="py-8 text-center">
                 <Users className="mx-auto mb-3 h-12 w-12 text-zaltyko-mist" />
                 <p className="text-muted-foreground">Aún no hay inscripciones. Empieza añadiendo una.</p>
-                <Button variant="outline" size="sm" className="mt-4">
-                  <UserPlus className="h-4 w-4 mr-2" />
-                  Inscribir atleta
+                <Button variant="outline" size="sm" className="mt-4" asChild>
+                  <Link href={registrationHref}>
+                    <UserPlus className="mr-2 h-4 w-4" />
+                    Inscribir atleta
+                  </Link>
                 </Button>
               </div>
             ) : (
@@ -168,8 +180,8 @@ export function EventRegistrationsPanel({ event }: EventRegistrationsPanelProps)
                     </div>
                     <div className="flex items-center gap-2">
                       <RegistrationStatusBadge status={registration.status} />
-                      <Button variant="ghost" size="sm">
-                        Ver
+                      <Button variant="ghost" size="sm" asChild>
+                        <Link href={eventDetailHref}>Ver</Link>
                       </Button>
                     </div>
                   </div>

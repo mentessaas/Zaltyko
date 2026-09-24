@@ -1,5 +1,6 @@
 "use client";
 
+import Link from "next/link";
 import { AlertCircle, CheckCircle2, Users, Calendar, CreditCard, FileText } from "lucide-react";
 import type { ClusterContent } from "@/lib/seo/clusters";
 
@@ -82,6 +83,19 @@ export default function ClusterPainPointsSection({
               {comingSoon.headline}
             </h2>
             <p className="text-lg text-gray-600">{comingSoon.body}</p>
+            <div className="mt-8 flex flex-col items-center gap-3 sm:flex-row sm:justify-center">
+              <Link
+                href="/contact?type=other"
+                className="inline-flex min-h-11 items-center justify-center rounded-xl bg-zaltyko-primary px-5 py-3 text-sm font-semibold text-white shadow-sm transition hover:bg-zaltyko-primary/90 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-zaltyko-primary focus-visible:ring-offset-2"
+              >
+                {locale === "es" ? "Cuéntanos qué necesitas" : "Tell us what you need"}
+              </Link>
+              <span className="text-sm text-gray-500">
+                {locale === "es"
+                  ? "Ayúdanos a priorizar esta modalidad"
+                  : "Help us prioritize this modality"}
+              </span>
+            </div>
           </div>
         </div>
       </section>

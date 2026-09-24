@@ -27,7 +27,7 @@ export default function Marquee({ items, duration = 38, className }: MarqueeProp
 
   return (
     <div
-      className={`zk-marquee border-y border-border bg-white py-4 ${className ?? ""}`}
+      className={`zk-marquee border-y border-border bg-white dark:bg-background py-4 ${className ?? ""}`}
       style={
         {
           "--zk-marquee-duration": `${duration}s`,

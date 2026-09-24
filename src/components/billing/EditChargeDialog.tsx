@@ -3,15 +3,19 @@
 import { FormEvent, useEffect, useState } from "react";
 import { Modal } from "@/components/ui/modal";
 import { Button } from "@/components/ui/button";
+import { getCurrencyForCountry, isBizumAvailableInCountry } from "@/lib/currency";
+import { formatDateForCountry } from "@/lib/date-utils";
+import { useAcademyContext } from "@/hooks/use-academy-context";
 
 interface Charge {
   id: string;
-  status: "pending" | "paid" | "overdue" | "cancelled" | "partial" | "failed" | "refunded";
+  status: "pending" | "paid" | "overdue" | "cancelled" | "partial" | "failed" | "requires_action" | "refunded";
   paymentMethod: string | null;
   notes: string | null;
   label: string;
   amountCents: number;
   dueDate: string | null;
+  currency?: string | null;
 }
 
 interface EditChargeDialogProps {
@@ -29,13 +33,15 @@ export function EditChargeDialog({
   onClose,
   onUpdated,
 }: EditChargeDialogProps) {
+  const { academyCountry } = useAcademyContext();
+  const currency = charge.currency?.toUpperCase() ?? getCurrencyForCountry(academyCountry);
   const [status, setStatus] = useState(charge.status);
   const [paymentMethod, setPaymentMethod] = useState(charge.paymentMethod || "");
   const [notes, setNotes] = useState(charge.notes || "");
   const [label, setLabel] = useState(charge.label);
   const [amountEuros, setAmountEuros] = useState(""); // UI en euros (se convierte a céntimos al guardar)
   const [dueDate, setDueDate] = useState(
-    charge.dueDate ? new Date(charge.dueDate).toISOString().split("T")[0] : ""
+    charge.dueDate ? formatDateForCountry(charge.dueDate, academyCountry, "yyyy-MM-dd") : ""
   );
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -48,10 +54,10 @@ export function EditChargeDialog({
       setLabel(charge.label);
       // Convertir céntimos a euros para mostrar en UI
       setAmountEuros((charge.amountCents / 100).toFixed(2));
-      setDueDate(charge.dueDate ? new Date(charge.dueDate).toISOString().split("T")[0] : "");
+      setDueDate(charge.dueDate ? formatDateForCountry(charge.dueDate, academyCountry, "yyyy-MM-dd") : "");
       setError(null);
     }
-  }, [open, charge]);
+  }, [open, charge, academyCountry]);
 
   const handleSubmit = async (e: FormEvent) => {
     e.preventDefault();
@@ -136,7 +142,7 @@ export function EditChargeDialog({
         </div>
 
         <div>
-          <label className="block text-sm font-medium mb-1">Importe (€) *</label>
+          <label className="block text-sm font-medium mb-1">Importe ({currency}) *</label>
           <input
             type="number"
             step="0.01"
@@ -174,7 +180,7 @@ export function EditChargeDialog({
             <option value="">Sin especificar</option>
             <option value="cash">Efectivo</option>
             <option value="transfer">Transferencia</option>
-            <option value="bizum">Bizum</option>
+            {(isBizumAvailableInCountry(academyCountry) || paymentMethod === "bizum") && <option value="bizum">Bizum</option>}
             <option value="card_manual">Tarjeta</option>
             <option value="other">Otro</option>
           </select>
@@ -203,4 +209,3 @@ export function EditChargeDialog({
     </Modal>
   );
 }
-

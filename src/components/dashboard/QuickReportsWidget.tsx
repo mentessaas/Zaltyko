@@ -4,6 +4,7 @@ import Link from "next/link";
 import { FileText, TrendingUp, DollarSign, ArrowRight } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { useAcademyContext } from "@/hooks/use-academy-context";
+import { pluralizeFirstWord } from "@/lib/specialization/registry";
 
 interface QuickReportsWidgetProps {
   academyId: string;
@@ -13,7 +14,7 @@ const QUICK_REPORTS = [
   {
     id: "attendance",
     title: "Reporte de Asistencia",
-    description: "Analisis de asistencia por atleta, grupo o periodo",
+    description: "Análisis de asistencia por atleta, grupo o período",
     href: (id: string) => `/app/${id}/reports/attendance`,
     icon: TrendingUp,
     accent: "border-emerald-200 bg-emerald-50/80 text-emerald-700",
@@ -29,10 +30,10 @@ const QUICK_REPORTS = [
   {
     id: "progress",
     title: "Reporte de Progreso",
-    description: "Evolucion de atletas y comparativas",
+    description: "Evolución de atletas y comparativas",
     href: (id: string) => `/app/${id}/reports/progress`,
     icon: FileText,
-    accent: "border-zaltyko-indigo/20 bg-zaltyko-indigo/5 text-zaltyko-indigo",
+    accent: "border-zaltyko-indigo/20 bg-zaltyko-indigo/5 text-zaltyko-indigo dark:border-zaltyko-electric/30 dark:bg-zaltyko-electric/10 dark:text-zaltyko-electric",
   },
 ];
 
@@ -56,7 +57,7 @@ export function QuickReportsWidget({ academyId }: QuickReportsWidgetProps) {
           </div>
         </div>
         <p className="text-xs text-muted-foreground">
-          Genera y exporta reportes detallados sobre {specialization.labels.athletesPlural.toLowerCase()}, {specialization.labels.classLabel.toLowerCase()}s y rendimiento
+          Genera y exporta reportes detallados sobre {specialization.labels.athletesPlural.toLowerCase()}, {pluralizeFirstWord(specialization.labels.classLabel).toLowerCase()} y rendimiento
         </p>
       </header>
 

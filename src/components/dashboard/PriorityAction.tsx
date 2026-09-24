@@ -53,7 +53,7 @@ export function PriorityActionPanel({ action }: PriorityActionPanelProps) {
         {action.label}
       </h2>
       <p className="mt-1 text-xs text-amber-800 dark:text-amber-200">
-        Fuente: {action.source}
+        Detectado en la operación de tu academia.
       </p>
       <div className="mt-4">
         <Link

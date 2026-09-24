@@ -19,6 +19,9 @@ import {
 import { CampaignList, Campaign } from "./CampaignList";
 import { Discount } from "./DiscountList";
 import { logger } from "@/lib/logger";
+import { useAcademyContext } from "@/hooks/use-academy-context";
+import { formatCurrency, getCurrencyForCountry } from "@/lib/currency";
+import { formatDateToISOString } from "@/lib/date-utils";
 
 interface CampaignManagerProps {
   academyId: string;
@@ -29,17 +32,20 @@ export function CampaignManager({
   academyId,
   initialCampaigns = [],
 }: CampaignManagerProps) {
+  const { academyCountry } = useAcademyContext();
+  const currency = getCurrencyForCountry(academyCountry);
   const [campaigns, setCampaigns] = useState<Campaign[]>(initialCampaigns);
   const [discounts, setDiscounts] = useState<Discount[]>([]);
   const [isDialogOpen, setIsDialogOpen] = useState(false);
   const [editingCampaign, setEditingCampaign] = useState<Campaign | null>(null);
   const [isSaving, setIsSaving] = useState(false);
+  const [error, setError] = useState<string | null>(null);
 
   const [formData, setFormData] = useState({
     discountId: "",
     name: "",
     description: "",
-    startDate: new Date().toISOString().split("T")[0],
+    startDate: formatDateToISOString(new Date(), academyCountry),
     endDate: "",
     maxUses: "",
     isActive: true,
@@ -48,9 +54,11 @@ export function CampaignManager({
   const loadCampaigns = async () => {
     try {
       const response = await fetch(`/api/discounts/campaigns?academyId=${academyId}`);
-      const data = await response.json();
-      if (data.items) {
-        setCampaigns(data.items);
+      const payload = await response.json();
+      const data = payload?.data ?? payload;
+      const items = Array.isArray(data) ? data : data?.items;
+      if (items) {
+        setCampaigns(items);
       }
     } catch (error) {
       logger.error("Error loading campaigns:", error);
@@ -60,9 +68,11 @@ export function CampaignManager({
   const loadDiscounts = async () => {
     try {
       const response = await fetch(`/api/discounts?academyId=${academyId}`);
-      const data = await response.json();
-      if (data.items) {
-        setDiscounts(data.items);
+      const payload = await response.json();
+      const data = payload?.data ?? payload;
+      const items = Array.isArray(data) ? data : data?.items;
+      if (items) {
+        setDiscounts(items);
       }
     } catch (error) {
       logger.error("Error loading discounts:", error);
@@ -79,6 +89,7 @@ export function CampaignManager({
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setIsSaving(true);
+    setError(null);
 
     try {
       const url = editingCampaign
@@ -105,6 +116,7 @@ export function CampaignManager({
       loadCampaigns();
     } catch (error) {
       logger.error("Error saving campaign:", error);
+      setError(error instanceof Error ? error.message : "No se pudo guardar la campaña.");
     } finally {
       setIsSaving(false);
     }
@@ -114,10 +126,12 @@ export function CampaignManager({
     if (!confirm("¿Estás seguro de eliminar esta campaña?")) return;
 
     try {
-      await fetch(`/api/discounts/campaigns/${id}`, { method: "DELETE" });
+      const response = await fetch(`/api/discounts/campaigns/${id}`, { method: "DELETE" });
+      if (!response.ok) throw new Error("No se pudo eliminar la campaña.");
       loadCampaigns();
     } catch (error) {
       logger.error("Error deleting campaign:", error);
+      setError(error instanceof Error ? error.message : "No se pudo eliminar la campaña.");
     }
   };
 
@@ -126,7 +140,7 @@ export function CampaignManager({
       discountId: "",
       name: "",
       description: "",
-      startDate: new Date().toISOString().split("T")[0],
+      startDate: formatDateToISOString(new Date(), academyCountry),
       endDate: "",
       maxUses: "",
       isActive: true,
@@ -161,6 +175,13 @@ export function CampaignManager({
           Nueva Campaña
         </Button>
       </div>
+
+      {error && (
+        <div role="alert" className="flex items-center justify-between gap-3 rounded-lg border border-destructive/30 bg-destructive/10 p-3 text-sm text-destructive">
+          <span>{error}</span>
+          <button type="button" className="font-semibold underline" onClick={() => setError(null)}>Cerrar</button>
+        </div>
+      )}
 
       <CampaignList
         campaigns={campaigns}
@@ -213,7 +234,7 @@ export function CampaignManager({
                       {discount.code && ` (${discount.code})`} -{" "}
                       {discount.discountType === "percentage"
                         ? `${discount.discountValue}%`
-                        : `${discount.discountValue} EUR`}
+                        : formatCurrency(discount.discountValue, currency)}
                     </option>
                   ))}
                 </select>

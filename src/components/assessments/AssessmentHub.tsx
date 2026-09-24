@@ -68,7 +68,11 @@ export function AssessmentHub({
           <CardTitle className="text-base">Selecciona {specialization.labels.athleteSingular.toLowerCase()}</CardTitle>
         </CardHeader>
         <CardContent className="space-y-4">
+          <label htmlFor="assessment-athlete-select" className="sr-only">
+            Seleccionar atleta para evaluar
+          </label>
           <select
+            id="assessment-athlete-select"
             value={selectedAthleteId}
             onChange={(event) => setSelectedAthleteId(event.target.value)}
             className="w-full rounded-md border border-border bg-background px-3 py-2 text-sm"

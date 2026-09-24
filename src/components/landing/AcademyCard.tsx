@@ -35,6 +35,8 @@ const AcademyCard = memo(function AcademyCard({ academy, locale }: AcademyCardPr
               <img
                 src={academy.logoUrl}
                 alt={academy.name}
+                width={56}
+                height={56}
                 className="w-full h-full object-cover"
               />
             </div>
@@ -72,7 +74,7 @@ const AcademyCard = memo(function AcademyCard({ academy, locale }: AcademyCardPr
               href={academy.website}
               target="_blank"
               rel="noopener noreferrer"
-              className="flex items-center gap-1.5 text-sm font-medium text-zaltyko-teal hover:text-primary-dark transition-colors"
+              className="flex items-center gap-1.5 text-sm font-medium text-zaltyko-teal hover:text-zaltyko-primary-dark transition-colors"
             >
               <Globe className="h-4 w-4" />
               {t.visitWebsite}

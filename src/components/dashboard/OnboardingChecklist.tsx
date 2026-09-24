@@ -6,6 +6,7 @@ import Link from "next/link";
 import { ChevronDown, ChevronUp } from "lucide-react";
 
 import { CHECKLIST_DEFINITIONS, type ChecklistKey } from "@/lib/onboarding-utils";
+import { ITEM_ROUTES } from "@/lib/onboarding-routes";
 import { Progress } from "@/components/ui/progress";
 import { Button } from "@/components/ui/button";
 import { useToast } from "@/components/ui/toast-provider";
@@ -28,48 +29,16 @@ interface ApiResponse {
   };
 }
 
+interface ApiEnvelope {
+  ok?: boolean;
+  data?: ApiResponse;
+}
+
 interface OnboardingChecklistProps {
   academyId: string | null;
 }
 
-export const ITEM_ROUTES: Record<
-  ChecklistKey,
-  {
-    href: (academyId: string) => string;
-    cta: string;
-    allowManualCompletion?: boolean;
-  }
-> = {
-  create_first_group: {
-    href: (academyId) => `/app/${academyId}/groups`,
-    cta: "Crear grupo",
-  },
-  add_5_athletes: {
-    href: (academyId) => `/app/${academyId}/athletes`,
-    cta: "Añadir atletas",
-  },
-  invite_first_coach: {
-    href: (academyId) => `/app/${academyId}/coaches`,
-    cta: "Invitar entrenador",
-  },
-  setup_weekly_schedule: {
-    href: (academyId) => `/app/${academyId}/classes`,
-    cta: "Configurar calendario",
-  },
-  enable_payments: {
-    href: () => `/billing`,
-    cta: "Activar pagos",
-  },
-  send_first_communication: {
-    href: (academyId) => `/app/${academyId}/dashboard`,
-    cta: "Enviar comunicación",
-    allowManualCompletion: true,
-  },
-  login_again: {
-    href: (academyId) => `/app/${academyId}/dashboard`,
-    cta: "Ir al dashboard",
-  },
-};
+export { ITEM_ROUTES } from "@/lib/onboarding-routes";
 
 export function OnboardingChecklist({ academyId }: OnboardingChecklistProps) {
   const toast = useToast();
@@ -88,8 +57,11 @@ export function OnboardingChecklist({ academyId }: OnboardingChecklistProps) {
       const response = await fetch(`/api/onboarding/checklist?academyId=${academyId}`, {
         cache: "no-store",
       });
-      const json = (await response.json()) as ApiResponse;
-      setData(json);
+      const json = (await response.json()) as ApiEnvelope;
+      if (!response.ok || !json.data) {
+        throw new Error("Respuesta inválida del checklist");
+      }
+      setData(json.data);
     } catch (error) {
       logger.error("Error", error);
       toast.pushToast({
@@ -146,13 +118,16 @@ export function OnboardingChecklist({ academyId }: OnboardingChecklistProps) {
   }
 
   return (
-    <div className="space-y-4 rounded-2xl border border-dashed border-muted bg-card/60 p-6 shadow-sm">
+    <div
+      className="space-y-4 rounded-2xl border border-dashed border-muted bg-card/60 p-6 shadow-sm"
+      aria-busy={loading}
+    >
       <div className="flex flex-col gap-2 md:flex-row md:items-center md:justify-between">
         <div className="flex-1">
           <p className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">Checklist</p>
-          <h2 className="text-xl font-semibold">Completa tu academia</h2>
+          <h2 className="text-xl font-semibold">Pon tu academia en marcha</h2>
           <p className="text-sm text-foreground">
-            Avanza paso a paso para tener tu academia lista en menos de 24 horas.
+            Configura lo esencial y registra tu primera asistencia con una ruta clara, paso a paso.
           </p>
         </div>
         <div className="flex items-center gap-3">
@@ -225,4 +200,3 @@ export function OnboardingChecklist({ academyId }: OnboardingChecklistProps) {
     </div>
   );
 }
-

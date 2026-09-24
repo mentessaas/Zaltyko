@@ -48,6 +48,7 @@ export function DowngradeModal({
 }: DowngradeModalProps) {
     const [loading, setLoading] = useState(false);
     const [confirmed, setConfirmed] = useState(false);
+    const [error, setError] = useState<string | null>(null);
 
     const targetLimits = PLAN_LIMITS[targetPlan];
     const currentLimits = PRODUCT_PLAN_BY_CODE[currentPlan];
@@ -66,11 +67,13 @@ export function DowngradeModal({
 
     const handleConfirm = async () => {
         setLoading(true);
+        setError(null);
         try {
             await onConfirm();
             onClose();
         } catch (error) {
-            logger.error("Error:", error);
+            logger.error("Downgrade confirmation failed", { error: String(error) });
+            setError(error instanceof Error ? error.message : "No se pudo programar el cambio de plan.");
         } finally {
             setLoading(false);
         }
@@ -89,18 +92,24 @@ export function DowngradeModal({
                     </DialogDescription>
                 </DialogHeader>
 
+                {error && (
+                    <div role="alert" className="rounded-lg border border-destructive/30 bg-destructive/10 p-3 text-sm text-destructive">
+                        {error}
+                    </div>
+                )}
+
                 <div className="space-y-6">
                     {/* Effective Date */}
-                    <div className="flex items-center gap-3 p-4 rounded-lg bg-blue-50 border border-blue-200">
-                        <Calendar className="w-5 h-5 text-blue-600" />
+                    <div className="flex items-center gap-3 p-4 rounded-lg bg-blue-500/10 border border-blue-500/25">
+                        <Calendar className="w-5 h-5 text-blue-400" />
                         <div className="flex-1">
-                            <p className="text-sm font-semibold text-blue-900">
+                            <p className="text-sm font-semibold text-blue-300">
                                 Fecha efectiva del cambio
                             </p>
-                            <p className="text-sm text-blue-700">
+                            <p className="text-sm text-blue-200">
                                 {effectiveDate}
                             </p>
-                            <p className="text-xs text-blue-600 mt-1">
+                            <p className="text-xs text-blue-300 mt-1">
                                 Seguirás teniendo acceso a tu plan actual hasta esta fecha
                             </p>
                         </div>
@@ -111,25 +120,25 @@ export function DowngradeModal({
                         <div className="space-y-3">
                             <div className="flex items-center gap-2">
                                 <AlertTriangle className="w-5 h-5 text-amber-500" />
-                                <h4 className="font-semibold text-amber-900">
+                                <h4 className="font-semibold text-amber-300">
                                     Advertencias importantes
                                 </h4>
                             </div>
 
                             <div className="space-y-2">
                                 {warnings.map((warning, idx) => (
-                                    <div key={idx} className="flex items-start gap-2 p-3 rounded-lg bg-amber-50 border border-amber-200">
-                                        <AlertTriangle className="w-4 h-4 text-amber-600 mt-0.5 flex-shrink-0" />
-                                        <p className="text-sm text-amber-900">{warning}</p>
+                                    <div key={idx} className="flex items-start gap-2 p-3 rounded-lg bg-amber-500/10 border border-amber-500/25">
+                                        <AlertTriangle className="w-4 h-4 text-amber-400 mt-0.5 flex-shrink-0" />
+                                        <p className="text-sm text-amber-300">{warning}</p>
                                     </div>
                                 ))}
                             </div>
 
-                            <div className="p-4 rounded-lg bg-amber-50 border border-amber-200">
-                                <p className="text-sm font-semibold text-amber-900 mb-2">
+                            <div className="p-4 rounded-lg bg-amber-500/10 border border-amber-500/25">
+                                <p className="text-sm font-semibold text-amber-300 mb-2">
                                     ¿Qué pasará con mis datos?
                                 </p>
-                                <ul className="text-sm text-amber-800 space-y-1 list-disc list-inside">
+                                <ul className="text-sm text-amber-200 space-y-1 list-disc list-inside">
                                     <li>Los datos que excedan los límites se mantendrán en modo solo lectura</li>
                                     <li>No podrás agregar nuevos registros hasta estar dentro de los límites</li>
                                     <li>Puedes hacer upgrade en cualquier momento para recuperar el acceso completo</li>
@@ -163,15 +172,15 @@ export function DowngradeModal({
 
                     {/* Confirmation Checkbox */}
                     {hasWarnings && (
-                        <div className="flex items-start gap-3 p-4 rounded-lg border-2 border-amber-300 bg-amber-50">
+                        <div className="flex items-start gap-3 p-4 rounded-lg border-2 border-amber-500/30 bg-amber-500/10">
                             <input
                                 type="checkbox"
                                 id="confirm-downgrade"
                                 checked={confirmed}
                                 onChange={(e) => setConfirmed(e.target.checked)}
-                                className="mt-1"
+                            className="mt-1"
                             />
-                            <label htmlFor="confirm-downgrade" className="text-sm text-amber-900 cursor-pointer">
+                            <label htmlFor="confirm-downgrade" className="text-sm text-amber-300 cursor-pointer">
                                 Entiendo que algunos de mis datos quedarán en modo solo lectura y acepto las limitaciones del plan {targetLimits.name}
                             </label>
                         </div>
@@ -179,9 +188,9 @@ export function DowngradeModal({
 
                     {/* Info Box */}
                     <div className="flex items-start gap-3 p-4 rounded-lg surface-subtle border border-border">
-                        <Info className="w-5 h-5 text-gray-600 mt-0.5" />
+                        <Info className="w-5 h-5 text-muted-foreground mt-0.5" />
                         <div className="flex-1">
-                            <p className="text-sm text-gray-700">
+                            <p className="text-sm text-muted-foreground">
                                 Puedes cancelar este cambio programado en cualquier momento antes de la fecha efectiva.
                                 También puedes hacer upgrade nuevamente sin penalización.
                             </p>

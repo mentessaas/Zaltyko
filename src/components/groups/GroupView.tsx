@@ -12,6 +12,7 @@ import { useAcademyContext } from "@/hooks/use-academy-context";
 import { getGroupTechnicalGuidance } from "@/lib/specialization/technical-guidance";
 import { pluralizeFirstWord } from "@/lib/specialization/registry";
 import { logger } from "@/lib/logger";
+import { formatMinorCurrency, getCurrencyForCountry } from "@/lib/currency";
 
 interface GroupViewProps {
   academyId: string;
@@ -32,7 +33,8 @@ interface GroupSummary {
 }
 
 export function GroupView({ academyId, group, availableAthletes, availableCoaches }: GroupViewProps) {
-  const { specialization } = useAcademyContext();
+  const { specialization, academyCountry } = useAcademyContext();
+  const currency = getCurrencyForCountry(academyCountry);
   const [detail, setDetail] = useState(group);
   const [membersDialogOpen, setMembersDialogOpen] = useState(false);
   const [coachesDialogOpen, setCoachesDialogOpen] = useState(false);
@@ -65,8 +67,8 @@ export function GroupView({ academyId, group, availableAthletes, availableCoache
         const period = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, "0")}`;
         const res = await fetch(`/api/groups/${group.id}/summary?period=${period}`);
         if (res.ok) {
-          const data = await res.json();
-          setSummary(data);
+          const payload = await res.json();
+          setSummary(payload?.data ?? payload);
         }
       } catch (error) {
         logger.error("Error loading group summary:", error);
@@ -186,7 +188,7 @@ export function GroupView({ academyId, group, availableAthletes, availableCoache
                   <h3 className="text-base font-semibold text-foreground">Resumen económico del grupo</h3>
                   <p className="text-xs text-muted-foreground">
                     {summary.activeAthletesCount} {summary.activeAthletesCount === 1 ? specialization.labels.athleteSingular.toLowerCase() : specialization.labels.athletesPlural.toLowerCase()} activo{summary.activeAthletesCount === 1 ? "" : "s"}
-                    {summary.monthlyFeeCents > 0 && ` · Cuota mensual: ${(summary.monthlyFeeCents / 100).toFixed(2)} €`}
+                    {summary.monthlyFeeCents > 0 && ` · Cuota mensual: ${formatMinorCurrency(summary.monthlyFeeCents, currency)}`}
                   </p>
                 </div>
                 <Button variant="outline" size="sm" asChild>
@@ -199,19 +201,19 @@ export function GroupView({ academyId, group, availableAthletes, availableCoache
                 <div className="rounded-md border border-border/60 bg-background px-3 py-2 text-sm">
                   <p className="text-xs text-muted-foreground">Total esperado</p>
                   <p className="mt-1 text-base font-semibold text-foreground">
-                    {(summary.expectedTotalCents / 100).toFixed(2)} €
+                    {formatMinorCurrency(summary.expectedTotalCents, currency)}
                   </p>
                 </div>
                 <div className="rounded-md border border-border/60 bg-background px-3 py-2 text-sm">
                   <p className="text-xs text-muted-foreground">Total cobrado</p>
                   <p className="mt-1 text-base font-semibold text-green-600">
-                    {(summary.paidTotalCents / 100).toFixed(2)} €
+                    {formatMinorCurrency(summary.paidTotalCents, currency)}
                   </p>
                 </div>
                 <div className="rounded-md border border-border/60 bg-background px-3 py-2 text-sm">
                   <p className="text-xs text-muted-foreground">Pendiente / Atrasado</p>
                   <p className="mt-1 text-base font-semibold text-yellow-600">
-                    {(summary.pendingOrOverdueTotalCents / 100).toFixed(2)} €
+                    {formatMinorCurrency(summary.pendingOrOverdueTotalCents, currency)}
                   </p>
                 </div>
               </div>
@@ -231,7 +233,7 @@ export function GroupView({ academyId, group, availableAthletes, availableCoache
           <section className="rounded-xl border bg-card p-6 shadow-sm">
             <header className="mb-4 flex items-center justify-between">
               <div>
-                <h2 className="text-lg font-semibold text-foreground">{specialization.labels.athletesPlural} asignados</h2>
+                <h2 className="text-lg font-semibold text-foreground">{specialization.labels.athletesPlural}</h2>
                 <p className="text-sm text-muted-foreground">
                   {detail.members.length} {detail.members.length === 1 ? specialization.labels.athleteSingular.toLowerCase() : specialization.labels.athletesPlural.toLowerCase()} forman parte de este grupo.
                 </p>
@@ -314,7 +316,7 @@ export function GroupView({ academyId, group, availableAthletes, availableCoache
             <div>
               <h2 className="text-lg font-semibold text-foreground">Clases relacionadas</h2>
               <p className="text-sm text-muted-foreground">
-                Basado en los {pluralizeFirstWord(specialization.labels.coachLabel).toLowerCase()} asignados a este grupo.
+                Basado en el staff asignado a este grupo.
               </p>
             </div>
             <Button variant="outline" asChild>
@@ -324,7 +326,7 @@ export function GroupView({ academyId, group, availableAthletes, availableCoache
 
           {detail.classes.length === 0 ? (
             <div className="rounded-lg border border-dashed p-6 text-sm text-muted-foreground">
-              No encontramos clases relacionadas con los {pluralizeFirstWord(specialization.labels.coachLabel).toLowerCase()} de este grupo. Puedes asignarlas desde el
+              No encontramos clases relacionadas con el staff de este grupo. Puedes asignarlas desde el
               módulo de clases.
             </div>
           ) : (
@@ -347,7 +349,7 @@ export function GroupView({ academyId, group, availableAthletes, availableCoache
                   </div>
                   <div className="mt-2 flex flex-wrap gap-2 text-xs text-muted-foreground">
                     {clazz.coachNames.length === 0 ? (
-                      <span className="rounded-full bg-card/60 px-3 py-1">Sin {pluralizeFirstWord(specialization.labels.coachLabel).toLowerCase()} asignados</span>
+                      <span className="rounded-full bg-card/60 px-3 py-1">Sin responsables asignados</span>
                     ) : (
                       clazz.coachNames.map((name) => (
                         <span key={name} className="rounded-full bg-card/60 px-3 py-1 font-medium">

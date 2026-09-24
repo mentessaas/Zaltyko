@@ -1,8 +1,8 @@
 "use client";
 
-import { useState, useEffect, useMemo } from "react";
+import { useState, useEffect, useMemo, useRef } from "react";
 import { useRouter } from "next/navigation";
-import { Building2, Globe, Mail, Phone, MapPin, Instagram, Facebook, Twitter, Youtube, Save, X } from "lucide-react";
+import { Building2, Globe, Mail, Phone, MapPin, Instagram, Facebook, Twitter, Youtube, Save, X, Upload, Loader2 } from "lucide-react";
 
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
@@ -57,6 +57,8 @@ export function AcademyEditForm({ academy, onSaved, onCancel }: AcademyEditFormP
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [success, setSuccess] = useState(false);
+  const [isUploadingLogo, setIsUploadingLogo] = useState(false);
+  const logoInputRef = useRef<HTMLInputElement>(null);
 
   const [formData, setFormData] = useState({
     name: academy.name || "",
@@ -88,6 +90,43 @@ export function AcademyEditForm({ academy, onSaved, onCancel }: AcademyEditFormP
     () => findCitiesByRegion(formData.countryCode.toLowerCase(), formData.region),
     [formData.countryCode, formData.region]
   );
+
+  const handleLogoUpload = async (event: React.ChangeEvent<HTMLInputElement>) => {
+    const file = event.target.files?.[0];
+    event.target.value = "";
+    if (!file) return;
+
+    const acceptedTypes = new Set(["image/jpeg", "image/png", "image/gif", "image/webp"]);
+    if (!acceptedTypes.has(file.type)) {
+      setError("El logo debe ser JPG, PNG, GIF o WebP.");
+      return;
+    }
+    if (file.size === 0 || file.size > 5 * 1024 * 1024) {
+      setError("El logo no puede superar los 5 MB.");
+      return;
+    }
+
+    setIsUploadingLogo(true);
+    setError(null);
+    try {
+      const body = new FormData();
+      body.append("file", file);
+      body.append("academyId", academy.id);
+      body.append("folder", "academy-logo");
+      const response = await fetch("/api/upload", { method: "POST", body });
+      const payload = await response.json().catch(() => ({}));
+      if (!response.ok) {
+        throw new Error(payload?.message || payload?.error || "No se pudo subir el logo");
+      }
+      const url = payload?.data?.url ?? payload?.url;
+      if (typeof url !== "string" || !url) throw new Error("El servidor no devolvió la URL del logo");
+      setFormData((current) => ({ ...current, logoUrl: url }));
+    } catch (uploadError) {
+      setError(uploadError instanceof Error ? uploadError.message : "No se pudo subir el logo");
+    } finally {
+      setIsUploadingLogo(false);
+    }
+  };
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -146,13 +185,13 @@ export function AcademyEditForm({ academy, onSaved, onCancel }: AcademyEditFormP
   return (
     <form onSubmit={handleSubmit} className="space-y-6">
       {error && (
-        <div className="rounded-lg border border-red-200 bg-red-50 p-4 text-sm text-red-800">
+        <div className="rounded-lg border border-red-200 bg-red-50 p-4 text-sm text-red-800 dark:border-red-900/60 dark:bg-red-950/30 dark:text-red-200" role="alert" aria-live="assertive">
           {error}
         </div>
       )}
 
       {success && (
-        <div className="rounded-lg border border-green-200 bg-green-50 p-4 text-sm text-green-800">
+        <div className="rounded-lg border border-green-200 bg-green-50 p-4 text-sm text-green-800 dark:border-green-900/60 dark:bg-green-950/30 dark:text-green-200" role="status">
           ¡Cambios guardados correctamente!
         </div>
       )}
@@ -374,14 +413,41 @@ export function AcademyEditForm({ academy, onSaved, onCancel }: AcademyEditFormP
             </div>
 
             <div className="space-y-2">
-              <Label htmlFor="logoUrl">URL del logo</Label>
+              <Label htmlFor="logoUrl">Logo de la academia</Label>
+              <div className="flex flex-col gap-3 sm:flex-row sm:items-center">
+                <input
+                  ref={logoInputRef}
+                  type="file"
+                  accept="image/jpeg,image/png,image/gif,image/webp"
+                  onChange={handleLogoUpload}
+                  className="hidden"
+                  disabled={loading || isUploadingLogo}
+                />
+                <Button
+                  type="button"
+                  variant="outline"
+                  onClick={() => logoInputRef.current?.click()}
+                  disabled={loading || isUploadingLogo}
+                >
+                  {isUploadingLogo ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <Upload className="mr-2 h-4 w-4" />}
+                  {isUploadingLogo ? "Subiendo…" : "Subir logo"}
+                </Button>
+                <span className="text-xs text-muted-foreground">JPG, PNG, GIF o WebP · máximo 5 MB</span>
+              </div>
               <Input
                 id="logoUrl"
                 type="url"
                 value={formData.logoUrl}
                 onChange={(e) => setFormData({ ...formData, logoUrl: e.target.value })}
-                placeholder="https://ejemplo.com/logo.png"
+                placeholder="O pega una URL de imagen"
+                disabled={loading || isUploadingLogo}
               />
+              {formData.logoUrl ? (
+                <div className="flex items-center gap-3 rounded-lg border border-border bg-muted/30 p-3">
+                  <img src={formData.logoUrl} alt="Vista previa del logo de la academia" className="h-12 w-12 rounded-md object-contain" />
+                  <span className="text-xs text-muted-foreground">Vista previa del logo público</span>
+                </div>
+              ) : null}
             </div>
           </div>
         </CardContent>

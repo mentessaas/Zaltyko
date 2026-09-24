@@ -6,10 +6,14 @@ import { ArrowUpRight } from "lucide-react";
 import { Progress } from "@/components/ui/progress";
 import type { DashboardPlanUsage } from "@/lib/dashboard";
 import { cn } from "@/lib/utils";
+import { getProductPlanPublicName } from "@/lib/plans/catalog";
+import { getSubscriptionStatusLabel } from "@/lib/billing/subscription-status-labels";
 
 interface PlanUsageProps {
   plan: DashboardPlanUsage;
   academyId: string;
+  athleteLabel: string;
+  classLabel: string;
 }
 
 function getProgressColor(percent: number) {
@@ -18,28 +22,13 @@ function getProgressColor(percent: number) {
   return "bg-zaltyko-teal";
 }
 
-const PLAN_STATUS_LABELS: Record<string, string> = {
-  active: "Activo",
-  trialing: "En periodo de prueba",
-  past_due: "Pago pendiente",
-  canceled: "Cancelado",
-  incomplete: "Incompleto",
-  incomplete_expired: "Expirado",
-  unpaid: "Sin pagar",
-  paused: "Pausado",
-};
-
-function getPlanStatusLabel(status: string) {
-  return PLAN_STATUS_LABELS[status] ?? status;
-}
-
-export function PlanUsage({ plan, academyId }: PlanUsageProps) {
-  const effectivePlanName = plan.planNickname ?? plan.planCode?.toUpperCase() ?? "Plan";
+export function PlanUsage({ plan, academyId, athleteLabel, classLabel }: PlanUsageProps) {
+  const effectivePlanName = getProductPlanPublicName(plan.planCode, plan.planNickname);
   const usageSummary = plan.athleteLimit != null
-    ? `${plan.usedAthletes}/${plan.athleteLimit} atletas`
-    : `${plan.usedAthletes} atletas`;
+    ? `${plan.usedAthletes}/${plan.athleteLimit} ${athleteLabel}`
+    : `${plan.usedAthletes} ${athleteLabel}`;
   const classesSummary = plan.classLimit != null
-    ? `, ${plan.usedClasses}/${plan.classLimit} clases`
+    ? `, ${plan.usedClasses}/${plan.classLimit} ${classLabel}`
     : "";
 
   return (
@@ -50,11 +39,11 @@ export function PlanUsage({ plan, academyId }: PlanUsageProps) {
             Estado del plan
           </p>
           <h3 className="mt-0.5 font-display text-base font-semibold text-foreground">{effectivePlanName}</h3>
-          <p className="text-[10px] text-muted-foreground">Estado: {getPlanStatusLabel(plan.status)}</p>
+          <p className="text-[10px] text-muted-foreground">Estado: {getSubscriptionStatusLabel(plan.status)}</p>
         </div>
         <Link
           href={`/app/${academyId}/billing`}
-          className="inline-flex shrink-0 items-center gap-1 rounded-lg border border-zaltyko-indigo/25 px-2 py-1 text-[10px] font-semibold text-zaltyko-indigo transition hover:bg-zaltyko-indigo/5"
+          className="inline-flex shrink-0 items-center gap-1 rounded-lg border border-zaltyko-indigo/25 px-2 py-1 text-[10px] font-semibold text-zaltyko-indigo transition hover:bg-zaltyko-indigo/5 dark:border-zaltyko-electric/35 dark:text-zaltyko-electric dark:hover:bg-zaltyko-electric/10"
         >
           Mejorar
           <ArrowUpRight className="h-3 w-3" strokeWidth={1.8} />

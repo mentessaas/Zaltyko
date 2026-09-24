@@ -2,9 +2,6 @@
 
 import { useState } from "react";
 import { Edit, Trash2, User, Calendar, Award, CheckCircle, XCircle } from "lucide-react";
-import { format } from "date-fns";
-import { es } from "date-fns/locale";
-
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import {
@@ -24,6 +21,9 @@ import {
 } from "@/components/ui/table";
 import type { SportTerminology } from "@/lib/sport-config/catalog";
 import { DEFAULT_TERMINOLOGY } from "@/lib/sport-config/terminology";
+import { useAcademyContext } from "@/hooks/use-academy-context";
+import { formatCurrency, getCurrencyForCountry } from "@/lib/currency";
+import { formatDateForCountry, formatDateToISOString } from "@/lib/date-utils";
 
 export interface Scholarship {
   id: string;
@@ -53,23 +53,23 @@ export function ScholarshipList({
   onDelete,
   onToggleActive,
 }: ScholarshipListProps) {
+  const { academyCountry } = useAcademyContext();
+  const currency = getCurrencyForCountry(academyCountry);
   const [viewMode, setViewMode] = useState<"grid" | "list">("grid");
   const terms = terminology ?? DEFAULT_TERMINOLOGY;
 
   const getStatusBadge = (scholarship: Scholarship) => {
-    const today = new Date();
-    const startDate = new Date(scholarship.startDate);
-    const endDate = scholarship.endDate ? new Date(scholarship.endDate) : null;
+    const today = formatDateToISOString(new Date(), academyCountry);
 
     if (!scholarship.isActive) {
       return <Badge variant="outline">Inactiva</Badge>;
     }
 
-    if (startDate > today) {
+    if (scholarship.startDate > today) {
       return <Badge variant="outline">Próxima</Badge>;
     }
 
-    if (endDate && endDate < today) {
+    if (scholarship.endDate && scholarship.endDate < today) {
       return <Badge variant="error">Expirada</Badge>;
     }
 
@@ -83,7 +83,7 @@ export function ScholarshipList({
     if (discountType === "percentage") {
       return `Beca Parcial (${discountValue}%)`;
     }
-    return `Beca Fija (${discountValue} EUR)`;
+    return `Beca Fija (${formatCurrency(discountValue, currency)})`;
   };
 
   if (scholarships.length === 0) {
@@ -151,13 +151,9 @@ export function ScholarshipList({
                   <div className="flex items-center gap-2">
                     <Calendar className="h-4 w-4 text-muted-foreground" />
                     <span>
-                      {format(new Date(scholarship.startDate), "dd MMM yyyy", {
-                        locale: es,
-                      })}
+                      {formatDateForCountry(scholarship.startDate, academyCountry, "dd MMM yyyy")}
                       {scholarship.endDate
-                        ? ` - ${format(new Date(scholarship.endDate), "dd MMM yyyy", {
-                            locale: es,
-                          })}`
+                        ? ` - ${formatDateForCountry(scholarship.endDate, academyCountry, "dd MMM yyyy")}`
                         : " - Sin fecha fin"}
                     </span>
                   </div>
@@ -242,18 +238,14 @@ export function ScholarshipList({
                   <TableCell>
                     {scholarship.discountType === "percentage"
                       ? `${scholarship.discountValue}%`
-                      : `${scholarship.discountValue} EUR`}
+                      : formatCurrency(scholarship.discountValue, currency)}
                   </TableCell>
                   <TableCell>
-                    {format(new Date(scholarship.startDate), "dd/MM/yyyy", {
-                      locale: es,
-                    })}
+                    {formatDateForCountry(scholarship.startDate, academyCountry, "dd/MM/yyyy")}
                   </TableCell>
                   <TableCell>
                     {scholarship.endDate
-                      ? format(new Date(scholarship.endDate), "dd/MM/yyyy", {
-                          locale: es,
-                        })
+                      ? formatDateForCountry(scholarship.endDate, academyCountry, "dd/MM/yyyy")
                       : "Sin límite"}
                   </TableCell>
                   <TableCell>{getStatusBadge(scholarship)}</TableCell>

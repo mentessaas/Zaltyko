@@ -15,18 +15,22 @@ export function MessageInput({
 }: MessageInputProps) {
   const [message, setMessage] = useState("");
   const [isSending, setIsSending] = useState(false);
+  const [error, setError] = useState<string | null>(null);
   const textareaRef = useRef<HTMLTextAreaElement>(null);
 
   const handleSubmit = useCallback(async () => {
     if (!message.trim() || isSending || disabled) return;
 
     setIsSending(true);
+    setError(null);
     try {
       await onSend(message.trim());
       setMessage("");
       if (textareaRef.current) {
         textareaRef.current.style.height = "auto";
       }
+    } catch (sendError) {
+      setError(sendError instanceof Error ? sendError.message : "No se pudo enviar el mensaje. Inténtalo de nuevo.");
     } finally {
       setIsSending(false);
     }
@@ -105,6 +109,7 @@ export function MessageInput({
           )}
         </button>
       </div>
+      {error ? <p role="alert" className="mt-2 text-xs text-destructive">{error}</p> : null}
     </div>
   );
 }

@@ -18,19 +18,17 @@ interface Plan {
     features: string[];
     limits: {
         athletes: number | "unlimited";
-        coaches: number | "unlimited";
         classes: number | "unlimited";
-        storage_gb: number | "unlimited";
     };
     popular?: boolean;
     icon: typeof Sparkles;
     color: string;
 }
 
-const PLAN_DECOR: Record<PlanCode, { icon: typeof Sparkles; color: string; coaches: number | "unlimited"; storage_gb: number | "unlimited" }> = {
-    free: { icon: Sparkles, color: "from-gray-500 to-gray-600", coaches: 2, storage_gb: 0.1 },
-    pro: { icon: Zap, color: "from-zaltyko-primary to-zaltyko-accent-teal", coaches: 5, storage_gb: 0.5 },
-    premium: { icon: Crown, color: "from-zaltyko-accent-coral to-zaltyko-accent-amber", coaches: 10, storage_gb: 1 },
+const PLAN_DECOR: Record<PlanCode, { icon: typeof Sparkles; color: string }> = {
+    free: { icon: Sparkles, color: "from-gray-500 to-gray-600" },
+    pro: { icon: Zap, color: "from-zaltyko-primary to-zaltyko-accent-teal" },
+    premium: { icon: Crown, color: "from-zaltyko-accent-coral to-zaltyko-accent-amber" },
 };
 
 const PLANS: Plan[] = BILLABLE_PRODUCT_PLANS.map((plan) => {
@@ -48,9 +46,7 @@ const PLANS: Plan[] = BILLABLE_PRODUCT_PLANS.map((plan) => {
         features: plan.features,
         limits: {
             athletes: plan.athleteLimit ?? "unlimited",
-            coaches: decor.coaches,
             classes: plan.classLimit ?? "unlimited",
-            storage_gb: decor.storage_gb,
         },
     };
 });
@@ -194,21 +190,9 @@ export function PlanComparison({ currentPlan = "free", onSelectPlan, loading = f
                                         </span>
                                     </div>
                                     <div>
-                                        <span className="text-zaltyko-text-light">Coaches:</span>
-                                        <span className="ml-1 font-semibold">
-                                            {plan.limits.coaches === "unlimited" ? "∞" : plan.limits.coaches}
-                                        </span>
-                                    </div>
-                                    <div>
                                         <span className="text-zaltyko-text-light">Clases:</span>
                                         <span className="ml-1 font-semibold">
                                             {plan.limits.classes === "unlimited" ? "∞" : plan.limits.classes}
-                                        </span>
-                                    </div>
-                                    <div>
-                                        <span className="text-zaltyko-text-light">Storage:</span>
-                                        <span className="ml-1 font-semibold">
-                                            {plan.limits.storage_gb === "unlimited" ? "∞" : `${plan.limits.storage_gb} GB`}
                                         </span>
                                     </div>
                                 </div>

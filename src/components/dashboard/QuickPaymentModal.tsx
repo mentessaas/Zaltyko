@@ -7,8 +7,12 @@ import { Label } from "@/components/ui/label";
 import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
 import { DollarSign, CreditCard, Wallet } from "lucide-react";
 import { logger } from "@/lib/logger";
+import { useAcademyContext } from "@/hooks/use-academy-context";
+import { formatMinorCurrency, getCurrencyForCountry } from "@/lib/currency";
+import { formatDateToISOString, formatShortDateForCountry } from "@/lib/date-utils";
 
 interface QuickPaymentModalProps {
+    academyId: string;
     isOpen: boolean;
     onClose: () => void;
     onSuccess: () => void;
@@ -19,40 +23,63 @@ interface OverdueCharge {
     athleteId: string;
     athleteName?: string;
     amountCents: number;
+    currency?: string | null;
     dueDate: string;
 }
 
-export function QuickPaymentModal({ isOpen, onClose, onSuccess }: QuickPaymentModalProps) {
+export function QuickPaymentModal({ academyId, isOpen, onClose, onSuccess }: QuickPaymentModalProps) {
+    const { academyCountry } = useAcademyContext();
+    const defaultCurrency = getCurrencyForCountry(academyCountry);
     const [charges, setCharges] = useState<OverdueCharge[]>([]);
     const [selectedCharge, setSelectedCharge] = useState("");
     const [paymentMethod, setPaymentMethod] = useState("cash");
     const [loading, setLoading] = useState(false);
+    const [loadingCharges, setLoadingCharges] = useState(false);
+    const [loadError, setLoadError] = useState<string | null>(null);
+    const [submitError, setSubmitError] = useState<string | null>(null);
 
     useEffect(() => {
         if (isOpen) {
             fetchOverdueCharges();
         }
-    }, [isOpen]);
+    }, [isOpen, academyId]);
 
     const fetchOverdueCharges = async () => {
+        setLoadingCharges(true);
+        setLoadError(null);
         try {
-            const today = new Date().toISOString().split("T")[0];
-            const res = await fetch(`/api/charges?status=pending&dueBefore=${today}&limit=10`);
-            const json = await res.json();
-            if (json.success && json.data) {
-                setCharges(json.data);
-                if (json.data.length > 0) {
-                    setSelectedCharge(json.data[0].id);
+            const today = formatDateToISOString(new Date(), academyCountry);
+            const res = await fetch(`/api/charges?academyId=${encodeURIComponent(academyId)}&status=pending,overdue&dueBefore=${today}&limit=10`, { cache: "no-store" });
+            const json = await res.json().catch(() => ({}));
+            if (!res.ok) {
+                setLoadError(json.message ?? json.error ?? "No se pudieron cargar los pagos vencidos");
+                setCharges([]);
+                setSelectedCharge("");
+            } else if ((json.ok || json.success) && json.data) {
+                const rows = Array.isArray(json.data) ? json.data : json.data.items ?? [];
+                setCharges(rows);
+                if (rows.length > 0) {
+                    setSelectedCharge(rows[0].id);
+                } else {
+                    setSelectedCharge("");
                 }
+            } else {
+                setLoadError(json.message ?? json.error ?? "No se pudieron cargar los pagos vencidos");
+                setCharges([]);
+                setSelectedCharge("");
             }
         } catch (error) {
             logger.error("Error fetching overdue charges:", error);
+            setLoadError("Error de conexión. Intenta de nuevo.");
+        } finally {
+            setLoadingCharges(false);
         }
     };
 
     const handleSubmit = async (e: React.FormEvent) => {
         e.preventDefault();
         setLoading(true);
+        setSubmitError(null);
 
         try {
             const res = await fetch("/api/quick-actions/record-payment", {
@@ -60,16 +87,25 @@ export function QuickPaymentModal({ isOpen, onClose, onSuccess }: QuickPaymentMo
                 headers: { "Content-Type": "application/json" },
                 body: JSON.stringify({
                     chargeId: selectedCharge,
+                    academyId,
+                    amountCents: selectedChargeData?.amountCents,
                     paymentMethod,
                 }),
             });
 
-            const json = await res.json();
-            if (json.success) {
+            const json = await res.json().catch(() => ({}));
+            if (!res.ok) {
+                setSubmitError(json.message ?? json.error ?? "No se pudo registrar el pago");
+                return;
+            }
+            if (json.ok || json.success) {
                 onSuccess();
+            } else {
+                setSubmitError(json.message ?? "No se pudo registrar el pago");
             }
         } catch (error) {
             logger.error("Error recording payment:", error);
+            setSubmitError("Error de conexion. Intenta de nuevo.");
         } finally {
             setLoading(false);
         }
@@ -87,13 +123,21 @@ export function QuickPaymentModal({ isOpen, onClose, onSuccess }: QuickPaymentMo
                     </DialogDescription>
                 </DialogHeader>
 
-                {charges.length === 0 ? (
+                {loadingCharges ? (
+                    <div className="py-8 text-center text-muted-foreground" aria-busy="true">Cargando pagos vencidos…</div>
+                ) : loadError ? (
+                    <div className="space-y-3 py-8 text-center" role="alert" aria-live="assertive">
+                        <p className="text-sm text-red-700">{loadError}</p>
+                        <Button type="button" variant="outline" onClick={fetchOverdueCharges}>Reintentar</Button>
+                    </div>
+                ) : charges.length === 0 ? (
                     <div className="py-8 text-center text-muted-foreground">
                         <DollarSign className="mx-auto h-12 w-12 mb-2 opacity-50" />
                         <p>No hay pagos vencidos</p>
                     </div>
                 ) : (
                     <form onSubmit={handleSubmit} className="space-y-4">
+                        {submitError && <p data-testid="quick-payment-error" className="rounded bg-red-50 p-2 text-sm text-red-700" role="alert" aria-live="assertive">{submitError}</p>}
                         <div className="space-y-2">
                             <Label>Selecciona el pago</Label>
                             <RadioGroup value={selectedCharge} onValueChange={setSelectedCharge}>
@@ -108,12 +152,12 @@ export function QuickPaymentModal({ isOpen, onClose, onSuccess }: QuickPaymentMo
                                                 {charge.athleteName || "Atleta"}
                                             </p>
                                             <p className="text-xs text-muted-foreground">
-                                                Vencido: {new Date(charge.dueDate).toLocaleDateString()}
+                                                Vencido: {formatShortDateForCountry(charge.dueDate, academyCountry)}
                                             </p>
                                         </div>
                                         <div className="text-right">
                                             <p className="font-semibold">
-                                                €{(charge.amountCents / 100).toFixed(2)}
+                                                {formatMinorCurrency(charge.amountCents, charge.currency ?? defaultCurrency)}
                                             </p>
                                         </div>
                                     </label>
@@ -130,7 +174,7 @@ export function QuickPaymentModal({ isOpen, onClose, onSuccess }: QuickPaymentMo
                                     <span className="text-sm">Efectivo</span>
                                 </label>
                                 <label className="flex items-center gap-3 p-3 rounded-lg border cursor-pointer hover:bg-accent transition-colors">
-                                    <RadioGroupItem value="card" />
+                                    <RadioGroupItem value="card_manual" />
                                     <CreditCard className="h-4 w-4 text-muted-foreground" />
                                     <span className="text-sm">Tarjeta</span>
                                 </label>

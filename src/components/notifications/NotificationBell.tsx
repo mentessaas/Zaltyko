@@ -49,7 +49,8 @@ export function NotificationBell() {
     try {
       const response = await fetch("/api/notifications/unread-count");
       if (response.ok) {
-        const data = await response.json();
+        const payload = await response.json();
+        const data = payload?.data ?? payload;
         setUnreadCount(data.count || 0);
       }
     } catch (error) {

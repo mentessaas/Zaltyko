@@ -26,6 +26,7 @@ import { logger } from "@/lib/logger";
 interface AthletesTableViewProps {
   academyId: string;
   tenantId: string;
+  initialImportOpen?: boolean;
   athletes: AthleteListItem[];
   levels: string[];
   groups: GroupOption[];
@@ -45,6 +46,7 @@ type SortOrder = "asc" | "desc";
 export const AthletesTableView = memo(function AthletesTableView({
   academyId,
   tenantId,
+  initialImportOpen = false,
   athletes: initialAthletes,
   levels,
   groups,
@@ -60,7 +62,7 @@ export const AthletesTableView = memo(function AthletesTableView({
     () => ({
       search: locale === "en" ? "Search" : "Buscar",
       cancel: locale === "en" ? "Cancel" : "Cancelar",
-      delete: locale === "en" ? "Delete" : "Eliminar",
+      archive: locale === "en" ? "Archive" : "Archivar",
     }),
     [locale]
   );
@@ -73,7 +75,7 @@ export const AthletesTableView = memo(function AthletesTableView({
   const [sportConfigFilter, setSportConfigFilter] = useState(filters.sportConfigId ?? "");
   const [ageRange, setAgeRange] = useState<AgeRange>({});
   const [createOpen, setCreateOpen] = useState(false);
-  const [importOpen, setImportOpen] = useState(false);
+  const [importOpen, setImportOpen] = useState(initialImportOpen);
   const [editing, setEditing] = useState<AthleteListItem | null>(null);
   const [isPending, startTransition] = useTransition();
   const [athletesWithAlerts, setAthletesWithAlerts] = useState<Set<string>>(new Set());
@@ -205,7 +207,7 @@ export const AthletesTableView = memo(function AthletesTableView({
     });
   };
 
-  const handleExportCSV = () => {
+  const handleExportCSV = (items = filteredAthletes) => {
     const headers = [
       "Nombre",
       "Nivel",
@@ -219,7 +221,7 @@ export const AthletesTableView = memo(function AthletesTableView({
       "Familia",
       "Fecha creación",
     ];
-    const rows = filteredAthletes.map((athlete) => [
+    const rows = items.map((athlete) => [
       athlete.name,
       athlete.level || "",
       athlete.status,
@@ -248,7 +250,7 @@ export const AthletesTableView = memo(function AthletesTableView({
 
     toast.pushToast({
       title: "Exportación completada",
-      description: `Se han exportado ${filteredAthletes.length} ${terms.athletes.toLowerCase()}.`,
+      description: `Se han exportado ${items.length} ${terms.athletes.toLowerCase()}.`,
       variant: "success",
     });
   };
@@ -277,8 +279,8 @@ export const AthletesTableView = memo(function AthletesTableView({
     setAthletes((prevAthletes) => prevAthletes.filter((athlete) => athlete.id !== athleteId));
 
     toast.pushToast({
-      title: `${terms.athlete} eliminado`,
-      description: `${terms.athlete} eliminado correctamente.`,
+      title: `${terms.athlete} archivado`,
+      description: `${terms.athlete} archivado correctamente; el historial se conserva.`,
       variant: "success",
     });
 
@@ -312,16 +314,83 @@ export const AthletesTableView = memo(function AthletesTableView({
     setQuery("");
   };
 
-  const handleBatchAction = (action: string) => {
-    if (action !== "delete") return;
+  const handleBatchAction = async (action: string) => {
+    if (action === "export") {
+      const selected = filteredAthletes.filter((athlete) => selectedAthletes.has(athlete.id));
+      handleExportCSV(selected);
+      return;
+    }
 
-    if (confirm(`¿Eliminar ${selectedAthletes.size} ${terms.athletes.toLowerCase()}?`)) {
+    if (action !== "archive" || selectedAthletes.size === 0 || statusFilter === "archived") return;
+
+    if (!confirm(`¿Archivar ${selectedAthletes.size} ${terms.athletes.toLowerCase()}? Se conservará su historial.`)) {
+      return;
+    }
+
+    try {
+      const response = await fetch("/api/athletes/bulk-archive", {
+        method: "POST",
+        headers: { "Content-Type": "application/json", "x-academy-id": academyId },
+        body: JSON.stringify({
+          academyId,
+          athleteIds: Array.from(selectedAthletes),
+        }),
+      });
+      const payload = await response.json().catch(() => ({}));
+      if (!response.ok || payload?.ok !== true) {
+        throw new Error(payload?.message ?? payload?.error ?? "No se pudieron archivar las gimnastas.");
+      }
+
+      const archivedCount = Number(payload.data?.archivedCount ?? selectedAthletes.size);
       toast.pushToast({
-        title: "Eliminación masiva",
-        description: `Se eliminarán ${selectedAthletes.size} ${terms.athletes.toLowerCase()}`,
-        variant: "warning",
+        title: "Gimnastas archivadas",
+        description: `${archivedCount} ${terms.athletes.toLowerCase()} archivadas. El historial se ha conservado.`,
+        variant: "success",
       });
       setSelectedAthletes(new Set());
+      handleRefresh();
+    } catch (error) {
+      toast.pushToast({
+        title: "No se pudieron archivar",
+        description: error instanceof Error ? error.message : "Comprueba tu conexión e inténtalo de nuevo.",
+        variant: "error",
+      });
+    }
+  };
+
+  const handleRestore = async (athlete: AthleteListItem) => {
+    if (!confirm(`¿Restaurar a ${athlete.name}? Volverá a la lista activa.`)) {
+      return;
+    }
+
+    try {
+      const response = await fetch(`/api/athletes/${athlete.id}/restore`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json", "x-academy-id": academyId },
+        body: JSON.stringify({ academyId }),
+      });
+      const payload = await response.json().catch(() => ({}));
+      if (!response.ok || payload?.ok !== true) {
+        throw new Error(payload?.message ?? payload?.error ?? "No se pudo restaurar la gimnasta.");
+      }
+
+      setSelectedAthletes((current) => {
+        const next = new Set(current);
+        next.delete(athlete.id);
+        return next;
+      });
+      toast.pushToast({
+        title: "Gimnasta restaurada",
+        description: `${athlete.name} vuelve a la lista activa y conserva su historial.`,
+        variant: "success",
+      });
+      handleRefresh();
+    } catch (error) {
+      toast.pushToast({
+        title: "No se pudo restaurar",
+        description: error instanceof Error ? error.message : "Comprueba tu conexión e inténtalo de nuevo.",
+        variant: "error",
+      });
     }
   };
 
@@ -347,6 +416,7 @@ export const AthletesTableView = memo(function AthletesTableView({
         terms={terms}
         text={tCommon}
         viewMode={viewMode}
+        allowArchive={statusFilter !== "archived"}
         onAgeRangeChange={setAgeRange}
         onBatchAction={handleBatchAction}
         onClearFilters={handleClearFilters}
@@ -371,7 +441,15 @@ export const AthletesTableView = memo(function AthletesTableView({
           onImportClick={() => setImportOpen(true)}
         />
       ) : viewMode === "kanban" ? (
-        <AthletesKanbanView academyId={academyId} />
+        <AthletesKanbanView
+          academyId={academyId}
+          athletes={filteredAthletes}
+          selectedAthletes={selectedAthletes}
+          terms={terms}
+          onEdit={setEditing}
+          onRestore={handleRestore}
+          onToggleSelect={toggleSelectAthlete}
+        />
       ) : (
         <AthletesDataTable
           academyId={academyId}
@@ -388,6 +466,7 @@ export const AthletesTableView = memo(function AthletesTableView({
           terms={terms}
           totalPages={totalPages}
           onEdit={setEditing}
+          onRestore={handleRestore}
           onPageChange={setCurrentPage}
           onSortChange={handleSortChange}
           onToggleSelectAll={toggleSelectAll}

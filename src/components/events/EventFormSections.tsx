@@ -317,8 +317,14 @@ export function EventMediaSection({
               label="Archivos adjuntos (PDFs, documentos)"
               accept=".pdf,.doc,.docx"
               maxSizeMB={10}
-              files={(field.value ?? []) as unknown as string[]}
-              onFilesChange={(files) => field.onChange(files as unknown as Array<{ name: string; url: string; type?: string }>)}
+              // FileUpload renders URLs; keep the event form's attachment
+              // metadata intact so editing an event never crashes on
+              // `url.split` or silently discards names/types.
+              files={(field.value ?? []).map((attachment) => attachment.url)}
+              onFilesChange={(urls) => field.onChange(urls.map((url) => {
+                const existing = (field.value ?? []).find((attachment) => attachment.url === url);
+                return existing ?? { name: url.split("/").pop() || "Archivo adjunto", url };
+              }))}
               eventId={effectiveEventId}
               disabled={isSubmitting}
             />

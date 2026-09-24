@@ -8,6 +8,7 @@ import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip
 import { UpgradeConfirmationModal } from "./UpgradeConfirmationModal";
 import { trackEvent } from "@/lib/analytics";
 import { logger } from "@/lib/logger";
+import { PRODUCT_PLANS, formatPlanAmount, getProductPlanPublicName } from "@/lib/plans/catalog";
 
 interface LimitIndicatorProps {
   academyId: string | null;
@@ -24,24 +25,15 @@ interface LimitData {
   upgradeTo?: string;
 }
 
-const PLAN_INFO: Record<string, { price: string; benefits: string[] }> = {
-  free: {
-    price: "€0/mes",
-    benefits: ["Hasta 30 gimnastas", "1 academia", "2 grupos", "5 clases"],
-  },
-  pro: {
-    price: "€19/mes",
-    benefits: ["Hasta 75 gimnastas", "Portal familias", "Pagos recurrentes", "Reportes básicos"],
-  },
-  premium: {
-    price: "€49/mes",
-    benefits: ["Hasta 200 gimnastas", "10 grupos", "40 clases", "Soporte prioritario"],
-  },
-  network: {
-    price: "€99/mes",
-    benefits: ["Multi-sede con onboarding acompañado", "Límites amplios", "Soporte prioritario"],
-  },
-};
+const PLAN_INFO: Record<string, { price: string; benefits: string[] }> = Object.fromEntries(
+  PRODUCT_PLANS.map((plan) => [
+    plan.code,
+    {
+      price: `${formatPlanAmount(plan.priceEurCents)}/mes`,
+      benefits: plan.features,
+    },
+  ])
+);
 
 export function LimitIndicator({ academyId, resource, className, showNotifications = true }: LimitIndicatorProps) {
   const [limitData, setLimitData] = useState<LimitData | null>(null);
@@ -49,6 +41,8 @@ export function LimitIndicator({ academyId, resource, className, showNotificatio
   const [hasNotifiedNearLimit, setHasNotifiedNearLimit] = useState(false);
   const [showUpgradeModal, setShowUpgradeModal] = useState(false);
   const toast = useToast();
+  const currentPlanName = getProductPlanPublicName(limitData?.planCode);
+  const upgradePlanName = limitData?.upgradeTo ? getProductPlanPublicName(limitData.upgradeTo) : null;
 
   useEffect(() => {
     if (!academyId) {
@@ -92,13 +86,13 @@ export function LimitIndicator({ academyId, resource, className, showNotificatio
 
       toast.pushToast({
         title: "Límite cercano",
-        description: `Te quedan ${limitData.remaining} ${resourceLabels[resource]} disponibles en tu plan ${limitData.planCode.toUpperCase()}. Considera actualizar tu plan para evitar interrupciones.`,
+        description: `Te quedan ${limitData.remaining} ${resourceLabels[resource]} disponibles en tu plan ${currentPlanName}. Considera actualizar tu plan para evitar interrupciones.`,
         variant: "warning",
         duration: 6000,
       });
       setHasNotifiedNearLimit(true);
     }
-  }, [limitData, showNotifications, hasNotifiedNearLimit, resource, toast]);
+  }, [limitData, currentPlanName, showNotifications, hasNotifiedNearLimit, resource, toast]);
 
   if (loading || !limitData) {
     return null;
@@ -109,7 +103,7 @@ export function LimitIndicator({ academyId, resource, className, showNotificatio
     return (
       <div className={`flex items-center gap-2 text-xs text-muted-foreground ${className}`}>
         <TrendingUp className="h-3.5 w-3.5 text-green-500" />
-        <span>Ilimitado en tu plan {limitData.planCode.toUpperCase()}</span>
+        <span>Ilimitado en tu plan {currentPlanName}</span>
       </div>
     );
   }
@@ -149,27 +143,27 @@ export function LimitIndicator({ academyId, resource, className, showNotificatio
 
   if (isAtLimit) {
     return (
-      <div className={`rounded-lg border border-amber-400/60 bg-amber-400/10 p-4 text-sm ${className}`}>
+      <div className={`rounded-lg border border-amber-400/60 bg-amber-400/10 p-4 text-sm dark:border-amber-900/60 dark:bg-amber-950/30 ${className}`}>
         <div className="flex items-start gap-3">
           <AlertCircle className="h-5 w-5 text-amber-600 mt-0.5 flex-shrink-0" />
           <div className="flex-1 space-y-3">
             <div>
-              <p className="font-semibold text-amber-900">
+              <p className="font-semibold text-amber-900 dark:text-amber-200">
                 Límite alcanzado: {limitData.current}/{limitData.limit} {resourceLabel}
               </p>
-              <p className="text-xs text-amber-800 mt-1">
-                Has alcanzado el límite máximo de {resourceLabel} en tu plan {limitData.planCode.toUpperCase()}.
+              <p className="text-xs text-amber-800 dark:text-amber-300 mt-1">
+                Has alcanzado el límite máximo de {resourceLabel} en tu plan {currentPlanName}.
               </p>
             </div>
             {limitData.upgradeTo && upgradeInfo && (
               <div className="space-y-2">
-                <div className="rounded-md bg-amber-50 border border-amber-200 p-3 space-y-2">
+                <div className="rounded-md bg-amber-50 border border-amber-200 p-3 space-y-2 dark:bg-amber-950/40 dark:border-amber-900/60">
                   <div className="flex items-center justify-between">
-                    <span className="text-xs font-semibold text-amber-900">
-                      Plan {limitData.upgradeTo.toUpperCase()} - {upgradeInfo.price}
+                    <span className="text-xs font-semibold text-amber-900 dark:text-amber-200">
+                      Plan {upgradePlanName} - {upgradeInfo.price}
                     </span>
                   </div>
-                  <ul className="text-xs text-amber-800 space-y-1">
+                  <ul className="text-xs text-amber-800 dark:text-amber-300 space-y-1">
                     {upgradeInfo.benefits.map((benefit, idx) => (
                       <li key={idx} className="flex items-start gap-1.5">
                         <span className="text-amber-600 mt-0.5">•</span>
@@ -179,10 +173,11 @@ export function LimitIndicator({ academyId, resource, className, showNotificatio
                   </ul>
                 </div>
                 <button
+                  type="button"
                   onClick={handleUpgradeClick}
                   className="inline-flex items-center gap-2 rounded-md bg-amber-600 px-4 py-2 text-xs font-semibold text-white shadow-sm transition hover:bg-amber-700"
                 >
-                  Actualizar a {limitData.upgradeTo.toUpperCase()}
+                  Actualizar a {upgradePlanName}
                   <ArrowUpRight className="h-3.5 w-3.5" />
                 </button>
                 {showUpgradeModal && upgradeInfo && (
@@ -212,7 +207,7 @@ export function LimitIndicator({ academyId, resource, className, showNotificatio
           <div className="flex items-center justify-between gap-2">
             <div className="flex items-center gap-2">
               <AlertCircle className="h-4 w-4 text-yellow-600" />
-              <span className="font-semibold text-yellow-900">
+              <span className="font-semibold text-yellow-900 dark:text-yellow-200">
                 {limitData.remaining} {resourceLabel} restantes
               </span>
             </div>
@@ -240,10 +235,10 @@ export function LimitIndicator({ academyId, resource, className, showNotificatio
           </div>
           <div className="space-y-1.5">
             <div className="flex items-center justify-between text-xs">
-              <span className="text-yellow-800">
+                <span className="text-yellow-800 dark:text-yellow-300">
                 {limitData.current} de {limitData.limit} utilizados
               </span>
-              <span className="font-semibold text-yellow-900">{Math.round(percentage)}%</span>
+              <span className="font-semibold text-yellow-900 dark:text-yellow-200">{Math.round(percentage)}%</span>
             </div>
             <Progress value={percentage} className="h-2" indicatorClassName="bg-yellow-600" />
           </div>
@@ -253,10 +248,10 @@ export function LimitIndicator({ academyId, resource, className, showNotificatio
                 <TooltipTrigger asChild>
                   <button
                     type="button"
-                    className="text-xs text-yellow-800 hover:text-yellow-900 underline flex items-center gap-1"
+                    className="text-xs text-yellow-800 hover:text-yellow-900 underline flex items-center gap-1 dark:text-yellow-300 dark:hover:text-yellow-200"
                   >
                     <Info className="h-3 w-3" />
-                    Ver beneficios del plan {limitData.upgradeTo.toUpperCase()}
+                    Ver beneficios del plan {upgradePlanName}
                   </button>
                 </TooltipTrigger>
                 <TooltipContent side="top" className="w-96 p-4">
@@ -266,7 +261,7 @@ export function LimitIndicator({ academyId, resource, className, showNotificatio
                       <div className="space-y-2">
                         <p className="text-xs font-semibold text-muted-foreground uppercase">Plan actual</p>
                         <p className="font-semibold text-sm">
-                          {limitData.planCode.toUpperCase()}
+                          {currentPlanName}
                         </p>
                         <p className="text-xs text-muted-foreground">{currentPlanInfo.price}</p>
                         <ul className="space-y-1 text-xs">
@@ -282,7 +277,7 @@ export function LimitIndicator({ academyId, resource, className, showNotificatio
                       <div className="space-y-2">
                         <p className="text-xs font-semibold text-primary uppercase">Plan objetivo</p>
                         <p className="font-semibold text-sm text-primary">
-                          {limitData.upgradeTo.toUpperCase()}
+                          {upgradePlanName}
                         </p>
                         <p className="text-xs text-muted-foreground">{upgradeInfo.price}</p>
                         <ul className="space-y-1 text-xs">
@@ -345,7 +340,7 @@ export function LimitIndicator({ academyId, resource, className, showNotificatio
                   <div className="space-y-2">
                     <p className="text-xs font-semibold text-muted-foreground uppercase">Plan actual</p>
                     <p className="font-semibold text-sm">
-                      {limitData.planCode.toUpperCase()}
+                      {currentPlanName}
                     </p>
                     <p className="text-xs text-muted-foreground">{currentPlanInfo.price}</p>
                     <ul className="space-y-1 text-xs">
@@ -361,7 +356,7 @@ export function LimitIndicator({ academyId, resource, className, showNotificatio
                   <div className="space-y-2">
                     <p className="text-xs font-semibold text-primary uppercase">Plan objetivo</p>
                     <p className="font-semibold text-sm text-primary">
-                      {limitData.upgradeTo.toUpperCase()}
+                      {upgradePlanName}
                     </p>
                     <p className="text-xs text-muted-foreground">{upgradeInfo.price}</p>
                     <ul className="space-y-1 text-xs">

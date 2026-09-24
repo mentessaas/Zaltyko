@@ -4,7 +4,7 @@ import { FormEvent, useState, useTransition } from "react";
 
 import { Modal } from "@/components/ui/modal";
 import { useToast } from "@/components/ui/toast-provider";
-import { createClient } from "@/lib/supabase/client";
+import { pluralizeFirstWord } from "@/lib/specialization/registry";
 
 const fieldClassName =
   "rounded-card border border-border bg-card px-3 py-2 text-sm shadow-none focus:border-zaltyko-teal focus:outline-none focus:ring-4 focus:ring-zaltyko-teal/15";
@@ -15,6 +15,7 @@ interface AthleteOption {
   groupId: string | null;
   groupName: string | null;
   groupColor: string | null;
+  groups?: { id: string; name: string; color?: string | null }[];
 }
 
 interface AddAthleteToClassDialogProps {
@@ -53,6 +54,7 @@ export function AddAthleteToClassDialog({
   const athleteTermLower = athleteLabel.toLowerCase();
   const athletesTermLower = athletesLabel.toLowerCase();
   const groupTermLower = groupLabel.toLowerCase();
+  const groupTermPluralLower = pluralizeFirstWord(groupLabel).toLowerCase();
   const classTermLower = classLabel.toLowerCase();
 
   // Filtrar atletas disponibles (excluir los que ya están en la clase)
@@ -61,16 +63,21 @@ export function AddAthleteToClassDialog({
   // Filtrar por búsqueda y grupo
   const filteredAthletes = availableAthletes.filter((athlete) => {
     const matchesSearch = search.trim() === "" || athlete.name.toLowerCase().includes(search.toLowerCase());
-    const matchesGroup = groupFilter === "" || athlete.groupId === groupFilter;
+    const matchesGroup =
+      groupFilter === "" ||
+      athlete.groupId === groupFilter ||
+      athlete.groups?.some((group) => group.id === groupFilter);
     return matchesSearch && matchesGroup;
   });
 
   // Obtener grupos únicos para el filtro
   const groups = Array.from(
     new Map(
-      availableAthletes
-        .filter((a) => a.groupId && a.groupName)
-        .map((a) => [a.groupId!, { id: a.groupId!, name: a.groupName! }])
+      availableAthletes.flatMap((a) => [
+        ...(a.groupId && a.groupName ? [{ id: a.groupId, name: a.groupName }] : []),
+        ...(a.groups ?? []).map((group) => ({ id: group.id, name: group.name })),
+      ])
+        .map((group) => [group.id, group] as const)
     ).values()
   );
 
@@ -97,18 +104,10 @@ export function AddAthleteToClassDialog({
 
     startTransition(async () => {
       try {
-        const supabase = createClient();
-        const {
-          data: { user: currentUser },
-        } = await supabase.auth.getUser();
-
         const headers: Record<string, string> = {
           "Content-Type": "application/json",
           "x-academy-id": academyId,
         };
-
-        if (currentUser?.id) {
-        }
 
         // Crear enrollments para cada atleta seleccionado
         const promises = Array.from(selectedAthleteIds).map((athleteId) =>
@@ -161,7 +160,7 @@ export function AddAthleteToClassDialog({
         const successCount = results.filter((r) => r.status === "fulfilled" && r.value.ok).length;
         toast.pushToast({
           title: `${athletesLabel} añadidos`,
-          description: `Se añadieron ${successCount} ${successCount === 1 ? athleteTermLower : athletesTermLower} a la ${classTermLower}.`,
+          description: `Se añadieron ${successCount} ${successCount === 1 ? athleteTermLower : athletesTermLower} al ${classTermLower}.`,
           variant: "success",
         });
 
@@ -189,8 +188,8 @@ export function AddAthleteToClassDialog({
     <Modal
       open={open}
       onClose={handleClose}
-      title={`Añadir ${athletesTermLower} extra a la ${classTermLower}`}
-      description={`Selecciona los ${athletesTermLower} que quieres añadir como ${classTermLower} extra. Los ${athletesTermLower} que ya están en la ${classTermLower} por ${groupTermLower} base no aparecen en esta lista.`}
+      title={`Añadir ${athletesTermLower} extra al ${classTermLower}`}
+      description={`Selecciona los ${athletesTermLower} que quieres añadir como ${classTermLower} extra. Los ${athletesTermLower} que ya están en el ${classTermLower} por ${groupTermLower} base no aparecen en esta lista.`}
       footer={
         <div className="flex justify-end gap-2">
           <button
@@ -204,7 +203,7 @@ export function AddAthleteToClassDialog({
           <button
             type="submit"
             form="add-athlete-form"
-            className="min-h-11 rounded-xl bg-zaltyko-teal px-4 py-2 text-sm font-semibold text-white shadow-soft transition hover:bg-primary-dark disabled:cursor-not-allowed disabled:opacity-60"
+            className="min-h-11 rounded-xl bg-zaltyko-teal px-4 py-2 text-sm font-semibold text-white shadow-soft transition hover:bg-zaltyko-primary-dark disabled:cursor-not-allowed disabled:opacity-60"
             disabled={isPending || selectedAthleteIds.size === 0}
           >
             {isPending ? "Añadiendo..." : `Añadir ${selectedAthleteIds.size} ${selectedAthleteIds.size === 1 ? athleteTermLower : athletesTermLower}`}
@@ -234,7 +233,7 @@ export function AddAthleteToClassDialog({
                 onChange={(event) => setGroupFilter(event.target.value)}
                 className={`${fieldClassName} min-w-[160px]`}
               >
-                <option value="">Todos los {groupTermLower}s</option>
+                <option value="">Todos los {groupTermPluralLower}</option>
                 {groups.map((group) => (
                   <option key={group.id} value={group.id}>
                     {group.name}
@@ -264,7 +263,7 @@ export function AddAthleteToClassDialog({
           {filteredAthletes.length === 0 ? (
             <p className="text-sm text-muted-foreground">
               {availableAthletes.length === 0
-                ? `Todos los ${athletesTermLower} de la academia ya están en esta ${classTermLower}.`
+                ? `Todos los ${athletesTermLower} de la academia ya están en este ${classTermLower}.`
                 : `No hay ${athletesTermLower} que coincidan con los filtros.`}
             </p>
           ) : (

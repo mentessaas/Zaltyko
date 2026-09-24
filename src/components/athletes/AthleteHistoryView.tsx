@@ -1,9 +1,8 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { useMemo, useState, useEffect } from "react";
 import { Calendar, Filter, Search, Download, Loader2 } from "lucide-react";
 import { format } from "date-fns";
-import { es } from "date-fns/locale";
 
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
@@ -12,6 +11,7 @@ import { Label } from "@/components/ui/label";
 import { Badge } from "@/components/ui/badge";
 import { useToast } from "@/components/ui/toast-provider";
 import { logger } from "@/lib/logger";
+import { formatDateForCountry } from "@/lib/date-utils";
 
 interface Assessment {
   id: string;
@@ -49,7 +49,6 @@ export function AthleteHistoryView({
 }: AthleteHistoryViewProps) {
   const toast = useToast();
   const [assessments, setAssessments] = useState<Assessment[]>(initialAssessments);
-  const [filteredAssessments, setFilteredAssessments] = useState<Assessment[]>(initialAssessments);
   const [searchQuery, setSearchQuery] = useState("");
   const [filterApparatus, setFilterApparatus] = useState<string>("all");
   const [startDate, setStartDate] = useState("");
@@ -68,11 +67,11 @@ export function AthleteHistoryView({
       });
 
       const response = await fetch(`/api/athletes/${athleteId}/history?${params}`);
-      const data = await response.json();
+      const payload = await response.json();
+      const data = payload?.data ?? payload;
 
       if (data.items) {
         setAssessments(data.items);
-        setFilteredAssessments(data.items);
       }
     } catch (error) {
       logger.error("Error loading assessments:", error);
@@ -87,7 +86,7 @@ export function AthleteHistoryView({
     }
   }, [athleteId, academyId]);
 
-  useEffect(() => {
+  const filteredAssessments = useMemo(() => {
     let filtered = assessments;
 
     if (searchQuery) {
@@ -105,7 +104,7 @@ export function AthleteHistoryView({
       filtered = filtered.filter((a) => a.apparatus === filterApparatus);
     }
 
-    setFilteredAssessments(filtered);
+    return filtered;
   }, [searchQuery, filterApparatus, assessments]);
 
   const apparatusList = Array.from(
@@ -188,7 +187,7 @@ export function AthleteHistoryView({
           </CardTitle>
         </CardHeader>
         <CardContent className="space-y-4">
-          <div className="grid gap-4 md:grid-cols-3">
+          <div className="grid gap-4 md:grid-cols-4">
             <div className="space-y-2">
               <Label htmlFor="search">Buscar</Label>
               <Input
@@ -221,6 +220,15 @@ export function AthleteHistoryView({
                 type="date"
                 value={startDate}
                 onChange={(e) => setStartDate(e.target.value)}
+              />
+            </div>
+            <div className="space-y-2">
+              <Label htmlFor="end-date">Fecha Fin</Label>
+              <Input
+                id="end-date"
+                type="date"
+                value={endDate}
+                onChange={(e) => setEndDate(e.target.value)}
               />
             </div>
           </div>
@@ -267,7 +275,7 @@ export function AthleteHistoryView({
                   <div>
                     <CardTitle className="flex items-center gap-2">
                       <Calendar className="h-4 w-4" />
-                      {format(new Date(assessment.assessmentDate), "PPP", { locale: es })}
+                      {formatDateForCountry(assessment.assessmentDate, null, "PPP")}
                     </CardTitle>
                     <CardDescription>
                       {assessment.apparatus && (

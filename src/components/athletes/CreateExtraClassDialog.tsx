@@ -5,6 +5,7 @@ import { Modal } from "@/components/ui/modal";
 import { createExtraClassAction } from "@/app/actions/classes/create-extra-class";
 import { useToast } from "@/components/ui/toast-provider";
 import { useAcademyContext } from "@/hooks/use-academy-context";
+import { addDaysToCalendarDate, formatDateToISOString } from "@/lib/date-utils";
 
 interface CreateExtraClassDialogProps {
   academyId: string;
@@ -27,9 +28,8 @@ export function CreateExtraClassDialog({
   onClose,
   onCreated,
 }: CreateExtraClassDialogProps) {
-  const { specialization } = useAcademyContext();
+  const { academyCountry, specialization } = useAcademyContext();
   const athleteSingular = specialization.labels.athleteSingular.toLowerCase();
-  const coachLabel = specialization.labels.coachLabel;
   const toast = useToast();
   const [isPending, startTransition] = useTransition();
   const [error, setError] = useState<string | null>(null);
@@ -37,8 +37,7 @@ export function CreateExtraClassDialog({
 
   const [coachId, setCoachId] = useState<string>("");
   const [date, setDate] = useState<string>(() => {
-    const today = new Date();
-    return today.toISOString().split("T")[0];
+    return formatDateToISOString(new Date(), academyCountry);
   });
   const [startTime, setStartTime] = useState<string>("09:00");
   const [duration, setDuration] = useState<number>(60);
@@ -52,7 +51,7 @@ export function CreateExtraClassDialog({
     setConflictError(null);
 
     if (!coachId) {
-      setError(`Selecciona un ${coachLabel.toLowerCase()}`);
+      setError("Selecciona un miembro del staff.");
       return;
     }
 
@@ -61,11 +60,16 @@ export function CreateExtraClassDialog({
       return;
     }
 
-    // Construir datetime strings
+    // Las clases son horarios locales de la academia, no instantes del
+    // navegador. Enviamos ambos extremos sin offset para conservar la fecha
+    // y hora elegidas también cuando la academia está en otra zona horaria.
     const startDateTime = `${date}T${startTime}:00`;
-    const startDate = new Date(startDateTime);
-    const endDate = new Date(startDate.getTime() + duration * 60 * 1000);
-    const endDateTime = endDate.toISOString();
+    const [startHours, startMinutes] = startTime.split(":").map(Number);
+    const totalMinutes = startHours * 60 + startMinutes + duration;
+    const endDate = addDaysToCalendarDate(date, Math.floor(totalMinutes / (24 * 60))) ?? date;
+    const endMinutes = totalMinutes % (24 * 60);
+    const endClock = `${String(Math.floor(endMinutes / 60)).padStart(2, "0")}:${String(endMinutes % 60).padStart(2, "0")}`;
+    const endDateTime = `${endDate}T${endClock}:00`;
 
     startTransition(async () => {
       try {
@@ -86,7 +90,7 @@ export function CreateExtraClassDialog({
             setConflictError(result.message || "Conflicto de horario detectado");
             toast.pushToast({
               title: "Conflicto de horario",
-              description: result.message || `El ${athleteSingular} o ${coachLabel.toLowerCase()} ya tiene una clase en ese horario.`,
+              description: result.message || `El ${athleteSingular} o la persona responsable ya tiene una clase en ese horario.`,
               variant: "error",
             });
           } else {
@@ -108,7 +112,7 @@ export function CreateExtraClassDialog({
 
         // Reset form
         setCoachId("");
-        setDate(new Date().toISOString().split("T")[0]);
+        setDate(formatDateToISOString(new Date(), academyCountry));
         setStartTime("09:00");
         setDuration(60);
         setCapacity(1);
@@ -140,10 +144,9 @@ export function CreateExtraClassDialog({
     if (!startTime) return "";
     try {
       const [hours, minutes] = startTime.split(":").map(Number);
-      const startDate = new Date();
-      startDate.setHours(hours, minutes, 0, 0);
-      const endDate = new Date(startDate.getTime() + duration * 60 * 1000);
-      return `${String(endDate.getHours()).padStart(2, "0")}:${String(endDate.getMinutes()).padStart(2, "0")}`;
+      const totalMinutes = hours * 60 + minutes + duration;
+      const endMinutes = totalMinutes % (24 * 60);
+      return `${String(Math.floor(endMinutes / 60)).padStart(2, "0")}:${String(endMinutes % 60).padStart(2, "0")}`;
     } catch {
       return "";
     }
@@ -191,7 +194,7 @@ export function CreateExtraClassDialog({
 
         <div>
           <label htmlFor="coach" className="block text-sm font-medium text-foreground mb-1">
-            {coachLabel} <span className="text-red-500">*</span>
+            Miembro del staff <span className="text-red-500">*</span>
           </label>
           <select
             id="coach"
@@ -200,7 +203,7 @@ export function CreateExtraClassDialog({
             required
             className="w-full rounded-md border border-border bg-background px-3 py-2 text-sm shadow-sm focus:border-primary focus:outline-none focus:ring-1 focus:ring-primary"
           >
-            <option value="">Selecciona un {coachLabel.toLowerCase()}</option>
+            <option value="">Selecciona un miembro del staff</option>
             {availableCoaches.map((coach) => (
               <option key={coach.id} value={coach.id}>
                 {coach.name}
@@ -219,7 +222,7 @@ export function CreateExtraClassDialog({
             value={date}
             onChange={(e) => setDate(e.target.value)}
             required
-            min={new Date().toISOString().split("T")[0]}
+            min={formatDateToISOString(new Date(), academyCountry)}
             className="w-full rounded-md border border-border bg-background px-3 py-2 text-sm shadow-sm focus:border-primary focus:outline-none focus:ring-1 focus:ring-primary"
           />
         </div>
@@ -308,4 +311,3 @@ export function CreateExtraClassDialog({
     </Modal>
   );
 }
-

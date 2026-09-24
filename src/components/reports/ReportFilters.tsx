@@ -2,7 +2,7 @@
 
 import { useState, useEffect } from "react";
 import { Calendar, Filter, Loader2, X } from "lucide-react";
-import { format, subDays, subMonths } from "date-fns";
+import { subMonths } from "date-fns";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
@@ -16,7 +16,14 @@ import {
 } from "@/components/ui/select";
 import { useAcademyContext } from "@/hooks/use-academy-context";
 import { getTerminologyForSportConfig } from "@/lib/sport-config/terminology";
+import { pluralizeFirstWord } from "@/lib/specialization/registry";
 import { logger } from "@/lib/logger";
+import {
+  addDaysToCalendarDate,
+  formatCalendarDate,
+  formatDateToISOString,
+  parseCalendarDate,
+} from "@/lib/date-utils";
 
 interface FilterOption {
   value: string;
@@ -25,6 +32,7 @@ interface FilterOption {
 
 interface ReportFiltersProps {
   academyId: string;
+  academyCountry?: string | null;
   onFilterChange: (filters: ReportFilters) => void;
   onGenerate: () => void;
   isLoading?: boolean;
@@ -81,6 +89,7 @@ interface SportConfigOption {
 
 export function ReportFilters({
   academyId,
+  academyCountry = null,
   onFilterChange,
   onGenerate,
   isLoading = false,
@@ -92,8 +101,8 @@ export function ReportFilters({
 }: ReportFiltersProps) {
   const { specialization } = useAcademyContext();
   const [filters, setFilters] = useState<ReportFilters>({
-    startDate: format(subMonths(new Date(), 1), "yyyy-MM-dd"),
-    endDate: format(new Date(), "yyyy-MM-dd"),
+    startDate: formatDateToISOString(subMonths(new Date(), 1), academyCountry),
+    endDate: formatDateToISOString(new Date(), academyCountry),
     datePreset: "last-30-days",
   });
 
@@ -107,6 +116,8 @@ export function ReportFilters({
   const athletesTermLower = terms.athletes.toLowerCase();
   const groupsTermLower = terms.groups.toLowerCase();
   const coachTermLower = terms.coach.toLowerCase();
+  const coachTermPluralLower = pluralizeFirstWord(terms.coach).toLowerCase();
+  const classLabelPlural = pluralizeFirstWord(specialization.labels.classLabel);
   const apparatusLabels = Object.fromEntries(
     specialization.evaluation.apparatus.map((item) => [item.code, item.label])
   );
@@ -147,45 +158,49 @@ export function ReportFilters({
 
   const handleDatePresetChange = (preset: string) => {
     const now = new Date();
-    let startDate: Date;
-    let endDate: Date = now;
+    const todayKey = formatDateToISOString(now, academyCountry);
+    let startDate = todayKey;
+    let endDate = todayKey;
 
     switch (preset) {
       case "today":
-        startDate = now;
         break;
       case "yesterday":
-        startDate = subDays(now, 1);
-        endDate = subDays(now, 1);
+        startDate = addDaysToCalendarDate(todayKey, -1) ?? todayKey;
+        endDate = startDate;
         break;
       case "last-7-days":
-        startDate = subDays(now, 7);
+        startDate = addDaysToCalendarDate(todayKey, -7) ?? todayKey;
         break;
       case "last-30-days":
-        startDate = subDays(now, 30);
+        startDate = addDaysToCalendarDate(todayKey, -30) ?? todayKey;
         break;
       case "last-90-days":
-        startDate = subMonths(now, 3);
+        startDate = formatDateToISOString(subMonths(now, 3), academyCountry);
         break;
       case "this-month":
-        startDate = new Date(now.getFullYear(), now.getMonth(), 1);
+        startDate = `${todayKey.slice(0, 7)}-01`;
         break;
-      case "last-month":
-        startDate = new Date(now.getFullYear(), now.getMonth() - 1, 1);
-        endDate = new Date(now.getFullYear(), now.getMonth(), 0);
+      case "last-month": {
+        const today = parseCalendarDate(todayKey);
+        if (today) {
+          startDate = formatCalendarDate(new Date(Date.UTC(today.getUTCFullYear(), today.getUTCMonth() - 1, 1)));
+          endDate = formatCalendarDate(new Date(Date.UTC(today.getUTCFullYear(), today.getUTCMonth(), 0)));
+        }
         break;
+      }
       case "this-year":
-        startDate = new Date(now.getFullYear(), 0, 1);
+        startDate = `${todayKey.slice(0, 4)}-01-01`;
         break;
       default:
-        startDate = subMonths(now, 1);
+        startDate = formatDateToISOString(subMonths(now, 1), academyCountry);
     }
 
     const newFilters = {
       ...filters,
       datePreset: preset,
-      startDate: format(startDate, "yyyy-MM-dd"),
-      endDate: format(endDate, "yyyy-MM-dd"),
+      startDate,
+      endDate,
     };
     setFilters(newFilters);
     onFilterChange(newFilters);
@@ -202,8 +217,8 @@ export function ReportFilters({
 
   const clearFilters = () => {
     const defaultFilters: ReportFilters = {
-      startDate: format(subMonths(new Date(), 1), "yyyy-MM-dd"),
-      endDate: format(new Date(), "yyyy-MM-dd"),
+      startDate: formatDateToISOString(subMonths(new Date(), 1), academyCountry),
+      endDate: formatDateToISOString(new Date(), academyCountry),
       datePreset: "last-30-days",
     };
     setFilters(defaultFilters);
@@ -364,7 +379,7 @@ export function ReportFilters({
               onValueChange={(value) => handleFilterChange("classId", value)}
             >
               <SelectTrigger>
-                <SelectValue placeholder={`Todos los ${specialization.labels.classLabel.toLowerCase()}s`} />
+                <SelectValue placeholder={`Todos los ${classLabelPlural.toLowerCase()}`} />
               </SelectTrigger>
               <SelectContent>
                 {isLoadingOptions ? (
@@ -424,7 +439,7 @@ export function ReportFilters({
               onValueChange={(value) => handleFilterChange("coachId", value)}
             >
               <SelectTrigger>
-                <SelectValue placeholder={`Todos los ${coachTermLower}s`} />
+                <SelectValue placeholder="Todo el staff" />
               </SelectTrigger>
               <SelectContent>
                 {isLoadingOptions ? (

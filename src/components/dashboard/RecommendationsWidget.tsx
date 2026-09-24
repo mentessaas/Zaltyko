@@ -57,7 +57,7 @@ export function RecommendationsWidget({ academyId, userRole, metrics }: Recommen
         {recommendations.map((rec, index) => {
           const Icon = rec.icon;
           const content = (
-            <div className="flex items-start gap-3 rounded-xl bg-zaltyko-white p-3 transition-colors hover:bg-zaltyko-teal/5">
+            <div className="flex items-start gap-3 rounded-xl bg-muted/40 p-3 transition-colors hover:bg-zaltyko-teal/5">
               <div className="mt-0.5 rounded-lg bg-zaltyko-teal/10 p-2">
                 <Icon className="h-4 w-4 text-zaltyko-teal" />
               </div>

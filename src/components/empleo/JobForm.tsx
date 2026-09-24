@@ -2,6 +2,7 @@
 
 import { useState } from "react";
 import { useRouter } from "next/navigation";
+import Link from "next/link";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -28,14 +29,14 @@ const JOB_TYPES = [
 
 interface JobFormProps {
   academyId?: string;
-  userId?: string;
   onSuccess?: () => void;
 }
 
-export function JobForm({ academyId, userId, onSuccess }: JobFormProps) {
+export function JobForm({ academyId, onSuccess }: JobFormProps) {
   const router = useRouter();
   const toast = useToast();
   const [loading, setLoading] = useState(false);
+  const [formError, setFormError] = useState<{ message: string; requiresLogin?: boolean } | null>(null);
   const [formData, setFormData] = useState({
     category: "",
     title: "",
@@ -55,6 +56,7 @@ export function JobForm({ academyId, userId, onSuccess }: JobFormProps) {
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
+    setFormError(null);
     setLoading(true);
 
     try {
@@ -70,7 +72,6 @@ export function JobForm({ academyId, userId, onSuccess }: JobFormProps) {
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
           academyId,
-          userId,
           title: formData.title,
           category: formData.category,
           description: formData.description,
@@ -96,6 +97,17 @@ export function JobForm({ academyId, userId, onSuccess }: JobFormProps) {
         }
       } else {
         const error = await response.json();
+        if (response.status === 401) {
+          setFormError({
+            message: "Necesitas iniciar sesión para publicar una oferta.",
+            requiresLogin: true,
+          });
+          return;
+        }
+        if (response.status === 403) {
+          setFormError({ message: "Tu cuenta todavía no tiene permiso para publicar ofertas." });
+          return;
+        }
         toast.pushToast({
           title: "No se pudo crear el puesto",
           description: error.message || "Revisa los datos e inténtalo de nuevo.",
@@ -116,6 +128,20 @@ export function JobForm({ academyId, userId, onSuccess }: JobFormProps) {
 
   return (
     <form onSubmit={handleSubmit} className="space-y-6">
+      {formError && (
+        <div role="alert" className="rounded-xl border border-amber-300 bg-amber-50 p-4 text-sm text-amber-950">
+          <p className="font-semibold">No se pudo publicar la oferta</p>
+          <p className="mt-1">{formError.message}</p>
+          {formError.requiresLogin && (
+            <Link
+              href="/auth/login?callbackUrl=%2Fempleo%2Fnuevo"
+              className="mt-3 inline-flex min-h-10 items-center rounded-lg bg-zaltyko-teal px-4 py-2 font-semibold text-white hover:bg-zaltyko-primary-dark focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-zaltyko-teal focus-visible:ring-offset-2"
+            >
+              Iniciar sesión
+            </Link>
+          )}
+        </div>
+      )}
       <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
         <div>
           <Label htmlFor="category">Categoría *</Label>
@@ -205,6 +231,7 @@ export function JobForm({ academyId, userId, onSuccess }: JobFormProps) {
                 <Input
                   id="salaryMin"
                   type="number"
+                  min="0"
                   value={formData.salaryMin}
                   onChange={(e) => setFormData({ ...formData, salaryMin: e.target.value })}
                   placeholder="1200"
@@ -215,6 +242,7 @@ export function JobForm({ academyId, userId, onSuccess }: JobFormProps) {
                 <Input
                   id="salaryMax"
                   type="number"
+                  min="0"
                   value={formData.salaryMax}
                   onChange={(e) => setFormData({ ...formData, salaryMax: e.target.value })}
                   placeholder="1800"
@@ -283,9 +311,11 @@ export function JobForm({ academyId, userId, onSuccess }: JobFormProps) {
               <Label htmlFor="externalUrl">URL externa</Label>
               <Input
                 id="externalUrl"
+                type="url"
                 value={formData.externalUrl}
                 onChange={(e) => setFormData({ ...formData, externalUrl: e.target.value })}
                 placeholder="https://..."
+                required
               />
             </div>
           )}

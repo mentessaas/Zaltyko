@@ -14,7 +14,7 @@ const ASSESSMENT_TYPES: Array<{ value: QuickAssessmentType; label: string }> = [
   { value: "practice", label: "Seguimiento de entrenamiento" },
   { value: "technical", label: "Técnica" },
   { value: "artistic", label: "Artística" },
-  { value: "coach_feedback", label: "Nota del entrenador" },
+  { value: "coach_feedback", label: "Nota del staff" },
 ];
 
 interface SessionProgressPanelProps {
@@ -106,7 +106,7 @@ function SessionProgressPanelImpl({
       <div className="rounded-2xl border border-dashed border-border bg-card p-8 text-center">
         <Sparkles className="mx-auto h-8 w-8 text-muted-foreground" aria-hidden="true" />
         <h3 className="mt-3 font-semibold text-foreground">Sin personas para evaluar</h3>
-        <p className="mt-1 text-sm text-muted-foreground">La evaluación rápida se habilitará cuando la clase tenga miembros.</p>
+        <p className="mt-1 text-sm text-muted-foreground">La evaluación rápida se habilitará cuando el entrenamiento tenga personas inscritas.</p>
       </div>
     );
   }
@@ -150,7 +150,7 @@ function SessionProgressPanelImpl({
                 value={apparatus}
                 onChange={(event) => setApparatus(event.target.value)}
                 disabled={selectedAthlete.apparatus.length === 0}
-                className="min-h-11 w-full rounded-xl border border-border bg-card px-3 text-sm focus:border-zaltyko-teal focus:outline-none focus:ring-4 focus:ring-zaltyko-teal/15 disabled:bg-zaltyko-white disabled:text-muted-foreground"
+                className="min-h-11 w-full rounded-xl border border-border bg-card px-3 text-sm focus:border-zaltyko-teal focus:outline-none focus:ring-4 focus:ring-zaltyko-teal/15 disabled:bg-muted disabled:text-muted-foreground"
               >
                 {selectedAthlete.apparatus.length === 0 ? <option value="">Seguimiento general</option> : null}
                 {selectedAthlete.apparatus.map((item) => <option key={item.code} value={item.code}>{item.name}</option>)}

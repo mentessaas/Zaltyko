@@ -17,6 +17,50 @@ interface ParsedAthlete {
   errors?: string[];
 }
 
+/** Parse the small, user-supplied CSV files used by the athlete importer.
+ * Supports quoted commas, escaped quotes, CRLF and the semicolon delimiter
+ * commonly produced by spreadsheet exports in Spain and Latin America. */
+export function parseAthleteCsv(text: string): string[][] {
+  const source = text.replace(/^\uFEFF/, "");
+  const firstLine = source.split(/\r?\n/, 1)[0] ?? "";
+  const commaCount = (firstLine.match(/,/g) ?? []).length;
+  const semicolonCount = (firstLine.match(/;/g) ?? []).length;
+  const delimiter = semicolonCount > commaCount ? ";" : ",";
+  const rows: string[][] = [];
+  let row: string[] = [];
+  let field = "";
+  let quoted = false;
+
+  for (let index = 0; index < source.length; index += 1) {
+    const char = source[index];
+    if (char === '"') {
+      if (quoted && source[index + 1] === '"') {
+        field += '"';
+        index += 1;
+      } else {
+        quoted = !quoted;
+      }
+    } else if (char === delimiter && !quoted) {
+      row.push(field.trim());
+      field = "";
+    } else if ((char === "\n" || char === "\r") && !quoted) {
+      if (char === "\r" && source[index + 1] === "\n") index += 1;
+      row.push(field.trim());
+      if (row.some((value) => value.length > 0)) rows.push(row);
+      row = [];
+      field = "";
+    } else {
+      field += char;
+    }
+  }
+
+  if (field.length > 0 || row.length > 0) {
+    row.push(field.trim());
+    if (row.some((value) => value.length > 0)) rows.push(row);
+  }
+  return rows;
+}
+
 export function CsvImportDialog({ open, onClose, onImport, academyId }: CsvImportDialogProps) {
   const [file, setFile] = useState<File | null>(null);
   const [parsedAthletes, setParsedAthletes] = useState<ParsedAthlete[]>([]);
@@ -46,9 +90,9 @@ export function CsvImportDialog({ open, onClose, onImport, academyId }: CsvImpor
   const parseCsvFile = async (csvFile: File) => {
     try {
       const text = await csvFile.text();
-      const lines = text.split("\n").filter((line) => line.trim());
+      const rows = parseAthleteCsv(text);
       
-      if (lines.length === 0) {
+      if (rows.length === 0) {
         toast.pushToast({
           title: "Archivo vacío",
           description: "El archivo CSV está vacío",
@@ -61,15 +105,11 @@ export function CsvImportDialog({ open, onClose, onImport, academyId }: CsvImpor
       const errors: string[] = [];
 
       // Saltar header si existe
-      const startIndex = lines[0].toLowerCase().includes("nombre") || lines[0].toLowerCase().includes("name") ? 1 : 0;
+      const firstCell = rows[0]?.[0]?.toLocaleLowerCase("es") ?? "";
+      const startIndex = firstCell === "nombre" || firstCell === "name" ? 1 : 0;
 
-      for (let i = startIndex; i < lines.length; i++) {
-        const line = lines[i].trim();
-        if (!line) continue;
-
-        // Parsear CSV (manejar comillas y comas)
-        const values = line.split(",").map((v) => v.trim().replace(/^"|"$/g, ""));
-        const name = values[0]?.trim();
+      for (let i = startIndex; i < rows.length; i++) {
+        const name = rows[i]?.[0]?.trim();
 
         if (!name || name.length < 2) {
           errors.push(`Fila ${i + 1}: Nombre inválido o vacío`);
@@ -291,4 +331,3 @@ Pedro López`}
     </div>
   );
 }
-

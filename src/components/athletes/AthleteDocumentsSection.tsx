@@ -47,8 +47,9 @@ export function AthleteDocumentsSection({
         throw new Error("No se pudieron cargar los documentos.");
       }
 
-      const data = await response.json();
-      setDocuments(data.data || []);
+      const payload = await response.json();
+      const data = payload?.data ?? payload;
+      setDocuments(data?.items ?? (Array.isArray(data) ? data : []));
     } catch (err) {
       setError((err as Error).message ?? "Error al cargar los documentos.");
     } finally {

@@ -20,6 +20,8 @@ import {
 } from "@/components/ui/table";
 import { getTerminologyForSportConfig } from "@/lib/sport-config/terminology";
 import { logger } from "@/lib/logger";
+import { useAcademyContext } from "@/hooks/use-academy-context";
+import { formatCurrency, getCurrencyForCountry } from "@/lib/currency";
 
 interface UsageRecord {
   id: string;
@@ -47,6 +49,8 @@ interface DiscountHistoryProps {
 }
 
 export function DiscountHistory({ academyId, sportConfigs = [] }: DiscountHistoryProps) {
+  const { academyCountry } = useAcademyContext();
+  const currency = getCurrencyForCountry(academyCountry);
   const [records, setRecords] = useState<UsageRecord[]>([]);
   const [totalUsage, setTotalUsage] = useState(0);
   const [totalDiscount, setTotalDiscount] = useState(0);
@@ -164,7 +168,7 @@ export function DiscountHistory({ academyId, sportConfigs = [] }: DiscountHistor
           </CardHeader>
           <CardContent>
             <div className="text-2xl font-bold">
-              {totalDiscount.toFixed(2)} EUR
+              {formatCurrency(totalDiscount, currency)}
             </div>
           </CardContent>
         </Card>
@@ -177,7 +181,7 @@ export function DiscountHistory({ academyId, sportConfigs = [] }: DiscountHistor
           <CardContent>
             <div className="text-2xl font-bold">
               {totalUsage > 0 ? (totalDiscount / totalUsage).toFixed(2) : "0.00"}{" "}
-              EUR
+              {currency}
             </div>
           </CardContent>
         </Card>
@@ -251,13 +255,13 @@ export function DiscountHistory({ academyId, sportConfigs = [] }: DiscountHistor
                     </TableCell>
                     <TableCell>{record.athleteName || "-"}</TableCell>
                     <TableCell className="text-right">
-                      {record.originalAmount.toFixed(2)} EUR
+                      {formatCurrency(record.originalAmount, currency)}
                     </TableCell>
                     <TableCell className="text-right text-green-600">
-                      -{record.discountAmount.toFixed(2)} EUR
+                      -{formatCurrency(record.discountAmount, currency)}
                     </TableCell>
                     <TableCell className="text-right font-medium">
-                      {record.finalAmount.toFixed(2)} EUR
+                      {formatCurrency(record.finalAmount, currency)}
                     </TableCell>
                   </TableRow>
                 ))}

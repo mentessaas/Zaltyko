@@ -7,11 +7,14 @@ import { format } from "date-fns";
 import { es } from "date-fns/locale";
 import { cn } from "@/lib/utils";
 import { logger } from "@/lib/logger";
+import { useAcademyContext } from "@/hooks/use-academy-context";
+import { formatCurrency, getCurrencyForCountry } from "@/lib/currency";
 
 interface Invoice {
     id: string;
     invoice_number: string;
     amount: number;
+    currency?: string | null;
     status: "paid" | "pending" | "failed";
     created_at: Date;
     pdf_url?: string;
@@ -42,6 +45,8 @@ const STATUS_CONFIG = {
 };
 
 export function InvoiceHistory({ invoices, loading = false }: InvoiceHistoryProps) {
+    const { academyCountry } = useAcademyContext();
+    const defaultCurrency = getCurrencyForCountry(academyCountry);
     const handleDownload = async (invoice: Invoice) => {
         if (!invoice.pdf_url) return;
 
@@ -117,7 +122,7 @@ export function InvoiceHistory({ invoices, loading = false }: InvoiceHistoryProp
 
                             <div className="text-right">
                                 <p className="text-2xl font-bold tabular-nums">
-                                    {invoice.amount.toFixed(2)}€
+                                    {formatCurrency(invoice.amount, invoice.currency ?? defaultCurrency)}
                                 </p>
                             </div>
                         </div>

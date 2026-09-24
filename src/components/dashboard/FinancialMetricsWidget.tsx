@@ -5,6 +5,8 @@ import Link from "next/link";
 import { DollarSign, CreditCard, Award, ArrowRight, TrendingUp } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { logger } from "@/lib/logger";
+import { useAcademyContext } from "@/hooks/use-academy-context";
+import { formatCurrency, getCurrencyForCountry } from "@/lib/currency";
 
 interface FinancialMetricsWidgetProps {
   academyId: string;
@@ -31,8 +33,11 @@ interface FinancialMetrics {
 }
 
 export function FinancialMetricsWidget({ academyId }: FinancialMetricsWidgetProps) {
+  const { academyCountry } = useAcademyContext();
+  const currency = getCurrencyForCountry(academyCountry);
   const [metrics, setMetrics] = useState<FinancialMetrics | null>(null);
   const [loading, setLoading] = useState(true);
+  const [error, setError] = useState(false);
 
   useEffect(() => {
     loadMetrics();
@@ -43,14 +48,18 @@ export function FinancialMetricsWidget({ academyId }: FinancialMetricsWidgetProp
 
   const loadMetrics = async () => {
     setLoading(true);
+    setError(false);
     try {
       const response = await fetch(`/api/dashboard/${academyId}/financial-metrics`);
       if (response.ok) {
         const payload = await response.json();
         setMetrics(payload.data ?? payload);
+      } else {
+        setError(true);
       }
     } catch (error) {
       logger.error("Error loading financial metrics:", error);
+      setError(true);
     } finally {
       setLoading(false);
     }
@@ -61,7 +70,15 @@ export function FinancialMetricsWidget({ academyId }: FinancialMetricsWidgetProp
   }
 
   if (!metrics) {
-    return null;
+    if (!error) return null;
+    return (
+      <div role="alert" className="flex items-center justify-between gap-3 rounded-lg border border-destructive/30 bg-destructive/10 p-4 text-sm text-destructive">
+        <span>No pudimos cargar las métricas financieras.</span>
+        <button type="button" onClick={loadMetrics} className="font-semibold underline underline-offset-2" disabled={loading}>
+          {loading ? "Reintentando…" : "Reintentar"}
+        </button>
+      </div>
+    );
   }
 
   return (
@@ -97,7 +114,7 @@ export function FinancialMetricsWidget({ academyId }: FinancialMetricsWidgetProp
             <div className="flex-1 min-w-0">
               <p className="text-xs font-semibold text-muted-foreground">Ingresos del mes</p>
               <p className="mt-1 text-xl font-bold text-green-600">
-                €{metrics.monthlyRevenue.toFixed(2)}
+                {formatCurrency(metrics.monthlyRevenue, currency)}
               </p>
             </div>
           </div>
@@ -112,7 +129,7 @@ export function FinancialMetricsWidget({ academyId }: FinancialMetricsWidgetProp
             <div className="flex-1 min-w-0">
               <p className="text-xs text-muted-foreground">Pagos pendientes</p>
               <p className="mt-1 text-lg font-semibold text-foreground">
-                €{metrics.pendingPayments.toFixed(2)}
+                {formatCurrency(metrics.pendingPayments, currency)}
               </p>
               <p className="text-xs text-muted-foreground">
                 {metrics.pendingPaymentsCount} {metrics.pendingPaymentsCount === 1 ? "cargo" : "cargos"}
@@ -124,8 +141,8 @@ export function FinancialMetricsWidget({ academyId }: FinancialMetricsWidgetProp
         {/* Becas activas */}
         <div className="rounded-xl border border-border/60 bg-background/80 p-4">
           <div className="flex items-center gap-3">
-            <div className="rounded-lg bg-zaltyko-indigo/10 p-2">
-              <Award className="h-5 w-5 text-zaltyko-indigo" />
+            <div className="rounded-lg bg-zaltyko-indigo/10 p-2 dark:bg-zaltyko-electric/15">
+              <Award className="h-5 w-5 text-zaltyko-indigo dark:text-zaltyko-electric" />
             </div>
             <div className="flex-1 min-w-0">
               <p className="text-xs text-muted-foreground">Becas activas</p>
@@ -156,15 +173,15 @@ export function FinancialMetricsWidget({ academyId }: FinancialMetricsWidgetProp
                 className="grid gap-2 rounded-lg border border-border/50 bg-card px-3 py-2 text-sm sm:grid-cols-7"
               >
                 <span className="font-semibold text-foreground sm:col-span-2">{item.label}</span>
-                <span className="text-green-700">Cobrado €{item.paidAmount.toFixed(2)}</span>
-                <span className="text-foreground">Coste €{item.estimatedCostAmount.toFixed(2)}</span>
+                <span className="text-green-700">Cobrado {formatCurrency(item.paidAmount, currency)}</span>
+                <span className="text-foreground">Coste {formatCurrency(item.estimatedCostAmount, currency)}</span>
                 <span className={cn(item.estimatedMarginAmount < 0 ? "text-red-700" : "text-emerald-700")}>
-                  Margen €{item.estimatedMarginAmount.toFixed(2)}
+                  Margen {formatCurrency(item.estimatedMarginAmount, currency)}
                 </span>
-                <span className="text-amber-700">Pendiente €{item.pendingAmount.toFixed(2)}</span>
-                <span className="text-red-700">Mora €{item.overdueAmount.toFixed(2)}</span>
+                <span className="text-amber-700">Pendiente {formatCurrency(item.pendingAmount, currency)}</span>
+                <span className="text-red-700">Mora {formatCurrency(item.overdueAmount, currency)}</span>
                 <span className="text-muted-foreground">
-                  {item.activeScholarships} becas · €{item.discountAmount.toFixed(2)} desc.
+                  {item.activeScholarships} becas · {formatCurrency(item.discountAmount, currency)} desc.
                 </span>
               </div>
             ))}

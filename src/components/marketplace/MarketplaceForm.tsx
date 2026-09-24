@@ -17,6 +17,7 @@ import {
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { useToast } from "@/components/ui/toast-provider";
 import { logger } from "@/lib/logger";
+import { getCurrencyForCountry } from "@/lib/currency";
 
 const CATEGORIES = [
   { value: "equipment", label: "Equipamiento" },
@@ -78,6 +79,7 @@ export function MarketplaceForm({ onSuccess }: MarketplaceFormProps) {
     province: "",
     city: "",
   });
+  const currency = getCurrencyForCountry(formData.country);
 
   // PV-6 + PV-4: validación cliente que devuelve errores anclados al
   // campo, no al toast. Devuelve un objeto FormErrors listo para
@@ -148,6 +150,7 @@ export function MarketplaceForm({ onSuccess }: MarketplaceFormProps) {
             ? Math.round(parseFloat(formData.price) * 100)
             : null,
           priceType: formData.priceType,
+          currency,
           contact: {
             whatsapp: formData.contactWhatsapp || undefined,
             email: formData.contactEmail || undefined,
@@ -345,7 +348,7 @@ export function MarketplaceForm({ onSuccess }: MarketplaceFormProps) {
 
       <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
         <div>
-          <Label htmlFor="price">Precio (€)</Label>
+          <Label htmlFor="price">Precio ({currency})</Label>
           <Input
             id="price"
             type="number"

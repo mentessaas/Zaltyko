@@ -9,6 +9,7 @@ import { StepPreview } from "@/components/onboarding/StepPreview";
 import { COUNTRY_REGION_OPTIONS, findRegionsByCountry, getRegionLabel, getRegionPlaceholder, getCityPlaceholder } from "@/lib/countryRegions";
 import { findCitiesByRegion } from "@/lib/citiesByRegion";
 import { ACADEMY_TYPES } from "@/lib/onboardingCopy";
+import { getProductPlanPublicName } from "@/lib/plans/catalog";
 import { ArrowRight, Lock, CheckCircle2, TrendingUp, Clock } from "lucide-react";
 
 interface AcademyStepProps {
@@ -78,6 +79,10 @@ export function AcademyStep({
 
   // Si tiene academia y alcanzó el límite de su plan
   if (userHasAcademies && existingAcademies.length > 0 && userPlanInfo && !userPlanInfo.canCreateMore) {
+    const currentPlanName = getProductPlanPublicName(userPlanInfo.planCode);
+    const upgradePlanName = userPlanInfo.upgradeTo
+      ? getProductPlanPublicName(userPlanInfo.upgradeTo)
+      : null;
     return (
       <div className="space-y-4 rounded-lg border border-amber-400/40 bg-amber-50/50 dark:bg-amber-950/20 p-6">
         <div className="flex items-start gap-3">
@@ -88,7 +93,7 @@ export function AcademyStep({
             <div>
               <h3 className="font-semibold text-foreground mb-2">Límite de academias alcanzado</h3>
               <p className="text-sm text-muted-foreground mb-2">
-                Tu plan <span className="font-semibold text-foreground uppercase">{userPlanInfo.planCode}</span> permite crear hasta{" "}
+                Tu plan <span className="font-semibold text-foreground">{currentPlanName}</span> permite crear hasta{" "}
                 <span className="font-semibold text-foreground">
                   {userPlanInfo.academyLimit === null ? "ilimitadas" : userPlanInfo.academyLimit}
                 </span>{" "}
@@ -115,11 +120,17 @@ export function AcademyStep({
               </button>
               {userPlanInfo.upgradeTo && (
                 <Link
-                  href={userPlanInfo.upgradeTo === "network" ? "/contact?type=network" : "/billing"}
+                  href={
+                    userPlanInfo.upgradeTo === "network"
+                      ? "/contact?type=network"
+                      : existingAcademies[0]?.id
+                        ? `/app/${existingAcademies[0].id}/billing`
+                        : "/billing"
+                  }
                   className="inline-flex items-center justify-center gap-2 rounded-md bg-primary px-4 py-2 text-sm font-semibold text-white shadow-sm transition hover:bg-primary/90"
                 >
                   <TrendingUp className="h-4 w-4" />
-                  Actualizar a {userPlanInfo.upgradeTo.toUpperCase()}
+                  Actualizar a {upgradePlanName}
                 </Link>
               )}
             </div>

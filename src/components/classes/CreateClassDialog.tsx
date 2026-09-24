@@ -9,10 +9,12 @@ import { ChevronDown, ChevronUp } from "lucide-react";
 import { Modal } from "@/components/ui/modal";
 import { useAcademyContext } from "@/hooks/use-academy-context";
 import { getSpecializedClassNameSuggestions } from "@/lib/specialization/technical-guidance";
+import { pluralizeFirstWord } from "@/lib/specialization/registry";
 import type { SportConfigOption } from "@/components/groups/types";
 import { getTerminology } from "@/lib/sport-config/terminology";
 import { logger } from "@/lib/logger";
 import { WEEKDAY_OPTIONS } from "@/lib/classes/constants";
+import { isValidClassTimeRange } from "@/lib/classes/time-validation";
 
 // Esquema Zod: campos basicos requeridos + arrays para selections multiples.
 const classFormSchema = z.object({
@@ -29,6 +31,14 @@ const classFormSchema = z.object({
   waitingListEnabled: z.boolean().optional(),
   cancellationHoursBefore: z.number().optional(),
   cancellationPolicy: z.enum(["flexible", "standard", "strict"]).optional(),
+}).superRefine((values, context) => {
+  if (!isValidClassTimeRange(values.startTime, values.endTime)) {
+    context.addIssue({
+      code: "custom",
+      path: ["endTime"],
+      message: "La hora de fin debe ser posterior a la de inicio",
+    });
+  }
 });
 
 type ClassFormValues = z.input<typeof classFormSchema>;
@@ -121,7 +131,8 @@ export function CreateClassDialog({
   );
   const terms = getTerminology(selectedSportConfig);
   const groupTermLower = terms.group.toLowerCase();
-  const coachTermLower = terms.coach.toLowerCase();
+  const coachTermPluralLower = pluralizeFirstWord(terms.coach).toLowerCase();
+  const apparatusTermPlural = pluralizeFirstWord(terms.apparatus);
   const classTerm = specialization.labels.classLabel;
   const classTermLower = classTerm.toLowerCase();
   const apparatusOptions =
@@ -218,7 +229,7 @@ export function CreateClassDialog({
 
         if (!response.ok) {
           const data = await response.json().catch(() => ({}));
-          throw new Error(data.error ?? `No se pudo crear la ${classTermLower}.`);
+          throw new Error(data.error ?? `No se pudo crear el ${classTermLower}.`);
         }
 
         reset({ ...defaultValues, sportConfigId: resolvedInitialSportConfigId });
@@ -228,7 +239,7 @@ export function CreateClassDialog({
       } catch (err: unknown) {
         logger.apiError("/classes", "POST", err as Error);
         const message =
-          err instanceof Error ? err.message : `Error desconocido al crear la ${classTermLower}.`;
+          err instanceof Error ? err.message : `Error desconocido al crear el ${classTermLower}.`;
         setSubmitError(message);
       }
     });
@@ -239,7 +250,7 @@ export function CreateClassDialog({
       open={open}
       onClose={handleClose}
       title={`Crear ${classTermLower}`}
-      description={`Define los datos básicos de ${classTermLower}, ${terms.apparatus.toLowerCase()}s y ${coachTermLower}s compatibles con la rama.`}
+          description={`Define los datos básicos de ${classTermLower}, ${apparatusTermPlural.toLowerCase()} y ${coachTermPluralLower} compatibles con la rama.`}
       footer={
         <div className="flex justify-end gap-2">
           <button
@@ -253,7 +264,7 @@ export function CreateClassDialog({
           <button
             type="submit"
             form="create-class-form"
-            className="min-h-11 rounded-xl bg-zaltyko-teal px-4 py-2 text-sm font-semibold text-white shadow-soft transition hover:bg-primary-dark disabled:cursor-not-allowed disabled:opacity-60"
+            className="min-h-11 rounded-xl bg-zaltyko-teal px-4 py-2 text-sm font-semibold text-white shadow-soft transition hover:bg-zaltyko-primary-dark disabled:cursor-not-allowed disabled:opacity-60"
             disabled={isSubmitting || !isValid}
           >
             {isSubmitting ? "Guardando..." : `Guardar ${classTermLower}`}
@@ -275,7 +286,7 @@ export function CreateClassDialog({
         <div className="space-y-4">
           <div className="space-y-1">
             <label className="text-xs font-medium uppercase tracking-[0.05em] text-foreground">
-              Nombre de la {classTermLower} *
+              Nombre del {classTermLower} *
             </label>
             <input
               {...register("name")}
@@ -373,7 +384,13 @@ export function CreateClassDialog({
                 {...register("endTime")}
                 type="time"
                 className={fieldClassName}
+                aria-invalid={!!errors.endTime}
               />
+              {errors.endTime && (
+                <p className={errorTextClassName} role="alert">
+                  {errors.endTime.message}
+                </p>
+              )}
             </div>
           </div>
 
@@ -384,13 +401,13 @@ export function CreateClassDialog({
             <textarea
               {...register("technicalFocus")}
               className={`${fieldClassName} min-h-24`}
-              placeholder={classNameSuggestions[0]?.description ?? "Describe el objetivo tecnico principal de este entrenamiento."}
+              placeholder={classNameSuggestions[0]?.description ?? "Describe el objetivo técnico principal de este entrenamiento."}
             />
           </div>
 
           {coachOptions.length > 0 && (
             <div className="rounded-xl border border-border bg-zaltyko-warm-white px-3 py-2 text-xs text-muted-foreground">
-              {compatibleCoachOptions.length} de {coachOptions.length} {coachTermLower}s disponibles para esta rama.
+              {compatibleCoachOptions.length} de {coachOptions.length} {coachTermPluralLower} disponibles para esta rama.
             </div>
           )}
 
@@ -441,7 +458,7 @@ export function CreateClassDialog({
 
           <div className="space-y-1">
             <label className="text-xs font-medium uppercase tracking-[0.05em] text-foreground">
-              {terms.apparatus}s / material principal
+              {apparatusTermPlural} / material principal
             </label>
             <div className="flex flex-wrap gap-2">
               {apparatusOptions.map((item) => {

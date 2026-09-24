@@ -7,10 +7,12 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
+import { formatCurrency } from "@/lib/currency";
 
 interface PromoCodeValidatorProps {
   academyId: string;
   amount?: number;
+  currency?: string;
   onApply?: (discount: AppliedDiscount) => void;
 }
 
@@ -32,6 +34,7 @@ interface ValidationResult {
 export function PromoCodeValidator({
   academyId,
   amount = 0,
+  currency = "EUR",
   onApply,
 }: PromoCodeValidatorProps) {
   const [code, setCode] = useState("");
@@ -93,7 +96,7 @@ export function PromoCodeValidator({
       <CardContent className="space-y-4">
         {currentAmount > 0 && (
           <div className="text-sm text-muted-foreground">
-            Monto base: <span className="font-medium">{currentAmount.toFixed(2)} EUR</span>
+            Monto base: <span className="font-medium">{formatCurrency(currentAmount, currency)}</span>
           </div>
         )}
 
@@ -120,14 +123,14 @@ export function PromoCodeValidator({
                     <div className="flex justify-between pt-2 border-t border-green-200">
                       <span>Descuento:</span>
                       <span className="font-medium">
-                        -{result.discount.discountAmount.toFixed(2)} EUR
+                        -{formatCurrency(result.discount.discountAmount, currency)}
                       </span>
                     </div>
                     {currentAmount > 0 && (
                       <div className="flex justify-between">
                         <span>Total:</span>
                         <span className="font-bold">
-                          {result.discount.finalAmount.toFixed(2)} EUR
+                          {formatCurrency(result.discount.finalAmount, currency)}
                         </span>
                       </div>
                     )}
@@ -144,11 +147,11 @@ export function PromoCodeValidator({
               </div>
             ) : (
               <div className="space-y-2">
-                <div className="flex items-center gap-2 text-red-700">
+                <div className="flex items-center gap-2 text-red-700 dark:text-red-300">
                   <XCircle className="h-5 w-5" />
                   <span className="font-medium">Código no válido</span>
                 </div>
-                <p className="text-sm text-red-600">{result.error}</p>
+                <p className="text-sm text-red-600 dark:text-red-300">{result.error}</p>
                 <Button size="sm" variant="outline" onClick={reset}>
                   Intentar de nuevo
                 </Button>

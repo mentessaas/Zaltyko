@@ -3,8 +3,6 @@
 import { useState } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
-import { format } from "date-fns";
-import { es } from "date-fns/locale";
 import {
   FileText,
   Filter,
@@ -21,23 +19,13 @@ import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { cn } from "@/lib/utils";
 import { AssessmentHistory } from "./AssessmentHistory";
-import type { AssessmentWithScores, AssessmentType } from "@/types";
-
-const typeLabels: Record<AssessmentType, string> = {
-  technical: "Técnica",
-  artistic: "Artística",
-  physical: "Condición Física",
-  behavioral: "Comportamental",
-  overall: "General",
-};
-
-const typeColors: Record<AssessmentType, string> = {
-  technical: "bg-blue-100 text-blue-800 border-blue-200",
-  artistic: "bg-purple-100 text-purple-800 border-purple-200",
-  physical: "bg-green-100 text-green-800 border-green-200",
-  behavioral: "bg-amber-100 text-amber-800 border-amber-200",
-  overall: "bg-muted text-muted-foreground border-border",
-};
+import type { AssessmentWithScores } from "@/types";
+import {
+  ASSESSMENT_TYPE_COLORS,
+  ASSESSMENT_TYPE_LABELS,
+} from "@/lib/assessments/presentation";
+import { extractAssessmentRows } from "@/lib/assessments/response";
+import { formatDateForCountry } from "@/lib/date-utils";
 
 interface AssessmentsClientViewProps {
   academyId?: string;
@@ -95,8 +83,8 @@ export default function AssessmentsClientView({
     try {
       const res = await fetch(`/api/assessments/${athleteId}`);
       if (res.ok) {
-        const data = await res.json();
-        setHistoryAssessments(data.assessments ?? []);
+        const payload = await res.json();
+        setHistoryAssessments(extractAssessmentRows(payload));
       } else {
         setHistoryAssessments([]);
       }
@@ -161,7 +149,11 @@ export default function AssessmentsClientView({
                 router.push(buildUrl(params));
               }}
             >
+              <label htmlFor="assessments-academy-filter" className="sr-only">
+                Filtrar por academia
+              </label>
               <select
+                id="assessments-academy-filter"
                 name="academy"
                 defaultValue={String(searchParams.academy ?? "")}
                 className="min-w-[160px] rounded-md border border-border bg-background px-3 py-2 text-sm"
@@ -171,7 +163,11 @@ export default function AssessmentsClientView({
                   <option key={a.id} value={a.id}>{a.name}</option>
                 ))}
               </select>
+              <label htmlFor="assessments-athlete-filter" className="sr-only">
+                Filtrar por atleta
+              </label>
               <select
+                id="assessments-athlete-filter"
                 name="athlete"
                 defaultValue={String(searchParams.athlete ?? "")}
                 className="min-w-[180px] rounded-md border border-border bg-background px-3 py-2 text-sm"
@@ -181,7 +177,11 @@ export default function AssessmentsClientView({
                   <option key={a.id} value={a.id}>{a.name}</option>
                 ))}
               </select>
+              <label htmlFor="assessments-type-filter" className="sr-only">
+                Filtrar por tipo de evaluación
+              </label>
               <select
+                id="assessments-type-filter"
                 name="type"
                 defaultValue={String(searchParams.type ?? "")}
                 className="min-w-[160px] rounded-md border border-border bg-background px-3 py-2 text-sm"
@@ -193,14 +193,22 @@ export default function AssessmentsClientView({
                 <option value="behavioral">Comportamental</option>
                 <option value="overall">General</option>
               </select>
+              <label htmlFor="assessments-from-filter" className="sr-only">
+                Fecha inicial
+              </label>
               <input
+                id="assessments-from-filter"
                 type="date"
                 name="from"
                 defaultValue={String(searchParams.from ?? "")}
                 placeholder="Desde"
                 className="w-[150px] rounded-md border border-border bg-background px-3 py-2 text-sm"
               />
+              <label htmlFor="assessments-to-filter" className="sr-only">
+                Fecha final
+              </label>
               <input
+                id="assessments-to-filter"
                 type="date"
                 name="to"
                 defaultValue={String(searchParams.to ?? "")}
@@ -285,8 +293,8 @@ export default function AssessmentsClientView({
                 <div className="flex items-start justify-between gap-4">
                   <div className="flex-1 min-w-0">
                     <div className="flex flex-wrap items-center gap-2 mb-1">
-                      <Badge variant="outline" className={cn(typeColors[assessment.assessmentType])}>
-                        {typeLabels[assessment.assessmentType]}
+                      <Badge variant="outline" className={cn(ASSESSMENT_TYPE_COLORS[assessment.assessmentType])}>
+                        {ASSESSMENT_TYPE_LABELS[assessment.assessmentType] ?? assessment.assessmentType}
                       </Badge>
                       {assessment.apparatus && (
                         <span className="text-sm text-muted-foreground">{assessment.apparatus}</span>
@@ -294,7 +302,7 @@ export default function AssessmentsClientView({
                     </div>
                     <div className="flex flex-wrap items-center gap-x-4 gap-y-1 text-sm text-muted-foreground">
                       <span className="flex items-center gap-1">
-                        {format(new Date(assessment.assessmentDate), "PPP", { locale: es })}
+                        {formatDateForCountry(assessment.assessmentDate, null, "PPP")}
                       </span>
                       <Link
                         href={`${athletesBasePath}/${assessment.athleteId}`}

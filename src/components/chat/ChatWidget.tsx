@@ -34,6 +34,7 @@ export function ChatWidget({ athleteInfo }: ChatWidgetProps) {
   const [input, setInput] = useState('');
   const [isLoading, setIsLoading] = useState(false);
   const messagesEndRef = useRef<HTMLDivElement>(null);
+  const inputRef = useRef<HTMLInputElement>(null);
 
   const scrollToBottom = () => {
     messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
@@ -42,6 +43,16 @@ export function ChatWidget({ athleteInfo }: ChatWidgetProps) {
   useEffect(() => {
     scrollToBottom();
   }, [messages]);
+
+  useEffect(() => {
+    if (!isOpen) return;
+    inputRef.current?.focus();
+    const onKeyDown = (event: KeyboardEvent) => {
+      if (event.key === 'Escape') setIsOpen(false);
+    };
+    window.addEventListener('keydown', onKeyDown);
+    return () => window.removeEventListener('keydown', onKeyDown);
+  }, [isOpen]);
 
   const sendMessage = async () => {
     if (!input.trim() || isLoading) return;
@@ -56,6 +67,8 @@ export function ChatWidget({ athleteInfo }: ChatWidgetProps) {
     setMessages((prev) => [...prev, userMessage]);
     setInput('');
     setIsLoading(true);
+    const controller = new AbortController();
+    const timeoutId = window.setTimeout(() => controller.abort(), 30_000);
 
     try {
       const response = await fetch('/api/ai/communication/chat', {
@@ -65,15 +78,20 @@ export function ChatWidget({ athleteInfo }: ChatWidgetProps) {
           question: userMessage.content,
           athleteInfo,
         }),
+        signal: controller.signal,
       });
 
       const data = await response.json();
+      if (!response.ok) {
+        throw new Error(data?.message || data?.error || 'No se pudo obtener respuesta');
+      }
 
-      if (data.answer) {
+      const answer = data?.data?.answer ?? data?.answer;
+      if (typeof answer === 'string' && answer.trim()) {
         const assistantMessage: Message = {
           id: (Date.now() + 1).toString(),
           role: 'assistant',
-          content: data.answer,
+          content: answer,
           timestamp: new Date(),
         };
         setMessages((prev) => [...prev, assistantMessage]);
@@ -95,11 +113,15 @@ export function ChatWidget({ athleteInfo }: ChatWidgetProps) {
         {
           id: (Date.now() + 1).toString(),
           role: 'assistant',
-          content: 'Lo siento, hubo un error de conexión. Por favor intenta de nuevo.',
+          content: (error instanceof DOMException && error.name === 'AbortError') ||
+            (error instanceof Error && error.name === 'AbortError')
+            ? 'La respuesta está tardando demasiado. Intenta de nuevo en unos segundos.'
+            : 'Lo siento, hubo un error de conexión. Por favor intenta de nuevo.',
           timestamp: new Date(),
         },
       ]);
     } finally {
+      window.clearTimeout(timeoutId);
       setIsLoading(false);
     }
   };
@@ -115,8 +137,9 @@ export function ChatWidget({ athleteInfo }: ChatWidgetProps) {
     <>
       {/* Botón flotante */}
       <button
+        type="button"
         onClick={() => setIsOpen(!isOpen)}
-        className="fixed bottom-6 right-6 z-50 w-14 h-14 bg-zaltyko-teal hover:bg-primary-dark text-white rounded-full shadow-soft flex items-center justify-center transition-all duration-150 hover:scale-[1.03]"
+        className="fixed bottom-6 right-6 z-50 w-14 h-14 bg-zaltyko-teal hover:bg-zaltyko-primary-dark text-white rounded-full shadow-soft flex items-center justify-center transition-all duration-150 hover:scale-[1.03]"
         aria-label={isOpen ? 'Cerrar chat' : 'Abrir chat'}
       >
         {isOpen ? (
@@ -132,7 +155,12 @@ export function ChatWidget({ athleteInfo }: ChatWidgetProps) {
 
       {/* Ventana de chat */}
       {isOpen && (
-        <div className="fixed bottom-24 right-6 z-50 w-96 h-[500px] bg-card dark:bg-gray-900 rounded-xl shadow-2xl border border-gray-200 dark:border-gray-700 flex flex-col overflow-hidden">
+        <div
+          role="dialog"
+          aria-modal="true"
+          aria-labelledby="zaltyko-chat-title"
+          className="fixed bottom-24 left-4 right-4 z-50 h-[min(500px,calc(100dvh-7rem))] bg-card dark:bg-gray-900 rounded-xl shadow-2xl border border-gray-200 dark:border-gray-700 flex flex-col overflow-hidden sm:left-auto sm:right-6 sm:w-96"
+        >
           {/* Header */}
           <div className="bg-zaltyko-navy text-white p-4 flex items-center gap-3">
             <div className="w-10 h-10 bg-white/20 rounded-full flex items-center justify-center">
@@ -141,13 +169,13 @@ export function ChatWidget({ athleteInfo }: ChatWidgetProps) {
               </svg>
             </div>
             <div>
-              <h3 className="font-semibold">Asistente Zaltyko</h3>
+              <h3 id="zaltyko-chat-title" className="font-semibold">Asistente Zaltyko</h3>
               <p className="text-xs text-white/80">Siempre disponible</p>
             </div>
           </div>
 
           {/* Mensajes */}
-          <div className="flex-1 overflow-y-auto p-4 space-y-4">
+          <div className="flex-1 overflow-y-auto p-4 space-y-4" aria-live="polite" aria-busy={isLoading}>
             {messages.map((message) => (
               <div
                 key={message.id}
@@ -168,7 +196,7 @@ export function ChatWidget({ athleteInfo }: ChatWidgetProps) {
               </div>
             ))}
             {isLoading && (
-              <div className="flex justify-start">
+              <div className="flex justify-start" role="status" aria-label="El asistente está escribiendo">
                 <div className="bg-muted rounded-2xl rounded-bl-md px-4 py-3">
                   <div className="flex gap-1">
                     <span className="w-2 h-2 bg-gray-400 rounded-full animate-bounce" style={{ animationDelay: '0ms' }} />
@@ -184,19 +212,25 @@ export function ChatWidget({ athleteInfo }: ChatWidgetProps) {
           {/* Input */}
           <div className="p-4 border-t border-gray-200 dark:border-gray-700">
             <div className="flex gap-2">
-              <Input
-                value={input}
-                onChange={(e) => setInput(e.target.value)}
-                onKeyDown={handleKeyPress}
-                placeholder="Escribe tu pregunta..."
-                disabled={isLoading}
-                className="flex-1"
-              />
+              <div className="min-w-0 flex-1">
+                <Input
+                  ref={inputRef}
+                  aria-label="Pregunta para el asistente Zaltyko"
+                  value={input}
+                  onChange={(e) => setInput(e.target.value)}
+                  onKeyDown={handleKeyPress}
+                  placeholder="Escribe tu pregunta..."
+                  disabled={isLoading}
+                  className="w-full"
+                />
+              </div>
               <Button
+                type="button"
                 onClick={sendMessage}
                 disabled={isLoading || !input.trim()}
                 size="icon"
-                className="bg-zaltyko-teal hover:bg-primary-dark"
+                className="bg-zaltyko-teal hover:bg-zaltyko-primary-dark"
+                aria-label="Enviar mensaje al asistente"
               >
                 <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                   <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 19l9 2-9-18-9 18 9-2zm0 0v-8" />

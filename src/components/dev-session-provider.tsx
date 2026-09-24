@@ -44,7 +44,7 @@ async function fetchDevSession(): Promise<DevSession | null> {
 
 export function DevSessionProvider({ children }: { children: React.ReactNode }) {
   const [session, setSession] = useState<DevSession | null>(null);
-  const [loading, setLoading] = useState(isDevSessionEnabled);
+  const [loading, setLoading] = useState(isDevSessionEnabled());
 
   const persist = useCallback((value: DevSession | null) => {
     if (typeof window === "undefined") return;
@@ -56,7 +56,7 @@ export function DevSessionProvider({ children }: { children: React.ReactNode }) 
   }, []);
 
   const refresh = useCallback(async () => {
-    if (!isDevSessionEnabled || typeof window === "undefined") return;
+    if (!isDevSessionEnabled() || typeof window === "undefined") return;
     setLoading(true);
     const data = await fetchDevSession();
     if (data) {
@@ -81,7 +81,7 @@ export function DevSessionProvider({ children }: { children: React.ReactNode }) 
   const [initialized, setInitialized] = useState(false);
 
   useEffect(() => {
-    if (!isDevSessionEnabled || typeof window === "undefined") return;
+    if (!isDevSessionEnabled() || typeof window === "undefined") return;
 
     const cached = window.localStorage.getItem(STORAGE_KEY);
     if (cached && !initialized) {
@@ -107,7 +107,7 @@ export function DevSessionProvider({ children }: { children: React.ReactNode }) 
   );
 
   const safeValue = useMemo<DevSessionContextValue>(() => {
-    if (!isDevSessionEnabled) {
+    if (!isDevSessionEnabled()) {
       return {
         session: null,
         loading: false,

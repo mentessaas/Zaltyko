@@ -6,6 +6,7 @@ import { Medal, Trophy } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { getTerminologyForSportConfig } from "@/lib/sport-config/terminology";
+import { pluralizeFirstWord } from "@/lib/specialization/registry";
 
 interface SportConfigOption {
   id: string;
@@ -61,6 +62,8 @@ export function AthleteCompetitionHistory({
     sportConfigs,
     sportConfigFilter === "all" ? null : sportConfigFilter
   );
+  const competitionLabelPlural = pluralizeFirstWord(terms.competition).toLowerCase();
+  const apparatusLabelPlural = pluralizeFirstWord(terms.apparatus).toLowerCase();
 
   const sportConfigNameById = useMemo(
     () => new Map(sportConfigs.map((config) => [config.id, config.branchName])),
@@ -111,10 +114,10 @@ export function AthleteCompetitionHistory({
             Historial de {terms.competition.toLowerCase()}
           </p>
           <h2 className="font-display text-lg font-semibold text-foreground">
-            Resultados por evento, rama y {terms.apparatus.toLowerCase()}
+            Resultados por evento, rama y {apparatusLabelPlural}
           </h2>
           <p className="text-sm text-muted-foreground">
-            Consulta resultados registrados desde {terms.competition.toLowerCase()}s y torneos.
+            Consulta resultados registrados desde {competitionLabelPlural} y torneos.
           </p>
         </div>
         <div className="flex flex-wrap gap-2">
@@ -151,7 +154,7 @@ export function AthleteCompetitionHistory({
           <Trophy className="mx-auto mb-3 h-10 w-10 text-zaltyko-mist" />
           <p className="text-sm font-medium text-foreground">Sin resultados registrados</p>
           <p className="mt-1 text-sm text-muted-foreground">
-            Cuando se guarden resultados en eventos o {terms.competition.toLowerCase()}s, aparecerán aquí.
+            Cuando se guarden resultados en eventos o {competitionLabelPlural}, aparecerán aquí.
           </p>
         </div>
       ) : (

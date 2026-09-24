@@ -23,6 +23,20 @@ const routeLabels: Record<string, string> = {
   analytics: "Analíticas",
   "plan-limits": "Límites del plan",
   "super-admin": "Super Admin",
+  support: "Soporte",
+  notifications: "Avisos",
+  preferences: "Preferencias",
+  reports: "Informes",
+  comms: "Comunicación",
+  settings: "Ajustes",
+  announcements: "Anuncios",
+  invitations: "Invitaciones",
+  documents: "Documentos",
+  history: "Historial",
+  progress: "Progreso",
+  attendance: "Asistencia",
+  coach: "Entrenador",
+  growth: "Crecimiento",
   app: "Academia",
   view: "Ver perfil",
 };
@@ -106,11 +120,17 @@ export function AutoBreadcrumb() {
 
   // Detectar si estamos en super-admin (fondo oscuro)
   const isSuperAdmin = pathname.startsWith("/super-admin");
+  const homeHref = isSuperAdmin
+    ? "/super-admin/dashboard"
+    : academyContext
+      ? `/app/${academyContext.academyId}/dashboard`
+      : "/dashboard";
   
   return (
     <div className={isSuperAdmin ? "mb-4" : "mb-4"}>
       <Breadcrumb 
         items={items} 
+        homeHref={homeHref}
         className={isSuperAdmin ? "text-white/80 [&_a]:text-white/80 [&_a:hover]:text-white [&_span]:text-white [&_svg]:text-white/60" : ""}
       />
     </div>

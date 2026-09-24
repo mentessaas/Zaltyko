@@ -24,9 +24,9 @@ function ClusterEventsSectionImpl({
   const labels = {
     es: {
       title: "Eventos y competiciones",
-      subtitle: `Proximos eventos de ${modalityLabel} en ${countryLabel}`,
+      subtitle: `Próximos eventos de ${modalityLabel} en ${countryLabel}`,
       cta: "Ver todos los eventos",
-      empty: "No hay eventos proximos en esta region todavia",
+      empty: "No hay eventos próximos en esta región todavía",
     },
     en: {
       title: "Events and competitions",

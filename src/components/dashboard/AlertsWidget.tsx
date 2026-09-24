@@ -1,111 +1,29 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { useState } from "react";
 import Link from "next/link";
 import { AlertTriangle, Users, CreditCard, TrendingDown, X } from "lucide-react";
 import { Button } from "@/components/ui/button";
-import { Badge } from "@/components/ui/badge";
 import { cn } from "@/lib/utils";
-import { logger } from "@/lib/logger";
-
-interface Alert {
-  id: string;
-  type: "capacity" | "payment" | "attendance";
-  title: string;
-  message: string;
-  severity: "high" | "medium" | "low";
-  link?: string;
-}
+import type { DashboardAlert } from "@/lib/dashboard/alerts";
 
 interface AlertsWidgetProps {
-  academyId: string;
+  alerts: DashboardAlert[];
+  loading?: boolean;
+  error?: string | null;
+  onRetry?: () => void;
 }
 
-export function AlertsWidget({ academyId }: AlertsWidgetProps) {
-  const [alerts, setAlerts] = useState<Alert[]>([]);
-  const [loading, setLoading] = useState(true);
+export function AlertsWidget({ alerts, loading = false, error = null, onRetry }: AlertsWidgetProps) {
   const [dismissedAlerts, setDismissedAlerts] = useState<Set<string>>(new Set());
 
-  useEffect(() => {
-    loadAlerts();
-    // Recargar cada 5 minutos
-    const interval = setInterval(loadAlerts, 300000);
-    return () => clearInterval(interval);
-  }, [academyId]);
-
-  const loadAlerts = async () => {
-    setLoading(true);
-    try {
-      const [capacityRes, paymentRes, attendanceRes] = await Promise.all([
-        fetch(`/api/alerts/capacity?academyId=${academyId}`),
-        fetch(`/api/alerts/payments?academyId=${academyId}`),
-        fetch(`/api/alerts/attendance?academyId=${academyId}`),
-      ]);
-
-      const allAlerts: Alert[] = [];
-
-      if (capacityRes.ok) {
-        const data = await capacityRes.json();
-        if (Array.isArray(data.alerts)) {
-          data.alerts.forEach((alert: any) => {
-            allAlerts.push({
-              id: `capacity-${alert.classId}`,
-              type: "capacity",
-              title: `Cupo lleno: ${alert.className}`,
-              message: `${alert.currentCapacity}/${alert.maxCapacity} atletas (${alert.percentage}%)`,
-              severity: alert.percentage >= 95 ? "high" : "medium",
-              link: `/app/${academyId}/classes/${alert.classId}`,
-            });
-          });
-        }
-      }
-
-      if (paymentRes.ok) {
-        const data = await paymentRes.json();
-        if (Array.isArray(data.alerts)) {
-          data.alerts.forEach((alert: any) => {
-            allAlerts.push({
-              id: `payment-${alert.chargeId}`,
-              type: "payment",
-              title: `Pago atrasado: ${alert.athleteName}`,
-              message: `€${alert.amount.toFixed(2)} vencido hace ${Math.floor((Date.now() - new Date(alert.dueDate).getTime()) / (1000 * 60 * 60 * 24))} días`,
-              severity: "high",
-              link: `/app/${academyId}/billing`,
-            });
-          });
-        }
-      }
-
-      if (attendanceRes.ok) {
-        const data = await attendanceRes.json();
-        if (Array.isArray(data.alerts)) {
-          data.alerts.forEach((alert: any) => {
-            allAlerts.push({
-              id: `attendance-${alert.athleteId}`,
-              type: "attendance",
-              title: `Baja asistencia: ${alert.athleteName}`,
-              message: `${alert.attendanceRate}% (umbral: ${alert.threshold}%)`,
-              severity: alert.attendanceRate < 50 ? "high" : "medium",
-              link: `/app/${academyId}/athletes/${alert.athleteId}`,
-            });
-          });
-        }
-      }
-
-      setAlerts(allAlerts.filter((a) => !dismissedAlerts.has(a.id)));
-    } catch (error) {
-      logger.error("Error loading alerts:", error);
-    } finally {
-      setLoading(false);
-    }
-  };
+  const visibleAlerts = alerts.filter((alert) => !dismissedAlerts.has(alert.id));
 
   const dismissAlert = (alertId: string) => {
     setDismissedAlerts((prev) => new Set([...prev, alertId]));
-    setAlerts((prev) => prev.filter((a) => a.id !== alertId));
   };
 
-  const getAlertIcon = (type: Alert["type"]) => {
+  const getAlertIcon = (type: DashboardAlert["type"]) => {
     switch (type) {
       case "capacity":
         return Users;
@@ -118,33 +36,42 @@ export function AlertsWidget({ academyId }: AlertsWidgetProps) {
     }
   };
 
-  const getSeverityColor = (severity: Alert["severity"]) => {
+  const getSeverityColor = (severity: DashboardAlert["severity"]) => {
     switch (severity) {
       case "high":
         return "border-l-4 border-l-zaltyko-coral border-y border-r border-zaltyko-coral/20 bg-zaltyko-coral/5";
       case "medium":
-        return "border-l-4 border-l-amber-500 border-y border-r border-amber-200 bg-amber-50/80";
+        return "border-l-4 border-l-amber-500 border-y border-r border-amber-500/25 bg-amber-500/10";
       case "low":
         return "border-l-4 border-l-zaltyko-teal border-y border-r border-zaltyko-teal/20 bg-zaltyko-teal/5";
     }
   };
 
-  const getSeverityIconColor = (severity: Alert["severity"]) => {
+  const getSeverityIconColor = (severity: DashboardAlert["severity"]) => {
     switch (severity) {
       case "high":
         return "bg-zaltyko-coral/15 text-zaltyko-coral";
       case "medium":
-        return "bg-amber-100 text-amber-700";
+        return "bg-amber-500/15 text-amber-400";
       case "low":
         return "bg-zaltyko-teal/15 text-zaltyko-teal";
     }
   };
 
-  if (loading && alerts.length === 0) {
+  if (loading && visibleAlerts.length === 0) {
     return null;
   }
 
-  if (alerts.length === 0) {
+  if (error && visibleAlerts.length === 0) {
+    return (
+      <div className="rounded-lg border border-amber-500/30 bg-amber-500/10 p-4" role="alert" aria-live="polite">
+        <p className="text-sm text-amber-800 dark:text-amber-200">{error}</p>
+        {onRetry && <Button type="button" variant="outline" size="sm" className="mt-3" onClick={onRetry}>Reintentar</Button>}
+      </div>
+    );
+  }
+
+  if (visibleAlerts.length === 0) {
     return null;
   }
 
@@ -160,14 +87,14 @@ export function AlertsWidget({ academyId }: AlertsWidgetProps) {
               Alertas activas
             </p>
             <h3 className="text-lg font-semibold text-foreground">
-              {alerts.length} {alerts.length === 1 ? "alerta requiere atención" : "alertas requieren atención"}
+              {visibleAlerts.length} {visibleAlerts.length === 1 ? "alerta requiere atención" : "alertas requieren atención"}
             </h3>
           </div>
         </div>
       </header>
 
       <div className="space-y-3">
-        {alerts.slice(0, 3).map((alert) => {
+        {visibleAlerts.slice(0, 3).map((alert) => {
           const Icon = getAlertIcon(alert.type);
           return (
             <div
@@ -189,8 +116,9 @@ export function AlertsWidget({ academyId }: AlertsWidgetProps) {
                   <Button
                     variant="ghost"
                     size="icon"
-                    className="h-8 w-8 shrink-0 rounded-lg hover:bg-white/50"
+                    className="h-11 w-11 shrink-0 rounded-lg hover:bg-muted"
                     onClick={() => dismissAlert(alert.id)}
+                    aria-label={`Descartar alerta: ${alert.title}`}
                   >
                     <X className="h-4 w-4" />
                   </Button>
@@ -212,10 +140,10 @@ export function AlertsWidget({ academyId }: AlertsWidgetProps) {
         })}
       </div>
 
-      {alerts.length > 3 && (
+      {visibleAlerts.length > 3 && (
         <div className="border-t border-border pt-3">
           <p className="text-center text-xs font-medium text-muted-foreground">
-            Y {alerts.length - 3} {alerts.length - 3 === 1 ? "alerta más" : "alertas más"}
+            Y {visibleAlerts.length - 3} {visibleAlerts.length - 3 === 1 ? "alerta más" : "alertas más"}
           </p>
         </div>
       )}

@@ -26,7 +26,7 @@ function ClusterCoachesSectionImpl({
       title: "Entrenadores certificados",
       subtitle: `Conoce a los mejores entrenadores de ${modalityLabel} en ${countryLabel}`,
       cta: "Ver todos los entrenadores",
-      empty: "No hay entrenadores destacados en esta region todavia",
+      empty: "No hay entrenadores destacados en esta región todavía",
     },
     en: {
       title: "Certified coaches",

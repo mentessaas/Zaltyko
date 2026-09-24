@@ -17,6 +17,7 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { logger } from "@/lib/logger";
 import { useAcademyContext } from "@/hooks/use-academy-context";
+import { useToast } from "@/components/ui/toast-provider";
 import { pluralizeFirstWord } from "@/lib/specialization/registry";
 import {
   Select,
@@ -47,6 +48,7 @@ interface ScheduledReportsProps {
 
 export function ScheduledReports({ academyId }: ScheduledReportsProps) {
   const { specialization } = useAcademyContext();
+  const toast = useToast();
   const [reports, setReports] = useState<ScheduledReport[]>([]);
   const [loading, setLoading] = useState(true);
   const [showDialog, setShowDialog] = useState(false);
@@ -74,8 +76,11 @@ export function ScheduledReports({ academyId }: ScheduledReportsProps) {
     try {
       const res = await fetch(`/api/reports/scheduled?academyId=${academyId}`);
       if (res.ok) {
-        const data = await res.json();
-        setReports(data);
+        const payload = await res.json();
+        // apiSuccess envuelve la respuesta en `data`; aceptar también el
+        // formato plano evita que la pantalla se rompa si cambia el cliente.
+        const body = payload?.data ?? payload;
+        setReports(Array.isArray(body) ? body : body?.items ?? []);
       }
     } catch (error) {
       logger.error("Error fetching scheduled reports:", error);
@@ -85,7 +90,11 @@ export function ScheduledReports({ academyId }: ScheduledReportsProps) {
   };
 
   const handleCreate = async () => {
-    if (!formData.name || !formData.recipients) return;
+    const recipients = formData.recipients.split(",").map((e) => e.trim()).filter(Boolean);
+    if (!formData.name.trim() || recipients.length === 0) {
+      toast.pushToast({ title: "Completa los datos", description: "Indica un nombre y al menos un destinatario.", variant: "error" });
+      return;
+    }
 
     setSaving(true);
     try {
@@ -101,7 +110,7 @@ export function ScheduledReports({ academyId }: ScheduledReportsProps) {
           dayOfMonth: formData.frequency === "monthly" ? formData.dayOfMonth : undefined,
           hour: formData.hour,
           format: formData.format,
-          recipients: formData.recipients.split(",").map((e) => e.trim()).filter(Boolean),
+          recipients,
           active: formData.active,
         }),
       });
@@ -120,9 +129,13 @@ export function ScheduledReports({ academyId }: ScheduledReportsProps) {
           active: true,
         });
         fetchReports();
+      } else {
+        const payload = await res.json().catch(() => null);
+        toast.pushToast({ title: "No se pudo programar", description: payload?.message ?? payload?.error ?? "Revisa la configuración e inténtalo de nuevo.", variant: "error" });
       }
     } catch (error) {
       logger.error("Error creating scheduled report:", error);
+      toast.pushToast({ title: "No se pudo programar", description: "Comprueba tu conexión e inténtalo de nuevo.", variant: "error" });
     } finally {
       setSaving(false);
     }
@@ -136,9 +149,12 @@ export function ScheduledReports({ academyId }: ScheduledReportsProps) {
       });
       if (res.ok) {
         fetchReports();
+      } else {
+        toast.pushToast({ title: "No se pudo eliminar", description: "El reporte no ha cambiado.", variant: "error" });
       }
     } catch (error) {
       logger.error("Error deleting scheduled report:", error);
+      toast.pushToast({ title: "No se pudo eliminar", description: "Comprueba tu conexión e inténtalo de nuevo.", variant: "error" });
     } finally {
       setDeleting(null);
     }
@@ -147,15 +163,18 @@ export function ScheduledReports({ academyId }: ScheduledReportsProps) {
   const handleToggleActive = async (id: string, currentActive: boolean) => {
     try {
       const res = await fetch(`/api/reports/scheduled/${id}`, {
-        method: "PUT",
+        method: "PATCH",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ active: !currentActive }),
       });
       if (res.ok) {
         fetchReports();
+      } else {
+        toast.pushToast({ title: "No se pudo actualizar", description: "El estado del reporte no ha cambiado.", variant: "error" });
       }
     } catch (error) {
       logger.error("Error toggling scheduled report:", error);
+      toast.pushToast({ title: "No se pudo actualizar", description: "Comprueba tu conexión e inténtalo de nuevo.", variant: "error" });
     }
   };
 
@@ -356,6 +375,9 @@ export function ScheduledReports({ academyId }: ScheduledReportsProps) {
                   value={formData.hour}
                   onChange={(e) => setFormData({ ...formData, hour: e.target.value })}
                 />
+                <p className="text-xs text-muted-foreground">
+                  Se procesan una vez al día; si la hora ya pasó, se enviará en la siguiente ejecución disponible.
+                </p>
               </div>
             </div>
 

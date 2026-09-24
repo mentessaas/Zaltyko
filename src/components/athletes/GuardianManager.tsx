@@ -87,7 +87,9 @@ export default function GuardianManager({
         throw new Error(data?.error ?? "No se pudo crear el tutor.");
       }
 
-      const { item } = await response.json();
+      const payload = await response.json();
+      const item = payload?.data?.item ?? payload?.item;
+      if (!item) throw new Error("El servidor no devolvió el tutor creado.");
       setGuardians((prev) => [
         ...prev,
         {
@@ -144,7 +146,9 @@ export default function GuardianManager({
         throw new Error(data?.error ?? "No se pudo actualizar el tutor.");
       }
 
-      const { item } = await response.json();
+      const payload = await response.json();
+      const item = payload?.data?.item ?? payload?.item;
+      if (!item) throw new Error("El servidor no devolvió el tutor actualizado.");
       setGuardians((prev) =>
         prev.map((entry) =>
           entry.linkId === guardian.linkId
@@ -424,5 +428,4 @@ function EditGuardianForm({ guardian, disabled, onCancel, onSave }: EditGuardian
     </form>
   );
 }
-
 

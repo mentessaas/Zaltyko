@@ -2,8 +2,7 @@
 
 import { FormEvent, useEffect, useMemo, useRef, useState, useTransition } from "react";
 
-import { athleteStatusOptions } from "@/lib/athletes/constants";
-import { createClient } from "@/lib/supabase/client";
+import { athleteStatusOptions, getAthleteStatusLabel } from "@/lib/athletes/constants";
 import { CATEGORY_OPTIONS, LEVEL_OPTIONS, RELATIONSHIP_OPTIONS } from "@/types/athlete-edit";
 
 import { Modal } from "@/components/ui/modal";
@@ -64,6 +63,8 @@ export function CreateAthleteDialog({
   const [status, setStatus] = useState<(typeof athleteStatusOptions)[number]>("active");
   const [groupId, setGroupId] = useState("");
   const [contacts, setContacts] = useState<ContactInput[]>([createEmptyContact()]);
+  // El contacto familiar es obligatorio para crear el atleta y siempre está
+  // visible. Las opciones deportivas menos frecuentes sí empiezan plegadas.
   const [showAdvanced, setShowAdvanced] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [isPending, startTransition] = useTransition();
@@ -175,17 +176,15 @@ export function CreateAthleteDialog({
     );
 
     if (hasIncompleteContact) {
+      // Si el usuario lo había contraído, vuelve a abrir el bloque junto con
+      // el error para que pueda corregirlo sin tener que adivinar dónde está.
+      setShowAdvanced(true);
       setError("Todos los datos del contacto familiar son obligatorios.");
       return;
     }
 
     startTransition(async () => {
       try {
-        const supabase = createClient();
-        const {
-          data: { user: currentUser },
-        } = await supabase.auth.getUser();
-
         const payload = {
           academyId,
           name: name.trim(),
@@ -214,9 +213,6 @@ export function CreateAthleteDialog({
           "Content-Type": "application/json",
           "x-academy-id": academyId,
         };
-
-        if (currentUser?.id) {
-        }
 
         const response = await fetch("/api/athletes", {
           method: "POST",
@@ -264,7 +260,7 @@ export function CreateAthleteDialog({
           <button
             type="button"
             onClick={handleClose}
-            className="min-h-11 rounded-xl border border-zaltyko-indigo px-4 py-2 text-sm font-medium text-zaltyko-indigo transition hover:bg-zaltyko-indigo/5 disabled:cursor-not-allowed disabled:opacity-60"
+            className="min-h-11 rounded-xl border border-zaltyko-indigo px-4 py-2 text-sm font-medium text-zaltyko-indigo dark:border-zaltyko-teal dark:text-zaltyko-teal transition hover:bg-zaltyko-indigo/5 dark:hover:bg-zaltyko-teal/10 disabled:cursor-not-allowed disabled:opacity-60"
             disabled={isPending}
           >
             Cancelar
@@ -272,7 +268,7 @@ export function CreateAthleteDialog({
           <button
             type="submit"
             form="create-athlete-form"
-            className="min-h-11 rounded-xl bg-zaltyko-teal px-4 py-2 text-sm font-semibold text-white shadow-soft transition hover:bg-primary-dark disabled:cursor-not-allowed disabled:opacity-60"
+            className="min-h-11 rounded-xl bg-zaltyko-teal px-4 py-2 text-sm font-semibold text-white shadow-soft transition hover:bg-zaltyko-primary-dark disabled:cursor-not-allowed disabled:opacity-60"
             disabled={isPending}
           >
             {isPending ? "Guardando..." : `Guardar ${athleteTermLower}`}
@@ -378,23 +374,181 @@ export function CreateAthleteDialog({
           </div>
         </div>
 
-        {/* Opción avanzada */}
+        {/* Contacto familiar — requisito de alta y siempre visible */}
+        <div className="space-y-3 rounded-xl border border-zaltyko-teal/25 bg-zaltyko-teal/5 p-4">
+          <div className="flex items-start justify-between gap-3">
+            <div>
+              <h3 className="text-sm font-semibold text-foreground">
+                Datos del contacto familiar · obligatorio {contacts.length > 1 ? `(${contacts.length})` : ""}
+              </h3>
+              <p className="mt-1 text-xs text-muted-foreground">
+                Necesitamos una persona responsable para avisos, pagos y autorizaciones.
+              </p>
+            </div>
+            <button
+              type="button"
+              onClick={() => setContacts((prev) => [...prev, createEmptyContact()])}
+            className="shrink-0 rounded-full border border-zaltyko-indigo px-3 py-1.5 text-xs font-medium text-zaltyko-indigo dark:border-zaltyko-teal dark:text-zaltyko-teal transition hover:bg-zaltyko-indigo/5 dark:hover:bg-zaltyko-teal/10"
+            >
+              + Añadir
+            </button>
+          </div>
+
+          {contacts.map((contact, index) => (
+            <div key={index} className="space-y-3 rounded-xl border border-border/70 bg-card p-3">
+              <div className="flex items-center justify-between">
+                <p className="text-xs font-semibold uppercase tracking-[0.05em] text-muted-foreground">
+                  Contacto #{index + 1}
+                </p>
+                {contacts.length > 1 && (
+                  <button
+                    type="button"
+                    onClick={() =>
+                      setContacts((prev) => prev.filter((_, contactIndex) => contactIndex !== index))
+                    }
+                    className="text-xs font-medium text-zaltyko-coral hover:underline"
+                  >
+                    Quitar
+                  </button>
+                )}
+              </div>
+
+              <div className="grid gap-3 sm:grid-cols-2">
+                <input
+                  value={contact.name}
+                  onChange={(event) =>
+                    setContacts((prev) => {
+                      const copy = [...prev];
+                      copy[index] = { ...copy[index], name: event.target.value };
+                      return copy;
+                    })
+                  }
+                  placeholder="Nombre *"
+                  className={compactFieldClassName}
+                  aria-label={`Nombre del contacto ${index + 1}`}
+                  aria-required="true"
+                />
+                <input
+                  type="email"
+                  value={contact.email}
+                  onChange={(event) =>
+                    setContacts((prev) => {
+                      const copy = [...prev];
+                      copy[index] = { ...copy[index], email: event.target.value };
+                      return copy;
+                    })
+                  }
+                  placeholder="Correo *"
+                  className={compactFieldClassName}
+                  aria-label={`Correo del contacto ${index + 1}`}
+                  aria-required="true"
+                />
+                <input
+                  value={contact.phone}
+                  onChange={(event) =>
+                    setContacts((prev) => {
+                      const copy = [...prev];
+                      copy[index] = { ...copy[index], phone: event.target.value };
+                      return copy;
+                    })
+                  }
+                  placeholder="Teléfono *"
+                  className={compactFieldClassName}
+                  aria-label={`Teléfono del contacto ${index + 1}`}
+                  aria-required="true"
+                />
+                <select
+                  value={RELATIONSHIP_OPTIONS.includes(contact.relationship as any) ? contact.relationship : "Otro"}
+                  onChange={(event) => {
+                    const value = event.target.value;
+                    setContacts((prev) => {
+                      const copy = [...prev];
+                      copy[index] = {
+                        ...copy[index],
+                        relationship: value === "Otro" ? "" : value,
+                      };
+                      return copy;
+                    });
+                  }}
+                  className={compactFieldClassName}
+                  aria-label={`Relación del contacto ${index + 1}`}
+                >
+                  {RELATIONSHIP_OPTIONS.map((option) => (
+                    <option key={option} value={option}>
+                      {option}
+                    </option>
+                  ))}
+                  <option value="Otro">Otro</option>
+                </select>
+                {!RELATIONSHIP_OPTIONS.includes(contact.relationship as any) && (
+                  <input
+                    value={contact.relationship}
+                    onChange={(event) =>
+                      setContacts((prev) => {
+                        const copy = [...prev];
+                        copy[index] = { ...copy[index], relationship: event.target.value };
+                        return copy;
+                      })
+                    }
+                    placeholder="Especifica la relación *"
+                    className={compactFieldClassName}
+                    aria-label={`Relación personalizada del contacto ${index + 1}`}
+                    aria-required="true"
+                    autoFocus
+                  />
+                )}
+              </div>
+
+              <div className="flex flex-wrap gap-4 text-xs text-muted-foreground">
+                <label className="inline-flex min-h-11 items-center gap-2">
+                  <input
+                    type="checkbox"
+                    checked={contact.notifyEmail}
+                    onChange={(event) =>
+                      setContacts((prev) => {
+                        const copy = [...prev];
+                        copy[index] = { ...copy[index], notifyEmail: event.target.checked };
+                        return copy;
+                      })
+                    }
+                    className="rounded border-border text-zaltyko-teal focus:ring-zaltyko-teal"
+                  />
+                  Recibir correos
+                </label>
+                <label className="inline-flex min-h-11 items-center gap-2">
+                  <input
+                    type="checkbox"
+                    checked={contact.notifySms}
+                    onChange={(event) =>
+                      setContacts((prev) => {
+                        const copy = [...prev];
+                        copy[index] = { ...copy[index], notifySms: event.target.checked };
+                        return copy;
+                      })
+                    }
+                    className="rounded border-border text-zaltyko-teal focus:ring-zaltyko-teal"
+                  />
+                  Recibir SMS
+                </label>
+              </div>
+            </div>
+          ))}
+        </div>
+
+        {/* Opciones menos frecuentes: se pueden completar después */}
         <button
           type="button"
           onClick={() => setShowAdvanced(!showAdvanced)}
-          className="flex w-full items-center justify-between rounded-xl border border-border bg-zaltyko-warm-white px-3 py-2 text-sm font-medium text-muted-foreground transition hover:border-zaltyko-teal hover:text-zaltyko-teal"
+          aria-expanded={showAdvanced}
+          aria-controls="athlete-advanced-fields"
+          className="flex w-full items-center justify-between rounded-xl border border-border bg-zaltyko-warm-white px-3 py-2 text-sm font-medium text-muted-foreground transition hover:border-zaltyko-teal hover:text-zaltyko-teal dark:bg-slate-900"
         >
-          <span>Configuración avanzada</span>
-          {showAdvanced ? (
-            <ChevronUp className="h-4 w-4" />
-          ) : (
-            <ChevronDown className="h-4 w-4" />
-          )}
+          <span>{showAdvanced ? "Ocultar opciones adicionales" : "Añadir categoría, nivel y estado (opcional)"}</span>
+          {showAdvanced ? <ChevronUp className="h-4 w-4" /> : <ChevronDown className="h-4 w-4" />}
         </button>
 
         {showAdvanced && (
-          <div className="space-y-4">
-            {/* Nivel y categoría */}
+          <div id="athlete-advanced-fields" className="space-y-4">
             <div className="grid gap-4 sm:grid-cols-4">
               {programOptions.length > 0 && (
                 <div className="space-y-2">
@@ -457,146 +611,11 @@ export function CreateAthleteDialog({
                 >
                   {athleteStatusOptions.map((option) => (
                     <option key={option} value={option}>
-                      {option}
+                      {getAthleteStatusLabel(option)}
                     </option>
                   ))}
                 </select>
               </div>
-            </div>
-
-            {/* Contactos familiares */}
-            <div className="space-y-3">
-              <div className="flex items-center justify-between">
-                <h3 className="text-sm font-semibold text-foreground">
-                  Contactos familiares {contacts.length > 1 ? `(${contacts.length})` : ""}
-                </h3>
-                <button
-                  type="button"
-                  onClick={() => setContacts((prev) => [...prev, createEmptyContact()])}
-                  className="rounded-full border border-zaltyko-indigo px-3 py-1.5 text-xs font-medium text-zaltyko-indigo transition hover:bg-zaltyko-indigo/5"
-                >
-                  + Añadir
-                </button>
-              </div>
-
-              {contacts.map((contact, index) => (
-                <div key={index} className="space-y-3 rounded-xl border border-border/70 bg-card p-3">
-                  <div className="flex items-center justify-between">
-                    <p className="text-xs font-semibold uppercase tracking-[0.05em] text-muted-foreground">
-                      Contacto #{index + 1}
-                    </p>
-                    {contacts.length > 1 && (
-                      <button
-                        type="button"
-                        onClick={() =>
-                          setContacts((prev) => prev.filter((_, contactIndex) => contactIndex !== index))
-                        }
-                        className="text-xs font-medium text-zaltyko-coral hover:underline"
-                      >
-                        Quitar
-                      </button>
-                    )}
-                  </div>
-
-                  <div className="grid gap-3 sm:grid-cols-2">
-                    <input
-                      value={contact.name}
-                      onChange={(event) =>
-                        setContacts((prev) => {
-                          const copy = [...prev];
-                          copy[index] = { ...copy[index], name: event.target.value };
-                          return copy;
-                        })
-                      }
-                      placeholder="Nombre *"
-                      className={compactFieldClassName}
-                      required
-                    />
-                    <input
-                      type="email"
-                      value={contact.email}
-                      onChange={(event) =>
-                        setContacts((prev) => {
-                          const copy = [...prev];
-                          copy[index] = { ...copy[index], email: event.target.value };
-                          return copy;
-                        })
-                      }
-                      placeholder="Correo *"
-                      className={compactFieldClassName}
-                      required
-                    />
-                    <input
-                      value={contact.phone}
-                      onChange={(event) =>
-                        setContacts((prev) => {
-                          const copy = [...prev];
-                          copy[index] = { ...copy[index], phone: event.target.value };
-                          return copy;
-                        })
-                      }
-                      placeholder="Teléfono *"
-                      className={compactFieldClassName}
-                      required
-                    />
-                    <select
-                      value={RELATIONSHIP_OPTIONS.includes(contact.relationship as any) ? contact.relationship : "Otro"}
-                      onChange={(event) => {
-                        const value = event.target.value;
-                        setContacts((prev) => {
-                          const copy = [...prev];
-                          copy[index] = {
-                            ...copy[index],
-                            relationship: value === "Otro" ? "" : value,
-                          };
-                          return copy;
-                        });
-                      }}
-                      className={compactFieldClassName}
-                    >
-                      {RELATIONSHIP_OPTIONS.map((option) => (
-                        <option key={option} value={option}>
-                          {option}
-                        </option>
-                      ))}
-                      <option value="Otro">Otro</option>
-                    </select>
-                  </div>
-
-                  <div className="flex gap-4 text-xs text-muted-foreground">
-                    <label className="inline-flex items-center gap-2">
-                      <input
-                        type="checkbox"
-                        checked={contact.notifyEmail}
-                        onChange={(event) =>
-                          setContacts((prev) => {
-                            const copy = [...prev];
-                            copy[index] = { ...copy[index], notifyEmail: event.target.checked };
-                            return copy;
-                          })
-                        }
-                        className="rounded border-border text-zaltyko-teal focus:ring-zaltyko-teal"
-                      />
-                      Recibir correos
-                    </label>
-                    <label className="inline-flex items-center gap-2">
-                      <input
-                        type="checkbox"
-                        checked={contact.notifySms}
-                        onChange={(event) =>
-                          setContacts((prev) => {
-                            const copy = [...prev];
-                            copy[index] = { ...copy[index], notifySms: event.target.checked };
-                            return copy;
-                          })
-                        }
-                        className="rounded border-border text-zaltyko-teal focus:ring-zaltyko-teal"
-                      />
-                      Recibir SMS
-                    </label>
-                  </div>
-                </div>
-              ))}
             </div>
           </div>
         )}

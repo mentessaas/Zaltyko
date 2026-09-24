@@ -46,13 +46,18 @@ export function FamilyPaymentMethodCard({ academyId }: Props) {
 
   const loadStatus = useCallback(async () => {
     setLoading(true);
+    setError(null);
     try {
       const res = await fetch(`/api/family/payment-method?academyId=${academyId}`);
-      const json = await res.json();
+      const json = await res.json().catch(() => ({}));
       if (res.ok) {
         setCard(json.hasCard ? (json.card as SavedCard) : null);
         setConnectReady(!!json.connectReady);
+      } else {
+        throw new Error(json.error || json.message || "No se pudo cargar el método de pago");
       }
+    } catch (e) {
+      setError(e instanceof Error ? e.message : "No se pudo cargar el método de pago");
     } finally {
       setLoading(false);
     }
@@ -71,7 +76,7 @@ export function FamilyPaymentMethodCard({ academyId }: Props) {
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ academyId }),
       });
-      const json = await res.json();
+      const json = await res.json().catch(() => ({}));
       if (!res.ok) {
         throw new Error(json.error || "No se pudo iniciar el alta de tarjeta");
       }
@@ -85,13 +90,18 @@ export function FamilyPaymentMethodCard({ academyId }: Props) {
 
   const removeCard = async () => {
     setWorking(true);
+    setError(null);
     try {
-      await fetch(`/api/family/payment-method`, {
+      const res = await fetch(`/api/family/payment-method`, {
         method: "DELETE",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ academyId }),
       });
+      const json = await res.json().catch(() => ({}));
+      if (!res.ok) throw new Error(json.error || json.message || "No se pudo eliminar la tarjeta");
       await loadStatus();
+    } catch (e) {
+      setError(e instanceof Error ? e.message : "No se pudo eliminar la tarjeta");
     } finally {
       setWorking(false);
     }
@@ -160,7 +170,7 @@ export function FamilyPaymentMethodCard({ academyId }: Props) {
             Añadir tarjeta
           </Button>
         )}
-        {error && <p className="text-sm text-red-600">{error}</p>}
+        {error && <p className="text-sm text-red-600 dark:text-red-300" role="alert" aria-live="assertive">{error}</p>}
       </CardContent>
     </Card>
   );
@@ -201,7 +211,7 @@ function SetupForm({
         body: JSON.stringify({ academyId, paymentMethodId }),
       });
       if (!res.ok) {
-        const json = await res.json();
+        const json = await res.json().catch(() => ({}));
         throw new Error(json.error || "No se pudo guardar la tarjeta");
       }
       await onDone();
@@ -215,7 +225,7 @@ function SetupForm({
   return (
     <div className="space-y-3">
       <PaymentElement />
-      {error && <p className="text-sm text-red-600">{error}</p>}
+      {error && <p className="text-sm text-red-600 dark:text-red-300" role="alert" aria-live="assertive">{error}</p>}
       <div className="flex gap-2">
         <Button onClick={submit} disabled={!stripe || submitting}>
           {submitting ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : null}

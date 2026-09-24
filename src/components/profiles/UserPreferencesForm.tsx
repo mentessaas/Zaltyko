@@ -126,19 +126,20 @@ export function UserPreferencesForm({ userId, initialPreferences, onUpdated }: U
           <Label htmlFor="language">Idioma</Label>
           <Select
             id="language"
+            aria-describedby="language-help"
             value={language}
             onValueChange={setLanguage}
             disabled={isSubmitting}
             className="w-full"
           >
             {LANGUAGES.map((lang) => (
-              <option key={lang.value} value={lang.value}>
-                {lang.label}
+              <option key={lang.value} value={lang.value} disabled={lang.value !== "es"}>
+                {lang.value === "es" ? lang.label : `${lang.label} (próximamente)`}
               </option>
             ))}
           </Select>
-          <p className="text-xs text-muted-foreground">
-            El idioma de la interfaz (próximamente disponible en más idiomas).
+          <p id="language-help" className="text-xs text-muted-foreground">
+            La interfaz está disponible ahora en español. Los demás idiomas aparecerán aquí cuando estén traducidos por completo.
           </p>
         </div>
 
@@ -186,4 +187,3 @@ export function UserPreferencesForm({ userId, initialPreferences, onUpdated }: U
     </form>
   );
 }
-

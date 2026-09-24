@@ -9,7 +9,8 @@ import { Label } from "@/components/ui/label";
 import { Button } from "@/components/ui/button";
 import { ConfirmDialog } from "@/components/ui/confirm-dialog";
 import { useAcademyContext } from "@/hooks/use-academy-context";
-import { getSpecializedEvaluationTemplate } from "@/lib/specialization/registry";
+import { getSpecializedEvaluationTemplate, pluralizeFirstWord } from "@/lib/specialization/registry";
+import { formatDateToISOString } from "@/lib/date-utils";
 
 interface SkillOption {
   id: string;
@@ -44,8 +45,9 @@ interface ScoreRow {
 
 export function AssessmentForm({ academyId, athletes, skills, groups = [] }: AssessmentFormProps) {
   const { session, refresh } = useDevSession();
-  const { specialization } = useAcademyContext();
+  const { specialization, academyCountry } = useAcademyContext();
   const evaluationTemplate = getSpecializedEvaluationTemplate(specialization);
+  const groupLabelPlural = pluralizeFirstWord(specialization.labels.groupLabel);
   const apparatusLabels = Object.fromEntries(
     evaluationTemplate.apparatus.map((item) => [item.code, item.label])
   ) as Record<string, string>;
@@ -57,7 +59,9 @@ export function AssessmentForm({ academyId, athletes, skills, groups = [] }: Ass
   }, [athletes, groupFilter]);
 
   const [athleteId, setAthleteId] = useState(filteredAthletes[0]?.id ?? "");
-  const [assessmentDate, setAssessmentDate] = useState(() => new Date().toISOString().slice(0, 10));
+  const [assessmentDate, setAssessmentDate] = useState(() =>
+    formatDateToISOString(new Date(), academyCountry)
+  );
   const [apparatus, setApparatus] = useState<string>("");
   const [assessedBy, setAssessedBy] = useState<string>("");
   const [overallComment, setOverallComment] = useState<string>("");
@@ -100,7 +104,7 @@ export function AssessmentForm({ academyId, athletes, skills, groups = [] }: Ass
   const resetForm = () => {
     setGroupFilter("");
     setAthleteId(athletes[0]?.id ?? "");
-    setAssessmentDate(new Date().toISOString().slice(0, 10));
+    setAssessmentDate(formatDateToISOString(new Date(), academyCountry));
     setApparatus("");
     setAssessedBy("");
     setOverallComment("");
@@ -189,7 +193,7 @@ export function AssessmentForm({ academyId, athletes, skills, groups = [] }: Ass
                   value={groupFilter}
                   onChange={(event) => setGroupFilter(event.target.value)}
                 >
-                  <option value="">Todos los {specialization.labels.groupLabel.toLowerCase()}s</option>
+                  <option value="">Todos los {groupLabelPlural.toLowerCase()}</option>
                   {groups.map((group) => (
                     <option key={group.id} value={group.id}>
                       {group.name}

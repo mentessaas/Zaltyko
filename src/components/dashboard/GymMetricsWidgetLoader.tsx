@@ -30,8 +30,8 @@ export function GymMetricsWidgetLoader({ academyId }: GymMetricsWidgetLoaderProp
           setError("not_available");
           return;
         }
-        const data = await response.json();
-        setMetrics(data);
+        const payload = await response.json();
+        setMetrics(payload?.data ?? payload);
       } catch (err) {
         logger.error("Error fetching GR metrics:", err);
         setError("error");

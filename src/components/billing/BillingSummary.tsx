@@ -1,6 +1,8 @@
 "use client";
 
 import type { BillingSummary, PlanSummary } from "@/types/billing";
+import { getProductPlanPublicName } from "@/lib/plans/catalog";
+import { getSubscriptionStatusLabel } from "@/lib/billing/subscription-status-labels";
 
 const PLAN_COPY: Record<string, { title: string; description: string }> = {
   free: {
@@ -9,7 +11,7 @@ const PLAN_COPY: Record<string, { title: string; description: string }> = {
   },
   pro: {
     title: "Starter",
-    description: "Hasta 75 gimnastas · portal familias y pagos recurrentes",
+    description: "Hasta 75 gimnastas · portal familiar limitado y pagos recurrentes",
   },
   premium: {
     title: "Growth",
@@ -28,7 +30,7 @@ function formatPlanPrice(plan: PlanSummary) {
 }
 
 function resolvePlanTitle(plan: PlanSummary) {
-  return PLAN_COPY[plan.code]?.title ?? plan.nickname ?? plan.code.toUpperCase();
+  return getProductPlanPublicName(plan.code, PLAN_COPY[plan.code]?.title ?? plan.nickname);
 }
 
 interface BillingSummaryProps {
@@ -71,9 +73,9 @@ export function BillingSummary({
         <p className="text-lg font-semibold">
           {currentPlan
             ? resolvePlanTitle(currentPlan)
-            : PLAN_COPY[summary.planCode]?.title ?? summary.planCode.toUpperCase()}
+            : getProductPlanPublicName(summary.planCode, PLAN_COPY[summary.planCode]?.title)}
         </p>
-        <p className="text-sm text-muted-foreground">Estado: {summary.status ?? "N/A"}</p>
+        <p className="text-sm text-muted-foreground">Estado: {getSubscriptionStatusLabel(summary.status)}</p>
         <p className="text-sm text-muted-foreground">
           Límite gimnastas: {summary.athleteLimit ?? "Ilimitado"}
         </p>

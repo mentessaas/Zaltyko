@@ -4,7 +4,7 @@ import Link from "next/link";
 import { Target, Dumbbell, Layers3 } from "lucide-react";
 
 import type { TechnicalDashboardSummary } from "@/lib/dashboard/technical-summary";
-import type { AcademySpecializationContext } from "@/lib/specialization/registry";
+import { pluralizeFirstWord, type AcademySpecializationContext } from "@/lib/specialization/registry";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 
@@ -51,8 +51,8 @@ export function TechnicalOverviewWidget({
             Focos técnicos
           </div>
           <p className="text-xs text-muted-foreground">
-            {summary.groupsWithTechnicalFocus} {summary.groupsWithTechnicalFocus === 1 ? specialization.labels.groupLabel.toLowerCase() : `${specialization.labels.groupLabel.toLowerCase()}s`} y{" "}
-            {summary.classesWithTechnicalFocus} {summary.classesWithTechnicalFocus === 1 ? specialization.labels.classLabel.toLowerCase() : `${specialization.labels.classLabel.toLowerCase()}s`} con foco definido.
+            {summary.groupsWithTechnicalFocus} {summary.groupsWithTechnicalFocus === 1 ? specialization.labels.groupLabel.toLowerCase() : pluralizeFirstWord(specialization.labels.groupLabel).toLowerCase()} y{" "}
+            {summary.classesWithTechnicalFocus} {summary.classesWithTechnicalFocus === 1 ? specialization.labels.classLabel.toLowerCase() : pluralizeFirstWord(specialization.labels.classLabel).toLowerCase()} con foco definido.
           </p>
           <div className="flex flex-wrap gap-2">
             {summary.topFocuses.map((item) => (
@@ -69,8 +69,8 @@ export function TechnicalOverviewWidget({
             Aparatos más activos
           </div>
           <p className="text-xs text-muted-foreground">
-            {summary.groupsWithApparatus} {summary.groupsWithApparatus === 1 ? specialization.labels.groupLabel.toLowerCase() : `${specialization.labels.groupLabel.toLowerCase()}s`} y{" "}
-            {summary.classesWithApparatus} {summary.classesWithApparatus === 1 ? specialization.labels.classLabel.toLowerCase() : `${specialization.labels.classLabel.toLowerCase()}s`} ya usan aparatos definidos.
+            {summary.groupsWithApparatus} {summary.groupsWithApparatus === 1 ? specialization.labels.groupLabel.toLowerCase() : pluralizeFirstWord(specialization.labels.groupLabel).toLowerCase()} y{" "}
+            {summary.classesWithApparatus} {summary.classesWithApparatus === 1 ? specialization.labels.classLabel.toLowerCase() : pluralizeFirstWord(specialization.labels.classLabel).toLowerCase()} ya usan aparatos definidos.
           </p>
           <div className="flex flex-wrap gap-2">
             {summary.topApparatus.map((item) => (

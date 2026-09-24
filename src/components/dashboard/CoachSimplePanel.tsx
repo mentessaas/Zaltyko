@@ -24,13 +24,23 @@ export interface CoachSimplePanelProps {
   profileName: string | null;
 }
 
-function formatHour(iso: string): string {
+function formatHour(iso: string, academyTimezone?: string): string {
   const d = new Date(iso);
   if (Number.isNaN(d.getTime())) return iso;
-  return d.toLocaleTimeString("es-ES", { hour: "2-digit", minute: "2-digit" });
+  return d.toLocaleTimeString("es-ES", {
+    hour: "2-digit",
+    minute: "2-digit",
+    timeZone: academyTimezone,
+  });
 }
 
-function TodaySessionList({ sessions }: { sessions: TodaySessionAttention[] }) {
+function TodaySessionList({
+  sessions,
+  academyTimezone,
+}: {
+  sessions: TodaySessionAttention[];
+  academyTimezone?: string;
+}) {
   if (sessions.length === 0) {
     return (
       <p
@@ -57,13 +67,13 @@ function TodaySessionList({ sessions }: { sessions: TodaySessionAttention[] }) {
               {session.className ?? "Clase sin nombre"}
             </p>
             <p className="text-xs text-muted-foreground dark:text-muted-foreground">
-              {formatHour(session.startsAt)}
+              {formatHour(session.startsAt, academyTimezone)}
             </p>
           </div>
           <a
             href={session.href}
             className="rounded-md bg-sky-700 px-3 py-1.5 text-sm font-medium text-white shadow-sm hover:bg-sky-800 focus:outline-none focus-visible:ring-2 focus-visible:ring-sky-500"
-            aria-label={`Pasar lista de ${session.className ?? "la clase"} de las ${formatHour(session.startsAt)}`}
+            aria-label={`Pasar lista de ${session.className ?? "la clase"} de las ${formatHour(session.startsAt, academyTimezone)}`}
           >
             Pasar lista
           </a>
@@ -112,7 +122,7 @@ export function CoachSimplePanel({
           Tus clases de hoy
         </h2>
         <div className="rounded-2xl border border-border bg-card p-4 dark:border-slate-700 dark:bg-slate-900">
-          <TodaySessionList sessions={bundle.today} />
+        <TodaySessionList sessions={bundle.today} academyTimezone={bundle.academyTimezone} />
         </div>
       </section>
 

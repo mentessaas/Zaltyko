@@ -2,7 +2,6 @@
 
 import { useState, useEffect } from "react";
 import { useRouter } from "next/navigation";
-import { format } from "date-fns";
 import { X, Loader2, Save } from "lucide-react";
 
 import { Card, CardContent } from "@/components/ui/card";
@@ -13,6 +12,7 @@ import { Label } from "@/components/ui/label";
 import { useAcademyContext } from "@/hooks/use-academy-context";
 import { getSpecializedEvaluationTemplate } from "@/lib/specialization/registry";
 import { getTerminology } from "@/lib/sport-config/terminology";
+import { formatDateToISOString } from "@/lib/date-utils";
 
 interface Skill {
   id: string;
@@ -62,7 +62,7 @@ export default function AssessmentForm({
   onCancel,
 }: AssessmentFormProps) {
   const router = useRouter();
-  const { specialization } = useAcademyContext();
+  const { specialization, academyCountry } = useAcademyContext();
   const evaluationTemplate = getSpecializedEvaluationTemplate(specialization);
   const terms = getTerminology({ terminology });
   const effectiveApparatusList =
@@ -78,8 +78,11 @@ export default function AssessmentForm({
   // Form state
   const [apparatus, setApparatus] = useState<string>(effectiveApparatusList[0] || "general");
   const [assessmentType, setAssessmentType] = useState<string>("technical");
-  const [assessmentDate, setAssessmentDate] = useState<string>(format(new Date(), "yyyy-MM-dd"));
+  const [assessmentDate, setAssessmentDate] = useState<string>(() =>
+    formatDateToISOString(new Date(), academyCountry)
+  );
   const [overallComment, setOverallComment] = useState<string>("");
+  const [visibleToGuardians, setVisibleToGuardians] = useState(false);
 
   // Skills state
   const [skills, setSkills] = useState<Skill[]>([]);
@@ -93,8 +96,9 @@ export default function AssessmentForm({
     setLoading(true);
     fetch(`/api/skills?apparatus=${apparatus}&limit=100`)
       .then((r) => r.json())
-      .then((data) => {
-        setSkills(data.items ?? []);
+      .then((payload) => {
+        const data = payload?.data ?? payload;
+        setSkills(data?.items ?? []);
         // Reset scores when apparatus changes
         setScores({});
         setComments({});
@@ -119,7 +123,7 @@ export default function AssessmentForm({
     try {
       // Prepare scores array
       const scoresArray = Object.entries(scores)
-        .filter(([_, score]) => score > 0)
+        .filter(([, score]) => score > 0)
         .map(([skillId, score]) => ({
           skillId,
           score,
@@ -136,6 +140,7 @@ export default function AssessmentForm({
           apparatus,
           sportConfigId: sportConfigId || undefined,
           overallComment: overallComment || undefined,
+          visibleToGuardians,
           scores: scoresArray,
         }),
       });
@@ -330,6 +335,15 @@ export default function AssessmentForm({
           rows={3}
         />
       </div>
+
+      <label className="flex items-center gap-2 text-sm text-muted-foreground">
+        <input
+          type="checkbox"
+          checked={visibleToGuardians}
+          onChange={(e) => setVisibleToGuardians(e.target.checked)}
+        />
+        Compartir esta evaluación con el tutor
+      </label>
 
       {/* Summary & Actions */}
       <div className="flex items-center justify-between pt-4 border-t">

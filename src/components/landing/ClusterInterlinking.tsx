@@ -189,7 +189,7 @@ function ClusterInterlinkingImpl({
               href="/auth/register"
               className={cn(
                 buttonVariants({ variant: "default", size: "lg" }),
-                "bg-zaltyko-teal hover:bg-primary-dark text-white shadow-soft transition-all duration-300 text-base px-8 py-6 group inline-flex items-center"
+                "bg-zaltyko-teal hover:bg-zaltyko-primary-dark text-white shadow-soft transition-all duration-300 text-base px-8 py-6 group inline-flex items-center"
               )}
             >
               {t.cta}

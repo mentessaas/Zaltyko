@@ -91,26 +91,20 @@ export function WaitingListDialog({
   const handlePromote = async (item: WaitingListItem) => {
     startTransition(async () => {
       try {
-        // Primero inscribir al atleta
-        const response = await fetch("/api/class-enrollments", {
+        // La promoción transaccional vive en POST /:entryId; mantener una
+        // subruta específica aquí convertiría la acción en un 404.
+        const response = await fetch(`/api/class-waiting-list/${item.id}`, {
           method: "POST",
           headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({
-            classId,
-            athleteId: item.athleteId,
-          }),
         });
 
         if (!response.ok) {
-          const data = await response.json();
-          throw new Error(data.error ?? "Error al inscribir");
+          const data = (await response.json().catch(() => null)) as { message?: string; error?: string } | null;
+          throw new Error(data?.message ?? data?.error ?? "Error al inscribir");
         }
 
-        // Luego quitar de la lista de espera
-        await fetch(`/api/class-waiting-list/${item.id}`, {
-          method: "DELETE",
-          headers: { "Content-Type": "application/json" },
-        });
+        const payload = (await response.json().catch(() => null)) as { ok?: boolean } | null;
+        if (payload?.ok !== true) throw new Error("Respuesta inválida al promover");
 
         setItems((prev) => prev.filter((i) => i.id !== item.id));
         onRefresh?.();

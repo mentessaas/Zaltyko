@@ -2,7 +2,7 @@
 
 import SEO from "@/utils/seo";
 
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
 import { ArrowLeft, Loader2, Sparkles, Users, TrendingUp } from "lucide-react";
@@ -19,6 +19,19 @@ export function LoginForm() {
   const router = useRouter();
   const supabase = createClient();
   const toast = useToast();
+
+  useEffect(() => {
+    const params = new URLSearchParams(window.location.search);
+    if (params.get("profile_setup") === "retry") {
+      toast.pushToast({
+        title: "Tu cuenta ya está creada",
+        description: "Inicia sesión para reintentar la configuración de tu perfil y academia.",
+        variant: "warning",
+        persistent: true,
+      });
+      window.history.replaceState({}, "", "/auth/login");
+    }
+  }, [toast]);
 
   const handleLogin = async (e: React.FormEvent) => {
     e.preventDefault();

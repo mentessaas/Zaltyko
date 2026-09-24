@@ -1,12 +1,23 @@
 "use client";
 
+import dynamic from "next/dynamic";
 import Link from "next/link";
 import type { LucideIcon } from "lucide-react";
 import { ArrowUpRight, ArrowDownRight } from "lucide-react";
 
 import { cn } from "@/lib/utils";
-import { Sparkline } from "./Sparkline";
 import { CountUp } from "@/components/motion/dashboard";
+
+// Recharts is only needed when a KPI has trend data. Keep it out of the
+// dashboard's critical chunk so the first operational view becomes usable
+// before the decorative chart is fetched.
+const Sparkline = dynamic(
+  () => import("./Sparkline").then((module) => ({ default: module.Sparkline })),
+  {
+    ssr: false,
+    loading: () => <div className="h-[34px] w-full rounded-md bg-muted/60" aria-hidden="true" />,
+  },
+);
 
 const COLOR_TO_VARIANT: Record<string, "default" | "success" | "warning" | "danger" | "info"> = {
   sky: "info",
@@ -110,18 +121,22 @@ export function DashboardCard({
               {title}
             </p>
             {trend && (
-              <span className={cn(
-                "flex items-center gap-0.5 rounded-full px-1.5 py-0.5 text-[10px] font-semibold",
-                trend.direction === "up"
-                  ? "bg-zaltyko-teal/12 text-zaltyko-teal"
-                  : "bg-zaltyko-coral/12 text-zaltyko-coral"
-              )}>
+              <span
+                className={cn(
+                  "flex items-center gap-0.5 rounded-full px-1.5 py-0.5 text-[10px] font-semibold",
+                  trend.direction === "up"
+                    ? "bg-zaltyko-teal/12 text-zaltyko-teal"
+                    : "bg-zaltyko-coral/12 text-zaltyko-coral"
+                )}
+                title="Variación frente al periodo anterior"
+                aria-label={`${trend.direction === "up" ? "Sube" : "Baja"} ${trend.value}% frente al periodo anterior`}
+              >
                 {trend.direction === "up" ? (
                   <ArrowUpRight className="h-3 w-3" />
                 ) : (
                   <ArrowDownRight className="h-3 w-3" />
                 )}
-                {trend.value}%
+                {trend.direction === "up" ? "+" : "−"}{trend.value}%
               </span>
             )}
           </div>
@@ -137,9 +152,9 @@ export function DashboardCard({
           className={cn(
             "flex-shrink-0 rounded-xl p-3 transition-colors duration-150",
             (variant === "success" || accent === "zaltyko-primary") && "bg-zaltyko-teal/12 text-zaltyko-teal",
-            variant === "info" && "bg-zaltyko-indigo/10 text-zaltyko-indigo",
+            variant === "info" && "bg-zaltyko-indigo/10 text-zaltyko-indigo dark:bg-zaltyko-electric/15 dark:text-zaltyko-electric",
             (variant === "warning" || variant === "danger") && "bg-zaltyko-coral/12 text-zaltyko-coral",
-            variant === "default" && "bg-zaltyko-white text-zaltyko-indigo"
+            variant === "default" && "bg-muted text-foreground"
           )}
         >
           <Icon className="h-6 w-6" strokeWidth={1.8} />

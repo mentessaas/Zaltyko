@@ -1,12 +1,14 @@
 "use client";
 
+import dynamic from "next/dynamic";
 import { Wallet, ChevronUp, ChevronDown } from "lucide-react";
 
-import { FinancialMetricsWidget } from "./FinancialMetricsWidget";
-import { QuickReportsWidget } from "./QuickReportsWidget";
-import { RevenueTrendChart } from "./RevenueTrendChart";
-import { AthleteRetentionWidget } from "./AthleteRetentionWidget";
-import { PopularClassesWidget } from "./PopularClassesWidget";
+const FinancialDetails = dynamic(
+  () => import("./FinancialDetails").then((module) => ({ default: module.FinancialDetails })),
+  {
+    loading: () => <div className="h-64 animate-pulse rounded-xl bg-muted" aria-label="Cargando métricas financieras" />,
+  }
+);
 
 interface FinancialSectionProps {
   academyId: string;
@@ -32,7 +34,9 @@ export function FinancialSection({
       <button
         type="button"
         onClick={onToggleFinancials}
-        className="flex w-full items-center justify-between p-5 text-left transition hover:bg-zaltyko-white/80"
+        className="flex min-h-11 w-full items-center justify-between p-5 text-left transition hover:bg-muted/80"
+        aria-expanded={showFinancials}
+        aria-controls={`financial-details-${academyId}`}
       >
         <div className="flex items-center gap-2">
           <Wallet className="h-5 w-5 text-zaltyko-teal" />
@@ -45,16 +49,8 @@ export function FinancialSection({
         )}
       </button>
       {showFinancials && (
-        <div className="space-y-4 p-4 pt-0">
-          <div className="grid gap-4 lg:grid-cols-2">
-            <FinancialMetricsWidget academyId={academyId} />
-            <QuickReportsWidget academyId={academyId} />
-          </div>
-          <div className="grid gap-4 lg:grid-cols-2">
-            <RevenueTrendChart academyId={academyId} />
-            <AthleteRetentionWidget academyId={academyId} />
-          </div>
-          <PopularClassesWidget academyId={academyId} />
+        <div id={`financial-details-${academyId}`}>
+          <FinancialDetails academyId={academyId} />
         </div>
       )}
     </section>

@@ -3,7 +3,7 @@
 import { useState, useEffect } from "react";
 import { UserCog, Download, FileText, BarChart3, Loader2, TrendingUp, Calendar } from "lucide-react";
 import { format, subMonths } from "date-fns";
-import { formatLongDateForCountry } from "@/lib/date-utils";
+import { formatDateToISOString, formatLongDateForCountry } from "@/lib/date-utils";
 
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
@@ -13,6 +13,7 @@ import { ReportFilters, ReportFilters as ReportFiltersType } from "@/components/
 import { ExportButtons } from "@/components/reports/ExportButtons";
 import { useAcademyContext } from "@/hooks/use-academy-context";
 import { getTerminologyForSportConfig } from "@/lib/sport-config/terminology";
+import { pluralizeFirstWord } from "@/lib/specialization/registry";
 
 interface CoachStats {
   totalCoaches: number;
@@ -49,8 +50,8 @@ export function CoachReport({ academyId, academyCountry, sportConfigs = [] }: Co
   const toast = useToast();
   const { specialization } = useAcademyContext();
   const [filters, setFilters] = useState<ReportFiltersType>({
-    startDate: format(subMonths(new Date(), 1), "yyyy-MM-dd"),
-    endDate: format(new Date(), "yyyy-MM-dd"),
+    startDate: formatDateToISOString(subMonths(new Date(), 1), academyCountry),
+    endDate: formatDateToISOString(new Date(), academyCountry),
     datePreset: "last-30-days",
   });
   const [reportData, setReportData] = useState<CoachStats | null>(null);
@@ -58,6 +59,7 @@ export function CoachReport({ academyId, academyCountry, sportConfigs = [] }: Co
   const [error, setError] = useState<string | null>(null);
   const terms = getTerminologyForSportConfig(sportConfigs, filters.sportConfigId);
   const coachTermLower = terms.coach.toLowerCase();
+  const coachLabelPlural = pluralizeFirstWord(terms.coach);
   const athletesTermLower = terms.athletes.toLowerCase();
   const apparatusLabels = Object.fromEntries(
     specialization.evaluation.apparatus.map((item) => [item.code, item.label])
@@ -115,7 +117,7 @@ export function CoachReport({ academyId, academyCountry, sportConfigs = [] }: Co
       document.body.removeChild(a);
       toast.pushToast({
         title: "PDF exportado",
-        description: `El reporte de ${coachTermLower}s se descargó correctamente.`,
+        description: `El reporte de ${coachLabelPlural.toLowerCase()} se descargó correctamente.`,
         variant: "success",
       });
     } catch (err: unknown) {
@@ -151,7 +153,7 @@ export function CoachReport({ academyId, academyCountry, sportConfigs = [] }: Co
       document.body.removeChild(a);
       toast.pushToast({
         title: "Excel exportado",
-        description: `El reporte de ${coachTermLower}s se descargó correctamente.`,
+        description: `El reporte de ${coachLabelPlural.toLowerCase()} se descargó correctamente.`,
         variant: "success",
       });
     } catch (err: unknown) {
@@ -165,19 +167,21 @@ export function CoachReport({ academyId, academyCountry, sportConfigs = [] }: Co
 
   const handleSendEmail = async (email: string) => {
     try {
-      const params = new URLSearchParams({
-        academyId,
-        email,
-        startDate: filters.startDate,
-        endDate: filters.endDate,
+      const response = await fetch("/api/reports/coach/email", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          academyId,
+          email,
+          startDate: filters.startDate,
+          endDate: filters.endDate,
+        }),
       });
-
-      const response = await fetch(`/api/reports/coach/email?${params}`);
       if (!response.ok) throw new Error("Error al enviar email");
 
       toast.pushToast({
         title: "Reporte enviado",
-        description: `Enviamos el reporte de ${coachTermLower}s a ${email}.`,
+        description: `Enviamos el reporte de ${coachLabelPlural.toLowerCase()} a ${email}.`,
         variant: "success",
       });
     } catch (err: unknown) {
@@ -224,7 +228,7 @@ export function CoachReport({ academyId, academyCountry, sportConfigs = [] }: Co
                       </p>
                     </div>
                   </div>
-                  <Badge variant="outline" className="bg-green-50">
+                  <Badge variant="outline" className="bg-green-50 dark:bg-green-950/40 dark:text-green-300">
                     {coach.averageAttendance}% {terms.attendance.toLowerCase()}
                   </Badge>
                 </div>
@@ -268,7 +272,7 @@ export function CoachReport({ academyId, academyCountry, sportConfigs = [] }: Co
     <div className="space-y-6">
       <div className="flex items-center justify-between">
         <div>
-          <h2 className="text-2xl font-bold">Reporte de {terms.coach}s</h2>
+        <h2 className="text-2xl font-bold">Reporte de {coachLabelPlural}</h2>
           <p className="text-muted-foreground mt-1">
             Análisis operativo del staff y su carga técnica
           </p>
@@ -277,7 +281,7 @@ export function CoachReport({ academyId, academyCountry, sportConfigs = [] }: Co
           onExportPDF={handleExportPDF}
           onExportExcel={handleExportExcel}
           onSendEmail={handleSendEmail}
-          reportTitle={`Reporte de ${terms.coach}s`}
+          reportTitle={`Reporte de ${coachLabelPlural}`}
           isExporting={isLoading}
         />
       </div>
@@ -286,6 +290,7 @@ export function CoachReport({ academyId, academyCountry, sportConfigs = [] }: Co
         <div className="lg:col-span-1">
           <ReportFilters
             academyId={academyId}
+            academyCountry={academyCountry}
             onFilterChange={setFilters}
             onGenerate={loadReport}
             isLoading={isLoading}
@@ -298,7 +303,7 @@ export function CoachReport({ academyId, academyCountry, sportConfigs = [] }: Co
           {error && (
             <Card>
               <CardContent className="pt-6">
-                <div className="rounded-lg border border-red-200 bg-red-50 p-3 text-sm text-red-900">
+                <div className="rounded-lg border border-red-200 bg-red-50 p-3 text-sm text-red-900 dark:border-red-900/60 dark:bg-red-950/30 dark:text-red-200">
                   {error}
                 </div>
               </CardContent>
@@ -311,7 +316,7 @@ export function CoachReport({ academyId, academyCountry, sportConfigs = [] }: Co
               <div className="grid gap-4 md:grid-cols-4">
                 <Card>
                   <CardHeader>
-                    <CardTitle className="text-sm font-medium">Total {terms.coach}s</CardTitle>
+                    <CardTitle className="text-sm font-medium">Total {coachLabelPlural}</CardTitle>
                   </CardHeader>
                   <CardContent>
                     <div className="text-2xl font-bold">{reportData.totalCoaches}</div>
@@ -322,7 +327,7 @@ export function CoachReport({ academyId, academyCountry, sportConfigs = [] }: Co
                     <CardTitle className="text-sm font-medium">Activos</CardTitle>
                   </CardHeader>
                   <CardContent>
-                    <div className="text-2xl font-bold text-green-600">{reportData.activeCoaches}</div>
+                    <div className="text-2xl font-bold text-green-600 dark:text-green-300">{reportData.activeCoaches}</div>
                   </CardContent>
                 </Card>
                 <Card>

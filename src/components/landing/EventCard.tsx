@@ -5,6 +5,7 @@ import Link from "next/link";
 import { Calendar, MapPin, Users, Ticket } from "lucide-react";
 import { Card, CardContent } from "@/components/ui/card";
 import type { PublicEvent } from "@/lib/seo/clusters";
+import { formatMinorCurrency, getCurrencyForCountry } from "@/lib/currency";
 
 interface EventCardProps {
   event: PublicEvent;
@@ -116,7 +117,10 @@ const EventCard = memo(function EventCard({ event, locale }: EventCardProps) {
             <span>
               {event.registrationFee === 0 || event.registrationFee === null || event.registrationFee === undefined
                 ? t.free
-                : `${((event.registrationFee ?? 0) / 100).toFixed(2)}€`}
+                : formatMinorCurrency(
+                    event.registrationFee ?? 0,
+                    getCurrencyForCountry(event.countryName),
+                  )}
             </span>
           </div>
         </div>

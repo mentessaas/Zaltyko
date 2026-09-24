@@ -49,6 +49,8 @@ export const MessageBubble = memo(function MessageBubble({
               <img
                 src={attachmentUrl}
                 alt="Attachment"
+                width={640}
+                height={384}
                 className="rounded-lg max-w-full max-h-48 object-cover"
               />
             ) : (

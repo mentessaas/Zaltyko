@@ -33,6 +33,7 @@ export function ReceiptViewer({ academyId, initialReceipts = [] }: ReceiptViewer
   const toast = useToast();
   const [receipts, setReceipts] = useState<Receipt[]>(initialReceipts);
   const [isLoading, setIsLoading] = useState(false);
+  const [loadError, setLoadError] = useState(false);
 
   useEffect(() => {
     if (initialReceipts.length === 0) {
@@ -42,14 +43,19 @@ export function ReceiptViewer({ academyId, initialReceipts = [] }: ReceiptViewer
 
   const loadReceipts = async () => {
     setIsLoading(true);
+    setLoadError(false);
     try {
       const response = await fetch(`/api/receipts?academyId=${academyId}`);
-      const data = await response.json();
-      if (data.items) {
-        setReceipts(data.items);
+      if (!response.ok) throw new Error(`receipts_${response.status}`);
+      const payload = await response.json();
+      const data = payload?.data ?? payload;
+      const items = Array.isArray(data) ? data : data?.items;
+      if (items) {
+        setReceipts(items);
       }
     } catch (error) {
       logger.error("Error loading receipts:", error);
+      setLoadError(true);
     } finally {
       setIsLoading(false);
     }
@@ -99,6 +105,14 @@ export function ReceiptViewer({ academyId, initialReceipts = [] }: ReceiptViewer
       </div>
 
       <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
+        {loadError && (
+          <div role="alert" className="col-span-full flex items-center justify-between gap-3 rounded-lg border border-destructive/30 bg-destructive/10 p-4 text-sm text-destructive">
+            <span>No pudimos cargar los recibos.</span>
+            <Button type="button" variant="outline" size="sm" onClick={loadReceipts} disabled={isLoading}>
+              {isLoading ? "Reintentando…" : "Reintentar"}
+            </Button>
+          </div>
+        )}
         {receipts.map((receipt) => (
           <Card key={receipt.id}>
             <CardHeader>
@@ -138,7 +152,7 @@ export function ReceiptViewer({ academyId, initialReceipts = [] }: ReceiptViewer
         ))}
       </div>
 
-      {receipts.length === 0 && (
+      {receipts.length === 0 && !loadError && (
         <Card>
           <CardContent className="flex flex-col items-center justify-center py-12">
             <FileText className="h-12 w-12 text-muted-foreground mb-4" />

@@ -101,7 +101,7 @@ export function AnnouncementForm({ open, onClose, academyId, onSuccess }: Announ
 
         <form onSubmit={handleSubmit} className="space-y-4">
           {error && (
-            <div className="rounded-md bg-red-50 p-3 text-sm text-red-600">
+            <div className="rounded-md border border-red-200 bg-red-50 p-3 text-sm text-red-700 dark:border-red-900/60 dark:bg-red-950/30 dark:text-red-300" role="alert" aria-live="assertive">
               {error}
             </div>
           )}
@@ -207,7 +207,7 @@ export function AnnouncementForm({ open, onClose, academyId, onSuccess }: Announ
           </div>
 
           {(formData.priority === "high" || formData.priority === "urgent") && (
-            <div className="rounded-md bg-amber-50 p-3 text-sm text-amber-700">
+            <div className="rounded-md border border-amber-200 bg-amber-50 p-3 text-sm text-amber-700 dark:border-amber-900/60 dark:bg-amber-950/30 dark:text-amber-300" role="status">
               {formData.priority === "urgent" ? (
                 <strong>Urgente:</strong>
               ) : (

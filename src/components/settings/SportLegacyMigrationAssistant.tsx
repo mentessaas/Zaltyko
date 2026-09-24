@@ -6,6 +6,7 @@ import { ArrowRight, RefreshCw } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { getTerminologyForSportConfig } from "@/lib/sport-config/terminology";
+import { pluralizeFirstWord } from "@/lib/specialization/registry";
 
 type EntityType = "athletes" | "groups" | "classes" | "coaches";
 
@@ -64,7 +65,7 @@ export function SportLegacyMigrationAssistant({
     athletes: terms.athletes,
     groups: terms.groups,
     classes: "Clases",
-    coaches: `${terms.coach}s`,
+    coaches: pluralizeFirstWord(terms.coach),
   };
 
   const sportConfigLabel = useMemo(

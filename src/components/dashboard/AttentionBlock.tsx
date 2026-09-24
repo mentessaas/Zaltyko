@@ -2,7 +2,7 @@
  * Bloque visual de una métrica del bundle de atención.
  *
  * Server Component. Cumple ZAL-619 §3.2: muestra "Sin datos" cuando la
- * fuente devolvió 0 con sourceAvailable=true; muestra un placeholder
+ * fuente devolvió 0 con sourceAvailable=true; muestra un estado
  * distinguible cuando sourceAvailable=false (en lugar de inventar 0).
  *
  * Sin dependencias de cliente: se puede usar dentro de Server Components.
@@ -13,7 +13,7 @@ import Link from "next/link";
 export interface AttentionBlockProps {
   id: string;
   title: string;
-  /** Valor principal; cuando `null`, la UI muestra "Sin datos" o "—". */
+  /** Valor principal; cuando `null`, la UI muestra un estado honesto. */
   value: string | number | null;
   /** Subtítulo opcional (p. ej. "3 cargos pendientes de los últimos 30 días"). */
   subtitle?: string | null;
@@ -58,7 +58,7 @@ export function AttentionBlock({
     value === null
       ? sourceAvailable
         ? "Sin datos"
-        : "Fuente no disponible"
+        : "No disponible ahora"
       : typeof value === "number"
         ? value.toLocaleString("es-ES")
         : value;
@@ -90,9 +90,8 @@ export function AttentionBlock({
       <div className="mt-4 flex items-center justify-between text-xs">
         <span
           className="truncate text-muted-foreground dark:text-muted-foreground"
-          title={`Fuente: ${source}`}
         >
-          Fuente: {source}
+          {sourceAvailable ? "Datos de tu academia" : "No pudimos actualizar este indicador"}
         </span>
         {href ? (
           <Link

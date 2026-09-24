@@ -17,6 +17,7 @@ import { trackGoogleAdsConversion } from "@/lib/google-ads";
 import {
   readUtmWithFallback,
 } from "@/lib/growth/utm";
+import { getRegistrationContinuationPath } from "@/lib/auth/registration-paths";
 
 // Lee UTMs del first-touch capturado por `UtmCapture` (sessionStorage)
 // o de la query string actual. Wrapper sobre `readUtmWithFallback` para
@@ -38,7 +39,7 @@ function readAttribution(): {
   );
 }
 
-const ROLE_OPTIONS = [
+  const ROLE_OPTIONS = [
   {
     value: "owner",
     label: "Dueño de academia",
@@ -180,20 +181,24 @@ export function RegisterForm() {
       }
 
       toast.pushToast({
-        title: "Cuenta creada",
+        title: role === "owner" ? "Cuenta creada; falta tu academia" : "Cuenta creada",
         description: data.session
-          ? "Vamos a llevarte a tu espacio en Zaltyko."
-          : "Revisa tu correo para confirmar la cuenta y entrar a tu espacio en Zaltyko.",
+          ? role === "owner"
+            ? "Ahora configuraremos tu academia para que puedas empezar."
+            : "Vamos a llevarte a tu espacio en Zaltyko."
+          : role === "owner"
+            ? "Revisa tu correo; después configuraremos tu academia."
+            : "Revisa tu correo para confirmar la cuenta y entrar a tu espacio en Zaltyko.",
         variant: "success",
       });
 
       if (data.session) {
-        // Instrumentación paid-acquisition: emite signup_completed solo
+        // Instrumentación paid-acquisition: emite sign_up_completed solo
         // cuando hay sesión (signup funcional, no email-pendiente). La
         // atribución UTMs viaja en metadata para que PostHog/Google Ads
         // puedan reconciliar origen paid.
         const attribution = readAttribution();
-        await trackEvent("signup_completed", {
+        await trackEvent("sign_up_completed", {
           userId: data.session.user.id,
           metadata: {
             role,
@@ -210,14 +215,27 @@ export function RegisterForm() {
         // esté listo. Sin label, gtag ignora el evento silenciosamente.
         trackGoogleAdsConversion("signup_completed");
 
-        await fetch("/api/onboarding/profile", {
+        const profileResponse = await fetch("/api/onboarding/profile", {
           method: "POST",
           headers: { "Content-Type": "application/json" },
           body: JSON.stringify({ name: fullName.trim(), role }),
         });
-        router.push("/auth/redirect");
+        if (!profileResponse.ok) {
+          const profileError = await profileResponse.json().catch(() => null);
+          toast.pushToast({
+            title: "Cuenta creada, configuración pendiente",
+            description:
+              profileError?.message ??
+              "No pudimos preparar tu perfil. Puedes reintentarlo al entrar.",
+            variant: "warning",
+            persistent: true,
+          });
+          router.push("/auth/login?profile_setup=retry");
+          return;
+        }
+        router.push(getRegistrationContinuationPath(role));
       } else {
-        await trackEvent("signup_completed", {
+        await trackEvent("sign_up_completed", {
           metadata: {
             role,
             signup_method: "email_password",
@@ -283,13 +301,15 @@ export function RegisterForm() {
       <form onSubmit={handleRegister} className="space-y-4">
         <div className="space-y-2">
           <Label>Tipo de cuenta</Label>
-          <div className="grid gap-2 sm:grid-cols-2">
+          <div className="grid grid-cols-2 gap-2" role="radiogroup" aria-label="Tipo de cuenta">
             {ROLE_OPTIONS.map((option) => (
               <button
                 key={option.value}
                 type="button"
                 onClick={() => setRole(option.value)}
-                className={`rounded-xl border px-4 py-3 text-left transition ${
+                role="radio"
+                aria-checked={role === option.value}
+                className={`min-h-[82px] rounded-xl border px-3 py-2.5 text-left transition sm:px-4 sm:py-3 ${
                   role === option.value
                     ? "border-zaltyko-teal bg-zaltyko-teal/10 text-foreground"
                     : "border-border bg-background text-muted-foreground hover:border-zaltyko-teal/50"
@@ -300,6 +320,11 @@ export function RegisterForm() {
               </button>
             ))}
           </div>
+          {role === "owner" && (
+            <div className="rounded-lg border border-zaltyko-teal/30 bg-zaltyko-teal/5 px-3 py-2 text-xs text-muted-foreground">
+              <span className="font-semibold text-foreground">Importante:</span> primero crearás tu cuenta personal. Después te guiaremos para crear la academia y configurar tu espacio de trabajo.
+            </div>
+          )}
         </div>
         <div className="space-y-2">
           <Label htmlFor="fullName">Nombre completo</Label>

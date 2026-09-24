@@ -13,6 +13,7 @@ import { Badge } from "@/components/ui/badge";
 import { LineChart } from "@/components/ui/chart";
 import { Progress } from "@/components/ui/progress";
 import { useAcademyContext } from "@/hooks/use-academy-context";
+import { formatDateForCountry, parseCalendarDate } from "@/lib/date-utils";
 
 interface AthleteWithDetails {
   id: string;
@@ -55,7 +56,7 @@ export function MyProgressWidget({
   attendanceData,
   assessmentsData,
 }: MyProgressWidgetProps) {
-  const { specialization } = useAcademyContext();
+  const { academyCountry, specialization } = useAcademyContext();
 
   if (!athleteData) {
     return (
@@ -170,7 +171,7 @@ export function MyProgressWidget({
             <div className="flex flex-wrap items-center gap-2">
               <Badge variant="outline" className="bg-primary/5">
                 <CalendarClock className="mr-1 h-3 w-3 text-primary" />
-                {formatDate(latestAssessment.assessmentDate)}
+                {formatDateForCountry(latestAssessment.assessmentDate, academyCountry, "d MMM yyyy")}
               </Badge>
               {latestAssessment.apparatus && (
                 <Badge variant="outline">
@@ -207,8 +208,8 @@ function generateTrendData(attendanceData: AttendanceData | null) {
   const weeks: Record<string, { present: number; total: number }> = {};
 
   attendanceData.recentRecords.forEach((record) => {
-    const date = new Date(record.date);
-    const week = Math.ceil(date.getDate() / 7);
+    const calendarDate = parseCalendarDate(record.date);
+    const week = Math.ceil((calendarDate?.getUTCDate() ?? new Date(record.date).getUTCDate()) / 7);
     const weekKey = `Sem ${week}`;
 
     if (!weeks[weekKey]) {
@@ -262,17 +263,4 @@ function getProgressSnapshot({
     percentage,
     message,
   };
-}
-
-function formatDate(value: string) {
-  const parsed = new Date(value);
-  if (Number.isNaN(parsed.getTime())) {
-    return value;
-  }
-
-  return new Intl.DateTimeFormat("es-ES", {
-    day: "numeric",
-    month: "short",
-    year: "numeric",
-  }).format(parsed);
 }

@@ -3,6 +3,8 @@
 import { CheckCircle, XCircle, Clock, TrendingUp } from "lucide-react";
 import { DonutChart } from "@/components/ui/chart";
 import { Badge } from "@/components/ui/badge";
+import { formatDateForCountry } from "@/lib/date-utils";
+import { useAcademyContext } from "@/hooks/use-academy-context";
 
 interface AttendanceData {
   total: number;
@@ -21,6 +23,8 @@ interface MyAttendanceWidgetProps {
 }
 
 export function MyAttendanceWidget({ data }: MyAttendanceWidgetProps) {
+  const { academyCountry } = useAcademyContext();
+
   if (!data || data.total === 0) {
     return (
       <div className="flex flex-col items-center justify-center py-6 text-center">
@@ -60,19 +64,19 @@ export function MyAttendanceWidget({ data }: MyAttendanceWidgetProps) {
     switch (status) {
       case "present":
         return (
-          <Badge variant="outline" className="border-emerald-500/50 text-emerald-600 bg-emerald-50">
+          <Badge variant="outline" className="border-emerald-500/50 text-emerald-600 bg-emerald-50 dark:bg-emerald-950/40 dark:text-emerald-300">
             Presente
           </Badge>
         );
       case "absent":
         return (
-          <Badge variant="outline" className="border-red-500/50 text-red-600 bg-red-50">
+          <Badge variant="outline" className="border-red-500/50 text-red-600 bg-red-50 dark:bg-red-950/40 dark:text-red-300">
             Ausente
           </Badge>
         );
       case "excused":
         return (
-          <Badge variant="outline" className="border-amber-500/50 text-amber-600 bg-amber-50">
+          <Badge variant="outline" className="border-amber-500/50 text-amber-600 bg-amber-50 dark:bg-amber-950/40 dark:text-amber-300">
             Excusa
           </Badge>
         );
@@ -82,11 +86,7 @@ export function MyAttendanceWidget({ data }: MyAttendanceWidgetProps) {
   };
 
   const formatDate = (dateStr: string) => {
-    const date = new Date(dateStr);
-    return date.toLocaleDateString("es-ES", {
-      day: "numeric",
-      month: "short",
-    });
+    return formatDateForCountry(dateStr, academyCountry, "d MMM");
   };
 
   return (
@@ -110,10 +110,10 @@ export function MyAttendanceWidget({ data }: MyAttendanceWidgetProps) {
         <span
           className={`text-2xl font-bold ${
             attendanceRate >= 80
-              ? "text-emerald-600"
+                ? "text-emerald-600 dark:text-emerald-300"
               : attendanceRate >= 50
-              ? "text-amber-600"
-              : "text-red-600"
+              ? "text-amber-600 dark:text-amber-300"
+              : "text-red-600 dark:text-red-300"
           }`}
         >
           {attendanceRate}%

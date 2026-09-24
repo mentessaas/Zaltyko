@@ -16,7 +16,9 @@ import { Button } from "@/components/ui/button";
 import { DashboardCard } from "@/components/dashboard/DashboardCard";
 import { EmptyState } from "@/components/ui/empty-state";
 import { useAcademyContext } from "@/hooks/use-academy-context";
+import { formatDateForCountry } from "@/lib/date-utils";
 import TodayQuickActions from "@/components/coach/TodayQuickActions";
+import { pluralizeFirstWord } from "@/lib/specialization/registry";
 
 interface CoachAthlete {
   id: string;
@@ -107,6 +109,7 @@ export function CoachDashboardPage({
 }: CoachDashboardPageProps) {
   const router = useRouter();
   const { specialization } = useAcademyContext();
+  const classLabelPlural = pluralizeFirstWord(specialization.labels.classLabel).toLowerCase();
   const attendancePercent =
     attendanceStats.total > 0
       ? Math.round((attendanceStats.present / attendanceStats.total) * 100)
@@ -272,7 +275,7 @@ export function CoachDashboardPage({
                   <Button
                     variant="ghost"
                     size="sm"
-                    aria-label={`Abrir clase de hoy: ${session.className}`}
+                    aria-label={`Abrir sesión de hoy: ${session.className}`}
                     onClick={() => router.push(`/app/${academyId}/coach/today/${session.id}`)}
                   >
                     <ChevronRight className="h-4 w-4" />
@@ -306,12 +309,12 @@ export function CoachDashboardPage({
             {athletes.length === 0 ? (
               <EmptyState
                 icon={Users}
-                title={`Aún no tienes ${specialization.labels.athletesPlural.toLowerCase()} asignados`}
+                title={`Aún no tienes ${specialization.labels.athletesPlural.toLowerCase()} en tu agenda`}
                 description="Si acabas de aterrizar en esta academia, revisa el listado completo y pídele al admin que te asigne un grupo para empezar a tomar asistencia."
                 action={
                   <Link
                     href={`/app/${academyId}/athletes`}
-                    className="inline-flex min-h-11 items-center justify-center rounded-xl bg-zaltyko-teal px-4 py-2 text-sm font-semibold text-white shadow-soft transition hover:bg-primary-dark"
+                    className="inline-flex min-h-11 items-center justify-center rounded-xl bg-zaltyko-teal px-4 py-2 text-sm font-semibold text-white shadow-soft transition hover:bg-zaltyko-primary-dark"
                   >
                     Ver listado de atletas
                   </Link>
@@ -391,10 +394,7 @@ export function CoachDashboardPage({
                     <p className="font-medium">{assessment.athleteName}</p>
                     <p className="text-sm text-muted-foreground">
                       {assessment.apparatus ? apparatusLabels[assessment.apparatus] || assessment.apparatus : "Evaluación general"} ·{" "}
-                      {new Date(assessment.assessmentDate).toLocaleDateString("es-ES", {
-                        day: "numeric",
-                        month: "short",
-                      })}
+                      {formatDateForCountry(assessment.assessmentDate, academyCountry, "d MMM")}
                     </p>
                   </div>
                   {assessment.totalScore !== null && (
@@ -439,7 +439,7 @@ export function CoachDashboardPage({
           {classes.length === 0 ? (
               <div className="p-8 text-center text-muted-foreground">
                 <Calendar className="mx-auto h-8 w-8 mb-2 opacity-50" />
-              <p>No tienes {specialization.labels.classLabel.toLowerCase()}s asignados</p>
+              <p>No tienes {classLabelPlural} en tu agenda</p>
               </div>
           ) : (
             classes

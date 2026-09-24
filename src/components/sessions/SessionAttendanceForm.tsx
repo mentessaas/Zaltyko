@@ -1,6 +1,7 @@
 "use client";
 
 import { useMemo, useState } from "react";
+import Link from "next/link";
 
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -34,6 +35,7 @@ interface SessionAttendanceFormProps {
   athletes: AthleteRow[];
   existingAttendance: AttendanceRow[];
   academyCountry?: string | null;
+  academyId?: string;
 }
 
 export default function SessionAttendanceForm({
@@ -42,6 +44,7 @@ export default function SessionAttendanceForm({
   athletes,
   existingAttendance,
   academyCountry,
+  academyId,
 }: SessionAttendanceFormProps) {
   const [searchTerm, setSearchTerm] = useState("");
   const [saving, setSaving] = useState(false);
@@ -160,7 +163,17 @@ export default function SessionAttendanceForm({
                 return (
                   <tr key={athlete.id} className="bg-background">
                     <td className="px-4 py-3">
-                      <span className="font-medium">{athlete.name ?? "Sin nombre"}</span>
+                      <div className="flex flex-col gap-1">
+                        <span className="font-medium">{athlete.name ?? "Sin nombre"}</span>
+                        {academyId && (
+                          <Link
+                            href={`/app/${academyId}/athletes/${athlete.id}/progress`}
+                            className="text-xs text-primary hover:underline"
+                          >
+                            Ver dominio técnico →
+                          </Link>
+                        )}
+                      </div>
                     </td>
                     <td className="px-4 py-3">
                       <select
@@ -204,5 +217,4 @@ export default function SessionAttendanceForm({
     </form>
   );
 }
-
 

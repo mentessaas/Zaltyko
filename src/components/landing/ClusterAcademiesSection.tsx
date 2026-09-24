@@ -26,7 +26,7 @@ function ClusterAcademiesSectionImpl({
       title: "Academias destacadas",
       subtitle: `Encuentra las mejores academias de ${modalityLabel} en ${countryLabel}`,
       cta: "Ver todas las academias",
-      empty: "No hay academias destacadas en esta region todavia",
+      empty: "No hay academias destacadas en esta región todavía",
     },
     en: {
       title: "Featured academies",

@@ -17,6 +17,7 @@ import { Progress } from "@/components/ui/progress";
 import { PlanUsage } from "@/components/dashboard/PlanUsage";
 import { RecentActivity } from "@/components/dashboard/RecentActivity";
 import type { DashboardActivity, DashboardPlanUsage, DashboardSportConfigBreakdown } from "@/lib/dashboard";
+import { pluralizeFirstWord } from "@/lib/specialization/registry";
 
 interface AcademySwitcherItem {
   id: string;
@@ -83,7 +84,7 @@ export function DashboardHeroSection({
               {academyName ?? "Academia"} · {labels.disciplineName}
             </h1>
             <p className="max-w-2xl text-sm leading-6 text-muted-foreground">
-              Hola {profileName ?? "equipo"}. {welcomeMessage}
+              Hola, {profileName ?? "equipo"}. {welcomeMessage}
             </p>
           </div>
           <div className="flex flex-wrap items-center gap-2">
@@ -110,7 +111,7 @@ export function DashboardHeroSection({
                       type="button"
                       onClick={() => onNavigate(`/app/${academy.id}/dashboard`)}
                       className={`flex w-full items-center justify-between rounded-md px-3 py-2 text-left text-sm transition-colors ${
-                        academy.id === academyId ? "bg-primary/10 font-medium text-primary" : "hover:bg-zaltyko-white"
+                        academy.id === academyId ? "bg-primary/10 font-medium text-primary" : "hover:bg-muted"
                       }`}
                     >
                       <span className="truncate">{academy.name ?? "Sin nombre"}</span>
@@ -123,7 +124,12 @@ export function DashboardHeroSection({
           </div>
         </div>
         <div className="lg:w-72">
-          <PlanUsage plan={plan} academyId={academyId} />
+          <PlanUsage
+            plan={plan}
+            academyId={academyId}
+            athleteLabel={labels.athletesPlural.toLowerCase()}
+            classLabel={pluralizeFirstWord(labels.classLabel).toLowerCase()}
+          />
         </div>
       </div>
     </section>
@@ -163,8 +169,8 @@ export function SportBreakdownSection({
             <p className="text-xs text-muted-foreground">{item.disciplineName}</p>
             <div className="mt-4 grid grid-cols-3 gap-2 text-center">
               <SportBreakdownMetric value={item.athletes} label={labels.athletesPlural} />
-              <SportBreakdownMetric value={item.groups} label={`${labels.groupLabel}s`} />
-              <SportBreakdownMetric value={item.classes} label={`${labels.classLabel}s`} />
+              <SportBreakdownMetric value={item.groups} label={pluralizeFirstWord(labels.groupLabel)} />
+              <SportBreakdownMetric value={item.classes} label={pluralizeFirstWord(labels.classLabel)} />
             </div>
           </div>
         ))}
@@ -189,7 +195,7 @@ export function StarterSetupSection({
       <div className="flex flex-col gap-3 lg:flex-row lg:items-center lg:justify-between">
         <div className="space-y-1">
           <p className="text-sm font-semibold text-foreground">
-            Tu academia ya arrancó con una base recomendada para {labels.disciplineName.toLowerCase()}
+            {`Tu academia ya arrancó con una base recomendada para ${labels.disciplineName.toLowerCase()}`}
           </p>
           <p className="text-sm text-foreground">
             Ahora toca revisar responsables, ajustar horarios y adaptar la plantilla inicial a tu realidad diaria.
@@ -197,10 +203,10 @@ export function StarterSetupSection({
         </div>
         <div className="flex flex-wrap gap-2">
           <Button size="sm" variant="outline" onClick={() => onNavigate(`/app/${academyId}/groups`)}>
-            Revisar {labels.groupLabel.toLowerCase()}s
+            Revisar {pluralizeFirstWord(labels.groupLabel).toLowerCase()}
           </Button>
           <Button size="sm" onClick={() => onNavigate(`/app/${academyId}/classes`)}>
-            Ajustar {labels.classLabel.toLowerCase()}s
+            Ajustar {pluralizeFirstWord(labels.classLabel).toLowerCase()}
           </Button>
         </div>
       </div>
@@ -226,9 +232,9 @@ export function StarterSetupSection({
 
 export function QuickNavigationSection({ academyId }: { academyId: string }) {
   const links = [
-    { href: `/app/${academyId}/events`, icon: Calendar, title: "Eventos", subtitle: "Competencias", color: "text-zaltyko-indigo" },
+    { href: `/app/${academyId}/events`, icon: Calendar, title: "Eventos", subtitle: "Competencias", color: "text-zaltyko-indigo dark:text-zaltyko-electric" },
     { href: `/app/${academyId}/billing`, icon: Wallet, title: "Cobros", subtitle: "Pagos", color: "text-zaltyko-teal" },
-    { href: `/app/${academyId}/assessments`, icon: ClipboardList, title: "Evaluaciones", subtitle: "Técnicas", color: "text-zaltyko-indigo" },
+    { href: `/app/${academyId}/assessments`, icon: ClipboardList, title: "Evaluaciones", subtitle: "Técnicas", color: "text-zaltyko-indigo dark:text-zaltyko-electric" },
     { href: `/app/${academyId}/messages`, icon: MessageCircle, title: "Mensajes", subtitle: "Comunicación", color: "text-zaltyko-teal" },
   ];
 
@@ -323,7 +329,7 @@ export function DashboardOnboardingPanel({
                   <button
                     type="button"
                     onClick={() => onNavigate(step.href)}
-                    className="flex w-full items-start gap-2 rounded-xl px-3 py-2 text-left text-sm transition hover:bg-zaltyko-white"
+                    className="flex w-full items-start gap-2 rounded-xl px-3 py-2 text-left text-sm transition hover:bg-muted"
                   >
                     <Circle className="mt-0.5 h-3.5 w-3.5 shrink-0 text-muted-foreground" />
                     <StepIcon className="mt-0.5 h-3.5 w-3.5 shrink-0 text-muted-foreground" />
@@ -361,7 +367,7 @@ export function RecentActivityPanel({
       <button
         type="button"
         onClick={onToggle}
-        className="flex w-full items-center justify-between p-5 text-left transition hover:bg-zaltyko-white/80"
+        className="flex w-full items-center justify-between p-5 text-left transition hover:bg-muted/80"
       >
         <div className="flex items-center gap-2">
           <ClipboardList className="h-5 w-5 text-muted-foreground" />

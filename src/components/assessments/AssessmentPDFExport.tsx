@@ -3,16 +3,17 @@
 import { useState } from "react";
 import { format } from "date-fns";
 import { es } from "date-fns/locale";
-import { Download, FileText, Loader2, Calendar, User, TrendingUp } from "lucide-react";
+import { Download, FileText, Loader2 } from "lucide-react";
 import jsPDF from "jspdf";
 import autoTable from "jspdf-autotable";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { cn } from "@/lib/utils";
 import type { AssessmentWithScores, AssessmentType } from "@/types";
 import { logger } from "@/lib/logger";
 import { useAcademyContext } from "@/hooks/use-academy-context";
+import { ASSESSMENT_TYPE_LABELS } from "@/lib/assessments/presentation";
+import { formatDateForCountry } from "@/lib/date-utils";
 
 interface AssessmentPDFExportProps {
   assessments: AssessmentWithScores[];
@@ -21,6 +22,9 @@ interface AssessmentPDFExportProps {
 }
 
 type ExportRange = "last" | "3m" | "6m" | "all";
+type JsPdfWithAutoTable = jsPDF & {
+  lastAutoTable?: { finalY: number };
+};
 
 export function AssessmentPDFExport({ assessments, athleteName, className }: AssessmentPDFExportProps) {
   const { specialization } = useAcademyContext();
@@ -84,7 +88,7 @@ export function AssessmentPDFExport({ assessments, athleteName, className }: Ass
         const tableData = filteredAssessments
           .sort((a, b) => new Date(b.assessmentDate).getTime() - new Date(a.assessmentDate).getTime())
           .map((assessment) => [
-            format(new Date(assessment.assessmentDate), "dd/MM/yyyy"),
+            formatDateForCountry(assessment.assessmentDate, null, "dd/MM/yyyy"),
             getTypeLabel(assessment.assessmentType),
             assessment.apparatus ?? "-",
             assessment.averageScore?.toFixed(1) ?? "-",
@@ -112,7 +116,8 @@ export function AssessmentPDFExport({ assessments, athleteName, className }: Ass
       }
 
       // Detailed scores for each assessment
-      let currentY = (doc as any).lastAutoTable?.finalY + 15 || 100;
+      const tableFinalY = (doc as JsPdfWithAutoTable).lastAutoTable?.finalY;
+      let currentY = tableFinalY ? tableFinalY + 15 : 100;
 
       for (const assessment of filteredAssessments.slice(0, 5)) {
         // Limit to last 5 for PDF size
@@ -124,7 +129,7 @@ export function AssessmentPDFExport({ assessments, athleteName, className }: Ass
         doc.setFontSize(11);
         doc.setFont("helvetica", "bold");
         doc.text(
-          `${getTypeLabel(assessment.assessmentType)} - ${format(new Date(assessment.assessmentDate), "PPP", { locale: es })}`,
+          `${getTypeLabel(assessment.assessmentType)} - ${formatDateForCountry(assessment.assessmentDate, null, "PPP")}`,
           14,
           currentY
         );
@@ -154,7 +159,7 @@ export function AssessmentPDFExport({ assessments, athleteName, className }: Ass
             tableWidth: "wrap",
           });
 
-          currentY = (doc as any).lastAutoTable.finalY + 10;
+          currentY = ((doc as JsPdfWithAutoTable).lastAutoTable?.finalY ?? currentY) + 10;
         }
 
         if (assessment.overallComment) {
@@ -191,14 +196,7 @@ export function AssessmentPDFExport({ assessments, athleteName, className }: Ass
   };
 
   const getTypeLabel = (type: AssessmentType): string => {
-    const labels: Record<AssessmentType, string> = {
-      technical: "Técnica",
-      artistic: "Artística",
-      physical: "Condición Física",
-      behavioral: "Comportamental",
-      overall: "General",
-    };
-    return labels[type];
+    return ASSESSMENT_TYPE_LABELS[type] ?? type;
   };
 
   return (

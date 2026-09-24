@@ -22,31 +22,31 @@ interface StatsCardProps {
 
 const variantStyles = {
   default: {
-    bg: "bg-white",
+    bg: "bg-white dark:bg-slate-900",
     border: "border-zaltyko-mist/80",
     icon: "bg-zaltyko-white text-zaltyko-indigo",
     value: "text-foreground",
   },
   success: {
-    bg: "bg-white",
+    bg: "bg-white dark:bg-slate-900",
     border: "border-zaltyko-teal/30",
     icon: "bg-zaltyko-teal/12 text-zaltyko-teal",
     value: "text-foreground",
   },
   warning: {
-    bg: "bg-white",
+    bg: "bg-white dark:bg-slate-900",
     border: "border-zaltyko-coral/30",
     icon: "bg-zaltyko-coral/12 text-zaltyko-coral",
     value: "text-foreground",
   },
   danger: {
-    bg: "bg-white",
+    bg: "bg-white dark:bg-slate-900",
     border: "border-zaltyko-coral/40",
     icon: "bg-zaltyko-coral/12 text-zaltyko-coral",
     value: "text-foreground",
   },
   info: {
-    bg: "bg-white",
+    bg: "bg-white dark:bg-slate-900",
     border: "border-zaltyko-indigo/25",
     icon: "bg-zaltyko-indigo/10 text-zaltyko-indigo",
     value: "text-foreground",

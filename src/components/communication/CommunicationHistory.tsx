@@ -59,11 +59,11 @@ export function CommunicationHistory({ academyId, sportConfigs = [] }: Communica
       setIsLoading(true);
       try {
         const params = new URLSearchParams();
+        params.set("academyId", academyId);
         if (filter !== "all") {
           params.set("channel", filter);
         }
         if (sportConfigFilter) {
-          params.set("academyId", academyId);
           params.set("sportConfigId", sportConfigFilter);
         }
         params.set("limit", "20");

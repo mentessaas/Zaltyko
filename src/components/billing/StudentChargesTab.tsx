@@ -30,7 +30,7 @@ interface ChargeItem {
   currency: string;
   period: string;
   dueDate: string | null;
-  status: "pending" | "paid" | "overdue" | "cancelled" | "partial" | "failed" | "refunded";
+  status: "pending" | "paid" | "overdue" | "cancelled" | "partial" | "failed" | "requires_action" | "refunded";
   paymentMethod: string | null;
   paidAt: string | null;
   notes: string | null;
@@ -55,10 +55,11 @@ const STATUS_COLORS: Record<string, string> = {
   pending: "bg-zaltyko-mist/30 text-muted-foreground",
   paid: "bg-zaltyko-teal/12 text-zaltyko-teal",
   overdue: "bg-zaltyko-coral/12 text-zaltyko-coral",
-  cancelled: "bg-zaltyko-white text-muted-foreground",
+  cancelled: "bg-muted text-muted-foreground",
   partial: "bg-zaltyko-indigo/10 text-zaltyko-indigo",
-  failed: "bg-red-100 text-red-700",
-  refunded: "bg-amber-100 text-amber-700",
+  failed: "bg-red-100 text-red-700 dark:bg-red-950/40 dark:text-red-300",
+  requires_action: "bg-orange-100 text-orange-700 dark:bg-orange-950/40 dark:text-orange-300",
+  refunded: "bg-amber-100 text-amber-700 dark:bg-amber-950/40 dark:text-amber-300",
 };
 
 const STATUS_LABELS: Record<string, string> = {
@@ -68,6 +69,7 @@ const STATUS_LABELS: Record<string, string> = {
   cancelled: "Cancelado",
   partial: "Parcial",
   failed: "Fallido",
+  requires_action: "Autenticación pendiente",
   refunded: "Reembolsado",
 };
 
@@ -455,6 +457,7 @@ export function StudentChargesTab({ academyId, sportConfigs = [] }: StudentCharg
             <option value="cancelled">Cancelado</option>
             <option value="partial">Parcial</option>
             <option value="failed">Fallido</option>
+            <option value="requires_action">Autenticación pendiente</option>
             <option value="refunded">Reembolsado</option>
           </select>
           <label className="flex min-h-11 items-center gap-2 rounded-card border border-border bg-card px-3 py-2 text-sm">
@@ -611,7 +614,7 @@ export function StudentChargesTab({ academyId, sportConfigs = [] }: StudentCharg
         {/* Tabla — escritorio */}
         <div className="hidden overflow-x-auto rounded-2xl border border-border bg-card shadow-soft md:block">
           <table className="min-w-full divide-y divide-border text-sm">
-            <thead className="bg-zaltyko-white">
+            <thead className="bg-muted">
               <tr className="text-left text-xs uppercase tracking-[0.05em] text-muted-foreground">
                 <th className="px-4 py-3 font-medium">{terms.athlete}</th>
                 <th className="px-4 py-3 font-medium">{terms.group}</th>
@@ -626,7 +629,7 @@ export function StudentChargesTab({ academyId, sportConfigs = [] }: StudentCharg
             </thead>
             <tbody className="divide-y divide-border bg-card">
               {charges.map((charge) => (
-                <tr key={charge.id} className="hover:bg-zaltyko-white/80">
+                <tr key={charge.id} className="hover:bg-muted/80">
                   <td className="px-4 py-3">
                     <Link
                       href={`/app/${academyId}/athletes/${charge.athleteId}`}

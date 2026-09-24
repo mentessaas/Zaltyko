@@ -102,7 +102,7 @@ export function TicketForm({ academyId, onSubmit }: TicketFormProps) {
       <CardContent>
         <form onSubmit={handleSubmit} className="space-y-6">
           {error && (
-            <div className="p-3 text-sm text-red-500 bg-red-50 rounded-md">
+            <div className="p-3 text-sm text-red-700 bg-red-50 border border-red-200 rounded-md dark:bg-red-950/30 dark:border-red-900/60 dark:text-red-300" role="alert" aria-live="assertive">
               {error}
             </div>
           )}
@@ -116,6 +116,7 @@ export function TicketForm({ academyId, onSubmit }: TicketFormProps) {
               onChange={(e) => setFormData({ ...formData, title: e.target.value })}
               required
               maxLength={255}
+              aria-invalid={Boolean(error && !formData.title.trim())}
             />
           </div>
 
@@ -169,6 +170,7 @@ export function TicketForm({ academyId, onSubmit }: TicketFormProps) {
               onChange={(e) => setFormData({ ...formData, description: e.target.value })}
               required
               rows={6}
+              aria-invalid={Boolean(error && !formData.description.trim())}
             />
           </div>
 

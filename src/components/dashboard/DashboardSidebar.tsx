@@ -84,7 +84,7 @@ export function DashboardSidebar() {
                     className={cn(
                       "flex items-center gap-3 rounded-lg px-3 py-2.5 text-sm font-medium transition-colors",
                       active
-                        ? "bg-primary-light text-primary-dark border-l-3 border-l-primary"
+                        ? "bg-zaltyko-primary-light text-zaltyko-primary-dark border-l-3 border-l-primary"
                         : "text-text-secondary hover:bg-bg hover:text-text-main"
                     )}
                   >

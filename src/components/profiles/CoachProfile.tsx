@@ -46,17 +46,17 @@ export function CoachProfile({ user, profile, coachData, targetProfileId }: Coac
             <div className="flex items-center gap-3">
               <Shield className="h-5 w-5 text-amber-600" strokeWidth={2} />
               <div>
-                <p className="font-semibold text-amber-900">
+                <p className="font-semibold text-amber-900 dark:text-amber-200">
                   Modo Super Admin: Viendo perfil de {coachData.name ?? "Usuario"}
                 </p>
-                <p className="text-sm text-amber-700">
+                <p className="text-sm text-amber-700 dark:text-amber-300">
                   Estás viendo el perfil de este usuario. Los cambios que hagas afectarán a su cuenta.
                 </p>
               </div>
             </div>
             <Link
               href={`/super-admin/users/${targetProfileId}`}
-              className="inline-flex items-center gap-2 rounded-md border border-amber-600/40 bg-card px-3 py-2 text-sm font-semibold text-amber-900 transition hover:bg-amber-50"
+              className="inline-flex items-center gap-2 rounded-md border border-amber-600/40 bg-card px-3 py-2 text-sm font-semibold text-amber-900 transition hover:bg-amber-50 dark:text-amber-200 dark:hover:bg-amber-950/40"
             >
               <ArrowLeft className="h-4 w-4" strokeWidth={2} />
               Volver a Super Admin

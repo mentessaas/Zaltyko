@@ -5,6 +5,7 @@ import { FormEvent, useState, useTransition } from "react";
 import { Modal } from "@/components/ui/modal";
 import { createClient } from "@/lib/supabase/client";
 import { getTerminologyForSportConfig } from "@/lib/sport-config/terminology";
+import { pluralizeFirstWord } from "@/lib/specialization/registry";
 
 interface CreateCoachDialogProps {
   academyId: string;
@@ -30,7 +31,7 @@ export function CreateCoachDialog({ academyId, sportConfigs, open, onClose, onCr
   const [error, setError] = useState<string | null>(null);
   const [isPending, startTransition] = useTransition();
   const terms = getTerminologyForSportConfig(sportConfigs, selectedSportConfigs[0]);
-  const coachTermLower = terms.coach.toLowerCase();
+  const coachTermPluralLower = pluralizeFirstWord(terms.coach).toLowerCase();
 
   const resetForm = () => {
     setName("");
@@ -50,7 +51,7 @@ export function CreateCoachDialog({ academyId, sportConfigs, open, onClose, onCr
     setError(null);
 
     if (!name.trim()) {
-      setError(`El nombre del ${coachTermLower} es obligatorio.`);
+      setError("El nombre del miembro del staff es obligatorio.");
       return;
     }
 
@@ -80,14 +81,14 @@ export function CreateCoachDialog({ academyId, sportConfigs, open, onClose, onCr
 
         if (!response.ok) {
           const data = await response.json().catch(() => ({}));
-          throw new Error(data.error ?? `No se pudo crear el ${coachTermLower}.`);
+          throw new Error(data.error ?? "No se pudo crear el miembro del staff.");
         }
 
         resetForm();
         onCreated();
         onClose();
       } catch (err: unknown) {
-        setError((err instanceof Error ? err.message : "Error desconocido") ?? `Error desconocido al crear el ${coachTermLower}.`);
+        setError((err instanceof Error ? err.message : "Error desconocido") ?? "Error desconocido al crear el miembro del staff.");
       }
     });
   };
@@ -96,8 +97,8 @@ export function CreateCoachDialog({ academyId, sportConfigs, open, onClose, onCr
     <Modal
       open={open}
       onClose={handleClose}
-      title={`Registrar nuevo ${coachTermLower}`}
-      description={`Invita a ${coachTermLower}s, asistentes o personal de apoyo para que gestionen clases.`}
+      title="Registrar miembro del staff"
+      description={`Invita a ${coachTermPluralLower}, asistentes o personal de apoyo para que gestionen clases.`}
       footer={
         <div className="flex justify-end gap-2">
           <button
@@ -114,7 +115,7 @@ export function CreateCoachDialog({ academyId, sportConfigs, open, onClose, onCr
             className="rounded-md bg-primary px-4 py-2 text-sm font-semibold text-white shadow hover:bg-primary/90 disabled:cursor-not-allowed disabled:opacity-60"
             disabled={isPending}
           >
-            {isPending ? "Guardando…" : `Guardar ${coachTermLower}`}
+            {isPending ? "Guardando…" : "Guardar miembro del staff"}
           </button>
         </div>
       }
@@ -158,7 +159,7 @@ export function CreateCoachDialog({ academyId, sportConfigs, open, onClose, onCr
           <div>
             <h3 className="text-sm font-semibold text-foreground">Ramas habilitadas</h3>
             <p className="text-xs text-muted-foreground">
-              Si no marcas ninguna, el {coachTermLower} queda disponible para todas las ramas.
+              Si no marcas ninguna, este miembro del staff queda disponible para todas las ramas.
             </p>
           </div>
           <div className="grid gap-2 sm:grid-cols-2">

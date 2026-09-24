@@ -8,6 +8,7 @@ import { CreateCoachDialog } from "@/components/coaches/CreateCoachDialog";
 import { EditCoachDialog } from "@/components/coaches/EditCoachDialog";
 import { PublicProfileBadge } from "@/components/shared/PublicProfileBadge";
 import { getTerminologyForSportConfig } from "@/lib/sport-config/terminology";
+import { pluralizeFirstWord } from "@/lib/specialization/registry";
 
 interface ClassOption {
   id: string;
@@ -111,14 +112,15 @@ export function CoachesTableView({ academyId, coaches, classes, sportConfigs, gr
   const sportConfigNameById = new Map(sportConfigs.map((config) => [config.id, config.branchName]));
   const selectedSportConfig = sportConfigs.find((config) => config.id === sportConfigFilter) ?? null;
   const terms = getTerminologyForSportConfig(sportConfigs, sportConfigFilter === "unscoped" ? null : sportConfigFilter);
-  const coachTermLower = terms.coach.toLowerCase();
-  const coachTermPluralLower = `${coachTermLower}s`;
+  const coachLabelPlural = pluralizeFirstWord(terms.coach);
+  const coachTermPluralLower = coachLabelPlural.toLowerCase();
   const groupTermLower = terms.group.toLowerCase();
+  const groupTermPluralLower = pluralizeFirstWord(terms.group).toLowerCase();
   const selectedSportConfigLabel =
     sportConfigFilter === "unscoped"
-      ? `${terms.coach}s sin rama asignada`
+      ? `${coachLabelPlural} sin rama asignada`
       : selectedSportConfig
-        ? `${terms.coach}s disponibles para ${selectedSportConfig.branchName}`
+        ? `${coachLabelPlural} disponibles para ${selectedSportConfig.branchName}`
         : null;
 
   return (
@@ -137,7 +139,7 @@ export function CoachesTableView({ academyId, coaches, classes, sportConfigs, gr
             onChange={(event) => setGroupFilter(event.target.value)}
             className="min-w-[200px] rounded-md border border-border bg-background px-3 py-2 text-sm shadow-sm focus:border-primary focus:outline-none focus:ring-1 focus:ring-primary"
           >
-            <option value="">Todos los {groupTermLower}s</option>
+            <option value="">Todos los {groupTermPluralLower}</option>
             {groupOptions.map((group) => (
               <option key={group.id} value={group.id}>
                 {group.name}
@@ -172,14 +174,14 @@ export function CoachesTableView({ academyId, coaches, classes, sportConfigs, gr
             onClick={() => setCreateOpen(true)}
             className="inline-flex items-center justify-center rounded-md bg-emerald-500 px-4 py-2 text-sm font-semibold text-white shadow hover:bg-emerald-600"
           >
-            Nuevo {coachTermLower}
+            Nuevo miembro del staff
           </button>
         </div>
       </section>
 
       {selectedSportConfigLabel && (
         <div className="rounded-lg border border-primary/20 bg-primary/5 px-4 py-3 text-sm text-muted-foreground">
-          {selectedSportConfigLabel}. Los {coachTermPluralLower} sin rama asignada siguen disponibles para todas las ramas.
+          {selectedSportConfigLabel}. El personal sin rama asignada sigue disponible para todas las ramas.
         </div>
       )}
 
@@ -188,7 +190,7 @@ export function CoachesTableView({ academyId, coaches, classes, sportConfigs, gr
           <p className="mb-4 text-sm text-muted-foreground">
             {hasActiveFilters
               ? `No hay ${coachTermPluralLower} que coincidan con la búsqueda.`
-              : `Aún no has creado ningún ${coachTermLower}. Crea tu primer ${coachTermLower} para asignarlo a clases y ${groupTermLower}s.`}
+              : `Aún no has añadido miembros del staff. Añade el primero para asignarlo a clases y ${groupTermPluralLower}.`}
           </p>
           {!hasActiveFilters && (
             <button
@@ -196,7 +198,7 @@ export function CoachesTableView({ academyId, coaches, classes, sportConfigs, gr
               onClick={() => setCreateOpen(true)}
               className="inline-flex items-center justify-center rounded-md bg-emerald-500 px-4 py-2 text-sm font-semibold text-white shadow hover:bg-emerald-600"
             >
-              Crear primer {coachTermLower}
+              Crear primer perfil de staff
             </button>
           )}
         </div>

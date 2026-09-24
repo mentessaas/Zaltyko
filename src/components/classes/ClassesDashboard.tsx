@@ -1,6 +1,6 @@
 "use client";
 
-import { useCallback, useEffect, useState, useTransition } from "react";
+import { useCallback, useEffect, useMemo, useState, useTransition } from "react";
 import Link from "next/link";
 import { usePathname, useRouter, useSearchParams } from "next/navigation";
 import {
@@ -101,7 +101,7 @@ function StatsCard({ title, value, icon, description, trend, variant = "default"
             </div>
           )}
         </div>
-        <div className="rounded-xl bg-zaltyko-white p-3">
+        <div className="rounded-xl bg-muted/40 p-3">
           <div className={iconStyles[variant]}>{icon}</div>
         </div>
       </div>
@@ -112,6 +112,10 @@ function StatsCard({ title, value, icon, description, trend, variant = "default"
 interface ClassesDashboardProps {
   academyId: string;
   initialClasses?: ClassItem[];
+  initialStats?: {
+    totalSessions: number;
+    upcomingSessions: number;
+  };
   availableCoaches: CoachOption[];
   groupOptions: GroupOption[];
   sportConfigs?: SportConfigOption[];
@@ -121,6 +125,7 @@ interface ClassesDashboardProps {
 export function ClassesDashboard({
   academyId,
   initialClasses = [],
+  initialStats = { totalSessions: 0, upcomingSessions: 0 },
   availableCoaches,
   groupOptions,
   sportConfigs = [],
@@ -134,20 +139,71 @@ export function ClassesDashboard({
   const [classes, setClasses] = useState<ClassItem[]>(initialClasses);
   const [stats, setStats] = useState({
     totalClasses: 0,
-    totalSessions: 0,
-    upcomingSessions: 0,
+    totalSessions: initialStats.totalSessions,
+    upcomingSessions: initialStats.upcomingSessions,
     utilizationRate: 0,
   });
   const [isLoading, setIsLoading] = useState(initialClasses.length === 0);
   const [createOpen, setCreateOpen] = useState(false);
   const [guidedEditingClass, setGuidedEditingClass] = useState<ClassItem | null>(null);
   const [isPending, startTransition] = useTransition();
-  const starterSetup = summarizeStarterClassSetup(specialization, classes);
+  const starterSetup = useMemo(
+    () => summarizeStarterClassSetup(specialization, classes),
+    [classes, specialization]
+  );
   const starterClassCount = starterSetup.starterClassCount;
+  const guidedSetupAction = useMemo(() => {
+    if (starterSetup.missingCoachCount > 0 && availableCoaches.length === 0) {
+      return {
+        href: `/app/${academyId}/coaches`,
+        label: `Agregar ${pluralizeFirstWord(specialization.labels.coachLabel).toLowerCase()}`,
+      };
+    }
+
+    if (starterSetup.missingGroupCount > 0 && groupOptions.length === 0) {
+      return {
+        href: `/app/${academyId}/groups`,
+        label: `Crear ${pluralizeFirstWord(specialization.labels.groupLabel).toLowerCase()}`,
+      };
+    }
+
+    const firstReadyClass = starterSetup.items.find((item) => item.isReady);
+    if (
+      firstReadyClass &&
+      starterSetup.missingTemplateCount === 0 &&
+      starterSetup.items.every((item) => item.isReady) &&
+      stats.totalSessions === 0
+    ) {
+      return {
+        href: `/app/${academyId}/classes/${firstReadyClass.id}/recurring`,
+        label: "Generar sesiones",
+      };
+    }
+
+    return {
+      href: "#classes-list",
+      label: `Revisar ${pluralizeFirstWord(specialization.labels.classLabel).toLowerCase()}`,
+    };
+  }, [
+    academyId,
+    availableCoaches.length,
+    groupOptions.length,
+    specialization,
+    starterSetup,
+    stats.totalSessions,
+  ]);
 
   useEffect(() => {
     setClasses(initialClasses);
   }, [initialClasses]);
+
+  useEffect(() => {
+    setStats((current) => ({
+      ...current,
+      totalSessions: initialStats.totalSessions,
+      upcomingSessions: initialStats.upcomingSessions,
+    }));
+  }, [initialStats.totalSessions, initialStats.upcomingSessions]);
 
   // Cargar clases desde la API
   const fetchClasses = useCallback(async () => {
@@ -207,12 +263,11 @@ export function ClassesDashboard({
       ? Math.round(utilizedCapacity / withCapacity.length)
       : 0;
 
-    setStats({
+    setStats((current) => ({
+      ...current,
       totalClasses,
-      totalSessions: 0, // Se calcularía con datos de sesiones
-      upcomingSessions: 0,
       utilizationRate,
-    });
+    }));
   }, [classes]);
 
   const handleRefresh = () => {
@@ -248,15 +303,15 @@ export function ClassesDashboard({
         />
         <StatsCard
           title={`${sessionLabelPlural} este mes`}
-          value={stats.totalSessions > 0 ? stats.totalSessions : "—"}
+          value={stats.totalSessions}
           icon={<Clock className="h-5 w-5" />}
-          description={stats.totalSessions > 0 ? `${classLabelPlural} programadas` : "Sin serie disponible"}
+          description={stats.totalSessions > 0 ? `${classLabelPlural} programadas` : "Aún no hay sesiones en este periodo"}
         />
         <StatsCard
           title={`Próximas ${sessionLabelPlural.toLowerCase()}`}
-          value={stats.upcomingSessions > 0 ? stats.upcomingSessions : "—"}
+          value={stats.upcomingSessions}
           icon={<AlertCircle className="h-5 w-5" />}
-          description={stats.upcomingSessions > 0 ? "En agenda" : "Sin serie disponible"}
+          description={stats.upcomingSessions > 0 ? "En agenda" : "No hay sesiones próximas"}
           variant="warning"
         />
         <StatsCard
@@ -271,10 +326,10 @@ export function ClassesDashboard({
         <div className="space-y-4 rounded-2xl border border-zaltyko-teal/20 bg-zaltyko-teal/5 p-5 shadow-soft">
           <div className="space-y-1">
             <p className="text-sm font-semibold text-foreground">
-              Ya tienes {starterClassCount} {starterClassCount === 1 ? specialization.labels.classLabel.toLowerCase() : `${specialization.labels.classLabel.toLowerCase()}s`} creadas desde la plantilla inicial
+              La plantilla inicial ya incluye {starterClassCount} {starterClassCount === 1 ? specialization.labels.classLabel.toLowerCase() : pluralizeFirstWord(specialization.labels.classLabel).toLowerCase()}.
             </p>
             <p className="text-sm text-muted-foreground">
-              Revísalas, ajusta horarios y asigna responsables para adaptarlas a la operativa real de tu academia.
+              Revisa estos entrenamientos, ajusta horarios y asigna responsables para adaptarlos a la operativa real de tu academia.
             </p>
           </div>
 
@@ -329,8 +384,8 @@ export function ClassesDashboard({
                   </p>
                 </div>
                 <Button variant="outline" asChild>
-                  <Link href={`/app/${academyId}/groups`}>
-                    Revisar {specialization.labels.groupLabel.toLowerCase()}s
+                  <Link href={guidedSetupAction.href}>
+                    {guidedSetupAction.label}
                     <ChevronRight className="ml-2 h-4 w-4" />
                   </Link>
                 </Button>
@@ -399,7 +454,7 @@ export function ClassesDashboard({
           Nuevo {specialization.labels.classLabel}
         </Button>
         <Button variant="outline" asChild>
-          <Link href={`/app/${academyId}/classes?view=calendar`}>
+          <Link href={`/dashboard/calendar?academyId=${encodeURIComponent(academyId)}`}>
             <Calendar className="mr-2 h-4 w-4" />
             Ver calendario
           </Link>
@@ -407,7 +462,7 @@ export function ClassesDashboard({
         <Button variant="outline" asChild>
           <Link href={`/app/${academyId}/groups`}>
             <Users className="mr-2 h-4 w-4" />
-            Gestionar {specialization.labels.groupLabel.toLowerCase()}s
+            Gestionar {pluralizeFirstWord(specialization.labels.groupLabel).toLowerCase()}
           </Link>
         </Button>
       </div>
@@ -418,14 +473,16 @@ export function ClassesDashboard({
           <Loader2 className="h-8 w-8 animate-spin text-muted-foreground" />
         </div>
       ) : (
-        <ClassesTableView
+        <div id="classes-list">
+          <ClassesTableView
           academyId={academyId}
           classes={classes}
           availableCoaches={availableCoaches}
           groupOptions={groupOptions}
           sportConfigs={sportConfigs}
           filters={{ sportConfigId: sportConfigFilter }}
-        />
+          />
+        </div>
       )}
 
       <CreateClassDialog

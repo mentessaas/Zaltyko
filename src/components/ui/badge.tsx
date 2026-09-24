@@ -11,7 +11,7 @@ const badgeVariants = cva(
         default:
           "border-transparent bg-zaltyko-teal/12 text-zaltyko-teal hover:bg-zaltyko-teal/18",
         outline:
-          "border-zaltyko-mist bg-white text-zaltyko-text-main hover:bg-zaltyko-white",
+          "border-zaltyko-mist bg-white text-zaltyko-text-main hover:bg-zaltyko-white dark:border-slate-700 dark:bg-slate-900 dark:text-slate-50 dark:hover:bg-slate-800",
         active:
           "border-transparent bg-zaltyko-teal/12 text-zaltyko-teal hover:bg-zaltyko-teal/18",
         pending:

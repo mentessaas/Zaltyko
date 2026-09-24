@@ -19,6 +19,8 @@ import {
 } from "@/components/ui/dialog";
 import type { SportTerminology } from "@/lib/sport-config/catalog";
 import { DEFAULT_TERMINOLOGY } from "@/lib/sport-config/terminology";
+import { useAcademyContext } from "@/hooks/use-academy-context";
+import { getCurrencyForCountry } from "@/lib/currency";
 
 interface ScholarshipFormData {
   athleteId: string;
@@ -74,6 +76,8 @@ export function ScholarshipForm({
   athletes = [],
   terminology,
 }: ScholarshipFormProps) {
+  const { academyCountry } = useAcademyContext();
+  const currency = getCurrencyForCountry(academyCountry);
   const [formData, setFormData] = useState<ScholarshipFormData>(defaultFormData);
   const [errors, setErrors] = useState<Record<string, string>>({});
   const terms = terminology ?? DEFAULT_TERMINOLOGY;
@@ -226,7 +230,7 @@ export function ScholarshipForm({
                   className="flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm"
                 >
                   <option value="percentage">Parcial (%)</option>
-                  <option value="fixed">Cantidad Fija (EUR)</option>
+                  <option value="fixed">Cantidad Fija ({currency})</option>
                 </select>
                 <p className="text-xs text-muted-foreground">
                   Selecciona &quot;Parcial&quot; para porcentajes o
@@ -235,7 +239,7 @@ export function ScholarshipForm({
               </div>
               <div className="space-y-2">
                 <Label htmlFor="discountValue">
-                  Valor {formData.discountType === "percentage" ? "(%)" : "(EUR)"} *
+                  Valor {formData.discountType === "percentage" ? "(%)" : `(${currency})`} *
                 </Label>
                 <Input
                   id="discountValue"

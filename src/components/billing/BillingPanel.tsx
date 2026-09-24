@@ -1,6 +1,6 @@
 "use client";
 
-import { memo, useEffect, useMemo, useState } from "react";
+import { memo, useCallback, useEffect, useMemo, useRef, useState } from "react";
 import Link from "next/link";
 import { useSearchParams } from "next/navigation";
 import { Sparkles } from "lucide-react";
@@ -12,6 +12,8 @@ import { CollectionStatsCard } from "./CollectionStatsCard";
 import { BillingRiskWidget } from "@/components/dashboard/BillingRiskWidget";
 import { getTerminologyForSportConfig } from "@/lib/sport-config/terminology";
 import { useTranslation } from "@/hooks/use-translation";
+import { getProductPlanPublicName } from "@/lib/plans/catalog";
+import { getSubscriptionStatusLabel } from "@/lib/billing/subscription-status-labels";
 
 type PlanCode = "free" | "pro" | "premium" | (string & Record<never, never>);
 
@@ -60,7 +62,7 @@ const PLAN_COPY: Record<string, { title: string; description: string }> = {
   },
   pro: {
     title: "Starter",
-    description: "Pagos recurrentes, portal familias y reportes básicos",
+    description: "Pagos recurrentes, portal familiar limitado y reportes básicos",
   },
   premium: {
     title: "Growth",
@@ -79,12 +81,12 @@ function formatPlanPrice(plan: PlanSummary) {
 }
 
 function resolvePlanTitle(plan: PlanSummary) {
-  return PLAN_COPY[plan.code]?.title ?? plan.nickname ?? plan.code.toUpperCase();
+  return getProductPlanPublicName(plan.code, PLAN_COPY[plan.code]?.title ?? plan.nickname);
 }
 
 function resolvePlanDescription(plan: PlanSummary, athletesTermLower: string) {
   if (plan.code === "free") return `Hasta 30 ${athletesTermLower} · ideal para academias en lanzamiento`;
-  if (plan.code === "pro") return `Hasta 75 ${athletesTermLower} · portal familias y pagos recurrentes`;
+  if (plan.code === "pro") return `Hasta 75 ${athletesTermLower} · portal familiar limitado y pagos recurrentes`;
   return PLAN_COPY[plan.code]?.description ?? "Plan sincronizado automáticamente desde Stripe.";
 }
 
@@ -129,7 +131,7 @@ function getInvoiceStatusInfo(status: string | null, locale: "es" | "en" = "es")
     case "trialing":
       return { label: labels.trialing, variant: "active" as const };
     default:
-      return { label: status ?? labels.unknown, variant: "default" as const };
+      return { label: labels.unknown, variant: "default" as const };
   }
 }
 
@@ -175,40 +177,35 @@ export const BillingPanel = memo(function BillingPanel({ academyId, userId, spor
   const [summary, setSummary] = useState<BillingSummary | null>(null);
   const [loadingSummary, setLoadingSummary] = useState(true);
   const [loadingAction, setLoadingAction] = useState<PlanCode | "portal" | "trial" | null>(null);
+  const checkoutKeysRef = useRef<Record<string, string>>({});
   const [error, setError] = useState<string | null>(null);
   const [plans, setPlans] = useState<PlanSummary[]>([]);
   const [loadingPlans, setLoadingPlans] = useState(true);
   const [history, setHistory] = useState<InvoiceRow[]>([]);
   const [loadingHistory, setLoadingHistory] = useState(false);
 
+  const loadSummary = useCallback(async () => {
+    setLoadingSummary(true);
+    setError(null);
+    try {
+      const res = await fetch("/api/billing/status", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ academyId }),
+      });
+      if (!res.ok) throw new Error("No se pudo obtener la información de planes y cobros");
+      const { data } = (await res.json()) as { data: BillingSummary };
+      setSummary(data);
+    } catch (err: unknown) {
+      setError((err instanceof Error ? err.message : "Error desconocido") ?? "Error desconocido");
+    } finally {
+      setLoadingSummary(false);
+    }
+  }, [academyId]);
+
   useEffect(() => {
-    const load = async () => {
-      setLoadingSummary(true);
-      setError(null);
-      try {
-        const res = await fetch("/api/billing/status", {
-          method: "POST",
-          headers: {
-            "Content-Type": "application/json",
-          },
-          body: JSON.stringify({ academyId }),
-        });
-
-        if (!res.ok) {
-          throw new Error("No se pudo obtener la información de planes y cobros");
-        }
-
-        const { data } = (await res.json()) as { data: BillingSummary };
-        setSummary(data);
-      } catch (err: unknown) {
-        setError((err instanceof Error ? err.message : "Error desconocido") ?? "Error desconocido");
-      } finally {
-        setLoadingSummary(false);
-      }
-    };
-
-    load();
-  }, [academyId, userId]);
+    void loadSummary();
+  }, [loadSummary, userId]);
 
   useEffect(() => {
     const loadPlans = async () => {
@@ -269,10 +266,12 @@ export const BillingPanel = memo(function BillingPanel({ academyId, userId, spor
     setLoadingAction(planCode);
     setError(null);
     try {
+      checkoutKeysRef.current[planCode] ??= crypto.randomUUID();
       const res = await fetch("/api/billing/checkout", {
         method: "POST",
         headers: {
           "Content-Type": "application/json",
+          "idempotency-key": checkoutKeysRef.current[planCode],
         },
         body: JSON.stringify({ academyId, planCode }),
       });
@@ -341,7 +340,8 @@ export const BillingPanel = memo(function BillingPanel({ academyId, userId, spor
       if (!res.ok) {
         throw new Error(body?.message ?? "No se pudo iniciar la prueba");
       }
-      window.location.reload();
+      await loadSummary();
+      setLoadingAction(null);
     } catch (err: unknown) {
       setError(err instanceof Error ? err.message : "No se pudo iniciar la prueba");
       setLoadingAction(null);
@@ -402,7 +402,7 @@ export const BillingPanel = memo(function BillingPanel({ academyId, userId, spor
               </div>
               <Link
                 href={`/app/${academyId}/settings?tab=billing`}
-                className="inline-flex min-h-11 items-center justify-center whitespace-nowrap rounded-xl bg-zaltyko-teal px-4 py-2 text-sm font-semibold text-white transition hover:bg-primary-dark"
+                className="inline-flex min-h-11 items-center justify-center whitespace-nowrap rounded-xl bg-zaltyko-teal px-4 py-2 text-sm font-semibold text-white transition hover:bg-zaltyko-primary-dark"
               >
                 Ir a Cobros
               </Link>
@@ -422,10 +422,10 @@ export const BillingPanel = memo(function BillingPanel({ academyId, userId, spor
               <p className="text-lg font-semibold">
                 {currentPlanInfo
                   ? resolvePlanTitle(currentPlanInfo)
-                  : PLAN_COPY[summary.planCode]?.title ?? summary.planCode?.toUpperCase() ?? "Sin plan"}
+                  : getProductPlanPublicName(summary.planCode, PLAN_COPY[summary.planCode]?.title)}
               </p>
               <Badge variant={summary.status === "active" ? "success" : summary.status === "past_due" ? "error" : "pending"}>
-                {summary.status === "active" ? "Activo" : summary.status === "past_due" ? "Pendiente de pago" : summary.status === "trialing" ? "En período de prueba" : summary.status === "canceled" ? "Cancelado" : summary.status}
+                {getSubscriptionStatusLabel(summary.status)}
               </Badge>
             </div>
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 text-sm text-muted-foreground">
@@ -452,7 +452,7 @@ export const BillingPanel = memo(function BillingPanel({ academyId, userId, spor
                 type="button"
                 onClick={startTrial}
                 disabled={loadingAction === "trial"}
-                className="min-h-11 rounded-xl bg-zaltyko-teal px-4 py-2 text-sm font-semibold text-white transition hover:bg-primary-dark disabled:opacity-60"
+                className="min-h-11 rounded-xl bg-zaltyko-teal px-4 py-2 text-sm font-semibold text-white transition hover:bg-zaltyko-primary-dark disabled:opacity-60"
               >
                 {loadingAction === "trial" ? "Activando prueba…" : "Probar Starter 7 días sin tarjeta"}
               </button>
@@ -532,7 +532,7 @@ export const BillingPanel = memo(function BillingPanel({ academyId, userId, spor
                     </p>
                   )}
                   <button
-                    className="mt-4 min-h-11 w-full rounded-xl bg-zaltyko-teal px-4 py-2 font-medium text-white transition hover:bg-primary-dark disabled:bg-zaltyko-mist disabled:text-muted-foreground"
+                    className="mt-4 min-h-11 w-full rounded-xl bg-zaltyko-teal px-4 py-2 font-medium text-white transition hover:bg-zaltyko-primary-dark disabled:bg-zaltyko-mist disabled:text-muted-foreground"
                     disabled={isFree || isCurrent || loadingAction === code || loadingAction === "portal"}
                     onClick={() => (summary?.hasManagedSubscription ? openPortal() : triggerCheckout(code))}
                   >
@@ -560,7 +560,7 @@ export const BillingPanel = memo(function BillingPanel({ academyId, userId, spor
         </div>
         <div className="overflow-x-auto rounded-2xl border border-border bg-card shadow-soft">
           <table className="min-w-full divide-y divide-border text-sm">
-            <thead className="bg-zaltyko-white">
+            <thead className="bg-muted">
               <tr className="text-left text-xs uppercase tracking-[0.05em] text-muted-foreground">
                 <th className="px-4 py-3 font-medium">Fecha</th>
                 <th className="px-4 py-3 font-medium">Período</th>
@@ -581,7 +581,7 @@ export const BillingPanel = memo(function BillingPanel({ academyId, userId, spor
                 history.map((invoice) => {
                   const statusInfo = getInvoiceStatusInfo(invoice.status, locale);
                   return (
-                    <tr key={invoice.id} className="hover:bg-zaltyko-white/80">
+                    <tr key={invoice.id} className="hover:bg-muted/80">
                       <td className="px-4 py-3 whitespace-nowrap">
                         {invoice.createdAt
                           ? new Date(invoice.createdAt).toLocaleDateString("es-ES", {

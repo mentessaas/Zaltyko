@@ -118,7 +118,7 @@ export function BottomNav() {
         type="button"
         onClick={() => setShowQuickActions(!showQuickActions)}
         className={cn(
-          "fixed right-4 z-50 flex h-14 w-14 items-center justify-center rounded-full bg-zaltyko-teal text-white shadow-soft transition-all hover:bg-primary-dark md:hidden",
+          "fixed right-4 z-50 flex h-14 w-14 items-center justify-center rounded-full bg-zaltyko-teal text-white shadow-soft transition-all hover:bg-zaltyko-primary-dark md:hidden",
           isVisible ? "bottom-20" : "pointer-events-none bottom-4 opacity-0"
         )}
         aria-label="Acciones rápidas"
@@ -154,7 +154,7 @@ export function BottomNav() {
           isVisible ? "translate-y-0" : "translate-y-full"
         )}
       >
-        <div className="border-t border-border/70 bg-white/95 shadow-soft backdrop-blur">
+        <div className="border-t border-border/70 bg-card/95 shadow-soft backdrop-blur">
           <div className="safe-area-bottom flex h-16 items-center justify-around px-2">
             {bottomNavItems.map((item) => {
               const Icon = item.icon;
@@ -163,6 +163,7 @@ export function BottomNav() {
               return (
                 <button
                   key={item.key}
+                  type="button"
                   onClick={() => router.push(item.href)}
                   className={cn(
                     "flex h-full min-h-[44px] min-w-[64px] flex-1 flex-col items-center justify-center rounded-xl border border-transparent transition-colors",

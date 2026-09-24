@@ -60,6 +60,7 @@ const NOTIFICATION_TYPE_LABELS: Record<string, string> = {
   invoice_overdue: "Factura vencida",
   event_reminder: "Evento próximo",
   push_notification: "Push",
+  skill_progress: "Progreso técnico",
 };
 
 const PAGE_SIZE = 20;
@@ -81,6 +82,10 @@ function getNotificationDestination(notification: Notification): string | null {
       ? `/app/${academyId}/announcements/${announcementId}`
       : `/app/${academyId}/announcements`;
   }
+  if (notification.type === "skill_progress" && academyId) {
+    const athleteId = typeof data.athleteId === "string" ? data.athleteId : undefined;
+    return athleteId ? `/app/${academyId}/athletes/${athleteId}/progress` : `/app/${academyId}/dashboard`;
+  }
 
   const url = typeof data.url === "string" ? data.url : null;
   return url?.startsWith("/app/") ? url : null;
@@ -92,6 +97,7 @@ const getNotificationIcon = (type: string) => {
   if (type.includes("message") || type.includes("contact")) return MessageSquare;
   if (type.includes("event")) return Calendar;
   if (type.includes("attendance")) return Check;
+  if (type.includes("skill_progress")) return CheckCheck;
   return Bell;
 };
 
@@ -101,6 +107,7 @@ const getNotificationColor = (type: string) => {
   if (type.includes("class") || type.includes("schedule") || type.includes("reminder")) return "bg-blue-100 text-blue-600";
   if (type.includes("message") || type.includes("contact")) return "bg-red-100 text-red-600";
   if (type.includes("attendance")) return "bg-yellow-100 text-yellow-600";
+  if (type.includes("skill_progress")) return "bg-emerald-100 text-emerald-600 dark:bg-emerald-900/30 dark:text-emerald-300";
   if (type.includes("event")) return "bg-pink-100 text-pink-600";
   return "bg-muted text-muted-foreground";
 };
@@ -124,6 +131,7 @@ export function NotificationCenter({
   const [notifications, setNotifications] = useState<Notification[]>([]);
   const [isLoading, setIsLoading] = useState(false);
   const [isLoadingMore, setIsLoadingMore] = useState(false);
+  const [loadError, setLoadError] = useState<string | null>(null);
   const [hasMore, setHasMore] = useState(true);
   const [filter, setFilter] = useState<"all" | "unread">("all");
   const [typeFilter, setTypeFilter] = useState<string>("all");
@@ -140,6 +148,7 @@ export function NotificationCenter({
       setIsLoading(true);
       setHasMore(true);
       cursorRef.current = 0;
+      setLoadError(null);
     } else {
       setIsLoadingMore(true);
     }
@@ -172,6 +181,7 @@ export function NotificationCenter({
       }
     } catch (error) {
       logger.error("Error loading notifications:", error);
+      if (reset) setLoadError("No se pudieron cargar las notificaciones. Inténtalo de nuevo.");
     } finally {
       setIsLoading(false);
       setIsLoadingMore(false);
@@ -207,9 +217,10 @@ export function NotificationCenter({
 
   const handleMarkAsRead = async (notificationId: string) => {
     try {
-      await fetch(`/api/notifications/${notificationId}/read`, {
+      const response = await fetch(`/api/notifications/${notificationId}/read`, {
         method: "PUT",
       });
+      if (!response.ok) throw new Error("mark read failed");
       setNotifications((prev) =>
         prev.map((n) => (n.id === notificationId ? { ...n, read: true } : n))
       );
@@ -221,9 +232,10 @@ export function NotificationCenter({
 
   const handleMarkAllAsRead = async () => {
     try {
-      await fetch("/api/notifications/read-all", {
+      const response = await fetch("/api/notifications/read-all", {
         method: "PUT",
       });
+      if (!response.ok) throw new Error("mark all read failed");
       setNotifications((prev) => prev.map((n) => ({ ...n, read: true })));
       setSelectedIds(new Set());
       onNotificationRead?.();
@@ -234,9 +246,10 @@ export function NotificationCenter({
 
   const handleDelete = async (notificationId: string) => {
     try {
-      await fetch(`/api/notifications/${notificationId}`, {
+      const response = await fetch(`/api/notifications/${notificationId}`, {
         method: "DELETE",
       });
+      if (!response.ok) throw new Error("delete failed");
       setNotifications((prev) => prev.filter((n) => n.id !== notificationId));
       setSelectedIds((prev) => {
         const next = new Set(prev);
@@ -256,7 +269,9 @@ export function NotificationCenter({
     try {
       await Promise.all(
         Array.from(selectedIds).map((id) =>
-          fetch(`/api/notifications/${id}`, { method: "DELETE" })
+          fetch(`/api/notifications/${id}`, { method: "DELETE" }).then((response) => {
+            if (!response.ok) throw new Error("batch delete failed");
+          })
         )
       );
       setNotifications((prev) =>
@@ -278,7 +293,9 @@ export function NotificationCenter({
     try {
       await Promise.all(
         Array.from(selectedIds).map((id) =>
-          fetch(`/api/notifications/${id}/read`, { method: "PUT" })
+          fetch(`/api/notifications/${id}/read`, { method: "PUT" }).then((response) => {
+            if (!response.ok) throw new Error("batch mark read failed");
+          })
         )
       );
       setNotifications((prev) =>
@@ -460,6 +477,14 @@ export function NotificationCenter({
           {isLoading ? (
             <div className="flex items-center justify-center py-12">
               <Loader2 className="h-6 w-6 animate-spin text-muted-foreground" />
+            </div>
+          ) : loadError ? (
+            <div className="space-y-3 py-12 text-center" role="alert" aria-live="assertive">
+              <AlertCircle className="mx-auto h-8 w-8 text-destructive" />
+              <p className="text-sm text-muted-foreground">{loadError}</p>
+              <Button type="button" variant="outline" size="sm" onClick={() => loadNotifications(true)}>
+                Reintentar
+              </Button>
             </div>
           ) : filteredNotifications.length === 0 ? (
             <div className="text-center py-12 text-muted-foreground">

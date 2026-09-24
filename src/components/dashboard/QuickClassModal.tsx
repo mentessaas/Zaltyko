@@ -11,6 +11,8 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Input } from "@/components/ui/input";
 import { Calendar } from "lucide-react";
 import { logger } from "@/lib/logger";
+import { formatDateToISOString } from "@/lib/date-utils";
+import { useAcademyContext } from "@/hooks/use-academy-context";
 
 // Esquema Zod para validacion declarativa. Reemplaza validacion ad-hoc
 // que estaba antes en handleSubmit.
@@ -22,6 +24,7 @@ const quickClassSchema = z.object({
 type QuickClassFormValues = z.infer<typeof quickClassSchema>;
 
 interface QuickClassModalProps {
+    academyId: string;
     isOpen: boolean;
     onClose: () => void;
     onSuccess: () => void;
@@ -32,7 +35,8 @@ interface ClassOption {
     name: string;
 }
 
-export function QuickClassModal({ isOpen, onClose, onSuccess }: QuickClassModalProps) {
+export function QuickClassModal({ academyId, isOpen, onClose, onSuccess }: QuickClassModalProps) {
+    const { academyCountry } = useAcademyContext();
     const [classes, setClasses] = useState<ClassOption[]>([]);
     const [submitting, setSubmitting] = useState(false);
     const [submitError, setSubmitError] = useState<string | null>(null);
@@ -49,7 +53,7 @@ export function QuickClassModal({ isOpen, onClose, onSuccess }: QuickClassModalP
         mode: "onChange",
         defaultValues: {
             classId: "",
-            date: new Date().toISOString().split("T")[0],
+            date: formatDateToISOString(new Date(), academyCountry),
         },
     });
 
@@ -57,16 +61,18 @@ export function QuickClassModal({ isOpen, onClose, onSuccess }: QuickClassModalP
 
     useEffect(() => {
         if (isOpen) {
+            setValue("date", formatDateToISOString(new Date(), academyCountry));
             fetchClasses();
         }
-    }, [isOpen]);
+    }, [isOpen, academyId, academyCountry, setValue]);
 
     const fetchClasses = async () => {
         try {
-            const res = await fetch("/api/classes");
+            const res = await fetch(`/api/classes?academyId=${encodeURIComponent(academyId)}`, { cache: "no-store" });
             const json = await res.json();
-            if (json.success && json.data) {
-                setClasses(json.data.map((c: { id: string; name: string }) => ({ id: c.id, name: c.name })));
+            if ((json.ok || json.success) && json.data) {
+                const rows = Array.isArray(json.data) ? json.data : json.data.items ?? [];
+                setClasses(rows.map((c: { id: string; name: string }) => ({ id: c.id, name: c.name })));
             }
         } catch (error) {
             logger.apiError("/quick-actions", "GET /api/classes", error as Error);
@@ -81,19 +87,23 @@ export function QuickClassModal({ isOpen, onClose, onSuccess }: QuickClassModalP
             const res = await fetch("/api/quick-actions/create-class", {
                 method: "POST",
                 headers: { "Content-Type": "application/json" },
-                body: JSON.stringify(values),
+                body: JSON.stringify({ ...values, academyId }),
             });
 
-            const json = await res.json();
-            if (json.success) {
+            const json = await res.json().catch(() => ({}));
+            if (!res.ok) {
+                setSubmitError(json.message ?? json.error ?? "Error al crear la sesión");
+                return;
+            }
+            if (json.ok || json.success) {
                 onSuccess();
                 reset();
             } else {
-                setSubmitError(json.error ?? "Error al crear la clase");
+                setSubmitError(json.error ?? "Error al crear la sesión");
             }
         } catch (error) {
             logger.apiError("/quick-actions", "POST create-class", error as Error);
-            setSubmitError("Error de conexion. Intenta de nuevo.");
+            setSubmitError("Error de conexión. Intenta de nuevo.");
         } finally {
             setSubmitting(false);
         }
@@ -109,9 +119,9 @@ export function QuickClassModal({ isOpen, onClose, onSuccess }: QuickClassModalP
         <Dialog open={isOpen} onOpenChange={handleClose}>
             <DialogContent className="sm:max-w-[425px]">
                 <DialogHeader>
-                    <DialogTitle>Nueva Clase Rapida</DialogTitle>
+                    <DialogTitle>Nueva clase rápida</DialogTitle>
                     <DialogDescription>
-                        Crea una sesion de clase para hoy con los horarios predefinidos
+                        Crea una sesión para la fecha elegida usando el horario de la clase.
                     </DialogDescription>
                 </DialogHeader>
 
@@ -165,7 +175,7 @@ export function QuickClassModal({ isOpen, onClose, onSuccess }: QuickClassModalP
                     </div>
 
                     {submitError && (
-                        <p className="text-sm text-red-600 bg-red-50 p-2 rounded" role="alert">
+                        <p data-testid="quick-class-error" className="text-sm text-red-600 bg-red-50 p-2 rounded" role="alert" aria-live="assertive">
                             {submitError}
                         </p>
                     )}
@@ -185,7 +195,7 @@ export function QuickClassModal({ isOpen, onClose, onSuccess }: QuickClassModalP
                             disabled={submitting || !isValid}
                             className="min-h-[44px]"
                         >
-                            {submitting ? "Creando..." : "Crear Clase"}
+                            {submitting ? "Creando..." : "Crear sesión"}
                         </Button>
                     </div>
                 </form>

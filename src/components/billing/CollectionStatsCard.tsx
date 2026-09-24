@@ -2,6 +2,8 @@
 
 import { useCallback, useEffect, useState } from "react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { useAcademyContext } from "@/hooks/use-academy-context";
+import { formatMinorCurrency, getCurrencyForCountry } from "@/lib/currency";
 
 interface Stats {
   period: string;
@@ -21,15 +23,13 @@ interface Props {
   academyId: string;
 }
 
-function formatEur(cents: number): string {
-  return new Intl.NumberFormat("es-ES", { style: "currency", currency: "EUR" }).format(cents / 100);
-}
-
 /**
  * Dashboard financiero de cobros del mes: cobrado, pendiente, fallidos, morosos,
  * reparto automático/manual y % de éxito. Consume /api/billing/collection-stats.
  */
 export function CollectionStatsCard({ academyId }: Props) {
+  const { academyCountry } = useAcademyContext();
+  const currency = getCurrencyForCountry(academyCountry);
   const [stats, setStats] = useState<Stats | null>(null);
   const [loading, setLoading] = useState(true);
 
@@ -60,8 +60,8 @@ export function CollectionStatsCard({ academyId }: Props) {
           <p className="text-sm text-muted-foreground">Sin datos.</p>
         ) : (
           <div className="grid grid-cols-2 gap-4 sm:grid-cols-3 lg:grid-cols-5">
-            <Metric label="Cobrado" value={formatEur(stats.collectedCents)} tone="ok" />
-            <Metric label="Pendiente" value={formatEur(stats.pendingCents)} />
+            <Metric label="Cobrado" value={formatMinorCurrency(stats.collectedCents, currency)} tone="ok" />
+            <Metric label="Pendiente" value={formatMinorCurrency(stats.pendingCents, currency)} />
             <Metric label="Fallidos" value={`${stats.failedCount}`} tone="bad" />
             <Metric label="Morosos" value={`${stats.overdueCount}`} tone="warn" />
             <Metric label="% éxito" value={`${stats.successRate}%`} tone="ok" />

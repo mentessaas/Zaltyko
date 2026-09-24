@@ -7,7 +7,6 @@ import { useToast } from "@/components/ui/toast-provider";
 import { CoachOption } from "./types";
 import { createClient } from "@/lib/supabase/client";
 import { useAcademyContext } from "@/hooks/use-academy-context";
-import { pluralizeFirstWord } from "@/lib/specialization/registry";
 
 interface UpdateGroupCoachesDialogProps {
   academyId: string;
@@ -35,7 +34,6 @@ export function UpdateGroupCoachesDialog({
   const { pushToast } = useToast();
   const { specialization } = useAcademyContext();
   const coachLabel = specialization.labels.coachLabel;
-  const coachesPlural = pluralizeFirstWord(coachLabel);
   const [selectedCoach, setSelectedCoach] = useState<string>(coachId ?? "");
   const [selectedAssistants, setSelectedAssistants] = useState<string[]>(assistantIds);
   const [error, setError] = useState<string | null>(null);
@@ -88,7 +86,7 @@ export function UpdateGroupCoachesDialog({
       (coachId || assistantIds.length > 0)
     ) {
       const confirmed = window.confirm(
-        `Quitarás todos los ${coachesPlural.toLowerCase()} asignados a este grupo. ¿Quieres continuar?`
+        "Quitarás todo el staff asignado a este grupo. ¿Quieres continuar?"
       );
       if (!confirmed) {
         return;
@@ -103,7 +101,7 @@ export function UpdateGroupCoachesDialog({
         } = await supabase.auth.getUser();
 
         if (selectedCoach && assistantLookup.has(selectedCoach)) {
-          setError(`El ${coachLabel.toLowerCase()} principal no puede estar listado como asistente.`);
+          setError("La persona responsable principal no puede estar listada como asistente.");
           return;
         }
 
@@ -128,11 +126,11 @@ export function UpdateGroupCoachesDialog({
         onClose();
         pushToast({
           title: "Equipo actualizado",
-          description: `Los ${coachesPlural.toLowerCase()} del grupo fueron actualizados.`,
+          description: "El staff del grupo fue actualizado.",
           variant: "success",
         });
       } catch (err: unknown) {
-        setError((err instanceof Error ? err.message : "Error desconocido") ?? `Error desconocido al actualizar ${coachesPlural.toLowerCase()}.`);
+        setError((err instanceof Error ? err.message : "Error desconocido") ?? "Error desconocido al actualizar el staff.");
         pushToast({
           title: "No se pudo actualizar el equipo",
           description: (err instanceof Error ? err.message : "Error desconocido") ?? "Error desconocido",
@@ -151,8 +149,8 @@ export function UpdateGroupCoachesDialog({
     <Modal
       open={open}
       onClose={handleClose}
-      title={`Asignar ${coachesPlural.toLowerCase()}`}
-      description={`Define el ${coachLabel.toLowerCase()} principal y los asistentes para este grupo.`}
+      title="Asignar responsables"
+      description="Define la persona responsable principal y los asistentes para este grupo."
       footer={
         <div className="flex justify-end gap-2">
           <button
@@ -211,7 +209,7 @@ export function UpdateGroupCoachesDialog({
           <div className="grid max-h-56 gap-2 overflow-y-auto rounded-md border border-border p-3">
             {compatibleCoaches.length === 0 ? (
               <p className="text-xs text-muted-foreground">
-                No hay {coachesPlural.toLowerCase()} disponibles para esta rama.
+                No hay miembros del staff disponibles para esta rama.
               </p>
             ) : (
               compatibleCoaches.map((coach) => (

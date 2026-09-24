@@ -79,6 +79,7 @@ export function UpgradeModal({ open, onClose, currentPlan, targetPlan, onConfirm
     const [loading, setLoading] = useState(false);
     const [step, setStep] = useState<"preview" | "payment">("preview");
     const [clientSecret, setClientSecret] = useState<string | null>(null);
+    const [error, setError] = useState<string | null>(null);
 
     const planDetails = PLAN_DETAILS[targetPlan];
     const PLAN_PRICES: Record<string, number> = {
@@ -93,6 +94,7 @@ export function UpgradeModal({ open, onClose, currentPlan, targetPlan, onConfirm
 
     const handleContinueToPayment = async () => {
         setLoading(true);
+        setError(null);
         try {
             // Crear PaymentIntent en el servidor
             const response = await fetch("/api/billing/create-payment-intent", {
@@ -101,11 +103,19 @@ export function UpgradeModal({ open, onClose, currentPlan, targetPlan, onConfirm
                 body: JSON.stringify({ plan: targetPlan }),
             });
 
-            const { data } = await response.json();
-            setClientSecret(data?.clientSecret ?? null);
+            const payload = await response.json().catch(() => null);
+            if (!response.ok) {
+                throw new Error(payload?.message ?? payload?.error ?? "No se pudo preparar el pago.");
+            }
+            const secret = payload?.data?.clientSecret ?? payload?.clientSecret;
+            if (typeof secret !== "string" || !secret) {
+                throw new Error("No se recibió una sesión de pago válida.");
+            }
+            setClientSecret(secret);
             setStep("payment");
         } catch (error) {
-            logger.error("Error:", error);
+            logger.error("Upgrade payment initialization failed", { error: String(error) });
+            setError(error instanceof Error ? error.message : "No se pudo preparar el pago.");
         } finally {
             setLoading(false);
         }
@@ -113,11 +123,13 @@ export function UpgradeModal({ open, onClose, currentPlan, targetPlan, onConfirm
 
     const handleConfirmPayment = async (paymentMethodId: string) => {
         setLoading(true);
+        setError(null);
         try {
             await onConfirm(paymentMethodId);
             onClose();
         } catch (error) {
-            logger.error("Error:", error);
+            logger.error("Upgrade payment confirmation failed", { error: String(error) });
+            setError(error instanceof Error ? error.message : "No se pudo confirmar el pago.");
         } finally {
             setLoading(false);
         }
@@ -137,6 +149,12 @@ export function UpgradeModal({ open, onClose, currentPlan, targetPlan, onConfirm
                         }
                     </DialogDescription>
                 </DialogHeader>
+
+                {error && (
+                    <div role="alert" className="rounded-card border border-destructive/30 bg-destructive/10 p-3 text-sm text-destructive">
+                        {error}
+                    </div>
+                )}
 
                 {step === "preview" ? (
                     <div className="space-y-6">
@@ -163,7 +181,7 @@ export function UpgradeModal({ open, onClose, currentPlan, targetPlan, onConfirm
                         </div>
 
                         {/* Pricing Breakdown */}
-                        <div className="space-y-3 rounded-card border border-border bg-zaltyko-white p-4">
+                        <div className="space-y-3 rounded-card border border-border bg-card p-4">
                             <div className="flex justify-between text-sm">
                                 <span className="text-zaltyko-text-light">Plan {planDetails.name}</span>
                                 <span className="font-semibold">€{planDetails.price}/mes</span>

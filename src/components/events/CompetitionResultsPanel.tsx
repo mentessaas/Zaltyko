@@ -7,6 +7,7 @@ import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { getTerminology } from "@/lib/sport-config/terminology";
+import { pluralizeFirstWord } from "@/lib/specialization/registry";
 
 interface AthleteOption {
   id: string;
@@ -64,6 +65,7 @@ export function CompetitionResultsPanel({
   athletes,
 }: CompetitionResultsPanelProps) {
   const terms = getTerminology({ terminology });
+  const apparatusLabelPlural = pluralizeFirstWord(terms.apparatus).toLowerCase();
   const [results, setResults] = useState<CompetitionResult[]>([]);
   const [athleteId, setAthleteId] = useState("");
   const [apparatusCode, setApparatusCode] = useState("");
@@ -164,7 +166,7 @@ export function CompetitionResultsPanel({
               Resultados de {terms.competition.toLowerCase()}
             </CardTitle>
             <CardDescription>
-              Registra resultados con {terms.apparatus.toLowerCase()}s y rama validados por configuración deportiva.
+              Registra resultados con {apparatusLabelPlural} y rama validados por configuración deportiva.
             </CardDescription>
           </div>
           {sportConfigName && <Badge variant="outline">{sportConfigName}</Badge>}

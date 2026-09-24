@@ -75,8 +75,9 @@ export function CoachNotesManager({
         ? `/api/coach-notes?athleteId=${athleteId}`
         : `/api/coach-notes?academyId=${academyId}`;
       const response = await fetch(url);
-      const data = await response.json();
-      if (data.items) {
+      const payload = await response.json();
+      const data = payload?.data ?? payload;
+      if (data?.items) {
         setNotes(data.items);
       }
     } catch (error) {
@@ -240,4 +241,3 @@ export function CoachNotesManager({
     </div>
   );
 }
-

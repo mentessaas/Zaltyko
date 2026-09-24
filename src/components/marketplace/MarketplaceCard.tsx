@@ -4,30 +4,37 @@ import Image from "next/image";
 import Link from "next/link";
 import { Card, CardContent, CardFooter, CardHeader } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
-import { MapPin, Star } from "lucide-react";
+import { Dumbbell, MapPin, Star } from "lucide-react";
+import { formatMinorCurrency } from "@/lib/currency";
+
+export interface MarketplaceListingCard {
+  id: string;
+  title: string;
+  type: string;
+  category: string;
+  priceCents?: number | null;
+  currency?: string | null;
+  priceType: string;
+  images?: string[] | null;
+  location?: { city: string; country: string } | null;
+  isFeatured?: boolean | null;
+  sellerType?: string | null;
+}
 
 interface MarketplaceCardProps {
-  listing: {
-    id: string;
-    title: string;
-    type: string;
-    category: string;
-    priceCents?: number;
-    priceType: string;
-    images: string[];
-    location?: { city: string; country: string };
-    isFeatured?: boolean;
-    sellerType?: string;
-  };
+  listing: MarketplaceListingCard;
   sellerRating?: number;
 }
 
 export function MarketplaceCard({ listing, sellerRating }: MarketplaceCardProps) {
-  const priceDisplay = listing.priceType === "contact"
-    ? "Consultar"
-    : listing.priceCents
-      ? `€${(listing.priceCents / 100).toFixed(2)}`
-      : "";
+  const priceDisplay =
+    listing.priceType === "contact"
+      ? "Consultar"
+      : listing.priceType === "negotiable" && listing.priceCents == null
+        ? "A convenir"
+        : listing.priceCents != null
+          ? formatMinorCurrency(listing.priceCents, listing.currency ?? "EUR")
+          : "Consultar";
 
   const categoryLabels: Record<string, string> = {
     equipment: "Equipamiento",
@@ -46,7 +53,7 @@ export function MarketplaceCard({ listing, sellerRating }: MarketplaceCardProps)
   return (
     <Link href={`/marketplace/${listing.id}`}>
       <Card className="overflow-hidden hover:shadow-lg transition-shadow">
-        <div className="aspect-square relative bg-muted">
+        <div className="aspect-[4/3] relative overflow-hidden bg-muted">
           {listing.images?.[0] ? (
             <Image
               src={listing.images[0]}
@@ -55,8 +62,13 @@ export function MarketplaceCard({ listing, sellerRating }: MarketplaceCardProps)
               className="object-cover"
             />
           ) : (
-            <div className="flex items-center justify-center h-full text-gray-400">
-              Sin imagen
+            <div className="flex h-full flex-col items-center justify-center gap-3 bg-gradient-to-br from-teal-50 via-slate-50 to-cyan-50 text-slate-500">
+              <span className="flex h-14 w-14 items-center justify-center rounded-2xl border border-white/80 bg-white/75 text-teal-700 shadow-sm">
+                <Dumbbell className="h-7 w-7" aria-hidden="true" />
+              </span>
+              <span className="text-xs font-medium tracking-wide text-slate-500">
+                {listing.type === "product" ? "Producto de gimnasia" : "Servicio para tu academia"}
+              </span>
             </div>
           )}
           {listing.isFeatured && (

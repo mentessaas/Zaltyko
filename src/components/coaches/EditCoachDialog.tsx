@@ -4,7 +4,6 @@ import { FormEvent, useEffect, useMemo, useState, useTransition } from "react";
 
 import { Modal } from "@/components/ui/modal";
 import { createClient } from "@/lib/supabase/client";
-import { getTerminologyForSportConfig } from "@/lib/sport-config/terminology";
 
 interface ClassOption {
   id: string;
@@ -60,8 +59,6 @@ export function EditCoachDialog({
   const [error, setError] = useState<string | null>(null);
   const [isPending, startTransition] = useTransition();
   const [isAssigning, setIsAssigning] = useState(false);
-  const terms = getTerminologyForSportConfig(sportConfigs, selectedSportConfigs[0]);
-  const coachTermLower = terms.coach.toLowerCase();
 
   useEffect(() => {
     if (!open) return;
@@ -134,7 +131,7 @@ export function EditCoachDialog({
 
           if (!response.ok) {
             const data = await response.json().catch(() => ({}));
-            throw new Error(data.error ?? `No se pudo actualizar el ${coachTermLower}.`);
+            throw new Error(data.error ?? "No se pudo actualizar el perfil de staff.");
           }
         }
 
@@ -170,7 +167,7 @@ export function EditCoachDialog({
   };
 
   const handleDelete = async () => {
-    if (!window.confirm(`¿Eliminar este ${coachTermLower}? Se quitarán también sus asignaciones.`)) {
+    if (!window.confirm("¿Eliminar este perfil de staff? Se quitarán también sus asignaciones.")) {
       return;
     }
 
@@ -189,13 +186,13 @@ export function EditCoachDialog({
 
       if (!response.ok) {
         const data = await response.json().catch(() => ({}));
-        throw new Error(data.error ?? `No se pudo eliminar el ${coachTermLower}.`);
+        throw new Error(data.error ?? "No se pudo eliminar el perfil de staff.");
       }
 
       onDeleted();
       onClose();
     } catch (err: unknown) {
-      setError((err instanceof Error ? err.message : "Error desconocido") ?? `Error al eliminar el ${coachTermLower}.`);
+      setError((err instanceof Error ? err.message : "Error desconocido") ?? "Error al eliminar el perfil de staff.");
     } finally {
       setIsAssigning(false);
     }
@@ -226,8 +223,8 @@ export function EditCoachDialog({
     <Modal
       open={open}
       onClose={handleClose}
-      title={`Editar ${coachTermLower}`}
-      description={`Actualiza la información básica y las clases asignadas al ${coachTermLower}.`}
+      title="Editar perfil de staff"
+      description="Actualiza la información básica y las clases asignadas a este perfil de staff."
       footer={
         <div className="flex flex-wrap items-center justify-between gap-4">
           <button
@@ -235,7 +232,7 @@ export function EditCoachDialog({
             onClick={handleDelete}
             className="text-sm font-semibold text-red-600 hover:underline"
           >
-            Eliminar {coachTermLower}
+            Eliminar perfil de staff
           </button>
           <div className="flex gap-2">
             <button
@@ -329,7 +326,7 @@ export function EditCoachDialog({
             <div>
               <h3 className="text-sm font-semibold text-foreground">Clases asignadas</h3>
               <p className="text-xs text-muted-foreground">
-                Marca las clases donde el {coachTermLower} participa. Asignadas: {assignedCount}
+                Marca las clases donde participa este perfil. Asignadas: {assignedCount}
               </p>
             </div>
             <button

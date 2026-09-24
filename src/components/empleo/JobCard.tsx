@@ -12,7 +12,7 @@ interface JobCardProps {
     category: string;
     location?: { city: string; country: string };
     jobType: string;
-    salary?: { min?: number; max?: number; type: string };
+    salary?: { min?: number; max?: number; type: string; currency?: string };
     academyName?: string;
     isFeatured?: boolean;
     createdAt: string;
@@ -35,23 +35,36 @@ const categoryLabels: Record<string, string> = {
 };
 
 export function JobCard({ job }: JobCardProps) {
+  const formatAmount = (amount: number) => {
+    const currency = (job.salary?.currency || "EUR").toUpperCase();
+    try {
+      return new Intl.NumberFormat("es-ES", {
+        style: "currency",
+        currency,
+        maximumFractionDigits: 0,
+      }).format(amount);
+    } catch {
+      return `${amount.toLocaleString("es-ES")} ${currency}`;
+    }
+  };
+
   const salaryDisplay = job.salary?.type === "contact"
     ? "Consultar"
     : job.salary?.min
-      ? `€${job.salary.min}${job.salary.max ? ` - €${job.salary.max}` : ""}`
+      ? `${formatAmount(job.salary.min)}${job.salary.max ? ` - ${formatAmount(job.salary.max)}` : ""}`
       : "";
 
   return (
-    <Link href={`/empleo/${job.id}`}>
+    <Link href={`/empleo/${job.id}`} className="block min-w-0">
       <Card className="hover:shadow-lg transition-shadow">
         <CardHeader className="p-4">
-          <div className="flex items-start justify-between">
-            <div className="flex-1">
-              <div className="flex items-center gap-2 mb-1">
+          <div className="flex min-w-0 items-start justify-between gap-3">
+            <div className="min-w-0 flex-1">
+              <div className="mb-1 flex flex-wrap items-center gap-2">
                 <Badge variant="outline">{jobTypeLabels[job.jobType] || job.jobType}</Badge>
                 <Badge variant="default">{categoryLabels[job.category] || job.category}</Badge>
               </div>
-              <h3 className="font-semibold text-lg">{job.title}</h3>
+              <h3 className="break-words text-lg font-semibold">{job.title}</h3>
             </div>
             {job.isFeatured && (
               <Badge className="bg-yellow-500">Destacado</Badge>

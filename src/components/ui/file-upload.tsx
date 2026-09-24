@@ -58,22 +58,32 @@ const FileUpload = React.forwardRef<HTMLDivElement, FileUploadProps>(
     onFileAdded,
     onFileRemoved,
   }, ref) => {
+    const valueRef = React.useRef(value);
+
+    React.useEffect(() => {
+      valueRef.current = value;
+    }, [value]);
+
     const updateFile = (id: string, updates: Partial<UploadedFile>) => {
-      const newFiles = value.map((f) => (f.id === id ? { ...f, ...updates } : f));
+      const newFiles = valueRef.current.map((f) => (f.id === id ? { ...f, ...updates } : f));
+      valueRef.current = newFiles;
       onChange?.(newFiles);
     };
 
     const removeFile = (id: string) => {
-      const file = value.find((f) => f.id === id);
+      const file = valueRef.current.find((f) => f.id === id);
       if (file) {
-        onChange?.(value.filter((f) => f.id !== id));
+        const newFiles = valueRef.current.filter((f) => f.id !== id);
+        valueRef.current = newFiles;
+        onChange?.(newFiles);
         onFileRemoved?.(id);
       }
     };
 
     const handleDrop = React.useCallback(
       async (acceptedFiles: File[], rejectedFiles: FileRejection[]) => {
-        const newFiles: UploadedFile[] = acceptedFiles.slice(0, maxFiles - value.length).map((file) => ({
+        const currentFiles = valueRef.current;
+        const newFiles: UploadedFile[] = acceptedFiles.slice(0, maxFiles - currentFiles.length).map((file) => ({
           id: generateId(),
           file,
           progress: 0,
@@ -81,7 +91,8 @@ const FileUpload = React.forwardRef<HTMLDivElement, FileUploadProps>(
         }));
 
         if (newFiles.length > 0) {
-          onChange?.([...value, ...newFiles]);
+          valueRef.current = [...currentFiles, ...newFiles];
+          onChange?.(valueRef.current);
           newFiles.forEach((uploadedFile) => {
             onFileAdded?.(uploadedFile.file);
           });
@@ -89,7 +100,7 @@ const FileUpload = React.forwardRef<HTMLDivElement, FileUploadProps>(
 
         rejectedFiles.forEach(({ file, errors }) => {
           const errorMessage = errors.map((e) => {
-            if (e.code === "file-too-large") return `El archivo excede el tamanho máximo de ${formatFileSize(maxSize)}`;
+            if (e.code === "file-too-large") return `El archivo excede el tamaño máximo de ${formatFileSize(maxSize)}`;
             if (e.code === "file-too-small") return "El archivo es demasiado pequeño";
             if (e.code === "accept") return "Tipo de archivo no aceptado";
             if (e.code === "too-many-files") return `Máximo ${maxFiles} archivos permitidos`;
@@ -103,7 +114,8 @@ const FileUpload = React.forwardRef<HTMLDivElement, FileUploadProps>(
             status: "error",
             error: errorMessage,
           };
-          onChange?.([...value, rejectedFile]);
+          valueRef.current = [...valueRef.current, rejectedFile];
+          onChange?.(valueRef.current);
         });
 
         // Upload files if uploadFn is provided

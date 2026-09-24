@@ -4,6 +4,7 @@ import { CalendarDays, Clock3 } from "lucide-react";
 
 import { Badge } from "@/components/ui/badge";
 import { useAcademyContext } from "@/hooks/use-academy-context";
+import { formatDateForCountry } from "@/lib/date-utils";
 
 interface CalendarSession {
   id: string;
@@ -22,7 +23,7 @@ interface MyCalendarWidgetProps {
 }
 
 export function MyCalendarWidget({ sessionsByDay = [] }: MyCalendarWidgetProps) {
-  const { specialization } = useAcademyContext();
+  const { academyCountry, specialization } = useAcademyContext();
   const apparatusLabels = Object.fromEntries(
     specialization.evaluation.apparatus.map((item) => [item.code, item.label])
   );
@@ -45,11 +46,7 @@ export function MyCalendarWidget({ sessionsByDay = [] }: MyCalendarWidgetProps) 
         <div key={day.date} className="rounded-lg border p-3">
           <div className="mb-3 flex items-center justify-between">
             <h3 className="font-semibold text-foreground">
-              {new Date(day.date).toLocaleDateString("es-ES", {
-                weekday: "long",
-                day: "numeric",
-                month: "short",
-              })}
+              {formatDateForCountry(day.date, academyCountry, "EEEE d MMM")}
             </h3>
             <Badge variant="outline">{day.sessions.length} sesión{day.sessions.length === 1 ? "" : "es"}</Badge>
           </div>

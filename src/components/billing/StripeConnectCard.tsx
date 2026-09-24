@@ -25,6 +25,20 @@ interface Props {
   academyId: string;
 }
 
+const CONNECT_STATUS_LABELS: Record<string, string> = {
+  not_connected: "Sin conectar",
+  pending: "Pendiente",
+  onboarding: "Configuración pendiente",
+  enabled: "Lista para cobrar",
+  restricted: "Restringida",
+  disabled: "Deshabilitada",
+};
+
+function getConnectStatusLabel(status: string | null | undefined) {
+  const normalized = status?.trim().toLowerCase();
+  return (normalized && CONNECT_STATUS_LABELS[normalized]) ?? "Estado no disponible";
+}
+
 /**
  * Tarjeta de conexión de Stripe Connect (Standard) para la academia.
  * Sustituye al antiguo formulario de "pega tu Stripe Secret Key" (BYO-keys).
@@ -108,7 +122,7 @@ export function StripeConnectCard({ academyId }: Props) {
           <div className="space-y-3">
             <div className="flex items-center gap-2 text-sm text-amber-600">
               <AlertTriangle className="h-4 w-4" /> Conexión iniciada pero incompleta
-              {status.status ? ` (${status.status})` : ""}. Completa el proceso en Stripe.
+              {status.status ? ` (${getConnectStatusLabel(status.status)})` : ""}. Completa el proceso en Stripe.
             </div>
             <Button onClick={startOnboarding} disabled={working}>
               {working ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <ExternalLink className="mr-2 h-4 w-4" />}

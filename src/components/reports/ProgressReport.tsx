@@ -3,7 +3,7 @@
 import { useState, useEffect } from "react";
 import { TrendingUp, Download, FileText, BarChart3, Loader2, Target } from "lucide-react";
 import { format, subMonths } from "date-fns";
-import { formatLongDateForCountry } from "@/lib/date-utils";
+import { formatDateToISOString, formatLongDateForCountry } from "@/lib/date-utils";
 
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
@@ -62,8 +62,8 @@ export function ProgressReport({ academyId, academyCountry, athleteId, initialDa
   const toast = useToast();
   const { specialization } = useAcademyContext();
   const [selectedAthleteId, setSelectedAthleteId] = useState(athleteId || "");
-  const [startDate, setStartDate] = useState(format(subMonths(new Date(), 6), "yyyy-MM-dd"));
-  const [endDate, setEndDate] = useState(format(new Date(), "yyyy-MM-dd"));
+  const [startDate, setStartDate] = useState(formatDateToISOString(subMonths(new Date(), 6), academyCountry));
+  const [endDate, setEndDate] = useState(formatDateToISOString(new Date(), academyCountry));
   const [reportData, setReportData] = useState<ProgressReportData | null>(initialData || null);
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -197,15 +197,17 @@ export function ProgressReport({ academyId, academyCountry, athleteId, initialDa
     if (!selectedAthleteId) return;
 
     try {
-      const params = new URLSearchParams({
-        academyId,
-        athleteId: selectedAthleteId,
-        email,
-        ...(startDate && { startDate }),
-        ...(endDate && { endDate }),
+      const response = await fetch("/api/reports/progress/email", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          academyId,
+          athleteId: selectedAthleteId,
+          email,
+          ...(startDate && { startDate }),
+          ...(endDate && { endDate }),
+        }),
       });
-
-      const response = await fetch(`/api/reports/progress/email?${params}`);
       if (!response.ok) throw new Error("Error al enviar email");
 
       toast.pushToast({
@@ -303,7 +305,7 @@ export function ProgressReport({ academyId, academyCountry, athleteId, initialDa
       {error && (
         <Card>
           <CardContent className="pt-6">
-            <div className="rounded-lg border border-red-200 bg-red-50 p-3 text-sm text-red-900">
+            <div className="rounded-lg border border-red-200 bg-red-50 p-3 text-sm text-red-900 dark:border-red-900/60 dark:bg-red-950/30 dark:text-red-200">
               {error}
             </div>
           </CardContent>
@@ -358,13 +360,13 @@ export function ProgressReport({ academyId, academyCountry, athleteId, initialDa
                 </div>
                 <div>
                   <p className="text-sm text-muted-foreground">Áreas de Mejora</p>
-                  <p className="text-2xl font-bold text-green-600">
+                  <p className="text-2xl font-bold text-green-600 dark:text-green-300">
                     {reportData.areasOfImprovement.length}
                   </p>
                 </div>
                 <div>
                   <p className="text-sm text-muted-foreground">Áreas de Preocupación</p>
-                  <p className="text-2xl font-bold text-red-600">
+                  <p className="text-2xl font-bold text-red-600 dark:text-red-300">
                     {reportData.areasOfConcern.length}
                   </p>
                 </div>
@@ -375,7 +377,7 @@ export function ProgressReport({ academyId, academyCountry, athleteId, initialDa
           {reportData.areasOfImprovement.length > 0 && (
             <Card>
               <CardHeader>
-                <CardTitle className="flex items-center gap-2 text-green-600">
+                <CardTitle className="flex items-center gap-2 text-green-600 dark:text-green-300">
                   <TrendingUp className="h-5 w-5" />
                   Áreas de Mejora
                 </CardTitle>
@@ -383,7 +385,7 @@ export function ProgressReport({ academyId, academyCountry, athleteId, initialDa
               <CardContent>
                 <div className="flex flex-wrap gap-2">
                   {reportData.areasOfImprovement.map((area, idx) => (
-                    <Badge key={idx} variant="outline" className="bg-green-50">
+                    <Badge key={idx} variant="outline" className="bg-green-50 text-green-800 dark:bg-green-950/40 dark:text-green-200">
                       {area}
                     </Badge>
                   ))}
@@ -395,7 +397,7 @@ export function ProgressReport({ academyId, academyCountry, athleteId, initialDa
           {reportData.areasOfConcern.length > 0 && (
             <Card>
               <CardHeader>
-                <CardTitle className="flex items-center gap-2 text-red-600">
+                <CardTitle className="flex items-center gap-2 text-red-600 dark:text-red-300">
                   <Target className="h-5 w-5" />
                   Áreas de Preocupación
                 </CardTitle>
@@ -403,7 +405,7 @@ export function ProgressReport({ academyId, academyCountry, athleteId, initialDa
               <CardContent>
                 <div className="flex flex-wrap gap-2">
                   {reportData.areasOfConcern.map((area, idx) => (
-                    <Badge key={idx} variant="outline" className="bg-red-50">
+                    <Badge key={idx} variant="outline" className="bg-red-50 text-red-800 dark:bg-red-950/40 dark:text-red-200">
                       {area}
                     </Badge>
                   ))}
@@ -434,12 +436,12 @@ export function ProgressReport({ academyId, academyCountry, athleteId, initialDa
                       </div>
                       <div className="flex items-center gap-2">
                         {skill.trend === "improving" && (
-                          <Badge variant="outline" className="bg-green-50 text-green-700">
+                          <Badge variant="outline" className="bg-green-50 text-green-700 dark:bg-green-950/40 dark:text-green-200">
                             Mejorando
                           </Badge>
                         )}
                         {skill.trend === "declining" && (
-                          <Badge variant="outline" className="bg-red-50 text-red-700">
+                          <Badge variant="outline" className="bg-red-50 text-red-700 dark:bg-red-950/40 dark:text-red-200">
                             Declinando
                           </Badge>
                         )}

@@ -1,8 +1,6 @@
 "use client";
 
 import { useMemo, useState } from "react";
-import { format } from "date-fns";
-import { es } from "date-fns/locale";
 import {
   LineChart,
   Line,
@@ -17,8 +15,8 @@ import {
 } from "recharts";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { cn } from "@/lib/utils";
-import type { AssessmentWithScores, ProgressData } from "@/types";
+import type { AssessmentWithScores } from "@/types";
+import { formatDateForCountry } from "@/lib/date-utils";
 
 interface ProgressChartProps {
   assessments: AssessmentWithScores[];
@@ -27,20 +25,13 @@ interface ProgressChartProps {
 
 type ChartType = "line" | "area";
 type TimeRange = "3m" | "6m" | "1y" | "all";
+const ALL_SKILLS = ["all"];
 
 export function ProgressChart({ assessments, athleteName }: ProgressChartProps) {
   const [chartType, setChartType] = useState<ChartType>("line");
   const [timeRange, setTimeRange] = useState<TimeRange>("all");
-  const [selectedSkills, setSelectedSkills] = useState<string[]>(["all"]);
-
-  // Obtener todos los skills únicos
-  const allSkills = useMemo(() => {
-    const skills = new Set<string>();
-    assessments.forEach((a) => {
-      a.scores.forEach((s) => skills.add(s.skillName));
-    });
-    return Array.from(skills).sort();
-  }, [assessments]);
+  // El gráfico resume la puntuación global; el desglose por habilidad vive en
+  // el historial para no presentar un selector que todavía no cambia la serie.
 
   // Filtrar evaluaciones por rango de tiempo
   const filteredAssessments = useMemo(() => {
@@ -71,16 +62,16 @@ export function ProgressChart({ assessments, athleteName }: ProgressChartProps) 
     // Agrupar por fecha
     const dataByDate: Record<string, Record<string, number | string>> = {};
 
-    filteredAssessments
+    [...filteredAssessments]
       .sort((a, b) => new Date(a.assessmentDate).getTime() - new Date(b.assessmentDate).getTime())
       .forEach((assessment) => {
-        const dateKey = format(new Date(assessment.assessmentDate), "dd MMM");
+        const dateKey = formatDateForCountry(assessment.assessmentDate, null, "dd MMM");
         if (!dataByDate[dateKey]) {
           dataByDate[dateKey] = { date: dateKey, fullDate: assessment.assessmentDate };
         }
 
         assessment.scores.forEach((score) => {
-          if (selectedSkills.includes("all") || selectedSkills.includes(score.skillName)) {
+          if (ALL_SKILLS.includes("all") || ALL_SKILLS.includes(score.skillName)) {
             // Usar promedio si ya existe
             if (dataByDate[dateKey][score.skillName]) {
               const current = dataByDate[dateKey][score.skillName] as number;
@@ -95,14 +86,14 @@ export function ProgressChart({ assessments, athleteName }: ProgressChartProps) 
         const scores = assessment.scores.map((s) => s.score);
         if (scores.length > 0) {
           const avg = scores.reduce((a, b) => a + b, 0) / scores.length;
-          if (selectedSkills.includes("all")) {
+          if (ALL_SKILLS.includes("all")) {
             dataByDate[dateKey].promedio = avg;
           }
         }
       });
 
     return Object.values(dataByDate);
-  }, [filteredAssessments, selectedSkills]);
+  }, [filteredAssessments]);
 
   // Colores para cada skill
   const colors = [
@@ -127,9 +118,9 @@ export function ProgressChart({ assessments, athleteName }: ProgressChartProps) 
   }
 
   const renderChart = () => {
-    const skillsToShow = selectedSkills.includes("all")
+    const skillsToShow = ALL_SKILLS.includes("all")
       ? ["promedio"]
-      : selectedSkills.filter((s) => s !== "all");
+      : ALL_SKILLS.filter((s) => s !== "all");
 
     const ChartComponent = chartType === "area" ? AreaChart : LineChart;
 
@@ -162,7 +153,7 @@ export function ProgressChart({ assessments, athleteName }: ProgressChartProps) 
             }}
             labelFormatter={(label) => {
               const item = chartData.find((d) => d.date === label);
-              return item ? format(new Date(item.fullDate as string), "PPP", { locale: es }) : label;
+              return item ? formatDateForCountry(item.fullDate as string, null, "PPP") : label;
             }}
           />
           <Legend />
@@ -198,7 +189,9 @@ export function ProgressChart({ assessments, athleteName }: ProgressChartProps) 
     <Card>
       <CardHeader className="pb-2">
         <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
-          <CardTitle className="text-base">Gráfico de Progreso</CardTitle>
+          <CardTitle className="text-base">
+            Gráfico de Progreso{athleteName ? ` · ${athleteName}` : ""}
+          </CardTitle>
           <div className="flex items-center gap-2">
             <Select value={chartType} onValueChange={(v) => setChartType(v as ChartType)}>
               <SelectTrigger className="w-[100px]">

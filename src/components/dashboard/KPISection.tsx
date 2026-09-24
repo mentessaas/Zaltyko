@@ -1,6 +1,6 @@
 "use client";
 
-import { memo, useEffect, useState } from "react";
+import { memo } from "react";
 import { Users, UserCheck, LayoutDashboard } from "lucide-react";
 import type { LucideIcon } from "lucide-react";
 
@@ -22,6 +22,7 @@ interface KPISectionProps {
     athletesPlural: string;
     coachLabel: string;
   };
+  trends: KpiTrends | null;
 }
 
 type TrendKey = keyof KpiTrends;
@@ -37,34 +38,7 @@ interface MetricCard {
   trendKey: TrendKey;
 }
 
-function KPISectionImpl({ metrics, academyId, labels }: KPISectionProps) {
-  const [trends, setTrends] = useState<KpiTrends | null>(null);
-
-  // Carga las series temporales reales para los sparklines bajo demanda.
-  // Si falla, las tarjetas simplemente se muestran sin gráfico (degradación elegante).
-  useEffect(() => {
-    let cancelled = false;
-    const controller = new AbortController();
-
-    fetch(`/api/dashboard/kpi-trends?academyId=${academyId}&days=14`, {
-      signal: controller.signal,
-    })
-      .then((res) => (res.ok ? res.json() : null))
-      .then((json) => {
-        if (!cancelled && json?.ok && json.data) {
-          setTrends(json.data as KpiTrends);
-        }
-      })
-      .catch(() => {
-        /* abort o error de red: sin sparklines */
-      });
-
-    return () => {
-      cancelled = true;
-      controller.abort();
-    };
-  }, [academyId]);
-
+function KPISectionImpl({ metrics, academyId, labels, trends }: KPISectionProps) {
   const metricCards: MetricCard[] = [
     {
       title: labels.athletesPlural,
