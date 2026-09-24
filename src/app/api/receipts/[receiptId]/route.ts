@@ -6,6 +6,7 @@ import { generateReceiptPDF } from "@/lib/receipts/receipt-generator";
 import { db } from "@/db";
 import { receipts, athletes, academies } from "@/db/schema";
 import { apiSuccess, apiError } from "@/lib/api-response";
+import { z } from "zod";
 
 export const GET = withTenant(async (_request, context) => {
   if (!context.tenantId) {
@@ -16,6 +17,9 @@ export const GET = withTenant(async (_request, context) => {
 
   if (!receiptId) {
     return apiError("RECEIPT_ID_REQUIRED", "ID de recibo requerido", 400);
+  }
+  if (!z.string().uuid().safeParse(receiptId).success) {
+    return apiError("INVALID_RECEIPT_ID", "ID de recibo inválido", 400);
   }
 
   const [receipt] = await db

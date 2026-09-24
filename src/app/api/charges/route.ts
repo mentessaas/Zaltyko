@@ -5,10 +5,10 @@ import { apiCreated, apiError, apiSuccess } from "@/lib/api-response";
 import { z } from "zod";
 
 import { db } from "@/db";
-import { academies, athletes, charges, billingItems, groups, chargeStatusEnum } from "@/db/schema";
+import { athletes, charges, billingItems, classes, groups, chargeStatusEnum } from "@/db/schema";
 import { withTenant } from "@/lib/authz";
+import { authorizeAcademyCapability } from "@/lib/authz/resource-scope";
 import { handleApiError } from "@/lib/api-error-handler";
-import { verifyAcademyAccess } from "@/lib/permissions";
 import { logEvent } from "@/lib/event-logging";
 
 const CreateChargeSchema = z.object({
@@ -18,9 +18,17 @@ const CreateChargeSchema = z.object({
   classId: z.string().uuid().optional().nullable(),
   label: z.string().min(1),
   amountCents: z.number().int().positive(),
-  currency: z.enum(["eur", "usd", "mxn", "cop", "ars", "clp", "pen"]).default("eur"),
+  // La UI trabaja con códigos ISO en mayúsculas y los conceptos pueden usar
+  // moneda local. Normalizar aquí evita rechazos artificiales y conserva la
+  // moneda del billing item cuando el cliente no la envía.
+  currency: z.preprocess(
+    (value) => (typeof value === "string" ? value.trim().toLowerCase() : value),
+    z.string().regex(/^[a-z]{3}$/, "La moneda debe ser un código ISO de 3 letras").optional(),
+  ),
   period: z.string().regex(/^\d{4}-\d{2}$/), // Format: YYYY-MM
-  dueDate: z.string().optional(), // ISO date string
+  dueDate: z.string().optional().refine((value) => !value || !Number.isNaN(new Date(value).getTime()), {
+    message: "La fecha de vencimiento no es válida",
+  }),
   notes: z.string().optional(),
   paymentMethod: z.enum(["cash", "transfer", "bizum", "card_manual", "other"]).optional(),
 });
@@ -93,10 +101,14 @@ export const GET = withTenant(async (request, context) => {
       return apiError("TENANT_REQUIRED", "Tenant ID is required", 400);
     }
 
-    // Verify academy access
-    const academyAccess = await verifyAcademyAccess(query.academyId, context.tenantId);
-    if (!academyAccess.allowed) {
-      return apiError(academyAccess.reason ?? "ACADEMY_ACCESS_DENIED", "Access denied", 403);
+    const academyScope = await authorizeAcademyCapability({
+      context,
+      resourceTenantId: context.tenantId,
+      academyId: query.academyId,
+      permission: "billing:read",
+    });
+    if (!academyScope.allowed) {
+      return apiError(academyScope.reason ?? "ACADEMY_ACCESS_DENIED", "Access denied", 403);
     }
 
     const conditions = [
@@ -136,6 +148,7 @@ export const GET = withTenant(async (request, context) => {
           and(
             eq(athletes.academyId, query.academyId),
             eq(athletes.tenantId, context.tenantId),
+            sql`${athletes.deletedAt} IS NULL`,
             query.groupId ? eq(athletes.groupId, query.groupId) : undefined,
             query.sportConfigId ? eq(athletes.primarySportConfigId, query.sportConfigId) : undefined
           )
@@ -214,17 +227,26 @@ export const POST = withTenant(async (request, context) => {
       return apiError("TENANT_REQUIRED", "Tenant ID is required", 400);
     }
 
-    // Verify academy access
-    const academyAccess = await verifyAcademyAccess(body.academyId, context.tenantId);
-    if (!academyAccess.allowed) {
-      return apiError(academyAccess.reason ?? "ACADEMY_ACCESS_DENIED", "Access denied", 403);
+    const academyScope = await authorizeAcademyCapability({
+      context,
+      resourceTenantId: context.tenantId,
+      academyId: body.academyId,
+      permission: "billing:create",
+    });
+    if (!academyScope.allowed) {
+      return apiError(academyScope.reason ?? "ACADEMY_ACCESS_DENIED", "Access denied", 403);
     }
 
     // Verify athlete belongs to academy
     const [athlete] = await db
       .select({ id: athletes.id })
       .from(athletes)
-      .where(and(eq(athletes.id, body.athleteId), eq(athletes.academyId, body.academyId)))
+      .where(and(
+        eq(athletes.id, body.athleteId),
+        eq(athletes.academyId, body.academyId),
+        eq(athletes.tenantId, context.tenantId),
+        sql`${athletes.deletedAt} IS NULL`,
+      ))
       .limit(1);
 
     if (!athlete) {
@@ -234,7 +256,7 @@ export const POST = withTenant(async (request, context) => {
     // If billingItemId is provided, verify it exists and optionally auto-fill data
     let finalLabel = body.label;
     let finalAmountCents = body.amountCents;
-    let finalCurrency = body.currency;
+    let finalCurrency = body.currency ?? "eur";
 
     if (body.billingItemId) {
       const [billingItem] = await db
@@ -252,7 +274,20 @@ export const POST = withTenant(async (request, context) => {
         finalLabel = `${billingItem.name} – ${body.period}`;
       }
       finalAmountCents = body.amountCents || billingItem.amountCents;
-      finalCurrency = body.currency || billingItem.currency;
+      finalCurrency = body.currency ?? billingItem.currency;
+    }
+
+    if (body.classId) {
+      const [classRow] = await db
+        .select({ id: classes.id })
+        .from(classes)
+        .where(and(
+          eq(classes.id, body.classId),
+          eq(classes.academyId, body.academyId),
+          eq(classes.tenantId, context.tenantId),
+        ))
+        .limit(1);
+      if (!classRow) return apiError("CLASS_NOT_FOUND", "Class not found", 404);
     }
 
     const [charge] = await db
@@ -265,7 +300,7 @@ export const POST = withTenant(async (request, context) => {
         classId: body.classId ?? null,
         label: finalLabel,
         amountCents: finalAmountCents,
-        currency: finalCurrency,
+        currency: finalCurrency.toLowerCase(),
         period: body.period,
         dueDate: body.dueDate ? body.dueDate.split("T")[0] : null, // Convert to YYYY-MM-DD string
         status: "pending",

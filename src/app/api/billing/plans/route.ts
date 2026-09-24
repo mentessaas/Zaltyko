@@ -54,9 +54,8 @@ export const GET = withTenant(async () => {
     })
     .from(plans)
     .where(eq(plans.isArchived, false))
+    // unbounded-read-ok: plan catalog is a fixed, operator-managed table.
     .orderBy(asc(plans.priceEur));
 
   return apiSuccess(items);
 });
-
-

@@ -4,6 +4,7 @@ import { db } from "@/db";
 import { academies } from "@/db/schema";
 import { getAcademySportConfigOptions } from "@/lib/sport-config/service";
 import { getTerminologyForSportConfig } from "@/lib/sport-config/terminology";
+import { pluralizeFirstWord } from "@/lib/specialization/registry";
 import { eq } from "drizzle-orm";
 
 interface PageProps {
@@ -24,6 +25,7 @@ export default async function CoachReportsPage({ params }: PageProps) {
     getAcademySportConfigOptions(academyId),
   ]);
   const terms = getTerminologyForSportConfig(sportConfigs);
+  const coachLabelPlural = pluralizeFirstWord(terms.coach);
 
   return (
     <div className="space-y-6 p-4 sm:p-6 lg:p-8">
@@ -31,7 +33,7 @@ export default async function CoachReportsPage({ params }: PageProps) {
         items={[
           { label: "Dashboard", href: `/app/${academyId}/dashboard` },
           { label: "Reportes", href: `/app/${academyId}/reports` },
-          { label: `${terms.coach}s` },
+          { label: coachLabelPlural },
         ]}
       />
       <CoachReport

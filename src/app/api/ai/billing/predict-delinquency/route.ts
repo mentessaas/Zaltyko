@@ -1,72 +1,126 @@
-// src/app/api/ai/billing/predict-delinquency/route.ts
-export const dynamic = 'force-dynamic';
+import { and, desc, eq, isNull } from "drizzle-orm";
+import { z } from "zod";
 
-import { withTenant } from '@/lib/authz';
-import { getAIOrchestrator } from '@/lib/ai/orchestrator';
-import { BILLING_SYSTEM_PROMPT, generateDelinquencyPrompt } from '@/lib/ai/prompts/billing';
+import { db } from "@/db";
+import { athletes, charges } from "@/db/schema";
+import { withTenant } from "@/lib/authz";
+import { getScopedAthlete } from "@/lib/ai/attendance-data";
+import { getAIOrchestrator } from "@/lib/ai/orchestrator";
+import { BILLING_SYSTEM_PROMPT, generateDelinquencyPrompt } from "@/lib/ai/prompts/billing";
+import { withRateLimit, getUserIdentifier } from "@/lib/rate-limit";
 import { logger } from "@/lib/logger";
 import { apiError, apiSuccess } from "@/lib/api-response";
 
-// Rate limiting (simple in-memory)
-const rateLimit = new Map<string, { count: number; timestamp: number }>();
-const RATE_LIMIT = 100;
-const RATE_WINDOW = 60 * 1000;
+export const dynamic = "force-dynamic";
 
-function checkRateLimit(ip: string): boolean {
-  const now = Date.now();
-  const record = rateLimit.get(ip);
+const bodySchema = z.object({
+  athleteId: z.string().uuid(),
+  academyId: z.string().uuid(),
+});
 
-  if (!record || now - record.timestamp > RATE_WINDOW) {
-    rateLimit.set(ip, { count: 1, timestamp: now });
-    return true;
-  }
+const DELINQUENT_STATUSES = ["pending", "overdue", "partial", "failed", "requires_action"] as const;
 
-  if (record.count >= RATE_LIMIT) {
-    return false;
-  }
-
-  record.count++;
-  return true;
-}
-
-export const POST = withTenant(async (request: Request) => {
-  // Rate limit check
-  const ip = request.headers.get('x-forwarded-for') || 'unknown';
-  if (!checkRateLimit(ip)) {
-    return apiError("RATE_LIMIT_EXCEEDED", "Rate limit exceeded", 429);
-  }
-
+const handler = withTenant(async (request: Request, context) => {
   try {
-    const body = await request.json();
-    const { athleteId, name, paymentHistory, lastPaymentDate, pendingAmount } = body;
+    const parsed = bodySchema.safeParse(await request.json());
+    if (!parsed.success) {
+      return apiError("INVALID_PAYLOAD", "athleteId y academyId deben ser UUID válidos", 400);
+    }
+    const { athleteId, academyId } = parsed.data;
+    const athlete = await getScopedAthlete({
+      tenantId: context.tenantId,
+      academyId,
+      athleteId,
+      profile: context.profile,
+    });
+    if (athlete.status === "not_found") {
+      return apiError("ATHLETE_NOT_FOUND", "No se encontró el atleta en esta academia", 404);
+    }
+    if (athlete.status === "forbidden") {
+      return apiError("ATHLETE_ACCESS_DENIED", "No tienes permiso para consultar este atleta", 403);
+    }
 
-    if (!name || !paymentHistory) {
-      return apiError("INVALID_PAYLOAD", "Missing required fields: name, paymentHistory", 400);
+    const paymentRows = await db
+      .select({
+        amountCents: charges.amountCents,
+        currency: charges.currency,
+        status: charges.status,
+        period: charges.period,
+        dueDate: charges.dueDate,
+        paidAt: charges.paidAt,
+      })
+      .from(charges)
+      .innerJoin(athletes, eq(charges.athleteId, athletes.id))
+      .where(
+        and(
+          eq(charges.tenantId, context.tenantId),
+          eq(charges.academyId, academyId),
+          eq(charges.athleteId, athleteId),
+          isNull(athletes.deletedAt),
+        ),
+      )
+      .orderBy(desc(charges.period))
+      .limit(100);
+
+    const paymentHistory = paymentRows.map((row) => ({
+      date: row.dueDate ?? row.period,
+      amount: Number(row.amountCents ?? 0) / 100,
+      status: row.status,
+    }));
+    const pendingAmount = paymentRows
+      .filter((row) => (DELINQUENT_STATUSES as readonly string[]).includes(row.status))
+      .reduce((sum, row) => sum + Number(row.amountCents ?? 0), 0) / 100;
+    const paidRows = paymentRows.filter((row) => row.status === "paid");
+    const lastPaymentDate = paidRows.find((row) => row.paidAt)?.paidAt?.toISOString();
+    const currencies = new Set(paymentRows.map((row) => row.currency.toUpperCase()));
+    const currency = currencies.size === 1 ? Array.from(currencies)[0] : "moneda local";
+
+    if (paymentHistory.length < 2) {
+      return apiSuccess({
+        athleteId,
+        probability: 0.5,
+        analysis: "Aún no hay suficientes cargos para calcular un riesgo fiable.",
+        dataPoints: paymentHistory.length,
+        insufficientData: true,
+      });
     }
 
     const orchestrator = getAIOrchestrator();
     const prompt = generateDelinquencyPrompt({
-      name,
+      name: "la familia",
       paymentHistory,
       lastPaymentDate,
       pendingAmount,
+      currency,
     });
 
-    const response = await orchestrator.execute(prompt, BILLING_SYSTEM_PROMPT);
+    const response = await orchestrator.execute(prompt, BILLING_SYSTEM_PROMPT, {
+      temperature: 0.2,
+      maxTokens: 500,
+    });
 
     // Parse simple response
     const probabilityMatch = response.content.match(/(\d+)%/);
     const probability = probabilityMatch
-      ? parseInt(probabilityMatch[1]) / 100
+      ? Math.min(1, Math.max(0, parseInt(probabilityMatch[1], 10) / 100))
       : 0.5;
 
     return apiSuccess({
       athleteId,
       probability,
       analysis: response.content,
+      pendingAmount,
+      dataPoints: paymentHistory.length,
+      insufficientData: false,
     });
   } catch (error) {
-    logger.error('AI billing error:', error);
-    return apiError("AI_DELINQUENCY_FAILED", "Failed to analyze delinquency risk", 500);
+    logger.error("AI billing error", error);
+    return apiError("AI_DELINQUENCY_FAILED", "No se pudo analizar el riesgo de impago", 500);
   }
+});
+
+export const POST = withRateLimit(handler, {
+  identifier: getUserIdentifier,
+  limit: 10,
+  window: 60,
 });

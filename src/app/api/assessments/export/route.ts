@@ -1,7 +1,8 @@
 export const dynamic = 'force-dynamic';
 
 import { NextResponse } from "next/server";
-import { and, asc, eq, gte, lte, sql, inArray } from "drizzle-orm";
+import { and, asc, eq, gte, isNull, lte, sql, inArray } from "drizzle-orm";
+import { z } from "zod";
 
 import { db } from "@/db";
 import { academies, athletes, athleteAssessments, coaches } from "@/db/schema";
@@ -13,13 +14,18 @@ export const runtime = "nodejs";
 export const GET = withTenant(async (request, context) => {
   const url = new URL(request.url);
   const tenantOverride = url.searchParams.get("tenantId");
-  const effectiveTenantId = context.tenantId ?? tenantOverride ?? null;
+  const effectiveTenantId = context.profile.role === "super_admin"
+    ? tenantOverride ?? context.tenantId ?? null
+    : context.tenantId;
 
   if (!effectiveTenantId) {
     return apiError("TENANT_REQUIRED", "Tenant context is required", 400);
   }
 
   const academyId = url.searchParams.get("academyId");
+  if (academyId && !z.string().uuid().safeParse(academyId).success) {
+    return apiError("INVALID_ACADEMY_ID", "Academy ID must be a valid UUID", 400);
+  }
   const athleteIds = url.searchParams.get("athleteIds")?.split(",").filter(Boolean);
   const startDate = url.searchParams.get("startDate");
   const endDate = url.searchParams.get("endDate");
@@ -52,11 +58,20 @@ export const GET = withTenant(async (request, context) => {
       academyName: academies.name,
     })
     .from(athleteAssessments)
-    .leftJoin(athletes, eq(athleteAssessments.athleteId, athletes.id))
-    .leftJoin(coaches, eq(athleteAssessments.assessedBy, coaches.id))
-    .leftJoin(academies, eq(athleteAssessments.academyId, academies.id))
+    .innerJoin(
+      athletes,
+      and(
+        eq(athleteAssessments.athleteId, athletes.id),
+        eq(athletes.tenantId, effectiveTenantId),
+        eq(athletes.academyId, athleteAssessments.academyId),
+        isNull(athletes.deletedAt),
+      ),
+    )
+    .leftJoin(coaches, and(eq(athleteAssessments.assessedBy, coaches.id), eq(coaches.tenantId, effectiveTenantId)))
+    .leftJoin(academies, and(eq(athleteAssessments.academyId, academies.id), eq(academies.tenantId, effectiveTenantId)))
     .where(whereClause)
-    .orderBy(asc(athleteAssessments.assessmentDate));
+    .orderBy(asc(athleteAssessments.assessmentDate))
+    .limit(10000);
 
   // Helper para formatear fecha
   const formatDate = (date: Date | string | null | undefined): string => {

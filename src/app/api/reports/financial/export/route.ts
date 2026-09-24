@@ -1,15 +1,17 @@
 import { NextResponse } from "next/server";
-import { apiError, apiSuccess } from "@/lib/api-response";
+import { apiError } from "@/lib/api-response";
 import { z } from "zod";
 import { withTenant } from "@/lib/authz";
 import { generateFinancialPDF } from "@/lib/reports/pdf-generator";
 import { calculateFinancialStats, calculateMonthlyRevenue, analyzeDelinquency } from "@/lib/reports/financial-calculator";
 import { db } from "@/db";
 import { academies } from "@/db/schema";
-import { eq } from "drizzle-orm";
+import { and, eq } from "drizzle-orm";
 import * as XLSX from "xlsx";
 import type { FinancialReportFilters } from "@/lib/reports/financial-calculator";
 import { logger } from "@/lib/logger";
+import { getCurrencyForCountry } from "@/lib/currency";
+import { reportDateSchema, validateReportPeriod } from "@/lib/reports/query-schemas";
 
 // Forzar ruta dinámica
 export const dynamic = 'force-dynamic';
@@ -17,10 +19,10 @@ export const dynamic = 'force-dynamic';
 const exportSchema = z.object({
   academyId: z.string().uuid(),
   format: z.enum(["pdf", "excel"]).default("pdf"),
-  startDate: z.string().optional(),
-  endDate: z.string().optional(),
+  startDate: reportDateSchema,
+  endDate: reportDateSchema,
   sportConfigId: z.string().uuid().optional(),
-});
+}).superRefine(validateReportPeriod);
 
 export const GET = withTenant(async (request, context) => {
   if (!context.tenantId) {
@@ -36,10 +38,14 @@ export const GET = withTenant(async (request, context) => {
     sportConfigId: url.searchParams.get("sportConfigId"),
   };
 
-  const validated = exportSchema.parse({
+  const parsed = exportSchema.safeParse({
     ...params,
     academyId: params.academyId || undefined,
   });
+  if (!parsed.success) {
+    return apiError("INVALID_QUERY", "Parámetros del reporte inválidos", 400);
+  }
+  const validated = parsed.data;
 
   if (!validated.academyId) {
     return apiError("ACADEMY_ID_REQUIRED", "Academy ID is required", 400);
@@ -54,6 +60,13 @@ export const GET = withTenant(async (request, context) => {
   };
 
   try {
+    const [academy] = await db
+      .select({ name: academies.name, country: academies.country, countryCode: academies.countryCode })
+      .from(academies)
+      .where(and(eq(academies.id, validated.academyId), eq(academies.tenantId, context.tenantId)))
+      .limit(1);
+    const currency = getCurrencyForCountry(academy?.countryCode ?? academy?.country);
+
     const [stats, monthly, delinquency] = await Promise.all([
       calculateFinancialStats(filters),
       calculateMonthlyRevenue(filters),
@@ -65,10 +78,10 @@ export const GET = withTenant(async (request, context) => {
 
       // Hoja de resumen
       const summarySheet = XLSX.utils.json_to_sheet([
-        { Métrica: "Ingresos Totales", Valor: `${stats.totalRevenue.toFixed(2)} €` },
-        { Métrica: "Pagado", Valor: `${stats.paidAmount.toFixed(2)} €` },
-        { Métrica: "Pendiente", Valor: `${stats.pendingAmount.toFixed(2)} €` },
-        { Métrica: "Vencido", Valor: `${stats.overdueAmount.toFixed(2)} €` },
+        { Métrica: "Ingresos Totales", Valor: `${stats.totalRevenue.toFixed(2)} ${currency}` },
+        { Métrica: "Pagado", Valor: `${stats.paidAmount.toFixed(2)} ${currency}` },
+        { Métrica: "Pendiente", Valor: `${stats.pendingAmount.toFixed(2)} ${currency}` },
+        { Métrica: "Vencido", Valor: `${stats.overdueAmount.toFixed(2)} ${currency}` },
         { Métrica: "Total Cargos", Valor: stats.totalCharges },
         { Métrica: "Cargos Pagados", Valor: stats.paidCharges },
         { Métrica: "Cargos Pendientes", Valor: stats.pendingCharges },
@@ -82,9 +95,9 @@ export const GET = withTenant(async (request, context) => {
         const monthlySheet = XLSX.utils.json_to_sheet(
           monthly.map((m) => ({
             Mes: m.month,
-            "Ingresos Totales (€)": m.revenue,
-            "Pagado (€)": m.paid,
-            "Pendiente (€)": m.pending,
+            [`Ingresos Totales (${currency})`]: m.revenue,
+            [`Pagado (${currency})`]: m.paid,
+            [`Pendiente (${currency})`]: m.pending,
           }))
         );
         XLSX.utils.book_append_sheet(workbook, monthlySheet, "Ingresos Mensuales");
@@ -94,21 +107,21 @@ export const GET = withTenant(async (request, context) => {
         const sportSheet = XLSX.utils.json_to_sheet(
           stats.bySportConfig.map((item) => ({
             Rama: item.label,
-            "Ingresos Totales (€)": item.totalRevenue,
-            "Pagado (€)": item.paidAmount,
-            "Pendiente (€)": item.pendingAmount,
-            "Morosidad (€)": item.overdueAmount,
+            [`Ingresos Totales (${currency})`]: item.totalRevenue,
+            [`Pagado (${currency})`]: item.paidAmount,
+            [`Pendiente (${currency})`]: item.pendingAmount,
+            [`Morosidad (${currency})`]: item.overdueAmount,
             Cargos: item.totalCharges,
             "Cargos Pagados": item.paidCharges,
             "Cargos Pendientes": item.pendingCharges,
             "Cargos Vencidos": item.overdueCharges,
             "Becas Activas": item.activeScholarships,
-            "Descuentos (€)": item.discountAmount,
-            "Coste entrenadores (€)": item.coachCostAmount,
-            "Gastos directos (€)": item.directExpenseAmount,
-            "Gastos generales asignados (€)": item.allocatedAcademyExpenseAmount,
-            "Coste estimado (€)": item.estimatedCostAmount,
-            "Margen estimado (€)": item.estimatedMarginAmount,
+            [`Descuentos (${currency})`]: item.discountAmount,
+            [`Coste entrenadores (${currency})`]: item.coachCostAmount,
+            [`Gastos directos (${currency})`]: item.directExpenseAmount,
+            [`Gastos generales asignados (${currency})`]: item.allocatedAcademyExpenseAmount,
+            [`Coste estimado (${currency})`]: item.estimatedCostAmount,
+            [`Margen estimado (${currency})`]: item.estimatedMarginAmount,
             "Margen (%)": item.estimatedMarginRate === null ? "" : Math.round(item.estimatedMarginRate * 10000) / 100,
             Estado: item.profitabilityStatus,
           }))
@@ -122,7 +135,7 @@ export const GET = withTenant(async (request, context) => {
           delinquency.map((d) => ({
             Atleta: d.athleteName,
             Rama: d.sportConfigLabel,
-            "Total Vencido (€)": d.totalOverdue,
+            [`Total Vencido (${currency})`]: d.totalOverdue,
             "Cargos Vencidos": d.overdueCharges,
             "Más Antiguo": d.oldestOverdue
               ? new Date(d.oldestOverdue).toLocaleDateString("es-ES")
@@ -141,17 +154,6 @@ export const GET = withTenant(async (request, context) => {
         },
       });
     } else {
-      // Obtener nombre de la academia
-      let academyName = "Academia";
-      const [academy] = await db
-        .select({ name: academies.name })
-        .from(academies)
-        .where(eq(academies.id, validated.academyId))
-        .limit(1);
-      if (academy?.name) {
-        academyName = academy.name;
-      }
-
       // PDF
       const period = validated.startDate && validated.endDate
         ? `${validated.startDate} - ${validated.endDate}`
@@ -159,11 +161,12 @@ export const GET = withTenant(async (request, context) => {
 
       const pdfBuffer = await generateFinancialPDF({
         title: "Reporte Financiero",
-        academyName: academyName,
+        academyName: academy?.name ?? "Academia",
         period,
         revenue: stats.totalRevenue,
         pending: stats.pendingAmount,
         paid: stats.paidAmount,
+        currency,
       });
 
       return new NextResponse(new Uint8Array(pdfBuffer), {

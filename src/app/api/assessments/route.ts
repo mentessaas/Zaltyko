@@ -1,11 +1,12 @@
 export const dynamic = 'force-dynamic';
 
-import { and, eq, desc } from "drizzle-orm";
+import { and, eq, desc, inArray, isNull } from "drizzle-orm";
 import { z } from "zod";
 
 import { db } from "@/db";
-import { athleteAssessments, assessmentScores, athletes, coaches, groups } from "@/db/schema";
+import { athleteAssessments, assessmentScores, assessmentVideos, athletes, coaches, groups } from "@/db/schema";
 import { withTenant } from "@/lib/authz";
+import { authorizeAcademyCapability } from "@/lib/authz/resource-scope";
 import { handleApiError } from "@/lib/api-error-handler";
 import { withTransaction } from "@/lib/db-transactions";
 import { apiSuccess, apiError } from "@/lib/api-response";
@@ -32,6 +33,7 @@ const createAssessmentSchema = z.object({
   scores: z.array(scoreSchema).optional(),
   overallComment: z.string().nullable().optional(),
   totalScore: z.number().nullable().optional(),
+  visibleToGuardians: z.boolean().default(false),
 });
 
 export const POST = withTenant(async (request, context) => {
@@ -52,10 +54,26 @@ export const POST = withTenant(async (request, context) => {
         primarySportConfigId: athletes.primarySportConfigId,
       })
       .from(athletes)
-      .where(and(eq(athletes.id, body.athleteId), eq(athletes.tenantId, context.tenantId)))
+      .where(
+        and(
+          eq(athletes.id, body.athleteId),
+          eq(athletes.tenantId, context.tenantId),
+          isNull(athletes.deletedAt)
+        )
+      )
       .limit(1);
 
     if (!athleteRow) {
+      return apiError("ATHLETE_NOT_FOUND", "Athlete not found", 404);
+    }
+
+    const academyScope = await authorizeAcademyCapability({
+      context,
+      resourceTenantId: athleteRow.tenantId,
+      academyId: athleteRow.academyId,
+      permission: "athletes:update",
+    });
+    if (!academyScope.allowed) {
       return apiError("ATHLETE_NOT_FOUND", "Athlete not found", 404);
     }
 
@@ -81,7 +99,14 @@ export const POST = withTenant(async (request, context) => {
             sportConfigId: groups.sportConfigId,
           })
           .from(groups)
-          .where(and(eq(groups.id, athleteRow.groupId), eq(groups.tenantId, context.tenantId)))
+          .where(
+            and(
+              eq(groups.id, athleteRow.groupId),
+              eq(groups.tenantId, context.tenantId),
+              eq(groups.academyId, athleteRow.academyId),
+              isNull(groups.deletedAt)
+            )
+          )
           .limit(1)
       : [];
 
@@ -173,6 +198,7 @@ export const POST = withTenant(async (request, context) => {
         assessmentType: body.assessmentType,
         apparatus: body.apparatus ?? null,
         overallComment: body.overallComment ?? null,
+        visibleToGuardians: body.visibleToGuardians,
         totalScore: body.totalScore?.toString() ?? null,
       });
 
@@ -234,11 +260,31 @@ export const GET = withTenant(async (request, context) => {
           groupId: athletes.groupId,
         })
         .from(athletes)
-        .where(and(eq(athletes.id, params.data.athleteId), eq(athletes.tenantId, context.tenantId)))
+          .where(
+            and(
+              eq(athletes.id, params.data.athleteId),
+              eq(athletes.tenantId, context.tenantId),
+              isNull(athletes.deletedAt)
+            )
+          )
         .limit(1);
 
       if (!athleteRow) {
         return apiError("ATHLETE_NOT_FOUND", "Athlete not found", 404);
+      }
+
+      const academyScope = await authorizeAcademyCapability({
+        context,
+        resourceTenantId: context.tenantId,
+        academyId: athleteRow.academyId,
+        permission: "athletes:read",
+      });
+      if (!academyScope.allowed) {
+        return apiError("ATHLETE_NOT_FOUND", "Athlete not found", 404);
+      }
+
+      if (params.data.academyId && params.data.academyId !== athleteRow.academyId) {
+        return apiError("ASSESSMENT_NOT_FOUND", "No se encontraron evaluaciones", 404);
       }
 
       const athleteScope = await verifyProgressAccess({
@@ -258,18 +304,40 @@ export const GET = withTenant(async (request, context) => {
       }
     }
 
-    const conditions = [eq(athleteAssessments.tenantId, context.tenantId)];
+    const targetAcademyId = params.data.academyId
+      ?? context.profile.activeAcademyId
+      ?? null;
 
-    if (params.data.academyId) {
-      conditions.push(eq(athleteAssessments.academyId, params.data.academyId));
+    if (targetAcademyId && !params.data.athleteId) {
+      const academyScope = await authorizeAcademyCapability({
+        context,
+        resourceTenantId: context.tenantId,
+        academyId: targetAcademyId,
+        permission: "athletes:read",
+      });
+      if (!academyScope.allowed) {
+        return apiError("ASSESSMENT_NOT_FOUND", "No se encontraron evaluaciones", 404);
+      }
+    } else if (!targetAcademyId && context.profile.role !== "super_admin") {
+      return apiError("ACADEMY_REQUIRED", "Academy ID is required", 400);
     }
+
+    const conditions = [
+      eq(athleteAssessments.tenantId, context.tenantId),
+      targetAcademyId ? eq(athleteAssessments.academyId, targetAcademyId) : undefined,
+    ].filter((condition): condition is NonNullable<typeof condition> => Boolean(condition));
 
     if (params.data.athleteId) {
       conditions.push(eq(athleteAssessments.athleteId, params.data.athleteId));
     }
 
     if (params.data.assessmentType) {
-      conditions.push(eq(athleteAssessments.assessmentType, params.data.assessmentType as any));
+      conditions.push(
+        eq(
+          athleteAssessments.assessmentType,
+          params.data.assessmentType as z.infer<typeof createAssessmentSchema>["assessmentType"]
+        )
+      );
     }
 
     const limit = params.data.limit ?? 50;
@@ -286,19 +354,36 @@ export const GET = withTenant(async (request, context) => {
         apparatus: athleteAssessments.apparatus,
         sportConfigId: athleteAssessments.sportConfigId,
         overallComment: athleteAssessments.overallComment,
+        visibleToGuardians: athleteAssessments.visibleToGuardians,
         totalScore: athleteAssessments.totalScore,
         assessedBy: athleteAssessments.assessedBy,
         assessedByName: coaches.name,
       })
       .from(athleteAssessments)
-      .leftJoin(athletes, eq(athleteAssessments.athleteId, athletes.id))
-      .leftJoin(coaches, eq(athleteAssessments.assessedBy, coaches.id))
+      .leftJoin(athletes, and(eq(athleteAssessments.athleteId, athletes.id), eq(athletes.tenantId, context.tenantId)))
+      .leftJoin(coaches, and(eq(athleteAssessments.assessedBy, coaches.id), eq(coaches.tenantId, context.tenantId)))
       .where(and(...conditions))
       .orderBy(desc(athleteAssessments.assessmentDate))
       .limit(limit)
       .offset(offset);
 
-    return apiSuccess(rows, { total: rows.length });
+    const assessmentIds = rows.map((row) => row.id);
+    const videos = assessmentIds.length > 0
+      ? await db
+          .select({ id: assessmentVideos.id, assessmentId: assessmentVideos.assessmentId, url: assessmentVideos.url, title: assessmentVideos.title, description: assessmentVideos.description, thumbnailUrl: assessmentVideos.thumbnailUrl, duration: assessmentVideos.duration })
+          .from(assessmentVideos)
+          .innerJoin(athleteAssessments, eq(assessmentVideos.assessmentId, athleteAssessments.id))
+          .where(and(inArray(assessmentVideos.assessmentId, assessmentIds), eq(athleteAssessments.tenantId, context.tenantId)))
+          .limit(Math.min(Math.max(assessmentIds.length * 5, 1), 250))
+      : [];
+    const videosByAssessment = new Map<string, typeof videos>();
+    for (const video of videos) {
+      const existing = videosByAssessment.get(video.assessmentId) ?? [];
+      existing.push(video);
+      videosByAssessment.set(video.assessmentId, existing);
+    }
+
+    return apiSuccess(rows.map((row) => ({ ...row, videos: videosByAssessment.get(row.id) ?? [] })), { total: rows.length });
   } catch (error) {
     return handleApiError(error);
   }

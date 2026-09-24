@@ -8,7 +8,7 @@ import { ScheduledReports } from "@/components/reports/ScheduledReports";
 import { isFeatureEnabled } from "@/lib/product/features";
 import { db } from "@/db";
 import { academies } from "@/db/schema";
-import { resolveAcademySpecialization } from "@/lib/specialization/registry";
+import { pluralizeFirstWord, resolveAcademySpecialization } from "@/lib/specialization/registry";
 import { getAcademySportConfigOptions } from "@/lib/sport-config/service";
 import { getTerminologyForSportConfig } from "@/lib/sport-config/terminology";
 
@@ -37,10 +37,12 @@ export default async function ReportsPage({ params }: PageProps) {
     getAcademySportConfigOptions(academyId),
   ]);
   const specialization = resolveAcademySpecialization(academy ?? {});
+  const classLabelPlural = pluralizeFirstWord(specialization.labels.classLabel);
   const terms = getTerminologyForSportConfig(sportConfigs);
+  const coachLabelPlural = pluralizeFirstWord(terms.coach);
+  const paymentLabelPlural = pluralizeFirstWord(terms.payment);
   const athletesTermLower = terms.athletes.toLowerCase();
   const athleteTermLower = terms.athlete.toLowerCase();
-  const coachTermLower = terms.coach.toLowerCase();
   const reportTypes = [
     {
       id: "attendance",
@@ -53,7 +55,7 @@ export default async function ReportsPage({ params }: PageProps) {
     {
       id: "financial",
       title: "Financiero",
-      description: `Ingresos, recibos internos, cobros y ${terms.payment.toLowerCase()}s pendientes`,
+      description: `Ingresos, recibos internos, cobros y ${paymentLabelPlural.toLowerCase()} pendientes`,
       icon: <DollarSign className="h-6 w-6 text-white" />,
       href: "/financial",
       color: "bg-zaltyko-indigo",
@@ -76,8 +78,8 @@ export default async function ReportsPage({ params }: PageProps) {
     },
     {
       id: "coach",
-      title: `${terms.coach}s`,
-      description: `Rendimiento y métricas de ${coachTermLower}s`,
+      title: coachLabelPlural,
+      description: `Rendimiento y métricas de ${coachLabelPlural.toLowerCase()}`,
       icon: <UserCog className="h-6 w-6 text-white" />,
       href: "/coach",
       color: "bg-zaltyko-teal",
@@ -119,7 +121,7 @@ export default async function ReportsPage({ params }: PageProps) {
           { label: "Reportes" },
         ]}
         title="Centro de reportes"
-        description={`Genera y gestiona reportes de ${athletesTermLower}, ${specialization.labels.classLabel.toLowerCase()}s y rendimiento deportivo.`}
+        description={`Genera y gestiona reportes de ${athletesTermLower}, ${classLabelPlural.toLowerCase()} y rendimiento deportivo.`}
         icon={<FileBarChart className="h-5 w-5" strokeWidth={1.8} />}
       />
 
@@ -190,7 +192,7 @@ export default async function ReportsPage({ params }: PageProps) {
           compact
         />
         <ReportCard
-          title={`${specialization.labels.classLabel}s activas`}
+          title={`${classLabelPlural} activas`}
           description="Este mes"
           icon={<GraduationCap className="h-5 w-5 text-white" />}
           href={`/app/${academyId}/classes`}

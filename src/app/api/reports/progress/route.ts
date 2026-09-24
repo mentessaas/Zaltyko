@@ -7,17 +7,18 @@ import { analyzeAthleteProgress, compareAssessments, type ProgressReportFilters 
 import { logger } from "@/lib/logger";
 import { db } from "@/db";
 import { athletes, groups } from "@/db/schema";
-import { eq } from "drizzle-orm";
+import { and, eq } from "drizzle-orm";
+import { reportDateSchema, validateReportPeriod } from "@/lib/reports/query-schemas";
 
 const reportSchema = z.object({
   academyId: z.string().uuid(),
   athleteId: z.string().uuid(),
-  startDate: z.string().optional(),
-  endDate: z.string().optional(),
+  startDate: reportDateSchema,
+  endDate: reportDateSchema,
   skillId: z.string().uuid().optional(),
   sportConfigId: z.string().uuid().optional(),
   compare: z.enum(["true", "false"]).optional(),
-});
+}).superRefine(validateReportPeriod);
 
 export const GET = withTenant(async (request, context) => {
   if (!context.tenantId) {
@@ -35,11 +36,15 @@ export const GET = withTenant(async (request, context) => {
     compare: url.searchParams.get("compare"),
   };
 
-  const validated = reportSchema.parse({
+  const parsed = reportSchema.safeParse({
     ...params,
     academyId: params.academyId || undefined,
     athleteId: params.athleteId || undefined,
   });
+  if (!parsed.success) {
+    return apiError("INVALID_QUERY", "Parámetros del reporte inválidos", 400);
+  }
+  const validated = parsed.data;
 
   if (!validated.academyId || !validated.athleteId) {
     return apiError("ACADEMY_ID_AND_ATHLETE_ID_REQUIRED", "Academy ID and Athlete ID are required", 400);
@@ -91,7 +96,11 @@ export const GET = withTenant(async (request, context) => {
         })
         .from(athletes)
         .leftJoin(groups, eq(athletes.groupId, groups.id))
-        .where(eq(athletes.id, validated.athleteId))
+        .where(and(
+          eq(athletes.id, validated.athleteId),
+          eq(athletes.academyId, validated.academyId),
+          eq(athletes.tenantId, context.tenantId)
+        ))
         .limit(1);
 
       // Convertir fechas a strings para JSON

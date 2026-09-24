@@ -4,6 +4,7 @@ import { withTenant } from "@/lib/authz";
 import { db } from "@/db";
 import { receipts, athletes } from "@/db/schema";
 import { apiSuccess, apiError } from "@/lib/api-response";
+import { z } from "zod";
 
 export const dynamic = 'force-dynamic';
 
@@ -16,17 +17,21 @@ export const GET = withTenant(async (request, context) => {
   const academyId = url.searchParams.get("academyId");
   const athleteId = url.searchParams.get("athleteId");
 
-  if (!academyId) {
+  const parsedIds = z.object({ academyId: z.string().uuid(), athleteId: z.string().uuid().optional() }).safeParse({
+    academyId,
+    athleteId: athleteId || undefined,
+  });
+  if (!parsedIds.success) {
     return apiError("ACADEMY_ID_REQUIRED", "academyId requerido", 400);
   }
 
   const whereConditions = [
-    eq(receipts.academyId, academyId),
+    eq(receipts.academyId, parsedIds.data.academyId),
     eq(receipts.tenantId, context.tenantId),
   ];
 
-  if (athleteId) {
-    whereConditions.push(eq(receipts.athleteId, athleteId));
+  if (parsedIds.data.athleteId) {
+    whereConditions.push(eq(receipts.athleteId, parsedIds.data.athleteId));
   }
 
   const items = await db
@@ -40,9 +45,10 @@ export const GET = withTenant(async (request, context) => {
       createdAt: receipts.createdAt,
     })
     .from(receipts)
-    .innerJoin(athletes, eq(receipts.athleteId, athletes.id))
+    .leftJoin(athletes, eq(receipts.athleteId, athletes.id))
     .where(and(...whereConditions))
-    .orderBy(desc(receipts.createdAt));
+    .orderBy(desc(receipts.createdAt))
+    .limit(500);
 
   return apiSuccess({
     items: items.map((item) => {

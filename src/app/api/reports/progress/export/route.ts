@@ -1,13 +1,15 @@
 import { NextResponse } from "next/server";
-import { apiError, apiSuccess } from "@/lib/api-response";
+import { apiError } from "@/lib/api-response";
 import { z } from "zod";
 import { withTenant } from "@/lib/authz";
 import { analyzeAthleteProgress, type ProgressReportFilters } from "@/lib/reports/progress-analyzer";
-import { generateAttendancePDF } from "@/lib/reports/pdf-generator";
+import { generateProgressPDF } from "@/lib/reports/pdf-generator";
+import { createReportWorkbook } from "@/lib/reports/report-export";
 import { db } from "@/db";
 import { academies } from "@/db/schema";
-import { eq } from "drizzle-orm";
+import { and, eq } from "drizzle-orm";
 import { logger } from "@/lib/logger";
+import { reportDateSchema, validateReportPeriod } from "@/lib/reports/query-schemas";
 
 // Forzar ruta dinámica
 export const dynamic = 'force-dynamic';
@@ -15,10 +17,10 @@ export const dynamic = 'force-dynamic';
 const exportSchema = z.object({
   academyId: z.string().uuid(),
   athleteId: z.string().uuid(),
-  format: z.enum(["pdf"]).default("pdf"),
-  startDate: z.string().optional(),
-  endDate: z.string().optional(),
-});
+  format: z.enum(["pdf", "excel"]).default("pdf"),
+  startDate: reportDateSchema,
+  endDate: reportDateSchema,
+}).superRefine(validateReportPeriod);
 
 export const GET = withTenant(async (request, context) => {
   if (!context.tenantId) {
@@ -34,11 +36,15 @@ export const GET = withTenant(async (request, context) => {
     endDate: url.searchParams.get("endDate"),
   };
 
-  const validated = exportSchema.parse({
+  const parsed = exportSchema.safeParse({
     ...params,
     academyId: params.academyId || undefined,
     athleteId: params.athleteId || undefined,
   });
+  if (!parsed.success) {
+    return apiError("INVALID_QUERY", "Parámetros del reporte inválidos", 400);
+  }
+  const validated = parsed.data;
 
   if (!validated.academyId || !validated.athleteId) {
     return apiError("ACADEMY_ID_AND_ATHLETE_ID_REQUIRED", "Academy ID and Athlete ID are required", 400);
@@ -64,24 +70,49 @@ export const GET = withTenant(async (request, context) => {
     const [academy] = await db
       .select({ name: academies.name })
       .from(academies)
-      .where(eq(academies.id, validated.academyId))
+      .where(and(eq(academies.id, validated.academyId), eq(academies.tenantId, context.tenantId)))
       .limit(1);
     if (academy?.name) {
       academyName = academy.name;
     }
 
+    if (validated.format === "excel") {
+      const workbook = createReportWorkbook([
+        {
+          name: "Resumen",
+          rows: [
+            { Métrica: "Atleta", Valor: report.athleteName },
+            { Métrica: "Evaluaciones", Valor: report.totalAssessments },
+            { Métrica: "Mejora general", Valor: report.overallImprovement },
+          ],
+        },
+        {
+          name: "Habilidades",
+          rows: report.skills.map((skill) => ({
+            Habilidad: skill.skillName,
+            Inicial: skill.firstScore ?? "",
+            Última: skill.lastScore ?? "",
+            Cambio: skill.improvement,
+            Tendencia: skill.trend,
+          })),
+        },
+      ]);
+      return new NextResponse(new Uint8Array(workbook), {
+        headers: {
+          "Content-Type": "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+          "Content-Disposition": `attachment; filename="reporte-progreso-${report.athleteName}.xlsx"`,
+        },
+      });
+    }
+
     // Generar PDF
-    const pdfBuffer = await generateAttendancePDF({
+    const pdfBuffer = await generateProgressPDF({
       title: `Reporte de Progreso - ${report.athleteName}`,
       academyName: academyName,
-      stats: {
-        totalSessions: report.totalAssessments,
-        present: report.areasOfImprovement.length,
-        absent: report.areasOfConcern.length,
-        late: 0,
-        excused: 0,
-        attendanceRate: report.overallImprovement,
-      },
+      athleteName: report.athleteName,
+      totalAssessments: report.totalAssessments,
+      overallImprovement: report.overallImprovement,
+      skills: report.skills,
     });
 
     return new NextResponse(new Uint8Array(pdfBuffer), {
@@ -95,4 +126,3 @@ export const GET = withTenant(async (request, context) => {
     return apiError("EXPORT_FAILED", "Error al exportar los datos", 500);
   }
 });
-

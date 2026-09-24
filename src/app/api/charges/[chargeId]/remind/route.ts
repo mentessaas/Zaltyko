@@ -24,6 +24,11 @@ const REMINDER_ERROR_MESSAGES: Record<string, { code: string; message: string; s
     message: "El gimnasta no tiene un email de familia registrado",
     status: 409,
   },
+  EMAIL_PREFERENCE_DISABLED: {
+    code: "EMAIL_PREFERENCE_DISABLED",
+    message: "La familia ha desactivado los recordatorios de pago por email",
+    status: 409,
+  },
 };
 
 const remindHandler = withTenant(async (request, context) => {

@@ -25,11 +25,6 @@ const BodySchema = z.object({ academyId: z.string().uuid() });
  */
 export async function POST(request: Request) {
   try {
-    const publishableKey = getOptionalEnvVar("NEXT_PUBLIC_STRIPE_PUBLISHABLE_KEY");
-    if (!publishableKey) {
-      return NextResponse.json({ error: "STRIPE_NOT_CONFIGURED" }, { status: 503 });
-    }
-
     const cookieStore = await cookies();
     const supabase = await createClient(cookieStore);
     const {
@@ -44,6 +39,19 @@ export async function POST(request: Request) {
       return NextResponse.json({ error: "VALIDATION_ERROR" }, { status: 400 });
     }
 
+    // Nunca revelar la configuración de pagos a una petición no autorizada.
+    // La autenticación y la validación del payload preceden al feature flag de
+    // Stripe, manteniendo el contrato 401/400 incluso en entornos sin Stripe.
+    const publishableKey = getOptionalEnvVar(
+      "NEXT_PUBLIC_STRIPE_PUBLISHABLE_KEY"
+    );
+    if (!publishableKey) {
+      return NextResponse.json(
+        { error: "STRIPE_NOT_CONFIGURED" },
+        { status: 503 }
+      );
+    }
+
     const profile = await getCurrentProfile(user.id);
     if (!profile) {
       return NextResponse.json({ error: "PROFILE_NOT_FOUND" }, { status: 403 });
@@ -55,10 +63,16 @@ export async function POST(request: Request) {
       academyId: body.data.academyId,
     });
     if (!access.allowed) {
-      return NextResponse.json({ error: access.reason ?? "FORBIDDEN" }, { status: 403 });
+      return NextResponse.json(
+        { error: access.reason ?? "FORBIDDEN" },
+        { status: 403 }
+      );
     }
     if (!access.stripeAccountId || !access.tenantId || !access.connectReady) {
-      return NextResponse.json({ error: "ACADEMY_PAYMENTS_NOT_READY" }, { status: 409 });
+      return NextResponse.json(
+        { error: "ACADEMY_PAYMENTS_NOT_READY" },
+        { status: 409 }
+      );
     }
 
     const customer = await getOrCreateFamilyCustomer({

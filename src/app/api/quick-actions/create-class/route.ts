@@ -1,11 +1,13 @@
 export const dynamic = 'force-dynamic';
 
 import { withTenant } from "@/lib/authz";
+import { authorizeAcademyCapability } from "@/lib/authz/resource-scope";
 import { db } from "@/db";
 import { classSessions, classes } from "@/db/schema";
 import { eq } from "drizzle-orm";
 import { apiSuccess, apiError } from "@/lib/api-response";
 import { logger } from "@/lib/logger";
+import { z } from "zod";
 
 /**
  * POST /api/quick-actions/create-class
@@ -16,10 +18,19 @@ export const POST = withTenant(async (req, context) => {
         const { tenantId } = context;
         const body = await req.json();
 
-        const { classId, date, startTime, endTime } = body;
+        const { classId, academyId, date, startTime, endTime } = body;
 
-        if (!classId) {
-            return apiError("VALIDATION_ERROR", "classId es requerido", 400);
+        if (!z.string().uuid().safeParse(classId).success || !z.string().uuid().safeParse(academyId).success) {
+            return apiError("VALIDATION_ERROR", "classId y academyId válidos son requeridos", 400);
+        }
+        const academyScope = await authorizeAcademyCapability({
+            context,
+            resourceTenantId: tenantId,
+            academyId,
+            permission: "classes:schedule",
+        });
+        if (!academyScope.allowed) {
+            return apiError("ACADEMY_NOT_FOUND", "Academia no encontrada", 404);
         }
 
         // Verificar que la clase existe y pertenece al tenant
@@ -29,7 +40,7 @@ export const POST = withTenant(async (req, context) => {
             .where(eq(classes.id, classId))
             .limit(1);
 
-        if (!classData || classData.tenantId !== tenantId) {
+        if (!classData || classData.tenantId !== tenantId || classData.academyId !== academyId || classData.deletedAt) {
             return apiError("NOT_FOUND", "Clase no encontrada", 404);
         }
 

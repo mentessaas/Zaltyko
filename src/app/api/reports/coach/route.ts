@@ -5,14 +5,15 @@ import { z } from "zod";
 import { withTenant } from "@/lib/authz";
 import { calculateCoachReport, type CoachReportFilters } from "@/lib/reports/coach-report";
 import { logger } from "@/lib/logger";
+import { reportDateSchema, validateReportPeriod } from "@/lib/reports/query-schemas";
 
 const reportSchema = z.object({
   academyId: z.string().uuid(),
-  startDate: z.string().optional(),
-  endDate: z.string().optional(),
+  startDate: reportDateSchema,
+  endDate: reportDateSchema,
   coachId: z.string().uuid().optional(),
   sportConfigId: z.string().uuid().optional(),
-});
+}).superRefine(validateReportPeriod);
 
 export const GET = withTenant(async (request, context) => {
   if (!context.tenantId) {
@@ -28,10 +29,14 @@ export const GET = withTenant(async (request, context) => {
     sportConfigId: url.searchParams.get("sportConfigId"),
   };
 
-  const validated = reportSchema.parse({
+  const parsed = reportSchema.safeParse({
     ...params,
     academyId: params.academyId || undefined,
   });
+  if (!parsed.success) {
+    return apiError("INVALID_QUERY", "Parámetros del reporte inválidos", 400);
+  }
+  const validated = parsed.data;
 
   if (!validated.academyId) {
     return apiError("ACADEMY_ID_REQUIRED", "Academy ID is required", 400);

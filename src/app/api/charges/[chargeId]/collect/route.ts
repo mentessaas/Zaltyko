@@ -1,17 +1,18 @@
 export const dynamic = "force-dynamic";
 
 import type { NextResponse } from "next/server";
-import { eq } from "drizzle-orm";
+import { and, eq } from "drizzle-orm";
 
 import { db } from "@/db";
 import { charges } from "@/db/schema";
 import { apiError, apiSuccess } from "@/lib/api-response";
 import { withTenant } from "@/lib/authz";
+import { authorizeAcademyCapability } from "@/lib/authz/resource-scope";
 import { handleApiError } from "@/lib/api-error-handler";
 import { getOptionalEnvVar } from "@/lib/env";
 import { getUserIdentifier, withRateLimit } from "@/lib/rate-limit";
-import { verifyAcademyAccess } from "@/lib/permissions";
 import { collectCharge } from "@/lib/stripe/charge-collection-service";
+import { z } from "zod";
 
 /**
  * POST /api/charges/[chargeId]/collect
@@ -26,22 +27,30 @@ const collectHandler = withTenant(async (request, context) => {
     if (!chargeId) {
       return apiError("CHARGE_ID_REQUIRED", "Charge ID is required", 400);
     }
+    if (!z.string().uuid().safeParse(chargeId).success) {
+      return apiError("INVALID_CHARGE_ID", "Charge ID is invalid", 400);
+    }
     if (!context.tenantId) {
       return apiError("TENANT_REQUIRED", "Tenant ID is required", 400);
     }
 
     const [charge] = await db
-      .select({ academyId: charges.academyId })
+      .select({ tenantId: charges.tenantId, academyId: charges.academyId })
       .from(charges)
-      .where(eq(charges.id, chargeId))
+      .where(and(eq(charges.id, chargeId), eq(charges.tenantId, context.tenantId)))
       .limit(1);
     if (!charge) {
       return apiError("CHARGE_NOT_FOUND", "Cargo no encontrado", 404);
     }
 
-    const access = await verifyAcademyAccess(charge.academyId, context.tenantId);
-    if (!access.allowed) {
-      return apiError(access.reason ?? "FORBIDDEN", "Access denied", 403);
+    const scope = await authorizeAcademyCapability({
+      context,
+      resourceTenantId: charge.tenantId,
+      academyId: charge.academyId,
+      permission: "billing:update",
+    });
+    if (!scope.allowed) {
+      return apiError(scope.reason ?? "FORBIDDEN", "Access denied", 403);
     }
 
     const result = await collectCharge(chargeId);

@@ -1,5 +1,5 @@
 import { withTenant } from "@/lib/authz";
-import { uploadFile, generateFilePath } from "@/lib/supabase/storage-helpers";
+import { uploadFile, generateFilePath, deleteFile, extractUploadPath } from "@/lib/supabase/storage-helpers";
 import { db } from "@/db";
 import { assessmentVideos, athleteAssessments } from "@/db/schema";
 import { eq, and } from "drizzle-orm";
@@ -75,6 +75,9 @@ export const POST = withTenant(async (request, context) => {
     if (!validation.ok && validation.code === "FILE_SIGNATURE_INVALID") {
       return apiError("FILE_SIGNATURE_INVALID", "El contenido no coincide con el tipo declarado", 400);
     }
+    if (!validation.ok && validation.code === "MALWARE_DETECTED") {
+      return apiError("MALWARE_DETECTED", "El archivo fue rechazado por seguridad", 400);
+    }
     if (!validation.ok) {
       return apiError("FILE_TOO_LARGE", "El video no puede ser mayor a 50MB", 400);
     }
@@ -123,7 +126,7 @@ export const DELETE = withTenant(async (request, context) => {
 
     // Find video and verify tenant access
     const [video] = await db
-      .select({ id: assessmentVideos.id, assessmentId: assessmentVideos.assessmentId })
+      .select({ id: assessmentVideos.id, assessmentId: assessmentVideos.assessmentId, url: assessmentVideos.url })
       .from(assessmentVideos)
       .where(eq(assessmentVideos.id, videoId))
       .limit(1);
@@ -159,6 +162,20 @@ export const DELETE = withTenant(async (request, context) => {
 
     // Delete from database
     await db.delete(assessmentVideos).where(eq(assessmentVideos.id, videoId));
+
+    const storagePath = extractUploadPath(video.url);
+    if (storagePath) {
+      try {
+        await deleteFile(storagePath);
+      } catch (storageError) {
+        // El registro ya está eliminado; registrar la fuga para limpieza
+        // operativa sin forzar al usuario a repetir una operación destructiva.
+        logger.warn("Assessment video metadata deleted but storage cleanup failed", {
+          error: storageError instanceof Error ? storageError.message : "unknown",
+          videoId,
+        });
+      }
+    }
 
     return apiSuccess({ success: true });
   } catch (error: unknown) {

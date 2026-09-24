@@ -1,7 +1,7 @@
-import { eq } from "drizzle-orm";
+import { and, eq, inArray } from "drizzle-orm";
 
 import { db } from "@/db";
-import { stripeAccounts } from "@/db/schema";
+import { academies, stripeAccounts } from "@/db/schema";
 import { apiError, apiSuccess } from "@/lib/api-response";
 import { requireCronAuth } from "@/lib/cron-auth";
 import { collectDueChargesForAcademy } from "@/lib/stripe/charge-collection-service";
@@ -28,7 +28,12 @@ export async function GET(request: Request) {
       const readyAccounts = await db
         .select({ academyId: stripeAccounts.academyId })
         .from(stripeAccounts)
-        .where(eq(stripeAccounts.chargesEnabled, true));
+        .innerJoin(academies, eq(academies.id, stripeAccounts.academyId))
+        .where(and(
+          eq(stripeAccounts.chargesEnabled, true),
+          inArray(academies.status, ["active", "trial"])
+        ))
+        .limit(1000);
 
       const totals = { academies: 0, attempted: 0, paid: 0, failed: 0, skipped: 0 };
       for (const account of readyAccounts) {

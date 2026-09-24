@@ -1,11 +1,12 @@
 export const dynamic = 'force-dynamic';
 
-import { and, eq, desc, inArray } from "drizzle-orm";
+import { and, eq, desc, inArray, isNull } from "drizzle-orm";
 import { z } from "zod";
 
 import { db } from "@/db";
-import { athleteAssessments, assessmentScores, athletes, coaches, groups, skillCatalog } from "@/db/schema";
+import { athleteAssessments, assessmentScores, assessmentVideos, athletes, coaches, groups, skillCatalog } from "@/db/schema";
 import { withTenant } from "@/lib/authz";
+import { authorizeAcademyCapability } from "@/lib/authz/resource-scope";
 import { handleApiError } from "@/lib/api-error-handler";
 import { withTransaction } from "@/lib/db-transactions";
 import { apiSuccess, apiError } from "@/lib/api-response";
@@ -31,7 +32,10 @@ const createAssessmentSchema = z.object({
   scores: z.array(scoreSchema).optional(),
   overallComment: z.string().nullable().optional(),
   totalScore: z.number().nullable().optional(),
+  visibleToGuardians: z.boolean().default(false),
 });
+
+const visibilitySchema = z.object({ visibleToGuardians: z.boolean() });
 
 export const POST = withTenant(async (request, context) => {
   try {
@@ -52,10 +56,26 @@ export const POST = withTenant(async (request, context) => {
         primarySportConfigId: athletes.primarySportConfigId,
       })
       .from(athletes)
-      .where(and(eq(athletes.id, athleteId), eq(athletes.tenantId, context.tenantId)))
+      .where(
+        and(
+          eq(athletes.id, athleteId),
+          eq(athletes.tenantId, context.tenantId),
+          isNull(athletes.deletedAt)
+        )
+      )
       .limit(1);
 
     if (!athleteRow) {
+      return apiError("ATHLETE_NOT_FOUND", "Athlete not found", 404);
+    }
+
+    const academyScope = await authorizeAcademyCapability({
+      context,
+      resourceTenantId: athleteRow.tenantId,
+      academyId: athleteRow.academyId,
+      permission: "athletes:update",
+    });
+    if (!academyScope.allowed) {
       return apiError("ATHLETE_NOT_FOUND", "Athlete not found", 404);
     }
 
@@ -81,7 +101,14 @@ export const POST = withTenant(async (request, context) => {
             sportConfigId: groups.sportConfigId,
           })
           .from(groups)
-          .where(and(eq(groups.id, athleteRow.groupId), eq(groups.tenantId, context.tenantId)))
+          .where(
+            and(
+              eq(groups.id, athleteRow.groupId),
+              eq(groups.tenantId, context.tenantId),
+              eq(groups.academyId, athleteRow.academyId),
+              isNull(groups.deletedAt)
+            )
+          )
           .limit(1)
       : [];
 
@@ -173,6 +200,7 @@ export const POST = withTenant(async (request, context) => {
         apparatus: body.apparatus ?? null,
         overallComment: body.overallComment ?? null,
         totalScore: body.totalScore?.toString() ?? null,
+        visibleToGuardians: body.visibleToGuardians,
       });
 
       if (body.scores && body.scores.length > 0) {
@@ -213,10 +241,26 @@ export const GET = withTenant(async (request, context) => {
         tenantId: athletes.tenantId,
       })
       .from(athletes)
-      .where(and(eq(athletes.id, athleteId), eq(athletes.tenantId, context.tenantId)))
+      .where(
+        and(
+          eq(athletes.id, athleteId),
+          eq(athletes.tenantId, context.tenantId),
+          isNull(athletes.deletedAt)
+        )
+      )
       .limit(1);
 
     if (!athleteRow) {
+      return apiError("ATHLETE_NOT_FOUND", "Athlete not found", 404);
+    }
+
+    const academyScope = await authorizeAcademyCapability({
+      context,
+      resourceTenantId: athleteRow.tenantId,
+      academyId: athleteRow.academyId,
+      permission: "athletes:read",
+    });
+    if (!academyScope.allowed) {
       return apiError("ATHLETE_NOT_FOUND", "Athlete not found", 404);
     }
 
@@ -246,17 +290,20 @@ export const GET = withTenant(async (request, context) => {
         apparatus: athleteAssessments.apparatus,
         sportConfigId: athleteAssessments.sportConfigId,
         overallComment: athleteAssessments.overallComment,
+        visibleToGuardians: athleteAssessments.visibleToGuardians,
         totalScore: athleteAssessments.totalScore,
         assessedBy: athleteAssessments.assessedBy,
         assessedByName: coaches.name,
       })
       .from(athleteAssessments)
-      .leftJoin(coaches, eq(athleteAssessments.assessedBy, coaches.id))
+      .leftJoin(coaches, and(eq(athleteAssessments.assessedBy, coaches.id), eq(coaches.tenantId, context.tenantId)))
       .where(and(
         eq(athleteAssessments.athleteId, athleteId),
-        eq(athleteAssessments.tenantId, context.tenantId)
+        eq(athleteAssessments.tenantId, context.tenantId),
+        eq(athleteAssessments.academyId, athleteRow.academyId)
       ))
-      .orderBy(desc(athleteAssessments.assessmentDate));
+      .orderBy(desc(athleteAssessments.assessmentDate))
+      .limit(100);
 
     // N+1 FIX: Fetch all scores in ONE query instead of N queries
     const assessmentIds = assessmentRows.map(a => a.id);
@@ -275,6 +322,7 @@ export const GET = withTenant(async (request, context) => {
           .from(assessmentScores)
           .leftJoin(skillCatalog, eq(assessmentScores.skillId, skillCatalog.id))
           .where(inArray(assessmentScores.assessmentId, assessmentIds))
+          .limit(5000)
       : [];
 
     // Group scores by assessmentId in memory
@@ -292,8 +340,46 @@ export const GET = withTenant(async (request, context) => {
       scores: scoresByAssessmentId.get(assessment.id) || [],
     }));
 
-    return apiSuccess(enrichedAssessments, { total: enrichedAssessments.length });
+    const videos = assessmentIds.length > 0
+      ? await db
+          .select({ id: assessmentVideos.id, assessmentId: assessmentVideos.assessmentId, url: assessmentVideos.url, title: assessmentVideos.title, description: assessmentVideos.description, thumbnailUrl: assessmentVideos.thumbnailUrl, duration: assessmentVideos.duration })
+          .from(assessmentVideos)
+          .innerJoin(athleteAssessments, eq(assessmentVideos.assessmentId, athleteAssessments.id))
+          .where(and(inArray(assessmentVideos.assessmentId, assessmentIds), eq(athleteAssessments.tenantId, context.tenantId)))
+          .limit(Math.min(Math.max(assessmentIds.length * 5, 1), 500))
+      : [];
+    const videosByAssessment = new Map<string, typeof videos>();
+    for (const video of videos) {
+      const existing = videosByAssessment.get(video.assessmentId) ?? [];
+      existing.push(video);
+      videosByAssessment.set(video.assessmentId, existing);
+    }
+
+    return apiSuccess(enrichedAssessments.map((assessment) => ({ ...assessment, videos: videosByAssessment.get(assessment.id) ?? [] })), { total: enrichedAssessments.length });
   } catch (error) {
     return handleApiError(error);
   }
+});
+
+export const PATCH = withTenant(async (request, context) => {
+  try {
+    const { athleteId } = context.params as { athleteId: string };
+    const body = visibilitySchema.safeParse(await request.json());
+    if (!body.success) return handleApiError(body.error);
+    if (!context.tenantId) return apiError("TENANT_REQUIRED", "Tenant context is required", 400);
+    const assessmentId = new URL(request.url).searchParams.get("assessmentId");
+    if (!assessmentId) return apiError("ASSESSMENT_ID_REQUIRED", "Assessment ID is required", 400);
+    if (!z.string().uuid().safeParse(assessmentId).success) return apiError("ASSESSMENT_ID_INVALID", "Assessment ID is invalid", 400);
+
+    const [assessment] = await db
+      .select({ id: athleteAssessments.id, academyId: athleteAssessments.academyId, tenantId: athleteAssessments.tenantId })
+      .from(athleteAssessments)
+      .where(and(eq(athleteAssessments.id, assessmentId), eq(athleteAssessments.athleteId, athleteId), eq(athleteAssessments.tenantId, context.tenantId)))
+      .limit(1);
+    if (!assessment) return apiError("ASSESSMENT_NOT_FOUND", "Evaluación no encontrada", 404);
+    const scope = await authorizeAcademyCapability({ context, resourceTenantId: assessment.tenantId, academyId: assessment.academyId, permission: "athletes:update" });
+    if (!scope.allowed) return apiError("ASSESSMENT_NOT_FOUND", "Evaluación no encontrada", 404);
+    const [updated] = await db.update(athleteAssessments).set({ visibleToGuardians: body.data.visibleToGuardians }).where(eq(athleteAssessments.id, assessment.id)).returning({ id: athleteAssessments.id, visibleToGuardians: athleteAssessments.visibleToGuardians });
+    return apiSuccess({ assessment: updated });
+  } catch (error) { return handleApiError(error); }
 });

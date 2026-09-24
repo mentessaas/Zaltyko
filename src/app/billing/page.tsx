@@ -34,10 +34,11 @@ export default function BillingPage() {
           });
           
           if (response.ok) {
-            const data = await response.json();
+            const payload = await response.json();
+            const data = payload?.data ?? payload;
             setUserSession({
               userId: user.id,
-              academyId: data.academyId || null,
+              academyId: data?.academyId || null,
             });
           } else {
             setUserSession({
@@ -116,8 +117,9 @@ export default function BillingPage() {
         throw new Error("No se pudo obtener la información de planes y cobros");
       }
 
-      const data = (await res.json()) as BillingSummaryType;
-      setSummary(data);
+      const payload = await res.json();
+      const data = payload?.data ?? payload;
+      setSummary(data as BillingSummaryType);
     } catch (err) {
       logger.error("Error loading billing summary", err);
     } finally {
@@ -144,8 +146,9 @@ export default function BillingPage() {
         throw new Error("No se pudieron obtener los planes");
       }
 
-      const data = (await res.json()) as PlanSummary[];
-      setPlans(data);
+      const payload = await res.json();
+      const data = payload?.data ?? payload;
+      setPlans(Array.isArray(data) ? data : data?.items ?? []);
     } catch (err) {
       logger.error("Error loading plans", err);
       setPlans([]);
@@ -174,8 +177,9 @@ export default function BillingPage() {
         throw new Error("No se pudo obtener el historial de recibos");
       }
 
-      const data = (await res.json()) as InvoiceRow[];
-      setHistory(data);
+      const payload = await res.json();
+      const data = payload?.data ?? payload;
+      setHistory(Array.isArray(data) ? data : data?.items ?? []);
     } catch (err) {
       logger.error("Error loading history", err);
     } finally {

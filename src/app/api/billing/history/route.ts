@@ -1,4 +1,4 @@
-import { desc, eq } from "drizzle-orm";
+import { and, desc, eq } from "drizzle-orm";
 import { apiSuccess, apiError } from "@/lib/api-response";
 import { z } from "zod";
 
@@ -61,7 +61,7 @@ export const POST = withTenant(async (request, context) => {
         stripeInvoiceId: billingInvoices.stripeInvoiceId,
       })
       .from(billingInvoices)
-      .where(eq(billingInvoices.academyId, body.academyId))
+      .where(and(eq(billingInvoices.academyId, body.academyId), eq(billingInvoices.tenantId, context.tenantId)))
       .orderBy(desc(billingInvoices.createdAt))
       .limit(limit);
 

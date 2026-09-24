@@ -16,7 +16,7 @@ export default async function FinancialReportsPage({ params }: PageProps) {
 
   const [[academy], sportConfigs] = await Promise.all([
     db
-      .select({ country: academies.country })
+      .select({ country: academies.country, countryCode: academies.countryCode })
       .from(academies)
       .where(eq(academies.id, academyId))
       .limit(1),
@@ -35,6 +35,7 @@ export default async function FinancialReportsPage({ params }: PageProps) {
       <FinancialReport
         academyId={academyId}
         academyCountry={academy?.country ?? null}
+        academyCountryCode={academy?.countryCode ?? null}
         sportConfigs={sportConfigs}
       />
     </div>

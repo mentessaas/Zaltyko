@@ -2,14 +2,17 @@ import { cookies } from "next/headers";
 
 import { db } from "@/db";
 import { charges } from "@/db/schema";
-import { eq } from "drizzle-orm";
+import { and, eq } from "drizzle-orm";
 
 import { apiError, apiSuccess } from "@/lib/api-response";
 import { createClient } from "@/lib/supabase/server";
 import { resolveFamilyChargeAccess } from "@/lib/family/payment-access";
 import { logger } from "@/lib/logger";
+import { z } from "zod";
 
 export const dynamic = "force-dynamic";
+
+/** @resource-scope guardian — status is read only after linked-child charge access. */
 
 /**
  * GET /api/family/charges/[chargeId]/status
@@ -30,7 +33,6 @@ export async function GET(request: Request) {
     if (!chargeId) {
       return apiError("CHARGE_ID_REQUIRED", "Falta el identificador del cargo.", 400);
     }
-
     const cookieStore = await cookies();
     const supabase = await createClient(cookieStore);
     const {
@@ -38,6 +40,9 @@ export async function GET(request: Request) {
     } = await supabase.auth.getUser();
     if (!user || !user.email) {
       return apiError("UNAUTHORIZED", "Sesión no válida.", 401);
+    }
+    if (!z.string().uuid().safeParse(chargeId).success) {
+      return apiError("INVALID_CHARGE_ID", "Identificador de cargo inválido.", 400);
     }
 
     const charge = await resolveFamilyChargeAccess({
@@ -52,7 +57,7 @@ export async function GET(request: Request) {
     const [row] = await db
       .select({ id: charges.id, status: charges.status })
       .from(charges)
-      .where(eq(charges.id, chargeId))
+      .where(and(eq(charges.id, chargeId), eq(charges.athleteId, charge.athleteId)))
       .limit(1);
 
     if (!row) {

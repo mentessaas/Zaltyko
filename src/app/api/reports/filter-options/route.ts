@@ -35,7 +35,8 @@ export const GET = withTenant(async (request, context) => {
           isNull(classes.deletedAt)
         )
       )
-      .orderBy(asc(classes.name)),
+      .orderBy(asc(classes.name))
+      .limit(1000),
     db
       .select({
         id: groups.id,
@@ -53,12 +54,12 @@ export const GET = withTenant(async (request, context) => {
           isNull(groups.deletedAt)
         )
       )
-      .orderBy(asc(groups.name)),
+      .orderBy(asc(groups.name)).limit(500),
     db
       .select({ id: coaches.id, name: coaches.name })
       .from(coaches)
       .where(and(eq(coaches.tenantId, tenantId), eq(coaches.academyId, academyId)))
-      .orderBy(asc(coaches.name)),
+      .orderBy(asc(coaches.name)).limit(500),
     db
       .select({ id: athletes.id, name: athletes.name, sportConfigId: athletes.primarySportConfigId })
       .from(athletes)
@@ -69,7 +70,7 @@ export const GET = withTenant(async (request, context) => {
           isNull(athletes.deletedAt)
         )
       )
-      .orderBy(asc(athletes.name)),
+      .orderBy(asc(athletes.name)).limit(5000),
     getAcademySportConfigOptions(academyId),
   ]);
 
