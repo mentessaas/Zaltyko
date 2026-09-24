@@ -35,6 +35,9 @@ $$;
 
 GRANT USAGE ON SCHEMA auth TO anon, authenticated, service_role;
 GRANT EXECUTE ON FUNCTION auth.uid() TO anon, authenticated, service_role;
+CREATE OR REPLACE FUNCTION auth.jwt() RETURNS jsonb LANGUAGE sql STABLE
+AS $$ SELECT COALESCE(NULLIF(current_setting('request.jwt.claims', true), ''), '{}')::jsonb $$;
+GRANT EXECUTE ON FUNCTION auth.jwt() TO anon, authenticated, service_role;
 SQL
 
 "${PSQL[@]}" -f "${ROOT_DIR}/drizzle/0000_silent_tomas.sql" >/dev/null
@@ -92,5 +95,10 @@ SQL
 env RLS_AUDIT_DATABASE_URL="postgresql://127.0.0.1:${PG_PORT}/postgres" \
   pnpm --dir "${ROOT_DIR}" exec tsx scripts/verify-permissive-policies.ts
 "${PSQL[@]}" -f "${ROOT_DIR}/supabase/tests/rls_semantics.sql" >/dev/null
+
+# Exercise the later billing migration too: the original matrix predates it.
+"${PSQL[@]}" -f "${ROOT_DIR}/supabase/migrations/20260722120000_scope_family_billing_rls.sql" >/dev/null
+"${PSQL[@]}" -f "${ROOT_DIR}/supabase/migrations/20260923064024_scope_billing_admin_to_academy.sql" >/dev/null
+"${PSQL[@]}" -f "${ROOT_DIR}/supabase/tests/billing_admin_isolation.sql" >/dev/null
 
 echo "RLS semantic PostgreSQL test: PASS (isolated local cluster, rolled back)"

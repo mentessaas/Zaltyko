@@ -6,14 +6,13 @@ type: project
 
 # Zaltyko - Estructura de Agentes 24/7
 
+> **Documento operativo histórico.** Las cifras, prioridades y nombres de planes de este archivo pueden quedar obsoletos. Para el estado actual usar `docs/PRODUCT-READINESS-ROADMAP.md`, `src/lib/plans/catalog.ts` y el `package.json` del checkout; no lanzar tareas ni promesas comerciales basándose únicamente en este documento.
+
 ## Estado Actual del Proyecto
 
-**Métricas:**
-- ~71,795 líneas de código
-- ~100+ páginas/rutas
-- ~50+ tablas en base de datos
-- 18 TODOs/FIXMEs pendientes
-- Stack: Next.js 14, Supabase, Drizzle ORM, Tailwind, shadcn/ui
+**Métricas:** snapshot histórico; no constituye una medición actual del repositorio.
+
+**Stack de referencia:** Next.js (versión exacta en `package.json`), Supabase, Drizzle ORM, Tailwind y shadcn/ui.
 
 **Fortalezas:**
 - Base técnica sólida

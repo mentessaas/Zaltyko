@@ -4,6 +4,10 @@
 >
 > Pricing vigente: Free 30, Starter 19 €/mes hasta 75, Growth 49 €/mes hasta 200, Network 99 €/mes multi-sede acompanado. Las referencias a Professional, Business, Enterprise o Starter 29 USD no son fuente vigente.
 
+> **Reconciliación 13/09/2026:** el flujo implementado es registro → configuración corta del espacio de trabajo → dashboard con checklist. No existe un wizard obligatorio de siete pasos ni se deben prometer datos demo, bypass de verificación, importación desde WhatsApp, MercadoPago, dominios custom o SLAs por plan sin una verificación independiente. Las secciones posteriores son ideas históricas para investigación, no especificación de producto.
+
+> **Catálogo vigente:** Free (30 gimnastas), Starter (75 · 19 €/mes), Growth (200 · 49 €/mes) y Network (multi-sede · 99 €/mes, venta asistida). La prueba es Starter durante 7 días, sin tarjeta y con una activación por academia cada 12 meses. La fuente técnica es `src/lib/plans/catalog.ts`.
+
 ## Resumen Ejecutivo
 
 Este documento define el flujo de onboarding para Zaltyko, diseñado para convertir nuevos usuarios en clientes activos y retentivos. El onboarding está optimizado para dos buyer personas principales: el Emprendedor Deportivo (más práctico, orientado a resultados rápidos) y el Director de Operaciones (más analítico, requiere datos y procesos estructurados).
@@ -25,8 +29,8 @@ Landing Page → Pricing/Plan → Crear Cuenta → Setup Inicial → Dashboard
 **Elementos clave:**
 - Hero con value proposition clara: "Gestiona tu academia deportiva en un solo lugar"
 - Demo interactiva o video de 60 segundos
-- CTA primario: "Comenzar prueba gratuita" (no requiere tarjeta)
-- CTA secundario: "Hablar con ventas" (para Enterprise)
+- CTA primario: "Empezar gratis"; la prueba Starter se activa desde Facturación y no requiere tarjeta
+- CTA secundario: "Hablar con Zaltyko" (para Network o migraciones)
 - Trust signals: logos de academias, testimonios, garantías
 
 **Flujo:**
@@ -36,14 +40,14 @@ Landing Page → Pricing/Plan → Crear Cuenta → Setup Inicial → Dashboard
 
 ### 1.3 Selección de Plan
 
-**Opciones de planes:**
+**Opciones de planes (referencia vigente):**
 
 | Plan | Precio | target | Ideal Para |
 |------|--------|--------|------------|
-| Starter | $29/mes | Emprendedor Deportivo | 1-50 atletas, 1 academia |
-| Professional | $79/mes | Pequeña empresa | 51-200 atletas, múltiples ubicaciones |
-| Business | $199/mes | Director de Operaciones | 201-500 atletas, equipo de 5+ |
-| Enterprise | Custom | Enterprise | 500+ atletas, múltiples ubicaciones, custom integrations |
+| Free | Incluido | Academia que empieza | Hasta 30 gimnastas, 1 academia |
+| Starter | 19 €/mes | Academia pequeña | Hasta 75 gimnastas, 1 academia |
+| Growth | 49 €/mes | Academia en crecimiento | Hasta 200 gimnastas, 1 academia |
+| Network | 99 €/mes · asistido | Multi-sede | Límites amplios y onboarding acompañado |
 
 **Flujo de selección:**
 1. Comparación visual de planes (recomendación basada en respuestas de 2 preguntas)
@@ -60,7 +64,7 @@ Landing Page → Pricing/Plan → Crear Cuenta → Setup Inicial → Dashboard
 
 **Paso 2: Datos Básicos de la Academia**
 - Nombre de la academia
-- Sport (selección múltiple: fútbol, natación, tenis, etc.)
+- Modalidad de gimnasia y país
 - Ciudad/País
 - Nombre del owner/admin
 
@@ -74,15 +78,15 @@ Landing Page → Pricing/Plan → Crear Cuenta → Setup Inicial → Dashboard
 ### 1.5 Activación Immediate
 
 Post-signup:
-1. Verificación de email (opcional, con bypass para trial)
-2. Acceso inmediato al dashboard con datos demo
-3. Modal de setup guidado (overlay no intrusivo)
+1. Verificación de email según la política de autenticación vigente (sin bypass prometido)
+2. Acceso al dashboard con datos reales y checklist de puesta en marcha
+3. Siguiente acción contextual para crear la primera clase o añadir el primer atleta
 
 ---
 
 ## 2. Welcome Experience
 
-### 2.1 Primer Login - Dashboard con Datos Demo
+### 2.1 Primer Login - Dashboard con Datos Reales
 
 **Qué ve el usuario al crear su cuenta:**
 
@@ -90,19 +94,18 @@ Post-signup:
 ┌─────────────────────────────────────────────────────────────┐
 │  ¡Bienvenido a Zaltyko, [Nombre]! 🎉                        │
 │                                                             │
-│  We've created a demo academy para que explores             │
-│  las funcionalidades. ¿Listo para configurar la tuya?        │
+│  Tu espacio está listo para empezar.                         │
+│  Completa estos pasos con los datos reales de tu academia.   │
 │                                                             │
-│  [Comenzar Setup] [Explorar Demo]                           │
+│  [Crear primera clase] [Añadir primer atleta]               │
 └─────────────────────────────────────────────────────────────┘
 ```
 
-**Dashboard Demo incluye:**
-- 15 atletas ficticios con datos realistic
-- 3 clases programadas
-- 5 pagos registrados
-- 1 evento próximo
-- Métricas de ejemplo
+**El dashboard inicial incluye:**
+- Checklist persistente de activación
+- Siguiente acción contextual (primera clase, atleta o asistencia)
+- Métricas vacías hasta que existan datos reales
+- Accesos directos a planificación, atletas y cobros
 
 ### 2.2 Onboarding Tour (Overlay Interactivo)
 

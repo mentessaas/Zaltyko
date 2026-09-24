@@ -15,6 +15,12 @@ const DRIZZLE_DIR = resolve(process.cwd(), "drizzle");
 const META_DIR = join(DRIZZLE_DIR, "meta");
 const JOURNAL = join(META_DIR, "_journal.json");
 const SUPABASE_MIGRATIONS_DIR = resolve(process.cwd(), "supabase", "migrations");
+// Migraciones Drizzle que contienen únicamente SQL operacional/RLS y no
+// cambian el snapshot del esquema. Exigirles un snapshot falso sería más
+// engañoso que declararlas explícitamente aquí.
+const SNAPSHOTLESS_OPERATIONAL_TAGS = new Set([
+  "0006_sync_missing_tenant_rls_policies",
+]);
 
 interface JournalEntry {
   idx: number;
@@ -108,7 +114,7 @@ function main() {
     if (!existsSync(sqlFile)) {
       errors.push(`Falta SQL migration: ${entry.tag}.sql`);
     }
-    if (!existsSync(snapshotFile)) {
+    if (!existsSync(snapshotFile) && !SNAPSHOTLESS_OPERATIONAL_TAGS.has(entry.tag)) {
       console.warn(`[check-migrations-integrity] WARN: snapshot ${idxPrefix}_snapshot.json faltante (no bloquea)`);
     }
   }

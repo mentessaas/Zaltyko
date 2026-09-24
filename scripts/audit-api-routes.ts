@@ -33,6 +33,18 @@ const SENSITIVE_PREFIXES = [
   "/api/receipts",
   "/api/reports",
   "/api/scholarships",
+  // T1 actor-pages + consent + privacy
+  "/api/actor-pages",
+  "/api/actor-consents",
+  // T2 store + variants
+  "/api/products",
+  "/api/checkout",
+  // T3 marketplace
+  "/api/marketplace",
+  // T3.5 Stripe Connect
+  "/api/academy/stripe-connect",
+  // T10 admin (super-admin only)
+  "/api/admin",
 ] as const;
 
 type AuthClass =
@@ -115,9 +127,9 @@ function classify(route: string, source: string): AuthClass {
 
 function getSensitiveData(pathname: string): RouteAudit["sensitiveData"] {
   const result: RouteAudit["sensitiveData"] = [];
-  if (/\/(athletes|assessments|attendance|classes|guardians|groups)(\/|$)/.test(pathname)) result.push("minors");
+  if (/\/(athletes|assessments|attendance|classes|guardians|groups|actor-pages|actor-consents)(\/|$)/.test(pathname)) result.push("minors");
   if (/\/(family|guardians)(\/|$)/.test(pathname)) result.push("family");
-  if (/\/(billing|charges|payments|receipts|scholarships|transactions)(\/|$)/.test(pathname)) result.push("billing");
+  if (/\/(billing|charges|payments|receipts|scholarships|transactions|products|checkout|marketplace|academy\/stripe-connect)(\/|$)/.test(pathname)) result.push("billing");
   if (/\/(messages|communication|notifications|contact-messages)(\/|$)/.test(pathname)) result.push("communications");
   return result;
 }

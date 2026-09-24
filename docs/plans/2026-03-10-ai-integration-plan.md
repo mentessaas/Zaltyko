@@ -106,7 +106,7 @@ git commit -m "feat: add AI types definitions"
 // src/lib/ai/client.ts
 import { AIRequest, AIResponse, AIError } from './types';
 
-const MINIMAX_API_URL = 'https://api.minimax.chat/v1/text/chatcompletion_pro';
+const MINIMAX_API_URL = 'https://api.minimax.io/v1/text/chatcompletion_v2';
 
 interface MiniMaxConfig {
   apiKey: string;
@@ -119,7 +119,7 @@ export class MiniMaxClient {
 
   constructor(config: MiniMaxConfig) {
     this.apiKey = config.apiKey;
-    this.model = config.model || 'abab6.5s-chat';
+    this.model = config.model || 'MiniMax-M2.7';
   }
 
   async chat(request: AIRequest): Promise<AIResponse> {

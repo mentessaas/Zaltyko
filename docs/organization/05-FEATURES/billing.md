@@ -1,5 +1,7 @@
 # Billing Module - Stripe Integration
 
+> **Fuente de verdad (14/09/2026):** el catálogo vigente vive en [`src/lib/plans/catalog.ts`](../../../src/lib/plans/catalog.ts) y esta tabla debe mantenerse alineada con él. Los nombres internos `pro` y `premium` se presentan al cliente como **Starter** y **Growth**. `Network` es una oferta comercial asistida y no un plan autoservicio de Stripe.
+
 ## Overview
 
 Complete billing system with Stripe subscriptions, charges, discounts, and scholarships.
@@ -60,21 +62,23 @@ src/lib/limits.ts             # Plan limits enforcement
 
 ## Subscription Plans
 
-| Plan | Athletes | Coache | Price |
-|------|----------|--------|-------|
-| FREE | 50 | 2 | 0 |
-| PRO | 200 | 10 | 19€/mo |
-| PREMIUM | Unlimited | Unlimited | 49€/mo |
+| Plan público | Código interno | Gimnastas | Grupos | Clases activas | Academias | Precio mensual |
+|-------------|----------------|-----------|--------|----------------|-----------|----------------|
+| Free | `free` | 30 | 3 | 10 | 1 | Incluido |
+| Starter | `pro` | 75 | 5 | 20 | 1 | 19 € |
+| Growth | `premium` | 200 | 10 | 40 | 1 | 49 € |
+| Network | `network` | Ilimitadas | Ilimitados | Ilimitadas | Ilimitadas | 99 € · venta asistida |
+
+La prueba de activación dura **7 días**, no requiere tarjeta y solo puede activarse una vez por academia cada 12 meses. Durante la prueba se conceden los límites de Starter; no se realiza ningún cargo automático.
+
+Los límites de grupos, clases y academias se resuelven desde el catálogo compartido y [`src/lib/limits.ts`](../../../src/lib/limits.ts). No documentar límites de entrenadores, almacenamiento ni cuotas por atleta si no están presentes en ese catálogo.
 
 ## Hard Limits
 
 `src/lib/limits.ts` blocks creation when plan limit reached:
 
 ```typescript
-const canCreate = await checkLimit(tenantId, 'athletes', 50);
-if (!canCreate) {
-  throw new LimitError('ATHLETE_LIMIT_REACHED');
-}
+await assertWithinPlanLimits(tenantId, academyId, "athletes");
 ```
 
 ## Payment Flow

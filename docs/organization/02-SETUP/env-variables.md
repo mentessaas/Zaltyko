@@ -35,6 +35,7 @@ BREVO_API_KEY=your-brevo-api-key
 ### AI (MiniMax)
 ```env
 MINIMAX_API_KEY=your-minimax-api-key
+MINIMAX_BASE_URL=https://api.minimax.io/v1/text/chatcompletion_v2
 ```
 
 ### Vercel KV (Rate Limiting)

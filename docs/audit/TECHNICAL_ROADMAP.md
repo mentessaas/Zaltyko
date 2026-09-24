@@ -54,7 +54,7 @@ P0 bloquea producción; P1 se resuelve en el mismo ciclo de hardening; P2 reduce
 
 - FLOW-003/ENV-004/SEC-005 quedan mitigados o cerrados en código: readiness por feature, Brevo fail-closed y KV fail-closed en producción. ENV-005 continúa externo.
 - FLOW-002/SEC-009 quedan parciales: firma, tolerancia, idempotencia, aislamiento Connect, refund acumulado, invitaciones y leases tienen cobertura local; la rotación 2FA se completó el 2026-07-21 y solo falta observar la entrega firmada en el deployment nuevo, además de SCA en sandbox.
-- Nuevas deudas acotadas: hash de tokens de invitación, nonce ledger Mailgun, paginación/observabilidad de cron y resolución real de destinatarios email programados.
+- Nuevas deudas acotadas: hash de tokens de invitación, paginación/observabilidad de cron y resolución real de destinatarios email programados. El replay de Mailgun quedó cerrado con claim atómico en Vercel KV y TTL de cinco minutos; la publicación Realtime de las 15 tablas consumidas por la UI también quedó aplicada y verificada.
 - El 2026-07-21 se aplicaron transaccionalmente las migraciones Día 2/3 mediante el ledger; se revisó el changelog reciente de Supabase antes de ejecutar SQL.
 
 ## Avance Día 5 — 2026-07-21

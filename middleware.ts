@@ -5,6 +5,7 @@ import { isDevFeaturesEnabled } from "@/lib/dev";
 import { DEV_SESSION_COOKIE, parseDevSessionCookie } from "@/lib/dev-session";
 import { locales, defaultLocale, type Locale } from "@/i18n";
 import { getAcademyRobotsHeader } from "@/lib/seo/academy-robots-directives";
+import { extractAcademySlugFromHost } from "@/lib/subdomains/rewrite";
 
 // Constants
 const SUPER_ADMIN_PATH = "/super-admin";
@@ -408,11 +409,22 @@ function i18nRedirectResponse(request: NextRequest): NextResponse | null {
 }
 
 export async function middleware(req: NextRequest) {
-  const pathname = req.nextUrl.pathname;
   const nonce = generateNonce();
-
   const apexRedirect = apexRedirectResponse(req);
   if (apexRedirect) return applySecurityHeaders(apexRedirect, nonce);
+
+  // T6: rewrite academy subdomains [slug].zaltyko.com → /a/[slug]
+  const host = req.headers.get("host");
+  const slug = extractAcademySlugFromHost(host);
+  if (slug) {
+    const url = req.nextUrl.clone();
+    url.pathname = `/a/${slug}${url.pathname === "/" ? "" : url.pathname}`;
+    url.host = "zaltyko.com";
+    url.protocol = "https:";
+    return applySecurityHeaders(NextResponse.rewrite(url), nonce);
+  }
+
+  const pathname = req.nextUrl.pathname;
 
   if (isExcludedPath(pathname)) {
     return applySecurityHeaders(NextResponse.next(), nonce);

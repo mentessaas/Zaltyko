@@ -6,7 +6,7 @@ AI-powered features using MiniMax for attendance prediction, billing alerts, and
 
 ## Provider
 
-**MiniMax** (`abab6.5s-chat` model) - accessed via `src/lib/ai/client.ts`
+**MiniMax** (`MiniMax-M2.7` via `https://api.minimax.io/v1/text/chatcompletion_v2`) - accessed via `src/lib/ai/client.ts`. Si falta `MINIMAX_API_KEY`, el chat devuelve un fallback contextual honesto en lugar de fallar silenciosamente.
 
 ## Key Files
 

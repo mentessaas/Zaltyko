@@ -1,24 +1,20 @@
 # Análisis UX Completo - Zaltyko
 
+> **Reconciliación 13/09/2026:** este documento conserva hallazgos de una versión anterior del onboarding. El flujo implementado ya no es un wizard obligatorio de siete pasos: registro → espacio de trabajo corto → dashboard con checklist. Las observaciones históricas siguen siendo útiles para priorizar, pero no describen la interfaz actual; validar cualquier afirmación contra `src/components/onboarding/OwnerOnboardingForm.tsx`, `src/components/dashboard/OnboardingChecklist.tsx` y `docs/PRODUCT-READINESS-ROADMAP.md`.
+
 ## Fase 1: Mapeo del Journey del Usuario
 
 ### 1.1 Flujo de Onboarding Actual
 
-**Pasos identificados:**
-1. **Cuenta** - Registro de usuario (email, password, nombre)
-2. **Academia** - Creación de academia (nombre, ubicación, tipo)
-3. **Estructura** - Configuración de disciplinas y grupos sugeridos
-4. **Primer grupo** - Creación del primer grupo con horario
-5. **Atletas** - Añadir 5 atletas iniciales
-6. **Entrenadores** - Invitar entrenadores
-7. **Pagos** - Configuración de Stripe
+**Flujo implementado:**
+1. **Cuenta** — registro y autenticación.
+2. **Espacio de trabajo** — nombre, país, disciplina y tipo; los ajustes avanzados son opcionales y están colapsados.
+3. **Dashboard** — checklist para grupo, atletas, calendario, equipo, cobros y comunicación.
+4. **Activación** — primera clase + primer atleta + primera asistencia dentro de siete días.
 
 **Puntos de fricción identificados:**
-- 7 pasos pueden ser demasiados para un primer uso
-- No hay opción clara de "saltar" pasos opcionales
-- El paso 3 (Estructura) y 4 (Primer grupo) están muy relacionados pero separados
-- Después del paso 7, redirige al dashboard pero no hay guía clara de qué hacer después
-- El checklist post-onboarding está separado del flujo principal
+- Los datos avanzados siguen siendo una oportunidad de simplificación futura si el usuario no desea presets.
+- El checklist post-onboarding es el flujo principal de activación y debe medirse con cohortes reales.
 
 ### 1.2 Flujo Post-Onboarding
 
@@ -85,4 +81,3 @@
 3. **Baja prioridad:**
    - Testing exhaustivo
    - Documentación detallada
-

@@ -45,7 +45,10 @@ const gates: Gate[] = [
   { name: "ESLint", args: ["lint"] },
   {
     name: "Unit and integration tests",
-    args: ["exec", "vitest", "run", "--maxWorkers=2", "--minWorkers=1"],
+    // The suites share mocked modules and a remote-backed setup. Running two
+    // workers makes otherwise isolated tests race (timeouts and false 403s),
+    // so the release gate must match vitest.config.ts and stay single-worker.
+    args: ["exec", "vitest", "run", "--maxWorkers=1"],
   },
   { name: "Production build", args: ["build"] },
 ];
