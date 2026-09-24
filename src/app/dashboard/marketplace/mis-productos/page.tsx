@@ -48,7 +48,7 @@ const CATEGORY_LABELS: Record<string, string> = {
 
 const STATUS_LABELS: Record<string, string> = {
   active: "Activo",
-  paused: "Pausado",
+  hidden: "Pausado",
   sold: "Vendido",
 };
 
@@ -93,7 +93,8 @@ export default function MisProductosPage() {
 
   async function handleStatusToggle(listing: Listing) {
     setToggling(listing.id);
-    const newStatus = listing.status === "active" ? "paused" : "active";
+    // `hidden` is the database status for a paused/unpublished listing.
+    const newStatus = listing.status === "active" ? "hidden" : "active";
     try {
       const res = await fetch(`/api/marketplace/mis-productos/${listing.id}`, {
         method: "PATCH",

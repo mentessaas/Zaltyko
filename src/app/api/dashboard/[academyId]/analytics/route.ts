@@ -26,7 +26,7 @@ export const GET = withTenant(async (_request, context) => {
     }
 
     const metrics = await calculateAdvancedMetrics(academyId, context.tenantId);
-    return apiSuccess({ data: metrics });
+    return apiSuccess(metrics);
   } catch (error: unknown) {
     logger.error("Error calculating advanced metrics:", error);
     return apiError("METRICS_FAILED", "Failed to calculate metrics", 500);
