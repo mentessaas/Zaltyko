@@ -132,7 +132,7 @@
     "@axe-core/playwright": "^4.11.3",
     "@cyclonedx/cyclonedx-npm": "6.0.0",
     "@eslint/eslintrc": "^3.3.4",
-    "@next/eslint-plugin-next": "15.5.19",
+    "@next/eslint-plugin-next": "16.3.5",
     "@playwright/test": "1.63.0",
     "@tailwindcss/typography": "^0.5.16",
     "@testing-library/jest-dom": "^6.9.1",
