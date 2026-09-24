@@ -3,7 +3,7 @@ import { z } from "zod";
 import { eq } from "drizzle-orm";
 import { withTenant } from "@/lib/authz";
 import { db } from "@/db";
-import { userPreferences } from "@/db/schema";
+import { notificationPreferences, userPreferences } from "@/db/schema";
 import { logger } from "@/lib/logger";
 
 export const dynamic = 'force-dynamic';
@@ -79,26 +79,56 @@ export const PATCH = withTenant(async (request, context) => {
       ...(validated.classReminders ?? {}),
     };
 
-    if (!existing) {
-      // Create new preferences
-      await db.insert(userPreferences).values({
-        userId: profile.id,
-        tenantId: context.tenantId,
-        emailNotifications,
-        inAppNotifications,
-        classReminders,
-      });
-    } else {
-      await db
-        .update(userPreferences)
-        .set({
+    await db.transaction(async (tx) => {
+      if (!existing) {
+        await tx.insert(userPreferences).values({
+          userId: profile.id,
+          tenantId: context.tenantId,
           emailNotifications,
           inAppNotifications,
           classReminders,
+        });
+      } else {
+        await tx
+          .update(userPreferences)
+          .set({
+            emailNotifications,
+            inAppNotifications,
+            classReminders,
+            updatedAt: new Date(),
+          })
+          .where(eq(userPreferences.userId, profile.id));
+      }
+
+      // Keep the legacy channel-level table aligned with the visible settings
+      // screen. A channel only turns off when every typed email preference is
+      // off; this preserves the default-enabled behavior for partial payloads.
+      const emailEnabled = !Object.values(emailNotifications).every((value) => value === false);
+      await tx
+        .insert(notificationPreferences)
+        .values({
+          profileId: profile.id,
+          channel: "email",
+          enabled: emailEnabled,
           updatedAt: new Date(),
         })
-        .where(eq(userPreferences.userId, profile.id));
-    }
+        .onConflictDoUpdate({
+          target: [notificationPreferences.profileId, notificationPreferences.channel],
+          set: { enabled: emailEnabled, updatedAt: new Date() },
+        });
+      await tx
+        .insert(notificationPreferences)
+        .values({
+          profileId: profile.id,
+          channel: "in_app",
+          enabled: inAppNotifications.enabled !== false,
+          updatedAt: new Date(),
+        })
+        .onConflictDoUpdate({
+          target: [notificationPreferences.profileId, notificationPreferences.channel],
+          set: { enabled: inAppNotifications.enabled !== false, updatedAt: new Date() },
+        });
+    });
 
     return apiSuccess({ preferences: { emailNotifications, inAppNotifications, classReminders } });
   } catch (error) {

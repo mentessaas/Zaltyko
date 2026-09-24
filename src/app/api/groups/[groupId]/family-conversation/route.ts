@@ -1,9 +1,10 @@
-import { and, eq, inArray, sql } from "drizzle-orm";
+import { and, eq, inArray, isNull, sql } from "drizzle-orm";
 
 import { db } from "@/db";
 import {
   conversationParticipants,
   conversations,
+  athletes,
   groupAthletes,
   groups,
   guardianAthletes,
@@ -11,6 +12,8 @@ import {
 } from "@/db/schema";
 import { apiError, apiSuccess } from "@/lib/api-response";
 import { withTenant } from "@/lib/authz";
+import { authorizeAcademyCapability } from "@/lib/authz/resource-scope";
+import { verifyCoachAthleteScope } from "@/lib/permissions";
 
 export const dynamic = "force-dynamic";
 
@@ -29,35 +32,70 @@ export const POST = withTenant(async (_request, context) => {
       academyId: groups.academyId,
     })
     .from(groups)
-    .where(eq(groups.id, groupId))
+    .where(and(eq(groups.id, groupId), isNull(groups.deletedAt)))
     .limit(1);
 
   if (!group) {
     return apiError("GROUP_NOT_FOUND", "Grupo no encontrado", 404);
   }
 
-  const canStartGroupConversation =
-    context.profile.role === "super_admin" ||
-    context.profile.role === "admin" ||
-    context.profile.role === "owner" ||
-    context.profile.role === "coach";
+  const canStartGroupConversation = ["super_admin", "admin", "owner", "coach"].includes(
+    context.profile.role
+  );
 
-  if (
-    !canStartGroupConversation ||
-    (context.profile.role !== "super_admin" && group.tenantId !== context.tenantId)
-  ) {
+  if (!canStartGroupConversation) {
     return apiError("FORBIDDEN", "No tienes permiso para iniciar esta conversacion", 403);
+  }
+
+  const scope = await authorizeAcademyCapability({
+    context,
+    resourceTenantId: group.tenantId,
+    academyId: group.academyId,
+    permission: "communications:send",
+  });
+
+  if (!scope.allowed) {
+    return apiError(scope.reason ?? "FORBIDDEN", "No tienes permiso para iniciar esta conversacion", 403);
   }
 
   const groupMembers = await db
     .select({ athleteId: groupAthletes.athleteId })
     .from(groupAthletes)
-    .where(eq(groupAthletes.groupId, group.id));
+    .innerJoin(
+      athletes,
+      and(
+        eq(groupAthletes.athleteId, athletes.id),
+        eq(athletes.tenantId, group.tenantId),
+        eq(athletes.academyId, group.academyId),
+        eq(athletes.status, "active"),
+        isNull(athletes.deletedAt)
+      )
+    )
+    .where(
+      and(
+        eq(groupAthletes.groupId, group.id),
+        eq(groupAthletes.tenantId, group.tenantId)
+      )
+    )
+    .limit(5000);
 
   const athleteIds = groupMembers.map((member) => member.athleteId);
 
   if (athleteIds.length === 0) {
     return apiError("GROUP_EMPTY", "Este grupo no tiene gimnastas asignados", 409);
+  }
+
+  if (context.profile.role === "coach") {
+    const coachScope = await verifyCoachAthleteScope({
+      tenantId: group.tenantId,
+      academyId: group.academyId,
+      athleteId: athleteIds[0],
+      profile: context.profile,
+    });
+
+    if (!coachScope.allowed) {
+      return apiError("FORBIDDEN", "No tienes permiso sobre este grupo", 403);
+    }
   }
 
   const guardianRows = await db
@@ -70,10 +108,12 @@ export const POST = withTenant(async (_request, context) => {
     .where(
       and(
         inArray(guardianAthletes.athleteId, athleteIds),
+        eq(guardianAthletes.tenantId, group.tenantId),
         eq(guardians.tenantId, group.tenantId),
         sql`${guardians.profileId} IS NOT NULL`
       )
-    );
+    )
+    .limit(5000);
 
   const guardianProfileIds = Array.from(
     new Set(
@@ -109,7 +149,8 @@ export const POST = withTenant(async (_request, context) => {
     const participantRows = await db
       .select({ userId: conversationParticipants.userId })
       .from(conversationParticipants)
-      .where(eq(conversationParticipants.conversationId, existingConversation.id));
+      .where(eq(conversationParticipants.conversationId, existingConversation.id))
+      .limit(5000);
     const existingParticipantIds = new Set(participantRows.map((row) => row.userId));
     const missingParticipantIds = [context.profile.id, ...guardianProfileIds].filter(
       (profileId) => !existingParticipantIds.has(profileId)

@@ -1,16 +1,17 @@
 export const dynamic = 'force-dynamic';
 
-import { eq } from "drizzle-orm";
+import { and, eq, isNull } from "drizzle-orm";
 import { z } from "zod";
 
 import { db } from "@/db";
-import { guardians, guardianAthletes } from "@/db/schema";
+import { athletes, guardians, guardianAthletes } from "@/db/schema";
 import { withTenant } from "@/lib/authz";
+import { authorizeAcademyCapability } from "@/lib/authz/resource-scope";
 import { handleApiError } from "@/lib/api-error-handler";
 import { apiSuccess, apiError } from "@/lib/api-response";
 
 const UpdateSchema = z.object({
-  name: z.string().min(1).optional(),
+  name: z.string().trim().min(1).max(120).optional(),
   email: z.string().email().optional().or(z.literal("")),
   phone: z.string().optional().or(z.literal("")),
   relationship: z.string().optional(),
@@ -18,11 +19,34 @@ const UpdateSchema = z.object({
   notifySms: z.boolean().optional(),
 });
 
-const AddAthleteSchema = z.object({
-  athleteId: z.string().uuid(),
-  relationship: z.string().optional(),
-  isPrimary: z.boolean().optional(),
-});
+async function getGuardianScope(
+  guardianId: string,
+  tenantId: string,
+  requestedAthleteId?: string | null
+) {
+  return db
+    .select({
+      guardianId: guardians.id,
+      tenantId: guardians.tenantId,
+      academyId: athletes.academyId,
+      athleteId: athletes.id,
+    })
+    .from(guardians)
+    .innerJoin(guardianAthletes, eq(guardianAthletes.guardianId, guardians.id))
+    .innerJoin(athletes, eq(guardianAthletes.athleteId, athletes.id))
+    .where(
+      and(
+        eq(guardians.id, guardianId),
+        eq(guardians.tenantId, tenantId),
+        eq(guardianAthletes.tenantId, tenantId),
+        eq(athletes.tenantId, tenantId),
+        isNull(athletes.deletedAt),
+        requestedAthleteId ? eq(athletes.id, requestedAthleteId) : undefined
+      )
+    )
+    .limit(1)
+    .then((rows) => rows[0] ?? null);
+}
 
 export const GET = withTenant(async (request, context) => {
   try {
@@ -42,6 +66,20 @@ export const GET = withTenant(async (request, context) => {
       return apiError("GUARDIAN_NOT_FOUND", "Guardian not found", 404);
     }
 
+    const requestedAthleteId = new URL(request.url).searchParams.get("athleteId");
+    const scopeResource = await getGuardianScope(guardianId, context.tenantId, requestedAthleteId);
+    if (!scopeResource) {
+      return apiError("GUARDIAN_NOT_FOUND", "Guardian not found", 404);
+    }
+
+    const scope = await authorizeAcademyCapability({
+      context,
+      resourceTenantId: scopeResource.tenantId,
+      academyId: scopeResource.academyId,
+      permission: "athletes:read",
+    });
+    if (!scope.allowed) return apiError("GUARDIAN_NOT_FOUND", "Guardian not found", 404);
+
     // Get athlete associations
     const associations = await db
       .select({
@@ -50,7 +88,17 @@ export const GET = withTenant(async (request, context) => {
         isPrimary: guardianAthletes.isPrimary,
       })
       .from(guardianAthletes)
-      .where(eq(guardianAthletes.guardianId, guardianId));
+      .innerJoin(athletes, eq(guardianAthletes.athleteId, athletes.id))
+      .where(
+        and(
+          eq(guardianAthletes.guardianId, guardianId),
+          eq(guardianAthletes.tenantId, context.tenantId),
+          eq(athletes.tenantId, context.tenantId),
+          isNull(athletes.deletedAt),
+          requestedAthleteId ? eq(athletes.id, requestedAthleteId) : undefined
+        )
+      )
+      .limit(100);
 
     return apiSuccess({
       ...guardian,
@@ -81,6 +129,20 @@ export const PUT = withTenant(async (request, context) => {
       return apiError("GUARDIAN_NOT_FOUND", "Guardian not found", 404);
     }
 
+    const requestedAthleteId = new URL(request.url).searchParams.get("athleteId");
+    const scopeResource = await getGuardianScope(guardianId, context.tenantId, requestedAthleteId);
+    if (!scopeResource) {
+      return apiError("GUARDIAN_NOT_FOUND", "Guardian not found", 404);
+    }
+
+    const scope = await authorizeAcademyCapability({
+      context,
+      resourceTenantId: scopeResource.tenantId,
+      academyId: scopeResource.academyId,
+      permission: "athletes:update",
+    });
+    if (!scope.allowed) return apiError("GUARDIAN_NOT_FOUND", "Guardian not found", 404);
+
     await db
       .update(guardians)
       .set({
@@ -91,7 +153,7 @@ export const PUT = withTenant(async (request, context) => {
         notifyEmail: body.notifyEmail ?? existing.notifyEmail,
         notifySms: body.notifySms ?? existing.notifySms,
       })
-      .where(eq(guardians.id, guardianId));
+      .where(and(eq(guardians.id, guardianId), eq(guardians.tenantId, context.tenantId)));
 
     return apiSuccess({ ok: true });
   } catch (error) {
@@ -118,8 +180,24 @@ export const DELETE = withTenant(async (request, context) => {
       return apiError("GUARDIAN_NOT_FOUND", "Guardian not found", 404);
     }
 
+    const requestedAthleteId = new URL(request.url).searchParams.get("athleteId");
+    const scopeResource = await getGuardianScope(guardianId, context.tenantId, requestedAthleteId);
+    if (!scopeResource) {
+      return apiError("GUARDIAN_NOT_FOUND", "Guardian not found", 404);
+    }
+
+    const scope = await authorizeAcademyCapability({
+      context,
+      resourceTenantId: scopeResource.tenantId,
+      academyId: scopeResource.academyId,
+      permission: "athletes:delete",
+    });
+    if (!scope.allowed) return apiError("GUARDIAN_NOT_FOUND", "Guardian not found", 404);
+
     // Delete guardian (cascades to guardianAthletes due to FK)
-    await db.delete(guardians).where(eq(guardians.id, guardianId));
+    await db
+      .delete(guardians)
+      .where(and(eq(guardians.id, guardianId), eq(guardians.tenantId, context.tenantId)));
 
     return apiSuccess({ ok: true });
   } catch (error) {

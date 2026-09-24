@@ -6,7 +6,7 @@
 import { apiSuccess, apiError } from "@/lib/api-response";
 import { z } from "zod";
 import { withTenant } from "@/lib/authz";
-import { sendWhatsApp, WhatsAppTemplates } from "@/lib/whatsapp";
+import { formatPhoneForWhatsApp, sendWhatsApp, WhatsAppTemplates } from "@/lib/whatsapp";
 import { createMessageHistory, updateMessageHistoryStatus } from "@/lib/communication-service";
 import { logger } from "@/lib/logger";
 import { db } from "@/db";
@@ -17,6 +17,7 @@ import {
   familyContacts,
   groupAthletes,
   groups,
+  messageHistory,
 } from "@/db/schema";
 import { and, eq, inArray, isNull } from "drizzle-orm";
 import { getClassAthletes } from "@/lib/classes/get-class-athletes";
@@ -43,14 +44,6 @@ interface ResolvedRecipient {
   sportConfigId: string | null;
 }
 
-const formatPhoneForSpain = (phone: string) => {
-  let formattedPhone = phone.replace(/\D/g, "");
-  if (!formattedPhone.startsWith("34")) {
-    formattedPhone = "34" + formattedPhone;
-  }
-  return formattedPhone;
-};
-
 async function resolveAthleteIds({
   academyId,
   tenantId,
@@ -73,7 +66,8 @@ async function resolveAthleteIds({
         eq(athletes.tenantId, tenantId),
         isNull(athletes.deletedAt),
         ...(sportConfigId ? [eq(athletes.primarySportConfigId, sportConfigId)] : [])
-      ));
+      ))
+      .limit(5000);
     return rows.map((row) => row.id);
   }
 
@@ -89,7 +83,8 @@ async function resolveAthleteIds({
         isNull(athletes.deletedAt),
         inArray(athletes.id, recipientIds),
         ...(sportConfigId ? [eq(athletes.primarySportConfigId, sportConfigId)] : [])
-      ));
+      ))
+      .limit(500);
     return rows.map((row) => row.id);
   }
 
@@ -103,7 +98,8 @@ async function resolveAthleteIds({
         isNull(groups.deletedAt),
         inArray(groups.id, recipientIds),
         ...(sportConfigId ? [eq(groups.sportConfigId, sportConfigId)] : [])
-      ));
+      ))
+      .limit(100);
 
     if (groupRows.length === 0) return [];
 
@@ -117,7 +113,8 @@ async function resolveAthleteIds({
         eq(athletes.academyId, academyId),
         isNull(athletes.deletedAt),
         ...(sportConfigId ? [eq(athletes.primarySportConfigId, sportConfigId)] : [])
-      ));
+      ))
+      .limit(5000);
     return rows.map((row) => row.athleteId);
   }
 
@@ -130,7 +127,8 @@ async function resolveAthleteIds({
       isNull(classes.deletedAt),
       inArray(classes.id, recipientIds),
       ...(sportConfigId ? [eq(classes.sportConfigId, sportConfigId)] : [])
-    ));
+    ))
+    .limit(100);
 
   const athleteIds = new Set<string>();
   for (const classRow of classRows) {
@@ -181,12 +179,13 @@ async function resolveRecipients({
       eq(athletes.academyId, academyId),
       eq(athletes.tenantId, tenantId),
       inArray(athletes.id, athleteIds)
-    ));
+    ))
+    .limit(5000);
 
   const recipientsByPhone = new Map<string, ResolvedRecipient>();
   for (const row of contactRows) {
     if (!row.phone) continue;
-    const phone = formatPhoneForSpain(row.phone);
+    const phone = row.phone.trim();
     if (recipientsByPhone.has(phone)) continue;
     recipientsByPhone.set(phone, {
       athleteId: row.athleteId,
@@ -210,9 +209,11 @@ export const POST = withTenant(async (request: Request, context) => {
       return apiError("TENANT_REQUIRED", "Tenant requerido", 400);
     }
 
-    // Get academy Twilio config (would come from academy settings in production)
-    // For now, use environment variables
+    // Credentials are server-side only. Never report a successful send when the
+    // provider is not configured: that creates false delivery expectations.
     const academyTwilioConfig = process.env.TWILIO_ACCOUNT_SID
+      && process.env.TWILIO_AUTH_TOKEN
+      && process.env.TWILIO_WHATSAPP_FROM
       ? {
           accountSid: process.env.TWILIO_ACCOUNT_SID!,
           authToken: process.env.TWILIO_AUTH_TOKEN!,
@@ -226,7 +227,7 @@ export const POST = withTenant(async (request: Request, context) => {
       }
 
       const [academy] = await db
-        .select({ id: academies.id, tenantId: academies.tenantId })
+        .select({ id: academies.id, tenantId: academies.tenantId, country: academies.country, countryCode: academies.countryCode })
         .from(academies)
         .where(and(eq(academies.id, academyId), eq(academies.tenantId, context.tenantId)))
         .limit(1);
@@ -234,6 +235,19 @@ export const POST = withTenant(async (request: Request, context) => {
       if (!academy) {
         return apiError("ACADEMY_NOT_FOUND", "Academia no encontrada", 404);
       }
+
+      if (!academyTwilioConfig) {
+        return apiError(
+          "WHATSAPP_NOT_CONFIGURED",
+          "WhatsApp no está configurado para esta instalación. Configura Twilio antes de enviar mensajes.",
+          503,
+        );
+      }
+
+      const academyTwilioConfigWithCountry = {
+        ...academyTwilioConfig,
+        countryCode: academy.countryCode ?? academy.country,
+      };
 
       if (sportConfigId) {
         const verifiedConfig = await verifyAcademySportConfig({
@@ -270,6 +284,7 @@ export const POST = withTenant(async (request: Request, context) => {
         const personalizedMessage = message.replace(/\{\{name\}\}/g, recipient.athleteName);
         const history = await createMessageHistory({
           tenantId: context.tenantId,
+          academyId,
           phone: recipient.phone,
           sportConfigId: recipient.sportConfigId,
           channel: "whatsapp",
@@ -285,7 +300,11 @@ export const POST = withTenant(async (request: Request, context) => {
           },
         });
 
-        const result = await sendWhatsApp(recipient.phone, personalizedMessage, academyTwilioConfig);
+        const result = await sendWhatsApp(
+          formatPhoneForWhatsApp(recipient.phone, academy.countryCode ?? academy.country ?? "ES"),
+          personalizedMessage,
+          academy.countryCode || academy.country ? academyTwilioConfigWithCountry : academyTwilioConfig,
+        );
         if (result.success) {
           sent += 1;
           await updateMessageHistoryStatus(history.id, "sent", {
@@ -324,10 +343,48 @@ export const POST = withTenant(async (request: Request, context) => {
       return apiError("PHONE_REQUIRED", "Teléfono requerido", 400);
     }
 
-    const formattedPhone = formatPhoneForSpain(phone);
+    if (!academyTwilioConfig) {
+      return apiError(
+        "WHATSAPP_NOT_CONFIGURED",
+        "WhatsApp no está configurado para esta instalación. Configura Twilio antes de enviar mensajes.",
+        503,
+      );
+    }
+
+    let academyCountry: string | null = null;
+    if (academyId) {
+      const [academy] = await db
+        .select({ country: academies.country, countryCode: academies.countryCode })
+        .from(academies)
+        .where(and(eq(academies.id, academyId), eq(academies.tenantId, context.tenantId)))
+        .limit(1);
+      if (!academy) return apiError("ACADEMY_NOT_FOUND", "Academia no encontrada", 404);
+      academyCountry = academy.countryCode ?? academy.country;
+    }
+
+    if (historyId && academyId) {
+      const [history] = await db
+        .select({ id: messageHistory.id })
+        .from(messageHistory)
+        .where(and(
+          eq(messageHistory.id, historyId),
+          eq(messageHistory.tenantId, context.tenantId),
+          eq(messageHistory.academyId, academyId),
+          eq(messageHistory.channel, "whatsapp"),
+          eq(messageHistory.direction, "outbound"),
+          eq(messageHistory.status, "failed"),
+        ))
+        .limit(1);
+      if (!history) {
+        return apiError("HISTORY_NOT_FOUND", "El mensaje no pertenece a esta academia", 404);
+      }
+    }
 
     // Try to send via Twilio
-    const result = await sendWhatsApp(formattedPhone, message, academyTwilioConfig);
+    const result = await sendWhatsApp(formatPhoneForWhatsApp(phone, academyCountry ?? "ES"), message, academyTwilioConfig && academyCountry ? {
+      ...academyTwilioConfig,
+      countryCode: academyCountry,
+    } : academyTwilioConfig);
 
     // Update history if provided
     if (historyId && academyId) {
@@ -348,18 +405,15 @@ export const POST = withTenant(async (request: Request, context) => {
       return apiSuccess({
         success: true,
         message: "WhatsApp sent successfully",
-        phone: formattedPhone,
+        phone,
         messageId: result.messageId,
       });
     } else {
-      // In production, we'd handle this differently
-      // For now, return success if Twilio is not configured (simulated)
-      return apiSuccess({
-        success: true,
-        message: "WhatsApp queued (simulated)",
-        phone: formattedPhone,
-        note: result.error || "Twilio not configured - message logged",
-      });
+      return apiError(
+        "WHATSAPP_SEND_FAILED",
+        result.error || "No se pudo enviar el mensaje por WhatsApp",
+        502,
+      );
     }
   } catch (error) {
     logger.error("WhatsApp error:", error);

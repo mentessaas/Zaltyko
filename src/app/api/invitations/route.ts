@@ -1,9 +1,9 @@
 import { randomUUID } from "node:crypto";
 import { z } from "zod";
-import { eq, and, isNull } from "drizzle-orm";
+import { eq, and, isNull, gt } from "drizzle-orm";
 
 import { db } from "@/db";
-import { academies, invitations, academyRoles } from "@/db/schema";
+import { academies, invitations, academyRoles, permissionEnum } from "@/db/schema";
 import { withTenant } from "@/lib/authz";
 import { verifyAcademyAccess } from "@/lib/permissions";
 import { markChecklistItem, markWizardStep } from "@/lib/onboarding";
@@ -14,6 +14,7 @@ import type { AuditAction, AuditModule } from "@/db/schema/audit-logs";
 import { apiSuccess, apiError } from "@/lib/api-response";
 import { sendEmailWithLogging } from "@/lib/email/email-service";
 import { escapeHtml } from "@/lib/email/escape-html";
+import { getUserPermissions } from "@/lib/authz/permissions-service";
 
 // PR 10 (Operate P2): `.nullable().optional()` en `roleId`, `customMessage`,
 // `customPermissions` y `groupsAssigned` porque el form de invitación puede
@@ -23,7 +24,7 @@ const bodySchema = z.object({
   email: z.string().email(),
   role: z.enum(["coach", "parent", "admin", "athlete"]),
   roleId: z.string().uuid().nullable().optional(),
-  customPermissions: z.array(z.string()).nullable().optional(),
+  customPermissions: z.array(z.enum(permissionEnum.enumValues)).nullable().optional(),
   customMessage: z.string().nullable().optional(),
   groupsAssigned: z.array(z.string().uuid()).nullable().optional(),
   expiresInDays: z.number().int().min(1).max(30).default(7),
@@ -49,6 +50,21 @@ export const POST = withTenant(async (request, context) => {
     return apiError("FORBIDDEN", access.reason ?? "Prohibido", 403);
   }
 
+  const effective = await getUserPermissions(context.userId, parsed.data.academyId);
+  const requestedPermissions = parsed.data.customPermissions ?? [];
+  if (!effective.isOwner && requestedPermissions.some((permission) => !effective.permissions.includes(permission))) {
+    return apiError("PERMISSION_ESCALATION", "No puedes conceder permisos que no tienes en esta academia", 403);
+  }
+
+  const [pendingInvitation] = await db
+    .select({ id: invitations.id })
+    .from(invitations)
+    .where(and(eq(invitations.tenantId, context.tenantId), eq(invitations.email, parsed.data.email.toLowerCase()), eq(invitations.defaultAcademyId, parsed.data.academyId), eq(invitations.status, "pending")))
+    .limit(1);
+  if (pendingInvitation) {
+    return apiError("INVITATION_ALREADY_PENDING", "Ya existe una invitación pendiente para este email", 409);
+  }
+
   const token = randomUUID();
   const expiresAt = new Date(Date.now() + parsed.data.expiresInDays * 24 * 60 * 60 * 1000);
 
@@ -72,7 +88,8 @@ export const POST = withTenant(async (request, context) => {
     roleName = role[0].name;
   }
 
-  await db.insert(invitations).values({
+  try {
+    await db.insert(invitations).values({
     id: randomUUID(),
     tenantId: context.tenantId,
     email: parsed.data.email.toLowerCase(),
@@ -87,7 +104,16 @@ export const POST = withTenant(async (request, context) => {
     customMessage: parsed.data.customMessage || null,
     permissions: parsed.data.customPermissions || null,
     sendEmail: parsed.data.sendEmail ? "true" : "false",
-  });
+    });
+  } catch (error) {
+    // La unicidad tenant+email evita invitaciones simultáneas. Convertimos
+    // el conflicto en una respuesta accionable en vez de exponer un 500.
+    const message = error instanceof Error ? error.message : String(error);
+    if (message.toLowerCase().includes("invitations_pending_email_tenant") || message.toLowerCase().includes("duplicate key")) {
+      return apiError("INVITATION_ALREADY_PENDING", "Ya existe una invitación pendiente para este email en tu organización", 409);
+    }
+    throw error;
+  }
 
   if (parsed.data.role === "coach") {
     await markChecklistItem({
@@ -222,9 +248,11 @@ export const GET = withTenant(async (request, context) => {
       and(
         eq(invitations.tenantId, context.tenantId),
         eq(invitations.defaultAcademyId, academyId),
-        eq(invitations.status, "pending")
+        eq(invitations.status, "pending"),
+        gt(invitations.expiresAt, new Date())
       )
-    );
+    )
+    .limit(1000);
 
   return apiSuccess({ invitations: invites });
 });

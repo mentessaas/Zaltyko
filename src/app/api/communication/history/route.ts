@@ -5,6 +5,7 @@ import { withTenant } from "@/lib/authz";
 import { createMessageHistory, getMessageHistory } from "@/lib/communication-service";
 import { handleApiError } from "@/lib/api-error-handler";
 import { verifyAcademySportConfig } from "@/lib/sport-config/service";
+import { authorizeAcademyCapability } from "@/lib/authz/resource-scope";
 
 export const dynamic = 'force-dynamic';
 
@@ -23,6 +24,7 @@ const querySchema = z.object({
 });
 
 const createHistorySchema = z.object({
+  academyId: z.string().uuid().optional().nullable(),
   phone: z.string().optional().default(""),
   channel: z.string().optional().default("whatsapp"),
   direction: z.string().optional().default("outbound"),
@@ -59,8 +61,13 @@ export const GET = withTenant(async (request, context) => {
         return apiError("SPORT_CONFIG_NOT_FOUND", "La rama/modalidad no está activa en esta academia", 400);
       }
     }
+    if (params.data.academyId) {
+      const scope = await authorizeAcademyCapability({ context, resourceTenantId: context.tenantId, academyId: params.data.academyId, permission: "communications:read" });
+      if (!scope.allowed) return apiError("FORBIDDEN", "No tienes acceso a esta academia", 403);
+    }
 
     const result = await getMessageHistory(context.tenantId, {
+      academyId: params.data.academyId,
       channel: params.data.channel,
       status: params.data.status,
       sportConfigId: params.data.sportConfigId,
@@ -107,9 +114,14 @@ export const POST = withTenant(async (request, context) => {
     if (!message) {
       return apiError("MESSAGE_REQUIRED", "Mensaje requerido", 400);
     }
+    if (body.academyId) {
+      const scope = await authorizeAcademyCapability({ context, resourceTenantId: context.tenantId, academyId: body.academyId, permission: "communications:send" });
+      if (!scope.allowed) return apiError("FORBIDDEN", "No tienes acceso a esta academia", 403);
+    }
 
     const created = await createMessageHistory({
       tenantId: context.tenantId,
+      academyId: body.academyId ?? null,
       phone: body.phone,
       channel: body.channel,
       direction: body.direction,

@@ -73,11 +73,14 @@ export const GET = withTenant(async (request, context) => {
   }
 
   // Construir query
+  // unbounded-read-ok: query receives a hard default limit and validated client limit
   let query = db
     .select()
     .from(contactMessages)
     .where(and(...whereConditions))
     .orderBy(desc(contactMessages.createdAt));
+
+  query = query.limit(1000) as typeof query;
 
   if (validated.limit) {
     const limit = parseInt(validated.limit);

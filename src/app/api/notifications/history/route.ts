@@ -1,7 +1,8 @@
 import { apiSuccess, apiError } from "@/lib/api-response";
-import { eq, and, desc } from "drizzle-orm";
+import { eq, and, desc, count } from "drizzle-orm";
 import { z } from "zod";
 import { withTenant } from "@/lib/authz";
+import { authorizeAcademyCapability } from "@/lib/authz/resource-scope";
 import { db } from "@/db";
 import { emailLogs } from "@/db/schema";
 
@@ -35,9 +36,22 @@ export const GET = withTenant(async (request, context) => {
   }
   const { academyId, limit, offset } = parsedQuery.data;
 
+  const targetAcademyId = academyId ?? context.profile.activeAcademyId ?? null;
+  if (targetAcademyId) {
+    const scope = await authorizeAcademyCapability({
+      context,
+      resourceTenantId: context.tenantId,
+      academyId: targetAcademyId,
+      permission: "communications:read",
+    });
+    if (!scope.allowed) return apiError("EMAIL_HISTORY_NOT_FOUND", "No se encontró historial de correo", 404);
+  } else if (context.profile.role !== "super_admin") {
+    return apiError("ACADEMY_REQUIRED", "Academy ID is required", 400);
+  }
+
   const whereConditions = [eq(emailLogs.tenantId, context.tenantId)];
-  if (academyId) {
-    whereConditions.push(eq(emailLogs.academyId, academyId));
+  if (targetAcademyId) {
+    whereConditions.push(eq(emailLogs.academyId, targetAcademyId));
   }
 
   const logs = await db
@@ -48,10 +62,11 @@ export const GET = withTenant(async (request, context) => {
     .limit(limit)
     .offset(offset);
 
-  const total = await db
-    .select({ count: emailLogs.id })
+  const [total] = await db
+    .select({ count: count(emailLogs.id) })
     .from(emailLogs)
-    .where(and(...whereConditions));
+    .where(and(...whereConditions))
+    .limit(1);
 
   return apiSuccess({
     items: logs.map((log) => ({
@@ -65,7 +80,7 @@ export const GET = withTenant(async (request, context) => {
       createdAt: log.createdAt?.toISOString(),
       metadata: log.metadata,
     })),
-    total: total.length,
+    total: Number(total?.count ?? 0),
     limit,
     offset,
   });

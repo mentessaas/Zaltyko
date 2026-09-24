@@ -249,7 +249,8 @@ export const POST = withTenant(async (request: Request, context: RouteContext) =
           eq(conversationParticipants.conversationId, conversationId),
           sql`${conversationParticipants.userId} != ${profile.id}`
         )
-      );
+      )
+      .limit(100);
 
     // Send notifications to other participants
     const notificationsToSend: Array<{
@@ -291,7 +292,7 @@ export const POST = withTenant(async (request: Request, context: RouteContext) =
       sendPushToUser(p.userId, {
         title: "Nuevo mensaje",
         body: content.substring(0, 100),
-        icon: "/icons/icon-192x192.png",
+        icon: "/icons/icon-192.png",
         tag: `conversation-${conversationId}`,
         data: {
           conversationId,

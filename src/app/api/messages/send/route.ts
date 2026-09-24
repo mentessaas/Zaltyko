@@ -91,7 +91,7 @@ export const POST = withTenant(async (request, context) => {
         db.select({ userId: memberships.userId }).from(memberships).where(and(
           eq(memberships.academyId, academyId),
           inArray(memberships.userId, [profile.userId, recipient.userId])
-        )),
+        )).limit(2),
       ]);
       if (!academy || new Set(academyMemberships.map((item) => item.userId)).size !== 2) {
         return apiError("FORBIDDEN", "Emisor y destinatario deben pertenecer a la academia", 403);
@@ -113,7 +113,8 @@ export const POST = withTenant(async (request, context) => {
           academyId ? eq(conversations.academyId, academyId) : undefined,
           sql`${conversations.metadata}->>'type' = 'p2p'`
         )
-      );
+      )
+      .limit(100);
 
     let conversationId: string | null = null;
 
@@ -122,7 +123,8 @@ export const POST = withTenant(async (request, context) => {
       const participants = await db
         .select({ userId: conversationParticipants.userId })
         .from(conversationParticipants)
-        .where(eq(conversationParticipants.conversationId, conv.id));
+        .where(eq(conversationParticipants.conversationId, conv.id))
+        .limit(10);
 
       const participantIds = participants.map((p) => p.userId);
 
@@ -237,7 +239,7 @@ export const POST = withTenant(async (request, context) => {
       sendPushToUser(recipientId, {
         title: "Nuevo mensaje",
         body: content.substring(0, 100),
-        icon: "/icons/icon-192x192.png",
+        icon: "/icons/icon-192.png",
         tag: `conversation-${conversationId}`,
         data: {
           conversationId,

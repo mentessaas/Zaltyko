@@ -85,7 +85,8 @@ export const GET = withTenant(async (request: Request, context: RouteContext) =>
         notificationsEnabled: conversationParticipants.notificationsEnabled,
       })
       .from(conversationParticipants)
-      .where(eq(conversationParticipants.conversationId, conversationId));
+      .where(eq(conversationParticipants.conversationId, conversationId))
+      .limit(100);
 
     // Get profile info for participants
     const participantsWithProfiles = await Promise.all(
@@ -99,7 +100,7 @@ export const GET = withTenant(async (request: Request, context: RouteContext) =>
             role: profiles.role,
           })
           .from(profiles)
-          .where(eq(profiles.id, p.userId))
+          .where(and(eq(profiles.id, p.userId), eq(profiles.tenantId, context.tenantId)))
           .limit(1);
         return {
           ...p,

@@ -1,6 +1,7 @@
 import { apiSuccess, apiError } from "@/lib/api-response";
 import { z } from "zod";
 import { withTenant } from "@/lib/authz";
+import { authorizeAcademyCapability } from "@/lib/authz/resource-scope";
 import { sendEmailWithLogging } from "@/lib/email/email-service";
 import { AttendanceReminderTemplate } from "@/lib/email/templates/attendance-reminder";
 import { PaymentReminderTemplate } from "@/lib/email/templates/payment-reminder";
@@ -8,8 +9,8 @@ import { EventInvitationTemplate } from "@/lib/email/templates/event-invitation"
 import { ClassCancellationTemplate } from "@/lib/email/templates/class-cancellation";
 import { logger } from "@/lib/logger";
 import { db } from "@/db";
-import { academies, memberships } from "@/db/schema";
-import { and, eq } from "drizzle-orm";
+import { academies, notificationPreferences, profiles } from "@/db/schema";
+import { and, eq, or } from "drizzle-orm";
 
 const sendSchema = z.object({
   to: z.string().email(),
@@ -38,6 +39,40 @@ export const POST = withTenant(async (request, context) => {
   }
   const { to, academyId, template, data } = body;
 
+  // Respetar la preferencia de email cuando el caller identifica al
+  // destinatario. Los envíos operativos sin userId mantienen compatibilidad,
+  // pero nunca se ignora explícitamente un opt-out existente.
+  const recipientUserId = typeof data.userId === "string" ? data.userId : undefined;
+  let recipientProfileId: string | undefined;
+  if (recipientUserId) {
+    const [recipientProfile] = await db
+      .select({ id: profiles.id })
+      .from(profiles)
+      .where(and(
+        eq(profiles.tenantId, context.tenantId),
+        or(
+          eq(profiles.userId, recipientUserId),
+          eq(profiles.id, recipientUserId),
+        ),
+      ))
+      .limit(1);
+    recipientProfileId = recipientProfile?.id;
+
+    const [emailPreference] = await db
+      .select({ enabled: notificationPreferences.enabled })
+      .from(notificationPreferences)
+      .where(and(
+        recipientProfileId
+          ? eq(notificationPreferences.profileId, recipientProfileId)
+          : eq(notificationPreferences.profileId, recipientUserId),
+        eq(notificationPreferences.channel, "email"),
+      ))
+      .limit(1);
+    if (emailPreference && !emailPreference.enabled) {
+      return apiSuccess({ ok: true, skipped: "EMAIL_PREFERENCE_DISABLED" });
+    }
+  }
+
   const [academy] = await db
     .select({ id: academies.id })
     .from(academies)
@@ -47,19 +82,24 @@ export const POST = withTenant(async (request, context) => {
     return apiError("FORBIDDEN", "La academia no pertenece al tenant activo", 403);
   }
 
-  if (context.profile.role !== "super_admin") {
-    const [membership] = await db
-      .select({ role: memberships.role })
-      .from(memberships)
-      .where(and(eq(memberships.academyId, academyId), eq(memberships.userId, context.profile.userId)))
-      .limit(1);
-    if (!membership || !["owner", "admin"].includes(membership.role)) {
-      return apiError("FORBIDDEN", "No tienes permiso para enviar correos de esta academia", 403);
-    }
+  const scope = await authorizeAcademyCapability({
+    context,
+    resourceTenantId: context.tenantId,
+    academyId,
+    permission: "communications:send",
+  });
+  if (!scope.allowed) {
+    return apiError("FORBIDDEN", "No tienes permiso para enviar correos de esta academia", 403);
   }
 
   let html: string;
   let subject: string;
+  const notificationType = {
+    "attendance-reminder": "class_reminder",
+    "payment-reminder": "invoice_pending",
+    "event-invitation": "event",
+    "class-cancellation": "schedule_change",
+  }[template];
 
   switch (template) {
     case "attendance-reminder":
@@ -84,6 +124,7 @@ export const POST = withTenant(async (request, context) => {
         amount: amountValue,
         dueDate: (data.dueDate as string) || new Date().toLocaleDateString(),
         academyName: (data.academyName as string) || "Tu academia",
+        currency: (data.currency as string) || "EUR",
         paymentUrl: data.paymentLink as string | undefined,
       });
       subject = `Recordatorio de pago pendiente`;
@@ -125,7 +166,9 @@ export const POST = withTenant(async (request, context) => {
       template,
       tenantId: context.tenantId,
       academyId,
-      userId: data.userId as string | undefined,
+      userId: recipientProfileId,
+      profileId: recipientProfileId,
+      notificationType,
       metadata: data,
     });
 

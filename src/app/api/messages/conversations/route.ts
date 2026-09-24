@@ -94,7 +94,8 @@ export const GET = withTenant(async (request, context) => {
             role: conversationParticipants.role,
           })
           .from(conversationParticipants)
-          .where(eq(conversationParticipants.conversationId, conv.id));
+          .where(eq(conversationParticipants.conversationId, conv.id))
+          .limit(100);
 
         // Get profile info for each participant
         const participantProfiles = await Promise.all(
@@ -108,7 +109,7 @@ export const GET = withTenant(async (request, context) => {
                   avatarUrl: profiles.photoUrl,
                 })
                 .from(profiles)
-                .where(eq(profiles.id, p.userId))
+                .where(and(eq(profiles.id, p.userId), eq(profiles.tenantId, tenantId)))
                 .limit(1);
               return {
                 userId: p.userId,
@@ -203,7 +204,9 @@ export const POST = withTenant(async (request, context) => {
     const participantProfiles = await db
       .select({ id: profiles.id, userId: profiles.userId, tenantId: profiles.tenantId })
       .from(profiles)
-      .where(inArray(profiles.id, uniqueParticipantIds));
+      .where(inArray(profiles.id, uniqueParticipantIds))
+      .limit(100);
+
 
     if (participantProfiles.length !== uniqueParticipantIds.length || participantProfiles.some((item) => item.tenantId !== tenantId)) {
       return apiError("FORBIDDEN", "Uno o más destinatarios no pertenecen al tenant", 403);
@@ -223,7 +226,8 @@ export const POST = withTenant(async (request, context) => {
         .where(and(
           eq(memberships.academyId, academyId),
           inArray(memberships.userId, [profile.userId, ...participantProfiles.map((item) => item.userId)])
-        ));
+        ))
+        .limit(100);
       if (new Set(academyMembers.map((item) => item.userId)).size !== participantProfiles.length + 1) {
         return apiError("FORBIDDEN", "Emisor y destinatarios deben pertenecer a la academia", 403);
       }
@@ -255,7 +259,8 @@ export const POST = withTenant(async (request, context) => {
             academyId ? eq(conversations.academyId, academyId) : undefined,
             sql`${conversations.metadata}->>'type' = 'p2p'`
           )
-        );
+        )
+        .limit(100);
 
       for (const existingConversation of existingConversations) {
         const existingParticipants = await db
@@ -263,7 +268,8 @@ export const POST = withTenant(async (request, context) => {
           .from(conversationParticipants)
           .where(
             eq(conversationParticipants.conversationId, existingConversation.id)
-          );
+          )
+          .limit(10);
 
         const participantIdsInConversation = new Set(existingParticipants.map((participant) => participant.userId));
         if (

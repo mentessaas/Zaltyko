@@ -2,7 +2,7 @@ import type { Metadata } from "next";
 import Link from "next/link";
 import { cookies } from "next/headers";
 import { redirect } from "next/navigation";
-import { and, eq } from "drizzle-orm";
+import { and, eq, isNull } from "drizzle-orm";
 import { MessageSquare } from "lucide-react";
 
 import { MessagesPage as InternalMessagesPage } from "@/components/messages/MessagesPage";
@@ -94,13 +94,22 @@ export default async function MessagesRoute({ params, searchParams }: PageProps)
         })
         .from(classSessions)
         .innerJoin(classes, eq(classSessions.classId, classes.id))
-        .leftJoin(groups, eq(classes.groupId, groups.id))
+        .leftJoin(
+          groups,
+          and(
+            eq(classes.groupId, groups.id),
+            eq(groups.academyId, academyId),
+            eq(groups.tenantId, academy.tenantId),
+            isNull(groups.deletedAt)
+          )
+        )
         .where(
           and(
             eq(classSessions.id, sessionId),
             eq(classSessions.tenantId, academy.tenantId),
             eq(classes.tenantId, academy.tenantId),
-            eq(classes.academyId, academyId)
+            eq(classes.academyId, academyId),
+            isNull(classes.deletedAt)
           )
         )
         .limit(1)

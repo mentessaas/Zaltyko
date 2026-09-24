@@ -111,7 +111,8 @@ const groupAlertHandler = withTenant(async (request, context) => {
           eq(athletes.academyId, academyId),
           isNull(athletes.deletedAt)
         )
-      ),
+      )
+      .limit(5000),
     session.groupId
       ? db
           .select({ athleteId: groupAthletes.athleteId })
@@ -126,6 +127,7 @@ const groupAlertHandler = withTenant(async (request, context) => {
               isNull(athletes.deletedAt)
             )
           )
+          .limit(5000)
       : Promise.resolve([]),
   ]);
 
@@ -149,7 +151,8 @@ const groupAlertHandler = withTenant(async (request, context) => {
           eq(profiles.tenantId, tenantId),
           inArray(guardianAthletes.athleteId, athleteIds)
         )
-      ),
+      )
+      .limit(5000),
     db
       .select({ id: profiles.id, userId: profiles.userId })
       .from(athletes)
@@ -162,7 +165,8 @@ const groupAlertHandler = withTenant(async (request, context) => {
           eq(profiles.tenantId, tenantId),
           isNull(athletes.deletedAt)
         )
-      ),
+      )
+      .limit(5000),
   ]);
 
   const candidateProfiles = [...guardianProfiles, ...athleteProfiles].filter(
@@ -185,7 +189,8 @@ const groupAlertHandler = withTenant(async (request, context) => {
         eq(memberships.academyId, academyId),
         inArray(memberships.userId, candidateUserIds)
       )
-    );
+    )
+    .limit(5000);
   const memberUserIds = new Set(academyMembers.map((item) => item.userId));
   const recipientIds = Array.from(
     new Set(

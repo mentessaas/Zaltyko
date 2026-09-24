@@ -3,7 +3,7 @@ import { cookies } from "next/headers";
 import { z } from "zod";
 
 import { db } from "@/db";
-import { invitations, profiles, memberships, roleMembers } from "@/db/schema";
+import { academyRoles, invitations, profiles, memberships, roleMembers } from "@/db/schema";
 import { createClient } from "@/lib/supabase/server";
 import { apiSuccess, apiError } from "@/lib/api-response";
 import { handleApiError } from "@/lib/api-error-handler";
@@ -126,6 +126,8 @@ export async function POST(request: Request) {
               claimed.defaultAcademyId || claimed.academyIds?.[0] || profile.activeAcademyId,
           })
           .where(eq(profiles.id, profile.id));
+      } else if (profile.tenantId !== claimed.tenantId) {
+        throw new Error("INVITATION_TENANT_CONFLICT");
       }
 
       const academyIds = claimed.academyIds || [];
@@ -138,14 +140,24 @@ export async function POST(request: Request) {
           .values({ userId: user.id, academyId, role: membershipRole })
           .onConflictDoNothing({ target: [memberships.userId, memberships.academyId] });
 
-        if (claimed.roleId) {
+        // Un rol personalizado está definido dentro de una academia. No
+        // crear asignaciones huérfanas en academias adicionales de una
+        // invitación multi-academia si el roleId no pertenece a esa academia.
+        const [roleForAcademy] = claimed.roleId
+          ? await tx
+              .select({ id: academyRoles.id })
+              .from(academyRoles)
+              .where(and(eq(academyRoles.id, claimed.roleId), eq(academyRoles.academyId, academyId)))
+              .limit(1)
+          : [];
+        if (roleForAcademy) {
           await tx
             .delete(roleMembers)
             .where(
               and(eq(roleMembers.userId, user.id), eq(roleMembers.academyId, academyId))
             );
           await tx.insert(roleMembers).values({
-            roleId: claimed.roleId,
+            roleId: roleForAcademy.id,
             userId: user.id,
             academyId,
             memberRole: membershipRole,

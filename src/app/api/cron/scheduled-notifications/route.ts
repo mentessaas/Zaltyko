@@ -6,9 +6,10 @@ import {
 import { getMessageTemplateById } from "@/lib/communication-service";
 import { sendPushToUser } from "@/lib/notifications/push-service";
 import { createNotification } from "@/lib/notifications/notification-service";
-import { sendEmail } from "@/lib/brevo";
+import { sendEmailWithLogging } from "@/lib/email/email-service";
 import { db } from "@/db";
 import { profiles } from "@/db/schema/profiles";
+import { athletes, groupAthletes, groups } from "@/db/schema";
 import { and, eq, inArray } from "drizzle-orm";
 import { logger } from "@/lib/logger";
 import { apiError, apiSuccess } from "@/lib/api-response";
@@ -34,14 +35,19 @@ async function processNotification(
     channel: string;
     templateId: string | null;
     groupId: string | null;
+    academyId?: string | null;
   },
   recipients: Array<{ userId: string; email?: string; name?: string; phone?: string }>
-): Promise<{ sent: number; failed: number }> {
+): Promise<{ sent: number; skipped: number; failed: number }> {
   let template = null;
   let sent = 0;
+  let skipped = 0;
   let failed = 0;
   if (notification.templateId) {
-    template = await getMessageTemplateById(notification.templateId);
+    template = await getMessageTemplateById(notification.templateId, {
+      tenantId: notification.tenantId,
+      academyId: notification.academyId,
+    });
   }
 
   for (const recipient of recipients) {
@@ -51,14 +57,15 @@ async function processNotification(
       switch (notification.channel) {
         case "in_app":
           if (template) {
-            await createNotification({
+            const created = await createNotification({
               tenantId: notification.tenantId,
               userId: recipient.userId,
               type: template.templateType,
               title: interpolateTemplate(template.subject || template.name, variables),
               message: interpolateTemplate(template.body, variables),
             });
-            sent++;
+            if (created) sent++;
+            else skipped++;
           }
           break;
 
@@ -74,13 +81,20 @@ async function processNotification(
 
         case "email":
           if (template && recipient.email) {
-            await sendEmail({
+            const delivered = await sendEmailWithLogging({
               to: recipient.email,
               subject: interpolateTemplate(template.subject || template.name, variables),
               html: `<p>${escapeHtml(interpolateTemplate(template.body, variables))}</p>`,
-              replyTo: process.env.BREVO_REPLY_TO || "soporte@zaltyko.com",
+              template: `scheduled_notification:${notification.id}`,
+              tenantId: notification.tenantId,
+              academyId: notification.academyId ?? undefined,
+              userId: recipient.userId,
+              profileId: recipient.userId,
+              notificationType: template.templateType,
+              dedupeKey: `scheduled_notification:${notification.id}:${recipient.email.toLowerCase()}`,
             });
-            sent++;
+            if (delivered) sent++;
+            else skipped++;
           }
           break;
 
@@ -97,7 +111,7 @@ async function processNotification(
       });
     }
   }
-  return { sent, failed };
+  return { sent, skipped, failed };
 }
 
 export async function POST(request: Request) {
@@ -117,13 +131,38 @@ export async function POST(request: Request) {
 
       for (const notification of pending) {
       try {
-        // For now, get recipients from the notification's group or a default
-        // In a full implementation, you'd query the group members
+        // Resolver destinatarios desde el grupo o, para avisos internos,
+        // desde los perfiles de administración del tenant.
         const recipients: Array<{ userId: string; email?: string; name?: string }> = [];
 
+        if (!notification.tenantId) {
+          await markScheduledNotificationFailed(notification.id);
+          failed++;
+          continue;
+        }
+
         if (notification.groupId) {
-          // Query group members - placeholder
-          // In reality, you'd have a junction table for group members
+          // Resolver los destinatarios reales del grupo, siempre dentro de la
+          // academia/tenant de la notificación. Antes esta rama dejaba la
+          // lista vacía y marcaba cualquier programación por grupo como fallida.
+          const members = await db
+            .select({ profileId: profiles.id, userId: profiles.userId, name: profiles.name })
+            .from(groupAthletes)
+            .innerJoin(groups, and(
+              eq(groups.id, groupAthletes.groupId),
+              eq(groups.tenantId, notification.tenantId),
+              notification.academyId ? eq(groups.academyId, notification.academyId) : undefined,
+            ))
+            .innerJoin(athletes, and(eq(athletes.id, groupAthletes.athleteId), eq(athletes.tenantId, notification.tenantId)))
+            .innerJoin(profiles, eq(profiles.userId, athletes.userId))
+            .where(and(eq(groupAthletes.groupId, notification.groupId), eq(groupAthletes.tenantId, notification.tenantId)))
+            .limit(500);
+          const resolved = await Promise.all(members.map(async (member) => ({
+            userId: member.profileId,
+            name: member.name || undefined,
+            email: (await getAuthUserEmail(member.userId)) ?? undefined,
+          })));
+          recipients.push(...resolved);
         } else if (notification.templateId && notification.tenantId) {
           // Get admin users of the tenant
             const adminProfiles = await db
@@ -160,7 +199,7 @@ export async function POST(request: Request) {
         if (recipients.length > 0 && notification.tenantId) {
           const validNotification = notification as typeof notification & { tenantId: string };
           const delivery = await processNotification(validNotification, recipients);
-          if (delivery.sent > 0 && delivery.failed === 0) {
+          if ((delivery.sent > 0 || delivery.skipped > 0) && delivery.failed === 0) {
             await markScheduledNotificationSent(notification.id);
             processed++;
           } else {

@@ -1,8 +1,12 @@
 import { z } from "zod";
+import { and, eq } from "drizzle-orm";
 
 import { apiSuccess, apiError } from "@/lib/api-response";
 import { logger } from "@/lib/logger";
 import { withTenant } from "@/lib/authz";
+import { db } from "@/db";
+import { academies } from "@/db/schema";
+import { formatPhoneForWhatsApp } from "@/lib/whatsapp";
 
 const verifySchema = z
   .object({
@@ -13,14 +17,6 @@ const verifySchema = z
 
 const TWILIO_VERIFY_TIMEOUT_MS = 5000;
 const credentialKeyPattern = /(?:^|[-_])api[-_]?key$/i;
-
-const formatPhoneForSpain = (phone: string) => {
-  let formattedPhone = phone.replace(/\D/g, "");
-  if (!formattedPhone.startsWith("34")) {
-    formattedPhone = "34" + formattedPhone;
-  }
-  return formattedPhone;
-};
 
 function getCredentialInputKeys(request: Request, body: unknown): string[] {
   const bodyKeys =
@@ -35,7 +31,7 @@ function getCredentialInputKeys(request: Request, body: unknown): string[] {
   );
 }
 
-export const POST = withTenant(async (request: Request) => {
+export const POST = withTenant(async (request: Request, context) => {
   try {
     const rawBody = await request.json().catch(() => null);
     const credentialInputKeys = getCredentialInputKeys(request, rawBody);
@@ -56,19 +52,38 @@ export const POST = withTenant(async (request: Request) => {
       return apiError("VALIDATION_ERROR", "Validation failed", 400);
     }
 
-    const { phone } = parsed.data;
-    const formattedPhone = formatPhoneForSpain(phone);
+    const { phone, academyId } = parsed.data;
+    let countryCode = "ES";
+    if (academyId) {
+      const [academy] = await db
+        .select({ countryCode: academies.countryCode, country: academies.country })
+        .from(academies)
+        .where(and(eq(academies.id, academyId), eq(academies.tenantId, context.tenantId)))
+        .limit(1);
+      if (!academy) {
+        return apiError("ACADEMY_NOT_FOUND", "Academia no encontrada", 404);
+      }
+      countryCode = academy.countryCode ?? academy.country ?? "ES";
+    }
+    const formattedPhone = formatPhoneForWhatsApp(phone, countryCode);
     const accountSid = process.env.TWILIO_ACCOUNT_SID;
     const authToken = process.env.TWILIO_AUTH_TOKEN;
 
-    // Mantener la paridad con send/route.ts en sandbox/local: sin credenciales
-    // server-side no se contacta ningún proveedor y se devuelve una simulación.
+    // Solo el entorno local/test puede simular. En producción una respuesta
+    // exitosa sin contactar Twilio crea una falsa expectativa de entrega.
     if (!accountSid || !authToken) {
-      return apiSuccess({
-        success: true,
-        phone: formattedPhone,
-        message: "WhatsApp verification simulated (Twilio not configured)",
-      });
+      if (process.env.NODE_ENV !== "production") {
+        return apiSuccess({
+          success: true,
+          phone: formattedPhone,
+          message: "WhatsApp verification simulated (Twilio not configured)",
+        });
+      }
+      return apiError(
+        "TWILIO_NOT_CONFIGURED",
+        "WhatsApp no está configurado para esta instalación",
+        503,
+      );
     }
 
     const basicAuth = Buffer.from(`${accountSid}:${authToken}`).toString("base64");
