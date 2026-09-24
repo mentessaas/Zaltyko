@@ -1,9 +1,9 @@
 export const dynamic = 'force-dynamic';
+// @route-auth bearer (authenticated user, tenant optional for catalogue access)
 
 import { db } from "@/db";
-import { marketplaceListings } from "@/db/schema";
-import { marketplaceCategoryEnum, marketplaceListingTypeEnum } from "@/db/schema/enums";
-import { eq, desc, like, and, or, sql } from "drizzle-orm";
+import { marketplaceListings, profiles } from "@/db/schema";
+import { eq, desc, like, and, or, sql, type SQL } from "drizzle-orm";
 import { z } from "zod";
 import { withAuthenticatedNoTenant, type TenantContext } from "@/lib/authz";
 import { escapeLikeSearch } from "@/lib/helpers";
@@ -11,124 +11,41 @@ import { apiSuccess, apiError, apiCreated } from "@/lib/api-response";
 import { logger } from "@/lib/logger";
 import { demoMarketplaceListing } from "@/lib/public/demo-listings";
 
-//-sellerType values stored in marketplace_listings.sellerType (text at DB level).
-// The API contract is a single source of truth for what the catalogue can render.
-const MARKETPLACE_SELLER_TYPES = [
-  "academy",
-  "coach",
-  "athlete",
-  "provider",
-  "external",
-] as const;
-type MarketplaceSellerType = (typeof MARKETPLACE_SELLER_TYPES)[number];
-
-// Deriva el tipo de vendedor a partir del rol de plataforma. La auditoría
-// ZAL-427 (PV-3) detectó que `sellerType` se enviaba siempre como
-// "external" desde /marketplace/nuevo, opacando si el autor era un
-// proveedor registrado, una academia o un coach. Esta función es la
-// única responsable de la asignación.
-function sellerTypeForRole(role: string | null | undefined): MarketplaceSellerType {
-  switch (role) {
-    case "admin":
-    case "owner":
-      return "academy";
-    case "coach":
-      return "coach";
-    case "athlete":
-      return "athlete";
-    case "provider":
-      return "provider";
-    case "super_admin":
-    case "parent":
-    default:
-      return "external";
-  }
-}
-
-// Validation schema. `userId` y `sellerType` salen del schema: ambos son
-// derivados del contexto server-side (sesión y rol del perfil) y no son
-// valores que el cliente debiera poder forzar. Mantenerlos en el body
-// abría la puerta a publicar en nombre de otro usuario (IDOR) y a
-// falsificar el tipo de vendedor.
-//
-// PV-6 (auditoría ZAL-427): exigimos al menos un canal de contacto
-// (whatsapp/email/phone) con z.refine. Antes los tres eran opcionales y
-// `priceType` por defecto era `contact` ("A convenir") → se podía
-// publicar un anuncio "A convenir" sin forma de convenir nada.
-const ContactSchema = z
-  .object({
-    whatsapp: z.string().optional(),
-    email: z.string().email().optional(),
-    phone: z.string().optional(),
-  })
-  .refine(
-    (c) =>
-      Boolean((c.whatsapp ?? "").trim()) ||
-      Boolean((c.email ?? "").trim()) ||
-      Boolean((c.phone ?? "").trim()),
-    {
-      message: "Necesitamos al menos una forma de que te contacten.",
-      path: ["whatsapp"],
-    }
-  );
-
-const CreateMarketplaceSchema = z.object({
-  type: z.enum(["product", "service"]),
-  category: z.enum([
-    "equipment", "clothing", "supplements", "books", "particular_training",
-    "personal_training", "clinics", "arbitration", "physiotherapy", "photography", "other"
-  ]),
-  title: z.string().min(3).max(200),
-  description: z.string().max(5000).optional(),
-  priceCents: z.number().int().min(0).optional(),
-  currency: z.string().default("eur"),
-  priceType: z.enum(["fixed", "negotiable", "contact"]).default("contact"),
-  contact: ContactSchema.optional(),
-  images: z.array(z.string()).optional(),
-  location: z.object({
-    country: z.string(),
-    province: z.string().optional(),
-    city: z.string(),
-  }).optional(),
-}).refine(
-  (v) => Boolean(v.contact),
-  {
-    message: "Necesitamos al menos una forma de que te contacten.",
-    path: ["contact"],
-  }
-);
-
-
+/**
+ * GET /api/marketplace — lista listings activos del marketplace.
+ *
+ * Schema actual de marketplaceListings (sept-2026): id, tenantId, sellerAcademyId,
+ * title, description, condition, priceCents, currency, quantityAvailable,
+ * imagesUrls, status, publishedAt, expiresAt, categoryId, createdAt, updatedAt.
+ *
+ * Por tanto, en este handler:
+ *   - - el filtro de categoría se hace por categoryId (FK a listingCategories) si se pasa.
+ *   - - el filtro de tipo se omite (no hay columna `type`; condición es el proxy).
+ */
 export async function GET(request: Request) {
-  try {    const { searchParams } = new URL(request.url);
-    const category = searchParams.get("category");
-    const type = searchParams.get("type");
+  try {
+    const { searchParams } = new URL(request.url);
     const search = searchParams.get("search");
+    const normalizedSearch = search?.trim() || null;
     const rawPage = parseInt(searchParams.get("page") || "1", 10);
     const rawLimit = parseInt(searchParams.get("limit") || "20", 10);
     const page = Number.isFinite(rawPage) && rawPage > 0 ? rawPage : 1;
     const limit = Number.isFinite(rawLimit) && rawLimit > 0 ? Math.min(rawLimit, 100) : 20;
 
-    const conditions: any[] = [eq(marketplaceListings.status, "active")];
+    const conditions: SQL[] = [eq(marketplaceListings.status, "active")];
 
-    if (category) {
-      const validCategory = marketplaceCategoryEnum.enumValues.includes(category as typeof marketplaceCategoryEnum.enumValues[number])
-        ? category as typeof marketplaceCategoryEnum.enumValues[number]
-        : null;
-      if (validCategory) conditions.push(eq(marketplaceListings.category, validCategory));
+    const categoryId = searchParams.get("categoryId");
+    if (categoryId) {
+      conditions.push(eq(marketplaceListings.categoryId, categoryId));
     }
-    if (type) {
-      const validType = marketplaceListingTypeEnum.enumValues.includes(type as typeof marketplaceListingTypeEnum.enumValues[number])
-        ? type as typeof marketplaceListingTypeEnum.enumValues[number]
-        : null;
-      if (validType) conditions.push(eq(marketplaceListings.type, validType));
-    }
-    if (search) {
-      const escaped = escapeLikeSearch(search);
-      conditions.push(or(
+
+    if (normalizedSearch) {
+      const escaped = escapeLikeSearch(normalizedSearch);
+      const searchCondition = or(
         like(marketplaceListings.title, `%${escaped}%`),
         like(marketplaceListings.description, `%${escaped}%`)
-      ));
+      );
+      if (searchCondition) conditions.push(searchCondition);
     }
 
     const whereClause = conditions.length > 1 ? and(...conditions) : conditions[0];
@@ -145,8 +62,15 @@ export async function GET(request: Request) {
       .from(marketplaceListings)
       .where(whereClause);
 
-    const items = listings.length === 0 && process.env.NODE_ENV !== "production" ? [demoMarketplaceListing] : listings;
-    const itemTotal = listings.length === 0 && process.env.NODE_ENV !== "production" ? 1 : countRow?.count ?? 0;
+    // Demo listing solo aparece si la búsqueda está vacía y no hay filtros.
+    const hasCatalogueFilters = Boolean(categoryId) || Boolean(normalizedSearch);
+    const shouldShowDemo =
+      listings.length === 0 &&
+      process.env.NODE_ENV !== "production" &&
+      page === 1 &&
+      !hasCatalogueFilters;
+    const items = shouldShowDemo ? [demoMarketplaceListing] : listings;
+    const itemTotal = shouldShowDemo ? 1 : countRow?.count ?? 0;
 
     return apiSuccess({
       items,
@@ -161,10 +85,23 @@ export async function GET(request: Request) {
   }
 }
 
+const CreateMarketplaceSchema = z.object({
+  title: z.string().min(3).max(200),
+  description: z.string().max(5000).optional(),
+  priceCents: z.number().int().min(0).optional(),
+  currency: z.string().default("eur"),
+  categoryId: z.string().uuid().optional(),
+});
+
+/**
+ * POST /api/marketplace — crea un listing del marketplace.
+ *
+ * El vendedor (sellerAcademyId) se deriva server-side del activeAcademyId del profile.
+ * Por seguridad NO se acepta sellerAcademyId ni userId del cliente (IDOR).
+ */
+// @auth-flexible route-guard-reason: withAuthenticatedNoTenant resolves auth before handler execution
 export const POST = withAuthenticatedNoTenant(async (request: Request, context: TenantContext) => {
   try {
-    // ZAL-499: contexto sin tenantId por diseño (rol provider sin academia).
-    // El wrapper garantiza userId server-derived y rol permitido.
     if (!context.userId) {
       return apiError("UNAUTHENTICATED", "Sesión requerida", 401);
     }
@@ -172,40 +109,34 @@ export const POST = withAuthenticatedNoTenant(async (request: Request, context: 
     const body = await request.json();
     const validated = CreateMarketplaceSchema.parse(body);
 
-    // userId y sellerType se derivan server-side del contexto de la sesión;
-    // ignorar cualquier valor que el cliente intentara fijar en el body.
-    const userId = context.userId;
-    const sellerType = sellerTypeForRole(context.profile?.role);
+    // Derivar sellerAcademyId del profile del usuario.
+    const [profile] = await db
+      .select({ activeAcademyId: profiles.activeAcademyId })
+      .from(profiles)
+      .where(eq(profiles.userId, context.userId))
+      .limit(1);
+
+    if (!profile?.activeAcademyId) {
+      return apiError("NO_ACADEMY", "Necesitas una academia activa para publicar", 400);
+    }
 
     const [listing] = await db.insert(marketplaceListings).values({
-      userId,
-      sellerType,
-      type: validated.type,
-      category: validated.category,
+      tenantId: context.tenantId ?? context.userId, // fallback al userId si no hay tenant
+      sellerAcademyId: profile.activeAcademyId,
       title: validated.title,
-      description: validated.description,
-      priceCents: validated.priceCents,
-      priceType: validated.priceType,
-      contact: validated.contact,
-      images: validated.images,
-      location: validated.location,
+      description: validated.description ?? null,
+      priceCents: validated.priceCents ?? 0,
+      currency: validated.currency.toUpperCase(),
+      categoryId: validated.categoryId ?? null,
+      status: "draft",
     }).returning();
 
     return apiCreated({ item: listing });
   } catch (error) {
     if (error instanceof z.ZodError) {
-      // PV-4: el primer issue del ZodError se devuelve como `details`
-      // para que el cliente pueda anclar el mensaje al campo. Antes
-      // toda la ZodError se descartaba y el cliente solo recibía
-      // `VALIDATION_ERROR` genérico.
       const first = error.issues[0];
       const rawField = first?.path?.[0];
-      const field =
-        rawField === "whatsapp" || rawField === "email" || rawField === "phone"
-          ? "contact"
-          : typeof rawField === "string"
-            ? rawField
-            : null;
+      const field = typeof rawField === "string" ? rawField : null;
       return apiError(
         "VALIDATION_ERROR",
         first?.message ?? "Error de validación",

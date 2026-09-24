@@ -1,6 +1,6 @@
 import { dirname, resolve } from "node:path";
 import { fileURLToPath } from "node:url";
-import { withSentryConfig } from "@sentry/nextjs";
+import { withSentryConfig } from "@sentry/nextjs/config";
 
 const __dirname = dirname(fileURLToPath(import.meta.url));
 
@@ -66,6 +66,11 @@ const nextConfig = {
   poweredByHeader: false,
   reactStrictMode: true,
 
+  // Playwright/dev-server requests originate from loopback during local E2E;
+  // explicitly allow them so Next.js does not emit the upcoming
+  // cross-origin warning (production traffic remains governed by middleware).
+  allowedDevOrigins: ["127.0.0.1", "localhost"],
+
   // Headers de seguridad: ver middleware.ts (nonce por request).
 
   // Consolidar señales SEO en el dominio canónico: el dominio de despliegue
@@ -78,6 +83,28 @@ const nextConfig = {
         source: "/:path*",
         has: [{ type: "host", value: "zaltyko.vercel.app" }],
         destination: "https://zaltyko.com/:path*",
+        permanent: true,
+      },
+      // Alias-URL funnel fixes (2026-09-24 E2E audit P0-1):
+      // /planes, /precios, /contacto, /nosotros redirigían a / sin path.
+      {
+        source: "/planes",
+        destination: "/pricing",
+        permanent: true,
+      },
+      {
+        source: "/precios",
+        destination: "/pricing",
+        permanent: true,
+      },
+      {
+        source: "/contacto",
+        destination: "/contact",
+        permanent: true,
+      },
+      {
+        source: "/nosotros",
+        destination: "/sobre-nosotros",
         permanent: true,
       },
     ];

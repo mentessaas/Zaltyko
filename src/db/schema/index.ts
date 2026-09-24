@@ -13,6 +13,8 @@ export * from "./enums";
 export * from "./plans";
 export * from "./academies";
 export * from "./academy-trials";
+export * from "./lead-trials";
+export * from "./lead-trial-outcomes";
 export * from "./academy-messages";
 export * from "./announcements";
 export * from "./direct-messages";
@@ -27,6 +29,7 @@ export * from "./family-stripe-customers";
 export * from "./payment-attempts";
 export * from "./refunds";
 export * from "./athletes";
+export * from "./athlete-import-batches";
 export * from "./coaches";
 export * from "./empleo";
 export * from "./classes";
@@ -37,6 +40,12 @@ export * from "./class-sessions";
 export * from "./attendance-records";
 export * from "./family-contacts";
 export * from "./skill-catalog";
+export * from "./athlete-skills";
+export * from "./actor-pages";
+export * from "./suppliers";
+export * from "./store";
+export * from "./marketplace";
+export * from "./variants";
 export * from "./athlete-assessments";
 export * from "./assessment-scores";
 export * from "./coach-notes";
@@ -71,7 +80,6 @@ export * from "./class-exceptions";
 export * from "./push-subscriptions";
 export * from "./push-tokens";
 export * from "./support-tickets";
-export * from "./marketplace";
 export * from "./advertising";
 export * from "./event-registration";
 export * from "./assessment-extended";
@@ -87,9 +95,16 @@ export * from "./templates";
 export * from "./sport-config";
 export * from "./athlete-sport-configs";
 export * from "./leads";
+export * from "./lead-interactions";
 export * from "./growth-events";
 export * from "./commercial-interviews";
 export * from "./leak-profitability";
 
 // ZAL-158 [GTM-DEP.2] Server-side consent storage
 export * from "./owner-consent";
+
+// Categories (listing taxonomy)
+export * from "./categories";
+
+// Trust pack (marketplace disputes + ratings)
+export * from "./trust";

@@ -14,12 +14,16 @@ export const dynamic = "force-dynamic";
  * GET /api/marketplace/[id]/ratings
  * Returns all ratings for a listing with aggregate stats.
  */
+// @auth-flexible route-guard-reason: ratings are publicly readable; UUID validation prevents malformed database lookups.
 export async function GET(
   _request: Request,
   { params }: { params: Promise<{ id: string }> }
 ) {
   try {
     const { id } = await params;
+    if (!z.string().uuid().safeParse(id).success) {
+      return NextResponse.json({ error: "INVALID_LISTING_ID" }, { status: 400 });
+    }
 
     const [listing] = await db
       .select({ id: marketplaceListings.id })
@@ -43,7 +47,8 @@ export async function GET(
       .from(marketplaceRatings)
       .leftJoin(profiles, eq(marketplaceRatings.reviewerId, profiles.id))
       .where(eq(marketplaceRatings.listingId, id))
-      .orderBy(desc(marketplaceRatings.createdAt));
+      .orderBy(desc(marketplaceRatings.createdAt))
+      .limit(500);
 
     const [{ avgRating, totalCount }] = await db
       .select({
@@ -87,6 +92,9 @@ export async function POST(
     }
 
     const { id } = await params;
+    if (!z.string().uuid().safeParse(id).success) {
+      return NextResponse.json({ error: "INVALID_LISTING_ID" }, { status: 400 });
+    }
 
     const [listing] = await db
       .select({ id: marketplaceListings.id })
@@ -98,9 +106,9 @@ export async function POST(
       return NextResponse.json({ error: "LISTING_NOT_FOUND" }, { status: 404 });
     }
 
-    // Get user's profile
+    // Get user's profile (incluye activeAcademyId para ownership del rating)
     const [profile] = await db
-      .select({ id: profiles.id })
+      .select({ id: profiles.id, activeAcademyId: profiles.activeAcademyId })
       .from(profiles)
       .where(eq(profiles.userId, user.id))
       .limit(1);
@@ -109,14 +117,17 @@ export async function POST(
       return NextResponse.json({ error: "PROFILE_NOT_FOUND" }, { status: 404 });
     }
 
-    // Get listing with seller profile (join on marketplaceListings.userId = profiles.userId)
+    // Get listing with seller profile (join via activeAcademyId del profile del vendedor)
     const [listingWithSeller] = await db
       .select({
-        listingUserId: marketplaceListings.userId,
-        sellerProfileId: profiles.id,
+        listingSellerAcademyId: marketplaceListings.sellerAcademyId,
+        sellerProfileAcademyId: profiles.activeAcademyId,
       })
       .from(marketplaceListings)
-      .leftJoin(profiles, eq(marketplaceListings.userId, profiles.userId))
+      .leftJoin(
+        profiles,
+        eq(profiles.activeAcademyId, marketplaceListings.sellerAcademyId),
+      )
       .where(eq(marketplaceListings.id, id))
       .limit(1);
 
@@ -124,15 +135,18 @@ export async function POST(
       return NextResponse.json({ error: "LISTING_NOT_FOUND" }, { status: 404 });
     }
 
-    // Prevent self-rating
-    if (listingWithSeller.listingUserId === user.id) {
+    // Prevent self-rating (el rater y el seller pertenecen a la misma academia)
+    if (
+      listingWithSeller.sellerProfileAcademyId !== null &&
+      listingWithSeller.sellerProfileAcademyId === profile.activeAcademyId
+    ) {
       return NextResponse.json(
         { error: "Cannot rate your own listing" },
         { status: 400 }
       );
     }
 
-    const body = await request.json();
+    const body = await request.json().catch(() => null);
     const parsed = PostRatingSchema.safeParse(body);
 
     if (!parsed.success) {
@@ -142,16 +156,35 @@ export async function POST(
       );
     }
 
+    const [existingRating] = await db
+      .select({ id: marketplaceRatings.id })
+      .from(marketplaceRatings)
+      .where(
+        sql`${marketplaceRatings.listingId} = ${id} AND ${marketplaceRatings.reviewerId} = ${profile.id}`,
+      )
+      .limit(1);
+    if (existingRating) {
+      return NextResponse.json(
+        { error: "RATING_ALREADY_EXISTS", message: "Ya has valorado este anuncio" },
+        { status: 409 },
+      );
+    }
+
     const [rating] = await db
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
       .insert(marketplaceRatings)
       .values({
         listingId: id,
-        sellerId: listingWithSeller.sellerProfileId as any, // profiles.id
-        reviewerId: profile.id,
+        orderId: null, // rating sobre listing (sin orderId específico)
+        reviewerId: profile.activeAcademyId!, // reviewerId apunta a la academia del rater
+        raterAcademyId: profile.activeAcademyId!,
+        ratedAcademyId: listingWithSeller.listingSellerAcademyId,
+        direction: "buyer_to_seller",
+        stars: parsed.data.rating,
         rating: parsed.data.rating,
         comment: parsed.data.comment ?? null,
-        verified: false,
-      })
+        verified: "pending",
+      } as any)
       .returning();
 
     return NextResponse.json({ rating }, { status: 201 });
