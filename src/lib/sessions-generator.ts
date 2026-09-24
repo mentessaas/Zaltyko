@@ -1,8 +1,8 @@
 import { and, eq, gte, lte } from "drizzle-orm";
-import { addDays, format, getDay } from "date-fns";
 
 import { db } from "@/db";
 import { classCoachAssignments, classSessions, classWeekdays, classes } from "@/db/schema";
+import { addCalendarDays, formatCalendarDate, parseCalendarDate } from "@/lib/date-utils";
 
 export interface GenerateSessionsOptions {
   classId: string;
@@ -52,7 +52,8 @@ export async function generateRecurringSessions(
   const weekdayRows = await db
     .select({ weekday: classWeekdays.weekday })
     .from(classWeekdays)
-    .where(eq(classWeekdays.classId, classId));
+    .where(and(eq(classWeekdays.classId, classId), eq(classWeekdays.tenantId, tenantId)))
+    .limit(7);
 
   const weekdays = weekdayRows.map((row) => row.weekday).sort((a, b) => a - b);
 
@@ -66,14 +67,18 @@ export async function generateRecurringSessions(
       coachId: classCoachAssignments.coachId,
     })
     .from(classCoachAssignments)
-    .where(eq(classCoachAssignments.classId, classId))
+    .where(and(eq(classCoachAssignments.classId, classId), eq(classCoachAssignments.tenantId, tenantId)))
     .limit(1);
 
   const assignedCoachId = coachAssignment?.coachId ?? null;
 
   // Convertir fechas a Date si son strings
-  const start = typeof startDate === "string" ? new Date(startDate) : startDate;
-  const end = typeof endDate === "string" ? new Date(endDate) : endDate;
+  const start = typeof startDate === "string" ? parseCalendarDate(startDate) : startDate;
+  const end = typeof endDate === "string" ? parseCalendarDate(endDate) : endDate;
+
+  if (!start || !end || Number.isNaN(start.getTime()) || Number.isNaN(end.getTime())) {
+    throw new Error("INVALID_DATE_FORMAT");
+  }
 
   // Validar rango de fechas (máximo 1 año)
   const maxDays = 365;
@@ -96,13 +101,17 @@ export async function generateRecurringSessions(
       and(
         eq(classSessions.classId, classId),
         eq(classSessions.tenantId, tenantId),
-        gte(classSessions.sessionDate, format(start, "yyyy-MM-dd")),
-        lte(classSessions.sessionDate, format(end, "yyyy-MM-dd"))
+        gte(classSessions.sessionDate, formatCalendarDate(start)),
+        lte(classSessions.sessionDate, formatCalendarDate(end))
       )
-    );
+    )
+    .limit(366);
 
   const existingDates = new Set(
-    existingSessions.map((s) => format(new Date(s.sessionDate), "yyyy-MM-dd"))
+    existingSessions.map((s) => {
+      const parsed = parseCalendarDate(String(s.sessionDate));
+      return parsed ? formatCalendarDate(parsed) : String(s.sessionDate);
+    })
   );
 
   // Generar fechas para el weekday especificado
@@ -117,7 +126,7 @@ export async function generateRecurringSessions(
 
   for (const targetWeekday of weekdays) {
     let currentDate = new Date(start);
-    const startWeekday = getDay(currentDate); // date-fns: 0 = Domingo, 1 = Lunes, ..., 6 = Sábado
+    const startWeekday = currentDate.getUTCDay(); // 0 = Domingo, 1 = Lunes, ..., 6 = Sábado
 
     const targetDay = targetWeekday === 0 ? 7 : targetWeekday;
     const currentDay = startWeekday === 0 ? 7 : startWeekday;
@@ -128,14 +137,14 @@ export async function generateRecurringSessions(
       daysToAdd = 7;
     }
 
-    currentDate = addDays(currentDate, daysToAdd);
+    currentDate = addCalendarDays(currentDate, daysToAdd);
 
     if (currentDate < start) {
-      currentDate = addDays(currentDate, 7);
+      currentDate = addCalendarDays(currentDate, 7);
     }
 
     while (currentDate <= endDateObj) {
-      const dateStr = format(currentDate, "yyyy-MM-dd");
+      const dateStr = formatCalendarDate(currentDate);
 
       if (!existingDates.has(dateStr)) {
         let startTimeStr: string | null = null;
@@ -162,7 +171,7 @@ export async function generateRecurringSessions(
         existingDates.add(dateStr);
       }
 
-      currentDate = addDays(currentDate, 7);
+      currentDate = addCalendarDays(currentDate, 7);
     }
   }
 
@@ -188,20 +197,27 @@ export async function generateRecurringSessions(
       status: "scheduled" as const,
     }));
 
-    await db.insert(classSessions).values(values);
+    const insertedSessions = await db
+      .insert(classSessions)
+      .values(values)
+      .onConflictDoNothing({ target: [classSessions.classId, classSessions.sessionDate] })
+      .returning({ id: classSessions.id, sessionDate: classSessions.sessionDate });
 
     // Mapear IDs creados
+    const sessionByDate = new Map(sessionsToCreate.map((session, idx) => [session.sessionDate, { ...session, id: values[idx]!.id }]));
     createdSessions.push(
-      ...values.map((v, idx) => ({
-        id: v.id,
-        ...sessionsToCreate[idx],
-      }))
+      ...insertedSessions.flatMap((inserted) => {
+        const source = sessionByDate.get(inserted.sessionDate);
+        return source ? [{ ...source, id: inserted.id }] : [];
+      })
     );
   }
 
   return {
-    created: sessionsToCreate.length,
-    skipped: existingDates.size,
+    // Informar lo que realmente confirmó la base de datos: una carrera
+    // concurrente puede hacer que ON CONFLICT descarte alguna fila.
+    created: createdSessions.length,
+    skipped: existingSessions.length + (sessionsToCreate.length - createdSessions.length),
     sessions: createdSessions,
   };
 }

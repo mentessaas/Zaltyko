@@ -49,6 +49,7 @@ export async function calculateChurnReport(filters: ChurnReportFilters): Promise
     filters.sportConfigId ? eq(athletes.primarySportConfigId, filters.sportConfigId) : undefined,
   ].filter(Boolean);
 
+  // unbounded-read-ok: complete tenant-scoped dataset required for churn calculation
   const athleteRows = await db
     .select({
       id: athletes.id,
@@ -58,12 +59,14 @@ export async function calculateChurnReport(filters: ChurnReportFilters): Promise
       deletedAt: athletes.deletedAt,
     })
     .from(athletes)
-    .where(and(...athleteWhere));
+    .where(and(...athleteWhere))
+    .limit(10000);
 
   const athleteIds = athleteRows.map((athlete) => athlete.id);
   const statusChangeLogs =
     athleteIds.length > 0
-      ? await db
+      ? // unbounded-read-ok: status history for the selected report population
+        await db
           .select({
             resourceId: auditLogs.resourceId,
             createdAt: auditLogs.createdAt,
@@ -79,6 +82,7 @@ export async function calculateChurnReport(filters: ChurnReportFilters): Promise
               filters.endDate ? lte(auditLogs.createdAt, filters.endDate) : undefined
             )
           )
+          .limit(10000)
       : [];
 
   const logsByAthlete = new Map<

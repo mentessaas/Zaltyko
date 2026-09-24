@@ -4,6 +4,8 @@ import { messageTemplates, messageGroups, scheduledNotifications, notificationPr
 import { eq, and, desc, sql, isNull, or, lte, type SQL } from "drizzle-orm";
 import type { InferInsertModel, InferSelectModel } from "drizzle-orm";
 
+const MAX_COMMUNICATION_LIST_ITEMS = 100;
+
 // --- Types ---
 export type MessageTemplate = InferSelectModel<typeof messageTemplates>;
 export type NewMessageTemplate = InferInsertModel<typeof messageTemplates>;
@@ -42,11 +44,27 @@ export async function updateMessageHistoryStatus(
 }
 
 // --- Message Templates ---
-export async function getMessageTemplateById(id: string) {
+export async function getMessageTemplateById(
+  id: string,
+  scope?: { tenantId?: string; academyId?: string | null }
+) {
+  const conditions = [eq(messageTemplates.id, id)];
+  if (scope?.tenantId) {
+    conditions.push(
+      or(
+        eq(messageTemplates.tenantId, scope.tenantId),
+        and(isNull(messageTemplates.tenantId), eq(messageTemplates.isSystem, true))
+      )!
+    );
+  }
+  if (scope?.academyId) {
+    conditions.push(or(isNull(messageTemplates.academyId), eq(messageTemplates.academyId, scope.academyId))!);
+  }
   const [template] = await db
     .select()
     .from(messageTemplates)
-    .where(eq(messageTemplates.id, id));
+    .where(and(...conditions))
+    .limit(1);
   return template || null;
 }
 
@@ -103,7 +121,8 @@ export async function getMessageTemplates(
     .select()
     .from(messageTemplates)
     .where(and(...conditions))
-    .orderBy(desc(messageTemplates.createdAt));
+    .orderBy(desc(messageTemplates.createdAt))
+    .limit(MAX_COMMUNICATION_LIST_ITEMS);
 }
 
 export async function createMessageTemplate(data: NewMessageTemplate) {
@@ -253,14 +272,16 @@ export async function getMessageGroups(tenantId: string, academyId: string) {
     .select()
     .from(messageGroups)
     .where(and(eq(messageGroups.tenantId, tenantId), eq(messageGroups.academyId, academyId)))
-    .orderBy(desc(messageGroups.createdAt));
+    .orderBy(desc(messageGroups.createdAt))
+    .limit(MAX_COMMUNICATION_LIST_ITEMS);
 }
 
 export async function getMessageGroupById(id: string) {
   const [group] = await db
     .select()
     .from(messageGroups)
-    .where(eq(messageGroups.id, id));
+    .where(eq(messageGroups.id, id))
+    .limit(1);
   return group || null;
 }
 
@@ -295,14 +316,16 @@ export async function getScheduledNotifications(tenantId: string, academyId: str
       eq(scheduledNotifications.tenantId, tenantId),
       eq(scheduledNotifications.academyId, academyId)
     ))
-    .orderBy(desc(scheduledNotifications.createdAt));
+    .orderBy(desc(scheduledNotifications.createdAt))
+    .limit(MAX_COMMUNICATION_LIST_ITEMS);
 }
 
 export async function getScheduledNotificationById(id: string) {
   const [notification] = await db
     .select()
     .from(scheduledNotifications)
-    .where(eq(scheduledNotifications.id, id));
+    .where(eq(scheduledNotifications.id, id))
+    .limit(1);
   return notification || null;
 }
 
@@ -327,7 +350,8 @@ export async function getPendingScheduledNotifications() {
         eq(scheduledNotifications.status, "pending"),
         lte(scheduledNotifications.scheduledFor, new Date())
       )
-    );
+    )
+    .limit(MAX_COMMUNICATION_LIST_ITEMS);
 }
 
 export async function markScheduledNotificationSent(id: string) {
@@ -355,6 +379,7 @@ export async function markScheduledNotificationFailed(id: string) {
 export async function getMessageHistory(
   tenantId: string,
   params?: {
+    academyId?: string;
     channel?: string;
     status?: string;
     profileId?: string;
@@ -363,9 +388,16 @@ export async function getMessageHistory(
     offset?: number;
   }
 ) {
-  const { channel, status, profileId, sportConfigId, limit = 50, offset = 0 } = params || {};
+  const { academyId, channel, status, profileId, sportConfigId, limit = 50, offset = 0 } = params || {};
 
   const conditions = [eq(messageHistory.tenantId, tenantId)];
+  if (academyId) {
+    // La columna dedicada cubre registros nuevos; el fallback en meta permite
+    // leer de forma segura historiales creados antes de la migración.
+    conditions.push(
+      sql`(${messageHistory.academyId} = ${academyId} OR ${messageHistory.meta}->>'academyId' = ${academyId})`
+    );
+  }
   if (channel) {
     conditions.push(eq(messageHistory.channel, channel));
   }
@@ -390,7 +422,8 @@ export async function getMessageHistory(
   const [{ count }] = await db
     .select({ count: sql<number>`count(*)` })
     .from(messageHistory)
-    .where(and(...conditions));
+    .where(and(...conditions))
+    .limit(1);
 
   return { items, total: Number(count) };
 }
@@ -400,7 +433,8 @@ export async function getNotificationPreferences(profileId: string) {
   const preferences = await db
     .select()
     .from(notificationPreferences)
-    .where(eq(notificationPreferences.profileId, profileId));
+    .where(eq(notificationPreferences.profileId, profileId))
+    .limit(MAX_COMMUNICATION_LIST_ITEMS);
   return preferences.length > 0 ? preferences : null;
 }
 
@@ -416,7 +450,8 @@ export async function getNotificationPreferenceByChannel(
         eq(notificationPreferences.profileId, profileId),
         eq(notificationPreferences.channel, channel)
       )
-    );
+    )
+    .limit(1);
   return preference || null;
 }
 
@@ -452,6 +487,10 @@ export async function updateNotificationPreferences(
         enabled: data.enabled ?? true,
         updatedAt: new Date(),
       })
+      .onConflictDoUpdate({
+        target: [notificationPreferences.profileId, notificationPreferences.channel],
+        set: { enabled: data.enabled ?? true, updatedAt: new Date() },
+      })
       .returning();
     return preference;
   }
@@ -472,6 +511,7 @@ export async function setDefaultNotificationPreferences(profileId: string) {
           enabled: true,
           updatedAt: new Date(),
         })
+        .onConflictDoNothing({ target: [notificationPreferences.profileId, notificationPreferences.channel] })
         .returning();
       results.push(preference);
     }

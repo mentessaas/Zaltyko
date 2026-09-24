@@ -1,5 +1,5 @@
-import { addDays, endOfWeek, formatISO, startOfWeek, subDays } from "date-fns";
-import { and, asc, count, desc, eq, gte, inArray, lte, sql } from "drizzle-orm";
+import { formatISO } from "date-fns";
+import { and, asc, count, desc, eq, gte, inArray, isNull, lte, or, sql } from "drizzle-orm";
 
 import { db } from "@/db";
 import {
@@ -17,12 +17,16 @@ import {
   federativeLicenses,
   groupAthletes,
   groups,
-  plans,
   profiles,
-  subscriptions,
 } from "@/db/schema";
 import { getActiveSubscription } from "@/lib/limits";
 import { logger } from "@/lib/logger";
+import {
+  addDaysToCalendarDate,
+  formatDateToISOString,
+  getTimezoneForCountry,
+  getWeekCalendarDateKeys,
+} from "@/lib/date-utils";
 import { getAcademySportConfigOptions } from "@/lib/sport-config/service";
 
 export interface DashboardMetrics {
@@ -30,6 +34,8 @@ export interface DashboardMetrics {
   coaches: number;
   groups: number;
   classesThisWeek: number;
+  /** Plantillas recurrentes activas; no son sesiones impartibles todavía. */
+  classTemplates?: number;
   assessments: number;
   attendancePercent: number;
 }
@@ -128,20 +134,22 @@ export interface DashboardData {
   };
 }
 
-function getWeekBoundaries(country?: string | null): { start: Date; end: Date } {
-  // Importar dinámicamente para evitar dependencias circulares
-  let now = new Date();
+function resolveDashboardTimezone(input: {
+  timezone?: string | null;
+  countryCode?: string | null;
+  country?: string | null;
+}): string {
+  const fallback = getTimezoneForCountry(input.countryCode ?? input.country);
+  const candidate = input.timezone?.trim();
+
+  if (!candidate) return fallback;
+
   try {
-    const { getNowInCountryTimezone } = require("@/lib/date-utils");
-    now = getNowInCountryTimezone(country);
+    new Intl.DateTimeFormat("en-US", { timeZone: candidate }).format();
+    return candidate;
   } catch {
-    // Si falla, usar fecha local
+    return fallback;
   }
-  const start = startOfWeek(now, { weekStartsOn: 1 });
-  const end = endOfWeek(now, { weekStartsOn: 1 });
-  start.setHours(0, 0, 0, 0);
-  end.setHours(23, 59, 59, 999);
-  return { start, end };
 }
 
 const WEEKDAY_LABELS = ["Lunes", "Martes", "Miércoles", "Jueves", "Viernes", "Sábado", "Domingo"];
@@ -185,7 +193,14 @@ function summarizeActivity(action: string, meta: Record<string, unknown> | null)
 }
 
 export async function getDashboardData(academyId: string): Promise<{
-  academy: { id: string; name: string | null; academyType: string | null; tenantId: string | null; country: string | null };
+  academy: {
+    id: string;
+    name: string | null;
+    academyType: string | null;
+    tenantId: string | null;
+    country: string | null;
+    timezone: string;
+  };
   data: DashboardData;
 }> {
   const [academy] = await db
@@ -195,6 +210,8 @@ export async function getDashboardData(academyId: string): Promise<{
       tenantId: academies.tenantId,
       academyType: academies.academyType,
       country: academies.country,
+      countryCode: academies.countryCode,
+      timezone: academies.timezone,
     })
     .from(academies)
     .where(eq(academies.id, academyId))
@@ -204,15 +221,43 @@ export async function getDashboardData(academyId: string): Promise<{
     throw new Error("ACADEMY_NOT_FOUND");
   }
 
-  const week = getWeekBoundaries(academy.country);
-  const weekStartIso = formatISO(week.start, { representation: "date" });
-  const weekEndIso = formatISO(week.end, { representation: "date" });
+  // Todas las métricas del panel deben usar el mismo alcance de academia y
+  // tenant. Sin este filtro, registros legacy o eliminados pueden inflar KPIs
+  // y, con una consulta privilegiada, aparecer en el panel equivocado.
+  const tenantId = academy.tenantId;
+  const activeAthleteScope = and(
+    eq(athletes.academyId, academyId),
+    eq(athletes.tenantId, tenantId),
+    isNull(athletes.deletedAt)
+  );
+  const activeCoachScope = and(
+    eq(coaches.academyId, academyId),
+    eq(coaches.tenantId, tenantId)
+  );
+  const activeGroupScope = and(
+    eq(groups.academyId, academyId),
+    eq(groups.tenantId, tenantId),
+    isNull(groups.deletedAt)
+  );
+  const activeClassScope = and(
+    eq(classes.academyId, academyId),
+    eq(classes.tenantId, tenantId),
+    isNull(classes.deletedAt)
+  );
+
+  const academyTimezone = resolveDashboardTimezone({
+    timezone: academy.timezone,
+    countryCode: academy.countryCode,
+    country: academy.country,
+  });
+  const week = getWeekCalendarDateKeys(new Date(), academyTimezone);
+  const weekStartIso = week.start;
+  const weekEndIso = week.end;
 
   // Calcular % de asistencia de los últimos 7 días
   const now = new Date();
-  const sevenDaysAgo = subDays(now, 7);
-  const sevenDaysAgoIso = formatISO(sevenDaysAgo, { representation: "date" });
-  const nowIso = formatISO(now, { representation: "date" });
+  const nowIso = formatDateToISOString(now, academy.country);
+  const sevenDaysAgoIso = addDaysToCalendarDate(nowIso, -7) ?? nowIso;
 
   // Ejecutar todas las consultas de métricas en paralelo para mejor rendimiento
   const [
@@ -226,16 +271,20 @@ export async function getDashboardData(academyId: string): Promise<{
     presentAttendanceResult,
     classesTotalResult,
   ] = await Promise.all([
-    db.select({ value: count() }).from(athletes).where(eq(athletes.academyId, academyId)),
-    db.select({ value: count() }).from(coaches).where(eq(coaches.academyId, academyId)),
-    db.select({ value: count() }).from(groups).where(eq(groups.academyId, academyId)),
+    // unbounded-read-ok: dashboard aggregate count
+    db.select({ value: count() }).from(athletes).where(activeAthleteScope),
+    // unbounded-read-ok: dashboard aggregate count
+    db.select({ value: count() }).from(coaches).where(activeCoachScope),
+    // unbounded-read-ok: dashboard aggregate count
+    db.select({ value: count() }).from(groups).where(activeGroupScope),
+    // unbounded-read-ok: dashboard aggregate count over scoped week
     db
       .select({ value: count() })
       .from(classSessions)
       .innerJoin(classes, eq(classSessions.classId, classes.id))
       .where(
         and(
-          eq(classes.academyId, academyId),
+          activeClassScope,
           gte(classSessions.sessionDate, weekStartIso),
           lte(classSessions.sessionDate, weekEndIso)
         )
@@ -244,11 +293,11 @@ export async function getDashboardData(academyId: string): Promise<{
       .select({ value: sql<number>`count(distinct ${classWeekdays.classId})` })
       .from(classWeekdays)
       .innerJoin(classes, eq(classWeekdays.classId, classes.id))
-      .where(eq(classes.academyId, academyId)),
+      .where(activeClassScope),
     db
       .select({ value: count() })
       .from(athleteAssessments)
-      .where(eq(athleteAssessments.academyId, academyId)),
+      .where(and(eq(athleteAssessments.academyId, academyId), eq(athleteAssessments.tenantId, tenantId))),
     db
       .select({ value: count() })
       .from(attendanceRecords)
@@ -256,7 +305,7 @@ export async function getDashboardData(academyId: string): Promise<{
       .innerJoin(classes, eq(classSessions.classId, classes.id))
       .where(
         and(
-          eq(classes.academyId, academyId),
+          activeClassScope,
           gte(classSessions.sessionDate, sevenDaysAgoIso),
           lte(classSessions.sessionDate, nowIso)
         )
@@ -268,28 +317,24 @@ export async function getDashboardData(academyId: string): Promise<{
       .innerJoin(classes, eq(classSessions.classId, classes.id))
       .where(
         and(
-          eq(classes.academyId, academyId),
+          activeClassScope,
           eq(attendanceRecords.status, "present"),
           gte(classSessions.sessionDate, sevenDaysAgoIso),
           lte(classSessions.sessionDate, nowIso)
         )
       ),
-    db.select({ value: count() }).from(classes).where(eq(classes.academyId, academyId)),
+    db.select({ value: count() }).from(classes).where(activeClassScope),
   ]);
 
   const athleteCount = athleteResult[0]?.value ?? 0;
   const coachCount = coachResult[0]?.value ?? 0;
   const groupCount = groupResult[0]?.value ?? 0;
   const classesWeekCount = classesWeekResult[0]?.value ?? 0;
-  const scheduledClassesCount = scheduledClassesResult[0]?.value ?? 0;
+  const classTemplatesCount = scheduledClassesResult[0]?.value ?? 0;
   const assessmentsCount = assessmentsResult[0]?.value ?? 0;
   const totalAttendanceCount = totalAttendanceResult[0]?.value ?? 0;
   const presentCount = presentAttendanceResult[0]?.value ?? 0;
   const classesTotal = classesTotalResult[0]?.value ?? 0;
-
-  const classesMetric = Number(classesWeekCount ?? 0) > 0
-    ? Number(classesWeekCount ?? 0)
-    : Number(scheduledClassesCount ?? 0);
 
   // Calcular % de asistencia (present / total registros)
   const totalAttendances = Number(totalAttendanceCount ?? 0);
@@ -301,7 +346,8 @@ export async function getDashboardData(academyId: string): Promise<{
     athletes: Number(athleteCount ?? 0),
     coaches: Number(coachCount ?? 0),
     groups: Number(groupCount ?? 0),
-    classesThisWeek: classesMetric,
+    classesThisWeek: Number(classesWeekCount ?? 0),
+    classTemplates: Number(classTemplatesCount ?? 0),
     assessments: Number(assessmentsCount ?? 0),
     attendancePercent,
   };
@@ -317,7 +363,7 @@ export async function getDashboardData(academyId: string): Promise<{
               count: count(),
             })
             .from(athletes)
-            .where(and(eq(athletes.academyId, academyId), inArray(athletes.primarySportConfigId, activeSportConfigIds)))
+            .where(and(activeAthleteScope, inArray(athletes.primarySportConfigId, activeSportConfigIds)))
             .groupBy(athletes.primarySportConfigId),
           db
             .select({
@@ -325,7 +371,7 @@ export async function getDashboardData(academyId: string): Promise<{
               count: count(),
             })
             .from(groups)
-            .where(and(eq(groups.academyId, academyId), inArray(groups.sportConfigId, activeSportConfigIds)))
+            .where(and(activeGroupScope, inArray(groups.sportConfigId, activeSportConfigIds)))
             .groupBy(groups.sportConfigId),
           db
             .select({
@@ -333,7 +379,7 @@ export async function getDashboardData(academyId: string): Promise<{
               count: count(),
             })
             .from(classes)
-            .where(and(eq(classes.academyId, academyId), inArray(classes.sportConfigId, activeSportConfigIds)))
+            .where(and(activeClassScope, inArray(classes.sportConfigId, activeSportConfigIds)))
             .groupBy(classes.sportConfigId),
         ])
       : [[], [], []];
@@ -353,45 +399,10 @@ export async function getDashboardData(academyId: string): Promise<{
 
   const activePlan = await getActiveSubscription(academyId);
   
-  // Get subscription from academy owner
-  let subscription: { status: string | null; planCode: string | null; nickname: string | null } | null = null;
-  
-  const [academyWithOwner] = await db
-    .select({
-      ownerId: academies.ownerId,
-    })
-    .from(academies)
-    .where(eq(academies.id, academyId))
-    .limit(1);
-
-  if (academyWithOwner?.ownerId) {
-    const [owner] = await db
-      .select({
-        userId: profiles.userId,
-      })
-      .from(profiles)
-      .where(eq(profiles.id, academyWithOwner.ownerId))
-      .limit(1);
-
-    if (owner) {
-      const [sub] = await db
-        .select({
-          status: subscriptions.status,
-          planCode: plans.code,
-          nickname: plans.nickname,
-        })
-        .from(subscriptions)
-        .leftJoin(plans, eq(subscriptions.planId, plans.id))
-        .where(eq(subscriptions.userId, owner.userId))
-        .limit(1);
-      subscription = sub ?? null;
-    }
-  }
-
   const plan: DashboardPlanUsage = {
-    planCode: (subscription?.planCode as string | undefined) ?? activePlan.planCode,
-    planNickname: subscription?.nickname ?? null,
-    status: subscription?.status ?? "active",
+    planCode: activePlan.planCode,
+    planNickname: activePlan.planNickname ?? null,
+    status: activePlan.status ?? "active",
     athleteLimit: activePlan.athleteLimit,
     classLimit: activePlan.classLimit,
     usedAthletes: metrics.athletes,
@@ -406,8 +417,7 @@ export async function getDashboardData(academyId: string): Promise<{
         : 0,
   };
 
-  const lookAheadEnd = addDays(now, 7);
-  const lookAheadIso = formatISO(lookAheadEnd, { representation: "date" });
+  const lookAheadIso = addDaysToCalendarDate(nowIso, 7) ?? nowIso;
 
   const upcomingSessionRows = await db
     .select({
@@ -422,7 +432,7 @@ export async function getDashboardData(academyId: string): Promise<{
     .innerJoin(classes, eq(classSessions.classId, classes.id))
     .where(
       and(
-        eq(classes.academyId, academyId),
+        activeClassScope,
         gte(classSessions.sessionDate, nowIso),
         lte(classSessions.sessionDate, lookAheadIso)
       )
@@ -442,7 +452,8 @@ export async function getDashboardData(academyId: string): Promise<{
       })
       .from(classCoachAssignments)
       .innerJoin(coaches, eq(classCoachAssignments.coachId, coaches.id))
-      .where(inArray(classCoachAssignments.classId, classIds));
+      .where(inArray(classCoachAssignments.classId, classIds))
+      .limit(100);
   }
 
   const coachIds = Array.from(
@@ -458,7 +469,8 @@ export async function getDashboardData(academyId: string): Promise<{
         color: groups.color,
       })
       .from(groups)
-      .where(and(eq(groups.academyId, academyId), inArray(groups.coachId, coachIds)));
+      .where(and(activeGroupScope, inArray(groups.coachId, coachIds)))
+      .limit(100);
 
     groupsByCoach = coachGroups.reduce((accumulator, current) => {
       if (current.coachId) {
@@ -504,7 +516,7 @@ export async function getDashboardData(academyId: string): Promise<{
         endTime: classes.endTime,
       })
       .from(classes)
-      .where(eq(classes.academyId, academyId))
+      .where(activeClassScope)
       .orderBy(asc(classes.name))
       .limit(3);
 
@@ -519,7 +531,8 @@ export async function getDashboardData(academyId: string): Promise<{
                 weekday: classWeekdays.weekday,
               })
               .from(classWeekdays)
-              .where(inArray(classWeekdays.classId, fallbackIds));
+              .where(inArray(classWeekdays.classId, fallbackIds))
+              .limit(1000);
 
       const weekdayMap = weekdayRows.reduce((acc, row) => {
         const current = acc.get(row.classId) ?? [];
@@ -579,7 +592,7 @@ export async function getDashboardData(academyId: string): Promise<{
           createdAt: athletes.createdAt,
         })
         .from(athletes)
-        .where(eq(athletes.academyId, academyId))
+        .where(activeAthleteScope)
         .orderBy(desc(athletes.createdAt))
         .limit(5),
       db
@@ -589,7 +602,7 @@ export async function getDashboardData(academyId: string): Promise<{
           createdAt: coaches.createdAt,
         })
         .from(coaches)
-        .where(eq(coaches.academyId, academyId))
+        .where(activeCoachScope)
         .orderBy(desc(coaches.createdAt))
         .limit(5),
       db
@@ -599,7 +612,7 @@ export async function getDashboardData(academyId: string): Promise<{
           createdAt: groups.createdAt,
         })
         .from(groups)
-        .where(eq(groups.academyId, academyId))
+        .where(activeGroupScope)
         .orderBy(desc(groups.createdAt))
         .limit(5),
       db
@@ -609,7 +622,7 @@ export async function getDashboardData(academyId: string): Promise<{
           createdAt: classes.createdAt,
         })
         .from(classes)
-        .where(eq(classes.academyId, academyId))
+        .where(activeClassScope)
         .orderBy(desc(classes.createdAt))
         .limit(5),
     ]);
@@ -657,14 +670,25 @@ export async function getDashboardData(academyId: string): Promise<{
       discipline: groups.discipline,
       color: groups.color,
       coachName: coaches.name,
-      athleteCount: sql<number>`count(distinct ${groupAthletes.athleteId})`,
+      athleteCount: sql<number>`count(distinct ${athletes.id})`,
     })
     .from(groups)
-    .leftJoin(coaches, eq(groups.coachId, coaches.id))
-    .leftJoin(groupAthletes, eq(groupAthletes.groupId, groups.id))
-    .where(eq(groups.academyId, academyId))
+    .leftJoin(coaches, and(eq(groups.coachId, coaches.id), eq(coaches.tenantId, tenantId)))
+    .leftJoin(
+      groupAthletes,
+      and(eq(groupAthletes.groupId, groups.id), eq(groupAthletes.tenantId, tenantId))
+    )
+    .leftJoin(
+      athletes,
+      and(
+        or(eq(groupAthletes.athleteId, athletes.id), eq(athletes.groupId, groups.id)),
+        eq(athletes.tenantId, tenantId),
+        isNull(athletes.deletedAt)
+      )
+    )
+    .where(activeGroupScope)
     .groupBy(groups.id, coaches.name)
-    .orderBy(desc(sql`count(distinct ${groupAthletes.athleteId})`), asc(groups.name))
+    .orderBy(desc(sql`count(distinct ${athletes.id})`), asc(groups.name))
     .limit(5);
 
   const groupsList: DashboardGroupSummary[] = groupSummaries.map((row) => ({
@@ -681,24 +705,25 @@ export async function getDashboardData(academyId: string): Promise<{
   if (academy.academyType === "ritmica" || academy.academyType === "artistica") {
     try {
       const today = new Date();
-      const todayIso = formatISO(today, { representation: "date" });
-      const firstDayOfMonth = new Date(today.getFullYear(), today.getMonth(), 1);
-      const firstDayOfMonthIso = formatISO(firstDayOfMonth, { representation: "date" });
+      const todayIso = formatDateToISOString(today, academy.country);
+      const firstDayOfMonthIso = `${todayIso.slice(0, 7)}-01`;
 
       const academyAthletesResult = await db
         .select({ id: athletes.id })
         .from(athletes)
-        .where(eq(athletes.academyId, academyId));
+        .where(activeAthleteScope)
+        .limit(5000);
 
       const athleteIdsForLicenses = academyAthletesResult.map((a) => a.id);
 
       const athleteLevelsResult = await db
+        // unbounded-read-ok: grouped aggregate by athlete level
         .select({
           level: athletes.level,
           count: count(),
         })
         .from(athletes)
-        .where(eq(athletes.academyId, academyId))
+        .where(activeAthleteScope)
         .groupBy(athletes.level);
 
       const athletesByCategory: AthleteCategoryCount[] = athleteLevelsResult
@@ -725,14 +750,22 @@ export async function getDashboardData(academyId: string): Promise<{
             status: federativeLicenses.status,
           })
           .from(federativeLicenses)
-          .leftJoin(athletes, eq(federativeLicenses.personId, athletes.id))
+          .leftJoin(
+            athletes,
+            and(
+              eq(federativeLicenses.personId, athletes.id),
+              eq(athletes.tenantId, tenantId),
+              isNull(athletes.deletedAt)
+            )
+          )
           .where(
             and(
               eq(federativeLicenses.tenantId, academy.tenantId),
               eq(federativeLicenses.personType, "athlete"),
               inArray(federativeLicenses.personId, athleteIdsForLicenses)
             )
-          );
+          )
+          .limit(500);
 
         const now = new Date();
         const processedLicenses = athleteLicensesResult
@@ -769,8 +802,7 @@ export async function getDashboardData(academyId: string): Promise<{
           .slice(0, 5);
       }
 
-      const sixtyDaysFromNow = addDays(today, 60);
-      const sixtyDaysFromNowIso = formatISO(sixtyDaysFromNow, { representation: "date" });
+      const sixtyDaysFromNowIso = addDaysToCalendarDate(todayIso, 60) ?? todayIso;
 
       const upcomingCompetitionsResult = await db
         .select({
@@ -784,6 +816,7 @@ export async function getDashboardData(academyId: string): Promise<{
         .where(
           and(
             eq(events.academyId, academyId),
+            eq(events.tenantId, tenantId),
             gte(events.startDate, todayIso),
             lte(events.startDate, sixtyDaysFromNowIso),
             eq(events.status, "published")
@@ -801,11 +834,13 @@ export async function getDashboardData(academyId: string): Promise<{
       }));
 
       const assessmentsThisMonthResult = await db
+        // unbounded-read-ok: aggregate count for current month
         .select({ count: count() })
         .from(athleteAssessments)
         .where(
           and(
             eq(athleteAssessments.academyId, academyId),
+            eq(athleteAssessments.tenantId, tenantId),
             gte(athleteAssessments.assessmentDate, firstDayOfMonthIso),
             lte(athleteAssessments.assessmentDate, todayIso)
           )
@@ -839,6 +874,7 @@ export async function getDashboardData(academyId: string): Promise<{
       tenantId: academy.tenantId,
       academyType: academy.academyType,
       country: academy.country ?? null,
+      timezone: academyTimezone,
     },
     data: {
       metrics,

@@ -2,10 +2,10 @@ import { and, desc, eq, gt, isNull, lte, or } from "drizzle-orm";
 
 import { db } from "@/db";
 import { academies, academyTrials, plans, profiles, subscriptions } from "@/db/schema";
-import { sendEmail } from "@/lib/brevo";
 import { recordGrowthEvent } from "@/lib/growth/events";
 import { logger } from "@/lib/logger";
 import { isAcademyBlockedFromSending } from "@/lib/academy-status";
+import { sendEmailWithLogging } from "@/lib/email/email-service";
 import { createNotification } from "@/lib/notifications/notification-service";
 import { getSupabaseAdminClient } from "@/lib/supabase/admin";
 import {
@@ -70,7 +70,14 @@ export async function getAcademyTrialStatus(
   }
 
   const [activeTrial] = await db
-    .select()
+    // Keep the read compatible during the additive lead-link rollout. The
+    // dashboard must remain usable before the new nullable column is applied
+    // to every environment; this policy only needs the trial timestamps.
+    .select({
+      id: academyTrials.id,
+      startedAt: academyTrials.startedAt,
+      endsAt: academyTrials.endsAt,
+    })
     .from(academyTrials)
     .where(and(eq(academyTrials.academyId, academyId), eq(academyTrials.status, "active")))
     .limit(1);
@@ -159,7 +166,7 @@ export async function startAcademyTrial(params: {
   }
 
   const endsAt = addTrialDays(now, TRIAL_DURATION_DAYS);
-  let trial: typeof academyTrials.$inferSelect;
+  let trial: { id: string };
   try {
     [trial] = await db
       .insert(academyTrials)
@@ -173,7 +180,7 @@ export async function startAcademyTrial(params: {
         startedAt: now,
         endsAt,
       })
-      .returning();
+      .returning({ id: academyTrials.id });
   } catch (error) {
     const code =
       typeof error === "object" && error !== null && "code" in error ? String(error.code) : null;
@@ -301,12 +308,17 @@ export async function notifyTrialOwner(params: {
       .replaceAll(">", "&gt;")
       .replaceAll('"', "&quot;")
       .replaceAll("'", "&#039;");
-    await sendEmail({
+    await sendEmailWithLogging({
       to: email,
       subject: `${title} · Zaltyko`,
       text: message,
       html: `<p>${safeMessage}</p><p><a href="${process.env.NEXT_PUBLIC_APP_URL ?? "https://zaltyko.com"}/app/${params.academyId}/billing">Ver planes</a></p>`,
       replyTo: process.env.BREVO_REPLY_TO ?? "admin@zaltyko.com",
+      template: `trial-${params.kind}`,
+      tenantId: params.tenantId,
+      academyId: params.academyId,
+      userId: params.ownerProfileId,
+      dedupeKey: `trial-notification:${params.academyId}:${params.kind}`,
     });
   } catch (error) {
     logger.error("Trial email notification failed", error, {
@@ -357,7 +369,8 @@ export async function processTrialLifecycle(now = new Date()) {
         eq(academyTrials.status, "active"),
         and(eq(academyTrials.status, "expired"), isNull(academyTrials.expiryNotifiedAt))
       )
-    );
+    )
+    .limit(10000);
 
   let reminded = 0;
   let expired = 0;

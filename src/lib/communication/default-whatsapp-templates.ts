@@ -17,7 +17,7 @@ export const DEFAULT_WHATSAPP_TEMPLATES: WhatsAppTemplateConfig[] = [
   {
     id: "payment-reminder",
     name: "Recordatorio de pago",
-    content: "Hola {{name}}, tienes un pago pendiente de {{amount}} EUR. Por favor, realiza el pago lo antes posible.",
+    content: "Hola {{name}}, tienes un pago pendiente de {{amount}} {{currency}}. Por favor, realiza el pago lo antes posible.",
     category: "payment",
     sportConfigId: null,
   },

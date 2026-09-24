@@ -25,7 +25,7 @@ function resolveInitialRole(value: unknown): ProfileRole {
   return "owner";
 }
 
-export async function ensureGlobalProfile(user: User) {
+export async function ensureGlobalProfile(user: User, initialRoleOverride?: unknown) {
   const [existingProfile] = await db
     .select({ id: profiles.id })
     .from(profiles)
@@ -36,7 +36,7 @@ export async function ensureGlobalProfile(user: User) {
     return existingProfile;
   }
 
-  const role = resolveInitialRole(user.user_metadata?.initial_role);
+  const role = resolveInitialRole(initialRoleOverride ?? user.user_metadata?.initial_role);
   const name =
     typeof user.user_metadata?.full_name === "string" && user.user_metadata.full_name.trim().length > 0
       ? user.user_metadata.full_name.trim()

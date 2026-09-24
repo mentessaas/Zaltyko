@@ -50,6 +50,9 @@ export function isFlexibleTenantEndpoint(pathname: string): boolean {
     // Usuarios sin academia todavía deben poder consultar y responder sus
     // propias solicitudes de vínculo. Los handlers validan profile/target.
     "/api/link-requests",
+    // El asistente responde preguntas generales y no debe quedar bloqueado
+    // cuando una cuenta aún no tiene academia activa.
+    "/api/ai/communication/chat",
   ];
 
   return flexiblePatterns.some((pattern) => pathname.startsWith(pattern));

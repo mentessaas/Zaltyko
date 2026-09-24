@@ -51,7 +51,7 @@ export const authzAdapter = {
 export { getCurrentProfile, getTenantId };
 
 export function assertSuperAdmin(profile: ProfileRow | null | undefined): void {
-  if (!profile || profile.role !== "super_admin") {
+  if (!profile || profile.role !== "super_admin" || profile.isSuspended) {
     throw new SuperAdminRequiredError();
   }
 }
@@ -194,7 +194,7 @@ export function withTenant<Ctx extends Record<string, unknown>>(
       }
 
       // Verificar si el usuario puede hacer login
-      if (!profile.canLogin && profile.role !== "super_admin") {
+      if (profile.isSuspended || (!profile.canLogin && profile.role !== "super_admin")) {
         return NextResponse.json(
           {
             error: "LOGIN_DISABLED",
@@ -388,7 +388,7 @@ export function withAuthenticatedNoTenant<Ctx extends Record<string, unknown>>(
         );
       }
 
-      if (!profile.canLogin && profile.role !== "super_admin") {
+      if (profile.isSuspended || (!profile.canLogin && profile.role !== "super_admin")) {
         return NextResponse.json(
           {
             error: "LOGIN_DISABLED",
@@ -521,7 +521,7 @@ export function withBearerTenant<Ctx extends Record<string, unknown>>(
         );
       }
 
-      if (!profile.canLogin && profile.role !== "super_admin") {
+      if (profile.isSuspended || (!profile.canLogin && profile.role !== "super_admin")) {
         return NextResponse.json(
           {
             error: "LOGIN_DISABLED",

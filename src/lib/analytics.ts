@@ -6,6 +6,11 @@ export interface AnalyticsPayload {
   academyId?: string;
   tenantId?: string;
   metadata?: Record<string, unknown>;
+  /**
+   * Clave estable para hitos de producto que solo deben registrarse una vez
+   * por academia (por ejemplo, primera clase o primera asistencia).
+   */
+  idempotencyKey?: string;
 }
 
 const isAnalyticsDisabled = getOptionalEnvVar("NEXT_PUBLIC_DISABLE_ANALYTICS") === "true";
@@ -85,7 +90,7 @@ export async function trackEvent(eventName: string, payload: AnalyticsPayload = 
   // on the server without importing the DB layer into the client bundle.
   if (typeof window === "undefined") {
     try {
-      const { userId, academyId, tenantId, metadata } = payload;
+      const { userId, academyId, tenantId, metadata, idempotencyKey } = payload;
       const { recordGrowthEvent } = await import("@/lib/growth/events");
       const properties = Object.fromEntries(
         Object.entries(metadata ?? {}).filter(([, value]) =>
@@ -103,6 +108,7 @@ export async function trackEvent(eventName: string, payload: AnalyticsPayload = 
         tenantId: tenantId ?? null,
         source: "authenticated",
         properties,
+        idempotencyKey: idempotencyKey ?? null,
       });
     } catch (error) {
       logger.warn("Failed to persist server analytics event", { eventName, error });
@@ -111,7 +117,7 @@ export async function trackEvent(eventName: string, payload: AnalyticsPayload = 
   }
 
   try {
-    const { userId, academyId, tenantId, metadata, ...rest } = payload;
+    const { userId, academyId, tenantId, metadata, idempotencyKey: _idempotencyKey, ...rest } = payload;
 
     const mod = await loadPostHog();
     mod?.posthog.capture(eventName, {

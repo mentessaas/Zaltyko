@@ -15,7 +15,24 @@ export const VIDEO_UPLOADS = {
   "video/x-msvideo": { maxBytes: 50 * 1024 * 1024, extension: "avi" },
 } as const;
 
+/** Private athlete documents. Keep this allow-list deliberately narrow. */
+export const DOCUMENT_UPLOADS = {
+  "application/pdf": { maxBytes: 10 * 1024 * 1024, extension: "pdf" },
+  "image/jpeg": { maxBytes: 10 * 1024 * 1024, extension: "jpg" },
+  "image/png": { maxBytes: 10 * 1024 * 1024, extension: "png" },
+  "image/webp": { maxBytes: 10 * 1024 * 1024, extension: "webp" },
+} as const;
+
 type UploadDefinition = { maxBytes: number; extension: string };
+
+const EICAR_TEST_SIGNATURE =
+  "X5O!P%@AP[4\\PZX54(P^)7CC)7}$EICAR-STANDARD-ANTIVIRUS-TEST-FILE!$H+H*";
+
+/** Detects the industry-standard harmless EICAR test payload before storage. */
+export function containsKnownMalware(bytes: Uint8Array): boolean {
+  const content = new TextDecoder().decode(bytes);
+  return content.includes(EICAR_TEST_SIGNATURE);
+}
 
 function startsWithBytes(bytes: Uint8Array, signature: number[], offset = 0) {
   return signature.every((value, index) => bytes[offset + index] === value);
@@ -42,6 +59,8 @@ export function matchesMagicBytes(bytes: Uint8Array, contentType: string) {
       return ascii(bytes, 4, 4) === "ftyp";
     case "video/x-msvideo":
       return ascii(bytes, 0, 4) === "RIFF" && ascii(bytes, 8, 4) === "AVI ";
+    case "application/pdf":
+      return ascii(bytes, 0, 5) === "%PDF-";
     default:
       return false;
   }
@@ -58,6 +77,9 @@ export function validateUpload(
   }
   if (bytes.byteLength === 0 || bytes.byteLength > definition.maxBytes) {
     return { ok: false as const, code: "FILE_TOO_LARGE" as const };
+  }
+  if (containsKnownMalware(bytes)) {
+    return { ok: false as const, code: "MALWARE_DETECTED" as const };
   }
   if (!matchesMagicBytes(bytes, contentType)) {
     return { ok: false as const, code: "FILE_SIGNATURE_INVALID" as const };

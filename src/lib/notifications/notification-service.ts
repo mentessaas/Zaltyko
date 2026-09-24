@@ -1,6 +1,7 @@
 import { db } from "@/db";
 import { notifications } from "@/db/schema";
 import { eq, and, desc, sql } from "drizzle-orm";
+import { isInAppNotificationEnabled } from "./preferences";
 
 export interface CreateNotificationParams {
   tenantId: string;
@@ -15,6 +16,10 @@ export interface CreateNotificationParams {
  * Crea una nueva notificación
  */
 export async function createNotification(params: CreateNotificationParams) {
+  if (!(await isInAppNotificationEnabled(params.userId, params.type))) {
+    return null;
+  }
+
   const [notification] = await db
     .insert(notifications)
     .values({
@@ -57,6 +62,7 @@ export async function getUserNotifications(
     whereConditions.push(eq(notifications.type, options.type));
   }
 
+  // unbounded-read-ok: a bounded limit is applied on every return path below
   const query = db
     .select()
     .from(notifications)
@@ -71,7 +77,7 @@ export async function getUserNotifications(
     return await query.limit(options.limit);
   }
 
-  return await query;
+  return await query.limit(500);
 }
 
 /**

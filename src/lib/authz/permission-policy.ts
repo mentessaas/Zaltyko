@@ -7,7 +7,6 @@ const COACH_BASELINE_PERMISSIONS: readonly Permission[] = [
   "athletes:update",
   "classes:read",
   "classes:schedule",
-  "reports:read",
   "events:read",
   "communications:read",
   "communications:send",

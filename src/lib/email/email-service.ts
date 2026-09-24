@@ -6,21 +6,72 @@ import { sendEmail } from "@/lib/brevo";
 import { config } from "@/config";
 import { isAcademyBlockedFromSending } from "@/lib/academy-status";
 import { logger } from "@/lib/logger";
+import { hasMarketingOptOut } from "@/lib/email/marketing-consent";
+import {
+  isEmailNotificationEnabled,
+  type ClassReminderTiming,
+} from "@/lib/notifications/preferences";
 
 export interface SendEmailOptions {
   to: string;
   subject: string;
   html: string;
+  text?: string;
+  replyTo?: string;
   template?: string;
   tenantId?: string;
   academyId?: string;
   userId?: string;
+  /** Profile id of the recipient, used for preference enforcement. */
+  profileId?: string;
+  /** Typed notification key shown in the user's preferences screen. */
+  notificationType?: string;
+  classReminderTiming?: ClassReminderTiming;
   metadata?: Record<string, unknown>;
   dedupeKey?: string;
 }
 
 export async function sendEmailWithLogging(options: SendEmailOptions): Promise<boolean> {
-  const { to, subject, html, template, tenantId, academyId, userId, metadata, dedupeKey } = options;
+  const {
+    to,
+    subject,
+    html,
+    text,
+    replyTo,
+    template,
+    tenantId,
+    academyId,
+    userId,
+    profileId,
+    notificationType,
+    classReminderTiming,
+    metadata,
+    dedupeKey,
+  } = options;
+  const normalizedRecipient = to.trim().toLowerCase();
+
+  // The settings screen controls typed notifications, so enforce that policy
+  // in the shared sender. Untyped emails (welcome, access, support, etc.) keep
+  // their existing operational semantics and are not silently reclassified.
+  if (
+    profileId &&
+    notificationType &&
+    !(await isEmailNotificationEnabled(profileId, notificationType, classReminderTiming))
+  ) {
+    logger.info("Email omitido: preferencia de notificación deshabilitada", {
+      profileId,
+      notificationType,
+      template: template ?? "transactional",
+    });
+    return false;
+  }
+
+  // La baja firmada se persiste en email_logs. Aplicar el gate aquí, en el
+  // emisor común, evita que un cron o un nuevo caller pueda saltársela.
+  if (await hasMarketingOptOut(normalizedRecipient)) {
+    logger.info("Email omitido: destinatario dado de baja", { template: template ?? "transactional" });
+    return false;
+  }
 
   // Última barrera común para emisores transaccionales que ya aportan
   // academyId. Así un caller nuevo no puede saltarse el contrato de status.
@@ -65,8 +116,8 @@ export async function sendEmailWithLogging(options: SendEmailOptions): Promise<b
     .values({
       tenantId: tenantId || null,
       academyId: academyId || null,
-      userId: userId || null,
-      toEmail: to,
+      userId: profileId ?? userId ?? null,
+      toEmail: normalizedRecipient,
       subject,
       template: template || null,
       status: "pending",
@@ -84,7 +135,8 @@ export async function sendEmailWithLogging(options: SendEmailOptions): Promise<b
       to,
       subject,
       html,
-      replyTo: process.env.BREVO_REPLY_TO ?? config.brevo.supportEmail,
+      ...(text ? { text } : {}),
+      replyTo: replyTo ?? process.env.BREVO_REPLY_TO ?? config.brevo.supportEmail,
     });
 
     // Actualizar log como enviado

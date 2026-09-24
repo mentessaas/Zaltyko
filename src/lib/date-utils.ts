@@ -32,6 +32,31 @@ const COUNTRY_TIMEZONES: Record<string, string> = {
   PA: "America/Panama", // Panamá
   UY: "America/Montevideo", // Uruguay
   US: "America/New_York", // Estados Unidos (por defecto Eastern)
+  // Valores legacy: el onboarding persiste el nombre visible del país en
+  // `academies.country`, no siempre su código ISO.
+  ESPANA: "Europe/Madrid",
+  SPAIN: "Europe/Madrid",
+  MEXICO: "America/Mexico_City",
+  ARGENTINA: "America/Argentina/Buenos_Aires",
+  COLOMBIA: "America/Bogota",
+  CHILE: "America/Santiago",
+  PERU: "America/Lima",
+  VENEZUELA: "America/Caracas",
+  ECUADOR: "America/Guayaquil",
+  GUATEMALA: "America/Guatemala",
+  CUBA: "America/Havana",
+  BOLIVIA: "America/La_Paz",
+  "REPUBLICA DOMINICANA": "America/Santo_Domingo",
+  HONDURAS: "America/Tegucigalpa",
+  PARAGUAY: "America/Asuncion",
+  "EL SALVADOR": "America/El_Salvador",
+  NICARAGUA: "America/Managua",
+  "COSTA RICA": "America/Costa_Rica",
+  PANAMA: "America/Panama",
+  URUGUAY: "America/Montevideo",
+  "PUERTO RICO": "America/Puerto_Rico",
+  "ESTADOS UNIDOS": "America/New_York",
+  USA: "America/New_York",
 };
 
 /**
@@ -58,7 +83,42 @@ const COUNTRY_LOCALES: Record<string, Locale> = {
   PA: es,
   UY: es,
   US: enUS,
+  ESPANA: es,
+  SPAIN: enUS,
+  MEXICO: es,
+  ARGENTINA: es,
+  COLOMBIA: es,
+  CHILE: es,
+  PERU: es,
+  VENEZUELA: es,
+  ECUADOR: es,
+  GUATEMALA: es,
+  CUBA: es,
+  BOLIVIA: es,
+  "REPUBLICA DOMINICANA": es,
+  HONDURAS: es,
+  PARAGUAY: es,
+  "EL SALVADOR": es,
+  NICARAGUA: es,
+  "COSTA RICA": es,
+  PANAMA: es,
+  URUGUAY: es,
+  "PUERTO RICO": es,
+  "ESTADOS UNIDOS": enUS,
+  USA: enUS,
 };
+
+function normalizeCountryKey(country: string): string {
+  return country
+    .trim()
+    .normalize("NFD")
+    .replace(/[\u0300-\u036f]/g, "")
+    .toUpperCase();
+}
+
+function isCalendarDateString(value: string): boolean {
+  return /^\d{4}-\d{2}-\d{2}$/.test(value);
+}
 
 /**
  * Obtiene la zona horaria IANA para un país dado
@@ -67,7 +127,7 @@ export function getTimezoneForCountry(country: string | null | undefined): strin
   if (!country) {
     return "Europe/Madrid"; // Default
   }
-  return COUNTRY_TIMEZONES[country.toUpperCase()] || "Europe/Madrid";
+  return COUNTRY_TIMEZONES[normalizeCountryKey(country)] || "Europe/Madrid";
 }
 
 /**
@@ -77,7 +137,7 @@ export function getLocaleForCountry(country: string | null | undefined): Locale 
   if (!country) {
     return es; // Default español
   }
-  return COUNTRY_LOCALES[country.toUpperCase()] || es;
+  return COUNTRY_LOCALES[normalizeCountryKey(country)] || es;
 }
 
 /**
@@ -109,6 +169,10 @@ export function getStartOfDayInTimezone(
   country: string | null | undefined
 ): Date {
   const timezone = getTimezoneForCountry(country);
+  if (typeof date === "string" && isCalendarDateString(date)) {
+    // La cadena representa medianoche en la academia, no medianoche UTC.
+    return fromZonedTime(new Date(`${date}T00:00:00`), timezone);
+  }
   const dateObj = typeof date === "string" ? new Date(date) : date;
   const zonedDate = toZonedTime(dateObj, timezone);
   zonedDate.setHours(0, 0, 0, 0);
@@ -124,6 +188,15 @@ export function isSameDayInTimezone(
   country: string | null | undefined
 ): boolean {
   const timezone = getTimezoneForCountry(country);
+  const d1Key = typeof date1 === "string" && isCalendarDateString(date1)
+    ? date1
+    : formatDateForCountry(date1, country, "yyyy-MM-dd");
+  const d2Key = typeof date2 === "string" && isCalendarDateString(date2)
+    ? date2
+    : formatDateForCountry(date2, country, "yyyy-MM-dd");
+
+  if (d1Key !== "—" && d2Key !== "—") return d1Key === d2Key;
+
   const d1 = typeof date1 === "string" ? new Date(date1) : date1;
   const d2 = typeof date2 === "string" ? new Date(date2) : date2;
   
@@ -150,9 +223,19 @@ export function formatDateForCountry(
   const timezone = getTimezoneForCountry(country);
   const locale = getLocaleForCountry(country);
   
-  // Convertir a Date object si es string
+  // Las fechas YYYY-MM-DD son fechas de calendario, no instantes UTC. Se
+  // formatean en UTC para conservar exactamente el día guardado.
+  const calendarDate = typeof date === "string" && isCalendarDateString(date)
+    ? parseCalendarDate(date)
+    : null;
+  if (typeof date === "string" && isCalendarDateString(date) && !calendarDate) {
+    return "—";
+  }
+
   let dateObj: Date;
-  if (typeof date === "string") {
+  if (calendarDate) {
+    dateObj = calendarDate;
+  } else if (typeof date === "string") {
     dateObj = new Date(date);
   } else {
     dateObj = date;
@@ -165,7 +248,12 @@ export function formatDateForCountry(
   }
   
   try {
-    return formatInTimeZone(dateObj, timezone, formatStr, { locale });
+    return formatInTimeZone(
+      dateObj,
+      calendarDate ? "UTC" : timezone,
+      formatStr,
+      { locale }
+    );
   } catch (error) {
     logger.error("Error al formatear fecha", error as Error, { date, country, formatStr, dateObj: dateObj.toISOString() });
     return "—";
@@ -248,6 +336,9 @@ export function isTodayInCountryTimezone(
   date: Date | string,
   country: string | null | undefined
 ): boolean {
+  if (typeof date === "string" && isCalendarDateString(date)) {
+    return date === formatDateToISOString(new Date(), country);
+  }
   const timezone = getTimezoneForCountry(country);
   const dateObj = typeof date === "string" ? new Date(date) : date;
   const zonedDate = toZonedTime(dateObj, timezone);
@@ -271,8 +362,10 @@ export function formatDateRangeForCountry(
   const start = typeof startDate === "string" ? new Date(startDate) : startDate;
   const end = typeof endDate === "string" ? new Date(endDate) : endDate;
   
-  const formattedStart = formatInTimeZone(start, timezone, "d MMM", { locale });
-  const formattedEnd = formatInTimeZone(end, timezone, "d MMM yyyy", { locale });
+  const startTimezone = typeof startDate === "string" && isCalendarDateString(startDate) ? "UTC" : timezone;
+  const endTimezone = typeof endDate === "string" && isCalendarDateString(endDate) ? "UTC" : timezone;
+  const formattedStart = formatInTimeZone(start, startTimezone, "d MMM", { locale });
+  const formattedEnd = formatInTimeZone(end, endTimezone, "d MMM yyyy", { locale });
   
   return `${formattedStart} - ${formattedEnd}`;
 }
@@ -301,6 +394,79 @@ export function formatDateToISOString(
   // Usar formatInTimeZone que maneja correctamente la conversión de zona horaria
   // sin cambiar el día cuando la fecha ya está en el formato correcto
   return formatInTimeZone(date, timezone, "yyyy-MM-dd");
+}
+
+/**
+ * Interpreta una fecha de calendario (YYYY-MM-DD) sin convertirla desde/hacia
+ * la zona horaria del navegador o del servidor. Las fechas de sesiones son
+ * fechas locales de la academia, no instantes UTC.
+ */
+export function parseCalendarDate(dateKey: string): Date | null {
+  if (!/^\d{4}-\d{2}-\d{2}$/.test(dateKey)) return null;
+
+  const [year, month, day] = dateKey.split("-").map(Number);
+  const date = new Date(Date.UTC(year, month - 1, day));
+
+  if (
+    date.getUTCFullYear() !== year ||
+    date.getUTCMonth() !== month - 1 ||
+    date.getUTCDate() !== day
+  ) {
+    return null;
+  }
+
+  return date;
+}
+
+/** Devuelve la fecha de calendario en formato YYYY-MM-DD. */
+export function formatCalendarDate(date: Date): string {
+  return [
+    date.getUTCFullYear(),
+    String(date.getUTCMonth() + 1).padStart(2, "0"),
+    String(date.getUTCDate()).padStart(2, "0"),
+  ].join("-");
+}
+
+/** Suma días de calendario sin depender de la zona horaria del proceso. */
+export function addCalendarDays(date: Date, days: number): Date {
+  const result = new Date(date.getTime());
+  result.setUTCDate(result.getUTCDate() + days);
+  return result;
+}
+
+/** Suma días a una clave de fecha YYYY-MM-DD. */
+export function addDaysToCalendarDate(dateKey: string, days: number): string | null {
+  const date = parseCalendarDate(dateKey);
+  return date ? formatCalendarDate(addCalendarDays(date, days)) : null;
+}
+
+/**
+ * Devuelve las claves de calendario del lunes y domingo de la semana de una
+ * fecha, calculadas en una zona IANA concreta. Las claves se mantienen como
+ * fechas de calendario para que una academia en América no dependa de la zona
+ * horaria del proceso que ejecuta el servidor.
+ */
+export function getWeekCalendarDateKeys(
+  date: Date | string,
+  timezone: string,
+): { start: string; end: string } {
+  const dateObj = typeof date === "string" ? new Date(date) : date;
+  const todayKey = formatInTimeZone(dateObj, timezone, "yyyy-MM-dd");
+  const parsed = parseCalendarDate(todayKey);
+
+  if (!parsed) {
+    throw new Error("INVALID_WEEK_REFERENCE_DATE");
+  }
+
+  const daysSinceMonday = (parsed.getUTCDay() + 6) % 7;
+  const start = addDaysToCalendarDate(todayKey, -daysSinceMonday);
+  const end = addDaysToCalendarDate(todayKey, 6 - daysSinceMonday);
+
+  if (!start || !end) {
+    throw new Error("INVALID_WEEK_BOUNDARIES");
+  }
+
+  return { start, end };
 }
 
 /**
@@ -409,6 +575,21 @@ export function formatRelativeDate(
   countryCode: string | null | undefined = null
 ): string {
   if (!dateStr) return "";
+
+  if (isCalendarDateString(dateStr) && countryCode) {
+    const todayKey = formatDateToISOString(new Date(), countryCode);
+    const target = parseCalendarDate(dateStr);
+    const today = parseCalendarDate(todayKey);
+    if (!target || !today) return "";
+
+    const diffDays = Math.round((target.getTime() - today.getTime()) / (1000 * 60 * 60 * 24));
+    if (diffDays === 0) return "Hoy";
+    if (diffDays === 1) return "Mañana";
+    if (diffDays === -1) return "Ayer";
+    if (diffDays > 1 && diffDays <= 7) return `En ${diffDays} días`;
+    if (diffDays >= -7 && diffDays < -1) return `Hace ${Math.abs(diffDays)} días`;
+    return formatShortDateForCountry(dateStr, countryCode);
+  }
 
   const date = new Date(dateStr);
   const today = getTodayInCountryTimezone(countryCode);

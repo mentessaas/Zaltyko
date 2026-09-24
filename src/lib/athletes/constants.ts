@@ -11,6 +11,18 @@ export const athleteStatusOptions = ATHLETE_STATUS_OPTIONS;
 
 export type AthleteStatus = (typeof ATHLETE_STATUS_OPTIONS)[number];
 
+export const ATHLETE_STATUS_LABELS: Record<AthleteStatus, string> = {
+  trial: "Prueba",
+  active: "Activo",
+  inactive: "Inactivo",
+  paused: "Pausado",
+  archived: "Archivado",
+};
+
+export function getAthleteStatusLabel(status: string): string {
+  return ATHLETE_STATUS_LABELS[status as AthleteStatus] ?? status;
+}
+
 // Helpers para estados
 export const ACTIVE_STATUSES: AthleteStatus[] = ["active", "trial"];
 export const INACTIVE_STATUSES: AthleteStatus[] = ["inactive", "paused", "archived"];
@@ -18,4 +30,3 @@ export const INACTIVE_STATUSES: AthleteStatus[] = ["inactive", "paused", "archiv
 export function isActiveStatus(status: string): boolean {
   return ACTIVE_STATUSES.includes(status as AthleteStatus);
 }
-

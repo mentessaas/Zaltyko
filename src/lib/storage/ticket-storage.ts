@@ -62,14 +62,11 @@ export async function uploadTicketFile(
     throw new Error("Error al subir el archivo");
   }
 
-  // Obtener URL pública
-  const { data: { publicUrl } } = supabase.storage
-    .from("ticket-attachments")
-    .getPublicUrl(fileName);
-
   return {
     fileName: file.name,
-    fileUrl: publicUrl,
+    // El bucket es privado: persistimos una referencia estable y la página
+    // autorizada genera una URL firmada en cada lectura.
+    fileUrl: `storage://ticket-attachments/${fileName}`,
     fileType: file.type,
     fileSize: String(file.size),
   };
@@ -78,11 +75,11 @@ export async function uploadTicketFile(
 export async function deleteTicketFile(fileUrl: string): Promise<void> {
   const supabase = getSupabaseAdminClient();
 
-  // Extraer nombre del archivo de la URL
-  const urlParts = fileUrl.split("/storage/v1/object/public/");
-  if (urlParts.length < 2) return;
-
-  const filePath = urlParts[1];
+  const privateMarker = "storage://ticket-attachments/";
+  const filePath = fileUrl.startsWith(privateMarker)
+    ? fileUrl.slice(privateMarker.length)
+    : fileUrl.split("/storage/v1/object/public/ticket-attachments/")[1];
+  if (!filePath) return;
 
   const { error } = await supabase.storage
     .from("ticket-attachments")

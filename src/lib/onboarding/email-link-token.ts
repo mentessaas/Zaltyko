@@ -15,7 +15,7 @@
  * Reviewer: Platform & Security (RGPD, persistencia en `email_logs`).
  */
 
-import { createHmac, timingSafeEqual } from "node:crypto";
+import { createHmac, randomBytes, timingSafeEqual } from "node:crypto";
 import { logger } from "../logger";
 
 // Leemos directo de process.env (no de `serverEnv`) porque estas claves
@@ -81,10 +81,8 @@ function normalizeEmail(email: string): string {
  * que tokens repetidos con mismo email/expiry no produzcan la misma firma.
  */
 function generateNonce(): string {
-  // 12 bytes = 16 base64 chars
-  return base64UrlEncode(Buffer.from(
-    `${Date.now()}-${Math.random().toString(36).slice(2)}`
-  )).slice(0, 16);
+  // 12 bytes = 96 bits de entropía; no depende del reloj ni de Math.random.
+  return randomBytes(12).toString("hex");
 }
 
 /**

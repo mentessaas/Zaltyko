@@ -32,7 +32,8 @@ export async function syncAthletesWithUsers(): Promise<{
       academyId: athletes.academyId,
     })
     .from(athletes)
-    .where(isNull(athletes.userId));
+    .where(isNull(athletes.userId))
+    .limit(10000);
 
   const total = athletesWithoutUser.length;
 
@@ -174,4 +175,3 @@ export async function syncAthletesWithUsers(): Promise<{
     details,
   };
 }
-

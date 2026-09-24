@@ -1,5 +1,6 @@
 import jsPDF from "jspdf";
 import autoTable from "jspdf-autotable";
+import { formatCurrency } from "@/lib/currency";
 
 export interface PDFOptions {
   title: string;
@@ -114,6 +115,31 @@ export async function generateAttendancePDF(
   return Buffer.from(doc.output("arraybuffer"));
 }
 
+export async function generateProgressPDF(data: {
+  title: string;
+  academyName: string;
+  athleteName: string;
+  totalAssessments: number;
+  overallImprovement: number;
+  skills: Array<{ skillName: string; firstScore: number | null; lastScore: number | null; improvement: number; trend: string }>;
+}): Promise<Buffer> {
+  const doc = new jsPDF();
+  const margin = 20;
+  let yPos = margin;
+  doc.setFontSize(18); doc.setFont("helvetica", "bold"); doc.text(data.title, margin, yPos); yPos += 10;
+  doc.setFontSize(12); doc.setFont("helvetica", "normal"); doc.text(`Academia: ${data.academyName}`, margin, yPos); yPos += 7;
+  doc.text(`Atleta: ${data.athleteName}`, margin, yPos); yPos += 15;
+  autoTable(doc, { startY: yPos, head: [["Métrica", "Valor"]], body: [
+    ["Evaluaciones", String(data.totalAssessments)],
+    ["Mejora general", `${data.overallImprovement.toFixed(2)} puntos`],
+  ], theme: "striped", margin: { left: margin, right: margin } });
+  yPos = (doc as any).lastAutoTable.finalY + 15;
+  autoTable(doc, { startY: yPos, head: [["Habilidad", "Inicial", "Última", "Cambio", "Tendencia"]], body: data.skills.map((skill) => [
+    skill.skillName, skill.firstScore == null ? "—" : String(skill.firstScore), skill.lastScore == null ? "—" : String(skill.lastScore), skill.improvement.toFixed(2), skill.trend,
+  ]), theme: "striped", margin: { left: margin, right: margin } });
+  return Buffer.from(doc.output("arraybuffer"));
+}
+
 export async function generateFinancialPDF(
   data: {
     title: string;
@@ -122,6 +148,7 @@ export async function generateFinancialPDF(
     revenue: number;
     pending: number;
     paid: number;
+    currency?: string;
   },
   options?: PDFOptions
 ): Promise<Buffer> {
@@ -151,9 +178,9 @@ export async function generateFinancialPDF(
   yPos += 10;
 
   const financialData = [
-    ["Ingresos Totales", `${data.revenue.toFixed(2)} €`],
-    ["Pagado", `${data.paid.toFixed(2)} €`],
-    ["Pendiente", `${data.pending.toFixed(2)} €`],
+    ["Ingresos Totales", formatCurrency(data.revenue, data.currency)],
+    ["Pagado", formatCurrency(data.paid, data.currency)],
+    ["Pendiente", formatCurrency(data.pending, data.currency)],
   ];
 
   autoTable(doc, {

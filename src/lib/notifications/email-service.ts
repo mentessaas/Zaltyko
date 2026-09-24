@@ -1,5 +1,5 @@
-import { sendEmail } from "@/lib/brevo";
 import { config } from "@/config";
+import { sendEmailWithLogging } from "@/lib/email/email-service";
 import { logger } from "@/lib/logger";
 
 export interface EmailContent {
@@ -14,13 +14,21 @@ export interface SendEmailResult {
   failedEmails: string[];
 }
 
+export interface BulkEmailDeliveryContext {
+  tenantId?: string;
+  academyId?: string;
+  template?: string;
+  dedupeKeyPrefix?: string;
+}
+
 /**
  * Envía emails a múltiples destinatarios y retorna un resumen de resultados
  */
 export async function sendBulkEmails(
   recipients: string[],
   content: EmailContent,
-  replyTo?: string
+  replyTo?: string,
+  deliveryContext?: BulkEmailDeliveryContext
 ): Promise<SendEmailResult> {
   if (recipients.length === 0) {
     return { sent: 0, errors: 0, failedEmails: [] };
@@ -32,14 +40,20 @@ export async function sendBulkEmails(
 
   for (const email of recipients) {
     try {
-      await sendEmail({
+      const delivered = await sendEmailWithLogging({
         to: email,
         subject: content.subject,
         html: content.html,
         text: content.text,
         replyTo: replyTo || config.brevo.supportEmail,
+        tenantId: deliveryContext?.tenantId,
+        academyId: deliveryContext?.academyId,
+        template: deliveryContext?.template ?? "event_notification",
+        dedupeKey: deliveryContext?.dedupeKeyPrefix
+          ? `${deliveryContext.dedupeKeyPrefix}:${email.trim().toLowerCase()}`
+          : undefined,
       });
-      sent++;
+      if (delivered) sent++;
     } catch (error) {
       logger.error(`Error enviando email a ${email}`, error as Error, { email, recipient: email });
       errors++;
@@ -49,4 +63,3 @@ export async function sendBulkEmails(
 
   return { sent, errors, failedEmails };
 }
-

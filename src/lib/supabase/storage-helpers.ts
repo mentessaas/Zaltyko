@@ -11,15 +11,17 @@ export async function uploadFile(
   options?: {
     contentType?: string;
     upsert?: boolean;
+    bucket?: string;
   }
 ): Promise<{ url: string; path: string }> {
   const supabase = getSupabaseAdminClient();
+  const bucket = options?.bucket ?? "uploads";
 
   const fileBuffer = file instanceof File ? await file.arrayBuffer() : file;
   const fileBytes = new Uint8Array(fileBuffer);
 
   const { data, error } = await supabase.storage
-    .from("uploads")
+    .from(bucket)
     .upload(path, fileBytes, {
       contentType: options?.contentType || "application/octet-stream",
       upsert: options?.upsert || false,
@@ -30,7 +32,7 @@ export async function uploadFile(
   }
 
   // Obtener URL pública
-  const { data: urlData } = supabase.storage.from("uploads").getPublicUrl(path);
+  const { data: urlData } = supabase.storage.from(bucket).getPublicUrl(path);
 
   return {
     url: urlData.publicUrl,
@@ -58,6 +60,37 @@ export function getPublicUrl(path: string): string {
   const supabase = getSupabaseAdminClient();
   const { data } = supabase.storage.from("uploads").getPublicUrl(path);
   return data.publicUrl;
+}
+
+/**
+ * Recupera la ruta interna de un objeto del bucket `uploads` desde su URL
+ * pública. Sirve para limpiar vídeos/fotos creados antes de migrar a URLs
+ * firmadas; devuelve null para URLs externas o malformadas.
+ */
+export function extractUploadPath(value: string): string | null {
+  if (!value || !value.startsWith("http")) return null;
+  try {
+    const pathname = new URL(value).pathname;
+    const markers = [
+      "/storage/v1/object/public/uploads/",
+      "/storage/v1/object/sign/uploads/",
+    ];
+    const marker = markers.find((candidate) => pathname.includes(candidate));
+    if (!marker) return null;
+    const index = pathname.indexOf(marker);
+    const pathValue = pathname.slice(index + marker.length);
+    return pathValue ? decodeURIComponent(pathValue) : null;
+  } catch {
+    return null;
+  }
+}
+
+/** Signed, short-lived URL for private files (documents/PII). */
+export async function createSignedUrl(path: string, expiresIn = 3600): Promise<string> {
+  const supabase = getSupabaseAdminClient();
+  const { data, error } = await supabase.storage.from("uploads").createSignedUrl(path, expiresIn);
+  if (error || !data?.signedUrl) throw new Error(`Error creating signed URL: ${error?.message ?? "unknown"}`);
+  return data.signedUrl;
 }
 
 /**

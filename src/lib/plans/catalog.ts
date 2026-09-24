@@ -53,18 +53,21 @@ export const PRODUCT_PLANS: ProductPlan[] = [
     groupLimit: 5,
     classLimit: 20,
     academyLimit: 1,
-    cta: "Solicitar demo",
+    cta: "Crear cuenta y configurar",
     ctaHref: "/auth/register?role=owner",
     checkoutMode: "self-serve",
     features: [
       "Hasta 75 gimnastas · 1 academia",
       "Cobros recurrentes y reportes básicos",
-      "Portal de familias completo",
+      "Portal familiar limitado: horarios, avisos, progreso publicado y cuotas",
       "Comunicación interna con familias",
     ],
   },
   {
     // Decisión activa 2026-06-24: `premium` es el código interno de Growth.
+    // La web usa una CTA de demo para acompañar la decisión comercial, mientras
+    // que un owner autenticado puede contratarlo desde Facturación; son dos
+    // superficies intencionalmente distintas y no deben mezclarse.
     code: "premium",
     publicName: "Growth",
     internalName: "Growth",
@@ -113,6 +116,37 @@ export const PRODUCT_PLANS: ProductPlan[] = [
 export const PRODUCT_PLAN_BY_CODE = Object.fromEntries(
   PRODUCT_PLANS.map((plan) => [plan.code, plan])
 ) as Record<CommercialPlanCode, ProductPlan>;
+
+const INTERNAL_PLAN_CODES = new Set(["free", "pro", "premium", "network", "custom"]);
+
+/**
+ * Nombre que se puede mostrar a una persona para un código persistido.
+ *
+ * Los códigos `pro` y `premium` se mantienen por compatibilidad con Stripe y
+ * la base de datos, pero nunca deben aparecer como nombres comerciales en la
+ * interfaz. Para códigos no reconocidos (por ejemplo, un plan histórico o
+ * personalizado) preferimos una etiqueta segura antes que filtrar un
+ * identificador interno.
+ */
+export function getProductPlanPublicName(
+  code: string | null | undefined,
+  fallback?: string | null,
+): string {
+  const normalizedCode = code?.trim().toLowerCase() ?? "";
+  const canonical = PRODUCT_PLAN_BY_CODE[normalizedCode as CommercialPlanCode];
+  if (canonical) return canonical.publicName;
+
+  const normalizedFallback = fallback?.trim() ?? "";
+  if (
+    normalizedFallback &&
+    normalizedFallback.toLowerCase() !== normalizedCode &&
+    !INTERNAL_PLAN_CODES.has(normalizedFallback.toLowerCase())
+  ) {
+    return normalizedFallback;
+  }
+
+  return "Plan personalizado";
+}
 
 export const BILLABLE_PRODUCT_PLANS = PRODUCT_PLANS.filter(
   (plan): plan is ProductPlan & { code: PlanCode } => plan.code !== "network"

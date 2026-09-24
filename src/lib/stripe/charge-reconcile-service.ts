@@ -5,6 +5,7 @@ import { db } from "@/db";
 import { charges, refunds } from "@/db/schema";
 import { logger } from "@/lib/logger";
 import { sendChargePaymentFailedNotification } from "@/lib/stripe/notification-service";
+import { ensureChargeReceipt } from "@/lib/receipts/ensure-charge-receipt";
 
 /**
  * Reconciliacion idempotente del ledger a partir de eventos de pago de Stripe
@@ -98,6 +99,7 @@ export async function reconcilePaymentIntentSucceeded(
       updatedAt: new Date(),
     })
     .where(eq(charges.id, charge.id));
+  await ensureChargeReceipt({ chargeId: charge.id, paymentMethod: "card" });
 }
 
 export async function reconcilePaymentIntentFailed(
@@ -195,6 +197,12 @@ export async function reconcileChargeRefunded(
   }
   if (!eventAccountId || row.stripeAccountId !== eventAccountId) {
     throw new ConnectEventRejectedError("CONNECT_ACCOUNT_MISMATCH");
+  }
+  if (stripeCharge.currency.toLowerCase() !== (row.currency || "eur").toLowerCase()) {
+    throw new ConnectEventRejectedError("CONNECT_CURRENCY_MISMATCH");
+  }
+  if (stripeCharge.amount_refunded < 0 || stripeCharge.amount_refunded > stripeCharge.amount) {
+    throw new ConnectEventRejectedError("CONNECT_REFUND_AMOUNT_INVALID");
   }
   if (row.status === "refunded") return;
 

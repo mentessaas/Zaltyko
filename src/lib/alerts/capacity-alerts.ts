@@ -1,6 +1,7 @@
 import { db } from "@/db";
-import { classes, classSessions, groupAthletes, groups } from "@/db/schema";
-import { eq, and, count, sql } from "drizzle-orm";
+import { classes, groups } from "@/db/schema";
+import { eq, and, isNull } from "drizzle-orm";
+import { getClassAthletes } from "@/lib/classes/get-class-athletes";
 import { createNotification } from "@/lib/notifications/notification-service";
 import { logger } from "@/lib/logger";
 
@@ -31,42 +32,42 @@ export async function detectCapacityAlerts(
       })
       .from(classes)
       .leftJoin(groups, eq(classes.groupId, groups.id))
-      .where(and(eq(classes.academyId, academyId), eq(classes.tenantId, tenantId)));
+      .where(
+        and(
+          eq(classes.academyId, academyId),
+          eq(classes.tenantId, tenantId),
+          isNull(classes.deletedAt),
+          isNull(groups.deletedAt)
+        )
+      )
+      .limit(1000);
 
     const alerts: CapacityAlert[] = [];
 
-    for (const classGroup of classGroups) {
-      if (!classGroup.maxCapacity) continue;
+    // Las academias pueden tener cientos de clases. Procesar en lotes pequeños
+    // evita una cascada secuencial interminable sin abrir cientos de consultas
+    // simultáneas contra Supabase.
+    const BATCH_SIZE = 8;
+    for (let index = 0; index < classGroups.length; index += BATCH_SIZE) {
+      const batch = classGroups.slice(index, index + BATCH_SIZE);
+      const batchAlerts = await Promise.all(
+        batch.map(async (classGroup) => {
+          if (!classGroup.maxCapacity) return null;
 
-      // Contar atletas en el grupo o clase
-      let currentCapacity = 0;
+          const currentCapacity = (await getClassAthletes(classGroup.classId, academyId)).length;
+          const percentage = (currentCapacity / classGroup.maxCapacity) * 100;
+          if (percentage < threshold) return null;
 
-      if (classGroup.groupId) {
-        const [countResult] = await db
-          .select({ count: count() })
-          .from(groupAthletes)
-          .where(eq(groupAthletes.groupId, classGroup.groupId));
-        currentCapacity = Number(countResult?.count || 0);
-      } else {
-        // Si no hay grupo, contar sesiones programadas (simplificado)
-        const [countResult] = await db
-          .select({ count: count() })
-          .from(classSessions)
-          .where(eq(classSessions.classId, classGroup.classId));
-        currentCapacity = Number(countResult?.count || 0);
-      }
-
-      const percentage = (currentCapacity / classGroup.maxCapacity) * 100;
-
-      if (percentage >= threshold) {
-        alerts.push({
-          classId: classGroup.classId,
-          className: classGroup.className || "Sin nombre",
-          currentCapacity,
-          maxCapacity: classGroup.maxCapacity,
-          percentage: Math.round(percentage * 100) / 100,
-        });
-      }
+          return {
+            classId: classGroup.classId,
+            className: classGroup.className || "Sin nombre",
+            currentCapacity,
+            maxCapacity: classGroup.maxCapacity,
+            percentage: Math.round(percentage * 100) / 100,
+          } satisfies CapacityAlert;
+        })
+      );
+      alerts.push(...batchAlerts.filter((alert): alert is CapacityAlert => alert !== null));
     }
 
     return alerts;
@@ -109,4 +110,3 @@ export async function createCapacityNotifications(
     }
   }
 }
-

@@ -10,6 +10,18 @@ const UUID_REGEX = /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-
 const UUID_SHAPE_REGEX = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
 const INTERNAL_AUTH_HEADER = "x-internal-auth-secret";
 
+// A dashboard render can fan out into several API requests at once. Reusing
+// the same verified Supabase lookup briefly prevents a burst of identical
+// `/auth/v1/user` calls from exhausting the provider rate limit. The cache key
+// is the complete auth cookie value, the TTL is intentionally short, and
+// failed lookups are never retained.
+const AUTH_USER_CACHE_TTL_MS = 2_000;
+const AUTH_USER_CACHE_MAX_ENTRIES = 256;
+const verifiedAuthUserCache = new Map<
+  string,
+  { expiresAt: number; promise: Promise<string | null> }
+>();
+
 /**
  * Obtiene el userId desde la sesión autenticada.
  * Los headers/params de identidad solo se aceptan en llamadas internas firmadas.
@@ -36,14 +48,13 @@ export async function resolveUserId(
   // Desde cookies (Supabase Auth)
   try {
     const cookieStore = await cookies();
-    const supabase = await createSupabaseServerClient(cookieStore);
-    const {
-      data: { user },
-    } = await supabase.auth.getUser();
+    const authCookieKey = getAuthCookieKey(cookieStore);
+    const getVerifiedUserId = authCookieKey
+      ? getCachedVerifiedUserId(authCookieKey, cookieStore)
+      : fetchVerifiedUserId(cookieStore);
+    const verifiedUserId = await getVerifiedUserId;
 
-    if (user?.id) {
-      return user.id;
-    }
+    if (verifiedUserId) return verifiedUserId;
 
     // Local QA uses the same guarded dev-session cookie as academy layouts.
     // The helper is a no-op outside development and requires explicit opt-in.
@@ -58,6 +69,57 @@ export async function resolveUserId(
   }
 
   return null;
+}
+
+function getAuthCookieKey(cookieStore: Awaited<ReturnType<typeof cookies>>): string | null {
+  const authCookies = cookieStore
+    .getAll()
+    .filter(({ name }) => /-auth-token(?:\.|$)/.test(name))
+    .sort((left, right) => left.name.localeCompare(right.name));
+
+  if (authCookies.length === 0) return null;
+  return authCookies.map(({ name, value }) => `${name}=${value}`).join("|");
+}
+
+function getCachedVerifiedUserId(
+  cacheKey: string,
+  cookieStore: Awaited<ReturnType<typeof cookies>>
+): Promise<string | null> {
+  const now = Date.now();
+  const cached = verifiedAuthUserCache.get(cacheKey);
+  if (cached && cached.expiresAt > now) return cached.promise;
+  if (cached) verifiedAuthUserCache.delete(cacheKey);
+
+  const promise = fetchVerifiedUserId(cookieStore);
+  verifiedAuthUserCache.set(cacheKey, {
+    expiresAt: now + AUTH_USER_CACHE_TTL_MS,
+    promise,
+  });
+
+  if (verifiedAuthUserCache.size > AUTH_USER_CACHE_MAX_ENTRIES) {
+    for (const [key, entry] of verifiedAuthUserCache) {
+      if (entry.expiresAt <= now || key === cacheKey) {
+        verifiedAuthUserCache.delete(key);
+      }
+      if (verifiedAuthUserCache.size <= AUTH_USER_CACHE_MAX_ENTRIES) break;
+    }
+  }
+
+  void promise.catch(() => {
+    if (verifiedAuthUserCache.get(cacheKey)?.promise === promise) {
+      verifiedAuthUserCache.delete(cacheKey);
+    }
+  });
+
+  return promise;
+}
+
+async function fetchVerifiedUserId(cookieStore: Awaited<ReturnType<typeof cookies>>): Promise<string | null> {
+  const supabase = await createSupabaseServerClient(cookieStore);
+  const {
+    data: { user },
+  } = await supabase.auth.getUser();
+  return user?.id ?? null;
 }
 
 function isTrustedInternalRequest(request: Request): boolean {

@@ -1,4 +1,4 @@
-import { and, eq, sql } from "drizzle-orm";
+import { and, eq, inArray, sql, type SQL } from "drizzle-orm";
 import { db } from "@/db";
 import { academies, memberships, profiles } from "@/db/schema";
 import { getSupabaseAdminClient } from "@/lib/supabase/admin";
@@ -15,7 +15,8 @@ export async function getInternalStaffEmails(academyId: string): Promise<string[
     })
     .from(memberships)
     .innerJoin(profiles, eq(memberships.userId, profiles.userId))
-    .where(eq(memberships.academyId, academyId));
+    .where(eq(memberships.academyId, academyId))
+    .limit(5000);
 
   const adminClient = getSupabaseAdminClient();
   const emails: string[] = [];
@@ -39,7 +40,8 @@ export async function getInternalStaffEmails(academyId: string): Promise<string[
  */
 export async function getAcademiesEmailsByLocation(
   academyId: string,
-  locationType: "city" | "province" | "country"
+  locationType: "city" | "province" | "country",
+  tenantId?: string,
 ): Promise<string[]> {
   // Obtener la academia organizadora para conocer su ubicación
   const [organizingAcademy] = await db
@@ -47,9 +49,10 @@ export async function getAcademiesEmailsByLocation(
       country: academies.country,
       region: academies.region,
       city: academies.city,
+      tenantId: academies.tenantId,
     })
     .from(academies)
-    .where(eq(academies.id, academyId))
+    .where(and(eq(academies.id, academyId), tenantId ? eq(academies.tenantId, tenantId) : undefined))
     .limit(1);
 
   if (!organizingAcademy) {
@@ -57,10 +60,14 @@ export async function getAcademiesEmailsByLocation(
   }
 
   // Construir filtros según el tipo de ubicación
-  const filters: ReturnType<typeof eq | typeof sql>[] = [
+  const filters: SQL[] = [
     eq(academies.isSuspended, false),
+    inArray(academies.status, ["active", "trial"]),
     sql`${academies.id} != ${academyId}`, // Excluir la academia organizadora
   ];
+  if (tenantId ?? organizingAcademy.tenantId) {
+    filters.push(eq(academies.tenantId, tenantId ?? organizingAcademy.tenantId));
+  }
 
   if (locationType === "country" && organizingAcademy.country) {
     const normalizedCountry = organizingAcademy.country.trim().toLowerCase();
@@ -84,7 +91,8 @@ export async function getAcademiesEmailsByLocation(
       ownerId: academies.ownerId,
     })
     .from(academies)
-    .where(and(...filters));
+    .where(and(...filters))
+    .limit(5000);
 
   const emails: string[] = [];
 
@@ -117,4 +125,3 @@ export async function getAcademiesEmailsByLocation(
 
   return Array.from(new Set(emails)); // Eliminar duplicados
 }
-

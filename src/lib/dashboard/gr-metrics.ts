@@ -21,7 +21,6 @@ export async function calculateGrMetrics(params: GrMetricsParams): Promise<GrDas
 
   const today = new Date();
   const todayIso = formatISO(today, { representation: "date" });
-  const thirtyDaysFromNow = addDays(today, 30);
   const firstDayOfMonth = new Date(today.getFullYear(), today.getMonth(), 1);
   const firstDayOfMonthIso = formatISO(firstDayOfMonth, { representation: "date" });
 
@@ -33,7 +32,12 @@ export async function calculateGrMetrics(params: GrMetricsParams): Promise<GrDas
         count: count(),
       })
       .from(athletes)
-      .where(eq(athletes.academyId, academyId))
+      .where(
+        and(
+          eq(athletes.academyId, academyId),
+          eq(athletes.tenantId, tenantId)
+        )
+      )
       .groupBy(athletes.level);
 
     athletesByCategory = athleteLevelsResult
@@ -71,7 +75,8 @@ export async function calculateGrMetrics(params: GrMetricsParams): Promise<GrDas
             eq(federativeLicenses.personType, "athlete"),
             inArray(federativeLicenses.personId, athleteIds)
           )
-        );
+        )
+        .limit(10000);
 
       const now = new Date();
       const processedLicenses = athleteLicensesResult
@@ -132,6 +137,7 @@ export async function calculateGrMetrics(params: GrMetricsParams): Promise<GrDas
       .where(
         and(
           eq(events.academyId, academyId),
+          eq(events.tenantId, tenantId),
           gte(events.startDate, todayIso),
           lte(events.startDate, sixtyDaysFromNowIso),
           eq(events.status, "published")
@@ -160,6 +166,7 @@ export async function calculateGrMetrics(params: GrMetricsParams): Promise<GrDas
       .where(
         and(
           eq(athleteAssessments.academyId, academyId),
+          eq(athleteAssessments.tenantId, tenantId),
           gte(athleteAssessments.assessmentDate, firstDayOfMonthIso),
           lte(athleteAssessments.assessmentDate, todayIso)
         )

@@ -125,7 +125,8 @@ export async function getSuperAdminLogs(limit: number = 100): Promise<SuperAdmin
       name: profiles.name,
     })
     .from(profiles)
-    .where(inArray(profiles.userId, userIds));
+    .where(inArray(profiles.userId, userIds))
+    .limit(10000);
 
   // Crear un mapa de userId -> profile
   const profileMap = new Map<string, { name: string | null }>();
@@ -167,4 +168,3 @@ export async function getSuperAdminLogs(limit: number = 100): Promise<SuperAdmin
     };
   });
 }
-

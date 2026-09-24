@@ -122,8 +122,9 @@ export async function handleConnectWebhook(request: Request): Promise<NextRespon
       rejected: result.rejected,
     });
   } catch (error) {
-    const errorMessage = error instanceof Error ? error.message : "Unknown error";
     logger.error("Stripe connect webhook handler error", error);
-    return NextResponse.json({ error: "PROCESSING_FAILED", message: errorMessage }, { status: 500 });
+    // Stripe solo necesita un 5xx para reintentar; no devolvemos detalles
+    // internos de base de datos/proveedor en la respuesta HTTP.
+    return NextResponse.json({ error: "PROCESSING_FAILED" }, { status: 500 });
   }
 }

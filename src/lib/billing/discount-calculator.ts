@@ -262,7 +262,8 @@ export async function getEarlyPaymentDiscounts(
           gte(discounts.endDate, todayStr)
         )
       )
-    );
+    )
+    .limit(100);
 
   return discountRows.map((discount) => {
     const discountValue = Number(discount.earlyPaymentDiscount || 0);
@@ -279,4 +280,3 @@ export async function getEarlyPaymentDiscounts(
     };
   });
 }
-

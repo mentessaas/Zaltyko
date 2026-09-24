@@ -1,4 +1,4 @@
-import { and, asc, eq, gt } from "drizzle-orm";
+import { and, asc, eq, gt, inArray } from "drizzle-orm";
 
 import { db } from "@/db";
 import { academies, invitations, memberships, profiles } from "@/db/schema";
@@ -52,6 +52,7 @@ export async function resolveUserHome(args: {
       tenantId: profiles.tenantId,
       activeAcademyId: profiles.activeAcademyId,
       canLogin: profiles.canLogin,
+      isSuspended: profiles.isSuspended,
     })
     .from(profiles)
     .where(eq(profiles.userId, args.userId))
@@ -97,7 +98,7 @@ export async function resolveUserHome(args: {
     };
   }
 
-  if (!profile.canLogin && profile.role !== "super_admin") {
+  if (profile.isSuspended || (!profile.canLogin && profile.role !== "super_admin")) {
     return {
       destination: "blocked",
       redirectUrl: "/auth/login?error=access_disabled",
@@ -125,21 +126,34 @@ export async function resolveUserHome(args: {
       role: memberships.role,
     })
     .from(memberships)
-    .where(eq(memberships.userId, args.userId))
-    .orderBy(asc(memberships.createdAt));
+    .innerJoin(academies, eq(academies.id, memberships.academyId))
+    .where(and(
+      eq(memberships.userId, args.userId),
+      eq(academies.tenantId, profile.tenantId),
+      eq(academies.isSuspended, false),
+      inArray(academies.status, ["active", "trial"])
+    ))
+    .orderBy(asc(memberships.createdAt))
+    .limit(1000);
 
   const activeMembership =
     membershipsRows.find((membership) => membership.academyId === profile.activeAcademyId) ??
     membershipsRows[0] ??
     null;
 
-  let academyId = profile.activeAcademyId ?? activeMembership?.academyId ?? null;
+  // Nunca confiar en activeAcademyId por sí solo: debe existir una membresía
+  // vigente en el tenant actual. Así una referencia obsoleta no concede acceso.
+  let academyId = activeMembership?.academyId ?? null;
 
   if (!academyId && (profile.role === "owner" || profile.role === "admin")) {
     const [academy] = await db
       .select({ id: academies.id })
       .from(academies)
-      .where(eq(academies.tenantId, profile.tenantId))
+      .where(and(
+        eq(academies.tenantId, profile.tenantId),
+        eq(academies.isSuspended, false),
+        inArray(academies.status, ["active", "trial"])
+      ))
       .orderBy(asc(academies.name))
       .limit(1);
 
@@ -178,6 +192,20 @@ export async function resolveUserHome(args: {
       profileRole: profile.role,
       membershipRole,
       activeAcademyId: academyId,
+    };
+  }
+
+  // An owner/admin account is not usable until its first academy exists.
+  // Keep this invariant server-side so login, callbacks and legacy dashboard
+  // routes cannot leave a newly registered owner in the global dashboard.
+  if (!academyId && (profile.role === "owner" || profile.role === "admin")) {
+    return {
+      destination: "owner_setup",
+      redirectUrl: "/onboarding/owner",
+      reason: "no-academy",
+      profileRole: isProfileRole(profile.role) ? profile.role : null,
+      membershipRole,
+      activeAcademyId: null,
     };
   }
 

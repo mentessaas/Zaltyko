@@ -574,7 +574,7 @@ export async function cancelAthleteInvitation(
   return Boolean(updated);
 }
 
-export async function listAthleteInvitations(academyId: string) {
+export async function listAthleteInvitations(academyId: string, tenantId?: string) {
   return db
     .select({
       id: athleteInvitations.id,
@@ -588,5 +588,10 @@ export async function listAthleteInvitations(academyId: string) {
       athleteId: athleteInvitations.athleteId,
     })
     .from(athleteInvitations)
-    .where(eq(athleteInvitations.academyId, academyId));
+    .where(
+      tenantId
+        ? and(eq(athleteInvitations.academyId, academyId), eq(athleteInvitations.tenantId, tenantId))
+        : eq(athleteInvitations.academyId, academyId)
+    )
+    .limit(1000);
 }

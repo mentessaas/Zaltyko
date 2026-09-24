@@ -37,7 +37,8 @@ export async function checkCoachAvailability(
         eq(classCoachAssignments.coachId, coachId),
         eq(classSessions.sessionDate, dateStr)
       )
-    );
+    )
+    .limit(1000);
 
   // Verificar conflicto de horario
   for (const session of existingSessions) {

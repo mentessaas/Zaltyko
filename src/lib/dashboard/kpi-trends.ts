@@ -1,5 +1,4 @@
 import { and, eq, gte, lte } from "drizzle-orm";
-import { formatISO, subDays } from "date-fns";
 
 import { db } from "@/db";
 import {
@@ -9,7 +8,9 @@ import {
   classes,
   coaches,
   groups,
+  academies,
 } from "@/db/schema";
+import { addDaysToCalendarDate, formatDateToISOString } from "@/lib/date-utils";
 
 /**
  * Series temporales reales para los sparklines del dashboard.
@@ -41,12 +42,15 @@ const EMPTY_TRENDS: KpiTrends = {
   attendance: [],
 };
 
-function toDateIso(value: Date | string | null | undefined): string | null {
+function toDateIso(
+  value: Date | string | null | undefined,
+  country: string | null | undefined
+): string | null {
   if (!value) return null;
   const date = value instanceof Date ? value : new Date(value);
   if (Number.isNaN(date.getTime())) return null;
   // Las fechas ISO (YYYY-MM-DD) se comparan correctamente como strings.
-  return formatISO(date, { representation: "date" });
+  return formatDateToISOString(date, country);
 }
 
 /**
@@ -55,13 +59,14 @@ function toDateIso(value: Date | string | null | undefined): string | null {
  */
 function cumulativeOn(
   rows: Array<{ createdAt: Date | string | null; deletedAt?: Date | string | null }>,
-  dayIso: string
+  dayIso: string,
+  country: string | null | undefined
 ): number {
   let total = 0;
   for (const row of rows) {
-    const created = toDateIso(row.createdAt);
+    const created = toDateIso(row.createdAt, country);
     if (created === null || created > dayIso) continue;
-    const deleted = toDateIso(row.deletedAt ?? null);
+    const deleted = toDateIso(row.deletedAt ?? null, country);
     if (deleted !== null && deleted <= dayIso) continue;
     total += 1;
   }
@@ -78,12 +83,18 @@ export async function getKpiTrends(
   days = 14
 ): Promise<KpiTrends> {
   const safeDays = Math.min(Math.max(days, 2), 90);
-  const today = new Date();
+  const [academy] = await db
+    .select({ country: academies.country })
+    .from(academies)
+    .where(eq(academies.id, academyId))
+    .limit(1);
+  const academyCountry = academy?.country ?? null;
+  const todayKey = formatDateToISOString(new Date(), academyCountry);
 
   // Lista de días (más antiguo -> hoy) como strings YYYY-MM-DD.
   const dayList: string[] = [];
   for (let i = safeDays - 1; i >= 0; i -= 1) {
-    dayList.push(formatISO(subDays(today, i), { representation: "date" }));
+    dayList.push(addDaysToCalendarDate(todayKey, -i) ?? todayKey);
   }
   const oldestIso = dayList[0];
   const todayIso = dayList[dayList.length - 1];
@@ -106,15 +117,15 @@ export async function getKpiTrends(
     db
       .select({ createdAt: athletes.createdAt, deletedAt: athletes.deletedAt })
       .from(athletes)
-      .where(athleteWhere),
+      .where(athleteWhere).limit(10000),
     db
       .select({ createdAt: coaches.createdAt })
       .from(coaches)
-      .where(coachWhere),
+      .where(coachWhere).limit(5000),
     db
       .select({ createdAt: groups.createdAt, deletedAt: groups.deletedAt })
       .from(groups)
-      .where(groupWhere),
+      .where(groupWhere).limit(5000),
     db
       .select({
         sessionDate: classSessions.sessionDate,
@@ -129,7 +140,8 @@ export async function getKpiTrends(
           gte(classSessions.sessionDate, oldestIso),
           lte(classSessions.sessionDate, todayIso)
         )
-      ),
+      )
+      .limit(10000),
   ]);
 
   // Agrupar asistencia por día (present / total).
@@ -143,9 +155,9 @@ export async function getKpiTrends(
   }
 
   return {
-    athletes: dayList.map((day) => cumulativeOn(athleteRows, day)),
-    coaches: dayList.map((day) => cumulativeOn(coachRows, day)),
-    groups: dayList.map((day) => cumulativeOn(groupRows, day)),
+    athletes: dayList.map((day) => cumulativeOn(athleteRows, day, academyCountry)),
+    coaches: dayList.map((day) => cumulativeOn(coachRows, day, academyCountry)),
+    groups: dayList.map((day) => cumulativeOn(groupRows, day, academyCountry)),
     attendance: dayList.map((day) => {
       const bucket = attendanceByDay.get(day);
       if (!bucket || bucket.total === 0) return 0;

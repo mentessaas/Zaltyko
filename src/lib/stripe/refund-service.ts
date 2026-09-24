@@ -93,11 +93,14 @@ export async function refundCharge(params: RefundParams): Promise<RefundResult> 
         currency: (charge.currency || "eur").toLowerCase(),
         reason: params.reason ?? null,
         status: refund.status ?? "pending",
-        createdBy: null,
+        createdBy: params.actorUserId,
       });
     }
 
-    if (alreadyRefunded + amount >= charge.amountCents) {
+    // Stripe puede aceptar el reembolso en estado `pending`. No lo tratamos
+    // como liquidado hasta que Stripe confirme `succeeded`; el webhook
+    // `charge.refunded` mantiene la reconciliación final como fuente de verdad.
+    if (refund.status === "succeeded" && alreadyRefunded + amount >= charge.amountCents) {
       await tx
         .update(charges)
         .set({ status: "refunded", updatedAt: new Date() })

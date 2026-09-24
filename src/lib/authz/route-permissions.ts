@@ -178,6 +178,38 @@ const ROUTE_PERMISSIONS: Array<{ prefix: string; permissions: MethodPermissions 
     permissions: { GET: "reports:read" },
   },
   {
+    prefix: "/api/alerts/capacity",
+    permissions: { GET: "classes:read" },
+  },
+  {
+    prefix: "/api/alerts/attendance",
+    permissions: { GET: "classes:read" },
+  },
+  {
+    // Las predicciones usan historial sensible de atletas y no deben quedar
+    // disponibles para cualquier miembro autenticado de la academia.
+    prefix: "/api/ai/attendance",
+    permissions: { GET: "athletes:read", POST: "athletes:read" },
+  },
+  {
+    prefix: "/api/ai/communication",
+    permissions: { GET: "communications:read", POST: "communications:read" },
+  },
+  {
+    prefix: "/api/ai/billing",
+    permissions: { GET: "billing:read", POST: "billing:read" },
+  },
+  {
+    prefix: "/api/alerts/payments",
+    permissions: { GET: "billing:read" },
+  },
+  {
+    // Enviar recordatorios es una mutación de comunicaciones, aunque el
+    // destinatario se determine a partir de sesiones y matrículas.
+    prefix: "/api/alerts/class-reminders",
+    permissions: { POST: "communications:send" },
+  },
+  {
     prefix: "/api/analytics",
     permissions: { GET: "reports:read", POST: "reports:create" },
   },
@@ -231,7 +263,7 @@ const ROUTE_PERMISSIONS: Array<{ prefix: string; permissions: MethodPermissions 
   },
   {
     prefix: "/api/invitations",
-    permissions: { GET: "settings:users", POST: "settings:users" },
+    permissions: { GET: "settings:users", POST: "settings:users", DELETE: "settings:users" },
   },
   {
     prefix: "/api/link-requests",
@@ -310,6 +342,9 @@ export function getRequiredRoutePermission(pathname: string, method: string): Pe
   }
   if (pathname.startsWith("/api/reports/") && pathname.endsWith("/export")) {
     return "reports:export";
+  }
+  if (pathname.startsWith("/api/reports/") && pathname.endsWith("/email")) {
+    return "communications:send";
   }
   if (/^\/api\/academies\/[^/]+\/settings$/.test(pathname)) {
     return normalizedMethod === "GET" ? "settings:read" : "settings:write";

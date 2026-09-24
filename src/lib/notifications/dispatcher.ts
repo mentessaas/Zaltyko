@@ -10,11 +10,15 @@
 import { createNotification } from "./notification-service";
 import { sendPushToUser, isPushConfigured as isPushAvailable } from "./push-service";
 import { sendWhatsAppWithTemplate } from "./whatsapp-service";
-import { sendEmail } from "@/lib/brevo";
-import { getNotificationPreferences, getNotificationPreferenceByChannel } from "@/lib/communication-service";
+import { sendEmailWithLogging } from "@/lib/email/email-service";
+import { escapeHtml } from "@/lib/email/escape-html";
+import { getNotificationPreferenceByChannel } from "@/lib/communication-service";
 import { db } from "@/db";
 import { profiles } from "@/db/schema/profiles";
-import { eq } from "drizzle-orm";
+import { and, eq } from "drizzle-orm";
+import { getAuthUserEmail } from "@/lib/supabase/admin-operations";
+import { isFeatureEnabled } from "@/lib/product/features";
+import { formatCurrency } from "@/lib/currency";
 
 // Types
 export type NotificationType =
@@ -67,12 +71,10 @@ const DEFAULT_CHANNEL_PRIORITY: Record<Priority, Channel[]> = {
 };
 
 // Fallback order when a channel fails
-const FALLBACK_ORDER: Channel[] = ["push", "email", "in_app"];
-
 /**
  * Get user profile with contact info
  */
-async function getUserProfile(userId: string) {
+async function getUserProfile(userId: string, tenantId: string) {
   const [profile] = await db
     .select({
       id: profiles.id,
@@ -80,7 +82,7 @@ async function getUserProfile(userId: string) {
       phone: profiles.phone,
     })
     .from(profiles)
-    .where(eq(profiles.id, userId))
+    .where(and(eq(profiles.id, userId), eq(profiles.tenantId, tenantId)))
     .limit(1);
   return profile;
 }
@@ -98,11 +100,13 @@ async function isChannelAvailable(
       return isPushAvailable();
 
     case "email":
-      // Email not available via profiles table - requires auth.users lookup
-      return false;
+      // El email vive en auth.users, no en profiles. Resolverlo aquí permite
+      // que el fallback email funcione sin duplicar PII en la tabla pública.
+      return Boolean(await getAuthUserEmail(userId));
 
     case "whatsapp":
-      const phoneProfile = await getUserProfile(userId);
+      if (!isFeatureEnabled("whatsapp")) return false;
+      const phoneProfile = await getUserProfile(userId, tenantId);
       return Boolean(phoneProfile?.phone);
 
     case "in_app":
@@ -143,12 +147,12 @@ async function sendViaChannel(
   userId: string,
   options: DispatchOptions
 ): Promise<{ success: boolean; error?: string }> {
-  const profile = await getUserProfile(userId);
+  const profile = await getUserProfile(userId, options.tenantId);
 
   try {
     switch (channel) {
       case "in_app":
-        await createNotification({
+        const created = await createNotification({
           tenantId: options.tenantId,
           userId: options.userId,
           type: options.type,
@@ -156,7 +160,9 @@ async function sendViaChannel(
           message: options.body,
           data: options.data,
         });
-        return { success: true };
+        return created
+          ? { success: true }
+          : { success: false, error: "Disabled by user preference" };
 
       case "push":
         if (!isPushAvailable()) {
@@ -171,8 +177,23 @@ async function sendViaChannel(
         return { success: pushResult.sent > 0, error: pushResult.failed > 0 ? "Some push subscriptions failed" : undefined };
 
       case "email":
-        // Email not available via profiles table - requires auth.users lookup
-        return { success: false, error: "Email not available" };
+        {
+          const email = await getAuthUserEmail(userId);
+          if (!email) return { success: false, error: "Email not available" };
+          const sent = await sendEmailWithLogging({
+            to: email,
+            subject: options.title,
+            html: `<p>${escapeHtml(options.body)}</p>`,
+            template: `notification:${options.type}`,
+            tenantId: options.tenantId,
+            userId,
+            profileId: userId,
+            notificationType: options.type,
+            dedupeKey: `notification:${options.type}:${userId}:${options.title}:${options.body}`,
+            metadata: options.data,
+          });
+          return sent ? { success: true } : { success: false, error: "Email skipped or failed" };
+        }
 
       case "whatsapp":
         if (!profile?.phone) {
@@ -180,11 +201,11 @@ async function sendViaChannel(
         }
         const waResult = await sendWhatsAppWithTemplate({
           to: profile.phone,
-          templateType: "welcome",
+          templateType: "custom",
           variables: {
-            title: options.title,
-            body: options.body,
+            body: `${options.title}: ${options.body}`,
           },
+          tenantId: options.tenantId,
         });
         return { success: waResult.success, error: waResult.error };
 
@@ -262,7 +283,7 @@ export async function dispatch(options: DispatchOptions): Promise<DispatchResult
     const inAppEnabled = await isChannelEnabled(userId, "in_app");
     if (inAppEnabled && !result.channelsSucceeded.includes("in_app")) {
       try {
-        await createNotification({
+        const created = await createNotification({
           tenantId,
           userId,
           type,
@@ -270,8 +291,12 @@ export async function dispatch(options: DispatchOptions): Promise<DispatchResult
           message: body,
           data,
         });
-        result.channelsSucceeded.push("in_app");
-        result.success = true;
+        if (created) {
+          result.channelsSucceeded.push("in_app");
+          result.success = true;
+        } else {
+          result.errors["in_app"] = "Disabled by user preference";
+        }
       } catch (error) {
         result.errors["in_app"] = error instanceof Error ? error.message : "Failed";
       }
@@ -352,6 +377,7 @@ export const notificationDispatcher = {
       athleteName: string;
       amount: number;
       dueDate: string;
+      currency?: string;
     }
   ) {
     return dispatch({
@@ -359,7 +385,7 @@ export const notificationDispatcher = {
       userId,
       type: "invoice_pending",
       title: "Recordatorio de pago",
-      body: `La mensualidad de ${data.athleteName} (€${data.amount}) vence el ${data.dueDate}.`,
+      body: `La mensualidad de ${data.athleteName} (${formatCurrency(data.amount, data.currency ?? "EUR")}) vence el ${data.dueDate}.`,
       data,
       priority: "high",
     });
@@ -456,6 +482,7 @@ export const notificationDispatcher = {
       athleteName: string;
       amount: number;
       paymentId: string;
+      currency?: string;
     }
   ) {
     return dispatch({
@@ -463,7 +490,7 @@ export const notificationDispatcher = {
       userId,
       type: "payment_received",
       title: "Pago recibido",
-      body: `Se recibió un pago de €${data.amount} por ${data.athleteName}.`,
+      body: `Se recibió un pago de ${formatCurrency(data.amount, data.currency ?? "EUR")} por ${data.athleteName}.`,
       data,
       priority: "high",
     });

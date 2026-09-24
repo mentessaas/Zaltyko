@@ -88,7 +88,8 @@ export async function getUserPushSubscriptions(userId: string) {
   return db
     .select()
     .from(pushSubscriptions)
-    .where(eq(pushSubscriptions.userId, userId));
+    .where(eq(pushSubscriptions.userId, userId))
+    .limit(20);
 }
 
 /**
@@ -180,7 +181,7 @@ async function sendPushNotification(
   const pushPayload = JSON.stringify({
     title: payload.title,
     body: payload.body,
-    icon: payload.icon || "/icons/icon-192x192.png",
+    icon: payload.icon || "/icons/icon-192.png",
     badge: payload.badge || "/icons/badge-72x72.png",
     data: payload.data,
     tag: payload.tag || "notification",

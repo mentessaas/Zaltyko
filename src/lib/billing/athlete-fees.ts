@@ -8,12 +8,12 @@ import { athletes, groupAthletes, groups } from "@/db/schema";
 
 /**
  * Calcula la cuota mensual de un atleta para su grupo actual.
- * 
+ *
  * Lógica:
  * 1. Si el atleta tiene una cuota personalizada (custom_fee_cents) en group_athletes → devuelve esa
  * 2. Si no, devuelve la cuota del grupo (monthly_fee_cents)
  * 3. Si el grupo no tiene cuota definida → devuelve 0
- * 
+ *
  * @param academyId ID de la academia
  * @param athleteId ID del atleta
  * @param groupId ID del grupo (opcional, si no se proporciona se obtiene del atleta)
@@ -22,7 +22,8 @@ import { athletes, groupAthletes, groups } from "@/db/schema";
 export async function getMonthlyFeeForAthlete(
   academyId: string,
   athleteId: string,
-  groupId?: string
+  groupId?: string,
+  tenantId?: string
 ): Promise<number> {
   // Obtener el atleta y su grupo
   const [athlete] = await db
@@ -31,7 +32,13 @@ export async function getMonthlyFeeForAthlete(
       currentGroupId: athletes.groupId,
     })
     .from(athletes)
-    .where(and(eq(athletes.id, athleteId), eq(athletes.academyId, academyId)))
+    .where(
+      and(
+        eq(athletes.id, athleteId),
+        eq(athletes.academyId, academyId),
+        tenantId ? eq(athletes.tenantId, tenantId) : undefined
+      )
+    )
     .limit(1);
 
   if (!athlete) {
@@ -53,13 +60,17 @@ export async function getMonthlyFeeForAthlete(
     .where(
       and(
         eq(groupAthletes.athleteId, athleteId),
-        eq(groupAthletes.groupId, targetGroupId)
+        eq(groupAthletes.groupId, targetGroupId),
+        tenantId ? eq(groupAthletes.tenantId, tenantId) : undefined
       )
     )
     .limit(1);
 
   // Si hay cuota personalizada, usarla
-  if (membership?.customFeeCents !== null && membership?.customFeeCents !== undefined) {
+  if (
+    membership?.customFeeCents !== null &&
+    membership?.customFeeCents !== undefined
+  ) {
     return membership.customFeeCents;
   }
 
@@ -69,7 +80,13 @@ export async function getMonthlyFeeForAthlete(
       monthlyFeeCents: groups.monthlyFeeCents,
     })
     .from(groups)
-    .where(and(eq(groups.id, targetGroupId), eq(groups.academyId, academyId)))
+    .where(
+      and(
+        eq(groups.id, targetGroupId),
+        eq(groups.academyId, academyId),
+        tenantId ? eq(groups.tenantId, tenantId) : undefined
+      )
+    )
     .limit(1);
 
   if (!group) {
@@ -88,4 +105,3 @@ export function formatPeriodToMonthName(period: string): string {
   const date = new Date(parseInt(year), parseInt(month) - 1);
   return date.toLocaleDateString("es-ES", { month: "long", year: "numeric" });
 }
-

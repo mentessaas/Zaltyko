@@ -8,6 +8,7 @@ import { db } from '@/db';
 import { profiles, subscriptions, plans } from '@/db/schema';
 import { eq } from 'drizzle-orm';
 import { getSupabaseAdminClient } from '@/lib/supabase/admin';
+import { getProductPlanPublicName } from '@/lib/plans/catalog';
 import type { McpAuthContext } from '../types';
 
 /**
@@ -66,7 +67,7 @@ export function registerUserTools(server: any) {
 - ID Perfil: ${profile.id}
 
 💳 **Suscripción:**
-${subscription ? `- Plan: ${subscription.plan.nickname || subscription.plan.code}\n- Estado: ${subscription.subscription.status || 'N/A'}` : '- Sin suscripción activa'}
+${subscription ? `- Plan: ${getProductPlanPublicName(subscription.plan.code, subscription.plan.nickname)}\n- Estado: ${subscription.subscription.status || 'N/A'}` : '- Sin suscripción activa'}
 
 📅 **Creado:** ${profile.createdAt?.toISOString() || 'N/A'}
         `.trim();

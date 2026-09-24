@@ -1,10 +1,12 @@
-import { and, eq, gte, inArray, isNull, lte, sql } from "drizzle-orm";
+import { and, eq, gte, inArray, isNull, lte } from "drizzle-orm";
 
 import { db } from "@/db";
 import {
   attendanceRecords,
+  athletes,
   classes,
   classEnrollments,
+  classGroups,
   classSessions,
   groupAthletes,
 } from "@/db/schema";
@@ -45,6 +47,7 @@ export async function calculateClassReport(filters: ClassReportFilters): Promise
     isNull(classes.deletedAt),
   ].filter(Boolean);
 
+  // unbounded-read-ok: complete academy-scoped dataset required for report totals
   const classRows = await db
     .select({
       id: classes.id,
@@ -52,7 +55,8 @@ export async function calculateClassReport(filters: ClassReportFilters): Promise
       groupId: classes.groupId,
     })
     .from(classes)
-    .where(and(...classWhere));
+    .where(and(...classWhere))
+    .limit(10000);
 
   if (classRows.length === 0) {
     return {
@@ -65,22 +69,49 @@ export async function calculateClassReport(filters: ClassReportFilters): Promise
   }
 
   const classIds = classRows.map((item) => item.id);
-  const groupIds = classRows.map((item) => item.groupId).filter((value): value is string => Boolean(value));
+  const classGroupLinks = await db
+    .select({ classId: classGroups.classId, groupId: classGroups.groupId })
+    .from(classGroups)
+    .where(
+      and(
+        inArray(classGroups.classId, classIds),
+        filters.tenantId ? eq(classGroups.tenantId, filters.tenantId) : undefined
+      )
+    )
+    .limit(10000);
+  const groupIdsByClass = new Map<string, Set<string>>();
+  for (const classRow of classRows) {
+    groupIdsByClass.set(classRow.id, new Set(classRow.groupId ? [classRow.groupId] : []));
+  }
+  for (const link of classGroupLinks) {
+    (groupIdsByClass.get(link.classId) ?? new Set<string>()).add(link.groupId);
+  }
+  const groupIds = Array.from(
+    new Set(Array.from(groupIdsByClass.values()).flatMap((ids) => Array.from(ids)))
+  );
 
   const [enrollmentRows, groupMemberships, sessionRows] = await Promise.all([
+    // unbounded-read-ok: complete enrollment dataset required for report totals
     db
       .select({
         classId: classEnrollments.classId,
         athleteId: classEnrollments.athleteId,
       })
       .from(classEnrollments)
+      .innerJoin(athletes, and(
+        eq(classEnrollments.athleteId, athletes.id),
+        filters.tenantId ? eq(athletes.tenantId, filters.tenantId) : undefined,
+        eq(athletes.academyId, filters.academyId),
+        isNull(athletes.deletedAt),
+      ))
       .where(
         and(
           inArray(classEnrollments.classId, classIds),
           eq(classEnrollments.academyId, filters.academyId),
           filters.tenantId ? eq(classEnrollments.tenantId, filters.tenantId) : undefined
+          )
         )
-      ),
+        .limit(10000),
     groupIds.length > 0
       ? db
           .select({
@@ -88,12 +119,19 @@ export async function calculateClassReport(filters: ClassReportFilters): Promise
             athleteId: groupAthletes.athleteId,
           })
           .from(groupAthletes)
+          .innerJoin(athletes, and(
+            eq(groupAthletes.athleteId, athletes.id),
+            filters.tenantId ? eq(athletes.tenantId, filters.tenantId) : undefined,
+            eq(athletes.academyId, filters.academyId),
+            isNull(athletes.deletedAt),
+          ))
           .where(
             and(
               inArray(groupAthletes.groupId, groupIds),
               filters.tenantId ? eq(groupAthletes.tenantId, filters.tenantId) : undefined
             )
           )
+          .limit(10000)
       : Promise.resolve([]),
     db
       .select({
@@ -112,24 +150,34 @@ export async function calculateClassReport(filters: ClassReportFilters): Promise
             ? lte(classSessions.sessionDate, filters.endDate.toISOString().slice(0, 10))
             : undefined
         )
-      ),
+        )
+        .limit(10000),
   ]);
 
   const sessionIds = sessionRows.map((item) => item.id);
   const attendanceRows =
     sessionIds.length > 0
-      ? await db
+      ? // unbounded-read-ok: complete attendance dataset required for report totals
+        await db
           .select({
             sessionId: attendanceRecords.sessionId,
+            athleteId: attendanceRecords.athleteId,
             status: attendanceRecords.status,
           })
           .from(attendanceRecords)
+          .innerJoin(athletes, and(
+            eq(attendanceRecords.athleteId, athletes.id),
+            filters.tenantId ? eq(athletes.tenantId, filters.tenantId) : undefined,
+            eq(athletes.academyId, filters.academyId),
+            isNull(athletes.deletedAt),
+          ))
           .where(
             and(
               inArray(attendanceRecords.sessionId, sessionIds),
               filters.tenantId ? eq(attendanceRecords.tenantId, filters.tenantId) : undefined
             )
           )
+          .limit(10000)
       : [];
 
   const membershipsByGroup = new Map<string, Set<string>>();
@@ -142,9 +190,8 @@ export async function calculateClassReport(filters: ClassReportFilters): Promise
   const enrollmentsByClass = new Map<string, Set<string>>();
   classRows.forEach((classRow) => {
     const set = new Set<string>();
-    if (classRow.groupId) {
-      const groupSet = membershipsByGroup.get(classRow.groupId);
-      groupSet?.forEach((athleteId) => set.add(athleteId));
+    for (const groupId of groupIdsByClass.get(classRow.id) ?? []) {
+      membershipsByGroup.get(groupId)?.forEach((athleteId) => set.add(athleteId));
     }
     enrollmentsByClass.set(classRow.id, set);
   });

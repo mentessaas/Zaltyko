@@ -82,7 +82,7 @@ export async function recordBillingEvent(event: Stripe.Event): Promise<BillingEv
   // obtiene shouldProcess=true.
   //
   // Se acepta `lastAttemptAt` potencialmente null en el row leido: si la
-  // fila se acaba de crear y todavia no se ha persistido el valor, el CAS
+  // fila se acaba de crear y todavía no se ha persistido el valor, el CAS
   // hace `lastAttemptAt IS NULL` para no perder la transicion.
   const lastAttemptAtMatch =
     existing.lastAttemptAt === null

@@ -447,6 +447,13 @@ export async function getClusterAcademies(
   country: CountrySlug,
   limit = 12
 ) {
+  // Public cluster pages are prerendered during `next build`; the database
+  // intentionally rejects connections in that phase. Returning an empty
+  // collection keeps the static page valid and lets runtime requests hydrate
+  // the real directory data without noisy build-time errors.
+  if (process.env.NEXT_PHASE === "phase-production-build" || process.env.NEXT_PHASE === "phase-development-build") {
+    return [];
+  }
   const { db } = await import('@/db');
   const { academies } = await import('@/db/schema');
   const { eq, and } = await import('drizzle-orm');
@@ -491,6 +498,9 @@ export async function getClusterCoaches(
   country: CountrySlug,
   limit = 12
 ) {
+  if (process.env.NEXT_PHASE === "phase-production-build" || process.env.NEXT_PHASE === "phase-development-build") {
+    return [];
+  }
   const { db } = await import('@/db');
   const { coaches, academies } = await import('@/db/schema');
   const { eq, and, sql } = await import('drizzle-orm');

@@ -155,7 +155,7 @@ const GAM_ARTISTIC_LEVELS = [
 // Campeonato de España Individual y Autonomias. OJO: cada categoria compite
 // con un subconjunto distinto de aparatos (ej. Benjamin solo Manos Libres +
 // Cuerda; Senior es Aro + Pelota + Cinta) - esa asignacion aparato-por-
-// categoria todavia no esta modelada en el schema (apparatus es una lista
+// categoría todavía no está modelada en el schema (apparatus es una lista
 // plana por sportLocaleConfig, no por categoria/nivel). Documentado como
 // simplificacion conocida, no corregir aqui sin evaluar cambio de schema.
 const GR_AGE_CATEGORIES = [
@@ -329,7 +329,7 @@ export const SPORT_CONFIG_SEEDS: SportConfigSeed[] = [
       levelPlaceholder: "Ej. Alevín, 1ª Categoría",
     },
     // NOTA: el programa/niveles de Base de GR (Base 1..N) NO esta confirmado
-    // contra fuente primaria todavia - "Listado ascensos Nivel Base" PDF no
+    // contra fuente primaria todavía - "Listado ascensos Nivel Base" PDF no
     // leido. Se deja el listado anterior (Base 1..4 + FIG) sin tocar en vez
     // de inventar un numero de niveles. Solo se corrigieron ageCategories
     // (categorias individuales del Campeonato de España, si confirmadas).

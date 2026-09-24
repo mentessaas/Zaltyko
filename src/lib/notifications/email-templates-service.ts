@@ -187,7 +187,8 @@ export async function getEmailTemplateByType(templateType: string): Promise<Emai
         eq(messageTemplates.templateType, templateType),
         eq(messageTemplates.isActive, true)
       )
-    );
+    )
+    .limit(1);
   return template || null;
 }
 
@@ -205,7 +206,8 @@ export async function getEmailTemplates(tenantId?: string) {
             eq(messageTemplates.tenantId, tenantId)
           )
         : eq(messageTemplates.channel, "email")
-    );
+    )
+    .limit(100);
 }
 
 /**

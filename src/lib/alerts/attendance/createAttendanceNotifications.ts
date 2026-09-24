@@ -45,11 +45,12 @@ export async function createAttendanceNotifications(
     // Enviar email a padres/tutores del atleta en riesgo
     try {
       const athleteGuardians = await db
-        .select({ email: guardians.email, name: guardians.name })
+        .select({ email: guardians.email, name: guardians.name, profileId: guardians.profileId })
         .from(guardianAthletes)
         .innerJoin(guardians, eq(guardianAthletes.guardianId, guardians.id))
         .innerJoin(athletes, eq(athletes.id, alert.athleteId))
-        .where(eq(guardianAthletes.athleteId, alert.athleteId));
+        .where(eq(guardianAthletes.athleteId, alert.athleteId))
+        .limit(100);
 
       for (const guardian of athleteGuardians) {
         if (!guardian.email) continue;
@@ -61,6 +62,8 @@ export async function createAttendanceNotifications(
           template: "attendance-risk",
           tenantId,
           academyId,
+          profileId: guardian.profileId ?? undefined,
+          notificationType: "attendance",
           dedupeKey,
           metadata: { athleteId: alert.athleteId, attendanceRate: alert.attendanceRate },
         });
@@ -70,4 +73,3 @@ export async function createAttendanceNotifications(
     }
   }
 }
-

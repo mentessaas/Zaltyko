@@ -7,7 +7,8 @@ export async function getCoachSportConfigIds(coachId: string, tenantId: string):
   const rows = await db
     .select({ sportConfigId: coachSportConfigs.academySportConfigId })
     .from(coachSportConfigs)
-    .where(and(eq(coachSportConfigs.coachId, coachId), eq(coachSportConfigs.tenantId, tenantId)));
+    .where(and(eq(coachSportConfigs.coachId, coachId), eq(coachSportConfigs.tenantId, tenantId)))
+    .limit(5000);
 
   return rows.map((row) => row.sportConfigId);
 }
@@ -30,7 +31,8 @@ export async function validateSportConfigIdsForAcademy(params: {
         eq(academySportConfigs.isActive, true),
         inArray(academySportConfigs.id, uniqueIds)
       )
-    );
+    )
+    .limit(5000);
 
   return rows.length === uniqueIds.length ? uniqueIds : null;
 }
@@ -81,7 +83,8 @@ export async function assertCoachesCanHandleSportConfig(params: {
     .from(coaches)
     .where(
       and(eq(coaches.academyId, params.academyId), eq(coaches.tenantId, params.tenantId), inArray(coaches.id, uniqueCoachIds))
-    );
+    )
+    .limit(5000);
 
   if (coachRows.length !== uniqueCoachIds.length) {
     return { ok: false as const, reason: "COACH_NOT_FOUND" as const };
@@ -93,7 +96,8 @@ export async function assertCoachesCanHandleSportConfig(params: {
       sportConfigId: coachSportConfigs.academySportConfigId,
     })
     .from(coachSportConfigs)
-    .where(and(eq(coachSportConfigs.tenantId, params.tenantId), inArray(coachSportConfigs.coachId, uniqueCoachIds)));
+    .where(and(eq(coachSportConfigs.tenantId, params.tenantId), inArray(coachSportConfigs.coachId, uniqueCoachIds)))
+    .limit(5000);
 
   const scopeByCoach = new Map<string, Set<string>>();
   scopeRows.forEach((row) => {
@@ -111,4 +115,3 @@ export async function assertCoachesCanHandleSportConfig(params: {
 
   return { ok: true as const };
 }
-

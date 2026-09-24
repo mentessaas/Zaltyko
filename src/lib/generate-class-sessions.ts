@@ -1,7 +1,7 @@
 import { db } from "@/db";
 import { classes, classSessions, classWeekdays, classExceptions } from "@/db/schema";
 import { eq, and, gte, lte, isNull, or } from "drizzle-orm";
-import { addDays, addWeeks, startOfDay, format, isSameDay, getDay } from "date-fns";
+import { addDays, addWeeks, startOfDay, format, getDay } from "date-fns";
 import { logger } from "@/lib/logger";
 
 /**
@@ -13,7 +13,8 @@ import { logger } from "@/lib/logger";
  */
 export async function generateClassSessions(
     classId: string,
-    weeksAhead: number = 4
+    weeksAhead: number = 4,
+    tenantId?: string
 ): Promise<{ generated: number; skipped: number; errors: string[] }> {
     const errors: string[] = [];
     let generated = 0;
@@ -24,7 +25,10 @@ export async function generateClassSessions(
         const classInfo = await db
             .select()
             .from(classes)
-            .where(eq(classes.id, classId))
+            .where(and(
+                eq(classes.id, classId),
+                tenantId ? eq(classes.tenantId, tenantId) : undefined
+            ))
             .limit(1);
 
         if (!classInfo || classInfo.length === 0) {
@@ -43,7 +47,11 @@ export async function generateClassSessions(
         const weekdays = await db
             .select()
             .from(classWeekdays)
-            .where(eq(classWeekdays.classId, classId));
+            .where(and(
+                eq(classWeekdays.classId, classId),
+                tenantId ? eq(classWeekdays.tenantId, tenantId) : undefined
+            ))
+            .limit(7);
 
         if (weekdays.length === 0) {
             throw new Error(`Clase ${classId} no tiene días de la semana configurados`);
@@ -59,10 +67,12 @@ export async function generateClassSessions(
             .where(
                 and(
                     eq(classExceptions.classId, classId),
+                    tenantId ? eq(classExceptions.tenantId, tenantId) : undefined,
                     gte(classExceptions.exceptionDate, format(today, "yyyy-MM-dd")),
                     lte(classExceptions.exceptionDate, format(endDate, "yyyy-MM-dd"))
                 )
-            );
+            )
+            .limit(400);
 
         const exceptionDates = new Set(
             exceptions.map((e) => format(new Date(e.exceptionDate), "yyyy-MM-dd"))
@@ -75,17 +85,29 @@ export async function generateClassSessions(
             .where(
                 and(
                     eq(classSessions.classId, classId),
+                    tenantId ? eq(classSessions.tenantId, tenantId) : undefined,
                     gte(classSessions.sessionDate, format(today, "yyyy-MM-dd")),
                     lte(classSessions.sessionDate, format(endDate, "yyyy-MM-dd"))
                 )
-            );
+            )
+            .limit(400);
 
         const existingDates = new Set(
             existingSessions.map((s) => format(new Date(s.sessionDate), "yyyy-MM-dd"))
         );
 
         // 5. Generar sesiones
-        const sessionsToCreate: any[] = [];
+        const sessionsToCreate: Array<{
+            id: string;
+            classId: string;
+            sessionDate: string;
+            startTime: string | null;
+            endTime: string | null;
+            status: "scheduled";
+            tenantId: string;
+            createdAt: Date;
+            updatedAt: Date;
+        }> = [];
         let currentDate = today;
 
         while (currentDate <= endDate) {
@@ -127,8 +149,10 @@ export async function generateClassSessions(
 
         // 6. Insertar sesiones en batch
         if (sessionsToCreate.length > 0) {
-            await db.insert(classSessions).values(sessionsToCreate);
-            generated = sessionsToCreate.length;
+            const inserted = await db.insert(classSessions).values(sessionsToCreate).onConflictDoNothing({
+                target: [classSessions.classId, classSessions.sessionDate],
+            }).returning({ id: classSessions.id });
+            generated = inserted.length;
             logger.info(`Generadas ${generated} sesiones para clase ${classId}`);
         }
 
@@ -163,7 +187,8 @@ export async function generateSessionsForTenant(
                     eq(classes.tenantId, tenantId),
                     eq(classes.autoGenerateSessions, true)
                 )
-            );
+            )
+            .limit(1000);
 
         let totalGenerated = 0;
         let totalSkipped = 0;
@@ -171,7 +196,7 @@ export async function generateSessionsForTenant(
 
         // Generar sesiones para cada clase
         for (const classData of activeClasses) {
-            const result = await generateClassSessions(classData.id, weeksAhead);
+            const result = await generateClassSessions(classData.id, weeksAhead, tenantId);
             totalGenerated += result.generated;
             totalSkipped += result.skipped;
 
@@ -215,7 +240,8 @@ export async function generateSessionsForAllTenants(
         const tenantsWithClasses = await db
             .selectDistinct({ tenantId: classes.tenantId })
             .from(classes)
-            .where(eq(classes.autoGenerateSessions, true));
+            .where(eq(classes.autoGenerateSessions, true))
+            .limit(1000);
 
         let totalClasses = 0;
         let totalGenerated = 0;

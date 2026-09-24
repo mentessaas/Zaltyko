@@ -50,7 +50,8 @@ export async function syncChargesForAthleteCurrentPeriod(
           eq(charges.period, currentPeriod),
           inArray(charges.status, ["pending", "overdue"])
         )
-      );
+      )
+      .limit(100);
 
     if (pendingCharges.length === 0) {
       // No hay cargos pendientes → no hacer nada
@@ -96,4 +97,3 @@ export async function syncChargesForAthleteCurrentPeriod(
     // No lanzamos el error para que no rompa la actualización del grupo
   }
 }
-

@@ -8,7 +8,9 @@ const DEFAULT_TOTALS: SuperAdminMetrics["totals"] = {
   assessments: 0,
   plans: 0,
   subscriptions: 0,
+  pendingAcademyOwners: 0,
   latestAcademyAt: null,
+  latestUserAt: null,
   activeAcademies: 0,
   totalAthletes: 0,
   chargesCreatedThisMonth: 0,
@@ -23,7 +25,6 @@ const DEFAULT_TOTALS: SuperAdminMetrics["totals"] = {
   previousAcademies: 0,
   previousUsers: 0,
   previousRevenue: 0,
-  previousSubscriptions: 0,
 };
 
 export const DEFAULT_SUPER_ADMIN_METRICS: SuperAdminMetrics = {
@@ -32,6 +33,7 @@ export const DEFAULT_SUPER_ADMIN_METRICS: SuperAdminMetrics = {
   planStatuses: [],
   planDistribution: [],
   monthlyAcademies: [],
+  monthlyRevenue: [],
   subscriptionAlerts: [],
 };
 
@@ -96,6 +98,17 @@ function normalizeMonthlyAcademies(value: unknown): SuperAdminMetrics["monthlyAc
     }));
 }
 
+function normalizeMonthlyRevenue(value: unknown): SuperAdminMetrics["monthlyRevenue"] {
+  if (!Array.isArray(value)) return [];
+
+  return value
+    .filter(isRecord)
+    .map((entry) => ({
+      label: typeof entry.label === "string" ? entry.label : "unknown",
+      total: toNumber(entry.total, 0),
+    }));
+}
+
 function normalizeSubscriptionAlerts(value: unknown): SuperAdminMetrics["subscriptionAlerts"] {
   if (!Array.isArray(value)) return [];
 
@@ -126,7 +139,9 @@ export function normalizeSuperAdminMetrics(value: unknown): SuperAdminMetrics {
       assessments: toNumber(totals.assessments, 0),
       plans: toNumber(totals.plans, 0),
       subscriptions: toNumber(totals.subscriptions, 0),
+      pendingAcademyOwners: toNumber(totals.pendingAcademyOwners, 0),
       latestAcademyAt: toNullableString(totals.latestAcademyAt),
+      latestUserAt: toNullableString(totals.latestUserAt),
       activeAcademies: toNumber(totals.activeAcademies, 0),
       totalAthletes: toNumber(totals.totalAthletes, 0),
       chargesCreatedThisMonth: toNumber(totals.chargesCreatedThisMonth, 0),
@@ -135,7 +150,6 @@ export function normalizeSuperAdminMetrics(value: unknown): SuperAdminMetrics {
       previousAcademies: toNumber(totals.previousAcademies, 0),
       previousUsers: toNumber(totals.previousUsers, 0),
       previousRevenue: toNumber(totals.previousRevenue, 0),
-      previousSubscriptions: toNumber(totals.previousSubscriptions, 0),
       dailyActiveUsers: toNumber(totals.dailyActiveUsers, 0),
       weeklyActiveUsers: toNumber(totals.weeklyActiveUsers, 0),
       monthlyActiveUsers: toNumber(totals.monthlyActiveUsers, 0),
@@ -147,6 +161,7 @@ export function normalizeSuperAdminMetrics(value: unknown): SuperAdminMetrics {
     planStatuses: normalizePlanStatuses(value.planStatuses),
     planDistribution: normalizePlanDistribution(value.planDistribution),
     monthlyAcademies: normalizeMonthlyAcademies(value.monthlyAcademies),
+    monthlyRevenue: normalizeMonthlyRevenue(value.monthlyRevenue),
     subscriptionAlerts: normalizeSubscriptionAlerts(value.subscriptionAlerts),
   };
 }
@@ -162,10 +177,12 @@ export function isSuperAdminMetrics(value: unknown): value is SuperAdminMetrics 
     isFiniteNumber(value.totals.revenue) &&
     isFiniteNumber(value.totals.paidInvoices) &&
     (typeof value.totals.latestAcademyAt === "string" || value.totals.latestAcademyAt === null) &&
+    (typeof value.totals.latestUserAt === "string" || value.totals.latestUserAt === null || value.totals.latestUserAt === undefined) &&
     Array.isArray(value.usersByRole) &&
     Array.isArray(value.planStatuses) &&
     Array.isArray(value.planDistribution) &&
     Array.isArray(value.monthlyAcademies) &&
+    Array.isArray(value.monthlyRevenue) &&
     Array.isArray(value.subscriptionAlerts)
   );
 }

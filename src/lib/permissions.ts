@@ -1,4 +1,4 @@
-import { eq, and, or } from "drizzle-orm";
+import { and, eq, inArray, isNull, or, sql } from "drizzle-orm";
 import { db } from "@/db";
 import {
   academies,
@@ -6,7 +6,9 @@ import {
   classes,
   classCoachAssignments,
   classEnrollments,
+  classGroups,
   coaches,
+  groupAthletes,
   groups,
   memberships,
   profiles,
@@ -121,18 +123,47 @@ export async function verifyCoachAthleteScope({
     };
   }
 
-  if (athleteGroupId) {
+  const membershipRows = await db
+    .select({ groupId: groupAthletes.groupId })
+    .from(groupAthletes)
+    .where(
+      and(
+        eq(groupAthletes.athleteId, athleteId),
+        eq(groupAthletes.tenantId, tenantId)
+      )
+    )
+    .limit(100);
+  const effectiveGroupIds = Array.from(
+    new Set(
+      [athleteGroupId, ...membershipRows.map((row) => row.groupId)].filter(
+        (id): id is string => Boolean(id)
+      )
+    )
+  );
+
+  if (effectiveGroupIds.length > 0) {
     const [groupAssignment] = await db
       .select({ id: coaches.id })
       .from(coaches)
-      .innerJoin(groups, eq(groups.coachId, coaches.id))
+      .innerJoin(
+        groups,
+        or(
+          eq(groups.coachId, coaches.id),
+          sql`${groups.assistantIds} @> ARRAY[${coaches.id}]::uuid[]`
+        )
+      )
       .where(
         and(
           eq(coaches.tenantId, tenantId),
           eq(coaches.academyId, academyId),
           eq(groups.tenantId, tenantId),
           eq(groups.academyId, academyId),
-          eq(groups.id, athleteGroupId),
+          inArray(groups.id, effectiveGroupIds),
+          isNull(groups.deletedAt),
+          or(
+            eq(groups.coachId, coaches.id),
+            sql`${groups.assistantIds} @> ARRAY[${coaches.id}]::uuid[]`
+          ),
           coachIdentityConditions(profile)
         )
       )
@@ -147,6 +178,10 @@ export async function verifyCoachAthleteScope({
       .from(classCoachAssignments)
       .innerJoin(coaches, eq(classCoachAssignments.coachId, coaches.id))
       .innerJoin(classes, eq(classCoachAssignments.classId, classes.id))
+      .leftJoin(
+        classGroups,
+        eq(classCoachAssignments.classId, classGroups.classId)
+      )
       .where(
         and(
           eq(classCoachAssignments.tenantId, tenantId),
@@ -154,7 +189,11 @@ export async function verifyCoachAthleteScope({
           eq(coaches.academyId, academyId),
           eq(classes.tenantId, tenantId),
           eq(classes.academyId, academyId),
-          eq(classes.groupId, athleteGroupId),
+          or(
+            inArray(classes.groupId, effectiveGroupIds),
+            inArray(classGroups.groupId, effectiveGroupIds)
+          ),
+          or(isNull(classGroups.tenantId), eq(classGroups.tenantId, tenantId)),
           coachIdentityConditions(profile)
         )
       )
@@ -169,7 +208,10 @@ export async function verifyCoachAthleteScope({
     .select({ id: classCoachAssignments.id })
     .from(classCoachAssignments)
     .innerJoin(coaches, eq(classCoachAssignments.coachId, coaches.id))
-    .innerJoin(classEnrollments, eq(classCoachAssignments.classId, classEnrollments.classId))
+    .innerJoin(
+      classEnrollments,
+      eq(classCoachAssignments.classId, classEnrollments.classId)
+    )
     .where(
       and(
         eq(classCoachAssignments.tenantId, tenantId),
@@ -297,7 +339,9 @@ export async function verifyAcademyAccess(
       .from(academies)
       .where(eq(academies.id, academyId))
       .limit(1);
-    return academy ? { allowed: true } : { allowed: false, reason: "ACADEMY_NOT_FOUND" };
+    return academy
+      ? { allowed: true }
+      : { allowed: false, reason: "ACADEMY_NOT_FOUND" };
   }
 
   const [academy] = await db
@@ -373,7 +417,12 @@ export async function verifyAcademyAccessForProfile({
   const [membership] = await db
     .select({ role: memberships.role })
     .from(memberships)
-    .where(and(eq(memberships.academyId, academyId), eq(memberships.userId, profile.userId)))
+    .where(
+      and(
+        eq(memberships.academyId, academyId),
+        eq(memberships.userId, profile.userId)
+      )
+    )
     .limit(1);
 
   if (!membership || membership.role === "viewer") {

@@ -33,7 +33,7 @@ export const CONSENT_PROOF_REGEX =
   /^(signup|claim|settings):[a-zA-Z0-9_-]{1,128}$/;
 export const ACTOR_REGEX = /^(owner|system|admin):[a-zA-Z0-9_-]{1,128}$/;
 
-/** MVP: imported queda fuera (C3). */
+/** El origen importado queda fuera del contrato vigente (C3). */
 export function isAllowedSource(value: unknown): value is ConsentSourceDb {
   return (
     typeof value === "string" &&
