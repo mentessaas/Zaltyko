@@ -8,6 +8,7 @@ const mocks = vi.hoisted(() => ({
     activeAcademyId: "academy-a",
     role: "coach",
     canLogin: true,
+      isSuspended: false,
   } as Record<string, unknown>,
   permission: "athletes:read" as string | null,
   effectivePermissions: {
@@ -69,7 +70,7 @@ vi.mock("@/lib/logger", () => ({
   logger: { error: vi.fn(), warn: vi.fn(), info: vi.fn() },
 }));
 
-import { withBearerTenant, withTenant } from "@/lib/authz";
+import { assertSuperAdmin, withAuthenticatedNoTenant, withBearerTenant, withTenant } from "@/lib/authz";
 
 const handler = vi.fn(async () => new Response("ok", { status: 200 }));
 
@@ -90,6 +91,7 @@ describe("withTenant permission enforcement", () => {
       activeAcademyId: "academy-a",
       role: "coach",
       canLogin: true,
+      isSuspended: false,
     });
     Object.assign(mocks.effectivePermissions, {
       permissions: [],
@@ -107,6 +109,21 @@ describe("withTenant permission enforcement", () => {
       ...mocks.effectivePermissions,
       permissions: [...mocks.effectivePermissions.permissions],
     }));
+  });
+
+  it.each([
+    ["cookie", withTenant],
+    ["bearer", withBearerTenant],
+    ["without tenant", withAuthenticatedNoTenant],
+  ] as const)("denies suspended accounts through %s authentication", async (_name, wrap) => {
+    Object.assign(mocks.profile, { role: "super_admin", isSuspended: true });
+    const response = await wrap(handler)(request(), {});
+    expect(response.status).toBe(403);
+    expect(handler).not.toHaveBeenCalled();
+  });
+
+  it("denies a suspended super-admin in the privileged guard", () => {
+    expect(() => assertSuperAdmin({ ...mocks.profile, role: "super_admin", isSuspended: true } as never)).toThrow();
   });
 
   it("allows the real academy owner in their academy", async () => {

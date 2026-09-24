@@ -51,7 +51,7 @@ function containsTenantColumn(value: unknown, seen = new Set<object>()): boolean
 
 function mockTenant(role = "admin") {
   activeRole = role;
-  vi.mock("@/lib/authz", () => ({
+  vi.doMock("@/lib/authz", () => ({
     withTenant: (handler: (request: Request, context: any) => Promise<Response>) =>
       (request: Request, context: any = {}) => handler(request, {
         tenantId: TENANT_ID,
@@ -63,8 +63,9 @@ function mockTenant(role = "admin") {
 }
 
 function mockDb() {
-  vi.mock("@/db", () => ({
+  vi.doMock("@/db", () => ({
     db: {
+      execute: vi.fn().mockResolvedValue(undefined),
       select: vi.fn(() => {
         const result = selectQueue.shift();
         if (!result) throw new Error("Select queue exhausted");
@@ -97,7 +98,7 @@ describe("ZAL-957: empleo", () => {
     academyAccess = { allowed: true };
     mockTenant("owner");
     mockDb();
-    vi.mock("@/lib/permissions", () => ({
+    vi.doMock("@/lib/permissions", () => ({
       verifyAcademyAccess: vi.fn(async () => academyAccess),
     }));
   });
@@ -120,6 +121,13 @@ describe("ZAL-957: empleo", () => {
   it("rechaza id inválido en DELETE antes del lookup", async () => {
     const { DELETE } = await import("@/app/api/empleo/[id]/route");
     const response = await DELETE(request("/api/empleo/no-uuid", "DELETE", undefined), { params: { id: "no-uuid" } } as never);
+    expect(response.status).toBe(400);
+    expect(selectQueue).toHaveLength(0);
+  });
+
+  it("rechaza id inválido en el detalle público antes del lookup", async () => {
+    const { GET } = await import("@/app/api/empleo/[id]/route");
+    const response = await GET(request("/api/empleo/no-uuid", "GET", undefined), { params: Promise.resolve({ id: "no-uuid" }) });
     expect(response.status).toBe(400);
     expect(selectQueue).toHaveLength(0);
   });
@@ -151,7 +159,7 @@ describe("ZAL-957: record-payment", () => {
     capabilityAccess = { allowed: true };
     mockTenant("admin");
     mockDb();
-    vi.mock("@/lib/authz/resource-scope", () => ({
+    vi.doMock("@/lib/authz/resource-scope", () => ({
       authorizeAcademyCapability: vi.fn(async () => capabilityAccess),
     }));
   });
@@ -250,14 +258,14 @@ describe("ZAL-957: eventos públicos, capability y fanout", () => {
     capabilityAccess = { allowed: false };
     mockTenant("coach");
     mockDb();
-    vi.mock("@/lib/authz/resource-scope", () => ({ authorizeAcademyCapability: vi.fn(async () => capabilityAccess) }));
-    vi.mock("@/lib/rate-limit", () => ({
+    vi.doMock("@/lib/authz/resource-scope", () => ({ authorizeAcademyCapability: vi.fn(async () => capabilityAccess) }));
+    vi.doMock("@/lib/rate-limit", () => ({
       withRateLimit: (handler: (request: Request, context: unknown) => Promise<Response>) => handler,
       getUserIdentifier: vi.fn(() => "qa-user"),
       rateLimit: vi.fn(async () => ({ success: true, limit: 30, remaining: 29, reset: 0 })),
     }));
-    vi.mock("@/lib/notifications/email-service", () => ({ sendBulkEmails: vi.fn(async () => ({ sent: 1, errors: 0 })) }));
-    vi.mock("@/config", () => ({ config: { brevo: { supportEmail: "support@example.test" } } }));
+    vi.doMock("@/lib/notifications/email-service", () => ({ sendBulkEmails: vi.fn(async () => ({ sent: 1, errors: 0 })) }));
+    vi.doMock("@/config", () => ({ config: { brevo: { supportEmail: "support@example.test" } } }));
   });
 
   it("devuelve 404 para evento interno fuera del tenant", async () => {

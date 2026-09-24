@@ -20,7 +20,7 @@ vi.mock("@/db", () => ({
   },
 }));
 
-vi.mock("@/lib/authz", () => ({
+vi.doMock("@/lib/authz", () => ({
   withTenant: (handler: any) => handler,
 }));
 
@@ -32,7 +32,7 @@ describe("API: Integración de Endpoints Críticos", () => {
   describe("POST /api/academies", () => {
     it("debe crear academia y respetar límites del plan", async () => {
       // Mock de límites
-      vi.mock("@/lib/limits", () => ({
+      vi.doMock("@/lib/limits", () => ({
         assertWithinPlanLimits: vi.fn().mockResolvedValue(undefined),
       }));
 
@@ -42,7 +42,7 @@ describe("API: Integración de Endpoints Críticos", () => {
 
     it("debe rechazar creación si se excede el límite de academias", async () => {
       // Mock que simula límite excedido
-      vi.mock("@/lib/limits", () => ({
+      vi.doMock("@/lib/limits", () => ({
         assertWithinPlanLimits: vi.fn().mockRejectedValue(new Error("LIMIT_EXCEEDED")),
       }));
 
@@ -95,7 +95,7 @@ describe("API: Integración de Endpoints Críticos", () => {
   describe("POST /api/billing/checkout", () => {
     it("debe crear sesión de checkout en Stripe", async () => {
       // Mock de Stripe
-      vi.mock("@/lib/stripe/client", () => ({
+      vi.doMock("@/lib/stripe/client", () => ({
         getStripeClient: vi.fn().mockReturnValue({
           checkout: {
             sessions: {

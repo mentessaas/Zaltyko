@@ -12,7 +12,18 @@ vi.mock("@/db", () => ({
   db: {
     select: () => ({
       from: () => ({
-        where: () => mocks.accounts(),
+        innerJoin: () => ({
+          where: () => ({
+            limit: () => mocks.accounts(),
+            then: (resolve: (value: unknown) => unknown, reject?: (reason: unknown) => unknown) =>
+              mocks.accounts().then(resolve, reject),
+          }),
+        }),
+        where: () => ({
+          limit: () => mocks.accounts(),
+          then: (resolve: (value: unknown) => unknown, reject?: (reason: unknown) => unknown) =>
+            mocks.accounts().then(resolve, reject),
+        }),
       }),
     }),
   },

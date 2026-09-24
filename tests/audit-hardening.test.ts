@@ -26,6 +26,7 @@ async function loadDevModule(env: Record<string, string | undefined>) {
   vi.resetModules();
   const previous = {
     NODE_ENV: process.env.NODE_ENV,
+    VERCEL_ENV: process.env.VERCEL_ENV,
     NEXT_PUBLIC_ENABLE_DEV_SESSION: process.env.NEXT_PUBLIC_ENABLE_DEV_SESSION,
     NEXT_PUBLIC_USE_MOCK_AUTH: process.env.NEXT_PUBLIC_USE_MOCK_AUTH,
   };
@@ -39,6 +40,12 @@ async function loadDevModule(env: Record<string, string | undefined>) {
   }
 
   const mod = await import("@/lib/dev");
+  const capturedEnv = {
+    NODE_ENV: env.NODE_ENV,
+    VERCEL_ENV: env.VERCEL_ENV,
+    NEXT_PUBLIC_ENABLE_DEV_SESSION: env.NEXT_PUBLIC_ENABLE_DEV_SESSION,
+    NEXT_PUBLIC_USE_MOCK_AUTH: env.NEXT_PUBLIC_USE_MOCK_AUTH,
+  };
 
   for (const [key, value] of Object.entries(previous)) {
     if (value === undefined) {
@@ -48,7 +55,29 @@ async function loadDevModule(env: Record<string, string | undefined>) {
     }
   }
 
-  return mod;
+  return {
+    ...mod,
+    // The production helper is intentionally dynamic. Keep this test helper
+    // deterministic after restoring process.env between module-load cases.
+    isDevSessionEnabled: () => {
+      const current = {
+        NODE_ENV: process.env.NODE_ENV,
+        VERCEL_ENV: process.env.VERCEL_ENV,
+        NEXT_PUBLIC_ENABLE_DEV_SESSION: process.env.NEXT_PUBLIC_ENABLE_DEV_SESSION,
+        NEXT_PUBLIC_USE_MOCK_AUTH: process.env.NEXT_PUBLIC_USE_MOCK_AUTH,
+      };
+      for (const [key, value] of Object.entries(capturedEnv)) {
+        if (value === undefined) delete process.env[key];
+        else process.env[key] = value;
+      }
+      const result = mod.isDevSessionEnabled();
+      for (const [key, value] of Object.entries(current)) {
+        if (value === undefined) delete process.env[key];
+        else process.env[key] = value;
+      }
+      return result;
+    },
+  };
 }
 
 describe("audit hardening", () => {
@@ -137,7 +166,7 @@ describe("audit hardening", () => {
         NEXT_PUBLIC_USE_MOCK_AUTH: "true",
       });
 
-      expect(isDevSessionEnabled).toBe(false);
+      expect(isDevSessionEnabled()).toBe(false);
     });
 
     it("requires an explicit flag in development", async () => {
@@ -152,8 +181,8 @@ describe("audit hardening", () => {
         NEXT_PUBLIC_USE_MOCK_AUTH: undefined,
       });
 
-      expect(disabled.isDevSessionEnabled).toBe(false);
-      expect(enabled.isDevSessionEnabled).toBe(true);
+      expect(disabled.isDevSessionEnabled()).toBe(false);
+      expect(enabled.isDevSessionEnabled()).toBe(true);
     });
   });
 

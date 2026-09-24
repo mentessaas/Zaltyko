@@ -61,7 +61,7 @@ describe("API /api/athletes", () => {
     mockDeleteCalls = [];
     mockUpdateCalls = [];
 
-    vi.mock("@/lib/authz", () => ({
+    vi.doMock("@/lib/authz", () => ({
       withTenant:
         (handler: (request: Request, context: unknown) => Promise<Response>) =>
         (_request: Request, contextOverride?: unknown) =>
@@ -74,24 +74,29 @@ describe("API /api/athletes", () => {
               role: "owner",
             },
             params: (contextOverride as { params?: Record<string, string> })?.params ?? {},
-          }),
+      }),
     }));
 
-    vi.mock("@/lib/limits", () => ({
+    vi.doMock("@/lib/authz/resource-scope", () => ({
+      authorizeAcademyCapability: vi.fn().mockResolvedValue({ allowed: true }),
+    }));
+
+    vi.doMock("@/lib/limits", () => ({
       assertWithinPlanLimits: assertWithinPlanLimitsMock,
     }));
 
-    vi.mock("@/lib/billing/sync-charges", () => ({
+    vi.doMock("@/lib/billing/sync-charges", () => ({
       syncChargesForAthleteCurrentPeriod: syncChargesMock,
     }));
 
-    vi.mock("@/lib/permissions", () => ({
+    vi.doMock("@/lib/permissions", () => ({
       verifyAcademyAccess: vi.fn().mockResolvedValue({ allowed: true }),
       verifyGroupAccess: vi.fn().mockResolvedValue({ allowed: true }),
     }));
 
-    vi.mock("@/db", () => ({
+    vi.doMock("@/db", () => ({
       db: {
+        execute: vi.fn().mockResolvedValue(undefined),
         insert: vi.fn((table: unknown) => ({
           values: (payload: unknown) => {
             mockInsertCalls.push({ table, payload });
@@ -109,8 +114,10 @@ describe("API /api/athletes", () => {
           set: vi.fn((data: unknown) => {
             mockUpdateCalls.push(data);
             return {
-              where: vi.fn().mockResolvedValue(undefined),
-              returning: vi.fn(() => Promise.resolve([{}])),
+              where: vi.fn(() => ({
+                returning: vi.fn(() => Promise.resolve([{}])),
+                then: (resolve: (value: undefined) => void) => Promise.resolve(undefined).then(resolve),
+              })),
             };
           }),
         })),

@@ -12,7 +12,7 @@ describe("API /api/admin/users", () => {
   });
 
   it("debe requerir autenticación de tenant", async () => {
-    vi.mock("@/lib/authz", () => ({
+    vi.doMock("@/lib/authz", () => ({
       withTenant: (handler: any) => async (request: Request, context: any) => {
         return NextResponse.json({ error: "UNAUTHORIZED" }, { status: 401 });
       },
@@ -30,11 +30,11 @@ describe("API /api/admin/users", () => {
   });
 
   it("debe validar el formato del email", async () => {
-    vi.mock("@/lib/authz", () => ({
+    vi.doMock("@/lib/authz", () => ({
       withTenant: (handler: any) => handler,
     }));
 
-    vi.mock("@/db", () => ({
+    vi.doMock("@/db", () => ({
       db: {
         select: vi.fn(() => ({
           from: vi.fn(() => ({
@@ -56,7 +56,7 @@ describe("API /api/admin/users", () => {
   });
 
   it("debe validar que el rol sea válido", async () => {
-    vi.mock("@/lib/authz", () => ({
+    vi.doMock("@/lib/authz", () => ({
       withTenant: (handler: any) => handler,
     }));
 

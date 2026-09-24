@@ -3,7 +3,9 @@ import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { NextRequest } from "next/server";
 
 const sendEmail = vi.hoisted(() => vi.fn());
+const claimWebhookReplay = vi.hoisted(() => vi.fn());
 vi.mock("@/lib/brevo", () => ({ sendEmail }));
+vi.mock("@/lib/webhook-replay", () => ({ claimWebhookReplay }));
 vi.mock("@/lib/logger", () => ({
   logger: { error: vi.fn(), warn: vi.fn(), info: vi.fn(), debug: vi.fn() },
 }));
@@ -30,6 +32,7 @@ describe("legacy Mailgun inbound webhook", () => {
     vi.clearAllMocks();
     process.env.MAILGUN_SIGNING_KEY = "mailgun-secret";
     sendEmail.mockResolvedValue({ messageId: "message-1", simulated: false });
+    claimWebhookReplay.mockResolvedValue("claimed");
   });
   afterEach(() => delete process.env.MAILGUN_SIGNING_KEY);
 
@@ -49,5 +52,15 @@ describe("legacy Mailgun inbound webhook", () => {
         html: expect.stringContaining("&lt;img src=x onerror=alert(1)&gt;"),
       })
     );
+  });
+
+  it("rechaza una entrega firmada repetida", async () => {
+    claimWebhookReplay.mockResolvedValueOnce("claimed").mockResolvedValueOnce("duplicate");
+    const request = requestFor(String(Math.floor(Date.now() / 1000)));
+    const first = await POST(request);
+    const second = await POST(requestFor(String(Math.floor(Date.now() / 1000))));
+    expect(first.status).toBe(200);
+    expect(second.status).toBe(409);
+    expect(sendEmail).toHaveBeenCalledTimes(1);
   });
 });

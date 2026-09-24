@@ -117,10 +117,12 @@ vi.mock("@/db", () => ({
 }));
 
 describe("API /api/academies — ZAL-157 UTM persistence", () => {
+  // Keep the cold route import deterministic under the single-worker release
+  // gate; normal test execution remains unchanged.
   beforeAll(async () => {
     const academiesModule = await import("@/app/api/academies/route");
     POST = academiesModule.POST;
-  });
+  }, 30000);
 
   beforeEach(() => {
     process.env = { ...originalEnv };

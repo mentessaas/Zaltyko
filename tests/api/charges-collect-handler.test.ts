@@ -32,6 +32,10 @@ const mocks = vi.hoisted(() => ({
   resolveFamilyChargeAccessMock: vi.fn(),
 }));
 
+const CHARGE_ID = "aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa";
+const MISSING_CHARGE_ID = "bbbbbbbb-bbbb-4bbb-8bbb-bbbbbbbbbbbb";
+const FOREIGN_CHARGE_ID = "cccccccc-cccc-4ccc-8ccc-cccccccccccc";
+
 // `withTenant` se reemplaza por un passthrough que inyecta un perfil owner/tenant.
 // Mockeamos el módulo entero para no arrastrar la implementación real (resolveUserId,
 // getCurrentProfile, getTenantId, permisos, rate-limit por tenant) que ya tiene sus
@@ -69,6 +73,10 @@ vi.mock("@/lib/rate-limit", () => ({
 
 vi.mock("@/lib/permissions", () => ({
   verifyAcademyAccess: (...args: any[]) => mocks.verifyAcademyAccessMock(...args),
+}));
+
+vi.mock("@/lib/authz/resource-scope", () => ({
+  authorizeAcademyCapability: (...args: any[]) => mocks.verifyAcademyAccessMock(...args),
 }));
 
 vi.mock("@/lib/stripe/charge-collection-service", () => ({
@@ -128,13 +136,13 @@ let FAMILY_POST: typeof import("@/app/api/family/charges/[chargeId]/pay/route").
 
 beforeEach(async () => {
   vi.clearAllMocks();
-  mocks.selectedCharges = [{ id: "charge_1", academyId: "academy_1" }];
+  mocks.selectedCharges = [{ id: CHARGE_ID, academyId: "academy_1" }];
   mocks.verifyAcademyAccessMock.mockResolvedValue({ allowed: true });
   mocks.getUserMock.mockResolvedValue({
     data: { user: { id: "user-parent", email: "madre@example.com" } },
   });
   mocks.resolveFamilyChargeAccessMock.mockResolvedValue({
-    id: "charge_1",
+    id: CHARGE_ID,
     academyId: "academy_1",
   });
   if (!POST) {
@@ -159,12 +167,12 @@ describe("POST /api/charges/[chargeId]/collect — contrato HTTP", () => {
     });
 
     const request = new Request(
-      "http://localhost/api/charges/charge_1/collect",
+      `http://localhost/api/charges/${CHARGE_ID}/collect`,
       { method: "POST" }
     );
 
     const response = await POST(request, {
-      params: Promise.resolve({ chargeId: "charge_1" }),
+      params: Promise.resolve({ chargeId: CHARGE_ID }),
     });
 
     // === STATUS ===
@@ -196,7 +204,7 @@ describe("POST /api/charges/[chargeId]/collect — contrato HTTP", () => {
 
     // === El servicio subyacente recibió el id del cargo.
     expect(mocks.collectChargeMock).toHaveBeenCalledTimes(1);
-    expect(mocks.collectChargeMock).toHaveBeenCalledWith("charge_1");
+    expect(mocks.collectChargeMock).toHaveBeenCalledWith(CHARGE_ID);
   });
 
   it("omite `details` si Stripe no devolvió client_secret (no se puede recuperar)", async () => {
@@ -210,8 +218,8 @@ describe("POST /api/charges/[chargeId]/collect — contrato HTTP", () => {
     });
 
     const response = await POST(
-      new Request("http://localhost/api/charges/charge_1/collect", { method: "POST" }),
-      { params: Promise.resolve({ chargeId: "charge_1" }) }
+      new Request(`http://localhost/api/charges/${CHARGE_ID}/collect`, { method: "POST" }),
+      { params: Promise.resolve({ chargeId: CHARGE_ID }) }
     );
 
     expect(response.status).toBe(409);
@@ -229,8 +237,8 @@ describe("POST /api/charges/[chargeId]/collect — contrato HTTP", () => {
     });
 
     const response = await POST(
-      new Request("http://localhost/api/charges/charge_1/collect", { method: "POST" }),
-      { params: Promise.resolve({ chargeId: "charge_1" }) }
+      new Request(`http://localhost/api/charges/${CHARGE_ID}/collect`, { method: "POST" }),
+      { params: Promise.resolve({ chargeId: CHARGE_ID }) }
     );
 
     expect(response.status).toBe(200);
@@ -249,8 +257,8 @@ describe("POST /api/charges/[chargeId]/collect — contrato HTTP", () => {
     });
 
     const response = await POST(
-      new Request("http://localhost/api/charges/charge_1/collect", { method: "POST" }),
-      { params: Promise.resolve({ chargeId: "charge_1" }) }
+      new Request(`http://localhost/api/charges/${CHARGE_ID}/collect`, { method: "POST" }),
+      { params: Promise.resolve({ chargeId: CHARGE_ID }) }
     );
 
     expect(response.status).toBe(409);
@@ -273,8 +281,8 @@ describe("POST /api/charges/[chargeId]/collect — contrato HTTP", () => {
     });
 
     const response = await POST(
-      new Request("http://localhost/api/charges/charge_1/collect", { method: "POST" }),
-      { params: Promise.resolve({ chargeId: "charge_1" }) }
+      new Request(`http://localhost/api/charges/${CHARGE_ID}/collect`, { method: "POST" }),
+      { params: Promise.resolve({ chargeId: CHARGE_ID }) }
     );
 
     expect(response.status).toBe(402);
@@ -291,8 +299,8 @@ describe("POST /api/charges/[chargeId]/collect — contrato HTTP", () => {
     mocks.selectedCharges = [];
 
     const response = await POST(
-      new Request("http://localhost/api/charges/missing/collect", { method: "POST" }),
-      { params: Promise.resolve({ chargeId: "missing" }) }
+      new Request(`http://localhost/api/charges/${MISSING_CHARGE_ID}/collect`, { method: "POST" }),
+      { params: Promise.resolve({ chargeId: MISSING_CHARGE_ID }) }
     );
 
     expect(response.status).toBe(404);
@@ -312,8 +320,8 @@ describe("POST /api/charges/[chargeId]/collect — contrato HTTP", () => {
     });
 
     const response = await POST(
-      new Request("http://localhost/api/charges/charge_1/collect", { method: "POST" }),
-      { params: Promise.resolve({ chargeId: "charge_1" }) }
+      new Request(`http://localhost/api/charges/${CHARGE_ID}/collect`, { method: "POST" }),
+      { params: Promise.resolve({ chargeId: CHARGE_ID }) }
     );
 
     expect(response.status).toBe(403);
@@ -356,7 +364,7 @@ describe("POST /api/family/charges/[chargeId]/pay — contrato SCA del portal fa
     });
 
     const response = await FAMILY_POST(
-      new Request("http://localhost/api/family/charges/charge_1/pay", { method: "POST" })
+      new Request(`http://localhost/api/family/charges/${CHARGE_ID}/pay`, { method: "POST" })
     );
 
     expect(response.status).toBe(409);
@@ -390,7 +398,7 @@ describe("POST /api/family/charges/[chargeId]/pay — contrato SCA del portal fa
     });
 
     const response = await FAMILY_POST(
-      new Request("http://localhost/api/family/charges/charge_1/pay", { method: "POST" })
+      new Request(`http://localhost/api/family/charges/${CHARGE_ID}/pay`, { method: "POST" })
     );
 
     expect(response.status).toBe(409);
@@ -408,7 +416,7 @@ describe("POST /api/family/charges/[chargeId]/pay — contrato SCA del portal fa
     });
 
     const response = await FAMILY_POST(
-      new Request("http://localhost/api/family/charges/charge_1/pay", { method: "POST" })
+      new Request(`http://localhost/api/family/charges/${CHARGE_ID}/pay`, { method: "POST" })
     );
 
     expect(response.status).toBe(200);
@@ -422,7 +430,7 @@ describe("POST /api/family/charges/[chargeId]/pay — contrato SCA del portal fa
     mocks.resolveFamilyChargeAccessMock.mockResolvedValue(null);
 
     const response = await FAMILY_POST(
-      new Request("http://localhost/api/family/charges/charge_ajeno/pay", { method: "POST" })
+      new Request(`http://localhost/api/family/charges/${FOREIGN_CHARGE_ID}/pay`, { method: "POST" })
     );
 
     expect(response.status).toBe(403);

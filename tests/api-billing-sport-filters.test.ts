@@ -41,6 +41,10 @@ function mockCommonModules() {
         }),
   }));
 
+  vi.doMock("@/lib/authz/resource-scope", () => ({
+    authorizeAcademyCapability: vi.fn().mockResolvedValue({ allowed: true }),
+  }));
+
   vi.doMock("@/db", () => ({
     db: {
       select: vi.fn(() => {

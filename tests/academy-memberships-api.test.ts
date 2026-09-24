@@ -101,6 +101,7 @@ describe("academy memberships API", () => {
       role: "viewer",
       profileId: "77777777-7777-4777-8777-777777777777",
       profileTenantId: "88888888-8888-4888-8888-888888888888",
+      academyTenantId: "11111111-1111-4111-8111-111111111111",
       activeAcademyId: "44444444-4444-4444-8444-444444444444",
       academyName: "Academia Centro",
     };
@@ -137,7 +138,7 @@ describe("academy memberships API", () => {
     });
     expect(notificationInsert.values).toHaveBeenCalledWith(
       expect.objectContaining({
-        tenantId: "88888888-8888-4888-8888-888888888888",
+        tenantId: "11111111-1111-4111-8111-111111111111",
         userId: "77777777-7777-4777-8777-777777777777",
         type: "academy_unlinked",
       })
@@ -152,6 +153,7 @@ describe("academy memberships API", () => {
       role: "owner",
       profileId: "77777777-7777-4777-8777-777777777777",
       profileTenantId: "88888888-8888-4888-8888-888888888888",
+      academyTenantId: "11111111-1111-4111-8111-111111111111",
       activeAcademyId: null,
       academyName: "Academia Centro",
     };

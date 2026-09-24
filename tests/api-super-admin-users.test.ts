@@ -15,7 +15,7 @@ const createSelectChain = (result: any[]) => {
 
 let selectQueue: any[] = [];
 
-vi.mock("@/db", () => ({
+vi.doMock("@/db", () => ({
   db: {
     select: vi.fn(() => selectQueue.shift() ?? createSelectChain([])),
   },
@@ -32,7 +32,7 @@ describe("API /api/super-admin/users/[profileId]", () => {
   });
 
   it("debe requerir autenticación de Super Admin", async () => {
-    vi.mock("@/lib/authz", () => ({
+    vi.doMock("@/lib/authz", () => ({
       withSuperAdmin: (handler: any) => async (request: Request, context: any) => {
         return NextResponse.json({ error: "UNAUTHORIZED" }, { status: 401 });
       },
@@ -46,7 +46,7 @@ describe("API /api/super-admin/users/[profileId]", () => {
   });
 
   it("debe retornar 404 si el usuario no existe", async () => {
-    vi.mock("@/lib/authz", () => ({
+    vi.doMock("@/lib/authz", () => ({
       withSuperAdmin: (handler: any) => handler,
     }));
 
@@ -63,7 +63,7 @@ describe("API /api/super-admin/users/[profileId]", () => {
   });
 
   it("debe validar que no se puede modificar un super_admin", async () => {
-    vi.mock("@/lib/authz", () => ({
+    vi.doMock("@/lib/authz", () => ({
       withSuperAdmin: (handler: any) => handler,
     }));
 

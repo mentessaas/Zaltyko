@@ -188,7 +188,8 @@ async function postJson(route: string, body: unknown, method = "POST") {
 }
 
 describe("POST /api/payments/connect/onboard", () => {
-  beforeEach(() => {
+beforeEach(() => {
+    mocks.authorizeAcademyCapability.mockResolvedValue({ allowed: true });
     mocks.selectResults = [];
     mocks.stripeSecretKey = "sk_test_dummy";
   });
@@ -477,6 +478,7 @@ const importCollect = () => import("@/app/api/charges/[chargeId]/collect/route")
 
 describe("POST /api/charges/[chargeId]/collect", () => {
   beforeEach(() => {
+    mocks.authorizeAcademyCapability.mockResolvedValue({ allowed: true });
     mocks.selectResults = [];
   });
 
@@ -495,7 +497,7 @@ describe("POST /api/charges/[chargeId]/collect", () => {
 
   it("devuelve 403 cuando el caller no tiene acceso a la academia del cargo", async () => {
     mocks.selectResults.push([{ academyId: ACADEMY_ID }]);
-    mocks.verifyAcademyAccess.mockResolvedValueOnce({
+    mocks.authorizeAcademyCapability.mockResolvedValueOnce({
       allowed: false,
       reason: "ACADEMY_NOT_FOUND_OR_ACCESS_DENIED",
     });
@@ -513,7 +515,7 @@ describe("POST /api/charges/[chargeId]/collect", () => {
 
   it("devuelve 200 con status=paid cuando collectCharge cobra", async () => {
     mocks.selectResults.push([{ academyId: ACADEMY_ID }]);
-    mocks.verifyAcademyAccess.mockResolvedValueOnce({ allowed: true });
+    mocks.authorizeAcademyCapability.mockResolvedValueOnce({ allowed: true });
     mocks.collectCharge.mockResolvedValueOnce({
       ok: true,
       status: "paid",
@@ -534,7 +536,7 @@ describe("POST /api/charges/[chargeId]/collect", () => {
 
   it("devuelve 409 REQUIRES_ACTION si la tarjeta requiere autenticacion SCA", async () => {
     mocks.selectResults.push([{ academyId: ACADEMY_ID }]);
-    mocks.verifyAcademyAccess.mockResolvedValueOnce({ allowed: true });
+    mocks.authorizeAcademyCapability.mockResolvedValueOnce({ allowed: true });
     mocks.collectCharge.mockResolvedValueOnce({
       ok: false,
       status: "requires_action",
@@ -551,7 +553,7 @@ describe("POST /api/charges/[chargeId]/collect", () => {
 
   it("devuelve 409 COLLECTION_SKIPPED cuando el cargo no se puede cobrar", async () => {
     mocks.selectResults.push([{ academyId: ACADEMY_ID }]);
-    mocks.verifyAcademyAccess.mockResolvedValueOnce({ allowed: true });
+    mocks.authorizeAcademyCapability.mockResolvedValueOnce({ allowed: true });
     mocks.collectCharge.mockResolvedValueOnce({
       ok: false,
       status: "skipped",
@@ -568,7 +570,7 @@ describe("POST /api/charges/[chargeId]/collect", () => {
 
   it("devuelve 402 COLLECTION_FAILED cuando collectCharge devuelve failed", async () => {
     mocks.selectResults.push([{ academyId: ACADEMY_ID }]);
-    mocks.verifyAcademyAccess.mockResolvedValueOnce({ allowed: true });
+    mocks.authorizeAcademyCapability.mockResolvedValueOnce({ allowed: true });
     mocks.collectCharge.mockResolvedValueOnce({
       ok: false,
       status: "failed",

@@ -86,7 +86,7 @@ describe("API limits and feature contracts", () => {
       "utf8"
     );
     expect(route.indexOf("assertWithinPlanLimits")).toBeLessThan(
-      route.indexOf("db.insert(classes)")
+      route.indexOf("tx.insert(classes)")
     );
   });
 

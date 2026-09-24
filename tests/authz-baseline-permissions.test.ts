@@ -22,7 +22,6 @@ describe("academy baseline permissions", () => {
       "athletes:update",
       "classes:read",
       "classes:schedule",
-      "reports:read",
       "events:read",
       "communications:read",
       "communications:send",

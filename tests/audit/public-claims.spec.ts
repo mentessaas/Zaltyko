@@ -164,11 +164,10 @@ test.describe("L6 — JSON-LD / sitemap accuracy", () => {
     await expect(page.getByText(/99\s+€\/mes/)).toBeVisible();
   });
 
-  test("Pricing anual toggle está deshabilitado", async ({ page }) => {
+  test("Pricing comunica la facturación realmente disponible", async ({ page }) => {
     await gotoPublic(page, "/pricing");
-    const anual = page.locator('[aria-disabled="true"]', { hasText: /anual/i });
-    await expect(anual).toBeVisible();
-    await expect(anual).toContainText(/próximamente/i);
+    await expect(page.getByText("Facturación mensual · sin permanencia", { exact: true })).toBeVisible();
+    await expect(page.getByText(/próximamente/i)).toHaveCount(0);
   });
 
   test("Soporte: emails y horarios presentes", async ({ page }) => {

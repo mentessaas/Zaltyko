@@ -12,6 +12,24 @@ vi.mock("@/lib/rate-limit", () => ({
 import { middleware } from "../middleware";
 
 describe("middleware", () => {
+  it("redirects www before interpreting it as an academy subdomain", async () => {
+    const response = await middleware(new NextRequest("https://www.zaltyko.com/pricing", {
+      headers: { host: "www.zaltyko.com" },
+    }));
+    expect(response.status).toBe(301);
+    expect(response.headers.get("location")).toBe("https://zaltyko.com/pricing");
+    expect(response.headers.get("x-middleware-rewrite")).toBeNull();
+  });
+
+  it("preserves security headers and query parameters on academy rewrites", async () => {
+    const response = await middleware(new NextRequest("https://club-test.zaltyko.com/?lang=es", {
+      headers: { host: "club-test.zaltyko.com" },
+    }));
+    expect(response.headers.get("x-middleware-rewrite")).toBe("https://zaltyko.com/a/club-test?lang=es");
+    expect(response.headers.get("X-Content-Type-Options")).toBe("nosniff");
+    expect(response.headers.get("Content-Security-Policy")).toContain("frame-ancestors 'none'");
+  });
+
   beforeEach(() => {
     rateLimitMock.mockReset();
     rateLimitMock.mockResolvedValue({

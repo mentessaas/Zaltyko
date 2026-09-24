@@ -107,6 +107,12 @@ vi.mock("@/lib/notifications/push-service", () => ({
 vi.mock("@/lib/notifications/notification-service", () => ({ createNotification: mocks.createNotification }));
 vi.mock("@/lib/whatsapp", () => ({
   sendWhatsApp: mocks.sendWhatsApp,
+  formatPhoneForWhatsApp: (phone: string, countryCode = "ES") => {
+    const callingCodes: Record<string, string> = { ES: "34", MX: "52" };
+    const digits = phone.replace(/\D/g, "");
+    const prefix = callingCodes[countryCode.toUpperCase()] ?? "34";
+    return digits.startsWith(prefix) ? digits : `${prefix}${digits}`;
+  },
   WhatsAppTemplates: {
     attendancePresent: () => "present",
     attendanceAbsent: () => "absent",
@@ -167,6 +173,7 @@ describe("ZAL-745: marketplace ratings y mis-productos", () => {
       [{ id: LISTING_ID }],
       [{ id: PROFILE_ID }],
       [{ listingUserId: OTHER_USER_ID, sellerProfileId: "seller-profile-1" }],
+      [],
     );
     mocks.insertReturn = [{ id: "rating-1", rating: 5, comment: "Excelente" }];
     const { POST } = await import("@/app/api/marketplace/[id]/ratings/route");
@@ -205,7 +212,9 @@ describe("ZAL-745: marketplace ratings y mis-productos", () => {
     );
 
     expect(response.status).toBe(200);
-    expect(mocks.updateSets[0]).toEqual(expect.objectContaining({ status: "paused", priceCents: 2500 }));
+    // `paused` remains accepted as a legacy API alias but persists as the
+    // database-supported `hidden` status.
+    expect(mocks.updateSets[0]).toEqual(expect.objectContaining({ status: "hidden", priceCents: 2500 }));
   });
 
   it("rechaza actualizar un producto de otro usuario sin mutar", async () => {
@@ -321,6 +330,9 @@ describe("ZAL-745: whatsapp send/verify", () => {
   });
 
   it("envía WhatsApp directo con teléfono normalizado", async () => {
+    vi.stubEnv("TWILIO_ACCOUNT_SID", "AC_synthetic_sid");
+    vi.stubEnv("TWILIO_AUTH_TOKEN", "synthetic_auth_token");
+    vi.stubEnv("TWILIO_WHATSAPP_FROM", "whatsapp:+34600000000");
     const { POST } = await import("@/app/api/whatsapp/send/route");
     const response = await POST(request("/api/whatsapp/send", "POST", {
       phone: "600 123 456",
@@ -328,7 +340,25 @@ describe("ZAL-745: whatsapp send/verify", () => {
     }));
 
     expect(response.status).toBe(200);
-    expect(mocks.sendWhatsApp).toHaveBeenCalledWith("34600123456", "Hola {{name}}", undefined);
+    expect(mocks.sendWhatsApp).toHaveBeenCalledWith("34600123456", "Hola {{name}}", {
+      accountSid: "AC_synthetic_sid",
+      authToken: "synthetic_auth_token",
+      from: "whatsapp:+34600000000",
+    });
+  });
+
+  it("falla cerrado cuando Twilio no está configurado", async () => {
+    vi.stubEnv("TWILIO_ACCOUNT_SID", "");
+    vi.stubEnv("TWILIO_AUTH_TOKEN", "");
+    vi.stubEnv("TWILIO_WHATSAPP_FROM", "");
+    const { POST } = await import("@/app/api/whatsapp/send/route");
+    const response = await POST(request("/api/whatsapp/send", "POST", {
+      phone: "600 123 456",
+      message: "No debe simularse",
+    }));
+
+    expect(response.status).toBe(503);
+    expect(mocks.sendWhatsApp).not.toHaveBeenCalled();
   });
 
   it("rechaza WhatsApp sin teléfono ni destinatarios y no envía", async () => {
@@ -344,6 +374,7 @@ describe("ZAL-745: whatsapp send/verify", () => {
     vi.stubEnv("TWILIO_AUTH_TOKEN", "synthetic_auth_token");
     const fetchMock = vi.fn().mockResolvedValue(new Response("{}", { status: 200 }));
     vi.stubGlobal("fetch", fetchMock);
+    mocks.selectQueue.push([{ countryCode: "ES", country: "España" }]);
 
     const { POST } = await import("@/app/api/whatsapp/verify/route");
     const response = await POST(request("/api/whatsapp/verify", "POST", {
@@ -382,6 +413,40 @@ describe("ZAL-745: whatsapp send/verify", () => {
     const body = await response.json();
     expect(body.data).toMatchObject({ success: true });
     expect(body.data.message).toMatch(/simulated/i);
+  });
+
+  it("falla cerrado en producción si faltan credenciales de Twilio", async () => {
+    vi.stubEnv("NODE_ENV", "production");
+    vi.stubEnv("TWILIO_ACCOUNT_SID", "");
+    vi.stubEnv("TWILIO_AUTH_TOKEN", "");
+    const fetchMock = vi.fn();
+    vi.stubGlobal("fetch", fetchMock);
+
+    const { POST } = await import("@/app/api/whatsapp/verify/route");
+    const response = await POST(request("/api/whatsapp/verify", "POST", {
+      phone: "+34600123456",
+    }));
+
+    expect(response.status).toBe(503);
+    expect(fetchMock).not.toHaveBeenCalled();
+  });
+
+  it("formatea la verificación con el país de la academia y no siempre como España", async () => {
+    vi.stubEnv("TWILIO_ACCOUNT_SID", "AC_synthetic_sid");
+    vi.stubEnv("TWILIO_AUTH_TOKEN", "synthetic_auth_token");
+    const fetchMock = vi.fn().mockResolvedValue(new Response("{}", { status: 200 }));
+    vi.stubGlobal("fetch", fetchMock);
+    mocks.selectQueue.push([{ countryCode: "MX", country: "México" }]);
+
+    const { POST } = await import("@/app/api/whatsapp/verify/route");
+    const response = await POST(request("/api/whatsapp/verify", "POST", {
+      phone: "55 1234 5678",
+      academyId: ACADEMY_ID,
+    }));
+
+    expect(response.status).toBe(200);
+    const body = await response.json();
+    expect(body.data.phone).toBe("525512345678");
   });
 
   it("rechaza una clave de credencial heredada en el body sin contactar Twilio", async () => {

@@ -63,8 +63,11 @@ describe("L2 — plans catalog matches published copy", () => {
     expect(pro.groupLimit).toBe(5);
     expect(pro.classLimit).toBe(20);
     expect(pro.publicName).toBe("Starter");
-    expect(pro.cta).toBe("Solicitar demo");
-    expect(pro.ctaHref).toBe("/contact?type=demo&plan=starter");
+    expect(pro.cta).toBe("Crear cuenta y configurar");
+    // Starter is the low-touch self-serve entry: create the account and
+    // configure the academy first, then activate the trial/paid plan from
+    // Billing once the academy exists.
+    expect(pro.ctaHref).toBe("/auth/register?role=owner");
     expect(pro.checkoutMode).toBe("self-serve");
   });
 
@@ -182,13 +185,54 @@ describe("L2 — copy pública presente en componentes", () => {
     expect(faq).toContain("verificado en móvil");
   });
 
-  it("PricingSection tiene banner de trial y anual deshabilitado", () => {
+  it("Network mantiene el mismo precio base y matiz sales-assisted en las FAQs", () => {
+    const home = readSiteFile("src/app/page.tsx");
+    const faqPage = readSiteFile("src/app/(site)/faq/page.tsx");
+    for (const copy of [faq, home, faqPage]) {
+      expect(copy).toContain("Network parte de 99€/mes");
+      expect(copy).toContain("propuesta final");
+    }
+  });
+
+  it("la FAQ de cancelación distingue Free de los planes de pago", () => {
+    const faqPage = readSiteFile("src/app/(site)/faq/page.tsx");
+    expect(faqPage).toContain("Los planes de pago se renuevan mensualmente; Free no tiene coste ni renovación.");
+  });
+
+  it("PricingSection tiene banner de trial y comunica la facturación disponible", () => {
     expect(pricing).toContain("7 días de Starter sin tarjeta");
     expect(pricing).toContain("una activación por academia cada 12 meses");
+    expect(pricing).toContain("Crea tu cuenta, configura la academia");
     expect(pricing).toContain("Aislamiento por academia");
     expect(pricing).toContain("Puesta en marcha guiada");
-    expect(pricing).toContain("próximamente");
-    expect(pricing).toContain('aria-disabled="true"');
+    expect(pricing).toContain("Facturación mensual · sin permanencia");
+    expect(pricing).not.toContain("aria-disabled");
+  });
+
+  it("el indicador de límites usa las mismas cuotas que el catálogo", () => {
+    const indicator = readSiteFile("src/components/onboarding/LimitIndicator.tsx");
+    expect(indicator).toContain("PRODUCT_PLANS.map");
+    expect(indicator).toContain("benefits: plan.features");
+    expect(indicator).not.toContain('"2 grupos"');
+    expect(indicator).not.toContain('"5 clases"');
+  });
+
+  it("las páginas legales no mezclan denominaciones societarias", () => {
+    const terms = readSiteFile("src/app/terminos/page.tsx");
+    const privacy = readSiteFile("src/app/politica-privacidad/page.tsx");
+    expect(terms).not.toContain("Zaltyko S.L.");
+    expect(privacy).not.toContain("Mentes SaaS S.L.");
+    expect(terms).toContain("Zaltyko se reserva");
+    expect(privacy).toContain("operada bajo la marca Zaltyko");
+    expect(terms).toContain("13 de septiembre de 2026");
+    expect(privacy).toContain("13 de septiembre de 2026");
+  });
+
+  it("los CTAs públicos no confunden cuenta con academia", () => {
+    const siteRoot = join(REPO, "src/app/(site)");
+    const files = walk(siteRoot);
+    const ambiguousCta = files.filter((file) => readFileSync(file, "utf8").includes("Crea tu academia gratis"));
+    expect(ambiguousCta).toEqual([]);
   });
 });
 
@@ -232,4 +276,97 @@ describe("L2 — guardrails ausentes en sitio público", () => {
       }
     },
   );
+});
+
+describe("L2 — claims de módulos alineados con capacidades verificadas", () => {
+  const payments = readSiteFile("src/app/(site)/modules/pagos-administracion/page.tsx");
+  const reports = readSiteFile("src/app/(site)/modules/dashboard-reportes/page.tsx");
+  const features = readSiteFile("src/app/(site)/FeaturesSection.tsx");
+  const athletes = readSiteFile("src/app/(site)/modules/gestion-atletas/page.tsx");
+  const demo = readSiteFile("src/app/(site)/home/DemoSection.tsx");
+  const socialProof = readSiteFile("src/app/(site)/home/TestimonialsSection.tsx");
+  const authenticatedPlanComparison = readSiteFile("src/components/billing/PlanComparison.tsx");
+
+  it("no promete contabilidad integrada, pagos fraccionados ni importación de familias", () => {
+    for (const needle of [
+      "contable",
+      "contabilidad externa",
+      "pagos fraccionados",
+      "fraccionar",
+      "importa a las familias",
+      "cargo el día 1",
+    ]) {
+      expect(payments.toLowerCase()).not.toContain(needle);
+      expect(reports.toLowerCase()).not.toContain(needle);
+    }
+  });
+
+  it("la FAQ de importación separa gimnastas de datos familiares", () => {
+    const faqPage = readSiteFile("src/app/(site)/faq/page.tsx");
+    expect(faqPage).toContain("importar gimnastas desde Excel o CSV");
+    expect(faqPage).toContain("Los datos de familias se vinculan después desde cada expediente");
+    expect(faqPage).not.toContain("importar gimnastas y familias");
+  });
+
+  it("describe las exportaciones como apoyo operativo revisable", () => {
+    expect(payments).toContain("reportes por módulo para revisarlos con tu equipo");
+    expect(reports).toContain("Reportes para tu equipo");
+    expect(reports).toContain("compártelos con tu equipo");
+  });
+
+  it("usa el token de fondo oscuro real para conservar contraste en las pestañas", () => {
+    expect(features).toContain("bg-zaltyko-primary-dark");
+    expect(features).not.toContain("bg-primary-dark");
+  });
+
+  it("mantiene el alcance del portal familiar consistente en pantallas de plan", () => {
+    const planScreens = [
+      readSiteFile("src/app/dashboard/account-form.tsx"),
+      readSiteFile("src/components/billing/BillingPanel.tsx"),
+      readSiteFile("src/components/billing/BillingSummary.tsx"),
+      readSiteFile("src/components/profiles/OptimizedOwnerProfile.tsx"),
+      readSiteFile("src/lib/limits.ts"),
+    ];
+    for (const copy of planScreens) {
+      const normalized = copy.toLowerCase();
+      expect(normalized).toContain("portal familiar limitado");
+      expect(normalized).not.toContain("portal familias");
+    }
+
+    const catalog = readSiteFile("src/lib/plans/catalog.ts").toLowerCase();
+    const indicator = readSiteFile("src/components/onboarding/LimitIndicator.tsx");
+    expect(catalog).toContain("portal familiar limitado");
+    expect(indicator).toContain("benefits: plan.features");
+    expect(indicator.toLowerCase()).not.toContain("portal familias");
+  });
+
+  it("no presenta el portal familiar como una capacidad ilimitada en el escaparate", () => {
+    const home = readSiteFile("src/app/page.tsx").toLowerCase();
+    expect(home).toContain("portal familiar limitado");
+    expect(home).not.toContain("portal de familias");
+  });
+
+  it("no publica funciones de eventos o documentos que aún no son operativas", () => {
+    const normalized = features.toLowerCase();
+    expect(normalized).not.toContain("listas de viaje y alojamiento");
+    expect(normalized).not.toContain("checklist de equipo por atleta");
+    expect(normalized).not.toContain("múltiples sedes");
+    expect(athletes).toContain("Avisos visibles para documentos por vencer");
+  });
+
+  it("no deja placeholders ni controles inertes en la landing", () => {
+    expect(socialProof.toLowerCase()).not.toContain("próximamente");
+    expect(socialProof.toLowerCase()).not.toContain("placeholder");
+    expect(demo).not.toContain('Haz clic para ver el demo (90 segundos)');
+    expect(demo).not.toContain('<button');
+    expect(demo).toContain('href="/contact?type=demo"');
+  });
+
+  it("la comparación autenticada no publica límites que el catálogo no aplica", () => {
+    expect(authenticatedPlanComparison).toContain("Gimnastas:");
+    expect(authenticatedPlanComparison).toContain("Clases:");
+    expect(authenticatedPlanComparison).not.toContain("Coaches:");
+    expect(authenticatedPlanComparison).not.toContain("Storage:");
+    expect(authenticatedPlanComparison).not.toContain("storage_gb");
+  });
 });

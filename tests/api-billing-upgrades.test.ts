@@ -108,7 +108,7 @@ describe("API Billing Upgrades & Downgrades", () => {
             };
             setMockDbResult([mockSubscription], [{ id: "sub-123" }]);
 
-            vi.mock("@/db", () => ({
+            vi.doMock("@/db", () => ({
                 db: {
                     select: vi.fn(() => ({
                         from: vi.fn(() => ({
@@ -141,7 +141,7 @@ describe("API Billing Upgrades & Downgrades", () => {
                 },
             }));
 
-            vi.mock("stripe", () => ({
+            vi.doMock("stripe", () => ({
                 default: vi.fn(() => ({
                     subscriptions: {
                         create: vi.fn().mockResolvedValue({ id: "sub_123", status: "active" }),
@@ -149,13 +149,13 @@ describe("API Billing Upgrades & Downgrades", () => {
                 })),
             }));
 
-            vi.mock("@/lib/authz", () => ({
+            vi.doMock("@/lib/authz", () => ({
                 withTenant: (handler: any) => async (request: Request, context: any) => {
                     return handler(request, { ...context, userId: mockUserData.id, tenantId: "tenant-123" });
                 },
             }));
 
-            vi.mock("@/lib/billing/proration", () => ({
+            vi.doMock("@/lib/billing/proration", () => ({
                 calculateProration: vi.fn().mockReturnValue({
                     amount: 1500,
                     description: "Prorated charge",
@@ -178,11 +178,11 @@ describe("API Billing Upgrades & Downgrades", () => {
         it("debe rechazar upgrade sin target plan", async () => {
             setMockDbResult([], []);
 
-            vi.mock("@/db", () => ({
+            vi.doMock("@/db", () => ({
                 db: mockDb,
             }));
 
-            vi.mock("@/lib/authz", () => ({
+            vi.doMock("@/lib/authz", () => ({
                 withTenant: (handler: any) => async (request: Request, context: any) => {
                     return handler(request, { ...context, userId: mockUserData.id, tenantId: "tenant-123" });
                 },
@@ -205,11 +205,11 @@ describe("API Billing Upgrades & Downgrades", () => {
             const mockSubscription = { id: "sub-123", userId: mockUserData.id, planId: "plan-pro", status: "active" };
             setMockDbResult([mockSubscription], [{ id: "sub-123" }]);
 
-            vi.mock("@/db", () => ({
+            vi.doMock("@/db", () => ({
                 db: mockDb,
             }));
 
-            vi.mock("@/lib/authz", () => ({
+            vi.doMock("@/lib/authz", () => ({
                 withTenant: (handler: any) => async (request: Request, context: any) => {
                     return handler(request, { ...context, userId: mockUserData.id, tenantId: "tenant-123" });
                 },
@@ -231,11 +231,11 @@ describe("API Billing Upgrades & Downgrades", () => {
         it("debe rechazar downgrade sin target plan", async () => {
             setMockDbResult([], []);
 
-            vi.mock("@/db", () => ({
+            vi.doMock("@/db", () => ({
                 db: mockDb,
             }));
 
-            vi.mock("@/lib/authz", () => ({
+            vi.doMock("@/lib/authz", () => ({
                 withTenant: (handler: any) => async (request: Request, context: any) => {
                     return handler(request, { ...context, userId: mockUserData.id, tenantId: "tenant-123" });
                 },
@@ -255,11 +255,11 @@ describe("API Billing Upgrades & Downgrades", () => {
         it("debe rechazar downgrade si no hay suscripción activa", async () => {
             setMockDbResult([], []);
 
-            vi.mock("@/db", () => ({
+            vi.doMock("@/db", () => ({
                 db: mockDb,
             }));
 
-            vi.mock("@/lib/authz", () => ({
+            vi.doMock("@/lib/authz", () => ({
                 withTenant: (handler: any) => async (request: Request, context: any) => {
                     return handler(request, { ...context, userId: mockUserData.id, tenantId: "tenant-123" });
                 },
@@ -286,11 +286,11 @@ describe("API Billing Upgrades & Downgrades", () => {
             };
             setMockDbResult([mockSubscription], [{ id: "sub-123" }]);
 
-            vi.mock("@/db", () => ({
+            vi.doMock("@/db", () => ({
                 db: mockDb,
             }));
 
-            vi.mock("@/lib/authz", () => ({
+            vi.doMock("@/lib/authz", () => ({
                 withTenant: (handler: any) => async (request: Request, context: any) => {
                     return handler(request, { ...context, userId: mockUserData.id, tenantId: "tenant-123" });
                 },
@@ -314,11 +314,11 @@ describe("API Billing Upgrades & Downgrades", () => {
             const mockSubscription = { id: "sub-123", userId: mockUserData.id, planId: "plan-pro", status: "active" };
             setMockDbResult([mockSubscription], [{ id: "sub-123" }]);
 
-            vi.mock("@/db", () => ({
+            vi.doMock("@/db", () => ({
                 db: mockDb,
             }));
 
-            vi.mock("@/lib/authz", () => ({
+            vi.doMock("@/lib/authz", () => ({
                 withTenant: (handler: any) => async (request: Request, context: any) => {
                     return handler(request, { ...context, userId: mockUserData.id, tenantId: "tenant-123" });
                 },
@@ -340,11 +340,11 @@ describe("API Billing Upgrades & Downgrades", () => {
         it("debe rechazar cancelación si no hay suscripción", async () => {
             setMockDbResult([], []);
 
-            vi.mock("@/db", () => ({
+            vi.doMock("@/db", () => ({
                 db: mockDb,
             }));
 
-            vi.mock("@/lib/authz", () => ({
+            vi.doMock("@/lib/authz", () => ({
                 withTenant: (handler: any) => async (request: Request, context: any) => {
                     return handler(request, { ...context, userId: mockUserData.id, tenantId: "tenant-123" });
                 },
@@ -367,11 +367,11 @@ describe("API Billing Upgrades & Downgrades", () => {
             const mockSubscription = { id: "sub-123", userId: mockUserData.id, stripeCustomerId: "cus_123" };
             setMockDbResult([mockSubscription], []);
 
-            vi.mock("@/db", () => ({
+            vi.doMock("@/db", () => ({
                 db: mockDb,
             }));
 
-            vi.mock("@/lib/authz", () => ({
+            vi.doMock("@/lib/authz", () => ({
                 withTenant: (handler: any) => async (request: Request, context: any) => {
                     return handler(request, { ...context, userId: mockUserData.id, tenantId: "tenant-123" });
                 },
@@ -386,18 +386,18 @@ describe("API Billing Upgrades & Downgrades", () => {
             const response = await POST(request, {});
             const data = await response.json();
 
-            expect(response.status).toBe(404);
-            expect(data.error).toBe("FEATURE_DISABLED");
+            expect(response.status).toBe(410);
+            expect(data.error).toBe("USE_BILLING_PORTAL");
         });
 
         it("debe rechazar sin método de pago", async () => {
             setMockDbResult([], []);
 
-            vi.mock("@/db", () => ({
+            vi.doMock("@/db", () => ({
                 db: mockDb,
             }));
 
-            vi.mock("@/lib/authz", () => ({
+            vi.doMock("@/lib/authz", () => ({
                 withTenant: (handler: any) => async (request: Request, context: any) => {
                     return handler(request, { ...context, userId: mockUserData.id, tenantId: "tenant-123" });
                 },
@@ -411,7 +411,7 @@ describe("API Billing Upgrades & Downgrades", () => {
 
             const response = await POST(request, {});
 
-            expect(response.status).toBe(404);
+            expect(response.status).toBe(410);
         });
     });
 });

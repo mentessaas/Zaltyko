@@ -18,11 +18,13 @@ const createSelectChain = (config: { resolveAt: "limit" | "orderBy"; result: any
   chain.leftJoin = vi.fn(() => chain);
   chain.where = vi.fn(() => chain);
 
-  if (config.resolveAt === "limit") {
-    chain.limit = vi.fn(() => Promise.resolve(config.result));
-  } else {
-    chain.orderBy = vi.fn(() => Promise.resolve(config.result));
-  }
+  // Drizzle builders are thenable and production queries may cap either
+  // singleton lookups with limit() or lists with orderBy().limit(). Keep the
+  // mock chain flexible so hardening one query does not invalidate its test.
+  chain.limit = vi.fn(() => chain);
+  chain.orderBy = vi.fn(() => chain);
+  chain.then = (resolve: (value: any[]) => unknown, reject?: (reason: unknown) => unknown) =>
+    Promise.resolve(config.result).then(resolve, reject);
 
   return chain;
 };
@@ -100,11 +102,13 @@ vi.mock("@/db", () => ({
 }));
 
 describe("API /api/academies", () => {
+  // Cold-loading the academy route graph can exceed Vitest's 10s default when
+  // this suite runs alongside the UTM contract suite in the release gate.
   beforeAll(async () => {
     const academiesModule = await import("@/app/api/academies/route");
     POST = academiesModule.POST;
     GET = academiesModule.GET;
-  });
+  }, 30000);
 
   beforeEach(() => {
     process.env = { ...originalEnv };
@@ -122,7 +126,7 @@ describe("API /api/academies", () => {
   it("crea una academia con su tipo", async () => {
     selectQueue.push(
       createSelectChain({
-        resolveAt: "limit",
+        resolveAt: "orderBy",
         result: [{ id: "plan-free-id" }],
       })
     );
@@ -172,7 +176,7 @@ describe("API /api/academies", () => {
   it("lista academias filtrando por tipo", async () => {
     selectQueue.push(
       createSelectChain({
-        resolveAt: "orderBy",
+        resolveAt: "limit",
         result: [
           {
             id: "academy-1",

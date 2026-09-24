@@ -131,6 +131,12 @@ vi.mock("@/lib/logger", () => ({
 vi.unmock("drizzle-orm");
 vi.unmock("drizzle-orm/pg-core");
 
+vi.mock("@/lib/authz", () => ({ withTenant: (handler: unknown) => handler }));
+vi.mock("@/lib/authz/resource-scope", () => ({
+  authorizeAcademyCapability: vi.fn(async () => ({ allowed: true })),
+}));
+import { POST as recordManualPayment } from "@/app/api/quick-actions/record-payment/route";
+
 import { db } from "@/db";
 import { collectCharge } from "@/lib/stripe/charge-collection-service";
 import { sql } from "drizzle-orm";
@@ -283,6 +289,12 @@ describe("collectCharge concurrente contra Postgres real", () => {
       expect(chargeRow.attempt_count).toBe(1);
       expect(chargeRow.stripe_payment_intent_id).toBe("pi_zal6_succeeded");
 
+      const { rows: receiptRows } = await pool.query(
+        "SELECT amount, charge_id FROM receipts WHERE charge_id = $1", [CHARGE_ID]
+      );
+      expect(receiptRows).toHaveLength(1);
+      expect(receiptRows[0].charge_id).toBe(CHARGE_ID);
+
       const attempts = await countAttempts();
       expect(attempts).toHaveLength(1);
       expect(attempts[0]).toEqual({ status: "succeeded", n: 1 });
@@ -352,4 +364,22 @@ describe("collectCharge concurrente contra Postgres real", () => {
     },
     30_000,
   );
+  it.skipIf(!ENABLED)("manual payment waits for an in-flight card collection and cannot overwrite it", async () => {
+    await resetChargeToPending();
+    stripeCreateCalls.length = 0;
+    const card = collectCharge(CHARGE_ID);
+    await vi.waitFor(() => expect(stripeCreateCalls).toHaveLength(1));
+    const { rows } = await pool.query("SELECT amount_cents FROM charges WHERE id=$1", [CHARGE_ID]);
+    const manual = recordManualPayment(new Request("http://localhost/api/quick-actions/record-payment", {
+      method: "POST", headers: { "content-type": "application/json" },
+      body: JSON.stringify({ chargeId: CHARGE_ID, academyId: ACADEMY_ID, amountCents: rows[0].amount_cents, paymentMethod: "cash" }),
+    }), { tenantId: TENANT_ID, userId: OWNER_ID, profile: { id: OWNER_ID } } as never);
+    releaseStripeDeferred({ id: "pi_manual_race", status: "succeeded", latest_charge: "ch_manual_race" });
+    const [cardResult, manualResponse] = await Promise.all([card, manual]);
+    expect(cardResult.ok).toBe(true);
+    expect(manualResponse.status).toBe(409);
+    const { rows: saved } = await pool.query("SELECT payment_method FROM charges WHERE id=$1", [CHARGE_ID]);
+    expect(saved[0].payment_method).toBe("card");
+  }, 10_000);
+
 });

@@ -22,6 +22,10 @@ import React from "react";
 import { QuickPaymentModal } from "@/components/dashboard/QuickPaymentModal";
 import { QuickClassModal } from "@/components/dashboard/QuickClassModal";
 
+vi.mock("@/hooks/use-academy-context", () => ({
+    useAcademyContext: () => ({ academyCountry: "ES" }),
+}));
+
 // Mock del wrapper <Select> del proyecto: no es interactivo en jsdom
 // porque el <select> nativo se renderiza sin <option> reales (los
 // SelectItem quedan en un <div> hermano). Para los tests focales del
@@ -142,6 +146,7 @@ describe("QuickPaymentModal — contrato de respuesta (ZAL-804)", () => {
         );
         return render(
             <QuickPaymentModal
+                academyId="11111111-1111-1111-1111-111111111111"
                 isOpen={true}
                 onClose={callbacks.onClose}
                 onSuccess={callbacks.onSuccess}
@@ -293,6 +298,7 @@ describe("QuickClassModal — contrato de respuesta (ZAL-804)", () => {
         );
         return render(
             <QuickClassModal
+                academyId="11111111-1111-1111-1111-111111111111"
                 isOpen={true}
                 onClose={callbacks.onClose}
                 onSuccess={callbacks.onSuccess}
@@ -314,7 +320,7 @@ describe("QuickClassModal — contrato de respuesta (ZAL-804)", () => {
         await user.selectOptions(select, firstOptionValue);
         await waitFor(() => {
             expect(
-                screen.getByRole("button", { name: /crear clase/i })
+                screen.getByRole("button", { name: /crear sesión/i })
             ).not.toBeDisabled();
         });
     };
@@ -337,7 +343,7 @@ describe("QuickClassModal — contrato de respuesta (ZAL-804)", () => {
             })
         );
 
-        await user.click(screen.getByRole("button", { name: /crear clase/i }));
+        await user.click(screen.getByRole("button", { name: /crear sesión/i }));
 
         await waitFor(() => {
             expect(onSuccess).toHaveBeenCalledTimes(1);
@@ -366,7 +372,7 @@ describe("QuickClassModal — contrato de respuesta (ZAL-804)", () => {
             })
         );
 
-        await user.click(screen.getByRole("button", { name: /crear clase/i }));
+        await user.click(screen.getByRole("button", { name: /crear sesión/i }));
 
         const errorEl = await screen.findByTestId("quick-class-error");
         expect(errorEl).toHaveAttribute("role", "alert");
@@ -394,7 +400,7 @@ describe("QuickClassModal — contrato de respuesta (ZAL-804)", () => {
             })
         );
 
-        await user.click(screen.getByRole("button", { name: /crear clase/i }));
+        await user.click(screen.getByRole("button", { name: /crear sesión/i }));
 
         const errorEl = await screen.findByTestId("quick-class-error");
         expect(errorEl).toHaveAttribute("aria-live", "assertive");
@@ -415,10 +421,10 @@ describe("QuickClassModal — contrato de respuesta (ZAL-804)", () => {
 
         fetchMock.mockRejectedValueOnce(new Error("NetworkError"));
 
-        await user.click(screen.getByRole("button", { name: /crear clase/i }));
+        await user.click(screen.getByRole("button", { name: /crear sesión/i }));
 
         const errorEl = await screen.findByTestId("quick-class-error");
-        expect(errorEl).toHaveTextContent("Error de conexion");
+        expect(errorEl).toHaveTextContent("Error de conexión");
         expect(errorEl).toHaveAttribute("aria-live", "assertive");
         expect(onSuccess).not.toHaveBeenCalled();
     });
