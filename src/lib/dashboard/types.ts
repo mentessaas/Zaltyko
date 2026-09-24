@@ -5,6 +5,7 @@ export interface DashboardMetrics {
   coaches: number;
   groups: number;
   classesThisWeek: number;
+  classTemplates?: number;
   assessments: number;
   attendancePercent: number;
 }

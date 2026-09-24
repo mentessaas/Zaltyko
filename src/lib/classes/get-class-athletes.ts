@@ -51,7 +51,13 @@ export async function getClassAthletes(
       groupId: classes.groupId,
     })
     .from(classes)
-    .where(and(eq(classes.id, classId), eq(classes.academyId, academyId)))
+    .where(
+      and(
+        eq(classes.id, classId),
+        eq(classes.academyId, academyId),
+        isNull(classes.deletedAt)
+      )
+    )
     .limit(1);
 
   if (!classRow) {
@@ -70,7 +76,8 @@ export async function getClassAthletes(
         eq(classGroups.tenantId, classRow.tenantId),
         eq(classGroups.classId, classId)
       )
-    );
+    )
+    .limit(100);
 
   const groupIdsList = Array.from(
     new Set(
@@ -110,7 +117,8 @@ export async function getClassAthletes(
             isNull(groups.deletedAt)
           )
         )
-        .orderBy(asc(athletes.name)),
+        .orderBy(asc(athletes.name))
+        .limit(5000),
       db
         .select({
           id: athletes.id,
@@ -122,7 +130,15 @@ export async function getClassAthletes(
           groupSportConfigId: groups.sportConfigId,
         })
         .from(athletes)
-        .leftJoin(groups, eq(athletes.groupId, groups.id))
+        .leftJoin(
+          groups,
+          and(
+            eq(athletes.groupId, groups.id),
+            eq(groups.tenantId, classRow.tenantId),
+            eq(groups.academyId, academyId),
+            isNull(groups.deletedAt)
+          )
+        )
         .where(
           and(
             eq(athletes.tenantId, classRow.tenantId),
@@ -134,7 +150,8 @@ export async function getClassAthletes(
             isNull(groups.deletedAt)
           )
         )
-        .orderBy(asc(athletes.name)),
+        .orderBy(asc(athletes.name))
+        .limit(5000),
     ]);
 
     groupedAthletes.push(
@@ -165,7 +182,15 @@ export async function getClassAthletes(
     })
     .from(classEnrollments)
     .innerJoin(athletes, eq(classEnrollments.athleteId, athletes.id))
-    .leftJoin(groups, eq(athletes.groupId, groups.id))
+    .leftJoin(
+      groups,
+      and(
+        eq(athletes.groupId, groups.id),
+        eq(groups.tenantId, classRow.tenantId),
+        eq(groups.academyId, academyId),
+        isNull(groups.deletedAt)
+      )
+    )
     .where(
       and(
         eq(classEnrollments.tenantId, classRow.tenantId),
@@ -176,7 +201,8 @@ export async function getClassAthletes(
         isNull(athletes.deletedAt)
       )
     )
-    .orderBy(asc(athletes.name));
+    .orderBy(asc(athletes.name))
+    .limit(5000);
 
   const enrollmentAthletes: ClassAthlete[] = enrollmentRows.map((row) => ({
     id: row.id,

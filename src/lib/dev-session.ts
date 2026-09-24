@@ -47,7 +47,7 @@ export function serializeDevSession(payload: DevSessionPayload) {
 }
 
 export function parseDevSessionCookie(rawValue?: string | null): DevSessionPayload | null {
-  if (!isDevSessionEnabled || !rawValue) {
+  if (!isDevSessionEnabled() || !rawValue) {
     return null;
   }
 
@@ -77,7 +77,7 @@ export function parseDevSessionCookie(rawValue?: string | null): DevSessionPaylo
 export function getDevSessionFromCookieStore(
   cookieStore: { get: (name: string) => { value: string } | undefined } | { get: (name: string) => Promise<{ value: string } | undefined> }
 ) {
-  if (!isDevSessionEnabled) {
+  if (!isDevSessionEnabled()) {
     return null;
   }
 

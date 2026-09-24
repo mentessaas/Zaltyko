@@ -166,7 +166,7 @@ export async function handleStripeWebhook(request: Request): Promise<NextRespons
 
     logger.error("Stripe webhook handler error", error);
     return NextResponse.json(
-      { error: "PROCESSING_FAILED", message: errorMessage },
+      { error: "PROCESSING_FAILED" },
       { status: 500 }
     );
   }

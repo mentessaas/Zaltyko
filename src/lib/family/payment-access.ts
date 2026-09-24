@@ -1,7 +1,7 @@
 import { and, eq, inArray } from "drizzle-orm";
 
 import { db } from "@/db";
-import { charges } from "@/db/schema";
+import { athletes, charges } from "@/db/schema";
 import { getFamilyChildrenForUser } from "@/lib/family/scope-service";
 import { getConnectAccount, isConnectReady } from "@/lib/stripe/connect-service";
 
@@ -35,14 +35,24 @@ export async function resolveFamilyChargeAccess(params: {
   const [charge] = await db
     .select({ id: charges.id, athleteId: charges.athleteId })
     .from(charges)
-    .where(and(eq(charges.id, params.chargeId), inArray(charges.athleteId, athleteIds)))
+    .innerJoin(athletes, eq(charges.athleteId, athletes.id))
+    .where(
+      and(
+        eq(charges.id, params.chargeId),
+        inArray(charges.athleteId, athleteIds),
+        // Defensa en profundidad: un cargo no puede cruzar tenant o academia
+        // aunque una fila histórica tenga referencias inconsistentes.
+        eq(charges.tenantId, athletes.tenantId),
+        eq(charges.academyId, athletes.academyId)
+      )
+    )
     .limit(1);
 
   return charge ?? null;
 }
 
 /**
- * Autoriza a un usuario (padre/madre/tutor) a operar metodos de pago sobre una
+ * Autoriza a un usuario (padre/madre/tutor) a operar métodos de pago sobre una
  * academia concreta: debe tener al menos un hijo vinculado en esa academia, y la
  * academia debe tener Stripe Connect habilitado para cobros.
  */

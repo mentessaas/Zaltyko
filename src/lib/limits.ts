@@ -9,11 +9,15 @@ import { NotFoundError } from "@/lib/errors";
 import { getResourceCount } from "./limits/resource-counters";
 import { getAcademyTrialStatus } from "@/lib/billing/trial-service";
 import { hasSubscriptionAccess } from "@/lib/billing/subscription-status";
+import type { DatabaseClient } from "@/lib/db-transactions";
 
 export type { PlanCode, LimitResource };
 
 export interface ActiveSubscription {
   planCode: PlanCode;
+  /** Estado y nombre de presentación de la misma suscripción que determina los límites. */
+  status?: string | null;
+  planNickname?: string | null;
   athleteLimit: number | null;
   classLimit: number | null;
   groupLimit: number | null;
@@ -48,6 +52,7 @@ export async function getUserSubscription(userId: string): Promise<ActiveSubscri
   const [row] = await db
     .select({
       planCode: plans.code,
+      planNickname: plans.nickname,
       athleteLimit: plans.athleteLimit,
       academyLimit: plans.academyLimit,
       status: subscriptions.status,
@@ -70,6 +75,8 @@ export async function getUserSubscription(userId: string): Promise<ActiveSubscri
 
   return {
     planCode,
+    status: row?.status ?? "active",
+    planNickname: row?.planNickname ?? null,
     athleteLimit,
     classLimit: CLASS_LIMITS[planCode],
     groupLimit: GROUP_LIMITS[planCode],
@@ -82,6 +89,8 @@ export async function getActiveSubscription(academyId: string): Promise<ActiveSu
   if (trial.active) {
     return {
       planCode: "pro",
+      status: "trialing",
+      planNickname: null,
       athleteLimit: ATHLETE_LIMITS.pro,
       classLimit: CLASS_LIMITS.pro,
       groupLimit: GROUP_LIMITS.pro,
@@ -156,8 +165,8 @@ export function evaluateLimit(
   };
 }
 
-async function assertAcademyTenant(academyId: string, tenantId: string): Promise<void> {
-  const [academy] = await db
+async function assertAcademyTenant(academyId: string, tenantId: string, client: DatabaseClient = db): Promise<void> {
+  const [academy] = await client
     .select({ id: academies.id })
     .from(academies)
     .where(and(eq(academies.id, academyId), eq(academies.tenantId, tenantId)))
@@ -206,9 +215,10 @@ export async function assertUserAcademyLimit(userId: string): Promise<void> {
 export async function assertWithinPlanLimits(
   tenantId: string,
   academyId: string,
-  resource: LimitResource
+  resource: LimitResource,
+  client: DatabaseClient = db
 ): Promise<void> {
-  await assertAcademyTenant(academyId, tenantId);
+  await assertAcademyTenant(academyId, tenantId, client);
 
   const subscription = await getActiveSubscription(academyId);
 
@@ -234,7 +244,7 @@ export async function assertWithinPlanLimits(
   }
 
   // Obtener conteo actual
-  const currentCount = await getResourceCount(resource, academyId, tenantId);
+  const currentCount = await getResourceCount(resource, academyId, tenantId, undefined, client);
   const evaluation = evaluateLimit(subscription.planCode, limit, currentCount, resource);
 
   if (evaluation.exceeded) {
@@ -286,7 +296,8 @@ export async function checkPlanLimitViolations(userId: string, newPlanCode: Plan
       const ownedAcademies = await db
         .select({ id: academies.id, name: academies.name })
         .from(academies)
-        .where(eq(academies.ownerId, profile.id));
+        .where(eq(academies.ownerId, profile.id))
+        .limit(100);
       
       violations.push({
         resource: "academies",
@@ -301,7 +312,8 @@ export async function checkPlanLimitViolations(userId: string, newPlanCode: Plan
   const ownedAcademies = await db
     .select({ id: academies.id, name: academies.name, tenantId: academies.tenantId })
     .from(academies)
-    .where(eq(academies.ownerId, profile.id));
+    .where(eq(academies.ownerId, profile.id))
+    .limit(100);
 
   const athleteLimit = ATHLETE_LIMITS[newPlanCode];
   const classLimit = CLASS_LIMITS[newPlanCode];
@@ -317,7 +329,8 @@ export async function checkPlanLimitViolations(userId: string, newPlanCode: Plan
         const academyAthletes = await db
           .select({ id: athletes.id, name: athletes.name })
           .from(athletes)
-          .where(eq(athletes.academyId, academy.id));
+          .where(eq(athletes.academyId, academy.id))
+          .limit(100);
 
         violations.push({
           resource: "athletes",
@@ -337,7 +350,8 @@ export async function checkPlanLimitViolations(userId: string, newPlanCode: Plan
         const classesList = await db
           .select({ id: classes.id, name: classes.name })
           .from(classes)
-          .where(eq(classes.academyId, academy.id));
+          .where(eq(classes.academyId, academy.id))
+          .limit(100);
 
         violations.push({
           resource: "classes",
@@ -357,7 +371,8 @@ export async function checkPlanLimitViolations(userId: string, newPlanCode: Plan
         const groupsList = await db
           .select({ id: groups.id, name: groups.name })
           .from(groups)
-          .where(eq(groups.academyId, academy.id));
+          .where(eq(groups.academyId, academy.id))
+          .limit(100);
 
         violations.push({
           resource: "groups",
@@ -469,7 +484,12 @@ export function getUpgradeInfo(planCode: PlanCode): {
     return {
       nextPlan: "pro",
       price: "19€/mes",
-      benefits: ["Hasta 75 gimnastas", "Pagos recurrentes", "Portal familias", "Reportes básicos"],
+      benefits: [
+        "Hasta 75 gimnastas",
+        "Pagos recurrentes",
+        "Portal familiar limitado",
+        "Reportes básicos",
+      ],
     };
   } else if (planCode === "pro") {
     return {

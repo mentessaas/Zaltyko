@@ -76,10 +76,10 @@ function pickOverdueChargesAction(charges: ChargesAttention, academyId: string):
   };
 }
 
-function pickAttendanceAction(session: TodaySessionAttention): PriorityAction {
+function pickAttendanceAction(session: TodaySessionAttention, academyTimezone?: string): PriorityAction {
   return {
     kind: "take_attendance",
-    label: `Pasar lista de ${session.className ?? "la clase"} a las ${formatHour(session.startsAt)}`,
+    label: `Pasar lista de ${session.className ?? "la clase"} a las ${formatHour(session.startsAt, academyTimezone)}`,
     href: session.href,
     source: "class_sessions.today",
   };
@@ -121,12 +121,14 @@ function pickImportAction(bundle: OwnerAttentionBundle): PriorityAction | null {
   return null;
 }
 
-function formatHour(iso: string): string {
+function formatHour(iso: string, academyTimezone?: string): string {
   const date = new Date(iso);
   if (Number.isNaN(date.getTime())) return iso;
-  const hh = String(date.getHours()).padStart(2, "0");
-  const mm = String(date.getMinutes()).padStart(2, "0");
-  return `${hh}:${mm}`;
+  return date.toLocaleTimeString("es-ES", {
+    hour: "2-digit",
+    minute: "2-digit",
+    timeZone: academyTimezone,
+  });
 }
 
 /** Acción prioritaria para el bundle del dueño. */
@@ -139,7 +141,7 @@ export function deriveOwnerPriorityAction(bundle: OwnerAttentionBundle): Priorit
   }
   const urgentAttendance = hasUrgentAttendance(bundle.today);
   if (urgentAttendance) {
-    return pickAttendanceAction(urgentAttendance);
+    return pickAttendanceAction(urgentAttendance, bundle.academyTimezone);
   }
   if (hasFailedMessages(bundle.messagesPending)) {
     return pickFailedMessagesAction(bundle.messagesPending, bundle.academyId);
@@ -161,7 +163,7 @@ export function deriveOwnerPriorityAction(bundle: OwnerAttentionBundle): Priorit
 export function deriveCoachPriorityAction(bundle: CoachAttentionBundle): PriorityAction | null {
   const urgentAttendance = hasUrgentAttendance(bundle.today);
   if (urgentAttendance) {
-    return pickAttendanceAction(urgentAttendance);
+    return pickAttendanceAction(urgentAttendance, bundle.academyTimezone);
   }
   if (hasFailedMessages(bundle.messagesPending)) {
     return pickFailedMessagesAction(bundle.messagesPending, bundle.academyId);

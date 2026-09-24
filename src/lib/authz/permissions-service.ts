@@ -288,7 +288,8 @@ export async function getAcademyRoles(academyId: string): Promise<RoleWithPermis
     .select()
     .from(academyRoles)
     .where(eq(academyRoles.academyId, academyId))
-    .orderBy(desc(academyRoles.isDefault));
+    .orderBy(desc(academyRoles.isDefault))
+    .limit(100);
 
   return roles.map((r) => ({
     id: r.id,
@@ -363,7 +364,8 @@ export async function assignRoleToUser(
   academyId: string,
   memberRole: "owner" | "coach" | "viewer",
   assignedBy: string,
-  customPermissions?: Permission[]
+  customPermissions?: Permission[],
+  expiresAt?: Date | null
 ) {
   // Eliminar membresías existentes del usuario en esa academia
   await db
@@ -384,6 +386,7 @@ export async function assignRoleToUser(
       academyId,
       memberRole,
       customPermissions,
+      expiresAt: expiresAt ?? null,
       assignedBy,
     })
     .returning();
@@ -406,7 +409,8 @@ export async function getRoleMembers(roleId: string) {
     })
     .from(roleMembers)
     .leftJoin(profiles, eq(roleMembers.userId, profiles.userId))
-    .where(eq(roleMembers.roleId, roleId));
+    .where(eq(roleMembers.roleId, roleId))
+    .limit(5000);
 }
 
 export async function removeRoleFromUser(userId: string, roleId: string, academyId: string) {

@@ -6,8 +6,14 @@ import {
   attendanceRecords,
   classes,
 } from "@/db/schema";
-import { eq, and, gte, lte, count, sql, sum } from "drizzle-orm";
-import { subMonths, subDays, startOfMonth, endOfMonth } from "date-fns";
+import { eq, and, gte, lte, count, sql, sum, isNull, or, gt } from "drizzle-orm";
+import { subMonths, subDays } from "date-fns";
+import { academies } from "@/db/schema";
+import {
+  addDaysToCalendarDate,
+  formatDateToISOString,
+  getMonthBoundariesInCountryTimezone,
+} from "@/lib/date-utils";
 
 export interface AdvancedMetrics {
   retentionRate: number; // Tasa de retención de atletas (%)
@@ -41,45 +47,68 @@ export async function calculateAdvancedMetrics(
   academyId: string,
   tenantId: string
 ): Promise<AdvancedMetrics> {
+  const [academy] = await db
+    .select({ country: academies.country })
+    .from(academies)
+    .where(eq(academies.id, academyId))
+    .limit(1);
+  const academyCountry = academy?.country ?? null;
   const now = new Date();
-  const currentMonthStart = startOfMonth(now);
-  const currentMonthEnd = endOfMonth(now);
-  const previousMonthStart = startOfMonth(subMonths(now, 1));
-  const previousMonthEnd = endOfMonth(subMonths(now, 1));
-  const threeMonthsAgo = subMonths(now, 3);
+  const previousMonthReference = subMonths(now, 1);
+  const { end: previousMonthEnd } = getMonthBoundariesInCountryTimezone(
+    previousMonthReference,
+    academyCountry
+  );
+  const todayKey = formatDateToISOString(now, academyCountry);
+  const thirtyDaysAgoKey = addDaysToCalendarDate(todayKey, -30) ?? todayKey;
+  const currentMonthStartKey = `${todayKey.slice(0, 7)}-01`;
+  const previousMonthEndKey = addDaysToCalendarDate(currentMonthStartKey, -1) ?? currentMonthStartKey;
+  const previousMonthStartKey = `${previousMonthEndKey.slice(0, 7)}-01`;
+  const currentPeriod = currentMonthStartKey.slice(0, 7);
+  const previousPeriod = previousMonthStartKey.slice(0, 7);
   const sixMonthsAgo = subMonths(now, 6);
 
-  // Calcular retención de atletas (atletas activos en los últimos 3 meses vs hace 6 meses)
+  const activeNowScope = and(
+    eq(athletes.academyId, academyId),
+    eq(athletes.tenantId, tenantId),
+    lte(athletes.createdAt, now),
+    or(isNull(athletes.deletedAt), gt(athletes.deletedAt, now))
+  );
+  const activeSixMonthsAgoScope = and(
+    eq(athletes.academyId, academyId),
+    eq(athletes.tenantId, tenantId),
+    lte(athletes.createdAt, sixMonthsAgo),
+    or(isNull(athletes.deletedAt), gt(athletes.deletedAt, sixMonthsAgo))
+  );
+
+  // Retención real: de la cohorte que estaba activa hace seis meses, cuántos
+  // siguen activos ahora. No se confunde con altas recientes.
   const [activeNow] = await db
     .select({ count: count() })
     .from(athletes)
-    .where(
-      and(
-        eq(athletes.academyId, academyId),
-        eq(athletes.tenantId, tenantId),
-        gte(athletes.createdAt, threeMonthsAgo)
-      )
-    );
+    .where(activeNowScope);
 
   const [activeSixMonthsAgo] = await db
     .select({ count: count() })
     .from(athletes)
+    .where(activeSixMonthsAgoScope);
+
+  const [retainedCohort] = await db
+    .select({ count: count() })
+    .from(athletes)
     .where(
       and(
-        eq(athletes.academyId, academyId),
-        eq(athletes.tenantId, tenantId),
-        gte(athletes.createdAt, sixMonthsAgo),
-        lte(athletes.createdAt, threeMonthsAgo)
+        activeNowScope,
+        lte(athletes.createdAt, sixMonthsAgo)
       )
     );
 
   const retentionRate =
     Number(activeSixMonthsAgo?.count || 0) > 0
-      ? (Number(activeNow?.count || 0) / Number(activeSixMonthsAgo.count)) * 100
+      ? (Number(retainedCohort?.count || 0) / Number(activeSixMonthsAgo.count)) * 100
       : 100;
 
   // Calcular tasa promedio de asistencia (últimos 30 días)
-  const thirtyDaysAgo = subDays(now, 30);
   const [totalAttendance] = await db
     .select({ count: count() })
     .from(attendanceRecords)
@@ -89,7 +118,7 @@ export async function calculateAdvancedMetrics(
       and(
         eq(classes.academyId, academyId),
         eq(classes.tenantId, tenantId),
-        gte(classSessions.sessionDate, thirtyDaysAgo.toISOString().split("T")[0])
+        gte(classSessions.sessionDate, thirtyDaysAgoKey)
       )
     );
 
@@ -103,7 +132,7 @@ export async function calculateAdvancedMetrics(
         eq(classes.academyId, academyId),
         eq(classes.tenantId, tenantId),
         eq(attendanceRecords.status, "present"),
-        gte(classSessions.sessionDate, thirtyDaysAgo.toISOString().split("T")[0])
+        gte(classSessions.sessionDate, thirtyDaysAgoKey)
       )
     );
 
@@ -113,7 +142,6 @@ export async function calculateAdvancedMetrics(
       : 0;
 
   // Calcular MRR (Monthly Recurring Revenue) - ingresos recurrentes del mes actual
-  const currentPeriod = formatPeriod(currentMonthStart);
   const [mrrData] = await db
     .select({ total: sum(charges.amountCents) })
     .from(charges)
@@ -129,11 +157,6 @@ export async function calculateAdvancedMetrics(
   const monthlyRecurringRevenue = Number(mrrData?.total || 0) / 100;
 
   // Calcular churn rate (atletas que dejaron de asistir en el último mes)
-  const [currentAthletes] = await db
-    .select({ count: count() })
-    .from(athletes)
-    .where(and(eq(athletes.academyId, academyId), eq(athletes.tenantId, tenantId)));
-
   // Simplificado: asumimos que atletas sin asistencia en 60 días han churned
   const sixtyDaysAgo = subDays(now, 60);
   const [churnedAthletes] = await db
@@ -150,20 +173,30 @@ export async function calculateAdvancedMetrics(
       and(
         eq(athletes.academyId, academyId),
         eq(athletes.tenantId, tenantId),
+        isNull(athletes.deletedAt),
+        lte(athletes.createdAt, sixtyDaysAgo),
         sql`${attendanceRecords.id} IS NULL`
       )
     );
 
   const churnRate =
-    Number(currentAthletes?.count || 0) > 0
-      ? (Number(churnedAthletes?.count || 0) / Number(currentAthletes.count)) * 100
+    Number(activeNow?.count || 0) > 0
+      ? (Number(churnedAthletes?.count || 0) / Number(activeNow.count)) * 100
       : 0;
 
   // Comparación de períodos
-  const [currentAthletesCount] = await db
+  const currentAthletesCount = activeNow;
+  const [previousAthletesCount] = await db
     .select({ count: count() })
     .from(athletes)
-    .where(and(eq(athletes.academyId, academyId), eq(athletes.tenantId, tenantId)));
+    .where(
+      and(
+        eq(athletes.academyId, academyId),
+        eq(athletes.tenantId, tenantId),
+        lte(athletes.createdAt, previousMonthEnd),
+        or(isNull(athletes.deletedAt), gt(athletes.deletedAt, previousMonthEnd))
+      )
+    );
 
   const [currentRevenue] = await db
     .select({ total: sum(charges.amountCents) })
@@ -183,7 +216,7 @@ export async function calculateAdvancedMetrics(
       and(
         eq(charges.academyId, academyId),
         eq(charges.tenantId, tenantId),
-        eq(charges.period, formatPeriod(previousMonthStart))
+        eq(charges.period, previousPeriod)
       )
     );
 
@@ -196,8 +229,8 @@ export async function calculateAdvancedMetrics(
       and(
         eq(classes.academyId, academyId),
         eq(classes.tenantId, tenantId),
-        gte(classSessions.sessionDate, currentMonthStart.toISOString().split("T")[0]),
-        lte(classSessions.sessionDate, currentMonthEnd.toISOString().split("T")[0])
+        gte(classSessions.sessionDate, currentMonthStartKey),
+        lte(classSessions.sessionDate, todayKey)
       )
     );
 
@@ -210,8 +243,8 @@ export async function calculateAdvancedMetrics(
       and(
         eq(classes.academyId, academyId),
         eq(classes.tenantId, tenantId),
-        gte(classSessions.sessionDate, previousMonthStart.toISOString().split("T")[0]),
-        lte(classSessions.sessionDate, previousMonthEnd.toISOString().split("T")[0])
+        gte(classSessions.sessionDate, previousMonthStartKey),
+        lte(classSessions.sessionDate, previousMonthEndKey)
       )
     );
 
@@ -225,8 +258,10 @@ export async function calculateAdvancedMetrics(
         ? 100
         : 0;
 
-  // Proyección de crecimiento basada en tendencia
-  const growthProjection = revenueChange * 0.8; // Simplificado: 80% de la tendencia actual
+  // Sin un modelo de forecast ni estacionalidad suficiente, no presentamos
+  // una predicción inventada. El campo legado conserva la tendencia observada
+  // para no romper clientes, pero la UI la etiqueta como comparación real.
+  const growthProjection = revenueChange;
 
   return {
     retentionRate: Math.round(retentionRate * 100) / 100,
@@ -241,12 +276,19 @@ export async function calculateAdvancedMetrics(
         attendance: Number(currentAttendanceCount?.count || 0),
       },
       previous: {
-        athletes: Number(currentAthletesCount?.count || 0), // Simplificado
+        athletes: Number(previousAthletesCount?.count || 0),
         revenue: previousRevenueValue,
         attendance: Number(previousAttendanceCount?.count || 0),
       },
       change: {
-        athletes: 0, // Simplificado
+        athletes:
+          Number(previousAthletesCount?.count || 0) > 0
+            ? ((Number(currentAthletesCount?.count || 0) - Number(previousAthletesCount.count)) /
+                Number(previousAthletesCount.count)) *
+              100
+            : Number(currentAthletesCount?.count || 0) > 0
+              ? 100
+              : 0,
         revenue: revenueChange,
         attendance:
           Number(previousAttendanceCount?.count || 0) > 0
@@ -261,10 +303,3 @@ export async function calculateAdvancedMetrics(
     },
   };
 }
-
-function formatPeriod(date: Date): string {
-  const year = date.getFullYear();
-  const month = String(date.getMonth() + 1).padStart(2, "0");
-  return `${year}-${month}`;
-}
-

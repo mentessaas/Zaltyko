@@ -28,7 +28,7 @@ export const CHECKLIST_DEFINITIONS: ChecklistDefinition[] = [
   {
     key: "add_5_athletes",
     label: "Añade al menos 5 atletas",
-    description: "Impórtalas desde un CSV o crea la primera ficha a mano.",
+    description: "Impórtalos desde un CSV o crea la primera ficha a mano.",
     auto: true,
   },
   {
@@ -83,7 +83,7 @@ export const WIZARD_STEPS: Array<{ key: WizardStepKey; label: string; skippable:
   { key: "athletes", label: "Atletas", skippable: false },
   { key: "payments-team", label: "Pagos + Equipo", skippable: true },
   { key: "brand", label: "Marca", skippable: true },
-  { key: "activation", label: "Activacion", skippable: false },
+  { key: "activation", label: "Activación", skippable: false },
 ];
 
 export function calculateDaysLeft(trialEndsAt: Date | string | null | undefined): number | null {
@@ -97,4 +97,3 @@ export function calculateDaysLeft(trialEndsAt: Date | string | null | undefined)
   }
   return Math.max(0, Math.ceil(diff / (1000 * 60 * 60 * 24)));
 }
-

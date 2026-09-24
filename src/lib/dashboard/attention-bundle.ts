@@ -10,20 +10,22 @@
  * resuelve `withTenant` antes de llamar a la función).
  */
 
-import { and, asc, count, desc, eq, gte, inArray, isNull, lte, ne, sql } from "drizzle-orm";
+import { and, asc, count, desc, eq, inArray, isNull, lte, ne, sql } from "drizzle-orm";
+import { fromZonedTime } from "date-fns-tz";
 
 import { db } from "@/db";
 import {
   academies,
   announcements,
-  athleteAssessments,
   attendanceRecords,
+  athleteImportBatches,
   charges,
   classSessions,
   classes,
   scheduledNotifications,
 } from "@/db/schema";
 import { logger } from "@/lib/logger";
+import { getTimezoneForCountry } from "@/lib/date-utils";
 
 import {
   deriveCoachPriorityAction,
@@ -68,22 +70,40 @@ function nowIsoDate(academyTimezone?: string | null): string {
   }
 }
 
-function startOfDayIso(date: string): string {
-  return `${date}T00:00:00.000Z`;
-}
+/**
+ * Resuelve la zona horaria efectiva de una academia.
+ *
+ * `academies.timezone` es la fuente explícita cuando existe. Las academias
+ * antiguas y algunos registros creados antes del ajuste de ubicación pueden
+ * no tenerla; en ese caso usamos el código/nombre de país para conservar una
+ * fecha local razonable en el dashboard operativo.
+ */
+export function resolveAcademyTimezone(input: {
+  timezone?: string | null;
+  countryCode?: string | null;
+  country?: string | null;
+}): string {
+  const fallback = getTimezoneForCountry(input.countryCode ?? input.country);
+  const candidate = input.timezone?.trim();
+  if (!candidate) return fallback;
 
-function endOfDayIso(date: string): string {
-  return `${date}T23:59:59.999Z`;
+  // La configuración de academias es editable y puede contener valores
+  // históricos o mal escritos. Validamos contra la base IANA del runtime para
+  // que una zona inválida no convierta el bundle entero en "fuente caída".
+  try {
+    new Intl.DateTimeFormat("en-US", { timeZone: candidate }).format();
+    return candidate;
+  } catch {
+    return fallback;
+  }
 }
 
 async function loadTodaySessions(
   academyId: string,
-  date: string
+  date: string,
+  academyTimezone: string
 ): Promise<{ ok: true; sessions: TodaySessionAttention[] } | { ok: false; error: unknown }> {
   try {
-    const dayStart = startOfDayIso(date);
-    const dayEnd = endOfDayIso(date);
-
     const rows = await db
       .select({
         sessionId: classSessions.id,
@@ -98,8 +118,9 @@ async function loadTodaySessions(
       .where(
         and(
           eq(classes.academyId, academyId),
-          gte(classSessions.sessionDate, dayStart),
-          lte(classSessions.sessionDate, dayEnd),
+          // `session_date` es un tipo DATE, no un timestamp. Compararlo con
+          // límites ISO UTC puede desplazar o eliminar sesiones del día local.
+          eq(classSessions.sessionDate, date),
           // ZAL-fix: class_sessions no tiene columna `cancelled`; el estado
           // real es `status` (scheduled/cancelled/...). Filtramos por estado.
           ne(classSessions.status, "cancelled")
@@ -134,7 +155,7 @@ async function loadTodaySessions(
     return {
       ok: true,
       sessions: rows.map((r) => {
-        const startsAt = combineDateAndTime(r.sessionDate, r.startTime) ?? r.sessionDate;
+        const startsAt = combineDateAndTime(r.sessionDate, r.startTime, academyTimezone) ?? r.sessionDate;
         return {
           sessionId: r.sessionId,
           classId: r.classId,
@@ -154,18 +175,26 @@ async function loadTodaySessions(
 
 function combineDateAndTime(
   dateInput: string | Date | null,
-  time: string | null
+  time: string | null,
+  academyTimezone: string
 ): string | null {
   if (!dateInput) return null;
-  const date = new Date(dateInput);
-  if (Number.isNaN(date.getTime())) return null;
-  if (time) {
-    const match = /^(\d{2}):(\d{2})(?::\d{2})?$/.exec(time);
-    if (match) {
-      date.setUTCHours(Number(match[1]), Number(match[2]), 0, 0);
-    }
-  }
-  return date.toISOString();
+  const dateKey = typeof dateInput === "string" ? dateInput.slice(0, 10) : toIsoDateOnly(dateInput);
+  if (!/^\d{4}-\d{2}-\d{2}$/.test(dateKey)) return null;
+  const match = time ? /^(\d{2}):(\d{2})(?::(\d{2}))?$/.exec(time) : null;
+  const hours = match ? Number(match[1]) : 0;
+  const minutes = match ? Number(match[2]) : 0;
+  const seconds = match ? Number(match[3] ?? 0) : 0;
+  if (hours > 23 || minutes > 59 || seconds > 59) return null;
+
+  // DATE + TIME son valores locales de la academia, no instantes del
+  // navegador. Convertimos desde la zona IANA de la academia a UTC una sola
+  // vez para que la prioridad y el formateo posterior compartan la misma
+  // referencia, también en América y durante cambios DST.
+  return fromZonedTime(
+    `${dateKey}T${String(hours).padStart(2, "0")}:${String(minutes).padStart(2, "0")}:${String(seconds).padStart(2, "0")}`,
+    academyTimezone
+  ).toISOString();
 }
 
 async function loadAttendancePending(
@@ -175,8 +204,6 @@ async function loadAttendancePending(
   const href = `/app/${academyId}/attendance?status=pending`;
   const source = `attendance_records.status='pending' AND class_sessions.sessionDate='${date}'`;
   try {
-    const dayStart = startOfDayIso(date);
-    const dayEnd = endOfDayIso(date);
     const result = await db
       .select({ value: count() })
       .from(attendanceRecords)
@@ -186,8 +213,7 @@ async function loadAttendancePending(
         and(
           eq(classes.academyId, academyId),
           eq(attendanceRecords.status, "pending"),
-          gte(classSessions.sessionDate, dayStart),
-          lte(classSessions.sessionDate, dayEnd)
+          eq(classSessions.sessionDate, date)
         )
       );
     const value = Number(result[0]?.value ?? 0);
@@ -358,15 +384,54 @@ async function loadProgressDrafts(academyId: string): Promise<ProgressAttention>
   }
 }
 
-async function loadImportActive(academyId: string): Promise<ImportActiveAttention | null> {
-  // ZAL-619 §3.7: "Mobile puede consultar el estado y los errores del job,
-  // pero no necesita cargar el archivo en P0". El job de import aún no tiene
-  // tabla dedicada (gap consciente, ver [ZAL-620]). Devolvemos `null` y
-  // documentamos en la respuesta que la fuente está pendiente de schema.
-  // Cuando ZAL-620 cree la tabla `athlete_import_jobs`, este loader se
-  // conectará a esa fuente y la UI empezará a mostrar el bloque.
-  void academyId;
-  return null;
+async function loadImportActive(
+  academyId: string,
+  tenantId: string,
+): Promise<ImportActiveAttention | null> {
+  // La tabla real de importación ya registra los lotes que siguen procesando
+  // o terminaron con error. No mostramos lotes completados/archivados para no
+  // convertir el dashboard en un historial, pero sí damos una ruta de vuelta
+  // al módulo donde el owner puede revisar el resultado o reintentar.
+  try {
+    const [batch] = await db
+      .select({
+        id: athleteImportBatches.id,
+        status: athleteImportBatches.status,
+        totalRows: athleteImportBatches.totalRows,
+        createdCount: athleteImportBatches.createdCount,
+        skippedCount: athleteImportBatches.skippedCount,
+        createdAt: athleteImportBatches.createdAt,
+      })
+      .from(athleteImportBatches)
+      .where(
+        and(
+          eq(athleteImportBatches.academyId, academyId),
+          eq(athleteImportBatches.tenantId, tenantId),
+          inArray(athleteImportBatches.status, ["processing", "failed"]),
+        ),
+      )
+      .orderBy(desc(athleteImportBatches.createdAt))
+      .limit(1);
+
+    if (!batch) return null;
+
+    return {
+      jobId: batch.id,
+      state: batch.status,
+      filename: null,
+      totalRows: batch.totalRows,
+      createdCount: batch.createdCount,
+      skippedCount: batch.skippedCount,
+      createdAt: batch.createdAt ? new Date(batch.createdAt).toISOString() : null,
+      source: `athlete_import_batches.status='${batch.status}'`,
+      href: `/app/${academyId}/athletes?importBatchId=${batch.id}`,
+    };
+  } catch (error) {
+    // La migración puede no existir en una instalación antigua; el resto del
+    // bundle sigue siendo útil y no inventamos un estado de importación.
+    logger.warn("attention:loadImportActive unavailable", { academyId, error });
+    return null;
+  }
 }
 
 export async function getOwnerAttentionBundle({
@@ -380,21 +445,31 @@ export async function getOwnerAttentionBundle({
 }): Promise<OwnerAttentionBundle> {
   // Resolver la fecha en la timezone de la academia si está disponible.
   const [academy] = await db
-    .select({ id: academies.id, country: academies.country })
+    .select({
+      id: academies.id,
+      country: academies.country,
+      countryCode: academies.countryCode,
+      timezone: academies.timezone,
+    })
     .from(academies)
     .where(eq(academies.id, academyId))
     .limit(1);
-  const resolvedDate = date ?? nowIsoDate(academy?.country);
+  const academyTimezone = resolveAcademyTimezone({
+    timezone: academy?.timezone,
+    countryCode: academy?.countryCode,
+    country: academy?.country,
+  });
+  const resolvedDate = date ?? nowIsoDate(academyTimezone);
   void isNull; // referenciar import usado abajo
 
   const [todayResult, attendancePending, messagesPending, chargesOverdue, progressDrafts, importActive] =
     await Promise.all([
-      loadTodaySessions(academyId, resolvedDate),
+      loadTodaySessions(academyId, resolvedDate, academyTimezone),
       loadAttendancePending(academyId, resolvedDate),
       loadMessagesPending(academyId, tenantId),
       loadChargesOverdue(academyId, tenantId),
       loadProgressDrafts(academyId),
-      loadImportActive(academyId),
+      loadImportActive(academyId, tenantId),
     ]);
 
   const today = todayResult.ok
@@ -404,6 +479,7 @@ export async function getOwnerAttentionBundle({
   const bundle: OwnerAttentionBundle = {
     academyId,
     date: resolvedDate,
+    academyTimezone,
     today,
     attendancePending,
     messagesPending,
@@ -426,14 +502,24 @@ export async function getCoachAttentionBundle({
   date?: string;
 }): Promise<CoachAttentionBundle> {
   const [academy] = await db
-    .select({ id: academies.id, country: academies.country })
+    .select({
+      id: academies.id,
+      country: academies.country,
+      countryCode: academies.countryCode,
+      timezone: academies.timezone,
+    })
     .from(academies)
     .where(eq(academies.id, academyId))
     .limit(1);
-  const resolvedDate = date ?? nowIsoDate(academy?.country);
+  const academyTimezone = resolveAcademyTimezone({
+    timezone: academy?.timezone,
+    countryCode: academy?.countryCode,
+    country: academy?.country,
+  });
+  const resolvedDate = date ?? nowIsoDate(academyTimezone);
 
   const [todayResult, attendancePending, messagesPending] = await Promise.all([
-    loadTodaySessions(academyId, resolvedDate),
+    loadTodaySessions(academyId, resolvedDate, academyTimezone),
     loadAttendancePending(academyId, resolvedDate),
     loadMessagesPending(academyId, tenantId),
   ]);
@@ -445,6 +531,7 @@ export async function getCoachAttentionBundle({
   const bundle: CoachAttentionBundle = {
     academyId,
     date: resolvedDate,
+    academyTimezone,
     today,
     attendancePending,
     messagesPending,

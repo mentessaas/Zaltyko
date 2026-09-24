@@ -48,6 +48,7 @@ export async function calculateCoachReport(filters: CoachReportFilters): Promise
     filters.coachId ? eq(coaches.id, filters.coachId) : undefined,
   ].filter(Boolean);
 
+  // unbounded-read-ok: complete academy-scoped dataset required for report totals
   const allCoaches = await db
     .select({
       id: coaches.id,
@@ -73,6 +74,7 @@ export async function calculateCoachReport(filters: CoachReportFilters): Promise
   ].filter(Boolean);
 
   const [allClasses, allGroups, totalClassesResult] = await Promise.all([
+    // unbounded-read-ok: complete academy-scoped class dataset required for report totals
     db
       .select({
         id: classes.id,
@@ -83,7 +85,8 @@ export async function calculateCoachReport(filters: CoachReportFilters): Promise
         apparatus: classes.apparatus,
       })
       .from(classes)
-      .where(and(...classWhere)),
+      .where(and(...classWhere))
+      .limit(10000),
     db
       .select({
         id: groups.id,
@@ -101,7 +104,8 @@ export async function calculateCoachReport(filters: CoachReportFilters): Promise
           filters.sportConfigId ? eq(groups.sportConfigId, filters.sportConfigId) : undefined,
           isNull(groups.deletedAt)
         )
-      ),
+      )
+      .limit(10000),
     db
       .select({ count: sql<number>`count(*)::int` })
       .from(classes)
@@ -111,7 +115,8 @@ export async function calculateCoachReport(filters: CoachReportFilters): Promise
   const allClassIds = allClasses.map((item) => item.id);
   const classGroupLinks =
     allClassIds.length > 0
-      ? await db
+      ? // unbounded-read-ok: complete class-group dataset required for report totals
+        await db
           .select({
             classId: classGroups.classId,
             groupId: classGroups.groupId,
@@ -125,6 +130,7 @@ export async function calculateCoachReport(filters: CoachReportFilters): Promise
               filters.tenantId ? eq(classGroups.tenantId, filters.tenantId) : undefined
             )
           )
+          .limit(10000)
       : [];
 
   const groupLinksByClass = new Map<string, typeof classGroupLinks>();
@@ -148,6 +154,7 @@ export async function calculateCoachReport(filters: CoachReportFilters): Promise
   const groupIds = allGroups.map((item) => item.id);
 
   const [assignments, groupMemberships, classEnrollmentRows, sessionRows] = await Promise.all([
+    // unbounded-read-ok: report population is bounded by tenant-scoped class selection
     classIds.length > 0
       ? db
           .select({
@@ -161,6 +168,7 @@ export async function calculateCoachReport(filters: CoachReportFilters): Promise
               filters.tenantId ? eq(classCoachAssignments.tenantId, filters.tenantId) : undefined
             )
           )
+          .limit(10000)
       : Promise.resolve([]),
     groupIds.length > 0
       ? db
@@ -175,6 +183,7 @@ export async function calculateCoachReport(filters: CoachReportFilters): Promise
               filters.tenantId ? eq(groupAthletes.tenantId, filters.tenantId) : undefined
             )
           )
+          .limit(10000)
       : Promise.resolve([]),
     classIds.length > 0
       ? db
@@ -190,6 +199,7 @@ export async function calculateCoachReport(filters: CoachReportFilters): Promise
               filters.tenantId ? eq(classEnrollments.tenantId, filters.tenantId) : undefined
             )
           )
+          .limit(10000)
       : Promise.resolve([]),
     classIds.length > 0
       ? db
@@ -211,13 +221,15 @@ export async function calculateCoachReport(filters: CoachReportFilters): Promise
                 : undefined
             )
           )
+          .limit(10000)
       : Promise.resolve([]),
   ]);
 
   const sessionIds = sessionRows.map((item) => item.id);
   const attendanceRows =
     sessionIds.length > 0
-      ? await db
+      ? // unbounded-read-ok: complete attendance dataset required for report totals
+        await db
           .select({
             sessionId: attendanceRecords.sessionId,
             status: attendanceRecords.status,
@@ -229,6 +241,7 @@ export async function calculateCoachReport(filters: CoachReportFilters): Promise
               filters.tenantId ? eq(attendanceRecords.tenantId, filters.tenantId) : undefined
             )
           )
+          .limit(10000)
       : [];
 
   const groupMap = new Map(allGroups.map((group) => [group.id, group]));

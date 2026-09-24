@@ -3,6 +3,7 @@ import { and, eq, inArray, lte, sql } from "drizzle-orm";
 
 import { db } from "@/db";
 import { charges, paymentAttempts } from "@/db/schema";
+import { ensureChargeReceipt } from "@/lib/receipts/ensure-charge-receipt";
 import { getStripeClient } from "@/lib/stripe/client";
 import { getConnectAccount, isConnectReady } from "@/lib/stripe/connect-service";
 import { resolvePayerCustomerForAthlete } from "@/lib/stripe/family-customers-service";
@@ -137,7 +138,7 @@ export async function collectCharge(chargeId: string): Promise<CollectResult> {
       await tx
         .update(charges)
         .set({
-          status: "failed",
+          status: requiresAction ? "requires_action" : "failed",
           paymentMethod: "card",
           stripePaymentIntentId: pi?.id ?? null,
           stripeAccountId: account.stripeAccountId,
@@ -194,6 +195,7 @@ export async function collectCharge(chargeId: string): Promise<CollectResult> {
       .where(eq(charges.id, charge.id));
 
     if (succeeded) {
+      await ensureChargeReceipt({ chargeId: charge.id, paymentMethod: "card" }, tx);
       return { ok: true, status: "paid", paymentIntentId: paymentIntent.id };
     }
     if (paymentIntent.status === "requires_action") {

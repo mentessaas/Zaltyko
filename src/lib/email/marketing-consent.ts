@@ -1,4 +1,4 @@
-import { and, desc, eq } from "drizzle-orm";
+import { desc, sql } from "drizzle-orm";
 
 import { db } from "@/db";
 import { emailLogs } from "@/db/schema";
@@ -10,20 +10,10 @@ import { emailLogs } from "@/db/schema";
  */
 export async function hasMarketingOptOut(email: string): Promise<boolean> {
   const normalizedEmail = email.toLowerCase().trim();
-  const [row] = await db
-    .select({ id: emailLogs.id, template: emailLogs.template, metadata: emailLogs.metadata })
-    .from(emailLogs)
-    .where(eq(emailLogs.toEmail, normalizedEmail))
-    .orderBy(desc(emailLogs.createdAt))
-    .limit(10);
-
-  if (!row) return false;
-
-  // Revisar los últimos 10 registros para encontrar el estado más reciente
   const recentLogs = await db
     .select({ template: emailLogs.template, metadata: emailLogs.metadata, status: emailLogs.status })
     .from(emailLogs)
-    .where(eq(emailLogs.toEmail, normalizedEmail))
+    .where(sql`lower(${emailLogs.toEmail}) = ${normalizedEmail}`)
     .orderBy(desc(emailLogs.createdAt))
     .limit(10);
 
@@ -40,5 +30,23 @@ export async function hasMarketingOptOut(email: string): Promise<boolean> {
     }
   }
 
+  return false;
+}
+
+export async function getEmailMarketingPreference(email: string): Promise<boolean> {
+  const normalizedEmail = email.toLowerCase().trim();
+  const recentLogs = await db
+    .select({ template: emailLogs.template, metadata: emailLogs.metadata, status: emailLogs.status })
+    .from(emailLogs)
+    .where(sql`lower(${emailLogs.toEmail}) = ${normalizedEmail}`)
+    .orderBy(desc(emailLogs.createdAt))
+    .limit(20);
+  for (const log of recentLogs) {
+    if (log.template === "unsubscribe_confirmation" && log.status === "sent") return false;
+    if (log.template === "preferences_update") {
+      const marketing = (log.metadata as Record<string, unknown> | null)?.prefs as { marketing?: unknown } | undefined;
+      if (typeof marketing?.marketing === "boolean") return marketing.marketing;
+    }
+  }
   return false;
 }

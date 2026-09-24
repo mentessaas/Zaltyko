@@ -66,6 +66,9 @@ export async function calculateAthleteAttendance(
   const whereConditions = [
     eq(attendanceRecords.tenantId, filters.tenantId),
     eq(attendanceRecords.athleteId, filters.athleteId),
+    eq(classes.academyId, filters.academyId),
+    eq(classSessions.tenantId, filters.tenantId),
+    eq(classes.tenantId, filters.tenantId),
   ];
 
   if (filters.startDate) {
@@ -93,7 +96,8 @@ export async function calculateAthleteAttendance(
     .from(attendanceRecords)
     .innerJoin(classSessions, eq(attendanceRecords.sessionId, classSessions.id))
     .innerJoin(classes, eq(classSessions.classId, classes.id))
-    .where(and(...whereConditions));
+    .where(and(...whereConditions))
+    .limit(10000);
 
   // Obtener información del atleta
   const [athlete] = await db
@@ -105,7 +109,7 @@ export async function calculateAthleteAttendance(
     })
     .from(athletes)
     .leftJoin(groups, eq(athletes.groupId, groups.id))
-    .where(eq(athletes.id, filters.athleteId))
+    .where(and(eq(athletes.id, filters.athleteId), eq(athletes.tenantId, filters.tenantId), eq(athletes.academyId, filters.academyId)))
     .limit(1);
 
   if (!athlete) {
@@ -157,7 +161,8 @@ export async function calculateGroupAttendance(
       athleteName: athletes.name,
     })
     .from(athletes)
-    .where(and(eq(athletes.groupId, filters.groupId), eq(athletes.tenantId, filters.tenantId)));
+    .where(and(eq(athletes.groupId, filters.groupId), eq(athletes.tenantId, filters.tenantId), eq(athletes.academyId, filters.academyId)))
+    .limit(1000);
 
   const athleteIds = groupAthletes.map((a) => a.athleteId);
 
@@ -168,6 +173,9 @@ export async function calculateGroupAttendance(
   const whereConditions = [
     eq(attendanceRecords.tenantId, filters.tenantId),
     inArray(attendanceRecords.athleteId, athleteIds),
+    eq(classes.academyId, filters.academyId),
+    eq(classSessions.tenantId, filters.tenantId),
+    eq(classes.tenantId, filters.tenantId),
   ];
 
   if (filters.startDate) {
@@ -180,6 +188,9 @@ export async function calculateGroupAttendance(
     whereConditions.push(
       sql`coalesce(${classSessions.sportConfigId}, ${classes.sportConfigId}) = ${filters.sportConfigId}`
     );
+  }
+  if (filters.classId) {
+    whereConditions.push(eq(classSessions.classId, filters.classId));
   }
 
   // Obtener estadísticas por atleta
@@ -213,7 +224,7 @@ export async function calculateGroupAttendance(
       name: groups.name,
     })
     .from(groups)
-    .where(eq(groups.id, filters.groupId))
+    .where(and(eq(groups.id, filters.groupId), eq(groups.tenantId, filters.tenantId), eq(groups.academyId, filters.academyId)))
     .limit(1);
 
   if (!group) {
@@ -252,7 +263,12 @@ export async function calculateGroupAttendance(
 export async function calculateGeneralAttendance(
   filters: AttendanceReportFilters
 ): Promise<AttendanceStats> {
-  const whereConditions = [eq(attendanceRecords.tenantId, filters.tenantId)];
+  const whereConditions = [
+    eq(attendanceRecords.tenantId, filters.tenantId),
+    eq(classSessions.tenantId, filters.tenantId),
+    eq(classes.academyId, filters.academyId),
+    eq(classes.tenantId, filters.tenantId),
+  ];
 
   if (filters.startDate) {
     whereConditions.push(gte(classSessions.sessionDate, format(filters.startDate, "yyyy-MM-dd")));

@@ -63,12 +63,14 @@ export interface ProgressAttention {
 }
 
 export type ImportJobState =
+  | "processing"
+  | "completed"
+  | "rolled_back"
   | "created"
   | "preview_ready"
   | "mapping_required"
   | "validated"
   | "committed"
-  | "rolled_back"
   | "failed"
   | "cancelled";
 
@@ -76,6 +78,11 @@ export interface ImportActiveAttention {
   jobId: string;
   state: ImportJobState;
   filename: string | null;
+  /** Totales disponibles en athlete_import_batches (opcionales para payloads legacy). */
+  totalRows?: number;
+  createdCount?: number;
+  skippedCount?: number;
+  createdAt?: string | null;
   source: string;
   href: string;
 }
@@ -109,6 +116,8 @@ export interface PriorityAction {
 export interface OwnerAttentionBundle {
   academyId: string;
   date: string;
+  /** Zona IANA efectiva de la academia para presentar horas de sesión. */
+  academyTimezone?: string;
   today: TodaySessionAttention[];
   attendancePending: AttendanceAttention;
   messagesPending: MessagesAttention;
@@ -122,6 +131,8 @@ export interface OwnerAttentionBundle {
 export interface CoachAttentionBundle {
   academyId: string;
   date: string;
+  /** Zona IANA efectiva de la academia para presentar horas de sesión. */
+  academyTimezone?: string;
   today: TodaySessionAttention[];
   attendancePending: AttendanceAttention;
   messagesPending: MessagesAttention;

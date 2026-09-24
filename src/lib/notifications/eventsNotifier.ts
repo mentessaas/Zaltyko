@@ -17,7 +17,7 @@ export interface NotificationResult {
 async function getEventAndAcademyData(
   academyId: string,
   eventId: string
-): Promise<{ event: EventData; academyName: string }> {
+): Promise<{ event: EventData; academyName: string; tenantId: string }> {
   const [event] = await db
     .select({
       title: events.title,
@@ -40,7 +40,7 @@ async function getEventAndAcademyData(
   }
 
   const [academy] = await db
-    .select({ name: academies.name })
+    .select({ name: academies.name, tenantId: academies.tenantId })
     .from(academies)
     .where(eq(academies.id, academyId))
     .limit(1);
@@ -56,6 +56,7 @@ async function getEventAndAcademyData(
       endDate: event.endDate ? String(event.endDate) : null,
     },
     academyName: academy.name,
+    tenantId: academy.tenantId,
   };
 }
 
@@ -66,10 +67,10 @@ async function sendEventNotification(
   academyId: string,
   eventId: string,
   notificationType: NotificationType,
-  getRecipients: (academyId: string) => Promise<string[]>
+  getRecipients: (academyId: string, tenantId: string) => Promise<string[]>
 ): Promise<NotificationResult> {
-  const { event, academyName } = await getEventAndAcademyData(academyId, eventId);
-  const emails = await getRecipients(academyId);
+  const { event, academyName, tenantId } = await getEventAndAcademyData(academyId, eventId);
+  const emails = await getRecipients(academyId, tenantId);
 
   if (emails.length === 0) {
     return { sent: 0, errors: 0 };
@@ -79,7 +80,13 @@ async function sendEventNotification(
   const result = await sendBulkEmails(
     emails,
     emailContent,
-    event.contactEmail || config.brevo.supportEmail
+    event.contactEmail || config.brevo.supportEmail,
+    {
+      tenantId,
+      academyId,
+      template: `event_notification:${eventId}:${notificationType}`,
+      dedupeKeyPrefix: `event-notification:${eventId}:${notificationType}`,
+    }
   );
 
   return {
@@ -95,7 +102,7 @@ export async function notifyInternalStaff(
   academyId: string,
   eventId: string
 ): Promise<NotificationResult> {
-  return sendEventNotification(academyId, eventId, "internal", getInternalStaffEmails);
+  return sendEventNotification(academyId, eventId, "internal", (id) => getInternalStaffEmails(id));
 }
 
 /**
@@ -105,7 +112,7 @@ export async function notifyCity(
   academyId: string,
   eventId: string
 ): Promise<NotificationResult> {
-  return sendEventNotification(academyId, eventId, "city", (id) => getAcademiesEmailsByLocation(id, "city"));
+  return sendEventNotification(academyId, eventId, "city", (id, tenantId) => getAcademiesEmailsByLocation(id, "city", tenantId));
 }
 
 /**
@@ -115,7 +122,7 @@ export async function notifyProvince(
   academyId: string,
   eventId: string
 ): Promise<NotificationResult> {
-  return sendEventNotification(academyId, eventId, "province", (id) => getAcademiesEmailsByLocation(id, "province"));
+  return sendEventNotification(academyId, eventId, "province", (id, tenantId) => getAcademiesEmailsByLocation(id, "province", tenantId));
 }
 
 /**
@@ -125,5 +132,5 @@ export async function notifyCountry(
   academyId: string,
   eventId: string
 ): Promise<NotificationResult> {
-  return sendEventNotification(academyId, eventId, "country", (id) => getAcademiesEmailsByLocation(id, "country"));
+  return sendEventNotification(academyId, eventId, "country", (id, tenantId) => getAcademiesEmailsByLocation(id, "country", tenantId));
 }

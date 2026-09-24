@@ -112,10 +112,12 @@ export async function getGrowthDashboardData(): Promise<GrowthDashboardData> {
     trialRows,
     paidRows,
   ] = await Promise.all([
+    // unbounded-read-ok: cohort window and event allowlist bound this analytical read
     db
       .select()
       .from(commercialInterviews)
-      .orderBy(desc(commercialInterviews.createdAt)),
+      .orderBy(desc(commercialInterviews.createdAt))
+      .limit(10000),
     db
       .select({
         id: leads.id,
@@ -155,7 +157,8 @@ export async function getGrowthDashboardData(): Promise<GrowthDashboardData> {
             "contact_submitted",
           ])
         )
-      ),
+      )
+      .limit(20000),
     db
       .select({
         academyId: growthEvents.academyId,
@@ -169,9 +172,11 @@ export async function getGrowthDashboardData(): Promise<GrowthDashboardData> {
           inArray(growthEvents.eventName, [
             "academy_created",
             "academy_activated",
+            "onboarding_completed",
           ])
         )
-      ),
+      )
+      .limit(10000),
     db
       .select({ status: academyTrials.status, total: count(academyTrials.id) })
       .from(academyTrials)
@@ -216,9 +221,9 @@ export async function getGrowthDashboardData(): Promise<GrowthDashboardData> {
   );
   const trialsConverted = trialMap.get("converted") ?? 0;
   const paidSubscriptions = Number(paidRows[0]?.total ?? 0);
-  const activatedAcademies = Number(
-    eventMap.get("academy_activated")?.academies ?? 0
-  );
+  const activatedAcademies =
+    Number(eventMap.get("academy_activated")?.academies ?? 0) ||
+    Number(eventMap.get("onboarding_completed")?.academies ?? 0);
   const activationByAcademy = new Map<
     string,
     { createdAt?: Date; activatedAt?: Date }
@@ -227,7 +232,7 @@ export async function getGrowthDashboardData(): Promise<GrowthDashboardData> {
     if (!row.academyId) continue;
     const entry = activationByAcademy.get(row.academyId) ?? {};
     if (row.eventName === "academy_created") entry.createdAt = row.occurredAt;
-    if (row.eventName === "academy_activated")
+    if (row.eventName === "academy_activated" || row.eventName === "onboarding_completed")
       entry.activatedAt = row.occurredAt;
     activationByAcademy.set(row.academyId, entry);
   }

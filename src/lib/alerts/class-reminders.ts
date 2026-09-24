@@ -1,9 +1,14 @@
 import { db } from "@/db";
-import { classSessions, classes, groupAthletes, groups, athletes } from "@/db/schema";
+import {
+  classSessions,
+  classes,
+  groupAthletes,
+  groups,
+  athletes,
+} from "@/db/schema";
 import { eq, and, gte, lte } from "drizzle-orm";
-import { createNotification } from "@/lib/notifications/notification-service";
-import { addHours, subHours } from "date-fns";
-// import { sendAttendanceReminder } from "@/lib/email/triggers"; // TODO: Implementar función de envío de recordatorios
+import { addHours } from "date-fns";
+import { triggerAttendanceReminders } from "@/lib/email/triggers";
 
 export interface ClassReminder {
   sessionId: string;
@@ -45,7 +50,8 @@ export async function getClassesNeedingReminders(
         gte(classSessions.sessionDate, reminderTimeStr),
         lte(classSessions.sessionDate, reminderTimeEndStr)
       )
-    );
+    )
+    .limit(500);
 
   const reminders: ClassReminder[] = [];
 
@@ -57,7 +63,13 @@ export async function getClassesNeedingReminders(
       const groupAthletesList = await db
         .select({ athleteId: groupAthletes.athleteId })
         .from(groupAthletes)
-        .where(eq(groupAthletes.groupId, session.groupId));
+        .where(
+          and(
+            eq(groupAthletes.groupId, session.groupId),
+            eq(groupAthletes.tenantId, tenantId)
+          )
+        )
+        .limit(5000);
 
       athleteIds = groupAthletesList.map((ga) => ga.athleteId);
     } else {
@@ -85,32 +97,7 @@ export async function sendClassReminders(
   tenantId: string,
   hoursBefore: number = 24
 ) {
-  const reminders = await getClassesNeedingReminders(academyId, tenantId, hoursBefore);
-
-  for (const reminder of reminders) {
-    // Obtener información de atletas
-    const athletesList = await db
-      .select({
-        athleteId: athletes.id,
-        athleteName: athletes.name,
-      })
-      .from(athletes)
-      .where(eq(athletes.tenantId, tenantId));
-
-    for (const athlete of athletesList) {
-      if (reminder.athleteIds.includes(athlete.athleteId)) {
-        // TODO: Enviar email de recordatorio
-        // await sendAttendanceReminder({
-        //   athleteId: athlete.athleteId,
-        //   sessionId: reminder.sessionId,
-        //   academyId,
-        // });
-
-        // Crear notificación in-app
-        // TODO: Obtener userId del atleta/padre
-        // await createNotification({...});
-      }
-    }
-  }
+  // Reuse the canonical, enrolled-athlete-aware email trigger. The legacy
+  // implementation scanned every athlete and never sent anything.
+  return triggerAttendanceReminders({ academyId, tenantId, hoursBefore });
 }
-

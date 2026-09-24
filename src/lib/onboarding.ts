@@ -1,8 +1,12 @@
-import { and, eq } from "drizzle-orm";
+import { and, count, eq, isNull } from "drizzle-orm";
 
 import { db } from "@/db";
 import {
   academies,
+  athletes,
+  attendanceRecords,
+  classes,
+  classSessions,
   onboardingChecklistItems,
   onboardingStates,
   type OnboardingStepFlags,
@@ -164,14 +168,24 @@ export async function markChecklistItem({
 
   const eventName = CHECKLIST_TRACKING_EVENT[key];
   if (status === "completed" && eventName) {
-    await trackEvent(eventName, { academyId, metadata: { key } });
+    await trackEvent(eventName, {
+      academyId,
+      tenantId: finalTenantId,
+      metadata: { key },
+      idempotencyKey: `checklist:${eventName}:v1:${academyId}`,
+    });
   }
 
-  await maybeMarkAcademyActivated(academyId, client);
+  // Nunca consultamos datos no confirmados dentro de la transacción de una
+  // creación: el evento first-party se escribe después del commit.
+  if (!tx) {
+    await maybeMarkAcademyActivated(academyId, finalTenantId, client);
+  }
 }
 
 async function maybeMarkAcademyActivated(
   academyId: string,
+  tenantId: string,
   client: DatabaseClient = db
 ) {
   if (shouldSkipOnboardingAutomation()) {
@@ -202,8 +216,89 @@ async function maybeMarkAcademyActivated(
   );
 
   if (allCompleted) {
-    await trackEvent("academy_activated", { academyId });
+    // Nombre canónico para que la activación no se fragmente entre alias.
+    await trackEvent("onboarding_completed", {
+      academyId,
+      tenantId,
+      metadata: { completion_version: "v1", academy_scope: "academy" },
+      idempotencyKey: `onboarding_completed:v1:${academyId}`,
+    });
   }
+}
+
+/**
+ * Métrica norte de activación: una academia cuenta como activada si, dentro
+ * de sus primeros siete días, crea una clase, añade una gimnasta y registra
+ * una asistencia. Se evalúa desde las tablas operativas, no desde clicks ni
+ * desde el checklist, para que el dashboard de negocio mida valor entregado.
+ */
+export async function markAcademyActivationIfReady(
+  academyId: string,
+  tenantId: string,
+  client: DatabaseClient = db
+) {
+  if (shouldSkipOnboardingAutomation()) return;
+
+  const [academy] = await client
+    .select({ createdAt: academies.createdAt, tenantId: academies.tenantId })
+    .from(academies)
+    .where(and(eq(academies.id, academyId), eq(academies.tenantId, tenantId)))
+    .limit(1);
+
+  if (!academy?.createdAt || academy.tenantId !== tenantId) return;
+
+  const activationDeadline = academy.createdAt.getTime() + 7 * 24 * 60 * 60 * 1_000;
+  if (Date.now() > activationDeadline) return;
+
+  const [classCount] = await client
+    .select({ value: count(classes.id) })
+    .from(classes)
+    .where(
+      and(
+        eq(classes.academyId, academyId),
+        eq(classes.tenantId, tenantId),
+        isNull(classes.deletedAt)
+      )
+    );
+  if (Number(classCount?.value ?? 0) < 1) return;
+
+  const [athleteCount] = await client
+    .select({ value: count(athletes.id) })
+    .from(athletes)
+    .where(
+      and(
+        eq(athletes.academyId, academyId),
+        eq(athletes.tenantId, tenantId),
+        isNull(athletes.deletedAt)
+      )
+    );
+  if (Number(athleteCount?.value ?? 0) < 1) return;
+
+  const [attendanceCount] = await client
+    .select({ value: count(attendanceRecords.id) })
+    .from(attendanceRecords)
+    .innerJoin(classSessions, eq(classSessions.id, attendanceRecords.sessionId))
+    .innerJoin(classes, eq(classes.id, classSessions.classId))
+    .where(
+      and(
+        eq(attendanceRecords.tenantId, tenantId),
+        eq(classSessions.tenantId, tenantId),
+        eq(classes.academyId, academyId),
+        eq(classes.tenantId, tenantId),
+        isNull(classes.deletedAt)
+      )
+    );
+  if (Number(attendanceCount?.value ?? 0) < 1) return;
+
+  await trackEvent("academy_activated", {
+    academyId,
+    tenantId,
+    metadata: {
+      activation_version: "v1",
+      activation_definition: "class_athlete_attendance_7d",
+    },
+    idempotencyKey: `academy_activated:v1:${academyId}`,
+  });
 }
 
 interface UpdateWizardStepOptions {
@@ -306,7 +401,8 @@ export async function getChecklist(academyId: string) {
     .select()
     .from(onboardingChecklistItems)
     .where(eq(onboardingChecklistItems.academyId, academyId))
-    .orderBy(onboardingChecklistItems.createdAt);
+    .orderBy(onboardingChecklistItems.createdAt)
+    .limit(100);
 }
 
 // calculateDaysLeft moved to onboarding-utils.ts to avoid importing db in client components

@@ -14,7 +14,7 @@ import {
   sportDisciplines,
   sportLocaleConfigs,
 } from "@/db/schema";
-import { eq, and, gte, lte, sql, sum, count } from "drizzle-orm";
+import { eq, and, gte, lte, sql, sum, count, or } from "drizzle-orm";
 import { format } from "date-fns";
 
 export interface FinancialReportFilters {
@@ -189,10 +189,13 @@ export async function calculateFinancialStats(
     .where(
       and(
         ...whereConditions,
-        eq(charges.status, "pending"),
-        lte(charges.dueDate, format(today, "yyyy-MM-dd"))
+        or(
+          eq(charges.status, "overdue"),
+          and(eq(charges.status, "pending"), lte(charges.dueDate, format(today, "yyyy-MM-dd")))
+        )
       )
-    );
+    )
+    .limit(10000);
 
   if (overdueStats[0]) {
     overdueAmount = Number(overdueStats[0].totalAmount || 0) / 100;
@@ -298,8 +301,10 @@ export async function analyzeDelinquency(
   const whereConditions = [
     eq(charges.tenantId, filters.tenantId),
     eq(charges.academyId, filters.academyId),
-    eq(charges.status, "pending"),
-    lte(charges.dueDate, format(today, "yyyy-MM-dd")),
+    or(
+      eq(charges.status, "overdue"),
+      and(eq(charges.status, "pending"), lte(charges.dueDate, format(today, "yyyy-MM-dd")))
+    ),
   ];
 
   if (filters.athleteId) {
@@ -329,7 +334,8 @@ export async function analyzeDelinquency(
     .leftJoin(sportDisciplines, eq(sportLocaleConfigs.disciplineId, sportDisciplines.id))
     .leftJoin(sportBranches, eq(sportLocaleConfigs.branchId, sportBranches.id))
     .where(and(...whereConditions))
-    .orderBy(charges.dueDate);
+    .orderBy(charges.dueDate)
+    .limit(10000);
 
   // Agrupar por atleta
   const athleteMap = new Map<
@@ -415,8 +421,10 @@ export async function calculateSportFinancialBreakdown(
     .where(
       and(
         ...chargeConditions,
-        eq(charges.status, "pending"),
-        lte(charges.dueDate, today)
+        or(
+          eq(charges.status, "overdue"),
+          and(eq(charges.status, "pending"), lte(charges.dueDate, today))
+        )
       )
     )
     .groupBy(chargeSportConfigId);
@@ -468,7 +476,8 @@ export async function calculateSportFinancialBreakdown(
     .leftJoin(classes, eq(charges.classId, classes.id))
     .leftJoin(groups, eq(classes.groupId, groups.id))
     .where(and(...discountConditions))
-    .groupBy(discountSportConfigId);
+    .groupBy(discountSportConfigId)
+    .limit(10000);
 
   const classCostSportConfigId = sql<string | null>`COALESCE(${classes.sportConfigId}, ${groups.sportConfigId})`;
   const classCostRows = await db
@@ -498,7 +507,8 @@ export async function calculateSportFinancialBreakdown(
         eq(classes.academyId, filters.academyId),
         filters.sportConfigId ? sql`${classCostSportConfigId} = ${filters.sportConfigId}` : sql`true`
       )
-    );
+    )
+    .limit(10000);
 
   const classSportConfigById = new Map(classCostRows.map((row) => [row.classId, row.sportConfigId ?? null]));
   const assignmentsByCoach = new Map<string, number>();
@@ -526,7 +536,8 @@ export async function calculateSportFinancialBreakdown(
       amountCents: academyExpenses.amountCents,
     })
     .from(academyExpenses)
-    .where(and(...expenseConditions));
+    .where(and(...expenseConditions))
+    .limit(10000);
 
   const sportConfigRows = await db
     .select({
@@ -545,7 +556,8 @@ export async function calculateSportFinancialBreakdown(
         eq(academySportConfigs.isActive, true),
         filters.sportConfigId ? eq(academySportConfigs.id, filters.sportConfigId) : sql`true`
       )
-    );
+    )
+    .limit(10000);
 
   const labels = new Map(
     sportConfigRows.map((row) => [

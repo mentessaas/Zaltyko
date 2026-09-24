@@ -1,4 +1,4 @@
-import type { AcademySpecializationContext } from "@/lib/specialization/registry";
+import { pluralizeFirstWord, type AcademySpecializationContext } from "@/lib/specialization/registry";
 
 export interface StarterGroupPreset {
   key: string;
@@ -90,7 +90,7 @@ export function getStarterGroupPresets(
         key: `default-${index}`,
         name: `${specialization.labels.groupLabel} ${level}`,
         level,
-        description: `Configuración inicial sugerida para ${specialization.labels.groupLabel.toLowerCase()}s de ${specialization.labels.disciplineName.toLowerCase()}.`,
+        description: `Configuración inicial sugerida para ${pluralizeFirstWord(specialization.labels.groupLabel).toLowerCase()} de ${specialization.labels.disciplineName.toLowerCase()}.`,
       }));
   }
 }

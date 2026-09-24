@@ -1,15 +1,17 @@
 import { db } from "@/db";
 import { charges, athletes, familyContacts } from "@/db/schema";
-import { eq, and, lte, sql } from "drizzle-orm";
+import { eq, and, lte, isNull } from "drizzle-orm";
 import { createNotification } from "@/lib/notifications/notification-service";
 import { subDays } from "date-fns";
 import { logger } from "@/lib/logger";
+import { formatCurrency } from "@/lib/currency";
 
 export interface PaymentAlert {
   chargeId: string;
   athleteId: string;
   athleteName: string;
   amount: number;
+  currency: string;
   dueDate: Date;
   daysOverdue: number;
   parentContactIds: string[];
@@ -33,6 +35,7 @@ export async function detectPaymentAlerts(
         athleteId: charges.athleteId,
         athleteName: athletes.name,
         amountCents: charges.amountCents,
+        currency: charges.currency,
         dueDate: charges.dueDate,
       })
       .from(charges)
@@ -42,9 +45,12 @@ export async function detectPaymentAlerts(
           eq(charges.academyId, academyId),
           eq(charges.tenantId, tenantId),
           eq(charges.status, "pending"),
+          eq(athletes.status, "active"),
+          isNull(athletes.deletedAt),
           lte(charges.dueDate, cutoffDate.toISOString().split("T")[0])
         )
-      );
+      )
+      .limit(10000);
 
     const alerts: PaymentAlert[] = [];
 
@@ -53,7 +59,8 @@ export async function detectPaymentAlerts(
       const contacts = await db
         .select({ contactId: familyContacts.id })
         .from(familyContacts)
-        .where(eq(familyContacts.athleteId, charge.athleteId));
+        .where(and(eq(familyContacts.athleteId, charge.athleteId), eq(familyContacts.tenantId, tenantId)))
+        .limit(100);
 
       const daysOverdueValue = Math.floor(
         (today.getTime() - (charge.dueDate ? new Date(charge.dueDate).getTime() : today.getTime())) /
@@ -65,6 +72,7 @@ export async function detectPaymentAlerts(
         athleteId: charge.athleteId,
         athleteName: charge.athleteName || "Sin nombre",
         amount: Number(charge.amountCents) / 100,
+        currency: charge.currency ?? "EUR",
         dueDate: charge.dueDate ? new Date(charge.dueDate) : today,
         daysOverdue: daysOverdueValue,
         parentContactIds: contacts.map((c) => c.contactId),
@@ -101,17 +109,19 @@ export async function createPaymentNotifications(
         userId,
         type: "payment_overdue",
         title: `Pago atrasado: ${alert.athleteName}`,
-        message: `El pago de ${alert.amount.toFixed(2)} € está ${alert.daysOverdue} días atrasado.`,
+        message: `El pago de ${formatCurrency(alert.amount, alert.currency)} está ${alert.daysOverdue} días atrasado.`,
         data: {
           chargeId: alert.chargeId,
           athleteId: alert.athleteId,
           amount: alert.amount,
+          currency: alert.currency,
           daysOverdue: alert.daysOverdue,
         },
       });
     }
 
-    // TODO: Enviar email a padres usando el servicio de email
+    // El envío de emails vive en `triggerScheduledPaymentReminders`, que
+    // aplica ventanas y deduplicación por cargo. Este job se limita a alertas
+    // internas para no duplicar comunicaciones a las familias.
   }
 }
-

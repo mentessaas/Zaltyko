@@ -17,6 +17,7 @@ export async function getBillingAcademyAccess(params: {
   userId: string;
   profileId: string;
   profileRole: string;
+  tenantId?: string;
 }): Promise<BillingAcademyAccess | null> {
   const [academy] = await db
     .select({
@@ -29,7 +30,12 @@ export async function getBillingAcademyAccess(params: {
     })
     .from(academies)
     .innerJoin(profiles, eq(academies.ownerId, profiles.id))
-    .where(eq(academies.id, params.academyId))
+    .where(and(
+      eq(academies.id, params.academyId),
+      params.tenantId && params.profileRole !== "super_admin"
+        ? eq(academies.tenantId, params.tenantId)
+        : undefined
+    ))
     .limit(1);
 
   if (!academy) return null;

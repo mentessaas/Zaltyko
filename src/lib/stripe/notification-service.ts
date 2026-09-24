@@ -15,28 +15,43 @@ import { sendEmail } from "@/lib/brevo";
 import { config } from "@/config";
 import { logger } from "@/lib/logger";
 import { normalizeEmail } from "@/lib/validation/email-utils";
+import { isAcademyBlockedFromSending } from "@/lib/academy-status";
+import { sendEmailWithLogging } from "@/lib/email/email-service";
 import type { WebhookContext } from "@/lib/stripe/webhook-handler";
 
 /**
  * Obtiene los emails de los owners de una academia
  */
-async function getOwnerEmails(academyId: string): Promise<string[]> {
+async function getOwnerEmails(
+  academyId: string
+): Promise<Array<{ email: string; profileId: string | null }>> {
+  // unbounded-read-ok: guardianAthletes is a direct athlete relation; the
+  // recipient set is inherently small and normalized/deduplicated below.
   const recipients = await db
     .select({
       email: authUsers.email,
       name: profiles.name,
+      profileId: profiles.id,
     })
     .from(memberships)
     .innerJoin(profiles, eq(memberships.userId, profiles.userId))
     .innerJoin(authUsers, eq(authUsers.id, profiles.userId))
-    .where(and(eq(memberships.academyId, academyId), eq(memberships.role, "owner")));
+    .where(and(eq(memberships.academyId, academyId), eq(memberships.role, "owner")))
+    .limit(100);
 
-  const emails = recipients
-    .map((recipient) => recipient.email)
-    .filter((value): value is string => Boolean(value));
-
-  const uniqueEmails = Array.from(new Set(emails));
-  return uniqueEmails.length > 0 ? uniqueEmails : [config.brevo.supportEmail];
+  const uniqueRecipients = Array.from(
+    new Map(
+      recipients
+        .flatMap((recipient) =>
+          recipient.email
+            ? [[normalizeEmail(recipient.email), { email: recipient.email, profileId: recipient.profileId }] as const]
+            : []
+        )
+    ).values()
+  );
+  return uniqueRecipients.length > 0
+    ? uniqueRecipients
+    : [{ email: config.brevo.supportEmail, profileId: null }];
 }
 
 /**
@@ -44,24 +59,33 @@ async function getOwnerEmails(academyId: string): Promise<string[]> {
  */
 async function notifyOwners(
   academyId: string,
+  tenantId: string,
   subject: string,
   html: string,
-  text: string
+  text: string,
+  dedupeKeyPrefix: string,
+  notificationType: "invoice_paid" | "invoice_pending"
 ): Promise<void> {
-  const emails = await getOwnerEmails(academyId);
+  const recipients = await getOwnerEmails(academyId);
 
-  for (const email of emails) {
+  for (const recipient of recipients) {
     try {
-      await sendEmail({
-        to: email,
+      await sendEmailWithLogging({
+        to: recipient.email,
         subject,
         html,
         text,
         replyTo: config.brevo.supportEmail,
+        template: "billing-invoice-notification",
+        tenantId,
+        academyId,
+        profileId: recipient.profileId ?? undefined,
+        notificationType,
+        dedupeKey: `${dedupeKeyPrefix}:${normalizeEmail(recipient.email)}`,
       });
     } catch (error) {
       logger.error("Error sending billing notification", error, {
-        email,
+        email: recipient.email,
         academyId,
       });
     }
@@ -283,8 +307,18 @@ async function deliverChargeFailureToGuardian(
 export async function sendChargePaymentFailedNotification(
   notification: ChargePaymentFailedNotification
 ): Promise<boolean> {
+  const eligibility = await isAcademyBlockedFromSending(notification.academyId);
+  if (eligibility.blocked) {
+    logger.warn("Charge failure email omitted: academy is not eligible", {
+      academyId: notification.academyId,
+      reason: eligibility.reason,
+      chargeId: notification.chargeId,
+    });
+    return false;
+  }
+
   const recipients = await db
-    .select({ email: guardians.email })
+    .select({ email: guardians.email }) // unbounded-read-ok: direct athlete relation is inherently small
     .from(guardianAthletes)
     .innerJoin(guardians, eq(guardianAthletes.guardianId, guardians.id))
     .where(
@@ -378,7 +412,15 @@ export async function sendInvoiceNotification(
     const text = `Se registró el pago del recibo ${invoice.number ?? invoice.id} por ${amountFormatted}.`;
     const html = `<div style="font-family: Inter, Arial, sans-serif; max-width: 600px; margin: 0 auto;"><h2 style="color: #0D47A1; font-family: Poppins, sans-serif; font-weight: 700;">Zaltyko · Pago recibido</h2><p>Hola,</p><p>Se registró el pago del recibo <strong>${invoice.number ?? invoice.id}</strong>.</p><p>Importe cobrado: <strong>${amountFormatted}</strong>.</p><p>Puedes revisarlo en Stripe: <a href="${invoice.hosted_invoice_url ?? invoice.invoice_pdf ?? "#"}" style="color: #0D47A1;">ver recibo</a>.</p></div>`;
 
-    await notifyOwners(context.academyId, subject, html, text);
+    await notifyOwners(
+      context.academyId,
+      context.tenantId,
+      subject,
+      html,
+      text,
+      `billing-invoice:${eventType}:${invoice.id}`,
+      "invoice_paid"
+    );
     await logAuditEvent(context.tenantId, "billing.invoice_paid", {
       invoiceId: invoice.id,
       amount,
@@ -389,7 +431,15 @@ export async function sendInvoiceNotification(
     const text = `El recibo ${invoice.number ?? invoice.id} requiere tu revisión.`;
     const html = `<div style="font-family: Inter, Arial, sans-serif; max-width: 600px; margin: 0 auto;"><h2 style="color: #0D47A1; font-family: Poppins, sans-serif; font-weight: 700;">Zaltyko · Acción requerida</h2><p>Hola,</p><p>No se pudo completar el cobro del recibo <strong>${invoice.number ?? invoice.id}</strong>.</p><p>Revisa el método de pago desde el portal de Stripe.</p></div>`;
 
-    await notifyOwners(context.academyId, subject, html, text);
+    await notifyOwners(
+      context.academyId,
+      context.tenantId,
+      subject,
+      html,
+      text,
+      `billing-invoice:${eventType}:${invoice.id}`,
+      "invoice_pending"
+    );
     await logAuditEvent(context.tenantId, "billing.invoice_issue", {
       invoiceId: invoice.id,
       status: invoice.status,

@@ -12,7 +12,11 @@ export interface SuperAdminMetrics {
     assessments: number;
     plans: number;
     subscriptions: number;
+    /** Dueños registrados que todavía no tienen una academia activa asignada. */
+    pendingAcademyOwners: number;
     latestAcademyAt: string | null;
+    /** Fecha real de creación del perfil más reciente; no se debe inferir de academias. */
+    latestUserAt?: string | null;
     // Metrics for student charges
     activeAcademies: number; // Academies with at least 1 athlete/group
     totalAthletes: number;
@@ -23,7 +27,6 @@ export interface SuperAdminMetrics {
     previousAcademies?: number;
     previousUsers?: number;
     previousRevenue?: number;
-    previousSubscriptions?: number;
     // Engagement metrics
     dailyActiveUsers: number;
     weeklyActiveUsers: number;
@@ -36,6 +39,8 @@ export interface SuperAdminMetrics {
   planStatuses: Array<{ status: string; total: number }>;
   planDistribution: Array<{ code: string; nickname: string | null; total: number }>;
   monthlyAcademies: Array<{ label: string; total: number }>;
+  /** Facturación SaaS cobrada por mes, en céntimos, desde facturas Stripe sincronizadas. */
+  monthlyRevenue: Array<{ label: string; total: number }>;
   // Alerts for risky subscriptions
   subscriptionAlerts: Array<{ status: string; count: number; academies: string[] }>;
 }
@@ -79,226 +84,132 @@ function toIso(value: string | Date | null | undefined) {
   }
 }
 
+/**
+ * Drizzle con `node-postgres` devuelve un `QueryResult` para `db.execute`
+ * (`{ rows }`), mientras que algunos adaptadores y mocks devuelven el array
+ * directamente. El dashboard global consume ambas formas porque se ejecuta
+ * en Vercel con `pg` y en tests/harnesses con resultados simplificados.
+ * Normalizar aquí evita que una respuesta válida termine en `.map is not a
+ * function` en el panel de Super Admin.
+ */
+export function normalizeSqlRows<T>(result: unknown): T[] {
+  if (Array.isArray(result)) return result as T[];
+  if (result && typeof result === "object" && "rows" in result) {
+    const rows = (result as { rows?: unknown }).rows;
+    if (Array.isArray(rows)) return rows as T[];
+  }
+  return [];
+}
+
 export async function getGlobalStats(): Promise<SuperAdminMetrics> {
   // Use Drizzle directly to bypass RLS and get all data
   const { db } = await import("@/db");
-  const { academies, profiles, plans, subscriptions, billingInvoices, athleteAssessments, athletes, groups, charges, eventLogs } = await import("@/db/schema");
-  const { desc, gte } = await import("drizzle-orm");
+  const { academies, profiles, plans, subscriptions, billingInvoices, athleteAssessments, athletes, groups, charges } = await import("@/db/schema");
+  const { count, desc, eq, isNull, sql, sum } = await import("drizzle-orm");
 
   // Get current month for charge metrics
   const now = new Date();
   const currentMonth = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, "0")}`;
   const sevenDaysAgo = new Date(now.getTime() - 7 * 24 * 60 * 60 * 1000);
-
-  const [
-    academiesList,
-    profilesList,
-    plansList,
-    subscriptionsList,
-    invoicesList,
-    assessmentsList,
-    athletesList,
-    groupsList,
-    chargesList,
-    eventLogsList,
-  ] = await Promise.all([
-      db.select({
-        id: academies.id,
-        createdAt: academies.createdAt,
-      })
-        .from(academies)
-        .orderBy(desc(academies.createdAt)),
-      db.select({
-        id: profiles.id,
-        role: profiles.role,
-        createdAt: profiles.createdAt,
-      }).from(profiles),
-      db.select({
-        id: plans.id,
-        code: plans.code,
-        nickname: plans.nickname,
-      }).from(plans),
-      db.select({
-        id: subscriptions.id,
-        planId: subscriptions.planId,
-        status: subscriptions.status,
-      }).from(subscriptions),
-      db.select({
-        id: billingInvoices.id,
-        amountPaid: billingInvoices.amountPaid,
-        status: billingInvoices.status,
-        createdAt: billingInvoices.createdAt,
-      }).from(billingInvoices),
-      db.select({
-        id: athleteAssessments.id,
-      }).from(athleteAssessments),
-      db.select({
-        id: athletes.id,
-        academyId: athletes.academyId,
-      }).from(athletes),
-      db.select({
-        id: groups.id,
-        academyId: groups.academyId,
-      }).from(groups),
-      db.select({
-        id: charges.id,
-        academyId: charges.academyId,
-        period: charges.period,
-        status: charges.status,
-        amountCents: charges.amountCents,
-      }).from(charges),
-      db.select({
-        id: eventLogs.id,
-        academyId: eventLogs.academyId,
-        createdAt: eventLogs.createdAt,
-      })
-        .from(eventLogs)
-        .where(gte(eventLogs.createdAt, sevenDaysAgo)),
-    ]);
-
-  const academiesData = academiesList;
-  const users = profilesList;
-  const plansData = plansList;
-  const subscriptionsData = subscriptionsList;
-  const invoices = invoicesList;
-  const assessments = assessmentsList;
-
-  const usersByRoleMap = new Map<string, number>();
-  for (const user of users) {
-    const role = user.role ?? "unknown";
-    usersByRoleMap.set(role, (usersByRoleMap.get(role) ?? 0) + 1);
-  }
-
-  const planStatusMap = new Map<string, number>();
-  const planDistributionMap = new Map<string, { code: string; nickname: string | null; total: number }>();
-
-  const planLookup = new Map<string, { code: string; nickname: string | null }>();
-  for (const plan of plansData) {
-    planLookup.set(plan.id, { code: plan.code ?? "custom", nickname: plan.nickname ?? null });
-  }
-
-  for (const subscription of subscriptionsData) {
-    const status = subscription.status ?? "unknown";
-    planStatusMap.set(status, (planStatusMap.get(status) ?? 0) + 1);
-
-    const planInfo = planLookup.get(subscription.planId ?? "") ?? { code: "custom", nickname: null };
-    const key = planInfo.code;
-    const entry = planDistributionMap.get(key) ?? { code: planInfo.code, nickname: planInfo.nickname, total: 0 };
-    entry.total += 1;
-    planDistributionMap.set(key, entry);
-  }
-
-  const monthlyMap = new Map<string, number>();
-  for (const academy of academiesData) {
-    const createdAt = academy.createdAt;
-    if (!createdAt) continue;
-    const date = createdAt instanceof Date ? createdAt : new Date(createdAt);
-    if (Number.isNaN(date.getTime())) continue;
-    const label = `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, "0")}`;
-    monthlyMap.set(label, (monthlyMap.get(label) ?? 0) + 1);
-  }
-
-  const monthlyAcademies = Array.from(monthlyMap.entries())
-    .map(([label, total]) => ({ label, total }))
-    .sort((a, b) => a.label.localeCompare(b.label))
-    .slice(-6);
-
-  const totalRevenue = invoices
-    .filter((invoice) => invoice.status === "paid")
-    .reduce((sum, invoice) => sum + (invoice.amountPaid ?? 0), 0);
-
-  const latestAcademyAt = academiesData.length > 0 ? toIso(academiesData[0].createdAt) : null;
-
-  // Calculate active academies (with at least 1 athlete or group)
-  const academiesWithAthletes = new Set(athletesList.map((a) => a.academyId));
-  const academiesWithGroups = new Set(groupsList.map((g) => g.academyId));
-  const activeAcademiesSet = new Set([...academiesWithAthletes, ...academiesWithGroups]);
-  const activeAcademies = activeAcademiesSet.size;
-
-  // Calculate charge metrics for current month
-  const chargesThisMonth = chargesList.filter((c) => c.period === currentMonth);
-  const chargesCreatedThisMonth = chargesThisMonth.length;
-  const chargesPaidThisMonth = chargesThisMonth
-    .filter((c) => c.status === "paid")
-    .reduce((sum, c) => sum + (c.amountCents ?? 0), 0);
-
-  // Calculate academies with recent activity (events in last 7 days)
-  const academiesWithRecentActivity = new Set(
-    eventLogsList.map((e) => e.academyId).filter((id): id is string => id !== null)
-  );
-
   const currentMonthStart = new Date(now.getFullYear(), now.getMonth(), 1);
   const previousMonthStart = new Date(now.getFullYear(), now.getMonth() - 1, 1);
-  const toValidDate = (value: Date | string | null | undefined) => {
-    if (!value) return null;
-    const date = value instanceof Date ? value : new Date(value);
-    return Number.isNaN(date.getTime()) ? null : date;
-  };
 
-  const previousRevenue = invoices
-    .filter((inv) => {
-      const createdAt = toValidDate(inv.createdAt);
-      return inv.status === "paid" && createdAt !== null && createdAt >= previousMonthStart && createdAt < currentMonthStart;
-    })
-    .reduce((sum, inv) => sum + (inv.amountPaid ?? 0), 0);
+  // Todas las cifras agregadas se calculan en la base de datos. No se usan
+  // listas limitadas para tendencias o alertas: así el panel no queda
+  // truncado cuando el SaaS supera 10.000 registros.
+  const [academyTotal, userTotal, pendingAcademyOwnerTotal, planTotal, subscriptionTotal, assessmentTotal, athleteTotal, revenueTotal, paidInvoiceTotal, chargeMonthTotal, chargeMonthPaid, recentActivityTotal, activeAcademyTotal, roleTotals, subscriptionStatusTotals, planTotals, academyMonthTotals, monthlyRevenueTotals, previousAcademyTotal, previousUserTotal, previousRevenueTotal, latestAcademy, latestUser] = await Promise.all([
+    db.select({ value: count() }).from(academies),
+    db.select({ value: count() }).from(profiles),
+    db.select({ value: count() }).from(profiles).where(sql`${profiles.role} = 'owner' AND ${profiles.activeAcademyId} IS NULL`),
+    db.select({ value: count() }).from(plans),
+    db.select({ value: count() }).from(subscriptions),
+    db.select({ value: count() }).from(athleteAssessments),
+    db.select({ value: count() }).from(athletes).where(isNull(athletes.deletedAt)),
+    db.select({ value: sum(billingInvoices.amountPaid) }).from(billingInvoices).where(sql`${billingInvoices.status} = 'paid'`),
+    db.select({ value: count() }).from(billingInvoices).where(sql`${billingInvoices.status} = 'paid'`),
+    db.select({ value: count() }).from(charges).where(eq(charges.period, currentMonth)),
+    db.select({ value: sum(charges.amountCents) }).from(charges).where(sql`${charges.period} = ${currentMonth} AND ${charges.status} = 'paid'`),
+    db.execute(sql`select count(distinct academy_id)::int as value from event_logs where created_at >= ${sevenDaysAgo} and academy_id is not null`),
+    db.execute(sql`select count(*)::int as value from (select academy_id from athletes where academy_id is not null and deleted_at is null union select academy_id from groups where academy_id is not null and deleted_at is null) active_academies`),
+    // Enum columns must be cast to text before any fallback/aggregation;
+    // PostgreSQL rejects the string literal "unknown" for profile/status enums.
+    db.execute(sql`select role::text as role, count(*)::int as total from profiles group by role`),
+    db.execute(sql`select status::text as status, count(*)::int as total from subscriptions group by status`),
+    db.execute(sql`select coalesce(p.code, 'custom') as code, p.nickname, count(*)::int as total from subscriptions s left join plans p on p.id = s.plan_id group by p.code, p.nickname`),
+    db.execute(sql`select to_char(created_at, 'YYYY-MM') as label, count(*)::int as total from academies where created_at is not null group by 1 order by 1 desc limit 6`),
+    db.execute(sql`select to_char(date_trunc('month', created_at), 'YYYY-MM') as label, coalesce(sum(amount_paid), 0)::int as total from billing_invoices where status = 'paid' and created_at is not null group by 1 order by 1 desc limit 12`),
+    db.select({ value: count() }).from(academies).where(sql`${academies.createdAt} < ${currentMonthStart}`),
+    db.select({ value: count() }).from(profiles).where(sql`${profiles.createdAt} < ${currentMonthStart}`),
+    db.select({ value: sum(billingInvoices.amountPaid) }).from(billingInvoices).where(sql`${billingInvoices.status} = 'paid' AND ${billingInvoices.createdAt} >= ${previousMonthStart} AND ${billingInvoices.createdAt} < ${currentMonthStart}`),
+    db.select({ createdAt: academies.createdAt }).from(academies).orderBy(desc(academies.createdAt)).limit(1),
+    db.select({ createdAt: profiles.createdAt }).from(profiles).orderBy(desc(profiles.createdAt)).limit(1),
+  ]);
 
-  const previousAcademies = academiesData.filter((academy) => {
-    const createdAt = toValidDate(academy.createdAt);
-    return createdAt !== null && createdAt < currentMonthStart;
-  }).length;
-
-  const previousUsers = users.filter((user) => {
-    const createdAt = toValidDate(user.createdAt);
-    return createdAt !== null && createdAt < currentMonthStart;
-  }).length;
+  const recentActivityRows = normalizeSqlRows<{ value: number }>(recentActivityTotal);
+  const activeAcademyRows = normalizeSqlRows<{ value: number }>(activeAcademyTotal);
+  const roleRows = normalizeSqlRows<{ role: string; total: number }>(roleTotals);
+  const statusRows = normalizeSqlRows<{ status: string; total: number }>(subscriptionStatusTotals);
+  const planRows = normalizeSqlRows<{ code: string; nickname: string | null; total: number }>(planTotals);
+  const monthRows = normalizeSqlRows<{ label: string; total: number }>(academyMonthTotals);
+  const revenueMonthRows = normalizeSqlRows<{ label: string; total: number }>(monthlyRevenueTotals);
+  const monthlyAcademies = monthRows
+    .map((row) => ({ label: row.label, total: Number(row.total) }))
+    .sort((a, b) => a.label.localeCompare(b.label));
+  const monthlyRevenue = revenueMonthRows
+    .map((row) => ({ label: row.label, total: Number(row.total) }))
+    .sort((a, b) => a.label.localeCompare(b.label));
+  const latestAcademyAt = toIso(latestAcademy[0]?.createdAt);
+  const latestUserAt = toIso(latestUser[0]?.createdAt);
 
   // Generate subscription alerts for risky subscriptions
   const subscriptionAlerts: Array<{ status: string; count: number; academies: string[] }> = [];
-  const pastDueSubscriptions = subscriptionsData.filter((s) => s.status === "past_due");
-  const canceledSubscriptions = subscriptionsData.filter((s) => s.status === "canceled");
-  const trialingSubscriptions = subscriptionsData.filter((s) => s.status === "trialing");
+  const statusCount = new Map(statusRows.map((row) => [row.status, Number(row.total)]));
+  const pastDueCount = statusCount.get("past_due") ?? 0;
+  const canceledCount = statusCount.get("canceled") ?? 0;
+  const trialingCount = statusCount.get("trialing") ?? 0;
 
-  if (pastDueSubscriptions.length > 0) {
+  if (pastDueCount > 0) {
     subscriptionAlerts.push({
       status: "past_due",
-      count: pastDueSubscriptions.length,
+      count: pastDueCount,
       academies: [],
     });
   }
-  if (canceledSubscriptions.length > 0) {
+  if (canceledCount > 0) {
     subscriptionAlerts.push({
       status: "canceled",
-      count: canceledSubscriptions.length,
+      count: canceledCount,
       academies: [],
     });
   }
-  if (trialingSubscriptions.length > 0) {
+  if (trialingCount > 0) {
     subscriptionAlerts.push({
       status: "trialing",
-      count: trialingSubscriptions.length,
+      count: trialingCount,
       academies: [],
     });
   }
 
   return {
     totals: {
-      academies: academiesData.length,
-      users: users.length,
-      revenue: totalRevenue,
-      paidInvoices: invoices.filter((invoice) => invoice.status === "paid").length,
-      assessments: assessments.length,
-      plans: plansData.length,
-      subscriptions: subscriptionsData.length,
+      academies: Number(academyTotal[0]?.value ?? 0),
+      users: Number(userTotal[0]?.value ?? 0),
+      revenue: Number(revenueTotal[0]?.value ?? 0),
+      paidInvoices: Number(paidInvoiceTotal[0]?.value ?? 0),
+      assessments: Number(assessmentTotal[0]?.value ?? 0),
+      plans: Number(planTotal[0]?.value ?? 0),
+      subscriptions: Number(subscriptionTotal[0]?.value ?? 0),
+      pendingAcademyOwners: Number(pendingAcademyOwnerTotal[0]?.value ?? 0),
       latestAcademyAt,
-      activeAcademies,
-      totalAthletes: athletesList.length,
-      chargesCreatedThisMonth,
-      chargesPaidThisMonth,
-      recentActivityAcademies: academiesWithRecentActivity.size,
-      previousAcademies,
-      previousUsers,
-      previousRevenue,
-      previousSubscriptions: subscriptionsData.length,
+      latestUserAt,
+      activeAcademies: Number(activeAcademyRows[0]?.value ?? 0),
+      totalAthletes: Number(athleteTotal[0]?.value ?? 0),
+      chargesCreatedThisMonth: Number(chargeMonthTotal[0]?.value ?? 0),
+      chargesPaidThisMonth: Number(chargeMonthPaid[0]?.value ?? 0),
+      recentActivityAcademies: Number(recentActivityRows[0]?.value ?? 0),
+      previousAcademies: Number(previousAcademyTotal[0]?.value ?? 0),
+      previousUsers: Number(previousUserTotal[0]?.value ?? 0),
+      previousRevenue: Number(previousRevenueTotal[0]?.value ?? 0),
       // Engagement metrics: requieren analytics de sesiones que aún no está integrado.
       // Se devuelven en 0 para NO fabricar datos; la UI oculta esta tarjeta hasta tener
       // una fuente real (ver hasEngagementAnalytics en SuperAdminDashboard).
@@ -309,10 +220,11 @@ export async function getGlobalStats(): Promise<SuperAdminMetrics> {
       avgSessionDurationMinutes: 0,
       churnRate: 0,
     },
-    usersByRole: Array.from(usersByRoleMap.entries()).map(([role, total]) => ({ role, total })),
-    planStatuses: Array.from(planStatusMap.entries()).map(([status, total]) => ({ status, total })),
-    planDistribution: Array.from(planDistributionMap.values()),
+    usersByRole: roleRows.map((row) => ({ role: row.role, total: Number(row.total) })),
+    planStatuses: statusRows.map((row) => ({ status: row.status, total: Number(row.total) })),
+    planDistribution: planRows.map((row) => ({ code: row.code, nickname: row.nickname ?? null, total: Number(row.total) })),
     monthlyAcademies,
+    monthlyRevenue,
     subscriptionAlerts,
   };
 }
@@ -333,21 +245,21 @@ export async function getAllAcademies(): Promise<SuperAdminAcademyRow[]> {
       createdAt: academies.createdAt,
       isSuspended: academies.isSuspended,
       ownerId: academies.ownerId,
-    }).from(academies),
+    }).from(academies).limit(10000),
     db.select({
       id: profiles.id,
       userId: profiles.userId,
-    }).from(profiles),
+    }).from(profiles).limit(10000),
     db.select({
       userId: subscriptions.userId,
       planId: subscriptions.planId,
       status: subscriptions.status,
-    }).from(subscriptions).where(eq(subscriptions.status, "active")),
+    }).from(subscriptions).where(eq(subscriptions.status, "active")).limit(10000),
     db.select({
       id: plans.id,
       code: plans.code,
       nickname: plans.nickname,
-    }).from(plans),
+    }).from(plans).limit(1000),
   ]);
 
   // Create lookup: profileId -> userId
@@ -402,7 +314,6 @@ export async function getAllUsers(): Promise<SuperAdminUserRow[]> {
   // Use Drizzle directly to bypass RLS and get all profiles
   const { db } = await import("@/db");
   const { profiles, memberships, subscriptions, plans } = await import("@/db/schema");
-  const { eq } = await import("drizzle-orm");
   const supabase = getClient();
 
   const [profilesList, membershipsList, subscriptionsList, plansList, authUsers] = await Promise.all([
@@ -414,21 +325,21 @@ export async function getAllUsers(): Promise<SuperAdminUserRow[]> {
       activeAcademyId: profiles.activeAcademyId,
       createdAt: profiles.createdAt,
       isSuspended: profiles.isSuspended,
-    }).from(profiles),
+    }).from(profiles).limit(10000),
     db.select({
       userId: memberships.userId,
       role: memberships.role,
-    }).from(memberships),
+    }).from(memberships).limit(10000),
     db.select({
       userId: subscriptions.userId,
       planId: subscriptions.planId,
       status: subscriptions.status,
-    }).from(subscriptions),
+    }).from(subscriptions).limit(10000),
     db.select({
       id: plans.id,
       code: plans.code,
       nickname: plans.nickname,
-    }).from(plans),
+    }).from(plans).limit(1000),
     fetchAllAuthUsers(supabase),
   ]);
 

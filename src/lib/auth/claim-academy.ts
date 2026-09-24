@@ -15,7 +15,7 @@
  * helper se llama desde un flujo per-tenant.
  */
 
-import { and, eq, sql } from "drizzle-orm";
+import { and, eq, inArray, sql } from "drizzle-orm";
 
 import { db } from "@/db";
 import { academies } from "@/db/schema";
@@ -48,7 +48,9 @@ export function normalizeClaimEmail(value: unknown): string {
 
 /**
  * Devuelve la academia "claimable" para el email dado, o `null` si no hay
- * match. Case-insensitive, ignora whitespace.
+ * match. Solo permite academias operativas (`active`/`trial`) no suspendidas;
+ * una academia churned, suspendida o en revisión de fraude nunca se puede
+ * reclamar desde el registro público. Case-insensitive, ignora whitespace.
  */
 export async function findClaimableAcademyByEmail(
   args: FindClaimableAcademyArgs
@@ -56,9 +58,12 @@ export async function findClaimableAcademyByEmail(
   const normalized = normalizeClaimEmail(args.email);
   if (!normalized) return null;
 
-  const conditions = args.tenantId
-    ? and(eq(sql`lower(${academies.contactEmail})`, normalized), eq(academies.tenantId, args.tenantId))
-    : eq(sql`lower(${academies.contactEmail})`, normalized);
+  const conditions = and(
+    eq(sql`lower(${academies.contactEmail})`, normalized),
+    inArray(academies.status, ["active", "trial"]),
+    eq(academies.isSuspended, false),
+    ...(args.tenantId ? [eq(academies.tenantId, args.tenantId)] : []),
+  );
 
   const [row] = await db
     .select({

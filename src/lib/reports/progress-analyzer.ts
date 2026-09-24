@@ -77,7 +77,8 @@ export async function analyzeAthleteProgress(
     })
     .from(athleteAssessments)
     .where(and(...whereConditions))
-    .orderBy(desc(athleteAssessments.assessmentDate));
+    .orderBy(desc(athleteAssessments.assessmentDate))
+    .limit(100);
 
   if (assessments.length === 0) {
     return null;
@@ -90,7 +91,11 @@ export async function analyzeAthleteProgress(
       name: athletes.name,
     })
     .from(athletes)
-    .where(eq(athletes.id, filters.athleteId))
+    .where(and(
+      eq(athletes.id, filters.athleteId),
+      eq(athletes.tenantId, filters.tenantId),
+      eq(athletes.academyId, filters.academyId),
+    ))
     .limit(1);
 
   if (!athlete) {
@@ -100,6 +105,14 @@ export async function analyzeAthleteProgress(
   const assessmentIds = assessments.map((a) => a.id);
 
   // Obtener todos los scores
+  const scoreConditions = [
+    eq(assessmentScores.tenantId, filters.tenantId),
+    inArray(assessmentScores.assessmentId, assessmentIds),
+  ];
+  if (filters.skillId) {
+    scoreConditions.push(eq(assessmentScores.skillId, filters.skillId));
+  }
+
   const scores = await db
     .select({
       assessmentId: assessmentScores.assessmentId,
@@ -113,11 +126,9 @@ export async function analyzeAthleteProgress(
     .innerJoin(athleteAssessments, eq(assessmentScores.assessmentId, athleteAssessments.id))
     .innerJoin(skillCatalog, eq(assessmentScores.skillId, skillCatalog.id))
     .where(
-      and(
-        eq(assessmentScores.tenantId, filters.tenantId),
-        inArray(assessmentScores.assessmentId, assessmentIds)
-      )
-    );
+      and(...scoreConditions)
+    )
+    .limit(5000);
 
   // Agrupar por habilidad
   const skillMap = new Map<

@@ -1,4 +1,4 @@
-import { and, eq, or, sql } from "drizzle-orm";
+import { and, eq, isNull, or, sql } from "drizzle-orm";
 
 import { db } from "@/db";
 import { academies, athletes, familyContacts, guardianAthletes, guardians, profiles } from "@/db/schema";
@@ -52,9 +52,11 @@ export async function getFamilyChildrenForUser({
         eq(familyContacts.tenantId, profile.tenantId),
         eq(athletes.tenantId, profile.tenantId),
         eq(academies.tenantId, profile.tenantId),
+        isNull(athletes.deletedAt),
         sql`lower(${familyContacts.email}) = ${parentEmail}`
       )
-    );
+    )
+    .limit(5000);
 
   const guardianChildren = await db
     .select({
@@ -75,12 +77,14 @@ export async function getFamilyChildrenForUser({
         eq(guardianAthletes.tenantId, profile.tenantId),
         eq(athletes.tenantId, profile.tenantId),
         eq(academies.tenantId, profile.tenantId),
+        isNull(athletes.deletedAt),
         or(
           eq(guardians.profileId, profile.id),
           sql`lower(${guardians.email}) = ${parentEmail}`
         )
       )
-    );
+    )
+    .limit(5000);
 
   const childrenById = new Map<string, FamilyChildSummary>();
   for (const child of [...legacyChildren, ...guardianChildren]) {

@@ -30,7 +30,8 @@ export async function getAthleteMetrics(args: {
   const extraGroups = await db
     .select({ groupId: groupAthletes.groupId })
     .from(groupAthletes)
-    .where(eq(groupAthletes.athleteId, args.athleteId));
+    .where(eq(groupAthletes.athleteId, args.athleteId))
+    .limit(5000);
 
   extraGroups.forEach((row) => {
     if (row.groupId) {
@@ -53,7 +54,8 @@ export async function getAthleteMetrics(args: {
             inArray(classGroups.groupId, groupIds)
           )
         )
-      );
+      )
+      .limit(5000);
 
     groupLinkedClasses.forEach((row) => classIdSet.add(row.classId));
   }
@@ -66,7 +68,8 @@ export async function getAthleteMetrics(args: {
         eq(classEnrollments.athleteId, args.athleteId),
         eq(classEnrollments.academyId, args.academyId)
       )
-    );
+    )
+    .limit(5000);
 
   enrollmentRows.forEach((row) => classIdSet.add(row.classId));
 
@@ -94,7 +97,8 @@ export async function getAthleteMetrics(args: {
         gte(classSessions.sessionDate, todayIso),
         lt(classSessions.sessionDate, thirtyDaysIso)
       )
-    );
+    )
+    .limit(10000);
 
   return {
     classesCount: classIds.length,

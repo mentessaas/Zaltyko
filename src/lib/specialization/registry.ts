@@ -332,6 +332,15 @@ export function getSpecializedEventTypes(context: AcademySpecializationContext):
 export function pluralizeFirstWord(label: string): string {
   const [firstWord, ...rest] = label.split(" ");
   if (!firstWord) return label;
+  // Mantiene las dos formas cuando el catálogo usa una etiqueta inclusiva
+  // como "Entrenador/a" -> "Entrenadores/as".
+  if (firstWord.endsWith("/a") || firstWord.endsWith("/o")) {
+    const base = firstWord.slice(0, -2);
+    const lastChar = base.at(-1)?.toLowerCase() ?? "";
+    const isVowel = "aeiouáéíóú".includes(lastChar);
+    const pluralBase = `${base}${isVowel ? "s" : "es"}`;
+    return [`${pluralBase}/${firstWord.at(-1) === "a" ? "as" : "os"}`, ...rest].join(" ");
+  }
   if (firstWord.toLowerCase().endsWith("ión")) {
     const pluralFirstWord = `${firstWord.slice(0, -3)}iones`;
     return [pluralFirstWord, ...rest].join(" ");

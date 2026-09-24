@@ -6,7 +6,7 @@ Sé empático, motivador y transparente.`;
 
 export function generateProgressUpdatePrompt(athleteData: {
   name: string;
-  age: number;
+  age?: number | null;
   recentAssessments: Array<{
     date: string;
     skill: string;
@@ -16,8 +16,13 @@ export function generateProgressUpdatePrompt(athleteData: {
   attendanceRate: number;
   classesThisMonth: number;
 }): string {
+  const ageLabel = athleteData.age ? ` (${athleteData.age} años)` : "";
+  const ageGuidance = athleteData.age
+    ? `un niño de ${athleteData.age} años`
+    : "un atleta menor sin edad disponible";
+
   return `
-Genera un update de progreso para los padres del atleta ${athleteData.name} (${athleteData.age} años).
+Genera un update de progreso para los padres del atleta ${athleteData.name}${ageLabel}.
 
 Evaluaciones recientes:
 ${athleteData.recentAssessments.map(a => `- ${a.date}: ${a.skill} - ${a.score}/10${a.notes ? ` (${a.notes})` : ''}`).join('\n')}
@@ -31,7 +36,7 @@ El update debe:
 - Destacar logros específicos
 - Mencionar áreas de mejora de forma constructiva
 - Incluir recomendaciones para los padres
-- Ser apropiado para padres de un niño de ${athleteData.age} años
+- Ser apropiado para los padres de ${ageGuidance}
 `;
 }
 

@@ -9,15 +9,17 @@ export function generateDelinquencyPrompt(athleteData: {
   paymentHistory: Array<{ date: string; amount: number; status: string }>;
   lastPaymentDate?: string;
   pendingAmount?: number;
+  currency?: string;
 }): string {
+  const currency = athleteData.currency?.toUpperCase() || "EUR";
   return `
 Analiza el siguiente historial de pagos del atleta ${athleteData.name}:
 
 Historial de pagos:
-${athleteData.paymentHistory.map(p => `- ${p.date}: $${p.amount} - ${p.status}`).join('\n')}
+${athleteData.paymentHistory.map(p => `- ${p.date}: ${p.amount.toFixed(2)} ${currency} - ${p.status}`).join('\n')}
 
 ${athleteData.lastPaymentDate ? `Último pago: ${athleteData.lastPaymentDate}` : ''}
-${athleteData.pendingAmount ? `Monto pendiente: $${athleteData.pendingAmount}` : ''}
+${athleteData.pendingAmount ? `Monto pendiente: ${athleteData.pendingAmount.toFixed(2)} ${currency}` : ''}
 
 Basándote en el historial, responde:
 1. ¿Cuál es la probabilidad de que este atleta no pague? (0-100%)
@@ -31,12 +33,14 @@ export function generateReminderPrompt(athleteData: {
   pendingAmount: number;
   dueDate: string;
   academyName: string;
+  currency?: string;
 }): string {
+  const currency = athleteData.currency?.toUpperCase() || "EUR";
   return `
 Genera un recordatorio de pago personalizado para el atleta ${athleteData.name} de la academia ${athleteData.academyName}.
 
 Detalles:
-- Monto pendiente: $${athleteData.pendingAmount}
+- Monto pendiente: ${athleteData.pendingAmount.toFixed(2)} ${currency}
 - Fecha de vencimiento: ${athleteData.dueDate}
 
 El recordatorio debe ser:

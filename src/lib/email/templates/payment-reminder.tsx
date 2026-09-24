@@ -1,12 +1,14 @@
 export function PaymentReminderTemplate({
   athleteName,
   amount,
+  currency = "EUR",
   dueDate,
   academyName,
   paymentUrl,
 }: {
   athleteName: string;
   amount: number;
+  currency?: string;
   dueDate: string;
   academyName: string;
   paymentUrl?: string;
@@ -39,7 +41,7 @@ export function PaymentReminderTemplate({
               </p>
               <div style="background-color: #fef2f2; border-left: 4px solid #dc2626; border-radius: 6px; padding: 20px; margin: 20px 0;">
                 <p style="margin: 0 0 10px 0; color: #991b1b; font-size: 14px; font-weight: 600; text-transform: uppercase;">Detalles del Pago</p>
-                <p style="margin: 5px 0; color: #111827; font-size: 18px; font-weight: 600;"><strong>Monto:</strong> ${amount.toFixed(2)} €</p>
+                <p style="margin: 5px 0; color: #111827; font-size: 18px; font-weight: 600;"><strong>Monto:</strong> ${amount.toFixed(2)} ${currency.toUpperCase()}</p>
                 <p style="margin: 5px 0; color: #111827; font-size: 16px;"><strong>Fecha de Vencimiento:</strong> ${dueDate}</p>
                 <p style="margin: 5px 0; color: #111827; font-size: 16px;"><strong>Academia:</strong> ${academyName}</p>
               </div>

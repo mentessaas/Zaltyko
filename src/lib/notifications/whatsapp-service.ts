@@ -60,6 +60,15 @@ const DEFAULT_TEMPLATES = {
     body: "👋 Hola {{parentName}}! Bienvenido/a a {{academyName}}. {{childName}} ya está matriculado/a.",
     variables: ["parentName", "childName", "academyName"],
   },
+  custom: {
+    name: "Custom Notification",
+    description: "Notificación libre",
+    channel: "whatsapp",
+    templateType: "custom",
+    subject: "",
+    body: "{{body}}",
+    variables: ["body"],
+  },
 };
 
 interface SendWhatsAppOptions {
@@ -68,6 +77,7 @@ interface SendWhatsAppOptions {
   variables: Record<string, string>;
   tenantId?: string;
   academyTwilioConfig?: { accountSid: string; authToken: string; from: string };
+  countryCode?: string | null;
 }
 
 /**
@@ -78,10 +88,10 @@ export async function sendWhatsAppWithTemplate(options: SendWhatsAppOptions): Pr
   messageId?: string;
   error?: string;
 }> {
-  const { to, templateType, variables, academyTwilioConfig } = options;
+  const { to, templateType, variables, academyTwilioConfig, countryCode, tenantId } = options;
 
   // Try to get template from DB
-  let template = await getWhatsAppTemplateByType(templateType);
+  let template = await getWhatsAppTemplateByType(templateType, tenantId);
 
   // Fall back to default template
   if (!template) {
@@ -96,13 +106,13 @@ export async function sendWhatsAppWithTemplate(options: SendWhatsAppOptions): Pr
   const body = interpolateTemplate(template.body, variables);
 
   // Send the message
-  return sendWhatsApp(to, body, academyTwilioConfig);
+  return sendWhatsApp(to, body, academyTwilioConfig ? { ...academyTwilioConfig, countryCode } : undefined);
 }
 
 /**
  * Get WhatsApp template by type from DB
  */
-export async function getWhatsAppTemplateByType(templateType: string): Promise<WhatsAppTemplateRecord | null> {
+export async function getWhatsAppTemplateByType(templateType: string, tenantId?: string): Promise<WhatsAppTemplateRecord | null> {
   const [template] = await db
     .select()
     .from(messageTemplates)
@@ -110,9 +120,11 @@ export async function getWhatsAppTemplateByType(templateType: string): Promise<W
       and(
         eq(messageTemplates.channel, "whatsapp"),
         eq(messageTemplates.templateType, templateType),
-        eq(messageTemplates.isActive, true)
+        eq(messageTemplates.isActive, true),
+        ...(tenantId ? [eq(messageTemplates.tenantId, tenantId)] : [])
       )
-    );
+    )
+    .limit(1);
   return template || null;
 }
 
@@ -130,7 +142,8 @@ export async function getWhatsAppTemplates(tenantId?: string) {
             eq(messageTemplates.tenantId, tenantId)
           )
         : eq(messageTemplates.channel, "whatsapp")
-    );
+    )
+    .limit(100);
 }
 
 /**
