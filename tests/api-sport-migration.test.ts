@@ -1,5 +1,9 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
+// La suite importa la ruta con mocks reiniciados y en paralelo puede tardar
+// más que el timeout global de 5 s; no es un límite del endpoint.
+vi.setConfig({ testTimeout: 30000 });
+
 const ACADEMY_ID = "11111111-1111-1111-1111-111111111111";
 const TENANT_ID = "22222222-2222-2222-2222-222222222222";
 const PROFILE_ID = "33333333-3333-3333-3333-333333333333";
@@ -58,7 +62,7 @@ describe("API /api/academies/[academyId]/sport-migration", () => {
     insertCalls = [];
     updateCalls = [];
 
-    vi.mock("@/lib/authz", () => ({
+    vi.doMock("@/lib/authz", () => ({
       withTenant:
         (handler: (request: Request, context: unknown) => Promise<Response>) =>
         (request: Request, contextOverride?: { params?: Record<string, string> }) =>
@@ -74,7 +78,7 @@ describe("API /api/academies/[academyId]/sport-migration", () => {
           }),
     }));
 
-    vi.mock("@/lib/sport-config/service", () => ({
+    vi.doMock("@/lib/sport-config/service", () => ({
       verifyAcademySportConfig: vi.fn().mockResolvedValue({
         id: SPORT_CONFIG_ID,
         academyId: ACADEMY_ID,
@@ -82,7 +86,7 @@ describe("API /api/academies/[academyId]/sport-migration", () => {
       }),
     }));
 
-    vi.mock("@/db", () => ({
+    vi.doMock("@/db", () => ({
       db: {
         select: vi.fn(() => {
           const result = selectQueue.shift();

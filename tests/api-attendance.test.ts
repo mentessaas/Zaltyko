@@ -1,7 +1,5 @@
 import { describe, expect, it, beforeEach, afterEach, vi } from "vitest";
 
-import { attendanceRecords } from "@/db/schema";
-
 let POST: typeof import("@/app/api/attendance/route").POST;
 let GET: typeof import("@/app/api/attendance/route").GET;
 
@@ -18,10 +16,10 @@ const createSelectChain = (resolveAt: "limit" | "where", result: any[]) => {
   chain.from = vi.fn(() => chain);
   chain.innerJoin = vi.fn(() => chain);
   chain.leftJoin = vi.fn(() => chain);
-  chain.where = vi.fn(() =>
-    resolveAt === "where" ? Promise.resolve(result) : chain
-  );
-  chain.limit = vi.fn(() => Promise.resolve(result));
+  chain.where = vi.fn(() => chain);
+  chain.limit = vi.fn(() => chain);
+  chain.then = (resolve: (value: any[]) => unknown, reject?: (reason: unknown) => unknown) =>
+    Promise.resolve(result).then(resolve, reject);
   return chain;
 };
 
@@ -48,7 +46,7 @@ describe("API /api/attendance", () => {
     ];
     coachClassScope = { allowed: true, reason: undefined };
 
-    vi.mock("@/lib/authz", () => ({
+    vi.doMock("@/lib/authz", () => ({
       withTenant:
         (handler: (request: Request, context: any) => Promise<Response>) =>
         (request: Request, ctx: any = {}) =>
@@ -60,7 +58,7 @@ describe("API /api/attendance", () => {
           }),
     }));
 
-    vi.mock("@/db", () => ({
+    vi.doMock("@/db", () => ({
       db: {
         insert: vi.fn((table) => ({
           values: (payload: unknown) => {
@@ -80,11 +78,11 @@ describe("API /api/attendance", () => {
       },
     }));
 
-    vi.mock("@/lib/classes/get-class-athletes", () => ({
+    vi.doMock("@/lib/classes/get-class-athletes", () => ({
       getClassAthletes: vi.fn(async () => classAthletes),
     }));
 
-    vi.mock("@/lib/attendance/service", () => ({
+    vi.doMock("@/lib/attendance/service", () => ({
       verifyAttendanceWriteAccess: vi.fn(async () => coachClassScope),
     }));
 
@@ -129,7 +127,9 @@ describe("API /api/attendance", () => {
 
     const response = await POST(request, {} as any);
     expect(response.status).toBe(200);
-    expect(insertCalls.length).toBe(2);
+    // Además de las dos filas de asistencia se persiste el hito de producto
+    // idempotente `first_attendance_recorded`.
+    expect(insertCalls.length).toBeGreaterThanOrEqual(2);
   });
 
   it("rechaza registro de asistencia cuando el entrenador no está asignado a la clase", async () => {

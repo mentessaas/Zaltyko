@@ -19,20 +19,13 @@ const createSelectChain = ({ resolveAt, result }: SelectChainConfig) => {
   const chain: any = {
     from: vi.fn(() => chain),
     innerJoin: vi.fn(() => chain),
+    leftJoin: vi.fn(() => chain),
+    where: vi.fn(() => chain),
+    orderBy: vi.fn(() => chain),
+    limit: vi.fn(() => chain),
+    then: (resolve: (value: any[]) => unknown, reject?: (reason: unknown) => unknown) =>
+      Promise.resolve(result).then(resolve, reject),
   };
-
-  if (resolveAt === "orderBy") {
-    chain.where = vi.fn(() => chain);
-    chain.orderBy = vi.fn(() => Promise.resolve(result));
-  } else if (resolveAt === "where") {
-    chain.where = vi.fn(() => Promise.resolve(result));
-    chain.orderBy = vi.fn();
-  } else if (resolveAt === "limit") {
-    chain.where = vi.fn(() => ({
-      limit: vi.fn(() => Promise.resolve(result)),
-    }));
-    chain.orderBy = vi.fn();
-  }
 
   return chain;
 };
@@ -48,7 +41,7 @@ describe("API /api/coaches", () => {
     insertCalls = [];
     currentParams = {};
 
-    vi.mock("@/lib/authz", () => ({
+    vi.doMock("@/lib/authz", () => ({
       withTenant:
         (handler: (request: Request, context: any) => Promise<Response>) =>
         (request: Request, contextOverride?: any) =>
@@ -64,7 +57,11 @@ describe("API /api/coaches", () => {
           }),
     }));
 
-    vi.mock("@/db", () => ({
+    vi.doMock("@/lib/authz/resource-scope", () => ({
+      authorizeAcademyCapability: vi.fn().mockResolvedValue({ allowed: true }),
+    }));
+
+    vi.doMock("@/db", () => ({
       db: {
         insert: vi.fn((table) => {
           return {
@@ -111,7 +108,7 @@ describe("API /api/coaches", () => {
   it("crea un coach y crea membresía si existe perfil", async () => {
     selectQueue.push(
       createSelectChain({
-        resolveAt: "limit",
+        resolveAt: "orderBy",
         result: [{ tenantId: "tenant-123" }],
       })
     );
@@ -157,7 +154,7 @@ describe("API /api/coaches", () => {
   it("lista coaches con clases asignadas", async () => {
     selectQueue.push(
       createSelectChain({
-        resolveAt: "orderBy",
+        resolveAt: "limit",
         result: [
           {
             id: "coach-1",
@@ -252,4 +249,3 @@ describe("API /api/coaches", () => {
     expect(response.status).toBe(200);
   });
 });
-

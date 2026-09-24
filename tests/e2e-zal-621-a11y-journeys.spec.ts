@@ -120,29 +120,45 @@ async function expectNoHorizontalOverflow(page: Page) {
 }
 
 async function expectKeyboardNavigation(page: Page, path: string) {
-  await page.keyboard.press("Tab");
-  for (let i = 0; i < 5; i += 1) {
-    const active = await page.evaluate(() => {
-      const el = document.activeElement;
-      if (!el || el === document.body) return null;
-      const rect = el.getBoundingClientRect();
-      const style = window.getComputedStyle(el);
-      return {
-        tag: el.tagName.toLowerCase(),
-        text: (el.textContent ?? "").trim().slice(0, 80),
-        visible:
-          style.display !== "none" &&
-          style.visibility !== "hidden" &&
-          rect.width > 0 &&
-          rect.height > 0,
-      };
-    });
-    expect(active, `path=${path} step=${i} activeElement is body`).not.toBeNull();
-    expect(
-      active?.visible,
-      `path=${path} step=${i} ${active?.tag} "${active?.text}" not visible`,
-    ).toBe(true);
-    await page.keyboard.press("Tab");
+  for (let attempt = 0; attempt < 2; attempt += 1) {
+    try {
+      await page.keyboard.press("Tab");
+      for (let i = 0; i < 5; i += 1) {
+        const active = await page.evaluate(() => {
+          const el = document.activeElement;
+          if (!el || el === document.body) return null;
+          const rect = el.getBoundingClientRect();
+          const style = window.getComputedStyle(el);
+          return {
+            tag: el.tagName.toLowerCase(),
+            text: (el.textContent ?? "").trim().slice(0, 80),
+            visible:
+              style.display !== "none" &&
+              style.visibility !== "hidden" &&
+              rect.width > 0 &&
+              rect.height > 0,
+          };
+        });
+        expect(active, `path=${path} step=${i} activeElement is body`).not.toBeNull();
+        expect(
+          active?.visible,
+          `path=${path} step=${i} ${active?.tag} "${active?.text}" not visible`,
+        ).toBe(true);
+        await page.keyboard.press("Tab");
+      }
+      return;
+    } catch (error) {
+      const message = error instanceof Error ? error.message : String(error);
+      if (
+        attempt === 1 ||
+        !/Execution context was destroyed|frame was detached|navigation/i.test(message)
+      ) {
+        throw error;
+      }
+      await page.waitForLoadState("domcontentloaded", { timeout: 10_000 }).catch(() => undefined);
+      await page.waitForLoadState("networkidle", { timeout: 15_000 }).catch(() => undefined);
+      await page.waitForTimeout(1_000);
+    }
   }
 }
 

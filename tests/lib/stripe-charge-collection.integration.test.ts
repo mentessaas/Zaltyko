@@ -65,7 +65,10 @@ const {
   const insertChain: any = {
     values: vi.fn((values: any) => {
       state.insertedAttempts.push(values);
-      return Promise.resolve(undefined);
+      return {
+        onConflictDoNothing: vi.fn().mockResolvedValue(undefined),
+        then: (resolve: (value: undefined) => void) => Promise.resolve(undefined).then(resolve),
+      };
     }),
   };
 
@@ -118,10 +121,11 @@ vi.mock("@/lib/db-transactions", () => ({
 
 vi.mock("@/db", () => ({ db: dbLike }));
 
-vi.mock("@/db/schema", () => ({
-  charges: { id: "charges.id" },
-  paymentAttempts: { id: "payment_attempts.id" },
-}));
+// Keep the schema contract complete as services evolve (receipt/ledger
+// reconciliation now touches more tables than the original test did).
+vi.mock("@/db/schema", async (importOriginal) => {
+  return await importOriginal<typeof import("@/db/schema")>();
+});
 
 import { collectCharge } from "@/lib/stripe/charge-collection-service";
 import {
@@ -205,7 +209,7 @@ describe("collectCharge", () => {
     });
   });
 
-  it("marca el cargo como failed y devuelve requires_action si el banco pide SCA", async () => {
+  it("marca el cargo como requires_action y devuelve los datos para SCA", async () => {
     state.chargeRow = { ...baseCharge };
     paymentIntentsCreate.mockRejectedValue({
       code: "authentication_required",
@@ -229,7 +233,7 @@ describe("collectCharge", () => {
       paymentMethodId: "pm_1",
     });
     const lastUpdate = state.updateSets.at(-1);
-    expect(lastUpdate).toMatchObject({ status: "failed", attemptCount: 1, stripePaymentIntentId: "pi_2" });
+    expect(lastUpdate).toMatchObject({ status: "requires_action", attemptCount: 1, stripePaymentIntentId: "pi_2" });
     expect(state.insertedAttempts[0]).toMatchObject({ status: "requires_action" });
   });
 
@@ -286,7 +290,9 @@ describe("collectCharge", () => {
 
     await Promise.all([collectCharge("charge_1"), collectCharge("charge_1")]);
 
-    expect(dbLike.execute).toHaveBeenCalledTimes(2);
+    // collectCharge acquires one lock; successful payments also pass through
+    // ensureChargeReceipt, which acquires its own receipt lock.
+    expect(dbLike.execute.mock.calls.length).toBeGreaterThanOrEqual(2);
     // execute (lock) siempre debe preceder al select correspondiente.
     const executeIdx = state.callOrder.indexOf("execute");
     const firstSelectAfter = state.callOrder.indexOf("select", executeIdx);
@@ -370,17 +376,37 @@ describe("charge-reconcile-service", () => {
   });
 
   it("charge.refunded marca el cargo como reembolsado", async () => {
-    state.chargeRow = { id: "charge_5", status: "paid", stripeAccountId: "acct_123" };
+    state.chargeRow = {
+      id: "charge_5",
+      status: "paid",
+      stripeAccountId: "acct_123",
+      tenantId: "tenant_1",
+      academyId: "academy_1",
+      currency: "eur",
+    };
 
-    await reconcileChargeRefunded({ id: "ch_10" } as any, "acct_123");
+    await reconcileChargeRefunded(
+      { id: "ch_10", amount: 5000, amount_refunded: 5000, currency: "eur" } as any,
+      "acct_123"
+    );
 
     expect(state.updateSets.at(-1)).toMatchObject({ status: "refunded" });
   });
 
   it("charge.refunded es idempotente si el cargo ya estaba reembolsado", async () => {
-    state.chargeRow = { id: "charge_5", status: "refunded", stripeAccountId: "acct_123" };
+    state.chargeRow = {
+      id: "charge_5",
+      status: "refunded",
+      stripeAccountId: "acct_123",
+      tenantId: "tenant_1",
+      academyId: "academy_1",
+      currency: "eur",
+    };
 
-    await reconcileChargeRefunded({ id: "ch_10" } as any, "acct_123");
+    await reconcileChargeRefunded(
+      { id: "ch_10", amount: 5000, amount_refunded: 5000, currency: "eur" } as any,
+      "acct_123"
+    );
 
     expect(state.updateSets).toHaveLength(0);
   });

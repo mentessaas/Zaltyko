@@ -12,6 +12,7 @@ const mocks = vi.hoisted(() => ({
   createNotification: vi.fn(),
   sendPush: vi.fn(),
   sendEmail: vi.fn(),
+  sendEmailWithLogging: vi.fn(),
 }));
 
 vi.mock("@/lib/communication-service", () => ({
@@ -37,6 +38,9 @@ vi.mock("@/lib/notifications/notification-service", () => ({
   createNotification: mocks.createNotification,
 }));
 vi.mock("@/lib/brevo", () => ({ sendEmail: mocks.sendEmail }));
+vi.mock("@/lib/email/email-service", () => ({
+  sendEmailWithLogging: mocks.sendEmailWithLogging,
+}));
 vi.mock("@/db", () => ({
   db: {
     select: () => ({
@@ -73,6 +77,7 @@ describe("scheduled notifications cron route", () => {
     mocks.getTemplate.mockResolvedValue(template);
     mocks.adminProfiles.mockResolvedValue([]);
     mocks.sendPush.mockResolvedValue({ sent: 1, failed: 0 });
+    mocks.sendEmailWithLogging.mockResolvedValue(true);
   });
 
   it.each([
@@ -124,7 +129,7 @@ describe("scheduled notifications cron route", () => {
 
     await GET(new Request("https://zaltyko.com/api/cron/scheduled-notifications"));
 
-    expect(mocks.sendEmail).toHaveBeenCalledWith(
+    expect(mocks.sendEmailWithLogging).toHaveBeenCalledWith(
       expect.objectContaining({
         html: "<p>Hola &lt;img src=x onerror=&quot;alert(1)&quot;&gt;</p>",
       })

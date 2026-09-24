@@ -143,6 +143,10 @@ describe("API /api/academies/[academyId]/settings sport config", () => {
       ]),
     }));
 
+    vi.doMock("@/lib/seo/revalidate-academy", () => ({
+      revalidatePublicAcademySeo: vi.fn(),
+    }));
+
     vi.doMock("@/lib/logger", () => ({
       logger: {
         debug: vi.fn(),

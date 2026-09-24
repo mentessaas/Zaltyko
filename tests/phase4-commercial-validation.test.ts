@@ -188,7 +188,7 @@ describe("Phase 4 commercial validation contracts", () => {
     expect(PRODUCT_PLAN_BY_CODE.pro.athleteLimit).toBe(75);
     expect(PRODUCT_PLAN_BY_CODE.pro.groupLimit).toBe(5);
     expect(PRODUCT_PLAN_BY_CODE.pro.classLimit).toBe(20);
-    expect(PRODUCT_PLAN_BY_CODE.pro.cta).toBe("Solicitar demo");
+    expect(PRODUCT_PLAN_BY_CODE.pro.cta).toBe("Crear cuenta y configurar");
     expect(PRODUCT_PLAN_BY_CODE.premium.priceEurCents).toBe(4_900);
     expect(PRODUCT_PLAN_BY_CODE.premium.athleteLimit).toBe(200);
     expect(PRODUCT_PLAN_BY_CODE.premium.groupLimit).toBe(10);

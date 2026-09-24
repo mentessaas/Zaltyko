@@ -1,6 +1,6 @@
 import { expect, test, type Frame, type Page } from "@playwright/test";
 
-import { unwrapData } from "./e2e-zaltyko-stripe-connect-flow.spec";
+import { unwrapData } from "./e2e-test-helpers";
 
 /**
  * E2E SCA/3DS live — recuperación del reto con tarjeta `4000 0027 6000 3184`.

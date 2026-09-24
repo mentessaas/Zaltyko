@@ -22,13 +22,13 @@ describe("academy permission policy", () => {
         "athletes:update",
         "classes:read",
         "classes:schedule",
-        "reports:read",
         "events:read",
         "communications:read",
         "communications:send",
       ])
     );
     expect(permissions).not.toContain("athletes:delete");
+    expect(permissions).not.toContain("reports:read");
     expect(permissions).not.toContain("billing:read");
     expect(permissions).not.toContain("settings:users");
   });

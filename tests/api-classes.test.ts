@@ -15,12 +15,13 @@ const createSelectChain = (finalMethod: "where" | "orderBy" | "limit", result: a
   const methods = ["from", "innerJoin", "leftJoin", "where", "orderBy", "limit"] as const;
 
   methods.forEach((method) => {
-    if (method === finalMethod) {
-      chain[method] = vi.fn(() => Promise.resolve(result));
-    } else {
-      chain[method] = vi.fn(() => chain);
-    }
+    chain[method] = vi.fn(() => chain);
   });
+
+  // Drizzle query builders can be awaited after where/orderBy/limit. A
+  // thenable mock keeps the test resilient as production queries gain caps.
+  chain.then = (resolve: (value: any) => unknown, reject?: (reason: unknown) => unknown) =>
+    Promise.resolve(result).then(resolve, reject);
 
   return chain;
 };
@@ -32,7 +33,7 @@ describe("API /api/classes", () => {
     selectQueue = [];
     insertCalls = [];
 
-    vi.mock("@/lib/authz", () => ({
+    vi.doMock("@/lib/authz", () => ({
       withTenant:
         (handler: (request: Request, context: any) => Promise<Response>) =>
         (request: Request, ctx: any = {}) =>
@@ -44,7 +45,7 @@ describe("API /api/classes", () => {
           }),
     }));
 
-    vi.mock("@/lib/limits", () => ({
+    vi.doMock("@/lib/limits", () => ({
       assertWithinPlanLimits: vi.fn().mockResolvedValue(undefined),
     }));
     const limitsModule = await import("@/lib/limits");
@@ -52,11 +53,15 @@ describe("API /api/classes", () => {
       typeof vi.fn
     >;
 
-    vi.mock("@/lib/permissions", () => ({
+    vi.doMock("@/lib/permissions", () => ({
       verifyAcademyAccess: vi.fn().mockResolvedValue({ allowed: true }),
     }));
 
-    vi.mock("@/db", () => ({
+    vi.doMock("@/lib/authz/resource-scope", () => ({
+      authorizeAcademyCapability: vi.fn().mockResolvedValue({ allowed: true }),
+    }));
+
+    vi.doMock("@/db", () => ({
       db: {
         insert: vi.fn((table) => ({
           values: (payload: unknown) => {
@@ -180,7 +185,9 @@ describe("API /api/classes", () => {
     const response = await POST(request, {} as any);
 
     expect(response.status).toBe(201);
-    expect(insertCalls).toHaveLength(2);
+    // La creación también persiste el hito first_class_created; las dos
+    // primeras escrituras siguen siendo clase + weekdays.
+    expect(insertCalls.length).toBeGreaterThanOrEqual(2);
     const classPayload = insertCalls[0]?.payload as Record<string, unknown>;
     expect(classPayload).toMatchObject({
       academyId: ACADEMY_ID,

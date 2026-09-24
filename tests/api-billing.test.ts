@@ -64,20 +64,19 @@ describe("API /api/billing/plans", () => {
 
     it("debe requerir autenticación", async () => {
         // Mock que lanza error para simular falta de autenticación
-        vi.mock("@/lib/authz", () => ({
+        vi.doMock("@/lib/authz", () => ({
             withTenant: vi.fn(() => {
                 throw { status: 401, message: "Unauthorized" };
             }),
         }));
 
-        vi.mock("@/db", () => ({
+        vi.doMock("@/db", () => ({
             db: mockDb,
         }));
 
-        const { GET } = await import("@/app/api/billing/plans/route");
-        const request = new NextRequest("http://localhost/api/billing/plans");
-
         try {
+            const { GET } = await import("@/app/api/billing/plans/route");
+            const request = new NextRequest("http://localhost/api/billing/plans");
             await GET(request, {});
         } catch (error: any) {
             expect(error.status).toBe(401);
@@ -85,11 +84,11 @@ describe("API /api/billing/plans", () => {
     });
 
     it("debe retornar lista de planes disponibles", async () => {
-        vi.mock("@/lib/authz", () => ({
+        vi.doMock("@/lib/authz", () => ({
             withTenant: (handler: any) => handler,
         }));
 
-        vi.mock("@/db", () => ({
+        vi.doMock("@/db", () => ({
             db: {
                 select: vi.fn(() => ({
                     from: vi.fn(() => ({
@@ -113,11 +112,11 @@ describe("API /api/billing/plans", () => {
     });
 
     it("debe filtrar planes archivados", async () => {
-        vi.mock("@/lib/authz", () => ({
+        vi.doMock("@/lib/authz", () => ({
             withTenant: (handler: any) => handler,
         }));
 
-        vi.mock("@/db", () => ({
+        vi.doMock("@/db", () => ({
             db: {
                 select: vi.fn(() => ({
                     from: vi.fn(() => ({

@@ -6,13 +6,13 @@ const mocks = vi.hoisted(() => ({
 }));
 
 function createChargeQuery() {
+  const whereQuery = {
+    limit: vi.fn(() => Promise.resolve(mocks.chargeRows)),
+  };
   return {
     from: vi.fn(() => ({
-      where: vi.fn(() => {
-        return {
-          limit: vi.fn(() => Promise.resolve(mocks.chargeRows)),
-        };
-      }),
+      innerJoin: vi.fn(() => ({ where: vi.fn(() => whereQuery) })),
+      where: vi.fn(() => whereQuery),
     })),
   };
 }

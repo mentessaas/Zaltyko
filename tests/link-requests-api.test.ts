@@ -48,6 +48,10 @@ vi.mock("@/lib/brevo", () => ({
   sendEmail: sendEmailMock,
 }));
 
+vi.mock("@/lib/email/email-service", () => ({
+  sendEmailWithLogging: sendEmailMock,
+}));
+
 import { POST } from "@/app/api/link-requests/route";
 import { PATCH } from "@/app/api/link-requests/[requestId]/route";
 

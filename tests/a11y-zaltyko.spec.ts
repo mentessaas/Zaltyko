@@ -52,6 +52,14 @@ test.describe("Zaltyko public accessibility audit", () => {
   test("public login page has no WCAG A/AA violations", async ({ page }) => {
     await scanPage(page, "/auth/login");
   });
+
+  test("public changelog has no WCAG A/AA violations", async ({ page }) => {
+    await scanPage(page, "/changelog");
+  });
+
+  test("public status has no WCAG A/AA violations", async ({ page }) => {
+    await scanPage(page, "/status");
+  });
 });
 
 test.describe("Zaltyko authenticated accessibility audit", () => {

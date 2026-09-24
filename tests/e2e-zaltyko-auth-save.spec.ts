@@ -17,6 +17,14 @@ const authStates = [
       process.env.E2E_STORAGE_STATE ??
       ".auth/user.json",
   },
+  process.env.E2E_ADMIN_EMAIL && process.env.E2E_ADMIN_PASSWORD
+    ? {
+        label: "admin",
+        email: process.env.E2E_ADMIN_EMAIL,
+        password: process.env.E2E_ADMIN_PASSWORD,
+        path: process.env.E2E_ADMIN_STORAGE_STATE ?? ".auth/admin.json",
+      }
+    : null,
   process.env.E2E_COACH_EMAIL && process.env.E2E_COACH_PASSWORD
     ? {
         label: "coach",
@@ -45,6 +53,14 @@ const authStates = [
         email: process.env.E2E_FAMILY_EMAIL,
         password: process.env.E2E_FAMILY_PASSWORD,
         path: process.env.E2E_FAMILY_STORAGE_STATE ?? ".auth/family.json",
+      }
+    : null,
+  process.env.E2E_ATHLETE_EMAIL && process.env.E2E_ATHLETE_PASSWORD
+    ? {
+        label: "athlete",
+        email: process.env.E2E_ATHLETE_EMAIL,
+        password: process.env.E2E_ATHLETE_PASSWORD,
+        path: process.env.E2E_ATHLETE_STORAGE_STATE ?? ".auth/athlete.json",
       }
     : null,
 ].filter((authState): authState is NonNullable<typeof authState> =>

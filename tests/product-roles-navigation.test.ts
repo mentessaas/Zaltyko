@@ -77,6 +77,7 @@ describe("product roles and navigation", () => {
     expect(ownerNav).toContain("/app/academy-1/billing");
     expect(ownerNav).toContain("/app/academy-1/settings");
     expect(coachMobileNav).not.toContain("reports");
+    expect(coachNav.map((item) => item.key)).not.toContain("reports");
     expect(coachMobileNav).not.toContain("billing");
     expect(coachNav.find((item) => item.key === "dashboard")?.href).toBe("/app/academy-1/coach");
   });
@@ -88,7 +89,7 @@ describe("product roles and navigation", () => {
       membershipRole: "viewer",
     }).map((item) => item.key);
 
-    expect(parentNav).toEqual(["my-dashboard", "messages", "notifications"]);
+    expect(parentNav).toEqual(["my-dashboard", "my-events", "messages", "notifications"]);
   });
 
   it("does not derive academy privileges from the global profile role", () => {

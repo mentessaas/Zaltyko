@@ -27,14 +27,14 @@ interface EmailLogRow {
   attemptCount: number;
 }
 
-const { recipients, sendEmailMock, dbState } = vi.hoisted(() => {
+const { recipients, sendEmailMock, dbState, academyEligibilityMock } = vi.hoisted(() => {
   const recipients: Array<{ email: string | null }> = [];
   const dbState = {
     rows: new Map<string, EmailLogRow>(),
     insertCalls: [] as Array<{ key: string; toEmail: string }>,
     updateCalls: [] as Array<{ key: string; set: Record<string, unknown> }>,
   };
-  return { recipients, sendEmailMock: vi.fn(), dbState };
+  return { recipients, sendEmailMock: vi.fn(), dbState, academyEligibilityMock: vi.fn() };
 });
 
 // Marcamos las tablas y columnas que la produccion referencia para que
@@ -230,6 +230,10 @@ vi.mock("@/config", () => ({
   config: { brevo: { supportEmail: "soporte@example.test" } },
 }));
 
+vi.mock("@/lib/academy-status", () => ({
+  isAcademyBlockedFromSending: academyEligibilityMock,
+}));
+
 import { sendChargePaymentFailedNotification } from "@/lib/stripe/notification-service";
 
 const baseNotification = {
@@ -255,9 +259,30 @@ beforeEach(() => {
   clearDbState();
   sendEmailMock.mockReset();
   sendEmailMock.mockResolvedValue({ messageId: "message_1", simulated: false });
+  academyEligibilityMock.mockReset();
+  academyEligibilityMock.mockResolvedValue({
+    blocked: false,
+    reason: null,
+    status: "active",
+    isFraudHold: false,
+  });
 });
 
 describe("sendChargePaymentFailedNotification — entrega idempotente por destinatario", () => {
+  it("no envía si la academia está bloqueada semánticamente", async () => {
+    academyEligibilityMock.mockResolvedValue({
+      blocked: true,
+      reason: "fraud_hold",
+      status: "fraud_hold",
+      isFraudHold: true,
+    });
+    recipients.push({ email: "tutor@example.test" });
+
+    await expect(sendChargePaymentFailedNotification(baseNotification)).resolves.toBe(false);
+    expect(sendEmailMock).not.toHaveBeenCalled();
+    expect(dbState.rows.size).toBe(0);
+  });
+
   it("envia una sola vez por tutor y escapa contenido controlado por Stripe", async () => {
     recipients.push(
       { email: "tutor@example.test" },

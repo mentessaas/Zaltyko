@@ -9,7 +9,7 @@ const validEmail = {
 
 afterEach(() => {
   vi.resetModules();
-  vi.unmock("@/lib/env");
+  vi.doUnmock("@/lib/env");
   delete process.env.BREVO_API_KEY;
 });
 

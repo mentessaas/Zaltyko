@@ -55,6 +55,10 @@ describe("API /api/charges sport config filtering", () => {
       verifyAcademyAccess: vi.fn().mockResolvedValue({ allowed: true }),
     }));
 
+    vi.doMock("@/lib/authz/resource-scope", () => ({
+      authorizeAcademyCapability: vi.fn().mockResolvedValue({ allowed: true }),
+    }));
+
     vi.doMock("@/lib/event-logging", () => ({
       logEvent: vi.fn().mockResolvedValue(undefined),
     }));

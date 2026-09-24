@@ -16,6 +16,16 @@ describe("owner claim API P0 contract", () => {
     expect(source).toMatch(/403/);
   });
 
+  it("solo permite reclamar academias operativas y no suspendidas", () => {
+    expect(source).toContain('inArray(academies.status, ["active", "trial"])');
+    expect(source).toContain("eq(academies.isSuspended, false)");
+  });
+
+  it("no usa una membership de otro tenant como redirect implícito", () => {
+    expect(source).toContain("eq(academies.tenantId, academy.tenantId)");
+    expect(source).toContain("innerJoin(academies, eq(academies.id, memberships.academyId))");
+  });
+
   it("serializa el claim y evita duplicar membership", () => {
     expect(source).toMatch(/advisory|transaction|withTransaction/i);
     expect(source).toMatch(/onConflictDoNothing/);

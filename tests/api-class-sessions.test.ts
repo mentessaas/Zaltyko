@@ -13,22 +13,15 @@ type SelectChainConfig =
   | { resolveAt: "orderBy"; result: any[] };
 
 const createSelectChain = ({ resolveAt, result }: SelectChainConfig) => {
-  if (resolveAt === "limit") {
-    return {
-      from: vi.fn(() => ({
-        where: vi.fn(() => ({
-          limit: vi.fn(() => Promise.resolve(result)),
-        })),
-      })),
-    };
-  }
-
   const chain: any = {
     from: vi.fn(() => chain),
     innerJoin: vi.fn(() => chain),
     leftJoin: vi.fn(() => chain),
     where: vi.fn(() => chain),
-    orderBy: vi.fn(() => Promise.resolve(result)),
+    orderBy: vi.fn(() => chain),
+    limit: vi.fn(() => chain),
+    then: (resolve: (value: any[]) => unknown, reject?: (reason: unknown) => unknown) =>
+      Promise.resolve(result).then(resolve, reject),
   };
   return chain;
 };
@@ -43,7 +36,7 @@ describe("API /api/class-sessions", () => {
     selectQueue = [];
     insertCalls = [];
 
-    vi.mock("@/lib/authz", () => ({
+    vi.doMock("@/lib/authz", () => ({
       withTenant:
         (handler: (request: Request, context: any) => Promise<Response>) =>
         (request: Request, ctx: any = {}) =>
@@ -55,13 +48,15 @@ describe("API /api/class-sessions", () => {
           }),
     }));
 
-    vi.mock("@/db", () => ({
+    vi.doMock("@/db", () => ({
       db: {
         insert: vi.fn((table) => ({
           values: (payload: unknown) => {
             insertCalls.push({ table, payload });
             return {
-              onConflictDoNothing: vi.fn().mockResolvedValue(undefined),
+              onConflictDoNothing: vi.fn(() => ({
+                returning: vi.fn().mockResolvedValue([{ id: "session-1" }]),
+              })),
             };
           },
         })),
@@ -80,7 +75,7 @@ describe("API /api/class-sessions", () => {
       },
     }));
 
-    vi.mock("@/lib/authz/resource-scope", () => ({
+    vi.doMock("@/lib/authz/resource-scope", () => ({
       authorizeClassResource: vi.fn().mockResolvedValue({ allowed: true }),
     }));
 
@@ -100,8 +95,14 @@ describe("API /api/class-sessions", () => {
   it("crea una sesión de clase", async () => {
     selectQueue.push(
       createSelectChain({
-        resolveAt: "limit",
+        resolveAt: "orderBy",
         result: [{ id: "22222222-2222-2222-2222-222222222222" }],
+      })
+    );
+    selectQueue.push(
+      createSelectChain({
+        resolveAt: "limit",
+        result: [{ id: "33333333-3333-3333-3333-333333333333" }],
       })
     );
 
@@ -134,7 +135,7 @@ describe("API /api/class-sessions", () => {
   it("lista sesiones en rango semanal", async () => {
     selectQueue.push(
       createSelectChain({
-        resolveAt: "orderBy",
+        resolveAt: "limit",
         result: [
           {
             id: "session-1",

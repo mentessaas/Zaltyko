@@ -5,6 +5,7 @@ import {
   getSpecializedEventTypes,
   getSpecializedEvaluationTemplate,
   getSpecializedLabels,
+  pluralizeFirstWord,
   normalizeCountryCode,
   resolveAcademySpecialization,
 } from "@/lib/specialization/registry";
@@ -17,8 +18,28 @@ import {
   getGroupTechnicalGuidance,
   getSpecializedClassNameSuggestions,
 } from "@/lib/specialization/technical-guidance";
+import { getStarterGroupPresets } from "@/lib/specialization/operational-presets";
 
 describe("academy specialization", () => {
+  it("pluralizes compound labels without corrupting the head noun", () => {
+    expect(pluralizeFirstWord("Grupo de entrenamiento")).toBe("Grupos de entrenamiento");
+    expect(pluralizeFirstWord("Entrenamiento")).toBe("Entrenamientos");
+    expect(pluralizeFirstWord("Entrenador/a")).toBe("Entrenadores/as");
+  });
+
+  it("keeps generated preset descriptions grammatical for compound labels", () => {
+    const specialization = resolveAcademySpecialization({
+      countryCode: "ES",
+      academyType: "general",
+      disciplineVariant: "general",
+      specializationStatus: "generic_fallback",
+    });
+
+    const preset = getStarterGroupPresets(specialization)[0];
+    expect(preset.description).toContain("grupos de");
+    expect(preset.description).not.toContain("grupo de entrenamientoss");
+  });
+
   it("resolves Spain artistic female specialization from configured academy data", () => {
     const specialization = resolveAcademySpecialization({
       countryCode: "ES",
