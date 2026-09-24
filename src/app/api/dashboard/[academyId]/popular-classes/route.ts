@@ -1,8 +1,9 @@
-import { and, count, eq, inArray } from "drizzle-orm";
+import { and, count, eq, inArray, isNull } from "drizzle-orm";
 
 import { db } from "@/db";
 import {
   attendanceRecords,
+  athletes,
   classGroups,
   classSessions,
   classes as classesTable,
@@ -44,15 +45,31 @@ export const GET = withTenant(async (_request, context) => {
         groupLevel: groups.level,
       })
       .from(classesTable)
-      .leftJoin(groups, eq(classesTable.groupId, groups.id))
-      .where(and(eq(classesTable.academyId, academyId), eq(classesTable.tenantId, context.tenantId)));
+      .leftJoin(
+        groups,
+        and(
+          eq(classesTable.groupId, groups.id),
+          eq(groups.tenantId, context.tenantId),
+          eq(groups.academyId, academyId),
+          isNull(groups.deletedAt),
+        ),
+      )
+      .where(
+        and(
+          eq(classesTable.academyId, academyId),
+          eq(classesTable.tenantId, context.tenantId),
+          isNull(classesTable.deletedAt),
+        ),
+      )
+      .limit(500);
 
     const classesWithCounts = await Promise.all(
       classesData.map(async (cls) => {
         const classGroupRows = await db
           .select({ groupId: classGroups.groupId })
           .from(classGroups)
-          .where(and(eq(classGroups.classId, cls.id), eq(classGroups.tenantId, context.tenantId)));
+          .where(and(eq(classGroups.classId, cls.id), eq(classGroups.tenantId, context.tenantId)))
+          .limit(100);
 
         const groupIds = classGroupRows.length > 0
           ? classGroupRows.map((group) => group.groupId)
@@ -65,6 +82,15 @@ export const GET = withTenant(async (_request, context) => {
           const [athleteCounts] = await db
             .select({ count: count() })
             .from(groupAthletes)
+            .innerJoin(
+              athletes,
+              and(
+                eq(groupAthletes.athleteId, athletes.id),
+                eq(athletes.tenantId, context.tenantId),
+                eq(athletes.academyId, academyId),
+                isNull(athletes.deletedAt),
+              ),
+            )
             .where(and(eq(groupAthletes.tenantId, context.tenantId), inArray(groupAthletes.groupId, groupIds)));
           totalEnrollments = Number(athleteCounts?.count ?? 0);
         }
@@ -73,12 +99,30 @@ export const GET = withTenant(async (_request, context) => {
           .select({ count: count() })
           .from(attendanceRecords)
           .innerJoin(classSessions, eq(attendanceRecords.sessionId, classSessions.id))
+          .innerJoin(
+            athletes,
+            and(
+              eq(attendanceRecords.athleteId, athletes.id),
+              eq(athletes.tenantId, context.tenantId),
+              eq(athletes.academyId, academyId),
+              isNull(athletes.deletedAt),
+            ),
+          )
           .where(and(eq(classSessions.classId, cls.id), eq(attendanceRecords.tenantId, context.tenantId)));
 
         const [attendancePresent] = await db
           .select({ count: count() })
           .from(attendanceRecords)
           .innerJoin(classSessions, eq(attendanceRecords.sessionId, classSessions.id))
+          .innerJoin(
+            athletes,
+            and(
+              eq(attendanceRecords.athleteId, athletes.id),
+              eq(athletes.tenantId, context.tenantId),
+              eq(athletes.academyId, academyId),
+              isNull(athletes.deletedAt),
+            ),
+          )
           .where(
             and(
               eq(classSessions.classId, cls.id),

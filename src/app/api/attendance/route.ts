@@ -9,6 +9,8 @@ import { withTransaction } from "@/lib/db-transactions";
 import { apiSuccess, apiError } from "@/lib/api-response";
 import { getClassAthletes } from "@/lib/classes/get-class-athletes";
 import { verifyAttendanceWriteAccess } from "@/lib/attendance/service";
+import { markAcademyActivationIfReady } from "@/lib/onboarding";
+import { trackEvent } from "@/lib/analytics";
 
 const entrySchema = z.object({
   athleteId: z.string().uuid(),
@@ -18,7 +20,15 @@ const entrySchema = z.object({
 
 const upsertBodySchema = z.object({
   sessionId: z.string().uuid(),
-  entries: z.array(entrySchema).min(1),
+  entries: z.array(entrySchema).min(1).max(500).superRefine((entries, ctx) => {
+    const seen = new Set<string>();
+    entries.forEach((entry, index) => {
+      if (seen.has(entry.athleteId)) {
+        ctx.addIssue({ code: z.ZodIssueCode.custom, path: [index, "athleteId"], message: "Atleta repetido en la misma solicitud" });
+      }
+      seen.add(entry.athleteId);
+    });
+  }),
 });
 
 export const POST = withTenant(async (request, context) => {
@@ -117,6 +127,16 @@ export const POST = withTenant(async (request, context) => {
       }
     });
 
+    // La primera asistencia es el momento en que la academia obtiene valor
+    // operativo real. La clave por academia hace el hito idempotente aunque
+    // se guarde la lista varias veces.
+    await trackEvent("first_attendance_recorded", {
+      academyId: sessionRow.academyId,
+      tenantId: context.tenantId,
+      idempotencyKey: `first_attendance_recorded:v1:${sessionRow.academyId}`,
+    });
+    await markAcademyActivationIfReady(sessionRow.academyId, context.tenantId);
+
     return apiSuccess({ ok: true });
   } catch (error) {
     return handleApiError(error);
@@ -210,7 +230,8 @@ export const GET = withTenant(async (request, context) => {
       .from(attendanceRecords)
       .innerJoin(classSessions, eq(classSessions.id, attendanceRecords.sessionId))
       .innerJoin(classes, eq(classSessions.classId, classes.id))
-      .where(and(...whereConditions));
+      .where(and(...whereConditions))
+      .limit(10000);
 
     return apiSuccess({ items: rows });
   } catch (error) {

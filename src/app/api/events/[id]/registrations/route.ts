@@ -51,7 +51,8 @@ export const GET = withTenant(async (request, context) => {
       })
       .from(eventRegistrations)
       .leftJoin(profiles, eq(eventRegistrations.profileId, profiles.id))
-      .where(eq(eventRegistrations.eventId, eventId));
+      .where(and(eq(eventRegistrations.eventId, eventId), eq(eventRegistrations.tenantId, context.tenantId)))
+      .limit(5000);
 
     const confirmedCount = registrations.filter((r) => r.status === "confirmed").length;
 
@@ -110,12 +111,22 @@ export const POST = withTenant(async (request, context) => {
       .from(eventRegistrations)
       .where(and(
         eq(eventRegistrations.eventId, eventId),
-        eq(eventRegistrations.profileId, body.profileId)
+        eq(eventRegistrations.profileId, body.profileId),
+        eq(eventRegistrations.tenantId, context.tenantId),
       ))
       .limit(1);
 
     if (existing) {
       return apiError("ALREADY_REGISTERED", "Already registered", 409);
+    }
+
+    const [profile] = await db
+      .select({ id: profiles.id })
+      .from(profiles)
+      .where(and(eq(profiles.id, body.profileId), eq(profiles.tenantId, context.tenantId)))
+      .limit(1);
+    if (!profile) {
+      return apiError("PROFILE_NOT_FOUND", "El participante no pertenece a tu organización", 404);
     }
 
     // Check capacity
@@ -125,7 +136,8 @@ export const POST = withTenant(async (request, context) => {
         .from(eventRegistrations)
         .where(and(
           eq(eventRegistrations.eventId, eventId),
-          eq(eventRegistrations.status, "confirmed")
+          eq(eventRegistrations.status, "confirmed"),
+          eq(eventRegistrations.tenantId, context.tenantId),
         ));
 
       if (Number(total) >= eventRow.maxCapacity) {
@@ -201,7 +213,8 @@ export const PATCH = withTenant(async (request, context) => {
       .from(eventRegistrations)
       .where(and(
         eq(eventRegistrations.id, registrationId),
-        eq(eventRegistrations.eventId, eventId)
+        eq(eventRegistrations.eventId, eventId),
+        eq(eventRegistrations.tenantId, context.tenantId),
       ))
       .limit(1);
 

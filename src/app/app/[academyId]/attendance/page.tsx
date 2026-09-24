@@ -1,5 +1,5 @@
 import Link from "next/link";
-import { desc, eq, inArray, count, asc } from "drizzle-orm";
+import { and, desc, eq, inArray, count, asc, isNull } from "drizzle-orm";
 import { ClipboardCheck } from "lucide-react";
 
 import { db } from "@/db";
@@ -36,6 +36,7 @@ export default async function AttendanceOverviewPage({ params }: PageProps) {
       id: academies.id,
       name: academies.name,
       country: academies.country,
+      tenantId: academies.tenantId,
     })
     .from(academies)
     .where(eq(academies.id, academyId))
@@ -63,8 +64,22 @@ export default async function AttendanceOverviewPage({ params }: PageProps) {
     })
     .from(classSessions)
     .innerJoin(classes, eq(classSessions.classId, classes.id))
-    .leftJoin(coaches, eq(classSessions.coachId, coaches.id))
-    .where(eq(classes.academyId, academyId))
+    .leftJoin(
+      coaches,
+      and(
+        eq(classSessions.coachId, coaches.id),
+        eq(coaches.tenantId, academy.tenantId),
+        eq(coaches.academyId, academyId)
+      )
+    )
+    .where(
+      and(
+        eq(classes.academyId, academyId),
+        eq(classes.tenantId, academy.tenantId),
+        eq(classSessions.tenantId, academy.tenantId),
+        isNull(classes.deletedAt)
+      )
+    )
     .orderBy(desc(classSessions.sessionDate), desc(classSessions.startTime))
     .limit(25);
 
@@ -80,7 +95,12 @@ export default async function AttendanceOverviewPage({ params }: PageProps) {
             total: count(attendanceRecords.id),
           })
           .from(attendanceRecords)
-          .where(inArray(attendanceRecords.sessionId, sessionIds))
+          .where(
+            and(
+              inArray(attendanceRecords.sessionId, sessionIds),
+              eq(attendanceRecords.tenantId, academy.tenantId)
+            )
+          )
           .groupBy(attendanceRecords.sessionId);
 
   const countMap = new Map<string, number>();
@@ -97,8 +117,9 @@ export default async function AttendanceOverviewPage({ params }: PageProps) {
       assistantIds: groups.assistantIds,
     })
     .from(groups)
-    .where(eq(groups.academyId, academyId))
-    .orderBy(asc(groups.name));
+    .where(and(eq(groups.academyId, academyId), eq(groups.tenantId, academy.tenantId), isNull(groups.deletedAt)))
+    .orderBy(asc(groups.name))
+    .limit(500);
 
   const groupsByCoach = new Map<string, { id: string; name: string; color: string | null }[]>();
   groupRows.forEach((group) => {
@@ -134,7 +155,13 @@ export default async function AttendanceOverviewPage({ params }: PageProps) {
             coachId: classCoachAssignments.coachId,
           })
           .from(classCoachAssignments)
-          .where(inArray(classCoachAssignments.classId, classIds));
+      .where(
+        and(
+          inArray(classCoachAssignments.classId, classIds),
+          eq(classCoachAssignments.tenantId, academy.tenantId)
+        )
+      )
+          .limit(2000);
 
   const classCoachMap = new Map<string, string[]>();
   classAssignments.forEach((assignment) => {
@@ -180,7 +207,7 @@ export default async function AttendanceOverviewPage({ params }: PageProps) {
         actions={
           <Link
             href={`/app/${academyId}/attendance/today`}
-            className="inline-flex min-h-11 items-center justify-center rounded-xl bg-zaltyko-teal px-4 py-2 text-sm font-semibold text-white shadow-soft transition hover:bg-primary-dark"
+            className="inline-flex min-h-11 items-center justify-center rounded-xl bg-zaltyko-teal px-4 py-2 text-sm font-semibold text-white shadow-soft transition hover:bg-zaltyko-primary-dark"
           >
             Pasar lista de hoy
           </Link>
@@ -195,7 +222,7 @@ export default async function AttendanceOverviewPage({ params }: PageProps) {
           action={
             <Link
               href={`/app/${academyId}/classes`}
-              className="inline-flex min-h-11 items-center justify-center rounded-xl bg-zaltyko-teal px-4 py-2 text-sm font-semibold text-white shadow-soft hover:bg-primary-dark"
+              className="inline-flex min-h-11 items-center justify-center rounded-xl bg-zaltyko-teal px-4 py-2 text-sm font-semibold text-white shadow-soft hover:bg-zaltyko-primary-dark"
             >
               Crear primera clase
             </Link>
@@ -337,4 +364,3 @@ export default async function AttendanceOverviewPage({ params }: PageProps) {
     </div>
   );
 }
-

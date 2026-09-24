@@ -1,9 +1,10 @@
 import { apiSuccess, apiError } from "@/lib/api-response";
-import { and, eq } from "drizzle-orm";
+import { and, eq, isNull } from "drizzle-orm";
 
 import { db } from "@/db";
-import { academies, classes } from "@/db/schema";
+import { classes } from "@/db/schema";
 import { TenantContext, withTenant } from "@/lib/authz";
+import { authorizeAcademyCapability } from "@/lib/authz/resource-scope";
 import { handleApiError } from "@/lib/api-error-handler";
 import { getClassAthletes } from "@/lib/classes/get-class-athletes";
 
@@ -35,16 +36,22 @@ export const GET = withTenant(async (request, context) => {
         tenantId: classes.tenantId,
       })
       .from(classes)
-      .where(eq(classes.id, classId))
+      .where(and(eq(classes.id, classId), eq(classes.tenantId, context.tenantId), isNull(classes.deletedAt)))
       .limit(1);
 
     if (!classRow) {
       return apiError("CLASS_NOT_FOUND", "Class not found", 404);
     }
 
-    // Verificar acceso al tenant
-    if (classRow.tenantId !== context.tenantId && context.profile.role !== "super_admin") {
-      return apiError("FORBIDDEN", "Access denied", 403);
+    const scope = await authorizeAcademyCapability({
+      context,
+      resourceTenantId: classRow.tenantId,
+      academyId: classRow.academyId,
+      permission: "classes:read",
+    });
+
+    if (!scope.allowed) {
+      return apiError("CLASS_NOT_FOUND", "Class not found", 404);
     }
 
     // Obtener atletas usando la función helper
@@ -55,4 +62,3 @@ export const GET = withTenant(async (request, context) => {
     return handleApiError(error);
   }
 });
-

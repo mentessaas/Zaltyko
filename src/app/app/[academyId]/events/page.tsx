@@ -85,7 +85,8 @@ export default async function EventsPage({ params }: PageProps) {
         academyId: events.academyId,
       })
       .from(events)
-      .where(and(eq(events.academyId, academyId), eq(events.tenantId, academy.tenantId)));
+      .where(and(eq(events.academyId, academyId), eq(events.tenantId, academy.tenantId)))
+      .limit(1000);
   } catch (error: unknown) {
     logger.error("Error fetching events:", error);
     // Si hay un error, probablemente la tabla no existe o no tiene la estructura correcta

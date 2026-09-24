@@ -1,8 +1,9 @@
 export const dynamic = 'force-dynamic';
 
 import { z } from "zod";
-import { eq, and, gte, lte, desc } from "drizzle-orm";
+import { eq, and, gte, lte, desc, inArray, isNull } from "drizzle-orm";
 import { withTenant } from "@/lib/authz";
+import { authorizeAcademyCapability } from "@/lib/authz/resource-scope";
 import { apiSuccess, apiError } from "@/lib/api-response";
 
 import { db } from "@/db";
@@ -12,6 +13,7 @@ import {
   skillCatalog,
   coaches,
   profiles,
+  athletes,
 } from "@/db/schema";
 
 const querySchema = z.object({
@@ -35,21 +37,46 @@ export const GET = withTenant(async (request, context) => {
 
   const url = new URL(request.url);
   const params = {
-    academyId: url.searchParams.get("academyId"),
-    startDate: url.searchParams.get("startDate"),
-    endDate: url.searchParams.get("endDate"),
-    skillId: url.searchParams.get("skillId"),
+    // URLSearchParams returns null for omitted filters; normalize that to
+    // undefined before Zod so the optional query fields remain optional.
+    academyId: url.searchParams.get("academyId") || undefined,
+    startDate: url.searchParams.get("startDate") || undefined,
+    endDate: url.searchParams.get("endDate") || undefined,
+    skillId: url.searchParams.get("skillId") || undefined,
   };
 
   const validated = querySchema.parse({
     athleteId,
     ...params,
-    academyId: params.academyId || undefined,
+    academyId: params.academyId,
   });
+
+  const [athlete] = await db
+    .select({ academyId: athletes.academyId, tenantId: athletes.tenantId })
+    .from(athletes)
+    .where(and(eq(athletes.id, athleteId), eq(athletes.tenantId, context.tenantId), isNull(athletes.deletedAt)))
+    .limit(1);
+
+  if (!athlete) {
+    return apiError("ATHLETE_NOT_FOUND", "Athlete not found", 404);
+  }
+
+  if (validated.academyId && validated.academyId !== athlete.academyId) {
+    return apiError("ATHLETE_NOT_FOUND", "Athlete not found", 404);
+  }
+
+  const scope = await authorizeAcademyCapability({
+    context,
+    resourceTenantId: athlete.tenantId,
+    academyId: athlete.academyId,
+    permission: "athletes:read",
+  });
+  if (!scope.allowed) return apiError("ATHLETE_NOT_FOUND", "Athlete not found", 404);
 
   const whereConditions = [
     eq(athleteAssessments.tenantId, context.tenantId),
     eq(athleteAssessments.athleteId, athleteId),
+    eq(athleteAssessments.academyId, athlete.academyId),
   ];
 
   if (validated.academyId) {
@@ -74,10 +101,11 @@ export const GET = withTenant(async (request, context) => {
       profileName: profiles.name,
     })
     .from(athleteAssessments)
-    .leftJoin(coaches, eq(athleteAssessments.assessedBy, coaches.id))
-    .leftJoin(profiles, eq(athleteAssessments.assessedBy, profiles.id))
+    .leftJoin(coaches, and(eq(athleteAssessments.assessedBy, coaches.id), eq(coaches.tenantId, context.tenantId)))
+    .leftJoin(profiles, and(eq(athleteAssessments.assessedBy, profiles.id), eq(profiles.tenantId, context.tenantId)))
     .where(and(...whereConditions))
-    .orderBy(desc(athleteAssessments.assessmentDate));
+    .orderBy(desc(athleteAssessments.assessmentDate))
+    .limit(100);
 
   const assessmentIds = assessments.map((a) => a.id);
 
@@ -93,7 +121,11 @@ export const GET = withTenant(async (request, context) => {
         })
         .from(assessmentScores)
         .innerJoin(skillCatalog, eq(assessmentScores.skillId, skillCatalog.id))
-        .where(eq(assessmentScores.tenantId, context.tenantId))
+        .where(and(
+          eq(assessmentScores.tenantId, context.tenantId),
+          inArray(assessmentScores.assessmentId, assessmentIds)
+        ))
+        .limit(5000)
     : [];
 
   // Agrupar scores por evaluación
@@ -129,4 +161,3 @@ export const GET = withTenant(async (request, context) => {
 
   return apiSuccess({ items });
 });
-

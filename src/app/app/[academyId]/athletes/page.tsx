@@ -1,4 +1,3 @@
-import Link from "next/link";
 import { notFound } from "next/navigation";
 import { and, asc, eq, ilike, isNull, sql } from "drizzle-orm";
 import { Users } from "lucide-react";
@@ -81,17 +80,27 @@ export default async function AcademyAthletesPage({ params, searchParams }: Page
     typeof resolvedSearchParams.sportConfigId === "string" && resolvedSearchParams.sportConfigId.trim().length > 0
       ? resolvedSearchParams.sportConfigId.trim()
       : undefined;
+  const openImport = typeof resolvedSearchParams.importBatchId === "string";
 
   const ageExpr = sql<number | null>`CASE WHEN ${athletes.dob} IS NULL THEN NULL ELSE floor(date_part('year', age(now(), ${athletes.dob}))) END`;
   const guardianCount = sql<number>`count(distinct ${guardianAthletes.id})`;
+  const recordVisibility = statusFilter === "archived" ? eq(athletes.status, "archived") : isNull(athletes.deletedAt);
 
   const conditions = [
-    isNull(athletes.deletedAt),
+    recordVisibility,
     eq(athletes.academyId, academyId),
+    eq(athletes.tenantId, academy.tenantId),
     statusFilter ? eq(athletes.status, statusFilter) : undefined,
     levelFilter ? eq(athletes.level, levelFilter) : undefined,
     searchQuery ? ilike(athletes.name, `%${searchQuery}%`) : undefined,
-    groupFilter ? eq(athletes.groupId, groupFilter) : undefined,
+    groupFilter
+      ? sql`(${athletes.groupId} = ${groupFilter} OR EXISTS (
+          SELECT 1 FROM group_athletes ga
+          WHERE ga.athlete_id = ${athletes.id}
+            AND ga.group_id = ${groupFilter}
+            AND ga.tenant_id = ${academy.tenantId}
+        ))`
+      : undefined,
     sportConfigFilter ? eq(athletes.primarySportConfigId, sportConfigFilter) : undefined,
   ].filter(Boolean) as any[];
 
@@ -119,8 +128,22 @@ export default async function AcademyAthletesPage({ params, searchParams }: Page
       categoryCode: athletes.categoryCode,
     })
     .from(athletes)
-    .leftJoin(groups, eq(athletes.groupId, groups.id))
-    .leftJoin(guardianAthletes, eq(guardianAthletes.athleteId, athletes.id))
+    .leftJoin(
+      groups,
+      and(
+        eq(athletes.groupId, groups.id),
+        eq(groups.academyId, academyId),
+        eq(groups.tenantId, academy.tenantId),
+        isNull(groups.deletedAt)
+      )
+    )
+    .leftJoin(
+      guardianAthletes,
+      and(
+        eq(guardianAthletes.athleteId, athletes.id),
+        eq(guardianAthletes.tenantId, academy.tenantId)
+      )
+    )
     .where(whereClause)
     .groupBy(athletes.id, groups.name, groups.color)
     .orderBy(asc(athletes.name))
@@ -129,8 +152,15 @@ export default async function AcademyAthletesPage({ params, searchParams }: Page
   const levelRows = await db
     .selectDistinct({ level: athletes.level })
     .from(athletes)
-    .where(eq(athletes.academyId, academyId))
-    .orderBy(asc(athletes.level));
+    .where(
+      and(
+        eq(athletes.academyId, academyId),
+        eq(athletes.tenantId, academy.tenantId),
+        isNull(athletes.deletedAt)
+      )
+    )
+    .orderBy(asc(athletes.level))
+    .limit(100);
 
   const levels = levelRows
     .map((entry) => entry.level)
@@ -141,10 +171,15 @@ export default async function AcademyAthletesPage({ params, searchParams }: Page
       id: groups.id,
       name: groups.name,
       color: groups.color,
+      sportConfigId: groups.sportConfigId,
+      programCode: groups.programCode,
+      levelCode: groups.levelCode,
+      categoryCode: groups.categoryCode,
     })
     .from(groups)
-    .where(eq(groups.academyId, academyId))
-    .orderBy(asc(groups.name));
+    .where(and(eq(groups.academyId, academyId), eq(groups.tenantId, academy.tenantId), isNull(groups.deletedAt)))
+    .orderBy(asc(groups.name))
+    .limit(500);
 
   const sportConfigs = await getAcademySportConfigOptions(academyId);
 
@@ -199,6 +234,7 @@ export default async function AcademyAthletesPage({ params, searchParams }: Page
           <AthletesTableView
             academyId={academy.id}
             tenantId={academy.tenantId}
+            initialImportOpen={openImport}
             athletes={list}
             levels={levels}
             filters={{
@@ -212,10 +248,10 @@ export default async function AcademyAthletesPage({ params, searchParams }: Page
               id: group.id,
               name: group.name ?? "Grupo sin nombre",
               color: group.color ?? null,
-              sportConfigId: null,
-              programCode: null,
-              levelCode: null,
-              categoryCode: null,
+              sportConfigId: group.sportConfigId ?? null,
+              programCode: group.programCode ?? null,
+              levelCode: group.levelCode ?? null,
+              categoryCode: group.categoryCode ?? null,
             }))}
             sportConfigs={sportConfigs}
           />

@@ -1,9 +1,10 @@
-import { and, eq } from "drizzle-orm";
+import { and, eq, inArray } from "drizzle-orm";
 import { NextResponse } from "next/server";
 
 import { db } from "@/db";
 import { events, academies } from "@/db/schema";
 import { handleApiError } from "@/lib/api-error-handler";
+import { z } from "zod";
 
 interface RouteContext {
   params: Promise<{ id: string }>;
@@ -16,9 +17,13 @@ interface RouteContext {
  * Endpoint público (sin autenticación requerida).
  * Solo devuelve eventos con is_public = true
  */
+// @auth-flexible route-guard-reason: public event detail; only published/public rows are returned.
 export async function GET(request: Request, context: RouteContext) {
   try {
     const { id } = await context.params;
+    if (!z.string().uuid().safeParse(id).success) {
+      return NextResponse.json({ error: "INVALID_EVENT_ID" }, { status: 400 });
+    }
 
     // Obtener evento público
     const [event] = await db
@@ -53,11 +58,15 @@ export async function GET(request: Request, context: RouteContext) {
         updatedAt: events.updatedAt,
       })
       .from(events)
+      .innerJoin(academies, eq(events.academyId, academies.id))
       .where(
         and(
           eq(events.id, id),
           eq(events.isPublic, true),
-          eq(events.status, 'published')
+          eq(events.status, "published"),
+          eq(academies.isPublic, true),
+          eq(academies.isSuspended, false),
+          inArray(academies.status, ["active", "trial"])
         )
       )
       .limit(1);
@@ -84,7 +93,12 @@ export async function GET(request: Request, context: RouteContext) {
         socialInstagram: academies.socialInstagram,
       })
       .from(academies)
-      .where(eq(academies.id, event.academyId))
+      .where(and(
+        eq(academies.id, event.academyId),
+        eq(academies.isPublic, true),
+        eq(academies.isSuspended, false),
+        inArray(academies.status, ["active", "trial"])
+      ))
       .limit(1);
 
     return NextResponse.json({
@@ -95,4 +109,3 @@ export async function GET(request: Request, context: RouteContext) {
     return handleApiError(error, { endpoint: "/api/public/events/[id]", method: "GET" });
   }
 }
-

@@ -1,7 +1,7 @@
 export const dynamic = 'force-dynamic';
 
 import { randomUUID } from "node:crypto";
-import { and, asc, count, eq, inArray, sql } from "drizzle-orm";
+import { and, asc, eq, sql } from "drizzle-orm";
 import { z } from "zod";
 
 import { db } from "@/db";
@@ -9,17 +9,19 @@ import { academies, athleteSportConfigs, athletes, familyContacts, guardianAthle
 import { assertWithinPlanLimits, getUpgradeInfo } from "@/lib/limits";
 import { LimitError } from "@/lib/limits/errors";
 import { withTenant } from "@/lib/authz";
-import { rateLimit, getUserIdentifier, withRateLimit } from "@/lib/rate-limit";
+import { authorizeAcademyCapability } from "@/lib/authz/resource-scope";
+import { getUserIdentifier, withRateLimit } from "@/lib/rate-limit";
 import { athleteStatusOptions } from "@/lib/athletes/constants";
 import { handleApiError } from "@/lib/api-error-handler";
 import { withTransaction } from "@/lib/db-transactions";
 import { verifyAcademyAccess, verifyGroupAccess } from "@/lib/permissions";
-import { markChecklistItem, markWizardStep } from "@/lib/onboarding";
+import { markAcademyActivationIfReady, markChecklistItem, markWizardStep } from "@/lib/onboarding";
 import { trackEvent } from "@/lib/analytics";
 import { logEvent } from "@/lib/event-logging";
 import { formatDateForDB } from "@/lib/validation/date-utils";
 import { apiSuccess, apiCreated, apiError } from "@/lib/api-response";
 import { getAcademySportConfigOptions, verifyAcademySportConfig } from "@/lib/sport-config/service";
+import { getProductPlanPublicName } from "@/lib/plans/catalog";
 import {
   isCategoryCodeAllowed,
   isLevelCodeAllowed,
@@ -30,7 +32,7 @@ import { NextResponse } from "next/server";
 // PR 10 (Operate P2): `.nullable().optional()` en campos de texto que el
 // form de creación de atleta puede limpiar (clear field). Antes, `null` → 400.
 const ContactSchema = z.object({
-  name: z.string().min(1),
+  name: z.string().trim().min(1).max(120),
   relationship: z.string().nullable().optional(),
   email: z.string().email().nullable().optional(),
   phone: z.string().nullable().optional(),
@@ -58,7 +60,7 @@ const dateStringSchema = z
 
 const BodySchema = z.object({
   academyId: z.string().uuid(),
-  name: z.string().min(1),
+  name: z.string().trim().min(1).max(120),
   dob: dateStringSchema,
   level: z.string().nullable().optional(),
   status: z.enum(athleteStatusOptions).optional(),
@@ -86,14 +88,23 @@ const createAthleteHandler = withTenant(async (request, context) => {
       return apiError(academyAccess.reason ?? "ACADEMY_ACCESS_DENIED", "Access denied", 403);
     }
 
-    // Lock por academia: serializa count-then-insert para que N peticiones
-    // concurrentes al límite-1 no superen el cap del plan (TOCTOU).
-    await db.execute(
-      sql`select pg_advisory_xact_lock(hashtext(${body.academyId || context.tenantId || "athletes"}))`
-    );
+    const academyScope = await authorizeAcademyCapability({
+      context,
+      resourceTenantId: context.tenantId,
+      academyId: body.academyId,
+      permission: "athletes:create",
+    });
 
-    // Verificar límites del plan antes de crear el atleta
+    if (!academyScope.allowed) {
+      return apiError(academyScope.reason ?? "ACADEMY_ACCESS_DENIED", "Access denied", 403);
+    }
+
+    // Verificar límites del plan antes de crear el atleta. La comprobación y
+    // el insert viven en la misma transacción con un lock por academia para
+    // evitar que peticiones concurrentes superen el límite.
     try {
+      // Se vuelve a comprobar dentro de la transacción de creación más abajo;
+      // esta validación temprana conserva el error UX antes de trabajo pesado.
       await assertWithinPlanLimits(context.tenantId, body.academyId, "athletes");
     } catch (error: unknown) {
       if (error instanceof LimitError) {
@@ -106,7 +117,7 @@ const createAthleteHandler = withTenant(async (request, context) => {
           {
             ok: false,
             error: "LIMIT_REACHED",
-            message: `Has alcanzado el límite de atletas de tu plan actual. Actualiza a ${upgradeTo.toUpperCase()} (${upgradeInfo.price}) para agregar más atletas.`,
+            message: `Has alcanzado el límite de atletas de tu plan actual. Actualiza a ${getProductPlanPublicName(upgradeTo)} (${upgradeInfo.price}) para agregar más atletas.`,
             details: {
               ...error.payload,
               upgradeInfo: {
@@ -209,6 +220,8 @@ const createAthleteHandler = withTenant(async (request, context) => {
 
     // Usar transacción para garantizar atomicidad
     await withTransaction(async (tx) => {
+      await tx.execute(sql`select pg_advisory_xact_lock(hashtext(${body.academyId}))`);
+      await assertWithinPlanLimits(context.tenantId!, body.academyId, "athletes", tx);
       // Crear atleta
       await tx.insert(athletes).values({
         id: athleteId,
@@ -286,9 +299,13 @@ const createAthleteHandler = withTenant(async (request, context) => {
 
     const totalAthletes = Number(countResult?.[0]?.value ?? 0);
 
-    if (totalAthletes === 1) {
-      await trackEvent("first_athlete_added", { academyId: body.academyId, tenantId: context.tenantId });
-    }
+    // Hito idempotente de activación. No dependemos de que dos peticiones
+    // concurrentes observen exactamente el mismo count.
+    await trackEvent("first_athlete_added", {
+      academyId: body.academyId,
+      tenantId: context.tenantId,
+      idempotencyKey: `first_athlete_added:v1:${body.academyId}`,
+    });
 
     if (totalAthletes >= 5) {
       await markChecklistItem({
@@ -297,6 +314,8 @@ const createAthleteHandler = withTenant(async (request, context) => {
         key: "add_5_athletes",
       });
     }
+
+    await markAcademyActivationIfReady(body.academyId, context.tenantId);
 
     // Log event for Super Admin metrics
     await logEvent({
@@ -370,6 +389,22 @@ export const GET = withTenant(async (request, context) => {
     return apiError("TENANT_REQUIRED", "Tenant ID is required", 400);
   }
 
+  const targetAcademyId = academyId ?? context.profile.activeAcademyId ?? null;
+  if (targetAcademyId) {
+    const academyScope = await authorizeAcademyCapability({
+      context,
+      resourceTenantId: effectiveTenantId,
+      academyId: targetAcademyId,
+      permission: "athletes:read",
+    });
+
+    if (!academyScope.allowed) {
+      return apiError("ATHLETE_NOT_FOUND", "Athlete not found", 404);
+    }
+  } else if (context.profile.role !== "super_admin") {
+    return apiError("ACADEMY_REQUIRED", "Academy ID is required", 400);
+  }
+
   const levelList = Array.isArray(level) ? level : level ? [level] : [];
   const statusList = Array.isArray(status) ? status : status ? [status] : [];
 
@@ -383,10 +418,15 @@ export const GET = withTenant(async (request, context) => {
   // Build where clause - only add filters that are actually provided
   // Use sql template literals to ensure all conditions are compatible
   const conditions: ReturnType<typeof sql>[] = [];
+  const includesArchived = statusList.includes("archived");
 
   // Always filter by tenant
   conditions.push(sql`${athletes.tenantId} = ${effectiveTenantId}`);
-  conditions.push(sql`${athletes.deletedAt} IS NULL`);
+  conditions.push(
+    includesArchived
+      ? sql`(${athletes.deletedAt} IS NULL OR ${athletes.status} = 'archived')`
+      : sql`${athletes.deletedAt} IS NULL`,
+  );
 
   if (levelList.length > 0) {
     // Use eq/inArray for simple cases, sql for complex
@@ -407,8 +447,8 @@ export const GET = withTenant(async (request, context) => {
     }
   }
 
-  if (academyId) {
-    conditions.push(sql`${athletes.academyId} = ${academyId}`);
+  if (targetAcademyId) {
+    conditions.push(sql`${athletes.academyId} = ${targetAcademyId}`);
   }
 
   if (groupId) {
@@ -438,9 +478,17 @@ export const GET = withTenant(async (request, context) => {
 
   // Get count efficiently using SQL COUNT instead of fetching all IDs
   const countResult = await db
-    .select({ value: count() })
+    // El JOIN con guardian_athletes puede producir varias filas por atleta;
+    // contar filas aquí inflaba totalPages para familias con varios tutores.
+    .select({ value: sql<number>`count(distinct ${athletes.id})` })
     .from(athletes)
-    .leftJoin(guardianAthletes, eq(guardianAthletes.athleteId, athletes.id))
+    .leftJoin(
+      guardianAthletes,
+      and(
+        eq(guardianAthletes.athleteId, athletes.id),
+        eq(guardianAthletes.tenantId, effectiveTenantId)
+      )
+    )
     .where(whereClause);
 
   const total = countResult[0]?.value ?? 0;
@@ -470,16 +518,30 @@ export const GET = withTenant(async (request, context) => {
       guardianCount,
     })
     .from(athletes)
-    .leftJoin(academies, eq(athletes.academyId, academies.id))
-    .leftJoin(groups, eq(athletes.groupId, groups.id))
-    .leftJoin(guardianAthletes, eq(guardianAthletes.athleteId, athletes.id))
+    .leftJoin(
+      academies,
+      and(eq(athletes.academyId, academies.id), eq(academies.tenantId, effectiveTenantId))
+    )
+    .leftJoin(
+      groups,
+      and(
+        eq(athletes.groupId, groups.id),
+        eq(groups.tenantId, effectiveTenantId),
+        targetAcademyId ? eq(groups.academyId, targetAcademyId) : sql`true`
+      )
+    )
+    .leftJoin(
+      guardianAthletes,
+      and(
+        eq(guardianAthletes.athleteId, athletes.id),
+        eq(guardianAthletes.tenantId, effectiveTenantId)
+      )
+    )
     .where(whereClause)
     .groupBy(athletes.id, academies.name, groups.name, groups.color, groups.sportConfigId, groups.programCode, groups.levelCode, groups.categoryCode)
     .orderBy(asc(athletes.name))
     .limit(pageSize)
     .offset(offset);
-
-  const totalPages = Math.ceil(total / pageSize);
 
   return apiSuccess(paginatedItems, { total, page, pageSize });
   } catch (error) {

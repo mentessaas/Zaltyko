@@ -21,6 +21,7 @@ import { verifyAcademyAccess } from "@/lib/permissions";
 import { withTransaction } from "@/lib/db-transactions";
 import { createClient } from "@/lib/supabase/server";
 import { logger } from "@/lib/logger";
+import { getCurrencyForCountry } from "@/lib/currency";
 
 const createExtraClassSchema = z.object({
   athleteId: z.string().uuid(),
@@ -80,6 +81,13 @@ export async function createExtraClassAction(input: z.infer<typeof createExtraCl
         message: "No tienes acceso a esta academia",
       };
     }
+
+    const [academy] = await db
+      .select({ country: academies.country, countryCode: academies.countryCode })
+      .from(academies)
+      .where(and(eq(academies.id, body.academyId), eq(academies.tenantId, tenantId)))
+      .limit(1);
+    const currency = getCurrencyForCountry(academy?.countryCode ?? academy?.country);
 
     // 4. Verificar que el atleta existe y pertenece a la academia
     const [athlete] = await db
@@ -209,7 +217,7 @@ export async function createExtraClassAction(input: z.infer<typeof createExtraCl
           classId, // Nuevo campo
           label: "Clase extra",
           amountCents,
-          currency: "EUR",
+          currency,
           period,
           dueDate: dueDate.toISOString().split("T")[0],
           status: "pending",
@@ -239,4 +247,3 @@ export async function createExtraClassAction(input: z.infer<typeof createExtraCl
     };
   }
 }
-

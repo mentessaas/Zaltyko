@@ -1,7 +1,7 @@
 export const dynamic = 'force-dynamic';
 
 import { apiSuccess, apiError } from "@/lib/api-response";
-import { and, asc, eq, sql } from "drizzle-orm";
+import { and, asc, count, eq, sql } from "drizzle-orm";
 import { z } from "zod";
 
 import { db } from "@/db";
@@ -38,7 +38,11 @@ export const POST = withTenant(async (request, context) => {
     const [athlete] = await db
       .select()
       .from(athletes)
-      .where(and(eq(athletes.id, body.athleteId), eq(athletes.tenantId, context.tenantId)))
+      .where(and(
+        eq(athletes.id, body.athleteId),
+        eq(athletes.tenantId, context.tenantId),
+        eq(athletes.academyId, classRow.academyId),
+      ))
       .limit(1);
 
     if (!athlete) {
@@ -52,7 +56,8 @@ export const POST = withTenant(async (request, context) => {
       .where(
         and(
           eq(classWaitingList.classId, body.classId),
-          eq(classWaitingList.athleteId, body.athleteId)
+          eq(classWaitingList.athleteId, body.athleteId),
+          eq(classWaitingList.tenantId, context.tenantId),
         )
       )
       .limit(1);
@@ -65,13 +70,13 @@ export const POST = withTenant(async (request, context) => {
     const [{ maxPosition }] = await db
       .select({ maxPosition: sql<number>`COALESCE(MAX(${classWaitingList.position}), 0)` })
       .from(classWaitingList)
-      .where(eq(classWaitingList.classId, body.classId));
+      .where(and(eq(classWaitingList.classId, body.classId), eq(classWaitingList.tenantId, context.tenantId)));
 
     const position = (maxPosition ?? 0) + 1;
 
     const entryId = crypto.randomUUID();
 
-    await db.insert(classWaitingList).values({
+    const [createdEntry] = await db.insert(classWaitingList).values({
       id: entryId,
       tenantId: context.tenantId,
       academyId: classRow.academyId,
@@ -79,7 +84,11 @@ export const POST = withTenant(async (request, context) => {
       athleteId: body.athleteId,
       position,
       notes: body.notes ?? null,
-    });
+    }).onConflictDoNothing({ target: [classWaitingList.tenantId, classWaitingList.classId, classWaitingList.athleteId] }).returning({ id: classWaitingList.id, position: classWaitingList.position });
+
+    if (!createdEntry) {
+      return apiError("ALREADY_IN_WAITING_LIST", "Already in waiting list", 409);
+    }
 
     return apiSuccess({ ok: true, id: entryId, position });
   } catch (error) {
@@ -127,13 +136,12 @@ export const GET = withTenant(async (request, context) => {
       }
     }
 
-    // Obtener total
-    const allEntries = await db
-      .select({ id: classWaitingList.id })
+    // Obtener total sin cargar toda la lista en memoria.
+    const [{ total }] = await db
+      .select({ total: count(classWaitingList.id) })
       .from(classWaitingList)
-      .where(conditions);
-
-    const total = allEntries.length;
+      .where(conditions)
+    const totalCount = Number(total ?? 0);
 
     // Obtener entradas paginadas
     const entries = await db
@@ -161,10 +169,10 @@ export const GET = withTenant(async (request, context) => {
       .limit(pageSize)
       .offset(offset);
 
-    const totalPages = Math.ceil(total / pageSize);
+    const totalPages = Math.ceil(totalCount / pageSize);
 
     return apiSuccess({
-      total,
+      total: totalCount,
       page,
       pageSize,
       totalPages,

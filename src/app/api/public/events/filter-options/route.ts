@@ -1,7 +1,7 @@
 import { NextResponse } from "next/server";
 import { db } from "@/db";
 import { events } from "@/db/schema";
-import { eq, sql } from "drizzle-orm";
+import { and, eq } from "drizzle-orm";
 import { handleApiError } from "@/lib/api-error-handler";
 
 /**
@@ -21,7 +21,8 @@ export async function GET() {
         discipline: events.discipline,
       })
       .from(events)
-      .where(eq(events.isPublic, true));
+      .where(and(eq(events.isPublic, true), eq(events.status, "published")))
+      .limit(10000);
 
     const countriesSet = new Set<string>();
     const provincesSet = new Set<string>();
@@ -65,4 +66,3 @@ export async function GET() {
     return handleApiError(error, { endpoint: "/api/public/events/filter-options", method: "GET" });
   }
 }
-

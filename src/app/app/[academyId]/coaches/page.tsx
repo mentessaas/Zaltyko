@@ -1,11 +1,12 @@
 import Link from "next/link";
-import { and, asc, eq, ilike, inArray, or } from "drizzle-orm";
+import { and, asc, eq, ilike, inArray, isNull, or } from "drizzle-orm";
 import { notFound } from "next/navigation";
 
 import { db } from "@/db";
 import { academies, classCoachAssignments, classes, coaches, coachSportConfigs, groups } from "@/db/schema";
 import { getAcademySportConfigOptions } from "@/lib/sport-config/service";
 import { getTerminologyForSportConfig } from "@/lib/sport-config/terminology";
+import { pluralizeFirstWord } from "@/lib/specialization/registry";
 
 import { CoachesTableView } from "@/components/coaches/CoachesTableView";
 import { PageHeader } from "@/components/ui/page-header";
@@ -31,6 +32,7 @@ export default async function AcademyCoachesPage({ params, searchParams }: PageP
     .select({
       id: academies.id,
       name: academies.name,
+      tenantId: academies.tenantId,
     })
     .from(academies)
     .where(eq(academies.id, academyId))
@@ -65,6 +67,7 @@ export default async function AcademyCoachesPage({ params, searchParams }: PageP
 
   const conditions = [
     eq(coaches.academyId, academyId),
+    eq(coaches.tenantId, academy.tenantId),
     searchCondition,
   ].filter(Boolean) as any[];
 
@@ -85,7 +88,8 @@ export default async function AcademyCoachesPage({ params, searchParams }: PageP
     })
     .from(coaches)
     .where(whereClause)
-    .orderBy(asc(coaches.name));
+    .orderBy(asc(coaches.name))
+    .limit(500);
 
   const assignmentRows = await db
     .select({
@@ -96,7 +100,15 @@ export default async function AcademyCoachesPage({ params, searchParams }: PageP
     })
     .from(classCoachAssignments)
     .innerJoin(classes, eq(classCoachAssignments.classId, classes.id))
-    .where(eq(classes.academyId, academyId));
+    .where(
+      and(
+        eq(classes.academyId, academyId),
+        eq(classes.tenantId, academy.tenantId),
+        eq(classCoachAssignments.tenantId, academy.tenantId),
+        isNull(classes.deletedAt)
+      )
+    )
+    .limit(2000);
 
   const classRows = await db
     .select({
@@ -105,8 +117,9 @@ export default async function AcademyCoachesPage({ params, searchParams }: PageP
       sportConfigId: classes.sportConfigId,
     })
     .from(classes)
-    .where(eq(classes.academyId, academyId))
-    .orderBy(asc(classes.name));
+    .where(and(eq(classes.academyId, academyId), eq(classes.tenantId, academy.tenantId), isNull(classes.deletedAt)))
+    .orderBy(asc(classes.name))
+    .limit(500);
 
   const groupRows = await db
     .select({
@@ -118,8 +131,9 @@ export default async function AcademyCoachesPage({ params, searchParams }: PageP
       assistantIds: groups.assistantIds,
     })
     .from(groups)
-    .where(eq(groups.academyId, academyId))
-    .orderBy(asc(groups.name));
+    .where(and(eq(groups.academyId, academyId), eq(groups.tenantId, academy.tenantId), isNull(groups.deletedAt)))
+    .orderBy(asc(groups.name))
+    .limit(500);
 
   const coachIds = coachRows.map((coach) => coach.id);
   const coachSportScopeRows =
@@ -131,6 +145,7 @@ export default async function AcademyCoachesPage({ params, searchParams }: PageP
           })
           .from(coachSportConfigs)
           .where(inArray(coachSportConfigs.coachId, coachIds))
+          .limit(2000)
       : [];
   const scopeByCoach = new Map<string, string[]>();
   coachSportScopeRows.forEach((row) => {
@@ -144,6 +159,7 @@ export default async function AcademyCoachesPage({ params, searchParams }: PageP
     sportConfigs,
     sportConfigFilter === "unscoped" ? null : sportConfigFilter
   );
+  const coachLabelPlural = pluralizeFirstWord(terms.coach);
 
   const groupsByCoach = new Map<string, { id: string; name: string; color: string | null; sportConfigId: string | null; role: "principal" | "asistente" }[]>();
 
@@ -223,7 +239,7 @@ export default async function AcademyCoachesPage({ params, searchParams }: PageP
           { label: academy.name ?? "Academia", href: `/app/${academy.id}/dashboard` },
           { label: "Entrenadores" },
         ]}
-        title={`${terms.coach}s`}
+        title={coachLabelPlural}
         description="Controla al staff técnico, asigna clases y mantén sus datos de contacto al día."
       />
 

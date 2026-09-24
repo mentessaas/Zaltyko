@@ -41,7 +41,8 @@ export const GET = withTenant(async (_request, context) => {
       .from(eventWaitlist)
       .leftJoin(profiles, eq(eventWaitlist.profileId, profiles.id))
       .where(eq(eventWaitlist.eventId, eventId))
-      .orderBy(eventWaitlist.position);
+      .orderBy(eventWaitlist.position)
+      .limit(500);
 
     return apiSuccess({
       items: waitlistEntries,

@@ -11,12 +11,16 @@ import { withTenant } from "@/lib/authz";
 const bodySchema = z.object({
   academyId: z.string().uuid(),
   classId: z.string().uuid(),
-  sessionDate: z.string().min(1),
-  startTime: z.string().optional(),
-  endTime: z.string().optional(),
+  sessionDate: z.string().regex(/^\d{4}-\d{2}-\d{2}$/, "Fecha YYYY-MM-DD requerida"),
+  startTime: z.string().regex(/^([01]\d|2[0-3]):[0-5]\d(?::[0-5]\d)?$/, "Hora HH:mm inválida").optional(),
+  endTime: z.string().regex(/^([01]\d|2[0-3]):[0-5]\d(?::[0-5]\d)?$/, "Hora HH:mm inválida").optional(),
   coachId: z.string().uuid().optional(),
   status: z.string().optional(),
-  notes: z.string().optional(),
+  notes: z.string().max(2000).optional(),
+}).superRefine((value, ctx) => {
+  if (value.startTime && value.endTime && value.startTime >= value.endTime) {
+    ctx.addIssue({ code: z.ZodIssueCode.custom, path: ["endTime"], message: "La hora de fin debe ser posterior al inicio" });
+  }
 });
 
 const querySchema = z.object({
@@ -41,7 +45,11 @@ export const GET = withTenant(async (request, context) => {
 
   const { classId, academyId, coachId, from, to } = params.data;
 
-  const whereConditions = [eq(classSessions.tenantId, context.tenantId)];
+  const whereConditions = [
+    eq(classSessions.tenantId, context.tenantId),
+    eq(classes.tenantId, context.tenantId),
+    eq(academies.tenantId, context.tenantId),
+  ];
 
   if (classId) {
     whereConditions.push(eq(classSessions.classId, classId));
@@ -86,7 +94,8 @@ export const GET = withTenant(async (request, context) => {
     .innerJoin(academies, eq(classes.academyId, academies.id))
     .leftJoin(coaches, eq(classSessions.coachId, coaches.id))
     .where(whereClause)
-    .orderBy(asc(classSessions.sessionDate), asc(classSessions.startTime));
+    .orderBy(asc(classSessions.sessionDate), asc(classSessions.startTime))
+    .limit(5000);
 
   return apiSuccess({ items: rows });
 });
@@ -99,7 +108,7 @@ export const POST = withTenant(async (request, context) => {
   }
 
   const [classRow] = await db
-    .select({ id: classes.id, sportConfigId: classes.sportConfigId })
+    .select({ id: classes.id, academyId: classes.academyId, sportConfigId: classes.sportConfigId })
     .from(classes)
     .where(and(eq(classes.id, body.classId), eq(classes.tenantId, context.tenantId)))
     .limit(1);
@@ -108,9 +117,22 @@ export const POST = withTenant(async (request, context) => {
     return apiError("CLASS_NOT_FOUND", "Class not found", 404);
   }
 
+  if (body.coachId) {
+    const [coach] = await db
+      .select({ id: coaches.id })
+      .from(coaches)
+      .where(and(
+        eq(coaches.id, body.coachId),
+        eq(coaches.tenantId, context.tenantId),
+        eq(coaches.academyId, classRow.academyId),
+      ))
+      .limit(1);
+    if (!coach) return apiError("COACH_NOT_FOUND", "Coach not found", 404);
+  }
+
   const sessionId = crypto.randomUUID();
 
-  await db.insert(classSessions).values({
+  const [createdSession] = await db.insert(classSessions).values({
     id: sessionId,
     tenantId: context.tenantId,
     classId: body.classId,
@@ -121,7 +143,16 @@ export const POST = withTenant(async (request, context) => {
     endTime: body.endTime ?? null,
     status: body.status ?? "scheduled",
     notes: body.notes ?? null,
-  });
+  }).onConflictDoNothing({ target: [classSessions.classId, classSessions.sessionDate] }).returning({ id: classSessions.id });
 
-  return apiSuccess({ ok: true, id: sessionId });
+  if (!createdSession) {
+    const [existingSession] = await db
+      .select({ id: classSessions.id })
+      .from(classSessions)
+      .where(and(eq(classSessions.classId, body.classId), eq(classSessions.sessionDate, body.sessionDate)))
+      .limit(1);
+    return apiSuccess({ ok: true, id: existingSession?.id ?? null, created: false });
+  }
+
+  return apiSuccess({ ok: true, id: createdSession.id, created: true });
 });

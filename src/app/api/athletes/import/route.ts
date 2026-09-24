@@ -1,15 +1,26 @@
 import { NextResponse } from "next/server";
-import { and, eq, inArray, sql } from "drizzle-orm";
+import { createHash, randomUUID } from "node:crypto";
+import { and, eq, inArray, isNull, sql } from "drizzle-orm";
 import { parse } from "csv-parse/sync";
 import { z } from "zod";
 
 import { db } from "@/db";
-import { academies, athleteSportConfigs, athletes, groupAthletes, groups } from "@/db/schema";
+import {
+  academies,
+  athleteImportBatches,
+  athleteSportConfigs,
+  athletes,
+  groupAthletes,
+  groups,
+} from "@/db/schema";
 import { athleteStatusOptions } from "@/lib/athletes/constants";
 import { withTenant } from "@/lib/authz";
-import { assertWithinPlanLimits } from "@/lib/limits";
+import { assertWithinPlanLimits, getActiveSubscription } from "@/lib/limits";
+import { getResourceCount } from "@/lib/limits/resource-counters";
 import { withRateLimit, getUserIdentifier } from "@/lib/rate-limit";
 import { handleApiError } from "@/lib/api-error-handler";
+import { createAuditLog } from "@/lib/authz/audit-service";
+import { withTransaction } from "@/lib/db-transactions";
 import { validatePayloadSize } from "@/lib/payload-validator";
 import { NextRequest } from "next/server";
 import { validateDateWithError, formatDateForDB } from "@/lib/validation/date-utils";
@@ -26,7 +37,7 @@ const optionalUuid = z
   .pipe(z.string().uuid().optional());
 
 const CsvRowSchema = z.object({
-  name: z.string().min(1),
+  name: z.string().trim().min(1).max(120),
   academyId: z.string().uuid().optional(),
   dob: z.string().optional(),
   level: z.string().optional(),
@@ -45,6 +56,8 @@ type CsvRow = z.infer<typeof CsvRowSchema>;
 export const runtime = "nodejs";
 
 const handler = withTenant(async (request, context) => {
+  let importBatchId: string | undefined;
+
   try {
     const formData = await request.formData();
     const file = (formData as unknown as { get(name: string): File | null }).get("file");
@@ -55,6 +68,40 @@ const handler = withTenant(async (request, context) => {
 
   const buffer = Buffer.from(await file.arrayBuffer());
   const csvText = buffer.toString("utf-8");
+  const fileHash = createHash("sha256").update(buffer).digest("hex");
+  const dryRunValue = (formData as unknown as { get(name: string): unknown }).get("dryRun");
+  const dryRun = dryRunValue === "true" || dryRunValue === "1";
+  const confirmValue = (formData as unknown as { get(name: string): unknown }).get("confirm");
+  const confirmed = confirmValue === "true" || confirmValue === "1";
+  const previewHashValue = (formData as unknown as { get(name: string): unknown }).get("previewHash");
+  const previewHash = typeof previewHashValue === "string" ? previewHashValue.trim().toLowerCase() : "";
+
+  // La importación es una operación destructiva desde el punto de vista de
+  // datos: crea perfiles y puede activar el límite del plan. Todo cliente
+  // debe pasar primero por la vista previa y confirmar exactamente el mismo
+  // fichero. Mantener esta garantía en servidor evita que una UI antigua o un
+  // script salte accidentalmente la revisión humana.
+  if (!dryRun && !confirmed) {
+    return apiError(
+      "IMPORT_CONFIRMATION_REQUIRED",
+      "Previsualiza el archivo y confirma la importación antes de crear gimnastas.",
+      400,
+    );
+  }
+  if (!dryRun && !/^[a-f0-9]{64}$/.test(previewHash)) {
+    return apiError(
+      "IMPORT_PREVIEW_REQUIRED",
+      "Vuelve a generar la vista previa antes de confirmar la importación.",
+      400,
+    );
+  }
+  if (!dryRun && previewHash !== fileHash) {
+    return apiError(
+      "IMPORT_FILE_CHANGED",
+      "El archivo cambió desde la vista previa. Genera una nueva vista previa para continuar.",
+      409,
+    );
+  }
 
   if (!csvText.trim()) {
     return apiError("EMPTY_FILE", "File is empty", 400);
@@ -92,8 +139,16 @@ const handler = withTenant(async (request, context) => {
   }
 
   const tenantOverride = (formData as unknown as { get(name: string): unknown }).get("tenantId");
+  const requestedTenantId = typeof tenantOverride === "string" ? tenantOverride.trim() : "";
+  if (requestedTenantId && !z.string().uuid().safeParse(requestedTenantId).success) {
+    return apiError("INVALID_TENANT_ID", "Tenant ID must be a valid UUID", 400);
+  }
+  // Solo super_admin puede operar sobre otro tenant; el resto siempre queda
+  // anclado al tenant resuelto por withTenant.
   const effectiveTenantId =
-    context.tenantId ?? (typeof tenantOverride === "string" ? tenantOverride : null);
+    context.profile.role === "super_admin" && requestedTenantId
+      ? requestedTenantId
+      : context.tenantId;
 
   if (!effectiveTenantId) {
     return apiError("TENANT_REQUIRED", "Tenant ID is required", 400);
@@ -108,7 +163,8 @@ const handler = withTenant(async (request, context) => {
     const tenantAcademies = await db
       .select({ id: academies.id })
       .from(academies)
-      .where(eq(academies.tenantId, effectiveTenantId));
+      .where(eq(academies.tenantId, effectiveTenantId))
+      .limit(1000);
     if (tenantAcademies.length === 1) {
       defaultAcademyId = tenantAcademies[0].id;
     }
@@ -125,17 +181,83 @@ const handler = withTenant(async (request, context) => {
   const academiesRows = await db
     .select({ id: academies.id })
     .from(academies)
-    .where(and(eq(academies.tenantId, effectiveTenantId), inArray(academies.id, academyIds)));
+    .where(and(eq(academies.tenantId, effectiveTenantId), inArray(academies.id, academyIds)))
+    .limit(1000);
 
   const validAcademyIds = new Set(academiesRows.map((row) => row.id));
   const configsByAcademy = new Map<string, Awaited<ReturnType<typeof getAcademySportConfigOptions>>>();
+  const normalizeIdentityName = (value: string) =>
+    value
+      .trim()
+      .toLocaleLowerCase()
+      .normalize("NFD")
+      .replace(/[\u0300-\u036f]/g, "");
+  const existingAthletes =
+    validAcademyIds.size > 0
+      ? await db
+          .select({ academyId: athletes.academyId, name: athletes.name, dob: athletes.dob })
+          .from(athletes)
+          .where(
+            and(
+              eq(athletes.tenantId, effectiveTenantId),
+              inArray(athletes.academyId, Array.from(validAcademyIds)),
+              isNull(athletes.deletedAt),
+            ),
+          )
+          .limit(10000)
+      : [];
+  const existingIdentityKeys = new Set(
+    existingAthletes
+      .filter((row) => row.dob)
+      .map((row) => `${row.academyId}|${normalizeIdentityName(row.name)}|${String(row.dob)}`),
+  );
+  const importedIdentityKeys = new Set<string>();
+  const importLimitState = new Map<string, { current: number; limit: number | null }>();
+  await Promise.all(
+    Array.from(validAcademyIds).map(async (academyId) => {
+      const [subscription, current] = await Promise.all([
+        getActiveSubscription(academyId),
+        getResourceCount("athletes", academyId, effectiveTenantId),
+      ]);
+      importLimitState.set(academyId, {
+        current,
+        limit: subscription.athleteLimit,
+      });
+    }),
+  );
 
   const summary = {
     total: records.length,
     created: 0,
     skipped: 0,
     errors: [] as Array<{ row: number; reason: string }>,
+    potentialDuplicates: 0,
+    dryRun,
+    previewHash: fileHash,
+    requiresConfirmation: dryRun,
+    batchId: undefined as string | undefined,
   };
+
+  // Crear el lote antes de insertar filas permite que cada atleta quede
+  // asociado al mismo identificador incluso si una fila aislada falla. Si el
+  // proceso se interrumpe, el lote queda en `processing` y no se ofrece como
+  // rollback hasta que el resumen haya sido cerrado correctamente.
+  if (!dryRun) {
+    importBatchId = randomUUID();
+    summary.batchId = importBatchId;
+    const distinctAcademyIds = Array.from(
+      new Set(records.map((row) => row.academyId).filter((value): value is string => Boolean(value))),
+    );
+    await db.insert(athleteImportBatches).values({
+      id: importBatchId,
+      tenantId: effectiveTenantId,
+      academyId: distinctAcademyIds.length === 1 ? distinctAcademyIds[0] : null,
+      initiatedBy: context.userId,
+      fileHash,
+      totalRows: records.length,
+      status: "processing",
+    });
+  }
 
   for (const [index, record] of records.entries()) {
     if (!record.academyId) {
@@ -152,6 +274,19 @@ const handler = withTenant(async (request, context) => {
       summary.errors.push({
         row: index + 2,
         reason: `Academia ${record.academyId} no pertenece al tenant.`,
+      });
+      continue;
+    }
+
+    if (!record.academyId) continue;
+    const resolvedAcademyId = record.academyId;
+
+    const limitState = importLimitState.get(record.academyId);
+    if (limitState && limitState.limit !== null && limitState.current >= limitState.limit) {
+      summary.skipped += 1;
+      summary.errors.push({
+        row: index + 2,
+        reason: "El plan actual ya ha alcanzado el límite de gimnastas de esta academia.",
       });
       continue;
     }
@@ -173,6 +308,7 @@ const handler = withTenant(async (request, context) => {
         const groupConditions = [
           eq(groups.tenantId, effectiveTenantId),
           eq(groups.academyId, record.academyId),
+          isNull(groups.deletedAt),
           record.groupId ? eq(groups.id, record.groupId) : eq(groups.name, record.groupName ?? ""),
         ];
 
@@ -299,51 +435,78 @@ const handler = withTenant(async (request, context) => {
         dobDate = dateValidation.date;
       }
 
-      const athleteId = crypto.randomUUID();
-
-      await db.insert(athletes).values({
-        id: athleteId,
-        tenantId: effectiveTenantId,
-        academyId: record.academyId,
-        name: record.name,
-        dob: dobDate ? formatDateForDB(dobDate) : null,
-        level: record.level ?? null,
-        status: record.status ?? "active",
-        groupId: selectedGroup?.id ?? null,
-        primarySportConfigId: effectiveSportConfigId,
-        programCode: effectiveProgramCode,
-        levelCode: effectiveLevelCode,
-        categoryCode: effectiveCategoryCode,
-      });
-
-      if (selectedGroup) {
-        await db
-          .insert(groupAthletes)
-          .values({
-            id: crypto.randomUUID(),
-            tenantId: effectiveTenantId,
-            groupId: selectedGroup.id,
-            athleteId,
-          })
-          .onConflictDoNothing();
+      // Nombre + fecha solo identifica un posible duplicado; nunca se usa
+      // para fusionar automáticamente, porque dos gemelas pueden compartir
+      // ambos valores. En ese caso la fila queda para revisión explícita.
+      if (dobDate) {
+        const identityKey = `${record.academyId}|${normalizeIdentityName(record.name)}|${formatDateForDB(dobDate)}`;
+        if (existingIdentityKeys.has(identityKey) || importedIdentityKeys.has(identityKey)) {
+          summary.skipped += 1;
+          summary.potentialDuplicates += 1;
+          summary.errors.push({
+            row: index + 2,
+            reason:
+              "Posible duplicado: ya existe una gimnasta con el mismo nombre y fecha de nacimiento en esta academia. Revisa la fila antes de importarla.",
+          });
+          continue;
+        }
+        importedIdentityKeys.add(identityKey);
       }
 
-      if (effectiveSportConfigId) {
-        await db
-          .insert(athleteSportConfigs)
-          .values({
-            id: crypto.randomUUID(),
+      if (!dryRun) {
+        const athleteId = randomUUID();
+
+        // Mantener el atleta y sus vínculos en una única unidad. Si falla la
+        // asignación a grupo o modalidad, no dejamos una gimnasta huérfana ni
+        // obligamos al owner a reparar la importación manualmente.
+        await withTransaction(async (tx) => {
+          await tx.insert(athletes).values({
+            id: athleteId,
             tenantId: effectiveTenantId,
-            athleteId,
-            academySportConfigId: effectiveSportConfigId,
+            academyId: resolvedAcademyId,
+            name: record.name,
+            dob: dobDate ? formatDateForDB(dobDate) : null,
+            level: record.level ?? null,
+            status: record.status ?? "active",
+            groupId: selectedGroup?.id ?? null,
+            primarySportConfigId: effectiveSportConfigId,
             programCode: effectiveProgramCode,
             levelCode: effectiveLevelCode,
             categoryCode: effectiveCategoryCode,
-          })
-          .onConflictDoNothing();
+            importBatchId: importBatchId ?? null,
+          });
+
+          if (selectedGroup) {
+            await tx
+              .insert(groupAthletes)
+              .values({
+                id: randomUUID(),
+                tenantId: effectiveTenantId,
+                groupId: selectedGroup.id,
+                athleteId,
+              })
+              .onConflictDoNothing();
+          }
+
+          if (effectiveSportConfigId) {
+            await tx
+              .insert(athleteSportConfigs)
+              .values({
+                id: randomUUID(),
+                tenantId: effectiveTenantId,
+                athleteId,
+                academySportConfigId: effectiveSportConfigId,
+                programCode: effectiveProgramCode,
+                levelCode: effectiveLevelCode,
+                categoryCode: effectiveCategoryCode,
+              })
+              .onConflictDoNothing();
+          }
+        });
       }
 
       summary.created += 1;
+      if (limitState) limitState.current += 1;
     } catch (error) {
       logger.error("Import athlete error", error);
       summary.skipped += 1;
@@ -356,7 +519,7 @@ const handler = withTenant(async (request, context) => {
 
     // Igual que en el alta manual: la importación cuenta para el paso
     // "Añade al menos 5 atletas" del checklist de onboarding.
-    if (summary.created > 0) {
+    if (!dryRun && summary.created > 0) {
       const touchedAcademies = Array.from(
         new Set(records.map((row) => row.academyId).filter(Boolean))
       ) as string[];
@@ -365,7 +528,13 @@ const handler = withTenant(async (request, context) => {
           const [countResult] = await db
             .select({ count: sql<number>`count(*)::int` })
             .from(athletes)
-            .where(eq(athletes.academyId, academyIdTouched));
+            .where(
+              and(
+                eq(athletes.academyId, academyIdTouched),
+                eq(athletes.tenantId, effectiveTenantId),
+                isNull(athletes.deletedAt)
+              )
+            );
           if (Number(countResult?.count ?? 0) >= 5) {
             await markChecklistItem({
               academyId: academyIdTouched,
@@ -379,8 +548,54 @@ const handler = withTenant(async (request, context) => {
       }
     }
 
+    if (importBatchId) {
+      await db
+        .update(athleteImportBatches)
+        .set({
+          status: "completed",
+          createdCount: summary.created,
+          skippedCount: summary.skipped,
+          completedAt: new Date(),
+        })
+        .where(eq(athleteImportBatches.id, importBatchId));
+
+      try {
+        await createAuditLog({
+          tenantId: effectiveTenantId,
+          userId: context.userId,
+          action: "athletes.import",
+          module: "athletes",
+          resourceType: "athlete_import_batch",
+          resourceId: importBatchId,
+          resourceName: fileHash,
+          description: `Importó ${summary.created} gimnastas desde un CSV`,
+          meta: {
+            batchId: importBatchId,
+            totalRows: summary.total,
+            createdCount: summary.created,
+            skippedCount: summary.skipped,
+            potentialDuplicates: summary.potentialDuplicates,
+          },
+        });
+      } catch (auditError) {
+        // El lote ya está cerrado; un fallo del registro no debe hacer creer
+        // al owner que la importación falló ni repetir sus inserts.
+        logger.warn("No se pudo registrar la importación en auditoría", { auditError, importBatchId });
+      }
+    }
+
     return apiSuccess(summary);
   } catch (error) {
+    if (importBatchId) {
+      try {
+        await db
+          .update(athleteImportBatches)
+          .set({ status: "failed", failedAt: new Date() })
+          .where(eq(athleteImportBatches.id, importBatchId));
+      } catch (batchError) {
+        logger.error("No se pudo cerrar el lote de importación", batchError);
+      }
+    }
     return handleApiError(error, { endpoint: "/api/athletes/import", method: "POST" });
   }
 });
@@ -410,4 +625,3 @@ const handlerWithPayloadCheck = async (request: NextRequest) => {
 };
 
 export const POST = withRateLimit(handlerWithPayloadCheck, { identifier: getUserIdentifier });
-

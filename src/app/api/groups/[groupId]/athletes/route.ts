@@ -1,9 +1,10 @@
 import { apiError, apiSuccess } from "@/lib/api-response";
-import { eq } from "drizzle-orm";
+import { and, eq, isNull } from "drizzle-orm";
 
 import { db } from "@/db";
 import { groupAthletes, groups } from "@/db/schema";
 import { TenantContext, withTenant } from "@/lib/authz";
+import { authorizeAcademyCapability } from "@/lib/authz/resource-scope";
 
 type RouteContext = TenantContext<{ params?: { groupId?: string } }>;
 
@@ -18,31 +19,36 @@ export const GET = withTenant(async (request, context: RouteContext) => {
   const [group] = await db
     .select({ tenantId: groups.tenantId, academyId: groups.academyId })
     .from(groups)
-    .where(eq(groups.id, groupId))
+    .where(and(eq(groups.id, groupId), isNull(groups.deletedAt)))
     .limit(1);
 
   if (!group) {
     return apiError("GROUP_NOT_FOUND", "Group not found", 404);
   }
 
-  const role = context.profile.role;
-  const hasAccess =
-    role === "super_admin" ||
-    role === "admin" ||
-    role === "owner" ||
-    group.tenantId === context.tenantId;
+  const scope = await authorizeAcademyCapability({
+    context,
+    resourceTenantId: group.tenantId,
+    academyId: group.academyId,
+    permission: "classes:read",
+  });
 
-  if (!hasAccess) {
-    return apiError("FORBIDDEN", "Access denied", 403);
+  if (!scope.allowed) {
+    return apiError(scope.reason ?? "FORBIDDEN", "Access denied", 403);
   }
 
   const athleteRows = await db
     .select({ athleteId: groupAthletes.athleteId })
     .from(groupAthletes)
-    .where(eq(groupAthletes.groupId, groupId));
+    .where(
+      and(
+        eq(groupAthletes.groupId, groupId),
+        eq(groupAthletes.tenantId, group.tenantId)
+      )
+    )
+    .limit(5000);
 
   const athleteIds = athleteRows.map((row) => row.athleteId);
 
   return apiSuccess({ athleteIds });
 });
-

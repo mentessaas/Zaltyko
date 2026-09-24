@@ -1,4 +1,4 @@
-import { and, eq, sql } from "drizzle-orm";
+import { and, eq, isNull, sql } from "drizzle-orm";
 import { z } from "zod";
 
 import { db } from "@/db";
@@ -11,6 +11,8 @@ import {
 } from "@/db/schema";
 import { apiError, apiSuccess } from "@/lib/api-response";
 import { withTenant } from "@/lib/authz";
+import { authorizeAcademyCapability } from "@/lib/authz/resource-scope";
+import { verifyCoachAthleteScope } from "@/lib/permissions";
 
 export const dynamic = "force-dynamic";
 
@@ -52,7 +54,7 @@ export const POST = withTenant(async (request, context) => {
       academyId: athletes.academyId,
     })
     .from(athletes)
-    .where(eq(athletes.id, athleteId))
+    .where(and(eq(athletes.id, athleteId), isNull(athletes.deletedAt)))
     .limit(1);
 
   if (!athlete) {
@@ -65,11 +67,32 @@ export const POST = withTenant(async (request, context) => {
     context.profile.role === "owner" ||
     context.profile.role === "coach";
 
-  if (
-    !canStartFamilyConversation ||
-    (context.profile.role !== "super_admin" && athlete.tenantId !== context.tenantId)
-  ) {
+  if (!canStartFamilyConversation) {
     return apiError("FORBIDDEN", "No tienes permiso para iniciar esta conversacion", 403);
+  }
+
+  const scope = await authorizeAcademyCapability({
+    context,
+    resourceTenantId: athlete.tenantId,
+    academyId: athlete.academyId,
+    permission: "communications:send",
+  });
+
+  if (!scope.allowed) {
+    return apiError(scope.reason ?? "FORBIDDEN", "No tienes permiso para iniciar esta conversacion", 403);
+  }
+
+  if (context.profile.role === "coach") {
+    const coachScope = await verifyCoachAthleteScope({
+      tenantId: athlete.tenantId,
+      academyId: athlete.academyId,
+      athleteId: athlete.id,
+      profile: context.profile,
+    });
+
+    if (!coachScope.allowed) {
+      return apiError("FORBIDDEN", "No tienes permiso sobre este gimnasta", 403);
+    }
   }
 
   const [guardian] = await db
@@ -85,7 +108,9 @@ export const POST = withTenant(async (request, context) => {
     .where(
       and(
         eq(guardianAthletes.athleteId, athlete.id),
-        eq(guardianAthletes.guardianId, body.guardianId)
+        eq(guardianAthletes.guardianId, body.guardianId),
+        eq(guardianAthletes.tenantId, athlete.tenantId),
+        eq(guardians.tenantId, athlete.tenantId)
       )
     )
     .limit(1);
@@ -97,7 +122,7 @@ export const POST = withTenant(async (request, context) => {
   if (!guardian.profileId) {
     return apiError(
       "GUARDIAN_PROFILE_REQUIRED",
-      "Este tutor todavia no tiene acceso al portal",
+      "Este tutor todavía no tiene acceso al portal",
       409
     );
   }

@@ -57,7 +57,8 @@ export const GET = withTenant(async (request: Request, context: { tenantId: stri
       .leftJoin(athletes, eq(eventInvitations.athleteId, athletes.id))
       .leftJoin(guardians, eq(eventInvitations.guardianId, guardians.id))
       .leftJoin(profiles, eq(eventInvitations.invitedBy, profiles.id))
-      .where(eq(eventInvitations.eventId, eventId));
+      .where(eq(eventInvitations.eventId, eventId))
+      .limit(5000);
 
     // Group by status
     const stats = {

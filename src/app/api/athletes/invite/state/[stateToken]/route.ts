@@ -3,6 +3,10 @@ import { eq } from "drizzle-orm";
 import { db } from "@/db";
 import { athleteInvitations, academies } from "@/db/schema";
 import { apiError, apiSuccess } from "@/lib/api-response";
+import { withRateLimit, RATE_LIMITS } from "@/lib/rate-limit";
+import { z } from "zod";
+
+// @route-auth public (opaque invitation state token is the authorization primitive)
 
 /**
  * GET /api/athletes/invite/state/[stateToken]
@@ -16,9 +20,10 @@ import { apiError, apiSuccess } from "@/lib/api-response";
  * NO devuelve supabase_user_id, token crudo, ni athlete_id. Es seguro
  * exponer el email porque ya está en el correo que recibió el usuario.
  */
-export async function GET(_request: Request, ctx: { params: Promise<{ stateToken: string }> }) {
+async function getInvitationState(_request: Request, ctx: { params: Promise<{ stateToken: string }> }) {
   const { stateToken } = await ctx.params;
-  if (!stateToken || stateToken.length < 16) {
+  const parsedToken = z.string().min(16).max(512).safeParse(stateToken);
+  if (!parsedToken.success) {
     return apiError("INVALID_STATE", "state inválido", 400);
   }
 
@@ -37,7 +42,7 @@ export async function GET(_request: Request, ctx: { params: Promise<{ stateToken
     })
     .from(athleteInvitations)
     .innerJoin(academies, eq(athleteInvitations.academyId, academies.id))
-    .where(eq(athleteInvitations.stateToken, stateToken))
+    .where(eq(athleteInvitations.stateToken, parsedToken.data))
     .limit(1);
 
   if (!row) {
@@ -62,3 +67,8 @@ export async function GET(_request: Request, ctx: { params: Promise<{ stateToken
     },
   });
 }
+
+export const GET = withRateLimit(getInvitationState, {
+  limit: RATE_LIMITS.STRICT.limit,
+  window: RATE_LIMITS.STRICT.window,
+});

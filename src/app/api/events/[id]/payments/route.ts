@@ -40,7 +40,8 @@ export const GET = withTenant(async (_request, context) => {
         registeredAt: eventRegistrations.registeredAt,
       })
       .from(eventRegistrations)
-      .where(eq(eventRegistrations.eventId, eventId));
+      .where(eq(eventRegistrations.eventId, eventId))
+      .limit(5000);
 
     // Get payments for all registrations
     const registrationIds = registrations.map((r) => r.id);
@@ -57,6 +58,7 @@ export const GET = withTenant(async (_request, context) => {
           })
           .from(eventPayments)
           .where(inArray(eventPayments.registrationId, registrationIds))
+          .limit(5000)
       : [];
 
     // Calculate payment summary

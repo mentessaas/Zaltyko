@@ -72,7 +72,8 @@ async function getExceptions(
                 eq(classExceptions.classId, classId),
                 eq(classExceptions.tenantId, scope.resource!.tenantId)
             ))
-            .orderBy(asc(classExceptions.exceptionDate));
+            .orderBy(asc(classExceptions.exceptionDate))
+            .limit(1000);
 
         return apiSuccess({ exceptions });
     } catch (error) {

@@ -5,7 +5,7 @@ import Link from "next/link";
 import { ArrowLeft } from "lucide-react";
 
 import { db } from "@/db";
-import { academies, athletes, memberships, profiles, groups } from "@/db/schema";
+import { academies, athletes, memberships, profiles } from "@/db/schema";
 import { createClient } from "@/lib/supabase/server";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import AssessmentForm from "@/components/assessments/AssessmentForm";
@@ -64,7 +64,7 @@ export default async function AthleteEvaluatePage({ params }: EvaluatePageProps)
     })
     .from(athletes)
     .innerJoin(academies, eq(athletes.academyId, academies.id))
-    .where(eq(athletes.id, athleteId))
+    .where(and(eq(athletes.id, athleteId), eq(athletes.academyId, academyId)))
     .limit(1);
 
   if (!athleteRow) notFound();
@@ -78,8 +78,7 @@ export default async function AthleteEvaluatePage({ params }: EvaluatePageProps)
 
   const canAccess =
     profile.role === "super_admin" ||
-    profile.role === "admin" ||
-    profile.tenantId === athleteRow.tenantId ||
+    (profile.role === "admin" && profile.tenantId === athleteRow.tenantId) ||
     membershipRows.length > 0;
 
   if (!canAccess) redirect("/dashboard");
@@ -93,17 +92,6 @@ export default async function AthleteEvaluatePage({ params }: EvaluatePageProps)
     federationConfigVersion: athleteRow.federationConfigVersion,
     specializationStatus: athleteRow.specializationStatus,
   });
-  const [groupRow] = athleteRow.groupId
-    ? await db
-        .select({
-          id: groups.id,
-          name: groups.name,
-        })
-        .from(groups)
-        .where(eq(groups.id, athleteRow.groupId))
-        .limit(1)
-    : [];
-
   const sportConfigs = await getAcademySportConfigOptions(academyId);
   const selectedSportConfig =
     sportConfigs.find((config) => config.id === athleteRow.primarySportConfigId) ??

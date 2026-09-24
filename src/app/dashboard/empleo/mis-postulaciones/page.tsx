@@ -65,8 +65,9 @@ export default function MisPostulacionesPage() {
     try {
       const res = await fetch("/api/empleo/mis-postulaciones");
       if (res.ok) {
-        const data = await res.json();
-        setApplications(data.applications ?? []);
+        const payload = await res.json();
+        const data = payload?.data ?? payload;
+        setApplications(data?.applications ?? []);
       }
     } catch {
       setApplications([]);

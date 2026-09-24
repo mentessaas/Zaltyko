@@ -62,7 +62,8 @@ export default async function CoachDetailPage({ params }: PageProps) {
     .from(classCoachAssignments)
     .innerJoin(classes, eq(classCoachAssignments.classId, classes.id))
     .where(eq(classCoachAssignments.coachId, coachId))
-    .orderBy(asc(classes.name));
+    .orderBy(asc(classes.name))
+    .limit(1000);
 
   const assignmentClassIds = classAssignments.map((entry) => entry.id);
   const assignmentWeekdays =
@@ -74,7 +75,8 @@ export default async function CoachDetailPage({ params }: PageProps) {
             weekday: classWeekdays.weekday,
           })
           .from(classWeekdays)
-          .where(inArray(classWeekdays.classId, assignmentClassIds));
+          .where(inArray(classWeekdays.classId, assignmentClassIds))
+          .limit(7000);
 
   const assignmentWeekdayMap = new Map<string, number[]>();
   assignmentWeekdays.forEach((row) => {
@@ -97,7 +99,8 @@ export default async function CoachDetailPage({ params }: PageProps) {
     })
     .from(groups)
     .where(eq(groups.academyId, academyId))
-    .orderBy(asc(groups.name));
+    .orderBy(asc(groups.name))
+    .limit(500);
 
   const principalGroups = groupRows
     .filter((group) => group.coachId === coachId)
@@ -151,17 +154,17 @@ export default async function CoachDetailPage({ params }: PageProps) {
         href={`/app/${academyId}/coaches`}
         className="inline-flex items-center gap-2 text-sm font-semibold text-muted-foreground transition hover:text-zaltyko-teal"
       >
-        ← Volver a entrenadores
+        ← Volver al staff
       </Link>
 
       <section className="rounded-2xl border border-border bg-card p-6 shadow-soft">
         <header className="flex flex-wrap items-start justify-between gap-4">
           <div className="space-y-2">
-            <p className="text-xs font-medium uppercase tracking-[0.05em] text-zaltyko-teal">Entrenador</p>
+            <p className="text-xs font-medium uppercase tracking-[0.05em] text-zaltyko-teal">Perfil de staff</p>
             <h1 className="font-display text-3xl font-semibold text-foreground">{coachRow.name}</h1>
             <div className="flex flex-wrap gap-2 text-xs text-muted-foreground">
               <span className="rounded-full bg-zaltyko-teal/10 px-3 py-1 font-semibold text-zaltyko-teal">
-                Clases asignadas: {classAssignments.length}
+                Entrenamientos asignados: {classAssignments.length}
               </span>
               <span className="rounded-full bg-zaltyko-indigo/10 px-3 py-1 font-semibold text-zaltyko-indigo">
                 Grupos principales: {principalGroups.length}
@@ -209,13 +212,13 @@ export default async function CoachDetailPage({ params }: PageProps) {
           <header>
             <h2 className="font-display text-lg font-semibold text-foreground">Clases asignadas</h2>
             <p className="text-sm text-muted-foreground">
-              Clases en las que figura como entrenador responsable.
+              Entrenamientos en los que figura como persona responsable.
             </p>
           </header>
 
           {classAssignments.length === 0 ? (
             <p className="text-sm text-muted-foreground">
-              Aún no tiene clases asignadas. Desde la vista de clases puedes asignarlo.
+              Aún no tiene entrenamientos asignados. Desde la vista de entrenamientos puedes asignarlo.
             </p>
           ) : (
             <div className="space-y-3">
@@ -232,7 +235,7 @@ export default async function CoachDetailPage({ params }: PageProps) {
                   className="flex flex-wrap items-center justify-between gap-3 rounded-xl border border-border/70 bg-zaltyko-warm-white px-4 py-3 text-sm"
                 >
                   <div>
-                    <p className="font-semibold text-foreground">{classItem.name ?? "Clase"}</p>
+                    <p className="font-semibold text-foreground">{classItem.name ?? "Entrenamiento"}</p>
                     <p className="text-xs text-muted-foreground">
                         {weekdayLabel} ·{" "}
                         {classItem.startTime && classItem.endTime
@@ -246,7 +249,7 @@ export default async function CoachDetailPage({ params }: PageProps) {
                     href={`/app/${academyId}/classes/${classItem.id}`}
                     className="text-xs font-semibold text-zaltyko-teal hover:underline"
                   >
-                    Ver clase
+                    Ver entrenamiento
                   </Link>
                 </div>
                 );
@@ -273,7 +276,7 @@ export default async function CoachDetailPage({ params }: PageProps) {
                 {principalGroups.length > 0 && (
                   <div className="space-y-2">
                     <h3 className="text-xs font-semibold uppercase tracking-[0.05em] text-muted-foreground">
-                      Entrenador principal
+                      Persona responsable principal
                     </h3>
                     <ul className="space-y-2">
                       {principalGroups.map((group) => (
@@ -357,20 +360,20 @@ export default async function CoachDetailPage({ params }: PageProps) {
         <header className="mb-4">
           <h2 className="font-display text-lg font-semibold text-foreground">Sesiones lideradas recientemente</h2>
           <p className="text-sm text-muted-foreground">
-            Sesiones del calendario donde figuró como entrenador principal.
+            Sesiones del calendario donde figuró como persona responsable.
           </p>
         </header>
 
         {recentSessions.length === 0 ? (
           <p className="text-sm text-muted-foreground">
-            No hay registros recientes de sesiones con este entrenador.
+            No hay registros recientes de sesiones con este perfil.
           </p>
         ) : (
           <div className="overflow-hidden rounded-2xl border border-border">
             <table className="min-w-full divide-y divide-zaltyko-mist text-sm">
               <thead className="bg-zaltyko-warm-white">
                 <tr className="text-left text-xs uppercase tracking-[0.05em] text-muted-foreground">
-                  <th className="px-4 py-3 font-medium">Clase</th>
+                  <th className="px-4 py-3 font-medium">Entrenamiento</th>
                   <th className="px-4 py-3 font-medium">Fecha</th>
                   <th className="px-4 py-3 font-medium">Horario</th>
                   <th className="px-4 py-3 font-medium text-right">Asistencia</th>
@@ -384,7 +387,7 @@ export default async function CoachDetailPage({ params }: PageProps) {
                         href={`/app/${academyId}/classes/${session.classId}`}
                         className="text-zaltyko-teal hover:underline"
                       >
-                        {session.className ?? "Clase"}
+                        {session.className ?? "Entrenamiento"}
                       </Link>
                     </td>
                     <td className="px-4 py-3">{session.sessionDate}</td>

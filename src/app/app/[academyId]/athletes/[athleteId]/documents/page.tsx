@@ -73,7 +73,8 @@ export default async function AthleteDocumentsPage({ params }: PageProps) {
       eq(athleteDocuments.athleteId, athleteId),
       eq(athleteDocuments.tenantId, athlete.tenantId)
     ))
-    .orderBy(desc(athleteDocuments.createdAt));
+    .orderBy(desc(athleteDocuments.createdAt))
+    .limit(500);
 
   const documentsWithUrl: AthleteDocumentWithUrl[] = documents.map((doc) => ({
     ...doc,

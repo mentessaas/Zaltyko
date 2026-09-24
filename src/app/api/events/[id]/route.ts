@@ -4,12 +4,16 @@ import { z } from "zod";
 import { db } from "@/db";
 import { events, academies } from "@/db/schema";
 import { withTenant } from "@/lib/authz";
-import { rateLimit, getUserIdentifier, withRateLimit } from "@/lib/rate-limit";
+import { authorizeAcademyCapability } from "@/lib/authz/resource-scope";
+import { getUserIdentifier, withRateLimit } from "@/lib/rate-limit";
 import { handleApiError } from "@/lib/api-error-handler";
 import { logger } from "@/lib/logger";
 import { apiSuccess, apiError } from "@/lib/api-response";
 import { getAcademySportConfigOptions, verifyAcademySportConfig } from "@/lib/sport-config/service";
 import { NextResponse } from "next/server";
+import { cookies } from "next/headers";
+import { createClient } from "@/lib/supabase/server";
+import { profiles } from "@/db/schema";
 
 export const dynamic = "force-dynamic";
 
@@ -93,9 +97,13 @@ interface RouteContext {
  * 
  * Obtiene el detalle de un evento (público si is_public = true, o del tenant si autenticado)
  */
+// @auth-flexible route-guard-reason: public events are readable without auth; private events authenticate before returning data.
 export async function GET(request: Request, context: RouteContext) {
   try {
     const { id } = await context.params;
+    if (!z.string().uuid().safeParse(id).success) {
+      return apiError("INVALID_EVENT_ID", "Identificador de evento inválido", 400);
+    }
 
     // Obtener evento
     const [event] = await db
@@ -134,11 +142,29 @@ export async function GET(request: Request, context: RouteContext) {
       return apiError("EVENT_NOT_FOUND", "Evento no encontrado", 404);
     }
 
-    // Si el evento no es público, verificar autenticación y tenant
-    // (esto se maneja mejor con RLS, pero por seguridad adicional)
+    // Los eventos privados nunca deben exponerse desde esta ruta pública.
     if (!event.isPublic) {
-      // Intentar obtener tenant del contexto (si está autenticado)
-      // Por ahora, permitimos acceso si el evento existe (RLS lo manejará)
+      const cookieStore = await cookies();
+      const supabase = await createClient(cookieStore);
+      const { data: { user } } = await supabase.auth.getUser();
+      if (!user) return apiError("EVENT_NOT_FOUND", "Evento no encontrado", 404);
+      const [profile] = await db
+        .select()
+        .from(profiles)
+        .where(eq(profiles.userId, user.id))
+        .limit(1);
+      if (!profile || profile.tenantId !== event.tenantId) {
+        return apiError("EVENT_NOT_FOUND", "Evento no encontrado", 404);
+      }
+      const scope = await authorizeAcademyCapability({
+        context: { tenantId: profile.tenantId, userId: user.id, profile },
+        resourceTenantId: event.tenantId,
+        academyId: event.academyId,
+        permission: "events:read",
+      });
+      if (!scope.allowed) {
+        return apiError("EVENT_NOT_FOUND", "Evento no encontrado", 404);
+      }
     }
 
     // Obtener información de la academia organizadora
@@ -149,7 +175,7 @@ export async function GET(request: Request, context: RouteContext) {
         logoUrl: academies.logoUrl,
       })
       .from(academies)
-      .where(eq(academies.id, event.academyId))
+      .where(and(eq(academies.id, event.academyId), eq(academies.tenantId, event.tenantId)))
       .limit(1);
 
     return apiSuccess({
@@ -190,6 +216,16 @@ const patchEventHandler = withTenant(async (request, context) => {
 
     if (!event) {
       return apiError("EVENT_NOT_FOUND", "Evento no encontrado", 404);
+    }
+
+    const capability = await authorizeAcademyCapability({
+      context,
+      resourceTenantId: context.tenantId,
+      academyId: event.academyId,
+      permission: "events:update",
+    });
+    if (!capability.allowed) {
+      return apiError("FORBIDDEN", "No tienes permiso para editar eventos de esta academia", 403);
     }
 
     // Verificar que la academia pertenece al tenant
@@ -363,6 +399,16 @@ const deleteEventHandler = withTenant(async (request, context) => {
       return apiError("EVENT_NOT_FOUND", "Evento no encontrado", 404);
     }
 
+    const capability = await authorizeAcademyCapability({
+      context,
+      resourceTenantId: event.tenantId,
+      academyId: event.academyId,
+      permission: "events:delete",
+    });
+    if (!capability.allowed) {
+      return apiError("EVENT_NOT_FOUND", "Evento no encontrado", 404);
+    }
+
     // Verificar que la academia pertenece al tenant
     const [academy] = await db
       .select({ tenantId: academies.tenantId })
@@ -375,7 +421,7 @@ const deleteEventHandler = withTenant(async (request, context) => {
     }
 
     // Eliminar evento
-    await db.delete(events).where(eq(events.id, id));
+    await db.delete(events).where(and(eq(events.id, id), eq(events.tenantId, event.tenantId)));
 
     return apiSuccess({ ok: true });
   } catch (error) {

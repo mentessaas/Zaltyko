@@ -4,12 +4,13 @@ import { z } from "zod";
 import { db } from "@/db";
 import { classCoachAssignments, coaches } from "@/db/schema";
 import { withTenant } from "@/lib/authz";
+import { authorizeAcademyCapability } from "@/lib/authz/resource-scope";
 import { withTransaction } from "@/lib/db-transactions";
 import { apiSuccess, apiError } from "@/lib/api-response";
 import { replaceCoachSportConfigScope } from "@/lib/coaches/sport-scope";
 
 const UpdateSchema = z.object({
-  name: z.string().min(1).optional(),
+  name: z.string().trim().min(1).max(120).optional(),
   email: z.string().email().optional().nullable(),
   phone: z.string().optional().nullable(),
   bio: z.string().optional().nullable(),
@@ -47,10 +48,14 @@ export const PATCH = withTenant(async (request, context) => {
     return apiError("COACH_NOT_FOUND", "Coach no encontrado", 404);
   }
 
-  if (
-    context.profile.role !== "super_admin" &&
-    coach.tenantId !== context.tenantId
-  ) {
+  const scope = await authorizeAcademyCapability({
+    context,
+    resourceTenantId: coach.tenantId,
+    academyId: coach.academyId,
+    permission: "coaches:update",
+  });
+
+  if (!scope.allowed) {
     return apiError("FORBIDDEN", "No tienes permisos para actualizar este coach", 403);
   }
 
@@ -104,10 +109,14 @@ export const DELETE = withTenant(async (_request, context) => {
     return apiError("COACH_NOT_FOUND", "Coach no encontrado", 404);
   }
 
-  if (
-    context.profile.role !== "super_admin" &&
-    coach.tenantId !== context.tenantId
-  ) {
+  const scope = await authorizeAcademyCapability({
+    context,
+    resourceTenantId: coach.tenantId,
+    academyId: coach.academyId,
+    permission: "coaches:delete",
+  });
+
+  if (!scope.allowed) {
     return apiError("FORBIDDEN", "No tienes permisos para eliminar este coach", 403);
   }
 
@@ -119,4 +128,3 @@ export const DELETE = withTenant(async (_request, context) => {
 
   return apiSuccess({ ok: true });
 });
-

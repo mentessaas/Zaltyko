@@ -12,6 +12,7 @@ import {
   groups,
 } from "@/db/schema";
 import { withTenant } from "@/lib/authz";
+import { authorizeAcademyCapability } from "@/lib/authz/resource-scope";
 import { apiSuccess, apiError } from "@/lib/api-response";
 import { getCoachSportConfigIds } from "@/lib/coaches/sport-scope";
 
@@ -33,7 +34,18 @@ export const GET = withTenant(async (_request, context) => {
     .where(eq(coaches.id, coachId))
     .limit(1);
 
-  if (!coach || coach.tenantId !== context.tenantId) {
+  if (!coach) {
+    return apiError("COACH_NOT_FOUND", "Coach no encontrado", 404);
+  }
+
+  const scope = await authorizeAcademyCapability({
+    context,
+    resourceTenantId: coach.tenantId,
+    academyId: coach.academyId,
+    permission: "coaches:read",
+  });
+
+  if (!scope.allowed) {
     return apiError("COACH_NOT_FOUND", "Coach no encontrado", 404);
   }
 
@@ -46,7 +58,16 @@ export const GET = withTenant(async (_request, context) => {
     .select({ classId: classCoachAssignments.classId, sportConfigId: classes.sportConfigId })
     .from(classCoachAssignments)
     .innerJoin(classes, eq(classCoachAssignments.classId, classes.id))
-    .where(and(eq(classCoachAssignments.coachId, coachId), eq(classes.academyId, coach.academyId)));
+    .where(
+      and(
+        eq(classCoachAssignments.coachId, coachId),
+        eq(classCoachAssignments.tenantId, coach.tenantId),
+        eq(classes.tenantId, coach.tenantId),
+        eq(classes.academyId, coach.academyId),
+        isNull(classes.deletedAt)
+      )
+    )
+    .limit(2000);
 
   const assignedClassIds = assignedClasses.filter((c) => isInScope(c.sportConfigId)).map((c) => c.classId);
 
@@ -57,7 +78,16 @@ export const GET = withTenant(async (_request, context) => {
       .select({ groupId: classGroups.groupId, sportConfigId: groups.sportConfigId })
       .from(classGroups)
       .innerJoin(groups, eq(classGroups.groupId, groups.id))
-      .where(inArray(classGroups.classId, assignedClassIds));
+      .where(
+        and(
+          inArray(classGroups.classId, assignedClassIds),
+          eq(classGroups.tenantId, coach.tenantId),
+          eq(groups.tenantId, coach.tenantId),
+          eq(groups.academyId, coach.academyId),
+          isNull(groups.deletedAt)
+        )
+      )
+      .limit(5000);
 
     groupIds = linkedClassGroups
       .filter((g) => isInScope(g.sportConfigId))
@@ -82,9 +112,13 @@ export const GET = withTenant(async (_request, context) => {
       .where(
         and(
           inArray(groupAthletes.groupId, groupIds),
+          eq(groupAthletes.tenantId, coach.tenantId),
+          eq(athletes.tenantId, coach.tenantId),
+          eq(athletes.academyId, coach.academyId),
           isNull(athletes.deletedAt)
         )
-      );
+      )
+      .limit(5000);
 
     athletesFromGroups = groupAthleteRows.map((a) => ({
       id: a.athleteId,
@@ -113,9 +147,13 @@ export const GET = withTenant(async (_request, context) => {
       .where(
         and(
           inArray(classEnrollments.classId, assignedClassIds),
+          eq(classEnrollments.tenantId, coach.tenantId),
+          eq(athletes.tenantId, coach.tenantId),
+          eq(athletes.academyId, coach.academyId),
           isNull(athletes.deletedAt)
         )
-      );
+      )
+      .limit(5000);
 
     athletesFromEnrollments = enrollmentRows.map((a) => ({
       id: a.athleteId,

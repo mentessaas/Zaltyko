@@ -1,5 +1,5 @@
 import { apiSuccess, apiError } from "@/lib/api-response";
-import { and, asc, eq, inArray } from "drizzle-orm";
+import { and, asc, eq, inArray, isNull } from "drizzle-orm";
 import { z } from "zod";
 
 import { db } from "@/db";
@@ -15,7 +15,7 @@ import {
   groups,
 } from "@/db/schema";
 import { withTenant } from "@/lib/authz";
-import { rateLimit, getUserIdentifier, withRateLimit } from "@/lib/rate-limit";
+import { authorizeAcademyCapability } from "@/lib/authz/resource-scope";
 import { handleApiError } from "@/lib/api-error-handler";
 import { withTransaction } from "@/lib/db-transactions";
 import { verifyClassAccess } from "@/lib/permissions";
@@ -23,8 +23,8 @@ import { hasScheduleConflictForAthlete } from "@/lib/classes/schedule-conflicts"
 import { logger } from "@/lib/logger";
 import { getAcademySportConfigOptions, verifyAcademySportConfig } from "@/lib/sport-config/service";
 import { normalizeApparatusCodes } from "@/lib/sport-config/validation";
+import { isValidClassTimeRange } from "@/lib/classes/time-validation";
 import { assertCoachesCanHandleSportConfig } from "@/lib/coaches/sport-scope";
-import { NextResponse } from "next/server";
 import {
   hasMixedSportConfigGroups,
   normalizeClassApparatus,
@@ -65,7 +65,7 @@ function isRowLevelSecurityError(error: unknown): boolean {
 }
 
 const updateSchema = z.object({
-  name: z.string().min(1).optional(),
+  name: z.string().trim().min(1).max(120).optional(),
   weekdays: z
     .array(z.number().int().min(0).max(6))
     .max(7)
@@ -117,10 +117,27 @@ export const GET = withTenant(async (_request, context) => {
     })
     .from(classes)
     .innerJoin(academies, eq(classes.academyId, academies.id))
-    .where(eq(classes.id, classId))
+    .where(
+      and(
+        eq(classes.id, classId),
+        eq(classes.tenantId, context.tenantId),
+        isNull(classes.deletedAt)
+      )
+    )
     .limit(1);
 
   if (!classRow) {
+    return apiError("CLASS_NOT_FOUND", "Class not found", 404);
+  }
+
+  const scope = await authorizeAcademyCapability({
+    context,
+    resourceTenantId: context.tenantId,
+    academyId: classRow.academyId,
+    permission: "classes:read",
+  });
+
+  if (!scope.allowed) {
     return apiError("CLASS_NOT_FOUND", "Class not found", 404);
   }
 
@@ -129,7 +146,8 @@ export const GET = withTenant(async (_request, context) => {
       weekday: classWeekdays.weekday,
     })
     .from(classWeekdays)
-    .where(eq(classWeekdays.classId, classId));
+    .where(and(eq(classWeekdays.classId, classId), eq(classWeekdays.tenantId, context.tenantId)))
+    .limit(7);
 
   const assignments = await db
     .select({
@@ -139,8 +157,9 @@ export const GET = withTenant(async (_request, context) => {
     })
     .from(classCoachAssignments)
     .innerJoin(coaches, eq(classCoachAssignments.coachId, coaches.id))
-    .where(eq(classCoachAssignments.classId, classId))
-    .orderBy(asc(coaches.name));
+    .where(and(eq(classCoachAssignments.classId, classId), eq(classCoachAssignments.tenantId, context.tenantId)))
+    .orderBy(asc(coaches.name))
+    .limit(100);
 
   const groupAssignments = await db
     .select({
@@ -151,7 +170,8 @@ export const GET = withTenant(async (_request, context) => {
     })
     .from(classGroups)
     .innerJoin(groups, eq(classGroups.groupId, groups.id))
-    .where(eq(classGroups.classId, classId));
+    .where(and(eq(classGroups.classId, classId), eq(classGroups.tenantId, context.tenantId), eq(groups.tenantId, context.tenantId)))
+    .limit(100);
 
   return apiSuccess({
     item: {
@@ -211,22 +231,35 @@ export const PUT = withTenant(async (request, context) => {
       .select({
         id: classes.id,
         academyId: classes.academyId,
+        tenantId: classes.tenantId,
         sportConfigId: classes.sportConfigId,
         startTime: classes.startTime,
         endTime: classes.endTime,
       })
       .from(classes)
-      .where(eq(classes.id, classId))
+      .where(and(eq(classes.id, classId), eq(classes.tenantId, context.tenantId), isNull(classes.deletedAt)))
       .limit(1);
 
     if (!currentClass) {
       return apiError("CLASS_NOT_FOUND", "Class not found", 404);
     }
 
+    const scope = await authorizeAcademyCapability({
+      context,
+      resourceTenantId: currentClass.tenantId,
+      academyId: currentClass.academyId,
+      permission: "classes:update",
+    });
+
+    if (!scope.allowed) {
+      return apiError("CLASS_NOT_FOUND", "Class not found", 404);
+    }
+
     const currentGroupIds = await db
       .select({ groupId: classGroups.groupId })
       .from(classGroups)
-      .where(eq(classGroups.classId, classId));
+      .where(eq(classGroups.classId, classId))
+      .limit(100);
 
     const uniqueCandidateGroupIds = resolveCandidateGroupIds({
       groupIds: body.groupIds,
@@ -245,9 +278,11 @@ export const PUT = withTenant(async (request, context) => {
               and(
                 eq(groups.tenantId, context.tenantId),
                 eq(groups.academyId, currentClass.academyId),
-                inArray(groups.id, uniqueCandidateGroupIds)
+                inArray(groups.id, uniqueCandidateGroupIds),
+                isNull(groups.deletedAt)
               )
             )
+            .limit(100)
         : [];
 
     if (selectedGroups.length !== uniqueCandidateGroupIds.length) {
@@ -342,6 +377,7 @@ export const PUT = withTenant(async (request, context) => {
               .select({ weekday: classWeekdays.weekday })
               .from(classWeekdays)
               .where(eq(classWeekdays.classId, classId))
+              .limit(7)
               .then((rows) => rows.map((r) => r.weekday).sort((a, b) => a - b));
       const {
         weekdays: finalWeekdays,
@@ -356,6 +392,10 @@ export const PUT = withTenant(async (request, context) => {
         currentEndTime: currentClass.endTime,
       });
 
+      if (!isValidClassTimeRange(finalStartTime, finalEndTime)) {
+        return apiError("INVALID_TIME_RANGE", "La hora de fin debe ser posterior a la hora de inicio", 400);
+      }
+
       // Obtener todos los atletas que estarán en la clase después del cambio
       const athleteIds = new Set<string>();
 
@@ -367,7 +407,8 @@ export const PUT = withTenant(async (request, context) => {
         const currentGroups = await db
           .select({ groupId: classGroups.groupId })
           .from(classGroups)
-          .where(eq(classGroups.classId, classId));
+          .where(eq(classGroups.classId, classId))
+          .limit(100);
         groupsToCheck = currentGroups.map((r) => r.groupId);
       }
 
@@ -380,7 +421,8 @@ export const PUT = withTenant(async (request, context) => {
               eq(athletes.academyId, currentClass.academyId),
               inArray(athletes.groupId, groupsToCheck)
             )
-          );
+          )
+          .limit(5000);
 
         groupAthletes.forEach((a) => athleteIds.add(a.athleteId));
       }
@@ -389,7 +431,8 @@ export const PUT = withTenant(async (request, context) => {
       const enrollmentAthletes = await db
         .select({ athleteId: classEnrollments.athleteId })
         .from(classEnrollments)
-        .where(eq(classEnrollments.classId, classId));
+        .where(eq(classEnrollments.classId, classId))
+        .limit(5000);
 
       enrollmentAthletes.forEach((e) => athleteIds.add(e.athleteId));
 
@@ -408,6 +451,7 @@ export const PUT = withTenant(async (request, context) => {
           try {
             const conflict = await hasScheduleConflictForAthlete(
               currentClass.academyId,
+              context.tenantId,
               athleteId,
               classId,
               finalWeekdays,
@@ -599,6 +643,27 @@ export const DELETE = withTenant(async (_request, context) => {
     const classAccess = await verifyClassAccess(classId, context.tenantId);
     if (!classAccess.allowed) {
       return apiError(classAccess.reason ?? "CLASS_NOT_FOUND", "No se encontró la clase o no tienes acceso a ella", 404);
+    }
+
+    const [classRow] = await db
+      .select({ academyId: classes.academyId, tenantId: classes.tenantId })
+      .from(classes)
+      .where(and(eq(classes.id, classId), eq(classes.tenantId, context.tenantId), isNull(classes.deletedAt)))
+      .limit(1);
+
+    if (!classRow) {
+      return apiError("CLASS_NOT_FOUND", "No se encontró la clase o no tienes acceso a ella", 404);
+    }
+
+    const scope = await authorizeAcademyCapability({
+      context,
+      resourceTenantId: classRow.tenantId,
+      academyId: classRow.academyId,
+      permission: "classes:delete",
+    });
+
+    if (!scope.allowed) {
+      return apiError("CLASS_NOT_FOUND", "No se encontró la clase o no tienes acceso a ella", 404);
     }
 
     await withTransaction(async (tx) => {

@@ -4,9 +4,13 @@ import { z } from "zod";
 import { db } from "@/db";
 import { events, eventRegistrations, profiles } from "@/db/schema";
 import { withTenant } from "@/lib/authz";
+import { authorizeAcademyCapability } from "@/lib/authz/resource-scope";
 import { handleApiError } from "@/lib/api-error-handler";
 import { logger } from "@/lib/logger";
 import { apiSuccess, apiError } from "@/lib/api-response";
+import { sendEmailWithLogging } from "@/lib/email/email-service";
+import { getAuthUserEmail } from "@/lib/supabase/admin-operations";
+import { escapeHtml } from "@/lib/email/escape-html";
 
 export const dynamic = 'force-dynamic';
 
@@ -31,6 +35,7 @@ export const POST = withTenant(async (request, context) => {
         id: events.id,
         title: events.title,
         tenantId: events.tenantId,
+        academyId: events.academyId,
       })
       .from(events)
       .where(and(eq(events.id, eventId), eq(events.tenantId, context.tenantId)))
@@ -40,8 +45,18 @@ export const POST = withTenant(async (request, context) => {
       return apiError("EVENT_NOT_FOUND", "Event not found", 404);
     }
 
+    const capability = await authorizeAcademyCapability({
+      context,
+      resourceTenantId: eventRow.tenantId,
+      academyId: eventRow.academyId,
+      permission: "events:update",
+    });
+    if (!capability.allowed) {
+      return apiError("FORBIDDEN", "No tienes permiso para notificar este evento", 403);
+    }
+
     // Get recipients based on sendTo filter
-    let recipients: { profileId: string; status: string }[] = [];
+    const recipients: { profileId: string; status: string }[] = [];
 
     if (body.sendTo === "all" || body.sendTo === "registered") {
       const registered = await db
@@ -51,9 +66,11 @@ export const POST = withTenant(async (request, context) => {
         })
         .from(eventRegistrations)
         .where(and(
+          eq(eventRegistrations.tenantId, eventRow.tenantId),
           eq(eventRegistrations.eventId, eventId),
           eq(eventRegistrations.status, "confirmed")
-        ));
+        ))
+        .limit(5000);
       recipients.push(...registered);
     }
 
@@ -67,9 +84,11 @@ export const POST = withTenant(async (request, context) => {
         })
         .from(eventRegistrations)
         .where(and(
+          eq(eventRegistrations.tenantId, eventRow.tenantId),
           eq(eventRegistrations.eventId, eventId),
           eq(eventRegistrations.status, "waitlisted")
-        ));
+        ))
+        .limit(5000);
       recipients.push(...waitlisted);
     }
 
@@ -79,7 +98,8 @@ export const POST = withTenant(async (request, context) => {
         index === self.findIndex((r) => r.profileId === recipient.profileId)
     );
 
-    // Get profile emails for notification
+    // Resolve auth emails server-side; profile.userId is an auth identifier,
+    // never an email address.
     const profileIds = uniqueRecipients.map((r) => r.profileId);
     const profileRows = await db
       .select({
@@ -88,23 +108,51 @@ export const POST = withTenant(async (request, context) => {
         userId: profiles.userId,
       })
       .from(profiles)
-      .where(inArray(profiles.id, profileIds));
+      .where(and(
+        eq(profiles.tenantId, eventRow.tenantId),
+        inArray(profiles.id, profileIds)
+      ))
+      .limit(5000);
 
-    // Log notification (in production, this would send emails/push notifications)
-    logger.info("Event notification sent", {
+    let sent = 0;
+    let failed = 0;
+    for (const profile of profileRows) {
+      const email = await getAuthUserEmail(profile.userId);
+      if (!email) {
+        failed++;
+        continue;
+      }
+      const delivered = await sendEmailWithLogging({
+        to: email,
+        subject: `${eventRow.title}: ${body.type.replaceAll("_", " ")}`,
+        html: `<p>${escapeHtml(body.message)}</p>`,
+        template: `event_notification:${eventId}`,
+        tenantId: eventRow.tenantId,
+        academyId: eventRow.academyId,
+        userId: profile.id,
+        profileId: profile.id,
+        notificationType: "event",
+        dedupeKey: `event-notification:${eventId}:${body.type}:${profile.id}:${body.message}`,
+      });
+      if (delivered) sent++;
+    }
+
+    logger.info("Event notification processed", {
       eventId,
       eventTitle: eventRow.title,
       notificationType: body.type,
       sendTo: body.sendTo,
       recipientCount: uniqueRecipients.length,
-      message: body.message,
-      recipients: profileRows.map((p) => ({ id: p.id, email: p.userId })),
+      sent,
+      failed,
     });
 
     return apiSuccess({
       ok: true,
-      message: "Notification sent successfully",
+      message: "Notification processed",
       recipientCount: uniqueRecipients.length,
+      sent,
+      failed,
     });
   } catch (error) {
     return handleApiError(error);

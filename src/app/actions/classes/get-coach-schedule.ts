@@ -1,7 +1,7 @@
 "use server";
 
 import { cookies } from "next/headers";
-import { and, asc, eq, gte, lte } from "drizzle-orm";
+import { and, asc, eq, gte, isNull, lte } from "drizzle-orm";
 import { db } from "@/db";
 import {
   classCoachAssignments,
@@ -77,7 +77,13 @@ export async function getCoachSchedule(params: {
         academyId: coaches.academyId,
       })
       .from(coaches)
-      .where(and(eq(coaches.id, coachId), eq(coaches.academyId, academyId)))
+      .where(
+        and(
+          eq(coaches.id, coachId),
+          eq(coaches.academyId, academyId),
+          eq(coaches.tenantId, tenantId)
+        )
+      )
       .limit(1);
 
     if (!coach) {
@@ -97,14 +103,28 @@ export async function getCoachSchedule(params: {
       })
       .from(classCoachAssignments)
       .innerJoin(classes, eq(classCoachAssignments.classId, classes.id))
-      .leftJoin(classGroups, eq(classes.id, classGroups.classId))
-      .leftJoin(groups, eq(classGroups.groupId, groups.id))
+      .leftJoin(
+        classGroups,
+        and(eq(classes.id, classGroups.classId), eq(classGroups.tenantId, tenantId))
+      )
+      .leftJoin(
+        groups,
+        and(
+          eq(classGroups.groupId, groups.id),
+          eq(groups.tenantId, tenantId),
+          isNull(groups.deletedAt)
+        )
+      )
       .where(
         and(
           eq(classCoachAssignments.coachId, coachId),
-          eq(classes.academyId, academyId)
+          eq(classCoachAssignments.tenantId, tenantId),
+          eq(classes.academyId, academyId),
+          eq(classes.tenantId, tenantId),
+          isNull(classes.deletedAt)
         )
-      );
+      )
+      .limit(2000);
 
     const scheduleItems: CoachScheduleItem[] = [];
 
@@ -113,7 +133,8 @@ export async function getCoachSchedule(params: {
       const weekdays = await db
         .select({ weekday: classWeekdays.weekday })
         .from(classWeekdays)
-        .where(eq(classWeekdays.classId, cls.id));
+        .where(and(eq(classWeekdays.classId, cls.id), eq(classWeekdays.tenantId, tenantId)))
+        .limit(7);
 
       scheduleItems.push({
         id: cls.id,
@@ -157,4 +178,3 @@ export async function getCoachSchedule(params: {
     return { items: [], error: error.message ?? "Error al obtener el horario del entrenador" };
   }
 }
-

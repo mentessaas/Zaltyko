@@ -36,7 +36,8 @@ export const GET = withTenant(async (_request, context) => {
         description: eventCategories.description,
       })
       .from(eventCategories)
-      .where(eq(eventCategories.eventId, eventId));
+      .where(eq(eventCategories.eventId, eventId))
+      .limit(100);
 
     return apiSuccess({ items: categories, total: categories.length });
   } catch (error) {

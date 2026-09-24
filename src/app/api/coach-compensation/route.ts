@@ -5,6 +5,7 @@ import { db } from "@/db";
 import { academies, coachCompensation, coaches } from "@/db/schema";
 import { apiCreated, apiError, apiSuccess } from "@/lib/api-response";
 import { withTenant } from "@/lib/authz";
+import { authorizeAcademyCapability } from "@/lib/authz/resource-scope";
 import { requireLeakProfitabilityFeature } from "@/lib/product/leak-profitability-feature";
 
 export const dynamic = "force-dynamic";
@@ -33,11 +34,20 @@ export const GET = withTenant(async (request, context) => {
     return apiError("VALIDATION_ERROR", "Invalid query parameters", 400, parsed.error.flatten());
   }
 
+  const scope = await authorizeAcademyCapability({
+    context,
+    resourceTenantId: context.tenantId,
+    academyId: parsed.data.academyId,
+    permission: "billing:read",
+  });
+  if (!scope.allowed) return apiError("COMPENSATION_NOT_FOUND", "No se encontraron compensaciones", 404);
+
   const rows = await db
     .select()
     .from(coachCompensation)
     .where(and(eq(coachCompensation.tenantId, context.tenantId), eq(coachCompensation.academyId, parsed.data.academyId)))
-    .orderBy(desc(coachCompensation.createdAt));
+    .orderBy(desc(coachCompensation.createdAt))
+    .limit(5000);
 
   return apiSuccess({ items: rows, total: rows.length });
 });
@@ -51,6 +61,14 @@ export const POST = withTenant(async (request, context) => {
     return apiError("VALIDATION_ERROR", "Invalid compensation payload", 400, parsed.error.flatten());
   }
 
+  const scope = await authorizeAcademyCapability({
+    context,
+    resourceTenantId: context.tenantId,
+    academyId: parsed.data.academyId,
+    permission: "billing:update",
+  });
+  if (!scope.allowed) return apiError("FORBIDDEN", "No tienes permisos para registrar compensaciones", 403);
+
   const [academy] = await db
     .select({ id: academies.id })
     .from(academies)
@@ -63,7 +81,13 @@ export const POST = withTenant(async (request, context) => {
   const [coach] = await db
     .select({ id: coaches.id })
     .from(coaches)
-    .where(and(eq(coaches.id, parsed.data.coachId), eq(coaches.tenantId, context.tenantId)))
+    .where(
+      and(
+        eq(coaches.id, parsed.data.coachId),
+        eq(coaches.tenantId, context.tenantId),
+        eq(coaches.academyId, parsed.data.academyId)
+      )
+    )
     .limit(1);
   if (!coach) {
     return apiError("COACH_NOT_FOUND", "Coach not found", 404);
@@ -76,4 +100,3 @@ export const POST = withTenant(async (request, context) => {
 
   return apiCreated(row);
 });
-

@@ -63,10 +63,23 @@ export const GET = withTenant(async (request, context) => {
       participant: profiles.name,
     })
     .from(events)
-    .leftJoin(eventRegistrations, eq(eventRegistrations.eventId, events.id))
-    .leftJoin(profiles, eq(profiles.id, eventRegistrations.profileId))
+    .leftJoin(
+      eventRegistrations,
+      and(
+        eq(eventRegistrations.eventId, events.id),
+        eq(eventRegistrations.tenantId, context.tenantId)
+      )
+    )
+    .leftJoin(
+      profiles,
+      and(
+        eq(profiles.id, eventRegistrations.profileId),
+        eq(profiles.tenantId, context.tenantId)
+      )
+    )
     .where(and(...conditions))
-    .orderBy(asc(events.startDate), asc(events.title), asc(profiles.name));
+    .orderBy(asc(events.startDate), asc(events.title), asc(profiles.name))
+    .limit(10000);
 
   const exportRows = rows.map((row) => ({
     Evento: row.title,

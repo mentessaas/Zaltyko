@@ -1,27 +1,30 @@
 export const dynamic = 'force-dynamic';
 
 import { apiSuccess, apiError, apiCreated } from "@/lib/api-response";
-import { and, asc, eq, inArray } from "drizzle-orm";
+import { and, asc, eq, inArray, isNull, sql } from "drizzle-orm";
 import { z } from "zod";
 
 import { db } from "@/db";
 import { academies, classCoachAssignments, classGroups, classWeekdays, classes, coaches, groups } from "@/db/schema";
 import { assertWithinPlanLimits } from "@/lib/limits";
 import { withTenant } from "@/lib/authz";
-import { rateLimit, getUserIdentifier, withRateLimit } from "@/lib/rate-limit";
+import { authorizeAcademyCapability } from "@/lib/authz/resource-scope";
+import { getUserIdentifier, withRateLimit } from "@/lib/rate-limit";
 import { handleApiError } from "@/lib/api-error-handler";
-import { verifyAcademyAccess } from "@/lib/permissions";
-import { markChecklistItem } from "@/lib/onboarding";
+import { markAcademyActivationIfReady, markChecklistItem } from "@/lib/onboarding";
+import { trackEvent } from "@/lib/analytics";
+import { withTransaction } from "@/lib/db-transactions";
 import { assertPremiumFeatureAccess } from "@/lib/trial";
 import { getAcademySportConfigOptions, verifyAcademySportConfig } from "@/lib/sport-config/service";
 import { normalizeApparatusCodes } from "@/lib/sport-config/validation";
+import { isValidClassTimeRange } from "@/lib/classes/time-validation";
 import { NextResponse } from "next/server";
 
 // PR 10 (Operate P2): `.nullable().optional()` en startTime/endTime/capacity
 // porque el form de clase puede limpiarlos al crear/editar. Antes, `null` → 400.
 const bodySchema = z.object({
   academyId: z.string().uuid(),
-  name: z.string().min(1),
+  name: z.string().trim().min(1).max(120),
   weekdays: z.array(z.number().int().min(0).max(6)).max(7).optional(),
   startTime: z.string().nullable().optional(),
   endTime: z.string().nullable().optional(),
@@ -60,10 +63,29 @@ export const GET = withTenant(async (request, context) => {
     }
 
     const { academyId, includeAssignments } = params.data;
+    const targetAcademyId = academyId ?? context.profile.activeAcademyId ?? null;
 
+    if (targetAcademyId) {
+      const scope = await authorizeAcademyCapability({
+        context,
+        resourceTenantId: context.tenantId,
+        academyId: targetAcademyId,
+        permission: "classes:read",
+      });
+      if (!scope.allowed) return apiError("CLASS_NOT_FOUND", "No se encontraron clases", 404);
+    } else if (context.profile.role !== "super_admin") {
+      return apiError("ACADEMY_REQUIRED", "Academy ID is required", 400);
+    }
+
+    // El tenant siempre forma parte del filtro, incluso cuando se solicita
+    // una academia concreta. Sin esto, un UUID conocido podía cruzar tenants.
     const classConditions = [
-      academyId ? eq(classes.academyId, academyId) : eq(classes.tenantId, context.tenantId),
-    ].filter(Boolean) as any[];
+      eq(classes.tenantId, context.tenantId),
+      // Las clases se eliminan lógicamente; nunca deben aparecer en listados
+      // operativos ni en selectores de nuevas sesiones.
+      sql`${classes.deletedAt} IS NULL`,
+      ...(targetAcademyId ? [eq(classes.academyId, targetAcademyId)] : []),
+    ];
     const classFilter = classConditions.reduce<any>(
       (accumulator, condition) => (accumulator ? and(accumulator, condition) : condition),
       undefined
@@ -75,11 +97,28 @@ export const GET = withTenant(async (request, context) => {
         name: classes.name,
         academyId: classes.academyId,
         academyName: academies.name,
+        startTime: classes.startTime,
+        endTime: classes.endTime,
+        capacity: classes.capacity,
+        technicalFocus: classes.technicalFocus,
+        apparatus: classes.apparatus,
+        isExtra: classes.isExtra,
+        sportConfigId: classes.sportConfigId,
+        groupId: classes.groupId,
+        allowsFreeTrial: classes.allowsFreeTrial,
+        waitingListEnabled: classes.waitingListEnabled,
+        cancellationHoursBefore: classes.cancellationHoursBefore,
+        cancellationPolicy: classes.cancellationPolicy,
+        createdAt: classes.createdAt,
       })
       .from(classes)
-      .innerJoin(academies, eq(classes.academyId, academies.id))
+      .innerJoin(
+        academies,
+        and(eq(classes.academyId, academies.id), eq(academies.tenantId, context.tenantId))
+      )
       .where(classFilter)
-      .orderBy(asc(classes.name));
+      .orderBy(asc(classes.name))
+      .limit(5000);
 
     const classIds = classRows.map((item) => item.id);
     const weekdayRows =
@@ -91,7 +130,13 @@ export const GET = withTenant(async (request, context) => {
               weekday: classWeekdays.weekday,
             })
             .from(classWeekdays)
-            .where(inArray(classWeekdays.classId, classIds));
+            .where(
+              and(
+                inArray(classWeekdays.classId, classIds),
+                eq(classWeekdays.tenantId, context.tenantId)
+              )
+            )
+            .limit(3500);
 
     const weekdayMap = new Map<string, number[]>();
     weekdayRows.forEach((row) => {
@@ -106,15 +151,6 @@ export const GET = withTenant(async (request, context) => {
 
     const baseItems = classRows.map((clazz) => ({
       ...clazz,
-      startTime: null,
-      endTime: null,
-      capacity: null,
-      technicalFocus: null,
-      apparatus: [],
-      isExtra: false,
-      sportConfigId: null,
-      groupId: null,
-      createdAt: null,
       weekdays: (weekdayMap.get(clazz.id) ?? []).sort((a, b) => a - b),
     }));
 
@@ -132,7 +168,8 @@ export const GET = withTenant(async (request, context) => {
       .from(classCoachAssignments)
       .innerJoin(classes, eq(classCoachAssignments.classId, classes.id))
       .leftJoin(coaches, eq(classCoachAssignments.coachId, coaches.id))
-      .where(classFilter);
+      .where(and(classFilter, eq(classCoachAssignments.tenantId, context.tenantId)))
+      .limit(2000);
 
     const enriched = baseItems.map((clazz) => {
       const coachesForClass = assignmentRows
@@ -160,14 +197,22 @@ const createClassHandler = withTenant(async (request, context) => {
   try {
     const body = bodySchema.parse(await request.json());
 
+    if (!isValidClassTimeRange(body.startTime, body.endTime)) {
+      return apiError("INVALID_TIME_RANGE", "La hora de fin debe ser posterior a la hora de inicio", 400);
+    }
+
     if (!context.tenantId) {
       return apiError("TENANT_REQUIRED", "Tenant ID is required", 400);
     }
 
-    // Verificar acceso a la academia
-    const academyAccess = await verifyAcademyAccess(body.academyId, context.tenantId);
-    if (!academyAccess.allowed) {
-      return apiError(academyAccess.reason ?? "ACADEMY_ACCESS_DENIED", "Academy access denied", 403);
+    const academyScope = await authorizeAcademyCapability({
+      context,
+      resourceTenantId: context.tenantId,
+      academyId: body.academyId,
+      permission: "classes:create",
+    });
+    if (!academyScope.allowed) {
+      return apiError(academyScope.reason ?? "ACADEMY_ACCESS_DENIED", "Academy access denied", 403);
     }
 
     await assertPremiumFeatureAccess(body.academyId, "weekly_schedule");
@@ -185,7 +230,14 @@ const createClassHandler = withTenant(async (request, context) => {
           sportConfigId: groups.sportConfigId,
         })
         .from(groups)
-        .where(and(eq(groups.id, body.groupId), eq(groups.tenantId, context.tenantId), eq(groups.academyId, body.academyId)))
+        .where(
+          and(
+            eq(groups.id, body.groupId),
+            eq(groups.tenantId, context.tenantId),
+            eq(groups.academyId, body.academyId),
+            isNull(groups.deletedAt)
+          )
+        )
         .limit(1);
 
       if (!groupRow) {
@@ -225,53 +277,73 @@ const createClassHandler = withTenant(async (request, context) => {
 
     const classId = crypto.randomUUID();
 
-    await db.insert(classes).values({
-      id: classId,
-      tenantId: context.tenantId,
-      academyId: body.academyId,
-      name: body.name,
-      startTime: body.startTime ?? null,
-      endTime: body.endTime ?? null,
-      capacity: body.capacity ?? null,
-      technicalFocus: body.technicalFocus?.trim() || null,
-      apparatus: normalizedApparatus,
-      isExtra: body.isExtra ?? false,
-      sportConfigId: effectiveSportConfigId,
-      groupId: body.groupId ?? null,
-      allowsFreeTrial: body.allowsFreeTrial ?? false,
-      waitingListEnabled: body.waitingListEnabled ?? false,
-      cancellationHoursBefore: body.cancellationHoursBefore ?? 24,
-      cancellationPolicy: body.cancellationPolicy ?? "standard",
+    await withTransaction(async (tx) => {
+      // El límite y las filas relacionadas deben confirmarse juntas. El lock
+      // por academia evita que dos pestañas creen clases por encima del plan
+      // y evita dejar una clase huérfana si falla weekdays/classGroups.
+      if (typeof (tx as { execute?: unknown }).execute === "function") {
+        await tx.execute(sql`select pg_advisory_xact_lock(hashtext(${body.academyId}))`);
+      }
+      await assertWithinPlanLimits(context.tenantId!, body.academyId, "classes", tx);
+
+      await tx.insert(classes).values({
+        id: classId,
+        tenantId: context.tenantId,
+        academyId: body.academyId,
+        name: body.name,
+        startTime: body.startTime ?? null,
+        endTime: body.endTime ?? null,
+        capacity: body.capacity ?? null,
+        technicalFocus: body.technicalFocus?.trim() || null,
+        apparatus: normalizedApparatus,
+        isExtra: body.isExtra ?? false,
+        sportConfigId: effectiveSportConfigId,
+        groupId: body.groupId ?? null,
+        allowsFreeTrial: body.allowsFreeTrial ?? false,
+        waitingListEnabled: body.waitingListEnabled ?? false,
+        cancellationHoursBefore: body.cancellationHoursBefore ?? 24,
+        cancellationPolicy: body.cancellationPolicy ?? "standard",
+      });
+
+      if (selectedGroup) {
+        await tx
+          .insert(classGroups)
+          .values({
+            id: crypto.randomUUID(),
+            tenantId: context.tenantId!,
+            classId,
+            groupId: selectedGroup.id,
+          })
+          .onConflictDoNothing();
+      }
+
+      if (normalizedWeekdays.length > 0) {
+        await tx.insert(classWeekdays).values(
+          normalizedWeekdays.map((day) => ({
+            id: crypto.randomUUID(),
+            classId,
+            tenantId: context.tenantId!,
+            weekday: day,
+          }))
+        );
+      }
     });
-
-    if (selectedGroup) {
-      await db
-        .insert(classGroups)
-        .values({
-          id: crypto.randomUUID(),
-          tenantId: context.tenantId,
-          classId,
-          groupId: selectedGroup.id,
-        })
-        .onConflictDoNothing();
-    }
-
-    if (normalizedWeekdays.length > 0) {
-      await db.insert(classWeekdays).values(
-        normalizedWeekdays.map((day) => ({
-          id: crypto.randomUUID(),
-          classId,
-          tenantId: context.tenantId!,
-          weekday: day,
-        }))
-      );
-    }
 
     await markChecklistItem({
       academyId: body.academyId,
       tenantId: context.tenantId,
       key: "setup_weekly_schedule",
     });
+
+    // Hito de valor: una academia que crea cualquier clase ya puede avanzar
+    // hacia su primera asistencia. La clave estable evita duplicados incluso
+    // si dos pestañas crean clases al mismo tiempo.
+    await trackEvent("first_class_created", {
+      academyId: body.academyId,
+      tenantId: context.tenantId,
+      idempotencyKey: `first_class_created:v1:${body.academyId}`,
+    });
+    await markAcademyActivationIfReady(body.academyId, context.tenantId);
 
     return apiCreated({ id: classId });
   } catch (error) {

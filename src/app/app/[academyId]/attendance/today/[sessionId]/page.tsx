@@ -37,7 +37,8 @@ export default async function AttendanceTodaySessionPage({ params }: PageProps) 
       : await db
           .select({ athleteId: attendanceRecords.athleteId, status: attendanceRecords.status })
           .from(attendanceRecords)
-          .where(and(eq(attendanceRecords.sessionId, sessionId), inArray(attendanceRecords.athleteId, athleteIds)));
+          .where(and(eq(attendanceRecords.sessionId, sessionId), inArray(attendanceRecords.athleteId, athleteIds)))
+          .limit(1000);
 
   const initialStatuses = Object.fromEntries(
     existingRecords.map((record) => [record.athleteId, record.status as "present" | "absent" | "late" | "excused"])

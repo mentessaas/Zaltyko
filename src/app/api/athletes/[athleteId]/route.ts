@@ -5,7 +5,8 @@ import { z } from "zod";
 import { db } from "@/db";
 import { athleteSportConfigs, athletes, groupAthletes, groups } from "@/db/schema";
 import { withTenant } from "@/lib/authz";
-import { rateLimit, getUserIdentifier, withRateLimit } from "@/lib/rate-limit";
+import { authorizeAcademyCapability } from "@/lib/authz/resource-scope";
+import { getUserIdentifier, withRateLimit } from "@/lib/rate-limit";
 import { athleteStatusOptions } from "@/lib/athletes/constants";
 import { syncChargesForAthleteCurrentPeriod } from "@/lib/billing/sync-charges";
 import { formatDateForDB } from "@/lib/validation/date-utils";
@@ -32,7 +33,7 @@ const updateDateStringSchema = z
   });
 
 const UpdateSchema = z.object({
-  name: z.string().min(1).optional(),
+  name: z.string().trim().min(1).max(120).optional(),
   dob: updateDateStringSchema,
   level: z.string().max(120).nullable().optional(),
   status: z.enum(athleteStatusOptions).optional(),
@@ -157,6 +158,17 @@ const getAthleteHandler = withTenant(async (_request, context) => {
     return apiError("ATHLETE_NOT_FOUND", "Athlete not found", 404);
   }
 
+  const scope = await authorizeAcademyCapability({
+    context,
+    resourceTenantId: athlete.tenantId,
+    academyId: athlete.academyId,
+    permission: "athletes:read",
+  });
+
+  if (!scope.allowed) {
+    return apiError("ATHLETE_NOT_FOUND", "Athlete not found", 404);
+  }
+
   return apiSuccess(athlete);
 });
 
@@ -185,6 +197,17 @@ const updateAthleteHandler = withTenant(async (request, context) => {
     .limit(1);
 
   if (!existing) {
+    return apiError("ATHLETE_NOT_FOUND", "Athlete not found", 404);
+  }
+
+  const scope = await authorizeAcademyCapability({
+    context,
+    resourceTenantId: existing.tenantId,
+    academyId: existing.academyId,
+    permission: "athletes:update",
+  });
+
+  if (!scope.allowed) {
     return apiError("ATHLETE_NOT_FOUND", "Athlete not found", 404);
   }
 
@@ -329,10 +352,14 @@ const patchAthleteHandler = withTenant(async (request, context) => {
     return apiError("ATHLETE_NOT_FOUND", "Athlete not found", 404);
   }
 
-  if (
-    context.profile.role !== "super_admin" &&
-    athleteRow.tenantId !== context.tenantId
-  ) {
+  const scope = await authorizeAcademyCapability({
+    context,
+    resourceTenantId: athleteRow.tenantId,
+    academyId: athleteRow.academyId,
+    permission: "athletes:update",
+  });
+
+  if (!scope.allowed) {
     return apiError("FORBIDDEN", "Access denied", 403);
   }
 
@@ -499,10 +526,14 @@ const deleteAthleteHandler = withTenant(async (_request, context) => {
     return apiError("ATHLETE_NOT_FOUND", "Athlete not found", 404);
   }
 
-  if (
-    context.profile.role !== "super_admin" &&
-    athleteRow.tenantId !== context.tenantId
-  ) {
+  const scope = await authorizeAcademyCapability({
+    context,
+    resourceTenantId: athleteRow.tenantId,
+    academyId: athleteRow.academyId,
+    permission: "athletes:delete",
+  });
+
+  if (!scope.allowed) {
     return apiError("FORBIDDEN", "Access denied", 403);
   }
 

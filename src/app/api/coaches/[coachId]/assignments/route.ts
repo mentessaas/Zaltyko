@@ -1,4 +1,4 @@
-import { and, eq, inArray } from "drizzle-orm";
+import { and, eq, inArray, isNull } from "drizzle-orm";
 import { z } from "zod";
 
 import { db } from "@/db";
@@ -8,6 +8,7 @@ import {
   coaches,
 } from "@/db/schema";
 import { withTenant } from "@/lib/authz";
+import { authorizeAcademyCapability } from "@/lib/authz/resource-scope";
 import { apiSuccess, apiError } from "@/lib/api-response";
 import { handleApiError } from "@/lib/api-error-handler";
 import { withTransaction } from "@/lib/db-transactions";
@@ -24,6 +25,27 @@ export const GET = withTenant(async (_request, context) => {
     return apiError("COACH_ID_REQUIRED", "coachId es requerido", 400);
   }
 
+  const [coach] = await db
+    .select({ tenantId: coaches.tenantId, academyId: coaches.academyId })
+    .from(coaches)
+    .where(eq(coaches.id, coachId))
+    .limit(1);
+
+  if (!coach) {
+    return apiError("COACH_NOT_FOUND", "Coach no encontrado", 404);
+  }
+
+  const scope = await authorizeAcademyCapability({
+    context,
+    resourceTenantId: coach.tenantId,
+    academyId: coach.academyId,
+    permission: "coaches:read",
+  });
+
+  if (!scope.allowed) {
+    return apiError("COACH_NOT_FOUND", "Coach no encontrado", 404);
+  }
+
   const assignmentRows = await db
     .select({
       classId: classCoachAssignments.classId,
@@ -33,7 +55,16 @@ export const GET = withTenant(async (_request, context) => {
     })
     .from(classCoachAssignments)
     .innerJoin(classes, eq(classCoachAssignments.classId, classes.id))
-    .where(eq(classCoachAssignments.coachId, coachId));
+    .where(
+      and(
+        eq(classCoachAssignments.coachId, coachId),
+        eq(classCoachAssignments.tenantId, coach.tenantId),
+        eq(classes.tenantId, coach.tenantId),
+        eq(classes.academyId, coach.academyId),
+        isNull(classes.deletedAt)
+      )
+    )
+    .limit(2000);
 
   return apiSuccess({ items: assignmentRows });
 });
@@ -62,14 +93,31 @@ export const PUT = withTenant(async (request, context) => {
       return apiError("COACH_NOT_FOUND", "Coach no encontrado", 404);
     }
 
+    const scope = await authorizeAcademyCapability({
+      context,
+      resourceTenantId: coachRow.tenantId,
+      academyId: coachRow.academyId,
+      permission: "coaches:update",
+    });
+
+    if (!scope.allowed) {
+      return apiError("COACH_NOT_FOUND", "Coach no encontrado", 404);
+    }
+
     const uniqueClassIds = Array.from(new Set(body.classIds));
     if (uniqueClassIds.length > 0) {
       const classRows = await db
         .select({ id: classes.id, sportConfigId: classes.sportConfigId })
         .from(classes)
         .where(
-          and(eq(classes.tenantId, context.tenantId), eq(classes.academyId, coachRow.academyId), inArray(classes.id, uniqueClassIds))
-        );
+          and(
+            eq(classes.tenantId, context.tenantId),
+            eq(classes.academyId, coachRow.academyId),
+            inArray(classes.id, uniqueClassIds),
+            isNull(classes.deletedAt)
+          )
+        )
+        .limit(2000);
 
       if (classRows.length !== uniqueClassIds.length) {
         return apiError("CLASS_NOT_FOUND", "Una o más clases no pertenecen a esta academia", 404);
@@ -94,7 +142,12 @@ export const PUT = withTenant(async (request, context) => {
       // Eliminar asignaciones existentes
       await tx
         .delete(classCoachAssignments)
-        .where(eq(classCoachAssignments.coachId, coachId));
+        .where(
+          and(
+            eq(classCoachAssignments.coachId, coachId),
+            eq(classCoachAssignments.tenantId, coachRow.tenantId)
+          )
+        );
 
       // Crear nuevas asignaciones
       if (body.classIds.length > 0) {
@@ -115,4 +168,3 @@ export const PUT = withTenant(async (request, context) => {
     return handleApiError(error, { endpoint: `/api/coaches/${coachId}/assignments`, method: "PUT" });
   }
 });
-
