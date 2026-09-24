@@ -7,9 +7,9 @@ import { logger } from "@/lib/logger";
 const querySchema = z.object({
   academyId: z.string().uuid(),
   q: z.string().min(2),
-  limit: z.string().optional(),
+  limit: z.coerce.number().int().min(1).max(100).default(20),
   type: z.enum(["athlete", "coach", "class", "group", "event", "academy"]).optional(),
-  includeAllTypes: z.string().optional(),
+  includeAllTypes: z.enum(["true", "false"]).optional(),
 });
 
 export const GET = withTenant(async (request, context) => {
@@ -26,20 +26,25 @@ export const GET = withTenant(async (request, context) => {
     includeAllTypes: url.searchParams.get("includeAllTypes"),
   };
 
-  const validated = querySchema.parse({
+  const parsed = querySchema.safeParse({
     ...params,
     academyId: params.academyId || undefined,
     q: params.q || undefined,
+    type: params.type || undefined,
+    includeAllTypes: params.includeAllTypes || undefined,
   });
+  if (!parsed.success) {
+    return apiError("INVALID_QUERY", "Parámetros de búsqueda inválidos", 400);
+  }
+  const validated = parsed.data;
 
   if (!validated.academyId || !validated.q) {
     return apiError("ACADEMY_ID_AND_QUERY_REQUIRED", "academyId y query son requeridos", 400);
   }
 
   try {
-    const limit = validated.limit ? parseInt(validated.limit) : 20;
     const results = await globalSearch(validated.academyId, context.tenantId, validated.q, {
-      limit,
+      limit: validated.limit,
       type: validated.type,
       includeAllTypes: validated.includeAllTypes !== "false",
     });

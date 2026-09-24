@@ -1,5 +1,5 @@
 import { notFound } from "next/navigation";
-import { and, asc, eq, inArray } from "drizzle-orm";
+import { and, asc, eq, inArray, isNull } from "drizzle-orm";
 
 import { db } from "@/db";
 import {
@@ -28,30 +28,10 @@ interface PageProps {
 export default async function GroupDetailPage({ params }: PageProps) {
   const { academyId, groupId } = await params;
 
-  const [groupRow] = await db
-    .select({
-      id: groups.id,
-      academyId: groups.academyId,
-      tenantId: groups.tenantId,
-      name: groups.name,
-      discipline: groups.discipline,
-      level: groups.level,
-      color: groups.color,
-      coachId: groups.coachId,
-      assistantIds: groups.assistantIds,
-      createdAt: groups.createdAt,
-    })
-    .from(groups)
-    .where(eq(groups.id, groupId))
-    .limit(1);
-
-  if (!groupRow || groupRow.academyId !== academyId) {
-    notFound();
-  }
-
   const [academy] = await db
     .select({
       id: academies.id,
+      tenantId: academies.tenantId,
       academyType: academies.academyType,
       country: academies.country,
       countryCode: academies.countryCode,
@@ -68,6 +48,41 @@ export default async function GroupDetailPage({ params }: PageProps) {
     notFound();
   }
 
+  const [groupRow] = await db
+    .select({
+      id: groups.id,
+      academyId: groups.academyId,
+      tenantId: groups.tenantId,
+      name: groups.name,
+      discipline: groups.discipline,
+      sportConfigId: groups.sportConfigId,
+      programCode: groups.programCode,
+      levelCode: groups.levelCode,
+      categoryCode: groups.categoryCode,
+      level: groups.level,
+      technicalFocus: groups.technicalFocus,
+      apparatus: groups.apparatus,
+      sessionBlocks: groups.sessionBlocks,
+      color: groups.color,
+      coachId: groups.coachId,
+      assistantIds: groups.assistantIds,
+      createdAt: groups.createdAt,
+    })
+    .from(groups)
+    .where(
+      and(
+        eq(groups.id, groupId),
+        eq(groups.academyId, academyId),
+        eq(groups.tenantId, academy.tenantId),
+        isNull(groups.deletedAt)
+      )
+    )
+    .limit(1);
+
+  if (!groupRow) {
+    notFound();
+  }
+
   const specialization = resolveAcademySpecialization(academy);
   const guidance = getGroupTechnicalGuidance(specialization, groupRow.level);
 
@@ -75,7 +90,7 @@ export default async function GroupDetailPage({ params }: PageProps) {
     ? await db
         .select({ id: coaches.id, name: coaches.name, email: coaches.email })
         .from(coaches)
-        .where(eq(coaches.id, groupRow.coachId))
+        .where(and(eq(coaches.id, groupRow.coachId), eq(coaches.academyId, academyId), eq(coaches.tenantId, academy.tenantId)))
         .limit(1)
     : [];
 
@@ -84,7 +99,8 @@ export default async function GroupDetailPage({ params }: PageProps) {
     ? await db
         .select({ id: coaches.id, name: coaches.name, email: coaches.email })
         .from(coaches)
-        .where(inArray(coaches.id, assistantIds))
+        .where(and(inArray(coaches.id, assistantIds), eq(coaches.academyId, academyId), eq(coaches.tenantId, academy.tenantId)))
+        .limit(100)
     : [];
 
   const assistants = assistantIds
@@ -100,14 +116,24 @@ export default async function GroupDetailPage({ params }: PageProps) {
     })
     .from(groupAthletes)
     .innerJoin(athletes, eq(groupAthletes.athleteId, athletes.id))
-    .where(eq(groupAthletes.groupId, groupId))
-    .orderBy(asc(athletes.name));
+    .where(
+      and(
+        eq(groupAthletes.groupId, groupId),
+        eq(groupAthletes.tenantId, academy.tenantId),
+        eq(athletes.academyId, academyId),
+        eq(athletes.tenantId, academy.tenantId),
+        isNull(athletes.deletedAt)
+      )
+    )
+    .orderBy(asc(athletes.name))
+    .limit(5000);
 
   const availableCoaches: CoachOption[] = await db
     .select({ id: coaches.id, name: coaches.name, email: coaches.email })
     .from(coaches)
-    .where(eq(coaches.academyId, academyId))
-    .orderBy(asc(coaches.name));
+    .where(and(eq(coaches.academyId, academyId), eq(coaches.tenantId, academy.tenantId)))
+    .orderBy(asc(coaches.name))
+    .limit(500);
   const coachScopeRows =
     availableCoaches.length === 0
       ? []
@@ -117,7 +143,8 @@ export default async function GroupDetailPage({ params }: PageProps) {
             sportConfigId: coachSportConfigs.academySportConfigId,
           })
           .from(coachSportConfigs)
-          .where(inArray(coachSportConfigs.coachId, availableCoaches.map((coach) => coach.id)));
+          .where(inArray(coachSportConfigs.coachId, availableCoaches.map((coach) => coach.id)))
+          .limit(2000);
   const sportConfigIdsByCoach = new Map<string, string[]>();
   coachScopeRows.forEach((row) => {
     const current = sportConfigIdsByCoach.get(row.coachId) ?? [];
@@ -136,8 +163,9 @@ export default async function GroupDetailPage({ params }: PageProps) {
       status: athletes.status,
     })
     .from(athletes)
-    .where(eq(athletes.academyId, academyId))
-    .orderBy(asc(athletes.name));
+    .where(and(eq(athletes.academyId, academyId), eq(athletes.tenantId, academy.tenantId), isNull(athletes.deletedAt)))
+    .orderBy(asc(athletes.name))
+    .limit(5000);
 
   const coachIdsForClasses = [
     ...(groupRow.coachId ? [groupRow.coachId] : []),
@@ -159,9 +187,18 @@ export default async function GroupDetailPage({ params }: PageProps) {
       .innerJoin(classes, eq(classCoachAssignments.classId, classes.id))
       .innerJoin(coaches, eq(classCoachAssignments.coachId, coaches.id))
       .where(
-        and(eq(classes.academyId, academyId), inArray(classCoachAssignments.coachId, coachIdsForClasses))
+        and(
+          eq(classes.academyId, academyId),
+          eq(classes.tenantId, academy.tenantId),
+          eq(classCoachAssignments.tenantId, academy.tenantId),
+          eq(coaches.academyId, academyId),
+          eq(coaches.tenantId, academy.tenantId),
+          isNull(classes.deletedAt),
+          inArray(classCoachAssignments.coachId, coachIdsForClasses)
+        )
       )
-      .orderBy(asc(classes.name));
+      .orderBy(asc(classes.name))
+      .limit(2000);
 
     const classIdSet = Array.from(new Set(classRows.map((row) => row.classId)));
 
@@ -173,7 +210,10 @@ export default async function GroupDetailPage({ params }: PageProps) {
               weekday: classWeekdays.weekday,
             })
             .from(classWeekdays)
-            .where(inArray(classWeekdays.classId, classIdSet))
+            .where(
+              and(inArray(classWeekdays.classId, classIdSet), eq(classWeekdays.tenantId, academy.tenantId))
+            )
+            .limit(7000)
         : [];
 
     const weekdayMap = new Map<string, number[]>();
@@ -219,14 +259,14 @@ export default async function GroupDetailPage({ params }: PageProps) {
     academyId: groupRow.academyId,
     name: groupRow.name,
     discipline: groupRow.discipline,
-    sportConfigId: null,
-    programCode: null,
-    levelCode: null,
-    categoryCode: null,
+    sportConfigId: groupRow.sportConfigId ?? null,
+    programCode: groupRow.programCode ?? null,
+    levelCode: groupRow.levelCode ?? null,
+    categoryCode: groupRow.categoryCode ?? null,
     level: groupRow.level ?? null,
-    technicalFocus: guidance.focusAreas.join(". "),
-    apparatus: guidance.apparatus,
-    sessionBlocks: guidance.suggestedSessionBlocks,
+    technicalFocus: groupRow.technicalFocus ?? guidance.focusAreas.join(". "),
+    apparatus: groupRow.apparatus ?? guidance.apparatus,
+    sessionBlocks: groupRow.sessionBlocks ?? guidance.suggestedSessionBlocks,
     color: groupRow.color ?? null,
     coachId: groupRow.coachId ?? null,
     coachName: coach?.name ?? null,

@@ -45,6 +45,7 @@ export default async function AthleteNotesPage({ params }: PageProps) {
     .from(coachNotes)
     .leftJoin(profiles, eq(coachNotes.authorId, profiles.id))
     .where(eq(coachNotes.athleteId, athleteId))
+    .limit(500)
     .orderBy(coachNotes.createdAt);
 
   return (
@@ -82,4 +83,3 @@ export default async function AthleteNotesPage({ params }: PageProps) {
     </div>
   );
 }
-

@@ -1,6 +1,6 @@
 "use server";
 
-import { and, eq } from "drizzle-orm";
+import { and, eq, inArray } from "drizzle-orm";
 
 import { db } from "@/db";
 import { events, academies } from "@/db/schema";
@@ -78,7 +78,12 @@ export async function getPublicEvent(
       socialInstagram: academies.socialInstagram,
     })
     .from(academies)
-    .where(eq(academies.id, event.academyId))
+    .where(and(
+      eq(academies.id, event.academyId),
+      eq(academies.isPublic, true),
+      eq(academies.isSuspended, false),
+      inArray(academies.status, ["active", "trial"])
+    ))
     .limit(1);
 
   return {
@@ -94,4 +99,3 @@ export async function getPublicEvent(
     academy: academy || null,
   } as PublicEvent & { academy: typeof academy | null };
 }
-

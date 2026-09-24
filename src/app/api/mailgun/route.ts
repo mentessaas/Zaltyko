@@ -6,6 +6,7 @@ import { config } from "@/config";
 import { logger } from "@/lib/logger";
 import { escapeHtml } from "@/lib/email/escape-html";
 import { isValidEmail } from "@/lib/validation/email-utils";
+import { claimWebhookReplay } from "@/lib/webhook-replay";
 
 const MAILGUN_TIMESTAMP_TOLERANCE_SECONDS = 5 * 60;
 
@@ -55,6 +56,18 @@ export async function POST(req: NextRequest) {
       !crypto.timingSafeEqual(expectedBuffer, receivedBuffer)
     ) {
       return NextResponse.json({ error: "Invalid signature" }, { status: 401 });
+    }
+
+    const replay = await claimWebhookReplay(
+      "mailgun",
+      `${timestamp}:${token}`,
+      MAILGUN_TIMESTAMP_TOLERANCE_SECONDS
+    );
+    if (replay === "duplicate") {
+      return NextResponse.json({ error: "Duplicate webhook" }, { status: 409 });
+    }
+    if (replay === "unavailable") {
+      return NextResponse.json({ error: "Webhook unavailable" }, { status: 503 });
     }
 
     // extract the sender, subject and email content

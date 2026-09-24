@@ -23,6 +23,9 @@ import { cn } from "@/lib/utils";
 import { getRegionLabel } from "@/lib/countryRegions";
 import { useToast } from "@/components/ui/toast-provider";
 import { logger } from "@/lib/logger";
+import { formatSuperAdminLongDate } from "@/lib/super-admin-date";
+import { getProductPlanPublicName } from "@/lib/plans/catalog";
+import { getSubscriptionStatusLabel } from "@/lib/billing/subscription-status-labels";
 
 const ACADEMY_TYPES = [
   { value: "artistica", label: "Gimnasia artística" },
@@ -387,7 +390,7 @@ export function SuperAdminAcademyDetail({ initialAcademy, userId }: SuperAdminAc
                       ) : (
                         plans.map((plan) => (
                           <option key={plan.id} value={plan.id}>
-                            {plan.code.toUpperCase()} - {plan.nickname ?? plan.code}
+                            {getProductPlanPublicName(plan.code, plan.nickname)}
                             {plan.priceEur !== null && ` (€${(plan.priceEur / 100).toFixed(2)}/mes)`}
                           </option>
                         ))
@@ -398,7 +401,7 @@ export function SuperAdminAcademyDetail({ initialAcademy, userId }: SuperAdminAc
                     <div className="mt-3 space-y-1">
                       <p className="text-xs text-white/50">Estado de suscripción</p>
                       <p className="text-sm font-medium capitalize text-white">
-                        {academy.subscription.status ?? "Sin estado"}
+                        {getSubscriptionStatusLabel(academy.subscription.status)}
                       </p>
                     </div>
                   )}
@@ -415,24 +418,14 @@ export function SuperAdminAcademyDetail({ initialAcademy, userId }: SuperAdminAc
                 <div>
                   <p className="text-xs text-white/50">Creada</p>
                   <p className="mt-1 text-white">
-                    {academy.createdAt
-                      ? new Date(academy.createdAt).toLocaleDateString("es-ES", {
-                          year: "numeric",
-                          month: "long",
-                          day: "numeric",
-                        })
-                      : "—"}
+                    {formatSuperAdminLongDate(academy.createdAt) ?? "—"}
                   </p>
                 </div>
                 {academy.suspendedAt && (
                   <div>
                     <p className="text-xs text-white/50">Suspendida desde</p>
                     <p className="mt-1 text-white">
-                      {new Date(academy.suspendedAt).toLocaleDateString("es-ES", {
-                        year: "numeric",
-                        month: "long",
-                        day: "numeric",
-                      })}
+                      {formatSuperAdminLongDate(academy.suspendedAt) ?? "—"}
                     </p>
                   </div>
                 )}
@@ -456,7 +449,7 @@ export function SuperAdminAcademyDetail({ initialAcademy, userId }: SuperAdminAc
             Cancelar
           </Button>
           <Button
-            className="bg-zaltyko-primary text-white hover:bg-primary-dark"
+            className="bg-zaltyko-primary text-white hover:bg-zaltyko-primary-dark"
             onClick={handleSave}
             disabled={
               saving ||

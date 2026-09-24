@@ -19,6 +19,7 @@ import { Button } from "@/components/ui/button";
 import { type ProfileRow } from "@/lib/authz";
 import { logger } from "@/lib/logger";
 import { formatAcademyType } from "@/lib/formatters";
+import { getProductPlanPublicName } from "@/lib/plans/catalog";
 // import { ProfileTabs } from "@/components/profiles/ProfileTabs";
 
 interface AcademySummary {
@@ -47,7 +48,7 @@ const PLAN_COPY: Record<string, { label: string; description: string; cta: strin
   },
   pro: {
     label: "Plan Starter",
-    description: "Hasta 75 gimnastas, portal familias y pagos recurrentes.",
+    description: "Hasta 75 gimnastas, portal familiar limitado y pagos recurrentes.",
     cta: "Gestionar suscripción",
   },
   premium: {
@@ -133,7 +134,7 @@ export default function AccountForm({ user, profile, academies, defaultAcademyId
 
   const planCode = activeAcademy?.planCode?.toLowerCase() ?? "free";
   const planCopy = PLAN_COPY[planCode] ?? {
-    label: activeAcademy?.planNickname ?? "Plan personalizado",
+    label: getProductPlanPublicName(activeAcademy?.planCode, activeAcademy?.planNickname),
     description: "Gestiona tu suscripción desde planes y cobros.",
     cta: "Ver planes",
   };

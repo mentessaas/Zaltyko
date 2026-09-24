@@ -59,6 +59,8 @@ export const PUT = withTenant(async (request, context) => {
       .where(
         and(
           eq(discounts.code, body.code),
+          eq(discounts.tenantId, resource.tenantId),
+          eq(discounts.academyId, resource.academyId),
           sql`${discounts.id} != ${discountId}`
         )
       )
@@ -79,8 +81,8 @@ export const PUT = withTenant(async (request, context) => {
   if (body.discountType) updateData.discountType = body.discountType;
   if (body.discountValue) updateData.discountValue = body.discountValue.toString();
   if (body.applicableTo) updateData.applicableTo = body.applicableTo;
-  if (body.minAmount !== undefined) updateData.minAmount = body.minAmount ? body.minAmount.toString() : null;
-  if (body.maxDiscount !== undefined) updateData.maxDiscount = body.maxDiscount ? body.maxDiscount.toString() : null;
+  if (body.minAmount !== undefined) updateData.minAmount = body.minAmount !== null ? body.minAmount.toString() : null;
+  if (body.maxDiscount !== undefined) updateData.maxDiscount = body.maxDiscount !== null ? body.maxDiscount.toString() : null;
   if (body.startDate) updateData.startDate = body.startDate;
   if (body.endDate !== undefined) updateData.endDate = body.endDate || null;
   if (body.maxUses !== undefined) updateData.maxUses = body.maxUses || null;

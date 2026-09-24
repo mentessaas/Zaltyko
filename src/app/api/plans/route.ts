@@ -20,7 +20,8 @@ export async function GET() {
       })
       .from(plans)
       .where(eq(plans.isArchived, false))
-      .orderBy(asc(plans.priceEur));
+      .orderBy(asc(plans.priceEur))
+      .limit(50);
 
     return NextResponse.json({ plans: allPlans });
   } catch (error) {
@@ -28,4 +29,3 @@ export async function GET() {
     return NextResponse.json({ error: "Failed to fetch plans", plans: [] }, { status: 500 });
   }
 }
-

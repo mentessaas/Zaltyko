@@ -11,8 +11,8 @@ import { authorizeClassResource } from "@/lib/authz/resource-scope";
 
 const bodySchema = z.object({
   classId: z.string().uuid(),
-  startDate: z.string().min(1), // ISO date string
-  endDate: z.string().min(1), // ISO date string
+  startDate: z.string().date(), // Fecha de calendario YYYY-MM-DD
+  endDate: z.string().date(), // Fecha de calendario YYYY-MM-DD
 });
 
 export const POST = withTenant(async (request, context) => {

@@ -55,7 +55,7 @@ export default function StickyCtaBar() {
               href="/auth/register?role=owner"
               className={cn(
                 buttonVariants({ variant: "default", size: "sm" }),
-                "rounded-full bg-zaltyko-teal px-5 py-2 text-sm shadow-soft hover:bg-primary-dark"
+                "rounded-full bg-zaltyko-teal px-5 py-2 text-sm shadow-soft hover:bg-zaltyko-primary-dark"
               )}
             >
               Crear cuenta gratis

@@ -13,7 +13,8 @@ import {
 import { config } from "@/config";
 import { apiCreated, apiError, apiSuccess } from "@/lib/api-response";
 import { withTenant } from "@/lib/authz";
-import { sendEmail } from "@/lib/brevo";
+import { sendEmailWithLogging } from "@/lib/email/email-service";
+import { escapeHtml } from "@/lib/email/escape-html";
 import { getAppUrl } from "@/lib/env";
 import { logger } from "@/lib/logger";
 import { verifyAcademyAccess } from "@/lib/permissions";
@@ -149,12 +150,12 @@ export const POST = withTenant(async (request, context) => {
     const profileUrl = new URL("/dashboard/profile", getAppUrl()).toString();
     const academyName = academy?.name ?? "una academia";
     try {
-      await sendEmail({
+      await sendEmailWithLogging({
         to: target.email,
         subject: `Solicitud de vinculacion en ${config.appName}`,
         html: `
-          <p>Hola${target.name ? ` ${target.name}` : ""},</p>
-          <p>${academyName} quiere vincular tu cuenta de Zaltyko como ${parsed.data.role}.</p>
+          <p>Hola${target.name ? ` ${escapeHtml(target.name)}` : ""},</p>
+          <p>${escapeHtml(academyName)} quiere vincular tu cuenta de Zaltyko como ${escapeHtml(parsed.data.role)}.</p>
           <p>Para aceptar o rechazar la solicitud, entra a tu perfil:</p>
           <p>
             <a href="${profileUrl}" style="padding: 12px 20px; border-radius: 9999px; background: #0f766e; color: #ffffff; font-weight: 600; text-decoration: none;">
@@ -165,6 +166,11 @@ export const POST = withTenant(async (request, context) => {
         `,
         text: `${academyName} quiere vincular tu cuenta de Zaltyko como ${parsed.data.role}. Revisa la solicitud en ${profileUrl}`,
         replyTo: config.brevo.supportEmail,
+        template: "academy-link-request",
+        tenantId: context.tenantId,
+        academyId: parsed.data.academyId,
+        userId: target.profileId,
+        dedupeKey: `academy-link-request:${linkRequest.id}:${target.profileId}`,
       });
     } catch (error) {
       logger.error("Error enviando email de solicitud de vinculo", error);
@@ -218,7 +224,8 @@ export const GET = withTenant(async (request, context) => {
       .innerJoin(profiles, eq(profiles.id, academyLinkRequests.targetProfileId))
       .innerJoin(authUsers, eq(authUsers.id, profiles.userId))
       .where(eq(academyLinkRequests.academyId, academyId))
-      .orderBy(desc(academyLinkRequests.createdAt));
+      .orderBy(desc(academyLinkRequests.createdAt))
+      .limit(500);
 
     return apiSuccess({ requests });
   }
@@ -243,7 +250,8 @@ export const GET = withTenant(async (request, context) => {
       .innerJoin(profiles, eq(profiles.id, academyLinkRequests.targetProfileId))
       .innerJoin(authUsers, eq(authUsers.id, profiles.userId))
       .where(eq(academyLinkRequests.requestedByProfileId, context.profile.id))
-      .orderBy(desc(academyLinkRequests.createdAt));
+      .orderBy(desc(academyLinkRequests.createdAt))
+      .limit(500);
 
     return apiSuccess({ requests });
   }
@@ -263,7 +271,8 @@ export const GET = withTenant(async (request, context) => {
     .from(academyLinkRequests)
     .innerJoin(academies, eq(academies.id, academyLinkRequests.academyId))
     .where(eq(academyLinkRequests.targetProfileId, context.profile.id))
-    .orderBy(desc(academyLinkRequests.createdAt));
+    .orderBy(desc(academyLinkRequests.createdAt))
+    .limit(500);
 
   return apiSuccess({ requests });
 });

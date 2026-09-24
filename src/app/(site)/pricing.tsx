@@ -73,27 +73,16 @@ export default function PricingSection() {
               No vendemos módulos sueltos: vendemos dirección diaria, cobros claros y seguimiento técnico para gimnasia artística y rítmica.
             </p>
             <p className="mt-2 font-sans text-sm text-muted-foreground">
-              Crea tu academia y activa la prueba desde Facturación. Después eliges si continúas; no se realiza ningún cargo automático.
+              Crea tu cuenta, configura la academia y activa la prueba desde Facturación. Después eliges si continúas; no se realiza ningún cargo automático.
             </p>
           </div>
         </Reveal>
 
-        {/* Annual billing toggle */}
+        {/* Billing mode */}
         <div className="mt-8 flex justify-center">
-          <div className="inline-flex items-center gap-3 bg-muted/60 rounded-full px-1 py-1">
-            <span
-              className="px-4 py-1.5 rounded-full bg-zaltyko-teal text-white text-sm font-bold shadow-soft"
-            >
-              Mensual
-            </span>
-            <span
-              aria-disabled="true"
-              title="Pago anual próximamente disponible"
-              className="px-4 py-1.5 rounded-full text-sm font-medium text-muted-foreground cursor-not-allowed select-none"
-            >
-              Anual <span className="text-xs opacity-70">(próximamente)</span>
-            </span>
-          </div>
+          <span className="inline-flex items-center rounded-full border border-border bg-muted/60 px-4 py-2 text-sm font-medium text-foreground">
+            Facturación mensual · sin permanencia
+          </span>
         </div>
 
         <div className="mt-8 grid items-center gap-6 md:grid-cols-2 xl:grid-cols-4">
@@ -131,7 +120,7 @@ export default function PricingSection() {
                 planCode={plan.planCode}
                 className={`mt-8 inline-flex min-h-11 items-center justify-center rounded-full px-6 py-2 text-sm font-semibold transition ${
                   plan.highlight
-                    ? "bg-zaltyko-teal text-white hover:bg-primary-dark"
+                    ? "bg-zaltyko-teal text-white hover:bg-zaltyko-primary-dark"
                     : "border border-zaltyko-mist text-foreground hover:bg-muted"
                 }`}
               >

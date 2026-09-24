@@ -91,7 +91,8 @@ export default async function AcademiesPage() {
       .from(memberships)
       .innerJoin(academies, eq(memberships.academyId, academies.id))
       .where(eq(memberships.userId, currentProfile.userId))
-      .orderBy(academies.name);
+      .orderBy(academies.name)
+      .limit(500);
   } catch (error: any) {
     logger.error("dashboard/academies memberships query error", error);
     throw error;

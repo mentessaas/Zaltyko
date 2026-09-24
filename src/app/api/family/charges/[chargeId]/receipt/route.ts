@@ -7,6 +7,7 @@ import { receipts } from "@/db/schema";
 import { createClient } from "@/lib/supabase/server";
 import { resolveFamilyChargeAccess } from "@/lib/family/payment-access";
 import { logger } from "@/lib/logger";
+import { z } from "zod";
 
 export const dynamic = "force-dynamic";
 
@@ -26,7 +27,6 @@ export async function GET(request: Request) {
     if (!chargeId) {
       return NextResponse.json({ error: "CHARGE_ID_REQUIRED" }, { status: 400 });
     }
-
     const cookieStore = await cookies();
     const supabase = await createClient(cookieStore);
     const {
@@ -34,6 +34,9 @@ export async function GET(request: Request) {
     } = await supabase.auth.getUser();
     if (!user || !user.email) {
       return NextResponse.json({ error: "UNAUTHORIZED" }, { status: 401 });
+    }
+    if (!z.string().uuid().safeParse(chargeId).success) {
+      return NextResponse.json({ error: "INVALID_CHARGE_ID" }, { status: 400 });
     }
 
     const charge = await resolveFamilyChargeAccess({ userId: user.id, email: user.email, chargeId });

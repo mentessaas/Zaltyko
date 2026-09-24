@@ -1,13 +1,14 @@
 export const dynamic = 'force-dynamic';
 
 import { apiError, apiSuccess } from "@/lib/api-response";
-import { and, asc, eq, inArray, sql } from "drizzle-orm";
+import { and, asc, eq, inArray, isNull, sql } from "drizzle-orm";
 import { z } from "zod";
 
 import { db } from "@/db";
 import { academies, athletes, coaches, groupAthletes, groups } from "@/db/schema";
 import { withTenant } from "@/lib/authz";
-import { rateLimit, getUserIdentifier, withRateLimit } from "@/lib/rate-limit";
+import { authorizeAcademyCapability } from "@/lib/authz/resource-scope";
+import { getUserIdentifier, withRateLimit } from "@/lib/rate-limit";
 import { assertWithinPlanLimits } from "@/lib/limits";
 import { LimitError } from "@/lib/limits/errors";
 import { markChecklistItem, markWizardStep } from "@/lib/onboarding";
@@ -24,7 +25,7 @@ const DISCIPLINES = ["artistica", "ritmica", "general"] as const;
 // form de grupo puede limpiar esos campos (clear field). Antes, `null` → 400.
 const GroupBodySchema = z.object({
   academyId: z.string().uuid(),
-  name: z.string().min(1),
+  name: z.string().trim().min(1).max(120),
   discipline: z.enum(DISCIPLINES),
   sportConfigId: z.string().uuid().optional().nullable(),
   programCode: z.string().trim().min(1).max(80).optional().nullable(),
@@ -67,13 +68,15 @@ export const GET = withTenant(async (request, context) => {
       return apiError("ACADEMY_NOT_FOUND", "Academy not found", 404);
     }
 
-    const hasAccess =
-      context.profile.role === "super_admin" ||
-      context.profile.role === "admin" ||
-      academyRow.tenantId === context.tenantId;
+    const scope = await authorizeAcademyCapability({
+      context,
+      resourceTenantId: academyRow.tenantId,
+      academyId: targetAcademyId,
+      permission: "classes:read",
+    });
 
-    if (!hasAccess) {
-      return apiError("FORBIDDEN", "Access denied", 403);
+    if (!scope.allowed) {
+      return apiError(scope.reason ?? "FORBIDDEN", "Access denied", 403);
     }
 
     // Primero obtener los grupos con sus coaches
@@ -93,14 +96,23 @@ export const GET = withTenant(async (request, context) => {
         coachEmail: coaches.email,
       })
       .from(groups)
-      .leftJoin(coaches, eq(groups.coachId, coaches.id))
+      .leftJoin(
+        coaches,
+        and(
+          eq(groups.coachId, coaches.id),
+          eq(coaches.tenantId, academyRow.tenantId),
+          eq(coaches.academyId, targetAcademyId)
+        )
+      )
       .where(
         and(
           eq(groups.tenantId, academyRow.tenantId),
-          eq(groups.academyId, targetAcademyId)
+          eq(groups.academyId, targetAcademyId),
+          isNull(groups.deletedAt)
         )
       )
-      .orderBy(asc(groups.name));
+      .orderBy(asc(groups.name))
+      .limit(500);
 
     // Luego obtener los conteos de atletas por grupo
     const groupIds = groupRows.map((g) => g.id);
@@ -111,7 +123,21 @@ export const GET = withTenant(async (request, context) => {
             athleteCount: sql<number>`count(distinct ${groupAthletes.athleteId})`,
           })
           .from(groupAthletes)
-          .where(inArray(groupAthletes.groupId, groupIds))
+          .innerJoin(
+            athletes,
+            and(
+              eq(groupAthletes.athleteId, athletes.id),
+              eq(athletes.tenantId, academyRow.tenantId),
+              eq(athletes.academyId, targetAcademyId),
+              isNull(athletes.deletedAt)
+            )
+          )
+          .where(
+            and(
+              inArray(groupAthletes.groupId, groupIds),
+              eq(groupAthletes.tenantId, academyRow.tenantId)
+            )
+          )
           .groupBy(groupAthletes.groupId)
       : [];
 
@@ -153,14 +179,15 @@ const createGroupHandler = withTenant(async (request, context) => {
   }
 
   const tenantId = academyRow.tenantId;
-  const role = context.profile.role;
+  const scope = await authorizeAcademyCapability({
+    context,
+    resourceTenantId: tenantId,
+    academyId: body.academyId,
+    permission: "classes:create",
+  });
 
-  if (role !== "super_admin" && role !== "admin" && role !== "owner") {
-    return apiError("FORBIDDEN", "Access denied", 403);
-  }
-
-  if (role !== "super_admin" && tenantId !== context.tenantId) {
-    return apiError("FORBIDDEN", "Access denied", 403);
+  if (!scope.allowed) {
+    return apiError(scope.reason ?? "FORBIDDEN", "Access denied", 403);
   }
 
   const assistantIds = body.assistantIds?.length ? Array.from(new Set(body.assistantIds)) : [];
@@ -181,8 +208,9 @@ const createGroupHandler = withTenant(async (request, context) => {
   if (assistantIds.length) {
     const assistantRows = await db
       .select({ id: coaches.id })
-      .from(coaches)
-      .where(and(eq(coaches.academyId, body.academyId), inArray(coaches.id, assistantIds)));
+          .from(coaches)
+          .where(and(eq(coaches.academyId, body.academyId), inArray(coaches.id, assistantIds)))
+          .limit(100);
 
     if (assistantRows.length !== assistantIds.length) {
       return apiError("ASSISTANT_NOT_FOUND", "Assistant not found", 404);
@@ -195,7 +223,8 @@ const createGroupHandler = withTenant(async (request, context) => {
       .from(athletes)
       .where(
         and(eq(athletes.academyId, body.academyId), eq(athletes.tenantId, tenantId), inArray(athletes.id, athleteIds))
-      );
+      )
+      .limit(5000);
 
     if (athleteRows.length !== athleteIds.length) {
       return apiError("ATHLETE_NOT_FOUND", "Athlete not found", 404);
@@ -250,6 +279,12 @@ const createGroupHandler = withTenant(async (request, context) => {
   }
 
   const [group] = await db.transaction(async (tx) => {
+    // La comprobación temprana mejora el mensaje, pero esta segunda
+    // comprobación dentro del lock es la que garantiza el límite ante dos
+    // creaciones concurrentes.
+    await tx.execute(sql`select pg_advisory_xact_lock(hashtext(${body.academyId}))`);
+    await assertWithinPlanLimits(tenantId, body.academyId, "groups", tx);
+
     const [createdGroup] = await tx
       .insert(groups)
       .values({

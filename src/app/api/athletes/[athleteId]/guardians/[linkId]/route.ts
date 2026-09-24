@@ -1,9 +1,10 @@
-import { and, eq, sql } from "drizzle-orm";
+import { and, eq, isNull, sql } from "drizzle-orm";
 import { z } from "zod";
 
 import { db } from "@/db";
-import { familyContacts, guardianAthletes, guardians } from "@/db/schema";
+import { athletes, familyContacts, guardianAthletes, guardians } from "@/db/schema";
 import { withTenant } from "@/lib/authz";
+import { authorizeAcademyCapability } from "@/lib/authz/resource-scope";
 import { apiSuccess, apiError } from "@/lib/api-response";
 
 const UpdateGuardianSchema = z.object({
@@ -67,11 +68,24 @@ export const PATCH = withTenant(async (request, context) => {
     return apiError("GUARDIAN_NOT_FOUND", "Guardian not found", 404);
   }
 
-  if (
-    context.profile.role !== "super_admin" &&
-    context.profile.role !== "admin" &&
-    link.tenantId !== context.tenantId
-  ) {
+  const [athlete] = await db
+    .select({ tenantId: athletes.tenantId, academyId: athletes.academyId })
+    .from(athletes)
+    .where(and(eq(athletes.id, athleteId), isNull(athletes.deletedAt)))
+    .limit(1);
+
+  if (!athlete || athlete.tenantId !== link.tenantId) {
+    return apiError("GUARDIAN_NOT_FOUND", "Guardian not found", 404);
+  }
+
+  const scope = await authorizeAcademyCapability({
+    context,
+    resourceTenantId: athlete.tenantId,
+    academyId: athlete.academyId,
+    permission: "athletes:update",
+  });
+
+  if (!scope.allowed) {
     return apiError("FORBIDDEN", "Access denied", 403);
   }
 
@@ -96,7 +110,7 @@ export const PATCH = withTenant(async (request, context) => {
         ...(body.notifyEmail !== undefined ? { notifyEmail: body.notifyEmail } : {}),
         ...(body.notifySms !== undefined ? { notifySms: body.notifySms } : {}),
       })
-      .where(eq(familyContacts.id, linkId));
+      .where(and(eq(familyContacts.id, linkId), eq(familyContacts.tenantId, link.tenantId), eq(familyContacts.athleteId, athleteId)));
 
     // Retornar el contacto actualizado
     const [updated] = await db
@@ -115,7 +129,7 @@ export const PATCH = withTenant(async (request, context) => {
         createdAt: familyContacts.createdAt,
       })
       .from(familyContacts)
-      .where(eq(familyContacts.id, linkId))
+      .where(and(eq(familyContacts.id, linkId), eq(familyContacts.tenantId, link.tenantId), eq(familyContacts.athleteId, athleteId)))
       .limit(1);
 
     return apiSuccess({ item: updated });
@@ -132,7 +146,7 @@ export const PATCH = withTenant(async (request, context) => {
           ...(body.notifyEmail !== undefined ? { notifyEmail: body.notifyEmail } : {}),
           ...(body.notifySms !== undefined ? { notifySms: body.notifySms } : {}),
         })
-        .where(eq(guardians.id, link.guardianId));
+        .where(and(eq(guardians.id, link.guardianId), eq(guardians.tenantId, link.tenantId)));
     }
 
     if (body.isPrimary !== undefined || body.linkRelationship !== undefined) {
@@ -142,7 +156,13 @@ export const PATCH = withTenant(async (request, context) => {
           ...(body.isPrimary !== undefined ? { isPrimary: body.isPrimary } : {}),
           ...(body.linkRelationship !== undefined ? { relationship: body.linkRelationship ?? null } : {}),
         })
-        .where(eq(guardianAthletes.id, linkId));
+        .where(
+          and(
+            eq(guardianAthletes.id, linkId),
+            eq(guardianAthletes.tenantId, link.tenantId),
+            eq(guardianAthletes.athleteId, athleteId)
+          )
+        );
     }
 
     const [updated] = await db
@@ -162,7 +182,14 @@ export const PATCH = withTenant(async (request, context) => {
       })
       .from(guardianAthletes)
       .innerJoin(guardians, eq(guardianAthletes.guardianId, guardians.id))
-      .where(eq(guardianAthletes.id, linkId))
+      .where(
+        and(
+          eq(guardianAthletes.id, linkId),
+          eq(guardianAthletes.tenantId, link.tenantId),
+          eq(guardianAthletes.athleteId, athleteId),
+          eq(guardians.tenantId, link.tenantId)
+        )
+      )
       .limit(1);
 
     return apiSuccess({ item: updated });
@@ -182,11 +209,24 @@ export const DELETE = withTenant(async (_request, context) => {
     return apiError("GUARDIAN_NOT_FOUND", "Guardian not found", 404);
   }
 
-  if (
-    context.profile.role !== "super_admin" &&
-    context.profile.role !== "admin" &&
-    link.tenantId !== context.tenantId
-  ) {
+  const [athlete] = await db
+    .select({ tenantId: athletes.tenantId, academyId: athletes.academyId })
+    .from(athletes)
+    .where(and(eq(athletes.id, athleteId), isNull(athletes.deletedAt)))
+    .limit(1);
+
+  if (!athlete || athlete.tenantId !== link.tenantId) {
+    return apiError("GUARDIAN_NOT_FOUND", "Guardian not found", 404);
+  }
+
+  const scope = await authorizeAcademyCapability({
+    context,
+    resourceTenantId: athlete.tenantId,
+    academyId: athlete.academyId,
+    permission: "athletes:delete",
+  });
+
+  if (!scope.allowed) {
     return apiError("FORBIDDEN", "Access denied", 403);
   }
 
@@ -195,26 +235,53 @@ export const DELETE = withTenant(async (_request, context) => {
 
   if (isFamilyContact) {
     // Eliminar de family_contacts
-    await db.delete(familyContacts).where(eq(familyContacts.id, linkId));
+    await db
+      .delete(familyContacts)
+      .where(
+        and(
+          eq(familyContacts.id, linkId),
+          eq(familyContacts.tenantId, link.tenantId),
+          eq(familyContacts.athleteId, athleteId)
+        )
+      );
   } else {
     // Eliminar de guardian_athletes y posiblemente de guardians
     if (link.guardianId) {
-      await db.delete(guardianAthletes).where(eq(guardianAthletes.id, linkId));
+      await db
+        .delete(guardianAthletes)
+        .where(
+          and(
+            eq(guardianAthletes.id, linkId),
+            eq(guardianAthletes.tenantId, link.tenantId),
+            eq(guardianAthletes.athleteId, athleteId)
+          )
+        );
 
       const [{ remaining }] = await db
         .select({
           remaining: sql<number>`count(*)`,
         })
         .from(guardianAthletes)
-        .where(eq(guardianAthletes.guardianId, link.guardianId));
+        .where(
+          and(
+            eq(guardianAthletes.guardianId, link.guardianId),
+            eq(guardianAthletes.tenantId, link.tenantId)
+          )
+        );
 
       if (remaining === 0) {
-        await db.delete(guardians).where(eq(guardians.id, link.guardianId));
+        await db
+          .delete(guardians)
+          .where(
+            and(
+              eq(guardians.id, link.guardianId),
+              eq(guardians.tenantId, link.tenantId)
+            )
+          );
       }
     }
   }
 
   return apiSuccess({ ok: true });
 });
-
 

@@ -1,5 +1,5 @@
 import { notFound } from "next/navigation";
-import { asc, eq } from "drizzle-orm";
+import { and, asc, eq, isNull } from "drizzle-orm";
 
 import { AssessmentHub } from "@/components/assessments/AssessmentHub";
 import { db } from "@/db";
@@ -65,9 +65,24 @@ export default async function AssessmentsPage({ params, searchParams }: PageProp
       groupColor: groups.color,
     })
     .from(athletes)
-    .leftJoin(groups, eq(athletes.groupId, groups.id))
-    .where(eq(athletes.academyId, academyId))
-    .orderBy(asc(athletes.name));
+    .leftJoin(
+      groups,
+      and(
+        eq(athletes.groupId, groups.id),
+        eq(groups.academyId, academyId),
+        eq(groups.tenantId, academy.tenantId),
+        isNull(groups.deletedAt)
+      )
+    )
+    .where(
+      and(
+        eq(athletes.academyId, academyId),
+        eq(athletes.tenantId, academy.tenantId),
+        isNull(athletes.deletedAt)
+      )
+    )
+    .orderBy(asc(athletes.name))
+    .limit(5000);
 
   const athletesForHub = athleteRows.map((athlete) => {
     const contextualApparatus = resolveSpecializedApparatusCodes(specialization, [

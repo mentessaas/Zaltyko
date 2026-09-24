@@ -125,7 +125,7 @@ export const GET = withTenant(async (request, context) => {
     return apiError("FORBIDDEN", access.reason ?? "Prohibido", 403);
   }
 
-  const invites = await listAthleteInvitations(academyId);
+  const invites = await listAthleteInvitations(academyId, context.tenantId);
 
   return apiSuccess({
     invitations: invites.map((inv) => ({

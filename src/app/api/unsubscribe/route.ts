@@ -16,6 +16,7 @@ import { verifyEmailLinkToken } from "@/lib/onboarding/email-link-token";
 import { logger } from "@/lib/logger";
 
 export const dynamic = "force-dynamic";
+// @route-auth public (signed HMAC unsubscribe token is the authorization primitive)
 
 /**
  * Ruta publica `/api/unsubscribe` para cumplir el footer de baja obligatorio
@@ -61,6 +62,7 @@ export const GET = withRateLimit(
   { limit: RATE_LIMITS.STRICT.limit, window: RATE_LIMITS.STRICT.window }
 );
 
+// @auth-flexible route-guard-reason: signed unsubscribe token is the authorization primitive
 export const POST = withRateLimit(
   async (request: NextRequest) => {
     let body: unknown;
@@ -94,7 +96,7 @@ export const POST = withRateLimit(
       );
     }
 
-    const email = result.payload.email;
+    const email = result.payload.email.toLowerCase().trim();
     const addressRateLimit = await rateLimit({
       identifier: getAddressHashRateLimitIdentifier(
         email,
@@ -130,7 +132,7 @@ export const POST = withRateLimit(
       });
     } catch (error) {
       // Audit failures son logged pero NO bloquean la respuesta: el efecto
-      // legal (no-envio de proximos emails) se aplica en el caller por
+      // legal (no envío de próximos emails) se aplica en el caller por
       // checkeo de la lista de bajas antes de sendEmail. Si la tabla falla,
       // la baja efectiva cae por el lado del rate-limit de envio y de la
       // verificacion humana.

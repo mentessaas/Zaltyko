@@ -1,12 +1,13 @@
 import { z } from "zod";
 
 import { withTenant } from "@/lib/authz";
-import { db } from "@/db";
+import { withTransaction } from "@/lib/db-transactions";
 import { charges } from "@/db/schema";
 import { and, eq, isNull, ne, sql } from "drizzle-orm";
 import { apiSuccess, apiError } from "@/lib/api-response";
 import { logger } from "@/lib/logger";
 import { authorizeAcademyCapability } from "@/lib/authz/resource-scope";
+import { ensureChargeReceipt } from "@/lib/receipts/ensure-charge-receipt";
 
 const RecordPaymentSchema = z.object({
     chargeId: z.string().uuid(),
@@ -41,12 +42,13 @@ export const POST = withTenant(async (req, context) => {
             return apiError(access.reason ?? "FORBIDDEN", "No autorizado para registrar pagos", 403);
         }
 
+        return await withTransaction(async (tx) => {
         // Mismo advisory lock que collectCharge: serializa contra una captura
         // automática de tarjeta en vuelo (evita doble pago efectivo+tarjeta).
-        await db.execute(sql`select pg_advisory_xact_lock(hashtext(${chargeId}))`);
+        await tx.execute(sql`select pg_advisory_xact_lock(hashtext(${chargeId}))`);
 
         // Verificar que el cargo existe
-        const [charge] = await db
+        const [charge] = await tx
             .select({ id: charges.id, tenantId: charges.tenantId, academyId: charges.academyId, amountCents: charges.amountCents, status: charges.status })
             .from(charges)
             .where(and(eq(charges.id, chargeId), eq(charges.tenantId, tenantId), eq(charges.academyId, academyId)))
@@ -65,7 +67,7 @@ export const POST = withTenant(async (req, context) => {
         }
 
         // Actualizar el cargo como pagado
-        const [updatedCharge] = await db
+        const [updatedCharge] = await tx
             .update(charges)
             .set({
                 status: "paid",
@@ -87,7 +89,10 @@ export const POST = withTenant(async (req, context) => {
             return apiError("PAYMENT_ALREADY_RECORDED", "El cargo fue actualizado por otra solicitud", 409);
         }
 
+        await ensureChargeReceipt({ chargeId, paymentMethod, createdBy: context.profile.id }, tx);
+
         return apiSuccess({ charge: updatedCharge });
+        });
     } catch (error) {
         logger.error("Error recording payment:", error);
         return apiError("INTERNAL_ERROR", "Error al registrar el pago", 500);

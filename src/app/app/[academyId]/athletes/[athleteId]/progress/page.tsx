@@ -1,21 +1,22 @@
 import { notFound, redirect } from "next/navigation";
 import { cookies } from "next/headers";
-import { and, eq, desc } from "drizzle-orm";
+import { and, desc, eq, inArray, isNull } from "drizzle-orm";
 import Link from "next/link";
-import { format } from "date-fns";
-import { es } from "date-fns/locale";
-import { ArrowLeft, Calendar, TrendingUp, Award } from "lucide-react";
+import { ArrowLeft, TrendingUp, Award } from "lucide-react";
 
 import { db } from "@/db";
 import {
   academies,
   athletes,
   athleteAssessments,
+  athleteSkills,
   assessmentScores,
   skillCatalog,
   memberships,
   profiles,
   groups,
+  guardianAthletes,
+  guardians,
 } from "@/db/schema";
 import { createClient } from "@/lib/supabase/server";
 import { Button } from "@/components/ui/button";
@@ -25,6 +26,8 @@ import { ProgressChart } from "@/components/assessments/ProgressChart";
 import type { AssessmentWithScores } from "@/types";
 import { resolveAcademySpecialization } from "@/lib/specialization/registry";
 import { resolveSpecializedApparatusCodes } from "@/lib/specialization/technical-guidance";
+import { formatDateForCountry, formatDateToISOString } from "@/lib/date-utils";
+import { AthleteSkillObservationForm } from "@/components/athletes/AthleteSkillObservationForm";
 
 interface AthleteProgressPageProps {
   params: Promise<{
@@ -86,7 +89,13 @@ export default async function AthleteProgressPage({ params }: AthleteProgressPag
     })
     .from(athletes)
     .innerJoin(academies, eq(athletes.academyId, academies.id))
-    .where(eq(athletes.id, athleteId))
+    .where(
+      and(
+        eq(athletes.id, athleteId),
+        eq(athletes.academyId, academyId),
+        isNull(athletes.deletedAt)
+      )
+    )
     .limit(1);
 
   if (!athleteRow) notFound();
@@ -98,11 +107,35 @@ export default async function AthleteProgressPage({ params }: AthleteProgressPag
     .where(and(eq(memberships.userId, user.id), eq(memberships.academyId, academyId)))
     .limit(1);
 
-  const canAccess =
+  let canAccess =
     profile.role === "super_admin" ||
-    profile.role === "admin" ||
-    profile.tenantId === athleteRow.tenantId ||
+    (profile.role === "admin" && profile.tenantId === athleteRow.tenantId) ||
     membershipRows.length > 0;
+
+  if (profile.role === "parent") {
+    const [guardianLink] = await db
+      .select({ id: guardianAthletes.id })
+      .from(guardianAthletes)
+      .innerJoin(guardians, eq(guardianAthletes.guardianId, guardians.id))
+      .where(
+        and(
+          eq(guardianAthletes.tenantId, athleteRow.tenantId),
+          eq(guardianAthletes.athleteId, athleteId),
+          eq(guardians.tenantId, athleteRow.tenantId),
+          eq(guardians.profileId, profile.id)
+        )
+      )
+      .limit(1);
+    canAccess = Boolean(guardianLink);
+  } else if (profile.role === "athlete") {
+    canAccess = athleteRow.tenantId === profile.tenantId && athleteRow.id === athleteId;
+    const [ownAthlete] = await db
+      .select({ id: athletes.id })
+      .from(athletes)
+      .where(and(eq(athletes.id, athleteId), eq(athletes.userId, profile.userId)))
+      .limit(1);
+    canAccess = Boolean(ownAthlete);
+  }
 
   if (!canAccess) redirect("/dashboard");
 
@@ -124,9 +157,18 @@ export default async function AthleteProgressPage({ params }: AthleteProgressPag
         .select({
           id: groups.id,
           name: groups.name,
+          technicalFocus: groups.technicalFocus,
+          apparatus: groups.apparatus,
         })
         .from(groups)
-        .where(eq(groups.id, athleteRow.groupId))
+        .where(
+          and(
+            eq(groups.id, athleteRow.groupId),
+            eq(groups.academyId, academyId),
+            eq(groups.tenantId, athleteRow.tenantId),
+            isNull(groups.deletedAt)
+          )
+        )
         .limit(1)
     : [];
   const contextualApparatus = resolveSpecializedApparatusCodes(specialization, [
@@ -134,24 +176,36 @@ export default async function AthleteProgressPage({ params }: AthleteProgressPag
   ]);
 
   // Get all assessments for this athlete
-  const assessmentRows = await db
-    .select({
-      id: athleteAssessments.id,
-      athleteId: athleteAssessments.athleteId,
-      assessmentDate: athleteAssessments.assessmentDate,
-      assessmentType: athleteAssessments.assessmentType,
-      apparatus: athleteAssessments.apparatus,
-      overallComment: athleteAssessments.overallComment,
-    })
-    .from(athleteAssessments)
-    .where(eq(athleteAssessments.athleteId, athleteId))
-    .orderBy(desc(athleteAssessments.assessmentDate));
-
-  // Enrich with scores
-  const assessments: AssessmentWithScores[] = await Promise.all(
-    assessmentRows.map(async (row) => {
-      const scores = await db
+  const assessmentRows = profile.role === "athlete"
+    ? []
+    : await db
         .select({
+          id: athleteAssessments.id,
+          athleteId: athleteAssessments.athleteId,
+          assessmentDate: athleteAssessments.assessmentDate,
+          assessmentType: athleteAssessments.assessmentType,
+          apparatus: athleteAssessments.apparatus,
+          overallComment: athleteAssessments.overallComment,
+          visibleToGuardians: athleteAssessments.visibleToGuardians,
+        })
+        .from(athleteAssessments)
+        .where(
+          and(
+            eq(athleteAssessments.athleteId, athleteId),
+            eq(athleteAssessments.tenantId, athleteRow.tenantId),
+            eq(athleteAssessments.academyId, academyId),
+            ...(profile.role === "parent" ? [eq(athleteAssessments.visibleToGuardians, true)] : [])
+          )
+        )
+        .orderBy(desc(athleteAssessments.assessmentDate))
+        .limit(100);
+
+  // Enrich all assessments with one bounded query (avoids an N+1 request per assessment).
+  const scoreRows = assessmentRows.length === 0
+    ? []
+    : await db
+        .select({
+          assessmentId: assessmentScores.assessmentId,
           id: assessmentScores.id,
           skillId: assessmentScores.skillId,
           skillName: skillCatalog.name,
@@ -160,34 +214,79 @@ export default async function AthleteProgressPage({ params }: AthleteProgressPag
         })
         .from(assessmentScores)
         .innerJoin(skillCatalog, eq(assessmentScores.skillId, skillCatalog.id))
-        .where(eq(assessmentScores.assessmentId, row.id));
+        .where(
+          and(
+            inArray(assessmentScores.assessmentId, assessmentRows.map((row) => row.id)),
+            eq(assessmentScores.tenantId, athleteRow.tenantId)
+          )
+        )
+        .limit(50000);
 
-      const avgScore = scores.length > 0 ? scores.reduce((sum, s) => sum + s.score, 0) / scores.length : null;
+  // Las observaciones técnicas son append-only y pueden no existir aún en
+  // instalaciones que todavía no hayan aplicado la migración. El fallback
+  // mantiene la página operativa durante el rollout.
+  const skillObservationRows = await (async () => {
+    try {
+      return await db
+        .select({
+          id: athleteSkills.id,
+          skillId: athleteSkills.skillId,
+          skillName: skillCatalog.name,
+          apparatus: skillCatalog.apparatus,
+          status: athleteSkills.status,
+          score: athleteSkills.score,
+          observedAt: athleteSkills.observedAt,
+          notes: athleteSkills.notes,
+        })
+        .from(athleteSkills)
+        .innerJoin(skillCatalog, eq(athleteSkills.skillId, skillCatalog.id))
+        .where(
+          and(
+            eq(athleteSkills.tenantId, athleteRow.tenantId),
+            eq(athleteSkills.academyId, academyId),
+            eq(athleteSkills.athleteId, athleteId)
+          )
+        )
+        .orderBy(desc(athleteSkills.observedAt))
+        .limit(100);
+    } catch {
+      return [];
+    }
+  })();
+  const scoresByAssessment = new Map<string, typeof scoreRows>();
+  scoreRows.forEach((score) => {
+    const current = scoresByAssessment.get(score.assessmentId) ?? [];
+    current.push(score);
+    scoresByAssessment.set(score.assessmentId, current);
+  });
 
-      return {
-        id: row.id,
-        athleteId: row.athleteId,
-        athleteName: athleteRow.name,
-        assessmentDate: row.assessmentDate,
-        assessmentType: row.assessmentType as AssessmentWithScores["assessmentType"],
-        apparatus: row.apparatus,
-        overallComment: row.overallComment,
-        assessedByName: null,
-        scores: scores.map((s) => ({ ...s, criterionId: null })),
-        videos: [],
-        totalScore: null,
-        averageScore: avgScore,
-      };
-    })
-  );
+  const assessments: AssessmentWithScores[] = assessmentRows.map((row) => {
+    const scores = scoresByAssessment.get(row.id) ?? [];
+    const avgScore = scores.length > 0 ? scores.reduce((sum, s) => sum + s.score, 0) / scores.length : null;
+
+    return {
+      id: row.id,
+      athleteId: row.athleteId,
+      athleteName: athleteRow.name,
+      assessmentDate: row.assessmentDate,
+      assessmentType: row.assessmentType as AssessmentWithScores["assessmentType"],
+      apparatus: row.apparatus,
+      overallComment: row.overallComment,
+      visibleToGuardians: row.visibleToGuardians,
+      assessedByName: null,
+      scores: scores.map((s) => ({ id: s.id, skillId: s.skillId, skillName: s.skillName, score: s.score, comments: s.comments, criterionId: null })),
+      videos: [],
+      totalScore: null,
+      averageScore: avgScore,
+    };
+  });
 
   // Calculate stats
   const totalAssessments = assessments.length;
-  const assessmentsThisMonth = assessments.filter((a) => {
-    const date = new Date(a.assessmentDate);
-    const now = new Date();
-    return date.getMonth() === now.getMonth() && date.getFullYear() === now.getFullYear();
-  }).length;
+  const currentAcademyMonth = formatDateToISOString(new Date(), athleteRow.country).slice(0, 7);
+  const assessmentsThisMonth = assessments.filter((a) =>
+    String(a.assessmentDate).slice(0, 7) === currentAcademyMonth
+  ).length;
 
   // Group by apparatus
   const apparatusStats = assessments.reduce((acc, assessment) => {
@@ -293,7 +392,7 @@ export default async function AthleteProgressPage({ params }: AthleteProgressPag
         <Card>
           <CardContent className="p-4 text-center">
             <p className="text-3xl font-bold">
-              {totalAssessments > 0
+              {assessments.filter((a) => a.averageScore !== null).length > 0
                 ? (
                     assessments.reduce((sum, a) => sum + (a.averageScore ?? 0), 0) /
                     assessments.filter((a) => a.averageScore !== null).length
@@ -323,6 +422,44 @@ export default async function AthleteProgressPage({ params }: AthleteProgressPag
             </Button>
           </CardContent>
         </Card>
+      )}
+
+      {/* Technical skill observations */}
+      <Card>
+        <CardHeader>
+          <CardTitle className="text-base">Dominio técnico</CardTitle>
+        </CardHeader>
+        <CardContent>
+          {skillObservationRows.length === 0 ? (
+            <p className="text-sm text-muted-foreground">
+              Aún no hay observaciones de skills. Registra una desde la sesión para construir una progresión viva.
+            </p>
+          ) : (
+            <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
+              {skillObservationRows.slice(0, 9).map((observation) => {
+                const statusLabel = observation.status === "mastered" ? "Dominado" : observation.status === "competing" ? "En competición" : "En aprendizaje";
+                const statusClass = observation.status === "mastered" ? "bg-emerald-500/10 text-emerald-700 dark:text-emerald-300" : observation.status === "competing" ? "bg-blue-500/10 text-blue-700 dark:text-blue-300" : "bg-amber-500/10 text-amber-700 dark:text-amber-300";
+                return (
+                  <div key={observation.id} className="rounded-lg border p-3 space-y-2">
+                    <div className="flex items-start justify-between gap-2">
+                      <p className="font-medium text-sm leading-tight">{observation.skillName}</p>
+                      <Badge className={statusClass}>{statusLabel}</Badge>
+                    </div>
+                    <p className="text-xs text-muted-foreground">
+                      {apparatusLabels[observation.apparatus] || observation.apparatus} · {formatDateForCountry(observation.observedAt, athleteRow.country, "PPP")}
+                    </p>
+                    {observation.score !== null && <p className="text-sm font-semibold">{observation.score}/100</p>}
+                    {observation.notes && <p className="text-xs text-muted-foreground line-clamp-2">{observation.notes}</p>}
+                  </div>
+                );
+              })}
+            </div>
+          )}
+        </CardContent>
+      </Card>
+
+      {profile.role !== "parent" && profile.role !== "athlete" && (
+        <AthleteSkillObservationForm athleteId={athleteId} />
       )}
 
       {/* Apparatus breakdown */}
@@ -369,7 +506,7 @@ export default async function AthleteProgressPage({ params }: AthleteProgressPag
                         {apparatusLabels[assessment.apparatus ?? ""] || assessment.apparatus || "General"}
                       </p>
                       <p className="text-xs text-muted-foreground">
-                        {format(new Date(assessment.assessmentDate), "PPP", { locale: es })}
+                        {formatDateForCountry(assessment.assessmentDate, athleteRow.country, "PPP")}
                       </p>
                     </div>
                   </div>

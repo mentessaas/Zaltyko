@@ -15,6 +15,7 @@ import {
   type WhatsAppMessage,
 } from "@/components/whatsapp/WhatsAppHistory";
 import { getTerminologyForSportConfig } from "@/lib/sport-config/terminology";
+import { pluralizeFirstWord } from "@/lib/specialization/registry";
 
 interface WhatsAppConfig {
   phone: string;
@@ -71,6 +72,7 @@ export function WhatsAppPage({
     [sportConfigs]
   );
   const terms = getTerminologyForSportConfig(sportConfigs, historySportConfig);
+  const parentLabelPlural = pluralizeFirstWord(terms.parent).toLowerCase();
 
   const handleSendMessage = async (data: {
     recipientType: string;
@@ -94,6 +96,32 @@ export function WhatsAppPage({
     }
 
     return response.json();
+  };
+
+  const handleRetryMessage = async (message: WhatsAppMessage) => {
+    if (!message.phone) return false;
+
+    const response = await fetch("/api/whatsapp/send", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        academyId,
+        phone: message.phone,
+        message: message.content,
+        historyId: message.id,
+      }),
+    });
+
+    if (!response.ok) return false;
+
+    setHistoryMessages((current) =>
+      current.map((item) =>
+        item.id === message.id
+          ? { ...item, status: "sent", failureReason: undefined, sentAt: new Date().toISOString() }
+          : item,
+      ),
+    );
+    return true;
   };
 
   const handleVerifyConnection = async () => {
@@ -160,6 +188,7 @@ export function WhatsAppPage({
               sentAt: string | null;
               failedAt: string | null;
               meta: { errorMessage?: string } | null;
+              phone: string;
             }) => ({
               id: item.id,
               content: item.body,
@@ -174,6 +203,7 @@ export function WhatsAppPage({
               failureReason:
                 item.meta?.errorMessage ??
                 (item.failedAt ? "Error de envío" : undefined),
+              phone: item.phone,
             })
           )
         );
@@ -196,21 +226,21 @@ export function WhatsAppPage({
       />
 
       <div className="flex items-center gap-3">
-        <div className="flex h-12 w-12 items-center justify-center rounded-control bg-green-50">
-          <MessageCircle className="h-6 w-6 text-green-600" />
+        <div className="flex h-12 w-12 items-center justify-center rounded-control bg-green-50 dark:bg-green-950/40">
+          <MessageCircle className="h-6 w-6 text-green-600 dark:text-green-300" />
         </div>
         <div>
           <h1 className="text-2xl font-bold">WhatsApp Business</h1>
           <p className="text-muted-foreground">
             Envía mensajes a {terms.athletes.toLowerCase()} y{" "}
-            {terms.parent.toLowerCase()}s de {academyName}
+            {parentLabelPlural} de {academyName}
           </p>
         </div>
       </div>
 
       {!config.isConfigured && (
         <div className="rounded-card border border-zaltyko-coral/30 bg-zaltyko-coral/10 p-4">
-          <p className="text-sm font-medium text-zaltyko-navy">
+          <p className="text-sm font-medium text-foreground">
             WhatsApp no está configurado. Configura tu cuenta en la pestaña
             &quot;Configuración&quot; para poder enviar mensajes.
           </p>
@@ -294,6 +324,7 @@ export function WhatsAppPage({
             <WhatsAppHistory
               messages={historyMessages}
               isLoading={isHistoryLoading}
+              onRetry={handleRetryMessage}
             />
           </div>
         </TabsContent>

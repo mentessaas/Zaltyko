@@ -9,7 +9,7 @@ import {
   classes,
   coaches,
 } from "@/db/schema";
-import { eq, and, gte, lte, count, sql, sum, desc } from "drizzle-orm";
+import { eq, and, gte, isNull, lte, count, sql, sum, desc } from "drizzle-orm";
 import { subMonths, subDays, startOfMonth, endOfMonth, format } from "date-fns";
 import { logger } from "@/lib/logger";
 import { verifyAcademyAccessForProfile } from "@/lib/permissions";
@@ -56,7 +56,9 @@ export const GET = withTenant(async (request, context) => {
     }
 
     const analytics = await calculateFullAnalytics(academyId, context.tenantId);
-    return apiSuccess({ data: analytics });
+    // apiSuccess ya crea el campo `data`; envolverlo otra vez hacía que el
+    // cliente recibiera result.data.data y dejaba todas las tarjetas vacías.
+    return apiSuccess(analytics);
   } catch (error: unknown) {
     logger.error("Error calculating full analytics:", error);
     return apiError("ANALYTICS_FAILED", "Failed to calculate analytics", 500);
@@ -79,7 +81,7 @@ async function calculateFullAnalytics(
   const [athletesCount] = await db
     .select({ count: count() })
     .from(athletes)
-    .where(and(eq(athletes.academyId, academyId), eq(athletes.tenantId, tenantId)));
+    .where(and(eq(athletes.academyId, academyId), eq(athletes.tenantId, tenantId), isNull(athletes.deletedAt)));
 
   const totalAthletes = Number(athletesCount?.count || 0);
 
@@ -105,7 +107,13 @@ async function calculateFullAnalytics(
     .select({ count: count() })
     .from(attendanceRecords)
     .innerJoin(classSessions, eq(attendanceRecords.sessionId, classSessions.id))
-    .innerJoin(classes, eq(classSessions.classId, classes.id))
+    .innerJoin(athletes, and(
+      eq(attendanceRecords.athleteId, athletes.id),
+      eq(athletes.tenantId, tenantId),
+      eq(athletes.academyId, academyId),
+      isNull(athletes.deletedAt),
+    ))
+    .innerJoin(classes, and(eq(classSessions.classId, classes.id), isNull(classes.deletedAt)))
     .where(
       and(
         eq(classes.academyId, academyId),
@@ -118,7 +126,13 @@ async function calculateFullAnalytics(
     .select({ count: count() })
     .from(attendanceRecords)
     .innerJoin(classSessions, eq(attendanceRecords.sessionId, classSessions.id))
-    .innerJoin(classes, eq(classSessions.classId, classes.id))
+    .innerJoin(athletes, and(
+      eq(attendanceRecords.athleteId, athletes.id),
+      eq(athletes.tenantId, tenantId),
+      eq(athletes.academyId, academyId),
+      isNull(athletes.deletedAt),
+    ))
+    .innerJoin(classes, and(eq(classSessions.classId, classes.id), isNull(classes.deletedAt)))
     .where(
       and(
         eq(classes.academyId, academyId),
@@ -137,7 +151,7 @@ async function calculateFullAnalytics(
   const [classesCount] = await db
     .select({ count: count() })
     .from(classSessions)
-    .innerJoin(classes, eq(classSessions.classId, classes.id))
+    .innerJoin(classes, and(eq(classSessions.classId, classes.id), isNull(classes.deletedAt)))
     .where(
       and(
         eq(classes.academyId, academyId),
@@ -180,7 +194,7 @@ async function calculateFullAnalytics(
       count: count(),
     })
     .from(athletes)
-    .where(and(eq(athletes.academyId, academyId), eq(athletes.tenantId, tenantId)))
+    .where(and(eq(athletes.academyId, academyId), eq(athletes.tenantId, tenantId), isNull(athletes.deletedAt)))
     .groupBy(athletes.level);
 
   const levelMap: Record<string, string> = {
@@ -236,6 +250,7 @@ async function calculateFullAnalytics(
         and(
           eq(athletes.academyId, academyId),
           eq(athletes.tenantId, tenantId),
+          isNull(athletes.deletedAt),
           lte(athletes.createdAt, monthEnd)
         )
       );
@@ -259,7 +274,13 @@ async function calculateFullAnalytics(
       .select({ count: count() })
       .from(attendanceRecords)
       .innerJoin(classSessions, eq(attendanceRecords.sessionId, classSessions.id))
-      .innerJoin(classes, eq(classSessions.classId, classes.id))
+      .innerJoin(athletes, and(
+        eq(attendanceRecords.athleteId, athletes.id),
+        eq(athletes.tenantId, tenantId),
+        eq(athletes.academyId, academyId),
+        isNull(athletes.deletedAt),
+      ))
+      .innerJoin(classes, and(eq(classSessions.classId, classes.id), isNull(classes.deletedAt)))
       .where(
         and(
           eq(classes.academyId, academyId),
@@ -273,7 +294,13 @@ async function calculateFullAnalytics(
       .select({ count: count() })
       .from(attendanceRecords)
       .innerJoin(classSessions, eq(attendanceRecords.sessionId, classSessions.id))
-      .innerJoin(classes, eq(classSessions.classId, classes.id))
+      .innerJoin(athletes, and(
+        eq(attendanceRecords.athleteId, athletes.id),
+        eq(athletes.tenantId, tenantId),
+        eq(athletes.academyId, academyId),
+        isNull(athletes.deletedAt),
+      ))
+      .innerJoin(classes, and(eq(classSessions.classId, classes.id), isNull(classes.deletedAt)))
       .where(
         and(
           eq(classes.academyId, academyId),
@@ -298,7 +325,13 @@ async function calculateFullAnalytics(
     })
     .from(attendanceRecords)
     .innerJoin(classSessions, eq(attendanceRecords.sessionId, classSessions.id))
-    .innerJoin(classes, eq(classSessions.classId, classes.id))
+    .innerJoin(athletes, and(
+      eq(attendanceRecords.athleteId, athletes.id),
+      eq(athletes.tenantId, tenantId),
+      eq(athletes.academyId, academyId),
+      isNull(athletes.deletedAt),
+    ))
+    .innerJoin(classes, and(eq(classSessions.classId, classes.id), isNull(classes.deletedAt)))
     .where(and(eq(classes.academyId, academyId), eq(classes.tenantId, tenantId)))
     .groupBy(classes.id, classes.name)
     .orderBy(desc(sql<number>`count(distinct ${attendanceRecords.athleteId})`))
@@ -323,11 +356,12 @@ async function calculateFullAnalytics(
       .from(athletes)
       .innerJoin(attendanceRecords, eq(athletes.id, attendanceRecords.athleteId))
       .innerJoin(classSessions, eq(attendanceRecords.sessionId, classSessions.id))
-      .innerJoin(classes, eq(classSessions.classId, classes.id))
+      .innerJoin(classes, and(eq(classSessions.classId, classes.id), isNull(classes.deletedAt)))
       .where(
         and(
           eq(athletes.academyId, academyId),
           eq(athletes.tenantId, tenantId),
+          isNull(athletes.deletedAt),
           eq(classes.tenantId, tenantId),
           gte(classSessions.sessionDate, monthStart.toISOString().split("T")[0]),
           lte(classSessions.sessionDate, monthEnd.toISOString().split("T")[0])
@@ -342,6 +376,7 @@ async function calculateFullAnalytics(
         and(
           eq(athletes.academyId, academyId),
           eq(athletes.tenantId, tenantId),
+          isNull(athletes.deletedAt),
           gte(athletes.createdAt, monthStart),
           lte(athletes.createdAt, monthEnd)
         )
@@ -362,6 +397,7 @@ async function calculateFullAnalytics(
       and(
         eq(athletes.academyId, academyId),
         eq(athletes.tenantId, tenantId),
+        isNull(athletes.deletedAt),
         lte(athletes.createdAt, previousMonthEnd)
       )
     );
@@ -381,7 +417,13 @@ async function calculateFullAnalytics(
     .select({ count: count() })
     .from(attendanceRecords)
     .innerJoin(classSessions, eq(attendanceRecords.sessionId, classSessions.id))
-    .innerJoin(classes, eq(classSessions.classId, classes.id))
+    .innerJoin(athletes, and(
+      eq(attendanceRecords.athleteId, athletes.id),
+      eq(athletes.tenantId, tenantId),
+      eq(athletes.academyId, academyId),
+      isNull(athletes.deletedAt),
+    ))
+    .innerJoin(classes, and(eq(classSessions.classId, classes.id), isNull(classes.deletedAt)))
     .where(
       and(
         eq(classes.academyId, academyId),
@@ -395,7 +437,13 @@ async function calculateFullAnalytics(
     .select({ count: count() })
     .from(attendanceRecords)
     .innerJoin(classSessions, eq(attendanceRecords.sessionId, classSessions.id))
-    .innerJoin(classes, eq(classSessions.classId, classes.id))
+    .innerJoin(athletes, and(
+      eq(attendanceRecords.athleteId, athletes.id),
+      eq(athletes.tenantId, tenantId),
+      eq(athletes.academyId, academyId),
+      isNull(athletes.deletedAt),
+    ))
+    .innerJoin(classes, and(eq(classSessions.classId, classes.id), isNull(classes.deletedAt)))
     .where(
       and(
         eq(classes.academyId, academyId),
@@ -421,7 +469,7 @@ async function calculateFullAnalytics(
   const [previousClassesCount] = await db
     .select({ count: count() })
     .from(classSessions)
-    .innerJoin(classes, eq(classSessions.classId, classes.id))
+    .innerJoin(classes, and(eq(classSessions.classId, classes.id), isNull(classes.deletedAt)))
     .where(
       and(
         eq(classes.academyId, academyId),

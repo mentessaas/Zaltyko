@@ -1,9 +1,9 @@
 import Link from "next/link";
-import { and, asc, count, eq, inArray } from "drizzle-orm";
+import { and, asc, count, eq, inArray, isNull } from "drizzle-orm";
 import { ClipboardCheck } from "lucide-react";
 
 import { db } from "@/db";
-import { formatTimeForCountry } from "@/lib/date-utils";
+import { formatDateToISOString, formatTimeForCountry } from "@/lib/date-utils";
 import { academies, attendanceRecords, classSessions, classes, coaches } from "@/db/schema";
 import { EmptyState } from "@/components/ui/empty-state";
 
@@ -15,7 +15,7 @@ export default async function AttendanceTodayPage({ params }: PageProps) {
   const { academyId } = await params;
 
   const [academy] = await db
-    .select({ id: academies.id, name: academies.name, country: academies.country })
+    .select({ id: academies.id, name: academies.name, country: academies.country, tenantId: academies.tenantId })
     .from(academies)
     .where(eq(academies.id, academyId))
     .limit(1);
@@ -28,7 +28,7 @@ export default async function AttendanceTodayPage({ params }: PageProps) {
     );
   }
 
-  const todayStr = new Date().toISOString().split("T")[0];
+  const todayStr = formatDateToISOString(new Date(), academy.country);
 
   const todaySessions = await db
     .select({
@@ -41,9 +41,25 @@ export default async function AttendanceTodayPage({ params }: PageProps) {
     })
     .from(classSessions)
     .innerJoin(classes, eq(classSessions.classId, classes.id))
-    .leftJoin(coaches, eq(classSessions.coachId, coaches.id))
-    .where(and(eq(classes.academyId, academyId), eq(classSessions.sessionDate, todayStr)))
-    .orderBy(asc(classSessions.startTime));
+    .leftJoin(
+      coaches,
+      and(
+        eq(classSessions.coachId, coaches.id),
+        eq(coaches.academyId, academyId),
+        eq(coaches.tenantId, academy.tenantId)
+      )
+    )
+    .where(
+      and(
+        eq(classes.academyId, academyId),
+        eq(classes.tenantId, academy.tenantId),
+        eq(classSessions.tenantId, academy.tenantId),
+        eq(classSessions.sessionDate, todayStr),
+        isNull(classes.deletedAt)
+      )
+    )
+    .orderBy(asc(classSessions.startTime))
+    .limit(500);
 
   const sessionIds = todaySessions.map((row) => row.id);
 
@@ -53,7 +69,12 @@ export default async function AttendanceTodayPage({ params }: PageProps) {
       : await db
           .select({ sessionId: attendanceRecords.sessionId, total: count(attendanceRecords.id) })
           .from(attendanceRecords)
-          .where(inArray(attendanceRecords.sessionId, sessionIds))
+          .where(
+            and(
+              inArray(attendanceRecords.sessionId, sessionIds),
+              eq(attendanceRecords.tenantId, academy.tenantId)
+            )
+          )
           .groupBy(attendanceRecords.sessionId);
 
   const countMap = new Map<string, number>();
@@ -78,7 +99,7 @@ export default async function AttendanceTodayPage({ params }: PageProps) {
           action={
             <Link
               href={`/app/${academyId}/classes`}
-              className="inline-flex min-h-11 items-center justify-center rounded-xl bg-zaltyko-teal px-4 py-2 text-sm font-semibold text-white shadow-soft hover:bg-primary-dark"
+              className="inline-flex min-h-11 items-center justify-center rounded-xl bg-zaltyko-teal px-4 py-2 text-sm font-semibold text-white shadow-soft hover:bg-zaltyko-primary-dark"
             >
               Ver clases
             </Link>

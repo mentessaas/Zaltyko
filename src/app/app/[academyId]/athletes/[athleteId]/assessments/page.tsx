@@ -1,9 +1,9 @@
 import { notFound } from "next/navigation";
 import { Metadata } from "next";
-import { eq, and, desc } from "drizzle-orm";
+import { eq } from "drizzle-orm";
 
 import { db } from "@/db";
-import { academies, athletes, athleteAssessments, coaches } from "@/db/schema";
+import { athletes } from "@/db/schema";
 import { Breadcrumb } from "@/components/ui/breadcrumb";
 import AthleteEvaluationsTab from "@/components/assessments/AthleteEvaluationsTab";
 
@@ -41,7 +41,6 @@ export default async function AthleteAssessmentsPage({ params }: PageProps) {
       id: athletes.id,
       name: athletes.name,
       academyId: athletes.academyId,
-      tenantId: athletes.tenantId,
     })
     .from(athletes)
     .where(eq(athletes.id, athleteId))
@@ -50,39 +49,6 @@ export default async function AthleteAssessmentsPage({ params }: PageProps) {
   if (!athlete || athlete.academyId !== academyId) {
     notFound();
   }
-
-  // Fetch assessments
-  const assessments = await db
-    .select({
-      id: athleteAssessments.id,
-      assessmentDate: athleteAssessments.assessmentDate,
-      assessmentType: athleteAssessments.assessmentType,
-      apparatus: athleteAssessments.apparatus,
-      overallComment: athleteAssessments.overallComment,
-      totalScore: athleteAssessments.totalScore,
-      assessedByName: coaches.name,
-    })
-    .from(athleteAssessments)
-    .leftJoin(coaches, eq(athleteAssessments.assessedBy, coaches.id))
-    .where(and(
-      eq(athleteAssessments.athleteId, athleteId),
-      eq(athleteAssessments.tenantId, athlete.tenantId)
-    ))
-    .orderBy(desc(athleteAssessments.assessmentDate));
-
-  // Transform to expected format
-  const formattedAssessments = assessments.map((a) => ({
-    id: a.id,
-    assessmentDate: a.assessmentDate
-      ? new Date(a.assessmentDate).toISOString().split("T")[0]
-      : null,
-    assessmentType: a.assessmentType,
-    apparatus: a.apparatus,
-    overallComment: a.overallComment,
-    totalScore: a.totalScore,
-    assessedByName: a.assessedByName,
-    skills: [], // Would need to fetch scores separately
-  }));
 
   return (
     <div className="space-y-6 p-4 sm:p-6 lg:p-8">

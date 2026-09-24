@@ -10,17 +10,18 @@ import {
   calculateGeneralAttendance,
   type AttendanceReportFilters,
 } from "@/lib/reports/attendance-calculator";
+import { reportDateSchema, validateReportPeriod } from "@/lib/reports/query-schemas";
 
 const reportSchema = z.object({
   academyId: z.string().uuid(),
-  startDate: z.string().optional(),
-  endDate: z.string().optional(),
+  startDate: reportDateSchema,
+  endDate: reportDateSchema,
   athleteId: z.string().uuid().optional(),
   groupId: z.string().uuid().optional(),
   classId: z.string().uuid().optional(),
   sportConfigId: z.string().uuid().optional(),
   reportType: z.enum(["athlete", "group", "general"]).default("general"),
-});
+}).superRefine(validateReportPeriod);
 
 export const GET = withTenant(async (request, context) => {
   if (!context.tenantId) {
@@ -39,10 +40,14 @@ export const GET = withTenant(async (request, context) => {
     reportType: url.searchParams.get("reportType") || "general",
   };
 
-  const validated = reportSchema.parse({
+  const parsed = reportSchema.safeParse({
     ...params,
     academyId: params.academyId || undefined,
   });
+  if (!parsed.success) {
+    return apiError("INVALID_QUERY", "Parámetros del reporte inválidos", 400);
+  }
+  const validated = parsed.data;
 
   if (!validated.academyId) {
     return apiError("ACADEMY_ID_REQUIRED", "Academy ID is required", 400);

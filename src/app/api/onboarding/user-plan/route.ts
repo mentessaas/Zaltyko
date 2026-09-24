@@ -43,7 +43,8 @@ export async function GET() {
     const userAcademies = await db
       .select({ id: academies.id })
       .from(academies)
-      .where(eq(academies.ownerId, profile.id));
+      .where(eq(academies.ownerId, profile.id))
+      .limit(1000);
 
     const academyCount = userAcademies.length;
     const academyLimit = subscription.academyLimit;

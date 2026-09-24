@@ -1,9 +1,7 @@
 import { notFound } from "next/navigation";
 import { cookies } from "next/headers";
 import { redirect } from "next/navigation";
-import { asc, and, eq, gte, lte } from "drizzle-orm";
-import { format, startOfDay, endOfDay } from "date-fns";
-import { es } from "date-fns/locale";
+import { asc, and, eq, isNull, or } from "drizzle-orm";
 
 import { db } from "@/db";
 import {
@@ -16,6 +14,7 @@ import {
   profiles,
 } from "@/db/schema";
 import { createClient } from "@/lib/supabase/server";
+import { formatDateToISOString } from "@/lib/date-utils";
 import { getCoachSchedule } from "@/app/actions/classes/get-coach-schedule";
 import CoachTodayView from "@/components/coaches/CoachTodayView";
 
@@ -48,6 +47,21 @@ export default async function CoachTodayPage({ params }: PageProps) {
     redirect("/dashboard");
   }
 
+  const [academy] = await db
+    .select({
+      id: academies.id,
+      name: academies.name,
+      country: academies.country,
+      tenantId: academies.tenantId,
+    })
+    .from(academies)
+    .where(eq(academies.id, academyId))
+    .limit(1);
+
+  if (!academy) {
+    notFound();
+  }
+
   // Obtener el entrenador asociado al usuario actual
   const [coach] = await db
     .select({
@@ -58,7 +72,13 @@ export default async function CoachTodayPage({ params }: PageProps) {
       tenantId: coaches.tenantId,
     })
     .from(coaches)
-    .where(and(eq(coaches.academyId, academyId), eq(coaches.email, user.email ?? "")))
+    .where(
+      and(
+        eq(coaches.academyId, academyId),
+        eq(coaches.tenantId, academy.tenantId),
+        or(eq(coaches.profileId, profile.id), eq(coaches.email, user.email ?? ""))
+      )
+    )
     .limit(1);
 
   if (!coach) {
@@ -66,17 +86,16 @@ export default async function CoachTodayPage({ params }: PageProps) {
       <div className="space-y-6 py-6 lg:py-8">
         <div className="rounded-2xl border border-zaltyko-indigo/20 bg-zaltyko-indigo/10 p-6">
           <p className="text-sm text-zaltyko-indigo">
-            No se encontró un perfil de entrenador asociado a tu cuenta para esta academia.
+            No se encontró un perfil de staff asociado a tu cuenta para esta academia.
           </p>
         </div>
       </div>
     );
   }
 
-  // Obtener fecha de hoy
-  const today = new Date();
-  const todayStart = startOfDay(today);
-  const todayEnd = endOfDay(today);
+  // La jornada se calcula en la zona horaria de la academia, no en la del
+  // servidor que renderiza la página.
+  const today = formatDateToISOString(new Date(), academy.country);
 
   // Obtener sesiones del día de hoy
   const todaySessions = await db
@@ -97,35 +116,25 @@ export default async function CoachTodayPage({ params }: PageProps) {
     .where(
       and(
         eq(classSessions.coachId, coach.id),
-        eq(classSessions.sessionDate, format(today, "yyyy-MM-dd")),
-        eq(classes.academyId, academyId)
+        eq(classSessions.tenantId, academy.tenantId),
+        eq(classSessions.sessionDate, today),
+        eq(classes.academyId, academyId),
+        eq(classes.tenantId, academy.tenantId),
+        isNull(classes.deletedAt)
       )
     )
-    .orderBy(asc(classSessions.startTime));
+    .orderBy(asc(classSessions.startTime))
+    .limit(500);
 
   // Obtener horario completo del entrenador (para mostrar todas sus clases)
   const scheduleResult = await getCoachSchedule({
     coachId: coach.id,
     academyId,
-    startDate: format(todayStart, "yyyy-MM-dd"),
-    endDate: format(todayEnd, "yyyy-MM-dd"),
+    startDate: today,
+    endDate: today,
   });
 
   const allClasses = scheduleResult.items || [];
-
-  // Obtener información de la academia
-  const [academy] = await db
-    .select({
-      id: academies.id,
-      name: academies.name,
-    })
-    .from(academies)
-    .where(eq(academies.id, academyId))
-    .limit(1);
-
-  if (!academy) {
-    notFound();
-  }
 
   return (
     <div className="space-y-6 py-6 lg:py-8">
@@ -144,7 +153,7 @@ export default async function CoachTodayPage({ params }: PageProps) {
           isExtra: session.isExtra ?? false,
         }))}
         allClasses={allClasses}
-        today={format(today, "yyyy-MM-dd")}
+        today={today}
       />
     </div>
   );

@@ -72,7 +72,8 @@ export const GET = withTenant(async (request, context) => {
       return apiError("FORBIDDEN", "Solo owners y admins pueden consultar borradores o archivados", 403);
     }
 
-    // Build query
+    // Build query (hard bounded below)
+    // unbounded-read-ok: validated limit is applied before execution
     const query = db
       .select({
         id: announcementsTable.id,
@@ -224,7 +225,8 @@ export const POST = withTenant(async (request, context) => {
         userId: memberships.userId,
       })
       .from(memberships)
-      .where(eq(memberships.academyId, academyId));
+      .where(eq(memberships.academyId, academyId))
+      .limit(10000);
 
     // Send notifications to all members
     let notifiedCount = 0;
@@ -250,7 +252,7 @@ export const POST = withTenant(async (request, context) => {
         sendPushToUser(member.userId, {
           title: `Nuevo anuncio${priority === "urgent" ? " urgente" : ""}: ${title}`,
           body: content.substring(0, 100),
-          icon: "/icons/icon-192x192.png",
+          icon: "/icons/icon-192.png",
           tag: `announcement-${announcement.id}`,
           requireInteraction: priority === "urgent",
           data: {

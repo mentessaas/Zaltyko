@@ -115,7 +115,9 @@ export const DELETE = withTenant(async (_request, context) => {
   }
 
   await db.insert(notifications).values({
-    tenantId: membership.profileTenantId,
+    // El perfil puede tener tenantId nulo o desactualizado; la academia ya
+    // fue verificada y su tenant es la fuente canónica para esta notificación.
+    tenantId: membership.academyTenantId,
     userId: membership.profileId,
     type: "academy_unlinked",
     title: "Vinculo eliminado",

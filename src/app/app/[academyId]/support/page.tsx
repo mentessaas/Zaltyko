@@ -20,8 +20,15 @@ interface PageProps {
   searchParams: Promise<{ status?: string; priority?: string; category?: string }>;
 }
 
-async function getTickets(academyId: string, filters: { status?: string; priority?: string; category?: string }) {
-  const conditions = [eq(tickets.academyId, academyId)];
+async function getTickets(
+  academyId: string,
+  filters: { status?: string; priority?: string; category?: string },
+  viewer: { profileId: string; canViewAll: boolean }
+) {
+  const conditions = [
+    eq(tickets.academyId, academyId),
+    viewer.canViewAll ? undefined : eq(tickets.createdBy, viewer.profileId),
+  ].filter(Boolean) as any[];
   if (filters.status && filters.status !== "all") {
     conditions.push(eq(tickets.status, filters.status as "open" | "in_progress" | "waiting" | "resolved" | "closed"));
   }
@@ -70,8 +77,8 @@ async function getTickets(academyId: string, filters: { status?: string; priorit
   }
 }
 
-async function TicketsContent({ academyId, filters }: { academyId: string; filters: { status?: string; priority?: string; category?: string } }) {
-  const tickets = await getTickets(academyId, filters);
+async function TicketsContent({ academyId, filters, viewer }: { academyId: string; filters: { status?: string; priority?: string; category?: string }; viewer: { profileId: string; canViewAll: boolean } }) {
+  const tickets = await getTickets(academyId, filters, viewer);
 
   return (
     <>
@@ -107,6 +114,16 @@ export default async function SupportPage({ params, searchParams }: PageProps) {
     redirect("/auth/login");
   }
 
+  const [profile] = await db
+    .select({ id: profiles.id, role: profiles.role })
+    .from(profiles)
+    .where(eq(profiles.userId, user.id))
+    .limit(1);
+
+  if (!profile) {
+    redirect("/dashboard");
+  }
+
   // Verificar que el usuario tiene acceso a la academia
   const { data: membership } = await supabase
     .from("memberships")
@@ -118,6 +135,14 @@ export default async function SupportPage({ params, searchParams }: PageProps) {
   if (!membership) {
     redirect("/dashboard");
   }
+
+  const viewer = {
+    profileId: profile.id,
+    canViewAll:
+      profile.role === "admin" ||
+      profile.role === "super_admin" ||
+      membership.role === "owner",
+  };
 
   return (
     <div className="container mx-auto py-8 max-w-4xl">
@@ -137,7 +162,7 @@ export default async function SupportPage({ params, searchParams }: PageProps) {
       </div>
 
       <Suspense fallback={<TicketFiltersSkeleton />}>
-        <TicketsContent academyId={academyId} filters={filters} />
+        <TicketsContent academyId={academyId} filters={filters} viewer={viewer} />
       </Suspense>
     </div>
   );

@@ -60,18 +60,23 @@ export default function ParentOnboardingPage() {
       const { data: { user } } = await supabase.auth.getUser();
       if (!user) throw new Error("No user");
 
-      await Promise.all([
-        fetch("/api/onboarding/profile", {
-          method: "POST",
-          headers: { "Content-Type": "application/json", "x-user-id": user.id },
-          body: JSON.stringify({ role: "parent" }),
-        }),
-        fetch("/api/onboarding/notifications", {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify(notifications),
-        }).catch(() => {}),
-      ]);
+      const profileResponse = await fetch("/api/onboarding/profile", {
+        method: "POST",
+        headers: { "Content-Type": "application/json", "x-user-id": user.id },
+        body: JSON.stringify({ role: "parent" }),
+      });
+      if (!profileResponse.ok) {
+        const payload = await profileResponse.json().catch(() => null);
+        throw new Error(payload?.message ?? "No se pudo guardar tu perfil. Inténtalo de nuevo.");
+      }
+
+      // Las preferencias no deben bloquear el alta, pero el perfil sí: solo
+      // mostramos el estado final después de confirmar el paso crítico.
+      await fetch("/api/onboarding/notifications", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(notifications),
+      }).catch(() => {});
 
       setStep("done");
       setTimeout(() => {
@@ -89,7 +94,7 @@ export default function ParentOnboardingPage() {
   }
 
   return (
-    <div className="flex min-h-screen items-center justify-center bg-zaltyko-white p-4">
+    <div className="flex min-h-screen items-center justify-center bg-background p-4">
       <div className="w-full max-w-lg">
         {/* Logo */}
         <div className="mb-8 text-center">
@@ -112,7 +117,7 @@ export default function ParentOnboardingPage() {
                 <div className="mx-auto mb-4 flex h-16 w-16 items-center justify-center rounded-full bg-zaltyko-primary-ultralight">
                   <Users className="h-8 w-8 text-zaltyko-teal" />
                 </div>
-                <h1 className="text-2xl font-bold text-zaltyko-navy">Bienvenido/a</h1>
+                <h1 className="text-2xl font-bold text-foreground">Bienvenido/a</h1>
                 <p className="text-muted-foreground">
                   Con tu cuenta de padre/madre podrás seguir el progreso de tus hijos en tiempo real:
                   evaluaciones, asistencia, eventos y mucho más.
@@ -120,21 +125,21 @@ export default function ParentOnboardingPage() {
               </div>
 
               <div className="space-y-3">
-                <div className="flex items-start gap-3 rounded-card bg-zaltyko-white p-3">
+                <div className="flex items-start gap-3 rounded-card bg-card p-3">
                   <Calendar className="h-5 w-5 mt-0.5 text-zaltyko-teal" />
                   <div>
                     <p className="font-medium text-sm">Horarios de entreno</p>
                     <p className="text-xs text-muted-foreground">Consulta el calendario de clases</p>
                   </div>
                 </div>
-                <div className="flex items-start gap-3 rounded-card bg-zaltyko-white p-3">
+                <div className="flex items-start gap-3 rounded-card bg-card p-3">
                   <Users className="h-5 w-5 mt-0.5 text-zaltyko-teal" />
                   <div>
                     <p className="font-medium text-sm">Evaluaciones técnicas</p>
                     <p className="text-xs text-muted-foreground">Recibe actualizaciones del progreso</p>
                   </div>
                 </div>
-                <div className="flex items-start gap-3 rounded-card bg-zaltyko-white p-3">
+                <div className="flex items-start gap-3 rounded-card bg-card p-3">
                   <Bell className="h-5 w-5 mt-0.5 text-zaltyko-teal" />
                   <div>
                     <p className="font-medium text-sm">Notificaciones</p>
@@ -155,7 +160,7 @@ export default function ParentOnboardingPage() {
           <Card className="rounded-card border-zaltyko-mist shadow-soft">
             <CardContent className="p-8 space-y-4">
               <div className="text-center">
-                <h2 className="text-xl font-bold text-zaltyko-navy">Tus hijos/as</h2>
+                <h2 className="text-xl font-bold text-foreground">Tus hijos/as</h2>
                 <p className="text-sm text-muted-foreground mt-1">
                   Hijos vinculados a tu cuenta a través de invitaciones.
                 </p>
@@ -177,7 +182,7 @@ export default function ParentOnboardingPage() {
               ) : (
                 <div className="space-y-2">
                   {children.map((child) => (
-                    <div key={child.id} className="flex items-center justify-between rounded-card border border-zaltyko-mist bg-zaltyko-white p-3">
+                    <div key={child.id} className="flex items-center justify-between rounded-card border border-zaltyko-mist bg-card p-3">
                       <div>
                         <p className="font-medium">{child.name}</p>
                         <p className="text-xs text-muted-foreground">{child.academyName}</p>
@@ -204,7 +209,7 @@ export default function ParentOnboardingPage() {
           <Card className="rounded-card border-zaltyko-mist shadow-soft">
             <CardContent className="p-8 space-y-4">
               <div className="text-center">
-                <h2 className="text-xl font-bold text-zaltyko-navy">Notificaciones</h2>
+                <h2 className="text-xl font-bold text-foreground">Notificaciones</h2>
                 <p className="text-sm text-muted-foreground mt-1">
                   ¿Qué quieres recibir en tu email?
                 </p>
@@ -217,7 +222,7 @@ export default function ParentOnboardingPage() {
                   { key: "events", label: "Eventos", desc: "Competiciones y eventos próximos" },
                   { key: "billing", label: "Cobros", desc: "Cuotas y pagos" },
                 ].map((item) => (
-                  <label key={item.key} className="flex items-center justify-between rounded-card border border-zaltyko-mist p-3 cursor-pointer hover:bg-zaltyko-white">
+                  <label key={item.key} className="flex items-center justify-between rounded-card border border-zaltyko-mist p-3 cursor-pointer hover:bg-muted">
                     <div>
                       <p className="font-medium text-sm">{item.label}</p>
                       <p className="text-xs text-muted-foreground">{item.desc}</p>
@@ -252,7 +257,7 @@ export default function ParentOnboardingPage() {
               <div className="mx-auto flex h-16 w-16 items-center justify-center rounded-full bg-zaltyko-primary-ultralight">
                 <CheckCircle2 className="h-8 w-8 text-zaltyko-teal" />
               </div>
-              <h2 className="text-xl font-bold text-zaltyko-navy">¡Listo!</h2>
+              <h2 className="text-xl font-bold text-foreground">¡Listo!</h2>
               <p className="text-sm text-muted-foreground">
                 Perfil configurado. Redirigiendo a tu dashboard...
               </p>

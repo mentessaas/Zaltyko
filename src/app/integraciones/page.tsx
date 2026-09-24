@@ -22,14 +22,14 @@ const integrations = [
     description: "Procesa pagos de membresías y servicios de forma segura. Acepta tarjetas, domiciliaciones y pagos recurrentes.",
     icon: CreditCard,
     features: ["Pagos recurrentes", "Recibos automáticos", "Gestión de suscripciones", "Webhook de eventos"],
-    status: "connected",
+    status: "available",
   },
   {
     name: "Brevo",
     description: "Email transaccional con Brevo. Envía emails automáticos a atletas, padres y entrenadores.",
     icon: Mail,
     features: ["Emails de bienvenida", "Recordatorios de pago", "Notificaciones de clases", "Plantillas personalizables"],
-    status: "connected",
+    status: "available",
   },
   {
     comingSoon: true,
@@ -76,10 +76,10 @@ export default function IntegrationsPage() {
             Integraciones de Zaltyko: pagos, emails y más
           </h1>
           <p className="mt-6 mx-auto max-w-2xl text-lg text-zaltyko-text-secondary">
-            Pagos con Stripe, emails transaccionales con Brevo y otras integraciones en roadmap. Automatiza cobros y comunicaciones desde un único panel.
+            Conecta Stripe y Brevo desde la configuración de tu academia. Otras integraciones están en roadmap y se habilitarán cuando su experiencia esté lista.
           </p>
           <p className="mt-3 text-sm font-medium text-zaltyko-text-secondary">
-            2 integraciones activas · 4 próximamente
+            2 integraciones disponibles · 4 en roadmap
           </p>
           <p className="mt-2 text-xs text-zaltyko-text-secondary">
             La comunicación interna vive en Zaltyko; las conexiones externas, como WhatsApp Business, siguen sujetas a configuración y validación del proveedor.
@@ -102,10 +102,10 @@ export default function IntegrationsPage() {
                       : "border-zaltyko-primary/20 bg-white shadow-lg shadow-zaltyko-primary/5"
                   }`}
                 >
-                  {integration.status === "connected" && (
+                  {integration.status === "available" && (
                     <span className="absolute -top-3 -right-3 inline-flex items-center rounded-full bg-green-100 px-3 py-1 text-xs font-medium text-green-800">
                       <Check className="mr-1 h-3 w-3" />
-                      Activo
+                      Disponible
                     </span>
                   )}
                   {integration.comingSoon && (

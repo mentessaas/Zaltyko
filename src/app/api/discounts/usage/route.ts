@@ -2,7 +2,7 @@ export const dynamic = 'force-dynamic';
 
 import { apiError, apiSuccess } from "@/lib/api-response";
 import { z } from "zod";
-import { eq, and, desc, inArray } from "drizzle-orm";
+import { eq, and, desc, inArray, sum } from "drizzle-orm";
 import { withTenant } from "@/lib/authz";
 
 import { db } from "@/db";
@@ -87,15 +87,12 @@ export const GET = withTenant(async (request, context) => {
   // Calculate totals
   const totals = await db
     .select({
-      totalDiscount: discountUsageHistory.discountAmount,
+      totalDiscount: sum(discountUsageHistory.discountAmount),
     })
     .from(discountUsageHistory)
     .where(and(...conditions));
 
-  const totalDiscount = totals.reduce(
-    (sum, item) => sum + Number(item.totalDiscount),
-    0
-  );
+  const totalDiscount = Number(totals[0]?.totalDiscount ?? 0);
 
   return apiSuccess({
     items: items.map((item) => ({

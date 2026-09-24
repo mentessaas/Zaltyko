@@ -6,7 +6,7 @@ import { logger } from "@/lib/logger";
 
 const querySchema = z.object({
   academyId: z.string().uuid(),
-  hoursBefore: z.string().optional(),
+  hoursBefore: z.coerce.number().int().min(0).max(168).default(24),
 });
 
 export const POST = withTenant(async (request, context) => {
@@ -15,18 +15,21 @@ export const POST = withTenant(async (request, context) => {
   }
 
   const body = await request.json().catch(() => ({}));
-  const validated = querySchema.parse({
+  const validated = querySchema.safeParse({
     academyId: body.academyId,
     hoursBefore: body.hoursBefore,
   });
 
-  if (!validated.academyId) {
-    return apiError("ACADEMY_ID_REQUIRED", "academyId requerido", 400);
+  if (!validated.success) {
+    return apiError("INVALID_QUERY", "Parámetros de recordatorios inválidos", 400);
   }
 
   try {
-    const hoursBefore = validated.hoursBefore ? parseInt(validated.hoursBefore) : 24;
-    await sendClassReminders(validated.academyId, context.tenantId, hoursBefore);
+    await sendClassReminders(
+      validated.data.academyId,
+      context.tenantId,
+      validated.data.hoursBefore
+    );
 
     return apiSuccess({ ok: true });
   } catch (error: unknown) {

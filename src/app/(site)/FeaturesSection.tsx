@@ -26,7 +26,7 @@ export default function FeaturesSection() {
           "Fichas con nivel, aparato favorito y seguimiento de progreso",
           "Historial de asistencia y pago en tiempo real",
           "Importación masiva desde Excel o CSV",
-          "Portal para que familias vean progreso de sus hijas",
+          "Portal para que las familias consulten el progreso de sus gimnastas",
           "Registros centralizados por academia",
           "Permisos diferenciados para staff y familias",
         ],
@@ -36,16 +36,16 @@ export default function FeaturesSection() {
     {
       id: "coaches",
       icon: UserCog,
-      label: "Coaches",
+      label: "Entrenadores",
       content: {
         title: "Staff coordinado y productivo",
         features: [
-          "Roles diferenciados: director, coach, staff y admin",
+          "Roles diferenciados: dirección, entrenador, staff y administración",
           "Agenda compartida con toma de asistencia desde móvil",
           "Notas privadas por gimnasta y evaluaciones pendientes",
           "Alertas cuando una gimnasta necesita atención especial",
           "Panel de horas dictadas y seguimiento de bonificaciones",
-          "Control de acceso por academias con múltiples sedes",
+          "Control de acceso por academia y rol",
         ],
         impact: "Evita malentendidos y mejora la comunicación interna",
       },
@@ -92,10 +92,10 @@ export default function FeaturesSection() {
         title: "Planificación de eventos y giras",
         features: [
           "Calendario unificado de competencias y clínicas",
-          "Asignación de coaches responsables por sede",
-          "Listas de viaje y alojamiento para coordinación interna",
+          "Asignación de entrenadores responsables por sede",
+          "Datos de ubicación y contacto del evento",
           "Notificaciones automáticas para padres y staff",
-          "Checklist de equipo por atleta",
+          "Adjuntos y requisitos informativos del evento",
           "Inscripción online para padres sin WhatsApp",
         ],
         impact: "Evita mensajes dispersos y asegura que todos lleguen preparados",
@@ -127,7 +127,7 @@ export default function FeaturesSection() {
         features: [
           "Envío de comunicaciones automáticas a familias",
           "Almacenamiento de rutinas y vídeos de entrenamiento",
-          "Compartición de archivos con coaches y padres",
+          "Compartición de archivos con entrenadores y padres",
           "Notificaciones push para recordatorios de clases y eventos",
           "Preparación para integrar calendarios externos según configuración",
           "Datos centralizados con controles de acceso",
@@ -156,7 +156,7 @@ export default function FeaturesSection() {
   const [activeFeature, setActiveFeature] = useState(features[0].id);
 
   return (
-    <section className="bg-primary-dark py-20 px-4 text-white">
+    <section className="bg-zaltyko-primary-dark py-20 px-4 text-white">
       <div className="mx-auto max-w-6xl">
         <Tabs value={activeFeature} onValueChange={setActiveFeature} className="w-full">
           <TabsList className="mb-10 flex h-auto flex-wrap justify-center gap-4 bg-transparent">

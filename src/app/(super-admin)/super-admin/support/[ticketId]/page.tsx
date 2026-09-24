@@ -53,7 +53,8 @@ async function getTicket(ticketId: string) {
     .from(ticketResponses)
     .leftJoin(profiles, eq(ticketResponses.userId, profiles.id))
     .where(eq(ticketResponses.ticketId, ticketId))
-    .orderBy(asc(ticketResponses.createdAt));
+    .orderBy(asc(ticketResponses.createdAt))
+    .limit(1000);
 
   return {
     id: row.id,

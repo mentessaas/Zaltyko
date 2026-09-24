@@ -23,6 +23,9 @@ export async function GET() {
       status: "ok",
       checks: {
         database: { status: "ok", latencyMs },
+        // No exponemos valores ni nombres de secretos; esta señal permite al
+        // monitor distinguir una app viva de una instalación sin cron seguro.
+        cronAuth: { status: process.env.CRON_SECRET ? "ok" : "missing" },
       },
       timestamp: new Date().toISOString(),
     });

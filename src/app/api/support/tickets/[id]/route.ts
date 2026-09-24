@@ -1,4 +1,4 @@
-import { eq } from "drizzle-orm";
+import { and, eq } from "drizzle-orm";
 import { z } from "zod";
 
 import { db } from "@/db";
@@ -29,8 +29,8 @@ async function canAccessTicket(
   ticket: NonNullable<Awaited<ReturnType<typeof resolveTicket>>>,
   context: SupportContext
 ) {
-  if (context.profile.role === "super_admin" || ticket.createdBy === context.profile.id) return true;
-  if (!ticket.academyId) return false;
+  if (context.profile.role === "super_admin") return true;
+  if (!ticket.academyId) return ticket.createdBy === context.profile.id;
   const access = await verifyAcademyAccessForProfile({
     academyId: ticket.academyId,
     tenantId: context.tenantId,
@@ -60,7 +60,13 @@ export const GET = withTenant(async (_request, context) => {
     })
     .from(ticketResponses)
     .leftJoin(profiles, eq(ticketResponses.userId, profiles.id))
-    .where(eq(ticketResponses.ticketId, id));
+    .where(
+      and(
+        eq(ticketResponses.ticketId, id),
+        context.profile.role === "super_admin" ? undefined : eq(ticketResponses.isInternal, false),
+      ),
+    )
+    .limit(1000);
 
   return apiSuccess({ ticket, responses });
 });
@@ -81,6 +87,14 @@ export const PATCH = withTenant(async (request, context) => {
   if (parsed.data.assignedTo !== undefined && !isAdmin) {
     return apiError("PERMISSION_DENIED", "Solo soporte puede asignar tickets", 403);
   }
+  if (parsed.data.assignedTo) {
+    const [assignee] = await db
+      .select({ id: profiles.id })
+      .from(profiles)
+      .where(and(eq(profiles.id, parsed.data.assignedTo), eq(profiles.tenantId, context.tenantId)))
+      .limit(1);
+    if (!assignee) return apiError("INVALID_ASSIGNEE", "La persona asignada no pertenece a este tenant", 400);
+  }
   if (parsed.data.status && !isAdmin && ticket.createdBy !== context.profile.id) {
     return apiError("PERMISSION_DENIED", "Solo soporte o la persona creadora puede cambiar el estado", 403);
   }
@@ -94,6 +108,9 @@ export const PATCH = withTenant(async (request, context) => {
       updatedAt: now,
       ...(parsed.data.status === "resolved" ? { resolvedAt: now } : {}),
       ...(parsed.data.status === "closed" ? { closedAt: now } : {}),
+      ...(parsed.data.status && !["resolved", "closed"].includes(parsed.data.status)
+        ? { resolvedAt: null, closedAt: null }
+        : {}),
     })
     .where(eq(tickets.id, id))
     .returning();

@@ -5,9 +5,10 @@ import { withTenant } from "@/lib/authz";
 import { generateAttendancePDF } from "@/lib/reports/pdf-generator";
 import { db } from "@/db";
 import { athletes, academies } from "@/db/schema";
-import { eq } from "drizzle-orm";
+import { and, eq, isNull } from "drizzle-orm";
 import { apiError } from "@/lib/api-response";
 import { logger } from "@/lib/logger";
+import { authorizeAcademyCapability } from "@/lib/authz/resource-scope";
 
 export const GET = withTenant(async (request, context) => {
   if (!context.tenantId) {
@@ -25,17 +26,30 @@ export const GET = withTenant(async (request, context) => {
     const [athlete] = await db
       .select({
         academyId: athletes.academyId,
+        tenantId: athletes.tenantId,
       })
       .from(athletes)
-      .where(eq(athletes.id, athleteId))
+      .where(and(eq(athletes.id, athleteId), eq(athletes.tenantId, context.tenantId), isNull(athletes.deletedAt)))
       .limit(1);
+
+    if (!athlete) {
+      return apiError("ATHLETE_NOT_FOUND", "Athlete not found", 404);
+    }
+
+    const scope = await authorizeAcademyCapability({
+      context,
+      resourceTenantId: athlete.tenantId,
+      academyId: athlete.academyId,
+      permission: "athletes:read",
+    });
+    if (!scope.allowed) return apiError("ATHLETE_NOT_FOUND", "Athlete not found", 404);
 
     let academyName = "Academia";
     if (athlete?.academyId) {
       const [academy] = await db
         .select({ name: academies.name })
         .from(academies)
-        .where(eq(academies.id, athlete.academyId))
+        .where(and(eq(academies.id, athlete.academyId), eq(academies.tenantId, athlete.tenantId)))
         .limit(1);
       if (academy?.name) {
         academyName = academy.name;
@@ -44,7 +58,7 @@ export const GET = withTenant(async (request, context) => {
 
     // Obtener historial completo
     const historyResponse = await fetch(
-      `${request.url.split("/export-history")[0]}/history`,
+      `${request.url.split("/export-history")[0]}/history?academyId=${encodeURIComponent(athlete.academyId)}`,
       {
         headers: {
           cookie: request.headers.get("cookie") || "",
@@ -83,4 +97,3 @@ export const GET = withTenant(async (request, context) => {
     return apiError("EXPORT_FAILED", "Error al exportar el historial", 500);
   }
 });
-

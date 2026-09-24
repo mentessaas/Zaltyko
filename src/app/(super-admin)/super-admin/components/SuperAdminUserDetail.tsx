@@ -31,6 +31,9 @@ import { cn } from "@/lib/utils";
 import { formatAcademyType } from "@/lib/formatters";
 import { useToast } from "@/components/ui/toast-provider";
 import { logger } from "@/lib/logger";
+import { formatSuperAdminLongDate } from "@/lib/super-admin-date";
+import { getProductPlanPublicName } from "@/lib/plans/catalog";
+import { getSubscriptionStatusLabel } from "@/lib/billing/subscription-status-labels";
 
 interface UserMembership {
   id: string;
@@ -745,7 +748,7 @@ export function SuperAdminUserDetail({ initialUser, userId }: SuperAdminUserDeta
                       ) : (
                         plans.map((plan) => (
                           <option key={plan.id} value={plan.id}>
-                            {plan.code.toUpperCase()} - {plan.nickname ?? plan.code}
+                            {getProductPlanPublicName(plan.code, plan.nickname)}
                             {plan.priceEur !== null && ` (€${(plan.priceEur / 100).toFixed(2)}/mes)`}
                           </option>
                         ))
@@ -757,7 +760,7 @@ export function SuperAdminUserDetail({ initialUser, userId }: SuperAdminUserDeta
                       <div>
                         <p className="text-xs text-white/50">Estado de suscripción</p>
                         <p className="text-sm font-medium capitalize text-white">
-                          {user.subscription.status ?? "Sin estado"}
+                          {getSubscriptionStatusLabel(user.subscription.status)}
                         </p>
                       </div>
                       {user.subscription.stripeCustomerId && (
@@ -801,13 +804,7 @@ export function SuperAdminUserDetail({ initialUser, userId }: SuperAdminUserDeta
                 <div>
                   <p className="text-xs text-white/50">Registrado</p>
                   <p className="mt-1 text-white">
-                    {user.createdAt
-                      ? new Date(user.createdAt).toLocaleDateString("es-ES", {
-                          year: "numeric",
-                          month: "long",
-                          day: "numeric",
-                        })
-                      : "—"}
+                    {formatSuperAdminLongDate(user.createdAt) ?? "—"}
                   </p>
                 </div>
               </div>
@@ -822,8 +819,9 @@ export function SuperAdminUserDetail({ initialUser, userId }: SuperAdminUserDeta
               </Label>
               <div className="mt-2 space-y-3 rounded-xl border border-white/10 bg-white/5 p-4">
                 <div>
-                  <p className="mb-2 text-xs text-white/50">Tipo de mensaje</p>
+                  <Label htmlFor="super-admin-message-type" className="mb-2 block text-xs text-white/50">Tipo de mensaje</Label>
                   <select
+                    id="super-admin-message-type"
                     value={messageForm.type}
                     onChange={(e) =>
                       setMessageForm({ ...messageForm, type: e.target.value as "email" | "notification" })
@@ -832,12 +830,13 @@ export function SuperAdminUserDetail({ initialUser, userId }: SuperAdminUserDeta
                     disabled={sendingMessage || !user.email}
                   >
                     <option value="email">Correo electrónico</option>
-                    <option value="notification">Notificación (próximamente)</option>
+                    <option value="notification">Notificación dentro de Zaltyko</option>
                   </select>
                 </div>
                 <div>
-                  <p className="mb-2 text-xs text-white/50">Asunto</p>
+                  <Label htmlFor="super-admin-message-subject" className="mb-2 block text-xs text-white/50">Asunto</Label>
                   <Input
+                    id="super-admin-message-subject"
                     value={messageForm.subject}
                     onChange={(e) => setMessageForm({ ...messageForm, subject: e.target.value })}
                     className="border-white/20 bg-white/10 text-white placeholder:text-white/40"
@@ -846,8 +845,9 @@ export function SuperAdminUserDetail({ initialUser, userId }: SuperAdminUserDeta
                   />
                 </div>
                 <div>
-                  <p className="mb-2 text-xs text-white/50">Mensaje</p>
+                  <Label htmlFor="super-admin-message-body" className="mb-2 block text-xs text-white/50">Mensaje</Label>
                   <textarea
+                    id="super-admin-message-body"
                     value={messageForm.message}
                     onChange={(e) => setMessageForm({ ...messageForm, message: e.target.value })}
                     className="min-h-[120px] w-full rounded-xl border border-white/20 bg-white/10 px-3 py-2 text-sm text-white placeholder:text-white/40 focus:border-white/60 focus:outline-none"
@@ -983,7 +983,7 @@ export function SuperAdminUserDetail({ initialUser, userId }: SuperAdminUserDeta
             Cancelar
           </Button>
           <Button
-            className="bg-zaltyko-primary text-white hover:bg-primary-dark"
+            className="bg-zaltyko-primary text-white hover:bg-zaltyko-primary-dark"
             onClick={handleSave}
             disabled={saving || !hasChanges || user.role === "super_admin"}
           >

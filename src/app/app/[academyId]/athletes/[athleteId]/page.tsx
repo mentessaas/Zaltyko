@@ -1,5 +1,5 @@
 import { notFound, redirect } from "next/navigation";
-import { asc, count, desc, eq } from "drizzle-orm";
+import { and, asc, count, desc, eq, isNull } from "drizzle-orm";
 import Link from "next/link";
 
 import { db } from "@/db";
@@ -54,13 +54,17 @@ export default async function AthleteDetailPage({ params }: PageProps) {
       groupId: athletes.groupId,
       groupName: groups.name,
       groupColor: groups.color,
+      groupSportConfigId: groups.sportConfigId,
       primarySportConfigId: athletes.primarySportConfigId,
       tenantId: athletes.tenantId,
       academyOwner: athletes.academyId,
     })
     .from(athletes)
-    .leftJoin(groups, eq(athletes.groupId, groups.id))
-    .where(eq(athletes.id, athleteId))
+    .leftJoin(
+      groups,
+      and(eq(athletes.groupId, groups.id), eq(groups.academyId, academyId), eq(groups.tenantId, athletes.tenantId), isNull(groups.deletedAt))
+    )
+    .where(and(eq(athletes.id, athleteId), eq(athletes.academyId, academyId), isNull(athletes.deletedAt)))
     .limit(1);
 
   if (!athleteRow || athleteRow.academyOwner !== academyId) {
@@ -91,8 +95,14 @@ export default async function AthleteDetailPage({ params }: PageProps) {
       notifySms: familyContacts.notifySms,
     })
     .from(familyContacts)
-    .where(eq(familyContacts.athleteId, athleteId))
-    .orderBy(asc(familyContacts.name));
+    .where(
+      and(
+        eq(familyContacts.athleteId, athleteId),
+        eq(familyContacts.tenantId, athleteRow.tenantId)
+      )
+    )
+    .orderBy(asc(familyContacts.name))
+    .limit(100);
 
   const guardiansList = await db
     .select({
@@ -105,8 +115,15 @@ export default async function AthleteDetailPage({ params }: PageProps) {
     })
     .from(guardianAthletes)
     .innerJoin(guardians, eq(guardianAthletes.guardianId, guardians.id))
-    .where(eq(guardianAthletes.athleteId, athleteId))
-    .orderBy(desc(guardianAthletes.isPrimary), asc(guardians.name));
+    .where(
+      and(
+        eq(guardianAthletes.athleteId, athleteId),
+        eq(guardianAthletes.tenantId, athleteRow.tenantId),
+        eq(guardians.tenantId, athleteRow.tenantId)
+      )
+    )
+    .orderBy(desc(guardianAthletes.isPrimary), asc(guardians.name))
+    .limit(100);
 
   const attendanceSummary = await db
     .select({
@@ -116,7 +133,16 @@ export default async function AthleteDetailPage({ params }: PageProps) {
     .from(attendanceRecords)
     .innerJoin(classSessions, eq(attendanceRecords.sessionId, classSessions.id))
     .innerJoin(classes, eq(classSessions.classId, classes.id))
-    .where(eq(attendanceRecords.athleteId, athleteId))
+    .where(
+      and(
+        eq(attendanceRecords.athleteId, athleteId),
+        eq(attendanceRecords.tenantId, athleteRow.tenantId),
+        eq(classSessions.tenantId, athleteRow.tenantId),
+        eq(classes.tenantId, athleteRow.tenantId),
+        eq(classes.academyId, academyId),
+        isNull(classes.deletedAt)
+      )
+    )
     .groupBy(attendanceRecords.status);
 
   const recentSessions = await db
@@ -132,7 +158,16 @@ export default async function AthleteDetailPage({ params }: PageProps) {
     .from(attendanceRecords)
     .innerJoin(classSessions, eq(attendanceRecords.sessionId, classSessions.id))
     .innerJoin(classes, eq(classSessions.classId, classes.id))
-    .where(eq(attendanceRecords.athleteId, athleteId))
+    .where(
+      and(
+        eq(attendanceRecords.athleteId, athleteId),
+        eq(attendanceRecords.tenantId, athleteRow.tenantId),
+        eq(classSessions.tenantId, athleteRow.tenantId),
+        eq(classes.tenantId, athleteRow.tenantId),
+        eq(classes.academyId, academyId),
+        isNull(classes.deletedAt)
+      )
+    )
     .orderBy(desc(attendanceRecords.recordedAt))
     .limit(10);
 
@@ -143,8 +178,9 @@ export default async function AthleteDetailPage({ params }: PageProps) {
       email: coaches.email,
     })
     .from(coaches)
-    .where(eq(coaches.academyId, academyId))
-    .orderBy(asc(coaches.name));
+    .where(and(eq(coaches.academyId, academyId), eq(coaches.tenantId, athleteRow.tenantId)))
+    .orderBy(asc(coaches.name))
+    .limit(500);
   const sportConfigs = await getAcademySportConfigOptions(academyId);
   const athleteTerms = getTerminologyForSportConfig(
     sportConfigs,
@@ -183,7 +219,7 @@ export default async function AthleteDetailPage({ params }: PageProps) {
           groupName: athleteRow.groupName,
           groupColor: athleteRow.groupColor,
           primarySportConfigId: athleteRow.primarySportConfigId,
-          groupSportConfigId: null,
+          groupSportConfigId: athleteRow.groupSportConfigId ?? null,
         }}
         age={age}
         formattedDob={formattedDob}

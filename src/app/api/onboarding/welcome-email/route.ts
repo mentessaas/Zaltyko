@@ -1,14 +1,15 @@
 import { cookies } from "next/headers";
 import { z } from "zod";
 import { createClient } from "@/lib/supabase/server";
-import { sendEmail } from "@/lib/brevo";
 import { config } from "@/config";
 import { db } from "@/db";
-import { profiles, academies } from "@/db/schema";
-import { eq } from "drizzle-orm";
+import { academies, memberships, profiles } from "@/db/schema";
+import { and, eq } from "drizzle-orm";
 import { logger } from "@/lib/logger";
 import { apiSuccess, apiError } from "@/lib/api-response";
 import { isAcademyBlockedFromSending } from "@/lib/academy-status";
+import { sendEmailWithLogging } from "@/lib/email/email-service";
+import { escapeHtml } from "@/lib/email/escape-html";
 
 const BodySchema = z.object({
   academyId: z.string().uuid(),
@@ -17,23 +18,26 @@ const BodySchema = z.object({
 
 export async function POST(request: Request) {
   try {
-    const body = BodySchema.safeParse(await request.json());
-
-    if (!body.success) {
-      return apiError("INVALID_PAYLOAD", "Payload inválido", 400);
-    }
-
-    const { academyId, userId } = body.data;
-
-    // Obtener usuario y perfil
     const cookieStore = await cookies();
     const supabase = await createClient(cookieStore);
     const {
       data: { user },
     } = await supabase.auth.getUser();
 
-    if (!user || user.id !== userId) {
+    if (!user) {
       return apiError("UNAUTHORIZED", "No autorizado", 401);
+    }
+
+    const body = BodySchema.safeParse(await request.json());
+    if (!body.success) {
+      return apiError("INVALID_PAYLOAD", "Payload inválido", 400);
+    }
+
+    const { academyId } = body.data;
+    const userId = user.id;
+
+    if (body.data.userId !== userId) {
+      return apiError("FORBIDDEN", "No puedes enviar un correo para otra cuenta", 403);
     }
 
     const [profile] = await db
@@ -46,14 +50,30 @@ export async function POST(request: Request) {
       return apiError("PROFILE_NOT_FOUND", "Perfil no encontrado", 404);
     }
 
-    // Obtener información de la academia
+    // La academia debe estar vinculada a la sesión actual. No basta con que
+    // el academyId exista: el endpoint no puede convertirse en un emisor
+    // arbitrario contra academias de otro tenant.
     const [academy] = await db
-      .select({ name: academies.name })
+      .select({ name: academies.name, tenantId: academies.tenantId })
       .from(academies)
+      .innerJoin(
+        memberships,
+        and(
+          eq(memberships.academyId, academies.id),
+          eq(memberships.userId, userId)
+        )
+      )
       .where(eq(academies.id, academyId))
       .limit(1);
 
-    const academyName = academy?.name || "tu academia";
+    if (!academy) {
+      return apiError("FORBIDDEN", "No tienes acceso a esta academia", 403);
+    }
+
+    const academyName = academy.name || "tu academia";
+    const displayName = profile.name || "Usuario";
+    const safeAcademyName = escapeHtml(academyName);
+    const safeDisplayName = escapeHtml(displayName);
 
     const eligibility = await isAcademyBlockedFromSending(academyId);
     if (eligibility.blocked) {
@@ -65,9 +85,13 @@ export async function POST(request: Request) {
     }
 
     // Enviar email de bienvenida
-    await sendEmail({
-      to: user.email!,
-      subject: `Bienvenido a Zaltyko, ${profile.name || "Usuario"}!`,
+    if (!user.email) {
+      return apiError("EMAIL_NOT_AVAILABLE", "La cuenta no tiene un correo verificable", 400);
+    }
+
+    const delivered = await sendEmailWithLogging({
+      to: user.email,
+      subject: `Bienvenido a Zaltyko, ${displayName}!`,
       html: `
         <!DOCTYPE html>
         <html>
@@ -82,15 +106,15 @@ export async function POST(request: Request) {
 
           <div style="background: #f9fafb; padding: 30px; border-radius: 0 0 8px 8px;">
             <p style="font-size: 16px; margin-bottom: 20px;">
-              Hola <strong>${profile.name || "Usuario"}</strong>,
+              Hola <strong>${safeDisplayName}</strong>,
             </p>
 
             <p style="font-size: 16px; margin-bottom: 20px;">
-              Estamos emocionados de tenerte en Zaltyko! Tu academia <strong>${academyName}</strong> está lista para comenzar.
+              ¡Nos alegra tenerte en Zaltyko! Tu academia <strong>${safeAcademyName}</strong> está lista para comenzar.
             </p>
 
             <div style="background: white; padding: 20px; border-radius: 8px; margin: 20px 0; border-left: 4px solid #0D47A1;">
-              <h2 style="color: #0D47A1; margin-top: 0; font-size: 20px;">Proximos pasos recomendados:</h2>
+              <h2 style="color: #0D47A1; margin-top: 0; font-size: 20px;">Próximos pasos recomendados:</h2>
               <ul style="list-style: none; padding: 0;">
                 <li style="padding: 8px 0; border-bottom: 1px solid #e5e7eb;">
                   ✓ Crea tu primer grupo de entrenamiento
@@ -126,7 +150,7 @@ export async function POST(request: Request) {
             </p>
 
             <p style="font-size: 14px; color: #6b7280; margin-top: 20px;">
-              Que tengas un excelente dia!<br>
+              ¡Que tengas un excelente día!<br>
               <strong>El equipo de Zaltyko</strong>
             </p>
           </div>
@@ -144,9 +168,9 @@ Bienvenido a Zaltyko!
 
 Hola ${profile.name || "Usuario"},
 
-Estamos emocionados de tenerte en Zaltyko! Tu academia ${academyName} está lista para comenzar.
+¡Nos alegra tenerte en Zaltyko! Tu academia ${academyName} está lista para comenzar.
 
-Proximos pasos recomendados:
+Próximos pasos recomendados:
 - Crea tu primer grupo de entrenamiento
 - Añade atletas a tu academia
 - Invita a tus entrenadores
@@ -156,13 +180,18 @@ Accede a tu dashboard: ${config.appUrl}/app/${academyId}/dashboard
 
 Si tienes alguna pregunta, contacta a ${config.brevo.supportEmail}
 
-Que tengas un excelente dia!
+¡Que tengas un excelente día!
 El equipo de Zaltyko
       `,
       replyTo: config.brevo.supportEmail,
+      template: "academy-welcome",
+      tenantId: academy.tenantId,
+      academyId,
+      userId: profile.id,
+      dedupeKey: `academy-welcome:${academyId}:${userId}`,
     });
 
-    return apiSuccess({ ok: true, message: "Email de bienvenida enviado" });
+    return apiSuccess({ ok: delivered, message: delivered ? "Email de bienvenida enviado" : "El email ya fue enviado o no está disponible" });
   } catch (error: unknown) {
     logger.error("Error sending welcome email", error);
     return apiError("EMAIL_SEND_FAILED", "Error al enviar el email de bienvenida", 500);

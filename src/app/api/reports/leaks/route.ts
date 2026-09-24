@@ -53,15 +53,18 @@ export const GET = withTenant(async (request, context) => {
       db
         .select({ id: classes.id, name: classes.name, capacity: classes.capacity })
         .from(classes)
-        .where(and(eq(classes.tenantId, context.tenantId), eq(classes.academyId, parsed.data.academyId))),
+        .where(and(eq(classes.tenantId, context.tenantId), eq(classes.academyId, parsed.data.academyId)))
+        .limit(5000),
       db
         .select({ classId: classEnrollments.classId, athleteId: classEnrollments.athleteId })
         .from(classEnrollments)
-        .where(and(eq(classEnrollments.tenantId, context.tenantId), eq(classEnrollments.academyId, parsed.data.academyId))),
+        .where(and(eq(classEnrollments.tenantId, context.tenantId), eq(classEnrollments.academyId, parsed.data.academyId)))
+        .limit(10000),
       db
         .select({ classId: classWaitingList.classId, athleteId: classWaitingList.athleteId })
         .from(classWaitingList)
-        .where(and(eq(classWaitingList.tenantId, context.tenantId), eq(classWaitingList.academyId, parsed.data.academyId))),
+        .where(and(eq(classWaitingList.tenantId, context.tenantId), eq(classWaitingList.academyId, parsed.data.academyId)))
+        .limit(10000),
       db
         .select({
           classId: charges.classId,
@@ -70,11 +73,13 @@ export const GET = withTenant(async (request, context) => {
           dueDate: charges.dueDate,
         })
         .from(charges)
-        .where(and(eq(charges.tenantId, context.tenantId), eq(charges.academyId, parsed.data.academyId), eq(charges.period, period))),
+        .where(and(eq(charges.tenantId, context.tenantId), eq(charges.academyId, parsed.data.academyId), eq(charges.period, period)))
+        .limit(10000),
       db
         .select({ classId: classCoachAssignments.classId, coachId: classCoachAssignments.coachId })
         .from(classCoachAssignments)
-        .where(eq(classCoachAssignments.tenantId, context.tenantId)),
+        .where(eq(classCoachAssignments.tenantId, context.tenantId))
+        .limit(10000),
       db
         .select()
         .from(coachCompensation)
@@ -84,7 +89,8 @@ export const GET = withTenant(async (request, context) => {
             eq(coachCompensation.academyId, parsed.data.academyId),
             eq(coachCompensation.isActive, true)
           )
-        ),
+        )
+        .limit(10000),
       db
         .select()
         .from(academyExpenses)
@@ -94,11 +100,13 @@ export const GET = withTenant(async (request, context) => {
             eq(academyExpenses.academyId, parsed.data.academyId),
             eq(academyExpenses.isActive, true)
           )
-        ),
+        )
+        .limit(10000),
       db
         .select({ id: churnReasons.id, athleteId: churnReasons.athleteId, reason: churnReasons.reason })
         .from(churnReasons)
-        .where(and(eq(churnReasons.tenantId, context.tenantId), eq(churnReasons.academyId, parsed.data.academyId))),
+        .where(and(eq(churnReasons.tenantId, context.tenantId), eq(churnReasons.academyId, parsed.data.academyId)))
+        .limit(10000),
     ]);
 
   const enrolledByClass = new Map<string, number>();
@@ -209,4 +217,3 @@ export const GET = withTenant(async (request, context) => {
     },
   });
 });
-

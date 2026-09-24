@@ -1,15 +1,17 @@
 import { notFound } from "next/navigation";
 import Link from "next/link";
-import { and, asc, eq, ilike, inArray, or, sql } from "drizzle-orm";
+import { and, asc, count, eq, gte, ilike, inArray, isNull, lte, or, sql } from "drizzle-orm";
 import { Dumbbell } from "lucide-react";
 
 import { db } from "@/db";
 import {
   academies,
+  athletes,
   classCoachAssignments,
   classEnrollments,
   classGroups,
   classWeekdays,
+  classSessions,
   classes,
   coaches,
   coachSportConfigs,
@@ -21,6 +23,7 @@ import { ClassesDashboard } from "@/components/classes/ClassesDashboard";
 import { PageHeader } from "@/components/ui/page-header";
 import { pluralizeFirstWord, resolveAcademySpecialization } from "@/lib/specialization/registry";
 import { getAcademySportConfigOptions } from "@/lib/sport-config/service";
+import { addDaysToCalendarDate, formatCalendarDate, formatDateToISOString, parseCalendarDate } from "@/lib/date-utils";
 
 /**
  * AcademyClassesPage - Vista principal de gestión de clases y sesiones
@@ -79,6 +82,8 @@ export default async function AcademyClassesPage({ params, searchParams }: PageP
 
   const conditions = [
     eq(classes.academyId, academyId),
+    eq(classes.tenantId, academy.tenantId),
+    isNull(classes.deletedAt),
     query
       ? or(ilike(classes.name, `%${query}%`), ilike(classes.startTime, `%${query}%`))
       : undefined,
@@ -94,12 +99,70 @@ export default async function AcademyClassesPage({ params, searchParams }: PageP
       id: classes.id,
       name: classes.name,
       academyId: classes.academyId,
+      startTime: classes.startTime,
+      endTime: classes.endTime,
+      capacity: classes.capacity,
+      technicalFocus: classes.technicalFocus,
+      apparatus: classes.apparatus,
+      sportConfigId: classes.sportConfigId,
+      isExtra: classes.isExtra,
+      autoGenerateSessions: classes.autoGenerateSessions,
+      allowsFreeTrial: classes.allowsFreeTrial,
+      waitingListEnabled: classes.waitingListEnabled,
+      cancellationHoursBefore: classes.cancellationHoursBefore,
+      cancellationPolicy: classes.cancellationPolicy,
+      createdAt: classes.createdAt,
     })
     .from(classes)
     .where(whereClause)
-    .orderBy(asc(classes.name));
+    .orderBy(asc(classes.name))
+    .limit(500);
 
   const classIds = classRows.map((item) => item.id);
+  const todayKey = formatDateToISOString(new Date(), academy.country);
+  const monthStartKey = `${todayKey.slice(0, 7)}-01`;
+  const monthStartDate = parseCalendarDate(monthStartKey);
+  const monthEndKey = monthStartDate
+    ? formatCalendarDate(new Date(Date.UTC(monthStartDate.getUTCFullYear(), monthStartDate.getUTCMonth() + 1, 0)))
+    : todayKey;
+  const upcomingEndKey = addDaysToCalendarDate(todayKey, 30) ?? todayKey;
+  const [sessionStats] = classIds.length === 0
+    ? [{ totalSessions: 0, upcomingSessions: 0 }]
+    : await Promise.all([
+        Promise.all([
+          db
+            .select({ value: count() })
+            .from(classSessions)
+            .innerJoin(classes, eq(classSessions.classId, classes.id))
+            .where(
+              and(
+                eq(classSessions.tenantId, academy.tenantId),
+                eq(classes.academyId, academyId),
+                isNull(classes.deletedAt),
+                inArray(classSessions.classId, classIds),
+                gte(classSessions.sessionDate, monthStartKey),
+                lte(classSessions.sessionDate, monthEndKey)
+              )
+            ),
+          db
+            .select({ value: count() })
+            .from(classSessions)
+            .innerJoin(classes, eq(classSessions.classId, classes.id))
+            .where(
+              and(
+                eq(classSessions.tenantId, academy.tenantId),
+                eq(classes.academyId, academyId),
+                isNull(classes.deletedAt),
+                inArray(classSessions.classId, classIds),
+                gte(classSessions.sessionDate, todayKey),
+                lte(classSessions.sessionDate, upcomingEndKey)
+              )
+            ),
+        ]).then(([totalRows, upcomingRows]) => ({
+          totalSessions: Number(totalRows[0]?.value ?? 0),
+          upcomingSessions: Number(upcomingRows[0]?.value ?? 0),
+        })),
+      ]);
   const weekdayRows =
     classIds.length === 0
       ? []
@@ -109,7 +172,8 @@ export default async function AcademyClassesPage({ params, searchParams }: PageP
             weekday: classWeekdays.weekday,
           })
           .from(classWeekdays)
-          .where(inArray(classWeekdays.classId, classIds));
+          .where(and(inArray(classWeekdays.classId, classIds), eq(classWeekdays.tenantId, academy.tenantId)))
+          .limit(3500);
 
   const weekdayMap = new Map<string, number[]>();
   weekdayRows.forEach((row) => {
@@ -130,9 +194,26 @@ export default async function AcademyClassesPage({ params, searchParams }: PageP
       coachEmail: coaches.email,
     })
     .from(classCoachAssignments)
-    .innerJoin(coaches, eq(classCoachAssignments.coachId, coaches.id))
-    .where(eq(classCoachAssignments.tenantId, academy.tenantId))
-    .orderBy(asc(coaches.name));
+    .innerJoin(
+      coaches,
+      and(
+        eq(classCoachAssignments.coachId, coaches.id),
+        eq(coaches.tenantId, academy.tenantId),
+        eq(coaches.academyId, academyId)
+      )
+    )
+    .innerJoin(classes, eq(classCoachAssignments.classId, classes.id))
+    .where(
+      and(
+        eq(classCoachAssignments.tenantId, academy.tenantId),
+        eq(classes.tenantId, academy.tenantId),
+        eq(classes.academyId, academyId),
+        isNull(classes.deletedAt),
+        classIds.length > 0 ? inArray(classCoachAssignments.classId, classIds) : sql`false`
+      )
+    )
+    .orderBy(asc(coaches.name))
+    .limit(2000);
 
   const coachRows = await db
     .select({
@@ -142,8 +223,9 @@ export default async function AcademyClassesPage({ params, searchParams }: PageP
       academyId: coaches.academyId,
     })
     .from(coaches)
-    .where(eq(coaches.academyId, academyId))
-    .orderBy(asc(coaches.name));
+    .where(and(eq(coaches.academyId, academyId), eq(coaches.tenantId, academy.tenantId)))
+    .orderBy(asc(coaches.name))
+    .limit(500);
   const coachScopeRows =
     coachRows.length === 0
       ? []
@@ -153,7 +235,8 @@ export default async function AcademyClassesPage({ params, searchParams }: PageP
             sportConfigId: coachSportConfigs.academySportConfigId,
           })
           .from(coachSportConfigs)
-          .where(inArray(coachSportConfigs.coachId, coachRows.map((coach) => coach.id)));
+          .where(inArray(coachSportConfigs.coachId, coachRows.map((coach) => coach.id)))
+          .limit(2000);
   const sportConfigIdsByCoach = new Map<string, string[]>();
   coachScopeRows.forEach((row) => {
     const current = sportConfigIdsByCoach.get(row.coachId) ?? [];
@@ -166,12 +249,20 @@ export default async function AcademyClassesPage({ params, searchParams }: PageP
       id: groups.id,
       name: groups.name,
       color: groups.color,
+      sportConfigId: groups.sportConfigId,
       coachId: groups.coachId,
       assistantIds: groups.assistantIds,
     })
     .from(groups)
-    .where(eq(groups.academyId, academyId))
-    .orderBy(asc(groups.name));
+    .where(
+      and(
+        eq(groups.academyId, academyId),
+        eq(groups.tenantId, academy.tenantId),
+        isNull(groups.deletedAt)
+      )
+    )
+    .orderBy(asc(groups.name))
+    .limit(500);
 
   const groupByCoach = new Map<string, { id: string; name: string; color: string | null; sportConfigId: string | null }[]>();
   groupRows.forEach((group) => {
@@ -179,7 +270,7 @@ export default async function AcademyClassesPage({ params, searchParams }: PageP
       id: group.id,
       name: group.name ?? "Grupo sin nombre",
       color: group.color ?? null,
-      sportConfigId: null,
+      sportConfigId: group.sportConfigId ?? null,
     };
     if (group.coachId) {
       const existing = groupByCoach.get(group.coachId) ?? [];
@@ -209,10 +300,19 @@ export default async function AcademyClassesPage({ params, searchParams }: PageP
             groupId: groups.id,
             groupName: groups.name,
             groupColor: groups.color,
+            groupSportConfigId: groups.sportConfigId,
           })
           .from(classGroups)
           .innerJoin(groups, eq(classGroups.groupId, groups.id))
-          .where(inArray(classGroups.classId, classIds));
+          .where(
+            and(
+              inArray(classGroups.classId, classIds),
+              eq(classGroups.tenantId, academy.tenantId),
+              eq(groups.tenantId, academy.tenantId),
+              isNull(groups.deletedAt)
+            )
+          )
+          .limit(2000);
 
   const classGroupsMap = new Map<string, { id: string; name: string; color: string | null; sportConfigId: string | null }[]>();
   classGroupRows.forEach((row) => {
@@ -221,13 +321,14 @@ export default async function AcademyClassesPage({ params, searchParams }: PageP
       id: row.groupId,
       name: row.groupName ?? "Grupo sin nombre",
       color: row.groupColor ?? null,
-      sportConfigId: null,
+      sportConfigId: row.groupSportConfigId ?? null,
     });
     classGroupsMap.set(row.classId, existing);
   });
 
   // Obtener conteo de atletas por clase (de grupos y enrollments)
   const athleteCounts: Record<string, number> = {};
+  const athleteIdsByClass = new Map<string, Set<string>>();
 
   // Atletas de grupos
   if (groupRows.length > 0 && classIds.length > 0) {
@@ -235,20 +336,32 @@ export default async function AcademyClassesPage({ params, searchParams }: PageP
     const athleteFromGroups = await db
       .select({
         classId: classGroups.classId,
-        count: sql<number>`count(distinct ${groupAthletes.athleteId})::int`.as("count"),
+        athleteId: groupAthletes.athleteId,
       })
       .from(classGroups)
       .innerJoin(groupAthletes, eq(classGroups.groupId, groupAthletes.groupId))
+      .innerJoin(athletes, eq(groupAthletes.athleteId, athletes.id))
       .where(
         and(
           inArray(classGroups.classId, classIds),
-          inArray(groupAthletes.groupId, groupIds)
+          inArray(groupAthletes.groupId, groupIds),
+          eq(classGroups.tenantId, academy.tenantId),
+          eq(groupAthletes.tenantId, academy.tenantId),
+          eq(athletes.tenantId, academy.tenantId),
+          eq(athletes.academyId, academyId),
+          isNull(athletes.deletedAt)
         )
       )
-      .groupBy(classGroups.classId);
+      .limit(20000);
 
     athleteFromGroups.forEach((row) => {
-      athleteCounts[row.classId] = (athleteCounts[row.classId] || 0) + row.count;
+      const ids = athleteIdsByClass.get(row.classId) ?? new Set<string>();
+      ids.add(row.athleteId);
+      athleteIdsByClass.set(row.classId, ids);
+    });
+
+    athleteIdsByClass.forEach((ids, classId) => {
+      athleteCounts[classId] = ids.size;
     });
   }
 
@@ -257,14 +370,29 @@ export default async function AcademyClassesPage({ params, searchParams }: PageP
     const extraAthletes = await db
       .select({
         classId: classEnrollments.classId,
-        count: sql<number>`count(*)::int`.as("count"),
+        athleteId: classEnrollments.athleteId,
       })
       .from(classEnrollments)
-      .where(inArray(classEnrollments.classId, classIds))
-      .groupBy(classEnrollments.classId);
+      .innerJoin(athletes, eq(classEnrollments.athleteId, athletes.id))
+      .where(
+        and(
+          inArray(classEnrollments.classId, classIds),
+          eq(classEnrollments.tenantId, academy.tenantId),
+          eq(classEnrollments.academyId, academyId),
+          eq(athletes.tenantId, academy.tenantId),
+          eq(athletes.academyId, academyId),
+          isNull(athletes.deletedAt)
+        )
+      )
+      .limit(20000);
 
     extraAthletes.forEach((row) => {
-      athleteCounts[row.classId] = (athleteCounts[row.classId] || 0) + row.count;
+      const ids = athleteIdsByClass.get(row.classId) ?? new Set<string>();
+      ids.add(row.athleteId);
+      athleteIdsByClass.set(row.classId, ids);
+    });
+    athleteIdsByClass.forEach((ids, classId) => {
+      athleteCounts[classId] = ids.size;
     });
   }
 
@@ -293,20 +421,20 @@ export default async function AcademyClassesPage({ params, searchParams }: PageP
         id: item.id,
         name: item.name,
         weekdays: (weekdayMap.get(item.id) ?? []).sort((a, b) => a - b),
-        startTime: null,
-        endTime: null,
-        capacity: null,
-        technicalFocus: null,
-        apparatus: [],
-        sportConfigId: null,
-        isExtra: false,
-        autoGenerateSessions: false,
-        allowsFreeTrial: false,
-        waitingListEnabled: false,
-        cancellationHoursBefore: 24,
-        cancellationPolicy: "standard",
+        startTime: item.startTime,
+        endTime: item.endTime,
+        capacity: item.capacity,
+        technicalFocus: item.technicalFocus,
+        apparatus: item.apparatus ?? [],
+        sportConfigId: item.sportConfigId,
+        isExtra: item.isExtra,
+        autoGenerateSessions: item.autoGenerateSessions,
+        allowsFreeTrial: item.allowsFreeTrial,
+        waitingListEnabled: item.waitingListEnabled,
+        cancellationHoursBefore: item.cancellationHoursBefore ?? 24,
+        cancellationPolicy: item.cancellationPolicy ?? "standard",
         currentEnrollment: athleteCounts[item.id] ?? 0,
-        createdAt: null,
+        createdAt: item.createdAt?.toISOString() ?? null,
         coaches: classCoaches.map((assignment) => ({
           id: assignment.coachId,
           name: assignment.coachName,
@@ -355,6 +483,7 @@ export default async function AcademyClassesPage({ params, searchParams }: PageP
       <ClassesDashboard
         academyId={academy.id}
         initialClasses={classesList}
+        initialStats={sessionStats}
         availableCoaches={availableCoaches}
         groupOptions={groupOptions}
         sportConfigs={sportConfigs}

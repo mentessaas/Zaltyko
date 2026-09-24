@@ -145,7 +145,7 @@ const DEMO_ASSESSMENTS = [
 ];
 
 function isDevEnabled() {
-  return isDevSessionEnabled;
+  return isDevSessionEnabled();
 }
 
 function getDbErrorCode(error: unknown): string | undefined {

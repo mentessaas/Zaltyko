@@ -2,6 +2,9 @@ import { cookies } from "next/headers";
 import { createClient } from "@/lib/supabase/server";
 import { redirect } from "next/navigation";
 import { TicketForm } from "@/components/support/TicketForm";
+import { and, eq } from "drizzle-orm";
+import { db } from "@/db";
+import { memberships, profiles } from "@/db/schema";
 
 export const dynamic = "force-dynamic";
 
@@ -41,6 +44,21 @@ export default async function NewTicketPage({ params }: PageProps) {
       throw new Error("No autorizado");
     }
 
+    const [profile] = await db
+      .select({ id: profiles.id })
+      .from(profiles)
+      .where(eq(profiles.userId, user.id))
+      .limit(1);
+    const [membership] = await db
+      .select({ id: memberships.id })
+      .from(memberships)
+      .where(and(eq(memberships.userId, user.id), eq(memberships.academyId, academyId)))
+      .limit(1);
+
+    if (!profile || !membership) {
+      throw new Error("No tienes acceso a esta academia");
+    }
+
     const { data: ticket, error } = await supabase
       .from("tickets")
       .insert({
@@ -49,7 +67,7 @@ export default async function NewTicketPage({ params }: PageProps) {
         category: formData.category,
         priority: formData.priority,
         status: "open",
-        created_by: user.id,
+        created_by: profile.id,
         academy_id: academyId,
       })
       .select()

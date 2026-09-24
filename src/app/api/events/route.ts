@@ -7,6 +7,7 @@
 import { z } from "zod";
 
 import { withTenant } from "@/lib/authz";
+import { authorizeAcademyCapability } from "@/lib/authz/resource-scope";
 import { handleApiError } from "@/lib/api-error-handler";
 import { withRateLimit, getUserIdentifier } from "@/lib/rate-limit";
 import { withPayloadValidation } from "@/lib/payload-validator";
@@ -25,6 +26,15 @@ export const POST = withRateLimit(
     withTenant(async (request, context) => {
       try {
         const body = CreateEventSchema.parse(await request.json());
+        const scope = await authorizeAcademyCapability({
+          context,
+          resourceTenantId: context.tenantId,
+          academyId: body.academyId,
+          permission: "events:create",
+        });
+        if (!scope.allowed) {
+          return apiError(scope.reason ?? "FORBIDDEN", "No tienes permiso para crear eventos en esta academia", 403);
+        }
         const result = await createEvent(body, {
           tenantId: context.tenantId,
           userId: context.userId,
@@ -55,6 +65,17 @@ export const GET = withTenant(async (request, context) => {
     }
 
     const { page, limit, ...filters } = parsed.data;
+    if (filters.academyId) {
+      const scope = await authorizeAcademyCapability({
+        context,
+        resourceTenantId: context.tenantId,
+        academyId: filters.academyId,
+        permission: "events:read",
+      });
+      if (!scope.allowed) {
+        return apiError("EVENT_NOT_FOUND", "No se encontraron eventos", 404);
+      }
+    }
     const { items, total } = await listEvents(filters, context.tenantId);
 
     return apiSuccess(

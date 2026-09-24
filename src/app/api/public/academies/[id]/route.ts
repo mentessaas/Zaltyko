@@ -1,4 +1,4 @@
-import { and, eq, inArray } from "drizzle-orm";
+import { and, eq, inArray, isNull } from "drizzle-orm";
 import { NextResponse } from "next/server";
 import { createClient } from "@supabase/supabase-js";
 
@@ -7,6 +7,7 @@ import { academies, classes, classWeekdays } from "@/db/schema";
 import { handleApiError } from "@/lib/api-error-handler";
 import { logger } from "@/lib/logger";
 import { INDEXABLE_ACADEMY_STATUS_VALUES } from "@/lib/seo/academy-indexability";
+import { z } from "zod";
 
 interface RouteContext {
   params: Promise<{ id: string }>;
@@ -22,9 +23,13 @@ interface RouteContext {
  * - Información básica de la academia
  * - Horarios públicos del grupo principal (solo títulos y días, sin datos privados)
  */
+// @auth-flexible route-guard-reason: public academy detail; only indexable public academies are returned.
 export async function GET(request: Request, context: RouteContext) {
   try {
     const { id } = await context.params;
+    if (!z.string().uuid().safeParse(id).success) {
+      return NextResponse.json({ error: "INVALID_ACADEMY_ID" }, { status: 400 });
+    }
 
     let academy: {
       id: string;
@@ -37,12 +42,13 @@ export async function GET(request: Request, context: RouteContext) {
       logoUrl: string | null;
     } | null = null;
 
-    let publicSchedule: Array<{
+  let publicSchedule: Array<{
       className: string | null;
       weekday: number | null;
       startTime: string | null;
       endTime: string | null;
-    }> = [];
+  }> = [];
+  let academyTenantId: string | null = null;
 
     try {
       // Intentar obtener academia con Drizzle
@@ -56,6 +62,7 @@ export async function GET(request: Request, context: RouteContext) {
           city: academies.city,
           publicDescription: academies.publicDescription,
           logoUrl: academies.logoUrl,
+          tenantId: academies.tenantId,
         })
         .from(academies)
         .where(
@@ -69,9 +76,16 @@ export async function GET(request: Request, context: RouteContext) {
         .limit(1);
 
       academy = academyResult ? {
-        ...academyResult,
+        id: academyResult.id,
+        name: academyResult.name,
+        country: academyResult.country,
+        region: academyResult.region,
+        city: academyResult.city,
+        publicDescription: academyResult.publicDescription,
+        logoUrl: academyResult.logoUrl,
         academyType: String(academyResult.academyType),
       } : null;
+      academyTenantId = academyResult?.tenantId ?? null;
 
       // Intentar obtener horarios con Drizzle
       if (academy) {
@@ -87,7 +101,9 @@ export async function GET(request: Request, context: RouteContext) {
           .where(
             and(
               eq(classes.academyId, id),
-              eq(classes.isExtra, false)
+              eq(classes.isExtra, false),
+              eq(classes.tenantId, academyTenantId ?? ""),
+              isNull(classes.deletedAt),
             )
           )
           .limit(20);
@@ -130,6 +146,7 @@ export async function GET(request: Request, context: RouteContext) {
             publicDescription: academyData.public_description,
             logoUrl: academyData.logo_url,
           };
+          academyTenantId = academyData.tenant_id ?? null;
           logger.info(`Fallback exitoso: Academia ${academy.name} encontrada`);
           
           // Obtener horarios (simplificado para el fallback)
@@ -143,6 +160,7 @@ export async function GET(request: Request, context: RouteContext) {
             `)
             .eq("academy_id", id)
             .eq("is_extra", false)
+            .is("deleted_at", null)
             .limit(20);
           
           if (scheduleData) {

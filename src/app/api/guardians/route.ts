@@ -1,17 +1,18 @@
 export const dynamic = 'force-dynamic';
 
-import { and, asc, eq, inArray, sql } from "drizzle-orm";
+import { and, asc, eq, inArray, isNull, sql } from "drizzle-orm";
 import { z } from "zod";
 
 import { db } from "@/db";
 import { athletes, guardians, guardianAthletes } from "@/db/schema";
 import { withTenant } from "@/lib/authz";
+import { authorizeAcademyCapability } from "@/lib/authz/resource-scope";
 import { handleApiError } from "@/lib/api-error-handler";
 import { apiSuccess, apiError, apiCreated } from "@/lib/api-response";
 
 const GuardianSchema = z.object({
   athleteId: z.string().uuid().optional(),
-  name: z.string().min(1),
+  name: z.string().trim().min(1).max(120),
   email: z.string().email().optional().or(z.literal("")),
   phone: z.string().optional().or(z.literal("")),
   relationship: z.string().optional(),
@@ -22,7 +23,7 @@ const GuardianSchema = z.object({
 const CreateBodySchema = z.object({
   academyId: z.string().uuid(),
   guardian: GuardianSchema,
-  athleteIds: z.array(z.string().uuid()).optional(),
+  athleteIds: z.array(z.string().uuid()).max(100).optional(),
 });
 
 const filterSchema = z.object({
@@ -47,6 +48,42 @@ export const GET = withTenant(async (request, context) => {
       return apiError("TENANT_REQUIRED", "Tenant context is required", 400);
     }
 
+    let athleteScope: { id: string; academyId: string } | null = null;
+    if (athleteId) {
+      const [athlete] = await db
+        .select({ id: athletes.id, academyId: athletes.academyId })
+        .from(athletes)
+        .where(
+          and(
+            eq(athletes.id, athleteId),
+            eq(athletes.tenantId, context.tenantId),
+            isNull(athletes.deletedAt)
+          )
+        )
+        .limit(1);
+
+      if (!athlete) {
+        return apiError("ATHLETE_NOT_FOUND", "Athlete not found", 404);
+      }
+      athleteScope = athlete;
+    }
+
+    const targetAcademyId = academyId ?? athleteScope?.academyId ?? context.profile.activeAcademyId ?? null;
+    if (targetAcademyId) {
+      const academyScope = await authorizeAcademyCapability({
+        context,
+        resourceTenantId: context.tenantId,
+        academyId: targetAcademyId,
+        permission: "athletes:read",
+      });
+
+      if (!academyScope.allowed) {
+        return apiError("GUARDIAN_NOT_FOUND", "No se encontraron tutores", 404);
+      }
+    } else if (context.profile.role !== "super_admin") {
+      return apiError("ACADEMY_REQUIRED", "Academy ID is required", 400);
+    }
+
     const pageSize = Math.min(200, Math.max(1, limit));
     const offset = (page - 1) * pageSize;
 
@@ -58,7 +95,17 @@ export const GET = withTenant(async (request, context) => {
       const guardianIds = await db
         .select({ guardianId: guardianAthletes.guardianId })
         .from(guardianAthletes)
-        .where(eq(guardianAthletes.athleteId, athleteId));
+        .innerJoin(athletes, eq(guardianAthletes.athleteId, athletes.id))
+        .where(
+          and(
+            eq(guardianAthletes.athleteId, athleteId),
+            eq(guardianAthletes.tenantId, context.tenantId),
+            eq(athletes.tenantId, context.tenantId),
+            targetAcademyId ? eq(athletes.academyId, targetAcademyId) : sql`true`,
+            isNull(athletes.deletedAt)
+          )
+        )
+        .limit(5000);
 
       const ids = guardianIds.map(g => g.guardianId).filter(Boolean);
       if (ids.length > 0) {
@@ -67,6 +114,21 @@ export const GET = withTenant(async (request, context) => {
         // No guardians found for this athlete
         return apiSuccess([], { total: 0, page, pageSize });
       }
+    }
+
+    if (targetAcademyId && !athleteId) {
+      conditions.push(
+        sql`EXISTS (
+          SELECT 1
+          FROM guardian_athletes scoped_ga
+          INNER JOIN athletes scoped_a ON scoped_a.id = scoped_ga.athlete_id
+          WHERE scoped_ga.guardian_id = ${guardians.id}
+            AND scoped_ga.tenant_id = ${context.tenantId}
+            AND scoped_a.tenant_id = ${context.tenantId}
+            AND scoped_a.academy_id = ${targetAcademyId}
+            AND scoped_a.deleted_at IS NULL
+        )`
+      );
     }
 
     const whereClause = and(...conditions);
@@ -112,8 +174,17 @@ export const GET = withTenant(async (request, context) => {
           athleteName: athletes.name,
         })
         .from(guardianAthletes)
-        .leftJoin(athletes, eq(guardianAthletes.athleteId, athletes.id))
-        .where(sql`${guardianAthletes.guardianId} = ANY(${guardianIds})`);
+        .innerJoin(athletes, eq(guardianAthletes.athleteId, athletes.id))
+        .where(
+          and(
+            sql`${guardianAthletes.guardianId} = ANY(${guardianIds})`,
+            eq(guardianAthletes.tenantId, context.tenantId),
+            eq(athletes.tenantId, context.tenantId),
+            targetAcademyId ? eq(athletes.academyId, targetAcademyId) : sql`true`,
+            isNull(athletes.deletedAt)
+          )
+        )
+        .limit(10000);
 
       for (const assoc of associations) {
         if (!athleteAssociations[assoc.guardianId]) {
@@ -135,8 +206,6 @@ export const GET = withTenant(async (request, context) => {
       athletes: athleteAssociations[g.id] ?? [],
     }));
 
-    const totalPages = Math.ceil(total / pageSize);
-
     return apiSuccess(itemsWithAthletes, { total, page, pageSize });
   } catch (error) {
     return handleApiError(error);
@@ -151,7 +220,34 @@ export const POST = withTenant(async (request, context) => {
       return apiError("TENANT_REQUIRED", "Tenant context is required", 400);
     }
 
+    const academyScope = await authorizeAcademyCapability({
+      context,
+      resourceTenantId: context.tenantId,
+      academyId: body.academyId,
+      permission: "athletes:create",
+    });
+
+    if (!academyScope.allowed) {
+      return apiError(academyScope.reason ?? "FORBIDDEN", "No tienes permisos para crear tutores en esta academia", 403);
+    }
+
     const guardianId = crypto.randomUUID();
+
+    if (body.athleteIds?.length) {
+      const scopedAthletes = await db
+        .select({ id: athletes.id })
+        .from(athletes)
+        .where(and(
+          eq(athletes.tenantId, context.tenantId),
+          eq(athletes.academyId, body.academyId),
+          inArray(athletes.id, body.athleteIds),
+          isNull(athletes.deletedAt),
+        ))
+        .limit(100);
+      if (scopedAthletes.length !== new Set(body.athleteIds).size) {
+        return apiError("ATHLETE_ACCESS_DENIED", "One or more athletes do not belong to this academy", 403);
+      }
+    }
 
     // Create guardian
     await db.insert(guardians).values({

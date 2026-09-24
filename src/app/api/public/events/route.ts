@@ -1,4 +1,4 @@
-import { and, asc, desc, eq, ilike, inArray, or, sql, type SQL } from "drizzle-orm";
+import { and, desc, eq, ilike, inArray, or, sql, type SQL } from "drizzle-orm";
 import { NextResponse } from "next/server";
 import { z } from "zod";
 
@@ -12,17 +12,17 @@ const EVENT_LEVELS = ["internal", "local", "national", "international"] as const
 const EVENT_DISCIPLINES = ["artistic_female", "artistic_male", "rhythmic", "trampoline", "parkour"] as const;
 
 const QuerySchema = z.object({
-  country: z.string().optional(),
-  province: z.string().optional(),
-  city: z.string().optional(),
+  country: z.string().trim().max(120).optional(),
+  province: z.string().trim().max(120).optional(),
+  city: z.string().trim().max(120).optional(),
   discipline: z.enum(EVENT_DISCIPLINES).optional(),
   level: z.enum(EVENT_LEVELS).optional(),
   eventType: z.enum(["competitions", "courses", "camps", "workshops", "clinics", "evaluations", "other"]).optional(),
-  startDate: z.string().optional(),
-  endDate: z.string().optional(),
-  search: z.string().optional(),
+  startDate: z.string().date().optional(),
+  endDate: z.string().date().optional(),
+  search: z.string().trim().max(120).optional(),
   page: z.coerce.number().int().positive().default(1),
-  limit: z.coerce.number().int().positive().max(1000).default(50),
+  limit: z.coerce.number().int().positive().max(100).default(50),
 });
 
 /**
@@ -43,6 +43,7 @@ const QuerySchema = z.object({
  * - page: Número de página (default: 1)
  * - limit: Tamaño de página (default: 50, max: 1000)
  */
+// @auth-flexible route-guard-reason: public event discovery endpoint
 export async function GET(request: Request) {
   try {
     const url = new URL(request.url);
@@ -64,7 +65,10 @@ export async function GET(request: Request) {
     // Construir filtros - solo eventos públicos
     const filters: SQL[] = [
       eq(events.isPublic, true),
-          eq(events.status, 'published'),
+      eq(events.status, "published"),
+      eq(academies.isPublic, true),
+      eq(academies.isSuspended, false),
+      inArray(academies.status, ["active", "trial"]),
     ];
 
     if (search) {
@@ -131,6 +135,7 @@ export async function GET(request: Request) {
     const [countResult] = await db
       .select({ count: sql<number>`count(*)` })
       .from(events)
+      .innerJoin(academies, eq(events.academyId, academies.id))
       .where(and(...filters));
 
     const total = Number(countResult?.count ?? 0);
@@ -169,6 +174,7 @@ export async function GET(request: Request) {
         createdAt: events.createdAt,
       })
       .from(events)
+      .innerJoin(academies, eq(events.academyId, academies.id))
       .where(and(...filters))
       .orderBy(desc(events.startDate), desc(events.createdAt))
       .limit(limit)
@@ -183,7 +189,13 @@ export async function GET(request: Request) {
         logoUrl: academies.logoUrl,
       })
       .from(academies)
-      .where(inArray(academies.id, academyIds))
+      .where(and(
+        inArray(academies.id, academyIds),
+        eq(academies.isPublic, true),
+        eq(academies.isSuspended, false),
+        inArray(academies.status, ["active", "trial"])
+      ))
+      .limit(1000)
       .then(academies => {
         const map = new Map(academies.map(a => [a.id, a]));
         return map;

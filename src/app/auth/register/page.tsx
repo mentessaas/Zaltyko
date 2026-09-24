@@ -4,13 +4,13 @@ import { getPublicSiteUrl } from "@/lib/seo/site-url";
 
 export const metadata: Metadata = {
   title: "Crear cuenta",
-  description: "Regístrate en Zaltyko como academia, entrenador, familia, atleta o proveedor",
+  description: "Crea tu cuenta personal en Zaltyko y elige si vas a gestionar una academia, entrenar, acompañar a una familia o publicar servicios",
   alternates: {
     canonical: `${getPublicSiteUrl()}/auth/register`,
   },
   openGraph: {
     title: "Crear cuenta",
-    description: "Crea una cuenta personal en Zaltyko y elige tu rol inicial",
+    description: "Crea una cuenta personal en Zaltyko y elige tu rol inicial; la academia se configura después",
     url: `${getPublicSiteUrl()}/auth/register`,
     type: "website",
   },

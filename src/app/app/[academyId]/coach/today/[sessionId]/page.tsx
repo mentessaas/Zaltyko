@@ -144,7 +144,8 @@ export default async function CoachSessionPage({ params }: CoachSessionPageProps
             eq(attendanceRecords.tenantId, academy.tenantId),
             eq(attendanceRecords.sessionId, session.id)
           )
-        ),
+        )
+        .limit(1000),
       db
         .select({ total: count(athleteAssessments.id) })
         .from(athleteAssessments)

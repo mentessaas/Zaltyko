@@ -74,7 +74,8 @@ export default async function AthleteGuardiansPage({ params }: PageProps) {
     })
     .from(guardianAthletes)
     .innerJoin(guardians, eq(guardianAthletes.guardianId, guardians.id))
-    .where(eq(guardianAthletes.athleteId, athleteId));
+    .where(eq(guardianAthletes.athleteId, athleteId))
+    .limit(100);
 
   const guardiansWithLinks = guardianLinks.map((g) => ({
     linkId: g.linkId,

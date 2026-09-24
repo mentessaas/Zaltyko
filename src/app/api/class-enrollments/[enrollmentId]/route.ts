@@ -6,6 +6,7 @@ import { classEnrollments } from "@/db/schema";
 import { TenantContext, withTenant } from "@/lib/authz";
 import { handleApiError } from "@/lib/api-error-handler";
 import { authorizeClassResource } from "@/lib/authz/resource-scope";
+import { promoteNextWaitingListEntry } from "@/lib/classes/promote-waiting-list";
 
 type RouteContext = TenantContext<{ params?: { enrollmentId?: string } }>;
 
@@ -52,7 +53,9 @@ export const DELETE = withTenant(async (request, context) => {
       .delete(classEnrollments)
       .where(eq(classEnrollments.id, enrollmentId));
 
-    return apiSuccess({ ok: true });
+    const promoted = await promoteNextWaitingListEntry(enrollment.classId, context.tenantId);
+
+    return apiSuccess({ ok: true, promoted: promoted ?? null });
   } catch (error) {
     return handleApiError(error);
   }

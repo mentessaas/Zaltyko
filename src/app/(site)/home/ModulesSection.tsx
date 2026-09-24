@@ -26,7 +26,7 @@ const modules = [
     title: "Clases & Horarios",
     description: "Programación flexible con control de aforo, pase de lista por sesión y gestión de listas de espera.",
     icon: Calendar,
-    features: ["Calendario interactivo", "Control de aforo", "Pase de lista por sesión", "Waiting lists"],
+    features: ["Calendario interactivo", "Control de aforo", "Pase de lista por sesión", "Listas de espera"],
   },
   {
     title: "Comunicación",
@@ -50,7 +50,7 @@ const modules = [
     title: "Evaluaciones",
     description: "Sistema de evaluaciones técnicas y artísticas con rúbricas configurables, vídeos adjuntos y exportación a PDF.",
     icon: ClipboardList,
-    features: ["Rúbricas personalizadas", "Videos adjuntos", "Gráficos de progreso", "Export PDF"],
+    features: ["Rúbricas personalizadas", "Vídeos adjuntos", "Gráficos de progreso", "Exportación PDF"],
   },
   {
     title: "Reportes",
@@ -94,7 +94,7 @@ export default function ModulesSection() {
             >
               <div
                 className={cn(
-                  "h-full rounded-card border border-zaltyko-mist bg-white p-6 transition-all duration-200 hover:-translate-y-1.5 hover:border-zaltyko-teal hover:shadow-lift"
+                  "h-full rounded-card border border-zaltyko-mist dark:border-border bg-white dark:bg-card p-6 transition-all duration-200 hover:-translate-y-1.5 hover:border-zaltyko-teal hover:shadow-lift"
                 )}
               >
               {/* Icon */}

@@ -1,25 +1,31 @@
 "use server";
 
-import { and, desc, eq, ilike, inArray, or, sql } from "drizzle-orm";
+import { and, desc, eq, ilike, inArray, or, sql, type SQL } from "drizzle-orm";
 import { z } from "zod";
 
 import { db } from "@/db";
 import { events, academies } from "@/db/schema";
-import type { EventFilters, PublicEventListResult, PublicEvent } from "@/types/events";
+import type {
+  EventDiscipline,
+  EventFilters,
+  EventLevel,
+  PublicEventListResult,
+  PublicEvent,
+} from "@/types/events";
 
 const EVENT_LEVELS = ["internal", "local", "national", "international"] as const;
 const EVENT_DISCIPLINES = ["artistic_female", "artistic_male", "rhythmic", "trampoline", "parkour"] as const;
 
 const GetPublicEventsSchema = z.object({
-  search: z.string().optional(),
+  search: z.string().trim().max(120).optional(),
   discipline: z.enum(EVENT_DISCIPLINES).optional(),
   level: z.enum(EVENT_LEVELS).optional(),
   eventType: z.enum(["competitions", "courses", "camps", "workshops", "clinics", "evaluations", "other"]).optional(),
-  country: z.string().optional(),
-  province: z.string().optional(),
-  city: z.string().optional(),
-  startDate: z.string().optional(),
-  endDate: z.string().optional(),
+  country: z.string().trim().max(120).optional(),
+  province: z.string().trim().max(120).optional(),
+  city: z.string().trim().max(120).optional(),
+  startDate: z.string().date().optional(),
+  endDate: z.string().date().optional(),
   page: z.number().int().positive().default(1),
   limit: z.number().int().positive().max(200).default(50),
 });
@@ -39,9 +45,12 @@ export async function getPublicEvents(
   const { search, discipline, level, eventType, country, province, city, startDate, endDate, page, limit } = parsed;
 
   // Construir filtros - solo eventos públicos
-  const filters: ReturnType<typeof eq | typeof ilike | typeof sql>[] = [
+  const filters: SQL[] = [
     eq(events.isPublic, true),
-          eq(events.status, 'published'),
+    eq(events.status, "published"),
+    eq(academies.isPublic, true),
+    eq(academies.isSuspended, false),
+    inArray(academies.status, ["active", "trial"]),
   ];
 
   if (search) {
@@ -111,6 +120,7 @@ export async function getPublicEvents(
   const [countResult] = await db
     .select({ count: sql<number>`count(*)` })
     .from(events)
+    .innerJoin(academies, eq(events.academyId, academies.id))
     .where(and(...filters));
 
   const total = Number(countResult?.count ?? 0);
@@ -152,6 +162,7 @@ export async function getPublicEvents(
       updatedAt: events.updatedAt,
     })
     .from(events)
+    .innerJoin(academies, eq(events.academyId, academies.id))
     .where(and(...filters))
     .orderBy(desc(events.startDate), desc(events.createdAt))
     .limit(limit)
@@ -166,7 +177,13 @@ export async function getPublicEvents(
       logoUrl: academies.logoUrl,
     })
     .from(academies)
-    .where(inArray(academies.id, academyIds))
+    .where(and(
+      inArray(academies.id, academyIds),
+      eq(academies.isPublic, true),
+      eq(academies.isSuspended, false),
+      inArray(academies.status, ["active", "trial"])
+    ))
+    .limit(100)
     .then(academies => {
       const map = new Map(academies.map(a => [a.id, a]));
       return map;
@@ -191,8 +208,8 @@ export async function getPublicEvents(
     hasPreviousPage: page > 1,
     items: transformedItems.map((item) => ({
       ...item,
-      level: String(item.level) as any,
-      discipline: item.discipline ? (String(item.discipline) as any) : null,
+      level: String(item.level) as EventLevel,
+      discipline: item.discipline ? (String(item.discipline) as EventDiscipline) : null,
       startDate: item.startDate ? String(item.startDate) : null,
       endDate: item.endDate ? String(item.endDate) : null,
       createdAt: item.createdAt instanceof Date ? item.createdAt.toISOString() : String(item.createdAt),

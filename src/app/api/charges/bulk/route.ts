@@ -1,12 +1,13 @@
-import { and, eq, inArray } from "drizzle-orm";
+import { and, eq, inArray, sql } from "drizzle-orm";
 import { apiCreated, apiError, apiSuccess } from "@/lib/api-response";
 import { z } from "zod";
 
 import { db } from "@/db";
-import { athletes, charges, billingItems } from "@/db/schema";
+import { athletes, charges, billingItems, groupAthletes } from "@/db/schema";
 import { withTenant } from "@/lib/authz";
+import { authorizeAcademyCapability } from "@/lib/authz/resource-scope";
 import { handleApiError } from "@/lib/api-error-handler";
-import { verifyAcademyAccess, verifyGroupAccess } from "@/lib/permissions";
+import { verifyGroupAccess } from "@/lib/permissions";
 
 const BulkCreateChargesSchema = z.object({
   academyId: z.string().uuid(),
@@ -24,23 +25,45 @@ export const POST = withTenant(async (request, context) => {
       return apiError("TENANT_REQUIRED", "Tenant ID is required", 400);
     }
 
-    // Verify academy access
-    const academyAccess = await verifyAcademyAccess(body.academyId, context.tenantId);
-    if (!academyAccess.allowed) {
-      return apiError(academyAccess.reason ?? "ACADEMY_ACCESS_DENIED", "Access denied", 403);
+    const academyScope = await authorizeAcademyCapability({
+      context,
+      resourceTenantId: context.tenantId,
+      academyId: body.academyId,
+      permission: "billing:create",
+    });
+    if (!academyScope.allowed) {
+      return apiError(
+        academyScope.reason ?? "ACADEMY_ACCESS_DENIED",
+        "Access denied",
+        403
+      );
     }
 
     // Verify group access
-    const groupAccess = await verifyGroupAccess(body.groupId, context.tenantId, body.academyId);
+    const groupAccess = await verifyGroupAccess(
+      body.groupId,
+      context.tenantId,
+      body.academyId
+    );
     if (!groupAccess.allowed) {
-      return apiError(groupAccess.reason ?? "GROUP_ACCESS_DENIED", "Access denied", 403);
+      return apiError(
+        groupAccess.reason ?? "GROUP_ACCESS_DENIED",
+        "Access denied",
+        403
+      );
     }
 
     // Get billing item
     const [billingItem] = await db
       .select()
       .from(billingItems)
-      .where(and(eq(billingItems.id, body.billingItemId), eq(billingItems.academyId, body.academyId)))
+      .where(
+        and(
+          eq(billingItems.id, body.billingItemId),
+          eq(billingItems.academyId, body.academyId),
+          eq(billingItems.tenantId, context.tenantId)
+        )
+      )
       .limit(1);
 
     if (!billingItem) {
@@ -50,8 +73,18 @@ export const POST = withTenant(async (request, context) => {
     // Get all athletes in the group
     const groupAthletesList = await db
       .select({ id: athletes.id, name: athletes.name })
-      .from(athletes)
-      .where(and(eq(athletes.groupId, body.groupId), eq(athletes.academyId, body.academyId)))
+      .from(groupAthletes)
+      .innerJoin(athletes, eq(groupAthletes.athleteId, athletes.id))
+      .where(
+        and(
+          eq(groupAthletes.groupId, body.groupId),
+          eq(groupAthletes.tenantId, context.tenantId),
+          eq(athletes.academyId, body.academyId),
+          eq(athletes.tenantId, context.tenantId),
+          eq(athletes.status, "active"),
+          sql`${athletes.deletedAt} IS NULL`
+        )
+      )
       .limit(1000); // Reasonable limit
 
     if (groupAthletesList.length === 0) {
@@ -67,11 +100,13 @@ export const POST = withTenant(async (request, context) => {
       .where(
         and(
           eq(charges.academyId, body.academyId),
+          eq(charges.tenantId, context.tenantId),
           eq(charges.billingItemId, body.billingItemId),
           eq(charges.period, body.period),
           inArray(charges.athleteId, athleteIds)
         )
-      );
+      )
+      .limit(5000);
 
     const existingAthleteIds = new Set(existingCharges.map((c) => c.athleteId));
 
@@ -94,27 +129,29 @@ export const POST = withTenant(async (request, context) => {
 
     if (newCharges.length === 0) {
       return apiSuccess({
-        message: "All athletes in this group already have charges for this period",
+        message:
+          "All athletes in this group already have charges for this period",
         created: 0,
         skipped: groupAthletesList.length,
       });
     }
 
-        await db
+    await db
       .insert(charges)
       .values(newCharges)
       // Respaldo de BD anti-doble-cargo (índice único academy/athlete/period):
       // una carrera concurrente no duplica los cargos.
       .onConflictDoNothing();
 
-    return apiCreated(
-      {
-        message: `Created ${newCharges.length} charge(s)`,
-        created: newCharges.length,
-        skipped: existingCharges.length,
-      }
-    );
+    return apiCreated({
+      message: `Created ${newCharges.length} charge(s)`,
+      created: newCharges.length,
+      skipped: existingCharges.length,
+    });
   } catch (error) {
-    return handleApiError(error, { endpoint: "/api/charges/bulk", method: "POST" });
+    return handleApiError(error, {
+      endpoint: "/api/charges/bulk",
+      method: "POST",
+    });
   }
 });

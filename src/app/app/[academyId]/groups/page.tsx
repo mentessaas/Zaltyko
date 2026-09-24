@@ -1,5 +1,5 @@
 import { notFound } from "next/navigation";
-import { asc, eq, inArray, sql } from "drizzle-orm";
+import { and, asc, eq, inArray, isNull, sql } from "drizzle-orm";
 import { Users } from "lucide-react";
 
 import { db } from "@/db";
@@ -13,7 +13,7 @@ import {
 } from "@/db/schema";
 import { GroupsDashboard } from "@/components/groups/GroupsDashboard";
 import { AthleteOption, CoachOption, GroupSummary } from "@/components/groups/types";
-import { resolveAcademySpecialization } from "@/lib/specialization/registry";
+import { pluralizeFirstWord, resolveAcademySpecialization } from "@/lib/specialization/registry";
 import { getAcademySportConfigOptions } from "@/lib/sport-config/service";
 import { PageHeader } from "@/components/ui/page-header";
 
@@ -38,6 +38,7 @@ export default async function AcademyGroupsPage({ params, searchParams }: PagePr
     .select({
       id: academies.id,
       name: academies.name,
+      tenantId: academies.tenantId,
       academyType: academies.academyType,
       country: academies.country,
       countryCode: academies.countryCode,
@@ -55,6 +56,8 @@ export default async function AcademyGroupsPage({ params, searchParams }: PagePr
   }
 
   const specialization = resolveAcademySpecialization(academy);
+  const groupLabelPlural = pluralizeFirstWord(specialization.labels.groupLabel);
+  const classLabelPlural = pluralizeFirstWord(specialization.labels.classLabel);
   const focusGroupId =
     typeof resolvedSearchParams.focusGroup === "string" && resolvedSearchParams.focusGroup.trim().length > 0
       ? resolvedSearchParams.focusGroup.trim()
@@ -65,7 +68,14 @@ export default async function AcademyGroupsPage({ params, searchParams }: PagePr
       id: groups.id,
       name: groups.name,
       discipline: groups.discipline,
+      sportConfigId: groups.sportConfigId,
+      programCode: groups.programCode,
+      levelCode: groups.levelCode,
+      categoryCode: groups.categoryCode,
       level: groups.level,
+      technicalFocus: groups.technicalFocus,
+      apparatus: groups.apparatus,
+      sessionBlocks: groups.sessionBlocks,
       color: groups.color,
       coachId: groups.coachId,
       assistantIds: groups.assistantIds,
@@ -75,9 +85,16 @@ export default async function AcademyGroupsPage({ params, searchParams }: PagePr
       coachName: coaches.name,
     })
     .from(groups)
-    .leftJoin(coaches, eq(groups.coachId, coaches.id))
-    .where(eq(groups.academyId, academyId))
-    .orderBy(asc(groups.createdAt));
+    .leftJoin(coaches, and(eq(groups.coachId, coaches.id), eq(coaches.tenantId, academy.tenantId)))
+    .where(
+      and(
+        eq(groups.academyId, academyId),
+        eq(groups.tenantId, academy.tenantId),
+        isNull(groups.deletedAt)
+      )
+    )
+    .orderBy(asc(groups.createdAt))
+    .limit(500);
 
   // Obtener el conteo de atletas por grupo usando una subconsulta
   const groupIds = groupRows.map((g) => g.id);
@@ -90,7 +107,15 @@ export default async function AcademyGroupsPage({ params, searchParams }: PagePr
         count: sql<number>`count(distinct ${groupAthletes.athleteId})`,
       })
       .from(groupAthletes)
-      .where(inArray(groupAthletes.groupId, groupIds))
+      .innerJoin(athletes, eq(groupAthletes.athleteId, athletes.id))
+      .where(
+        and(
+          inArray(groupAthletes.groupId, groupIds),
+          eq(groupAthletes.tenantId, academy.tenantId),
+          eq(athletes.tenantId, academy.tenantId),
+          isNull(athletes.deletedAt)
+        )
+      )
       .groupBy(groupAthletes.groupId);
 
     athleteCountRows.forEach((row) => {
@@ -107,8 +132,9 @@ export default async function AcademyGroupsPage({ params, searchParams }: PagePr
   const coachRows = await db
     .select({ id: coaches.id, name: coaches.name, email: coaches.email })
     .from(coaches)
-    .where(eq(coaches.academyId, academyId))
-    .orderBy(asc(coaches.name));
+    .where(and(eq(coaches.academyId, academyId), eq(coaches.tenantId, academy.tenantId)))
+    .orderBy(asc(coaches.name))
+    .limit(500);
   const coachScopeRows =
     coachRows.length === 0
       ? []
@@ -118,7 +144,8 @@ export default async function AcademyGroupsPage({ params, searchParams }: PagePr
             sportConfigId: coachSportConfigs.academySportConfigId,
           })
           .from(coachSportConfigs)
-          .where(inArray(coachSportConfigs.coachId, coachRows.map((coach) => coach.id)));
+          .where(inArray(coachSportConfigs.coachId, coachRows.map((coach) => coach.id)))
+          .limit(2000);
   const sportConfigIdsByCoach = new Map<string, string[]>();
   coachScopeRows.forEach((row) => {
     const current = sportConfigIdsByCoach.get(row.coachId) ?? [];
@@ -134,8 +161,15 @@ export default async function AcademyGroupsPage({ params, searchParams }: PagePr
       status: athletes.status,
     })
     .from(athletes)
-    .where(eq(athletes.academyId, academyId))
-    .orderBy(asc(athletes.name));
+    .where(
+      and(
+        eq(athletes.academyId, academyId),
+        eq(athletes.tenantId, academy.tenantId),
+        isNull(athletes.deletedAt)
+      )
+    )
+    .orderBy(asc(athletes.name))
+    .limit(5000);
 
   const coachNameMap = new Map(coachRows.map((coach) => [coach.id, coach.name]));
   const sportConfigs = await getAcademySportConfigOptions(academyId);
@@ -145,14 +179,14 @@ export default async function AcademyGroupsPage({ params, searchParams }: PagePr
     academyId,
     name: group.name,
     discipline: group.discipline,
-    sportConfigId: null,
-    programCode: null,
-    levelCode: null,
-    categoryCode: null,
+    sportConfigId: group.sportConfigId ?? null,
+    programCode: group.programCode ?? null,
+    levelCode: group.levelCode ?? null,
+    categoryCode: group.categoryCode ?? null,
     level: group.level ?? null,
-    technicalFocus: null,
-    apparatus: [],
-    sessionBlocks: [],
+    technicalFocus: group.technicalFocus ?? null,
+    apparatus: group.apparatus ?? [],
+    sessionBlocks: group.sessionBlocks ?? [],
     color: group.color ?? null,
     coachId: group.coachId ?? null,
     coachName: group.coachName ?? null,
@@ -185,10 +219,10 @@ export default async function AcademyGroupsPage({ params, searchParams }: PagePr
       <PageHeader
         breadcrumbs={[
           { label: "Dashboard", href: `/app/${academy.id}/dashboard` },
-          { label: `${specialization.labels.groupLabel}s` },
+          { label: groupLabelPlural },
         ]}
-        title={`${specialization.labels.groupLabel}s`}
-        description={`Organiza tus ${specialization.labels.groupLabel.toLowerCase()}s por nivel y responsables para conectar ${specialization.labels.classLabel.toLowerCase()}s, asistencia y evaluaciones.`}
+        title={groupLabelPlural}
+        description={`Organiza tus ${groupLabelPlural.toLowerCase()} por nivel y responsables para conectar ${classLabelPlural.toLowerCase()}, asistencia y evaluaciones.`}
         icon={<Users className="h-5 w-5" strokeWidth={1.8} />}
       />
 

@@ -1,5 +1,5 @@
 import { db } from "@/db";
-import { empleoListings, empleoApplications } from "@/db/schema";
+import { empleoListings, empleoApplications, profiles } from "@/db/schema";
 import { eq, and } from "drizzle-orm";
 import { z } from "zod";
 import { createClient } from "@/lib/supabase/server";
@@ -25,6 +25,7 @@ async function getUser() {
   return user;
 }
 
+// @auth-flexible route-guard-reason: getUser runs before request body parsing
 export async function POST(
   request: Request,
   { params }: { params: Promise<{ id: string }> }
@@ -34,6 +35,15 @@ export async function POST(
     const user = await getUser();
     if (!user) {
       return apiError("AUTH_REQUIRED", "Debes iniciar sesión para aplicar", 401);
+    }
+
+    const [profile] = await db
+      .select({ id: profiles.id })
+      .from(profiles)
+      .where(eq(profiles.userId, user.id))
+      .limit(1);
+    if (!profile) {
+      return apiError("PROFILE_REQUIRED", "Completa tu perfil antes de aplicar", 400);
     }
 
     const { id } = await params;
@@ -58,7 +68,7 @@ export async function POST(
       .from(empleoApplications)
       .where(and(
         eq(empleoApplications.listingId, id),
-        eq(empleoApplications.userId, user.id)
+        eq(empleoApplications.userId, profile.id)
       ))
       .limit(1);
 
@@ -69,7 +79,7 @@ export async function POST(
     // Crear la aplicación
     const [application] = await db.insert(empleoApplications).values({
       listingId: id,
-      userId: user.id,
+      userId: profile.id,
       message: validated.message,
       resumeUrl: validated.resumeUrl,
       status: "pending",
@@ -79,6 +89,9 @@ export async function POST(
   } catch (error) {
     if (error instanceof z.ZodError) {
       return apiError("VALIDATION_ERROR", "Error de validación", 400);
+    }
+    if (error instanceof Error && error.message.toLowerCase().includes("duplicate key")) {
+      return apiError("ALREADY_APPLIED", "Ya has aplicado a este puesto", 409);
     }
     logger.error("Error applying to job:", error);
     return apiError("INTERNAL_ERROR", "Error al procesar la solicitud", 500);
@@ -96,6 +109,15 @@ export async function GET(
       return apiError("AUTH_REQUIRED", "Debes iniciar sesión", 401);
     }
 
+    const [profile] = await db
+      .select({ id: profiles.id })
+      .from(profiles)
+      .where(eq(profiles.userId, user.id))
+      .limit(1);
+    if (!profile) {
+      return apiSuccess({ hasApplied: false });
+    }
+
     const { id } = await params;
 
     // Obtener la aplicación del usuario para este empleo
@@ -103,7 +125,7 @@ export async function GET(
       .from(empleoApplications)
       .where(and(
         eq(empleoApplications.listingId, id),
-        eq(empleoApplications.userId, user.id)
+        eq(empleoApplications.userId, profile.id)
       ))
       .limit(1);
 

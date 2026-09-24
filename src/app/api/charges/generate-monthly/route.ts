@@ -1,22 +1,31 @@
 import { randomUUID } from "node:crypto";
 import { apiCreated, apiError, apiSuccess } from "@/lib/api-response";
-import { and, eq, inArray, or, sql } from "drizzle-orm";
+import { and, eq, inArray, isNull, or, sql } from "drizzle-orm";
 import { z } from "zod";
 
 import { db } from "@/db";
-import { academies, athletes, charges, groups, groupAthletes } from "@/db/schema";
+import {
+  academies,
+  athletes,
+  charges,
+  groups,
+  groupAthletes,
+} from "@/db/schema";
 import { withTenant } from "@/lib/authz";
 import { handleApiError } from "@/lib/api-error-handler";
 import { verifyAcademyAccess, verifyGroupAccess } from "@/lib/permissions";
 import { getMonthlyFeeForAthlete } from "@/lib/billing/athlete-fees";
 import { formatPeriodToMonthName } from "@/lib/billing/athlete-fees";
 import { logger } from "@/lib/logger";
+import { getCurrencyForCountry } from "@/lib/currency";
 
 const GenerateMonthlyChargesSchema = z.object({
   academyId: z.string().uuid(),
   groupId: z.string().uuid().nullable().optional(),
   sportConfigId: z.string().uuid().nullable().optional(),
-  period: z.string().regex(/^\d{4}-\d{2}$/, "El periodo debe tener formato YYYY-MM"),
+  period: z
+    .string()
+    .regex(/^\d{4}-\d{2}$/, "El periodo debe tener formato YYYY-MM"),
   skipDuplicates: z.boolean().default(true),
 });
 
@@ -29,21 +38,47 @@ export const POST = withTenant(async (request, context) => {
     }
 
     // Verify academy access
-    const academyAccess = await verifyAcademyAccess(body.academyId, context.tenantId);
+    const academyAccess = await verifyAcademyAccess(
+      body.academyId,
+      context.tenantId
+    );
     if (!academyAccess.allowed) {
-      return apiError(academyAccess.reason ?? "ACADEMY_ACCESS_DENIED", "Access denied", 403);
+      return apiError(
+        academyAccess.reason ?? "ACADEMY_ACCESS_DENIED",
+        "Access denied",
+        403
+      );
     }
+
+    const [academy] = await db
+      .select({ country: academies.country, countryCode: academies.countryCode })
+      .from(academies)
+      .where(and(eq(academies.id, body.academyId), eq(academies.tenantId, context.tenantId)))
+      .limit(1);
+    const currency = getCurrencyForCountry(academy?.countryCode ?? academy?.country);
 
     // Verify group access if groupId is provided
     if (body.groupId) {
-      const groupAccess = await verifyGroupAccess(body.groupId, context.tenantId, body.academyId);
+      const groupAccess = await verifyGroupAccess(
+        body.groupId,
+        context.tenantId,
+        body.academyId
+      );
       if (!groupAccess.allowed) {
-        return apiError(groupAccess.reason ?? "GROUP_ACCESS_DENIED", "Access denied", 403);
+        return apiError(
+          groupAccess.reason ?? "GROUP_ACCESS_DENIED",
+          "Access denied",
+          403
+        );
       }
     }
 
     // Get active athletes (from academy or specific group)
-    let athletesList: Array<{ id: string; name: string; groupId: string | null }> = [];
+    let athletesList: Array<{
+      id: string;
+      name: string;
+      groupId: string | null;
+    }> = [];
 
     if (body.groupId) {
       // Get athletes from specific group
@@ -51,7 +86,9 @@ export const POST = withTenant(async (request, context) => {
         .select({
           id: athletes.id,
           name: athletes.name,
-          groupId: athletes.groupId,
+          // La pertenencia efectiva puede existir solo en group_athletes;
+          // no depender del campo legacy athletes.group_id.
+          groupId: groupAthletes.groupId,
         })
         .from(groupAthletes)
         .innerJoin(athletes, eq(groupAthletes.athleteId, athletes.id))
@@ -60,8 +97,11 @@ export const POST = withTenant(async (request, context) => {
             eq(groupAthletes.groupId, body.groupId),
             eq(groupAthletes.tenantId, context.tenantId),
             eq(athletes.academyId, body.academyId),
+            eq(athletes.tenantId, context.tenantId),
             eq(athletes.status, "active"),
-            body.sportConfigId ? eq(athletes.primarySportConfigId, body.sportConfigId) : undefined
+            body.sportConfigId
+              ? eq(athletes.primarySportConfigId, body.sportConfigId)
+              : undefined
           )
         )
         .limit(1000);
@@ -85,18 +125,56 @@ export const POST = withTenant(async (request, context) => {
             eq(athletes.academyId, body.academyId),
             eq(athletes.tenantId, context.tenantId),
             eq(athletes.status, "active"),
-            body.sportConfigId ? eq(athletes.primarySportConfigId, body.sportConfigId) : undefined
+            body.sportConfigId
+              ? eq(athletes.primarySportConfigId, body.sportConfigId)
+              : undefined
           )
         )
         .limit(1000);
 
       athletesList = allAthletes;
+
+      // Compatibilidad con el modelo actual: algunos atletas ya no tienen
+      // athletes.group_id porque su pertenencia vive únicamente en la tabla
+      // M:N group_athletes. Usa su primera pertenencia activa para que la
+      // generación mensual no los omita silenciosamente.
+      const athletesWithoutLegacyGroup = allAthletes
+        .filter((athlete) => !athlete.groupId)
+        .map((athlete) => athlete.id);
+      if (athletesWithoutLegacyGroup.length > 0) {
+        const memberships = await db
+          .select({ athleteId: groupAthletes.athleteId, groupId: groupAthletes.groupId })
+          .from(groupAthletes)
+          .innerJoin(groups, eq(groupAthletes.groupId, groups.id))
+          .where(
+            and(
+              eq(groupAthletes.tenantId, context.tenantId),
+              eq(groups.academyId, body.academyId),
+              eq(groups.tenantId, context.tenantId),
+              isNull(groups.deletedAt),
+              inArray(groupAthletes.athleteId, athletesWithoutLegacyGroup)
+            )
+          )
+          .limit(5000);
+        const firstMembershipByAthlete = new Map<string, string>();
+        for (const membership of memberships) {
+          if (!firstMembershipByAthlete.has(membership.athleteId)) {
+            firstMembershipByAthlete.set(membership.athleteId, membership.groupId);
+          }
+        }
+        athletesList = athletesList.map((athlete) => ({
+          ...athlete,
+          groupId: athlete.groupId ?? firstMembershipByAthlete.get(athlete.id) ?? null,
+        }));
+      }
     }
 
     if (athletesList.length === 0) {
-      return apiSuccess(
-        { message: "No hay personas activas para generar cargos.", created: 0, skipped: 0 }
-      );
+      return apiSuccess({
+        message: "No hay personas activas para generar cargos.",
+        created: 0,
+        skipped: 0,
+      });
     }
 
     // Calculate due date (last day of the month)
@@ -105,13 +183,22 @@ export const POST = withTenant(async (request, context) => {
     const dueDate = `${year}-${String(month).padStart(2, "0")}-${String(lastDay).padStart(2, "0")}`;
 
     // Get group names for labels
-    const groupIds = Array.from(new Set(athletesList.map((a) => a.groupId).filter(Boolean) as string[]));
+    const groupIds = Array.from(
+      new Set(athletesList.map((a) => a.groupId).filter(Boolean) as string[])
+    );
     const groupsMap = new Map<string, string>();
     if (groupIds.length > 0) {
       const groupsList = await db
         .select({ id: groups.id, name: groups.name })
         .from(groups)
-        .where(and(eq(groups.academyId, body.academyId), inArray(groups.id, groupIds)));
+        .where(
+          and(
+            eq(groups.academyId, body.academyId),
+            eq(groups.tenantId, context.tenantId),
+            inArray(groups.id, groupIds)
+          )
+        )
+        .limit(1000);
 
       groupsList.forEach((g) => {
         groupsMap.set(g.id, g.name);
@@ -143,7 +230,12 @@ export const POST = withTenant(async (request, context) => {
       // Calculate monthly fee
       let monthlyFeeCents: number;
       try {
-        monthlyFeeCents = await getMonthlyFeeForAthlete(body.academyId, athlete.id, athlete.groupId);
+        monthlyFeeCents = await getMonthlyFeeForAthlete(
+          body.academyId,
+          athlete.id,
+          athlete.groupId,
+          context.tenantId
+        );
       } catch (error) {
         logger.error(`Error calculating fee for athlete ${athlete.id}:`, error);
         skipped++;
@@ -165,7 +257,11 @@ export const POST = withTenant(async (request, context) => {
               eq(charges.academyId, body.academyId),
               eq(charges.athleteId, athlete.id),
               eq(charges.period, body.period),
-              or(eq(charges.status, "pending"), eq(charges.status, "paid"), eq(charges.status, "overdue"))
+              or(
+                eq(charges.status, "pending"),
+                eq(charges.status, "paid"),
+                eq(charges.status, "overdue")
+              )
             )
           )
           .limit(1);
@@ -187,7 +283,7 @@ export const POST = withTenant(async (request, context) => {
         athleteId: athlete.id,
         label: `Cuota ${groupName} – ${monthName}`,
         amountCents: monthlyFeeCents,
-        currency: "EUR",
+        currency,
         period: body.period,
         dueDate,
         status: "pending",
@@ -195,31 +291,33 @@ export const POST = withTenant(async (request, context) => {
     }
 
     if (newCharges.length === 0) {
-      return apiSuccess(
-        {
-          message: skipped > 0 ? "Todas las personas ya tienen cargos para este periodo o no tienen cuota definida." : "No se pudieron generar cargos.",
-          created: 0,
-          skipped,
-        }
-      );
+      return apiSuccess({
+        message:
+          skipped > 0
+            ? "Todas las personas ya tienen cargos para este periodo o no tienen cuota definida."
+            : "No se pudieron generar cargos.",
+        created: 0,
+        skipped,
+      });
     }
 
     // Insert charges in batch
-        await db
+    await db
       .insert(charges)
       .values(newCharges)
       // Respaldo de BD anti-doble-cargo (índice único academy/athlete/period):
       // una carrera concurrente no duplica los cargos.
       .onConflictDoNothing();
 
-    return apiCreated(
-      {
-        message: `Se generaron ${newCharges.length} cargo${newCharges.length === 1 ? "" : "s"}.`,
-        created: newCharges.length,
-        skipped,
-      }
-    );
+    return apiCreated({
+      message: `Se generaron ${newCharges.length} cargo${newCharges.length === 1 ? "" : "s"}.`,
+      created: newCharges.length,
+      skipped,
+    });
   } catch (error) {
-    return handleApiError(error, { endpoint: "/api/charges/generate-monthly", method: "POST" });
+    return handleApiError(error, {
+      endpoint: "/api/charges/generate-monthly",
+      method: "POST",
+    });
   }
 });

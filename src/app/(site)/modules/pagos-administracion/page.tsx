@@ -39,7 +39,7 @@ const solutionContent = `El módulo de pagos y administración de Zaltyko ordena
 
 Define reglas de descuento flexibles: porcentajes por familia numerosa, becas parciales o totales, promociones por pago anticipado. El sistema aplica estos descuentos automáticamente sin intervención manual. Cuando un pago no se procesa correctamente, se envían recordatorios automáticos escalonados antes de marcarlo como moroso.
 
-El panel financiero te da visibilidad completa sobre la salud económica de tu academia. Consulta ingresos del mes, proyecciones basadas en inscripciones activas, desglose por concepto y estado de morosidad. Genera reportes para tu contable con un clic y mantén siempre el control de tu flujo de caja.`;
+El panel financiero te da visibilidad completa sobre la salud económica de tu academia. Consulta ingresos del mes, proyecciones basadas en inscripciones activas, desglose por concepto y estado de morosidad. Genera reportes por módulo para revisarlos con tu equipo y mantén siempre el control de tu flujo de caja.`;
 
 const solutionFeatures = [
   "Cobros recurrentes y recordatorios",
@@ -47,7 +47,7 @@ const solutionFeatures = [
   "Recordatorios de pago escalonados y automáticos",
   "Panel financiero con ingresos, proyecciones y morosidad",
   "Recibos internos y justificantes de pago para familias",
-  "Reportes exportables para contabilidad externa",
+  "Reportes exportables por módulo",
 ];
 
 const benefits = [
@@ -69,7 +69,7 @@ const benefits = [
   {
     icon: CreditCard,
     title: "Flexibilidad para familias",
-    description: "Becas, descuentos por hermano y pagos fraccionados, configurables por academia.",
+    description: "Becas y descuentos por hermano, configurables por academia.",
   },
 ];
 
@@ -78,13 +78,13 @@ const useCases = [
     role: "Familias",
     icon: Heart,
     title: "Pagos sin sorpresas",
-    description: "Reciben su cargo a tiempo, ven sus recibos y entienden cada importe. Si necesitan fraccionar o solicitar una beca, está previsto y se gestiona desde la academia.",
+    description: "Reciben sus cargos según el calendario configurado, ven sus recibos y entienden cada importe. Las becas y descuentos se gestionan desde la academia.",
   },
   {
     role: "Administrativos",
     icon: Briefcase,
     title: "Gestión financiera sin estrés",
-    description: "Consulta el estado de cualquier familia en segundos, aplica descuentos especiales cuando sea necesario y genera reportes mensuales para contabilidad. Todo desde un panel centralizado sin hojas de cálculo.",
+    description: "Consulta el estado de cualquier familia en segundos, aplica descuentos especiales cuando sea necesario y genera reportes mensuales para revisar con tu equipo. Todo desde un panel centralizado sin hojas de cálculo.",
   },
   {
     role: "Dueños de academia",
@@ -122,7 +122,7 @@ export default function PagosAdministracionPage() {
       <ModuleHero
         icon={CreditCard}
         title="Cobra las cuotas del mes sin perseguir a nadie"
-        subtitle="Cada familia recibe su cargo el día 1, los recordatorios salen solos y el panel te dice al instante quién está al día. Sin Excel, sin WhatsApp y sin cazar morosos."
+        subtitle="Cada familia recibe sus cargos según el calendario configurado, los recordatorios salen solos y el panel te dice al instante quién está al día. Sin Excel, sin WhatsApp y sin cazar morosos."
         color={MODULE_COLOR}
       />
 
@@ -145,7 +145,7 @@ export default function PagosAdministracionPage() {
 
       <ModuleCta
         title="Configura tus cuotas este mes"
-        subtitle="Crea tu academia gratis, importa a las familias y empieza a cobrar desde un único panel."
+        subtitle="Crea tu cuenta gratis, configura tu academia, importa tus gimnastas y empieza a cobrar desde un único panel."
       />
     </>
   );

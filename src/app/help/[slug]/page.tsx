@@ -77,7 +77,7 @@ export default async function HelpArticlePage({ params }: HelpArticlePageProps) 
             </p>
             <Link
               href="/contact?type=support"
-              className="mt-4 inline-flex rounded-full bg-zaltyko-primary px-5 py-2.5 text-sm font-semibold text-white hover:bg-primary-dark"
+              className="mt-4 inline-flex rounded-full bg-zaltyko-primary px-5 py-2.5 text-sm font-semibold text-white hover:bg-zaltyko-primary-dark"
             >
               Contactar soporte
             </Link>

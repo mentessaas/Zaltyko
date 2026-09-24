@@ -16,6 +16,7 @@ import { Breadcrumb } from "@/components/ui/breadcrumb";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import { WaitlistPosition } from "@/components/events/WaitlistPosition";
+import { formatMinorCurrency, getCurrencyForCountry } from "@/lib/currency";
 
 interface RegistrationFormProps {
   eventId: string;
@@ -89,7 +90,8 @@ export default function EventRegistrationPage() {
           throw new Error("Error al cargar el evento");
         }
 
-        const data = await response.json();
+        const payload = await response.json();
+        const data = payload?.data ?? payload;
         setEvent(data);
 
         // Check if already registered
@@ -128,8 +130,9 @@ export default function EventRegistrationPage() {
         throw new Error(data.message || data.error || "Error al registrarte");
       }
 
-      const data = await response.json();
-      setRegistrationStatus(data.status === "waitlisted" ? "waitlisted" : "registered");
+        const payload = await response.json();
+        const data = payload?.data ?? payload;
+        setRegistrationStatus(data?.status === "waitlisted" ? "waitlisted" : "registered");
     } catch (err) {
       setError(err instanceof Error ? err.message : "Error desconocido");
       setRegistrationStatus("error");
@@ -220,20 +223,20 @@ export default function EventRegistrationPage() {
 
       {/* Success States */}
       {registrationStatus === "registered" && (
-        <Alert className="border-green-200 bg-green-50">
-          <CheckCircle className="h-5 w-5 text-green-600" />
-          <AlertTitle className="text-green-800">Registro exitoso</AlertTitle>
-          <AlertDescription className="text-green-700">
+        <Alert className="border-green-200 bg-green-50 dark:border-green-900/60 dark:bg-green-950/30">
+          <CheckCircle className="h-5 w-5 text-green-600 dark:text-green-300" />
+          <AlertTitle className="text-green-800 dark:text-green-200">Registro exitoso</AlertTitle>
+          <AlertDescription className="text-green-700 dark:text-green-300">
             Te has registrado correctamente en el evento. Te notificaremos cuando tu registro sea confirmado.
           </AlertDescription>
         </Alert>
       )}
 
       {registrationStatus === "waitlisted" && (
-        <Alert className="border-amber-200 bg-amber-50">
-          <Clock className="h-5 w-5 text-amber-600" />
-          <AlertTitle className="text-amber-800">Inscripción en lista de espera</AlertTitle>
-          <AlertDescription className="text-amber-700">
+        <Alert className="border-amber-200 bg-amber-50 dark:border-amber-900/60 dark:bg-amber-950/30">
+          <Clock className="h-5 w-5 text-amber-600 dark:text-amber-300" />
+          <AlertTitle className="text-amber-800 dark:text-amber-200">Inscripción en lista de espera</AlertTitle>
+          <AlertDescription className="text-amber-700 dark:text-amber-300">
             El evento está completo, pero te has unido a la lista de espera. Te notificaremos si se libera un lugar.
           </AlertDescription>
         </Alert>
@@ -349,10 +352,10 @@ export default function EventRegistrationPage() {
                 <div className="rounded-lg bg-muted p-4">
                   <p className="text-sm font-medium">Cuota de inscripción</p>
                   <p className="text-2xl font-bold">
-                    {(event.registrationFee / 100).toLocaleString("es-ES", {
-                      style: "currency",
-                      currency: "EUR",
-                    })}
+                    {formatMinorCurrency(
+                      event.registrationFee,
+                      getCurrencyForCountry(event.academyCountry),
+                    )}
                   </p>
                 </div>
               )}

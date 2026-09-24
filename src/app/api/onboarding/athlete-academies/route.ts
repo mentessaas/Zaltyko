@@ -35,7 +35,8 @@ export async function GET() {
         academyId: athletes.academyId,
       })
       .from(athletes)
-      .where(eq(athletes.userId, user.id));
+      .where(eq(athletes.userId, user.id))
+      .limit(100);
 
     if (userAthletes.length === 0) {
       return apiSuccess({ academies: [], hasAcademies: false });
@@ -50,7 +51,8 @@ export async function GET() {
         name: academies.name,
         academyType: academies.academyType,
       })
-      .from(academies);
+      .from(academies)
+      .limit(1000);
 
     const filtered = academyRecords.filter((a) => academyIds.includes(a.id));
 

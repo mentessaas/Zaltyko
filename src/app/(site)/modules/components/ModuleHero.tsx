@@ -12,7 +12,7 @@ interface ModuleHeroProps {
 
 export default function ModuleHero({ icon: Icon, title, subtitle }: ModuleHeroProps) {
   return (
-    <section className="bg-white py-20 lg:py-28">
+    <section className="bg-white dark:bg-background py-20 lg:py-28">
       <div className="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8">
         <div className="max-w-3xl mx-auto text-center">
           {/* Icon */}
@@ -40,7 +40,7 @@ export default function ModuleHero({ icon: Icon, title, subtitle }: ModuleHeroPr
               )}
             >
               <Sparkles className="mr-2 h-5 w-5" />
-              Crea tu academia gratis
+              Crear cuenta y configurar academia
             </Link>
             <Link
               href="/pricing"

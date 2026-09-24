@@ -36,6 +36,7 @@ function isFromLemonSqueezy(request: Request): boolean {
   return true;
 }
 
+// @auth-flexible route-guard-reason: webhook signature is validated from raw request body
 export async function POST(request: Request) {
   try {
     // Verify request comes from Lemon Squeezy (optional, signature provides main security)

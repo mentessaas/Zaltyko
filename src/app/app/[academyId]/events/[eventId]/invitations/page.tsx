@@ -81,9 +81,10 @@ export default function EventInvitationsPage() {
         throw new Error("Error al cargar las invitaciones");
       }
 
-      const data = await response.json();
-      setInvitations(data.items || []);
-      setStats(data.stats || null);
+      const payload = await response.json();
+      const data = payload?.data ?? payload;
+      setInvitations(data?.items || []);
+      setStats(data?.stats || null);
     } catch (err) {
       setError(err instanceof Error ? err.message : "Error desconocido");
     } finally {

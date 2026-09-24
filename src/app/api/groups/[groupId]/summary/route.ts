@@ -62,7 +62,8 @@ export const GET = withTenant(async (request, context) => {
           eq(groupAthletes.tenantId, context.tenantId),
           eq(athletes.status, "active")
         )
-      );
+      )
+      .limit(5000);
 
     const athleteIds = groupAthletesList.map((ga) => ga.athleteId);
     const activeAthletesCount = athleteIds.length;
@@ -95,6 +96,7 @@ export const GET = withTenant(async (request, context) => {
               inArray(charges.athleteId, athleteIds)
             )
           )
+          .limit(10000)
       : [];
 
     // Calculate totals

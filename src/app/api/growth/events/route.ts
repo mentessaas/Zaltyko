@@ -3,6 +3,7 @@ import { PublicGrowthEventSchema } from "@/lib/growth/contracts";
 import { recordGrowthEvent } from "@/lib/growth/events";
 import { withRateLimit } from "@/lib/rate-limit";
 
+// @auth-flexible route-guard-reason: public anonymous analytics endpoint
 // @route-auth public
 export const POST = withRateLimit(
   async (request) => {

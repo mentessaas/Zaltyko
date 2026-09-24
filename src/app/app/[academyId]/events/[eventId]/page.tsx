@@ -51,7 +51,13 @@ export default async function EventDetailPage({ params }: PageProps) {
   const invitations = await db
     .select()
     .from(eventInvitations)
-    .where(eq(eventInvitations.eventId, eventId));
+    .where(
+      and(
+        eq(eventInvitations.eventId, eventId),
+        eq(eventInvitations.tenantId, eventRow.tenantId)
+      )
+    )
+    .limit(5000);
 
   const sportConfigs = await getAcademySportConfigOptions(academyId);
   const selectedSportConfig = eventRow.sportConfigId
@@ -65,7 +71,8 @@ export default async function EventDetailPage({ params }: PageProps) {
       sportConfigId: athletes.primarySportConfigId,
     })
     .from(athletes)
-    .where(and(eq(athletes.academyId, academyId), eq(athletes.tenantId, eventRow.tenantId), isNull(athletes.deletedAt)));
+    .where(and(eq(athletes.academyId, academyId), eq(athletes.tenantId, eventRow.tenantId), isNull(athletes.deletedAt)))
+    .limit(10000);
 
   const getStatusBadge = (isPublic: boolean) => {
     if (isPublic) {

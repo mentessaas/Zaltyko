@@ -26,7 +26,7 @@ interface ProblemSectionProps {
 
 export function ProblemSection({ title, content, bullets }: ProblemSectionProps) {
   return (
-    <section className="py-16 lg:py-20 bg-white">
+    <section className="py-16 lg:py-20 bg-white dark:bg-background">
       <div className="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8">
         <div className="max-w-4xl mx-auto">
           <div className="text-center mb-10">
@@ -93,7 +93,7 @@ export function SolutionSection({ title, content, features }: SolutionSectionPro
           </div>
 
           {/* Features */}
-          <div className="bg-white rounded-3xl border border-zaltyko-border/50 p-8 shadow-xl shadow-zaltyko-primary/5 relative overflow-hidden group">
+          <div className="bg-white dark:bg-card rounded-3xl border border-zaltyko-border/50 dark:border-border p-8 shadow-xl shadow-zaltyko-primary/5 relative overflow-hidden group">
             <div className="pointer-events-none absolute inset-0 bg-zaltyko-teal/5 opacity-0 transition-opacity duration-150 group-hover:opacity-100" />
             <p className="text-sm font-bold text-zaltyko-text-main uppercase tracking-wider mb-6 relative">
               Funcionalidades clave
@@ -132,7 +132,7 @@ interface BenefitsSectionProps {
 
 export function BenefitsSection({ benefits }: BenefitsSectionProps) {
   return (
-    <section className="py-16 lg:py-20 bg-white">
+    <section className="py-16 lg:py-20 bg-white dark:bg-background">
       <div className="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8">
         <div className="text-center mb-12">
           <span className="mb-4 inline-block text-sm font-bold uppercase tracking-wider text-zaltyko-teal">
@@ -200,7 +200,7 @@ export function UseCasesSection({ useCases }: UseCasesSectionProps) {
           {useCases.map((useCase) => (
             <div
               key={useCase.role}
-              className="bg-white rounded-2xl border border-zaltyko-border/50 p-8 shadow-lg hover:shadow-2xl hover:shadow-zaltyko-primary/10 transition-all duration-300 hover:-translate-y-2 group"
+              className="bg-white dark:bg-card rounded-2xl border border-zaltyko-border/50 dark:border-border p-8 shadow-lg hover:shadow-2xl hover:shadow-zaltyko-primary/10 transition-all duration-300 hover:-translate-y-2 group"
             >
               <div className="mb-6 inline-flex h-16 w-16 items-center justify-center rounded-card bg-zaltyko-primary-ultralight transition-transform duration-300 group-hover:scale-110">
                 <useCase.icon className="w-8 h-8 text-zaltyko-teal" />
@@ -251,7 +251,7 @@ export function ModuleCta({
               href="/auth/register?role=owner"
               className={cn(
                 buttonVariants({ size: "lg" }),
-                "bg-zaltyko-teal text-white hover:bg-primary-dark shadow-brand"
+                "bg-zaltyko-teal text-white hover:bg-zaltyko-primary-dark shadow-brand"
               )}
             >
               <Sparkles className="mr-2 h-5 w-5" />

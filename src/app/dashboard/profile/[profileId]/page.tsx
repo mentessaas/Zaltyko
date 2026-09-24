@@ -8,8 +8,6 @@ import {
   profiles,
   academies,
   memberships,
-  subscriptions,
-  plans,
   coaches,
   athletes,
   classCoachAssignments,
@@ -26,6 +24,7 @@ import { CoachProfile } from "@/components/profiles/CoachProfile";
 import { AthleteProfile } from "@/components/profiles/AthleteProfile";
 import { ParentProfile } from "@/components/profiles/ParentProfile";
 import { resolveAcademySpecialization } from "@/lib/specialization/registry";
+import { getActiveSubscription } from "@/lib/limits";
 
 interface ProfilePageProps {
   params: Promise<{ profileId?: string }>;
@@ -82,51 +81,22 @@ export default async function ProfilePage({ params }: ProfilePageProps) {
       .from(memberships)
       .innerJoin(academies, eq(memberships.academyId, academies.id))
       .where(eq(memberships.userId, targetProfile.userId))
-      .orderBy(academies.name);
+      .orderBy(academies.name)
+      .limit(500);
 
     const academiesWithSubscription = await Promise.all(
       academyMemberships.map(async (academy) => {
-        let planCode: string | null = null;
-        let planNickname: string | null = null;
-        let subscriptionStatus: string | null = null;
-
-        if (academy.ownerId) {
-          const [owner] = await db
-            .select({
-              userId: profiles.userId,
-            })
-            .from(profiles)
-            .where(eq(profiles.id, academy.ownerId))
-            .limit(1);
-
-          if (owner) {
-            const [sub] = await db
-              .select({
-                planCode: plans.code,
-                planNickname: plans.nickname,
-                status: subscriptions.status,
-              })
-              .from(subscriptions)
-              .leftJoin(plans, eq(subscriptions.planId, plans.id))
-              .where(eq(subscriptions.userId, owner.userId))
-              .limit(1);
-
-            if (sub) {
-              planCode = sub.planCode ?? null;
-              planNickname = sub.planNickname ?? null;
-              subscriptionStatus = sub.status ?? null;
-            }
-          }
-        }
+        const activePlan = await getActiveSubscription(academy.id);
 
         return {
           id: academy.id,
           name: academy.name,
           academyType: academy.academyType,
           createdAt: academy.createdAt,
-          planCode,
-          planNickname,
-          subscriptionStatus,
+          planCode: activePlan.planCode,
+          planNickname: activePlan.planNickname ?? null,
+          subscriptionStatus: activePlan.status ?? "active",
+          academyLimit: activePlan.academyLimit,
           trialStartsAt: null,
           trialEndsAt: null,
           isTrialActive: null,
@@ -378,7 +348,8 @@ export default async function ProfilePage({ params }: ProfilePageProps) {
       .innerJoin(guardians, eq(guardianAthletes.guardianId, guardians.id))
       .innerJoin(athletes, eq(guardianAthletes.athleteId, athletes.id))
       .innerJoin(academies, eq(athletes.academyId, academies.id))
-      .where(eq(guardians.profileId, targetProfile.id));
+      .where(eq(guardians.profileId, targetProfile.id))
+      .limit(5000);
 
     const childrenWithAge = await Promise.all(
       children.map(async (child) => {

@@ -8,6 +8,7 @@ import { academies } from "@/db/schema";
 import { createClient } from "@supabase/supabase-js";
 import { logger } from "@/lib/logger";
 import { INDEXABLE_ACADEMY_STATUS_VALUES } from "@/lib/seo/academy-indexability";
+import { normalizeCountryCode } from "@/lib/specialization/registry";
 
 const ACADEMY_TYPES = ["artistica", "ritmica", "general"] as const;
 
@@ -80,10 +81,15 @@ export async function getPublicAcademies(
   }
 
   if (country) {
-    // Normalizar país: puede venir como "es", "ES", "España", etc.
-    // Buscar case-insensitive usando comparación con LOWER
+    // Aceptar tanto código ISO (MX) como nombre legacy (México).
     const normalizedCountry = country.trim().toLowerCase();
-    filters.push(sql`LOWER(TRIM(${academies.country})) = LOWER(TRIM(${normalizedCountry}))`);
+    const normalizedCountryCode = normalizeCountryCode(country);
+    filters.push(
+      or(
+        normalizedCountryCode ? eq(academies.countryCode, normalizedCountryCode) : undefined,
+        sql`LOWER(TRIM(${academies.country})) = LOWER(TRIM(${normalizedCountry}))`
+      )!
+    );
   }
 
   if (region) {
@@ -101,8 +107,6 @@ export async function getPublicAcademies(
   }
 
   // Intentar primero con Drizzle, si falla usar Supabase REST API
-  let useFallback = false;
-
   try {
     // Contar total de resultados
     const [countResult] = await db
@@ -116,7 +120,6 @@ export async function getPublicAcademies(
     // Intentar el fallback si total es 0 y no hay filtros de búsqueda
     if (total === 0 && !search && !type && !country && !region && !city) {
       logger.info("⚠️  Total es 0 sin filtros, puede ser problema de conexión. Usando fallback...");
-      useFallback = true;
       throw new Error("Connection issue - using fallback");
     }
 
@@ -192,7 +195,15 @@ export async function getPublicAcademies(
         query = query.eq("academy_type", type);
       }
       if (country) {
-        query = query.ilike("country", country);
+        // El fallback REST debe respetar el mismo contrato internacional que
+        // Drizzle: instalaciones nuevas guardan ISO y datos legacy guardan el
+        // nombre visible. Sanitizamos el fragmento antes de construir `.or()`
+        // para no permitir que una búsqueda altere la expresión PostgREST.
+        const normalizedCountryCode = normalizeCountryCode(country);
+        const safeCountry = country.trim().replace(/[%,_*(),]/g, " ");
+        query = normalizedCountryCode
+          ? query.or(`country_code.eq.${normalizedCountryCode},country.ilike.*${safeCountry}*`)
+          : query.ilike("country", `%${safeCountry}%`);
       }
       if (region) {
         query = query.ilike("region", region);

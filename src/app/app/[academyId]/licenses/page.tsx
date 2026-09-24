@@ -1,6 +1,6 @@
 import { notFound, redirect } from "next/navigation";
 import { cookies } from "next/headers";
-import { and, desc, eq, inArray } from "drizzle-orm";
+import { and, desc, eq, inArray, isNull } from "drizzle-orm";
 import { format, differenceInDays } from "date-fns";
 import { es } from "date-fns/locale";
 import { Shield, AlertTriangle, CheckCircle, XCircle, Calendar, FileText } from "lucide-react";
@@ -19,6 +19,7 @@ import { Badge } from "@/components/ui/badge";
 import { PageHeader } from "@/components/ui/page-header";
 import { getAcademySportConfigOptions } from "@/lib/sport-config/service";
 import { getTerminologyForSportConfig } from "@/lib/sport-config/terminology";
+import { pluralizeFirstWord } from "@/lib/specialization/registry";
 import { CreateLicenseDialog } from "@/components/licenses/CreateLicenseDialog";
 
 interface LicensesPageProps {
@@ -92,8 +93,15 @@ export default async function LicensesPage({ params }: LicensesPageProps) {
       primarySportConfigId: athletes.primarySportConfigId,
     })
     .from(athletes)
-    .where(eq(athletes.academyId, academyId))
-    .orderBy(athletes.name);
+    .where(
+      and(
+        eq(athletes.academyId, academyId),
+        eq(athletes.tenantId, academy.tenantId),
+        isNull(athletes.deletedAt)
+      )
+    )
+    .orderBy(athletes.name)
+    .limit(10000);
 
   const athleteIds = academyAthletes.map((a) => a.id);
 
@@ -117,9 +125,11 @@ export default async function LicensesPage({ params }: LicensesPageProps) {
         .from(federativeLicenses)
         .where(and(eq(federativeLicenses.tenantId, academy.tenantId), inArray(federativeLicenses.personId, athleteIds)))
         .orderBy(desc(federativeLicenses.validUntil))
+        .limit(10000)
     : [];
   const sportConfigs = await getAcademySportConfigOptions(academyId);
   const terms = getTerminologyForSportConfig(sportConfigs);
+  const licenseLabelPlural = pluralizeFirstWord(terms.license).toLowerCase();
   const sportConfigNameById = new Map(
     sportConfigs.map((config) => [config.id, `${config.branchName} · ${config.disciplineName}`])
   );
@@ -153,7 +163,7 @@ export default async function LicensesPage({ params }: LicensesPageProps) {
           { label: terms.license },
         ]}
         title={terms.license}
-        description={`Gestión de ${terms.license.toLowerCase()}s federativas y certificados médicos.`}
+        description={`Gestión de ${licenseLabelPlural} y certificados médicos.`}
         icon={<Shield className="h-5 w-5" strokeWidth={1.5} />}
         actions={
           <CreateLicenseDialog

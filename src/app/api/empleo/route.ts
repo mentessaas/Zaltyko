@@ -12,7 +12,6 @@ import { demoEmploymentListing } from "@/lib/public/demo-listings";
 // Validation schemas
 const CreateEmpleoSchema = z.object({
   academyId: z.string().uuid().optional(),
-  userId: z.string().uuid("Invalid user ID"),
   title: z.string().min(3).max(200),
   category: z.enum(["coach", "assistant_coach", "administrative", "physiotherapist", "psychologist", "other"]),
   description: z.string().max(5000).optional(),
@@ -24,14 +23,21 @@ const CreateEmpleoSchema = z.object({
   }).optional(),
   jobType: z.enum(["full_time", "part_time", "internship"]),
   salary: z.object({
-    min: z.number().optional(),
-    max: z.number().optional(),
-    currency: z.string(),
-    type: z.string(),
-  }).optional(),
+    min: z.number().nonnegative().optional(),
+    max: z.number().nonnegative().optional(),
+    currency: z.string().min(1),
+    type: z.enum(["fixed", "range", "contact"]),
+  }).nullable().optional(),
   howToApply: z.enum(["internal", "external"]).default("internal"),
   externalUrl: z.string().url().optional(),
   deadline: z.string().optional(),
+}).strict().superRefine((data, ctx) => {
+  if (data.salary?.min != null && data.salary.max != null && data.salary.min > data.salary.max) {
+    ctx.addIssue({ code: z.ZodIssueCode.custom, path: ["salary", "max"], message: "El máximo debe ser mayor o igual que el mínimo" });
+  }
+  if (data.howToApply === "external" && !data.externalUrl) {
+    ctx.addIssue({ code: z.ZodIssueCode.custom, path: ["externalUrl"], message: "La URL externa es obligatoria para este método de aplicación" });
+  }
 });
 
 

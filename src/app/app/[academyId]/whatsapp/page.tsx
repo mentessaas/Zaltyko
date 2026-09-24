@@ -1,6 +1,6 @@
 import { cookies } from "next/headers";
 import { redirect } from "next/navigation";
-import { desc, eq, and } from "drizzle-orm";
+import { desc, eq, and, isNull } from "drizzle-orm";
 
 import { db } from "@/db";
 import {
@@ -114,8 +114,9 @@ export default async function WhatsAppRoutePage({ params }: PageProps) {
       sportConfigId: classes.sportConfigId,
     })
     .from(classes)
-    .where(eq(classes.academyId, academyId))
-    .orderBy(classes.name);
+    .where(and(eq(classes.academyId, academyId), eq(classes.tenantId, academy.tenantId), isNull(classes.deletedAt)))
+    .orderBy(classes.name)
+    .limit(500);
 
   // Get groups for recipient selection
   const { groups } = await import("@/db/schema");
@@ -126,8 +127,9 @@ export default async function WhatsAppRoutePage({ params }: PageProps) {
       sportConfigId: groups.sportConfigId,
     })
     .from(groups)
-    .where(eq(groups.academyId, academyId))
-    .orderBy(groups.name);
+    .where(and(eq(groups.academyId, academyId), eq(groups.tenantId, academy.tenantId), isNull(groups.deletedAt)))
+    .orderBy(groups.name)
+    .limit(500);
 
   // Get athletes with family contact phones for recipient selection
   const recipientRows = await db
@@ -138,9 +140,22 @@ export default async function WhatsAppRoutePage({ params }: PageProps) {
       sportConfigId: athletes.primarySportConfigId,
     })
     .from(athletes)
-    .innerJoin(familyContacts, eq(familyContacts.athleteId, athletes.id))
-    .where(eq(athletes.academyId, academyId))
-    .orderBy(athletes.name);
+    .innerJoin(
+      familyContacts,
+      and(
+        eq(familyContacts.athleteId, athletes.id),
+        eq(familyContacts.tenantId, academy.tenantId)
+      )
+    )
+    .where(
+      and(
+        eq(athletes.academyId, academyId),
+        eq(athletes.tenantId, academy.tenantId),
+        isNull(athletes.deletedAt)
+      )
+    )
+    .orderBy(athletes.name)
+    .limit(5000);
 
   const recipientMap = new Map<
     string,
@@ -180,7 +195,8 @@ export default async function WhatsAppRoutePage({ params }: PageProps) {
         eq(messageTemplates.isActive, true)
       )
     )
-    .orderBy(desc(messageTemplates.createdAt));
+    .orderBy(desc(messageTemplates.createdAt))
+    .limit(100);
 
   const templates =
     templateRows.length > 0

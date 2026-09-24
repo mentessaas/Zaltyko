@@ -8,6 +8,7 @@ import {
   getMessageTemplateById,
 } from "@/lib/communication-service";
 import { logger } from "@/lib/logger";
+import { authorizeAcademyCapability } from "@/lib/authz/resource-scope";
 
 export const dynamic = 'force-dynamic';
 
@@ -17,6 +18,21 @@ const createScheduledSchema = z.object({
   templateId: z.string().uuid().optional(),
   channel: z.enum(["whatsapp", "email", "push", "in_app"]).default("whatsapp"),
   scheduledFor: z.string().datetime(),
+}).superRefine((value, ctx) => {
+  if (new Date(value.scheduledFor).getTime() <= Date.now()) {
+    ctx.addIssue({
+      code: z.ZodIssueCode.custom,
+      path: ["scheduledFor"],
+      message: "La fecha programada debe estar en el futuro",
+    });
+  }
+  if (!value.templateId) {
+    ctx.addIssue({
+      code: z.ZodIssueCode.custom,
+      path: ["templateId"],
+      message: "Selecciona una plantilla para programar el envío",
+    });
+  }
 });
 
 export const GET = withTenant(async (request, context) => {
@@ -27,6 +43,8 @@ export const GET = withTenant(async (request, context) => {
   if (!academyId || !z.string().uuid().safeParse(academyId).success) {
     return apiError("ACADEMY_REQUIRED", "Academy ID is required", 400);
   }
+  const readScope = await authorizeAcademyCapability({ context, resourceTenantId: context.tenantId, academyId, permission: "communications:read" });
+  if (!readScope.allowed) return apiError("FORBIDDEN", "No tienes acceso a esta academia", 403);
   const scheduled = await getScheduledNotifications(context.tenantId, academyId);
 
   return apiSuccess({
@@ -52,13 +70,17 @@ export const POST = withTenant(async (request, context) => {
   try {
     const body = await request.json();
     const validated = createScheduledSchema.parse(body);
-
+    const scope = await authorizeAcademyCapability({ context, resourceTenantId: context.tenantId, academyId: validated.academyId, permission: "communications:send" });
+    if (!scope.allowed) return apiError("FORBIDDEN", "No tienes acceso a esta academia", 403);
     if (validated.groupId) {
-      const group = await getMessageGroupById(validated.groupId);
-      if (!group || group.tenantId !== context.tenantId || group.academyId !== validated.academyId) {
-        return apiError("FORBIDDEN", "El grupo no pertenece al tenant activo", 403);
-      }
+      return apiError(
+        "GROUP_RECIPIENTS_NOT_CONFIGURED",
+        "No se puede programar un envío a grupo porque este grupo todavía no tiene destinatarios configurados.",
+        422,
+      );
     }
+
+    // Group sends are rejected above until recipient resolution is available.
     if (validated.templateId) {
       const template = await getMessageTemplateById(validated.templateId);
       if (

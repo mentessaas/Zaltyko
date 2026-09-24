@@ -7,6 +7,7 @@ import { academies, profiles, ticketAttachments, ticketResponses, tickets } from
 import { getCurrentProfile } from "@/lib/authz";
 import { createClient } from "@/lib/supabase/server";
 import { TicketDetail } from "@/components/support/TicketDetail";
+import { createSignedUrl } from "@/lib/supabase/storage-helpers";
 
 export const dynamic = "force-dynamic";
 
@@ -14,7 +15,12 @@ interface PageProps {
   params: Promise<{ academyId: string; ticketId: string }>;
 }
 
-async function getTicket(ticketId: string, academyId: string, profileId: string) {
+async function getTicket(
+  ticketId: string,
+  academyId: string,
+  profileId: string,
+  canViewAll: boolean
+) {
   const [row] = await db
     .select({
       id: tickets.id,
@@ -38,7 +44,7 @@ async function getTicket(ticketId: string, academyId: string, profileId: string)
     .where(and(eq(tickets.id, ticketId), eq(tickets.academyId, academyId)))
     .limit(1);
 
-  if (!row || row.createdById !== profileId) return null;
+  if (!row || (!canViewAll && row.createdById !== profileId)) return null;
 
   const responseRows = await db
     .select({
@@ -57,7 +63,8 @@ async function getTicket(ticketId: string, academyId: string, profileId: string)
     .leftJoin(profiles, eq(ticketResponses.userId, profiles.id))
     .leftJoin(ticketAttachments, eq(ticketAttachments.responseId, ticketResponses.id))
     .where(and(eq(ticketResponses.ticketId, ticketId), eq(ticketResponses.isInternal, false)))
-    .orderBy(asc(ticketResponses.createdAt));
+    .orderBy(asc(ticketResponses.createdAt))
+    .limit(1000);
 
   const responses = responseRows.reduce<Array<{
     id: string;
@@ -90,6 +97,23 @@ async function getTicket(ticketId: string, academyId: string, profileId: string)
     return acc;
   }, []);
 
+  // Los adjuntos de soporte viven en un bucket privado. Nunca enviamos una
+  // referencia storage:// al navegador: se resuelve después de autorizar el
+  // ticket y cada URL expira en una hora.
+  await Promise.all(
+    responses.flatMap((response) =>
+      response.attachments.map(async (attachment) => {
+        const marker = "storage://ticket-attachments/";
+        if (attachment.fileUrl.startsWith(marker)) {
+          attachment.fileUrl = await createSignedUrl(
+            attachment.fileUrl.slice(marker.length),
+            3600
+          );
+        }
+      })
+    )
+  );
+
   return {
     id: row.id,
     title: row.title,
@@ -118,7 +142,18 @@ export default async function TicketDetailPage({ params }: PageProps) {
   const profile = await getCurrentProfile(user.id);
   if (!profile) redirect("/dashboard");
 
-  const ticket = await getTicket(ticketId, academyId, profile.id);
+  const { data: membership } = await supabase
+    .from("memberships")
+    .select("role")
+    .eq("user_id", user.id)
+    .eq("academy_id", academyId)
+    .maybeSingle();
+  const canViewAll =
+    profile.role === "admin" ||
+    profile.role === "super_admin" ||
+    profile.role === "owner" ||
+    membership?.role === "owner";
+  const ticket = await getTicket(ticketId, academyId, profile.id, canViewAll);
   if (!ticket) redirect(`/app/${academyId}/support`);
 
   return (

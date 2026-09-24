@@ -2,16 +2,18 @@ import { z } from "zod";
 import { eq, and } from "drizzle-orm";
 
 import { db } from "@/db";
-import { coachNotes } from "@/db/schema";
+import { coachNotes, guardianAthletes, guardians } from "@/db/schema";
 import { withTenant } from "@/lib/authz";
 import { apiSuccess, apiError } from "@/lib/api-response";
 import { getUserPermissions } from "@/lib/authz/permissions-service";
 import { authorizeAthleteResource } from "@/lib/authz/resource-scope";
+import { createNotification } from "@/lib/notifications/notification-service";
+import { logger } from "@/lib/logger";
 
 const updateSchema = z.object({
-  note: z.string().min(1),
+  note: z.string().trim().min(1).max(10000),
   sharedWithParents: z.boolean().default(false),
-  tags: z.array(z.string()).nullable().optional(),
+  tags: z.array(z.string().trim().min(1).max(80)).max(20).nullable().optional(),
 });
 
 export const PUT = withTenant(async (request, context) => {
@@ -27,7 +29,8 @@ export const PUT = withTenant(async (request, context) => {
     return apiError("NOTE_ID_REQUIRED", "ID de nota requerido", 400);
   }
 
-  const body = updateSchema.parse(await request.json());
+  const body = updateSchema.safeParse(await request.json().catch(() => null));
+  if (!body.success) return apiError("INVALID_PAYLOAD", "Payload inválido", 400);
 
   // Validar que la nota existe y pertenece al tenant
   const [noteRow] = await db
@@ -36,6 +39,7 @@ export const PUT = withTenant(async (request, context) => {
       authorId: coachNotes.authorId,
       academyId: coachNotes.academyId,
       athleteId: coachNotes.athleteId,
+      sharedWithParents: coachNotes.sharedWithParents,
     })
     .from(coachNotes)
     .where(and(eq(coachNotes.id, noteId), eq(coachNotes.tenantId, context.tenantId)))
@@ -61,14 +65,43 @@ export const PUT = withTenant(async (request, context) => {
   await db
     .update(coachNotes)
     .set({
-      note: body.note,
-      sharedWithParents: body.sharedWithParents,
-      tags: body.tags || null,
+      note: body.data.note,
+      sharedWithParents: body.data.sharedWithParents,
+      tags: body.data.tags || null,
       updatedAt: new Date(),
     })
     .where(eq(coachNotes.id, noteId));
 
-  // TODO: Si sharedWithParents cambió a true, enviar notificación a padres
+  // Notificar solo cuando la nota pasa de privada a compartida.
+  if (!noteRow.sharedWithParents && body.data.sharedWithParents) {
+    try {
+      const recipients = await db
+        .select({ profileId: guardians.profileId })
+        .from(guardianAthletes)
+        .innerJoin(guardians, eq(guardianAthletes.guardianId, guardians.id))
+        .where(
+          and(
+            eq(guardianAthletes.tenantId, context.tenantId),
+            eq(guardianAthletes.athleteId, noteRow.athleteId),
+            eq(guardians.tenantId, context.tenantId),
+          ),
+        )
+        .limit(100);
+      for (const recipient of recipients) {
+        if (!recipient.profileId) continue;
+        await createNotification({
+          tenantId: context.tenantId,
+          userId: recipient.profileId,
+          type: "coach_note_shared",
+          title: "Nueva actualización del entrenador",
+          message: "Se ha compartido una nueva nota sobre tu atleta.",
+          data: { noteId, athleteId: noteRow.athleteId },
+        });
+      }
+    } catch (error) {
+      logger.warn("No se pudo notificar la nota compartida", { error, noteId });
+    }
+  }
 
   return apiSuccess({ ok: true });
 });

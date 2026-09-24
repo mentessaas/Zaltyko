@@ -1,4 +1,4 @@
-import { eq, sql } from "drizzle-orm";
+import { and, eq, sql } from "drizzle-orm";
 import { cookies } from "next/headers";
 import { z } from "zod";
 
@@ -29,6 +29,7 @@ import { activateAcademySportConfig } from "@/lib/sport-config/seed";
 import { getSportConfigSeedByVariant } from "@/lib/sport-config/catalog";
 import { withTransaction } from "@/lib/db-transactions";
 import { logEvent } from "@/lib/event-logging";
+import { trackEvent } from "@/lib/analytics";
 import { enqueueOnboardingOwnerD0 } from "@/lib/onboarding-owner-integration";
 import { logger } from "@/lib/logger";
 
@@ -136,7 +137,15 @@ export async function POST(request: Request) {
     ? await db
         .select({ academyId: memberships.academyId, role: memberships.role })
         .from(memberships)
-        .where(eq(memberships.userId, user.id))
+        .innerJoin(academies, eq(academies.id, memberships.academyId))
+        .where(
+          and(
+            eq(memberships.userId, user.id),
+            eq(academies.tenantId, profile.tenantId),
+            eq(academies.isSuspended, false)
+          )
+        )
+        .limit(100)
     : [];
 
   if (profile && existingMemberships.length > 0) {
@@ -165,6 +174,7 @@ export async function POST(request: Request) {
         activeAcademyId: null,
         canLogin: true,
       })
+      .onConflictDoNothing({ target: profiles.userId })
       .returning({
         id: profiles.id,
         userId: profiles.userId,
@@ -173,8 +183,29 @@ export async function POST(request: Request) {
         activeAcademyId: profiles.activeAcademyId,
         name: profiles.name,
       });
-
-    profile = createdProfile;
+    // Dos pestañas o reintentos simultáneos pueden llegar aquí antes de que
+    // cualquiera vea el profile. La unicidad de userId debe convertirse en
+    // una operación idempotente, no en un 500 para el usuario.
+    if (createdProfile) {
+      profile = createdProfile;
+    } else {
+      const [existingProfile] = await db
+        .select({
+          id: profiles.id,
+          userId: profiles.userId,
+          role: profiles.role,
+          tenantId: profiles.tenantId,
+          activeAcademyId: profiles.activeAcademyId,
+          name: profiles.name,
+        })
+        .from(profiles)
+        .where(eq(profiles.userId, user.id))
+        .limit(1);
+      if (!existingProfile) {
+        return apiError("PROFILE_SETUP_RACE", "No se pudo preparar tu perfil. Inténtalo de nuevo.", 409);
+      }
+      profile = existingProfile;
+    }
   } else if (!profile.name) {
     await db
       .update(profiles)
@@ -192,7 +223,14 @@ export async function POST(request: Request) {
     const [membershipCreatedByAnotherRequest] = await tx
       .select({ academyId: memberships.academyId })
       .from(memberships)
-      .where(eq(memberships.userId, user.id))
+      .innerJoin(academies, eq(academies.id, memberships.academyId))
+      .where(
+        and(
+          eq(memberships.userId, user.id),
+          eq(academies.tenantId, profile.tenantId),
+          eq(academies.isSuspended, false)
+        )
+      )
       .limit(1);
 
     if (membershipCreatedByAnotherRequest) {
@@ -273,6 +311,7 @@ export async function POST(request: Request) {
     }
 
     let createdStarterGroupCount = 0;
+    let createdStarterClassCount = 0;
 
     for (const variant of activeVariants) {
       const specialization = resolveAcademySpecialization({
@@ -372,6 +411,7 @@ export async function POST(request: Request) {
         )
         .returning();
 
+      createdStarterClassCount += createdClasses.length;
       if (createdClasses.length > 0) {
         await tx.insert(classWeekdays).values(
           createdClasses.flatMap((createdClass, index) =>
@@ -402,7 +442,7 @@ export async function POST(request: Request) {
       });
     }
 
-    return { result, usesGenericFallback };
+    return { result, usesGenericFallback, createdStarterClassCount };
   });
 
   if ("existingAcademyId" in setup) {
@@ -432,6 +472,35 @@ export async function POST(request: Request) {
       utm_campaign: parsed.data.utm?.utm_campaign ?? null,
     },
   });
+
+  // createAcademy se ejecutó dentro de la transacción y por eso difirió el
+  // evento first-party hasta aquí, después del commit.
+  await trackEvent("academy_created", {
+    academyId: setup.result.id,
+    tenantId: setup.result.tenantId,
+    userId: user.id,
+    metadata: {
+      country:
+        parsed.data.country ?? getCountryNameFromCode(parsed.data.countryCode),
+      countryCode:
+        normalizeCountryCode(parsed.data.countryCode) ??
+        parsed.data.countryCode,
+      academyType: setup.result.academyType,
+      disciplineVariant: parsed.data.disciplineVariant,
+      utm_source: parsed.data.utm?.utm_source ?? null,
+      utm_medium: parsed.data.utm?.utm_medium ?? null,
+      utm_campaign: parsed.data.utm?.utm_campaign ?? null,
+    },
+    idempotencyKey: `academy_created:v1:${setup.result.id}`,
+  });
+
+  if (setup.createdStarterClassCount > 0) {
+    await trackEvent("first_class_created", {
+      academyId: setup.result.id,
+      tenantId: setup.result.tenantId,
+      idempotencyKey: `first_class_created:v1:${setup.result.id}`,
+    });
+  }
 
   // El trigger queda conectado al evento canónico `academy_created`, pero el
   // integrador permanece fail-closed mientras el flag de secuencia esté

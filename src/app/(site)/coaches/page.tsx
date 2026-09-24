@@ -1,5 +1,5 @@
 import type { Metadata } from "next";
-import { eq, and } from "drizzle-orm";
+import { eq, and, inArray } from "drizzle-orm";
 import Link from "next/link";
 
 import { db } from "@/db";
@@ -60,8 +60,8 @@ export default async function CoachesPublicPage({ searchParams }: PageProps) {
     .innerJoin(academies, eq(coaches.academyId, academies.id))
     .where(
       activeModalidad
-        ? and(eq(coaches.isPublic, true), eq(academies.academyType, activeModalidad))
-        : eq(coaches.isPublic, true)
+        ? and(eq(coaches.isPublic, true), eq(academies.academyType, activeModalidad), eq(academies.isPublic, true), eq(academies.isSuspended, false), inArray(academies.status, ["active", "trial"]))
+        : and(eq(coaches.isPublic, true), eq(academies.isPublic, true), eq(academies.isSuspended, false), inArray(academies.status, ["active", "trial"]))
     )
     .limit(50);
 

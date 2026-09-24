@@ -1,14 +1,13 @@
 import type { Metadata } from "next";
 
 export const dynamic = "force-dynamic";
-import { desc, eq } from "drizzle-orm";
 import { EventsFilters } from "@/components/public/EventsFilters";
 import { EventsGrid } from "@/components/public/EventsGrid";
 import { PublicPageHeader } from "@/components/public/PublicPageHeader";
 import Reveal from "@/components/motion/Reveal";
-import { db } from "@/db";
-import { events, academies } from "@/db/schema";
+import { getPublicEvents } from "@/app/actions/public/get-public-events";
 import { getPublicSiteUrl } from "@/lib/seo/site-url";
+import type { EventFilters } from "@/types/events";
 
 export const metadata: Metadata = {
   title: "Eventos y Competiciones de Gimnasia",
@@ -24,56 +23,34 @@ export const metadata: Metadata = {
   },
 };
 
-async function getEvents() {
+interface EventsSearchParams {
+  search?: string;
+  discipline?: string;
+  level?: string;
+  eventType?: string;
+  country?: string;
+  province?: string;
+  city?: string;
+  startDate?: string;
+  endDate?: string;
+  page?: string;
+}
+
+async function getEvents(searchParams: EventsSearchParams) {
   try {
-    const eventItems = await db
-      .select({
-        id: events.id,
-        title: events.title,
-        description: events.description,
-        category: events.category,
-        level: events.level,
-        discipline: events.discipline,
-        eventType: events.eventType,
-        startDate: events.startDate,
-        endDate: events.endDate,
-        registrationStartDate: events.registrationStartDate,
-        registrationEndDate: events.registrationEndDate,
-        countryCode: events.countryCode,
-        countryName: events.countryName,
-        provinceName: events.provinceName,
-        cityName: events.cityName,
-        contactEmail: events.contactEmail,
-        contactPhone: events.contactPhone,
-        contactInstagram: events.contactInstagram,
-        contactWebsite: events.contactWebsite,
-        images: events.images,
-        academyId: events.academyId,
-        createdAt: events.createdAt,
-      })
-      .from(events)
-      .where(eq(events.isPublic, true))
-      .orderBy(desc(events.startDate), desc(events.createdAt))
-      .limit(50);
-
-    const academyIds = Array.from(new Set(eventItems.map(e => e.academyId)));
-    const academyData = academyIds.length > 0 ? await db
-      .select({ id: academies.id, name: academies.name, logoUrl: academies.logoUrl })
-      .from(academies)
-      .then(rows => new Map(rows.map(a => [a.id, a])))
-      : new Map();
-
-    return eventItems.map(event => ({
-      ...event,
-      academyName: academyData.get(event.academyId)?.name || null,
-      academyLogoUrl: academyData.get(event.academyId)?.logoUrl || null,
-    }));
+    const filters = {
+      ...searchParams,
+      page: Math.max(1, Number(searchParams.page) || 1),
+      limit: 50,
+    } as EventFilters;
+    const result = await getPublicEvents(filters);
+    return result.items;
   } catch {
     return [];
   }
 }
 
-function EventsContent({ events }: { events: any[] }) {
+function EventsContent({ events }: { events: Awaited<ReturnType<typeof getEvents>> }) {
   if (events.length === 0) {
     return (
       <div className="rounded-xl border border-border bg-card p-16 text-center shadow-sm">
@@ -119,8 +96,12 @@ function EventsContent({ events }: { events: any[] }) {
   );
 }
 
-export default async function EventsPage() {
-  const events = await getEvents();
+export default async function EventsPage({
+  searchParams,
+}: {
+  searchParams: Promise<EventsSearchParams>;
+}) {
+  const events = await getEvents(await searchParams);
 
   return (
     <div className="min-h-screen bg-background">

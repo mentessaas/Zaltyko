@@ -71,7 +71,7 @@ export default async function ContactPage({ searchParams }: ContactPageProps) {
       </section>
 
       {/* Contact Info & Form */}
-      <section className="py-16 bg-white">
+      <section className="bg-white py-16 dark:bg-background">
         <div className="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8">
           <Reveal>
           <div className="grid gap-12 lg:grid-cols-2">

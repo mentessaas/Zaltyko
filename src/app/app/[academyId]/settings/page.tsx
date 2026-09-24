@@ -615,6 +615,7 @@ export default function SettingsPage() {
           {/* Branding Tab */}
           <TabsContent value="branding" className="mt-6">
             <BrandingEditor
+              academyId={context.academyId}
               data={settings.branding}
               onChange={(data) => updateSettings("branding", data)}
             />

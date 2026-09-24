@@ -1,5 +1,5 @@
 import { notFound } from "next/navigation";
-import { asc, eq } from "drizzle-orm";
+import { and, asc, eq, isNull } from "drizzle-orm";
 
 import { db } from "@/db";
 import { academies, groups } from "@/db/schema";
@@ -12,15 +12,18 @@ interface PageProps {
   params: Promise<{
     academyId: string;
   }>;
+  searchParams?: Promise<{ trialId?: string }>;
 }
 
-export default async function NewAthletePage({ params }: PageProps) {
+export default async function NewAthletePage({ params, searchParams }: PageProps) {
   const { academyId } = await params;
+  const trialId = (await searchParams)?.trialId;
 
   const [academy] = await db
     .select({
       id: academies.id,
       name: academies.name,
+      tenantId: academies.tenantId,
     })
     .from(academies)
     .where(eq(academies.id, academyId))
@@ -36,10 +39,21 @@ export default async function NewAthletePage({ params }: PageProps) {
         id: groups.id,
         name: groups.name,
         color: groups.color,
+        sportConfigId: groups.sportConfigId,
+        programCode: groups.programCode,
+        levelCode: groups.levelCode,
+        categoryCode: groups.categoryCode,
       })
       .from(groups)
-      .where(eq(groups.academyId, academyId))
-      .orderBy(asc(groups.name)),
+      .where(
+        and(
+          eq(groups.academyId, academyId),
+          eq(groups.tenantId, academy.tenantId),
+          isNull(groups.deletedAt)
+        )
+      )
+      .orderBy(asc(groups.name))
+      .limit(500),
     getAcademySportConfigOptions(academyId),
   ]);
 
@@ -61,12 +75,13 @@ export default async function NewAthletePage({ params }: PageProps) {
           id: group.id,
           name: group.name ?? "Grupo sin nombre",
           color: group.color ?? null,
-          sportConfigId: null,
-          programCode: null,
-          levelCode: null,
-          categoryCode: null,
+          sportConfigId: group.sportConfigId ?? null,
+          programCode: group.programCode ?? null,
+          levelCode: group.levelCode ?? null,
+          categoryCode: group.categoryCode ?? null,
         }))}
         sportConfigs={sportConfigs}
+        conversionTrialId={trialId}
       />
     </div>
   );

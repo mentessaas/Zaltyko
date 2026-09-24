@@ -1,10 +1,9 @@
-import { eq, inArray } from "drizzle-orm";
+import { eq, inArray, sql } from "drizzle-orm";
 import { z } from "zod";
 
 import { db } from "@/db";
 import { academies, invitations } from "@/db/schema";
 import { config } from "@/config";
-import { sendEmail } from "@/lib/brevo";
 import { withTenant } from "@/lib/authz";
 import { withRateLimit, getUserIdentifier } from "@/lib/rate-limit";
 import { handleApiError } from "@/lib/api-error-handler";
@@ -12,6 +11,7 @@ import { verifyAcademyAccess } from "@/lib/permissions";
 import { getAppUrl } from "@/lib/env";
 import { apiSuccess, apiError } from "@/lib/api-response";
 import { logger } from "@/lib/logger";
+import { sendEmailWithLogging } from "@/lib/email/email-service";
 
 const profileRoles = [
   "super_admin",
@@ -23,10 +23,10 @@ const profileRoles = [
 ] as const;
 
 const InviteSchema = z.object({
-  email: z.string().email(),
+  email: z.string().trim().toLowerCase().email().max(320),
   role: z.enum(profileRoles),
   tenantId: z.string().uuid().optional(),
-  academyIds: z.array(z.string().uuid()).optional(),
+  academyIds: z.array(z.string().uuid()).max(50).optional(),
   defaultAcademyId: z.string().uuid().optional(),
 });
 
@@ -58,7 +58,10 @@ const handler = withTenant(async (request, context) => {
       return apiError("TENANT_REQUIRED", "Tenant requerido", 400);
     }
 
-    const academyIds = body.academyIds ?? [];
+    const academyIds = Array.from(new Set([
+      ...(body.academyIds ?? []),
+      ...(body.defaultAcademyId ? [body.defaultAcademyId] : []),
+    ]));
 
     if (academyIds.length > 0) {
       // Verificar acceso a todas las academias
@@ -70,11 +73,9 @@ const handler = withTenant(async (request, context) => {
       }
     }
 
+    // `defaultAcademyId` is included in the verified set above; never append
+    // an unchecked academy after authorization (cross-tenant invitation risk).
     const defaultAcademyId = body.defaultAcademyId ?? academyIds[0] ?? null;
-
-    if (defaultAcademyId && !academyIds.includes(defaultAcademyId)) {
-      academyIds.push(defaultAcademyId);
-    }
 
     const token = crypto.randomUUID();
     const expiresAt = new Date(Date.now() + 1000 * 60 * 60 * 24 * 7);
@@ -94,6 +95,9 @@ const handler = withTenant(async (request, context) => {
       })
       .onConflictDoUpdate({
         target: [invitations.tenantId, invitations.email],
+        // The uniqueness constraint is intentionally partial so accepted and
+        // cancelled invitations can be retained for audit/history.
+        where: sql`${invitations.status} = 'pending'`,
         set: {
           role: body.role,
           token,
@@ -113,7 +117,7 @@ const handler = withTenant(async (request, context) => {
     inviteUrl.searchParams.set("token", token);
 
     try {
-      await sendEmail({
+      await sendEmailWithLogging({
         to: body.email,
         subject: `Invitación a ${config.appName}`,
         html: `
@@ -129,6 +133,10 @@ const handler = withTenant(async (request, context) => {
       `,
         replyTo: config.brevo.forwardRepliesTo,
         text: `Has sido invitado a unirte a ${config.appName}. Visita ${inviteUrl.toString()} para completar tu registro. El enlace expira en 7 días.`,
+        template: "legacy-admin-invitation",
+        tenantId: effectiveTenantId,
+        academyId: defaultAcademyId ?? undefined,
+        dedupeKey: `legacy-admin-invitation:${effectiveTenantId}:${body.email}`,
       });
     } catch (error) {
       logger.error("Error enviando la invitación", error);

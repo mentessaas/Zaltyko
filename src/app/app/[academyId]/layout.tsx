@@ -1,13 +1,13 @@
 import { cookies, headers } from "next/headers";
 import { notFound, redirect } from "next/navigation";
-import { and, count, eq } from "drizzle-orm";
+import { and, count, eq, or } from "drizzle-orm";
 
 import { AcademySidebar } from "@/components/academy/AcademySidebar";
 import { ToastProvider } from "@/components/ui/toast-provider";
 import { GlobalTopNav } from "@/components/navigation/GlobalTopNav";
 import { MobileAcademyNav } from "@/components/navigation/MobileAcademyNav";
 import { db } from "@/db";
-import { academies, memberships, plans, profiles, subscriptions } from "@/db/schema";
+import { academies, memberships, profiles } from "@/db/schema";
 import { createClient } from "@/lib/supabase/server";
 import { AcademyProvider } from "@/hooks/use-academy-context";
 import { DashboardSkipLink } from "@/components/dashboard/DashboardSkipLink";
@@ -19,6 +19,8 @@ import {
 import { resolveAcademySpecialization } from "@/lib/specialization/registry";
 import { getDevSessionFromCookieStore } from "@/lib/dev-session";
 import { AccessDenied } from "@/components/ui/access-denied";
+import { getActiveSubscription } from "@/lib/limits";
+import { ChatWidgetWrapper } from "@/components/chat/ChatWidgetWrapper";
 
 import { logger } from "@/lib/logger";
 
@@ -63,6 +65,8 @@ export default async function AcademyLayout({ params, children }: LayoutProps) {
     redirect("/dashboard");
   }
 
+  const isSuperAdmin = profile.role === "super_admin";
+
   let academy = null;
   try {
     const [result] = await db
@@ -80,7 +84,11 @@ export default async function AcademyLayout({ params, children }: LayoutProps) {
         ownerId: academies.ownerId,
       })
       .from(academies)
-      .where(eq(academies.id, academyId))
+      .where(
+        isSuperAdmin
+          ? eq(academies.id, academyId)
+          : and(eq(academies.id, academyId), eq(academies.tenantId, profile.tenantId))
+      )
       .limit(1);
     academy = result;
   } catch (error) {
@@ -115,48 +123,41 @@ export default async function AcademyLayout({ params, children }: LayoutProps) {
     .where(and(eq(memberships.academyId, academy.id), eq(memberships.userId, effectiveUserId)))
     .limit(1);
 
-  let subscription: { planCode: string | null; planNickname: string | null } | null = null;
-
-  if (academy.ownerId) {
-    const [owner] = await db
-      .select({
-        userId: profiles.userId,
-      })
-      .from(profiles)
-      .where(eq(profiles.id, academy.ownerId))
-      .limit(1);
-
-    if (owner) {
-      const [sub] = await db
-        .select({
-          planCode: plans.code,
-          planNickname: plans.nickname,
-        })
-        .from(subscriptions)
-        .leftJoin(plans, eq(subscriptions.planId, plans.id))
-        .where(eq(subscriptions.userId, owner.userId))
-        .limit(1);
-      subscription = sub ?? null;
-    }
-  }
+  // Todas las superficies de la academia deben leer la misma suscripción
+  // efectiva. Este resolver incluye trials y descarta estados terminales;
+  // consultar solo `subscriptions` aquí dejaba el sidebar en Free mientras el
+  // dashboard ya mostraba Starter en período de prueba.
+  const activeSubscription = await getActiveSubscription(academy.id);
 
   const [academyCountRow] = await db
     .select({ total: count() })
     .from(academies)
-    .where(eq(academies.tenantId, academy.tenantId));
+    .where(
+      and(
+        eq(academies.tenantId, academy.tenantId),
+        eq(academies.isSuspended, false),
+        or(eq(academies.status, "active"), eq(academies.status, "trial"))
+      )
+    );
 
   let tenantAcademies = [] as { id: string; name: string | null }[];
   try {
     tenantAcademies = await db
       .select({ id: academies.id, name: academies.name })
       .from(academies)
-      .where(eq(academies.tenantId, academy.tenantId));
+      .where(
+        and(
+          eq(academies.tenantId, academy.tenantId),
+          eq(academies.isSuspended, false),
+          or(eq(academies.status, "active"), eq(academies.status, "trial"))
+        )
+      )
+      .limit(500);
   } catch (error) {
     logger.error("Failed to fetch tenant academies:", error);
     tenantAcademies = [{ id: academy.id, name: academy.name }];
   }
 
-  const isSuperAdmin = profile.role === "super_admin";
   const isOwner = academy.ownerId === profile.id;
   const isMember = Boolean(membership);
   const academyAccessLevel = getAcademyAccessLevel(
@@ -186,6 +187,7 @@ export default async function AcademyLayout({ params, children }: LayoutProps) {
     `/app/${academy.id}/settings`,
     `/app/${academy.id}/coaches`,
     `/app/${academy.id}/announcements`,
+    `/app/${academy.id}/reports`,
   ];
   const isAdminOnlyPath = adminOnlyPaths.some(
     (path) => pathname === path || pathname?.startsWith(`${path}/`)
@@ -211,14 +213,19 @@ export default async function AcademyLayout({ params, children }: LayoutProps) {
       ? "Ir a mi panel de coach"
       : "Ir al dashboard";
 
-  const planCode = subscription?.planCode ?? "free";
-  const planNickname = subscription?.planNickname ?? null;
+  const planCode = activeSubscription.planCode;
+  const planNickname = activeSubscription.planNickname ?? null;
+  const planStatus = activeSubscription.status ?? "active";
   const academyCount = Number(academyCountRow?.total ?? 0);
 
-  const canCreateAcademies = planCode !== "free" || isSuperAdmin;
+  const hasAcademyCapacity =
+    activeSubscription.academyLimit === null || academyCount < activeSubscription.academyLimit;
+  const canCreateAcademies = isSuperAdmin || hasAcademyCapacity;
   const planLimitLabel = canCreateAcademies
-    ? `Actualmente gestionas ${academyCount} academia${academyCount === 1 ? "" : "s"}.`
-    : "Tu plan actual no permite crear nuevas academias. Actualiza tu plan para ampliarlo.";
+    ? activeSubscription.academyLimit === null
+      ? `Actualmente gestionas ${academyCount} academia${academyCount === 1 ? "" : "s"}.`
+      : `Gestionas ${academyCount} de ${activeSubscription.academyLimit} academias incluidas en tu plan.`
+    : `Has alcanzado el límite de ${activeSubscription.academyLimit} academia. Actualiza tu plan para añadir otra.`;
   const specialization = resolveAcademySpecialization({
     academyType: academy.academyType,
     country: academy.country,
@@ -244,6 +251,7 @@ export default async function AcademyLayout({ params, children }: LayoutProps) {
     isSuperAdmin,
     planCode,
     planNickname,
+    planStatus,
     canCreateAcademies,
     academyCount,
     planLimitLabel,
@@ -295,6 +303,11 @@ export default async function AcademyLayout({ params, children }: LayoutProps) {
               </main>
             </div>
           </div>
+          {/* The modern academy workspace is the canonical destination for
+              owners, coaches and families. Keep the assistant mounted here
+              as well as in the legacy dashboard so users do not lose the
+              support entry point after the workspace redirect. */}
+          <ChatWidgetWrapper academyId={academy.id} />
         </div>
       </ToastProvider>
     </AcademyProvider>

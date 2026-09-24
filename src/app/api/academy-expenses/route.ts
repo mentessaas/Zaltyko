@@ -5,6 +5,7 @@ import { db } from "@/db";
 import { academies, academyExpenses } from "@/db/schema";
 import { apiCreated, apiError, apiSuccess } from "@/lib/api-response";
 import { withTenant } from "@/lib/authz";
+import { authorizeAcademyCapability } from "@/lib/authz/resource-scope";
 import { requireLeakProfitabilityFeature } from "@/lib/product/leak-profitability-feature";
 
 export const dynamic = "force-dynamic";
@@ -36,11 +37,20 @@ export const GET = withTenant(async (request, context) => {
     return apiError("VALIDATION_ERROR", "Invalid query parameters", 400, parsed.error.flatten());
   }
 
+  const scope = await authorizeAcademyCapability({
+    context,
+    resourceTenantId: context.tenantId,
+    academyId: parsed.data.academyId,
+    permission: "billing:read",
+  });
+  if (!scope.allowed) return apiError("EXPENSES_NOT_FOUND", "No se encontraron gastos", 404);
+
   const rows = await db
     .select()
     .from(academyExpenses)
     .where(and(eq(academyExpenses.tenantId, context.tenantId), eq(academyExpenses.academyId, parsed.data.academyId)))
-    .orderBy(desc(academyExpenses.createdAt));
+    .orderBy(desc(academyExpenses.createdAt))
+    .limit(5000);
 
   return apiSuccess({ items: rows, total: rows.length });
 });
@@ -53,6 +63,14 @@ export const POST = withTenant(async (request, context) => {
   if (!parsed.success) {
     return apiError("VALIDATION_ERROR", "Invalid expense payload", 400, parsed.error.flatten());
   }
+
+  const scope = await authorizeAcademyCapability({
+    context,
+    resourceTenantId: context.tenantId,
+    academyId: parsed.data.academyId,
+    permission: "billing:update",
+  });
+  if (!scope.allowed) return apiError("FORBIDDEN", "No tienes permisos para registrar gastos", 403);
 
   const [academy] = await db
     .select({ id: academies.id })

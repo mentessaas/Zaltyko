@@ -14,6 +14,8 @@ const actionSchema = z.discriminatedUnion("action", [
 
 const canOperateSandbox = new Set(["owner", "admin", "super_admin"]);
 
+/** @resource-scope academy — every job action is keyed by tenant + academy scope. */
+
 async function assertScope(request: Request, context: { tenantId: string; profile: { role: string } }) {
   const academyId = new URL(request.url).searchParams.get("academyId");
   if (!academyId) return { ok: false as const, response: apiError("ACADEMY_REQUIRED", "academyId es requerido.", 400) };

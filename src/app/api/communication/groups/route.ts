@@ -3,6 +3,7 @@ import { z } from "zod";
 import { withTenant } from "@/lib/authz";
 import { getMessageGroups, createMessageGroup } from "@/lib/communication-service";
 import { logger } from "@/lib/logger";
+import { authorizeAcademyCapability } from "@/lib/authz/resource-scope";
 
 export const dynamic = 'force-dynamic';
 
@@ -21,6 +22,8 @@ export const GET = withTenant(async (request, context) => {
   if (!academyId || !z.string().uuid().safeParse(academyId).success) {
     return apiError("ACADEMY_REQUIRED", "Academy ID is required", 400);
   }
+  const readScope = await authorizeAcademyCapability({ context, resourceTenantId: context.tenantId, academyId, permission: "communications:read" });
+  if (!readScope.allowed) return apiError("FORBIDDEN", "No tienes acceso a esta academia", 403);
   const groups = await getMessageGroups(context.tenantId, academyId);
 
   return apiSuccess({
@@ -42,6 +45,8 @@ export const POST = withTenant(async (request, context) => {
   try {
     const body = await request.json();
     const validated = createGroupSchema.parse(body);
+    const scope = await authorizeAcademyCapability({ context, resourceTenantId: context.tenantId, academyId: validated.academyId, permission: "communications:send" });
+    if (!scope.allowed) return apiError("FORBIDDEN", "No tienes acceso a esta academia", 403);
 
     const group = await createMessageGroup({
       tenantId: context.tenantId,

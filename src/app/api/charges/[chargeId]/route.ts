@@ -7,6 +7,7 @@ import { z } from "zod";
 import { db } from "@/db";
 import { charges } from "@/db/schema";
 import { withTenant } from "@/lib/authz";
+import { authorizeAcademyCapability } from "@/lib/authz/resource-scope";
 import { handleApiError } from "@/lib/api-error-handler";
 import { logEvent } from "@/lib/event-logging";
 
@@ -45,6 +46,16 @@ export const PATCH = withTenant(async (request, context) => {
       .limit(1);
 
     if (!existing) {
+      return apiError("CHARGE_NOT_FOUND", "Charge not found", 404);
+    }
+
+    const scope = await authorizeAcademyCapability({
+      context,
+      resourceTenantId: existing.tenantId,
+      academyId: existing.academyId,
+      permission: "billing:update",
+    });
+    if (!scope.allowed) {
       return apiError("CHARGE_NOT_FOUND", "Charge not found", 404);
     }
 
@@ -103,7 +114,7 @@ export const PATCH = withTenant(async (request, context) => {
     const [updated] = await db
       .update(charges)
       .set(updateData)
-      .where(eq(charges.id, chargeId))
+      .where(and(eq(charges.id, chargeId), eq(charges.tenantId, existing.tenantId)))
       .returning();
 
     // Log event when charge is marked as paid
@@ -152,6 +163,16 @@ export const DELETE = withTenant(async (request, context) => {
       return apiError("CHARGE_NOT_FOUND", "Charge not found", 404);
     }
 
+    const scope = await authorizeAcademyCapability({
+      context,
+      resourceTenantId: existing.tenantId,
+      academyId: existing.academyId,
+      permission: "billing:update",
+    });
+    if (!scope.allowed) {
+      return apiError("CHARGE_NOT_FOUND", "Charge not found", 404);
+    }
+
     await db.delete(charges).where(and(eq(charges.id, chargeId), eq(charges.tenantId, context.tenantId)));
 
     return apiSuccess({ ok: true });
@@ -159,4 +180,3 @@ export const DELETE = withTenant(async (request, context) => {
     return handleApiError(error, { endpoint: "/api/charges/[chargeId]", method: "DELETE" });
   }
 });
-

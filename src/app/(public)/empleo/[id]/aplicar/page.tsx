@@ -85,8 +85,9 @@ export default function ApplyPage() {
 
       // Fetch listing details
       const res = await fetch(`/api/empleo/${listingId}`);
-      const data = await res.json();
-      if (data.item) {
+      const payload = await res.json();
+      const data = payload?.data ?? payload;
+      if (data?.item) {
         setListing(data.item);
       }
     } catch (err) {

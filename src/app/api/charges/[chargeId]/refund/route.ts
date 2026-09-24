@@ -3,7 +3,7 @@ export const dynamic = "force-dynamic";
 /** @resource-scope academy — actual charge academy ownership is verified. */
 
 import type { NextResponse } from "next/server";
-import { eq } from "drizzle-orm";
+import { and, eq } from "drizzle-orm";
 import { z } from "zod";
 
 import { db } from "@/db";
@@ -35,6 +35,9 @@ const refundHandler = withTenant(async (request, context) => {
     if (!chargeId) {
       return apiError("CHARGE_ID_REQUIRED", "Charge ID is required", 400);
     }
+    if (!z.string().uuid().safeParse(chargeId).success) {
+      return apiError("INVALID_CHARGE_ID", "Charge ID is invalid", 400);
+    }
 
     const parsed = BodySchema.safeParse(await request.json().catch(() => ({})));
     if (!parsed.success) {
@@ -44,7 +47,7 @@ const refundHandler = withTenant(async (request, context) => {
     const [charge] = await db
       .select({ academyId: charges.academyId })
       .from(charges)
-      .where(eq(charges.id, chargeId))
+      .where(and(eq(charges.id, chargeId), eq(charges.tenantId, context.tenantId)))
       .limit(1);
     if (!charge) {
       return apiError("CHARGE_NOT_FOUND", "Cargo no encontrado", 404);

@@ -4,6 +4,7 @@ import { apiError, apiSuccess } from "@/lib/api-response";
 import { z } from "zod";
 import { eq, and } from "drizzle-orm";
 import { withTenant } from "@/lib/authz";
+import { authorizeAcademyCapability } from "@/lib/authz/resource-scope";
 
 import { db } from "@/db";
 import { discounts } from "@/db/schema";
@@ -39,17 +40,26 @@ export const GET = withTenant(async (request, context) => {
     return apiError("ACADEMY_ID_REQUIRED", "Academy ID is required", 400);
   }
 
+  const scope = await authorizeAcademyCapability({
+    context,
+    resourceTenantId: context.tenantId,
+    academyId,
+    permission: "billing:read",
+  });
+  if (!scope.allowed) return apiError("DISCOUNT_NOT_FOUND", "No se encontraron descuentos", 404);
+
   const items = await db
     .select()
     .from(discounts)
-    .where(and(eq(discounts.academyId, academyId), eq(discounts.tenantId, context.tenantId)));
+    .where(and(eq(discounts.academyId, academyId), eq(discounts.tenantId, context.tenantId)))
+    .limit(500);
 
   return apiSuccess({
     items: items.map((item) => ({
       ...item,
       discountValue: Number(item.discountValue),
-      minAmount: item.minAmount ? Number(item.minAmount) : null,
-      maxDiscount: item.maxDiscount ? Number(item.maxDiscount) : null,
+      minAmount: item.minAmount !== null ? Number(item.minAmount) : null,
+      maxDiscount: item.maxDiscount !== null ? Number(item.maxDiscount) : null,
       currentUses: Number(item.currentUses),
     })),
   });
@@ -64,6 +74,14 @@ export const POST = withTenant(async (request, context) => {
 
   const body = createSchema.parse(await request.json());
 
+  const scope = await authorizeAcademyCapability({
+    context,
+    resourceTenantId: context.tenantId,
+    academyId: body.academyId,
+    permission: "billing:create",
+  });
+  if (!scope.allowed) return apiError("FORBIDDEN", "No tienes permisos para crear descuentos", 403);
+
   // Verificar que el código no esté duplicado
   if (body.code) {
     const [existing] = await db
@@ -72,6 +90,7 @@ export const POST = withTenant(async (request, context) => {
       .where(
         and(
           eq(discounts.academyId, body.academyId),
+          eq(discounts.tenantId, context.tenantId),
           eq(discounts.code, body.code)
         )
       )
@@ -105,4 +124,3 @@ export const POST = withTenant(async (request, context) => {
 
   return apiSuccess({ ok: true, id: newDiscount.id });
 });
-

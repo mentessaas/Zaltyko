@@ -24,8 +24,8 @@ async function canAccess(
   ticket: NonNullable<Awaited<ReturnType<typeof getTicket>>>,
   context: SupportContext
 ) {
-  if (context.profile.role === "super_admin" || ticket.createdBy === context.profile.id) return true;
-  if (!ticket.academyId) return false;
+  if (context.profile.role === "super_admin") return true;
+  if (!ticket.academyId) return ticket.createdBy === context.profile.id;
   const result = await verifyAcademyAccessForProfile({
     academyId: ticket.academyId,
     tenantId: context.tenantId,
@@ -60,7 +60,8 @@ export const GET = withTenant(async (_request, context) => {
         context.profile.role === "super_admin" ? undefined : eq(ticketResponses.isInternal, false),
       ),
     )
-    .orderBy(asc(ticketResponses.createdAt));
+    .orderBy(asc(ticketResponses.createdAt))
+    .limit(1000);
 
   return apiSuccess(responses);
 });

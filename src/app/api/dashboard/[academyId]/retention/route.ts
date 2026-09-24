@@ -46,7 +46,8 @@ export const GET = withTenant(async (_request, context) => {
         deletedAt: athletes.deletedAt,
       })
       .from(athletes)
-      .where(and(eq(athletes.academyId, academyId), eq(athletes.tenantId, context.tenantId)));
+      .where(and(eq(athletes.academyId, academyId), eq(athletes.tenantId, context.tenantId)))
+      .limit(10000);
 
     const totalAthletes = allAthletes.filter((athlete) => !athlete.deletedAt).length;
     const activeAthletes = allAthletes.filter((athlete) => !athlete.deletedAt && athlete.status === "active").length;

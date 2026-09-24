@@ -12,6 +12,8 @@ import { useToast } from "@/components/ui/toast-provider";
 import { ConfirmDialog } from "@/components/ui/confirm-dialog";
 import { SuperAdminCreateUserDialog } from "./SuperAdminCreateUserDialog";
 import { logger } from "@/lib/logger";
+import { formatSuperAdminDate } from "@/lib/super-admin-date";
+import { getProductPlanPublicName } from "@/lib/plans/catalog";
 
 const ROLE_OPTIONS = ["owner", "admin", "coach", "athlete", "parent", "super_admin"] as const;
 
@@ -332,14 +334,14 @@ export function SuperAdminUsersTable({ initialItems }: SuperAdminUsersTableProps
 
       <div className="w-full overflow-hidden rounded-xl border border-white/10 bg-white/5 shadow-md sm:rounded-2xl">
         <div className="w-full overflow-x-auto">
-          <table className="min-w-full divide-y divide-white/10 text-sm">
+          <table className="w-full min-w-[760px] table-fixed divide-y divide-white/10 text-sm">
             <thead className="bg-white/10 font-display text-xs uppercase tracking-wide text-white">
               <tr>
-                <th className="px-3 py-3 text-left font-semibold sm:px-4">Usuario</th>
-                <th className="px-3 py-3 text-left font-semibold sm:px-4">Rol</th>
-                <th className="px-3 py-3 text-left font-semibold sm:px-4">Estado</th>
-                <th className="hidden px-3 py-3 text-left font-semibold sm:table-cell sm:px-4">Plan</th>
-                <th className="px-3 py-3 text-right font-semibold sm:px-4">Acciones</th>
+                <th className="w-[28%] px-3 py-3 text-left font-semibold sm:px-4">Usuario</th>
+                <th className="w-[18%] px-3 py-3 text-left font-semibold sm:px-4">Rol</th>
+                <th className="w-[16%] px-3 py-3 text-left font-semibold sm:px-4">Estado</th>
+                <th className="hidden w-[14%] px-3 py-3 text-left font-semibold sm:table-cell sm:px-4">Plan</th>
+                <th className="w-[24%] px-3 py-3 text-right font-semibold sm:px-4">Acciones</th>
               </tr>
             </thead>
             <tbody className="divide-y divide-white/10 text-white">
@@ -359,19 +361,17 @@ export function SuperAdminUsersTable({ initialItems }: SuperAdminUsersTableProps
                   router.push(`/super-admin/users/${user.id}`);
                 }}
               >
-                <td className="px-4 py-4">
-                  <div className="space-y-1">
-                    <p className="font-semibold text-white">{user.fullName ?? "Sin nombre"}</p>
-                    <p className="text-xs text-white/70">{user.email ?? "Sin correo"}</p>
+                <td className="min-w-0 px-4 py-4">
+                  <div className="min-w-0 space-y-1">
+                    <p className="truncate font-semibold text-white">{user.fullName ?? "Sin nombre"}</p>
+                    <p className="truncate text-xs text-white/70">{user.email ?? "Sin correo"}</p>
                     <p className="text-xs text-white/50">
                       Registrado:{" "}
-                      {user.createdAt
-                        ? new Date(user.createdAt).toLocaleDateString("es-ES")
-                        : "—"}
+                      {formatSuperAdminDate(user.createdAt) ?? "—"}
                     </p>
                   </div>
                 </td>
-                <td className="px-4 py-4">
+                <td className="px-4 py-4 align-top">
                   <select
                     className="rounded-lg border border-white/20 bg-white/10 px-2 py-1 text-xs font-semibold uppercase tracking-wide text-white focus:border-white/40 focus:outline-none"
                     value={user.role ?? ""}
@@ -392,7 +392,7 @@ export function SuperAdminUsersTable({ initialItems }: SuperAdminUsersTableProps
                     ))}
                   </select>
                 </td>
-                <td className="px-4 py-4">
+                <td className="px-4 py-4 align-top">
                   <span
                     className={cn(
                       "inline-flex items-center gap-2 rounded-full px-2.5 py-1 text-xs font-semibold uppercase tracking-wide",
@@ -405,17 +405,17 @@ export function SuperAdminUsersTable({ initialItems }: SuperAdminUsersTableProps
                     {user.isSuspended ? "Suspendido" : "Activo"}
                   </span>
                 </td>
-                <td className="px-4 py-4">
+                <td className="hidden px-4 py-4 align-top sm:table-cell">
                   {user.planCode ? (
                     <span className="inline-flex rounded-full bg-zaltyko-primary/15 px-2.5 py-1 text-xs font-semibold uppercase tracking-wide text-zaltyko-primary-light">
-                      {user.planCode}
+                      {getProductPlanPublicName(user.planCode)}
                     </span>
                   ) : (
                     <span className="text-xs text-white/50">Sin plan</span>
                   )}
                 </td>
-                <td className="px-4 py-4 text-right">
-                  <div className="flex items-center justify-end gap-2">
+                <td className="px-3 py-4 text-right sm:px-4">
+                  <div className="flex flex-wrap items-center justify-end gap-2">
                     <Button
                       variant="outline"
                       size="sm"

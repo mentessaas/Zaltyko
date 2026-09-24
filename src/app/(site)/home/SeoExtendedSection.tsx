@@ -49,7 +49,7 @@ export default function SeoExtendedSection() {
             {painPoints.map((point, index) => (
               <div 
                 key={index}
-                className="grid md:grid-cols-[1fr,auto,1fr] gap-4 items-center p-4 rounded-xl bg-white border border-zaltyko-border"
+                className="grid md:grid-cols-[1fr,auto,1fr] gap-4 items-center p-4 rounded-xl bg-white dark:bg-card border border-zaltyko-border dark:border-border"
               >
                 <div className="flex items-center gap-3">
                   <span className="flex-shrink-0 w-6 h-6 rounded-full bg-zaltyko-teal/10 text-zaltyko-coral flex items-center justify-center text-xs font-bold">✗</span>
@@ -74,7 +74,7 @@ export default function SeoExtendedSection() {
               "shadow-soft hover:shadow-medium"
             )}
           >
-            Crea tu academia gratis
+            Crear cuenta y configurar academia
             <ArrowRight className="ml-2 h-5 w-5" />
           </Link>
           <p className="mt-3 text-sm text-zaltyko-text-secondary">

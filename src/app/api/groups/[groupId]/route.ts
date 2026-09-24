@@ -1,17 +1,17 @@
 import { apiError, apiSuccess } from "@/lib/api-response";
-import { and, eq, inArray } from "drizzle-orm";
+import { and, eq, inArray, isNull } from "drizzle-orm";
 import { z } from "zod";
 
 import { db } from "@/db";
 import {
-  academies,
   athletes,
   coaches,
   groupAthletes,
   groups,
 } from "@/db/schema";
 import { TenantContext, withTenant } from "@/lib/authz";
-import { rateLimit, getUserIdentifier, withRateLimit } from "@/lib/rate-limit";
+import { authorizeAcademyCapability } from "@/lib/authz/resource-scope";
+import { getUserIdentifier, withRateLimit } from "@/lib/rate-limit";
 import { NextResponse } from "next/server";
 import { verifyAcademySportConfig } from "@/lib/sport-config/service";
 import { isProgramCodeAllowed, normalizeApparatusCodes } from "@/lib/sport-config/validation";
@@ -22,7 +22,7 @@ type RouteContext = TenantContext<{ params?: { groupId?: string } }>;
 const DISCIPLINES = ["artistica", "ritmica", "general"] as const;
 
 const GroupUpdateSchema = z.object({
-  name: z.string().min(1).optional(),
+  name: z.string().trim().min(1).max(120).optional(),
   discipline: z.enum(DISCIPLINES).optional(),
   sportConfigId: z.string().uuid().nullable().optional(),
   programCode: z.string().trim().min(1).max(80).nullable().optional(),
@@ -62,21 +62,21 @@ const patchGroupHandler = withTenant(async (request, context: RouteContext) => {
       assistantIds: groups.assistantIds,
     })
     .from(groups)
-    .where(eq(groups.id, groupId))
+    .where(and(eq(groups.id, groupId), isNull(groups.deletedAt)))
     .limit(1);
 
   if (!group) {
     return apiError("GROUP_NOT_FOUND", "Group not found", 404);
   }
 
-  const role = context.profile.role;
-  const isElevated = role === "super_admin" || role === "admin" || role === "owner";
+  const scope = await authorizeAcademyCapability({
+    context,
+    resourceTenantId: group.tenantId,
+    academyId: group.academyId,
+    permission: "classes:update",
+  });
 
-  if (!isElevated) {
-    return apiError("FORBIDDEN", "Access denied", 403);
-  }
-
-  if (role !== "super_admin" && group.tenantId !== context.tenantId) {
+  if (!scope.allowed) {
     return apiError("FORBIDDEN", "Access denied", 403);
   }
 
@@ -122,7 +122,8 @@ const patchGroupHandler = withTenant(async (request, context: RouteContext) => {
     const assistantRows = await db
       .select({ id: coaches.id })
       .from(coaches)
-      .where(and(eq(coaches.academyId, group.academyId), inArray(coaches.id, assistantIds)));
+      .where(and(eq(coaches.academyId, group.academyId), inArray(coaches.id, assistantIds)))
+      .limit(100);
 
     if (assistantRows.length !== assistantIds.length) {
       return apiError("ASSISTANT_NOT_FOUND", "Assistant not found", 404);
@@ -161,7 +162,8 @@ const patchGroupHandler = withTenant(async (request, context: RouteContext) => {
           eq(athletes.tenantId, group.tenantId),
           inArray(athletes.id, athleteIds)
         )
-      );
+      )
+      .limit(5000);
 
     if (athleteRows.length !== athleteIds.length) {
       return apiError("ATHLETE_NOT_FOUND", "Athlete not found", 404);
@@ -205,7 +207,8 @@ const patchGroupHandler = withTenant(async (request, context: RouteContext) => {
       const current = await tx
         .select({ athleteId: groupAthletes.athleteId })
         .from(groupAthletes)
-        .where(eq(groupAthletes.groupId, groupId));
+        .where(eq(groupAthletes.groupId, groupId))
+        .limit(5000);
       const currentIds = current.map((row) => row.athleteId);
 
       const toAdd = athleteIds.filter((id) => !currentIds.includes(id));
@@ -275,21 +278,21 @@ const deleteGroupHandler = withTenant(async (request, context: RouteContext) => 
       academyId: groups.academyId,
     })
     .from(groups)
-    .where(eq(groups.id, groupId))
+    .where(and(eq(groups.id, groupId), isNull(groups.deletedAt)))
     .limit(1);
 
   if (!group) {
     return apiError("GROUP_NOT_FOUND", "Group not found", 404);
   }
 
-  const role = context.profile.role;
-  const isElevated = role === "super_admin" || role === "admin" || role === "owner";
+  const scope = await authorizeAcademyCapability({
+    context,
+    resourceTenantId: group.tenantId,
+    academyId: group.academyId,
+    permission: "classes:delete",
+  });
 
-  if (!isElevated) {
-    return apiError("FORBIDDEN", "Access denied", 403);
-  }
-
-  if (role !== "super_admin" && group.tenantId !== context.tenantId) {
+  if (!scope.allowed) {
     return apiError("FORBIDDEN", "Access denied", 403);
   }
 

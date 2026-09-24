@@ -157,7 +157,8 @@ export const POST = withTenant(async (request, context) => {
           isNull(athletes.deletedAt),
           isNull(athletes.primarySportConfigId),
           ...(idFilter ? [inArray(athletes.id, idFilter)] : [])
-        ));
+        ))
+        .limit(10000);
 
       const ids = rows.map((row) => row.id);
       if (ids.length > 0) {
@@ -190,7 +191,8 @@ export const POST = withTenant(async (request, context) => {
           isNull(groups.deletedAt),
           isNull(groups.sportConfigId),
           ...(idFilter ? [inArray(groups.id, idFilter)] : [])
-        ));
+        ))
+        .limit(10000);
       const ids = rows.map((row) => row.id);
       if (ids.length > 0) {
         await db
@@ -215,7 +217,8 @@ export const POST = withTenant(async (request, context) => {
               and csc.tenant_id = ${academy.tenantId}
           )`,
           ...(idFilter ? [inArray(coaches.id, idFilter)] : [])
-        ));
+        ))
+        .limit(10000);
       const ids = rows.map((row) => row.id);
       if (ids.length > 0) {
         await db
@@ -239,7 +242,8 @@ export const POST = withTenant(async (request, context) => {
         isNull(classes.deletedAt),
         isNull(classes.sportConfigId),
         ...(idFilter ? [inArray(classes.id, idFilter)] : [])
-      ));
+      ))
+      .limit(10000);
     const ids = rows.map((row) => row.id);
     if (ids.length > 0) {
       await db

@@ -4,6 +4,7 @@ import { withTenant } from "@/lib/authz";
 import { getMessageTemplates, createMessageTemplate } from "@/lib/communication-service";
 import { logger } from "@/lib/logger";
 import { verifyAcademySportConfig } from "@/lib/sport-config/service";
+import { authorizeAcademyCapability } from "@/lib/authz/resource-scope";
 
 export const dynamic = 'force-dynamic';
 
@@ -18,8 +19,8 @@ const createTemplateSchema = z.object({
   channel: z.enum(["whatsapp", "email", "push", "in_app"]).default("whatsapp"),
   templateType: z.string().min(1).max(100),
   subject: z.string().max(200).nullable().optional(),
-  body: z.string().min(1),
-  variables: z.array(z.string()).nullable().optional(),
+  body: z.string().trim().min(1).max(20000),
+  variables: z.array(z.string().trim().min(1).max(80)).max(50).nullable().optional(),
   isSystem: z.boolean().default(false),
   isActive: z.boolean().default(true),
 });
@@ -39,6 +40,8 @@ export const GET = withTenant(async (request, context) => {
   if (!params.success) {
     return apiError("VALIDATION_ERROR", "Validation failed", 400);
   }
+  const readScope = await authorizeAcademyCapability({ context, resourceTenantId: context.tenantId, academyId: params.data.academyId, permission: "communications:read" });
+  if (!readScope.allowed) return apiError("FORBIDDEN", "No tienes acceso a esta academia", 403);
 
   if (params.data.sportConfigId && params.data.academyId) {
     const verifiedConfig = await verifyAcademySportConfig({
@@ -87,6 +90,8 @@ export const POST = withTenant(async (request, context) => {
   try {
     const body = await request.json();
     const validated = createTemplateSchema.parse(body);
+    const scope = await authorizeAcademyCapability({ context, resourceTenantId: context.tenantId, academyId: validated.academyId, permission: "communications:templates" });
+    if (!scope.allowed) return apiError("FORBIDDEN", "No tienes acceso a esta academia", 403);
     const { academyId, sportConfigId, ...templateData } = validated;
 
     if (sportConfigId) {

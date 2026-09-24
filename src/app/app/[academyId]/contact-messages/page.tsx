@@ -48,7 +48,8 @@ export default async function ContactMessagesPage({ params }: PageProps) {
     .select()
     .from(contactMessages)
     .where(eq(contactMessages.academyId, academyId))
-    .orderBy(desc(contactMessages.createdAt));
+    .orderBy(desc(contactMessages.createdAt))
+    .limit(1000);
 
   return (
     <div className="space-y-6 py-6 lg:py-8">

@@ -40,8 +40,9 @@ export default function AthleteOnboardingPage() {
     try {
       const res = await fetch("/api/onboarding/athlete-academies");
       if (res.ok) {
-        const data = await res.json();
-        setAcademies(data.academies ?? []);
+        const payload = await res.json();
+        const data = payload?.data ?? payload;
+        setAcademies(data?.academies ?? []);
       }
     } catch {
       setAcademies([]);
@@ -57,7 +58,7 @@ export default function AthleteOnboardingPage() {
       const { data: { user } } = await supabase.auth.getUser();
       if (!user) throw new Error("No user");
 
-      await fetch("/api/onboarding/profile", {
+      const profileResponse = await fetch("/api/onboarding/profile", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
@@ -65,6 +66,10 @@ export default function AthleteOnboardingPage() {
           role: "athlete",
         }),
       });
+      if (!profileResponse.ok) {
+        const payload = await profileResponse.json().catch(() => null);
+        throw new Error(payload?.message ?? "No se pudo guardar tu perfil. Inténtalo de nuevo.");
+      }
 
       setStep("done");
       setTimeout(() => {
@@ -86,7 +91,7 @@ export default function AthleteOnboardingPage() {
   }
 
   return (
-    <div className="flex min-h-screen items-center justify-center bg-zaltyko-white p-4">
+    <div className="flex min-h-screen items-center justify-center bg-background p-4">
       <div className="w-full max-w-lg">
         {/* Logo */}
         <div className="mb-8 text-center">
@@ -110,7 +115,7 @@ export default function AthleteOnboardingPage() {
                 <div className="mx-auto mb-4 flex h-16 w-16 items-center justify-center rounded-full bg-zaltyko-primary-ultralight">
                   <User className="h-8 w-8 text-zaltyko-teal" />
                 </div>
-                <h1 className="text-2xl font-bold text-zaltyko-navy">Bienvenido/a, gimnasta</h1>
+                <h1 className="text-2xl font-bold text-foreground">Bienvenido/a, gimnasta</h1>
                 <p className="text-muted-foreground">
                   Con tu cuenta personal podrás consultar tu calendario de entrenos,
                   ver tu progreso y compartirlo con tu familia.
@@ -118,21 +123,21 @@ export default function AthleteOnboardingPage() {
               </div>
 
               <div className="space-y-3">
-                <div className="flex items-start gap-3 rounded-card bg-zaltyko-white p-3">
+                <div className="flex items-start gap-3 rounded-card bg-card p-3">
                   <Calendar className="h-5 w-5 mt-0.5 text-zaltyko-teal" />
                   <div>
                     <p className="font-medium text-sm">Tu calendario</p>
                     <p className="text-xs text-muted-foreground">Consulta horarios y eventos de entreno</p>
                   </div>
                 </div>
-                <div className="flex items-start gap-3 rounded-card bg-zaltyko-white p-3">
+                <div className="flex items-start gap-3 rounded-card bg-card p-3">
                   <BarChart3 className="h-5 w-5 mt-0.5 text-zaltyko-teal" />
                   <div>
                     <p className="font-medium text-sm">Tu progreso</p>
                     <p className="text-xs text-muted-foreground">Historial de evaluaciones técnicas</p>
                   </div>
                 </div>
-                <div className="flex items-start gap-3 rounded-card bg-zaltyko-white p-3">
+                <div className="flex items-start gap-3 rounded-card bg-card p-3">
                   <User className="h-5 w-5 mt-0.5 text-zaltyko-teal" />
                   <div>
                     <p className="font-medium text-sm">Comparte con tu familia</p>
@@ -154,7 +159,7 @@ export default function AthleteOnboardingPage() {
           <Card className="rounded-card border-zaltyko-mist shadow-soft">
             <CardContent className="p-8 space-y-4">
               <div className="text-center">
-                <h2 className="text-xl font-bold text-zaltyko-navy">Tu academia</h2>
+                <h2 className="text-xl font-bold text-foreground">Tu academia</h2>
                 <p className="text-sm text-muted-foreground mt-1">
                   Has sido invitado/a a las siguientes academias.
                 </p>
@@ -173,7 +178,7 @@ export default function AthleteOnboardingPage() {
                   {academies.map((academy) => (
                     <div
                       key={academy.id}
-                      className="flex items-center justify-between rounded-card border border-zaltyko-mist bg-zaltyko-white p-3"
+                      className="flex items-center justify-between rounded-card border border-zaltyko-mist bg-card p-3"
                     >
                       <div>
                         <p className="font-medium">{academy.name}</p>
@@ -202,7 +207,7 @@ export default function AthleteOnboardingPage() {
           <Card className="rounded-card border-zaltyko-mist shadow-soft">
             <CardContent className="p-8 space-y-4">
               <div className="text-center">
-                <h2 className="text-xl font-bold text-zaltyko-navy">Tu perfil</h2>
+                <h2 className="text-xl font-bold text-foreground">Tu perfil</h2>
                 <p className="text-sm text-muted-foreground mt-1">
                   Completa tu perfil de gimnasta (opcional).
                 </p>
@@ -264,7 +269,7 @@ export default function AthleteOnboardingPage() {
               <div className="mx-auto flex h-16 w-16 items-center justify-center rounded-full bg-zaltyko-primary-ultralight">
                 <CheckCircle2 className="h-8 w-8 text-zaltyko-teal" />
               </div>
-              <h2 className="text-xl font-bold text-zaltyko-navy">¡Listo!</h2>
+              <h2 className="text-xl font-bold text-foreground">¡Listo!</h2>
               <p className="text-sm text-muted-foreground">
                 Perfil guardado. Redirigiendo a tu dashboard...
               </p>

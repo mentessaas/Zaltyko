@@ -13,7 +13,7 @@ const faqs = [
   },
   {
     question: "¿Cuánto cuesta Zaltyko?",
-    answer: "Free es gratis hasta 30 gimnastas y 1 academia. Starter cuesta 19€/mes (hasta 75 gimnastas), Growth 49€/mes (hasta 200 gimnastas) y Network, para academias multi-sede, tiene onboarding acompañado y precio a medida. Puedes ver el detalle completo en la página de planes.",
+    answer: "Free es gratis hasta 30 gimnastas y 1 academia. Starter cuesta 19€/mes (hasta 75 gimnastas), Growth 49€/mes (hasta 200 gimnastas) y Network parte de 99€/mes para academias multi-sede, con onboarding acompañado y propuesta final según sedes y necesidades. Puedes ver el detalle completo en la página de planes.",
   },
   {
     question: "¿Cuánto tiempo tarda en configurarse?",
@@ -49,7 +49,7 @@ export default function FaqSection() {
   const [openIndex, setOpenIndex] = useState<number | null>(1);
 
   return (
-    <section className="py-24 bg-white relative overflow-hidden">
+    <section className="py-24 bg-white dark:bg-background relative overflow-hidden">
       {/* Background accent */}
       <div className="absolute top-0 left-0 w-full h-1 bg-gradient-to-r from-zaltyko-white via-zaltyko-indigo to-zaltyko-teal" />
 
@@ -59,10 +59,10 @@ export default function FaqSection() {
           <span className="inline-block px-4 py-1.5 bg-zaltyko-teal/10 text-zaltyko-indigo text-sm font-semibold rounded-full mb-4">
             Preguntas Frecuentes
           </span>
-          <h2 className="text-4xl sm:text-5xl font-bold text-gray-900 mb-4">
+          <h2 className="text-4xl sm:text-5xl font-bold text-gray-900 dark:text-foreground mb-4">
             Resolvemos tus dudas
           </h2>
-          <p className="text-xl text-gray-600">
+          <p className="text-xl text-gray-600 dark:text-muted-foreground">
             Todo lo que necesitas saber antes de empezar
           </p>
         </div>
@@ -76,7 +76,7 @@ export default function FaqSection() {
                   "rounded-2xl border transition-all duration-200",
                   openIndex === i
                     ? "border-zaltyko-teal/30 bg-zaltyko-teal/5 shadow-soft"
-                    : "border-gray-200 bg-white hover:border-gray-300"
+                    : "border-gray-200 bg-white hover:border-gray-300 dark:border-border dark:bg-card dark:hover:border-zaltyko-teal/40"
                 )}
               >
               <button
@@ -86,13 +86,13 @@ export default function FaqSection() {
               >
                 <span className={cn(
                   "font-semibold text-base pr-4 transition-colors",
-                  openIndex === i ? "text-zaltyko-indigo" : "text-gray-900"
+                  openIndex === i ? "text-zaltyko-indigo dark:text-zaltyko-teal" : "text-gray-900 dark:text-foreground"
                 )}>
                   {faq.question}
                 </span>
                 <ChevronDown
                   className={cn(
-                    "h-5 w-5 text-gray-600 shrink-0 transition-transform duration-200",
+                    "h-5 w-5 text-gray-600 dark:text-muted-foreground shrink-0 transition-transform duration-200",
                     openIndex === i && "rotate-180 text-zaltyko-coral"
                   )}
                 />
@@ -100,7 +100,7 @@ export default function FaqSection() {
 
               {openIndex === i && (
                 <div className="px-6 pb-5">
-                  <p className="text-gray-600 leading-relaxed">
+                  <p className="text-gray-600 dark:text-muted-foreground leading-relaxed">
                     {faq.answer}
                   </p>
                 </div>
@@ -112,10 +112,10 @@ export default function FaqSection() {
 
         {/* Ver pricing */}
         <div className="mt-8 text-center">
-          <p className="text-gray-500 mb-3 text-sm">¿Listo para empezar?</p>
+          <p className="text-gray-500 dark:text-muted-foreground mb-3 text-sm">¿Listo para empezar?</p>
           <Link
             href="/pricing#planes"
-            className="inline-flex items-center gap-2 bg-zaltyko-teal hover:bg-primary-dark text-white font-semibold px-6 py-3 rounded-xl transition-colors text-sm"
+            className="inline-flex items-center gap-2 bg-zaltyko-teal hover:bg-zaltyko-primary-dark text-white font-semibold px-6 py-3 rounded-xl transition-colors text-sm"
           >
             Ver planes y precios
           </Link>
@@ -123,7 +123,7 @@ export default function FaqSection() {
 
         {/* Still have questions */}
         <div className="mt-12 text-center surface-subtle rounded-2xl p-8 border border-border">
-          <p className="text-gray-600 mb-3">¿Aún tienes preguntas?</p>
+          <p className="text-gray-600 dark:text-muted-foreground mb-3">¿Aún tienes preguntas?</p>
           <a
             href="mailto:hola@zaltyko.com"
             className="text-zaltyko-teal font-semibold hover:text-zaltyko-indigo transition-colors"

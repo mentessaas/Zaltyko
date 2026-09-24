@@ -1,6 +1,7 @@
 import type { Metadata } from "next";
 import Navbar from "@/app/(site)/Navbar";
 import Footer from "@/app/(site)/Footer";
+import StatusLivePanel from "./StatusLivePanel";
 import { getPublicSiteUrl } from "@/lib/seo/site-url";
 
 const baseUrl = getPublicSiteUrl();
@@ -16,32 +17,20 @@ export default function StatusPage() {
   return (
     <div className="min-h-screen flex flex-col bg-background">
       <Navbar />
-      <main className="flex-1">
+      <main className="flex-1 pt-20">
         <section className="py-20">
           <div className="mx-auto max-w-3xl px-4 text-center sm:px-6 lg:px-8">
             <span className="font-display text-xs uppercase tracking-[0.35em] text-zaltyko-accent">
               Estado
             </span>
             <h1 className="mt-4 font-display text-3xl font-semibold text-foreground sm:text-4xl">
-              Todos los sistemas operativos
+              Estado del servicio
             </h1>
             <p className="mt-4 text-base text-muted-foreground">
-              Zaltyko funciona con normalidad. Si detectas una incidencia, contacta con soporte.
+              Consulta las señales verificables de Zaltyko en tiempo real. Si detectas una incidencia,
+              contacta con soporte.
             </p>
-            <div className="mt-8 flex flex-wrap justify-center gap-4">
-              <div className="rounded-lg border bg-card px-6 py-4 text-left">
-                <p className="text-sm font-semibold text-foreground">API</p>
-                <p className="text-xs text-emerald-600">Operativo</p>
-              </div>
-              <div className="rounded-lg border bg-card px-6 py-4 text-left">
-                <p className="text-sm font-semibold text-foreground">Auth</p>
-                <p className="text-xs text-emerald-600">Operativo</p>
-              </div>
-              <div className="rounded-lg border bg-card px-6 py-4 text-left">
-                <p className="text-sm font-semibold text-foreground">Pagos</p>
-                <p className="text-xs text-emerald-600">Operativo</p>
-              </div>
-            </div>
+            <StatusLivePanel />
           </div>
         </section>
       </main>

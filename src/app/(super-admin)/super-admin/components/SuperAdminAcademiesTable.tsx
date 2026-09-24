@@ -14,6 +14,8 @@ import { ConfirmDialog } from "@/components/ui/confirm-dialog";
 import { formatAcademyType } from "@/lib/formatters";
 import { SuperAdminCreateAcademyDialog } from "./SuperAdminCreateAcademyDialog";
 import { logger } from "@/lib/logger";
+import { formatSuperAdminDate } from "@/lib/super-admin-date";
+import { getProductPlanPublicName } from "@/lib/plans/catalog";
 
 type SuperAdminAcademyFilters = {
   plan?: string;
@@ -239,7 +241,7 @@ export function SuperAdminAcademiesTable({
             <option value="">Plan (todos)</option>
             {planOptions.map((plan) => (
               <option key={plan} value={plan}>
-                {plan.toUpperCase()}
+                {getProductPlanPublicName(plan)}
               </option>
             ))}
           </select>
@@ -285,14 +287,15 @@ export function SuperAdminAcademiesTable({
       </div>
 
       <div className="overflow-hidden rounded-2xl border border-white/10 bg-white/5">
-        <table className="min-w-full divide-y divide-white/10 text-sm">
+        <div className="overflow-x-auto">
+        <table className="w-full min-w-[820px] table-fixed divide-y divide-white/10 text-sm">
           <thead className="bg-white/10 font-display text-xs uppercase tracking-wide text-white">
             <tr>
-              <th className="px-4 py-3 text-left font-semibold">Academia</th>
-              <th className="px-4 py-3 text-left font-semibold">Plan</th>
-              <th className="px-4 py-3 text-left font-semibold">Estado</th>
-              <th className="px-4 py-3 text-left font-semibold">Creación</th>
-              <th className="px-4 py-3 text-right font-semibold">Acciones</th>
+              <th className="w-[28%] px-4 py-3 text-left font-semibold">Academia</th>
+              <th className="w-[14%] px-4 py-3 text-left font-semibold">Plan</th>
+              <th className="w-[14%] px-4 py-3 text-left font-semibold">Estado</th>
+              <th className="w-[14%] px-4 py-3 text-left font-semibold">Creación</th>
+              <th className="w-[30%] px-4 py-3 text-right font-semibold">Acciones</th>
             </tr>
           </thead>
           <tbody className="divide-y divide-white/10 font-sans text-white">
@@ -312,10 +315,10 @@ export function SuperAdminAcademiesTable({
                   router.push(`/super-admin/academies/${academy.id}`);
                 }}
               >
-                <td className="px-4 py-4">
-                  <div className="space-y-1">
-                    <p className="font-semibold text-white">{academy.name ?? "Sin nombre"}</p>
-                    <p className="font-sans text-xs text-white/70">
+                <td className="min-w-0 px-4 py-4">
+                  <div className="min-w-0 space-y-1">
+                    <p className="truncate font-semibold text-white">{academy.name ?? "Sin nombre"}</p>
+                    <p className="truncate font-sans text-xs text-white/70">
                       {academy.country ?? "Sin país"} · {formatAcademyType(academy.academyType)}
                     </p>
                   </div>
@@ -323,9 +326,11 @@ export function SuperAdminAcademiesTable({
                 <td className="px-4 py-4">
                   <div className="space-y-1">
                     <p className="font-semibold uppercase text-white">
-                      {academy.planCode ?? "Sin plan"}
+                      {academy.planCode ? getProductPlanPublicName(academy.planCode, academy.planNickname) : "Sin plan"}
                     </p>
-                    <p className="font-sans text-xs text-white/70">{academy.planNickname ?? "—"}</p>
+                    <p className="font-sans text-xs text-white/70">
+                      {academy.planCode ? "Catálogo vigente" : "—"}
+                    </p>
                   </div>
                 </td>
                 <td className="px-4 py-4">
@@ -341,12 +346,18 @@ export function SuperAdminAcademiesTable({
                   </span>
                 </td>
                 <td className="px-4 py-4 font-sans text-xs text-white/70">
-                  {academy.createdAt
-                    ? new Date(academy.createdAt).toLocaleDateString("es-ES")
-                    : "—"}
+                  {formatSuperAdminDate(academy.createdAt) ?? "—"}
                 </td>
                 <td className="px-4 py-4 text-right">
-                  <div className="flex justify-end gap-2">
+                  <div className="flex flex-wrap justify-end gap-2">
+                    <Link
+                      href={`/super-admin/academies/${academy.id}`}
+                      onClick={(event) => event.stopPropagation()}
+                      className="inline-flex min-h-9 items-center rounded-lg border border-white/20 bg-white/5 px-3 py-2 text-xs font-semibold text-white transition hover:border-white/40 hover:bg-white/10 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-white/70"
+                      aria-label={`Ver detalle de ${academy.name ?? "la academia"}`}
+                    >
+                      Ver detalle
+                    </Link>
                     <Button
                       variant="outline"
                       size="sm"
@@ -402,14 +413,15 @@ export function SuperAdminAcademiesTable({
             ))}
           </tbody>
         </table>
+        </div>
       </div>
 
       <p className="font-sans text-xs text-white/50">
-        ¿Necesitas editar detalles avanzados de una academia? Abre su panel operativo desde{" "}
+        Selecciona <span className="font-semibold text-white/70">Ver detalle</span> para revisar la operación, miembros y configuración de una academia.
+        Para cambios operativos avanzados también puedes abrir el{" "}
         <Link href="/dashboard/academies" className="font-semibold text-zaltyko-primary-light hover:underline">
           panel de academias
-        </Link>{" "}
-        mientras desarrollamos la delegación directa.
+        </Link>.
       </p>
 
       {pendingAction && (

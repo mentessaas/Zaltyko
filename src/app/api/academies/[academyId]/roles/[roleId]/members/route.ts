@@ -8,6 +8,7 @@ import { withTenant } from "@/lib/authz";
 import {
   assignRoleToUser,
   getRoleMembers,
+  getUserPermissions,
   removeRoleFromUser,
 } from "@/lib/authz/permissions-service";
 import { getBillingAcademyAccess } from "@/lib/billing/access";
@@ -20,6 +21,10 @@ const PermissionSchema = z.enum(permissionEnum.enumValues);
 const AssignSchema = z.object({
   userId: z.string().uuid(),
   customPermissions: z.array(PermissionSchema).max(permissionEnum.enumValues.length).optional(),
+  expiresAt: z.coerce.date().nullable().optional(),
+}).refine((value) => !value.expiresAt || value.expiresAt > new Date(), {
+  message: "La fecha de expiración debe ser futura",
+  path: ["expiresAt"],
 });
 const RemoveSchema = z.object({ userId: z.string().uuid() });
 
@@ -31,13 +36,14 @@ function ids(context: Record<string, unknown>) {
 async function authorize(
   academyId: string,
   roleId: string,
-  context: { userId: string; profile: { id: string; role: string } }
+  context: { userId: string; profile: { id: string; role: string; tenantId: string | null } }
 ) {
   const access = await getBillingAcademyAccess({
     academyId,
     userId: context.userId,
     profileId: context.profile.id,
     profileRole: context.profile.role,
+    tenantId: context.profile.tenantId ?? undefined,
   });
   if (!access) return null;
   const [role] = await db
@@ -75,13 +81,25 @@ export const POST = withTenant(async (request, context) => {
     return apiError("MEMBERSHIP_REQUIRED", "La persona debe ser miembro de la academia", 409);
   }
 
+  const effective = await getUserPermissions(context.userId, academyId);
+  if (!effective.isOwner && (parsed.data.customPermissions ?? []).some(
+    (permission) => !effective.permissions.includes(permission)
+  )) {
+    return apiError(
+      "PERMISSION_ESCALATION",
+      "No puedes conceder permisos que no tienes en esta academia",
+      403
+    );
+  }
+
   const member = await assignRoleToUser(
     parsed.data.userId,
     roleId,
     academyId,
     membership.role,
     context.profile.id,
-    parsed.data.customPermissions
+    parsed.data.customPermissions,
+    parsed.data.expiresAt
   );
   return apiCreated(member);
 });

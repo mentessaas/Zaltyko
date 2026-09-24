@@ -6,6 +6,7 @@ import { createClient } from "@/lib/supabase/server";
 import { resolveFamilyChargeAccess } from "@/lib/family/payment-access";
 import { collectCharge } from "@/lib/stripe/charge-collection-service";
 import { logger } from "@/lib/logger";
+import { z } from "zod";
 
 export const dynamic = "force-dynamic";
 
@@ -25,7 +26,6 @@ export async function POST(request: Request) {
     if (!chargeId) {
       return apiError("CHARGE_ID_REQUIRED", "Falta el identificador del cargo.", 400);
     }
-
     const cookieStore = await cookies();
     const supabase = await createClient(cookieStore);
     const {
@@ -33,6 +33,9 @@ export async function POST(request: Request) {
     } = await supabase.auth.getUser();
     if (!user || !user.email) {
       return apiError("UNAUTHORIZED", "Sesión no válida.", 401);
+    }
+    if (!z.string().uuid().safeParse(chargeId).success) {
+      return apiError("INVALID_CHARGE_ID", "Identificador de cargo inválido.", 400);
     }
 
     const charge = await resolveFamilyChargeAccess({ userId: user.id, email: user.email, chargeId });

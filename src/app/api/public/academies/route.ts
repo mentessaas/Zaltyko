@@ -1,4 +1,4 @@
-import { and, asc, desc, eq, ilike, inArray, or, sql } from "drizzle-orm";
+import { and, asc, eq, ilike, inArray, or, sql } from "drizzle-orm";
 import { NextResponse } from "next/server";
 import { z } from "zod";
 
@@ -7,6 +7,7 @@ import { academies } from "@/db/schema";
 import { handleApiError } from "@/lib/api-error-handler";
 import { logger } from "@/lib/logger";
 import { INDEXABLE_ACADEMY_STATUS_VALUES } from "@/lib/seo/academy-indexability";
+import { normalizeCountryCode } from "@/lib/specialization/registry";
 
 // Forzar ruta dinámica
 export const dynamic = 'force-dynamic';
@@ -14,13 +15,13 @@ export const dynamic = 'force-dynamic';
 const ACADEMY_TYPES = ["artistica", "ritmica", "general"] as const;
 
 const QuerySchema = z.object({
-  search: z.string().optional(),
+  search: z.string().trim().max(120).optional(),
   type: z.enum(ACADEMY_TYPES).optional(),
-  country: z.string().optional(),
-  region: z.string().optional(),
-  city: z.string().optional(),
+  country: z.string().trim().max(120).optional(),
+  region: z.string().trim().max(120).optional(),
+  city: z.string().trim().max(120).optional(),
   page: z.coerce.number().int().positive().default(1),
-  limit: z.coerce.number().int().positive().max(1000).default(50),
+  limit: z.coerce.number().int().positive().max(100).default(50),
 });
 
 /**
@@ -38,6 +39,7 @@ const QuerySchema = z.object({
  * - page: Número de página (default: 1)
  * - limit: Tamaño de página (default: 50, max: 1000)
  */
+// @auth-flexible route-guard-reason: public academy discovery endpoint
 export async function GET(request: Request) {
   try {
     const url = new URL(request.url);
@@ -75,10 +77,15 @@ export async function GET(request: Request) {
     }
 
     if (country) {
-      // Normalizar país: puede venir como "es", "ES", "España", etc.
-      // Buscar case-insensitive usando comparación con LOWER
+      // Aceptar tanto código ISO (MX) como nombre legacy (México).
       const normalizedCountry = country.trim().toLowerCase();
-      filters.push(sql`LOWER(TRIM(${academies.country})) = LOWER(TRIM(${normalizedCountry}))`);
+      const normalizedCountryCode = normalizeCountryCode(country);
+      filters.push(
+        or(
+          normalizedCountryCode ? eq(academies.countryCode, normalizedCountryCode) : undefined,
+          sql`LOWER(TRIM(${academies.country})) = LOWER(TRIM(${normalizedCountry}))`
+        )!
+      );
     }
 
     if (region) {

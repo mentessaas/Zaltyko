@@ -30,7 +30,7 @@ const ALL_COUNTRIES = [
 
 export default function ClusterDiscoverySection() {
   return (
-    <section className="py-24 bg-white relative overflow-hidden">
+    <section className="relative overflow-hidden bg-white py-24 dark:bg-background">
       {/* Background gradient */}
       <div className="absolute inset-0 bg-gradient-to-b from-gray-50 to-white" />
 
@@ -60,7 +60,7 @@ export default function ClusterDiscoverySection() {
                 key={`${cluster.locale}-${cluster.modality}-${cluster.country}`}
                 href={`/${cluster.locale}/${cluster.modality}/${cluster.country}`}
                 aria-label={`${cluster.label} en ${cluster.countryLabel}`}
-                className="group card-hover flex flex-col items-center p-6 bg-white rounded-2xl border border-gray-100 hover:border-zaltyko-teal/25"
+                className="group card-hover flex flex-col items-center rounded-2xl border border-gray-100 bg-white p-6 hover:border-zaltyko-teal/25 dark:border-border dark:bg-card"
               >
                 <span aria-hidden="true" className="text-4xl mb-3">{cluster.flag}</span>
                 <span className="text-sm font-medium text-gray-500 mb-1">{cluster.countryLabel}</span>
@@ -73,7 +73,7 @@ export default function ClusterDiscoverySection() {
         </div>
 
         {/* Full matrix - colapsado por defecto para no saturar el scroll */}
-        <details className="group mx-auto max-w-4xl rounded-2xl border border-gray-200 surface-subtle open:bg-white open:shadow-soft transition-colors">
+        <details className="group surface-subtle mx-auto max-w-4xl rounded-2xl border border-gray-200 transition-colors open:bg-white open:shadow-soft dark:border-border dark:open:bg-card">
           <summary className="flex cursor-pointer items-center justify-between gap-3 px-6 py-5 text-left list-none [&::-webkit-details-marker]:hidden">
             <span className="text-lg font-semibold text-gray-900">
               Explorar todas las combinaciones de país y modalidad
@@ -83,7 +83,7 @@ export default function ClusterDiscoverySection() {
               className="h-5 w-5 shrink-0 text-zaltyko-teal transition-transform duration-200 group-open:rotate-180"
             />
           </summary>
-          <div className="border-t border-gray-200 p-6">
+          <div className="border-t border-gray-200 p-6 dark:border-border">
             {/* Countries row */}
             <div className="flex flex-wrap gap-3 mb-6 justify-center">
               {ALL_COUNTRIES.map((country) => (
@@ -91,7 +91,7 @@ export default function ClusterDiscoverySection() {
                   key={country.slug}
                   href={`/es/gimnasia-artistica/${country.slug}`}
                   aria-label={`Gimnasia artística en ${country.label}`}
-                  className="inline-flex items-center gap-2 px-4 py-2 bg-white rounded-full border border-gray-200 text-sm font-medium text-gray-700 hover:border-zaltyko-teal/30 hover:text-zaltyko-teal hover:bg-zaltyko-teal/5 transition-all"
+                  className="inline-flex items-center gap-2 rounded-full border border-gray-200 bg-white px-4 py-2 text-sm font-medium text-gray-700 transition-all hover:border-zaltyko-teal/30 hover:bg-zaltyko-teal/5 hover:text-zaltyko-teal dark:border-border dark:bg-card dark:text-foreground"
                 >
                   <span aria-hidden="true">{country.flag}</span>
                   <span>{country.label}</span>
@@ -104,7 +104,7 @@ export default function ClusterDiscoverySection() {
               {ALL_MODALITIES.map((modality) => (
                 <div
                   key={modality.slug}
-                  className="bg-white rounded-xl p-5 border border-gray-100"
+                  className="rounded-xl border border-gray-100 bg-white p-5 dark:border-border dark:bg-card"
                 >
                   <h4 className="font-semibold text-gray-900 mb-3 flex items-center gap-2">
                     <span aria-hidden="true">{modality.icon}</span>
@@ -146,7 +146,7 @@ export default function ClusterDiscoverySection() {
         <div className="text-center mt-12">
           <Link
             href="/es/gimnasia-artistica/espana"
-            className="inline-flex items-center gap-2 px-8 py-4 bg-zaltyko-teal text-white font-semibold rounded-full hover:bg-primary-dark transition-colors shadow-lg shadow-[0_2px_8px_rgba(15,23,42,0.06)]"
+            className="inline-flex items-center gap-2 px-8 py-4 bg-zaltyko-teal text-white font-semibold rounded-full hover:bg-zaltyko-primary-dark transition-colors shadow-lg shadow-[0_2px_8px_rgba(15,23,42,0.06)]"
           >
             <Globe className="h-5 w-5" />
             Explorar clusters SEO

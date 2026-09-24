@@ -2,13 +2,15 @@ import { apiSuccess, apiError } from "@/lib/api-response";
 import { z } from "zod";
 
 import { withSuperAdmin } from "@/lib/authz";
-import { sendEmail } from "@/lib/brevo";
 import { config } from "@/config";
 import { db } from "@/db";
 import { profiles } from "@/db/schema";
 import { eq } from "drizzle-orm";
 import { getAuthUserEmail } from "@/lib/supabase/admin-operations";
 import { logger } from "@/lib/logger";
+import { createNotification } from "@/lib/notifications/notification-service";
+import { sendEmailWithLogging } from "@/lib/email/email-service";
+import { escapeHtml } from "@/lib/email/escape-html";
 
 const BodySchema = z.object({
   profileId: z.string().uuid(),
@@ -20,13 +22,14 @@ const BodySchema = z.object({
 /** @resource-scope super-admin — withSuperAdmin verifies the global authority. */
 
 export const POST = withSuperAdmin(async (request, context) => {
-  const body = BodySchema.parse(await request.json());
+  const body = BodySchema.safeParse(await request.json().catch(() => null));
+  if (!body.success) return apiError("INVALID_PAYLOAD", "Payload inválido", 400);
 
   // Get target user profile
   const [targetProfile] = await db
     .select()
     .from(profiles)
-    .where(eq(profiles.id, body.profileId))
+    .where(eq(profiles.id, body.data.profileId))
     .limit(1);
 
   if (!targetProfile) {
@@ -39,16 +42,16 @@ export const POST = withSuperAdmin(async (request, context) => {
     return apiError("USER_EMAIL_NOT_FOUND", "User email not found", 400);
   }
 
-  if (body.type === "email") {
+  if (body.data.type === "email") {
     try {
-      await sendEmail({
+      await sendEmailWithLogging({
         to: authEmail,
-        subject: body.subject,
+        subject: body.data.subject,
         html: `
           <div style="font-family: Inter, Arial, sans-serif; max-width: 600px; margin: 0 auto;">
             <h2 style="color: #0D47A1; font-family: Poppins, sans-serif; font-weight: 700;">Mensaje de Zaltyko</h2>
             <div style="background-color: #f9fafb; padding: 20px; border-radius: 8px; margin: 20px 0;">
-              ${body.message.replace(/\n/g, "<br>")}
+              ${escapeHtml(body.data.message).replace(/\n/g, "<br>")}
             </div>
             <p style="color: #6b7280; font-size: 12px;">
               Este mensaje fue enviado por el equipo de soporte de Zaltyko.
@@ -58,8 +61,11 @@ export const POST = withSuperAdmin(async (request, context) => {
             </p>
           </div>
         `,
-        text: body.message,
+        text: body.data.message,
         replyTo: config.brevo.supportEmail,
+        template: "super-admin-message",
+        tenantId: targetProfile.tenantId,
+        userId: targetProfile.id,
       });
 
       return apiSuccess({ ok: true, message: "Correo enviado correctamente" });
@@ -69,7 +75,18 @@ export const POST = withSuperAdmin(async (request, context) => {
     }
   }
 
-  // For notifications, we could store them in a notifications table
-  // For now, we'll just send an email
-  return apiError("NOTIFICATION_TYPE_NOT_IMPLEMENTED", "Notification type not implemented", 400);
+  try {
+    await createNotification({
+      tenantId: targetProfile.tenantId,
+      userId: targetProfile.id,
+      type: "super_admin_message",
+      title: body.data.subject,
+      message: body.data.message,
+      data: { source: "super_admin" },
+    });
+    return apiSuccess({ ok: true, message: "Notificación enviada correctamente" });
+  } catch (error: unknown) {
+    logger.error("Error creating in-app notification", error);
+    return apiError("NOTIFICATION_SEND_FAILED", "Error al enviar la notificación", 500);
+  }
 });

@@ -1,11 +1,12 @@
 export const dynamic = 'force-dynamic';
 
-import { and, asc, eq, inArray } from "drizzle-orm";
+import { and, asc, eq, inArray, isNull } from "drizzle-orm";
 import { z } from "zod";
 
 import { db } from "@/db";
 import { academies, classCoachAssignments, classes, coaches, coachSportConfigs, memberships, profiles } from "@/db/schema";
 import { withTenant } from "@/lib/authz";
+import { authorizeAcademyCapability } from "@/lib/authz/resource-scope";
 import { markChecklistItem, markWizardStep } from "@/lib/onboarding";
 import { apiSuccess, apiError, apiCreated } from "@/lib/api-response";
 import { replaceCoachSportConfigScope, validateSportConfigIdsForAcademy } from "@/lib/coaches/sport-scope";
@@ -14,7 +15,7 @@ import { replaceCoachSportConfigScope, validateSportConfigIdsForAcademy } from "
 // puede limpiar (clear field). Antes, `null` → 400.
 const bodySchema = z.object({
   academyId: z.string().uuid(),
-  name: z.string().min(1),
+  name: z.string().trim().min(1).max(120),
   email: z.string().email().nullable().optional(),
   phone: z.string().nullable().optional(),
   profileId: z.string().uuid().nullable().optional(),
@@ -42,9 +43,25 @@ export const GET = withTenant(async (request, context) => {
   }
 
   const { academyId, includeAssignments } = params.data;
+  const targetAcademyId = academyId ?? context.profile.activeAcademyId ?? null;
 
-  const coachFilter = academyId
-    ? and(eq(coaches.academyId, academyId), eq(coaches.tenantId, context.tenantId))
+  if (targetAcademyId) {
+    const scope = await authorizeAcademyCapability({
+      context,
+      resourceTenantId: context.tenantId,
+      academyId: targetAcademyId,
+      permission: "coaches:read",
+    });
+
+    if (!scope.allowed) {
+      return apiError("COACH_NOT_FOUND", "No se encontraron entrenadores", 404);
+    }
+  } else if (context.profile.role !== "super_admin") {
+    return apiError("ACADEMY_REQUIRED", "Academy ID is required", 400);
+  }
+
+  const coachFilter = targetAcademyId
+    ? and(eq(coaches.academyId, targetAcademyId), eq(coaches.tenantId, context.tenantId))
     : eq(coaches.tenantId, context.tenantId);
 
   const coachRows = await db
@@ -60,7 +77,8 @@ export const GET = withTenant(async (request, context) => {
     .from(coaches)
     .innerJoin(academies, eq(coaches.academyId, academies.id))
     .where(coachFilter)
-    .orderBy(asc(coaches.name));
+    .orderBy(asc(coaches.name))
+    .limit(5000);
 
   const sportScopeRows =
     coachRows.length === 0
@@ -71,7 +89,8 @@ export const GET = withTenant(async (request, context) => {
             sportConfigId: coachSportConfigs.academySportConfigId,
           })
           .from(coachSportConfigs)
-          .where(inArray(coachSportConfigs.coachId, coachRows.map((coach) => coach.id)));
+          .where(inArray(coachSportConfigs.coachId, coachRows.map((coach) => coach.id)))
+          .limit(2000);
 
   const sportScopesByCoach = new Map<string, string[]>();
   sportScopeRows.forEach((row) => {
@@ -99,10 +118,20 @@ export const GET = withTenant(async (request, context) => {
     .from(classCoachAssignments)
     .innerJoin(classes, eq(classCoachAssignments.classId, classes.id))
     .where(
-      academyId
-        ? and(eq(classes.academyId, academyId), eq(classCoachAssignments.tenantId, context.tenantId))
-        : eq(classCoachAssignments.tenantId, context.tenantId)
-    );
+      targetAcademyId
+        ? and(
+            eq(classes.academyId, targetAcademyId),
+            eq(classes.tenantId, context.tenantId),
+            eq(classCoachAssignments.tenantId, context.tenantId),
+            isNull(classes.deletedAt)
+          )
+        : and(
+            eq(classes.tenantId, context.tenantId),
+            eq(classCoachAssignments.tenantId, context.tenantId),
+            isNull(classes.deletedAt)
+          )
+    )
+    .limit(2000);
 
   const enriched = coachesWithScopes.map((coach) => {
     const classesForCoach = assignmentRows
@@ -137,6 +166,17 @@ export const POST = withTenant(async (request, context) => {
 
   if (!academy) {
     return apiError("ACADEMY_NOT_FOUND", "Academia no encontrada", 404);
+  }
+
+  const scope = await authorizeAcademyCapability({
+    context,
+    resourceTenantId: academy.tenantId,
+    academyId: body.academyId,
+    permission: "coaches:create",
+  });
+
+  if (!scope.allowed) {
+    return apiError(scope.reason ?? "FORBIDDEN", "No tienes permisos para crear entrenadores", 403);
   }
 
   const coachId = crypto.randomUUID();
@@ -174,9 +214,9 @@ export const POST = withTenant(async (request, context) => {
 
   if (body.profileId) {
     const [linkedProfile] = await db
-      .select()
+      .select({ userId: profiles.userId, tenantId: profiles.tenantId })
       .from(profiles)
-      .where(eq(profiles.id, body.profileId))
+      .where(and(eq(profiles.id, body.profileId), eq(profiles.tenantId, context.tenantId)))
       .limit(1);
 
     if (!linkedProfile) {

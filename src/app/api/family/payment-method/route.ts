@@ -38,6 +38,7 @@ async function authenticate(academyId: string) {
  * GET /api/family/payment-method?academyId=...
  * Devuelve la tarjeta guardada (display) de la familia para esa academia.
  */
+// @auth-flexible route-guard-reason: academyId is required to resolve tenant-scoped family access
 export async function GET(request: Request) {
   try {
     const url = new URL(request.url);
@@ -78,6 +79,7 @@ const SaveSchema = z.object({
  * POST /api/family/payment-method
  * Guarda un metodo de pago como predeterminado (tras confirmar el SetupIntent).
  */
+// @auth-flexible route-guard-reason: academyId is required to resolve tenant-scoped family access
 export async function POST(request: Request) {
   try {
     const body = SaveSchema.safeParse(await request.json());
@@ -120,6 +122,7 @@ const DeleteSchema = z.object({ academyId: z.string().uuid() });
  * DELETE /api/family/payment-method
  * Desvincula la tarjeta guardada.
  */
+// @auth-flexible route-guard-reason: academyId is required to resolve tenant-scoped family access
 export async function DELETE(request: Request) {
   try {
     const body = DeleteSchema.safeParse(await request.json());

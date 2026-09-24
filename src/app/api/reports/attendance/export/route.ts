@@ -1,5 +1,5 @@
 import { NextResponse } from "next/server";
-import { apiError, apiSuccess } from "@/lib/api-response";
+import { apiError } from "@/lib/api-response";
 import { z } from "zod";
 import { withTenant } from "@/lib/authz";
 import { generateAttendancePDF } from "@/lib/reports/pdf-generator";
@@ -11,9 +11,10 @@ import {
 } from "@/lib/reports/attendance-calculator";
 import { db } from "@/db";
 import { academies } from "@/db/schema";
-import { eq } from "drizzle-orm";
+import { and, eq } from "drizzle-orm";
 import * as XLSX from "xlsx";
 import { logger } from "@/lib/logger";
+import { reportDateSchema, validateReportPeriod } from "@/lib/reports/query-schemas";
 
 // Forzar ruta dinámica
 export const dynamic = 'force-dynamic';
@@ -21,14 +22,14 @@ export const dynamic = 'force-dynamic';
 const exportSchema = z.object({
   academyId: z.string().uuid(),
   format: z.enum(["pdf", "excel"]).default("pdf"),
-  startDate: z.string().optional(),
-  endDate: z.string().optional(),
+  startDate: reportDateSchema,
+  endDate: reportDateSchema,
   athleteId: z.string().uuid().optional(),
   groupId: z.string().uuid().optional(),
   classId: z.string().uuid().optional(),
   sportConfigId: z.string().uuid().optional(),
   reportType: z.enum(["athlete", "group", "general"]).default("general"),
-});
+}).superRefine(validateReportPeriod);
 
 export const GET = withTenant(async (request, context) => {
   if (!context.tenantId) {
@@ -48,10 +49,14 @@ export const GET = withTenant(async (request, context) => {
     reportType: url.searchParams.get("reportType") || "general",
   };
 
-  const validated = exportSchema.parse({
+  const parsed = exportSchema.safeParse({
     ...params,
     academyId: params.academyId || undefined,
   });
+  if (!parsed.success) {
+    return apiError("INVALID_QUERY", "Parámetros del reporte inválidos", 400);
+  }
+  const validated = parsed.data;
 
   if (!validated.academyId) {
     return apiError("ACADEMY_ID_REQUIRED", "Academy ID is required", 400);
@@ -145,7 +150,7 @@ export const GET = withTenant(async (request, context) => {
       const [academy] = await db
         .select({ name: academies.name })
         .from(academies)
-        .where(eq(academies.id, validated.academyId))
+        .where(and(eq(academies.id, validated.academyId), eq(academies.tenantId, context.tenantId)))
         .limit(1);
       if (academy?.name) {
         academyName = academy.name;

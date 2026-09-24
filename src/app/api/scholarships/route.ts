@@ -1,6 +1,7 @@
 import { z } from "zod";
-import { eq, and } from "drizzle-orm";
+import { eq, and, sql } from "drizzle-orm";
 import { withTenant } from "@/lib/authz";
+import { authorizeAcademyCapability } from "@/lib/authz/resource-scope";
 
 import { db } from "@/db";
 import { scholarships, athletes } from "@/db/schema";
@@ -36,6 +37,14 @@ export const GET = withTenant(async (request, context) => {
     return apiError("ACADEMY_ID_REQUIRED", "academyId requerido", 400);
   }
 
+  const scope = await authorizeAcademyCapability({
+    context,
+    resourceTenantId: context.tenantId,
+    academyId,
+    permission: "billing:read",
+  });
+  if (!scope.allowed) return apiError("SCHOLARSHIP_NOT_FOUND", "No se encontraron becas", 404);
+
   const items = await db
     .select({
       id: scholarships.id,
@@ -57,9 +66,13 @@ export const GET = withTenant(async (request, context) => {
       and(
         eq(scholarships.academyId, academyId),
         eq(scholarships.tenantId, context.tenantId),
+        eq(athletes.tenantId, context.tenantId),
+        eq(athletes.academyId, academyId),
+        sql`${athletes.deletedAt} IS NULL`,
         sportConfigId ? eq(athletes.primarySportConfigId, sportConfigId) : undefined
       )
-    );
+    )
+    .limit(5000);
 
   return apiSuccess({
     items: items.map((item) => ({
@@ -78,12 +91,25 @@ export const POST = withTenant(async (request, context) => {
 
   const body = createSchema.parse(await request.json());
 
+  const scope = await authorizeAcademyCapability({
+    context,
+    resourceTenantId: context.tenantId,
+    academyId: body.academyId,
+    permission: "billing:create",
+  });
+  if (!scope.allowed) return apiError("FORBIDDEN", "No tienes permisos para crear becas", 403);
+
   // Validar que la persona deportista existe
   const [athlete] = await db
     .select({ id: athletes.id })
     .from(athletes)
     .where(
-      and(eq(athletes.id, body.athleteId), eq(athletes.tenantId, context.tenantId))
+      and(
+        eq(athletes.id, body.athleteId),
+        eq(athletes.tenantId, context.tenantId),
+        eq(athletes.academyId, body.academyId),
+        sql`${athletes.deletedAt} IS NULL`
+      )
     )
     .limit(1);
 

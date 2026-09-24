@@ -1,11 +1,12 @@
-import { and, eq } from "drizzle-orm";
+import { and, eq, isNull } from "drizzle-orm";
 import { z } from "zod";
 
 import { db } from "@/db";
 import { athletes, familyContacts, guardianAthletes, guardians } from "@/db/schema";
 import { withTenant } from "@/lib/authz";
-import { rateLimit, getUserIdentifier, withRateLimit } from "@/lib/rate-limit";
-import { apiSuccess, apiError, apiCreated } from "@/lib/api-response";
+import { authorizeAcademyCapability } from "@/lib/authz/resource-scope";
+import { getUserIdentifier, withRateLimit } from "@/lib/rate-limit";
+import { apiSuccess, apiError } from "@/lib/api-response";
 import { NextResponse } from "next/server";
 
 const GuardianBodySchema = z.object({
@@ -23,9 +24,10 @@ async function ensureAthleteTenant(athleteId: string) {
     .select({
       id: athletes.id,
       tenantId: athletes.tenantId,
+      academyId: athletes.academyId,
     })
     .from(athletes)
-    .where(eq(athletes.id, athleteId))
+    .where(and(eq(athletes.id, athleteId), isNull(athletes.deletedAt)))
     .limit(1);
 
   return row ?? null;
@@ -45,12 +47,15 @@ const getGuardiansHandler = withTenant(async (_request, context) => {
     return apiError("ATHLETE_NOT_FOUND", "Athlete not found", 404);
   }
 
-  if (
-    context.profile.role !== "super_admin" &&
-    context.profile.role !== "admin" &&
-    athleteRow.tenantId !== context.tenantId
-  ) {
-    return apiError("FORBIDDEN", "Access denied", 403);
+  const scope = await authorizeAcademyCapability({
+    context,
+    resourceTenantId: athleteRow.tenantId,
+    academyId: athleteRow.academyId,
+    permission: "athletes:read",
+  });
+
+  if (!scope.allowed) {
+    return apiError("ATHLETE_NOT_FOUND", "Athlete not found", 404);
   }
 
   // Obtener contactos de guardian_athletes (sistema nuevo)
@@ -71,7 +76,12 @@ const getGuardiansHandler = withTenant(async (_request, context) => {
     })
     .from(guardianAthletes)
     .innerJoin(guardians, eq(guardianAthletes.guardianId, guardians.id))
-    .where(eq(guardianAthletes.athleteId, athleteId));
+    .where(and(
+      eq(guardianAthletes.athleteId, athleteId),
+      eq(guardianAthletes.tenantId, athleteRow.tenantId),
+      eq(guardians.tenantId, athleteRow.tenantId),
+    ))
+    .limit(100);
 
   // Obtener contactos de family_contacts (sistema antiguo, para retrocompatibilidad)
   const familyContactRows = await db
@@ -86,7 +96,8 @@ const getGuardiansHandler = withTenant(async (_request, context) => {
       createdAt: familyContacts.createdAt,
     })
     .from(familyContacts)
-    .where(eq(familyContacts.athleteId, athleteId));
+    .where(and(eq(familyContacts.athleteId, athleteId), eq(familyContacts.tenantId, athleteRow.tenantId)))
+    .limit(100);
 
   // Combinar ambos tipos de contactos
   const allItems = [
@@ -150,12 +161,15 @@ const createGuardianHandler = withTenant(async (request, context) => {
     return apiError("ATHLETE_NOT_FOUND", "Athlete not found", 404);
   }
 
-  if (
-    context.profile.role !== "super_admin" &&
-    context.profile.role !== "admin" &&
-    athleteRow.tenantId !== context.tenantId
-  ) {
-    return apiError("FORBIDDEN", "Access denied", 403);
+  const scope = await authorizeAcademyCapability({
+    context,
+    resourceTenantId: athleteRow.tenantId,
+    academyId: athleteRow.academyId,
+    permission: "athletes:create",
+  });
+
+  if (!scope.allowed) {
+    return apiError("ATHLETE_NOT_FOUND", "Athlete not found", 404);
   }
 
   const body = GuardianBodySchema.parse(await request.json());
@@ -231,7 +245,11 @@ const createGuardianHandler = withTenant(async (request, context) => {
     })
     .from(guardianAthletes)
     .innerJoin(guardians, eq(guardianAthletes.guardianId, guardians.id))
-    .where(eq(guardianAthletes.id, linkId))
+    .where(and(
+      eq(guardianAthletes.id, linkId),
+      eq(guardianAthletes.tenantId, athleteRow.tenantId),
+      eq(guardians.tenantId, athleteRow.tenantId),
+    ))
     .limit(1);
 
   return apiSuccess({ item: guardianRow });
@@ -244,4 +262,3 @@ export const POST = withRateLimit(
   },
   { identifier: getUserIdentifier, limit: 10, window: 60 }
 );
-

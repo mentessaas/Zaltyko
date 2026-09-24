@@ -7,6 +7,7 @@ import { withTenant } from "@/lib/authz";
 import { apiSuccess, apiError } from "@/lib/api-response";
 import { handleApiError } from "@/lib/api-error-handler";
 import { revalidatePublicAcademySeo } from "@/lib/seo/revalidate-academy";
+import { authorizeAcademyCapability } from "@/lib/authz/resource-scope";
 import {
   getCountryNameFromCode,
   inferDisciplineFromVariant,
@@ -71,12 +72,13 @@ export const PATCH = withTenant(async (request, context) => {
       return apiError("ACADEMY_NOT_FOUND", "Academia no encontrada", 404);
     }
 
-    // Verificar permisos: solo el propietario o super_admin puede actualizar
-    const isSuperAdmin = context.profile.role === "super_admin";
-    const isOwner = academy.ownerId === context.profile.id;
-    const isSameTenant = academy.tenantId === context.tenantId;
-
-    if (!isSuperAdmin && !isOwner && !isSameTenant) {
+    const access = await authorizeAcademyCapability({
+      context,
+      resourceTenantId: academy.tenantId,
+      academyId: academy.id,
+      permission: "settings:write",
+    });
+    if (!access.allowed) {
       return apiError("FORBIDDEN", "No tienes permisos para actualizar esta academia", 403);
     }
 
@@ -257,12 +259,13 @@ export const GET = withTenant(async (request, context) => {
       return apiError("ACADEMY_NOT_FOUND", "Academia no encontrada", 404);
     }
 
-    // Verificar permisos
-    const isSuperAdmin = context.profile.role === "super_admin";
-    const isOwner = academy.ownerId === context.profile.id;
-    const isSameTenant = academy.tenantId === context.tenantId;
-
-    if (!isSuperAdmin && !isOwner && !isSameTenant) {
+    const access = await authorizeAcademyCapability({
+      context,
+      resourceTenantId: academy.tenantId,
+      academyId: academy.id,
+      permission: "settings:read",
+    });
+    if (!access.allowed) {
       return apiError("FORBIDDEN", "No tienes permisos para ver esta academia", 403);
     }
 

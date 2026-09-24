@@ -1,10 +1,9 @@
 export const dynamic = 'force-dynamic';
 
-import { and, eq, inArray } from "drizzle-orm";
+import { and, eq, inArray, isNull } from "drizzle-orm";
 
 import { db } from "@/db";
 import {
-  academies,
   athletes,
   classCoachAssignments,
   classEnrollments,
@@ -14,7 +13,8 @@ import {
   coaches,
 } from "@/db/schema";
 import { TenantContext, withTenant } from "@/lib/authz";
-import { rateLimit, getUserIdentifier, withRateLimit } from "@/lib/rate-limit";
+import { authorizeAcademyCapability } from "@/lib/authz/resource-scope";
+import { getUserIdentifier, withRateLimit } from "@/lib/rate-limit";
 import { handleApiError } from "@/lib/api-error-handler";
 import { apiSuccess, apiError } from "@/lib/api-response";
 import { NextResponse } from "next/server";
@@ -54,12 +54,27 @@ const getAthleteClassesHandler = withTenant(async (request, context) => {
         groupId: athletes.groupId,
       })
       .from(athletes)
-      .where(and(eq(athletes.id, athleteId), eq(athletes.academyId, academyId)))
+      .where(
+        and(
+          eq(athletes.id, athleteId),
+          eq(athletes.tenantId, context.tenantId),
+          eq(athletes.academyId, academyId),
+          isNull(athletes.deletedAt)
+        )
+      )
       .limit(1);
 
     if (!athleteRow) {
       return apiError("ATHLETE_NOT_FOUND", "Athlete not found", 404);
     }
+
+    const scope = await authorizeAcademyCapability({
+      context,
+      resourceTenantId: context.tenantId,
+      academyId,
+      permission: "athletes:read",
+    });
+    if (!scope.allowed) return apiError("ATHLETE_NOT_FOUND", "Athlete not found", 404);
 
     const classMap = new Map<string, {
       id: string;
@@ -85,9 +100,13 @@ const getAthleteClassesHandler = withTenant(async (request, context) => {
         .where(
           and(
             eq(classGroups.groupId, athleteRow.groupId),
-            eq(classes.academyId, academyId)
+            eq(classGroups.tenantId, context.tenantId),
+            eq(classes.tenantId, context.tenantId),
+            eq(classes.academyId, academyId),
+            isNull(classes.deletedAt)
           )
-        );
+        )
+        .limit(500);
 
       for (const row of groupClassRows) {
         if (!classMap.has(row.classId)) {
@@ -117,9 +136,14 @@ const getAthleteClassesHandler = withTenant(async (request, context) => {
       .where(
         and(
           eq(classEnrollments.athleteId, athleteId),
-          eq(classEnrollments.academyId, academyId)
-        )
-      );
+          eq(classEnrollments.tenantId, context.tenantId),
+          eq(classEnrollments.academyId, academyId),
+          eq(classes.tenantId, context.tenantId),
+          eq(classes.academyId, academyId),
+          isNull(classes.deletedAt)
+      )
+      )
+      .limit(500);
 
     for (const row of enrollmentClassRows) {
       if (!classMap.has(row.classId)) {
@@ -151,7 +175,13 @@ const getAthleteClassesHandler = withTenant(async (request, context) => {
           weekday: classWeekdays.weekday,
         })
         .from(classWeekdays)
-        .where(inArray(classWeekdays.classId, classIds));
+        .where(
+          and(
+            inArray(classWeekdays.classId, classIds),
+            eq(classWeekdays.tenantId, context.tenantId)
+          )
+        )
+        .limit(3500);
 
       for (const row of weekdayRows) {
         const classInfo = classMap.get(row.classId);
@@ -168,7 +198,15 @@ const getAthleteClassesHandler = withTenant(async (request, context) => {
         })
         .from(classCoachAssignments)
         .innerJoin(coaches, eq(classCoachAssignments.coachId, coaches.id))
-        .where(inArray(classCoachAssignments.classId, classIds));
+        .where(
+          and(
+            inArray(classCoachAssignments.classId, classIds),
+            eq(classCoachAssignments.tenantId, context.tenantId),
+            eq(coaches.tenantId, context.tenantId),
+            eq(coaches.academyId, academyId)
+          )
+        )
+        .limit(2000);
 
       for (const row of coachRows) {
         const classInfo = classMap.get(row.classId);

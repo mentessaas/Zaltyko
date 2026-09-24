@@ -13,8 +13,10 @@ import {
 import { apiError, apiSuccess } from "@/lib/api-response";
 import { verifyEmailLinkToken } from "@/lib/onboarding/email-link-token";
 import { logger } from "@/lib/logger";
+import { getEmailMarketingPreference } from "@/lib/email/marketing-consent";
 
 export const dynamic = "force-dynamic";
+// @route-auth public (signed HMAC email token is the authorization primitive)
 
 /**
  * Ruta publica `/api/preferences` (ZAL-324 Gap 5). Complementa
@@ -62,21 +64,20 @@ export const GET = withRateLimit(
         400
       );
     }
-    // v0.2: defaults seguros. v0.3+ deberia leer de una tabla `email_prefs`
-    // por (tenant_id, email) o (profile_id) para recordar la eleccion entre
-    // sesiones; abrir issue separada con Engineering Lead cuando se haga.
+    const marketing = await getEmailMarketingPreference(result.payload.email);
     return apiSuccess({
       email: result.payload.email,
       expiresAt: result.payload.expiresAt,
       current: {
         transactional: true,
-        marketing: false,
+        marketing,
       },
     });
   },
   { limit: RATE_LIMITS.STRICT.limit, window: RATE_LIMITS.STRICT.window }
 );
 
+// @auth-flexible route-guard-reason: signed preferences token is the authorization primitive
 export const POST = withRateLimit(
   async (request: NextRequest) => {
     let body: unknown;
@@ -110,7 +111,7 @@ export const POST = withRateLimit(
       );
     }
 
-    const email = result.payload.email;
+    const email = result.payload.email.toLowerCase().trim();
     const prefs = parsed.data.prefs;
     const addressRateLimit = await rateLimit({
       identifier: getAddressHashRateLimitIdentifier(
