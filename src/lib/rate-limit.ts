@@ -89,6 +89,20 @@ export function isKvConfigured(): boolean {
   return Boolean(process.env.KV_REST_API_URL && process.env.KV_REST_API_TOKEN);
 }
 
+const E2E_SANDBOX_PROJECT_REF = "aeeootdmuiqkfeernskw";
+
+function isGitHubE2ESandboxRateLimitBypassEnabled(): boolean {
+  return (
+    process.env.E2E_RATE_LIMIT_BYPASS === "true" &&
+    process.env.GITHUB_ACTIONS === "true" &&
+    process.env.CI === "true" &&
+    process.env.VERCEL_ENV === "preview" &&
+    process.env.E2E_TARGET_SUPABASE_PROJECT_REF === E2E_SANDBOX_PROJECT_REF &&
+    process.env.NEXT_PUBLIC_SUPABASE_URL ===
+      `https://${E2E_SANDBOX_PROJECT_REF}.supabase.co`
+  );
+}
+
 export async function rateLimit(
   config: RateLimitConfig
 ): Promise<RateLimitResult> {
@@ -100,6 +114,13 @@ export async function rateLimit(
   // Get current timestamp in seconds
   const now = Math.floor(Date.now() / 1000);
   const windowStart = now - window;
+
+  // Isolated GitHub E2E has no Redis service. It uses disposable accounts and
+  // a hard-coded non-production Supabase sandbox; never enable this in Vercel
+  // deployments or against any other project.
+  if (isGitHubE2ESandboxRateLimitBypassEnabled()) {
+    return { success: true, limit, remaining: limit, reset: now + window };
+  }
 
   // En producción, una configuración parcial o ausente no puede degradar el
   // control silenciosamente. Los callers traducen success=false a 429 y el
