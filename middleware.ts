@@ -12,6 +12,7 @@ import { getExperimentalReleaseFlags, isExperimentalRouteDisabled } from "@/lib/
 const SUPER_ADMIN_PATH = "/super-admin";
 const LOGIN_PATH = "/auth/login";
 const SUPER_ADMIN_ROLE = "super_admin";
+const PRODUCTION_SUPABASE_PROJECT_REF = "jegxfahsvugilbthbked";
 // Clock skew tolerance for JWT iat validation (5 minutes)
 const CLOCK_SKEW_TOLERANCE = 5 * 60;
 const LOCALE_COOKIE_NAME = "zaltyko-locale";
@@ -258,6 +259,19 @@ function isApiPath(pathname: string) {
   return pathname.startsWith("/api/");
 }
 
+function isPreviewMutationPointingAtProduction(req: NextRequest) {
+  if (process.env.VERCEL_ENV !== "preview" || !isMutation(req.method)) return false;
+
+  const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL;
+  if (!supabaseUrl) return false;
+
+  try {
+    return new URL(supabaseUrl).hostname.split(".")[0] === PRODUCTION_SUPABASE_PROJECT_REF;
+  } catch {
+    return false;
+  }
+}
+
 function isMutation(method: string) {
   return MUTATING_METHODS.has(method.toUpperCase());
 }
@@ -411,6 +425,15 @@ function i18nRedirectResponse(request: NextRequest): NextResponse | null {
 
 export async function middleware(req: NextRequest) {
   const nonce = generateNonce();
+  if (isPreviewMutationPointingAtProduction(req)) {
+    const blocked = NextResponse.json(
+      { error: "PREVIEW_WRITE_BLOCKED", message: "Escrituras deshabilitadas en Preview." },
+      { status: 503 }
+    );
+    blocked.headers.set("Cache-Control", "no-store");
+    return applySecurityHeaders(blocked, nonce);
+  }
+
   const apexRedirect = apexRedirectResponse(req);
   if (apexRedirect) return applySecurityHeaders(apexRedirect, nonce);
 
