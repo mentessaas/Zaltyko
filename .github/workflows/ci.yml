@@ -201,6 +201,7 @@ jobs:
         run: pnpm test:e2e:public:ci
         env:
           BASE_URL: https://zaltyko.com
+          E2E_PUBLIC_READ_ONLY: "true"
 
   e2e-readiness:
     name: E2E Credentials Readiness
@@ -214,14 +215,47 @@ jobs:
           E2E_AUTH_EMAIL: ${{ secrets.E2E_AUTH_EMAIL }}
           E2E_AUTH_PASSWORD: ${{ secrets.E2E_AUTH_PASSWORD }}
           E2E_ACADEMY_ID: ${{ secrets.E2E_ACADEMY_ID }}
+          E2E_ACADEMY_B_ID: ${{ secrets.E2E_ACADEMY_B_ID }}
+          E2E_ATHLETE_ID: ${{ secrets.E2E_ATHLETE_ID }}
+          E2E_ADMIN_EMAIL: ${{ secrets.E2E_ADMIN_EMAIL }}
+          E2E_ADMIN_PASSWORD: ${{ secrets.E2E_ADMIN_PASSWORD }}
+          E2E_COACH_EMAIL: ${{ secrets.E2E_COACH_EMAIL }}
+          E2E_COACH_PASSWORD: ${{ secrets.E2E_COACH_PASSWORD }}
+          E2E_FAMILY_EMAIL: ${{ secrets.E2E_FAMILY_EMAIL }}
+          E2E_FAMILY_PASSWORD: ${{ secrets.E2E_FAMILY_PASSWORD }}
+          E2E_ATHLETE_EMAIL: ${{ secrets.E2E_ATHLETE_EMAIL }}
+          E2E_ATHLETE_PASSWORD: ${{ secrets.E2E_ATHLETE_PASSWORD }}
+          E2E_SUPER_ADMIN_EMAIL: ${{ secrets.E2E_SUPER_ADMIN_EMAIL }}
+          E2E_SUPER_ADMIN_PASSWORD: ${{ secrets.E2E_SUPER_ADMIN_PASSWORD }}
+          E2E_TARGET_SUPABASE_PROJECT_REF: ${{ secrets.E2E_TARGET_SUPABASE_PROJECT_REF }}
+          NEXT_PUBLIC_SUPABASE_URL: ${{ secrets.E2E_SUPABASE_URL }}
+          NEXT_PUBLIC_SUPABASE_ANON_KEY: ${{ secrets.E2E_SUPABASE_ANON_KEY }}
+          SUPABASE_SERVICE_ROLE_KEY: ${{ secrets.E2E_SUPABASE_SERVICE_ROLE_KEY }}
+          DATABASE_URL: ${{ secrets.E2E_DATABASE_URL }}
+          STRIPE_SECRET_KEY: ${{ secrets.E2E_STRIPE_SECRET_KEY }}
+          STRIPE_WEBHOOK_SECRET: ${{ secrets.E2E_STRIPE_WEBHOOK_SECRET }}
+          NEXT_PUBLIC_STRIPE_PUBLISHABLE_KEY: ${{ secrets.E2E_STRIPE_PUBLISHABLE_KEY }}
         run: |
           missing=0
-          for name in E2E_AUTH_EMAIL E2E_AUTH_PASSWORD E2E_ACADEMY_ID; do
+          for name in E2E_AUTH_EMAIL E2E_AUTH_PASSWORD E2E_ACADEMY_ID E2E_ACADEMY_B_ID E2E_ATHLETE_ID E2E_ADMIN_EMAIL E2E_ADMIN_PASSWORD E2E_COACH_EMAIL E2E_COACH_PASSWORD E2E_FAMILY_EMAIL E2E_FAMILY_PASSWORD E2E_ATHLETE_EMAIL E2E_ATHLETE_PASSWORD E2E_SUPER_ADMIN_EMAIL E2E_SUPER_ADMIN_PASSWORD E2E_TARGET_SUPABASE_PROJECT_REF NEXT_PUBLIC_SUPABASE_URL NEXT_PUBLIC_SUPABASE_ANON_KEY SUPABASE_SERVICE_ROLE_KEY DATABASE_URL STRIPE_SECRET_KEY STRIPE_WEBHOOK_SECRET NEXT_PUBLIC_STRIPE_PUBLISHABLE_KEY; do
             if [ -z "${!name}" ]; then
               echo "Missing required E2E secret: ${name}"
               missing=1
             fi
           done
+
+          case "$STRIPE_SECRET_KEY" in
+            sk_test_*) ;;
+            *) echo "E2E_STRIPE_SECRET_KEY must use Stripe test mode"; missing=1 ;;
+          esac
+          case "$NEXT_PUBLIC_STRIPE_PUBLISHABLE_KEY" in
+            pk_test_*) ;;
+            *) echo "E2E_STRIPE_PUBLISHABLE_KEY must use Stripe test mode"; missing=1 ;;
+          esac
+          if [ "$E2E_TARGET_SUPABASE_PROJECT_REF" = "jegxfahsvugilbthbked" ]; then
+            echo "E2E_TARGET_SUPABASE_PROJECT_REF cannot be the production project"
+            missing=1
+          fi
 
           if [ "$missing" -eq 0 ]; then
             echo "enabled=true" >> "$GITHUB_OUTPUT"
@@ -339,6 +373,7 @@ jobs:
         run: pnpm test:e2e:public:ci
         env:
           BASE_URL: https://zaltyko.com
+          E2E_PUBLIC_READ_ONLY: "true"
 
   e2e-auth:
     name: E2E Authenticated Flows
@@ -363,19 +398,99 @@ jobs:
       - name: Install Playwright browsers
         run: pnpm exec playwright install --with-deps chromium
 
+      - name: Provision owner, admin, coach and super-admin sandbox accounts
+        run: pnpm e2e:prepare-auth
+        env:
+          E2E_ALLOW_PROVISIONING: "true"
+          E2E_AUTH_EMAIL: ${{ secrets.E2E_AUTH_EMAIL }}
+          E2E_AUTH_PASSWORD: ${{ secrets.E2E_AUTH_PASSWORD }}
+          E2E_ADMIN_EMAIL: ${{ secrets.E2E_ADMIN_EMAIL }}
+          E2E_ADMIN_PASSWORD: ${{ secrets.E2E_ADMIN_PASSWORD }}
+          E2E_COACH_EMAIL: ${{ secrets.E2E_COACH_EMAIL }}
+          E2E_COACH_PASSWORD: ${{ secrets.E2E_COACH_PASSWORD }}
+          E2E_SUPER_ADMIN_EMAIL: ${{ secrets.E2E_SUPER_ADMIN_EMAIL }}
+          E2E_SUPER_ADMIN_PASSWORD: ${{ secrets.E2E_SUPER_ADMIN_PASSWORD }}
+          E2E_ACADEMY_ID: ${{ secrets.E2E_ACADEMY_ID }}
+          E2E_TARGET_SUPABASE_PROJECT_REF: ${{ secrets.E2E_TARGET_SUPABASE_PROJECT_REF }}
+          NEXT_PUBLIC_SUPABASE_URL: ${{ secrets.E2E_SUPABASE_URL }}
+          NEXT_PUBLIC_SUPABASE_ANON_KEY: ${{ secrets.E2E_SUPABASE_ANON_KEY }}
+          SUPABASE_SERVICE_ROLE_KEY: ${{ secrets.E2E_SUPABASE_SERVICE_ROLE_KEY }}
+          DATABASE_URL: ${{ secrets.E2E_DATABASE_URL }}
+
+      - name: Provision linked family and athlete sandbox accounts
+        run: pnpm tsx scripts/prepare-e2e-family-auth.ts
+        env:
+          E2E_ALLOW_PROVISIONING: "true"
+          E2E_FAMILY_EMAIL: ${{ secrets.E2E_FAMILY_EMAIL }}
+          E2E_FAMILY_PASSWORD: ${{ secrets.E2E_FAMILY_PASSWORD }}
+          E2E_ATHLETE_EMAIL: ${{ secrets.E2E_ATHLETE_EMAIL }}
+          E2E_ATHLETE_PASSWORD: ${{ secrets.E2E_ATHLETE_PASSWORD }}
+          E2E_ATHLETE_ID: ${{ secrets.E2E_ATHLETE_ID }}
+          E2E_ACADEMY_ID: ${{ secrets.E2E_ACADEMY_ID }}
+          E2E_TARGET_SUPABASE_PROJECT_REF: ${{ secrets.E2E_TARGET_SUPABASE_PROJECT_REF }}
+          NEXT_PUBLIC_SUPABASE_URL: ${{ secrets.E2E_SUPABASE_URL }}
+          NEXT_PUBLIC_SUPABASE_ANON_KEY: ${{ secrets.E2E_SUPABASE_ANON_KEY }}
+          SUPABASE_SERVICE_ROLE_KEY: ${{ secrets.E2E_SUPABASE_SERVICE_ROLE_KEY }}
+          DATABASE_URL: ${{ secrets.E2E_DATABASE_URL }}
+
       - name: Generate auth storage state
         run: pnpm test:e2e:auth
         env:
           E2E_AUTH_EMAIL: ${{ secrets.E2E_AUTH_EMAIL }}
           E2E_AUTH_PASSWORD: ${{ secrets.E2E_AUTH_PASSWORD }}
           E2E_ACADEMY_ID: ${{ secrets.E2E_ACADEMY_ID }}
-          BASE_URL: https://zaltyko.com
+          E2E_ADMIN_EMAIL: ${{ secrets.E2E_ADMIN_EMAIL }}
+          E2E_ADMIN_PASSWORD: ${{ secrets.E2E_ADMIN_PASSWORD }}
+          E2E_COACH_EMAIL: ${{ secrets.E2E_COACH_EMAIL }}
+          E2E_COACH_PASSWORD: ${{ secrets.E2E_COACH_PASSWORD }}
+          E2E_FAMILY_EMAIL: ${{ secrets.E2E_FAMILY_EMAIL }}
+          E2E_FAMILY_PASSWORD: ${{ secrets.E2E_FAMILY_PASSWORD }}
+          E2E_ATHLETE_EMAIL: ${{ secrets.E2E_ATHLETE_EMAIL }}
+          E2E_ATHLETE_PASSWORD: ${{ secrets.E2E_ATHLETE_PASSWORD }}
+          E2E_SUPER_ADMIN_EMAIL: ${{ secrets.E2E_SUPER_ADMIN_EMAIL }}
+          E2E_SUPER_ADMIN_PASSWORD: ${{ secrets.E2E_SUPER_ADMIN_PASSWORD }}
+          E2E_TARGET_SUPABASE_PROJECT_REF: ${{ secrets.E2E_TARGET_SUPABASE_PROJECT_REF }}
+          NEXT_PUBLIC_SUPABASE_URL: ${{ secrets.E2E_SUPABASE_URL }}
+          NEXT_PUBLIC_SUPABASE_ANON_KEY: ${{ secrets.E2E_SUPABASE_ANON_KEY }}
+          SUPABASE_SERVICE_ROLE_KEY: ${{ secrets.E2E_SUPABASE_SERVICE_ROLE_KEY }}
+          DATABASE_URL: ${{ secrets.E2E_DATABASE_URL }}
+          STRIPE_SECRET_KEY: ${{ secrets.E2E_STRIPE_SECRET_KEY }}
+          STRIPE_WEBHOOK_SECRET: ${{ secrets.E2E_STRIPE_WEBHOOK_SECRET }}
+          NEXT_PUBLIC_STRIPE_PUBLISHABLE_KEY: ${{ secrets.E2E_STRIPE_PUBLISHABLE_KEY }}
+
+      - name: Run internal role smoke on isolated staging
+        run: pnpm exec playwright test tests/e2e-role-smoke.spec.ts --project=chromium
+        env:
+          E2E_STORAGE_STATE: .auth/user.json
+          E2E_ACADEMY_ID: ${{ secrets.E2E_ACADEMY_ID }}
+          E2E_ACADEMY_B_ID: ${{ secrets.E2E_ACADEMY_B_ID }}
+          E2E_ATHLETE_ID: ${{ secrets.E2E_ATHLETE_ID }}
+          E2E_TARGET_SUPABASE_PROJECT_REF: ${{ secrets.E2E_TARGET_SUPABASE_PROJECT_REF }}
+          NEXT_PUBLIC_SUPABASE_URL: ${{ secrets.E2E_SUPABASE_URL }}
+          NEXT_PUBLIC_SUPABASE_ANON_KEY: ${{ secrets.E2E_SUPABASE_ANON_KEY }}
+          SUPABASE_SERVICE_ROLE_KEY: ${{ secrets.E2E_SUPABASE_SERVICE_ROLE_KEY }}
+          DATABASE_URL: ${{ secrets.E2E_DATABASE_URL }}
+          STRIPE_SECRET_KEY: ${{ secrets.E2E_STRIPE_SECRET_KEY }}
+          STRIPE_WEBHOOK_SECRET: ${{ secrets.E2E_STRIPE_WEBHOOK_SECRET }}
+          NEXT_PUBLIC_STRIPE_PUBLISHABLE_KEY: ${{ secrets.E2E_STRIPE_PUBLISHABLE_KEY }}
+          E2E_ADMIN_STORAGE_STATE: .auth/admin.json
+          E2E_COACH_STORAGE_STATE: .auth/coach.json
+          E2E_FAMILY_STORAGE_STATE: .auth/family.json
+          E2E_ATHLETE_STORAGE_STATE: .auth/athlete.json
+          E2E_SUPER_ADMIN_STORAGE_STATE: .auth/super-admin.json
 
       - name: Run authenticated E2E
         run: pnpm test:e2e
         env:
-          BASE_URL: https://zaltyko.com
           E2E_STORAGE_STATE: .auth/user.json
           E2E_ACADEMY_ID: ${{ secrets.E2E_ACADEMY_ID }}
           E2E_PROFILE_ID: ${{ secrets.E2E_PROFILE_ID }}
           E2E_ATHLETE_ID: ${{ secrets.E2E_ATHLETE_ID }}
+          E2E_TARGET_SUPABASE_PROJECT_REF: ${{ secrets.E2E_TARGET_SUPABASE_PROJECT_REF }}
+          NEXT_PUBLIC_SUPABASE_URL: ${{ secrets.E2E_SUPABASE_URL }}
+          NEXT_PUBLIC_SUPABASE_ANON_KEY: ${{ secrets.E2E_SUPABASE_ANON_KEY }}
+          SUPABASE_SERVICE_ROLE_KEY: ${{ secrets.E2E_SUPABASE_SERVICE_ROLE_KEY }}
+          DATABASE_URL: ${{ secrets.E2E_DATABASE_URL }}
+          STRIPE_SECRET_KEY: ${{ secrets.E2E_STRIPE_SECRET_KEY }}
+          STRIPE_WEBHOOK_SECRET: ${{ secrets.E2E_STRIPE_WEBHOOK_SECRET }}
+          NEXT_PUBLIC_STRIPE_PUBLISHABLE_KEY: ${{ secrets.E2E_STRIPE_PUBLISHABLE_KEY }}

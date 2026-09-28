@@ -6,11 +6,12 @@ import { resolve } from "node:path";
 
 import { createClient } from "@supabase/supabase-js";
 import { Pool } from "pg";
+import { assertDisposableE2EEmail, assertE2ESandboxTarget } from "./lib/e2e-sandbox-target";
 
 config({ path: resolve(process.cwd(), ".env.local") });
 config({ path: resolve(process.cwd(), ".env") });
 
-type E2ERole = "owner" | "coach" | "super_admin";
+type E2ERole = "owner" | "admin" | "coach" | "super_admin";
 
 interface RoleConfig {
   label: string;
@@ -42,6 +43,16 @@ const roles: RoleConfig[] = [
     profileRole: "owner",
     membershipRole: "owner",
     defaultName: "E2E Owner",
+  },
+  {
+    label: "admin",
+    email: process.env.E2E_ADMIN_EMAIL ?? "e2e-admin@zaltyko.test",
+    password: process.env.E2E_ADMIN_PASSWORD ?? fallbackPassword,
+    profileRole: "admin",
+    // Profile role is the global identity; this test membership is explicitly
+    // non-owner so it can validate the owner-only subscription boundary.
+    membershipRole: "coach",
+    defaultName: "E2E Admin",
   },
   {
     label: "coach",
@@ -238,17 +249,21 @@ async function ensureProfileAndMembership(
 }
 
 async function main() {
-  if (process.env.E2E_ALLOW_PROVISIONING !== "true") {
-    throw new Error(
-      "Refusing to provision E2E users. Set E2E_ALLOW_PROVISIONING=true only for an approved isolated test academy."
-    );
-  }
-
   if (!supabaseUrl || !serviceKey || !databaseUrl || !academyId) {
     throw new Error(
       "Missing NEXT_PUBLIC_SUPABASE_URL, SUPABASE_SERVICE_ROLE_KEY, DATABASE_URL, or E2E_ACADEMY_ID"
     );
   }
+
+  assertE2ESandboxTarget({
+    supabaseUrl,
+    databaseUrl,
+    databaseUrlPool: process.env.DATABASE_URL_POOL,
+    databaseUrlDirect: process.env.DATABASE_URL_DIRECT,
+    expectedProjectRef: process.env.E2E_TARGET_SUPABASE_PROJECT_REF,
+    allowProvisioning: process.env.E2E_ALLOW_PROVISIONING,
+  });
+  for (const role of roles) assertDisposableE2EEmail(role.email, role.label);
 
   const supabase = createClient(supabaseUrl, serviceKey, {
     auth: { autoRefreshToken: false, persistSession: false },
