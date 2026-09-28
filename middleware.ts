@@ -262,14 +262,21 @@ function isApiPath(pathname: string) {
 function isPreviewMutationPointingAtProduction(req: NextRequest) {
   if (process.env.VERCEL_ENV !== "preview" || !isMutation(req.method)) return false;
 
-  const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL;
-  if (!supabaseUrl) return false;
-
-  try {
-    return new URL(supabaseUrl).hostname.split(".")[0] === PRODUCTION_SUPABASE_PROJECT_REF;
-  } catch {
-    return false;
-  }
+  return [
+    process.env.NEXT_PUBLIC_SUPABASE_URL,
+    process.env.DATABASE_URL,
+    process.env.DATABASE_URL_POOL,
+    process.env.DATABASE_URL_DIRECT,
+  ].some((value) => {
+    if (!value) return false;
+    try {
+      const target = new URL(value);
+      const identity = `${target.hostname} ${decodeURIComponent(target.username)} ${target.pathname}`;
+      return identity.includes(PRODUCTION_SUPABASE_PROJECT_REF);
+    } catch {
+      return false;
+    }
+  });
 }
 
 function isMutation(method: string) {

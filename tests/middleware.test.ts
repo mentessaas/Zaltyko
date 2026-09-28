@@ -90,8 +90,10 @@ describe("middleware", () => {
   it("allows Preview writes when Supabase targets the E2E sandbox", async () => {
     const previousEnv = process.env.VERCEL_ENV;
     const previousUrl = process.env.NEXT_PUBLIC_SUPABASE_URL;
+    const previousDatabaseUrl = process.env.DATABASE_URL_POOL;
     process.env.VERCEL_ENV = "preview";
     process.env.NEXT_PUBLIC_SUPABASE_URL = "https://aeeootdmuiqkfeernskw.supabase.co";
+    delete process.env.DATABASE_URL_POOL;
     try {
       const response = await middleware(
         new NextRequest("https://zaltyko-preview.vercel.app/api/athletes", { method: "POST" })
@@ -105,6 +107,34 @@ describe("middleware", () => {
       else process.env.VERCEL_ENV = previousEnv;
       if (previousUrl === undefined) delete process.env.NEXT_PUBLIC_SUPABASE_URL;
       else process.env.NEXT_PUBLIC_SUPABASE_URL = previousUrl;
+      if (previousDatabaseUrl === undefined) delete process.env.DATABASE_URL_POOL;
+      else process.env.DATABASE_URL_POOL = previousDatabaseUrl;
+    }
+  });
+
+  it("blocks Preview writes if any database pool still targets production", async () => {
+    const previousEnv = process.env.VERCEL_ENV;
+    const previousUrl = process.env.NEXT_PUBLIC_SUPABASE_URL;
+    const previousDatabaseUrl = process.env.DATABASE_URL_POOL;
+    process.env.VERCEL_ENV = "preview";
+    process.env.NEXT_PUBLIC_SUPABASE_URL = "https://aeeootdmuiqkfeernskw.supabase.co";
+    process.env.DATABASE_URL_POOL =
+      "postgresql://postgres.jegxfahsvugilbthbked:placeholder@aws-0-eu-north-1.pooler.supabase.com:6543/postgres";
+    try {
+      const response = await middleware(
+        new NextRequest("https://zaltyko-preview.vercel.app/api/athletes", { method: "POST" })
+      );
+
+      expect(response.status).toBe(503);
+      await expect(response.json()).resolves.toMatchObject({ error: "PREVIEW_WRITE_BLOCKED" });
+      expect(rateLimitMock).not.toHaveBeenCalled();
+    } finally {
+      if (previousEnv === undefined) delete process.env.VERCEL_ENV;
+      else process.env.VERCEL_ENV = previousEnv;
+      if (previousUrl === undefined) delete process.env.NEXT_PUBLIC_SUPABASE_URL;
+      else process.env.NEXT_PUBLIC_SUPABASE_URL = previousUrl;
+      if (previousDatabaseUrl === undefined) delete process.env.DATABASE_URL_POOL;
+      else process.env.DATABASE_URL_POOL = previousDatabaseUrl;
     }
   });
 
