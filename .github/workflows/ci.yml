@@ -235,6 +235,8 @@ jobs:
           STRIPE_SECRET_KEY: ${{ secrets.E2E_STRIPE_SECRET_KEY }}
           STRIPE_WEBHOOK_SECRET: ${{ secrets.E2E_STRIPE_WEBHOOK_SECRET }}
           NEXT_PUBLIC_STRIPE_PUBLISHABLE_KEY: ${{ secrets.E2E_STRIPE_PUBLISHABLE_KEY }}
+          E2E_EVENT_NAME: ${{ github.event_name }}
+          E2E_HEAD_REPOSITORY: ${{ github.event.pull_request.head.repo.full_name || github.repository }}
         run: |
           missing=0
           for name in E2E_AUTH_EMAIL E2E_AUTH_PASSWORD E2E_ACADEMY_ID E2E_ACADEMY_B_ID E2E_ATHLETE_ID E2E_ADMIN_EMAIL E2E_ADMIN_PASSWORD E2E_COACH_EMAIL E2E_COACH_PASSWORD E2E_FAMILY_EMAIL E2E_FAMILY_PASSWORD E2E_ATHLETE_EMAIL E2E_ATHLETE_PASSWORD E2E_SUPER_ADMIN_EMAIL E2E_SUPER_ADMIN_PASSWORD E2E_TARGET_SUPABASE_PROJECT_REF NEXT_PUBLIC_SUPABASE_URL NEXT_PUBLIC_SUPABASE_ANON_KEY SUPABASE_SERVICE_ROLE_KEY DATABASE_URL STRIPE_SECRET_KEY STRIPE_WEBHOOK_SECRET NEXT_PUBLIC_STRIPE_PUBLISHABLE_KEY; do
@@ -259,8 +261,17 @@ jobs:
 
           if [ "$missing" -eq 0 ]; then
             echo "enabled=true" >> "$GITHUB_OUTPUT"
+          elif [ "$E2E_EVENT_NAME" = "push" ] && [ "$GITHUB_REF" = "refs/heads/main" ]; then
+            echo "enabled=false" >> "$GITHUB_OUTPUT"
+            echo "Authenticated E2E requires all staging-only secrets before main can pass." >&2
+            exit 1
+          elif [ "$E2E_EVENT_NAME" = "pull_request" ] && [ "$E2E_HEAD_REPOSITORY" = "$GITHUB_REPOSITORY" ]; then
+            echo "enabled=false" >> "$GITHUB_OUTPUT"
+            echo "Authenticated E2E requires staging-only secrets for same-repository pull requests." >&2
+            exit 1
           else
             echo "enabled=false" >> "$GITHUB_OUTPUT"
+            echo "Authenticated E2E skipped for an external fork without repository secrets."
           fi
 
   validate-rls:
@@ -378,8 +389,8 @@ jobs:
   e2e-auth:
     name: E2E Authenticated Flows
     runs-on: ubuntu-latest
-    needs: [e2e-public, e2e-readiness]
-    if: github.event_name == 'push' && github.ref == 'refs/heads/main' && needs.e2e-readiness.outputs.enabled == 'true'
+    needs: [e2e-readiness]
+    if: ${{ needs.e2e-readiness.outputs.enabled == 'true' && (github.event_name == 'pull_request' || github.ref == 'refs/heads/main') }}
     steps:
       - uses: actions/checkout@v4
 
