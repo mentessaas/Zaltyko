@@ -201,7 +201,9 @@ test.describe("Zaltyko full academy flows", () => {
     await expect(
       page.getByPlaceholder(/Buscar atletas, clases, entrenadores, eventos/i)
     ).toBeVisible();
-    await expect(page.getByText("Acciones rápidas")).toBeVisible();
+    await expect(
+      page.getByText("Acciones rápidas", { exact: true })
+    ).toBeVisible();
   });
 
   test("athletes list and first detail page are stable when data exists", async ({
