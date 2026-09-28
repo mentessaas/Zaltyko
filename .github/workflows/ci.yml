@@ -391,6 +391,7 @@ jobs:
     runs-on: ubuntu-latest
     env:
       NODE_EXTRA_CA_CERTS: ${{ github.workspace }}/certs/supabase-root-ca.crt
+      VERCEL_ENV: preview
     needs: [e2e-readiness]
     if: ${{ needs.e2e-readiness.outputs.enabled == 'true' && (github.event_name == 'pull_request' || github.ref == 'refs/heads/main') }}
     steps:
@@ -410,6 +411,25 @@ jobs:
 
       - name: Install Playwright browsers
         run: pnpm exec playwright install --with-deps chromium
+
+      - name: Build isolated E2E app for production-mode runtime
+        run: pnpm build
+        env:
+          NODE_ENV: production
+          INTERNAL_AUTH_SECRET: e2e-build-placeholder
+          SUPABASE_JWT_SECRET: e2e-build-placeholder
+          NEXT_PUBLIC_APP_URL: http://127.0.0.1:3000
+          NEXT_PUBLIC_SUPABASE_URL: ${{ secrets.E2E_SUPABASE_URL }}
+          NEXT_PUBLIC_SUPABASE_ANON_KEY: ${{ secrets.E2E_SUPABASE_ANON_KEY }}
+          SUPABASE_SERVICE_ROLE_KEY: ${{ secrets.E2E_SUPABASE_SERVICE_ROLE_KEY }}
+          E2E_TARGET_SUPABASE_PROJECT_REF: ${{ secrets.E2E_TARGET_SUPABASE_PROJECT_REF }}
+          DATABASE_URL: ${{ secrets.E2E_DATABASE_URL }}
+          DATABASE_URL_POOL: ${{ secrets.E2E_DATABASE_URL }}
+          DATABASE_URL_DIRECT: ${{ secrets.E2E_DATABASE_URL }}
+          STRIPE_SECRET_KEY: ${{ secrets.E2E_STRIPE_SECRET_KEY }}
+          STRIPE_WEBHOOK_SECRET: ${{ secrets.E2E_STRIPE_WEBHOOK_SECRET }}
+          STRIPE_CONNECT_WEBHOOK_SECRET: ${{ secrets.E2E_STRIPE_CONNECT_WEBHOOK_SECRET }}
+          NEXT_PUBLIC_STRIPE_PUBLISHABLE_KEY: ${{ secrets.E2E_STRIPE_PUBLISHABLE_KEY }}
 
       - name: Provision owner, admin, coach and super-admin sandbox accounts
         run: pnpm e2e:prepare-auth
