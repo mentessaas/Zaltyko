@@ -7,6 +7,7 @@ import { plans, subscriptions } from "@/db/schema";
 import { withTenant } from "@/lib/authz";
 import { withRateLimit, getUserIdentifier } from "@/lib/rate-limit";
 import { getStripeClient } from "@/lib/stripe/client";
+import { createStripeIntegrationIdentifier } from "@/lib/stripe/integration-identifier";
 import { handleApiError } from "@/lib/api-error-handler";
 import { getAppUrl, getOptionalEnvVar } from "@/lib/env";
 import { apiSuccess, apiError } from "@/lib/api-response";
@@ -27,14 +28,22 @@ const handler = withTenant(async (request, context) => {
     const stripeSecretKey = getOptionalEnvVar("STRIPE_SECRET_KEY");
     // Verificar que la clave existe y no está vacía
     if (!stripeSecretKey || stripeSecretKey.trim() === "") {
-      return apiError("STRIPE_NOT_CONFIGURED", "Stripe no está configurado. Contacta con soporte para habilitar los pagos.", 503);
+      return apiError(
+        "STRIPE_NOT_CONFIGURED",
+        "Stripe no está configurado. Contacta con soporte para habilitar los pagos.",
+        503
+      );
     }
 
     let json;
     try {
       json = await request.json();
     } catch (_error) {
-      return apiError("INVALID_JSON", "El cuerpo de la petición no es un JSON válido", 400);
+      return apiError(
+        "INVALID_JSON",
+        "El cuerpo de la petición no es un JSON válido",
+        400
+      );
     }
 
     let body;
@@ -42,7 +51,11 @@ const handler = withTenant(async (request, context) => {
       body = BodySchema.parse(json);
     } catch (error) {
       if (error instanceof z.ZodError) {
-        return apiError("VALIDATION_ERROR", "Los datos proporcionados no son válidos", 400);
+        return apiError(
+          "VALIDATION_ERROR",
+          "Los datos proporcionados no son válidos",
+          400
+        );
       }
       throw error;
     }
@@ -52,7 +65,11 @@ const handler = withTenant(async (request, context) => {
     try {
       stripe = getStripeClient();
     } catch (error) {
-      return apiError("STRIPE_INIT_ERROR", "Error al inicializar Stripe. Contacta con soporte.", 500);
+      return apiError(
+        "STRIPE_INIT_ERROR",
+        "Error al inicializar Stripe. Contacta con soporte.",
+        500
+      );
     }
 
     const academy = await getBillingAcademyAccess({
@@ -62,7 +79,11 @@ const handler = withTenant(async (request, context) => {
       profileRole: context.profile.role,
     });
     if (!academy) {
-      return apiError("BILLING_FORBIDDEN", "Solo la persona propietaria puede gestionar la suscripción", 403);
+      return apiError(
+        "BILLING_FORBIDDEN",
+        "Solo la persona propietaria puede gestionar la suscripción",
+        403
+      );
     }
 
     const [existingSubscription] = await db
@@ -75,7 +96,11 @@ const handler = withTenant(async (request, context) => {
       .where(eq(subscriptions.userId, academy.ownerUserId))
       .limit(1);
 
-    if (isSubscriptionManaged(existingSubscription ?? { stripeSubscriptionId: null, status: null })) {
+    if (
+      isSubscriptionManaged(
+        existingSubscription ?? { stripeSubscriptionId: null, status: null }
+      )
+    ) {
       return apiError(
         "SUBSCRIPTION_ALREADY_EXISTS",
         "Ya existe una suscripción. Usa el portal de Stripe para cambiarla o cancelarla.",
@@ -83,7 +108,11 @@ const handler = withTenant(async (request, context) => {
       );
     }
 
-    const [plan] = await db.select().from(plans).where(eq(plans.code, body.planCode)).limit(1);
+    const [plan] = await db
+      .select()
+      .from(plans)
+      .where(eq(plans.code, body.planCode))
+      .limit(1);
 
     if (!plan?.stripePriceId) {
       return apiError("PLAN_NOT_AVAILABLE", "Plan no disponible", 400);
@@ -130,10 +159,15 @@ const handler = withTenant(async (request, context) => {
 
     const successUrl = `${getAppUrl()}/app/${body.academyId}/billing?checkout=success`;
     const cancelUrl = `${getAppUrl()}/app/${body.academyId}/billing?checkout=cancelled`;
-    const requestedIdempotencyKey = request.headers.get("idempotency-key")?.trim();
+    const requestedIdempotencyKey = request.headers
+      .get("idempotency-key")
+      ?.trim();
     const requestBucket = Math.floor(Date.now() / (5 * 60 * 1000));
     const checkoutIdempotencyKey = requestedIdempotencyKey
-      ? `checkout_${academy.ownerUserId}_${requestedIdempotencyKey}`.slice(0, 255)
+      ? `checkout_${academy.ownerUserId}_${requestedIdempotencyKey}`.slice(
+          0,
+          255
+        )
       : `checkout_${academy.ownerUserId}_${plan.code}_${requestBucket}`;
 
     const session = await stripe.checkout.sessions.create(
@@ -142,7 +176,8 @@ const handler = withTenant(async (request, context) => {
         customer: customerId,
         client_reference_id: academy.id,
         allow_promotion_codes: false,
-        payment_method_types: ["card"],
+        integration_identifier:
+          createStripeIntegrationIdentifier("zaltyko_billing"),
         line_items: [
           {
             price: plan.stripePriceId,
@@ -181,14 +216,20 @@ const handler = withTenant(async (request, context) => {
 
     return apiSuccess({ checkoutUrl: session.url });
   } catch (error) {
-    return handleApiError(error, { endpoint: "/api/billing/checkout", method: "POST" }) as NextResponse;
+    return handleApiError(error, {
+      endpoint: "/api/billing/checkout",
+      method: "POST",
+    }) as NextResponse;
   }
 });
 
 // Aplicar rate limiting: 10 requests por minuto para checkout
 export const POST = withRateLimit(
   async (request) => {
-    return (await handler(request, {} as { params?: Record<string, string> })) as NextResponse;
+    return (await handler(
+      request,
+      {} as { params?: Record<string, string> }
+    )) as NextResponse;
   },
   { identifier: getUserIdentifier }
 );

@@ -2,8 +2,15 @@ import Stripe from "stripe";
 import { eq } from "drizzle-orm";
 
 import { db } from "@/db";
-import { academies, plans, subscriptions, profiles, authUsers } from "@/db/schema";
+import {
+  academies,
+  plans,
+  subscriptions,
+  profiles,
+  authUsers,
+} from "@/db/schema";
 import { getStripeClient } from "@/lib/stripe/client";
+import { createStripeIntegrationIdentifier } from "@/lib/stripe/integration-identifier";
 import { getAppUrl } from "@/lib/env";
 import { verifyAcademyAccess } from "@/lib/permissions";
 import { logger } from "@/lib/logger";
@@ -22,7 +29,9 @@ export interface CheckoutSessionResult {
 /**
  * Obtiene o crea un cliente de Stripe para un usuario
  */
-export async function getOrCreateStripeCustomer(userId: string): Promise<string> {
+export async function getOrCreateStripeCustomer(
+  userId: string
+): Promise<string> {
   const stripe = getStripeClient();
 
   // Buscar suscripción existente
@@ -168,7 +177,8 @@ export async function createCheckoutSession(
       mode: "subscription",
       customer: customerId,
       allow_promotion_codes: false,
-      payment_method_types: ["card"],
+      integration_identifier:
+        createStripeIntegrationIdentifier("zaltyko_checkout"),
       line_items: [
         {
           price: plan.stripePriceId,
@@ -197,4 +207,3 @@ export async function createCheckoutSession(
     checkoutUrl: session.url,
   };
 }
-
