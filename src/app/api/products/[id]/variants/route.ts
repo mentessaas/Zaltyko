@@ -23,8 +23,9 @@ async function assertOwnerOfProduct(productId: string, userId: string) {
  */
 export async function GET(
   _req: NextRequest,
-  { params }: { params: { id: string } }
+  { params: paramsPromise }: { params: Promise<{ id: string }> }
 ) {
+  const params = await paramsPromise;
   // A variant is public only when its parent product is explicitly published.
   // Checking the variant flag alone exposed variants of drafts and members-only
   // products to a caller who guessed the parent UUID.
@@ -63,10 +64,11 @@ export async function GET(
  */
 export async function POST(
   req: NextRequest,
-  { params }: { params: { id: string } }
+  { params: paramsPromise }: { params: Promise<{ id: string }> }
 ) {
   const user = await getCurrentUser();
   if (!user) return NextResponse.json({ error: "unauthorized" }, { status: 401 });
+  const params = await paramsPromise;
   if (!(await assertOwnerOfProduct(params.id, user.id))) {
     return NextResponse.json({ error: "forbidden" }, { status: 403 });
   }

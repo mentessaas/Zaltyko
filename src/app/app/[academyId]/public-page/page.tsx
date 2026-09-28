@@ -1,9 +1,10 @@
 import { EditorPageServer } from "@/components/actor-page-editor/EditorPageServer";
 
-export default function AcademyPublicPage({
+export default async function AcademyPublicPage({
   params,
 }: {
-  params: { academyId: string };
+  params: Promise<{ academyId: string }>;
 }) {
-  return <EditorPageServer entityType="academy" entityId={params.academyId} />;
+  const { academyId } = await params;
+  return <EditorPageServer entityType="academy" entityId={academyId} />;
 }

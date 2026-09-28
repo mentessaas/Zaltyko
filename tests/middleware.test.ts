@@ -22,12 +22,27 @@ describe("middleware", () => {
   });
 
   it("preserves security headers and query parameters on academy rewrites", async () => {
-    const response = await middleware(new NextRequest("https://club-test.zaltyko.com/?lang=es", {
+    const previous = process.env.ENABLE_ACTOR_PAGES;
+    process.env.ENABLE_ACTOR_PAGES = "true";
+    try {
+      const response = await middleware(new NextRequest("https://club-test.zaltyko.com/?lang=es", {
+        headers: { host: "club-test.zaltyko.com" },
+      }));
+      expect(response.headers.get("x-middleware-rewrite")).toBe("https://zaltyko.com/a/club-test?lang=es");
+      expect(response.headers.get("X-Content-Type-Options")).toBe("nosniff");
+      expect(response.headers.get("Content-Security-Policy")).toContain("frame-ancestors 'none'");
+    } finally {
+      if (previous === undefined) delete process.env.ENABLE_ACTOR_PAGES;
+      else process.env.ENABLE_ACTOR_PAGES = previous;
+    }
+  });
+
+  it("hides experimental academy subdomains by default", async () => {
+    const response = await middleware(new NextRequest("https://club-test.zaltyko.com/", {
       headers: { host: "club-test.zaltyko.com" },
     }));
-    expect(response.headers.get("x-middleware-rewrite")).toBe("https://zaltyko.com/a/club-test?lang=es");
-    expect(response.headers.get("X-Content-Type-Options")).toBe("nosniff");
-    expect(response.headers.get("Content-Security-Policy")).toContain("frame-ancestors 'none'");
+    expect(response.status).toBe(404);
+    expect(response.headers.get("x-middleware-rewrite")).toBeNull();
   });
 
   beforeEach(() => {

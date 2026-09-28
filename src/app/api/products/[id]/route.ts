@@ -53,8 +53,9 @@ async function getAcademyOfProduct(productId: string) {
  */
 export async function GET(
   _req: NextRequest,
-  { params }: { params: { id: string } }
+  { params: paramsPromise }: { params: Promise<{ id: string }> }
 ) {
+  const params = await paramsPromise;
   const product = await getProduct(params.id);
   if (!product) return NextResponse.json({ error: "not_found" }, { status: 404 });
   const user = await getCurrentUser();
@@ -75,10 +76,11 @@ export async function GET(
 // @auth-flexible route-guard-reason: getCurrentUser verifies the session and assertOwner checks ownership before parsing the request.
 export async function PATCH(
   req: NextRequest,
-  { params }: { params: { id: string } }
+  { params: paramsPromise }: { params: Promise<{ id: string }> }
 ) {
   const user = await getCurrentUser();
   if (!user) return NextResponse.json({ error: "unauthorized" }, { status: 401 });
+  const params = await paramsPromise;
 
   const academyId = await getAcademyOfProduct(params.id);
   if (!academyId) return NextResponse.json({ error: "not_found" }, { status: 404 });
@@ -102,10 +104,11 @@ export async function PATCH(
  */
 export async function DELETE(
   _req: NextRequest,
-  { params }: { params: { id: string } }
+  { params: paramsPromise }: { params: Promise<{ id: string }> }
 ) {
   const user = await getCurrentUser();
   if (!user) return NextResponse.json({ error: "unauthorized" }, { status: 401 });
+  const params = await paramsPromise;
 
   const academyId = await getAcademyOfProduct(params.id);
   if (!academyId) return NextResponse.json({ error: "not_found" }, { status: 404 });

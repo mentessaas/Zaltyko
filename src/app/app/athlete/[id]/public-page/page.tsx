@@ -6,8 +6,9 @@ import { getCurrentUser } from "@/lib/auth/current-user";
 export default async function AthletePublicPage({
   params,
 }: {
-  params: { id: string };
+  params: Promise<{ id: string }>;
 }) {
   if (!(await getCurrentUser())) notFound();
-  return <EditorPageServer entityType="athlete" entityId={params.id} />;
+  const { id } = await params;
+  return <EditorPageServer entityType="athlete" entityId={id} />;
 }

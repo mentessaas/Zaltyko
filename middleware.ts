@@ -6,6 +6,7 @@ import { DEV_SESSION_COOKIE, parseDevSessionCookie } from "@/lib/dev-session";
 import { locales, defaultLocale, type Locale } from "@/i18n";
 import { getAcademyRobotsHeader } from "@/lib/seo/academy-robots-directives";
 import { extractAcademySlugFromHost } from "@/lib/subdomains/rewrite";
+import { getExperimentalReleaseFlags, isExperimentalRouteDisabled } from "@/lib/release/experimental-routes";
 
 // Constants
 const SUPER_ADMIN_PATH = "/super-admin";
@@ -413,10 +414,15 @@ export async function middleware(req: NextRequest) {
   const apexRedirect = apexRedirectResponse(req);
   if (apexRedirect) return applySecurityHeaders(apexRedirect, nonce);
 
+  const experimentalFlags = getExperimentalReleaseFlags();
+
   // T6: rewrite academy subdomains [slug].zaltyko.com → /a/[slug]
   const host = req.headers.get("host");
   const slug = extractAcademySlugFromHost(host);
   if (slug) {
+    if (isExperimentalRouteDisabled(`/a/${slug}`, experimentalFlags)) {
+      return applySecurityHeaders(new NextResponse(null, { status: 404 }), nonce);
+    }
     const url = req.nextUrl.clone();
     url.pathname = `/a/${slug}${url.pathname === "/" ? "" : url.pathname}`;
     url.host = "zaltyko.com";
@@ -425,6 +431,10 @@ export async function middleware(req: NextRequest) {
   }
 
   const pathname = req.nextUrl.pathname;
+
+  if (isExperimentalRouteDisabled(pathname, experimentalFlags)) {
+    return applySecurityHeaders(new NextResponse(null, { status: 404 }), nonce);
+  }
 
   if (isExcludedPath(pathname)) {
     return applySecurityHeaders(NextResponse.next(), nonce);

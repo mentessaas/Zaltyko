@@ -1,10 +1,11 @@
 import Link from "next/link";
 
-export default function MarketplaceSuccessPage({
+export default async function MarketplaceSuccessPage({
   params,
 }: {
-  params: { id: string };
+  params: Promise<{ id: string }>;
 }) {
+  const { id } = await params;
   return (
     <div style={{ maxWidth: 560, margin: "80px auto", padding: 24, fontFamily: "system-ui, sans-serif", textAlign: "center" }}>
       <h1 style={{ fontSize: 28, fontWeight: 800, marginBottom: 12 }}>
@@ -15,7 +16,7 @@ export default function MarketplaceSuccessPage({
         contacto contigo para coordinar la entrega.
       </p>
       <p style={{ color: "#94a3b8", fontSize: 13, marginBottom: 24 }}>
-        Pedido: {params.id.slice(0, 8)}
+        Pedido: {id.slice(0, 8)}
       </p>
       <Link
         href="/marketplace"

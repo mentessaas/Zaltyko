@@ -4,7 +4,7 @@ import { cookies } from "next/headers";
 import { z } from "zod";
 
 import { db } from "@/db";
-import { marketplaceListings, profiles } from "@/db/schema";
+import { legacyMarketplaceListings as marketplaceListings } from "@/db/schema/marketplace-legacy";
 import { createClient } from "@/lib/supabase/server";
 import { logger } from "@/lib/logger";
 
@@ -12,7 +12,7 @@ export const dynamic = "force-dynamic";
 
 /**
  * GET /api/marketplace/mis-productos
- * Returns all marketplace listings owned by the authenticated user's academy.
+ * Returns legacy classifieds owned by the authenticated user.
  */
 export async function GET() {
   try {
@@ -24,21 +24,10 @@ export async function GET() {
       return NextResponse.json({ error: "UNAUTHORIZED" }, { status: 401 });
     }
 
-    // Resolver academia activa del usuario
-    const [profile] = await db
-      .select({ activeAcademyId: profiles.activeAcademyId })
-      .from(profiles)
-      .where(eq(profiles.userId, user.id))
-      .limit(1);
-
-    if (!profile?.activeAcademyId) {
-      return NextResponse.json({ error: "NO_ACADEMY" }, { status: 404 });
-    }
-
     const listings = await db
       .select()
       .from(marketplaceListings)
-      .where(eq(marketplaceListings.sellerAcademyId, profile.activeAcademyId))
+      .where(eq(marketplaceListings.userId, user.id))
       .orderBy(desc(marketplaceListings.createdAt))
       .limit(100);
 

@@ -1,6 +1,6 @@
 import { NextResponse } from "next/server";
 import { db } from "@/db";
-import { marketplaceListings } from "@/db/schema";
+import { legacyMarketplaceListings as marketplaceListings } from "@/db/schema/marketplace-legacy";
 import { and, eq } from "drizzle-orm";
 import { logger } from "@/lib/logger";
 import { apiError } from "@/lib/api-response";

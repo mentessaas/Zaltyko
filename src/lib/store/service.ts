@@ -12,17 +12,28 @@ import type { NewProduct, Product, NewStockMovement } from "@/db/schema/store";
 // PRODUCTS
 
 export type CreateProductInput = Omit<NewProduct, "id" | "createdAt" | "updatedAt">;
+export const STORE_PAGE_SIZE = 48;
+export const MAX_CART_LINES = 50;
+export type ProductPage = { items: Product[]; hasNext: boolean };
 
-export async function listProductsByAcademy(academyId: string): Promise<Product[]> {
-  return db
+function pageOffset(page: number) {
+  if (!Number.isSafeInteger(page) || page < 1 || page > 10000) throw new Error("INVALID_STORE_PAGE");
+  return (page - 1) * STORE_PAGE_SIZE;
+}
+
+export async function listProductsByAcademy(academyId: string, page = 1): Promise<ProductPage> {
+  const rows = await db
     .select()
     .from(products)
     .where(eq(products.academyId, academyId))
-    .orderBy(products.isFeatured, products.name);
+    .orderBy(products.isFeatured, products.name, products.id)
+    .limit(STORE_PAGE_SIZE + 1)
+    .offset(pageOffset(page));
+  return { items: rows.slice(0, STORE_PAGE_SIZE), hasNext: rows.length > STORE_PAGE_SIZE };
 }
 
-export async function listPublicProductsByAcademy(academyId: string): Promise<Product[]> {
-  return db
+export async function listPublicProductsByAcademy(academyId: string, page = 1): Promise<ProductPage> {
+  const rows = await db
     .select()
     .from(products)
     .where(
@@ -33,7 +44,10 @@ export async function listPublicProductsByAcademy(academyId: string): Promise<Pr
         sql`${products.publishedAt} IS NOT NULL`
       )
     )
-    .orderBy(products.isFeatured, products.name);
+    .orderBy(products.isFeatured, products.name, products.id)
+    .limit(STORE_PAGE_SIZE + 1)
+    .offset(pageOffset(page));
+  return { items: rows.slice(0, STORE_PAGE_SIZE), hasNext: rows.length > STORE_PAGE_SIZE };
 }
 
 export async function getProduct(productId: string): Promise<Product | null> {
@@ -103,8 +117,13 @@ export async function createPendingSale(
 ): Promise<{ saleId: string; totalCents: number; currency: string }> {
   return db.transaction(async (tx) => {
     if (input.lines.length === 0) throw new Error("Cart is empty");
+    if (input.lines.length > MAX_CART_LINES) throw new Error("Cart has too many lines");
 
     const productIds = input.lines.map((l) => l.productId);
+    if (new Set(productIds).size !== productIds.length) throw new Error("Duplicate products in cart");
+    if (input.lines.some((line) => !Number.isSafeInteger(line.quantity) || line.quantity < 1 || line.quantity > 100)) {
+      throw new Error("Invalid cart quantity");
+    }
     const rows = await tx
       .select()
       .from(products)
@@ -114,7 +133,8 @@ export async function createPendingSale(
           eq(products.academyId, input.academyId),
           eq(products.isActive, true)
         )
-      );
+      )
+      .limit(MAX_CART_LINES);
 
     if (rows.length !== productIds.length) {
       throw new Error("One or more products are unavailable");
@@ -215,6 +235,7 @@ export async function markSalePaid(
 export async function getSale(saleId: string) {
   const [sale] = await db.select().from(sales).where(eq(sales.id, saleId)).limit(1);
   if (!sale) return null;
-  const lines = await db.select().from(saleLines).where(eq(saleLines.saleId, saleId));
+  const lines = await db.select().from(saleLines).where(eq(saleLines.saleId, saleId)).limit(MAX_CART_LINES + 1);
+  if (lines.length > MAX_CART_LINES) throw new Error("SALE_LINE_LIMIT_EXCEEDED");
   return { sale, lines };
 }

@@ -33,10 +33,14 @@ export function StoreAdminClient({
   academyId,
   academyName,
   initialProducts,
+  page,
+  hasNext,
 }: {
   academyId: string;
   academyName: string;
   initialProducts: Product[];
+  page: number;
+  hasNext: boolean;
 }) {
   const router = useRouter();
   const [products, setProducts] = useState(initialProducts);
@@ -164,6 +168,11 @@ export function StoreAdminClient({
           ))
         )}
       </div>
+      <nav aria-label="Páginas de productos" style={{ display: "flex", gap: 16, marginTop: 20 }}>
+        {page > 1 && <a href={`/app/${academyId}/store?page=${page - 1}`}>Anterior</a>}
+        <span>Página {page}</span>
+        {hasNext && <a href={`/app/${academyId}/store?page=${page + 1}`}>Siguiente</a>}
+      </nav>
     </div>
   );
 }

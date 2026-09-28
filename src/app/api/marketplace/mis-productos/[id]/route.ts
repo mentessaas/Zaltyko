@@ -4,7 +4,7 @@ import { cookies } from "next/headers";
 import { z } from "zod";
 
 import { db } from "@/db";
-import { marketplaceListings, profiles } from "@/db/schema";
+import { legacyMarketplaceListings as marketplaceListings } from "@/db/schema/marketplace-legacy";
 import { createClient } from "@/lib/supabase/server";
 import { logger } from "@/lib/logger";
 
@@ -23,19 +23,6 @@ const UpdateSchema = z.object({
   priceCents: z.number().int().min(0).optional(),
   currency: z.string().trim().min(3).max(10).optional(),
 });
-
-/**
- * Resuelve el activeAcademyId del usuario autenticado.
- * Helper compartido por los métodos PATCH y DELETE.
- */
-async function getUserActiveAcademy(userId: string) {
-  const [profile] = await db
-    .select({ activeAcademyId: profiles.activeAcademyId })
-    .from(profiles)
-    .where(eq(profiles.userId, userId))
-    .limit(1);
-  return profile?.activeAcademyId ?? null;
-}
 
 export async function PATCH(
   request: Request,
@@ -61,14 +48,9 @@ export async function PATCH(
       );
     }
 
-    const academyId = await getUserActiveAcademy(user.id);
-    if (!academyId) {
-      return NextResponse.json({ error: "NO_ACADEMY" }, { status: 404 });
-    }
-
     // Verify ownership
     const [existing] = await db
-      .select({ sellerAcademyId: marketplaceListings.sellerAcademyId })
+      .select({ userId: marketplaceListings.userId })
       .from(marketplaceListings)
       .where(eq(marketplaceListings.id, id))
       .limit(1);
@@ -77,7 +59,7 @@ export async function PATCH(
       return NextResponse.json({ error: "NOT_FOUND" }, { status: 404 });
     }
 
-    if (existing.sellerAcademyId !== academyId) {
+    if (existing.userId !== user.id) {
       return NextResponse.json({ error: "FORBIDDEN" }, { status: 403 });
     }
 
@@ -122,14 +104,9 @@ export async function DELETE(
 
     const { id } = await params;
 
-    const academyId = await getUserActiveAcademy(user.id);
-    if (!academyId) {
-      return NextResponse.json({ error: "NO_ACADEMY" }, { status: 404 });
-    }
-
     // Verify ownership
     const [existing] = await db
-      .select({ sellerAcademyId: marketplaceListings.sellerAcademyId })
+      .select({ userId: marketplaceListings.userId })
       .from(marketplaceListings)
       .where(eq(marketplaceListings.id, id))
       .limit(1);
@@ -138,7 +115,7 @@ export async function DELETE(
       return NextResponse.json({ error: "NOT_FOUND" }, { status: 404 });
     }
 
-    if (existing.sellerAcademyId !== academyId) {
+    if (existing.userId !== user.id) {
       return NextResponse.json({ error: "FORBIDDEN" }, { status: 403 });
     }
 
