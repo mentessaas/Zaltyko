@@ -65,6 +65,7 @@ export interface SuperAdminUserRow {
   academyId: string | null;
   createdAt: string | null;
   membershipRoles: string[];
+  ownedAcademyCount: number;
   isSuspended: boolean;
   planCode: string | null;
   planNickname: string | null;
@@ -313,10 +314,11 @@ export async function getAllAcademies(): Promise<SuperAdminAcademyRow[]> {
 export async function getAllUsers(): Promise<SuperAdminUserRow[]> {
   // Use Drizzle directly to bypass RLS and get all profiles
   const { db } = await import("@/db");
-  const { profiles, memberships, subscriptions, plans } = await import("@/db/schema");
+  const { academies, profiles, memberships, subscriptions, plans } = await import("@/db/schema");
+  const { count, isNotNull } = await import("drizzle-orm");
   const supabase = getClient();
 
-  const [profilesList, membershipsList, subscriptionsList, plansList, authUsers] = await Promise.all([
+  const [profilesList, membershipsList, subscriptionsList, plansList, authUsers, ownerAcademies] = await Promise.all([
     db.select({
       id: profiles.id,
       userId: profiles.userId,
@@ -341,6 +343,10 @@ export async function getAllUsers(): Promise<SuperAdminUserRow[]> {
       nickname: plans.nickname,
     }).from(plans).limit(1000),
     fetchAllAuthUsers(supabase),
+    db.select({ ownerId: academies.ownerId, total: count() })
+      .from(academies)
+      .where(isNotNull(academies.ownerId))
+      .groupBy(academies.ownerId),
   ]);
 
   const authUserLookup = new Map<string, User>();
@@ -357,6 +363,11 @@ export async function getAllUsers(): Promise<SuperAdminUserRow[]> {
       membershipLookup.set(membership.userId, new Set());
     }
     membershipLookup.get(membership.userId)!.add(membership.role);
+  }
+
+  const ownedAcademyCountLookup = new Map<string, number>();
+  for (const row of ownerAcademies) {
+    if (row.ownerId) ownedAcademyCountLookup.set(row.ownerId, Number(row.total));
   }
 
   // Create plan lookup: planId -> plan info
@@ -389,6 +400,7 @@ export async function getAllUsers(): Promise<SuperAdminUserRow[]> {
       academyId: profile.activeAcademyId ?? null,
       createdAt: toIso(profile.createdAt),
       membershipRoles: userId ? Array.from(membershipLookup.get(userId) ?? []) : [],
+      ownedAcademyCount: ownedAcademyCountLookup.get(profile.id) ?? 0,
       isSuspended: Boolean(profile.isSuspended),
       planCode: planInfo?.code ?? null,
       planNickname: planInfo?.nickname ?? null,

@@ -365,6 +365,12 @@ export function SuperAdminUsersTable({ initialItems }: SuperAdminUsersTableProps
                   <div className="min-w-0 space-y-1">
                     <p className="truncate font-semibold text-white">{user.fullName ?? "Sin nombre"}</p>
                     <p className="truncate text-xs text-white/70">{user.email ?? "Sin correo"}</p>
+                    {user.role === "owner" && user.ownedAcademyCount > 0 && (
+                      <p className="text-xs text-white/50">
+                        Propietario de {user.ownedAcademyCount} academia
+                        {user.ownedAcademyCount === 1 ? "" : "s"}
+                      </p>
+                    )}
                     <p className="text-xs text-white/50">
                       Registrado:{" "}
                       {formatSuperAdminDate(user.createdAt) ?? "—"}
@@ -448,7 +454,15 @@ export function SuperAdminUsersTable({ initialItems }: SuperAdminUsersTableProps
                         setPendingAction({ profileId: user.id, body: { delete: true }, userData: user });
                         setConfirmDialogOpen(true);
                       }}
-                      disabled={loading}
+                      disabled={
+                        loading ||
+                        (user.role === "owner" && user.ownedAcademyCount > 0)
+                      }
+                      title={
+                        user.role === "owner" && user.ownedAcademyCount > 0
+                          ? "No se puede eliminar a un propietario con academias activas"
+                          : undefined
+                      }
                       className="inline-flex items-center rounded-lg border border-red-500/40 px-3 py-1.5 text-xs font-semibold text-red-300 transition hover:bg-red-500/10 disabled:opacity-40"
                     >
                       Eliminar
