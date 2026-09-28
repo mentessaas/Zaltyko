@@ -1,11 +1,17 @@
 import type { Metadata } from "next";
 import Link from "next/link";
 
-import { MarketplaceCard, type MarketplaceListingCard } from "@/components/marketplace/MarketplaceCard";
+import { MarketplaceCard } from "@/components/marketplace/MarketplaceCard";
 import { MarketplaceFilters } from "@/components/marketplace/MarketplaceFilters";
 import { AdBanner } from "@/components/advertising/AdBanner";
 import { PublicPageHeader } from "@/components/public/PublicPageHeader";
 import { getPublicSiteUrl } from "@/lib/seo/site-url";
+import {
+  listActivePublicAds,
+  toPublicAdBannerItems,
+  type PublicAdBannerItem,
+} from "@/lib/advertising/public-ads";
+import { listPublicLegacyMarketplace } from "@/lib/marketplace/legacy-catalog";
 
 export const dynamic = "force-dynamic";
 export const metadata: Metadata = {
@@ -20,38 +26,24 @@ type SearchParams = {
   search?: string;
   page?: string;
 };
-type ListingResult = {
-  items: MarketplaceListingCard[];
-  total: number;
-  page: number;
-  totalPages: number;
-};
-
 function asQueryValues(value: string | string[] | undefined): string[] {
   return Array.isArray(value) ? value : value ? [value] : [];
 }
 
-async function getListings(searchParams: SearchParams): Promise<ListingResult> {
+function toSearchParams(searchParams: SearchParams): URLSearchParams {
   const params = new URLSearchParams();
-  for (const category of asQueryValues(searchParams.category)) params.append("category", category);
-  for (const type of asQueryValues(searchParams.type)) params.append("type", type);
+  for (const category of asQueryValues(searchParams.category))
+    params.append("category", category);
+  for (const type of asQueryValues(searchParams.type))
+    params.append("type", type);
   if (searchParams.search) params.set("search", searchParams.search);
   if (searchParams.page) params.set("page", searchParams.page);
-
-  const baseUrl = process.env.NEXT_PUBLIC_APP_URL || "http://127.0.0.1:3000";
-  const response = await fetch(`${baseUrl}/api/marketplace?${params}`, { cache: "no-store" });
-  if (!response.ok) throw new Error("MARKETPLACE_CATALOG_UNAVAILABLE");
-  const payload = await response.json();
-  return (payload?.data ?? payload) as ListingResult;
+  return params;
 }
 
-async function getAds(): Promise<Array<{ id: string; type: string; imageUrl?: string; linkUrl: string; title: string; altText?: string }>> {
-  const baseUrl = process.env.NEXT_PUBLIC_APP_URL || "http://127.0.0.1:3000";
+async function getAds(): Promise<PublicAdBannerItem[]> {
   try {
-    const response = await fetch(`${baseUrl}/api/advertising/zones/marketplace_top`, { cache: "no-store" });
-    if (!response.ok) return [];
-    const payload = await response.json();
-    return payload?.ads ?? [];
+    return toPublicAdBannerItems(await listActivePublicAds("marketplace_top"));
   } catch {
     return [];
   }
@@ -63,10 +55,12 @@ export default async function MarketplacePage({
   searchParams: Promise<SearchParams>;
 }) {
   const resolvedSearchParams = await searchParams;
-  const [{ items: listings, total, page, totalPages }, ads] = await Promise.all([
-    getListings(resolvedSearchParams),
-    getAds(),
-  ]);
+  const [{ items: listings, total, page, totalPages }, ads] = await Promise.all(
+    [
+      listPublicLegacyMarketplace(toSearchParams(resolvedSearchParams)),
+      getAds(),
+    ]
+  );
   return (
     <div className="container mx-auto px-4 py-8">
       <PublicPageHeader
@@ -79,19 +73,40 @@ export default async function MarketplacePage({
       />
       <AdBanner ads={ads} position="top" />
       <div className="flex gap-8 mt-6">
-        <aside className="w-64 shrink-0"><MarketplaceFilters /></aside>
+        <aside className="w-64 shrink-0">
+          <MarketplaceFilters />
+        </aside>
         <main className="flex-1">
           <p aria-live="polite" className="mb-4 text-sm text-muted-foreground">
             {total} resultados · Página {page} de {Math.max(totalPages, 1)}
           </p>
           {listings.length > 0 ? (
             <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6">
-              {listings.map((listing) => <MarketplaceCard key={listing.id} listing={listing} />)}
+              {listings.map((listing) => (
+                <MarketplaceCard
+                  key={listing.id}
+                  listing={{
+                    id: listing.id,
+                    title: listing.title,
+                    type: listing.type,
+                    category: listing.category,
+                    priceCents: listing.priceCents,
+                    currency: listing.currency,
+                    priceType: listing.priceType ?? "contact",
+                    images: listing.images,
+                    location: listing.location,
+                    isFeatured: listing.isFeatured,
+                    sellerType: listing.sellerType,
+                  }}
+                />
+              ))}
             </div>
           ) : (
             <div className="py-12 text-center">
               <p>No encontramos resultados para esos filtros.</p>
-              <Link href="/marketplace" className="underline">Ver todo el marketplace</Link>
+              <Link href="/marketplace" className="underline">
+                Ver todo el marketplace
+              </Link>
             </div>
           )}
         </main>

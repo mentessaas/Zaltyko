@@ -67,6 +67,7 @@ vi.mock("drizzle-orm/pg-core", () => {
       return col;
     };
     enumFn.values = values;
+    enumFn.enumValues = values;
     enumFn._name = name;
     return enumFn;
   };

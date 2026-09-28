@@ -1,45 +1,28 @@
 import { Metadata } from "next";
 import Link from "next/link";
 import { notFound } from "next/navigation";
-import { headers } from "next/headers";
 import { ArrowLeft, MapPin, Phone, Mail } from "lucide-react";
 import { AdBanner } from "@/components/advertising/AdBanner";
-import { canUsePublicDemoData, demoMarketplaceListing } from "@/lib/public/demo-listings";
 import { getPublicSiteUrl } from "@/lib/seo/site-url";
+import {
+  listActivePublicAds,
+  toPublicAdBannerItems,
+  type PublicAdBannerItem,
+} from "@/lib/advertising/public-ads";
+import { getPublicLegacyMarketplaceListing } from "@/lib/marketplace/legacy-catalog";
 
 interface Props {
   params: Promise<{ id: string }>;
 }
 
-async function getBaseUrl() {
-  const requestHeaders = await headers();
-  const host = requestHeaders.get("x-forwarded-host") ?? requestHeaders.get("host");
-  if (host) {
-    return `${requestHeaders.get("x-forwarded-proto") ?? "http"}://${host}`;
-  }
-  return process.env.NEXT_PUBLIC_APP_URL || "http://localhost:3000";
-}
-
 async function getListing(id: string) {
-  if (canUsePublicDemoData(id)) {
-    return { item: demoMarketplaceListing };
-  }
-  const baseUrl = await getBaseUrl();
-  const res = await fetch(`${baseUrl}/api/marketplace/${id}`, {
-    cache: "no-store",
-  });
-  if (!res.ok) return null;
-  return res.json();
+  const item = await getPublicLegacyMarketplaceListing(id);
+  return item ? { item } : null;
 }
 
-async function getAds(zone: string) {
+async function getAds(zone: string): Promise<{ ads: PublicAdBannerItem[] }> {
   try {
-    const baseUrl = await getBaseUrl();
-    const res = await fetch(`${baseUrl}/api/advertising/zones/${zone}`, {
-      cache: "no-store",
-    });
-    if (!res.ok) return { ads: [] };
-    return res.json();
+    return { ads: toPublicAdBannerItems(await listActivePublicAds(zone)) };
   } catch {
     return { ads: [] };
   }
@@ -98,7 +81,10 @@ export default async function MarketplaceDetailPage({ params }: Props) {
   const formatPrice = (cents: number, priceType: string) => {
     if (priceType === "contact") return "Consultar";
     const euros = cents / 100;
-    return new Intl.NumberFormat("es-ES", { style: "currency", currency: "EUR" }).format(euros);
+    return new Intl.NumberFormat("es-ES", {
+      style: "currency",
+      currency: "EUR",
+    }).format(euros);
   };
 
   return (
@@ -135,8 +121,15 @@ export default async function MarketplaceDetailPage({ params }: Props) {
             <h1 className="text-3xl font-bold mb-4">{listing.title}</h1>
 
             <p className="text-3xl font-bold text-primary mb-6">
-              {formatPrice(listing.priceCents || 0, listing.priceType)}
-              {listing.priceType === "negotiable" && <span className="text-lg font-normal text-muted-foreground ml-2">(negociable)</span>}
+              {formatPrice(
+                listing.priceCents || 0,
+                listing.priceType ?? "contact"
+              )}
+              {listing.priceType === "negotiable" && (
+                <span className="text-lg font-normal text-muted-foreground ml-2">
+                  (negociable)
+                </span>
+              )}
             </p>
 
             {listing.description && (
@@ -171,7 +164,9 @@ export default async function MarketplaceDetailPage({ params }: Props) {
             <div className="space-y-3 text-sm">
               <p>
                 <span className="text-muted-foreground">Tipo: </span>
-                <span className="font-medium">{SELLER_TYPE_LABELS[listing.sellerType] || listing.sellerType}</span>
+                <span className="font-medium">
+                  {SELLER_TYPE_LABELS[listing.sellerType] || listing.sellerType}
+                </span>
               </p>
 
               {listing.location && (
@@ -179,8 +174,10 @@ export default async function MarketplaceDetailPage({ params }: Props) {
                   <MapPin className="h-4 w-4 mt-0.5 text-muted-foreground" />
                   <span>
                     {listing.location.city}
-                    {listing.location.province && `, ${listing.location.province}`}
-                    {listing.location.country && `, ${listing.location.country}`}
+                    {listing.location.province &&
+                      `, ${listing.location.province}`}
+                    {listing.location.country &&
+                      `, ${listing.location.country}`}
                   </span>
                 </div>
               )}

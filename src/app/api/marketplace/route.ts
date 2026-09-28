@@ -1,16 +1,13 @@
 export const dynamic = "force-dynamic";
 
-import { and, desc, eq, inArray, like, or, sql, type SQL } from "drizzle-orm";
 import { z } from "zod";
 
 import { db } from "@/db";
 import { legacyMarketplaceListings as marketplaceListings } from "@/db/schema/marketplace-legacy";
-import { marketplaceCategoryEnum, marketplaceListingTypeEnum } from "@/db/schema/enums";
 import { withAuthenticatedNoTenant, type TenantContext } from "@/lib/authz";
-import { escapeLikeSearch } from "@/lib/helpers";
 import { apiSuccess, apiError, apiCreated } from "@/lib/api-response";
 import { logger } from "@/lib/logger";
-import { demoMarketplaceListing } from "@/lib/public/demo-listings";
+import { listPublicLegacyMarketplace } from "@/lib/marketplace/legacy-catalog";
 
 const MARKETPLACE_SELLER_TYPES = ["academy", "coach", "athlete", "provider", "external"] as const;
 type MarketplaceSellerType = (typeof MARKETPLACE_SELLER_TYPES)[number];
@@ -63,58 +60,14 @@ const CreateMarketplaceSchema = z.object({
   path: ["contact"],
 });
 
-function positiveInteger(value: string | null, fallback: number, maximum: number): number {
-  const parsed = Number(value);
-  return Number.isSafeInteger(parsed) && parsed > 0 ? Math.min(parsed, maximum) : fallback;
-}
-
 /**
  * Public legacy classifieds catalogue; the academic B2B catalogue has a separate model.
  * @route-auth GET public
  */
 export async function GET(request: Request) {
   try {
-    const { searchParams } = new URL(request.url);
-    const page = positiveInteger(searchParams.get("page"), 1, 10000);
-    const limit = positiveInteger(searchParams.get("limit"), 20, 100);
-    const categories = searchParams.getAll("category").filter(
-      (value): value is typeof marketplaceCategoryEnum.enumValues[number] =>
-        marketplaceCategoryEnum.enumValues.includes(value as typeof marketplaceCategoryEnum.enumValues[number])
-    );
-    const types = searchParams.getAll("type").filter(
-      (value): value is typeof marketplaceListingTypeEnum.enumValues[number] =>
-        marketplaceListingTypeEnum.enumValues.includes(value as typeof marketplaceListingTypeEnum.enumValues[number])
-    );
-    const search = searchParams.get("search");
-    const normalizedSearch = search?.trim() || null;
-    const conditions: SQL[] = [eq(marketplaceListings.status, "active")];
-    if (categories.length) conditions.push(inArray(marketplaceListings.category, categories));
-    if (types.length) conditions.push(inArray(marketplaceListings.type, types));
-    if (normalizedSearch) {
-      const escaped = escapeLikeSearch(normalizedSearch);
-      const searchCondition = or(
-        like(marketplaceListings.title, `%${escaped}%`),
-        like(marketplaceListings.description, `%${escaped}%`)
-      );
-      if (searchCondition) conditions.push(searchCondition);
-    }
-    const whereClause = and(...conditions);
-    const listings = await db.select()
-      .from(marketplaceListings)
-      .where(whereClause)
-      .orderBy(desc(marketplaceListings.createdAt), desc(marketplaceListings.id))
-      .limit(limit)
-      .offset((page - 1) * limit);
-    const [countRow] = await db.select({ count: sql<number>`count(*)::int` })
-      .from(marketplaceListings)
-      .where(whereClause)
-      .limit(1);
-
-    const hasCatalogueFilters = searchParams.has("category") || searchParams.has("type") || Boolean(normalizedSearch);
-    const shouldShowDemo = listings.length === 0 && process.env.NODE_ENV !== "production" && page === 1 && !hasCatalogueFilters;
-    const items = shouldShowDemo ? [demoMarketplaceListing] : listings;
-    const total = shouldShowDemo ? 1 : countRow?.count ?? 0;
-    return apiSuccess({ items, total, page, pageSize: limit, totalPages: Math.ceil(total / limit) });
+    const result = await listPublicLegacyMarketplace(new URL(request.url).searchParams);
+    return apiSuccess(result);
   } catch (error) {
     logger.error("Error listing marketplace listings:", error);
     return apiError("INTERNAL_ERROR", "Error al listar los anuncios", 500);

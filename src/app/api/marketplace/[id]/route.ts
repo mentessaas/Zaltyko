@@ -1,10 +1,7 @@
 import { NextResponse } from "next/server";
-import { db } from "@/db";
-import { legacyMarketplaceListings as marketplaceListings } from "@/db/schema/marketplace-legacy";
-import { and, eq } from "drizzle-orm";
 import { logger } from "@/lib/logger";
 import { apiError } from "@/lib/api-response";
-import { canUsePublicDemoData, demoMarketplaceListing } from "@/lib/public/demo-listings";
+import { getPublicLegacyMarketplaceListing } from "@/lib/marketplace/legacy-catalog";
 
 export async function GET(
   request: Request,
@@ -12,17 +9,7 @@ export async function GET(
 ) {
   try {
     const { id } = await params;
-
-    if (canUsePublicDemoData(id)) {
-      return NextResponse.json({ item: demoMarketplaceListing });
-    }
-
-    // Superficie pública: solo listings activos (hidden/sold requieren auth).
-    const [listing] = await db.select()
-      .from(marketplaceListings)
-      .where(and(eq(marketplaceListings.id, id), eq(marketplaceListings.status, "active")))
-      .limit(1);
-
+    const listing = await getPublicLegacyMarketplaceListing(id);
     if (!listing) {
       return NextResponse.json({ error: "Listing not found" }, { status: 404 });
     }
