@@ -7,6 +7,7 @@ import { resolve } from "node:path";
 import { createClient } from "@supabase/supabase-js";
 import { Pool } from "pg";
 import { assertDisposableE2EEmail, assertE2ESandboxTarget } from "./lib/e2e-sandbox-target";
+import { assertConfiguredE2EFamilyAthlete } from "./lib/e2e-family-athlete";
 
 config({ path: resolve(process.cwd(), ".env.local") });
 config({ path: resolve(process.cwd(), ".env") });
@@ -192,25 +193,39 @@ async function ensureAthleteProfile(pool: Pool, userId: string, tenantId: string
   return profileId;
 }
 
-async function ensureAthlete(pool: Pool, tenantId: string) {
+async function ensureAthlete(
+  pool: Pool,
+  tenantId: string,
+  athleteUserId: string,
+  expectedAcademyId: string
+) {
   // Athletes NO tiene columna email. Determinamos idempotencia por nombre +
   // academia. El nombre se deriva del env para no chocar con academias que
   // tengan otro `E2E Athlete` huérfano.
   const deterministicName = `${athleteName} (${familyEmail.split("@")[0]})`;
   if (configuredAthleteId) {
-    const configured = await pool.query<{ id: string; name: string }>(
+    const configured = await pool.query<{
+      id: string;
+      name: string;
+      user_id: string | null;
+      academy_id: string;
+      tenant_id: string;
+    }>(
       `
-        select id, name from athletes
+        select id, name, user_id, academy_id, tenant_id from athletes
         where id = $1::uuid and academy_id = $2::uuid and tenant_id = $3::uuid
         limit 1
       `,
-      [configuredAthleteId, academyId, tenantId]
+      [configuredAthleteId, expectedAcademyId, tenantId]
     );
     const row = configured.rows[0];
-    if (!row || row.name !== deterministicName) {
-      throw new Error("E2E_ATHLETE_ID must point to the disposable athlete row for this family/academy.");
-    }
-    return row.id;
+    return assertConfiguredE2EFamilyAthlete(row, {
+      academyId: expectedAcademyId,
+      tenantId,
+      athleteUserId,
+      deterministicName,
+      legacyName: athleteName,
+    });
   }
 
   const existing = await pool.query<{ id: string }>(
@@ -321,12 +336,11 @@ async function main() {
     if (!tenantId) throw new Error(`E2E academy not found: ${academyId}`);
 
     const user = await ensureFamilyAuthUser(supabase);
-    const profileId = await ensureFamilyProfile(pool, user.id, tenantId);
-    const athleteId = await ensureAthlete(pool, tenantId);
-    await ensureGuardianLink(pool, profileId, athleteId, tenantId);
-
     const athleteUser = await ensureAthleteAuthUser(supabase);
+    const profileId = await ensureFamilyProfile(pool, user.id, tenantId);
+  const athleteId = await ensureAthlete(pool, tenantId, athleteUser.id, academyId);
     await ensureAthleteProfile(pool, athleteUser.id, tenantId);
+    await ensureGuardianLink(pool, profileId, athleteId, tenantId);
     const linkedAthlete = await pool.query<{ id: string }>(
       `
         update athletes
