@@ -94,8 +94,6 @@ const E2E_SANDBOX_PROJECT_REF = "aeeootdmuiqkfeernskw";
 function isGitHubE2ESandboxRateLimitBypassEnabled(): boolean {
   return (
     process.env.E2E_RATE_LIMIT_BYPASS === "true" &&
-    process.env.GITHUB_ACTIONS === "true" &&
-    process.env.CI === "true" &&
     process.env.VERCEL_ENV === "preview" &&
     process.env.E2E_TARGET_SUPABASE_PROJECT_REF === E2E_SANDBOX_PROJECT_REF &&
     process.env.NEXT_PUBLIC_SUPABASE_URL ===

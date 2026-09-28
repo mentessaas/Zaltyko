@@ -80,8 +80,6 @@ describe("Rate Limiting", () => {
     it("allows only the explicitly isolated GitHub E2E sandbox when KV is absent", async () => {
       vi.stubEnv("NODE_ENV", "production");
       vi.stubEnv("VERCEL_ENV", "preview");
-      vi.stubEnv("CI", "true");
-      vi.stubEnv("GITHUB_ACTIONS", "true");
       vi.stubEnv("E2E_RATE_LIMIT_BYPASS", "true");
       vi.stubEnv("E2E_TARGET_SUPABASE_PROJECT_REF", "aeeootdmuiqkfeernskw");
       vi.stubEnv("NEXT_PUBLIC_SUPABASE_URL", "https://aeeootdmuiqkfeernskw.supabase.co");
@@ -97,8 +95,6 @@ describe("Rate Limiting", () => {
     it("does not bypass rate limits for production deployments or another Supabase project", async () => {
       vi.stubEnv("NODE_ENV", "production");
       vi.stubEnv("VERCEL_ENV", "production");
-      vi.stubEnv("CI", "true");
-      vi.stubEnv("GITHUB_ACTIONS", "true");
       vi.stubEnv("E2E_RATE_LIMIT_BYPASS", "true");
       vi.stubEnv("E2E_TARGET_SUPABASE_PROJECT_REF", "aeeootdmuiqkfeernskw");
       vi.stubEnv("NEXT_PUBLIC_SUPABASE_URL", "https://aeeootdmuiqkfeernskw.supabase.co");
@@ -108,6 +104,14 @@ describe("Rate Limiting", () => {
       const result = await rateLimit({ identifier: "not-sandbox", limit: 10, window: 60 });
 
       expect(result.success).toBe(false);
+
+      vi.stubEnv("VERCEL_ENV", "preview");
+      vi.stubEnv("E2E_TARGET_SUPABASE_PROJECT_REF", "another-supabase-project");
+      vi.stubEnv("NEXT_PUBLIC_SUPABASE_URL", "https://another-supabase-project.supabase.co");
+
+      const wrongSandbox = await rateLimit({ identifier: "wrong-sandbox", limit: 10, window: 60 });
+
+      expect(wrongSandbox.success).toBe(false);
     });
   });
 });
