@@ -183,7 +183,17 @@ test.describe("Zaltyko full academy flows", () => {
   test("command palette opens and exposes search/navigation sections", async ({
     page,
   }) => {
+    await page.setViewportSize({ width: 1280, height: 900 });
     await gotoAcademy(page, "dashboard");
+
+    const searchTrigger = page.getByRole("button", { name: /Buscar/i }).first();
+    await expect(searchTrigger).toBeVisible();
+    await searchTrigger.click();
+    await expect(
+      page.getByPlaceholder(/Buscar atletas, clases, entrenadores, eventos/i)
+    ).toBeVisible();
+    await page.keyboard.press("Escape");
+
     await page.keyboard.press(
       process.platform === "darwin" ? "Meta+K" : "Control+K"
     );
