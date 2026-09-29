@@ -67,6 +67,7 @@ export function CreateAthleteDialog({
   // visible. Las opciones deportivas menos frecuentes sí empiezan plegadas.
   const [showAdvanced, setShowAdvanced] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [nameError, setNameError] = useState(false);
   const [isPending, startTransition] = useTransition();
   const resolvedInitialSportConfigId = useMemo(
     () =>
@@ -148,8 +149,10 @@ export function CreateAthleteDialog({
   const handleSubmit = (event: FormEvent<HTMLFormElement>) => {
     event.preventDefault();
     setError(null);
+    setNameError(false);
 
     if (!name.trim()) {
+      setNameError(true);
       setError(`El nombre del ${athleteTermLower} es obligatorio.`);
       return;
     }
@@ -226,6 +229,7 @@ export function CreateAthleteDialog({
         }
 
         setName("");
+        setNameError(false);
         setDob("");
         setCategory("");
         setLevel("");
@@ -246,6 +250,7 @@ export function CreateAthleteDialog({
   const handleClose = () => {
     if (isPending) return;
     setError(null);
+    setNameError(false);
     onClose();
   };
 
@@ -277,8 +282,12 @@ export function CreateAthleteDialog({
       }
     >
       <form id="create-athlete-form" onSubmit={handleSubmit} className="space-y-5">
-        {error && (
-          <div className="rounded-xl border border-zaltyko-coral/35 bg-zaltyko-coral/10 px-3 py-2 text-sm text-zaltyko-coral">
+        {error && !nameError && (
+          <div
+            id="create-athlete-form-error"
+            role="alert"
+            className="rounded-xl border border-zaltyko-coral/35 bg-zaltyko-coral/10 px-3 py-2 text-sm text-zaltyko-coral"
+          >
             {error}
           </div>
         )}
@@ -286,14 +295,30 @@ export function CreateAthleteDialog({
         {/* Campos esenciales */}
         <div className="space-y-4">
           <div className="space-y-2">
-            <label className="text-xs font-medium uppercase tracking-[0.05em] text-foreground">Nombre completo *</label>
+            <label
+              htmlFor="create-athlete-name"
+              className="text-xs font-medium uppercase tracking-[0.05em] text-foreground"
+            >
+              Nombre completo *
+            </label>
             <input
+              id="create-athlete-name"
               value={name}
-              onChange={(event) => setName(event.target.value)}
+              onChange={(event) => {
+                setName(event.target.value);
+                if (nameError) setNameError(false);
+              }}
               className={fieldClassName}
               placeholder="Ej: María García López"
-              required
+              aria-required="true"
+              aria-invalid={nameError || undefined}
+              aria-describedby={nameError ? "create-athlete-name-error" : undefined}
             />
+            {nameError && (
+              <p id="create-athlete-name-error" className="text-xs text-zaltyko-coral" role="alert">
+                El nombre del {athleteTermLower} es obligatorio.
+              </p>
+            )}
           </div>
 
           <div className="grid gap-4 sm:grid-cols-2">

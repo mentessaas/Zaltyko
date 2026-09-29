@@ -17,6 +17,7 @@ import React from "react";
 
 import { FormField, validators } from "@/components/ui/form-field";
 import { ConfirmDialog } from "@/components/ui/confirm-dialog";
+import { CreateAthleteDialog } from "@/components/athletes/CreateAthleteDialog";
 
 // Radix Dialog necesita un portal; en test environment ya esta disponible
 // via jsdom. Sin mocks adicionales.
@@ -195,5 +196,26 @@ describe("ConfirmDialog", () => {
     await act(async () => {
       resolveConfirm();
     });
+  });
+});
+
+describe("CreateAthleteDialog", () => {
+  it("asocia el error de nombre obligatorio con el campo inválido", async () => {
+    const user = userEvent.setup();
+    render(
+      <CreateAthleteDialog
+        academyId="academy-test"
+        open
+        onClose={vi.fn()}
+        onCreated={vi.fn()}
+      />
+    );
+
+    await user.click(screen.getByRole("button", { name: /Guardar gimnasta/i }));
+
+    const nameInput = screen.getByLabelText("Nombre completo *");
+    expect(nameInput).toHaveAttribute("aria-invalid", "true");
+    expect(nameInput).toHaveAttribute("aria-describedby", "create-athlete-name-error");
+    expect(screen.getByRole("alert")).toHaveTextContent("El nombre del gimnasta es obligatorio.");
   });
 });
