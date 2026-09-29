@@ -28,6 +28,7 @@
         "bf-cache": ["warn", { "minScore": 0.9 }],
         "color-contrast": ["warn", { "minScore": 0.9 }],
         "errors-in-console": ["warn", { "minScore": 0.9 }],
+        "forced-reflow-insight": ["warn", { "minScore": 0.9 }],
         "heading-order": ["warn", { "minScore": 0.9 }],
         "inspector-issues": ["warn", { "minScore": 0.9 }],
         "label-content-name-mismatch": ["warn", { "minScore": 0.9 }],
