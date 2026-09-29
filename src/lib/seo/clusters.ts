@@ -451,7 +451,11 @@ export async function getClusterAcademies(
   // intentionally rejects connections in that phase. Returning an empty
   // collection keeps the static page valid and lets runtime requests hydrate
   // the real directory data without noisy build-time errors.
-  if (process.env.NEXT_PHASE === "phase-production-build" || process.env.NEXT_PHASE === "phase-development-build") {
+  if (
+    process.env.NEXT_PHASE === "phase-production-build" ||
+    process.env.NEXT_PHASE === "phase-development-build" ||
+    process.env.ZALTYKO_SKIP_PUBLIC_DB === "1"
+  ) {
     return [];
   }
   const { db } = await import('@/db');
