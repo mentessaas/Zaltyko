@@ -70,11 +70,15 @@ function readAttribution(): {
 
 type RegisterRole = (typeof ROLE_OPTIONS)[number]["value"];
 
+const LEGAL_CONSENT_VERSION = "v1-2026-09-13";
+const LEGAL_CONSENT_PROOF = "signup:register-form-v1";
+
 export function RegisterForm() {
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [fullName, setFullName] = useState("");
   const [role, setRole] = useState<RegisterRole>("owner");
+  const [termsAccepted, setTermsAccepted] = useState(false);
   const roleButtonRefs = useRef<Array<HTMLButtonElement | null>>([]);
   const [loading, setLoading] = useState(false);
   const [googleLoading, setGoogleLoading] = useState(false);
@@ -152,6 +156,15 @@ export function RegisterForm() {
       return;
     }
 
+    if (!termsAccepted) {
+      toast.pushToast({
+        title: "Aceptación necesaria",
+        description: "Lee y acepta los términos y la política de privacidad para crear tu cuenta.",
+        variant: "error",
+      });
+      return;
+    }
+
     // Verificar que la contraseña no aparezca en filtraciones públicas conocidas
     // (HaveIBeenPwned, k-anonymity). Falla en abierto si la API no responde —
     // el helper registra el caso y deja pasar al usuario.
@@ -185,6 +198,10 @@ export function RegisterForm() {
           data: {
             full_name: fullName.trim(),
             initial_role: role,
+            // Metadata is only a hand-off for the server-side consent record;
+            // authorization must never rely on user-editable user_metadata.
+            legal_consent_version: LEGAL_CONSENT_VERSION,
+            legal_consent_proof: LEGAL_CONSENT_PROOF,
           },
           emailRedirectTo,
         },
@@ -270,6 +287,15 @@ export function RegisterForm() {
   };
 
   const handleGoogleSignUp = async () => {
+    if (!termsAccepted) {
+      toast.pushToast({
+        title: "Aceptación necesaria",
+        description: "Lee y acepta los términos y la política de privacidad para crear tu cuenta.",
+        variant: "error",
+      });
+      return;
+    }
+
     setGoogleLoading(true);
     try {
       const next = `/auth/redirect?initial_role=${encodeURIComponent(role)}`;
@@ -389,6 +415,27 @@ export function RegisterForm() {
             placeholder="Mínimo 8 caracteres"
           />
         </div>
+        <label className="flex items-start gap-3 rounded-lg border border-border bg-muted/20 px-3 py-3 text-sm leading-relaxed">
+          <input
+            type="checkbox"
+            name="termsAccepted"
+            checked={termsAccepted}
+            onChange={(event) => setTermsAccepted(event.target.checked)}
+            required
+            className="mt-1 h-4 w-4 shrink-0 rounded border-border accent-zaltyko-teal focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-zaltyko-teal focus-visible:ring-offset-2"
+          />
+          <span>
+            Acepto los{" "}
+            <Link href="/terminos" target="_blank" rel="noreferrer" className="font-semibold text-zaltyko-primary underline hover:text-zaltyko-primary-dark">
+              términos y condiciones
+            </Link>{" "}
+            y he leído la{" "}
+            <Link href="/politica-privacidad" target="_blank" rel="noreferrer" className="font-semibold text-zaltyko-primary underline hover:text-zaltyko-primary-dark">
+              política de privacidad
+            </Link>
+            .
+          </span>
+        </label>
         <Button type="submit" className="w-full" disabled={loading || googleLoading}>
           {loading ? (
             <>
