@@ -540,3 +540,21 @@ jobs:
           STRIPE_SECRET_KEY: ${{ secrets.E2E_STRIPE_SECRET_KEY }}
           STRIPE_WEBHOOK_SECRET: ${{ secrets.E2E_STRIPE_WEBHOOK_SECRET }}
           NEXT_PUBLIC_STRIPE_PUBLISHABLE_KEY: ${{ secrets.E2E_STRIPE_PUBLISHABLE_KEY }}
+
+      - name: Verify contact write and idempotency in sandbox
+        run: |
+          pnpm tsx scripts/apply-e2e-contact-schema.ts
+          pnpm exec playwright test tests/e2e-contact-sandbox.spec.ts --project=chromium
+        env:
+          E2E_STAGING_WRITE_TEST: "true"
+          E2E_ALLOW_PROVISIONING: "true"
+          E2E_TARGET_SUPABASE_PROJECT_REF: ${{ secrets.E2E_TARGET_SUPABASE_PROJECT_REF }}
+          NEXT_PUBLIC_SUPABASE_URL: ${{ secrets.E2E_SUPABASE_URL }}
+          NEXT_PUBLIC_SUPABASE_ANON_KEY: ${{ secrets.E2E_SUPABASE_ANON_KEY }}
+          SUPABASE_SERVICE_ROLE_KEY: ${{ secrets.E2E_SUPABASE_SERVICE_ROLE_KEY }}
+          DATABASE_URL: ${{ secrets.E2E_DATABASE_URL }}
+          DATABASE_URL_POOL: ${{ secrets.E2E_DATABASE_URL }}
+          DATABASE_URL_DIRECT: ${{ secrets.E2E_DATABASE_URL }}
+          STRIPE_SECRET_KEY: ${{ secrets.E2E_STRIPE_SECRET_KEY }}
+          STRIPE_WEBHOOK_SECRET: ${{ secrets.E2E_STRIPE_WEBHOOK_SECRET }}
+          NEXT_PUBLIC_STRIPE_PUBLISHABLE_KEY: ${{ secrets.E2E_STRIPE_PUBLISHABLE_KEY }}
