@@ -137,9 +137,17 @@ const sentryConfig = isVercelPreview
       // Only upload source maps in production
       silent: !process.env.SENTRY_AUTH_TOKEN,
       hideSourceMaps: true,
+      // The standard Vercel build container has 8 GB of RAM. Generating and
+      // uploading client source maps across the full route set exhausts it and
+      // terminates production builds with SIGKILL/OOM. Runtime Sentry capture
+      // remains enabled; symbolication can be restored when the build runs on
+      // a larger runner.
+      sourcemaps: {
+        disable: true,
+      },
 
       // Automatically instrument Next.js
-      widenClientFileUpload: true,
+      widenClientFileUpload: false,
 
       // Route browser requests to Sentry through a Next.js rewrite to circumvent ad-blockers.
       tunnelRoute: "/monitoring",
