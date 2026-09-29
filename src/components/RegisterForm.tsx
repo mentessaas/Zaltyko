@@ -404,7 +404,7 @@ export function RegisterForm() {
             type="text"
             value={fullName}
             onChange={(e) => setFullName(e.target.value)}
-            required
+            aria-required="true"
             autoComplete="name"
             placeholder="María García"
           />
@@ -417,7 +417,7 @@ export function RegisterForm() {
             type="email"
             value={email}
             onChange={(e) => setEmail(e.target.value)}
-            required
+            aria-required="true"
             autoComplete="email"
             placeholder="tu@email.com"
           />
@@ -430,7 +430,7 @@ export function RegisterForm() {
             type="password"
             value={password}
             onChange={(e) => setPassword(e.target.value)}
-            required
+            aria-required="true"
             autoComplete="new-password"
             placeholder="Mínimo 8 caracteres"
           />
@@ -441,7 +441,7 @@ export function RegisterForm() {
             name="termsAccepted"
             checked={termsAccepted}
             onChange={(event) => setTermsAccepted(event.target.checked)}
-            required
+            aria-required="true"
             className="mt-1 h-4 w-4 shrink-0 rounded border-border accent-zaltyko-teal focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-zaltyko-teal focus-visible:ring-offset-2"
           />
           <span>
@@ -471,6 +471,7 @@ export function RegisterForm() {
       <div className="mt-4">
         <Button
           type="button"
+          formNoValidate
           onClick={handleGoogleSignUp}
           variant="outline"
           className="w-full"
