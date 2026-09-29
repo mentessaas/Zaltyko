@@ -1,5 +1,5 @@
 import type { Metadata, Viewport } from "next";
-import { Manrope, Space_Grotesk } from "next/font/google";
+import localFont from "next/font/local";
 import { headers } from "next/headers";
 import "./globals.css";
 import type React from "react";
@@ -17,19 +17,27 @@ import { UtmCapture } from "@/components/growth/UtmCapture";
 import { GoogleAdsTracking } from "@/components/GoogleAdsTracking";
 import { getPublicSiteUrl } from "@/lib/seo/site-url";
 
-const spaceGrotesk = Space_Grotesk({
-  subsets: ["latin"],
+const spaceGrotesk = localFont({
+  src: [
+    { path: "../assets/fonts/space-grotesk-400.ttf", weight: "400", style: "normal" },
+    { path: "../assets/fonts/space-grotesk-500.ttf", weight: "500", style: "normal" },
+    { path: "../assets/fonts/space-grotesk-600.ttf", weight: "600", style: "normal" },
+    { path: "../assets/fonts/space-grotesk-700.ttf", weight: "700", style: "normal" },
+  ],
   display: "swap",
-  weight: ["400", "500", "600", "700"],
   variable: "--font-space-grotesk",
 });
 
 // Body: Manrope (geométrica, distintiva). Se conserva el nombre de variable
 // CSS --font-inter para no tocar el resto del sistema de estilos.
-const bodyFont = Manrope({
-  subsets: ["latin"],
+const bodyFont = localFont({
+  src: [
+    { path: "../assets/fonts/manrope-400.ttf", weight: "400", style: "normal" },
+    { path: "../assets/fonts/manrope-500.ttf", weight: "500", style: "normal" },
+    { path: "../assets/fonts/manrope-600.ttf", weight: "600", style: "normal" },
+    { path: "../assets/fonts/manrope-700.ttf", weight: "700", style: "normal" },
+  ],
   display: "swap",
-  weight: ["400", "500", "600", "700"],
   variable: "--font-inter",
 });
 
@@ -152,38 +160,15 @@ export default async function RootLayout({
       <head>
         {/* Preconnect to critical third-party origins (W5 + W9 GEO audit).
             Wildcards aren't valid in preconnect — concrete subdomains only.
-            Fonts + PostHog were landed in PR2; Supabase (project-scoped) and
+            PostHog, Supabase (project-scoped), and
             Stripe (js.stripe.com + api.stripe.com) added now to cut cold
             DNS+TCP+TLS when users sign in or start checkout. */}
-        <link rel="preconnect" href="https://fonts.googleapis.com" />
-        <link rel="preconnect" href="https://fonts.gstatic.com" crossOrigin="anonymous" />
         <link rel="preconnect" href="https://app.posthog.com" crossOrigin="anonymous" />
         <link rel="preconnect" href="https://js.stripe.com" crossOrigin="anonymous" />
         <link rel="preconnect" href="https://api.stripe.com" crossOrigin="anonymous" />
         {supabaseOrigin && (
           <link rel="preconnect" href={supabaseOrigin} crossOrigin="anonymous" />
         )}
-        {/* R6 LCP optimization: explicit preload of the two `.p.woff2` subsets
-            next/font/google generates for Latin (Space Grotesk for `font-display`
-            headings — H1 LCP element on /pricing; Manrope for `font-sans` body
-            paragraphs). next/font/google auto-injects preloads in dev but does
-            NOT inject them in this build's production HTML (verified — only the
-            webpack chunk is preloaded). URLs are content-addressed and stable
-            across builds as long as the next/font config above is unchanged. */}
-        <link
-          rel="preload"
-          href="/_next/static/media/36966cca54120369-s.p.woff2"
-          as="font"
-          type="font/woff2"
-          crossOrigin="anonymous"
-        />
-        <link
-          rel="preload"
-          href="/_next/static/media/4c9affa5bc8f420e-s.p.woff2"
-          as="font"
-          type="font/woff2"
-          crossOrigin="anonymous"
-        />
         <link rel="manifest" href="/manifest.json" />
         <meta name="theme-color" content="#0F172A" />
         <meta name="apple-mobile-web-app-capable" content="yes" />
