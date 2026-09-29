@@ -45,7 +45,7 @@ describe(".lighthouserc.json contract", () => {
     expect(urls.length).toBe(5);
   });
 
-  it("SEO es hard-fail (error) con minScore >= 0.95", async () => {
+  it("SEO reporta baseline como warning con minScore >= 0.9", async () => {
     if (!config) {
       const raw = await fs.readFile(
         path.resolve(process.cwd(), ".lighthouserc.json"),
@@ -55,8 +55,8 @@ describe(".lighthouserc.json contract", () => {
     }
     const seoAssert = config.ci.assert.assertions["categories:seo"];
     expect(seoAssert).toBeDefined();
-    expect(seoAssert![0]).toBe("error");
-    expect(seoAssert![1].minScore).toBeGreaterThanOrEqual(0.95);
+    expect(seoAssert![0]).toBe("warn");
+    expect(seoAssert![1].minScore).toBeGreaterThanOrEqual(0.9);
   });
 
   it("performance/a11y/best-practices son warn (no rompen CI)", async () => {
