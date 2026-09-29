@@ -5,7 +5,7 @@ import { ArrowLeft } from "lucide-react";
 import { createClient } from "@/lib/supabase/server";
 import { Button } from "@/components/ui/button";
 import { Breadcrumb } from "@/components/ui/breadcrumb";
-import { AnnouncementForm } from "@/components/announcements/AnnouncementForm";
+import { AnnouncementCreatePanel } from "@/components/announcements/AnnouncementCreatePanel";
 
 interface PageProps {
   params: Promise<{
@@ -38,12 +38,7 @@ export default async function NewAnnouncementPage({ params }: PageProps) {
 
       <div className="rounded-lg border border-border bg-card p-6">
         <h1 className="text-2xl font-bold mb-6">Crear nuevo anuncio</h1>
-        <AnnouncementForm
-          open={true}
-          onClose={() => {}}
-          academyId={academyId}
-          onSuccess={() => {}}
-        />
+        <AnnouncementCreatePanel academyId={academyId} />
       </div>
     </div>
   );

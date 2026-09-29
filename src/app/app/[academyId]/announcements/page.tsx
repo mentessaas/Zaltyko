@@ -11,7 +11,6 @@ import { Badge } from "@/components/ui/badge";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Breadcrumb } from "@/components/ui/breadcrumb";
 import { EmptyState } from "@/components/shared/EmptyState";
-import { AnnouncementForm } from "@/components/announcements/AnnouncementForm";
 
 const PRIORITY_LABELS: Record<string, { label: string; class: string }> = {
   low: { label: "Baja", class: "bg-muted text-muted-foreground" },
