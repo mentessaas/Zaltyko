@@ -352,6 +352,13 @@ jobs:
 
       - name: Run Lighthouse CI
         uses: treosh/lighthouse-ci-action@v12
+        env:
+          NODE_ENV: production
+          NEXT_PUBLIC_SUPABASE_URL: https://placeholder.supabase.co
+          NEXT_PUBLIC_SUPABASE_ANON_KEY: placeholder-anon-key-for-lhci
+          DATABASE_URL: postgresql://placeholder:placeholder@placeholder:5432/placeholder
+          INTERNAL_AUTH_SECRET: placeholder-internal-auth-secret-for-lhci
+          SUPABASE_JWT_SECRET: placeholder-supabase-jwt-secret-for-lhci
         with:
           configPath: .lighthouserc.json
           uploadArtifacts: true
