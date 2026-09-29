@@ -35,6 +35,7 @@ async function main() {
         code: canonical.code,
         nickname: canonical.publicName,
         priceEur: canonical.priceEurCents,
+        annualPriceEur: canonical.annualPriceEurCents ?? null,
         athleteLimit: canonical.athleteLimit,
         academyLimit: canonical.academyLimit,
         currency: "eur",
@@ -46,6 +47,7 @@ async function main() {
         set: {
           nickname: canonical.publicName,
           priceEur: canonical.priceEurCents,
+          annualPriceEur: canonical.annualPriceEurCents ?? null,
           athleteLimit: canonical.athleteLimit,
           academyLimit: canonical.academyLimit,
           currency: "eur",

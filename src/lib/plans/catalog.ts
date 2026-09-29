@@ -5,6 +5,8 @@ export interface ProductPlan {
   publicName: string;
   internalName: string;
   priceEurCents: number;
+  /** Precio anual cobrado de una vez; ausencia = no disponible para autoservicio. */
+  annualPriceEurCents?: number;
   description: string;
   shortDescription: string;
   athleteLimit: number | null;
@@ -47,6 +49,7 @@ export const PRODUCT_PLANS: ProductPlan[] = [
     publicName: "Starter",
     internalName: "Starter",
     priceEurCents: 1900,
+    annualPriceEurCents: 19000,
     description: "Para academias pequeñas que quieren ordenar grupos, asistencia y cobros.",
     shortDescription: "Hasta 75 gimnastas · 1 academia",
     athleteLimit: 75,
@@ -72,6 +75,7 @@ export const PRODUCT_PLANS: ProductPlan[] = [
     publicName: "Growth",
     internalName: "Growth",
     priceEurCents: 4900,
+    annualPriceEurCents: 49000,
     description: "Para academias en crecimiento que necesitan más capacidad y seguimiento diario.",
     shortDescription: "Hasta 200 gimnastas · 1 academia",
     athleteLimit: 200,

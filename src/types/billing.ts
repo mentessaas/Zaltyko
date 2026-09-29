@@ -1,5 +1,6 @@
 /** Códigos persistidos en DB y sincronizados con Stripe. */
 export type PlanCode = "free" | "pro" | "premium";
+export type BillingInterval = "month" | "year";
 
 /** Network es comercial y acompañado; no existe como checkout autoservicio. */
 export type CommercialPlanCode = PlanCode | "network";
@@ -11,11 +12,14 @@ export interface PlanSummary {
   currency: string;
   billingInterval: string | null;
   athleteLimit: number | null;
+  stripeAnnualPriceId?: string | null;
+  annualPriceEur?: number | null;
 }
 
 export interface BillingSummary {
   planCode: PlanCode;
   status: string;
+  billingInterval: BillingInterval | null;
   athleteLimit: number | null;
   classLimit: number | null;
   hasStripeCustomer: boolean;

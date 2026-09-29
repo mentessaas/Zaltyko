@@ -58,21 +58,34 @@ export async function syncStripePlans(): Promise<PlanSyncResult> {
     }
 
     const canonical = PRODUCT_PLAN_BY_CODE[planCode];
+    const billingInterval = price.recurring?.interval;
+    const expectedAmount =
+      billingInterval === "year" ? canonical.annualPriceEurCents : canonical.priceEurCents;
+
     if (
-      price.unit_amount !== canonical.priceEurCents ||
+      !expectedAmount ||
+      price.unit_amount !== expectedAmount ||
       price.currency.toLowerCase() !== "eur" ||
-      price.recurring?.interval !== "month"
+      (billingInterval !== "month" && billingInterval !== "year")
     ) {
       missingStripePrices.push(price.id);
       continue;
     }
 
     const athleteLimit = canonical.athleteLimit;
-    const priceAmount = canonical.priceEurCents;
     const currency = (price.currency ?? "eur").toLowerCase();
-    const billingInterval = price.recurring?.interval ?? null;
     const nickname = canonical.publicName;
     const productId = typeof price.product === "string" ? price.product : price.product.id;
+    const priceVariant =
+      billingInterval === "year"
+        ? {
+            stripeAnnualPriceId: price.id,
+            annualPriceEur: price.unit_amount,
+          }
+        : {
+            stripePriceId: price.id,
+            billingInterval: "month" as const,
+          };
 
     await db
       .insert(plans)
@@ -80,11 +93,13 @@ export async function syncStripePlans(): Promise<PlanSyncResult> {
         code: planCode,
         athleteLimit,
         academyLimit: canonical.academyLimit,
-        priceEur: priceAmount,
-        stripePriceId: price.id,
+        priceEur: canonical.priceEurCents,
+        annualPriceEur: canonical.annualPriceEurCents ?? null,
+        stripePriceId: billingInterval === "month" ? price.id : null,
+        stripeAnnualPriceId: billingInterval === "year" ? price.id : null,
         stripeProductId: productId,
         currency,
-        billingInterval,
+        billingInterval: "month",
         nickname,
         isArchived: false,
       })
@@ -93,13 +108,13 @@ export async function syncStripePlans(): Promise<PlanSyncResult> {
         set: {
           athleteLimit,
           academyLimit: canonical.academyLimit,
-          priceEur: priceAmount,
-          stripePriceId: price.id,
+          priceEur: canonical.priceEurCents,
+          annualPriceEur: canonical.annualPriceEurCents ?? null,
           stripeProductId: productId,
           currency,
-          billingInterval,
           nickname,
           isArchived: false,
+          ...priceVariant,
         },
       });
 

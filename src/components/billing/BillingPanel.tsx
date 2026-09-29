@@ -14,12 +14,14 @@ import { getTerminologyForSportConfig } from "@/lib/sport-config/terminology";
 import { useTranslation } from "@/hooks/use-translation";
 import { getProductPlanPublicName } from "@/lib/plans/catalog";
 import { getSubscriptionStatusLabel } from "@/lib/billing/subscription-status-labels";
+import type { BillingInterval } from "@/types/billing";
 
 type PlanCode = "free" | "pro" | "premium" | (string & Record<never, never>);
 
 interface BillingSummary {
   planCode: PlanCode;
   status: string;
+  billingInterval: "month" | "year" | null;
   athleteLimit: number | null;
   classLimit: number | null;
   hasStripeCustomer: boolean;
@@ -38,6 +40,8 @@ interface PlanSummary {
   currency: string;
   billingInterval: string | null;
   athleteLimit: number | null;
+  stripeAnnualPriceId?: string | null;
+  annualPriceEur?: number | null;
 }
 
 interface InvoiceRow {
@@ -183,6 +187,7 @@ export const BillingPanel = memo(function BillingPanel({ academyId, userId, spor
   const [loadingPlans, setLoadingPlans] = useState(true);
   const [history, setHistory] = useState<InvoiceRow[]>([]);
   const [loadingHistory, setLoadingHistory] = useState(false);
+  const [billingInterval, setBillingInterval] = useState<BillingInterval>("month");
 
   const loadSummary = useCallback(async () => {
     setLoadingSummary(true);
@@ -262,18 +267,19 @@ export const BillingPanel = memo(function BillingPanel({ academyId, userId, spor
     loadHistory();
   }, [academyId, userId]);
 
-  const triggerCheckout = async (planCode: PlanCode) => {
+  const triggerCheckout = async (planCode: PlanCode, selectedInterval: BillingInterval = billingInterval) => {
     setLoadingAction(planCode);
     setError(null);
     try {
-      checkoutKeysRef.current[planCode] ??= crypto.randomUUID();
+      const checkoutKey = `${planCode}:${selectedInterval}`;
+      checkoutKeysRef.current[checkoutKey] ??= crypto.randomUUID();
       const res = await fetch("/api/billing/checkout", {
         method: "POST",
         headers: {
           "Content-Type": "application/json",
-          "idempotency-key": checkoutKeysRef.current[planCode],
+          "idempotency-key": checkoutKeysRef.current[checkoutKey],
         },
-        body: JSON.stringify({ academyId, planCode }),
+        body: JSON.stringify({ academyId, planCode, billingInterval: selectedInterval }),
       });
 
       const body = await res.json();
@@ -438,8 +444,14 @@ export const BillingPanel = memo(function BillingPanel({ academyId, userId, spor
             </div>
             {currentPlanInfo && (
               <p className="text-sm text-muted-foreground">
-                <span className="font-medium text-foreground">Cuota:</span> {formatPlanPrice(currentPlanInfo)} /{" "}
-                {translateBillingInterval(currentPlanInfo.billingInterval) ?? "mes"}
+                <span className="font-medium text-foreground">Cuota:</span>{" "}
+                {formatPlanPrice({
+                  ...currentPlanInfo,
+                  priceEur:
+                    summary.billingInterval === "year"
+                      ? currentPlanInfo.annualPriceEur ?? currentPlanInfo.priceEur
+                      : currentPlanInfo.priceEur,
+                })}{" "}/ {translateBillingInterval(summary.billingInterval ?? currentPlanInfo.billingInterval) ?? "mes"}
               </p>
             )}
             {summary.trial.active && summary.trial.endsAt && (
@@ -496,6 +508,23 @@ export const BillingPanel = memo(function BillingPanel({ academyId, userId, spor
           <h2 className="font-display text-xl font-semibold text-foreground">Planes disponibles</h2>
           {loadingPlans && <p className="text-sm text-muted-foreground">Sincronizando con Stripe…</p>}
         </div>
+        <div className="flex flex-wrap items-center gap-2" role="group" aria-label="Periodicidad de facturación">
+          <button
+            type="button"
+            className={`rounded-full px-4 py-2 text-sm font-medium ${billingInterval === "month" ? "bg-zaltyko-teal text-white" : "border border-border"}`}
+            onClick={() => setBillingInterval("month")}
+          >
+            Mensual
+          </button>
+          <button
+            type="button"
+            disabled={!plans.some((plan) => Boolean(plan.stripeAnnualPriceId && plan.annualPriceEur))}
+            className={`rounded-full px-4 py-2 text-sm font-medium ${billingInterval === "year" ? "bg-zaltyko-teal text-white" : "border border-border"} disabled:cursor-not-allowed disabled:opacity-50`}
+            onClick={() => setBillingInterval("year")}
+          >
+            Anual · ahorra 2 meses
+          </button>
+        </div>
         <div className="grid gap-4 md:grid-cols-3">
           {plans.length === 0 && !loadingPlans && (
             <p className="text-sm text-muted-foreground">
@@ -506,6 +535,9 @@ export const BillingPanel = memo(function BillingPanel({ academyId, userId, spor
             const code = plan.code as PlanCode;
             const isCurrent = summary?.planCode === plan.code;
             const isFree = plan.priceEur === 0;
+            const annualReady = Boolean(plan.stripeAnnualPriceId && plan.annualPriceEur);
+            const isAnnual = billingInterval === "year";
+            const displayPrice = isAnnual && annualReady ? plan.annualPriceEur ?? 0 : plan.priceEur;
             return (
               <article
                 key={plan.code}
@@ -517,8 +549,10 @@ export const BillingPanel = memo(function BillingPanel({ academyId, userId, spor
                   <h3 className="font-display text-lg font-semibold text-foreground">{resolvePlanTitle(plan)}</h3>
                   <p className="text-sm text-muted-foreground">{resolvePlanDescription(plan, athletesTermLower)}</p>
                   <p className="mt-2 font-display text-2xl font-bold text-foreground">
-                    {formatPlanPrice(plan)}{" "}
-                    {plan.billingInterval ? (
+                    {formatPlanPrice({ ...plan, priceEur: displayPrice })}{" "}
+                    {isAnnual && annualReady ? (
+                      <span className="text-sm font-normal text-muted-foreground">/ año</span>
+                    ) : plan.billingInterval ? (
                       <span className="text-sm font-normal text-muted-foreground">
                         / {translateBillingInterval(plan.billingInterval)}
                       </span>
@@ -533,8 +567,8 @@ export const BillingPanel = memo(function BillingPanel({ academyId, userId, spor
                   )}
                   <button
                     className="mt-4 min-h-11 w-full rounded-xl bg-zaltyko-teal px-4 py-2 font-medium text-white transition hover:bg-zaltyko-primary-dark disabled:bg-zaltyko-mist disabled:text-muted-foreground"
-                    disabled={isFree || isCurrent || loadingAction === code || loadingAction === "portal"}
-                    onClick={() => (summary?.hasManagedSubscription ? openPortal() : triggerCheckout(code))}
+                    disabled={isFree || isCurrent || loadingAction === code || loadingAction === "portal" || (isAnnual && !annualReady)}
+                    onClick={() => (summary?.hasManagedSubscription ? openPortal() : triggerCheckout(code, billingInterval))}
                   >
                     {isCurrent
                       ? "Plan actual"

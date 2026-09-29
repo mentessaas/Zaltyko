@@ -1,4 +1,4 @@
-import { eq } from "drizzle-orm";
+import { eq, or } from "drizzle-orm";
 
 import { db } from "@/db";
 import { plans } from "@/db/schema";
@@ -18,7 +18,7 @@ export async function getPlanIdByStripePrice(
     const [planByPrice] = await db
       .select({ id: plans.id })
       .from(plans)
-      .where(eq(plans.stripePriceId, priceId))
+      .where(or(eq(plans.stripePriceId, priceId), eq(plans.stripeAnnualPriceId, priceId)))
       .limit(1);
     
     if (planByPrice) {
@@ -40,4 +40,3 @@ export async function getPlanIdByStripePrice(
 
   return null;
 }
-

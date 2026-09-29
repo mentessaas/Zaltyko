@@ -31,7 +31,7 @@ Esta es la única tabla válida para producto, marketing, soporte y Stripe. La i
 | Growth | `premium` | 200 | 10 | 40 | 1 | 49 € |
 | Network | `network` | Ilimitadas | Ilimitados | Ilimitadas | Ilimitadas | 99 € · venta asistida |
 
-La prueba actual es de **7 días de Starter sin tarjeta**, con una activación por academia cada 12 meses y sin cargo automático. La página pública ofrece facturación mensual sin permanencia; no hay precios anuales publicados en la superficie vigente.
+La prueba actual es de **7 días de Starter sin tarjeta**, con una activación por academia cada 12 meses y sin cargo automático. La página pública muestra el precio mensual; una persona propietaria autenticada puede elegir facturación anual desde Facturación, con dos meses bonificados: 190 €/año para Starter y 490 €/año para Growth.
 
 > Todo lo que aparece después de esta sección es la propuesta histórica que originó el documento. Conservamos sus buyer personas y razonamientos para contexto, pero sus nombres de planes, límites, precios, trial, descuentos y features **no representan el producto actual**.
 

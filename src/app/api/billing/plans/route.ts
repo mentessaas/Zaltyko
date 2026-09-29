@@ -39,6 +39,10 @@ import { withTenant } from "@/lib/authz";
  *                     type: integer
  *                   stripePriceId:
  *                     type: string
+ *                   stripeAnnualPriceId:
+ *                     type: string
+ *                   annualPriceEur:
+ *                     type: integer
  */
 export const GET = withTenant(async () => {
   const items = await db
@@ -50,6 +54,8 @@ export const GET = withTenant(async () => {
       billingInterval: plans.billingInterval,
       athleteLimit: plans.athleteLimit,
       stripePriceId: plans.stripePriceId,
+      stripeAnnualPriceId: plans.stripeAnnualPriceId,
+      annualPriceEur: plans.annualPriceEur,
       isArchived: plans.isArchived,
     })
     .from(plans)

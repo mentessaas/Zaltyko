@@ -62,8 +62,10 @@ const serverEnvSchema = z.object({
 
   // Seed overrides
   SEED_STRIPE_PRICE_PRO: z.string().optional(),
+  SEED_STRIPE_ANNUAL_PRICE_PRO: z.string().optional(),
   SEED_STRIPE_PRODUCT_PRO: z.string().optional(),
   SEED_STRIPE_PRICE_PREMIUM: z.string().optional(),
+  SEED_STRIPE_ANNUAL_PRICE_PREMIUM: z.string().optional(),
   SEED_STRIPE_PRODUCT_PREMIUM: z.string().optional(),
 });
 

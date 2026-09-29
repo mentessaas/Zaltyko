@@ -20,6 +20,7 @@ const BodySchema = z.object({
   academyId: z.string().uuid(),
   // `pro` = Starter y `premium` = Growth. Network es venta acompañada.
   planCode: z.enum(["pro", "premium"]),
+  billingInterval: z.enum(["month", "year"]).default("month"),
 });
 
 const handler = withTenant(async (request, context) => {
@@ -114,7 +115,16 @@ const handler = withTenant(async (request, context) => {
       .where(eq(plans.code, body.planCode))
       .limit(1);
 
-    if (!plan?.stripePriceId) {
+    const priceId = body.billingInterval === "year" ? plan?.stripeAnnualPriceId : plan?.stripePriceId;
+
+    if (!priceId) {
+      if (body.billingInterval === "year") {
+        return apiError(
+          "PLAN_ANNUAL_PRICE_NOT_CONFIGURED",
+          "La facturación anual todavía no está configurada para este plan.",
+          409
+        );
+      }
       return apiError("PLAN_NOT_AVAILABLE", "Plan no disponible", 400);
     }
 
@@ -180,7 +190,7 @@ const handler = withTenant(async (request, context) => {
           createStripeIntegrationIdentifier("zaltyko_billing"),
         line_items: [
           {
-            price: plan.stripePriceId,
+            price: priceId,
             quantity: 1,
           },
         ],
@@ -190,6 +200,7 @@ const handler = withTenant(async (request, context) => {
             academyId: academy.id,
             tenantId: academy.tenantId,
             planCode: plan.code,
+            billingInterval: body.billingInterval,
           },
         },
         metadata: {
@@ -197,6 +208,7 @@ const handler = withTenant(async (request, context) => {
           academyId: academy.id,
           tenantId: academy.tenantId,
           planCode: plan.code,
+          billingInterval: body.billingInterval,
         },
         success_url: successUrl,
         cancel_url: cancelUrl,
