@@ -62,10 +62,14 @@ async function gotoAcademy(page: Page, path: string) {
       });
     }
   }
+  await expect(page, "The academy route must finish navigation before assertions run.").toHaveURL(
+    new RegExp(`/app/${academyId}/`),
+    { timeout: 60_000 },
+  );
   await expect(
     page,
     "The saved E2E session must still authenticate academy routes."
-  ).not.toHaveURL(/\/auth\/login/);
+  ).not.toHaveURL(/\/auth\/login/, { timeout: 60_000 });
   await page
     .waitForLoadState("load", { timeout: 60_000 })
     .catch(() => undefined);
