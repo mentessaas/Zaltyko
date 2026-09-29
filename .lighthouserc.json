@@ -1,6 +1,9 @@
 {
   "ci": {
     "collect": {
+      "startServerCommand": "pnpm start",
+      "startServerReadyPattern": "Ready in",
+      "startServerReadyTimeout": 120000,
       "url": [
         "http://localhost:3000/",
         "http://localhost:3000/pricing",
