@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useRef, useState, type KeyboardEvent } from "react";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
 import { Loader2 } from "lucide-react";
@@ -18,6 +18,7 @@ import {
   readUtmWithFallback,
 } from "@/lib/growth/utm";
 import { getRegistrationContinuationPath } from "@/lib/auth/registration-paths";
+import { getNextRegistrationRoleIndex } from "@/lib/auth/registration-role-navigation";
 
 // Lee UTMs del first-touch capturado por `UtmCapture` (sessionStorage)
 // o de la query string actual. Wrapper sobre `readUtmWithFallback` para
@@ -74,11 +75,29 @@ export function RegisterForm() {
   const [password, setPassword] = useState("");
   const [fullName, setFullName] = useState("");
   const [role, setRole] = useState<RegisterRole>("owner");
+  const roleButtonRefs = useRef<Array<HTMLButtonElement | null>>([]);
   const [loading, setLoading] = useState(false);
   const [googleLoading, setGoogleLoading] = useState(false);
   const router = useRouter();
   const supabase = createClient();
   const toast = useToast();
+
+  const handleRoleKeyDown = (
+    event: KeyboardEvent<HTMLButtonElement>,
+    currentIndex: number
+  ) => {
+    const nextIndex = getNextRegistrationRoleIndex(
+      event.key,
+      currentIndex,
+      ROLE_OPTIONS.length
+    );
+    if (nextIndex === null) return;
+
+    event.preventDefault();
+    const nextRole = ROLE_OPTIONS[nextIndex].value;
+    setRole(nextRole);
+    roleButtonRefs.current[nextIndex]?.focus();
+  };
 
   const handleRegister = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -302,13 +321,18 @@ export function RegisterForm() {
         <div className="space-y-2">
           <Label>Tipo de cuenta</Label>
           <div className="grid grid-cols-2 gap-2" role="radiogroup" aria-label="Tipo de cuenta">
-            {ROLE_OPTIONS.map((option) => (
+            {ROLE_OPTIONS.map((option, index) => (
               <button
                 key={option.value}
                 type="button"
+                ref={(element) => {
+                  roleButtonRefs.current[index] = element;
+                }}
                 onClick={() => setRole(option.value)}
+                onKeyDown={(event) => handleRoleKeyDown(event, index)}
                 role="radio"
                 aria-checked={role === option.value}
+                tabIndex={role === option.value ? 0 : -1}
                 className={`min-h-[82px] rounded-xl border px-3 py-2.5 text-left transition sm:px-4 sm:py-3 ${
                   role === option.value
                     ? "border-zaltyko-teal bg-zaltyko-teal/10 text-foreground"
