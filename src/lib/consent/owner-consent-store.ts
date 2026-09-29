@@ -43,7 +43,7 @@ export async function recordOwnerSignupConsent(user: User): Promise<
     where key = 'consent.policy_version'
     limit 1
   `);
-  const currentPolicyVersion = (config as unknown as Array<{ value?: string }>)[0]?.value;
+  const currentPolicyVersion = (config.rows[0] as { value?: string } | undefined)?.value;
   if (currentPolicyVersion !== policyVersion) {
     throw new Error("signup consent policy version is not current");
   }
