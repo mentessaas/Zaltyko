@@ -70,7 +70,8 @@ function readAttribution(): {
 
 type RegisterRole = (typeof ROLE_OPTIONS)[number]["value"];
 
-const LEGAL_CONSENT_VERSION = "v1-2026-09-13";
+// Must match app_config.consent.policy_version in the reviewed migration.
+const LEGAL_CONSENT_VERSION = "v1-2026-08-01";
 const LEGAL_CONSENT_PROOF = "signup:register-form-v1";
 
 export function RegisterForm() {
