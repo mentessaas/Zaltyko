@@ -354,6 +354,10 @@ jobs:
         uses: treosh/lighthouse-ci-action@v12
         env:
           NODE_ENV: production
+          # Lighthouse audits the public shell with placeholder credentials;
+          # keep the audit independent from a live database while production
+          # requests continue using the real public academy query.
+          ZALTYKO_SKIP_PUBLIC_DB: "1"
           NEXT_PUBLIC_SUPABASE_URL: https://placeholder.supabase.co
           NEXT_PUBLIC_SUPABASE_ANON_KEY: placeholder-anon-key-for-lhci
           DATABASE_URL: postgresql://placeholder:placeholder@placeholder:5432/placeholder
