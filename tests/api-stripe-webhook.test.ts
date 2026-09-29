@@ -67,22 +67,26 @@ vi.mock("@/lib/mailgun", () => ({
 }));
 
 vi.mock("@/lib/stripe/subscription-service", () => ({
-  handleSubscriptionEvent: vi.fn(() => Promise.resolve({
-    academyId: "academy-123",
-    tenantId: "tenant-123",
-    userId: "user-123",
-  })),
-}));
-
-vi.mock("@/lib/stripe/invoice-service", () => ({
-  handleInvoiceEvent: vi.fn(() => Promise.resolve({
-    context: {
+  handleSubscriptionEvent: vi.fn(() =>
+    Promise.resolve({
       academyId: "academy-123",
       tenantId: "tenant-123",
       userId: "user-123",
-    },
-    invoice: { status: "open" },
-  })),
+    })
+  ),
+}));
+
+vi.mock("@/lib/stripe/invoice-service", () => ({
+  handleInvoiceEvent: vi.fn(() =>
+    Promise.resolve({
+      context: {
+        academyId: "academy-123",
+        tenantId: "tenant-123",
+        userId: "user-123",
+      },
+      invoice: { status: "open" },
+    })
+  ),
 }));
 
 vi.mock("@/lib/stripe/billing-events-service", () => ({
@@ -114,15 +118,18 @@ describe("Stripe Webhook Integration Tests", () => {
   });
 
   describe("checkout.session.completed", () => {
-    it("debe crear una suscripción cuando se completa el checkout", async () => {
+    it("sincroniza la suscripción solo cuando el pago está liquidado", async () => {
       mockStripe.webhooks.constructEvent.mockReturnValue({
         id: "evt_123",
+        created: 1_750_000_000,
         type: "checkout.session.completed",
         data: {
           object: {
             id: "cs_test_123",
             customer: "cus_test_123",
             subscription: "sub_test_123",
+            mode: "subscription",
+            payment_status: "paid",
             metadata: {
               userId: "user_123",
               tenantId: "tenant_123",
@@ -134,10 +141,15 @@ describe("Stripe Webhook Integration Tests", () => {
       });
 
       const { POST } = await import("@/app/api/stripe/webhook/route");
+      const { handleSubscriptionEvent } =
+        await import("@/lib/stripe/subscription-service");
 
       const request = new NextRequest("http://localhost/api/stripe/webhook", {
         method: "POST",
-        body: JSON.stringify({ type: "checkout.session.completed" }),
+        body: JSON.stringify({
+          id: "evt_123",
+          type: "checkout.session.completed",
+        }),
         headers: {
           "stripe-signature": "valid-signature",
         },
@@ -147,6 +159,91 @@ describe("Stripe Webhook Integration Tests", () => {
 
       expect(response.status).toBe(200);
       expect(mockStripe.webhooks.constructEvent).toHaveBeenCalled();
+      expect(handleSubscriptionEvent).toHaveBeenCalledWith(
+        "customer.subscription.created",
+        { id: "sub_test_123" },
+        "billing-event-123",
+        expect.objectContaining({
+          id: "evt_123",
+          type: "checkout.session.completed",
+        })
+      );
+    });
+
+    it("no activa acceso mientras el checkout espera pago asíncrono", async () => {
+      mockStripe.webhooks.constructEvent.mockReturnValue({
+        id: "evt_124",
+        created: 1_750_000_001,
+        type: "checkout.session.completed",
+        data: {
+          object: {
+            id: "cs_test_124",
+            subscription: "sub_test_124",
+            mode: "subscription",
+            payment_status: "unpaid",
+          },
+        },
+      });
+
+      const { POST } = await import("@/app/api/stripe/webhook/route");
+      const { handleSubscriptionEvent } =
+        await import("@/lib/stripe/subscription-service");
+
+      const request = new NextRequest("http://localhost/api/stripe/webhook", {
+        method: "POST",
+        body: JSON.stringify({
+          id: "evt_124",
+          type: "checkout.session.completed",
+        }),
+        headers: { "stripe-signature": "valid-signature" },
+      });
+
+      const response = await POST(request);
+
+      expect(response.status).toBe(200);
+      expect(handleSubscriptionEvent).not.toHaveBeenCalled();
+    });
+
+    it("sincroniza la suscripción al recibir confirmación de pago asíncrono", async () => {
+      mockStripe.webhooks.constructEvent.mockReturnValue({
+        id: "evt_125",
+        created: 1_750_000_002,
+        type: "checkout.session.async_payment_succeeded",
+        data: {
+          object: {
+            id: "cs_test_125",
+            subscription: { id: "sub_test_125" },
+            mode: "subscription",
+            payment_status: "paid",
+          },
+        },
+      });
+
+      const { POST } = await import("@/app/api/stripe/webhook/route");
+      const { handleSubscriptionEvent } =
+        await import("@/lib/stripe/subscription-service");
+
+      const request = new NextRequest("http://localhost/api/stripe/webhook", {
+        method: "POST",
+        body: JSON.stringify({
+          id: "evt_125",
+          type: "checkout.session.async_payment_succeeded",
+        }),
+        headers: { "stripe-signature": "valid-signature" },
+      });
+
+      const response = await POST(request);
+
+      expect(response.status).toBe(200);
+      expect(handleSubscriptionEvent).toHaveBeenCalledWith(
+        "customer.subscription.created",
+        { id: "sub_test_125" },
+        "billing-event-123",
+        expect.objectContaining({
+          id: "evt_125",
+          type: "checkout.session.async_payment_succeeded",
+        })
+      );
     });
   });
 

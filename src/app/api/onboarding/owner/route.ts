@@ -32,6 +32,7 @@ import { logEvent } from "@/lib/event-logging";
 import { trackEvent } from "@/lib/analytics";
 import { enqueueOnboardingOwnerD0 } from "@/lib/onboarding-owner-integration";
 import { logger } from "@/lib/logger";
+import { recordOwnerSignupConsent } from "@/lib/consent/owner-consent-store";
 
 const bodySchema = z.object({
   fullName: z.string().trim().min(2).max(120),
@@ -212,6 +213,20 @@ export async function POST(request: Request) {
       .set({ name: parsed.data.fullName })
       .where(eq(profiles.id, profile.id));
     profile = { ...profile, name: parsed.data.fullName };
+  }
+
+  try {
+    await recordOwnerSignupConsent(user);
+  } catch (error) {
+    logger.warn("owner signup consent could not be recorded", {
+      userId: user.id,
+      error,
+    });
+    return apiError(
+      "CONSENT_REQUIRED",
+      "Debes aceptar los términos y la política de privacidad antes de crear tu academia.",
+      400
+    );
   }
 
   const setup = await withTransaction(async (tx) => {

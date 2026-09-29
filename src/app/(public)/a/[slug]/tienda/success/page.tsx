@@ -1,12 +1,13 @@
 import Link from "next/link";
 
-export default function StoreSuccessPage({
+export default async function StoreSuccessPage({
   params,
   searchParams,
 }: {
-  params: { slug: string };
-  searchParams: { sale?: string };
+  params: Promise<{ slug: string }>;
+  searchParams: Promise<{ sale?: string }>;
 }) {
+  const [{ slug }, { sale }] = await Promise.all([params, searchParams]);
   return (
     <div style={{ maxWidth: 560, margin: "80px auto", padding: 24, fontFamily: "system-ui, sans-serif", textAlign: "center" }}>
       <h1 style={{ fontSize: 28, fontWeight: 800, marginBottom: 12 }}>
@@ -16,13 +17,13 @@ export default function StoreSuccessPage({
         Tu pago se ha procesado correctamente. La academia te contactará para
         coordinar la entrega.
       </p>
-      {searchParams.sale && (
+      {sale && (
         <p style={{ color: "#94a3b8", fontSize: 13, marginBottom: 24 }}>
-          Referencia: {searchParams.sale.slice(0, 8)}
+          Referencia: {sale.slice(0, 8)}
         </p>
       )}
       <Link
-        href={`/a/${params.slug}`}
+        href={`/a/${slug}`}
         style={{
           display: "inline-block",
           padding: "10px 16px",

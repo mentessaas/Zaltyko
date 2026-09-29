@@ -5,7 +5,10 @@ import { getStripeClient } from "@/lib/stripe/client";
 import { logger } from "@/lib/logger";
 import { handleSubscriptionEvent } from "@/lib/stripe/subscription-service";
 import { handleInvoiceEvent } from "@/lib/stripe/invoice-service";
-import { recordBillingEvent, updateBillingEventStatus } from "@/lib/stripe/billing-events-service";
+import {
+  recordBillingEvent,
+  updateBillingEventStatus,
+} from "@/lib/stripe/billing-events-service";
 
 export interface WebhookContext {
   academyId: string | null;
@@ -28,7 +31,9 @@ export function verifyWebhookSignature(
   webhookSecret: string
 ): Stripe.Event {
   if (!signature) {
-    throw new Error("SIGNATURE_VERIFICATION_FAILED: Missing Stripe signature header");
+    throw new Error(
+      "SIGNATURE_VERIFICATION_FAILED: Missing Stripe signature header"
+    );
   }
 
   const stripe = getStripeClient();
@@ -36,7 +41,8 @@ export function verifyWebhookSignature(
   try {
     return stripe.webhooks.constructEvent(body, signature, webhookSecret, 300);
   } catch (error) {
-    const errorMessage = error instanceof Error ? error.message : "Unknown error";
+    const errorMessage =
+      error instanceof Error ? error.message : "Unknown error";
     logger.error("Stripe signature verification failed", error, {
       errorMessage,
     });
@@ -47,7 +53,9 @@ export function verifyWebhookSignature(
 /**
  * Procesa un evento de webhook de Stripe
  */
-export async function processWebhookEvent(event: Stripe.Event): Promise<WebhookProcessingResult> {
+export async function processWebhookEvent(
+  event: Stripe.Event
+): Promise<WebhookProcessingResult> {
   const claim = await recordBillingEvent(event);
 
   if (!claim.shouldProcess) {
@@ -68,12 +76,47 @@ export async function processWebhookEvent(event: Stripe.Event): Promise<WebhookP
 
     // Procesar según el tipo de evento
     if (
+      event.type === "checkout.session.completed" ||
+      event.type === "checkout.session.async_payment_succeeded"
+    ) {
+      const session = event.data.object as Stripe.Checkout.Session;
+      const subscriptionId =
+        typeof session.subscription === "string"
+          ? session.subscription
+          : session.subscription?.id;
+      const paymentReady =
+        session.payment_status === "paid" ||
+        (event.type === "checkout.session.completed" &&
+          session.payment_status === "no_payment_required");
+
+      // Checkout completion can precede asynchronous payment confirmation.
+      // Only sync subscription access after payment is settled (or a trial
+      // requires no immediate payment); async success will handle the rest.
+      if (session.mode === "subscription" && subscriptionId && paymentReady) {
+        context = await handleSubscriptionEvent(
+          "customer.subscription.created",
+          { id: subscriptionId } as Stripe.Subscription,
+          eventId,
+          event
+        );
+      } else {
+        await updateBillingEventStatus(eventId, {
+          status: "processed",
+          processedAt: new Date(),
+        });
+      }
+    } else if (
       event.type === "customer.subscription.created" ||
       event.type === "customer.subscription.updated" ||
       event.type === "customer.subscription.deleted"
     ) {
       const subscription = event.data.object as Stripe.Subscription;
-      context = await handleSubscriptionEvent(event.type, subscription, eventId, event);
+      context = await handleSubscriptionEvent(
+        event.type,
+        subscription,
+        eventId,
+        event
+      );
     } else if (
       event.type === "invoice.paid" ||
       event.type === "invoice.payment_failed" ||
@@ -82,7 +125,11 @@ export async function processWebhookEvent(event: Stripe.Event): Promise<WebhookP
       event.type === "invoice.updated"
     ) {
       const invoice = event.data.object as Stripe.Invoice;
-      const invoiceResult = await handleInvoiceEvent(event.type, invoice, eventId);
+      const invoiceResult = await handleInvoiceEvent(
+        event.type,
+        invoice,
+        eventId
+      );
       context = invoiceResult.context;
       return { context, duplicate: false, invoice: invoiceResult.invoice };
     } else {
@@ -95,7 +142,8 @@ export async function processWebhookEvent(event: Stripe.Event): Promise<WebhookP
 
     return { context, duplicate: false };
   } catch (error) {
-    const errorMessage = error instanceof Error ? error.message : "Unknown error";
+    const errorMessage =
+      error instanceof Error ? error.message : "Unknown error";
     logger.error("Stripe webhook processing error", error, {
       eventId,
       eventType: event.type,
@@ -113,7 +161,9 @@ export async function processWebhookEvent(event: Stripe.Event): Promise<WebhookP
 /**
  * Handler principal del webhook de Stripe
  */
-export async function handleStripeWebhook(request: Request): Promise<NextResponse> {
+export async function handleStripeWebhook(
+  request: Request
+): Promise<NextResponse> {
   const webhookSecret = process.env.STRIPE_WEBHOOK_SECRET;
 
   if (!webhookSecret) {
@@ -155,8 +205,9 @@ export async function handleStripeWebhook(request: Request): Promise<NextRespons
 
     return NextResponse.json({ received: true, duplicate: result.duplicate });
   } catch (error) {
-    const errorMessage = error instanceof Error ? error.message : "Unknown error";
-    
+    const errorMessage =
+      error instanceof Error ? error.message : "Unknown error";
+
     if (errorMessage.includes("SIGNATURE_VERIFICATION_FAILED")) {
       return NextResponse.json(
         { error: "SIGNATURE_VERIFICATION_FAILED" },
@@ -165,10 +216,7 @@ export async function handleStripeWebhook(request: Request): Promise<NextRespons
     }
 
     logger.error("Stripe webhook handler error", error);
-    return NextResponse.json(
-      { error: "PROCESSING_FAILED" },
-      { status: 500 }
-    );
+    return NextResponse.json({ error: "PROCESSING_FAILED" }, { status: 500 });
   }
 }
 
@@ -176,19 +224,27 @@ export async function handleStripeWebhook(request: Request): Promise<NextRespons
  * Envía notificaciones relacionadas con facturas
  */
 async function sendInvoiceNotifications(
-  eventType: "invoice.paid" | "invoice.payment_failed" | "invoice.payment_action_required",
+  eventType:
+    | "invoice.paid"
+    | "invoice.payment_failed"
+    | "invoice.payment_action_required",
   invoice: Stripe.Invoice,
   context: WebhookContext
 ): Promise<void> {
   try {
-    const { sendInvoiceNotification } = await import("@/lib/stripe/notification-service");
+    const { sendInvoiceNotification } =
+      await import("@/lib/stripe/notification-service");
     await sendInvoiceNotification(eventType, invoice, context);
   } catch (notificationError) {
     // Log error pero no fallar el webhook
-    logger.error("Error sending notification in Stripe webhook", notificationError, {
-      eventType,
-      academyId: context.academyId,
-      tenantId: context.tenantId,
-    });
+    logger.error(
+      "Error sending notification in Stripe webhook",
+      notificationError,
+      {
+        eventType,
+        academyId: context.academyId,
+        tenantId: context.tenantId,
+      }
+    );
   }
 }

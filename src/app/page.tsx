@@ -15,6 +15,7 @@ import FaqSection from "@/app/(site)/home/FaqSection";
 import FinalCtaSection from "@/app/(site)/home/FinalCtaSection";
 import Footer from "@/app/(site)/Footer";
 import StickyCtaBar from "@/app/(site)/home/StickyCtaBar";
+import { SkipLink } from "@/components/ui/skip-link";
 import Marquee from "@/components/motion/Marquee";
 import { getPublicSiteUrl } from "@/lib/seo/site-url";
 
@@ -95,9 +96,10 @@ export const metadata: Metadata = {
 export default function HomePage() {
   return (
     <>
+      <SkipLink href="#main-content">Saltar al contenido principal</SkipLink>
       <Navbar />
 
-      <main>
+      <main id="main-content">
         {/* Hero con H1 principal */}
         <HeroSection />
 

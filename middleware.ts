@@ -6,11 +6,13 @@ import { DEV_SESSION_COOKIE, parseDevSessionCookie } from "@/lib/dev-session";
 import { locales, defaultLocale, type Locale } from "@/i18n";
 import { getAcademyRobotsHeader } from "@/lib/seo/academy-robots-directives";
 import { extractAcademySlugFromHost } from "@/lib/subdomains/rewrite";
+import { getExperimentalReleaseFlags, isExperimentalRouteDisabled } from "@/lib/release/experimental-routes";
 
 // Constants
 const SUPER_ADMIN_PATH = "/super-admin";
 const LOGIN_PATH = "/auth/login";
 const SUPER_ADMIN_ROLE = "super_admin";
+const PRODUCTION_SUPABASE_PROJECT_REF = "jegxfahsvugilbthbked";
 // Clock skew tolerance for JWT iat validation (5 minutes)
 const CLOCK_SKEW_TOLERANCE = 5 * 60;
 const LOCALE_COOKIE_NAME = "zaltyko-locale";
@@ -257,6 +259,26 @@ function isApiPath(pathname: string) {
   return pathname.startsWith("/api/");
 }
 
+function isPreviewMutationPointingAtProduction(req: NextRequest) {
+  if (process.env.VERCEL_ENV !== "preview" || !isMutation(req.method)) return false;
+
+  return [
+    process.env.NEXT_PUBLIC_SUPABASE_URL,
+    process.env.DATABASE_URL,
+    process.env.DATABASE_URL_POOL,
+    process.env.DATABASE_URL_DIRECT,
+  ].some((value) => {
+    if (!value) return false;
+    try {
+      const target = new URL(value);
+      const identity = `${target.hostname} ${decodeURIComponent(target.username)} ${target.pathname}`;
+      return identity.includes(PRODUCTION_SUPABASE_PROJECT_REF);
+    } catch {
+      return false;
+    }
+  });
+}
+
 function isMutation(method: string) {
   return MUTATING_METHODS.has(method.toUpperCase());
 }
@@ -410,13 +432,27 @@ function i18nRedirectResponse(request: NextRequest): NextResponse | null {
 
 export async function middleware(req: NextRequest) {
   const nonce = generateNonce();
+  if (isPreviewMutationPointingAtProduction(req)) {
+    const blocked = NextResponse.json(
+      { error: "PREVIEW_WRITE_BLOCKED", message: "Escrituras deshabilitadas en Preview." },
+      { status: 503 }
+    );
+    blocked.headers.set("Cache-Control", "no-store");
+    return applySecurityHeaders(blocked, nonce);
+  }
+
   const apexRedirect = apexRedirectResponse(req);
   if (apexRedirect) return applySecurityHeaders(apexRedirect, nonce);
+
+  const experimentalFlags = getExperimentalReleaseFlags();
 
   // T6: rewrite academy subdomains [slug].zaltyko.com → /a/[slug]
   const host = req.headers.get("host");
   const slug = extractAcademySlugFromHost(host);
   if (slug) {
+    if (isExperimentalRouteDisabled(`/a/${slug}`, experimentalFlags)) {
+      return applySecurityHeaders(new NextResponse(null, { status: 404 }), nonce);
+    }
     const url = req.nextUrl.clone();
     url.pathname = `/a/${slug}${url.pathname === "/" ? "" : url.pathname}`;
     url.host = "zaltyko.com";
@@ -425,6 +461,10 @@ export async function middleware(req: NextRequest) {
   }
 
   const pathname = req.nextUrl.pathname;
+
+  if (isExperimentalRouteDisabled(pathname, experimentalFlags)) {
+    return applySecurityHeaders(new NextResponse(null, { status: 404 }), nonce);
+  }
 
   if (isExcludedPath(pathname)) {
     return applySecurityHeaders(NextResponse.next(), nonce);

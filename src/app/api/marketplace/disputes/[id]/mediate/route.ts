@@ -16,10 +16,11 @@ import { isSuperAdmin } from "@/lib/authz/super-admin";
  */
 export async function POST(
   req: NextRequest,
-  { params }: { params: { id: string } }
+  { params: paramsPromise }: { params: Promise<{ id: string }> }
 ) {
   const user = await getCurrentUser();
   if (!user) return NextResponse.json({ error: "unauthorized" }, { status: 401 });
+  const params = await paramsPromise;
 
   if (!(await isSuperAdmin(user.id))) {
     return NextResponse.json({ error: "forbidden" }, { status: 403 });

@@ -1,8 +1,9 @@
-import { describe, it, expect } from "vitest";
+import { afterEach, describe, it, expect, vi } from "vitest";
 import {
   RATE_LIMITS,
   getLimitForRoute,
   getVerifiedTenantRateLimitIdentifier,
+  rateLimit,
 } from "@/lib/rate-limit";
 
 describe("Rate Limiting", () => {
@@ -57,6 +58,60 @@ describe("Rate Limiting", () => {
       expect(getVerifiedTenantRateLimitIdentifier(request, "tenant-1")).toBe(
         "/api/athletes:tenant:tenant-1:ip:203.0.113.8"
       );
+    });
+  });
+
+  describe("production fallback", () => {
+    afterEach(() => {
+      vi.unstubAllEnvs();
+    });
+
+    it("fails closed without KV in production", async () => {
+      vi.stubEnv("NODE_ENV", "production");
+      vi.stubEnv("VERCEL_ENV", "production");
+      vi.stubEnv("KV_REST_API_URL", "");
+      vi.stubEnv("KV_REST_API_TOKEN", "");
+
+      const result = await rateLimit({ identifier: "prod", limit: 10, window: 60 });
+
+      expect(result.success).toBe(false);
+    });
+
+    it("allows only the explicitly isolated GitHub E2E sandbox when KV is absent", async () => {
+      vi.stubEnv("NODE_ENV", "production");
+      vi.stubEnv("VERCEL_ENV", "preview");
+      vi.stubEnv("E2E_RATE_LIMIT_BYPASS", "true");
+      vi.stubEnv("E2E_TARGET_SUPABASE_PROJECT_REF", "aeeootdmuiqkfeernskw");
+      vi.stubEnv("NEXT_PUBLIC_SUPABASE_URL", "https://aeeootdmuiqkfeernskw.supabase.co");
+      vi.stubEnv("KV_REST_API_URL", "");
+      vi.stubEnv("KV_REST_API_TOKEN", "");
+
+      const result = await rateLimit({ identifier: "sandbox", limit: 10, window: 60 });
+
+      expect(result.success).toBe(true);
+      expect(result.remaining).toBe(10);
+    });
+
+    it("does not bypass rate limits for production deployments or another Supabase project", async () => {
+      vi.stubEnv("NODE_ENV", "production");
+      vi.stubEnv("VERCEL_ENV", "production");
+      vi.stubEnv("E2E_RATE_LIMIT_BYPASS", "true");
+      vi.stubEnv("E2E_TARGET_SUPABASE_PROJECT_REF", "aeeootdmuiqkfeernskw");
+      vi.stubEnv("NEXT_PUBLIC_SUPABASE_URL", "https://aeeootdmuiqkfeernskw.supabase.co");
+      vi.stubEnv("KV_REST_API_URL", "");
+      vi.stubEnv("KV_REST_API_TOKEN", "");
+
+      const result = await rateLimit({ identifier: "not-sandbox", limit: 10, window: 60 });
+
+      expect(result.success).toBe(false);
+
+      vi.stubEnv("VERCEL_ENV", "preview");
+      vi.stubEnv("E2E_TARGET_SUPABASE_PROJECT_REF", "another-supabase-project");
+      vi.stubEnv("NEXT_PUBLIC_SUPABASE_URL", "https://another-supabase-project.supabase.co");
+
+      const wrongSandbox = await rateLimit({ identifier: "wrong-sandbox", limit: 10, window: 60 });
+
+      expect(wrongSandbox.success).toBe(false);
     });
   });
 });

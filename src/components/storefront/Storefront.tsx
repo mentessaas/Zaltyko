@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useTransition } from "react";
+import { useEffect, useState, useTransition } from "react";
 
 type Product = {
   id: string;
@@ -30,29 +30,63 @@ export function Storefront({
   academyId,
   academySlug = "",
   products,
+  page,
+  hasNext,
 }: {
   academyName: string;
   academyId: string;
   academySlug?: string;
   products: Product[];
+  page: number;
+  hasNext: boolean;
 }) {
   const [cart, setCart] = useState<Record<string, number>>({});
+  const [selectedProducts, setSelectedProducts] = useState<Record<string, Product>>({});
+  const [cartLoaded, setCartLoaded] = useState(false);
   const [email, setEmail] = useState("");
   const [name, setName] = useState("");
   const [submitting, startSubmitting] = useTransition();
   const [error, setError] = useState<string | null>(null);
+  const cartStorageKey = `zaltyko-store-cart:v1:${academyId}`;
+
+  useEffect(() => {
+    try {
+      const saved = window.sessionStorage.getItem(cartStorageKey);
+      if (saved) {
+        const parsed = JSON.parse(saved) as { cart?: Record<string, number>; products?: Record<string, Product> };
+        setCart(parsed.cart ?? {});
+        setSelectedProducts(parsed.products ?? {});
+      }
+    } catch {
+      // A malformed browser cache only resets this temporary cart.
+    } finally {
+      setCartLoaded(true);
+    }
+  }, [cartStorageKey]);
+
+  useEffect(() => {
+    if (!cartLoaded) return;
+    try {
+      window.sessionStorage.setItem(cartStorageKey, JSON.stringify({ cart, products: selectedProducts }));
+    } catch {
+      // Browsers with disabled storage can still use the in-memory cart.
+    }
+  }, [cart, selectedProducts, cartStorageKey, cartLoaded]);
 
   const lines = Object.entries(cart)
     .filter(([, qty]) => qty > 0)
     .map(([productId, quantity]) => ({ productId, quantity }));
 
   const subtotalCents = lines.reduce((sum, l) => {
-    const p = products.find((x) => x.id === l.productId);
+    const p = selectedProducts[l.productId] ?? products.find((x) => x.id === l.productId);
     return sum + (p?.priceCents ?? 0) * l.quantity;
   }, 0);
-  const currency = products[0]?.currency ?? "EUR";
+  const currency = products[0]?.currency ?? Object.values(selectedProducts)[0]?.currency ?? "EUR";
 
   function add(id: string) {
+    const product = products.find((item) => item.id === id);
+    if (!product) return;
+    setSelectedProducts((current) => ({ ...current, [id]: product }));
     setCart((c) => ({ ...c, [id]: (c[id] ?? 0) + 1 }));
   }
   function sub(id: string) {
@@ -172,7 +206,7 @@ export function Storefront({
             ) : (
               <ul style={{ listStyle: "none", padding: 0, margin: "0 0 12px" }}>
                 {lines.map((l) => {
-                  const p = products.find((x) => x.id === l.productId);
+                  const p = selectedProducts[l.productId] ?? products.find((x) => x.id === l.productId);
                   if (!p) return null;
                   return (
                     <li
@@ -250,6 +284,11 @@ export function Storefront({
           </aside>
         </div>
       )}
+      <nav aria-label="Páginas de la tienda" style={{ display: "flex", gap: 16, marginTop: 20 }}>
+        {page > 1 && <a href={`/a/${academySlug}/tienda?page=${page - 1}`}>Anterior</a>}
+        <span>Página {page}</span>
+        {hasNext && <a href={`/a/${academySlug}/tienda?page=${page + 1}`}>Siguiente</a>}
+      </nav>
     </div>
   );
 }

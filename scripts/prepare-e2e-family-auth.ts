@@ -6,6 +6,8 @@ import { resolve } from "node:path";
 
 import { createClient } from "@supabase/supabase-js";
 import { Pool } from "pg";
+import { assertDisposableE2EEmail, assertE2ESandboxTarget } from "./lib/e2e-sandbox-target";
+import { assertConfiguredE2EFamilyAthlete } from "./lib/e2e-family-athlete";
 
 config({ path: resolve(process.cwd(), ".env.local") });
 config({ path: resolve(process.cwd(), ".env") });
@@ -20,12 +22,14 @@ config({ path: resolve(process.cwd(), ".env") });
  *   > con un `family` storage state.
  *
  * Variables de entorno:
- *   - E2E_ALLOW_PROVISIONING=true   obligatoria (safety belt, mismo patrón que
- *                                    prepare-e2e-auth.ts).
+ *   - E2E_ALLOW_PROVISIONING=true   obligatoria junto con un destino sandbox verificado.
+ *   - E2E_TARGET_SUPABASE_PROJECT_REF=<ref sandbox> debe coincidir con ambos URLs.
  *   - NEXT_PUBLIC_SUPABASE_URL / SUPABASE_SERVICE_ROLE_KEY / DATABASE_URL
  *   - E2E_ACADEMY_ID                academia AISLADA (no operativa).
  *   - E2E_FAMILY_EMAIL              email del parent (default: e2e-family@zaltyko.test).
  *   - E2E_FAMILY_PASSWORD           password (default: fallback E2E_AUTH_PASSWORD).
+ *   - E2E_ATHLETE_ID                id del athlete desechable a vincular (opcional; si falta se resuelve por nombre).
+ *   - E2E_ATHLETE_EMAIL/PASSWORD    cuenta Auth del atleta desechable.
  *   - E2E_ATHLETE_NAME              nombre del athlete a crear (default: "E2E Athlete").
  *   - E2E_ATHLETE_LEVEL             nivel (default: "beginner").
  *
@@ -47,6 +51,9 @@ const databaseUrl = process.env.DATABASE_URL;
 const academyId = process.env.E2E_ACADEMY_ID;
 const familyEmail = process.env.E2E_FAMILY_EMAIL ?? "e2e-family@zaltyko.test";
 const familyPassword = process.env.E2E_FAMILY_PASSWORD ?? process.env.E2E_AUTH_PASSWORD;
+const athleteEmail = process.env.E2E_ATHLETE_EMAIL;
+const athletePassword = process.env.E2E_ATHLETE_PASSWORD;
+const configuredAthleteId = process.env.E2E_ATHLETE_ID;
 const athleteName = process.env.E2E_ATHLETE_NAME ?? "E2E Athlete";
 const athleteLevel = process.env.E2E_ATHLETE_LEVEL ?? "beginner";
 const caCertPath = process.env.NODE_EXTRA_CA_CERTS;
@@ -103,6 +110,35 @@ async function ensureFamilyAuthUser(supabase: SupabaseAdminClient) {
   return data.user;
 }
 
+async function ensureAthleteAuthUser(supabase: SupabaseAdminClient) {
+  if (!athleteEmail || !athletePassword) {
+    throw new Error("Missing E2E_ATHLETE_EMAIL or E2E_ATHLETE_PASSWORD");
+  }
+  const existing = await findAuthUserByEmail(supabase, athleteEmail);
+  if (existing) {
+    const { data, error } = await supabase.auth.admin.updateUserById(existing.id, {
+      password: athletePassword,
+      email_confirm: true,
+      ban_duration: "none",
+    });
+    if (error) throw error;
+    if (!data.user.email) throw new Error("Created athlete user has no email");
+    console.log(`auth athlete: updated ${maskEmail(data.user.email)}`);
+    return data.user;
+  }
+  const { data, error } = await supabase.auth.admin.createUser({
+    email: athleteEmail,
+    password: athletePassword,
+    email_confirm: true,
+    user_metadata: { name: athleteName },
+    app_metadata: { source: "zaltyko-e2e", e2eRole: "athlete" },
+  });
+  if (error) throw error;
+  if (!data.user.email) throw new Error("Created athlete user has no email");
+  console.log(`auth athlete: created ${maskEmail(data.user.email)}`);
+  return data.user;
+}
+
 async function ensureFamilyProfile(pool: Pool, userId: string, tenantId: string) {
   // Rol "parent" — `resolveFamilyPaymentAccess` exige que el profile sea parent,
   // no owner/coach/athlete. Ver src/lib/family/scope-service.ts.
@@ -127,11 +163,71 @@ async function ensureFamilyProfile(pool: Pool, userId: string, tenantId: string)
   return profileId;
 }
 
-async function ensureAthlete(pool: Pool, tenantId: string) {
+async function ensureAthleteProfile(pool: Pool, userId: string, tenantId: string) {
+  const profileResult = await pool.query<{ id: string }>(
+    `
+      insert into profiles (user_id, tenant_id, name, role, active_academy_id, can_login, is_suspended)
+      values ($1::uuid, $2::uuid, $3, 'athlete'::profile_role, $4::uuid, true, false)
+      on conflict (user_id) do update set
+        tenant_id = excluded.tenant_id,
+        name = coalesce(profiles.name, excluded.name),
+        role = excluded.role,
+        active_academy_id = excluded.active_academy_id,
+        can_login = true,
+        is_suspended = false
+      returning id
+    `,
+    [userId, tenantId, athleteName, academyId]
+  );
+  const profileId = profileResult.rows[0]?.id;
+  if (!profileId) throw new Error("Failed to upsert athlete profile");
+
+  await pool.query(
+    `
+      insert into memberships (user_id, academy_id, role)
+      values ($1::uuid, $2::uuid, 'viewer'::membership_role)
+      on conflict (user_id, academy_id) do update set role = excluded.role
+    `,
+    [userId, academyId]
+  );
+  return profileId;
+}
+
+async function ensureAthlete(
+  pool: Pool,
+  tenantId: string,
+  athleteUserId: string,
+  expectedAcademyId: string
+) {
   // Athletes NO tiene columna email. Determinamos idempotencia por nombre +
   // academia. El nombre se deriva del env para no chocar con academias que
   // tengan otro `E2E Athlete` huérfano.
   const deterministicName = `${athleteName} (${familyEmail.split("@")[0]})`;
+  if (configuredAthleteId) {
+    const configured = await pool.query<{
+      id: string;
+      name: string;
+      user_id: string | null;
+      academy_id: string;
+      tenant_id: string;
+    }>(
+      `
+        select id, name, user_id, academy_id, tenant_id from athletes
+        where id = $1::uuid and academy_id = $2::uuid and tenant_id = $3::uuid
+        limit 1
+      `,
+      [configuredAthleteId, expectedAcademyId, tenantId]
+    );
+    const row = configured.rows[0];
+    return assertConfiguredE2EFamilyAthlete(row, {
+      academyId: expectedAcademyId,
+      tenantId,
+      athleteUserId,
+      deterministicName,
+      legacyName: athleteName,
+    });
+  }
+
   const existing = await pool.query<{ id: string }>(
     `
       select id from athletes
@@ -201,16 +297,25 @@ async function ensureGuardianLink(pool: Pool, profileId: string, athleteId: stri
 }
 
 async function main() {
-  if (process.env.E2E_ALLOW_PROVISIONING !== "true") {
-    throw new Error(
-      "Refusing to provision E2E family users. Set E2E_ALLOW_PROVISIONING=true only for an approved isolated test academy."
-    );
-  }
   if (!supabaseUrl || !serviceKey || !databaseUrl || !academyId) {
     throw new Error(
       "Missing NEXT_PUBLIC_SUPABASE_URL, SUPABASE_SERVICE_ROLE_KEY, DATABASE_URL, or E2E_ACADEMY_ID"
     );
   }
+
+  assertE2ESandboxTarget({
+    supabaseUrl,
+    databaseUrl,
+    databaseUrlPool: process.env.DATABASE_URL_POOL,
+    databaseUrlDirect: process.env.DATABASE_URL_DIRECT,
+    expectedProjectRef: process.env.E2E_TARGET_SUPABASE_PROJECT_REF,
+    allowProvisioning: process.env.E2E_ALLOW_PROVISIONING,
+  });
+  assertDisposableE2EEmail(familyEmail, "family");
+  if (!athleteEmail || !athletePassword) {
+    throw new Error("Missing E2E_ATHLETE_EMAIL or E2E_ATHLETE_PASSWORD");
+  }
+  assertDisposableE2EEmail(athleteEmail, "athlete");
 
   const supabase = createClient(supabaseUrl, serviceKey, {
     auth: { autoRefreshToken: false, persistSession: false },
@@ -231,14 +336,30 @@ async function main() {
     if (!tenantId) throw new Error(`E2E academy not found: ${academyId}`);
 
     const user = await ensureFamilyAuthUser(supabase);
+    const athleteUser = await ensureAthleteAuthUser(supabase);
     const profileId = await ensureFamilyProfile(pool, user.id, tenantId);
-    const athleteId = await ensureAthlete(pool, tenantId);
+  const athleteId = await ensureAthlete(pool, tenantId, athleteUser.id, academyId);
+    await ensureAthleteProfile(pool, athleteUser.id, tenantId);
     await ensureGuardianLink(pool, profileId, athleteId, tenantId);
+    const linkedAthlete = await pool.query<{ id: string }>(
+      `
+        update athletes
+        set user_id = $1::uuid
+        where id = $2::uuid
+          and academy_id = $3::uuid
+          and tenant_id = $4::uuid
+          and (user_id is null or user_id = $1::uuid)
+        returning id
+      `,
+      [athleteUser.id, athleteId, academyId, tenantId]
+    );
+    if (!linkedAthlete.rows[0]) {
+      throw new Error("E2E athlete row is missing or already linked to a different user.");
+    }
 
     console.log("\nE2E family ready. Next steps:");
-    console.log("  1. Run `pnpm test:e2e:auth --project=chromium` with");
-    console.log("     E2E_FAMILY_EMAIL, E2E_FAMILY_PASSWORD and");
-    console.log("     E2E_FAMILY_STORAGE_STATE=.auth/family.json set.");
+    console.log("  1. Run `pnpm test:e2e:auth --project=chromium` with owner/family/athlete credentials");
+    console.log("     to generate .auth/family.json and .auth/athlete.json.");
     console.log("  2. Run `pnpm playwright test tests/e2e-zaltyko-stripe-connect-flow.spec.ts`");
     console.log("     with E2E_STRIPE_CONNECT_FLOW=1 and a Stripe test sandbox.");
   } finally {

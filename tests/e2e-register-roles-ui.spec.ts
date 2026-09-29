@@ -14,5 +14,12 @@ test.describe("role-based registration UI", () => {
     await expect(page.getByRole("button", { name: /Proveedor/ })).toBeVisible();
     await expect(page.getByLabel("Nombre completo")).toBeVisible();
     await expect(page.getByLabel("Correo electrónico")).toBeVisible();
+
+    const googleButton = page.getByRole("button", { name: "Crear cuenta con Google", exact: true });
+    await expect(googleButton).toHaveAttribute("type", "button");
+    await expect(googleButton).toHaveAttribute("formnovalidate", "");
+    await expect(page.getByLabel("Nombre completo")).not.toHaveAttribute("required");
+    await expect(page.getByLabel("Correo electrónico")).not.toHaveAttribute("required");
+    await expect(page.getByLabel("Contraseña")).not.toHaveAttribute("required");
   });
 });

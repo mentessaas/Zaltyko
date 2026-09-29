@@ -24,8 +24,9 @@ async function assertSeller(listingId: string, userId: string) {
 
 export async function GET(
   _req: NextRequest,
-  { params }: { params: { id: string } }
+  { params: paramsPromise }: { params: Promise<{ id: string }> }
 ) {
+  const params = await paramsPromise;
   const listing = await getListing(params.id);
   if (!listing) return NextResponse.json({ error: "not_found" }, { status: 404 });
   return NextResponse.json(listing);
@@ -33,10 +34,11 @@ export async function GET(
 
 export async function PATCH(
   req: NextRequest,
-  { params }: { params: { id: string } }
+  { params: paramsPromise }: { params: Promise<{ id: string }> }
 ) {
   const user = await getCurrentUser();
   if (!user) return NextResponse.json({ error: "unauthorized" }, { status: 401 });
+  const params = await paramsPromise;
   if (!(await assertSeller(params.id, user.id))) {
     return NextResponse.json({ error: "forbidden" }, { status: 403 });
   }
@@ -67,10 +69,11 @@ export async function PATCH(
 
 export async function DELETE(
   _req: NextRequest,
-  { params }: { params: { id: string } }
+  { params: paramsPromise }: { params: Promise<{ id: string }> }
 ) {
   const user = await getCurrentUser();
   if (!user) return NextResponse.json({ error: "unauthorized" }, { status: 401 });
+  const params = await paramsPromise;
   if (!(await assertSeller(params.id, user.id))) {
     return NextResponse.json({ error: "forbidden" }, { status: 403 });
   }

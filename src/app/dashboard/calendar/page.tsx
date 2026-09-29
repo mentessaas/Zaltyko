@@ -337,7 +337,13 @@ export default async function CalendarPage({ searchParams }: CalendarPageProps) 
       : "Mostramos solo las actividades vinculadas a tus hijos.";
   }
 
-  const sessions = await db
+  const hasNoAllowedClasses = allowedClassIds !== null && allowedClassIds.length === 0;
+  const allowedClassFilter =
+    allowedClassIds !== null && allowedClassIds.length > 0
+      ? inArray(classes.id, allowedClassIds)
+      : undefined;
+
+  const sessions = hasNoAllowedClasses ? [] : await db
     .select({
       id: classSessions.id,
       date: classSessions.sessionDate,
@@ -370,7 +376,7 @@ export default async function CalendarPage({ searchParams }: CalendarPageProps) 
         gte(classSessions.sessionDate, toISODate(rangeStart, academyCountry)),
         lte(classSessions.sessionDate, toISODate(rangeEnd, academyCountry)),
         calendarAcademyId ? eq(classes.academyId, calendarAcademyId) : undefined,
-        allowedClassIds !== null ? inArray(classes.id, allowedClassIds.length > 0 ? allowedClassIds : ["__no-match__"]) : undefined
+        allowedClassFilter
       )
     )
     .orderBy(asc(classSessions.sessionDate), asc(classSessions.startTime))
@@ -393,7 +399,7 @@ export default async function CalendarPage({ searchParams }: CalendarPageProps) 
   let usingPlaceholderSessions = false;
 
   if (sessionsForCalendar.length === 0) {
-    const fallbackClasses = await db
+    const fallbackClasses = hasNoAllowedClasses ? [] : await db
       .select({
         id: classes.id,
         name: classes.name,
@@ -410,7 +416,7 @@ export default async function CalendarPage({ searchParams }: CalendarPageProps) 
           eq(academies.tenantId, tenantId),
           isNull(classes.deletedAt),
           calendarAcademyId ? eq(classes.academyId, calendarAcademyId) : undefined,
-          allowedClassIds !== null ? inArray(classes.id, allowedClassIds.length > 0 ? allowedClassIds : ["__no-match__"]) : undefined
+          allowedClassFilter
         )
       )
       .orderBy(asc(classes.name))

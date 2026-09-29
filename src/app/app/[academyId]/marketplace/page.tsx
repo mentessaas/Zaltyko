@@ -10,18 +10,19 @@ import { MarketplaceAdminClient } from "@/components/marketplace/MarketplaceAdmi
 export default async function MarketplaceAdminPage({
   params,
 }: {
-  params: { academyId: string };
+  params: Promise<{ academyId: string }>;
 }) {
+  const { academyId } = await params;
   const user = await getCurrentUser();
   if (!user) notFound();
 
-  const owner = await assertAcademyOwner(params.academyId, user);
+  const owner = await assertAcademyOwner(academyId, user);
   if (!owner) notFound();
 
   const [academy] = await db
     .select({ id: academies.id, name: academies.name })
     .from(academies)
-    .where(eq(academies.id, params.academyId))
+    .where(eq(academies.id, academyId))
     .limit(1);
   if (!academy) notFound();
 

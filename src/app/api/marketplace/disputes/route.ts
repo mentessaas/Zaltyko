@@ -1,12 +1,11 @@
 import { NextRequest, NextResponse } from "next/server";
-import { eq, sql } from "drizzle-orm";
+import { sql } from "drizzle-orm";
 
 import { db } from "@/db";
 import { academies } from "@/db/schema";
 import { getCurrentUser } from "@/lib/auth/current-user";
 import {
   openDispute,
-  resolveDispute,
   getDisputeForOrder,
 } from "@/lib/trust/service";
 
@@ -62,32 +61,4 @@ export async function POST(req: NextRequest) {
       { status: 400 }
     );
   }
-}
-
-/**
- * PATCH /api/marketplace/disputes/[id]
- * Body: { resolvedBy: 'buyer' | 'seller', notes }
- * Resuelve la disputa desde el lado opuesto al que la abrió.
- */
-export async function PATCH(
-  req: NextRequest,
-  { params }: { params: { id: string } }
-) {
-  const user = await getCurrentUser();
-  if (!user) return NextResponse.json({ error: "unauthorized" }, { status: 401 });
-
-  const body = await req.json().catch(() => ({}));
-  if (
-    typeof body.notes !== "string" ||
-    (body.resolvedBy !== "buyer" && body.resolvedBy !== "seller")
-  ) {
-    return NextResponse.json({ error: "invalid_payload" }, { status: 400 });
-  }
-
-  await resolveDispute({
-    disputeId: params.id,
-    resolvedBy: body.resolvedBy,
-    notes: body.notes,
-  });
-  return NextResponse.json({ ok: true });
 }

@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useRef, useState, type KeyboardEvent } from "react";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
 import { Loader2 } from "lucide-react";
@@ -18,6 +18,7 @@ import {
   readUtmWithFallback,
 } from "@/lib/growth/utm";
 import { getRegistrationContinuationPath } from "@/lib/auth/registration-paths";
+import { getNextRegistrationRoleIndex } from "@/lib/auth/registration-role-navigation";
 
 // Lee UTMs del first-touch capturado por `UtmCapture` (sessionStorage)
 // o de la query string actual. Wrapper sobre `readUtmWithFallback` para
@@ -69,16 +70,39 @@ function readAttribution(): {
 
 type RegisterRole = (typeof ROLE_OPTIONS)[number]["value"];
 
+// Must match app_config.consent.policy_version in the reviewed migration.
+const LEGAL_CONSENT_VERSION = "v1-2026-08-01";
+const LEGAL_CONSENT_PROOF = "signup:register-form-v1";
+
 export function RegisterForm() {
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [fullName, setFullName] = useState("");
   const [role, setRole] = useState<RegisterRole>("owner");
+  const [termsAccepted, setTermsAccepted] = useState(false);
+  const roleButtonRefs = useRef<Array<HTMLButtonElement | null>>([]);
   const [loading, setLoading] = useState(false);
   const [googleLoading, setGoogleLoading] = useState(false);
   const router = useRouter();
   const supabase = createClient();
   const toast = useToast();
+
+  const handleRoleKeyDown = (
+    event: KeyboardEvent<HTMLButtonElement>,
+    currentIndex: number
+  ) => {
+    const nextIndex = getNextRegistrationRoleIndex(
+      event.key,
+      currentIndex,
+      ROLE_OPTIONS.length
+    );
+    if (nextIndex === null) return;
+
+    event.preventDefault();
+    const nextRole = ROLE_OPTIONS[nextIndex].value;
+    setRole(nextRole);
+    roleButtonRefs.current[nextIndex]?.focus();
+  };
 
   const handleRegister = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -133,6 +157,15 @@ export function RegisterForm() {
       return;
     }
 
+    if (!termsAccepted) {
+      toast.pushToast({
+        title: "Aceptación necesaria",
+        description: "Lee y acepta los términos y la política de privacidad para crear tu cuenta.",
+        variant: "error",
+      });
+      return;
+    }
+
     // Verificar que la contraseña no aparezca en filtraciones públicas conocidas
     // (HaveIBeenPwned, k-anonymity). Falla en abierto si la API no responde —
     // el helper registra el caso y deja pasar al usuario.
@@ -166,6 +199,10 @@ export function RegisterForm() {
           data: {
             full_name: fullName.trim(),
             initial_role: role,
+            // Metadata is only a hand-off for the server-side consent record;
+            // authorization must never rely on user-editable user_metadata.
+            legal_consent_version: LEGAL_CONSENT_VERSION,
+            legal_consent_proof: LEGAL_CONSENT_PROOF,
           },
           emailRedirectTo,
         },
@@ -251,13 +288,29 @@ export function RegisterForm() {
   };
 
   const handleGoogleSignUp = async () => {
+    if (!termsAccepted) {
+      toast.pushToast({
+        title: "Aceptación necesaria",
+        description: "Lee y acepta los términos y la política de privacidad para crear tu cuenta.",
+        variant: "error",
+      });
+      return;
+    }
+
     setGoogleLoading(true);
     try {
-      const next = `/auth/redirect?initial_role=${encodeURIComponent(role)}`;
-      const { error } = await supabase.auth.signInWithOAuth({
+      const next =
+        `/auth/redirect?initial_role=${encodeURIComponent(role)}` +
+        `&legal_consent_version=${encodeURIComponent(LEGAL_CONSENT_VERSION)}` +
+        `&legal_consent_proof=${encodeURIComponent(LEGAL_CONSENT_PROOF)}`;
+      const { data, error } = await supabase.auth.signInWithOAuth({
         provider: "google",
         options: {
           redirectTo: `${window.location.origin}/auth/callback?next=${encodeURIComponent(next)}`,
+          // Navegamos explícitamente después de recibir la URL. Esto evita
+          // que navegadores embebidos o bloqueadores de popup dejen el CTA
+          // permanentemente en estado "Conectando...".
+          skipBrowserRedirect: true,
         },
       });
       if (error) {
@@ -267,7 +320,19 @@ export function RegisterForm() {
           variant: "error",
         });
         setGoogleLoading(false);
+        return;
       }
+      if (!data?.url) {
+        toast.pushToast({
+          title: "No pudimos iniciar Google",
+          description: "El proveedor no devolvió una URL de autenticación. Inténtalo de nuevo.",
+          variant: "error",
+        });
+        setGoogleLoading(false);
+        return;
+      }
+
+      window.location.assign(data.url);
     } catch {
       toast.pushToast({
         title: "Error inesperado",
@@ -302,13 +367,18 @@ export function RegisterForm() {
         <div className="space-y-2">
           <Label>Tipo de cuenta</Label>
           <div className="grid grid-cols-2 gap-2" role="radiogroup" aria-label="Tipo de cuenta">
-            {ROLE_OPTIONS.map((option) => (
+            {ROLE_OPTIONS.map((option, index) => (
               <button
                 key={option.value}
                 type="button"
+                ref={(element) => {
+                  roleButtonRefs.current[index] = element;
+                }}
                 onClick={() => setRole(option.value)}
+                onKeyDown={(event) => handleRoleKeyDown(event, index)}
                 role="radio"
                 aria-checked={role === option.value}
+                tabIndex={role === option.value ? 0 : -1}
                 className={`min-h-[82px] rounded-xl border px-3 py-2.5 text-left transition sm:px-4 sm:py-3 ${
                   role === option.value
                     ? "border-zaltyko-teal bg-zaltyko-teal/10 text-foreground"
@@ -334,7 +404,7 @@ export function RegisterForm() {
             type="text"
             value={fullName}
             onChange={(e) => setFullName(e.target.value)}
-            required
+            aria-required="true"
             autoComplete="name"
             placeholder="María García"
           />
@@ -347,7 +417,7 @@ export function RegisterForm() {
             type="email"
             value={email}
             onChange={(e) => setEmail(e.target.value)}
-            required
+            aria-required="true"
             autoComplete="email"
             placeholder="tu@email.com"
           />
@@ -360,11 +430,32 @@ export function RegisterForm() {
             type="password"
             value={password}
             onChange={(e) => setPassword(e.target.value)}
-            required
+            aria-required="true"
             autoComplete="new-password"
             placeholder="Mínimo 8 caracteres"
           />
         </div>
+        <label className="flex items-start gap-3 rounded-lg border border-border bg-muted/20 px-3 py-3 text-sm leading-relaxed">
+          <input
+            type="checkbox"
+            name="termsAccepted"
+            checked={termsAccepted}
+            onChange={(event) => setTermsAccepted(event.target.checked)}
+            aria-required="true"
+            className="mt-1 h-4 w-4 shrink-0 rounded border-border accent-zaltyko-teal focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-zaltyko-teal focus-visible:ring-offset-2"
+          />
+          <span>
+            Acepto los{" "}
+            <Link href="/terminos" target="_blank" rel="noreferrer" className="font-semibold text-zaltyko-primary underline hover:text-zaltyko-primary-dark">
+              términos y condiciones
+            </Link>{" "}
+            y he leído la{" "}
+            <Link href="/politica-privacidad" target="_blank" rel="noreferrer" className="font-semibold text-zaltyko-primary underline hover:text-zaltyko-primary-dark">
+              política de privacidad
+            </Link>
+            .
+          </span>
+        </label>
         <Button type="submit" className="w-full" disabled={loading || googleLoading}>
           {loading ? (
             <>
@@ -380,6 +471,7 @@ export function RegisterForm() {
       <div className="mt-4">
         <Button
           type="button"
+          formNoValidate
           onClick={handleGoogleSignUp}
           variant="outline"
           className="w-full"

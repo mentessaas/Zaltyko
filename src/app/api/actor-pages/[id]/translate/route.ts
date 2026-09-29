@@ -15,10 +15,11 @@ import { translateBlocks, type TranslatableBlock } from "@/lib/i18n/translate";
  */
 export async function POST(
   req: NextRequest,
-  { params }: { params: { id: string } }
+  { params: paramsPromise }: { params: Promise<{ id: string }> }
 ) {
   const user = await getCurrentUser();
   if (!user) return NextResponse.json({ error: "unauthorized" }, { status: 401 });
+  const params = await paramsPromise;
 
   const body = await req.json().catch(() => ({}));
   const target = body?.target as "en" | "es" | undefined;

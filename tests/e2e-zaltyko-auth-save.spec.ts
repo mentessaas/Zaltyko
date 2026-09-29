@@ -1,5 +1,5 @@
 import { mkdirSync } from "node:fs";
-import { resolve } from "node:path";
+import { dirname, resolve } from "node:path";
 
 import { config } from "dotenv";
 import { expect, test } from "@playwright/test";
@@ -88,7 +88,7 @@ for (const authState of authStates) {
       `Set credentials and storage path for ${authState.label}.`
     );
 
-    mkdirSync(".auth", { recursive: true });
+    mkdirSync(dirname(authState.path), { recursive: true, mode: 0o700 });
     await page.goto(`${baseURL}/auth/login`);
     await page
       .waitForLoadState("networkidle", { timeout: 30_000 })

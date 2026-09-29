@@ -5,6 +5,7 @@ import { existsSync, readFileSync } from "node:fs";
 import { resolve } from "node:path";
 
 import { Pool } from "pg";
+import { assertDisposableE2EEmail, assertE2ESandboxTarget } from "./lib/e2e-sandbox-target";
 
 config({ path: resolve(process.cwd(), ".env.local") });
 config({ path: resolve(process.cwd(), ".env") });
@@ -20,8 +21,8 @@ config({ path: resolve(process.cwd(), ".env") });
  *   > pnpm tsx scripts/seed-e2e-charge.ts
  *
  * Variables de entorno:
- *   - E2E_ALLOW_PROVISIONING=true   obligatoria (mismo safety belt que
- *                                    prepare-e2e-family-auth.ts).
+ *   - E2E_ALLOW_PROVISIONING=true   obligatoria junto con un destino sandbox verificado.
+ *   - E2E_TARGET_SUPABASE_PROJECT_REF=<ref sandbox> debe coincidir con DATABASE_URL.
  *   - DATABASE_URL                  Postgres de la academia de pruebas.
  *   - E2E_ACADEMY_ID                academia AISLADA (no operativa).
  *   - E2E_FAMILY_EMAIL              email del parent (default:
@@ -134,14 +135,17 @@ async function upsertPendingCharge(pool: Pool, tenantId: string, athleteId: stri
 }
 
 async function main() {
-  if (process.env.E2E_ALLOW_PROVISIONING !== "true") {
-    throw new Error(
-      "Refusing to seed E2E charges. Set E2E_ALLOW_PROVISIONING=true only for an approved isolated test academy."
-    );
-  }
   if (!databaseUrl || !academyId) {
     throw new Error("Missing DATABASE_URL or E2E_ACADEMY_ID");
   }
+  assertE2ESandboxTarget({
+    databaseUrl,
+    databaseUrlPool: process.env.DATABASE_URL_POOL,
+    databaseUrlDirect: process.env.DATABASE_URL_DIRECT,
+    expectedProjectRef: process.env.E2E_TARGET_SUPABASE_PROJECT_REF,
+    allowProvisioning: process.env.E2E_ALLOW_PROVISIONING,
+  });
+  assertDisposableE2EEmail(familyEmail, "family");
   if (!Number.isInteger(amountCents) || amountCents <= 0) {
     throw new Error(`E2E_CHARGE_AMOUNT_CENTS inválido: ${process.env.E2E_CHARGE_AMOUNT_CENTS}`);
   }

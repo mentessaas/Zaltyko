@@ -1,10 +1,14 @@
 import { NextResponse } from "next/server";
-import { eq, desc, sql, count, avg } from "drizzle-orm";
+import { eq, desc, sql, count } from "drizzle-orm";
 import { cookies } from "next/headers";
 import { z } from "zod";
 
 import { db } from "@/db";
-import { marketplaceListings, marketplaceRatings, profiles } from "@/db/schema";
+import { profiles } from "@/db/schema";
+import {
+  legacyMarketplaceListings as marketplaceListings,
+  legacyMarketplaceRatings as marketplaceRatings,
+} from "@/db/schema/marketplace-legacy";
 import { createClient } from "@/lib/supabase/server";
 import { logger } from "@/lib/logger";
 
@@ -56,7 +60,8 @@ export async function GET(
         totalCount: count(),
       })
       .from(marketplaceRatings)
-      .where(eq(marketplaceRatings.listingId, id));
+      .where(eq(marketplaceRatings.listingId, id))
+      .limit(1);
 
     return NextResponse.json({
       ratings,
@@ -106,9 +111,9 @@ export async function POST(
       return NextResponse.json({ error: "LISTING_NOT_FOUND" }, { status: 404 });
     }
 
-    // Get user's profile (incluye activeAcademyId para ownership del rating)
+    // Legacy ratings belong to user profiles, not academy IDs.
     const [profile] = await db
-      .select({ id: profiles.id, activeAcademyId: profiles.activeAcademyId })
+      .select({ id: profiles.id })
       .from(profiles)
       .where(eq(profiles.userId, user.id))
       .limit(1);
@@ -117,17 +122,14 @@ export async function POST(
       return NextResponse.json({ error: "PROFILE_NOT_FOUND" }, { status: 404 });
     }
 
-    // Get listing with seller profile (join via activeAcademyId del profile del vendedor)
+    // Resolve the seller's legacy user profile.
     const [listingWithSeller] = await db
       .select({
-        listingSellerAcademyId: marketplaceListings.sellerAcademyId,
-        sellerProfileAcademyId: profiles.activeAcademyId,
+        listingUserId: marketplaceListings.userId,
+        sellerProfileId: profiles.id,
       })
       .from(marketplaceListings)
-      .leftJoin(
-        profiles,
-        eq(profiles.activeAcademyId, marketplaceListings.sellerAcademyId),
-      )
+      .leftJoin(profiles, eq(marketplaceListings.userId, profiles.userId))
       .where(eq(marketplaceListings.id, id))
       .limit(1);
 
@@ -135,11 +137,8 @@ export async function POST(
       return NextResponse.json({ error: "LISTING_NOT_FOUND" }, { status: 404 });
     }
 
-    // Prevent self-rating (el rater y el seller pertenecen a la misma academia)
-    if (
-      listingWithSeller.sellerProfileAcademyId !== null &&
-      listingWithSeller.sellerProfileAcademyId === profile.activeAcademyId
-    ) {
+    // Prevent self-rating even when the seller profile no longer exists.
+    if (listingWithSeller.listingUserId === user.id) {
       return NextResponse.json(
         { error: "Cannot rate your own listing" },
         { status: 400 }
@@ -171,20 +170,15 @@ export async function POST(
     }
 
     const [rating] = await db
-      // eslint-disable-next-line @typescript-eslint/no-explicit-any
       .insert(marketplaceRatings)
       .values({
         listingId: id,
-        orderId: null, // rating sobre listing (sin orderId específico)
-        reviewerId: profile.activeAcademyId!, // reviewerId apunta a la academia del rater
-        raterAcademyId: profile.activeAcademyId!,
-        ratedAcademyId: listingWithSeller.listingSellerAcademyId,
-        direction: "buyer_to_seller",
-        stars: parsed.data.rating,
+        sellerId: listingWithSeller.sellerProfileId,
+        reviewerId: profile.id,
         rating: parsed.data.rating,
         comment: parsed.data.comment ?? null,
-        verified: "pending",
-      } as any)
+        verified: false,
+      })
       .returning();
 
     return NextResponse.json({ rating }, { status: 201 });

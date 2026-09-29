@@ -22,12 +22,27 @@ describe("middleware", () => {
   });
 
   it("preserves security headers and query parameters on academy rewrites", async () => {
-    const response = await middleware(new NextRequest("https://club-test.zaltyko.com/?lang=es", {
+    const previous = process.env.ENABLE_ACTOR_PAGES;
+    process.env.ENABLE_ACTOR_PAGES = "true";
+    try {
+      const response = await middleware(new NextRequest("https://club-test.zaltyko.com/?lang=es", {
+        headers: { host: "club-test.zaltyko.com" },
+      }));
+      expect(response.headers.get("x-middleware-rewrite")).toBe("https://zaltyko.com/a/club-test?lang=es");
+      expect(response.headers.get("X-Content-Type-Options")).toBe("nosniff");
+      expect(response.headers.get("Content-Security-Policy")).toContain("frame-ancestors 'none'");
+    } finally {
+      if (previous === undefined) delete process.env.ENABLE_ACTOR_PAGES;
+      else process.env.ENABLE_ACTOR_PAGES = previous;
+    }
+  });
+
+  it("hides experimental academy subdomains by default", async () => {
+    const response = await middleware(new NextRequest("https://club-test.zaltyko.com/", {
       headers: { host: "club-test.zaltyko.com" },
     }));
-    expect(response.headers.get("x-middleware-rewrite")).toBe("https://zaltyko.com/a/club-test?lang=es");
-    expect(response.headers.get("X-Content-Type-Options")).toBe("nosniff");
-    expect(response.headers.get("Content-Security-Policy")).toContain("frame-ancestors 'none'");
+    expect(response.status).toBe(404);
+    expect(response.headers.get("x-middleware-rewrite")).toBeNull();
   });
 
   beforeEach(() => {
@@ -48,6 +63,79 @@ describe("middleware", () => {
     expect(response.status).toBe(200);
     expect(response.headers.get("x-middleware-next")).toBe("1");
     expect(response.headers.get("X-RateLimit-Remaining")).toBe("99");
+  });
+
+  it("blocks Preview writes when its Supabase URL points at production", async () => {
+    const previousEnv = process.env.VERCEL_ENV;
+    const previousUrl = process.env.NEXT_PUBLIC_SUPABASE_URL;
+    process.env.VERCEL_ENV = "preview";
+    process.env.NEXT_PUBLIC_SUPABASE_URL = "https://jegxfahsvugilbthbked.supabase.co";
+    try {
+      const response = await middleware(
+        new NextRequest("https://zaltyko-preview.vercel.app/api/athletes", { method: "POST" })
+      );
+
+      expect(response.status).toBe(503);
+      await expect(response.json()).resolves.toMatchObject({ error: "PREVIEW_WRITE_BLOCKED" });
+      expect(response.headers.get("Cache-Control")).toBe("no-store");
+      expect(rateLimitMock).not.toHaveBeenCalled();
+    } finally {
+      if (previousEnv === undefined) delete process.env.VERCEL_ENV;
+      else process.env.VERCEL_ENV = previousEnv;
+      if (previousUrl === undefined) delete process.env.NEXT_PUBLIC_SUPABASE_URL;
+      else process.env.NEXT_PUBLIC_SUPABASE_URL = previousUrl;
+    }
+  });
+
+  it("allows Preview writes when Supabase targets the E2E sandbox", async () => {
+    const previousEnv = process.env.VERCEL_ENV;
+    const previousUrl = process.env.NEXT_PUBLIC_SUPABASE_URL;
+    const previousDatabaseUrl = process.env.DATABASE_URL_POOL;
+    process.env.VERCEL_ENV = "preview";
+    process.env.NEXT_PUBLIC_SUPABASE_URL = "https://aeeootdmuiqkfeernskw.supabase.co";
+    delete process.env.DATABASE_URL_POOL;
+    try {
+      const response = await middleware(
+        new NextRequest("https://zaltyko-preview.vercel.app/api/athletes", { method: "POST" })
+      );
+
+      expect(response.status).toBe(200);
+      expect(response.headers.get("x-middleware-next")).toBe("1");
+      expect(rateLimitMock).toHaveBeenCalledOnce();
+    } finally {
+      if (previousEnv === undefined) delete process.env.VERCEL_ENV;
+      else process.env.VERCEL_ENV = previousEnv;
+      if (previousUrl === undefined) delete process.env.NEXT_PUBLIC_SUPABASE_URL;
+      else process.env.NEXT_PUBLIC_SUPABASE_URL = previousUrl;
+      if (previousDatabaseUrl === undefined) delete process.env.DATABASE_URL_POOL;
+      else process.env.DATABASE_URL_POOL = previousDatabaseUrl;
+    }
+  });
+
+  it("blocks Preview writes if any database pool still targets production", async () => {
+    const previousEnv = process.env.VERCEL_ENV;
+    const previousUrl = process.env.NEXT_PUBLIC_SUPABASE_URL;
+    const previousDatabaseUrl = process.env.DATABASE_URL_POOL;
+    process.env.VERCEL_ENV = "preview";
+    process.env.NEXT_PUBLIC_SUPABASE_URL = "https://aeeootdmuiqkfeernskw.supabase.co";
+    process.env.DATABASE_URL_POOL =
+      "postgresql://postgres.jegxfahsvugilbthbked:placeholder@aws-0-eu-north-1.pooler.supabase.com:6543/postgres";
+    try {
+      const response = await middleware(
+        new NextRequest("https://zaltyko-preview.vercel.app/api/athletes", { method: "POST" })
+      );
+
+      expect(response.status).toBe(503);
+      await expect(response.json()).resolves.toMatchObject({ error: "PREVIEW_WRITE_BLOCKED" });
+      expect(rateLimitMock).not.toHaveBeenCalled();
+    } finally {
+      if (previousEnv === undefined) delete process.env.VERCEL_ENV;
+      else process.env.VERCEL_ENV = previousEnv;
+      if (previousUrl === undefined) delete process.env.NEXT_PUBLIC_SUPABASE_URL;
+      else process.env.NEXT_PUBLIC_SUPABASE_URL = previousUrl;
+      if (previousDatabaseUrl === undefined) delete process.env.DATABASE_URL_POOL;
+      else process.env.DATABASE_URL_POOL = previousDatabaseUrl;
+    }
   });
 
   it("returns 429 only when the rate limit is exceeded", async () => {
