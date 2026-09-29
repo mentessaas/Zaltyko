@@ -1,9 +1,9 @@
 import { useState } from "react";
 
-import type { PlanCode } from "@/types/billing";
+import type { BillingInterval, PlanCode } from "@/types/billing";
 
 interface UseBillingActionsResult {
-  triggerCheckout: (planCode: PlanCode) => Promise<void>;
+  triggerCheckout: (planCode: PlanCode, billingInterval?: BillingInterval) => Promise<void>;
   openPortal: () => Promise<void>;
   handleSync: () => Promise<void>;
   loadingAction: PlanCode | "portal" | "sync" | null;
@@ -21,7 +21,7 @@ export function useBillingActions(
   const [loadingAction, setLoadingAction] = useState<PlanCode | "portal" | "sync" | null>(null);
   const [error, setError] = useState<string | null>(null);
 
-  const triggerCheckout = async (planCode: PlanCode) => {
+  const triggerCheckout = async (planCode: PlanCode, billingInterval: BillingInterval = "month") => {
     if (!academyId || !userId) {
       setError("Activa la sesión demo antes de realizar el checkout.");
       return;
@@ -35,7 +35,7 @@ export function useBillingActions(
         headers: {
           "Content-Type": "application/json",
         },
-        body: JSON.stringify({ academyId, planCode }),
+          body: JSON.stringify({ academyId, planCode, billingInterval }),
       });
 
       const data = await res.json();

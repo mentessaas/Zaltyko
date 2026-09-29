@@ -6,12 +6,13 @@ export const plans = pgTable("plans", {
   athleteLimit: integer("athlete_limit"),
   academyLimit: integer("academy_limit"),
   stripePriceId: text("stripe_price_id"),
+  stripeAnnualPriceId: text("stripe_annual_price_id"),
   stripeProductId: text("stripe_product_id"),
   currency: text("currency").notNull().default("eur"),
   billingInterval: text("billing_interval"),
   nickname: text("nickname"),
   isArchived: boolean("is_archived").notNull().default(false),
   priceEur: integer("price_eur").notNull(),
+  annualPriceEur: integer("annual_price_eur"),
   createdAt: timestamp("created_at", { withTimezone: true }).defaultNow(),
 });
-

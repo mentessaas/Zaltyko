@@ -84,7 +84,13 @@ export function BillingSummary({
         </p>
         {currentPlan && (
           <p className="text-sm text-muted-foreground">
-            Cuota: {formatPlanPrice(currentPlan)} / {currentPlan.billingInterval ?? "mes"}
+            Cuota: {formatPlanPrice({
+              ...currentPlan,
+              priceEur:
+                summary.billingInterval === "year"
+                  ? currentPlan.annualPriceEur ?? currentPlan.priceEur
+                  : currentPlan.priceEur,
+            })} / {summary.billingInterval ?? currentPlan.billingInterval ?? "mes"}
           </p>
         )}
         {summary.hasStripeCustomer && (

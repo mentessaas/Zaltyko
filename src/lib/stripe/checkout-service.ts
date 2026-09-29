@@ -18,6 +18,7 @@ import { logger } from "@/lib/logger";
 export interface CreateCheckoutSessionParams {
   academyId: string;
   planCode: "free" | "pro" | "premium";
+  billingInterval?: "month" | "year";
   userId: string;
   tenantId: string;
 }
@@ -135,6 +136,7 @@ export async function createCheckoutSession(
       id: plans.id,
       code: plans.code,
       stripePriceId: plans.stripePriceId,
+      stripeAnnualPriceId: plans.stripeAnnualPriceId,
     })
     .from(plans)
     .where(eq(plans.code, params.planCode))
@@ -144,7 +146,10 @@ export async function createCheckoutSession(
     throw new Error("PLAN_NOT_FOUND");
   }
 
-  if (!plan.stripePriceId) {
+  const billingInterval = params.billingInterval ?? "month";
+  const priceId = billingInterval === "year" ? plan.stripeAnnualPriceId : plan.stripePriceId;
+
+  if (!priceId) {
     throw new Error("PLAN_PRICE_NOT_CONFIGURED");
   }
 
@@ -181,7 +186,7 @@ export async function createCheckoutSession(
         createStripeIntegrationIdentifier("zaltyko_checkout"),
       line_items: [
         {
-          price: plan.stripePriceId,
+          price: priceId,
           quantity: 1,
         },
       ],
@@ -190,12 +195,14 @@ export async function createCheckoutSession(
           userId: owner.userId,
           tenantId: params.tenantId,
           planCode: plan.code,
+          billingInterval,
         },
       },
       metadata: {
         userId: owner.userId,
         tenantId: params.tenantId,
         planCode: plan.code,
+        billingInterval,
       },
       success_url: successUrl,
       cancel_url: cancelUrl,

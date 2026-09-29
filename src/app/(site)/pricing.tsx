@@ -84,6 +84,9 @@ export default function PricingSection() {
             Facturación mensual · sin permanencia
           </span>
         </div>
+        <p className="mt-3 text-center font-sans text-sm text-muted-foreground">
+          Al activar un plan desde Facturación también puedes elegir pago anual con dos meses bonificados.
+        </p>
 
         <div className="mt-8 grid items-center gap-6 md:grid-cols-2 xl:grid-cols-4">
           {plans.map((plan, index) => (

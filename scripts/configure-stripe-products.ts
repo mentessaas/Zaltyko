@@ -1,6 +1,7 @@
 /* eslint-disable no-console */
 import { config } from "dotenv";
 import { eq } from "drizzle-orm";
+import Stripe from "stripe";
 
 import { db } from "@/db";
 import { plans } from "@/db/schema";
@@ -22,7 +23,10 @@ async function main() {
   for (const code of PAID_CODES) {
     const canonical = PRODUCT_PLAN_BY_CODE[code];
     const [plan] = await db
-      .select({ stripePriceId: plans.stripePriceId })
+      .select({
+        stripePriceId: plans.stripePriceId,
+        stripeAnnualPriceId: plans.stripeAnnualPriceId,
+      })
       .from(plans)
       .where(eq(plans.code, code))
       .limit(1);
@@ -47,6 +51,22 @@ async function main() {
       }`
     );
 
+    let annualPrice: Stripe.Price | null = null;
+    if (plan.stripeAnnualPriceId) {
+      annualPrice = await stripe.prices.retrieve(plan.stripeAnnualPriceId, { expand: ["product"] });
+      if (
+        !annualPrice.active ||
+        annualPrice.unit_amount !== canonical.annualPriceEurCents ||
+        annualPrice.currency !== "eur" ||
+        annualPrice.recurring?.interval !== "year"
+      ) {
+        throw new Error(`${code}: Stripe price does not match the canonical annual EUR contract`);
+      }
+      console.log(`${code}: annual price ${annualPrice.id} -> ${canonical.annualPriceEurCents} cents/year`);
+    } else {
+      console.warn(`${code}: annual Stripe Price missing; annual checkout remains disabled`);
+    }
+
     if (!shouldApply) continue;
     await stripe.products.update(product.id, {
       name: desiredName,
@@ -56,6 +76,17 @@ async function main() {
       nickname: canonical.publicName,
       metadata: { ...price.metadata, plan_code: code, public_name: canonical.publicName },
     });
+    if (annualPrice) {
+      await stripe.prices.update(annualPrice.id, {
+        nickname: `${canonical.publicName} anual`,
+        metadata: {
+          ...annualPrice.metadata,
+          plan_code: code,
+          public_name: canonical.publicName,
+          billing_interval: "year",
+        },
+      });
+    }
   }
 
   console.log(shouldApply ? "Stripe products configured." : "Dry-run complete.");

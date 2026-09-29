@@ -42,7 +42,11 @@ export const POST = withTenant(async (request, context) => {
   let subscription: {
     stripeCustomerId: string | null;
     stripeSubscriptionId: string | null;
+    stripePriceId: string | null;
     planCode: string | null;
+    monthlyPriceId: string | null;
+    annualPriceId: string | null;
+    billingInterval: string | null;
     status: string | null;
   } | null = null;
 
@@ -51,7 +55,11 @@ export const POST = withTenant(async (request, context) => {
       .select({
         stripeCustomerId: subscriptions.stripeCustomerId,
         stripeSubscriptionId: subscriptions.stripeSubscriptionId,
+        stripePriceId: subscriptions.stripePriceId,
         planCode: plans.code,
+        monthlyPriceId: plans.stripePriceId,
+        annualPriceId: plans.stripeAnnualPriceId,
+        billingInterval: plans.billingInterval,
         status: subscriptions.status,
       })
       .from(subscriptions)
@@ -68,6 +76,10 @@ export const POST = withTenant(async (request, context) => {
     return apiSuccess({
       planCode: effective.planCode,
       status: trial.active ? "trialing" : subscription?.status ?? "active",
+      billingInterval:
+        subscription?.stripePriceId && subscription.stripePriceId === subscription.annualPriceId
+          ? "year"
+          : subscription?.billingInterval ?? null,
       athleteLimit: effective.athleteLimit,
       classLimit: effective.classLimit,
       hasStripeCustomer: Boolean(subscription?.stripeCustomerId),
