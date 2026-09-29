@@ -303,10 +303,14 @@ export function RegisterForm() {
         `/auth/redirect?initial_role=${encodeURIComponent(role)}` +
         `&legal_consent_version=${encodeURIComponent(LEGAL_CONSENT_VERSION)}` +
         `&legal_consent_proof=${encodeURIComponent(LEGAL_CONSENT_PROOF)}`;
-      const { error } = await supabase.auth.signInWithOAuth({
+      const { data, error } = await supabase.auth.signInWithOAuth({
         provider: "google",
         options: {
           redirectTo: `${window.location.origin}/auth/callback?next=${encodeURIComponent(next)}`,
+          // Navegamos explícitamente después de recibir la URL. Esto evita
+          // que navegadores embebidos o bloqueadores de popup dejen el CTA
+          // permanentemente en estado "Conectando...".
+          skipBrowserRedirect: true,
         },
       });
       if (error) {
@@ -316,7 +320,19 @@ export function RegisterForm() {
           variant: "error",
         });
         setGoogleLoading(false);
+        return;
       }
+      if (!data?.url) {
+        toast.pushToast({
+          title: "No pudimos iniciar Google",
+          description: "El proveedor no devolvió una URL de autenticación. Inténtalo de nuevo.",
+          variant: "error",
+        });
+        setGoogleLoading(false);
+        return;
+      }
+
+      window.location.assign(data.url);
     } catch {
       toast.pushToast({
         title: "Error inesperado",
