@@ -299,7 +299,10 @@ export function RegisterForm() {
 
     setGoogleLoading(true);
     try {
-      const next = `/auth/redirect?initial_role=${encodeURIComponent(role)}`;
+      const next =
+        `/auth/redirect?initial_role=${encodeURIComponent(role)}` +
+        `&legal_consent_version=${encodeURIComponent(LEGAL_CONSENT_VERSION)}` +
+        `&legal_consent_proof=${encodeURIComponent(LEGAL_CONSENT_PROOF)}`;
       const { error } = await supabase.auth.signInWithOAuth({
         provider: "google",
         options: {
