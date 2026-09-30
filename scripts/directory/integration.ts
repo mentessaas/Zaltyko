@@ -549,6 +549,7 @@ async function main() {
     for (const role of ["anon", "authenticated"]) {
       await client.query(`SET ROLE ${role}`);
       const visible = await client.query("SELECT id FROM directory_entries");
+      check(`${role}: no expone copias operativas que puedan quedar antiguas`, !visible.rows.some(r=>r.id===link.id));
       check(
         `${role}: RLS oculta borradores`,
         !visible.rows.some((r) => r.id === drafts.id)

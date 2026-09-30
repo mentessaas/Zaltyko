@@ -31,14 +31,18 @@ const ACADEMY_KIND_OPTIONS = [
 
 const OWNER_ONBOARDING_DRAFT_KEY = "zaltyko:owner-onboarding-draft:v1";
 
-export function OwnerOnboardingForm({directoryEntryId}:{directoryEntryId?:string}={}) {
-  const initialSeed = getSportConfigSeedsByCountry("es")[0];
+type DirectoryAcademyDefaults = { name: string; countryCode: string; region?: string; city?: string };
+
+export function OwnerOnboardingForm({directoryEntryId, initialAcademy}:{directoryEntryId?:string; initialAcademy?:DirectoryAcademyDefaults}={}) {
+  const initialCountry = initialAcademy?.countryCode ?? "es";
+  const draftKey = directoryEntryId ? `${OWNER_ONBOARDING_DRAFT_KEY}:${directoryEntryId}` : OWNER_ONBOARDING_DRAFT_KEY;
+  const initialSeed = getSportConfigSeedsByCountry(initialCountry)[0];
   const router = useRouter();
   const toast = useToast();
   const [pending, setPending] = useState(false);
   const [showAdvanced, setShowAdvanced] = useState(false);
   const [fullName, setFullName] = useState("");
-  const [academyName, setAcademyName] = useState("");
+  const [academyName, setAcademyName] = useState(initialAcademy?.name ?? "");
   const [disciplineVariant, setDisciplineVariant] = useState<string>(
     initialSeed?.defaultDisciplineVariant ?? "general"
   );
@@ -46,15 +50,15 @@ export function OwnerOnboardingForm({directoryEntryId}:{directoryEntryId?:string
     initialSeed?.defaultDisciplineVariant ?? "general",
   ]);
   const [academyKind, setAcademyKind] = useState<string>("mixed");
-  const [countryCode, setCountryCode] = useState("es");
-  const [region, setRegion] = useState("");
-  const [city, setCity] = useState("");
+  const [countryCode, setCountryCode] = useState(initialCountry);
+  const [region, setRegion] = useState(initialAcademy?.region ?? "");
+  const [city, setCity] = useState(initialAcademy?.city ?? "");
   const [activeProgramCodesByVariant, setActiveProgramCodesByVariant] = useState<Record<string, string[]>>({});
   const [activeApparatusCodesByVariant, setActiveApparatusCodesByVariant] = useState<Record<string, string[]>>({});
   const [starterGroupsByVariant, setStarterGroupsByVariant] = useState<Record<string, string[]>>({
     [initialSeed?.defaultDisciplineVariant ?? "general"]: getStarterGroupPresets(
       resolveAcademySpecialization({
-        countryCode: "es",
+        countryCode: initialCountry,
         disciplineVariant: initialSeed?.defaultDisciplineVariant ?? "general",
       })
     ).map((preset) => preset.key),
@@ -96,7 +100,7 @@ export function OwnerOnboardingForm({directoryEntryId}:{directoryEntryId?:string
   // interrupción no obligue a repetir el onboarding desde cero.
   useEffect(() => {
     try {
-      const raw = window.localStorage.getItem(OWNER_ONBOARDING_DRAFT_KEY);
+      const raw = window.localStorage.getItem(draftKey);
       if (!raw) return;
       const draft = JSON.parse(raw) as Partial<{
         fullName: string;
@@ -115,20 +119,20 @@ export function OwnerOnboardingForm({directoryEntryId}:{directoryEntryId?:string
       if (draft.academyKind) setAcademyKind(draft.academyKind);
       if (draft.disciplineVariant) setDisciplineVariant(draft.disciplineVariant);
     } catch {
-      window.localStorage.removeItem(OWNER_ONBOARDING_DRAFT_KEY);
+      window.localStorage.removeItem(draftKey);
     }
-  }, []);
+  }, [draftKey]);
 
   useEffect(() => {
     try {
       window.localStorage.setItem(
-        OWNER_ONBOARDING_DRAFT_KEY,
+        draftKey,
         JSON.stringify({ fullName, academyName, countryCode, region, city, academyKind, disciplineVariant })
       );
     } catch {
       // El almacenamiento local puede estar deshabilitado; el formulario sigue funcionando.
     }
-  }, [fullName, academyName, countryCode, region, city, academyKind, disciplineVariant]);
+  }, [draftKey, fullName, academyName, countryCode, region, city, academyKind, disciplineVariant]);
 
   useEffect(() => {
     if (disciplineOptions.length === 0) return;
@@ -266,7 +270,7 @@ export function OwnerOnboardingForm({directoryEntryId}:{directoryEntryId?:string
         variant: "success",
       });
 
-      window.localStorage.removeItem(OWNER_ONBOARDING_DRAFT_KEY);
+      window.localStorage.removeItem(draftKey);
 
       const redirectUrl = payload?.data?.redirectUrl ?? payload?.redirectUrl;
       if (typeof redirectUrl !== "string" || !redirectUrl.startsWith("/")) {

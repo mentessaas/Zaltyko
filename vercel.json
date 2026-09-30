@@ -1,8 +1,6 @@
 {
   "framework": "nextjs",
-  "regions": [
-    "arn1"
-  ],
+  "regions": ["arn1"],
   "crons": [
     {
       "path": "/api/cron/class-reminders",
@@ -50,7 +48,7 @@
     },
     {
       "path": "/api/cron/directory",
-      "schedule": "17 * * * *"
+      "schedule": "17 11 * * *"
     }
   ],
   "env": {

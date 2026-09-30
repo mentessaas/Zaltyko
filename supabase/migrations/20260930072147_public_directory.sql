@@ -91,9 +91,8 @@ END $$;
 -- Public entries contain only validated public information. Private workflow records stay inaccessible.
 GRANT SELECT ON public.directory_entries TO anon,authenticated;
 CREATE POLICY directory_entries_public ON public.directory_entries FOR SELECT TO anon,authenticated USING (
- publication='published' AND merged_into IS NULL
- AND (academy_id IS NULL OR EXISTS(SELECT 1 FROM public.academies a WHERE a.id=academy_id AND a.is_public AND NOT a.is_suspended AND a.status IN ('active','trial')))
- AND (event_id IS NULL OR EXISTS(SELECT 1 FROM public.events e JOIN public.academies a ON a.id=e.academy_id WHERE e.id=event_id AND e.is_public AND e.status='published' AND a.is_public AND NOT a.is_suspended AND a.status IN ('active','trial')))
+ publication='published' AND merged_into IS NULL AND academy_id IS NULL AND event_id IS NULL
+ -- Linked data must use the live server projection; never expose a stale operational copy through the Data API.
 );
 -- Server-only private evidence bucket. There are deliberately no client read/write policies.
 INSERT INTO storage.buckets(id,name,public,file_size_limit,allowed_mime_types)

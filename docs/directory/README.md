@@ -30,8 +30,8 @@ Fecha: 30 de septiembre de 2026. Rama `feat/public-directory`, base `01e4df1f`.
 ## Validación observada
 
 - Suite web completa anterior a los últimos ajustes: **415 archivos, 1.867 pruebas aprobadas**; un archivo y tres casos omitidos.
-- Suite focalizada después de adaptar las fuentes: **62 pruebas aprobadas en seis archivos**. Compilación de producción local aprobada; tipos y lint se ejecutan aparte porque el build del proyecto los omite.
-- PostgreSQL aislado real, migración exacta, dump/restauración y **45 comprobaciones aprobadas**. Incluye concurrencia de reclamaciones y lotes, edición sensible, revocación, proyección/retirada, deduplicación de correos y denegaciones con roles de base de datos.
+- Suite focalizada después de adaptar las fuentes: **76 pruebas aprobadas en siete archivos**. Compilación de producción local aprobada; tipos y lint se ejecutan aparte porque el build del proyecto los omite.
+- PostgreSQL aislado real, migración exacta, dump/restauración y **47 comprobaciones aprobadas**. Incluye concurrencia de reclamaciones y lotes, edición sensible, revocación, proyección/retirada, deduplicación de correos y denegaciones con roles de base de datos.
 - Supabase local real y navegador: representante sin perfil operativo solicita; Super Admin aprueba; representante ve y edita; segundo representante no ve gestión y recibe HTTP 403 al intentar editar. Owner/admin/coach/parent/athlete reciben 403 en API de administración.
 - Formulario de representante y Mis fichas: comprobación de ancho a 390 px y zoom CSS del 200 %, captura y navegación Tab. Esta comprobación **no** equivale a VoiceOver manual ni a todos los recorridos de accesibilidad del producto.
 - Integridad: 7 migraciones Drizzle y 91 Supabase validadas; RLS estático y gates de lecturas/autorización/rutas aprobados.
@@ -54,7 +54,7 @@ Variables, todas `false` por defecto:
 3. Activar catálogo y repetir el recorrido autenticado contra la versión desplegada.
 4. Activar reclamaciones tras revisión de permisos y documentos. Configurar el escáner antes de ofrecer subida de archivos; pruebas por canal oficial escrito siguen disponibles.
 5. Configurar secreto exclusivo `DIRECTORY_TOKEN_SECRET` (32 caracteres como mínimo), Brevo real, remitente/respuesta, webhook autenticado y prueba de baja/rebote. Solo entonces activar comunicaciones.
-6. Activar importaciones programadas únicamente con autorización de fuente documentada. Cron `/api/cron/directory` ejecuta con autenticación y lease; sin flags no activa estos módulos.
+6. Activar importaciones programadas únicamente con autorización de fuente documentada. Cron `/api/cron/directory` ejecuta una vez al día (11:17 UTC), compatible con el plan Hobby existente, con autenticación y lease; sin flags no activa estos módulos.
 
 Rollback inicial: apagar flags y volver a lectores anteriores. Conservar tablas y fichas para recuperación; no eliminar cuentas, academias ni propietarios.
 
@@ -67,7 +67,7 @@ Rollback inicial: apagar flags y volver a lectores anteriores. Conservar tablas 
 - Escáner de documentos y entrega real de correo/webhook: no configurados ni probados externamente.
 - Avisos de reclamación, acciones masivas y vinculación asistida están implementados; avisos reales aún requieren configurar y validar el proveedor. Páginas SEO regionales del directorio externo: pendientes de contenido suficiente y de integrar ese contenido en los lectores regionales. El estado de reclamación ya se consulta en Mis fichas y el catálogo no promete esas funciones pendientes.
 - Medición de solicitud y aprobación de reclamación, suscripción confirmada y activación SaaS con identificador idempotente incorporada. Medición completa de demos atribuidas al directorio y distinción de familias identificadas: no cerrada. Se informa únicamente de los eventos observados.
-- E2E completos de alta nueva, OAuth, activación del SaaS y regresión de destinos de todos los roles: pendientes. Las denegaciones de API no sustituyen esos recorridos.
+- Alta nueva por formulario del directorio comprobada contra Auth local: devuelve a la ficha y no crea perfil operativo. Activación expresa del SaaS comprobada en navegador: crea y vincula el espacio, conserva la URL de la ficha y el reintento reutiliza el vínculo. El formulario conserva nombre y ubicación de la ficha, con borrador separado por ficha. Confirmación real por correo, OAuth y regresión completa de destinos de todos los roles: pendientes. Las denegaciones de API no sustituyen esos recorridos.
 - VoiceOver manual sobre el build desplegado permanece diferenciado y pendiente por decisión anterior.
 
 ## Fuentes y relevancia
@@ -78,3 +78,5 @@ Rollback inicial: apagar flags y volver a lectores anteriores. Conservar tablas 
 - [Google: eventos](https://developers.google.com/search/docs/appearance/structured-data/event): marcado condicionado a datos reales; no garantiza posicionamiento.
 - [Supabase RLS](https://supabase.com/docs/guides/database/postgres/row-level-security): acceso explícito y pruebas de denegación.
 - [LSSI: publicidad](https://lssi.digital.gob.es/lssi/la-ley/aspectos-basicos/publicidad-en-internet): el contacto público no prueba autorización comercial. Los borradores de invitación requieren validar el canal antes de enviarse.
+
+La primera vista previa fue rechazada por la frecuencia del cron en Vercel Hobby; se corrigió a una ejecución diaria. El navegador reveló y permitió corregir el envío innecesario a revisión por diferencias entre campos opcionales vacíos y ausentes.

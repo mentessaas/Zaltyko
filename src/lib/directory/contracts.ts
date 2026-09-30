@@ -172,11 +172,12 @@ export const QuerySchema = z.object({
 });
 export const routineFields = new Set(["description", "hours", "disciplines"]);
 export function requiresReview(before: EntryData, after: EntryData): boolean {
+  const normalized = (value: unknown) => value == null || value === "" ? null : value;
   return Object.keys(after).some(
     (key) =>
       !routineFields.has(key) &&
-      JSON.stringify(before[key as keyof EntryData]) !==
-        JSON.stringify(after[key as keyof EntryData])
+      JSON.stringify(normalized(before[key as keyof EntryData])) !==
+        JSON.stringify(normalized(after[key as keyof EntryData]))
   );
 }
 export function entryPath(

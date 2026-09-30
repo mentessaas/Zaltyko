@@ -65,6 +65,7 @@ const CSP_SCRIPT_SOURCES_BASE = [
 
 const CSP_CONNECT_SOURCES = [
   "'self'",
+  "https://api.pwnedpasswords.com",
   "https://*.supabase.co",
   "wss://*.supabase.co",
   "https://*.stripe.com",
@@ -93,6 +94,14 @@ function buildCsp(nonce: string) {
     ...CSP_CONNECT_SOURCES,
     "https://*.sentry-cdn.com",
   ];
+  if (process.env.NODE_ENV === "development" && process.env.NEXT_PUBLIC_SUPABASE_URL) {
+    try {
+      const local = new URL(process.env.NEXT_PUBLIC_SUPABASE_URL);
+      if (["127.0.0.1", "localhost"].includes(local.hostname) && ["http:", "https:"].includes(local.protocol)) {
+        connectSources.push(local.origin, local.origin.replace(/^http/, "ws"));
+      }
+    } catch { /* Invalid configuration cannot widen the policy. */ }
+  }
   return [
     "default-src 'self'",
     `script-src ${scriptSources.join(" ")}`,

@@ -22,6 +22,12 @@ const data = {
   sourceName: "Fuente ficticia QA",
 };
 describe("Directorio: validación y aislamiento de contratos", () => {
+  it("los campos opcionales vacíos no convierten una edición habitual en sensible", () => {
+    const before=EntryDataSchema.parse(data);
+    const after=EntryDataSchema.parse({...data,description:"Descripción actualizada",website:null,address:null,region:null});
+    expect(requiresReview(before,after)).toBe(false);
+    expect(requiresReview(before,{...after,website:"https://example.org/otra-web"})).toBe(true);
+  });
   it("conserva la URL externa al activar un espacio operativo", () => {
     const listing = {
       id: "6f502f44-aa46-459f-afc5-fcaea07dfd69",

@@ -30,10 +30,13 @@ export default async function OwnerOnboardingPage({searchParams}:{searchParams:P
     email: user.email,
   });
 
+  let initialAcademy: {name:string;countryCode:string;region?:string;city?:string}|undefined;
   if(directoryEntryId){
     if(!flag('claims')||!/^[a-f0-9-]{36}$/i.test(directoryEntryId))redirect('/directorio/mis-fichas');
-    const entry=(await rows(sql`SELECT d.academy_id FROM directory_entries d JOIN directory_grants g ON g.entry_id=d.id WHERE d.id=${directoryEntryId}::uuid AND g.user_id=${user.id}::uuid AND d.kind='academy' AND d.merged_into IS NULL`))[0];
+    const entry=(await rows(sql`SELECT d.academy_id, d.data FROM directory_entries d JOIN directory_grants g ON g.entry_id=d.id WHERE d.id=${directoryEntryId}::uuid AND g.user_id=${user.id}::uuid AND d.kind='academy' AND d.merged_into IS NULL`))[0];
     if(!entry)redirect('/directorio/mis-fichas');
+    const data=entry.data as {name:string;countryCode:string;region?:string;city?:string};
+    initialAcademy={name:data.name,countryCode:data.countryCode.toLowerCase(),region:data.region,city:data.city};
     if(home.destination!=='owner_setup')return <main className="mx-auto max-w-2xl space-y-5 px-4 py-12"><h1 className="text-2xl font-bold">Activar la gestión de tu academia</h1><p>{entry.academy_id?'La ficha ya está vinculada. Los permisos del espacio operativo se gestionan por separado.':'Tu cuenta ya tiene un destino y permisos. Para vincular un espacio existente o habilitar el alta de propietario, solicita asistencia.'}</p><Link href="/contact" className="underline">Solicitar asistencia</Link><Link href="/directorio/mis-fichas" className="block underline">Volver a Mis fichas</Link></main>;
   }
   if (home.destination !== "owner_setup") {
@@ -81,7 +84,7 @@ export default async function OwnerOnboardingPage({searchParams}:{searchParams:P
         {claimable ? (
           <OwnerClaimCard academyId={claimable.id} academyName={claimable.name} />
         ) : (
-          <OwnerOnboardingForm directoryEntryId={directoryEntryId}/>
+          <OwnerOnboardingForm directoryEntryId={directoryEntryId} initialAcademy={initialAcademy}/>
         )}
       </div>
     </div>
