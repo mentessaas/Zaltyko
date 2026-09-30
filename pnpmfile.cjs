@@ -6,6 +6,8 @@
 
 const PATCHED_DEPENDENCIES = new Map([
   ["esbuild", "^0.25.0"],
+  ["fast-uri", "^3.1.8"],
+  ["ip-address", "^10.7.1"],
   ["js-yaml", "^4.3.2"],
   ["sharp", "^0.35.4"],
 ]);
@@ -36,6 +38,22 @@ module.exports = {
       if (bumped.dependencies?.postcss === "8.4.31") {
         bumped.dependencies = { ...bumped.dependencies, postcss: "8.5.28" };
         changed = true;
+      }
+
+      // brace-expansion has patched releases in each supported major line.
+      // Keep minimatch 3 on the 1.x line and minimatch 9/10 on the 5.x line;
+      // a global override would break their peer-compatible ranges.
+      if (bumped.name === "minimatch") {
+        const minimatchMajor = Number.parseInt(String(bumped.version ?? "").split(".")[0], 10);
+        const braceRange = minimatchMajor === 3
+          ? "^1.1.21"
+          : minimatchMajor >= 9
+            ? "^5.0.12"
+            : undefined;
+        if (braceRange && bumped.dependencies?.["brace-expansion"] !== braceRange) {
+          bumped.dependencies = { ...bumped.dependencies, "brace-expansion": braceRange };
+          changed = true;
+        }
       }
 
       return changed ? bumped : pkg;
