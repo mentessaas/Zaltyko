@@ -1,3 +1,4 @@
+import { flag } from "@/lib/directory/contracts";
 import type { Metadata } from "next";
 import { RegisterForm } from "@/components/RegisterForm";
 import { getPublicSiteUrl } from "@/lib/seo/site-url";
@@ -17,5 +18,5 @@ export const metadata: Metadata = {
 };
 
 export default function Register() {
-  return <RegisterForm />;
+  return <RegisterForm directoryDiscoveryEnabled={flag("catalog")} />;
 }

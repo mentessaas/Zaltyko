@@ -2,6 +2,8 @@
 
 import { useEffect, useMemo, useState, type Dispatch, type SetStateAction } from "react";
 import { useRouter } from "next/navigation";
+import Link from "next/link";
+import { OwnerAcademyLookup } from "./OwnerAcademyLookup";
 import { Building2, ChevronDown, ChevronUp, Loader2 } from "lucide-react";
 
 import { Button } from "@/components/ui/button";
@@ -33,12 +35,14 @@ const OWNER_ONBOARDING_DRAFT_KEY = "zaltyko:owner-onboarding-draft:v1";
 
 type DirectoryAcademyDefaults = { name: string; countryCode: string; region?: string; city?: string };
 
-export function OwnerOnboardingForm({directoryEntryId, initialAcademy}:{directoryEntryId?:string; initialAcademy?:DirectoryAcademyDefaults}={}) {
+export function OwnerOnboardingForm({directoryEntryId, initialAcademy, directoryDiscoveryEnabled=false}:{directoryEntryId?:string; initialAcademy?:DirectoryAcademyDefaults;directoryDiscoveryEnabled?:boolean}={}) {
   const initialCountry = initialAcademy?.countryCode ?? "es";
   const draftKey = directoryEntryId ? `${OWNER_ONBOARDING_DRAFT_KEY}:${directoryEntryId}` : OWNER_ONBOARDING_DRAFT_KEY;
   const initialSeed = getSportConfigSeedsByCountry(initialCountry)[0];
   const router = useRouter();
   const toast = useToast();
+  const [reviewedLookup,setReviewedLookup]=useState<string|null>(null);
+  const [duplicateEntries,setDuplicateEntries]=useState<{id:string;kind:"academy";slug:string;academy_id:string|null;event_id:null;data:{name:string}}[]>([]);
   const [pending, setPending] = useState(false);
   const [showAdvanced, setShowAdvanced] = useState(false);
   const [fullName, setFullName] = useState("");
@@ -225,7 +229,9 @@ export function OwnerOnboardingForm({directoryEntryId, initialAcademy}:{director
 
   async function handleSubmit(event: React.FormEvent<HTMLFormElement>) {
     event.preventDefault();
+    if(directoryDiscoveryEnabled && !directoryEntryId && reviewedLookup!==JSON.stringify([academyName.trim(),countryCode,city.trim()])) return;
     setPending(true);
+    setDuplicateEntries([]);
 
     try {
       const utm = readUtmWithFallback(
@@ -261,7 +267,8 @@ export function OwnerOnboardingForm({directoryEntryId, initialAcademy}:{director
       const payload = await response.json().catch(() => null);
 
       if (!response.ok) {
-        throw new Error(payload?.error ?? "No se pudo completar la configuración inicial.");
+        if(payload?.code === "ACADEMY_ALREADY_LISTED") setDuplicateEntries(payload.details?.entries ?? []);
+        throw new Error(payload?.message ?? payload?.error ?? "No se pudo completar la configuración inicial.");
       }
 
       toast.pushToast({
@@ -307,7 +314,7 @@ export function OwnerOnboardingForm({directoryEntryId, initialAcademy}:{director
           <div className="h-full w-1/5 rounded-full bg-primary" />
         </div>
         <p className="mt-2 text-xs text-muted-foreground">
-            Tu cuenta personal ya está creada. Al completar este formulario crearás la academia y entrarás a su espacio de trabajo; los grupos, programas, clases y ajustes avanzados se pueden completar después desde allí.
+            {directoryDiscoveryEnabled && !directoryEntryId ? "Tu cuenta personal ya está creada. Antes de crear un espacio nuevo, busca tu academia abajo. Si ya tiene ficha, solicita su reclamación; la activación de la gestión es un paso posterior y separado." : "Tu cuenta personal ya está creada. Al completar este formulario crearás la academia y entrarás a su espacio de trabajo; los grupos, programas, clases y ajustes avanzados se pueden completar después desde allí."}
         </p>
       </div>
       <div className="grid gap-4 sm:grid-cols-2">
@@ -632,7 +639,9 @@ export function OwnerOnboardingForm({directoryEntryId, initialAcademy}:{director
       </div>
       )}
 
-      <Button type="submit" className="w-full" disabled={pending}>
+      {directoryDiscoveryEnabled && !directoryEntryId && <OwnerAcademyLookup name={academyName} countryCode={countryCode} city={city} onCityChange={setCity} onReviewed={setReviewedLookup}/>}
+      {duplicateEntries.length>0 && <div role="alert" className="space-y-2 rounded-lg border p-4"><p>Esta academia ya tiene una ficha. Revísala y solicita la reclamación o asistencia; no hemos creado otra academia. Si es otra sede con el mismo nombre, solicita asistencia para distinguirlas.</p><Link className="block underline" href="/contact?type=support">Solicitar asistencia para revisar mi sede</Link>{duplicateEntries.map(entry=><Link key={entry.id} className="block underline" href={`/academias/${entry.id}${entry.slug?`-${entry.slug}`:""}`}>{entry.data.name}</Link>)}</div>}
+      <Button type="submit" className="w-full" disabled={pending || (directoryDiscoveryEnabled && !directoryEntryId && reviewedLookup!==JSON.stringify([academyName.trim(),countryCode,city.trim()]))}>
         {pending ? (
           <>
             <Loader2 className="mr-2 h-4 w-4 animate-spin" />

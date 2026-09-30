@@ -5,6 +5,10 @@ last_reviewed: 2026-09-19T09:32Z
 source:
 ---
 
+## 2026-09-30 — Directorio y búsqueda previa en el alta
+
+PR #174, borrador: directorio independiente y búsqueda de academias públicas antes de crear un espacio. Coincidencias exactas bloqueadas por servidor; reclamación manual separada del SaaS. Evidencia y pendientes: [[Directorio público - 2026-09-30]]. Flags apagados en producción.
+
 ## 2026-09-19 — SEO Post-Fase 5: Lighthouse CI, polish y cross-linking
 
 Plan ejecutado en 3 commits sobre `main`:

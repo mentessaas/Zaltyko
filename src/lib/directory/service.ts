@@ -48,6 +48,20 @@ function mapEntry(row: Row): DirectoryEntry {
 const publicEligibility = sql`d.publication='published' AND d.merged_into IS NULL
  AND (d.academy_id IS NULL OR EXISTS(SELECT 1 FROM academies a WHERE a.id=d.academy_id AND a.is_public AND NOT a.is_suspended AND a.status IN ('active','trial')))
  AND (d.event_id IS NULL OR EXISTS(SELECT 1 FROM events e JOIN academies a ON a.id=e.academy_id WHERE e.id=d.event_id AND e.is_public AND e.status='published' AND a.is_public AND NOT a.is_suspended AND a.status IN ('active','trial')))`;
+// Exact public identity only; never disclose private workspaces or merge by name.
+export function academyDuplicateQuery(input:{name:string;countryCode:string;city?:string}) {
+  const name=input.name.trim().replace(/\s+/g," ");
+  const city=input.city?.trim().replace(/\s+/g," ") ?? "";
+  return sql`${publicDirectoryCte()} SELECT d.id,d.kind,d.slug,d.academy_id,d.event_id,d.data FROM projected d
+    WHERE ${publicEligibility} AND d.kind='academy'
+    AND lower(trim(regexp_replace(d.data->>'name','[[:space:]]+',' ','g')))=lower(${name})
+    AND upper(d.data->>'countryCode')=upper(${input.countryCode})
+    AND (${city}='' OR COALESCE(trim(d.data->>'city'),'')='' OR lower(trim(regexp_replace(d.data->>'city','[[:space:]]+',' ','g')))=lower(${city}))
+    ORDER BY d.id LIMIT 5`;
+}
+export function academyDuplicateLock(input:{name:string;countryCode:string;city?:string}) {
+  return [input.countryCode,input.city ?? "",input.name].map(v=>v.trim().replace(/\s+/g," ").toLowerCase()).join(":");
+}
 export async function listEntries(query: {
   kind: DirectoryKind;
   search?: string;

@@ -9,6 +9,8 @@ import {
   editEntry,
   getEntry,
   listEntries,
+  academyDuplicateQuery,
+  rows,
   decideRevision,
   revokeGrant,
   materializeOperationalEntry,
@@ -92,6 +94,10 @@ async function main() {
     "Borradores ocultos en lectores públicos",
     (await getEntry(drafts.id)) === null
   );
+  const exactMatches=await rows(academyDuplicateQuery({name:"  ACADEMIA ficticia de prueba  ",countryCode:"es",city:"Madrid"}));
+  check("Onboarding detecta la ficha exacta sin depender del correo",exactMatches.length===1 && exactMatches[0].id===entry.id);
+  check("Otra sede con el mismo nombre no se fusiona ni bloquea",(await rows(academyDuplicateQuery({...data,city:"Lima"}))).length===0);
+  check("La búsqueda de duplicados no revela borradores",(await rows(academyDuplicateQuery({...data,name:"Borrador privado"}))).length===0);
   const claims = await Promise.all([
     submitClaim(
       entry.id,

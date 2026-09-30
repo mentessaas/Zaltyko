@@ -74,7 +74,7 @@ type RegisterRole = (typeof ROLE_OPTIONS)[number]["value"];
 const LEGAL_CONSENT_VERSION = "v1-2026-08-01";
 const LEGAL_CONSENT_PROOF = "signup:register-form-v1";
 
-export function RegisterForm() {
+export function RegisterForm({directoryDiscoveryEnabled=false}:{directoryDiscoveryEnabled?:boolean}={}) {
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [fullName, setFullName] = useState("");
@@ -397,7 +397,8 @@ export function RegisterForm() {
           </div>
           {role === "owner" && !directoryRegistration && (
             <div className="rounded-lg border border-zaltyko-teal/30 bg-zaltyko-teal/5 px-3 py-2 text-xs text-muted-foreground">
-              <span className="font-semibold text-foreground">Importante:</span> primero crearás tu cuenta personal. Después te guiaremos para crear la academia y configurar tu espacio de trabajo.
+              <span className="font-semibold text-foreground">Importante:</span> primero crearás tu cuenta personal. {directoryDiscoveryEnabled ? "Después podrás buscar tu academia y solicitar su reclamación si ya existe, o crear una sede nueva." : "Después te guiaremos para crear la academia y configurar tu espacio de trabajo."}
+              {directoryDiscoveryEnabled && <Link href="/academias" className="mt-2 block font-semibold underline">Buscar mi academia antes de crear la cuenta</Link>}
             </div>
           )}
         </div>

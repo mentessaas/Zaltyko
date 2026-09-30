@@ -27,11 +27,14 @@ Fecha: 30 de septiembre de 2026. Rama `feat/public-directory`, base `01e4df1f`.
 - Retención extraordinaria de pruebas con motivo registrado, eliminación ordinaria a los 30 días y limpieza de archivos antiguos sin solicitud asociada.
 - Invitación preparada para copiar; nunca se envía al importar. Medición de visitas, clics y descarga en el sistema existente; reclamación con identificador idempotente y sin correo/pruebas en analítica. No se deduce que un visitante sea una familia.
 
+- Alta de propietario: búsqueda obligatoria de fichas públicas por nombre y país antes de crear un espacio, con localidad visible. Las coincidencias llevan a reclamación gratuita o acceso al administrador existente. El servidor vuelve a comprobar coincidencias exactas dentro de la transacción y bloquea el duplicado; no transfiere propietarios ni expone academias privadas. Cambiar nombre, país o localidad exige repetir la búsqueda.
+
 ## Validación observada
 
 - Suite web completa anterior a los últimos ajustes: **415 archivos, 1.867 pruebas aprobadas**; un archivo y tres casos omitidos.
-- Suite focalizada después de adaptar las fuentes: **88 pruebas aprobadas en doce archivos**. Compilación de producción local aprobada; tipos y lint se ejecutan aparte porque el build del proyecto los omite.
-- PostgreSQL aislado real, migración exacta, dump/restauración y **47 comprobaciones aprobadas**. Incluye concurrencia de reclamaciones y lotes, edición sensible, revocación, proyección/retirada, deduplicación de correos y denegaciones con roles de base de datos.
+- Suite focalizada después de adaptar las fuentes: **91 pruebas aprobadas en trece archivos**. Compilación de producción local aprobada; tipos y lint se ejecutan aparte porque el build del proyecto los omite.
+- PostgreSQL aislado real, migración exacta, dump/restauración y **50 comprobaciones aprobadas**. Incluye concurrencia de reclamaciones y lotes, edición sensible, revocación, proyección/retirada, deduplicación de correos y denegaciones con roles de base de datos.
+- Onboarding en navegador local: búsqueda de una academia externa ficticia y enlace de reclamación visibles. El intento directo de crear la misma sede devuelve HTTP 409 `ACADEMY_ALREADY_LISTED`; la solicitud enviada queda pendiente sin permiso de edición concedido; las academias operativas permanecen en 6 y los permisos operativos en 12.
 - Supabase local real y navegador: representante sin perfil operativo solicita; Super Admin aprueba; representante ve y edita; segundo representante no ve gestión y recibe HTTP 403 al intentar editar. Owner/admin/coach/parent/athlete reciben 403 en API de administración.
 - Formulario de representante y Mis fichas: comprobación de ancho a 390 px y zoom CSS del 200 %, captura y navegación Tab. Esta comprobación **no** equivale a VoiceOver manual ni a todos los recorridos de accesibilidad del producto.
 - Integridad: 7 migraciones Drizzle y 91 Supabase validadas; RLS estático y gates de lecturas/autorización/rutas aprobados.

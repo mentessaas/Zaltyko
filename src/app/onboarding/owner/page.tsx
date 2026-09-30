@@ -52,12 +52,12 @@ export default async function OwnerOnboardingPage({searchParams}:{searchParams:P
       <div className="space-y-3">
         <p className="text-sm font-medium uppercase tracking-wide text-primary">Primer paso: crear tu espacio de trabajo</p>
         <h1 className="text-3xl font-semibold tracking-tight text-foreground sm:text-4xl">
-          {claimable ? "Confirma tu academia" : "Crea tu primera academia"}
+          {claimable ? "Confirma tu academia" : flag("catalog") && !directoryEntryId ? "Encuentra o crea tu academia" : "Crea tu primera academia"}
         </h1>
         <p className="max-w-2xl text-base text-muted-foreground">
           {claimable
             ? "Detectamos una academia registrada a tu nombre. Confirma para entrar — no te pediremos teléfono ni datos adicionales."
-            : "Tu cuenta y tu academia son pasos distintos: aquí crearás el espacio de trabajo de Zaltyko. Después podrás añadir grupos, clases, entrenadores y atletas desde el panel."}
+            : flag("catalog") && !directoryEntryId ? "Tu cuenta ya está creada. Busca si tu academia tiene ficha y solicita gestionarla; si no corresponde ninguna, continúa con un espacio nuevo. Reclamar una ficha es gratis y requiere revisión." : "Tu cuenta y tu academia son pasos distintos: aquí crearás el espacio de trabajo de Zaltyko. Después podrás añadir grupos, clases, entrenadores y atletas desde el panel."}
         </p>
       </div>
 
@@ -84,7 +84,7 @@ export default async function OwnerOnboardingPage({searchParams}:{searchParams:P
         {claimable ? (
           <OwnerClaimCard academyId={claimable.id} academyName={claimable.name} />
         ) : (
-          <OwnerOnboardingForm directoryEntryId={directoryEntryId} initialAcademy={initialAcademy}/>
+          <OwnerOnboardingForm directoryEntryId={directoryEntryId} initialAcademy={initialAcademy} directoryDiscoveryEnabled={flag("catalog")}/>
         )}
       </div>
     </div>

@@ -1,6 +1,7 @@
 import { recordGrowthEvent } from "@/lib/growth/events";
 import { flag } from "@/lib/directory/contracts";
-import { rows } from "@/lib/directory/service";
+import { rows, academyDuplicateQuery, academyDuplicateLock } from "@/lib/directory/service";
+import { directoryUser, directoryFailure } from "@/lib/directory/auth";
 import { and, eq, sql } from "drizzle-orm";
 import { cookies } from "next/headers";
 import { z } from "zod";
@@ -119,7 +120,11 @@ export async function POST(request: Request) {
   }
 
 
+  const duplicateIdentity={name:parsed.data.academyName,countryCode:normalizeCountryCode(parsed.data.countryCode) ?? parsed.data.countryCode,city:parsed.data.city};
   const directoryId=parsed.data.directoryEntryId;
+  if (directoryId || flag("catalog")) {
+    try { await directoryUser(); } catch(e) { return directoryFailure(e); }
+  }
   if(directoryId){
     if(!flag('claims')||!parsed.data.directoryActivation||!user.email_confirmed_at)return apiError('ACTIVATION_REQUIRED','Confirma tu correo y la activación expresa de la gestión',403);
     const entry=(await rows(sql`SELECT d.* FROM directory_entries d JOIN directory_grants g ON g.entry_id=d.id WHERE d.id=${directoryId}::uuid AND g.user_id=${user.id}::uuid AND d.kind='academy' AND d.merged_into IS NULL`))[0];
@@ -142,7 +147,7 @@ export async function POST(request: Request) {
     .where(eq(profiles.userId, user.id))
     .limit(1);
 
-  if (profile && !["owner", "admin"].includes(profile.role)) {
+  if (profile && ((directoryId && profile.role!=="owner") || !["owner", "admin"].includes(profile.role))) {
     return apiError(
       "OWNER_SETUP_NOT_ALLOWED",
       "Tu cuenta ya pertenece a un flujo de invitación. Accede desde tu academia asignada.",
@@ -178,6 +183,11 @@ export async function POST(request: Request) {
         redirectUrl: `/app/${ownerAcademy}/dashboard`,
       });
     }
+  }
+
+  if (!directoryId && flag("catalog")) {
+    const matches=await rows(academyDuplicateQuery(duplicateIdentity));
+    if(matches.length) return apiError("ACADEMY_ALREADY_LISTED","Encontramos una ficha de esta sede. Revísala y solicita la reclamación o asistencia antes de crear otro espacio.",409,{entries:matches});
   }
 
   if (!profile) {
@@ -255,8 +265,15 @@ export async function POST(request: Request) {
       const entry=(await tx.execute(sql`SELECT d.* FROM directory_entries d JOIN directory_grants g ON g.entry_id=d.id WHERE d.id=${directoryId}::uuid AND g.user_id=${user.id}::uuid AND d.kind='academy' AND d.merged_into IS NULL FOR UPDATE OF d`)).rows[0];
       if(!entry)return {error:apiError('FORBIDDEN','El permiso de esta ficha ha cambiado',403)};
       if(entry.academy_id)return {existingAcademyId:String(entry.academy_id)};
+      if((entry.data as {countryCode:string}).countryCode.toLowerCase()!==parsed.data.countryCode.toLowerCase()) return {error:apiError('COUNTRY_MISMATCH','El país de la ficha ha cambiado; revisa sus datos antes de activarla.',409)};
     }
+    if(!directoryId && flag("catalog")) await tx.execute(sql`SELECT pg_advisory_xact_lock(hashtext(${`academy-identity:${academyDuplicateLock(duplicateIdentity)}`}))`);
     await tx.execute(sql`select pg_advisory_xact_lock(hashtext(${user.id}))`);
+
+    if(directoryId || flag("catalog")) {
+      const current=(await tx.execute(sql`SELECT role,tenant_id,can_login,is_suspended FROM profiles WHERE id=${profile.id}::uuid FOR UPDATE`)).rows[0];
+      if(!current || !current.can_login || current.is_suspended || current.role!==profile.role || current.tenant_id!==profile.tenantId) return {error:apiError("ACCOUNT_CHANGED","Los permisos de tu cuenta han cambiado. Revisa tu acceso antes de continuar.",409)};
+    }
 
     const [membershipCreatedByAnotherRequest] = await tx
       .select({ academyId: memberships.academyId })
@@ -273,6 +290,11 @@ export async function POST(request: Request) {
 
     if (membershipCreatedByAnotherRequest) {
       return { existingAcademyId: membershipCreatedByAnotherRequest.academyId };
+    }
+
+    if(!directoryId && flag("catalog")) {
+      const matches=(await tx.execute(academyDuplicateQuery(duplicateIdentity))).rows;
+      if(matches.length) return {error:apiError("ACADEMY_ALREADY_LISTED","La academia ya tiene una ficha pública. Solicita su reclamación o asistencia.",409,{entries:matches})};
     }
 
     const result = await createAcademy(
