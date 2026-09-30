@@ -1,3 +1,6 @@
+import { recordGrowthEvent } from "@/lib/growth/events";
+import { flag } from "@/lib/directory/contracts";
+import { rows } from "@/lib/directory/service";
 import { and, eq, sql } from "drizzle-orm";
 import { cookies } from "next/headers";
 import { z } from "zod";
@@ -35,6 +38,8 @@ import { logger } from "@/lib/logger";
 import { recordOwnerSignupConsent } from "@/lib/consent/owner-consent-store";
 
 const bodySchema = z.object({
+  directoryEntryId:z.string().uuid().optional(),
+  directoryActivation:z.literal(true).optional(),
   fullName: z.string().trim().min(2).max(120),
   academyName: z.string().trim().min(3).max(120),
   disciplineVariant: z.enum([
@@ -113,6 +118,17 @@ export async function POST(request: Request) {
     );
   }
 
+
+  const directoryId=parsed.data.directoryEntryId;
+  if(directoryId){
+    if(!flag('claims')||!parsed.data.directoryActivation||!user.email_confirmed_at)return apiError('ACTIVATION_REQUIRED','Confirma tu correo y la activación expresa de la gestión',403);
+    const entry=(await rows(sql`SELECT d.* FROM directory_entries d JOIN directory_grants g ON g.entry_id=d.id WHERE d.id=${directoryId}::uuid AND g.user_id=${user.id}::uuid AND d.kind='academy' AND d.merged_into IS NULL`))[0];
+    if(!entry)return apiError('FORBIDDEN','No tienes permisos sobre esta ficha',403);
+    if(entry.academy_id)return apiCreated({academyId:entry.academy_id,redirectUrl:`/onboarding/owner?directoryEntryId=${directoryId}`});
+    const data=entry.data as {countryCode:string};
+    if(data.countryCode.toLowerCase()!==parsed.data.countryCode.toLowerCase())return apiError('COUNTRY_MISMATCH','La gestión debe corresponder al país de la ficha',409);
+  }
+
   let [profile] = await db
     .select({
       id: profiles.id,
@@ -149,6 +165,7 @@ export async function POST(request: Request) {
         .limit(100)
     : [];
 
+  if(directoryId&&existingMemberships.length)return apiError('LINK_REVIEW_REQUIRED','Ya tienes un espacio operativo. Solicita al administrador vincularlo; no se creará otro.',409);
   if (profile && existingMemberships.length > 0) {
     const ownerAcademy =
       existingMemberships.find(
@@ -233,6 +250,12 @@ export async function POST(request: Request) {
     // Serialize owner setup per account. The preflight membership check above
     // is intentionally repeated under the lock so double-clicks or concurrent
     // requests cannot create two academies for the same new owner.
+    if(directoryId){
+      await tx.execute(sql`SELECT pg_advisory_xact_lock(hashtext(${`directory:${directoryId}`}))`);
+      const entry=(await tx.execute(sql`SELECT d.* FROM directory_entries d JOIN directory_grants g ON g.entry_id=d.id WHERE d.id=${directoryId}::uuid AND g.user_id=${user.id}::uuid AND d.kind='academy' AND d.merged_into IS NULL FOR UPDATE OF d`)).rows[0];
+      if(!entry)return {error:apiError('FORBIDDEN','El permiso de esta ficha ha cambiado',403)};
+      if(entry.academy_id)return {existingAcademyId:String(entry.academy_id)};
+    }
     await tx.execute(sql`select pg_advisory_xact_lock(hashtext(${user.id}))`);
 
     const [membershipCreatedByAnotherRequest] = await tx
@@ -284,6 +307,10 @@ export async function POST(request: Request) {
       return { error: result.error };
     }
 
+    if(directoryId){
+      await tx.execute(sql`UPDATE directory_entries SET academy_id=${result.id}::uuid,updated_at=now() WHERE id=${directoryId}::uuid`);
+      await tx.execute(sql`INSERT INTO directory_audit(entry_id,actor_id,action,metadata) VALUES(${directoryId}::uuid,${user.id}::uuid,'saas_activated',${JSON.stringify({academyId:result.id})}::jsonb)`);
+    }
     const activeVariants = Array.from(
       new Set([
         parsed.data.disciplineVariant,
@@ -529,6 +556,7 @@ export async function POST(request: Request) {
     }
   );
 
+  if(directoryId) await recordGrowthEvent({eventName:"directory_saas_activated",source:"directory",academyId:setup.result.id,idempotencyKey:`directory:activation:${directoryId}`,properties:{entry_id:directoryId,audience:"representative"}});
   return apiCreated({
     academyId: setup.result.id,
     redirectUrl: `/app/${setup.result.id}/dashboard`,

@@ -1,0 +1,28 @@
+name: Directory integrity
+on:
+  pull_request:
+    paths:
+      - "src/lib/directory/**"
+      - "src/app/api/directory/**"
+      - "src/app/api/super-admin/directory/**"
+      - "src/app/api/onboarding/owner/**"
+      - "supabase/migrations/**"
+      - "scripts/directory/**"
+      - ".github/workflows/directory-integrity.yml"
+permissions:
+  contents: read
+jobs:
+  isolated-database:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: pnpm/action-setup@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "20"
+          cache: pnpm
+      - run: pnpm install --frozen-lockfile
+      - name: Locate isolated PostgreSQL tools
+        run: echo "$(pg_config --bindir)" >> "$GITHUB_PATH"
+      - name: Migration, restore, RLS and concurrency against a temporary database
+        run: bash scripts/directory/test-local.sh

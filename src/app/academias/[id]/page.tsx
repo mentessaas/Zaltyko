@@ -1,5 +1,8 @@
+import { flag,entryPath } from "@/lib/directory/contracts";
+import { getEntry } from "@/lib/directory/service";
+import { DirectoryDetail } from "@/components/directory/DirectoryDetail";
 import type { Metadata } from "next";
-import { notFound } from "next/navigation";
+import { notFound,permanentRedirect } from "next/navigation";
 import { AcademyHero } from "@/components/public/AcademyHero";
 import { AcademyInfo } from "@/components/public/AcademyInfo";
 import { AcademySchedule } from "@/components/public/AcademySchedule";
@@ -17,6 +20,7 @@ interface AcademyDetailPageProps {
 
 export async function generateMetadata({ params }: AcademyDetailPageProps): Promise<Metadata> {
   const { id } = await params;
+  if(flag('catalog')){const entry=await getEntry(id);if(entry&&entry.kind==='academy')return {title:entry.data.name,description:entry.data.description,alternates:{canonical:`${getPublicSiteUrl()}${entryPath(entry)}`}};}
   const academy = await getPublicAcademy(id);
 
   if (!academy) {
@@ -38,6 +42,7 @@ export async function generateMetadata({ params }: AcademyDetailPageProps): Prom
 
 export default async function AcademyDetailPage({ params }: AcademyDetailPageProps) {
   const { id } = await params;
+  if(flag('catalog')){const entry=await getEntry(id);if(entry&&entry.kind==='academy'){if(entryPath(entry).split('/').pop()!==id)permanentRedirect(entryPath(entry));return <DirectoryDetail entry={entry}/>;}const merged=await getEntry(id,false);if(merged?.mergedInto){const target=await getEntry(merged.mergedInto);if(target)permanentRedirect(entryPath(target));}}
   const academy = await getPublicAcademy(id);
 
   if (!academy) {

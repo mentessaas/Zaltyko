@@ -1,6 +1,6 @@
 "use client";
 
-import { useRef, useState, type KeyboardEvent } from "react";
+import { useEffect, useRef, useState, type KeyboardEvent } from "react";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
 import { Loader2 } from "lucide-react";
@@ -78,6 +78,9 @@ export function RegisterForm() {
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [fullName, setFullName] = useState("");
+  const [directoryNext, setDirectoryNext] = useState<string | null>(null);
+  useEffect(() => { setDirectoryNext(new URLSearchParams(window.location.search).get('next')); }, []);
+  const directoryRegistration=Boolean(directoryNext&&/^\/(academias|events|directorio)\//.test(directoryNext)&&!directoryNext.includes('\\'));
   const [role, setRole] = useState<RegisterRole>("owner");
   const [termsAccepted, setTermsAccepted] = useState(false);
   const roleButtonRefs = useRef<Array<HTMLButtonElement | null>>([]);
@@ -189,7 +192,7 @@ export function RegisterForm() {
     try {
       const emailRedirectTo =
         typeof window !== "undefined"
-          ? `${window.location.origin}/auth/callback?next=/auth/redirect`
+          ? `${window.location.origin}/auth/callback?next=${encodeURIComponent(directoryRegistration?directoryNext!:"/auth/redirect")}`
           : undefined;
 
       const { data, error } = await supabase.auth.signUp({
@@ -198,7 +201,8 @@ export function RegisterForm() {
         options: {
           data: {
             full_name: fullName.trim(),
-            initial_role: role,
+            initial_role: directoryRegistration ? undefined : role,
+            directory_account: directoryRegistration,
             // Metadata is only a hand-off for the server-side consent record;
             // authorization must never rely on user-editable user_metadata.
             legal_consent_version: LEGAL_CONSENT_VERSION,
@@ -252,6 +256,7 @@ export function RegisterForm() {
         // esté listo. Sin label, gtag ignora el evento silenciosamente.
         trackGoogleAdsConversion("signup_completed");
 
+        if(directoryRegistration){router.push(directoryNext!);return;}
         const profileResponse = await fetch("/api/onboarding/profile", {
           method: "POST",
           headers: { "Content-Type": "application/json" },
@@ -280,7 +285,7 @@ export function RegisterForm() {
             ...readAttribution(),
           },
         });
-        router.push("/auth/login?registered=1");
+        router.push(`/auth/login?registered=1${directoryRegistration?`&next=${encodeURIComponent(directoryNext!)}`:""}`);
       }
     } finally {
       setLoading(false);
@@ -299,14 +304,14 @@ export function RegisterForm() {
 
     setGoogleLoading(true);
     try {
-      const next =
+      const next = directoryRegistration ? directoryNext! :
         `/auth/redirect?initial_role=${encodeURIComponent(role)}` +
         `&legal_consent_version=${encodeURIComponent(LEGAL_CONSENT_VERSION)}` +
         `&legal_consent_proof=${encodeURIComponent(LEGAL_CONSENT_PROOF)}`;
       const { data, error } = await supabase.auth.signInWithOAuth({
         provider: "google",
         options: {
-          redirectTo: `${window.location.origin}/auth/callback?next=${encodeURIComponent(next)}`,
+          redirectTo: `${window.location.origin}/auth/callback?next=${encodeURIComponent(next)}${directoryRegistration ? `&directory_account=1&legal_consent_version=${encodeURIComponent(LEGAL_CONSENT_VERSION)}&legal_consent_proof=${encodeURIComponent(LEGAL_CONSENT_PROOF)}` : ""}`,
           // Navegamos explícitamente después de recibir la URL. Esto evita
           // que navegadores embebidos o bloqueadores de popup dejen el CTA
           // permanentemente en estado "Conectando...".
@@ -366,7 +371,7 @@ export function RegisterForm() {
       <form onSubmit={handleRegister} className="space-y-4">
         <div className="space-y-2">
           <Label>Tipo de cuenta</Label>
-          <div className="grid grid-cols-2 gap-2" role="radiogroup" aria-label="Tipo de cuenta">
+          <div hidden={directoryRegistration} className="grid grid-cols-2 gap-2" role="radiogroup" aria-label="Tipo de cuenta">
             {ROLE_OPTIONS.map((option, index) => (
               <button
                 key={option.value}

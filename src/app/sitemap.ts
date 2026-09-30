@@ -1,3 +1,7 @@
+import { sql } from "drizzle-orm";
+import { flag,entryPath } from "@/lib/directory/contracts";
+import { publicDirectoryCte } from "@/lib/directory/projection";
+import { rows } from "@/lib/directory/service";
 import type { MetadataRoute } from "next";
 import { and, eq, inArray } from "drizzle-orm";
 import { db } from "@/db";
@@ -202,6 +206,13 @@ export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
     academyPages = [];
   }
 
+  let directoryPages:MetadataRoute.Sitemap=[];
+  if(flag('catalog')){
+    const entries=await rows(sql`${publicDirectoryCte()} SELECT d.id,d.kind,d.slug,d.academy_id,d.event_id,d.updated_at FROM projected d WHERE d.publication='published' AND d.merged_into IS NULL AND (d.academy_id IS NULL OR EXISTS(SELECT 1 FROM academies a WHERE a.id=d.academy_id AND a.is_public AND NOT a.is_suspended AND a.status IN ('active','trial'))) AND (d.event_id IS NULL OR EXISTS(SELECT 1 FROM events e JOIN academies a ON a.id=e.academy_id WHERE e.id=d.event_id AND e.is_public AND e.status='published' AND a.is_public AND NOT a.is_suspended AND a.status IN ('active','trial'))) ORDER BY d.id LIMIT 40000`);
+    const previous=new Set(academyPages.map(p=>p.url));
+    directoryPages=entries.map(entry=>({url:`${baseUrl}${entryPath({id:String(entry.id),kind:entry.kind as 'academy'|'event'|'organization',slug:String(entry.slug),academyId:entry.academy_id as string|null,eventId:entry.event_id as string|null})}`,lastModified:new Date(String(entry.updated_at)),changeFrequency:'daily' as const,priority:0.7})).filter(p=>!previous.has(p.url));
+  }
+
   // Nota: se retiraron las variantes con query param (?category=) de marketplace/empleo:
   // un sitemap no debe listar URLs de filtro, generan contenido duplicado sin valor de indexación propio.
 
@@ -212,6 +223,7 @@ export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
     ...modalityPages,
     ...clusterPages,
     ...academyPages,
+    ...directoryPages,
     // Páginas de comparativa: prioridad 0.7 para que Google las rastree
     // pronto sin canibalizar la home o pricing.
     ...comparisonSlugs.map((slug) => ({

@@ -35,6 +35,10 @@ export async function GET(request: NextRequest) {
         assertConsentProofMatchesSource("signup", legalConsentProof);
         const { error: consentError } = await supabase.auth.updateUser({
           data: {
+            ...(searchParams.get("directory_account") === "1" &&
+            /^\/(academias|events|directorio)\//.test(next)
+              ? { directory_account: true }
+              : {}),
             legal_consent_version: legalConsentVersion,
             legal_consent_proof: legalConsentProof,
           },

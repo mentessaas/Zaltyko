@@ -1,0 +1,599 @@
+import assert from "node:assert/strict";
+import { randomUUID } from "node:crypto";
+import { Pool } from "pg";
+import {
+  createEntry,
+  setPublication,
+  submitClaim,
+  decideClaim,
+  editEntry,
+  getEntry,
+  listEntries,
+  decideRevision,
+  revokeGrant,
+  materializeOperationalEntry,
+  mergeEntries,
+  bulkPublication,
+  linkOperationalEntry,
+} from "../../src/lib/directory/service";
+import {
+  importCandidates,
+  acceptImportRow,
+} from "../../src/lib/directory/imports";
+import {
+  requestSubscription,
+  confirmSubscription,
+  confirmationToken,
+  hasPositiveMarketingConsent,
+  withdrawSubscription,
+  unsubscribeToken,
+  processDeliveries,
+  enqueueDigests,
+} from "../../src/lib/directory/communications";
+import { calendarFile } from "../../src/lib/directory/calendar";
+const connection = process.env.DATABASE_URL_POOL!;
+if (
+  new URL(connection).hostname !== "127.0.0.1" ||
+  new URL(connection).port !== "55449"
+)
+  throw new Error("Tests only run on the isolated local cluster at port 55449");
+const pool = new Pool({ connectionString: connection });
+const query = (s: string, p: unknown[] = []) => pool.query(s, p);
+const admin = randomUUID(),
+  one = randomUUID(),
+  two = randomUUID();
+let checks = 0;
+function check(name: string, condition: unknown) {
+  assert.ok(condition, name);
+  checks++;
+  console.log(`PASS ${name}`);
+}
+async function rejects(
+  name: string,
+  run: () => Promise<unknown>,
+  code: string
+) {
+  await assert.rejects(run, (e: unknown) =>
+    Boolean(e && typeof e === "object" && "code" in e && e.code === code)
+  );
+  check(name, true);
+}
+async function main() {
+  for (const id of [admin, one, two])
+    await query(
+      "INSERT INTO auth.users(id,email_confirmed_at) VALUES($1,now())",
+      [id]
+    );
+  const data = {
+    name: "Academia ficticia de prueba",
+    countryCode: "ES",
+    city: "Madrid",
+    sourceName: "Fuente ficticia QA",
+    sourceUrl: "https://example.org/qa",
+  };
+  const before = await query(
+    "SELECT (SELECT count(*) FROM auth.users) users,(SELECT count(*) FROM academies) academies,(SELECT count(*) FROM memberships) memberships"
+  );
+  const entry = (await createEntry("academy", data, admin))!;
+  await setPublication(entry.id, admin, "published");
+  const after = await query(
+    "SELECT (SELECT count(*) FROM auth.users) users,(SELECT count(*) FROM academies) academies,(SELECT count(*) FROM memberships) memberships"
+  );
+  check(
+    "Publicar academia externa no crea Auth, propietario, membership ni espacio operativo",
+    JSON.stringify(before.rows) === JSON.stringify(after.rows)
+  );
+  const drafts = (await createEntry(
+    "academy",
+    { ...data, name: "Borrador privado" },
+    admin
+  ))!;
+  check(
+    "Borradores ocultos en lectores públicos",
+    (await getEntry(drafts.id)) === null
+  );
+  const claims = await Promise.all([
+    submitClaim(
+      entry.id,
+      one,
+      "Directora de prueba",
+      "Confirmación institucional ficticia de prueba"
+    ),
+    submitClaim(
+      entry.id,
+      one,
+      "Directora de prueba",
+      "Confirmación institucional ficticia de prueba"
+    ),
+  ]);
+  check("Doble envío es idempotente", claims[0].id === claims[1].id);
+  const rival = await submitClaim(
+    entry.id,
+    two,
+    "Director de prueba",
+    "Confirmación institucional ficticia de prueba"
+  );
+  await rejects(
+    "Solicitar no concede edición",
+    () => editEntry(entry.id, one, { ...data, description: "Sin permiso" }),
+    "FORBIDDEN"
+  );
+  const approvals = await Promise.allSettled([
+    decideClaim(String(claims[0].id), admin, true, "Prueba contrastada en QA"),
+    decideClaim(String(rival.id), admin, true, "Prueba contrastada en QA"),
+  ]);
+  check(
+    "Dos aprobaciones simultáneas conceden un solo permiso",
+    approvals.filter((r) => r.status === "fulfilled").length === 1
+  );
+  const owner = (
+      await query("SELECT user_id FROM directory_grants WHERE entry_id=$1", [
+        entry.id,
+      ])
+    ).rows[0].user_id as string,
+    other = owner === one ? two : one;
+  await rejects(
+    "Usuario ajeno no edita otra ficha",
+    () => editEntry(entry.id, other, data),
+    "FORBIDDEN"
+  );
+  await editEntry(entry.id, owner, {
+    ...data,
+    description: "Cambio rutinario permitido",
+  });
+  check(
+    "Cambio rutinario publicado sin elevar rol",
+    (await getEntry(entry.id))?.data.description ===
+      "Cambio rutinario permitido"
+  );
+  const revision = await editEntry(entry.id, owner, {
+    ...data,
+    name: "Identidad nueva pendiente",
+    description: "Cambio rutinario permitido",
+  });
+  check(
+    "Cambio sensible conserva versión aprobada",
+    revision.pending && (await getEntry(entry.id))?.data.name === data.name
+  );
+  await decideRevision(
+    String(revision.revisionId),
+    admin,
+    true,
+    "Cambio contrastado"
+  );
+  check(
+    "Moderación publica la identidad nueva",
+    (await getEntry(entry.id))?.data.name === "Identidad nueva pendiente"
+  );
+  await revokeGrant(entry.id, admin, "Revocación de prueba");
+  await rejects(
+    "Revocación retira edición y conserva publicación",
+    () => editEntry(entry.id, owner, data),
+    "FORBIDDEN"
+  );
+  check(
+    "Ficha permanece pública después de revocar",
+    Boolean(await getEntry(entry.id))
+  );
+  const source = (
+    await query(
+      "INSERT INTO directory_sources(name,url,country_code,enabled,\"authorization\") VALUES('Fuente QA','https://example.org/feed','PE',true,'Autorización ficticia solo para test') RETURNING id"
+    )
+  ).rows[0].id;
+  const candidate = {
+    externalId: "source-001",
+    kind: "academy",
+    data: {
+      ...data,
+      name: "Academia importada ficticia",
+      countryCode: "PE",
+      city: "Lima",
+    },
+  };
+  const batch = await importCandidates(
+      source,
+      JSON.stringify([candidate]),
+      "json"
+    ),
+    repeat = await importCandidates(
+      source,
+      JSON.stringify([candidate]),
+      "json"
+    );
+  check(
+    "Reimportar lote no duplica registros",
+    batch.id === repeat.id && repeat.repeated === true
+  );
+  const row = (
+    await query("SELECT id FROM directory_import_rows WHERE batch_id=$1", [
+      batch.id,
+    ])
+  ).rows[0].id;
+  const accepted = await Promise.all([
+    acceptImportRow(row, admin),
+    acceptImportRow(row, admin),
+  ]);
+  check(
+    "Aceptar fila simultáneamente crea un solo borrador",
+    accepted[0].entryId === accepted[1].entryId
+  );
+  check(
+    "Importación nunca publica automáticamente",
+    (await getEntry(String(accepted[0].entryId))) === null
+  );
+  const event = (await createEntry(
+    "event",
+    {
+      ...data,
+      name: "Competición ficticia externa",
+      organizerName: "Organizador ficticio independiente",
+      startDate: "2027-03-02",
+      endDate: "2027-03-03",
+      eventStatus: "confirmed",
+      description: "Evento de prueba",
+    },
+    admin
+  ))!;
+  await setPublication(event.id, admin, "published");
+  check(
+    "Evento externo no necesita academia ficticia",
+    (await getEntry(event.id))?.academyId === null
+  );
+  const ics = calendarFile((await getEntry(event.id))!);
+  check(
+    "Calendario conserva fecha sin inventar hora",
+    ics.includes("DTSTART;VALUE=DATE:20270302") &&
+      ics.includes("DTEND;VALUE=DATE:20270304") &&
+      !ics.includes("DTSTART:20270302T000000")
+  );
+  const op = randomUUID();
+  await query(
+    "INSERT INTO academies(id,name,is_public,country_code,city) VALUES($1,'Academia operativa original',true,'es','Madrid')",
+    [op]
+  );
+  check(
+    "Proyección incluye academias originales sin migrar propietarios",
+    (await listEntries({ kind: "academy" })).items.some((e) => e.id === op)
+  );
+  await materializeOperationalEntry(op);
+  await query(
+    "UPDATE academies SET name='Nombre operativo vigente' WHERE id=$1",
+    [op]
+  );
+  check(
+    "Espacio operativo es autoridad sobre datos públicos",
+    (await getEntry(op))?.data.name === "Nombre operativo vigente"
+  );
+  await query("UPDATE academies SET is_public=false WHERE id=$1", [op]);
+  check(
+    "Privatizar academia la oculta inmediatamente",
+    (await getEntry(op)) === null
+  );
+  await query("DELETE FROM academies WHERE id=$1", [op]);
+  check(
+    "Eliminar autoridad nunca convierte la proyección en ficha externa",
+    (await getEntry(op)) === null
+  );
+  const duplicate = (await createEntry(
+    "academy",
+    { ...data, name: "Duplicado ficticio" },
+    admin
+  ))!;
+  await setPublication(duplicate.id, admin, "published");
+  await mergeEntries(duplicate.id, entry.id, admin);
+  check(
+    "Fusión conserva destino y oculta origen",
+    (await getEntry(duplicate.id, false))?.mergedInto === entry.id &&
+      (await getEntry(duplicate.id)) === null
+  );
+  await assert.rejects(() =>
+    requestSubscription(
+      {
+        email: "qa@example.org",
+        purpose: "marketing",
+        consent: false,
+        version: "directory-2026-09-30",
+        source: "directory",
+      },
+      null
+    )
+  );
+  check("Sin autorización positiva no se crea consentimiento", true);
+  check(
+    "Marketing bloqueado antes de consentimiento",
+    (await hasPositiveMarketingConsent("qa@example.org")) === false
+  );
+  await requestSubscription(
+    {
+      email: "qa@example.org",
+      purpose: "marketing",
+      consent: true,
+      version: "directory-2026-09-30",
+      source: "directory",
+    },
+    null
+  );
+  const subscription = (
+    await query(
+      "SELECT * FROM directory_subscriptions WHERE email='qa@example.org'"
+    )
+  ).rows[0];
+  check(
+    "Solicitud sin confirmar no autoriza marketing",
+    (await hasPositiveMarketingConsent("qa@example.org")) === false
+  );
+  await confirmSubscription(
+    subscription.id,
+    confirmationToken(
+      subscription.id,
+      subscription.token_expires_at.toISOString()
+    )
+  );
+  check(
+    "Consentimiento confirmado autoriza finalidad específica",
+    await hasPositiveMarketingConsent("qa@example.org")
+  );
+  await withdrawSubscription(
+    subscription.id,
+    unsubscribeToken(subscription.id)
+  );
+  check(
+    "Baja bloquea marketing antes del envío",
+    (await hasPositiveMarketingConsent("qa@example.org")) === false
+  );
+  await requestSubscription(
+    {
+      email: "calendar@example.org",
+      purpose: "calendar",
+      consent: true,
+      version: "directory-2026-09-30",
+      source: "directory",
+    },
+    null
+  );
+  let sentCalls = 0;
+  const provider = async () => {
+    sentCalls++;
+    return { messageId: `test-provider-${sentCalls}`, simulated: false };
+  };
+  await Promise.all([processDeliveries(provider), processDeliveries(provider)]);
+  check(
+    "Cola concurrente envía una confirmación como máximo una vez",
+    sentCalls === 1
+  );
+  await processDeliveries(provider);
+  check("Reintento no repite mensajes enviados", sentCalls === 1);
+  const deliverySubscription = (
+    await query(
+      "SELECT * FROM directory_subscriptions WHERE email='calendar@example.org'"
+    )
+  ).rows[0];
+  await withdrawSubscription(
+    deliverySubscription.id,
+    unsubscribeToken(deliverySubscription.id)
+  );
+  await query(
+    "INSERT INTO directory_deliveries(subscription_id,dedupe_key) VALUES($1,'calendar:withdrawn-test')",
+    [deliverySubscription.id]
+  );
+  await processDeliveries(provider);
+  check("Baja suprime mensaje pendiente antes del proveedor", sentCalls === 1);
+  const bulkA = (await createEntry(
+    "academy",
+    { ...data, name: "Ficha masiva A" },
+    admin
+  ))!;
+  const bulkB = (await createEntry(
+    "academy",
+    { ...data, name: "Ficha masiva B" },
+    admin
+  ))!;
+  const preview = await bulkPublication(
+    [bulkA.id, bulkB.id],
+    "published",
+    admin,
+    "Revisión ficticia de lote"
+  );
+  check(
+    "Previsualizar lote no publica fichas",
+    !(await getEntry(bulkA.id)) && !(await getEntry(bulkB.id))
+  );
+  await editEntry(
+    bulkA.id,
+    admin,
+    { ...bulkA.data, description: "Cambio después de previsualizar" },
+    true
+  );
+  await rejects(
+    "Lote cambiado exige otra previsualización",
+    () =>
+      bulkPublication(
+        [bulkA.id, bulkB.id],
+        "published",
+        admin,
+        "Revisión ficticia de lote",
+        preview.fingerprint
+      ),
+    "STALE_BATCH"
+  );
+  const current = await bulkPublication(
+    [bulkA.id, bulkB.id],
+    "published",
+    admin,
+    "Revisión ficticia de lote"
+  );
+  await bulkPublication(
+    [bulkA.id, bulkB.id],
+    "published",
+    admin,
+    "Revisión ficticia de lote",
+    current.fingerprint
+  );
+  check(
+    "Publicación masiva aplica todas las fichas contrastadas",
+    Boolean(await getEntry(bulkA.id)) && Boolean(await getEntry(bulkB.id))
+  );
+  const link = (await createEntry(
+    "academy",
+    { ...data, name: "Ficha para vinculación" },
+    admin
+  ))!;
+  await setPublication(link.id, admin, "published");
+  const linkClaim = await submitClaim(
+    link.id,
+    one,
+    "Directora ficticia",
+    "Prueba privada ficticia de representación"
+  );
+  await decideClaim(
+    String(linkClaim.id),
+    admin,
+    true,
+    "Prueba contrastada localmente"
+  );
+  const ownerProfile = randomUUID(),
+    operativeId = randomUUID();
+  await query("INSERT INTO profiles(id,user_id,role) VALUES($1,$2,$3)", [
+    ownerProfile,
+    two,
+    "owner",
+  ]);
+  await query(
+    "INSERT INTO academies(id,name,owner_id,country_code,city,is_public) VALUES($1,'Espacio ficticio',$2,'ES','Madrid',true)",
+    [operativeId, ownerProfile]
+  );
+  await rejects(
+    "Vincular no suplanta al propietario operativo",
+    () =>
+      linkOperationalEntry(
+        link.id,
+        operativeId,
+        admin,
+        "Vinculación contrastada localmente"
+      ),
+    "OWNER_MISMATCH"
+  );
+  await query("UPDATE profiles SET user_id=$1 WHERE id=$2", [
+    one,
+    ownerProfile,
+  ]);
+  await linkOperationalEntry(
+    link.id,
+    operativeId,
+    admin,
+    "Vinculación contrastada localmente"
+  );
+  check(
+    "URL del espacio existente resuelve la ficha vinculada",
+    (await getEntry(operativeId))?.id === link.id
+  );
+  check(
+    "Vincular conserva propietario y no añade memberships",
+    (await query("SELECT owner_id FROM academies WHERE id=$1", [operativeId]))
+      .rows[0].owner_id === ownerProfile &&
+      (await query("SELECT count(*)::int AS n FROM memberships")).rows[0].n ===
+        0
+  );
+  await rejects(
+    "Avisos de reclamación requieren cuenta",
+    () =>
+      requestSubscription(
+        {
+          email: "claim@example.org",
+          purpose: "claim_updates",
+          consent: true,
+          version: "directory-2026-09-30",
+          source: "my-listings",
+        },
+        null
+      ),
+    "AUTH_REQUIRED"
+  );
+  await requestSubscription(
+    {
+      email: "claim@example.org",
+      purpose: "claim_updates",
+      consent: true,
+      version: "directory-2026-09-30",
+      source: "my-listings",
+    },
+    one
+  );
+  const claimSub = (
+    await query(
+      "SELECT * FROM directory_subscriptions WHERE email='claim@example.org'"
+    )
+  ).rows[0];
+  await confirmSubscription(
+    claimSub.id,
+    confirmationToken(
+      claimSub.id,
+      new Date(claimSub.token_expires_at).toISOString()
+    )
+  );
+  await enqueueDigests();
+  const notices: string[] = [];
+  await processDeliveries(async (options) => {
+    notices.push(options.text ?? "");
+    return { messageId: `claim-test-${notices.length}`, simulated: false };
+  });
+  check(
+    "Avisos de reclamación no incluyen pruebas privadas",
+    notices.some((t) => t.includes("solicitud para")) &&
+      notices.every(
+        (t) => !t.includes("Prueba privada ficticia de representación")
+      )
+  );
+  const client = await pool.connect();
+  try {
+    for (const role of ["anon", "authenticated"]) {
+      await client.query(`SET ROLE ${role}`);
+      const visible = await client.query("SELECT id FROM directory_entries");
+      check(
+        `${role}: RLS oculta borradores`,
+        !visible.rows.some((r) => r.id === drafts.id)
+      );
+      for (const table of [
+        "directory_claims",
+        "directory_grants",
+        "directory_revisions",
+        "directory_sources",
+        "directory_subscriptions",
+        "directory_deliveries",
+        "directory_audit",
+      ])
+        await assert.rejects(
+          () => client.query(`SELECT * FROM ${table}`),
+          (e) => (e as { code: string }).code === "42501"
+        );
+      check(
+        `${role}: Data API no expone pruebas, permisos ni consentimientos`,
+        true
+      );
+      check(
+        `${role}: no accede a atletas ni cobros`,
+        (await client.query("SELECT * FROM athletes")).rowCount === 0 &&
+          (await client.query("SELECT * FROM charges")).rowCount === 0
+      );
+      await assert.rejects(
+        () =>
+          client.query("UPDATE directory_entries SET publication='published'"),
+        (e) => (e as { code: string }).code === "42501"
+      );
+      check(`${role}: no muta fichas directamente`, true);
+      await client.query("RESET ROLE");
+    }
+  } finally {
+    client.release();
+  }
+  console.log(
+    `Directory integration: ${checks} checks passed; isolated PostgreSQL, exact migration and backup restored.`
+  );
+}
+main()
+  .then(() => pool.end())
+  .catch(async (e) => {
+    console.error(e);
+    await pool.end();
+    process.exitCode = 1;
+  });

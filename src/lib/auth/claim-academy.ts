@@ -1,25 +1,3 @@
-/**
- * Claim academy helper — pure logic + DB query.
- *
- * Implementa la pieza del alcance ZAL-137 que faltaba en el árbol actual:
- * dado un email de usuario autenticado, devuelve la academia cuya
- * `contactEmail` matchea (case-insensitive, trimmed). Si no hay match,
- * devuelve `null` (el caller renderiza el formulario create-from-scratch).
- *
- * La función pura `normalizeClaimEmail` está exportada para que se pueda
- * testear sin tocar DB. La query usa el índice dedicado
- * `academies_contact_email_idx` (definido en src/db/schema/academies.ts).
- *
- * Tenant isolation: el caller debe pasar `tenantId` ya resuelto en el
- * contexto del usuario para evitar claim cross-tenant si en el futuro el
- * helper se llama desde un flujo per-tenant.
- */
-
-import { and, eq, inArray, sql } from "drizzle-orm";
-
-import { db } from "@/db";
-import { academies } from "@/db/schema";
-
 export interface ClaimableAcademy {
   id: string;
   name: string;
@@ -46,35 +24,12 @@ export function normalizeClaimEmail(value: unknown): string {
   return value.trim().toLowerCase();
 }
 
-/**
- * Devuelve la academia "claimable" para el email dado, o `null` si no hay
- * match. Solo permite academias operativas (`active`/`trial`) no suspendidas;
- * una academia churned, suspendida o en revisión de fraude nunca se puede
- * reclamar desde el registro público. Case-insensitive, ignora whitespace.
- */
+/** Compatibilidad: un correo público no acredita propiedad. La revisión es manual. */
 export async function findClaimableAcademyByEmail(
   args: FindClaimableAcademyArgs
 ): Promise<ClaimableAcademy | null> {
-  const normalized = normalizeClaimEmail(args.email);
-  if (!normalized) return null;
-
-  const conditions = and(
-    eq(sql`lower(${academies.contactEmail})`, normalized),
-    inArray(academies.status, ["active", "trial"]),
-    eq(academies.isSuspended, false),
-    ...(args.tenantId ? [eq(academies.tenantId, args.tenantId)] : []),
-  );
-
-  const [row] = await db
-    .select({
-      id: academies.id,
-      name: academies.name,
-      tenantId: academies.tenantId,
-      ownerId: academies.ownerId,
-    })
-    .from(academies)
-    .where(conditions)
-    .limit(1);
-
-  return row ?? null;
+  // Email is contact information, never proof of ownership. Existing academy
+  // owners retain their access; directory claims require manual approval.
+  void args;
+  return null;
 }

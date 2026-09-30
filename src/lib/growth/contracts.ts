@@ -1,6 +1,9 @@
 import { z } from "zod";
 
 export const PUBLIC_GROWTH_EVENT_NAMES = [
+  "directory_viewed",
+  "directory_organizer_clicked",
+  "directory_kit_downloaded",
   "pricing_viewed",
   "pricing_plan_selected",
   "contact_started",

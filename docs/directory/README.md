@@ -1,0 +1,80 @@
+# Directorio público — implementación y operación
+
+Fecha: 30 de septiembre de 2026. Rama `feat/public-directory`, base `01e4df1f`.
+
+## Hallazgos clave
+
+1. Las fichas externas existen sin Auth, propietarios, memberships, trials ni suscripciones. No se modifica `owner_id` ni el ledger de academias.
+2. Reclamar requiere correo confirmado y aprobación de Super Admin. Se eliminó la transferencia por coincidencia de correo. Los permisos del directorio no son roles del SaaS.
+3. Las tablas privadas no están disponibles para `anon` ni `authenticated` a través de Supabase. La edición se autoriza por ficha en servidor y las decisiones se serializan por ficha.
+4. RFEG y Perú ofrecen datos HTML preparables; Brasil enlaza calendarios PDF. Ninguna extracción publica fichas ni acredita derechos de reutilización.
+5. Producción no se ha migrado ni activado. Todos los interruptores del directorio están apagados por defecto.
+
+## Entregado
+
+- Migración aditiva de once tablas y bucket privado, índices, restricciones y RLS. Retirada de proyecciones si se elimina el espacio operativo de origen.
+- Proyección común de academias/eventos públicos existentes más fichas independientes. Las fichas vinculadas consultan la visibilidad y los datos públicos del espacio operativo en cada lectura.
+- Alta manual, previsualización, publicación y retirada en `/super-admin/directorio`. Reclamaciones, transferencias, revocaciones, revisiones, fuentes, lotes, consentimientos y auditoría.
+- Fichas, filtros, paginación, fuentes y última revisión. Enlaces antiguos preservados; nuevos enlaces UUID-slug y redirección permanente de nombres/fusiones.
+- Registro específico de directorio sin crear perfiles operativos. `/directorio/mis-fichas`, solicitudes, edición habitual directa, revisión de campos sensibles, favoritos y propuestas.
+- Activación del SaaS como alta expresa mediante onboarding existente. Cuenta y ficha se vuelven a comprobar dentro de la transacción. Un espacio existente requiere asistencia; no se crean duplicados ni se elevan roles silenciosamente.
+- Importación CSV/JSON con hash idempotente, errores por fila, selección de campos públicos y revisión de posibles duplicados. Una referencia ya vinculada produce una propuesta; no sobrescribe cambios del representante.
+- Adaptadores oficiales HTML con evidencia privada de extracción, referencias a PDF y red restringida: TLS, IP pública fijada, sin redirecciones, 2 MB y 15 segundos.
+- Kit gratuito con ejemplos ficticios, descarga directa. Entrega opcional por correo con finalidad separada.
+- Suscripciones por finalidad, confirmación explícita por POST, baja firmada, outbox con exclusión mutua, rebotes/reclamaciones y recuperación conservadora de resultados inciertos. Envío comercial explícitamente marcado exige consentimiento positivo confirmado.
+- Calendario ICS para eventos confirmados: fecha sin hora conserva día completo; hora conocida conserva zona del recinto. Marcado estructurado sin precios inventados; sitemap dinámico y filtros sin indexación combinatoria.
+- Imágenes opcionales requieren procedencia y licencia/autorización documentada; pasan por revisión sensible. Pruebas privadas no se suben sin aprobación del escáner de seguridad del archivo exacto.
+- Retención extraordinaria de pruebas con motivo registrado, eliminación ordinaria a los 30 días y limpieza de archivos antiguos sin solicitud asociada.
+- Invitación preparada para copiar; nunca se envía al importar. Medición de visitas, clics y descarga en el sistema existente; reclamación con identificador idempotente y sin correo/pruebas en analítica. No se deduce que un visitante sea una familia.
+
+## Validación observada
+
+- Suite web completa anterior a los últimos ajustes: **415 archivos, 1.867 pruebas aprobadas**; un archivo y tres casos omitidos.
+- Suite focalizada después de adaptar las fuentes: **62 pruebas aprobadas en seis archivos**. Compilación de producción local aprobada; tipos y lint se ejecutan aparte porque el build del proyecto los omite.
+- PostgreSQL aislado real, migración exacta, dump/restauración y **45 comprobaciones aprobadas**. Incluye concurrencia de reclamaciones y lotes, edición sensible, revocación, proyección/retirada, deduplicación de correos y denegaciones con roles de base de datos.
+- Supabase local real y navegador: representante sin perfil operativo solicita; Super Admin aprueba; representante ve y edita; segundo representante no ve gestión y recibe HTTP 403 al intentar editar. Owner/admin/coach/parent/athlete reciben 403 en API de administración.
+- Formulario de representante y Mis fichas: comprobación de ancho a 390 px y zoom CSS del 200 %, captura y navegación Tab. Esta comprobación **no** equivale a VoiceOver manual ni a todos los recorridos de accesibilidad del producto.
+- Integridad: 7 migraciones Drizzle y 91 Supabase validadas; RLS estático y gates de lecturas/autorización/rutas aprobados.
+- Proveedor de correo: pruebas con callback local controlado; **ningún correo real enviado**. Webhook Brevo implementado, configuración y prueba con el proveedor pendientes.
+
+## Publicación gradual
+
+Variables, todas `false` por defecto:
+
+| Variable | Activa |
+|---|---|
+| DIRECTORY_ADMIN_ENABLED | Administración y mantenimiento |
+| DIRECTORY_CATALOG_ENABLED | Lectores públicos nuevos y área de fichas |
+| DIRECTORY_CLAIMS_ENABLED | Solicitudes de representación |
+| DIRECTORY_IMPORTS_ENABLED | Revisión automática de fuentes autorizadas |
+| DIRECTORY_COMMUNICATIONS_ENABLED | Suscripciones y envíos |
+
+1. Respaldo del destino y prueba de restauración verificable. Aplicar mediante el procedimiento de migraciones del repositorio; no reparar el ledger para añadir fichas.
+2. Activar administración; registrar fuentes y permisos. Preparar borradores y revisar publicación manualmente.
+3. Activar catálogo y repetir el recorrido autenticado contra la versión desplegada.
+4. Activar reclamaciones tras revisión de permisos y documentos. Configurar el escáner antes de ofrecer subida de archivos; pruebas por canal oficial escrito siguen disponibles.
+5. Configurar secreto exclusivo `DIRECTORY_TOKEN_SECRET` (32 caracteres como mínimo), Brevo real, remitente/respuesta, webhook autenticado y prueba de baja/rebote. Solo entonces activar comunicaciones.
+6. Activar importaciones programadas únicamente con autorización de fuente documentada. Cron `/api/cron/directory` ejecuta con autenticación y lease; sin flags no activa estos módulos.
+
+Rollback inicial: apagar flags y volver a lectores anteriores. Conservar tablas y fichas para recuperación; no eliminar cuentas, academias ni propietarios.
+
+## Lo que NO está cerrado
+
+- Migración, despliegue y comprobación autenticada en producción: no realizados.
+- Publicación inicial de 60 academias y 30 eventos revisados: no alcanzada. No se han publicado datos reales en esta entrega. Los 1.370 registros del CRM no son publicaciones verificadas.
+- Autorización de reutilización de las tres fuentes, revisión jurídica por país y materiales gráficos: no acreditadas. El campo de autorización debe contener evidencia real, no una inferencia por ser una web pública.
+- Extracción automática de los PDF de Brasil/OCR: los enlaces se descubren; la estructuración de sus contenidos sigue siendo revisión manual. Redes sociales: enlaces/propuestas manuales exclusivamente.
+- Escáner de documentos y entrega real de correo/webhook: no configurados ni probados externamente.
+- Avisos de reclamación, acciones masivas y vinculación asistida están implementados; avisos reales aún requieren configurar y validar el proveedor. Páginas SEO regionales del directorio externo: pendientes de contenido suficiente y de integrar ese contenido en los lectores regionales. El estado de reclamación ya se consulta en Mis fichas y el catálogo no promete esas funciones pendientes.
+- Medición de solicitud y aprobación de reclamación, suscripción confirmada y activación SaaS con identificador idempotente incorporada. Medición completa de demos atribuidas al directorio y distinción de familias identificadas: no cerrada. Se informa únicamente de los eventos observados.
+- E2E completos de alta nueva, OAuth, activación del SaaS y regresión de destinos de todos los roles: pendientes. Las denegaciones de API no sustituyen esos recorridos.
+- VoiceOver manual sobre el build desplegado permanece diferenciado y pendiente por decisión anterior.
+
+## Fuentes y relevancia
+
+- [RFEG](https://rfegimnasia.es/competiciones-nacionales/): candidatos HTML de competiciones; accionable para revisión, no publicación automática.
+- [Federación Peruana](https://www.federaciongimnasia.com/calendario): tarjetas con fechas/recintos; ciudad desconocida permanece vacía y enlaces de entradas no se convierten en inscripción deportiva.
+- [CBG](https://cbginastica.com.br/calendarios/126/calendarios): PDFs; la fecha de publicación del documento no es la fecha de una competición.
+- [Google: eventos](https://developers.google.com/search/docs/appearance/structured-data/event): marcado condicionado a datos reales; no garantiza posicionamiento.
+- [Supabase RLS](https://supabase.com/docs/guides/database/postgres/row-level-security): acceso explícito y pruebas de denegación.
+- [LSSI: publicidad](https://lssi.digital.gob.es/lssi/la-ley/aspectos-basicos/publicidad-en-internet): el contacto público no prueba autorización comercial. Los borradores de invitación requieren validar el canal antes de enviarse.

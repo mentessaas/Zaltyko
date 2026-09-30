@@ -15,6 +15,6 @@ export async function listCategories(): Promise<ListingCategory[]> {
   const rows = await db
     .select()
     .from(listingCategories)
-    .orderBy(listingCategories.sortOrder);
+    .orderBy(listingCategories.sortOrder).limit(1000);
   return rows as ListingCategory[];
 }

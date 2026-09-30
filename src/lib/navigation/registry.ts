@@ -77,6 +77,7 @@ const ACADEMY_NAV: NavigationDefinition[] = [
 ];
 
 const SUPER_ADMIN_NAV: NavigationDefinition[] = [
+  { key: "directory", label: "Directorio", icon: Globe, href: "/super-admin/directorio", roles: ["super_admin"] },
   { key: "dashboard", label: "Inicio", icon: LayoutDashboard, href: "/super-admin/dashboard", roles: ["super_admin"] },
   { key: "users", label: "Usuarios", icon: Users, href: "/super-admin/users", roles: ["super_admin"] },
   { key: "academies", label: "Academias", icon: Building2, href: "/super-admin/academies", roles: ["super_admin"] },

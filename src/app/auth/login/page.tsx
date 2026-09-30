@@ -27,7 +27,8 @@ export const metadata: Metadata = {
 // `Dynamic server usage: Route /auth/login couldn't be rendered statically`.
 export const dynamic = "force-dynamic";
 
-export default async function Login() {
+export default async function Login({searchParams}:{searchParams:Promise<Record<string,string|undefined>>}) {
+  const params=await searchParams;
   // Si ya hay sesión, redirigir al panel adecuado en lugar de mostrar el login.
   // Sin env de Supabase configurado o con el servicio caído, se muestra el
   // formulario en lugar de un 500 (la sesión simplemente no se puede resolver).
@@ -41,6 +42,8 @@ export default async function Login() {
 
   if (sessionUser) {
     const home = await resolveUserEntry(sessionUser);
+    const next=params.next??params.callbackUrl;
+    if(home.destination!=="blocked"&&next&&/^\/(academias|events|directorio)\//.test(next)&&!next.includes("\\"))redirect(next);
     redirect(home.redirectUrl);
   }
 

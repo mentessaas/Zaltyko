@@ -6,6 +6,7 @@ import { sendEmail } from "@/lib/brevo";
 import { config } from "@/config";
 import { isAcademyBlockedFromSending } from "@/lib/academy-status";
 import { logger } from "@/lib/logger";
+import { hasPositiveMarketingConsent } from "@/lib/directory/communications";
 import { hasMarketingOptOut } from "@/lib/email/marketing-consent";
 import {
   isEmailNotificationEnabled,
@@ -13,6 +14,7 @@ import {
 } from "@/lib/notifications/preferences";
 
 export interface SendEmailOptions {
+  purpose?: "transactional" | "marketing";
   to: string;
   subject: string;
   html: string;
@@ -49,6 +51,7 @@ export async function sendEmailWithLogging(options: SendEmailOptions): Promise<b
     dedupeKey,
   } = options;
   const normalizedRecipient = to.trim().toLowerCase();
+  if (options.purpose === "marketing" && !(await hasPositiveMarketingConsent(normalizedRecipient))) return false;
 
   // The settings screen controls typed notifications, so enforce that policy
   // in the shared sender. Untyped emails (welcome, access, support, etc.) keep

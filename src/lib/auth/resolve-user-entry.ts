@@ -16,6 +16,7 @@ export async function resolveUserEntry(user: User, initialRoleOverride?: unknown
   const currentHome = await resolveUserHome({ userId: user.id, email: user.email });
   if (currentHome.destination !== "owner_setup") return currentHome;
 
+  if(user.user_metadata?.directory_account===true&&currentHome.reason==='missing-profile')return {...currentHome,destination:'global_dashboard' as const,redirectUrl:'/directorio/mis-fichas',reason:'directory-account'};
   const initialRole = isOpenRegistrationRole(initialRoleOverride)
     ? initialRoleOverride
     : user.user_metadata?.initial_role;

@@ -10608,3 +10608,7 @@ Vault: actualizado `Changelog interno.md`; se preserva el backlog existente porq
 
 - En el head rebasado de #173, `pnpm audit --prod --audit-level=high` termina sin vulnerabilidades conocidas en producción web. `pnpm --dir mobile audit --audit-level=high` conserva una vulnerabilidad alta, `GHSA-86w9-cpqp-85rv`, en `node-forge <=1.4.0` dentro de Expo CLI y su certificado de firma; el registro no muestra versión corregida.
 - Se corrigió la descripción del PR para no afirmar que el audit móvil está limpio. Las 13 alertas Dependabot originales siguen siendo el alcance del parche; el aviso de node-forge queda como riesgo upstream separado. El CI del nuevo head todavía está en curso.
+
+## 2026-09-30 — Directorio público independiente (en revisión)
+
+Modelo separado, reclamación manual, administración, importación revisada, filtros internacionales y captación con consentimiento. Ver [implementación y límites](../../docs/directory/README.md). Migración/rollback comprobados localmente; no desplegado ni cierre completo del plan.

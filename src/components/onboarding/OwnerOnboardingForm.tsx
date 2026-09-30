@@ -31,7 +31,7 @@ const ACADEMY_KIND_OPTIONS = [
 
 const OWNER_ONBOARDING_DRAFT_KEY = "zaltyko:owner-onboarding-draft:v1";
 
-export function OwnerOnboardingForm() {
+export function OwnerOnboardingForm({directoryEntryId}:{directoryEntryId?:string}={}) {
   const initialSeed = getSportConfigSeedsByCountry("es")[0];
   const router = useRouter();
   const toast = useToast();
@@ -237,6 +237,8 @@ export function OwnerOnboardingForm() {
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
           fullName,
+          directoryEntryId,
+          directoryActivation:directoryEntryId?true:undefined,
           academyName,
           disciplineVariant,
           activeDisciplineVariants,
@@ -291,6 +293,7 @@ export function OwnerOnboardingForm() {
 
   return (
     <form onSubmit={handleSubmit} className="space-y-6">
+      {directoryEntryId&&<label className="flex gap-3 rounded-lg border p-4"><input type="checkbox" required/> Quiero crear el espacio de gestión de esta academia y vincularlo a su ficha. Reclamar y gestionar la ficha pública sigue siendo gratuito; no se activa un cobro por esta acción.</label>}
       <div className="rounded-lg border border-primary/20 bg-primary/5 px-4 py-3" aria-label="Paso 1 de 5 de la configuración">
         <div className="flex items-center justify-between gap-3 text-sm">
           <span className="font-medium text-foreground">Paso 1 de 5 · Crear el espacio de trabajo</span>

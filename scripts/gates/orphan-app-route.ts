@@ -65,6 +65,7 @@ const AUTH_PRIMITIVES = new Set([
   "createBearerSupabaseClient",
   "assertSuperAdmin",
   "getCurrentProfile",
+  "getCurrentUser",
   "verifyWebhookSignature",
   "getDevSessionFromCookieStore",
   "redirect",

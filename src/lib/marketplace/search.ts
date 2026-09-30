@@ -75,5 +75,5 @@ export async function listRootCategories() {
     .select()
     .from(listingCategories)
     .where(sql`${listingCategories.parentId} IS NULL`)
-    .orderBy(listingCategories.sortOrder);
+    .orderBy(listingCategories.sortOrder).limit(1000);
 }

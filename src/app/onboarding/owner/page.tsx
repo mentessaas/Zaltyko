@@ -1,3 +1,7 @@
+import Link from "next/link";
+import { sql } from "drizzle-orm";
+import { rows } from "@/lib/directory/service";
+import { flag } from "@/lib/directory/contracts";
 import { cookies } from "next/headers";
 import { redirect } from "next/navigation";
 
@@ -9,20 +13,8 @@ import { findClaimableAcademyByEmail } from "@/lib/auth/claim-academy";
 
 export const dynamic = "force-dynamic";
 
-/**
- * Onboarding owner — gate Supabase + resolveUserHome + claim-academy check.
- *
- * Si el email del usuario autenticado matchea `academies.contactEmail` de
- * una academia registrada, renderiza `<OwnerClaimCard />` (rama claim).
- * Si no hay match, renderiza `<OwnerOnboardingForm />` (rama
- * create-from-scratch). El usuario elige; no es un redirect implícito —
- * solo cambia qué componente se renderiza.
- *
- * El endpoint POST `/api/onboarding/owner/claim` re-verifica el match
- * server-side (defensa en profundidad) y rechaza con 403
- * `CLAIM_EMAIL_MISMATCH` si la URL/page fue manipulada.
- */
-export default async function OwnerOnboardingPage() {
+export default async function OwnerOnboardingPage({searchParams}:{searchParams:Promise<{directoryEntryId?:string}>}) {
+  const {directoryEntryId}=await searchParams;
   const cookieStore = await cookies();
   const supabase = await createClient(cookieStore);
   const {
@@ -38,6 +30,12 @@ export default async function OwnerOnboardingPage() {
     email: user.email,
   });
 
+  if(directoryEntryId){
+    if(!flag('claims')||!/^[a-f0-9-]{36}$/i.test(directoryEntryId))redirect('/directorio/mis-fichas');
+    const entry=(await rows(sql`SELECT d.academy_id FROM directory_entries d JOIN directory_grants g ON g.entry_id=d.id WHERE d.id=${directoryEntryId}::uuid AND g.user_id=${user.id}::uuid AND d.kind='academy' AND d.merged_into IS NULL`))[0];
+    if(!entry)redirect('/directorio/mis-fichas');
+    if(home.destination!=='owner_setup')return <main className="mx-auto max-w-2xl space-y-5 px-4 py-12"><h1 className="text-2xl font-bold">Activar la gestión de tu academia</h1><p>{entry.academy_id?'La ficha ya está vinculada. Los permisos del espacio operativo se gestionan por separado.':'Tu cuenta ya tiene un destino y permisos. Para vincular un espacio existente o habilitar el alta de propietario, solicita asistencia.'}</p><Link href="/contact" className="underline">Solicitar asistencia</Link><Link href="/directorio/mis-fichas" className="block underline">Volver a Mis fichas</Link></main>;
+  }
   if (home.destination !== "owner_setup") {
     redirect(home.redirectUrl);
   }
@@ -83,7 +81,7 @@ export default async function OwnerOnboardingPage() {
         {claimable ? (
           <OwnerClaimCard academyId={claimable.id} academyName={claimable.name} />
         ) : (
-          <OwnerOnboardingForm />
+          <OwnerOnboardingForm directoryEntryId={directoryEntryId}/>
         )}
       </div>
     </div>

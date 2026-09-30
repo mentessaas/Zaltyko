@@ -14,10 +14,10 @@ describe("ZAL-137 — contrato del flujo owner", () => {
 
     expect(page).toContain("findClaimableAcademyByEmail");
     expect(page).toContain("<OwnerClaimCard");
-    expect(claimRoute).toContain('"CLAIM_EMAIL_MISMATCH"');
-    expect(claimRoute).toContain("pg_advisory_xact_lock");
-    expect(claimRoute).toContain(".set({ ownerId: profileId })");
-    expect(claimRoute).toContain("academy.tenantId");
+    expect(claimRoute).toContain('"MANUAL_REVIEW_REQUIRED"');
+    expect(claimRoute).toContain("eq(profiles.userId, user.id)");
+    expect(claimRoute).not.toContain(".set({ ownerId: profileId })");
+    expect(claimRoute).toContain("academies.ownerId");
     expect(claimCard).toContain("payload?.message ?? payload?.error");
   });
 

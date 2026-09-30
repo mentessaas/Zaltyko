@@ -44,13 +44,13 @@ describe("eventJsonLd", () => {
     expect(out!["@type"]).toBe("Event");
     expect(out!.startDate).toBe("2026-12-01T10:00:00.000Z");
     const loc = out!.location as Record<string, unknown>;
-    expect(loc.addressLocality).toBe("Madrid");
-    expect(loc.addressCountry).toBe("España");
+    expect((loc.address as Record<string,unknown>).addressLocality).toBe("Madrid");
+    expect((loc.address as Record<string,unknown>).addressCountry).toBe("España");
     const org = out!.organizer as Record<string, unknown>;
     expect(org.name).toBe("Club X");
   });
 
-  it("marca SoldOut cuando validThrough es pasado", () => {
+  it("no deduce disponibilidad a partir del cierre de inscripción", () => {
     const out = eventJsonLd({
       baseUrl: BASE_URL,
       pagePath: "/events/abc",
@@ -60,11 +60,11 @@ describe("eventJsonLd", () => {
       cityName: "Madrid",
       countryName: "España",
     });
-    const offers = out!.offers as Record<string, unknown>;
-    expect(offers.availability).toBe("https://schema.org/SoldOut");
+    expect(out!.offers).toBeUndefined();
+    expect(out!.startDate).toBe("2026-12-01");
   });
 
-  it("incluye precio si hay registrationFeeCents > 0", () => {
+  it("no inventa oferta ni entradas con una cuota de inscripción", () => {
     const out = eventJsonLd({
       baseUrl: BASE_URL,
       pagePath: "/events/abc",
@@ -76,9 +76,7 @@ describe("eventJsonLd", () => {
       cityName: "Madrid",
       countryName: "España",
     });
-    const offers = out!.offers as Record<string, unknown>;
-    expect(offers.price).toBe("25.00");
-    expect(offers.priceCurrency).toBe("EUR");
+    expect(out!.offers).toBeUndefined();
   });
 });
 

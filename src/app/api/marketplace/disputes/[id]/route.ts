@@ -9,6 +9,7 @@ import { getCurrentUser } from "@/lib/auth/current-user";
 import { resolveDispute } from "@/lib/trust/service";
 
 /** Resolve an order dispute from the buyer or seller side. */
+// @auth-flexible route-guard-reason: getCurrentUser verifies the session first; server checks actual order-side ownership.
 export async function PATCH(
   req: NextRequest,
   { params }: { params: Promise<{ id: string }> }

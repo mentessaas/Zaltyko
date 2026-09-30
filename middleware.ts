@@ -327,7 +327,7 @@ async function shouldNoIndexAcademy(request: NextRequest): Promise<boolean> {
 
   try {
     const endpoint = new URL(
-      `/api/public/academies/${encodeURIComponent(academyId)}`,
+      process.env.DIRECTORY_CATALOG_ENABLED === "true" ? `/api/directory/entries/${encodeURIComponent(academyId)}` : `/api/public/academies/${encodeURIComponent(academyId)}`,
       request.url
     );
     const response = await fetch(endpoint, {
