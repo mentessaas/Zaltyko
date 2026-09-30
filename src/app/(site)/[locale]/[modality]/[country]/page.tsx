@@ -1,3 +1,6 @@
+import { connection } from "next/server";
+import Link from "next/link";
+import { flag } from "@/lib/directory/contracts";
 import type { Metadata } from "next";
 import { notFound } from "next/navigation";
 import { Locale } from "@/i18n";
@@ -109,6 +112,7 @@ export async function generateMetadata({
 }
 
 export default async function ClusterPage({ params }: ClusterPageProps) {
+  if (flag("catalog")) await connection();
   const { locale, modality, country } = await params;
 
   // Validate locale
@@ -187,6 +191,16 @@ export default async function ClusterPage({ params }: ClusterPageProps) {
         countrySlug={country}
         available={available}
       />
+
+      {flag("catalog") && academyRows.length > 0 && (
+        <section className="mx-auto max-w-7xl space-y-4 px-4 py-10">
+          <h2 className="text-2xl font-semibold">{locale === "es" ? `Academias de ${modalityLabel.toLowerCase()} en ${countryLabel}` : `${modalityLabel} academies in ${countryLabel}`}</h2>
+          <p>{locale === "es" ? "Selección de fichas públicas disponibles. La cobertura no es exhaustiva; consulta la fuente y última revisión de cada ficha." : "Available public listings. Coverage is not exhaustive; check each listing's source and review date."}</p>
+          <ul className="grid gap-4 sm:grid-cols-2">
+            {academyRows.map(academy => <li key={academy.id} className="rounded-lg border p-4"><Link className="font-semibold underline" href={`/academias/${academy.id}`}>{academy.name}</Link><p>{[academy.city,academy.region].filter(Boolean).join(", ")}</p></li>)}
+          </ul>
+        </section>
+      )}
 
       <ClusterPainPointsSection content={content} locale={locale as "es" | "en"} available={available} />
 

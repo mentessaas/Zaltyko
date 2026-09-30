@@ -119,6 +119,7 @@ export const ContactRequestSchema = z
       .default("contact_form"),
     message: z.string().trim().min(10).max(2_000),
     honeypot: z.string().max(100).nullable().optional(),
+    directoryEntryId: z.string().uuid().optional(),
     submissionId: z.string().uuid(),
   })
   .strict();

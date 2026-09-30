@@ -41,6 +41,11 @@ describe("contact growth contracts", () => {
     expect(parsed.data.reason).toBe("migracion");
   });
 
+  it("conserva la atribución de ficha sin aceptar identificadores inválidos", () => {
+    expect(ContactRequestSchema.parse(buildContactRequest({directoryEntryId:"00000000-0000-4000-8000-000000000001"})).directoryEntryId).toBe("00000000-0000-4000-8000-000000000001");
+    expect(ContactRequestSchema.safeParse(buildContactRequest({directoryEntryId:"correo@example.com"})).success).toBe(false);
+  });
+
   it("reemplaza visitorId legacy en localStorage por UUID v4", async () => {
     const newVisitorId = "00000000-0000-4000-8000-000000000123";
     const storage = new Map<string, string>([[VISITOR_STORAGE_KEY, "v-001"]]);

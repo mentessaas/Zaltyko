@@ -194,9 +194,10 @@ export function DirectoryDetail({ entry }: { entry: DirectoryEntry }) {
         operational={Boolean(entry.academyId || entry.eventId)}
         event={isEvent}
       />
-      <Link className="underline" href="/recursos/kit-academias">
+      <Link className="underline" href={`/recursos/kit-academias?directoryEntryId=${entry.id}`}>
         Descargar el kit gratuito de organización
       </Link>
+      {entry.kind === "academy" && <section className="rounded-lg border p-5"><h2 className="font-semibold">¿Gestionas una academia?</h2><p>Descubre las herramientas de gestión de Zaltyko. Solicitar una demostración no activa una suscripción.</p><Link className="underline" href={`/contact?type=demo&directoryEntryId=${entry.id}`}>Solicitar una demostración</Link></section>}
       {schema && <Schema json={schema} />}
     </div>
   );

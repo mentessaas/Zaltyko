@@ -1,3 +1,4 @@
+import { flag } from "@/lib/directory/contracts";
 import { apiCreated, apiError } from "@/lib/api-response";
 import { eq } from "drizzle-orm";
 import { db } from "@/db";
@@ -43,6 +44,7 @@ export const POST = withRateLimit(
         message,
         honeypot,
         visitorId,
+        directoryEntryId,
         submissionId,
       } = parsed.data;
 
@@ -51,6 +53,9 @@ export const POST = withRateLimit(
         // Silently succeed to not reveal the honeypot
         return apiCreated({ message: "Contact message sent successfully" });
       }
+
+      const directoryEntry = directoryEntryId && flag("catalog") ? await (await import("@/lib/directory/service")).getEntry(directoryEntryId) : null;
+      const directoryAttribution: Record<string,string> = directoryEntry ? {entry_id: directoryEntry.id, audience: "unknown"} : {};
 
       const reasonLabels: Record<string, string> = {
         demo: "Solicitar demo",
@@ -115,8 +120,13 @@ export const POST = withRateLimit(
         visitorId,
         planCode: plan ?? null,
         source,
-        properties: { reason, has_academy_name: Boolean(sanitizedAcademy) },
+        properties: { reason, has_academy_name: Boolean(sanitizedAcademy), ...directoryAttribution },
         idempotencyKey: `contact:${submissionId}`,
+      });
+
+      if (directoryEntry && reason === "demo") await recordGrowthEvent({
+        eventName: "directory_demo_requested", visitorId, source:"directory",
+        properties:directoryAttribution, idempotencyKey:`directory:demo:${submissionId}`,
       });
 
       // Send email notification

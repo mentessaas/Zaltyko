@@ -30,11 +30,13 @@ Fecha: 30 de septiembre de 2026. Rama `feat/public-directory`, base `01e4df1f`.
 ## Validación observada
 
 - Suite web completa anterior a los últimos ajustes: **415 archivos, 1.867 pruebas aprobadas**; un archivo y tres casos omitidos.
-- Suite focalizada después de adaptar las fuentes: **76 pruebas aprobadas en siete archivos**. Compilación de producción local aprobada; tipos y lint se ejecutan aparte porque el build del proyecto los omite.
+- Suite focalizada después de adaptar las fuentes: **88 pruebas aprobadas en doce archivos**. Compilación de producción local aprobada; tipos y lint se ejecutan aparte porque el build del proyecto los omite.
 - PostgreSQL aislado real, migración exacta, dump/restauración y **47 comprobaciones aprobadas**. Incluye concurrencia de reclamaciones y lotes, edición sensible, revocación, proyección/retirada, deduplicación de correos y denegaciones con roles de base de datos.
 - Supabase local real y navegador: representante sin perfil operativo solicita; Super Admin aprueba; representante ve y edita; segundo representante no ve gestión y recibe HTTP 403 al intentar editar. Owner/admin/coach/parent/athlete reciben 403 en API de administración.
 - Formulario de representante y Mis fichas: comprobación de ancho a 390 px y zoom CSS del 200 %, captura y navegación Tab. Esta comprobación **no** equivale a VoiceOver manual ni a todos los recorridos de accesibilidad del producto.
 - Integridad: 7 migraciones Drizzle y 91 Supabase validadas; RLS estático y gates de lecturas/autorización/rutas aprobados.
+- Storage real local: anónimo y cuenta ajena no pueden descargar ni firmar pruebas privadas; URL temporal de 60 segundos validada y archivo ficticio retirado.
+- Páginas existentes por país: fichas externas filtradas por disciplina comprobadas en navegador, con URL conservada. Solicitud de demo y reintento comprobados mediante API local; un único evento de conversión con ID de ficha y sin datos personales.
 - Proveedor de correo: pruebas con callback local controlado; **ningún correo real enviado**. Webhook Brevo implementado, configuración y prueba con el proveedor pendientes.
 
 ## Publicación gradual
@@ -65,8 +67,8 @@ Rollback inicial: apagar flags y volver a lectores anteriores. Conservar tablas 
 - Autorización de reutilización de las tres fuentes, revisión jurídica por país y materiales gráficos: no acreditadas. El campo de autorización debe contener evidencia real, no una inferencia por ser una web pública.
 - Extracción automática de los PDF de Brasil/OCR: los enlaces se descubren; la estructuración de sus contenidos sigue siendo revisión manual. Redes sociales: enlaces/propuestas manuales exclusivamente.
 - Escáner de documentos y entrega real de correo/webhook: no configurados ni probados externamente.
-- Avisos de reclamación, acciones masivas y vinculación asistida están implementados; avisos reales aún requieren configurar y validar el proveedor. Páginas SEO regionales del directorio externo: pendientes de contenido suficiente y de integrar ese contenido en los lectores regionales. El estado de reclamación ya se consulta en Mis fichas y el catálogo no promete esas funciones pendientes.
-- Medición de solicitud y aprobación de reclamación, suscripción confirmada y activación SaaS con identificador idempotente incorporada. Medición completa de demos atribuidas al directorio y distinción de familias identificadas: no cerrada. Se informa únicamente de los eventos observados.
+- Avisos de reclamación, acciones masivas y vinculación asistida están implementados; avisos reales aún requieren configurar y validar el proveedor. Páginas existentes por país integradas con el directorio externo y lista visible. Nuevas páginas por localidad: condicionadas a contenido útil; no se han creado páginas vacías. El estado de reclamación ya se consulta en Mis fichas y el catálogo no promete esas funciones pendientes.
+- Medición de solicitud y aprobación de reclamación, suscripción confirmada y activación SaaS con identificador idempotente incorporada. Solicitudes de demo atribuidas a una ficha y descargas desde ella incorporadas. Distinción de familias identificadas: no cerrada; audiencia desconocida permanece desconocida. Se informa únicamente de los eventos observados.
 - Alta nueva por formulario del directorio comprobada contra Auth local: devuelve a la ficha y no crea perfil operativo. Activación expresa del SaaS comprobada en navegador: crea y vincula el espacio, conserva la URL de la ficha y el reintento reutiliza el vínculo. El formulario conserva nombre y ubicación de la ficha, con borrador separado por ficha. Confirmación real por correo, OAuth y regresión completa de destinos de todos los roles: pendientes. Las denegaciones de API no sustituyen esos recorridos.
 - VoiceOver manual sobre el build desplegado permanece diferenciado y pendiente por decisión anterior.
 
@@ -79,4 +81,4 @@ Rollback inicial: apagar flags y volver a lectores anteriores. Conservar tablas 
 - [Supabase RLS](https://supabase.com/docs/guides/database/postgres/row-level-security): acceso explícito y pruebas de denegación.
 - [LSSI: publicidad](https://lssi.digital.gob.es/lssi/la-ley/aspectos-basicos/publicidad-en-internet): el contacto público no prueba autorización comercial. Los borradores de invitación requieren validar el canal antes de enviarse.
 
-La primera vista previa fue rechazada por la frecuencia del cron en Vercel Hobby; se corrigió a una ejecución diaria. El navegador reveló y permitió corregir el envío innecesario a revisión por diferencias entre campos opcionales vacíos y ausentes.
+La vista previa de Vercel del commit `90979f5c` se desplegó correctamente con flags apagados; las comprobaciones de build, tipos, pruebas y permisos aprobaron. La primera vista previa fue rechazada por la frecuencia del cron en Vercel Hobby; se corrigió a una ejecución diaria. El navegador reveló y permitió corregir el envío innecesario a revisión por diferencias entre campos opcionales vacíos y ausentes.

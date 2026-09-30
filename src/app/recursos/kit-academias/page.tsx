@@ -1,16 +1,20 @@
 import Link from "next/link";
+import { getPublicSiteUrl } from "@/lib/seo/site-url";
 import { DirectoryMeasurement } from "@/components/directory/DirectoryMeasurement";
 import { SubscriptionForm } from "@/components/directory/SubscriptionForm";
 import { flag } from "@/lib/directory/contracts";
 export const metadata = {
+  alternates: {canonical: `${getPublicSiteUrl()}/recursos/kit-academias`},
   title: "Kit gratuito de organización de academias | Zaltyko",
   description:
     "Plantillas de cuotas y asistencia, checklist de temporada y guía de gestión para academias de gimnasia.",
 };
-export default function Page() {
+export default async function Page({searchParams}:{searchParams:Promise<{directoryEntryId?:string}>}) {
+  const {directoryEntryId}=await searchParams;
+  const originEntryId=directoryEntryId && /^[a-f0-9]{8}-[a-f0-9]{4}-[a-f0-9]{4}-[a-f0-9]{4}-[a-f0-9]{12}$/i.test(directoryEntryId) ? directoryEntryId : undefined;
   return (
     <main className="mx-auto max-w-3xl space-y-7 px-4 py-12">
-      <DirectoryMeasurement id="kit" kind="resource" />
+      <DirectoryMeasurement id="kit" kind="resource" originEntryId={originEntryId} />
       <h1 className="text-3xl font-bold">
         Kit de organización de academias de gimnasia
       </h1>
