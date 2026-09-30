@@ -590,3 +590,12 @@ Verificadas el 2026-08-02 contra repo canónico `zaltyko/zaltyko` HEAD `a08b27af
 - Plan remediación: [ZAL-148](/ZAL/issues/ZAL-148), [ZAL-169](/ZAL/issues/ZAL-169).
 
 **Origen**: cherry-pick limpio del commit `b30d9ec8` (PR original #64 `vault/zal-169-antispoofing-policy`). El PR original arrastraba 12 commits de proceso de "board move execution" (Agosto 2026) y tocaba el frontmatter de `Decisiones.md` con datos ya obsoletos en main — se cerró y reemplazó por este backfill en rama `cherry/vault-zal169-policy`.
+
+## 2026-09-30 — Mantener la recuperación y OAuth como gate independiente
+
+| Campo | Valor |
+| --- | --- |
+| Contexto | La web de producción no mostraba recuperación de contraseña. Los botones Google de login y registro terminaban en `redirect_uri_mismatch`. La URL de producción de Supabase se confirmó como `https://jegxfahsvugilbthbked.supabase.co`; el proyecto está activo y saludable. |
+| Decisión | Añadir recuperación con enlace seguro, respuesta que no revela si existe la cuenta y actualización tras autenticar el enlace. Mantener el acceso Google existente, mejorar su navegación explícita y corregir la configuración en la consola OAuth con el callback real de Supabase. Mantener este cambio en un PR separado del directorio para que su despliegue no dependa de permisos de fuentes, contenido o revisión jurídica. |
+| Consecuencia | El código queda preparado, pero login/registro Google solo volverán a funcionar tras registrar `https://jegxfahsvugilbthbked.supabase.co/auth/v1/callback` en Google Auth Platform. La recuperación real exige permitir `https://zaltyko.com/auth/callback` en Supabase y probar SMTP. No se cambian ajustes productivos desde esta sesión. |
+| Estado | PR de autenticación en preparación. TypeScript, ESLint, formato y test focal pasan. Mailpit local recibió la solicitud; la allowlist local bloqueó la finalización. Ver [runbook](../../docs/auth/google-and-password-recovery.md). |

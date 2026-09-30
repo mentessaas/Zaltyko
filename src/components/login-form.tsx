@@ -30,13 +30,15 @@ export function LoginForm() {
   }
   const toast = useToast();
   const noticeShownRef = useRef(false);
-  const callbackUrl = searchParams.get("callbackUrl");
+  const callbackUrl =
+    searchParams.get("callbackUrl") ?? searchParams.get("next");
   const nextPath = getSafeAuthNextPath(callbackUrl);
 
   const authUnavailable = () => {
     toast.pushToast({
       title: "Servicio de acceso no disponible",
-      description: "La autenticación no está configurada en este entorno. Contacta con soporte si el problema continúa.",
+      description:
+        "La autenticación no está configurada en este entorno. Contacta con soporte si el problema continúa.",
       variant: "error",
     });
   };
@@ -48,7 +50,8 @@ export function LoginForm() {
       noticeShownRef.current = true;
       toast.pushToast({
         title: "Revisa tu correo",
-        description: "Confirma tu cuenta desde el email y luego inicia sesión para continuar.",
+        description:
+          "Confirma tu cuenta desde el email y luego inicia sesión para continuar.",
         variant: "success",
       });
     }
@@ -57,7 +60,8 @@ export function LoginForm() {
       noticeShownRef.current = true;
       toast.pushToast({
         title: "No pudimos completar el acceso",
-        description: "Inténtalo de nuevo. Si el enlace expiró, solicita uno nuevo.",
+        description:
+          "Inténtalo de nuevo. Si el enlace expiró, solicita uno nuevo.",
         variant: "error",
       });
     }
@@ -65,7 +69,7 @@ export function LoginForm() {
 
   const handleLogin = async (e: React.FormEvent) => {
     e.preventDefault();
-    
+
     // Validar email antes de enviar
     if (!email.trim()) {
       toast.pushToast({
@@ -75,7 +79,7 @@ export function LoginForm() {
       });
       return;
     }
-    
+
     if (!isValidEmail(email)) {
       toast.pushToast({
         title: "Correo inválido",
@@ -84,7 +88,7 @@ export function LoginForm() {
       });
       return;
     }
-    
+
     if (!password.trim()) {
       toast.pushToast({
         title: "Contraseña requerida",
@@ -93,7 +97,7 @@ export function LoginForm() {
       });
       return;
     }
-    
+
     if (!supabase) {
       authUnavailable();
       return;
@@ -104,7 +108,7 @@ export function LoginForm() {
       if (!normalizedEmail) {
         throw new Error("Email inválido");
       }
-      
+
       const { error } = await supabase.auth.signInWithPassword({
         email: normalizedEmail,
         password,
@@ -131,7 +135,7 @@ export function LoginForm() {
 
   const handleMagicLink = async (e: React.FormEvent) => {
     e.preventDefault();
-    
+
     if (!email.trim()) {
       toast.pushToast({
         title: "Correo requerido",
@@ -140,7 +144,7 @@ export function LoginForm() {
       });
       return;
     }
-    
+
     if (!isValidEmail(email)) {
       toast.pushToast({
         title: "Correo inválido",
@@ -149,7 +153,7 @@ export function LoginForm() {
       });
       return;
     }
-    
+
     if (!supabase) {
       authUnavailable();
       return;
@@ -160,7 +164,7 @@ export function LoginForm() {
       if (!normalizedEmail) {
         throw new Error("Email inválido");
       }
-      
+
       const { error } = await supabase.auth.signInWithOtp({
         email: normalizedEmail,
         options: {
@@ -192,10 +196,11 @@ export function LoginForm() {
     }
     setGoogleLoading(true);
     try {
-      const { error } = await supabase.auth.signInWithOAuth({
+      const { data, error } = await supabase.auth.signInWithOAuth({
         provider: "google",
         options: {
           redirectTo: `${window.location.origin}/auth/callback?next=${encodeURIComponent(nextPath)}`,
+          skipBrowserRedirect: true,
         },
       });
       if (error) {
@@ -205,8 +210,20 @@ export function LoginForm() {
           variant: "error",
         });
         setGoogleLoading(false);
+        return;
       }
-    } catch (err) {
+      if (!data?.url) {
+        toast.pushToast({
+          title: "No pudimos iniciar Google",
+          description:
+            "El proveedor no devolvió una URL de autenticación. Inténtalo de nuevo.",
+          variant: "error",
+        });
+        setGoogleLoading(false);
+        return;
+      }
+      window.location.assign(data.url);
+    } catch {
       toast.pushToast({
         title: "Error inesperado",
         description: "No se pudo iniciar sesión con Google",
@@ -224,7 +241,10 @@ export function LoginForm() {
         footer={
           <>
             ¿Aún no tienes cuenta?{" "}
-            <Link href="/auth/register" className="font-semibold text-zaltyko-indigo hover:underline">
+            <Link
+              href="/auth/register"
+              className="font-semibold text-zaltyko-indigo hover:underline"
+            >
               Crea una cuenta
             </Link>
           </>
@@ -250,7 +270,15 @@ export function LoginForm() {
             />
           </div>
           <div className="space-y-2">
-            <Label htmlFor="password">Contraseña</Label>
+            <div className="flex items-center justify-between gap-3">
+              <Label htmlFor="password">Contraseña</Label>
+              <Link
+                href={`/auth/forgot-password?next=${encodeURIComponent(nextPath)}`}
+                className="text-sm font-medium text-zaltyko-indigo hover:underline"
+              >
+                ¿Olvidaste tu contraseña?
+              </Link>
+            </div>
             <Input
               id="password"
               type="password"

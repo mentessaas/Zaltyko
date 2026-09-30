@@ -10560,3 +10560,18 @@ Vault: actualizado `Changelog interno.md`; se preserva el backlog existente porq
 - La pantalla `/dashboard/empleo/mis-postulaciones` normaliza respuestas `{ ok, data }` y evita mostrar falsamente una lista vacía.
 - Se añadió contrato focal para la carga de postulaciones.
 - El despliegue remoto directo sufrió OOM en Vercel; se usó build prebuilt local reproducible para publicar sin cambiar infraestructura.
+
+## 2026-09-30 — Recuperación de contraseña y diagnóstico Google OAuth
+
+- Producción: falta el enlace visible de recuperación; Google falla tanto en login como en registro con `redirect_uri_mismatch`.
+- Se añadió el recorrido de recuperación por email con respuesta anti-enumeración, callback seguro y actualización de contraseña. Login Google ahora navega explícitamente a la URL devuelta por Supabase.
+- TypeScript, ESLint, formato y prueba focal de rutas seguras pasan. Solicitud local capturada en Mailpit; callback no completado porque la allowlist local rechaza el host/puerto 3109. Sin correo real ni cambio de configuración en producción.
+- Configuración pendiente: callback Supabase en Google Auth Platform y redirect de la app en Supabase URL Configuration. Ver [runbook](../../docs/auth/google-and-password-recovery.md).
+- El cambio está en rama local `fix/auth-password-recovery`; no desplegado. Los registros reales revisados, permisos de fuentes y revisión jurídica del directorio siguen abiertos; sus flags continúan apagados en la rama separada.
+
+## 2026-10-01 — Validación de onboarding y límites del correo real
+
+- PR #174 ya contiene la búsqueda de academia en el onboarding después del registro, la revisión de la ficha y el bloqueo de duplicados en servidor. Los checks de CI están verdes; sigue en borrador y los flags del directorio están apagados.
+- Se añadieron pruebas de interfaz para solicitud de recuperación, ruta de retorno segura y cambio de contraseña. Las pruebas focales pasan localmente.
+- Vercel enumera la clave y datos de remitente de Brevo en producción, pero la ejecución local no inyecta las variables y la API no devuelve el valor descifrado. No se intentó eludir esa restricción y no se envió ningún correo real.
+- Storage privado con documento ficticio se probó en el entorno aislado del PR #174; producción, proveedor antimalware y recepción de correo real siguen pendientes.
