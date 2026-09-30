@@ -47,6 +47,13 @@ async function main(): Promise<void> {
     process.exit(2);
   }
 
+  const replyTo = process.env.BREVO_REPLY_TO;
+  if (!replyTo) {
+    console.log("FALTA CONFIGURACION DEL PROVEEDOR");
+    console.log("  Variable ausente: BREVO_REPLY_TO");
+    process.exit(2);
+  }
+
   console.log("Credenciales de Brevo: configuradas");
 
   if (!recipient) {
@@ -61,7 +68,7 @@ async function main(): Promise<void> {
   const result = await sendEmail({
     to: recipient,
     subject: "Zaltyko · verificacion de entrega de correo",
-    replyTo: process.env.BREVO_REPLY_TO,
+    replyTo,
     html: [
       "<p>Este es un mensaje de verificacion de la entrega de correo de Zaltyko.</p>",
       "<p>Si lo has recibido, el proveedor transaccional esta operativo.</p>",

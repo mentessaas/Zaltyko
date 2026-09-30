@@ -46,7 +46,7 @@ async function gotoAcademy(page: Page, path: string) {
   } catch (error) {
     const message = error instanceof Error ? error.message : String(error);
     if (
-      !/ERR_EMPTY_RESPONSE|ERR_ABORTED|ERR_CONNECTION_RESET|ERR_NETWORK_IO_SUSPENDED|Timeout|interrupted by another navigation/.test(
+      !/ERR_EMPTY_RESPONSE|ERR_ABORTED|ERR_CONNECTION_RESET|ERR_NETWORK_IO_SUSPENDED|NS_BINDING_ABORTED|Timeout|timed out|interrupted by another navigation|navigation interrupted|aborted/.test(
         message
       )
     ) {
@@ -191,20 +191,24 @@ test.describe("Zaltyko full academy flows", () => {
     await gotoAcademy(page, "dashboard");
 
     const searchTrigger = page.getByRole("button", { name: /Buscar/i }).first();
+    const searchInput = page.getByPlaceholder(
+      /Buscar atletas, clases, entrenadores, eventos/i
+    );
     await expect(searchTrigger).toBeVisible();
     await searchTrigger.click();
-    await expect(
-      page.getByPlaceholder(/Buscar atletas, clases, entrenadores, eventos/i)
-    ).toBeVisible();
+    await expect(searchInput).toBeVisible();
+
+    // Escape debe terminar de cerrar el dialogo antes de reabrirlo por
+    // atajo: si ambas teclas llegan en el mismo frame el toggle puede
+    // interpretarse como "cerrar" y la prueba falla de forma intermitente.
     await page.keyboard.press("Escape");
+    await expect(searchInput).toBeHidden();
 
     await page.keyboard.press(
       process.platform === "darwin" ? "Meta+K" : "Control+K"
     );
 
-    await expect(
-      page.getByPlaceholder(/Buscar atletas, clases, entrenadores, eventos/i)
-    ).toBeVisible();
+    await expect(searchInput).toBeVisible();
     await expect(
       page.getByText("Acciones rápidas", { exact: true })
     ).toBeVisible();

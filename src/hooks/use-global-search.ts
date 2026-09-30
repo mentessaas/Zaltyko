@@ -26,22 +26,28 @@ export function useGlobalSearch(options: UseGlobalSearchOptions = {}) {
     if (!enabled) return;
 
     const handleKeyDown = (event: KeyboardEvent) => {
-      // Cmd+K (Mac) or Ctrl+K (Windows/Linux)
-      if ((event.metaKey || event.ctrlKey) && event.key === "k") {
+      // Cmd+K (Mac) o Ctrl+K (Windows/Linux). Se registra en fase de captura y
+      // se corta la propagacion para que el navegador no se quede el atajo.
+      const isToggleShortcut =
+        (event.metaKey || event.ctrlKey) && event.key.toLowerCase() === "k";
+      if (isToggleShortcut) {
         event.preventDefault();
+        event.stopPropagation();
         toggleSearch();
+        return;
       }
 
-      // Escape to close
-      if (event.key === "Escape" && isOpen) {
+      // Escape solo cierra. Se decide contra el estado funcional para que dos
+      // pulsaciones rapidas no puedan reabrir el palet por carreras de render.
+      if (event.key === "Escape") {
         event.preventDefault();
-        closeSearch();
+        setIsOpen((current) => (current ? false : current));
       }
     };
 
-    document.addEventListener("keydown", handleKeyDown);
-    return () => document.removeEventListener("keydown", handleKeyDown);
-  }, [enabled, toggleSearch, closeSearch, isOpen]);
+    document.addEventListener("keydown", handleKeyDown, true);
+    return () => document.removeEventListener("keydown", handleKeyDown, true);
+  }, [enabled, toggleSearch]);
 
   return {
     isOpen,

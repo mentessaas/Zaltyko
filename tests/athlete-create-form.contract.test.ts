@@ -13,4 +13,13 @@ describe("athlete creation contact requirement", () => {
       source.indexOf("Opciones menos frecuentes: se pueden completar después")
     );
   });
+
+  it("associates the required athlete-name error with the invalid field", () => {
+    const source = readFileSync("src/components/athletes/CreateAthleteDialog.tsx", "utf8");
+    expect(source).toContain('id="create-athlete-name"');
+    expect(source).toContain('aria-invalid={nameError || undefined}');
+    expect(source).toContain('aria-describedby={nameError ? "create-athlete-name-error" : undefined}');
+    expect(source).toContain('id="create-athlete-name-error"');
+    expect(source).toContain('role="alert"');
+  });
 });

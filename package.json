@@ -154,7 +154,7 @@
     "@vitejs/plugin-react": "^4.3.4",
     "@vitest/coverage-v8": "^4.1.11",
     "baseline-browser-mapping": "^2.10.21",
-    "@lhci/cli": "^0.14.0",
+    "@lhci/cli": "^0.15.1",
     "drizzle-kit": "^0.31.6",
     "eslint": "^8.57.0",
     "eslint-config-next": "15.5.19",
@@ -190,5 +190,11 @@
   "bugs": {
     "url": "https://github.com/mentessaas/Zaltyko/issues"
   },
-  "homepage": "https://github.com/mentessaas/Zaltyko#readme"
+  "homepage": "https://github.com/mentessaas/Zaltyko#readme",
+  "pnpm": {
+    "overrides": {
+      "tmp": "^0.2.4",
+      "uuid": "^11.1.1"
+    }
+  }
 }
