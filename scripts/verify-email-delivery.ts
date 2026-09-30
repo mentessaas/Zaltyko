@@ -17,7 +17,10 @@ import { config } from "dotenv";
 import { resolve } from "node:path";
 
 import { getFeatureReadiness } from "@/lib/env";
-import { sendEmailWithLogging } from "@/lib/email/email-service";
+// Se usa el emisor de Brevo directamente y no `sendEmailWithLogging`: este
+// script valida el proveedor, no el ledger. El sender con logging consulta
+// `email_logs` antes de enviar, asi que exige una base de datos configurada.
+import { sendEmail } from "@/lib/brevo";
 
 config({ path: resolve(process.cwd(), ".env.local") });
 config({ path: resolve(process.cwd(), ".env") });
@@ -44,6 +47,13 @@ async function main(): Promise<void> {
     process.exit(2);
   }
 
+  const replyTo = process.env.BREVO_REPLY_TO;
+  if (!replyTo) {
+    console.log("FALTA CONFIGURACION DEL PROVEEDOR");
+    console.log("  Variable ausente: BREVO_REPLY_TO");
+    process.exit(2);
+  }
+
   console.log("Credenciales de Brevo: configuradas");
 
   if (!recipient) {
@@ -55,22 +65,26 @@ async function main(): Promise<void> {
   console.log(`Destinatario de prueba: ${recipient}`);
   console.log("Enviando mensaje real...");
 
-  const delivered = await sendEmailWithLogging({
+  const result = await sendEmail({
     to: recipient,
     subject: "Zaltyko · verificacion de entrega de correo",
-    template: "ops:email-delivery-check",
-    replyTo: process.env.BREVO_REPLY_TO,
+    replyTo,
     html: [
       "<p>Este es un mensaje de verificacion de la entrega de correo de Zaltyko.</p>",
       "<p>Si lo has recibido, el proveedor transaccional esta operativo.</p>",
     ].join(""),
     text: "Verificacion de entrega de correo de Zaltyko. Si lo has recibido, el proveedor transaccional esta operativo.",
-    metadata: { source: "scripts/verify-email-delivery.ts" },
-    dedupeKey: `ops-email-delivery-check:${recipient}:${new Date().toISOString().slice(0, 10)}`,
   });
 
-  if (delivered) {
+  if (result.simulated) {
+    console.log("\nENVIO SIMULADO");
+    console.log("  El proveedor no estaba configurado; no se envio ningun mensaje.");
+    process.exit(1);
+  }
+
+  if (result.messageId) {
     console.log("\nENTREGA ACEPTADA POR EL PROVEEDOR");
+    console.log(`  Identificador del mensaje: ${result.messageId}`);
     console.log("  Revisa la bandeja del destinatario para confirmar la recepcion.");
     return;
   }
