@@ -376,3 +376,8 @@ Trabajo de auditoria mergeado a `security/audit-remediation` via **PR #8 (`cf092
 ## 2026-10-01 — Acceso de suscripción Stripe y E2E
 
 PR #178 requiere que el estado permitido tenga también un `stripe_subscription_id` no vacío antes de conceder acceso pagado; el trial independiente no cambia. Suite, typecheck y build locales pasan. El primer E2E de GitHub se canceló durante la instalación de Chromium/Firefox/WebKit, antes de ejecutar tests. La E2E final cubre los tres motores, así que se conservan y se amplía el límite a 45 minutos. CI actualizado y aprobación independiente pendientes.
+
+## 2026-09-30 — Brevo y dependencias pendientes (snapshot)
+
+- PR #171 se había fusionado; seguía pendiente actualizar moment y sincronizar lockfiles móviles para uuid, decode-uri-component, brace-expansion y js-yaml.
+- Las alertas de extract-zip aún no tenían versión corregida publicada. Los pendientes de VoiceOver, Stripe Live/Connect/Tax y backup cloud se conservan según la decisión del usuario.

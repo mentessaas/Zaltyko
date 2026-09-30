@@ -10591,3 +10591,9 @@ Vault: actualizado `Changelog interno.md`; se preserva el backlog existente porq
 - **Verificación local:** `tests/phase1-production-contracts.test.ts` 7/7; suite completa Vitest **428 archivos PASS, 1 omitido; 2.180 pruebas PASS, 3 omitidas**; `pnpm typecheck` PASS; ESLint de los cuatro archivos de código/prueba PASS; `git diff --check` PASS.
 - **Alcance:** sin migración, cambios de datos, llamadas a Stripe ni despliegue. El PR antiguo #105 también modificaba una ruta de MRR ya ausente en `main`; esa parte no se trasladó. CI, revisión independiente, merge y verificación post-despliegue siguen pendientes.
 - **CI E2E:** el run `36909727724` se canceló tras 20 minutos instalando tres motores antes de ejecutar pruebas. La suite completa usa los proyectos Chromium, Firefox y WebKit; se conservan los tres y el límite del job sube a 45 minutos. El run Chromium-only posterior se supersede antes de la E2E final; esperar el nuevo CI para cerrar.
+
+## 2026-09-30 — Brevo y dependencias pendientes (snapshot)
+
+- PR #171 ya estaba fusionado; seguimiento previsto: actualizar moment y sincronizar lockfiles móviles con los overrides de uuid, decode-uri-component, brace-expansion y js-yaml.
+- El audit de producción y la verificación de Brevo se consideraron por separado. La auditoría posterior del 2026-10-02 supersede la afirmación histórica de que el audit móvil estaba limpio y documenta la alerta upstream `node-forge`.
+- VoiceOver, Stripe Live/Connect/Tax y backup cloud permanecen aplazados por indicación del usuario.

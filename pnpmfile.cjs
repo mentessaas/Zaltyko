@@ -9,6 +9,7 @@ const PATCHED_DEPENDENCIES = new Map([
   ["fast-uri", "^3.1.8"],
   ["ip-address", "^10.7.1"],
   ["js-yaml", "^4.3.2"],
+  ["moment", "^2.31.0"],
   ["sharp", "^0.35.4"],
 ]);
 
