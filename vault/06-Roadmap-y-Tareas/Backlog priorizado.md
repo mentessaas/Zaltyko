@@ -372,3 +372,7 @@ Trabajo de auditoria mergeado a `security/audit-remediation` via **PR #8 (`cf092
 - **Bloqueo de OAuth:** cliente Web y URLs de retorno están correctos en Google Cloud/Supabase, pero la app sigue en Testing con cero testers. Conseguir autorización para un tester propio o completar el proceso de publicación/verificación; después correr login y registro reales. No añadir cuentas ni publicar por inferencia.
 - **Bloqueo de correo Auth:** Supabase aún usa el relay integrado (no apto para producción). Configurar SMTP propio con credenciales SMTP, aplicar remitente de dominio verificado y probar recuperación. Brevo API key ≠ SMTP key; no usar una en lugar de la otra. Mantener pendiente hasta guardar credencial segura y demostrar recepción.
 - **Estado de Brevo app:** falta `BREVO_REPLY_TO`; la clave probada anteriormente respondió 401. Rotar la clave expuesta, establecer Reply-To y validar con el verificador seguro; no pegar secretos en chat.
+
+## 2026-10-01 — Acceso de suscripción Stripe y E2E
+
+PR #178 requiere que el estado permitido tenga también un `stripe_subscription_id` no vacío antes de conceder acceso pagado; el trial independiente no cambia. Suite, typecheck y build locales pasan. El primer E2E de GitHub se canceló durante la instalación de Chromium/Firefox/WebKit, antes de ejecutar tests; CI ahora instala Chromium únicamente porque `test:e2e:auth` fija ese proyecto. CI actualizado y aprobación independiente pendientes.

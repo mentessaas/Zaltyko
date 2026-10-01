@@ -8,6 +8,15 @@ source:
 
 # Decisiones
 
+## 2026-10-01 — E2E autenticado instala solo Chromium
+
+| Campo | Valor |
+| --- | --- |
+| Contexto | El run `36909727724` consumió el límite de 20 minutos durante `playwright install --with-deps chromium firefox webkit`; ninguna prueba E2E llegó a ejecutarse. `test:e2e:auth` fija explícitamente `--project=chromium`. |
+| Decisión | Limitar la instalación de navegadores del job autenticado a Chromium, manteniendo intactos los jobs que sí prueban varios motores. |
+| Consecuencia | Reduce descargas ajenas a esta suite y deja más tiempo para build, provisión de cuentas y pruebas autenticadas. |
+| Estado | Cambio local para PR #178; nuevo CI pendiente. |
+
 ## 2026-09-04 - ZAL-1091: Board rechaza el toggle scope-bounded de recovery para ZAL-1081
 
 | Campo | Valor |

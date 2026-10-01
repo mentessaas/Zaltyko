@@ -423,7 +423,8 @@ jobs:
         run: pnpm install --frozen-lockfile
 
       - name: Install Playwright browsers
-        run: pnpm exec playwright install --with-deps chromium firefox webkit
+        # The authenticated suite is pinned to --project=chromium.
+        run: pnpm exec playwright install --with-deps chromium
 
       - name: Build isolated E2E app for production-mode runtime
         run: pnpm build
