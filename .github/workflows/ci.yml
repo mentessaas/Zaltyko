@@ -317,9 +317,10 @@ jobs:
         run: pnpm check:migrations
 
   # Lighthouse CI: corre contra un build local tras `pnpm build`. Solo en push
-  # a main para no penalizar PRs de forks sin secrets. SEO score es hard-fail
-  # (categories:seo >= 0.95); performance/a11y/best-practices son warn hasta
-  # tener baseline real de las 5 paginas clave.
+  # a main para no penalizar PRs de forks sin secrets. SEO marca warning por
+  # debajo de 0.90; performance/a11y/best-practices son warn hasta
+  # tener baseline real de las 5 paginas clave. Las reglas explicitas evitan
+  # que LHCI aplique auditorias obsoletas del preset al actualizar Lighthouse.
   lighthouse:
     name: Lighthouse SEO/Perf Budget
     runs-on: ubuntu-latest
@@ -334,7 +335,7 @@ jobs:
       - name: Setup Node.js
         uses: actions/setup-node@v4
         with:
-          node-version: "20"
+          node-version: "22"
           cache: "pnpm"
 
       - name: Install dependencies
