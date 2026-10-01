@@ -1,5 +1,5 @@
 "use client";
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import {
   EntryEditor,
   directoryFetch,
@@ -91,6 +91,9 @@ export function AdminDirectory() {
   const [selected, setSelected] = useState<string[]>([]);
   const [pending, setPending] = useState<Record<string, unknown> | null>(null),
     [reason, setReason] = useState("");
+  const confirmationHeadingRef = useRef<HTMLHeadingElement>(null);
+  const confirmationTriggerRef = useRef<HTMLElement | null>(null);
+  const confirmationWasOpenRef = useRef(false);
   async function load() {
     try {
       const data = await directoryFetch(
@@ -105,6 +108,16 @@ export function AdminDirectory() {
   useEffect(() => {
     void load();
   }, [section, page]);
+  useEffect(() => {
+    if (pending) {
+      confirmationHeadingRef.current?.focus();
+      confirmationWasOpenRef.current = true;
+    } else if (confirmationWasOpenRef.current) {
+      confirmationTriggerRef.current?.focus();
+      confirmationWasOpenRef.current = false;
+      confirmationTriggerRef.current = null;
+    }
+  }, [pending]);
   async function act(body: unknown) {
     setBusy(true);
     setMessage("");
@@ -493,7 +506,8 @@ export function AdminDirectory() {
                 !item.provider_id && (
                   <button
                     className="underline"
-                    onClick={() => {
+                    onClick={(event) => {
+                      confirmationTriggerRef.current = event.currentTarget;
                       setReason("");
                       setPending({ action: "retry_delivery", id: item.id });
                     }}
@@ -655,10 +669,17 @@ export function AdminDirectory() {
       {pending && (
         <section
           role="region"
-          aria-label="Confirmar acción"
+          aria-labelledby="directory-confirmation-heading"
           className="space-y-3 rounded-xl border-2 border-primary p-5"
         >
-          <h2 className="text-xl font-semibold">Revisa antes de confirmar</h2>
+          <h2
+            id="directory-confirmation-heading"
+            ref={confirmationHeadingRef}
+            tabIndex={-1}
+            className="text-xl font-semibold"
+          >
+            Revisa antes de confirmar
+          </h2>
           <pre className="max-h-72 overflow-auto whitespace-pre-wrap break-words text-xs">
             {JSON.stringify(pending, null, 2)}
           </pre>
@@ -725,7 +746,7 @@ export function AdminDirectory() {
                   No reintentes si no has comprobado el historial de Brevo. Si el
                   proveedor aceptó el mensaje, repetirlo podría duplicarlo.
                 </p>
-                <label className="flex gap-2">
+                <label className="flex min-h-11 items-center gap-2">
                   <input
                     type="checkbox"
                     name="providerNotAccepted"

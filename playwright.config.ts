@@ -40,6 +40,8 @@ if (isPublicReadOnlyRun) {
 
 export default defineConfig({
   testDir: "./tests",
+  // Route assertions must allow in-flight browser navigation to settle before reporting missing UI.
+  expect: { timeout: 15_000 },
   // Playwright suites use .spec.ts; Vitest contracts use .test.ts and must
   // never be loaded by the Playwright collector.
   testMatch: isPublicReadOnlyRun

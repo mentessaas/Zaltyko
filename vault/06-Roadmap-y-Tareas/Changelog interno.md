@@ -10635,3 +10635,10 @@ Modelo separado, reclamación manual, administración, importación revisada, fi
 
 - La cola se subió en `77ab2a1a`; build, unitarias, lint/tipos, seguridad, migraciones aisladas, RLS, smoke autenticado y Preview pasan. E2E autenticado terminó con 59 pruebas pasadas y un fallo WebKit que pasó en retry; la CI reporta el job verde pero conserva el caso como flaky. Smoke público, E2E público y Lighthouse se omitieron.
 - El fallo fue una aserción del enlace de clases antes de que la barra lateral cliente estuviera visible, aunque `#main-content` ya lo estaba. Añadí una espera explícita de 15 s a la barra lateral antes de comprobar enlaces. ESLint focal pasa. Playwright local no puede listar/correr el spec sin identificar el proyecto Supabase de sandbox aprobado; no se eludió esa protección. Nueva CI pendiente tras subir el ajuste.
+
+### Revisión posterior de flakies y accesibilidad — 2026-10-01
+
+- La CI de `8903a381` pasó todos los checks requeridos, pero reportó dos E2E flakies (navegación móvil Chromium y navegación lateral WebKit; 58 pasaron). Ambas fallaron con el navegador aún esperando el fin de navegación y luego pasaron en retry; el job y smoke por roles quedaron verdes.
+- Añadí el tiempo global de espera de las aserciones Playwright a 15 s y conservo la espera explícita de la barra lateral; el próximo CI verificará si elimina esas carreras.
+- La confirmación administrativa ahora lleva el foco a su encabezado al abrirse y lo devuelve al botón que la activó al cancelar/finalizar. TypeScript y ESLint focal pasan; quedan tres avisos React preexistentes en la pantalla. Este ajuste sigue local hasta terminar la CI actual.
+- Sin envío real, producción, cambios remotos de schema ni flags activados. La prueba Playwright local requiere el ref explícito del sandbox de Supabase; se respetó ese gate.
