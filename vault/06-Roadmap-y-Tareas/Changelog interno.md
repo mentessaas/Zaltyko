@@ -10588,5 +10588,5 @@ Vault: actualizado `Changelog interno.md`; se preserva el backlog existente porq
 
 - **Hallazgo:** `hasSubscriptionAccess` permitía un plan de pago basándose solo en `status`; una fila local `active` sin `stripe_subscription_id` podía conceder límites pagados.
 - **Cambio:** la función central ahora exige ID Stripe no vacío y estado permitido. `getUserSubscription` y la comprobación de plan pagado en `getAcademyTrialStatus` pasan ambos datos. El trial independiente de `academy_trials` se mantiene.
-- **Verificación local:** `tests/phase1-production-contracts.test.ts` 7/7; `pnpm typecheck` PASS; ESLint de los cuatro archivos de código/prueba PASS; `git diff --check` PASS. Se está ejecutando la suite completa.
+- **Verificación local:** `tests/phase1-production-contracts.test.ts` 7/7; suite completa Vitest **428 archivos PASS, 1 omitido; 2.180 pruebas PASS, 3 omitidas**; `pnpm typecheck` PASS; ESLint de los cuatro archivos de código/prueba PASS; `git diff --check` PASS.
 - **Alcance:** sin migración, cambios de datos, llamadas a Stripe ni despliegue. El PR antiguo #105 también modificaba una ruta de MRR ya ausente en `main`; esa parte no se trasladó. CI, revisión independiente, merge y verificación post-despliegue siguen pendientes.
