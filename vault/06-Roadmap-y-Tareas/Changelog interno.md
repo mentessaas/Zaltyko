@@ -10560,3 +10560,9 @@ Vault: actualizado `Changelog interno.md`; se preserva el backlog existente porq
 - La pantalla `/dashboard/empleo/mis-postulaciones` normaliza respuestas `{ ok, data }` y evita mostrar falsamente una lista vacía.
 - Se añadió contrato focal para la carga de postulaciones.
 - El despliegue remoto directo sufrió OOM en Vercel; se usó build prebuilt local reproducible para publicar sin cambiar infraestructura.
+
+## 2026-10-01 - Alineación de ESLint con Next.js 15
+
+- El PR #140 proponía `@next/eslint-plugin-next` 16 junto a Next.js 15 y `eslint-config-next` 15, lo que rompe la configuración de ESLint.
+- Plugin y configuración quedan alineados con la versión de la app: 15.5.24.
+- Validación local: `pnpm lint`, `pnpm typecheck` y `pnpm build` pasan. La build local avisa que no tiene credenciales de producción y omite lint/tipos internos de Next; los comandos separados sí pasan. Aún falta CI remoto y revisión; no está desplegado.
