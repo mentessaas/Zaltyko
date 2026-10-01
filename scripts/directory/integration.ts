@@ -10,6 +10,8 @@ import {
   getEntry,
   listEntries,
   academyDuplicateQuery,
+  academyDuplicateLock,
+  academyOperationalIdentityQuery,
   rows,
   decideRevision,
   revokeGrant,
@@ -70,6 +72,7 @@ async function main() {
   const data = {
     name: "Academia ficticia de prueba",
     countryCode: "ES",
+    region: "Comunidad de Madrid",
     city: "Madrid",
     sourceName: "Fuente ficticia QA",
     sourceUrl: "https://example.org/qa",
@@ -97,8 +100,40 @@ async function main() {
   );
   const exactMatches=await rows(academyDuplicateQuery({name:"  ACADEMIA ficticia de prueba  ",countryCode:"es",city:"Madrid"}));
   check("Onboarding detecta la ficha exacta sin depender del correo",exactMatches.length===1 && exactMatches[0].id===entry.id);
+  check(
+    "Activar una ficha no se confunde con la propia ficha reclamada",
+    (await rows(academyDuplicateQuery({ ...data, excludeEntryId: entry.id }))).length === 0
+  );
   check("Otra sede con el mismo nombre no se fusiona ni bloquea",(await rows(academyDuplicateQuery({...data,city:"Lima"}))).length===0);
+  check(
+    "Otra región con el mismo nombre y ciudad no se confunde con la ficha",
+    (await rows(academyDuplicateQuery({ ...data, region: "Andalucía" }))).length === 0
+  );
   check("La búsqueda de duplicados no revela borradores",(await rows(academyDuplicateQuery({...data,name:"Borrador privado"}))).length===0);
+  check(
+    "Creaciones del mismo nombre y país comparten bloqueo aunque cambie la localidad",
+    academyDuplicateLock({ ...data, city: "Madrid" }) ===
+      academyDuplicateLock({ ...data, city: "Lima" })
+  );
+  const accentEntry = (await createEntry(
+    "academy",
+    { ...data, name: "Club Córdoba", region: "Andalucía", city: "Córdoba" },
+    admin
+  ))!;
+  await setPublication(accentEntry.id, admin, "published");
+  check(
+    "La búsqueda y el bloqueo reconocen diferencias solo de tildes",
+    (await rows(
+      academyDuplicateQuery({
+        name: "club cordoba",
+        countryCode: "es",
+        region: "andalucia",
+        city: "cordoba",
+      })
+    )).some((candidate) => candidate.id === accentEntry.id) &&
+      academyDuplicateLock({ name: "Club Córdoba", countryCode: "ES" }) ===
+        academyDuplicateLock({ name: "club cordoba", countryCode: "es" })
+  );
   const claims = await Promise.all([
     submitClaim(
       entry.id,
@@ -275,6 +310,63 @@ async function main() {
   check(
     "Privatizar academia la oculta inmediatamente",
     (await getEntry(op)) === null
+  );
+  const privateCollision = (await createEntry(
+    "academy",
+    { ...data, name: "Nombre operativo vigente", city: "Madrid" },
+    admin
+  ))!;
+  await setPublication(privateCollision.id, admin, "published");
+  check(
+    "Una ficha externa no cuenta como duplicado de sí misma al activarse",
+    (await rows(
+      academyDuplicateQuery({
+        ...data,
+        name: "Nombre operativo vigente",
+        city: "Madrid",
+        excludeEntryId: privateCollision.id,
+      })
+    )).length === 0
+  );
+  const privateIdentityMatch = (
+    await rows(
+      academyOperationalIdentityQuery({
+        name: "Nombre operativo vigente",
+        countryCode: "ES",
+        city: "Madrid",
+      })
+    )
+  )[0]?.exists;
+  check(
+    "La activación detecta un espacio privado sin exponer sus datos",
+    privateIdentityMatch === true
+  );
+  const differentCityMatch = (
+    await rows(
+      academyOperationalIdentityQuery({
+        name: "Nombre operativo vigente",
+        countryCode: "ES",
+        city: "Lima",
+      })
+    )
+  )[0]?.exists;
+  check(
+    "La búsqueda privada no bloquea una sede distinta ya especificada",
+    differentCityMatch === false
+  );
+  await query("UPDATE academies SET country_code=NULL WHERE id=$1", [op]);
+  const unknownCountryMatch = (
+    await rows(
+      academyOperationalIdentityQuery({
+        name: "Nombre operativo vigente",
+        countryCode: "ES",
+        city: "Madrid",
+      })
+    )
+  )[0]?.exists;
+  check(
+    "Un país operativo desconocido requiere revisión y no se duplica",
+    unknownCountryMatch === true
   );
   await query("DELETE FROM academies WHERE id=$1", [op]);
   check(

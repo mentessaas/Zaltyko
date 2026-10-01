@@ -53,6 +53,7 @@ export function OwnerOnboardingForm({
   const toast = useToast();
   const [reviewedLookup,setReviewedLookup]=useState<string|null>(null);
   const [duplicateEntries,setDuplicateEntries]=useState<{id:string;kind:"academy";slug:string;academy_id:string|null;event_id:null;data:{name:string}}[]>([]);
+  const [needsDirectoryReview, setNeedsDirectoryReview] = useState(false);
   const [pending, setPending] = useState(false);
   const [showAdvanced, setShowAdvanced] = useState(false);
   const [fullName, setFullName] = useState("");
@@ -246,6 +247,7 @@ export function OwnerOnboardingForm({
     if(directoryDiscoveryEnabled && !directoryEntryId && reviewedLookup!==JSON.stringify([academyName.trim(),countryCode,city.trim()])) return;
     setPending(true);
     setDuplicateEntries([]);
+    setNeedsDirectoryReview(false);
 
     try {
       const utm = readUtmWithFallback(
@@ -282,6 +284,9 @@ export function OwnerOnboardingForm({
 
       if (!response.ok) {
         if(payload?.code === "ACADEMY_ALREADY_LISTED") setDuplicateEntries(payload.details?.entries ?? []);
+        if (payload?.code === "ACADEMY_REVIEW_REQUIRED") {
+          setNeedsDirectoryReview(true);
+        }
         throw new Error(payload?.message ?? payload?.error ?? "No se pudo completar la configuración inicial.");
       }
 
@@ -677,6 +682,24 @@ export function OwnerOnboardingForm({
           onReviewed={setReviewedLookup}
           claimsEnabled={directoryClaimsEnabled}
         />
+      )}
+      {needsDirectoryReview && (
+        <div role="alert" className="space-y-2 rounded-lg border p-4">
+          <p>
+            Para evitar duplicar una academia, necesitamos revisar estos datos
+            antes de crear el espacio de gestión.
+          </p>
+          <Link
+            className="block underline"
+            href={
+              directoryEntryId
+                ? `/contact?type=support&directoryEntryId=${encodeURIComponent(directoryEntryId)}`
+                : "/contact?type=support"
+            }
+          >
+            Solicitar ayuda para vincular la ficha
+          </Link>
+        </div>
       )}
       {duplicateEntries.length>0 && <div role="alert" className="space-y-2 rounded-lg border p-4"><p>Esta academia ya tiene una ficha. Revísala y solicita la reclamación o asistencia; no hemos creado otra academia. Si es otra sede con el mismo nombre, solicita asistencia para distinguirlas.</p><Link className="block underline" href="/contact?type=support">Solicitar asistencia para revisar mi sede</Link>{duplicateEntries.map(entry=><Link key={entry.id} className="block underline" href={`/academias/${entry.id}${entry.slug?`-${entry.slug}`:""}`}>{entry.data.name}</Link>)}</div>}
       <Button type="submit" className="w-full" disabled={pending || (directoryDiscoveryEnabled && !directoryEntryId && reviewedLookup!==JSON.stringify([academyName.trim(),countryCode,city.trim()]))}>

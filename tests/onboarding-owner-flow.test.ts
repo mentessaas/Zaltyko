@@ -53,6 +53,10 @@ describe("ZAL-137 — contrato del flujo owner", () => {
     expect(ownerRoute).toContain("directoryIdentity?.name ?? parsed.data.academyName");
     expect(ownerRoute).toContain("directoryIdentity?.region ?? undefined");
     expect(ownerRoute).toContain("directoryIdentity?.city ?? undefined");
+    expect(ownerRoute).toContain("academyOperationalIdentityQuery(identityForChecks)");
+    expect(ownerRoute).toContain("excludeEntryId: directoryId");
+    expect(form).toContain('payload?.code === "ACADEMY_REVIEW_REQUIRED"');
+    expect(form).toContain("Solicitar ayuda para vincular la ficha");
   });
 
   it("conserva el siguiente paso en el workspace moderno y el CTA de invite", () => {

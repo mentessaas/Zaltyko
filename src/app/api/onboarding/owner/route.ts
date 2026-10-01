@@ -5,7 +5,12 @@ import {
   flag,
   type DirectoryAcademyIdentity,
 } from "@/lib/directory/contracts";
-import { rows, academyDuplicateQuery, academyDuplicateLock } from "@/lib/directory/service";
+import {
+  academyDuplicateLock,
+  academyDuplicateQuery,
+  academyOperationalIdentityQuery,
+  rows,
+} from "@/lib/directory/service";
 import { directoryUser, directoryFailure } from "@/lib/directory/auth";
 import { and, eq, sql } from "drizzle-orm";
 import { cookies } from "next/headers";
@@ -125,7 +130,13 @@ export async function POST(request: Request) {
   }
 
 
-  const duplicateIdentity={name:parsed.data.academyName,countryCode:normalizeCountryCode(parsed.data.countryCode) ?? parsed.data.countryCode,city:parsed.data.city};
+  const duplicateIdentity = {
+    name: parsed.data.academyName,
+    countryCode:
+      normalizeCountryCode(parsed.data.countryCode) ?? parsed.data.countryCode,
+    region: parsed.data.region,
+    city: parsed.data.city,
+  };
   const directoryId=parsed.data.directoryEntryId;
   const requestedDirectoryIdentity: DirectoryAcademyIdentity = {
     name: parsed.data.academyName,
@@ -312,7 +323,12 @@ export async function POST(request: Request) {
       }
       directoryIdentity = identity.data;
     }
-    if(!directoryId && flag("catalog")) await tx.execute(sql`SELECT pg_advisory_xact_lock(hashtext(${`academy-identity:${academyDuplicateLock(duplicateIdentity)}`}))`);
+    const identityForChecks = directoryIdentity ?? requestedDirectoryIdentity;
+    if (directoryId || flag("catalog")) {
+      await tx.execute(
+        sql`SELECT pg_advisory_xact_lock(hashtext(${`academy-identity:${academyDuplicateLock(identityForChecks)}`}))`
+      );
+    }
     await tx.execute(sql`select pg_advisory_xact_lock(hashtext(${user.id}))`);
 
     if(directoryId || flag("catalog")) {
@@ -337,9 +353,37 @@ export async function POST(request: Request) {
       return { existingAcademyId: membershipCreatedByAnotherRequest.academyId };
     }
 
-    if(!directoryId && flag("catalog")) {
-      const matches=(await tx.execute(academyDuplicateQuery(duplicateIdentity))).rows;
-      if(matches.length) return {error:apiError("ACADEMY_ALREADY_LISTED","La academia ya tiene una ficha pública. Solicita su reclamación o asistencia.",409,{entries:matches})};
+    if (directoryId || flag("catalog")) {
+      const matches = (
+        await tx.execute(
+          academyDuplicateQuery({
+            ...identityForChecks,
+            excludeEntryId: directoryId,
+          })
+        )
+      ).rows;
+      if (matches.length) {
+        return {
+          error: apiError(
+            "ACADEMY_ALREADY_LISTED",
+            "Encontramos otra ficha pública con esta identidad. Solicita asistencia para revisar el vínculo antes de crear un segundo espacio.",
+            409,
+            { entries: matches }
+          ),
+        };
+      }
+      const operationalMatch = (
+        await tx.execute(academyOperationalIdentityQuery(identityForChecks))
+      ).rows[0]?.exists;
+      if (operationalMatch === true) {
+        return {
+          error: apiError(
+            "ACADEMY_REVIEW_REQUIRED",
+            "No creamos otro espacio porque ya puede existir una academia con estos datos. Contacta con soporte para verificar la ficha.",
+            409
+          ),
+        };
+      }
     }
 
     const result = await createAcademy(

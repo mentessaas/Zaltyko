@@ -10642,3 +10642,10 @@ Modelo separado, reclamación manual, administración, importación revisada, fi
 - Añadí el tiempo global de espera de las aserciones Playwright a 15 s y conservo la espera explícita de la barra lateral; el próximo CI verificará si elimina esas carreras.
 - La confirmación administrativa ahora lleva el foco a su encabezado al abrirse y lo devuelve al botón que la activó al cancelar/finalizar. TypeScript y ESLint focal pasan; quedan tres avisos React preexistentes en la pantalla. Este ajuste sigue local hasta terminar la CI actual.
 - Sin envío real, producción, cambios remotos de schema ni flags activados. La prueba Playwright local requiere el ref explícito del sandbox de Supabase; se respetó ese gate.
+
+### Onboarding del directorio: bloqueo de espacios duplicados — 2026-10-01
+
+- La activación desde una ficha reclamada ahora excluye esa misma ficha del detector público, serializa altas con el mismo nombre/país aunque cambie la localidad y contrasta también contra espacios operativos existentes.
+- La comprobación de espacios operativos usa `EXISTS` y solo devuelve un booleano. Si encuentra una colisión o faltan datos geográficos para descartarla, el flujo solicita revisión de soporte sin revelar nombres, IDs, responsables ni otros datos privados. Se normalizan mayúsculas, espacios y tildes.
+- Evidencia local en la rama aislada del PR #174: **61 comprobaciones PostgreSQL** con migración exacta y restauración de respaldo; **34 pruebas focalizadas**; TypeScript, ESLint focal y `git diff --check` pasan. El changelog y README registran esta verificación; CI del nuevo commit todavía debe ejecutarse después del push.
+- No se cambió el esquema remoto, producción ni flags. El despliegue y la aprobación independiente siguen pendientes.

@@ -1,6 +1,6 @@
 import { publicDirectoryCte } from "./projection";
 import { createHash, randomUUID } from "node:crypto";
-import { sql } from "drizzle-orm";
+import { sql, type SQL } from "drizzle-orm";
 import { db } from "@/db";
 import {
   EntryInputSchema,
@@ -48,19 +48,65 @@ function mapEntry(row: Row): DirectoryEntry {
 const publicEligibility = sql`d.publication='published' AND d.merged_into IS NULL
  AND (d.academy_id IS NULL OR EXISTS(SELECT 1 FROM academies a WHERE a.id=d.academy_id AND a.is_public AND NOT a.is_suspended AND a.status IN ('active','trial')))
  AND (d.event_id IS NULL OR EXISTS(SELECT 1 FROM events e JOIN academies a ON a.id=e.academy_id WHERE e.id=d.event_id AND e.is_public AND e.status='published' AND a.is_public AND NOT a.is_suspended AND a.status IN ('active','trial')))`;
-// Exact public identity only; never disclose private workspaces or merge by name.
-export function academyDuplicateQuery(input:{name:string;countryCode:string;city?:string}) {
+type AcademyIdentityLookup = {
+  name: string;
+  countryCode: string;
+  region?: string | null;
+  city?: string | null;
+};
+
+function normalizedIdentitySql(value: SQL) {
+  return sql`lower(trim(regexp_replace(regexp_replace(normalize(${value},NFD), U&'[\\0300-\\036f]', '', 'g'),'[[:space:]]+',' ','g')))`;
+}
+
+// Return only public matches. This query must never reveal a private workspace.
+export function academyDuplicateQuery(
+  input: AcademyIdentityLookup & { excludeEntryId?: string }
+) {
   const name=input.name.trim().replace(/\s+/g," ");
+  const region=input.region?.trim().replace(/\s+/g," ") ?? "";
   const city=input.city?.trim().replace(/\s+/g," ") ?? "";
+  const excludedEntry = input.excludeEntryId
+    ? sql`AND d.id<>${input.excludeEntryId}::uuid`
+    : sql``;
   return sql`${publicDirectoryCte()} SELECT d.id,d.kind,d.slug,d.academy_id,d.event_id,d.data FROM projected d
     WHERE ${publicEligibility} AND d.kind='academy'
-    AND lower(trim(regexp_replace(d.data->>'name','[[:space:]]+',' ','g')))=lower(${name})
+    AND ${normalizedIdentitySql(sql`d.data->>'name'`)}=${normalizedIdentitySql(sql`${name}`)}
     AND upper(d.data->>'countryCode')=upper(${input.countryCode})
-    AND (${city}='' OR COALESCE(trim(d.data->>'city'),'')='' OR lower(trim(regexp_replace(d.data->>'city','[[:space:]]+',' ','g')))=lower(${city}))
+    AND (${region}='' OR COALESCE(trim(d.data->>'region'),'')='' OR ${normalizedIdentitySql(sql`d.data->>'region'`)}=${normalizedIdentitySql(sql`${region}`)})
+    AND (${city}='' OR COALESCE(trim(d.data->>'city'),'')='' OR ${normalizedIdentitySql(sql`d.data->>'city'`)}=${normalizedIdentitySql(sql`${city}`)})
+    ${excludedEntry}
     ORDER BY d.id LIMIT 5`;
 }
-export function academyDuplicateLock(input:{name:string;countryCode:string;city?:string}) {
-  return [input.countryCode,input.city ?? "",input.name].map(v=>v.trim().replace(/\s+/g," ").toLowerCase()).join(":");
+
+// A private-safe existence check catches operational duplicates without returning
+// their IDs, names, owners, or any other tenant data to the caller.
+export function academyOperationalIdentityQuery(input: AcademyIdentityLookup) {
+  const name = input.name.trim().replace(/\s+/g, " ");
+  const region = input.region?.trim().replace(/\s+/g, " ") ?? "";
+  const city = input.city?.trim().replace(/\s+/g, " ") ?? "";
+  return sql`SELECT EXISTS (
+    SELECT 1 FROM academies a
+    WHERE ${normalizedIdentitySql(sql`a.name`)}=${normalizedIdentitySql(sql`${name}`)}
+      AND (NULLIF(trim(a.country_code),'') IS NULL OR upper(a.country_code)=upper(${input.countryCode}))
+      AND (${region}='' OR COALESCE(trim(a.region),'')='' OR ${normalizedIdentitySql(sql`a.region`)}=${normalizedIdentitySql(sql`${region}`)})
+      AND (${city}='' OR COALESCE(trim(a.city),'')='' OR ${normalizedIdentitySql(sql`a.city`)}=${normalizedIdentitySql(sql`${city}`)})
+  ) AS exists`;
+}
+
+// Serialize same-name/country creations across locations because unknown
+// locations are treated as ambiguous matches by the duplicate queries.
+export function academyDuplicateLock(input: AcademyIdentityLookup) {
+  return [input.countryCode,input.name]
+    .map((value) =>
+      value
+        .normalize("NFD")
+        .replace(/[\u0300-\u036f]/g, "")
+        .trim()
+        .replace(/\s+/g, " ")
+        .toLowerCase()
+    )
+    .join(":");
 }
 export async function listEntries(query: {
   kind: DirectoryKind;
