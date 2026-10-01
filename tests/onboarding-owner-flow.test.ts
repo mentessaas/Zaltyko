@@ -40,6 +40,21 @@ describe("ZAL-137 — contrato del flujo owner", () => {
     );
   });
 
+  it("activa una ficha reclamada solo con la identidad pública aprobada", () => {
+    const form = read("src/components/onboarding/OwnerOnboardingForm.tsx");
+    const ownerRoute = read("src/app/api/onboarding/owner/route.ts");
+
+    expect(form).toContain("if (!directoryEntryId)");
+    expect(form).toContain("readOnly={Boolean(directoryEntryId)}");
+    expect(form).toContain("disabled={pending || Boolean(directoryEntryId)}");
+    expect(form).toContain("El nombre y la sede se toman de la ficha aprobada.");
+    expect(ownerRoute).toContain("EntryDataSchema.safeParse(entry.data)");
+    expect(ownerRoute.match(/directoryAcademyIdentityMatches\(identity\.data, requestedDirectoryIdentity\)/g)).toHaveLength(2);
+    expect(ownerRoute).toContain("directoryIdentity?.name ?? parsed.data.academyName");
+    expect(ownerRoute).toContain("directoryIdentity?.region ?? undefined");
+    expect(ownerRoute).toContain("directoryIdentity?.city ?? undefined");
+  });
+
   it("conserva el siguiente paso en el workspace moderno y el CTA de invite", () => {
     const checklist = read("src/lib/onboarding-routes.ts");
     const dashboard = read("src/components/dashboard/DashboardPage.tsx");

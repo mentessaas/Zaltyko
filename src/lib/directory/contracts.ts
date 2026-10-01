@@ -131,6 +131,35 @@ export const EntryDataSchema = z
     }
   });
 export type EntryData = z.infer<typeof EntryDataSchema>;
+export type DirectoryAcademyIdentity = Pick<
+  EntryData,
+  "name" | "countryCode" | "region" | "city"
+>;
+
+function normalizeDirectoryIdentityText(value: string | null | undefined) {
+  return (value ?? "")
+    .normalize("NFD")
+    .replace(/[\u0300-\u036f]/g, "")
+    .trim()
+    .replace(/\s+/g, " ")
+    .toLowerCase();
+}
+
+export function directoryAcademyIdentityMatches(
+  approved: DirectoryAcademyIdentity,
+  requested: DirectoryAcademyIdentity
+) {
+  return (
+    normalizeDirectoryIdentityText(approved.name) ===
+      normalizeDirectoryIdentityText(requested.name) &&
+    approved.countryCode.toUpperCase() === requested.countryCode.toUpperCase() &&
+    normalizeDirectoryIdentityText(approved.region) ===
+      normalizeDirectoryIdentityText(requested.region) &&
+    normalizeDirectoryIdentityText(approved.city) ===
+      normalizeDirectoryIdentityText(requested.city)
+  );
+}
+
 export type DirectoryEntry = {
   id: string;
   kind: DirectoryKind;

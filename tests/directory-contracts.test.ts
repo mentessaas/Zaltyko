@@ -6,6 +6,7 @@ import {
   requiresReview,
   publicationError,
   entryPath,
+  directoryAcademyIdentityMatches,
 } from "@/lib/directory/contracts";
 import {
   allowedSourceUrl,
@@ -43,6 +44,46 @@ describe("Directorio: validación y aislamiento de contratos", () => {
     expect(entryPath({ ...listing, academyId: listing.id })).toBe(
       `/academias/${listing.id}`
     );
+  });
+  it("solo activa una ficha con el nombre y sede ya aprobados", () => {
+    const approved = {
+      name: "Club Córdoba",
+      countryCode: "ES",
+      region: "Andalucía",
+      city: "Córdoba",
+    };
+    expect(
+      directoryAcademyIdentityMatches(approved, {
+        name: " club cordoba ",
+        countryCode: "es",
+        region: "andalucia",
+        city: "CORDOBA",
+      })
+    ).toBe(true);
+    expect(
+      directoryAcademyIdentityMatches(approved, {
+        ...approved,
+        name: "Otra academia",
+      })
+    ).toBe(false);
+    expect(
+      directoryAcademyIdentityMatches(approved, {
+        ...approved,
+        city: "Sevilla",
+      })
+    ).toBe(false);
+    expect(
+      directoryAcademyIdentityMatches(approved, {
+        ...approved,
+        region: "Madrid",
+      })
+    ).toBe(false);
+    expect(
+      directoryAcademyIdentityMatches(approved, {
+        ...approved,
+        countryCode: "PE",
+      })
+    ).toBe(false);
   });
   it("no rellena dirección ni contacto desconocidos", () => {
     const d = EntryDataSchema.parse(data);

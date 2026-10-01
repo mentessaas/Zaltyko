@@ -29,6 +29,7 @@ Fecha: 1 de octubre de 2026. Rama `feat/public-directory`, base `01e4df1f`.
 - Invitación preparada para copiar; nunca se envía al importar. Medición de visitas, clics y descarga en el sistema existente; reclamación con identificador idempotente y sin correo/pruebas en analítica. No se deduce que un visitante sea una familia.
 
 - Alta de propietario: búsqueda obligatoria de fichas públicas por nombre y país antes de crear un espacio, con localidad visible. Las coincidencias llevan a reclamación gratuita (solo con el flag de reclamaciones activo) o acceso al administrador existente. Si el catálogo está activo y las reclamaciones no, onboarding ofrece solicitar asistencia en vez de prometer una reclamación. El servidor vuelve a comprobar coincidencias exactas dentro de la transacción y bloquea el duplicado; no transfiere propietarios ni expone academias privadas. Cambiar nombre, país o localidad exige repetir la búsqueda.
+- Activar la gestión desde una ficha reclamada vuelve a comparar nombre, país, región y localidad en el servidor, incluso dentro de la transacción. El espacio operativo adopta esos valores aprobados; no se puede cambiar la identidad pública saltándose la revisión de la ficha.
 
 ## Validación observada
 

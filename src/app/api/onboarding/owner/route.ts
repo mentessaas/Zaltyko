@@ -1,5 +1,10 @@
 import { recordGrowthEvent } from "@/lib/growth/events";
-import { flag } from "@/lib/directory/contracts";
+import {
+  directoryAcademyIdentityMatches,
+  EntryDataSchema,
+  flag,
+  type DirectoryAcademyIdentity,
+} from "@/lib/directory/contracts";
 import { rows, academyDuplicateQuery, academyDuplicateLock } from "@/lib/directory/service";
 import { directoryUser, directoryFailure } from "@/lib/directory/auth";
 import { and, eq, sql } from "drizzle-orm";
@@ -122,6 +127,13 @@ export async function POST(request: Request) {
 
   const duplicateIdentity={name:parsed.data.academyName,countryCode:normalizeCountryCode(parsed.data.countryCode) ?? parsed.data.countryCode,city:parsed.data.city};
   const directoryId=parsed.data.directoryEntryId;
+  const requestedDirectoryIdentity: DirectoryAcademyIdentity = {
+    name: parsed.data.academyName,
+    countryCode:
+      normalizeCountryCode(parsed.data.countryCode) ?? parsed.data.countryCode,
+    region: parsed.data.region,
+    city: parsed.data.city,
+  };
   if (directoryId || flag("catalog")) {
     try { await directoryUser(); } catch(e) { return directoryFailure(e); }
   }
@@ -130,8 +142,21 @@ export async function POST(request: Request) {
     const entry=(await rows(sql`SELECT d.* FROM directory_entries d JOIN directory_grants g ON g.entry_id=d.id WHERE d.id=${directoryId}::uuid AND g.user_id=${user.id}::uuid AND d.kind='academy' AND d.merged_into IS NULL`))[0];
     if(!entry)return apiError('FORBIDDEN','No tienes permisos sobre esta ficha',403);
     if(entry.academy_id)return apiCreated({academyId:entry.academy_id,redirectUrl:`/onboarding/owner?directoryEntryId=${directoryId}`});
-    const data=entry.data as {countryCode:string};
-    if(data.countryCode.toLowerCase()!==parsed.data.countryCode.toLowerCase())return apiError('COUNTRY_MISMATCH','La gestión debe corresponder al país de la ficha',409);
+    const identity = EntryDataSchema.safeParse(entry.data);
+    if (!identity.success) {
+      return apiError(
+        "DIRECTORY_IDENTITY_INVALID",
+        "La ficha necesita revisión antes de activar la gestión",
+        409
+      );
+    }
+    if (!directoryAcademyIdentityMatches(identity.data, requestedDirectoryIdentity)) {
+      return apiError(
+        "DIRECTORY_IDENTITY_MISMATCH",
+        "El nombre y la sede deben coincidir con la ficha aprobada. Solicita primero la corrección de la ficha.",
+        409
+      );
+    }
   }
 
   let [profile] = await db
@@ -260,12 +285,32 @@ export async function POST(request: Request) {
     // Serialize owner setup per account. The preflight membership check above
     // is intentionally repeated under the lock so double-clicks or concurrent
     // requests cannot create two academies for the same new owner.
+    let directoryIdentity: DirectoryAcademyIdentity | null = null;
     if(directoryId){
       await tx.execute(sql`SELECT pg_advisory_xact_lock(hashtext(${`directory:${directoryId}`}))`);
       const entry=(await tx.execute(sql`SELECT d.* FROM directory_entries d JOIN directory_grants g ON g.entry_id=d.id WHERE d.id=${directoryId}::uuid AND g.user_id=${user.id}::uuid AND d.kind='academy' AND d.merged_into IS NULL FOR UPDATE OF d`)).rows[0];
       if(!entry)return {error:apiError('FORBIDDEN','El permiso de esta ficha ha cambiado',403)};
       if(entry.academy_id)return {existingAcademyId:String(entry.academy_id)};
-      if((entry.data as {countryCode:string}).countryCode.toLowerCase()!==parsed.data.countryCode.toLowerCase()) return {error:apiError('COUNTRY_MISMATCH','El país de la ficha ha cambiado; revisa sus datos antes de activarla.',409)};
+      const identity = EntryDataSchema.safeParse(entry.data);
+      if (!identity.success) {
+        return {
+          error: apiError(
+            "DIRECTORY_IDENTITY_INVALID",
+            "La ficha necesita revisión antes de activar la gestión",
+            409
+          ),
+        };
+      }
+      if (!directoryAcademyIdentityMatches(identity.data, requestedDirectoryIdentity)) {
+        return {
+          error: apiError(
+            "DIRECTORY_IDENTITY_MISMATCH",
+            "El nombre y la sede de la ficha cambiaron. Vuelve a revisarla antes de activar la gestión.",
+            409
+          ),
+        };
+      }
+      directoryIdentity = identity.data;
     }
     if(!directoryId && flag("catalog")) await tx.execute(sql`SELECT pg_advisory_xact_lock(hashtext(${`academy-identity:${academyDuplicateLock(duplicateIdentity)}`}))`);
     await tx.execute(sql`select pg_advisory_xact_lock(hashtext(${user.id}))`);
@@ -299,19 +344,22 @@ export async function POST(request: Request) {
 
     const result = await createAcademy(
       {
-        name: parsed.data.academyName,
+        // A public listing is approved evidence. Never let the activation form
+        // silently change its public name or location while linking the workspace.
+        name: directoryIdentity?.name ?? parsed.data.academyName,
         academyType: mapDisciplineVariantToAcademyType(
           parsed.data.disciplineVariant
         ) as "artistica" | "ritmica" | "general",
         disciplineVariant: parsed.data.disciplineVariant,
         countryCode:
+          directoryIdentity?.countryCode ??
           normalizeCountryCode(parsed.data.countryCode) ??
           parsed.data.countryCode,
-        country:
-          parsed.data.country ??
-          getCountryNameFromCode(parsed.data.countryCode),
-        region: parsed.data.region,
-        city: parsed.data.city,
+        country: getCountryNameFromCode(
+          directoryIdentity?.countryCode ?? parsed.data.countryCode
+        ),
+        region: directoryIdentity?.region ?? undefined,
+        city: directoryIdentity?.city ?? undefined,
         utm: parsed.data.utm,
       },
       {

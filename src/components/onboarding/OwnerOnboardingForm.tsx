@@ -126,16 +126,20 @@ export function OwnerOnboardingForm({
         disciplineVariant: string;
       }>;
       if (draft.fullName) setFullName(draft.fullName);
-      if (draft.academyName) setAcademyName(draft.academyName);
-      if (draft.countryCode) setCountryCode(draft.countryCode);
-      if (draft.region) setRegion(draft.region);
-      if (draft.city) setCity(draft.city);
+      // A verified directory listing stays the source of its public identity.
+      // Do not let an older local draft replace its approved name or location.
+      if (!directoryEntryId) {
+        if (draft.academyName) setAcademyName(draft.academyName);
+        if (draft.countryCode) setCountryCode(draft.countryCode);
+        if (draft.region) setRegion(draft.region);
+        if (draft.city) setCity(draft.city);
+      }
       if (draft.academyKind) setAcademyKind(draft.academyKind);
       if (draft.disciplineVariant) setDisciplineVariant(draft.disciplineVariant);
     } catch {
       window.localStorage.removeItem(draftKey);
     }
-  }, [draftKey]);
+  }, [directoryEntryId, draftKey]);
 
   useEffect(() => {
     try {
@@ -315,6 +319,16 @@ export function OwnerOnboardingForm({
   return (
     <form onSubmit={handleSubmit} className="space-y-6">
       {directoryEntryId&&<label className="flex gap-3 rounded-lg border p-4"><input type="checkbox" required/> Quiero crear el espacio de gestión de esta academia y vincularlo a su ficha. Reclamar y gestionar la ficha pública sigue siendo gratuito; no se activa un cobro por esta acción.</label>}
+      {directoryEntryId && (
+        <p role="note" className="text-sm text-muted-foreground">
+          El nombre y la sede se toman de la ficha aprobada. Si necesitas
+          corregirlos, solicita primero el cambio desde{" "}
+          <Link className="underline" href="/directorio/mis-fichas">
+            Mis fichas
+          </Link>
+          .
+        </p>
+      )}
       <div className="rounded-lg border border-primary/20 bg-primary/5 px-4 py-3" aria-label="Paso 1 de 5 de la configuración">
         <div className="flex items-center justify-between gap-3 text-sm">
           <span className="font-medium text-foreground">Paso 1 de 5 · Crear el espacio de trabajo</span>
@@ -351,6 +365,7 @@ export function OwnerOnboardingForm({
             onChange={(event) => setAcademyName(event.target.value)}
             placeholder="Club Gimnasia Élite"
             required
+            readOnly={Boolean(directoryEntryId)}
             disabled={pending}
           />
         </div>
@@ -370,7 +385,7 @@ export function OwnerOnboardingForm({
             placeholder="Selecciona un país"
             name="countryCode"
             searchPlaceholder="Buscar país..."
-            disabled={pending}
+            disabled={pending || Boolean(directoryEntryId)}
           />
         </div>
         <div className="space-y-2 sm:col-span-2">
@@ -483,7 +498,7 @@ export function OwnerOnboardingForm({
               setRegion(value);
               setCity("");
             }}
-            disabled={pending || !countryCode || regionOptions.length === 0}
+            disabled={pending || Boolean(directoryEntryId) || !countryCode || regionOptions.length === 0}
             placeholder={getRegionPlaceholder(countryCode, !!countryCode)}
             name="region"
             searchPlaceholder={`Buscar ${getRegionLabel(countryCode).toLowerCase()}...`}
@@ -495,7 +510,7 @@ export function OwnerOnboardingForm({
             options={cityOptions}
             value={city}
             onChange={setCity}
-            disabled={pending || !region || cityOptions.length === 0}
+            disabled={pending || Boolean(directoryEntryId) || !region || cityOptions.length === 0}
             placeholder={getCityPlaceholder(getRegionLabel(countryCode), !!region)}
             name="city"
             searchPlaceholder="Buscar ciudad..."
