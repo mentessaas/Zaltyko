@@ -5,6 +5,13 @@ last_reviewed: 2026-09-19T09:32Z
 source:
 ---
 
+## 2026-10-01 — Onboarding respeta el flag de reclamaciones
+
+- Corregido el estado gradual: con el catálogo activo y reclamaciones apagadas, buscar una academia existente ya no promete una reclamación que el servidor rechazaría. La ficha conserva su enlace de revisión y ofrece pedir ayuda para vincularla; con reclamaciones activas muestra la ruta de reclamación gratuita.
+- La API sigue bloqueando una sede duplicada, aunque se intente crear sin pasar por el buscador.
+- Validación local: onboarding/claim **10/10**, `next build` y `tsc --noEmit` aprobados; ESLint sin errores y Prettier comprobado en los archivos añadidos/reescritos. El CI del PR se repetirá tras subir el cambio.
+- Catálogo y reclamaciones siguen sin publicar; flags productivos apagados.
+
 ## 2026-09-30 — Directorio y búsqueda previa en el alta
 
 PR #174, borrador: directorio independiente y búsqueda de academias públicas antes de crear un espacio. Coincidencias exactas bloqueadas por servidor; reclamación manual separada del SaaS. Evidencia y pendientes: [[Directorio público - 2026-09-30]]. Flags apagados en producción.

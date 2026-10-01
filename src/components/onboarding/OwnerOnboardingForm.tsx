@@ -35,7 +35,17 @@ const OWNER_ONBOARDING_DRAFT_KEY = "zaltyko:owner-onboarding-draft:v1";
 
 type DirectoryAcademyDefaults = { name: string; countryCode: string; region?: string; city?: string };
 
-export function OwnerOnboardingForm({directoryEntryId, initialAcademy, directoryDiscoveryEnabled=false}:{directoryEntryId?:string; initialAcademy?:DirectoryAcademyDefaults;directoryDiscoveryEnabled?:boolean}={}) {
+export function OwnerOnboardingForm({
+  directoryEntryId,
+  initialAcademy,
+  directoryDiscoveryEnabled = false,
+  directoryClaimsEnabled = false,
+}: {
+  directoryEntryId?: string;
+  initialAcademy?: DirectoryAcademyDefaults;
+  directoryDiscoveryEnabled?: boolean;
+  directoryClaimsEnabled?: boolean;
+} = {}) {
   const initialCountry = initialAcademy?.countryCode ?? "es";
   const draftKey = directoryEntryId ? `${OWNER_ONBOARDING_DRAFT_KEY}:${directoryEntryId}` : OWNER_ONBOARDING_DRAFT_KEY;
   const initialSeed = getSportConfigSeedsByCountry(initialCountry)[0];
@@ -314,7 +324,11 @@ export function OwnerOnboardingForm({directoryEntryId, initialAcademy, directory
           <div className="h-full w-1/5 rounded-full bg-primary" />
         </div>
         <p className="mt-2 text-xs text-muted-foreground">
-            {directoryDiscoveryEnabled && !directoryEntryId ? "Tu cuenta personal ya está creada. Antes de crear un espacio nuevo, busca tu academia abajo. Si ya tiene ficha, solicita su reclamación; la activación de la gestión es un paso posterior y separado." : "Tu cuenta personal ya está creada. Al completar este formulario crearás la academia y entrarás a su espacio de trabajo; los grupos, programas, clases y ajustes avanzados se pueden completar después desde allí."}
+          {directoryDiscoveryEnabled && !directoryEntryId
+            ? directoryClaimsEnabled
+              ? "Tu cuenta personal ya está creada. Antes de crear un espacio nuevo, busca tu academia abajo. Si ya tiene ficha, solicita su reclamación gratuita; la activación de la gestión es un paso posterior y separado."
+              : "Tu cuenta personal ya está creada. Busca tu academia antes de crearla para evitar duplicados. Si ya tiene ficha mientras las reclamaciones no están activas, solicita ayuda para vincularla."
+            : "Tu cuenta personal ya está creada. Al completar este formulario crearás la academia y entrarás a su espacio de trabajo; los grupos, programas, clases y ajustes avanzados se pueden completar después desde allí."}
         </p>
       </div>
       <div className="grid gap-4 sm:grid-cols-2">
@@ -639,7 +653,16 @@ export function OwnerOnboardingForm({directoryEntryId, initialAcademy, directory
       </div>
       )}
 
-      {directoryDiscoveryEnabled && !directoryEntryId && <OwnerAcademyLookup name={academyName} countryCode={countryCode} city={city} onCityChange={setCity} onReviewed={setReviewedLookup}/>}
+      {directoryDiscoveryEnabled && !directoryEntryId && (
+        <OwnerAcademyLookup
+          name={academyName}
+          countryCode={countryCode}
+          city={city}
+          onCityChange={setCity}
+          onReviewed={setReviewedLookup}
+          claimsEnabled={directoryClaimsEnabled}
+        />
+      )}
       {duplicateEntries.length>0 && <div role="alert" className="space-y-2 rounded-lg border p-4"><p>Esta academia ya tiene una ficha. Revísala y solicita la reclamación o asistencia; no hemos creado otra academia. Si es otra sede con el mismo nombre, solicita asistencia para distinguirlas.</p><Link className="block underline" href="/contact?type=support">Solicitar asistencia para revisar mi sede</Link>{duplicateEntries.map(entry=><Link key={entry.id} className="block underline" href={`/academias/${entry.id}${entry.slug?`-${entry.slug}`:""}`}>{entry.data.name}</Link>)}</div>}
       <Button type="submit" className="w-full" disabled={pending || (directoryDiscoveryEnabled && !directoryEntryId && reviewedLookup!==JSON.stringify([academyName.trim(),countryCode,city.trim()]))}>
         {pending ? (

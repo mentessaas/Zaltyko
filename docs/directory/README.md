@@ -1,6 +1,6 @@
 # Directorio público — implementación y operación
 
-Fecha: 30 de septiembre de 2026. Rama `feat/public-directory`, base `01e4df1f`.
+Fecha: 1 de octubre de 2026. Rama `feat/public-directory`, base `01e4df1f`.
 
 ## Hallazgos clave
 
@@ -27,12 +27,12 @@ Fecha: 30 de septiembre de 2026. Rama `feat/public-directory`, base `01e4df1f`.
 - Retención extraordinaria de pruebas con motivo registrado, eliminación ordinaria a los 30 días y limpieza de archivos antiguos sin solicitud asociada.
 - Invitación preparada para copiar; nunca se envía al importar. Medición de visitas, clics y descarga en el sistema existente; reclamación con identificador idempotente y sin correo/pruebas en analítica. No se deduce que un visitante sea una familia.
 
-- Alta de propietario: búsqueda obligatoria de fichas públicas por nombre y país antes de crear un espacio, con localidad visible. Las coincidencias llevan a reclamación gratuita o acceso al administrador existente. El servidor vuelve a comprobar coincidencias exactas dentro de la transacción y bloquea el duplicado; no transfiere propietarios ni expone academias privadas. Cambiar nombre, país o localidad exige repetir la búsqueda.
+- Alta de propietario: búsqueda obligatoria de fichas públicas por nombre y país antes de crear un espacio, con localidad visible. Las coincidencias llevan a reclamación gratuita (solo con el flag de reclamaciones activo) o acceso al administrador existente. Si el catálogo está activo y las reclamaciones no, onboarding ofrece solicitar asistencia en vez de prometer una reclamación. El servidor vuelve a comprobar coincidencias exactas dentro de la transacción y bloquea el duplicado; no transfiere propietarios ni expone academias privadas. Cambiar nombre, país o localidad exige repetir la búsqueda.
 
 ## Validación observada
 
 - Suite web completa anterior a los últimos ajustes: **415 archivos, 1.867 pruebas aprobadas**; un archivo y tres casos omitidos.
-- Suite focalizada después de adaptar las fuentes: **91 pruebas aprobadas en trece archivos**. Compilación de producción local aprobada; tipos y lint se ejecutan aparte porque el build del proyecto los omite.
+- Suite focalizada anterior: **91 pruebas aprobadas en trece archivos**. Tras el ajuste de flags, las pruebas de onboarding, flujo de propietario y API de reclamación pasan **10/10**; el build local y TypeScript terminan correctamente. CI del nuevo commit pendiente.
 - PostgreSQL aislado real, migración exacta, dump/restauración y **50 comprobaciones aprobadas**. Incluye concurrencia de reclamaciones y lotes, edición sensible, revocación, proyección/retirada, deduplicación de correos y denegaciones con roles de base de datos.
 - Onboarding en navegador local: búsqueda de una academia externa ficticia y enlace de reclamación visibles. El intento directo de crear la misma sede devuelve HTTP 409 `ACADEMY_ALREADY_LISTED`; la solicitud enviada queda pendiente sin permiso de edición concedido; las academias operativas permanecen en 6 y los permisos operativos en 12.
 - Supabase local real y navegador: representante sin perfil operativo solicita; Super Admin aprueba; representante ve y edita; segundo representante no ve gestión y recibe HTTP 403 al intentar editar. Owner/admin/coach/parent/athlete reciben 403 en API de administración.
