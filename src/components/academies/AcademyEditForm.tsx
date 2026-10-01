@@ -2,7 +2,8 @@
 
 import { useState, useEffect, useMemo, useRef } from "react";
 import { useRouter } from "next/navigation";
-import { Building2, Globe, Mail, Phone, MapPin, Instagram, Facebook, Twitter, Youtube, Save, X, Upload, Loader2 } from "lucide-react";
+import { Building2, Globe, Mail, Phone, MapPin, Save, X, Upload, Loader2 } from "lucide-react";
+import { FaFacebookF as Facebook, FaInstagram as Instagram, FaXTwitter as Twitter, FaYoutube as Youtube } from "react-icons/fa6";
 
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";

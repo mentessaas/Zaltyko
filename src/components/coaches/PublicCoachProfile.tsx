@@ -2,7 +2,8 @@
 
 import Image from "next/image";
 import Link from "next/link";
-import { Mail, Phone, Calendar, Award, Star, Instagram, Facebook, Twitter, Linkedin, Globe } from "lucide-react";
+import { Mail, Phone, Calendar, Award, Star, Globe } from "lucide-react";
+import { FaFacebookF as Facebook, FaInstagram as Instagram, FaLinkedinIn as Linkedin, FaXTwitter as Twitter } from "react-icons/fa6";
 import { Button } from "@/components/ui/button";
 
 interface CoachProfileData {

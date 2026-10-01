@@ -10772,3 +10772,9 @@ Modelo separado, reclamación manual, administración, importación revisada, fi
 
 - Se mantienen `@next/eslint-plugin-next` y `eslint-config-next` en `15.5.24`, junto a Next.js `15.5.24`; se conservan las versiones más recientes de las demás dependencias ya integradas en `main`.
 - El rebase de #140 quedó resuelto sobre `main` actualizado. CI nuevo sigue pendiente.
+
+## 2026-10-04 — Preparar PR #142 sobre main actualizado
+
+- PR #142 actualiza `lucide-react` a 1.48.0 y reemplaza los iconos de marcas que ya no exporta por `react-icons/fa6` en seis pantallas.
+- El rebase local incorpora el main que ya contiene #140 y conserva su changelog. El antiguo head pasó sus checks, pero el rebase requiere validación local y un CI nuevo antes de integrar.
+- No está fusionado ni desplegado.

@@ -1,6 +1,7 @@
 "use client";
 
-import { Instagram, Facebook, Twitter, Youtube, Globe, Mail, Phone, MapPin } from "lucide-react";
+import { Globe, Mail, Phone, MapPin } from "lucide-react";
+import { FaFacebookF as Facebook, FaInstagram as Instagram, FaXTwitter as Twitter, FaYoutube as Youtube } from "react-icons/fa6";
 
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
