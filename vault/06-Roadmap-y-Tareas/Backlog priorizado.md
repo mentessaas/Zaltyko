@@ -381,3 +381,7 @@ PR #178 requiere que el estado permitido tenga también un `stripe_subscription_
 
 - PR #171 se había fusionado; seguía pendiente actualizar moment y sincronizar lockfiles móviles para uuid, decode-uri-component, brace-expansion y js-yaml.
 - Las alertas de extract-zip aún no tenían versión corregida publicada. Los pendientes de VoiceOver, Stripe Live/Connect/Tax y backup cloud se conservan según la decisión del usuario.
+
+## Seguimiento Dependabot — estado de PR #173 (2026-10-02)
+
+- Las 13 alertas corregibles de Dependabot están parcheadas en #173. El audit de producción web pasa; en móvil queda `GHSA-86w9-cpqp-85rv` para `node-forge <=1.4.0` bajo Expo CLI, sin versión corregida publicada. Revalidar después de integrar el PR y en cada actualización de Expo.

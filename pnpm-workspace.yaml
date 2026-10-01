@@ -47,11 +47,14 @@ overrides:
   'next>postcss': 8.5.28
   sharp: ^0.35.4
   'next>sharp': ^0.35.4
-  # qs / dompurify / flatted / ajv pre-existing pins
+  # qs / flatted / ajv pre-existing pins
   qs: ^6.14.2
-  dompurify: ^3.4.9
   flatted: ^3.4.2
   'eslint>ajv': ^6.14.0
+  # basic-ftp: CPU DoS in Unix directory listing parser (GHSA-c475-qrg2-pj4r)
+  basic-ftp: ^6.2.1
+  # DOMPurify: in-place sanitization hooks can leave handlers armed (GHSA-p98j-92pf-mc4p)
+  dompurify: ^3.4.16
   # tmp: escritura arbitraria via parametro `dir` con symlink (GHSA-52f5-9888-hmc6)
   tmp: ^0.2.4
   # uuid: falta de comprobacion de limites en v3/v5/v6 con `buf` (GHSA-w5hq-g745-h8pq)

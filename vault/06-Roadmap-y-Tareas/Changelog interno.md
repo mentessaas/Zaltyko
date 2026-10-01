@@ -10597,3 +10597,9 @@ Vault: actualizado `Changelog interno.md`; se preserva el backlog existente porq
 - PR #171 ya estaba fusionado; seguimiento previsto: actualizar moment y sincronizar lockfiles móviles con los overrides de uuid, decode-uri-component, brace-expansion y js-yaml.
 - El audit de producción y la verificación de Brevo se consideraron por separado. La auditoría posterior del 2026-10-02 supersede la afirmación histórica de que el audit móvil estaba limpio y documenta la alerta upstream `node-forge`.
 - VoiceOver, Stripe Live/Connect/Tax y backup cloud permanecen aplazados por indicación del usuario.
+
+## 2026-10-01 — Actualización de dependencias web y móviles (PR #173)
+
+- Se actualizan `basic-ftp`, DOMPurify, `moment`, Lighthouse y la cadena Puppeteer; se sincronizan lockfiles web/móviles y se elimina `extract-zip` de la cadena Lighthouse.
+- La auditoría web de producción pasa. La auditoría móvil revalidada el 2026-10-02 aún detecta `node-forge <=1.4.0` (`GHSA-86w9-cpqp-85rv`), sin arreglo upstream publicado; ver la nota de auditoría más reciente.
+- La entrada del 2026-10-02 en este Changelog y la decisión de igual fecha registran el alcance real del residual. No afirmar audit móvil limpia.
