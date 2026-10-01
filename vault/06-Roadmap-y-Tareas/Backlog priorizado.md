@@ -375,4 +375,4 @@ Trabajo de auditoria mergeado a `security/audit-remediation` via **PR #8 (`cf092
 
 ## 2026-10-01 — Acceso de suscripción Stripe y E2E
 
-PR #178 requiere que el estado permitido tenga también un `stripe_subscription_id` no vacío antes de conceder acceso pagado; el trial independiente no cambia. Suite, typecheck y build locales pasan. El primer E2E de GitHub se canceló durante la instalación de Chromium/Firefox/WebKit, antes de ejecutar tests; CI ahora instala Chromium únicamente porque `test:e2e:auth` fija ese proyecto. CI actualizado y aprobación independiente pendientes.
+PR #178 requiere que el estado permitido tenga también un `stripe_subscription_id` no vacío antes de conceder acceso pagado; el trial independiente no cambia. Suite, typecheck y build locales pasan. El primer E2E de GitHub se canceló durante la instalación de Chromium/Firefox/WebKit, antes de ejecutar tests. La E2E final cubre los tres motores, así que se conservan y se amplía el límite a 45 minutos. CI actualizado y aprobación independiente pendientes.
