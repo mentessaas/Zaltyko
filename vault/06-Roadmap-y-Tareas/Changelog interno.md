@@ -10630,3 +10630,8 @@ Modelo separado, reclamación manual, administración, importación revisada, fi
 - El reintento exige confirmar que Brevo no aceptó el mensaje y guardar el motivo; se conserva el mismo registro y clave idempotente. Se vuelve a comprobar la baja/rebote y se audita tanto el reintento como la supresión.
 - Evidencia local: integración PostgreSQL aislada con migración y restauración de respaldo, 53 comprobaciones; 32 pruebas dirigidas del onboarding/directorio; TypeScript pasa. ESLint termina sin errores y mantiene tres avisos en `AdminDirectory.tsx` (dos del efecto de carga y uno de `Date.now` en render).
 - No se envió correo real, no se modificó schema ni producción y no se activó ningún flag. Cambio pendiente de commit/CI/revisión independiente en PR #174.
+
+### Seguimiento CI del 2026-10-01
+
+- La cola se subió en `77ab2a1a`; build, unitarias, lint/tipos, seguridad, migraciones aisladas, RLS, smoke autenticado y Preview pasan. E2E autenticado terminó con 59 pruebas pasadas y un fallo WebKit que pasó en retry; la CI reporta el job verde pero conserva el caso como flaky. Smoke público, E2E público y Lighthouse se omitieron.
+- El fallo fue una aserción del enlace de clases antes de que la barra lateral cliente estuviera visible, aunque `#main-content` ya lo estaba. Añadí una espera explícita de 15 s a la barra lateral antes de comprobar enlaces. ESLint focal pasa. Playwright local no puede listar/correr el spec sin identificar el proyecto Supabase de sandbox aprobado; no se eludió esa protección. Nueva CI pendiente tras subir el ajuste.

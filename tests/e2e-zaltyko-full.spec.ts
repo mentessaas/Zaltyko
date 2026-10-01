@@ -88,6 +88,8 @@ test.describe("Zaltyko full academy flows", () => {
     const academyNavigation = page
       .getByRole("complementary")
       .getByRole("navigation");
+    // The main content can render before the client-side academy context hydrates the sidebar.
+    await expect(academyNavigation).toBeVisible({ timeout: 15_000 });
     for (const path of [
       "dashboard",
       "coaches",
