@@ -1,4 +1,5 @@
-import { Globe, Mail, Phone, MapPin, Instagram, Facebook, Twitter, Youtube } from "lucide-react";
+import { Globe, Mail, Phone, MapPin } from "lucide-react";
+import { FaFacebookF as Facebook, FaInstagram as Instagram, FaXTwitter as Twitter, FaYoutube as Youtube } from "react-icons/fa6";
 import type { PublicAcademyDetail } from "@/app/actions/public/get-public-academy";
 
 interface AcademyInfoProps {
@@ -155,4 +156,3 @@ export function AcademyInfo({ academy }: AcademyInfoProps) {
     </section>
   );
 }
-

@@ -10560,3 +10560,9 @@ Vault: actualizado `Changelog interno.md`; se preserva el backlog existente porq
 - La pantalla `/dashboard/empleo/mis-postulaciones` normaliza respuestas `{ ok, data }` y evita mostrar falsamente una lista vacía.
 - Se añadió contrato focal para la carga de postulaciones.
 - El despliegue remoto directo sufrió OOM en Vercel; se usó build prebuilt local reproducible para publicar sin cambiar infraestructura.
+
+## 2026-10-01 - Compatibilidad del salto de lucide-react
+
+- El PR #142 actualiza `lucide-react` a 1.48.0; la nueva versión deja de exportar algunos iconos de marcas usados por seis pantallas.
+- Esos iconos ahora vienen de `react-icons/fa6`, que ya estaba instalado. Se conserva la interfaz y los enlaces.
+- Validación local en la rama del PR: `pnpm lint`, `pnpm typecheck` y `pnpm build` pasan. La compilación local avisa que no tiene credenciales de producción y omite lint/tipos internos de Next; las comprobaciones separadas de lint y TypeScript sí pasaron. Aún falta CI remoto y revisión; no está desplegado.
