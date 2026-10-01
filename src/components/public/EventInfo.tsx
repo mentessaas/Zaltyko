@@ -1,4 +1,5 @@
-import { Globe, Mail, Phone, MapPin, Instagram, Calendar, FileText, Download } from "lucide-react";
+import { Globe, Mail, Phone, MapPin, Calendar, FileText, Download } from "lucide-react";
+import { FaInstagram as Instagram } from "react-icons/fa6";
 import type { PublicEvent } from "@/types/events";
 
 interface EventInfoProps {
@@ -186,4 +187,3 @@ export function EventInfo({ event }: EventInfoProps) {
     </section>
   );
 }
-

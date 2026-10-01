@@ -2,7 +2,8 @@
 
 import { memo } from "react";
 import Link from "next/link";
-import { MapPin, Globe, Instagram } from "lucide-react";
+import { MapPin, Globe } from "lucide-react";
+import { FaInstagram as Instagram } from "react-icons/fa6";
 import { Card, CardContent } from "@/components/ui/card";
 import type { PublicAcademy } from "@/lib/seo/clusters";
 
