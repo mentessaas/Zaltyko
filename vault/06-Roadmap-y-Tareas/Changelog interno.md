@@ -10575,3 +10575,11 @@ Vault: actualizado `Changelog interno.md`; se preserva el backlog existente porq
 - Se añadieron pruebas de interfaz para solicitud de recuperación, ruta de retorno segura y cambio de contraseña. Las pruebas focales pasan localmente.
 - Vercel enumera la clave y datos de remitente de Brevo en producción, pero la ejecución local no inyecta las variables y la API no devuelve el valor descifrado. No se intentó eludir esa restricción y no se envió ningún correo real.
 - Storage privado con documento ficticio se probó en el entorno aislado del PR #174; producción, proveedor antimalware y recepción de correo real siguen pendientes.
+
+## 2026-10-01 — OAuth Web verificado; bloqueo de testers y SMTP Auth
+
+- Solo lectura en Google Auth Platform y Supabase Dashboard: cliente OAuth `Zaltyko Web` (tipo Aplicación web) existe; origen `https://zaltyko.com` y retorno `https://jegxfahsvugilbthbked.supabase.co/auth/v1/callback` coinciden. Supabase Auth tiene Google Enabled, el Client ID coincide con ese cliente, su secreto está configurado (no se leyó) y permite `https://zaltyko.com/auth/callback`; `SITE_URL` también coincide.
+- La audiencia Google permanece External / Testing con cero testers; por tanto la configuración técnica está lista, pero no hay prueba de sesión y el acceso Google no está habilitado a usuarios generales. No se publicó la app ni se añadió un tester.
+- Supabase Auth sigue usando el servicio de correo integrado, no SMTP propio; el panel muestra el aviso de que no es para producción. La plantilla de reset usa `{{ .ConfirmationURL }}`. Para recuperación real hace falta SMTP propio y entrega comprobada.
+- Brevo API key y Brevo SMTP key son credenciales distintas. La guía oficial de Brevo exige SMTP login y SMTP key para usarlo como SMTP de Supabase. No se generó clave ni se modificaron secretos. [Supabase SMTP](https://supabase.com/docs/guides/auth/auth-smtp) · [Brevo SMTP](https://help.brevo.com/hc/en-us/articles/7924908994450-Send-transactional-emails-using-Brevo-SMTP).
+- Se actualizó `docs/auth/google-and-password-recovery.md` para superseder el estado del 2026-09-30. PR #175 sigue sin despliegue; login real, reset real y envío de correo siguen sin verificar.

@@ -360,3 +360,9 @@ Trabajo de auditoria mergeado a `security/audit-remediation` via **PR #8 (`cf092
 - **Pendiente de revisión humana:** no hay academias/eventos declarados listos para publicar; validar fuentes, condiciones de reutilización y revisión jurídica antes de activar catálogo/importación.
 - **Pendiente de entorno:** ejecutar comprobación real de subida/descarga privada y antimalware con documentos de prueba después de configurar el proveedor y permisos de producción. No se usan documentos de clientes.
 - El directorio permanece en PR #174, en borrador y sin despliegue; los flags se mantienen apagados. No se reactivan los pendientes que Elvis dejó aplazados (Stripe Live/Connect/Tax, repetición de VoiceOver ni backup cloud).
+
+## Revalidación de lanzamiento — 2026-10-01
+
+- **Bloqueo de OAuth:** cliente Web y URLs de retorno están correctos en Google Cloud/Supabase, pero la app sigue en Testing con cero testers. Conseguir autorización para un tester propio o completar el proceso de publicación/verificación; después correr login y registro reales. No añadir cuentas ni publicar por inferencia.
+- **Bloqueo de correo Auth:** Supabase aún usa el relay integrado (no apto para producción). Configurar SMTP propio con credenciales SMTP, aplicar remitente de dominio verificado y probar recuperación. Brevo API key ≠ SMTP key; no usar una en lugar de la otra. Mantener pendiente hasta guardar credencial segura y demostrar recepción.
+- **Estado de Brevo app:** falta `BREVO_REPLY_TO`; la clave probada anteriormente respondió 401. Rotar la clave expuesta, establecer Reply-To y validar con el verificador seguro; no pegar secretos en chat.
