@@ -49,6 +49,12 @@ Code changes verificados: tsc OK, eslint OK, next build OK.
 
 El plan de implementación derivado de la investigación competitiva está en `docs/plans/2026-09-12-competitive-implementation-plan.md`. No abre issues automáticamente: primero exige el gate G0 (baseline/E2E/coordinación), después prioriza núcleo operativo, desarrollo, localización e IA en fases. Pricing v3.0, comunicación interna primero, portal familiar limitado y gimnasia-first permanecen sin cambios.
 
+## P1 — Cierre del acceso pagado con respaldo de Stripe — 2026-10-01
+
+- **Código corregido en rama aislada, pendiente de integración:** el acceso a Starter/Growth ya no debe depender solo de una fila local `active`; requiere un `stripe_subscription_id` válido y estado permitido. La verificación del plan pagado para trial usa la misma regla. El trial sin tarjeta sigue determinado por `academy_trials`.
+- **Criterio de cierre:** revisión independiente y CI verdes; merge protegido; despliegue y lectura autenticada que confirme un plan pagado Stripe-backed, una cuenta Free y un trial de academia sin regresiones. No hacer cobros reales para esta verificación.
+- **Sin cambios de base de datos o producción en esta entrega.** La antigua ruta `src/app/app/admin/dashboard/page.tsx` del PR #105 no existe en `main`; no trasladar su hunk de MRR.
+
 ## Revisión técnica de producción — 2026-09-14
 
 - **Resuelto:** los reportes financieros tenían llamadas frontend a tres subrutas inexistentes, por lo que mensual, morosidad y proyecciones podían quedarse vacíos con 404. Se añadieron endpoints reales con handler compartido y scope tenant; smoke sin sesión devuelve 401.

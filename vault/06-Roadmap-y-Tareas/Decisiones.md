@@ -608,3 +608,12 @@ Verificadas el 2026-08-02 contra repo canónico `zaltyko/zaltyko` HEAD `a08b27af
 | Decisión | No declarar el login Google listo hasta realizar E2E con una cuenta tester autorizada. No cambiar audiencia a producción ni añadir usuarios de prueba durante esta pasada. |
 | Correo | Supabase Auth usa el relay integrado, no SMTP propio; no es apto para producción. La plantilla de reset sí usa `{{ .ConfirmationURL }}`. Configurar SMTP separado antes de ofrecer recuperación a clientes. La API key de Brevo no sustituye a su clave SMTP. |
 | Estado | PR #175 continúa sin publicar. Sin tester autorizado ni envío real; flags/producción sin cambios. Ver [runbook](../../docs/auth/google-and-password-recovery.md). |
+
+## 2026-10-01 - El acceso a planes pagados requiere respaldo de Stripe
+
+| Campo | Valor |
+| --- | --- |
+| Contexto | `getUserSubscription` concedía los límites del plan asociado cuando `subscriptions.status` era `active`, `trialing`, `past_due` o `canceling`, aunque `stripe_subscription_id` estuviera vacío. Algunas rutas internas crean filas locales `active` para cuentas Free; cambiar solo el estado no debe activar un plan pagado. |
+| Decisión | El permiso de una suscripción pagada requiere simultáneamente un `stripeSubscriptionId` no vacío y un estado de acceso permitido. Aplicar la misma regla a la comprobación de plan pagado que determina la elegibilidad del trial. Los trials de siete días se conceden por `academy_trials` y permanecen independientes de Stripe. Si en el futuro se necesitan becas o concesiones manuales de plan pagado, modelarlas mediante una concesión explícita y auditable, no una fila Stripe simulada. |
+| Consecuencia | Una fila local sin identificador Stripe permanece en Free aunque tenga estado `active`; no puede bloquear el trial como plan pagado. No cambia el modelo de precios ni se modifica la base de datos. |
+| Estado | Implementado en rama aislada `codex/billing-stripe-backed-access`; prueba focal 7/7, TypeScript y ESLint pasan. Aún no fusionado ni desplegado; falta CI de PR y aprobación independiente. |
