@@ -10623,3 +10623,10 @@ Vault: actualizado `Changelog interno.md`; se preserva el backlog existente porq
 ## 2026-09-30 — Directorio público independiente (en revisión)
 
 Modelo separado, reclamación manual, administración, importación revisada, filtros internacionales y captación con consentimiento. Ver [implementación y límites](../../docs/directory/README.md). Migración/rollback comprobados localmente; no desplegado ni cierre completo del plan.
+
+## 2026-10-01 — Cola administrativa para correos inciertos
+
+- Super Admin puede consultar la cola de entregas, incluida finalidad, intentos y referencia del proveedor. Los mensajes con resultado incierto no se reenvían automáticamente.
+- El reintento exige confirmar que Brevo no aceptó el mensaje y guardar el motivo; se conserva el mismo registro y clave idempotente. Se vuelve a comprobar la baja/rebote y se audita tanto el reintento como la supresión.
+- Evidencia local: integración PostgreSQL aislada con migración y restauración de respaldo, 53 comprobaciones; 32 pruebas dirigidas del onboarding/directorio; TypeScript pasa. ESLint termina sin errores y mantiene tres avisos en `AdminDirectory.tsx` (dos del efecto de carga y uno de `Date.now` en render).
+- No se envió correo real, no se modificó schema ni producción y no se activó ningún flag. Cambio pendiente de commit/CI/revisión independiente en PR #174.

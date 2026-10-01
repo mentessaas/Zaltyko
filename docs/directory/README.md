@@ -22,6 +22,7 @@ Fecha: 1 de octubre de 2026. Rama `feat/public-directory`, base `01e4df1f`.
 - Adaptadores oficiales HTML con evidencia privada de extracción, referencias a PDF y red restringida: TLS, IP pública fijada, sin redirecciones, 2 MB y 15 segundos.
 - Kit gratuito con ejemplos ficticios, descarga directa. Entrega opcional por correo con finalidad separada.
 - Suscripciones por finalidad, confirmación explícita por POST, baja firmada, outbox con exclusión mutua, rebotes/reclamaciones y recuperación conservadora de resultados inciertos. Envío comercial explícitamente marcado exige consentimiento positivo confirmado.
+- Cola de correos visible solo para Super Admin, sin acceso público. Un resultado incierto no se reenvía automáticamente: requiere consultar Brevo, confirmar que no aceptó el mensaje y guardar un motivo auditado; el mismo registro conserva su clave de idempotencia y no supera tres intentos.
 - Calendario ICS para eventos confirmados: fecha sin hora conserva día completo; hora conocida conserva zona del recinto. Marcado estructurado sin precios inventados; sitemap dinámico y filtros sin indexación combinatoria.
 - Imágenes opcionales requieren procedencia y licencia/autorización documentada; pasan por revisión sensible. Pruebas privadas no se suben sin aprobación del escáner de seguridad del archivo exacto.
 - Retención extraordinaria de pruebas con motivo registrado, eliminación ordinaria a los 30 días y limpieza de archivos antiguos sin solicitud asociada.

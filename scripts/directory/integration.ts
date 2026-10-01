@@ -31,6 +31,7 @@ import {
   unsubscribeToken,
   processDeliveries,
   enqueueDigests,
+  retryDelivery,
 } from "../../src/lib/directory/communications";
 import { calendarFile } from "../../src/lib/directory/calendar";
 const connection = process.env.DATABASE_URL_POOL!;
@@ -384,6 +385,88 @@ async function main() {
   );
   await processDeliveries(provider);
   check("Baja suprime mensaje pendiente antes del proveedor", sentCalls === 1);
+  const retrySubscriptionId = randomUUID();
+  await query(
+    "INSERT INTO directory_subscriptions(id,email,purpose,policy_version,source,token_hash,token_expires_at) VALUES($1,'retry@example.org','kit','test','kit',$2,now()+interval '1 day')",
+    [retrySubscriptionId, randomUUID().replace(/-/g, "").repeat(2)]
+  );
+  const retryDeliveryId = randomUUID();
+  await query(
+    "INSERT INTO directory_deliveries(id,subscription_id,dedupe_key,status,attempts,error) VALUES($1,$2,'retry-test','needs_review',1,'provider_result_requires_reconciliation')",
+    [retryDeliveryId, retrySubscriptionId]
+  );
+  await rejects(
+    "Reintentar requiere confirmar que el proveedor no aceptó el mensaje",
+    () => retryDelivery(retryDeliveryId, admin, false, "No se confirmó el estado"),
+    "RECONCILIATION_REQUIRED"
+  );
+  const retryResults = await Promise.allSettled([
+    retryDelivery(
+      retryDeliveryId,
+      admin,
+      true,
+      "Brevo revisado: no existe mensaje para el ID de entrega"
+    ),
+    retryDelivery(
+      retryDeliveryId,
+      admin,
+      true,
+      "Brevo revisado: no existe mensaje para el ID de entrega"
+    ),
+  ]);
+  const retryState = (
+    await query("SELECT status,attempts FROM directory_deliveries WHERE id=$1", [
+      retryDeliveryId,
+    ])
+  ).rows[0];
+  const retryAudit = (
+    await query(
+      "SELECT actor_id,metadata->>'deliveryId' AS delivery_id FROM directory_audit WHERE action='delivery_retry_queued' AND metadata->>'deliveryId'=$1",
+      [retryDeliveryId]
+    )
+  ).rows[0];
+  check(
+    "Reintento confirmado encola una vez y conserva el mismo envío",
+    retryResults.filter((result) => result.status === "fulfilled").length ===
+      1 &&
+      retryState.status === "pending" &&
+      Number(retryState.attempts) === 1 &&
+      retryAudit?.actor_id === admin &&
+      retryAudit?.delivery_id === retryDeliveryId
+  );
+  const withdrawnSubscriptionId = randomUUID();
+  await query(
+    "INSERT INTO directory_subscriptions(id,email,purpose,policy_version,source,token_hash,token_expires_at,withdrawn_at) VALUES($1,'withdrawn-retry@example.org','kit','test','kit',$2,now()+interval '1 day',now())",
+    [withdrawnSubscriptionId, randomUUID().replace(/-/g, "").repeat(2)]
+  );
+  const withdrawnDeliveryId = randomUUID();
+  await query(
+    "INSERT INTO directory_deliveries(id,subscription_id,dedupe_key,status,attempts,error) VALUES($1,$2,'withdrawn-retry-test','needs_review',1,'provider_result_requires_reconciliation')",
+    [withdrawnDeliveryId, withdrawnSubscriptionId]
+  );
+  const withdrawnRetry = await retryDelivery(
+    withdrawnDeliveryId,
+    admin,
+    true,
+    "Brevo revisado; el destinatario canceló la suscripción"
+  );
+  const withdrawnRetryAudit = (
+    await query(
+      "SELECT actor_id,metadata->>'suppression' AS suppression FROM directory_audit WHERE action='delivery_retry_suppressed' AND metadata->>'deliveryId'=$1",
+      [withdrawnDeliveryId]
+    )
+  ).rows[0];
+  check(
+    "La baja suprime el reintento de un envío en revisión",
+    withdrawnRetry.suppressed &&
+      (
+        await query("SELECT status FROM directory_deliveries WHERE id=$1", [
+          withdrawnDeliveryId,
+        ])
+      ).rows[0].status === "suppressed" &&
+      withdrawnRetryAudit?.actor_id === admin &&
+      withdrawnRetryAudit?.suppression === "withdrawn"
+  );
   const bulkA = (await createEntry(
     "academy",
     { ...data, name: "Ficha masiva A" },

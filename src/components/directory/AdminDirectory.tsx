@@ -35,6 +35,12 @@ type Item = {
   action?: string;
   metadata?: unknown;
   purpose?: string;
+  email?: string;
+  attempts?: number;
+  provider_id?: string | null;
+  sent_at?: string | null;
+  lease_until?: string | null;
+  dedupe_key?: string;
 };
 const stateLabels: Record<string, string> = {
   draft: "Borrador",
@@ -49,6 +55,17 @@ const stateLabels: Record<string, string> = {
   accepted: "Aceptado",
   invalid: "Datos por corregir",
   processed: "Procesado",
+  sending: "En curso",
+  sent: "Enviado",
+  suppressed: "Cancelado por consentimiento o rebote",
+  empty: "Sin contenido que enviar",
+  needs_review: "Requiere revisión del proveedor",
+};
+const deliveryErrorLabels: Record<string, string> = {
+  provider_result_requires_reconciliation:
+    "El proveedor pudo recibir el mensaje. Revisa su historial antes de reintentarlo.",
+  expired_provider_lease:
+    "El proceso terminó antes de confirmar el resultado. Revisa el historial del proveedor.",
 };
 const labels = {
   entries: "Fichas",
@@ -58,6 +75,7 @@ const labels = {
   batches: "Lotes",
   imports: "Registros importados",
   subscriptions: "Consentimientos",
+  deliveries: "Envíos de correo",
   audit: "Registro de acciones",
 };
 export function AdminDirectory() {
@@ -388,6 +406,21 @@ export function AdminDirectory() {
             {item.requester_email && (
               <p>Correo verificado del solicitante: {item.requester_email}</p>
             )}
+            {section === "deliveries" && (
+              <div className="space-y-1 text-sm">
+                <p>Destinatario: {item.email}</p>
+                <p>Finalidad: {item.purpose}</p>
+                <p>Intentos: {item.attempts ?? 0} de 3</p>
+                {item.dedupe_key && <p>Clave: {item.dedupe_key}</p>}
+                {item.provider_id && <p>Referencia Brevo: {item.provider_id}</p>}
+                {item.sent_at && <p>Enviado: {item.sent_at}</p>}
+                {item.error && (
+                  <p role="alert">
+                    {deliveryErrorLabels[item.error] ?? item.error}
+                  </p>
+                )}
+              </div>
+            )}
             {item.relationship && <p>Relación: {item.relationship}</p>}
             {item.evidence_path && (
               <button
@@ -415,7 +448,9 @@ export function AdminDirectory() {
                 Prueba privada: {item.evidence}
               </p>
             )}
-            {item.error && <p role="alert">{item.error}</p>}
+            {item.error && section !== "deliveries" && (
+              <p role="alert">{item.error}</p>
+            )}
             {(item.candidate || item.summary || section === "revisions") && (
               <pre className="max-h-72 overflow-auto whitespace-pre-wrap break-words text-xs">
                 {JSON.stringify(
@@ -452,6 +487,20 @@ export function AdminDirectory() {
                   Extraer candidatos para revisión
                 </button>
               )}
+              {section === "deliveries" &&
+                item.status === "needs_review" &&
+                (item.attempts ?? 0) < 3 &&
+                !item.provider_id && (
+                  <button
+                    className="underline"
+                    onClick={() => {
+                      setReason("");
+                      setPending({ action: "retry_delivery", id: item.id });
+                    }}
+                  >
+                    Revisé Brevo: no lo aceptó; preparar reintento
+                  </button>
+                )}
               {section === "entries" && (
                 <>
                   {item.kind === "academy" &&
@@ -630,11 +679,15 @@ export function AdminDirectory() {
                   "retain_evidence",
                   "link_operational",
                   "bulk_publication",
+                  "retry_delivery",
                 ].includes(String(pending.action))
                   ? { reason }
                   : {}),
                 ...(pending.action === "merge" || pending.linkExisting
                   ? { target: v.get("target") }
+                  : {}),
+                ...(pending.action === "retry_delivery"
+                  ? { providerNotAccepted: v.get("providerNotAccepted") === "on" }
                   : {}),
               });
             }}
@@ -646,18 +699,41 @@ export function AdminDirectory() {
               "retain_evidence",
               "link_operational",
               "bulk_publication",
+              "retry_delivery",
             ].includes(String(pending.action)) && (
               <label className="block">
                 Motivo de la decisión
                 <input
                   required
-                  minLength={pending.action === "retain_evidence" ? 10 : 5}
+                  minLength={
+                    pending.action === "retry_delivery"
+                      ? 20
+                      : pending.action === "retain_evidence"
+                        ? 10
+                        : 5
+                  }
                   maxLength={1000}
                   value={reason}
                   onChange={(e) => setReason(e.target.value)}
                   className={inputClass}
                 />
               </label>
+            )}
+            {pending.action === "retry_delivery" && (
+              <div className="space-y-2 rounded border p-3">
+                <p>
+                  No reintentes si no has comprobado el historial de Brevo. Si el
+                  proveedor aceptó el mensaje, repetirlo podría duplicarlo.
+                </p>
+                <label className="flex gap-2">
+                  <input
+                    type="checkbox"
+                    name="providerNotAccepted"
+                    required
+                  />
+                  Confirmo que revisé Brevo y que no aceptó este mensaje.
+                </label>
+              </div>
             )}
             {pending.action === "link_operational" && (
               <label className="block">

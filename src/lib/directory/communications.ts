@@ -164,6 +164,73 @@ export async function hasPositiveMarketingConsent(email: string) {
   );
   return result.length > 0;
 }
+export async function retryDelivery(
+  deliveryId: string,
+  actorId: string,
+  providerNotAccepted: boolean,
+  reason: string
+) {
+  if (!flag("communications"))
+    throw new DirectoryError(
+      "COMMUNICATIONS_DISABLED",
+      "Los avisos todavía no están activos",
+      503
+    );
+  if (!providerNotAccepted || reason.trim().length < 20)
+    throw new DirectoryError(
+      "RECONCILIATION_REQUIRED",
+      "Confirma que revisaste el proveedor y añade el resultado de esa comprobación",
+      400
+    );
+
+  return db.transaction(async (tx) => {
+    const delivery = (
+      await tx.execute(
+        sql`SELECT d.id,d.status,d.attempts,d.provider_id,s.withdrawn_at,s.bounce_at,s.complaint_at FROM directory_deliveries d JOIN directory_subscriptions s ON s.id=d.subscription_id WHERE d.id=${deliveryId}::uuid FOR UPDATE OF d,s`
+      )
+    ).rows[0];
+    if (!delivery)
+      throw new DirectoryError("DELIVERY_NOT_FOUND", "Envío no encontrado", 404);
+    if (
+      delivery.status !== "needs_review" ||
+      delivery.provider_id ||
+      Number(delivery.attempts) >= 3
+    )
+      throw new DirectoryError(
+        "DELIVERY_NOT_REVIEWABLE",
+        "Este envío no está disponible para reintento",
+        409
+      );
+    if (
+      delivery.withdrawn_at ||
+      delivery.bounce_at ||
+      delivery.complaint_at
+    ) {
+      await tx.execute(
+        sql`UPDATE directory_deliveries SET status='suppressed',lease_until=NULL WHERE id=${deliveryId}::uuid`
+      );
+      await tx.execute(
+        sql`INSERT INTO directory_audit(entry_id,actor_id,action,metadata) VALUES(NULL,${actorId}::uuid,'delivery_retry_suppressed',${JSON.stringify({ deliveryId, attempts: delivery.attempts, reason: reason.trim(), suppression: delivery.withdrawn_at ? 'withdrawn' : delivery.bounce_at ? 'bounced' : 'complaint' })}::jsonb)`
+      );
+      return { queued: false, suppressed: true };
+    }
+    const updated = (
+      await tx.execute(
+        sql`UPDATE directory_deliveries SET status='pending',error=NULL,lease_until=NULL WHERE id=${deliveryId}::uuid AND status='needs_review' AND provider_id IS NULL AND attempts<3 RETURNING id`
+      )
+    ).rows[0];
+    if (!updated)
+      throw new DirectoryError(
+        "DELIVERY_NOT_REVIEWABLE",
+        "Este envío cambió; actualiza la lista e inténtalo de nuevo",
+        409
+      );
+    await tx.execute(
+      sql`INSERT INTO directory_audit(entry_id,actor_id,action,metadata) VALUES(NULL,${actorId}::uuid,'delivery_retry_queued',${JSON.stringify({ deliveryId, attempts: delivery.attempts, reason: reason.trim() })}::jsonb)`
+    );
+    return { queued: true, suppressed: false };
+  });
+}
 export async function enqueueDigests(now = new Date()) {
   const day = now.toISOString().slice(0, 10),
     monday = now.getUTCDay() === 1;

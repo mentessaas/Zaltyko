@@ -27,6 +27,7 @@ import {
   acceptImportRow,
   fetchSourceCandidates,
 } from "@/lib/directory/imports";
+import { retryDelivery } from "@/lib/directory/communications";
 export const dynamic = "force-dynamic";
 export const GET = withSuperAdmin(async (request) => {
   if (!flag("admin"))
@@ -53,6 +54,7 @@ export const GET = withSuperAdmin(async (request) => {
         "imports",
         "audit",
         "subscriptions",
+        "deliveries",
       ])
       .parse(url.searchParams.get("section") ?? "entries");
     const table = {
@@ -64,6 +66,7 @@ export const GET = withSuperAdmin(async (request) => {
       imports: "directory_import_rows",
       audit: "directory_audit",
       subscriptions: "directory_subscriptions",
+      deliveries: "directory_deliveries",
     }[section];
     const order =
       section === "sources"
@@ -76,7 +79,11 @@ export const GET = withSuperAdmin(async (request) => {
         ? sql`id,purpose,source,policy_version,confirmed_at,withdrawn_at,bounce_at,complaint_at,created_at`
         : sql`*`;
     const items =
-      section === "claims"
+      section === "deliveries"
+        ? await rows(
+            sql`SELECT d.id,d.subscription_id,d.dedupe_key,d.status,d.attempts,d.lease_until,d.provider_id,d.error,d.created_at,d.sent_at,s.email,s.purpose FROM directory_deliveries d JOIN directory_subscriptions s ON s.id=d.subscription_id ORDER BY d.created_at DESC LIMIT 50 OFFSET ${(page - 1) * 50}`
+          )
+        : section === "claims"
         ? await rows(
             sql`SELECT c.*,d.data->>'name' AS name,u.email AS requester_email FROM directory_claims c JOIN directory_entries d ON d.id=c.entry_id JOIN auth.users u ON u.id=c.user_id ORDER BY c.created_at DESC LIMIT 50 OFFSET ${(page - 1) * 50}`
           )
@@ -156,6 +163,12 @@ const ActionSchema = z.discriminatedUnion("action", [
     target: z.string().uuid().optional(),
   }),
   z.object({ action: z.literal("fetch_source"), id: z.string().uuid() }),
+  z.object({
+    action: z.literal("retry_delivery"),
+    id: z.string().uuid(),
+    providerNotAccepted: z.literal(true),
+    reason: z.string().trim().min(20).max(1000),
+  }),
   z.object({
     action: z.literal("retain_evidence"),
     id: z.string().uuid(),
@@ -277,6 +290,15 @@ export const POST = withSuperAdmin(async (request, context) => {
       }
       case "fetch_source":
         return apiSuccess(await fetchSourceCandidates(body.id));
+      case "retry_delivery":
+        return apiSuccess(
+          await retryDelivery(
+            body.id,
+            context.userId,
+            body.providerNotAccepted,
+            body.reason
+          )
+        );
       case "source": {
         if (body.enabled && !body.authorization?.trim())
           return apiError(
