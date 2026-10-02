@@ -675,4 +675,13 @@ Una ficha externa no crea dueño, academia operativa, trial ni suscripción. Sol
 | Evidencia | Producción mostraba RLS habilitado en `public.__drizzle_migrations`, pero ninguna policy; `anon` y `authenticated` tenían permiso de lectura. La policy ausente genera un aviso del asesor y deja la denegación implícita/accidental. |
 | Decisión | Añadir una policy restrictiva permanente para `anon` y `authenticated` con `USING (false)` y `WITH CHECK (false)`. Mantener el ledger disponible para conexiones confiables del servidor. |
 | Consecuencia | Una concesión futura o policy permisiva adicional no hace visibles ni modificables las filas del historial interno. La prueba reproduce deliberadamente el `SELECT` concedido y comprueba que RLS devuelve cero filas a ambos roles. |
-| Estado | Migración y prueba añadidas en rama aislada; suite PostgreSQL local verde. No aplicada a ningún entorno remoto: el ledger de producción sigue sin reconciliarse. |
+| Estado | PR #182 fusionada en `main` (`60649c58`) tras pasar CI y la prueba PostgreSQL aislada. La migración no se aplicó a ningún entorno remoto: el ledger de producción sigue sin reconciliarse. |
+
+## 2026-10-02 — Señalar cuándo Google OAuth está listo para usar
+
+| Campo | Valor |
+| --- | --- |
+| Evidencia | En una carga fría de producción, el botón se podía pulsar antes de hidratarse y el evento no llegaba a Supabase; después de cargar, la solicitud OAuth funcionaba y llegaba a la pantalla de Google. Client ID, callback y secreto ya estaban alineados entre Google Cloud y Supabase. |
+| Decisión | Desactivar temporalmente los CTA Google en el HTML inicial y mostrar “Preparando Google...” hasta que la interfaz cliente esté lista; aplicar el mismo comportamiento a login y registro. Derivar `next` de registro después de hidratar. |
+| Consecuencia | Evita clics silenciosamente perdidos y conserva la configuración de seguridad existente; no cambia proveedores ni secretos. |
+| Estado | Implementado en rama local; prueba SSR/hidratación 4/4 y ESLint focal sin avisos. No desplegado. Para cerrar el recorrido completo, el usuario debe completar la autenticación con su cuenta después de CI/revisión. |
