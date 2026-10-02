@@ -1,7 +1,7 @@
 ---
 status: active
 owner: producto
-last_reviewed: 2026-09-14
+last_reviewed: 2026-10-02
 source:
   - ../PRODUCT-ANALYSIS.md
   - ../BUSINESS-ANALYSIS.md
@@ -389,3 +389,11 @@ PR #178 requiere que el estado permitido tenga también un `stripe_subscription_
 ## Seguimiento de dependencias móviles — 2026-10-02
 
 - **Alta / móvil:** seguir `GHSA-86w9-cpqp-85rv` (`node-forge <=1.4.0`) en la cadena `@expo/cli` / `@expo/code-signing-certificates`. El audit actual indica que no hay versión corregida publicada; repetirlo al actualizar Expo y no declarar limpia la auditoría móvil mientras siga presente.
+
+## Revalidación de lanzamiento — 2026-10-02
+
+- **Resuelto parcialmente — Google OAuth:** PR #179 está integrada y desplegada; login, registro y recuperación cargan, y el redirect de Google llega al proveedor con el callback esperado. Falta completar login/registro con una cuenta de prueba autorizada; no declarar E2E de Auth cerrado todavía.
+- **Pendiente — recuperación de contraseña:** configurar SMTP transaccional de Supabase y probar solicitud, entrega, enlace y cambio de contraseña con una cuenta propia. La API key de Brevo no es la credencial SMTP.
+- **Pendiente — directorio productivo:** PR #174 está integrada; la búsqueda de academia ya forma parte del onboarding. El esquema de directorio no está aplicado en producción y los flags continúan apagados. Antes del despliegue hacen falta backup y restauración probados, migración por el ledger del repositorio, revisión legal/de fuentes y verificación autenticada posterior.
+- **Riesgo del E2E Sandbox:** las migraciones de directorio se aplicaron por historial nativo de Supabase, mientras `zaltyko_schema_migrations` permanece en 45 filas hasta `20260805150000`. Reconciliar su historial antes de ejecutar allí el runner aplicacional.
+- **PR #180:** endurecimiento explícito de RLS del directorio con prueba PostgreSQL y CI automatizado; comprobar checks y resultado antes de cerrar el cambio.

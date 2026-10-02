@@ -1,9 +1,23 @@
 ---
 status: active
 owner: producto
-last_reviewed: 2026-09-19T09:32Z
+last_reviewed: 2026-10-02
 source:
 ---
+
+## 2026-10-02 — OAuth productivo y límites de validación de cuenta
+
+- PR #179 quedó integrada en `main` (`364e8693`); el deployment productivo está `READY` con `zaltyko.com` y `www.zaltyko.com`. `/auth/login`, `/auth/register` y `/auth/forgot-password` devuelven 200.
+- En Playwright productivo, los botones Google llegan a Google usando el cliente web y `openid email profile`; el enlace “¿Olvidaste tu contraseña?” ya aparece. La recuperación no se envió y no se introdujeron credenciales: sesión Google real, alta nueva y entrega SMTP permanecen sin verificar.
+- Se actualizó en Google Auth Platform el scope `openid` del cliente web existente. No se creó un cliente duplicado ni se consultó el valor del secreto.
+
+## 2026-10-02 — Policies explícitas y prueba automatizada del directorio
+
+- Diez tablas internas del directorio reciben policies explícitas que deniegan operaciones a `anon` y `authenticated`; se conserva el acceso `service_role` y la lectura pública limitada a fichas publicadas, no fusionadas y no vinculadas.
+- La prueba `supabase/tests/public_directory_access.sql` verifica RLS, grants, lectura pública, borradores ocultos y denegación de claims/escrituras. `scripts/directory/test-local.sh` la ejecuta después de ambas migraciones; el workflow también se activa al cambiar `supabase/tests/**`.
+- Verificación local: 61 checks de integración, backup local restaurado, `validate:rls` 79/79, `check:migrations` 7 Drizzle + 92 Supabase, `bash -n`, Prettier del workflow y `git diff --check` pasan.
+- En el sandbox E2E, Supabase MCP registra las dos migraciones en su historial nativo; el ledger aplicacional conserva 45 filas hasta `20260805150000` y no registra los archivos del directorio. No usar allí el runner aplicacional hasta reconciliar el historial. Producción y flags siguen intactos.
+- PR #180 abierta; CI en curso. Security Advisor del sandbox vuelve a mostrar dos casos RLS sin policy en tablas antiguas (`lead_interactions`, `zaltyko_schema_migrations`) y el aviso independiente de protección contra contraseñas filtradas desactivada.
 
 ## 2026-10-01 — Onboarding respeta el flag de reclamaciones
 

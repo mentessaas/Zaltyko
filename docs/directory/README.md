@@ -1,6 +1,6 @@
 # Directorio público — implementación y operación
 
-Fecha: 1 de octubre de 2026. Rama `feat/public-directory`, base `01e4df1f`.
+Fecha: 2 de octubre de 2026. La funcionalidad del directorio y la búsqueda en el alta están integradas en `main`; el hardening de policies explícitas y su prueba están en PR #180.
 
 ## Hallazgos clave
 
@@ -35,8 +35,8 @@ Fecha: 1 de octubre de 2026. Rama `feat/public-directory`, base `01e4df1f`.
 ## Validación observada
 
 - Suite web completa anterior a los últimos ajustes: **415 archivos, 1.867 pruebas aprobadas**; un archivo y tres casos omitidos.
-- Suite focalizada anterior: **91 pruebas aprobadas en trece archivos**. Tras el ajuste de flags, las pruebas de onboarding, flujo de propietario y API de reclamación pasan **10/10**; el build local y TypeScript terminan correctamente. CI del nuevo commit pendiente.
-- PostgreSQL aislado real, migración exacta, dump/restauración y **61 comprobaciones aprobadas**. Incluye concurrencia de reclamaciones y lotes, edición sensible, revocación, proyección/retirada, deduplicación de correos, aislamiento privado y denegaciones con roles de base de datos.
+- Suite focalizada anterior: **91 pruebas aprobadas en trece archivos**. Tras el ajuste de flags, las pruebas de onboarding, flujo de propietario y API de reclamación pasan **10/10**; el build local y TypeScript terminan correctamente.
+- PostgreSQL aislado, ambas migraciones, dump/restauración y **61 comprobaciones de integración aprobadas**. La prueba SQL adicional verifica RLS, grants, proyección pública y denegaciones con roles anon/authenticated/service_role; el workflow de PR #180 la ejecuta automáticamente. CI de #180 sigue en curso.
 - Onboarding en navegador local: búsqueda de una academia externa ficticia y enlace de reclamación visibles. El intento directo de crear la misma sede devuelve HTTP 409 `ACADEMY_ALREADY_LISTED`; la solicitud enviada queda pendiente sin permiso de edición concedido; las academias operativas permanecen en 6 y los permisos operativos en 12.
 - Supabase local real y navegador: representante sin perfil operativo solicita; Super Admin aprueba; representante ve y edita; segundo representante no ve gestión y recibe HTTP 403 al intentar editar. Owner/admin/coach/parent/athlete reciben 403 en API de administración.
 - Formulario de representante y Mis fichas: comprobación de ancho a 390 px y zoom CSS del 200 %, captura y navegación Tab. Esta comprobación **no** equivale a VoiceOver manual ni a todos los recorridos de accesibilidad del producto.
@@ -78,6 +78,8 @@ Rollback inicial: apagar flags y volver a lectores anteriores. Conservar tablas 
 - Alta nueva por formulario del directorio comprobada contra Auth local: devuelve a la ficha y no crea perfil operativo. Activación expresa del SaaS comprobada en navegador: crea y vincula el espacio, conserva la URL de la ficha y el reintento reutiliza el vínculo. El formulario conserva nombre y ubicación de la ficha, con borrador separado por ficha. Confirmación real por correo, OAuth y regresión completa de destinos de todos los roles: pendientes. Las denegaciones de API no sustituyen esos recorridos.
 - Revalidación de guardas de onboarding (2026-10-01): **34 pruebas focalizadas**, TypeScript, ESLint focal y `git diff --check` pasan. La integración PostgreSQL aislada verifica que la ficha reclamada se excluya a sí misma, que el bloqueo serialice altas del mismo nombre/país entre localidades y que las colisiones con academias operativas devuelvan solo una señal de revisión, sin revelar datos privados. Ningún cambio de esquema remoto, publicación ni activación de flags.
 - VoiceOver manual sobre el build desplegado permanece diferenciado y pendiente por decisión anterior.
+- El sandbox E2E recibió las dos migraciones mediante el historial nativo de Supabase. Su ledger aplicacional `zaltyko_schema_migrations` sigue en 45 entradas, hasta `20260805150000`; no registra las migraciones del directorio. No ejecutar allí `pnpm db:migrate:ledger --apply` hasta reconciliar el historial completo del sandbox.
+- Producción sigue sin migrar y con todos los flags apagados. La promoción requiere respaldo y restauración comprobables, más revisión de fuentes y jurisdicciones; la prueba local no sustituye esas condiciones.
 
 ## Fuentes y relevancia
 

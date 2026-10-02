@@ -1,7 +1,7 @@
 ---
 status: active
 owner: tech
-last_reviewed: 2026-07-16
+last_reviewed: 2026-10-02
 source:
   - ../docs/MIGRATIONS_RLS_RUNBOOK.md
   - ../docs/migrations-backlog.md
@@ -72,6 +72,14 @@ source:
   dos `0009_*`, quedaron registrados por nombre de archivo y hash SHA-256 en
   `public.zaltyko_schema_migrations`. RLS está habilitado y `anon`/`authenticated` no tienen permisos.
   `pnpm db:migrate:ledger` verificó después cero pendientes; no se ejecutó seed global.
+
+## Revalidación — 2026-10-02: grants, policies y sandbox del directorio
+
+- Se revisó el [cambio oficial de Supabase sobre exposición de tablas en Data API](https://supabase.com/changelog/45329-breaking-change-tables-not-exposed-to-data-and-graphql-api-automatically): el 30 de octubre de 2026 los proyectos existentes dejan de exponer automáticamente tablas públicas nuevas. Grants y RLS son controles separados.
+- La migración `20261002102000_directory_explicit_deny_policies.sql` añade policies `false` para las diez tablas privadas. La migración base concede solo `SELECT` público a `directory_entries`; no da grants de cliente a las pruebas, reclamaciones, permisos, fuentes, importaciones, favoritos, suscripciones, entregas ni auditoría. El cambio pasa `validate:rls` y el test PostgreSQL revisa privilegios y roles.
+- El job `Directory integrity` aplica la migración base y la nueva migración en PostgreSQL efímero, ejecuta `supabase/tests/public_directory_access.sql`, verifica la restauración y corre los 61 checks de integración.
+- El sandbox E2E recibió las dos migraciones con Supabase MCP y las registra en el historial nativo de Supabase. Su ledger aplicacional `zaltyko_schema_migrations` sigue con 45 filas, última versión `20260805150000`; las migraciones de directorio no están registradas allí. No correr el ledger aplicacional contra ese sandbox hasta reconciliar todos los archivos posteriores al corte.
+- Producción no se migró. Para producción, mantener el runner versionado del repositorio después de un backup y restauración verificados; no activar flags del directorio antes de validar migración, permisos y retorno al lector anterior.
 
 ## Flujo recomendado
 

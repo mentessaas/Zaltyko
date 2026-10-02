@@ -1,12 +1,30 @@
 ---
 status: active
 owner: producto
-last_reviewed: 2026-08-08T23:30Z
+last_reviewed: 2026-10-02
 source:
   - ../AGENTS.md
 ---
 
 # Decisiones
+
+## 2026-10-02 — OAuth desplegado, sesión real y recuperación por correo pendientes
+
+| Campo | Valor |
+| --- | --- |
+| Contexto | PR #179 se integró y producción sirve el login, registro y recuperación. La navegación OAuth llega a Google con el callback esperado; no se completó una sesión de usuario y no se envió un correo real de recuperación. |
+| Decisión | Reutilizar el cliente OAuth web existente; guardar `openid` como scope y no duplicar el cliente ni copiar secretos. Considerar el bug de redirect corregido, pero mantener por separado la validación de login/registro con una cuenta autorizada y la prueba de SMTP/recuperación. |
+| Consecuencia | La interfaz y el inicio del redirect están verificados en producción; autenticación de extremo a extremo y entrega de correo siguen sin verificarse. |
+| Estado | Deployment `READY` desde `364e8693`. Falta iniciar sesión/registrar con una cuenta de prueba autorizada y probar el email tras configurar SMTP. |
+
+## 2026-10-02 — Denegar acceso Data API a tablas privadas del directorio
+
+| Campo | Valor |
+| --- | --- |
+| Contexto | Las diez tablas internas del directorio tenían RLS y grants de cliente revocados, pero Supabase Security Advisor las señalaba por no tener policies. La migración base deja solo lectura pública controlada sobre `directory_entries`. |
+| Decisión | Añadir policies explícitas `USING (false) WITH CHECK (false)` para `anon` y `authenticated`, conservar acceso de servidor, y ejecutar una prueba PostgreSQL de lectura pública, borradores, grants y denegaciones por rol en el job de integridad. Mantener producción y flags del directorio sin cambios hasta tener backup/restauración verificados. |
+| Consecuencia | El Advisor del sandbox deja de señalar tablas del directorio por ausencia de policies; quedan dos avisos preexistentes de tablas internas y el aviso independiente de protección de contraseñas filtradas. El catálogo sigue sin publicar datos reales. |
+| Estado | Migraciones aplicadas solo en el sandbox E2E y verificadas; PR #180 con CI en curso. El ledger aplicacional del sandbox no registra estas migraciones y no debe usarse allí hasta reconciliar su historial. |
 
 ## 2026-10-01 — E2E autenticado conserva navegadores y amplía timeout
 
