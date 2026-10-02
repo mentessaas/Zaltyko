@@ -15,7 +15,7 @@ source:
 | Contexto | PR #179 se integró y producción sirve el login, registro y recuperación. La navegación OAuth llega a Google con el callback esperado; no se completó una sesión de usuario y no se envió un correo real de recuperación. |
 | Decisión | Reutilizar el cliente OAuth web existente; guardar `openid` como scope y no duplicar el cliente ni copiar secretos. Considerar el bug de redirect corregido, pero mantener por separado la validación de login/registro con una cuenta autorizada y la prueba de SMTP/recuperación. |
 | Consecuencia | La interfaz y el inicio del redirect están verificados en producción; autenticación de extremo a extremo y entrega de correo siguen sin verificarse. |
-| Estado | Deployment `READY` desde `364e8693`. Falta iniciar sesión/registrar con una cuenta de prueba autorizada y probar el email tras configurar SMTP. |
+| Estado | En producción, el botón de inicio de sesión llega a `accounts.google.com` después del último despliegue; no se introdujeron credenciales. Registro exige aceptación expresa de términos y quedó sin completar. Falta una sesión de prueba autorizada y probar recuperación por SMTP propio. |
 
 ## 2026-10-02 — Denegar acceso Data API a tablas privadas del directorio
 
@@ -24,9 +24,9 @@ source:
 | Contexto | Las diez tablas internas del directorio tenían RLS y grants de cliente revocados, pero Supabase Security Advisor las señalaba por no tener policies. La migración base deja solo lectura pública controlada sobre `directory_entries`. |
 | Decisión | Añadir policies explícitas `USING (false) WITH CHECK (false)` para `anon` y `authenticated`, conservar acceso de servidor, y ejecutar una prueba PostgreSQL de lectura pública, borradores, grants y denegaciones por rol en el job de integridad. Mantener producción y flags del directorio sin cambios hasta tener backup/restauración verificados. |
 | Consecuencia | El Advisor del sandbox deja de señalar tablas del directorio por ausencia de policies; quedan dos avisos preexistentes de tablas internas y el aviso independiente de protección de contraseñas filtradas. El catálogo sigue sin publicar datos reales. |
-| Estado | Migraciones aplicadas solo en el sandbox E2E y verificadas; PR #180 con CI en curso. El ledger aplicacional del sandbox no registra estas migraciones y no debe usarse allí hasta reconciliar su historial. |
+| Estado | PR #180 fusionada por squash con bypass administrativo autorizado tras pasar los checks obligatorios; el deployment de producción quedó `Ready`. La migración de policies se aplicó y verificó solo en el sandbox; producción sigue sin estos cambios y el ledger aplicacional del sandbox no registra las migraciones nativas. No usar el runner aplicacional allí hasta reconciliar su historial. |
 
-Revalidación de producción del 2026-10-02: `directory_entries` no existe; el ledger aplicacional termina en `20260913100000`, pero el historial nativo contiene ocho migraciones posteriores que corresponden a archivos locales y una novena (`harden_rls_search_paths`) sin archivo fuente. La reconciliación del ledger y la verificación de backup/restauración son gates obligatorios antes de aplicar migraciones o encender flags.
+Revalidación de producción del 2026-10-02: no existe ninguna tabla `directory_*` y no hay variables `DIRECTORY_*` configuradas en Vercel. El ledger aplicacional tiene 54 filas hasta `20260913100000`; 39 de los 93 archivos locales no constan en él, sin huérfanos ni diferencias de versión/hash en las filas con archivo. El historial nativo tiene 48 filas; `harden_rls_search_paths` carece de archivo local y `add_annual_plan_prices` tiene un timestamp distinto al del archivo local. La reconciliación de ambos historiales y la prueba de backup/restauración siguen siendo gates antes de aplicar migraciones o encender flags.
 
 ## 2026-10-01 — E2E autenticado conserva navegadores y amplía timeout
 

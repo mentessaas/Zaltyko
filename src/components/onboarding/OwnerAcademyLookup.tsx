@@ -6,6 +6,7 @@ import { entryPath, type DirectoryEntry } from "@/lib/directory/contracts";
 export function OwnerAcademyLookup({
   name,
   countryCode,
+  region = "",
   city,
   onReviewed,
   onCityChange,
@@ -13,6 +14,7 @@ export function OwnerAcademyLookup({
 }: {
   name: string;
   countryCode: string;
+  region?: string;
   city: string;
   onReviewed: (key: string) => void;
   onCityChange?: (city: string) => void;
@@ -22,7 +24,12 @@ export function OwnerAcademyLookup({
   const [searched, setSearched] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState("");
-  const key = JSON.stringify([name.trim(), countryCode, city.trim()]);
+  const key = JSON.stringify([
+    name.trim(),
+    countryCode,
+    region.trim(),
+    city.trim(),
+  ]);
   async function search() {
     setBusy(true);
     setError("");
@@ -34,6 +41,8 @@ export function OwnerAcademyLookup({
         country: countryCode,
         limit: "10",
       });
+      if (region.trim()) query.set("region", region.trim());
+      if (city.trim()) query.set("city", city.trim());
       const response = await fetch(`/api/directory/catalog?${query}`);
       const body = await response.json();
       if (!response.ok)
@@ -58,8 +67,8 @@ export function OwnerAcademyLookup({
         ¿Tu academia ya está en Zaltyko?
       </h2>
       <p>
-        Introduce el nombre y el país de tu academia arriba; añade la localidad
-        de la sede y busca antes de crearla.{" "}
+        Introduce el nombre y el país de tu academia arriba; añade la región y
+        localidad de la sede cuando las conozcas y busca antes de crearla.{" "}
         {claimsEnabled
           ? "Si ya tiene ficha, puedes solicitar gestionarla gratis. La reclamación requiere aprobación y no concede acceso al espacio privado."
           : "Si ya tiene ficha, solicita ayuda para vincularla y evitar duplicados. Las reclamaciones todavía no están activas."}

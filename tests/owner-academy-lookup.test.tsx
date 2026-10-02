@@ -13,6 +13,36 @@ afterEach(() => {
   vi.unstubAllGlobals();
 });
 describe("Buscar academia durante onboarding", () => {
+  it("filtra por región y ciudad, y solo revisa esa ubicación", async () => {
+    const fetchMock = vi.fn().mockResolvedValue({
+      ok: true,
+      json: async () => ({ data: { items: [] } }),
+    });
+    vi.stubGlobal("fetch", fetchMock);
+    const reviewed = vi.fn();
+    render(
+      <OwnerAcademyLookup
+        name="Academia QA"
+        countryCode="es"
+        region="Comunidad de Madrid"
+        city="Madrid"
+        onReviewed={reviewed}
+      />
+    );
+
+    fireEvent.click(screen.getByRole("button", { name: "Buscar mi academia" }));
+    await screen.findByText(
+      "No encontramos coincidencias en el catálogo público. Puedes continuar con el alta de una academia nueva."
+    );
+
+    const requestUrl = new URL(fetchMock.mock.calls[0][0], "https://zaltyko.test");
+    expect(requestUrl.searchParams.get("region")).toBe("Comunidad de Madrid");
+    expect(requestUrl.searchParams.get("city")).toBe("Madrid");
+    expect(reviewed).toHaveBeenCalledWith(
+      JSON.stringify(["Academia QA", "es", "Comunidad de Madrid", "Madrid"])
+    );
+  });
+
   it("no concede continuidad si la búsqueda falla", async () => {
     vi.stubGlobal(
       "fetch",
@@ -162,11 +192,11 @@ describe("Buscar academia durante onboarding", () => {
     resolve({ ok: true, json: async () => ({ data: { items: [] } }) });
     await waitFor(() =>
       expect(reviewed).toHaveBeenCalledWith(
-        JSON.stringify(["Academia QA", "es", "Madrid"])
+        JSON.stringify(["Academia QA", "es", "", "Madrid"])
       )
     );
     expect(reviewed).not.toHaveBeenCalledWith(
-      JSON.stringify(["Academia QA", "pe", "Lima"])
+      JSON.stringify(["Academia QA", "pe", "", "Lima"])
     );
     expect(
       screen.getByText(
