@@ -10739,4 +10739,4 @@ Modelo separado, reclamación manual, administración, importación revisada, fi
 - **Prueba causal:** antes de aplicar el patch, la prueba focal falló porque `1.4.0` aceptó la firma falsa. Después del patch, el mismo test pasó y rechazó la firma.
 - **Verificación:** instalación limpia/frozen con pnpm 9 aplica el patch; `npm ci` también lo aplica. Suite móvil **331/331**, typecheck, ESLint, prueba focal npm y `git diff --check` pasan.
 - **Límite:** el paquete y la versión permanecen en 1.4.0; Dependabot conserva las dos alertas. No se declara limpio el audit móvil. Sin build nativo, publicación en tienda ni despliegue. Mantener la mitigación hasta que exista una versión oficial y compatible con Expo.
-- **Documentación:** `docs/security/node-forge-cve-2026-85393.md`, Backlog priorizado y Decisiones actualizados. PR #186 tiene su CI requerido en verde; sigue pendiente revisión y despliegue.
+- **Documentación:** `docs/security/node-forge-cve-2026-85393.md`, Backlog priorizado y Decisiones actualizados. PR #187 abierto para revisión; falta CI y no está desplegado.
