@@ -17,6 +17,7 @@ source:
 - La prueba `supabase/tests/public_directory_access.sql` verifica RLS, grants, lectura pública, borradores ocultos y denegación de claims/escrituras. `scripts/directory/test-local.sh` la ejecuta después de ambas migraciones; el workflow también se activa al cambiar `supabase/tests/**`.
 - Verificación local: 61 checks de integración, backup local restaurado, `validate:rls` 79/79, `check:migrations` 7 Drizzle + 92 Supabase, `bash -n`, Prettier del workflow y `git diff --check` pasan.
 - En el sandbox E2E, Supabase MCP registra las dos migraciones en su historial nativo; el ledger aplicacional conserva 45 filas hasta `20260805150000` y no registra los archivos del directorio. No usar allí el runner aplicacional hasta reconciliar el historial. Producción y flags siguen intactos.
+- Auditoría read-only de producción: `directory_entries` no existe; el ledger aplicacional tiene 54 filas hasta `20260913100000`, mientras el historial nativo de Supabase tiene 48. Ocho migraciones posteriores coinciden por nombre con archivos locales; `harden_rls_search_paths` aparece en el historial con siete sentencias, pero no hay archivo local. El runner queda en espera hasta clasificar y reconciliar el historial, con backup/restauración verificados.
 - PR #180 abierta; CI en curso. Security Advisor del sandbox vuelve a mostrar dos casos RLS sin policy en tablas antiguas (`lead_interactions`, `zaltyko_schema_migrations`) y el aviso independiente de protección contra contraseñas filtradas desactivada.
 
 ## 2026-10-01 — Onboarding respeta el flag de reclamaciones

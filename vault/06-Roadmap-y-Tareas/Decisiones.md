@@ -26,6 +26,8 @@ source:
 | Consecuencia | El Advisor del sandbox deja de señalar tablas del directorio por ausencia de policies; quedan dos avisos preexistentes de tablas internas y el aviso independiente de protección de contraseñas filtradas. El catálogo sigue sin publicar datos reales. |
 | Estado | Migraciones aplicadas solo en el sandbox E2E y verificadas; PR #180 con CI en curso. El ledger aplicacional del sandbox no registra estas migraciones y no debe usarse allí hasta reconciliar su historial. |
 
+Revalidación de producción del 2026-10-02: `directory_entries` no existe; el ledger aplicacional termina en `20260913100000`, pero el historial nativo contiene ocho migraciones posteriores que corresponden a archivos locales y una novena (`harden_rls_search_paths`) sin archivo fuente. La reconciliación del ledger y la verificación de backup/restauración son gates obligatorios antes de aplicar migraciones o encender flags.
+
 ## 2026-10-01 — E2E autenticado conserva navegadores y amplía timeout
 
 | Campo | Valor |
