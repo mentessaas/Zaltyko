@@ -88,7 +88,8 @@ export function CreateChargeDialog({
     // Load athletes
     const athleteParams = new URLSearchParams({
       academyId,
-      limit: "1000",
+      // /api/athletes caps list requests at 200 to keep response sizes bounded.
+      limit: "200",
       ...(sportConfigId && { sportConfigId }),
     });
     fetch(`/api/athletes?${athleteParams}`)
