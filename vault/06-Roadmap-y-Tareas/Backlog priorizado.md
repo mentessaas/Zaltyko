@@ -385,3 +385,7 @@ PR #178 requiere que el estado permitido tenga también un `stripe_subscription_
 ## Seguimiento Dependabot — estado de PR #173 (2026-10-02)
 
 - Las 13 alertas corregibles de Dependabot están parcheadas en #173. El audit de producción web pasa; en móvil queda `GHSA-86w9-cpqp-85rv` para `node-forge <=1.4.0` bajo Expo CLI, sin versión corregida publicada. Revalidar después de integrar el PR y en cada actualización de Expo.
+
+## Seguimiento de dependencias móviles — 2026-10-02
+
+- **Alta / móvil:** seguir `GHSA-86w9-cpqp-85rv` (`node-forge <=1.4.0`) en la cadena `@expo/cli` / `@expo/code-signing-certificates`. El audit actual indica que no hay versión corregida publicada; repetirlo al actualizar Expo y no declarar limpia la auditoría móvil mientras siga presente.

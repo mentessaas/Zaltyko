@@ -10603,3 +10603,8 @@ Vault: actualizado `Changelog interno.md`; se preserva el backlog existente porq
 - Se actualizan `basic-ftp`, DOMPurify, `moment`, Lighthouse y la cadena Puppeteer; se sincronizan lockfiles web/móviles y se elimina `extract-zip` de la cadena Lighthouse.
 - La auditoría web de producción pasa. La auditoría móvil revalidada el 2026-10-02 aún detecta `node-forge <=1.4.0` (`GHSA-86w9-cpqp-85rv`), sin arreglo upstream publicado; ver la nota de auditoría más reciente.
 - La entrada del 2026-10-02 en este Changelog y la decisión de igual fecha registran el alcance real del residual. No afirmar audit móvil limpia.
+
+## 2026-10-02 — Revalidación del PR #173
+
+- En el head rebasado de #173, `pnpm audit --prod --audit-level=high` termina sin vulnerabilidades conocidas en producción web. `pnpm --dir mobile audit --audit-level=high` conserva una vulnerabilidad alta, `GHSA-86w9-cpqp-85rv`, en `node-forge <=1.4.0` dentro de Expo CLI y su certificado de firma; el registro no muestra versión corregida.
+- Se corrigió la descripción del PR para no afirmar que el audit móvil está limpio. Las 13 alertas Dependabot originales siguen siendo el alcance del parche; el aviso de node-forge queda como riesgo upstream separado. El CI del nuevo head todavía está en curso.
