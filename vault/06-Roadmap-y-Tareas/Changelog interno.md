@@ -10560,3 +10560,26 @@ Vault: actualizado `Changelog interno.md`; se preserva el backlog existente porq
 - La pantalla `/dashboard/empleo/mis-postulaciones` normaliza respuestas `{ ok, data }` y evita mostrar falsamente una lista vacía.
 - Se añadió contrato focal para la carga de postulaciones.
 - El despliegue remoto directo sufrió OOM en Vercel; se usó build prebuilt local reproducible para publicar sin cambiar infraestructura.
+
+## 2026-09-30 — Recuperación de contraseña y diagnóstico Google OAuth
+
+- Producción: falta el enlace visible de recuperación; Google falla tanto en login como en registro con `redirect_uri_mismatch`.
+- Se añadió el recorrido de recuperación por email con respuesta anti-enumeración, callback seguro y actualización de contraseña. Login Google ahora navega explícitamente a la URL devuelta por Supabase.
+- TypeScript, ESLint, formato y prueba focal de rutas seguras pasan. Solicitud local capturada en Mailpit; callback no completado porque la allowlist local rechaza el host/puerto 3109. Sin correo real ni cambio de configuración en producción.
+- Configuración pendiente: callback Supabase en Google Auth Platform y redirect de la app en Supabase URL Configuration. Ver [runbook](../../docs/auth/google-and-password-recovery.md).
+- El cambio está en rama local `fix/auth-password-recovery`; no desplegado. Los registros reales revisados, permisos de fuentes y revisión jurídica del directorio siguen abiertos; sus flags continúan apagados en la rama separada.
+
+## 2026-10-01 — Validación de onboarding y límites del correo real
+
+- PR #174 ya contiene la búsqueda de academia en el onboarding después del registro, la revisión de la ficha y el bloqueo de duplicados en servidor. Los checks de CI están verdes; sigue en borrador y los flags del directorio están apagados.
+- Se añadieron pruebas de interfaz para solicitud de recuperación, ruta de retorno segura y cambio de contraseña. Las pruebas focales pasan localmente.
+- Vercel enumera la clave y datos de remitente de Brevo en producción, pero la ejecución local no inyecta las variables y la API no devuelve el valor descifrado. No se intentó eludir esa restricción y no se envió ningún correo real.
+- Storage privado con documento ficticio se probó en el entorno aislado del PR #174; producción, proveedor antimalware y recepción de correo real siguen pendientes.
+
+## 2026-10-01 — OAuth Web verificado; bloqueo de testers y SMTP Auth
+
+- Solo lectura en Google Auth Platform y Supabase Dashboard: cliente OAuth `Zaltyko Web` (tipo Aplicación web) existe; origen `https://zaltyko.com` y retorno `https://jegxfahsvugilbthbked.supabase.co/auth/v1/callback` coinciden. Supabase Auth tiene Google Enabled, el Client ID coincide con ese cliente, su secreto está configurado (no se leyó) y permite `https://zaltyko.com/auth/callback`; `SITE_URL` también coincide.
+- La audiencia Google permanece External / Testing con cero testers; por tanto la configuración técnica está lista, pero no hay prueba de sesión y el acceso Google no está habilitado a usuarios generales. No se publicó la app ni se añadió un tester.
+- Supabase Auth sigue usando el servicio de correo integrado, no SMTP propio; el panel muestra el aviso de que no es para producción. La plantilla de reset usa `{{ .ConfirmationURL }}`. Para recuperación real hace falta SMTP propio y entrega comprobada.
+- Brevo API key y Brevo SMTP key son credenciales distintas. La guía oficial de Brevo exige SMTP login y SMTP key para usarlo como SMTP de Supabase. No se generó clave ni se modificaron secretos. [Supabase SMTP](https://supabase.com/docs/guides/auth/auth-smtp) · [Brevo SMTP](https://help.brevo.com/hc/en-us/articles/7924908994450-Send-transactional-emails-using-Brevo-SMTP).
+- Se actualizó `docs/auth/google-and-password-recovery.md` para superseder el estado del 2026-09-30. PR #175 sigue sin despliegue; login real, reset real y envío de correo siguen sin verificar.

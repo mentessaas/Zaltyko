@@ -351,3 +351,18 @@ Trabajo de auditoria mergeado a `security/audit-remediation` via **PR #8 (`cf092
 - **Media / Luna:** obtener sesiones aisladas por rol y autorización para axe/Playwright antes de afirmar WCAG AA o cerrar UI-003/A11Y-001.
 - **Media / Sol:** configurar bucket Supabase privado, URLs firmadas/proxy autorizado y escaneo antimalware para uploads; validar descarga anónima denegada.
 - **Baja / Terra:** archivar o etiquetar documentos históricos que aún describen NextAuth; no reintroducir `NEXTAUTH_*` en nuevos entornos.
+
+## Bloqueos de lanzamiento revisados — 2026-09-30
+
+- **Pendiente externo:** corregir el cliente OAuth de Google con el callback del proyecto Supabase y probar login/registro después del despliegue. Evidencia de producción: `redirect_uri_mismatch` en ambos botones.
+- **Pendiente externo:** confirmar la URL de callback en la allowlist de Supabase y verificar SMTP con una cuenta propia; el correo local solo llegó a Mailpit y la allowlist de ese sandbox impidió terminar el callback.
+- **Pendiente de acceso al secreto:** ejecutar `pnpm email:verify --para Zaltyko@gmail.com` desde un entorno autorizado con acceso de ejecución a la clave Brevo. Vercel no devuelve su valor descifrado a esta sesión; no volver a copiar claves al chat ni a repositorios.
+- **Pendiente de revisión humana:** no hay academias/eventos declarados listos para publicar; validar fuentes, condiciones de reutilización y revisión jurídica antes de activar catálogo/importación.
+- **Pendiente de entorno:** ejecutar comprobación real de subida/descarga privada y antimalware con documentos de prueba después de configurar el proveedor y permisos de producción. No se usan documentos de clientes.
+- El directorio permanece en PR #174, en borrador y sin despliegue; los flags se mantienen apagados. No se reactivan los pendientes que Elvis dejó aplazados (Stripe Live/Connect/Tax, repetición de VoiceOver ni backup cloud).
+
+## Revalidación de lanzamiento — 2026-10-01
+
+- **Bloqueo de OAuth:** cliente Web y URLs de retorno están correctos en Google Cloud/Supabase, pero la app sigue en Testing con cero testers. Conseguir autorización para un tester propio o completar el proceso de publicación/verificación; después correr login y registro reales. No añadir cuentas ni publicar por inferencia.
+- **Bloqueo de correo Auth:** Supabase aún usa el relay integrado (no apto para producción). Configurar SMTP propio con credenciales SMTP, aplicar remitente de dominio verificado y probar recuperación. Brevo API key ≠ SMTP key; no usar una en lugar de la otra. Mantener pendiente hasta guardar credencial segura y demostrar recepción.
+- **Estado de Brevo app:** falta `BREVO_REPLY_TO`; la clave probada anteriormente respondió 401. Rotar la clave expuesta, establecer Reply-To y validar con el verificador seguro; no pegar secretos en chat.
