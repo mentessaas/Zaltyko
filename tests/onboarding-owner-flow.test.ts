@@ -59,6 +59,34 @@ describe("ZAL-137 — contrato del flujo owner", () => {
     expect(form).toContain("Solicitar ayuda para vincular la ficha");
   });
 
+  it("impide duplicar un espacio operativo aunque el catálogo público esté apagado", () => {
+    const ownerRoute = read("src/app/api/onboarding/owner/route.ts");
+    const membershipCheck = ownerRoute.indexOf(
+      "if (membershipCreatedByAnotherRequest)"
+    );
+    const publicDirectoryGuard = ownerRoute.indexOf(
+      'if (directoryId || flag("catalog")) {',
+      membershipCheck
+    );
+    const operationalGuard = ownerRoute.indexOf(
+      "academyOperationalIdentityQuery(identityForChecks)",
+      membershipCheck
+    );
+    const createWorkspace = ownerRoute.indexOf(
+      "const result = await createAcademy(",
+      membershipCheck
+    );
+
+    expect(membershipCheck).toBeGreaterThanOrEqual(0);
+    expect(publicDirectoryGuard).toBeGreaterThan(membershipCheck);
+    expect(operationalGuard).toBeGreaterThan(publicDirectoryGuard);
+    expect(operationalGuard).toBeLessThan(createWorkspace);
+    expect(ownerRoute).toContain('"ACADEMY_REVIEW_REQUIRED"');
+    expect(ownerRoute).toContain(
+      "academy-identity:${academyDuplicateLock(identityForChecks)}"
+    );
+  });
+
   it("conserva el siguiente paso en el workspace moderno y el CTA de invite", () => {
     const checklist = read("src/lib/onboarding-routes.ts");
     const dashboard = read("src/components/dashboard/DashboardPage.tsx");

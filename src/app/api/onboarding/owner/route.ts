@@ -324,11 +324,9 @@ export async function POST(request: Request) {
       directoryIdentity = identity.data;
     }
     const identityForChecks = directoryIdentity ?? requestedDirectoryIdentity;
-    if (directoryId || flag("catalog")) {
-      await tx.execute(
-        sql`SELECT pg_advisory_xact_lock(hashtext(${`academy-identity:${academyDuplicateLock(identityForChecks)}`}))`
-      );
-    }
+    await tx.execute(
+      sql`SELECT pg_advisory_xact_lock(hashtext(${`academy-identity:${academyDuplicateLock(identityForChecks)}`}))`
+    );
     await tx.execute(sql`select pg_advisory_xact_lock(hashtext(${user.id}))`);
 
     if(directoryId || flag("catalog")) {
@@ -372,18 +370,21 @@ export async function POST(request: Request) {
           ),
         };
       }
-      const operationalMatch = (
-        await tx.execute(academyOperationalIdentityQuery(identityForChecks))
-      ).rows[0]?.exists;
-      if (operationalMatch === true) {
-        return {
-          error: apiError(
-            "ACADEMY_REVIEW_REQUIRED",
-            "No creamos otro espacio porque ya puede existir una academia con estos datos. Contacta con soporte para verificar la ficha.",
-            409
-          ),
-        };
-      }
+    }
+    // This operational-only guard also runs while the public directory is off.
+    // It returns no tenant details and prevents a second workspace when a
+    // matching academy identity already exists in the operational database.
+    const operationalMatch = (
+      await tx.execute(academyOperationalIdentityQuery(identityForChecks))
+    ).rows[0]?.exists;
+    if (operationalMatch === true) {
+      return {
+        error: apiError(
+          "ACADEMY_REVIEW_REQUIRED",
+          "No creamos otro espacio porque ya puede existir una academia con estos datos. Contacta con soporte para verificar la ficha.",
+          409
+        ),
+      };
     }
 
     const result = await createAcademy(

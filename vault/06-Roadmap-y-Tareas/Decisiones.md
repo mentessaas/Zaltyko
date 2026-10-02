@@ -675,7 +675,7 @@ Una ficha externa no crea dueño, academia operativa, trial ni suscripción. Sol
 | Evidencia | Producción mostraba RLS habilitado en `public.__drizzle_migrations`, pero ninguna policy; `anon` y `authenticated` tenían permiso de lectura. La policy ausente genera un aviso del asesor y deja la denegación implícita/accidental. |
 | Decisión | Añadir una policy restrictiva permanente para `anon` y `authenticated` con `USING (false)` y `WITH CHECK (false)`. Mantener el ledger disponible para conexiones confiables del servidor. |
 | Consecuencia | Una concesión futura o policy permisiva adicional no hace visibles ni modificables las filas del historial interno. La prueba reproduce deliberadamente el `SELECT` concedido y comprueba que RLS devuelve cero filas a ambos roles. |
-| Estado | PR #182 fusionada en `main` (`60649c58`) tras pasar CI y la prueba PostgreSQL aislada. La migración no se aplicó a ningún entorno remoto: el ledger de producción sigue sin reconciliarse. |
+| Estado | PR #182 fusionada en `main` (`60649c58`) tras pasar CI y la prueba PostgreSQL aislada; el paso de despliegue quedó omitido. La migración no se aplicó a ningún entorno remoto: el ledger de producción sigue sin reconciliarse. |
 
 ## 2026-10-02 — Señalar cuándo Google OAuth está listo para usar
 
@@ -684,4 +684,13 @@ Una ficha externa no crea dueño, academia operativa, trial ni suscripción. Sol
 | Evidencia | En una carga fría de producción, el botón se podía pulsar antes de hidratarse y el evento no llegaba a Supabase; después de cargar, la solicitud OAuth funcionaba y llegaba a la pantalla de Google. Client ID, callback y secreto ya estaban alineados entre Google Cloud y Supabase. |
 | Decisión | Desactivar temporalmente los CTA Google en el HTML inicial y mostrar “Preparando Google...” hasta que la interfaz cliente esté lista; aplicar el mismo comportamiento a login y registro. Derivar `next` de registro después de hidratar. |
 | Consecuencia | Evita clics silenciosamente perdidos y conserva la configuración de seguridad existente; no cambia proveedores ni secretos. |
-| Estado | Implementado en rama local; prueba SSR/hidratación 4/4 y ESLint focal sin avisos. No desplegado. Para cerrar el recorrido completo, el usuario debe completar la autenticación con su cuenta después de CI/revisión. |
+| Estado | PR #183 fusionada en `main` (`d37a8001`); deployment de producción en curso al redactar. Se necesita login/registro con cuenta propia para cerrar el E2E final. |
+
+## 2026-10-02 — Mantener la prevención de duplicados fuera del flag de directorio
+
+| Campo | Valor |
+| --- | --- |
+| Evidencia | La búsqueda pública y la revisión de espacios operativos dependían ambas de `DIRECTORY_CATALOG_ENABLED`; producción aún no tiene las tablas/flags de directorio. |
+| Decisión | Ejecutar siempre en servidor la comprobación de identidad contra academias operativas y serializar la creación con un advisory lock, aunque el directorio público permanezca apagado. |
+| Consecuencia | Un alta potencialmente duplicada se detiene y se deriva a soporte. La API solo informa que puede existir una academia; nunca revela datos del tenant. Los flujos de búsqueda pública y reclamación siguen detrás de sus flags. |
+| Estado | Implementado en `fix/onboarding-operational-duplicate-guard`; 11 pruebas focales, ESLint y TypeScript pasan. Pendiente CI y despliegue. |
