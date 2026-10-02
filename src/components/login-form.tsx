@@ -200,6 +200,7 @@ export function LoginForm() {
         provider: "google",
         options: {
           redirectTo: `${window.location.origin}/auth/callback?next=${encodeURIComponent(nextPath)}`,
+          scopes: "openid",
           skipBrowserRedirect: true,
         },
       });

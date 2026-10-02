@@ -312,6 +312,7 @@ export function RegisterForm({directoryDiscoveryEnabled=false}:{directoryDiscove
         provider: "google",
         options: {
           redirectTo: `${window.location.origin}/auth/callback?next=${encodeURIComponent(next)}${directoryRegistration ? `&directory_account=1&legal_consent_version=${encodeURIComponent(LEGAL_CONSENT_VERSION)}&legal_consent_proof=${encodeURIComponent(LEGAL_CONSENT_PROOF)}` : ""}`,
+          scopes: "openid",
           // Navegamos explícitamente después de recibir la URL. Esto evita
           // que navegadores embebidos o bloqueadores de popup dejen el CTA
           // permanentemente en estado "Conectando...".
