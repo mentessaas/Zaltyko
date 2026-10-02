@@ -3,16 +3,17 @@
 ## Revalidación en producción — 2026-10-02
 
 - PR #179 se fusionó en `main` (`364e8693`) y su deployment de producción está `READY`, con alias `zaltyko.com` y `www.zaltyko.com`. Login, registro y recuperación responden HTTP 200.
-- El enlace de recuperación ya aparece en login. Los dos botones Google llegan a `accounts.google.com`; el callback de Supabase y el retorno a `/auth/callback` se observan en la solicitud. No se inició sesión con una cuenta real ni se creó una cuenta nueva. El formulario de registro exige aceptar términos antes de continuar.
-- Se reutilizó el cliente OAuth web existente y se guardó el scope `openid` requerido en Google Auth Platform; no se creó un cliente duplicado ni se leyó/copió el secreto. Aún falta completar un login y un registro con una cuenta de prueba autorizada.
+- Google Cloud muestra el cliente web `Zaltyko Web` con origen `https://zaltyko.com` y callback de proveedor `https://jegxfahsvugilbthbked.supabase.co/auth/v1/callback`; el cliente de escritorio se conserva. No se creó otro cliente ni se cambió el secreto.
+- Supabase Auth de producción tiene Google habilitado con el mismo Client ID y un secreto guardado (campo enmascarado); `https://zaltyko.com/auth/callback` y su variante con query están en la allowlist de retorno. La URL del sitio es `https://zaltyko.com`.
+- Una petición pública sin sesión confirma que el enlace “¿Olvidaste tu contraseña?” aparece y apunta a `/auth/forgot-password`. Los botones Google llegan a Google con `openid email profile`; no se inició sesión con una cuenta real ni se creó una cuenta nueva. El formulario de registro exige aceptar términos antes de continuar.
 - La pantalla de recuperación no se envió en producción: todavía falta configurar y validar SMTP de Supabase. No hay evidencia actual de recepción de un correo de recuperación.
 
-## Estado observado el 2026-09-30
+## Estado observado el 2026-09-30 (antes de la corrección productiva)
 
 - Producción sirve `/auth/login`, pero no mostraba un enlace para recuperar la contraseña.
 - El botón de Google en inicio de sesión y el de registro, tras aceptar los términos, terminan en el error de Google `redirect_uri_mismatch`.
 - La URL del proyecto Supabase de producción se consulta en su panel; el identificador de proyecto no es un secreto ni debe copiarse a una clave OAuth.
-- No se ha cambiado la configuración de Google Cloud ni Supabase en producción.
+- En esa fecha aún no se había cambiado la configuración de Google Cloud ni Supabase; el cliente web y la allowlist se revisaron después, el 2026-10-01.
 
 ## Cambio preparado
 

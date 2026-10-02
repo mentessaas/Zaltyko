@@ -9,6 +9,10 @@ initdb -D "${DIRECTORY_TEST_CLUSTER}" -A trust --no-locale -E UTF8 >/dev/null
 pg_ctl -D "${DIRECTORY_TEST_CLUSTER}" -o "-h 127.0.0.1 -p ${DIRECTORY_TEST_PORT} -k ${DIRECTORY_TEST_CLUSTER}" -l "${DIRECTORY_TEST_CLUSTER}/postgres.log" start >/dev/null
 PSQL=(psql -X -v ON_ERROR_STOP=1 -h "${DIRECTORY_TEST_CLUSTER}" -p "${DIRECTORY_TEST_PORT}" -d postgres)
 "${PSQL[@]}" -f "${ROOT}/scripts/directory/fixtures.sql" >/dev/null
+"${PSQL[@]}" -f "${ROOT}/supabase/migrations/20260713200000_create_sql_migration_ledger.sql" >/dev/null
+"${PSQL[@]}" -f "${ROOT}/supabase/migrations/20260929130000_reconcile_contact_lead_interactions.sql" >/dev/null
+"${PSQL[@]}" -f "${ROOT}/supabase/migrations/20261002120000_internal_table_explicit_deny_policies.sql" >/dev/null
+"${PSQL[@]}" -f "${ROOT}/supabase/tests/internal_table_access.sql" >/dev/null
 "${PSQL[@]}" -f "${ROOT}/supabase/migrations/20260930072147_public_directory.sql" >/dev/null
 "${PSQL[@]}" -f "${ROOT}/supabase/migrations/20261002102000_directory_explicit_deny_policies.sql" >/dev/null
 "${PSQL[@]}" -f "${ROOT}/supabase/tests/public_directory_access.sql" >/dev/null
