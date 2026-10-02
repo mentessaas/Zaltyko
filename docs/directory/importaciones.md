@@ -5,7 +5,19 @@ Máximo 2 MB y 1.000 filas por lote. Registrar primero la fuente con URL, país,
 JSON: lista de objetos con `externalId`, `kind` (`academy`, `event`, `organization`) y `data`. Ejemplo ficticio, no publicable sin comprobación:
 
 ```json
-[{"externalId":"ejemplo-local-001","kind":"academy","data":{"name":"Academia ficticia de ejemplo","countryCode":"ES","city":"Madrid","sourceName":"Fuente de ejemplo","sourceUrl":"https://example.org/ficha"}}]
+[
+  {
+    "externalId": "ejemplo-local-001",
+    "kind": "academy",
+    "data": {
+      "name": "Academia ficticia de ejemplo",
+      "countryCode": "ES",
+      "city": "Madrid",
+      "sourceName": "Fuente de ejemplo",
+      "sourceUrl": "https://example.org/ficha"
+    }
+  }
+]
 ```
 
 CSV: cabeceras `externalId,kind,name,countryCode,city,sourceName,sourceUrl`; opcionales `description,region,address,disciplines,website,startDate,endDate,organizerName,registrationUrl`. Disciplinas separadas por `|`; fechas `YYYY-MM-DD`. Valores de disciplina: artistic_female, artistic_male, rhythmic, trampoline, aerobic, acrobatics, parkour, general.

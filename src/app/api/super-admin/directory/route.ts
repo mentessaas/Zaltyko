@@ -85,16 +85,16 @@ export const GET = withSuperAdmin(async (request) => {
             sql`SELECT d.id,d.subscription_id,d.dedupe_key,d.status,d.attempts,d.lease_until,d.provider_id,d.error,d.created_at,d.sent_at,s.email,s.purpose FROM directory_deliveries d JOIN directory_subscriptions s ON s.id=d.subscription_id ORDER BY d.created_at DESC LIMIT 50 OFFSET ${(page - 1) * 50}`
           )
         : section === "claims"
-        ? await rows(
-            sql`SELECT c.*,d.data->>'name' AS name,u.email AS requester_email FROM directory_claims c JOIN directory_entries d ON d.id=c.entry_id JOIN auth.users u ON u.id=c.user_id ORDER BY c.created_at DESC LIMIT 50 OFFSET ${(page - 1) * 50}`
-          )
-        : section === "revisions"
           ? await rows(
-              sql`SELECT r.*,d.data->>'name' AS name FROM directory_revisions r LEFT JOIN directory_entries d ON d.id=r.entry_id ORDER BY r.created_at DESC LIMIT 50 OFFSET ${(page - 1) * 50}`
+              sql`SELECT c.*,d.data->>'name' AS name,u.email AS requester_email FROM directory_claims c JOIN directory_entries d ON d.id=c.entry_id JOIN auth.users u ON u.id=c.user_id ORDER BY c.created_at DESC LIMIT 50 OFFSET ${(page - 1) * 50}`
             )
-          : await rows(
-              sql`SELECT ${projection} FROM ${sql.identifier(table)} ORDER BY ${order} LIMIT 50 OFFSET ${(page - 1) * 50}`
-            );
+          : section === "revisions"
+            ? await rows(
+                sql`SELECT r.*,d.data->>'name' AS name FROM directory_revisions r LEFT JOIN directory_entries d ON d.id=r.entry_id ORDER BY r.created_at DESC LIMIT 50 OFFSET ${(page - 1) * 50}`
+              )
+            : await rows(
+                sql`SELECT ${projection} FROM ${sql.identifier(table)} ORDER BY ${order} LIMIT 50 OFFSET ${(page - 1) * 50}`
+              );
     return apiSuccess({ items, page, hasNextPage: items.length === 50 });
   } catch (e) {
     return directoryFailure(e);

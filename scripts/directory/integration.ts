@@ -19,6 +19,7 @@ import {
   mergeEntries,
   bulkPublication,
   linkOperationalEntry,
+  DirectoryError,
 } from "../../src/lib/directory/service";
 import {
   importCandidates,
@@ -63,6 +64,45 @@ async function rejects(
   );
   check(name, true);
 }
+async function waitForLockWait(timeoutMs = 2000) {
+  const deadline = Date.now() + timeoutMs;
+  do {
+    const result = await query(
+      "SELECT EXISTS(SELECT 1 FROM pg_stat_activity WHERE datname=current_database() AND pid<>pg_backend_pid() AND wait_event_type='Lock') AS waiting"
+    );
+    if (result.rows[0]?.waiting) return true;
+    await new Promise((resolve) => setTimeout(resolve, 10));
+  } while (Date.now() < deadline);
+  return false;
+}
+async function createAuthorizedSource(name: string, url: string) {
+  const details = {
+    sourceName: name,
+    sourceUrl: url,
+    countryCode: "PE",
+    adapter: "manual",
+    termsUrl: "https://example.org/terms",
+    authorizationReference: "Permiso escrito de fixture QA expediente TEST-02",
+  };
+  const sourceId = (
+    await query(
+      `INSERT INTO directory_sources(name,url,country_code,terms_url,"authorization",adapter,enabled) VALUES($1,$2,$3,$4,$5,$6,true) RETURNING id`,
+      [
+        details.sourceName,
+        details.sourceUrl,
+        details.countryCode,
+        details.termsUrl,
+        details.authorizationReference,
+        details.adapter,
+      ]
+    )
+  ).rows[0].id;
+  await query(
+    `INSERT INTO directory_audit(entry_id,actor_id,action,metadata) VALUES(NULL,$1,'source_authorization_confirmed',$2::jsonb)`,
+    [admin, JSON.stringify({ sourceId, ...details })]
+  );
+  return String(sourceId);
+}
 async function main() {
   for (const id of [admin, one, two])
     await query(
@@ -98,18 +138,36 @@ async function main() {
     "Borradores ocultos en lectores públicos",
     (await getEntry(drafts.id)) === null
   );
-  const exactMatches=await rows(academyDuplicateQuery({name:"  ACADEMIA ficticia de prueba  ",countryCode:"es",city:"Madrid"}));
-  check("Onboarding detecta la ficha exacta sin depender del correo",exactMatches.length===1 && exactMatches[0].id===entry.id);
+  const exactMatches = await rows(
+    academyDuplicateQuery({
+      name: "  ACADEMIA ficticia de prueba  ",
+      countryCode: "es",
+      city: "Madrid",
+    })
+  );
+  check(
+    "Onboarding detecta la ficha exacta sin depender del correo",
+    exactMatches.length === 1 && exactMatches[0].id === entry.id
+  );
   check(
     "Activar una ficha no se confunde con la propia ficha reclamada",
-    (await rows(academyDuplicateQuery({ ...data, excludeEntryId: entry.id }))).length === 0
+    (await rows(academyDuplicateQuery({ ...data, excludeEntryId: entry.id })))
+      .length === 0
   );
-  check("Otra sede con el mismo nombre no se fusiona ni bloquea",(await rows(academyDuplicateQuery({...data,city:"Lima"}))).length===0);
+  check(
+    "Otra sede con el mismo nombre no se fusiona ni bloquea",
+    (await rows(academyDuplicateQuery({ ...data, city: "Lima" }))).length === 0
+  );
   check(
     "Otra región con el mismo nombre y ciudad no se confunde con la ficha",
-    (await rows(academyDuplicateQuery({ ...data, region: "Andalucía" }))).length === 0
+    (await rows(academyDuplicateQuery({ ...data, region: "Andalucía" })))
+      .length === 0
   );
-  check("La búsqueda de duplicados no revela borradores",(await rows(academyDuplicateQuery({...data,name:"Borrador privado"}))).length===0);
+  check(
+    "La búsqueda de duplicados no revela borradores",
+    (await rows(academyDuplicateQuery({ ...data, name: "Borrador privado" })))
+      .length === 0
+  );
   check(
     "Creaciones del mismo nombre y país comparten bloqueo aunque cambie la localidad",
     academyDuplicateLock({ ...data, city: "Madrid" }) ===
@@ -123,14 +181,16 @@ async function main() {
   await setPublication(accentEntry.id, admin, "published");
   check(
     "La búsqueda y el bloqueo reconocen diferencias solo de tildes",
-    (await rows(
-      academyDuplicateQuery({
-        name: "club cordoba",
-        countryCode: "es",
-        region: "andalucia",
-        city: "cordoba",
-      })
-    )).some((candidate) => candidate.id === accentEntry.id) &&
+    (
+      await rows(
+        academyDuplicateQuery({
+          name: "club cordoba",
+          countryCode: "es",
+          region: "andalucia",
+          city: "cordoba",
+        })
+      )
+    ).some((candidate) => candidate.id === accentEntry.id) &&
       academyDuplicateLock({ name: "Club Córdoba", countryCode: "ES" }) ===
         academyDuplicateLock({ name: "club cordoba", countryCode: "es" })
   );
@@ -259,7 +319,12 @@ async function main() {
   ).rows[0].id;
   await rejects(
     "No importar desde fuente sin permiso confirmado",
-    () => importCandidates(String(unapprovedSource), JSON.stringify([candidate]), "json"),
+    () =>
+      importCandidates(
+        String(unapprovedSource),
+        JSON.stringify([candidate]),
+        "json"
+      ),
     "SOURCE_PERMISSION_REQUIRED"
   );
   const staleSourceDetails = {
@@ -290,8 +355,87 @@ async function main() {
   );
   await rejects(
     "No importar tras cambiar las condiciones sin reconfirmar",
-    () => importCandidates(String(staleSource), JSON.stringify([candidate]), "json"),
+    () =>
+      importCandidates(
+        String(staleSource),
+        JSON.stringify([candidate]),
+        "json"
+      ),
     "SOURCE_PERMISSION_REQUIRED"
+  );
+  const importRaceSource = await createAuthorizedSource(
+    "Fuente concurrente import",
+    "https://example.org/concurrent-import"
+  );
+  const importRevocation = await pool.connect();
+  await importRevocation.query("BEGIN");
+  await importRevocation.query(
+    "UPDATE directory_sources SET enabled=false WHERE id=$1",
+    [importRaceSource]
+  );
+  const importDuringRevocation = importCandidates(
+    importRaceSource,
+    JSON.stringify([{ ...candidate, externalId: "concurrent-import" }]),
+    "json"
+  ).then(
+    (value) => ({ ok: true as const, value }),
+    (error: unknown) => ({ ok: false as const, error })
+  );
+  const importWaitedForSourceLock = await waitForLockWait();
+  await importRevocation.query("COMMIT");
+  importRevocation.release();
+  const importDuringRevocationResult = await importDuringRevocation;
+  check(
+    "Importación espera a que termine la revocación concurrente",
+    importWaitedForSourceLock
+  );
+  check(
+    "Importación rechaza una fuente revocada durante la operación",
+    !importDuringRevocationResult.ok &&
+      importDuringRevocationResult.error instanceof DirectoryError &&
+      importDuringRevocationResult.error.code === "SOURCE_PERMISSION_REQUIRED"
+  );
+
+  const acceptRaceSource = await createAuthorizedSource(
+    "Fuente concurrente aceptación",
+    "https://example.org/concurrent-accept"
+  );
+  const acceptRaceBatch = await importCandidates(
+    acceptRaceSource,
+    JSON.stringify([{ ...candidate, externalId: "concurrent-accept" }]),
+    "json"
+  );
+  const acceptRaceRow = (
+    await query("SELECT id FROM directory_import_rows WHERE batch_id=$1", [
+      acceptRaceBatch.id,
+    ])
+  ).rows[0].id;
+  const acceptRevocation = await pool.connect();
+  await acceptRevocation.query("BEGIN");
+  await acceptRevocation.query(
+    "UPDATE directory_sources SET enabled=false WHERE id=$1",
+    [acceptRaceSource]
+  );
+  const acceptDuringRevocation = acceptImportRow(
+    String(acceptRaceRow),
+    admin
+  ).then(
+    (value) => ({ ok: true as const, value }),
+    (error: unknown) => ({ ok: false as const, error })
+  );
+  const acceptWaitedForSourceLock = await waitForLockWait();
+  await acceptRevocation.query("COMMIT");
+  acceptRevocation.release();
+  const acceptDuringRevocationResult = await acceptDuringRevocation;
+  check(
+    "Aceptación espera a que termine la revocación concurrente",
+    acceptWaitedForSourceLock
+  );
+  check(
+    "No se acepta una fila después de revocar su fuente",
+    !acceptDuringRevocationResult.ok &&
+      acceptDuringRevocationResult.error instanceof DirectoryError &&
+      acceptDuringRevocationResult.error.code === "SOURCE_PERMISSION_REQUIRED"
   );
   const batch = await importCandidates(
       source,
@@ -380,14 +524,16 @@ async function main() {
   await setPublication(privateCollision.id, admin, "published");
   check(
     "Una ficha externa no cuenta como duplicado de sí misma al activarse",
-    (await rows(
-      academyDuplicateQuery({
-        ...data,
-        name: "Nombre operativo vigente",
-        city: "Madrid",
-        excludeEntryId: privateCollision.id,
-      })
-    )).length === 0
+    (
+      await rows(
+        academyDuplicateQuery({
+          ...data,
+          name: "Nombre operativo vigente",
+          city: "Madrid",
+          excludeEntryId: privateCollision.id,
+        })
+      )
+    ).length === 0
   );
   const privateIdentityMatch = (
     await rows(
@@ -550,7 +696,8 @@ async function main() {
   );
   await rejects(
     "Reintentar requiere confirmar que el proveedor no aceptó el mensaje",
-    () => retryDelivery(retryDeliveryId, admin, false, "No se confirmó el estado"),
+    () =>
+      retryDelivery(retryDeliveryId, admin, false, "No se confirmó el estado"),
     "RECONCILIATION_REQUIRED"
   );
   const retryResults = await Promise.allSettled([
@@ -568,9 +715,10 @@ async function main() {
     ),
   ]);
   const retryState = (
-    await query("SELECT status,attempts FROM directory_deliveries WHERE id=$1", [
-      retryDeliveryId,
-    ])
+    await query(
+      "SELECT status,attempts FROM directory_deliveries WHERE id=$1",
+      [retryDeliveryId]
+    )
   ).rows[0];
   const retryAudit = (
     await query(
@@ -791,7 +939,10 @@ async function main() {
     for (const role of ["anon", "authenticated"]) {
       await client.query(`SET ROLE ${role}`);
       const visible = await client.query("SELECT id FROM directory_entries");
-      check(`${role}: no expone copias operativas que puedan quedar antiguas`, !visible.rows.some(r=>r.id===link.id));
+      check(
+        `${role}: no expone copias operativas que puedan quedar antiguas`,
+        !visible.rows.some((r) => r.id === link.id)
+      );
       check(
         `${role}: RLS oculta borradores`,
         !visible.rows.some((r) => r.id === drafts.id)

@@ -256,8 +256,7 @@ export function AdminDirectory() {
               countryCode: String(v.get("countryCode")).toUpperCase(),
               termsUrl: v.get("termsUrl") || null,
               authorization: v.get("authorization") || null,
-              authorizationConfirmed:
-                v.get("authorizationConfirmed") === "on",
+              authorizationConfirmed: v.get("authorizationConfirmed") === "on",
               enabled: v.get("enabled") === "on",
               adapter: v.get("adapter"),
             });
@@ -298,9 +297,9 @@ export function AdminDirectory() {
             confirmación queda registrada en el historial administrativo.
           </p>
           <label className="block">
-            <input name="authorizationConfirmed" type="checkbox" /> He
-            revisado las condiciones y guardado la referencia del permiso
-            escrito para el uso previsto.
+            <input name="authorizationConfirmed" type="checkbox" /> He revisado
+            las condiciones y guardado la referencia del permiso escrito para el
+            uso previsto.
           </label>
           <label className="block">
             <input name="enabled" type="checkbox" /> Activar importación
@@ -439,7 +438,9 @@ export function AdminDirectory() {
                 <p>Finalidad: {item.purpose}</p>
                 <p>Intentos: {item.attempts ?? 0} de 3</p>
                 {item.dedupe_key && <p>Clave: {item.dedupe_key}</p>}
-                {item.provider_id && <p>Referencia Brevo: {item.provider_id}</p>}
+                {item.provider_id && (
+                  <p>Referencia Brevo: {item.provider_id}</p>
+                )}
                 {item.sent_at && <p>Enviado: {item.sent_at}</p>}
                 {item.error && (
                   <p role="alert">
@@ -722,7 +723,10 @@ export function AdminDirectory() {
                   ? { target: v.get("target") }
                   : {}),
                 ...(pending.action === "retry_delivery"
-                  ? { providerNotAccepted: v.get("providerNotAccepted") === "on" }
+                  ? {
+                      providerNotAccepted:
+                        v.get("providerNotAccepted") === "on",
+                    }
                   : {}),
               });
             }}
@@ -757,15 +761,11 @@ export function AdminDirectory() {
             {pending.action === "retry_delivery" && (
               <div className="space-y-2 rounded border p-3">
                 <p>
-                  No reintentes si no has comprobado el historial de Brevo. Si el
-                  proveedor aceptó el mensaje, repetirlo podría duplicarlo.
+                  No reintentes si no has comprobado el historial de Brevo. Si
+                  el proveedor aceptó el mensaje, repetirlo podría duplicarlo.
                 </p>
                 <label className="flex min-h-11 items-center gap-2">
-                  <input
-                    type="checkbox"
-                    name="providerNotAccepted"
-                    required
-                  />
+                  <input type="checkbox" name="providerNotAccepted" required />
                   Confirmo que revisé Brevo y que no aceptó este mensaje.
                 </label>
               </div>

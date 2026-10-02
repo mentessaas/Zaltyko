@@ -49,13 +49,13 @@ Fecha: 2 de octubre de 2026. La funcionalidad del directorio y la búsqueda en e
 
 Variables, todas `false` por defecto:
 
-| Variable | Activa |
-|---|---|
-| DIRECTORY_ADMIN_ENABLED | Administración y mantenimiento |
-| DIRECTORY_CATALOG_ENABLED | Lectores públicos nuevos y área de fichas |
-| DIRECTORY_CLAIMS_ENABLED | Solicitudes de representación |
-| DIRECTORY_IMPORTS_ENABLED | Revisión automática de fuentes autorizadas |
-| DIRECTORY_COMMUNICATIONS_ENABLED | Suscripciones y envíos |
+| Variable                         | Activa                                     |
+| -------------------------------- | ------------------------------------------ |
+| DIRECTORY_ADMIN_ENABLED          | Administración y mantenimiento             |
+| DIRECTORY_CATALOG_ENABLED        | Lectores públicos nuevos y área de fichas  |
+| DIRECTORY_CLAIMS_ENABLED         | Solicitudes de representación              |
+| DIRECTORY_IMPORTS_ENABLED        | Revisión automática de fuentes autorizadas |
+| DIRECTORY_COMMUNICATIONS_ENABLED | Suscripciones y envíos                     |
 
 1. Respaldo del destino y prueba de restauración verificable. Aplicar mediante el procedimiento de migraciones del repositorio; no reparar el ledger para añadir fichas.
 2. Activar administración; registrar fuentes y permisos. Preparar borradores y revisar publicación manualmente.

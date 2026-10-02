@@ -28,10 +28,21 @@ const data = {
 };
 describe("Directorio: validación y aislamiento de contratos", () => {
   it("los campos opcionales vacíos no convierten una edición habitual en sensible", () => {
-    const before=EntryDataSchema.parse(data);
-    const after=EntryDataSchema.parse({...data,description:"Descripción actualizada",website:null,address:null,region:null});
-    expect(requiresReview(before,after)).toBe(false);
-    expect(requiresReview(before,{...after,website:"https://example.org/otra-web"})).toBe(true);
+    const before = EntryDataSchema.parse(data);
+    const after = EntryDataSchema.parse({
+      ...data,
+      description: "Descripción actualizada",
+      website: null,
+      address: null,
+      region: null,
+    });
+    expect(requiresReview(before, after)).toBe(false);
+    expect(
+      requiresReview(before, {
+        ...after,
+        website: "https://example.org/otra-web",
+      })
+    ).toBe(true);
   });
   it("conserva la URL externa al activar un espacio operativo", () => {
     const listing = {
@@ -177,9 +188,9 @@ describe("Directorio: validación y aislamiento de contratos", () => {
       authorization: "Permiso escrito: expediente LEG-2026-14",
     };
     expect(sourceAuthorizationProblem(documented)).toBeNull();
-    expect(sourceAuthorizationProblem({ ...documented, termsUrl: null })).toMatch(
-      /condiciones/
-    );
+    expect(
+      sourceAuthorizationProblem({ ...documented, termsUrl: null })
+    ).toMatch(/condiciones/);
     expect(
       sourceAuthorizationProblem({
         ...documented,
@@ -193,10 +204,16 @@ describe("Directorio: validación y aislamiento de contratos", () => {
       })
     ).toMatch(/autorización escrita/);
     expect(
-      isSourceAuthorizationAttested({ ...documented, authorizationAttested: false })
+      isSourceAuthorizationAttested({
+        ...documented,
+        authorizationAttested: false,
+      })
     ).toBe(false);
     expect(
-      isSourceAuthorizationAttested({ ...documented, authorizationAttested: true })
+      isSourceAuthorizationAttested({
+        ...documented,
+        authorizationAttested: true,
+      })
     ).toBe(true);
   });
   it("CSV usa exclusivamente una selección de campos públicos", () => {
