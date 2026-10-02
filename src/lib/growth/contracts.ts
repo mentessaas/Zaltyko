@@ -1,6 +1,9 @@
 import { z } from "zod";
 
 export const PUBLIC_GROWTH_EVENT_NAMES = [
+  "directory_viewed",
+  "directory_organizer_clicked",
+  "directory_kit_downloaded",
   "pricing_viewed",
   "pricing_plan_selected",
   "contact_started",
@@ -116,6 +119,7 @@ export const ContactRequestSchema = z
       .default("contact_form"),
     message: z.string().trim().min(10).max(2_000),
     honeypot: z.string().max(100).nullable().optional(),
+    directoryEntryId: z.string().uuid().optional(),
     submissionId: z.string().uuid(),
   })
   .strict();

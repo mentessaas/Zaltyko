@@ -5,6 +5,17 @@ last_reviewed: 2026-09-19T09:32Z
 source:
 ---
 
+## 2026-10-01 — Onboarding respeta el flag de reclamaciones
+
+- Corregido el estado gradual: con el catálogo activo y reclamaciones apagadas, buscar una academia existente ya no promete una reclamación que el servidor rechazaría. La ficha conserva su enlace de revisión y ofrece pedir ayuda para vincularla; con reclamaciones activas muestra la ruta de reclamación gratuita.
+- La API sigue bloqueando una sede duplicada, aunque se intente crear sin pasar por el buscador.
+- Validación local: onboarding/claim **10/10**, `next build` y `tsc --noEmit` aprobados; ESLint sin errores y Prettier comprobado en los archivos añadidos/reescritos. El CI del PR se repetirá tras subir el cambio.
+- Catálogo y reclamaciones siguen sin publicar; flags productivos apagados.
+
+## 2026-09-30 — Directorio y búsqueda previa en el alta
+
+PR #174, borrador: directorio independiente y búsqueda de academias públicas antes de crear un espacio. Coincidencias exactas bloqueadas por servidor; reclamación manual separada del SaaS. Evidencia y pendientes: [[Directorio público - 2026-09-30]]. Flags apagados en producción.
+
 ## 2026-09-19 — SEO Post-Fase 5: Lighthouse CI, polish y cross-linking
 
 Plan ejecutado en 3 commits sobre `main`:
@@ -10608,3 +10619,33 @@ Vault: actualizado `Changelog interno.md`; se preserva el backlog existente porq
 
 - En el head rebasado de #173, `pnpm audit --prod --audit-level=high` termina sin vulnerabilidades conocidas en producción web. `pnpm --dir mobile audit --audit-level=high` conserva una vulnerabilidad alta, `GHSA-86w9-cpqp-85rv`, en `node-forge <=1.4.0` dentro de Expo CLI y su certificado de firma; el registro no muestra versión corregida.
 - Se corrigió la descripción del PR para no afirmar que el audit móvil está limpio. Las 13 alertas Dependabot originales siguen siendo el alcance del parche; el aviso de node-forge queda como riesgo upstream separado. El CI del nuevo head todavía está en curso.
+
+## 2026-09-30 — Directorio público independiente (en revisión)
+
+Modelo separado, reclamación manual, administración, importación revisada, filtros internacionales y captación con consentimiento. Ver [implementación y límites](../../docs/directory/README.md). Migración/rollback comprobados localmente; no desplegado ni cierre completo del plan.
+
+## 2026-10-01 — Cola administrativa para correos inciertos
+
+- Super Admin puede consultar la cola de entregas, incluida finalidad, intentos y referencia del proveedor. Los mensajes con resultado incierto no se reenvían automáticamente.
+- El reintento exige confirmar que Brevo no aceptó el mensaje y guardar el motivo; se conserva el mismo registro y clave idempotente. Se vuelve a comprobar la baja/rebote y se audita tanto el reintento como la supresión.
+- Evidencia local: integración PostgreSQL aislada con migración y restauración de respaldo, 53 comprobaciones; 32 pruebas dirigidas del onboarding/directorio; TypeScript pasa. ESLint termina sin errores y mantiene tres avisos en `AdminDirectory.tsx` (dos del efecto de carga y uno de `Date.now` en render).
+- No se envió correo real, no se modificó schema ni producción y no se activó ningún flag. Cambio pendiente de commit/CI/revisión independiente en PR #174.
+
+### Seguimiento CI del 2026-10-01
+
+- La cola se subió en `77ab2a1a`; build, unitarias, lint/tipos, seguridad, migraciones aisladas, RLS, smoke autenticado y Preview pasan. E2E autenticado terminó con 59 pruebas pasadas y un fallo WebKit que pasó en retry; la CI reporta el job verde pero conserva el caso como flaky. Smoke público, E2E público y Lighthouse se omitieron.
+- El fallo fue una aserción del enlace de clases antes de que la barra lateral cliente estuviera visible, aunque `#main-content` ya lo estaba. Añadí una espera explícita de 15 s a la barra lateral antes de comprobar enlaces. ESLint focal pasa. Playwright local no puede listar/correr el spec sin identificar el proyecto Supabase de sandbox aprobado; no se eludió esa protección. Nueva CI pendiente tras subir el ajuste.
+
+### Revisión posterior de flakies y accesibilidad — 2026-10-01
+
+- La CI de `8903a381` pasó todos los checks requeridos, pero reportó dos E2E flakies (navegación móvil Chromium y navegación lateral WebKit; 58 pasaron). Ambas fallaron con el navegador aún esperando el fin de navegación y luego pasaron en retry; el job y smoke por roles quedaron verdes.
+- Añadí el tiempo global de espera de las aserciones Playwright a 15 s y conservo la espera explícita de la barra lateral; el próximo CI verificará si elimina esas carreras.
+- La confirmación administrativa ahora lleva el foco a su encabezado al abrirse y lo devuelve al botón que la activó al cancelar/finalizar. TypeScript y ESLint focal pasan; quedan tres avisos React preexistentes en la pantalla. Este ajuste sigue local hasta terminar la CI actual.
+- Sin envío real, producción, cambios remotos de schema ni flags activados. La prueba Playwright local requiere el ref explícito del sandbox de Supabase; se respetó ese gate.
+
+### Onboarding del directorio: bloqueo de espacios duplicados — 2026-10-01
+
+- La activación desde una ficha reclamada ahora excluye esa misma ficha del detector público, serializa altas con el mismo nombre/país aunque cambie la localidad y contrasta también contra espacios operativos existentes.
+- La comprobación de espacios operativos usa `EXISTS` y solo devuelve un booleano. Si encuentra una colisión o faltan datos geográficos para descartarla, el flujo solicita revisión de soporte sin revelar nombres, IDs, responsables ni otros datos privados. Se normalizan mayúsculas, espacios y tildes.
+- Evidencia local en la rama aislada del PR #174: **61 comprobaciones PostgreSQL** con migración exacta y restauración de respaldo; **34 pruebas focalizadas**; TypeScript, ESLint focal y `git diff --check` pasan. El changelog y README registran esta verificación; CI del nuevo commit todavía debe ejecutarse después del push.
+- No se cambió el esquema remoto, producción ni flags. El despliegue y la aprobación independiente siguen pendientes.

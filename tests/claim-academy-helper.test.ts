@@ -24,13 +24,11 @@ import {
   findClaimableAcademyByEmail,
   type ClaimableAcademy,
 } from "@/lib/auth/claim-academy";
-import { readFileSync } from "node:fs";
+
 
 describe("ZAL-137 — claim-academy helper", () => {
-  it("solo expone academias operativas y no suspendidas", () => {
-    const source = readFileSync(new URL("../src/lib/auth/claim-academy.ts", import.meta.url), "utf8");
-    expect(source).toContain('inArray(academies.status, ["active", "trial"])');
-    expect(source).toContain("eq(academies.isSuspended, false)");
+  it("un correo coincidente nunca permite reclamar un espacio operativo",async()=>{
+    expect(await findClaimableAcademyByEmail({email:'owner@example.org'})).toBeNull();
   });
 
   describe("normalizeClaimEmail (puro)", () => {

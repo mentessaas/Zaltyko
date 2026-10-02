@@ -12,6 +12,18 @@ vi.mock("@/lib/rate-limit", () => ({
 import { middleware } from "../middleware";
 
 describe("middleware", () => {
+  it("permite comprobar contraseñas filtradas y limita Supabase local a desarrollo", async () => {
+    vi.stubEnv("NEXT_PUBLIC_SUPABASE_URL", "http://127.0.0.1:54321");
+    try {
+      vi.stubEnv("NODE_ENV", "development");
+      const dev = await middleware(new NextRequest("http://localhost:3109/pricing"));
+      expect(dev.headers.get("Content-Security-Policy")).toContain("http://127.0.0.1:54321");
+      vi.stubEnv("NODE_ENV", "production");
+      const prod = await middleware(new NextRequest("https://zaltyko.com/pricing"));
+      expect(prod.headers.get("Content-Security-Policy")).not.toContain("127.0.0.1");
+      expect(prod.headers.get("Content-Security-Policy")).toContain("https://api.pwnedpasswords.com");
+    } finally { vi.unstubAllEnvs(); }
+  });
   it("redirects www before interpreting it as an academy subdomain", async () => {
     const response = await middleware(new NextRequest("https://www.zaltyko.com/pricing", {
       headers: { host: "www.zaltyko.com" },

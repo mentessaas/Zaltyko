@@ -21,6 +21,7 @@ export interface EventSchemaInput {
   maxCapacity?: number | null;
   registrationFeeCents?: number | null;
   currency?: string | null;
+  eventStatus?: "provisional" | "confirmed" | "postponed" | "cancelled" | "finished";
 }
 
 function toIso(value: string | Date | null | undefined): string | null {
@@ -29,6 +30,7 @@ function toIso(value: string | Date | null | undefined): string | null {
     return Number.isNaN(value.getTime()) ? null : value.toISOString();
   }
   // Acepta "YYYY-MM-DD" (date-only) o ISO 8601.
+  if (/^\d{4}-\d{2}-\d{2}$/.test(value)) {const d=new Date(`${value}T00:00:00Z`);return !Number.isNaN(d.getTime())&&d.toISOString().slice(0,10)===value?value:null;}
   const parsed = new Date(value);
   return Number.isNaN(parsed.getTime()) ? null : parsed.toISOString();
 }
@@ -42,16 +44,8 @@ export function eventJsonLd(input: EventSchemaInput): Record<string, unknown> | 
   if (!input.title || !start) return null;
 
   const pageUrl = `${input.baseUrl}${input.pagePath}`;
-  const location: Record<string, unknown> = { "@type": "Place" };
-  if (input.cityName) location.addressLocality = input.cityName;
-  if (input.provinceName) location.addressRegion = input.provinceName;
-  if (input.countryName) location.addressCountry = input.countryName;
-  if (location.addressLocality || location.addressCountry) {
-    location.name = [input.cityName, input.countryName].filter(Boolean).join(", ");
-  } else {
-    delete location.name;
-  }
-  if (Object.keys(location).length <= 1) return null;
+  if(!input.cityName||!input.countryName||input.eventStatus==='provisional')return null;
+  const location: Record<string, unknown> = { "@type": "Place",name: input.cityName,address:{"@type":"PostalAddress",addressLocality:input.cityName,addressRegion:input.provinceName??undefined,addressCountry:input.countryName} };
 
   const event: Record<string, unknown> = {
     "@context": "https://schema.org",
@@ -61,7 +55,7 @@ export function eventJsonLd(input: EventSchemaInput): Record<string, unknown> | 
     startDate: start,
     location,
     eventAttendanceMode: "https://schema.org/OfflineEventAttendanceMode",
-    eventStatus: "https://schema.org/EventScheduled",
+    eventStatus: input.eventStatus === "cancelled" ? "https://schema.org/EventCancelled" : input.eventStatus === "postponed" ? "https://schema.org/EventPostponed" : "https://schema.org/EventScheduled",
   };
 
   if (input.description) event.description = input.description;
@@ -69,23 +63,6 @@ export function eventJsonLd(input: EventSchemaInput): Record<string, unknown> | 
 
   const end = toIso(input.endDate);
   if (end) event.endDate = end;
-
-  const regEnd = toIso(input.registrationEndDate);
-  if (regEnd) {
-    event.offers = {
-      "@type": "Offer",
-      url: pageUrl,
-      availability: regEnd < new Date().toISOString()
-        ? "https://schema.org/SoldOut"
-        : "https://schema.org/InStock",
-      validThrough: regEnd,
-      ...(input.registrationFeeCents != null &&
-        input.registrationFeeCents > 0 && {
-          price: (input.registrationFeeCents / 100).toFixed(2),
-          priceCurrency: input.currency || "EUR",
-        }),
-    };
-  }
 
   if (input.organizerName) {
     event.organizer = {

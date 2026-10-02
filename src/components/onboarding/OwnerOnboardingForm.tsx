@@ -2,6 +2,8 @@
 
 import { useEffect, useMemo, useState, type Dispatch, type SetStateAction } from "react";
 import { useRouter } from "next/navigation";
+import Link from "next/link";
+import { OwnerAcademyLookup } from "./OwnerAcademyLookup";
 import { Building2, ChevronDown, ChevronUp, Loader2 } from "lucide-react";
 
 import { Button } from "@/components/ui/button";
@@ -31,14 +33,31 @@ const ACADEMY_KIND_OPTIONS = [
 
 const OWNER_ONBOARDING_DRAFT_KEY = "zaltyko:owner-onboarding-draft:v1";
 
-export function OwnerOnboardingForm() {
-  const initialSeed = getSportConfigSeedsByCountry("es")[0];
+type DirectoryAcademyDefaults = { name: string; countryCode: string; region?: string; city?: string };
+
+export function OwnerOnboardingForm({
+  directoryEntryId,
+  initialAcademy,
+  directoryDiscoveryEnabled = false,
+  directoryClaimsEnabled = false,
+}: {
+  directoryEntryId?: string;
+  initialAcademy?: DirectoryAcademyDefaults;
+  directoryDiscoveryEnabled?: boolean;
+  directoryClaimsEnabled?: boolean;
+} = {}) {
+  const initialCountry = initialAcademy?.countryCode ?? "es";
+  const draftKey = directoryEntryId ? `${OWNER_ONBOARDING_DRAFT_KEY}:${directoryEntryId}` : OWNER_ONBOARDING_DRAFT_KEY;
+  const initialSeed = getSportConfigSeedsByCountry(initialCountry)[0];
   const router = useRouter();
   const toast = useToast();
+  const [reviewedLookup,setReviewedLookup]=useState<string|null>(null);
+  const [duplicateEntries,setDuplicateEntries]=useState<{id:string;kind:"academy";slug:string;academy_id:string|null;event_id:null;data:{name:string}}[]>([]);
+  const [needsDirectoryReview, setNeedsDirectoryReview] = useState(false);
   const [pending, setPending] = useState(false);
   const [showAdvanced, setShowAdvanced] = useState(false);
   const [fullName, setFullName] = useState("");
-  const [academyName, setAcademyName] = useState("");
+  const [academyName, setAcademyName] = useState(initialAcademy?.name ?? "");
   const [disciplineVariant, setDisciplineVariant] = useState<string>(
     initialSeed?.defaultDisciplineVariant ?? "general"
   );
@@ -46,15 +65,15 @@ export function OwnerOnboardingForm() {
     initialSeed?.defaultDisciplineVariant ?? "general",
   ]);
   const [academyKind, setAcademyKind] = useState<string>("mixed");
-  const [countryCode, setCountryCode] = useState("es");
-  const [region, setRegion] = useState("");
-  const [city, setCity] = useState("");
+  const [countryCode, setCountryCode] = useState(initialCountry);
+  const [region, setRegion] = useState(initialAcademy?.region ?? "");
+  const [city, setCity] = useState(initialAcademy?.city ?? "");
   const [activeProgramCodesByVariant, setActiveProgramCodesByVariant] = useState<Record<string, string[]>>({});
   const [activeApparatusCodesByVariant, setActiveApparatusCodesByVariant] = useState<Record<string, string[]>>({});
   const [starterGroupsByVariant, setStarterGroupsByVariant] = useState<Record<string, string[]>>({
     [initialSeed?.defaultDisciplineVariant ?? "general"]: getStarterGroupPresets(
       resolveAcademySpecialization({
-        countryCode: "es",
+        countryCode: initialCountry,
         disciplineVariant: initialSeed?.defaultDisciplineVariant ?? "general",
       })
     ).map((preset) => preset.key),
@@ -96,7 +115,7 @@ export function OwnerOnboardingForm() {
   // interrupción no obligue a repetir el onboarding desde cero.
   useEffect(() => {
     try {
-      const raw = window.localStorage.getItem(OWNER_ONBOARDING_DRAFT_KEY);
+      const raw = window.localStorage.getItem(draftKey);
       if (!raw) return;
       const draft = JSON.parse(raw) as Partial<{
         fullName: string;
@@ -108,27 +127,31 @@ export function OwnerOnboardingForm() {
         disciplineVariant: string;
       }>;
       if (draft.fullName) setFullName(draft.fullName);
-      if (draft.academyName) setAcademyName(draft.academyName);
-      if (draft.countryCode) setCountryCode(draft.countryCode);
-      if (draft.region) setRegion(draft.region);
-      if (draft.city) setCity(draft.city);
+      // A verified directory listing stays the source of its public identity.
+      // Do not let an older local draft replace its approved name or location.
+      if (!directoryEntryId) {
+        if (draft.academyName) setAcademyName(draft.academyName);
+        if (draft.countryCode) setCountryCode(draft.countryCode);
+        if (draft.region) setRegion(draft.region);
+        if (draft.city) setCity(draft.city);
+      }
       if (draft.academyKind) setAcademyKind(draft.academyKind);
       if (draft.disciplineVariant) setDisciplineVariant(draft.disciplineVariant);
     } catch {
-      window.localStorage.removeItem(OWNER_ONBOARDING_DRAFT_KEY);
+      window.localStorage.removeItem(draftKey);
     }
-  }, []);
+  }, [directoryEntryId, draftKey]);
 
   useEffect(() => {
     try {
       window.localStorage.setItem(
-        OWNER_ONBOARDING_DRAFT_KEY,
+        draftKey,
         JSON.stringify({ fullName, academyName, countryCode, region, city, academyKind, disciplineVariant })
       );
     } catch {
       // El almacenamiento local puede estar deshabilitado; el formulario sigue funcionando.
     }
-  }, [fullName, academyName, countryCode, region, city, academyKind, disciplineVariant]);
+  }, [draftKey, fullName, academyName, countryCode, region, city, academyKind, disciplineVariant]);
 
   useEffect(() => {
     if (disciplineOptions.length === 0) return;
@@ -221,7 +244,10 @@ export function OwnerOnboardingForm() {
 
   async function handleSubmit(event: React.FormEvent<HTMLFormElement>) {
     event.preventDefault();
+    if(directoryDiscoveryEnabled && !directoryEntryId && reviewedLookup!==JSON.stringify([academyName.trim(),countryCode,city.trim()])) return;
     setPending(true);
+    setDuplicateEntries([]);
+    setNeedsDirectoryReview(false);
 
     try {
       const utm = readUtmWithFallback(
@@ -237,6 +263,8 @@ export function OwnerOnboardingForm() {
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
           fullName,
+          directoryEntryId,
+          directoryActivation:directoryEntryId?true:undefined,
           academyName,
           disciplineVariant,
           activeDisciplineVariants,
@@ -255,7 +283,11 @@ export function OwnerOnboardingForm() {
       const payload = await response.json().catch(() => null);
 
       if (!response.ok) {
-        throw new Error(payload?.error ?? "No se pudo completar la configuración inicial.");
+        if(payload?.code === "ACADEMY_ALREADY_LISTED") setDuplicateEntries(payload.details?.entries ?? []);
+        if (payload?.code === "ACADEMY_REVIEW_REQUIRED") {
+          setNeedsDirectoryReview(true);
+        }
+        throw new Error(payload?.message ?? payload?.error ?? "No se pudo completar la configuración inicial.");
       }
 
       toast.pushToast({
@@ -264,7 +296,7 @@ export function OwnerOnboardingForm() {
         variant: "success",
       });
 
-      window.localStorage.removeItem(OWNER_ONBOARDING_DRAFT_KEY);
+      window.localStorage.removeItem(draftKey);
 
       const redirectUrl = payload?.data?.redirectUrl ?? payload?.redirectUrl;
       if (typeof redirectUrl !== "string" || !redirectUrl.startsWith("/")) {
@@ -291,6 +323,17 @@ export function OwnerOnboardingForm() {
 
   return (
     <form onSubmit={handleSubmit} className="space-y-6">
+      {directoryEntryId&&<label className="flex gap-3 rounded-lg border p-4"><input type="checkbox" required/> Quiero crear el espacio de gestión de esta academia y vincularlo a su ficha. Reclamar y gestionar la ficha pública sigue siendo gratuito; no se activa un cobro por esta acción.</label>}
+      {directoryEntryId && (
+        <p role="note" className="text-sm text-muted-foreground">
+          El nombre y la sede se toman de la ficha aprobada. Si necesitas
+          corregirlos, solicita primero el cambio desde{" "}
+          <Link className="underline" href="/directorio/mis-fichas">
+            Mis fichas
+          </Link>
+          .
+        </p>
+      )}
       <div className="rounded-lg border border-primary/20 bg-primary/5 px-4 py-3" aria-label="Paso 1 de 5 de la configuración">
         <div className="flex items-center justify-between gap-3 text-sm">
           <span className="font-medium text-foreground">Paso 1 de 5 · Crear el espacio de trabajo</span>
@@ -300,7 +343,11 @@ export function OwnerOnboardingForm() {
           <div className="h-full w-1/5 rounded-full bg-primary" />
         </div>
         <p className="mt-2 text-xs text-muted-foreground">
-            Tu cuenta personal ya está creada. Al completar este formulario crearás la academia y entrarás a su espacio de trabajo; los grupos, programas, clases y ajustes avanzados se pueden completar después desde allí.
+          {directoryDiscoveryEnabled && !directoryEntryId
+            ? directoryClaimsEnabled
+              ? "Tu cuenta personal ya está creada. Antes de crear un espacio nuevo, busca tu academia abajo. Si ya tiene ficha, solicita su reclamación gratuita; la activación de la gestión es un paso posterior y separado."
+              : "Tu cuenta personal ya está creada. Busca tu academia antes de crearla para evitar duplicados. Si ya tiene ficha mientras las reclamaciones no están activas, solicita ayuda para vincularla."
+            : "Tu cuenta personal ya está creada. Al completar este formulario crearás la academia y entrarás a su espacio de trabajo; los grupos, programas, clases y ajustes avanzados se pueden completar después desde allí."}
         </p>
       </div>
       <div className="grid gap-4 sm:grid-cols-2">
@@ -323,6 +370,7 @@ export function OwnerOnboardingForm() {
             onChange={(event) => setAcademyName(event.target.value)}
             placeholder="Club Gimnasia Élite"
             required
+            readOnly={Boolean(directoryEntryId)}
             disabled={pending}
           />
         </div>
@@ -342,7 +390,7 @@ export function OwnerOnboardingForm() {
             placeholder="Selecciona un país"
             name="countryCode"
             searchPlaceholder="Buscar país..."
-            disabled={pending}
+            disabled={pending || Boolean(directoryEntryId)}
           />
         </div>
         <div className="space-y-2 sm:col-span-2">
@@ -455,7 +503,7 @@ export function OwnerOnboardingForm() {
               setRegion(value);
               setCity("");
             }}
-            disabled={pending || !countryCode || regionOptions.length === 0}
+            disabled={pending || Boolean(directoryEntryId) || !countryCode || regionOptions.length === 0}
             placeholder={getRegionPlaceholder(countryCode, !!countryCode)}
             name="region"
             searchPlaceholder={`Buscar ${getRegionLabel(countryCode).toLowerCase()}...`}
@@ -467,7 +515,7 @@ export function OwnerOnboardingForm() {
             options={cityOptions}
             value={city}
             onChange={setCity}
-            disabled={pending || !region || cityOptions.length === 0}
+            disabled={pending || Boolean(directoryEntryId) || !region || cityOptions.length === 0}
             placeholder={getCityPlaceholder(getRegionLabel(countryCode), !!region)}
             name="city"
             searchPlaceholder="Buscar ciudad..."
@@ -625,7 +673,36 @@ export function OwnerOnboardingForm() {
       </div>
       )}
 
-      <Button type="submit" className="w-full" disabled={pending}>
+      {directoryDiscoveryEnabled && !directoryEntryId && (
+        <OwnerAcademyLookup
+          name={academyName}
+          countryCode={countryCode}
+          city={city}
+          onCityChange={setCity}
+          onReviewed={setReviewedLookup}
+          claimsEnabled={directoryClaimsEnabled}
+        />
+      )}
+      {needsDirectoryReview && (
+        <div role="alert" className="space-y-2 rounded-lg border p-4">
+          <p>
+            Para evitar duplicar una academia, necesitamos revisar estos datos
+            antes de crear el espacio de gestión.
+          </p>
+          <Link
+            className="block underline"
+            href={
+              directoryEntryId
+                ? `/contact?type=support&directoryEntryId=${encodeURIComponent(directoryEntryId)}`
+                : "/contact?type=support"
+            }
+          >
+            Solicitar ayuda para vincular la ficha
+          </Link>
+        </div>
+      )}
+      {duplicateEntries.length>0 && <div role="alert" className="space-y-2 rounded-lg border p-4"><p>Esta academia ya tiene una ficha. Revísala y solicita la reclamación o asistencia; no hemos creado otra academia. Si es otra sede con el mismo nombre, solicita asistencia para distinguirlas.</p><Link className="block underline" href="/contact?type=support">Solicitar asistencia para revisar mi sede</Link>{duplicateEntries.map(entry=><Link key={entry.id} className="block underline" href={`/academias/${entry.id}${entry.slug?`-${entry.slug}`:""}`}>{entry.data.name}</Link>)}</div>}
+      <Button type="submit" className="w-full" disabled={pending || (directoryDiscoveryEnabled && !directoryEntryId && reviewedLookup!==JSON.stringify([academyName.trim(),countryCode,city.trim()]))}>
         {pending ? (
           <>
             <Loader2 className="mr-2 h-4 w-4 animate-spin" />

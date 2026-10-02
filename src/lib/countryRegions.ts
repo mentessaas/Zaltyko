@@ -36,6 +36,8 @@ export function getCityPlaceholder(regionLabel: string, hasRegion: boolean): str
 }
 
 export const COUNTRY_REGION_OPTIONS: CountryOption[] = [
+  { value:"br",label:"Brasil",regions:[] },
+  { value:"ht",label:"Haití",regions:[] },
   {
     value: "es",
     label: "España",

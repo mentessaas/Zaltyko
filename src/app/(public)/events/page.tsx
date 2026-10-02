@@ -1,3 +1,5 @@
+import { flag } from "@/lib/directory/contracts";
+import { DirectoryBrowse } from "@/components/directory/DirectoryBrowse";
 import type { Metadata } from "next";
 
 export const dynamic = "force-dynamic";
@@ -9,9 +11,10 @@ import { getPublicEvents } from "@/app/actions/public/get-public-events";
 import { getPublicSiteUrl } from "@/lib/seo/site-url";
 import type { EventFilters } from "@/types/events";
 
-export const metadata: Metadata = {
+const baseMetadata: Metadata = {
   title: "Eventos y Competiciones de Gimnasia",
-  description: "Encuentra eventos y competencias de gimnasia cerca de ti. Directorio público de eventos y competiciones.",
+  description:
+    "Encuentra eventos y competencias de gimnasia cerca de ti. Directorio público de eventos y competiciones.",
   alternates: {
     canonical: `${getPublicSiteUrl()}/events`,
   },
@@ -22,6 +25,23 @@ export const metadata: Metadata = {
     type: "website",
   },
 };
+
+export async function generateMetadata({
+  searchParams,
+}: {
+  searchParams: Promise<Record<string, string | undefined>>;
+}): Promise<Metadata> {
+  const params = await searchParams;
+  const filtered = Object.entries(params).some(
+    ([key, value]) => Boolean(value) && !key.startsWith("utm_")
+  );
+  return {
+    ...baseMetadata,
+    ...(flag("catalog") && filtered
+      ? { robots: { index: false, follow: true } }
+      : {}),
+  };
+}
 
 interface EventsSearchParams {
   search?: string;
@@ -50,7 +70,11 @@ async function getEvents(searchParams: EventsSearchParams) {
   }
 }
 
-function EventsContent({ events }: { events: Awaited<ReturnType<typeof getEvents>> }) {
+function EventsContent({
+  events,
+}: {
+  events: Awaited<ReturnType<typeof getEvents>>;
+}) {
   if (events.length === 0) {
     return (
       <div className="rounded-xl border border-border bg-card p-16 text-center shadow-sm">
@@ -76,7 +100,8 @@ function EventsContent({ events }: { events: Awaited<ReturnType<typeof getEvents
             No hay eventos públicos todavía
           </h3>
           <p className="text-muted-foreground">
-            Las academias pueden publicar sus eventos y competiciones desde su panel de gestión.
+            Las academias pueden publicar sus eventos y competiciones desde su
+            panel de gestión.
           </p>
         </div>
       </div>
@@ -101,7 +126,10 @@ export default async function EventsPage({
 }: {
   searchParams: Promise<EventsSearchParams>;
 }) {
-  const events = await getEvents(await searchParams);
+  const params = await searchParams;
+  if (flag("catalog"))
+    return <DirectoryBrowse kind="event" params={{ ...params }} />;
+  const events = await getEvents(params);
 
   return (
     <div className="min-h-screen bg-background">

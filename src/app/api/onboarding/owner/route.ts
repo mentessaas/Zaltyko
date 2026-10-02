@@ -1,3 +1,17 @@
+import { recordGrowthEvent } from "@/lib/growth/events";
+import {
+  directoryAcademyIdentityMatches,
+  EntryDataSchema,
+  flag,
+  type DirectoryAcademyIdentity,
+} from "@/lib/directory/contracts";
+import {
+  academyDuplicateLock,
+  academyDuplicateQuery,
+  academyOperationalIdentityQuery,
+  rows,
+} from "@/lib/directory/service";
+import { directoryUser, directoryFailure } from "@/lib/directory/auth";
 import { and, eq, sql } from "drizzle-orm";
 import { cookies } from "next/headers";
 import { z } from "zod";
@@ -35,6 +49,8 @@ import { logger } from "@/lib/logger";
 import { recordOwnerSignupConsent } from "@/lib/consent/owner-consent-store";
 
 const bodySchema = z.object({
+  directoryEntryId:z.string().uuid().optional(),
+  directoryActivation:z.literal(true).optional(),
   fullName: z.string().trim().min(2).max(120),
   academyName: z.string().trim().min(3).max(120),
   disciplineVariant: z.enum([
@@ -113,6 +129,47 @@ export async function POST(request: Request) {
     );
   }
 
+
+  const duplicateIdentity = {
+    name: parsed.data.academyName,
+    countryCode:
+      normalizeCountryCode(parsed.data.countryCode) ?? parsed.data.countryCode,
+    region: parsed.data.region,
+    city: parsed.data.city,
+  };
+  const directoryId=parsed.data.directoryEntryId;
+  const requestedDirectoryIdentity: DirectoryAcademyIdentity = {
+    name: parsed.data.academyName,
+    countryCode:
+      normalizeCountryCode(parsed.data.countryCode) ?? parsed.data.countryCode,
+    region: parsed.data.region,
+    city: parsed.data.city,
+  };
+  if (directoryId || flag("catalog")) {
+    try { await directoryUser(); } catch(e) { return directoryFailure(e); }
+  }
+  if(directoryId){
+    if(!flag('claims')||!parsed.data.directoryActivation||!user.email_confirmed_at)return apiError('ACTIVATION_REQUIRED','Confirma tu correo y la activación expresa de la gestión',403);
+    const entry=(await rows(sql`SELECT d.* FROM directory_entries d JOIN directory_grants g ON g.entry_id=d.id WHERE d.id=${directoryId}::uuid AND g.user_id=${user.id}::uuid AND d.kind='academy' AND d.merged_into IS NULL`))[0];
+    if(!entry)return apiError('FORBIDDEN','No tienes permisos sobre esta ficha',403);
+    if(entry.academy_id)return apiCreated({academyId:entry.academy_id,redirectUrl:`/onboarding/owner?directoryEntryId=${directoryId}`});
+    const identity = EntryDataSchema.safeParse(entry.data);
+    if (!identity.success) {
+      return apiError(
+        "DIRECTORY_IDENTITY_INVALID",
+        "La ficha necesita revisión antes de activar la gestión",
+        409
+      );
+    }
+    if (!directoryAcademyIdentityMatches(identity.data, requestedDirectoryIdentity)) {
+      return apiError(
+        "DIRECTORY_IDENTITY_MISMATCH",
+        "El nombre y la sede deben coincidir con la ficha aprobada. Solicita primero la corrección de la ficha.",
+        409
+      );
+    }
+  }
+
   let [profile] = await db
     .select({
       id: profiles.id,
@@ -126,7 +183,7 @@ export async function POST(request: Request) {
     .where(eq(profiles.userId, user.id))
     .limit(1);
 
-  if (profile && !["owner", "admin"].includes(profile.role)) {
+  if (profile && ((directoryId && profile.role!=="owner") || !["owner", "admin"].includes(profile.role))) {
     return apiError(
       "OWNER_SETUP_NOT_ALLOWED",
       "Tu cuenta ya pertenece a un flujo de invitación. Accede desde tu academia asignada.",
@@ -149,6 +206,7 @@ export async function POST(request: Request) {
         .limit(100)
     : [];
 
+  if(directoryId&&existingMemberships.length)return apiError('LINK_REVIEW_REQUIRED','Ya tienes un espacio operativo. Solicita al administrador vincularlo; no se creará otro.',409);
   if (profile && existingMemberships.length > 0) {
     const ownerAcademy =
       existingMemberships.find(
@@ -161,6 +219,11 @@ export async function POST(request: Request) {
         redirectUrl: `/app/${ownerAcademy}/dashboard`,
       });
     }
+  }
+
+  if (!directoryId && flag("catalog")) {
+    const matches=await rows(academyDuplicateQuery(duplicateIdentity));
+    if(matches.length) return apiError("ACADEMY_ALREADY_LISTED","Encontramos una ficha de esta sede. Revísala y solicita la reclamación o asistencia antes de crear otro espacio.",409,{entries:matches});
   }
 
   if (!profile) {
@@ -233,7 +296,45 @@ export async function POST(request: Request) {
     // Serialize owner setup per account. The preflight membership check above
     // is intentionally repeated under the lock so double-clicks or concurrent
     // requests cannot create two academies for the same new owner.
+    let directoryIdentity: DirectoryAcademyIdentity | null = null;
+    if(directoryId){
+      await tx.execute(sql`SELECT pg_advisory_xact_lock(hashtext(${`directory:${directoryId}`}))`);
+      const entry=(await tx.execute(sql`SELECT d.* FROM directory_entries d JOIN directory_grants g ON g.entry_id=d.id WHERE d.id=${directoryId}::uuid AND g.user_id=${user.id}::uuid AND d.kind='academy' AND d.merged_into IS NULL FOR UPDATE OF d`)).rows[0];
+      if(!entry)return {error:apiError('FORBIDDEN','El permiso de esta ficha ha cambiado',403)};
+      if(entry.academy_id)return {existingAcademyId:String(entry.academy_id)};
+      const identity = EntryDataSchema.safeParse(entry.data);
+      if (!identity.success) {
+        return {
+          error: apiError(
+            "DIRECTORY_IDENTITY_INVALID",
+            "La ficha necesita revisión antes de activar la gestión",
+            409
+          ),
+        };
+      }
+      if (!directoryAcademyIdentityMatches(identity.data, requestedDirectoryIdentity)) {
+        return {
+          error: apiError(
+            "DIRECTORY_IDENTITY_MISMATCH",
+            "El nombre y la sede de la ficha cambiaron. Vuelve a revisarla antes de activar la gestión.",
+            409
+          ),
+        };
+      }
+      directoryIdentity = identity.data;
+    }
+    const identityForChecks = directoryIdentity ?? requestedDirectoryIdentity;
+    if (directoryId || flag("catalog")) {
+      await tx.execute(
+        sql`SELECT pg_advisory_xact_lock(hashtext(${`academy-identity:${academyDuplicateLock(identityForChecks)}`}))`
+      );
+    }
     await tx.execute(sql`select pg_advisory_xact_lock(hashtext(${user.id}))`);
+
+    if(directoryId || flag("catalog")) {
+      const current=(await tx.execute(sql`SELECT role,tenant_id,can_login,is_suspended FROM profiles WHERE id=${profile.id}::uuid FOR UPDATE`)).rows[0];
+      if(!current || !current.can_login || current.is_suspended || current.role!==profile.role || current.tenant_id!==profile.tenantId) return {error:apiError("ACCOUNT_CHANGED","Los permisos de tu cuenta han cambiado. Revisa tu acceso antes de continuar.",409)};
+    }
 
     const [membershipCreatedByAnotherRequest] = await tx
       .select({ academyId: memberships.academyId })
@@ -252,21 +353,57 @@ export async function POST(request: Request) {
       return { existingAcademyId: membershipCreatedByAnotherRequest.academyId };
     }
 
+    if (directoryId || flag("catalog")) {
+      const matches = (
+        await tx.execute(
+          academyDuplicateQuery({
+            ...identityForChecks,
+            excludeEntryId: directoryId,
+          })
+        )
+      ).rows;
+      if (matches.length) {
+        return {
+          error: apiError(
+            "ACADEMY_ALREADY_LISTED",
+            "Encontramos otra ficha pública con esta identidad. Solicita asistencia para revisar el vínculo antes de crear un segundo espacio.",
+            409,
+            { entries: matches }
+          ),
+        };
+      }
+      const operationalMatch = (
+        await tx.execute(academyOperationalIdentityQuery(identityForChecks))
+      ).rows[0]?.exists;
+      if (operationalMatch === true) {
+        return {
+          error: apiError(
+            "ACADEMY_REVIEW_REQUIRED",
+            "No creamos otro espacio porque ya puede existir una academia con estos datos. Contacta con soporte para verificar la ficha.",
+            409
+          ),
+        };
+      }
+    }
+
     const result = await createAcademy(
       {
-        name: parsed.data.academyName,
+        // A public listing is approved evidence. Never let the activation form
+        // silently change its public name or location while linking the workspace.
+        name: directoryIdentity?.name ?? parsed.data.academyName,
         academyType: mapDisciplineVariantToAcademyType(
           parsed.data.disciplineVariant
         ) as "artistica" | "ritmica" | "general",
         disciplineVariant: parsed.data.disciplineVariant,
         countryCode:
+          directoryIdentity?.countryCode ??
           normalizeCountryCode(parsed.data.countryCode) ??
           parsed.data.countryCode,
-        country:
-          parsed.data.country ??
-          getCountryNameFromCode(parsed.data.countryCode),
-        region: parsed.data.region,
-        city: parsed.data.city,
+        country: getCountryNameFromCode(
+          directoryIdentity?.countryCode ?? parsed.data.countryCode
+        ),
+        region: directoryIdentity?.region ?? undefined,
+        city: directoryIdentity?.city ?? undefined,
         utm: parsed.data.utm,
       },
       {
@@ -284,6 +421,10 @@ export async function POST(request: Request) {
       return { error: result.error };
     }
 
+    if(directoryId){
+      await tx.execute(sql`UPDATE directory_entries SET academy_id=${result.id}::uuid,updated_at=now() WHERE id=${directoryId}::uuid`);
+      await tx.execute(sql`INSERT INTO directory_audit(entry_id,actor_id,action,metadata) VALUES(${directoryId}::uuid,${user.id}::uuid,'saas_activated',${JSON.stringify({academyId:result.id})}::jsonb)`);
+    }
     const activeVariants = Array.from(
       new Set([
         parsed.data.disciplineVariant,
@@ -529,6 +670,7 @@ export async function POST(request: Request) {
     }
   );
 
+  if(directoryId) await recordGrowthEvent({eventName:"directory_saas_activated",source:"directory",academyId:setup.result.id,idempotencyKey:`directory:activation:${directoryId}`,properties:{entry_id:directoryId,audience:"representative"}});
   return apiCreated({
     academyId: setup.result.id,
     redirectUrl: `/app/${setup.result.id}/dashboard`,

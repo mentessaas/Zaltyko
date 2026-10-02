@@ -1,3 +1,5 @@
+import { flag } from "@/lib/directory/contracts";
+import { DirectoryBrowse } from "@/components/directory/DirectoryBrowse";
 import type { Metadata } from "next";
 import Link from "next/link";
 import { AcademiesFilters } from "@/components/public/AcademiesFilters";
@@ -6,19 +8,38 @@ import { getPublicAcademies } from "@/app/actions/public/get-public-academies";
 import Reveal from "@/components/motion/Reveal";
 import { getPublicSiteUrl } from "@/lib/seo/site-url";
 
-export const metadata: Metadata = {
+const baseMetadata: Metadata = {
   title: "Directorio de Academias de Gimnasia",
-  description: "Encuentra academias de gimnasia artística y rítmica cerca de ti.",
+  description:
+    "Encuentra academias de gimnasia artística y rítmica cerca de ti.",
   alternates: {
     canonical: `${getPublicSiteUrl()}/academias`,
   },
   openGraph: {
     title: "Directorio de Academias de Gimnasia",
-    description: "Encuentra academias de gimnasia artística y rítmica cerca de ti",
+    description:
+      "Encuentra academias de gimnasia artística y rítmica cerca de ti",
     url: `${getPublicSiteUrl()}/academias`,
     type: "website",
   },
 };
+
+export async function generateMetadata({
+  searchParams,
+}: {
+  searchParams: Promise<Record<string, string | undefined>>;
+}): Promise<Metadata> {
+  const params = await searchParams;
+  const filtered = Object.entries(params).some(
+    ([key, value]) => Boolean(value) && !key.startsWith("utm_")
+  );
+  return {
+    ...baseMetadata,
+    ...(flag("catalog") && filtered
+      ? { robots: { index: false, follow: true } }
+      : {}),
+  };
+}
 
 interface AcademiesPageProps {
   searchParams: Promise<{
@@ -31,8 +52,12 @@ interface AcademiesPageProps {
   }>;
 }
 
-export default async function AcademiesPage({ searchParams }: AcademiesPageProps) {
+export default async function AcademiesPage({
+  searchParams,
+}: AcademiesPageProps) {
   const params = await searchParams;
+  if (flag("catalog"))
+    return <DirectoryBrowse kind="academy" params={params} />;
 
   const page = Number(params.page) || 1;
   const result = await getPublicAcademies({
@@ -45,7 +70,12 @@ export default async function AcademiesPage({ searchParams }: AcademiesPageProps
     limit: 50,
   });
 
-  const hasFilters = params.search || params.type || params.country || params.region || params.city;
+  const hasFilters =
+    params.search ||
+    params.type ||
+    params.country ||
+    params.region ||
+    params.city;
 
   return (
     <div className="min-h-screen bg-background">
@@ -55,27 +85,35 @@ export default async function AcademiesPage({ searchParams }: AcademiesPageProps
         <div className="relative mx-auto max-w-7xl px-4 py-16 sm:px-6 lg:px-8">
           <Reveal>
             <div className="text-center">
-            <div className="inline-flex items-center gap-2 rounded-full border border-zaltyko-primary/30 bg-zaltyko-primary/10 px-4 py-1.5 text-xs font-semibold uppercase tracking-wider text-zaltyko-primary mb-6">
-              <span>Directorio público</span>
-            </div>
-            <h1 className="font-display text-4xl font-bold text-foreground sm:text-5xl lg:text-6xl">
-              Academias de gimnasia artística y rítmica en España y Latinoamérica
-            </h1>
-            <p className="mt-4 text-lg text-muted-foreground sm:text-xl">
-              Directorio público de academias que gestionan sus clases, cobros y evaluaciones con Zaltyko. Filtra por modalidad, ciudad o país.
-            </p>
-            <div className="mt-8 flex flex-wrap items-center justify-center gap-6 text-sm">
-              <div className="flex items-center gap-2 text-muted-foreground">
-                <span className="text-2xl font-bold text-zaltyko-primary">{result.total}</span>
-                <span>{result.total === 1 ? "academia disponible" : "academias disponibles"}</span>
+              <div className="inline-flex items-center gap-2 rounded-full border border-zaltyko-primary/30 bg-zaltyko-primary/10 px-4 py-1.5 text-xs font-semibold uppercase tracking-wider text-zaltyko-primary mb-6">
+                <span>Directorio público</span>
               </div>
-              {hasFilters && (
+              <h1 className="font-display text-4xl font-bold text-foreground sm:text-5xl lg:text-6xl">
+                Academias de gimnasia artística y rítmica en España y
+                Latinoamérica
+              </h1>
+              <p className="mt-4 text-lg text-muted-foreground sm:text-xl">
+                Directorio público de academias que gestionan sus clases, cobros
+                y evaluaciones con Zaltyko. Filtra por modalidad, ciudad o país.
+              </p>
+              <div className="mt-8 flex flex-wrap items-center justify-center gap-6 text-sm">
                 <div className="flex items-center gap-2 text-muted-foreground">
-                  <span className="h-1 w-1 rounded-full bg-zaltyko-primary" />
-                  <span>Filtros activos</span>
+                  <span className="text-2xl font-bold text-zaltyko-primary">
+                    {result.total}
+                  </span>
+                  <span>
+                    {result.total === 1
+                      ? "academia disponible"
+                      : "academias disponibles"}
+                  </span>
                 </div>
-              )}
-            </div>
+                {hasFilters && (
+                  <div className="flex items-center gap-2 text-muted-foreground">
+                    <span className="h-1 w-1 rounded-full bg-zaltyko-primary" />
+                    <span>Filtros activos</span>
+                  </div>
+                )}
+              </div>
             </div>
           </Reveal>
         </div>
@@ -87,19 +125,21 @@ export default async function AcademiesPage({ searchParams }: AcademiesPageProps
       {/* Listado */}
       <section className="mx-auto max-w-7xl px-4 py-12 sm:px-6 lg:px-8">
         <Reveal>
-        {result.items.length > 0 ? (
-          <>
-            <div className="mb-6 flex items-center justify-between">
-              <p className="text-sm text-muted-foreground">
-                Mostrando {result.items.length} {result.items.length === 1 ? "academia" : "academias"}
-                {result.totalPages > 1 && ` · Página ${page} de ${result.totalPages}`}
-              </p>
-            </div>
+          {result.items.length > 0 ? (
+            <>
+              <div className="mb-6 flex items-center justify-between">
+                <p className="text-sm text-muted-foreground">
+                  Mostrando {result.items.length}{" "}
+                  {result.items.length === 1 ? "academia" : "academias"}
+                  {result.totalPages > 1 &&
+                    ` · Página ${page} de ${result.totalPages}`}
+                </p>
+              </div>
+              <AcademiesGrid academies={result.items} />
+            </>
+          ) : (
             <AcademiesGrid academies={result.items} />
-          </>
-        ) : (
-          <AcademiesGrid academies={result.items} />
-        )}
+          )}
         </Reveal>
 
         {/* Paginación mejorada */}
@@ -114,8 +154,18 @@ export default async function AcademiesPage({ searchParams }: AcademiesPageProps
                   }).toString()}`}
                   className="flex items-center gap-2 rounded-lg border border-border bg-card px-4 py-2.5 text-sm font-medium text-foreground transition-all hover:bg-muted hover:border-zaltyko-primary"
                 >
-                  <svg className="h-4 w-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 19l-7-7 7-7" />
+                  <svg
+                    className="h-4 w-4"
+                    fill="none"
+                    stroke="currentColor"
+                    viewBox="0 0 24 24"
+                  >
+                    <path
+                      strokeLinecap="round"
+                      strokeLinejoin="round"
+                      strokeWidth={2}
+                      d="M15 19l-7-7 7-7"
+                    />
                   </svg>
                   Anterior
                 </Link>
@@ -123,37 +173,40 @@ export default async function AcademiesPage({ searchParams }: AcademiesPageProps
             </div>
 
             <div className="flex items-center gap-2">
-              {Array.from({ length: Math.min(5, result.totalPages) }, (_, i) => {
-                let pageNum: number;
-                if (result.totalPages <= 5) {
-                  pageNum = i + 1;
-                } else if (page <= 3) {
-                  pageNum = i + 1;
-                } else if (page >= result.totalPages - 2) {
-                  pageNum = result.totalPages - 4 + i;
-                } else {
-                  pageNum = page - 2 + i;
+              {Array.from(
+                { length: Math.min(5, result.totalPages) },
+                (_, i) => {
+                  let pageNum: number;
+                  if (result.totalPages <= 5) {
+                    pageNum = i + 1;
+                  } else if (page <= 3) {
+                    pageNum = i + 1;
+                  } else if (page >= result.totalPages - 2) {
+                    pageNum = result.totalPages - 4 + i;
+                  } else {
+                    pageNum = page - 2 + i;
+                  }
+
+                  if (pageNum < 1 || pageNum > result.totalPages) return null;
+
+                  return (
+                    <Link
+                      key={pageNum}
+                      href={`/academias?${new URLSearchParams({
+                        ...params,
+                        page: String(pageNum),
+                      }).toString()}`}
+                      className={`min-w-[40px] rounded-lg border px-3 py-2 text-sm font-medium transition-all ${
+                        pageNum === page
+                          ? "border-zaltyko-primary bg-zaltyko-primary/10 text-zaltyko-primary"
+                          : "border-border bg-card text-foreground hover:bg-muted hover:border-zaltyko-primary/50"
+                      }`}
+                    >
+                      {pageNum}
+                    </Link>
+                  );
                 }
-
-                if (pageNum < 1 || pageNum > result.totalPages) return null;
-
-                return (
-                  <Link
-                    key={pageNum}
-                    href={`/academias?${new URLSearchParams({
-                      ...params,
-                      page: String(pageNum),
-                    }).toString()}`}
-                    className={`min-w-[40px] rounded-lg border px-3 py-2 text-sm font-medium transition-all ${
-                      pageNum === page
-                        ? "border-zaltyko-primary bg-zaltyko-primary/10 text-zaltyko-primary"
-                        : "border-border bg-card text-foreground hover:bg-muted hover:border-zaltyko-primary/50"
-                    }`}
-                  >
-                    {pageNum}
-                  </Link>
-                );
-              })}
+              )}
             </div>
 
             <div className="flex items-center gap-2">
@@ -166,8 +219,18 @@ export default async function AcademiesPage({ searchParams }: AcademiesPageProps
                   className="flex items-center gap-2 rounded-lg border border-border bg-card px-4 py-2.5 text-sm font-medium text-foreground transition-all hover:bg-muted hover:border-zaltyko-primary"
                 >
                   Siguiente
-                  <svg className="h-4 w-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />
+                  <svg
+                    className="h-4 w-4"
+                    fill="none"
+                    stroke="currentColor"
+                    viewBox="0 0 24 24"
+                  >
+                    <path
+                      strokeLinecap="round"
+                      strokeLinejoin="round"
+                      strokeWidth={2}
+                      d="M9 5l7 7-7 7"
+                    />
                   </svg>
                 </Link>
               )}

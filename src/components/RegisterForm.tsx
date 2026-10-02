@@ -1,6 +1,6 @@
 "use client";
 
-import { useRef, useState, type KeyboardEvent } from "react";
+import { useEffect, useRef, useState, type KeyboardEvent } from "react";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
 import { Loader2 } from "lucide-react";
@@ -74,10 +74,13 @@ type RegisterRole = (typeof ROLE_OPTIONS)[number]["value"];
 const LEGAL_CONSENT_VERSION = "v1-2026-08-01";
 const LEGAL_CONSENT_PROOF = "signup:register-form-v1";
 
-export function RegisterForm() {
+export function RegisterForm({directoryDiscoveryEnabled=false}:{directoryDiscoveryEnabled?:boolean}={}) {
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [fullName, setFullName] = useState("");
+  const [directoryNext, setDirectoryNext] = useState<string | null>(null);
+  useEffect(() => { setDirectoryNext(new URLSearchParams(window.location.search).get('next')); }, []);
+  const directoryRegistration=Boolean(directoryNext&&/^\/(academias|events|directorio)\//.test(directoryNext)&&!directoryNext.includes('\\'));
   const [role, setRole] = useState<RegisterRole>("owner");
   const [termsAccepted, setTermsAccepted] = useState(false);
   const roleButtonRefs = useRef<Array<HTMLButtonElement | null>>([]);
@@ -118,7 +121,7 @@ export function RegisterForm() {
       },
     });
     // Google Ads también recibe cta_click para optimización temprana.
-    trackGoogleAdsConversion("cta_click_register");
+    if (!directoryRegistration) trackGoogleAdsConversion("cta_click_register");
 
     if (!fullName.trim()) {
       toast.pushToast({
@@ -189,7 +192,7 @@ export function RegisterForm() {
     try {
       const emailRedirectTo =
         typeof window !== "undefined"
-          ? `${window.location.origin}/auth/callback?next=/auth/redirect`
+          ? `${window.location.origin}/auth/callback?next=${encodeURIComponent(directoryRegistration?directoryNext!:"/auth/redirect")}`
           : undefined;
 
       const { data, error } = await supabase.auth.signUp({
@@ -198,7 +201,8 @@ export function RegisterForm() {
         options: {
           data: {
             full_name: fullName.trim(),
-            initial_role: role,
+            initial_role: directoryRegistration ? undefined : role,
+            directory_account: directoryRegistration,
             // Metadata is only a hand-off for the server-side consent record;
             // authorization must never rely on user-editable user_metadata.
             legal_consent_version: LEGAL_CONSENT_VERSION,
@@ -218,8 +222,8 @@ export function RegisterForm() {
       }
 
       toast.pushToast({
-        title: role === "owner" ? "Cuenta creada; falta tu academia" : "Cuenta creada",
-        description: data.session
+        title: directoryRegistration ? "Cuenta del directorio creada" : role === "owner" ? "Cuenta creada; falta tu academia" : "Cuenta creada",
+        description: directoryRegistration ? "Puedes consultar tus fichas y solicitar representación; no se ha creado una academia ni una suscripción." : data.session
           ? role === "owner"
             ? "Ahora configuraremos tu academia para que puedas empezar."
             : "Vamos a llevarte a tu espacio en Zaltyko."
@@ -235,10 +239,10 @@ export function RegisterForm() {
         // atribución UTMs viaja en metadata para que PostHog/Google Ads
         // puedan reconciliar origen paid.
         const attribution = readAttribution();
-        await trackEvent("sign_up_completed", {
+        await trackEvent(directoryRegistration ? "directory_account_registered" : "sign_up_completed", {
           userId: data.session.user.id,
           metadata: {
-            role,
+            role: directoryRegistration ? "directory" : role,
             signup_method: "email_password",
             // `direct` es el fallback cuando no hay UTMs (ver UTM_DIRECT_FALLBACK);
             // distinguir paid vs organic/direct ayuda a segmentar PostHog.
@@ -250,8 +254,9 @@ export function RegisterForm() {
         // Google Ads conversion — el label real lo configura Elvis en la
         // cuenta de Google Ads (Tools → Conversions) y se mapea aquí cuando
         // esté listo. Sin label, gtag ignora el evento silenciosamente.
-        trackGoogleAdsConversion("signup_completed");
+        if (!directoryRegistration) trackGoogleAdsConversion("signup_completed");
 
+        if(directoryRegistration){router.push(directoryNext!);return;}
         const profileResponse = await fetch("/api/onboarding/profile", {
           method: "POST",
           headers: { "Content-Type": "application/json" },
@@ -272,15 +277,15 @@ export function RegisterForm() {
         }
         router.push(getRegistrationContinuationPath(role));
       } else {
-        await trackEvent("sign_up_completed", {
+        await trackEvent(directoryRegistration ? "directory_account_registered" : "sign_up_completed", {
           metadata: {
-            role,
+            role: directoryRegistration ? "directory" : role,
             signup_method: "email_password",
             email_confirmation_pending: true,
             ...readAttribution(),
           },
         });
-        router.push("/auth/login?registered=1");
+        router.push(`/auth/login?registered=1${directoryRegistration?`&next=${encodeURIComponent(directoryNext!)}`:""}`);
       }
     } finally {
       setLoading(false);
@@ -299,14 +304,14 @@ export function RegisterForm() {
 
     setGoogleLoading(true);
     try {
-      const next =
+      const next = directoryRegistration ? directoryNext! :
         `/auth/redirect?initial_role=${encodeURIComponent(role)}` +
         `&legal_consent_version=${encodeURIComponent(LEGAL_CONSENT_VERSION)}` +
         `&legal_consent_proof=${encodeURIComponent(LEGAL_CONSENT_PROOF)}`;
       const { data, error } = await supabase.auth.signInWithOAuth({
         provider: "google",
         options: {
-          redirectTo: `${window.location.origin}/auth/callback?next=${encodeURIComponent(next)}`,
+          redirectTo: `${window.location.origin}/auth/callback?next=${encodeURIComponent(next)}${directoryRegistration ? `&directory_account=1&legal_consent_version=${encodeURIComponent(LEGAL_CONSENT_VERSION)}&legal_consent_proof=${encodeURIComponent(LEGAL_CONSENT_PROOF)}` : ""}`,
           // Navegamos explícitamente después de recibir la URL. Esto evita
           // que navegadores embebidos o bloqueadores de popup dejen el CTA
           // permanentemente en estado "Conectando...".
@@ -350,7 +355,7 @@ export function RegisterForm() {
       footer={
         <>
           ¿Ya tienes cuenta?{" "}
-          <Link href="/auth/login" className="font-semibold text-zaltyko-primary hover:underline">
+          <Link href={directoryRegistration ? `/auth/login?next=${encodeURIComponent(directoryNext!)}` : "/auth/login"} className="font-semibold text-zaltyko-primary hover:underline">
             Inicia sesión
           </Link>
         </>
@@ -365,8 +370,8 @@ export function RegisterForm() {
     >
       <form onSubmit={handleRegister} className="space-y-4">
         <div className="space-y-2">
-          <Label>Tipo de cuenta</Label>
-          <div className="grid grid-cols-2 gap-2" role="radiogroup" aria-label="Tipo de cuenta">
+          {!directoryRegistration && <Label>Tipo de cuenta</Label>}
+          <div style={directoryRegistration ? { display: "none" } : undefined} className="grid grid-cols-2 gap-2" role="radiogroup" aria-label="Tipo de cuenta">
             {ROLE_OPTIONS.map((option, index) => (
               <button
                 key={option.value}
@@ -390,9 +395,10 @@ export function RegisterForm() {
               </button>
             ))}
           </div>
-          {role === "owner" && (
+          {role === "owner" && !directoryRegistration && (
             <div className="rounded-lg border border-zaltyko-teal/30 bg-zaltyko-teal/5 px-3 py-2 text-xs text-muted-foreground">
-              <span className="font-semibold text-foreground">Importante:</span> primero crearás tu cuenta personal. Después te guiaremos para crear la academia y configurar tu espacio de trabajo.
+              <span className="font-semibold text-foreground">Importante:</span> primero crearás tu cuenta personal. {directoryDiscoveryEnabled ? "Después podrás buscar tu academia y solicitar su reclamación si ya existe, o crear una sede nueva." : "Después te guiaremos para crear la academia y configurar tu espacio de trabajo."}
+              {directoryDiscoveryEnabled && <Link href="/academias" className="mt-2 block font-semibold underline">Buscar mi academia antes de crear la cuenta</Link>}
             </div>
           )}
         </div>
@@ -488,9 +494,9 @@ export function RegisterForm() {
         </Button>
       </div>
 
-      {role === "owner" && (
+      {(role === "owner" || directoryRegistration) && (
         <p className="mt-4 text-center text-xs text-muted-foreground">
-          7 días de Starter sin tarjeta · Sin permanencia
+          {directoryRegistration ? "Consultar y reclamar fichas es gratis. No activa ninguna suscripción." : "7 días de Starter sin tarjeta · Sin permanencia"}
         </p>
       )}
     </AuthPageShell>

@@ -108,3 +108,4 @@ export * from "./categories";
 
 // Trust pack (marketplace disputes + ratings)
 export * from "./trust";
+export * from "./directory";

@@ -78,6 +78,7 @@ export async function GET(request: Request) {
  * Publish a legacy classified using the verified session identity.
  * @route-auth POST session
  */
+// @auth-flexible route-guard-reason: withAuthenticatedNoTenant resolves and verifies the session before the handler validates data.
 export const POST = withAuthenticatedNoTenant(async (request: Request, context: TenantContext) => {
   try {
     if (!context.userId) return apiError("UNAUTHENTICATED", "Sesión requerida", 401);

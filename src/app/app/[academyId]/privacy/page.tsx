@@ -65,7 +65,8 @@ export default async function PrivacyPage({
             eq(actorConsents.actorPageId, r.pageId),
             eq(actorConsents.guardianUserId, user.id)
           )
-        );
+        ).limit(100);
+
       // Convertir `Date` → `string` (ISO) para el componente PrivacyConsentManager
       const consentsSerialized = consents.map((c) => ({
         ...c,

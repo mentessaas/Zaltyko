@@ -458,6 +458,24 @@ export async function getClusterAcademies(
   ) {
     return [];
   }
+  const { flag, entryPath } = await import('@/lib/directory/contracts');
+  if (flag('catalog')) {
+    const { listEntries } = await import('@/lib/directory/service');
+    const disciplines: Record<ModalitySlug, string[]> = {
+      artistic: ['artistic_female', 'artistic_male'],
+      rhythmic: ['rhythmic'],
+      acrobatic: ['acrobatics'],
+      trampoline: ['trampoline'],
+    };
+    const countryCode = COUNTRIES[country]?.code;
+    if (!countryCode) return [];
+    const pages = await Promise.all(disciplines[modality].map(discipline =>
+      listEntries({kind:'academy', country:countryCode, discipline, limit: Math.min(limit,50)})
+    ));
+    const entries = Array.from(new Map(pages.flatMap(page => page.items).map(entry => [entry.id,entry])).values())
+      .sort((a,b) => a.data.name.localeCompare(b.data.name,locale)).slice(0,limit);
+    return entries.map(entry => ({id:entryPath(entry).replace('/academias/',''),name:entry.data.name,city:entry.data.city ?? null,region:entry.data.region ?? null,logoUrl:entry.data.imageUrl ?? null}));
+  }
   const { db } = await import('@/db');
   const { academies } = await import('@/db/schema');
   const { eq, and } = await import('drizzle-orm');

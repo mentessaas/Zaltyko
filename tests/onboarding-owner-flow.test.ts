@@ -14,10 +14,10 @@ describe("ZAL-137 — contrato del flujo owner", () => {
 
     expect(page).toContain("findClaimableAcademyByEmail");
     expect(page).toContain("<OwnerClaimCard");
-    expect(claimRoute).toContain('"CLAIM_EMAIL_MISMATCH"');
-    expect(claimRoute).toContain("pg_advisory_xact_lock");
-    expect(claimRoute).toContain(".set({ ownerId: profileId })");
-    expect(claimRoute).toContain("academy.tenantId");
+    expect(claimRoute).toContain('"MANUAL_REVIEW_REQUIRED"');
+    expect(claimRoute).toContain("eq(profiles.userId, user.id)");
+    expect(claimRoute).not.toContain(".set({ ownerId: profileId })");
+    expect(claimRoute).toContain("academies.ownerId");
     expect(claimCard).toContain("payload?.message ?? payload?.error");
   });
 
@@ -38,6 +38,25 @@ describe("ZAL-137 — contrato del flujo owner", () => {
     expect(ownerRoute).toContain(
       "redirectUrl: `/app/${setup.result.id}/dashboard`"
     );
+  });
+
+  it("activa una ficha reclamada solo con la identidad pública aprobada", () => {
+    const form = read("src/components/onboarding/OwnerOnboardingForm.tsx");
+    const ownerRoute = read("src/app/api/onboarding/owner/route.ts");
+
+    expect(form).toContain("if (!directoryEntryId)");
+    expect(form).toContain("readOnly={Boolean(directoryEntryId)}");
+    expect(form).toContain("disabled={pending || Boolean(directoryEntryId)}");
+    expect(form).toContain("El nombre y la sede se toman de la ficha aprobada.");
+    expect(ownerRoute).toContain("EntryDataSchema.safeParse(entry.data)");
+    expect(ownerRoute.match(/directoryAcademyIdentityMatches\(identity\.data, requestedDirectoryIdentity\)/g)).toHaveLength(2);
+    expect(ownerRoute).toContain("directoryIdentity?.name ?? parsed.data.academyName");
+    expect(ownerRoute).toContain("directoryIdentity?.region ?? undefined");
+    expect(ownerRoute).toContain("directoryIdentity?.city ?? undefined");
+    expect(ownerRoute).toContain("academyOperationalIdentityQuery(identityForChecks)");
+    expect(ownerRoute).toContain("excludeEntryId: directoryId");
+    expect(form).toContain('payload?.code === "ACADEMY_REVIEW_REQUIRED"');
+    expect(form).toContain("Solicitar ayuda para vincular la ficha");
   });
 
   it("conserva el siguiente paso en el workspace moderno y el CTA de invite", () => {

@@ -1,34 +1,14 @@
 import { describe, expect, it } from "vitest";
 import { readFileSync } from "node:fs";
-
 const source = readFileSync(new URL("../src/app/api/onboarding/owner/claim/route.ts", import.meta.url), "utf8");
-
-describe("owner claim API P0 contract", () => {
-  it("expone POST autenticado y valida la solicitud", () => {
-    expect(source).toMatch(/export (const POST|async function POST)/);
-    expect(source).toMatch(/requireAuth|withAuthenticated|session|user/);
-    expect(source).toMatch(/safeParse|parse\(/);
-  });
-
-  it("revalida email y devuelve error de mismatch", () => {
-    expect(source).toMatch(/CLAIM_EMAIL_MISMATCH/);
-    expect(source).toMatch(/email/i);
-    expect(source).toMatch(/403/);
-  });
-
-  it("solo permite reclamar academias operativas y no suspendidas", () => {
-    expect(source).toContain('inArray(academies.status, ["active", "trial"])');
-    expect(source).toContain("eq(academies.isSuspended, false)");
-  });
-
-  it("no usa una membership de otro tenant como redirect implícito", () => {
-    expect(source).toContain("eq(academies.tenantId, academy.tenantId)");
-    expect(source).toContain("innerJoin(academies, eq(academies.id, memberships.academyId))");
-  });
-
-  it("serializa el claim y evita duplicar membership", () => {
-    expect(source).toMatch(/advisory|transaction|withTransaction/i);
-    expect(source).toMatch(/onConflictDoNothing/);
-    expect(source).toMatch(/membership/i);
-  });
+describe("legacy claim cannot transfer operational ownership", () => {
+ it("authenticates and only redirects the existing owner", () => {
+  expect(source).toContain("supabase.auth.getUser()");
+  expect(source).toContain("eq(profiles.userId, user.id)");
+  expect(source).toContain("academies.ownerId");
+ });
+ it("never updates owners, profiles or memberships", () => {
+  expect(source).not.toMatch(/\.(update|insert|delete)\(/);
+  expect(source).toContain('"MANUAL_REVIEW_REQUIRED"');
+ });
 });

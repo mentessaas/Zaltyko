@@ -643,3 +643,7 @@ Verificadas el 2026-08-02 contra repo canónico `zaltyko/zaltyko` HEAD `a08b27af
 | Decisión | Corregir las 13 alertas de Dependabot que originaron #173 y conservar explícito el aviso sin parche de `node-forge`. No declarar limpia la auditoría móvil ni forzar una bajada incompatible de Expo. |
 | Consecuencia | La exposición restante procede de la cadena de herramientas móvil y requiere seguimiento de Expo / node-forge. Repetir los audits al actualizar esa cadena. |
 | Estado | Verificado localmente el 2026-10-02 en la rama rebasada de #173; CI del nuevo head aún debe completar. |
+
+## 2026-09-30 — Separar catálogo y espacio operativo
+
+Una ficha externa no crea dueño, academia operativa, trial ni suscripción. Solo Super Admin aprueba representación; no transferir por email. Activación SaaS expresa y distinta de reclamación. Flags independientes apagados hasta evidencia por entorno. [Detalles y pendientes](../../docs/directory/README.md).

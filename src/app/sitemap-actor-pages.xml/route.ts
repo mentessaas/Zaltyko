@@ -26,7 +26,7 @@ export async function GET() {
         sql`${actorPages.blockedAt} IS NULL`,
         sql`(${actorPages.entityType} <> 'athlete' OR ${actorPages.consentStatus} <> 'revoked')`
       )
-    );
+    ).limit(50000);
 
   const baseUrl = "https://zaltyko.com";
   const urls = rows.map((r) => ({

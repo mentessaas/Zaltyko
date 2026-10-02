@@ -29,12 +29,14 @@ type SubmitState =
 interface ContactFormProps {
   defaultReason?: string;
   defaultPlan?: string;
+  directoryEntryId?: string;
 }
 
 const publicPlans = new Set<CommercialPlanSlug>(["free", "starter", "growth", "network"]);
 const CONTACT_REQUEST_TIMEOUT_MS = 20_000;
 
-export function ContactForm({ defaultReason = "demo", defaultPlan }: ContactFormProps) {
+export function ContactForm({ defaultReason = "demo", defaultPlan, directoryEntryId }: ContactFormProps) {
+  const directoryId = directoryEntryId && /^[a-f0-9]{8}-[a-f0-9]{4}-[a-f0-9]{4}-[a-f0-9]{4}-[a-f0-9]{12}$/i.test(directoryEntryId) ? directoryEntryId : undefined;
   const [state, setState] = useState<SubmitState>({ status: "idle" });
   const [submitting, setSubmitting] = useState(false);
   const [isHydrated, setIsHydrated] = useState(false);
@@ -92,7 +94,8 @@ export function ContactForm({ defaultReason = "demo", defaultPlan }: ContactForm
           academy: academy || null,
           reason,
           plan,
-          source: "public_contact",
+          source: directoryId ? "directory" : "public_contact",
+          ...(directoryId ? {directoryEntryId: directoryId} : {}),
           message: formData.get("message"),
           honeypot: formData.get("company"),
           visitorId: getGrowthVisitorId(),

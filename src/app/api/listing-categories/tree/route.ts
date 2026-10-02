@@ -11,7 +11,7 @@ export async function GET() {
   const rows = await db
     .select()
     .from(listingCategories)
-    .orderBy(listingCategories.sortOrder);
+    .orderBy(listingCategories.sortOrder).limit(1000);
 
   const byId = new Map<string, typeof rows[number] & { children: typeof rows }>();
   for (const r of rows) {
