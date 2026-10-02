@@ -11,6 +11,7 @@ import { useToast } from "@/components/ui/toast-provider";
 import { AuthPageShell } from "@/components/auth/AuthPageShell";
 import { isValidEmail, normalizeEmail } from "@/lib/validation/email-utils";
 import { getSafeAuthNextPath } from "@/lib/auth/safe-next-path";
+import { useHydrated } from "@/lib/auth/use-hydrated";
 
 export function LoginForm() {
   const [email, setEmail] = useState("");
@@ -18,6 +19,7 @@ export function LoginForm() {
   const [loading, setLoading] = useState(false);
   const [magicLinkLoading, setMagicLinkLoading] = useState(false);
   const [googleLoading, setGoogleLoading] = useState(false);
+  const isHydrated = useHydrated();
   const router = useRouter();
   const searchParams = useSearchParams();
   // Cliente creado perezosamente: sin env de Supabase el formulario se renderiza
@@ -321,13 +323,16 @@ export function LoginForm() {
             onClick={handleGoogleSignIn}
             variant="outline"
             className="w-full"
-            disabled={googleLoading || loading}
+            disabled={!isHydrated || googleLoading || loading}
+            aria-busy={!isHydrated || googleLoading}
           >
             {googleLoading ? (
               <>
                 <Loader2 className="mr-2 h-4 w-4 animate-spin" />
                 Conectando...
               </>
+            ) : !isHydrated ? (
+              "Preparando Google..."
             ) : (
               "Entrar con Google"
             )}

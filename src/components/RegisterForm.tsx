@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useRef, useState, type KeyboardEvent } from "react";
+import { useRef, useState, type KeyboardEvent } from "react";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
 import { Loader2 } from "lucide-react";
@@ -19,6 +19,7 @@ import {
 } from "@/lib/growth/utm";
 import { getRegistrationContinuationPath } from "@/lib/auth/registration-paths";
 import { getNextRegistrationRoleIndex } from "@/lib/auth/registration-role-navigation";
+import { useHydrated } from "@/lib/auth/use-hydrated";
 
 // Lee UTMs del first-touch capturado por `UtmCapture` (sessionStorage)
 // o de la query string actual. Wrapper sobre `readUtmWithFallback` para
@@ -78,8 +79,10 @@ export function RegisterForm({directoryDiscoveryEnabled=false}:{directoryDiscove
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [fullName, setFullName] = useState("");
-  const [directoryNext, setDirectoryNext] = useState<string | null>(null);
-  useEffect(() => { setDirectoryNext(new URLSearchParams(window.location.search).get('next')); }, []);
+  const isHydrated = useHydrated();
+  const directoryNext = isHydrated
+    ? new URLSearchParams(window.location.search).get("next")
+    : null;
   const directoryRegistration=Boolean(directoryNext&&/^\/(academias|events|directorio)\//.test(directoryNext)&&!directoryNext.includes('\\'));
   const [role, setRole] = useState<RegisterRole>("owner");
   const [termsAccepted, setTermsAccepted] = useState(false);
@@ -482,13 +485,16 @@ export function RegisterForm({directoryDiscoveryEnabled=false}:{directoryDiscove
           onClick={handleGoogleSignUp}
           variant="outline"
           className="w-full"
-          disabled={googleLoading || loading}
+          disabled={!isHydrated || googleLoading || loading}
+          aria-busy={!isHydrated || googleLoading}
         >
           {googleLoading ? (
             <>
               <Loader2 className="mr-2 h-4 w-4 animate-spin" />
               Conectando...
             </>
+          ) : !isHydrated ? (
+            "Preparando Google..."
           ) : (
             "Crear cuenta con Google"
           )}
