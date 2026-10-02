@@ -667,3 +667,12 @@ Verificadas el 2026-08-02 contra repo canónico `zaltyko/zaltyko` HEAD `a08b27af
 ## 2026-09-30 — Separar catálogo y espacio operativo
 
 Una ficha externa no crea dueño, academia operativa, trial ni suscripción. Solo Super Admin aprueba representación; no transferir por email. Activación SaaS expresa y distinta de reclamación. Flags independientes apagados hasta evidencia por entorno. [Detalles y pendientes](../../docs/directory/README.md).
+
+## 2026-10-02 — Denegar explícitamente el acceso cliente al ledger Drizzle
+
+| Campo | Valor |
+| --- | --- |
+| Evidencia | Producción mostraba RLS habilitado en `public.__drizzle_migrations`, pero ninguna policy; `anon` y `authenticated` tenían permiso de lectura. La policy ausente genera un aviso del asesor y deja la denegación implícita/accidental. |
+| Decisión | Añadir una policy restrictiva permanente para `anon` y `authenticated` con `USING (false)` y `WITH CHECK (false)`. Mantener el ledger disponible para conexiones confiables del servidor. |
+| Consecuencia | Una concesión futura o policy permisiva adicional no hace visibles ni modificables las filas del historial interno. La prueba reproduce deliberadamente el `SELECT` concedido y comprueba que RLS devuelve cero filas a ambos roles. |
+| Estado | Migración y prueba añadidas en rama aislada; suite PostgreSQL local verde. No aplicada a ningún entorno remoto: el ledger de producción sigue sin reconciliarse. |

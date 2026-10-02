@@ -9,9 +9,11 @@ initdb -D "${DIRECTORY_TEST_CLUSTER}" -A trust --no-locale -E UTF8 >/dev/null
 pg_ctl -D "${DIRECTORY_TEST_CLUSTER}" -o "-h 127.0.0.1 -p ${DIRECTORY_TEST_PORT} -k ${DIRECTORY_TEST_CLUSTER}" -l "${DIRECTORY_TEST_CLUSTER}/postgres.log" start >/dev/null
 PSQL=(psql -X -v ON_ERROR_STOP=1 -h "${DIRECTORY_TEST_CLUSTER}" -p "${DIRECTORY_TEST_PORT}" -d postgres)
 "${PSQL[@]}" -f "${ROOT}/scripts/directory/fixtures.sql" >/dev/null
+"${PSQL[@]}" -c "CREATE TABLE public.__drizzle_migrations(id integer, hash text, created_at bigint); ALTER TABLE public.__drizzle_migrations ENABLE ROW LEVEL SECURITY; GRANT SELECT ON public.__drizzle_migrations TO anon, authenticated; GRANT ALL ON public.__drizzle_migrations TO service_role; INSERT INTO public.__drizzle_migrations VALUES (1, 'fixture-realistic-hash', 1);" >/dev/null
 "${PSQL[@]}" -f "${ROOT}/supabase/migrations/20260713200000_create_sql_migration_ledger.sql" >/dev/null
 "${PSQL[@]}" -f "${ROOT}/supabase/migrations/20260929130000_reconcile_contact_lead_interactions.sql" >/dev/null
 "${PSQL[@]}" -f "${ROOT}/supabase/migrations/20261002120000_internal_table_explicit_deny_policies.sql" >/dev/null
+"${PSQL[@]}" -f "${ROOT}/supabase/migrations/20261002131603_drizzle_migrations_explicit_deny_policy.sql" >/dev/null
 "${PSQL[@]}" -f "${ROOT}/supabase/tests/internal_table_access.sql" >/dev/null
 "${PSQL[@]}" -f "${ROOT}/supabase/migrations/20260930072147_public_directory.sql" >/dev/null
 "${PSQL[@]}" -f "${ROOT}/supabase/migrations/20261002102000_directory_explicit_deny_policies.sql" >/dev/null
