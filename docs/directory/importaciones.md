@@ -1,6 +1,6 @@
 # Formato de importación del directorio
 
-Máximo 2 MB y 1.000 filas por lote. Registrar primero la fuente con URL, país, condiciones y evidencia de autorización. La carga prepara candidatos; aceptar una fila crea un borrador o una propuesta de cambio. Publicación siempre aparte.
+Máximo 2 MB y 1.000 filas por lote. Registrar primero la fuente con URL, país, enlace HTTPS a sus condiciones y referencia verificable de autorización escrita. El Super Admin confirma esa revisión y la acción queda en auditoría. Sin la confirmación vigente no se admite carga, extracción automática ni aceptación de filas. La carga prepara candidatos; aceptar una fila crea un borrador o una propuesta de cambio. Publicación siempre aparte. La validación técnica no determina por sí misma si un permiso es legalmente suficiente.
 
 JSON: lista de objetos con `externalId`, `kind` (`academy`, `event`, `organization`) y `data`. Ejemplo ficticio, no publicable sin comprobación:
 

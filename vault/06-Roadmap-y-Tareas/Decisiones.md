@@ -8,6 +8,15 @@ source:
 
 # Decisiones
 
+## 2026-10-02 — Exigir evidencia y confirmación antes de importar desde una fuente
+
+| Campo | Valor |
+| --- | --- |
+| Contexto | El registro de fuentes aceptaba cualquier texto como autorización y permitía extracción automática sin enlace a condiciones de reutilización. La carga CSV/JSON y el cron no verificaban la misma evidencia. |
+| Decisión | Para activar una fuente exigir enlace HTTPS a sus condiciones, referencia verificable de permiso escrito y confirmación expresa de Super Admin. Registrar fuente, evidencia, actor y fecha en la auditoría. El importador manual, extracción programada y aceptación de filas exigirán que esa evidencia coincida con los datos actuales de la fuente. |
+| Consecuencia | Una casilla no certifica suficiencia jurídica; solo documenta la revisión humana y hace fallar cerrado el código cuando falta o cambia la evidencia. No activar fuentes de federaciones sin permiso comprobado. |
+| Estado | Implementado localmente en `codex/directory-source-authorization-gate`; 24 pruebas focales, TypeScript, ESLint, compilación e integración de 63 comprobaciones PostgreSQL pasan. Sin migración ni cambios en fuentes, flags o producción. Falta revisión del cambio e integración/despliegue. |
+
 ## 2026-10-02 — OAuth desplegado, sesión real y recuperación por correo pendientes
 
 | Campo | Valor |

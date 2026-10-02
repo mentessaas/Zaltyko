@@ -420,7 +420,12 @@ PR #178 requiere que el estado permitido tenga también un `stripe_subscription_
 ## P1 — Minimizar datos personales en errores de producción — 2026-10-03
 
 - **Hallazgo verificado:** errores de consultas fallidas podían incluir la consulta y sus parámetros en los registros. Los registros observados contenían datos personales; los valores no se copian a documentación ni analítica.
-- **Corrección preparada:** centralizar la redacción de SQL/parámetros y correos antes de consola y Sentry. La prueba local cubre ambas salidas.
-- **Criterio de cierre:** CI verde en PR, revisión independiente, merge y despliegue autorizado; después validar con error sintético que ni Vercel ni Sentry reciben parámetros. Revisar por separado retención/purga de eventos históricos.
-- **Estado:** PR #191 abierta; CI y aprobación independiente pendientes. No se desplegó ni se borró historial.
+- **Cambio:** PR #191 centraliza la redacción de SQL/parámetros y correos antes de consola y Sentry. La prueba local cubre ambas salidas.
+- **Criterio de cierre:** tras completar el deployment del merge, validar con un error sintético que ni Vercel ni Sentry reciben parámetros. Revisar por separado retención/purga de eventos históricos.
+- **Estado:** PR #191 fusionada en `main` (`87e61747`) tras CI y E2E autenticado completos; deployment de producción aún por confirmar. No se borró historial.
 - **Superficie revisada:** `console.error` suelto en el producto se redujo a errores de logger centralizado; quedan avisos de error boundary que registran solo el digest y la advertencia de esquema de entorno limitado a desarrollo.
+
+## Revisión de fuentes del directorio — 2026-10-02
+
+- **Código local endurecido:** activar una fuente ahora requiere condiciones HTTPS, referencia verificable de permiso escrito y confirmación de Super Admin auditada; importación, extracción programada y aceptación de filas requieren que la confirmación aún corresponda a la ficha de fuente. Pruebas locales: 24/24 unitarias, TypeScript, ESLint focal, compilación e integración PostgreSQL 63/63 con restauración.
+- **Sigue bloqueado fuera del código:** no se ha demostrado permiso de reutilización para RFEG, FDPG o CBG ni se ha completado revisión jurídica. Producción permanece sin tablas del directorio ni flags activados. No activar importaciones hasta autorización, conciliación de historiales y backup/restauración verificados.

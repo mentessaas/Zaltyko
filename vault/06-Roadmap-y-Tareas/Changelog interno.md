@@ -10709,10 +10709,17 @@ Modelo separado, reclamación manual, administración, importación revisada, fi
 - **Validación local:** 11 pruebas de contratos y búsqueda de onboarding, `pnpm typecheck`, ESLint focal y `git diff --check` pasan.
 - **Límite:** evita crear una duplicación operativa, pero no publica ni busca fichas de directorio y no concede reclamación. Catálogo y reclamaciones siguen sin desplegarse porque faltan las tablas/flags productivas y la conciliación segura del historial de migraciones.
 
-## 2026-10-03 — Redacción de datos personales en registros de errores (PR pendiente)
+## 2026-10-03 — Redacción de datos personales en registros de errores (PR #191)
 
 - **Hallazgo:** errores de consultas fallidas podían conservar SQL y valores de parámetros en logs de Vercel/Sentry. Se observó exposición de datos personales en registros de producción; no se reproducen aquí valores ni identificadores.
 - **Cambio local:** el registrador compartido oculta detalles del bloque `Failed query` de Drizzle, campos `query`/`params` y correos en texto libre antes de consola y Sentry. Los errores de carga del modal de cobros, la pestaña de preferencias y el borrado de documentos dejan de imprimir errores crudos; el boundary global ya usa `redactError`.
 - **Validación local:** suite completa: 2.234 pruebas pasaron y 3 se omitieron; pruebas focales de logger/documentos: 8/8; `pnpm typecheck` y build con 274 páginas generadas; ESLint sin errores (4 avisos ya presentes en los dos componentes); Prettier pasa para el registrador y su prueba; `git diff --check` pasa. El build local avisó de credenciales de servidor ausentes, sin mostrar valores, y de dos rutas dinámicas.
-- **Estado:** PR #191 abierta desde worktree aislado; sin despliegue ni cambio de producción. Pendiente de CI y aprobación independiente.
+- **Estado:** PR #191 fusionada en `main` (`87e61747`) tras CI y E2E autenticado completos. El deployment del merge está pendiente de confirmar como `Ready`.
 - **Alcance operativo:** no se borraron registros históricos. La retención y posible purga de registros existentes requiere una revisión separada del proveedor.
+
+## 2026-10-02 — Cerrar la activación sin evidencia de fuentes del directorio
+
+- **Problema:** el panel aceptaba activar extracción con texto arbitrario y sin enlace a condiciones. Importación CSV/JSON, aceptación de filas y cron aplicaban comprobaciones distintas.
+- **Cambio local:** una fuente activa requiere condiciones HTTPS, referencia verificable de permiso escrito y confirmación expresa del Super Admin. Se registra actor y evidencia en `directory_audit`; cambios en URL, adaptador, país, condiciones o referencia invalidan esa confirmación. Importación, extracción automática y aceptación de candidatos exigen evidencia coincidente y vigente. El panel explica que la confirmación técnica no equivale a una revisión jurídica.
+- **Verificación:** `pnpm exec vitest run tests/directory-contracts.test.ts` — 24/24; `pnpm typecheck`; ESLint focal; `pnpm build` compilado y 274 páginas generadas (el entorno local avisó de variables de pago/base de datos ausentes y continuó); `bash scripts/directory/test-local.sh` — 63 checks PostgreSQL, incluidos rechazo sin autorización, autorización obsoleta, idempotencia y restauración del dump; `git diff --check`.
+- **Límites:** solo código local en `codex/directory-source-authorization-gate`; no migración, fuentes, flags ni despliegues cambiados. No se ha acreditado permiso para RFEG, FDPG o CBG. Producción sigue bloqueada por conciliación de historiales y backup/restauración; la evidencia de código no prueba la suficiencia legal de permisos.

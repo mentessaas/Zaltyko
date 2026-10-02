@@ -217,11 +217,31 @@ async function main() {
     "Ficha permanece pública después de revocar",
     Boolean(await getEntry(entry.id))
   );
+  const sourceDetails = {
+    sourceName: "Fuente QA",
+    sourceUrl: "https://example.org/feed",
+    countryCode: "PE",
+    adapter: "manual",
+    termsUrl: "https://example.org/terms",
+    authorizationReference: "Permiso ficticio de fixture QA expediente TEST-01",
+  };
   const source = (
     await query(
-      "INSERT INTO directory_sources(name,url,country_code,enabled,\"authorization\") VALUES('Fuente QA','https://example.org/feed','PE',true,'Autorización ficticia solo para test') RETURNING id"
+      `INSERT INTO directory_sources(name,url,country_code,terms_url,"authorization",adapter,enabled) VALUES($1,$2,$3,$4,$5,$6,true) RETURNING id`,
+      [
+        sourceDetails.sourceName,
+        sourceDetails.sourceUrl,
+        sourceDetails.countryCode,
+        sourceDetails.termsUrl,
+        sourceDetails.authorizationReference,
+        sourceDetails.adapter,
+      ]
     )
   ).rows[0].id;
+  await query(
+    `INSERT INTO directory_audit(entry_id,actor_id,action,metadata) VALUES(NULL,$1,'source_authorization_confirmed',$2::jsonb)`,
+    [admin, JSON.stringify({ sourceId: source, ...sourceDetails })]
+  );
   const candidate = {
     externalId: "source-001",
     kind: "academy",
@@ -232,6 +252,47 @@ async function main() {
       city: "Lima",
     },
   };
+  const unapprovedSource = (
+    await query(
+      "INSERT INTO directory_sources(name,url,country_code,enabled) VALUES('Fuente sin permiso QA','https://example.org/unapproved','PE',false) RETURNING id"
+    )
+  ).rows[0].id;
+  await rejects(
+    "No importar desde fuente sin permiso confirmado",
+    () => importCandidates(String(unapprovedSource), JSON.stringify([candidate]), "json"),
+    "SOURCE_PERMISSION_REQUIRED"
+  );
+  const staleSourceDetails = {
+    ...sourceDetails,
+    sourceName: "Fuente con permiso antiguo QA",
+    sourceUrl: "https://example.org/stale",
+  };
+  const staleSource = (
+    await query(
+      `INSERT INTO directory_sources(name,url,country_code,terms_url,"authorization",adapter,enabled) VALUES($1,$2,$3,$4,$5,$6,true) RETURNING id`,
+      [
+        staleSourceDetails.sourceName,
+        staleSourceDetails.sourceUrl,
+        staleSourceDetails.countryCode,
+        staleSourceDetails.termsUrl,
+        staleSourceDetails.authorizationReference,
+        staleSourceDetails.adapter,
+      ]
+    )
+  ).rows[0].id;
+  await query(
+    `INSERT INTO directory_audit(entry_id,actor_id,action,metadata) VALUES(NULL,$1,'source_authorization_confirmed',$2::jsonb)`,
+    [admin, JSON.stringify({ sourceId: staleSource, ...staleSourceDetails })]
+  );
+  await query(
+    "UPDATE directory_sources SET terms_url='https://example.org/revised-terms' WHERE id=$1",
+    [staleSource]
+  );
+  await rejects(
+    "No importar tras cambiar las condiciones sin reconfirmar",
+    () => importCandidates(String(staleSource), JSON.stringify([candidate]), "json"),
+    "SOURCE_PERMISSION_REQUIRED"
+  );
   const batch = await importCandidates(
       source,
       JSON.stringify([candidate]),
