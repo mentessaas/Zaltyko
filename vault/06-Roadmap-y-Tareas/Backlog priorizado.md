@@ -376,3 +376,16 @@ Trabajo de auditoria mergeado a `security/audit-remediation` via **PR #8 (`cf092
 ## 2026-10-01 — Acceso de suscripción Stripe y E2E
 
 PR #178 requiere que el estado permitido tenga también un `stripe_subscription_id` no vacío antes de conceder acceso pagado; el trial independiente no cambia. Suite, typecheck y build locales pasan. El primer E2E de GitHub se canceló durante la instalación de Chromium/Firefox/WebKit, antes de ejecutar tests. La E2E final cubre los tres motores, así que se conservan y se amplía el límite a 45 minutos. CI actualizado y aprobación independiente pendientes.
+
+## 2026-09-30 — Brevo y dependencias pendientes (snapshot)
+
+- PR #171 se había fusionado; seguía pendiente actualizar moment y sincronizar lockfiles móviles para uuid, decode-uri-component, brace-expansion y js-yaml.
+- Las alertas de extract-zip aún no tenían versión corregida publicada. Los pendientes de VoiceOver, Stripe Live/Connect/Tax y backup cloud se conservan según la decisión del usuario.
+
+## Seguimiento Dependabot — estado de PR #173 (2026-10-02)
+
+- Las 13 alertas corregibles de Dependabot están parcheadas en #173. El audit de producción web pasa; en móvil queda `GHSA-86w9-cpqp-85rv` para `node-forge <=1.4.0` bajo Expo CLI, sin versión corregida publicada. Revalidar después de integrar el PR y en cada actualización de Expo.
+
+## Seguimiento de dependencias móviles — 2026-10-02
+
+- **Alta / móvil:** seguir `GHSA-86w9-cpqp-85rv` (`node-forge <=1.4.0`) en la cadena `@expo/cli` / `@expo/code-signing-certificates`. El audit actual indica que no hay versión corregida publicada; repetirlo al actualizar Expo y no declarar limpia la auditoría móvil mientras siga presente.

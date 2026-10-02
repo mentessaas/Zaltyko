@@ -9,6 +9,12 @@ const PATCHED_DEPENDENCIES = new Map([
   ["fast-uri", "^3.1.8"],
   ["ip-address", "^10.7.1"],
   ["js-yaml", "^4.3.2"],
+  ["basic-ftp", "^6.2.1"],
+  ["dompurify", "^3.4.16"],
+  ["lighthouse", "^13.5.0"],
+  ["puppeteer-core", "^25.12.0"],
+  ["proxy-agent", "^8.0.1"],
+  ["moment", "^2.31.0"],
   ["sharp", "^0.35.4"],
 ]);
 

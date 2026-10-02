@@ -626,3 +626,20 @@ Verificadas el 2026-08-02 contra repo canónico `zaltyko/zaltyko` HEAD `a08b27af
 | Decisión | El permiso de una suscripción pagada requiere simultáneamente un `stripeSubscriptionId` no vacío y un estado de acceso permitido. Aplicar la misma regla a la comprobación de plan pagado que determina la elegibilidad del trial. Los trials de siete días se conceden por `academy_trials` y permanecen independientes de Stripe. Si en el futuro se necesitan becas o concesiones manuales de plan pagado, modelarlas mediante una concesión explícita y auditable, no una fila Stripe simulada. |
 | Consecuencia | Una fila local sin identificador Stripe permanece en Free aunque tenga estado `active`; no puede bloquear el trial como plan pagado. No cambia el modelo de precios ni se modifica la base de datos. |
 | Estado | Implementado en rama aislada `codex/billing-stripe-backed-access`; prueba focal 7/7, TypeScript y ESLint pasan. Aún no fusionado ni desplegado; falta CI de PR y aprobación independiente. |
+
+## 2026-10-01 — Parches de Dependabot y cadena Lighthouse
+
+| Campo | Valor |
+| --- | --- |
+| Decisión | Aplicar versiones corregidas de `basic-ftp` y DOMPurify, actualizar la cadena Lighthouse/Puppeteer para retirar `extract-zip` y sincronizar los lockfiles móviles. No forzar un override de un paquete transitivo sin versión segura publicada. |
+| Consecuencia | Se atienden las alertas corregibles del PR #173. La auditoría móvil aún presenta el aviso upstream de `node-forge` sin versión corregida; se documenta por separado y se revisa en la actualización de Expo. |
+| Estado | PR #173 rebasado sobre el merge de billing del 2026-10-02; CI del nuevo head en curso. Ver entrada de auditoría 2026-10-02. |
+
+## 2026-10-02 — Alcance real de auditorías de dependencias
+
+| Campo | Valor |
+| --- | --- |
+| Evidencia | En la rama de PR #173, `pnpm audit --prod --audit-level=high` no encuentra vulnerabilidades conocidas en dependencias de producción web. La auditoría móvil informa una vulnerabilidad alta `GHSA-86w9-cpqp-85rv` en `node-forge <=1.4.0`, transitiva de `@expo/cli` / `@expo/code-signing-certificates`; el registro indica que no existe versión corregida. |
+| Decisión | Corregir las 13 alertas de Dependabot que originaron #173 y conservar explícito el aviso sin parche de `node-forge`. No declarar limpia la auditoría móvil ni forzar una bajada incompatible de Expo. |
+| Consecuencia | La exposición restante procede de la cadena de herramientas móvil y requiere seguimiento de Expo / node-forge. Repetir los audits al actualizar esa cadena. |
+| Estado | Verificado localmente el 2026-10-02 en la rama rebasada de #173; CI del nuevo head aún debe completar. |
