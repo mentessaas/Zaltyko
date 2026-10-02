@@ -8,6 +8,15 @@ source:
 
 # Decisiones
 
+## 2026-10-02 — Resolver el respaldo fuera de Supabase, no eliminando proyectos
+
+| Campo | Valor |
+| --- | --- |
+| Contexto | La organización usa el plan Free. Producción y sandbox E2E son los dos proyectos activos; un tercer proyecto está inactivo. Producción contiene además un objeto en Storage, que una copia del SQL no preserva. |
+| Decisión | No borrar ni pausar proyectos para “hacer espacio” a un backup. Mantener exportaciones completas fuera de Supabase: PostgreSQL con los datos requeridos y los objetos de Storage por separado, cifrado y con prueba de restauración aislada. No reutilizar el sandbox E2E como destino porque perdería su estado de QA. |
+| Consecuencia | No hace falta una plaza adicional de Supabase para almacenar respaldos. Las copias diarias de planes de pago son otra opción, pero no sustituyen exportar los objetos de Storage. |
+| Estado | Pendiente de acceso de base de datos y un destino externo cifrado. El `db dump --dry-run` local fue solo `--schema-only`, no un backup restaurable. Fuentes: [límite de proyectos](https://supabase.com/docs/guides/platform/billing-on-supabase), [backups](https://supabase.com/docs/guides/platform/backups), [objetos Storage](https://supabase.com/docs/guides/storage/management/download-objects). |
+
 ## 2026-10-02 — Exigir evidencia y confirmación antes de importar desde una fuente
 
 | Campo | Valor |
@@ -703,3 +712,12 @@ Una ficha externa no crea dueño, academia operativa, trial ni suscripción. Sol
 | Decisión | Ejecutar siempre en servidor la comprobación de identidad contra academias operativas y serializar la creación con un advisory lock, aunque el directorio público permanezca apagado. |
 | Consecuencia | Un alta potencialmente duplicada se detiene y se deriva a soporte. La API solo informa que puede existir una academia; nunca revela datos del tenant. Los flujos de búsqueda pública y reclamación siguen detrás de sus flags. |
 | Estado | Implementado en `fix/onboarding-operational-duplicate-guard`; 11 pruebas focales, ESLint y TypeScript pasan. Pendiente CI y despliegue. |
+
+## 2026-10-02 — Serializar el uso de fuentes con su revocación
+
+| Campo | Valor |
+| --- | --- |
+| Evidencia | La autorización se comprobaba antes de insertar un lote y la aceptación no bloqueaba la fila de fuente. Una modificación concurrente podía desactivar la fuente mientras la operación seguía basándose en su estado anterior. |
+| Decisión | Revalidar y tomar `FOR SHARE` sobre la fila de fuente dentro de la transacción de importación y aceptación. Una revocación concurrente espera a la operación ya autorizada; si gana primero, la escritura falla con `SOURCE_PERMISSION_REQUIRED`. |
+| Consecuencia | Lotes y fichas aceptadas no avanzan con una autorización obsoleta; la concurrencia queda cubierta por integración PostgreSQL aislada. |
+| Estado | Implementado localmente en la rama de PR #185; 67/67 comprobaciones PostgreSQL, 24/24 unitarias, typecheck, ESLint y `check:migrations` pasan. No está subido, fusionado ni desplegado; PR #185 espera una aprobación independiente. |
