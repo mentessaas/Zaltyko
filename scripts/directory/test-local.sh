@@ -10,6 +10,8 @@ pg_ctl -D "${DIRECTORY_TEST_CLUSTER}" -o "-h 127.0.0.1 -p ${DIRECTORY_TEST_PORT}
 PSQL=(psql -X -v ON_ERROR_STOP=1 -h "${DIRECTORY_TEST_CLUSTER}" -p "${DIRECTORY_TEST_PORT}" -d postgres)
 "${PSQL[@]}" -f "${ROOT}/scripts/directory/fixtures.sql" >/dev/null
 "${PSQL[@]}" -f "${ROOT}/supabase/migrations/20260930072147_public_directory.sql" >/dev/null
+"${PSQL[@]}" -f "${ROOT}/supabase/migrations/20261002102000_directory_explicit_deny_policies.sql" >/dev/null
+"${PSQL[@]}" -f "${ROOT}/supabase/tests/public_directory_access.sql" >/dev/null
 pg_dump -h "${DIRECTORY_TEST_CLUSTER}" -p "${DIRECTORY_TEST_PORT}" -d postgres -Fc -f "${DIRECTORY_TEST_CLUSTER}/before-tests.dump"
 "${PSQL[@]}" -c 'CREATE DATABASE restore_check' >/dev/null
 pg_restore -h "${DIRECTORY_TEST_CLUSTER}" -p "${DIRECTORY_TEST_PORT}" -d restore_check "${DIRECTORY_TEST_CLUSTER}/before-tests.dump"

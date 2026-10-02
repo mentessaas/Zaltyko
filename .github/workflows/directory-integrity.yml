@@ -7,6 +7,7 @@ on:
       - "src/app/api/super-admin/directory/**"
       - "src/app/api/onboarding/owner/**"
       - "supabase/migrations/**"
+      - "supabase/tests/**"
       - "scripts/directory/**"
       - ".github/workflows/directory-integrity.yml"
 permissions:
