@@ -24,7 +24,7 @@ source:
 | Contexto | El registro de fuentes aceptaba cualquier texto como autorización y permitía extracción automática sin enlace a condiciones de reutilización. La carga CSV/JSON y el cron no verificaban la misma evidencia. |
 | Decisión | Para activar una fuente exigir enlace HTTPS a sus condiciones, referencia verificable de permiso escrito y confirmación expresa de Super Admin. Registrar fuente, evidencia, actor y fecha en la auditoría. El importador manual, extracción programada y aceptación de filas exigirán que esa evidencia coincida con los datos actuales de la fuente. |
 | Consecuencia | Una casilla no certifica suficiencia jurídica; solo documenta la revisión humana y hace fallar cerrado el código cuando falta o cambia la evidencia. No activar fuentes de federaciones sin permiso comprobado. |
-| Estado | Implementado localmente en `codex/directory-source-authorization-gate`; 24 pruebas focales, TypeScript, ESLint, compilación e integración de 63 comprobaciones PostgreSQL pasan. Sin migración ni cambios en fuentes, flags o producción. Falta revisión del cambio e integración/despliegue. |
+| Estado | Fusionado en `main` como PR #185 (commit `ec6ee944`) después de E2E autenticado y checks obligatorios verdes. La verificación del despliegue sigue pendiente; el cambio técnico no acredita permiso legal de reutilización. |
 
 ## 2026-10-02 — OAuth desplegado, sesión real y recuperación por correo pendientes
 
@@ -720,4 +720,13 @@ Una ficha externa no crea dueño, academia operativa, trial ni suscripción. Sol
 | Evidencia | La autorización se comprobaba antes de insertar un lote y la aceptación no bloqueaba la fila de fuente. Una modificación concurrente podía desactivar la fuente mientras la operación seguía basándose en su estado anterior. |
 | Decisión | Revalidar y tomar `FOR SHARE` sobre la fila de fuente dentro de la transacción de importación y aceptación. Una revocación concurrente espera a la operación ya autorizada; si gana primero, la escritura falla con `SOURCE_PERMISSION_REQUIRED`. |
 | Consecuencia | Lotes y fichas aceptadas no avanzan con una autorización obsoleta; la concurrencia queda cubierta por integración PostgreSQL aislada. |
-| Estado | Implementado localmente en la rama de PR #185; 67/67 comprobaciones PostgreSQL, 24/24 unitarias, typecheck, ESLint y `check:migrations` pasan. No está subido, fusionado ni desplegado; PR #185 espera una aprobación independiente. |
+| Estado | Fusionado como PR #185 en `main` (commit `ec6ee944`) tras E2E autenticado y checks obligatorios verdes. Pendiente confirmar despliegue; no se activan fuentes por esta evidencia técnica. |
+
+## 2026-10-02 — Mitigar localmente CVE-2026-85393 hasta la versión oficial de node-forge
+
+| Campo | Valor |
+| --- | --- |
+| Evidencia | GitHub mantiene dos alertas altas para `node-forge@1.4.0`, compartidas por `mobile/package-lock.json` y `mobile/pnpm-lock.yaml`. El [PR upstream #1152](https://github.com/digitalbazaar/forge/pull/1152) contiene una corrección del parser ASN.1, pero sigue abierto y npm aún ofrece `1.4.0` como última versión. El vector de ese PR se acepta sin parche y se rechaza con el cambio aplicado. |
+| Decisión | No cambiar la versión ni ocultar alertas mediante un override. Aplicar temporalmente el pequeño chequeo upstream con `patch-package` durante `postinstall`, y mantener un test de regresión que falla en la dependencia sin parche. |
+| Consecuencia | Las instalaciones npm y pnpm reciben la mitigación del parser. La versión permanece `1.4.0`, así que Dependabot y los audits seguirán mostrando las alertas; la auditoría móvil no queda limpia. Se retira el parche al adoptar la versión oficial compatible con Expo. |
+| Estado | Propuesta en PR separado. En instalación limpia de pnpm y con `npm ci`, el hook aplica el parche; suite móvil 331/331, typecheck y ESLint pasan. Sin build de tienda, publicación móvil ni despliegue. Ver [nota técnica](../../docs/security/node-forge-cve-2026-85393.md). |

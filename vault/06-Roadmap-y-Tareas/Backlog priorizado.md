@@ -408,6 +408,11 @@ PR #178 requiere que el estado permitido tenga también un `stripe_subscription_
 ## Seguimiento de dependencias móviles — 2026-10-02
 
 - **Alta / móvil:** seguir `GHSA-86w9-cpqp-85rv` (`node-forge <=1.4.0`) en la cadena `@expo/cli` / `@expo/code-signing-certificates`. El audit actual indica que no hay versión corregida publicada; repetirlo al actualizar Expo y no declarar limpia la auditoría móvil mientras siga presente.
+- **Mitigación temporal propuesta:** el PR de código aplica el chequeo de `DigestAlgorithm` del [PR upstream #1152](https://github.com/digitalbazaar/forge/pull/1152) mediante `patch-package` y añade una regresión con el vector que la versión original acepta. La versión bloqueada sigue siendo 1.4.0: Dependabot conservará las dos alertas hasta que se publique y actualice una versión oficial.
+
+## Seguimiento del enlace de recuperación de contraseña — 2026-10-02
+
+- PR #186 mejora la visibilidad del enlace y su foco en móvil. El CI del head `1c706ceb4f8a6ddb52cac02a2027439b75e67ad9` terminó con los checks obligatorios en verde, incluido E2E autenticado aislado. Sigue abierto, pendiente de revisión, y no está desplegado.
 
 ## Seguimiento de ledger interno RLS — 2026-10-02
 
