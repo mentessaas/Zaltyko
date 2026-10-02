@@ -273,11 +273,11 @@ export function LoginForm() {
             />
           </div>
           <div className="space-y-2">
-            <div className="flex items-center justify-between gap-3">
+            <div className="flex flex-wrap items-center justify-between gap-x-3 gap-y-2">
               <Label htmlFor="password">Contraseña</Label>
               <Link
                 href={`/auth/forgot-password?next=${encodeURIComponent(nextPath)}`}
-                className="text-sm font-medium text-zaltyko-indigo hover:underline"
+                className="ml-auto inline-flex min-h-9 items-center rounded-md border border-zaltyko-indigo/30 bg-zaltyko-indigo/5 px-3 py-1.5 text-sm font-semibold text-zaltyko-indigo underline underline-offset-2 transition-colors hover:bg-zaltyko-indigo/10 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-zaltyko-indigo focus-visible:ring-offset-2"
               >
                 ¿Olvidaste tu contraseña?
               </Link>
