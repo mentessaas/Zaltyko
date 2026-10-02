@@ -49,6 +49,12 @@ Code changes verificados: tsc OK, eslint OK, next build OK.
 
 El plan de implementación derivado de la investigación competitiva está en `docs/plans/2026-09-12-competitive-implementation-plan.md`. No abre issues automáticamente: primero exige el gate G0 (baseline/E2E/coordinación), después prioriza núcleo operativo, desarrollo, localización e IA en fases. Pricing v3.0, comunicación interna primero, portal familiar limitado y gimnasia-first permanecen sin cambios.
 
+## P1 — Cierre del acceso pagado con respaldo de Stripe — 2026-10-01
+
+- **Código corregido en rama aislada, pendiente de integración:** el acceso a Starter/Growth ya no debe depender solo de una fila local `active`; requiere un `stripe_subscription_id` válido y estado permitido. La verificación del plan pagado para trial usa la misma regla. El trial sin tarjeta sigue determinado por `academy_trials`.
+- **Criterio de cierre:** revisión independiente y CI verdes; merge protegido; despliegue y lectura autenticada que confirme un plan pagado Stripe-backed, una cuenta Free y un trial de academia sin regresiones. No hacer cobros reales para esta verificación.
+- **Sin cambios de base de datos o producción en esta entrega.** La antigua ruta `src/app/app/admin/dashboard/page.tsx` del PR #105 no existe en `main`; no trasladar su hunk de MRR.
+
 ## Revisión técnica de producción — 2026-09-14
 
 - **Resuelto:** los reportes financieros tenían llamadas frontend a tres subrutas inexistentes, por lo que mensual, morosidad y proyecciones podían quedarse vacíos con 404. Se añadieron endpoints reales con handler compartido y scope tenant; smoke sin sesión devuelve 401.
@@ -366,3 +372,7 @@ Trabajo de auditoria mergeado a `security/audit-remediation` via **PR #8 (`cf092
 - **Bloqueo de OAuth:** cliente Web y URLs de retorno están correctos en Google Cloud/Supabase, pero la app sigue en Testing con cero testers. Conseguir autorización para un tester propio o completar el proceso de publicación/verificación; después correr login y registro reales. No añadir cuentas ni publicar por inferencia.
 - **Bloqueo de correo Auth:** Supabase aún usa el relay integrado (no apto para producción). Configurar SMTP propio con credenciales SMTP, aplicar remitente de dominio verificado y probar recuperación. Brevo API key ≠ SMTP key; no usar una en lugar de la otra. Mantener pendiente hasta guardar credencial segura y demostrar recepción.
 - **Estado de Brevo app:** falta `BREVO_REPLY_TO`; la clave probada anteriormente respondió 401. Rotar la clave expuesta, establecer Reply-To y validar con el verificador seguro; no pegar secretos en chat.
+
+## 2026-10-01 — Acceso de suscripción Stripe y E2E
+
+PR #178 requiere que el estado permitido tenga también un `stripe_subscription_id` no vacío antes de conceder acceso pagado; el trial independiente no cambia. Suite, typecheck y build locales pasan. El primer E2E de GitHub se canceló durante la instalación de Chromium/Firefox/WebKit, antes de ejecutar tests. La E2E final cubre los tres motores, así que se conservan y se amplía el límite a 45 minutos. CI actualizado y aprobación independiente pendientes.

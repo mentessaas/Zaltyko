@@ -134,10 +134,18 @@ describe("Phase 1 production contracts", () => {
     expect(resolvePlanCode(stripePrice({ priceMetadata: { plan_code: "network" } }))).toBeNull();
   });
 
-  it("does not grant paid access for an abandoned or incomplete Checkout", () => {
-    expect(hasSubscriptionAccess("incomplete")).toBe(false);
-    expect(hasSubscriptionAccess("active")).toBe(true);
-    expect(hasSubscriptionAccess("past_due")).toBe(true);
+  it("grants subscription access only for Stripe-backed active states", () => {
+    const accessStatuses = ["active", "trialing", "past_due", "canceling"];
+
+    for (const status of accessStatuses) {
+      expect(hasSubscriptionAccess({ stripeSubscriptionId: "sub_123", status })).toBe(true);
+      expect(hasSubscriptionAccess({ stripeSubscriptionId: null, status })).toBe(false);
+    }
+
+    expect(hasSubscriptionAccess({ stripeSubscriptionId: "sub_123", status: "incomplete" })).toBe(
+      false
+    );
+    expect(hasSubscriptionAccess({ stripeSubscriptionId: "", status: "active" })).toBe(false);
     expect(
       isSubscriptionManaged({ stripeSubscriptionId: "sub_123", status: "incomplete" })
     ).toBe(true);

@@ -10583,3 +10583,11 @@ Vault: actualizado `Changelog interno.md`; se preserva el backlog existente porq
 - Supabase Auth sigue usando el servicio de correo integrado, no SMTP propio; el panel muestra el aviso de que no es para producción. La plantilla de reset usa `{{ .ConfirmationURL }}`. Para recuperación real hace falta SMTP propio y entrega comprobada.
 - Brevo API key y Brevo SMTP key son credenciales distintas. La guía oficial de Brevo exige SMTP login y SMTP key para usarlo como SMTP de Supabase. No se generó clave ni se modificaron secretos. [Supabase SMTP](https://supabase.com/docs/guides/auth/auth-smtp) · [Brevo SMTP](https://help.brevo.com/hc/en-us/articles/7924908994450-Send-transactional-emails-using-Brevo-SMTP).
 - Se actualizó `docs/auth/google-and-password-recovery.md` para superseder el estado del 2026-09-30. PR #175 sigue sin despliegue; login real, reset real y envío de correo siguen sin verificar.
+
+## 2026-10-01 — Bloquear acceso pagado sin suscripción Stripe
+
+- **Hallazgo:** `hasSubscriptionAccess` permitía un plan de pago basándose solo en `status`; una fila local `active` sin `stripe_subscription_id` podía conceder límites pagados.
+- **Cambio:** la función central ahora exige ID Stripe no vacío y estado permitido. `getUserSubscription` y la comprobación de plan pagado en `getAcademyTrialStatus` pasan ambos datos. El trial independiente de `academy_trials` se mantiene.
+- **Verificación local:** `tests/phase1-production-contracts.test.ts` 7/7; suite completa Vitest **428 archivos PASS, 1 omitido; 2.180 pruebas PASS, 3 omitidas**; `pnpm typecheck` PASS; ESLint de los cuatro archivos de código/prueba PASS; `git diff --check` PASS.
+- **Alcance:** sin migración, cambios de datos, llamadas a Stripe ni despliegue. El PR antiguo #105 también modificaba una ruta de MRR ya ausente en `main`; esa parte no se trasladó. CI, revisión independiente, merge y verificación post-despliegue siguen pendientes.
+- **CI E2E:** el run `36909727724` se canceló tras 20 minutos instalando tres motores antes de ejecutar pruebas. La suite completa usa los proyectos Chromium, Firefox y WebKit; se conservan los tres y el límite del job sube a 45 minutos. El run Chromium-only posterior se supersede antes de la E2E final; esperar el nuevo CI para cerrar.
