@@ -256,6 +256,8 @@ export function AdminDirectory() {
               countryCode: String(v.get("countryCode")).toUpperCase(),
               termsUrl: v.get("termsUrl") || null,
               authorization: v.get("authorization") || null,
+              authorizationConfirmed:
+                v.get("authorizationConfirmed") === "on",
               enabled: v.get("enabled") === "on",
               adapter: v.get("adapter"),
             });
@@ -275,6 +277,7 @@ export function AdminDirectory() {
               {label}
               <input
                 name={key}
+                type={key === "url" || key === "termsUrl" ? "url" : "text"}
                 required={["name", "url", "countryCode"].includes(key)}
                 className={inputClass}
               />
@@ -288,9 +291,20 @@ export function AdminDirectory() {
               ))}
             </select>
           </label>
-          <label>
-            <input name="enabled" type="checkbox" /> Activar (requiere
-            autorización documentada)
+          <p className="text-sm text-muted-foreground">
+            El enlace debe describir las condiciones de reutilización. La
+            referencia de autorización debe apuntar a un permiso escrito
+            verificable; anotar que la página es pública no basta. La
+            confirmación queda registrada en el historial administrativo.
+          </p>
+          <label className="block">
+            <input name="authorizationConfirmed" type="checkbox" /> He
+            revisado las condiciones y guardado la referencia del permiso
+            escrito para el uso previsto.
+          </label>
+          <label className="block">
+            <input name="enabled" type="checkbox" /> Activar importación
+            automática (requiere enlace, referencia y confirmación)
           </label>
           <button disabled={busy} className={buttonClass}>
             Guardar fuente

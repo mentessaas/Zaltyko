@@ -7,6 +7,7 @@ import { z } from "zod";
 import { db } from "@/db";
 import { rows, DirectoryError } from "./service";
 import { EntryInputSchema, EntryDataSchema, slugify } from "./contracts";
+import { isSourceAuthorizationAttested } from "./source-authorization";
 export const CandidateSchema = EntryInputSchema.extend({
   evidence: z
     .object({
@@ -65,13 +66,26 @@ export async function importCandidates(
   format: "json" | "csv"
 ) {
   const source = (
-    await rows(sql`SELECT id FROM directory_sources WHERE id=${sourceId}::uuid`)
+    await rows(sql`SELECT s.id,s.enabled,s.terms_url,s."authorization",EXISTS(SELECT 1 FROM directory_audit a WHERE a.action='source_authorization_confirmed' AND a.metadata->>'sourceId'=s.id::text AND a.metadata->>'sourceName'=s.name AND a.metadata->>'sourceUrl'=s.url AND a.metadata->>'countryCode'=s.country_code AND a.metadata->>'adapter'=s.adapter AND a.metadata->>'termsUrl'=s.terms_url AND a.metadata->>'authorizationReference'=s."authorization") AS authorization_attested FROM directory_sources s WHERE s.id=${sourceId}::uuid`)
   )[0];
   if (!source)
     throw new DirectoryError(
       "SOURCE_NOT_FOUND",
       "Registra primero la fuente",
       404
+    );
+  if (
+    !source.enabled ||
+    !isSourceAuthorizationAttested({
+      termsUrl: source.terms_url,
+      authorization: source.authorization,
+      authorizationAttested: source.authorization_attested,
+    })
+  )
+    throw new DirectoryError(
+      "SOURCE_PERMISSION_REQUIRED",
+      "Confirma condiciones y autorización escrita antes de importar datos",
+      403
     );
   const candidates = parseCandidates(content, format),
     fingerprint = createHash("sha256").update(content).digest("hex");
@@ -130,7 +144,7 @@ export async function acceptImportRow(
   return db.transaction(async (tx) => {
     const row = (
       await tx.execute(
-        sql`SELECT r.*,s.enabled,s."authorization" FROM directory_import_rows r JOIN directory_sources s ON s.id=r.source_id WHERE r.id=${id}::uuid `
+        sql`SELECT r.*,s.enabled,s.terms_url,s."authorization",EXISTS(SELECT 1 FROM directory_audit a WHERE a.action='source_authorization_confirmed' AND a.metadata->>'sourceId'=s.id::text AND a.metadata->>'sourceName'=s.name AND a.metadata->>'sourceUrl'=s.url AND a.metadata->>'countryCode'=s.country_code AND a.metadata->>'adapter'=s.adapter AND a.metadata->>'termsUrl'=s.terms_url AND a.metadata->>'authorizationReference'=s."authorization") AS authorization_attested FROM directory_import_rows r JOIN directory_sources s ON s.id=r.source_id WHERE r.id=${id}::uuid `
       )
     ).rows[0];
     if (!row || row.error)
@@ -147,7 +161,14 @@ export async function acceptImportRow(
     row.entry_id = fresh.entry_id;
     if (row.status !== "pending")
       return { entryId: row.entry_id, repeated: true };
-    if (!row.enabled || !row.authorization)
+    if (
+      !row.enabled ||
+      !isSourceAuthorizationAttested({
+        termsUrl: row.terms_url,
+        authorization: row.authorization,
+        authorizationAttested: row.authorization_attested,
+      })
+    )
       throw new DirectoryError(
         "SOURCE_PERMISSION_REQUIRED",
         "Documenta y activa la fuente antes de aceptar sus datos",
@@ -325,9 +346,17 @@ export function structuredEvents(
 }
 export async function fetchSourceCandidates(sourceId: string) {
   const source = (
-    await rows(sql`SELECT * FROM directory_sources WHERE id=${sourceId}::uuid`)
+    await rows(sql`SELECT s.*,EXISTS(SELECT 1 FROM directory_audit a WHERE a.action='source_authorization_confirmed' AND a.metadata->>'sourceId'=s.id::text AND a.metadata->>'sourceName'=s.name AND a.metadata->>'sourceUrl'=s.url AND a.metadata->>'countryCode'=s.country_code AND a.metadata->>'adapter'=s.adapter AND a.metadata->>'termsUrl'=s.terms_url AND a.metadata->>'authorizationReference'=s."authorization") AS authorization_attested FROM directory_sources s WHERE s.id=${sourceId}::uuid`)
   )[0];
-  if (!source || !source.enabled || !source.authorization)
+  if (
+    !source ||
+    !source.enabled ||
+    !isSourceAuthorizationAttested({
+      termsUrl: source.terms_url,
+      authorization: source.authorization,
+      authorizationAttested: source.authorization_attested,
+    })
+  )
     throw new DirectoryError(
       "SOURCE_PERMISSION_REQUIRED",
       "Fuente no habilitada",

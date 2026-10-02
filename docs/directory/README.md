@@ -70,7 +70,7 @@ Rollback inicial: apagar flags y volver a lectores anteriores. Conservar tablas 
 
 - Migración, despliegue y comprobación autenticada en producción: no realizados.
 - Publicación inicial de 60 academias y 30 eventos revisados: no alcanzada. No se han publicado datos reales en esta entrega. Los 1.370 registros del CRM no son publicaciones verificadas.
-- Autorización de reutilización de las tres fuentes, revisión jurídica por país y materiales gráficos: no acreditadas. El campo de autorización debe contener evidencia real, no una inferencia por ser una web pública.
+- Autorización de reutilización de las tres fuentes, revisión jurídica por país y materiales gráficos: no acreditadas. El campo de autorización debe contener evidencia real, no una inferencia por ser una web pública. El formulario ahora exige enlace HTTPS a las condiciones, una referencia escrita verificable y confirmación del Super Admin registrada en auditoría; el sistema solo comprueba que exista esa documentación, no su validez jurídica.
 - Extracción automática de los PDF de Brasil/OCR: los enlaces se descubren; la estructuración de sus contenidos sigue siendo revisión manual. Redes sociales: enlaces/propuestas manuales exclusivamente.
 - Escáner de documentos y entrega real de correo/webhook: no configurados ni probados externamente.
 - Avisos de reclamación, acciones masivas y vinculación asistida están implementados; avisos reales aún requieren configurar y validar el proveedor. Páginas existentes por país integradas con el directorio externo y lista visible. Nuevas páginas por localidad: condicionadas a contenido útil; no se han creado páginas vacías. El estado de reclamación ya se consulta en Mis fichas y el catálogo no promete esas funciones pendientes.
