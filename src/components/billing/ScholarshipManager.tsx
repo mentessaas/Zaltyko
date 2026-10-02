@@ -58,7 +58,8 @@ export function ScholarshipManager({
     try {
       const params = new URLSearchParams({
         academyId,
-        limit: "1000",
+        // /api/athletes caps list requests at 200 to keep response sizes bounded.
+        limit: "200",
         ...(sportConfigId && { sportConfigId }),
       });
       const response = await fetch(`/api/athletes?${params}`);
