@@ -1,9 +1,25 @@
 ---
 status: active
 owner: producto
-last_reviewed: 2026-09-19T09:32Z
+last_reviewed: 2026-10-02
 source:
 ---
+
+## 2026-10-02 — OAuth productivo y límites de validación de cuenta
+
+- PR #179 quedó integrada en `main` (`364e8693`); el deployment productivo está `READY` con `zaltyko.com` y `www.zaltyko.com`. `/auth/login`, `/auth/register` y `/auth/forgot-password` devuelven 200.
+- Revisión UI 2026-10-02: cliente web `Zaltyko Web` presente en Google Cloud, origen `https://zaltyko.com`, callback Supabase correcto; el cliente de escritorio se conserva. En Supabase, Google está habilitado, el Client ID coincide y el secreto aparece guardado/enmascarado. La URL `https://zaltyko.com/auth/callback` está en la allowlist. No se creó un duplicado ni se leyó o cambió el secreto.
+- Una solicitud anónima a login contiene el enlace de recuperación. Los botones Google redirigen con `openid email profile`; la sesión Google completa y el alta nueva siguen sin validarse. No se envió correo de recuperación porque Auth aún usa el SMTP integrado.
+
+## 2026-10-02 — Policies explícitas y prueba automatizada del directorio
+
+- Diez tablas privadas del directorio reciben policies explícitas que deniegan operaciones a `anon` y `authenticated`; una migración adicional protege `lead_interactions` y `zaltyko_schema_migrations`, conservando permisos completos de `service_role`.
+- La prueba `supabase/tests/public_directory_access.sql` verifica RLS, grants, lectura pública, borradores ocultos y denegación de claims/escrituras. `scripts/directory/test-local.sh` la ejecuta después de ambas migraciones; el workflow también se activa al cambiar `supabase/tests/**`.
+- Verificación local: 61 checks de integración, backup local restaurado, `validate:rls` 79/79 y `check:migrations` 7 Drizzle + 93 Supabase. El test SQL comprueba permisos de anon/authenticated/service_role.
+- En el sandbox E2E, las policies explícitas ya están aplicadas mediante Supabase MCP; el Security Advisor deja únicamente la advertencia de protección contra contraseñas filtradas, disponible en Pro o superior. El proyecto observado está en Free. El ledger aplicacional conserva 45 filas hasta `20260805150000`; no usar el runner allí hasta reconciliar el historial.
+- Auditoría read-only de producción: `directory_entries` no existe; el ledger aplicacional tiene 54 filas hasta `20260913100000`, mientras el historial nativo de Supabase tiene 48. Ocho migraciones posteriores coinciden por nombre con archivos locales; `harden_rls_search_paths` aparece en el historial con siete sentencias, pero no hay archivo local. El runner queda en espera hasta clasificar y reconciliar el historial, con backup/restauración verificados.
+- Security Advisor de producción aún lista `__drizzle_migrations`, `lead_interactions` y `zaltyko_schema_migrations` sin policies. Performance Advisor señala 60 claves foráneas sin índice, 58 policies con reevaluación RLS por fila, 358 policies permisivas solapadas, 214 índices sin uso observado y dos índices duplicados; no se hicieron cambios masivos sin reconciliar el historial.
+- El head CI `550f8bd4` terminó con E2E autenticado y demás gates verdes. La revisión local posterior debe pasar un nuevo CI antes del merge.
 
 ## 2026-10-01 — Onboarding respeta el flag de reclamaciones
 

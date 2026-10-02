@@ -1,7 +1,7 @@
 ---
 status: active
 owner: tech
-last_reviewed: 2026-07-16
+last_reviewed: 2026-10-02
 source:
   - ../docs/MIGRATIONS_RLS_RUNBOOK.md
   - ../docs/migrations-backlog.md
@@ -72,6 +72,20 @@ source:
   dos `0009_*`, quedaron registrados por nombre de archivo y hash SHA-256 en
   `public.zaltyko_schema_migrations`. RLS está habilitado y `anon`/`authenticated` no tienen permisos.
   `pnpm db:migrate:ledger` verificó después cero pendientes; no se ejecutó seed global.
+
+## Revalidación — 2026-10-02: grants, policies y sandbox del directorio
+
+- Se revisó el [cambio oficial de Supabase sobre exposición de tablas en Data API](https://supabase.com/changelog/45329-breaking-change-tables-not-exposed-to-data-and-graphql-api-automatically): el 30 de octubre de 2026 los proyectos existentes dejan de exponer automáticamente tablas públicas nuevas. Grants y RLS son controles separados.
+- La migración `20261002102000_directory_explicit_deny_policies.sql` añade policies `false` para las diez tablas privadas del directorio. La migración `20261002120000_internal_table_explicit_deny_policies.sql` hace lo mismo para `lead_interactions` y `zaltyko_schema_migrations` y preserva todos los permisos de `service_role`. La prueba PostgreSQL revisa privilegios y roles.
+- El job `Directory integrity` aplica la migración base y la nueva migración en PostgreSQL efímero, ejecuta `supabase/tests/public_directory_access.sql`, verifica la restauración y corre los 61 checks de integración.
+- El sandbox E2E recibió las migraciones de directorio y la migración interna con Supabase MCP y las registra en el historial nativo de Supabase. Su ledger aplicacional `zaltyko_schema_migrations` sigue con 45 filas, última versión `20260805150000`; las migraciones nuevas no están registradas allí. No correr el ledger aplicacional contra ese sandbox hasta reconciliar todos los archivos posteriores al corte.
+- En producción, el catálogo del directorio aún no existe. El ledger aplicacional tiene 54 filas y termina en `20260913100000`; el historial nativo de Supabase tiene 48 y contiene ocho migraciones posteriores con archivos locales, más `harden_rls_search_paths` sin archivo local. Esa fila nativa conserva siete sentencias y un comentario original que la marcaba local-only hasta reconciliar backup y ledger.
+- No ejecutar el runner aplicacional en producción ni el sandbox hasta clasificar todos los archivos posteriores a sus cortes, recuperar/revisar la migración fuente faltante y conciliar los hashes de SQL ya aplicados. La presencia en el historial nativo no demuestra por sí sola que el contenido coincida byte por byte con el archivo local.
+- Producción no se migró para el directorio. Tras reconciliar el historial, exigir backup y restauración verificados, ejecutar el runner versionado únicamente sobre la lista aprobada y mantener apagados los flags hasta validar permisos y rollback a lectores anteriores.
+
+La verificación local del 2026-10-02 pasa `pnpm validate:rls` (79/79 tablas), `pnpm check:migrations` (7 migraciones Drizzle y 93 Supabase) y 61 checks PostgreSQL con restauración del dump. El Security Advisor del sandbox ya no señala esas dos tablas internas; solo queda protección contra contraseñas filtradas, opción disponible en Pro o superior. La organización observada está en Free. [Documentación de Supabase](https://supabase.com/docs/guides/auth/password-security).
+
+El Advisor de producción todavía señala tres tablas RLS sin policies (`__drizzle_migrations`, `lead_interactions`, `zaltyko_schema_migrations`). Performance Advisor lista 60 FKs sin índice, 58 policies con reevaluación RLS por fila, 358 avisos de policies permisivas solapadas, 214 índices sin uso observado y dos índices duplicados. Son avisos de inventario; no se crean ni eliminan índices en bloque antes de reconciliar los historiales.
 
 ## Flujo recomendado
 

@@ -7,6 +7,7 @@ CREATE TABLE auth.users(id uuid PRIMARY KEY,email_confirmed_at timestamptz);
 CREATE TABLE storage.buckets(id text PRIMARY KEY,name text,public boolean,file_size_limit bigint,allowed_mime_types text[]);
 CREATE TABLE profiles(id uuid PRIMARY KEY,user_id uuid,role text,can_login boolean DEFAULT true,is_suspended boolean DEFAULT false);
 CREATE TABLE academies(id uuid PRIMARY KEY,name text,owner_id uuid,tenant_id uuid,is_public boolean DEFAULT false,is_suspended boolean DEFAULT false,status text DEFAULT 'active',country_code text,country text,region text,city text,address text,discipline_variant text,public_description text,website text,contact_email text,contact_phone text,created_at timestamptz DEFAULT now());
+CREATE TABLE leads(id uuid PRIMARY KEY);
 CREATE TABLE events(id uuid PRIMARY KEY,academy_id uuid REFERENCES academies(id),title text,description text,is_public boolean DEFAULT false,status text DEFAULT 'draft',discipline text,event_type text,country_code text,country_name text,country text,city_name text,city text,province_name text,province text,start_date date,end_date date,registration_end_date date,updated_at timestamptz DEFAULT now(),created_at timestamptz DEFAULT now());
 CREATE TABLE memberships(user_id uuid,academy_id uuid);
 CREATE TABLE athletes(id uuid PRIMARY KEY,name text);
