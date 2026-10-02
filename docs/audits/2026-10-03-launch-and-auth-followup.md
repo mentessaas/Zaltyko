@@ -16,19 +16,25 @@ La comprobación se hizo en el worktree aislado `codex/continue-launch-20261003`
 
 ### Google y recuperación de cuenta
 
-La última comprobación de Google Cloud/Supabase (2026-10-02) encontró el cliente OAuth Web `Zaltyko Web`, el origen y callback de Supabase correctos, el proveedor Google activo y el retorno `https://zaltyko.com/auth/callback` permitido. No hace falta crear otro cliente ni leer o rotar su secreto. El estado de consentimiento de Google seguía en **External / Testing con cero testers**; por eso que la pantalla de Google cargue no prueba que una cuenta real termine el alta. En esta pasada no se cambió Google Cloud ni Supabase.
+La comprobación de Google Cloud/Supabase (2026-10-02) encontró el cliente OAuth Web `Zaltyko Web`, el origen y callback de Supabase correctos, el proveedor Google activo y el retorno `https://zaltyko.com/auth/callback` permitido. La autorización posterior del usuario para crear/configurar ese cliente no requería un cambio: ya existía y no se duplicó ni se leyó o rotó su secreto. La audiencia de consentimiento seguía en **External / Testing con cero testers** en la última comprobación; por eso llegar a Google no demuestra que una cuenta pública pueda terminar login o registro. Esta limitación requiere una acción en Google Auth Platform y una prueba con una cuenta autorizada. No se cambió Google Cloud ni Supabase en esta entrega. [Restricciones de la audiencia de prueba de Google](https://support.google.com/cloud/answer/15549945?hl=en).
 
 El enlace de recuperación está presente y `/auth/forgot-password` respondió 200 en la verificación anterior. Supabase Auth seguía usando su servicio de correo integrado, por lo que no hay prueba de entrega real ni de restablecimiento recibido por correo. Evidencia y límites: [guía OAuth y recuperación](../auth/google-and-password-recovery.md).
 
 ### Directorio y onboarding
 
-El guard de onboarding que impide duplicar academias operativas está integrado en `main` (#184). El flujo de búsqueda/reclamación de fichas del directorio está en el código, pero la auditoría de producción del 2026-10-02 encontró ausentes las tablas y flags `DIRECTORY_*`. Los historiales nativo y aplicacional de migraciones discrepan; no se ejecutó un runner ni se habilitaron flags. Antes hay que conciliar ambos historiales y comprobar backup/restauración.
+El guard de onboarding que impide duplicar academias operativas está integrado en `main` (#184). La consulta de producción del 2026-10-03 encontró **cero tablas `directory_*`**; la sandbox E2E sí tiene 11. Por tanto, la búsqueda pública y las reclamaciones del directorio no están preparadas para activarse en producción. No se ejecutó un runner ni se habilitaron flags. La conciliación de historiales y la comprobación de backup/restauración siguen siendo previas obligatorias.
 
 El objetivo de 60 academias y 30 eventos es una meta de preparación, no evidencia de fichas revisadas. No se publicaron datos ni se autorizaron condiciones de reutilización de las fuentes en esta pasada.
 
 ### Suscripción anual
 
-La implementación anual para Starter y Growth y los Prices/Sessions de prueba se documentaron el 2026-09-29. Eso verifica el flujo de test, no su disponibilidad productiva. La migración `20260929120000_add_annual_plan_prices.sql` y los Prices anuales de producción no se aplicaron/asociaron según la última revisión; la conciliación del historial productivo sigue siendo previa obligatoria. Stripe Tax y activación live continúan fuera de preparación hasta resolver la situación fiscal. Ver [auditoría de suscripción anual](ANNUAL-SUBSCRIPTION-IMPLEMENTATION-2026-09-29.md).
+La lectura de producción del 2026-10-03 confirma que `plans` tiene configuración anual para Starter y Growth: 190 €/año y 490 €/año, con referencias de precio mensuales y anuales presentes. El historial nativo de Supabase registra `add_annual_plan_prices` como `20260929100621`, mientras que el archivo local se llama `20260929120000_add_annual_plan_prices.sql`; el ledger aplicacional sigue en 54 filas, hasta `20260913100000`. **No volver a ejecutar esa migración** hasta conciliar ambos historiales. La presencia de referencias en la base no verifica que los objetos Stripe sigan activos ni que el Checkout productivo funcione: la conexión de Stripe devolvió `UNAUTHORIZED` y requiere reautenticación. Stripe Tax y activación live siguen aplazados por decisión del usuario. Ver [auditoría de suscripción anual](ANNUAL-SUBSCRIPTION-IMPLEMENTATION-2026-09-29.md).
+
+### Estado de Supabase y seguridad
+
+La producción usa PostgreSQL 17.6 y no tiene ramas de desarrollo; la sandbox E2E es un proyecto activo separado, no una rama ni una copia staging de producción. En producción, RLS está habilitado y no hay policies en tres tablas internas (`__drizzle_migrations`, `lead_interactions`, `zaltyko_schema_migrations`); el asesor de Supabase también advierte que la protección contra contraseñas filtradas está deshabilitada. La ausencia de policies deniega por defecto el acceso sujeto a RLS, pero deja el hardening explícito pendiente. No se aplicaron migraciones remotas por la divergencia de historiales. [RLS de Supabase](https://supabase.com/docs/guides/database/postgres/row-level-security).
+
+La organización está en Free con dos proyectos activos (producción y sandbox); `Pawsgrip-Crm` aparece inactivo. La lista no muestra staging ni ramas de producción. Los respaldos cloud siguen aplazados según la decisión anterior; borrar el proyecto inactivo no libera un cupo activo. [Límites de facturación de Supabase](https://supabase.com/docs/guides/platform/billing-faq).
 
 ### Checkout de la tienda B2B
 
@@ -51,4 +57,4 @@ El build aislado registró que no tenía `STRIPE_SECRET_KEY`, `DATABASE_URL_POOL
 
 ## Sin ejecutar en esta entrega
 
-No hubo cambios en Google Cloud, Supabase, Stripe ni Vercel; no se leyó ni modificó ningún secreto, no se aplicaron migraciones remotas, no se enviaron correos ni cobros y no se desplegó. Tampoco se ejecutó la prueba manual de VoiceOver. Continúan pendientes la revisión independiente/CI de los PR abiertos y la validación E2E de los roles y flujos reales.
+No hubo cambios en Google Cloud, Supabase, Stripe ni Vercel; no se leyó ni modificó ningún secreto, no se aplicaron migraciones remotas, no se enviaron correos ni cobros y no se desplegó. La conexión de Stripe necesita reautenticación para verificar Prices y Checkout. Tampoco se ejecutó la prueba manual de VoiceOver. Continúan pendientes la revisión independiente/CI del PR #188 y la validación E2E de las cuentas y flujos que Google mantiene limitados a testers.

@@ -397,6 +397,14 @@ PR #178 requiere que el estado permitido tenga también un `stripe_subscription_
 - **Pendiente de promoción:** aplicar `20261002131603_drizzle_migrations_explicit_deny_policy.sql` solo después de reconciliar los historiales nativo y de aplicación de producción y repetir backup/restauración. No ejecutar el runner sobre producción mientras existan las 39 migraciones sin conciliar.
 - **Evidencia local:** fixture con fila real y `SELECT` concedido a `anon`/`authenticated`; policy restrictiva devuelve cero filas a ambos. `scripts/directory/test-local.sh` y `pnpm validate:rls` pasan.
 
+## Revalidación de producción — 2026-10-03
+
+- **Suscripción anual — verificado en DB, Checkout pendiente:** producción ya tiene precios anuales y referencias para Starter/Growth. El historial nativo registra `add_annual_plan_prices` como `20260929100621`; el archivo local usa `20260929120000`, y el ledger de aplicación termina en `20260913100000`. No ejecutar de nuevo la migración anual hasta reconciliar ambos historiales y verificar el SQL registrado. La conexión de Stripe requiere reautenticación para confirmar objetos Price y Checkout.
+- **Directorio — no desplegado:** cero tablas `directory_*` en producción y 11 en la sandbox E2E. Producción no tiene ramas de staging. Mantener catálogo, reclamaciones e importación desactivados hasta conciliar migraciones y completar la restauración/verificación que exige el runbook.
+- **RLS interno:** Supabase Advisor confirma tres tablas internas con RLS activo y sin policies; también informa protección de contraseñas filtradas deshabilitada. La ausencia de policy niega por defecto acceso sujeto a RLS. La migración explícita ya existe en el repositorio; aplicar solo tras conciliar historiales y cumplir el runbook, no con un SQL aislado.
+- **Google OAuth:** el cliente Web, origen y callback ya estaban alineados; no duplicar ni rotar credenciales. La audiencia External / Testing y cero testers se observaron el 2026-10-02. La autorización recibida cubrió configurar el cliente web, pero éste ya existe; la prueba pública requiere que la cuenta pueda usar la app y completar un login/registro autorizado.
+- **Supabase Free:** producción y sandbox son los dos proyectos activos; `Pawsgrip-Crm` está inactivo. El backup cloud continúa aplazado; borrar el inactivo no libera un cupo de proyecto activo.
+
 ## Revalidación de lanzamiento — 2026-10-02
 
 - **Resuelto parcialmente — Google OAuth:** PR #179 está integrada y desplegada. En producción, iniciar sesión llega a la pantalla oficial de Google con Supabase como destino y sin `invalid_client`. El registro exige que la persona acepte los términos; no se hizo esa aceptación en su nombre. Sigue pendiente completar login/alta con un tester autorizado.

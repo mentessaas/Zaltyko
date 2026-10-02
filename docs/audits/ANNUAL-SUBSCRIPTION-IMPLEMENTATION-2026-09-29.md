@@ -33,3 +33,9 @@
 ## Fiscalidad
 
 La facturación anual no activa automáticamente impuestos. Si se cobrarán clientes de la UE, hay que revisar el registro fiscal y configurar Stripe Tax antes de activar `automatic_tax`.
+
+## Revalidación de producción — 2026-10-03
+
+Esta lectura de solo consulta corrige el estado productivo indicado arriba: producción sí contiene `annual_price_eur` y `stripe_annual_price_id` para Starter (`pro`, 190 €/año) y Growth (`premium`, 490 €/año), además de sus referencias mensuales. El historial nativo de Supabase muestra `add_annual_plan_prices` con versión `20260929100621`; el archivo local equivalente lleva la versión `20260929120000`. El ledger propio de la aplicación tiene 54 filas y termina en `20260913100000`.
+
+No vuelvas a ejecutar el SQL anual para “completar” esos campos: primero hay que reconstruir y conciliar la divergencia entre ambos historiales con el procedimiento de [reconciliación Supabase](SUPABASE-MIGRATION-RECONCILIATION-RUNBOOK.md). La conexión de Stripe requiere reautenticación; por eso esta revisión no confirma que los Price IDs referencien Prices activos correctos ni que una sesión anual pueda completarse. El test de Stripe documentado arriba sigue siendo evidencia del modo test, no de Checkout productivo. Stripe Live y Tax continúan aplazados.
