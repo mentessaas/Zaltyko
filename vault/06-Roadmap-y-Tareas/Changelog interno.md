@@ -1,9 +1,17 @@
 ---
 status: active
 owner: producto
-last_reviewed: 2026-10-02
+last_reviewed: 2026-10-03
 source:
+  - ../docs/audits/2026-10-03-launch-and-auth-followup.md
 ---
+
+## 2026-10-03 — Revisión de OAuth, anual, directorio y checkout B2B
+
+- En una rama aislada desde `origin/main` se añadió la capacidad `settings:users` a `POST /api/admin/users` y se hizo method-aware el inventario estricto de autenticación. Una guarda personalizada sin motivo explícito permanece sin clasificar.
+- `pnpm verify:production`: PASS; 367 rutas inventariadas, RLS 79/79, TypeScript, ESLint, audit prod, integridad de migraciones, 2.237 pruebas y build 274/274.
+- La auditoría identifica los límites: Google OAuth Web ya está configurado, pero su audiencia estaba en Testing con cero testers; directorio y anual no están promovidos a producción por la conciliación de migraciones; el checkout B2B está apagado y su implementación no soporta una activación segura todavía.
+- No se cambió configuración externa, esquema remoto, flags, secretos, correo, cobros ni producción. Detalle: [[../../docs/audits/2026-10-03-launch-and-auth-followup]].
 
 ## 2026-10-02 — OAuth productivo y límites de validación de cuenta
 

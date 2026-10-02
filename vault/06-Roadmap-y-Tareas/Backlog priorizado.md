@@ -1,12 +1,13 @@
 ---
 status: active
 owner: producto
-last_reviewed: 2026-10-02
+last_reviewed: 2026-10-03
 source:
   - ../PRODUCT-ANALYSIS.md
   - ../BUSINESS-ANALYSIS.md
   - ../INCONSISTENCY-AUDIT.md
   - ../docs/migrations-backlog.md
+  - ../docs/audits/2026-10-03-launch-and-auth-followup.md
   - ../04-Marketing/Estrategia competitiva gimnasia.md
   - ../04-Marketing/Matriz competitiva gimnasia.md
   - ../04-Marketing/Competidores.md
@@ -169,6 +170,7 @@ bloqueados.
 
 | Estado | Tarea | Dueño | Criterio de aceptación | Evidencia |
 |---|---|---|---|---|
+| Bloqueado técnico 2026-10-03 | Completar checkout seguro de la tienda B2B antes de habilitar `ENABLE_B2B_STORE`. | Tech + responsable de pagos | Importes calculados desde productos públicos validados en servidor; un solo modelo de Stripe Connect; URL de retorno de dominio confiable; reserva/liberación de stock idempotente; webhook verificado para pagar/expirar/reconciliar; E2E con Stripe test. | La ruta actual fija `unit_amount: 0`, combina contexto `stripeAccount` con `transfer_data.destination`, confía en `Origin` para los retornos y reduce stock al crear la venta pendiente. No se encontró un consumidor de webhook que marque estas ventas pagadas. La bandera permanece apagada. [[../../docs/audits/2026-10-03-launch-and-auth-followup]] |
 | Alerta board 2026-08-03 | Burn mensual supera 1.000 USD y exige decisión sobre `monthBudgetCents` | Board/operador autorizado; CEO no autoriza nuevos gastos | Board decide entre (a) elevar `monthBudgetCents` por encima de 1.084 USD, (b) recortar runs no críticos manteniendo el budget, (c) aceptar overrun y revisar al cierre del mes. El CEO mantiene la política de no comprar créditos, no elevar planes ni modificar el Token Plan hasta que el board se pronuncie en [ZAL-13](/ZAL/issues/ZAL-13) o vía `request_board_approval` | Panel de compañía 2026-08-03 00:38Z: `monthSpendCents=108368` (`1.083,68 USD`) sobre `monthBudgetCents=100000` (`108,37 %`). Salto de 884,49 USD a 1.083,68 USD en <24h por 142 runs con `provider_quota` el 2026-08-02. Alerta propagada en [ZAL-149](/ZAL/issues/ZAL-149) comment `6fec83a8-52f1-43cf-88ea-10c5d66f0686` y en `Decisiones.md` `## 2026-08-03 - Burn mensual supera el umbral operativo y requiere decisión board` |
 | Bloqueado externo 2026-08-02 | Crear/vincular el proyecto Expo/EAS de Zaltyko y ejecutar el primer development build en dispositivo físico. | Platform & Security: crear Organization Expo `zaltyko`, custodiar el acceso y facilitar sesión autenticada o `secret_ref`; Mobile: ejecutar `eas init` y build development; QA: dispositivo | `eas init --account zaltyko --non-interactive` escribe `expo.owner` y un `expo.extra.eas.projectId` real; entorno EAS development configurado; APK development instalado y abierto en Android físico; auth Bearer y navegación por rol entregadas a QA. | Board autorizó development el 2026-08-02. `npx eas-cli@21.4.0 whoami` devuelve `Not logged in` (exit 1); no hay sesión ni `secret_ref`. Código local preparado en `mobile/` y guía exacta en `mobile/docs/PRIMER_DEVELOPMENT_BUILD.md`. Preview/production/submit fuera de alcance. |
 | Resuelto 2026-07-16 | Cerrar bypass de permisos para membership baseline sin rol personalizado. | Sol | Deny-by-default; owner/coach/parent/athlete/viewer/super_admin probados por método y academia; ninguna ruta sensible depende de navegación. | 506/506 Vitest; suites `authz-*`, tenant resolver y membership cross-academy. AUTH-001/ROLE-001/MT-001 cerrados. |

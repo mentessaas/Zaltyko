@@ -266,6 +266,12 @@ const ROUTE_PERMISSIONS: Array<{ prefix: string; permissions: MethodPermissions 
     permissions: { GET: "settings:users", POST: "settings:users", DELETE: "settings:users" },
   },
   {
+    // The handler keeps its owner/admin role checks; this also requires
+    // explicit user-management access for custom academy roles.
+    prefix: "/api/admin/users",
+    permissions: { POST: "settings:users" },
+  },
+  {
     prefix: "/api/link-requests",
     permissions: {
       GET: "settings:users",
