@@ -38,12 +38,7 @@ export default defineConfig({
           // Las suites Web no deben descubrir las pruebas del proyecto Mobile.
           // Todas las suites web forman parte del gate principal. Las pruebas
           // del proyecto Mobile se ejecutan en su propio proyecto Vitest.
-          exclude: [
-            "node_modules",
-            ".next",
-            "coverage",
-            "mobile/**",
-          ],
+          exclude: ["node_modules", ".next", "coverage", "mobile/**"],
         },
       },
       {
@@ -58,7 +53,16 @@ export default defineConfig({
           environment: "node",
           globals: true,
           include: ["**/*.test.ts"],
-          exclude: ["node_modules", "dist", ".expo", "android", "ios"],
+          // This regression imports a dev dependency installed only by the
+          // dedicated Mobile CI job. The mobile Vitest config still runs it.
+          exclude: [
+            "node_modules",
+            "dist",
+            ".expo",
+            "android",
+            "ios",
+            "tests/node-forge-signature-regression.test.ts",
+          ],
         },
       },
     ],

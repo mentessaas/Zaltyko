@@ -14,6 +14,7 @@
     "lint:fix": "eslint . --ext .ts,.tsx --fix",
     "format": "prettier --write \"**/*.{ts,tsx,json,md}\"",
     "format:check": "prettier --check \"**/*.{ts,tsx,json,md}\"",
+    "postinstall": "patch-package",
     "doctor": "npx expo-doctor",
     "prebuild": "expo prebuild --clean",
     "build:dev": "npx eas-cli@21.4.0 build --profile development --platform all",
@@ -64,6 +65,8 @@
     "@types/node": "^20.19.43",
     "eslint": "^9.0.0",
     "eslint-config-expo": "~57.0.1",
+    "node-forge": "1.4.0",
+    "patch-package": "8.0.1",
     "prettier": "^3.4.0",
     "typescript": "~6.0.3",
     "vitest": "^4.1.11"
