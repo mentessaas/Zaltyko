@@ -1,12 +1,13 @@
 ---
 status: active
 owner: producto
-last_reviewed: 2026-10-02
+last_reviewed: 2026-10-03
 source:
   - ../PRODUCT-ANALYSIS.md
   - ../BUSINESS-ANALYSIS.md
   - ../INCONSISTENCY-AUDIT.md
   - ../docs/migrations-backlog.md
+  - ../docs/audits/2026-10-03-launch-and-auth-followup.md
   - ../04-Marketing/Estrategia competitiva gimnasia.md
   - ../04-Marketing/Matriz competitiva gimnasia.md
   - ../04-Marketing/Competidores.md
@@ -169,6 +170,7 @@ bloqueados.
 
 | Estado | Tarea | Dueño | Criterio de aceptación | Evidencia |
 |---|---|---|---|---|
+| Bloqueado técnico 2026-10-03 | Completar checkout seguro de la tienda B2B antes de habilitar `ENABLE_B2B_STORE`. | Tech + responsable de pagos | Importes calculados desde productos públicos validados en servidor; un solo modelo de Stripe Connect; URL de retorno de dominio confiable; reserva/liberación de stock idempotente; webhook verificado para pagar/expirar/reconciliar; E2E con Stripe test. | La ruta actual fija `unit_amount: 0`, combina contexto `stripeAccount` con `transfer_data.destination`, confía en `Origin` para los retornos y reduce stock al crear la venta pendiente. No se encontró un consumidor de webhook que marque estas ventas pagadas. La bandera permanece apagada. [[../../docs/audits/2026-10-03-launch-and-auth-followup]] |
 | Alerta board 2026-08-03 | Burn mensual supera 1.000 USD y exige decisión sobre `monthBudgetCents` | Board/operador autorizado; CEO no autoriza nuevos gastos | Board decide entre (a) elevar `monthBudgetCents` por encima de 1.084 USD, (b) recortar runs no críticos manteniendo el budget, (c) aceptar overrun y revisar al cierre del mes. El CEO mantiene la política de no comprar créditos, no elevar planes ni modificar el Token Plan hasta que el board se pronuncie en [ZAL-13](/ZAL/issues/ZAL-13) o vía `request_board_approval` | Panel de compañía 2026-08-03 00:38Z: `monthSpendCents=108368` (`1.083,68 USD`) sobre `monthBudgetCents=100000` (`108,37 %`). Salto de 884,49 USD a 1.083,68 USD en <24h por 142 runs con `provider_quota` el 2026-08-02. Alerta propagada en [ZAL-149](/ZAL/issues/ZAL-149) comment `6fec83a8-52f1-43cf-88ea-10c5d66f0686` y en `Decisiones.md` `## 2026-08-03 - Burn mensual supera el umbral operativo y requiere decisión board` |
 | Bloqueado externo 2026-08-02 | Crear/vincular el proyecto Expo/EAS de Zaltyko y ejecutar el primer development build en dispositivo físico. | Platform & Security: crear Organization Expo `zaltyko`, custodiar el acceso y facilitar sesión autenticada o `secret_ref`; Mobile: ejecutar `eas init` y build development; QA: dispositivo | `eas init --account zaltyko --non-interactive` escribe `expo.owner` y un `expo.extra.eas.projectId` real; entorno EAS development configurado; APK development instalado y abierto en Android físico; auth Bearer y navegación por rol entregadas a QA. | Board autorizó development el 2026-08-02. `npx eas-cli@21.4.0 whoami` devuelve `Not logged in` (exit 1); no hay sesión ni `secret_ref`. Código local preparado en `mobile/` y guía exacta en `mobile/docs/PRIMER_DEVELOPMENT_BUILD.md`. Preview/production/submit fuera de alcance. |
 | Resuelto 2026-07-16 | Cerrar bypass de permisos para membership baseline sin rol personalizado. | Sol | Deny-by-default; owner/coach/parent/athlete/viewer/super_admin probados por método y academia; ninguna ruta sensible depende de navegación. | 506/506 Vitest; suites `authz-*`, tenant resolver y membership cross-academy. AUTH-001/ROLE-001/MT-001 cerrados. |
@@ -394,6 +396,14 @@ PR #178 requiere que el estado permitido tenga también un `stripe_subscription_
 
 - **Pendiente de promoción:** aplicar `20261002131603_drizzle_migrations_explicit_deny_policy.sql` solo después de reconciliar los historiales nativo y de aplicación de producción y repetir backup/restauración. No ejecutar el runner sobre producción mientras existan las 39 migraciones sin conciliar.
 - **Evidencia local:** fixture con fila real y `SELECT` concedido a `anon`/`authenticated`; policy restrictiva devuelve cero filas a ambos. `scripts/directory/test-local.sh` y `pnpm validate:rls` pasan.
+
+## Revalidación de producción — 2026-10-03
+
+- **Suscripción anual — verificado en DB, Checkout pendiente:** producción ya tiene precios anuales y referencias para Starter/Growth. El historial nativo registra `add_annual_plan_prices` como `20260929100621`; el archivo local usa `20260929120000`, y el ledger de aplicación termina en `20260913100000`. No ejecutar de nuevo la migración anual hasta reconciliar ambos historiales y verificar el SQL registrado. La conexión de Stripe requiere reautenticación para confirmar objetos Price y Checkout.
+- **Directorio — no desplegado:** cero tablas `directory_*` en producción y 11 en la sandbox E2E. Producción no tiene ramas de staging. Mantener catálogo, reclamaciones e importación desactivados hasta conciliar migraciones y completar la restauración/verificación que exige el runbook.
+- **RLS interno:** Supabase Advisor confirma tres tablas internas con RLS activo y sin policies; también informa protección de contraseñas filtradas deshabilitada. La ausencia de policy niega por defecto acceso sujeto a RLS. La migración explícita ya existe en el repositorio; aplicar solo tras conciliar historiales y cumplir el runbook, no con un SQL aislado.
+- **Google OAuth:** el cliente Web, origen y callback ya estaban alineados; no duplicar ni rotar credenciales. La audiencia External / Testing y cero testers se observaron el 2026-10-02. La autorización recibida cubrió configurar el cliente web, pero éste ya existe; la prueba pública requiere que la cuenta pueda usar la app y completar un login/registro autorizado.
+- **Supabase Free:** producción y sandbox son los dos proyectos activos; `Pawsgrip-Crm` está inactivo. El backup cloud continúa aplazado; borrar el inactivo no libera un cupo de proyecto activo.
 
 ## Revalidación de lanzamiento — 2026-10-02
 

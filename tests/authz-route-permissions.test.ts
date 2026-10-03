@@ -550,6 +550,13 @@ describe("getRequiredRoutePermission", () => {
       expect(getRequiredRoutePermission("/api/invitations", "PATCH")).toBeNull();
     });
 
+    it("legacy admin user invitations require settings:users", () => {
+      expect(getRequiredRoutePermission("/api/admin/users", "POST")).toBe(
+        "settings:users"
+      );
+      expect(getRequiredRoutePermission("/api/admin/users", "GET")).toBeNull();
+    });
+
     it("link-requests: settings:users (GET/POST/PATCH)", () => {
       expect(getRequiredRoutePermission("/api/link-requests", "GET")).toBe(
         "settings:users"

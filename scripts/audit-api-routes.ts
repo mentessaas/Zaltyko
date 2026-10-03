@@ -3,6 +3,7 @@ import { join, relative, sep } from "path";
 
 import { getRequiredRoutePermission } from "../src/lib/authz/route-permissions";
 import type { Permission } from "../src/db/schema/permissions";
+import { classifyRouteAuth, type RouteAuthClass } from "./lib/route-auth-classifier";
 
 const API_DIR = join(process.cwd(), "src/app/api");
 const MIDDLEWARE_PATH = join(process.cwd(), "middleware.ts");
@@ -47,22 +48,14 @@ const SENSITIVE_PREFIXES = [
   "/api/admin",
 ] as const;
 
-type AuthClass =
-  | "tenant"
-  | "super-admin"
-  | "bearer"
-  | "public"
-  | "webhook"
-  | "cron"
-  | "dev"
-  | "deprecated"
-  | "unknown";
+type AuthClass = RouteAuthClass | "mixed";
 
 interface RouteAudit {
   route: string;
   pathname: string;
   methods: string[];
   auth: AuthClass;
+  authByMethod: Partial<Record<string, RouteAuthClass>>;
   mutates: boolean;
   zodValidated: boolean;
   standardizedResponse: boolean;
@@ -75,7 +68,7 @@ interface RouteAudit {
   resourceScope: "not-applicable" | "detected" | "manual-review";
   sensitiveData: Array<"minors" | "family" | "billing" | "communications">;
   capabilities: Partial<Record<string, Permission>>;
-  expectedDenial: "401/403" | "signature/secret" | "public-contract" | "410" | "404";
+  expectedDenial: "401/403" | "signature/secret" | "public-contract" | "route-specific-guard" | "method-specific" | "410" | "404";
   findings: string[];
 }
 
@@ -101,30 +94,6 @@ function toPathname(filePath: string): string {
   return `/api/${routePath}`;
 }
 
-function classify(route: string, source: string): AuthClass {
-  const annotatedAuth = source.match(
-    /@route-auth\s+(tenant|super-admin|bearer|public|webhook|cron|dev|deprecated)\b/
-  )?.[1] as AuthClass | undefined;
-  if (annotatedAuth) return annotatedAuth;
-  if (source.includes("ENDPOINT_DEPRECATED") || source.includes("DEPRECATED")) return "deprecated";
-  if (route.includes("/webhook") || source.includes("verifyWebhookSignature")) return "webhook";
-  if (route.includes("/cron/") || source.includes("CRON_SECRET")) return "cron";
-  if (route.includes("/api/dev/")) return "dev";
-  if (source.includes("withSuperAdmin(")) return "super-admin";
-  if (source.includes("withTenant(")) return "tenant";
-  if (
-    source.includes("auth.getUser(") ||
-    source.includes("getUser(token)") ||
-    source.includes("Authorization") ||
-    source.includes("getBearerToken(") ||
-    source.includes("createBearerSupabaseClient(")
-  ) return "bearer";
-  if (route.includes("/public/") || route.endsWith("/contact/route.ts") || route.endsWith("/plans/route.ts")) {
-    return "public";
-  }
-  return "unknown";
-}
-
 function getSensitiveData(pathname: string): RouteAudit["sensitiveData"] {
   const result: RouteAudit["sensitiveData"] = [];
   if (/\/(athletes|assessments|attendance|classes|guardians|groups|actor-pages|actor-consents)(\/|$)/.test(pathname)) result.push("minors");
@@ -139,7 +108,11 @@ function auditRoute(filePath: string): RouteAudit {
   const route = relative(process.cwd(), filePath).split(sep).join("/");
   const pathname = toPathname(filePath);
   const methods = getMethods(source);
-  const auth = classify(route, source);
+  const authByMethod = Object.fromEntries(
+    methods.map((method) => [method, classifyRouteAuth(route, source, method)])
+  ) as Partial<Record<string, RouteAuthClass>>;
+  const authClasses = [...new Set(Object.values(authByMethod))];
+  const auth: AuthClass = authClasses.length > 1 ? "mixed" : authClasses[0] ?? "unknown";
   const mutates = methods.some((method) => MUTATING_METHODS.has(method));
   const capabilities = Object.fromEntries(
     methods.flatMap((method) => {
@@ -182,6 +155,7 @@ function auditRoute(filePath: string): RouteAudit {
     pathname,
     methods,
     auth,
+    authByMethod,
     mutates,
     zodValidated: validatesExternalInput,
     standardizedResponse: /api(Success|Created|Error)\(/.test(source),
@@ -194,13 +168,15 @@ function auditRoute(filePath: string): RouteAudit {
     resourceScope: dynamicResource ? (scopeEvidence ? "detected" : "manual-review") : "not-applicable",
     sensitiveData: getSensitiveData(pathname),
     capabilities,
-    expectedDenial: auth === "deprecated" ? "410" : auth === "webhook" || auth === "cron" ? "signature/secret" : auth === "public" ? "public-contract" : auth === "unknown" ? "404" : "401/403",
+    expectedDenial: auth === "mixed" ? "method-specific" : auth === "deprecated" ? "410" : auth === "webhook" || auth === "cron" ? "signature/secret" : auth === "public" ? "public-contract" : auth === "custom" ? "route-specific-guard" : auth === "unknown" ? "404" : "401/403",
     findings,
   };
 }
 
 const audits = walk(API_DIR).map(auditRoute).sort((a, b) => a.route.localeCompare(b.route));
-const risky = audits.filter((route) => route.mutates && route.auth === "unknown");
+const risky = audits.filter((route) =>
+  route.methods.some((method) => MUTATING_METHODS.has(method) && route.authByMethod[method] === "unknown")
+);
 const semanticRisks = audits.filter((route) =>
   route.findings.some((finding) => finding.startsWith("missing-capability") || finding === "client-tenant-id")
 );

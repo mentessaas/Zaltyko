@@ -1,9 +1,19 @@
 ---
 status: active
 owner: producto
-last_reviewed: 2026-10-02
+last_reviewed: 2026-10-03
 source:
+  - ../docs/audits/2026-10-03-launch-and-auth-followup.md
 ---
+
+## 2026-10-03 — Revisión de OAuth, anual, directorio y checkout B2B
+
+- En una rama aislada desde `origin/main` se añadió la capacidad `settings:users` a `POST /api/admin/users` y se hizo method-aware el inventario estricto de autenticación. Una guarda personalizada sin motivo explícito permanece sin clasificar.
+- `pnpm verify:production`: PASS; 367 rutas inventariadas, RLS 79/79, TypeScript, ESLint, audit prod, integridad de migraciones, 2.237 pruebas y build 274/274.
+- Revalidación Supabase de solo lectura: la configuración de los precios anuales sí está en producción (190 €/año y 490 €/año, referencias mensuales/anuales presentes). El historial nativo registra `add_annual_plan_prices` como `20260929100621`, pero el archivo local es `20260929120000`; el ledger de aplicación sigue en 54 filas hasta `20260913100000`. No repetir el SQL anual hasta conciliar los historiales.
+- Producción aún no tiene tablas del directorio ni ramas; la sandbox E2E sí tiene 11 tablas `directory_*`. Tres tablas internas de producción tienen RLS sin policy explícita y el asesor advierte que la protección contra contraseñas filtradas está desactivada. No se aplicaron cambios remotos. La organización tiene dos proyectos activos en Free; el backup cloud sigue aplazado por decisión del usuario.
+- Google Cloud ya contenía el cliente Web y el callback estaba alineado; no se creó un duplicado. La última revisión dejó la audiencia External / Testing con cero testers, por lo que falta una prueba pública con tester autorizado. La conexión Stripe requiere reautenticación para validar los Prices y Checkout. El checkout B2B continúa apagado y no es seguro activarlo todavía.
+- `pnpm verify:production` pasó en la rama aislada. PR #188 sigue en borrador y requiere revisión; tras esta corrección documental hay que esperar al nuevo CI. Detalle: [[../../docs/audits/2026-10-03-launch-and-auth-followup]].
 
 ## 2026-10-02 — OAuth productivo y límites de validación de cuenta
 

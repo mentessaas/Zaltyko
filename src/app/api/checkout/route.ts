@@ -8,6 +8,7 @@ import { createPendingSale } from "@/lib/store/service";
 
 /**
  * POST /api/checkout
+ * @route-auth POST public
  * Body: { academyId, customerEmail, customerName?, lines: [{ productId, quantity }] }
  *
  * Crea un sale pending + Checkout Session de Stripe (destination charge a la
