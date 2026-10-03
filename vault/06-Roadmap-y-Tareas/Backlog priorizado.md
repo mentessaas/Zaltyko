@@ -46,6 +46,11 @@ Code changes verificados: tsc OK, eslint OK, next build OK.
 
 # Backlog priorizado
 
+## P2 — Filtros geográficos y comprobación manual de accesibilidad — 2026-10-03
+
+- **Filtros del catálogo:** corrección local en `fix/academy-directory-filter-a11y`. Se eliminó el `fetch` con `limit=1000` (la API admite hasta 100), se añadieron nombres accesibles y se limita la lista de ciudades a la región seleccionada. Falta CI, integración, despliegue y comprobar el comportamiento en la versión publicada.
+- **Accesibilidad manual pendiente:** completar con VoiceOver la lectura de errores, tablas y modales, y verificar zoom al 200 % en navegador. La comprobación previa se interrumpió cuando macOS quedó bloqueado; no se considera terminada y requiere reanudarla en una sesión desbloqueada. Las pruebas automatizadas no sustituyen esta pasada.
+
 ## P1 — Copia externa restaurable antes de migraciones del directorio — 2026-10-02
 
 - **Estado:** pendiente. El grupo Supabase está en Free y usa sus dos plazas activas para `Zaltyko` y `Zaltyko E2E Sandbox`; `Pawsgrip-Crm` está inactivo. Borrarlo no hace falta para crear/guardar una copia externa. No crear otro proyecto para alojar el backup.
@@ -409,6 +414,17 @@ PR #178 requiere que el estado permitido tenga también un `stripe_subscription_
 
 - **Alta / móvil:** seguir `GHSA-86w9-cpqp-85rv` (`node-forge <=1.4.0`) en la cadena `@expo/cli` / `@expo/code-signing-certificates`. El audit actual indica que no hay versión corregida publicada; repetirlo al actualizar Expo y no declarar limpia la auditoría móvil mientras siga presente.
 - **Mitigación temporal en PR #187, integrada:** aplica el chequeo de `DigestAlgorithm` del [PR upstream #1152](https://github.com/digitalbazaar/forge/pull/1152) mediante `patch-package` y añade una regresión. Se fusionó como `536ab0f5` tras 331/331 pruebas móviles y E2E autenticado verde. La versión continúa en 1.4.0, por lo que las alertas #300/#301 siguen abiertas hasta que exista versión upstream corregida. No se hizo build nativo ni publicación móvil.
+
+## Revisión de alertas altas Dependabot — 2026-10-03
+
+- **Estado observado en GitHub:** siguen abiertas cinco alertas altas: `node-forge` (#300/#301), `braces` (#304/#305) y `http-cache-semantics` (#307). En las cinco, la API de Dependabot informa que no hay primera versión corregida publicada (`first_patched_version = null`). Se mantiene la mitigación de `node-forge`; no se inventan overrides para los otros paquetes.
+- **PR #177 integrada:** el gate ahora omite el E2E autenticado solo para PRs cuyo autor es Dependabot y mantiene el fallo cerrado en `main` y PRs humanas sin credenciales de staging. CI general pasó; el E2E autenticado de esas actualizaciones queda omitido, no ejecutado.
+- **Dependencias sin vulnerabilidad parcheada:** revisar individualmente las PR abiertas de dependencias y fusionar solo cambios con alcance y checks compatibles. Cambios mayores del SDK de Brevo, Next/ESLint, Lucide y Vercel Speed Insights siguen requiriendo revisión funcional.
+
+## Seguimiento CI Dependabot — 2026-10-03
+
+- **Resuelto:** PR #177 quedó fusionada por squash en `24a63c85`; los checks obligatorios pasaron. Se usó el bypass administrativo con autorización explícita del usuario porque GitHub exigía revisión y no hay otro colaborador disponible; no hubo aprobación independiente. El gate distingue el autor Dependabot del actor que reejecuta el workflow; `main` y PRs humanas internas sin secretos siguen fallando cerrado.
+- **Seguimiento:** las PRs Dependabot #138–#147 siguen abiertas; #139/#141/#143/#144/#147 se actualizaron contra `main` y su nueva CI está en curso. Las PRs de cambios mayores no se fusionan sin revisar impacto y pruebas. El E2E autenticado omitido en PRs del bot no cuenta como ejecutado.
 
 ## Seguimiento del enlace de recuperación de contraseña — 2026-10-02
 

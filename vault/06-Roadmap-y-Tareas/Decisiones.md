@@ -8,6 +8,15 @@ source:
 
 # Decisiones
 
+## 2026-10-03 — Mostrar filtros geográficos de forma progresiva
+
+| Campo | Valor |
+| --- | --- |
+| Evidencia | El filtro público consultaba `/api/public/academies?limit=1000`, superior al límite de 100, aunque los filtros ya usan catálogos geográficos locales. También montaba miles de opciones de ciudad en un selector deshabilitado. |
+| Decisión | No pedir la lista de academias para construir filtros. Mostrar primero países, después las regiones del país elegido y, finalmente, ciudades de la región elegida. Dar un nombre accesible a cada campo y a los botones para quitar filtros. |
+| Consecuencia | La carga inicial evita una petición 400, reduce el árbol accesible y conserva búsqueda por localidad. Las opciones de ciudad se muestran solo tras acotar la ubicación. |
+| Estado | Implementado localmente en `fix/academy-directory-filter-a11y`; prueba focal, TypeScript y ESLint pasan. Pendiente CI, integración y despliegue. |
+
 ## 2026-10-02 — Resolver el respaldo fuera de Supabase, no eliminando proyectos
 
 | Campo | Valor |
