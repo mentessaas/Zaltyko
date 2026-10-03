@@ -10708,3 +10708,11 @@ Modelo separado, reclamación manual, administración, importación revisada, fi
 - **Cambio local:** la comprobación privada de identidad operativa y su advisory lock ahora se ejecutan siempre antes de crear el espacio. Una coincidencia bloquea el alta con un mensaje genérico para soporte; la respuesta no contiene nombre, propietario, identificador ni datos del espacio existente.
 - **Validación local:** 11 pruebas de contratos y búsqueda de onboarding, `pnpm typecheck`, ESLint focal y `git diff --check` pasan.
 - **Límite:** evita crear una duplicación operativa, pero no publica ni busca fichas de directorio y no concede reclamación. Catálogo y reclamaciones siguen sin desplegarse porque faltan las tablas/flags productivas y la conciliación segura del historial de migraciones.
+
+## 2026-10-03 — Redacción de datos personales en registros de errores (PR pendiente)
+
+- **Hallazgo:** errores de consultas fallidas podían conservar SQL y valores de parámetros en logs de Vercel/Sentry. Se observó exposición de datos personales en registros de producción; no se reproducen aquí valores ni identificadores.
+- **Cambio local:** el registrador compartido oculta detalles del bloque `Failed query` de Drizzle, campos `query`/`params` y correos en texto libre antes de consola y Sentry. Los errores de carga del modal de cobros, la pestaña de preferencias y el borrado de documentos dejan de imprimir errores crudos; el boundary global ya usa `redactError`.
+- **Validación local:** suite completa: 2.234 pruebas pasaron y 3 se omitieron; pruebas focales de logger/documentos: 8/8; `pnpm typecheck` y build con 274 páginas generadas; ESLint sin errores (4 avisos ya presentes en los dos componentes); Prettier pasa para el registrador y su prueba; `git diff --check` pasa. El build local avisó de credenciales de servidor ausentes, sin mostrar valores, y de dos rutas dinámicas.
+- **Estado:** cambio en worktree aislado, sin despliegue ni cambio de producción; pendiente de PR, CI y aprobación independiente.
+- **Alcance operativo:** no se borraron registros históricos. La retención y posible purga de registros existentes requiere una revisión separada del proveedor.

@@ -20,7 +20,7 @@ describe("redactSensitive", () => {
     const value = "Authorization: Bearer bearer-secret; Bearer another-secret";
 
     expect(redactSensitiveText(value)).toBe(
-      "Authorization: Bearer [REDACTED]; Bearer [REDACTED]",
+      "Authorization: Bearer [REDACTED]; Bearer [REDACTED]"
     );
     expect(redactSensitive({ message: value })).toEqual({
       message: "Authorization: Bearer [REDACTED]; Bearer [REDACTED]",
@@ -46,7 +46,9 @@ describe("redactSensitive", () => {
   });
 
   it("aplica la redacción a consola y a la excepción enviada a Sentry", () => {
-    const consoleError = vi.spyOn(console, "error").mockImplementation(() => undefined);
+    const consoleError = vi
+      .spyOn(console, "error")
+      .mockImplementation(() => undefined);
     const error = new Error("charge collection failed");
     Object.assign(error, {
       clientSecret: "pi_error_secret_should_not_leak",
@@ -65,11 +67,52 @@ describe("redactSensitive", () => {
     expect(consoleOutput).toContain("[REDACTED]");
 
     expect(sentryMocks.captureException).toHaveBeenCalledTimes(1);
-    const [capturedError, captureOptions] = sentryMocks.captureException.mock.calls[0];
+    const [capturedError, captureOptions] =
+      sentryMocks.captureException.mock.calls[0];
     expect(capturedError.clientSecret).toBe("[REDACTED]");
     expect(capturedError.context.client_secret).toBe("[REDACTED]");
     expect(JSON.stringify(captureOptions)).not.toContain("should_not_leak");
 
     consoleError.mockRestore();
+  });
+
+  it("oculta SQL y valores de parámetros de Drizzle en consola y Sentry", () => {
+    const consoleError = vi
+      .spyOn(console, "error")
+      .mockImplementation(() => undefined);
+    const error = new Error(
+      'Failed query: insert into "leads" ("name", "email") values ($1, $2)\n' +
+        "params: Persona Ejemplo,persona@example.test"
+    );
+    Object.assign(error, {
+      query: 'insert into "leads" ("name", "email") values ($1, $2)',
+      params: ["Persona Ejemplo", "persona@example.test"],
+    });
+
+    logger.error("Error processing contact form", error);
+
+    const consoleOutput = consoleError.mock.calls.flat().join(" ");
+    expect(consoleOutput).toContain("[REDACTED DATABASE DETAILS]");
+    expect(consoleOutput).not.toContain("insert into");
+    expect(consoleOutput).not.toContain("Persona Ejemplo");
+    expect(consoleOutput).not.toContain("persona@example.test");
+
+    expect(sentryMocks.captureException).toHaveBeenCalledTimes(1);
+    const [capturedError] = sentryMocks.captureException.mock.calls[0];
+    expect(capturedError.message).not.toContain("insert into");
+    expect(capturedError.message).not.toContain("Persona Ejemplo");
+    expect(capturedError.message).not.toContain("persona@example.test");
+    expect(capturedError.stack).not.toContain("Persona Ejemplo");
+    expect(capturedError.stack).not.toContain("persona@example.test");
+    expect(capturedError.query).toBe("[REDACTED]");
+    expect(capturedError.params).toBe("[REDACTED]");
+
+    consoleError.mockRestore();
+  });
+
+  it("redacta correos en texto libre de errores", () => {
+    expect(redactSensitiveText("Fallo para persona@example.test")).toBe(
+      "Fallo para [REDACTED_EMAIL]"
+    );
   });
 });

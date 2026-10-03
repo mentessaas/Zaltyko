@@ -11,6 +11,7 @@ import { handleApiError } from "@/lib/api-error-handler";
 import { DOCUMENT_TYPES } from "@/types/athletes";
 import { apiSuccess, apiError, apiCreated } from "@/lib/api-response";
 import { createSignedUrl, deleteFile } from "@/lib/supabase/storage-helpers";
+import { logger } from "@/lib/logger";
 
 const STORAGE_PATH_PREFIX = (tenantId: string, academyId: string, athleteId: string) =>
   `${tenantId}/${academyId}/athletes/${athleteId}/documents/`;
@@ -170,7 +171,11 @@ export const DELETE = withTenant(async (request, context) => {
       } catch (error) {
         // Metadata deletion remains successful; surface an operational signal
         // without making a user retry and risk duplicate records.
-        console.error("Failed to delete athlete document storage object", error);
+        logger.error(
+          "Failed to delete athlete document storage object",
+          undefined,
+          { errorType: error instanceof Error ? error.name : typeof error }
+        );
       }
     }
 

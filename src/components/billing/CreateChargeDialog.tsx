@@ -6,6 +6,7 @@ import { Button } from "@/components/ui/button";
 import { getTerminologyForSportConfig } from "@/lib/sport-config/terminology";
 import { formatCurrency, getCurrencyForCountry, isBizumAvailableInCountry } from "@/lib/currency";
 import { useAcademyContext } from "@/hooks/use-academy-context";
+import { logger } from "@/lib/logger";
 
 interface BillingItem {
   id: string;
@@ -83,7 +84,7 @@ export function CreateChargeDialog({
         const data = payload?.data ?? payload;
         setBillingItems(data?.items || []);
       })
-      .catch(console.error);
+      .catch((error) => logger.error("Failed to load billing items", error));
 
     // Load athletes
     const athleteParams = new URLSearchParams({
@@ -98,7 +99,7 @@ export function CreateChargeDialog({
         const data = payload?.data ?? payload;
         setAthletes(Array.isArray(data) ? data : data?.items || []);
       })
-      .catch(console.error);
+      .catch((error) => logger.error("Failed to load athletes", error));
   }, [open, academyId, preselectedAthleteId, sportConfigId]);
 
   // Helper para formatear periodo a nombre de mes en español

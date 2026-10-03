@@ -416,3 +416,11 @@ PR #178 requiere que el estado permitido tenga también un `stripe_subscription_
 - **Bloqueo P0 de migraciones productivas:** `zaltyko_schema_migrations` tiene 54 filas hasta `20260913100000`; frente a los 93 archivos locales, 39 no figuran en ese ledger, sin huérfanos ni diferencias de versión/hash en los 54 nombres ya registrados. El historial nativo tiene 48 entradas: incluye `harden_rls_search_paths` sin archivo fuente y `add_annual_plan_prices` con versión distinta a la del archivo local. Recuperar/revisar el SQL registrado, clasificar los archivos posteriores al corte y conciliar ambos historiales antes de ejecutar cualquier lote; luego probar backup/restauración.
 - **Riesgo del E2E Sandbox:** las migraciones de directorio se aplicaron por historial nativo de Supabase, mientras `zaltyko_schema_migrations` permanece en 45 filas hasta `20260805150000`. Reconciliar su historial antes de ejecutar allí el runner aplicacional.
 - **PR #180:** endurecimiento explícito de RLS fusionado tras pasar los checks obligatorios; Vercel produjo un deployment `Ready`. La migración de políticas no se aplicó a producción por el bloqueo de ledger anterior.
+
+## P1 — Minimizar datos personales en errores de producción — 2026-10-03
+
+- **Hallazgo verificado:** errores de consultas fallidas podían incluir la consulta y sus parámetros en los registros. Los registros observados contenían datos personales; los valores no se copian a documentación ni analítica.
+- **Corrección preparada:** centralizar la redacción de SQL/parámetros y correos antes de consola y Sentry. La prueba local cubre ambas salidas.
+- **Criterio de cierre:** CI verde en PR, revisión independiente, merge y despliegue autorizado; después validar con error sintético que ni Vercel ni Sentry reciben parámetros. Revisar por separado retención/purga de eventos históricos.
+- **Estado:** código y pruebas locales listos en rama aislada; todavía no hay PR. No se desplegó ni se borró historial.
+- **Superficie revisada:** `console.error` suelto en el producto se redujo a errores de logger centralizado; quedan avisos de error boundary que registran solo el digest y la advertencia de esquema de entorno limitado a desarrollo.

@@ -114,7 +114,9 @@ export function ProfileTabs({ user, profile, onProfileUpdated }: ProfileTabsProp
                   fetch("/api/profile/preferences")
                     .then((res) => res.json())
                     .then((payload) => setPreferences(payload?.data ?? payload))
-                    .catch(console.error);
+                    .catch((error) =>
+                      logger.error("Failed to refresh preferences", error)
+                    );
                 }}
               />
             )}
