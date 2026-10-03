@@ -10745,8 +10745,8 @@ Modelo separado, reclamación manual, administración, importación revisada, fi
 - **Mitigación:** `mobile/patches/node-forge+1.4.0.patch` aplica esa comprobación en `postinstall` con `patch-package`. `node-forge` se declara como devDependency para que el patch encuentre el paquete con instalaciones npm y pnpm. `mobile/tests/node-forge-signature-regression.test.ts` conserva el vector upstream.
 - **Prueba causal:** antes de aplicar el patch, la prueba focal falló porque `1.4.0` aceptó la firma falsa. Después del patch, el mismo test pasó y rechazó la firma.
 - **Verificación:** instalación limpia/frozen con pnpm 9 aplica el patch; `npm ci` también lo aplica. Suite móvil **331/331**; suite raíz **2.232 pruebas pasan y 3 quedan omitidas**; typecheck, ESLint, prueba focal npm y `git diff --check` pasan. El proyecto raíz excluye esta prueba que importa la dependencia móvil; la configuración Vitest de móvil sí la ejecuta.
-- **Límite:** el paquete y la versión permanecen en 1.4.0; Dependabot conserva las dos alertas. No se declara limpio el audit móvil. Sin build nativo, publicación en tienda ni despliegue. Mantener la mitigación hasta que exista una versión oficial y compatible con Expo.
-- **Documentación:** `docs/security/node-forge-cve-2026-85393.md`, Backlog priorizado y Decisiones actualizados. Tras rebasar PR #187 sobre `ec6ee944`, la suite móvil local pasa 331/331, TypeScript y ESLint pasan; falta CI nuevo y revisión. No está desplegado.
+- **Límite:** el paquete y la versión permanecen en 1.4.0; Dependabot conserva las dos alertas. No se declara limpio el audit móvil. No se ha validado build nativo ni publicación en tiendas, por lo que la mitigación del repositorio no prueba que la corrección esté desplegada en dispositivos. Mantenerla hasta que exista una versión oficial y compatible con Expo.
+- **Estado final:** PR #187 se fusionó como `536ab0f5`. El código está en `main` y en el árbol fuente del deployment web basado en `d026fa93`, pero no se validó build nativo ni publicación móvil. Permanecen las dos alertas Dependabot porque el paquete sigue en `1.4.0` y no hay una versión corregida indicada.
 
 ## 2026-10-03 — Filtros accesibles y progresivos para academias
 
@@ -10754,7 +10754,7 @@ Modelo separado, reclamación manual, administración, importación revisada, fi
 - **Cambio local:** se quitó la petición; país queda disponible de inmediato, regiones aparecen después de elegir país y ciudades después de elegir región. Búsqueda, filtros y botones para quitarlos tienen nombres accesibles.
 - **Verificación:** prueba focal `tests/academies-filters-accessibility.test.tsx` — 1/1; `pnpm typecheck`; ESLint focal; `git diff --check`; `pnpm build` completó con 274 páginas usando credenciales placeholder, con avisos esperados de variables de pago/servidor ausentes y rutas dinámicas. En producción comprobé que `limit=1000` devuelve HTTP 400 y `limit=100` HTTP 200. La suite E2E pública apunta a producción y no se usó como prueba de código aún no desplegado.
 - **Formato:** la prueba nueva quedó formateada. El `--check` sobre el componente y las notas completas detectó diferencias; no reescribí archivos enteros fuera del cambio para evitar ruido.
-- **Estado:** rama `fix/academy-directory-filter-a11y`; pendiente repetir validación final, CI, revisión/integración y comprobar tras despliegue. No se modificaron datos ni flags de producción.
+- **Estado:** PR #194 integrado por squash en `d026fa93`; Vercel Production figura `READY` y `/academias` responde HTTP 200. El run de main [37132183431](https://github.com/mentessaas/Zaltyko/actions/runs/37132183431) terminó verde e incluyó E2E autenticado. No se modificaron datos ni flags de producción.
 - **Pendiente manual:** VoiceOver sobre errores, tablas y modales, y zoom al 200 % no se consideran completados; la sesión de escritorio quedó bloqueada antes de restaurar el estado de VoiceOver.
 
 ## 2026-10-03 — Desbloquear CI de PRs Dependabot (PR #177)
