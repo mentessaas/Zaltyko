@@ -333,6 +333,55 @@ async function main() {
     () => importCandidates(String(staleSource), JSON.stringify([candidate]), "json"),
     "SOURCE_PERMISSION_REQUIRED"
   );
+  const countryChangeSource = await createAuthorizedSource(
+    "Fuente inicial ES QA",
+    "https://example.org/country-change"
+  );
+  const updatedSourceDetails = {
+    sourceName: "Fuente actualizada BR QA",
+    sourceUrl: "https://example.org/country-change",
+    countryCode: "BR",
+    adapter: "manual",
+    termsUrl: "https://example.org/terms-br",
+    authorizationReference:
+      "Permiso escrito actualizado de fixture QA expediente TEST-03",
+  };
+  await query(
+    `UPDATE directory_sources SET name=$1,country_code=$2,terms_url=$3,"authorization"=$4,adapter=$5,enabled=true WHERE id=$6`,
+    [
+      updatedSourceDetails.sourceName,
+      updatedSourceDetails.countryCode,
+      updatedSourceDetails.termsUrl,
+      updatedSourceDetails.authorizationReference,
+      updatedSourceDetails.adapter,
+      countryChangeSource,
+    ]
+  );
+  await query(
+    `INSERT INTO directory_audit(entry_id,actor_id,action,metadata) VALUES(NULL,$1,'source_authorization_confirmed',$2::jsonb)`,
+    [
+      admin,
+      JSON.stringify({
+        sourceId: countryChangeSource,
+        ...updatedSourceDetails,
+      }),
+    ]
+  );
+  const updatedSourceRow = (
+    await query("SELECT country_code FROM directory_sources WHERE id=$1", [
+      countryChangeSource,
+    ])
+  ).rows[0];
+  const updatedSourceBatch = await importCandidates(
+    countryChangeSource,
+    JSON.stringify([{ ...candidate, externalId: "country-change" }]),
+    "json"
+  );
+  check(
+    "Actualizar una fuente conserva el nuevo país y su autorización permite importar",
+    updatedSourceRow.country_code === "BR" &&
+      updatedSourceBatch.summary?.valid === 1
+  );
   const importRaceSource = await createAuthorizedSource(
     "Fuente concurrente import",
     "https://example.org/concurrent-import"

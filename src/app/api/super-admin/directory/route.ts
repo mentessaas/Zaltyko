@@ -314,7 +314,7 @@ export const POST = withSuperAdmin(async (request, context) => {
         const source = await db.transaction(async (tx) => {
           const saved = (
             await tx.execute(
-              sql`INSERT INTO directory_sources(name,url,country_code,terms_url,"authorization",adapter,enabled) VALUES(${body.name},${body.url},${body.countryCode},${body.termsUrl},${body.authorization},${body.adapter},${body.enabled}) ON CONFLICT(url) DO UPDATE SET name=EXCLUDED.name,terms_url=EXCLUDED.terms_url,"authorization"=EXCLUDED."authorization",adapter=EXCLUDED.adapter,enabled=EXCLUDED.enabled RETURNING id`
+              sql`INSERT INTO directory_sources(name,url,country_code,terms_url,"authorization",adapter,enabled) VALUES(${body.name},${body.url},${body.countryCode},${body.termsUrl},${body.authorization},${body.adapter},${body.enabled}) ON CONFLICT(url) DO UPDATE SET name=EXCLUDED.name,country_code=EXCLUDED.country_code,terms_url=EXCLUDED.terms_url,"authorization"=EXCLUDED."authorization",adapter=EXCLUDED.adapter,enabled=EXCLUDED.enabled RETURNING id`
             )
           ).rows[0];
           await tx.execute(
