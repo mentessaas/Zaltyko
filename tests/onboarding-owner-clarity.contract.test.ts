@@ -11,5 +11,9 @@ describe("owner onboarding clarity", () => {
     expect(page).toContain("2. Tu academia");
     expect(form).toContain("Tu cuenta personal ya está creada");
     expect(form).toContain("Crear mi academia y entrar");
+    expect(form).toContain("{!directoryEntryId && (");
+    expect(form).toContain("<OwnerAcademyLookup");
+    expect(form).toContain("if (!directoryEntryId && reviewedLookup !== ownerLookupKey) return;");
+    expect(form).toContain("disabled={pending || (!directoryEntryId && reviewedLookup !== ownerLookupKey)}");
   });
 });

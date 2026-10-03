@@ -32,7 +32,7 @@ describe("Buscar academia durante onboarding", () => {
 
     fireEvent.click(screen.getByRole("button", { name: "Buscar mi academia" }));
     await screen.findByText(
-      "No encontramos coincidencias en el catálogo público. Puedes continuar con el alta de una academia nueva."
+      "No encontramos coincidencias en los perfiles públicos disponibles. Puedes continuar con el alta; el servidor volverá a comprobar que no exista ya un espacio con esos datos."
     );
 
     const requestUrl = new URL(fetchMock.mock.calls[0][0], "https://zaltyko.test");
@@ -63,6 +63,74 @@ describe("Buscar academia durante onboarding", () => {
     fireEvent.click(screen.getByRole("button", { name: "Buscar mi academia" }));
     await screen.findByText("No se pudo comprobar");
     expect(reviewed).not.toHaveBeenCalled();
+  });
+  it("busca perfiles públicos operativos mientras el directorio externo está apagado", async () => {
+    const fetchMock = vi
+      .fn()
+      .mockResolvedValueOnce({
+        ok: false,
+        json: async () => ({ code: "DISABLED", error: "DISABLED" }),
+      })
+      .mockResolvedValueOnce({
+        ok: true,
+        json: async () => ({
+          total: 1,
+          items: [
+            {
+              id: "academy-123",
+              name: "Club Público",
+              country: "España",
+              region: "Madrid",
+              city: "Madrid",
+            },
+          ],
+        }),
+      });
+    vi.stubGlobal("fetch", fetchMock);
+    const reviewed = vi.fn();
+    render(
+      <OwnerAcademyLookup
+        name="Club Público"
+        countryCode="es"
+        region="Madrid"
+        city="Madrid"
+        onReviewed={reviewed}
+      />
+    );
+
+    fireEvent.click(screen.getByRole("button", { name: "Buscar mi academia" }));
+
+    expect(
+      await screen.findByText("Club Público")
+    ).toBeTruthy();
+    expect(
+      screen.getByText(/solo muestra academias con perfil público operativo/)
+    ).toBeTruthy();
+    expect(
+      screen.getByText(/todavía no consulta fichas externas/)
+    ).toBeTruthy();
+    expect(
+      screen.queryByText(/puedes solicitar gestionarla gratis/)
+    ).toBeNull();
+    expect(
+      screen.getByRole("link", { name: "Abrir ficha pública" })
+    ).toHaveAttribute("href", "/academias/academy-123");
+    expect(fetchMock).toHaveBeenCalledTimes(2);
+    const publicRequest = new URL(
+      fetchMock.mock.calls[1][0],
+      "https://zaltyko.test"
+    );
+    expect(publicRequest.pathname).toBe("/api/public/academies");
+    expect(publicRequest.searchParams.get("country")).toBe("es");
+    expect(publicRequest.searchParams.get("region")).toBe("Madrid");
+    expect(publicRequest.searchParams.get("city")).toBe("Madrid");
+    expect(reviewed).not.toHaveBeenCalled();
+    fireEvent.click(
+      screen.getByRole("button", { name: "Ninguna corresponde a mi sede; continuar" })
+    );
+    expect(reviewed).toHaveBeenCalledWith(
+      JSON.stringify(["Club Público", "es", "Madrid", "Madrid"])
+    );
   });
   it("ofrece reclamar la ficha externa sin crear otra academia", async () => {
     vi.stubGlobal(
@@ -96,6 +164,7 @@ describe("Buscar academia durante onboarding", () => {
         countryCode="es"
         city="Madrid"
         onReviewed={reviewed}
+        directoryEnabled
         claimsEnabled
       />
     );
@@ -140,6 +209,7 @@ describe("Buscar academia durante onboarding", () => {
         countryCode="es"
         city="Madrid"
         onReviewed={reviewed}
+        directoryEnabled
       />
     );
     fireEvent.click(screen.getByRole("button", { name: "Buscar mi academia" }));

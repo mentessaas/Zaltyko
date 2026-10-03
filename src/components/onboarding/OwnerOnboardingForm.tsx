@@ -68,6 +68,12 @@ export function OwnerOnboardingForm({
   const [countryCode, setCountryCode] = useState(initialCountry);
   const [region, setRegion] = useState(initialAcademy?.region ?? "");
   const [city, setCity] = useState(initialAcademy?.city ?? "");
+  const ownerLookupKey = JSON.stringify([
+    academyName.trim(),
+    countryCode,
+    region.trim(),
+    city.trim(),
+  ]);
   const [activeProgramCodesByVariant, setActiveProgramCodesByVariant] = useState<Record<string, string[]>>({});
   const [activeApparatusCodesByVariant, setActiveApparatusCodesByVariant] = useState<Record<string, string[]>>({});
   const [starterGroupsByVariant, setStarterGroupsByVariant] = useState<Record<string, string[]>>({
@@ -244,7 +250,7 @@ export function OwnerOnboardingForm({
 
   async function handleSubmit(event: React.FormEvent<HTMLFormElement>) {
     event.preventDefault();
-    if(directoryDiscoveryEnabled && !directoryEntryId && reviewedLookup!==JSON.stringify([academyName.trim(),countryCode,region.trim(),city.trim()])) return;
+    if (!directoryEntryId && reviewedLookup !== ownerLookupKey) return;
     setPending(true);
     setDuplicateEntries([]);
     setNeedsDirectoryReview(false);
@@ -343,10 +349,12 @@ export function OwnerOnboardingForm({
           <div className="h-full w-1/5 rounded-full bg-primary" />
         </div>
         <p className="mt-2 text-xs text-muted-foreground">
-          {directoryDiscoveryEnabled && !directoryEntryId
-            ? directoryClaimsEnabled
-              ? "Tu cuenta personal ya está creada. Antes de crear un espacio nuevo, busca tu academia abajo. Si ya tiene ficha, solicita su reclamación gratuita; la activación de la gestión es un paso posterior y separado."
-              : "Tu cuenta personal ya está creada. Busca tu academia antes de crearla para evitar duplicados. Si ya tiene ficha mientras las reclamaciones no están activas, solicita ayuda para vincularla."
+          {!directoryEntryId
+            ? directoryDiscoveryEnabled
+              ? directoryClaimsEnabled
+                ? "Tu cuenta personal ya está creada. Antes de crear un espacio nuevo, busca tu academia abajo. Si ya tiene ficha, solicita su reclamación gratuita; la activación de la gestión es un paso posterior y separado."
+                : "Tu cuenta personal ya está creada. Busca tu academia antes de crearla para evitar duplicados. Si ya tiene ficha mientras las reclamaciones no están activas, solicita ayuda para vincularla."
+              : "Tu cuenta personal ya está creada. Busca si hay un perfil público de tu academia antes de crearla. Si ya tiene un espacio en Zaltyko, pide a su responsable que te invite; el servidor también bloqueará espacios duplicados."
             : "Tu cuenta personal ya está creada. Al completar este formulario crearás la academia y entrarás a su espacio de trabajo; los grupos, programas, clases y ajustes avanzados se pueden completar después desde allí."}
         </p>
       </div>
@@ -673,7 +681,7 @@ export function OwnerOnboardingForm({
       </div>
       )}
 
-      {directoryDiscoveryEnabled && !directoryEntryId && (
+      {!directoryEntryId && (
         <OwnerAcademyLookup
           name={academyName}
           countryCode={countryCode}
@@ -681,6 +689,7 @@ export function OwnerOnboardingForm({
           city={city}
           onCityChange={setCity}
           onReviewed={setReviewedLookup}
+          directoryEnabled={directoryDiscoveryEnabled}
           claimsEnabled={directoryClaimsEnabled}
         />
       )}
@@ -703,7 +712,11 @@ export function OwnerOnboardingForm({
         </div>
       )}
       {duplicateEntries.length>0 && <div role="alert" className="space-y-2 rounded-lg border p-4"><p>Esta academia ya tiene una ficha. Revísala y solicita la reclamación o asistencia; no hemos creado otra academia. Si es otra sede con el mismo nombre, solicita asistencia para distinguirlas.</p><Link className="block underline" href="/contact?type=support">Solicitar asistencia para revisar mi sede</Link>{duplicateEntries.map(entry=><Link key={entry.id} className="block underline" href={`/academias/${entry.id}${entry.slug?`-${entry.slug}`:""}`}>{entry.data.name}</Link>)}</div>}
-      <Button type="submit" className="w-full" disabled={pending || (directoryDiscoveryEnabled && !directoryEntryId && reviewedLookup!==JSON.stringify([academyName.trim(),countryCode,region.trim(),city.trim()]))}>
+      <Button
+        type="submit"
+        className="w-full"
+        disabled={pending || (!directoryEntryId && reviewedLookup !== ownerLookupKey)}
+      >
         {pending ? (
           <>
             <Loader2 className="mr-2 h-4 w-4 animate-spin" />
