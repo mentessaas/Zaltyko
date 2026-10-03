@@ -414,6 +414,10 @@ PR #178 requiere que el estado permitido tenga también un `stripe_subscription_
 
 - PR #186 mejora la visibilidad del enlace y su foco en móvil. La rama local está rebasada sobre `536ab0f5`; TypeScript, ESLint y diff-check pasan. El head remoto actual aún es antiguo y su E2E se canceló antes de aserciones; falta actualizarlo y ejecutar CI completo. No está desplegado.
 
+## Seguimiento CI Dependabot — 2026-10-01
+
+- **Alta / Sol:** validar y fusionar el gate CI de Dependabot en `fix/ci-dependabot-e2e-readiness`. El gate identifica al autor del PR (`github.event.pull_request.user.login`) para no bloquear cuando un mantenedor reejecuta un PR del bot; las pruebas locales pasan y CI de la nueva revisión sigue pendiente. Requiere CI verde y aprobación independiente; después reejecutar checks de los PR de seguridad afectados. El E2E autenticado omitido no cuenta como ejecutado.
+
 ## Seguimiento de ledger interno RLS — 2026-10-02
 
 - **Pendiente de promoción:** aplicar `20261002131603_drizzle_migrations_explicit_deny_policy.sql` solo después de reconciliar los historiales nativo y de aplicación de producción y repetir backup/restauración. No ejecutar el runner sobre producción mientras existan las 39 migraciones sin conciliar.
