@@ -43,6 +43,35 @@ vi.mock("@/utils/seo", () => ({ default: () => null }));
 import LoginForm from "@/components/login-form";
 
 describe("enlace de recuperación en el login activo", () => {
+  it("permite consultar academias públicas antes del alta aunque el catálogo externo siga apagado", () => {
+    render(<RegisterForm />);
+
+    expect(
+      screen.getByRole("link", {
+        name: "Buscar academias públicas antes de crear mi espacio",
+      })
+    ).toHaveAttribute("href", "/academias");
+    expect(
+      screen.getByText(/La búsqueda muestra perfiles públicos disponibles/)
+    ).toBeVisible();
+    expect(
+      screen.queryByText(/solicitar su reclamación gratuita/)
+    ).not.toBeInTheDocument();
+  });
+
+  it("solo anuncia reclamación cuando catálogo y reclamaciones están habilitados", () => {
+    render(
+      <RegisterForm
+        directoryDiscoveryEnabled
+        directoryClaimsEnabled
+      />
+    );
+
+    expect(
+      screen.getByText(/solicitar su reclamación gratuita/)
+    ).toBeVisible();
+  });
+
   it("renderiza Google desactivado hasta que cargue la interfaz cliente", () => {
     const markup = renderToString(<LoginForm />);
 
