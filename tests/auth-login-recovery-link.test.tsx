@@ -1,14 +1,23 @@
 // @vitest-environment jsdom
 import { render, screen, waitFor } from "@testing-library/react";
+import userEvent from "@testing-library/user-event";
 import { renderToString } from "react-dom/server";
 import { RegisterForm } from "@/components/RegisterForm";
-import { describe, expect, it, vi } from "vitest";
+import { beforeEach, describe, expect, it, vi } from "vitest";
 
 const searchParams = vi.hoisted(
   () => new URLSearchParams("next=%2Fapp%2Facademy-1%2Fdashboard")
 );
 const routerPush = vi.hoisted(() => vi.fn());
 const pushToast = vi.hoisted(() => vi.fn());
+const signInWithOAuth = vi.hoisted(() => vi.fn());
+
+beforeEach(() => {
+  signInWithOAuth.mockReset().mockResolvedValue({
+    data: { url: null },
+    error: { message: "test" },
+  });
+});
 
 vi.mock("next/navigation", () => ({
   useRouter: () => ({ push: routerPush }),
@@ -16,7 +25,7 @@ vi.mock("next/navigation", () => ({
 }));
 
 vi.mock("@/lib/supabase/client", () => ({
-  createClient: () => ({ auth: {} }),
+  createClient: () => ({ auth: { signInWithOAuth } }),
 }));
 
 vi.mock("@/components/ui/toast-provider", () => ({
@@ -71,5 +80,33 @@ describe("enlace de recuperación en el login activo", () => {
       "href",
       "/auth/forgot-password?next=%2Fapp%2Facademy-1%2Fdashboard"
     );
+  });
+
+  it("solicita a Google identidad, correo y perfil al iniciar sesión", async () => {
+    const user = userEvent.setup();
+    render(<LoginForm />);
+    const button = await screen.findByRole("button", { name: "Entrar con Google" });
+    await user.click(button);
+
+    await waitFor(() => expect(signInWithOAuth).toHaveBeenCalledWith(
+      expect.objectContaining({
+        provider: "google",
+        options: expect.objectContaining({ scopes: "openid email profile" }),
+      })
+    ));
+  });
+
+  it("solicita los scopes básicos de identidad al crear cuenta con Google", async () => {
+    const user = userEvent.setup();
+    render(<RegisterForm />);
+    await user.click(screen.getByRole("checkbox"));
+    await user.click(await screen.findByRole("button", { name: "Crear cuenta con Google" }));
+
+    await waitFor(() => expect(signInWithOAuth).toHaveBeenCalledWith(
+      expect.objectContaining({
+        provider: "google",
+        options: expect.objectContaining({ scopes: "openid email profile" }),
+      })
+    ));
   });
 });

@@ -202,7 +202,10 @@ export function LoginForm() {
         provider: "google",
         options: {
           redirectTo: `${window.location.origin}/auth/callback?next=${encodeURIComponent(nextPath)}`,
-          scopes: "openid",
+          // Supabase/Google need the basic identity scopes; overriding this
+          // with only `openid` can omit the email/profile claims used to link
+          // and create the Auth user.
+          scopes: "openid email profile",
           skipBrowserRedirect: true,
         },
       });
