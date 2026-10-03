@@ -422,5 +422,5 @@ PR #178 requiere que el estado permitido tenga también un `stripe_subscription_
 - **Hallazgo verificado:** errores de consultas fallidas podían incluir la consulta y sus parámetros en los registros. Los registros observados contenían datos personales; los valores no se copian a documentación ni analítica.
 - **Corrección preparada:** centralizar la redacción de SQL/parámetros y correos antes de consola y Sentry. La prueba local cubre ambas salidas.
 - **Criterio de cierre:** CI verde en PR, revisión independiente, merge y despliegue autorizado; después validar con error sintético que ni Vercel ni Sentry reciben parámetros. Revisar por separado retención/purga de eventos históricos.
-- **Estado:** código y pruebas locales listos en rama aislada; todavía no hay PR. No se desplegó ni se borró historial.
+- **Estado:** PR #191 abierta; CI y aprobación independiente pendientes. No se desplegó ni se borró historial.
 - **Superficie revisada:** `console.error` suelto en el producto se redujo a errores de logger centralizado; quedan avisos de error boundary que registran solo el digest y la advertencia de esquema de entorno limitado a desarrollo.
