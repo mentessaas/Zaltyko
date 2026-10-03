@@ -61,11 +61,40 @@ describe("enlace de recuperación en el login activo", () => {
     render(<RegisterForm />);
 
     await waitFor(() => {
-      expect(screen.getByRole("button", { name: "Crear cuenta con Google" })).toHaveAttribute(
-        "aria-busy",
-        "false"
-      );
+      const button = screen.getByRole("button", {
+        name: "Crear cuenta con Google",
+      });
+      expect(button).toHaveAttribute("aria-busy", "false");
+      expect(button).toBeDisabled();
     });
+  });
+
+  it("explica y habilita Google solo después de aceptar los términos", async () => {
+    const user = userEvent.setup();
+    render(<RegisterForm />);
+
+    const button = await screen.findByRole("button", {
+      name: "Crear cuenta con Google",
+    });
+    expect(button).toBeDisabled();
+    expect(button).toHaveAttribute(
+      "aria-describedby",
+      "google-signup-consent-hint"
+    );
+    expect(
+      screen.getByText(
+        "Para continuar con Google, acepta primero los términos y la política de privacidad."
+      )
+    ).toBeVisible();
+
+    await user.click(screen.getByRole("checkbox"));
+
+    expect(button).toBeEnabled();
+    expect(
+      screen.queryByText(
+        "Para continuar con Google, acepta primero los términos y la política de privacidad."
+      )
+    ).not.toBeInTheDocument();
   });
 
   it("activa Google tras hidratar y conserva el destino seguro del enlace de recuperación", async () => {

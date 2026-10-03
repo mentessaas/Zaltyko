@@ -481,14 +481,26 @@ export function RegisterForm({directoryDiscoveryEnabled=false}:{directoryDiscove
       </form>
 
       <div className="mt-4">
+        {!termsAccepted && (
+          <p
+            id="google-signup-consent-hint"
+            className="mb-2 text-center text-xs text-muted-foreground"
+          >
+            Para continuar con Google, acepta primero los términos y la política
+            de privacidad.
+          </p>
+        )}
         <Button
           type="button"
           formNoValidate
           onClick={handleGoogleSignUp}
           variant="outline"
           className="w-full"
-          disabled={!isHydrated || googleLoading || loading}
+          disabled={!isHydrated || googleLoading || loading || !termsAccepted}
           aria-busy={!isHydrated || googleLoading}
+          aria-describedby={
+            !termsAccepted ? "google-signup-consent-hint" : undefined
+          }
         >
           {googleLoading ? (
             <>
