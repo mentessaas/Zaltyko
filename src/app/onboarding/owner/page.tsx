@@ -95,16 +95,18 @@ export default async function OwnerOnboardingPage({
         <h1 className="text-3xl font-semibold tracking-tight text-foreground sm:text-4xl">
           {claimable
             ? "Confirma tu academia"
-            : flag("catalog") && !directoryEntryId
-              ? "Encuentra o crea tu academia"
-              : "Crea tu primera academia"}
+            : directoryEntryId
+              ? "Activa la gestión de tu academia"
+              : "Encuentra o crea tu academia"}
         </h1>
         <p className="max-w-2xl text-base text-muted-foreground">
           {claimable
             ? "Detectamos una academia registrada a tu nombre. Confirma para entrar — no te pediremos teléfono ni datos adicionales."
-            : flag("catalog") && !directoryEntryId
-              ? "Tu cuenta ya está creada. Busca si tu academia tiene ficha y solicita gestionarla; si no corresponde ninguna, continúa con un espacio nuevo. Reclamar una ficha es gratis y requiere revisión."
-              : "Tu cuenta y tu academia son pasos distintos: aquí crearás el espacio de trabajo de Zaltyko. Después podrás añadir grupos, clases, entrenadores y atletas desde el panel."}
+            : directoryEntryId
+              ? "La reclamación te permite gestionar la ficha pública. Aquí confirmas por separado si quieres activar el espacio de gestión de Zaltyko."
+              : flag("catalog")
+                ? "Tu cuenta ya está creada. Busca si tu academia tiene ficha y solicita gestionarla; si no corresponde ninguna, continúa con un espacio nuevo. Reclamar una ficha es gratis y requiere revisión."
+                : "Tu cuenta ya está creada. Busca si tu academia tiene perfil público antes de crearla. Si ya existe como espacio en Zaltyko, pide una invitación a su responsable; si no corresponde ninguna ficha, continúa con el alta."}
         </p>
       </div>
 
