@@ -8,13 +8,20 @@ source:
 
 ## 2026-10-03 — Revisión de OAuth, seguridad y directorio
 
-- PR #188 (`df8b0156`) y PR #191 (`87e61747`) están fusionadas; el deployment de #191 quedó `Ready` para `zaltyko.com`. Después se fusionó PR #185 (`ec6ee944`); su nuevo deployment todavía requiere confirmación.
+- PR #188 (`df8b0156`), #191 (`87e61747`) y #185 (`ec6ee944`) están fusionadas. El deployment productivo de #185, `dpl_5t2sXyctFBbNa1grxf4oSxWqF7mr`, está `Ready` con los aliases `zaltyko.com` y `www.zaltyko.com`; login, registro, recuperación y API pública responden 200.
 - `pnpm verify:production` pasó antes de fusionar: 367 rutas inventariadas, RLS 79/79, TypeScript, ESLint, auditoría de dependencias de producción, integridad de migraciones, 2.237 pruebas y build 274/274.
 - Supabase producción: los precios anuales están configurados (190 €/año y 490 €/año). El historial nativo registra `add_annual_plan_prices` como `20260929100621`, mientras el archivo local es `20260929120000`; el ledger de aplicación conserva 54 filas hasta `20260913100000`. No repetir SQL hasta conciliar ambos historiales.
 - Producción aún no tiene tablas del directorio; la sandbox E2E sí tiene 11 tablas `directory_*`. No aplicar migraciones ni activar flags hasta conciliar historiales, contar con respaldo/restauración comprobables y cerrar permisos de fuentes y revisión jurídica. El catálogo productivo responde `503 DISABLED`.
 - Google OAuth ya usa el cliente web `Zaltyko Web`, con origen `https://zaltyko.com`, callback de Supabase y retorno de la aplicación permitido en `/auth/callback`. Google figura External / En producción; Supabase tiene el proveedor habilitado y el Client ID coincide. Login anónimo muestra Google y recuperación de contraseña; el botón llega a Google con `openid email profile`. No se creó cliente duplicado ni se completó un intercambio OAuth con una cuenta desechable.
 - La recuperación de contraseña sigue limitada por el proveedor de correo: no se envió un correo real ni se validó entrega SMTP. La conexión de Stripe necesita reautenticación para validar Prices y Checkout; el checkout B2B continúa apagado. El backup cloud sigue aplazado por el límite de proyectos de Supabase.
-- PR #185 se fusionó en `main` (commit `ec6ee944`) después de completar su E2E autenticado y los cinco checks obligatorios. La protección de fuentes no acredita autorización externa ni habilita importaciones; faltan despliegue/runtime y permisos documentados de cada fuente. Detalle: [[../../docs/audits/2026-10-03-launch-and-auth-followup]].
+- PR #185 se fusionó en `main` (commit `ec6ee944`) después de completar su E2E autenticado y los cinco checks obligatorios. El deployment quedó `Ready`; la protección de fuentes no acredita autorización externa ni habilita importaciones. Detalle: [[../../docs/audits/2026-10-03-launch-and-auth-followup]].
+- PR #187 se fusionó en `main` como `536ab0f5` después de 331 pruebas móviles, checks estáticos y E2E autenticado verdes. El parche de `node-forge` es una mitigación temporal; las dos alertas de Dependabot siguen abiertas porque no hay versión upstream corregida.
+
+## 2026-10-03 — Mejorar visibilidad de recuperación de contraseña (PR #186)
+
+- `/auth/forgot-password` ya respondía en producción; el cambio presenta el enlace como una acción secundaria más fácil de localizar, con subrayado, foco de teclado y mayor área táctil. No cambia el envío de correo.
+- Rama local rebasada sobre `536ab0f5`; TypeScript, ESLint y diff-check pasan. El E2E del head remoto anterior se canceló antes de las aserciones; falta actualizar el PR y ejecutar CI completo. No está desplegado.
+- Sigue pendiente configurar SMTP y comprobar entrega y restablecimiento con una cuenta de prueba autorizada.
 
 ## 2026-10-02 — OAuth productivo y límites de validación de cuenta
 
@@ -10730,7 +10737,7 @@ Modelo separado, reclamación manual, administración, importación revisada, fi
 - **Hallazgo:** la comprobación del permiso de fuente ocurría antes de la transacción que crea un lote; en la aceptación de filas, la fuente no quedaba bloqueada. Una desactivación concurrente podía permitir guardar o aceptar datos después de revocar la fuente.
 - **Cambio local:** importación y aceptación vuelven a comprobar estado y atestación dentro de la transacción, con `FOR SHARE` sobre la fila de la fuente. La edición/desactivación espera a que termine una operación ya autorizada; si la revocación confirma primero, la importación se rechaza.
 - **Verificación:** `scripts/directory/test-local.sh` — 67/67, incluyendo dos carreras de revocación; `tests/directory-contracts.test.ts` — 24/24; `pnpm typecheck`; ESLint focal sin avisos; `pnpm check:migrations`; `pnpm build` — compilación y 274 páginas; `git diff --check`. El build avisó que faltan variables críticas en este checkout local y de dos rutas administrativas dinámicas; terminó con código 0. No equivale a validar variables o runtime de producción.
-- **Estado:** fusionado como PR #185 en `main` (`ec6ee944`) tras E2E autenticado y checks obligatorios verdes. El despliegue productivo y runtime siguen pendientes de confirmación. No se tocaron fuentes ni flags.
+- **Estado:** fusionado como PR #185 en `main` (`ec6ee944`) tras E2E autenticado y checks obligatorios verdes. Vercel `dpl_5t2sXyctFBbNa1grxf4oSxWqF7mr` está `Ready` y las rutas públicas responden 200; no se tocaron fuentes ni flags.
 
 ## 2026-10-02 — Mitigar CVE-2026-85393 en la dependencia móvil node-forge
 
