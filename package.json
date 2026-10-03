@@ -151,7 +151,7 @@
     "@typescript-eslint/parser": "^8.57.1",
     "@vitejs/plugin-react": "^4.3.4",
     "@vitest/coverage-v8": "^4.1.11",
-    "baseline-browser-mapping": "^2.10.21",
+    "baseline-browser-mapping": "^2.11.26",
     "@lhci/cli": "^0.15.1",
     "drizzle-kit": "^0.31.11",
     "eslint": "^8.57.0",
