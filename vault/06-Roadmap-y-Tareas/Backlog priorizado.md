@@ -439,7 +439,7 @@ PR #178 requiere que el estado permitido tenga también un `stripe_subscription_
 - **Hallazgo verificado:** errores de consultas fallidas podían incluir la consulta y sus parámetros en los registros. Los registros observados contenían datos personales; los valores no se copian a documentación ni analítica.
 - **Cambio:** PR #191 centraliza la redacción de SQL/parámetros y correos antes de consola y Sentry. La prueba local cubre ambas salidas.
 - **Criterio de cierre:** tras completar el deployment del merge, validar con un error sintético que ni Vercel ni Sentry reciben parámetros. Revisar por separado retención/purga de eventos históricos.
-- **Estado:** PR #191 fusionada en `main` (`87e61747`) tras CI y E2E autenticado completos; deployment de producción aún por confirmar. No se borró historial.
+- **Estado:** PR #191 fusionada en `main` (`87e61747`); Vercel `dpl_3rKPPxqTbXHCjSNDmHejXm2JwPmS` está `READY` en `zaltyko.com`. Login, registro y recuperación responden 200; no se borró historial. La prueba sintética posterior de Vercel/Sentry y revisión de retención siguen pendientes.
 - **Superficie revisada:** `console.error` suelto en el producto se redujo a errores de logger centralizado; quedan avisos de error boundary que registran solo el digest y la advertencia de esquema de entorno limitado a desarrollo.
 
 ## Revisión de fuentes del directorio — 2026-10-02
