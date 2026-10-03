@@ -10747,3 +10747,23 @@ Modelo separado, reclamación manual, administración, importación revisada, fi
 - **Verificación:** instalación limpia/frozen con pnpm 9 aplica el patch; `npm ci` también lo aplica. Suite móvil **331/331**; suite raíz **2.232 pruebas pasan y 3 quedan omitidas**; typecheck, ESLint, prueba focal npm y `git diff --check` pasan. El proyecto raíz excluye esta prueba que importa la dependencia móvil; la configuración Vitest de móvil sí la ejecuta.
 - **Límite:** el paquete y la versión permanecen en 1.4.0; Dependabot conserva las dos alertas. No se declara limpio el audit móvil. Sin build nativo, publicación en tienda ni despliegue. Mantener la mitigación hasta que exista una versión oficial y compatible con Expo.
 - **Documentación:** `docs/security/node-forge-cve-2026-85393.md`, Backlog priorizado y Decisiones actualizados. Tras rebasar PR #187 sobre `ec6ee944`, la suite móvil local pasa 331/331, TypeScript y ESLint pasan; falta CI nuevo y revisión. No está desplegado.
+
+## 2026-10-03 — Filtros accesibles y progresivos para academias
+
+- **Hallazgo:** el componente pedía `limit=1000` a `/api/public/academies`, cuyo máximo es 100, aunque no usaba los datos recibidos. El error no impedía todo el formulario, pero mantenía los filtros geográficos deshabilitados mientras esperaba esa petición; además exponía una lista global de ciudades innecesaria.
+- **Cambio local:** se quitó la petición; país queda disponible de inmediato, regiones aparecen después de elegir país y ciudades después de elegir región. Búsqueda, filtros y botones para quitarlos tienen nombres accesibles.
+- **Verificación:** prueba focal `tests/academies-filters-accessibility.test.tsx` — 1/1; `pnpm typecheck`; ESLint focal; `git diff --check`; `pnpm build` completó con 274 páginas usando credenciales placeholder, con avisos esperados de variables de pago/servidor ausentes y rutas dinámicas. En producción comprobé que `limit=1000` devuelve HTTP 400 y `limit=100` HTTP 200. La suite E2E pública apunta a producción y no se usó como prueba de código aún no desplegado.
+- **Formato:** la prueba nueva quedó formateada. El `--check` sobre el componente y las notas completas detectó diferencias; no reescribí archivos enteros fuera del cambio para evitar ruido.
+- **Estado:** rama `fix/academy-directory-filter-a11y`; pendiente repetir validación final, CI, revisión/integración y comprobar tras despliegue. No se modificaron datos ni flags de producción.
+- **Pendiente manual:** VoiceOver sobre errores, tablas y modales, y zoom al 200 % no se consideran completados; la sesión de escritorio quedó bloqueada antes de restaurar el estado de VoiceOver.
+
+## 2026-10-03 — Desbloquear CI de PRs Dependabot (PR #177)
+
+- **Cambio:** readiness de E2E autenticado ahora comprueba el autor real del PR antes de omitir pruebas por falta de secretos. El flujo falla cerrado para `main` y PRs humanas del mismo repositorio; solo omite E2E autenticado en PRs de Dependabot o forks externos que no reciben secretos.
+- **Verificación:** todos los checks aplicables del run `37128458077` pasaron; E2E autenticado quedó omitido para el PR de Dependabot. CI humano contra el staging aislado en PR #177 había pasado cuando sus credenciales estuvieron disponibles en una revisión anterior; el merge posterior no convierte un job omitido en prueba ejecutada.
+- **Integración:** squash merge `24a63c85` el 2026-10-03 con bypass administrativo autorizado por el usuario ante `REVIEW_REQUIRED`; no había aprobación independiente. La rama principal ya incluye el arreglo.
+
+## 2026-10-03 — Alcance actual de Google OAuth y recuperación
+
+- El PR #193 quedó integrado en `20116f1e`. Login con Google llega al selector/cuenta de Google y vuelve a la callback configurada de Zaltyko sin `invalid_client`; no se creó un cliente duplicado porque ya existía uno Web. No se completó el inicio de sesión con una cuenta, ni se aceptaron términos por el usuario.
+- El enlace de recuperación es visible y la ruta responde 200. No se validó entrega de correo: Supabase Auth aún no tiene SMTP propio verificado. La página de registro con Google mantiene la aceptación explícita de términos.

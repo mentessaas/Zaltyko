@@ -3,9 +3,8 @@
 import { useState, useEffect, useCallback, useRef } from "react";
 import { Search, X } from "lucide-react";
 import { useRouter, useSearchParams } from "next/navigation";
-import { getRegionLabel, getRegionPlaceholder, getCityPlaceholder, COUNTRY_REGION_OPTIONS, findRegionsByCountry } from "@/lib/countryRegions";
+import { getRegionLabel, getCityPlaceholder, COUNTRY_REGION_OPTIONS, findRegionsByCountry } from "@/lib/countryRegions";
 import { findCitiesByRegion } from "@/lib/citiesByRegion";
-import { logger } from "@/lib/logger";
 import { pluralizeFirstWord } from "@/lib/specialization/registry";
 
 const ACADEMY_TYPES = [
@@ -38,11 +37,8 @@ export function AcademiesFilters({ onFiltersChange }: AcademiesFiltersProps) {
   const [prevCountry, setPrevCountry] = useState(country);
   const [prevRegion, setPrevRegion] = useState(region);
 
-  const [countries, setCountries] = useState<string[]>([]);
-  const [allAcademies, setAllAcademies] = useState<any[]>([]);
   const [regions, setRegions] = useState<string[]>([]);
   const [cities, setCities] = useState<string[]>([]);
-  const [loading, setLoading] = useState(true);
   const regionLabelPlural = pluralizeFirstWord(getRegionLabel(country)).toLowerCase();
   
   // Usar useRef para mantener una referencia estable a onFiltersChange
@@ -50,66 +46,6 @@ export function AcademiesFilters({ onFiltersChange }: AcademiesFiltersProps) {
   useEffect(() => {
     onFiltersChangeRef.current = onFiltersChange;
   }, [onFiltersChange]);
-
-  // Cargar opciones de países y academias
-  useEffect(() => {
-    async function loadFilterOptions() {
-      try {
-        setLoading(true);
-        
-        // Usar todos los países disponibles de COUNTRY_REGION_OPTIONS
-        const countriesList = COUNTRY_REGION_OPTIONS.map(c => c.value.toUpperCase());
-        setCountries(countriesList);
-        
-        // Cargar todas las academias para el filtrado dinámico
-        const academiesResponse = await fetch("/api/public/academies?limit=1000");
-        
-        if (academiesResponse.ok) {
-          const academiesData = await academiesResponse.json();
-          const academiesList = academiesData.items || [];
-          setAllAcademies(academiesList);
-          
-          // Inicializar regiones y ciudades con todas las opciones disponibles
-          const urlCountry = searchParams.get("country");
-          const urlRegion = searchParams.get("region");
-          
-          if (!urlCountry) {
-            // Mostrar todas las regiones de todos los países
-            const allRegions = new Set<string>();
-            COUNTRY_REGION_OPTIONS.forEach(country => {
-              country.regions.forEach(region => {
-                allRegions.add(region.label);
-              });
-            });
-            setRegions(Array.from(allRegions).sort());
-            
-            // Mostrar todas las ciudades de todos los países
-            const allCities = new Set<string>();
-            COUNTRY_REGION_OPTIONS.forEach(countryOption => {
-              countryOption.regions.forEach(regionOption => {
-                const citiesList = findCitiesByRegion(countryOption.value, regionOption.value);
-                citiesList.forEach(city => {
-                  allCities.add(city.label);
-                });
-              });
-            });
-            setCities(Array.from(allCities).sort());
-          }
-        }
-      } catch (error) {
-        logger.error("Error loading filter options:", error);
-        // En caso de error, dejar arrays vacíos
-        setCountries([]);
-        setRegions([]);
-        setCities([]);
-        setAllAcademies([]);
-      } finally {
-        setLoading(false);
-      }
-    }
-
-    loadFilterOptions();
-  }, []);
 
   // Filtrar regiones según el país seleccionado
   useEffect(() => {
@@ -129,14 +65,7 @@ export function AcademiesFilters({ onFiltersChange }: AcademiesFiltersProps) {
         setPrevCountry(country);
       }
     } else {
-      // Si no hay país seleccionado, mostrar todas las regiones de todos los países
-      const allRegions = new Set<string>();
-      COUNTRY_REGION_OPTIONS.forEach(country => {
-        country.regions.forEach(region => {
-          allRegions.add(region.label);
-        });
-      });
-      setRegions(Array.from(allRegions).sort());
+      setRegions([]);
       // Si se deselecciona el país, limpiar región y ciudad
       if (prevCountry && !country) {
         setRegion("");
@@ -149,31 +78,7 @@ export function AcademiesFilters({ onFiltersChange }: AcademiesFiltersProps) {
   // Filtrar ciudades según la región seleccionada (y país si está seleccionado)
   useEffect(() => {
     if (!region) {
-      // Si no hay región seleccionada, mostrar todas las ciudades del país (si hay país) o todas
-      if (country) {
-        const normalizedCountry = country.toLowerCase();
-        const regionsList = findRegionsByCountry(normalizedCountry);
-        const allCities = new Set<string>();
-        regionsList.forEach(regionOption => {
-          const citiesList = findCitiesByRegion(normalizedCountry, regionOption.value);
-          citiesList.forEach(city => {
-            allCities.add(city.label);
-          });
-        });
-        setCities(Array.from(allCities).sort());
-      } else {
-        // Si no hay país ni región, mostrar todas las ciudades de todos los países
-        const allCities = new Set<string>();
-        COUNTRY_REGION_OPTIONS.forEach(countryOption => {
-          countryOption.regions.forEach(regionOption => {
-            const citiesList = findCitiesByRegion(countryOption.value, regionOption.value);
-            citiesList.forEach(city => {
-              allCities.add(city.label);
-            });
-          });
-        });
-        setCities(Array.from(allCities).sort());
-      }
+      setCities([]);
       // Si se deselecciona la región, limpiar ciudad
       if (prevRegion && !region) {
         setCity("");
@@ -274,6 +179,7 @@ export function AcademiesFilters({ onFiltersChange }: AcademiesFiltersProps) {
             <Search className="absolute left-3 top-1/2 h-5 w-5 -translate-y-1/2 text-muted-foreground pointer-events-none" />
             <input
               type="text"
+              aria-label="Buscar academias por nombre"
               placeholder="Buscar por nombre..."
               value={search}
               onChange={(e) => setSearch(e.target.value)}
@@ -284,6 +190,7 @@ export function AcademiesFilters({ onFiltersChange }: AcademiesFiltersProps) {
           {/* Tipo */}
           <select
             value={type}
+            aria-label="Filtrar por modalidad"
             onChange={(e) => setType(e.target.value)}
             className="rounded-lg border border-border bg-card px-3 py-2.5 text-sm text-foreground focus:border-zaltyko-primary focus:outline-none focus:ring-2 focus:ring-zaltyko-primary/20"
           >
@@ -298,8 +205,8 @@ export function AcademiesFilters({ onFiltersChange }: AcademiesFiltersProps) {
           {/* País */}
           <select
             value={country}
+            aria-label="Filtrar por país"
             onChange={(e) => setCountry(e.target.value)}
-            disabled={loading}
             className="rounded-lg border border-border bg-card px-3 py-2.5 text-sm text-foreground disabled:opacity-50 disabled:cursor-not-allowed focus:border-zaltyko-primary focus:outline-none focus:ring-2 focus:ring-zaltyko-primary/20"
           >
             <option value="">Todos los países</option>
@@ -313,8 +220,9 @@ export function AcademiesFilters({ onFiltersChange }: AcademiesFiltersProps) {
           {/* Provincia/Estado */}
           <select
             value={region}
+            aria-label={`Filtrar por ${getRegionLabel(country).toLowerCase()}`}
             onChange={(e) => setRegion(e.target.value)}
-            disabled={loading || !country || regions.length === 0}
+            disabled={!country || regions.length === 0}
             className="rounded-lg border border-border bg-card px-3 py-2.5 text-sm text-foreground disabled:opacity-50 disabled:cursor-not-allowed focus:border-zaltyko-primary focus:outline-none focus:ring-2 focus:ring-zaltyko-primary/20"
             title={getRegionLabel(country)}
           >
@@ -333,8 +241,9 @@ export function AcademiesFilters({ onFiltersChange }: AcademiesFiltersProps) {
           {/* Ciudad */}
           <select
             value={city}
+            aria-label="Filtrar por ciudad"
             onChange={(e) => setCity(e.target.value)}
-            disabled={loading || !region || cities.length === 0}
+            disabled={!region || cities.length === 0}
             className="rounded-lg border border-border bg-card px-3 py-2.5 text-sm text-foreground disabled:opacity-50 disabled:cursor-not-allowed focus:border-zaltyko-primary focus:outline-none focus:ring-2 focus:ring-zaltyko-primary/20"
           >
             <option value="">
@@ -358,6 +267,8 @@ export function AcademiesFilters({ onFiltersChange }: AcademiesFiltersProps) {
                 <span className="inline-flex items-center gap-1.5 rounded-full border border-zaltyko-primary/30 bg-zaltyko-primary/10 px-3 py-1 text-xs font-medium text-zaltyko-primary">
                   Búsqueda: {search}
                   <button
+                    type="button"
+                    aria-label="Quitar filtro de búsqueda"
                     onClick={() => setSearch("")}
                     className="hover:text-zaltyko-primary-dark"
                   >
@@ -369,6 +280,8 @@ export function AcademiesFilters({ onFiltersChange }: AcademiesFiltersProps) {
                 <span className="inline-flex items-center gap-1.5 rounded-full border border-border bg-muted px-3 py-1 text-xs font-medium text-foreground">
                   {ACADEMY_TYPES.find(t => t.value === type)?.label || type}
                   <button
+                    type="button"
+                    aria-label="Quitar filtro de modalidad"
                     onClick={() => setType("")}
                     className="hover:text-muted-foreground"
                   >
@@ -380,6 +293,8 @@ export function AcademiesFilters({ onFiltersChange }: AcademiesFiltersProps) {
                 <span className="inline-flex items-center gap-1.5 rounded-full border border-border bg-muted px-3 py-1 text-xs font-medium text-foreground">
                   {country}
                   <button
+                    type="button"
+                    aria-label="Quitar filtro de país"
                     onClick={() => setCountry("")}
                     className="hover:text-muted-foreground"
                   >
@@ -391,6 +306,8 @@ export function AcademiesFilters({ onFiltersChange }: AcademiesFiltersProps) {
                 <span className="inline-flex items-center gap-1.5 rounded-full border border-border bg-muted px-3 py-1 text-xs font-medium text-foreground">
                   {region}
                   <button
+                    type="button"
+                    aria-label={`Quitar filtro de ${getRegionLabel(country).toLowerCase()}`}
                     onClick={() => setRegion("")}
                     className="hover:text-muted-foreground"
                   >
@@ -402,6 +319,8 @@ export function AcademiesFilters({ onFiltersChange }: AcademiesFiltersProps) {
                 <span className="inline-flex items-center gap-1.5 rounded-full border border-border bg-muted px-3 py-1 text-xs font-medium text-foreground">
                   {city}
                   <button
+                    type="button"
+                    aria-label="Quitar filtro de ciudad"
                     onClick={() => setCity("")}
                     className="hover:text-muted-foreground"
                   >
@@ -411,6 +330,8 @@ export function AcademiesFilters({ onFiltersChange }: AcademiesFiltersProps) {
               )}
             </div>
             <button
+              type="button"
+              aria-label="Limpiar todos los filtros"
               onClick={clearFilters}
               className="flex items-center gap-2 rounded-lg border border-border bg-card px-4 py-2 text-sm font-medium text-foreground transition-all hover:bg-muted hover:border-zaltyko-primary/50"
             >
