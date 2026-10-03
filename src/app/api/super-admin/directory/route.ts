@@ -28,6 +28,7 @@ import {
   fetchSourceCandidates,
 } from "@/lib/directory/imports";
 import { retryDelivery } from "@/lib/directory/communications";
+import { sourceAuthorizationProblem } from "@/lib/directory/source-authorization";
 export const dynamic = "force-dynamic";
 export const GET = withSuperAdmin(async (request) => {
   if (!flag("admin"))
@@ -182,6 +183,7 @@ const ActionSchema = z.discriminatedUnion("action", [
     countryCode: z.string().regex(/^[A-Z]{2}$/),
     termsUrl: z.string().url().nullable(),
     authorization: z.string().max(2000).nullable(),
+    authorizationConfirmed: z.boolean().default(false),
     enabled: z.boolean(),
     adapter: z.enum(["manual", "rfeg", "fdpg", "cbg"]),
   }),
@@ -300,16 +302,27 @@ export const POST = withSuperAdmin(async (request, context) => {
           )
         );
       case "source": {
-        if (body.enabled && !body.authorization?.trim())
+        const permissionProblem = sourceAuthorizationProblem(body);
+        if (body.enabled && (!body.authorizationConfirmed || permissionProblem))
           return apiError(
             "SOURCE_PERMISSION_REQUIRED",
-            "Documenta la autorización antes de activar una fuente",
+            !body.authorizationConfirmed
+              ? "Confirma que has revisado las condiciones y registrado la autorización escrita."
+              : permissionProblem!,
             400
           );
-        const source = await rows(
-          sql`INSERT INTO directory_sources(name,url,country_code,terms_url,"authorization",adapter,enabled) VALUES(${body.name},${body.url},${body.countryCode},${body.termsUrl},${body.authorization},${body.adapter},${body.enabled}) ON CONFLICT(url) DO UPDATE SET name=EXCLUDED.name,terms_url=EXCLUDED.terms_url,"authorization"=EXCLUDED."authorization",adapter=EXCLUDED.adapter,enabled=EXCLUDED.enabled RETURNING id`
-        );
-        return apiCreated(source[0]);
+        const source = await db.transaction(async (tx) => {
+          const saved = (
+            await tx.execute(
+              sql`INSERT INTO directory_sources(name,url,country_code,terms_url,"authorization",adapter,enabled) VALUES(${body.name},${body.url},${body.countryCode},${body.termsUrl},${body.authorization},${body.adapter},${body.enabled}) ON CONFLICT(url) DO UPDATE SET name=EXCLUDED.name,country_code=EXCLUDED.country_code,terms_url=EXCLUDED.terms_url,"authorization"=EXCLUDED."authorization",adapter=EXCLUDED.adapter,enabled=EXCLUDED.enabled RETURNING id`
+            )
+          ).rows[0];
+          await tx.execute(
+            sql`INSERT INTO directory_audit(entry_id,actor_id,action,metadata) VALUES(NULL,${context.userId}::uuid,${body.enabled ? "source_authorization_confirmed" : "source_registry_updated"},${JSON.stringify({ sourceId: saved.id, sourceName: body.name, sourceUrl: body.url, countryCode: body.countryCode, adapter: body.adapter, termsUrl: body.termsUrl, authorizationReference: body.authorization, enabled: body.enabled })}::jsonb)`
+          );
+          return saved;
+        });
+        return apiCreated(source);
       }
     }
   } catch (e) {

@@ -15,6 +15,10 @@ import {
 } from "@/lib/directory/imports";
 import { escapeIcs } from "@/lib/directory/calendar";
 import { SubscriptionSchema, validToken } from "@/lib/directory/communications";
+import {
+  isSourceAuthorizationAttested,
+  sourceAuthorizationProblem,
+} from "@/lib/directory/source-authorization";
 const data = {
   name: "Academia ficticia QA",
   countryCode: "pe",
@@ -166,6 +170,34 @@ describe("Directorio: validación y aislamiento de contratos", () => {
         "rfeg"
       ).hostname
     ).toBe("rfegimnasia.es");
+  });
+  it("exige condiciones HTTPS, referencia escrita y confirmación registrada", () => {
+    const documented = {
+      termsUrl: "https://federation.example/terms",
+      authorization: "Permiso escrito: expediente LEG-2026-14",
+    };
+    expect(sourceAuthorizationProblem(documented)).toBeNull();
+    expect(sourceAuthorizationProblem({ ...documented, termsUrl: null })).toMatch(
+      /condiciones/
+    );
+    expect(
+      sourceAuthorizationProblem({
+        ...documented,
+        termsUrl: "http://example.org/terms",
+      })
+    ).toMatch(/HTTPS/);
+    expect(
+      sourceAuthorizationProblem({
+        ...documented,
+        authorization: "página pública",
+      })
+    ).toMatch(/autorización escrita/);
+    expect(
+      isSourceAuthorizationAttested({ ...documented, authorizationAttested: false })
+    ).toBe(false);
+    expect(
+      isSourceAuthorizationAttested({ ...documented, authorizationAttested: true })
+    ).toBe(true);
   });
   it("CSV usa exclusivamente una selección de campos públicos", () => {
     const result = parseCandidates(

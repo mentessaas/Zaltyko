@@ -12,7 +12,7 @@ export async function maintainDirectory() {
     cleaned = 0;
   if (flag("imports")) {
     const sources = await rows(
-      sql`SELECT s.id FROM directory_sources s WHERE s.enabled AND s."authorization" IS NOT NULL AND s.adapter<>'manual' AND (s.checked_at IS NULL OR s.checked_at<now()-CASE WHEN EXISTS(SELECT 1 FROM directory_import_rows r JOIN directory_entries d ON d.id=r.entry_id WHERE r.source_id=s.id AND d.kind='event' AND d.data->>'startDate' BETWEEN CURRENT_DATE::text AND (CURRENT_DATE+30)::text) THEN interval '1 day' ELSE interval '7 days' END) ORDER BY s.checked_at NULLS FIRST LIMIT 3`
+      sql`SELECT s.id FROM directory_sources s WHERE s.enabled AND s.adapter<>'manual' AND EXISTS(SELECT 1 FROM directory_audit a WHERE a.action='source_authorization_confirmed' AND a.metadata->>'sourceId'=s.id::text AND a.metadata->>'sourceName'=s.name AND a.metadata->>'sourceUrl'=s.url AND a.metadata->>'countryCode'=s.country_code AND a.metadata->>'adapter'=s.adapter AND a.metadata->>'termsUrl'=s.terms_url AND a.metadata->>'authorizationReference'=s."authorization") AND (s.checked_at IS NULL OR s.checked_at<now()-CASE WHEN EXISTS(SELECT 1 FROM directory_import_rows r JOIN directory_entries d ON d.id=r.entry_id WHERE r.source_id=s.id AND d.kind='event' AND d.data->>'startDate' BETWEEN CURRENT_DATE::text AND (CURRENT_DATE+30)::text) THEN interval '1 day' ELSE interval '7 days' END) ORDER BY s.checked_at NULLS FIRST LIMIT 3`
     );
     for (const source of sources)
       try {
