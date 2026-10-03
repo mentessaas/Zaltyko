@@ -78,7 +78,7 @@ describe("authenticated E2E credentials readiness", () => {
       "utf8"
     );
     const jobStart = workflow.indexOf("  e2e-readiness:\n");
-    const checkout = workflow.indexOf("- uses: actions/checkout@v4", jobStart);
+    const checkout = workflow.indexOf("- uses: actions/checkout@", jobStart);
     const script = workflow.indexOf(
       "run: bash scripts/ci/check-e2e-readiness.sh",
       jobStart
