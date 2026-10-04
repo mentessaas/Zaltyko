@@ -323,7 +323,7 @@ test.describe("Zaltyko public site smoke", () => {
       has: page.getByRole("heading", { name: "Starter", exact: true }),
     });
     await expect(
-      starter.getByRole("link", { name: "Crear cuenta y configurar" })
+      starter.getByRole("link", { name: "Crear academia gratis" })
     ).toHaveAttribute("href", "/auth/register?role=owner");
   });
 

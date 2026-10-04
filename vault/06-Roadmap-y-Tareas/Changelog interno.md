@@ -10824,5 +10824,5 @@ Modelo separado, reclamación manual, administración, importación revisada, fi
 - Se alinearon el catálogo de planes y la documentación de precios/mensajes comerciales con los importes configurados.
 - **Validación local:** `pnpm typecheck`, `pnpm lint`, prueba del contrato anual (4/4), Prettier, `git diff --check`, build de producción y revisión visual en servidor local pasan.
 - **Stripe:** los cuatro Price IDs Live se leyeron y validaron sin crear checkout ni cargo. La integración Test y el webhook de prueba siguen pendientes de reconectar Stripe Test.
-- **Validación adicional:** se actualizaron las expectativas del test de claims públicos que aún fijaban el CTA anterior de demo; suite focal de claims y contrato anual: 36/36.
-- **Estado:** PR #207 abierto desde `codex/pricing-self-serve-20261004`; CI completo repitiéndose. No desplegado.
+- **Validación adicional:** la suite completa local dio 2.264 pasadas, 3 omitidas y una aserción fallida por el CTA antiguo; se actualizaron esa expectativa y las comprobaciones E2E del nuevo CTA/selector anual. Las unitarias focales de claims, contrato anual y validación comercial pasan 43/43; ESLint y `git diff --check` pasan.
+- **Estado:** PR #207 abierto desde `codex/pricing-self-serve-20261004`; CI debe confirmar el commit nuevo. No desplegado.
