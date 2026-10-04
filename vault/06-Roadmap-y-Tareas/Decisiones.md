@@ -757,3 +757,12 @@ Una ficha externa no crea dueño, academia operativa, trial ni suscripción. Sol
 | Decisión | No cambiar la versión ni ocultar alertas mediante un override. Aplicar temporalmente el pequeño chequeo upstream con `patch-package` durante `postinstall`, y mantener un test de regresión que falla en la dependencia sin parche. |
 | Consecuencia | Las instalaciones npm y pnpm reciben la mitigación del parser. La versión permanece `1.4.0`, así que Dependabot y los audits seguirán mostrando las alertas; la auditoría móvil no queda limpia. Se retira el parche al adoptar la versión oficial compatible con Expo. |
 | Estado | PR #187 abierto tras rebase sobre `ec6ee944`; suite móvil local 331/331, TypeScript y ESLint pasan. El E2E anterior se canceló antes de aserciones y falta el nuevo CI. Sin build de tienda, publicación móvil ni despliegue. Ver [nota técnica](../../docs/security/node-forge-cve-2026-85393.md). |
+
+## 2026-10-04 — Mitigar temporalmente la recursión de braces usada por Expo/Metro
+
+| Campo | Valor |
+| --- | --- |
+| Evidencia | GitHub mantiene #304/#305 abiertas para `braces@3.0.3`, sin versión corregida. El advisory reproduce agotamiento de pila con patrones anidados y el [PR upstream #72](https://github.com/micromatch/braces/pull/72) continúa abierto. En la copia limpia, parse aceptó 101 niveles antes del parche. |
+| Decisión | Aplicar un límite máximo de 100 en parseo y recorridos del AST con `patch-package`, manteniendo la dependencia en su versión real y un test que cubra el límite exacto. |
+| Consecuencia | Las instalaciones npm y pnpm del árbol móvil obtienen el guard; la misma instalación aplica la mitigación existente de `node-forge`. Dependabot seguirá mostrando #304/#305 y el audit no se declara limpio hasta adoptar una versión oficial corregida. |
+| Estado | Rama aislada `codex/mobile-braces-depth-cap-20261004`; 336 pruebas móviles, typecheck, ESLint, Prettier focal e instalaciones limpias/frozen pasan. PR/CI y build nativo siguen pendientes. La exportación web tropezó por separado con `expo-secure-store` durante SSR; revisar su soporte web en otro cambio. |

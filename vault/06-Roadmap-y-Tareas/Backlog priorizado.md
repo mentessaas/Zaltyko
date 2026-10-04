@@ -487,3 +487,9 @@ PR #178 requiere que el estado permitido tenga también un `stripe_subscription_
 
 - **Código local endurecido:** activar una fuente ahora requiere condiciones HTTPS, referencia verificable de permiso escrito y confirmación de Super Admin auditada; importación, extracción programada y aceptación de filas requieren que la confirmación aún corresponda a la ficha de fuente. Pruebas locales: 24/24 unitarias, TypeScript, ESLint focal, compilación e integración PostgreSQL 63/63 con restauración.
 - **Sigue bloqueado fuera del código:** no se ha demostrado permiso de reutilización para RFEG, FDPG o CBG ni se ha completado revisión jurídica. Producción permanece sin tablas del directorio ni flags activados. No activar importaciones hasta autorización, conciliación de historiales y backup/restauración verificados.
+
+## Mitigaciones temporales de Dependabot — 2026-10-04
+
+- GitHub muestra cuatro alertas altas abiertas sin `first_patched_version`: `braces` #304/#305 y `node-forge` #300/#301. El parche local para `node-forge` ya está en `main`; este cambio añade una mitigación local para `braces@3.0.3` a través de `patch-package`.
+- La mitigación `braces` tiene regresiones de profundidad 100/101 y ciclos; instalaciones limpias con npm y pnpm aplican ambos parches. Suite móvil 336/336, typecheck y ESLint pasan. Las alertas permanecen hasta publicar y adoptar versiones oficiales.
+- Pendiente: revisar cada nueva publicación upstream, retirar los parches locales cuando existan versiones compatibles y validar el artefacto móvil nativo. La exportación web local encontró un error separado de `expo-secure-store` durante SSR; investigar su soporte web aparte.

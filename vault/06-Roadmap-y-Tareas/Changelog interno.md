@@ -10757,6 +10757,14 @@ Modelo separado, reclamación manual, administración, importación revisada, fi
 - **Límite:** el paquete y la versión permanecen en 1.4.0; Dependabot conserva las dos alertas. No se declara limpio el audit móvil. No se ha validado build nativo ni publicación en tiendas, por lo que la mitigación del repositorio no prueba que la corrección esté desplegada en dispositivos. Mantenerla hasta que exista una versión oficial y compatible con Expo.
 - **Estado final:** PR #187 se fusionó como `536ab0f5`. El código está en `main` y en el árbol fuente del deployment web basado en `d026fa93`, pero no se validó build nativo ni publicación móvil. Permanecen las dos alertas Dependabot porque el paquete sigue en `1.4.0` y no hay una versión corregida indicada.
 
+## 2026-10-04 — Mitigación temporal para CVE-2026-93687 en braces
+
+- **Hallazgo:** Dependabot mantiene las alertas altas #304/#305 para `braces@3.0.3` en los lockfiles móvil. Un patrón de 101 niveles se acepta antes del parche. La dependencia llega por la cadena Expo/Metro; el advisory no indica una versión corregida y el [PR upstream #72](https://github.com/micromatch/braces/pull/72) sigue abierto.
+- **Cambio:** añadir `braces@3.0.3` como dependencia directa de desarrollo para `patch-package` e instalar la limitación upstream durante `postinstall`. Parseo y recorridos recursivos rechazan profundidad superior a 100; se detectan ciclos de `parent`. Hay regresión en ambos lockfiles de instalación.
+- **Verificación:** `npm ci` + `postinstall` y `pnpm install --frozen-lockfile` + `patch-package` aplican los parches de `braces` y `node-forge`. Suite móvil 336/336, typecheck, ESLint, Prettier focal y `git diff --check` pasan.
+- **Límite:** versión sin cambiar y alertas aún abiertas. La exportación web alcanzó Metro y falló luego en el render estático por `expo-secure-store` (`getValueWithKeyAsync`) y variables públicas Supabase ausentes; no se atribuye a `braces`. Sin build nativo/EAS. Detalle: [`docs/security/braces-cve-2026-93687.md`](../../docs/security/braces-cve-2026-93687.md).
+- **Estado:** mitigación en rama aislada; PR, CI y validación móvil nativa pendientes.
+
 ## 2026-10-04 — Corregir señal falsa verde del inventario SBOM
 
 - **Hallazgo:** el run de producción `37200407681` dejó verde “Dependency Security & SBOM” aunque `cyclonedx-npm` era incompatible con pnpm 9. El paso permitía fallar (`continue-on-error`) y la subida ignoraba la ausencia del archivo; el log confirmó que no se publicó SBOM.
