@@ -31,6 +31,185 @@ function checksum(content: string) {
   return createHash("sha256").update(content, "utf8").digest("hex");
 }
 
+function splitSqlStatements(sql: string, filename: string): string[] {
+  const statements: string[] = [];
+  let start = 0;
+  let index = 0;
+
+  while (index < sql.length) {
+    if (sql.startsWith("--", index)) {
+      const newline = sql.indexOf("\n", index + 2);
+      index = newline === -1 ? sql.length : newline + 1;
+      continue;
+    }
+
+    if (sql.startsWith("/*", index)) {
+      let depth = 1;
+      index += 2;
+      while (index < sql.length && depth > 0) {
+        if (sql.startsWith("/*", index)) {
+          depth += 1;
+          index += 2;
+        } else if (sql.startsWith("*/", index)) {
+          depth -= 1;
+          index += 2;
+        } else {
+          index += 1;
+        }
+      }
+      if (depth > 0) {
+        throw new Error("Comentario SQL sin cerrar en " + filename + ".");
+      }
+      continue;
+    }
+
+    if (sql[index] === "'" || sql[index] === '"') {
+      const quote = sql[index];
+      index += 1;
+      let closed = false;
+      while (index < sql.length) {
+        if (sql[index] === quote && sql[index + 1] === quote) {
+          index += 2;
+        } else if (sql[index] === quote) {
+          index += 1;
+          closed = true;
+          break;
+        } else if (sql[index] === "\\" && quote === "'") {
+          index += 2;
+        } else {
+          index += 1;
+        }
+      }
+      if (!closed) {
+        throw new Error("Literal SQL sin cerrar en " + filename + ".");
+      }
+      continue;
+    }
+
+    if (sql[index] === "$") {
+      const delimiter = sql.slice(index).match(/^\$[A-Za-z_0-9]*\$/)?.[0];
+      if (delimiter) {
+        const end = sql.indexOf(delimiter, index + delimiter.length);
+        if (end === -1) {
+          throw new Error(
+            "Bloque dollar-quoted sin cerrar en " + filename + "."
+          );
+        }
+        index = end + delimiter.length;
+        continue;
+      }
+    }
+
+    if (sql[index] === ";") {
+      statements.push(sql.slice(start, index));
+      start = index + 1;
+    }
+    index += 1;
+  }
+
+  statements.push(sql.slice(start));
+  return statements.filter((statement) => statement.trim().length > 0);
+}
+
+function firstWords(statement: string): string[] {
+  const words: string[] = [];
+  let index = 0;
+
+  const skipTrivia = () => {
+    while (index < statement.length) {
+      if (/\s/.test(statement[index])) {
+        index += 1;
+      } else if (statement.startsWith("--", index)) {
+        const newline = statement.indexOf("\n", index + 2);
+        index = newline === -1 ? statement.length : newline + 1;
+      } else if (statement.startsWith("/*", index)) {
+        let depth = 1;
+        index += 2;
+        while (index < statement.length && depth > 0) {
+          if (statement.startsWith("/*", index)) {
+            depth += 1;
+            index += 2;
+          } else if (statement.startsWith("*/", index)) {
+            depth -= 1;
+            index += 2;
+          } else {
+            index += 1;
+          }
+        }
+      } else {
+        break;
+      }
+    }
+  };
+
+  while (words.length < 2) {
+    skipTrivia();
+    const match = statement.slice(index).match(/^[A-Za-z_][A-Za-z_0-9$]*/);
+    if (!match) break;
+    words.push(match[0].toUpperCase());
+    index += match[0].length;
+  }
+  return words;
+}
+
+function isTransactionStart(words: string[]) {
+  return (
+    words[0] === "BEGIN" || (words[0] === "START" && words[1] === "TRANSACTION")
+  );
+}
+
+function isTransactionEnd(words: string[]) {
+  return words[0] === "COMMIT" || words[0] === "END";
+}
+
+function isTransactionControl(words: string[]) {
+  return (
+    isTransactionStart(words) ||
+    isTransactionEnd(words) ||
+    ["ROLLBACK", "ABORT", "SAVEPOINT", "RELEASE"].includes(words[0]) ||
+    (words[0] === "PREPARE" && words[1] === "TRANSACTION")
+  );
+}
+
+/**
+ * The runner owns the transaction that applies a migration and records its
+ * ledger row. Allow a legacy outer BEGIN/COMMIT pair, but remove that wrapper
+ * before execution so the DDL and ledger insert remain atomic together.
+ */
+export function prepareMigrationSqlForRunner(sql: string, filename: string) {
+  const statements = splitSqlStatements(sql, filename);
+  if (statements.length === 0) {
+    throw new Error("Migración SQL vacía: " + filename);
+  }
+
+  const first = firstWords(statements[0]);
+  const last = firstWords(statements[statements.length - 1]);
+  const hasStart = isTransactionStart(first);
+  const hasEnd = isTransactionEnd(last);
+
+  let body = statements;
+  if (hasStart || hasEnd) {
+    if (!hasStart || !hasEnd || statements.length < 3) {
+      throw new Error(
+        "La migración " +
+          filename +
+          " debe dejar el control transaccional al runner."
+      );
+    }
+    body = statements.slice(1, -1);
+  }
+
+  if (body.some((statement) => isTransactionControl(firstWords(statement)))) {
+    throw new Error(
+      "La migración " +
+        filename +
+        " contiene control transaccional dentro del SQL."
+    );
+  }
+
+  return body.join(";\n");
+}
+
 /**
  * Lee el historial SQL versionado. El runner no interpreta ni genera SQL: cada
  * entrada corresponde a un archivo real, ordenado por versión y con su hash.
@@ -56,6 +235,7 @@ export function loadSqlMigrations(directory: string): SqlMigration[] {
         `La migración ${filename} no es compatible con el runner transaccional (VACUUM o CREATE INDEX CONCURRENTLY).`
       );
     }
+    prepareMigrationSqlForRunner(sql, filename);
 
     migrations.push({ version, filename, checksum: checksum(sql), sql });
   }
@@ -113,7 +293,7 @@ export function formatLedgerMismatch(
   const errors: string[] = [];
   for (const { migration, ledger } of reconciliation.changed) {
     errors.push(
-      `${migration.filename}: su versión o hash actual no coincide con el ledger.`
+      `${migration.filename}: su versión o hash actual no coincide con el ledger (archivo=${migration.version}, ledger=${ledger.version}).`
     );
   }
   for (const row of reconciliation.orphaned) {
