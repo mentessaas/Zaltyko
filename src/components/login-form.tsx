@@ -297,15 +297,7 @@ export function LoginForm() {
             />
           </div>
           <div className="space-y-2">
-            <div className="flex flex-wrap items-center justify-between gap-x-3 gap-y-2">
-              <Label htmlFor="password">Contraseña</Label>
-              <Link
-                href={`/auth/forgot-password?next=${encodeURIComponent(nextPath)}`}
-                className="ml-auto inline-flex min-h-9 items-center rounded-md border border-zaltyko-indigo/30 bg-zaltyko-indigo/5 px-3 py-1.5 text-sm font-semibold text-zaltyko-indigo underline underline-offset-2 transition-colors hover:bg-zaltyko-indigo/10 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-zaltyko-indigo focus-visible:ring-offset-2"
-              >
-                ¿Olvidaste tu contraseña?
-              </Link>
-            </div>
+            <Label htmlFor="password">Contraseña</Label>
             <Input
               id="password"
               type="password"
@@ -315,6 +307,12 @@ export function LoginForm() {
               autoComplete="current-password"
             />
           </div>
+          <Link
+            href={`/auth/forgot-password?next=${encodeURIComponent(nextPath)}`}
+            className="inline-flex min-h-11 w-full items-center justify-center rounded-md border-2 border-zaltyko-indigo/40 bg-zaltyko-indigo/10 px-4 text-sm font-semibold text-zaltyko-indigo underline decoration-1 underline-offset-4 transition-colors hover:bg-zaltyko-indigo/15 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-zaltyko-indigo focus-visible:ring-offset-2"
+          >
+            ¿Olvidaste tu contraseña?
+          </Link>
           <Button type="submit" className="w-full" disabled={loading}>
             {loading ? (
               <>
