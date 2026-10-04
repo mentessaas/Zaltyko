@@ -53,14 +53,15 @@ export default defineConfig({
           environment: "node",
           globals: true,
           include: ["**/*.test.ts"],
-          // This regression imports a dev dependency installed only by the
-          // dedicated Mobile CI job. The mobile Vitest config still runs it.
+          // Security regressions import dev dependencies installed only by the
+          // dedicated Mobile CI job. The mobile Vitest config still runs both.
           exclude: [
             "node_modules",
             "dist",
             ".expo",
             "android",
             "ios",
+            "tests/braces-nesting-regression.test.ts",
             "tests/node-forge-signature-regression.test.ts",
           ],
         },

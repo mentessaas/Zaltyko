@@ -10763,6 +10763,7 @@ Modelo separado, reclamación manual, administración, importación revisada, fi
 - **Cambio:** añadir `braces@3.0.3` como dependencia directa de desarrollo para `patch-package` e instalar la limitación upstream durante `postinstall`. Parseo y recorridos recursivos rechazan profundidad superior a 100; se detectan ciclos de `parent`. Hay regresión en ambos lockfiles de instalación.
 - **Verificación:** `npm ci` + `postinstall` y `pnpm install --frozen-lockfile` + `patch-package` aplican los parches de `braces` y `node-forge`. Suite móvil 336/336, typecheck, ESLint, Prettier focal y `git diff --check` pasan.
 - **Límite:** versión sin cambiar y alertas aún abiertas. La exportación web alcanzó Metro y falló luego en el render estático por `expo-secure-store` (`getValueWithKeyAsync`) y variables públicas Supabase ausentes; no se atribuye a `braces`. Sin build nativo/EAS. Detalle: [`docs/security/braces-cve-2026-93687.md`](../../docs/security/braces-cve-2026-93687.md).
+- **CI:** el runner web general también descubre tests móviles, pero no instala dependencias móviles ni `patch-package`. Se excluye allí esta prueba de seguridad; el job dedicado `Mobile typecheck, lint & tests` la ejecuta después de aplicar el parche. Así no se confunde una dependencia móvil sin instalar con el gate web.
 - **Estado:** PR #202 abierta; CI en curso. No hay build nativo/EAS ni release oficial corregido.
 
 ## 2026-10-04 — Corregir señal falsa verde del inventario SBOM
