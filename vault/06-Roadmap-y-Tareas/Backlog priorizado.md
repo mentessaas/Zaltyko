@@ -46,6 +46,13 @@ Code changes verificados: tsc OK, eslint OK, next build OK.
 
 # Backlog priorizado
 
+## P1 — Hacer fiable el control SBOM de CI — 2026-10-04
+
+- **Hallazgo:** el job “Dependency Security & SBOM” figuraba verde aunque `cyclonedx-npm` fallaba con pnpm 9, `continue-on-error` ocultaba el error y la subida del archivo ausente estaba configurada para ignorarlo. El run `37200407681` confirmó que no se publicó ningún SBOM.
+- **Cambio propuesto en PR:** generar inventarios CycloneDX separados para web y móvil con `cdxgen` fijado a `v13.3.0`, verificar el SHA-256 del binario, validar formato/nombre/componentes y exigir que ambos archivos se suban como artefactos. Se elimina el script roto; `pnpm-lock.yaml` y las dependencias instaladas no cambian.
+- **Cierre:** CI limpio debe completar el escaneo y mostrar los dos archivos SBOM en artefactos. Después revisar alertas contra inventarios; no declarar remediadas las alertas por el mero hecho de producir un SBOM ni inferir contenido del binario móvil nativo.
+- **Estado:** comprobados localmente ambos inventarios (web 1.457 componentes; móvil 902), parseo YAML y hash del binario Linux; falta ejecutar el job real de Linux en CI. Ningún artefacto SBOM nuevo está publicado todavía.
+
 ## P2 — Filtros geográficos y comprobación manual de accesibilidad — 2026-10-03
 
 - **Filtros del catálogo:** corrección local en `fix/academy-directory-filter-a11y`. Se eliminó el `fetch` con `limit=1000` (la API admite hasta 100), se añadieron nombres accesibles y se limita la lista de ciudades a la región seleccionada. Falta CI, integración, despliegue y comprobar el comportamiento en la versión publicada.

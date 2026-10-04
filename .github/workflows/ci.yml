@@ -45,8 +45,12 @@ jobs:
   dependency-security:
     name: Dependency Security & SBOM
     runs-on: ubuntu-latest
+    permissions:
+      contents: read
     steps:
       - uses: actions/checkout@v7
+        with:
+          persist-credentials: false
 
       - name: Setup pnpm
         uses: pnpm/action-setup@v6
@@ -66,23 +70,50 @@ jobs:
       - name: Audit environment contract
         run: pnpm audit:env
 
-      - name: Generate CycloneDX SBOM
-        # TODO: cyclonedx-npm@6.0.x hardcodes `pnpm ls --json --long --all` and
-        # pnpm 9 removed the `--all` flag, so `pnpm sbom:generate` fails on every
-        # job with `ERR_PNPM_UNKNOWN_FLAG`. Pre-existing main-branch failure,
-        # not introduced by #104 — keeping the step continue-on-error so the
-        # SBOM does not block unrelated PRs. Proper fix is to migrate to cdxgen
-        # (already tried, currently 404 on npm) or wait for upstream
-        # cyclonedx-npm to fix the pnpm 9 compatibility. Tracked separately.
-        continue-on-error: true
-        run: pnpm sbom:generate
+      - name: Download pinned cdxgen
+        run: |
+          mkdir -p "$RUNNER_TEMP/cdxgen"
+          curl --fail --location --retry 3 \
+            https://github.com/cdxgen/cdxgen/releases/download/v13.3.0/cdxgen-linux-amd64 \
+            --output "$RUNNER_TEMP/cdxgen/cdxgen-linux-amd64"
+          printf '%s  %s\n' \
+            '1a1decfa0236284e12797f120d8638608af76a91baa4b17a244948182ca47952' \
+            "$RUNNER_TEMP/cdxgen/cdxgen-linux-amd64" \
+            | sha256sum --check
+          chmod +x "$RUNNER_TEMP/cdxgen/cdxgen-linux-amd64"
+
+      - name: Generate web and mobile CycloneDX SBOMs
+        run: |
+          env -i HOME="$HOME" PATH="$PATH" TMPDIR="$RUNNER_TEMP" CI=true \
+            "$RUNNER_TEMP/cdxgen/cdxgen-linux-amd64" \
+            --no-install-deps --no-recurse -t pnpm \
+            -o "$RUNNER_TEMP/zaltyko-web.cdx.json" .
+          env -i HOME="$HOME" PATH="$PATH" TMPDIR="$RUNNER_TEMP" CI=true \
+            "$RUNNER_TEMP/cdxgen/cdxgen-linux-amd64" \
+            --no-install-deps --no-recurse -t pnpm \
+            -o "$RUNNER_TEMP/zaltyko-mobile.cdx.json" mobile
+          node <<'NODE'
+          const fs = require('node:fs');
+          for (const [file, expectedName] of [
+            [`${process.env.RUNNER_TEMP}/zaltyko-web.cdx.json`, 'zaltyko'],
+            [`${process.env.RUNNER_TEMP}/zaltyko-mobile.cdx.json`, 'zaltyko-mobile'],
+          ]) {
+            const bom = JSON.parse(fs.readFileSync(file, 'utf8'));
+            if (bom.bomFormat !== 'CycloneDX' || bom.metadata?.component?.name !== expectedName || !Array.isArray(bom.components) || bom.components.length === 0) {
+              throw new Error(`Invalid or incomplete CycloneDX SBOM: ${file}`);
+            }
+            console.log(`${expectedName}: ${bom.components.length} components`);
+          }
+          NODE
 
       - name: Upload SBOM
         uses: actions/upload-artifact@v7
         with:
           name: zaltyko-sbom-${{ github.sha }}
-          path: sbom.cdx.json
-          if-no-files-found: ignore
+          path: |
+            ${{ runner.temp }}/zaltyko-web.cdx.json
+            ${{ runner.temp }}/zaltyko-mobile.cdx.json
+          if-no-files-found: error
 
   lint-and-typecheck:
     name: Lint & Type Check

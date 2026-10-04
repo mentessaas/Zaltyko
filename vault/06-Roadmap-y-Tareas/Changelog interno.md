@@ -10757,6 +10757,13 @@ Modelo separado, reclamación manual, administración, importación revisada, fi
 - **Límite:** el paquete y la versión permanecen en 1.4.0; Dependabot conserva las dos alertas. No se declara limpio el audit móvil. No se ha validado build nativo ni publicación en tiendas, por lo que la mitigación del repositorio no prueba que la corrección esté desplegada en dispositivos. Mantenerla hasta que exista una versión oficial y compatible con Expo.
 - **Estado final:** PR #187 se fusionó como `536ab0f5`. El código está en `main` y en el árbol fuente del deployment web basado en `d026fa93`, pero no se validó build nativo ni publicación móvil. Permanecen las dos alertas Dependabot porque el paquete sigue en `1.4.0` y no hay una versión corregida indicada.
 
+## 2026-10-04 — Corregir señal falsa verde del inventario SBOM
+
+- **Hallazgo:** el run de producción `37200407681` dejó verde “Dependency Security & SBOM” aunque `cyclonedx-npm` era incompatible con pnpm 9. El paso permitía fallar (`continue-on-error`) y la subida ignoraba la ausencia del archivo; el log confirmó que no se publicó SBOM.
+- **Cambio en rama aislada:** sustituir ese camino por `cdxgen` v13.3.0, descargado desde el release público y verificado por SHA-256; generar inventarios web y móvil, validarlos y subir ambos como artefactos obligatorios. Eliminar el script roto sin regenerar el lockfile ni cambiar dependencias.
+- **Verificación local:** el hash del binario Linux coincide con `1a1decfa0236284e12797f120d8638608af76a91baa4b17a244948182ca47952`; ambos inventarios locales son CycloneDX válidos (web 1.457 componentes, móvil 902); el workflow YAML parsea y `git diff --check` pasa.
+- **Pendiente/fallo:** el run Linux de CI aún no se ha ejecutado con el cambio; hasta que pase y publique los dos artefactos, el arreglo no está cerrado. El SBOM enumera dependencias de lockfiles y no prueba por sí solo el contenido de una app móvil instalada. Dependabot mantiene abiertas sus alertas.
+
 ## 2026-10-03 — Filtros accesibles y progresivos para academias
 
 - **Hallazgo:** el componente pedía `limit=1000` a `/api/public/academies`, cuyo máximo es 100, aunque no usaba los datos recibidos. El error no impedía todo el formulario, pero mantenía los filtros geográficos deshabilitados mientras esperaba esa petición; además exponía una lista global de ciudades innecesaria.

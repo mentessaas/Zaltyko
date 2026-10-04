@@ -34,7 +34,6 @@
     "test:coverage": "vitest --coverage",
     "test:security": "vitest run --config vitest.security.config.ts",
     "audit:dependencies": "pnpm audit --audit-level high",
-    "sbom:generate": "pnpm exec cyclonedx-npm --output-file sbom.cdx.json --output-format JSON --validate",
     "audit:env": "tsx scripts/audit-env-contract.ts",
     "lint": "pnpm lint:app",
     "lint:app": "eslint src middleware.ts instrumentation.ts instrumentation-client.ts sentry.server.config.ts sentry.edge.config.ts --quiet",
