@@ -1,4 +1,11 @@
-import { index, integer, pgTable, text, timestamp, uniqueIndex, uuid } from "drizzle-orm/pg-core";
+import {
+  index,
+  integer,
+  pgTable,
+  text,
+  timestamp,
+  uuid,
+} from "drizzle-orm/pg-core";
 
 import { academies } from "./academies";
 import { athletes } from "./athletes";
@@ -38,7 +45,9 @@ export const athleteInvitations = pgTable(
     customMessage: text("custom_message"),
     sentAt: timestamp("sent_at", { withTimezone: true }),
     openedAt: timestamp("opened_at", { withTimezone: true }),
-    profileCompletedAt: timestamp("profile_completed_at", { withTimezone: true }),
+    profileCompletedAt: timestamp("profile_completed_at", {
+      withTimezone: true,
+    }),
     supabaseUserId: uuid("supabase_user_id"),
     athleteId: uuid("athlete_id").references(() => athletes.id, {
       onDelete: "set null",
@@ -50,9 +59,6 @@ export const athleteInvitations = pgTable(
     updatedAt: timestamp("updated_at", { withTimezone: true }).defaultNow(),
   },
   (table) => ({
-    stateTokenUnique: uniqueIndex("athlete_invitations_state_token_unique").on(
-      table.stateToken
-    ),
     academyStatusIdx: index("athlete_invitations_academy_status_idx").on(
       table.academyId,
       table.status
@@ -75,4 +81,5 @@ export const ATHLETE_INVITATION_STATUSES = [
   "expired",
 ] as const;
 
-export type AthleteInvitationStatus = (typeof ATHLETE_INVITATION_STATUSES)[number];
+export type AthleteInvitationStatus =
+  (typeof ATHLETE_INVITATION_STATUSES)[number];
