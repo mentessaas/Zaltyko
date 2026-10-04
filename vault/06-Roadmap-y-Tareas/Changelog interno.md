@@ -10794,3 +10794,9 @@ Modelo separado, reclamación manual, administración, importación revisada, fi
 - PR #142 actualiza `lucide-react` a 1.48.0 y reemplaza los iconos de marcas que ya no exporta por `react-icons/fa6` en seis pantallas.
 - El rebase local incorpora el main que ya contiene #140 y conserva su changelog. El antiguo head pasó sus checks, pero el rebase requiere validación local y un CI nuevo antes de integrar.
 - No está fusionado ni desplegado.
+
+## 2026-10-04 — Hacer más visible la recuperación de contraseña
+
+- **Comprobación en producción:** `/auth/login` ya muestra el enlace y `/auth/forgot-password` responde con el formulario esperado. El usuario seguía sin localizar la acción porque estaba colocada junto a la etiqueta de contraseña.
+- **Cambio:** mover el enlace a una fila propia, a todo el ancho del formulario, con borde, fondo y foco de teclado visibles. Conserva el destino seguro y no cambia el envío de correo.
+- **Estado:** cambio local sobre `main` en `codex/auth-recovery-visibility-20261004`; falta ejecutar pruebas, CI, revisión del PR y despliegue. No se envió ningún correo ni se usó una cuenta Google personal.
