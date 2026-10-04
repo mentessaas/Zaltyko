@@ -3,7 +3,7 @@
   "version": "0.1.0",
   "private": true,
   "engines": {
-    "node": ">=20 <23",
+    "node": "^20.19.0 || >=22.12.0 <23",
     "pnpm": "9.15.9"
   },
   "description": "Zaltyko — El sistema definitivo para gestionar academias de gimnasia",
@@ -148,7 +148,7 @@
     "@types/web-push": "^3.6.4",
     "@typescript-eslint/eslint-plugin": "^8.57.1",
     "@typescript-eslint/parser": "^8.57.1",
-    "@vitejs/plugin-react": "^4.3.4",
+    "@vitejs/plugin-react": "^5.2.0",
     "@vitest/coverage-v8": "^4.1.11",
     "baseline-browser-mapping": "^2.11.26",
     "@lhci/cli": "^0.15.1",
