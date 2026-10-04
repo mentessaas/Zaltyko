@@ -10809,3 +10809,10 @@ Modelo separado, reclamación manual, administración, importación revisada, fi
 - **Comprobación en producción:** `/auth/login` ya muestra el enlace y `/auth/forgot-password` responde con el formulario esperado. El usuario seguía sin localizar la acción porque estaba colocada junto a la etiqueta de contraseña.
 - **Cambio:** mover el enlace a una fila propia, a todo el ancho del formulario, con borde, fondo y foco de teclado visibles. Conserva el destino seguro y no cambia el envío de correo.
 - **Estado:** cambio local sobre `main` en `codex/auth-recovery-visibility-20261004`; falta ejecutar pruebas, CI, revisión del PR y despliegue. No se envió ningún correo ni se usó una cuenta Google personal.
+
+## 2026-10-04 — Esperar la hidratación antes de probar la command palette
+
+- **Evidencia:** el E2E autenticado post-merge `37220089122` registró un primer fallo en Firefox al abrir la búsqueda global; el mismo caso pasó en el reintento. WebKit pasó. El trigger depende del contexto cliente de academia y el test solo esperaba el contenido principal.
+- **Cambio:** antes de pulsar «Buscar», el test espera la navegación de academia dentro del `complementary`, la misma señal de hidratación que ya usa el test de navegación de escritorio. No cambia el comportamiento del producto.
+- **Validación local:** ESLint focal, Prettier y `git diff --check` pasan. No se ejecutó Playwright local porque la configuración podría cargar credenciales y apuntar a un entorno externo; CI autenticado nuevo pendiente en PR #203.
+- **Estado:** preparado en la rama `codex/e2e-command-palette-readiness-20261004`; no fusionado ni desplegado.

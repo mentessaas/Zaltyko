@@ -490,6 +490,10 @@ PR #178 requiere que el estado permitido tenga también un `stripe_subscription_
 
 ## Mitigaciones temporales de Dependabot — 2026-10-04
 
-- GitHub muestra cuatro alertas altas abiertas sin `first_patched_version`: `braces` #304/#305 y `node-forge` #300/#301. El parche local para `node-forge` ya está en `main`; este cambio añade una mitigación local para `braces@3.0.3` a través de `patch-package`.
-- La mitigación `braces` tiene regresiones de profundidad 100/101 y ciclos; instalaciones limpias con npm y pnpm aplican ambos parches. Suite móvil 336/336, typecheck y ESLint pasan. Las alertas permanecen hasta publicar y adoptar versiones oficiales.
-- PR #202 cubre la mitigación local; faltan sus checks, revisar cada nueva publicación upstream, retirar parches cuando existan versiones compatibles y validar el artefacto móvil nativo. La exportación web local encontró un error separado de `expo-secure-store` durante SSR; investigar su soporte web aparte.
+- GitHub muestra cuatro alertas altas abiertas sin `first_patched_version`: `braces` #304/#305 y `node-forge` #300/#301. Los parches locales mitigan ambos casos en la cadena de herramientas móvil, pero no cierran las alertas.
+- PR #202 se integró como `5566e38e` tras pasar build, unitarias, E2E autenticado, roles, móvil, RLS, migraciones, SBOM y preview. Las alertas siguen abiertas hasta publicar y adoptar versiones oficiales.
+- Pendiente: revisar cada publicación upstream y validar build nativo/EAS. La exportación web local encontró un error separado de `expo-secure-store` durante SSR; investigar su soporte web aparte.
+
+## P2 — Flaky Firefox al abrir la búsqueda global — 2026-10-04
+
+En el E2E autenticado post-merge `37220089122`, la command palette falló una vez en Firefox mientras el navegador aún procesaba la navegación; pasó en el reintento y WebKit pasó. PR #203 añade una espera explícita a la hidratación de la navegación de academia antes de pulsar «Buscar». Pendiente el CI autenticado de esta corrección; no se declara cerrado hasta que complete.
