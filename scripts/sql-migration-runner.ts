@@ -12,6 +12,7 @@ import {
   reconcileSqlMigrationLedger,
   SQL_MIGRATION_LEDGER_LOCK,
   SQL_MIGRATION_LEDGER_TABLE,
+  prepareMigrationSqlForRunner,
   type SqlMigrationLedgerRow,
 } from "@/lib/migrations/sql-migration-ledger";
 
@@ -65,9 +66,11 @@ function parseOptions(args: string[]): Options {
       continue;
     }
     if (
-      !new Set(["--apply", "--bootstrap", "--acknowledge-existing-history"]).has(
-        arg
-      )
+      !new Set([
+        "--apply",
+        "--bootstrap",
+        "--acknowledge-existing-history",
+      ]).has(arg)
     ) {
       usage(`Opción desconocida: ${arg}`);
     }
@@ -182,7 +185,10 @@ async function insertLedgerRow(
 async function main() {
   const options = parseOptions(process.argv.slice(2));
   const migrations = loadSqlMigrations(MIGRATIONS_DIR);
-  if (options.onlyFilename && !migrations.some((migration) => migration.filename === options.onlyFilename)) {
+  if (
+    options.onlyFilename &&
+    !migrations.some((migration) => migration.filename === options.onlyFilename)
+  ) {
     usage(`No existe la migración seleccionada: ${options.onlyFilename}`);
   }
   const pool = getPool();
@@ -248,7 +254,10 @@ async function main() {
       console.log(`- ${migration.filename} (${migration.checksum})`)
     );
 
-    if (options.onlyFilename && reconciliation.pending.length !== pending.length) {
+    if (
+      options.onlyFilename &&
+      reconciliation.pending.length !== pending.length
+    ) {
       console.log(
         `[db:migrate:ledger] Selección explícita: se omiten ${reconciliation.pending.length - pending.length} migraciones pendientes no seleccionadas.`
       );
@@ -266,7 +275,9 @@ async function main() {
     try {
       for (const migration of pending) {
         console.log(`[db:migrate:ledger] Aplicando ${migration.filename}`);
-        executionResults = await client.query(migration.sql);
+        executionResults = await client.query(
+          prepareMigrationSqlForRunner(migration.sql, migration.filename)
+        );
         await insertLedgerRow(client, migration, "ledger");
       }
       await client.query("commit");
@@ -276,9 +287,9 @@ async function main() {
     }
 
     if (options.evidenceFile && executionResults) {
-      const resultList = (Array.isArray(executionResults)
-        ? executionResults
-        : [executionResults]) as Array<{
+      const resultList = (
+        Array.isArray(executionResults) ? executionResults : [executionResults]
+      ) as Array<{
         command?: string;
         rowCount?: number | null;
         rows?: unknown[];
@@ -300,7 +311,9 @@ async function main() {
         )}\n`,
         "utf8"
       );
-      console.log(`[db:migrate:ledger] Evidencia escrita en ${options.evidenceFile}`);
+      console.log(
+        `[db:migrate:ledger] Evidencia escrita en ${options.evidenceFile}`
+      );
     }
 
     console.log(
