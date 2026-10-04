@@ -17,6 +17,8 @@ if (process.env.NODE_EXTRA_CA_CERTS) {
 
 export default defineConfig({
   schema: "./src/db/schema/index.ts",
+  // Supabase owns auth and other system schemas; Drizzle manages app tables only.
+  schemaFilter: ["public"],
   out: "./drizzle",
   dialect: "postgresql",
   dbCredentials: {
