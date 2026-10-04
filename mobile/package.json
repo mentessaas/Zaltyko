@@ -63,6 +63,7 @@
     "@typescript-eslint/eslint-plugin": "^8.0.0",
     "@typescript-eslint/parser": "^8.0.0",
     "@types/node": "^20.19.43",
+    "braces": "3.0.3",
     "eslint": "^9.0.0",
     "eslint-config-expo": "~57.0.1",
     "node-forge": "1.4.0",

@@ -127,6 +127,9 @@ importers:
       '@typescript-eslint/parser':
         specifier: ^8.0.0
         version: 8.70.0(eslint@9.39.5)(typescript@6.0.3)
+      braces:
+        specifier: 3.0.3
+        version: 3.0.3
       eslint:
         specifier: ^9.0.0
         version: 9.39.5
