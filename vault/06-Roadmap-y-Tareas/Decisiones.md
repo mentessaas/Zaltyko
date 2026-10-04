@@ -704,6 +704,15 @@ Una ficha externa no crea dueño, academia operativa, trial ni suscripción. Sol
 | Consecuencia | Una concesión futura o policy permisiva adicional no hace visibles ni modificables las filas del historial interno. La prueba reproduce deliberadamente el `SELECT` concedido y comprueba que RLS devuelve cero filas a ambos roles. |
 | Estado | PR #182 fusionada en `main` (`60649c58`) tras pasar CI y la prueba PostgreSQL aislada; el paso de despliegue quedó omitido. La migración no se aplicó a ningún entorno remoto: el ledger de producción sigue sin reconciliarse. |
 
+## 2026-10-04 — Completar el consentimiento de altas con Google en el callback
+
+| Campo | Valor |
+| --- | --- |
+| Evidencia | La interfaz de registro exigía aceptar términos, pero la ruta OAuth ordinaria llevaba la versión y prueba de aceptación dentro de `next`; el callback solo las leía desde sus propios parámetros. La ruta del onboarding de propietario registra el consentimiento desde metadatos de Auth, de modo que estos podían faltar al crear la academia. |
+| Decisión | Enviar versión y prueba de consentimiento explícitamente al callback de la aplicación, que ya las valida y persiste en metadatos autenticados. Mostrar los errores de retorno conocidos al usuario, incluso cuando Supabase alcanzó a establecer sesión. |
+| Consecuencia | La creación posterior conserva la evidencia de aceptación que la persona marcó; no cambia roles, crea academias ni activa cobros durante el login. La corrección debe desplegarse antes de comprobar el flujo real con una cuenta autorizada. |
+| Estado | Implementado y probado localmente en rama aislada `codex/auth-google-recovery`; pendiente build final, PR y E2E con cuenta real. No se cambiaron ajustes OAuth ni secretos. |
+
 ## 2026-10-02 — Señalar cuándo Google OAuth está listo para usar
 
 | Campo | Valor |

@@ -317,10 +317,17 @@ export function RegisterForm({
         `/auth/redirect?initial_role=${encodeURIComponent(role)}` +
         `&legal_consent_version=${encodeURIComponent(LEGAL_CONSENT_VERSION)}` +
         `&legal_consent_proof=${encodeURIComponent(LEGAL_CONSENT_PROOF)}`;
+      const callbackUrl = new URL("/auth/callback", window.location.origin);
+      callbackUrl.searchParams.set("next", next);
+      callbackUrl.searchParams.set("legal_consent_version", LEGAL_CONSENT_VERSION);
+      callbackUrl.searchParams.set("legal_consent_proof", LEGAL_CONSENT_PROOF);
+      if (directoryRegistration) {
+        callbackUrl.searchParams.set("directory_account", "1");
+      }
       const { data, error } = await supabase.auth.signInWithOAuth({
         provider: "google",
         options: {
-          redirectTo: `${window.location.origin}/auth/callback?next=${encodeURIComponent(next)}${directoryRegistration ? `&directory_account=1&legal_consent_version=${encodeURIComponent(LEGAL_CONSENT_VERSION)}&legal_consent_proof=${encodeURIComponent(LEGAL_CONSENT_PROOF)}` : ""}`,
+          redirectTo: callbackUrl.toString(),
           // Keep the identity scopes required by Supabase to create or link
           // the account with the user's email and basic profile.
           scopes: "openid email profile",

@@ -48,6 +48,36 @@ export function LoginForm() {
   useEffect(() => {
     if (noticeShownRef.current) return;
 
+    const callbackError = searchParams.get("error");
+    const callbackNotices: Record<string, { title: string; description: string }> = {
+      access_disabled: {
+        title: "Esta cuenta no tiene acceso activo",
+        description:
+          "Contacta con el administrador de tu academia o con soporte si crees que es un error.",
+      },
+      callback_failed: {
+        title: "No pudimos completar el acceso",
+        description:
+          "Inténtalo de nuevo. Si el enlace expiró, solicita uno nuevo.",
+      },
+      consent_invalid: {
+        title: "No pudimos confirmar tu aceptación",
+        description:
+          "Vuelve a iniciar el registro y acepta los términos y la política de privacidad.",
+      },
+      consent_record_failed: {
+        title: "No pudimos guardar tu aceptación",
+        description:
+          "No se completó el acceso. Inténtalo de nuevo; si el problema continúa, contacta con soporte.",
+      },
+    };
+    const callbackNotice = callbackError ? callbackNotices[callbackError] : undefined;
+    if (callbackNotice) {
+      noticeShownRef.current = true;
+      toast.pushToast({ ...callbackNotice, variant: "error" });
+      return;
+    }
+
     if (searchParams.get("registered") === "1") {
       noticeShownRef.current = true;
       toast.pushToast({
@@ -58,15 +88,6 @@ export function LoginForm() {
       });
     }
 
-    if (searchParams.get("error") === "callback_failed") {
-      noticeShownRef.current = true;
-      toast.pushToast({
-        title: "No pudimos completar el acceso",
-        description:
-          "Inténtalo de nuevo. Si el enlace expiró, solicita uno nuevo.",
-        variant: "error",
-      });
-    }
   }, [searchParams, toast]);
 
   const handleLogin = async (e: React.FormEvent) => {
