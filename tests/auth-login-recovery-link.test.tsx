@@ -43,6 +43,35 @@ vi.mock("@/utils/seo", () => ({ default: () => null }));
 import LoginForm from "@/components/login-form";
 
 describe("enlace de recuperación en el login activo", () => {
+  it("permite consultar academias públicas antes del alta aunque el catálogo externo siga apagado", () => {
+    render(<RegisterForm />);
+
+    expect(
+      screen.getByRole("link", {
+        name: "Buscar academias públicas antes de crear mi espacio",
+      })
+    ).toHaveAttribute("href", "/academias");
+    expect(
+      screen.getByText(/La búsqueda muestra perfiles públicos disponibles/)
+    ).toBeVisible();
+    expect(
+      screen.queryByText(/solicitar su reclamación gratuita/)
+    ).not.toBeInTheDocument();
+  });
+
+  it("solo anuncia reclamación cuando catálogo y reclamaciones están habilitados", () => {
+    render(
+      <RegisterForm
+        directoryDiscoveryEnabled
+        directoryClaimsEnabled
+      />
+    );
+
+    expect(
+      screen.getByText(/solicitar su reclamación gratuita/)
+    ).toBeVisible();
+  });
+
   it("renderiza Google desactivado hasta que cargue la interfaz cliente", () => {
     const markup = renderToString(<LoginForm />);
 
@@ -61,11 +90,40 @@ describe("enlace de recuperación en el login activo", () => {
     render(<RegisterForm />);
 
     await waitFor(() => {
-      expect(screen.getByRole("button", { name: "Crear cuenta con Google" })).toHaveAttribute(
-        "aria-busy",
-        "false"
-      );
+      const button = screen.getByRole("button", {
+        name: "Crear cuenta con Google",
+      });
+      expect(button).toHaveAttribute("aria-busy", "false");
+      expect(button).toBeDisabled();
     });
+  });
+
+  it("explica y habilita Google solo después de aceptar los términos", async () => {
+    const user = userEvent.setup();
+    render(<RegisterForm />);
+
+    const button = await screen.findByRole("button", {
+      name: "Crear cuenta con Google",
+    });
+    expect(button).toBeDisabled();
+    expect(button).toHaveAttribute(
+      "aria-describedby",
+      "google-signup-consent-hint"
+    );
+    expect(
+      screen.getByText(
+        "Para continuar con Google, acepta primero los términos y la política de privacidad."
+      )
+    ).toBeVisible();
+
+    await user.click(screen.getByRole("checkbox"));
+
+    expect(button).toBeEnabled();
+    expect(
+      screen.queryByText(
+        "Para continuar con Google, acepta primero los términos y la política de privacidad."
+      )
+    ).not.toBeInTheDocument();
   });
 
   it("activa Google tras hidratar y conserva el destino seguro del enlace de recuperación", async () => {
