@@ -13,9 +13,9 @@ source:
 | Campo | Valor |
 | --- | --- |
 | Evidencia | El job de seguridad de producción aparecía verde aunque no se hubiera generado ni subido el SBOM: el generador existente fallaba con pnpm 9 y los errores/archivos ausentes estaban permitidos. |
-| Decisión | Usar un generador autónomo fijado a versión y hash; generar inventarios web y móvil, validarlos y tratar la ausencia de cualquiera como fallo del job. Descargar el ejecutable público sin un token de escritura/lectura ajeno al repositorio. |
-| Consecuencia | CI deja de presentar como completo un control que no produjo artefacto. Los inventarios ayudan a revisar dependencias, pero no equivalen a un análisis de código ni prueban qué contiene un binario móvil distribuido. |
-| Estado | Implementado en rama aislada; la generación local pasa y el run Linux que publique ambos artefactos queda pendiente de CI. |
+| Decisión | Usar un generador autónomo fijado a versión y hash; generar inventarios web y móvil, validarlos y tratar la ausencia de cualquiera como fallo del job. Descargar el ejecutable público sin un token de escritura/lectura ajeno al repositorio y retirar la dependencia del generador incompatible. |
+| Consecuencia | CI deja de presentar como completo un control que no produjo artefacto y se retiran las dependencias transitivas de la herramienta anterior. Los inventarios ayudan a revisar dependencias, pero no equivalen a un análisis de código ni prueban qué contiene un binario móvil distribuido. |
+| Estado | Implementado en rama aislada; el job Linux anterior pasó y publicó ambos artefactos. Tras quitar `cyclonedx-npm`, el run actualizado debe repetir CI y GitHub debe reevaluar las alertas en `main`. |
 
 ## 2026-10-03 — Mostrar filtros geográficos de forma progresiva
 

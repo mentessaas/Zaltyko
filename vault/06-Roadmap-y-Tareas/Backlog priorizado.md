@@ -49,9 +49,9 @@ Code changes verificados: tsc OK, eslint OK, next build OK.
 ## P1 — Hacer fiable el control SBOM de CI — 2026-10-04
 
 - **Hallazgo:** el job “Dependency Security & SBOM” figuraba verde aunque `cyclonedx-npm` fallaba con pnpm 9, `continue-on-error` ocultaba el error y la subida del archivo ausente estaba configurada para ignorarlo. El run `37200407681` confirmó que no se publicó ningún SBOM.
-- **Cambio propuesto en PR:** generar inventarios CycloneDX separados para web y móvil con `cdxgen` fijado a `v13.3.0`, verificar el SHA-256 del binario, validar formato/nombre/componentes y exigir que ambos archivos se suban como artefactos. Se elimina el script roto; `pnpm-lock.yaml` y las dependencias instaladas no cambian.
+- **Cambio propuesto en PR:** generar inventarios CycloneDX separados para web y móvil con `cdxgen` fijado a `v13.3.0`, verificar el SHA-256 del binario, validar formato/nombre/componentes y exigir que ambos archivos se suban como artefactos. Se elimina el script, la dependencia y sus transitivas del generador anterior; una alerta alta de `http-cache-semantics` procede exclusivamente de ese árbol.
 - **Cierre:** CI limpio debe completar el escaneo y mostrar los dos archivos SBOM en artefactos. Después revisar alertas contra inventarios; no declarar remediadas las alertas por el mero hecho de producir un SBOM ni inferir contenido del binario móvil nativo.
-- **Estado:** comprobados localmente ambos inventarios (web 1.457 componentes; móvil 902), parseo YAML y hash del binario Linux; falta ejecutar el job real de Linux en CI. Ningún artefacto SBOM nuevo está publicado todavía.
+- **Estado:** CI Linux pasó el job y publicó ambos SBOM en la rama PR; los archivos descargados contienen 1.361 componentes web y 902 móviles. Falta que termine el resto de checks y que GitHub actualice las alertas en `main` después de integrar; no declarar cerrada una alerta hasta comprobarlo.
 
 ## P2 — Filtros geográficos y comprobación manual de accesibilidad — 2026-10-03
 

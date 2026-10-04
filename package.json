@@ -127,7 +127,6 @@
   },
   "devDependencies": {
     "@axe-core/playwright": "^4.11.3",
-    "@cyclonedx/cyclonedx-npm": "6.0.0",
     "@eslint/eslintrc": "^3.3.4",
     "@next/eslint-plugin-next": "15.5.24",
     "@playwright/test": "1.63.0",
