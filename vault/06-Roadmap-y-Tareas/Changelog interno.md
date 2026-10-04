@@ -10808,7 +10808,7 @@ Modelo separado, reclamación manual, administración, importación revisada, fi
 
 - **Comprobación en producción:** `/auth/login` ya muestra el enlace y `/auth/forgot-password` responde con el formulario esperado. El usuario seguía sin localizar la acción porque estaba colocada junto a la etiqueta de contraseña.
 - **Cambio:** mover el enlace a una fila propia, a todo el ancho del formulario, con borde, fondo y foco de teclado visibles. Conserva el destino seguro y no cambia el envío de correo.
-- **Estado:** cambio local sobre `main` en `codex/auth-recovery-visibility-20261004`; falta ejecutar pruebas, CI, revisión del PR y despliegue. No se envió ningún correo ni se usó una cuenta Google personal.
+- **Cierre:** PR #201 se integró el 2026-10-04 como `a4b1af07`. Vercel `dpl_HPrAvEQVwve2gqpoYwyTZdW12WUb` está `READY` y aliasado a `zaltyko.com`; `/auth/login` devuelve 200 y su HTML contiene el enlace ancho bajo la contraseña; `/auth/forgot-password` responde 200. No se envió correo ni se usó una cuenta Google personal; la entrega SMTP sigue pendiente.
 
 ## 2026-10-04 — Esperar la hidratación antes de probar la command palette
 
