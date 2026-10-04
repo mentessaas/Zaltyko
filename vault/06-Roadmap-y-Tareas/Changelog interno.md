@@ -10767,3 +10767,8 @@ Modelo separado, reclamación manual, administración, importación revisada, fi
 
 - El PR #193 quedó integrado en `20116f1e`. Login con Google llega al selector/cuenta de Google y vuelve a la callback configurada de Zaltyko sin `invalid_client`; no se creó un cliente duplicado porque ya existía uno Web. No se completó el inicio de sesión con una cuenta, ni se aceptaron términos por el usuario.
 - El enlace de recuperación es visible y la ruta responde 200. No se validó entrega de correo: Supabase Auth aún no tiene SMTP propio verificado. La página de registro con Google mantiene la aceptación explícita de términos.
+
+## 2026-10-04 — Alinear los dos paquetes de ESLint de Next.js 15
+
+- Se mantienen `@next/eslint-plugin-next` y `eslint-config-next` en `15.5.24`, junto a Next.js `15.5.24`; se conservan las versiones más recientes de las demás dependencias ya integradas en `main`.
+- El rebase de #140 quedó resuelto sobre `main` actualizado. CI nuevo sigue pendiente.
