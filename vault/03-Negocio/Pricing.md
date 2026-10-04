@@ -1,7 +1,7 @@
 ---
 status: active
 owner: negocio
-last_reviewed: 2026-09-14
+last_reviewed: 2026-10-05
 source:
   - ../BUSINESS-ANALYSIS.md
   - ../docs/marketing/zaltyko-pricing.md
@@ -27,18 +27,18 @@ Esta nota debe revisarse antes de cambiar landing, checkout, limites de plan o d
 
 | Capa | Fuente | Estado |
 | --- | --- | --- |
-| Copy publico | `src/app/(site)/pricing.tsx` + `src/lib/plans/catalog.ts` | Usa Free/Starter/Growth/Network v3.0. Free y Starter registran; Starter activa el trial desde Facturación; Growth conserva demo comercial hasta validar su handoff; Network abre contacto acompañado. |
+| Copy publico | `src/app/(site)/pricing.tsx` + `src/lib/plans/catalog.ts` | Free, Starter y Growth dirigen al registro de propietario. La página compara precios mensuales y anuales; la modalidad se elige dentro de Facturación. Network abre contacto acompañado. |
 | Limites de producto | `src/lib/plans/catalog.ts` y tabla `plans` | Free 30 gimnastas, Starter 75, Growth 200; todos con 1 academia. Network multi-sede acompanado. |
 | Enforcements | `src/lib/limits.ts` | Lee limites desde el catalogo canonico y permite override de atletas/academias desde `plans`. |
-| Checkout activo | `src/app/api/billing/checkout/route.ts` | Owner-only, usa `plans.stripePriceId`, `mode: subscription`, metadata de academia e idempotencia. |
+| Checkout activo | `src/app/api/billing/checkout/route.ts` | Owner-only, elige `plans.stripePriceId` o `plans.stripeAnnualPriceId` según la modalidad, `mode: subscription`, metadata de academia e idempotencia. |
 | Checkout viejo | `src/app/api/stripe/checkout/route.ts` | Deprecated 410. |
-| Sync Stripe | `src/lib/stripe/sync-plans.ts` | Solo acepta metadata `plan_code` explícita y precios canónicos mensuales 19/49 EUR; no sobrescribe límites de producto. |
+| Sync Stripe | `src/lib/stripe/sync-plans.ts` | Solo acepta metadata `plan_code` explícita y precios canónicos mensuales/anuales; no sobrescribe límites de producto. |
 
 ## Inconsistencias a resolver
 
 | Tema | Riesgo | Accion |
 | --- | --- | --- |
-| Annual billing | La UI comunica únicamente facturación mensual; no existe precio anual ni descuento publicado. | Mantener mensualidad hasta implementar y verificar Prices anuales reales antes de anunciar compra o descuento. |
+| Checkout anual E2E | Los Prices Live y la ruta de checkout están configurados, pero no se ha completado una sesión de compra en Stripe Test desde la aplicación. | Conectar de nuevo el acceso Stripe Test y probar el recorrido autenticado y el webhook con la cuenta desechable; no crear sesiones ni cargos Live como sustituto. |
 | DB seed placeholders | `scripts/seed.ts` usa `price_pro_PLACEHOLDER` y `price_premium_PLACEHOLDER` si faltan env vars. | En entornos reales ejecutar `pnpm stripe:sync` o setear `SEED_STRIPE_PRICE_*`. |
 | Cambios de plan | Checkout contrata; Stripe Billing Portal cambia o cancela. Los endpoints manuales legacy devuelven 410. | Mantener una sola fuente de verdad y tests de webhooks. |
 | Nombres historicos | Docs antiguas hablan de Professional/Business o Free/Pro/Premium publico. | Usar Starter/Growth/Network en marketing; free/pro/premium solo interno. |
@@ -48,6 +48,8 @@ Esta nota debe revisarse antes de cambiar landing, checkout, limites de plan o d
 Nota de ejecucion 2026-07-12: inicio, anti-abuso, expiracion a Free, conversion y avisos del trial ya estan implementados y su migracion esta aplicada. El claim puede publicarse junto con la promocion verificada de Fase 1; antes de esa promocion, el código sigue siendo release candidate.
 
 Los registros `plans` de Supabase quedaron sincronizados e idempotentes: Free 30, Starter (`pro`) 75 y Growth (`premium`) 200, una academia cada uno. El 2026-07-13 se verificaron contra el entorno Vercel de producción, sin imprimir credenciales: clave Stripe live, Prices activos de 19/49 EUR mensuales, productos activos y metadata `pro`/`premium`. Network sigue fuera del checkout autoservicio.
+
+Revalidación 2026-10-05: producción conserva Starter 19 €/mes y 190 €/año, y Growth 49 €/mes y 490 €/año. Una lectura autenticada de Stripe Live comprobó que ambos Prices mensuales y anuales existen, están activos, usan EUR, coinciden con los importes y periodicidades de `plans` y pertenecen a los productos asociados. La ruta de checkout selecciona el Price anual al recibir `billingInterval: "year"`. Se va a publicar el comparador anual; no se creó Checkout ni se hizo ningún cargo. La sesión de Checkout Test desde la aplicación y su webhook siguen pendientes.
 
 ## Pricing v3.0 activo
 

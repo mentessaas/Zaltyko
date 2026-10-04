@@ -34,14 +34,14 @@ Para discovery, beta y mensajes de venta tempranos, enfocar Zaltyko en academias
 | Demo ventas | Veremos como centralizar operaciones y reducir trabajo manual. |
 | Email onboarding | Empieza configurando academia, clases, atletas y primer cobro. |
 | Network | Multi-sede solo bajo diagnostico y onboarding acompanado. |
-| Pricing v3.0 | Free hasta 30 gimnastas, Starter 19 €/mes hasta 75, Growth 49 €/mes hasta 200 y Network 99 €/mes multi-sede con onboarding acompanado. |
+| Pricing vigente | Free hasta 30 gimnastas; Starter 19 €/mes o 190 €/año hasta 75; Growth 49 €/mes o 490 €/año hasta 200; Network 99 €/mes multi-sede con onboarding acompañado. |
 | Trial | 7 días de Starter sin tarjeta, una activación por academia cada 12 meses; al terminar vuelve a Free y no hay cargo automático. |
 
 ## CTAs y claims seguros a 2026-07-12
 
 - Free puede dirigir al registro de owner.
 - Actualización 2026-09-13: el CTA principal de la landing (hero, navbar, CTA final, sticky bar) dirige a `/auth/register?role=owner` ("Crear cuenta gratis") y las CTAs de home, módulos y features explican que primero se crea la cuenta y después se configura la academia.
-- Starter usa la CTA pública **"Crear cuenta y configurar"** y dirige a `/auth/register?role=owner`: el trial de 7 días se activa de forma explícita desde Facturación una vez creada la academia. Growth mantiene **"Solicitar demo"** y `/contact?type=demo&plan=growth` hasta validar su handoff registro → checkout end-to-end. No usar "Contratar" si el enlace abre contacto.
+- Free, Starter y Growth usan la CTA pública **"Crear academia gratis"** y dirigen a `/auth/register?role=owner`. Desde Facturación, la persona propietaria puede activar el trial Starter y elegir pago mensual o anual para Starter/Growth. Network conserva contacto y onboarding acompañados.
 - Network siempre dirige a contacto/onboarding acompanado, nunca a checkout.
 - Usar "aislamiento por academia" y "controles de acceso"; no usar "100% seguro" ni "cumplimiento RGPD garantizado".
 - Usar “privacidad por diseño” y “atención por email”; no publicar “RGPD Compliant” ni tiempos de respuesta cerrados sin evidencia operativa.
@@ -51,7 +51,7 @@ Para discovery, beta y mensajes de venta tempranos, enfocar Zaltyko en academias
 - Usar resultados como beneficios esperados (menos trabajo manual, más trazabilidad); no publicar porcentajes de ahorro, recaudación o adopción sin trials y denominadores verificables.
 - No publicar testimonios con nombres, academias, volúmenes o resultados concretos sin autorización y evidencia trazable. Mientras no exista esa evidencia, usar proof points de capacidad.
 - Describir exportación y retención por módulo y política vigente; no prometer "toda la información en cualquier momento" si el alcance no está documentado.
-- No anunciar precio o descuento anual hasta que exista el Price anual real en Stripe.
+- Mostrar Starter a 190 €/año y Growth a 490 €/año (dos meses bonificados frente a doce pagos mensuales); la opción anual se selecciona después, desde Facturación. Prices Live e importes se verificaron el 2026-10-05; el checkout de prueba integrado aún no se ha completado.
 - Publicar el claim del trial únicamente cuando la promoción de Fase 1 esté verificada en producción. El CTA correcto es crear la academia y activarlo desde Facturación; no decir que se activa automáticamente al registrarse.
 
 ## Mensajes de gimnasia en validacion

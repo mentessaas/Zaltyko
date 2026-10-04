@@ -164,9 +164,15 @@ test.describe("L6 — JSON-LD / sitemap accuracy", () => {
     await expect(page.getByText(/99\s+€\/mes/)).toBeVisible();
   });
 
-  test("Pricing comunica la facturación realmente disponible", async ({ page }) => {
+  test("Pricing permite comparar facturación mensual y anual", async ({ page }) => {
     await gotoPublic(page, "/pricing");
-    await expect(page.getByText("Facturación mensual · sin permanencia", { exact: true })).toBeVisible();
+    const interval = page.getByRole("group", { name: "Periodicidad de precios" });
+    await expect(interval.getByRole("button", { name: "Mensual", exact: true })).toHaveAttribute("aria-pressed", "true");
+    await expect(page.getByText("Sin permanencia. Puedes cambiar a pago anual desde Facturación.", { exact: true })).toBeVisible();
+    await interval.getByRole("button", { name: "Anual · ahorra 2 meses" }).click();
+    await expect(page.getByText(/190\s*€\/año/)).toBeVisible();
+    await expect(page.getByText(/490\s*€\/año/)).toBeVisible();
+    await expect(page.getByText("Importe anual cobrado de una vez. Elige esta modalidad al contratar desde Facturación.", { exact: true })).toBeVisible();
     await expect(page.getByText(/próximamente/i)).toHaveCount(0);
   });
 

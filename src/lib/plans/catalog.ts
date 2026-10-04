@@ -26,13 +26,14 @@ export const PRODUCT_PLANS: ProductPlan[] = [
     publicName: "Free",
     internalName: "Free",
     priceEurCents: 0,
-    description: "Para academias que están empezando a digitalizar su gestión diaria.",
+    description:
+      "Para academias que están empezando a digitalizar su gestión diaria.",
     shortDescription: "Hasta 30 gimnastas · 1 academia",
     athleteLimit: 30,
     groupLimit: 3,
     classLimit: 10,
     academyLimit: 1,
-    cta: "Empezar gratis",
+    cta: "Crear academia gratis",
     ctaHref: "/auth/register?role=owner",
     checkoutMode: "included",
     features: [
@@ -50,13 +51,14 @@ export const PRODUCT_PLANS: ProductPlan[] = [
     internalName: "Starter",
     priceEurCents: 1900,
     annualPriceEurCents: 19000,
-    description: "Para academias pequeñas que quieren ordenar grupos, asistencia y cobros.",
+    description:
+      "Para academias pequeñas que quieren ordenar grupos, asistencia y cobros.",
     shortDescription: "Hasta 75 gimnastas · 1 academia",
     athleteLimit: 75,
     groupLimit: 5,
     classLimit: 20,
     academyLimit: 1,
-    cta: "Crear cuenta y configurar",
+    cta: "Crear academia gratis",
     ctaHref: "/auth/register?role=owner",
     checkoutMode: "self-serve",
     features: [
@@ -68,23 +70,22 @@ export const PRODUCT_PLANS: ProductPlan[] = [
   },
   {
     // Decisión activa 2026-06-24: `premium` es el código interno de Growth.
-    // La web usa una CTA de demo para acompañar la decisión comercial, mientras
-    // que un owner autenticado puede contratarlo desde Facturación; son dos
-    // superficies intencionalmente distintas y no deben mezclarse.
+    // Growth se contrata desde Facturación después del registro; no requiere demo.
     code: "premium",
     publicName: "Growth",
     internalName: "Growth",
     priceEurCents: 4900,
     annualPriceEurCents: 49000,
-    description: "Para academias en crecimiento que necesitan más capacidad y seguimiento diario.",
+    description:
+      "Para academias en crecimiento que necesitan más capacidad y seguimiento diario.",
     shortDescription: "Hasta 200 gimnastas · 1 academia",
     athleteLimit: 200,
     groupLimit: 10,
     classLimit: 40,
     academyLimit: 1,
     highlight: true,
-    cta: "Solicitar demo",
-    ctaHref: "/contact?type=demo&plan=growth",
+    cta: "Crear academia gratis",
+    ctaHref: "/auth/register?role=owner",
     checkoutMode: "self-serve",
     features: [
       "Hasta 200 gimnastas · 1 academia",
@@ -98,7 +99,8 @@ export const PRODUCT_PLANS: ProductPlan[] = [
     publicName: "Network",
     internalName: "Network",
     priceEurCents: 9900,
-    description: "Para academias multi-sede o equipos que necesitan límites amplios y soporte prioritario.",
+    description:
+      "Para academias multi-sede o equipos que necesitan límites amplios y soporte prioritario.",
     shortDescription: "Multi-sede con onboarding acompañado",
     athleteLimit: null,
     groupLimit: null,
@@ -121,7 +123,13 @@ export const PRODUCT_PLAN_BY_CODE = Object.fromEntries(
   PRODUCT_PLANS.map((plan) => [plan.code, plan])
 ) as Record<CommercialPlanCode, ProductPlan>;
 
-const INTERNAL_PLAN_CODES = new Set(["free", "pro", "premium", "network", "custom"]);
+const INTERNAL_PLAN_CODES = new Set([
+  "free",
+  "pro",
+  "premium",
+  "network",
+  "custom",
+]);
 
 /**
  * Nombre que se puede mostrar a una persona para un código persistido.
@@ -134,7 +142,7 @@ const INTERNAL_PLAN_CODES = new Set(["free", "pro", "premium", "network", "custo
  */
 export function getProductPlanPublicName(
   code: string | null | undefined,
-  fallback?: string | null,
+  fallback?: string | null
 ): string {
   const normalizedCode = code?.trim().toLowerCase() ?? "";
   const canonical = PRODUCT_PLAN_BY_CODE[normalizedCode as CommercialPlanCode];
