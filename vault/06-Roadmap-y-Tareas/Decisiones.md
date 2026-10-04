@@ -662,8 +662,8 @@ Verificadas el 2026-08-02 contra repo canónico `zaltyko/zaltyko` HEAD `a08b27af
 | --- | --- |
 | Contexto | La web de producción no mostraba recuperación de contraseña. Los botones Google de login y registro terminaban en `redirect_uri_mismatch`. La URL de producción de Supabase se confirmó como `https://jegxfahsvugilbthbked.supabase.co`; el proyecto está activo y saludable. |
 | Decisión | Añadir recuperación con enlace seguro, respuesta que no revela si existe la cuenta y actualización tras autenticar el enlace. Mantener el acceso Google existente, mejorar su navegación explícita y corregir la configuración en la consola OAuth con el callback real de Supabase. Mantener este cambio en un PR separado del directorio para que su despliegue no dependa de permisos de fuentes, contenido o revisión jurídica. |
-| Consecuencia | El código queda preparado, pero login/registro Google solo volverán a funcionar tras registrar `https://jegxfahsvugilbthbked.supabase.co/auth/v1/callback` en Google Auth Platform. La recuperación real exige permitir `https://zaltyko.com/auth/callback` en Supabase y probar SMTP. No se cambian ajustes productivos desde esta sesión. |
-| Estado | PR de autenticación en preparación. TypeScript, ESLint, formato y test focal pasan. Mailpit local recibió la solicitud; la allowlist local bloqueó la finalización. Ver [runbook](../../docs/auth/google-and-password-recovery.md). |
+| Consecuencia | El cliente Web, el callback de Google y el retorno a Zaltyko ya están configurados. La recuperación de contraseña está visible en producción; la entrega real aún depende de SMTP propio. La sesión Google completa requiere que el usuario elija su cuenta. |
+| Estado | PR #199 preserva el consentimiento del alta y está integrada; PR #201 mejoró la visibilidad de recuperación y está integrada en `a4b1af07`, con deployment `dpl_HPrAvEQVwve2gqpoYwyTZdW12WUb` en `READY`. No se cambiaron secretos ni se envió correo de prueba. Ver [runbook](../../docs/auth/google-and-password-recovery.md). |
 
 ## 2026-10-01 — OAuth configurado, acceso y correo aún no listos
 
@@ -719,8 +719,8 @@ Una ficha externa no crea dueño, academia operativa, trial ni suscripción. Sol
 | --- | --- |
 | Evidencia | La interfaz de registro exigía aceptar términos, pero la ruta OAuth ordinaria llevaba la versión y prueba de aceptación dentro de `next`; el callback solo las leía desde sus propios parámetros. La ruta del onboarding de propietario registra el consentimiento desde metadatos de Auth, de modo que estos podían faltar al crear la academia. |
 | Decisión | Enviar versión y prueba de consentimiento explícitamente al callback de la aplicación, que ya las valida y persiste en metadatos autenticados. Mostrar los errores de retorno conocidos al usuario, incluso cuando Supabase alcanzó a establecer sesión. |
-| Consecuencia | La creación posterior conserva la evidencia de aceptación que la persona marcó; no cambia roles, crea academias ni activa cobros durante el login. La corrección debe desplegarse antes de comprobar el flujo real con una cuenta autorizada. |
-| Estado | Implementado y probado localmente en rama aislada `codex/auth-google-recovery`; pendiente build final, PR y E2E con cuenta real. No se cambiaron ajustes OAuth ni secretos. |
+| Consecuencia | La creación posterior conserva la evidencia de aceptación que la persona marcó; no cambia roles, crea academias ni activa cobros durante el login. La confirmación de una sesión real sigue requiriendo que el usuario elija su cuenta. |
+| Estado | PR #199 integrada el 2026-10-04; #201 desplegada en producción. No se cambiaron secretos OAuth ni se completó sesión con una cuenta personal. |
 
 ## 2026-10-02 — Señalar cuándo Google OAuth está listo para usar
 
@@ -765,4 +765,4 @@ Una ficha externa no crea dueño, academia operativa, trial ni suscripción. Sol
 | Evidencia | GitHub mantiene #304/#305 abiertas para `braces@3.0.3`, sin versión corregida. El advisory reproduce agotamiento de pila con patrones anidados y el [PR upstream #72](https://github.com/micromatch/braces/pull/72) continúa abierto. En la copia limpia, parse aceptó 101 niveles antes del parche. |
 | Decisión | Aplicar un límite máximo de 100 en parseo y recorridos del AST con `patch-package`, manteniendo la dependencia en su versión real y un test que cubra el límite exacto. |
 | Consecuencia | Las instalaciones npm y pnpm del árbol móvil obtienen el guard; la misma instalación aplica la mitigación existente de `node-forge`. Dependabot seguirá mostrando #304/#305 y el audit no se declara limpio hasta adoptar una versión oficial corregida. |
-| Estado | PR #202 abierta desde `codex/mobile-braces-depth-cap-20261004`; 336 pruebas móviles, typecheck, ESLint, Prettier focal e instalaciones limpias/frozen pasan. El runner web excluye las dos regresiones de dependencias móviles; el job móvil las ejecuta tras `patch-package`. CI completo y build nativo siguen pendientes. La exportación web tropezó por separado con `expo-secure-store` durante SSR; revisar su soporte web en otro cambio. |
+| Estado | PR #202 se fusionó por squash el 2026-10-04 como `5566e38e`; build, unitarias, E2E autenticado, roles, móvil, RLS, migraciones, SBOM y preview pasaron. CI post-merge `37222242745` está en curso. Las alertas siguen abiertas y no se ha validado build nativo/EAS. La exportación web tropezó por separado con `expo-secure-store` durante SSR; revisar su soporte web en otro cambio. |

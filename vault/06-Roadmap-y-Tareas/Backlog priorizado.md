@@ -435,14 +435,16 @@ PR #178 requiere que el estado permitido tenga también un `stripe_subscription_
 
 ## Revalidación de acceso y onboarding — 2026-10-04
 
-- **OAuth — configuración lista, flujo completo pendiente:** el cliente Web de Google ya existe, el Client ID coincide con Supabase y las URLs de origen/callback/retorno son correctas. No se rotó el secreto ni se creó un duplicado. La corrección local transporta el consentimiento al callback de altas Google y muestra los fallos de retorno; hace falta fusionarla/desplegarla y completar un inicio de sesión real con la cuenta del usuario. No crear cuentas ni aceptar términos en su nombre.
-- **Recuperación de contraseña:** el enlace está visible en la pantalla de login de vista previa y conserva el destino de retorno. Queda comprobar su presentación en producción tras el deployment aplicable y hacer el envío/restablecimiento con correo de prueba cuando SMTP esté validado.
+- **OAuth — configuración y código listos; sesión real pendiente:** el cliente Web y los callbacks están alineados; PR #199 integró la preservación del consentimiento al volver de Google. Producción llega al selector oficial de Google, pero no se completó sesión porque debe elegir su cuenta el usuario. No se rotó el secreto ni se aceptaron términos en su nombre.
+- **Recuperación de contraseña — visible en producción:** PR #201 quedó integrada en `a4b1af07`; Vercel `dpl_HPrAvEQVwve2gqpoYwyTZdW12WUb` está `READY` con `zaltyko.com`. `/auth/login` muestra la acción de ancho completo y `/auth/forgot-password` responde 200. Sigue pendiente validar entrega real y restablecimiento cuando SMTP propio esté configurado.
 - **Búsqueda antes de crear academia:** PR #198 está integrada en `main`. Con catálogo externo apagado, el onboarding solo busca perfiles públicos de espacios que ya usan Zaltyko, ofrece pedir invitación y exige búsqueda revisada antes de continuar; la API sigue bloqueando duplicados. La reclamación de una ficha externa aún no está disponible en producción: depende del backup/restauración, conciliación de migraciones, tablas del directorio y activación gradual de flags.
 - **VoiceOver:** se activó durante la sesión y el árbol accesible expuso el aviso de error y enlace de recuperación. No se pudo verificar la salida hablada; terminar lectura de errores, tablas y modales, además de zoom al 200 %, antes de cerrar el pendiente manual.
 
 ## Seguimiento del enlace de recuperación de contraseña — 2026-10-02
 
 - PR #186 mejora la visibilidad del enlace y su foco en móvil. La rama local está rebasada sobre `536ab0f5`; TypeScript, ESLint y diff-check pasan. El head remoto actual aún es antiguo y su E2E se canceló antes de aserciones; falta actualizarlo y ejecutar CI completo. No está desplegado.
+
+**Actualización 2026-10-04:** el ajuste visual final se integró en PR #201 y se verificó en el deployment productivo `dpl_HPrAvEQVwve2gqpoYwyTZdW12WUb`; solo falta validar la entrega de correo cuando SMTP esté configurado.
 
 ## Seguimiento CI Dependabot — 2026-10-01
 
@@ -490,6 +492,10 @@ PR #178 requiere que el estado permitido tenga también un `stripe_subscription_
 
 ## Mitigaciones temporales de Dependabot — 2026-10-04
 
-- GitHub muestra cuatro alertas altas abiertas sin `first_patched_version`: `braces` #304/#305 y `node-forge` #300/#301. El parche local para `node-forge` ya está en `main`; este cambio añade una mitigación local para `braces@3.0.3` a través de `patch-package`.
-- La mitigación `braces` tiene regresiones de profundidad 100/101 y ciclos; instalaciones limpias con npm y pnpm aplican ambos parches. Suite móvil 336/336, typecheck y ESLint pasan. Las alertas permanecen hasta publicar y adoptar versiones oficiales.
-- PR #202 cubre la mitigación local; faltan sus checks, revisar cada nueva publicación upstream, retirar parches cuando existan versiones compatibles y validar el artefacto móvil nativo. La exportación web local encontró un error separado de `expo-secure-store` durante SSR; investigar su soporte web aparte.
+- GitHub muestra cuatro alertas altas abiertas sin `first_patched_version`: `braces` #304/#305 y `node-forge` #300/#301. Los parches locales mitigan ambos casos en la cadena de herramientas móvil, pero no cierran las alertas.
+- PR #202 se integró como `5566e38e` tras pasar build, unitarias, E2E autenticado, roles, móvil, RLS, migraciones, SBOM y preview. Las alertas siguen abiertas hasta publicar y adoptar versiones oficiales.
+- Pendiente: revisar cada publicación upstream y validar build nativo/EAS. La exportación web local encontró un error separado de `expo-secure-store` durante SSR; investigar su soporte web aparte.
+
+## P2 — Flaky Firefox al abrir la búsqueda global — 2026-10-04
+
+En el E2E autenticado post-merge `37220089122`, la command palette falló una vez en Firefox mientras el navegador aún procesaba la navegación; pasó en el reintento y WebKit pasó. PR #203 añade una espera explícita a la hidratación de la navegación de academia antes de pulsar «Buscar». Pendiente el CI autenticado de esta corrección; no se declara cerrado hasta que complete.

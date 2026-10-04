@@ -10764,7 +10764,7 @@ Modelo separado, reclamación manual, administración, importación revisada, fi
 - **Verificación:** `npm ci` + `postinstall` y `pnpm install --frozen-lockfile` + `patch-package` aplican los parches de `braces` y `node-forge`. Suite móvil 336/336, typecheck, ESLint, Prettier focal y `git diff --check` pasan.
 - **Límite:** versión sin cambiar y alertas aún abiertas. La exportación web alcanzó Metro y falló luego en el render estático por `expo-secure-store` (`getValueWithKeyAsync`) y variables públicas Supabase ausentes; no se atribuye a `braces`. Sin build nativo/EAS. Detalle: [`docs/security/braces-cve-2026-93687.md`](../../docs/security/braces-cve-2026-93687.md).
 - **CI:** el runner web general también descubre tests móviles, pero no instala dependencias móviles ni `patch-package`. Se excluye allí esta prueba de seguridad; el job dedicado `Mobile typecheck, lint & tests` la ejecuta después de aplicar el parche. Así no se confunde una dependencia móvil sin instalar con el gate web.
-- **Estado:** PR #202 abierta; CI en curso. No hay build nativo/EAS ni release oficial corregido.
+- **Estado:** PR #202 se fusionó por squash el 2026-10-04 como `5566e38e` tras pasar todos los checks requeridos, incluido E2E autenticado. CI post-merge `37222242745` sigue en curso. No hay build nativo/EAS ni release oficial corregido.
 
 ## 2026-10-04 — Corregir señal falsa verde del inventario SBOM
 
@@ -10808,4 +10808,11 @@ Modelo separado, reclamación manual, administración, importación revisada, fi
 
 - **Comprobación en producción:** `/auth/login` ya muestra el enlace y `/auth/forgot-password` responde con el formulario esperado. El usuario seguía sin localizar la acción porque estaba colocada junto a la etiqueta de contraseña.
 - **Cambio:** mover el enlace a una fila propia, a todo el ancho del formulario, con borde, fondo y foco de teclado visibles. Conserva el destino seguro y no cambia el envío de correo.
-- **Estado:** cambio local sobre `main` en `codex/auth-recovery-visibility-20261004`; falta ejecutar pruebas, CI, revisión del PR y despliegue. No se envió ningún correo ni se usó una cuenta Google personal.
+- **Cierre:** PR #201 se integró el 2026-10-04 como `a4b1af07`. Vercel `dpl_HPrAvEQVwve2gqpoYwyTZdW12WUb` está `READY` y aliasado a `zaltyko.com`; `/auth/login` devuelve 200 y su HTML contiene el enlace ancho bajo la contraseña; `/auth/forgot-password` responde 200. No se envió correo ni se usó una cuenta Google personal; la entrega SMTP sigue pendiente.
+
+## 2026-10-04 — Esperar la hidratación antes de probar la command palette
+
+- **Evidencia:** el E2E autenticado post-merge `37220089122` registró un primer fallo en Firefox al abrir la búsqueda global; el mismo caso pasó en el reintento. WebKit pasó. El trigger depende del contexto cliente de academia y el test solo esperaba el contenido principal.
+- **Cambio:** antes de pulsar «Buscar», el test espera la navegación de academia dentro del `complementary`, la misma señal de hidratación que ya usa el test de navegación de escritorio. No cambia el comportamiento del producto.
+- **Validación local:** ESLint focal, Prettier y `git diff --check` pasan. No se ejecutó Playwright local porque la configuración podría cargar credenciales y apuntar a un entorno externo; CI autenticado nuevo pendiente en PR #203.
+- **Estado:** preparado en la rama `codex/e2e-command-palette-readiness-20261004`; no fusionado ni desplegado.

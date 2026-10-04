@@ -62,10 +62,10 @@ async function gotoAcademy(page: Page, path: string) {
       });
     }
   }
-  await expect(page, "The academy route must finish navigation before assertions run.").toHaveURL(
-    new RegExp(`/app/${academyId}/`),
-    { timeout: 60_000 },
-  );
+  await expect(
+    page,
+    "The academy route must finish navigation before assertions run."
+  ).toHaveURL(new RegExp(`/app/${academyId}/`), { timeout: 60_000 });
   await expect(
     page,
     "The saved E2E session must still authenticate academy routes."
@@ -191,6 +191,12 @@ test.describe("Zaltyko full academy flows", () => {
   }) => {
     await page.setViewportSize({ width: 1280, height: 900 });
     await gotoAcademy(page, "dashboard");
+
+    const academyNavigation = page
+      .getByRole("complementary")
+      .getByRole("navigation");
+    // The dashboard shell can appear before academy context hydrates the client navigation.
+    await expect(academyNavigation).toBeVisible({ timeout: 15_000 });
 
     const searchTrigger = page.getByRole("button", { name: /Buscar/i }).first();
     const searchInput = page.getByPlaceholder(
