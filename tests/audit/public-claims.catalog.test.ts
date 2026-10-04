@@ -63,7 +63,7 @@ describe("L2 — plans catalog matches published copy", () => {
     expect(pro.groupLimit).toBe(5);
     expect(pro.classLimit).toBe(20);
     expect(pro.publicName).toBe("Starter");
-    expect(pro.cta).toBe("Crear cuenta y configurar");
+    expect(pro.cta).toBe("Crear academia gratis");
     // Starter is the low-touch self-serve entry: create the account and
     // configure the academy first, then activate the trial/paid plan from
     // Billing once the academy exists.
@@ -79,8 +79,8 @@ describe("L2 — plans catalog matches published copy", () => {
     expect(premium.groupLimit).toBe(10);
     expect(premium.classLimit).toBe(40);
     expect(premium.publicName).toBe("Growth");
-    expect(premium.cta).toBe("Solicitar demo");
-    expect(premium.ctaHref).toBe("/contact?type=demo&plan=growth");
+    expect(premium.cta).toBe("Crear academia gratis");
+    expect(premium.ctaHref).toBe("/auth/register?role=owner");
     expect(premium.highlight).toBe(true);
     expect(premium.checkoutMode).toBe("self-serve");
   });
@@ -199,14 +199,17 @@ describe("L2 — copy pública presente en componentes", () => {
     expect(faqPage).toContain("Los planes de pago se renuevan mensualmente; Free no tiene coste ni renovación.");
   });
 
-  it("PricingSection tiene banner de trial y comunica la facturación disponible", () => {
-    expect(pricing).toContain("7 días de Starter sin tarjeta");
-    expect(pricing).toContain("una activación por academia cada 12 meses");
-    expect(pricing).toContain("Crea tu cuenta, configura la academia");
-    expect(pricing).toContain("Aislamiento por academia");
-    expect(pricing).toContain("Puesta en marcha guiada");
-    expect(pricing).toContain("Facturación mensual · sin permanencia");
-    expect(pricing).not.toContain("aria-disabled");
+  it("PricingSection comunica prueba explícita y comparación mensual/anual", () => {
+    const copy = pricing.replace(/\s+/g, " ");
+    expect(copy).toContain("7 días de Starter sin tarjeta");
+    expect(copy).toContain("una activación por academia cada 12 meses");
+    expect(copy).toContain("Empieza gratis y configura tu academia");
+    expect(copy).toContain("Aislamiento por academia");
+    expect(copy).toContain("Puesta en marcha guiada");
+    expect(copy).toContain('aria-label="Periodicidad de precios"');
+    expect(copy).toContain("Importe anual cobrado de una vez");
+    expect(copy).toContain("Consultar una migración");
+    expect(copy).not.toContain("aria-disabled");
   });
 
   it("el indicador de límites usa las mismas cuotas que el catálogo", () => {
