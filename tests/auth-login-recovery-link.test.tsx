@@ -13,6 +13,8 @@ const pushToast = vi.hoisted(() => vi.fn());
 const signInWithOAuth = vi.hoisted(() => vi.fn());
 
 beforeEach(() => {
+  pushToast.mockReset();
+  searchParams.delete("error");
   signInWithOAuth.mockReset().mockResolvedValue({
     data: { url: null },
     error: { message: "test" },
@@ -166,5 +168,47 @@ describe("enlace de recuperación en el login activo", () => {
         options: expect.objectContaining({ scopes: "openid email profile" }),
       })
     ));
+    const options = signInWithOAuth.mock.calls[0][0].options;
+    const callbackUrl = new URL(options.redirectTo);
+    expect(callbackUrl.pathname).toBe("/auth/callback");
+    expect(callbackUrl.searchParams.get("legal_consent_version")).toBe(
+      "v1-2026-08-01"
+    );
+    expect(callbackUrl.searchParams.get("legal_consent_proof")).toBe(
+      "signup:register-form-v1"
+    );
+    expect(callbackUrl.searchParams.get("next")).toContain(
+      "/auth/redirect?initial_role=owner"
+    );
+  });
+
+  it("muestra los errores de consentimiento al volver del callback OAuth", async () => {
+    searchParams.set("error", "consent_invalid");
+    render(<LoginForm />);
+
+    await waitFor(() => {
+      expect(pushToast).toHaveBeenCalledWith(
+        expect.objectContaining({
+          title: "No pudimos confirmar tu aceptación",
+          variant: "error",
+        })
+      );
+    });
+    searchParams.delete("error");
+  });
+
+  it("informa cuando la cuenta no tiene acceso activo", async () => {
+    searchParams.set("error", "access_disabled");
+    render(<LoginForm />);
+
+    await waitFor(() => {
+      expect(pushToast).toHaveBeenCalledWith(
+        expect.objectContaining({
+          title: "Esta cuenta no tiene acceso activo",
+          variant: "error",
+        })
+      );
+    });
+    searchParams.delete("error");
   });
 });

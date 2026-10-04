@@ -15,6 +15,7 @@ vi.mock("@/lib/auth/ensure-global-profile", () => ({
 
 const cookiesMock = vi.hoisted(() => vi.fn());
 const createClientMock = vi.hoisted(() => vi.fn());
+const updateUserMock = vi.hoisted(() => vi.fn());
 const redirectMock = vi.hoisted(() => vi.fn((path: string) => {
   throw new Error(`REDIRECT:${path}`);
 }));
@@ -25,6 +26,7 @@ vi.mock("@/lib/supabase/server", () => ({ createClient: createClientMock }));
 
 import { resolveUserEntry } from "@/lib/auth/resolve-user-entry";
 import { GET } from "@/app/auth/redirect/route";
+import { GET as oauthCallback } from "@/app/auth/callback/route";
 
 const user = {
   id: "user-google",
@@ -45,6 +47,7 @@ describe("Google signup role routing", () => {
       auth: {
         getUser: vi.fn().mockResolvedValue({ data: { user } }),
         exchangeCodeForSession: vi.fn().mockResolvedValue({ error: null }),
+        updateUser: updateUserMock.mockResolvedValue({ error: null }),
       },
     });
   });
@@ -72,5 +75,22 @@ describe("Google signup role routing", () => {
     expect(resolveUserHomeMock).toHaveBeenCalled();
     expect(ensureGlobalProfileMock).toHaveBeenCalledWith(user, "provider");
     expect(redirectMock).toHaveBeenCalledWith("/dashboard/marketplace/mis-productos");
+  });
+
+  it("records signup consent from Google before redirecting to onboarding", async () => {
+    const request = new Request(
+      "http://localhost/auth/callback?code=oauth-code&next=%2Fauth%2Fredirect%3Finitial_role%3Downer&legal_consent_version=v1-2026-08-01&legal_consent_proof=signup%3Aregister-form-v1"
+    );
+
+    await expect(oauthCallback(request as never)).rejects.toThrow(
+      "REDIRECT:/auth/redirect?initial_role=owner"
+    );
+
+    expect(updateUserMock).toHaveBeenCalledWith({
+      data: {
+        legal_consent_version: "v1-2026-08-01",
+        legal_consent_proof: "signup:register-form-v1",
+      },
+    });
   });
 });

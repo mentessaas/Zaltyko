@@ -4,6 +4,7 @@ import { Metadata } from "next";
 import LoginForm from "@/components/login-form";
 import { createClient } from "@/lib/supabase/server";
 import { resolveUserEntry } from "@/lib/auth/resolve-user-entry";
+import { isLoginNoticeCode } from "@/lib/auth/login-error";
 import { logger } from "@/lib/logger";
 import { getPublicSiteUrl } from "@/lib/seo/site-url";
 
@@ -40,7 +41,9 @@ export default async function Login({searchParams}:{searchParams:Promise<Record<
     logger.error("No se pudo resolver la sesión en /auth/login:", error);
   }
 
-  if (sessionUser) {
+  // Render the callback notice even if OAuth established a session before a
+  // later consent-recording step failed. The notice explains how to recover.
+  if (sessionUser && !isLoginNoticeCode(params.error)) {
     const home = await resolveUserEntry(sessionUser);
     const next=params.next??params.callbackUrl;
     if(home.destination!=="blocked"&&next&&/^\/(academias|events|directorio)\//.test(next)&&!next.includes("\\"))redirect(next);

@@ -1,10 +1,19 @@
 ---
 status: active
 owner: producto
-last_reviewed: 2026-10-03
+last_reviewed: 2026-10-04
 source:
   - ../docs/audits/2026-10-03-launch-and-auth-followup.md
 ---
+
+## 2026-10-04 — Revalidar acceso Google, recuperación y búsqueda del onboarding
+
+- **Configuración OAuth [VERIFICADO]:** Google Cloud ya tenía el cliente Web `Zaltyko Web`; el Client ID coincide con el proveedor Google de Supabase, `https://zaltyko.com` es el origen autorizado, el callback de Google es el de Supabase y `/auth/callback` está permitido como retorno de la aplicación. No hizo falta crear otro cliente ni cambiar secretos.
+- **Registro Google [CORREGIDO EN RAMA]:** el formulario exigía aceptar términos, pero el callback de las altas ordinarias no recibía esos datos; al activar después la academia, el registro de consentimiento podía fallar. Ahora se envían al callback, se guardan en metadatos autenticados y los errores de consentimiento se explican en login. La rama aislada añade pruebas del callback y del mensaje; no está fusionada ni desplegada.
+- **Recuperación [VERIFICACIÓN VISUAL]:** en el login de vista previa, «¿Olvidaste tu contraseña?» aparece junto a la etiqueta de contraseña, subrayado y con área táctil destacada. `/auth/forgot-password` ya devuelve 200; no se envió un correo real. SMTP/entrega siguen pendientes.
+- **Academia antes del alta [VERIFICADO EN CÓDIGO]:** PR #198 ya forma parte de `main`. El onboarding busca academias públicas por nombre y ubicación; con el directorio externo apagado, solo consulta perfiles operativos, pide invitación si ya existe un espacio y vuelve a comprobar duplicados en servidor. Reclamar fichas externas requiere catálogo y reclamaciones activos; producción sigue bloqueada por tablas/migraciones y respaldo.
+- **VoiceOver [PARCIAL]:** se activó desde Ajustes y el árbol de accesibilidad expone el enlace de recuperación y el texto del aviso de error. CUA no permitió verificar de forma fiable la locución; tablas, modales y zoom al 200 % siguen pendientes de revisión manual.
+- **Pruebas locales:** recuperación/OAuth focal 16/16 y búsqueda/onboarding 22/22; `typecheck` y ESLint focal pasan. Build de la rama OAuth pendiente al registrar esta entrada.
 
 ## 2026-10-03 — Revisión de OAuth, seguridad y directorio
 
