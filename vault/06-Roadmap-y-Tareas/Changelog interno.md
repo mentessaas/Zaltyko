@@ -10816,3 +10816,12 @@ Modelo separado, reclamación manual, administración, importación revisada, fi
 - **Cambio:** antes de pulsar «Buscar», el test espera la navegación de academia dentro del `complementary`, la misma señal de hidratación que ya usa el test de navegación de escritorio. No cambia el comportamiento del producto.
 - **Validación local:** ESLint focal, Prettier y `git diff --check` pasan. No se ejecutó Playwright local porque la configuración podría cargar credenciales y apuntar a un entorno externo; CI autenticado nuevo pendiente en PR #203.
 - **Estado:** preparado en la rama `codex/e2e-command-palette-readiness-20261004`; no fusionado ni desplegado.
+
+## 2026-10-05 — Página de precios autoservicio y anual
+
+- Free, Starter y Growth dirigen a la creación de cuenta; Network conserva el contacto guiado.
+- La página pública incorpora comparación mensual/anual con precios anuales, equivalente mensual y ahorro, y aclara que la prueba de 7 días no genera un cargo automático.
+- Se alinearon el catálogo de planes y la documentación de precios/mensajes comerciales con los importes configurados.
+- **Validación local:** `pnpm typecheck`, `pnpm lint`, prueba del contrato anual (4/4), Prettier, `git diff --check`, build de producción y revisión visual en servidor local pasan.
+- **Stripe:** los cuatro Price IDs Live se leyeron y validaron sin crear checkout ni cargo. La integración Test y el webhook de prueba siguen pendientes de reconectar Stripe Test.
+- **Estado:** rama `codex/pricing-self-serve-20261004`; pendiente crear PR y pasar CI. No desplegado.

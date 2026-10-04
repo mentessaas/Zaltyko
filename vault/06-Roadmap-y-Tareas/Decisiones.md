@@ -766,3 +766,12 @@ Una ficha externa no crea dueño, academia operativa, trial ni suscripción. Sol
 | Decisión | Aplicar un límite máximo de 100 en parseo y recorridos del AST con `patch-package`, manteniendo la dependencia en su versión real y un test que cubra el límite exacto. |
 | Consecuencia | Las instalaciones npm y pnpm del árbol móvil obtienen el guard; la misma instalación aplica la mitigación existente de `node-forge`. Dependabot seguirá mostrando #304/#305 y el audit no se declara limpio hasta adoptar una versión oficial corregida. |
 | Estado | PR #202 se fusionó por squash el 2026-10-04 como `5566e38e`; build, unitarias, E2E autenticado, roles, móvil, RLS, migraciones, SBOM y preview pasaron. CI post-merge `37222242745` está en curso. Las alertas siguen abiertas y no se ha validado build nativo/EAS. La exportación web tropezó por separado con `expo-secure-store` durante SSR; revisar su soporte web en otro cambio. |
+
+## 2026-10-05 — Autoservicio y precios anuales visibles en la página pública
+
+| Campo | Valor |
+| --- | --- |
+| Evidencia | La página pública de precios seguía enviando Growth a una demo. Los Price IDs Live mensuales y anuales de Starter y Growth se comprobaron en modo de solo lectura: están activos y coinciden con importes, moneda, periodicidad y producto de la base de datos. |
+| Decisión | Ofrecer alta autoservicio para Free, Starter y Growth; mantener Network con acompañamiento. Mostrar precios anuales y ahorro estimado con claridad. La selección efectiva del ciclo continúa en Facturación. |
+| Consecuencia | La página orienta los planes estándar a crear una academia sin bloquear la captación con una demo. El código aún debe pasar CI y revisión antes de llegar a producción. |
+| Estado | Implementación local en `codex/pricing-self-serve-20261004`; TypeScript, lint, pruebas del contrato anual, formato, build y comprobación visual local pasan. No se creó una sesión ni se hizo un cargo. Sigue pendiente una compra de prueba con Stripe Test y comprobar el webhook. |
