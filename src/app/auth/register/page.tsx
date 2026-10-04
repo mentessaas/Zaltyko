@@ -18,5 +18,10 @@ export const metadata: Metadata = {
 };
 
 export default function Register() {
-  return <RegisterForm directoryDiscoveryEnabled={flag("catalog")} />;
+  return (
+    <RegisterForm
+      directoryDiscoveryEnabled={flag("catalog")}
+      directoryClaimsEnabled={flag("claims")}
+    />
+  );
 }

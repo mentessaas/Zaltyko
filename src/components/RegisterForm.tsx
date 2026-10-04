@@ -75,7 +75,13 @@ type RegisterRole = (typeof ROLE_OPTIONS)[number]["value"];
 const LEGAL_CONSENT_VERSION = "v1-2026-08-01";
 const LEGAL_CONSENT_PROOF = "signup:register-form-v1";
 
-export function RegisterForm({directoryDiscoveryEnabled=false}:{directoryDiscoveryEnabled?:boolean}={}) {
+export function RegisterForm({
+  directoryDiscoveryEnabled = false,
+  directoryClaimsEnabled = false,
+}: {
+  directoryDiscoveryEnabled?: boolean;
+  directoryClaimsEnabled?: boolean;
+} = {}) {
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [fullName, setFullName] = useState("");
@@ -403,8 +409,15 @@ export function RegisterForm({directoryDiscoveryEnabled=false}:{directoryDiscove
           </div>
           {role === "owner" && !directoryRegistration && (
             <div className="rounded-lg border border-zaltyko-teal/30 bg-zaltyko-teal/5 px-3 py-2 text-xs text-muted-foreground">
-              <span className="font-semibold text-foreground">Importante:</span> primero crearás tu cuenta personal. {directoryDiscoveryEnabled ? "Después podrás buscar tu academia y solicitar su reclamación si ya existe, o crear una sede nueva." : "Después te guiaremos para crear la academia y configurar tu espacio de trabajo."}
-              {directoryDiscoveryEnabled && <Link href="/academias" className="mt-2 block font-semibold underline">Buscar mi academia antes de crear la cuenta</Link>}
+              <span className="font-semibold text-foreground">Importante:</span> primero crearás tu cuenta personal. Después podrás buscar tu academia antes de crear un espacio de gestión.
+              <p className="mt-2">
+                {directoryDiscoveryEnabled && directoryClaimsEnabled
+                  ? "Si ya tiene una ficha pública, podrás solicitar su reclamación gratuita; requiere revisión y no concede acceso al espacio privado."
+                  : "La búsqueda muestra perfiles públicos disponibles, no todas las academias. Si la tuya ya tiene un espacio en Zaltyko, pide una invitación a su responsable para no duplicarlo."}
+              </p>
+              <Link href="/academias" className="mt-2 block font-semibold underline">
+                Buscar academias públicas antes de crear mi espacio
+              </Link>
             </div>
           )}
         </div>
@@ -481,14 +494,26 @@ export function RegisterForm({directoryDiscoveryEnabled=false}:{directoryDiscove
       </form>
 
       <div className="mt-4">
+        {!termsAccepted && (
+          <p
+            id="google-signup-consent-hint"
+            className="mb-2 text-center text-xs text-muted-foreground"
+          >
+            Para continuar con Google, acepta primero los términos y la política
+            de privacidad.
+          </p>
+        )}
         <Button
           type="button"
           formNoValidate
           onClick={handleGoogleSignUp}
           variant="outline"
           className="w-full"
-          disabled={!isHydrated || googleLoading || loading}
+          disabled={!isHydrated || googleLoading || loading || !termsAccepted}
           aria-busy={!isHydrated || googleLoading}
+          aria-describedby={
+            !termsAccepted ? "google-signup-consent-hint" : undefined
+          }
         >
           {googleLoading ? (
             <>
