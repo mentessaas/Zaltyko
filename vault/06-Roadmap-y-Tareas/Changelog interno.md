@@ -10866,3 +10866,11 @@ Modelo separado, reclamación manual, administración, importación revisada, fi
 - En registro, el botón Google está deshabilitado hasta aceptar los términos y la política; esa casilla no se marcó. No se introdujeron credenciales, no se completó una sesión y no se creó una cuenta.
 - **Pendiente real:** validar callback/sesión con una cuenta de prueba Google autorizada; validar el registro aceptando términos desde la propia cuenta. El smoke anónimo confirma el inicio del flujo, no una autenticación terminada. La entrega real de correos de recuperación sigue sin verificarse.
 - Evidencia ampliada: [`docs/auth/google-and-password-recovery.md`](../../docs/auth/google-and-password-recovery.md).
+
+## 2026-10-05 — Verificar SMTP Auth y registros de entrega Brevo
+
+- Supabase Auth tiene activado SMTP personalizado hacia `smtp-relay.brevo.com:587`, con remitente Zaltyko y la clave guardada de forma oculta. No se leyó ni cambió la clave.
+- En Brevo, las pruebas transaccionales previas del 3–4 de octubre muestran **Enviado**, **Entregado** y **Abierto** para la dirección de prueba. La entrega real del proveedor queda verificada; no hizo falta enviar otra prueba.
+- Hoy se solicitó una recuperación desde producción: el endpoint de Supabase respondió HTTP 200 con el mensaje genérico y no se modificó contraseña. En Brevo no apareció un evento nuevo para ese envío. Supabase no manda mensaje si no existe una cuenta asociada, aunque la llamada no revele ese hecho; no verificamos la existencia de la cuenta.
+- **Estado:** proveedor Brevo validado; entrega de recuperación a una cuenta existente y finalización del restablecimiento siguen pendientes. No se abrió el correo ni se usó ningún enlace.
+- Evidencia detallada: [`auditoria-2026-10-05/auth-email-delivery.md`](../../auditoria-2026-10-05/auth-email-delivery.md) y [`docs/auth/google-and-password-recovery.md`](../../docs/auth/google-and-password-recovery.md).
