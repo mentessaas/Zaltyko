@@ -84,7 +84,7 @@
     "@sentry/nextjs": "^10.64.0",
     "@stripe/react-stripe-js": "^5.4.1",
     "@stripe/stripe-js": "^8.5.3",
-    "@supabase/ssr": "^0.7.0",
+    "@supabase/ssr": "^0.12.7",
     "@supabase/supabase-js": "^2.43.0",
     "@types/papaparse": "^5.5.0",
     "@vercel/analytics": "^1.5.0",
