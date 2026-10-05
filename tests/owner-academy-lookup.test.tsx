@@ -16,7 +16,7 @@ describe("Buscar academia durante onboarding", () => {
   it("filtra por región y ciudad, y solo revisa esa ubicación", async () => {
     const fetchMock = vi.fn().mockResolvedValue({
       ok: true,
-      json: async () => ({ data: { items: [] } }),
+      json: async () => ({ total: 0, items: [] }),
     });
     vi.stubGlobal("fetch", fetchMock);
     const reviewed = vi.fn();
@@ -35,9 +35,14 @@ describe("Buscar academia durante onboarding", () => {
       "No encontramos coincidencias en los perfiles públicos disponibles. Puedes continuar con el alta; el servidor volverá a comprobar que no exista ya un espacio con esos datos."
     );
 
-    const requestUrl = new URL(fetchMock.mock.calls[0][0], "https://zaltyko.test");
+    const requestUrl = new URL(
+      fetchMock.mock.calls[0][0],
+      "https://zaltyko.test"
+    );
+    expect(requestUrl.pathname).toBe("/api/public/academies");
     expect(requestUrl.searchParams.get("region")).toBe("Comunidad de Madrid");
     expect(requestUrl.searchParams.get("city")).toBe("Madrid");
+    expect(fetchMock).toHaveBeenCalledTimes(1);
     expect(reviewed).toHaveBeenCalledWith(
       JSON.stringify(["Academia QA", "es", "Comunidad de Madrid", "Madrid"])
     );
@@ -64,7 +69,7 @@ describe("Buscar academia durante onboarding", () => {
     await screen.findByText("No se pudo comprobar");
     expect(reviewed).not.toHaveBeenCalled();
   });
-  it("busca perfiles públicos operativos mientras el directorio externo está apagado", async () => {
+  it("usa perfiles públicos operativos si el endpoint del directorio está desactivado", async () => {
     const fetchMock = vi
       .fn()
       .mockResolvedValueOnce({
@@ -95,19 +100,18 @@ describe("Buscar academia durante onboarding", () => {
         region="Madrid"
         city="Madrid"
         onReviewed={reviewed}
+        directoryEnabled
       />
     );
 
     fireEvent.click(screen.getByRole("button", { name: "Buscar mi academia" }));
 
-    expect(
-      await screen.findByText("Club Público")
-    ).toBeTruthy();
+    expect(await screen.findByText("Club Público")).toBeTruthy();
     expect(
       screen.getByText(/solo muestra academias con perfil público operativo/)
     ).toBeTruthy();
     expect(
-      screen.getByText(/todavía no consulta fichas externas/)
+      screen.getByText(/Las reclamaciones todavía no están activas/)
     ).toBeTruthy();
     expect(
       screen.queryByText(/puedes solicitar gestionarla gratis/)
@@ -126,7 +130,9 @@ describe("Buscar academia durante onboarding", () => {
     expect(publicRequest.searchParams.get("city")).toBe("Madrid");
     expect(reviewed).not.toHaveBeenCalled();
     fireEvent.click(
-      screen.getByRole("button", { name: "Ninguna corresponde a mi sede; continuar" })
+      screen.getByRole("button", {
+        name: "Ninguna corresponde a mi sede; continuar",
+      })
     );
     expect(reviewed).toHaveBeenCalledWith(
       JSON.stringify(["Club Público", "es", "Madrid", "Madrid"])
