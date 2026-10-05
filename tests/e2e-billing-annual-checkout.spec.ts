@@ -42,11 +42,16 @@ test("owner creates annual Checkout and syncs a signed Stripe Test webhook", asy
   let checkoutSessionId: string | undefined;
   let databasePool: Pool | undefined;
   let webhookTestCustomerId: string | undefined;
-  let webhookTestSubscriptionId: string | undefined;
+  const webhookTestSubscriptionIds: string[] = [];
+  let webhookTestPaymentMethodId: string | undefined;
   let webhookEventId: string | undefined;
+  const webhookEventIds: string[] = [];
   let webhookUserId: string | undefined;
   let previousSubscription: Record<string, unknown> | undefined;
   let subscriptionSnapshotCaptured = false;
+  let previousActiveTrial: Record<string, unknown> | undefined;
+  let trialSnapshotCaptured = false;
+  let previousAcademyTrialActive: boolean | undefined;
   let webhookMutationAttempted = false;
 
   try {
@@ -216,6 +221,20 @@ test("owner creates annual Checkout and syncs a signed Stripe Test webhook", asy
     );
     previousSubscription = existingSubscription.rows[0];
     subscriptionSnapshotCaptured = true;
+    const activeTrial = await databasePool.query(
+      `select id, status, ended_at, converted_at, updated_at
+         from academy_trials
+        where academy_id = $1 and status = 'active'`,
+      [academyId]
+    );
+    previousActiveTrial = activeTrial.rows[0];
+    const academyTrialState = await databasePool.query(
+      `select is_trial_active from academies where id = $1`,
+      [academyId]
+    );
+    expect(academyTrialState.rows[0]).toBeTruthy();
+    previousAcademyTrialActive = academyTrialState.rows[0].is_trial_active;
+    trialSnapshotCaptured = true;
 
     const webhookTestRunId = randomUUID();
     const testCustomer = await stripe.customers.create({
@@ -238,11 +257,12 @@ test("owner creates annual Checkout and syncs a signed Stripe Test webhook", asy
       },
       { idempotencyKey: `e2e-annual-webhook-${webhookTestRunId}` }
     );
-    webhookTestSubscriptionId = incompleteSubscription.id;
+    webhookTestSubscriptionIds.push(incompleteSubscription.id);
     expect(incompleteSubscription.livemode).toBe(false);
     expect(incompleteSubscription.status).toBe("incomplete");
 
     webhookEventId = `evt_e2e_${randomUUID().replaceAll("-", "")}`;
+    webhookEventIds.push(webhookEventId);
     const webhookEvent = {
       id: webhookEventId,
       object: "event",
@@ -320,11 +340,172 @@ test("owner creates annual Checkout and syncs a signed Stripe Test webhook", asy
       received: true,
       duplicate: true,
     });
+
+    // Verify the successful-payment branch with Stripe's tokenized test card.
+    // This creates only a Stripe Test invoice; no real card or money is used.
+    const testPaymentMethod = await stripe.paymentMethods.create({
+      type: "card",
+      card: { token: "tok_visa" },
+    });
+    webhookTestPaymentMethodId = testPaymentMethod.id;
+    await stripe.paymentMethods.attach(testPaymentMethod.id, {
+      customer: testCustomer.id,
+    });
+    await stripe.customers.update(testCustomer.id, {
+      invoice_settings: { default_payment_method: testPaymentMethod.id },
+    });
+
+    const paidSubscription = await stripe.subscriptions.create(
+      {
+        customer: testCustomer.id,
+        items: [{ price: starterPlan!.stripeAnnualPriceId! }],
+        default_payment_method: testPaymentMethod.id,
+        payment_behavior: "error_if_incomplete",
+        metadata: {
+          userId,
+          tenantId: tenantId!,
+          academyId: academyId!,
+          planCode: "pro",
+          billingInterval: "year",
+          e2eTestRunId: webhookTestRunId,
+        },
+      },
+      { idempotencyKey: `e2e-annual-paid-${webhookTestRunId}` }
+    );
+    webhookTestSubscriptionIds.push(paidSubscription.id);
+    expect(paidSubscription.livemode).toBe(false);
+    expect(paidSubscription.status).toBe("active");
+    const paidInvoiceRef = paidSubscription.latest_invoice;
+    expect(paidInvoiceRef).toBeTruthy();
+    const paidInvoice = await stripe.invoices.retrieve(
+      typeof paidInvoiceRef === "string" ? paidInvoiceRef : paidInvoiceRef!.id
+    );
+    expect(paidInvoice.status).toBe("paid");
+
+    const paidEventId = `evt_e2e_${randomUUID().replaceAll("-", "")}`;
+    webhookEventIds.push(paidEventId);
+    const paidWebhookEvent = {
+      id: paidEventId,
+      object: "event",
+      api_version: "2026-08-26.dahlia",
+      created: Math.max(
+        Math.floor(Date.now() / 1000),
+        webhookEvent.created + 1
+      ),
+      data: { object: paidSubscription },
+      livemode: false,
+      pending_webhooks: 1,
+      request: { id: null, idempotency_key: null },
+      type: "customer.subscription.created",
+    } as Stripe.Event;
+    const paidWebhookPayload = JSON.stringify(paidWebhookEvent);
+    const paidSignature = stripe.webhooks.generateTestHeaderString({
+      payload: paidWebhookPayload,
+      secret: webhookSecret!,
+    });
+
+    webhookMutationAttempted = true;
+    const paidWebhookResponse = await page
+      .context()
+      .request.post(`${baseURL}/api/stripe/webhook`, {
+        data: paidWebhookPayload,
+        headers: {
+          "content-type": "application/json",
+          "stripe-signature": paidSignature,
+        },
+      });
+    expect(paidWebhookResponse.status()).toBe(200);
+    expect(await paidWebhookResponse.json()).toEqual({
+      received: true,
+      duplicate: false,
+    });
+
+    const activeSubscription = await databasePool.query(
+      `select s.status, s.stripe_subscription_id, s.stripe_customer_id,
+              s.stripe_price_id, p.code as plan_code
+         from subscriptions s
+         left join plans p on p.id = s.plan_id
+        where s.user_id = $1`,
+      [userId]
+    );
+    expect(activeSubscription.rows[0]).toMatchObject({
+      status: "active",
+      stripe_subscription_id: paidSubscription.id,
+      stripe_customer_id: testCustomer.id,
+      stripe_price_id: starterPlan!.stripeAnnualPriceId,
+      plan_code: "pro",
+    });
+
+    const activeProcessedEvent = await databasePool.query(
+      `select status, academy_id, tenant_id, livemode
+         from billing_events
+        where stripe_event_id = $1`,
+      [paidEventId]
+    );
+    expect(activeProcessedEvent.rows[0]).toMatchObject({
+      status: "processed",
+      academy_id: academyId,
+      tenant_id: tenantId,
+      livemode: false,
+    });
+
+    const activatedEvents = await databasePool.query(
+      `select idempotency_key, event_name
+         from growth_events
+        where idempotency_key = any($1::text[])`,
+      [[`stripe_event:${paidEventId}`, `trial_converted:${paidEventId}`]]
+    );
+    expect(activatedEvents.rows).toContainEqual(
+      expect.objectContaining({
+        idempotency_key: `stripe_event:${paidEventId}`,
+        event_name: "subscription_activated",
+      })
+    );
+    if (previousActiveTrial) {
+      const convertedTrial = await databasePool.query(
+        `select status from academy_trials where id = $1`,
+        [previousActiveTrial.id]
+      );
+      expect(convertedTrial.rows[0]?.status).toBe("converted");
+      const academyAfterConversion = await databasePool.query(
+        `select is_trial_active from academies where id = $1`,
+        [academyId]
+      );
+      expect(academyAfterConversion.rows[0]?.is_trial_active).toBe(false);
+      expect(activatedEvents.rows).toContainEqual(
+        expect.objectContaining({
+          idempotency_key: `trial_converted:${paidEventId}`,
+          event_name: "trial_converted",
+        })
+      );
+    }
+
+    const paidDuplicateResponse = await page
+      .context()
+      .request.post(`${baseURL}/api/stripe/webhook`, {
+        data: paidWebhookPayload,
+        headers: {
+          "content-type": "application/json",
+          "stripe-signature": paidSignature,
+        },
+      });
+    expect(paidDuplicateResponse.status()).toBe(200);
+    expect(await paidDuplicateResponse.json()).toEqual({
+      received: true,
+      duplicate: true,
+    });
   } finally {
     const cleanupErrors: unknown[] = [];
-    if (webhookTestSubscriptionId) {
+    for (const subscriptionId of webhookTestSubscriptionIds) {
       try {
-        await stripe.subscriptions.cancel(webhookTestSubscriptionId);
+        await stripe.subscriptions.cancel(subscriptionId);
+      } catch (error) {
+        cleanupErrors.push(error);
+      }
+    }
+    if (webhookTestPaymentMethodId) {
+      try {
+        await stripe.paymentMethods.detach(webhookTestPaymentMethodId);
       } catch (error) {
         cleanupErrors.push(error);
       }
@@ -346,8 +527,18 @@ test("owner creates annual Checkout and syncs a signed Stripe Test webhook", asy
         await databasePool.query("begin");
         try {
           await databasePool.query(
-            "delete from billing_events where stripe_event_id = $1",
-            [webhookEventId]
+            "delete from billing_events where stripe_event_id = any($1::text[])",
+            [webhookEventIds]
+          );
+          await databasePool.query(
+            `delete from growth_events
+              where idempotency_key = any($1::text[])`,
+            [
+              webhookEventIds.flatMap((id) => [
+                `stripe_event:${id}`,
+                `trial_converted:${id}`,
+              ]),
+            ]
           );
           if (previousSubscription) {
             await databasePool.query(
@@ -390,6 +581,32 @@ test("owner creates annual Checkout and syncs a signed Stripe Test webhook", asy
             await databasePool.query(
               "delete from subscriptions where user_id = $1",
               [webhookUserId]
+            );
+          }
+          if (trialSnapshotCaptured && previousActiveTrial) {
+            await databasePool.query(
+              `update academy_trials
+                  set status = $2,
+                      ended_at = $3,
+                      converted_at = $4,
+                      updated_at = $5
+                where id = $1`,
+              [
+                previousActiveTrial.id,
+                previousActiveTrial.status,
+                previousActiveTrial.ended_at,
+                previousActiveTrial.converted_at,
+                previousActiveTrial.updated_at,
+              ]
+            );
+          }
+          if (
+            trialSnapshotCaptured &&
+            previousAcademyTrialActive !== undefined
+          ) {
+            await databasePool.query(
+              `update academies set is_trial_active = $2 where id = $1`,
+              [academyId, previousAcademyTrialActive]
             );
           }
           await databasePool.query("commit");
