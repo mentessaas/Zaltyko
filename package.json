@@ -103,7 +103,7 @@
     "framer-motion": "^12.0.6",
     "jspdf": "^4.2.1",
     "jspdf-autotable": "^5.0.8",
-    "lucide-react": "^1.48.0",
+    "lucide-react": "^1.49.0",
     "mcp-handler": "^1.1.0",
     "next": "15.5.24",
     "next-swagger-doc": "^0.4.1",
