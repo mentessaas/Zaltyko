@@ -1,4 +1,3 @@
-import Stripe from "stripe";
 import { eq } from "drizzle-orm";
 
 import { db } from "@/db";
@@ -13,7 +12,6 @@ import { getStripeClient } from "@/lib/stripe/client";
 import { createStripeIntegrationIdentifier } from "@/lib/stripe/integration-identifier";
 import { getAppUrl } from "@/lib/env";
 import { verifyAcademyAccess } from "@/lib/permissions";
-import { logger } from "@/lib/logger";
 
 export interface CreateCheckoutSessionParams {
   academyId: string;
@@ -147,7 +145,8 @@ export async function createCheckoutSession(
   }
 
   const billingInterval = params.billingInterval ?? "month";
-  const priceId = billingInterval === "year" ? plan.stripeAnnualPriceId : plan.stripePriceId;
+  const priceId =
+    billingInterval === "year" ? plan.stripeAnnualPriceId : plan.stripePriceId;
 
   if (!priceId) {
     throw new Error("PLAN_PRICE_NOT_CONFIGURED");
@@ -194,6 +193,7 @@ export async function createCheckoutSession(
         metadata: {
           userId: owner.userId,
           tenantId: params.tenantId,
+          academyId: params.academyId,
           planCode: plan.code,
           billingInterval,
         },
@@ -201,6 +201,7 @@ export async function createCheckoutSession(
       metadata: {
         userId: owner.userId,
         tenantId: params.tenantId,
+        academyId: params.academyId,
         planCode: plan.code,
         billingInterval,
       },

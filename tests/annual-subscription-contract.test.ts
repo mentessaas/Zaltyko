@@ -19,6 +19,13 @@ describe("annual subscription contract", () => {
     expect(source).toContain("PLAN_ANNUAL_PRICE_NOT_CONFIGURED");
   });
 
+  it("preserves the academy context in Checkout and subscription metadata", () => {
+    const checkoutService = read("src/lib/stripe/checkout-service.ts");
+    expect(checkoutService.match(/academyId: params\.academyId/g)).toHaveLength(
+      2
+    );
+  });
+
   it("keeps Stripe dynamic payment methods enabled", () => {
     const source = read("src/app/api/billing/checkout/route.ts");
     const sharedService = read("src/lib/stripe/checkout-service.ts");
