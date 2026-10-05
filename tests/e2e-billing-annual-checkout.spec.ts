@@ -35,6 +35,25 @@ test("owner creates and expires a Stripe Test annual Checkout session", async ({
   let checkoutSessionId: string | undefined;
 
   try {
+    // A previous aborted CI attempt may have created sessions before it could
+    // capture their IDs. Clean only open annual Starter sessions for this
+    // synthetic academy in Stripe Test.
+    const recentTestSessions = await stripe.checkout.sessions.list({
+      created: { gte: Math.floor(Date.now() / 1000) - 7 * 24 * 60 * 60 },
+      limit: 100,
+    });
+    for (const session of recentTestSessions.data) {
+      if (
+        session.status === "open" &&
+        session.mode === "subscription" &&
+        session.client_reference_id === academyId &&
+        session.metadata?.planCode === "pro" &&
+        session.metadata?.billingInterval === "year"
+      ) {
+        await stripe.checkout.sessions.expire(session.id);
+      }
+    }
+
     // The API session is inspected directly; the browser never enters a payment flow.
     await page.route("https://checkout.stripe.com/**", (route) =>
       route.fulfill({
@@ -82,21 +101,45 @@ test("owner creates and expires a Stripe Test annual Checkout session", async ({
       "The synthetic owner must not have a managed subscription that redirects to the portal."
     ).toBeEnabled();
 
-    const checkoutResponsePromise = page.waitForResponse(
-      (response) =>
-        response.url().endsWith("/api/billing/checkout") &&
-        response.request().method() === "POST"
+    type CheckoutCapture = {
+      status: number;
+      requestBody: unknown;
+      payload: unknown;
+    };
+    let resolveCheckoutCapture!: (capture: CheckoutCapture) => void;
+    let rejectCheckoutCapture!: (error: unknown) => void;
+    const checkoutCapturePromise = new Promise<CheckoutCapture>(
+      (resolve, reject) => {
+        resolveCheckoutCapture = resolve;
+        rejectCheckoutCapture = reject;
+      }
     );
+    await page.route("**/api/billing/checkout", async (route) => {
+      try {
+        const response = await route.fetch();
+        const payload: unknown = await response.json();
+        const capture = {
+          status: response.status(),
+          requestBody: route.request().postDataJSON(),
+          payload,
+        };
+        await route.fulfill({ response, body: JSON.stringify(payload) });
+        resolveCheckoutCapture(capture);
+      } catch (error) {
+        rejectCheckoutCapture(error);
+        await route.continue().catch(() => undefined);
+      }
+    });
     await selectPlanButton.click();
-    const checkoutResponse = await checkoutResponsePromise;
-    expect(checkoutResponse.status()).toBe(200);
-    expect(checkoutResponse.request().postDataJSON()).toMatchObject({
+    const checkoutCapture = await checkoutCapturePromise;
+    expect(checkoutCapture.status).toBe(200);
+    expect(checkoutCapture.requestBody).toMatchObject({
       academyId,
       planCode: "pro",
       billingInterval: "year",
     });
 
-    const checkoutPayload = (await checkoutResponse.json()) as {
+    const checkoutPayload = checkoutCapture.payload as {
       data?: { checkoutUrl?: string };
     };
     const checkoutUrl = checkoutPayload.data?.checkoutUrl;
