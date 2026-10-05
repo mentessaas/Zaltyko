@@ -522,7 +522,7 @@ Esta sección actualiza las fotografías anteriores del mismo día.
 - **Resuelto en producción:** acceso del panel de Directorio y catálogo público están activos. El catálogo muestra cinco espacios operativos ya existentes y cero eventos externos. La búsqueda del dueño está visible en el alta; su servidor mantiene la comprobación anti-duplicado. Reclamaciones, importadores y comunicaciones promocionales siguen apagados porque faltan prueba autenticada del flujo completo y permisos de reutilización de fuentes.
 - **Recuperación:** el enlace de contraseña se ve en /auth/login y /auth/forgot-password responde 200. La entrega a una cuenta existente sigue sin prueba; no enviar a direcciones ajenas.
 - **Google:** la configuración web inicia hasta Google y usa el callback esperado. Falta que una persona complete el acceso con una cuenta de prueba; el consentimiento de registro no se acepta en su nombre.
-- **Stripe Test:** dos endpoints activos entregaron eventos al staging y registraron firma válida; el receiver no procesa suscripciones de la app. Los precios anuales Starter/Growth están creados y mapeados en la base Test. Falta Checkout autenticado de la aplicación, sin completar cargos.
+- **Stripe Test:** CI de PR #212 completó Checkout Starter anual, factura pagada con método tokenizado de prueba, webhook de suscripción activa, conversión del trial e idempotencia en el sandbox aislado. La limpieza restauró los datos sintéticos. No se usó Stripe Live ni se modificó producción. Los endpoints externos siguen apuntando al receptor de staging; la prueba del handler de la app envió un evento Test firmado directamente a la app aislada.
 - **Migraciones:** ledger productivo 54 aplicacional/53 nativo; staging 45/70. Mantener bloqueados db push, reparación y escritura del runner hasta reconciliar historial y objetos.
 - **Dependabot:** cuatro alertas altas siguen abiertas para dos advisories móviles sin parche oficial; no hay PRs Dependabot abiertas. Mantener los patches y repetir tests al publicarse versión compatible.
 - **Fuentes y cobertura:** no completar el catálogo con datos inventados ni importar calendarios o redes sociales sin licencia/permisos documentados. Persisten cero fichas externas y cero eventos en producción.
@@ -532,7 +532,7 @@ Esta sección actualiza las fotografías anteriores del mismo día.
 
 - CI de main, ejecución 37251614461 sobre 12814441, terminó SUCCESS en los 12 jobs: lint/typecheck, seguridad/SBOM, móvil, RLS, unitarias, build, readiness de credenciales E2E, integridad de migraciones, E2E autenticado, Lighthouse, smoke y E2E público.
 - Staging contiene siete cuentas sintéticas con login habilitado: un admin, un atleta, un coach, dos owners, un parent y un super_admin. Solo se consultó el conteo por rol; no se leyeron correos ni credenciales.
-- La CI verde confirma sus escenarios automatizados, pero no reemplaza el recorrido manual de Checkout anual con un owner en staging ni el callback final Google.
+- La CI verde confirma el recorrido anual con owner sintético en staging, incluido el pago de prueba. No reemplaza la autenticación final de Google, que necesita que la persona elija su cuenta y complete el consentimiento.
 
 ## Fuentes oficiales del directorio — permiso pendiente — 2026-10-05
 
