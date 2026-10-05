@@ -42,6 +42,29 @@ export function OwnerAcademyLookup({
     region.trim(),
     city.trim(),
   ]);
+  async function searchOperationalAcademies() {
+    const publicQuery = new URLSearchParams({
+      search: name.trim(),
+      country: countryCode,
+      limit: "10",
+    });
+    if (region.trim()) publicQuery.set("region", region.trim());
+    if (city.trim()) publicQuery.set("city", city.trim());
+    const publicResponse = await fetch(`/api/public/academies?${publicQuery}`);
+    const publicBody = await publicResponse.json();
+    if (!publicResponse.ok)
+      throw new Error(
+        publicBody.message ?? "No se pudo buscar. Inténtalo de nuevo."
+      );
+    const items = Array.isArray(publicBody.items)
+      ? (publicBody.items as PublicAcademy[])
+      : [];
+    setPublicAcademies(items);
+    setUsedPublicFallback(true);
+    setSearched(key);
+    if (items.length === 0) onReviewed(key);
+  }
+
   async function search() {
     setBusy(true);
     setError("");
@@ -50,6 +73,11 @@ export function OwnerAcademyLookup({
     setPublicAcademies([]);
     setUsedPublicFallback(false);
     try {
+      if (!directoryEnabled) {
+        await searchOperationalAcademies();
+        return;
+      }
+
       const query = new URLSearchParams({
         kind: "academy",
         search: name.trim(),
@@ -64,28 +92,7 @@ export function OwnerAcademyLookup({
         !response.ok &&
         (body.code === "DISABLED" || body.error === "DISABLED")
       ) {
-        const publicQuery = new URLSearchParams({
-          search: name.trim(),
-          country: countryCode,
-          limit: "10",
-        });
-        if (region.trim()) publicQuery.set("region", region.trim());
-        if (city.trim()) publicQuery.set("city", city.trim());
-        const publicResponse = await fetch(
-          `/api/public/academies?${publicQuery}`
-        );
-        const publicBody = await publicResponse.json();
-        if (!publicResponse.ok)
-          throw new Error(
-            publicBody.message ?? "No se pudo buscar. Inténtalo de nuevo."
-          );
-        const items = Array.isArray(publicBody.items)
-          ? (publicBody.items as PublicAcademy[])
-          : [];
-        setPublicAcademies(items);
-        setUsedPublicFallback(true);
-        setSearched(key);
-        if (items.length === 0) onReviewed(key);
+        await searchOperationalAcademies();
         return;
       }
       if (!response.ok)
