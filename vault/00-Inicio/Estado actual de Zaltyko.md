@@ -10,6 +10,19 @@ source:
   - ../AGENTS.md
 ---
 
+## Revalidación focal — 2026-10-05 (estado vigente)
+
+Producción sirve el deployment READY dpl_EtTisvbmfBSiUyuiWsyvZMXG85nD, commit 12814441. El acceso canónico y el alias /login muestran “¿Olvidaste tu contraseña?” y /auth/forgot-password responde 200. Google inicia el flujo con el cliente Web de Zaltyko y vuelve al callback de Supabase esperado; no se completó la sesión porque no se eligió una cuenta. El registro de dueño mantiene Google desactivado hasta aceptar los términos.
+
+El registro de dueño explica que la cuenta personal se crea primero y que después se busca la academia. En producción el catálogo devuelve cinco fichas operativas y ningún evento; no hay fichas externas independientes. El buscador y el control de duplicados tienen cobertura focal (tests de onboarding y auth: 29/29), pero las reclamaciones siguen apagadas y no se probó una aprobación autenticada en producción.
+
+Stripe Test tiene dos destinos activos hacia Edge Functions de Supabase staging; el antiguo destino Connect que apuntaba a producción está desactivado. Un evento customer.created y un account.updated de una cuenta E2E sintética llegaron a staging con livemode=false y firma válida. Estos receptores solo validan y registran eventos; no prueban el procesamiento de facturas/suscripciones de la aplicación.
+
+Los cuatro precios Test de Starter/Growth coinciden con los planes de staging (19/190 y 49/490 EUR por mes/año). El contrato anual pasa 4/4 pruebas. No se creó una sesión de Checkout ni se completó un flujo autenticado.
+
+Los historiales de migración siguen divergentes: producción tiene 54 registros aplicacionales frente a 53 nativos; staging, 45 frente a 70. No ejecutar reparaciones ni migraciones hasta conciliarlos. GitHub mantiene cuatro alertas altas abiertas para dos advisories móviles sin versión upstream corregida; los parches y pruebas permanecen en el repositorio.
+
+Pendiente real: completar el callback con una cuenta Google de prueba autorizada; probar la recuperación de contraseña con una cuenta existente; confirmar entrega y procesamiento del webhook de suscripción tras el Checkout Test anual (el E2E y los checks obligatorios pasaron en PR #211; el cambio de CI sigue sin fusionar y la sesión de staging se expiró sin pago); habilitar reclamaciones solo tras validar solicitud/aprobación/edición con roles aislados; obtener derechos escritos de reutilización antes de publicar fichas externas.
 ## Revalidación focal — 2026-10-02
 
 Esta pasada cubrió Google OAuth, recuperación de contraseña, onboarding de propietarios, autorización del directorio, copias y estado de migraciones; no es una auditoría GO integral del producto. Google ya usa el cliente web correcto y llega a la pantalla de Google; falta el E2E con una cuenta del usuario. El formulario de recuperación está visible, pero SMTP no está listo: Brevo valida 6/7 registros DNS y DMARC requiere añadir el destino de informes; todavía no hay clave SMTP ni prueba de entrega. La búsqueda de academia existe en el onboarding, pero producción no tiene las tablas del directorio y el buscador permanece apagado. Los historiales de producción y sandbox no están conciliados; no se aplicaron migraciones ni se cambiaron flags. La organización Free tiene dos proyectos activos y uno inactivo; no hace falta borrar el inactivo para una copia externa. Aún no hay un respaldo completo: el SQL por defecto probado era solo esquema y el Storage productivo registra un objeto que debe exportarse aparte. Los asesores actuales marcan tres tablas internas sin policies (con default-deny por RLS), 60 FKs sin índice y otras advertencias que no deben corregirse globalmente sin revisión. PR #185 sigue abierta y necesita una aprobación independiente; además, la rama local incorpora una corrección de concurrencia aún no subida. Evidencia y pendientes detallados: [[Backlog priorizado]] y [[Changelog interno]].
@@ -164,3 +177,11 @@ Pendientes vigentes a 2026-06-26 (orden sugerido en [[Roadmap maestro#Proximos p
 > **Reconciliación de importación segura 2026-09-12:** la carga CSV de gimnastas ya no escribe con un solo clic. La UI exige preview + confirmación y el servidor verifica un hash SHA-256 del mismo archivo; se muestran errores por fila y posibles duplicados nombre+fecha sin fusionar automáticamente. Esto reduce el riesgo operativo de duplicar o contaminar la academia al migrar desde Excel. Evidencia focal 2/2, TypeScript y ESLint PASS; falta validar el recorrido con una academia real y una importación controlada.
 
 > **Reconciliación de límites de rol en reportes 2026-09-12:** los reportes ejecutivos y financieros dejan de formar parte del baseline de coach. La navegación y el workspace muestran reportes solo a super-admin, owner y admin; el layout devuelve un estado de acceso explícito para un coach que llegue por URL directa. Así se evita que una cuenta operativa vea ingresos, bajas o métricas agregadas de toda la academia por accidente. Los roles personalizados pueden conservar acceso solo si un administrador lo concede de forma explícita; el contrato de API continúa exigiendo la capability correspondiente.
+
+## Revisión de fuentes del directorio — 2026-10-05
+
+La consulta documental de RFEG, FDPG y CBG no encontró una licencia clara para extracción y republicación de sus calendarios. En RFEG, un aviso del portal de licencias limita el uso y pide permiso escrito, pero falta confirmar si aplica al calendario del sitio principal. Se prepararon solicitudes de autorización en español y portugués; no se enviaron. Hasta recibir respuesta, usar propuestas directas de organizadores o fuentes con licencia explícita y no publicar datos de atletas, imágenes ni resultados. Informe: `auditoria-2026-10-05/fuentes-directorio-permisos.md` en el workspace de investigación.
+
+## Corrección de clasificación de trial — 2026-10-05
+
+Se encontró una academia con `is_trial_active=true`, `is_suspended=false`, estado `active` y un registro de trial `active` no caducado. Se actualizó solo `academies.status` a `trial`; el trigger existente actualizó `status_updated_at`. La comprobación posterior devuelve cero casos con esa incoherencia y un trial vigente clasificado como `trial`. No se tocaron pagos ni suscripciones. El hash histórico de una migración de staging sigue pendiente y no se editó.

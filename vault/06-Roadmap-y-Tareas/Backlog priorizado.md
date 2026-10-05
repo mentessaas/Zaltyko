@@ -513,3 +513,46 @@ PR #178 requiere que el estado permitido tenga también un `stripe_subscription_
 ## P2 — Flaky Firefox al abrir la búsqueda global — 2026-10-04
 
 En el E2E autenticado post-merge `37220089122`, la command palette falló una vez en Firefox mientras el navegador aún procesaba la navegación; pasó en el reintento y WebKit pasó. PR #203 añade una espera explícita a la hidratación de la navegación de academia antes de pulsar «Buscar». Pendiente el CI autenticado de esta corrección; no se declara cerrado hasta que complete.
+
+
+## Revalidación focal — 2026-10-05
+
+Esta sección actualiza las fotografías anteriores del mismo día.
+
+- **Resuelto en producción:** acceso del panel de Directorio y catálogo público están activos. El catálogo muestra cinco espacios operativos ya existentes y cero eventos externos. La búsqueda del dueño está visible en el alta; su servidor mantiene la comprobación anti-duplicado. Reclamaciones, importadores y comunicaciones promocionales siguen apagados porque faltan prueba autenticada del flujo completo y permisos de reutilización de fuentes.
+- **Recuperación:** el enlace de contraseña se ve en /auth/login y /auth/forgot-password responde 200. La entrega a una cuenta existente sigue sin prueba; no enviar a direcciones ajenas.
+- **Google:** la configuración web inicia hasta Google y usa el callback esperado. Falta que una persona complete el acceso con una cuenta de prueba; el consentimiento de registro no se acepta en su nombre.
+- **Stripe Test:** dos endpoints activos entregaron eventos al staging y registraron firma válida; el receiver no procesa suscripciones de la app. Los precios anuales Starter/Growth están creados y mapeados en la base Test. Falta Checkout autenticado de la aplicación, sin completar cargos.
+- **Migraciones:** ledger productivo 54 aplicacional/53 nativo; staging 45/70. Mantener bloqueados db push, reparación y escritura del runner hasta reconciliar historial y objetos.
+- **Dependabot:** cuatro alertas altas siguen abiertas para dos advisories móviles sin parche oficial; no hay PRs Dependabot abiertas. Mantener los patches y repetir tests al publicarse versión compatible.
+- **Fuentes y cobertura:** no completar el catálogo con datos inventados ni importar calendarios o redes sociales sin licencia/permisos documentados. Persisten cero fichas externas y cero eventos en producción.
+
+
+## Confirmación CI y cuentas sintéticas — 2026-10-05
+
+- CI de main, ejecución 37251614461 sobre 12814441, terminó SUCCESS en los 12 jobs: lint/typecheck, seguridad/SBOM, móvil, RLS, unitarias, build, readiness de credenciales E2E, integridad de migraciones, E2E autenticado, Lighthouse, smoke y E2E público.
+- Staging contiene siete cuentas sintéticas con login habilitado: un admin, un atleta, un coach, dos owners, un parent y un super_admin. Solo se consultó el conteo por rol; no se leyeron correos ni credenciales.
+- La CI verde confirma sus escenarios automatizados, pero no reemplaza el recorrido manual de Checkout anual con un owner en staging ni el callback final Google.
+
+## Fuentes oficiales del directorio — permiso pendiente — 2026-10-05
+
+- RFEG: su aviso legal actual no muestra una licencia de reutilización. Un aviso del portal de licencias limita la reproducción a uso privado no profesional y requiere permiso escrito para distribución/comunicación pública y enlaces; su alcance sobre el calendario del sitio principal debe confirmarse por escrito.
+- FDPG y CBG: publican calendarios oficiales, pero las páginas revisadas no otorgan licencia para extracción o republicación; FDPG muestra “todos los derechos reservados” y CBG también.
+- No activar scraping, adaptadores ni publicación de estos datos hasta recibir autorización que defina campos, atribución, frecuencia, archivo histórico y tratamiento separado de imágenes/logos. Se preparó una solicitud bilingüe, sin enviarla.
+- Acción viable mientras llega respuesta: aceptar propuestas directas de organizadores y usar fuentes con licencia explícita; evitar datos de gimnastas, resultados, fotos y logos.
+- Evidencia: [`fuentes-directorio-permisos.md`](../../../../Zaltyko/auditoria-2026-10-05/fuentes-directorio-permisos.md).
+
+### Hallazgo adicional del ledger — 2026-10-05
+
+Producción: 54 filas del ledger aplicacional, todos los checksums coinciden con el checkout. Staging: 45 filas, 44 coinciden; `20260805120000_academies_status_semantics.sql` difiere y su hash no aparece en las seis revisiones Git locales disponibles. Los historiales nativos (53 producción, 70 staging) son registros independientes y no se comparan por conteo. No editar ledgers ni ejecutar reparación/migraciones hasta recuperar esa procedencia y contrastar el esquema. Detalle: [`migration-ledger-reconciliation.md`](../../../../Zaltyko/auditoria-2026-10-05/migration-ledger-reconciliation.md).
+
+La comparación estructural de columnas/restricciones/índices/trigger da paridad actual. Se corrigió una clasificación de producción tras verificar el registro de trial activo no caducado: `status` pasó de `active` a `trial`. La verificación posterior encontró cero casos incoherentes con el mismo criterio. No se tocaron pagos ni suscripciones. Esto no resuelve el hash histórico de staging.
+
+## P1 — Verificar Checkout anual de Stripe Test desde la app — 2026-10-05
+
+- Se añadió un E2E autenticado dedicado a Chromium y aislado del resto de navegadores. Selecciona Starter anual desde Facturación, comprueba la sesión y el Price con la API de Stripe Test, y expira la sesión sin completar pago.
+- El paso solo se activa en el job autenticado sobre el sandbox Supabase, con claves `sk_test_`/`pk_test_`; el guard de Playwright bloquea producción. No usa Stripe Live.
+- Verificación local: TypeScript, ESLint, Prettier, colección Playwright y contratos anuales (6/6) pasan. No se creó Checkout localmente.
+- El primer run de PR #211 alcanzó Stripe Test y creó sesiones, pero Playwright perdió el cuerpo al salir el navegador hacia Checkout. La prueba ahora captura la respuesta dentro de una ruta de red y expira sesiones anteriores abiertas del mismo owner sintético.
+- El segundo run `37259234974` pasó el E2E de Checkout: sesión de suscripción Starter anual, metadata y Price correctos, `livemode=false`, y sesión expirada sin pago. También terminó verde la suite autenticada multibrowser, el test de escritura/idempotencia y todos los checks obligatorios del PR. El PR sigue abierto y aún no está desplegado.
+- **Pendiente:** fusionar PR #211 y verificar que el flujo anual completado llega al webhook de la aplicación y actualiza la suscripción; la consulta puntual de logs de Supabase staging no encontró un registro de `checkout.session.expired`, lo que no basta para afirmar que no se entregó ni procesó otro evento.

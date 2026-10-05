@@ -10874,3 +10874,52 @@ Modelo separado, reclamación manual, administración, importación revisada, fi
 - Hoy se solicitó una recuperación desde producción: el endpoint de Supabase respondió HTTP 200 con el mensaje genérico y no se modificó contraseña. En Brevo no apareció un evento nuevo para ese envío. Supabase no manda mensaje si no existe una cuenta asociada, aunque la llamada no revele ese hecho; no verificamos la existencia de la cuenta.
 - **Estado:** proveedor Brevo validado; entrega de recuperación a una cuenta existente y finalización del restablecimiento siguen pendientes. No se abrió el correo ni se usó ningún enlace.
 - Evidencia detallada: [`auditoria-2026-10-05/auth-email-delivery.md`](../../auditoria-2026-10-05/auth-email-delivery.md) y [`docs/auth/google-and-password-recovery.md`](../../docs/auth/google-and-password-recovery.md).
+
+
+## 2026-10-05 — Validación focal de acceso, onboarding y Stripe Test
+
+- Producción sigue en READY en dpl_EtTisvbmfBSiUyuiWsyvZMXG85nD, commit 12814441. El alias /login redirige al acceso canónico; el enlace de recuperación es visible y la ruta responde HTTP 200.
+- Playwright en producción confirmó que Google llega a accounts.google.com con el cliente web y callback de Supabase correctos. No se eligió una cuenta. El alta de dueño muestra su rol, explica que podrá buscar academia tras crear la cuenta personal, y requiere aceptar términos antes de habilitar Google.
+- La búsqueda previa y la prevención de duplicados están implementadas y las pruebas de auth/onboarding pasan 29/29. En producción el catálogo tiene cinco academias operativas y cero fichas externas o eventos. Reclamaciones e importaciones siguen apagadas.
+- Stripe CLI confirmó el perfil “Entorno de prueba de Zaltyko”; no hay modo Live habilitado en esa sesión. Los dos webhooks activos apuntan a funciones de staging. El evento customer.created y la repetición de account.updated llegaron con livemode=false y validación HMAC correcta; Stripe confirmó pending_webhooks=0. Los receptores de staging solo validan y registran eventos, por lo que queda pendiente probar los handlers de facturación de la aplicación desde Checkout autenticado.
+- Starter y Growth en la base de staging apuntan a precios Test activos mensuales/anuales correctos (19/190 y 49/490 EUR). tests/annual-subscription-contract.test.ts pasó 4/4. No se creó Checkout ni se completó un pago.
+- GitHub mantiene cuatro alertas altas abiertas, duplicadas en mobile/package-lock.json y mobile/pnpm-lock.yaml para braces y node-forge; first_patched_version sigue null y no hay PRs abiertas de Dependabot. Los patches de seguridad existentes siguen mitigando el riesgo.
+- Lectura de ledgers, no escritura: producción 54 filas aplicacionales/53 nativas; staging 45/70. Se conserva el bloqueo a cualquier repair o migración hasta conciliar hashes y efectos. Los advisories de Supabase muestran la advertencia HIBP y avisos de rendimiento ya documentados; no se hicieron cambios de policy ni índices.
+- **Sin cambios de código, cuentas Auth, cobros ni flags en producción.** Sí se corrigió la clasificación de trial de una academia con evidencia; no se enviaron correos.
+
+
+## Confirmación CI y cuentas sintéticas — 2026-10-05
+
+- CI de main, ejecución 37251614461 sobre 12814441, terminó SUCCESS en los 12 jobs: lint/typecheck, seguridad/SBOM, móvil, RLS, unitarias, build, readiness de credenciales E2E, integridad de migraciones, E2E autenticado, Lighthouse, smoke y E2E público.
+- Staging contiene siete cuentas sintéticas con login habilitado: un admin, un atleta, un coach, dos owners, un parent y un super_admin. Solo se consultó el conteo por rol; no se leyeron correos ni credenciales.
+- La CI verde confirma sus escenarios automatizados, pero no reemplaza el recorrido manual de Checkout anual con un owner en staging ni el callback final Google.
+
+
+## 2026-10-05 — Revisión de permisos de calendarios oficiales
+
+- Revisadas las páginas legales y calendarios actuales de RFEG, FDPG y CBG. Ninguna fuente ofrece una autorización clara para automatizar extracción y republicación de datos del calendario.
+- El aviso legal de RFEG en su portal de licencias restringe el uso profesional/distribución y exige permiso escrito para enlaces; su aplicación al sitio principal queda por confirmar con RFEG. FDPG y CBG muestran derechos reservados sin licencia de reutilización localizada.
+- Preparadas solicitudes en español y portugués que piden autorización acotada a metadatos de eventos y excluyen fotos, marcas, reglamentos, resultados nominativos e inscripciones. No se enviaron comunicaciones.
+- Decisión: no activar importadores ni publicar eventos de esas fuentes hasta registrar permiso escrito. Priorizar eventos enviados directamente por organizadores.
+- Informe: [`fuentes-directorio-permisos.md`](../../../../Zaltyko/auditoria-2026-10-05/fuentes-directorio-permisos.md).
+
+
+## 2026-10-05 — Procedencia de los ledgers de migración
+
+- Comparación de solo lectura: ledger aplicacional producción 54/54 checksums alineados con el checkout; staging 44/45, con hash distinto para `20260805120000_academies_status_semantics.sql`. El hash de staging no coincide con ninguno de los seis commits disponibles para ese archivo en este checkout.
+- El historial nativo Supabase (53 producción / 70 staging) es distinto del ledger aplicacional; el conteo no determina migraciones pendientes ni deriva de esquema.
+- No se modificaron bases, ledgers ni archivos SQL. Mantener bloqueadas las reparaciones hasta recuperar procedencia y comparar estructura/efectos.
+- Evidencia: [`migration-ledger-reconciliation.md`](../../../../Zaltyko/auditoria-2026-10-05/migration-ledger-reconciliation.md).
+- Verificación estructural adicional: columnas, constraints, índices y trigger de `academies_status_semantics` coinciden actualmente entre producción y staging. Se confirmó un trial activo/no caducado con `status='active'` y se corrigió únicamente esa clasificación a `trial`. La consulta posterior da cero incoherencias bajo ese criterio; el trigger actualizó `status_updated_at`. No se modificaron pagos/suscripciones ni se resolvió el hash distinto de staging.
+
+
+## 2026-10-05 — Añadir E2E autenticado para Checkout anual de Stripe Test
+
+- Se añadió `tests/e2e-billing-annual-checkout.spec.ts` y un paso Chromium dedicado en `.github/workflows/ci.yml`. La prueba usa el owner sintético, selecciona Starter anual desde la pantalla de Facturación, comprueba intervalo/metadata/Price de la sesión con Stripe Test y expira la sesión sin entrar en un pago.
+- El paso está aislado con `E2E_RUN_ANNUAL_CHECKOUT=true`; queda omitido en la suite general para evitar crear sesiones extra en Firefox y WebKit. Supabase sandbox y claves de Stripe Test se validan con los guardrails existentes.
+- **Validación local:** `tsc --noEmit`, ESLint de la spec, Prettier, colección Playwright (1 caso reconocido), `annual-subscription-contract.test.ts` y `checkout-button-contract.test.ts` (6/6), `git diff --check` pasan.
+- Primer run del PR #211 aprovisionó el sandbox y pasó smoke por roles; la spec creó Checkout Test pero falló al leer la respuesta luego de la navegación. Se cambió a capturar/fijar la respuesta antes de devolverla al navegador y limpiar sesiones abiertas previas del owner sintético.
+- El segundo run CI `37259234974` pasó este test: owner autenticado, Checkout en modo suscripción para Starter anual, metadata y Price de Stripe correctos, `livemode=false`, expiración de la sesión y sin pago. El resto de la suite E2E autenticada seguía en ejecución al registrar este resultado.
+- El mismo run terminó verde en la suite completa autenticada (Chromium, Firefox y WebKit), verificación de escritura/idempotencia y los checks obligatorios del PR. PR #211 sigue abierto; el test de checkout es CI y no cambia comportamiento productivo hasta fusionarse.
+- Una consulta agregada a logs de Supabase staging en `2026-10-05T03:25Z`–`03:36Z` no encontró registros cuyo contenido incluya `checkout.session.expired`; no demuestra ausencia de entrega ni sustituye la verificación del webhook de la aplicación. La conexión del conector Stripe requiere reautenticación, así que aún no se verificaron endpoints/deliveries desde esa vía.
+- **No ejecutado localmente:** este checkout no tiene credenciales sandbox; la sesión se creó desde CI con secretos protegidos. No se tocó Stripe Live ni la base de producción.
