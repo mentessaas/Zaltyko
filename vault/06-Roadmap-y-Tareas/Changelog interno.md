@@ -10923,3 +10923,11 @@ Modelo separado, reclamación manual, administración, importación revisada, fi
 - El mismo run terminó verde en la suite completa autenticada (Chromium, Firefox y WebKit), verificación de escritura/idempotencia y los checks obligatorios del PR. PR #211 sigue abierto; el test de checkout es CI y no cambia comportamiento productivo hasta fusionarse.
 - Una consulta agregada a logs de Supabase staging en `2026-10-05T03:25Z`–`03:36Z` no encontró registros cuyo contenido incluya `checkout.session.expired`; no demuestra ausencia de entrega ni sustituye la verificación del webhook de la aplicación. La conexión del conector Stripe requiere reautenticación, así que aún no se verificaron endpoints/deliveries desde esa vía.
 - **No ejecutado localmente:** este checkout no tiene credenciales sandbox; la sesión se creó desde CI con secretos protegidos. No se tocó Stripe Live ni la base de producción.
+
+## 2026-10-05 — Probar el webhook de Stripe en el procesador de la app
+
+- Checkout añade `academyId` tanto a los metadatos de la sesión como a los de la suscripción, para que el webhook resuelva la academia elegida cuando un propietario gestiona más de una.
+- La prueba autenticada anual ahora crea en Stripe Test una suscripción `incomplete` al precio anual, firma un evento `customer.subscription.created` y lo envía a `/api/stripe/webhook` en la app aislada. Comprueba firma aceptada, plan/Price/estado/contexto guardados en staging y que repetir el mismo evento se reconoce como duplicado.
+- La prueba captura y restaura la fila de suscripción del owner sintético, borra el evento de prueba y cancela/elimina los objetos Test al terminar. No completa pago y no cambia datos de producción.
+- **Validación local:** `pnpm typecheck`, compilación TypeScript aislada de la spec Playwright, ESLint focal, Prettier, `git diff --check` y contratos de facturación **7/7** pasan.
+- **Pendiente:** CI de PR #211 debe ejecutar el recorrido en el sandbox con credenciales protegidas. El Playwright integrado no se ejecutó en este Mac: el guard detuvo la carga de configuración porque aquí no está especificado `E2E_TARGET_SUPABASE_PROJECT_REF`. No se eludió esa protección. El PR continúa abierto y sin despliegue.
