@@ -1,5 +1,14 @@
 # Acceso con Google y recuperación de contraseña
 
+## Smoke de producción — 2026-10-05
+
+- En `https://zaltyko.com/auth/login`, el enlace de recuperación aparece y el botón Google se habilita al terminar la hidratación.
+- En una sesión de navegador aislada y sin credenciales, al pulsar el botón la página llegó a la pantalla oficial de inicio de sesión de Google. La solicitud utilizó el cliente web `Zaltyko Web` y el callback `https://jegxfahsvugilbthbked.supabase.co/auth/v1/callback`; no apareció `invalid_client` ni `redirect_uri_mismatch`.
+- Google Auth Platform conserva el cliente `Zaltyko Web` como tipo Aplicación web, con origen `https://zaltyko.com` y el callback anterior. El cliente antiguo de escritorio permanece separado. No se creó un cliente duplicado ni se leyó, rotó o modificó ningún secreto.
+- En `/auth/register`, el botón Google permanece deshabilitado hasta que la persona acepta los términos y confirma haber leído la política de privacidad. No se marcó esa casilla en nombre del usuario.
+- **Alcance:** esta prueba demuestra que el flujo de login llega al proveedor; no completa una autenticación, no valida el retorno con sesión ni crea una cuenta. Esas comprobaciones requieren una cuenta de prueba Google autorizada y, para registro, la aceptación expresa de los términos por esa persona. La configuración y funcionamiento del correo de recuperación continúan sin una prueba de entrega real.
+- Referencia: [Google — OAuth 2.0 para aplicaciones web de servidor](https://developers.google.com/identity/protocols/oauth2/web-server), que exige que el URI de redirección coincida exactamente con el registrado.
+
 ## Revalidación en producción — 2026-10-02
 
 - PR #179 se fusionó en `main` (`364e8693`) y su deployment de producción está `READY`, con alias `zaltyko.com` y `www.zaltyko.com`. Login, registro y recuperación responden HTTP 200.

@@ -10858,3 +10858,11 @@ Modelo separado, reclamación manual, administración, importación revisada, fi
 - Los flags de catálogo público, reclamaciones, importaciones programadas y comunicaciones permanecen sin configurar y, por tanto, cerrados. `/api/directory/catalog` seguirá respondiendo `503 DISABLED` mientras el catálogo esté apagado.
 - La interfaz y API administrativas usan la protección de Super Admin existente. Después del despliegue se comprobarán la denegación anónima, el acceso de la cuenta Super Admin y que el catálogo público no se haya abierto.
 - Esta habilitación no reconcilia los ledgers, no carga fichas ni concede permisos a representantes; habilita solo el primer paso administrativo de la publicación gradual.
+
+## 2026-10-05 — Smoke de Google OAuth en producción
+
+- En una sesión anónima, el login de producción cargó el enlace de recuperación; tras hidratarse, el botón Google quedó activo y abrió la pantalla oficial de cuentas de Google usando el cliente web y callback de Supabase esperados. No hubo `invalid_client` ni `redirect_uri_mismatch`.
+- La consola confirma que existe `Zaltyko Web` (Aplicación web), con origen `https://zaltyko.com` y callback `https://jegxfahsvugilbthbked.supabase.co/auth/v1/callback`. El cliente de escritorio queda separado. No se creó duplicado ni se tocó ningún secreto.
+- En registro, el botón Google está deshabilitado hasta aceptar los términos y la política; esa casilla no se marcó. No se introdujeron credenciales, no se completó una sesión y no se creó una cuenta.
+- **Pendiente real:** validar callback/sesión con una cuenta de prueba Google autorizada; validar el registro aceptando términos desde la propia cuenta. El smoke anónimo confirma el inicio del flujo, no una autenticación terminada. La entrega real de correos de recuperación sigue sin verificarse.
+- Evidencia ampliada: [`docs/auth/google-and-password-recovery.md`](../../docs/auth/google-and-password-recovery.md).
