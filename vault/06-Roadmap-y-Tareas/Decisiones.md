@@ -8,6 +8,15 @@ source:
 
 # Decisiones
 
+## 2026-10-06 — No tratar el sandbox E2E legacy como base de datos vacía
+
+| Campo | Valor |
+| --- | --- |
+| Evidencia | La inspección de solo lectura del proyecto Supabase `Zaltyko E2E Sandbox` encontró siete filas en `public.academies` y el historial de migraciones del producto legacy. No se leyeron filas ni PII. |
+| Decisión | No correr migraciones ni pruebas con datos dentro de ese proyecto. La reconstrucción local continuará en PostgreSQL efímero; el gate de Supabase requiere una base aislada cuya vaciedad y coste/organización estén comprobados. |
+| Consecuencia | No se mezcla el esquema nuevo con el estado de QA ni se destruyen/resetean datos existentes. |
+| Estado | Auditoría completada el 2026-10-06; sin escrituras remotas. |
+
 ## 2026-10-06 — Owner Dashboard y Health Score pasan a ser el nuevo núcleo canónico
 
 | Campo | Valor |

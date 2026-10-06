@@ -46,7 +46,22 @@ Code changes verificados: tsc OK, eslint OK, next build OK.
 
 # Backlog priorizado
 
+## Revalidación 2026-10-06 — Reconstrucción Owner Dashboard
+
+La cobertura del PRD está abierta. Consultar
+[`2026-10-06-prd-completion-audit.md`](../../docs/audits/2026-10-06-prd-completion-audit.md)
+y el plan PR-10…PR-16. No usar como estado vigente los ítems históricos de
+ledger/métricas que describen la arquitectura anterior: esos ítems quedaron
+implementados localmente en `codex/health-score-v2`.
+
+Prioridad activa: evaluadores de ocho reglas P0; luego worker durable, APIs de
+drill-down y filtros, dashboard completo y pruebas aisladas de Supabase/E2E/carga.
+La retención individual continúa en draft hasta cerrar revisión de privacidad.
+
 ## P0 — Cerrar servicios operativos antes del motor de métricas — 2026-10-06
+
+> Estado histórico supersedido por la reconstrucción en `codex/health-score-v2`;
+> ver revalidación 2026-10-06 al comienzo de este backlog.
 
 - **Estado:** cerrado localmente. Enrollment, sesiones y asistencia escriben
   dominio + historial + audit log + outbox en una transacción y resuelven rol y
@@ -60,6 +75,8 @@ Code changes verificados: tsc OK, eslint OK, next build OK.
   bloqueado hasta contar con hechos financieros reconciliables.
 
 ## P0 — Construir ledger mínimo reconciliable — 2026-10-06
+
+> Estado histórico supersedido por PR-04 local; ver revalidación 2026-10-06.
 
 - **Estado:** pendiente. Solo existe el catálogo `price_plans`; no hay invoices,
   cargos, pagos, allocations, intentos, refunds ni webhook inbox canónicos.

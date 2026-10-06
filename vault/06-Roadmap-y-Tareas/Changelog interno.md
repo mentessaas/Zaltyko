@@ -7,6 +7,25 @@ source:
   - ../docs/architecture/zaltyko-domain-model.md
 ---
 
+## 2026-10-06 — Revalidación completa del PRD de Owner Dashboard
+
+- Se añadió `docs/audits/2026-10-06-prd-completion-audit.md` para contrastar
+  AC-01…AC-15 y requisitos funcionales con código y pruebas existentes. La
+  cobertura anterior sobrestimaba el dashboard: faltan ocho evaluadores P0,
+  worker/SLA, APIs de drill-down, filtros y pruebas a escala.
+- Se añadió `test:zaltyko-canonical-stack:local`, que aplica desde cero ocho
+  migraciones canónicas y ejecuta seis pruebas SQL con fixtures sintéticos. El
+  primer intento detectó que las pruebas de crecimiento requieren el fixture
+  compartido; se corrigió el orden. Resultado final: PASS.
+- Supabase «Zaltyko E2E Sandbox» está activo pero conserva siete academias
+  legacy. No se aplicaron migraciones ni se consultaron filas. Decisión: no
+  reutilizarlo como base vacía; los próximos cortes siguen en el plan PR-11…16.
+- PR-11 comenzó con ocho evaluadores puros y sin PII para las reglas agregadas
+  activas. Tests de umbrales, datos faltantes, allowlist de campos y no
+  generación bajo los mínimos: **5/5 PASS**; `pnpm typecheck` PASS. El worker y
+  la lectura de evidencia transaccional aún no están conectados.
+- Vault: backlog, decisiones y este changelog actualizados. No se desplegó nada.
+
 ## 2026-10-06 — Trials, familias y waitlist sobre capacidad canónica
 
 - Añadidas familias, tutores, contactos, permisos familiares y pagadores como

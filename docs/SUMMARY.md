@@ -46,6 +46,7 @@
 | Documento | Descripción |
 |-----------|-------------|
 | [plans/](./plans/) | Directorio con roadmaps por fecha |
+| [audits/2026-10-06-prd-completion-audit.md](./audits/2026-10-06-prd-completion-audit.md) | Cobertura PRD Owner Dashboard, AC-01…AC-15 y deuda vigente |
 
 ## 📢 Marketing
 

@@ -182,9 +182,62 @@ Gate: GO/NO-GO explícito. Producción, Stripe Live, credenciales y despliegue
 siguen fuera de alcance sin autorización adicional.
 
 Resultado: el gate local pasa, pero el prepiloto con datos reales queda NO-GO
-hasta verificar el bootstrap owner en un sandbox remoto, ejecutar E2E
-autenticado, workers, carga, restore y completar la revisión RGPD. Ninguno de
-esos límites se oculta como deuda menor.
+hasta verificar bootstrap, E2E autenticado, workers, carga, restore y revisión
+RGPD en una base aislada. La inspección no invasiva del proyecto existente
+«Zaltyko E2E Sandbox» halló siete academias legacy en `public`; no se aplicaron
+migraciones ni se leyeron filas, y no se reutilizará como base vacía.
+
+### PR-10 — Auditoría de cobertura completa del PRD
+
+Estado: **auditoría abierta**. `docs/audits/2026-10-06-prd-completion-audit.md`
+contrasta AC-01…AC-15 y las rutas/paneles con evidencia actual. La nueva prueba
+`test:zaltyko-canonical-stack:local` aplica desde cero las ocho migraciones
+canónicas y ejecuta seis contratos SQL de fundación con fixtures sintéticos.
+Esto prueba reconstrucción PostgreSQL, no Supabase Auth/PostgREST ni readiness
+para piloto.
+
+### PR-11 — Evaluadores P0 deterministas
+
+Implementadas funciones de dominio puras y pruebas de límites para ocho reglas
+activas además de `excess_demand`: clase infrautilizada, cobros vencidos,
+asistencia incompleta, follow-up de trial, conversión baja, capacidad sin
+precio, sesión sin entrenador y dato crítico faltante. Pendiente conectar las
+fuentes canónicas de evidencia, ejecutarlas desde un worker y probar el ciclo
+completo de resolución. Retention risk individual permanece en `draft`.
+
+Gate: cada regla activa tiene umbrales, explicación, evidencia sin PII,
+deduplicación y resolución probadas.
+
+### PR-12 — Workers, SLA y notificaciones
+
+Pendiente: worker durable para outbox, invalidaciones, recompute, score, reglas,
+outcomes y digest; leases, retries/backoff, métricas de lag y fallos; decisión
+de canales/proveedor. Debe reflejar pagos en 15 minutos o mostrar estado stale.
+
+### PR-13 — APIs completas y filtros
+
+Pendiente: historial de score, serie y explicación de métricas, heatmap con
+drill-down, cohortes, riesgos autorizados y perfiles/ajustes de benchmark.
+Ampliar filtro URL con comparación, disciplina/programa/grupo con autorización
+antes de consultar.
+
+### PR-14 — Dashboard funcional según PRD
+
+Pendiente: completar paneles de cobro, ocupación, retención y oportunidades;
+estados parciales, filtros compartibles, tablas equivalentes y accesibilidad
+WCAG 2.2 AA. La vista de score no prueba los drill-down del producto.
+
+### PR-15 — Sandbox aislado y pruebas operativas
+
+Pendiente: Supabase Auth/PostgREST y grants en proyecto/branch aislado; E2E de
+dos organizaciones y sedes con owner/admin/manager; restore; carga 5.000/2 M con
+20 usuarios. El sandbox existente no es limpio.
+
+### PR-16 — Decisiones de piloto y revisión privacidad
+
+Pendiente: cerrar preguntas PRD §30 con producto; completar bases legales,
+retención, derechos y EIPD antes de datos reales. No activar riesgo individual
+ni comunicaciones automatizadas hasta completar sus condiciones.
 
 ## Reporte obligatorio por PR
 
