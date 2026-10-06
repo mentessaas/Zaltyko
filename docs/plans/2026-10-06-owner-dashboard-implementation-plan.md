@@ -227,9 +227,25 @@ idempotencia del consumidor, backoff y dead-letter tras intentos acotados.
 Integración sintética valida claims concurrentes y recuperación de lease
 caducado. El endpoint no se ha añadido a `vercel.json` ni desplegado.
 
-Pendiente: orquestar invalidaciones→recompute→score→P0→outcomes, actor interno
-de sistema que no suplante a owner/admin, digest/notificaciones y métricas/alertas
-de lag; decidir canal/proveedor. El SLA ≤15 min solo puede afirmarse cuando se
+ADR-0008 acepta un actor de sistema separado del actor humano. Contrato base
+implementado para recompute, score y evaluación P0; valida organización/sede
+activa y audita con `actor_user_id = null`, tipo/job/correlation. PostgreSQL
+efímero pasa las rutas system, denegación de scope cruzado y P0 sin suplantación.
+El endpoint existente crea el actor solo dentro de contexto async tras comprobar
+`CRON_SECRET`; cron ausente o actor falsificado se deniega. El endpoint aún solo
+despacha invalidaciones y no ejecuta la cascada completa.
+
+Hallazgo para la orquestación: `organizations` no tiene moneda de facturación ni
+perfil de benchmark asignado; el perfil permite `organization_id` nulo y puede
+haber varios perfiles activos. El worker no debe elegir el fixture sintético ni
+un perfil global de forma implícita. Próxima decisión de diseño: recomputar
+métricas por cada moneda explícita de ledger y producir score solo con un único
+perfil activo vinculado explícitamente a la organización; si falta o hay varios,
+dejar score pendiente/datos insuficientes y registrar motivo sin alterar el
+ledger. No se convierte moneda.
+
+Pendiente: orquestar invalidaciones→recompute→score→P0→outcomes, digest/
+notificaciones y métricas/alertas de lag; decidir canal/proveedor. El SLA ≤15 min solo puede afirmarse cuando se
 registre una frecuencia de cron durable, se mida su lag y el dashboard degrade a
 stale cuando falle.
 

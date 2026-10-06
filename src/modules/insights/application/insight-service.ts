@@ -16,9 +16,16 @@ import {
 } from "@/db/zaltyko-schema";
 import type { TransactionClient } from "@/lib/db-transactions";
 import { calculateInsightPriority } from "@/modules/insights/domain/insight-rules";
-import { operationalActorSchema } from "@/modules/shared/application/actor";
+import {
+  evaluationActorSchema,
+  operationalActorSchema,
+  type EvaluationActor,
+} from "@/modules/shared/application/actor";
 import { OperationalError } from "@/modules/shared/domain/operational-error";
-import { assertOperationalAccess } from "@/modules/shared/infrastructure/operational-authorization";
+import {
+  assertOperationalAccess,
+  assertSystemOperationalScope,
+} from "@/modules/shared/infrastructure/operational-authorization";
 import {
   appendAuditEntry,
   appendOutboxEvent,
@@ -67,7 +74,7 @@ const runInsightEvaluationSchema = z.object({
   sourceHealthScoreSnapshotId: z.string().uuid().optional(),
   idempotencyKey: z.string().trim().min(8).max(150),
   candidates: z.array(candidateSchema).max(500),
-  actor: operationalActorSchema,
+  actor: evaluationActorSchema,
 });
 
 export type RunInsightEvaluationCommand = z.input<
@@ -127,9 +134,17 @@ async function assertInsightAccess(
     organizationId: string;
     authorizationLocationId: string;
     insight: Insight;
-    actor: z.infer<typeof operationalActorSchema>;
+    actor: EvaluationActor;
   }
 ) {
+  if ("type" in input.actor) {
+    await assertSystemOperationalScope(tx, {
+      organizationId: input.organizationId,
+      locationId: input.insight.locationId ?? input.authorizationLocationId,
+      actor: input.actor,
+    });
+    return;
+  }
   const member = await assertOperationalAccess(tx, {
     organizationId: input.organizationId,
     locationId: input.insight.locationId ?? input.authorizationLocationId,
@@ -154,19 +169,35 @@ export async function runInsightEvaluation(
 
   return db.transaction(async (tx) => {
     await lockCommand(tx, input.organizationId, input.idempotencyKey);
-    await assertOperationalAccess(tx, {
-      organizationId: input.organizationId,
-      locationId: input.authorizationLocationId,
-      actor: input.actor,
-      allowedRoles: ["owner", "admin"],
-    });
-    if (input.targetLocationId) {
+    if ("type" in input.actor) {
+      await assertSystemOperationalScope(tx, {
+        organizationId: input.organizationId,
+        locationId: input.authorizationLocationId,
+        actor: input.actor,
+      });
+    } else {
       await assertOperationalAccess(tx, {
         organizationId: input.organizationId,
-        locationId: input.targetLocationId,
+        locationId: input.authorizationLocationId,
         actor: input.actor,
         allowedRoles: ["owner", "admin"],
       });
+    }
+    if (input.targetLocationId) {
+      if ("type" in input.actor) {
+        await assertSystemOperationalScope(tx, {
+          organizationId: input.organizationId,
+          locationId: input.targetLocationId,
+          actor: input.actor,
+        });
+      } else {
+        await assertOperationalAccess(tx, {
+          organizationId: input.organizationId,
+          locationId: input.targetLocationId,
+          actor: input.actor,
+          allowedRoles: ["owner", "admin"],
+        });
+      }
     }
 
     const [prior] = await tx
@@ -476,12 +507,20 @@ export async function runInsightEvaluation(
     await appendAuditEntry(tx, {
       organizationId: input.organizationId,
       locationId: input.targetLocationId ?? null,
-      actorUserId: input.actor.userId,
+      actorUserId: "type" in input.actor ? null : input.actor.userId,
       action: "insights.evaluated",
       targetType: "insight_rule_run",
       targetId: run.id,
       idempotencyKey: `audit:${input.idempotencyKey}`,
       after: persistedResult,
+      metadata:
+        "type" in input.actor
+          ? {
+              actor_type: "system",
+              job_key: input.actor.jobKey,
+              correlation_id: input.actor.correlationId,
+            }
+          : { actor_type: "user" },
     });
     await appendOutboxEvent(tx, {
       organizationId: input.organizationId,
@@ -719,6 +758,13 @@ export async function recordInsightAction(
     if (!insight)
       throw new OperationalError("NOT_FOUND", "Insight no encontrado", 404);
     const member = await assertInsightAccess(tx, { ...input, insight });
+    if (!member) {
+      throw new OperationalError(
+        "FORBIDDEN",
+        "Una acción de insight requiere un miembro humano",
+        403
+      );
+    }
     if (insight.version !== input.expectedVersion) {
       throw new OperationalError("VERSION_CONFLICT", "El insight cambió", 409);
     }

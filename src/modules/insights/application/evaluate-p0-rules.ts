@@ -3,7 +3,11 @@ import { and, eq, sql } from "drizzle-orm";
 import { db } from "@/db";
 import { insightRuleVersions } from "@/db/zaltyko-schema";
 import { OperationalError } from "@/modules/shared/domain/operational-error";
-import { assertOperationalAccess } from "@/modules/shared/infrastructure/operational-authorization";
+import type { EvaluationActor } from "@/modules/shared/application/actor";
+import {
+  assertOperationalAccess,
+  assertSystemOperationalScope,
+} from "@/modules/shared/infrastructure/operational-authorization";
 import {
   evaluateCapacityWithoutPrice,
   evaluateCriticalDataMissing,
@@ -45,7 +49,11 @@ function date(value: unknown): Date {
   return value instanceof Date ? value : new Date(String(value));
 }
 
-function threshold(config: Record<string, unknown>, key: string, fallback: number): number {
+function threshold(
+  config: Record<string, unknown>,
+  key: string,
+  fallback: number
+): number {
   const value = config[key];
   return typeof value === "number" && Number.isFinite(value) ? value : fallback;
 }
@@ -58,33 +66,54 @@ function threshold(config: Record<string, unknown>, key: string, fallback: numbe
 export async function evaluateP0Insights(input: {
   organizationId: string;
   locationId: string;
-  actor: { userId: string; memberId: string };
+  actor: EvaluationActor;
   evaluatedAt: string;
   sourceWatermark: string;
   idempotencyPrefix: string;
 }) {
   const watermark = new Date(input.sourceWatermark);
   const evaluatedAt = new Date(input.evaluatedAt);
-  if (!Number.isFinite(watermark.getTime()) || !Number.isFinite(evaluatedAt.getTime())) {
-    throw new OperationalError("INVALID_DATE_RANGE", "Watermark o fecha de evaluación inválidos", 400);
+  if (
+    !Number.isFinite(watermark.getTime()) ||
+    !Number.isFinite(evaluatedAt.getTime())
+  ) {
+    throw new OperationalError(
+      "INVALID_DATE_RANGE",
+      "Watermark o fecha de evaluación inválidos",
+      400
+    );
   }
   await db.transaction(async (tx) => {
-    await assertOperationalAccess(tx, {
-      organizationId: input.organizationId,
-      locationId: input.locationId,
-      actor: input.actor,
-      allowedRoles: ["owner", "admin"],
-    });
+    if ("type" in input.actor) {
+      await assertSystemOperationalScope(tx, {
+        organizationId: input.organizationId,
+        locationId: input.locationId,
+        actor: input.actor,
+      });
+    } else {
+      await assertOperationalAccess(tx, {
+        organizationId: input.organizationId,
+        locationId: input.locationId,
+        actor: input.actor,
+        allowedRoles: ["owner", "admin"],
+      });
+    }
   });
 
   const ruleRows = await db
-    .select({ key: insightRuleVersions.key, version: insightRuleVersions.version, config: insightRuleVersions.config })
+    .select({
+      key: insightRuleVersions.key,
+      version: insightRuleVersions.version,
+      config: insightRuleVersions.config,
+    })
     .from(insightRuleVersions)
     .where(and(eq(insightRuleVersions.status, "active")));
   const rules = new Map(ruleRows.map((rule) => [rule.key, rule]));
   const candidatesByRule = new Map<RuleKey, InsightCandidate[]>();
   for (const key of activeRuleKeys) candidatesByRule.set(key, []);
-  const read = async <T extends DbRow>(query: ReturnType<typeof sql>): Promise<T[]> => rows<T>(await db.execute(query));
+  const read = async <T extends DbRow>(
+    query: ReturnType<typeof sql>
+  ): Promise<T[]> => rows<T>(await db.execute(query));
   const underCfg = rules.get("underutilized_class")?.config ?? {};
   const demandCfg = rules.get("excess_demand")?.config ?? {};
   const underWindowDays = threshold(underCfg, "windowDays", 28);
@@ -133,14 +162,19 @@ export async function evaluateP0Insights(input: {
       minimumFillRate: threshold(underCfg, "fillRateBelow", 0.5),
       minimumSessions: threshold(underCfg, "minimumSessions", 4),
     });
-    if (underutilized) candidatesByRule.get("underutilized_class")?.push(underutilized);
+    if (underutilized)
+      candidatesByRule.get("underutilized_class")?.push(underutilized);
     const demand = evaluateExcessDemand({
       classTemplateId: templateId,
       fillRate,
       eligibleWaitlist: numeric(row.eligible_waitlist),
       observedSessions,
       fillRateAtLeast: threshold(demandCfg, "fillRateAtLeast", 0.9),
-      eligibleWaitlistAtLeast: threshold(demandCfg, "eligibleWaitlistAtLeast", 3),
+      eligibleWaitlistAtLeast: threshold(
+        demandCfg,
+        "eligibleWaitlistAtLeast",
+        3
+      ),
     });
     if (demand) candidatesByRule.get("excess_demand")?.push(demand);
   }
@@ -223,7 +257,16 @@ export async function evaluateP0Insights(input: {
     group by s.id, s.ends_at
   `);
   for (const row of incompleteRows) {
-    const item = evaluateIncompleteAttendance({ sessionId: String(row.id), hoursAfterEnd: numeric(row.hours_after_end), incompleteRecordCount: numeric(row.missing), thresholdHours: threshold(rules.get("incomplete_attendance")?.config ?? {}, "hoursAfterSession", 12) });
+    const item = evaluateIncompleteAttendance({
+      sessionId: String(row.id),
+      hoursAfterEnd: numeric(row.hours_after_end),
+      incompleteRecordCount: numeric(row.missing),
+      thresholdHours: threshold(
+        rules.get("incomplete_attendance")?.config ?? {},
+        "hoursAfterSession",
+        12
+      ),
+    });
     if (item) candidatesByRule.get("incomplete_attendance")?.push(item);
   }
 
@@ -238,14 +281,25 @@ export async function evaluateP0Insights(input: {
   let completedTrials = 0;
   let convertedTrials = 0;
   const lowConversionConfig = rules.get("low_trial_conversion")?.config ?? {};
-  const conversionWindowStart = watermark.getTime() - threshold(lowConversionConfig, "windowDays", 90) * 86400000;
+  const conversionWindowStart =
+    watermark.getTime() -
+    threshold(lowConversionConfig, "windowDays", 90) * 86400000;
   for (const row of trialRows) {
     if (date(row.completed_at).getTime() >= conversionWindowStart) {
       completedTrials += 1;
       if (row.status === "converted") convertedTrials += 1;
     }
     if (numeric(row.followups) === 0) {
-      const item = evaluateTrialWithoutFollowup({ trialId: String(row.id), hoursSinceCompletion: (watermark.getTime() - date(row.completed_at).getTime()) / 3600000, thresholdHours: threshold(rules.get("trial_without_followup")?.config ?? {}, "hoursAfterCompletion", 24) });
+      const item = evaluateTrialWithoutFollowup({
+        trialId: String(row.id),
+        hoursSinceCompletion:
+          (watermark.getTime() - date(row.completed_at).getTime()) / 3600000,
+        thresholdHours: threshold(
+          rules.get("trial_without_followup")?.config ?? {},
+          "hoursAfterCompletion",
+          24
+        ),
+      });
       if (item) candidatesByRule.get("trial_without_followup")?.push(item);
     }
   }
@@ -260,10 +314,13 @@ export async function evaluateP0Insights(input: {
     locationId: input.locationId,
     completedTrialCount: completedTrials,
     convertedTrialCount: convertedTrials,
-    targetConversionRate: targetRows[0] ? numeric(targetRows[0].target_numeric) : undefined,
+    targetConversionRate: targetRows[0]
+      ? numeric(targetRows[0].target_numeric)
+      : undefined,
     minimumTrials: threshold(lowConversionConfig, "minimumTrials", 10),
   });
-  if (lowConversion) candidatesByRule.get("low_trial_conversion")?.push(lowConversion);
+  if (lowConversion)
+    candidatesByRule.get("low_trial_conversion")?.push(lowConversion);
 
   const coachRows = await read<DbRow>(sql`
     select s.id, ceil(extract(epoch from (s.starts_at - ${watermark})) / 3600)::int as hours_until,
@@ -274,7 +331,16 @@ export async function evaluateP0Insights(input: {
     group by s.id
   `);
   for (const row of coachRows) {
-    const item = evaluateSessionWithoutCoach({ sessionId: String(row.id), hoursUntilStart: numeric(row.hours_until), assignedCoachCount: numeric(row.staff_count), thresholdHours: threshold(rules.get("session_without_coach")?.config ?? {}, "hoursBeforeSession", 72) });
+    const item = evaluateSessionWithoutCoach({
+      sessionId: String(row.id),
+      hoursUntilStart: numeric(row.hours_until),
+      assignedCoachCount: numeric(row.staff_count),
+      thresholdHours: threshold(
+        rules.get("session_without_coach")?.config ?? {},
+        "hoursBeforeSession",
+        72
+      ),
+    });
     if (item) candidatesByRule.get("session_without_coach")?.push(item);
   }
 
@@ -290,29 +356,50 @@ export async function evaluateP0Insights(input: {
     attendance_rate: "attendance",
     attendance_coverage: "attendance",
   };
-  const missingFields = [...new Set(issueRows
-    .filter((row) => row.issue_code === "METRIC_INVALID")
-    .map((row) => fieldByMetricKey[String(row.metric_key)])
-    .filter((field): field is string => Boolean(field)))];
-  const missing = evaluateCriticalDataMissing({ entityType: "location", entityId: input.locationId, missingFields });
+  const missingFields = [
+    ...new Set(
+      issueRows
+        .filter((row) => row.issue_code === "METRIC_INVALID")
+        .map((row) => fieldByMetricKey[String(row.metric_key)])
+        .filter((field): field is string => Boolean(field))
+    ),
+  ];
+  const missing = evaluateCriticalDataMissing({
+    entityType: "location",
+    entityId: input.locationId,
+    missingFields,
+  });
   if (missing) candidatesByRule.get("critical_data_missing")?.push(missing);
 
   const results = [];
   for (const key of activeRuleKeys) {
     const rule = rules.get(key);
     if (!rule) continue;
-    results.push(await runInsightEvaluation({
-      organizationId: input.organizationId,
-      authorizationLocationId: input.locationId,
-      targetLocationId: input.locationId,
-      ruleKey: key,
-      ruleVersion: rule.version,
-      evaluatedAt: evaluatedAt.toISOString(),
-      sourceWatermark: watermark.toISOString(),
-      idempotencyKey: `${input.idempotencyPrefix}:${key}:${watermark.getTime()}`.slice(0, 150),
-      candidates: candidatesByRule.get(key) ?? [],
-      actor: input.actor,
-    }));
+    results.push(
+      await runInsightEvaluation({
+        organizationId: input.organizationId,
+        authorizationLocationId: input.locationId,
+        targetLocationId: input.locationId,
+        ruleKey: key,
+        ruleVersion: rule.version,
+        evaluatedAt: evaluatedAt.toISOString(),
+        sourceWatermark: watermark.toISOString(),
+        idempotencyKey:
+          `${input.idempotencyPrefix}:${key}:${watermark.getTime()}`.slice(
+            0,
+            150
+          ),
+        candidates: candidatesByRule.get(key) ?? [],
+        actor: input.actor,
+      })
+    );
   }
-  return { evaluatedRules: results.length, candidates: [...candidatesByRule.values()].reduce((sum, items) => sum + items.length, 0), results };
+  return {
+    evaluatedRules: results.length,
+    candidates: [...candidatesByRule.values()].reduce(
+      (sum, items) => sum + items.length,
+      0
+    ),
+    results,
+  };
 }

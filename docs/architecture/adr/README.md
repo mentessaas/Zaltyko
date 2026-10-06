@@ -18,5 +18,6 @@ Stripe Live ni cambios de credenciales.
 | [0005](./0005-metricas-health-score-e-insights.md)   | Dependencias y reproducibilidad de inteligencia   |
 | [0006](./0006-familias-trials-y-lista-de-espera.md)  | Familias, trials, waitlist y reserva de capacidad |
 | [0007](./0007-arranque-limpio-y-cutover-owner.md)    | Arranque limpio y corte de superficie owner       |
+| [0008](./0008-actor-de-sistema-para-workers.md)      | Actor de sistema explícito para workers           |
 
 Contrato analítico inicial: [diccionario de métricas v0](../metric-dictionary-v0.md).

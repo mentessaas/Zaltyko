@@ -2,12 +2,15 @@ import assert from "node:assert/strict";
 
 import { Pool } from "pg";
 
+import { withCronSystemActor } from "@/lib/cron-system-actor";
 import { calculateAcademyHealthScore } from "@/modules/health-score/application/health-score-service";
+import type { SystemActor } from "@/modules/shared/application/actor";
 import { OperationalError } from "@/modules/shared/domain/operational-error";
 
 const databaseUrl = process.env.DATABASE_URL;
 if (!databaseUrl) throw new Error("DATABASE_URL es obligatoria");
 const pool = new Pool({ connectionString: databaseUrl, max: 4 });
+process.env.CRON_SECRET = "synthetic-worker-secret";
 
 const ID = {
   org: "30000000-0000-0000-0000-000000000001",
@@ -35,6 +38,20 @@ async function count(table: string, where = "true"): Promise<number> {
     `select count(*)::int as count from ${table} where ${where}`
   );
   return Number(result.rows[0].count);
+}
+
+async function asSyntheticCron<T>(
+  job: (actor: SystemActor) => Promise<T>
+): Promise<T> {
+  const result = await withCronSystemActor(
+    new Request("http://localhost/api/cron/zaltyko-outbox", {
+      headers: { authorization: "Bearer synthetic-worker-secret" },
+    }),
+    job
+  );
+  if (!result.ok)
+    throw new Error("La autenticación cron sintética fue denegada");
+  return result.value;
 }
 
 async function main(): Promise<void> {
@@ -99,6 +116,25 @@ async function main(): Promise<void> {
   );
   assert.equal(workforce.rows[0].score, null);
   assert.equal(workforce.rows[0].status, "insufficient_data");
+
+  await asSyntheticCron(async (systemActor) => {
+    const systemScore = await calculateAcademyHealthScore({
+      organizationId: ID.org,
+      metricRunId,
+      benchmarkProfileId: ID.profile,
+      idempotencyKey: "score-system-actor-001",
+      actor: systemActor,
+    });
+    const systemAudit = await pool.query(
+      `select actor_user_id, metadata from zaltyko.audit_log
+       where organization_id = $1 and idempotency_key = $2`,
+      [ID.org, "score-system-actor-001"]
+    );
+    assert.equal(systemScore.status, "healthy");
+    assert.equal(systemAudit.rows[0].actor_user_id, null);
+    assert.equal(systemAudit.rows[0].metadata.actor_type, "system");
+    assert.equal(systemAudit.rows[0].metadata.job_key, "zaltyko-outbox");
+  });
 
   await expectOperationalError(
     () =>

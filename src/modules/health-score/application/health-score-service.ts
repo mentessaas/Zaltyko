@@ -16,9 +16,12 @@ import {
   metricRunValues,
   type HealthScoreSnapshot,
 } from "@/db/zaltyko-schema";
-import { operationalActorSchema } from "@/modules/shared/application/actor";
+import { evaluationActorSchema } from "@/modules/shared/application/actor";
 import { OperationalError } from "@/modules/shared/domain/operational-error";
-import { assertOperationalAccess } from "@/modules/shared/infrastructure/operational-authorization";
+import {
+  assertOperationalAccess,
+  assertSystemOperationalScope,
+} from "@/modules/shared/infrastructure/operational-authorization";
 import { lockCommand } from "@/modules/shared/infrastructure/transactional-records";
 import {
   aggregateAcademyScore,
@@ -42,7 +45,7 @@ const calculateHealthScoreSchema = z.object({
   scoreVersionKey: z.string().trim().min(1).default("zaltyko_owner_health"),
   scoreVersion: z.number().int().positive().default(1),
   idempotencyKey: z.string().trim().min(8).max(150),
-  actor: operationalActorSchema,
+  actor: evaluationActorSchema,
 });
 
 export type CalculateHealthScoreCommand = z.input<
@@ -108,12 +111,20 @@ export async function calculateAcademyHealthScore(
       typeof run.parameters.targetLocationId === "string"
         ? run.parameters.targetLocationId
         : null;
-    await assertOperationalAccess(tx, {
-      organizationId: input.organizationId,
-      locationId: targetLocationId ?? run.authorizationLocationId,
-      actor: input.actor,
-      allowedRoles: scoreRoles,
-    });
+    if ("type" in input.actor) {
+      await assertSystemOperationalScope(tx, {
+        organizationId: input.organizationId,
+        locationId: targetLocationId ?? run.authorizationLocationId,
+        actor: input.actor,
+      });
+    } else {
+      await assertOperationalAccess(tx, {
+        organizationId: input.organizationId,
+        locationId: targetLocationId ?? run.authorizationLocationId,
+        actor: input.actor,
+        allowedRoles: scoreRoles,
+      });
+    }
 
     const [scoreVersion] = await tx
       .select()
@@ -337,7 +348,7 @@ export async function calculateAcademyHealthScore(
     await tx.insert(auditLog).values({
       organizationId: input.organizationId,
       locationId: targetLocationId,
-      actorUserId: input.actor.userId,
+      actorUserId: "type" in input.actor ? null : input.actor.userId,
       action: "health_score.computed",
       targetType: "health_score_snapshot",
       targetId: snapshot.id,
@@ -350,6 +361,14 @@ export async function calculateAcademyHealthScore(
         scoreVersion: `${scoreVersion.key}@${scoreVersion.version}`,
         benchmarkProfile: `${profile.key}@${profile.version}`,
       },
+      metadata:
+        "type" in input.actor
+          ? {
+              actor_type: "system",
+              job_key: input.actor.jobKey,
+              correlation_id: input.actor.correlationId,
+            }
+          : { actor_type: "user" },
     });
     return snapshot;
   });

@@ -2,6 +2,8 @@ import assert from "node:assert/strict";
 
 import { Pool } from "pg";
 
+import { withCronSystemActor } from "@/lib/cron-system-actor";
+import { consumeMetricInvalidationEvent } from "@/modules/analytics/application/metric-engine";
 import {
   changeInsightDisposition,
   completeInsightAction,
@@ -11,11 +13,13 @@ import {
 import { evaluateP0Insights } from "@/modules/insights/application/evaluate-p0-rules";
 import { listInsights } from "@/modules/insights/application/insight-query";
 import { evaluateExcessDemand } from "@/modules/insights/domain/insight-rules";
+import type { SystemActor } from "@/modules/shared/application/actor";
 import { OperationalError } from "@/modules/shared/domain/operational-error";
 
 const databaseUrl = process.env.DATABASE_URL;
 if (!databaseUrl) throw new Error("DATABASE_URL es obligatoria");
 const pool = new Pool({ connectionString: databaseUrl, max: 4 });
+process.env.CRON_SECRET = "synthetic-worker-secret";
 
 const ID = {
   org: "20000000-0000-0000-0000-000000000001",
@@ -50,6 +54,20 @@ async function count(table: string, where = "true"): Promise<number> {
     `select count(*)::int as count from ${table} where ${where}`
   );
   return Number(result.rows[0].count);
+}
+
+async function asSyntheticCron<T>(
+  job: (actor: SystemActor) => Promise<T>
+): Promise<T> {
+  const result = await withCronSystemActor(
+    new Request("http://localhost/api/cron/zaltyko-outbox", {
+      headers: { authorization: "Bearer synthetic-worker-secret" },
+    }),
+    job
+  );
+  if (!result.ok)
+    throw new Error("La autenticación cron sintética fue denegada");
+  return result.value;
 }
 
 function iso(base: Date, minutes: number): string {
@@ -347,7 +365,11 @@ async function main(): Promise<void> {
   // Deterministic synthetic fact for the SQL-to-candidate path (no coach assigned).
   await pool.query(
     `update zaltyko.sessions set starts_at = $2, ends_at = $3, updated_at = now() where organization_id = $1 and id = '20000000-0000-0000-0000-000000000901'`,
-    [ID.org, new Date(base.getTime() + 48 * 60 * 60 * 1000), new Date(base.getTime() + 49 * 60 * 60 * 1000)]
+    [
+      ID.org,
+      new Date(base.getTime() + 48 * 60 * 60 * 1000),
+      new Date(base.getTime() + 49 * 60 * 60 * 1000),
+    ]
   );
   const p0Command = {
     organizationId: ID.org,
@@ -365,6 +387,43 @@ async function main(): Promise<void> {
     p0Retry.results.map((result) => result.runId),
     p0Evaluation.results.map((result) => result.runId)
   );
+  const insightEvent = await pool.query(
+    `select id from zaltyko.outbox_events
+     where organization_id = $1 and event_name = 'insights.evaluated'
+     order by created_at desc limit 1`,
+    [ID.org]
+  );
+  assert.equal(
+    await consumeMetricInvalidationEvent({
+      organizationId: ID.org,
+      outboxEventId: String(insightEvent.rows[0].id),
+    }),
+    false
+  );
+  assert.equal(
+    await count(
+      "zaltyko.metric_invalidations",
+      `outbox_event_id = '${String(insightEvent.rows[0].id)}'`
+    ),
+    0
+  );
+
+  await asSyntheticCron(async (systemActor) => {
+    const p0SystemEvaluation = await evaluateP0Insights({
+      ...p0Command,
+      actor: systemActor,
+      idempotencyPrefix: "p0-rules-system-synthetic-integration",
+    });
+    assert.equal(p0SystemEvaluation.evaluatedRules, 9);
+    const systemAudit = await pool.query(
+      `select actor_user_id, metadata from zaltyko.audit_log
+       where organization_id = $1 and action = 'insights.evaluated'
+         and metadata->>'actor_type' = 'system'`,
+      [ID.org]
+    );
+    assert.equal(systemAudit.rows.length, 9);
+    assert(systemAudit.rows.every((row) => row.actor_user_id === null));
+  });
 
   console.log(
     JSON.stringify({
@@ -381,6 +440,7 @@ async function main(): Promise<void> {
       p0RulesExecuted: p0Evaluation.evaluatedRules,
       p0Candidates: p0Evaluation.candidates,
       p0RetryIsIdempotent: true,
+      systemEvaluationWithoutImpersonation: true,
     })
   );
 }

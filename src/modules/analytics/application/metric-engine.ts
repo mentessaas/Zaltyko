@@ -21,14 +21,29 @@ import {
   cohortRates,
   financialTotals,
 } from "@/modules/analytics/domain/metric-formulas";
-import { operationalActorSchema } from "@/modules/shared/application/actor";
+import { evaluationActorSchema } from "@/modules/shared/application/actor";
 import { OperationalError } from "@/modules/shared/domain/operational-error";
-import { assertOperationalAccess } from "@/modules/shared/infrastructure/operational-authorization";
+import {
+  assertOperationalAccess,
+  assertSystemOperationalScope,
+} from "@/modules/shared/infrastructure/operational-authorization";
 import { lockCommand } from "@/modules/shared/infrastructure/transactional-records";
 
 const FORMULA_SET_VERSION = "2026-10-v1";
 const FORMULA_VERSION = 1;
 const financialRoles = ["owner", "admin"] as const;
+const metricSourceEventPrefixes = [
+  "enrollment.",
+  "sessions.",
+  "attendance.",
+  "waitlist.",
+  "trial.",
+  "invoice.",
+  "charge.",
+  "payment.",
+  "financial.",
+  "organization.bootstrapped",
+] as const;
 
 const recomputeMetricsSchema = z.object({
   organizationId: z.string().uuid(),
@@ -39,7 +54,7 @@ const recomputeMetricsSchema = z.object({
   currency: z.string().regex(/^[A-Z]{3}$/),
   sourceWatermark: z.string().datetime({ offset: true }),
   idempotencyKey: z.string().trim().min(8).max(150),
-  actor: operationalActorSchema,
+  actor: evaluationActorSchema,
 });
 
 export type RecomputeMetricsCommand = z.infer<typeof recomputeMetricsSchema>;
@@ -188,7 +203,15 @@ export async function consumeMetricInvalidationEvent(
       .limit(1);
     if (!event)
       throw new OperationalError("NOT_FOUND", "Evento no encontrado", 404);
-    if (event.eventName.startsWith("metrics.")) return false;
+    if (
+      !metricSourceEventPrefixes.some((prefix) =>
+        prefix.endsWith(".")
+          ? event.eventName.startsWith(prefix)
+          : event.eventName === prefix
+      )
+    ) {
+      return false;
+    }
 
     const inserted = await tx
       .insert(metricEventConsumptions)
@@ -658,19 +681,35 @@ export async function recomputeMetrics(
 
   const run = await db.transaction(async (tx) => {
     await lockCommand(tx, input.organizationId, input.idempotencyKey);
-    await assertOperationalAccess(tx, {
-      organizationId: input.organizationId,
-      locationId: input.authorizationLocationId,
-      actor: input.actor,
-      allowedRoles: financialRoles,
-    });
-    if (input.targetLocationId) {
+    if ("type" in input.actor) {
+      await assertSystemOperationalScope(tx, {
+        organizationId: input.organizationId,
+        locationId: input.authorizationLocationId,
+        actor: input.actor,
+      });
+    } else {
       await assertOperationalAccess(tx, {
         organizationId: input.organizationId,
-        locationId: input.targetLocationId,
+        locationId: input.authorizationLocationId,
         actor: input.actor,
         allowedRoles: financialRoles,
       });
+    }
+    if (input.targetLocationId) {
+      if ("type" in input.actor) {
+        await assertSystemOperationalScope(tx, {
+          organizationId: input.organizationId,
+          locationId: input.targetLocationId,
+          actor: input.actor,
+        });
+      } else {
+        await assertOperationalAccess(tx, {
+          organizationId: input.organizationId,
+          locationId: input.targetLocationId,
+          actor: input.actor,
+          allowedRoles: financialRoles,
+        });
+      }
     }
     const [prior] = await tx
       .select()
@@ -759,7 +798,7 @@ export async function recomputeMetrics(
       await tx.insert(auditLog).values({
         organizationId: input.organizationId,
         locationId: input.targetLocationId ?? null,
-        actorUserId: input.actor.userId,
+        actorUserId: "type" in input.actor ? null : input.actor.userId,
         action: "metrics.recomputed",
         targetType: "metric_run",
         targetId: run.id,
@@ -770,6 +809,14 @@ export async function recomputeMetrics(
           periodStart: input.periodStart,
           periodEnd: input.periodEnd,
         },
+        metadata:
+          "type" in input.actor
+            ? {
+                actor_type: "system",
+                job_key: input.actor.jobKey,
+                correlation_id: input.actor.correlationId,
+              }
+            : { actor_type: "user" },
       });
       return completed;
     });

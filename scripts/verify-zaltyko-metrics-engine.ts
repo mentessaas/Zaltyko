@@ -2,15 +2,16 @@ import assert from "node:assert/strict";
 
 import { Pool } from "pg";
 
-import {
-  recomputeMetrics,
-} from "@/modules/analytics/application/metric-engine";
+import { recomputeMetrics } from "@/modules/analytics/application/metric-engine";
 import { dispatchOutboxBatch } from "@/modules/analytics/application/outbox-dispatcher";
+import { withCronSystemActor } from "@/lib/cron-system-actor";
+import type { SystemActor } from "@/modules/shared/application/actor";
 import { OperationalError } from "@/modules/shared/domain/operational-error";
 
 const databaseUrl = process.env.DATABASE_URL;
 if (!databaseUrl) throw new Error("DATABASE_URL es obligatoria");
 const pool = new Pool({ connectionString: databaseUrl, max: 4 });
+process.env.CRON_SECRET = "synthetic-worker-secret";
 
 const ID = {
   org: "30000000-0000-0000-0000-000000000001",
@@ -43,6 +44,20 @@ async function count(table: string, where = "true"): Promise<number> {
     `select count(*)::int as count from ${table} where ${where}`
   );
   return Number(result.rows[0].count);
+}
+
+async function asSyntheticCron<T>(
+  job: (actor: SystemActor) => Promise<T>
+): Promise<T> {
+  const result = await withCronSystemActor(
+    new Request("http://localhost/api/cron/zaltyko-outbox", {
+      headers: { authorization: "Bearer synthetic-worker-secret" },
+    }),
+    job
+  );
+  if (!result.ok)
+    throw new Error("La autenticación cron sintética fue denegada");
+  return result.value;
 }
 
 async function values(): Promise<
@@ -144,10 +159,19 @@ async function main(): Promise<void> {
     dispatchOutboxBatch({ batchSize: 1 }),
     dispatchOutboxBatch({ batchSize: 1 }),
   ]);
-  assert.equal(dispatched.reduce((sum, result) => sum + result.claimed, 0), 1);
-  assert.equal(dispatched.reduce((sum, result) => sum + result.processed, 0), 1);
   assert.equal(
-    await count("zaltyko.outbox_events", `id = '${outboxEventId}' and status = 'processed'`),
+    dispatched.reduce((sum, result) => sum + result.claimed, 0),
+    1
+  );
+  assert.equal(
+    dispatched.reduce((sum, result) => sum + result.processed, 0),
+    1
+  );
+  assert.equal(
+    await count(
+      "zaltyko.outbox_events",
+      `id = '${outboxEventId}' and status = 'processed'`
+    ),
     1
   );
   assert.equal(
@@ -172,7 +196,10 @@ async function main(): Promise<void> {
   assert.equal(recovered.claimed, 1);
   assert.equal(recovered.processed, 1);
   assert.equal(
-    await count("zaltyko.outbox_events", `id = '${recoveredId}' and status = 'processed' and attempts = 2`),
+    await count(
+      "zaltyko.outbox_events",
+      `id = '${recoveredId}' and status = 'processed' and attempts = 2`
+    ),
     1
   );
   const exhaustedLease = await pool.query(
@@ -189,7 +216,10 @@ async function main(): Promise<void> {
   assert.equal(exhausted.claimed, 0);
   assert.equal(exhausted.deadLettered, 1);
   assert.equal(
-    await count("zaltyko.outbox_events", `id = '${exhaustedId}' and status = 'failed' and last_error = 'MAX_ATTEMPTS_EXHAUSTED'`),
+    await count(
+      "zaltyko.outbox_events",
+      `id = '${exhaustedId}' and status = 'failed' and last_error = 'MAX_ATTEMPTS_EXHAUSTED'`
+    ),
     1
   );
 
@@ -249,6 +279,51 @@ async function main(): Promise<void> {
   assert.equal(sparseAttendance.rows[0].value_numeric, null);
   assert.equal(sparseAttendance.rows[0].quality, "insufficient");
 
+  const unauthorizedCron = await withCronSystemActor(
+    new Request("http://localhost/api/cron/zaltyko-outbox"),
+    async () => true
+  );
+  assert.equal(unauthorizedCron.ok, false);
+  await expectOperationalError(
+    () =>
+      recomputeMetrics({
+        ...command,
+        idempotencyKey: "metric-system-forged-actor-denied",
+        actor: {
+          type: "system",
+          jobKey: "zaltyko-outbox",
+          correlationId: "30000000-0000-0000-0000-000000000991",
+        },
+      }),
+    "FORBIDDEN"
+  );
+  await asSyntheticCron(async (systemActor) => {
+    await expectOperationalError(
+      () =>
+        recomputeMetrics({
+          ...command,
+          organizationId: ID.sparseOrg,
+          idempotencyKey: "metric-system-cross-site-denied",
+          actor: systemActor,
+        }),
+      "LOCATION_SCOPE_DENIED"
+    );
+    const systemRun = await recomputeMetrics({
+      ...command,
+      idempotencyKey: "metric-system-actor-run-001",
+      actor: systemActor,
+    });
+    assert.equal(systemRun.status, "succeeded");
+    const systemAudit = await pool.query(
+      `select actor_user_id, metadata from zaltyko.audit_log
+       where organization_id = $1 and idempotency_key = $2`,
+      [ID.org, "metric-system-actor-run-001"]
+    );
+    assert.equal(systemAudit.rows[0].actor_user_id, null);
+    assert.equal(systemAudit.rows[0].metadata.actor_type, "system");
+    assert.equal(systemAudit.rows[0].metadata.job_key, "zaltyko-outbox");
+  });
+
   console.log(
     JSON.stringify({
       status: "PASS",
@@ -269,6 +344,7 @@ async function main(): Promise<void> {
       concurrentOutboxClaims: true,
       expiredLeaseRecovered: true,
       exhaustedLeaseDeadLettered: true,
+      systemActorAuditedWithoutImpersonation: true,
     })
   );
 }
