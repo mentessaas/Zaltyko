@@ -39,13 +39,21 @@ export async function GET(request: Request) {
       state: dashboard.state,
       score,
       dimensions: dashboard.dimensions,
-      freshness: score
-        ? {
-            computedAt: score.computedAt,
-            sourceWatermark: score.sourceWatermark,
-            stale: dashboard.state === "stale",
-          }
-        : null,
+      freshness: {
+        computedAt: score?.computedAt ?? null,
+        sourceWatermark: score?.sourceWatermark ?? null,
+        stale:
+          dashboard.state === "stale" ||
+          dashboard.freshness.status === "stale" ||
+          dashboard.freshness.status === "failed",
+        pipelineStatus: dashboard.freshness.status,
+        pendingEventCount: dashboard.freshness.pendingEventCount,
+        processingEventCount: dashboard.freshness.processingEventCount,
+        failedEventCount: dashboard.freshness.failedEventCount,
+        oldestUnsettledAgeSeconds:
+          dashboard.freshness.oldestUnsettledAgeSeconds,
+        slaSeconds: dashboard.freshness.slaSeconds,
+      },
     }, { headers: { "cache-control": "private, no-store" } });
   } catch (error) {
     if (error instanceof OperationalError) return operationalProblem(error);

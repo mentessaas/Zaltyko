@@ -28,7 +28,7 @@ dictamen no declara el producto completo ni apto para piloto.
 | AC-07 Insight accionable      | PASS parcial                         | Las nueve reglas P0 ejecutan contra tablas canónicas; CTA `excess_demand` ya ofrece simulador ejecutable, con capacidad/precio opcionales introducidos por Owner, escenarios no calibrados etiquetados, recálculo/whitelist servidor e idempotencia de parámetros (ADR-0013; `85d82100`). No crea clases ni mensajes. Falta calibración, validación profunda por regla, scheduler y E2E autenticado. |
 | AC-08 Seguridad multi-tenant  | PASS local; remoto NO VERIFICADO     | Tests de servicios/RLS y query layer; el proyecto remoto llamado E2E Sandbox contiene 7 filas de academias legacy y no se usó.                                                                                                                                               |
 | AC-09 Scope de sede           | PASS local; E2E remoto NO VERIFICADO | `scripts/verify-zaltyko-owner-dashboard-query.ts`, pruebas de Insights y ADR-0010; selector de programa/grupo filtra aforo/cohortes y la lista de grupos respeta sedes asignadas.                                                                                            |
-| AC-10 Frescura ≤15 min        | NO VERIFICADO                        | Se guardan watermarks/calidad; no hay worker/scheduler que garantice el SLA.                                                                                                                                                                                                 |
+| AC-10 Frescura ≤15 min        | PASS parcial local; SLA global NO VERIFICADO | `/owner`, API current y series exponen estado de eventos fuente aún no resueltos en outbox; harness PostgreSQL verifica 14m pending, >15m stale, failed y recuperación, con scope de sede (ADR-0015). No hay schedule/worker periódico activo ni evidencia E2E webhook→worker→dashboard; no se garantiza el SLA. |
 | AC-11 Accesibilidad           | PASS automatizado parcial            | Auditorías Axe y responsive automatizadas; lector de pantalla y revisión manual no equivalen a prueba automatizada.                                                                                                                                                          |
 | AC-12 Rendimiento a escala    | NO CUMPLE / NO VERIFICADO            | El p95 existente es sintético y de baja escala. No representa 5.000 atletas, 2 M asistencias ni 20 identidades.                                                                                                                                                              |
 | AC-13 Recompute reproducible  | PASS local sintético                 | `scripts/verify-zaltyko-health-score-engine.ts`; requiere scheduler/admin API antes de operar.                                                                                                                                                                               |
@@ -42,7 +42,7 @@ dictamen no declara el producto completo ni apto para piloto.
 | Lecturas de Owner      | Dashboard, score, serie de métricas, heatmap y cohortes agregadas existen; UI integra capacidad/cohortes con degradación parcial. Faltan riesgos individuales y perfiles de benchmark. Cohortes omiten tasa si hay pausa por gracia no decidida.                                                                                                                                                                                                                                                              | Cerrar alta/gracia, revisión RGPD y permiso de riesgos; filtros, cursor pagination, carga/E2E autenticado.                                                                  |
 | Filtros y dashboard    | Filtros de período/sede y selectores URL de programa/grupo implementados. Estos últimos acotan aforo/cohortes, no el score academia/sede (ADR-0010). Score muestra delta contra período anterior si perfil/score/duración comparable (ADR-0011). Harness verifica opciones cross-tenant/sede; preview sintética 375/768/1280 sin overflow. Falta selector del modo de comparación, año anterior, filtro de datos incompletos, acciones operativas, oportunidades integradas, E2E autenticado y WCAG completa. | Completar filtros restantes, cursor pagination visible, acciones operativas, axe/teclado y E2E autenticado.                                                                 |
 | Insights P0            | Nueve reglas activas conectadas a fuentes canónicas y verificadas en PostgreSQL efímero; CTA de exceso de demanda ahora simula escenarios de forma acotada, sin prometer resultados ni mutar operación (ADR-0013). No hay carga a escala ni schedule activo. Retención individual permanece en draft por privacidad.                                                                                                                                                                                       | Añadir pruebas de activación/resolución por regla, calibrar solo con cohortes validadas, probar carga y operación programada; mantener riesgo individual desactivado hasta completar EIPD y aprobación. |
-| Jobs y alertas         | Dispatcher y cascada local invalidación→recompute→score condicionado→9 reglas P0, más cierre de outcomes vencidos, pasan PostgreSQL efímero. Score omitido se audita sin benchmark explícito. No hay schedule registrado; digest, métricas runtime, escala y SLA siguen no verificados.                                                                                                                                                                                                                       | Añadir digest y métricas/alertas de lag/errores; solo después evaluar schedule en entorno aislado y probar frescura/degradación stale.                                      |
+| Jobs y alertas         | Dispatcher y cascada local invalidación→recompute→score condicionado→9 reglas P0, más cierre de outcomes vencidos, pasan PostgreSQL efímero. El read model observa conteos/edad de eventos fuente aún no resueltos, con scope org/sede e índice parcial (ADR-0015). No hay schedule; digest, métricas runtime, escala y SLA siguen no verificados. | Añadir digest y métricas runtime de lag/errores; solo después evaluar schedule en entorno aislado y probar E2E/frescura continua.                                      |
 | Benchmark              | Hay configuración owner/admin de cinco metas internas versionadas; no es benchmark de mercado. No hay benchmark español verificado ni flujo para importar/revisar referencias externas.                                                                                                                                                                                                                                                                                                                       | Mantener etiquetas separadas, fuente/metodología auditable y sin FX implícito; no presentar referencias como norma española.                                                |
 | Piloto y operación     | No hay E2E autenticado con dos organizaciones/sedes, restore drill, ni prueba de carga a escala.                                                                                                                                                                                                                                                                                                                                                                                                              | Entorno aislado sin datos de clientes; ensayos reproducibles y reportados antes de solicitar piloto.                                                                        |
 | Definiciones prepiloto | Siguen abiertas las ocho preguntas de PRD §30, incluida fecha de alta, temporada y elegibilidad de autoservicio.                                                                                                                                                                                                                                                                                                                                                                                              | Decisiones de producto con valor predeterminado explícito o bloqueo antes del piloto cuando cambie una métrica.                                                             |
@@ -62,6 +62,24 @@ dictamen no declara el producto completo ni apto para piloto.
   efímero valida DDL/RLS/constraints; no sustituye Auth/PostgREST/Realtime ni el
   sandbox remoto.
 
+## Actualización posterior — observabilidad de frescura del outbox (2026-10-06)
+
+La lectura del dashboard detecta eventos de familias fuente en estado
+`pending`, `processing` o `failed`, scoped a organización/sede e incluyendo
+eventos de alcance organización. Expone solo conteos, edad y estado; no devuelve
+payloads ni IDs. `pending` hasta 15 min, `stale` por encima de 15 min y `failed`
+inmediato. El empty state también comunica el estado. ADR-0015 documenta la
+decisión y sus límites.
+
+Verificado localmente: `pnpm test:zaltyko-owner-dashboard-query:local`, 5
+tests puros, typecheck, ESLint focalizado, `git diff --check` y `pnpm build`
+PASS. El harness confirma el índice parcial. El build advirtió variables
+críticas ausentes y las rutas admin `/admin/analytics` y `/admin/disputes` que
+acceden a cookies durante prerender; acabaron como dinámicas y el build terminó
+correctamente. No se aplicó la migración en remoto. Esto no prueba schedule,
+disponibilidad/95%, E2E autenticado, carga a escala ni eventos que no llegan al
+outbox: AC-10 sigue parcial, no garantizado.
+
 ## Actualización posterior — simulador de demanda (2026-10-06)
 
 Commit local `85d82100` añade el simulador en la bandeja de Insights. La UI solo
@@ -79,8 +97,9 @@ prueba E2E autenticado ni entorno remoto.
 1. Completar el circuito del dashboard con acceso contextual a Insights y
    navegación de drill-down hacia capacidad/cohortes, manteniendo filtros y
    scope de organización/sede.
-2. Añadir pruebas de activación/resolución por regla y observabilidad de
-   freshness; preparar schedule solo cuando política y entorno estén aprobados.
+2. Añadir pruebas de activación/resolución por regla y métricas runtime de
+   freshness; la vista local de lag está implementada (ADR-0015). Preparar
+   schedule solo cuando política y entorno estén aprobados.
 3. Completar tablas, filtros/año anterior, interacción por teclado y WCAG 2.2 AA.
 4. Calibrar escenarios comerciales solo con cohortes válidas y revisión humana;
    no presentar benchmarks no verificados.

@@ -1862,6 +1862,9 @@ export const outboxEvents = zaltyko.table(
       table.idempotencyKey
     ),
     index("outbox_events_dispatch_idx").on(table.status, table.availableAt),
+    index("outbox_events_unsettled_freshness_idx")
+      .on(table.organizationId, table.locationId, table.occurredAt)
+      .where(sql`${table.status} in ('pending', 'processing', 'failed')`),
     check("outbox_events_version_positive", sql`${table.eventVersion} > 0`),
     check("outbox_events_attempts_non_negative", sql`${table.attempts} >= 0`),
     foreignKey({

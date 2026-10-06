@@ -46,6 +46,24 @@ function percentile(values: number[], rank: number): number {
 }
 
 async function main(): Promise<void> {
+  // The preceding health-score harness intentionally leaves retry/dead-letter
+  // events in this disposable database. Normalize only those synthetic fixture
+  // organizations so freshness assertions start from a known baseline.
+  await pool.query(
+    `update zaltyko.outbox_events
+     set status = 'processed', processed_at = now()
+     where organization_id = any($1::uuid[])
+       and status in ('pending', 'processing', 'failed')`,
+    [[ID.org, ID.managerOrg]]
+  );
+  const freshnessIndex = await pool.query(
+    `select to_regclass('zaltyko.outbox_events_unsettled_freshness_idx') as index_name`
+  );
+  assert.equal(
+    freshnessIndex.rows[0].index_name,
+    "zaltyko.outbox_events_unsettled_freshness_idx"
+  );
+
   const bundle = await getOwnerDashboard({
     userId: ID.ownerUser,
     organizationId: ID.org,
@@ -65,6 +83,84 @@ async function main(): Promise<void> {
     true
   );
   assert.equal(JSON.stringify(bundle).includes("Persona Sintética"), false);
+
+  const pendingEvent = await pool.query(
+    `insert into zaltyko.outbox_events (
+       organization_id, location_id, event_name, aggregate_type, aggregate_id,
+       idempotency_key, payload, occurred_at
+     ) values ($1, $2, 'payment.webhook_confirmed', 'payment', $3,
+       'freshness-pending-synthetic', '{}'::jsonb, now() - interval '14 minutes')
+     returning id`,
+    [ID.org, ID.location, ID.ownerUser]
+  );
+  const pendingDashboard = await getOwnerDashboard({
+    userId: ID.ownerUser,
+    organizationId: ID.org,
+    locationId: ID.location,
+  });
+  assert.equal(pendingDashboard.freshness.status, "pending");
+  assert.equal(pendingDashboard.freshness.pendingEventCount, 1);
+  assert.equal(pendingDashboard.state, "empty");
+
+  await pool.query(
+    `update zaltyko.outbox_events
+     set occurred_at = now() - interval '16 minutes'
+     where id = $1`,
+    [pendingEvent.rows[0].id]
+  );
+  const staleDashboard = await getOwnerDashboard({
+    userId: ID.ownerUser,
+    organizationId: ID.org,
+    locationId: ID.location,
+  });
+  assert.equal(staleDashboard.freshness.status, "stale");
+  assert.equal(staleDashboard.state, "empty");
+  assert(staleDashboard.freshness.oldestUnsettledAgeSeconds! > 15 * 60);
+
+  await pool.query(
+    `update zaltyko.outbox_events
+     set status = 'processed', processed_at = now()
+     where id = $1`,
+    [pendingEvent.rows[0].id]
+  );
+  const recoveredDashboard = await getOwnerDashboard({
+    userId: ID.ownerUser,
+    organizationId: ID.org,
+    locationId: ID.location,
+  });
+  assert.equal(recoveredDashboard.freshness.status, "current");
+
+  await pool.query(
+    `insert into zaltyko.outbox_events (
+       organization_id, location_id, event_name, aggregate_type, aggregate_id,
+       idempotency_key, payload, status, occurred_at
+     ) values ($1, $2, 'payment.webhook_confirmed', 'payment', $3,
+       'freshness-failed-synthetic', '{}'::jsonb, 'failed', now() - interval '1 minute')`,
+    [ID.org, ID.location, ID.ownerUser]
+  );
+  const failedDashboard = await getOwnerDashboard({
+    userId: ID.ownerUser,
+    organizationId: ID.org,
+    locationId: ID.location,
+  });
+  assert.equal(failedDashboard.freshness.status, "failed");
+  assert.equal(failedDashboard.freshness.failedEventCount, 1);
+
+  await pool.query(
+    `insert into zaltyko.outbox_events (
+       organization_id, location_id, event_name, aggregate_type, aggregate_id,
+       idempotency_key, payload, occurred_at
+     ) values ($1, $2, 'payment.webhook_confirmed', 'payment', $3,
+       'freshness-south-synthetic', '{}'::jsonb, now() - interval '14 minutes')`,
+    [ID.managerOrg, ID.managerSouth, ID.scopedManagerUser]
+  );
+  const scopedFreshnessDashboard = await getOwnerDashboard({
+    userId: ID.scopedManagerUser,
+    organizationId: ID.managerOrg,
+  });
+  assert.equal(scopedFreshnessDashboard.scope.locationId, ID.managerNorth);
+  assert.equal(scopedFreshnessDashboard.freshness.status, "current");
+  assert.equal(scopedFreshnessDashboard.freshness.pendingEventCount, 0);
 
   const historyFirstPage = await getHealthScoreHistory({
     userId: ID.ownerUser,
@@ -290,6 +386,7 @@ async function main(): Promise<void> {
     locationId: ID.location,
   });
   assert.equal(locationWithoutSnapshot.state, "empty");
+  assert.equal(locationWithoutSnapshot.freshness.status, "failed");
   assert.equal(locationWithoutSnapshot.scope.locationId, ID.location);
   const historyWithoutSnapshot = await getHealthScoreHistory({
     userId: ID.ownerUser,

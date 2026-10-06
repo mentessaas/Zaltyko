@@ -12,6 +12,10 @@ import {
   metricDefinitions,
   metricRunValues,
 } from "@/db/zaltyko-schema";
+import {
+  getPipelineFreshness,
+  type PipelineFreshness,
+} from "@/modules/analytics/application/pipeline-freshness";
 import { resolveOwnerScope } from "@/modules/owner-dashboard/application/owner-scope";
 
 export type DashboardDataState = "ready" | "empty" | "stale" | "insufficient";
@@ -99,6 +103,7 @@ export interface OwnerDashboardBundle {
     score: number | null;
     status: string;
   }>;
+  freshness: PipelineFreshness;
 }
 
 const dimensionLabels: Record<string, string> = {
@@ -121,6 +126,10 @@ export async function getOwnerDashboard(
   const scope = await resolveOwnerScope(input);
   const organizationId = scope.organization.id;
   const selectedLocationId = scope.selectedLocationId;
+  const freshness = await getPipelineFreshness({
+    organizationId,
+    locationId: selectedLocationId,
+  });
 
   const locationCondition = selectedLocationId
     ? eq(healthScoreSnapshots.locationId, selectedLocationId)
@@ -289,6 +298,7 @@ export async function getOwnerDashboard(
               },
             ],
       scoreTrend: [],
+      freshness,
     };
   }
 
@@ -413,7 +423,10 @@ export async function getOwnerDashboard(
     });
   }
   const hasStale = metrics.some((metric) => metric.quality === "stale");
-  const state: DashboardDataState = hasStale
+  const state: DashboardDataState =
+    hasStale ||
+    freshness.status === "stale" ||
+    freshness.status === "failed"
     ? "stale"
     : latest.snapshot.status === "insufficient_data"
       ? "insufficient"
@@ -467,5 +480,6 @@ export async function getOwnerDashboard(
         status: row.snapshot.status,
       }))
       .reverse(),
+    freshness,
   };
 }

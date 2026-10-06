@@ -297,4 +297,13 @@ export const ownerDashboardPreviewBundle: OwnerDashboardBundle = {
     { periodEnd: "2026-08-31", score: 79.8, status: "healthy" },
     { periodEnd: "2026-09-30", score: 83.28, status: "healthy" },
   ],
+  freshness: {
+    status: "current",
+    pendingEventCount: 0,
+    processingEventCount: 0,
+    failedEventCount: 0,
+    oldestUnsettledAt: null,
+    oldestUnsettledAgeSeconds: null,
+    slaSeconds: 900,
+  },
 };

@@ -285,6 +285,20 @@ schedule. El SLA ≤15 min solo puede
 afirmarse cuando exista frecuencia durable, lag medido y degradación `stale`
 verificada; no registrar cron ni desplegar todavía.
 
+Actualización 2026-10-06 (ADR-0015): la lectura del Owner ahora observa los
+eventos operativos fuente pendientes/en-proceso/fallidos del outbox, por
+organización y sede (incluyendo eventos organization-wide), con estado `pending`
+hasta 15 min, `stale` después y `failed` inmediato. `/owner`, current score y
+series exponen solamente estado/conteos/edad. Índice parcial para filas
+unsettled. PostgreSQL efímero prueba pending→stale→processed, failed y
+aislamiento de sede; 5 tests puros, typecheck, ESLint focalizado, build y
+`git diff --check` pasan. Migración solo aplicada en runners efímeros.
+
+Esto cierra la señal visible de eventos conocidos, no la operación continua:
+falta schedule, E2E autenticado webhook→worker→dashboard, métricas runtime,
+medición de cobertura/95% y evidencia de frescura end-to-end. AC-10 queda parcial
+y el SLA no se declara.
+
 Configuración owner/admin de metas internas añadida en
 `/owner/health-score/setup`: cinco ratios requeridos, perfil versionado,
 autorización tenant/sede, idempotencia, audit log y outbox

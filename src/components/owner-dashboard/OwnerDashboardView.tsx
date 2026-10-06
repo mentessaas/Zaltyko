@@ -389,6 +389,7 @@ function EmptyDashboard({ bundle }: { bundle: OwnerDashboardBundle }) {
           {bundle.priorities[0]?.detail ??
             "Completa las operaciones del período y calcula las métricas."}
         </p>
+        <PipelineFreshnessNotice freshness={bundle.freshness} />
         <Link
           href={bundle.priorities[0]?.href ?? "/owner#data-status"}
           className="touch-target mt-7 inline-flex items-center gap-2 rounded-full bg-slate-950 px-5 py-3 text-sm font-bold text-white"
@@ -402,6 +403,48 @@ function EmptyDashboard({ bundle }: { bundle: OwnerDashboardBundle }) {
         </Link>
       </section>
     </main>
+  );
+}
+
+function PipelineFreshnessNotice({
+  freshness,
+}: {
+  freshness: OwnerDashboardBundle["freshness"];
+}) {
+  if (freshness.status === "current") return null;
+  const role = freshness.status === "failed" ? "alert" : "status";
+  const ageMinutes =
+    freshness.oldestUnsettledAgeSeconds === null
+      ? null
+      : Math.ceil(freshness.oldestUnsettledAgeSeconds / 60);
+  const unsettledCount =
+    freshness.pendingEventCount + freshness.processingEventCount;
+  const className =
+    freshness.status === "failed" || freshness.status === "stale"
+      ? "border-amber-400 bg-amber-50 text-amber-950"
+      : "border-sky-300 bg-sky-50 text-sky-950";
+  return (
+    <div role={role} className={`mt-4 border p-4 text-sm ${className}`}>
+      {freshness.status === "failed" ? (
+        <>
+          <strong>Hay cambios operativos fallidos.</strong> El último cálculo
+          válido se conserva. Incidencias fallidas: {freshness.failedEventCount}.
+        </>
+      ) : freshness.status === "stale" ? (
+        <>
+          <strong>Hay cambios operativos atrasados.</strong> La cola más antigua
+          lleva {ageMinutes ?? "—"} min; se supera el objetivo de{" "}
+          {Math.round(freshness.slaSeconds / 60)} min. El panel conserva el
+          último cálculo válido.
+        </>
+      ) : (
+        <>
+          <strong>Hay cambios esperando actualización.</strong> En cola o en
+          proceso: {unsettledCount}.
+          {ageMinutes !== null ? ` Antigüedad máxima: ${ageMinutes} min.` : ""}
+        </>
+      )}
+    </div>
   );
 }
 
@@ -647,7 +690,7 @@ export function OwnerDashboardView({
           </div>
         </section>
 
-        {bundle.state === "stale" && (
+        {bundle.state === "stale" && bundle.freshness.status === "current" && (
           <div
             role="status"
             id="data-status"
@@ -672,6 +715,8 @@ export function OwnerDashboardView({
             .
           </p>
         )}
+
+        <PipelineFreshnessNotice freshness={bundle.freshness} />
 
         <section
           aria-labelledby="priority-title"

@@ -3,6 +3,7 @@ import { z } from "zod";
 
 import { db } from "@/db";
 import { metricDefinitions, metricRunValues, metricRuns } from "@/db/zaltyko-schema";
+import { getPipelineFreshness } from "@/modules/analytics/application/pipeline-freshness";
 import { resolveOwnerScope } from "@/modules/owner-dashboard/application/owner-scope";
 import { OperationalError } from "@/modules/shared/domain/operational-error";
 
@@ -55,6 +56,10 @@ export async function getMetricSeries(input: {
     userId: input.userId,
     organizationId: query.organizationId,
     locationId: query.locationId,
+  });
+  const freshness = await getPipelineFreshness({
+    organizationId: scope.organization.id,
+    locationId: scope.selectedLocationId,
   });
   const [definition] = await db.select().from(metricDefinitions).where(eq(metricDefinitions.key, metricKey)).limit(1);
   if (!definition) throw new OperationalError("NOT_FOUND", "Métrica no encontrada", 404);
@@ -126,6 +131,7 @@ export async function getMetricSeries(input: {
       formulaVersion: definition.formulaVersion,
       formula: definition.formula,
     },
+    freshness,
     items,
     nextCursor: hasMore && last
       ? encodeCursor({ periodEnd: last.periodEnd, computedAt: last.computedAt.toISOString(), id: last.id })
