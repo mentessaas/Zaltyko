@@ -11,6 +11,8 @@ import {
   insightRunObservations,
   insights,
   insightStatusHistory,
+  locations,
+  organizations,
   type Insight,
   type InsightAction,
 } from "@/db/zaltyko-schema";
@@ -20,6 +22,7 @@ import {
   evaluationActorSchema,
   operationalActorSchema,
   type EvaluationActor,
+  type SystemActor,
 } from "@/modules/shared/application/actor";
 import { OperationalError } from "@/modules/shared/domain/operational-error";
 import {
@@ -32,6 +35,7 @@ import {
   assertIdempotencyPayload,
   lockCommand,
 } from "@/modules/shared/infrastructure/transactional-records";
+import { assertCurrentCronSystemActor } from "@/lib/cron-system-actor";
 
 const insightRoles = ["owner", "admin", "manager"] as const;
 const activeInsightStatuses = [
@@ -905,6 +909,7 @@ export async function completeInsightAction(
           eq(insightActions.id, input.actionId)
         )
       )
+      .for("update")
       .limit(1);
     if (!action)
       throw new OperationalError("NOT_FOUND", "Acción no encontrada", 404);
@@ -977,5 +982,150 @@ export async function completeInsightAction(
       occurredAt: now,
     });
     return completed;
+  });
+}
+
+export async function closeExpiredInsightActions(
+  actor: SystemActor,
+  batchSize = 50
+): Promise<{ scanned: number; closed: number }> {
+  assertCurrentCronSystemActor(actor);
+  if (!Number.isInteger(batchSize) || batchSize < 1 || batchSize > 100) {
+    throw new RangeError("batchSize debe estar entre 1 y 100");
+  }
+  return db.transaction(async (tx) => {
+    const due = await tx.execute(sql`
+      select action.id, action.organization_id, action.location_id,
+        action.insight_id, action.action_key, action.outcome
+      from zaltyko.insight_actions action
+      where action.status = 'recorded' and action.outcome = 'pending'
+        and action.evaluation_ends_at <= now()
+      order by action.evaluation_ends_at asc, action.id asc
+      for update of action skip locked
+      limit ${batchSize}
+    `);
+    const actions = due.rows as unknown as Array<{
+      id: string;
+      organization_id: string;
+      location_id: string | null;
+      insight_id: string;
+      action_key: string;
+      outcome: string;
+    }>;
+    let closed = 0;
+    for (const action of actions) {
+      assertCurrentCronSystemActor(actor);
+      const [organization] = await tx
+        .select({ id: organizations.id })
+        .from(organizations)
+        .where(
+          and(
+            eq(organizations.id, action.organization_id),
+            inArray(organizations.status, ["trial", "active"])
+          )
+        )
+        .limit(1);
+      if (!organization) continue;
+      if (action.location_id) {
+        const [location] = await tx
+          .select({ id: locations.id })
+          .from(locations)
+          .where(
+            and(
+              eq(locations.organizationId, action.organization_id),
+              eq(locations.id, action.location_id)
+            )
+          )
+          .limit(1);
+        if (!location) continue;
+      }
+      const [insight] = await tx
+        .select()
+        .from(insights)
+        .where(
+          and(
+            eq(insights.organizationId, action.organization_id),
+            eq(insights.id, action.insight_id)
+          )
+        )
+        .for("update")
+        .limit(1);
+      if (!insight) continue;
+      const now = new Date();
+      const [completed] = await tx
+        .update(insightActions)
+        .set({
+          status: "completed",
+          outcome: "not_measurable",
+          afterValue: {},
+          outcomeNotes:
+            "Ventana finalizada sin evidencia suficiente; no se atribuye impacto automáticamente.",
+          completedAt: now,
+          updatedAt: now,
+        })
+        .where(
+          and(
+            eq(insightActions.organizationId, action.organization_id),
+            eq(insightActions.id, action.id),
+            eq(insightActions.status, "recorded"),
+            eq(insightActions.outcome, "pending")
+          )
+        )
+        .returning();
+      if (!completed) continue;
+      const idempotencyKey = `expired-outcome:${action.id}`;
+      if (insight.status === "actioned") {
+        await tx
+          .update(insights)
+          .set({
+            status: "resolved",
+            resolvedAt: now,
+            resolutionReason: "evaluation_window_expired",
+            version: insight.version + 1,
+            updatedAt: now,
+          })
+          .where(eq(insights.id, insight.id));
+        await tx.insert(insightStatusHistory).values({
+          organizationId: action.organization_id,
+          insightId: insight.id,
+          fromStatus: "actioned",
+          toStatus: "resolved",
+          reasonCode: "evaluation_window_expired",
+          actorUserId: null,
+          idempotencyKey: `status:${idempotencyKey}`,
+          changedAt: now,
+          metadata: { actorType: "system", jobKey: actor.jobKey },
+        });
+      }
+      await appendAuditEntry(tx, {
+        organizationId: action.organization_id,
+        locationId: action.location_id,
+        actorUserId: null,
+        action: "insight.action_outcome_not_measurable",
+        targetType: "insight_action",
+        targetId: action.id,
+        idempotencyKey: `audit:${idempotencyKey}`,
+        before: { outcome: action.outcome },
+        after: { outcome: "not_measurable" },
+        metadata: { actorType: "system", jobKey: actor.jobKey },
+      });
+      await appendOutboxEvent(tx, {
+        organizationId: action.organization_id,
+        locationId: action.location_id,
+        eventName: "insight.action_completed",
+        aggregateType: "insight_action",
+        aggregateId: action.id,
+        idempotencyKey: `outbox:${idempotencyKey}`,
+        payload: {
+          insightId: action.insight_id,
+          actionKey: action.action_key,
+          outcome: "not_measurable",
+          reason: "evaluation_window_expired_without_evidence",
+        },
+        occurredAt: now,
+      });
+      closed += 1;
+    }
+    return { scanned: actions.length, closed };
   });
 }

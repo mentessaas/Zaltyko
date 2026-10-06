@@ -3,6 +3,7 @@ import { runCronWithLease } from "@/lib/cron-lease";
 import { withCronSystemActor } from "@/lib/cron-system-actor";
 import { logger } from "@/lib/logger";
 import { dispatchOutboxBatch } from "@/modules/analytics/application/outbox-dispatcher";
+import { closeExpiredInsightActions } from "@/modules/insights/application/insight-service";
 
 export const dynamic = "force-dynamic";
 export const runtime = "nodejs";
@@ -10,9 +11,10 @@ export const runtime = "nodejs";
 export async function POST(request: Request) {
   try {
     const cron = await withCronSystemActor(request, (actor) =>
-      runCronWithLease("cron:zaltyko-outbox", () =>
-        dispatchOutboxBatch({ actor })
-      )
+      runCronWithLease("cron:zaltyko-outbox", async () => ({
+        outbox: await dispatchOutboxBatch({ actor }),
+        expiredInsightActions: await closeExpiredInsightActions(actor),
+      }))
     );
     if (!cron.ok) return cron.response;
     const execution = cron.value;

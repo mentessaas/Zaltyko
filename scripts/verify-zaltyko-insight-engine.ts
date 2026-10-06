@@ -5,6 +5,7 @@ import { Pool } from "pg";
 import { withCronSystemActor } from "@/lib/cron-system-actor";
 import { consumeMetricInvalidationEvent } from "@/modules/analytics/application/metric-engine";
 import {
+  closeExpiredInsightActions,
   changeInsightDisposition,
   completeInsightAction,
   recordInsightAction,
@@ -425,6 +426,90 @@ async function main(): Promise<void> {
     assert(systemAudit.rows.every((row) => row.actor_user_id === null));
   });
 
+  const actionable = await pool.query(
+    `select id, version, location_id, entity_type, entity_id, cta_key
+     from zaltyko.insights
+     where organization_id = $1 and location_id = $2
+       and status in ('open', 'viewed')
+     order by priority_score desc, id asc limit 1`,
+    [ID.org, ID.north]
+  );
+  assert.equal(actionable.rows.length, 1);
+  const insightForExpiry = actionable.rows[0] as {
+    id: string;
+    version: number;
+    location_id: string;
+    entity_type: string;
+    entity_id: string | null;
+    cta_key: string;
+  };
+  const expiringAction = await recordInsightAction({
+    organizationId: ID.org,
+    authorizationLocationId: ID.north,
+    insightId: insightForExpiry.id,
+    expectedVersion: insightForExpiry.version,
+    actionKey: insightForExpiry.cta_key,
+    targetEntityType: insightForExpiry.entity_type,
+    targetEntityId: insightForExpiry.entity_id ?? undefined,
+    beforeValue: { synthetic: true },
+    evaluationWindowDays: 30,
+    idempotencyKey: "insight-expiring-action-001",
+    actor: owner,
+  });
+  await pool.query(
+    `update zaltyko.insight_actions set evaluation_ends_at = now() - interval '1 second' where id = $1`,
+    [expiringAction.id]
+  );
+  const humanCompletion = completeInsightAction({
+    organizationId: ID.org,
+    authorizationLocationId: ID.north,
+    actionId: expiringAction.id,
+    outcome: "positive",
+    afterValue: { syntheticMeasurement: true },
+    idempotencyKey: "insight-expiring-human-outcome-001",
+    actor: owner,
+  });
+  const workerCompletion = asSyntheticCron((systemActor) =>
+    closeExpiredInsightActions(systemActor, 10)
+  );
+  const [humanOutcome, workerOutcome] = await Promise.all([
+    humanCompletion,
+    workerCompletion,
+  ]);
+  assert.equal(workerOutcome.scanned, workerOutcome.closed);
+  assert(workerOutcome.closed === 0 || workerOutcome.closed === 1);
+  assert.equal(humanOutcome.status, "completed");
+  await asSyntheticCron(async (systemActor) => {
+    const retryClose = await closeExpiredInsightActions(systemActor, 10);
+    assert.deepEqual(retryClose, { scanned: 0, closed: 0 });
+  });
+  const expiredActionState = await pool.query(
+    `select status, outcome, after_value, actor_user_id from zaltyko.insight_actions where id = $1`,
+    [expiringAction.id]
+  );
+  assert.equal(expiredActionState.rows[0].status, "completed");
+  assert(
+    expiredActionState.rows[0].outcome === "not_measurable" ||
+      expiredActionState.rows[0].outcome === "positive"
+  );
+  if (expiredActionState.rows[0].outcome === "not_measurable") {
+    assert.deepEqual(expiredActionState.rows[0].after_value, {});
+  } else {
+    assert.deepEqual(expiredActionState.rows[0].after_value, {
+      syntheticMeasurement: true,
+    });
+  }
+  assert.equal(expiredActionState.rows[0].actor_user_id, ID.ownerUser);
+  const expiryAudit = await pool.query(
+    `select actor_user_id, action, after from zaltyko.audit_log where target_id = $1 and action in ('insight.action_outcome_not_measurable', 'insight.action_completed')`,
+    [expiringAction.id]
+  );
+  assert.equal(expiryAudit.rows.length, 1);
+  assert(
+    expiryAudit.rows[0].actor_user_id === null ||
+      expiryAudit.rows[0].actor_user_id === ID.ownerUser
+  );
+
   console.log(
     JSON.stringify({
       status: "PASS",
@@ -441,6 +526,7 @@ async function main(): Promise<void> {
       p0Candidates: p0Evaluation.candidates,
       p0RetryIsIdempotent: true,
       systemEvaluationWithoutImpersonation: true,
+      expiredActionHumanWorkerRaceIsIdempotent: true,
     })
   );
 }

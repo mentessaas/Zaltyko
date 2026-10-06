@@ -175,9 +175,11 @@ Resultado inicial: AC-07, triple entrega concurrente, anti-fatiga, cooldown,
 optimistic locking, scope de sede, action/outcome y UI responsive/accesible
 aprobados sobre datos sintéticos. El evaluador original cubría solo
 `excess_demand`; PR-11 añade conexión de las nueve reglas P0 activas. El
-simulador de grupo sigue siendo CTA sin flujo ejecutable. Scheduler, digest
-externo, E2E autenticado, carga, calibración real y runtime remoto siguen
-`NO VERIFICADO`.
+simulador de grupo sigue siendo CTA sin flujo ejecutable. El worker cierra
+acciones vencidas como `not_measurable` si no existe evidencia humana y resuelve
+el insight `actioned`; carrera humano/worker, audit actor y outbox pasan fixture
+sintético (ADR-0012). Scheduler activo, digest externo, E2E autenticado, carga,
+calibración real y runtime remoto siguen `NO VERIFICADO`.
 
 ### PR-09 — Cutover prepiloto
 
@@ -265,8 +267,13 @@ fixture. Recompute reintenta runs fallidos y recupera `running` con más de cinc
 minutos. El harness canonical fresco valida dispatcher+worker+reintento,
 score omitido de forma segura, P0 y anti-suplantación.
 
-Pendiente: procesar outcomes sin falsear acciones humanas, digest/notificaciones,
-métricas/alertas de lag y política del schedule. El SLA ≤15 min solo puede
+El worker local ahora cierra outcomes vencidos como `not_measurable` dentro de
+la transacción y lease existente; el endpoint manual bloquea la misma acción y
+solo un resultado gana la carrera (ADR-0012). Harness sintético valida
+idempotencia, actor original humano, audit system null y outbox.
+
+Pendiente: digest/notificaciones, métricas/alertas de lag y política del
+schedule. El SLA ≤15 min solo puede
 afirmarse cuando exista frecuencia durable, lag medido y degradación `stale`
 verificada; no registrar cron ni desplegar todavía.
 
@@ -326,7 +333,8 @@ Actualización: filtros URL de período/sede/programa/grupo; programa/grupo filt
 solo operación, explícitamente no el score (ADR-0010). El score tiene delta
 contra snapshot previo con perfil y duración comparables (ADR-0011). Harness
 prueba tenant/sede y datos insuficientes; browser preview 375/1280 sin overflow
-ni errores de consola. Build completo posterior a estos cambios aún pendiente.
+ni errores de consola. Build completo posterior a filtros/comparador pasó el
+2026-10-06.
 
 Pendiente: elección de modo de comparación/año anterior, lectura de histórico y
 series en todos los paneles, enlace a acciones operativas y oportunidades
