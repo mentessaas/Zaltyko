@@ -7,6 +7,7 @@ import { getOwnerDashboard } from "@/modules/owner-dashboard/application/get-own
 import { getHealthScoreHistory } from "@/modules/owner-dashboard/application/health-score-history";
 import { getMetricSeries } from "@/modules/owner-dashboard/application/metric-series";
 import { getCapacityHeatmap } from "@/modules/owner-dashboard/application/capacity-heatmap";
+import { getRetentionCohorts } from "@/modules/owner-dashboard/application/retention-cohorts";
 import { OperationalError } from "@/modules/shared/domain/operational-error";
 
 const databaseUrl = process.env.DATABASE_URL;
@@ -160,6 +161,21 @@ async function main(): Promise<void> {
     groupId: "20000000-0000-0000-0000-000000000799",
   });
   assert.equal(groupHeatmap.cells.length, 0);
+  const cohorts = await getRetentionCohorts({
+    userId: ID.ownerUser,
+    organizationId: ID.org,
+    limit: 12,
+  });
+  assert(cohorts.items.length > 0);
+  assert(cohorts.items.every((cohort) => cohort.matrix.length > 0));
+  assert.equal(cohorts.pauseGrace.status, "unconfigured");
+  assert.equal(JSON.stringify(cohorts).includes("Persona Sintética"), false);
+  const noCohortGroup = await getRetentionCohorts({
+    userId: ID.ownerUser,
+    organizationId: ID.org,
+    groupId: "20000000-0000-0000-0000-000000000799",
+  });
+  assert.equal(noCohortGroup.items.length, 0);
   await expectOperationalError(
     () => getCapacityHeatmap({
       userId: ID.scopedManagerUser,

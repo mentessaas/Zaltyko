@@ -248,10 +248,15 @@ snapshots.
 `GET /api/v1/capacity/heatmap` agrupa slots semanales por día/hora, pondera
 ocupación por capacidad efectiva y devuelve clases autorizadas para drill-down;
 acepta sede, programa y grupo con cursor. La prueba sintética cubre 2 celdas,
-paginación y filtro de programa. El endpoint no sustituye los paneles/UI.
+paginación y filtro de programa. `GET /api/v1/retention/cohorts` devuelve cohortes
+mensuales agregadas, transferencias conservadas dentro del scope y matriz de
+actividad sin IDs personales. Si hay pausas, omite la tasa porque está pendiente
+definir la gracia de pausa; se documenta el criterio provisional de alta. Prueba
+sintética pasa con IDs de atleta ausentes.
 
-Pendiente: cohortes, riesgos autorizados y perfiles/ajustes de benchmark.
-Ampliar dashboard con comparación,
+El endpoint no sustituye los paneles/UI. Pendiente: riesgos individuales (draft
+hasta completar revisión RGPD y resolver permisos), perfiles/ajustes de
+benchmark y definición de alta/gracia. Ampliar dashboard con comparación,
 disciplina/programa/grupo, validando autorización antes de consultar.
 
 ### PR-14 — Dashboard funcional según PRD

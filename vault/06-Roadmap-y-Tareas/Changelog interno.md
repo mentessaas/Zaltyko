@@ -11034,6 +11034,13 @@ Modelo separado, reclamación manual, administración, importación revisada, fi
 - **Validación local:** dos celdas sintéticas, página cursor, filtro programa, filtro grupo sin datos y manager denegado fuera de sede; typecheck/ESLint y runner integrado score/dashboard pasan.
 - **Límite:** no hay visualización heatmap integrada en `/owner`, todavía no se probó fecha local distinta entre sedes ni volumen a escala.
 
+## 2026-10-06 — API agregada de cohortes de retención
+
+- `GET /api/v1/retention/cohorts` calcula cohortes mensuales desde enrollment/status history, scope por organización/sede/programa/grupo y respuesta agregada sin IDs de atleta.
+- **Precaución de definición:** PRD deja abierta fecha de alta y gracia de pausa. Se publica el criterio provisional de primer estado `active` efectivo (fallback a `starts_on` sin historial); si hay pausa en el período, `retentionRate=null` en vez de tratarla como alta o baja.
+- **Validación local:** PostgreSQL efímero, resultado sintético no vacío, matriz mensual y sin nombres de atleta; typecheck/ESLint y runner de owner dashboard pasan.
+- **Pendiente:** decidir alta/gracia antes de usar como KPI; no se construye endpoint individual de riesgo hasta revisión RGPD/permisos. UI, carga y E2E autenticado siguen pendientes.
+
 
 ## 2026-10-05 — Cierre de anual Test y revalidación de acceso
 

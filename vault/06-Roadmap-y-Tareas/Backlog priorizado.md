@@ -21,7 +21,9 @@ source:
 - **Hecho local, no activado:** endpoint protegido y dispatcher de outbox con lease, backoff, dead-letter, idempotencia; faltan retries inyectados, lag/alertas y scheduler remoto.
 - **Hecho local:** score actual/historial y serie de métricas paginada, con scope por organización/sede, explicaciones y dimensiones; sin PII de persona en historial.
 - **Hecho local:** API heatmap agrupada por slot con drill-down agregado por clase y filtros sede/programa/grupo.
+- **Hecho local con caveat:** cohortes agregadas calculadas desde historial; no publicar tasa cuando una pausa hace depender resultado de gracia aún no decidida.
 - **Siguiente P0:** actor de sistema auditado y pipeline invalidación→recompute→score→P0→outcomes; solo después medir SLA ≤15 min. Completar pruebas de activación/resolución por regla, watermark histórico y refunds parciales.
+- **Decisión previa a KPI retention:** fecha de alta y días de gracia de pausa; riesgos individuales siguen desactivados hasta EIPD/RGPD y permisos.
 - **Siguiente P1:** UI heatmap, cohortes y filtros globales/comparativa; simulador CTA; 5.000 atletas / 2 M asistencias / 20 identidades.
 - **No-go piloto:** E2E autenticado y Supabase limpio autorizados, backup/restore ensayado, revisión de privacidad aprobada y métricas de runtime verificadas. No usar el sandbox legacy con siete academias.
 - Fuente de estado: [`plan de implementación`](../../docs/plans/2026-10-06-owner-dashboard-implementation-plan.md), [`auditoría PRD`](../../docs/audits/2026-10-06-prd-completion-audit.md).
