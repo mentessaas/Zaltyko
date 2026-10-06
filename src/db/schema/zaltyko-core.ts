@@ -112,6 +112,66 @@ export const outboxStatus = zaltyko.enum("outbox_status", [
   "failed",
 ]);
 
+export const familyRelationship = zaltyko.enum("family_relationship", [
+  "parent",
+  "legal_guardian",
+  "foster_guardian",
+  "other",
+]);
+
+export const guardianContactKind = zaltyko.enum("guardian_contact_kind", [
+  "email",
+  "phone",
+]);
+
+export const contactConsentStatus = zaltyko.enum("contact_consent_status", [
+  "unknown",
+  "granted",
+  "denied",
+  "revoked",
+]);
+
+export const trialStatus = zaltyko.enum("trial_status", [
+  "booked",
+  "attended",
+  "completed",
+  "no_show",
+  "cancelled",
+  "converted",
+]);
+
+export const trialFollowupChannel = zaltyko.enum("trial_followup_channel", [
+  "email",
+  "phone",
+  "sms",
+  "in_person",
+]);
+
+export const trialFollowupOutcome = zaltyko.enum("trial_followup_outcome", [
+  "contacted",
+  "no_answer",
+  "converted",
+  "waitlisted",
+  "not_interested",
+  "follow_up_needed",
+]);
+
+export const waitlistStatus = zaltyko.enum("waitlist_status", [
+  "waiting",
+  "offered",
+  "converted",
+  "withdrawn",
+  "expired",
+]);
+
+export const waitlistOfferStatus = zaltyko.enum("waitlist_offer_status", [
+  "pending",
+  "accepted",
+  "declined",
+  "expired",
+  "revoked",
+]);
+
 export const organizations = zaltyko.table(
   "organizations",
   {
@@ -394,6 +454,257 @@ export const athletes = zaltyko.table(
   ]
 );
 
+export const families = zaltyko.table(
+  "families",
+  {
+    id: uuid("id").primaryKey().defaultRandom(),
+    organizationId: uuid("organization_id")
+      .notNull()
+      .references(() => organizations.id, { onDelete: "cascade" }),
+    externalReference: text("external_reference"),
+    isActive: boolean("is_active").notNull().default(true),
+    createdAt: timestamp("created_at", { withTimezone: true })
+      .notNull()
+      .defaultNow(),
+    updatedAt: timestamp("updated_at", { withTimezone: true })
+      .notNull()
+      .defaultNow(),
+  },
+  (table) => [
+    uniqueIndex("families_organization_id_id_uq").on(
+      table.organizationId,
+      table.id
+    ),
+    index("families_organization_active_idx").on(
+      table.organizationId,
+      table.isActive
+    ),
+  ]
+);
+
+export const guardians = zaltyko.table(
+  "guardians",
+  {
+    id: uuid("id").primaryKey().defaultRandom(),
+    organizationId: uuid("organization_id")
+      .notNull()
+      .references(() => organizations.id, { onDelete: "cascade" }),
+    personId: uuid("person_id").notNull(),
+    authUserId: uuid("auth_user_id").references(() => authUsers.id, {
+      onDelete: "set null",
+    }),
+    isActive: boolean("is_active").notNull().default(true),
+    createdAt: timestamp("created_at", { withTimezone: true })
+      .notNull()
+      .defaultNow(),
+    updatedAt: timestamp("updated_at", { withTimezone: true })
+      .notNull()
+      .defaultNow(),
+  },
+  (table) => [
+    uniqueIndex("guardians_organization_person_uq").on(
+      table.organizationId,
+      table.personId
+    ),
+    uniqueIndex("guardians_organization_auth_user_uq").on(
+      table.organizationId,
+      table.authUserId
+    ),
+    uniqueIndex("guardians_organization_id_id_uq").on(
+      table.organizationId,
+      table.id
+    ),
+    index("guardians_auth_user_idx").on(table.authUserId),
+    foreignKey({
+      name: "guardians_person_fk",
+      columns: [table.organizationId, table.personId],
+      foreignColumns: [people.organizationId, people.id],
+    }).onDelete("restrict"),
+  ]
+);
+
+export const guardianContacts = zaltyko.table(
+  "guardian_contacts",
+  {
+    id: uuid("id").primaryKey().defaultRandom(),
+    organizationId: uuid("organization_id")
+      .notNull()
+      .references(() => organizations.id, { onDelete: "cascade" }),
+    guardianId: uuid("guardian_id").notNull(),
+    kind: guardianContactKind("kind").notNull(),
+    value: text("value").notNull(),
+    normalizedValue: text("normalized_value").notNull(),
+    isPrimary: boolean("is_primary").notNull().default(false),
+    verifiedAt: timestamp("verified_at", { withTimezone: true }),
+    createdAt: timestamp("created_at", { withTimezone: true })
+      .notNull()
+      .defaultNow(),
+    updatedAt: timestamp("updated_at", { withTimezone: true })
+      .notNull()
+      .defaultNow(),
+  },
+  (table) => [
+    uniqueIndex("guardian_contacts_value_uq").on(
+      table.organizationId,
+      table.guardianId,
+      table.kind,
+      table.normalizedValue
+    ),
+    uniqueIndex("guardian_contacts_primary_kind_uq")
+      .on(table.organizationId, table.guardianId, table.kind)
+      .where(sql`${table.isPrimary}`),
+    check(
+      "guardian_contacts_value_not_blank",
+      sql`btrim(${table.value}) <> ''`
+    ),
+    check(
+      "guardian_contacts_normalized_not_blank",
+      sql`btrim(${table.normalizedValue}) <> ''`
+    ),
+    foreignKey({
+      name: "guardian_contacts_guardian_fk",
+      columns: [table.organizationId, table.guardianId],
+      foreignColumns: [guardians.organizationId, guardians.id],
+    }).onDelete("cascade"),
+  ]
+);
+
+export const familyGuardians = zaltyko.table(
+  "family_guardians",
+  {
+    id: uuid("id").primaryKey().defaultRandom(),
+    organizationId: uuid("organization_id")
+      .notNull()
+      .references(() => organizations.id, { onDelete: "cascade" }),
+    familyId: uuid("family_id").notNull(),
+    guardianId: uuid("guardian_id").notNull(),
+    relationship: familyRelationship("relationship").notNull(),
+    canViewAthletes: boolean("can_view_athletes").notNull().default(true),
+    canManageEnrollments: boolean("can_manage_enrollments")
+      .notNull()
+      .default(false),
+    isActive: boolean("is_active").notNull().default(true),
+    createdAt: timestamp("created_at", { withTimezone: true })
+      .notNull()
+      .defaultNow(),
+    updatedAt: timestamp("updated_at", { withTimezone: true })
+      .notNull()
+      .defaultNow(),
+  },
+  (table) => [
+    uniqueIndex("family_guardians_family_guardian_uq").on(
+      table.organizationId,
+      table.familyId,
+      table.guardianId
+    ),
+    foreignKey({
+      name: "family_guardians_family_fk",
+      columns: [table.organizationId, table.familyId],
+      foreignColumns: [families.organizationId, families.id],
+    }).onDelete("cascade"),
+    foreignKey({
+      name: "family_guardians_guardian_fk",
+      columns: [table.organizationId, table.guardianId],
+      foreignColumns: [guardians.organizationId, guardians.id],
+    }).onDelete("cascade"),
+  ]
+);
+
+export const familyMembers = zaltyko.table(
+  "family_members",
+  {
+    id: uuid("id").primaryKey().defaultRandom(),
+    organizationId: uuid("organization_id")
+      .notNull()
+      .references(() => organizations.id, { onDelete: "cascade" }),
+    familyId: uuid("family_id").notNull(),
+    athleteId: uuid("athlete_id").notNull(),
+    relationship: familyRelationship("relationship").notNull(),
+    startsOn: date("starts_on").notNull(),
+    endsOn: date("ends_on"),
+    createdAt: timestamp("created_at", { withTimezone: true })
+      .notNull()
+      .defaultNow(),
+    updatedAt: timestamp("updated_at", { withTimezone: true })
+      .notNull()
+      .defaultNow(),
+  },
+  (table) => [
+    uniqueIndex("family_members_one_open_uq")
+      .on(table.organizationId, table.familyId, table.athleteId)
+      .where(sql`${table.endsOn} is null`),
+    index("family_members_athlete_idx").on(
+      table.organizationId,
+      table.athleteId,
+      table.endsOn
+    ),
+    check(
+      "family_members_dates_valid",
+      sql`${table.endsOn} is null or ${table.endsOn} >= ${table.startsOn}`
+    ),
+    foreignKey({
+      name: "family_members_family_fk",
+      columns: [table.organizationId, table.familyId],
+      foreignColumns: [families.organizationId, families.id],
+    }).onDelete("cascade"),
+    foreignKey({
+      name: "family_members_athlete_fk",
+      columns: [table.organizationId, table.athleteId],
+      foreignColumns: [athletes.organizationId, athletes.id],
+    }).onDelete("restrict"),
+  ]
+);
+
+export const familyPayers = zaltyko.table(
+  "family_payers",
+  {
+    id: uuid("id").primaryKey().defaultRandom(),
+    organizationId: uuid("organization_id")
+      .notNull()
+      .references(() => organizations.id, { onDelete: "cascade" }),
+    familyId: uuid("family_id").notNull(),
+    guardianId: uuid("guardian_id").notNull(),
+    isPrimary: boolean("is_primary").notNull().default(false),
+    startsOn: date("starts_on").notNull(),
+    endsOn: date("ends_on"),
+    createdAt: timestamp("created_at", { withTimezone: true })
+      .notNull()
+      .defaultNow(),
+    updatedAt: timestamp("updated_at", { withTimezone: true })
+      .notNull()
+      .defaultNow(),
+  },
+  (table) => [
+    uniqueIndex("family_payers_family_guardian_uq").on(
+      table.organizationId,
+      table.familyId,
+      table.guardianId,
+      table.startsOn
+    ),
+    uniqueIndex("family_payers_one_primary_uq")
+      .on(table.organizationId, table.familyId)
+      .where(sql`${table.isPrimary} and ${table.endsOn} is null`),
+    index("family_payers_guardian_idx").on(
+      table.organizationId,
+      table.guardianId,
+      table.endsOn
+    ),
+    check(
+      "family_payers_dates_valid",
+      sql`${table.endsOn} is null or ${table.endsOn} >= ${table.startsOn}`
+    ),
+    foreignKey({
+      name: "family_payers_family_guardian_link_fk",
+      columns: [table.organizationId, table.familyId, table.guardianId],
+      foreignColumns: [
+        familyGuardians.organizationId,
+        familyGuardians.familyId,
+        familyGuardians.guardianId,
+      ],
+    }).onDelete("restrict"),
+  ]
+);
+
 export const staffProfiles = zaltyko.table(
   "staff_profiles",
   {
@@ -589,6 +900,11 @@ export const classTemplates = zaltyko.table(
       table.organizationId,
       table.id
     ),
+    uniqueIndex("class_templates_organization_location_id_uq").on(
+      table.organizationId,
+      table.locationId,
+      table.id
+    ),
     index("class_templates_location_status_idx").on(
       table.organizationId,
       table.locationId,
@@ -706,6 +1022,11 @@ export const sessions = zaltyko.table(
   (table) => [
     uniqueIndex("sessions_organization_id_id_uq").on(
       table.organizationId,
+      table.id
+    ),
+    uniqueIndex("sessions_organization_location_id_uq").on(
+      table.organizationId,
+      table.locationId,
       table.id
     ),
     uniqueIndex("sessions_template_start_uq").on(
@@ -827,6 +1148,11 @@ export const enrollments = zaltyko.table(
   (table) => [
     uniqueIndex("enrollments_organization_id_id_uq").on(
       table.organizationId,
+      table.id
+    ),
+    uniqueIndex("enrollments_organization_location_id_uq").on(
+      table.organizationId,
+      table.locationId,
       table.id
     ),
     index("enrollments_class_status_idx").on(
@@ -1014,6 +1340,422 @@ export const attendanceRecords = zaltyko.table(
   ]
 );
 
+export const trials = zaltyko.table(
+  "trials",
+  {
+    id: uuid("id").primaryKey().defaultRandom(),
+    organizationId: uuid("organization_id")
+      .notNull()
+      .references(() => organizations.id, { onDelete: "cascade" }),
+    locationId: uuid("location_id").notNull(),
+    athleteId: uuid("athlete_id").notNull(),
+    sessionId: uuid("session_id").notNull(),
+    trialEnrollmentId: uuid("trial_enrollment_id").notNull(),
+    convertedEnrollmentId: uuid("converted_enrollment_id"),
+    status: trialStatus("status").notNull().default("booked"),
+    version: integer("version").notNull().default(1),
+    bookedAt: timestamp("booked_at", { withTimezone: true })
+      .notNull()
+      .defaultNow(),
+    attendedAt: timestamp("attended_at", { withTimezone: true }),
+    completedAt: timestamp("completed_at", { withTimezone: true }),
+    convertedAt: timestamp("converted_at", { withTimezone: true }),
+    createdAt: timestamp("created_at", { withTimezone: true })
+      .notNull()
+      .defaultNow(),
+    updatedAt: timestamp("updated_at", { withTimezone: true })
+      .notNull()
+      .defaultNow(),
+  },
+  (table) => [
+    uniqueIndex("trials_organization_id_id_uq").on(
+      table.organizationId,
+      table.id
+    ),
+    uniqueIndex("trials_organization_location_id_uq").on(
+      table.organizationId,
+      table.locationId,
+      table.id
+    ),
+    uniqueIndex("trials_enrollment_uq").on(
+      table.organizationId,
+      table.trialEnrollmentId
+    ),
+    uniqueIndex("trials_athlete_session_uq").on(
+      table.organizationId,
+      table.athleteId,
+      table.sessionId
+    ),
+    index("trials_location_status_idx").on(
+      table.organizationId,
+      table.locationId,
+      table.status,
+      table.bookedAt
+    ),
+    check("trials_version_positive", sql`${table.version} > 0`),
+    foreignKey({
+      name: "trials_location_fk",
+      columns: [table.organizationId, table.locationId],
+      foreignColumns: [locations.organizationId, locations.id],
+    }).onDelete("restrict"),
+    foreignKey({
+      name: "trials_athlete_fk",
+      columns: [table.organizationId, table.athleteId],
+      foreignColumns: [athletes.organizationId, athletes.id],
+    }).onDelete("restrict"),
+    foreignKey({
+      name: "trials_session_fk",
+      columns: [table.organizationId, table.locationId, table.sessionId],
+      foreignColumns: [
+        sessions.organizationId,
+        sessions.locationId,
+        sessions.id,
+      ],
+    }).onDelete("restrict"),
+    foreignKey({
+      name: "trials_trial_enrollment_fk",
+      columns: [
+        table.organizationId,
+        table.locationId,
+        table.trialEnrollmentId,
+      ],
+      foreignColumns: [
+        enrollments.organizationId,
+        enrollments.locationId,
+        enrollments.id,
+      ],
+    }).onDelete("restrict"),
+    foreignKey({
+      name: "trials_converted_enrollment_fk",
+      columns: [
+        table.organizationId,
+        table.locationId,
+        table.convertedEnrollmentId,
+      ],
+      foreignColumns: [
+        enrollments.organizationId,
+        enrollments.locationId,
+        enrollments.id,
+      ],
+    }).onDelete("restrict"),
+  ]
+);
+
+export const trialStatusHistory = zaltyko.table(
+  "trial_status_history",
+  {
+    id: uuid("id").primaryKey().defaultRandom(),
+    organizationId: uuid("organization_id")
+      .notNull()
+      .references(() => organizations.id, { onDelete: "cascade" }),
+    locationId: uuid("location_id").notNull(),
+    trialId: uuid("trial_id").notNull(),
+    fromStatus: trialStatus("from_status"),
+    toStatus: trialStatus("to_status").notNull(),
+    effectiveAt: timestamp("effective_at", { withTimezone: true }).notNull(),
+    changedByMemberId: uuid("changed_by_member_id"),
+    idempotencyKey: text("idempotency_key").notNull(),
+    changedAt: timestamp("changed_at", { withTimezone: true })
+      .notNull()
+      .defaultNow(),
+  },
+  (table) => [
+    uniqueIndex("trial_status_history_idempotency_uq").on(
+      table.organizationId,
+      table.idempotencyKey
+    ),
+    index("trial_status_history_trial_idx").on(
+      table.organizationId,
+      table.trialId,
+      table.effectiveAt,
+      table.changedAt
+    ),
+    check(
+      "trial_status_history_idempotency_not_blank",
+      sql`btrim(${table.idempotencyKey}) <> ''`
+    ),
+    foreignKey({
+      name: "trial_status_history_trial_fk",
+      columns: [table.organizationId, table.locationId, table.trialId],
+      foreignColumns: [trials.organizationId, trials.locationId, trials.id],
+    }).onDelete("cascade"),
+    foreignKey({
+      name: "trial_status_history_member_fk",
+      columns: [table.organizationId, table.changedByMemberId],
+      foreignColumns: [
+        organizationMembers.organizationId,
+        organizationMembers.id,
+      ],
+    }).onDelete("restrict"),
+  ]
+);
+
+export const trialFollowups = zaltyko.table(
+  "trial_followups",
+  {
+    id: uuid("id").primaryKey().defaultRandom(),
+    organizationId: uuid("organization_id")
+      .notNull()
+      .references(() => organizations.id, { onDelete: "cascade" }),
+    locationId: uuid("location_id").notNull(),
+    trialId: uuid("trial_id").notNull(),
+    channel: trialFollowupChannel("channel").notNull(),
+    outcome: trialFollowupOutcome("outcome").notNull(),
+    completedByMemberId: uuid("completed_by_member_id"),
+    completedAt: timestamp("completed_at", { withTimezone: true }).notNull(),
+    idempotencyKey: text("idempotency_key").notNull(),
+    createdAt: timestamp("created_at", { withTimezone: true })
+      .notNull()
+      .defaultNow(),
+  },
+  (table) => [
+    uniqueIndex("trial_followups_idempotency_uq").on(
+      table.organizationId,
+      table.idempotencyKey
+    ),
+    index("trial_followups_trial_completed_idx").on(
+      table.organizationId,
+      table.trialId,
+      table.completedAt
+    ),
+    check(
+      "trial_followups_idempotency_not_blank",
+      sql`btrim(${table.idempotencyKey}) <> ''`
+    ),
+    foreignKey({
+      name: "trial_followups_trial_fk",
+      columns: [table.organizationId, table.locationId, table.trialId],
+      foreignColumns: [trials.organizationId, trials.locationId, trials.id],
+    }).onDelete("cascade"),
+    foreignKey({
+      name: "trial_followups_member_fk",
+      columns: [table.organizationId, table.completedByMemberId],
+      foreignColumns: [
+        organizationMembers.organizationId,
+        organizationMembers.id,
+      ],
+    }).onDelete("restrict"),
+  ]
+);
+
+export const waitlistEntries = zaltyko.table(
+  "waitlist_entries",
+  {
+    id: uuid("id").primaryKey().defaultRandom(),
+    organizationId: uuid("organization_id")
+      .notNull()
+      .references(() => organizations.id, { onDelete: "cascade" }),
+    locationId: uuid("location_id").notNull(),
+    athleteId: uuid("athlete_id").notNull(),
+    classTemplateId: uuid("class_template_id"),
+    programId: uuid("program_id"),
+    sourceTrialId: uuid("source_trial_id"),
+    contactGuardianId: uuid("contact_guardian_id"),
+    contactable: boolean("contactable").notNull().default(false),
+    contactConsentStatus: contactConsentStatus("contact_consent_status")
+      .notNull()
+      .default("unknown"),
+    contactConsentRecordedAt: timestamp("contact_consent_recorded_at", {
+      withTimezone: true,
+    }),
+    priority: integer("priority").notNull().default(0),
+    preferences: jsonb("preferences")
+      .$type<Record<string, unknown>>()
+      .notNull()
+      .default({}),
+    status: waitlistStatus("status").notNull().default("waiting"),
+    convertedEnrollmentId: uuid("converted_enrollment_id"),
+    joinedAt: timestamp("joined_at", { withTimezone: true })
+      .notNull()
+      .defaultNow(),
+    version: integer("version").notNull().default(1),
+    createdAt: timestamp("created_at", { withTimezone: true })
+      .notNull()
+      .defaultNow(),
+    updatedAt: timestamp("updated_at", { withTimezone: true })
+      .notNull()
+      .defaultNow(),
+  },
+  (table) => [
+    uniqueIndex("waitlist_entries_organization_id_id_uq").on(
+      table.organizationId,
+      table.id
+    ),
+    uniqueIndex("waitlist_entries_organization_location_id_uq").on(
+      table.organizationId,
+      table.locationId,
+      table.id
+    ),
+    uniqueIndex("waitlist_entries_open_template_uq")
+      .on(table.organizationId, table.athleteId, table.classTemplateId)
+      .where(
+        sql`${table.classTemplateId} is not null and ${table.status} in ('waiting', 'offered')`
+      ),
+    uniqueIndex("waitlist_entries_open_program_uq")
+      .on(table.organizationId, table.athleteId, table.programId)
+      .where(
+        sql`${table.programId} is not null and ${table.status} in ('waiting', 'offered')`
+      ),
+    index("waitlist_entries_actionable_idx").on(
+      table.organizationId,
+      table.locationId,
+      table.status,
+      table.contactable,
+      table.priority,
+      table.joinedAt
+    ),
+    check(
+      "waitlist_entries_target_required",
+      sql`(${table.classTemplateId} is not null and ${table.programId} is null) or (${table.classTemplateId} is null and ${table.programId} is not null)`
+    ),
+    check(
+      "waitlist_entries_contactable_valid",
+      sql`not ${table.contactable} or (${table.contactGuardianId} is not null and ${table.contactConsentStatus} = 'granted')`
+    ),
+    check(
+      "waitlist_entries_consent_timestamp_valid",
+      sql`${table.contactConsentStatus} = 'unknown' or ${table.contactConsentRecordedAt} is not null`
+    ),
+    check("waitlist_entries_priority_valid", sql`${table.priority} >= 0`),
+    check(
+      "waitlist_entries_preferences_object",
+      sql`jsonb_typeof(${table.preferences}) = 'object'`
+    ),
+    check("waitlist_entries_version_positive", sql`${table.version} > 0`),
+    foreignKey({
+      name: "waitlist_entries_location_fk",
+      columns: [table.organizationId, table.locationId],
+      foreignColumns: [locations.organizationId, locations.id],
+    }).onDelete("restrict"),
+    foreignKey({
+      name: "waitlist_entries_athlete_fk",
+      columns: [table.organizationId, table.athleteId],
+      foreignColumns: [athletes.organizationId, athletes.id],
+    }).onDelete("restrict"),
+    foreignKey({
+      name: "waitlist_entries_template_fk",
+      columns: [table.organizationId, table.locationId, table.classTemplateId],
+      foreignColumns: [
+        classTemplates.organizationId,
+        classTemplates.locationId,
+        classTemplates.id,
+      ],
+    }).onDelete("restrict"),
+    foreignKey({
+      name: "waitlist_entries_program_fk",
+      columns: [table.organizationId, table.programId],
+      foreignColumns: [programs.organizationId, programs.id],
+    }).onDelete("restrict"),
+    foreignKey({
+      name: "waitlist_entries_source_trial_fk",
+      columns: [table.organizationId, table.locationId, table.sourceTrialId],
+      foreignColumns: [trials.organizationId, trials.locationId, trials.id],
+    }).onDelete("restrict"),
+    foreignKey({
+      name: "waitlist_entries_contact_guardian_fk",
+      columns: [table.organizationId, table.contactGuardianId],
+      foreignColumns: [guardians.organizationId, guardians.id],
+    }).onDelete("restrict"),
+    foreignKey({
+      name: "waitlist_entries_converted_enrollment_fk",
+      columns: [
+        table.organizationId,
+        table.locationId,
+        table.convertedEnrollmentId,
+      ],
+      foreignColumns: [
+        enrollments.organizationId,
+        enrollments.locationId,
+        enrollments.id,
+      ],
+    }).onDelete("restrict"),
+  ]
+);
+
+export const waitlistOffers = zaltyko.table(
+  "waitlist_offers",
+  {
+    id: uuid("id").primaryKey().defaultRandom(),
+    organizationId: uuid("organization_id")
+      .notNull()
+      .references(() => organizations.id, { onDelete: "cascade" }),
+    locationId: uuid("location_id").notNull(),
+    waitlistEntryId: uuid("waitlist_entry_id").notNull(),
+    classTemplateId: uuid("class_template_id").notNull(),
+    reservedEnrollmentId: uuid("reserved_enrollment_id").notNull(),
+    status: waitlistOfferStatus("status").notNull().default("pending"),
+    sentAt: timestamp("sent_at", { withTimezone: true }).notNull(),
+    expiresAt: timestamp("expires_at", { withTimezone: true }).notNull(),
+    respondedAt: timestamp("responded_at", { withTimezone: true }),
+    idempotencyKey: text("idempotency_key").notNull(),
+    version: integer("version").notNull().default(1),
+    createdAt: timestamp("created_at", { withTimezone: true })
+      .notNull()
+      .defaultNow(),
+    updatedAt: timestamp("updated_at", { withTimezone: true })
+      .notNull()
+      .defaultNow(),
+  },
+  (table) => [
+    uniqueIndex("waitlist_offers_idempotency_uq").on(
+      table.organizationId,
+      table.idempotencyKey
+    ),
+    uniqueIndex("waitlist_offers_organization_id_id_uq").on(
+      table.organizationId,
+      table.id
+    ),
+    uniqueIndex("waitlist_offers_one_pending_uq")
+      .on(table.organizationId, table.waitlistEntryId)
+      .where(sql`${table.status} = 'pending'`),
+    index("waitlist_offers_expiry_idx").on(
+      table.organizationId,
+      table.status,
+      table.expiresAt
+    ),
+    check(
+      "waitlist_offers_dates_valid",
+      sql`${table.expiresAt} > ${table.sentAt}`
+    ),
+    check(
+      "waitlist_offers_idempotency_not_blank",
+      sql`btrim(${table.idempotencyKey}) <> ''`
+    ),
+    check("waitlist_offers_version_positive", sql`${table.version} > 0`),
+    foreignKey({
+      name: "waitlist_offers_entry_fk",
+      columns: [table.organizationId, table.locationId, table.waitlistEntryId],
+      foreignColumns: [
+        waitlistEntries.organizationId,
+        waitlistEntries.locationId,
+        waitlistEntries.id,
+      ],
+    }).onDelete("cascade"),
+    foreignKey({
+      name: "waitlist_offers_template_fk",
+      columns: [table.organizationId, table.locationId, table.classTemplateId],
+      foreignColumns: [
+        classTemplates.organizationId,
+        classTemplates.locationId,
+        classTemplates.id,
+      ],
+    }).onDelete("restrict"),
+    foreignKey({
+      name: "waitlist_offers_enrollment_fk",
+      columns: [
+        table.organizationId,
+        table.locationId,
+        table.reservedEnrollmentId,
+      ],
+      foreignColumns: [
+        enrollments.organizationId,
+        enrollments.locationId,
+        enrollments.id,
+      ],
+    }).onDelete("restrict"),
+  ]
+);
+
 export const outboxEvents = zaltyko.table(
   "outbox_events",
   {
@@ -1104,10 +1846,16 @@ export const auditLog = zaltyko.table(
 export type Organization = typeof organizations.$inferSelect;
 export type OrganizationMember = typeof organizationMembers.$inferSelect;
 export type Athlete = typeof athletes.$inferSelect;
+export type Family = typeof families.$inferSelect;
+export type Guardian = typeof guardians.$inferSelect;
 export type GroupMembership = typeof groupMemberships.$inferSelect;
 export type ClassTemplate = typeof classTemplates.$inferSelect;
 export type Session = typeof sessions.$inferSelect;
 export type Enrollment = typeof enrollments.$inferSelect;
 export type NewEnrollment = typeof enrollments.$inferInsert;
 export type AttendanceRecord = typeof attendanceRecords.$inferSelect;
+export type Trial = typeof trials.$inferSelect;
+export type TrialFollowup = typeof trialFollowups.$inferSelect;
+export type WaitlistEntry = typeof waitlistEntries.$inferSelect;
+export type WaitlistOffer = typeof waitlistOffers.$inferSelect;
 export type OutboxEvent = typeof outboxEvents.$inferSelect;

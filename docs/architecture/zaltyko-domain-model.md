@@ -20,6 +20,7 @@
 | People        | persona, atleta, staff y relaciones familiares  | athlete/staff changed sin PII |
 | Scheduling    | programas, grupos, plantillas, sesiones y staff | session lifecycle             |
 | Enrollments   | altas, pausas, bajas y transferencias           | enrollment lifecycle          |
+| Growth Ops    | trials, followups, waitlist y ofertas           | trial/waitlist lifecycle      |
 | Attendance    | asistencia por sesión e inscripción             | attendance recorded           |
 | Billing       | precios, invoices, charges, payments y refunds  | financial lifecycle           |
 | Analytics     | definiciones, runs, valores y calidad           | metrics materialized          |
@@ -36,6 +37,8 @@
 - no puede tener dos inscripciones abiertas en la misma plantilla;
 - una sesión tiene fin posterior a inicio y capacidad positiva;
 - historial de inscripción y outbox usan claves idempotentes;
+- tutor, contacto, permiso familiar y pagador son relaciones separadas;
+- trial y oferta reservan capacidad mediante enrollments canónicos;
 - audit log no admite UPDATE ni DELETE;
 - tablas con PII, enrollment, asistencia, outbox y auditoría carecen de grants
   Data API para `authenticated` en esta fase.

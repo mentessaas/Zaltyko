@@ -65,6 +65,7 @@
     "test:rls:local": "bash scripts/run-rls-semantics-local.sh",
     "test:zaltyko-domain:local": "bash scripts/run-zaltyko-domain-foundation-local.sh",
     "test:zaltyko-operations:local": "bash scripts/run-zaltyko-operational-services-local.sh",
+    "test:zaltyko-growth-foundation:local": "bash scripts/run-zaltyko-growth-foundation-local.sh",
     "check:migrations": "tsx scripts/check-migrations-integrity.ts"
   },
   "dependencies": {

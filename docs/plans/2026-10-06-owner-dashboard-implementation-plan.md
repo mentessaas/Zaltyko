@@ -54,6 +54,9 @@ runtime remoto no forman parte de esta fase.
 
 ### PR-03 — Trials, waitlist y fixture sintético
 
+Estado: **en curso**. Esquema, ADR y fixture mono/multi-sede aprobados en
+PostgreSQL local; faltan servicios y journey completo.
+
 - trials/followups, waitlist entries/offers y expiración idempotente;
 - familias/guardianes/payers con permisos separados;
 - fixture sintético de una sede y multi-sede, sin datos reales;

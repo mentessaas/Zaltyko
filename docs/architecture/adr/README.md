@@ -9,12 +9,13 @@ El código legado es evidencia de reglas aprendidas, no una restricción de
 compatibilidad. Ninguna decisión autoriza migraciones remotas, despliegues,
 Stripe Live ni cambios de credenciales.
 
-| ADR                                                  | Decisión                                        |
-| ---------------------------------------------------- | ----------------------------------------------- |
-| [0001](./0001-frontera-canonica-zaltyko.md)          | Esquema y lenguaje canónicos del nuevo dominio  |
-| [0002](./0002-inscripcion-y-pertenencia-a-grupos.md) | Inscripción fechada y pertenencia M:N a grupos  |
-| [0003](./0003-ledger-financiero-interno.md)          | Ledger interno separado del procesador de pagos |
-| [0004](./0004-outbox-idempotencia-y-auditoria.md)    | Outbox transaccional, idempotencia y audit log  |
-| [0005](./0005-metricas-health-score-e-insights.md)   | Dependencias y reproducibilidad de inteligencia |
+| ADR                                                  | Decisión                                          |
+| ---------------------------------------------------- | ------------------------------------------------- |
+| [0001](./0001-frontera-canonica-zaltyko.md)          | Esquema y lenguaje canónicos del nuevo dominio    |
+| [0002](./0002-inscripcion-y-pertenencia-a-grupos.md) | Inscripción fechada y pertenencia M:N a grupos    |
+| [0003](./0003-ledger-financiero-interno.md)          | Ledger interno separado del procesador de pagos   |
+| [0004](./0004-outbox-idempotencia-y-auditoria.md)    | Outbox transaccional, idempotencia y audit log    |
+| [0005](./0005-metricas-health-score-e-insights.md)   | Dependencias y reproducibilidad de inteligencia   |
+| [0006](./0006-familias-trials-y-lista-de-espera.md)  | Familias, trials, waitlist y reserva de capacidad |
 
 Contrato analítico inicial: [diccionario de métricas v0](../metric-dictionary-v0.md).
