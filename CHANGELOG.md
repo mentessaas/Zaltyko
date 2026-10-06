@@ -6,6 +6,20 @@ All notable changes to Zaltyko are documented here. Format follows
 > SHA referenced corresponds to commits on `zaltyko-onboarding-ZAL-137`.
 > For commits on previous branches, refer to the git history directly.
 
+## 2026-10-06 — Nuevo núcleo PR-05: motor de métricas
+
+### Added
+
+- Definiciones y ejecuciones versionadas, valores actuales, evidencia inmutable,
+  watermarks, calidad, invalidaciones y consumo idempotente de outbox.
+- Doce métricas de enrollment, ocupación, asistencia, cohorte, finanzas y
+  waitlist, con fixture golden y property tests.
+
+### Límites
+
+- Sin scheduler desplegado, API, cache remoto, score, UI, datos reales ni
+  cambios en producción.
+
 ## 2026-10-06 — Nuevo núcleo PR-04: ledger interno
 
 ### Added

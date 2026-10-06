@@ -17,7 +17,8 @@ la siguiente.
 | RLS/grants                                            | Matriz local tenant/sede/privilegios aprobada         |
 | Capa operativa                                        | Implementada y verificada localmente                  |
 | Ledger                                                | PR-04 cerrado localmente; sin procesador remoto        |
-| Métricas, score, dashboard e insights                 | Pendientes                                            |
+| Métricas                                              | PR-05 cerrado localmente                              |
+| Score, dashboard e insights                           | Pendientes                                            |
 
 ## Secuencia de cambios revisables
 
@@ -89,6 +90,10 @@ No se tocó Stripe, red, secretos, API, despliegue ni producción.
 
 ### PR-05 — Motor de métricas
 
+Estado: **cerrada localmente** el 2026-10-06. Contratos, ejecución,
+invalidaciones, evidencia inmutable y read model aprobados; detalle en
+`docs/architecture/metric-engine.md`.
+
 - diccionario versionado y contratos SQL;
 - metric runs/values, watermarks, calidad y recompute;
 - atletas activos, fill rate ponderado, asistencia, retención, churn, revenue y
@@ -97,6 +102,11 @@ No se tocó Stripe, red, secretos, API, despliegue ni producción.
 
 Gate: mismas entradas+versión producen mismo resultado; fallo analítico no
 bloquea operaciones; frescura y cobertura observables.
+
+Resultado: 12 métricas canónicas reproducibles, AC-03 y AC-04 aprobados sobre
+fixture congelado, tres entregas de evento producen una invalidación y el
+recompute conserva cada run. Scheduler, API, carga objetivo, E2E y runtime
+remoto siguen fuera de evidencia.
 
 ### PR-06 — Academy Health Score
 

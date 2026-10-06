@@ -1,6 +1,6 @@
 # ADR-0005 — Métricas, Health Score e Insights
 
-- Estado: aceptada; implementación pendiente de capa operativa
+- Estado: aceptada; motor de métricas v1 cerrado localmente, score e insights pendientes
 - Fecha: 2026-10-06
 - Alcance: analytics, scoring, dashboard e insights
 
@@ -33,6 +33,12 @@ operaciones -> outbox -> métricas -> snapshots de score -> insights
 No se implementará el score hasta que el fixture sintético produzca de forma
 reconstruible: atletas activos, fill rate, asistencia, retención/churn y un
 ledger mínimo reconciliable.
+
+El gate de entrada quedó aprobado en PR-05 con el fixture sintético congelado.
+La evidencia, fórmulas y límites están en
+`docs/architecture/metric-engine.md`. PR-06 puede consumir exclusivamente
+`metric_values`/`metric_run_values`; no puede consultar operaciones para
+reformular métricas dentro del score.
 
 ## Evidencia
 

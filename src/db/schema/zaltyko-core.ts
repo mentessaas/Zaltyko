@@ -1797,6 +1797,10 @@ export const outboxEvents = zaltyko.table(
       .defaultNow(),
   },
   (table) => [
+    uniqueIndex("outbox_events_organization_id_id_uq").on(
+      table.organizationId,
+      table.id
+    ),
     uniqueIndex("outbox_events_idempotency_uq").on(
       table.organizationId,
       table.eventName,

@@ -1,6 +1,6 @@
 # Diccionario de métricas v0
 
-Estado: contrato previo al motor; no demuestra cálculos implementados.
+Estado: fórmulas v1 implementadas y verificadas localmente en PR-05.
 
 ## Reglas comunes
 
@@ -18,13 +18,13 @@ Estado: contrato previo al motor; no demuestra cálculos implementados.
 
 | Código                       | Unidad / agregación    | Definición v1                                                                                                                          | Fuente canónica                                        | Estado                                                              |
 | ---------------------------- | ---------------------- | -------------------------------------------------------------------------------------------------------------------------------------- | ------------------------------------------------------ | ------------------------------------------------------------------- |
-| `active_athletes_count`      | count / sum            | Atletas distintos con al menos una inscripción `active` vigente en el día; el período publica promedio diario y cierre por separado    | `enrollments`                                          | Contrato cerrado; consulta pendiente                                |
-| `class_fill_rate`            | ratio / weighted_ratio | Suma de plazas ocupadas elegibles / suma de capacidad efectiva; capacidad efectiva = mínimo de plantilla, espacio y override de sesión | `enrollments`, `class_templates`, `sessions`, `spaces` | Contrato cerrado; reglas de sesión cancelada pendientes de servicio |
-| `cohort_retention_rate`      | ratio / cohort_ratio   | Miembros elegibles de la cohorte inicial que siguen activos al cierre / cohorte inicial elegible                                       | historial de `enrollments`                             | Contrato cerrado; temporada configurable pendiente                  |
-| `churn_rate`                 | ratio / cohort_ratio   | Miembros elegibles de cohorte inicial que terminan sin transferencia/reactivación dentro de ventana / cohorte inicial elegible         | historial de `enrollments`                             | Contrato cerrado; ventana de reactivación pendiente                 |
-| `recognized_revenue_minor`   | currency_minor / sum   | Cargos del período menos refunds atribuibles a sus asignaciones; Stripe no es fuente única                                               | `charges`, `payment_allocations`, `refunds`             | Fuente v1 lista; fórmula materializada pendiente de PR-05           |
-| `collection_rate`            | ratio / weighted_ratio | Pagos asignados netos de refund / importe cobrable vencido del período                                                                 | `charges`, `payment_allocations`, `refunds`             | Fuente v1 lista; fórmula materializada pendiente de PR-05           |
-| `waitlist_opportunity_count` | count / sum            | Entradas contactables y activas para clases/programas con demanda no atendida                                                          | `waitlist_entries`                                     | Fuente operativa lista; implementación en PR-05                     |
+| `active_athletes_count`      | count / sum            | Atletas distintos con al menos una inscripción `active` vigente en el día; el período publica promedio diario y cierre por separado    | `enrollments`, historial y pausas                      | Implementada v1                                                     |
+| `class_fill_rate`            | ratio / weighted_ratio | Suma de plazas ocupadas elegibles / suma de capacidad efectiva; capacidad efectiva = mínimo de plantilla, espacio y override de sesión | `enrollments`, `class_templates`, `sessions`, `spaces` | Implementada v1; canceladas excluidas                               |
+| `cohort_retention_rate`      | ratio / cohort_ratio   | Miembros elegibles de la cohorte inicial que siguen activos al cierre / cohorte inicial elegible                                       | historial de `enrollments`                             | Implementada v1; continuidad organizacional                         |
+| `churn_rate`                 | ratio / cohort_ratio   | Miembros elegibles de cohorte inicial que terminan sin transferencia/reactivación dentro de ventana / cohorte inicial elegible         | historial de `enrollments`                             | Implementada v1; transferencia interna excluida                     |
+| `recognized_revenue_minor`   | currency_minor / sum   | Cargos no anulados del período; Stripe no es fuente única                                                                              | `charges`                                              | Implementada v1                                                     |
+| `collection_rate`            | ratio / weighted_ratio | Pagos asignados netos de refund / importe cobrable vencido del período                                                                 | `charges`, `payment_allocations`, `refunds`            | Implementada v1                                                     |
+| `waitlist_opportunity_count` | count / sum            | Entradas contactables y activas para clases/programas con demanda no atendida                                                          | `waitlist_entries`                                     | Implementada v1                                                     |
 
 ## Estados de calidad
 
@@ -36,11 +36,11 @@ Estado: contrato previo al motor; no demuestra cálculos implementados.
 | `stale`        | cálculo válido pero watermark supera el SLA de frescura         |
 | `invalid`      | invariantes rotas o reconciliación fallida; valor nulo          |
 
-## Decisiones abiertas antes de PR-05
+## Decisiones diferidas a nuevas versiones de fórmula
 
-- calendario de temporada y tratamiento de pausas largas;
-- ventana de gracia para reactivación y transferencia entre sedes;
-- sesiones elegibles para ocupación y asistencia;
+- calendario de temporada distinto a períodos explícitos;
+- ventana de gracia adicional tras una baja real;
+- granularidad por programa y grupo;
 - reconocimiento contable de descuentos, becas, impuestos y prorrateos;
 - umbrales de cobertura por dimensión del score;
 - benchmarks autorizados y adecuados al mercado español.
