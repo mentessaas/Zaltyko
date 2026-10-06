@@ -9,3 +9,4 @@ export * from "./schema/zaltyko-core";
 export * from "./schema/zaltyko-ledger";
 export * from "./schema/zaltyko-metrics";
 export * from "./schema/zaltyko-health-score";
+export * from "./schema/zaltyko-insights";
