@@ -41,6 +41,7 @@ export interface OwnerDashboardBundle {
     locationId: string | null;
     locations: { id: string; name: string }[];
     canViewOrganizationAggregate: boolean;
+    canManageHealthScore: boolean;
   };
   period: { start: string; end: string } | null;
   availablePeriods: Array<{ start: string; end: string }>;
@@ -190,6 +191,29 @@ export async function getOwnerDashboard(
     })
   );
   if (!latest) {
+    const [internalTargetProfile] = await db
+      .select({ id: benchmarkProfiles.id })
+      .from(benchmarkProfiles)
+      .where(
+        and(
+          eq(benchmarkProfiles.organizationId, organizationId),
+          eq(benchmarkProfiles.key, "academy_internal_targets"),
+          eq(benchmarkProfiles.status, "active")
+        )
+      )
+      .limit(1);
+    const emptyPriorities = [...insightPriorities];
+    const canManageHealthScore = ["owner", "admin"].includes(scope.member.role);
+    if (!internalTargetProfile && canManageHealthScore) {
+      emptyPriorities.unshift({
+        key: "score-targets-setup",
+        tone: "neutral",
+        title: "Configura metas propias para activar el Health Score",
+        detail:
+          "Son objetivos de tu academia, no promedios del sector ni una comparación con otras academias.",
+        href: `/owner/health-score/setup?organizationId=${organizationId}`,
+      });
+    }
     return {
       state: "empty",
       organization: {
@@ -200,6 +224,7 @@ export async function getOwnerDashboard(
         locationId: selectedLocationId,
         locations: scope.locations,
         canViewOrganizationAggregate: scope.canViewOrganizationAggregate,
+        canManageHealthScore,
       },
       period: null,
       availablePeriods,
@@ -207,8 +232,8 @@ export async function getOwnerDashboard(
       dimensions: [],
       metrics: [],
       priorities:
-        insightPriorities.length > 0
-          ? insightPriorities
+        emptyPriorities.length > 0
+          ? emptyPriorities.slice(0, 3)
           : [
               {
                 key: "first-calculation",
@@ -360,6 +385,7 @@ export async function getOwnerDashboard(
       locationId: selectedLocationId,
       locations: scope.locations,
       canViewOrganizationAggregate: scope.canViewOrganizationAggregate,
+      canManageHealthScore: ["owner", "admin"].includes(scope.member.role),
     },
     period: {
       start: latest.snapshot.periodStart,

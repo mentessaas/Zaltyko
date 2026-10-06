@@ -370,7 +370,9 @@ function EmptyDashboard({ bundle }: { bundle: OwnerDashboardBundle }) {
         >
           {bundle.priorities[0]?.key.startsWith("insight-")
             ? "Revisar prioridad"
-            : "Revisar estado de datos"}{" "}
+            : bundle.priorities[0]?.key === "score-targets-setup"
+              ? "Configurar objetivos"
+              : "Revisar estado de datos"}{" "}
           <ArrowRight className="h-4 w-4" aria-hidden="true" />
         </Link>
       </section>
@@ -670,6 +672,14 @@ export function OwnerDashboardView({
                 Ver qué lo explica{" "}
                 <ArrowRight className="h-4 w-4" aria-hidden="true" />
               </Link>
+              {bundle.scope.canManageHealthScore && (
+                <Link
+                  href={`/owner/health-score/setup?organizationId=${bundle.organization.id}`}
+                  className="touch-target mt-2 inline-flex items-center gap-2 text-sm font-bold text-slate-700 underline underline-offset-4"
+                >
+                  Editar metas del score
+                </Link>
+              )}
             </div>
             <div className="mt-6 lg:mt-0">
               <div className="flex items-end justify-between border-b border-slate-400 pb-3">

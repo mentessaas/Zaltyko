@@ -5,6 +5,7 @@ import { Pool } from "pg";
 import { withCronSystemActor } from "@/lib/cron-system-actor";
 import { dispatchOutboxBatch } from "@/modules/analytics/application/outbox-dispatcher";
 import { processMetricInvalidation } from "@/modules/analytics/application/process-metric-invalidation";
+import { saveAcademyTargetProfile } from "@/modules/health-score/application/academy-target-profile";
 
 const databaseUrl = process.env.DATABASE_URL;
 if (!databaseUrl) throw new Error("DATABASE_URL es obligatoria");
@@ -12,6 +13,17 @@ process.env.CRON_SECRET = "synthetic-worker-secret";
 const pool = new Pool({ connectionString: databaseUrl, max: 3 });
 const organizationId = "10000000-0000-0000-0000-000000000001";
 const locationId = "10000000-0000-0000-0000-000000000011";
+const owner = {
+  userId: "10000000-0000-0000-0000-000000000101",
+  memberId: "10000000-0000-0000-0000-000000000201",
+};
+const syntheticTargets = {
+  class_fill_rate: 0.75,
+  cohort_retention_rate: 0.8,
+  churn_rate: 0.05,
+  collection_rate: 0.95,
+  attendance_coverage: 0.95,
+};
 
 async function main() {
   await pool.query(
@@ -54,6 +66,67 @@ async function main() {
   assert.equal(pipelineResult.value.scoreSkippedReason, "benchmark_missing");
   assert.equal(pipelineResult.value.scoreSnapshotId, null);
   const metricRunId = pipelineResult.value.metricRunId;
+  await pool.query(
+    `update zaltyko.outbox_events set status = 'processed', processed_at = now()
+     where status = 'pending'`
+  );
+
+  const targetCommand = {
+    organizationId,
+    authorizationLocationId: locationId,
+    actor: owner,
+    targets: syntheticTargets,
+    idempotencyKey: "academy-internal-targets-synthetic-001",
+  };
+  const profile = await saveAcademyTargetProfile(targetCommand);
+  assert.equal(profile.replayed, false);
+  assert.equal((await saveAcademyTargetProfile(targetCommand)).replayed, true);
+  await assert.rejects(
+    saveAcademyTargetProfile({
+      ...targetCommand,
+      targets: { ...syntheticTargets, class_fill_rate: 0.8 },
+    }),
+    (error: unknown) => {
+      assert.equal((error as { code?: string }).code, "IDEMPOTENCY_CONFLICT");
+      return true;
+    }
+  );
+  await assert.rejects(
+    saveAcademyTargetProfile({
+      ...targetCommand,
+      actor: {
+        userId: "20000000-0000-0000-0000-000000000102",
+        memberId: "20000000-0000-0000-0000-000000000202",
+      },
+      idempotencyKey: "cross-tenant-targets-denied",
+    }),
+    (error: unknown) => {
+      assert.equal((error as { code?: string }).code, "FORBIDDEN");
+      return true;
+    }
+  );
+  const configuredPipeline = await withCronSystemActor(
+    new Request("http://localhost/api/cron/zaltyko-outbox", {
+      headers: { authorization: "Bearer synthetic-worker-secret" },
+    }),
+    (actor) => dispatchOutboxBatch({ actor, batchSize: 1 })
+  );
+  assert.equal(configuredPipeline.ok, true);
+  if (!configuredPipeline.ok)
+    throw new Error("No se pudo procesar la configuración de objetivos");
+  assert.equal(configuredPipeline.value.scoreSnapshots, 1);
+  assert.equal(configuredPipeline.value.scoreSkipped, 0);
+  assert.equal(
+    await pool
+      .query(
+        `select count(*)::int as count from zaltyko.audit_log
+         where organization_id = $1 and action = 'health_score.internal_targets_configured'
+           and actor_user_id = $2`,
+        [organizationId, owner.userId]
+      )
+      .then((rows) => Number(rows.rows[0].count)),
+    1
+  );
 
   const metricRun = await pool.query(
     `select id, status from zaltyko.metric_runs
@@ -69,7 +142,7 @@ async function main() {
         [organizationId]
       )
       .then((rows) => Number(rows.rows[0].count)),
-    0
+    1
   );
   assert.equal(
     await pool
@@ -91,7 +164,7 @@ async function main() {
         [organizationId]
       )
       .then((rows) => Number(rows.rows[0].count)),
-    9
+    18
   );
 
   const retry = await withCronSystemActor(
@@ -105,7 +178,8 @@ async function main() {
   if (!retry.ok || !retry.value)
     throw new Error("Reintento del pipeline falló");
   assert.equal(retry.value.metricRunId, metricRunId);
-  assert.equal(retry.value.scoreSkippedReason, "benchmark_missing");
+  assert.equal(retry.value.scoreSkippedReason, null);
+  assert.ok(retry.value.scoreSnapshotId);
 
   await assert.rejects(
     processMetricInvalidation({

@@ -9,6 +9,7 @@ export const ownerDashboardPreviewBundle: OwnerDashboardBundle = {
   scope: {
     locationId: null,
     canViewOrganizationAggregate: true,
+    canManageHealthScore: true,
     locations: [
       {
         id: "30000000-0000-0000-0000-000000000011",

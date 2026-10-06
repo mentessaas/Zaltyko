@@ -42,6 +42,7 @@ const metricSourceEventPrefixes = [
   "charge.",
   "payment.",
   "financial.",
+  "benchmark.",
   "organization.bootstrapped",
 ] as const;
 

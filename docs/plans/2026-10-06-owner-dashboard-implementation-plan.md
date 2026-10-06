@@ -241,8 +241,9 @@ conversión FX implícita. El worker solo debe puntuar con un perfil benchmark
 único, activo y asignado explícitamente; nunca escoge un fixture sintético ni un
 perfil global ambiguo. Si no existe, conserva métricas y deja score
 pendiente/datos insuficientes con motivo. Schema/contrato/UI iniciales de
-moneda añadidos localmente; la administración del perfil y su propagación a
-worker/API/UI aún están pendientes. No usar datos financieros reales.
+moneda añadidos localmente; administración de benchmark externo y pruebas con
+organizaciones reales no forman parte del corte. No usar datos financieros
+reales.
 
 La cascada local ya conecta outbox→invalidación→recompute agregado más serie de
 la sede afectada por `default_currency`→score del agregado solo con perfil
@@ -257,6 +258,14 @@ Pendiente: procesar outcomes sin falsear acciones humanas, digest/notificaciones
 métricas/alertas de lag y política del schedule. El SLA ≤15 min solo puede
 afirmarse cuando exista frecuencia durable, lag medido y degradación `stale`
 verificada; no registrar cron ni desplegar todavía.
+
+Configuración owner/admin de metas internas añadida en
+`/owner/health-score/setup`: cinco ratios requeridos, perfil versionado,
+autorización tenant/sede, idempotencia, audit log y outbox
+`benchmark.configured`. Se explicita que son metas de la academia, no cifras de
+mercado. El harness sintético prueba reintento, conflicto al reutilizar clave,
+denegación cross-tenant y activación de score; no hay valores prellenados para
+academias reales ni carga de benchmark externo.
 
 ### PR-13 — APIs completas y filtros
 
@@ -280,8 +289,10 @@ definir la gracia de pausa; se documenta el criterio provisional de alta. Prueba
 sintética pasa con IDs de atleta ausentes.
 
 El endpoint no sustituye los paneles/UI. Pendiente: riesgos individuales (draft
-hasta completar revisión RGPD y resolver permisos), perfiles/ajustes de
-benchmark y definición de alta/gracia. Ampliar dashboard con comparación,
+hasta completar revisión RGPD y resolver permisos), benchmark externo validado y
+definición de alta/gracia. Metas internas del score ya tienen pantalla/API
+owner/admin y activan la cascada; no se presentan como benchmark externo.
+Ampliar dashboard con comparación,
 disciplina/programa/grupo, validando autorización antes de consultar.
 
 ### PR-14 — Dashboard funcional según PRD
