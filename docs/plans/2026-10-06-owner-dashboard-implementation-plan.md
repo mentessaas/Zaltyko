@@ -253,8 +253,12 @@ implementado para recompute, score y evaluación P0; valida organización/sede
 activa y audita con `actor_user_id = null`, tipo/job/correlation. PostgreSQL
 efímero pasa las rutas system, denegación de scope cruzado y P0 sin suplantación.
 El endpoint existente crea el actor solo dentro de contexto async tras comprobar
-`CRON_SECRET`; cron ausente o actor falsificado se deniega. El endpoint aún solo
-despacha invalidaciones y no ejecuta la cascada completa.
+`CRON_SECRET`; cron ausente o actor falsificado se deniega. Corrección de estado
+(2026-10-06): `POST /api/cron/zaltyko-outbox` ya llama al dispatcher bajo lease
+y actor de sistema; el dispatcher ejecuta la cascada local completa para eventos
+de métricas (invalidación, recompute, score condicional, nueve reglas P0) y el
+cierre de acciones expiradas. No se añadió schedule a `vercel.json` ni se
+desplegó.
 
 ADR-0009 fija `organizations.default_currency` explícita al bootstrap (EUR
 editable, sin inferir por país); cada movimiento preserva su moneda y no existe
