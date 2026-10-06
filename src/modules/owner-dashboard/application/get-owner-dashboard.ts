@@ -20,6 +20,8 @@ export const ownerDashboardQuerySchema = z
   .object({
     organizationId: z.string().uuid().optional(),
     locationId: z.string().uuid().optional(),
+    programId: z.string().uuid().optional(),
+    groupId: z.string().uuid().optional(),
     from: z.string().date().optional(),
     to: z.string().date().optional(),
   })

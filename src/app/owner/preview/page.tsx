@@ -14,6 +14,23 @@ export default function OwnerDashboardPreviewPage() {
       bundle={ownerDashboardPreviewBundle}
       capacity={ownerDashboardCapacityPreview}
       cohorts={ownerDashboardCohortsPreview}
+      dashboardFilters={{
+        programs: [
+          {
+            id: "10000000-0000-0000-0000-000000000701",
+            name: "Gimnasia artística",
+          },
+        ],
+        groups: [
+          {
+            id: "10000000-0000-0000-0000-000000000798",
+            name: "Iniciación",
+            programId: "10000000-0000-0000-0000-000000000701",
+          },
+        ],
+        selectedProgramId: null,
+        selectedGroupId: null,
+      }}
       preview
     />
   );

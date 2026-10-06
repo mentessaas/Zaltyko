@@ -270,6 +270,26 @@ insert into zaltyko.programs (id, organization_id, name, discipline, status) val
     'active'
   );
 
+insert into zaltyko.groups (
+  id, organization_id, location_id, program_id, name, status
+) values
+  (
+    '20000000-0000-0000-0000-000000000798',
+    '20000000-0000-0000-0000-000000000001',
+    '20000000-0000-0000-0000-000000000011',
+    '20000000-0000-0000-0000-000000000701',
+    'Grupo Sintético Norte',
+    'active'
+  ),
+  (
+    '20000000-0000-0000-0000-000000000797',
+    '20000000-0000-0000-0000-000000000001',
+    '20000000-0000-0000-0000-000000000012',
+    '20000000-0000-0000-0000-000000000701',
+    'Grupo Sintético Sur',
+    'active'
+  );
+
 insert into zaltyko.class_templates (
   id,
   organization_id,
@@ -342,6 +362,22 @@ insert into zaltyko.class_template_weekdays (
     extract(isodow from current_date + 1)::integer,
     '18:00',
     '19:00'
+  );
+
+insert into zaltyko.class_template_groups (
+  id, organization_id, class_template_id, group_id
+) values
+  (
+    '20000000-0000-0000-0000-000000000821',
+    '20000000-0000-0000-0000-000000000001',
+    '20000000-0000-0000-0000-000000000801',
+    '20000000-0000-0000-0000-000000000798'
+  ),
+  (
+    '20000000-0000-0000-0000-000000000822',
+    '20000000-0000-0000-0000-000000000001',
+    '20000000-0000-0000-0000-000000000802',
+    '20000000-0000-0000-0000-000000000797'
   );
 
 insert into zaltyko.sessions (

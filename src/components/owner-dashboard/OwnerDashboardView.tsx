@@ -19,6 +19,12 @@ import type { getRetentionCohorts } from "@/modules/owner-dashboard/application/
 
 type CapacityBundle = Awaited<ReturnType<typeof getCapacityHeatmap>>;
 type CohortsBundle = Awaited<ReturnType<typeof getRetentionCohorts>>;
+type DashboardFilters = {
+  programs: Array<{ id: string; name: string }>;
+  groups: Array<{ id: string; name: string; programId: string | null }>;
+  selectedProgramId: string | null;
+  selectedGroupId: string | null;
+};
 
 const statusLabels: Record<string, string> = {
   critical: "Crítico",
@@ -384,11 +390,13 @@ export function OwnerDashboardView({
   bundle,
   capacity = null,
   cohorts = null,
+  dashboardFilters,
   preview = false,
 }: {
   bundle: OwnerDashboardBundle;
   capacity?: CapacityBundle | null;
   cohorts?: CohortsBundle | null;
+  dashboardFilters?: DashboardFilters;
   preview?: boolean;
 }) {
   if (bundle.state === "empty") {
@@ -510,7 +518,7 @@ export function OwnerDashboardView({
             </div>
             <form
               method="get"
-              className="grid gap-3 sm:grid-cols-2 lg:grid-cols-[9.5rem_9.5rem_minmax(12rem,1fr)_auto] lg:items-end"
+              className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3 lg:items-end"
               aria-label="Filtros del dashboard"
             >
               <input
@@ -565,9 +573,57 @@ export function OwnerDashboardView({
                   ))}
                 </select>
               </label>
+              {dashboardFilters && (
+                <>
+                  <label
+                    className="grid gap-2 text-xs font-bold uppercase tracking-[0.12em] text-slate-600"
+                    htmlFor="programId"
+                  >
+                    Programa
+                    <select
+                      id="programId"
+                      name="programId"
+                      defaultValue={dashboardFilters.selectedProgramId ?? ""}
+                      className="touch-target min-w-40 rounded-none border border-slate-400 bg-white px-3 text-sm font-semibold text-slate-950"
+                    >
+                      <option value="">Todos</option>
+                      {dashboardFilters.programs.map((program) => (
+                        <option key={program.id} value={program.id}>
+                          {program.name}
+                        </option>
+                      ))}
+                    </select>
+                  </label>
+                  <label
+                    className="grid gap-2 text-xs font-bold uppercase tracking-[0.12em] text-slate-600"
+                    htmlFor="groupId"
+                  >
+                    Grupo
+                    <select
+                      id="groupId"
+                      name="groupId"
+                      defaultValue={dashboardFilters.selectedGroupId ?? ""}
+                      className="touch-target min-w-40 rounded-none border border-slate-400 bg-white px-3 text-sm font-semibold text-slate-950"
+                    >
+                      <option value="">Todos</option>
+                      {dashboardFilters.groups.map((group) => (
+                        <option key={group.id} value={group.id}>
+                          {group.name}
+                        </option>
+                      ))}
+                    </select>
+                  </label>
+                </>
+              )}
               <button className="touch-target rounded-none bg-slate-950 px-5 text-sm font-bold text-white hover:bg-teal-900">
                 Aplicar
               </button>
+              {dashboardFilters && (
+                <p className="text-xs leading-5 text-slate-600 sm:col-span-2 lg:col-span-3">
+                  Programa y grupo acotan aforo y cohortes; el Health Score se
+                  mantiene en el ámbito academia/sede.
+                </p>
+              )}
             </form>
           </div>
         </section>

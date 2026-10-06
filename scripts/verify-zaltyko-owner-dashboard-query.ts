@@ -8,6 +8,7 @@ import { getHealthScoreHistory } from "@/modules/owner-dashboard/application/hea
 import { getMetricSeries } from "@/modules/owner-dashboard/application/metric-series";
 import { getCapacityHeatmap } from "@/modules/owner-dashboard/application/capacity-heatmap";
 import { getRetentionCohorts } from "@/modules/owner-dashboard/application/retention-cohorts";
+import { getOwnerDashboardFilterOptions } from "@/modules/owner-dashboard/application/dashboard-filter-options";
 import { OperationalError } from "@/modules/shared/domain/operational-error";
 
 const databaseUrl = process.env.DATABASE_URL;
@@ -23,6 +24,9 @@ const ID = {
   managerOrg: "20000000-0000-0000-0000-000000000001",
   managerNorth: "20000000-0000-0000-0000-000000000011",
   managerSouth: "20000000-0000-0000-0000-000000000012",
+  managerProgram: "20000000-0000-0000-0000-000000000701",
+  managerNorthGroup: "20000000-0000-0000-0000-000000000798",
+  managerSouthGroup: "20000000-0000-0000-0000-000000000797",
 };
 
 async function expectOperationalError(
@@ -69,7 +73,10 @@ async function main(): Promise<void> {
   assert.equal(historyFirstPage.items.length, 1);
   assert(historyFirstPage.nextCursor);
   assert.equal(historyFirstPage.items[0].dimensions.length, 4);
-  assert.equal(JSON.stringify(historyFirstPage).includes("Persona Sintética"), false);
+  assert.equal(
+    JSON.stringify(historyFirstPage).includes("Persona Sintética"),
+    false
+  );
   const historyIds = [historyFirstPage.items[0].id];
   let historyCursor: string | null = historyFirstPage.nextCursor;
   while (historyCursor) {
@@ -116,15 +123,19 @@ async function main(): Promise<void> {
     `select count(*)::int as count from zaltyko.metric_run_values v join zaltyko.metric_runs r on r.id = v.metric_run_id where v.organization_id = $1 and v.metric_key = 'class_fill_rate' and v.location_id is null and r.status = 'succeeded'`,
     [ID.org]
   );
-  assert.equal(metricValueIds.length, Number(expectedMetricValues.rows[0].count));
+  assert.equal(
+    metricValueIds.length,
+    Number(expectedMetricValues.rows[0].count)
+  );
   assert.equal(new Set(metricValueIds).size, metricValueIds.length);
   await expectOperationalError(
-    () => getMetricSeries({
-      userId: ID.scopedManagerUser,
-      organizationId: ID.managerOrg,
-      locationId: ID.managerSouth,
-      metricKey: "class_fill_rate",
-    }),
+    () =>
+      getMetricSeries({
+        userId: ID.scopedManagerUser,
+        organizationId: ID.managerOrg,
+        locationId: ID.managerSouth,
+        metricKey: "class_fill_rate",
+      }),
     "LOCATION_SCOPE_DENIED"
   );
   const heatmapFirst = await getCapacityHeatmap({
@@ -136,7 +147,10 @@ async function main(): Promise<void> {
   assert(heatmapFirst.nextCursor);
   assert.equal(heatmapFirst.cells[0].classes.length, 1);
   assert(heatmapFirst.cells[0].capacity > 0);
-  assert.equal(JSON.stringify(heatmapFirst).includes("Persona Sintética"), false);
+  assert.equal(
+    JSON.stringify(heatmapFirst).includes("Persona Sintética"),
+    false
+  );
   const heatmapSecond = await getCapacityHeatmap({
     userId: ID.foreignOwnerUser,
     organizationId: ID.managerOrg,
@@ -155,6 +169,39 @@ async function main(): Promise<void> {
     programId: "20000000-0000-0000-0000-000000000701",
   });
   assert.equal(programHeatmap.cells.length, 2);
+  const dashboardFilters = await getOwnerDashboardFilterOptions({
+    userId: ID.foreignOwnerUser,
+    organizationId: ID.managerOrg,
+    programId: ID.managerProgram,
+  });
+  assert(
+    dashboardFilters.programs.some(
+      (program) => program.id === ID.managerProgram
+    )
+  );
+  assert.deepEqual(
+    dashboardFilters.groups.map((group) => group.id),
+    [ID.managerNorthGroup, ID.managerSouthGroup]
+  );
+  const scopedDashboardFilters = await getOwnerDashboardFilterOptions({
+    userId: ID.scopedManagerUser,
+    organizationId: ID.managerOrg,
+    programId: ID.managerProgram,
+  });
+  assert.deepEqual(
+    scopedDashboardFilters.groups.map((group) => group.id),
+    [ID.managerNorthGroup]
+  );
+  await expectOperationalError(
+    () =>
+      getOwnerDashboardFilterOptions({
+        userId: ID.scopedManagerUser,
+        organizationId: ID.managerOrg,
+        programId: ID.managerProgram,
+        groupId: ID.managerSouthGroup,
+      }),
+    "INVALID_RELATION"
+  );
   const groupHeatmap = await getCapacityHeatmap({
     userId: ID.foreignOwnerUser,
     organizationId: ID.managerOrg,
@@ -177,11 +224,12 @@ async function main(): Promise<void> {
   });
   assert.equal(noCohortGroup.items.length, 0);
   await expectOperationalError(
-    () => getCapacityHeatmap({
-      userId: ID.scopedManagerUser,
-      organizationId: ID.managerOrg,
-      locationId: ID.managerSouth,
-    }),
+    () =>
+      getCapacityHeatmap({
+        userId: ID.scopedManagerUser,
+        organizationId: ID.managerOrg,
+        locationId: ID.managerSouth,
+      }),
     "LOCATION_SCOPE_DENIED"
   );
 
@@ -217,19 +265,21 @@ async function main(): Promise<void> {
     "LOCATION_SCOPE_DENIED"
   );
   await expectOperationalError(
-    () => getHealthScoreHistory({
-      userId: ID.scopedManagerUser,
-      organizationId: ID.managerOrg,
-      locationId: ID.managerSouth,
-    }),
+    () =>
+      getHealthScoreHistory({
+        userId: ID.scopedManagerUser,
+        organizationId: ID.managerOrg,
+        locationId: ID.managerSouth,
+      }),
     "LOCATION_SCOPE_DENIED"
   );
   await expectOperationalError(
-    () => getHealthScoreHistory({
-      userId: ID.ownerUser,
-      organizationId: ID.org,
-      cursor: "not-a-cursor",
-    }),
+    () =>
+      getHealthScoreHistory({
+        userId: ID.ownerUser,
+        organizationId: ID.org,
+        cursor: "not-a-cursor",
+      }),
     "INVALID_RELATION"
   );
 

@@ -147,6 +147,13 @@ infracciones, lectura exclusiva de read models, AC-08/AC-09 y build aprobados.
 El p95 local sintético es 54,3 ms, pero AC-12 a volumen objetivo, VoiceOver
 humano, programa/grupo, E2E autenticado y runtime remoto siguen `NO VERIFICADO`.
 
+Actualización: ADR-0010 define que filtros compartibles de programa/grupo
+afectan aforo y cohortes, pero no alteran el score academia/sede porque aún no
+hay contrato ni muestra válida de scoring para ese nivel. Selectores URL,
+validación tenant/sede y filtros operativos pasan el harness local con grupos
+sintéticos en sedes norte/sur. Comparación de período, opciones por entrenador/
+sala y E2E autenticado siguen pendientes.
+
 ### PR-08 — Insights y acciones
 
 Estado: **implementado localmente** el 2026-10-06. Modelo, ciclo de vida,

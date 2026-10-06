@@ -10,6 +10,7 @@ import {
 } from "@/modules/owner-dashboard/application/get-owner-dashboard";
 import { getCapacityHeatmap } from "@/modules/owner-dashboard/application/capacity-heatmap";
 import { getRetentionCohorts } from "@/modules/owner-dashboard/application/retention-cohorts";
+import { getOwnerDashboardFilterOptions } from "@/modules/owner-dashboard/application/dashboard-filter-options";
 import { OperationalError } from "@/modules/shared/domain/operational-error";
 
 export const dynamic = "force-dynamic";
@@ -35,6 +36,12 @@ export default async function OwnerDashboardPage({
         : undefined,
     from: typeof raw.from === "string" && raw.from ? raw.from : undefined,
     to: typeof raw.to === "string" && raw.to ? raw.to : undefined,
+    programId:
+      typeof raw.programId === "string" && raw.programId
+        ? raw.programId
+        : undefined,
+    groupId:
+      typeof raw.groupId === "string" && raw.groupId ? raw.groupId : undefined,
   });
   if (!query.success) notFound();
 
@@ -59,12 +66,16 @@ export default async function OwnerDashboardPage({
       userId: user.id,
       organizationId: bundle.organization.id,
       locationId: bundle.scope.locationId ?? undefined,
+      programId: query.data.programId,
+      groupId: query.data.groupId,
       limit: 50,
     }),
     getRetentionCohorts({
       userId: user.id,
       organizationId: bundle.organization.id,
       locationId: bundle.scope.locationId ?? undefined,
+      programId: query.data.programId,
+      groupId: query.data.groupId,
       from: query.data.from,
       to: query.data.to,
       limit: 24,
@@ -86,8 +97,28 @@ export default async function OwnerDashboardPage({
     capacityResult.status === "fulfilled" ? capacityResult.value : null;
   const cohorts =
     cohortsResult.status === "fulfilled" ? cohortsResult.value : null;
+  let dashboardFilters: Awaited<
+    ReturnType<typeof getOwnerDashboardFilterOptions>
+  >;
+  try {
+    dashboardFilters = await getOwnerDashboardFilterOptions({
+      userId: user.id,
+      organizationId: bundle.organization.id,
+      locationId: bundle.scope.locationId ?? undefined,
+      programId: query.data.programId,
+      groupId: query.data.groupId,
+    });
+  } catch (error) {
+    if (error instanceof OperationalError) notFound();
+    throw error;
+  }
 
   return (
-    <OwnerDashboardView bundle={bundle} capacity={capacity} cohorts={cohorts} />
+    <OwnerDashboardView
+      bundle={bundle}
+      capacity={capacity}
+      cohorts={cohorts}
+      dashboardFilters={dashboardFilters}
+    />
   );
 }
