@@ -239,12 +239,15 @@ Estado parcial: `GET /api/v1/health-scores/current` y
 `GET /api/v1/health-scores/history` implementados con sesión verificada, scope
 de organización/sede, filtros Zod, errores RFC 9457, no-store y cursor estable
 con tie-breaker. Historial trae explicación, benchmark y dimensiones en bulk;
-no devuelve personas. Pruebas locales cubren tres páginas, cursor corrupto,
-manager fuera de scope y sede sin snapshots.
+no devuelve personas. `GET /api/v1/metrics/:key` añade serie explicable desde
+`metric_run_values` exitosos, denominador/numerador, calidad, fórmula,
+diagnósticos y watermark, con filtro de fechas/moneda y cursor estable. Pruebas
+locales cubren tres páginas, cursor corrupto, manager fuera de scope y sede sin
+snapshots.
 
-Pendiente: series/explicación de métricas, heatmap con drill-down, cohortes,
-riesgos autorizados y perfiles/ajustes de benchmark. Ampliar dashboard con
-comparación, disciplina/programa/grupo, validando autorización antes de consultar.
+Pendiente: heatmap con drill-down, cohortes, riesgos autorizados y
+perfiles/ajustes de benchmark. Ampliar dashboard con comparación,
+disciplina/programa/grupo, validando autorización antes de consultar.
 
 ### PR-14 — Dashboard funcional según PRD
 

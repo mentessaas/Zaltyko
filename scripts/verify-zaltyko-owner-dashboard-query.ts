@@ -5,6 +5,7 @@ import { Pool } from "pg";
 
 import { getOwnerDashboard } from "@/modules/owner-dashboard/application/get-owner-dashboard";
 import { getHealthScoreHistory } from "@/modules/owner-dashboard/application/health-score-history";
+import { getMetricSeries } from "@/modules/owner-dashboard/application/metric-series";
 import { OperationalError } from "@/modules/shared/domain/operational-error";
 
 const databaseUrl = process.env.DATABASE_URL;
@@ -86,6 +87,44 @@ async function main(): Promise<void> {
   );
   assert.equal(historyIds.length, Number(expectedHistoryRows.rows[0].count));
   assert.equal(new Set(historyIds).size, historyIds.length);
+  const metricPage1 = await getMetricSeries({
+    userId: ID.ownerUser,
+    organizationId: ID.org,
+    metricKey: "class_fill_rate",
+    limit: 1,
+  });
+  assert.equal(metricPage1.metric.key, "class_fill_rate");
+  assert.equal(metricPage1.items.length, 1);
+  assert(metricPage1.nextCursor);
+  const metricValueIds = [metricPage1.items[0].id];
+  let metricCursor: string | null = metricPage1.nextCursor;
+  while (metricCursor) {
+    const page = await getMetricSeries({
+      userId: ID.ownerUser,
+      organizationId: ID.org,
+      metricKey: "class_fill_rate",
+      limit: 1,
+      cursor: metricCursor,
+    });
+    assert.equal(page.items.length, 1);
+    metricValueIds.push(page.items[0].id);
+    metricCursor = page.nextCursor;
+  }
+  const expectedMetricValues = await pool.query(
+    `select count(*)::int as count from zaltyko.metric_run_values v join zaltyko.metric_runs r on r.id = v.metric_run_id where v.organization_id = $1 and v.metric_key = 'class_fill_rate' and v.location_id is null and r.status = 'succeeded'`,
+    [ID.org]
+  );
+  assert.equal(metricValueIds.length, Number(expectedMetricValues.rows[0].count));
+  assert.equal(new Set(metricValueIds).size, metricValueIds.length);
+  await expectOperationalError(
+    () => getMetricSeries({
+      userId: ID.scopedManagerUser,
+      organizationId: ID.managerOrg,
+      locationId: ID.managerSouth,
+      metricKey: "class_fill_rate",
+    }),
+    "LOCATION_SCOPE_DENIED"
+  );
 
   await expectOperationalError(
     () =>
@@ -174,6 +213,7 @@ async function main(): Promise<void> {
       concurrentRequests: timings.length,
       localSyntheticP95Ms: Number(p95Ms.toFixed(1)),
       historyPages: historyIds.length,
+      metricSeriesPages: metricValueIds.length,
     })
   );
 }

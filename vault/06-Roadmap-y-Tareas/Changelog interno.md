@@ -11022,6 +11022,12 @@ Modelo separado, reclamación manual, administración, importación revisada, fi
 - **Validación local:** paginación de las tres snapshots sintéticas, cursor inválido, denegación de sede al manager, sede sin snapshots y ausencia de PII nominal; `pnpm typecheck`, ESLint y runner integrado del score/dashboard pasan.
 - **Pendiente:** serie y explicación de métricas, heatmap, cohortes, riesgos protegidos, benchmark settings, filtros programa/grupo/comparación, E2E autenticado y volumen objetivo.
 
+## 2026-10-06 — Serie histórica explicable de métricas
+
+- `GET /api/v1/metrics/:key` consulta runs exitosos inmutables, devuelve fórmula/versión, numerador/denominador, calidad, cobertura, dimensiones, diagnósticos y source watermark; filtra período/moneda y usa cursor estable.
+- **Validación local:** 3 páginas de snapshots métricos sintéticos, sin IDs duplicados; denegación de manager para sede fuera de scope, typecheck y ESLint pasan con el runner de score/dashboard.
+- **Pendiente:** heatmap/drill-down, cohortes/retention risks, benchmark settings, filtros de programa/grupo/comparación, E2E autenticado y carga objetivo.
+
 
 ## 2026-10-05 — Cierre de anual Test y revalidación de acceso
 
