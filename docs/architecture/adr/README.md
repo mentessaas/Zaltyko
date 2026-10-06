@@ -21,5 +21,6 @@ Stripe Live ni cambios de credenciales.
 | [0008](./0008-actor-de-sistema-para-workers.md)        | Actor de sistema explícito para workers             |
 | [0009](./0009-moneda-base-y-mediciones-multidivisa.md) | Moneda explícita y métricas sin FX implícito        |
 | [0010](./0010-dashboard-filter-scope.md)               | Ámbito de filtros de programa y grupo del dashboard |
+| [0011](./0011-score-period-comparison.md)              | Comparabilidad temporal del Health Score            |
 
 Contrato analítico inicial: [diccionario de métricas v0](../metric-dictionary-v0.md).

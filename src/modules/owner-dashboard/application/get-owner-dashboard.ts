@@ -58,6 +58,10 @@ export interface OwnerDashboardBundle {
     benchmarkSource: string;
     explanation: Record<string, unknown>;
   } | null;
+  scoreComparison: {
+    previousPeriod: { start: string; end: string };
+    delta: number;
+  } | null;
   dimensions: Array<{
     key: string;
     label: string;
@@ -150,6 +154,43 @@ export async function getOwnerDashboard(
           row.snapshot.periodEnd === input.to
       )
     : snapshotRows[0];
+  const scoreComparison =
+    latest?.snapshot.score === null || !latest
+      ? null
+      : (() => {
+          const currentDays =
+            (Date.parse(`${latest.snapshot.periodEnd}T00:00:00Z`) -
+              Date.parse(`${latest.snapshot.periodStart}T00:00:00Z`)) /
+            86_400_000 +
+            1;
+          const maximumDurationDriftDays = currentDays >= 28 ? 3 : 1;
+          const previous = snapshotRows.find((row) => {
+            const days =
+              (Date.parse(`${row.snapshot.periodEnd}T00:00:00Z`) -
+                Date.parse(`${row.snapshot.periodStart}T00:00:00Z`)) /
+                86_400_000 +
+              1;
+            return (
+              row.snapshot.periodEnd < latest.snapshot.periodStart &&
+              row.snapshot.benchmarkProfileId ===
+                latest.snapshot.benchmarkProfileId &&
+              row.snapshot.score !== null &&
+              row.snapshot.status !== "insufficient_data" &&
+              Math.abs(days - currentDays) <= maximumDurationDriftDays
+            );
+          });
+          return previous
+            ? {
+                previousPeriod: {
+                  start: previous.snapshot.periodStart,
+                  end: previous.snapshot.periodEnd,
+                },
+                delta:
+                  Number(latest.snapshot.score) -
+                  Number(previous.snapshot.score),
+              }
+            : null;
+        })();
   const availablePeriods = Array.from(
     new Map(
       snapshotRows.map((row) => [
@@ -231,6 +272,7 @@ export async function getOwnerDashboard(
       period: null,
       availablePeriods,
       score: null,
+      scoreComparison: null,
       dimensions: [],
       metrics: [],
       priorities:
@@ -406,6 +448,7 @@ export async function getOwnerDashboard(
       benchmarkSource: latest.benchmarkSource,
       explanation: latest.snapshot.explanation,
     },
+    scoreComparison,
     dimensions: dimensionsBundle,
     metrics,
     priorities: priorities.slice(0, 3),

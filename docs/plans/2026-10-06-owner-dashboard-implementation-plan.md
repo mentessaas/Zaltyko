@@ -145,14 +145,18 @@ p95 medido contra volumen objetivo.
 Resultado: 375/768/1280 sin overflow, navegación de teclado y Axe sin
 infracciones, lectura exclusiva de read models, AC-08/AC-09 y build aprobados.
 El p95 local sintético es 54,3 ms, pero AC-12 a volumen objetivo, VoiceOver
-humano, programa/grupo, E2E autenticado y runtime remoto siguen `NO VERIFICADO`.
+humano, comparación año-año, E2E autenticado y runtime remoto siguen
+`NO VERIFICADO`.
 
 Actualización: ADR-0010 define que filtros compartibles de programa/grupo
 afectan aforo y cohortes, pero no alteran el score academia/sede porque aún no
 hay contrato ni muestra válida de scoring para ese nivel. Selectores URL,
 validación tenant/sede y filtros operativos pasan el harness local con grupos
 sintéticos en sedes norte/sur. Comparación de período, opciones por entrenador/
-sala y E2E autenticado siguen pendientes.
+sala y E2E autenticado siguen pendientes. ADR-0011 y el query layer muestran
+delta contra el snapshot previo solo con mismo perfil, score válido y duración
+comparable (±3 días); si no, explican por qué no hay delta. Selección de modo,
+año anterior y validación con snapshots reales siguen pendientes.
 
 ### PR-08 — Insights y acciones
 
@@ -299,8 +303,6 @@ El endpoint no sustituye los paneles/UI. Pendiente: riesgos individuales (draft
 hasta completar revisión RGPD y resolver permisos), benchmark externo validado y
 definición de alta/gracia. Metas internas del score ya tienen pantalla/API
 owner/admin y activan la cascada; no se presentan como benchmark externo.
-Ampliar dashboard con comparación,
-disciplina/programa/grupo, validando autorización antes de consultar.
 
 ### PR-14 — Dashboard funcional según PRD
 
@@ -316,12 +318,17 @@ solo sintético, incluyendo ambos casos límite.
 Verificación de UI: preview observada con navegador local a 375/768/1280 px;
 `documentElement.scrollWidth` coincide con viewport en los tres anchos. No se
 usó identidad autenticada ni datos remotos. Typecheck, ESLint focalizado y
-`next build` pasaron para la integración del dashboard; el build ocurrió antes
-del fixture visual final, que sí pasó typecheck/ESLint. Sigue pendiente repetir
-build final, probar filtros/paginación de extremos en UI, axe/teclado/lector de
-pantalla y E2E autenticado.
+`next build` pasan; el build final de filtros/comparador terminó el 2026-10-06.
+Sigue pendiente probar filtros/paginación de extremos en UI,
+axe/teclado/lector de pantalla y E2E autenticado.
 
-Pendiente: filtros compartibles de programa/grupo/periodo, lectura de histórico y
+Actualización: filtros URL de período/sede/programa/grupo; programa/grupo filtran
+solo operación, explícitamente no el score (ADR-0010). El score tiene delta
+contra snapshot previo con perfil y duración comparables (ADR-0011). Harness
+prueba tenant/sede y datos insuficientes; browser preview 375/1280 sin overflow
+ni errores de consola. Build completo posterior a estos cambios aún pendiente.
+
+Pendiente: elección de modo de comparación/año anterior, lectura de histórico y
 series en todos los paneles, enlace a acciones operativas y oportunidades
 P0→outcomes; tablas equivalentes más completas y WCAG 2.2 AA. Esta vista todavía
 no demuestra el drill-down completo del PRD.

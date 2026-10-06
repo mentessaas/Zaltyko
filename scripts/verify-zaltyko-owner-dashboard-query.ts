@@ -57,6 +57,7 @@ async function main(): Promise<void> {
   assert.equal(bundle.scope.canViewOrganizationAggregate, true);
   assert.equal(bundle.state, "insufficient");
   assert.equal(bundle.score?.status, "insufficient_data");
+  assert.equal(bundle.scoreComparison, null);
   assert.equal(bundle.dimensions.length, 4);
   assert.equal(bundle.metrics.length, 12);
   assert.equal(

@@ -39,6 +39,10 @@ export const ownerDashboardPreviewBundle: OwnerDashboardBundle = {
       scoreVersion: "zaltyko_owner_health@1",
     },
   },
+  scoreComparison: {
+    previousPeriod: { start: "2026-08-01", end: "2026-08-31" },
+    delta: 3.48,
+  },
   dimensions: [
     {
       key: "enrollment",

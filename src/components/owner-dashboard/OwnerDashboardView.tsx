@@ -721,6 +721,22 @@ export function OwnerDashboardView({
                   {Math.round((bundle.score?.coverage ?? 0) * 100)}%
                 </strong>
               </p>
+              <p className="mt-1 text-xs text-slate-600">
+                {bundle.scoreComparison ? (
+                  <>
+                    Vs. período comparable hasta{" "}
+                    {formatDate(bundle.scoreComparison.previousPeriod.end)}:{" "}
+                    <strong className="text-slate-950">
+                      {bundle.scoreComparison.delta > 0 ? "+" : ""}
+                      {bundle.scoreComparison.delta.toFixed(1)} puntos
+                    </strong>
+                  </>
+                ) : bundle.score?.status === "insufficient_data" ? (
+                  "Comparación no disponible: datos insuficientes"
+                ) : (
+                  "Sin período anterior comparable con el mismo perfil"
+                )}
+              </p>
               <Link
                 href="#explain-title"
                 className="touch-target mt-3 inline-flex items-center gap-2 text-sm font-bold text-teal-800 underline decoration-teal-300 underline-offset-4"
