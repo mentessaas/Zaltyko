@@ -2,7 +2,7 @@
 
 **Fecha:** 2026-10-06
 **Fuente principal:** `PRD-Zaltyko-Owner-Dashboard-Academy-Health-Score.md` v1.0
-**Base examinada:** rama `codex/health-score-v2`, commits hasta `be2db58f`; la verificación fresca descrita abajo se ejecutó durante esta auditoría.
+**Base examinada:** rama `codex/health-score-v2`; actualización local `evaluateP0Insights` verificada sobre PostgreSQL efímero el 2026-10-06.
 
 ## Dictamen
 
@@ -10,10 +10,10 @@ La arquitectura central está implementada y varias invariantes funcionales pasa
 con PostgreSQL local y fixtures sintéticos. El producto todavía no satisface
 todo el PRD: el Owner Dashboard ofrece principalmente score, dimensiones,
 métricas y prioridades; faltan APIs de drill-down requeridas, filtros de
-programa/grupo/período comparable, ocho evaluadores de reglas P0, ejecución
-programada, entrega de notificaciones, carga objetivo y E2E autenticado en un
-entorno aislado. Por tanto, este dictamen no declara el producto completo ni
-apto para piloto.
+programa/grupo/período comparable, worker/SLA, entrega de notificaciones, carga
+objetivo y E2E autenticado en un entorno aislado. Las nueve reglas P0 activas ya
+leen datos canónicos y ejecutan el ciclo idempotente en local. Por tanto, este
+dictamen no declara el producto completo ni apto para piloto.
 
 ## Acceptance criteria
 
@@ -25,7 +25,7 @@ apto para piloto.
 | AC-04 Transferencia sin churn | PASS local sintético                 | `docs/architecture/metric-engine.md`, `scripts/verify-zaltyko-operational-services.ts`; falta E2E integrado de temporada.                                                   |
 | AC-05 Finanzas reconciliables | PASS local sintético                 | `docs/architecture/ledger-operations.md`, `scripts/verify-zaltyko-ledger-services.ts`; no prueba pagos remotos ni Stripe.                                                   |
 | AC-06 Idempotencia            | PASS local sintético                 | Verificadores de ledger, métricas e Insights; webhook de proveedor y worker real aún no operan en la arquitectura nueva.                                                    |
-| AC-07 Insight accionable      | PASS parcial                         | `excess_demand` y ciclo de acción/outcome están probados sintéticamente. Falta simulador de grupo funcional y los demás evaluadores.                                        |
+| AC-07 Insight accionable      | PASS parcial                         | Las nueve reglas P0 activas ejecutan contra tablas canónicas y el ciclo idempotente pasa en PostgreSQL efímero sintético (`scripts/run-zaltyko-insight-engine-local.sh`). Sigue faltando simulador de grupo funcional, validación profunda por regla y operación programada. |
 | AC-08 Seguridad multi-tenant  | PASS local; remoto NO VERIFICADO     | Tests de servicios/RLS y query layer; el proyecto remoto llamado E2E Sandbox contiene 7 filas de academias legacy y no se usó.                                              |
 | AC-09 Scope de sede           | PASS local; E2E remoto NO VERIFICADO | `scripts/verify-zaltyko-owner-dashboard-query.ts`, pruebas de Insights; los filtros de producto aún no cubren programa/grupo.                                               |
 | AC-10 Frescura ≤15 min        | NO VERIFICADO                        | Se guardan watermarks/calidad; no hay worker/scheduler que garantice el SLA.                                                                                                |
@@ -41,7 +41,7 @@ apto para piloto.
 | ---------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------- | -------------------------------------------------------------------------------------------------------------------------------------- |
 | Lecturas de Owner      | Solo existe `/api/v1/owner/dashboard`; faltan score history, detalle/serie de métricas, heatmap, cohortes y riesgos.                                                    | Contratos de lectura con scope, filtros validados, paginación y respuestas RFC 9457.                                                   |
 | Filtros y dashboard    | API/UI no persisten período comparable, disciplina/programa y grupo; faltan paneles de cobros, retención, capacidad y oportunidades conforme al PRD.                    | Read models primero; después rutas y UI responsive.                                                                                    |
-| Insights P0            | Existe evaluador de demanda excedente. Las otras ocho reglas activas no tienen evaluador conectado; retención individual permanece en draft por decisión de privacidad. | Implementar reglas agregadas y sin PII; mantener riesgo individual desactivado hasta completar evaluación de impacto y aprobación.     |
+| Insights P0            | Nueve reglas activas conectadas a fuentes canónicas y verificadas en PostgreSQL efímero; no hay carga a escala ni worker. Retención individual permanece en draft por decisión de privacidad. | Añadir pruebas de activación/resolución por regla, carga, scheduler y operación; mantener riesgo individual desactivado hasta completar evaluación de impacto y aprobación. |
 | Jobs y alertas         | No hay ejecución durable de recompute/evaluación/digest/outcome ni evidencia runtime.                                                                                   | Worker idempotente con leases, retry/backoff, métricas, dead-letter y cron documentado.                                                |
 | Benchmark              | Modelo y valores iniciales existen, pero no hay API/configuración de perfil completa ni benchmark español validado.                                                     | Separar perfil Jackrabbit de objetivos internos; impedir conversión monetaria implícita; no presentar referencias como norma española. |
 | Piloto y operación     | No hay E2E autenticado con dos organizaciones/sedes, restore drill, ni prueba de carga a escala.                                                                        | Entorno aislado sin datos de clientes; ensayos reproducibles y reportados antes de solicitar piloto.                                   |

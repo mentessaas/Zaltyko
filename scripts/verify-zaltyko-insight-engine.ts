@@ -8,6 +8,7 @@ import {
   recordInsightAction,
   runInsightEvaluation,
 } from "@/modules/insights/application/insight-service";
+import { evaluateP0Insights } from "@/modules/insights/application/evaluate-p0-rules";
 import { listInsights } from "@/modules/insights/application/insight-query";
 import { evaluateExcessDemand } from "@/modules/insights/domain/insight-rules";
 import { OperationalError } from "@/modules/shared/domain/operational-error";
@@ -343,6 +344,28 @@ async function main(): Promise<void> {
   );
   assert.equal(unsafe, 0);
 
+  // Deterministic synthetic fact for the SQL-to-candidate path (no coach assigned).
+  await pool.query(
+    `update zaltyko.sessions set starts_at = $2, ends_at = $3, updated_at = now() where organization_id = $1 and id = '20000000-0000-0000-0000-000000000901'`,
+    [ID.org, new Date(base.getTime() + 48 * 60 * 60 * 1000), new Date(base.getTime() + 49 * 60 * 60 * 1000)]
+  );
+  const p0Command = {
+    organizationId: ID.org,
+    locationId: ID.north,
+    actor: owner,
+    evaluatedAt: base.toISOString(),
+    sourceWatermark: base.toISOString(),
+    idempotencyPrefix: "p0-rules-synthetic-integration",
+  };
+  const p0Evaluation = await evaluateP0Insights(p0Command);
+  assert.equal(p0Evaluation.evaluatedRules, 9);
+  assert(p0Evaluation.candidates >= 1);
+  const p0Retry = await evaluateP0Insights(p0Command);
+  assert.deepEqual(
+    p0Retry.results.map((result) => result.runId),
+    p0Evaluation.results.map((result) => result.runId)
+  );
+
   console.log(
     JSON.stringify({
       status: "PASS",
@@ -355,6 +378,9 @@ async function main(): Promise<void> {
       ownerInboxVisible: ownerInbox.items.length,
       managerInboxAggregateHidden: managerInbox.items.length === 0,
       historyImmutable: true,
+      p0RulesExecuted: p0Evaluation.evaluatedRules,
+      p0Candidates: p0Evaluation.candidates,
+      p0RetryIsIdempotent: true,
     })
   );
 }

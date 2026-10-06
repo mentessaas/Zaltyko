@@ -160,10 +160,12 @@ deduplicación, bandeja y acciones medibles aprobados; evidencia y límites en
 Gate: mismo problema no duplica insight; toda acción enlaza métrica, regla,
 actor y resultado.
 
-Resultado: AC-07, triple entrega concurrente, anti-fatiga, cooldown, optimistic
-locking, scope de sede, action/outcome y UI responsive/accesible aprobados sobre
-datos sintéticos. Solo `excess_demand` tiene evaluador conectado; scheduler,
-digest externo, E2E autenticado, carga, calibración real y runtime remoto siguen
+Resultado inicial: AC-07, triple entrega concurrente, anti-fatiga, cooldown,
+optimistic locking, scope de sede, action/outcome y UI responsive/accesible
+aprobados sobre datos sintéticos. El evaluador original cubría solo
+`excess_demand`; PR-11 añade conexión de las nueve reglas P0 activas. El
+simulador de grupo sigue siendo CTA sin flujo ejecutable. Scheduler, digest
+externo, E2E autenticado, carga, calibración real y runtime remoto siguen
 `NO VERIFICADO`.
 
 ### PR-09 — Cutover prepiloto
@@ -198,15 +200,24 @@ para piloto.
 
 ### PR-11 — Evaluadores P0 deterministas
 
-Implementadas funciones de dominio puras y pruebas de límites para ocho reglas
-activas además de `excess_demand`: clase infrautilizada, cobros vencidos,
-asistencia incompleta, follow-up de trial, conversión baja, capacidad sin
-precio, sesión sin entrenador y dato crítico faltante. Pendiente conectar las
-fuentes canónicas de evidencia, ejecutarlas desde un worker y probar el ciclo
-completo de resolución. Retention risk individual permanece en `draft`.
+Estado: **conexión local implementada** el 2026-10-06. `evaluateP0Insights`
+autorizado por sede carga hechos scoped desde sesiones, enrollments, waitlist,
+ledger, trials/followups, asignaciones de coach y data-quality runs; aplica
+configuración activa versionada, llama los evaluadores de dominio y entrega cada
+regla al ciclo idempotente de `runInsightEvaluation`. Evidencia financiera
+agregada por moneda y sede; no incluye PII. La regla de conversión baja solo se
+activa con meta interna configurada, nunca con benchmark supuesto. Retention risk
+individual permanece en `draft`.
+
+Verificación: el harness efímero aplica las migraciones locales y ejecuta la
+integración con fixture sintético; las nueve reglas quedan ejecutadas. Typecheck,
+ESLint y `scripts/run-zaltyko-insight-engine-local.sh` pasan. Esto valida SQL y
+ciclo de persistencia local, pero no demuestra volumen objetivo, worker, frescura,
+entrega de digest ni E2E autenticado.
 
 Gate: cada regla activa tiene umbrales, explicación, evidencia sin PII,
-deduplicación y resolución probadas.
+deduplicación y resolución probadas. Pendiente reforzar pruebas de activación y
+resolución por regla, semántica del simulador CTA, carga y operación programada.
 
 ### PR-12 — Workers, SLA y notificaciones
 

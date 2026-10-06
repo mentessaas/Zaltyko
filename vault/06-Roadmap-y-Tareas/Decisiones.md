@@ -793,3 +793,12 @@ Una ficha externa no crea dueño, academia operativa, trial ni suscripción. Sol
 | Decisión | Ofrecer alta autoservicio para Free, Starter y Growth; mantener Network con acompañamiento. Mostrar precios anuales y ahorro estimado con claridad. La selección efectiva del ciclo continúa en Facturación. |
 | Consecuencia | La página orienta los planes estándar a crear una academia sin bloquear la captación con una demo. |
 | Estado | PR #207 se integró por squash en `93b152d1` después de pasar build, lint/typecheck, unitarias, RLS, migraciones, seguridad móvil y E2E autenticado con verificación de escrituras idempotentes. El bypass administrativo se usó con autorización del usuario porque GitHub exigía una aprobación de otro colaborador. Vercel `dpl_ET8Auj2t4xY3h8n6oF58mXE1jL4o` está `Ready`; `/pricing` responde 200 y muestra CTA de alta y selector anual. No se creó Checkout ni se hizo un cargo. Checkout Test y su webhook siguen pendientes. |
+
+## 2026-10-06 — Política de evidencia para Insights P0
+
+| Campo | Valor |
+| --- | --- |
+| Evidencia | Las nueve reglas activas recorren fuentes canónicas y persistencia idempotente sobre PostgreSQL efímero con fixture sintético. La conversión requiere meta interna explícita; retention risk sigue `draft`; el sandbox remoto inspeccionado contiene filas legacy. |
+| Decisión | Mantener todos los evaluadores por sede y por watermark, sin PII en evidencia financiera, y no activar worker ni apuntar a base remota hasta cerrar autorización de entorno, pruebas por regla, carga, backup/restore y revisión RGPD. |
+| Consecuencia | Las reglas son integrables localmente, pero preparación de piloto y SLA de frescura permanecen `NO VERIFICADO`; CTA de simulación no se presenta como acción terminada. |
+| Estado | Aplicada en código/docs locales; ninguna migración ni escritura remota. Ver [fuentes de evaluación](../../docs/architecture/insight-evaluation-sources.md) y [auditoría PRD](../../docs/audits/2026-10-06-prd-completion-audit.md). |

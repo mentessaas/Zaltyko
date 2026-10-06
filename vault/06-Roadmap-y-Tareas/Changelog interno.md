@@ -11000,6 +11000,15 @@ Modelo separado, reclamación manual, administración, importación revisada, fi
 - **Validación local:** `pnpm typecheck`, compilación TypeScript aislada de la spec Playwright, ESLint focal, Prettier, `git diff --check` y contratos de facturación **7/7** pasan.
 - **Pendiente:** CI de PR #211 debe ejecutar el recorrido en el sandbox con credenciales protegidas. El Playwright integrado no se ejecutó en este Mac: el guard detuvo la carga de configuración porque aquí no está especificado `E2E_TARGET_SUPABASE_PROJECT_REF`. No se eludió esa protección. El PR continúa abierto y sin despliegue.
 
+## 2026-10-06 — Evaluadores P0 conectados a hechos canónicos
+
+- `evaluateP0Insights` ejecuta las nueve reglas P0 activas con consultas scoped por organización y sede, umbrales de la versión activa y watermark explícito. La persistencia usa `runInsightEvaluation` para autorización repetida, idempotencia, deduplicación y resolución.
+- La ocupación sigue la métrica canónica: capacidad efectiva y atletas distintos inscritos en la fecha local de cada sesión. Cobros agregan por moneda e incluyen allocations menos refunds exitosos; no exponen nombres, contactos ni datos de atletas.
+- La conversión baja solo compara contra una meta interna activa de la organización. La retención individual sigue en draft. `simulate_group` sigue siendo CTA, no flujo terminado.
+- **Validación local:** `pnpm typecheck`, ESLint y `bash scripts/run-zaltyko-insight-engine-local.sh` pasan con PostgreSQL efímero y fixture sintético; nueve rule runs, reintento idempotente.
+- **No verificado:** worker/digest/SLA de 15 min, volumen de producción, Supabase Auth/PostgREST remoto, E2E autenticado y readiness de piloto. No se modificó ninguna base remota.
+- Detalle: [`insight-evaluation-sources.md`](../../docs/architecture/insight-evaluation-sources.md), [auditoría PRD](../../docs/audits/2026-10-06-prd-completion-audit.md).
+
 
 ## 2026-10-05 — Cierre de anual Test y revalidación de acceso
 

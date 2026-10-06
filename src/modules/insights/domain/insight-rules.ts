@@ -61,8 +61,12 @@ export function evaluateExcessDemand(input: {
   observedSessions: number;
   monthlyPriceMinor?: number;
   currency?: string;
+  fillRateAtLeast?: number;
+  eligibleWaitlistAtLeast?: number;
 }): InsightCandidate | null {
-  if (input.fillRate < 0.9 || input.eligibleWaitlist < 3) return null;
+  const fillRateAtLeast = input.fillRateAtLeast ?? 0.9;
+  const eligibleWaitlistAtLeast = input.eligibleWaitlistAtLeast ?? 3;
+  if (input.fillRate < fillRateAtLeast || input.eligibleWaitlist < eligibleWaitlistAtLeast) return null;
 
   const hasEstimate =
     input.monthlyPriceMinor !== undefined &&
@@ -87,7 +91,7 @@ export function evaluateExcessDemand(input: {
       fillRate: input.fillRate,
       eligibleWaitlist: input.eligibleWaitlist,
       observedSessions: input.observedSessions,
-      threshold: { fillRateAtLeast: 0.9, eligibleWaitlistAtLeast: 3 },
+      threshold: { fillRateAtLeast, eligibleWaitlistAtLeast },
     },
     assumptions: hasEstimate
       ? [
@@ -102,7 +106,7 @@ export function evaluateExcessDemand(input: {
     ctaKey: "simulate_group",
     ctaPayload: { classTemplateId: input.classTemplateId },
     impactScore: bounded(55 + input.eligibleWaitlist * 5),
-    urgencyScore: bounded(60 + Math.max(0, input.fillRate - 0.9) * 200),
+    urgencyScore: bounded(60 + Math.max(0, input.fillRate - fillRateAtLeast) * 200),
     confidenceScore: bounded(40 + input.observedSessions * 10),
     actionabilityScore: 90,
     estimatedValueMinMinor,
@@ -149,17 +153,21 @@ export function evaluateOverdueCollections(input: {
   oldestAgeDays: number;
   affectedFamilyCount: number;
   minimumAgeDays?: number;
+  minimumBalanceMinor?: number;
 }): InsightCandidate | null {
   const minimumAgeDays = input.minimumAgeDays ?? 3;
+  const minimumBalanceMinor = input.minimumBalanceMinor ?? 0;
   if (
-    input.overdueBalanceMinor <= 0 ||
+    input.overdueBalanceMinor <= minimumBalanceMinor ||
     input.oldestAgeDays < minimumAgeDays ||
     !/^[A-Z]{3}$/.test(input.currency)
   ) {
     return null;
   }
   return p0Candidate({
-    entityType: input.locationId ? "location" : "organization",
+    entityType: input.locationId
+      ? `location_financial_${input.currency.toLowerCase()}`
+      : `organization_financial_${input.currency.toLowerCase()}`,
     entityId: input.locationId,
     title: "Hay cobros pendientes de revisar",
     detail: `${input.affectedFamilyCount} familias tienen saldo vencido desde hace ${input.oldestAgeDays} días o más.`,
@@ -168,7 +176,7 @@ export function evaluateOverdueCollections(input: {
       currency: input.currency,
       oldestAgeDays: input.oldestAgeDays,
       affectedFamilyCount: input.affectedFamilyCount,
-      threshold: { outstandingAboveMinor: 0, minimumAgeDays },
+      threshold: { outstandingAboveMinor: minimumBalanceMinor, minimumAgeDays },
     },
     ctaKey: "send_reminders",
     ctaPayload: { locationId: input.locationId ?? null },
