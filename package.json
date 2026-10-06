@@ -63,6 +63,7 @@
     "validate:rls": "tsx scripts/validate-rls.ts",
     "validate:rls:semantics": "tsx scripts/validate-rls-semantics.ts",
     "test:rls:local": "bash scripts/run-rls-semantics-local.sh",
+    "test:zaltyko-domain:local": "bash scripts/run-zaltyko-domain-foundation-local.sh",
     "check:migrations": "tsx scripts/check-migrations-integrity.ts"
   },
   "dependencies": {

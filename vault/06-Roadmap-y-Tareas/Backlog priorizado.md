@@ -46,6 +46,35 @@ Code changes verificados: tsc OK, eslint OK, next build OK.
 
 # Backlog priorizado
 
+## P0 — Cerrar servicios operativos antes del motor de métricas — 2026-10-06
+
+- **Estado:** el esquema fundacional y sus contratos pasan pruebas locales, pero
+  aún no existen application services transaccionales.
+- **Siguiente corte:** enrollment (alta/pausa/cancelación/transferencia),
+  materialización de sesiones, asistencia y reserva de capacidad con lock.
+- **Gate:** dominio + historial + audit log + outbox en una transacción;
+  idempotencia al reintentar; dos organizaciones y dos sedes; prueba concurrente
+  de última plaza. No construir el Health Score antes de este cierre.
+
+## P0 — Privacidad del riesgo individual de abandono — 2026-10-06
+
+- **Hallazgo:** combinar asistencia, deuda y conducta de atletas que pueden ser
+  menores implica perfilado y acceso especialmente sensible.
+- **Decisión pendiente antes del piloto:** necesidad/proporcionalidad, EIPD si
+  corresponde, visibilidad por rol, retención, explicación, corrección y
+  prohibición de decisiones adversas automáticas.
+- **Límite:** no incluir PII, deuda familiar ni notas médicas en eventos o
+  analytics; el coach no verá deuda.
+
+## P1 — Reconciliar historiales solo si se decide importar legado — 2026-10-06
+
+- El nuevo producto puede arrancar con fixtures y datos sintéticos. No diseñar
+  una migración compleja por defecto.
+- Si se autoriza importar, exigir fuente→staging→destino idempotente, reporte de
+  rechazos, cero huérfanos/cruces y reconciliación financiera. Los ledgers de
+  migración productivo/staging existentes siguen siendo un bloqueo para operar
+  remotamente, no para validar el nuevo esquema en PostgreSQL local aislado.
+
 ## P1 — Hacer fiable el control SBOM de CI — 2026-10-04
 
 - **Hallazgo:** el job “Dependency Security & SBOM” figuraba verde aunque `cyclonedx-npm` fallaba con pnpm 9, `continue-on-error` ocultaba el error y la subida del archivo ausente estaba configurada para ignorarlo. El run `37200407681` confirmó que no se publicó ningún SBOM.

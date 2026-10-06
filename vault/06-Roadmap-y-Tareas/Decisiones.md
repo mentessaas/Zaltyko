@@ -8,6 +8,15 @@ source:
 
 # Decisiones
 
+## 2026-10-06 — Owner Dashboard y Health Score pasan a ser el nuevo núcleo canónico
+
+| Campo | Valor |
+| --- | --- |
+| Evidencia | No existen clientes activos ni una obligación de compatibilidad interna. El PRD del 6 de octubre define organización/sede, enrollment, ledger, métricas, score e insights como un sistema coherente. El modelo heredado conserva aprendizajes válidos —especialmente la pertenencia M:N— pero mezcla fronteras y semánticas incompatibles con esas métricas. |
+| Decisión | Construir un dominio nuevo en el esquema `zaltyko`, con `organization_id` como frontera tenant y `location_id` como scope. Mantener `public.*` solo mientras se sustituyen cortes revisables; no sincronizar ambos modelos ni hacer del dashboard una capa sobre tablas ambiguas. Implementar primero dominio/RLS/outbox, luego servicios operativos, ledger, métricas, Health Score, dashboard e insights. |
+| Consecuencia | Se rompen deliberadamente contratos internos heredados cuando interfieren con el PRD. Producción, despliegue, credenciales, Stripe Live y migración de datos siguen requiriendo autorización específica. El riesgo de privacidad del perfilado individual de menores conserva un gate separado antes de piloto. |
+| Estado | ADR-0001…0005, modelo de dominio, migración fundacional, contratos y pruebas locales creados en `codex/health-score-v2`. No integrado ni desplegado. |
+
 ## 2026-10-04 — Fallar cerrado si CI no genera inventarios SBOM
 
 | Campo | Valor |

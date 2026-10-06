@@ -1,10 +1,25 @@
 ---
 status: active
 owner: producto
-last_reviewed: 2026-10-04
+last_reviewed: 2026-10-06
 source:
   - ../docs/audits/2026-10-03-launch-and-auth-followup.md
+  - ../docs/architecture/zaltyko-domain-model.md
 ---
+
+## 2026-10-06 — Fundación del nuevo dominio Owner Dashboard / Health Score
+
+- Creado el esquema canónico `zaltyko` con organización, sedes, instalaciones,
+  espacios, miembros/scopes, personas, atletas, staff, programas, grupos M:N,
+  plantillas, sesiones, enrollment, asistencia, catálogo de precios, outbox y
+  audit log.
+- La migración usa FKs compuestas para rechazar cruces de organización, RLS
+  forzado, grants Data API explícitos y helpers de scope en esquema privado.
+- Añadidos contratos TypeScript de autorización por sede, transiciones de
+  enrollment, capacidad efectiva y eventos sin PII/datos médicos.
+- Validación local: PostgreSQL aislado PASS, 5/5 contratos PASS, ESLint focal y
+  `tsc --noEmit` PASS. Sin migraciones remotas, producción, Stripe ni despliegue.
+- Plan de ejecución: `docs/plans/2026-10-06-owner-dashboard-implementation-plan.md`.
 
 ## 2026-10-04 — Revalidar acceso Google, recuperación y búsqueda del onboarding
 
