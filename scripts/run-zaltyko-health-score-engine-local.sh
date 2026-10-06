@@ -32,7 +32,8 @@ for migration in \
   20261006090034_add_trials_waitlists_families.sql \
   20261006093047_add_internal_billing_ledger.sql \
   20261006094607_add_versioned_metric_engine.sql \
-  20261006100146_add_explainable_health_score.sql
+  20261006100146_add_explainable_health_score.sql \
+  20261006113000_add_actionable_insights.sql
 do
   "${PSQL[@]}" -f "${ROOT_DIR}/supabase/migrations/${migration}" >/dev/null
 done

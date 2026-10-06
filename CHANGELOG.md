@@ -6,6 +6,22 @@ All notable changes to Zaltyko are documented here. Format follows
 > SHA referenced corresponds to commits on `zaltyko-onboarding-ZAL-137`.
 > For commits on previous branches, refer to the git history directly.
 
+## 2026-10-06 — Nuevo núcleo PR-08: Insights y acciones
+
+### Added
+
+- Reglas versionadas, ejecuciones idempotentes, deduplicación por serie,
+  prioridad explícita, cooldown, snooze, descarte y resolución trazable.
+- Acciones y outcomes con evidencia antes/después, actor, ventana de evaluación
+  e historial inmutable.
+- APIs protegidas y bandeja `/owner/insights` responsive con evidencia,
+  supuestos e hipótesis de valor etiquetadas.
+
+### Límites
+
+- Solo `excess_demand` tiene evaluador conectado. Sin scheduler, digest externo,
+  E2E autenticado, carga objetivo, datos reales, despliegue ni producción.
+
 ## 2026-10-06 — Nuevo núcleo PR-07: Owner Dashboard
 
 ### Added

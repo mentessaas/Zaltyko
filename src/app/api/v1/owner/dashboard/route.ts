@@ -1,5 +1,6 @@
 import { NextResponse } from "next/server";
 
+import { operationalProblem, problemResponse } from "@/app/api/v1/problem";
 import { getCurrentUser } from "@/lib/auth/current-user";
 import {
   getOwnerDashboard,
@@ -7,36 +8,11 @@ import {
 } from "@/modules/owner-dashboard/application/get-owner-dashboard";
 import { OperationalError } from "@/modules/shared/domain/operational-error";
 
-function problem(input: {
-  status: number;
-  title: string;
-  detail: string;
-  type: string;
-  errors?: unknown;
-}) {
-  return NextResponse.json(
-    {
-      type: `https://zaltyko.com/problems/${input.type}`,
-      title: input.title,
-      status: input.status,
-      detail: input.detail,
-      ...(input.errors ? { errors: input.errors } : {}),
-    },
-    {
-      status: input.status,
-      headers: {
-        "content-type": "application/problem+json",
-        "cache-control": "private, no-store",
-      },
-    }
-  );
-}
-
 // @auth-flexible route-guard-reason: getCurrentUser resolves the verified session before URL validation; authorization remains server-side in getOwnerDashboard.
 export async function GET(request: Request) {
   const user = await getCurrentUser(request);
   if (!user) {
-    return problem({
+    return problemResponse({
       status: 401,
       title: "Autenticación requerida",
       detail: "Debes iniciar sesión para consultar el dashboard.",
@@ -52,7 +28,7 @@ export async function GET(request: Request) {
     to: url.searchParams.get("to") ?? undefined,
   });
   if (!parsed.success) {
-    return problem({
+    return problemResponse({
       status: 400,
       title: "Parámetros inválidos",
       detail: "Revisa el período y los identificadores solicitados.",
@@ -68,13 +44,7 @@ export async function GET(request: Request) {
     });
   } catch (error) {
     if (error instanceof OperationalError) {
-      return problem({
-        status: error.status,
-        title:
-          error.status === 403 ? "Acceso denegado" : "Consulta no disponible",
-        detail: error.message,
-        type: error.code.toLowerCase().replaceAll("_", "-"),
-      });
+      return operationalProblem(error);
     }
     throw error;
   }

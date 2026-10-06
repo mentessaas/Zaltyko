@@ -1,6 +1,6 @@
 # ADR-0005 — Métricas, Health Score e Insights
 
-- Estado: aceptada; métricas y score v1 cerrados localmente, insights pendientes
+- Estado: aceptada; métricas, score v1 e insights P0 cerrados localmente
 - Fecha: 2026-10-06
 - Alcance: analytics, scoring, dashboard e insights
 
@@ -42,6 +42,10 @@ reformular métricas dentro del score.
 
 PR-06 cumple esa frontera: el score referencia evidencia inmutable de un run y
 un benchmark versionado. Ver `docs/architecture/health-score-engine.md`.
+
+PR-08 conserva la dirección: las evaluaciones referencian run/snapshot, cada
+serie se deduplica bajo lock, las transiciones quedan append-only y las acciones
+guardan evidencia antes/después. Ver `docs/architecture/insights-engine.md`.
 
 ## Evidencia
 

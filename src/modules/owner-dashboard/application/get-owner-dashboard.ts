@@ -1,4 +1,4 @@
-import { and, asc, desc, eq, isNull, sql } from "drizzle-orm";
+import { and, desc, eq, inArray, isNull } from "drizzle-orm";
 import { z } from "zod";
 
 import { db } from "@/db";
@@ -7,14 +7,12 @@ import {
   healthScoreDimensionSnapshots,
   healthScoreMetricContributions,
   healthScoreSnapshots,
-  locations,
-  memberLocationScopes,
+  insightRuleVersions,
+  insights,
   metricDefinitions,
   metricRunValues,
-  organizationMembers,
-  organizations,
 } from "@/db/zaltyko-schema";
-import { OperationalError } from "@/modules/shared/domain/operational-error";
+import { resolveOwnerScope } from "@/modules/owner-dashboard/application/owner-scope";
 
 export type DashboardDataState = "ready" | "empty" | "stale" | "insufficient";
 
@@ -103,7 +101,6 @@ const dimensionLabels: Record<string, string> = {
   workforce: "Equipo",
 };
 
-const dashboardRoles = new Set(["owner", "admin", "manager"]);
 const dimensionOrder: Record<string, number> = {
   enrollment: 0,
   financial: 1,
@@ -111,130 +108,12 @@ const dimensionOrder: Record<string, number> = {
   workforce: 3,
 };
 
-async function auditDeniedAccess(input: {
-  organizationId?: string;
-  userId: string;
-  reason: string;
-}): Promise<void> {
-  if (!input.organizationId) return;
-  try {
-    await db.execute(sql`
-      insert into zaltyko.audit_log (
-        organization_id, actor_user_id, action, target_type, metadata
-      )
-      select id, ${input.userId}::uuid, 'owner_dashboard.access_denied',
-             'owner_dashboard', jsonb_build_object('reason', ${input.reason}::text)
-      from zaltyko.organizations
-      where id = ${input.organizationId}::uuid
-    `);
-  } catch (error) {
-    if (process.env.NODE_ENV === "test") throw error;
-    // An audit failure must not turn an authorization denial into an oracle.
-  }
-}
-
 export async function getOwnerDashboard(
   input: OwnerDashboardQuery & { userId: string }
 ): Promise<OwnerDashboardBundle> {
-  const memberships = await db
-    .select({
-      memberId: organizationMembers.id,
-      organizationId: organizationMembers.organizationId,
-      organizationName: organizations.name,
-      role: organizationMembers.role,
-      locationScopeMode: organizationMembers.locationScopeMode,
-    })
-    .from(organizationMembers)
-    .innerJoin(
-      organizations,
-      eq(organizations.id, organizationMembers.organizationId)
-    )
-    .where(
-      and(
-        eq(organizationMembers.userId, input.userId),
-        eq(organizationMembers.status, "active")
-      )
-    )
-    .orderBy(asc(organizations.name))
-    .limit(100);
-
-  const membership = input.organizationId
-    ? memberships.find((item) => item.organizationId === input.organizationId)
-    : memberships[0];
-  if (!membership || !dashboardRoles.has(membership.role)) {
-    await auditDeniedAccess({
-      organizationId: input.organizationId,
-      userId: input.userId,
-      reason: "membership_or_role",
-    });
-    throw new OperationalError(
-      "FORBIDDEN",
-      "Sin acceso al Owner Dashboard",
-      403
-    );
-  }
-
-  const allLocations = await db
-    .select({ id: locations.id, name: locations.name })
-    .from(locations)
-    .where(eq(locations.organizationId, membership.organizationId))
-    .orderBy(asc(locations.name))
-    .limit(500);
-  const locationRows =
-    membership.locationScopeMode === "all"
-      ? allLocations
-      : await db
-          .select({ id: locations.id, name: locations.name })
-          .from(memberLocationScopes)
-          .innerJoin(
-            locations,
-            and(
-              eq(locations.organizationId, memberLocationScopes.organizationId),
-              eq(locations.id, memberLocationScopes.locationId)
-            )
-          )
-          .where(
-            and(
-              eq(
-                memberLocationScopes.organizationId,
-                membership.organizationId
-              ),
-              eq(memberLocationScopes.memberId, membership.memberId)
-            )
-          )
-          .orderBy(asc(locations.name))
-          .limit(500);
-  const requestedLocation = input.locationId
-    ? locationRows.find((location) => location.id === input.locationId)
-    : null;
-  if (input.locationId && !requestedLocation) {
-    await auditDeniedAccess({
-      organizationId: membership.organizationId,
-      userId: input.userId,
-      reason: "location_scope",
-    });
-    throw new OperationalError(
-      "LOCATION_SCOPE_DENIED",
-      "Sede fuera de alcance",
-      403
-    );
-  }
-  const canViewOrganizationAggregate = membership.locationScopeMode === "all";
-  const selectedLocationId = canViewOrganizationAggregate
-    ? (requestedLocation?.id ?? null)
-    : (requestedLocation?.id ?? locationRows[0]?.id ?? null);
-  if (!canViewOrganizationAggregate && !selectedLocationId) {
-    await auditDeniedAccess({
-      organizationId: membership.organizationId,
-      userId: input.userId,
-      reason: "no_assigned_locations",
-    });
-    throw new OperationalError(
-      "LOCATION_SCOPE_DENIED",
-      "Sin sedes asignadas",
-      403
-    );
-  }
+  const scope = await resolveOwnerScope(input);
+  const organizationId = scope.organization.id;
+  const selectedLocationId = scope.selectedLocationId;
 
   const locationCondition = selectedLocationId
     ? eq(healthScoreSnapshots.locationId, selectedLocationId)
@@ -252,7 +131,7 @@ export async function getOwnerDashboard(
     )
     .where(
       and(
-        eq(healthScoreSnapshots.organizationId, membership.organizationId),
+        eq(healthScoreSnapshots.organizationId, organizationId),
         locationCondition
       )
     )
@@ -276,33 +155,70 @@ export async function getOwnerDashboard(
       ])
     ).values()
   );
+  const insightLocationCondition = selectedLocationId
+    ? eq(insights.locationId, selectedLocationId)
+    : undefined;
+  const insightRows = await db
+    .select({
+      id: insights.id,
+      severity: insights.severity,
+      title: insights.title,
+      detail: insights.detail,
+      ruleName: insightRuleVersions.name,
+    })
+    .from(insights)
+    .innerJoin(
+      insightRuleVersions,
+      eq(insightRuleVersions.id, insights.ruleVersionId)
+    )
+    .where(
+      and(
+        eq(insights.organizationId, organizationId),
+        inArray(insights.status, ["open", "viewed"]),
+        insightLocationCondition
+      )
+    )
+    .orderBy(desc(insights.priorityScore), desc(insights.lastSeenAt))
+    .limit(3);
+  const insightPriorities: OwnerDashboardBundle["priorities"] = insightRows.map(
+    (insight) => ({
+      key: `insight-${insight.id}`,
+      tone: insight.severity === "info" ? "neutral" : "warning",
+      title: insight.title || insight.ruleName,
+      detail: insight.detail,
+      href: `/owner/insights?organizationId=${organizationId}#insight-${insight.id}`,
+    })
+  );
   if (!latest) {
     return {
       state: "empty",
       organization: {
-        id: membership.organizationId,
-        name: membership.organizationName,
+        id: scope.organization.id,
+        name: scope.organization.name,
       },
       scope: {
         locationId: selectedLocationId,
-        locations: locationRows,
-        canViewOrganizationAggregate,
+        locations: scope.locations,
+        canViewOrganizationAggregate: scope.canViewOrganizationAggregate,
       },
       period: null,
       availablePeriods,
       score: null,
       dimensions: [],
       metrics: [],
-      priorities: [
-        {
-          key: "first-calculation",
-          tone: "neutral",
-          title: "Todavía no hay un cierre calculado",
-          detail:
-            "Completa los datos operativos y ejecuta la primera recomputación.",
-          href: "/owner#data-status",
-        },
-      ],
+      priorities:
+        insightPriorities.length > 0
+          ? insightPriorities
+          : [
+              {
+                key: "first-calculation",
+                tone: "neutral",
+                title: "Todavía no hay un cierre calculado",
+                detail:
+                  "Completa los datos operativos y ejecuta la primera recomputación.",
+                href: "/owner#data-status",
+              },
+            ],
       scoreTrend: [],
     };
   }
@@ -312,10 +228,7 @@ export async function getOwnerDashboard(
     .from(healthScoreDimensionSnapshots)
     .where(
       and(
-        eq(
-          healthScoreDimensionSnapshots.organizationId,
-          membership.organizationId
-        ),
+        eq(healthScoreDimensionSnapshots.organizationId, organizationId),
         eq(
           healthScoreDimensionSnapshots.healthScoreSnapshotId,
           latest.snapshot.id
@@ -328,10 +241,7 @@ export async function getOwnerDashboard(
     .from(healthScoreMetricContributions)
     .where(
       and(
-        eq(
-          healthScoreMetricContributions.organizationId,
-          membership.organizationId
-        ),
+        eq(healthScoreMetricContributions.organizationId, organizationId),
         eq(
           healthScoreMetricContributions.healthScoreSnapshotId,
           latest.snapshot.id
@@ -344,7 +254,7 @@ export async function getOwnerDashboard(
     .from(metricRunValues)
     .where(
       and(
-        eq(metricRunValues.organizationId, membership.organizationId),
+        eq(metricRunValues.organizationId, organizationId),
         eq(metricRunValues.metricRunId, latest.snapshot.metricRunId)
       )
     )
@@ -402,8 +312,9 @@ export async function getOwnerDashboard(
         (dimensionOrder[a.key] ?? Number.MAX_SAFE_INTEGER) -
         (dimensionOrder[b.key] ?? Number.MAX_SAFE_INTEGER)
     );
-  const priorities: OwnerDashboardBundle["priorities"] = [];
+  const priorities: OwnerDashboardBundle["priorities"] = [...insightPriorities];
   for (const dimension of dimensionsBundle) {
+    if (priorities.length >= 3) break;
     if (dimension.status === "insufficient_data") {
       priorities.push({
         key: `dimension-${dimension.key}`,
@@ -421,6 +332,7 @@ export async function getOwnerDashboard(
     )
     .sort((a, b) => Number(a.normalizedScore) - Number(b.normalizedScore))
     .slice(0, 2)) {
+    if (priorities.length >= 3) break;
     priorities.push({
       key: `metric-${contribution.metricKey}`,
       tone: "warning",
@@ -441,13 +353,13 @@ export async function getOwnerDashboard(
   return {
     state,
     organization: {
-      id: membership.organizationId,
-      name: membership.organizationName,
+      id: scope.organization.id,
+      name: scope.organization.name,
     },
     scope: {
       locationId: selectedLocationId,
-      locations: locationRows,
-      canViewOrganizationAggregate,
+      locations: scope.locations,
+      canViewOrganizationAggregate: scope.canViewOrganizationAggregate,
     },
     period: {
       start: latest.snapshot.periodStart,

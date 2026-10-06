@@ -20,7 +20,7 @@ la siguiente.
 | Métricas                                              | PR-05 cerrado localmente                              |
 | Academy Health Score                                  | PR-06 cerrado localmente                              |
 | Dashboard                                             | PR-07 implementado y verificado localmente            |
-| Insights                                              | Pendiente                                             |
+| Insights                                              | PR-08 implementado y verificado localmente            |
 
 ## Secuencia de cambios revisables
 
@@ -149,12 +149,22 @@ humano, programa/grupo, E2E autenticado y runtime remoto siguen `NO VERIFICADO`.
 
 ### PR-08 — Insights y acciones
 
+Estado: **implementado localmente** el 2026-10-06. Modelo, ciclo de vida,
+deduplicación, bandeja y acciones medibles aprobados; evidencia y límites en
+`docs/architecture/insights-engine.md`.
+
 - reglas P0, deduplicación, prioridad, snooze y resolución;
 - acciones y outcome tracking;
 - digest con política anti-fatiga.
 
 Gate: mismo problema no duplica insight; toda acción enlaza métrica, regla,
 actor y resultado.
+
+Resultado: AC-07, triple entrega concurrente, anti-fatiga, cooldown, optimistic
+locking, scope de sede, action/outcome y UI responsive/accesible aprobados sobre
+datos sintéticos. Solo `excess_demand` tiene evaluador conectado; scheduler,
+digest externo, E2E autenticado, carga, calibración real y runtime remoto siguen
+`NO VERIFICADO`.
 
 ### PR-09 — Cutover prepiloto
 

@@ -67,7 +67,7 @@ async function main(): Promise<void> {
   );
   const denied = await pool.query(
     `select count(*)::int as count from zaltyko.audit_log
-     where organization_id = $1 and action = 'owner_dashboard.access_denied'`,
+     where organization_id = $1 and action = 'owner_surface.access_denied'`,
     [ID.org]
   );
   assert.equal(Number(denied.rows[0].count), 1);

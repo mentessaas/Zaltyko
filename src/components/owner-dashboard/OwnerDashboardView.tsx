@@ -143,10 +143,12 @@ function EmptyDashboard({ bundle }: { bundle: OwnerDashboardBundle }) {
             "Completa las operaciones del período y calcula las métricas."}
         </p>
         <Link
-          href="/owner#data-status"
+          href={bundle.priorities[0]?.href ?? "/owner#data-status"}
           className="touch-target mt-7 inline-flex items-center gap-2 rounded-full bg-slate-950 px-5 py-3 text-sm font-bold text-white"
         >
-          Revisar estado de datos{" "}
+          {bundle.priorities[0]?.key.startsWith("insight-")
+            ? "Revisar prioridad"
+            : "Revisar estado de datos"}{" "}
           <ArrowRight className="h-4 w-4" aria-hidden="true" />
         </Link>
       </section>
@@ -213,9 +215,9 @@ export function OwnerDashboardView({
           >
             {[
               ["Resumen", "/owner"],
+              ["Insights", "/owner/insights"],
               ["Inscripciones", "#metric-class_fill_rate"],
               ["Cobros", "#metric-collection_rate"],
-              ["Operaciones", "#metric-attendance_coverage"],
             ].map(([label, href], index) => (
               <Link
                 key={href}
@@ -399,10 +401,10 @@ export function OwnerDashboardView({
               ))}
             </ol>
             <Link
-              href="#metric-collection_rate"
+              href="/owner/insights"
               className="touch-target mt-5 inline-flex w-full items-center justify-center gap-2 bg-teal-800 px-5 py-3 text-sm font-bold text-white hover:bg-teal-900"
             >
-              Revisar cobros{" "}
+              Abrir bandeja de insights{" "}
               <ArrowRight className="h-4 w-4" aria-hidden="true" />
             </Link>
           </div>
