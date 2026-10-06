@@ -7,6 +7,7 @@ type CohortsBundle = Awaited<ReturnType<typeof getRetentionCohorts>>;
 const organization = {
   id: "30000000-0000-0000-0000-000000000001",
   name: "Academia Métricas Sintética",
+  defaultCurrency: "EUR",
 };
 const locations = [
   {

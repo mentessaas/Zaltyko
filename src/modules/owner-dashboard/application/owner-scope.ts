@@ -11,7 +11,7 @@ import {
 import { OperationalError } from "@/modules/shared/domain/operational-error";
 
 export interface OwnerScope {
-  organization: { id: string; name: string };
+  organization: { id: string; name: string; defaultCurrency: string };
   member: {
     id: string;
     role: OrganizationMember["role"];
@@ -56,6 +56,7 @@ export async function resolveOwnerScope(input: {
       memberId: organizationMembers.id,
       organizationId: organizationMembers.organizationId,
       organizationName: organizations.name,
+      defaultCurrency: organizations.defaultCurrency,
       role: organizationMembers.role,
       locationScopeMode: organizationMembers.locationScopeMode,
     })
@@ -154,6 +155,7 @@ export async function resolveOwnerScope(input: {
     organization: {
       id: membership.organizationId,
       name: membership.organizationName,
+      defaultCurrency: membership.defaultCurrency,
     },
     member: {
       id: membership.memberId,

@@ -23,5 +23,6 @@ Stripe Live ni cambios de credenciales.
 | [0010](./0010-dashboard-filter-scope.md)               | Ámbito de filtros de programa y grupo del dashboard |
 | [0011](./0011-score-period-comparison.md)              | Comparabilidad temporal del Health Score            |
 | [0012](./0012-insight-outcome-expiry.md)               | Cierre conservador de outcomes al vencer la ventana |
+| [0013](./0013-simulacion-hipotetica-demanda.md)         | Simulación sin tarifa inferida ni benchmark supuesto |
 
 Contrato analítico inicial: [diccionario de métricas v0](../metric-dictionary-v0.md).

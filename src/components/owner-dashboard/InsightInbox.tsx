@@ -19,6 +19,9 @@ import type {
   InsightListBundle,
   InsightListItem,
 } from "@/modules/insights/application/insight-query";
+import {
+  calculateGroupSimulation,
+} from "@/modules/insights/domain/group-simulation";
 
 const statusLabels: Record<string, string> = {
   open: "Nuevo",
@@ -103,7 +106,30 @@ function InsightCard({
   const [pending, setPending] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [dismissReason, setDismissReason] = useState("");
+  const [simulationOpen, setSimulationOpen] = useState(false);
+  const [proposedCapacity, setProposedCapacity] = useState("");
+  const [monthlyPrice, setMonthlyPrice] = useState("");
   const estimate = formatEstimate(item);
+  const isGroupSimulation = item.ctaKey === "simulate_group";
+  const eligibleDemand = Number(item.evidence.eligibleWaitlist);
+  const capacityValue = Number(proposedCapacity);
+  const priceValue = monthlyPrice.trim() ? Number(monthlyPrice) : undefined;
+  const validSimulation =
+    Number.isInteger(eligibleDemand) &&
+    eligibleDemand >= 0 &&
+    Number.isInteger(capacityValue) &&
+    capacityValue >= 1 &&
+    capacityValue <= 100 &&
+    (priceValue === undefined ||
+      (Number.isFinite(priceValue) && priceValue >= 0 && priceValue <= 100000));
+  const simulation = validSimulation
+    ? calculateGroupSimulation({
+        eligibleDemand,
+        proposedCapacity: capacityValue,
+        monthlyPriceMinor:
+          priceValue === undefined ? undefined : Math.round(priceValue * 100),
+      })
+    : [];
 
   const basePayload = {
     organizationId: bundle.organization.id,
@@ -229,25 +255,116 @@ function InsightCard({
         </p>
       )}
 
+      {isGroupSimulation && simulationOpen && (
+        <section
+          aria-label="Simulación hipotética de un nuevo grupo"
+          className="mt-5 border border-teal-800 bg-[#F3F8F5] p-4 sm:p-6"
+        >
+          <h3 className="text-xl font-semibold">Prueba una hipótesis</h3>
+          <p className="mt-2 max-w-3xl text-sm leading-6 text-slate-700">
+            La demanda contactable viene de la evidencia de este insight. Define
+            tú la capacidad y, si quieres, un precio mensual hipotético. Los
+            porcentajes son escenarios de sensibilidad, no una conversión
+            observada ni un benchmark.
+          </p>
+          <div className="mt-4 grid gap-4 sm:grid-cols-2">
+            <label className="grid gap-2 text-sm font-semibold text-slate-800">
+              Plazas del grupo hipotético
+              <input
+                aria-label="Plazas del grupo hipotético"
+                type="number"
+                min={1}
+                max={100}
+                step={1}
+                inputMode="numeric"
+                value={proposedCapacity}
+                onChange={(event) => setProposedCapacity(event.target.value)}
+                className="min-h-11 border border-slate-400 bg-white px-3 text-base"
+              />
+            </label>
+            <label className="grid gap-2 text-sm font-semibold text-slate-800">
+              Precio mensual hipotético por plaza (opcional, {bundle.organization.defaultCurrency})
+              <input
+                aria-label={`Precio mensual hipotético por plaza en ${bundle.organization.defaultCurrency}`}
+                type="number"
+                min={0}
+                max={100000}
+                step="0.01"
+                inputMode="decimal"
+                value={monthlyPrice}
+                onChange={(event) => setMonthlyPrice(event.target.value)}
+                className="min-h-11 border border-slate-400 bg-white px-3 text-base"
+              />
+            </label>
+          </div>
+          {validSimulation ? (
+            <>
+              <p className="mt-4 text-sm font-semibold text-slate-800">
+                Demanda contactable observada: {eligibleDemand} · plazas
+                hipotéticas vendibles: {Math.min(eligibleDemand, capacityValue)}
+              </p>
+              <div className="mt-3 grid gap-2 sm:grid-cols-3">
+                {simulation.map((scenario) => (
+                  <div key={scenario.key} className="border border-slate-300 bg-white p-3">
+                    <p className="text-xs font-bold uppercase tracking-[0.12em] text-slate-600">
+                      {scenario.label} · {Math.round(scenario.conversionRate * 100)}%
+                    </p>
+                    <p className="mt-1 text-lg font-semibold">
+                      {scenario.estimatedEnrollments} altas hipotéticas
+                    </p>
+                    {scenario.grossMonthlyMinor !== null && (
+                      <p className="font-mono text-sm text-slate-700">
+                        {new Intl.NumberFormat("es-ES", {
+                          style: "currency",
+                          currency: bundle.organization.defaultCurrency,
+                        }).format(scenario.grossMonthlyMinor / 100)} / mes bruto
+                      </p>
+                    )}
+                  </div>
+                ))}
+              </div>
+              <p className="mt-3 text-xs leading-5 text-slate-600">
+                Estimación hipotética, no compromiso de altas ni ingreso. No
+                descuenta impagos, descuentos, impuestos o costes. Ejecutar esta
+                simulación no crea grupo, clase, plazas ni comunicaciones.
+              </p>
+            </>
+          ) : (
+            <p className="mt-4 text-sm text-slate-700">
+              Introduce una capacidad de 1 a 100 plazas para ver los escenarios.
+              El precio, si lo añades, debe estar entre 0 y 100.000 por mes.
+            </p>
+          )}
+        </section>
+      )}
+
       <div className="mt-5 grid gap-3 sm:grid-cols-[1fr_auto]">
         <button
           type="button"
           disabled={pending !== null || item.status === "actioned"}
-          onClick={() =>
-            mutate("action", `/api/v1/insights/${item.id}/actions`, {
+          onClick={() => {
+            if (isGroupSimulation) {
+              setSimulationOpen((open) => !open);
+              return;
+            }
+            void mutate("action", `/api/v1/insights/${item.id}/actions`, {
               ...basePayload,
               actionKey: item.ctaKey,
               targetEntityType: item.entityType,
               targetEntityId: item.entityId ?? undefined,
               beforeValue: item.evidence,
               evaluationWindowDays: 30,
-            })
-          }
+            });
+          }}
           className="touch-target inline-flex items-center justify-center gap-2 bg-teal-800 px-5 py-3 text-sm font-bold text-white hover:bg-teal-900 disabled:cursor-not-allowed disabled:bg-slate-400"
         >
           {item.status === "actioned"
             ? "Acción registrada"
-            : pending === "action"
+            : isGroupSimulation
+              ? simulationOpen
+                ? "Cerrar simulador"
+                : "Simular nuevo grupo"
+              : pending === "action"
               ? "Guardando…"
               : (actionLabels[item.ctaKey] ?? "Empezar acción")}
           {item.status === "actioned" ? (
@@ -256,6 +373,31 @@ function InsightCard({
             <ArrowRight className="h-4 w-4" aria-hidden="true" />
           )}
         </button>
+        {isGroupSimulation && simulationOpen && (
+          <button
+            type="button"
+            disabled={pending !== null || item.status === "actioned" || !validSimulation}
+            onClick={() =>
+              mutate("action", `/api/v1/insights/${item.id}/actions`, {
+                ...basePayload,
+                actionKey: item.ctaKey,
+                targetEntityType: item.entityType,
+                targetEntityId: item.entityId ?? undefined,
+                beforeValue: {
+                  simulationInput: {
+                    proposedCapacity: capacityValue,
+                    monthlyPriceMinor:
+                      priceValue === undefined ? null : Math.round(priceValue * 100),
+                  },
+                },
+                evaluationWindowDays: 30,
+              })
+            }
+            className="touch-target border border-teal-800 px-5 py-3 text-sm font-bold text-teal-900 hover:bg-teal-50 disabled:cursor-not-allowed disabled:text-slate-400"
+          >
+            {pending === "action" ? "Guardando…" : "Guardar simulación y seguimiento"}
+          </button>
+        )}
         <button
           type="button"
           disabled={pending !== null || item.status === "actioned"}

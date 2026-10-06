@@ -9,6 +9,7 @@ const syntheticBundle: InsightListBundle = {
   organization: {
     id: "20000000-0000-0000-0000-000000000001",
     name: "Academia Horizonte — datos sintéticos",
+    defaultCurrency: "EUR",
   },
   scope: {
     locationId: null,
@@ -39,14 +40,13 @@ const syntheticBundle: InsightListBundle = {
       detail:
         "El grupo de iniciación mantiene una ocupación del 92 % y hay 3 solicitudes elegibles en espera.",
       evidence: {
-        fill_rate: 0.92,
-        eligible_waitlist: 3,
-        observed_sessions: 4,
-        monthly_price_minor: 6000,
+        fillRate: 0.92,
+        eligibleWaitlist: 3,
+        observedSessions: 4,
       },
       assumptions: [
-        "La estimación usa una conversión del 50 % al 100 % de la lista elegible.",
-        "La estimación no garantiza ingresos ni sustituye la comprobación de horarios y personal.",
+        "Los escenarios del simulador (50/75/100 %) son sensibilidades no calibradas, no un benchmark.",
+        "El importe solo se calcula con un precio mensual hipotético introducido por la persona usuaria; no garantiza ingresos.",
       ],
       ctaKey: "simulate_group",
       ctaPayload: {},

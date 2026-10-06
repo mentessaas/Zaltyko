@@ -18,6 +18,7 @@ import {
 } from "@/db/zaltyko-schema";
 import type { TransactionClient } from "@/lib/db-transactions";
 import { calculateInsightPriority } from "@/modules/insights/domain/insight-rules";
+import { calculateGroupSimulation } from "@/modules/insights/domain/group-simulation";
 import {
   evaluationActorSchema,
   operationalActorSchema,
@@ -720,6 +721,17 @@ const recordActionSchema = z.object({
   actor: operationalActorSchema,
 });
 
+const groupSimulationInputSchema = z
+  .object({
+    simulationInput: z
+      .object({
+        proposedCapacity: z.number().int().min(1).max(100),
+        monthlyPriceMinor: z.number().int().min(0).max(10_000_000).nullable(),
+      })
+      .strict(),
+  })
+  .strict();
+
 export async function recordInsightAction(
   command: z.input<typeof recordActionSchema>
 ): Promise<InsightAction> {
@@ -746,6 +758,25 @@ export async function recordInsightAction(
           "Clave reutilizada",
           409
         );
+      }
+      if (input.actionKey === "simulate_group") {
+        const requested = groupSimulationInputSchema.safeParse(input.beforeValue);
+        const stored = prior.beforeValue as {
+          simulation?: { proposedCapacity?: number; monthlyPriceMinor?: number | null };
+        };
+        if (
+          !requested.success ||
+          stored.simulation?.proposedCapacity !==
+            requested.data.simulationInput.proposedCapacity ||
+          stored.simulation?.monthlyPriceMinor !==
+            requested.data.simulationInput.monthlyPriceMinor
+        ) {
+          throw new OperationalError(
+            "IDEMPOTENCY_CONFLICT",
+            "Clave reutilizada con otra simulación",
+            409
+          );
+        }
       }
       return prior;
     }
@@ -783,6 +814,57 @@ export async function recordInsightAction(
         422
       );
     }
+    let persistedBeforeValue = input.beforeValue;
+    if (input.actionKey === "simulate_group") {
+      const parsedSimulation = groupSimulationInputSchema.safeParse(
+        input.beforeValue
+      );
+      const sourceEvidence =
+        typeof insight.evidence === "object" && insight.evidence !== null
+          ? (insight.evidence as Record<string, unknown>)
+          : {};
+      const eligibleDemand = sourceEvidence.eligibleWaitlist;
+      if (
+        !parsedSimulation.success ||
+        !Number.isInteger(eligibleDemand) ||
+        Number(eligibleDemand) < 0
+      ) {
+        throw new OperationalError(
+          "INVALID_RELATION",
+          "La simulación requiere demanda agregada válida",
+          422
+        );
+      }
+      const [organization] = await tx
+        .select({ defaultCurrency: organizations.defaultCurrency })
+        .from(organizations)
+        .where(eq(organizations.id, insight.organizationId))
+        .limit(1);
+      if (!organization) {
+        throw new OperationalError("NOT_FOUND", "Academia no encontrada", 404);
+      }
+      const simulationInput = parsedSimulation.data.simulationInput;
+      const scenarios = calculateGroupSimulation({
+        eligibleDemand: Number(eligibleDemand),
+        proposedCapacity: simulationInput.proposedCapacity,
+        monthlyPriceMinor: simulationInput.monthlyPriceMinor ?? undefined,
+      });
+      persistedBeforeValue = {
+        eligibleWaitlist: Number(eligibleDemand),
+        simulation: {
+          proposedCapacity: simulationInput.proposedCapacity,
+          monthlyPriceMinor: simulationInput.monthlyPriceMinor,
+          currency: organization.defaultCurrency,
+          scenarios: scenarios.map((scenario) => ({
+            key: scenario.key,
+            conversionRate: scenario.conversionRate,
+            estimatedEnrollments: scenario.estimatedEnrollments,
+            grossMonthlyMinor: scenario.grossMonthlyMinor,
+          })),
+          assumption: "Uncalibrated sensitivity scenarios; no benchmark.",
+        },
+      };
+    }
     if (!["open", "viewed", "snoozed"].includes(insight.status)) {
       throw new OperationalError(
         "INVALID_STATE_TRANSITION",
@@ -806,7 +888,7 @@ export async function recordInsightAction(
         actorMemberId: member.id,
         targetEntityType: input.targetEntityType,
         targetEntityId: input.targetEntityId ?? null,
-        beforeValue: input.beforeValue,
+        beforeValue: persistedBeforeValue,
         evaluationEndsAt,
         idempotencyKey: input.idempotencyKey,
       })

@@ -25,8 +25,12 @@ consultas históricas y a cada corrida.
 | `critical_data_missing` | incidencias `METRIC_INVALID` abiertas de runs completados; solo traduce explícitamente `class_fill_rate`, `attendance_rate` y `attendance_coverage` a campos permitidos. |
 
 El riesgo individual de retención no se evalúa y sigue `draft`. No se infieren
-benchmarks españoles. CTA `simulate_group` sigue siendo intención, no una
-simulación implementada.
+benchmarks españoles. La CTA `simulate_group` abre una simulación hipotética
+con demanda agregada, capacidad introducida por la persona usuaria y precio
+opcional igualmente hipotético. Los escenarios 50/75/100% son sensibilidades
+no calibradas, no tasas observadas. Sin precio aportado no hay cifra monetaria.
+El flujo no crea clases, grupos, plazas ni comunicaciones; véase
+[ADR-0013](./adr/0013-simulacion-hipotetica-demanda.md).
 
 ## Verificación y límites
 

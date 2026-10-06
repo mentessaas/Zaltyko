@@ -167,6 +167,9 @@ deduplicación, bandeja y acciones medibles aprobados; evidencia y límites en
 - reglas P0, deduplicación, prioridad, snooze y resolución;
 - acciones y outcome tracking;
 - digest con política anti-fatiga.
+- simulación hipotética de `excess_demand`, con capacidad introducida por
+  usuario, precio opcional introducido por usuario y escenarios de sensibilidad
+  explícitamente no calibrados (ADR-0013); no crea entidades ni comunicaciones.
 
 Gate: mismo problema no duplica insight; toda acción enlaza métrica, regla,
 actor y resultado.
@@ -175,7 +178,9 @@ Resultado inicial: AC-07, triple entrega concurrente, anti-fatiga, cooldown,
 optimistic locking, scope de sede, action/outcome y UI responsive/accesible
 aprobados sobre datos sintéticos. El evaluador original cubría solo
 `excess_demand`; PR-11 añade conexión de las nueve reglas P0 activas. El
-simulador de grupo sigue siendo CTA sin flujo ejecutable. El worker cierra
+simulador permite comparar escenarios hipotéticos sin inferir precio; guardar
+la simulación registra el snapshot agregado para seguimiento, no la creación
+del grupo. El worker cierra
 acciones vencidas como `not_measurable` si no existe evidencia humana y resuelve
 el insight `actioned`; carrera humano/worker, audit actor y outbox pasan fixture
 sintético (ADR-0012). Scheduler activo, digest externo, E2E autenticado, carga,
@@ -230,7 +235,8 @@ entrega de digest ni E2E autenticado.
 
 Gate: cada regla activa tiene umbrales, explicación, evidencia sin PII,
 deduplicación y resolución probadas. Pendiente reforzar pruebas de activación y
-resolución por regla, semántica del simulador CTA, carga y operación programada.
+resolución por regla, calibración de escenarios con cohortes validadas, carga y
+operación programada.
 
 ### PR-12 — Workers, SLA y notificaciones
 

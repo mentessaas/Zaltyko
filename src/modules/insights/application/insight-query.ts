@@ -53,7 +53,7 @@ export interface InsightListItem {
 }
 
 export interface InsightListBundle {
-  organization: { id: string; name: string };
+  organization: { id: string; name: string; defaultCurrency: string };
   scope: {
     locationId: string | null;
     locations: Array<{ id: string; name: string }>;

@@ -245,7 +245,9 @@ async function main(): Promise<void> {
         actionKey: "simulate_group",
         targetEntityType: "class_template",
         targetEntityId: ID.classA,
-        beforeValue: { fillRate: 0.92, eligibleWaitlist: 3 },
+        beforeValue: {
+          simulationInput: { proposedCapacity: 8, monthlyPriceMinor: 6000 },
+        },
         evaluationWindowDays: 30,
         idempotencyKey: "insight-action-stale-version",
         actor: owner,
@@ -254,6 +256,23 @@ async function main(): Promise<void> {
   );
 
   insightA = await loadInsight(ID.classA);
+  await expectOperationalError(
+    () =>
+      recordInsightAction({
+        organizationId: ID.org,
+        authorizationLocationId: ID.north,
+        insightId: insightA.id,
+        expectedVersion: insightA.version,
+        actionKey: "simulate_group",
+        targetEntityType: "class_template",
+        targetEntityId: ID.classA,
+        beforeValue: { privateNote: "no debe persistirse" },
+        evaluationWindowDays: 30,
+        idempotencyKey: "insight-action-malformed-simulation",
+        actor: owner,
+      }),
+    "INVALID_RELATION"
+  );
   const action = await recordInsightAction({
     organizationId: ID.org,
     authorizationLocationId: ID.north,
@@ -262,7 +281,9 @@ async function main(): Promise<void> {
     actionKey: "simulate_group",
     targetEntityType: "class_template",
     targetEntityId: ID.classA,
-    beforeValue: { fillRate: 0.92, eligibleWaitlist: 3 },
+    beforeValue: {
+      simulationInput: { proposedCapacity: 8, monthlyPriceMinor: 6000 },
+    },
     evaluationWindowDays: 30,
     idempotencyKey: "insight-action-001",
     actor: owner,
@@ -275,12 +296,47 @@ async function main(): Promise<void> {
     actionKey: "simulate_group",
     targetEntityType: "class_template",
     targetEntityId: ID.classA,
-    beforeValue: { fillRate: 0.92, eligibleWaitlist: 3 },
+    beforeValue: {
+      simulationInput: { proposedCapacity: 8, monthlyPriceMinor: 6000 },
+    },
     evaluationWindowDays: 30,
     idempotencyKey: "insight-action-001",
     actor: owner,
   });
   assert.equal(actionRetry.id, action.id);
+  assert.deepEqual(action.beforeValue, {
+    eligibleWaitlist: 3,
+    simulation: {
+      proposedCapacity: 8,
+      monthlyPriceMinor: 6000,
+      currency: "EUR",
+      scenarios: [
+        { key: "low", conversionRate: 0.5, estimatedEnrollments: 1, grossMonthlyMinor: 6000 },
+        { key: "base", conversionRate: 0.75, estimatedEnrollments: 2, grossMonthlyMinor: 12000 },
+        { key: "high", conversionRate: 1, estimatedEnrollments: 3, grossMonthlyMinor: 18000 },
+      ],
+      assumption: "Uncalibrated sensitivity scenarios; no benchmark.",
+    },
+  });
+  await expectOperationalError(
+    () =>
+      recordInsightAction({
+        organizationId: ID.org,
+        authorizationLocationId: ID.north,
+        insightId: insightA.id,
+        expectedVersion: insightA.version,
+        actionKey: "simulate_group",
+        targetEntityType: "class_template",
+        targetEntityId: ID.classA,
+        beforeValue: {
+          simulationInput: { proposedCapacity: 7, monthlyPriceMinor: 6000 },
+        },
+        evaluationWindowDays: 30,
+        idempotencyKey: "insight-action-001",
+        actor: owner,
+      }),
+    "IDEMPOTENCY_CONFLICT"
+  );
   assert.equal(await count("zaltyko.insight_actions"), 1);
 
   const completed = await completeInsightAction({
@@ -430,7 +486,7 @@ async function main(): Promise<void> {
     `select id, version, location_id, entity_type, entity_id, cta_key
      from zaltyko.insights
      where organization_id = $1 and location_id = $2
-       and status in ('open', 'viewed')
+       and status in ('open', 'viewed') and cta_key <> 'simulate_group'
      order by priority_score desc, id asc limit 1`,
     [ID.org, ID.north]
   );
