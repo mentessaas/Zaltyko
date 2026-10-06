@@ -73,6 +73,7 @@
     "test:zaltyko-metrics-engine:local": "bash scripts/run-zaltyko-metrics-engine-local.sh",
     "test:zaltyko-health-score-foundation:local": "bash scripts/run-zaltyko-health-score-foundation-local.sh",
     "test:zaltyko-health-score-engine:local": "bash scripts/run-zaltyko-health-score-engine-local.sh",
+    "test:zaltyko-owner-dashboard-query:local": "ZALTYKO_VERIFY_OWNER_DASHBOARD_QUERY=1 bash scripts/run-zaltyko-health-score-engine-local.sh",
     "check:migrations": "tsx scripts/check-migrations-integrity.ts"
   },
   "dependencies": {

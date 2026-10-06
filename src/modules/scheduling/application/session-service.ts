@@ -60,7 +60,8 @@ async function loadSessionsByIds(
         inArray(sessions.id, ids)
       )
     )
-    .orderBy(asc(sessions.startsAt));
+    .orderBy(asc(sessions.startsAt))
+    .limit(1000);
 }
 
 export async function materializeSessions(

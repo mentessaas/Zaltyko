@@ -49,3 +49,10 @@ DATABASE_URL="postgresql://127.0.0.1:${PG_PORT}/postgres" \
 DATABASE_URL_POOL="postgresql://127.0.0.1:${PG_PORT}/postgres" \
 DATABASE_POOL_MAX=4 NODE_ENV=test \
   pnpm --dir "${ROOT_DIR}" exec tsx scripts/verify-zaltyko-health-score-engine.ts
+
+if [[ "${ZALTYKO_VERIFY_OWNER_DASHBOARD_QUERY:-0}" == "1" ]]; then
+  DATABASE_URL="postgresql://127.0.0.1:${PG_PORT}/postgres" \
+  DATABASE_URL_POOL="postgresql://127.0.0.1:${PG_PORT}/postgres" \
+  DATABASE_POOL_MAX=8 NODE_ENV=test \
+    pnpm --dir "${ROOT_DIR}" exec tsx scripts/verify-zaltyko-owner-dashboard-query.ts
+fi

@@ -161,17 +161,18 @@ export async function calculateAcademyHealthScore(
       .from(healthScoreDimensionWeights)
       .where(
         eq(healthScoreDimensionWeights.healthScoreVersionId, scoreVersion.id)
-      );
+      )
+      .limit(16);
     const metricWeights = await tx
       .select()
       .from(healthScoreMetricWeights)
-      .where(
-        eq(healthScoreMetricWeights.healthScoreVersionId, scoreVersion.id)
-      );
+      .where(eq(healthScoreMetricWeights.healthScoreVersionId, scoreVersion.id))
+      .limit(200);
     const targets = await tx
       .select()
       .from(benchmarkMetricTargets)
-      .where(eq(benchmarkMetricTargets.benchmarkProfileId, profile.id));
+      .where(eq(benchmarkMetricTargets.benchmarkProfileId, profile.id))
+      .limit(200);
     const values = await tx
       .select()
       .from(metricRunValues)
@@ -180,7 +181,8 @@ export async function calculateAcademyHealthScore(
           eq(metricRunValues.organizationId, input.organizationId),
           eq(metricRunValues.metricRunId, run.id)
         )
-      );
+      )
+      .limit(200);
 
     const valuesByKey = new Map(
       values.map((value) => [value.metricKey, value])

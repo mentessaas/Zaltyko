@@ -1,0 +1,488 @@
+import { and, asc, desc, eq, isNull, sql } from "drizzle-orm";
+import { z } from "zod";
+
+import { db } from "@/db";
+import {
+  benchmarkProfiles,
+  healthScoreDimensionSnapshots,
+  healthScoreMetricContributions,
+  healthScoreSnapshots,
+  locations,
+  memberLocationScopes,
+  metricDefinitions,
+  metricRunValues,
+  organizationMembers,
+  organizations,
+} from "@/db/zaltyko-schema";
+import { OperationalError } from "@/modules/shared/domain/operational-error";
+
+export type DashboardDataState = "ready" | "empty" | "stale" | "insufficient";
+
+export const ownerDashboardQuerySchema = z
+  .object({
+    organizationId: z.string().uuid().optional(),
+    locationId: z.string().uuid().optional(),
+    from: z.string().date().optional(),
+    to: z.string().date().optional(),
+  })
+  .refine((value) => Boolean(value.from) === Boolean(value.to), {
+    message: "from y to deben enviarse juntos",
+    path: ["from"],
+  })
+  .refine((value) => !value.from || !value.to || value.from <= value.to, {
+    message: "El período es inválido",
+    path: ["to"],
+  });
+
+export type OwnerDashboardQuery = z.infer<typeof ownerDashboardQuerySchema>;
+
+export interface OwnerDashboardBundle {
+  state: DashboardDataState;
+  organization: { id: string; name: string };
+  scope: {
+    locationId: string | null;
+    locations: { id: string; name: string }[];
+    canViewOrganizationAggregate: boolean;
+  };
+  period: { start: string; end: string } | null;
+  availablePeriods: Array<{ start: string; end: string }>;
+  score: {
+    id: string;
+    value: number | null;
+    status: string;
+    coverage: number;
+    computedAt: string;
+    sourceWatermark: string;
+    benchmarkName: string;
+    benchmarkSource: string;
+    explanation: Record<string, unknown>;
+  } | null;
+  dimensions: Array<{
+    key: string;
+    label: string;
+    score: number | null;
+    status: string;
+    coverage: number;
+    availableMetricWeight: number;
+    configuredMetricWeight: number;
+  }>;
+  metrics: Array<{
+    key: string;
+    name: string;
+    unit: string;
+    value: number | null;
+    currency: string | null;
+    numerator: number | null;
+    denominator: number | null;
+    coverage: number;
+    quality: string;
+    formulaVersion: number;
+    normalizedScore: number | null;
+    target: number | null;
+    weight: number | null;
+    sourceWatermark: string;
+  }>;
+  priorities: Array<{
+    key: string;
+    tone: "warning" | "neutral";
+    title: string;
+    detail: string;
+    href: string;
+  }>;
+  scoreTrend: Array<{
+    periodEnd: string;
+    score: number | null;
+    status: string;
+  }>;
+}
+
+const dimensionLabels: Record<string, string> = {
+  enrollment: "Inscripciones",
+  financial: "Cobros",
+  operational: "Operaciones",
+  workforce: "Equipo",
+};
+
+const dashboardRoles = new Set(["owner", "admin", "manager"]);
+const dimensionOrder: Record<string, number> = {
+  enrollment: 0,
+  financial: 1,
+  operational: 2,
+  workforce: 3,
+};
+
+async function auditDeniedAccess(input: {
+  organizationId?: string;
+  userId: string;
+  reason: string;
+}): Promise<void> {
+  if (!input.organizationId) return;
+  try {
+    await db.execute(sql`
+      insert into zaltyko.audit_log (
+        organization_id, actor_user_id, action, target_type, metadata
+      )
+      select id, ${input.userId}::uuid, 'owner_dashboard.access_denied',
+             'owner_dashboard', jsonb_build_object('reason', ${input.reason}::text)
+      from zaltyko.organizations
+      where id = ${input.organizationId}::uuid
+    `);
+  } catch (error) {
+    if (process.env.NODE_ENV === "test") throw error;
+    // An audit failure must not turn an authorization denial into an oracle.
+  }
+}
+
+export async function getOwnerDashboard(
+  input: OwnerDashboardQuery & { userId: string }
+): Promise<OwnerDashboardBundle> {
+  const memberships = await db
+    .select({
+      memberId: organizationMembers.id,
+      organizationId: organizationMembers.organizationId,
+      organizationName: organizations.name,
+      role: organizationMembers.role,
+      locationScopeMode: organizationMembers.locationScopeMode,
+    })
+    .from(organizationMembers)
+    .innerJoin(
+      organizations,
+      eq(organizations.id, organizationMembers.organizationId)
+    )
+    .where(
+      and(
+        eq(organizationMembers.userId, input.userId),
+        eq(organizationMembers.status, "active")
+      )
+    )
+    .orderBy(asc(organizations.name))
+    .limit(100);
+
+  const membership = input.organizationId
+    ? memberships.find((item) => item.organizationId === input.organizationId)
+    : memberships[0];
+  if (!membership || !dashboardRoles.has(membership.role)) {
+    await auditDeniedAccess({
+      organizationId: input.organizationId,
+      userId: input.userId,
+      reason: "membership_or_role",
+    });
+    throw new OperationalError(
+      "FORBIDDEN",
+      "Sin acceso al Owner Dashboard",
+      403
+    );
+  }
+
+  const allLocations = await db
+    .select({ id: locations.id, name: locations.name })
+    .from(locations)
+    .where(eq(locations.organizationId, membership.organizationId))
+    .orderBy(asc(locations.name))
+    .limit(500);
+  const locationRows =
+    membership.locationScopeMode === "all"
+      ? allLocations
+      : await db
+          .select({ id: locations.id, name: locations.name })
+          .from(memberLocationScopes)
+          .innerJoin(
+            locations,
+            and(
+              eq(locations.organizationId, memberLocationScopes.organizationId),
+              eq(locations.id, memberLocationScopes.locationId)
+            )
+          )
+          .where(
+            and(
+              eq(
+                memberLocationScopes.organizationId,
+                membership.organizationId
+              ),
+              eq(memberLocationScopes.memberId, membership.memberId)
+            )
+          )
+          .orderBy(asc(locations.name))
+          .limit(500);
+  const requestedLocation = input.locationId
+    ? locationRows.find((location) => location.id === input.locationId)
+    : null;
+  if (input.locationId && !requestedLocation) {
+    await auditDeniedAccess({
+      organizationId: membership.organizationId,
+      userId: input.userId,
+      reason: "location_scope",
+    });
+    throw new OperationalError(
+      "LOCATION_SCOPE_DENIED",
+      "Sede fuera de alcance",
+      403
+    );
+  }
+  const canViewOrganizationAggregate = membership.locationScopeMode === "all";
+  const selectedLocationId = canViewOrganizationAggregate
+    ? (requestedLocation?.id ?? null)
+    : (requestedLocation?.id ?? locationRows[0]?.id ?? null);
+  if (!canViewOrganizationAggregate && !selectedLocationId) {
+    await auditDeniedAccess({
+      organizationId: membership.organizationId,
+      userId: input.userId,
+      reason: "no_assigned_locations",
+    });
+    throw new OperationalError(
+      "LOCATION_SCOPE_DENIED",
+      "Sin sedes asignadas",
+      403
+    );
+  }
+
+  const locationCondition = selectedLocationId
+    ? eq(healthScoreSnapshots.locationId, selectedLocationId)
+    : isNull(healthScoreSnapshots.locationId);
+  const snapshotRows = await db
+    .select({
+      snapshot: healthScoreSnapshots,
+      benchmarkName: benchmarkProfiles.name,
+      benchmarkSource: benchmarkProfiles.sourceTitle,
+    })
+    .from(healthScoreSnapshots)
+    .innerJoin(
+      benchmarkProfiles,
+      eq(benchmarkProfiles.id, healthScoreSnapshots.benchmarkProfileId)
+    )
+    .where(
+      and(
+        eq(healthScoreSnapshots.organizationId, membership.organizationId),
+        locationCondition
+      )
+    )
+    .orderBy(
+      desc(healthScoreSnapshots.periodEnd),
+      desc(healthScoreSnapshots.computedAt)
+    )
+    .limit(12);
+  const latest = input.from
+    ? snapshotRows.find(
+        (row) =>
+          row.snapshot.periodStart === input.from &&
+          row.snapshot.periodEnd === input.to
+      )
+    : snapshotRows[0];
+  const availablePeriods = Array.from(
+    new Map(
+      snapshotRows.map((row) => [
+        `${row.snapshot.periodStart}:${row.snapshot.periodEnd}`,
+        { start: row.snapshot.periodStart, end: row.snapshot.periodEnd },
+      ])
+    ).values()
+  );
+  if (!latest) {
+    return {
+      state: "empty",
+      organization: {
+        id: membership.organizationId,
+        name: membership.organizationName,
+      },
+      scope: {
+        locationId: selectedLocationId,
+        locations: locationRows,
+        canViewOrganizationAggregate,
+      },
+      period: null,
+      availablePeriods,
+      score: null,
+      dimensions: [],
+      metrics: [],
+      priorities: [
+        {
+          key: "first-calculation",
+          tone: "neutral",
+          title: "Todavía no hay un cierre calculado",
+          detail:
+            "Completa los datos operativos y ejecuta la primera recomputación.",
+          href: "/owner#data-status",
+        },
+      ],
+      scoreTrend: [],
+    };
+  }
+
+  const dimensionRows = await db
+    .select()
+    .from(healthScoreDimensionSnapshots)
+    .where(
+      and(
+        eq(
+          healthScoreDimensionSnapshots.organizationId,
+          membership.organizationId
+        ),
+        eq(
+          healthScoreDimensionSnapshots.healthScoreSnapshotId,
+          latest.snapshot.id
+        )
+      )
+    )
+    .limit(4);
+  const contributionRows = await db
+    .select()
+    .from(healthScoreMetricContributions)
+    .where(
+      and(
+        eq(
+          healthScoreMetricContributions.organizationId,
+          membership.organizationId
+        ),
+        eq(
+          healthScoreMetricContributions.healthScoreSnapshotId,
+          latest.snapshot.id
+        )
+      )
+    )
+    .limit(100);
+  const runValues = await db
+    .select()
+    .from(metricRunValues)
+    .where(
+      and(
+        eq(metricRunValues.organizationId, membership.organizationId),
+        eq(metricRunValues.metricRunId, latest.snapshot.metricRunId)
+      )
+    )
+    .limit(200);
+  const definitions = await db.select().from(metricDefinitions).limit(200);
+  const definitionByKey = new Map(definitions.map((item) => [item.key, item]));
+  const contributionByKey = new Map(
+    contributionRows.map((item) => [item.metricKey, item])
+  );
+
+  const metrics = runValues.map((value) => {
+    const definition = definitionByKey.get(value.metricKey);
+    const contribution = contributionByKey.get(value.metricKey);
+    return {
+      key: value.metricKey,
+      name: definition?.name ?? value.metricKey,
+      unit: definition?.unit ?? "count",
+      value: value.valueNumeric === null ? null : Number(value.valueNumeric),
+      currency: value.currency,
+      numerator: value.numerator === null ? null : Number(value.numerator),
+      denominator:
+        value.denominator === null ? null : Number(value.denominator),
+      coverage: Number(value.coverage),
+      quality: value.quality,
+      formulaVersion: value.formulaVersion,
+      normalizedScore:
+        contribution?.normalizedScore === null ||
+        contribution?.normalizedScore === undefined
+          ? null
+          : Number(contribution.normalizedScore),
+      target:
+        contribution?.targetValue === null ||
+        contribution?.targetValue === undefined
+          ? null
+          : Number(contribution.targetValue),
+      weight:
+        contribution?.metricWeight === undefined
+          ? null
+          : Number(contribution.metricWeight),
+      sourceWatermark: value.sourceWatermark.toISOString(),
+    };
+  });
+  const dimensionsBundle = dimensionRows
+    .map((dimension) => ({
+      key: dimension.dimension,
+      label: dimensionLabels[dimension.dimension] ?? dimension.dimension,
+      score: dimension.score === null ? null : Number(dimension.score),
+      status: dimension.status,
+      coverage: Number(dimension.coverage),
+      availableMetricWeight: Number(dimension.availableMetricWeight),
+      configuredMetricWeight: Number(dimension.configuredMetricWeight),
+    }))
+    .sort(
+      (a, b) =>
+        (dimensionOrder[a.key] ?? Number.MAX_SAFE_INTEGER) -
+        (dimensionOrder[b.key] ?? Number.MAX_SAFE_INTEGER)
+    );
+  const priorities: OwnerDashboardBundle["priorities"] = [];
+  for (const dimension of dimensionsBundle) {
+    if (dimension.status === "insufficient_data") {
+      priorities.push({
+        key: `dimension-${dimension.key}`,
+        tone: "neutral",
+        title: `Completar datos de ${dimension.label.toLowerCase()}`,
+        detail: `Cobertura ${(dimension.coverage * 100).toFixed(0)}%. No se convierte la ausencia de datos en un cero.`,
+        href: `#dimension-${dimension.key}`,
+      });
+    }
+  }
+  for (const contribution of contributionRows
+    .filter(
+      (item) =>
+        item.normalizedScore !== null && Number(item.normalizedScore) < 70
+    )
+    .sort((a, b) => Number(a.normalizedScore) - Number(b.normalizedScore))
+    .slice(0, 2)) {
+    priorities.push({
+      key: `metric-${contribution.metricKey}`,
+      tone: "warning",
+      title:
+        definitionByKey.get(contribution.metricKey)?.name ??
+        contribution.metricKey,
+      detail: `Índice ${Number(contribution.normalizedScore).toFixed(0)}/100 frente al objetivo del perfil.`,
+      href: `#metric-${contribution.metricKey}`,
+    });
+  }
+  const hasStale = metrics.some((metric) => metric.quality === "stale");
+  const state: DashboardDataState = hasStale
+    ? "stale"
+    : latest.snapshot.status === "insufficient_data"
+      ? "insufficient"
+      : "ready";
+
+  return {
+    state,
+    organization: {
+      id: membership.organizationId,
+      name: membership.organizationName,
+    },
+    scope: {
+      locationId: selectedLocationId,
+      locations: locationRows,
+      canViewOrganizationAggregate,
+    },
+    period: {
+      start: latest.snapshot.periodStart,
+      end: latest.snapshot.periodEnd,
+    },
+    availablePeriods,
+    score: {
+      id: latest.snapshot.id,
+      value:
+        latest.snapshot.score === null ? null : Number(latest.snapshot.score),
+      status: latest.snapshot.status,
+      coverage: Number(latest.snapshot.coverage),
+      computedAt: latest.snapshot.computedAt.toISOString(),
+      sourceWatermark: latest.snapshot.sourceWatermark.toISOString(),
+      benchmarkName: latest.benchmarkName,
+      benchmarkSource: latest.benchmarkSource,
+      explanation: latest.snapshot.explanation,
+    },
+    dimensions: dimensionsBundle,
+    metrics,
+    priorities: priorities.slice(0, 3),
+    scoreTrend: snapshotRows
+      .filter(
+        (row, index, rows) =>
+          rows.findIndex(
+            (candidate) =>
+              candidate.snapshot.periodEnd === row.snapshot.periodEnd
+          ) === index
+      )
+      .slice(0, 6)
+      .map((row) => ({
+        periodEnd: row.snapshot.periodEnd,
+        score: row.snapshot.score === null ? null : Number(row.snapshot.score),
+        status: row.snapshot.status,
+      }))
+      .reverse(),
+  };
+}

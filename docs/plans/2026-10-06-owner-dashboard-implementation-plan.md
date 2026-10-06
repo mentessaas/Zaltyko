@@ -16,10 +16,11 @@ la siguiente.
 | Contratos TypeScript                                  | Organización, enrollment, capacidad y eventos creados |
 | RLS/grants                                            | Matriz local tenant/sede/privilegios aprobada         |
 | Capa operativa                                        | Implementada y verificada localmente                  |
-| Ledger                                                | PR-04 cerrado localmente; sin procesador remoto        |
+| Ledger                                                | PR-04 cerrado localmente; sin procesador remoto       |
 | Métricas                                              | PR-05 cerrado localmente                              |
 | Academy Health Score                                  | PR-06 cerrado localmente                              |
-| Dashboard e insights                                  | Pendientes                                            |
+| Dashboard                                             | PR-07 implementado y verificado localmente            |
+| Insights                                              | Pendiente                                             |
 
 ## Secuencia de cambios revisables
 
@@ -129,6 +130,10 @@ sintético; no existe benchmark español validado ni evidencia remota.
 
 ### PR-07 — Query layer y Owner Dashboard
 
+Estado: **implementada localmente** el 2026-10-06. Contrato, autorización,
+responsive y accesibilidad automatizada aprobados; evidencia y límites en
+`docs/architecture/owner-dashboard-query-ui.md`.
+
 - API/bundle de lectura con filtros de período, sede, programa y grupo;
 - `/owner` responsive, mobile-first y accesible;
 - score, prioridades, KPIs, tendencias, capacidad, retención y cobros;
@@ -136,6 +141,11 @@ sintético; no existe benchmark español validado ni evidencia remota.
 
 Gate: 375/768/1280 px, teclado/VoiceOver, sin escaneo de eventos en request y
 p95 medido contra volumen objetivo.
+
+Resultado: 375/768/1280 sin overflow, navegación de teclado y Axe sin
+infracciones, lectura exclusiva de read models, AC-08/AC-09 y build aprobados.
+El p95 local sintético es 54,3 ms, pero AC-12 a volumen objetivo, VoiceOver
+humano, programa/grupo, E2E autenticado y runtime remoto siguen `NO VERIFICADO`.
 
 ### PR-08 — Insights y acciones
 

@@ -6,6 +6,22 @@ All notable changes to Zaltyko are documented here. Format follows
 > SHA referenced corresponds to commits on `zaltyko-onboarding-ZAL-137`.
 > For commits on previous branches, refer to the git history directly.
 
+## 2026-10-06 — Nuevo núcleo PR-07: Owner Dashboard
+
+### Added
+
+- Query layer agregada y API `/api/v1/owner/dashboard` con auth antes de
+  validación, scope de sede y errores problem+json.
+- `/owner` mobile-first con score explicable, prioridades, KPIs, tendencia,
+  cobros, calidad, estados degradados y tabla accesible equivalente.
+- Preview exclusivamente local y gate de contrato cross-tenant/sede con
+  20 lecturas concurrentes.
+
+### Límites
+
+- P95 a volumen objetivo, filtros por programa/grupo, VoiceOver humano, E2E
+  autenticado, cache remoto, despliegue y producción no verificados.
+
 ## 2026-10-06 — Nuevo núcleo PR-06: Academy Health Score
 
 ### Added
@@ -70,7 +86,7 @@ All notable changes to Zaltyko are documented here. Format follows
 Todo lo siguiente es local/sandbox; no es evidencia de producción, readiness,
 adopción ni validación humana.
 
-````text
+```text
 $ ls -la /Users/elvisvaldesinerarte/Desktop/_PROYECTOS/Zaltyko/package.json
 -rw-r--r--@ 1 elvisvaldesinerarte  staff  8823 Aug 15 12:32 /Users/elvisvaldesinerarte/Desktop/_PROYECTOS/Zaltyko/package.json
 $ wc -l /Users/elvisvaldesinerarte/Desktop/_PROYECTOS/Zaltyko/package.json
@@ -111,7 +127,7 @@ $ CI=1 pnpm exec vitest run tests/gates-static.test.ts --config vitest.gates.con
 ...
 close timed out after 1000ms
 Tests closed successfully but something prevents Vite server from exiting
-````
+```
 
 No se tocaron producción, dominios, secretos, datos reales, Stripe live,
 pricing, campañas, publicaciones, stores ni migraciones remotas.
@@ -125,8 +141,8 @@ pricing, campañas, publicaciones, stores ni migraciones remotas.
   (>7 min at 0% CPU, no child process spawned), which left `pnpm gate:all` —
   the CI entrypoint — unusable. tsx is now resolved through Node's own
   resolver (`require.resolve("tsx/cli")`) and run with `process.execPath`.
-- `run-all.ts` conflated a gate that *found violations* with a gate that
-  *failed to launch*: both collapsed into exit 1 via `proc.status ?? 1`. A
+- `run-all.ts` conflated a gate that _found violations_ with a gate that
+  _failed to launch_: both collapsed into exit 1 via `proc.status ?? 1`. A
   launch failure is now reported explicitly on stderr.
 - `gates.test.ts` spawned its end-to-end smoke tests with `cwd` set to the
   repo's **parent** directory (`path.join(ROOT, "..", "..", "..")` where
@@ -208,7 +224,7 @@ pricing, campañas, publicaciones, stores ni migraciones remotas.
   mode correctly exits non-zero and reports file, line, rule, reason and hint.
 - `pnpm gate:test` now exercises A2, A3, A4, the aggregate runner and retention:
   17/17 custom checks passed. The focal Vitest suite emitted `Tests  4 passed
-  (4)`, then the local runner reported a close timeout; it is retained as a
+(4)`, then the local runner reported a close timeout; it is retained as a
   fixture contract but is not treated as an overall CI green result.
 - No production, external domain, Stripe live, secrets, real data, pricing,
   campaigns, publications or remote migrations were touched. This is local
