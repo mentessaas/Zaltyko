@@ -71,6 +71,8 @@
     "test:zaltyko-ledger-services:local": "bash scripts/run-zaltyko-ledger-services-local.sh",
     "test:zaltyko-metrics-foundation:local": "bash scripts/run-zaltyko-metrics-foundation-local.sh",
     "test:zaltyko-metrics-engine:local": "bash scripts/run-zaltyko-metrics-engine-local.sh",
+    "test:zaltyko-health-score-foundation:local": "bash scripts/run-zaltyko-health-score-foundation-local.sh",
+    "test:zaltyko-health-score-engine:local": "bash scripts/run-zaltyko-health-score-engine-local.sh",
     "check:migrations": "tsx scripts/check-migrations-integrity.ts"
   },
   "dependencies": {

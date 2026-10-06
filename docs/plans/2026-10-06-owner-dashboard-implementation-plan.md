@@ -18,7 +18,8 @@ la siguiente.
 | Capa operativa                                        | Implementada y verificada localmente                  |
 | Ledger                                                | PR-04 cerrado localmente; sin procesador remoto        |
 | Métricas                                              | PR-05 cerrado localmente                              |
-| Score, dashboard e insights                           | Pendientes                                            |
+| Academy Health Score                                  | PR-06 cerrado localmente                              |
+| Dashboard e insights                                  | Pendientes                                            |
 
 ## Secuencia de cambios revisables
 
@@ -110,12 +111,21 @@ remoto siguen fuera de evidencia.
 
 ### PR-06 — Academy Health Score
 
+Estado: **cerrada localmente** el 2026-10-06. Versiones, perfiles, snapshots,
+dimensiones y contribuciones explicables aprobados; evidencia en
+`docs/architecture/health-score-engine.md`.
+
 - benchmark profiles, versiones y pesos;
 - snapshots globales y por dimensión;
 - normalización, redistribución explícita y `insufficient_data`;
 - explicación por contribución y recomputación administrativa auditada.
 
 Gate: AC-01, AC-02 y AC-13 del PRD sobre fixture congelado.
+
+Resultado: AC-01 explica cinco contribuciones; AC-02 produce
+`insufficient_data` al perder 45% de Enrollment; AC-13 conserva snapshots y
+recalcula 83,28 con idéntica versión/entrada. El único perfil probado es
+sintético; no existe benchmark español validado ni evidencia remota.
 
 ### PR-07 — Query layer y Owner Dashboard
 

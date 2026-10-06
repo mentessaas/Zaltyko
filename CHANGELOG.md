@@ -6,6 +6,21 @@ All notable changes to Zaltyko are documented here. Format follows
 > SHA referenced corresponds to commits on `zaltyko-onboarding-ZAL-137`.
 > For commits on previous branches, refer to the git history directly.
 
+## 2026-10-06 — Nuevo núcleo PR-06: Academy Health Score
+
+### Added
+
+- Perfiles benchmark y targets versionados, versión de score, pesos de
+  dimensión/métrica y snapshots explicables.
+- Gates de publicación por cobertura y datos insuficientes, normalización
+  higher/lower y bandas de presentación.
+- Evidencia local para AC-01, AC-02 y AC-13 con perfil exclusivamente sintético.
+
+### Límites
+
+- Sin benchmark España validado, Workforce Health, API, UI, despliegue ni
+  calibración con datos reales.
+
 ## 2026-10-06 — Nuevo núcleo PR-05: motor de métricas
 
 ### Added

@@ -1,6 +1,6 @@
 # ADR-0005 — Métricas, Health Score e Insights
 
-- Estado: aceptada; motor de métricas v1 cerrado localmente, score e insights pendientes
+- Estado: aceptada; métricas y score v1 cerrados localmente, insights pendientes
 - Fecha: 2026-10-06
 - Alcance: analytics, scoring, dashboard e insights
 
@@ -39,6 +39,9 @@ La evidencia, fórmulas y límites están en
 `docs/architecture/metric-engine.md`. PR-06 puede consumir exclusivamente
 `metric_values`/`metric_run_values`; no puede consultar operaciones para
 reformular métricas dentro del score.
+
+PR-06 cumple esa frontera: el score referencia evidencia inmutable de un run y
+un benchmark versionado. Ver `docs/architecture/health-score-engine.md`.
 
 ## Evidencia
 

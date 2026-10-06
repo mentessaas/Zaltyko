@@ -192,6 +192,10 @@ export const metricRunValues = zaltyko.table(
   "metric_run_values",
   metricValueColumns,
   (table) => [
+    uniqueIndex("metric_run_values_organization_id_id_uq").on(
+      table.organizationId,
+      table.id
+    ),
     foreignKey({
       name: "metric_run_values_run_fk",
       columns: [table.organizationId, table.metricRunId],
