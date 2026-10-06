@@ -170,6 +170,8 @@ deduplicación, bandeja y acciones medibles aprobados; evidencia y límites en
 - simulación hipotética de `excess_demand`, con capacidad introducida por
   usuario, precio opcional introducido por usuario y escenarios de sensibilidad
   explícitamente no calibrados (ADR-0013); no crea entidades ni comunicaciones.
+- drill-down desde clase del heatmap a Insights filtrados por entityId, scope de
+  organización/sede y filtro/paginación preservados (ADR-0014).
 
 Gate: mismo problema no duplica insight; toda acción enlaza métrica, regla,
 actor y resultado.

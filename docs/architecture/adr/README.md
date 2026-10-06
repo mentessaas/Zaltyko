@@ -24,5 +24,6 @@ Stripe Live ni cambios de credenciales.
 | [0011](./0011-score-period-comparison.md)              | Comparabilidad temporal del Health Score            |
 | [0012](./0012-insight-outcome-expiry.md)               | Cierre conservador de outcomes al vencer la ventana |
 | [0013](./0013-simulacion-hipotetica-demanda.md)         | Simulación sin tarifa inferida ni benchmark supuesto |
+| [0014](./0014-drilldown-insights-por-entidad.md)        | Navegación autorizada dashboard→insight por entidad  |
 
 Contrato analítico inicial: [diccionario de métricas v0](../metric-dictionary-v0.md).

@@ -220,6 +220,17 @@ function OperationalEvidence({
                           ? item.name
                           : `Clase ${index + 1}`;
                       const openSeats = Number(item.openSeats ?? 0);
+                      const classTemplateId =
+                        typeof item.classTemplateId === "string"
+                          ? item.classTemplateId
+                          : null;
+                      const insightParams = new URLSearchParams({
+                        organizationId: capacity.organization.id,
+                        entityId: classTemplateId ?? "",
+                      });
+                      if (capacity.scope.locationId) {
+                        insightParams.set("locationId", capacity.scope.locationId);
+                      }
                       return (
                         <li
                           key={`${name}-${index}`}
@@ -231,6 +242,14 @@ function OperationalEvidence({
                               ? "Aforo pendiente"
                               : `${openSeats} ${openSeats === 1 ? "plaza libre" : "plazas libres"}`}
                           </span>
+                          {classTemplateId && (
+                            <Link
+                              href={`/owner/insights?${insightParams.toString()}`}
+                              className="touch-target shrink-0 font-semibold text-teal-900 underline underline-offset-2"
+                            >
+                              Ver oportunidades
+                            </Link>
+                          )}
                         </li>
                       );
                     })}

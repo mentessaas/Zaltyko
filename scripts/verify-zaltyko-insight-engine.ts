@@ -152,6 +152,20 @@ async function main(): Promise<void> {
   assert.equal(ownerInbox.items[0].estimatedValueMinMinor, 9000);
   assert.equal(ownerInbox.items[0].estimatedValueMaxMinor, 18000);
   assert(ownerInbox.items[0].assumptions.join(" ").includes("no garantiza"));
+  const entityInbox = await listInsights({
+    userId: ID.ownerUser,
+    organizationId: ID.org,
+    entityId: ID.classA,
+  });
+  assert.equal(entityInbox.items.length, 1);
+  assert.equal(entityInbox.scope.entityId, ID.classA);
+  const crossSiteEntityInbox = await listInsights({
+    userId: ID.managerUser,
+    organizationId: ID.org,
+    entityId: ID.classA,
+  });
+  assert.equal(crossSiteEntityInbox.scope.locationId, ID.north);
+  assert.equal(crossSiteEntityInbox.items.length, 0);
 
   const managerInbox = await listInsights({
     userId: ID.managerUser,

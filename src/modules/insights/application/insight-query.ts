@@ -16,6 +16,7 @@ const visibleStatuses = ["open", "viewed", "actioned", "snoozed"] as const;
 export const insightListQuerySchema = z.object({
   organizationId: z.string().uuid().optional(),
   locationId: z.string().uuid().optional(),
+  entityId: z.string().uuid().optional(),
   status: z
     .enum(["open", "viewed", "actioned", "snoozed", "dismissed", "resolved"])
     .optional(),
@@ -56,6 +57,7 @@ export interface InsightListBundle {
   organization: { id: string; name: string; defaultCurrency: string };
   scope: {
     locationId: string | null;
+    entityId: string | null;
     locations: Array<{ id: string; name: string }>;
     canViewOrganizationAggregate: boolean;
   };
@@ -144,6 +146,9 @@ export async function listInsights(
   const locationCondition = scope.selectedLocationId
     ? eq(insights.locationId, scope.selectedLocationId)
     : undefined;
+  const entityCondition = query.entityId
+    ? eq(insights.entityId, query.entityId)
+    : undefined;
   const cursorCondition = cursor
     ? sql`(
         ${insights.priorityScore}, ${insights.lastSeenAt}, ${insights.id}
@@ -168,6 +173,7 @@ export async function listInsights(
         eq(insights.organizationId, scope.organization.id),
         statusCondition,
         locationCondition,
+        entityCondition,
         cursorCondition
       )
     )
@@ -184,6 +190,7 @@ export async function listInsights(
     organization: scope.organization,
     scope: {
       locationId: scope.selectedLocationId,
+      entityId: query.entityId ?? null,
       locations: scope.locations,
       canViewOrganizationAggregate: scope.canViewOrganizationAggregate,
     },

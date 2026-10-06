@@ -30,6 +30,10 @@ export default async function OwnerInsightsPage({
       typeof raw.locationId === "string" && raw.locationId
         ? raw.locationId
         : undefined,
+    entityId:
+      typeof raw.entityId === "string" && raw.entityId
+        ? raw.entityId
+        : undefined,
     status: typeof raw.status === "string" ? raw.status : undefined,
     cursor: typeof raw.cursor === "string" ? raw.cursor : undefined,
     limit: 20,

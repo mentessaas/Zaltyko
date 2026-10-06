@@ -13,6 +13,7 @@ const syntheticBundle: InsightListBundle = {
   },
   scope: {
     locationId: null,
+    entityId: null,
     canViewOrganizationAggregate: true,
     locations: [
       {

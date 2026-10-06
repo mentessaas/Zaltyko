@@ -32,6 +32,7 @@ export const ownerDashboardCapacityPreview: CapacityBundle = {
       fillRate: 0.75,
       classes: [
         {
+          classTemplateId: "30000000-0000-0000-0000-000000000021",
           name: "Iniciación A · dato sintético",
           occupied: 10,
           capacity: 12,
@@ -39,6 +40,7 @@ export const ownerDashboardCapacityPreview: CapacityBundle = {
           fillRate: 0.8333,
         },
         {
+          classTemplateId: "30000000-0000-0000-0000-000000000022",
           name: "Iniciación B · dato sintético",
           occupied: 8,
           capacity: 12,
@@ -57,6 +59,7 @@ export const ownerDashboardCapacityPreview: CapacityBundle = {
       fillRate: 0.9167,
       classes: [
         {
+          classTemplateId: "30000000-0000-0000-0000-000000000023",
           name: "Tecnificación · dato sintético",
           occupied: 22,
           capacity: 24,
@@ -75,6 +78,7 @@ export const ownerDashboardCapacityPreview: CapacityBundle = {
       fillRate: null,
       classes: [
         {
+          classTemplateId: "30000000-0000-0000-0000-000000000024",
           name: "Taller sin aforo configurado · dato sintético",
           occupied: 0,
           capacity: 0,

@@ -459,6 +459,9 @@ export function InsightInbox({ bundle }: { bundle: InsightListBundle }) {
   if (bundle.scope.locationId) {
     filterBase.set("locationId", bundle.scope.locationId);
   }
+  if (bundle.scope.entityId) {
+    filterBase.set("entityId", bundle.scope.entityId);
+  }
 
   return (
     <div className="min-h-screen bg-[#F1F3EF] text-slate-950">
@@ -533,6 +536,13 @@ export function InsightInbox({ bundle }: { bundle: InsightListBundle }) {
                 name="organizationId"
                 value={bundle.organization.id}
               />
+              {bundle.scope.entityId && (
+                <input
+                  type="hidden"
+                  name="entityId"
+                  value={bundle.scope.entityId}
+                />
+              )}
               <label className="grid gap-2 text-xs font-bold uppercase tracking-[0.12em] text-slate-600">
                 Ámbito
                 <select
@@ -566,8 +576,24 @@ export function InsightInbox({ bundle }: { bundle: InsightListBundle }) {
                 ? bundle.scope.locations.find(
                     (location) => location.id === bundle.scope.locationId
                   )?.name
-                : "Toda la academia"}
+              : "Toda la academia"}
             </span>
+            {bundle.scope.entityId && (
+              <span className="inline-flex items-center gap-2">
+                Oportunidades de la entidad seleccionada
+                <Link
+                  href={`/owner/insights?${new URLSearchParams({
+                    organizationId: bundle.organization.id,
+                    ...(bundle.scope.locationId
+                      ? { locationId: bundle.scope.locationId }
+                      : {}),
+                  }).toString()}`}
+                  className="touch-target underline underline-offset-2"
+                >
+                  Quitar filtro
+                </Link>
+              </span>
+            )}
           </div>
         </section>
 
