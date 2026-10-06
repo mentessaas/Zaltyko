@@ -18,7 +18,8 @@ source:
 ## 2026-10-06 — Producto Health Score y Owner Dashboard (corte activo)
 
 - **Hecho local:** nueve reglas P0 leen fuentes canónicas por sede y alimentan Insights con autorización e idempotencia; PostgreSQL efímero sintético pasa.
-- **Siguiente P0:** worker durable y SLA ≤15 min; evitar que request/UI ejecute recomputes. Completar pruebas de activación/resolución por regla, watermark histórico y refunds parciales.
+- **Hecho local, no activado:** endpoint protegido y dispatcher de outbox con lease, backoff, dead-letter, idempotencia; faltan retries inyectados, lag/alertas y scheduler remoto.
+- **Siguiente P0:** actor de sistema auditado y pipeline invalidación→recompute→score→P0→outcomes; solo después medir SLA ≤15 min. Completar pruebas de activación/resolución por regla, watermark histórico y refunds parciales.
 - **Siguiente P1:** endpoints de historia/series/heatmap/cohortes y filtros de programa/grupo/comparativa; simulador CTA; 5.000 atletas / 2 M asistencias / 20 identidades.
 - **No-go piloto:** E2E autenticado y Supabase limpio autorizados, backup/restore ensayado, revisión de privacidad aprobada y métricas de runtime verificadas. No usar el sandbox legacy con siete academias.
 - Fuente de estado: [`plan de implementación`](../../docs/plans/2026-10-06-owner-dashboard-implementation-plan.md), [`auditoría PRD`](../../docs/audits/2026-10-06-prd-completion-audit.md).

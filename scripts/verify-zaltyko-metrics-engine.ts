@@ -3,9 +3,9 @@ import assert from "node:assert/strict";
 import { Pool } from "pg";
 
 import {
-  consumeMetricInvalidationEvent,
   recomputeMetrics,
 } from "@/modules/analytics/application/metric-engine";
+import { dispatchOutboxBatch } from "@/modules/analytics/application/outbox-dispatcher";
 import { OperationalError } from "@/modules/shared/domain/operational-error";
 
 const databaseUrl = process.env.DATABASE_URL;
@@ -139,17 +139,57 @@ async function main(): Promise<void> {
     [ID.org, ID.location]
   );
   const outboxEventId = String(outbox.rows[0].id);
-  const consumed = await Promise.all([
-    consumeMetricInvalidationEvent({ organizationId: ID.org, outboxEventId }),
-    consumeMetricInvalidationEvent({ organizationId: ID.org, outboxEventId }),
-    consumeMetricInvalidationEvent({ organizationId: ID.org, outboxEventId }),
+  const dispatched = await Promise.all([
+    dispatchOutboxBatch({ batchSize: 1 }),
+    dispatchOutboxBatch({ batchSize: 1 }),
+    dispatchOutboxBatch({ batchSize: 1 }),
   ]);
-  assert.equal(consumed.filter(Boolean).length, 1);
+  assert.equal(dispatched.reduce((sum, result) => sum + result.claimed, 0), 1);
+  assert.equal(dispatched.reduce((sum, result) => sum + result.processed, 0), 1);
+  assert.equal(
+    await count("zaltyko.outbox_events", `id = '${outboxEventId}' and status = 'processed'`),
+    1
+  );
   assert.equal(
     await count(
       "zaltyko.metric_invalidations",
       `outbox_event_id = '${outboxEventId}'`
     ),
+    1
+  );
+
+  const expiredLease = await pool.query(
+    `insert into zaltyko.outbox_events (
+       organization_id, location_id, event_name, aggregate_type, aggregate_id,
+       idempotency_key, payload, status, attempts, available_at, occurred_at
+     ) values ($1, $2, 'attendance.corrected', 'attendance', gen_random_uuid(),
+       'metric-invalidation-expired-lease', '{}', 'processing', 1, now() - interval '1 minute', now())
+     returning id`,
+    [ID.org, ID.location]
+  );
+  const recoveredId = String(expiredLease.rows[0].id);
+  const recovered = await dispatchOutboxBatch({ batchSize: 1 });
+  assert.equal(recovered.claimed, 1);
+  assert.equal(recovered.processed, 1);
+  assert.equal(
+    await count("zaltyko.outbox_events", `id = '${recoveredId}' and status = 'processed' and attempts = 2`),
+    1
+  );
+  const exhaustedLease = await pool.query(
+    `insert into zaltyko.outbox_events (
+       organization_id, location_id, event_name, aggregate_type, aggregate_id,
+       idempotency_key, payload, status, attempts, available_at, occurred_at
+     ) values ($1, $2, 'attendance.corrected', 'attendance', gen_random_uuid(),
+       'metric-invalidation-exhausted-lease', '{}', 'processing', 8, now() - interval '1 minute', now())
+     returning id`,
+    [ID.org, ID.location]
+  );
+  const exhaustedId = String(exhaustedLease.rows[0].id);
+  const exhausted = await dispatchOutboxBatch({ batchSize: 1 });
+  assert.equal(exhausted.claimed, 0);
+  assert.equal(exhausted.deadLettered, 1);
+  assert.equal(
+    await count("zaltyko.outbox_events", `id = '${exhaustedId}' and status = 'failed' and last_error = 'MAX_ATTEMPTS_EXHAUSTED'`),
     1
   );
 
@@ -225,6 +265,10 @@ async function main(): Promise<void> {
         "zaltyko.metric_run_values",
         `organization_id = '${ID.org}'`
       ),
+      outboxWorkersProcessed: 2,
+      concurrentOutboxClaims: true,
+      expiredLeaseRecovered: true,
+      exhaustedLeaseDeadLettered: true,
     })
   );
 }

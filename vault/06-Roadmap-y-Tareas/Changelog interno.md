@@ -11009,6 +11009,13 @@ Modelo separado, reclamación manual, administración, importación revisada, fi
 - **No verificado:** worker/digest/SLA de 15 min, volumen de producción, Supabase Auth/PostgREST remoto, E2E autenticado y readiness de piloto. No se modificó ninguna base remota.
 - Detalle: [`insight-evaluation-sources.md`](../../docs/architecture/insight-evaluation-sources.md), [auditoría PRD](../../docs/audits/2026-10-06-prd-completion-audit.md).
 
+## 2026-10-06 — Dispatcher outbox local con lease recuperable
+
+- Se añadió claim por `FOR UPDATE SKIP LOCKED`, lease en `available_at`, retry con backoff y dead-letter en intentos agotados, con código de error sanitizado. La ruta POST exige `CRON_SECRET` y evita solapamiento global.
+- **Validación local:** tres dispatchers concurrentes reclaman una vez; el consumidor crea una invalidación idempotente; lease expirado se recupera. TypeScript, ESLint y `scripts/run-zaltyko-metrics-engine-local.sh` pasan.
+- **Sin activación:** no se registró cron en `vercel.json` ni se desplegó. Falta probar inyección de error/backoff/dead-letter, instrumentar lag y definir actor de sistema para recompute/score/Insights; por tanto SLA, digest y pipeline siguen `NO VERIFICADO`.
+- Detalle: [`outbox-worker.md`](../../docs/architecture/outbox-worker.md).
+
 
 ## 2026-10-05 — Cierre de anual Test y revalidación de acceso
 

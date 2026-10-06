@@ -799,6 +799,6 @@ Una ficha externa no crea dueño, academia operativa, trial ni suscripción. Sol
 | Campo | Valor |
 | --- | --- |
 | Evidencia | Las nueve reglas activas recorren fuentes canónicas y persistencia idempotente sobre PostgreSQL efímero con fixture sintético. La conversión requiere meta interna explícita; retention risk sigue `draft`; el sandbox remoto inspeccionado contiene filas legacy. |
-| Decisión | Mantener todos los evaluadores por sede y por watermark, sin PII en evidencia financiera, y no activar worker ni apuntar a base remota hasta cerrar autorización de entorno, pruebas por regla, carga, backup/restore y revisión RGPD. |
-| Consecuencia | Las reglas son integrables localmente, pero preparación de piloto y SLA de frescura permanecen `NO VERIFICADO`; CTA de simulación no se presenta como acción terminada. |
-| Estado | Aplicada en código/docs locales; ninguna migración ni escritura remota. Ver [fuentes de evaluación](../../docs/architecture/insight-evaluation-sources.md) y [auditoría PRD](../../docs/audits/2026-10-06-prd-completion-audit.md). |
+| Decisión | Mantener todos los evaluadores por sede y por watermark, sin PII en evidencia financiera; implementar worker local protegido pero no registrar scheduler ni apuntar a base remota hasta cerrar autorización de entorno, pruebas por regla y worker, carga, backup/restore y revisión RGPD. |
+| Consecuencia | Reglas y dispatcher son integrables localmente, pero pipeline automatizado, preparación de piloto y SLA de frescura permanecen `NO VERIFICADO`; CTA de simulación no se presenta como acción terminada. |
+| Estado | Aplicada en código/docs locales; ninguna migración, scheduler ni escritura remota. Ver [fuentes de evaluación](../../docs/architecture/insight-evaluation-sources.md), [worker outbox](../../docs/architecture/outbox-worker.md) y [auditoría PRD](../../docs/audits/2026-10-06-prd-completion-audit.md). |

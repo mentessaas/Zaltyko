@@ -221,9 +221,17 @@ resolución por regla, semántica del simulador CTA, carga y operación programa
 
 ### PR-12 — Workers, SLA y notificaciones
 
-Pendiente: worker durable para outbox, invalidaciones, recompute, score, reglas,
-outcomes y digest; leases, retries/backoff, métricas de lag y fallos; decisión
-de canales/proveedor. Debe reflejar pagos en 15 minutos o mostrar estado stale.
+Estado parcial: dispatcher local de outbox y endpoint POST autenticado con
+`CRON_SECRET`, lease recuperable usando `status/available_at`, `SKIP LOCKED`,
+idempotencia del consumidor, backoff y dead-letter tras intentos acotados.
+Integración sintética valida claims concurrentes y recuperación de lease
+caducado. El endpoint no se ha añadido a `vercel.json` ni desplegado.
+
+Pendiente: orquestar invalidaciones→recompute→score→P0→outcomes, actor interno
+de sistema que no suplante a owner/admin, digest/notificaciones y métricas/alertas
+de lag; decidir canal/proveedor. El SLA ≤15 min solo puede afirmarse cuando se
+registre una frecuencia de cron durable, se mida su lag y el dashboard degrade a
+stale cuando falle.
 
 ### PR-13 — APIs completas y filtros
 
