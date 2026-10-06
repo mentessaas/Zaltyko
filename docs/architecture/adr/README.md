@@ -26,5 +26,6 @@ Stripe Live ni cambios de credenciales.
 | [0013](./0013-simulacion-hipotetica-demanda.md)         | Simulación sin tarifa inferida ni benchmark supuesto |
 | [0014](./0014-drilldown-insights-por-entidad.md)        | Navegación autorizada dashboard→insight por entidad  |
 | [0015](./0015-frescura-de-pipeline-observada-en-outbox.md) | Frescura por eventos pendientes del outbox            |
+| [0016](./0016-scheduler-de-frescura-y-limites-de-plataforma.md) | Gate de schedule según límites y plan de plataforma   |
 
 Contrato analítico inicial: [diccionario de métricas v0](../metric-dictionary-v0.md).

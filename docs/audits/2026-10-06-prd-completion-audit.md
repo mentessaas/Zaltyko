@@ -80,6 +80,11 @@ correctamente. No se aplicó la migración en remoto. Esto no prueba schedule,
 disponibilidad/95%, E2E autenticado, carga a escala ni eventos que no llegan al
 outbox: AC-10 sigue parcial, no garantizado.
 
+El gate de scheduler queda en ADR-0016. La documentación vigente de Vercel
+confirma que Cron invoca solo production deployments; Hobby permite frecuencia
+diaria como máximo, Pro/Enterprise admiten cada minuto con precisión de minuto,
+pero no garantizan puntualidad. No se modificó `vercel.json` ni se desplegó.
+
 ## Actualización posterior — simulador de demanda (2026-10-06)
 
 Commit local `85d82100` añade el simulador en la bandeja de Insights. La UI solo

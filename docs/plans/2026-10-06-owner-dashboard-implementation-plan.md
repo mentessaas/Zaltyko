@@ -284,10 +284,13 @@ la transacción y lease existente; el endpoint manual bloquea la misma acción y
 solo un resultado gana la carrera (ADR-0012). Harness sintético valida
 idempotencia, actor original humano, audit system null y outbox.
 
-Pendiente: digest/notificaciones, métricas/alertas de lag y política del
-schedule. El SLA ≤15 min solo puede
-afirmarse cuando exista frecuencia durable, lag medido y degradación `stale`
-verificada; no registrar cron ni desplegar todavía.
+Pendiente: digest/notificaciones, métricas/alertas de lag y schedule. ADR-0016
+fija un gate: confirmar plan de Vercel y entorno antes de añadir cron. Vercel
+Cron solo ejecuta deployments de producción; Hobby limita a diario y Pro/
+Enterprise permiten intervalos menores, pero no prometen puntualidad ni el SLA
+(fuentes en el ADR). El SLA ≤15 min solo se puede afirmar tras elegir scheduler,
+medir cobertura/lag/uptime y recuperar fallos bajo pruebas; no se añadió cron ni
+se desplegó.
 
 Actualización 2026-10-06 (ADR-0015): la lectura del Owner ahora observa los
 eventos operativos fuente pendientes/en-proceso/fallidos del outbox, por
