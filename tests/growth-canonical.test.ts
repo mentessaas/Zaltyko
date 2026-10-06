@@ -197,13 +197,15 @@ describe("contrato canónico A3", () => {
     expect(built.row.planCode).toBe("starter");
   });
 
-  it("rechaza discrepancias de plan y moneda aunque coincidan ID y estado", () => {
+  it("rechaza discrepancia de plan aunque coincidan ID y estado", () => {
     expect(() =>
       buildCanonicalGrowthEvent(
         subscriptionInput(subscriptionEvidence({}, { planCode: "growth" }))
       )
     ).toThrow(/planCode discrepante/);
+  });
 
+  it("rechaza discrepancia de moneda aunque coincidan ID y estado", () => {
     expect(() =>
       buildCanonicalGrowthEvent(
         subscriptionInput(subscriptionEvidence({}, { currency: "usd" }))
@@ -242,6 +244,10 @@ describe("contrato canónico A3", () => {
         reconciled: false,
         reason: "DB/Stripe discrepante: currency",
       }),
+    ]);
+    expect(report.discrepancies).toEqual([
+      "subscription_created 00000000-0000-4000-8000-000000000105: discrepancia DB/Stripe planCode",
+      "subscription_created 00000000-0000-4000-8000-000000000106: discrepancia DB/Stripe currency",
     ]);
     expect(report.duplicateIdempotencyKeys).toEqual([
       "v1:academy_created:academy-a",
