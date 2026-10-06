@@ -74,6 +74,7 @@
     "test:zaltyko-health-score-foundation:local": "bash scripts/run-zaltyko-health-score-foundation-local.sh",
     "test:zaltyko-health-score-engine:local": "bash scripts/run-zaltyko-health-score-engine-local.sh",
     "test:zaltyko-owner-dashboard-query:local": "ZALTYKO_VERIFY_OWNER_DASHBOARD_QUERY=1 bash scripts/run-zaltyko-health-score-engine-local.sh",
+    "test:zaltyko-dashboard-scale:local": "bash scripts/run-zaltyko-dashboard-scale-local.sh",
     "test:zaltyko-insights-foundation:local": "bash scripts/run-zaltyko-insights-foundation-local.sh",
     "test:zaltyko-insight-engine:local": "bash scripts/run-zaltyko-insight-engine-local.sh",
     "gate:zaltyko-cutover": "tsx scripts/verify-zaltyko-cutover-boundary.ts",

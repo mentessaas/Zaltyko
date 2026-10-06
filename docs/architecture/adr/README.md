@@ -27,5 +27,6 @@ Stripe Live ni cambios de credenciales.
 | [0014](./0014-drilldown-insights-por-entidad.md)        | Navegación autorizada dashboard→insight por entidad  |
 | [0015](./0015-frescura-de-pipeline-observada-en-outbox.md) | Frescura por eventos pendientes del outbox            |
 | [0016](./0016-scheduler-de-frescura-y-limites-de-plataforma.md) | Gate de schedule según límites y plan de plataforma   |
+| [0017](./0017-proyeccion-de-cohortes-para-el-owner-dashboard.md) | Read model agregado de cohortes para cumplir AC-12    |
 
 Contrato analítico inicial: [diccionario de métricas v0](../metric-dictionary-v0.md).

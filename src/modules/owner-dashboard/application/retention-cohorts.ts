@@ -58,7 +58,7 @@ export async function getRetentionCohorts(
   const asOf = query.asOf ?? new Date().toISOString().slice(0, 10);
   const cursor = decodeCursor(query.cursor);
   const result = await db.execute(sql`
-    with scoped_enrollments as (
+    with scoped_enrollments as not materialized (
       select e.organization_id, e.location_id, e.id, e.athlete_id,
         e.class_template_id, e.starts_on, e.ends_on, e.status
       from zaltyko.enrollments e
@@ -72,16 +72,21 @@ export async function getRetentionCohorts(
           where cg.organization_id = e.organization_id and cg.class_template_id = e.class_template_id
             and cg.group_id = ${query.groupId ?? null}::uuid
         ))
+    ), first_active_history as (
+      select history.organization_id, history.enrollment_id,
+        min(history.effective_on)::date as first_active_on
+      from zaltyko.enrollment_status_history history
+      where history.organization_id = ${scope.organization.id}::uuid
+        and history.to_status = 'active'
+        and history.effective_on <= ${asOf}::date
+      group by history.organization_id, history.enrollment_id
     ), cohort_athletes as (
       select e.athlete_id,
         min(coalesce(active_history.first_active_on, e.starts_on))::date as cohort_date
       from scoped_enrollments e
-      left join lateral (
-        select min(h.effective_on) as first_active_on
-        from zaltyko.enrollment_status_history h
-        where h.organization_id = e.organization_id and h.enrollment_id = e.id
-          and h.to_status = 'active' and h.effective_on <= ${asOf}::date
-      ) active_history on true
+      left join first_active_history active_history
+        on active_history.organization_id = e.organization_id
+       and active_history.enrollment_id = e.id
       where active_history.first_active_on is not null
         or e.status in ('active','paused','completed')
       group by e.athlete_id
@@ -101,32 +106,47 @@ export async function getRetentionCohorts(
         date_trunc('month', ${asOf}::date)::date,
         interval '1 month'
       ) month_end
-    ), states as (
+    ), enrollment_status_periods as (
+      select history.organization_id, history.enrollment_id,
+        history.to_status, history.effective_on as valid_from,
+        lead(history.effective_on) over (
+          partition by history.organization_id, history.enrollment_id
+          order by history.effective_on, history.changed_at
+        ) as valid_until
+      from zaltyko.enrollment_status_history history
+      join scoped_enrollments enrollment
+        on enrollment.organization_id = history.organization_id
+       and enrollment.id = history.enrollment_id
+      where history.effective_on <= ${asOf}::date
+    ), person_states as (
       select months.cohort_month, months.cohort_size, months.month_end,
-        count(*) filter (where current_state.active)::int as active_count,
-        count(*) filter (where current_state.paused)::int as paused_count
+        person.athlete_id,
+        coalesce(bool_or(
+          coalesce(status_period.to_status, enrollment.status) = 'active'
+        ), false) as active,
+        coalesce(bool_or(
+          coalesce(status_period.to_status, enrollment.status) = 'paused'
+        ), false) as paused
       from cohort_months months
       join cohort_athletes person
         on date_trunc('month', person.cohort_date)::date = months.cohort_month
-      left join lateral (
-        select coalesce(bool_or(
-          coalesce((select h.to_status from zaltyko.enrollment_status_history h
-            where h.organization_id = enrollment.organization_id and h.enrollment_id = enrollment.id
-              and h.effective_on <= months.month_end
-            order by h.effective_on desc, h.changed_at desc limit 1), enrollment.status) = 'active'
-        ), false) as active,
-        coalesce(bool_or(
-          coalesce((select h.to_status from zaltyko.enrollment_status_history h
-            where h.organization_id = enrollment.organization_id and h.enrollment_id = enrollment.id
-              and h.effective_on <= months.month_end
-            order by h.effective_on desc, h.changed_at desc limit 1), enrollment.status) = 'paused'
-        ), false) as paused
-        from scoped_enrollments enrollment
-        where enrollment.athlete_id = person.athlete_id
-          and enrollment.starts_on <= months.month_end
-          and (enrollment.ends_on is null or enrollment.ends_on >= months.month_end)
-      ) current_state on true
-      group by months.cohort_month, months.cohort_size, months.month_end
+      left join scoped_enrollments enrollment
+        on enrollment.organization_id = ${scope.organization.id}::uuid
+       and enrollment.athlete_id = person.athlete_id
+       and enrollment.starts_on <= months.month_end
+       and (enrollment.ends_on is null or enrollment.ends_on >= months.month_end)
+      left join enrollment_status_periods status_period
+        on status_period.organization_id = enrollment.organization_id
+       and status_period.enrollment_id = enrollment.id
+       and status_period.valid_from <= months.month_end
+       and (status_period.valid_until is null or status_period.valid_until > months.month_end)
+      group by months.cohort_month, months.cohort_size, months.month_end, person.athlete_id
+    ), states as (
+      select cohort_month, cohort_size, month_end,
+        count(*) filter (where active)::int as active_count,
+        count(*) filter (where paused)::int as paused_count
+      from person_states
+      group by cohort_month, cohort_size, month_end
     ), cohort_matrix as (
       select cohort_month, cohort_size,
         jsonb_agg(jsonb_build_object(

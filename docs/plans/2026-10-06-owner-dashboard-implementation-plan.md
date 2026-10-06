@@ -144,9 +144,11 @@ p95 medido contra volumen objetivo.
 
 Resultado: 375/768/1280 sin overflow, navegación de teclado y Axe sin
 infracciones, lectura exclusiva de read models, AC-08/AC-09 y build aprobados.
-El p95 local sintético es 54,3 ms, pero AC-12 a volumen objetivo, VoiceOver
-humano, comparación año-año, E2E autenticado y runtime remoto siguen
-`NO VERIFICADO`.
+El harness de escala carga cardinalidades AC-12 y 20 identidades sintéticas;
+heatmap p95 queda bajo 800 ms, pero cohortes sigue en 6,42 s. AC-12 queda
+`NO CUMPLE` en la lectura de cohortes. Seguir ADR-0017 para moverla a una
+proyección mensual reconstruible y repetir la medición. VoiceOver humano,
+comparación año-año, E2E autenticado y runtime remoto siguen `NO VERIFICADO`.
 
 Actualización: ADR-0010 define que filtros compartibles de programa/grupo
 afectan aforo y cohortes, pero no alteran el score academia/sede porque aún no

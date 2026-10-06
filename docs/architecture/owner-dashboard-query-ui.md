@@ -61,7 +61,14 @@ Incluye:
   PII en el bundle;
 - AC-08: actor de otra organización denegado y auditado;
 - AC-09: manager forzado a Sede Norte y Sede Sur denegada;
-- 20 consultas concurrentes al fixture: p95 local sintético 54,3 ms;
+- 20 consultas concurrentes al fixture pequeño: p95 local sintético 54,3 ms;
+- fixture de escala AC-12: cardinalidades objetivo cargadas y verificadas
+  (5.000 atletas, 100.000 sesiones, 2 M asistencias, 250.000 cargos,
+  250.000 pagos, 36 snapshots; 20 identidades sintéticas owner);
+- medición local a escala: el heatmap quedó bajo 800 ms tras preagregar
+  ocupación y estados; cohortes bajó de 8,84 s a 6,42 s p95, todavía por
+  encima del SLO de 800 ms. La vista compuesta tampoco puede pasar mientras
+  cohortes siga así.
 - 375, 768 y 1280 px sin overflow horizontal;
 - teclado: skip link visible y explicación de métrica operable con Enter;
 - Axe WCAG 2 A/AA y 2.1 A/AA: cero infracciones en 375 px;
@@ -73,9 +80,17 @@ Comando del contrato:
 
 ## Límites y deuda explícita
 
-El resultado de 54,3 ms no valida AC-12: no usa 5.000 atletas, 2 millones de
-asistencias, cache caliente/fría ni 20 identidades autenticadas. El p95 a
-volumen objetivo sigue `NO VERIFICADO`.
+El resultado de 54,3 ms no valida AC-12. El harness de volumen objetivo es
+sintético y ejecuta 20 identidades owner mediante la capa de servicios en
+PostgreSQL local 14; no mide HTTP, Auth, navegador, cold cache ni el servicio
+remoto. Además, aunque el heatmap cumple en esta máquina, la consulta de
+cohortes falla el presupuesto local (6,42 s p95 frente a 800 ms), por lo que
+AC-12 queda `NO CUMPLE` para la implementación actual. No se suavizó el SLO.
+
+ADR-0017 determina que cohortes debe servirse de una proyección mensual
+reconstruible, ligada al `metric_run` y su `source_watermark`, no recalcular
+estados atleta-mes en cada request. Falta implementar y medir esa proyección;
+la evidencia local no equivale a una garantía en Supabase/Vercel.
 
 El motor materializa organización/sede/período, pero todavía no programa,
 disciplina o grupo. Esos filtros no se muestran porque devolver un agregado de

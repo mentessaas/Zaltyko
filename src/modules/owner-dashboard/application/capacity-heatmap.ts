@@ -63,7 +63,27 @@ export async function getCapacityHeatmap(
   const asOf = query.asOf ?? new Date().toISOString().slice(0, 10);
   const cursor = decodeCursor(query.cursor);
   const result = await db.execute(sql`
-    with class_slots as (
+    with latest_enrollment_status as (
+      select distinct on (history.organization_id, history.enrollment_id)
+        history.organization_id, history.enrollment_id, history.to_status
+      from zaltyko.enrollment_status_history history
+      where history.organization_id = ${scope.organization.id}::uuid
+        and history.effective_on <= ${asOf}::date
+      order by history.organization_id, history.enrollment_id,
+        history.effective_on desc, history.changed_at desc
+    ), enrollment_occupancy as (
+      select e.organization_id, e.location_id, e.class_template_id,
+        count(distinct e.athlete_id)::int as occupied
+      from zaltyko.enrollments e
+      left join latest_enrollment_status latest_status
+        on latest_status.organization_id = e.organization_id
+       and latest_status.enrollment_id = e.id
+      where e.organization_id = ${scope.organization.id}::uuid
+        and e.starts_on <= ${asOf}::date
+        and (e.ends_on is null or e.ends_on >= ${asOf}::date)
+        and coalesce(latest_status.to_status, e.status) = 'active'
+      group by e.organization_id, e.location_id, e.class_template_id
+    ), class_slots as (
       select ct.id as class_template_id, ct.location_id, ct.program_id, ct.name,
         slot.iso_weekday, slot.starts_at_local, slot.ends_at_local,
         least(ct.capacity, coalesce(space.capacity, ct.capacity))::int as capacity,
@@ -73,17 +93,10 @@ export async function getCapacityHeatmap(
         on slot.organization_id = ct.organization_id and slot.class_template_id = ct.id
       left join zaltyko.spaces space
         on space.organization_id = ct.organization_id and space.id = ct.default_space_id
-      left join lateral (
-        select count(distinct e.athlete_id)::int as occupied
-        from zaltyko.enrollments e
-        where e.organization_id = ct.organization_id and e.location_id = ct.location_id
-          and e.class_template_id = ct.id and e.starts_on <= ${asOf}::date
-          and (e.ends_on is null or e.ends_on >= ${asOf}::date)
-          and coalesce((select history.to_status from zaltyko.enrollment_status_history history
-            where history.organization_id = e.organization_id and history.enrollment_id = e.id
-              and history.effective_on <= ${asOf}::date
-            order by history.effective_on desc, history.changed_at desc limit 1), e.status) = 'active'
-      ) enrollment on true
+      left join enrollment_occupancy enrollment
+        on enrollment.organization_id = ct.organization_id
+       and enrollment.location_id = ct.location_id
+       and enrollment.class_template_id = ct.id
       where ct.organization_id = ${scope.organization.id}::uuid
         and (${scope.selectedLocationId}::uuid is null or ct.location_id = ${scope.selectedLocationId}::uuid)
         and ct.status = 'active' and ct.effective_from <= ${asOf}::date
