@@ -1592,7 +1592,12 @@ export const waitlistEntries = zaltyko.table(
         sql`${table.classTemplateId} is not null and ${table.status} in ('waiting', 'offered')`
       ),
     uniqueIndex("waitlist_entries_open_program_uq")
-      .on(table.organizationId, table.athleteId, table.programId)
+      .on(
+        table.organizationId,
+        table.locationId,
+        table.athleteId,
+        table.programId
+      )
       .where(
         sql`${table.programId} is not null and ${table.status} in ('waiting', 'offered')`
       ),

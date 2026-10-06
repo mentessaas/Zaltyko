@@ -19,6 +19,11 @@ deduplicación. La unicidad `(organization_id, event_name, idempotency_key)`
 impide efectos duplicados en origen. `audit_log` es append-only mediante
 trigger. Sus correcciones se expresan con un nuevo evento, no con UPDATE/DELETE.
 
+Un reintento solo reutiliza el resultado si los campos de negocio comparables
+coinciden con el evento original. Reusar la misma clave con otra entidad,
+estado, fecha o destino devuelve `IDEMPOTENCY_CONFLICT`; nunca se acepta como
+reintento válido.
+
 Los payloads operativos y analíticos contienen identificadores, estados y
 cantidades estrictamente necesarias. Se rechazan nombres, email, teléfono,
 dirección, fecha de nacimiento, datos médicos o del tutor.

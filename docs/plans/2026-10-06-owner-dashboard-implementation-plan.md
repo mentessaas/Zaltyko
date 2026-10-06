@@ -54,8 +54,8 @@ runtime remoto no forman parte de esta fase.
 
 ### PR-03 — Trials, waitlist y fixture sintético
 
-Estado: **en curso**. Esquema, ADR y fixture mono/multi-sede aprobados en
-PostgreSQL local; faltan servicios y journey completo.
+Estado: **cerrada localmente** el 2026-10-06. Esquema, servicios y fixture
+mono/multi-sede aprobados; evidencia en `docs/architecture/growth-operations.md`.
 
 - trials/followups, waitlist entries/offers y expiración idempotente;
 - familias/guardianes/payers con permisos separados;
@@ -63,6 +63,10 @@ PostgreSQL local; faltan servicios y journey completo.
 - importador idempotente y reporte de reconciliación.
 
 Gate: journey completo trial→waitlist/enrollment y transferencia sin churn falso.
+
+Resultado: trial→waitlist→enrollment, conversión directa y expiración de oferta
+aprobados con reintentos, scope de sede y reservas de capacidad. La transferencia
+conserva su evento propio y el cierre de un trial publica `completed`, no churn.
 
 ### PR-04 — Ledger mínimo
 

@@ -359,8 +359,8 @@ insert into zaltyko.sessions (
     '10000000-0000-0000-0000-000000000011',
     '10000000-0000-0000-0000-000000000801',
     'scheduled',
-    (current_date + 1 + time '17:00') at time zone 'Europe/Madrid',
-    (current_date + 1 + time '18:00') at time zone 'Europe/Madrid'
+    current_timestamp - interval '15 minutes',
+    current_timestamp + interval '45 minutes'
   ),
   (
     '20000000-0000-0000-0000-000000000901',
@@ -368,8 +368,8 @@ insert into zaltyko.sessions (
     '20000000-0000-0000-0000-000000000011',
     '20000000-0000-0000-0000-000000000801',
     'scheduled',
-    (current_date + 1 + time '17:00') at time zone 'Europe/Madrid',
-    (current_date + 1 + time '18:00') at time zone 'Europe/Madrid'
+    current_timestamp - interval '15 minutes',
+    current_timestamp + interval '45 minutes'
   ),
   (
     '20000000-0000-0000-0000-000000000902',
@@ -377,6 +377,6 @@ insert into zaltyko.sessions (
     '20000000-0000-0000-0000-000000000012',
     '20000000-0000-0000-0000-000000000802',
     'scheduled',
-    (current_date + 1 + time '18:00') at time zone 'Europe/Madrid',
-    (current_date + 1 + time '19:00') at time zone 'Europe/Madrid'
+    current_timestamp - interval '15 minutes',
+    current_timestamp + interval '45 minutes'
   );

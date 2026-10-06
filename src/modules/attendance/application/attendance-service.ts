@@ -16,6 +16,7 @@ import { assertOperationalAccess } from "@/modules/shared/infrastructure/operati
 import {
   appendAuditEntry,
   appendOutboxEvent,
+  assertIdempotencyPayload,
   findOutboxEvent,
   lockCommand,
 } from "@/modules/shared/infrastructure/transactional-records";
@@ -120,6 +121,13 @@ export async function recordAttendance(
       eventName,
       idempotencyKey: input.idempotencyKey,
     });
+    if (priorEvent) {
+      assertIdempotencyPayload(priorEvent.payload, {
+        sessionId: input.sessionId,
+        enrollmentId: input.enrollmentId,
+        status: input.status,
+      });
+    }
     const priorAttendanceId = priorEvent?.payload.attendanceId;
     if (typeof priorAttendanceId === "string") {
       const prior = await loadAttendance(

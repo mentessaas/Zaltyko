@@ -3,6 +3,24 @@ import { and, eq, sql } from "drizzle-orm";
 import { auditLog, outboxEvents } from "@/db/zaltyko-schema";
 import type { TransactionClient } from "@/lib/db-transactions";
 import { assertAnalyticsSafePayload } from "@/modules/events/domain/domain-event";
+import { OperationalError } from "@/modules/shared/domain/operational-error";
+
+type IdempotencyComparable = string | number | boolean | null;
+
+export function assertIdempotencyPayload(
+  actual: Record<string, unknown>,
+  expected: Record<string, IdempotencyComparable>
+): void {
+  for (const [key, expectedValue] of Object.entries(expected)) {
+    if (actual[key] !== expectedValue) {
+      throw new OperationalError(
+        "IDEMPOTENCY_CONFLICT",
+        "La clave de idempotencia ya fue usada con otros parámetros",
+        409
+      );
+    }
+  }
+}
 
 export async function lockCommand(
   tx: TransactionClient,

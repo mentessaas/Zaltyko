@@ -17,12 +17,14 @@ import {
   enrollmentStatusSchema,
 } from "@/modules/enrollments/domain/contracts";
 import { calculateEffectiveCapacity } from "@/modules/scheduling/domain/capacity";
+import type { TransactionClient } from "@/lib/db-transactions";
 import { operationalActorSchema } from "@/modules/shared/application/actor";
 import { OperationalError } from "@/modules/shared/domain/operational-error";
 import { assertOperationalAccess } from "@/modules/shared/infrastructure/operational-authorization";
 import {
   appendAuditEntry,
   appendOutboxEvent,
+  assertIdempotencyPayload,
   findOutboxEvent,
   lockCapacity,
   lockCommand,
@@ -143,9 +145,13 @@ async function loadIdempotentEnrollment(
     organizationId: string;
     eventName: string;
     idempotencyKey: string;
+    expectedPayload: Record<string, string | number | boolean | null>;
   }
 ): Promise<Enrollment | null> {
   const event = await findOutboxEvent(tx, input);
+  if (event) {
+    assertIdempotencyPayload(event.payload, input.expectedPayload);
+  }
   const enrollmentId = event?.payload.enrollmentId;
   if (typeof enrollmentId !== "string") return null;
   return loadEnrollment(tx, input.organizationId, enrollmentId);
@@ -280,277 +286,303 @@ async function assertTemplateCapacity(
   }
 }
 
-export async function createEnrollment(
+export async function createEnrollmentInTransaction(
+  tx: TransactionClient,
   command: CreateEnrollmentCommand
 ): Promise<Enrollment> {
   const input = createEnrollmentSchema.parse(command);
   const eventName = creationEventName(input.status);
 
-  return db.transaction(async (tx) => {
-    await lockCommand(tx, input.organizationId, input.idempotencyKey);
+  await lockCommand(tx, input.organizationId, input.idempotencyKey);
 
-    const idempotent = await loadIdempotentEnrollment(tx, {
-      organizationId: input.organizationId,
-      eventName,
-      idempotencyKey: input.idempotencyKey,
-    });
-    if (idempotent) {
-      await assertOperationalAccess(tx, {
-        organizationId: input.organizationId,
-        locationId: idempotent.locationId,
-        actor: input.actor,
-        allowedRoles: privilegedRoles,
-      });
-      return idempotent;
-    }
-
+  const idempotent = await loadIdempotentEnrollment(tx, {
+    organizationId: input.organizationId,
+    eventName,
+    idempotencyKey: input.idempotencyKey,
+    expectedPayload: {
+      athleteId: input.athleteId,
+      classTemplateId: input.classTemplateId,
+      status: input.status,
+      startsOn: input.startsOn,
+      source: input.source,
+    },
+  });
+  if (idempotent) {
     await assertOperationalAccess(tx, {
       organizationId: input.organizationId,
-      locationId: input.locationId,
+      locationId: idempotent.locationId,
       actor: input.actor,
       allowedRoles: privilegedRoles,
     });
+    return idempotent;
+  }
 
-    const [athlete] = await tx
-      .select({ id: athletes.id })
-      .from(athletes)
-      .where(
-        and(
-          eq(athletes.organizationId, input.organizationId),
-          eq(athletes.id, input.athleteId),
-          eq(athletes.isActive, true)
-        )
-      )
-      .limit(1);
-    if (!athlete) {
-      throw new OperationalError(
-        "NOT_FOUND",
-        "Atleta activo no encontrado",
-        404
-      );
-    }
-
-    await assertTemplateCapacity(tx, input);
-
-    const [enrollment] = await tx
-      .insert(enrollments)
-      .values({
-        organizationId: input.organizationId,
-        locationId: input.locationId,
-        athleteId: input.athleteId,
-        classTemplateId: input.classTemplateId,
-        pricePlanId: input.pricePlanId ?? null,
-        status: input.status,
-        startsOn: input.startsOn,
-        source: input.source,
-        sourceEntityId: input.sourceEntityId ?? null,
-      })
-      .returning();
-
-    await tx.insert(enrollmentStatusHistory).values({
-      organizationId: input.organizationId,
-      enrollmentId: enrollment.id,
-      fromStatus: null,
-      toStatus: input.status,
-      changedByMemberId: input.actor.memberId,
-      idempotencyKey: input.idempotencyKey,
-      effectiveOn: input.startsOn,
-    });
-
-    await appendOutboxEvent(tx, {
-      organizationId: input.organizationId,
-      locationId: input.locationId,
-      eventName,
-      aggregateType: "enrollment",
-      aggregateId: enrollment.id,
-      idempotencyKey: input.idempotencyKey,
-      payload: {
-        enrollmentId: enrollment.id,
-        athleteId: enrollment.athleteId,
-        classTemplateId: enrollment.classTemplateId,
-        status: enrollment.status,
-        startsOn: enrollment.startsOn,
-        source: enrollment.source,
-      },
-    });
-
-    await appendAuditEntry(tx, {
-      organizationId: input.organizationId,
-      locationId: input.locationId,
-      actorUserId: input.actor.userId,
-      action: eventName,
-      targetType: "enrollment",
-      targetId: enrollment.id,
-      idempotencyKey: input.idempotencyKey,
-      after: {
-        status: enrollment.status,
-        classTemplateId: enrollment.classTemplateId,
-        startsOn: enrollment.startsOn,
-        version: enrollment.version,
-      },
-    });
-
-    return enrollment;
+  await assertOperationalAccess(tx, {
+    organizationId: input.organizationId,
+    locationId: input.locationId,
+    actor: input.actor,
+    allowedRoles: privilegedRoles,
   });
+
+  const [athlete] = await tx
+    .select({ id: athletes.id })
+    .from(athletes)
+    .where(
+      and(
+        eq(athletes.organizationId, input.organizationId),
+        eq(athletes.id, input.athleteId),
+        eq(athletes.isActive, true)
+      )
+    )
+    .limit(1);
+  if (!athlete) {
+    throw new OperationalError("NOT_FOUND", "Atleta activo no encontrado", 404);
+  }
+
+  await assertTemplateCapacity(tx, input);
+
+  const [enrollment] = await tx
+    .insert(enrollments)
+    .values({
+      organizationId: input.organizationId,
+      locationId: input.locationId,
+      athleteId: input.athleteId,
+      classTemplateId: input.classTemplateId,
+      pricePlanId: input.pricePlanId ?? null,
+      status: input.status,
+      startsOn: input.startsOn,
+      source: input.source,
+      sourceEntityId: input.sourceEntityId ?? null,
+    })
+    .returning();
+
+  await tx.insert(enrollmentStatusHistory).values({
+    organizationId: input.organizationId,
+    enrollmentId: enrollment.id,
+    fromStatus: null,
+    toStatus: input.status,
+    changedByMemberId: input.actor.memberId,
+    idempotencyKey: input.idempotencyKey,
+    effectiveOn: input.startsOn,
+  });
+
+  await appendOutboxEvent(tx, {
+    organizationId: input.organizationId,
+    locationId: input.locationId,
+    eventName,
+    aggregateType: "enrollment",
+    aggregateId: enrollment.id,
+    idempotencyKey: input.idempotencyKey,
+    payload: {
+      enrollmentId: enrollment.id,
+      athleteId: enrollment.athleteId,
+      classTemplateId: enrollment.classTemplateId,
+      status: enrollment.status,
+      startsOn: enrollment.startsOn,
+      source: enrollment.source,
+    },
+  });
+
+  await appendAuditEntry(tx, {
+    organizationId: input.organizationId,
+    locationId: input.locationId,
+    actorUserId: input.actor.userId,
+    action: eventName,
+    targetType: "enrollment",
+    targetId: enrollment.id,
+    idempotencyKey: input.idempotencyKey,
+    after: {
+      status: enrollment.status,
+      classTemplateId: enrollment.classTemplateId,
+      startsOn: enrollment.startsOn,
+      version: enrollment.version,
+    },
+  });
+
+  return enrollment;
 }
 
-export async function transitionEnrollment(
+export async function createEnrollment(
+  command: CreateEnrollmentCommand
+): Promise<Enrollment> {
+  return db.transaction((tx) => createEnrollmentInTransaction(tx, command));
+}
+
+export async function transitionEnrollmentInTransaction(
+  tx: TransactionClient,
   command: TransitionEnrollmentCommand
 ): Promise<Enrollment> {
   const input = transitionEnrollmentSchema.parse(command);
   const eventName = transitionEventName(input.toStatus);
 
-  return db.transaction(async (tx) => {
-    await lockCommand(tx, input.organizationId, input.idempotencyKey);
-    await tx.execute(
-      sql`select id from zaltyko.enrollments where organization_id = ${input.organizationId}::uuid and id = ${input.enrollmentId}::uuid for update`
-    );
+  await lockCommand(tx, input.organizationId, input.idempotencyKey);
+  await tx.execute(
+    sql`select id from zaltyko.enrollments where organization_id = ${input.organizationId}::uuid and id = ${input.enrollmentId}::uuid for update`
+  );
 
-    const current = await loadEnrollment(
-      tx,
-      input.organizationId,
-      input.enrollmentId
-    );
-    await assertOperationalAccess(tx, {
-      organizationId: input.organizationId,
-      locationId: current.locationId,
-      actor: input.actor,
-      allowedRoles: privilegedRoles,
-    });
+  const current = await loadEnrollment(
+    tx,
+    input.organizationId,
+    input.enrollmentId
+  );
+  await assertOperationalAccess(tx, {
+    organizationId: input.organizationId,
+    locationId: current.locationId,
+    actor: input.actor,
+    allowedRoles: privilegedRoles,
+  });
 
-    const idempotent = await loadIdempotentEnrollment(tx, {
-      organizationId: input.organizationId,
-      eventName,
-      idempotencyKey: input.idempotencyKey,
-    });
-    if (idempotent) return idempotent;
+  const idempotent = await loadIdempotentEnrollment(tx, {
+    organizationId: input.organizationId,
+    eventName,
+    idempotencyKey: input.idempotencyKey,
+    expectedPayload: {
+      enrollmentId: input.enrollmentId,
+      toStatus: input.toStatus,
+      effectiveOn: input.effectiveOn,
+    },
+  });
+  if (idempotent) return idempotent;
 
+  const changesReservedEnrollmentAtStart =
+    current.status === "pending" &&
+    (input.toStatus === "active" ||
+      input.toStatus === "trial" ||
+      input.toStatus === "cancelled") &&
+    input.effectiveOn === current.startsOn;
+  if (!changesReservedEnrollmentAtStart) {
     await assertEffectiveDateNotFuture(tx, {
       organizationId: input.organizationId,
       locationId: current.locationId,
       effectiveOn: input.effectiveOn,
     });
+  }
 
-    if (current.version !== input.expectedVersion) {
-      throw new OperationalError(
-        "VERSION_CONFLICT",
-        "La inscripción cambió desde la última lectura",
-        409
-      );
-    }
-    if (!canTransitionEnrollment(current.status, input.toStatus)) {
-      throw new OperationalError(
-        "INVALID_STATE_TRANSITION",
-        `No se puede pasar de ${current.status} a ${input.toStatus}`,
-        409
-      );
-    }
-    if (input.effectiveOn < current.startsOn) {
-      throw new OperationalError(
-        "INVALID_DATE_RANGE",
-        "La fecha efectiva no puede ser anterior al inicio de la inscripción",
-        409
-      );
-    }
+  if (current.version !== input.expectedVersion) {
+    throw new OperationalError(
+      "VERSION_CONFLICT",
+      "La inscripción cambió desde la última lectura",
+      409
+    );
+  }
+  if (!canTransitionEnrollment(current.status, input.toStatus)) {
+    throw new OperationalError(
+      "INVALID_STATE_TRANSITION",
+      `No se puede pasar de ${current.status} a ${input.toStatus}`,
+      409
+    );
+  }
+  if (input.effectiveOn < current.startsOn) {
+    throw new OperationalError(
+      "INVALID_DATE_RANGE",
+      "La fecha efectiva no puede ser anterior al inicio de la inscripción",
+      409
+    );
+  }
 
-    const closesEnrollment =
-      input.toStatus === "cancelled" || input.toStatus === "completed";
-    const [updated] = await tx
-      .update(enrollments)
-      .set({
-        status: input.toStatus,
-        endsOn: closesEnrollment ? input.effectiveOn : current.endsOn,
-        version: sql`${enrollments.version} + 1`,
-        updatedAt: new Date(),
-      })
+  const closesEnrollment =
+    input.toStatus === "cancelled" || input.toStatus === "completed";
+  const [updated] = await tx
+    .update(enrollments)
+    .set({
+      status: input.toStatus,
+      endsOn: closesEnrollment ? input.effectiveOn : current.endsOn,
+      version: sql`${enrollments.version} + 1`,
+      updatedAt: new Date(),
+    })
+    .where(
+      and(
+        eq(enrollments.organizationId, input.organizationId),
+        eq(enrollments.id, input.enrollmentId),
+        eq(enrollments.version, input.expectedVersion)
+      )
+    )
+    .returning();
+
+  if (!updated) {
+    throw new OperationalError(
+      "VERSION_CONFLICT",
+      "La inscripción cambió durante la operación",
+      409
+    );
+  }
+
+  if (input.toStatus === "paused") {
+    await tx.insert(enrollmentPauses).values({
+      organizationId: input.organizationId,
+      enrollmentId: updated.id,
+      startsOn: input.effectiveOn,
+      reasonCode: input.reasonCode ?? null,
+    });
+  } else if (current.status === "paused") {
+    const [openPause] = await tx
+      .select()
+      .from(enrollmentPauses)
       .where(
         and(
-          eq(enrollments.organizationId, input.organizationId),
-          eq(enrollments.id, input.enrollmentId),
-          eq(enrollments.version, input.expectedVersion)
+          eq(enrollmentPauses.organizationId, input.organizationId),
+          eq(enrollmentPauses.enrollmentId, updated.id),
+          isNull(enrollmentPauses.endsOn)
         )
       )
-      .returning();
-
-    if (!updated) {
-      throw new OperationalError(
-        "VERSION_CONFLICT",
-        "La inscripción cambió durante la operación",
-        409
-      );
+      .orderBy(desc(enrollmentPauses.startsOn))
+      .limit(1);
+    if (openPause) {
+      await tx
+        .update(enrollmentPauses)
+        .set({ endsOn: input.effectiveOn })
+        .where(eq(enrollmentPauses.id, openPause.id));
     }
+  }
 
-    if (input.toStatus === "paused") {
-      await tx.insert(enrollmentPauses).values({
-        organizationId: input.organizationId,
-        enrollmentId: updated.id,
-        startsOn: input.effectiveOn,
-        reasonCode: input.reasonCode ?? null,
-      });
-    } else if (current.status === "paused") {
-      const [openPause] = await tx
-        .select()
-        .from(enrollmentPauses)
-        .where(
-          and(
-            eq(enrollmentPauses.organizationId, input.organizationId),
-            eq(enrollmentPauses.enrollmentId, updated.id),
-            isNull(enrollmentPauses.endsOn)
-          )
-        )
-        .orderBy(desc(enrollmentPauses.startsOn))
-        .limit(1);
-      if (openPause) {
-        await tx
-          .update(enrollmentPauses)
-          .set({ endsOn: input.effectiveOn })
-          .where(eq(enrollmentPauses.id, openPause.id));
-      }
-    }
+  await tx.insert(enrollmentStatusHistory).values({
+    organizationId: input.organizationId,
+    enrollmentId: updated.id,
+    fromStatus: current.status,
+    toStatus: updated.status,
+    reasonCode: input.reasonCode ?? null,
+    changedByMemberId: input.actor.memberId,
+    idempotencyKey: input.idempotencyKey,
+    effectiveOn: input.effectiveOn,
+  });
 
-    await tx.insert(enrollmentStatusHistory).values({
-      organizationId: input.organizationId,
+  await appendOutboxEvent(tx, {
+    organizationId: input.organizationId,
+    locationId: updated.locationId,
+    eventName,
+    aggregateType: "enrollment",
+    aggregateId: updated.id,
+    idempotencyKey: input.idempotencyKey,
+    payload: {
       enrollmentId: updated.id,
       fromStatus: current.status,
       toStatus: updated.status,
-      reasonCode: input.reasonCode ?? null,
-      changedByMemberId: input.actor.memberId,
-      idempotencyKey: input.idempotencyKey,
       effectiveOn: input.effectiveOn,
-    });
-
-    await appendOutboxEvent(tx, {
-      organizationId: input.organizationId,
-      locationId: updated.locationId,
-      eventName,
-      aggregateType: "enrollment",
-      aggregateId: updated.id,
-      idempotencyKey: input.idempotencyKey,
-      payload: {
-        enrollmentId: updated.id,
-        fromStatus: current.status,
-        toStatus: updated.status,
-        effectiveOn: input.effectiveOn,
-        reasonCode: input.reasonCode ?? null,
-        version: updated.version,
-      },
-    });
-
-    await appendAuditEntry(tx, {
-      organizationId: input.organizationId,
-      locationId: updated.locationId,
-      actorUserId: input.actor.userId,
-      action: eventName,
-      targetType: "enrollment",
-      targetId: updated.id,
-      idempotencyKey: input.idempotencyKey,
-      before: { status: current.status, version: current.version },
-      after: { status: updated.status, version: updated.version },
-      metadata: { reasonCode: input.reasonCode ?? null },
-    });
-
-    return updated;
+      reasonCode: input.reasonCode ?? null,
+      version: updated.version,
+    },
   });
+
+  await appendAuditEntry(tx, {
+    organizationId: input.organizationId,
+    locationId: updated.locationId,
+    actorUserId: input.actor.userId,
+    action: eventName,
+    targetType: "enrollment",
+    targetId: updated.id,
+    idempotencyKey: input.idempotencyKey,
+    before: { status: current.status, version: current.version },
+    after: { status: updated.status, version: updated.version },
+    metadata: { reasonCode: input.reasonCode ?? null },
+  });
+
+  return updated;
+}
+
+export async function transitionEnrollment(
+  command: TransitionEnrollmentCommand
+): Promise<Enrollment> {
+  return db.transaction((tx) => transitionEnrollmentInTransaction(tx, command));
 }
 
 export async function transferEnrollment(
@@ -568,6 +600,12 @@ export async function transferEnrollment(
       idempotencyKey: input.idempotencyKey,
     });
     if (priorEvent) {
+      assertIdempotencyPayload(priorEvent.payload, {
+        sourceEnrollmentId: input.enrollmentId,
+        targetLocationId: input.targetLocationId,
+        targetClassTemplateId: input.targetClassTemplateId,
+        startsOn: input.startsOn,
+      });
       const sourceId = priorEvent.payload.sourceEnrollmentId;
       const targetId = priorEvent.payload.targetEnrollmentId;
       if (typeof sourceId === "string" && typeof targetId === "string") {
@@ -768,6 +806,7 @@ export async function transferEnrollment(
         athleteId: target.athleteId,
         sourceClassTemplateId: source.classTemplateId,
         targetClassTemplateId: target.classTemplateId,
+        targetLocationId: target.locationId,
         targetStatus: target.status,
         startsOn: target.startsOn,
       },

@@ -14,6 +14,7 @@ import { assertOperationalAccess } from "@/modules/shared/infrastructure/operati
 import {
   appendAuditEntry,
   appendOutboxEvent,
+  assertIdempotencyPayload,
   findOutboxEvent,
   lockCommand,
 } from "@/modules/shared/infrastructure/transactional-records";
@@ -108,6 +109,13 @@ export async function materializeSessions(
       eventName,
       idempotencyKey: input.idempotencyKey,
     });
+    if (priorEvent) {
+      assertIdempotencyPayload(priorEvent.payload, {
+        classTemplateId: input.classTemplateId,
+        startDate: input.startDate,
+        endDate: input.endDate,
+      });
+    }
     const priorIds = priorEvent?.payload.sessionIds;
     if (
       Array.isArray(priorIds) &&

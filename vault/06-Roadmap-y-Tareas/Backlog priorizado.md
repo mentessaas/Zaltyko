@@ -53,9 +53,20 @@ Code changes verificados: tsc OK, eslint OK, next build OK.
   sede desde base de datos.
 - **Evidencia:** reintentos idempotentes, dos organizaciones, varias sedes,
   última plaza concurrente, transferencia, coach asignado y correcciones
-  concurrentes de asistencia en PostgreSQL efímero.
-- **Siguiente corte:** PR-03, trials, waitlist y fixture sintético. El motor de
-  métricas continúa bloqueado hasta cerrar ese journey operativo.
+  concurrentes de asistencia en PostgreSQL efímero. PR-03 añade trial,
+  follow-up, waitlist, ofertas, familias y pagadores con fixture sintético
+  mono/multi-sede y tres journeys completos.
+- **Siguiente corte:** PR-04, ledger mínimo. El motor de métricas continúa
+  bloqueado hasta contar con hechos financieros reconciliables.
+
+## P0 — Construir ledger mínimo reconciliable — 2026-10-06
+
+- **Estado:** pendiente. Solo existe el catálogo `price_plans`; no hay invoices,
+  cargos, pagos, allocations, intentos, refunds ni webhook inbox canónicos.
+- **Gate:** pago parcial, fallo/reintento/refund, tres entregas del mismo evento
+  con un solo efecto y reconciliación por moneda.
+- **Límite:** adaptador local/sintético; no conectar Stripe Live ni usar claves o
+  datos financieros reales sin autorización explícita.
 
 ## P0 — Privacidad del riesgo individual de abandono — 2026-10-06
 

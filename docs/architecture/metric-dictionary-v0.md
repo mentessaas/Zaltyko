@@ -24,7 +24,7 @@ Estado: contrato previo al motor; no demuestra cálculos implementados.
 | `churn_rate`                 | ratio / cohort_ratio   | Miembros elegibles de cohorte inicial que terminan sin transferencia/reactivación dentro de ventana / cohorte inicial elegible         | historial de `enrollments`                             | Contrato cerrado; ventana de reactivación pendiente                 |
 | `recognized_revenue_minor`   | currency_minor / sum   | Importe reconocido por líneas de factura menos reversos atribuibles al período; Stripe no es fuente única                              | ledger pendiente                                       | Bloqueada hasta PR-04                                               |
 | `collection_rate`            | ratio / weighted_ratio | Pagos asignados netos de refund / importe cobrable vencido del período                                                                 | ledger pendiente                                       | Bloqueada hasta PR-04                                               |
-| `waitlist_opportunity_count` | count / sum            | Entradas contactables y activas para clases/programas con demanda no atendida                                                          | waitlist pendiente                                     | Bloqueada hasta PR-03                                               |
+| `waitlist_opportunity_count` | count / sum            | Entradas contactables y activas para clases/programas con demanda no atendida                                                          | `waitlist_entries`                                     | Fuente operativa lista; implementación en PR-05                     |
 
 ## Estados de calidad
 

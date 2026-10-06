@@ -62,6 +62,5 @@ protege las inscripciones ordinarias.
 
 - PRD, secciones 4.3, 5, 9.7, 10.2, 10.5, 16.2 y 18.
 - Fixture sintético: `supabase/fixtures/zaltyko_synthetic_academies.sql`.
-- El esquema y las restricciones tienen test PostgreSQL local. Los servicios y
-  el journey trial→waitlist/enrollment se validan en el siguiente corte de esta
-  fase.
+- El esquema, las restricciones y los tres journeys tienen tests PostgreSQL
+  locales. Evidencia: `../growth-operations.md`.

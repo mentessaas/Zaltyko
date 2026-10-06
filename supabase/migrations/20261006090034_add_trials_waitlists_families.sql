@@ -283,7 +283,7 @@ create unique index waitlist_entries_open_template_uq
   on zaltyko.waitlist_entries (organization_id, athlete_id, class_template_id)
   where class_template_id is not null and status in ('waiting', 'offered');
 create unique index waitlist_entries_open_program_uq
-  on zaltyko.waitlist_entries (organization_id, athlete_id, program_id)
+  on zaltyko.waitlist_entries (organization_id, location_id, athlete_id, program_id)
   where program_id is not null and status in ('waiting', 'offered');
 create index waitlist_entries_actionable_idx
   on zaltyko.waitlist_entries (

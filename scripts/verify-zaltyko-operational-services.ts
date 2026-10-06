@@ -249,7 +249,7 @@ async function main(): Promise<void> {
     enrollmentId: enrollment1.id,
     expectedVersion: 1,
     toStatus: "paused",
-    effectiveOn: "2026-10-10",
+    effectiveOn: "2026-10-03",
     reasonCode: "family_pause",
     idempotencyKey: "pause-enrollment-1",
     actor: owner,

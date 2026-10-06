@@ -7,6 +7,22 @@ source:
   - ../docs/architecture/zaltyko-domain-model.md
 ---
 
+## 2026-10-06 — Trials, familias y waitlist sobre capacidad canónica
+
+- Añadidas familias, tutores, contactos, permisos familiares y pagadores como
+  relaciones separadas; ser tutor no concede permiso financiero.
+- Trials, follow-ups, waitlist y ofertas tienen estado, versión, historial,
+  idempotencia, RLS forzado y FKs de organización/sede.
+- Reservar trial o enviar oferta crea un enrollment canónico que consume
+  capacidad. Aceptar activa la reserva; expirar la cancela y vuelve a `waiting`.
+- Fixture reutilizable exclusivamente sintético con academia mono-sede y
+  multi-sede, contactos `.invalid` y ningún dato real de menores.
+- Gate local PASS: trial→waitlist→enrollment, conversión directa, expiración,
+  reintentos, scope de sede, vínculo tutor-atleta y payloads sin claves PII.
+- Sin API, UI, comunicaciones, portal de tutor, entorno remoto, Stripe,
+  producción ni despliegue.
+- Diseño y evidencia: `docs/architecture/growth-operations.md`.
+
 ## 2026-10-06 — Servicios operativos transaccionales del nuevo núcleo
 
 - Implementados servicios de inscripciones, materialización de sesiones y

@@ -78,7 +78,6 @@ entornos remotos.
 
 ## Siguiente dependencia
 
-La PR-03 puede reutilizar estos contratos para trials y waitlist. No debe
-calcular el Academy Health Score directamente desde comandos operativos: esos
-comandos publican hechos y el motor analítico posterior los procesa de forma
-asíncrona y versionada.
+PR-03 reutiliza estos contratos en `growth-operations.md`. Ninguna operación
+calcula el Academy Health Score directamente: publica hechos y el motor
+analítico posterior los procesa de forma asíncrona y versionada.
