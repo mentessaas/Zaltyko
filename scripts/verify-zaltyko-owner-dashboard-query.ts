@@ -6,6 +6,7 @@ import { Pool } from "pg";
 import { getOwnerDashboard } from "@/modules/owner-dashboard/application/get-owner-dashboard";
 import { getHealthScoreHistory } from "@/modules/owner-dashboard/application/health-score-history";
 import { getMetricSeries } from "@/modules/owner-dashboard/application/metric-series";
+import { getCapacityHeatmap } from "@/modules/owner-dashboard/application/capacity-heatmap";
 import { OperationalError } from "@/modules/shared/domain/operational-error";
 
 const databaseUrl = process.env.DATABASE_URL;
@@ -125,6 +126,48 @@ async function main(): Promise<void> {
     }),
     "LOCATION_SCOPE_DENIED"
   );
+  const heatmapFirst = await getCapacityHeatmap({
+    userId: ID.foreignOwnerUser,
+    organizationId: ID.managerOrg,
+    limit: 1,
+  });
+  assert.equal(heatmapFirst.cells.length, 1);
+  assert(heatmapFirst.nextCursor);
+  assert.equal(heatmapFirst.cells[0].classes.length, 1);
+  assert(heatmapFirst.cells[0].capacity > 0);
+  assert.equal(JSON.stringify(heatmapFirst).includes("Persona Sintética"), false);
+  const heatmapSecond = await getCapacityHeatmap({
+    userId: ID.foreignOwnerUser,
+    organizationId: ID.managerOrg,
+    limit: 1,
+    cursor: heatmapFirst.nextCursor,
+  });
+  assert.equal(heatmapSecond.cells.length, 1);
+  assert.equal(heatmapSecond.nextCursor, null);
+  assert.notDeepEqual(
+    [heatmapFirst.cells[0].isoWeekday, heatmapFirst.cells[0].startsAtLocal],
+    [heatmapSecond.cells[0].isoWeekday, heatmapSecond.cells[0].startsAtLocal]
+  );
+  const programHeatmap = await getCapacityHeatmap({
+    userId: ID.foreignOwnerUser,
+    organizationId: ID.managerOrg,
+    programId: "20000000-0000-0000-0000-000000000701",
+  });
+  assert.equal(programHeatmap.cells.length, 2);
+  const groupHeatmap = await getCapacityHeatmap({
+    userId: ID.foreignOwnerUser,
+    organizationId: ID.managerOrg,
+    groupId: "20000000-0000-0000-0000-000000000799",
+  });
+  assert.equal(groupHeatmap.cells.length, 0);
+  await expectOperationalError(
+    () => getCapacityHeatmap({
+      userId: ID.scopedManagerUser,
+      organizationId: ID.managerOrg,
+      locationId: ID.managerSouth,
+    }),
+    "LOCATION_SCOPE_DENIED"
+  );
 
   await expectOperationalError(
     () =>
@@ -214,6 +257,7 @@ async function main(): Promise<void> {
       localSyntheticP95Ms: Number(p95Ms.toFixed(1)),
       historyPages: historyIds.length,
       metricSeriesPages: metricValueIds.length,
+      heatmapCells: heatmapFirst.cells.length + heatmapSecond.cells.length,
     })
   );
 }

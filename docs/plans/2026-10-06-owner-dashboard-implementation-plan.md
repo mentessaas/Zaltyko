@@ -245,8 +245,13 @@ diagnósticos y watermark, con filtro de fechas/moneda y cursor estable. Pruebas
 locales cubren tres páginas, cursor corrupto, manager fuera de scope y sede sin
 snapshots.
 
-Pendiente: heatmap con drill-down, cohortes, riesgos autorizados y
-perfiles/ajustes de benchmark. Ampliar dashboard con comparación,
+`GET /api/v1/capacity/heatmap` agrupa slots semanales por día/hora, pondera
+ocupación por capacidad efectiva y devuelve clases autorizadas para drill-down;
+acepta sede, programa y grupo con cursor. La prueba sintética cubre 2 celdas,
+paginación y filtro de programa. El endpoint no sustituye los paneles/UI.
+
+Pendiente: cohortes, riesgos autorizados y perfiles/ajustes de benchmark.
+Ampliar dashboard con comparación,
 disciplina/programa/grupo, validando autorización antes de consultar.
 
 ### PR-14 — Dashboard funcional según PRD

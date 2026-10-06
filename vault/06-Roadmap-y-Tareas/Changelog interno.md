@@ -11028,6 +11028,12 @@ Modelo separado, reclamación manual, administración, importación revisada, fi
 - **Validación local:** 3 páginas de snapshots métricos sintéticos, sin IDs duplicados; denegación de manager para sede fuera de scope, typecheck y ESLint pasan con el runner de score/dashboard.
 - **Pendiente:** heatmap/drill-down, cohortes/retention risks, benchmark settings, filtros de programa/grupo/comparación, E2E autenticado y carga objetivo.
 
+## 2026-10-06 — API de heatmap de capacidad
+
+- `GET /api/v1/capacity/heatmap` agrega slots semanales por día/hora, pondera ocupación por capacidad efectiva y devuelve drill-down por clase sin exponer personas. Scope por sede; filtros program/group y cursor.
+- **Validación local:** dos celdas sintéticas, página cursor, filtro programa, filtro grupo sin datos y manager denegado fuera de sede; typecheck/ESLint y runner integrado score/dashboard pasan.
+- **Límite:** no hay visualización heatmap integrada en `/owner`, todavía no se probó fecha local distinta entre sedes ni volumen a escala.
+
 
 ## 2026-10-05 — Cierre de anual Test y revalidación de acceso
 
