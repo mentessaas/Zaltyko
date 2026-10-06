@@ -14,6 +14,11 @@ import {
 } from "lucide-react";
 
 import type { OwnerDashboardBundle } from "@/modules/owner-dashboard/application/get-owner-dashboard";
+import type { getCapacityHeatmap } from "@/modules/owner-dashboard/application/capacity-heatmap";
+import type { getRetentionCohorts } from "@/modules/owner-dashboard/application/retention-cohorts";
+
+type CapacityBundle = Awaited<ReturnType<typeof getCapacityHeatmap>>;
+type CohortsBundle = Awaited<ReturnType<typeof getRetentionCohorts>>;
 
 const statusLabels: Record<string, string> = {
   critical: "Crítico",
@@ -122,6 +127,223 @@ function ScoreDial({
   );
 }
 
+const weekdayLabels = ["", "Lun", "Mar", "Mié", "Jue", "Vie", "Sáb", "Dom"];
+
+function OperationalEvidence({
+  capacity,
+  cohorts,
+}: {
+  capacity: CapacityBundle | null;
+  cohorts: CohortsBundle | null;
+}) {
+  const formatMonth = (value: string) =>
+    new Intl.DateTimeFormat("es-ES", {
+      month: "long",
+      year: "numeric",
+      timeZone: "UTC",
+    }).format(new Date(`${value.slice(0, 7)}-01T12:00:00Z`));
+
+  return (
+    <section className="mt-12 grid gap-8 border-t border-slate-400 pt-8 xl:grid-cols-[1fr_1fr]">
+      <article
+        id="capacity"
+        aria-labelledby="capacity-title"
+        className="min-w-0"
+      >
+        <p className="text-xs font-bold uppercase tracking-[0.18em] text-teal-800">
+          Operación semanal
+        </p>
+        <h2 id="capacity-title" className="mt-2 text-2xl">
+          Capacidad y ocupación
+        </h2>
+        <p className="mt-2 text-sm text-slate-600">
+          Plazas ocupadas frente al aforo efectivo de cada franja, según las
+          inscripciones vigentes.
+        </p>
+        {!capacity ? (
+          <p
+            role="status"
+            className="mt-5 border border-amber-300 bg-amber-50 p-4 text-sm text-amber-950"
+          >
+            No se pudo actualizar este resumen. El resto del panel sigue
+            disponible.
+          </p>
+        ) : capacity.cells.length === 0 ? (
+          <p className="mt-5 border border-slate-300 bg-white p-4 text-sm text-slate-600">
+            No hay clases activas con horario configurado para{" "}
+            {formatDate(capacity.asOf)}.
+          </p>
+        ) : (
+          <div className="mt-5 space-y-3">
+            {capacity.cells.map((cell) => {
+              const percent =
+                cell.fillRate === null ? null : Math.round(cell.fillRate * 100);
+              return (
+                <details
+                  key={`${cell.isoWeekday}-${cell.startsAtLocal}-${cell.endsAtLocal}`}
+                  className="group border border-slate-300 bg-white"
+                >
+                  <summary className="touch-target flex cursor-pointer list-none flex-wrap items-center gap-x-4 gap-y-2 p-4 marker:hidden">
+                    <strong className="w-10 text-sm">
+                      {weekdayLabels[cell.isoWeekday]}
+                    </strong>
+                    <span className="font-mono text-sm tabular-nums">
+                      {cell.startsAtLocal.slice(0, 5)}–
+                      {cell.endsAtLocal.slice(0, 5)}
+                    </span>
+                    <span className="ml-auto text-right text-sm font-semibold tabular-nums">
+                      {cell.capacity === 0
+                        ? "Aforo sin configurar"
+                        : `${cell.occupied}/${cell.capacity} plazas${percent === null ? "" : ` · ${percent}%`}`}
+                    </span>
+                    <span className="sr-only">, ver clases de esta franja</span>
+                    <div
+                      className="h-1.5 w-full bg-slate-200"
+                      aria-hidden="true"
+                    >
+                      <div
+                        className="h-full bg-teal-700"
+                        style={{ width: `${Math.min(100, percent ?? 0)}%` }}
+                      />
+                    </div>
+                  </summary>
+                  <ul className="divide-y divide-slate-200 border-t border-slate-200 px-4">
+                    {cell.classes.map((item, index) => {
+                      const name =
+                        typeof item.name === "string"
+                          ? item.name
+                          : `Clase ${index + 1}`;
+                      const openSeats = Number(item.openSeats ?? 0);
+                      return (
+                        <li
+                          key={`${name}-${index}`}
+                          className="flex justify-between gap-3 py-3 text-sm"
+                        >
+                          <span className="min-w-0 truncate">{name}</span>
+                          <span className="shrink-0 text-slate-600">
+                            {Number(item.capacity ?? 0) === 0
+                              ? "Aforo pendiente"
+                              : `${openSeats} ${openSeats === 1 ? "plaza libre" : "plazas libres"}`}
+                          </span>
+                        </li>
+                      );
+                    })}
+                  </ul>
+                </details>
+              );
+            })}
+            {capacity.nextCursor && (
+              <p className="text-xs text-slate-600">
+                Se muestran las primeras 50 franjas; aplica filtros de ámbito
+                para acotar el resumen.
+              </p>
+            )}
+          </div>
+        )}
+      </article>
+
+      <article
+        id="retention"
+        aria-labelledby="retention-title"
+        className="min-w-0"
+      >
+        <p className="text-xs font-bold uppercase tracking-[0.18em] text-teal-800">
+          Evolución de grupos
+        </p>
+        <h2 id="retention-title" className="mt-2 text-2xl">
+          Retención por cohorte
+        </h2>
+        <p className="mt-2 text-sm text-slate-600">
+          Seguimiento agregado por mes de primera inscripción activa; no muestra
+          datos personales.
+        </p>
+        {!cohorts ? (
+          <p
+            role="status"
+            className="mt-5 border border-amber-300 bg-amber-50 p-4 text-sm text-amber-950"
+          >
+            No se pudo actualizar este resumen. El resto del panel sigue
+            disponible.
+          </p>
+        ) : (
+          <>
+            <p className="mt-4 border-l-2 border-amber-500 bg-amber-50 p-3 text-xs leading-5 text-amber-950">
+              {cohorts.pauseGrace.reason} La fecha de cohorte usa el primer
+              estado activo registrado; si falta historial, usa el inicio de la
+              inscripción.
+            </p>
+            {cohorts.items.length === 0 ? (
+              <p className="mt-4 border border-slate-300 bg-white p-4 text-sm text-slate-600">
+                Aún no hay cohortes con historial de inscripción en este ámbito.
+              </p>
+            ) : (
+              <div className="mt-4 overflow-x-auto border border-slate-300 bg-white">
+                <table className="w-full min-w-[32rem] border-collapse text-left text-sm">
+                  <caption className="sr-only">
+                    Retención agregada por mes de primera inscripción activa
+                  </caption>
+                  <thead className="bg-slate-100 text-xs uppercase tracking-wide text-slate-600">
+                    <tr>
+                      <th className="px-3 py-3" scope="col">
+                        Cohorte
+                      </th>
+                      <th className="px-3 py-3 text-right" scope="col">
+                        Tamaño
+                      </th>
+                      <th className="px-3 py-3" scope="col">
+                        Último período
+                      </th>
+                      <th className="px-3 py-3 text-right" scope="col">
+                        Retención
+                      </th>
+                    </tr>
+                  </thead>
+                  <tbody className="divide-y divide-slate-200">
+                    {cohorts.items.map((item) => {
+                      const latest = item.matrix.at(-1);
+                      const rate = latest?.retentionRate;
+                      const periodEnd =
+                        typeof latest?.periodEnd === "string"
+                          ? latest.periodEnd
+                          : null;
+                      const retentionRate =
+                        typeof rate === "number" ? rate : null;
+                      return (
+                        <tr key={item.cohortMonth}>
+                          <th className="px-3 py-3 font-semibold" scope="row">
+                            {formatMonth(item.cohortMonth).replace(
+                              /^./,
+                              (letter) => letter.toLocaleUpperCase("es-ES")
+                            )}
+                          </th>
+                          <td className="px-3 py-3 text-right font-mono tabular-nums">
+                            {item.cohortSize}
+                          </td>
+                          <td className="px-3 py-3">
+                            {periodEnd ? formatDate(periodEnd) : "—"}
+                          </td>
+                          <td className="px-3 py-3 text-right font-mono tabular-nums">
+                            {retentionRate === null
+                              ? "No disponible"
+                              : new Intl.NumberFormat("es-ES", {
+                                  style: "percent",
+                                  maximumFractionDigits: 1,
+                                }).format(retentionRate)}
+                          </td>
+                        </tr>
+                      );
+                    })}
+                  </tbody>
+                </table>
+              </div>
+            )}
+          </>
+        )}
+      </article>
+    </section>
+  );
+}
+
 function EmptyDashboard({ bundle }: { bundle: OwnerDashboardBundle }) {
   return (
     <main
@@ -158,12 +380,25 @@ function EmptyDashboard({ bundle }: { bundle: OwnerDashboardBundle }) {
 
 export function OwnerDashboardView({
   bundle,
+  capacity = null,
+  cohorts = null,
   preview = false,
 }: {
   bundle: OwnerDashboardBundle;
+  capacity?: CapacityBundle | null;
+  cohorts?: CohortsBundle | null;
   preview?: boolean;
 }) {
-  if (bundle.state === "empty") return <EmptyDashboard bundle={bundle} />;
+  if (bundle.state === "empty") {
+    return (
+      <>
+        <EmptyDashboard bundle={bundle} />
+        <div className="mx-auto max-w-3xl px-5 pb-16">
+          <OperationalEvidence capacity={capacity} cohorts={cohorts} />
+        </div>
+      </>
+    );
+  }
 
   const metricByKey = new Map(
     bundle.metrics.map((metric) => [metric.key, metric])
@@ -216,7 +451,8 @@ export function OwnerDashboardView({
             {[
               ["Resumen", "/owner"],
               ["Insights", "/owner/insights"],
-              ["Inscripciones", "#metric-class_fill_rate"],
+              ["Capacidad", "#capacity"],
+              ["Inscripciones", "#retention"],
               ["Cobros", "#metric-collection_rate"],
             ].map(([label, href], index) => (
               <Link
@@ -719,6 +955,8 @@ export function OwnerDashboardView({
               ))}
           </div>
         </section>
+
+        <OperationalEvidence capacity={capacity} cohorts={cohorts} />
 
         <footer className="mt-10 flex flex-col gap-3 border-t border-slate-300 pt-5 text-xs text-slate-600 sm:flex-row sm:items-center sm:justify-between">
           <span>

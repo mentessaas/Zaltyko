@@ -261,9 +261,27 @@ disciplina/programa/grupo, validando autorización antes de consultar.
 
 ### PR-14 — Dashboard funcional según PRD
 
-Pendiente: completar paneles de cobro, ocupación, retención y oportunidades;
-estados parciales, filtros compartibles, tablas equivalentes y accesibilidad
-WCAG 2.2 AA. La vista de score no prueba los drill-down del producto.
+Estado parcial: el dashboard integra en servidor el heatmap de capacidad y las
+cohortes agregadas, reusando sesión y alcance de organización/sede. Un fallo de
+un agregado no derriba el score; se registra y presenta como no disponible, y
+los errores de autorización no se convierten en estados vacíos. La capacidad
+muestra día/hora, ocupación efectiva y plazas por clase; aforo cero se presenta
+como configuración pendiente, no como 0/0. La retención indica criterio
+provisional de cohorte y omite la tasa si hubo pausa. El preview usa fixture
+solo sintético, incluyendo ambos casos límite.
+
+Verificación de UI: preview observada con navegador local a 375/768/1280 px;
+`documentElement.scrollWidth` coincide con viewport en los tres anchos. No se
+usó identidad autenticada ni datos remotos. Typecheck, ESLint focalizado y
+`next build` pasaron para la integración del dashboard; el build ocurrió antes
+del fixture visual final, que sí pasó typecheck/ESLint. Sigue pendiente repetir
+build final, probar filtros/paginación de extremos en UI, axe/teclado/lector de
+pantalla y E2E autenticado.
+
+Pendiente: filtros compartibles de programa/grupo/periodo, lectura de histórico y
+series en todos los paneles, enlace a acciones operativas y oportunidades
+P0→outcomes; tablas equivalentes más completas y WCAG 2.2 AA. Esta vista todavía
+no demuestra el drill-down completo del PRD.
 
 ### PR-15 — Sandbox aislado y pruebas operativas
 

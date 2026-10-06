@@ -3,10 +3,13 @@ import { notFound, redirect } from "next/navigation";
 
 import { OwnerDashboardView } from "@/components/owner-dashboard/OwnerDashboardView";
 import { createClient } from "@/lib/supabase/server";
+import { logger } from "@/lib/logger";
 import {
   getOwnerDashboard,
   ownerDashboardQuerySchema,
 } from "@/modules/owner-dashboard/application/get-owner-dashboard";
+import { getCapacityHeatmap } from "@/modules/owner-dashboard/application/capacity-heatmap";
+import { getRetentionCohorts } from "@/modules/owner-dashboard/application/retention-cohorts";
 import { OperationalError } from "@/modules/shared/domain/operational-error";
 
 export const dynamic = "force-dynamic";
@@ -51,5 +54,40 @@ export default async function OwnerDashboardPage({
     throw error;
   }
 
-  return <OwnerDashboardView bundle={bundle} />;
+  const [capacityResult, cohortsResult] = await Promise.allSettled([
+    getCapacityHeatmap({
+      userId: user.id,
+      organizationId: bundle.organization.id,
+      locationId: bundle.scope.locationId ?? undefined,
+      limit: 50,
+    }),
+    getRetentionCohorts({
+      userId: user.id,
+      organizationId: bundle.organization.id,
+      locationId: bundle.scope.locationId ?? undefined,
+      from: query.data.from,
+      to: query.data.to,
+      limit: 24,
+    }),
+  ]);
+  for (const result of [capacityResult, cohortsResult]) {
+    if (result.status === "rejected") {
+      if (
+        result.reason instanceof OperationalError &&
+        (result.reason.code === "FORBIDDEN" ||
+          result.reason.code === "LOCATION_SCOPE_DENIED")
+      ) {
+        notFound();
+      }
+      logger.error("Owner dashboard aggregate panel failed", result.reason);
+    }
+  }
+  const capacity =
+    capacityResult.status === "fulfilled" ? capacityResult.value : null;
+  const cohorts =
+    cohortsResult.status === "fulfilled" ? cohortsResult.value : null;
+
+  return (
+    <OwnerDashboardView bundle={bundle} capacity={capacity} cohorts={cohorts} />
+  );
 }
