@@ -25,6 +25,14 @@ usarse como sustitutos.
 - Toda transición crea `enrollment_status_history`, incrementa `version`, usa
   clave de idempotencia y publica el evento correspondiente en la misma
   transacción.
+- El historial conserva `effective_on` como fecha de negocio y `changed_at`
+  como fecha de ejecución. Los intervalos usan `starts_on` inclusivo y
+  `ends_on` exclusivo.
+- Toda pausa crea un intervalo en `enrollment_pauses`. Reactivar, cancelar,
+  completar o transferir cierra el intervalo abierto; el estado actual no
+  sustituye al historial temporal necesario para métricas.
+- Mientras no exista un scheduler de comandos, una transición futura se
+  rechaza en vez de adelantar el estado actual.
 - Una transferencia cierra la inscripción origen y crea la destino de forma
   atómica. No cuenta como churn salvo que la regla analítica lo determine de
   forma explícita.
@@ -44,3 +52,4 @@ usarse como sustitutos.
 
 - PRD, secciones 5, 9.3, 10.3–10.4 y AC-03/AC-04.
 - Regla heredada validada: `group_athletes` era la relación M:N canónica.
+- Implementación operativa: `../operational-services.md`.

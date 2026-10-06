@@ -7,6 +7,24 @@ source:
   - ../docs/architecture/zaltyko-domain-model.md
 ---
 
+## 2026-10-06 — Servicios operativos transaccionales del nuevo núcleo
+
+- Implementados servicios de inscripciones, materialización de sesiones y
+  asistencia sobre el esquema `zaltyko`.
+- Alta, transición y transferencia son idempotentes; cada cambio escribe
+  dominio, historial, outbox y auditoría en una sola transacción.
+- Capacidad y correcciones de asistencia quedan serializadas con advisory
+  locks. La última plaza concurrente produce un único ganador.
+- Las pausas conservan intervalos explícitos; un coach solo registra asistencia
+  cuando está asignado a la sesión y el scope de sede se resuelve en base de
+  datos.
+- El historial separa fecha efectiva y fecha de ejecución; los intervalos son
+  semiabiertos y las transiciones futuras esperan un scheduler explícito.
+- Verificación local: dos organizaciones, varias sedes, reintentos, concurrencia,
+  transferencia, sesiones y asistencia PASS. Sin API, UI, entorno remoto,
+  producción, Stripe, credenciales ni despliegue.
+- Diseño y evidencia: `docs/architecture/operational-services.md`.
+
 ## 2026-10-06 — Fundación del nuevo dominio Owner Dashboard / Health Score
 
 - Creado el esquema canónico `zaltyko` con organización, sedes, instalaciones,

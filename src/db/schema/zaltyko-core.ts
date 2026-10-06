@@ -883,6 +883,7 @@ export const enrollmentStatusHistory = zaltyko.table(
     reasonCode: text("reason_code"),
     changedByMemberId: uuid("changed_by_member_id"),
     idempotencyKey: text("idempotency_key").notNull(),
+    effectiveOn: date("effective_on").notNull(),
     changedAt: timestamp("changed_at", { withTimezone: true })
       .notNull()
       .defaultNow(),
@@ -895,6 +896,12 @@ export const enrollmentStatusHistory = zaltyko.table(
     index("enrollment_status_history_enrollment_idx").on(
       table.organizationId,
       table.enrollmentId,
+      table.changedAt
+    ),
+    index("enrollment_status_history_effective_idx").on(
+      table.organizationId,
+      table.enrollmentId,
+      table.effectiveOn,
       table.changedAt
     ),
     foreignKey({
@@ -933,6 +940,9 @@ export const enrollmentPauses = zaltyko.table(
       table.organizationId,
       table.enrollmentId
     ),
+    uniqueIndex("enrollment_pauses_one_open_uq")
+      .on(table.organizationId, table.enrollmentId)
+      .where(sql`${table.endsOn} is null`),
     check(
       "enrollment_pauses_dates_valid",
       sql`${table.endsOn} is null or ${table.endsOn} >= ${table.startsOn}`
@@ -1099,4 +1109,5 @@ export type ClassTemplate = typeof classTemplates.$inferSelect;
 export type Session = typeof sessions.$inferSelect;
 export type Enrollment = typeof enrollments.$inferSelect;
 export type NewEnrollment = typeof enrollments.$inferInsert;
+export type AttendanceRecord = typeof attendanceRecords.$inferSelect;
 export type OutboxEvent = typeof outboxEvents.$inferSelect;

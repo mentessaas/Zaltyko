@@ -15,7 +15,7 @@ la siguiente.
 | Esquema `zaltyko`                                     | Ejecutado desde cero en PostgreSQL local; no remoto   |
 | Contratos TypeScript                                  | Organización, enrollment, capacidad y eventos creados |
 | RLS/grants                                            | Matriz local tenant/sede/privilegios aprobada         |
-| Capa operativa                                        | Pendiente                                             |
+| Capa operativa                                        | Implementada y verificada localmente                  |
 | Ledger                                                | Solo catálogo `price_plans`; resto pendiente          |
 | Métricas, score, dashboard e insights                 | Pendientes                                            |
 
@@ -34,6 +34,9 @@ scope de sede negativo; audit log inmutable; TypeScript, lint y tests focales.
 
 ### PR-02 — Servicios operativos transaccionales
 
+Estado: **cerrada localmente** el 2026-10-06. Evidencia y límites en
+`docs/architecture/operational-services.md`.
+
 - repositorios y application services por módulo;
 - alta, pausa, reactivación, cancelación y transferencia de enrollment;
 - materialización de sesiones desde plantilla;
@@ -43,6 +46,11 @@ scope de sede negativo; audit log inmutable; TypeScript, lint y tests focales.
 
 Gate: pruebas de integración con dos organizaciones, dos sedes, reintentos y
 concurrencia. Ninguna API ni UI antes de pasar este gate.
+
+Resultado: gate local aprobado con PostgreSQL efímero, autorización resuelta en
+base de datos, última plaza concurrente, correcciones concurrentes de asistencia
+y paridad dominio/historial/outbox/auditoría. API, E2E autenticado, despliegue y
+runtime remoto no forman parte de esta fase.
 
 ### PR-03 — Trials, waitlist y fixture sintético
 

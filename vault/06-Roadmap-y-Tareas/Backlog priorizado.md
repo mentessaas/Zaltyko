@@ -48,13 +48,14 @@ Code changes verificados: tsc OK, eslint OK, next build OK.
 
 ## P0 — Cerrar servicios operativos antes del motor de métricas — 2026-10-06
 
-- **Estado:** el esquema fundacional y sus contratos pasan pruebas locales, pero
-  aún no existen application services transaccionales.
-- **Siguiente corte:** enrollment (alta/pausa/cancelación/transferencia),
-  materialización de sesiones, asistencia y reserva de capacidad con lock.
-- **Gate:** dominio + historial + audit log + outbox en una transacción;
-  idempotencia al reintentar; dos organizaciones y dos sedes; prueba concurrente
-  de última plaza. No construir el Health Score antes de este cierre.
+- **Estado:** cerrado localmente. Enrollment, sesiones y asistencia escriben
+  dominio + historial + audit log + outbox en una transacción y resuelven rol y
+  sede desde base de datos.
+- **Evidencia:** reintentos idempotentes, dos organizaciones, varias sedes,
+  última plaza concurrente, transferencia, coach asignado y correcciones
+  concurrentes de asistencia en PostgreSQL efímero.
+- **Siguiente corte:** PR-03, trials, waitlist y fixture sintético. El motor de
+  métricas continúa bloqueado hasta cerrar ese journey operativo.
 
 ## P0 — Privacidad del riesgo individual de abandono — 2026-10-06
 
