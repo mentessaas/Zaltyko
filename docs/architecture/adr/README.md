@@ -19,5 +19,6 @@ Stripe Live ni cambios de credenciales.
 | [0006](./0006-familias-trials-y-lista-de-espera.md)  | Familias, trials, waitlist y reserva de capacidad |
 | [0007](./0007-arranque-limpio-y-cutover-owner.md)    | Arranque limpio y corte de superficie owner       |
 | [0008](./0008-actor-de-sistema-para-workers.md)      | Actor de sistema explícito para workers           |
+| [0009](./0009-moneda-base-y-mediciones-multidivisa.md) | Moneda explícita y métricas sin FX implícito       |
 
 Contrato analítico inicial: [diccionario de métricas v0](../metric-dictionary-v0.md).

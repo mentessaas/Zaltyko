@@ -235,14 +235,14 @@ El endpoint existente crea el actor solo dentro de contexto async tras comprobar
 `CRON_SECRET`; cron ausente o actor falsificado se deniega. El endpoint aún solo
 despacha invalidaciones y no ejecuta la cascada completa.
 
-Hallazgo para la orquestación: `organizations` no tiene moneda de facturación ni
-perfil de benchmark asignado; el perfil permite `organization_id` nulo y puede
-haber varios perfiles activos. El worker no debe elegir el fixture sintético ni
-un perfil global de forma implícita. Próxima decisión de diseño: recomputar
-métricas por cada moneda explícita de ledger y producir score solo con un único
-perfil activo vinculado explícitamente a la organización; si falta o hay varios,
-dejar score pendiente/datos insuficientes y registrar motivo sin alterar el
-ledger. No se convierte moneda.
+ADR-0009 fija `organizations.default_currency` explícita al bootstrap (EUR
+editable, sin inferir por país); cada movimiento preserva su moneda y no existe
+conversión FX implícita. El worker solo debe puntuar con un perfil benchmark
+único, activo y asignado explícitamente; nunca escoge un fixture sintético ni un
+perfil global ambiguo. Si no existe, conserva métricas y deja score
+pendiente/datos insuficientes con motivo. Schema/contrato/UI iniciales de
+moneda añadidos localmente; la administración del perfil y su propagación a
+worker/API/UI aún están pendientes. No usar datos financieros reales.
 
 Pendiente: orquestar invalidaciones→recompute→score→P0→outcomes, digest/
 notificaciones y métricas/alertas de lag; decidir canal/proveedor. El SLA ≤15 min solo puede afirmarse cuando se

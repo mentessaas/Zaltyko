@@ -26,6 +26,7 @@ export const bootstrapOrganizationSchema = z.object({
     .toUpperCase()
     .regex(/^[A-Z]{2}$/)
     .default("ES"),
+  defaultCurrency: z.string().trim().toUpperCase().regex(/^[A-Z]{3}$/),
   timezone: z.string().trim().min(3).max(80).default("Europe/Madrid"),
   locationName: z.string().trim().min(2).max(120),
   locationCode: z
@@ -67,6 +68,7 @@ function requestHash(
         organizationName: input.organizationName,
         legalName: input.legalName ?? null,
         countryCode: input.countryCode,
+        defaultCurrency: input.defaultCurrency,
         timezone: input.timezone,
         locationName: input.locationName,
         locationCode: input.locationCode,
@@ -136,6 +138,7 @@ export async function bootstrapOrganization(
         name: input.organizationName,
         legalName: input.legalName ?? null,
         countryCode: input.countryCode,
+        defaultCurrency: input.defaultCurrency,
         defaultTimezone: input.timezone,
         status: "trial",
       })
@@ -176,6 +179,7 @@ export async function bootstrapOrganization(
       after: {
         status: "trial",
         countryCode: input.countryCode,
+        defaultCurrency: input.defaultCurrency,
         timezone: input.timezone,
       },
     });

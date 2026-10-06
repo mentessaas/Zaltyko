@@ -180,6 +180,7 @@ export const organizations = zaltyko.table(
     legalName: text("legal_name"),
     status: organizationStatus("status").notNull().default("trial"),
     countryCode: text("country_code").notNull().default("ES"),
+    defaultCurrency: text("default_currency").notNull().default("EUR"),
     defaultTimezone: text("default_timezone")
       .notNull()
       .default("Europe/Madrid"),
@@ -195,6 +196,10 @@ export const organizations = zaltyko.table(
     check(
       "organizations_country_code_format",
       sql`${table.countryCode} ~ '^[A-Z]{2}$'`
+    ),
+    check(
+      "organizations_default_currency_format",
+      sql`${table.defaultCurrency} ~ '^[A-Z]{3}$'`
     ),
   ]
 );

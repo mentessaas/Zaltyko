@@ -10,6 +10,7 @@ const bodySchema = z.object({
   organizationName: z.string().trim().min(2).max(120),
   legalName: z.string().trim().min(2).max(180).optional(),
   countryCode: z.string().trim().length(2).default("ES"),
+  defaultCurrency: z.string().trim().toUpperCase().regex(/^[A-Z]{3}$/),
   timezone: z.string().trim().min(3).max(80).default("Europe/Madrid"),
   locationName: z.string().trim().min(2).max(120),
   locationCode: z.string().trim().min(2).max(32),
@@ -36,7 +37,7 @@ export async function POST(request: Request) {
     return problemResponse({
       status: 400,
       title: "Configuración inválida",
-      detail: "Revisa academia, sede, país y zona horaria.",
+      detail: "Revisa academia, sede, moneda y zona horaria.",
       type: "invalid-organization-bootstrap",
       errors: parsed.error.flatten(),
     });

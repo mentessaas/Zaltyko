@@ -12,6 +12,7 @@ const canonicalMigrations = [
   "20261006100146_add_explainable_health_score.sql",
   "20261006113000_add_actionable_insights.sql",
   "20261006123000_add_organization_bootstrap.sql",
+  "20261006131000_add_organization_default_currency.sql",
 ];
 const canonicalModules = [
   "analytics",

@@ -15,6 +15,9 @@ export function OwnerSetupForm() {
     const organizationName = String(formData.get("organizationName") ?? "");
     const locationName = String(formData.get("locationName") ?? "");
     const locationCode = String(formData.get("locationCode") ?? "");
+    const defaultCurrency = String(formData.get("defaultCurrency") ?? "")
+      .trim()
+      .toUpperCase();
     try {
       const response = await fetch("/api/v1/organizations/bootstrap", {
         method: "POST",
@@ -26,6 +29,7 @@ export function OwnerSetupForm() {
           organizationName,
           locationName,
           locationCode,
+          defaultCurrency,
           countryCode: "ES",
           timezone: "Europe/Madrid",
         }),
@@ -99,6 +103,24 @@ export function OwnerSetupForm() {
           />
         </label>
       </div>
+      <label className="grid gap-2 text-sm font-bold text-slate-800">
+        Moneda base para nuevos cargos
+        <input
+          name="defaultCurrency"
+          required
+          minLength={3}
+          maxLength={3}
+          pattern="[A-Za-z]{3}"
+          defaultValue="EUR"
+          autoCapitalize="characters"
+          aria-describedby="default-currency-help"
+          className="touch-target w-full border border-slate-400 bg-white px-3 font-mono uppercase text-slate-950 sm:max-w-48"
+        />
+        <span id="default-currency-help" className="font-normal text-slate-600">
+          Código ISO 4217 de tres letras. Cada movimiento conserva su propia
+          moneda; no convertimos importes automáticamente.
+        </span>
+      </label>
       <div className="flex gap-3 border-l-4 border-teal-800 bg-[#F1F3EF] p-4 text-sm leading-6 text-slate-700">
         <ShieldCheck
           className="mt-0.5 h-5 w-5 shrink-0 text-teal-800"

@@ -31,6 +31,7 @@ INSERT INTO auth.users (id) VALUES
 SQL
 "${PSQL[@]}" -f "${ROOT_DIR}/supabase/migrations/20261006080702_establish_zaltyko_domain_foundation.sql" >/dev/null
 "${PSQL[@]}" -f "${ROOT_DIR}/supabase/migrations/20261006123000_add_organization_bootstrap.sql" >/dev/null
+"${PSQL[@]}" -f "${ROOT_DIR}/supabase/migrations/20261006131000_add_organization_default_currency.sql" >/dev/null
 
 DATABASE_URL="postgresql://127.0.0.1:${PG_PORT}/postgres" \
 DATABASE_URL_POOL="postgresql://127.0.0.1:${PG_PORT}/postgres" \

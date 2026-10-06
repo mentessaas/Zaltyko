@@ -35,6 +35,7 @@ async function main() {
     userId: ownerUser,
     organizationName: "Academia Sintética Norte",
     countryCode: "ES",
+    defaultCurrency: "EUR",
     timezone: "Europe/Madrid",
     locationName: "Sede Principal",
     locationCode: "principal",
@@ -48,6 +49,12 @@ async function main() {
   assert.equal(new Set(results.map((item) => item.organizationId)).size, 1);
   assert.equal(
     await scalar("select count(*)::int value from zaltyko.organizations"),
+    1
+  );
+  assert.equal(
+    await scalar(
+      "select count(*)::int value from zaltyko.organizations where default_currency='EUR'"
+    ),
     1
   );
   assert.equal(
@@ -80,7 +87,7 @@ async function main() {
   );
 
   await assert.rejects(
-    bootstrapOrganization({ ...command, organizationName: "Otro nombre" }),
+    bootstrapOrganization({ ...command, defaultCurrency: "USD" }),
     (error: unknown) => {
       assert(error instanceof OperationalError);
       assert.equal(error.code, "IDEMPOTENCY_CONFLICT");

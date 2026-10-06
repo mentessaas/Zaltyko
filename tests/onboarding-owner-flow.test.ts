@@ -43,6 +43,7 @@ describe("bootstrap owner canónico", () => {
     expect(service).toContain('locationScopeMode: "all"');
     expect(service).toContain("appendAuditEntry");
     expect(service).toContain("appendOutboxEvent");
+    expect(service).toContain("defaultCurrency: input.defaultCurrency");
     expect(service).not.toContain("@/db/schema");
   });
 
@@ -52,6 +53,8 @@ describe("bootstrap owner canónico", () => {
     expect(form).toContain("Nombre de la academia");
     expect(form).toContain("Nombre de la primera sede");
     expect(form).toContain("Código de sede");
+    expect(form).toContain("Moneda base para nuevos cargos");
+    expect(form).toContain("no convertimos importes automáticamente");
     expect(form).not.toContain("athlete");
     expect(form).not.toContain("dateOfBirth");
     expect(form).not.toContain("phone");
