@@ -6,6 +6,24 @@ All notable changes to Zaltyko are documented here. Format follows
 > SHA referenced corresponds to commits on `zaltyko-onboarding-ZAL-137`.
 > For commits on previous branches, refer to the git history directly.
 
+## 2026-10-06 — Nuevo núcleo PR-09: cutover prepiloto
+
+### Changed
+
+- Arranque limpio decidido: sin dual-write ni importación de clientes
+  inexistentes.
+- Entradas owner heredadas redirigen a `/owner`; navegación y home de
+  owner/admin convergen en la Mesa de dirección.
+- Threat model, RGPD inicial, observabilidad, backup/restore, matriz de retirada
+  y gate automatizado añadidos.
+- Bootstrap idempotente organización+sede+owner y entrada `/owner/setup`, sin
+  crear entidades legacy.
+
+### Gate
+
+- `NO-GO` para datos reales: bootstrap remoto, sandbox, E2E autenticado,
+  workers, restore, carga y aprobación RGPD siguen pendientes.
+
 ## 2026-10-06 — Nuevo núcleo PR-08: Insights y acciones
 
 ### Added

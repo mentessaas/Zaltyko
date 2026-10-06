@@ -43,6 +43,9 @@ export default async function OwnerDashboardPage({
       error instanceof OperationalError &&
       (error.code === "FORBIDDEN" || error.code === "LOCATION_SCOPE_DENIED")
     ) {
+      if (error.code === "FORBIDDEN" && !query.data.organizationId) {
+        redirect("/owner/setup");
+      }
       notFound();
     }
     throw error;

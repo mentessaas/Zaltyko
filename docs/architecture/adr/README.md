@@ -17,5 +17,6 @@ Stripe Live ni cambios de credenciales.
 | [0004](./0004-outbox-idempotencia-y-auditoria.md)    | Outbox transaccional, idempotencia y audit log    |
 | [0005](./0005-metricas-health-score-e-insights.md)   | Dependencias y reproducibilidad de inteligencia   |
 | [0006](./0006-familias-trials-y-lista-de-espera.md)  | Familias, trials, waitlist y reserva de capacidad |
+| [0007](./0007-arranque-limpio-y-cutover-owner.md)    | Arranque limpio y corte de superficie owner       |
 
 Contrato analítico inicial: [diccionario de métricas v0](../metric-dictionary-v0.md).

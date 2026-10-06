@@ -1,4 +1,4 @@
-import { existsSync, readFileSync } from "node:fs";
+import { readFileSync } from "node:fs";
 import { join } from "node:path";
 
 import { describe, expect, it } from "vitest";
@@ -6,114 +6,54 @@ import { describe, expect, it } from "vitest";
 const root = process.cwd();
 const read = (path: string) => readFileSync(join(root, path), "utf8");
 
-describe("ZAL-137 — contrato del flujo owner", () => {
-  it("mantiene claim con revalidación y ownership de la academia", () => {
-    const page = read("src/app/onboarding/owner/page.tsx");
-    const claimRoute = read("src/app/api/onboarding/owner/claim/route.ts");
-    const claimCard = read("src/components/onboarding/OwnerClaimCard.tsx");
+describe("bootstrap owner canónico", () => {
+  it("retira la entrada owner legacy sin traducir academyId", () => {
+    const onboarding = read("src/app/onboarding/owner/page.tsx");
+    const dashboard = read("src/app/app/[academyId]/dashboard/page.tsx");
 
-    expect(page).toContain("findClaimableAcademyByEmail");
-    expect(page).toContain("<OwnerClaimCard");
-    expect(claimRoute).toContain('"MANUAL_REVIEW_REQUIRED"');
-    expect(claimRoute).toContain("eq(profiles.userId, user.id)");
-    expect(claimRoute).not.toContain(".set({ ownerId: profileId })");
-    expect(claimRoute).toContain("academies.ownerId");
-    expect(claimCard).toContain("payload?.message ?? payload?.error");
+    expect(onboarding).toContain('redirect("/owner/setup")');
+    expect(dashboard).toContain('redirect("/owner")');
+    expect(dashboard).not.toContain("params:");
+    expect(dashboard).not.toContain("@/db/schema");
   });
 
-  it("permite omitir la plantilla y deja un handoff retomable", () => {
-    const form = read("src/components/onboarding/OwnerOnboardingForm.tsx");
-    const ownerRoute = read("src/app/api/onboarding/owner/route.ts");
+  it("autentica antes de validar y vincula el actor a la sesión", () => {
+    const route = read("src/app/api/v1/organizations/bootstrap/route.ts");
+    const auth = route.indexOf("await getCurrentUser(request)");
+    const parse = route.indexOf("bodySchema.safeParse");
 
-    expect(form).toContain("Plantilla inicial de clases (opcional)");
-    expect(form).toContain(
-      "podrás retomar tu primera clase desde el dashboard"
-    );
-    expect(form).toContain("owner-onboarding-classes-skipped");
-    expect(form).toContain('Paso 1 de 5 · Crear el espacio de trabajo');
-    expect(form).toContain('w-1/5 rounded-full bg-primary');
-    expect(ownerRoute).toContain(
-      "if (selectedStarterGroups.length === 0) continue;"
-    );
-    expect(ownerRoute).toContain(
-      "redirectUrl: `/app/${setup.result.id}/dashboard`"
-    );
+    expect(auth).toBeGreaterThanOrEqual(0);
+    expect(parse).toBeGreaterThan(auth);
+    expect(route).toContain("userId: user.id");
+    expect(route).toContain('request.headers.get("idempotency-key")');
   });
 
-  it("activa una ficha reclamada solo con la identidad pública aprobada", () => {
-    const form = read("src/components/onboarding/OwnerOnboardingForm.tsx");
-    const ownerRoute = read("src/app/api/onboarding/owner/route.ts");
+  it("crea organización, sede y owner dentro de una transacción idempotente", () => {
+    const service = read(
+      "src/modules/organizations/application/bootstrap-organization.ts"
+    );
 
-    expect(form).toContain("if (!directoryEntryId)");
-    expect(form).toContain("readOnly={Boolean(directoryEntryId)}");
-    expect(form).toContain("disabled={pending || Boolean(directoryEntryId)}");
-    expect(form).toContain("El nombre y la sede se toman de la ficha aprobada.");
-    expect(ownerRoute).toContain("EntryDataSchema.safeParse(entry.data)");
-    expect(ownerRoute.match(/directoryAcademyIdentityMatches\(identity\.data, requestedDirectoryIdentity\)/g)).toHaveLength(2);
-    expect(ownerRoute).toContain("directoryIdentity?.name ?? parsed.data.academyName");
-    expect(ownerRoute).toContain("directoryIdentity?.region ?? undefined");
-    expect(ownerRoute).toContain("directoryIdentity?.city ?? undefined");
-    expect(ownerRoute).toContain("academyOperationalIdentityQuery(identityForChecks)");
-    expect(ownerRoute).toContain("excludeEntryId: directoryId");
-    expect(form).toContain('payload?.code === "ACADEMY_REVIEW_REQUIRED"');
-    expect(form).toContain("Solicitar ayuda para vincular la ficha");
+    expect(service).toContain("db.transaction");
+    expect(service).toContain("pg_advisory_xact_lock");
+    expect(service).toContain("organizationBootstrapCommands");
+    expect(service).toContain(".insert(organizations)");
+    expect(service).toContain(".insert(locations)");
+    expect(service).toContain(".insert(organizationMembers)");
+    expect(service).toContain('role: "owner"');
+    expect(service).toContain('locationScopeMode: "all"');
+    expect(service).toContain("appendAuditEntry");
+    expect(service).toContain("appendOutboxEvent");
+    expect(service).not.toContain("@/db/schema");
   });
 
-  it("impide duplicar un espacio operativo aunque el catálogo público esté apagado", () => {
-    const ownerRoute = read("src/app/api/onboarding/owner/route.ts");
-    const membershipCheck = ownerRoute.indexOf(
-      "if (membershipCreatedByAnotherRequest)"
-    );
-    const publicDirectoryGuard = ownerRoute.indexOf(
-      'if (directoryId || flag("catalog")) {',
-      membershipCheck
-    );
-    const operationalGuard = ownerRoute.indexOf(
-      "academyOperationalIdentityQuery(identityForChecks)",
-      membershipCheck
-    );
-    const createWorkspace = ownerRoute.indexOf(
-      "const result = await createAcademy(",
-      membershipCheck
-    );
+  it("mantiene el setup mínimo y sin datos personales de atletas", () => {
+    const form = read("src/components/owner-dashboard/OwnerSetupForm.tsx");
 
-    expect(membershipCheck).toBeGreaterThanOrEqual(0);
-    expect(publicDirectoryGuard).toBeGreaterThan(membershipCheck);
-    expect(operationalGuard).toBeGreaterThan(publicDirectoryGuard);
-    expect(operationalGuard).toBeLessThan(createWorkspace);
-    expect(ownerRoute).toContain('"ACADEMY_REVIEW_REQUIRED"');
-    expect(ownerRoute).toContain(
-      "academy-identity:${academyDuplicateLock(identityForChecks)}"
-    );
-  });
-
-  it("conserva el siguiente paso en el workspace moderno y el CTA de invite", () => {
-    const checklist = read("src/lib/onboarding-routes.ts");
-    const dashboard = read("src/components/dashboard/DashboardPage.tsx");
-
-    expect(checklist).toContain("invite_first_coach");
-    expect(checklist).toContain("/coaches");
-    expect(dashboard).toContain("DashboardOnboardingPanel");
-    expect(dashboard).toContain("/groups");
-    expect(dashboard).toContain("/coaches");
-    expect(
-      existsSync(join(root, "src/app/app/[academyId]/groups/page.tsx"))
-    ).toBe(true);
-    expect(
-      existsSync(join(root, "src/app/app/[academyId]/classes/page.tsx"))
-    ).toBe(true);
-    expect(
-      existsSync(join(root, "src/app/app/[academyId]/coaches/page.tsx"))
-    ).toBe(true);
-  });
-
-  it("consume el envelope estandarizado de la API del checklist", () => {
-    const checklist = read("src/components/dashboard/OnboardingChecklist.tsx");
-    const hook = read("src/components/dashboard/useDashboardChecklist.ts");
-
-    expect(checklist).toContain("json.data");
-    expect(checklist).toContain("setData(json.data)");
-    expect(hook).toContain("json.data?.summary");
-    expect(hook).toContain("json.data?.items");
+    expect(form).toContain("Nombre de la academia");
+    expect(form).toContain("Nombre de la primera sede");
+    expect(form).toContain("Código de sede");
+    expect(form).not.toContain("athlete");
+    expect(form).not.toContain("dateOfBirth");
+    expect(form).not.toContain("phone");
   });
 });

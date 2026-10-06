@@ -46,6 +46,9 @@ export default async function OwnerInsightsPage({
         error.code
       )
     ) {
+      if (error.code === "FORBIDDEN" && !query.data.organizationId) {
+        redirect("/owner/setup");
+      }
       notFound();
     }
     throw error;

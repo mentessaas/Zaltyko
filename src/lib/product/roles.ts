@@ -10,7 +10,8 @@ export type ProfileRole =
 export type MembershipRole = "owner" | "coach" | "viewer";
 
 export type ProductShell = "super-admin" | "global" | "academy" | "limited";
-export type AcademyAccessLevel = "platform-admin" | "academy-admin" | "coach" | "limited" | "none";
+export type AcademyAccessLevel =
+  "platform-admin" | "academy-admin" | "coach" | "limited" | "none";
 
 export interface RoleCapabilities {
   shell: ProductShell;
@@ -82,7 +83,9 @@ export const ROLE_CAPABILITIES: Record<ProfileRole, RoleCapabilities> = {
   },
 };
 
-export function isProfileRole(value: string | null | undefined): value is ProfileRole {
+export function isProfileRole(
+  value: string | null | undefined
+): value is ProfileRole {
   return Boolean(value && value in ROLE_CAPABILITIES);
 }
 
@@ -98,7 +101,9 @@ export function getRoleLabel(role?: string | null): string {
   return role.replace(/_/g, " ");
 }
 
-export function getRoleCapabilities(role?: string | null): RoleCapabilities | null {
+export function getRoleCapabilities(
+  role?: string | null
+): RoleCapabilities | null {
   if (!isProfileRole(role)) {
     return null;
   }
@@ -111,8 +116,16 @@ export function canAccessAcademyWorkspace(
   membershipRole?: string | null,
   isAcademyOwner = false
 ): boolean {
-  const accessLevel = getAcademyAccessLevel(profileRole, membershipRole, isAcademyOwner);
-  return accessLevel === "platform-admin" || accessLevel === "academy-admin" || accessLevel === "coach";
+  const accessLevel = getAcademyAccessLevel(
+    profileRole,
+    membershipRole,
+    isAcademyOwner
+  );
+  return (
+    accessLevel === "platform-admin" ||
+    accessLevel === "academy-admin" ||
+    accessLevel === "coach"
+  );
 }
 
 export function getAcademyAccessLevel(
@@ -137,16 +150,24 @@ export function getEffectiveAcademyNavigationRole(
   membershipRole?: MembershipRole | null,
   isAcademyOwner = false
 ): ProfileRole | null {
-  const accessLevel = getAcademyAccessLevel(profileRole, membershipRole, isAcademyOwner);
+  const accessLevel = getAcademyAccessLevel(
+    profileRole,
+    membershipRole,
+    isAcademyOwner
+  );
 
   if (accessLevel === "platform-admin") return "super_admin";
-  if (accessLevel === "academy-admin") return profileRole === "admin" ? "admin" : "owner";
+  if (accessLevel === "academy-admin")
+    return profileRole === "admin" ? "admin" : "owner";
   if (accessLevel === "coach") return "coach";
   if (accessLevel === "limited") return profileRole;
   return null;
 }
 
-export function isLimitedAcademyWorkspacePath(pathname: string | null | undefined, academyId: string): boolean {
+export function isLimitedAcademyWorkspacePath(
+  pathname: string | null | undefined,
+  academyId: string
+): boolean {
   if (!pathname) {
     return false;
   }
@@ -159,7 +180,9 @@ export function isLimitedAcademyWorkspacePath(pathname: string | null | undefine
     `${basePath}/notifications`,
   ];
 
-  return allowedPaths.some((path) => pathname === path || pathname.startsWith(`${path}/`));
+  return allowedPaths.some(
+    (path) => pathname === path || pathname.startsWith(`${path}/`)
+  );
 }
 
 export function getDefaultDashboardPath(role?: string | null): string {
@@ -189,8 +212,20 @@ export function getPreferredHomePath(args: {
     return "/super-admin";
   }
 
-  if (academyId && profileRole === "coach" && canAccessAcademyWorkspace(profileRole, membershipRole)) {
+  if (
+    academyId &&
+    profileRole === "coach" &&
+    canAccessAcademyWorkspace(profileRole, membershipRole)
+  ) {
     return `/app/${academyId}/coach`;
+  }
+
+  if (
+    academyId &&
+    (profileRole === "owner" || profileRole === "admin") &&
+    canAccessAcademyWorkspace(profileRole, membershipRole)
+  ) {
+    return "/owner";
   }
 
   if (academyId && canAccessAcademyWorkspace(profileRole, membershipRole)) {

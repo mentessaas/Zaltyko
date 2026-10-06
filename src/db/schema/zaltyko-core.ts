@@ -345,6 +345,56 @@ export const organizationMembers = zaltyko.table(
   ]
 );
 
+export const organizationBootstrapCommands = zaltyko.table(
+  "organization_bootstrap_commands",
+  {
+    id: uuid("id").primaryKey().defaultRandom(),
+    userId: uuid("user_id")
+      .notNull()
+      .references(() => authUsers.id, { onDelete: "cascade" }),
+    idempotencyKey: text("idempotency_key").notNull(),
+    requestHash: text("request_hash").notNull(),
+    organizationId: uuid("organization_id").notNull(),
+    locationId: uuid("location_id").notNull(),
+    memberId: uuid("member_id").notNull(),
+    createdAt: timestamp("created_at", { withTimezone: true })
+      .notNull()
+      .defaultNow(),
+  },
+  (table) => [
+    uniqueIndex("organization_bootstrap_commands_user_key_uq").on(
+      table.userId,
+      table.idempotencyKey
+    ),
+    foreignKey({
+      columns: [table.organizationId],
+      foreignColumns: [organizations.id],
+      name: "organization_bootstrap_commands_organization_fk",
+    }).onDelete("cascade"),
+    foreignKey({
+      columns: [table.organizationId, table.locationId],
+      foreignColumns: [locations.organizationId, locations.id],
+      name: "organization_bootstrap_commands_location_fk",
+    }).onDelete("cascade"),
+    foreignKey({
+      columns: [table.organizationId, table.memberId],
+      foreignColumns: [
+        organizationMembers.organizationId,
+        organizationMembers.id,
+      ],
+      name: "organization_bootstrap_commands_member_fk",
+    }).onDelete("cascade"),
+    check(
+      "organization_bootstrap_commands_idempotency_length",
+      sql`length(btrim(${table.idempotencyKey})) between 8 and 150`
+    ),
+    check(
+      "organization_bootstrap_commands_hash_format",
+      sql`${table.requestHash} ~ '^[a-f0-9]{64}$'`
+    ),
+  ]
+);
+
 export const memberLocationScopes = zaltyko.table(
   "member_location_scopes",
   {

@@ -168,6 +168,11 @@ digest externo, E2E autenticado, carga, calibración real y runtime remoto sigue
 
 ### PR-09 — Cutover prepiloto
 
+Estado: **paquete local cerrado con decisión NO-GO** el 2026-10-06. Se eligió
+arranque limpio, se retiraron las entradas owner sustituidas y se añadieron
+threat model, evaluación RGPD inicial, observabilidad, backup/restore y gate de
+frontera. Ver `docs/cutover/prepilot-go-no-go.md`.
+
 - retirar rutas/módulos heredados sustituidos;
 - decidir importación o arranque limpio;
 - threat model, RGPD, observabilidad, backup/restore y runbooks;
@@ -175,6 +180,11 @@ digest externo, E2E autenticado, carga, calibración real y runtime remoto sigue
 
 Gate: GO/NO-GO explícito. Producción, Stripe Live, credenciales y despliegue
 siguen fuera de alcance sin autorización adicional.
+
+Resultado: el gate local pasa, pero el prepiloto con datos reales queda NO-GO
+hasta verificar el bootstrap owner en un sandbox remoto, ejecutar E2E
+autenticado, workers, carga, restore y completar la revisión RGPD. Ninguno de
+esos límites se oculta como deuda menor.
 
 ## Reporte obligatorio por PR
 
