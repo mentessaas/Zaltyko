@@ -6,3 +6,4 @@
  * code accidentally.
  */
 export * from "./schema/zaltyko-core";
+export * from "./schema/zaltyko-ledger";

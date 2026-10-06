@@ -10,7 +10,11 @@ export type OperationalErrorCode =
   | "IDEMPOTENCY_CONFLICT"
   | "INVALID_DATE_RANGE"
   | "INVALID_RELATION"
-  | "NO_SCHEDULE";
+  | "NO_SCHEDULE"
+  | "INSUFFICIENT_UNALLOCATED_PAYMENT"
+  | "CHARGE_ALREADY_SETTLED"
+  | "REFUND_EXCEEDS_ALLOCATION"
+  | "UNVERIFIED_PROVIDER_EVENT";
 
 export class OperationalError extends Error {
   constructor(

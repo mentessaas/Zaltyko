@@ -1,6 +1,6 @@
 # ADR-0003 — Ledger financiero interno
 
-- Estado: aceptada; implementación pendiente
+- Estado: aceptada; implementación v1 cerrada localmente
 - Fecha: 2026-10-06
 - Alcance: precios, facturas, cargos, pagos y reembolsos
 
@@ -22,13 +22,18 @@ webhook solo produce un efecto si su identificador de proveedor y clave de
 idempotencia no se procesaron antes. Los asientos financieros no se borran: se
 revierten o corrigen con nuevas filas auditables.
 
-## Límite de esta entrega
+## Implementación v1
 
-Solo se crea `price_plans`, porque una inscripción necesita una referencia de
-precio estable. No se crean tablas de ledger hasta implementar juntas sus
-invariantes, reconciliación e integración transaccional.
+La migración `20261006093047_add_internal_billing_ledger.sql` implementa las
+entidades decididas, un inbox restringido de proveedor y reconciliaciones
+materializadas. Los servicios transaccionales y su evidencia se documentan en
+`docs/architecture/ledger-operations.md`.
 
-## Criterios antes de integrar el ledger
+No se integró Stripe ni otro proveedor remoto. El adaptador ejecutable es local
+y sandbox; firma real, impuestos, descuentos y prorrateos permanecen fuera del
+alcance de esta versión.
+
+## Criterios verificados localmente
 
 - igualdad `sum(allocations) <= payment.amount`;
 - estado de factura derivado de líneas, asignaciones y reembolsos;
@@ -36,6 +41,9 @@ invariantes, reconciliación e integración transaccional.
 - pruebas de pagos parciales, fallo, reintento y refund;
 - reconciliación por organización, moneda y período;
 - cero llamadas a Stripe Live durante pruebas.
+
+Resultado: todos los criterios anteriores pasan en PostgreSQL efímero. Esto no
+es evidencia de runtime remoto ni de una entrega webhook firmada.
 
 ## Evidencia
 

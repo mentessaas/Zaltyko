@@ -16,7 +16,7 @@ la siguiente.
 | Contratos TypeScript                                  | Organización, enrollment, capacidad y eventos creados |
 | RLS/grants                                            | Matriz local tenant/sede/privilegios aprobada         |
 | Capa operativa                                        | Implementada y verificada localmente                  |
-| Ledger                                                | Solo catálogo `price_plans`; resto pendiente          |
+| Ledger                                                | PR-04 cerrado localmente; sin procesador remoto        |
 | Métricas, score, dashboard e insights                 | Pendientes                                            |
 
 ## Secuencia de cambios revisables
@@ -70,6 +70,10 @@ conserva su evento propio y el cierre de un trial publica `completed`, no churn.
 
 ### PR-04 — Ledger mínimo
 
+Estado: **cerrada localmente** el 2026-10-06. Esquema, servicios e inbox de
+proveedor sandbox aprobados; evidencia en
+`docs/architecture/ledger-operations.md`.
+
 - invoices/lines, charges, payments, allocations, attempts y refunds;
 - adaptador de procesador sin dependencia de Stripe Live;
 - webhook inbox idempotente y reconciliación diaria;
@@ -77,6 +81,11 @@ conserva su evento propio y el cierre de un trial publica `completed`, no churn.
 
 Gate: pagos parciales, fallo/reintento/refund, tres entregas del mismo evento con
 un solo efecto y sumas reconciliadas por moneda.
+
+Resultado: el caso 100 €/60 €/10 € reconcilia a 50 € netos y 40 € pendientes;
+tres entregas concurrentes generan un pago y un intento. RLS, grants, tenant,
+moneda, sobreasignación, sobrereembolso, outbox y auditoría pasan localmente.
+No se tocó Stripe, red, secretos, API, despliegue ni producción.
 
 ### PR-05 — Motor de métricas
 

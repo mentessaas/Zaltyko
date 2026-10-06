@@ -98,7 +98,7 @@ export async function appendAuditEntry(
   input: {
     organizationId: string;
     locationId: string | null;
-    actorUserId: string;
+    actorUserId: string | null;
     action: string;
     targetType: string;
     targetId: string | null;

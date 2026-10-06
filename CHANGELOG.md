@@ -6,6 +6,22 @@ All notable changes to Zaltyko are documented here. Format follows
 > SHA referenced corresponds to commits on `zaltyko-onboarding-ZAL-137`.
 > For commits on previous branches, refer to the git history directly.
 
+## 2026-10-06 — Nuevo núcleo PR-04: ledger interno
+
+### Added
+
+- Facturas, líneas, cargos, pagos, intentos, asignaciones, refunds e inbox
+  idempotente de proveedor bajo el esquema canónico `zaltyko`.
+- Servicios transaccionales de emisión, asignación, ingestión sandbox y
+  conciliación por organización, moneda, período y watermark.
+- Gates PostgreSQL locales para RLS/grants, tenant, moneda, pagos parciales,
+  reintentos, refund y triple entrega concurrente.
+
+### Límites
+
+- Sin llamadas a Stripe, credenciales, migraciones remotas, despliegue ni
+  producción. Impuestos, descuentos, prorrateos, API y UI quedan pendientes.
+
 ## 2026-08-15 — ZAL-556 A3 alias/order hardening
 
 ### Cambios

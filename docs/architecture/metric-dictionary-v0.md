@@ -22,8 +22,8 @@ Estado: contrato previo al motor; no demuestra cálculos implementados.
 | `class_fill_rate`            | ratio / weighted_ratio | Suma de plazas ocupadas elegibles / suma de capacidad efectiva; capacidad efectiva = mínimo de plantilla, espacio y override de sesión | `enrollments`, `class_templates`, `sessions`, `spaces` | Contrato cerrado; reglas de sesión cancelada pendientes de servicio |
 | `cohort_retention_rate`      | ratio / cohort_ratio   | Miembros elegibles de la cohorte inicial que siguen activos al cierre / cohorte inicial elegible                                       | historial de `enrollments`                             | Contrato cerrado; temporada configurable pendiente                  |
 | `churn_rate`                 | ratio / cohort_ratio   | Miembros elegibles de cohorte inicial que terminan sin transferencia/reactivación dentro de ventana / cohorte inicial elegible         | historial de `enrollments`                             | Contrato cerrado; ventana de reactivación pendiente                 |
-| `recognized_revenue_minor`   | currency_minor / sum   | Importe reconocido por líneas de factura menos reversos atribuibles al período; Stripe no es fuente única                              | ledger pendiente                                       | Bloqueada hasta PR-04                                               |
-| `collection_rate`            | ratio / weighted_ratio | Pagos asignados netos de refund / importe cobrable vencido del período                                                                 | ledger pendiente                                       | Bloqueada hasta PR-04                                               |
+| `recognized_revenue_minor`   | currency_minor / sum   | Cargos del período menos refunds atribuibles a sus asignaciones; Stripe no es fuente única                                               | `charges`, `payment_allocations`, `refunds`             | Fuente v1 lista; fórmula materializada pendiente de PR-05           |
+| `collection_rate`            | ratio / weighted_ratio | Pagos asignados netos de refund / importe cobrable vencido del período                                                                 | `charges`, `payment_allocations`, `refunds`             | Fuente v1 lista; fórmula materializada pendiente de PR-05           |
 | `waitlist_opportunity_count` | count / sum            | Entradas contactables y activas para clases/programas con demanda no atendida                                                          | `waitlist_entries`                                     | Fuente operativa lista; implementación en PR-05                     |
 
 ## Estados de calidad
@@ -41,7 +41,7 @@ Estado: contrato previo al motor; no demuestra cálculos implementados.
 - calendario de temporada y tratamiento de pausas largas;
 - ventana de gracia para reactivación y transferencia entre sedes;
 - sesiones elegibles para ocupación y asistencia;
-- reconocimiento contable de descuentos, becas e impuestos;
+- reconocimiento contable de descuentos, becas, impuestos y prorrateos;
 - umbrales de cobertura por dimensión del score;
 - benchmarks autorizados y adecuados al mercado español.
 

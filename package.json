@@ -67,6 +67,8 @@
     "test:zaltyko-operations:local": "bash scripts/run-zaltyko-operational-services-local.sh",
     "test:zaltyko-growth-foundation:local": "bash scripts/run-zaltyko-growth-foundation-local.sh",
     "test:zaltyko-growth-services:local": "bash scripts/run-zaltyko-growth-services-local.sh",
+    "test:zaltyko-ledger-foundation:local": "bash scripts/run-zaltyko-ledger-foundation-local.sh",
+    "test:zaltyko-ledger-services:local": "bash scripts/run-zaltyko-ledger-services-local.sh",
     "check:migrations": "tsx scripts/check-migrations-integrity.ts"
   },
   "dependencies": {

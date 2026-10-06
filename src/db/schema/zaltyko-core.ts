@@ -675,6 +675,15 @@ export const familyPayers = zaltyko.table(
       .defaultNow(),
   },
   (table) => [
+    uniqueIndex("family_payers_organization_id_id_uq").on(
+      table.organizationId,
+      table.id
+    ),
+    uniqueIndex("family_payers_organization_family_id_uq").on(
+      table.organizationId,
+      table.familyId,
+      table.id
+    ),
     uniqueIndex("family_payers_family_guardian_uq").on(
       table.organizationId,
       table.familyId,
