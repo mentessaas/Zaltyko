@@ -1,6 +1,6 @@
 # ADR-0017: Proyección mensual de cohortes para Owner Dashboard
 
-- Estado: aceptado; implementación pendiente
+- Estado: aceptado; esquema local creado, generador/consumidor pendientes
 - Fecha: 2026-10-06
 - Contexto: AC-12 fija p95 de agregados ≤800 ms y vista caliente ≤2 s con 5.000
   atletas, 100.000 sesiones, 2 M asistencias, 500.000 movimientos financieros,
@@ -32,8 +32,13 @@
 
 ## Consecuencias y gates
 
-- Requiere tabla, índice por scope/cohort_month/observation_month, clave única
-  idempotente, worker integrado en invalidación de métricas y permisos/RLS.
+- Esquema local creado en `20261006165917_owner_cohort_retention_projections.sql`:
+  generaciones y filas agregadas conservan scope org/sede/programa/grupo,
+  cohort_month/observation_month, numerador/denominador, fórmula, watermark y
+  metric run. RLS forzado; sin grants de Data API; FK tenant-aware e índices.
+- Sigue pendiente el escritor atómico integrado con invalidación de métricas,
+  y cambiar el endpoint para leer la última generación completa con frescura
+  explícita. No aplicar la migración a Supabase remoto.
 - Probar reconstrucción/reintento, cambios retroactivos, aislamiento entre
   tenants/sedes, transferencias, pausas, datos insuficientes y ausencia de PII.
 - Aceptación local: p95 <800 ms para query de cohortes y <2 s para vista

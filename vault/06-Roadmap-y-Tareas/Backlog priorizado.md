@@ -17,6 +17,12 @@ source:
 ---
 ## 2026-10-06 — Producto Health Score y Owner Dashboard (corte activo)
 
+- **AC-12 pendiente P0:** fixture a volumen objetivo arroja cohortes 6,42 s p95;
+  heatmap <800 ms. El esquema de proyección agregada ya está en la migración
+  `20261006165917_owner_cohort_retention_projections.sql`, forzado con RLS y
+  sin grants Data API; writer, reader y staleness siguen pendientes. No aplicar
+  remoto. Ver ADR-0017 y backlog específico más abajo.
+
 - **Hecho local:** nueve reglas P0 leen fuentes canónicas por sede y alimentan Insights con autorización e idempotencia; PostgreSQL efímero sintético pasa.
 - **Hecho local, no activado:** endpoint protegido y dispatcher de outbox con lease, backoff, dead-letter, idempotencia; faltan retries inyectados, lag/alertas y scheduler remoto.
 - **Hecho local:** score actual/historial y serie de métricas paginada, con scope por organización/sede, explicaciones y dimensiones; sin PII de persona en historial.
@@ -70,6 +76,20 @@ implementados localmente en `codex/health-score-v2`.
 Prioridad activa: evaluadores de ocho reglas P0; luego worker durable, APIs de
 drill-down y filtros, dashboard completo y pruebas aisladas de Supabase/E2E/carga.
 La retención individual continúa en draft hasta cerrar revisión de privacidad.
+
+## P0 — Completar proyección de cohortes AC-12 — 2026-10-06
+
+- **Estado:** esquema de generaciones y proyecciones creado localmente, con RLS
+  forzado, FKs tenant-aware, sin grants Data API y sin identificadores
+  personales. El smoke del esquema pasa en PostgreSQL efímero.
+- **Hallazgo:** query operacional actual queda en 6,42 s p95 a escala; no
+  cumple el presupuesto de 800 ms. El heatmap queda bajo el límite local.
+- **Pendiente:** writer idempotente enlazado a metric run + watermark, cobertura
+  de combinaciones org/sede/programa/grupo, endpoint lector de última generación
+  completa, estado stale/unavailable y benchmark repetido de 20 usuarios.
+- **Límites:** no aplicar la migración a Supabase remoto; no servir cohortes
+  desde filas individuales ni volver al scan lento como fallback. AC-12 seguirá
+  `NO CUMPLE` hasta pasar 800 ms/2 s a volumen.
 
 ## P0 — Cerrar servicios operativos antes del motor de métricas — 2026-10-06
 

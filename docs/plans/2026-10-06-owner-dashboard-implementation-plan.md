@@ -146,9 +146,11 @@ Resultado: 375/768/1280 sin overflow, navegación de teclado y Axe sin
 infracciones, lectura exclusiva de read models, AC-08/AC-09 y build aprobados.
 El harness de escala carga cardinalidades AC-12 y 20 identidades sintéticas;
 heatmap p95 queda bajo 800 ms, pero cohortes sigue en 6,42 s. AC-12 queda
-`NO CUMPLE` en la lectura de cohortes. Seguir ADR-0017 para moverla a una
-proyección mensual reconstruible y repetir la medición. VoiceOver humano,
-comparación año-año, E2E autenticado y runtime remoto siguen `NO VERIFICADO`.
+`NO CUMPLE` en la lectura de cohortes. El esquema de la proyección mensual
+reconstruible ya está creado y pasa smoke/RLS local; faltan el escritor
+idempotente, consumidor/estado stale y repetición del benchmark. VoiceOver
+humano, comparación año-año, E2E autenticado y runtime remoto siguen
+`NO VERIFICADO`.
 
 Actualización: ADR-0010 define que filtros compartibles de programa/grupo
 afectan aforo y cohortes, pero no alteran el score academia/sede porque aún no

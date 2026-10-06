@@ -1,12 +1,21 @@
 ---
 status: active
 owner: producto
-last_reviewed: 2026-10-02
+last_reviewed: 2026-10-06
 source:
   - ../AGENTS.md
 ---
 
 # Decisiones
+
+## 2026-10-06 — Proyección mensual agregada de cohortes para el Owner Dashboard
+
+| Campo | Valor |
+| --- | --- |
+| Evidencia | Harness sintético AC-12 alcanzó 5.000 atletas, 100.000 sesiones, 2 M asistencias, 500.000 cargos/pagos y 20 identidades. Tras optimizaciones set-based, cohortes quedó en 6,42 s p95 local frente al SLO de 800 ms; el heatmap sí quedó bajo 800 ms. |
+| Decisión | Aceptar ADR-0017. Crear read model reconstruible por organización/sede/programa/grupo y meses de cohorte/observación, enlazado a metric run y watermark, sin IDs personales. La primera migración añade generaciones y filas, fuerza RLS y no concede acceso directo Data API. |
+| Consecuencia | Falta el writer idempotente integrado al outbox y el reader del dashboard; AC-12 sigue NO CUMPLE. Sin migración remota, sin despliegue y sin rebajar el SLO. El reader deberá conservar filtros y exponer staleness, no hacer fallback al cálculo lento. |
+| Estado | Esquema verificado solo en PostgreSQL efímero; `pnpm test:zaltyko-owner-dashboard-query:local`, typecheck y ESLint pasan. Fuente: `docs/architecture/adr/0017-proyeccion-de-cohortes-para-el-owner-dashboard.md`. |
 
 ## 2026-10-06 — No tratar el sandbox E2E legacy como base de datos vacía
 

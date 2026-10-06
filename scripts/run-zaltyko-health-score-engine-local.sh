@@ -35,18 +35,20 @@ for migration in \
   20261006100146_add_explainable_health_score.sql \
   20261006113000_add_actionable_insights.sql \
   20261006131000_add_organization_default_currency.sql \
-  20261006160012_track_owner_pipeline_freshness.sql
+  20261006160012_track_owner_pipeline_freshness.sql \
+  20261006165917_owner_cohort_retention_projections.sql
 do
   "${PSQL[@]}" -f "${ROOT_DIR}/supabase/migrations/${migration}" >/dev/null
 done
 "${PSQL[@]}" -f "${ROOT_DIR}/supabase/fixtures/zaltyko_synthetic_academies.sql" >/dev/null
 "${PSQL[@]}" -f "${ROOT_DIR}/supabase/fixtures/zaltyko_metrics_golden.sql" >/dev/null
 "${PSQL[@]}" -f "${ROOT_DIR}/supabase/fixtures/zaltyko_health_score_golden.sql" >/dev/null
-
 DATABASE_URL="postgresql://127.0.0.1:${PG_PORT}/postgres" \
 DATABASE_URL_POOL="postgresql://127.0.0.1:${PG_PORT}/postgres" \
 DATABASE_POOL_MAX=4 NODE_ENV=test \
   pnpm --dir "${ROOT_DIR}" exec tsx scripts/verify-zaltyko-metrics-engine.ts
+
+"${PSQL[@]}" -f "${ROOT_DIR}/supabase/tests/zaltyko_cohort_projection_schema.sql" >/dev/null
 
 DATABASE_URL="postgresql://127.0.0.1:${PG_PORT}/postgres" \
 DATABASE_URL_POOL="postgresql://127.0.0.1:${PG_PORT}/postgres" \

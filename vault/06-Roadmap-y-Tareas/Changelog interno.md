@@ -7,6 +7,19 @@ source:
   - ../docs/architecture/zaltyko-domain-model.md
 ---
 
+## 2026-10-06 — Esquema local para la proyección de cohortes
+
+- Nueva migración `20261006165917_owner_cohort_retention_projections.sql` crea
+  generaciones idempotentes y filas PII-free por scope y mes; incluye RLS
+  forzado, policies owner/sede, grants únicamente a `service_role`, constraints
+  y FKs tenant-aware.
+- Se integró la migración y el test de catálogo/RLS en harnesses efímero de
+  query y de escala. TypeScript, ESLint y suite owner dashboard pasan.
+- No existe todavía escritor ni lectura desde el dashboard; la migración no se
+  aplicó a staging, sandbox, producción ni ningún Supabase remoto.
+- AC-12 permanece `NO CUMPLE`: cohortes 6,42 s p95. Siguiente entrega: writer
+  transaccional/idempotente integrado a invalidación/outbox y endpoint lector.
+
 ## 2026-10-06 — Revalidación completa del PRD de Owner Dashboard
 
 - Se añadió `docs/audits/2026-10-06-prd-completion-audit.md` para contrastar

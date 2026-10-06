@@ -38,7 +38,8 @@ for migration in \
   20261006113000_add_actionable_insights.sql \
   20261006123000_add_organization_bootstrap.sql \
   20261006131000_add_organization_default_currency.sql \
-  20261006160012_track_owner_pipeline_freshness.sql
+  20261006160012_track_owner_pipeline_freshness.sql \
+  20261006165917_owner_cohort_retention_projections.sql
 do
   "${PSQL[@]}" -f "${ROOT_DIR}/supabase/migrations/${migration}" >/dev/null
 done
@@ -47,6 +48,7 @@ done
 "${PSQL[@]}" -f "${ROOT_DIR}/supabase/fixtures/zaltyko_metrics_golden.sql" >/dev/null
 "${PSQL[@]}" -f "${ROOT_DIR}/supabase/fixtures/zaltyko_health_score_golden.sql" >/dev/null
 "${PSQL[@]}" -f "${ROOT_DIR}/supabase/fixtures/zaltyko_dashboard_scale.sql" >/dev/null
+"${PSQL[@]}" -f "${ROOT_DIR}/supabase/tests/zaltyko_cohort_projection_schema.sql" >/dev/null
 
 DATABASE_URL="postgresql://127.0.0.1:${PG_PORT}/postgres" \
 DATABASE_URL_POOL="postgresql://127.0.0.1:${PG_PORT}/postgres" \

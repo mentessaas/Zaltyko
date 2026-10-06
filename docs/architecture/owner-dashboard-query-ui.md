@@ -92,6 +92,11 @@ reconstruible, ligada al `metric_run` y su `source_watermark`, no recalcular
 estados atleta-mes en cada request. Falta implementar y medir esa proyección;
 la evidencia local no equivale a una garantía en Supabase/Vercel.
 
+El esquema base de esa proyección ya está en
+`supabase/migrations/20261006165917_owner_cohort_retention_projections.sql` y
+se aplica en el harness PostgreSQL efímero. Aún no escribe ni sirve datos; el
+endpoint actual sigue consultando operaciones y AC-12 continúa incumplido.
+
 El motor materializa organización/sede/período, pero todavía no programa,
 disciplina o grupo. Esos filtros no se muestran porque devolver un agregado de
 organización etiquetado como segmentado sería incorrecto. Requieren añadir el
