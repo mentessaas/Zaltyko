@@ -11016,6 +11016,12 @@ Modelo separado, reclamación manual, administración, importación revisada, fi
 - **Sin activación:** no se registró cron en `vercel.json` ni se desplegó. Falta probar inyección de error/backoff/dead-letter, instrumentar lag y definir actor de sistema para recompute/score/Insights; por tanto SLA, digest y pipeline siguen `NO VERIFICADO`.
 - Detalle: [`outbox-worker.md`](../../docs/architecture/outbox-worker.md).
 
+## 2026-10-06 — Endpoints de score actual e histórico
+
+- Se añadieron `GET /api/v1/health-scores/current` y `/history`, autorizados con sesión y scope de `resolveOwnerScope`; historial con cursor estable y dimensiones en una lectura bulk.
+- **Validación local:** paginación de las tres snapshots sintéticas, cursor inválido, denegación de sede al manager, sede sin snapshots y ausencia de PII nominal; `pnpm typecheck`, ESLint y runner integrado del score/dashboard pasan.
+- **Pendiente:** serie y explicación de métricas, heatmap, cohortes, riesgos protegidos, benchmark settings, filtros programa/grupo/comparación, E2E autenticado y volumen objetivo.
+
 
 ## 2026-10-05 — Cierre de anual Test y revalidación de acceso
 

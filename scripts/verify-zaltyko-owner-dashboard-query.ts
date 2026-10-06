@@ -4,6 +4,7 @@ import { performance } from "node:perf_hooks";
 import { Pool } from "pg";
 
 import { getOwnerDashboard } from "@/modules/owner-dashboard/application/get-owner-dashboard";
+import { getHealthScoreHistory } from "@/modules/owner-dashboard/application/health-score-history";
 import { OperationalError } from "@/modules/shared/domain/operational-error";
 
 const databaseUrl = process.env.DATABASE_URL;
@@ -57,6 +58,35 @@ async function main(): Promise<void> {
   );
   assert.equal(JSON.stringify(bundle).includes("Persona Sintética"), false);
 
+  const historyFirstPage = await getHealthScoreHistory({
+    userId: ID.ownerUser,
+    organizationId: ID.org,
+    limit: 1,
+  });
+  assert.equal(historyFirstPage.items.length, 1);
+  assert(historyFirstPage.nextCursor);
+  assert.equal(historyFirstPage.items[0].dimensions.length, 4);
+  assert.equal(JSON.stringify(historyFirstPage).includes("Persona Sintética"), false);
+  const historyIds = [historyFirstPage.items[0].id];
+  let historyCursor: string | null = historyFirstPage.nextCursor;
+  while (historyCursor) {
+    const page = await getHealthScoreHistory({
+      userId: ID.ownerUser,
+      organizationId: ID.org,
+      limit: 1,
+      cursor: historyCursor,
+    });
+    assert.equal(page.items.length, 1);
+    historyIds.push(page.items[0].id);
+    historyCursor = page.nextCursor;
+  }
+  const expectedHistoryRows = await pool.query(
+    `select count(*)::int as count from zaltyko.health_score_snapshots where organization_id = $1 and location_id is null`,
+    [ID.org]
+  );
+  assert.equal(historyIds.length, Number(expectedHistoryRows.rows[0].count));
+  assert.equal(new Set(historyIds).size, historyIds.length);
+
   await expectOperationalError(
     () =>
       getOwnerDashboard({
@@ -88,6 +118,22 @@ async function main(): Promise<void> {
       }),
     "LOCATION_SCOPE_DENIED"
   );
+  await expectOperationalError(
+    () => getHealthScoreHistory({
+      userId: ID.scopedManagerUser,
+      organizationId: ID.managerOrg,
+      locationId: ID.managerSouth,
+    }),
+    "LOCATION_SCOPE_DENIED"
+  );
+  await expectOperationalError(
+    () => getHealthScoreHistory({
+      userId: ID.ownerUser,
+      organizationId: ID.org,
+      cursor: "not-a-cursor",
+    }),
+    "INVALID_RELATION"
+  );
 
   const locationWithoutSnapshot = await getOwnerDashboard({
     userId: ID.ownerUser,
@@ -96,6 +142,12 @@ async function main(): Promise<void> {
   });
   assert.equal(locationWithoutSnapshot.state, "empty");
   assert.equal(locationWithoutSnapshot.scope.locationId, ID.location);
+  const historyWithoutSnapshot = await getHealthScoreHistory({
+    userId: ID.ownerUser,
+    organizationId: ID.org,
+    locationId: ID.location,
+  });
+  assert.equal(historyWithoutSnapshot.items.length, 0);
 
   const timings = await Promise.all(
     Array.from({ length: 20 }, async () => {
@@ -121,6 +173,7 @@ async function main(): Promise<void> {
       deniedAudited: Number(denied.rows[0].count),
       concurrentRequests: timings.length,
       localSyntheticP95Ms: Number(p95Ms.toFixed(1)),
+      historyPages: historyIds.length,
     })
   );
 }
