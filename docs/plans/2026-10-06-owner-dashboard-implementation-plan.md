@@ -244,10 +244,19 @@ pendiente/datos insuficientes con motivo. Schema/contrato/UI iniciales de
 moneda añadidos localmente; la administración del perfil y su propagación a
 worker/API/UI aún están pendientes. No usar datos financieros reales.
 
-Pendiente: orquestar invalidaciones→recompute→score→P0→outcomes, digest/
-notificaciones y métricas/alertas de lag; decidir canal/proveedor. El SLA ≤15 min solo puede afirmarse cuando se
-registre una frecuencia de cron durable, se mida su lag y el dashboard degrade a
-stale cuando falle.
+La cascada local ya conecta outbox→invalidación→recompute agregado más serie de
+la sede afectada por `default_currency`→score del agregado solo con perfil
+activo único y explícito→nueve reglas P0 por sede. El
+motivo de score pendiente (benchmark ausente/ambiguo, divisa discordante o
+versión faltante) se conserva en `audit_log`; no se escoge un perfil global o
+fixture. Recompute reintenta runs fallidos y recupera `running` con más de cinco
+minutos. El harness canonical fresco valida dispatcher+worker+reintento,
+score omitido de forma segura, P0 y anti-suplantación.
+
+Pendiente: procesar outcomes sin falsear acciones humanas, digest/notificaciones,
+métricas/alertas de lag y política del schedule. El SLA ≤15 min solo puede
+afirmarse cuando exista frecuencia durable, lag medido y degradación `stale`
+verificada; no registrar cron ni desplegar todavía.
 
 ### PR-13 — APIs completas y filtros
 

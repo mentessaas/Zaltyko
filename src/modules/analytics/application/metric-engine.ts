@@ -45,6 +45,12 @@ const metricSourceEventPrefixes = [
   "organization.bootstrapped",
 ] as const;
 
+export function isMetricSourceEvent(eventName: string): boolean {
+  return metricSourceEventPrefixes.some((prefix) =>
+    prefix.endsWith(".") ? eventName.startsWith(prefix) : eventName === prefix
+  );
+}
+
 const recomputeMetricsSchema = z.object({
   organizationId: z.string().uuid(),
   authorizationLocationId: z.string().uuid(),
@@ -203,13 +209,7 @@ export async function consumeMetricInvalidationEvent(
       .limit(1);
     if (!event)
       throw new OperationalError("NOT_FOUND", "Evento no encontrado", 404);
-    if (
-      !metricSourceEventPrefixes.some((prefix) =>
-        prefix.endsWith(".")
-          ? event.eventName.startsWith(prefix)
-          : event.eventName === prefix
-      )
-    ) {
+    if (!isMetricSourceEvent(event.eventName)) {
       return false;
     }
 
@@ -721,7 +721,25 @@ export async function recomputeMetrics(
         )
       )
       .limit(1);
-    if (prior) return prior;
+    if (prior) {
+      const reclaimable =
+        prior.status === "failed" ||
+        (prior.status === "running" &&
+          prior.startedAt.getTime() < Date.now() - 5 * 60_000);
+      if (!reclaimable) return prior;
+      const [reclaimed] = await tx
+        .update(metricRuns)
+        .set({
+          status: "running",
+          startedAt: new Date(),
+          completedAt: null,
+          errorCode: null,
+          errorDetail: null,
+        })
+        .where(eq(metricRuns.id, prior.id))
+        .returning();
+      return reclaimed;
+    }
 
     const [created] = await tx
       .insert(metricRuns)
@@ -754,7 +772,7 @@ export async function recomputeMetrics(
   try {
     return await db.transaction(async (tx) => {
       await tx.execute(
-        sql`select pg_advisory_xact_lock(hashtextextended(${`metrics:${input.organizationId}:${input.targetLocationId ?? "all"}:${input.periodStart}:${input.periodEnd}:${FORMULA_SET_VERSION}`}, 0))`
+        sql`select pg_advisory_xact_lock(hashtextextended(${`metrics:${input.organizationId}:${input.targetLocationId ?? "all"}:${input.periodStart}:${input.periodEnd}:${input.currency}:${FORMULA_SET_VERSION}`}, 0))`
       );
       const enrollmentMetrics = await computeEnrollmentMetrics(tx, scope);
       const sessionMetrics = await computeSessionMetrics(tx, scope);

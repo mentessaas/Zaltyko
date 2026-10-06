@@ -1,7 +1,12 @@
 import { sql } from "drizzle-orm";
 
 import { db } from "@/db";
-import { consumeMetricInvalidationEvent } from "@/modules/analytics/application/metric-engine";
+import {
+  consumeMetricInvalidationEvent,
+  isMetricSourceEvent,
+} from "@/modules/analytics/application/metric-engine";
+import { processMetricInvalidation } from "@/modules/analytics/application/process-metric-invalidation";
+import type { SystemActor } from "@/modules/shared/application/actor";
 
 const DEFAULT_BATCH_SIZE = 50;
 const DEFAULT_MAX_ATTEMPTS = 8;
@@ -23,6 +28,10 @@ export interface OutboxDispatchResult {
   retried: number;
   deadLettered: number;
   skipped: number;
+  metricRuns: number;
+  scoreSnapshots: number;
+  scoreSkipped: number;
+  insightEvaluations: number;
 }
 
 function safeErrorCode(error: unknown): string {
@@ -44,11 +53,14 @@ function safeErrorCode(error: unknown): string {
  * Consumers must be idempotent because a crash can occur after their commit
  * and before this dispatcher acknowledges the outbox row.
  */
-export async function dispatchOutboxBatch(options: {
-  batchSize?: number;
-  maxAttempts?: number;
-  leaseMs?: number;
-} = {}): Promise<OutboxDispatchResult> {
+export async function dispatchOutboxBatch(
+  options: {
+    batchSize?: number;
+    maxAttempts?: number;
+    leaseMs?: number;
+    actor?: SystemActor;
+  } = {}
+): Promise<OutboxDispatchResult> {
   const batchSize = options.batchSize ?? DEFAULT_BATCH_SIZE;
   const maxAttempts = options.maxAttempts ?? DEFAULT_MAX_ATTEMPTS;
   const leaseMs = options.leaseMs ?? DEFAULT_LEASE_MS;
@@ -91,7 +103,10 @@ export async function dispatchOutboxBatch(options: {
       returning event.id, event.organization_id, event.event_name,
         event.attempts, event.available_at as lease_until
     `);
-    return { events: result.rows as unknown as ClaimedEvent[], exhausted: exhausted.rows.length };
+    return {
+      events: result.rows as unknown as ClaimedEvent[],
+      exhausted: exhausted.rows.length,
+    };
   });
 
   const summary: OutboxDispatchResult = {
@@ -100,6 +115,10 @@ export async function dispatchOutboxBatch(options: {
     retried: 0,
     deadLettered: claim.exhausted,
     skipped: 0,
+    metricRuns: 0,
+    scoreSnapshots: 0,
+    scoreSkipped: 0,
+    insightEvaluations: 0,
   };
   for (const event of claim.events) {
     try {
@@ -109,6 +128,20 @@ export async function dispatchOutboxBatch(options: {
             organizationId: event.organization_id,
             outboxEventId: event.id,
           });
+      const pipeline =
+        options.actor && isMetricSourceEvent(event.event_name)
+          ? await processMetricInvalidation({
+              organizationId: event.organization_id,
+              outboxEventId: event.id,
+              actor: options.actor,
+            })
+          : null;
+      if (pipeline) {
+        summary.metricRuns += pipeline.metricsRecomputed;
+        if (pipeline.scoreSnapshotId) summary.scoreSnapshots += 1;
+        if (pipeline.scoreSkippedReason) summary.scoreSkipped += 1;
+        summary.insightEvaluations += pipeline.insightsEvaluated;
+      }
       const acknowledged = await db.execute(sql`
         update zaltyko.outbox_events
         set status = 'processed', processed_at = now(), last_error = null
@@ -118,7 +151,7 @@ export async function dispatchOutboxBatch(options: {
       `);
       if (acknowledged.rows.length > 0) {
         summary.processed += 1;
-        if (!consumed) summary.skipped += 1;
+        if (!consumed && !pipeline) summary.skipped += 1;
       }
     } catch (error) {
       const delayMs = Math.min(

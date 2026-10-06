@@ -9,8 +9,10 @@ export const runtime = "nodejs";
 
 export async function POST(request: Request) {
   try {
-    const cron = await withCronSystemActor(request, () =>
-      runCronWithLease("cron:zaltyko-outbox", () => dispatchOutboxBatch())
+    const cron = await withCronSystemActor(request, (actor) =>
+      runCronWithLease("cron:zaltyko-outbox", () =>
+        dispatchOutboxBatch({ actor })
+      )
     );
     if (!cron.ok) return cron.response;
     const execution = cron.value;

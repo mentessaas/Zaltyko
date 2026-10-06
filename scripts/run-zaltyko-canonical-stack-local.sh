@@ -69,4 +69,9 @@ for check in "${CHECKS[@]}"; do
   "${PSQL[@]}" -f "${ROOT_DIR}/supabase/tests/${check}" >/dev/null
 done
 
+DATABASE_URL="postgresql://127.0.0.1:${PG_PORT}/postgres" \
+DATABASE_URL_POOL="postgresql://127.0.0.1:${PG_PORT}/postgres" \
+DATABASE_POOL_MAX=4 NODE_ENV=test \
+  pnpm --dir "${ROOT_DIR}" exec tsx scripts/verify-zaltyko-worker-pipeline.ts
+
 echo "Fresh canonical migration stack + foundation SQL checks: PASS"
