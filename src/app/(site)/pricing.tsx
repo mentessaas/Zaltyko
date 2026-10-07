@@ -59,8 +59,8 @@ const commonBenefits = [
   },
   {
     icon: Clock,
-    title: "Configuración paso a paso",
-    description: "Un recorrido desde tu cuenta para preparar la operación principal.",
+    title: "Puesta en marcha guiada",
+    description: "Un recorrido paso a paso desde tu cuenta para preparar la operación principal.",
   },
   {
     icon: Globe2,
@@ -99,7 +99,7 @@ export default function PricingSection() {
               cuotas y comunicación con las familias de tu academia.
             </p>
             <p className="mt-2 font-sans text-sm text-muted-foreground">
-              Crea tu cuenta y configura la academia. Si quieres probar Starter,
+              Empieza gratis y configura tu academia. Si quieres probar Starter,
               puedes activar sus 7 días desde Facturación; no se realiza ningún
               cargo automático al terminar.
             </p>

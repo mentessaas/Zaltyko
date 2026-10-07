@@ -13,7 +13,7 @@ const faqs = [
   },
   {
     question: "¿Cuánto cuesta Zaltyko?",
-    answer: "Free incluye hasta 30 gimnastas y una academia. Starter cuesta 19 €/mes hasta 75 gimnastas; Growth, 49 €/mes hasta 200. Network es para organizaciones multi-sede y empieza en 99 €/mes con puesta en marcha acompañada. Consulta límites y condiciones en la página de precios.",
+    answer: "Free incluye hasta 30 gimnastas y una academia. Starter cuesta 19 €/mes hasta 75 gimnastas; Growth, 49 €/mes hasta 200. Network parte de 99€/mes para academias multi-sede, con puesta en marcha acompañada y propuesta final según sedes y necesidades. Consulta límites y condiciones en la página de precios.",
   },
   {
     question: "¿Cuánto tiempo tarda en configurarse?",
@@ -34,6 +34,10 @@ const faqs = [
   {
     question: "¿Qué plan necesito para mi academia?",
     answer: "Free cubre hasta 30 gimnastas; Starter, hasta 75; Growth, hasta 200, siempre con una academia. Network está pensado para varias sedes y requiere una puesta en marcha acompañada. Puedes crear tu cuenta y empezar por el plan Free.",
+  },
+  {
+    question: "¿Qué información ve una familia?",
+    answer: "El portal familiar limitado puede mostrar horarios, avisos, cuotas disponibles y el progreso que la academia haya publicado para ese vínculo.",
   },
   {
     question: "¿Puedo cancelar en cualquier momento?",

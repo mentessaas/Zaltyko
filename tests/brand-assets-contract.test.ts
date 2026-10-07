@@ -40,8 +40,8 @@ describe("brand asset contract", () => {
       theme_color: string;
       icons: Array<{ src: string }>;
     };
-    expect(manifest.background_color).toBe("#0F172A");
-    expect(manifest.theme_color).toBe("#0F172A");
+    expect(manifest.background_color).toBe("#F8F7F3");
+    expect(manifest.theme_color).toBe("#16243A");
     for (const icon of manifest.icons) {
       expect(statSync(`${root}public${icon.src}`)).toBeTruthy();
     }

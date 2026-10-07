@@ -5,20 +5,22 @@ import { describe, expect, it } from "vitest";
 import ComparisonSection from "@/app/(site)/home/ComparisonSection";
 
 describe("ComparisonSection accessibility contract", () => {
-  it("exposes boolean comparison values to assistive technology", () => {
+  it("labels each daily problem and its corresponding Zaltyko result", () => {
     const { container } = render(<ComparisonSection />);
 
-    const announcedValues = Array.from(container.querySelectorAll("td .sr-only")).map(
-      (node) => node.textContent
-    );
-
-    expect(announcedValues).toContain("Sí");
-    expect(announcedValues).toContain("No");
+    const comparisons = Array.from(container.querySelectorAll("article[aria-labelledby]"));
+    expect(comparisons).toHaveLength(4);
+    for (const comparison of comparisons) {
+      const headingId = comparison.getAttribute("aria-labelledby");
+      expect(headingId).toBeTruthy();
+      expect(comparison.querySelector(`#${headingId}`)?.tagName).toBe("H3");
+      expect(comparison.querySelector("p")?.textContent?.trim().length).toBeGreaterThan(0);
+    }
   });
 
   it("keeps the visual comparison icons decorative", () => {
     const { container } = render(<ComparisonSection />);
 
-    expect(container.querySelectorAll("td svg[aria-hidden=\"true\"]").length).toBeGreaterThan(0);
+    expect(container.querySelectorAll("article svg[aria-hidden=\"true\"]").length).toBeGreaterThan(0);
   });
 });

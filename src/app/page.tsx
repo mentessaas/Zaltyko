@@ -221,6 +221,14 @@ export default function HomePage() {
             },
             {
               "@type": "Question",
+              name: "¿Qué información ve una familia?",
+              acceptedAnswer: {
+                "@type": "Answer",
+                text: "El portal familiar limitado puede mostrar horarios, avisos, cuotas disponibles y el progreso que la academia haya publicado para ese vínculo.",
+              },
+            },
+            {
+              "@type": "Question",
               name: "¿Sirve si ahora trabajo con Excel o WhatsApp?",
               acceptedAnswer: {
                 "@type": "Answer",

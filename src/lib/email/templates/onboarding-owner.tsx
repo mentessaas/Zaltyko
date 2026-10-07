@@ -47,7 +47,7 @@ const COPY: Record<OnboardingOwnerStep, Record<SupportedLocale, Copy>> = {
   },
   d2: {
     es: {
-      subject: "El siguiente paso de tu academia",
+      subject: "Siguiente paso para configurar tu academia",
       preheader: "Continúa con la configuración cuando te venga bien.",
       headline: "Continúa a tu ritmo",
       intro: "Tu academia sigue aquí. Esta es la siguiente tarea pendiente:",
