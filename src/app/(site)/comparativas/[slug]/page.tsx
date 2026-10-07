@@ -135,14 +135,14 @@ export default async function ComparisonDetailPage({ params }: PageProps) {
         <section className="py-16">
           <div className="mx-auto max-w-5xl px-4 sm:px-6 lg:px-8">
             <h2 className="font-display text-2xl font-semibold text-foreground mb-6">
-              Funcionalidades clave
+              Tareas de academia y cómo las resuelve cada opción
             </h2>
             <div className="overflow-x-auto rounded-2xl border border-border">
               <table className="w-full bg-card">
                 <thead>
                   <tr>
                     <th className="px-6 py-4 text-left text-sm font-bold text-foreground border-b border-border">
-                      Funcionalidad
+                      Necesidad de dirección
                     </th>
                     <th className="px-4 py-4 text-center text-sm font-bold bg-zaltyko-teal text-white">
                       <span className="block">Zaltyko</span>

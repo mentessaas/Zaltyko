@@ -1,7 +1,7 @@
 ---
 status: active
 owner: marketing
-last_reviewed: 2026-09-13
+last_reviewed: 2026-10-08
 source:
   - ../docs/marketing/zaltyko-messaging.md
   - ../PRODUCT-ANALYSIS.md
@@ -12,32 +12,35 @@ source:
 
 ## Promesa principal
 
-Gestiona tu academia deportiva sin perder el foco en lo que importa: formar atletas.
+Zaltyko ayuda a quienes dirigen academias de gimnasia artística y rítmica a ordenar cuotas, grupos, asistencia y comunicación con las familias para trabajar con más claridad y dedicar más tiempo al entrenamiento.
+
+**Titular principal:** Dirige tu academia de gimnasia sin vivir apagando fuegos.
+
+**Lema:** Tu academia, en ritmo.
 
 ## Enfoque comercial inicial
 
-Para discovery, beta y mensajes de venta tempranos, enfocar Zaltyko en academias de gimnasia artistica y ritmica en espanol. El posicionamiento general de "academias deportivas" se mantiene como arquitectura de expansion, pero el go-to-market inicial debe hablar de gimnastas, familias, clases, cuotas, asistencia y progreso tecnico.
+La comunicación pública prioriza a propietarias/os y directoras/es de academias de gimnasia artística y rítmica. Habla de gimnastas, familias, grupos, horarios, cuotas y asistencia, con resultados presentados como beneficios esperados y no como garantías.
 
 ## Taglines permitidos
 
-- Tu academia ordenada, tu mente libre.
-- Adios al caos administrativo. Hola al crecimiento.
-- Gestiona tu academia deportiva desde un solo lugar.
-- Enfocate en entrenar. Nosotros te ayudamos con la administracion.
+- Tu academia, en ritmo.
+- Menos fuegos administrativos. Más tiempo para la gimnasia.
+- Grupos, cuotas y asistencia en un mismo lugar.
 
 ## Mensajes por canal
 
 | Canal | Mensaje seguro |
 | --- | --- |
-| Landing | Plataforma todo-en-uno para ordenar atletas, clases, pagos, eventos y comunicacion. |
-| Google Ads | Software de gestion para academias deportivas. |
-| Demo ventas | Veremos como centralizar operaciones y reducir trabajo manual. |
-| Email onboarding | Empieza configurando academia, clases, atletas y primer cobro. |
+| Landing | Zaltyko reúne cuotas, grupos, asistencia y comunicación con familias en un sistema pensado para gimnasia artística y rítmica. |
+| Google Ads | Software de gestión para academias de gimnasia artística y rítmica. |
+| Contacto acompañado | Para Network o migraciones amplias: revisamos cómo organizar la operación y el alcance de la puesta en marcha. |
+| Email onboarding | Empieza configurando la academia, los grupos, las gimnastas y las cuotas. |
 | Network | Multi-sede solo bajo diagnostico y onboarding acompanado. |
 | Pricing vigente | Free hasta 30 gimnastas; Starter 19 €/mes o 190 €/año hasta 75; Growth 49 €/mes o 490 €/año hasta 200; Network 99 €/mes multi-sede con onboarding acompañado. |
 | Trial | 7 días de Starter sin tarjeta, una activación por academia cada 12 meses; al terminar vuelve a Free y no hay cargo automático. |
 
-## CTAs y claims seguros a 2026-07-12
+## CTAs y claims seguros a 2026-10-08
 
 - Free puede dirigir al registro de owner.
 - Actualización 2026-09-13: el CTA principal de la landing (hero, navbar, CTA final, sticky bar) dirige a `/auth/register?role=owner` ("Crear cuenta gratis") y las CTAs de home, módulos y features explican que primero se crea la cuenta y después se configura la academia.

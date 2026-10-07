@@ -1,3 +1,5 @@
+import { escapeHtml } from "../escape-html";
+
 export function WelcomeEmailTemplate({
   userName,
   academyName,
@@ -7,6 +9,10 @@ export function WelcomeEmailTemplate({
   academyName: string;
   loginUrl?: string;
 }) {
+  const safeUserName = escapeHtml(userName);
+  const safeAcademyName = escapeHtml(academyName);
+  const safeLoginUrl = loginUrl ? escapeHtml(loginUrl) : undefined;
+
   return `
 <!DOCTYPE html>
 <html>
@@ -15,47 +21,48 @@ export function WelcomeEmailTemplate({
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>Bienvenido a Zaltyko</title>
 </head>
-<body style="margin: 0; padding: 0; font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif; background-color: #f5f5f5;">
+<body style="margin: 0; padding: 0; font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif; background-color: #F8F7F3;">
   <table role="presentation" style="width: 100%; border-collapse: collapse;">
     <tr>
       <td style="padding: 40px 20px; text-align: center;">
-        <table role="presentation" style="max-width: 600px; margin: 0 auto; background-color: #ffffff; border-radius: 8px; box-shadow: 0 2px 4px rgba(0,0,0,0.1);">
+        <table role="presentation" style="max-width: 600px; margin: 0 auto; background-color: #ffffff; border: 1px solid #DEDCD3; border-radius: 18px; box-shadow: 0 8px 24px rgba(22,36,58,0.08);">
           <tr>
-            <td style="padding: 40px 30px; text-align: center; background-color: #4f46e5; border-radius: 8px 8px 0 0;">
-              <h1 style="margin: 0; color: #ffffff; font-size: 24px; font-weight: 600;">¡Bienvenido a Zaltyko!</h1>
+            <td style="padding: 32px 30px; text-align: center; background-color: #16243A; border-radius: 18px 18px 0 0;">
+              <p style="margin: 0 0 10px; color: #D5E776; font-size: 12px; font-weight: 700; letter-spacing: 2px;">ZALTYKO</p>
+              <h1 style="margin: 0; color: #ffffff; font-size: 24px; font-weight: 700;">¡Bienvenido!</h1>
             </td>
           </tr>
           <tr>
             <td style="padding: 30px;">
-              <p style="margin: 0 0 20px 0; color: #374151; font-size: 16px; line-height: 1.5;">
-                Hola <strong>${userName}</strong>,
+              <p style="margin: 0 0 20px 0; color: #53616B; font-size: 16px; line-height: 1.6;">
+                Hola <strong>${safeUserName}</strong>,
               </p>
-              <p style="margin: 0 0 20px 0; color: #374151; font-size: 16px; line-height: 1.5;">
-                ¡Bienvenido a <strong>${academyName}</strong>! Estamos emocionados de tenerte como parte de nuestra comunidad.
+              <p style="margin: 0 0 20px 0; color: #53616B; font-size: 16px; line-height: 1.6;">
+                ¡Bienvenido a <strong>${safeAcademyName}</strong>! Estamos emocionados de tenerte como parte de nuestra comunidad.
               </p>
-              <div style="background-color: #f3f4f6; border-radius: 6px; padding: 20px; margin: 20px 0;">
-                <p style="margin: 0 0 10px 0; color: #6b7280; font-size: 14px; font-weight: 600; text-transform: uppercase;">¿Qué puedes hacer ahora?</p>
-                <ul style="margin: 10px 0; padding-left: 20px; color: #111827; font-size: 16px; line-height: 1.8;">
+              <div style="background-color: #E8F1EB; border-radius: 12px; padding: 20px; margin: 20px 0;">
+                <p style="margin: 0 0 10px 0; color: #146F68; font-size: 13px; font-weight: 700; text-transform: uppercase;">¿Qué puedes hacer ahora?</p>
+                <ul style="margin: 10px 0; padding-left: 20px; color: #16243A; font-size: 16px; line-height: 1.8;">
                   <li>Revisar el calendario de clases</li>
                   <li>Ver el progreso de tus atletas</li>
                   <li>Gestionar pagos y cobros</li>
                   <li>Comunicarte con entrenadores</li>
                 </ul>
               </div>
-              ${loginUrl ? `
+              ${safeLoginUrl ? `
               <div style="text-align: center; margin: 30px 0;">
-                <a href="${loginUrl}" style="display: inline-block; padding: 12px 24px; background-color: #4f46e5; color: #ffffff; text-decoration: none; border-radius: 6px; font-weight: 600;">Acceder a mi cuenta</a>
+                <a href="${safeLoginUrl}" style="display: inline-block; min-height: 44px; padding: 14px 24px; background-color: #146F68; color: #ffffff; text-decoration: none; border-radius: 10px; font-weight: 700;">Acceder a mi cuenta</a>
               </div>
               ` : ""}
-              <p style="margin: 20px 0 0 0; color: #6b7280; font-size: 14px; line-height: 1.5;">
+              <p style="margin: 20px 0 0 0; color: #53616B; font-size: 14px; line-height: 1.6;">
                 Si tienes alguna pregunta, no dudes en contactarnos. Estamos aquí para ayudarte.
               </p>
             </td>
           </tr>
           <tr>
-            <td style="padding: 20px 30px; text-align: center; background-color: #f9fafb; border-radius: 0 0 8px 8px; border-top: 1px solid #e5e7eb;">
-              <p style="margin: 0; color: #6b7280; font-size: 12px;">
-                Este es un mensaje automático de ${academyName}. Por favor no respondas a este correo.
+            <td style="padding: 20px 30px; text-align: center; background-color: #F8F7F3; border-radius: 0 0 18px 18px; border-top: 1px solid #DEDCD3;">
+              <p style="margin: 0; color: #53616B; font-size: 12px;">
+                Este es un mensaje automático de ${safeAcademyName}. Por favor no respondas a este correo.
               </p>
             </td>
           </tr>

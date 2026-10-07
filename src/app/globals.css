@@ -9,7 +9,7 @@ html {
 }
 
 ::selection {
-  background-color: #1FC7B6;
+  background-color: #146F68;
   color: #ffffff;
 }
 
@@ -34,83 +34,80 @@ body {
 @layer base {
   :root {
     color-scheme: light;
-    /* Zaltyko Brand Book v1 */
-    --background: 210 33% 97%; /* Quiet canvas #F5F8F8 */
-    --foreground: 222 47% 11%; /* Midnight Navy #0F172A */
+    /* Zaltyko: precisión en movimiento */
+    --background: 48 23% 96%; /* Warm white #F8F7F3 */
+    --foreground: 216 46% 16%; /* Ink navy #16243A */
 
     --card: 0 0% 100%;
-    --card-foreground: 222 47% 11%;
+    --card-foreground: 216 46% 16%;
  
     --popover: 0 0% 100%;
-    --popover-foreground: 222 47% 11%;
+    --popover-foreground: 216 46% 16%;
  
-    /* Deep Teal #00796B = color de acción/marca (botones, links).
-       Electric Teal #1FC7B6 queda como acento vibrante (--ring, charts, glows). */
-    --primary: 172 100% 24%; /* Deep Teal #00796B */
+    /* Teal #146F68 para acciones primarias y enlaces. */
+    --primary: 175 69% 26%;
     --primary-foreground: 0 0% 100%;
 
-    --secondary: 238 51% 34%; /* Deep Indigo #2B2E83 */
-    --secondary-foreground: 210 40% 98%;
+    --secondary: 176 30% 27%;
+    --secondary-foreground: 48 23% 96%;
 
-    --muted: 210 24% 95%;
-    /* 44% (no 46.9%): 46.9% da 4.24:1 sobre --muted y falla WCAG AA.
-       44% -> 4.70 sobre --muted, 5.27 sobre --card/--background. Ver ZAL-575 Tier A paso 1. */
-    --muted-foreground: 215.4 16.3% 44%;
+    --muted: 48 18% 93%;
+    --muted-foreground: 206 13% 37%;
 
-    --accent: 238 51% 34%; /* Deep Indigo */
-    --accent-foreground: 210 40% 98%;
+    --accent: 175 69% 26%;
+    --accent-foreground: 48 23% 96%;
 
-    --destructive: 7 100% 67%; /* Coral Accent #FF6B57 */
-    --destructive-foreground: 210 40% 98%;
+    --destructive: 6 48% 49%;
+    --destructive-foreground: 0 0% 100%;
 
-    --border: 214 24% 88%; /* quieter borders */
-    --input: 214 24% 84%;
-    --ring: 175 74% 45%;
+    --border: 45 15% 86%;
+    --input: 45 15% 82%;
+    --ring: 175 69% 26%;
  
     --radius: 1.125rem;
 
-    --chart-1: 175 74% 45%;
-    --chart-2: 238 51% 34%;
-    --chart-3: 213 27% 84%;
-    --chart-4: 7 100% 67%;
-    --chart-5: 222 47% 11%;
+    --chart-1: 175 69% 26%;
+    --chart-2: 216 46% 16%;
+    --chart-3: 68 70% 69%;
+    --chart-4: 6 48% 49%;
+    --chart-5: 176 30% 27%;
   }
  
   .dark {
     color-scheme: dark;
-    --background: 222 47% 11%;
-    --foreground: 210 40% 98%;
+    --background: 216 46% 16%;
+    --foreground: 48 23% 96%;
  
-    --card: 222 47% 11%;
-    --card-foreground: 210 40% 98%;
+    --card: 216 42% 19%;
+    --card-foreground: 48 23% 96%;
  
-    --popover: 222 47% 11%;
-    --popover-foreground: 210 40% 98%;
+    --popover: 216 42% 19%;
+    --popover-foreground: 48 23% 96%;
  
-    --primary: 175 74% 45%; /* Electric Teal en dark: mejor contraste sobre navy */
-    --primary-foreground: 0 0% 100%;
+    --primary: 175 69% 26%;
+    --primary-foreground: 48 23% 96%;
 
-    --secondary: 217.2 32.6% 17.5%;
-    --secondary-foreground: 210 40% 98%;
+    --secondary: 176 30% 27%;
+    --secondary-foreground: 48 23% 96%;
  
-    --muted: 217.2 32.6% 17.5%;
-    --muted-foreground: 215 20.2% 65.1%;
+    --muted: 216 35% 23%;
+    --muted-foreground: 210 16% 72%;
  
-    --accent: 217.2 32.6% 17.5%;
-    --accent-foreground: 210 40% 98%;
+    --accent: 175 30% 28%;
+    --accent-foreground: 48 23% 96%;
  
-    --destructive: 0 62.8% 30.6%;
-    --destructive-foreground: 210 40% 98%;
+    --destructive: 6 48% 49%;
+    --destructive-foreground: 0 0% 100%;
  
-    --border: 217.2 32.6% 17.5%;
-    --input: 217.2 32.6% 17.5%;
-    --ring: 175 74% 45%;
+    --border: 216 26% 29%;
+    --input: 216 26% 32%;
+    --ring: 68 70% 69%;
 
-    --chart-1: 175 74% 45%;
-    --chart-2: 238 51% 54%;
-    --chart-3: 213 27% 84%;
-    --chart-4: 7 100% 67%;
-    --chart-5: 210 40% 98%;
+    --chart-1: 68 70% 69%;
+    --chart-2: 175 50% 56%;
+    --chart-3: 48 23% 83%;
+    --chart-4: 6 48% 62%;
+    --chart-5: 48 23% 96%;
   }
 }
 
@@ -124,7 +121,7 @@ body {
   }
 
   .text-gradient {
-    background-image: linear-gradient(120deg, #00796B 0%, #1FC7B6 45%, #2B2E83 100%);
+    background-image: linear-gradient(120deg, #146F68 0%, #315B58 55%, #16243A 100%);
     -webkit-background-clip: text;
     background-clip: text;
     -webkit-text-fill-color: transparent;
@@ -146,7 +143,7 @@ body {
   }
 
   .zaltyko-motion-lines {
-    background-image: url("data:image/svg+xml,%3Csvg width='680' height='180' viewBox='0 0 680 180' fill='none' xmlns='http://www.w3.org/2000/svg'%3E%3Cpath d='M0 115C110 78 190 164 292 96C395 27 478 20 680 66' stroke='%231FC7B6' stroke-opacity='.12'/%3E%3Cpath d='M0 145C120 110 204 184 308 120C420 51 494 52 680 90' stroke='%232B2E83' stroke-opacity='.16' stroke-dasharray='5 7'/%3E%3Cpath d='M0 84C118 58 204 130 312 66C425 0 520 6 680 42' stroke='%23FF6B57' stroke-opacity='.10'/%3E%3C/svg%3E");
+    background-image: url("data:image/svg+xml,%3Csvg width='680' height='180' viewBox='0 0 680 180' fill='none' xmlns='http://www.w3.org/2000/svg'%3E%3Cpath d='M0 115C110 78 190 164 292 96C395 27 478 20 680 66' stroke='%23D5E776' stroke-opacity='.24'/%3E%3Cpath d='M0 145C120 110 204 184 308 120C420 51 494 52 680 90' stroke='%23146F68' stroke-opacity='.24' stroke-dasharray='5 7'/%3E%3Cpath d='M0 84C118 58 204 130 312 66C425 0 520 6 680 42' stroke='%23F8F7F3' stroke-opacity='.12'/%3E%3C/svg%3E");
     background-repeat: no-repeat;
     background-position: right top;
     background-size: min(680px, 100%) auto;
@@ -162,7 +159,7 @@ body {
     @apply bg-background text-foreground;
     font-feature-settings: "rlig" 1, "calt" 1;
     overflow-x: hidden;
-    background-image: radial-gradient(circle at 10% 0%, rgba(31, 199, 182, 0.05), transparent 24rem);
+    background-image: radial-gradient(circle at 10% 0%, rgba(20, 111, 104, 0.04), transparent 24rem);
   }
 
   /* Los menús nativos de <select> no heredan de forma fiable el color del

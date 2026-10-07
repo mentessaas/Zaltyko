@@ -13,13 +13,13 @@ const baseUrl = getPublicSiteUrl();
 export const metadata: Metadata = {
   title: "Funcionalidades para academias de gimnasia",
   description:
-    "Gestión de gimnastas, grupos, cobros, eventos y familias para academias de gimnasia artística y rítmica.",
+    "Ordena gimnastas, grupos, asistencia, cuotas y comunicación con familias en Zaltyko, un sistema para gimnasia artística y rítmica.",
   alternates: {
     canonical: `${baseUrl}/features`,
   },
   openGraph: {
     title: "Funcionalidades de Zaltyko | Software para gimnasia",
-    description: "Gestión de gimnastas, grupos, cobros, eventos y familias para academias de gimnasia artística y rítmica.",
+    description: "Gimnastas, grupos, asistencia, cuotas y comunicación con familias en un sistema para gimnasia artística y rítmica.",
     url: `${baseUrl}/features`,
     siteName: "Zaltyko",
     type: "website",
@@ -27,7 +27,7 @@ export const metadata: Metadata = {
   twitter: {
     card: "summary_large_image",
     title: "Funcionalidades de Zaltyko",
-    description: "Todo lo que necesitas para administrar tu academia de gimnasia.",
+    description: "Resuelve la gestión diaria de tu academia: gimnastas, grupos, asistencia, cuotas y familias.",
   },
 };
 
@@ -40,7 +40,7 @@ const featureSchema = {
     "@type": "Offer",
     price: "0",
     priceCurrency: "EUR",
-    description: "Plan Free: 7 días de Starter sin tarjeta para probar todas las funcionalidades",
+    description: "Plan Free para academias con hasta 30 gimnastas.",
   },
 };
 
@@ -49,18 +49,19 @@ export default function FeaturesPage() {
     <div className="min-h-screen flex flex-col bg-background">
       <Navbar />
       <main className="flex-1">
-        {/* Hero simple para features */}
-        <section className="pt-32 pb-16 bg-gradient-to-b from-zaltyko-primary/5 to-transparent">
-          <div className="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8 text-center">
+        <section className="bg-zaltyko-white pb-14 pt-32 sm:pb-20">
+          <div className="mx-auto max-w-5xl px-4 sm:px-6 lg:px-8">
             <Reveal>
-              <span className="inline-block text-sm font-semibold text-zaltyko-primary uppercase tracking-wider mb-4">
-                Funcionalidades
-              </span>
-              <h1 className="font-display text-4xl font-bold tracking-tight text-zaltyko-text-main sm:text-5xl">
-                Funcionalidades para tu academia de gimnasia
+              <p className="mb-4 text-xs font-bold uppercase tracking-[0.14em] text-zaltyko-teal">
+                Para dirección de gimnasia artística y rítmica
+              </p>
+              <h1 className="max-w-4xl font-display text-4xl font-bold leading-[1.04] tracking-tight text-zaltyko-navy sm:text-6xl">
+                Ordena lo que pasa antes y después de cada entrenamiento.
               </h1>
-              <p className="mt-6 mx-auto max-w-2xl text-lg text-zaltyko-text-secondary">
-                Gimnastas, entrenadores, cobros, evaluaciones y eventos en una sola plataforma pensada para gimnasia artística y rítmica.
+              <p className="mt-6 max-w-3xl text-lg leading-8 text-zaltyko-text-secondary sm:text-xl">
+                Consulta qué puede resolver Zaltyko en fichas, grupos, asistencia,
+                cuotas y comunicación con familias. Cada función aparece ligada
+                al trabajo de dirección y a lo que obtiene tu academia.
               </p>
             </Reveal>
           </div>
@@ -72,10 +73,10 @@ export default function FeaturesPage() {
           <div className="mx-auto max-w-3xl px-4 sm:px-6 lg:px-8 text-center">
             <Reveal>
               <h2 className="font-display text-3xl font-bold tracking-tight text-zaltyko-text-main sm:text-4xl">
-                Prueba Zaltyko con tu academia
+                Empieza por la parte que más te ocupa
               </h2>
               <p className="mt-4 text-lg text-zaltyko-text-secondary">
-                Crea tu cuenta gratis, configura tu academia, importa a tus gimnastas y explora cada funcionalidad en un clic.
+                Crea tu cuenta y configura tu academia; puedes empezar con el plan Free hasta 30 gimnastas.
               </p>
               <div className="mt-8 flex flex-col gap-4 sm:flex-row sm:justify-center">
                 <Link
@@ -92,7 +93,7 @@ export default function FeaturesPage() {
                 </Link>
               </div>
               <p className="mt-4 text-sm text-zaltyko-text-secondary">
-                7 días de Starter sin tarjeta · Sin permanencia
+                Una academia · Hasta 30 gimnastas · Consulta los límites por plan
               </p>
             </Reveal>
           </div>

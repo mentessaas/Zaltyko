@@ -17,50 +17,50 @@ import Reveal from "@/components/motion/Reveal";
 const modules = [
   {
     title: "Cobros",
-    description: "Lo que más usan las directoras: cuotas recurrentes, avisos automáticos a familias y seguimiento de impagos sin perseguir a nadie.",
+    description: "Consulta cuotas, pagos y recibos desde la academia. Los cobros recurrentes están disponibles según el plan.",
     icon: CreditCard,
     span: "lg:col-span-2",
-    features: ["Pagos recurrentes", "Avisos automáticos", "Seguimiento de impagos", "Cuotas por grupo"],
+    features: ["Estado de cobros", "Pagos recurrentes por plan", "Historial de pagos", "Reportes básicos"],
   },
   {
     title: "Clases & Horarios",
-    description: "Programación flexible con control de aforo, pase de lista por sesión y gestión de listas de espera.",
+    description: "Organiza grupos y sesiones, controla el aforo y pasa lista desde el móvil.",
     icon: Calendar,
     features: ["Calendario interactivo", "Control de aforo", "Pase de lista por sesión", "Listas de espera"],
   },
   {
     title: "Comunicación",
-    description: "Mensajes y notificaciones internas por grupo con historial auditable, sin saturar los chats del club.",
+    description: "Centraliza avisos y mensajes internos para que el equipo y las familias tengan la información importante a mano.",
     icon: MessageSquare,
-    features: ["Mensajes grupales", "Plantillas", "Notificaciones internas", "Familias informadas"],
+    features: ["Avisos internos", "Mensajes", "Notificaciones", "Acceso familiar limitado"],
   },
   {
     title: "Gimnastas",
-    description: "Fichas con nivel, categoría, aparatos, rutinas, documentación y evolución técnica de cada gimnasta.",
+    description: "Mantén juntas las fichas, el nivel, la categoría y la información deportiva de cada gimnasta.",
     icon: Users,
-    features: ["Perfiles completos", "Niveles y categorías", "Aparatos y rutinas", "Documentación"],
+    features: ["Fichas", "Niveles y categorías", "Aparatos", "Historial"],
   },
   {
     title: "Eventos",
-    description: "Inscripciones a competiciones con categorías por edad y nivel, y lista de espera gestionada.",
+    description: "Organiza eventos e inscripciones con sus plazas, requisitos y comunicación asociada.",
     icon: Award,
     features: ["Inscripciones online", "Gestión de plazas", "Lista de espera", "Comunicación"],
   },
   {
     title: "Evaluaciones",
-    description: "Sistema de evaluaciones técnicas y artísticas con rúbricas configurables, vídeos adjuntos y exportación a PDF.",
+    description: "Registra evaluaciones y sigue la evolución técnica de tus gimnastas a lo largo de la temporada.",
     icon: ClipboardList,
     features: ["Rúbricas personalizadas", "Vídeos adjuntos", "Gráficos de progreso", "Exportación PDF"],
   },
   {
     title: "Reportes",
-    description: "Informes de asistencia, cobros, ocupación y evolución para decidir dirección con datos reales.",
+    description: "Consulta información de actividad, asistencia, cobros y progreso para preparar tus decisiones de dirección.",
     icon: BarChart3,
     features: ["Export multi-formato", "Panel de dirección", "Métricas de ocupación y cobros", "Datos para decidir"],
   },
   {
     title: "Multi-Sede",
-    description: "Gestión multi-sede para Network con diagnóstico y puesta en marcha acompañada, además de aislamiento por academia y control de acceso por rol.",
+    description: "Si diriges varias sedes, Network ofrece una puesta en marcha acompañada y una vista pensada para coordinar la organización.",
     icon: Shield,
     features: ["Varias sedes", "Roles por usuario", "Panel de director", "Datos aislados"],
   },
@@ -73,14 +73,15 @@ export default function ModulesSection() {
         {/* Section header */}
         <div className="text-center max-w-3xl mx-auto mb-16">
           <p className="mb-4 text-xs font-semibold uppercase tracking-[0.08em] text-zaltyko-teal">
-            Funcionalidades
+            Para el trabajo real de dirección
           </p>
           <h2 className="text-4xl sm:text-5xl font-bold text-zaltyko-navy mb-6">
-            Hecho para cómo funciona un club de gimnasia
+            Cada función responde a una tarea de tu academia
           </h2>
           <p className="text-xl text-zaltyko-text-secondary">
-            Niveles, aparatos, ramas GAF/GAM/rítmica, cuotas por grupo, evaluaciones con rúbrica.
-            Cosas que un CRM genérico no sabe ni escribir.
+            De las fichas y los grupos a los cobros y la asistencia: Zaltyko
+            reúne la operación diaria en un sistema para gimnasia artística y
+            rítmica.
           </p>
         </div>
 
@@ -133,7 +134,7 @@ export default function ModulesSection() {
               href="/features"
               className="inline-flex items-center gap-2 font-semibold text-zaltyko-teal transition-all hover:gap-3"
             >
-              Ver todas las funcionalidades
+              Ver qué resuelve Zaltyko
               <span className="text-xl">→</span>
             </Link>
           </div>

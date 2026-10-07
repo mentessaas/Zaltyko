@@ -5,20 +5,20 @@ import { buttonVariants } from "@/components/ui/button";
 
 const painPoints = [
   {
-    before: "Hojas de cálculo dispersas",
-    after: "Panel centralizado con toda la información",
+    before: "Buscar fichas entre hojas y mensajes",
+    after: "Gimnastas, grupos y datos de familia en la academia",
   },
   {
-    before: "Cobros manuales y persecución de morosos",
-    after: "Cobros automáticos y recordatorios programados",
+    before: "Revisar cuotas y pagos en varios sitios",
+    after: "Cuotas y pagos consultables desde el módulo de cobros",
   },
   {
-    before: "WhatsApp saturado de mensajes",
-    after: "Notificaciones organizadas por canales",
+    before: "Cambios de horario y listas difíciles de seguir",
+    after: "Grupos, sesiones y asistencia organizados por clase",
   },
   {
-    before: "Inscripciones a competiciones caóticas",
-    after: "Gestión de eventos con un solo clic",
+    before: "Familias que necesitan preguntar por lo básico",
+    after: "Horarios, avisos, cuotas y progreso publicado en su portal limitado",
   },
 ];
 
@@ -29,14 +29,15 @@ export default function SeoExtendedSection() {
         {/* Header */}
         <div className="max-w-3xl mx-auto text-center mb-16">
           <span className="inline-block text-sm font-semibold text-zaltyko-primary uppercase tracking-wider mb-4">
-            Digitaliza tu academia
+            Menos gestión a base de memoria
           </span>
           <h2 className="font-display text-3xl font-bold tracking-tight text-zaltyko-text-main sm:text-4xl">
-            De la gestión manual al control total
+            De tareas sueltas a una operación con contexto
           </h2>
           <p className="mt-4 text-lg text-zaltyko-text-secondary">
-            Transforma horas de trabajo administrativo en decisiones claras.
-            Zaltyko ordena lo repetitivo para que te enfoques en tus gimnastas.
+            Al reunir información que hoy vive en varios archivos y conversaciones,
+            puedes revisar la operación con más claridad y dedicar más atención al
+            equipo y al entrenamiento.
           </p>
         </div>
 
@@ -74,11 +75,11 @@ export default function SeoExtendedSection() {
               "shadow-soft hover:shadow-medium"
             )}
           >
-            Crear cuenta y configurar academia
+            Crear academia gratis
             <ArrowRight className="ml-2 h-5 w-5" />
           </Link>
           <p className="mt-3 text-sm text-zaltyko-text-secondary">
-            Puesta en marcha guiada · Sin compromiso
+            Free hasta 30 gimnastas · Después puedes elegir el plan que encaje
           </p>
         </div>
       </div>

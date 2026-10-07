@@ -169,12 +169,12 @@ describe("L2 — copy pública presente en componentes", () => {
   const faq = readSiteFile("src/app/(site)/home/FaqSection.tsx");
   const pricing = readSiteFile("src/app/(site)/pricing.tsx");
 
-  it("ComparisonSection afirma features clave", () => {
-    expect(comparison).toContain("Cobros automáticos");
-    expect(comparison).toContain("Pase de lista por sesión");
-    expect(comparison).toContain("Evaluaciones con rúbrica");
-    expect(comparison).toContain("7 días de Starter sin tarjeta");
-    expect(comparison).toContain("Importación base desde Excel");
+  it("ComparisonSection parte de problemas diarios y explica el siguiente paso", () => {
+    expect(comparison).toContain("¿En qué hoja estaba la ficha?");
+    expect(comparison).toContain("Cuotas y pagos consultables desde el módulo de cobros.");
+    expect(comparison).toContain("Asistencia registrada por sesión, también desde el móvil.");
+    expect(comparison).toContain("Avisos y comunicación interna organizados en Zaltyko.");
+    expect(comparison).toContain("Ver cómo funciona en tu academia");
   });
 
   it("FaqSection contiene respuesta RGPD sobre menores", () => {
@@ -318,7 +318,7 @@ describe("L2 — claims de módulos alineados con capacidades verificadas", () =
   });
 
   it("usa el token de fondo oscuro real para conservar contraste en las pestañas", () => {
-    expect(features).toContain("bg-zaltyko-primary-dark");
+    expect(features).toContain("bg-zaltyko-navy");
     expect(features).not.toContain("bg-primary-dark");
   });
 

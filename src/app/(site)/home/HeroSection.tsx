@@ -1,151 +1,91 @@
-"use client";
-
+import Image from "next/image";
 import Link from "next/link";
-import { ArrowRight, Play, Shield } from "lucide-react";
-import { cn } from "@/lib/utils";
-import { buttonVariants } from "@/components/ui/button";
+import { ArrowRight, CirclePlay } from "lucide-react";
 import Reveal from "@/components/motion/Reveal";
-import SplitWords from "@/components/motion/SplitWords";
-
-const clipChip = {
-  clipPath: "polygon(0 0, calc(100% - 8px) 0, 100% 8px, 100% 100%, 0 100%)",
-} as const;
-
-const rosterPreview = [
-  { name: "Lucía M.", group: "Base 3 · GAF", status: "present" as const },
-  { name: "Martín O.", group: "Iniciación · GAM", status: "present" as const },
-  { name: "Vera S.", group: "Base 2 · Rítmica", status: "late" as const },
-  { name: "Noa P.", group: "Base 3 · GAF", status: "absent" as const },
-];
-
-const STATUS_LABEL: Record<string, string> = {
-  present: "Presente",
-  late: "Tarde",
-  absent: "Ausente",
-};
-
-const STATUS_CLASS: Record<string, string> = {
-  present: "bg-zaltyko-primary-ultralight text-zaltyko-teal",
-  late: "bg-zaltyko-navy/10 text-zaltyko-navy",
-  // The original coral on a white badge measured 2.8:1 in axe (WCAG AA
-  // requires 4.5:1 for this 12px text). Use the approved dark danger tone.
-  absent: "bg-red-50 text-red-700",
-};
 
 export default function HeroSection() {
   return (
-    <section className="relative bg-white">
-      {/* pt-28+ despeja el Navbar fijo (~88px con blur translúcido); py-20 dejaba
-          el eyebrow parcialmente detrás del nav en el primer viewport. */}
-      <div className="mx-auto max-w-7xl px-4 pb-16 pt-28 sm:px-6 lg:px-8 lg:pb-24 lg:pt-28">
-        <div className="grid lg:grid-cols-2 gap-16 lg:gap-20 items-center">
-          {/* Left Content */}
-          <div className="max-w-2xl">
-            <p className="mb-6 text-xs font-semibold uppercase tracking-[0.08em] text-zaltyko-teal">
-              Gimnasia artística · Rítmica
+    <section className="relative isolate overflow-hidden bg-zaltyko-white">
+      <div
+        aria-hidden="true"
+        className="pointer-events-none absolute -right-32 -top-20 h-[34rem] w-[34rem] rounded-full bg-zaltyko-lime/25 blur-3xl"
+      />
+      <div className="relative mx-auto grid max-w-7xl items-center gap-12 px-4 pb-16 pt-28 sm:px-6 sm:pb-20 lg:grid-cols-[0.92fr_1.08fr] lg:gap-14 lg:px-8 lg:pb-24 lg:pt-32">
+        <div className="relative z-10 max-w-2xl">
+          <Reveal>
+            <p className="mb-5 inline-flex items-center gap-2 rounded-full border border-zaltyko-teal/20 bg-white/80 px-4 py-2 text-xs font-bold uppercase tracking-[0.12em] text-zaltyko-teal">
+              <span className="h-2 w-2 rounded-full bg-zaltyko-lime" />
+              Tu academia, en ritmo
             </p>
-
-            {/* H1 — primary keyword al inicio para relevancia semántica del LCP.
-                Resto del copy (subtítulo, descripción, microcopy bajo CTA)
-                preserva el tono de marca de Mensajes aprobados. */}
-            <h1 className="mb-6 font-display text-[clamp(1.875rem,5vw,4rem)] font-bold leading-[1.05] tracking-tight text-zaltyko-navy">
-              <SplitWords text="Software para academias de gimnasia bajo control." />
+          </Reveal>
+          <Reveal delay={80}>
+            <h1 className="max-w-[13ch] text-[clamp(2.8rem,6vw,5.2rem)] font-bold leading-[0.99] tracking-[-0.055em] text-zaltyko-navy">
+              Dirige tu academia de gimnasia sin vivir apagando fuegos.
             </h1>
-            <Reveal delay={550}>
-              <p className="mb-3 font-display text-xl font-medium text-zaltyko-text-secondary sm:text-2xl">
-                Cuotas cobradas, grupos montados y lista pasada.
-              </p>
-            </Reveal>
-
-            {/* Subtitle */}
-            <Reveal delay={650}>
-              <p className="mb-8 max-w-xl text-lg leading-relaxed text-zaltyko-text-secondary">
-                Zaltyko es el software de gestión hecho solo para clubes de gimnasia artística y rítmica: gimnastas por nivel y aparato, cuotas recurrentes, asistencia por sesión y familias informadas.
-              </p>
-            </Reveal>
-
-            {/* CTAs */}
-            <Reveal delay={750}>
-              <div className="mb-6">
-              <div className="flex flex-col sm:flex-row gap-4 mb-4">
-                <Link
-                  href="/auth/register?role=owner"
-                  className={cn(
-                    buttonVariants({ variant: "default", size: "lg" }),
-                    "group bg-zaltyko-teal px-8 py-6 text-base text-white shadow-brand transition-all duration-200 hover:bg-zaltyko-primary-dark hover:shadow-lift"
-                  )}
-                >
-                  Crear cuenta y configurar academia
-                  <ArrowRight className="ml-2 h-5 w-5 group-hover:translate-x-1 transition-transform" />
-                </Link>
-                <Link
-                  href="/pricing"
-                  className={cn(
-                    buttonVariants({ variant: "outline", size: "lg" }),
-                    "border-zaltyko-mist bg-white px-8 py-6 text-base text-zaltyko-indigo hover:border-zaltyko-indigo/35 hover:bg-zaltyko-white"
-                  )}
-                >
-                  <Play className="mr-2 h-5 w-5 text-zaltyko-teal" />
-                  Ver planes
-                </Link>
-              </div>
-              {/* Microcopy bajo CTA */}
-              <p className="flex flex-wrap gap-x-4 gap-y-1 text-sm text-zaltyko-text-secondary">
-                <span className="flex items-center gap-1">
-                  <Shield className="h-4 w-4 text-zaltyko-teal" /> Sin tarjeta de crédito
-                </span>
-                <span>·</span>
-                <span>Puesta en marcha guiada</span>
-                <span>·</span>
-                <span>Sin compromiso</span>
-              </p>
-              </div>
-            </Reveal>
-          </div>
-
-          {/* Right Content - vista ilustrativa del pase de lista, no una captura del producto */}
-          <Reveal delay={400}>
-          <div className="border-b-2 border-zaltyko-teal">
-            <div className="rounded-card border border-zaltyko-mist bg-white shadow-soft">
-              <div className="flex items-center justify-between border-b border-zaltyko-mist px-5 py-4">
-                <div>
-                  <p className="font-display text-sm font-bold text-zaltyko-navy">Entrenamiento · Base 3</p>
-                  <p className="text-xs text-zaltyko-text-light">Hoy · 17:30</p>
-                </div>
-                <p className="font-display text-lg font-bold tabular-nums text-zaltyko-navy">
-                  2<span className="text-zaltyko-text-light">/4</span>
-                </p>
-              </div>
-              <ul className="divide-y divide-zaltyko-mist/60">
-                {rosterPreview.map((athlete, i) => (
-                  <li
-                    key={athlete.name}
-                    className="zk-row flex items-center justify-between gap-3 px-5 py-3"
-                    style={{ ["--zk-delay" as string]: `${900 + i * 130}ms` }}
-                  >
-                    <div className="min-w-0">
-                      <p className="truncate text-sm font-medium text-zaltyko-navy">{athlete.name}</p>
-                      <p className="truncate text-xs text-zaltyko-text-light">{athlete.group}</p>
-                    </div>
-                    <span
-                      style={clipChip}
-                      className={cn(
-                        "shrink-0 px-2.5 py-1 text-xs font-semibold",
-                        STATUS_CLASS[athlete.status]
-                      )}
-                    >
-                      {STATUS_LABEL[athlete.status]}
-                    </span>
-                  </li>
-                ))}
-              </ul>
-            </div>
-            <p className="mt-3 text-xs text-zaltyko-text-light">
-              Así se pasa lista desde el móvil, sesión por sesión.
+          </Reveal>
+          <Reveal delay={160}>
+            <p className="mt-6 max-w-xl text-lg leading-8 text-zaltyko-text-secondary sm:text-xl">
+              Cuotas, grupos, asistencia y comunicación con familias en un
+              sistema pensado para gimnasia artística y rítmica. Más claridad
+              para dirigir; más espacio para el entrenamiento y las personas.
             </p>
-          </div>
+          </Reveal>
+          <Reveal delay={240}>
+            <div className="mt-8 flex flex-col gap-3 sm:flex-row sm:items-center">
+              <Link
+                href="/auth/register?role=owner"
+                className="group inline-flex min-h-12 items-center justify-center gap-2 rounded-xl bg-zaltyko-teal px-6 py-3 text-base font-bold text-white shadow-brand transition hover:bg-zaltyko-primary-dark focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-zaltyko-teal focus-visible:ring-offset-2"
+              >
+                Crear academia gratis
+                <ArrowRight aria-hidden="true" className="h-5 w-5 transition-transform group-hover:translate-x-1" />
+              </Link>
+              <Link
+                href="/features"
+                className="inline-flex min-h-12 items-center justify-center gap-2 rounded-xl border border-zaltyko-mist bg-white/80 px-6 py-3 text-base font-semibold text-zaltyko-navy transition hover:border-zaltyko-teal/50 hover:bg-white focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-zaltyko-teal focus-visible:ring-offset-2"
+              >
+                <CirclePlay aria-hidden="true" className="h-5 w-5 text-zaltyko-teal" />
+                Ver Zaltyko por dentro
+              </Link>
+            </div>
+          </Reveal>
+          <Reveal delay={320}>
+            <div className="mt-6 flex flex-wrap gap-x-5 gap-y-2 text-sm text-zaltyko-text-secondary">
+              <span>Gratis hasta 30 gimnastas</span>
+              <span aria-hidden="true" className="text-zaltyko-teal">·</span>
+              <span>Sin tarjeta para empezar</span>
+              <span aria-hidden="true" className="text-zaltyko-teal">·</span>
+              <span>Artística y rítmica</span>
+            </div>
           </Reveal>
         </div>
+
+        <Reveal delay={120}>
+          <figure className="relative mx-auto w-full max-w-[680px] lg:ml-auto">
+            <div className="absolute -bottom-5 -left-5 h-2/3 w-2/3 rounded-[2rem] bg-zaltyko-lime" aria-hidden="true" />
+            <div className="relative aspect-[1.08/1] overflow-hidden rounded-[2rem] border border-white/70 bg-zaltyko-navy shadow-medium sm:aspect-[1.16/1]">
+              <Image
+                src="/branding/zaltyko/photos/academia-editorial-01.png"
+                alt="Entrenadora adulta revisa la planificación en una sala de gimnasia con barra de equilibrio y cintas rítmicas."
+                fill
+                priority
+                sizes="(max-width: 1024px) 100vw, 52vw"
+                className="object-cover object-[57%_center]"
+              />
+              <div className="absolute inset-0 bg-gradient-to-t from-zaltyko-navy/65 via-transparent to-transparent" />
+              <figcaption className="absolute inset-x-0 bottom-0 p-6 text-white sm:p-8">
+                <span className="mb-3 block text-xs font-semibold uppercase tracking-[0.16em] text-white/75">
+                  Gestión con contexto de gimnasia
+                </span>
+                <span className="block max-w-md font-display text-2xl font-semibold leading-tight sm:text-3xl">
+                  Que el trabajo alrededor del entrenamiento también encuentre su ritmo.
+                </span>
+              </figcaption>
+              <div aria-hidden="true" className="absolute right-5 top-5 flex h-12 w-12 items-center justify-center rounded-full border border-white/40 bg-white/15 text-lg font-bold text-white backdrop-blur-sm">
+                Z
+              </div>
+            </div>
+          </figure>
+        </Reveal>
       </div>
     </section>
   );

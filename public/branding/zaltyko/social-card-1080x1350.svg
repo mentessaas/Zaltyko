@@ -1,0 +1,33 @@
+<svg width="1080" height="1350" viewBox="0 0 1080 1350" fill="none" xmlns="http://www.w3.org/2000/svg" role="img" aria-labelledby="title desc">
+  <title id="title">Plantilla social de Zaltyko</title>
+  <desc id="desc">Pieza editorial para academias de gimnasia: pasar el día en tareas administrativas, con el lema Tu academia, en ritmo.</desc>
+  <rect width="1080" height="1350" fill="#F8F7F3"/>
+  <circle cx="1000" cy="75" r="260" fill="#D5E776" opacity="0.62"/>
+  <circle cx="105" cy="1250" r="310" fill="#E8F1EB"/>
+  <path d="M0 1015C201 894 301 1150 505 1028C706 907 811 864 1080 950" stroke="#146F68" stroke-width="3" opacity="0.16"/>
+  <path d="M0 1061C206 943 315 1197 526 1072C734 949 849 917 1080 1000" stroke="#315B58" stroke-width="2" stroke-dasharray="9 14" opacity="0.2"/>
+  <rect x="72" y="76" width="936" height="1198" rx="36" fill="#FFFFFF"/>
+  <path d="M72 112C72 92.1177 88.1177 76 108 76H972C991.882 76 1008 92.1177 1008 112V312H72V112Z" fill="#16243A"/>
+  <path d="M112 186L151 147H199L164 181H211L190 204H139L176 168H129L112 186Z" fill="#146F68"/>
+  <path d="M139 190H184L175 201H127L139 190Z" fill="#D5E776"/>
+  <text x="227" y="188" fill="#F8F7F3" font-family="Manrope, Arial, sans-serif" font-size="34" font-weight="800" letter-spacing="2">ZALTYKO</text>
+  <text x="112" y="262" fill="#FFFFFF" font-family="Manrope, Arial, sans-serif" font-size="20" font-weight="600" letter-spacing="3">GIMNASIA ARTÍSTICA · RÍTMICA</text>
+  <rect x="112" y="375" width="330" height="54" rx="27" fill="#E8F1EB"/>
+  <circle cx="140" cy="402" r="7" fill="#146F68"/>
+  <text x="162" y="410" fill="#146F68" font-family="Manrope, Arial, sans-serif" font-size="18" font-weight="800" letter-spacing="2">PARA QUIEN DIRIGE</text>
+  <text x="112" y="542" fill="#16243A" font-family="Space Grotesk, Arial, sans-serif" font-size="68" font-weight="700" letter-spacing="-2">
+    <tspan x="112" dy="0">¿Se te va el día</tspan>
+    <tspan x="112" dy="83">entre cuotas, listas</tspan>
+    <tspan x="112" dy="83">y mensajes?</tspan>
+  </text>
+  <rect x="112" y="833" width="112" height="8" rx="4" fill="#D5E776"/>
+  <text x="112" y="906" fill="#53616B" font-family="Manrope, Arial, sans-serif" font-size="28" font-weight="500">
+    <tspan x="112" dy="0">Ordena la gestión diaria de tu academia</tspan>
+    <tspan x="112" dy="43">para tener más espacio para la gimnasia.</tspan>
+  </text>
+  <path d="M112 1058H412" stroke="#DEDCD3" stroke-width="2"/>
+  <text x="112" y="1125" fill="#146F68" font-family="Space Grotesk, Arial, sans-serif" font-size="34" font-weight="700">Tu academia, en ritmo.</text>
+  <text x="112" y="1190" fill="#16243A" font-family="Manrope, Arial, sans-serif" font-size="21" font-weight="700">zaltyko.com</text>
+  <circle cx="910" cy="1120" r="56" fill="#D5E776"/>
+  <path d="M882 1133L908 1107L935 1133M908 1107V1152" stroke="#16243A" stroke-width="7" stroke-linecap="round" stroke-linejoin="round"/>
+</svg>

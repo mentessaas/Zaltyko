@@ -22,13 +22,13 @@ type Copy = {
 const COPY: Record<OnboardingOwnerStep, Record<SupportedLocale, Copy>> = {
   d0: {
     es: {
-      subject: "Tu academia en Zaltyko ya está lista",
-      preheader: "Continúa desde la siguiente tarea pendiente.",
-      headline: "Tu academia está lista",
+      subject: "Pongamos tu academia en ritmo",
+      preheader: "Sigue con el próximo paso de configuración.",
+      headline: "Un paso cada vez",
       intro:
-        "Acabamos de crear tu panel. Esta es la siguiente tarea pendiente:",
+        "Tu academia ya tiene un espacio en Zaltyko. Sigue con esta tarea pendiente:",
       cta: "Continuar",
-      closing: "Tu progreso queda guardado para cuando quieras retomarlo.",
+      closing: "Tu avance queda guardado. Cuando vuelvas, seguimos desde aquí.",
       preferences: "Preferencias de notificación",
       unsubscribe: "Dar de baja esta secuencia",
       completed: "Has completado todos los pasos de configuración inicial.",
@@ -48,11 +48,11 @@ const COPY: Record<OnboardingOwnerStep, Record<SupportedLocale, Copy>> = {
   d2: {
     es: {
       subject: "Siguiente paso para configurar tu academia",
-      preheader: "Retoma la configuración donde la dejaste.",
-      headline: "Continúa donde lo dejaste",
-      intro: "Tu academia sigue esperándote con esta tarea pendiente:",
+      preheader: "Continúa con la configuración cuando te venga bien.",
+      headline: "Continúa a tu ritmo",
+      intro: "Tu academia sigue aquí. Esta es la siguiente tarea pendiente:",
       cta: "Continuar",
-      closing: "Tu progreso queda guardado y puedes retomarlo cuando quieras.",
+      closing: "No hace falta configurarlo todo hoy. Tu avance queda guardado.",
       preferences: "Preferencias de notificación",
       unsubscribe: "Dar de baja esta secuencia",
       completed: "Has completado todos los pasos de configuración inicial.",
@@ -71,13 +71,12 @@ const COPY: Record<OnboardingOwnerStep, Record<SupportedLocale, Copy>> = {
   },
   d7: {
     es: {
-      subject: "Último recordatorio de tu configuración",
-      preheader: "Cerramos esta secuencia; tu progreso seguirá guardado.",
-      headline: "Último recordatorio",
-      intro: "Esta es la última comunicación automática de esta secuencia:",
+      subject: "Tu academia seguirá aquí cuando quieras continuar",
+      preheader: "Este es el último mensaje de esta secuencia de configuración.",
+      headline: "Tu avance queda guardado",
+      intro: "Este es el último mensaje de esta secuencia. Esta es la tarea pendiente:",
       cta: "Continuar",
-      closing:
-        "Después de este correo no recibirás más recordatorios automáticos.",
+      closing: "Después de este correo no recibirás más recordatorios automáticos de esta secuencia.",
       preferences: "Preferencias de notificación",
       unsubscribe: "Dar de baja esta secuencia",
       completed: "Has completado todos los pasos de configuración inicial.",
@@ -125,10 +124,12 @@ export function getOnboardingOwnerSubject(
 export function OnboardingOwnerTemplate(
   input: OnboardingOwnerTemplateInput
 ): string {
-  const copy = getOnboardingOwnerCopy(input.step, input.locale);
+  const locale = resolveOwnerLocale(input.locale);
+  const copy = getOnboardingOwnerCopy(input.step, locale);
   const esc = (value: string) => escapeHtml(value ?? "");
+  const brandLine = locale === "en" ? "Your academy, in rhythm." : "Tu academia, en ritmo.";
   const cta = input.nextStepUrl
-    ? `<p><a href="${esc(input.nextStepUrl)}">${esc(copy.cta)}: ${esc(input.nextStepLabel)}</a></p>`
-    : `<p>${esc(copy.completed)} <strong>${esc(input.academyName)}</strong></p>`;
-  return `<!doctype html><html lang="${resolveOwnerLocale(input.locale)}"><head><meta charset="utf-8"><title>${esc(copy.subject)}</title></head><body><main><h1>${esc(copy.headline)}</h1><p>Hola <strong>${esc(input.ownerFirstName)}</strong>,</p><p>${esc(copy.intro)}</p>${cta}<p>${esc(copy.closing)}</p></main><footer><a href="${esc(input.preferencesUrl)}">${esc(copy.preferences)}</a> · <a href="${esc(input.unsubscribeUrl)}">${esc(copy.unsubscribe)}</a><p>Zaltyko · comunicación transaccional de onboarding para <strong>${esc(input.academyName)}</strong>.</p></footer></body></html>`;
+    ? `<p style="margin:28px 0"><a href="${esc(input.nextStepUrl)}" style="display:inline-block;background:#146F68;color:#FFFFFF;padding:14px 22px;border-radius:10px;text-decoration:none;font-weight:700">${esc(copy.cta)}: ${esc(input.nextStepLabel)}</a></p>`
+    : `<p style="padding:16px;background:#E8F1EB;border-radius:10px;color:#16243A">${esc(copy.completed)} <strong>${esc(input.academyName)}</strong></p>`;
+  return `<!doctype html><html lang="${locale}"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>${esc(copy.subject)}</title></head><body style="margin:0;background:#F8F7F3;font-family:Arial,Helvetica,sans-serif;color:#16243A"><div style="display:none;max-height:0;overflow:hidden;opacity:0">${esc(copy.preheader)}</div><table role="presentation" width="100%" cellspacing="0" cellpadding="0" style="background:#F8F7F3;padding:32px 16px"><tr><td align="center"><table role="presentation" width="100%" cellspacing="0" cellpadding="0" style="max-width:600px;background:#FFFFFF;border:1px solid #DEDCD3;border-radius:18px;overflow:hidden"><tr><td style="background:#16243A;padding:24px 32px"><p style="margin:0;color:#D5E776;font-size:13px;font-weight:700;letter-spacing:2px">ZALTYKO</p><p style="margin:8px 0 0;color:#FFFFFF;font-size:13px">${esc(brandLine)}</p></td></tr><tr><td style="padding:32px"><h1 style="margin:0 0 20px;color:#16243A;font-size:28px;line-height:1.2">${esc(copy.headline)}</h1><p style="margin:0 0 16px;color:#53616B;font-size:16px;line-height:1.65">${locale === "en" ? "Hello" : "Hola"} <strong style="color:#16243A">${esc(input.ownerFirstName)}</strong>,</p><p style="margin:0;color:#53616B;font-size:16px;line-height:1.65">${esc(copy.intro)}</p>${cta}<p style="margin:24px 0 0;color:#53616B;font-size:14px;line-height:1.6">${esc(copy.closing)}</p></td></tr><tr><td style="border-top:1px solid #DEDCD3;padding:20px 32px"><p style="margin:0 0 10px;color:#53616B;font-size:12px;line-height:1.6">Zaltyko · ${locale === "en" ? "Setup for" : "Configuración de"} <strong>${esc(input.academyName)}</strong></p><p style="margin:0;color:#53616B;font-size:12px;line-height:1.8"><a href="${esc(input.preferencesUrl)}" style="color:#146F68">${esc(copy.preferences)}</a> · <a href="${esc(input.unsubscribeUrl)}" style="color:#146F68">${esc(copy.unsubscribe)}</a></p></td></tr></table></td></tr></table></body></html>`;
 }

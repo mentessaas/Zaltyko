@@ -46,17 +46,17 @@ export const viewport: Viewport = {
   initialScale: 1,
   maximumScale: 5,
   userScalable: true,
-  themeColor: "#0F172A",
+  themeColor: "#16243A",
   viewportFit: "cover",
 };
 
 export const metadata: Metadata = {
   title: {
-    default: "Zaltyko - Sistema de Gestión para Academias de Gimnasia",
+    default: "Zaltyko — Tu academia de gimnasia, en ritmo",
     template: "%s | Zaltyko",
   },
   description:
-    "Zaltyko — El sistema de dirección para academias de gimnasia artística y rítmica. Administra gimnastas, grupos, cobros, horarios y familias.",
+    "Zaltyko ayuda a quienes dirigen academias de gimnasia artística y rítmica a ordenar grupos, asistencia, cuotas y comunicación con familias.",
   keywords: [
     "zaltyko",
     "gimnasia",
@@ -82,21 +82,21 @@ export const metadata: Metadata = {
     locale: "es_ES",
     url: getPublicSiteUrl(),
     siteName: "Zaltyko",
-    title: "Zaltyko - Sistema de Gestión para Academias de Gimnasia",
-    description: "El sistema de dirección para academias de gimnasia artística y rítmica. Administra gimnastas, grupos, cobros, horarios y familias.",
+    title: "Zaltyko — Tu academia de gimnasia, en ritmo",
+    description: "Ordena grupos, asistencia, cuotas y comunicación con familias en un sistema para gimnasia artística y rítmica.",
     images: [
       {
-        url: "/og-image.png",
-        width: 1200,
-        height: 630,
-        alt: "Zaltyko - Gestión de Academias de Gimnasia",
+        url: "/branding/zaltyko/photos/academia-editorial-01.png",
+        width: 1536,
+        height: 1024,
+        alt: "Entrenadora adulta prepara una sesión en una sala de gimnasia",
       },
     ],
   },
   twitter: {
     card: "summary_large_image",
-    title: "Zaltyko - Sistema de Gestión para Academias de Gimnasia",
-    description: "El sistema definitivo para gestionar academias de gimnasia",
+    title: "Zaltyko — Tu academia de gimnasia, en ritmo",
+    description: "Menos trabajo administrativo repetido; más claridad para dirigir tu academia.",
   },
   robots: {
     index: true,

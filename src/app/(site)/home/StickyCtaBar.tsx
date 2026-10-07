@@ -35,37 +35,38 @@ export default function StickyCtaBar() {
   if (!mounted || !visible || dismissed) return null;
 
   return (
-    <div className="fixed bottom-0 left-0 right-0 z-50 animate-in slide-in-from-bottom-5">
-      <div className="border-t border-zaltyko-mist bg-white/95 backdrop-blur-lg shadow-[0_-4px_30px_rgba(15,23,42,0.08)]">
-        <div className="mx-auto max-w-5xl px-4 sm:px-6 lg:px-8 py-3 flex items-center justify-between gap-4">
+    <div className="fixed bottom-3 left-3 right-3 z-50 animate-in slide-in-from-bottom-5 sm:bottom-4 sm:left-4 sm:right-4">
+      <div className="mx-auto max-w-5xl rounded-2xl border border-zaltyko-mist/80 bg-white/95 shadow-medium backdrop-blur-lg">
+        <div className="flex items-center justify-between gap-2 px-3 py-2 sm:gap-4 sm:px-4">
           {/* Left: message */}
-          <div className="flex items-center gap-3 min-w-0">
-            <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-zaltyko-teal/10">
-              <Sparkles className="h-4 w-4 text-zaltyko-teal" />
+          <div className="flex min-w-0 items-center gap-2 sm:gap-3">
+            <div className="hidden h-8 w-8 shrink-0 items-center justify-center rounded-full bg-zaltyko-teal/10 sm:flex">
+              <Sparkles aria-hidden="true" className="h-4 w-4 text-zaltyko-teal" />
             </div>
-            <p className="truncate text-sm text-zaltyko-text-secondary">
-              <span className="font-semibold text-zaltyko-navy">Artística y rítmica</span> · Gratis hasta 30 gimnastas ·{" "}
-              <span className="font-bold text-zaltyko-indigo">Planes por tamaño de academia</span>
+            <p className="min-w-0 text-xs leading-5 text-zaltyko-text-secondary sm:text-sm">
+              <span className="font-semibold text-zaltyko-navy">Tu academia, en ritmo.</span>
+              <span className="hidden sm:inline"> Gratis hasta 30 gimnastas.</span>
             </p>
           </div>
 
           {/* Right: CTA */}
-          <div className="flex items-center gap-3 shrink-0">
+          <div className="flex shrink-0 items-center gap-1 sm:gap-2">
             <Link
               href="/auth/register?role=owner"
               className={cn(
                 buttonVariants({ variant: "default", size: "sm" }),
-                "rounded-full bg-zaltyko-teal px-5 py-2 text-sm shadow-soft hover:bg-zaltyko-primary-dark"
+                "min-h-11 rounded-xl bg-zaltyko-teal px-3 text-xs shadow-soft hover:bg-zaltyko-primary-dark sm:px-5 sm:text-sm"
               )}
             >
-              Crear cuenta gratis
+              <span className="sm:hidden">Empezar gratis</span>
+              <span className="hidden sm:inline">Crear academia gratis</span>
             </Link>
             <button
               onClick={() => setDismissed(true)}
-              className="text-gray-600 hover:text-gray-600 transition-colors p-1"
-              aria-label="Cerrar"
+              className="inline-flex min-h-11 min-w-11 items-center justify-center rounded-xl text-zaltyko-text-secondary transition hover:bg-zaltyko-white hover:text-zaltyko-navy"
+              aria-label="Cerrar invitación para crear una academia"
             >
-              <X className="w-4 h-4" />
+              <X aria-hidden="true" className="h-4 w-4" />
             </button>
           </div>
         </div>
