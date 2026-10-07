@@ -1,10 +1,18 @@
 ---
 status: active
 owner: producto
-last_reviewed: 2026-10-04
+last_reviewed: 2026-10-08
 source:
   - ../docs/audits/2026-10-03-launch-and-auth-followup.md
 ---
+
+## 2026-10-08 — Rebrand para la dirección de academias de gimnasia
+
+- Home y páginas públicas priorizan los problemas cotidianos de dirección: cuotas, grupos, horarios, asistencia y comunicación con familias.
+- «Sobre nosotros» cuenta el propósito de Elvis en primera persona y evita biografías, equipo, fechas y anécdotas no confirmados.
+- Se incorporan recursos editoriales de gimnasia y ajustes de identidad visual, metadatos, onboarding y plantillas de email.
+- Se conserva el catálogo de precios, sus límites, el registro autoservicio y el contacto acompañado de Network/migraciones amplias.
+- La guía de validación propone entrevistas con cinco responsables y una línea base del embudo; esos trabajos externos siguen pendientes.
 
 ## 2026-10-04 — Revalidar acceso Google, recuperación y búsqueda del onboarding
 

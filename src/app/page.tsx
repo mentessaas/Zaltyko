@@ -16,28 +16,14 @@ import FinalCtaSection from "@/app/(site)/home/FinalCtaSection";
 import Footer from "@/app/(site)/Footer";
 import StickyCtaBar from "@/app/(site)/home/StickyCtaBar";
 import { SkipLink } from "@/components/ui/skip-link";
-import Marquee from "@/components/motion/Marquee";
 import { getPublicSiteUrl } from "@/lib/seo/site-url";
-
-const HOME_MARQUEE_ITEMS = [
-  "Gimnastas por nivel y aparato",
-  "Cuotas recurrentes",
-  "Asistencia por sesión",
-  "Portal familiar limitado",
-  "Evaluaciones técnicas",
-  "Eventos y competiciones",
-  "Recibos automáticos",
-  "Comunicación interna",
-  "Multi-sede",
-  "Informes de dirección",
-];
 
 const baseUrl = getPublicSiteUrl();
 
 export const metadata: Metadata = {
-  title: "Zaltyko – Software de Gestión para Academias de Gimnasia",
+  title: "Zaltyko — Tu academia de gimnasia, en ritmo",
   description:
-    "Dirige tu academia de gimnasia artística o rítmica con grupos, cobros, horarios, familias y progreso técnico en orden.",
+    "Ordena cuotas, grupos, asistencia y comunicación con familias en un sistema pensado para academias de gimnasia artística y rítmica.",
   keywords: [
     "software para academias de gimnasia",
     "gestión de gimnasios de gimnasia",
@@ -54,28 +40,28 @@ export const metadata: Metadata = {
     canonical: baseUrl,
   },
   openGraph: {
-    title: "Zaltyko – Software de Gestión para Academias de Gimnasia",
+    title: "Zaltyko — Tu academia de gimnasia, en ritmo",
     description:
-      "Dirige tu academia de gimnasia artística o rítmica con grupos, cobros, horarios, familias y progreso técnico en orden.",
+      "Cuotas, grupos, asistencia y comunicación con familias en un sistema pensado para gimnasia artística y rítmica.",
     url: baseUrl,
     siteName: "Zaltyko",
     type: "website",
     locale: "es_ES",
     images: [
       {
-        url: `${baseUrl}/og-image.png`,
-        width: 1200,
-        height: 630,
-        alt: "Zaltyko - Software para academias de gimnasia",
+        url: `${baseUrl}/branding/zaltyko/photos/academia-editorial-01.png`,
+        width: 1536,
+        height: 1024,
+        alt: "Entrenadora adulta en una sala de gimnasia, imagen editorial de Zaltyko",
       },
     ],
   },
   twitter: {
     card: "summary_large_image",
-    title: "Zaltyko – Software de Gestión para Academias de Gimnasia",
+    title: "Zaltyko — Tu academia de gimnasia, en ritmo",
     description:
-      "Dirige tu academia de gimnasia artística o rítmica con grupos, cobros, horarios, familias y progreso técnico en orden.",
-    images: [`${baseUrl}/og-image.png`],
+      "Cuotas, grupos, asistencia y comunicación con familias en un sistema pensado para gimnasia artística y rítmica.",
+    images: [`${baseUrl}/branding/zaltyko/photos/academia-editorial-01.png`],
   },
   robots: {
     index: true,
@@ -103,10 +89,7 @@ export default function HomePage() {
         {/* Hero con H1 principal */}
         <HeroSection />
 
-        {/* Cinta continua de características */}
-        <Marquee items={HOME_MARQUEE_ITEMS} />
-
-        {/* Social proof - logos y estadísticas */}
+        {/* Dolor, solución y resultado para la dirección */}
         <SocialProofSection />
 
         {/* Comparativa vs Excel y alternativas */}
@@ -145,7 +128,7 @@ export default function HomePage() {
           applicationCategory: "BusinessApplication",
           operatingSystem: "Web",
           description:
-            "Software especializado para la dirección de academias de gimnasia artística femenina, artística masculina y rítmica. Gestiona gimnastas, grupos, horarios, cobros, competiciones y comunicación con familias.",
+            "Sistema para ayudar a la dirección de academias de gimnasia artística y rítmica a organizar gimnastas, grupos, horarios, cobros, asistencia y comunicación con familias.",
           url: baseUrl,
           offers: {
             "@type": "Offer",
@@ -176,7 +159,7 @@ export default function HomePage() {
             url: `${baseUrl}/branding/zaltyko/logo-zaltyko-dark.svg`,
           },
           description:
-            "Zaltyko es el sistema de dirección para academias de gimnasia artística femenina, artística masculina y rítmica.",
+            "Zaltyko ayuda a la dirección de academias de gimnasia artística y rítmica a organizar la operación diaria.",
           contactPoint: {
             "@type": "ContactPoint",
             email: "hola@zaltyko.com",
@@ -233,7 +216,7 @@ export default function HomePage() {
               name: "¿Cuánto tiempo tarda en configurarse?",
               acceptedAnswer: {
                 "@type": "Answer",
-                text: "La puesta en marcha es guiada y se adapta al volumen de datos y al equipo. Empezamos por academia, gimnastas, grupos, horarios y cobros sin prometer una duración cerrada antes de revisar el caso.",
+                text: "Puedes crear tu cuenta y configurar la academia paso a paso. El tiempo depende de los datos y de cómo estén organizados; las migraciones amplias se revisan aparte.",
               },
             },
             {
@@ -265,7 +248,7 @@ export default function HomePage() {
               name: "¿Qué plan necesito para mi academia?",
               acceptedAnswer: {
                 "@type": "Answer",
-                text: "Depende del tamaño, número de grupos, sedes y necesidades de cobro. Por eso priorizamos una demo corta antes de recomendar Starter, Growth o Network.",
+                text: "Compara los límites de gimnastas y funciones de Free, Starter y Growth en la página de precios y empieza creando tu cuenta. Para varias sedes o migraciones amplias, puedes hablar con el equipo.",
               },
             },
             {

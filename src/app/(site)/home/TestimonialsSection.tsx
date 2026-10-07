@@ -67,13 +67,13 @@ export default function TestimonialsSection() {
           ))}
         </div>
 
-        {/* CTA: ver directorio */}
+        {/* CTA: ampliar información del producto */}
         <div className="mt-8 text-center">
           <Link
-            href="/contact?type=demo"
+            href="/features"
             className="inline-flex items-center gap-2 text-zaltyko-teal font-semibold hover:gap-3 transition-all text-sm"
           >
-            Solicitar demo de Zaltyko
+            Ver funcionalidades de Zaltyko
             <ArrowRight className="w-4 h-4" />
           </Link>
         </div>

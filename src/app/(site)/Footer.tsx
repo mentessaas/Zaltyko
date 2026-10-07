@@ -14,7 +14,7 @@ const footerLinks = {
     { label: "Directorio de Academias", href: "/academias" },
     { label: "Eventos", href: "/events" },
     { label: "Centro de Ayuda", href: "/ayuda" },
-    { label: "Crear cuenta gratis", href: "/auth/register?role=owner" },
+    { label: "Crear academia gratis", href: "/auth/register?role=owner" },
   ],
   // Clusteres principales para SEO local (es + en). Anchor text descriptivo
   // refuerza autoridad topical en SERPs por país/modalidad.
@@ -46,10 +46,10 @@ export default function Footer() {
         <div className="border-b border-white/10 py-8">
           <div className="flex flex-wrap items-center justify-center gap-6 md:gap-10">
             {[
-              { label: "Privacidad por diseño", desc: "Controles de acceso" },
-              { label: "SSL Encriptado", desc: "Conexión segura" },
-              { label: "Cancelación libre", desc: "Sin permanencia" },
-              { label: "Soporte en español", desc: "Atención por email" },
+              { label: "Para gimnasia", desc: "Artística y rítmica" },
+              { label: "Operación diaria", desc: "Grupos y asistencia" },
+              { label: "Cuotas organizadas", desc: "Según las funciones del plan" },
+              { label: "Información clara", desc: "Para dirección y familias" },
             ].map((badge) => (
               <div key={badge.label} className="flex items-center gap-2">
                 <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-white/10">
@@ -77,8 +77,9 @@ export default function Footer() {
               />
             </Link>
             <p className="mt-5 max-w-xs text-sm font-medium leading-relaxed text-white/70">
-              El sistema de dirección para academias de gimnasia artística y rítmica.
-              Gestiona gimnastas, grupos, cobros y familias desde un solo panel.
+              Tu academia, en ritmo. Ordena gimnastas, grupos, asistencia,
+              cuotas y comunicación con familias en un sistema pensado para la
+              gimnasia artística y rítmica.
             </p>
           </div>
 
@@ -109,7 +110,7 @@ export default function Footer() {
           </p>
           <div className="flex flex-wrap items-center justify-center gap-4 sm:gap-6">
             <span className="text-xs font-medium text-white/40">
-              Software para academias de gimnasia
+              Tu academia, en ritmo
             </span>
             <span className="hidden text-xs text-white/40 sm:inline">•</span>
             <span className="text-xs font-medium text-white/40">

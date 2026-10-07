@@ -268,7 +268,7 @@ export function ModuleCta({
             </Link>
           </div>
           <p className="mt-4 text-sm text-white/60">
-            Sin tarjeta de crédito · Puesta en marcha guiada
+            Empieza con Free · Configuración paso a paso
           </p>
         </div>
       </div>

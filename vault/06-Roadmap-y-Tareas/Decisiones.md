@@ -1,12 +1,21 @@
 ---
 status: active
 owner: producto
-last_reviewed: 2026-10-02
+last_reviewed: 2026-10-08
 source:
   - ../AGENTS.md
 ---
 
 # Decisiones
+
+## 2026-10-07 — La marca pública habla primero a quien dirige una academia de gimnasia
+
+| Campo | Valor |
+| --- | --- |
+| Contexto | La web agrupaba muchas funciones y la página «Sobre nosotros» incluía nombres, biografías y una fecha de fundación que no estaban confirmados como historia real de Elvis/Zaltyko. |
+| Decisión | Priorizar propietarias/os y directoras/es de gimnasia artística y rítmica, sus tareas diarias y lo que buscan obtener. Posicionamiento: ordenar cuotas, grupos, asistencia y comunicación familiar para dirigir con más claridad y dedicar más tiempo al entrenamiento. Lema: «Tu academia, en ritmo». El registro sigue siendo autoservicio para Free, Starter y Growth; Network y migraciones amplias conservan contacto acompañado. |
+| Límites | No inventar episodios, fechas, experiencia, equipo, testimonios, resultados comerciales ni retrato de Elvis. Las imágenes editoriales no representan clientes. Capacidades y privacidad se describen según el producto; los resultados de negocio no se garantizan. |
+| Consecuencia | Portada, historia, funcionalidades, precios, comparativas, ayuda, onboarding, emails e identidad visual siguen la misma dirección. La validación con academias y la medición del embudo quedan como trabajo pendiente. |
 
 ## 2026-10-04 — Fallar cerrado si CI no genera inventarios SBOM
 

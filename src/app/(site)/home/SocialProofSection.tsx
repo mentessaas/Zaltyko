@@ -1,55 +1,91 @@
-"use client";
-
-import { Building2, FileSpreadsheet, CreditCard, Users } from "lucide-react";
+import {
+  CalendarDays,
+  CircleDollarSign,
+  MessagesSquare,
+  Search,
+} from "lucide-react";
 import Reveal from "@/components/motion/Reveal";
 
-// No hay todavía cifras de clientes que citar (ver LANDING-CRO.md). En vez de
-// dejar la sección sin ningún elemento de confianza, describe el proceso real
-// de puesta en marcha — verificable en ModulesSection/FaqSection — hasta que
-// exista un testimonio real que la sustituya.
-const steps = [
+const dailyPressures = [
   {
-    icon: Building2,
-    title: "Configuras tu academia",
-    description: "Sedes, grupos y niveles por modalidad, en una puesta en marcha guiada.",
+    icon: Search,
+    pain: "La información está repartida",
+    title: "Encuentra cada dato donde lo necesitas",
+    description:
+      "Reúne fichas de gimnastas, grupos y datos de familia en el espacio de tu academia.",
+    result: "Menos búsquedas y menos tareas repetidas.",
   },
   {
-    icon: FileSpreadsheet,
-    title: "Importas tus gimnastas",
-    description: "Desde Excel o CSV, sin migración manual gimnasta por gimnasta.",
+    icon: CircleDollarSign,
+    pain: "Las cuotas piden seguimiento",
+    title: "Ten más claro qué se ha cobrado",
+    description:
+      "Consulta cuotas, pagos y recibos; activa cobros recurrentes según el plan de tu academia.",
+    result: "Más contexto para revisar los cobros y actuar.",
   },
   {
-    icon: CreditCard,
-    title: "Activas cobros y horarios",
-    description: "Cuotas recurrentes y clases listas para pasar lista desde el móvil.",
+    icon: CalendarDays,
+    pain: "Grupos y horarios cambian",
+    title: "Llega a cada sesión con la lista a mano",
+    description:
+      "Organiza clases y grupos, y registra la asistencia sesión por sesión desde el móvil.",
+    result: "Sabes qué ocurre en cada clase.",
   },
   {
-    icon: Users,
-    title: "Sumas a tu equipo",
-    description: "Coaches y familias entran con acceso según su rol, sin permisos de más.",
+    icon: MessagesSquare,
+    pain: "Las familias preguntan lo mismo por varios canales",
+    title: "Comparte la información importante",
+    description:
+      "Organiza avisos y comunicación interna; las familias acceden a horarios, cuotas y progreso publicado según su portal.",
+    result: "Una experiencia más clara para las familias.",
   },
 ];
 
 export default function SocialProofSection() {
   return (
-    <section className="py-16 bg-white dark:bg-background border-y border-border">
+    <section className="border-y border-zaltyko-mist/80 bg-white py-20 sm:py-24">
       <div className="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8">
-        <p className="text-center text-xs font-semibold uppercase tracking-[0.08em] text-zaltyko-teal mb-10">
-          Cómo te acompañamos en la puesta en marcha
-        </p>
-        <div className="grid gap-8 sm:grid-cols-2 lg:grid-cols-4">
-          {steps.map((step, index) => (
-            <Reveal key={step.title} delay={index * 90}>
-              <div className="text-center">
-                <div className="mx-auto mb-4 flex h-12 w-12 items-center justify-center rounded-control bg-zaltyko-primary-ultralight">
-                  <step.icon className="h-6 w-6 text-zaltyko-teal" />
-                </div>
-                <p className="mb-1 text-xs font-semibold text-zaltyko-text-light">Paso {index + 1}</p>
-                <h3 className="mb-2 font-display text-base font-bold text-zaltyko-navy">{step.title}</h3>
-                <p className="text-sm text-zaltyko-text-secondary">{step.description}</p>
-              </div>
-            </Reveal>
-          ))}
+        <Reveal>
+          <div className="mx-auto mb-12 max-w-3xl text-center sm:mb-16">
+            <p className="mb-4 text-xs font-bold uppercase tracking-[0.14em] text-zaltyko-teal">
+              El día a día de quien dirige
+            </p>
+            <h2 className="text-3xl font-bold leading-tight tracking-tight text-zaltyko-navy sm:text-5xl">
+              Menos fuegos administrativos. Más tiempo para la gimnasia.
+            </h2>
+            <p className="mx-auto mt-5 max-w-2xl text-base leading-7 text-zaltyko-text-secondary sm:text-lg">
+              Cuando los datos, las cuotas y las clases se entienden entre sí,
+              puedes dedicar menos atención a perseguir información y más a
+              dirigir tu academia.
+            </p>
+          </div>
+        </Reveal>
+
+        <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-4">
+          {dailyPressures.map((item, index) => {
+            const Icon = item.icon;
+            return (
+              <Reveal key={item.pain} delay={index * 70}>
+                <article className="h-full rounded-2xl border border-zaltyko-mist/80 bg-zaltyko-white p-6 transition duration-200 hover:-translate-y-1 hover:border-zaltyko-teal/40 hover:shadow-soft">
+                  <div className="mb-6 flex h-11 w-11 items-center justify-center rounded-xl bg-zaltyko-teal/10 text-zaltyko-teal">
+                    <Icon aria-hidden="true" className="h-5 w-5" />
+                  </div>
+                  <p className="text-xs font-semibold uppercase tracking-wide text-zaltyko-text-light">
+                    {item.pain}
+                  </p>
+                  <h3 className="mt-2 font-display text-xl font-bold leading-snug text-zaltyko-navy">
+                    {item.title}
+                  </h3>
+                  <p className="mt-3 text-sm leading-6 text-zaltyko-text-secondary">
+                    {item.description}
+                  </p>
+                  <p className="mt-5 border-t border-zaltyko-mist/80 pt-4 text-sm font-semibold leading-6 text-zaltyko-teal">
+                    {item.result}
+                  </p>
+                </article>
+              </Reveal>
+            );
+          })}
         </div>
       </div>
     </section>

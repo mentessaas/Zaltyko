@@ -1,12 +1,12 @@
 {
-  "name": "Zaltyko - Gestión de Academias",
+  "name": "Zaltyko — Tu academia, en ritmo",
   "short_name": "Zaltyko",
-  "description": "Gestión de gimnastas, clases, asistencia, cobros y comunicación para academias",
+  "description": "Grupos, asistencia, cuotas y comunicación para academias de gimnasia artística y rítmica.",
   "start_url": "/",
   "display": "standalone",
   "orientation": "portrait-primary",
-  "background_color": "#0F172A",
-  "theme_color": "#0F172A",
+  "background_color": "#F8F7F3",
+  "theme_color": "#16243A",
   "scope": "/",
   "lang": "es",
   "categories": ["business", "productivity", "sports"],
@@ -28,22 +28,6 @@
       "sizes": "96x96",
       "type": "image/png",
       "purpose": "any"
-    }
-  ],
-  "screenshots": [
-    {
-      "src": "/screenshots/home.png",
-      "sizes": "1280x720",
-      "type": "image/png",
-      "form_factor": "wide",
-      "label": "Dashboard principal de Zaltyko"
-    },
-    {
-      "src": "/screenshots/mobile.png",
-      "sizes": "750x1334",
-      "type": "image/png",
-      "form_factor": "narrow",
-      "label": "Vista móvil de Zaltyko"
     }
   ],
   "splash_screens": [],

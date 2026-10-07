@@ -10,25 +10,25 @@ import { getPublicSiteUrl } from "@/lib/seo/site-url";
 const baseUrl = getPublicSiteUrl();
 
 export const metadata: Metadata = {
-  title: "Planes y Precios para Academias de Gimnasia",
+  title: "Planes para ordenar tu academia de gimnasia",
   description:
-    "Compara los planes Free, Starter, Growth y Network para tu academia de gimnasia artística o rítmica. Prueba 7 días Starter sin tarjeta y sin compromiso.",
+    "Compara precios, límites y funciones de Zaltyko para academias de gimnasia artística o rítmica. Empieza con Free hasta 30 gimnastas.",
   alternates: {
     canonical: `${baseUrl}/pricing`,
   },
   openGraph: {
-    title: "Precios",
+    title: "Planes de Zaltyko para tu academia",
     description:
-      "Compara planes Free, Starter, Growth y Network para academias de gimnasia artística y rítmica. 7 días Starter sin tarjeta.",
+      "Compara precios, límites y funciones para ordenar grupos, asistencia, cuotas y comunicación con familias.",
     url: `${baseUrl}/pricing`,
     siteName: "Zaltyko",
     type: "website",
   },
   twitter: {
     card: "summary_large_image",
-    title: "Planes para Academias de Gimnasia",
+    title: "Planes para academias de gimnasia",
     description:
-      "Planes Zaltyko por etapa y tamaño de academia. Free, Starter, Growth y Network.",
+      "Precios y funciones de Zaltyko para gimnasia artística y rítmica.",
   },
 };
 

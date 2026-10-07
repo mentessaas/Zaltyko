@@ -10,16 +10,16 @@ import { getPublicSiteUrl } from "@/lib/seo/site-url";
 const baseUrl = getPublicSiteUrl();
 
 export const metadata: Metadata = {
-  title: "Centro de Ayuda para Academias de Gimnasia",
+  title: "Ayuda para dirigir tu academia de gimnasia",
   description:
-    "Encuentra respuestas a tus preguntas sobre Zaltyko. Guías, tutoriales y documentación para administrar tu academia de gimnasia.",
+    "Guías de Zaltyko para organizar gimnastas, grupos, horarios, asistencia, cuotas y comunicación con familias.",
   alternates: {
     canonical: `${baseUrl}/ayuda`,
   },
   openGraph: {
-    title: "Centro de Ayuda para Academias de Gimnasia",
+    title: "Ayuda para tu academia de gimnasia",
     description:
-      "Encuentra respuestas sobre gimnastas, cobros, clases y gestión de tu academia.",
+      "Respuestas prácticas sobre fichas, clases, asistencia, cuotas y familias.",
     url: `${baseUrl}/ayuda`,
     type: "website",
   },
@@ -27,24 +27,24 @@ export const metadata: Metadata = {
 
 const faqs = [
   {
-    question: "¿Cómo puedo dar de alta a un nuevo atleta?",
-    answer: "Desde el panel de atletas, haz clic en 'Nuevo Atleta' y completa los datos. Puedes añadir foto, información de contacto y familiares.",
+    question: "¿Cómo doy de alta a una gimnasta?",
+    answer: "Desde el área de gimnastas de tu academia, crea una ficha y añade la información que necesitas para organizar su actividad.",
   },
   {
-    question: "¿Puedo importar atletas desde Excel?",
-    answer: "Sí, desde el listado de Atletas puedes importar un archivo CSV con tus gimnastas. Podrás revisar los datos antes de guardarlos.",
+    question: "¿Puedo importar gimnastas desde Excel?",
+    answer: "Sí. Puedes importar gimnastas desde Excel o CSV y revisar los datos antes de guardarlos.",
   },
   {
     question: "¿Cómo funciona el control de asistencia?",
-    answer: "En el detalle de cada clase puedes marcar la asistencia de cada gimnasta manualmente, sesión por sesión.",
+    answer: "Puedes registrar la asistencia desde la clase, sesión por sesión. El flujo de entrenamiento también permite pasar lista desde el móvil.",
   },
   {
-    question: "¿Puedo enviar mensajes a los padres?",
-    answer: "Sí, desde el perfil de cada atleta puedes enviar emails o configurar notificaciones automáticas para padres.",
+    question: "¿Cómo comparto información con las familias?",
+    answer: "Zaltyko incluye comunicación interna y avisos. El portal familiar tiene alcance limitado y muestra horarios, cuotas y progreso que la academia haya publicado.",
   },
   {
     question: "¿Qué métodos de pago acepta Zaltyko?",
-    answer: "Aceptamos tarjetas de crédito/débito y domiciliaciones bancarias a través de Stripe. También puedes registrar pagos manuales.",
+    answer: "Las opciones dependen de la configuración de cobros de la academia. También puedes consultar y registrar pagos desde el área de facturación.",
   },
   {
     question: "¿Cómo puedo cambiar de plan?",
@@ -75,13 +75,13 @@ export default function HelpPage() {
         <div className="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8 text-center">
           <Reveal>
             <span className="inline-block text-sm font-semibold text-zaltyko-primary uppercase tracking-wider mb-4">
-              Centro de Ayuda
+              Para el día a día de tu academia
             </span>
             <h1 className="font-display text-4xl font-bold tracking-tight text-zaltyko-text-main sm:text-5xl">
-              Centro de ayuda de Zaltyko para tu academia
+              Encuentra el siguiente paso para tu academia
             </h1>
             <p className="mt-6 mx-auto max-w-2xl text-lg text-zaltyko-text-secondary">
-              Guías rápidas sobre gimnastas, cobros, clases y migración desde Excel. Si no encuentras tu respuesta, te respondemos por email en horario laboral.
+              Guías sobre gimnastas, grupos, asistencia, cuotas y comunicación con familias. Si no encuentras lo que buscas, escríbenos por email.
             </p>
           </Reveal>
         </div>

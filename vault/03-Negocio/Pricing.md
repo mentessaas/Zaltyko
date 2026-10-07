@@ -1,7 +1,7 @@
 ---
 status: active
 owner: negocio
-last_reviewed: 2026-10-05
+last_reviewed: 2026-10-08
 source:
   - ../BUSINESS-ANALYSIS.md
   - ../docs/marketing/zaltyko-pricing.md
@@ -27,7 +27,7 @@ Esta nota debe revisarse antes de cambiar landing, checkout, limites de plan o d
 
 | Capa | Fuente | Estado |
 | --- | --- | --- |
-| Copy publico | `src/app/(site)/pricing.tsx` + `src/lib/plans/catalog.ts` | Free, Starter y Growth dirigen al registro de propietario. La página compara precios mensuales y anuales; la modalidad se elige dentro de Facturación. Network abre contacto acompañado. |
+| Copy publico | `src/app/(site)/pricing.tsx` + `src/lib/plans/catalog.ts` | Free, Starter y Growth dirigen al registro de propietario. La página compara precios mensuales y anuales, explica cómo activar Starter y orienta Network o migraciones amplias a contacto acompañado. |
 | Limites de producto | `src/lib/plans/catalog.ts` y tabla `plans` | Free 30 gimnastas, Starter 75, Growth 200; todos con 1 academia. Network multi-sede acompanado. |
 | Enforcements | `src/lib/limits.ts` | Lee limites desde el catalogo canonico y permite override de atletas/academias desde `plans`. |
 | Checkout activo | `src/app/api/billing/checkout/route.ts` | Owner-only, elige `plans.stripePriceId` o `plans.stripeAnnualPriceId` según la modalidad, `mode: subscription`, metadata de academia e idempotencia. |

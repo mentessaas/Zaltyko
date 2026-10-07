@@ -1,3 +1,5 @@
+import { escapeHtml } from "../escape-html";
+
 export function PaymentReminderTemplate({
   athleteName,
   amount,
@@ -13,6 +15,12 @@ export function PaymentReminderTemplate({
   academyName: string;
   paymentUrl?: string;
 }) {
+  const safeAthleteName = escapeHtml(athleteName);
+  const safeDueDate = escapeHtml(dueDate);
+  const safeAcademyName = escapeHtml(academyName);
+  const safeCurrency = escapeHtml(currency.toUpperCase());
+  const safePaymentUrl = paymentUrl ? escapeHtml(paymentUrl) : undefined;
+
   return `
 <!DOCTYPE html>
 <html>
@@ -21,44 +29,45 @@ export function PaymentReminderTemplate({
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>Recordatorio de Pago</title>
 </head>
-<body style="margin: 0; padding: 0; font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif; background-color: #f5f5f5;">
+<body style="margin: 0; padding: 0; font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif; background-color: #F8F7F3;">
   <table role="presentation" style="width: 100%; border-collapse: collapse;">
     <tr>
       <td style="padding: 40px 20px; text-align: center;">
-        <table role="presentation" style="max-width: 600px; margin: 0 auto; background-color: #ffffff; border-radius: 8px; box-shadow: 0 2px 4px rgba(0,0,0,0.1);">
+        <table role="presentation" style="width: 100%; max-width: 600px; margin: 0 auto; background-color: #ffffff; border: 1px solid #DEDCD3; border-radius: 18px; box-shadow: 0 8px 24px rgba(22,36,58,0.08);">
           <tr>
-            <td style="padding: 40px 30px; text-align: center; background-color: #dc2626; border-radius: 8px 8px 0 0;">
-              <h1 style="margin: 0; color: #ffffff; font-size: 24px; font-weight: 600;">Recordatorio de Pago</h1>
+            <td style="padding: 32px 30px; text-align: center; background-color: #16243A; border-radius: 18px 18px 0 0;">
+              <p style="margin: 0 0 10px; color: #D5E776; font-size: 12px; font-weight: 700; letter-spacing: 2px;">ZALTYKO</p>
+              <h1 style="margin: 0; color: #ffffff; font-size: 24px; font-weight: 700;">Recordatorio de pago</h1>
             </td>
           </tr>
           <tr>
             <td style="padding: 30px;">
-              <p style="margin: 0 0 20px 0; color: #374151; font-size: 16px; line-height: 1.5;">
+              <p style="margin: 0 0 20px 0; color: #53616B; font-size: 16px; line-height: 1.6;">
                 Hola,
               </p>
-              <p style="margin: 0 0 20px 0; color: #374151; font-size: 16px; line-height: 1.5;">
-                Te recordamos que tienes un pago pendiente para <strong>${athleteName}</strong>.
+              <p style="margin: 0 0 20px 0; color: #53616B; font-size: 16px; line-height: 1.6;">
+                Te recordamos que tienes un pago pendiente para <strong>${safeAthleteName}</strong>.
               </p>
-              <div style="background-color: #fef2f2; border-left: 4px solid #dc2626; border-radius: 6px; padding: 20px; margin: 20px 0;">
-                <p style="margin: 0 0 10px 0; color: #991b1b; font-size: 14px; font-weight: 600; text-transform: uppercase;">Detalles del Pago</p>
-                <p style="margin: 5px 0; color: #111827; font-size: 18px; font-weight: 600;"><strong>Monto:</strong> ${amount.toFixed(2)} ${currency.toUpperCase()}</p>
-                <p style="margin: 5px 0; color: #111827; font-size: 16px;"><strong>Fecha de Vencimiento:</strong> ${dueDate}</p>
-                <p style="margin: 5px 0; color: #111827; font-size: 16px;"><strong>Academia:</strong> ${academyName}</p>
+              <div style="background-color: #E8F1EB; border-left: 4px solid #146F68; border-radius: 12px; padding: 20px; margin: 20px 0;">
+                <p style="margin: 0 0 10px 0; color: #146F68; font-size: 13px; font-weight: 700; text-transform: uppercase;">Detalles del pago</p>
+                <p style="margin: 5px 0; color: #16243A; font-size: 18px; font-weight: 600;"><strong>Importe:</strong> ${amount.toFixed(2)} ${safeCurrency}</p>
+                <p style="margin: 5px 0; color: #16243A; font-size: 16px;"><strong>Fecha de vencimiento:</strong> ${safeDueDate}</p>
+                <p style="margin: 5px 0; color: #16243A; font-size: 16px;"><strong>Academia:</strong> ${safeAcademyName}</p>
               </div>
-              ${paymentUrl ? `
+              ${safePaymentUrl ? `
               <div style="text-align: center; margin: 30px 0;">
-                <a href="${paymentUrl}" style="display: inline-block; padding: 12px 24px; background-color: #dc2626; color: #ffffff; text-decoration: none; border-radius: 6px; font-weight: 600;">Realizar Pago</a>
+                <a href="${safePaymentUrl}" style="display: inline-block; min-height: 44px; padding: 14px 24px; background-color: #146F68; color: #ffffff; text-decoration: none; border-radius: 10px; font-weight: 700;">Ver opciones de pago</a>
               </div>
               ` : ""}
-              <p style="margin: 20px 0 0 0; color: #6b7280; font-size: 14px; line-height: 1.5;">
+              <p style="margin: 20px 0 0 0; color: #53616B; font-size: 14px; line-height: 1.6;">
                 Si ya realizaste el pago, por favor ignora este mensaje. Si tienes alguna pregunta, contacta con la academia.
               </p>
             </td>
           </tr>
           <tr>
-            <td style="padding: 20px 30px; text-align: center; background-color: #f9fafb; border-radius: 0 0 8px 8px; border-top: 1px solid #e5e7eb;">
-              <p style="margin: 0; color: #6b7280; font-size: 12px;">
-                Este es un mensaje automático de ${academyName}. Por favor no respondas a este correo.
+            <td style="padding: 20px 30px; text-align: center; background-color: #F8F7F3; border-radius: 0 0 18px 18px; border-top: 1px solid #DEDCD3;">
+              <p style="margin: 0; color: #53616B; font-size: 12px;">
+                Este es un mensaje automático de ${safeAcademyName}. Por favor no respondas a este correo.
               </p>
             </td>
           </tr>

@@ -8,16 +8,16 @@ import { getPublicSiteUrl } from "@/lib/seo/site-url";
 import { listComparisons } from "@/lib/seo/comparativas";
 
 export const metadata: Metadata = {
-  title: "Comparativas de software para academias de gimnasia",
+  title: "Compara herramientas para dirigir tu academia de gimnasia",
   description:
-    "Comparamos Zaltyko con Excel, SportMember, Glofox y otros software para academias. Tablas, pros, contras y veredictos honestos.",
+    "Compara cómo distintas herramientas resuelven cuotas, clases, asistencia y comunicación para una academia de gimnasia.",
   alternates: {
     canonical: `${getPublicSiteUrl()}/comparativas`,
   },
   openGraph: {
-    title: "Comparativas de software para academias de gimnasia",
+    title: "Compara herramientas para dirigir tu academia",
     description:
-      "Comparamos Zaltyko con Excel, SportMember, Glofox y otros software para academias.",
+      "Revisa alternativas para organizar cuotas, grupos, asistencia y familias en una academia de gimnasia.",
     type: "website",
   },
 };
@@ -30,9 +30,9 @@ export default async function ComparisonsIndexPage() {
     "@context": "https://schema.org",
     "@type": "CollectionPage",
     "@id": `${baseUrl}/comparativas#collection`,
-    name: "Comparativas de software para academias de gimnasia",
+    name: "Compara herramientas para dirigir tu academia de gimnasia",
     description:
-      "Comparativas honestas de Zaltyko con alternativas del mercado para que decidas con información.",
+      "Compara alternativas según las tareas de dirección que necesitas organizar.",
     url: `${baseUrl}/comparativas`,
     inLanguage: "es",
     isPartOf: { "@id": `${baseUrl}/#website` },
@@ -59,11 +59,11 @@ export default async function ComparisonsIndexPage() {
               Comparativas
             </span>
             <h1 className="font-display text-3xl sm:text-4xl lg:text-5xl font-bold text-foreground mb-4">
-              Compara Zaltyko con las alternativas del mercado
+              Compara herramientas para el día a día de tu academia
             </h1>
             <p className="text-lg text-muted-foreground">
-              Tablas, pros, contras y veredictos honestos para que decidas
-              con información.
+              Revisa qué aporta cada opción para organizar cuotas, grupos,
+              asistencia, familias y trabajo de equipo.
             </p>
           </div>
         </section>
@@ -84,7 +84,7 @@ export default async function ComparisonsIndexPage() {
                     {c.description}
                   </p>
                   <span className="inline-flex items-center gap-1 text-sm font-medium text-zaltyko-teal">
-                    Ver comparativa
+                    Ver qué ofrece cada opción
                     <ArrowRight className="h-4 w-4 group-hover:translate-x-1 transition-transform" />
                   </span>
                 </Link>

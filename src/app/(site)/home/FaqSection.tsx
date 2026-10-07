@@ -13,15 +13,15 @@ const faqs = [
   },
   {
     question: "¿Cuánto cuesta Zaltyko?",
-    answer: "Free es gratis hasta 30 gimnastas y 1 academia. Starter cuesta 19€/mes (hasta 75 gimnastas), Growth 49€/mes (hasta 200 gimnastas) y Network parte de 99€/mes para academias multi-sede, con onboarding acompañado y propuesta final según sedes y necesidades. Puedes ver el detalle completo en la página de planes.",
+    answer: "Free incluye hasta 30 gimnastas y una academia. Starter cuesta 19 €/mes hasta 75 gimnastas; Growth, 49 €/mes hasta 200. Network es para organizaciones multi-sede y empieza en 99 €/mes con puesta en marcha acompañada. Consulta límites y condiciones en la página de precios.",
   },
   {
     question: "¿Cuánto tiempo tarda en configurarse?",
     answer: "La puesta en marcha es guiada y se adapta al volumen de datos y al equipo. Empezamos por academia, gimnastas, grupos, horarios y cobros sin prometer una duración cerrada antes de revisar el caso.",
   },
   {
-    question: "¿Sirve si ahora trabajo con Excel o WhatsApp?",
-    answer: "Sí. Zaltyko está pensado para pasar de hojas dispersas y mensajes sueltos a un sistema ordenado para dirección, entrenadores y familias.",
+    question: "¿Sirve si ahora trabajo con Excel y mensajes?",
+    answer: "Sí. Puedes importar gimnastas desde Excel o CSV y organizar grupos, asistencia, cobros y comunicación interna en Zaltyko. Para una migración amplia o con formatos especiales, revisamos el alcance antes de empezar.",
   },
   {
     question: "¿Puedo migrar mis datos desde Excel o Google Sheets?",
@@ -33,7 +33,7 @@ const faqs = [
   },
   {
     question: "¿Qué plan necesito para mi academia?",
-    answer: "Depende del tamaño, número de grupos, sedes y necesidades de cobro. Por eso priorizamos una demo corta antes de recomendar Starter, Growth o Network.",
+    answer: "Free cubre hasta 30 gimnastas; Starter, hasta 75; Growth, hasta 200, siempre con una academia. Network está pensado para varias sedes y requiere una puesta en marcha acompañada. Puedes crear tu cuenta y empezar por el plan Free.",
   },
   {
     question: "¿Puedo cancelar en cualquier momento?",
@@ -57,13 +57,13 @@ export default function FaqSection() {
         {/* Header */}
         <div className="text-center mb-12">
           <span className="inline-block px-4 py-1.5 bg-zaltyko-teal/10 text-zaltyko-indigo text-sm font-semibold rounded-full mb-4">
-            Preguntas Frecuentes
+            Respuestas para dirigir con más claridad
           </span>
           <h2 className="text-4xl sm:text-5xl font-bold text-gray-900 dark:text-foreground mb-4">
-            Resolvemos tus dudas
+            Resuelve lo cotidiano de tu academia
           </h2>
           <p className="text-xl text-gray-600 dark:text-muted-foreground">
-            Todo lo que necesitas saber antes de empezar
+            Cuotas, grupos, asistencia y familias: encuentra el siguiente paso para poner tu academia en ritmo.
           </p>
         </div>
 

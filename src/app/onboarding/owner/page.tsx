@@ -89,15 +89,17 @@ export default async function OwnerOnboardingPage({
   return (
     <div className="mx-auto flex min-h-screen max-w-3xl flex-col justify-center gap-8 px-4 py-12">
       <div className="space-y-3">
-        <p className="text-sm font-medium uppercase tracking-wide text-primary">
-          Primer paso: crear tu espacio de trabajo
+        <p className="text-sm font-semibold uppercase tracking-wide text-primary">
+          Tu academia, en ritmo
         </p>
         <h1 className="text-3xl font-semibold tracking-tight text-foreground sm:text-4xl">
           {claimable
             ? "Confirma tu academia"
             : directoryEntryId
               ? "Activa la gestión de tu academia"
-              : "Encuentra o crea tu academia"}
+              : flag("catalog")
+                ? "Busca o crea el espacio de tu academia"
+                : "Crea el espacio de tu academia"}
         </h1>
         <p className="max-w-2xl text-base text-muted-foreground">
           {claimable
@@ -124,10 +126,8 @@ export default async function OwnerOnboardingPage({
           <span className="mt-0.5 block text-xs opacity-80">Ahora</span>
         </li>
         <li className="rounded-lg border border-border bg-muted/30 px-3 py-2 text-muted-foreground">
-          <span className="font-semibold">3. Configuración</span>
-          <span className="mt-0.5 block text-xs opacity-80">
-            Después, desde el panel
-          </span>
+          <span className="font-semibold">3. Operación diaria</span>
+          <span className="mt-0.5 block text-xs opacity-80">Grupos, horarios y equipo</span>
         </li>
       </ol>
 

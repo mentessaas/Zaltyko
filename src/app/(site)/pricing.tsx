@@ -59,9 +59,8 @@ const commonBenefits = [
   },
   {
     icon: Clock,
-    title: "Puesta en marcha guiada",
-    description:
-      "Un recorrido paso a paso para configurar la operación principal.",
+    title: "Configuración paso a paso",
+    description: "Un recorrido desde tu cuenta para preparar la operación principal.",
   },
   {
     icon: Globe2,
@@ -93,17 +92,16 @@ export default function PricingSection() {
               Planes
             </span>
             <h1 className="mt-4 font-display text-3xl font-semibold text-foreground sm:text-4xl">
-              Planes pensados por etapa de academia
+              Un plan para la etapa de tu academia
             </h1>
             <p className="mt-3 font-sans text-base text-muted-foreground">
-              No vendemos módulos sueltos: vendemos dirección diaria, cobros
-              claros y seguimiento técnico para gimnasia artística y rítmica.
+              Compara límites y funciones para ordenar grupos, asistencia,
+              cuotas y comunicación con las familias de tu academia.
             </p>
             <p className="mt-2 font-sans text-sm text-muted-foreground">
-              Empieza gratis y configura tu academia. Desde Facturación puedes
-              activar 7 días de Starter sin tarjeta y, después, elegir Starter o
-              Growth con pago mensual o anual. La prueba no genera cargos
-              automáticos.
+              Crea tu cuenta y configura la academia. Si quieres probar Starter,
+              puedes activar sus 7 días desde Facturación; no se realiza ningún
+              cargo automático al terminar.
             </p>
           </div>
         </Reveal>
@@ -246,11 +244,11 @@ export default function PricingSection() {
         <Reveal>
           <div className="mt-16 rounded-3xl border border-border bg-muted/50 p-8 text-center">
             <h3 className="font-display text-2xl font-semibold text-foreground">
-              ¿Necesitas migrar datos o coordinar varias sedes?
+            ¿Necesitas migrar datos o coordinar varias sedes?
             </h3>
             <p className="mt-3 font-sans text-sm text-slate-600">
-              Empieza por tu cuenta. Si necesitas importar datos complejos o
-              coordinar varias sedes, podemos orientarte por email.
+              Empieza por tu cuenta. Para una migración amplia o varias sedes,
+              revisamos el alcance y acordamos una puesta en marcha acompañada.
             </p>
             <Link
               href="/contact?type=migracion"

@@ -34,7 +34,7 @@ const categories = [
       },
       {
         q: "¿Puedo ver el producto antes de contratar?",
-        a: "Sí. La entrada principal es una demo guiada para revisar tu caso y validar si Zaltyko encaja con tu academia.",
+        a: "Puedes revisar las funcionalidades y los límites de cada plan en la web, y crear una cuenta Free para empezar. Si necesitas coordinar varias sedes o una migración amplia, puedes contactar con el equipo.",
       },
       {
         q: "¿Cómo funcionan los planes?",
@@ -142,9 +142,9 @@ export default function FaqPage() {
 
       <main className="flex-1 pt-20">
         {/* Hero */}
-        <section className="py-20 bg-gradient-to-b from-blue-50 to-white">
+        <section className="bg-zaltyko-white py-20">
           <div className="mx-auto max-w-4xl px-4 sm:px-6 lg:px-8 text-center">
-            <span className="font-display text-xs uppercase tracking-[0.35em] text-zaltyko-accent">
+            <span className="font-display text-xs uppercase tracking-[0.2em] text-zaltyko-teal">
               FAQ
             </span>
             <h1 className="mt-4 font-display text-4xl sm:text-5xl font-semibold text-foreground">

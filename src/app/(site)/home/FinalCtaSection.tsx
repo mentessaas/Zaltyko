@@ -7,10 +7,10 @@ import { EmailCapture } from "@/components/EmailCapture";
 import Reveal from "@/components/motion/Reveal";
 
 const benefits = [
-  "Puesta en marcha guiada",
-  "Para artística femenina, masculina y rítmica",
-  "Cobros, horarios y familias en orden",
-  "Controles de acceso por academia y rol",
+  "Gimnasia artística y rítmica",
+  "Grupos y asistencia por sesión",
+  "Cuotas y comunicación con familias",
+  "Acceso por academia y rol",
 ];
 
 export default function FinalCtaSection() {
@@ -24,21 +24,21 @@ export default function FinalCtaSection() {
         <Reveal>
           <div className="inline-flex items-center gap-2 rounded-full bg-white/10 backdrop-blur-sm border border-white/20 px-5 py-2 text-sm font-medium text-white/90 mb-8">
             <Sparkles className="w-4 h-4" />
-            Gratis hasta 30 gimnastas · Sin tarjeta
+            Tu academia, en ritmo
           </div>
         </Reveal>
 
         {/* H2 */}
         <Reveal delay={100}>
           <h2 className="text-4xl sm:text-5xl lg:text-6xl font-bold text-white mb-6">
-            ¿Listo para dirigir tu academia con más control?
+            Menos fuegos administrativos. Más espacio para la gimnasia.
           </h2>
         </Reveal>
 
         {/* Subtitle */}
         <Reveal delay={200}>
           <p className="text-xl text-white/80 mb-10 max-w-2xl mx-auto leading-relaxed">
-            Ordena grupos, horarios, cobros, familias y seguimiento técnico en una plataforma pensada para gimnasia artística y rítmica.
+            Empieza por reunir grupos, asistencia, cuotas y comunicación con familias en un sistema hecho para gimnasia artística y rítmica.
           </p>
         </Reveal>
 
@@ -61,10 +61,10 @@ export default function FinalCtaSection() {
           <div className="flex flex-col sm:flex-row gap-4 justify-center">
             <Link
               href="/auth/register?role=owner"
-              className="group inline-flex items-center justify-center gap-2 rounded-2xl bg-zaltyko-teal px-10 py-5 text-lg font-bold text-white shadow-brand transition-all duration-200 hover:bg-zaltyko-primary-dark hover:shadow-lift hover:-translate-y-0.5"
+              className="group inline-flex items-center justify-center gap-2 rounded-2xl bg-zaltyko-lime px-10 py-5 text-lg font-bold text-zaltyko-navy shadow-brand transition-all duration-200 hover:brightness-95 hover:shadow-lift hover:-translate-y-0.5"
             >
               <Sparkles className="w-5 h-5" />
-              Crear cuenta y configurar academia
+              Crear academia gratis
               <ArrowRight className="w-5 h-5" />
             </Link>
             <Link
@@ -94,7 +94,7 @@ export default function FinalCtaSection() {
         {/* Trust */}
         <Reveal delay={600}>
           <p className="mt-8 text-white/60 text-sm">
-            Trabajáis con datos de menores: cada academia está aislada y cada rol ve solo lo suyo.
+            Zaltyko aplica controles de acceso por academia y rol.
           </p>
         </Reveal>
       </div>

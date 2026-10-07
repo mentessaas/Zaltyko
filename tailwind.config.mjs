@@ -12,40 +12,41 @@ const config = {
   theme: {
     extend: {
       colors: {
-        // Zaltyko Brand Book v1
+        // Zaltyko: precisión en movimiento
         zaltyko: {
-          navy: "#0F172A",
-          indigo: "#2B2E83",
-          teal: "#00796B",
-          coral: "#FF6B57",
-          white: "#F8FAFC",
-          mist: "#CBD5E1",
+          navy: "#16243A",
+          indigo: "#315B58",
+          teal: "#146F68",
+          coral: "#B84D42",
+          white: "#F8F7F3",
+          mist: "#DEDCD3",
+          lime: "#D5E776",
           primary: {
-            DEFAULT: "#00796B", // Deep Teal — color de acción/marca (botones, links)
-            dark: "#00695C",
-            light: "#14B8A6",
-            ultralight: "#E6FFFC",
+            DEFAULT: "#146F68",
+            dark: "#105752",
+            light: "#4E978B",
+            ultralight: "#E8F1EB",
           },
-          // Electric Teal — acento vibrante (glows, highlights, charts, hovers)
+          // Acento histórico para visualizaciones que aún lo utilizan.
           electric: "#1FC7B6",
           accent: {
-            DEFAULT: "#2B2E83",
-            teal: "#00796B",
-            coral: "#FF6B57",
-            amber: "#FF6B57",
+            DEFAULT: "#146F68",
+            teal: "#146F68",
+            coral: "#B84D42",
+            amber: "#8C671D",
           },
-          "primary-dark": "#00695C",
+          "primary-dark": "#105752",
           bg: {
-            DEFAULT: "#F8FAFC",
+            DEFAULT: "#F8F7F3",
             paper: "#FFFFFF",
-            dark: "#0F172A",
+            dark: "#16243A",
           },
           text: {
-            main: "#0F172A",
-            secondary: "#475569",
-            light: "#64748B",
+            main: "#16243A",
+            secondary: "#53616B",
+            light: "#68756F",
           },
-          border: "#CBD5E1",
+          border: "#DEDCD3",
         },
 
         // Compatibilidad Shadcn
@@ -102,11 +103,11 @@ const config = {
         soft: "0 2px 8px rgba(15, 23, 42, 0.06)",
         medium: "0 8px 24px rgba(15, 23, 42, 0.08)",
         glass: "0 2px 8px rgba(15, 23, 42, 0.06)",
-        glow: "0 0 0 3px rgba(31, 199, 182, 0.15)",
+        glow: "0 0 0 3px rgba(20, 111, 104, 0.16)",
         // Sombras con tinte de marca (reemplazan las grises planas)
-        brand: "0 8px 30px rgba(0, 121, 107, 0.12)",
-        indigo: "0 8px 30px rgba(43, 46, 131, 0.12)",
-        lift: "0 16px 40px -12px rgba(0, 121, 107, 0.25)",
+        brand: "0 8px 30px rgba(20, 111, 104, 0.12)",
+        indigo: "0 8px 30px rgba(22, 36, 58, 0.12)",
+        lift: "0 16px 40px -12px rgba(20, 111, 104, 0.24)",
       },
       borderRadius: {
         lg: "var(--radius)",

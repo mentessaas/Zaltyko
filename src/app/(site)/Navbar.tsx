@@ -10,11 +10,9 @@ import { cn } from "@/lib/utils";
 import { buttonVariants } from "@/components/ui/button";
 
 const links = [
-  { href: "/academias", label: "Academias" },
-  { href: "/events", label: "Eventos" },
-  { href: "/blog", label: "Blog" },
   { href: "/features", label: "Producto" },
   { href: "/pricing", label: "Precios" },
+  { href: "/sobre-nosotros", label: "Nuestra historia" },
   { href: "/ayuda", label: "Ayuda" },
 ];
 
@@ -110,8 +108,8 @@ export default function Navbar() {
                   "whitespace-nowrap rounded-full px-3 py-2 text-xs shadow-soft sm:px-5 sm:text-sm"
                 )}
               >
-                <span className="sm:hidden">Crear cuenta</span>
-                <span className="hidden sm:inline">Crear cuenta gratis</span>
+                <span className="sm:hidden">Crear academia</span>
+                <span className="hidden sm:inline">Crear academia gratis</span>
                 <ArrowRight className="ml-1.5 h-4 w-4" />
               </Link>
 
@@ -170,7 +168,7 @@ export default function Navbar() {
                   )}
                   onClick={() => setIsMenuOpen(false)}
                 >
-                  Crear cuenta gratis
+                  Crear academia gratis
                 </Link>
               </div>
             </div>
