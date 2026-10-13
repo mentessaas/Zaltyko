@@ -254,20 +254,34 @@ insert into zaltyko.family_payers (
     current_date - 30
   );
 
-insert into zaltyko.programs (id, organization_id, name, discipline, status) values
+insert into zaltyko.organization_sports (
+  id, organization_id, country_code, sport_profile_id, role, status
+) values
+  (
+    '10000000-0000-0000-0000-000000000710',
+    '10000000-0000-0000-0000-000000000001',
+    'ES', '70000000-0000-4000-8000-000000000001', 'primary', 'active'
+  ),
+  (
+    '20000000-0000-0000-0000-000000000710',
+    '20000000-0000-0000-0000-000000000001',
+    'ES', '70000000-0000-4000-8000-000000000002', 'primary', 'active'
+  );
+
+insert into zaltyko.programs (
+  id, organization_id, name, kind, organization_sport_id, activity_key, status
+) values
   (
     '10000000-0000-0000-0000-000000000701',
     '10000000-0000-0000-0000-000000000001',
-    'Programa Sintético Base',
-    'gymnastics',
-    'active'
+    'Programa Sintético Base', 'gymnastics_sport',
+    '10000000-0000-0000-0000-000000000710', null, 'active'
   ),
   (
     '20000000-0000-0000-0000-000000000701',
     '20000000-0000-0000-0000-000000000001',
-    'Programa Sintético Multi',
-    'gymnastics',
-    'active'
+    'Programa Sintético Multi', 'gymnastics_sport',
+    '20000000-0000-0000-0000-000000000710', null, 'active'
   );
 
 insert into zaltyko.groups (

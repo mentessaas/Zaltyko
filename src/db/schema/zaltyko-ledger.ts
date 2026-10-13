@@ -14,9 +14,11 @@ import {
   uuid,
 } from "drizzle-orm/pg-core";
 
+import { authUsers } from "./auth-users";
 import {
   enrollments,
   families,
+  familyCollectionMode,
   familyPayers,
   locations,
   organizations,
@@ -45,6 +47,18 @@ export const paymentStatus = zaltyko.enum("payment_status", [
   "partially_refunded",
   "refunded",
   "failed",
+]);
+
+export const paymentSource = zaltyko.enum("payment_source", [
+  "manual",
+  "provider",
+]);
+
+export const manualPaymentMethod = zaltyko.enum("manual_payment_method", [
+  "cash",
+  "bank_transfer",
+  "card_terminal",
+  "other",
 ]);
 
 export const paymentAttemptStatus = zaltyko.enum("payment_attempt_status", [
@@ -305,6 +319,9 @@ export const charges = zaltyko.table(
     familyId: uuid("family_id").notNull(),
     familyPayerId: uuid("family_payer_id"),
     enrollmentId: uuid("enrollment_id"),
+    collectionMode: familyCollectionMode("collection_mode")
+      .notNull()
+      .default("manual"),
     status: chargeStatus("status").notNull().default("due"),
     amountCents: money("amount_cents").notNull(),
     currency: text("currency").notNull(),
@@ -411,12 +428,21 @@ export const payments = zaltyko.table(
     locationId: uuid("location_id"),
     familyId: uuid("family_id").notNull(),
     familyPayerId: uuid("family_payer_id"),
+    source: paymentSource("source").notNull().default("provider"),
     status: paymentStatus("status").notNull(),
     amountCents: money("amount_cents").notNull(),
     currency: text("currency").notNull(),
-    processor: text("processor").notNull(),
-    environment: providerEnvironment("environment").notNull(),
-    providerPaymentId: text("provider_payment_id").notNull(),
+    processor: text("processor"),
+    environment: providerEnvironment("environment"),
+    providerPaymentId: text("provider_payment_id"),
+    manualMethod: manualPaymentMethod("manual_method"),
+    manualReference: text("manual_reference"),
+    recordedByUserId: uuid("recorded_by_user_id").references(
+      () => authUsers.id,
+      {
+        onDelete: "restrict",
+      }
+    ),
     receivedAt: timestamp("received_at", { withTimezone: true }).notNull(),
     idempotencyKey: text("idempotency_key").notNull(),
     version: integer("version").notNull().default(1),
@@ -428,11 +454,9 @@ export const payments = zaltyko.table(
       .defaultNow(),
   },
   (table) => [
-    uniqueIndex("payments_provider_uq").on(
-      table.processor,
-      table.environment,
-      table.providerPaymentId
-    ),
+    uniqueIndex("payments_provider_uq")
+      .on(table.processor, table.environment, table.providerPaymentId)
+      .where(sql`${table.source} = 'provider'`),
     uniqueIndex("payments_idempotency_uq").on(
       table.organizationId,
       table.idempotencyKey
@@ -453,10 +477,21 @@ export const payments = zaltyko.table(
     ),
     check("payments_amount_valid", sql`${table.amountCents} > 0`),
     check("payments_currency_valid", sql`${table.currency} ~ '^[A-Z]{3}$'`),
-    check("payments_processor_not_blank", sql`btrim(${table.processor}) <> ''`),
     check(
-      "payments_provider_id_not_blank",
-      sql`btrim(${table.providerPaymentId}) <> ''`
+      "payments_source_fields_valid",
+      sql`(${table.source} = 'provider'
+        and ${table.processor} is not null and btrim(${table.processor}) <> ''
+        and ${table.environment} is not null
+        and ${table.providerPaymentId} is not null and btrim(${table.providerPaymentId}) <> ''
+        and ${table.manualMethod} is null and ${table.recordedByUserId} is null)
+      or (${table.source} = 'manual'
+        and ${table.processor} is null and ${table.environment} is null
+        and ${table.providerPaymentId} is null and ${table.manualMethod} is not null
+        and ${table.recordedByUserId} is not null)`
+    ),
+    check(
+      "payments_manual_reference_length",
+      sql`${table.manualReference} is null or length(btrim(${table.manualReference})) <= 200`
     ),
     check(
       "payments_idempotency_not_blank",

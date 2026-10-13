@@ -1,7 +1,7 @@
 # Ledger financiero interno — operaciones canónicas
 
-- Estado: implementado y verificado localmente
-- Fecha: 2026-10-06
+- Estado: registro manual y preferencia de modalidad en UI/API; sin cobro automático
+- Fecha: 2026-10-13
 - Alcance: PR-04 del plan Owner Dashboard / Academy Health Score
 
 ## Fuente de verdad
@@ -11,7 +11,8 @@ financiero de Zaltyko. La fuente de verdad es el ledger interno:
 
 1. `invoices` + `invoice_lines` describen lo facturado.
 2. Cada línea positiva produce un `charge`, la obligación cobrable.
-3. `payments` registra dinero confirmado por el procesador.
+3. `payments` registra dinero recibido manualmente o confirmado por el
+   procesador; `source` y sus campos condicionados distinguen ambos orígenes.
 4. `payment_allocations` aplica dinero a cargos; permite pagos parciales.
 5. `refunds` referencia una asignación concreta para atribuir el reverso al
    período correcto.
@@ -27,7 +28,8 @@ ninguna fila financiera se elimina para corregir un estado.
 - `sum(allocations por charge) <= charge.amount_cents`.
 - `sum(refunds por allocation) <= allocation.amount_cents`.
 - Pago, cargo, asignación y refund deben pertenecer al mismo tenant y moneda.
-- Solo `owner` y `admin` emiten facturas, asignan pagos o concilian períodos.
+- Solo `owner` y `admin` emiten facturas, registran/asignan pagos o concilian
+  períodos.
 - Factura y cargo derivan `partially_paid`/`paid` de las asignaciones, no del
   estado externo del procesador.
 - Un refund reduce recaudación neta, pero no reabre automáticamente la deuda.
@@ -54,6 +56,51 @@ dominio:
 Los eventos y auditoría contienen identificadores técnicos, importes, moneda y
 estado; excluyen nombre, email, teléfono, dirección, token y secretos.
 
+## Registro de pago manual
+
+`recordManualPayment` registra un pago que la academia ya recibió en efectivo,
+por transferencia, terminal u otro medio. `recordManualPaymentForCharge`
+implementa la operación de propietario completa: valida actor, organización y
+sede, cargo abierto y moneda; rechaza fechas futuras y sobrepagos, y escribe
+pago, asignación, estado derivado, outbox y auditoría en una transacción. Las
+claves idempotentes concurrentes devuelven el mismo resultado; reutilizarlas
+con datos distintos se rechaza. Si hay referencia, el asiento puede conservarla
+para conciliación; la entrada de auditoría solo conserva su digest.
+
+`GET /api/v1/owner/billing/manual-payments` lista cargos abiertos dentro del
+scope permitido para owner/admin. `POST` registra el pago ya recibido; la vista
+`/owner/payments` ofrece un formulario corto con importe pendiente precargado y
+permite pagos parciales. El formulario advierte que no inicia un cobro. Junto
+al cargo se guarda la modalidad preferida de esa familia: `manual` por defecto
+o `automatic` solo con entitlement de pago vigente. La preferencia usa CAS por
+versión e idempotencia, y registra actor, auditoría y outbox en una transacción.
+La UI no expone el control si el actor no tiene acceso a todas las sedes, porque
+la preferencia es familiar y no está limitada a un único cargo/sede.
+
+Al emitir cargos, se guarda un snapshot de la preferencia únicamente si el
+entitlement sigue vigente y su revisión coincide con la guardada por la
+familia. Los cargos anteriores no cambian. Un downgrade invalida solicitudes
+automáticas previas; volver a un plan pagado requiere confirmación expresa.
+
+Validación local sintética: reintentos concurrentes iguales producen un pago y
+una asignación; clave con payload distinto, sobrepago, sede no autorizada y rol
+manager se rechazan. Tests HTTP con autorización simulada cubren contrato y
+denegación de actor falsificado. La UI aún requiere walkthrough autenticado y
+QA de accesibilidad en navegador.
+
+La selección automática es todavía una preferencia, no una operación de cobro:
+la UI/API siempre devuelve `effectiveMode: manual`, y el runtime está
+deshabilitado. Free/trial no pueden solicitarla. `organization_saas_subscriptions`
+es la proyección de proveedor; `organization_entitlements` es la autoridad del
+plan efectivo y `organization_entitlement_changes` conserva revisiones
+append-only. Las organizaciones nuevas reciben Free; las existentes sin
+entitlement fallan cerradas. `family_payment_authorizations` solo reserva
+referencias restringidas para un futuro flujo de mandato/consentimiento y no
+está poblada ni operativa. La elegibilidad de dominio exige plan/revisión,
+preferencia familiar, snapshot del cargo, proveedor, tenant/pagador,
+consentimiento, vigencia y release del runtime. El cron legacy no satisface esos
+requisitos y permanece fuera de este flujo.
+
 ## Reconciliación v1
 
 El período se atribuye por `charge.service_period_start`. Con un watermark:
@@ -71,12 +118,21 @@ esperado 100 €, recaudado neto 50 € y pendiente 40 €.
 
 - `pnpm test:zaltyko-ledger-foundation:local`: migración desde cero, RLS
   forzado, grants mínimos, FK cross-tenant, moneda y deduplicación.
-- `pnpm test:zaltyko-ledger-services:local`: pago parcial, intento fallido,
+- `pnpm test:zaltyko-ledger-services:local`: pago manual idempotente, pago
+  parcial, intento fallido,
   reintento exitoso, refund, sobreasignación/sobrereembolso rechazados, tres
   entregas concurrentes con un efecto y conciliación exacta.
+- `pnpm test:zaltyko-family-collection:local`: migración desde cero, seed Free,
+  historial append-only, preferencia por familia, downgrade/reconfirmación,
+  snapshot de cargo, RLS/grants, FK tenant-aware y referencias sintéticas.
+- `tests/family-collection-eligibility.test.ts`: Free/prueba, cambio de tenant,
+  cargo manual, proveedor ausente, consentimiento incompleto/revocado/vencido y
+  runtime no liberado son denegaciones explícitas.
 
-No se ha validado API HTTP, endpoint webhook real, firma Stripe, Stripe Test o
-Live, impuestos, UI, E2E autenticado, despliegue ni producción.
+La ruta HTTP se valida con mocks de autenticación; no se ha completado E2E
+autenticado ni walkthrough de UI. No se ha validado endpoint webhook real,
+firma Stripe, Stripe Test o Live, impuestos, provisioning verificado del plan,
+procesador automático, despliegue ni producción.
 
 ## Dependencia siguiente
 

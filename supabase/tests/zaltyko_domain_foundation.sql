@@ -8,6 +8,20 @@ insert into zaltyko.organizations (id, name, status) values
   ('10000000-0000-4000-8000-000000000010', 'Academia Sintética Norte', 'active'),
   ('20000000-0000-4000-8000-000000000010', 'Academia Sintética Sur', 'active');
 
+insert into zaltyko.organization_sports (
+  id, organization_id, country_code, sport_profile_id, role, status
+) values
+  (
+    '10000000-0000-4000-8000-000000000075',
+    '10000000-0000-4000-8000-000000000010', 'ES',
+    '70000000-0000-4000-8000-000000000001', 'primary', 'active'
+  ),
+  (
+    '20000000-0000-4000-8000-000000000075',
+    '20000000-0000-4000-8000-000000000010', 'ES',
+    '70000000-0000-4000-8000-000000000002', 'primary', 'active'
+  );
+
 insert into zaltyko.locations (id, organization_id, code, name) values
   ('10000000-0000-4000-8000-000000000020', '10000000-0000-4000-8000-000000000010', 'centro', 'Centro'),
   ('10000000-0000-4000-8000-000000000021', '10000000-0000-4000-8000-000000000010', 'norte', 'Norte'),
@@ -69,10 +83,13 @@ insert into zaltyko.athletes (id, organization_id, person_id) values (
   '10000000-0000-4000-8000-000000000060'
 );
 
-insert into zaltyko.programs (id, organization_id, name, discipline, status) values (
+insert into zaltyko.programs (
+  id, organization_id, name, kind, organization_sport_id, activity_key, status
+) values (
   '10000000-0000-4000-8000-000000000080',
   '10000000-0000-4000-8000-000000000010',
-  'Base artística', 'artistica', 'active'
+  'Base artística', 'gymnastics_sport',
+  '10000000-0000-4000-8000-000000000075', null, 'active'
 );
 
 insert into zaltyko.groups (
@@ -129,6 +146,18 @@ begin
     );
     raise exception 'duplicate open group membership was accepted';
   exception when unique_violation then
+    null;
+  end;
+
+  begin
+    insert into zaltyko.programs (
+      organization_id, name, kind, organization_sport_id, activity_key
+    ) values (
+      '10000000-0000-4000-8000-000000000010', 'Cruce deportivo',
+      'gymnastics_sport', '20000000-0000-4000-8000-000000000075', null
+    );
+    raise exception 'cross-organization sport reference was accepted';
+  exception when foreign_key_violation then
     null;
   end;
 end
@@ -231,6 +260,8 @@ $$;
 select 1 / ((not has_table_privilege('authenticated', 'zaltyko.people', 'SELECT'))::integer);
 select 1 / ((not has_table_privilege('authenticated', 'zaltyko.enrollments', 'SELECT'))::integer);
 select 1 / ((not has_table_privilege('authenticated', 'zaltyko.outbox_events', 'SELECT'))::integer);
+select 1 / ((not has_table_privilege('authenticated', 'zaltyko.sport_profiles', 'SELECT'))::integer);
+select 1 / ((not has_table_privilege('authenticated', 'zaltyko.organization_sports', 'SELECT'))::integer);
 select 1 / ((not has_table_privilege('authenticated', 'zaltyko.organizations', 'INSERT'))::integer);
 select 1 / (has_table_privilege('authenticated', 'zaltyko.organizations', 'SELECT')::integer);
 

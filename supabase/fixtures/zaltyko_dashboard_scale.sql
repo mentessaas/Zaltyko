@@ -29,12 +29,21 @@ select md5('zdash-member-' || n)::uuid,
   'owner', 'active', 'all'
 from generate_series(1, 20) n;
 
+insert into zaltyko.organization_sports (
+  id, organization_id, country_code, sport_profile_id, role, status
+) values (
+  '50000000-0000-4000-8000-000000000900',
+  '50000000-0000-4000-8000-000000000001',
+  'ES', '70000000-0000-4000-8000-000000000001', 'primary', 'active'
+);
+
 insert into zaltyko.programs (
-  id, organization_id, name, discipline, status
+  id, organization_id, name, kind, organization_sport_id, activity_key, status
 )
 select md5('zdash-program-' || n)::uuid,
   '50000000-0000-4000-8000-000000000001',
-  'Programa sintético ' || n, 'artistic_gymnastics', 'active'
+  'Programa sintético ' || n, 'gymnastics_sport',
+  '50000000-0000-4000-8000-000000000900', null, 'active'
 from generate_series(1, 10) n;
 
 insert into zaltyko.people (id, organization_id, given_name, family_name)

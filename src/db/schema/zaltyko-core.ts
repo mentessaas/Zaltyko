@@ -8,6 +8,7 @@ import {
   integer,
   jsonb,
   pgSchema,
+  primaryKey,
   text,
   time,
   timestamp,
@@ -33,6 +34,39 @@ export const organizationStatus = zaltyko.enum("organization_status", [
   "closed",
 ]);
 
+export const saasPlanCode = zaltyko.enum("saas_plan_code", [
+  "free",
+  "starter",
+  "growth",
+  "network",
+]);
+
+export const entitlementSource = zaltyko.enum("entitlement_source", [
+  "bootstrap",
+  "stripe_subscription",
+  "contract",
+]);
+
+export const stripeEnvironment = zaltyko.enum("stripe_environment", [
+  "test",
+  "live",
+]);
+
+export const saasBillingInterval = zaltyko.enum("saas_billing_interval", [
+  "month",
+  "year",
+]);
+
+export const familyCollectionMode = zaltyko.enum("family_collection_mode", [
+  "manual",
+  "automatic",
+]);
+
+export const paymentAuthorizationStatus = zaltyko.enum(
+  "payment_authorization_status",
+  ["pending", "active", "revoked", "expired"]
+);
+
 export const memberRole = zaltyko.enum("member_role", [
   "owner",
   "manager",
@@ -56,6 +90,28 @@ export const lifecycleStatus = zaltyko.enum("lifecycle_status", [
   "draft",
   "active",
   "archived",
+]);
+
+export const sportProfileStatus = zaltyko.enum("sport_profile_status", [
+  "identity_only",
+  "verified",
+  "draft",
+  "retired",
+]);
+
+export const organizationSportRole = zaltyko.enum("organization_sport_role", [
+  "primary",
+  "additional",
+]);
+
+export const organizationSportStatus = zaltyko.enum(
+  "organization_sport_status",
+  ["active", "inactive"]
+);
+
+export const programKind = zaltyko.enum("program_kind", [
+  "gymnastics_sport",
+  "complementary_activity",
 ]);
 
 export const groupMembershipStatus = zaltyko.enum("group_membership_status", [
@@ -192,6 +248,7 @@ export const organizations = zaltyko.table(
       .defaultNow(),
   },
   (table) => [
+    uniqueIndex("organizations_id_country_uq").on(table.id, table.countryCode),
     check("organizations_name_not_blank", sql`btrim(${table.name}) <> ''`),
     check(
       "organizations_country_code_format",
@@ -201,6 +258,187 @@ export const organizations = zaltyko.table(
       "organizations_default_currency_format",
       sql`${table.defaultCurrency} ~ '^[A-Z]{3}$'`
     ),
+  ]
+);
+
+/** Server-owned current projection of the commercial subscription to Zaltyko. */
+export const organizationSaasSubscriptions = zaltyko.table(
+  "organization_saas_subscriptions",
+  {
+    id: uuid("id").primaryKey().defaultRandom(),
+    organizationId: uuid("organization_id")
+      .notNull()
+      .references(() => organizations.id, { onDelete: "cascade" }),
+    provider: text("provider").notNull().default("stripe"),
+    environment: stripeEnvironment("environment").notNull(),
+    providerAccountReference: text("provider_account_reference").notNull(),
+    customerReference: text("customer_reference").notNull(),
+    subscriptionReference: text("subscription_reference").notNull(),
+    priceReference: text("price_reference").notNull(),
+    planCode: saasPlanCode("plan_code").notNull(),
+    providerStatus: text("provider_status").notNull(),
+    billingInterval: saasBillingInterval("billing_interval").notNull(),
+    currentPeriodStartedAt: timestamp("current_period_started_at", {
+      withTimezone: true,
+    }).notNull(),
+    currentPeriodEndsAt: timestamp("current_period_ends_at", {
+      withTimezone: true,
+    }).notNull(),
+    cancelAtPeriodEnd: boolean("cancel_at_period_end")
+      .notNull()
+      .default(false),
+    canceledAt: timestamp("canceled_at", { withTimezone: true }),
+    lastProviderEventReference: text("last_provider_event_reference"),
+    lastSyncedAt: timestamp("last_synced_at", { withTimezone: true }).notNull(),
+    createdAt: timestamp("created_at", { withTimezone: true })
+      .notNull()
+      .defaultNow(),
+    updatedAt: timestamp("updated_at", { withTimezone: true })
+      .notNull()
+      .defaultNow(),
+  },
+  (table) => [
+    uniqueIndex("organization_saas_subscriptions_organization_id_id_uq").on(
+      table.organizationId,
+      table.id
+    ),
+    uniqueIndex("organization_saas_subscriptions_organization_uq").on(
+      table.organizationId
+    ),
+    uniqueIndex("organization_saas_subscriptions_provider_reference_uq").on(
+      table.environment,
+      table.providerAccountReference,
+      table.subscriptionReference
+    ),
+    index("organization_saas_subscriptions_status_idx").on(
+      table.organizationId,
+      table.providerStatus,
+      table.currentPeriodEndsAt
+    ),
+    check(
+      "organization_saas_subscriptions_provider_stripe",
+      sql`${table.provider} = 'stripe'`
+    ),
+    check(
+      "organization_saas_subscriptions_references_not_blank",
+      sql`btrim(${table.providerAccountReference}) <> '' and btrim(${table.customerReference}) <> '' and btrim(${table.subscriptionReference}) <> '' and btrim(${table.priceReference}) <> ''`
+    ),
+    check(
+      "organization_saas_subscriptions_plan_paid",
+      sql`${table.planCode} in ('starter', 'growth', 'network')`
+    ),
+    check(
+      "organization_saas_subscriptions_provider_status_valid",
+      sql`${table.providerStatus} in ('incomplete', 'incomplete_expired', 'trialing', 'active', 'past_due', 'canceled', 'unpaid', 'paused')`
+    ),
+    check(
+      "organization_saas_subscriptions_period_valid",
+      sql`${table.currentPeriodEndsAt} > ${table.currentPeriodStartedAt}`
+    ),
+  ]
+);
+
+export const organizationEntitlements = zaltyko.table(
+  "organization_entitlements",
+  {
+    organizationId: uuid("organization_id")
+      .primaryKey()
+      .references(() => organizations.id, { onDelete: "cascade" }),
+    planCode: saasPlanCode("plan_code").notNull(),
+    revision: integer("revision").notNull().default(1),
+    source: entitlementSource("source").notNull(),
+    sourceReference: text("source_reference").notNull(),
+    subscriptionId: uuid("subscription_id"),
+    effectiveFrom: timestamp("effective_from", { withTimezone: true })
+      .notNull()
+      .defaultNow(),
+    effectiveUntil: timestamp("effective_until", { withTimezone: true }),
+    createdAt: timestamp("created_at", { withTimezone: true })
+      .notNull()
+      .defaultNow(),
+    updatedAt: timestamp("updated_at", { withTimezone: true })
+      .notNull()
+      .defaultNow(),
+  },
+  (table) => [
+    check(
+      "organization_entitlements_revision_positive",
+      sql`${table.revision} > 0`
+    ),
+    check(
+      "organization_entitlements_source_reference_not_blank",
+      sql`btrim(${table.sourceReference}) <> ''`
+    ),
+    check(
+      "organization_entitlements_period_valid",
+      sql`${table.effectiveUntil} is null or ${table.effectiveUntil} > ${table.effectiveFrom}`
+    ),
+    check(
+      "organization_entitlements_source_valid",
+      sql`(${table.source} = 'bootstrap' and ${table.planCode} = 'free' and ${table.subscriptionId} is null) or (${table.source} = 'stripe_subscription' and ${table.planCode} <> 'free' and ${table.subscriptionId} is not null) or (${table.source} = 'contract' and ${table.subscriptionId} is null)`
+    ),
+    foreignKey({
+      name: "organization_entitlements_subscription_fk",
+      columns: [table.organizationId, table.subscriptionId],
+      foreignColumns: [
+        organizationSaasSubscriptions.organizationId,
+        organizationSaasSubscriptions.id,
+      ],
+    }).onDelete("restrict"),
+  ]
+);
+
+export const organizationEntitlementChanges = zaltyko.table(
+  "organization_entitlement_changes",
+  {
+    id: uuid("id").primaryKey().defaultRandom(),
+    organizationId: uuid("organization_id")
+      .notNull()
+      .references(() => organizations.id, { onDelete: "cascade" }),
+    revision: integer("revision").notNull(),
+    planCode: saasPlanCode("plan_code").notNull(),
+    source: entitlementSource("source").notNull(),
+    sourceReference: text("source_reference").notNull(),
+    subscriptionId: uuid("subscription_id"),
+    effectiveFrom: timestamp("effective_from", { withTimezone: true }).notNull(),
+    effectiveUntil: timestamp("effective_until", { withTimezone: true }),
+    changedAt: timestamp("changed_at", { withTimezone: true })
+      .notNull()
+      .defaultNow(),
+  },
+  (table) => [
+    uniqueIndex("organization_entitlement_changes_revision_uq").on(
+      table.organizationId,
+      table.revision
+    ),
+    uniqueIndex("organization_entitlement_changes_snapshot_uq").on(
+      table.organizationId,
+      table.id
+    ),
+    index("organization_entitlement_changes_history_idx").on(
+      table.organizationId,
+      table.revision
+    ),
+    check(
+      "organization_entitlement_changes_revision_positive",
+      sql`${table.revision} > 0`
+    ),
+    check(
+      "organization_entitlement_changes_source_reference_not_blank",
+      sql`btrim(${table.sourceReference}) <> ''`
+    ),
+    check(
+      "organization_entitlement_changes_period_valid",
+      sql`${table.effectiveUntil} is null or ${table.effectiveUntil} > ${table.effectiveFrom}`
+    ),
+    foreignKey({
+      name: "organization_entitlement_changes_subscription_fk",
+      columns: [table.organizationId, table.subscriptionId],
+      foreignColumns: [
+        organizationSaasSubscriptions.organizationId,
+        organizationSaasSubscriptions.id,
+      ],
+    }).onDelete("restrict"),
   ]
 );
 
@@ -769,6 +1007,157 @@ export const familyPayers = zaltyko.table(
   ]
 );
 
+/** One explicit manual/automatic request per family, never an authorization. */
+export const familyCollectionPreferences = zaltyko.table(
+  "family_collection_preferences",
+  {
+    organizationId: uuid("organization_id")
+      .notNull()
+      .references(() => organizations.id, { onDelete: "cascade" }),
+    familyId: uuid("family_id").notNull(),
+    requestedMode: familyCollectionMode("requested_mode")
+      .notNull()
+      .default("manual"),
+    version: integer("version").notNull().default(1),
+    entitlementRevision: integer("entitlement_revision"),
+    updatedByMemberId: uuid("updated_by_member_id").notNull(),
+    createdAt: timestamp("created_at", { withTimezone: true })
+      .notNull()
+      .defaultNow(),
+    updatedAt: timestamp("updated_at", { withTimezone: true })
+      .notNull()
+      .defaultNow(),
+  },
+  (table) => [
+    primaryKey({
+      name: "family_collection_preferences_pkey",
+      columns: [table.organizationId, table.familyId],
+    }),
+    index("family_collection_preferences_mode_idx").on(
+      table.organizationId,
+      table.requestedMode,
+      table.entitlementRevision
+    ),
+    check(
+      "family_collection_preferences_version_positive",
+      sql`${table.version} > 0`
+    ),
+    check(
+      "family_collection_preferences_entitlement_revision_positive",
+      sql`${table.entitlementRevision} is null or ${table.entitlementRevision} > 0`
+    ),
+    check(
+      "family_collection_preferences_entitlement_revision_positive",
+      sql`${table.entitlementRevision} is null or ${table.entitlementRevision} > 0`
+    ),
+    foreignKey({
+      name: "family_collection_preferences_family_fk",
+      columns: [table.organizationId, table.familyId],
+      foreignColumns: [families.organizationId, families.id],
+    }).onDelete("cascade"),
+    foreignKey({
+      name: "family_collection_preferences_member_fk",
+      columns: [table.organizationId, table.updatedByMemberId],
+      foreignColumns: [organizationMembers.organizationId, organizationMembers.id],
+    }).onDelete("restrict"),
+  ]
+);
+
+/**
+ * Restricted processor and consent references for a family payer. No card,
+ * bank-account, or raw identity data belongs in this table.
+ */
+export const familyPaymentAuthorizations = zaltyko.table(
+  "family_payment_authorizations",
+  {
+    id: uuid("id").primaryKey().defaultRandom(),
+    organizationId: uuid("organization_id")
+      .notNull()
+      .references(() => organizations.id, { onDelete: "cascade" }),
+    familyId: uuid("family_id").notNull(),
+    familyPayerId: uuid("family_payer_id").notNull(),
+    status: paymentAuthorizationStatus("status").notNull().default("pending"),
+    processor: text("processor").notNull(),
+    paymentMethodReference: text("payment_method_reference").notNull(),
+    mandateReference: text("mandate_reference").notNull(),
+    consentVersion: text("consent_version"),
+    consentEvidenceReference: text("consent_evidence_reference"),
+    consentEvidenceSha256: text("consent_evidence_sha256"),
+    consentedAt: timestamp("consented_at", { withTimezone: true }),
+    consentedByGuardianId: uuid("consented_by_guardian_id"),
+    validUntil: timestamp("valid_until", { withTimezone: true }),
+    revokedAt: timestamp("revoked_at", { withTimezone: true }),
+    createdAt: timestamp("created_at", { withTimezone: true })
+      .notNull()
+      .defaultNow(),
+    updatedAt: timestamp("updated_at", { withTimezone: true })
+      .notNull()
+      .defaultNow(),
+  },
+  (table) => [
+    uniqueIndex("family_payment_authorizations_organization_id_id_uq").on(
+      table.organizationId,
+      table.id
+    ),
+    uniqueIndex("family_payment_authorizations_active_method_uq")
+      .on(table.organizationId, table.familyPayerId, table.processor)
+      .where(sql`${table.status} = 'active'`),
+    index("family_payment_authorizations_payer_status_idx").on(
+      table.organizationId,
+      table.familyId,
+      table.familyPayerId,
+      table.status,
+      table.validUntil
+    ),
+    check(
+      "family_payment_authorizations_processor_not_blank",
+      sql`btrim(${table.processor}) <> ''`
+    ),
+    check(
+      "family_payment_authorizations_references_not_blank",
+      sql`btrim(${table.paymentMethodReference}) <> '' and btrim(${table.mandateReference}) <> ''`
+    ),
+    check(
+      "family_payment_authorizations_consent_digest_valid",
+      sql`${table.consentEvidenceSha256} is null or ${table.consentEvidenceSha256} ~ '^[a-f0-9]{64}$'`
+    ),
+    check(
+      "family_payment_authorizations_consent_reference_not_blank",
+      sql`${table.consentEvidenceReference} is null or btrim(${table.consentEvidenceReference}) <> ''`
+    ),
+    check(
+      "family_payment_authorizations_active_consent_valid",
+      sql`${table.status} <> 'active' or (${table.consentVersion} is not null and btrim(${table.consentVersion}) <> '' and ${table.consentEvidenceReference} is not null and ${table.consentEvidenceSha256} is not null and ${table.consentedAt} is not null and ${table.consentedByGuardianId} is not null and ${table.revokedAt} is null)`
+    ),
+    check(
+      "family_payment_authorizations_revocation_valid",
+      sql`(${table.status} = 'revoked' and ${table.revokedAt} is not null) or (${table.status} <> 'revoked' and ${table.revokedAt} is null)`
+    ),
+    foreignKey({
+      name: "family_payment_authorizations_payer_fk",
+      columns: [table.organizationId, table.familyId, table.familyPayerId],
+      foreignColumns: [
+        familyPayers.organizationId,
+        familyPayers.familyId,
+        familyPayers.id,
+      ],
+    }).onDelete("restrict"),
+    foreignKey({
+      name: "family_payment_authorizations_guardian_fk",
+      columns: [
+        table.organizationId,
+        table.familyId,
+        table.consentedByGuardianId,
+      ],
+      foreignColumns: [
+        familyGuardians.organizationId,
+        familyGuardians.familyId,
+        familyGuardians.guardianId,
+      ],
+    }).onDelete("restrict"),
+  ]
+);
+
 export const staffProfiles = zaltyko.table(
   "staff_profiles",
   {
@@ -811,6 +1200,127 @@ export const staffProfiles = zaltyko.table(
   ]
 );
 
+/** Versioned sport identity/rule packs; identity-only rows carry no federation rules. */
+export const sportProfiles = zaltyko.table(
+  "sport_profiles",
+  {
+    id: uuid("id").primaryKey().defaultRandom(),
+    countryCode: text("country_code").notNull(),
+    disciplineKey: text("discipline_key").notNull(),
+    federationCode: text("federation_code").notNull().default("unconfigured"),
+    profileVersion: text("profile_version").notNull(),
+    status: sportProfileStatus("status").notNull().default("identity_only"),
+    configurationSchemaVersion: integer("configuration_schema_version")
+      .notNull()
+      .default(1),
+    configuration: jsonb("configuration")
+      .$type<Record<string, unknown>>()
+      .notNull()
+      .default({}),
+    sourceTitle: text("source_title"),
+    sourceUrl: text("source_url"),
+    sourceVerifiedAt: timestamp("source_verified_at", { withTimezone: true }),
+    createdAt: timestamp("created_at", { withTimezone: true })
+      .notNull()
+      .defaultNow(),
+  },
+  (table) => [
+    uniqueIndex("sport_profiles_country_id_uq").on(table.countryCode, table.id),
+    uniqueIndex("sport_profiles_version_uq").on(
+      table.countryCode,
+      table.disciplineKey,
+      table.federationCode,
+      table.profileVersion
+    ),
+    check(
+      "sport_profiles_country_code_format",
+      sql`${table.countryCode} ~ '^[A-Z]{2}$'`
+    ),
+    check(
+      "sport_profiles_federation_code_format",
+      sql`${table.federationCode} ~ '^[a-z][a-z0-9_-]{1,47}$'`
+    ),
+    check(
+      "sport_profiles_discipline_key_format",
+      sql`${table.disciplineKey} ~ '^[a-z][a-z0-9_]{1,47}$'`
+    ),
+    check(
+      "sport_profiles_version_not_blank",
+      sql`btrim(${table.profileVersion}) <> ''`
+    ),
+    check(
+      "sport_profiles_configuration_version_positive",
+      sql`${table.configurationSchemaVersion} > 0`
+    ),
+    check(
+      "sport_profiles_verified_source_required",
+      sql`${table.status} <> 'verified' or (${table.sourceTitle} is not null and ${table.sourceUrl} is not null and ${table.sourceVerifiedAt} is not null)`
+    ),
+    check(
+      "sport_profiles_identity_only_empty",
+      sql`${table.status} <> 'identity_only' or ${table.configuration} = '{}'::jsonb`
+    ),
+    check(
+      "sport_profiles_source_url_https",
+      sql`${table.sourceUrl} is null or ${table.sourceUrl} ~ '^https://'`
+    ),
+  ]
+);
+
+export const organizationSports = zaltyko.table(
+  "organization_sports",
+  {
+    id: uuid("id").primaryKey().defaultRandom(),
+    organizationId: uuid("organization_id")
+      .notNull()
+      .references(() => organizations.id, { onDelete: "cascade" }),
+    countryCode: text("country_code").notNull(),
+    sportProfileId: uuid("sport_profile_id").notNull(),
+    role: organizationSportRole("role").notNull(),
+    status: organizationSportStatus("status").notNull().default("active"),
+    startsOn: date("starts_on")
+      .notNull()
+      .default(sql`CURRENT_DATE`),
+    endsOn: date("ends_on"),
+    createdAt: timestamp("created_at", { withTimezone: true })
+      .notNull()
+      .defaultNow(),
+    updatedAt: timestamp("updated_at", { withTimezone: true })
+      .notNull()
+      .defaultNow(),
+  },
+  (table) => [
+    uniqueIndex("organization_sports_organization_id_id_uq").on(
+      table.organizationId,
+      table.id
+    ),
+    uniqueIndex("organization_sports_active_profile_uq")
+      .on(table.organizationId, table.sportProfileId)
+      .where(sql`${table.status} = 'active'`),
+    uniqueIndex("organization_sports_primary_active_uq")
+      .on(table.organizationId)
+      .where(sql`${table.role} = 'primary' and ${table.status} = 'active'`),
+    index("organization_sports_profile_idx").on(
+      table.countryCode,
+      table.sportProfileId
+    ),
+    foreignKey({
+      name: "organization_sports_country_fk",
+      columns: [table.organizationId, table.countryCode],
+      foreignColumns: [organizations.id, organizations.countryCode],
+    }).onDelete("cascade"),
+    foreignKey({
+      name: "organization_sports_profile_fk",
+      columns: [table.countryCode, table.sportProfileId],
+      foreignColumns: [sportProfiles.countryCode, sportProfiles.id],
+    }).onDelete("restrict"),
+    check(
+      "organization_sports_dates_valid",
+      sql`${table.endsOn} is null or ${table.endsOn} >= ${table.startsOn}`
+    ),
+  ]
+);
+
 export const programs = zaltyko.table(
   "programs",
   {
@@ -819,7 +1329,9 @@ export const programs = zaltyko.table(
       .notNull()
       .references(() => organizations.id, { onDelete: "cascade" }),
     name: text("name").notNull(),
-    discipline: text("discipline").notNull(),
+    kind: programKind("kind").notNull(),
+    organizationSportId: uuid("organization_sport_id"),
+    activityKey: text("activity_key"),
     status: lifecycleStatus("status").notNull().default("draft"),
     createdAt: timestamp("created_at", { withTimezone: true })
       .notNull()
@@ -836,6 +1348,22 @@ export const programs = zaltyko.table(
     index("programs_organization_status_idx").on(
       table.organizationId,
       table.status
+    ),
+    foreignKey({
+      name: "programs_organization_sport_fk",
+      columns: [table.organizationId, table.organizationSportId],
+      foreignColumns: [
+        organizationSports.organizationId,
+        organizationSports.id,
+      ],
+    }).onDelete("restrict"),
+    check(
+      "programs_classification_valid",
+      sql`(${table.kind} = 'gymnastics_sport' and ${table.organizationSportId} is not null and ${table.activityKey} is null) or (${table.kind} = 'complementary_activity' and ${table.organizationSportId} is null and ${table.activityKey} is not null and btrim(${table.activityKey}) <> '')`
+    ),
+    check(
+      "programs_activity_key_format",
+      sql`${table.activityKey} is null or ${table.activityKey} ~ '^[a-z][a-z0-9_]{1,47}$'`
     ),
   ]
 );
@@ -1916,6 +2444,38 @@ export const auditLog = zaltyko.table(
       columns: [table.organizationId, table.locationId],
       foreignColumns: [locations.organizationId, locations.id],
     }).onDelete("restrict"),
+  ]
+);
+
+export const ownerDashboardLayouts = zaltyko.table(
+  "owner_dashboard_layouts",
+  {
+    id: uuid("id").primaryKey().defaultRandom(),
+    organizationId: uuid("organization_id")
+      .notNull()
+      .references(() => organizations.id, { onDelete: "cascade" }),
+    userId: uuid("user_id")
+      .notNull()
+      .references(() => authUsers.id, { onDelete: "cascade" }),
+    moduleOrder: text("module_order").array().notNull(),
+    version: integer("version").notNull().default(1),
+    updatedAt: timestamp("updated_at", { withTimezone: true })
+      .notNull()
+      .defaultNow(),
+  },
+  (table) => [
+    uniqueIndex("owner_dashboard_layouts_organization_user_uq").on(
+      table.organizationId,
+      table.userId
+    ),
+    check(
+      "owner_dashboard_layouts_order_cardinality",
+      sql`cardinality(${table.moduleOrder}) = 4`
+    ),
+    check(
+      "owner_dashboard_layouts_version_positive",
+      sql`${table.version} > 0`
+    ),
   ]
 );
 

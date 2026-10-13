@@ -19,8 +19,24 @@ insert into zaltyko.facilities (id, organization_id, location_id, name) values
 insert into zaltyko.spaces (id, organization_id, location_id, facility_id, name, capacity) values
   ('30000000-0000-0000-0000-000000000041', '30000000-0000-0000-0000-000000000001', '30000000-0000-0000-0000-000000000011', '30000000-0000-0000-0000-000000000031', 'Sala 10', 10),
   ('30000000-0000-0000-0000-000000000042', '30000000-0000-0000-0000-000000000001', '30000000-0000-0000-0000-000000000011', '30000000-0000-0000-0000-000000000031', 'Sala 100', 100);
-insert into zaltyko.programs (id, organization_id, name, discipline, status) values
-  ('30000000-0000-0000-0000-000000000701', '30000000-0000-0000-0000-000000000001', 'Programa Métricas', 'gymnastics', 'active');
+insert into zaltyko.organization_sports (
+  id, organization_id, country_code, sport_profile_id, role, status
+) values (
+  '30000000-0000-0000-0000-000000000702',
+  '30000000-0000-0000-0000-000000000001',
+  'ES',
+  '70000000-0000-4000-8000-000000000001',
+  'primary',
+  'active'
+);
+insert into zaltyko.programs (
+  id, organization_id, name, kind, organization_sport_id, activity_key, status
+) values (
+  '30000000-0000-0000-0000-000000000701',
+  '30000000-0000-0000-0000-000000000001',
+  'Programa Métricas', 'gymnastics_sport',
+  '30000000-0000-0000-0000-000000000702', null, 'active'
+);
 insert into zaltyko.class_templates (
   id, organization_id, location_id, program_id, default_space_id, name,
   capacity, status, effective_from

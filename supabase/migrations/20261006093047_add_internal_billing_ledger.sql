@@ -9,6 +9,10 @@ create type zaltyko.charge_status as enum (
 create type zaltyko.payment_status as enum (
   'pending', 'succeeded', 'partially_refunded', 'refunded', 'failed'
 );
+create type zaltyko.payment_source as enum ('manual', 'provider');
+create type zaltyko.manual_payment_method as enum (
+  'cash', 'bank_transfer', 'card_terminal', 'other'
+);
 create type zaltyko.payment_attempt_status as enum (
   'pending', 'succeeded', 'failed'
 );
@@ -166,22 +170,35 @@ create table zaltyko.payments (
   location_id uuid,
   family_id uuid not null,
   family_payer_id uuid,
+  source zaltyko.payment_source not null default 'provider',
   status zaltyko.payment_status not null,
   amount_cents bigint not null check (amount_cents > 0),
   currency text not null check (currency ~ '^[A-Z]{3}$'),
-  processor text not null check (btrim(processor) <> ''),
-  environment zaltyko.provider_environment not null,
-  provider_payment_id text not null check (btrim(provider_payment_id) <> ''),
+  processor text,
+  environment zaltyko.provider_environment,
+  provider_payment_id text,
+  manual_method zaltyko.manual_payment_method,
+  manual_reference text check (manual_reference is null or length(btrim(manual_reference)) <= 200),
+  recorded_by_user_id uuid references auth.users(id) on delete restrict,
   received_at timestamptz not null,
   idempotency_key text not null check (btrim(idempotency_key) <> ''),
   version integer not null default 1 check (version > 0),
   created_at timestamptz not null default now(),
   updated_at timestamptz not null default now(),
-  constraint payments_provider_uq
-    unique (processor, environment, provider_payment_id),
   constraint payments_idempotency_uq unique (organization_id, idempotency_key),
   constraint payments_organization_id_id_uq unique (organization_id, id),
   constraint payments_organization_id_currency_uq unique (organization_id, id, currency),
+  constraint payments_source_fields_valid check (
+    (source = 'provider'
+      and processor is not null and btrim(processor) <> ''
+      and environment is not null
+      and provider_payment_id is not null and btrim(provider_payment_id) <> ''
+      and manual_method is null and recorded_by_user_id is null)
+    or
+    (source = 'manual'
+      and processor is null and environment is null and provider_payment_id is null
+      and manual_method is not null and recorded_by_user_id is not null)
+  ),
   constraint payments_location_fk foreign key (organization_id, location_id)
     references zaltyko.locations (organization_id, id) on delete restrict,
   constraint payments_family_fk foreign key (organization_id, family_id)
@@ -190,6 +207,9 @@ create table zaltyko.payments (
     foreign key (organization_id, family_id, family_payer_id)
     references zaltyko.family_payers (organization_id, family_id, id) on delete restrict
 );
+create unique index payments_provider_uq
+  on zaltyko.payments (processor, environment, provider_payment_id)
+  where source = 'provider';
 create index payments_received_idx
   on zaltyko.payments (organization_id, currency, received_at);
 
