@@ -396,10 +396,15 @@ function EmptyDashboard({
     | import("@/modules/owner-dashboard/application/operational-summary").OwnerOperationalSummary
     | null;
 }) {
+  const hasOperationalSummary = operationalSummary !== undefined;
+
   return (
     <main id="contenido" className="mx-auto max-w-5xl px-5 py-10">
-      {operationalSummary !== undefined && (
-        <OwnerOperationalSummaryPanel summary={operationalSummary} />
+      {hasOperationalSummary && (
+        <>
+          <h1 className="text-3xl text-slate-950">Tu academia</h1>
+          <OwnerOperationalSummaryPanel summary={operationalSummary} />
+        </>
       )}
       <section
         id="data-status"
@@ -408,11 +413,15 @@ function EmptyDashboard({
         <p className="text-xs font-bold uppercase tracking-[0.2em] text-teal-800">
           Primer cierre
         </p>
-        <h1 className="mt-3 text-3xl text-slate-950">
-          {operationalSummary
-            ? "Tu Health Score todavía está esperando métricas"
-            : "Tu panel todavía está esperando datos"}
-        </h1>
+        {hasOperationalSummary ? (
+          <h2 className="mt-3 text-3xl text-slate-950">
+            Tu Health Score todavía está esperando métricas
+          </h2>
+        ) : (
+          <h1 className="mt-3 text-3xl text-slate-950">
+            Tu panel todavía está esperando datos
+          </h1>
+        )}
         <p className="mt-4 max-w-xl text-slate-600">
           {bundle.priorities[0]?.detail ??
             "Completa las operaciones del período y calcula las métricas."}
