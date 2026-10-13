@@ -10,6 +10,22 @@ source:
   - ../AGENTS.md
 ---
 
+## Inscripciones Owner — corte local 2026-10-13
+
+`/owner/enrollments` y su API permiten consultar, buscar personas ya
+vinculadas a la sede y crear una inscripción `pending` que reserva capacidad;
+owner puede activar, pausar, cancelar o completar con historial. El formulario
+no crea personas/grupos ni inicia cuotas o cobros. La búsqueda se apoya en
+`group_memberships` canónica. Un preview visual local usa etiquetas sintéticas
+y datos fijos; no consulta ni modifica academias.
+
+Validación focal: 19 tests de ruta/UI, TypeScript, ESLint, `gate:auth` y harness
+PostgreSQL efímero PASS. Sigue sin E2E autenticado ni QA manual de accesibilidad
+contra un entorno aislado; este corte no requiere ni aplica migración remota.
+No hay deployment nuevo de este cambio, ni cambios en producción o Stripe Live.
+Ver [ADR-0025](../../docs/architecture/adr/0025-inscripcion-owner-pendiente-y-cobros-separados.md)
+y [plan maestro](../../docs/plans/2026-10-13-full-saas-implementation-plan.md).
+
 ## Corte de implementación greenfield — 2026-10-13
 
 La rama local `codex/zaltyko-plan-implementation` ya contiene el modelo

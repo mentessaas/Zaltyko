@@ -10,6 +10,10 @@ import {
   transitionEnrollment,
 } from "@/modules/enrollments/application/enrollment-service";
 import {
+  getOwnerEnrollmentsPageData,
+  searchOwnerEnrollmentCandidates,
+} from "@/modules/enrollments/application/enrollment-query-service";
+import {
   addGroupMembership,
   createAthleteForGroup,
   transitionGroupMembership,
@@ -56,6 +60,7 @@ const ID = {
   templateMain: "10000000-0000-4000-8000-000000000100",
   templateLimited: "10000000-0000-4000-8000-000000000101",
   templateTarget: "10000000-0000-4000-8000-000000000102",
+  templateExpired: "10000000-0000-4000-8000-000000000103",
   coachPerson: "10000000-0000-4000-8000-000000000065",
   coachProfile: "10000000-0000-4000-8000-000000000075",
   athlete1: "10000000-0000-4000-8000-000000000071",
@@ -157,11 +162,12 @@ async function seed(): Promise<void> {
 
     insert into zaltyko.class_templates (
       id, organization_id, location_id, program_id, default_space_id,
-      name, capacity, status, effective_from
+      name, capacity, status, effective_from, effective_to
     ) values
-      ('${ID.templateMain}', '${ID.orgA}', '${ID.locationA}', '${ID.program}', '${ID.spaceA}', 'Base lunes', 4, 'active', '2026-09-01'),
-      ('${ID.templateLimited}', '${ID.orgA}', '${ID.locationA}', '${ID.program}', '${ID.spaceLimited}', 'Última plaza', 1, 'active', '2026-09-01'),
-      ('${ID.templateTarget}', '${ID.orgA}', '${ID.locationA2}', '${ID.program}', '${ID.spaceA2}', 'Base norte', 4, 'active', '2026-09-01');
+      ('${ID.templateMain}', '${ID.orgA}', '${ID.locationA}', '${ID.program}', '${ID.spaceA}', 'Base lunes', 4, 'active', '2026-09-01', null),
+      ('${ID.templateLimited}', '${ID.orgA}', '${ID.locationA}', '${ID.program}', '${ID.spaceLimited}', 'Última plaza', 1, 'active', '2026-09-01', null),
+      ('${ID.templateTarget}', '${ID.orgA}', '${ID.locationA2}', '${ID.program}', '${ID.spaceA2}', 'Base norte', 4, 'active', '2026-09-01', null),
+      ('${ID.templateExpired}', '${ID.orgA}', '${ID.locationA}', '${ID.program}', '${ID.spaceA}', 'Clase terminada', 4, 'active', '2026-09-01', '2026-09-30');
 
     insert into zaltyko.class_template_weekdays (
       organization_id, class_template_id, iso_weekday, starts_at_local, ends_at_local
@@ -816,6 +822,68 @@ async function main(): Promise<void> {
     1
   );
 
+  await expectOperationalError(
+    () =>
+      createEnrollment({
+        organizationId: ID.orgA,
+        locationId: ID.locationA,
+        athleteId: ID.athlete2,
+        classTemplateId: ID.templateExpired,
+        status: "pending",
+        startsOn: "2026-10-01",
+        source: "owner",
+        idempotencyKey: "enrollment-outside-class-dates",
+        actor: owner,
+      }),
+    "INVALID_DATE_RANGE"
+  );
+
+  const enrollmentPage = await getOwnerEnrollmentsPageData({
+    userId: ID.ownerUser,
+    organizationId: ID.orgA,
+    locationId: ID.locationA,
+  });
+  assert.equal(enrollmentPage.totalsByStatus.active, 1);
+  assert.equal(enrollmentPage.enrollments[0]?.athleteName, "Atleta Uno");
+  assert.equal(
+    enrollmentPage.classes.find((item) => item.id === ID.templateMain)
+      ?.availableSeats,
+    3
+  );
+
+  await addGroupMembership({
+    organizationId: ID.orgA,
+    groupId: ID.groupMain,
+    athleteId: ID.athlete2,
+    startsOn: "2026-10-01",
+    status: "active",
+    idempotencyKey: "group-membership-main-athlete-2",
+    actor: owner,
+  });
+  const enrollmentCandidates = await searchOwnerEnrollmentCandidates({
+    userId: ID.ownerUser,
+    organizationId: ID.orgA,
+    locationId: ID.locationA,
+    classTemplateId: ID.templateMain,
+    query: "Atleta",
+  });
+  assert.deepEqual(
+    enrollmentCandidates.map((candidate) => candidate.id),
+    [ID.athlete2],
+    "La búsqueda usa group_memberships y excluye inscripciones abiertas duplicadas"
+  );
+  await expectOperationalError(
+    () =>
+      searchOwnerEnrollmentCandidates({
+        userId: ID.managerUser,
+        organizationId: ID.orgA,
+        locationId: ID.locationA2,
+        classTemplateId: ID.templateTarget,
+        query: "Atleta",
+      }),
+    "LOCATION_SCOPE_DENIED"
+  );
+
   const concurrent = await Promise.allSettled(
     [ID.athlete2, ID.athlete3].map((athleteId, index) =>
       createEnrollment({
@@ -1217,14 +1285,16 @@ async function main(): Promise<void> {
     select
       (select count(*)::int from zaltyko.outbox_events) as outbox_count,
       (select count(*)::int from zaltyko.audit_log) as audit_count,
+      (select count(*)::int from zaltyko.audit_log
+       where action = 'owner_surface.access_denied') as access_denied_count,
       (select count(*)::int from zaltyko.enrollment_status_history) as history_count,
       (select count(*)::int from zaltyko.enrollment_status_history where effective_on is null)
         as missing_effective_date_count
   `);
   assert.equal(
-    integrity.rows[0].outbox_count,
+    integrity.rows[0].outbox_count + integrity.rows[0].access_denied_count,
     integrity.rows[0].audit_count + 1,
-    "El alta de una atleta emite dos hechos de dominio con una sola entrada auditada"
+    "Los eventos y auditorías coinciden salvo las denegaciones de acceso auditadas sin evento"
   );
   assert(integrity.rows[0].history_count >= 6);
   assert.equal(integrity.rows[0].missing_effective_date_count, 0);

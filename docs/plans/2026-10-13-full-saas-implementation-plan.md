@@ -135,12 +135,26 @@ crea inscripciones, grupos, cargos o pagos. Vitest de ruta/interfaz 7/7,
 TypeScript y PostgreSQL efímero pasan; el harness prueba replay, no duplicación
 y denegación de sede ajena al manager.
 
-Limitaciones visibles de este corte: la clase prepara sesiones para un máximo
-de 120 días; el sistema todavía no amplía ese horizonte en segundo plano. No se
-ha realizado walkthrough con sesión Owner, prueba manual de lector/teclado ni
-E2E contra una base aislada; el Preview sigue protegido y sin vínculo de datos
-verificado. Próximos cortes: gestión/consulta de enrollment y sus transiciones,
-extensión programada del horizonte de sesiones, personal y asistencia.
+Siguiente corte local 2026-10-13: `/owner/enrollments` y sus API permiten
+consultar inscripciones, buscar gimnastas/participantes ya vinculados a la sede,
+crear una inscripción `pending` que reserva plaza, y activar, pausar, cancelar o
+completar con versión esperada y fecha efectiva. No se crean fichas personales,
+grupos, precios, cuotas, cargos ni pagos. La transición de trial se mantiene en
+su módulo de trials; la transferencia de clase/sede no está expuesta en esta
+pantalla. El alta y los cambios escriben historial, auditoría y outbox con
+idempotencia y autorización transaccional tenant/sede. La validación local
+incluye pruebas HTTP/UI focales, comprobaciones PostgreSQL sintéticas de cupo,
+fecha, duplicados y scope, TypeScript y ESLint. La vista de ejemplo usa datos
+claramente sintéticos y no escribe ni consulta una academia.
+
+Limitaciones visibles de esta fase: las clases preparan sesiones solo hasta
+120 días; falta ampliar ese horizonte, flujo de transferencias, ciclo completo
+de trials/waitlist, staff y asistencia integrada. No se ha realizado walkthrough
+con sesión Owner, prueba manual de teclado/lector ni E2E contra una base aislada;
+el Preview estático visual no prueba conexión real de datos. Próximos gates:
+E2E autenticado y QA accesible con identidades sintéticas en destino aislado;
+después, extensión programada de sesiones, transferencias, trials/waitlist,
+personal y asistencia.
 
 ### Gate remoto y decisión de migración — lectura del 2026-10-13
 

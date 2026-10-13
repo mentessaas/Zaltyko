@@ -1,0 +1,263 @@
+// @vitest-environment jsdom
+
+import {
+  fireEvent,
+  render,
+  screen,
+  waitFor,
+  within,
+} from "@testing-library/react";
+import { beforeEach, describe, expect, it, vi } from "vitest";
+
+import { OwnerEnrollmentsManager } from "@/components/owner-dashboard/OwnerEnrollmentsManager";
+
+const mocks = vi.hoisted(() => ({ push: vi.fn(), refresh: vi.fn() }));
+
+vi.mock("next/navigation", () => ({
+  useRouter: () => ({ push: mocks.push, refresh: mocks.refresh }),
+}));
+
+const organizationId = "10000000-0000-4000-8000-000000000003";
+const locationId = "10000000-0000-4000-8000-000000000004";
+const classTemplateId = "10000000-0000-4000-8000-000000000006";
+const athleteId = "10000000-0000-4000-8000-000000000005";
+const enrollmentId = "10000000-0000-4000-8000-000000000007";
+
+function bundle(enrollments: unknown[] = []) {
+  return {
+    organization: {
+      id: organizationId,
+      name: "Academia Sintética",
+      defaultCurrency: "EUR",
+    },
+    member: { id: "member", role: "owner", locationScopeMode: "all" },
+    locations: [
+      { id: locationId, name: "Sede Centro", timezone: "Europe/Madrid" },
+    ],
+    programs: [
+      {
+        id: "10000000-0000-4000-8000-000000000008",
+        name: "Gimnasia rítmica",
+        kind: "gymnastics_sport",
+      },
+    ],
+    classes: [
+      {
+        id: classTemplateId,
+        name: "Iniciación rítmica",
+        locationId,
+        locationName: "Sede Centro",
+        programId: "10000000-0000-4000-8000-000000000008",
+        programName: "Gimnasia rítmica",
+        programKind: "gymnastics_sport",
+        capacity: 12,
+        spaceCapacity: null,
+        effectiveFrom: "2026-10-13",
+        effectiveTo: null,
+        occupied: 2,
+        availableSeats: 10,
+      },
+    ],
+    enrollments,
+    totalsByStatus: { pending: 0, active: 0, paused: 0 },
+    total: enrollments.length,
+    page: 1,
+    pages: 1,
+    pageSize: 50,
+    selectedLocationId: locationId,
+    filterLocationId: null,
+    localTodayByLocation: { [locationId]: "2026-10-13" },
+  } as never;
+}
+
+function enrollment(status = "active") {
+  return {
+    id: enrollmentId,
+    athleteId,
+    athleteName: "Luz Sintética",
+    givenName: "Luz",
+    preferredName: null,
+    familyName: "Sintética",
+    status,
+    startsOn: "2026-10-13",
+    endsOn: null,
+    version: 1,
+    classTemplateId,
+    className: "Iniciación rítmica",
+    locationId,
+    locationName: "Sede Centro",
+    programName: "Gimnasia rítmica",
+  };
+}
+
+describe("OwnerEnrollmentsManager", () => {
+  beforeEach(() => {
+    vi.clearAllMocks();
+    vi.stubGlobal("crypto", { randomUUID: () => "synthetic-command-id" });
+    vi.stubGlobal(
+      "fetch",
+      vi
+        .fn()
+        .mockImplementation(
+          async (_input: RequestInfo | URL, init?: RequestInit) => {
+            if (init?.method === "POST") {
+              return new Response(
+                JSON.stringify({
+                  data: { id: enrollmentId, status: "pending", version: 1 },
+                }),
+                { status: 201, headers: { "content-type": "application/json" } }
+              );
+            }
+            if (init?.method === "PATCH") {
+              return new Response(
+                JSON.stringify({
+                  data: { id: enrollmentId, status: "paused", version: 2 },
+                }),
+                { status: 200, headers: { "content-type": "application/json" } }
+              );
+            }
+            return new Response(
+              JSON.stringify({
+                data: { items: [{ id: athleteId, name: "Luz Sintética" }] },
+              }),
+              { status: 200, headers: { "content-type": "application/json" } }
+            );
+          }
+        )
+    );
+  });
+
+  it("crea una inscripción pendiente en un formulario y avisa que no cobra", async () => {
+    render(<OwnerEnrollmentsManager bundle={bundle()} selectedStatus="all" />);
+    expect(screen.getByRole("heading", { name: "Inscripciones" })).toBeTruthy();
+    expect(screen.getByText(/No crea una cuota ni inicia cobros/)).toBeTruthy();
+
+    fireEvent.change(screen.getByLabelText("Clase"), {
+      target: { value: classTemplateId },
+    });
+    fireEvent.change(screen.getByLabelText("Gimnasta"), {
+      target: { value: "Luz" },
+    });
+    const candidate = await screen.findByRole("button", {
+      name: "Luz Sintética",
+    });
+    fireEvent.click(candidate);
+
+    fireEvent.submit(screen.getByRole("form", { name: "Crear inscripción" }));
+    await waitFor(() => expect(fetch).toHaveBeenCalledTimes(2));
+    const createCall = vi
+      .mocked(fetch)
+      .mock.calls.find(([, init]) => init?.method === "POST");
+    expect(createCall?.[0]).toBe("/api/v1/owner/enrollments");
+    expect(JSON.parse(String(createCall?.[1]?.body))).toEqual({
+      organizationId,
+      locationId,
+      athleteId,
+      classTemplateId,
+      startsOn: "2026-10-13",
+    });
+    expect(await screen.findByRole("status")).toHaveTextContent(
+      "Inscripción pendiente registrada. No se ha generado ningún cobro."
+    );
+    expect(mocks.refresh).toHaveBeenCalledTimes(1);
+  });
+
+  it("pausa una inscripción con su versión y fecha local", async () => {
+    render(
+      <OwnerEnrollmentsManager
+        bundle={bundle([enrollment()])}
+        selectedStatus="all"
+      />
+    );
+    fireEvent.click(screen.getByRole("button", { name: "Pausar" }));
+
+    await waitFor(() => expect(fetch).toHaveBeenCalledTimes(1));
+    const [url, init] = vi.mocked(fetch).mock.calls[0] as [string, RequestInit];
+    expect(url).toBe("/api/v1/owner/enrollments/" + enrollmentId);
+    expect(init.method).toBe("PATCH");
+    expect(JSON.parse(String(init.body))).toEqual({
+      organizationId,
+      expectedVersion: 1,
+      toStatus: "paused",
+      effectiveOn: "2026-10-13",
+    });
+    expect(await screen.findByRole("status")).toHaveTextContent(
+      "Inscripción actualizada."
+    );
+    expect(mocks.refresh).toHaveBeenCalledTimes(1);
+  });
+
+  it("no ofrece activar antes de la fecha local de inicio", () => {
+    render(
+      <OwnerEnrollmentsManager
+        bundle={bundle([{ ...enrollment("pending"), startsOn: "2026-10-20" }])}
+        selectedStatus="all"
+      />
+    );
+
+    expect(screen.queryByRole("button", { name: "Activar" })).toBeNull();
+    expect(screen.getByText(/Podrás activarla ese día/)).toBeTruthy();
+  });
+
+  it("pide confirmación antes de finalizar una inscripción", async () => {
+    render(
+      <OwnerEnrollmentsManager
+        bundle={bundle([enrollment("active")])}
+        selectedStatus="all"
+      />
+    );
+    fireEvent.click(screen.getByRole("button", { name: "Finalizar" }));
+
+    const confirmation = screen.getByRole("group", {
+      name: "Confirmar finalización",
+    });
+    fireEvent.click(
+      within(confirmation).getByRole("button", {
+        name: "Confirmar",
+      })
+    );
+
+    await waitFor(() => expect(fetch).toHaveBeenCalledTimes(1));
+    const [url, init] = vi.mocked(fetch).mock.calls[0] as [string, RequestInit];
+    expect(url).toBe("/api/v1/owner/enrollments/" + enrollmentId);
+    expect(JSON.parse(String(init.body))).toMatchObject({
+      organizationId,
+      expectedVersion: 1,
+      toStatus: "completed",
+      effectiveOn: "2026-10-13",
+    });
+  });
+
+  it("exige confirmación visible antes de dar de baja", () => {
+    render(
+      <OwnerEnrollmentsManager
+        bundle={bundle([enrollment("active")])}
+        selectedStatus="all"
+      />
+    );
+    fireEvent.click(screen.getByRole("button", { name: "Dar de baja" }));
+
+    expect(screen.getByRole("group", { name: "Confirmar baja" })).toBeTruthy();
+    expect(screen.getByRole("button", { name: "Confirmar" })).toBeTruthy();
+    expect(fetch).not.toHaveBeenCalled();
+  });
+
+  it("mantiene el formulario de ejemplo en modo solo lectura", () => {
+    render(
+      <OwnerEnrollmentsManager
+        bundle={bundle([enrollment()])}
+        selectedStatus="all"
+        previewMode
+        previewCreateForm
+      />
+    );
+    const form = screen.getByRole("form", { name: "Crear inscripción" });
+
+    expect(
+      screen.getByRole("button", { name: "Solo vista de ejemplo" })
+    ).toBeDisabled();
+    expect(screen.getByLabelText("Sede")).toBeDisabled();
+    fireEvent.submit(form);
+    expect(fetch).not.toHaveBeenCalled();
+  });
+});

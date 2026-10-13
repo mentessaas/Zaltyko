@@ -197,6 +197,7 @@ async function assertTemplateCapacity(
     locationId: string;
     classTemplateId: string;
     athleteId: string;
+    startsOn: string;
   }
 ): Promise<void> {
   await lockCapacity(tx, input.organizationId, input.classTemplateId);
@@ -207,14 +208,25 @@ async function assertTemplateCapacity(
       locationId: classTemplates.locationId,
       status: classTemplates.status,
       templateCapacity: classTemplates.capacity,
+      effectiveFrom: classTemplates.effectiveFrom,
+      effectiveTo: classTemplates.effectiveTo,
       spaceCapacity: spaces.capacity,
+      locationIsActive: locations.isActive,
     })
     .from(classTemplates)
+    .innerJoin(
+      locations,
+      and(
+        eq(locations.organizationId, classTemplates.organizationId),
+        eq(locations.id, classTemplates.locationId)
+      )
+    )
     .leftJoin(
       spaces,
       and(
         eq(spaces.organizationId, classTemplates.organizationId),
-        eq(spaces.id, classTemplates.defaultSpaceId)
+        eq(spaces.id, classTemplates.defaultSpaceId),
+        eq(spaces.locationId, classTemplates.locationId)
       )
     )
     .where(
@@ -225,7 +237,7 @@ async function assertTemplateCapacity(
     )
     .limit(1);
 
-  if (!template || template.status !== "active") {
+  if (!template || template.status !== "active" || !template.locationIsActive) {
     throw new OperationalError(
       "NOT_FOUND",
       "Plantilla de clase activa no encontrada",
@@ -236,6 +248,16 @@ async function assertTemplateCapacity(
     throw new OperationalError(
       "INVALID_RELATION",
       "La plantilla no pertenece a la sede indicada",
+      409
+    );
+  }
+  if (
+    input.startsOn < template.effectiveFrom ||
+    (template.effectiveTo !== null && input.startsOn > template.effectiveTo)
+  ) {
+    throw new OperationalError(
+      "INVALID_DATE_RANGE",
+      "La fecha de inicio queda fuera del periodo de la clase",
       409
     );
   }
@@ -696,6 +718,7 @@ export async function transferEnrollment(
       locationId: input.targetLocationId,
       classTemplateId: input.targetClassTemplateId,
       athleteId: current.athleteId,
+      startsOn: input.startsOn,
     });
 
     const [source] = await tx

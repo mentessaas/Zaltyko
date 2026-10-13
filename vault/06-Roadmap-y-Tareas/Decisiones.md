@@ -8,6 +8,15 @@ source:
 
 # Decisiones
 
+## 2026-10-13 — Crear inscripciones Owner como pendientes, sin efecto financiero
+
+| Campo | Valor |
+| --- | --- |
+| Evidencia | El modelo distingue enrollment, pertenencia M:N a grupo, trial, ledger y pago. Permitir crear una inscripción ya activa o vincular un flujo de cobro implícito mezclaría estados operativos con decisión familiar y facturación. |
+| Decisión | Aceptar ADR-0025: el Owner crea una inscripción `pending` para persona activa ya vinculada a la sede. La transacción reserva plaza, comprueba capacidad/duplicados/periodo, registra historia, auditoría y outbox. Activación, pausa, baja y finalización son comandos explícitos optimistas e idempotentes; trial y transferencia siguen en flujos separados. |
+| Consecuencia | Registrar o activar una inscripción no genera grupo, precio, cuota, factura, cargo ni pago. La UI explica la reserva de plaza y reduce la acción inicial a un formulario breve. Los eventos no copian nombres personales. |
+| Estado | API, servicio y `/owner/enrollments` implementados localmente; Vitest focal 19/19, TypeScript, ESLint, `gate:auth` y harness PostgreSQL efímero PASS. E2E autenticado, QA manual accesible y validación de base aislada pendientes. No se aplicó migración remota ni hubo cambios de producción/Stripe Live. |
+
 ## 2026-10-13 — Historial temporal de pertenencia M:N a grupos
 
 | Campo | Valor |

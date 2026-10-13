@@ -97,9 +97,28 @@ El formulario local de pagos prueba el estado sin cargos, la misma clave/cuerpo
 al reintentar un fallo incierto y la entrada decimal con coma española (3/3).
 No sustituye E2E autenticado ni prueba contra una base de datos aislada.
 
+### Corte operativo de inscripciones — 2026-10-13
+
+- **Hecho local:** `/owner/enrollments` permite consultar, buscar una persona
+  vinculada a la sede, crear inscripción `pending` con plaza reservada y
+  activar/pausar/cancelar/completar con control de versión, idempotencia,
+  auditoría y outbox. No activa precios o cobros; trials y transferencias quedan
+  fuera del formulario.
+- **Validación:** tests focales 19/19, TypeScript, ESLint focal, gate de auth y
+  harness PostgreSQL efímero PASS; la vista sintética no consulta datos reales.
+- **Siguiente:** E2E owner/manager autenticado y revisión teclado/lector en un
+  proyecto aislado; no aplicar SQL al sandbox legacy ni a producción. Después:
+  workflow de transferencia, ciclo de trial/waitlist, horizonte de sesiones,
+  staff y asistencia. No afirmar readiness de captación hasta completar los
+  gates del plan.
+
 - [x] Cerrar Fase 1 local: migration, RLS/grants, contrato, onboarding y tests.
 - [x] Pasar stack canónico y las verificaciones focales locales.
 - [ ] Revisar los servicios operativos y E2E autenticado por rol contra Fase 2.
+- [x] Crear y consultar inscripciones Owner como pendientes; registrar
+      transición explícita con historial, outbox, idempotencia y scope.
+- [ ] Completar transferencias de inscripción y el flujo de trials/waitlist en
+      sus módulos, sin acoplar matrícula a cobro.
 - [x] Implementar localmente el servicio de pertenencia M:N a grupos con cupo
       concurrente, historial efectivo append-only, auditoría, outbox e
       idempotencia; RLS incluye tenant y sede.

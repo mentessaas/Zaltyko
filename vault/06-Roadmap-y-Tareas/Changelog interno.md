@@ -7,6 +7,25 @@ source:
   - ../docs/architecture/zaltyko-domain-model.md
 ---
 
+## 2026-10-13 — Inscripciones Owner pendientes y desacopladas de cobros
+
+- Se añadió `/owner/enrollments` con búsqueda acotada a la sede, consulta
+  paginada y una sola acción principal para registrar una plaza como pendiente.
+  Los nombres de persona se muestran solo en la superficie autorizada; la vista
+  de ejemplo usa etiquetas sintéticas y operaciones deshabilitadas.
+- Alta, activación, pausa, baja y finalización revalidan rol, tenant, sede,
+  periodo de clase, capacidad, versión y clave idempotente en transacción; cada
+  escritura agrega historial, auditoría y outbox sin nombres.
+- Enrollment no crea grupo, tarifa, cuota, factura ni cobro. Trials y
+  transferencias permanecen en sus flujos separados. No se añadió migración.
+- **Validación local:** Vitest focal 19/19, TypeScript, ESLint focal,
+  `gate:auth` (391 archivos) y harness PostgreSQL efímero PASS. Preview visual
+  local en escritorio/móvil; sin sesión real ni conexión a base del Preview.
+- **Pendiente:** E2E autenticado y QA accesible en base aislada, revisión de CI
+  y deployment Preview del PR. No se tocó Supabase remoto, producción, Stripe
+  Live, credenciales ni despliegues.
+- ADR-0025 y `docs/API.md` describen contrato, estados, efectos y límites.
+
 ## 2026-10-13 — Gestión owner de grupos y pertenencias
 
 - Se incorporó `/owner/groups` con creación de grupos por actividad/sede,
