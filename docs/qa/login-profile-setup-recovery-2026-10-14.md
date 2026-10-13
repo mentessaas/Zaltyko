@@ -12,7 +12,7 @@
 
 - Evidencia: `src/app/auth/login/page.tsx`, `src/components/login-form.tsx`, `src/app/api/onboarding/profile/route.ts` y `tests/auth-login-profile-setup-recovery.test.tsx`.
 - El endpoint de perfil no se modificó. No se tocaron `RegisterForm`, `OwnerSetupForm`, callback OAuth ni `resolveUserEntry`.
-- El esquema actual confirma que `owner_consent.user_id` referencia `profiles.user_id` (`src/db/schema/owner-consent.ts`). El endpoint actual puede crear/recuperar esa fila de perfil antes del paso de consentimiento.
+- El esquema actual confirma que `owner_consent.owner_id` referencia `profiles.user_id` (`src/db/schema/owner-consent.ts`). El endpoint actual puede crear/recuperar esa fila de perfil antes del paso de consentimiento.
 - **Pendiente de Backend:** gate y persistencia de consentimiento en el bootstrap. Esta rama no modifica ese contrato ni afirma que el onboarding completo esté integrado.
 - No se ejecutaron flujos autenticados contra Supabase compartido, Preview o producción.
 
