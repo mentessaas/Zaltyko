@@ -125,6 +125,23 @@ replay/conflicto, cupo y rollback, y aislamiento tenant/sede. **Pendiente:**
 walkthrough autenticado en navegador, QA manual accesible y validación contra
 una base aislada; no se aplicó SQL remoto.
 
+Corte siguiente 2026-10-13: se añadió `/owner/classes` y su API canónica. En una
+sola pantalla se seleccionan actividad activa (gimnasia o actividad
+complementaria), sede, capacidad y uno o varios horarios; la orden crea
+plantilla, horario y sesiones iniciales en una transacción, con autorización
+tenant/sede, clave idempotente, auditoría y outbox sin el nombre de clase. Las
+horas se materializan con la zona horaria de la sede. No requiere migración ni
+crea inscripciones, grupos, cargos o pagos. Vitest de ruta/interfaz 7/7,
+TypeScript y PostgreSQL efímero pasan; el harness prueba replay, no duplicación
+y denegación de sede ajena al manager.
+
+Limitaciones visibles de este corte: la clase prepara sesiones para un máximo
+de 120 días; el sistema todavía no amplía ese horizonte en segundo plano. No se
+ha realizado walkthrough con sesión Owner, prueba manual de lector/teclado ni
+E2E contra una base aislada; el Preview sigue protegido y sin vínculo de datos
+verificado. Próximos cortes: gestión/consulta de enrollment y sus transiciones,
+extensión programada del horizonte de sesiones, personal y asistencia.
+
 En este bloque: `pnpm typecheck`, ESLint focal, `pnpm gate:auth`,
 `pnpm check:migrations` (7 Drizzle + 110 Supabase), `pnpm validate:rls`
 (79/79), las pruebas focales (12/12), el harness PostgreSQL efímero,

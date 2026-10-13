@@ -34,5 +34,6 @@ Stripe Live ni cambios de credenciales.
 | [0021](./0021-aislamiento-de-helpers-legacy.md)                   | Aislar helpers nuevos del namespace privado heredado      |
 | [0022](./0022-cuenta-conectada-de-cobro-por-academia.md)          | Cuenta de cobro Connect separada por academia y entorno   |
 | [0023](./0023-historial-de-pertenencia-a-grupos.md)               | Historial temporal y RLS por sede para grupos             |
+| [0024](./0024-alta-atomica-de-clases-recurrentes.md)              | Alta atómica de plantilla, horarios y sesiones            |
 
 Contrato analítico inicial: [diccionario de métricas v0](../metric-dictionary-v0.md).

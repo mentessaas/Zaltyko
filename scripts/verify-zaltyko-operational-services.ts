@@ -20,6 +20,7 @@ import {
   searchGroupAthleteOptions,
 } from "@/modules/groups/application/group-management-service";
 import { materializeSessions } from "@/modules/scheduling/application/session-service";
+import { createScheduledClass } from "@/modules/scheduling/application/class-management-service";
 import { OperationalError } from "@/modules/shared/domain/operational-error";
 
 const databaseUrl = process.env.DATABASE_URL;
@@ -1018,6 +1019,88 @@ async function main(): Promise<void> {
     generatedRetry.map((session) => session.id),
     generated.map((session) => session.id)
   );
+
+  const recurringClass = await createScheduledClass({
+    organizationId: ID.orgA,
+    locationId: ID.locationA,
+    programId: ID.program,
+    name: "Clase recurrente sintética",
+    capacity: 8,
+    effectiveFrom: "2026-10-19",
+    effectiveTo: null,
+    schedule: [
+      { isoWeekday: 1, startsAtLocal: "17:00", endsAtLocal: "18:00" },
+      { isoWeekday: 3, startsAtLocal: "17:00", endsAtLocal: "18:00" },
+    ],
+    idempotencyKey: "create-recurring-class-1",
+    actor: owner,
+  });
+  assert(recurringClass.sessionCount > 0);
+  assert.equal(
+    recurringClass.generatedThrough,
+    "2027-02-15",
+    "El horizonte inclusivo contiene exactamente 120 días desde la fecha de inicio"
+  );
+  const recurringClassRetry = await createScheduledClass({
+    organizationId: ID.orgA,
+    locationId: ID.locationA,
+    programId: ID.program,
+    name: "Clase recurrente sintética",
+    capacity: 8,
+    effectiveFrom: "2026-10-19",
+    effectiveTo: null,
+    schedule: [
+      { isoWeekday: 3, startsAtLocal: "17:00", endsAtLocal: "18:00" },
+      { isoWeekday: 1, startsAtLocal: "17:00", endsAtLocal: "18:00" },
+    ],
+    idempotencyKey: "create-recurring-class-1",
+    actor: owner,
+  });
+  assert.equal(
+    recurringClassRetry.classTemplate.id,
+    recurringClass.classTemplate.id
+  );
+  assert.equal(recurringClassRetry.sessionCount, recurringClass.sessionCount);
+  assert.equal(
+    await count(
+      "zaltyko.class_templates",
+      `id = '${recurringClass.classTemplate.id}'`
+    ),
+    1,
+    "Reintentar el alta de una clase no duplica su plantilla"
+  );
+  assert.equal(
+    await count(
+      "zaltyko.sessions",
+      `class_template_id = '${recurringClass.classTemplate.id}'`
+    ),
+    recurringClass.sessionCount,
+    "La plantilla y las sesiones se crean una sola vez"
+  );
+  await expectOperationalError(
+    () =>
+      createScheduledClass({
+        organizationId: ID.orgA,
+        locationId: ID.locationA2,
+        programId: ID.program,
+        name: "Clase fuera de sede",
+        capacity: 8,
+        effectiveFrom: "2026-10-19",
+        effectiveTo: null,
+        schedule: [
+          { isoWeekday: 1, startsAtLocal: "17:00", endsAtLocal: "18:00" },
+        ],
+        idempotencyKey: "class-out-of-location-scope",
+        actor: manager,
+      }),
+    "LOCATION_SCOPE_DENIED"
+  );
+  const classEvent = await pool.query(
+    `select payload from zaltyko.outbox_events where organization_id = $1 and event_name = 'class_template.created' and idempotency_key = $2`,
+    [ID.orgA, "create-recurring-class-1"]
+  );
+  assert.equal(classEvent.rowCount, 1);
+  assert.equal("name" in classEvent.rows[0].payload, false);
 
   await expectOperationalError(
     () =>

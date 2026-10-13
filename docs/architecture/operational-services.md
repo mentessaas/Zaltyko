@@ -83,6 +83,31 @@ una única transacción.
 - Conversión de fecha y hora con la zona horaria de la sede.
 - Respeto de fechas efectivas de la plantilla y límite de 120 días por comando.
 - Exclusión de duplicados por restricción y bloqueo de plantilla.
+- `/owner/classes` permite al Owner, admin o manager crear actividad, sede,
+  nombre, capacidad y uno o varios horarios semanales en un mismo formulario.
+- Alta de `class_templates`, `class_template_weekdays` y las sesiones iniciales
+  es una transacción única; replay idempotente no duplica la plantilla ni las
+  sesiones. La fecha inicial no puede estar en el pasado.
+- El formulario anuncia que prepara como máximo 120 días. Aún falta ampliar el
+  horizonte de forma repetible o añadir un worker para clases indefinidas; no
+  presentar el calendario como generado indefinidamente hasta cerrar ese corte.
+- `class_template.created` evita copiar el nombre visible de clase al outbox;
+  el nombre permanece solo en la tabla de dominio. La auditoría guarda metadatos
+  operativos y el evento de sesiones transporta IDs, no datos personales.
+- Crear una clase no crea enrollment, pertenencia de grupo, cargo ni cobro.
+
+### API y espacio de gestión de clases
+
+- `GET/POST /api/v1/owner/classes` y `/owner/classes` usan membresía canónica,
+  rate limit por tenant y autorización transaccional de sede.
+- La actividad elegida se resuelve desde los programas activos de la academia,
+  incluidos programas de gimnasia y actividades complementarias; no se infiere
+  una disciplina desde el nombre de la clase.
+- Los campos tienen etiquetas nativas, errores anunciados y controles de al
+  menos 44 px. Añadir/eliminar horarios no depende de arrastrar elementos.
+- Tests focales de ruta/interfaz (7/7) y el harness PostgreSQL efímero validan
+  el contrato, replay, generación de sesiones, capacidad/aislamiento existentes
+  y rechazo de una sede fuera de scope.
 
 ### Asistencia
 
@@ -117,6 +142,8 @@ verifica:
 - pausa, reactivación implícita en transferencia y control de versión;
 - fecha efectiva persistida y rechazo de transiciones futuras no programadas;
 - materialización de sesiones sin duplicados;
+- alta atómica de plantilla y horarios con sesiones, replay orden-independiente,
+  falta de duplicados y denegación de sede fuera de alcance;
 - coach no asignado rechazado y coach asignado autorizado;
 - atleta en varios grupos, historial de pausa/reactivación/baja, cupo de grupo
   concurrente, idempotencia y denegación por tenant/sede en RLS;
@@ -130,13 +157,14 @@ La batería pgTAP no se pudo ejecutar porque Docker no estaba activo y no había
 PostgreSQL local Supabase; el harness aislado sí ejercita las políticas con
 roles `anon`, `authenticated` y `service_role`.
 
-Vitest focal de rutas y componente de grupos pasa localmente; `pnpm gate:auth`,
-`pnpm typecheck` y `pnpm lint` también pasan en este corte. Las pruebas HTTP
+Vitest focal de rutas/componentes de grupos y clases pasa localmente; `pnpm
+gate:auth`, `pnpm typecheck` y `pnpm lint` también pasan en este corte. Las pruebas HTTP
 simulan sesión/scope, no equivalen a navegador con sesión real. La evidencia no
 incluye E2E autenticado, despliegue ni entornos remotos.
 
 ## Siguiente dependencia
 
-PR-03 reutiliza estos contratos en `growth-operations.md`. Ninguna operación
-calcula el Academy Health Score directamente: publica hechos y el motor
-analítico posterior los procesa de forma asíncrona y versionada.
+Conectar estos contratos a la superficie de matrícula y transiciones del
+enrollment; después, mantener el horizonte de sesiones más allá de los 120 días.
+Ninguna operación calcula el Academy Health Score directamente: publica hechos
+y el motor analítico posterior los procesa de forma asíncrona y versionada.

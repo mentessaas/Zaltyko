@@ -18,6 +18,7 @@ import {
   findOutboxEvent,
   lockCommand,
 } from "@/modules/shared/infrastructure/transactional-records";
+import type { TransactionClient } from "@/lib/db-transactions";
 
 const materializeSessionsSchema = z
   .object({
@@ -65,12 +66,13 @@ async function loadSessionsByIds(
 }
 
 export async function materializeSessions(
-  command: MaterializeSessionsCommand
+  command: MaterializeSessionsCommand,
+  transaction?: TransactionClient
 ): Promise<Session[]> {
-  const input = materializeSessionsSchema.parse(command);
-  const eventName = "sessions.materialized";
+  const run = async (tx: TransactionClient): Promise<Session[]> => {
+    const input = materializeSessionsSchema.parse(command);
+    const eventName = "sessions.materialized";
 
-  return db.transaction(async (tx) => {
     await lockCommand(tx, input.organizationId, input.idempotencyKey);
 
     const [template] = await tx
@@ -238,5 +240,7 @@ export async function materializeSessions(
     });
 
     return loadSessionsByIds(tx, input.organizationId, sessionIds);
-  });
+  };
+
+  return transaction ? run(transaction) : db.transaction(run);
 }
