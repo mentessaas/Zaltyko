@@ -40,5 +40,6 @@ export function operationalProblem(error: OperationalError) {
             : "Solicitud no procesable",
     detail: error.message,
     type: error.code.toLowerCase().replaceAll("_", "-"),
+    errors: error.details,
   });
 }

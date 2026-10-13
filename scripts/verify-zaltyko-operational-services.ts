@@ -14,6 +14,12 @@ import {
   transitionEnrollment,
 } from "@/modules/enrollments/application/enrollment-service";
 import {
+  getMonthlyInvoiceOptions,
+  issueMonthlyInvoice,
+} from "@/modules/billing/application/monthly-invoice-service";
+import { associateOwnerFamily } from "@/modules/families/application/owner-family-association";
+import { assignEnrollmentPrice } from "@/modules/enrollments/application/enrollment-price-service";
+import {
   getOwnerEnrollmentsPageData,
   searchOwnerEnrollmentCandidates,
 } from "@/modules/enrollments/application/enrollment-query-service";
@@ -66,6 +72,8 @@ const ID = {
   templateTarget: "10000000-0000-4000-8000-000000000102",
   templateExpired: "10000000-0000-4000-8000-000000000103",
   sessionNorth: "10000000-0000-4000-8000-000000000104",
+  pricePlanMonthly: "10000000-0000-4000-8000-000000000105",
+  pricePlanAnnual: "10000000-0000-4000-8000-000000000106",
   coachPerson: "10000000-0000-4000-8000-000000000065",
   coachProfile: "10000000-0000-4000-8000-000000000075",
   athlete1: "10000000-0000-4000-8000-000000000071",
@@ -137,6 +145,12 @@ async function seed(): Promise<void> {
       ('${ID.athlete2}', '${ID.orgA}', '10000000-0000-4000-8000-000000000062'),
       ('${ID.athlete3}', '${ID.orgA}', '10000000-0000-4000-8000-000000000063'),
       ('${ID.athlete4}', '${ID.orgA}', '10000000-0000-4000-8000-000000000064');
+
+    insert into zaltyko.price_plans (
+      id, organization_id, name, cadence, amount_cents, currency, is_active
+    ) values
+      ('${ID.pricePlanMonthly}', '${ID.orgA}', 'Cuota mensual sintética', 'monthly', 12000, 'EUR', true),
+      ('${ID.pricePlanAnnual}', '${ID.orgA}', 'Cuota anual sintética', 'annual', 90000, 'EUR', true);
 
     insert into zaltyko.people (id, organization_id, given_name, family_name)
     values ('20000000-0000-4000-8000-000000000061', '${ID.orgB}', 'Atleta', 'Sintética');
@@ -457,6 +471,9 @@ async function main(): Promise<void> {
       .length,
     1
   );
+  const groupCapacityWinner = [ID.athlete2, ID.athlete3][
+    groupCapacityAttempts.findIndex((result) => result.status === "fulfilled")
+  ];
   const fullGroupResult = groupCapacityAttempts.find(
     (result) => result.status === "rejected"
   );
@@ -874,7 +891,10 @@ async function main(): Promise<void> {
   });
   assert.deepEqual(
     enrollmentCandidates.map((candidate) => candidate.id),
-    [ID.athlete2],
+    [
+      ID.athlete2,
+      ...(groupCapacityWinner === ID.athlete3 ? [ID.athlete3] : []),
+    ],
     "La búsqueda usa group_memberships y excluye inscripciones abiertas duplicadas"
   );
   await expectOperationalError(
@@ -912,6 +932,11 @@ async function main(): Promise<void> {
   assert(rejected?.status === "rejected");
   assert(rejected.reason instanceof OperationalError);
   assert.equal(rejected.reason.code, "CAPACITY_FULL");
+  const fulfilledEnrollment = concurrent.find(
+    (result) => result.status === "fulfilled"
+  );
+  assert(fulfilledEnrollment?.status === "fulfilled");
+  const concurrentEnrollment = fulfilledEnrollment.value;
 
   await expectOperationalError(
     () =>
@@ -1067,9 +1092,272 @@ async function main(): Promise<void> {
     status: "active",
     startsOn: "2026-10-01",
     source: "owner",
+    pricePlanId: ID.pricePlanMonthly,
     idempotencyKey: "enroll-athlete-4-main",
     actor: owner,
   });
+  const familyAssociationCommand = {
+    organizationId: ID.orgA,
+    locationId: ID.locationA,
+    athleteIds: [concurrentEnrollment.athleteId, ID.athlete4],
+    effectiveFrom: "2026-10-01",
+    payer: {
+      givenName: "Responsable",
+      familyName: "Sintético",
+      relationship: "parent" as const,
+    },
+    idempotencyKey: "family-monthly-owner-001",
+    actor: owner,
+  };
+  const familyAssociation = await associateOwnerFamily(
+    familyAssociationCommand
+  );
+  const familyAssociationRetry = await associateOwnerFamily(
+    familyAssociationCommand
+  );
+  assert.equal(familyAssociationRetry.family.id, familyAssociation.family.id);
+  assert.equal(
+    familyAssociationRetry.familyPayerId,
+    familyAssociation.familyPayerId
+  );
+  assert.equal(
+    await count(
+      "zaltyko.family_guardians",
+      `family_id = '${familyAssociation.family.id}' and can_view_athletes = false and can_manage_enrollments = false`
+    ),
+    1,
+    "El responsable de facturación no obtiene acceso al portal"
+  );
+
+  const initialMonthlyOptions = await getMonthlyInvoiceOptions({
+    organizationId: ID.orgA,
+    locationId: ID.locationA,
+    servicePeriod: "2026-10",
+    actor: owner,
+  });
+  const initialFamilyQuote = initialMonthlyOptions.families.find(
+    (family) => family.familyId === familyAssociation.family.id
+  );
+  assert.equal(initialFamilyQuote?.canIssue, false);
+  assert(
+    initialFamilyQuote?.blockingReasons.includes("PRICE_ASSIGNMENT_REQUIRED")
+  );
+
+  const missingPriceAssignments = await pool.query<{
+    id: string;
+    starts_on: string;
+  }>(
+    `select enrollment.id, enrollment.starts_on::text
+     from zaltyko.enrollments enrollment
+     where enrollment.organization_id = $1
+       and enrollment.location_id = $2
+       and enrollment.athlete_id in ($3, $4)
+       and enrollment.status = 'active'
+       and not exists (
+         select 1 from zaltyko.enrollment_price_assignments assignment
+         where assignment.organization_id = enrollment.organization_id
+           and assignment.enrollment_id = enrollment.id
+           and assignment.ends_on is null
+       )`,
+    [ID.orgA, ID.locationA, concurrentEnrollment.athleteId, ID.athlete4]
+  );
+  for (const enrollment of missingPriceAssignments.rows) {
+    await assignEnrollmentPrice({
+      organizationId: ID.orgA,
+      locationId: ID.locationA,
+      enrollmentId: enrollment.id,
+      pricePlanId: ID.pricePlanMonthly,
+      startsOn: enrollment.starts_on,
+      idempotencyKey: `monthly-price-assignment-${enrollment.id}`,
+      actor: owner,
+    });
+  }
+
+  const monthlyOptions = await getMonthlyInvoiceOptions({
+    organizationId: ID.orgA,
+    locationId: ID.locationA,
+    servicePeriod: "2026-10",
+    actor: owner,
+  });
+  const familyQuote = monthlyOptions.families.find(
+    (family) => family.familyId === familyAssociation.family.id
+  );
+  assert(familyQuote?.canIssue, JSON.stringify(familyQuote));
+  assert.equal(familyQuote?.lines.length, 2);
+  assert.equal(familyQuote?.totalAmountCents, 24000);
+  assert(familyQuote?.quoteHash);
+
+  await pool.query(
+    `update zaltyko.enrollment_price_assignments
+     set unit_amount_cents = 12500
+     where organization_id = $1 and enrollment_id = $2`,
+    [ID.orgA, attendanceEnrollment.id]
+  );
+  await expectOperationalError(
+    () =>
+      issueMonthlyInvoice({
+        organizationId: ID.orgA,
+        locationId: ID.locationA,
+        familyId: familyAssociation.family.id,
+        familyPayerId: familyAssociation.familyPayerId,
+        servicePeriod: "2026-10",
+        dueDate: "2026-10-31",
+        quoteHash: familyQuote!.quoteHash!,
+        idempotencyKey: "monthly-invoice-stale-001",
+        actor: owner,
+      }),
+    "QUOTE_STALE"
+  );
+
+  await pool.query(
+    `update zaltyko.organization_entitlements
+     set plan_code = 'growth', source = 'contract',
+         source_reference = 'synthetic-monthly-invoice-paid-plan',
+         effective_from = now(), effective_until = now() + interval '30 days'
+     where organization_id = $1`,
+    [ID.orgA]
+  );
+  const entitlement = await pool.query(
+    "select revision from zaltyko.organization_entitlements where organization_id = $1",
+    [ID.orgA]
+  );
+  await pool.query(
+    `insert into zaltyko.family_collection_preferences (
+       organization_id, family_id, requested_mode, version,
+       entitlement_revision, updated_by_member_id
+     ) values ($1, $2, 'automatic', 1, $3, $4)`,
+    [
+      ID.orgA,
+      familyAssociation.family.id,
+      entitlement.rows[0].revision,
+      ID.ownerMember,
+    ]
+  );
+
+  const freshQuote = await getMonthlyInvoiceOptions({
+    organizationId: ID.orgA,
+    locationId: ID.locationA,
+    servicePeriod: "2026-10",
+    actor: owner,
+  });
+  const refreshedFamilyQuote = freshQuote.families.find(
+    (family) => family.familyId === familyAssociation.family.id
+  )!;
+  const monthlyCommand = {
+    organizationId: ID.orgA,
+    locationId: ID.locationA,
+    familyId: familyAssociation.family.id,
+    familyPayerId: familyAssociation.familyPayerId,
+    servicePeriod: "2026-10",
+    dueDate: "2026-10-31",
+    quoteHash: refreshedFamilyQuote.quoteHash!,
+    idempotencyKey: "monthly-invoice-issue-001",
+    actor: owner,
+  };
+  const issuedMonthlyInvoice = await issueMonthlyInvoice(monthlyCommand);
+  assert.equal(issuedMonthlyInvoice.invoice.totalAmountCents, 24500);
+  assert.equal(
+    issuedMonthlyInvoice.invoice.dueAt.toISOString(),
+    "2026-10-31T22:59:59.999Z"
+  );
+  assert.equal(
+    await count(
+      "zaltyko.invoice_lines",
+      `invoice_id = '${issuedMonthlyInvoice.invoice.id}' and line_type = 'monthly_fee'`
+    ),
+    2,
+    "La factura contiene una línea por inscripción activa"
+  );
+  assert.equal(
+    await count(
+      "zaltyko.invoices",
+      `family_id = '${familyAssociation.family.id}' and id = '${issuedMonthlyInvoice.invoice.id}'`
+    ),
+    1
+  );
+  const monthlyRetry = await issueMonthlyInvoice(monthlyCommand);
+  assert.equal(monthlyRetry.invoice.id, issuedMonthlyInvoice.invoice.id);
+  await expectOperationalError(
+    () =>
+      issueMonthlyInvoice({
+        ...monthlyCommand,
+        locationId: ID.locationA2,
+      }),
+    "IDEMPOTENCY_CONFLICT"
+  );
+  const monthlyAlternateKeyRetry = await issueMonthlyInvoice({
+    ...monthlyCommand,
+    idempotencyKey: "monthly-invoice-issue-002",
+  });
+  assert.equal(
+    monthlyAlternateKeyRetry.invoice.id,
+    issuedMonthlyInvoice.invoice.id
+  );
+  assert.equal(monthlyAlternateKeyRetry.replayed, true);
+  const monthlyCharge = await pool.query(
+    "select collection_mode from zaltyko.charges where invoice_id = $1",
+    [issuedMonthlyInvoice.invoice.id]
+  );
+  assert.equal(monthlyCharge.rows[0].collection_mode, "manual");
+  assert.equal(
+    await count(
+      "zaltyko.charges",
+      `invoice_id = '${issuedMonthlyInvoice.invoice.id}' and status = 'due' and collection_mode = 'manual'`
+    ),
+    2,
+    "Cada línea produce un cargo manual pendiente"
+  );
+  assert.equal(
+    await count(
+      "zaltyko.enrollment_price_assignments",
+      `organization_id = '${ID.orgA}' and enrollment_id in (${familyQuote!.enrollments.map((enrollment) => `'${enrollment.enrollmentId}'`).join(", ")})`
+    ),
+    2,
+    "Cada inscripción conserva su snapshot tarifario"
+  );
+  assert.equal(
+    await count(
+      "zaltyko.payments",
+      `family_id = '${familyAssociation.family.id}'`
+    ),
+    0,
+    "La emisión manual no crea cobros ni pagos"
+  );
+  await expectOperationalError(
+    () =>
+      issueMonthlyInvoice({
+        ...monthlyCommand,
+        quoteHash: "f".repeat(64),
+        idempotencyKey: "monthly-invoice-conflict-001",
+      }),
+    "PERIOD_ALREADY_INVOICED"
+  );
+  await pool.query(
+    "update zaltyko.invoices set status = 'void', voided_at = now() where id = $1",
+    [issuedMonthlyInvoice.invoice.id]
+  );
+  await expectOperationalError(
+    () =>
+      issueMonthlyInvoice({
+        ...monthlyCommand,
+        idempotencyKey: "monthly-invoice-voided-001",
+      }),
+    "INVOICE_VOIDED"
+  );
+
+  await expectOperationalError(
+    () =>
+      assignEnrollmentPrice({
+        organizationId: ID.orgA,
+        locationId: ID.locationA,
+        enrollmentId: concurrentEnrollment.id,
+        pricePlanId: ID.pricePlanAnnual,
+        startsOn: "2026-10-13",
+        idempotencyKey: "assignment-invalid-annual-price-plan",
+        actor: owner,
+      }),
+    "PRICE_PLAN_NOT_AVAILABLE"
+  );
 
   const generated = await materializeSessions({
     organizationId: ID.orgA,

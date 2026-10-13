@@ -17,6 +17,7 @@ import {
   enrollmentStatusSchema,
 } from "@/modules/enrollments/domain/contracts";
 import { calculateEffectiveCapacity } from "@/modules/scheduling/domain/capacity";
+import { assignEnrollmentPriceInTransaction } from "@/modules/enrollments/application/enrollment-price-service";
 import type { TransactionClient } from "@/lib/db-transactions";
 import { operationalActorSchema } from "@/modules/shared/application/actor";
 import { OperationalError } from "@/modules/shared/domain/operational-error";
@@ -327,6 +328,7 @@ export async function createEnrollmentInTransaction(
       status: input.status,
       startsOn: input.startsOn,
       source: input.source,
+      pricePlanId: input.pricePlanId ?? null,
     },
   });
   if (idempotent) {
@@ -345,6 +347,13 @@ export async function createEnrollmentInTransaction(
     actor: input.actor,
     allowedRoles: privilegedRoles,
   });
+
+  await tx.execute(sql`
+    select id from zaltyko.athletes
+    where organization_id = ${input.organizationId}::uuid
+      and id = ${input.athleteId}::uuid
+    for update
+  `);
 
   const [athlete] = await tx
     .select({ id: athletes.id })
@@ -378,6 +387,30 @@ export async function createEnrollmentInTransaction(
     })
     .returning();
 
+  let currentPricePlanId = enrollment.pricePlanId;
+  if (input.pricePlanId) {
+    await assignEnrollmentPriceInTransaction(tx, {
+      organizationId: input.organizationId,
+      locationId: input.locationId,
+      enrollmentId: enrollment.id,
+      pricePlanId: input.pricePlanId,
+      startsOn: input.startsOn,
+      actor: input.actor,
+      idempotencyKey: `${input.idempotencyKey}:price`,
+    });
+    const [updatedPointer] = await tx
+      .select({ pricePlanId: enrollments.pricePlanId })
+      .from(enrollments)
+      .where(
+        and(
+          eq(enrollments.organizationId, input.organizationId),
+          eq(enrollments.id, enrollment.id)
+        )
+      )
+      .limit(1);
+    currentPricePlanId = updatedPointer?.pricePlanId ?? null;
+  }
+
   await tx.insert(enrollmentStatusHistory).values({
     organizationId: input.organizationId,
     enrollmentId: enrollment.id,
@@ -402,6 +435,7 @@ export async function createEnrollmentInTransaction(
       status: enrollment.status,
       startsOn: enrollment.startsOn,
       source: enrollment.source,
+      pricePlanId: input.pricePlanId ?? null,
     },
   });
 
@@ -417,11 +451,12 @@ export async function createEnrollmentInTransaction(
       status: enrollment.status,
       classTemplateId: enrollment.classTemplateId,
       startsOn: enrollment.startsOn,
+      pricePlanId: input.pricePlanId ?? null,
       version: enrollment.version,
     },
   });
 
-  return enrollment;
+  return { ...enrollment, pricePlanId: currentPricePlanId };
 }
 
 export async function createEnrollment(
