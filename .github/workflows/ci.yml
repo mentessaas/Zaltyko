@@ -273,6 +273,38 @@ jobs:
           E2E_HEAD_REPOSITORY: ${{ github.event.pull_request.head.repo.full_name || github.repository }}
         run: bash scripts/ci/check-e2e-readiness.sh
 
+  e2e-local-owner:
+    # Experimental: keep visible in CI while the local browser journey is validated.
+    name: Experimental E2E Local Supabase Owner Setup
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    continue-on-error: true
+    steps:
+      - uses: actions/checkout@v7
+
+      - name: Setup pnpm
+        uses: pnpm/action-setup@v6
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v7
+        with:
+          node-version: "22"
+          cache: "pnpm"
+
+      - name: Setup Supabase CLI
+        uses: supabase/setup-cli@v3
+        with:
+          version: 2.84.2
+
+      - name: Install dependencies
+        run: pnpm install --frozen-lockfile
+
+      - name: Install Playwright browsers
+        run: pnpm exec playwright install --with-deps chromium firefox webkit
+
+      - name: Run isolated local Supabase Owner setup E2E
+        run: pnpm test:e2e:local
+
   validate-rls:
     name: Validate RLS Coverage
     runs-on: ubuntu-latest

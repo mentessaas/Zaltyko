@@ -2,7 +2,10 @@ import { defineConfig, devices } from "@playwright/test";
 import { config } from "dotenv";
 import { resolve } from "node:path";
 
-import { assertLocalPlaywrightTarget } from "./scripts/lib/e2e-sandbox-target";
+import {
+  assertLocalPlaywrightTarget,
+  assertLocalSupabasePlaywrightTarget,
+} from "./scripts/lib/e2e-sandbox-target";
 
 config({ path: resolve(process.cwd(), ".env.local") });
 config({ path: resolve(process.cwd(), ".env") });
@@ -11,6 +14,7 @@ const baseURL = process.env.BASE_URL ?? "http://127.0.0.1:3000";
 const isCI = Boolean(process.env.CI);
 
 const isPublicReadOnlyRun = process.env.E2E_PUBLIC_READ_ONLY === "true";
+const isLocalSupabaseRun = process.env.E2E_LOCAL_SUPABASE === "true";
 
 if (isPublicReadOnlyRun) {
   const targetHost = new URL(baseURL).hostname;
@@ -25,6 +29,14 @@ if (isPublicReadOnlyRun) {
       "Read-only public E2E is restricted to Zaltyko production or localhost."
     );
   }
+} else if (isLocalSupabaseRun) {
+  assertLocalSupabasePlaywrightTarget({
+    baseUrl: baseURL,
+    supabaseUrl: process.env.NEXT_PUBLIC_SUPABASE_URL,
+    databaseUrl: process.env.DATABASE_URL ?? "",
+    stripeSecretKey: process.env.STRIPE_SECRET_KEY,
+    stripePublishableKey: process.env.NEXT_PUBLIC_STRIPE_PUBLISHABLE_KEY,
+  });
 } else {
   assertLocalPlaywrightTarget({
     baseUrl: baseURL,
@@ -70,14 +82,16 @@ export default defineConfig({
     screenshot: "only-on-failure",
     video: "retain-on-failure",
   },
-  webServer: process.env.BASE_URL
-    ? undefined
-    : {
-        command: process.env.CI ? "pnpm start" : "pnpm dev",
-        url: baseURL,
-        reuseExistingServer: true,
-        timeout: 240_000,
-      },
+  webServer:
+    process.env.BASE_URL && !isLocalSupabaseRun
+      ? undefined
+      : {
+          command:
+            process.env.CI && !isLocalSupabaseRun ? "pnpm start" : "pnpm dev",
+          url: baseURL,
+          reuseExistingServer: !isLocalSupabaseRun && !isCI,
+          timeout: 240_000,
+        },
   projects: [
     {
       name: "chromium",

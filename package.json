@@ -28,6 +28,7 @@
     "e2e:prepare-domain": "tsx scripts/apply-e2e-domain-migrations.ts",
     "test:e2e:verify-supabase": "tsx scripts/verify-supabase-auth.ts",
     "test:e2e": "playwright test tests/e2e-owner-dashboard.spec.ts",
+    "test:e2e:local": "tsx scripts/run-e2e-local.ts",
     "test:e2e:legacy": "playwright test tests/e2e-zaltyko-full.spec.ts",
     "test:e2e:public": "playwright test tests/e2e-zaltyko-public.spec.ts",
     "test:e2e:public:ci": "playwright test tests/e2e-zaltyko-public.spec.ts --project=chromium",
