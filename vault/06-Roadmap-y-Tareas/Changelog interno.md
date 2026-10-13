@@ -9,6 +9,12 @@ source:
 
 ## 2026-10-14 — Mensualidades publicadas y siguiente bloque paralelo
 
+Añadidas cuatro regresiones de conexión server-page del resumen: conserva
+agregado organizativo sin elegir la sede por defecto del score, pasa sede y
+fechas explícitas sin filtros no soportados, expone fallo como null/unavailable
+y deniega scope prohibido. 4/4 PASS con dependencias mock; no prueban Auth/RLS
+ni PostgreSQL. Complementan el verificador real anterior, no lo sustituyen.
+
 Integradas mejoras Frontend `e25b9f95` (h1 único, Ahora/período/cobros,
 fechas legibles) y Backend `0bdc8ca8`. PostgreSQL real detectó interpolación
 Drizzle `ANY(($2,$3)::uuid[])` inválida: corregida a array SQL tipado. Main
