@@ -80,6 +80,7 @@ describe("API Owner de facturación mensual", () => {
       lines: [],
       chargeStatus: "due",
       collectionMode: "manual",
+      charges: [{ id: "10000000-0000-4000-8000-000000000009", status: "due" }],
     } as never);
     const response = await issueInvoice(
       new Request(
@@ -122,6 +123,7 @@ describe("API Owner de facturación mensual", () => {
         dueAt: "2026-10-31T22:59:59.999Z",
         chargeStatus: "due",
         collectionMode: "manual",
+        charges: [{ status: "due" }],
       },
     });
   });
@@ -152,5 +154,57 @@ describe("API Owner de facturación mensual", () => {
     );
     expect(response.status).toBe(400);
     expect(issueMonthlyInvoice).not.toHaveBeenCalled();
+  });
+
+  it("expone en un replay el estado actual de los cargos tras registrar un pago", async () => {
+    vi.mocked(issueMonthlyInvoice).mockResolvedValue({
+      invoice: {
+        id: "10000000-0000-4000-8000-000000000007",
+        reference: "INV-2026-001",
+        status: "partially_paid",
+        totalAmountCents: 24000,
+        currency: "EUR",
+        dueAt: new Date("2026-10-31T22:59:59.999Z"),
+      },
+      replayed: true,
+      lines: [],
+      chargeStatus: "mixed",
+      collectionMode: "manual",
+      charges: [
+        { id: "10000000-0000-4000-8000-000000000009", status: "paid" },
+        { id: "10000000-0000-4000-8000-000000000010", status: "due" },
+      ],
+    } as never);
+
+    const response = await issueInvoice(
+      new Request(
+        "https://zaltyko.test/api/v1/owner/billing/monthly-invoices/issue",
+        {
+          method: "POST",
+          headers: {
+            "content-type": "application/json",
+            "idempotency-key": "monthly-issue-paid-replay",
+          },
+          body: JSON.stringify({
+            organizationId,
+            locationId,
+            familyId,
+            familyPayerId: payerId,
+            servicePeriod: "2026-10",
+            dueDate: "2026-10-31",
+            quoteHash: "a".repeat(64),
+          }),
+        }
+      )
+    );
+
+    expect(response.status).toBe(200);
+    await expect(response.json()).resolves.toMatchObject({
+      data: {
+        status: "partially_paid",
+        chargeStatus: "mixed",
+        charges: [{ status: "paid" }, { status: "due" }],
+      },
+    });
   });
 });

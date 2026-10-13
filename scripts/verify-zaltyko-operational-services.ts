@@ -17,6 +17,8 @@ import {
   getMonthlyInvoiceOptions,
   issueMonthlyInvoice,
 } from "@/modules/billing/application/monthly-invoice-service";
+import { createMonthlyPricePlan } from "@/modules/billing/application/monthly-price-plan-service";
+import { recordManualPaymentForCharge } from "@/modules/billing/application/ledger-service";
 import { associateOwnerFamily } from "@/modules/families/application/owner-family-association";
 import { assignEnrollmentPrice } from "@/modules/enrollments/application/enrollment-price-service";
 import {
@@ -216,6 +218,54 @@ async function count(table: string, where = "true"): Promise<number> {
 
 async function main(): Promise<void> {
   await seed();
+
+  const blankAcademyPlan = await createMonthlyPricePlan({
+    organizationId: ID.orgB,
+    locationId: ID.locationB,
+    name: "Cuota inicial",
+    amountCents: 14500,
+    idempotencyKey: "blank-academy-monthly-plan",
+    actor: outsider,
+  });
+  assert.equal(blankAcademyPlan.pricePlan.currency, "EUR");
+  assert.equal(blankAcademyPlan.pricePlan.cadence, "monthly");
+  const blankAcademyPlanRetry = await createMonthlyPricePlan({
+    organizationId: ID.orgB,
+    locationId: ID.locationB,
+    name: "Cuota inicial",
+    amountCents: 14500,
+    idempotencyKey: "blank-academy-monthly-plan",
+    actor: outsider,
+  });
+  assert.equal(
+    blankAcademyPlanRetry.pricePlan.id,
+    blankAcademyPlan.pricePlan.id
+  );
+  assert.equal(blankAcademyPlanRetry.replayed, true);
+  await expectOperationalError(
+    () =>
+      createMonthlyPricePlan({
+        organizationId: ID.orgB,
+        locationId: ID.locationB,
+        name: "Tarifa sin autorización",
+        amountCents: 15000,
+        idempotencyKey: "cross-tenant-monthly-plan",
+        actor: owner,
+      }),
+    "FORBIDDEN"
+  );
+  await expectOperationalError(
+    () =>
+      createMonthlyPricePlan({
+        organizationId: ID.orgA,
+        locationId: ID.locationA,
+        name: "Tarifa de manager",
+        amountCents: 15000,
+        idempotencyKey: "manager-monthly-plan",
+        actor: manager,
+      }),
+    "FORBIDDEN"
+  );
 
   const createdGroup = await createOperationalGroup({
     organizationId: ID.orgA,
@@ -1254,7 +1304,22 @@ async function main(): Promise<void> {
     idempotencyKey: "monthly-invoice-issue-001",
     actor: owner,
   };
-  const issuedMonthlyInvoice = await issueMonthlyInvoice(monthlyCommand);
+  const concurrentMonthlyIssues = await Promise.all([
+    issueMonthlyInvoice(monthlyCommand),
+    issueMonthlyInvoice({
+      ...monthlyCommand,
+      idempotencyKey: "monthly-invoice-issue-concurrent-002",
+    }),
+  ]);
+  const issuedMonthlyInvoice = concurrentMonthlyIssues[0];
+  assert.equal(
+    concurrentMonthlyIssues[1].invoice.id,
+    issuedMonthlyInvoice.invoice.id
+  );
+  assert.deepEqual(
+    concurrentMonthlyIssues.map((item) => item.replayed).sort(),
+    [false, true]
+  );
   assert.equal(issuedMonthlyInvoice.invoice.totalAmountCents, 24500);
   assert.equal(
     issuedMonthlyInvoice.invoice.dueAt.toISOString(),
@@ -1323,6 +1388,80 @@ async function main(): Promise<void> {
     0,
     "La emisión manual no crea cobros ni pagos"
   );
+  const chargeToPay = await pool.query<{ id: string; amount_cents: number }>(
+    `select id, amount_cents from zaltyko.charges
+     where organization_id = $1 and invoice_id = $2 order by id limit 1`,
+    [ID.orgA, issuedMonthlyInvoice.invoice.id]
+  );
+  await recordManualPaymentForCharge({
+    organizationId: ID.orgA,
+    chargeId: chargeToPay.rows[0].id,
+    amountCents: Number(chargeToPay.rows[0].amount_cents),
+    method: "bank_transfer",
+    receivedAt: new Date().toISOString(),
+    idempotencyKey: "monthly-invoice-payment-001",
+    actor: owner,
+  });
+  const paidMonthlyRetry = await issueMonthlyInvoice(monthlyCommand);
+  assert.equal(paidMonthlyRetry.replayed, true);
+  assert.equal(paidMonthlyRetry.invoice.status, "partially_paid");
+  assert.equal(paidMonthlyRetry.chargeStatus, "mixed");
+  assert.deepEqual(
+    new Set(paidMonthlyRetry.charges.map((charge) => charge.status)),
+    new Set(["paid", "due"])
+  );
+  assert.equal(
+    await count(
+      "zaltyko.charges",
+      `invoice_id = '${issuedMonthlyInvoice.invoice.id}'`
+    ),
+    2,
+    "El replay tras el pago no duplica cargos"
+  );
+  assert.equal(
+    await count(
+      "zaltyko.payments",
+      `family_id = '${familyAssociation.family.id}'`
+    ),
+    1,
+    "El replay tras el pago no duplica el pago registrado"
+  );
+
+  const transferredBilledEnrollment = await transferEnrollment({
+    organizationId: ID.orgA,
+    enrollmentId: concurrentEnrollment.id,
+    expectedVersion: concurrentEnrollment.version,
+    targetLocationId: ID.locationA2,
+    targetClassTemplateId: ID.templateTarget,
+    startsOn: "2026-10-01",
+    idempotencyKey: "monthly-site-isolation-transfer",
+    actor: owner,
+  });
+  await assignEnrollmentPrice({
+    organizationId: ID.orgA,
+    locationId: ID.locationA2,
+    enrollmentId: transferredBilledEnrollment.target.id,
+    pricePlanId: ID.pricePlanMonthly,
+    startsOn: "2026-10-01",
+    idempotencyKey: "monthly-site-isolation-price",
+    actor: owner,
+  });
+  const secondSiteOptions = await getMonthlyInvoiceOptions({
+    organizationId: ID.orgA,
+    locationId: ID.locationA2,
+    servicePeriod: "2026-10",
+    actor: owner,
+  });
+  const secondSiteFamily = secondSiteOptions.families.find(
+    (family) => family.familyId === familyAssociation.family.id
+  );
+  assert.equal(
+    secondSiteFamily?.canIssue,
+    true,
+    JSON.stringify(secondSiteFamily)
+  );
+  assert.equal(secondSiteFamily?.existingInvoiceId, null);
+
   await expectOperationalError(
     () =>
       issueMonthlyInvoice({
