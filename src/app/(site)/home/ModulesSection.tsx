@@ -17,10 +17,10 @@ import Reveal from "@/components/motion/Reveal";
 const modules = [
   {
     title: "Cobros",
-    description: "Lo que más usan las directoras: cuotas recurrentes, avisos automáticos a familias y seguimiento de impagos sin perseguir a nadie.",
+    description: "Cuotas, pagos registrados y seguimiento de pendientes desde un único lugar.",
     icon: CreditCard,
     span: "lg:col-span-2",
-    features: ["Pagos recurrentes", "Avisos automáticos", "Seguimiento de impagos", "Cuotas por grupo"],
+    features: ["Cuotas por grupo", "Registro de pagos", "Pendientes por periodo", "Historial de cobros"],
   },
   {
     title: "Clases & Horarios",

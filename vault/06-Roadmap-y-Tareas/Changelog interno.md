@@ -1,10 +1,20 @@
 ---
 status: active
 owner: producto
-last_reviewed: 2026-10-04
+last_reviewed: 2026-10-13
 source:
   - ../docs/audits/2026-10-03-launch-and-auth-followup.md
 ---
+
+## 2026-10-13 — Bloquear el cron de cobro automático legacy
+
+- Se retiró `/api/cron/collect-charges` de la programación de Vercel. La ruta conserva `CRON_SECRET` y responde `AUTOMATIC_COLLECTION_NOT_ENABLED` sin consultar la base de datos ni llamar al servicio Stripe.
+- Se corrigieron los claims públicos de facturación: ahora describen cuotas, registro manual y seguimiento, sin prometer cobros o recordatorios automáticos.
+- Se añadieron contratos para rechazo sin autenticación y para confirmar que no se consultan academias ni se intenta cobrar. La prueba E2E ya espera el no-op autenticado.
+- Validación local: test focal **2/2**, TypeScript, ESLint de los archivos tocados y `next build` (**274/274 páginas**) pasan. Next avisa que este checkout aislado no tiene secretos locales y marca dos rutas dinámicas; no se copiaron credenciales para compilar.
+- Hecho en rama aislada desde el commit de producción observado; falta CI, revisión e integración. Producción todavía no recibió cambios.
+- Evidencia de riesgo: un agregado read-only observó una academia activa con Connect habilitado sin suscripción SaaS, dos cargos vencidos y cero medios de pago resolubles en ese instante. Ningún dato personal, método, cargo ni cuenta individual fue leído.
+- No se hicieron cambios en Supabase, Stripe Live, credenciales o deployments.
 
 ## 2026-10-04 — Revalidar acceso Google, recuperación y búsqueda del onboarding
 

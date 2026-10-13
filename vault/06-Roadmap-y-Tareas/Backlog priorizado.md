@@ -1,7 +1,7 @@
 ---
 status: active
 owner: producto
-last_reviewed: 2026-10-03
+last_reviewed: 2026-10-13
 source:
   - ../PRODUCT-ANALYSIS.md
   - ../BUSINESS-ANALYSIS.md
@@ -45,6 +45,12 @@ Code changes verificados: tsc OK, eslint OK, next build OK.
 
 
 # Backlog priorizado
+
+## P0 — Sustituir el cobro automático legacy por cobro con opt-in — 2026-10-13
+
+- **Riesgo observado:** el cron productivo cobraba cargos vencidos de toda academia activa con Stripe Connect habilitado, sin comprobar que la academia eligiera automatización, tuviera plan de pago o guardara autorización de la familia. La última consulta agregada encontró una academia candidata y dos cargos vencidos; no encontró un pagador con tarjeta resoluble en esa academia. No se llamó a Stripe.
+- **Mitigación en rama:** quitar ese job de `vercel.json`, convertir su ruta autenticada en no-op con motivo explícito y corregir los claims de facturación públicos. Test focal 2/2, TypeScript, ESLint focal y build 274/274 pasan localmente. CI y revisión pendientes; el estado productivo no cambia hasta desplegar.
+- **Cierre:** verificar el no-op y que el cron desaparece al integrar/desplegar. La futura automatización solo se habilitará después del modo por academia, entitlement de plan pagado, consentimiento/mandato, webhook, idempotencia y recuperación; probar exclusivamente con Stripe Test.
 
 ## P1 — Hacer fiable el control SBOM de CI — 2026-10-04
 

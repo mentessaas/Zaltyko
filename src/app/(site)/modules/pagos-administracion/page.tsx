@@ -10,10 +10,10 @@ import {
 } from "../components/ModuleSections";
 
 export const metadata: Metadata = {
-  title: "Cobros y Cuotas para Gimnasia",
-  description: "Ordena cobros, cuotas y recibos internos de tu academia de gimnasia. Recordatorios, pagos pendientes y control de morosidad.",
+  title: "Cuotas y Pagos para Gimnasia",
+  description: "Gestiona cuotas, registra pagos recibidos y consulta los pagos pendientes de tu academia de gimnasia.",
   keywords: [
-    "cobros automáticos gimnasia",
+    "cobros gimnasia",
     "cuotas gimnasia",
     "recibos internos academia",
     "pagos academia gimnasia",
@@ -21,8 +21,8 @@ export const metadata: Metadata = {
     "gestión financiera clubes",
   ],
   openGraph: {
-    title: "Cobros y Cuotas para Gimnasia",
-    description: "Ordena cobros, cuotas y recibos internos de tu academia de gimnasia con recordatorios y control de pagos pendientes.",
+    title: "Cuotas y Pagos para Gimnasia",
+    description: "Gestiona cuotas, registra pagos recibidos y consulta los pagos pendientes de tu academia de gimnasia.",
     type: "website",
   },
 };
@@ -35,31 +35,31 @@ const problemBullets = [
   "Perseguir morosos daña la relación con las familias y resta tiempo a lo que de verdad importa: enseñar.",
 ];
 
-const solutionContent = `El módulo de pagos y administración de Zaltyko ordena el ciclo de cobro de tu academia. Configura las cuotas por modalidad, nivel o tipo de servicio, y el sistema genera los cargos mensuales para cada familia según su inscripción.
+const solutionContent = `Organiza las cuotas y cargos de tu academia por periodo, grupo o servicio. Desde el panel puedes revisar qué está pendiente, registrar un pago que ya has recibido y consultar el historial disponible.
 
-Define reglas de descuento flexibles: porcentajes por familia numerosa, becas parciales o totales, promociones por pago anticipado. El sistema aplica estos descuentos automáticamente sin intervención manual. Cuando un pago no se procesa correctamente, se envían recordatorios automáticos escalonados antes de marcarlo como moroso.
+La academia mantiene el control de cada paso: puede registrar el pago recibido o iniciar manualmente un cobro cuando corresponda. También puede enviar un recordatorio desde la ficha del cargo; no se realizan cobros automáticos.
 
-El panel financiero te da visibilidad completa sobre la salud económica de tu academia. Consulta ingresos del mes, proyecciones basadas en inscripciones activas, desglose por concepto y estado de morosidad. Genera reportes por módulo para revisarlos con tu equipo y mantén siempre el control de tu flujo de caja.`;
+El panel reúne los importes y estados disponibles para que puedas revisar los cobros pendientes con tu equipo y decidir qué hacer después.`;
 
 const solutionFeatures = [
-  "Cobros recurrentes y recordatorios",
-  "Descuentos por familia numerosa y becas configurables",
-  "Recordatorios de pago escalonados y automáticos",
-  "Panel financiero con ingresos, proyecciones y morosidad",
-  "Recibos internos y justificantes de pago para familias",
-  "Reportes exportables por módulo",
+  "Cuotas y cargos por periodo o grupo",
+  "Registro manual de pagos recibidos",
+  "Seguimiento de importes pendientes",
+  "Recordatorios que la academia envía desde el panel",
+  "Historial y recibos disponibles en el módulo",
+  "Resumen de cobros para apoyar la gestión diaria",
 ];
 
 const benefits = [
   {
     icon: Clock,
-    title: "Menos trabajo manual",
-    description: "Genera cargos mensuales para cada familia sin tocar una hoja de cálculo.",
+    title: "Todo más fácil de revisar",
+    description: "Consulta las cuotas y los pagos pendientes sin buscar en varias hojas.",
   },
   {
     icon: TrendingUp,
-    title: "Seguimiento de impagos",
-    description: "Recordatorios automáticos escalonados cuando una familia no paga a tiempo.",
+    title: "Seguimiento de pagos",
+    description: "Revisa qué cargos siguen pendientes y decide cuándo contactar a la familia.",
   },
   {
     icon: Shield,
@@ -68,8 +68,8 @@ const benefits = [
   },
   {
     icon: CreditCard,
-    title: "Flexibilidad para familias",
-    description: "Becas y descuentos por hermano, configurables por academia.",
+    title: "Estado de pago visible",
+    description: "Consulta los importes y estados disponibles antes de actuar.",
   },
 ];
 
@@ -77,8 +77,8 @@ const useCases = [
   {
     role: "Familias",
     icon: Heart,
-    title: "Pagos sin sorpresas",
-    description: "Reciben sus cargos según el calendario configurado, ven sus recibos y entienden cada importe. Las becas y descuentos se gestionan desde la academia.",
+    title: "Importes claros",
+    description: "Pueden consultar el estado de los cargos y los recibos disponibles en su portal.",
   },
   {
     role: "Administrativos",
@@ -107,7 +107,7 @@ export default function PagosAdministracionPage() {
             name: "Zaltyko - Pagos y Administración",
             applicationCategory: "BusinessApplication",
             operatingSystem: "Web",
-            description: "Módulo de cobros y cuotas para academias de gimnasia. Automatiza cuotas, pagos online y control financiero.",
+            description: "Módulo para gestionar cuotas, registrar pagos recibidos y consultar importes pendientes.",
             featureList: solutionFeatures,
             offers: {
               "@type": "Offer",
@@ -121,8 +121,8 @@ export default function PagosAdministracionPage() {
 
       <ModuleHero
         icon={CreditCard}
-        title="Cobra las cuotas del mes sin perseguir a nadie"
-        subtitle="Cada familia recibe sus cargos según el calendario configurado, los recordatorios salen solos y el panel te dice al instante quién está al día. Sin Excel, sin WhatsApp y sin cazar morosos."
+        title="Controla cuotas y pagos desde un único panel"
+        subtitle="Consulta los importes pendientes, registra los pagos recibidos e inicia manualmente un cobro cuando corresponda."
         color={MODULE_COLOR}
       />
 
@@ -133,7 +133,7 @@ export default function PagosAdministracionPage() {
       />
 
       <SolutionSection
-        title="Automatización financiera completa"
+        title="Una gestión de cobros más clara"
         content={solutionContent}
         features={solutionFeatures}
         color={MODULE_COLOR}
@@ -144,8 +144,8 @@ export default function PagosAdministracionPage() {
       <UseCasesSection useCases={useCases} color={MODULE_COLOR} />
 
       <ModuleCta
-        title="Configura tus cuotas este mes"
-        subtitle="Crea tu cuenta gratis, configura tu academia, importa tus gimnastas y empieza a cobrar desde un único panel."
+        title="Empieza a ordenar tus cuotas y pagos"
+        subtitle="Crea tu cuenta gratis, configura tu academia y consulta tus cobros desde un único panel."
       />
     </>
   );
