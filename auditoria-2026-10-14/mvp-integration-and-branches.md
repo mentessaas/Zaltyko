@@ -56,6 +56,12 @@ copy con las decisiones posteriores de facturación manual/opcional automática.
 
 ## Fuentes observadas
 
+Actualización de despliegue: `dpl_Q8nww8URJ6XqSnyxBnrvp1akWQbQ` está
+`READY`, target Preview (null), SHA `31a0dd02`, comprobado con la API de Vercel.
+[Vista previa](https://zaltyko-pywyqioeq-mentessaas-projects.vercel.app).
+Build CI también pasó; los E2E seguían ejecutándose al consultar. Esto no
+demuestra un recorrido autenticado ni una publicación en producción.
+
 - [PR #226](https://github.com/mentessaas/Zaltyko/pull/226).
 - [MVP #227](https://github.com/mentessaas/Zaltyko/issues/227).
 - [Hotfix #225](https://github.com/mentessaas/Zaltyko/pull/225).
