@@ -54,6 +54,14 @@ SQL
 "${PSQL[@]}" \
   -f "${ROOT_DIR}/supabase/migrations/20261013170001_record_group_membership_history.sql" \
   >/dev/null
+for migration in \
+  20261006090034_add_trials_waitlists_families.sql \
+  20261006093047_add_internal_billing_ledger.sql \
+  20261013082806_organization_payment_accounts.sql \
+  20261013160000_canonical_family_collection_and_entitlements.sql
+do
+  "${PSQL[@]}" -f "${ROOT_DIR}/supabase/migrations/${migration}" >/dev/null
+done
 
 DATABASE_URL="postgresql://127.0.0.1:${PG_PORT}/postgres" \
 DATABASE_URL_POOL="postgresql://127.0.0.1:${PG_PORT}/postgres" \

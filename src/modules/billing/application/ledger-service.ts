@@ -416,8 +416,10 @@ function manualAllocationIdempotencyKey(
   return `manual-allocation:${fingerprint({ organizationId, idempotencyKey }).slice(0, 48)}`;
 }
 
-export async function issueInvoice(
-  command: IssueInvoiceCommand
+export async function issueInvoiceInTransaction(
+  tx: TransactionClient,
+  command: IssueInvoiceCommand,
+  options: { collectionMode?: "manual" | "automatic" } = {}
 ): Promise<Invoice> {
   const input = issueInvoiceSchema.parse(command);
   const totalAmountCents = input.lines.reduce(
@@ -450,8 +452,7 @@ export async function issueInvoice(
     lines: input.lines,
   });
 
-  return db.transaction(async (tx) => {
-    await lockCommand(tx, input.organizationId, input.idempotencyKey);
+  await lockCommand(tx, input.organizationId, input.idempotencyKey);
     const priorEvent = await findOutboxEvent(tx, {
       organizationId: input.organizationId,
       eventName: "invoice.issued",
@@ -484,11 +485,13 @@ export async function issueInvoice(
       allowedRoles: financialRoles,
     });
 
-    const collectionMode = await getChargeCollectionModeSnapshot({
-      executor: tx,
-      organizationId: input.organizationId,
-      familyId: input.familyId,
-    });
+    const collectionMode =
+      options.collectionMode ??
+      (await getChargeCollectionModeSnapshot({
+        executor: tx,
+        organizationId: input.organizationId,
+        familyId: input.familyId,
+      }));
 
     const now = new Date();
     const [invoice] = await tx
@@ -607,8 +610,13 @@ export async function issueInvoice(
         currency: invoice.currency,
       },
     });
-    return invoice;
-  });
+  return invoice;
+}
+
+export async function issueInvoice(
+  command: IssueInvoiceCommand
+): Promise<Invoice> {
+  return db.transaction((tx) => issueInvoiceInTransaction(tx, command));
 }
 
 /** Records money already received outside the processor; it never initiates a charge. */

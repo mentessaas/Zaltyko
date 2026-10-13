@@ -17,13 +17,31 @@ export type OperationalErrorCode =
   | "CHARGE_ALREADY_SETTLED"
   | "REFUND_EXCEEDS_ALLOCATION"
   | "UNVERIFIED_PROVIDER_EVENT"
-  | "FEATURE_NOT_AVAILABLE";
+  | "FEATURE_NOT_AVAILABLE"
+  | "PRICE_PLAN_NOT_AVAILABLE"
+  | "PRICE_ASSIGNMENT_EXISTS"
+  | "PRICE_ASSIGNMENT_DATE_CONFLICT"
+  | "FAMILY_MEMBERSHIP_DATE_CONFLICT"
+  | "FAMILY_PAYER_INVALID"
+  | "FAMILY_PAYER_DATE_CONFLICT"
+  | "QUOTE_STALE"
+  | "INVOICE_VOIDED"
+  | "PERIOD_ALREADY_INVOICED"
+  | "ENROLLMENT_ALREADY_BILLED"
+  | "MONTHLY_INVOICE_BLOCKED"
+  | "FAMILY_PAYER_REQUIRED"
+  | "PRICE_ASSIGNMENT_REQUIRED"
+  | "PRICE_ASSIGNMENT_AMBIGUOUS"
+  | "PRICE_ASSIGNMENT_PERIOD_INCOMPLETE"
+  | "PRICE_PLAN_ZERO_AMOUNT"
+  | "CURRENCY_MISMATCH";
 
 export class OperationalError extends Error {
   constructor(
     public readonly code: OperationalErrorCode,
     message: string,
-    public readonly status: number
+    public readonly status: number,
+    public readonly details?: Record<string, unknown>
   ) {
     super(message);
     this.name = "OperationalError";

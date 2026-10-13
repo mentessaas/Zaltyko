@@ -31,6 +31,7 @@ const bodySchema = z
     athleteId: z.string().uuid(),
     classTemplateId: z.string().uuid(),
     startsOn: z.string().date(),
+    pricePlanId: z.string().uuid().nullable().optional(),
   })
   .strict();
 
@@ -142,7 +143,7 @@ export async function POST(request: Request) {
       status: "pending",
       source: "owner",
       sourceEntityId: null,
-      pricePlanId: null,
+      pricePlanId: parsedBody.data.pricePlanId ?? null,
       idempotencyKey: idempotencyKey.data,
       actor: { userId: user.id, memberId: scope.member.id },
     });
@@ -151,6 +152,7 @@ export async function POST(request: Request) {
         id: enrollment.id,
         status: enrollment.status,
         startsOn: enrollment.startsOn,
+        pricePlanId: enrollment.pricePlanId,
         version: enrollment.version,
       })
     );
