@@ -69,6 +69,7 @@
     "test:zaltyko-growth-services:local": "bash scripts/run-zaltyko-growth-services-local.sh",
     "test:zaltyko-ledger-foundation:local": "bash scripts/run-zaltyko-ledger-foundation-local.sh",
     "test:zaltyko-ledger-services:local": "bash scripts/run-zaltyko-ledger-services-local.sh",
+    "test:zaltyko-family-collection:local": "bash scripts/run-zaltyko-billing-settings-local.sh",
     "test:zaltyko-metrics-foundation:local": "bash scripts/run-zaltyko-metrics-foundation-local.sh",
     "test:zaltyko-metrics-engine:local": "bash scripts/run-zaltyko-metrics-engine-local.sh",
     "test:zaltyko-health-score-foundation:local": "bash scripts/run-zaltyko-health-score-foundation-local.sh",

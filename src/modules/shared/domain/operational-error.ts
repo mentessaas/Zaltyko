@@ -14,7 +14,8 @@ export type OperationalErrorCode =
   | "INSUFFICIENT_UNALLOCATED_PAYMENT"
   | "CHARGE_ALREADY_SETTLED"
   | "REFUND_EXCEEDS_ALLOCATION"
-  | "UNVERIFIED_PROVIDER_EVENT";
+  | "UNVERIFIED_PROVIDER_EVENT"
+  | "FEATURE_NOT_AVAILABLE";
 
 export class OperationalError extends Error {
   constructor(
