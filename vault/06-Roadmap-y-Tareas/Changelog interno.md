@@ -9,6 +9,14 @@ source:
 
 ## 2026-10-14 — Mensualidades publicadas y siguiente bloque paralelo
 
+Integrado `e85a93df`: CSP loopback y rate limiter sliding-window exclusivos
+del runner E2E local; vetados en Vercel. 37 pruebas focales PASS, sin demostrar
+todavía el recorrido completo. Cerrada asignación de admin en POST público de
+perfil: allowlist de roles self-service antes de consultar DB, 12 regresiones
+PASS; no se alteran permisos de perfiles existentes. Typecheck PASS y ESLint
+sin errores (cinco advertencias existentes). No equivale a auditoría completa
+de autoridad ni a autorización de despliegue.
+
 El resumen rechaza también strings vacíos/espacios, booleanos y notación
 exponencial como valores de agregado: no los convierte a cero/uno ni a cifras
 plausibles. 18 pruebas servicio + conexión server-page PASS; comprobación
