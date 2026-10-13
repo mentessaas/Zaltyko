@@ -93,6 +93,7 @@ export default async function OwnerMonthlyInvoicesPage({
     <OwnerMonthlyInvoicesManager
       organizationId={scope.organization.id}
       organizationName={scope.organization.name}
+      defaultCurrency={scope.organization.defaultCurrency}
       locations={scope.locations}
       initialLocationId={selectedLocationId}
       initialServicePeriod={

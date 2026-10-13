@@ -50,12 +50,14 @@ function isServicePeriod(value: string): boolean {
 export function OwnerMonthlyInvoicesManager({
   organizationId,
   organizationName,
+  defaultCurrency,
   locations,
   initialLocationId,
   initialServicePeriod,
 }: {
   organizationId: string;
   organizationName: string;
+  defaultCurrency: string;
   locations: Array<{ id: string; name: string }>;
   initialLocationId: string;
   initialServicePeriod: string;
@@ -387,6 +389,7 @@ export function OwnerMonthlyInvoicesManager({
           action={resolutionAction}
           organizationId={organizationId}
           locationId={locationId}
+          defaultCurrency={defaultCurrency}
           servicePeriodStart={
             options?.servicePeriodStart ?? `${servicePeriod}-01`
           }
