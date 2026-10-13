@@ -15,6 +15,14 @@ import type {
   StatusFilter,
 } from "./owner-enrollment-types";
 
+type PricePlanOption = {
+  id: string;
+  name: string;
+  amountCents: number;
+  currency: string;
+  cadence: string;
+};
+
 function responseData<T>(payload: unknown): T | null {
   if (payload && typeof payload === "object" && "data" in payload) {
     return (payload as { data: T }).data;
@@ -72,6 +80,10 @@ export function OwnerEnrollmentsManager({
   const [startsOn, setStartsOn] = useState(
     bundle.localTodayByLocation[createLocationId] ?? ""
   );
+  const [pricePlans, setPricePlans] = useState<PricePlanOption[]>([]);
+  const [pricePlansLoading, setPricePlansLoading] = useState(false);
+  const [pricePlansError, setPricePlansError] = useState("");
+  const [pricePlanId, setPricePlanId] = useState("");
   const [busyId, setBusyId] = useState("");
   const [busyCreate, setBusyCreate] = useState(false);
   const [confirmingCancelId, setConfirmingCancelId] = useState("");
@@ -80,7 +92,7 @@ export function OwnerEnrollmentsManager({
   const [notice, setNotice] = useState("");
   const retryCreate = useRef<{
     key: string;
-    body: Record<string, string>;
+    body: Record<string, string | null>;
   } | null>(null);
   const retryTransitions = useRef(new Map<string, string>());
   const organizationId = bundle.organization.id;
@@ -97,6 +109,48 @@ export function OwnerEnrollmentsManager({
         ? "Participante"
         : "Gimnasta o participante";
   const createToday = bundle.localTodayByLocation[createLocationId] ?? "";
+
+  useEffect(() => {
+    if (previewMode || !createOpen || !createLocationId) return;
+    const controller = new AbortController();
+    const params = new URLSearchParams({
+      organizationId,
+      locationId: createLocationId,
+    });
+    void (async () => {
+      setPricePlansLoading(true);
+      setPricePlansError("");
+      try {
+        const response = await fetch(
+          `/api/v1/owner/price-plans/options?${params.toString()}`,
+          { cache: "no-store", signal: controller.signal }
+        );
+        const payload = await response.json().catch(() => null);
+        const data = responseData<{ items: PricePlanOption[] }>(payload);
+        if (!response.ok || !data || !Array.isArray(data.items)) {
+          throw new Error(responseError(payload));
+        }
+        setPricePlans(data.items);
+        setPricePlanId((current) =>
+          data.items.some((plan) => plan.id === current)
+            ? current
+            : (data.items[0]?.id ?? "")
+        );
+      } catch (cause) {
+        if (!controller.signal.aborted) {
+          setPricePlans([]);
+          setPricePlansError(
+            cause instanceof Error
+              ? cause.message
+              : "No se pudieron cargar las tarifas mensuales."
+          );
+        }
+      } finally {
+        if (!controller.signal.aborted) setPricePlansLoading(false);
+      }
+    })();
+    return () => controller.abort();
+  }, [createLocationId, createOpen, organizationId, previewMode]);
 
   useEffect(() => {
     if (
@@ -173,6 +227,7 @@ export function OwnerEnrollmentsManager({
     setCandidateError("");
     setCandidateNotice("");
     setStartsOn(bundle.localTodayByLocation[nextLocationId] ?? "");
+    setPricePlanId("");
   }
 
   function changeCandidateQuery(value: string) {
@@ -223,6 +278,7 @@ export function OwnerEnrollmentsManager({
       athleteId: selectedCandidate.id,
       classTemplateId,
       startsOn,
+      pricePlanId: pricePlanId || null,
     };
     const retry = retryCreate.current;
     const key =
@@ -252,6 +308,7 @@ export function OwnerEnrollmentsManager({
       setCandidateQuery("");
       setCandidates([]);
       setClassTemplateId("");
+      setPricePlanId("");
       setNotice(
         "Inscripción pendiente registrada. No se ha generado ningún cobro."
       );
@@ -408,6 +465,10 @@ export function OwnerEnrollmentsManager({
             candidateError={candidateError}
             candidateNotice={candidateNotice}
             startsOn={startsOn}
+            pricePlans={pricePlans}
+            pricePlansLoading={pricePlansLoading}
+            pricePlansError={pricePlansError}
+            pricePlanId={pricePlanId}
             createToday={createToday}
             busyCreate={busyCreate}
             previewMode={previewMode}
@@ -423,6 +484,7 @@ export function OwnerEnrollmentsManager({
               setCandidateQuery("");
             }}
             onStartsOnChange={setStartsOn}
+            onPricePlanChange={setPricePlanId}
             onSubmit={createEnrollment}
           />
         )}
@@ -452,7 +514,11 @@ export function OwnerEnrollmentsManager({
         >
           {[
             { label: "Activas", total: activeTotal, tone: "text-emerald-800" },
-            { label: "Pendientes", total: pendingTotal, tone: "text-amber-900" },
+            {
+              label: "Pendientes",
+              total: pendingTotal,
+              tone: "text-amber-900",
+            },
             { label: "En pausa", total: pausedTotal, tone: "text-orange-900" },
           ].map((item) => (
             <div
