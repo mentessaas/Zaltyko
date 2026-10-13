@@ -125,6 +125,8 @@ async function loginThroughUi(
   const pageErrors: string[] = [];
   const failedRequests: string[] = [];
   const routePaths: string[] = [];
+  const navigationRequests: string[] = [];
+  const submitEvents: boolean[] = [];
   page.on("pageerror", (error) => pageErrors.push(error.name));
   page.on("framenavigated", (frame) => {
     if (frame !== page.mainFrame()) return;
@@ -142,6 +144,18 @@ async function loginThroughUi(
       failedRequests.push("unparseable request URL");
     }
   });
+  page.on("request", (request) => {
+    if (!request.isNavigationRequest()) return;
+    try {
+      const url = new URL(request.url());
+      navigationRequests.push(`${request.method()} ${url.pathname}`);
+    } catch {
+      navigationRequests.push("unparseable navigation URL");
+    }
+  });
+  await page.exposeFunction("__recordE2ESubmit", (prevented: boolean) => {
+    submitEvents.push(prevented);
+  });
   await page.goto("/auth/login?next=%2Fowner%2Fsetup", {
     waitUntil: "domcontentloaded",
   });
@@ -149,11 +163,40 @@ async function loginThroughUi(
     "aria-busy",
     "false"
   );
+  await page.waitForFunction(
+    () => "serviceWorker" in navigator && Boolean(navigator.serviceWorker.controller),
+    undefined,
+    { timeout: 30_000 }
+  );
+  const firstNavigationType = await page.evaluate(
+    () => performance.getEntriesByType("navigation")[0]?.type
+  );
+  expect(firstNavigationType).toBe("navigate");
   await page.getByLabel("Correo electrónico").fill(userEmail);
   await page.getByLabel("Contraseña").fill(userPassword);
-  await expect(
-    page.getByRole("button", { name: "Iniciar sesión" })
-  ).toBeEnabled();
+  const emailInput = page.getByLabel("Correo electrónico");
+  const passwordInput = page.getByLabel("Contraseña");
+  await expect(emailInput).toHaveValue(userEmail);
+  await expect(passwordInput).toHaveValue(userPassword);
+  const formIsValid = await page.locator("form").evaluate((form) =>
+    (form as HTMLFormElement).checkValidity()
+  );
+  expect(formIsValid).toBe(true);
+  const loginButton = page.getByRole("button", { name: "Iniciar sesión" });
+  await expect(loginButton).toBeEnabled();
+  await page.locator("form").evaluate((form) => {
+    form.addEventListener(
+      "submit",
+      (event) => {
+        window.setTimeout(() => {
+          void (window as typeof window & {
+            __recordE2ESubmit: (prevented: boolean) => Promise<void>;
+          }).__recordE2ESubmit(event.defaultPrevented);
+        }, 0);
+      },
+      { once: true }
+    );
+  });
   const authResponsePromise = page
     .waitForResponse(
       (response) =>
@@ -162,7 +205,7 @@ async function loginThroughUi(
       { timeout: 10_000 }
     )
     .catch(() => null);
-  await page.getByRole("button", { name: "Iniciar sesión" }).click();
+  await loginButton.click();
   const authResponse = await authResponsePromise;
   if (!authResponse) {
     const alert = page.getByRole("alert");
@@ -178,7 +221,9 @@ async function loginThroughUi(
       `Local login did not call Supabase Auth: ${detail || "empty alert"}; ` +
         `input lengths=${emailLength}/${passwordLength}; ` +
         `page errors=${pageErrors.join(",") || "none"}; ` +
-        `failed requests=${failedRequests.join(",") || "none"}`
+        `failed requests=${failedRequests.join(",") || "none"}; ` +
+        `submit prevented=${submitEvents.join(",") || "not observed"}; ` +
+        `navigation requests=${navigationRequests.join(",") || "none"}`
     );
   }
   if (!authResponse.ok()) {
