@@ -96,8 +96,9 @@ test.describe("Greenfield Owner workspace", () => {
       await expect(navigation.getByRole("link", { name: label })).toBeVisible();
     }
 
-    const more = navigation.getByText("Más");
+    const more = navigation.getByRole("button", { name: "Más" });
     await more.focus();
+    await expect(more).toBeFocused();
     await page.keyboard.press("Enter");
     for (const label of ["Insights", "Capacidad", "Cobros"]) {
       await expect(navigation.getByRole("link", { name: label })).toBeVisible();
