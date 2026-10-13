@@ -219,33 +219,8 @@ export function LoginForm({
         return;
       }
 
-      const response = await fetch("/api/onboarding/profile", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ role: "owner" }),
-      });
-      if (!response.ok) {
-        setProfileRecoveryError(
-          response.status === 401
-            ? "Tu sesión ha caducado. Inicia sesión de nuevo para continuar."
-            : "No se pudo completar la recuperación del perfil. Inténtalo de nuevo."
-        );
-        if (response.status === 401) setProfileRecoveryReady(false);
-        return;
-      }
-
-      const result: unknown = await response.json();
-      const role =
-        result && typeof result === "object" && "data" in result
-          ? (result.data as { role?: unknown } | null)?.role
-          : undefined;
-      if (role !== "owner") {
-        setProfileRecoveryError(
-          "El perfil existente no es de dirección. Contacta con soporte para continuar."
-        );
-        return;
-      }
-
+      // profile_setup is only a recovery prompt. The authenticated user must
+      // explicitly continue; the canonical bootstrap resolves Owner membership.
       router.replace("/owner/setup");
       router.refresh();
     } catch {
@@ -368,7 +343,7 @@ export function LoginForm({
         description="Accede para gestionar atletas, clases, pagos y comunicación desde tu academia."
         footer={
           profileSetupRetry ? (
-            "Tu cuenta ya está creada. Inicia sesión para recuperar el perfil; no necesitas registrarte otra vez."
+            "Tu cuenta ya está creada. Confirma tu sesión y continúa la configuración; no necesitas registrarte otra vez."
           ) : (
             <>
               ¿Aún no tienes cuenta?{" "}
@@ -395,11 +370,11 @@ export function LoginForm({
             aria-labelledby="profile-recovery-title"
           >
             <h2 id="profile-recovery-title" className="text-lg font-semibold">
-              Termina de configurar tu perfil
+              Termina de configurar tu academia
             </h2>
             <p className="text-sm text-muted-foreground">
-              Tu cuenta ya está creada. Confirma que quieres continuar como
-              dirección y recuperar el acceso a la configuración de tu academia.
+              Tu cuenta ya está creada. Confirma que quieres continuar con la
+              configuración de tu academia. No necesitas registrarte otra vez.
             </p>
             {profileRecoveryError && (
               <p role="alert" className="text-sm text-red-700">
@@ -414,8 +389,8 @@ export function LoginForm({
               aria-busy={profileRecoveryLoading}
             >
               {profileRecoveryLoading
-                ? "Recuperando perfil..."
-                : "Continuar como dirección"}
+                ? "Comprobando sesión..."
+                : "Continuar con la configuración"}
             </Button>
           </section>
         ) : (

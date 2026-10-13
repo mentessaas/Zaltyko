@@ -272,7 +272,32 @@ export function RegisterForm({
         // esté listo. Sin label, gtag ignora el evento silenciosamente.
         if (!directoryRegistration) trackGoogleAdsConversion("signup_completed");
 
-        if(directoryRegistration){router.push(directoryNext!);return;}
+        if (directoryRegistration) {
+          router.push(directoryNext!);
+          return;
+        }
+
+        if (role === "owner") {
+          const {
+            data: { user },
+            error: verificationError,
+          } = await supabase.auth.getUser();
+          if (verificationError || !user) {
+            toast.pushToast({
+              title: "Cuenta creada; configuración pendiente",
+              description:
+                "No pudimos confirmar tu sesión. Inicia sesión para continuar con la configuración.",
+              variant: "warning",
+              persistent: true,
+            });
+            router.push("/auth/login?profile_setup=retry");
+            return;
+          }
+
+          router.push("/owner/setup");
+          return;
+        }
+
         const profileResponse = await fetch("/api/onboarding/profile", {
           method: "POST",
           headers: { "Content-Type": "application/json" },
