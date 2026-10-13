@@ -25,6 +25,10 @@ Actualización verificada posterior, SHA publicado `aa23222d`:
 - CI `38481155607`, SHA `5708d130`: setup local falla en tres navegadores,
   ahora con campos conservados y una sola navegación. No llega solicitud Auth;
   QA investiga el segundo fallo capturando los avisos al aparecer.
+- Resultado final de ese CI: global SUCCESS porque el setup experimental
+  permite fallo (`continue-on-error: true`). Job autenticado PASS: Owner
+  dashboard 33/33, incluidos breakpoints en Chromium/Firefox/WebKit; otras
+  suites 6, 78 (2 skipped), 1 y 1 PASS. Setup vacío 3 FAIL conserva NO-DEMO-READY.
 - Preview `aa23222d` en cola: `zaltyko-4did8oxw8-mentessaas-projects.vercel.app`.
   Preview anterior `5708d130` READY; ninguno constituye release productivo.
 - Confirmada periodicidad mensual por gimnasta y tarifa. Sigue sin decidirse
