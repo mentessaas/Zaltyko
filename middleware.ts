@@ -5,6 +5,7 @@ import { isDevFeaturesEnabled } from "@/lib/dev";
 import { DEV_SESSION_COOKIE, parseDevSessionCookie } from "@/lib/dev-session";
 import { locales, defaultLocale, type Locale } from "@/i18n";
 import { getAcademyRobotsHeader } from "@/lib/seo/academy-robots-directives";
+import { getLocalSupabaseCspConnectSources } from "@/lib/security/local-supabase-csp";
 import { extractAcademySlugFromHost } from "@/lib/subdomains/rewrite";
 import { getExperimentalReleaseFlags, isExperimentalRouteDisabled } from "@/lib/release/experimental-routes";
 
@@ -94,14 +95,15 @@ function buildCsp(nonce: string) {
     ...CSP_CONNECT_SOURCES,
     "https://*.sentry-cdn.com",
   ];
-  if (process.env.NODE_ENV === "development" && process.env.NEXT_PUBLIC_SUPABASE_URL) {
-    try {
-      const local = new URL(process.env.NEXT_PUBLIC_SUPABASE_URL);
-      if (["127.0.0.1", "localhost"].includes(local.hostname) && ["http:", "https:"].includes(local.protocol)) {
-        connectSources.push(local.origin, local.origin.replace(/^http/, "ws"));
-      }
-    } catch { /* Invalid configuration cannot widen the policy. */ }
-  }
+  connectSources.push(
+    ...getLocalSupabaseCspConnectSources({
+      nodeEnv: process.env.NODE_ENV,
+      isolatedE2e: process.env.E2E_LOCAL_SUPABASE,
+      vercel: process.env.VERCEL,
+      vercelEnv: process.env.VERCEL_ENV,
+      supabaseUrl: process.env.NEXT_PUBLIC_SUPABASE_URL,
+    })
+  );
   return [
     "default-src 'self'",
     `script-src ${scriptSources.join(" ")}`,
