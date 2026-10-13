@@ -4,6 +4,36 @@ Fecha de corte: 14 de octubre de 2026
 Especificación principal: PRD Owner Dashboard y Academy Health Score del 6 de octubre de 2026, más las decisiones explícitas del propietario registradas aquí.
 Estado: plan ejecutable por fases; no equivale a preparación de lanzamiento.
 
+## Corte de integración más reciente — 14-10-2026
+
+Este corte prevalece sobre los estados históricos fechados que aparecen abajo.
+El alcance completo del SaaS se mantiene; issue #227 define la primera entrega
+demostrable, no la finalización del producto.
+
+- Base publicada `31a0dd02`: operaciones Owner, asistencia, emisión mensual y
+  pagos manuales; Preview Vercel READY. No equivale a producción ni conexión
+  greenfield verificada en ese Preview.
+- Backend integrado localmente en `e465abc9`: crear primera tarifa mensual,
+  opciones financieras aisladas por sede y replay tras pago con estados reales.
+  Diez tests focales y TypeScript pasan en la integración.
+- Interfaz de creación de tarifa y revisión responsive en entrega Frontend;
+  QA diagnostica el login local real, sin omitirlo ni usar sesión ficticia.
+- CI `38477410346` terminó failure: login efímero falla en tres navegadores;
+  Owner dashboard pasa 32 tests y falla uno de navegación WebKit al cambiar
+  tamaños. «Más» móvil ya pasa en los tres. Build/unitarios/tipos/lint,
+  dependencias, cobertura RLS e integridad de migraciones pasan.
+- Regla pendiente: cuota por gimnasta frente a cuota por cada inscripción a
+  clase. La implementación actual suma por inscripción; confirmar el caso de
+  una atleta con varias clases antes de emitir cuotas reales.
+- El propietario autorizó avances progresivos en producción y trabajo remoto.
+  Esta autorización no sustituye revisión independiente efectiva, backup y
+  rollback de datos, aislamiento ni verificación del SHA/destino. #225 sigue
+  requiriendo aprobación independiente. No se ha eludido ningún gate.
+
+Siguiente secuencia: integrar Frontend → resolver login y navegación → probar
+los seis pasos reales sintéticos → fijar regla multiclase → validar destino y
+release del bloque → continuar las fases completas del plan.
+
 ## Resultado que se construirá
 
 Un SaaS sencillo de aprender para academias de gimnasia artística y rítmica,
