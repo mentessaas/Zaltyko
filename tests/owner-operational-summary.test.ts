@@ -6,12 +6,8 @@ const mocks = vi.hoisted(() => ({
   resolveOwnerScope: vi.fn(),
 }));
 
-vi.mock("drizzle-orm", async (importOriginal) => ({
-  ...(await importOriginal<typeof import("drizzle-orm")>()),
-}));
-vi.mock("drizzle-orm/pg-core", async (importOriginal) => ({
-  ...(await importOriginal<typeof import("drizzle-orm/pg-core")>()),
-}));
+vi.unmock("drizzle-orm");
+vi.unmock("drizzle-orm/pg-core");
 
 vi.mock("@/db", () => ({
   db: { execute: mocks.execute },
@@ -190,6 +186,93 @@ describe("owner operational summary", () => {
       })
     ).rejects.toMatchObject({ name: "ZodError" });
     expect(mocks.execute).not.toHaveBeenCalled();
+  });
+
+  it.each([
+    ["missing count row", { rows: [] }],
+    [
+      "malformed count values",
+      { rows: [{ active_athletes: null, active_groups: 0 }] },
+    ],
+  ])("does not turn %s into zero", async (_label, countResult) => {
+    mocks.resolveOwnerScope.mockResolvedValue(ownerScope("manager"));
+    mocks.execute.mockReset();
+    mocks.execute
+      .mockResolvedValueOnce({ rows: [{ default_timezone: "Europe/Madrid" }] })
+      .mockResolvedValueOnce({
+        rows: [
+          {
+            id: allowedLocation,
+            name: "Sede Centro",
+            timezone: "Europe/Madrid",
+          },
+        ],
+      })
+      .mockResolvedValueOnce(countResult);
+
+    await expect(
+      getOwnerOperationalSummary({ userId: "user-1", organizationId })
+    ).rejects.toMatchObject({ code: "INVALID_RELATION" });
+    expect(mocks.execute).toHaveBeenCalledTimes(3);
+  });
+
+  it("rejects an unexpectedly missing attendance aggregate row", async () => {
+    mocks.resolveOwnerScope.mockResolvedValue(ownerScope("manager"));
+    mocks.execute.mockReset();
+    mocks.execute
+      .mockResolvedValueOnce({ rows: [{ default_timezone: "Europe/Madrid" }] })
+      .mockResolvedValueOnce({
+        rows: [
+          {
+            id: allowedLocation,
+            name: "Sede Centro",
+            timezone: "Europe/Madrid",
+          },
+        ],
+      })
+      .mockResolvedValueOnce({
+        rows: [{ active_athletes: 0, active_groups: 0 }],
+      })
+      .mockResolvedValueOnce({ rows: [] });
+
+    await expect(
+      getOwnerOperationalSummary({ userId: "user-1", organizationId })
+    ).rejects.toMatchObject({ code: "INVALID_RELATION" });
+    expect(mocks.execute).toHaveBeenCalledTimes(4);
+  });
+
+  it("rejects a currency-count sum that exceeds the safe integer range", async () => {
+    mocks.resolveOwnerScope.mockResolvedValue(ownerScope("owner"));
+    mocks.execute.mockReset();
+    mocks.execute
+      .mockResolvedValueOnce({ rows: [{ default_timezone: "Europe/Madrid" }] })
+      .mockResolvedValueOnce({
+        rows: [
+          {
+            id: allowedLocation,
+            name: "Sede Centro",
+            timezone: "Europe/Madrid",
+          },
+        ],
+      })
+      .mockResolvedValueOnce({
+        rows: [{ active_athletes: 0, active_groups: 0 }],
+      })
+      .mockResolvedValueOnce({ rows: [{ attendance_records: 0 }] })
+      .mockResolvedValueOnce({
+        rows: [
+          {
+            currency: "EUR",
+            payment_count: Number.MAX_SAFE_INTEGER,
+            gross_amount_cents: 1,
+          },
+          { currency: "USD", payment_count: 1, gross_amount_cents: 1 },
+        ],
+      });
+
+    await expect(
+      getOwnerOperationalSummary({ userId: "user-1", organizationId })
+    ).rejects.toMatchObject({ code: "INVALID_RELATION" });
   });
 
   it.each(["FORBIDDEN", "LOCATION_SCOPE_DENIED"] as const)(

@@ -96,7 +96,14 @@ function dateAtMonthStart(value: string): string {
 }
 
 function number(value: unknown): number {
-  const parsed = Number(value ?? 0);
+  if (value === null || value === undefined) {
+    throw new OperationalError(
+      "INVALID_RELATION",
+      "El agregado operativo no devolvió un valor",
+      500
+    );
+  }
+  const parsed = Number(value);
   if (!Number.isSafeInteger(parsed) || parsed < 0) {
     throw new OperationalError(
       "INVALID_RELATION",
@@ -105,6 +112,25 @@ function number(value: unknown): number {
     );
   }
   return parsed;
+}
+
+function requireAggregateRow<T>(rows: T[], label: string): T {
+  if (rows.length !== 1) {
+    throw new OperationalError(
+      "INVALID_RELATION",
+      `El agregado operativo de ${label} no devolvió exactamente una fila`,
+      500
+    );
+  }
+  return rows[0];
+}
+
+function uuidArray(ids: string[]) {
+  if (ids.length === 0) return sql`array[]::uuid[]`;
+  return sql`array[${sql.join(
+    ids.map((id) => sql`${id}::uuid`),
+    sql`, `
+  )}]`;
 }
 
 export async function getOwnerOperationalSummary(
@@ -143,7 +169,7 @@ export async function getOwnerOperationalSummary(
   const locationResult = await db.execute(sql`
     select id, name, timezone from zaltyko.locations
     where organization_id = ${organizationId}::uuid
-      and id = any(${locationFilterIds}::uuid[])
+      and id = any(${uuidArray(locationFilterIds)})
   `);
   const locationRows = locationResult.rows as Array<{
     id: string;
@@ -184,7 +210,7 @@ export async function getOwnerOperationalSummary(
       select l.id, l.timezone
       from zaltyko.locations l
       where l.organization_id = ${organizationId}::uuid
-        and l.id = any(${locationIds}::uuid[])
+        and l.id = any(${uuidArray(locationIds)})
     )
     select
       count(distinct athlete.id) filter (
@@ -207,6 +233,9 @@ export async function getOwnerOperationalSummary(
      and athlete.id = membership.athlete_id
   `);
   const counts = countsResult.rows as unknown as CountRow[];
+  const countRow = requireAggregateRow(counts, "alumnos y grupos");
+  const activeAthletes = number(countRow.active_athletes);
+  const activeGroups = number(countRow.active_groups);
 
   const attendanceResult = await db.execute(sql`
     select count(*)::int as attendance_records
@@ -219,11 +248,13 @@ export async function getOwnerOperationalSummary(
       on location.organization_id = attendance.organization_id
      and location.id = attendance.location_id
     where attendance.organization_id = ${organizationId}::uuid
-      and attendance.location_id = any(${locationIds}::uuid[])
+      and attendance.location_id = any(${uuidArray(locationIds)})
       and session.starts_at >= (${from}::date::timestamp at time zone location.timezone)
       and session.starts_at < ((${to}::date + 1)::timestamp at time zone location.timezone)
   `);
   const attendance = attendanceResult.rows as unknown as AttendanceRow[];
+  const attendanceRow = requireAggregateRow(attendance, "asistencia");
+  const attendanceRecords = number(attendanceRow.attendance_records);
 
   const financeAllowed =
     ownerScope.member.role === "owner" || ownerScope.member.role === "admin";
@@ -243,7 +274,7 @@ export async function getOwnerOperationalSummary(
         on location.organization_id = payment.organization_id
        and location.id = payment.location_id
       where payment.organization_id = ${organizationId}::uuid
-        and payment.location_id = any(${locationIds}::uuid[])
+        and payment.location_id = any(${uuidArray(locationIds)})
         and payment.status in ('succeeded', 'partially_refunded', 'refunded')
         and payment.received_at >= (${from}::date::timestamp at time zone location.timezone)
         and payment.received_at < ((${to}::date + 1)::timestamp at time zone location.timezone)
@@ -251,9 +282,8 @@ export async function getOwnerOperationalSummary(
       order by payment.currency
     `);
     const payments = paymentsResult.rows as unknown as PaymentRow[];
-    const paymentCount = payments.reduce(
-      (total, row) => total + number(row.payment_count),
-      0
+    const paymentCount = number(
+      payments.reduce((total, row) => total + number(row.payment_count), 0)
     );
     paymentsReceived = {
       state: "available",
@@ -266,8 +296,6 @@ export async function getOwnerOperationalSummary(
     };
   }
 
-  const countRow = counts[0];
-  const attendanceRow = attendance[0];
   const kind = organizationAggregate ? "organization" : "location";
   const scopeLabel = organizationAggregate
     ? `${ownerScope.organization.name} · todas las sedes autorizadas`
@@ -289,9 +317,9 @@ export async function getOwnerOperationalSummary(
       defaulted: !query.from && !query.to,
     },
     metrics: {
-      activeAthletes: number(countRow?.active_athletes),
-      activeGroups: number(countRow?.active_groups),
-      attendanceRecords: number(attendanceRow?.attendance_records),
+      activeAthletes,
+      activeGroups,
+      attendanceRecords,
       paymentsReceived,
     },
   };

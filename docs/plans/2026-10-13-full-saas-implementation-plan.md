@@ -10,6 +10,33 @@ Este corte prevalece sobre los estados históricos fechados que aparecen abajo.
 El alcance completo del SaaS se mantiene; issue #227 define la primera entrega
 demostrable, no la finalización del producto.
 
+Actualización verificada posterior, SHA publicado `aa23222d`:
+
+- Integradas primera tarifa mensual, UI de cuotas y corrección de primera
+  activación del service worker (ya no recarga ni descarta campos del login).
+- Resumen operativo conectado a `/owner` aun sin snapshots Health Score:
+  gimnastas/grupos actuales, asistencia del período y cobros brutos por moneda.
+  Roles sin permiso financiero no consultan pagos; programa/grupo no filtran
+  este resumen y su cobertura se indica expresamente.
+- Analítica browser default-deny y revocación entre pestañas; sin UI de grant
+  permanece cerrada. Preconnect PostHog retirado; eventos servidor preservados.
+- 35 pruebas focales del corte, tipos y lint PASS. SQL real y walkthrough
+  autenticado del nuevo resumen siguen pendientes; no DEMO/PILOT-READY.
+- CI `38481155607`, SHA `5708d130`: setup local falla en tres navegadores,
+  ahora con campos conservados y una sola navegación. No llega solicitud Auth;
+  QA investiga el segundo fallo capturando los avisos al aparecer.
+- Resultado final de ese CI: global SUCCESS porque el setup experimental
+  permite fallo (`continue-on-error: true`). Job autenticado PASS: Owner
+  dashboard 33/33, incluidos breakpoints en Chromium/Firefox/WebKit; otras
+  suites 6, 78 (2 skipped), 1 y 1 PASS. Setup vacío 3 FAIL conserva NO-DEMO-READY.
+- Preview `aa23222d` en cola: `zaltyko-4did8oxw8-mentessaas-projects.vercel.app`.
+  Preview anterior `5708d130` READY; ninguno constituye release productivo.
+- Confirmada periodicidad mensual por gimnasta y tarifa. Sigue sin decidirse
+  si una tarifa cubre varias clases; no activar cuotas reales con esa ambigüedad.
+
+Los puntos siguientes describen el corte previo, no tareas aún pendientes de
+integración:
+
 - Base publicada `31a0dd02`: operaciones Owner, asistencia, emisión mensual y
   pagos manuales; Preview Vercel READY. No equivale a producción ni conexión
   greenfield verificada en ese Preview.

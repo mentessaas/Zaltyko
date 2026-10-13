@@ -1,5 +1,27 @@
 # Gate PR-09 — GO/NO-GO de prepiloto
 
+## Revalidación vigente — 14 de octubre de 2026
+
+Continúa **NO-GO para datos reales**. El propietario ya autorizó producción,
+Stripe Live y trabajo remoto de forma progresiva; no falta autorización
+general, faltan pruebas y controles específicos. La negativa a crear una rama
+Supabase de pago se mantiene: no provisionar recursos facturables.
+
+| Requisito | Estado y evidencia actual |
+| --- | --- |
+| Navegación Owner autenticada | CI `38481155607`, SHA `5708d130`, 33/33 PASS en tres navegadores, incluidos breakpoints; no demuestra alta desde cero. |
+| Alta cuenta y academia vacía | NO VERIFICADO. El setup local provisiona usuario sintético por API y luego falla login en tres navegadores. Signup UI necesita prueba independiente. |
+| Recorrido completo issue #227 | NO DEMO-READY; no hay walkthrough de seis pasos aprobado. CI global verde tolera el fallo experimental del setup. |
+| Resumen de operaciones | SHA `aa23222d` integrado; 35 focales/tipos/lint PASS. Consultas PostgreSQL reales y runtime autenticado del resumen pendientes. |
+| Analítica browser | Gate default-deny integrado; no UI de grant, no captura por defecto. No sustituye revisión integral RGPD/menores. |
+| Cuota mensual | Mensual por gimnasta y tarifa confirmado; cobertura multiclase sin decidir. No emitir cuotas reales ambiguas. |
+| Release | #225 sin aprobación independiente; #226 draft. Preview no prueba compatibilidad remota ni release productivo. |
+| Backup y restore | Runbook existente; simulacro restaurable/reconciliación no verificados en este corte. |
+
+Los apartados siguientes conservan el informe PR-09 original. Sus afirmaciones
+de aprobación local y de falta de autorización son históricas, no evidencia
+vigente ni autorización para eludir los controles de esta revalidación.
+
 ## Decisión
 
 **NO-GO para datos reales o tráfico de prepiloto.** El núcleo local está

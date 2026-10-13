@@ -9,6 +9,24 @@ source:
 
 ## 2026-10-14 — Mensualidades publicadas y siguiente bloque paralelo
 
+Integradas mejoras Frontend `e25b9f95` (h1 único, Ahora/período/cobros,
+fechas legibles) y Backend `0bdc8ca8`. PostgreSQL real detectó interpolación
+Drizzle `ANY(($2,$3)::uuid[])` inválida: corregida a array SQL tipado. Main
+repitió verificador local aislado PASS: M:N deduplicada, tenant adversario,
+DST Madrid/Pacific, bruto por moneda y manager sin SELECT financiero.
+Harness usa tablas mínimas sintéticas, no prueba migraciones completas/RLS.
+15 tests servicio/panel/jerarquía PASS. Endurecido script para fijar y validar
+las tres URLs DB loopback antes del import, evitando fallback de dotenv remoto.
+Responsive del panel nuevo permanece NO VERIFICADO. QA confirmó CSP como
+segundo bloqueo del login y prepara excepción exclusiva de E2E local sin Vercel.
+
+Revalidado GO/NO-GO: navegación autenticada CI `38481155607` Owner 33/33
+PASS, pero setup academia vacía 3 FAIL tolerados por CI. Usuario provisionado
+por API no demuestra signup UI: requisito explicitado a QA. Permanece
+NO-DEMO/PILOT-READY; autorización general de producción/remoto sí existe,
+no sustituye revisión, restore y datos de menores. Corte actualizado en
+`docs/cutover/prepilot-go-no-go.md`; historial PR-09 se conserva identificado.
+
 Resumen operativo: integrado servicio Backend `f65a53a4` y conectado a
 `/owner`, también sin snapshots del Health Score. Gimnastas DISTINCT con
 membership M:N vigente y grupos activos se cuentan hoy; asistencia y cobros
