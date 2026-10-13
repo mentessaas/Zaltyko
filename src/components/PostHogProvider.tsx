@@ -1,12 +1,11 @@
 "use client";
 
 import { useEffect } from "react";
-import { initAnalytics, trackPageView } from "@/lib/analytics";
+import { initAnalytics, revokeAnalytics, trackPageView } from "@/lib/analytics";
+import { subscribeConsent } from "@/lib/consent/state";
 
 export function PostHogProvider({ children }: { children: React.ReactNode }) {
-  useEffect(() => {
-    initAnalytics();
-  }, []);
+  usePageTracking();
 
   return <>{children}</>;
 }
@@ -14,12 +13,14 @@ export function PostHogProvider({ children }: { children: React.ReactNode }) {
 // Hook to track page views
 export function usePageTracking() {
   useEffect(() => {
-    // Track initial page view
-    trackPageView(window.location.pathname);
+    let consentGranted = false;
+    let lastTrackedPath: string | null = null;
 
-    // Track navigation changes (for SPAs)
     const handleNavigation = () => {
-      trackPageView(window.location.pathname);
+      if (!consentGranted) return;
+      const path = window.location.pathname;
+      lastTrackedPath = path;
+      void trackPageView(path);
     };
 
     // Listen for popstate (back/forward navigation)
@@ -32,9 +33,24 @@ export function usePageTracking() {
       handleNavigation();
     };
 
+    const unsubscribeConsent = subscribeConsent((snapshot) => {
+      consentGranted = snapshot.value === "granted";
+      if (!consentGranted) {
+        revokeAnalytics();
+        return;
+      }
+
+      void initAnalytics();
+      const path = window.location.pathname;
+      if (lastTrackedPath === path) return;
+      lastTrackedPath = path;
+      void trackPageView(path);
+    });
+
     return () => {
       window.removeEventListener("popstate", handleNavigation);
       window.history.pushState = originalPushState;
+      unsubscribeConsent();
     };
   }, []);
 }

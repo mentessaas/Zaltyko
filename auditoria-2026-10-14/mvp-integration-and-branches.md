@@ -102,6 +102,14 @@ QA prepara corrección y regresión; el PASS final debe mantener SW permitido.
 Este diagnóstico explica el login observado, pero no acredita aún el recorrido
 MVP completo ni demuestra por sí solo la causa del caso WebKit.
 
+Corrección integrada localmente en `09af81eb` desde entrega QA `6cd8fc4`:
+primera adquisición sin reload, actualizaciones sin `skipWaiting` incondicional,
+recarga única al aceptar, listeners retirados en cleanup. El test responsive
+carga una vez y cambia viewport; el spec de login comprueba controller activo
+y navegación inicial sin reload. Veinte tests de helper/acceso pasan en la
+integración. La ejecución E2E con SW permitido aún debe acreditar el arreglo
+real y el recorrido completo; no extrapolar el PASS de helper a navegador.
+
 - [PR #226](https://github.com/mentessaas/Zaltyko/pull/226).
 - [MVP #227](https://github.com/mentessaas/Zaltyko/issues/227).
 - [Hotfix #225](https://github.com/mentessaas/Zaltyko/pull/225).

@@ -9,6 +9,39 @@ source:
 
 ## 2026-10-14 — Mensualidades publicadas y siguiente bloque paralelo
 
+Resumen operativo: integrado servicio Backend `f65a53a4` y conectado a
+`/owner`, también sin snapshots del Health Score. Gimnastas DISTINCT con
+membership M:N vigente y grupos activos se cuentan hoy; asistencia y cobros
+usan período local por sede. Importes brutos separados por moneda y solo
+owner/admin; manager no consulta pagos. Fallos visibles, no falsos ceros.
+Programa/grupo no filtran este resumen y se indica expresamente. 18 pruebas
+servicio/panel/consentimiento PASS; validación SQL real y E2E pendientes.
+Integrado follow-up privacidad `dbc1c92d`: clear de storage entre pestañas
+revoca, binding removible en pruebas, storage bloqueado default-deny.
+
+Privacidad: retirado el preconnect incondicional a PostHog del layout raíz.
+Una prueba impide reintroducir ese contacto previo al consentimiento. Este
+cambio complementa el gate browser en preparación; no activa analítica ni
+modifica eventos operativos de servidor.
+
+Gate integrado de Frontend (`8da6710c`, integración `b9fa1a24`): carga y
+captura browser solo con consentimiento vigente, revocación y comprobación
+tras import asíncrono; autocapture/replay desactivados. 19 pruebas conjuntas
+consentimiento/PWA/controller y lint focal PASS. No hay UI que conceda
+consentimiento, por lo que analítica permanece cerrada. Follow-up abierto:
+revocar ante localStorage.clear entre pestañas y limpiar binding de pruebas.
+
+Actualización posterior: Backend+Frontend publicados en `78d7f14f`; corrección
+de recarga inicial SW publicada en `5708d130`. Diagnóstico A/B de QA demostró
+reload en primera adquisición del controller, no envío de formulario. En
+integración pasan 20 tests helper/acceso, tipos y lint. Se añadieron pruebas de
+comportamiento del worker: API/HTML privado sin cache, POST financiero sin
+intercepción, activación de actualización explícita; 11 tests PWA/controller,
+TypeScript y ESLint PASS. No prueba el E2E completo ni producción.
+QA prepara el recorrido sintético con SW permitido. Frontend cierra analítica
+browser default-deny detectada al revisar #66; eventos operativos de servidor
+se conservan. Regla financiera multiclase consultada, aún sin decisión.
+
 - Integradas entregas Backend/Frontend/QA y publicadas en #226, SHA 31a0dd02.
 - Contrato mensual documentado en ADR-0026 y billing; 23 focales y 12 auth PASS,
   tipos/lint/formato PASS. Chromium local falló en login; causa sin verificar.
