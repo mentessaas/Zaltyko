@@ -15,6 +15,7 @@ import type { SystemActor } from "@/modules/shared/application/actor";
 import { calculateAcademyHealthScore } from "@/modules/health-score/application/health-score-service";
 import { evaluateP0Insights } from "@/modules/insights/application/evaluate-p0-rules";
 import { recomputeMetrics } from "@/modules/analytics/application/metric-engine";
+import { buildRetentionCohortProjections } from "@/modules/analytics/application/build-retention-cohort-projections";
 
 export interface MetricInvalidationPipelineResult {
   invalidationId: string;
@@ -28,6 +29,8 @@ export interface MetricInvalidationPipelineResult {
     | "score_version_missing"
     | null;
   insightsEvaluated: number;
+  retentionProjectionRuns: number;
+  retentionProjectionRows: number;
 }
 
 /**
@@ -132,6 +135,12 @@ export async function processMetricInvalidation(input: {
     );
   }
 
+  const retentionProjection = await buildRetentionCohortProjections({
+    organizationId: input.organizationId,
+    metricRunId: metricRun.id,
+    actor,
+  });
+
   const profiles = await db
     .select({ id: benchmarkProfiles.id, currency: benchmarkProfiles.currency })
     .from(benchmarkProfiles)
@@ -222,5 +231,7 @@ export async function processMetricInvalidation(input: {
     scoreSnapshotId,
     scoreSkippedReason,
     insightsEvaluated: scopedLocationIds.length,
+    retentionProjectionRuns: retentionProjection.projectionRuns,
+    retentionProjectionRows: retentionProjection.projectionRows,
   };
 }

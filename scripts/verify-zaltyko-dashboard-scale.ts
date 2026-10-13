@@ -3,6 +3,9 @@ import { performance } from "node:perf_hooks";
 
 import { Pool } from "pg";
 
+import { withCronSystemActor } from "@/lib/cron-system-actor";
+import { buildRetentionCohortProjections } from "@/modules/analytics/application/build-retention-cohort-projections";
+import type { SystemActor } from "@/modules/shared/application/actor";
 import { getOwnerDashboard } from "@/modules/owner-dashboard/application/get-owner-dashboard";
 import { getOwnerDashboardFilterOptions } from "@/modules/owner-dashboard/application/dashboard-filter-options";
 import { getCapacityHeatmap } from "@/modules/owner-dashboard/application/capacity-heatmap";
@@ -12,6 +15,20 @@ const databaseUrl = process.env.DATABASE_URL;
 if (!databaseUrl) throw new Error("DATABASE_URL es obligatoria");
 const pool = new Pool({ connectionString: databaseUrl, max: 60 });
 const organizationId = "50000000-0000-4000-8000-000000000001";
+process.env.CRON_SECRET = "synthetic-worker-secret";
+
+async function asSyntheticCron<T>(
+  job: (actor: SystemActor) => Promise<T>
+): Promise<T> {
+  const result = await withCronSystemActor(
+    new Request("http://localhost/api/cron/zaltyko-outbox", {
+      headers: { authorization: "Bearer synthetic-worker-secret" },
+    }),
+    job
+  );
+  if (!result.ok) throw new Error("La autenticación cron sintética fue denegada");
+  return result.value;
+}
 
 function percentile(values: number[], rank: number): number {
   const sorted = [...values].sort((a, b) => a - b);
@@ -41,6 +58,22 @@ async function assertScaleFixture(): Promise<void> {
 
 async function main(): Promise<void> {
   await assertScaleFixture();
+  const latestMetricRun = await pool.query(
+    `select id from zaltyko.metric_runs
+     where organization_id = $1 and idempotency_key like 'scale-metric-run-%'
+     order by source_watermark desc, created_at desc limit 1`,
+    [organizationId]
+  );
+  assert.equal(latestMetricRun.rowCount, 1);
+  const projectionBuild = await asSyntheticCron((actor) =>
+    buildRetentionCohortProjections({
+      organizationId,
+      metricRunId: String(latestMetricRun.rows[0].id),
+      actor,
+    })
+  );
+  assert.equal(projectionBuild.projectionRuns, 11);
+  assert(projectionBuild.projectionRows > 0);
   const identityResult = await pool.query(
     `select user_id from zaltyko.organization_members
      where organization_id = $1 and status = 'active' order by user_id limit 20`,

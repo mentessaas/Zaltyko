@@ -5,6 +5,7 @@ import { join, relative, resolve } from "node:path";
 const root = resolve(process.cwd());
 const canonicalMigrations = [
   "20261006080702_establish_zaltyko_domain_foundation.sql",
+  "20261013100000_model_sport_profiles_and_complementary_activities.sql",
   "20261006085254_add_operational_enrollment_invariants.sql",
   "20261006090034_add_trials_waitlists_families.sql",
   "20261006093047_add_internal_billing_ledger.sql",
@@ -13,6 +14,7 @@ const canonicalMigrations = [
   "20261006113000_add_actionable_insights.sql",
   "20261006123000_add_organization_bootstrap.sql",
   "20261006131000_add_organization_default_currency.sql",
+  "20261013160000_canonical_family_collection_and_entitlements.sql",
 ];
 const canonicalModules = [
   "analytics",

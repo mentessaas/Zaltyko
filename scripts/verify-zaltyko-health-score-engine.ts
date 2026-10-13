@@ -4,6 +4,7 @@ import { Pool } from "pg";
 
 import { withCronSystemActor } from "@/lib/cron-system-actor";
 import { calculateAcademyHealthScore } from "@/modules/health-score/application/health-score-service";
+import { buildRetentionCohortProjections } from "@/modules/analytics/application/build-retention-cohort-projections";
 import type { SystemActor } from "@/modules/shared/application/actor";
 import { OperationalError } from "@/modules/shared/domain/operational-error";
 
@@ -65,6 +66,24 @@ async function main(): Promise<void> {
   );
   const metricRunId = String(runByKey.get("metric-golden-run-002"));
   const earlierMetricRunId = String(runByKey.get("metric-golden-run-001"));
+  const retentionProjection = await asSyntheticCron((systemActor) =>
+    buildRetentionCohortProjections({
+      organizationId: ID.org,
+      metricRunId,
+      actor: systemActor,
+    })
+  );
+  assert.equal(retentionProjection.projectionRuns, 2);
+  assert(retentionProjection.projectionRows > 0);
+  const retentionProjectionRetry = await asSyntheticCron((systemActor) =>
+    buildRetentionCohortProjections({
+      organizationId: ID.org,
+      metricRunId,
+      actor: systemActor,
+    })
+  );
+  assert.equal(retentionProjectionRetry.projectionRuns, 2);
+  assert.equal(retentionProjectionRetry.projectionRows, 0);
 
   await expectOperationalError(
     () =>

@@ -32,6 +32,7 @@ const ID = {
   otherMember: "20000000-0000-4000-8000-000000000030",
   facilityA: "10000000-0000-4000-8000-000000000040",
   facilityA2: "10000000-0000-4000-8000-000000000041",
+  organizationSport: "10000000-0000-4000-8000-000000000075",
   spaceA: "10000000-0000-4000-8000-000000000050",
   spaceLimited: "10000000-0000-4000-8000-000000000051",
   spaceA2: "10000000-0000-4000-8000-000000000052",
@@ -60,6 +61,13 @@ async function seed(): Promise<void> {
     insert into zaltyko.organizations (id, name, status) values
       ('${ID.orgA}', 'Academia Sintética A', 'active'),
       ('${ID.orgB}', 'Academia Sintética B', 'active');
+
+    insert into zaltyko.organization_sports (
+      id, organization_id, country_code, sport_profile_id, role, status
+    ) values (
+      '${ID.organizationSport}', '${ID.orgA}', 'ES',
+      '70000000-0000-4000-8000-000000000001', 'primary', 'active'
+    );
 
     insert into zaltyko.locations (id, organization_id, code, name) values
       ('${ID.locationA}', '${ID.orgA}', 'centro', 'Centro'),
@@ -108,8 +116,12 @@ async function seed(): Promise<void> {
       '${ID.coachProfile}', '${ID.orgA}', '${ID.coachPerson}', '${ID.coachMember}', true
     );
 
-    insert into zaltyko.programs (id, organization_id, name, discipline, status) values
-      ('${ID.program}', '${ID.orgA}', 'Base artística', 'artistica', 'active');
+    insert into zaltyko.programs (
+      id, organization_id, name, kind, organization_sport_id, activity_key, status
+    ) values (
+      '${ID.program}', '${ID.orgA}', 'Base artística', 'gymnastics_sport',
+      '${ID.organizationSport}', null, 'active'
+    );
 
     insert into zaltyko.class_templates (
       id, organization_id, location_id, program_id, default_space_id,

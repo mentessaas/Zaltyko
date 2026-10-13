@@ -9,6 +9,11 @@ import { getMetricSeries } from "@/modules/owner-dashboard/application/metric-se
 import { getCapacityHeatmap } from "@/modules/owner-dashboard/application/capacity-heatmap";
 import { getRetentionCohorts } from "@/modules/owner-dashboard/application/retention-cohorts";
 import { getOwnerDashboardFilterOptions } from "@/modules/owner-dashboard/application/dashboard-filter-options";
+import {
+  DEFAULT_OWNER_DASHBOARD_ORDER,
+  getOwnerDashboardLayout,
+  saveOwnerDashboardLayout,
+} from "@/modules/owner-dashboard/application/dashboard-layout";
 import { OperationalError } from "@/modules/shared/domain/operational-error";
 
 const databaseUrl = process.env.DATABASE_URL;
@@ -83,6 +88,45 @@ async function main(): Promise<void> {
     true
   );
   assert.equal(JSON.stringify(bundle).includes("Persona Sintética"), false);
+
+  const defaultLayout = await getOwnerDashboardLayout({
+    userId: ID.ownerUser,
+    organizationId: ID.org,
+  });
+  assert.equal(defaultLayout.version, 0);
+  assert.deepEqual(defaultLayout.order, DEFAULT_OWNER_DASHBOARD_ORDER);
+  const reorderedLayout = await saveOwnerDashboardLayout({
+    userId: ID.ownerUser,
+    organizationId: ID.org,
+    order: [...DEFAULT_OWNER_DASHBOARD_ORDER].reverse(),
+    expectedVersion: 0,
+  });
+  assert.equal(reorderedLayout.version, 1);
+  assert.deepEqual(
+    (await getOwnerDashboardLayout({
+      userId: ID.ownerUser,
+      organizationId: ID.org,
+    })).order,
+    [...DEFAULT_OWNER_DASHBOARD_ORDER].reverse()
+  );
+  await expectOperationalError(
+    () =>
+      saveOwnerDashboardLayout({
+        userId: ID.ownerUser,
+        organizationId: ID.org,
+        order: DEFAULT_OWNER_DASHBOARD_ORDER,
+        expectedVersion: 0,
+      }),
+    "VERSION_CONFLICT"
+  );
+  await expectOperationalError(
+    () =>
+      getOwnerDashboardLayout({
+        userId: ID.foreignOwnerUser,
+        organizationId: ID.org,
+      }),
+    "FORBIDDEN"
+  );
 
   const pendingEvent = await pool.query(
     `insert into zaltyko.outbox_events (
@@ -310,6 +354,8 @@ async function main(): Promise<void> {
     organizationId: ID.org,
     limit: 12,
   });
+  assert.equal(cohorts.projection.status, "ready");
+  assert(cohorts.projection.sourceWatermark);
   assert(cohorts.items.length > 0);
   assert(cohorts.items.every((cohort) => cohort.matrix.length > 0));
   assert.equal(cohorts.pauseGrace.status, "unconfigured");
@@ -319,7 +365,14 @@ async function main(): Promise<void> {
     organizationId: ID.org,
     groupId: "20000000-0000-0000-0000-000000000799",
   });
+  assert.equal(noCohortGroup.projection.status, "ready");
   assert.equal(noCohortGroup.items.length, 0);
+  const unbuiltCohorts = await getRetentionCohorts({
+    userId: ID.scopedManagerUser,
+    organizationId: ID.managerOrg,
+  });
+  assert.equal(unbuiltCohorts.projection.status, "unavailable");
+  assert.equal(unbuiltCohorts.items.length, 0);
   await expectOperationalError(
     () =>
       getCapacityHeatmap({
@@ -343,7 +396,8 @@ async function main(): Promise<void> {
      where organization_id = $1 and action = 'owner_surface.access_denied'`,
     [ID.org]
   );
-  assert.equal(Number(denied.rows[0].count), 1);
+  // The deliberate cross-tenant layout read above and dashboard read are both audited.
+  assert.equal(Number(denied.rows[0].count), 2);
 
   const scoped = await getOwnerDashboard({
     userId: ID.scopedManagerUser,

@@ -28,6 +28,7 @@ GRANT EXECUTE ON FUNCTION auth.uid() TO anon, authenticated, service_role;
 SQL
 for migration in \
   20261006080702_establish_zaltyko_domain_foundation.sql \
+  20261013100000_model_sport_profiles_and_complementary_activities.sql \
   20261006085254_add_operational_enrollment_invariants.sql \
   20261006090034_add_trials_waitlists_families.sql \
   20261006093047_add_internal_billing_ledger.sql \
@@ -36,7 +37,8 @@ for migration in \
   20261006113000_add_actionable_insights.sql \
   20261006131000_add_organization_default_currency.sql \
   20261006160012_track_owner_pipeline_freshness.sql \
-  20261006165917_owner_cohort_retention_projections.sql
+  20261006165917_owner_cohort_retention_projections.sql \
+  20261013120000_owner_dashboard_layout_preferences.sql
 do
   "${PSQL[@]}" -f "${ROOT_DIR}/supabase/migrations/${migration}" >/dev/null
 done
@@ -49,6 +51,7 @@ DATABASE_POOL_MAX=4 NODE_ENV=test \
   pnpm --dir "${ROOT_DIR}" exec tsx scripts/verify-zaltyko-metrics-engine.ts
 
 "${PSQL[@]}" -f "${ROOT_DIR}/supabase/tests/zaltyko_cohort_projection_schema.sql" >/dev/null
+"${PSQL[@]}" -f "${ROOT_DIR}/supabase/tests/zaltyko_owner_dashboard_layout.sql" >/dev/null
 
 DATABASE_URL="postgresql://127.0.0.1:${PG_PORT}/postgres" \
 DATABASE_URL_POOL="postgresql://127.0.0.1:${PG_PORT}/postgres" \

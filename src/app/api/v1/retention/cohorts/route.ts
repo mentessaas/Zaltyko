@@ -5,7 +5,7 @@ import { getCurrentUser } from "@/lib/auth/current-user";
 import { getRetentionCohorts, retentionCohortsQuerySchema } from "@/modules/owner-dashboard/application/retention-cohorts";
 import { OperationalError } from "@/modules/shared/domain/operational-error";
 
-// @auth-flexible route-guard-reason: getCurrentUser verifies the session; getRetentionCohorts authorizes organization/location scope before reading enrollment history.
+// @auth-flexible route-guard-reason: getCurrentUser verifies the session; getRetentionCohorts authorizes organization/location scope before reading the PII-free cohort projection.
 export async function GET(request: Request) {
   const user = await getCurrentUser(request);
   if (!user) {

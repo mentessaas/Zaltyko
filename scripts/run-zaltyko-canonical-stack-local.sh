@@ -38,6 +38,7 @@ SQL
 
 MIGRATIONS=(
   20261006080702_establish_zaltyko_domain_foundation.sql
+  20261013100000_model_sport_profiles_and_complementary_activities.sql
   20261006085254_add_operational_enrollment_invariants.sql
   20261006090034_add_trials_waitlists_families.sql
   20261006093047_add_internal_billing_ledger.sql
@@ -46,7 +47,10 @@ MIGRATIONS=(
   20261006113000_add_actionable_insights.sql
   20261006123000_add_organization_bootstrap.sql
   20261006131000_add_organization_default_currency.sql \
-  20261006160012_track_owner_pipeline_freshness.sql
+  20261006160012_track_owner_pipeline_freshness.sql \
+  20261006165917_owner_cohort_retention_projections.sql \
+  20261013120000_owner_dashboard_layout_preferences.sql \
+  20261013160000_canonical_family_collection_and_entitlements.sql
 )
 
 for migration in "${MIGRATIONS[@]}"; do
@@ -63,12 +67,20 @@ CHECKS=(
   zaltyko_metrics_foundation.sql
   zaltyko_health_score_foundation.sql
   zaltyko_insights_foundation.sql
+  zaltyko_cohort_projection_schema.sql
+  zaltyko_owner_dashboard_layout.sql
+  zaltyko_family_collection_settings.sql
 )
 
 for check in "${CHECKS[@]}"; do
   echo "CHECK ${check}"
   "${PSQL[@]}" -f "${ROOT_DIR}/supabase/tests/${check}" >/dev/null
 done
+
+DATABASE_URL="postgresql://127.0.0.1:${PG_PORT}/postgres" \
+DATABASE_URL_POOL="postgresql://127.0.0.1:${PG_PORT}/postgres" \
+DATABASE_POOL_MAX=4 NODE_ENV=test \
+  pnpm --dir "${ROOT_DIR}" exec tsx scripts/verify-zaltyko-family-collection-settings.ts
 
 DATABASE_URL="postgresql://127.0.0.1:${PG_PORT}/postgres" \
 DATABASE_URL_POOL="postgresql://127.0.0.1:${PG_PORT}/postgres" \

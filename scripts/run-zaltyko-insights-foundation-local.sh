@@ -28,6 +28,7 @@ GRANT EXECUTE ON FUNCTION auth.uid() TO anon, authenticated, service_role;
 SQL
 for migration in \
   20261006080702_establish_zaltyko_domain_foundation.sql \
+  20261013100000_model_sport_profiles_and_complementary_activities.sql \
   20261006085254_add_operational_enrollment_invariants.sql \
   20261006090034_add_trials_waitlists_families.sql \
   20261006093047_add_internal_billing_ledger.sql \
