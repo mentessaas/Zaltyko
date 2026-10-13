@@ -3,8 +3,19 @@ import {
   RATE_LIMITS,
   getLimitForRoute,
   getVerifiedTenantRateLimitIdentifier,
+  isLocalE2ERateLimitAdapterEnabled,
   rateLimit,
 } from "@/lib/rate-limit";
+
+const kvMock = vi.hoisted(() => ({
+  zremrangebyscore: vi.fn(),
+  zcard: vi.fn(),
+  zrange: vi.fn(),
+  zadd: vi.fn(),
+  expire: vi.fn(),
+}));
+
+vi.mock("@vercel/kv", () => ({ kv: kvMock }));
 
 describe("Rate Limiting", () => {
   describe("getLimitForRoute", () => {
@@ -64,6 +75,8 @@ describe("Rate Limiting", () => {
   describe("production fallback", () => {
     afterEach(() => {
       vi.unstubAllEnvs();
+      vi.restoreAllMocks();
+      for (const mock of Object.values(kvMock)) mock.mockClear();
     });
 
     it("fails closed without KV in production", async () => {
@@ -112,6 +125,81 @@ describe("Rate Limiting", () => {
       const wrongSandbox = await rateLimit({ identifier: "wrong-sandbox", limit: 10, window: 60 });
 
       expect(wrongSandbox.success).toBe(false);
+    });
+
+    it("uses the in-memory adapter only for production-mode local E2E against loopback Supabase", async () => {
+      vi.stubEnv("NODE_ENV", "production");
+      vi.stubEnv("E2E_LOCAL_SUPABASE", "true");
+      vi.stubEnv("VERCEL", "");
+      vi.stubEnv("VERCEL_ENV", "");
+      vi.stubEnv("NEXT_PUBLIC_SUPABASE_URL", "http://127.0.0.1:54321");
+      vi.stubEnv("KV_REST_API_URL", "");
+      vi.stubEnv("KV_REST_API_TOKEN", "");
+
+      expect(isLocalE2ERateLimitAdapterEnabled()).toBe(true);
+      const result = await rateLimit({ identifier: "local-e2e", limit: 10, window: 60 });
+      expect(result.success).toBe(true);
+      expect(kvMock.zremrangebyscore).not.toHaveBeenCalled();
+      expect(kvMock.zcard).not.toHaveBeenCalled();
+      expect(kvMock.zrange).not.toHaveBeenCalled();
+      expect(kvMock.zadd).not.toHaveBeenCalled();
+      expect(kvMock.expire).not.toHaveBeenCalled();
+    });
+
+    it("enforces the local E2E sliding window per identifier and expires old events", async () => {
+      vi.stubEnv("NODE_ENV", "production");
+      vi.stubEnv("E2E_LOCAL_SUPABASE", "true");
+      vi.stubEnv("VERCEL", "");
+      vi.stubEnv("VERCEL_ENV", "");
+      vi.stubEnv("NEXT_PUBLIC_SUPABASE_URL", "http://127.0.0.1:54321");
+      vi.stubEnv("KV_REST_API_URL", "");
+      vi.stubEnv("KV_REST_API_TOKEN", "");
+      vi.spyOn(Date, "now")
+        .mockReturnValueOnce(1_000_000)
+        .mockReturnValueOnce(1_001_000)
+        .mockReturnValueOnce(1_001_000)
+        .mockReturnValueOnce(1_001_000)
+        .mockReturnValueOnce(1_006_000);
+
+      const config = { limit: 2, window: 5 };
+      expect(await rateLimit({ ...config, identifier: "local-a" })).toMatchObject({
+        success: true,
+        remaining: 1,
+      });
+      expect(await rateLimit({ ...config, identifier: "local-a" })).toMatchObject({
+        success: true,
+        remaining: 0,
+      });
+      expect(await rateLimit({ ...config, identifier: "local-a" })).toMatchObject({
+        success: false,
+        remaining: 0,
+        reset: 1005,
+      });
+      expect(await rateLimit({ ...config, identifier: "local-b" })).toMatchObject({
+        success: true,
+        remaining: 1,
+      });
+      expect(await rateLimit({ ...config, identifier: "local-a" })).toMatchObject({
+        success: true,
+        remaining: 1,
+      });
+    });
+
+    it("rejects local rate-limit bypass on Vercel and for non-loopback targets", () => {
+      vi.stubEnv("NODE_ENV", "production");
+      vi.stubEnv("E2E_LOCAL_SUPABASE", "true");
+      vi.stubEnv("NEXT_PUBLIC_SUPABASE_URL", "http://127.0.0.1:54321");
+      vi.stubEnv("VERCEL", "1");
+      vi.stubEnv("VERCEL_ENV", "");
+      expect(isLocalE2ERateLimitAdapterEnabled()).toBe(false);
+
+      vi.stubEnv("VERCEL", "");
+      vi.stubEnv("VERCEL_ENV", "preview");
+      expect(isLocalE2ERateLimitAdapterEnabled()).toBe(false);
+
+      vi.stubEnv("VERCEL_ENV", "");
+      vi.stubEnv("NEXT_PUBLIC_SUPABASE_URL", "https://project.supabase.co");
+      expect(isLocalE2ERateLimitAdapterEnabled()).toBe(false);
     });
   });
 });
