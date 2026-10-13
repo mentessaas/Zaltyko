@@ -11393,13 +11393,15 @@ Modelo separado, reclamación manual, administración, importación revisada, fi
   parcial. VoiceOver, zoom, contraste medido y errores dinámicos siguen
   pendientes; no es certificación WCAG. Producción no cambió.
 
-## 2026-10-13 — Proteger el reintento del registro manual de pagos
+## 2026-10-13 — Simplificar y proteger el registro manual de pagos
 
 - La UI muestra un estado vacío explícito cuando no hay cargos abiertos. Si el
   servidor devuelve un error 5xx de resultado incierto, el botón permite
   reintentar el mismo cuerpo y la misma clave idempotente para evitar duplicar
-  el pago.
-- Prueba de componente 2/2; TypeScript, ESLint y Prettier focal PASS. Usa
+  el pago. El campo decimal admite coma española en móvil y conserva la
+  validación del saldo máximo antes de enviar.
+- Pruebas de componente 3/3 (estado vacío, reintento idempotente y `12,50` →
+  1.250 céntimos); TypeScript, ESLint y Prettier focal PASS. Usa
   respuestas sintéticas en jsdom: no valida una sesión autenticada, una
   transacción real ni el aislamiento por sede. No se llamó a ninguna API real
   ni se modificaron datos.
