@@ -52,6 +52,10 @@ pueden aparecer en la misma factura.
   explicados.
 - Opciones: `GET /api/v1/owner/billing/monthly-invoices/options`.
 - Emisión: `POST /api/v1/owner/billing/monthly-invoices/issue`.
+- Alta de tarifa: `POST /api/v1/owner/billing/price-plans`, con nombre,
+  importe positivo en unidades menores (máximo `2_147_483_647`), sede y
+  academia; moneda opcional, por defecto la de la academia. Requiere
+  `Idempotency-Key`. Crea una tarifa mensual activa; no la asigna ni cobra.
 - Registro de dinero ya recibido: `POST
 /api/v1/owner/billing/manual-payments`.
 - Solo Owner/Admin con alcance financiero autorizado puede consultar o emitir.
@@ -60,6 +64,16 @@ pueden aparecer en la misma factura.
 - `organization_id`, `location_id`, pagador, membresías, inscripciones y tarifas
   se revalidan en servidor/BD. Idempotencia, historial, audit log y outbox no
   dependen del estado de React.
+- Las opciones de facturas existentes se limitan a la sede consultada.
+  Reintentar una emisión después de pagar devuelve los estados actuales de
+  cada cargo y el resumen (`due`, `partially_paid`, `paid`, `void` o `mixed`);
+  no devuelve siempre `due`, ni añade cargos/pagos o altera el ledger.
+
+El cierre backend integrado en `e465abc9` tiene 10 tests de API/validación
+aprobados en la integración. El agente backend reportó además su harness
+PostgreSQL con sedes/tenants, cotización obsoleta, concurrencia y replay tras
+pago aprobado. Esta evidencia no sustituye el E2E de navegador ni demuestra
+Stripe Live o readiness de lanzamiento.
 
 Las pruebas focales locales de este corte pasan: 7 archivos, 23 tests,
 TypeScript y ESLint de aplicación. La build de producción local completó durante
