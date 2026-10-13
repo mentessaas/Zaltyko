@@ -1,37 +1,50 @@
 "use client";
 
 import { useRouter } from "next/navigation";
-import { useState } from "react";
+import { useRef, useState } from "react";
 import { ArrowRight, Building2, MapPin, ShieldCheck } from "lucide-react";
 
 export function OwnerSetupForm() {
   const router = useRouter();
   const [pending, setPending] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [primaryDiscipline, setPrimaryDiscipline] = useState<
+    "artistic" | "rhythmic" | null
+  >(null);
+  const idempotencyKey = useRef<string | null>(null);
 
   async function submit(formData: FormData) {
     setPending(true);
     setError(null);
     const organizationName = String(formData.get("organizationName") ?? "");
     const locationName = String(formData.get("locationName") ?? "");
-    const locationCode = String(formData.get("locationCode") ?? "");
-    const defaultCurrency = String(formData.get("defaultCurrency") ?? "")
-      .trim()
-      .toUpperCase();
+    const primaryDiscipline = String(formData.get("primaryDiscipline") ?? "");
+    const additionalDisciplines = formData
+      .getAll("additionalDisciplines")
+      .map(String);
+    const complementaryActivities = formData
+      .getAll("complementaryActivities")
+      .map(String);
+    const customActivityName = String(
+      formData.get("customActivityName") ?? ""
+    ).trim();
+    const requestKey = idempotencyKey.current ?? crypto.randomUUID();
+    idempotencyKey.current = requestKey;
     try {
       const response = await fetch("/api/v1/organizations/bootstrap", {
         method: "POST",
         headers: {
           "content-type": "application/json",
-          "idempotency-key": crypto.randomUUID(),
+          "idempotency-key": requestKey,
         },
         body: JSON.stringify({
           organizationName,
           locationName,
-          locationCode,
-          defaultCurrency,
+          primaryDiscipline,
+          additionalDisciplines,
+          complementaryActivities,
+          customActivityName: customActivityName || undefined,
           countryCode: "ES",
-          timezone: "Europe/Madrid",
         }),
       });
       if (!response.ok) {
@@ -54,7 +67,7 @@ export function OwnerSetupForm() {
   }
 
   return (
-    <form action={submit} className="mt-8 grid gap-5">
+    <form action={submit} className="mt-8 grid gap-6">
       <label className="grid gap-2 text-sm font-bold text-slate-800">
         Nombre de la academia
         <span className="relative">
@@ -72,7 +85,96 @@ export function OwnerSetupForm() {
           />
         </span>
       </label>
-      <div className="grid gap-5 sm:grid-cols-[1fr_11rem]">
+      <fieldset className="grid gap-3">
+        <legend className="text-sm font-bold text-slate-800">
+          ¿Cuál es la especialidad principal de tu academia?
+        </legend>
+        <div className="grid gap-3 sm:grid-cols-2">
+          <label className="touch-target flex cursor-pointer items-center gap-3 border border-slate-400 bg-white px-4 py-3 text-sm font-semibold text-slate-900 has-[:checked]:border-teal-800 has-[:checked]:bg-teal-50">
+            <input
+              type="radio"
+              name="primaryDiscipline"
+              value="artistic"
+              required
+              onChange={() => setPrimaryDiscipline("artistic")}
+              className="h-5 w-5 accent-teal-800"
+            />
+            Gimnasia artística
+          </label>
+          <label className="touch-target flex cursor-pointer items-center gap-3 border border-slate-400 bg-white px-4 py-3 text-sm font-semibold text-slate-900 has-[:checked]:border-teal-800 has-[:checked]:bg-teal-50">
+            <input
+              type="radio"
+              name="primaryDiscipline"
+              value="rhythmic"
+              required
+              onChange={() => setPrimaryDiscipline("rhythmic")}
+              className="h-5 w-5 accent-teal-800"
+            />
+            Gimnasia rítmica
+          </label>
+        </div>
+      </fieldset>
+      <details className="border border-slate-300 bg-white">
+        <summary className="touch-target cursor-pointer px-4 py-3 text-sm font-semibold text-slate-800">
+          Añadir otras disciplinas o actividades (opcional)
+        </summary>
+        <fieldset className="grid gap-3 border-t border-slate-200 p-4">
+          <legend className="px-1 text-sm text-slate-600">
+            Puedes añadirlas ahora o más adelante.
+          </legend>
+          {primaryDiscipline && (
+            <label className="touch-target flex cursor-pointer items-start gap-3 border border-slate-300 bg-white px-4 py-3 text-sm text-slate-800">
+              <input
+                type="checkbox"
+                name="additionalDisciplines"
+                value={
+                  primaryDiscipline === "artistic" ? "rhythmic" : "artistic"
+                }
+                className="mt-0.5 h-5 w-5 accent-teal-800"
+              />
+              <span>
+                También ofrecemos gimnasia{" "}
+                {primaryDiscipline === "artistic" ? "rítmica" : "artística"}
+              </span>
+            </label>
+          )}
+          <div className="grid gap-3 sm:grid-cols-2">
+            {[
+              ["aerial_silks", "Telas aéreas"],
+              ["aerial_hoop", "Aro aéreo"],
+              ["dance", "Baile"],
+              ["physical_conditioning", "Preparación física"],
+            ].map(([value, label]) => (
+              <label
+                key={value}
+                className="touch-target flex cursor-pointer items-center gap-3 border border-slate-300 bg-white px-4 py-3 text-sm text-slate-800"
+              >
+                <input
+                  type="checkbox"
+                  name="complementaryActivities"
+                  value={value}
+                  className="h-5 w-5 accent-teal-800"
+                />
+                {label}
+              </label>
+            ))}
+          </div>
+          <label className="grid gap-2 text-sm font-semibold text-slate-800">
+            Otra actividad (opcional)
+            <input
+              name="customActivityName"
+              maxLength={80}
+              placeholder="Por ejemplo, acrobacia"
+              className="touch-target w-full border border-slate-400 bg-white px-3 text-slate-950"
+            />
+          </label>
+          <p className="text-sm leading-6 text-slate-600">
+            Cada actividad tendrá sus propias clases y grupos. Podrás añadir más
+            adelante.
+          </p>
+        </fieldset>
+      </details>
+      <div className="grid gap-5 sm:grid-cols-2">
         <label className="grid gap-2 text-sm font-bold text-slate-800">
           Nombre de la primera sede
           <span className="relative">
@@ -90,45 +192,16 @@ export function OwnerSetupForm() {
             />
           </span>
         </label>
-        <label className="grid gap-2 text-sm font-bold text-slate-800">
-          Código de sede
-          <input
-            name="locationCode"
-            required
-            minLength={2}
-            maxLength={32}
-            pattern="[a-z0-9][a-z0-9-]+"
-            placeholder="principal"
-            className="touch-target w-full border border-slate-400 bg-white px-3 font-mono text-slate-950"
-          />
-        </label>
       </div>
-      <label className="grid gap-2 text-sm font-bold text-slate-800">
-        Moneda base para nuevos cargos
-        <input
-          name="defaultCurrency"
-          required
-          minLength={3}
-          maxLength={3}
-          pattern="[A-Za-z]{3}"
-          defaultValue="EUR"
-          autoCapitalize="characters"
-          aria-describedby="default-currency-help"
-          className="touch-target w-full border border-slate-400 bg-white px-3 font-mono uppercase text-slate-950 sm:max-w-48"
-        />
-        <span id="default-currency-help" className="font-normal text-slate-600">
-          Código ISO 4217 de tres letras. Cada movimiento conserva su propia
-          moneda; no convertimos importes automáticamente.
-        </span>
-      </label>
       <div className="flex gap-3 border-l-4 border-teal-800 bg-[#F1F3EF] p-4 text-sm leading-6 text-slate-700">
         <ShieldCheck
           className="mt-0.5 h-5 w-5 shrink-0 text-teal-800"
           aria-hidden="true"
         />
         <p>
-          Crearemos una organización, una sede y tu acceso owner en una sola
-          transacción. No importaremos datos del sistema anterior.
+          Crearemos tu academia y la primera sede de forma segura, y te daremos
+          acceso de administración. La moneda y la zona horaria se ajustan
+          automáticamente para España. No importaremos datos de otro sistema.
         </p>
       </div>
       {error && (

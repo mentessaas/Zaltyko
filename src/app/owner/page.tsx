@@ -11,6 +11,7 @@ import {
 import { getCapacityHeatmap } from "@/modules/owner-dashboard/application/capacity-heatmap";
 import { getRetentionCohorts } from "@/modules/owner-dashboard/application/retention-cohorts";
 import { getOwnerDashboardFilterOptions } from "@/modules/owner-dashboard/application/dashboard-filter-options";
+import { getOwnerDashboardLayout } from "@/modules/owner-dashboard/application/dashboard-layout";
 import { OperationalError } from "@/modules/shared/domain/operational-error";
 
 export const dynamic = "force-dynamic";
@@ -81,6 +82,10 @@ export default async function OwnerDashboardPage({
       limit: 24,
     }),
   ]);
+  const dashboardLayout = await getOwnerDashboardLayout({
+    userId: user.id,
+    organizationId: bundle.organization.id,
+  });
   for (const result of [capacityResult, cohortsResult]) {
     if (result.status === "rejected") {
       if (
@@ -119,6 +124,7 @@ export default async function OwnerDashboardPage({
       capacity={capacity}
       cohorts={cohorts}
       dashboardFilters={dashboardFilters}
+      dashboardLayout={dashboardLayout}
     />
   );
 }

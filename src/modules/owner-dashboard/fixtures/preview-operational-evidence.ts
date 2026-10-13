@@ -96,6 +96,11 @@ export const ownerDashboardCohortsPreview: CohortsBundle = {
   scope: { locationId: null, locations, canViewOrganizationAggregate: true },
   asOf: "2026-09-30",
   filters: { programId: null, groupId: null },
+  projection: {
+    status: "ready",
+    sourceWatermark: "2026-09-30T21:59:00.000Z",
+    reason: null,
+  },
   pauseGrace: {
     status: "unconfigured",
     reason:

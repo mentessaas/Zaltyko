@@ -30,6 +30,7 @@ INSERT INTO auth.users (id) VALUES
   ('30000000-0000-0000-0000-000000000102');
 SQL
 "${PSQL[@]}" -f "${ROOT_DIR}/supabase/migrations/20261006080702_establish_zaltyko_domain_foundation.sql" >/dev/null
+"${PSQL[@]}" -f "${ROOT_DIR}/supabase/migrations/20261013100000_model_sport_profiles_and_complementary_activities.sql" >/dev/null
 "${PSQL[@]}" -f "${ROOT_DIR}/supabase/migrations/20261006123000_add_organization_bootstrap.sql" >/dev/null
 "${PSQL[@]}" -f "${ROOT_DIR}/supabase/migrations/20261006131000_add_organization_default_currency.sql" >/dev/null
 

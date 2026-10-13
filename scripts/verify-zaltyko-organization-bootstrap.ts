@@ -4,7 +4,10 @@ import { Pool } from "pg";
 import type { User } from "@supabase/supabase-js";
 
 import { resolveUserEntry } from "@/lib/auth/resolve-user-entry";
-import { bootstrapOrganization } from "@/modules/organizations/application/bootstrap-organization";
+import {
+  bootstrapOrganization,
+  type BootstrapOrganizationCommand,
+} from "@/modules/organizations/application/bootstrap-organization";
 import { resolveOwnerScope } from "@/modules/owner-dashboard/application/owner-scope";
 import { OperationalError } from "@/modules/shared/domain/operational-error";
 
@@ -31,14 +34,15 @@ async function scalar(query: string, values: unknown[] = []): Promise<number> {
 }
 
 async function main() {
-  const command = {
+  const command: BootstrapOrganizationCommand = {
     userId: ownerUser,
     organizationName: "Academia Sintética Norte",
     countryCode: "ES",
-    defaultCurrency: "EUR",
-    timezone: "Europe/Madrid",
     locationName: "Sede Principal",
-    locationCode: "principal",
+    primaryDiscipline: "rhythmic" as const,
+    additionalDisciplines: ["artistic"],
+    complementaryActivities: ["aerial_silks", "dance"],
+    customActivityName: "Acrobacia",
     idempotencyKey: "bootstrap-synthetic-001",
   };
   const results = await Promise.all([
@@ -68,6 +72,32 @@ async function main() {
     1
   );
   assert.equal(
+    await scalar("select count(*)::int value from zaltyko.organization_sports"),
+    2
+  );
+  assert.equal(
+    await scalar(
+      "select count(*)::int value from zaltyko.organization_sports where role='primary' and country_code='ES'"
+    ),
+    1
+  );
+  assert.equal(
+    await scalar("select count(*)::int value from zaltyko.programs"),
+    5
+  );
+  assert.equal(
+    await scalar(
+      "select count(*)::int value from zaltyko.programs where kind='complementary_activity'"
+    ),
+    3
+  );
+  assert.equal(
+    await scalar(
+      "select count(*)::int value from zaltyko.locations where code='sede-principal' and timezone='Europe/Madrid'"
+    ),
+    1
+  );
+  assert.equal(
     await scalar(
       "select count(*)::int value from zaltyko.organization_bootstrap_commands"
     ),
@@ -87,7 +117,7 @@ async function main() {
   );
 
   await assert.rejects(
-    bootstrapOrganization({ ...command, defaultCurrency: "USD" }),
+    bootstrapOrganization({ ...command, customActivityName: "Trampolín" }),
     (error: unknown) => {
       assert(error instanceof OperationalError);
       assert.equal(error.code, "IDEMPOTENCY_CONFLICT");
@@ -102,6 +132,18 @@ async function main() {
     (error: unknown) => {
       assert(error instanceof OperationalError);
       assert.equal(error.code, "INVALID_STATE_TRANSITION");
+      return true;
+    }
+  );
+  await assert.rejects(
+    bootstrapOrganization({
+      ...command,
+      countryCode: "FR",
+      idempotencyKey: "bootstrap-unsupported-market",
+    }),
+    (error: unknown) => {
+      assert(error instanceof OperationalError);
+      assert.equal(error.code, "INVALID_RELATION");
       return true;
     }
   );
@@ -159,6 +201,8 @@ async function main() {
       ownerAuthEntry: ownerHome.redirectUrl,
       newOwnerAuthEntry: newOwnerHome.redirectUrl,
       locationScopeMode: "all",
+      gymnasticsDisciplines: 2,
+      complementaryActivities: 3,
       crossTenantDenied: true,
       dataApiGrants: 0,
       rlsForced: true,

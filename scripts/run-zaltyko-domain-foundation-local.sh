@@ -42,6 +42,9 @@ SQL
 "${PSQL[@]}" \
   -f "${ROOT_DIR}/supabase/migrations/20261006080702_establish_zaltyko_domain_foundation.sql" \
   >/dev/null
+"${PSQL[@]}" \
+  -f "${ROOT_DIR}/supabase/migrations/20261013100000_model_sport_profiles_and_complementary_activities.sql" \
+  >/dev/null
 "${PSQL[@]}" -f "${ROOT_DIR}/supabase/tests/zaltyko_domain_foundation.sql" >/dev/null
 
 echo "Zaltyko domain foundation PostgreSQL test: PASS (isolated local cluster)"

@@ -1,21 +1,14 @@
 import { NextResponse } from "next/server";
-import { z } from "zod";
 
 import { operationalProblem, problemResponse } from "@/app/api/v1/problem";
 import { getCurrentUser } from "@/lib/auth/current-user";
-import { bootstrapOrganization } from "@/modules/organizations/application/bootstrap-organization";
+import {
+  bootstrapOrganization,
+  bootstrapOrganizationRequestSchema,
+} from "@/modules/organizations/application/bootstrap-organization";
 import { OperationalError } from "@/modules/shared/domain/operational-error";
 
-const bodySchema = z.object({
-  organizationName: z.string().trim().min(2).max(120),
-  legalName: z.string().trim().min(2).max(180).optional(),
-  countryCode: z.string().trim().length(2).default("ES"),
-  defaultCurrency: z.string().trim().toUpperCase().regex(/^[A-Z]{3}$/),
-  timezone: z.string().trim().min(3).max(80).default("Europe/Madrid"),
-  locationName: z.string().trim().min(2).max(120),
-  locationCode: z.string().trim().min(2).max(32),
-  idempotencyKey: z.string().trim().min(8).max(150),
-});
+const bodySchema = bootstrapOrganizationRequestSchema;
 
 // @auth-flexible route-guard-reason: verified auth user is resolved before parsing; bootstrap binds ownership to that user inside one transaction.
 export async function POST(request: Request) {
@@ -37,7 +30,7 @@ export async function POST(request: Request) {
     return problemResponse({
       status: 400,
       title: "Configuración inválida",
-      detail: "Revisa academia, sede, moneda y zona horaria.",
+      detail: "Revisa el nombre de la academia, la sede y las actividades.",
       type: "invalid-organization-bootstrap",
       errors: parsed.error.flatten(),
     });
