@@ -42,6 +42,23 @@ No se aplicaron migraciones remotas ni se modificó producción. Ver el
 el [backlog](../06-Roadmap-y-Tareas/Backlog priorizado.md) y la auditoría de
 [ramas y releases](../../auditoria-2026-10-13/branch-and-release-check.md).
 
+### Alta mínima canónica desde grupos — 2026-10-13
+
+El formulario de grupos permite crear una ficha mínima de gimnasta y añadirla
+al grupo en un único envío. La transacción crea persona, atleta, pertenencia
+M:N e historial; comprueba organización, rol, sede y cupo; admite reintento
+idempotente y no deja ficha huérfana si la plaza no está disponible. Solo pide
+nombre y apellidos: no crea familia, cuenta, matrícula, consentimiento ni pago.
+Outbox y auditoría no incluyen nombres ni otros datos personales.
+
+Tests focales de ruta/UI (12/12), harness PostgreSQL efímero, TypeScript,
+ESLint focal y Prettier en TS/TSX PASS. Los gates auth/RLS/migraciones también
+PASS. `pnpm build` completa y genera 289 rutas, pero Next advierte que faltan
+variables runtime Stripe/Supabase; no verifica conectividad ni runtime. Quedan
+revisión final del diff, E2E con sesión real, QA manual de teclado/lector y
+conexión Preview a una base aislada. No se aplicó SQL remoto ni se modificó
+producción; el despliegue productivo sigue en `main`.
+
 ### Alta de owner: instrucciones más breves — 2026-10-13
 
 El registro owner explica que primero se crea la cuenta personal y luego se

@@ -8,6 +8,7 @@ import {
   groupMembershipHistory,
   groups,
   locations,
+  people,
   type GroupMembership,
 } from "@/db/zaltyko-schema";
 import type { TransactionClient } from "@/lib/db-transactions";
@@ -46,6 +47,23 @@ const addMembershipSchema = z.object({
   actor: operationalActorSchema,
 });
 
+const personNameSchema = z
+  .string()
+  .trim()
+  .min(1)
+  .max(100)
+  .refine((value) => !/[\u0000-\u001f\u007f]/u.test(value))
+  .transform((value) => value.normalize("NFC").replace(/\s+/gu, " "));
+
+const createAthleteForGroupSchema = z.object({
+  organizationId: z.string().uuid(),
+  groupId: z.string().uuid(),
+  givenName: personNameSchema,
+  familyName: personNameSchema,
+  idempotencyKey: commandKeySchema,
+  actor: operationalActorSchema,
+});
+
 const transitionMembershipSchema = z.object({
   organizationId: z.string().uuid(),
   membershipId: z.string().uuid(),
@@ -59,6 +77,9 @@ const transitionMembershipSchema = z.object({
 });
 
 export type AddGroupMembershipCommand = z.infer<typeof addMembershipSchema>;
+export type CreateAthleteForGroupCommand = z.infer<
+  typeof createAthleteForGroupSchema
+>;
 export type TransitionGroupMembershipCommand = z.infer<
   typeof transitionMembershipSchema
 >;
@@ -306,6 +327,256 @@ export async function addGroupMembership(
         athleteId: membership.athleteId,
         startsOn: membership.startsOn,
         status: membership.status,
+      },
+    });
+
+    return membership;
+  });
+}
+
+/**
+ * Creates a minimal athlete record and its first group membership atomically.
+ * Names stay in the operational tables; outbox and audit payloads contain IDs
+ * and scope only. Family, enrollment, consent, and billing are separate flows.
+ */
+export async function createAthleteForGroup(
+  command: CreateAthleteForGroupCommand
+): Promise<GroupMembership> {
+  const input = createAthleteForGroupSchema.parse(command);
+  const createEventName = "athlete.created";
+  const membershipEventName = "group.membership_added";
+
+  return db.transaction(async (tx) => {
+    await lockCommand(tx, input.organizationId, input.idempotencyKey);
+
+    const priorCreate = await findOutboxEvent(tx, {
+      organizationId: input.organizationId,
+      eventName: createEventName,
+      idempotencyKey: input.idempotencyKey,
+    });
+    if (priorCreate) {
+      const priorMembershipEvent = await findOutboxEvent(tx, {
+        organizationId: input.organizationId,
+        eventName: membershipEventName,
+        idempotencyKey: input.idempotencyKey,
+      });
+      if (!priorMembershipEvent) {
+        throw new OperationalError(
+          "IDEMPOTENCY_CONFLICT",
+          "El alta anterior no contiene la pertenencia esperada",
+          409
+        );
+      }
+
+      const athleteId = priorCreate.aggregateId;
+      const membershipId = priorMembershipEvent.aggregateId;
+      assertIdempotencyPayload(priorMembershipEvent.payload, {
+        groupId: input.groupId,
+        athleteId,
+      });
+      await assertGroupAccess(tx, {
+        organizationId: input.organizationId,
+        groupId: input.groupId,
+        actor: input.actor,
+        requireActive: false,
+      });
+
+      const [existingAthlete] = await tx
+        .select({
+          id: athletes.id,
+          givenName: people.givenName,
+          familyName: people.familyName,
+        })
+        .from(athletes)
+        .innerJoin(
+          people,
+          and(
+            eq(people.organizationId, athletes.organizationId),
+            eq(people.id, athletes.personId)
+          )
+        )
+        .where(
+          and(
+            eq(athletes.organizationId, input.organizationId),
+            eq(athletes.id, athleteId)
+          )
+        )
+        .limit(1);
+      if (!existingAthlete) {
+        throw new OperationalError(
+          "NOT_FOUND",
+          "La ficha creada anteriormente ya no está disponible",
+          404
+        );
+      }
+      if (
+        existingAthlete.givenName !== input.givenName ||
+        existingAthlete.familyName !== input.familyName
+      ) {
+        throw new OperationalError(
+          "IDEMPOTENCY_CONFLICT",
+          "La clave de idempotencia ya fue usada con otros datos",
+          409
+        );
+      }
+
+      const membership = await loadMembership(
+        tx,
+        input.organizationId,
+        membershipId
+      );
+      if (
+        membership.athleteId !== athleteId ||
+        membership.groupId !== input.groupId
+      ) {
+        throw new OperationalError(
+          "IDEMPOTENCY_CONFLICT",
+          "La clave de idempotencia pertenece a otra pertenencia",
+          409
+        );
+      }
+      return membership;
+    }
+
+    const priorMembershipEvent = await findOutboxEvent(tx, {
+      organizationId: input.organizationId,
+      eventName: membershipEventName,
+      idempotencyKey: input.idempotencyKey,
+    });
+    if (priorMembershipEvent) {
+      throw new OperationalError(
+        "IDEMPOTENCY_CONFLICT",
+        "La clave de idempotencia ya pertenece a otra operación",
+        409
+      );
+    }
+
+    const group = await assertGroupAccess(tx, {
+      organizationId: input.organizationId,
+      groupId: input.groupId,
+      actor: input.actor,
+    });
+    await lockGroupCapacity(tx, input.organizationId, group.id);
+
+    const [dateRow] = await tx
+      .select({
+        localDate: sql<string>`(current_timestamp at time zone ${locations.timezone})::date::text`,
+      })
+      .from(groups)
+      .innerJoin(
+        locations,
+        and(
+          eq(locations.organizationId, groups.organizationId),
+          eq(locations.id, groups.locationId)
+        )
+      )
+      .where(
+        and(
+          eq(groups.organizationId, input.organizationId),
+          eq(groups.id, group.id),
+          eq(locations.isActive, true)
+        )
+      )
+      .limit(1);
+    if (!dateRow) {
+      throw new OperationalError(
+        "LOCATION_SCOPE_DENIED",
+        "La sede del grupo no está disponible",
+        404
+      );
+    }
+
+    if (group.capacity !== null) {
+      const [occupancy] = await tx
+        .select({ count: sql<number>`count(*)::int` })
+        .from(groupMemberships)
+        .where(
+          and(
+            eq(groupMemberships.organizationId, input.organizationId),
+            eq(groupMemberships.groupId, group.id),
+            inArray(groupMemberships.status, [...openStatuses])
+          )
+        );
+      if (Number(occupancy?.count ?? 0) >= group.capacity) {
+        throw new OperationalError(
+          "GROUP_CAPACITY_FULL",
+          "El grupo no tiene plazas disponibles",
+          409
+        );
+      }
+    }
+
+    const [person] = await tx
+      .insert(people)
+      .values({
+        organizationId: input.organizationId,
+        givenName: input.givenName,
+        familyName: input.familyName,
+      })
+      .returning({ id: people.id });
+    const [athlete] = await tx
+      .insert(athletes)
+      .values({
+        organizationId: input.organizationId,
+        personId: person.id,
+      })
+      .returning({ id: athletes.id });
+    const [membership] = await tx
+      .insert(groupMemberships)
+      .values({
+        organizationId: input.organizationId,
+        groupId: group.id,
+        athleteId: athlete.id,
+        startsOn: dateRow.localDate,
+        status: "active",
+      })
+      .returning();
+
+    await tx.insert(groupMembershipHistory).values({
+      organizationId: input.organizationId,
+      membershipId: membership.id,
+      fromStatus: null,
+      toStatus: membership.status,
+      changedByMemberId: input.actor.memberId,
+      idempotencyKey: input.idempotencyKey,
+      effectiveOn: membership.startsOn,
+    });
+
+    await appendOutboxEvent(tx, {
+      organizationId: input.organizationId,
+      locationId: group.locationId,
+      eventName: createEventName,
+      aggregateType: "athlete",
+      aggregateId: athlete.id,
+      idempotencyKey: input.idempotencyKey,
+      payload: { athleteId: athlete.id },
+    });
+    await appendOutboxEvent(tx, {
+      organizationId: input.organizationId,
+      locationId: group.locationId,
+      eventName: membershipEventName,
+      aggregateType: "group_membership",
+      aggregateId: membership.id,
+      idempotencyKey: input.idempotencyKey,
+      payload: {
+        membershipId: membership.id,
+        groupId: group.id,
+        athleteId: athlete.id,
+        startsOn: membership.startsOn,
+        status: membership.status,
+      },
+    });
+    await appendAuditEntry(tx, {
+      organizationId: input.organizationId,
+      locationId: group.locationId,
+      actorUserId: input.actor.userId,
+      action: "athlete.created_and_added_to_group",
+      targetType: "athlete",
+      targetId: athlete.id,
+      idempotencyKey: `athlete-created:${input.idempotencyKey}`,
+      after: {
+        groupId: group.id,
+        membershipId: membership.id,
       },
     });
 

@@ -61,10 +61,13 @@ export function OwnerGroupsManager({ bundle }: { bundle: GroupsBundle }) {
   const [capacity, setCapacity] = useState("");
   const [candidateQuery, setCandidateQuery] = useState("");
   const [candidates, setCandidates] = useState<Candidate[]>([]);
+  const [newAthleteGivenName, setNewAthleteGivenName] = useState("");
+  const [newAthleteFamilyName, setNewAthleteFamilyName] = useState("");
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState("");
   const [notice, setNotice] = useState("");
   const createKeyRef = useRef<string | null>(null);
+  const createAthleteKeyRef = useRef<string | null>(null);
   const addKeyByAthleteRef = useRef(new Map<string, string>());
   const transitionKeysRef = useRef(new Map<string, string>());
   const selectedGroup = bundle.groups.find(
@@ -75,6 +78,7 @@ export function OwnerGroupsManager({ bundle }: { bundle: GroupsBundle }) {
     ? (bundle.localTodayByLocation[selectedGroup.locationId] ?? "")
     : "";
   const createStorageKey = `zaltyko:pending-group-create:${organizationId}`;
+  const createAthleteStorageKey = `zaltyko:pending-group-athlete:${organizationId}:${bundle.selectedGroupId ?? "none"}`;
 
   function clearCreateKey() {
     createKeyRef.current = null;
@@ -103,6 +107,35 @@ export function OwnerGroupsManager({ bundle }: { bundle: GroupsBundle }) {
       createKeyRef.current = crypto.randomUUID();
     }
     return createKeyRef.current;
+  }
+
+  function clearCreateAthleteKey() {
+    createAthleteKeyRef.current = null;
+    try {
+      window.sessionStorage.removeItem(createAthleteStorageKey);
+    } catch {
+      // In-memory idempotency still protects retries if storage is unavailable.
+    }
+  }
+
+  function invalidateCreateAthleteKeyForEditedCommand() {
+    if (createAthleteKeyRef.current) clearCreateAthleteKey();
+  }
+
+  function getCreateAthleteKey() {
+    if (createAthleteKeyRef.current) return createAthleteKeyRef.current;
+    try {
+      createAthleteKeyRef.current =
+        window.sessionStorage.getItem(createAthleteStorageKey) ??
+        crypto.randomUUID();
+      window.sessionStorage.setItem(
+        createAthleteStorageKey,
+        createAthleteKeyRef.current
+      );
+    } catch {
+      createAthleteKeyRef.current = crypto.randomUUID();
+    }
+    return createAthleteKeyRef.current;
   }
 
   function groupHref(groupId?: string, nextLocationId?: string) {
@@ -245,6 +278,56 @@ export function OwnerGroupsManager({ bundle }: { bundle: GroupsBundle }) {
     } catch {
       setError(
         "No se pudo añadir. Puedes volver a intentarlo de forma segura."
+      );
+    } finally {
+      setBusy(false);
+    }
+  }
+
+  async function createAthleteForGroup(event: FormEvent<HTMLFormElement>) {
+    event.preventDefault();
+    if (!selectedGroup) return;
+    setError("");
+    setNotice("");
+    const givenName = newAthleteGivenName.trim();
+    const familyName = newAthleteFamilyName.trim();
+    if (!givenName || !familyName) {
+      setError("Indica el nombre y los apellidos.");
+      return;
+    }
+
+    setBusy(true);
+    const idempotencyKey = getCreateAthleteKey();
+    try {
+      const response = await fetch(
+        `/api/v1/owner/groups/${selectedGroup.id}/memberships`,
+        {
+          method: "POST",
+          headers: {
+            "content-type": "application/json",
+            "idempotency-key": idempotencyKey,
+          },
+          body: JSON.stringify({
+            organizationId,
+            newAthlete: { givenName, familyName },
+          }),
+        }
+      );
+      const payload = await response.json().catch(() => null);
+      if (!response.ok || !responseData(payload)) {
+        if (response.status < 500) clearCreateAthleteKey();
+        setError(responseError(payload));
+        return;
+      }
+      clearCreateAthleteKey();
+      setNewAthleteGivenName("");
+      setNewAthleteFamilyName("");
+      setCandidates([]);
+      setNotice("Ficha creada y añadida al grupo.");
+      router.refresh();
+    } catch {
+      setError(
+        "No se pudo confirmar el alta. Puedes repetir el envío de forma segura."
       );
     } finally {
       setBusy(false);
@@ -550,64 +633,121 @@ export function OwnerGroupsManager({ bundle }: { bundle: GroupsBundle }) {
                     pertenencias, pero no añadir gimnastas.
                   </p>
                 ) : (
-                  <form className="mt-5" onSubmit={searchAthletes}>
-                    <label
-                      htmlFor="athlete-search"
-                      className="block text-sm font-bold"
-                    >
-                      Añadir una gimnasta
-                    </label>
-                    <p className="mt-1 text-xs text-slate-600">
-                      Busca por nombre. Solo se muestran fichas activas de esta
-                      academia.
-                    </p>
-                    <div className="mt-2 flex flex-col gap-2 sm:flex-row">
-                      <input
-                        id="athlete-search"
-                        className={fieldClassName}
-                        value={candidateQuery}
-                        disabled={busy}
-                        onChange={(event) =>
-                          setCandidateQuery(event.target.value)
-                        }
-                        minLength={2}
-                        maxLength={80}
-                        autoComplete="off"
-                        placeholder="Nombre o apellido"
-                      />
-                      <button
-                        type="submit"
-                        className={secondaryButtonClassName}
-                        disabled={busy}
+                  <>
+                    <form className="mt-5" onSubmit={searchAthletes}>
+                      <label
+                        htmlFor="athlete-search"
+                        className="block text-sm font-bold"
                       >
-                        <Search className="h-4 w-4" aria-hidden="true" />
-                        Buscar
-                      </button>
-                    </div>
-                    {candidates.length > 0 && (
-                      <ul className="mt-3 divide-y divide-slate-200 border-y border-slate-200">
-                        {candidates.map((candidate) => (
-                          <li
-                            key={candidate.id}
-                            className="flex min-h-14 items-center justify-between gap-3 py-2"
-                          >
-                            <span className="text-sm font-semibold">
-                              {candidate.name}
-                            </span>
-                            <button
-                              type="button"
-                              className={secondaryButtonClassName}
-                              disabled={busy}
-                              onClick={() => void addAthlete(candidate.id)}
+                        Añadir una gimnasta
+                      </label>
+                      <p className="mt-1 text-xs text-slate-600">
+                        Busca por nombre. Solo se muestran fichas activas de
+                        esta academia.
+                      </p>
+                      <div className="mt-2 flex flex-col gap-2 sm:flex-row">
+                        <input
+                          id="athlete-search"
+                          className={fieldClassName}
+                          value={candidateQuery}
+                          disabled={busy}
+                          onChange={(event) =>
+                            setCandidateQuery(event.target.value)
+                          }
+                          minLength={2}
+                          maxLength={80}
+                          autoComplete="off"
+                          placeholder="Nombre o apellido"
+                        />
+                        <button
+                          type="submit"
+                          className={secondaryButtonClassName}
+                          disabled={busy}
+                        >
+                          <Search className="h-4 w-4" aria-hidden="true" />
+                          Buscar
+                        </button>
+                      </div>
+                      {candidates.length > 0 && (
+                        <ul className="mt-3 divide-y divide-slate-200 border-y border-slate-200">
+                          {candidates.map((candidate) => (
+                            <li
+                              key={candidate.id}
+                              className="flex min-h-14 items-center justify-between gap-3 py-2"
                             >
-                              <Plus className="h-4 w-4" aria-hidden="true" />
-                              Añadir
-                            </button>
-                          </li>
-                        ))}
-                      </ul>
-                    )}
-                  </form>
+                              <span className="text-sm font-semibold">
+                                {candidate.name}
+                              </span>
+                              <button
+                                type="button"
+                                className={secondaryButtonClassName}
+                                disabled={busy}
+                                onClick={() => void addAthlete(candidate.id)}
+                              >
+                                <Plus className="h-4 w-4" aria-hidden="true" />
+                                Añadir
+                              </button>
+                            </li>
+                          ))}
+                        </ul>
+                      )}
+                    </form>
+                    <details className="mt-4 border-t border-slate-200 pt-4">
+                      <summary className="touch-target inline-flex min-h-11 cursor-pointer items-center font-semibold text-teal-900 underline underline-offset-4 focus-visible:outline focus-visible:outline-2 focus-visible:outline-teal-800">
+                        ¿No aparece? Crear ficha y añadir
+                      </summary>
+                      <p className="mt-2 max-w-2xl text-sm leading-6 text-slate-700">
+                        Busca primero para evitar duplicados. Solo pedimos
+                        nombre y apellidos; no crea una cuenta familiar ni un
+                        cobro.
+                      </p>
+                      <form
+                        className="mt-4 grid gap-4 sm:grid-cols-2"
+                        onSubmit={createAthleteForGroup}
+                      >
+                        <label className="block text-sm font-semibold">
+                          Nombre
+                          <input
+                            className={`${fieldClassName} mt-2`}
+                            value={newAthleteGivenName}
+                            disabled={busy}
+                            onChange={(changeEvent) => {
+                              invalidateCreateAthleteKeyForEditedCommand();
+                              setNewAthleteGivenName(changeEvent.target.value);
+                            }}
+                            maxLength={100}
+                            autoComplete="given-name"
+                            required
+                          />
+                        </label>
+                        <label className="block text-sm font-semibold">
+                          Apellidos
+                          <input
+                            className={`${fieldClassName} mt-2`}
+                            value={newAthleteFamilyName}
+                            disabled={busy}
+                            onChange={(changeEvent) => {
+                              invalidateCreateAthleteKeyForEditedCommand();
+                              setNewAthleteFamilyName(changeEvent.target.value);
+                            }}
+                            maxLength={100}
+                            autoComplete="family-name"
+                            required
+                          />
+                        </label>
+                        <div className="sm:col-span-2">
+                          <button
+                            type="submit"
+                            className={primaryButtonClassName}
+                            disabled={busy}
+                          >
+                            <Plus className="h-4 w-4" aria-hidden="true" />
+                            {busy ? "Guardando…" : "Crear y añadir al grupo"}
+                          </button>
+                        </div>
+                      </form>
+                    </details>
+                  </>
                 )}
 
                 <div className="mt-7">

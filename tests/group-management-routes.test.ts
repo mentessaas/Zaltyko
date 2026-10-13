@@ -4,6 +4,7 @@ import { getCurrentUser } from "@/lib/auth/current-user";
 import { rateLimit } from "@/lib/rate-limit";
 import {
   addGroupMembership,
+  createAthleteForGroup,
   transitionGroupMembership,
 } from "@/modules/groups/application/group-membership-service";
 import {
@@ -31,6 +32,7 @@ vi.mock("@/lib/rate-limit", () => ({
 }));
 vi.mock("@/modules/groups/application/group-membership-service", () => ({
   addGroupMembership: vi.fn(),
+  createAthleteForGroup: vi.fn(),
   transitionGroupMembership: vi.fn(),
 }));
 vi.mock("@/modules/groups/application/group-management-service", () => ({
@@ -105,6 +107,14 @@ describe("API canónica de grupos y pertenencias", () => {
       localTodayByLocation: {},
     });
     vi.mocked(addGroupMembership).mockResolvedValue({
+      id: membershipId,
+      organizationId,
+      groupId,
+      athleteId,
+      startsOn: "2026-10-13",
+      status: "active",
+    } as never);
+    vi.mocked(createAthleteForGroup).mockResolvedValue({
       id: membershipId,
       organizationId,
       groupId,
@@ -244,6 +254,37 @@ describe("API canónica de grupos y pertenencias", () => {
       idempotencyKey: "group-command-001",
       actor: { userId, memberId },
     });
+  });
+
+  it("crea una ficha mínima y su pertenencia desde una única orden", async () => {
+    const response = await addMembership(
+      request(`/api/v1/owner/groups/${groupId}/memberships`, {
+        organizationId,
+        newAthlete: { givenName: "Gimnasta", familyName: "Sintética" },
+      }),
+      { params: Promise.resolve({ groupId }) }
+    );
+
+    expect(response.status).toBe(201);
+    expect(await response.json()).toMatchObject({
+      ok: true,
+      data: {
+        id: membershipId,
+        groupId,
+        athleteId,
+        startsOn: "2026-10-13",
+        status: "active",
+      },
+    });
+    expect(createAthleteForGroup).toHaveBeenCalledWith({
+      organizationId,
+      groupId,
+      givenName: "Gimnasta",
+      familyName: "Sintética",
+      idempotencyKey: "group-command-001",
+      actor: { userId, memberId },
+    });
+    expect(addGroupMembership).not.toHaveBeenCalled();
   });
 
   it("pasa el grupo esperado al servicio antes de cambiar el estado", async () => {

@@ -64,9 +64,18 @@ una única transacción.
 - Los comandos derivan el actor de la sesión, usan idempotencia y permiten
   reintentar tras un fallo de red; el servicio vuelve a validar el alcance
   transaccionalmente.
-- Limitación actual: el flujo asocia personas existentes; todavía no ofrece
-  alta canónica de atleta/persona desde esta pantalla. Una academia vacía debe
-  completar ese flujo antes de poder asignar gimnastas.
+- Desde el mismo formulario se puede crear una ficha mínima de atleta y
+  añadirla al grupo en un único comando idempotente. Persona, atleta,
+  pertenencia M:N e historial se escriben atómicamente; la operación vuelve a
+  validar rol, sede y capacidad dentro de la transacción.
+- El alta mínima solo pide nombre y apellidos. No crea familia, cuenta de
+  acceso, enrollment, consentimiento ni cargo; esos flujos siguen separados.
+  Los eventos y la auditoría guardan identificadores/scope, no nombres ni otros
+  datos personales.
+- Validado localmente con tests de ruta/UI y PostgreSQL efímero: replay con la
+  misma clave, rechazo de conflicto, cupo lleno sin ficha huérfana y acceso
+  fuera de scope. La sesión real en navegador, QA manual de teclado/lector y
+  conexión del Preview a una base aislada siguen pendientes.
 
 ### Sesiones
 

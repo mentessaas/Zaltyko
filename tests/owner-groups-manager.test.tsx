@@ -219,4 +219,51 @@ describe("gestión de grupos owner", () => {
     });
     expect(mockRefresh).toHaveBeenCalledOnce();
   });
+
+  it("crea y añade una ficha mínima con un solo envío idempotente", async () => {
+    const user = userEvent.setup();
+    mockFetch
+      .mockResolvedValueOnce({
+        ok: false,
+        status: 503,
+        json: async () => ({ detail: "No se pudo confirmar el resultado." }),
+      })
+      .mockResolvedValueOnce({
+        ok: true,
+        status: 201,
+        json: async () => ({ ok: true, data: { id: membershipId } }),
+      });
+
+    render(<OwnerGroupsManager bundle={groupBundle} />);
+    await user.click(screen.getByText("¿No aparece? Crear ficha y añadir"));
+    await user.type(screen.getByLabelText("Nombre"), "Gimnasta");
+    await user.type(screen.getByLabelText("Apellidos"), "Sintética");
+    await user.click(
+      screen.getByRole("button", { name: "Crear y añadir al grupo" })
+    );
+    expect(await screen.findByRole("alert")).toHaveTextContent(
+      "No se pudo confirmar el resultado."
+    );
+
+    await user.click(
+      screen.getByRole("button", { name: "Crear y añadir al grupo" })
+    );
+    expect(await screen.findByRole("status")).toHaveTextContent(
+      "Ficha creada y añadida al grupo."
+    );
+
+    expect(mockFetch).toHaveBeenCalledTimes(2);
+    expect(mockFetch.mock.calls[0]?.[0]).toBe(
+      `/api/v1/owner/groups/${groupId}/memberships`
+    );
+    const first = mockFetch.mock.calls[0]?.[1] as RequestInit;
+    const retry = mockFetch.mock.calls[1]?.[1] as RequestInit;
+    expect(first.headers).toEqual(retry.headers);
+    expect(first.body).toBe(retry.body);
+    expect(JSON.parse(String(first.body))).toEqual({
+      organizationId,
+      newAthlete: { givenName: "Gimnasta", familyName: "Sintética" },
+    });
+    expect(mockRefresh).toHaveBeenCalledOnce();
+  });
 });

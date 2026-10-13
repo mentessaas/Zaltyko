@@ -107,10 +107,12 @@ No sustituye E2E autenticado ni prueba contra una base de datos aislada.
       existentes y pausar/reactivar/finalizar pertenencias. Tests focales
       simulan sesión/scope; el harness PostgreSQL verifica concurrencia,
       idempotencia, historial y aislamiento tenant/sede.
-- [ ] Completar el alta canónica de personas y probar grupos en navegador con
-      sesión real owner/manager; realizar prueba de teclado/lector de pantalla.
-      El E2E remoto sigue bloqueado hasta disponer de un entorno aislado
-      aprobado; no usar el sandbox legacy ni aplicar SQL remoto.
+- [x] Alta mínima canónica de persona+atleta+pertenencia M:N desde grupos en
+      una operación idempotente, con tests focales y PostgreSQL efímero.
+- [ ] Probar grupos en navegador con sesión real owner/manager y realizar QA
+      de teclado/lector de pantalla. El E2E remoto sigue bloqueado hasta
+      disponer de un entorno aislado aprobado; no usar el sandbox legacy ni
+      aplicar SQL remoto.
 - [ ] Repetir Vitest completo bajo carga de workers controlada y aclarar el
       timeout de `tests/api-billing.test.ts` antes de declarar verde la suite.
 - [x] P0 local: writer/reader idempotentes del read model de cohortes; AC-12

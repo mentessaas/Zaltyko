@@ -117,19 +117,24 @@ probó desde cero con PostgreSQL efímero, incluidos reintentos con conflicto,
 capacidad concurrente, secuencia temporal y denegación de otro tenant/sede.
 Existe además un test pgTAP para CI/Supabase local; no se pudo ejecutar porque el
 daemon Docker local no estaba activo. La API y la interfaz owner ya permiten
-crear grupos, asociar personas existentes y pausar/reactivar/finalizar
-pertenencias; tienen tests focales, rate limit por tenant e idempotencia. El
-flujo aún no crea atletas/personas y no se ha probado con sesión de navegador
-real. **Pendiente:** alta canónica de personas, E2E autenticado y migración
-remota; no se aplicó SQL remoto.
+crear grupos, asociar personas existentes, crear una ficha mínima de atleta y
+pausar/reactivar/finalizar pertenencias. El alta mínima de persona+atleta+
+pertenencia es una sola transacción idempotente; no crea familia, login,
+enrollment, consentimiento ni pago. Tests focales y PostgreSQL efímero cubren
+replay/conflicto, cupo y rollback, y aislamiento tenant/sede. **Pendiente:**
+walkthrough autenticado en navegador, QA manual accesible y validación contra
+una base aislada; no se aplicó SQL remoto.
 
-Verificación transversal actual: TypeScript, `pnpm lint` global, build Next.js
-(288 rutas), integridad de migraciones (7 Drizzle + 110 Supabase) y `validate:rls`
-pasan. El build local advirtió variables runtime Stripe/Supabase ausentes, por
-lo que no demuestra runtime. Vitest completa:
-453 archivos PASS, 1 omitido; 2.343 tests PASS, 3 omitidos, en 439,31 s. El
-timeout de billing del corte anterior no se reprodujo en esta corrida; su causa
-sigue sin demostrarse. La batería pgTAP queda pendiente por Docker local inactivo.
+En este bloque: `pnpm typecheck`, ESLint focal, `pnpm gate:auth`,
+`pnpm check:migrations` (7 Drizzle + 110 Supabase), `pnpm validate:rls`
+(79/79), las pruebas focales (12/12), el harness PostgreSQL efímero,
+Prettier TS/TSX y `git diff --check` pasan. `pnpm build` también completa y
+genera 289 rutas; Next informa que el build omite tipos/lint (ejecutados por
+separado) y que faltan variables runtime de Stripe/Supabase. Por ello no prueba
+conectividad ni runtime. La última suite Vitest completa antes de este cambio
+fue 453 archivos PASS, 1 omitido; 2.343 tests PASS, 3 omitidos, en 439,31 s;
+no se volvió a ejecutar completa en este bloque. La batería pgTAP queda
+pendiente por Docker local inactivo.
 
 ### 3. Ledger y cobros
 
@@ -242,8 +247,10 @@ equivale a producción lista.
 Revalidación local 2026-10-13: `pnpm test -- --run` **453 archivos PASS, 1
 omitido; 2.343 tests PASS, 3 omitidos**; `pnpm typecheck`, `pnpm lint` y
 `pnpm check:migrations` (**7 Drizzle + 109 Supabase**) PASS. El Preview de
-Vercel del HEAD `9582ede3` está `READY`; la sesión autenticada, los datos que
-consume el Preview y cualquier runtime productivo siguen sin verificarse.
+El Preview Vercel del HEAD `082a4097` está `READY` en
+`https://zaltyko-g9fchzl3q-mentessaas-projects.vercel.app`; requiere SSO. La
+sesión autenticada y la base a la que apunta no están verificadas. Producción
+sigue en el deployment antiguo de `main`, no en este rebuild.
 `pnpm audit:dependencies --prod` en esta rama informa **3 vulnerabilidades
 moderadas, ninguna alta/crítica**. GitHub indicó que la rama por defecto sigue
 con 4 vulnerabilidades altas; validar el merge y volver a auditar main.
@@ -276,8 +283,15 @@ con 4 vulnerabilidades altas; validar el merge y volver a auditar main.
    slots, módulos configurables y límites seguros de drag-and-drop.
 7. Cerrar privacidad, soporte, backup/restore y gates de preparación de
    lanzamiento. Mantener bloqueada la captación hasta que el copy corregido y
-   el hotfix estén desplegados y verificados. Deployment y cualquier cambio
-   remoto requieren su gate propio.
+   el hotfix estén desplegados y verificados. El usuario autorizó que el
+   trabajo pueda llegar a Producción, Stripe Live y migraciones remotas; esa
+   autorización no sustituye revisión independiente, reconciliación de
+   historiales, restauración probada, seguridad ni confirmación específica
+   antes de iniciar cargos a familias.
+
+   Para el E2E remoto no se autorizó crear una rama de Supabase cuyo coste
+   potencial pueda alcanzar 35 USD el primer mes. No usar el sandbox E2E legacy
+   ni aplicar SQL remoto mientras los historiales no estén reconciliados.
 
 La revisión de PR #225 está solicitada a `@elvisvaldes`; GitHub confirma que
 ya tiene permiso `write`, pero todavía no consta review. La aprobación debe

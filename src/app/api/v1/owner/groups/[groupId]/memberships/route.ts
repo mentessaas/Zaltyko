@@ -10,7 +10,10 @@ import {
   rateLimit,
   rateLimitExceededResponse,
 } from "@/lib/rate-limit";
-import { addGroupMembership } from "@/modules/groups/application/group-membership-service";
+import {
+  addGroupMembership,
+  createAthleteForGroup,
+} from "@/modules/groups/application/group-membership-service";
 import { searchGroupAthleteOptions } from "@/modules/groups/application/group-management-service";
 import { OperationalError } from "@/modules/shared/domain/operational-error";
 import { resolveOwnerScope } from "@/modules/owner-dashboard/application/owner-scope";
@@ -20,7 +23,7 @@ const querySchema = z.object({
   organizationId: z.string().uuid(),
   q: z.string().trim().min(2).max(80),
 });
-const bodySchema = z
+const existingAthleteBodySchema = z
   .object({
     organizationId: z.string().uuid(),
     athleteId: z.string().uuid(),
@@ -28,6 +31,18 @@ const bodySchema = z
     status: z.enum(["pending", "active"]),
   })
   .strict();
+const newAthleteBodySchema = z
+  .object({
+    organizationId: z.string().uuid(),
+    newAthlete: z
+      .object({
+        givenName: z.string().trim().min(1).max(100),
+        familyName: z.string().trim().min(1).max(100),
+      })
+      .strict(),
+  })
+  .strict();
+const bodySchema = z.union([existingAthleteBodySchema, newAthleteBodySchema]);
 const idempotencyKeySchema = z.string().trim().min(8).max(150);
 
 function unauthenticatedResponse() {
@@ -108,7 +123,8 @@ export async function POST(
     return problemResponse({
       status: 400,
       title: "Datos de la pertenencia incompletos",
-      detail: "Comprueba la gimnasta, la fecha y la clave de envío.",
+      detail:
+        "Elige una ficha existente o indica el nombre y los apellidos de la nueva gimnasta.",
       type: "invalid-group-membership-command",
       errors: {
         ...(params.success ? {} : { params: params.error.flatten() }),
@@ -134,15 +150,26 @@ export async function POST(
     });
     if (!limit.success) return rateLimitExceededResponse(limit);
 
-    const membership = await addGroupMembership({
-      organizationId: scope.organization.id,
-      groupId: params.data.groupId,
-      athleteId: parsedBody.data.athleteId,
-      startsOn: parsedBody.data.startsOn,
-      status: parsedBody.data.status,
-      idempotencyKey: idempotencyKey.data,
-      actor: { userId: user.id, memberId: scope.member.id },
-    });
+    const actor = { userId: user.id, memberId: scope.member.id };
+    const membership =
+      "newAthlete" in parsedBody.data
+        ? await createAthleteForGroup({
+            organizationId: scope.organization.id,
+            groupId: params.data.groupId,
+            givenName: parsedBody.data.newAthlete.givenName,
+            familyName: parsedBody.data.newAthlete.familyName,
+            idempotencyKey: idempotencyKey.data,
+            actor,
+          })
+        : await addGroupMembership({
+            organizationId: scope.organization.id,
+            groupId: params.data.groupId,
+            athleteId: parsedBody.data.athleteId,
+            startsOn: parsedBody.data.startsOn,
+            status: parsedBody.data.status,
+            idempotencyKey: idempotencyKey.data,
+            actor,
+          });
     return withPrivateNoStore(
       apiCreated({
         id: membership.id,

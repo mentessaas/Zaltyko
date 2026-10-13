@@ -924,3 +924,12 @@ Una ficha externa no crea dueño, academia operativa, trial ni suscripción. Sol
 | Decisión | Mantener todos los evaluadores por sede y por watermark, sin PII en evidencia financiera; implementar worker local protegido pero no registrar scheduler ni apuntar a base remota hasta cerrar autorización de entorno, pruebas por regla y worker, carga, backup/restore y revisión RGPD. |
 | Consecuencia | Reglas y dispatcher son integrables localmente, pero pipeline automatizado, preparación de piloto y SLA de frescura permanecen `NO VERIFICADO`; CTA de simulación no se presenta como acción terminada. |
 | Estado | Aplicada en código/docs locales; ninguna migración, scheduler ni escritura remota. Ver [fuentes de evaluación](../../docs/architecture/insight-evaluation-sources.md), [worker outbox](../../docs/architecture/outbox-worker.md) y [auditoría PRD](../../docs/audits/2026-10-06-prd-completion-audit.md). |
+
+## 2026-10-13 — Alta mínima de gimnasta ligada al grupo
+
+| Campo | Valor |
+| --- | --- |
+| Evidencia | La pantalla de grupos solo podía asociar atletas existentes, bloqueando el primer flujo operativo de una academia nueva. El dominio distingue `people`, `athletes`, enrollment y pertenencia M:N temporal `group_memberships`. |
+| Decisión | Permitir crear desde el grupo una ficha mínima (nombre y apellidos) y su primera pertenencia como una sola operación idempotente y transaccional. No crear automáticamente familia, usuario, enrollment, consentimiento ni cargo. |
+| Consecuencia | Reduce pasos sin mezclar conceptos del dominio; comprueba tenant/sede/cupo en servidor, conserva historial M:N y no duplica gimnastas. Eventos/auditoría excluyen PII. |
+| Estado | Implementado localmente y validado con tests focales y PostgreSQL efímero. E2E autenticado, QA manual accesible y base remota aislada pendientes; no hay migración ni despliegue productivo asociado. |

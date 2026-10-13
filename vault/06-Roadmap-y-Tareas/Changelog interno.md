@@ -11466,3 +11466,18 @@ Modelo separado, reclamación manual, administración, importación revisada, fi
   respuestas sintéticas en jsdom: no valida una sesión autenticada, una
   transacción real ni el aislamiento por sede. No se llamó a ninguna API real
   ni se modificaron datos.
+
+## 2026-10-13 — Crear y añadir una gimnasta desde el grupo
+
+- `/owner/groups` permite crear una ficha mínima (nombre y apellidos) y añadirla
+  al grupo con un único envío. La transacción crea `people`, `athletes`, la
+  relación canónica M:N `group_memberships` y su historial; verifica scope y
+  capacidad, registra outbox/auditoría sin PII y permite reintento idempotente.
+- No crea familia, cuenta de acceso, enrollment, consentimiento ni pago. Tests
+  focales de rutas/UI 12/12, harness PostgreSQL local, TypeScript, ESLint focal
+  y Prettier en TS/TSX PASS; gates auth/RLS/migraciones también PASS. Queda la
+  revisión final del diff; sesión real en navegador y E2E remoto pendientes.
+  `pnpm build` genera 289 rutas; variables runtime Stripe/Supabase ausentes,
+  por lo que no valida conectividad ni ejecución real.
+- No se aplicó SQL remoto ni se modificó Producción, Stripe Live o Vercel
+  Production. El cambio aún no está desplegado.

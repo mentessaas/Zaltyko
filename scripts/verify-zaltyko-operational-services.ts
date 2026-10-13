@@ -11,6 +11,7 @@ import {
 } from "@/modules/enrollments/application/enrollment-service";
 import {
   addGroupMembership,
+  createAthleteForGroup,
   transitionGroupMembership,
 } from "@/modules/groups/application/group-membership-service";
 import {
@@ -253,6 +254,88 @@ async function main(): Promise<void> {
   assert(
     managerGroups.groups.every((group) => group.locationId === ID.locationA)
   );
+
+  const createdAthleteMembership = await createAthleteForGroup({
+    organizationId: ID.orgA,
+    groupId: createdGroup.id,
+    givenName: "Gimnasta",
+    familyName: "Sintética",
+    idempotencyKey: "create-athlete-group-1",
+    actor: manager,
+  });
+  const createdAthleteMembershipRetry = await createAthleteForGroup({
+    organizationId: ID.orgA,
+    groupId: createdGroup.id,
+    givenName: "Gimnasta",
+    familyName: "Sintética",
+    idempotencyKey: "create-athlete-group-1",
+    actor: manager,
+  });
+  assert.equal(createdAthleteMembershipRetry.id, createdAthleteMembership.id);
+  assert.equal(
+    createdAthleteMembershipRetry.athleteId,
+    createdAthleteMembership.athleteId
+  );
+  assert.equal(
+    await count(
+      "zaltyko.athletes",
+      `id = '${createdAthleteMembership.athleteId}'`
+    ),
+    1,
+    "La nueva ficha se crea una sola vez al reintentar"
+  );
+  assert.equal(
+    await count(
+      "zaltyko.group_memberships",
+      `id = '${createdAthleteMembership.id}' and group_id = '${createdGroup.id}' and status = 'active'`
+    ),
+    1,
+    "La nueva ficha queda asociada al grupo en la misma operación"
+  );
+  await expectOperationalError(
+    () =>
+      createAthleteForGroup({
+        organizationId: ID.orgA,
+        groupId: createdGroup.id,
+        givenName: "Otro nombre",
+        familyName: "Sintética",
+        idempotencyKey: "create-athlete-group-1",
+        actor: manager,
+      }),
+    "IDEMPOTENCY_CONFLICT"
+  );
+  const createdAthleteEvents = await pool.query<{
+    event_name: string;
+    payload: Record<string, unknown>;
+  }>(
+    `select event_name, payload from zaltyko.outbox_events
+     where organization_id = $1 and idempotency_key = $2
+     order by event_name`,
+    [ID.orgA, "create-athlete-group-1"]
+  );
+  assert.deepEqual(
+    createdAthleteEvents.rows.map((row) => row.event_name),
+    ["athlete.created", "group.membership_added"]
+  );
+  assert.equal(
+    JSON.stringify(createdAthleteEvents.rows).includes("Gimnasta"),
+    false,
+    "Los nombres no salen de people hacia outbox"
+  );
+  const athleteAudit = await pool.query<{
+    after: Record<string, unknown> | null;
+  }>(
+    `select after from zaltyko.audit_log
+     where organization_id = $1 and idempotency_key = $2`,
+    [ID.orgA, "athlete-created:create-athlete-group-1"]
+  );
+  assert.equal(athleteAudit.rowCount, 1);
+  assert.equal(
+    JSON.stringify(athleteAudit.rows[0]?.after).includes("Gimnasta"),
+    false,
+    "La auditoría conserva IDs y scope, no nombres"
+  );
+
   const athleteOptions = await searchGroupAthleteOptions({
     userId: ID.managerUser,
     organizationId: ID.orgA,
@@ -368,6 +451,47 @@ async function main(): Promise<void> {
   assert(fullGroupResult?.status === "rejected");
   assert(fullGroupResult.reason instanceof OperationalError);
   assert.equal(fullGroupResult.reason.code, "GROUP_CAPACITY_FULL");
+
+  await expectOperationalError(
+    () =>
+      createAthleteForGroup({
+        organizationId: ID.orgA,
+        groupId: ID.groupLimited,
+        givenName: "Gimnasta",
+        familyName: "Sin Plaza",
+        idempotencyKey: "create-athlete-full-group",
+        actor: owner,
+      }),
+    "GROUP_CAPACITY_FULL"
+  );
+  assert.equal(
+    await count(
+      "zaltyko.people",
+      "given_name = 'Gimnasta' and family_name = 'Sin Plaza'"
+    ),
+    0,
+    "Un grupo lleno no deja una persona huérfana"
+  );
+  await expectOperationalError(
+    () =>
+      createAthleteForGroup({
+        organizationId: ID.orgA,
+        groupId: ID.groupNorth,
+        givenName: "Gimnasta",
+        familyName: "Fuera de Sede",
+        idempotencyKey: "create-athlete-out-of-scope",
+        actor: manager,
+      }),
+    "LOCATION_SCOPE_DENIED"
+  );
+  assert.equal(
+    await count(
+      "zaltyko.people",
+      "given_name = 'Gimnasta' and family_name = 'Fuera de Sede'"
+    ),
+    0,
+    "La sede no autorizada no deja una persona huérfana"
+  );
 
   await expectOperationalError(
     () =>
@@ -1014,7 +1138,11 @@ async function main(): Promise<void> {
       (select count(*)::int from zaltyko.enrollment_status_history where effective_on is null)
         as missing_effective_date_count
   `);
-  assert.equal(integrity.rows[0].outbox_count, integrity.rows[0].audit_count);
+  assert.equal(
+    integrity.rows[0].outbox_count,
+    integrity.rows[0].audit_count + 1,
+    "El alta de una atleta emite dos hechos de dominio con una sola entrada auditada"
+  );
   assert(integrity.rows[0].history_count >= 6);
   assert.equal(integrity.rows[0].missing_effective_date_count, 0);
 
