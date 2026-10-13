@@ -142,16 +142,43 @@ E2E contra una base aislada; el Preview sigue protegido y sin vínculo de datos
 verificado. Próximos cortes: gestión/consulta de enrollment y sus transiciones,
 extensión programada del horizonte de sesiones, personal y asistencia.
 
+### Gate remoto y decisión de migración — lectura del 2026-10-13
+
+Se inspeccionaron solo metadatos y catálogos, sin consultar filas de personas,
+familias, cargos ni credenciales:
+
+- El proyecto Supabase `Zaltyko` está activo y registra 53 migraciones; el
+  `Zaltyko E2E Sandbox` activo registra 70. Los historiales no son idénticos.
+- En ambos proyectos, las tablas operativas observadas están en `public` y
+  reflejan el modelo anterior: existen `group_athletes`, `class_sessions`,
+  `class_enrollments` y `programs`; no aparecen las tablas greenfield consultadas
+  en los esquemas consultados `zaltyko` / `zaltyko_private`. `group_athletes`
+  es la relación muchos-a-muchos que debe preservarse al reconciliar el nuevo
+  modelo.
+- En Vercel, Preview no tiene una variable `DATABASE_URL` general para esta
+  rama: las únicas variables Preview con ese nombre están acotadas a
+  `codex/fix-blog-route-ci`. No se leyeron valores de variables sensibles.
+
+**Decisión:** no ejecutar en bloque las 110 migraciones del checkout contra
+Producción ni contra el Sandbox. Primero se compara el ledger de cada proyecto
+con cada SQL pendiente, se inspecciona el DDL que pueda colisionar con objetos
+legacy y se prepara una secuencia verificable en el Sandbox existente. Después
+se valida el esquema resultante y el comportamiento con datos sintéticos; solo
+entonces se aplica la secuencia reconciliada a Producción. La autorización del
+propietario para migraciones remotas no sustituye este control de destino,
+compatibilidad y recuperación.
+
 En este bloque: `pnpm typecheck`, ESLint focal, `pnpm gate:auth`,
 `pnpm check:migrations` (7 Drizzle + 110 Supabase), `pnpm validate:rls`
-(79/79), las pruebas focales (12/12), el harness PostgreSQL efímero,
+(79/79), las pruebas focales de clases (7/7), el harness PostgreSQL efímero,
 Prettier TS/TSX y `git diff --check` pasan. `pnpm build` también completa y
-genera 289 rutas; Next informa que el build omite tipos/lint (ejecutados por
-separado) y que faltan variables runtime de Stripe/Supabase. Por ello no prueba
-conectividad ni runtime. La última suite Vitest completa antes de este cambio
-fue 453 archivos PASS, 1 omitido; 2.343 tests PASS, 3 omitidos, en 439,31 s;
-no se volvió a ejecutar completa en este bloque. La batería pgTAP queda
-pendiente por Docker local inactivo.
+genera 290 rutas; el Preview exacto de `8f836fb0` está `READY`. Next informa
+que el build omite tipos/lint (ejecutados por separado) y que faltan variables
+runtime de Stripe/Supabase. Por ello no prueba conectividad ni runtime. La
+última suite Vitest completa antes de este cambio fue 453 archivos PASS,
+1 omitido; 2.343 tests PASS, 3 omitidos, en 439,31 s; no se volvió a ejecutar
+completa en este bloque. La batería pgTAP queda pendiente por Docker local
+inactivo.
 
 ### 3. Ledger y cobros
 
