@@ -15,6 +15,17 @@ source:
   - ../07-Auditorias-y-Riesgos/Auditoria MVP gimnasia - 2026-06-23.md
   - ../07-Auditorias-y-Riesgos/Registro de riesgos.md (bloqueantes con Elvis)
 ---
+## P2 — Aislar el catálogo sintético de los previews compartibles — 2026-10-13
+
+- En el Preview actual aparece la ficha pública `TEST active`; el ID coincide
+  con una fila marcada pública en el sandbox E2E y no existe en producción.
+- No se cambió la fila: puede formar parte de pruebas operativas aún no
+  localizadas. Confirmar qué entorno alimenta cada tipo de Preview y sustituir
+  o despublicar la muestra solo después de revisar dependencias E2E.
+- Antes de captar o promover un release, el directorio público debe mostrar
+  fichas autorizadas/reales o un estado vacío honesto, nunca datos de prueba
+  que puedan confundirse con clientes.
+
 ## 2026-10-06 — Producto Health Score y Owner Dashboard (corte activo)
 
 - **AC-12 local PASS con alcance limitado:** fixture sintético de 5.000 atletas,

@@ -373,7 +373,7 @@ export function RegisterForm({
     <AuthPageShell
       title="Crea tu cuenta"
       description={ownerEntry
-        ? "Crea tu acceso para gestionar una academia."
+        ? "Primero crearás tu cuenta personal; después, configurarás tu academia."
         : "Crea tu acceso personal y elige cómo quieres usar Zaltyko."}
       footer={
         <>
@@ -433,14 +433,14 @@ export function RegisterForm({
           </div>}
           {role === "owner" && !directoryRegistration && (
             <div className="rounded-lg border border-zaltyko-teal/30 bg-zaltyko-teal/5 px-3 py-2 text-xs text-muted-foreground">
-              <span className="font-semibold text-foreground">Importante:</span> primero crearás tu cuenta personal. Después podrás buscar tu academia antes de crear un espacio de gestión.
+              <span className="font-semibold text-foreground">¿Tu academia ya está en Zaltyko?</span> Búscala antes de crear otro espacio.
               <p className="mt-2">
                 {directoryDiscoveryEnabled && directoryClaimsEnabled
-                  ? "Si ya tiene una ficha pública, podrás solicitar su reclamación gratuita; requiere revisión y no concede acceso al espacio privado."
-                  : "La búsqueda muestra perfiles públicos disponibles, no todas las academias. Si la tuya ya tiene un espacio en Zaltyko, pide una invitación a su responsable para no duplicarlo."}
+                  ? "Si tiene una ficha pública, podrás solicitar su reclamación gratuita. Requiere revisión y no da acceso al espacio privado."
+                  : "Solo aparecen fichas públicas. Si no encuentras la tuya, pide una invitación a su responsable."}
               </p>
               <Link href="/academias" className="mt-2 block font-semibold underline">
-                Buscar academias públicas antes de crear mi espacio
+                Buscar academias públicas
               </Link>
             </div>
           )}

@@ -8,6 +8,15 @@ source:
 
 # Decisiones
 
+## 2026-10-13 — Buscar la academia antes de abrir un espacio owner
+
+| Campo | Valor |
+| --- | --- |
+| Evidencia | En el Preview móvil, el formulario permitía abrir `/academias` antes de crear la cuenta, pero el texto decía que la búsqueda ocurriría después. Eso confundía el orden y repetía instrucciones. |
+| Decisión | Explicar que la cuenta personal va primero y la configuración de academia después; presentar la búsqueda como comprobación opcional antes de crear un espacio nuevo. Mantener la advertencia de catálogo público incompleto y no dar a entender que una reclamación da acceso privado. |
+| Consecuencia | No cambian autenticación, roles, consentimiento ni transacciones. Se reduce el texto sin quitar la prevención de academias duplicadas. La ficha `TEST active` queda sin cambios mientras se comprueban dependencias del sandbox. |
+| Estado | Cambio local y tests focales 17/17, TypeScript y ESLint pasan. Falta el Preview del nuevo commit y revisar el render actualizado; no hay cambio de producción. |
+
 ## 2026-10-13 — Aislar helpers SQL del núcleo greenfield
 
 | Campo | Valor |

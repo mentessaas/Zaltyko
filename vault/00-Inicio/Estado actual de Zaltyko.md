@@ -37,6 +37,22 @@ No se aplicaron migraciones remotas ni se modificó producción. Ver el
 el [backlog](../06-Roadmap-y-Tareas/Backlog priorizado.md) y la auditoría de
 [ramas y releases](../../auditoria-2026-10-13/branch-and-release-check.md).
 
+### Alta de owner: instrucciones más breves — 2026-10-13
+
+El registro owner explica que primero se crea la cuenta personal y luego se
+configura la academia. La búsqueda opcional aparece como comprobación previa a
+abrir un espacio nuevo; el texto conserva el límite de perfiles públicos y la
+invitación necesaria si la ficha no aparece. La rama de reclamaciones sigue
+indicando que requiere revisión y no concede acceso privado. Tests focales
+17/17, TypeScript y ESLint pasan. No cambió el alta, el consentimiento ni la
+base de datos. El corte está local hasta que se publique el nuevo Preview;
+producción no cambia.
+
+El Preview muestra la academia sintética `TEST active`. La consulta read-only
+encuentra ese ID en el sandbox E2E y no en producción; la conexión exacta de la
+base de datos del Preview queda **NO VERIFICADA**. No se modificó ningún
+registro. Ver `OWNER-REGISTRATION-UX.md`.
+
 ### Corrección de aislamiento SQL — 2026-10-13
 
 Producción y E2E ya contienen helpers legacy en `zaltyko_private`, con acceso

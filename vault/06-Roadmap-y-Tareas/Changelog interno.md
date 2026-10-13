@@ -7,6 +7,24 @@ source:
   - ../docs/architecture/zaltyko-domain-model.md
 ---
 
+## 2026-10-13 — Simplificar el primer paso del alta de owner
+
+- En `/auth/register?role=owner`, el texto del buscador contradecía el orden de
+  la pantalla: la persona podía buscar antes de crear la cuenta aunque el aviso
+  decía que lo haría después. El link ahora es una comprobación opcional antes
+  de abrir un espacio nuevo.
+- Se acorta la explicación, pero se conserva que solo aparecen perfiles
+  públicos y que una academia no listada requiere invitación. La reclamación,
+  cuando está habilitada, mantiene la revisión y la aclaración de que no da
+  acceso al espacio privado.
+- No cambia autenticación, consentimiento, roles ni persistencia. No se envió el
+  formulario ni se creó una cuenta.
+- El Preview muestra una ficha sintética `TEST active`; el ID exacto existe en
+  el sandbox E2E y no en producción. El destino de BD configurado para este
+  Preview no está confirmado. No se modificaron filas remotas.
+- Verificación local: tests focales 17/17; TypeScript, ESLint y
+  `git diff --check` pasan. Preview actualizado pendiente de push.
+
 ## 2026-10-13 — Aislar helpers greenfield del esquema privado legacy
 
 - La lectura de catálogos confirma que producción y el sandbox tienen
