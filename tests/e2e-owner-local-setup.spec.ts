@@ -51,6 +51,7 @@ test.describe("Isolated local Supabase Owner setup", () => {
     page,
   }) => {
     const cspViolations: string[] = [];
+    const profileRequests: string[] = [];
     page.on("console", (message) => {
       if (
         message.type() === "error" &&
@@ -59,6 +60,11 @@ test.describe("Isolated local Supabase Owner setup", () => {
         )
       ) {
         cspViolations.push("CSP blocked a browser request");
+      }
+    });
+    page.on("request", (request) => {
+      if (request.url().includes("/api/onboarding/profile")) {
+        profileRequests.push("legacy profile endpoint called");
       }
     });
     await page.goto("/auth/register?role=owner", {
@@ -91,11 +97,6 @@ test.describe("Isolated local Supabase Owner setup", () => {
         response.url().includes("/auth/v1/signup") &&
         response.request().method() === "POST"
     );
-    const profileResponsePromise = page.waitForResponse(
-      (response) =>
-        response.url().includes("/api/onboarding/profile") &&
-        response.request().method() === "POST"
-    );
     await page
       .getByRole("button", { name: "Crear cuenta", exact: true })
       .click();
@@ -112,15 +113,19 @@ test.describe("Isolated local Supabase Owner setup", () => {
     if (!createdUserId)
       throw new Error("Local signup response omitted the user ID.");
     userId = createdUserId;
-    const profileResponse = await profileResponsePromise;
-    expect(profileResponse.ok()).toBe(true);
     expect(cspViolations).toEqual([]);
     await expect(page).toHaveURL(/\/owner\/setup$/);
+    expect(profileRequests).toEqual([]);
 
     await page.getByLabel("Nombre de la academia").fill(organizationName!);
     await page.getByRole("radio", { name: "Gimnasia rítmica" }).check();
     await page.getByLabel("Nombre de la primera sede").fill(locationName!);
 
+    const bootstrapRequestPromise = page.waitForRequest(
+      (request) =>
+        request.url().endsWith("/api/v1/organizations/bootstrap") &&
+        request.method() === "POST"
+    );
     const bootstrapResponse = page.waitForResponse(
       (response) =>
         response.url().endsWith("/api/v1/organizations/bootstrap") &&
@@ -129,39 +134,36 @@ test.describe("Isolated local Supabase Owner setup", () => {
     await page
       .getByRole("button", { name: "Crear espacio de dirección" })
       .click();
+    const bootstrapRequest = await bootstrapRequestPromise;
     const response = await bootstrapResponse;
     expect(response.status()).toBe(201);
     const result = (await response.json()) as {
       organizationId: string;
       locationId: string;
     };
-    const persistedConsent = await pool.query<{
-      state: string;
-      source: string;
-      policy_version: string;
-      consent_proof: string;
-      grant_events: number;
-    }>(
-      `select consent.state,
-              consent.source,
-              consent.policy_version,
-              consent.consent_proof,
-              (select count(*)::int
-                 from public.owner_consent_audit audit
-                where audit.owner_id = consent.owner_id and audit.event = 'grant') as grant_events
-         from public.owner_consent consent
-        where consent.owner_id = $1::uuid`,
-      [userId]
-    );
-    expect(persistedConsent.rows).toEqual([
-      {
-        state: "granted",
-        source: "signup",
-        policy_version: "v1-2026-08-01",
-        consent_proof: "signup:register-form-v1",
-        grant_events: 1,
+    const bootstrapIdempotencyKey =
+      bootstrapRequest.headers()["idempotency-key"];
+    expect(bootstrapIdempotencyKey).toBeTruthy();
+    const bootstrapBody = bootstrapRequest.postDataJSON();
+    const replay = await page.evaluate(
+      async ({ key, body }) => {
+        const replayResponse = await fetch("/api/v1/organizations/bootstrap", {
+          method: "POST",
+          headers: {
+            "content-type": "application/json",
+            "idempotency-key": key,
+          },
+          body: JSON.stringify(body),
+        });
+        return {
+          status: replayResponse.status,
+          payload: await replayResponse.json(),
+        };
       },
-    ]);
+      { key: bootstrapIdempotencyKey, body: bootstrapBody }
+    );
+    expect(replay.status).toBe(201);
+    expect(replay.payload).toMatchObject(result);
     expect(result.organizationId).toMatch(
       /^[0-9a-f]{8}-[0-9a-f]{4}-[1-8][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i
     );
@@ -520,6 +522,127 @@ test.describe("Isolated local Supabase Owner setup", () => {
         manual_payments: 1,
       },
     ]);
+
+    for (const width of [375, 768, 1280]) {
+      await page.setViewportSize({ width, height: 900 });
+      await page.goto(
+        `/owner?${scope}&from=${dashboardPeriod.from}&to=${dashboardPeriod.to}`
+      );
+      await expect(
+        page.getByRole("heading", { name: "Tu academia en marcha" })
+      ).toBeVisible();
+      const viewport = await page.evaluate(() => ({
+        width: window.innerWidth,
+        scrollWidth: document.documentElement.scrollWidth,
+      }));
+      expect(viewport.scrollWidth).toBeLessThanOrEqual(viewport.width);
+    }
+
+    const browser = page.context().browser();
+    if (!browser)
+      throw new Error("The authenticated E2E browser is unavailable.");
+    const secondOwnerContext = await browser.newContext();
+    try {
+      const secondOwnerPage = await secondOwnerContext.newPage();
+      const secondOwnerId = randomUUID();
+      const secondOwnerName = `Owner E2E ${secondOwnerId.slice(0, 8)}`;
+      const secondOwnerEmail = `e2e-${secondOwnerId}@example.test`;
+      const secondOwnerPassword = `${randomUUID()}aA1!`;
+      const secondOwnerProfileRequests: string[] = [];
+      secondOwnerPage.on("request", (request) => {
+        if (request.url().includes("/api/onboarding/profile")) {
+          secondOwnerProfileRequests.push("legacy profile endpoint called");
+        }
+      });
+      const appOrigin = new URL(page.url()).origin;
+      await secondOwnerPage.goto(`${appOrigin}/auth/register?role=owner`);
+      await expect(
+        secondOwnerPage.getByRole("heading", { name: "Crea tu cuenta" })
+      ).toBeVisible();
+      await secondOwnerPage.getByLabel("Nombre completo").fill(secondOwnerName);
+      await secondOwnerPage
+        .getByLabel("Correo electrónico")
+        .fill(secondOwnerEmail);
+      await secondOwnerPage.getByLabel("Contraseña").fill(secondOwnerPassword);
+      await secondOwnerPage.getByRole("checkbox").check();
+      const secondSignupResponsePromise = secondOwnerPage.waitForResponse(
+        (candidate) =>
+          candidate.url().includes("/auth/v1/signup") &&
+          candidate.request().method() === "POST"
+      );
+      await secondOwnerPage
+        .getByRole("button", { name: "Crear cuenta", exact: true })
+        .click();
+      expect((await secondSignupResponsePromise).ok()).toBe(true);
+      await expect(secondOwnerPage).toHaveURL(/\/owner\/setup$/);
+      expect(secondOwnerProfileRequests).toEqual([]);
+      await secondOwnerPage
+        .getByLabel("Nombre de la academia")
+        .fill(`Academia E2E aislada ${secondOwnerId.slice(0, 8)}`);
+      await secondOwnerPage
+        .getByRole("radio", { name: "Gimnasia rítmica" })
+        .check();
+      await secondOwnerPage
+        .getByLabel("Nombre de la primera sede")
+        .fill(`Sede E2E aislada ${secondOwnerId.slice(0, 8)}`);
+      const secondBootstrapResponsePromise = secondOwnerPage.waitForResponse(
+        (candidate) =>
+          candidate.url().endsWith("/api/v1/organizations/bootstrap") &&
+          candidate.request().method() === "POST"
+      );
+      await secondOwnerPage
+        .getByRole("button", { name: "Crear espacio de dirección" })
+        .click();
+      const secondBootstrapResponse = await secondBootstrapResponsePromise;
+      expect(secondBootstrapResponse.status()).toBe(201);
+      const secondOrganization = (await secondBootstrapResponse.json()) as {
+        organizationId: string;
+        locationId: string;
+      };
+
+      const secondTenantRequest = new URL("/api/v1/owner/groups", appOrigin);
+      secondTenantRequest.searchParams.set(
+        "organizationId",
+        secondOrganization.organizationId
+      );
+      secondTenantRequest.searchParams.set(
+        "locationId",
+        secondOrganization.locationId
+      );
+      secondTenantRequest.searchParams.set("role", "owner");
+      secondTenantRequest.searchParams.set("userId", userId!);
+      const primaryIntoOtherTenant = await page.request.get(
+        secondTenantRequest.toString()
+      );
+      expect(primaryIntoOtherTenant.status()).toBe(403);
+
+      const otherTenantIntoPrimary = new URL("/api/v1/owner/groups", appOrigin);
+      otherTenantIntoPrimary.searchParams.set(
+        "organizationId",
+        result.organizationId
+      );
+      otherTenantIntoPrimary.searchParams.set("locationId", result.locationId);
+      const outsiderResponse = await secondOwnerPage.request.get(
+        otherTenantIntoPrimary.toString()
+      );
+      expect(outsiderResponse.status()).toBe(403);
+
+      const otherLocationRequest = new URL("/api/v1/owner/groups", appOrigin);
+      otherLocationRequest.searchParams.set(
+        "organizationId",
+        result.organizationId
+      );
+      otherLocationRequest.searchParams.set(
+        "locationId",
+        secondOrganization.locationId
+      );
+      const otherLocationResponse = await page.request.get(
+        otherLocationRequest.toString()
+      );
+      expect(otherLocationResponse.status()).toBe(403);
+    } finally {
+      await secondOwnerContext.close();
+    }
   });
 });
 
