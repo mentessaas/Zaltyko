@@ -21,10 +21,12 @@ source:
 - `pnpm audit --prod` aún marca un moderado `sprintf-js` en Swagger UI. El audit
   completo marca un alto y tres moderados. GitHub confirmó que las cuatro altas
   de `main` son advisories de `braces` (#304/#305) y `node-forge` (#300/#301),
-  duplicadas entre lockfiles npm/pnpm de mobile; existen mitigaciones/tests
-  locales pero no hay versiones corregidas y las alertas siguen abiertas. El
-  `braces` de la raíz no está mitigado por el patch móvil. La auditoría no está
-  cerrada.
+  duplicadas entre lockfiles npm/pnpm de mobile; las mitigaciones locales tienen
+  regresiones focales 6/6 por Vitest directo, pero no hay versiones corregidas y
+  las alertas siguen abiertas. El wrapper pnpm se detuvo en una reinstalación al
+  bloquear el script de build no aprobado de `unrs-resolver`; no se aprobó ni
+  ejecutó ese script. El `braces` de la raíz no está mitigado por el patch móvil.
+  La auditoría no está cerrada.
 - Preview: https://zaltyko-phe8xtzyl-mentessaas-projects.vercel.app. No se tocó
   producción, Supabase remoto, Stripe Live, credenciales ni migraciones.
 

@@ -218,9 +218,13 @@ alertas siguen abiertas mientras no haya una versión oficial corregida. La
 mitigación móvil no cubre la copia raíz de `braces` hallada por `pnpm audit`;
 debe revisarse por separado. GitHub clasifica `node-forge` como runtime, aunque
 el manifest móvil lo declara devDependency y el uso encontrado localmente es una
-prueba: resolver esta discrepancia antes de cerrar el riesgo. Los gates de
-dependencias siguen abiertos. No se alteró la base, credenciales, Stripe Live ni
-Vercel Production.
+prueba: resolver esta discrepancia antes de cerrar el riesgo. En este corte las
+dos regresiones móviles pasan 6/6 al ejecutar Vitest directamente. El wrapper
+`pnpm --dir mobile test` intentó reinstalar dependencias y se detuvo antes de
+ejecutar tests porque pnpm bloquea el build script ignorado `unrs-resolver@1.12.2`;
+`patch-package` sí aplicó ambos parches. No se cambió la política de scripts. Los
+gates de dependencias siguen abiertos. No se alteró la base, credenciales, Stripe
+Live ni Vercel Production.
 
 La última suite Vitest completa previa a este corte fue 453 archivos PASS,
 1 omitido; 2.343 tests PASS, 3 omitidos, en 439,31 s; no se volvió a ejecutar

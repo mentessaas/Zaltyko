@@ -121,9 +121,12 @@ No sustituye E2E autenticado ni prueba contra una base de datos aislada.
   desarrollo. Las cuatro alertas altas de `main` son dos advisories repetidos
   en npm/pnpm móvil: `braces` (#304/#305) y `node-forge` (#300/#301). Hay
   mitigaciones locales y regresiones para ambos en `mobile/patches` y
-  `mobile/tests`, pero sin versión corregida de upstream y con alertas abiertas.
-  Revisar además la copia raíz de `braces` y la clasificación GitHub runtime de
-  `node-forge` frente a su manifest devDependency antes de aceptar el riesgo.
+  `mobile/tests` (focales 6/6 por Vitest directo), pero sin versión corregida de
+  upstream y con alertas abiertas. El wrapper pnpm intentó instalar y bloqueó un
+  script de build no aprobado antes de correrlas; el test directo pasó sin
+  cambiar esa política. Revisar además la copia raíz de `braces` y la
+  clasificación GitHub runtime de `node-forge` frente a su manifest devDependency
+  antes de aceptar el riesgo.
 
 - [x] Cerrar Fase 1 local: migration, RLS/grants, contrato, onboarding y tests.
 - [x] Pasar stack canónico y las verificaciones focales locales.
