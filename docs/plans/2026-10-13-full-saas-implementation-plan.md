@@ -312,9 +312,10 @@ realizarla esa persona; no se sustituye por una aprobación del autor.
   autorización simulada y el ledger se prueba en PostgreSQL efímero. No se hizo
   walkthrough autenticado ni se promovieron cambios de esquema.
 - La relación M:N está conectada a `/owner/groups` y su API para grupos y
-  pertenencias; solo asocia atletas ya existentes y todavía requiere alta de
-  personas, E2E autenticado, pgTAP y prueba de lector de pantalla. La nueva
-  migración solo se aplicó al PostgreSQL efímero.
+  pertenencias. Además de asociar fichas existentes, crea una ficha mínima de
+  atleta y su primer vínculo en la misma transacción. Siguen pendientes E2E
+  autenticado, pgTAP y prueba de lector de pantalla; la migración de historial
+  solo se aplicó al PostgreSQL efímero.
 - La preferencia familiar y el entitlement versionado están implementados solo
   en local. El entitlement pagado de pruebas usa fixtures/contrato sintéticos;
   no existe webhook ni provisioning comercial verificado. Un snapshot
