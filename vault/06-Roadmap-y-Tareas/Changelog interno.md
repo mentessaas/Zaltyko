@@ -9,6 +9,18 @@ source:
 
 ## 2026-10-14 — Mensualidades publicadas y siguiente bloque paralelo
 
+CI `38485117022` detectó contrato env incompleto tras integración QA:
+`E2E_LOCAL_SUPABASE` y `VERCEL` estaban usados pero no documentados.
+Reproducido con `audit:env`; añadidos ejemplos seguros (false/vacío), sin
+cambiar credenciales, flags desplegados ni relajar el auditor.
+
+Integrado Frontend `f6416064`: ante resultado incierto del signup bloquea
+reenvío y ofrece login/recuperación; con sesión confirmada y fallo de preparación
+redirige a recuperación del perfil. Setup conserva datos/clave idempotente y
+explica fallos de red en español. Main repitió suites de recuperación, setup y
+roles públicos: 18/18 PASS. No prueba signup real ni consentimiento persistido;
+gate server-side continúa en Backend y E2E completo en QA.
+
 Integrado `e85a93df`: CSP loopback y rate limiter sliding-window exclusivos
 del runner E2E local; vetados en Vercel. 37 pruebas focales PASS, sin demostrar
 todavía el recorrido completo. Cerrada asignación de admin en POST público de
