@@ -1,6 +1,6 @@
 # Zaltyko — plan maestro de implementación del SaaS
 
-Fecha de corte: 13 de octubre de 2026
+Fecha de corte: 14 de octubre de 2026
 Especificación principal: PRD Owner Dashboard y Academy Health Score del 6 de octubre de 2026, más las decisiones explícitas del propietario registradas aquí.
 Estado: plan ejecutable por fases; no equivale a preparación de lanzamiento.
 
@@ -277,6 +277,20 @@ No hay todavía provisioning comercial/webhook verificado, flujo real de
 consentimiento, worker automático, Stripe Test ni recorrido autenticado de
 navegador.
 
+Implementación local añadida el 2026-10-14: `/owner/monthly-invoices` permite
+previsualizar y emitir facturas por familia + sede + mes. La regla acordada es
+una línea mensual completa por gimnasta/inscripción activa y tarifa efectiva;
+no hay prorrateo. Familia, pagador, inscripción, asignación de tarifa, moneda,
+periodo y total se revalidan en servidor. La emisión exige pagador y vencimiento
+explícitos, huella de cotización vigente e idempotency key; serializa la familia
+y sus inscripciones y crea factura, líneas, cargo `due`/`manual`, auditoría y
+outbox atómicamente. No registra dinero recibido ni inicia un procesador. Tests
+focales pasan 23/23, TypeScript y ESLint pasan. El build local de producción
+completó antes del navegador. El intento Chromium del harness aislado no llegó
+a Auth de forma reproducible, por lo que la operación mensual autenticada sigue
+sin demostrarse; ver [`readiness E2E`](../qa/monthly-billing-e2e-readiness-2026-10-14.md)
+y [ADR-0026](../architecture/adr/0026-cuota-mensual-por-gimnasta-y-tarifa.md).
+
 ### 4. Métricas
 
 Versionar definiciones, consultas, cobertura y frescura; calcular actividad,
@@ -378,17 +392,23 @@ el merge.
    downgrade y revisiones desactualizadas fallan cerrados; ningún snapshot
    autoriza o inicia un pago. El hotfix del cron legacy está en PR separado y
    sigue pendiente de revisión/merge/deploy.
-4. Confirmar acceso a Accounts v2, términos, responsabilidades de tarifa/riesgo
+4. **Implementado localmente 2026-10-14:** cotización/emisión mensual completa
+   por familia y tarifa; API y Owner UI; cargo siempre manual. El E2E de alta
+   Owner sigue bloqueado en login y todavía no cubre facturas. No anunciar el
+   flujo como validado hasta reparar la sesión sintética en Chromium y probar
+   cotización, emisión, replay idempotente, cotización obsoleta, duplicado y
+   pago manual en el recorrido autenticado.
+5. Confirmar acceso a Accounts v2, términos, responsabilidades de tarifa/riesgo
    y contrato antes de crear cuentas de prueba. Implementar provisioning y
    sincronización; después completar SetupIntent y mandato/consentimiento
    revocable, inbox/webhook firmado ligado a cuenta+entorno, worker idempotente
    fuera de la transacción de BD, SCA, recuperación y conciliación. Solo tras
    los gates de seguridad/legal evaluar Stripe Test; no ejecutar cargos reales.
-5. Revalidar métricas, score, Insights y dashboard sobre el modelo operativo
+6. Revalidar métricas, score, Insights y dashboard sobre el modelo operativo
    completo, incluidas las nuevas señales financieras.
-6. Validar el reordenador modular con usuarios, teclado y lector; decidir
+7. Validar el reordenador modular con usuarios, teclado y lector; decidir
    slots, módulos configurables y límites seguros de drag-and-drop.
-7. Cerrar privacidad, soporte, backup/restore y gates de preparación de
+8. Cerrar privacidad, soporte, backup/restore y gates de preparación de
    lanzamiento. Mantener bloqueada la captación hasta que el copy corregido y
    el hotfix estén desplegados y verificados. El usuario autorizó que el
    trabajo pueda llegar a Producción, Stripe Live y migraciones remotas; esa

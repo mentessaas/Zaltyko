@@ -36,5 +36,6 @@ Stripe Live ni cambios de credenciales.
 | [0023](./0023-historial-de-pertenencia-a-grupos.md)               | Historial temporal y RLS por sede para grupos             |
 | [0024](./0024-alta-atomica-de-clases-recurrentes.md)              | Alta atómica de plantilla, horarios y sesiones            |
 | [0025](./0025-inscripcion-owner-pendiente-y-cobros-separados.md)  | Alta owner en estado pendiente y facturación desacoplada  |
+| [0026](./0026-cuota-mensual-por-gimnasta-y-tarifa.md)             | Cuota mensual completa por gimnasta y tarifa efectiva     |
 
 Contrato analítico inicial: [diccionario de métricas v0](../metric-dictionary-v0.md).

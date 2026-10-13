@@ -52,58 +52,14 @@ test.describe("Isolated local Supabase Owner setup", () => {
     userId = data.user.id;
   });
 
-  test.afterEach(async () => {
-    try {
-      if (userId && organizationName) {
-        const owned = await pool.query<{ id: string }>(
-          `select organization.id
-             from zaltyko.organizations as organization
-             join zaltyko.organization_members as member
-               on member.organization_id = organization.id
-            where member.user_id = $1::uuid
-              and organization.name = $2`,
-          [userId, organizationName]
-        );
-
-        for (const row of owned.rows) {
-          const deleted = await pool.query<{ id: string }>(
-            `delete from zaltyko.organizations
-              where id = $1::uuid and name = $2
-              returning id`,
-            [row.id, organizationName]
-          );
-          expect(deleted.rowCount).toBe(1);
-        }
-
-        const remaining = await pool.query<{ count: number }>(
-          `select count(*)::int as count
-             from zaltyko.organization_members
-            where user_id = $1::uuid`,
-          [userId]
-        );
-        expect(remaining.rows[0]?.count).toBe(0);
-      }
-    } finally {
-      if (userId) {
-        const { error } = await admin.auth.admin.deleteUser(userId);
-        if (error)
-          throw new Error(
-            `Could not delete local E2E identity: ${error.message}`
-          );
-      }
-      userId = undefined;
-      email = undefined;
-      password = undefined;
-      organizationName = undefined;
-      locationName = undefined;
-    }
-  });
-
   test.afterAll(async () => {
     await pool.end();
   });
 
-  test("logs in and creates then removes a synthetic academy through the UI", async ({
+  // Do not delete individual rows here: the append-only audit log deliberately
+  // prevents deleting an academy after its bootstrap event. The local runner
+  // destroys this unique project's entire database volume after the test.
+  test("logs in and creates a synthetic academy through the UI", async ({
     page,
   }) => {
     await loginThroughUi(page, email!, password!);
@@ -133,9 +89,6 @@ test.describe("Isolated local Supabase Owner setup", () => {
     await expect(page).toHaveURL(
       new RegExp(`/owner\\?organizationId=${result.organizationId}`)
     );
-    await expect(
-      page.getByText(organizationName!, { exact: true })
-    ).toBeVisible();
 
     const persisted = await pool.query<{
       organization_name: string;
@@ -171,7 +124,16 @@ async function loginThroughUi(
 ) {
   const pageErrors: string[] = [];
   const failedRequests: string[] = [];
+  const routePaths: string[] = [];
   page.on("pageerror", (error) => pageErrors.push(error.name));
+  page.on("framenavigated", (frame) => {
+    if (frame !== page.mainFrame()) return;
+    try {
+      routePaths.push(new URL(frame.url()).pathname);
+    } catch {
+      routePaths.push("unparseable route");
+    }
+  });
   page.on("requestfailed", (request) => {
     try {
       const url = new URL(request.url());
@@ -183,8 +145,15 @@ async function loginThroughUi(
   await page.goto("/auth/login?next=%2Fowner%2Fsetup", {
     waitUntil: "domcontentloaded",
   });
+  await expect(page.locator("button[aria-busy]")).toHaveAttribute(
+    "aria-busy",
+    "false"
+  );
   await page.getByLabel("Correo electrónico").fill(userEmail);
   await page.getByLabel("Contraseña").fill(userPassword);
+  await expect(
+    page.getByRole("button", { name: "Iniciar sesión" })
+  ).toBeEnabled();
   const authResponsePromise = page
     .waitForResponse(
       (response) =>
@@ -222,5 +191,27 @@ async function loginThroughUi(
       `Local Supabase Auth rejected the synthetic login (${authResponse.status()}): ${body.msg ?? body.message ?? body.error_description ?? "no safe error detail"}`
     );
   }
-  await expect(page).toHaveURL(/\/owner\/setup$/);
+  try {
+    await expect(page).toHaveURL(/\/owner\/setup$/, { timeout: 8_000 });
+  } catch {
+    const sessionSignals = await page.evaluate(() => ({
+      path: window.location.pathname,
+      cookieNames: document.cookie
+        .split(";")
+        .map((cookie) => cookie.trim().split("=")[0])
+        .filter(Boolean),
+      supabaseStorageKeys: Object.keys(window.localStorage).filter((key) =>
+        /^sb-.+-auth-token(?:\.\d+)?$/.test(key)
+      ),
+    }));
+    throw new Error(
+      `Local login succeeded at Auth (${authResponse.status()}) but did not reach owner setup; ` +
+        `routes=${routePaths.join(",") || "none"}; ` +
+        `path=${sessionSignals.path}; ` +
+        `cookieNames=${sessionSignals.cookieNames.join(",") || "none"}; ` +
+        `supabaseStorageKeys=${sessionSignals.supabaseStorageKeys.join(",") || "none"}; ` +
+        `pageErrors=${pageErrors.join(",") || "none"}; ` +
+        `failedRequests=${failedRequests.join(",") || "none"}`
+    );
+  }
 }

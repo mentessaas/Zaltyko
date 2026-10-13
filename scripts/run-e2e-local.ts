@@ -159,6 +159,14 @@ void (async () => {
       NEXT_PUBLIC_STRIPE_PUBLISHABLE_KEY: "pk_test_local_e2e_disabled",
     };
 
+    console.log(
+      "Building the app against the disposable local Supabase stack."
+    );
+    run("pnpm", ["build"], {
+      ...childEnv,
+      NODE_ENV: "production",
+    });
+
     const playwrightArgs = [
       "exec",
       "playwright",

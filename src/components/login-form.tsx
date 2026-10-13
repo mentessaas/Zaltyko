@@ -49,7 +49,10 @@ export function LoginForm() {
     if (noticeShownRef.current) return;
 
     const callbackError = searchParams.get("error");
-    const callbackNotices: Record<string, { title: string; description: string }> = {
+    const callbackNotices: Record<
+      string,
+      { title: string; description: string }
+    > = {
       access_disabled: {
         title: "Esta cuenta no tiene acceso activo",
         description:
@@ -71,7 +74,9 @@ export function LoginForm() {
           "No se completó el acceso. Inténtalo de nuevo; si el problema continúa, contacta con soporte.",
       },
     };
-    const callbackNotice = callbackError ? callbackNotices[callbackError] : undefined;
+    const callbackNotice = callbackError
+      ? callbackNotices[callbackError]
+      : undefined;
     if (callbackNotice) {
       noticeShownRef.current = true;
       toast.pushToast({ ...callbackNotice, variant: "error" });
@@ -87,7 +92,6 @@ export function LoginForm() {
         variant: "success",
       });
     }
-
   }, [searchParams, toast]);
 
   const handleLogin = async (e: React.FormEvent) => {
@@ -313,12 +317,18 @@ export function LoginForm() {
           >
             ¿Olvidaste tu contraseña?
           </Link>
-          <Button type="submit" className="w-full" disabled={loading}>
+          <Button
+            type="submit"
+            className="w-full"
+            disabled={!isHydrated || loading}
+          >
             {loading ? (
               <>
                 <Loader2 className="mr-2 h-4 w-4 animate-spin" />
                 Iniciando sesión...
               </>
+            ) : !isHydrated ? (
+              "Preparando acceso..."
             ) : (
               "Iniciar sesión"
             )}
@@ -330,13 +340,15 @@ export function LoginForm() {
             onClick={handleMagicLink}
             variant="outline"
             className="w-full border-zaltyko-primary-dark text-zaltyko-primary-dark hover:bg-zaltyko-primary-dark hover:text-white"
-            disabled={magicLinkLoading || loading}
+            disabled={!isHydrated || magicLinkLoading || loading}
           >
             {magicLinkLoading ? (
               <>
                 <Loader2 className="mr-2 h-4 w-4 animate-spin" />
                 Enviando...
               </>
+            ) : !isHydrated ? (
+              "Preparando enlace mágico..."
             ) : (
               "Enviarme un enlace mágico"
             )}

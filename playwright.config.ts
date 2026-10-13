@@ -7,14 +7,19 @@ import {
   assertLocalSupabasePlaywrightTarget,
 } from "./scripts/lib/e2e-sandbox-target";
 
-config({ path: resolve(process.cwd(), ".env.local") });
-config({ path: resolve(process.cwd(), ".env") });
+const isLocalSupabaseRun = process.env.E2E_LOCAL_SUPABASE === "true";
+
+// The isolated local harness passes its own explicit environment. Do not
+// hydrate it with workstation credentials from dotenv files.
+if (!isLocalSupabaseRun) {
+  config({ path: resolve(process.cwd(), ".env.local") });
+  config({ path: resolve(process.cwd(), ".env") });
+}
 
 const baseURL = process.env.BASE_URL ?? "http://127.0.0.1:3000";
 const isCI = Boolean(process.env.CI);
 
 const isPublicReadOnlyRun = process.env.E2E_PUBLIC_READ_ONLY === "true";
-const isLocalSupabaseRun = process.env.E2E_LOCAL_SUPABASE === "true";
 
 if (isPublicReadOnlyRun) {
   const targetHost = new URL(baseURL).hostname;
@@ -61,12 +66,11 @@ export default defineConfig({
     : "**/*.spec.ts",
   testIgnore: [".claude/**", ".worktrees/**", "node_modules/**"],
   // En CI habilitamos paralelismo para reducir tiempo de ejecucion.
-  // The authenticated academy suite compiles data-heavy routes in `next dev`.
-  // A single local worker avoids cross-browser compilation starvation; CI
-  // keeps its isolated parallel capacity.
+  // The local authenticated suite uses a production build so HMR/chunk
+  // recompilation cannot race the login and bootstrap browser flow.
   fullyParallel: isCI,
-  workers: isCI ? 3 : 1,
-  retries: isCI ? 2 : 1,
+  workers: isLocalSupabaseRun ? 1 : isCI ? 3 : 1,
+  retries: isLocalSupabaseRun ? 0 : isCI ? 2 : 1,
   // Limite de fail-fast para no quemar minutos en CI si el setup falla.
   maxFailures: isCI ? 5 : undefined,
   reporter: [
@@ -86,8 +90,8 @@ export default defineConfig({
     process.env.BASE_URL && !isLocalSupabaseRun
       ? undefined
       : {
-          command:
-            process.env.CI && !isLocalSupabaseRun ? "pnpm start" : "pnpm dev",
+          command: isCI || isLocalSupabaseRun ? "pnpm start" : "pnpm dev",
+          ...(isLocalSupabaseRun ? { env: { NODE_ENV: "production" } } : {}),
           url: baseURL,
           reuseExistingServer: !isLocalSupabaseRun && !isCI,
           timeout: 240_000,
