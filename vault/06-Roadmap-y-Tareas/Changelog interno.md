@@ -11379,3 +11379,16 @@ Modelo separado, reclamación manual, administración, importación revisada, fi
 - No se borró ni alteró la fila, no se creó cuenta y no se envió el formulario.
   El cambio no se fusionó ni se publicó en producción. Evidencia:
   [`auditoría UX`](../../../../Zaltyko/auditoria-2026-10-13/OWNER-REGISTRATION-UX.md).
+
+## 2026-10-13 — Exponer el formulario de autenticación como landmark principal
+
+- La revisión de teclado del registro encontró que el formulario no tenía
+  landmark `<main>`. Se reemplazó el `section` exterior del shell compartido de
+  autenticación por `<main>` para registro, login y recuperación.
+- Prueba de regresión 1/1; TypeScript y ESLint focal PASS. El Preview
+  `dpl_83JvPMPiDhcZxH7opjL6pXQ3ncFg` está `READY` para
+  `45d28de7aef64d9f1a362a406ac9d4f0f7a8fa48`; el DOM contiene un `main` que
+  incluye el formulario, sin cambio visual ni envío/creación de cuenta.
+- La secuencia de Tab, nombres y foco visible se probaron manualmente de forma
+  parcial. VoiceOver, zoom, contraste medido y errores dinámicos siguen
+  pendientes; no es certificación WCAG. Producción no cambió.

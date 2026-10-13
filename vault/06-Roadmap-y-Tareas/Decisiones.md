@@ -15,7 +15,7 @@ source:
 | Evidencia | En el Preview móvil, el formulario permitía abrir `/academias` antes de crear la cuenta, pero el texto decía que la búsqueda ocurriría después. Eso confundía el orden y repetía instrucciones. |
 | Decisión | Explicar que la cuenta personal va primero y la configuración de academia después; presentar la búsqueda como comprobación opcional antes de crear un espacio nuevo. Mantener la advertencia de catálogo público incompleto y no dar a entender que una reclamación da acceso privado. |
 | Consecuencia | No cambian autenticación, roles, consentimiento ni transacciones. Se reduce el texto sin quitar la prevención de academias duplicadas. La ficha `TEST active` queda sin cambios mientras se comprueban dependencias del sandbox. |
-| Estado | Preview `READY` para `795c7c0e5a861aa0ada709cfcd10348f3491ea19`; render móvil actualizado revisado. El directorio aún muestra `TEST active`, hallado en el sandbox y no en producción. La conexión runtime sigue **NO VERIFICADA**; no se tocó la fila. Tests focales 17/17, TypeScript y ESLint pasan. Sin cambio de producción. |
+| Estado | Preview `READY` para `45d28de7aef64d9f1a362a406ac9d4f0f7a8fa48`; registro móvil revisado y DOM con un landmark `<main>` que contiene el formulario. El directorio aún muestra `TEST active`, hallado en el sandbox y no en producción. La conexión runtime sigue **NO VERIFICADA**; no se tocó la fila. Tests focales 17/17 y prueba de landmark 1/1; TypeScript y ESLint pasan. Sin cambio de producción. |
 
 ## 2026-10-13 — Aislar helpers SQL del núcleo greenfield
 

@@ -202,8 +202,11 @@ retiró de las superficies públicas porque el runtime greenfield no inicia
 cargos; el contrato focal lo protege. El CTA owner conserva su contexto, no
 obliga a elegir roles irrelevantes y explica la secuencia cuenta personal →
 configuración de academia. Tests focales 17/17, TypeScript y ESLint pasan. El
-commit `795c7c0e5a861aa0ada709cfcd10348f3491ea19` está `READY` en Preview de PR
+commit `45d28de7aef64d9f1a362a406ac9d4f0f7a8fa48` está `READY` en Preview de PR
 #226; `/auth/register?role=owner` y `/academias` se inspeccionaron visualmente.
+El shell común de autenticación expone ahora el landmark DOM `<main>`; el test
+focal 1/1 pasa y el deployment contiene exactamente un `main` que envuelve el
+formulario.
 El directorio muestra una ficha `TEST active` que existe en el sandbox E2E y no
 en producción; la conexión runtime del Preview sigue **NO VERIFICADA**. No se
 creó cuenta ni se alteró la fila. No es un release de producción. Antes de

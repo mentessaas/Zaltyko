@@ -45,9 +45,11 @@ abrir un espacio nuevo; el texto conserva el límite de perfiles públicos y la
 invitación necesaria si la ficha no aparece. La rama de reclamaciones sigue
 indicando que requiere revisión y no concede acceso privado. Tests focales
 17/17, TypeScript y ESLint pasan. No cambió el alta, el consentimiento ni la
-base de datos. El commit `795c7c0e5a861aa0ada709cfcd10348f3491ea19` está
-`READY` en Preview: https://zaltyko-o3bgua8v8-mentessaas-projects.vercel.app.
-Se verificó visualmente el registro móvil actualizado; producción no cambia.
+base de datos. En `45d28de7aef64d9f1a362a406ac9d4f0f7a8fa48` se añadió el
+landmark `<main>` al shell común de autenticación. Vercel Preview está `READY`:
+https://zaltyko-orspo1ez1-mentessaas-projects.vercel.app. DOM confirmado con un
+`main` que contiene el formulario; visualmente no altera el diseño. La prueba
+focal es 1/1; producción no cambia.
 
 El Preview muestra la academia sintética `TEST active`. La consulta read-only
 encuentra ese ID en el sandbox E2E y no en producción; la conexión exacta de la
