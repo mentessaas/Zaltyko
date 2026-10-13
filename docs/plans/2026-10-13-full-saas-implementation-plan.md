@@ -88,6 +88,12 @@ trabajo; perfiles españoles solo identifican artística/rítmica, sin reglas
 federativas. Tests de dominio, alta, permisos y stack canónico pasan en local;
 sin aplicación remota.
 
+La entrada `/auth/register?role=owner` no obliga a escoger entre roles que no
+corresponden; el formulario genérico mantiene el selector. Tras crear la
+cuenta, el formulario de configuración reúne en una pantalla el nombre de la
+academia, el país y la disciplina principal; las actividades adicionales
+quedan plegadas.
+
 ### 2. Operación mínima
 
 Alta/pausa/reactivación/baja/transferencia de enrollment; grupos M:N; capacidad;
@@ -181,6 +187,16 @@ seguridad, backup/restore, monitorización, soporte, onboarding, accesibilidad,
 incidentes, límites de plan, correo y pagos. Validar con academias piloto antes
 de escalar captación.
 
+Revisión local 2026-10-13: el preview contenía promesas de cobro automático a
+familias que el runtime greenfield no cumple. El copy de home, cobros,
+integraciones, ayuda, planes y `llms-full.txt` se ha corregido en esta rama y
+cuenta con tests de contrato. El CTA owner también conserva el contexto y ya no
+obliga a escoger entre roles irrelevantes; el alta genérica no cambia. Pruebas
+focales, typecheck y build local pasan; el build no tiene credenciales de
+servicios y no valida integraciones remotas. El cambio no está desplegado; antes
+de captar se debe superar la revisión independiente de PR #225, integrar el
+hotfix de cron y verificar las rutas públicas en el deployment de producción.
+
 Gate: QA independiente, E2E autenticado, migraciones reconciliadas, restore
 ensayado, producción verificada y rollback documentado. Preview/build verde no
 equivale a producción lista.
@@ -205,7 +221,9 @@ equivale a producción lista.
 6. Validar el reordenador modular con usuarios, teclado y lector; decidir
    slots, módulos configurables y límites seguros de drag-and-drop.
 7. Cerrar privacidad, soporte, backup/restore y gates de preparación de
-   lanzamiento. Deployment y cualquier cambio remoto requieren su gate propio.
+   lanzamiento. Mantener bloqueada la captación hasta que el copy corregido y
+   el hotfix estén desplegados y verificados. Deployment y cualquier cambio
+   remoto requieren su gate propio.
 
 ## Estado que no debe confundirse
 

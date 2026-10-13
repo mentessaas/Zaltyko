@@ -1,7 +1,7 @@
 ---
 status: active
 owner: marketing
-last_reviewed: 2026-09-13
+last_reviewed: 2026-10-13
 source:
   - ../docs/marketing/zaltyko-messaging.md
   - ../PRODUCT-ANALYSIS.md
@@ -37,14 +37,19 @@ Para discovery, beta y mensajes de venta tempranos, enfocar Zaltyko en academias
 | Pricing vigente | Free hasta 30 gimnastas; Starter 19 €/mes o 190 €/año hasta 75; Growth 49 €/mes o 490 €/año hasta 200; Network 99 €/mes multi-sede con onboarding acompañado. |
 | Trial | 7 días de Starter sin tarjeta, una activación por academia cada 12 meses; al terminar vuelve a Free y no hay cargo automático. |
 
-### Cobros a familias — copy objetivo después del hotfix P0
+### Cobros a familias — copy de lanzamiento, 2026-10-13
 
-- Copy propuesto para PR #225, no descripción de producción mientras siga
-  pendiente su revisión, merge y despliegue: «Cobros
-  mensuales, registro manual de pagos y seguimiento de pendientes. No se realizan
-  cobros automáticos».
-- No activar campañas de captación con ese copy hasta verificar en producción
-  que el cron legacy está desactivado y el comportamiento público coincide.
+- Copy aprobado para la experiencia de lanzamiento: «Organiza las cuotas,
+  registra manualmente los pagos recibidos y consulta qué importes siguen
+  pendientes. En este lanzamiento no se realizan cargos automáticos a las
+  familias».
+- Este copy quedó aplicado en la rama de trabajo y se verificó en el preview
+  actual. No equivale a producción: PR #225 sigue pendiente de aprobación
+  independiente, merge y despliegue. No activar captación con una promesa de
+  automatización ni tratar el preview como comportamiento productivo.
+- Free y trial usan registro manual. Los planes de pago podrán optar a cobro
+  automático solo cuando se habiliten todos los gates; hoy la preferencia del
+  núcleo nuevo no autoriza ni inicia cargos y no es una función disponible.
 - Free y trial se mantienen en registro/cobro manual. En planes de pago puede
   configurarse una preferencia automática en el núcleo nuevo, pero hoy es solo
   una preferencia: no autoriza ni inicia cargos y no debe anunciarse como una

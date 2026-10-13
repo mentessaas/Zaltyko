@@ -1,12 +1,39 @@
 ---
 status: active
 owner: producto
-last_reviewed: 2026-10-06
+last_reviewed: 2026-10-13
 source:
   - ../AGENTS.md
 ---
 
 # Decisiones
+
+## 2026-10-13 — Alta owner enfocada desde CTA de academia
+
+| Campo | Valor |
+| --- | --- |
+| Evidencia | Los enlaces públicos de owner ya incluyen `role=owner`, pero el formulario mostraba cinco roles; los botones genéricos siguen siendo necesarios en `/auth/register`. |
+| Decisión | Respetar el contexto de entrada: el CTA owner muestra la cuenta de dirección y no presenta selector de rol. El registro genérico conserva los cinco roles; no se cambia la creación de identidad ni los siguientes pasos de la academia. |
+| Consecuencia | Reduce opciones ajenas al objetivo sin quitar acceso a entrenador, familia, atleta o proveedor. El servidor sigue recibiendo el rol `owner` por el estado inicial canónico del formulario. |
+| Estado | Implementado localmente en page/form; prueba de componente y E2E añadidas. Playwright local exige un proyecto Supabase aprobado y no se ejecutó sin ese gate. Sin cambios remotos ni despliegue. |
+
+## 2026-10-13 — Copy de lanzamiento para cobros a familias
+
+| Campo | Valor |
+| --- | --- |
+| Evidencia | En el preview del commit `b54a49a3`, home, comparativa, página de cobros e integraciones anunciaban cobros/reintentos automáticos. El núcleo greenfield solo registra pagos manuales; su modo automático es una preferencia que no inicia cargos. El cron legacy sigue detrás del gate de PR #225. |
+| Decisión | En todas las superficies públicas se describe el registro manual del lanzamiento y se elimina el claim de cobro automático disponible. Stripe debe identificarse como facturación del plan Zaltyko, no como cobro automático familiar. |
+| Consecuencia | La opción automática queda como capacidad futura exclusiva de planes de pago, condicionada a entitlement, consentimiento/mandato, Connect, worker/webhook idempotentes, recuperación y QA. No se convierte una preferencia en autorización de cobro. |
+| Estado | Copy y tests actualizados en la rama de trabajo; preview auditado y capturas guardadas. Producción no se modificó: falta aprobación independiente, merge y despliegue de PR #225/este cambio, además de verificar el comportamiento final en dominio público. |
+
+## 2026-10-13 — No usar el sandbox E2E legacy para migraciones greenfield
+
+| Campo | Valor |
+| --- | --- |
+| Evidencia | La reconciliación de metadatos encuentra 54/54 hashes del ledger aplicacional de producción alineados con archivos locales, sin huérfanos, pero 54 archivos locales pendientes. El sandbox tiene 45 filas, 1 hash distinto (`20260805120000_academies_status_semantics.sql`) y 63 pendientes. Los historiales nativos de Supabase son 53 y 70, respectivamente; ninguno de los dos esquemas nuevos contiene tablas. |
+| Decisión | No ejecutar el runner ni aplicar migraciones al sandbox legacy o producción para hacer pasar el E2E. Mantener el bloqueo visible hasta disponer de un destino aislado/limpio y reconciliar la fuente de cada historial. La automatización de CI no tendrá escritura remota implícita. |
+| Consecuencia | Evita mezclar el esquema greenfield con datos/fixtures históricos y evita ocultar un hash divergente. La prueba autenticada necesita un proyecto o rama aislados y las mismas fixtures sintéticas con las que se validó localmente. |
+| Estado | Verificación solo lectura completada el 2026-10-13. No se aplicó SQL ni se creó recurso cloud. Pendiente consultar coste y obtener confirmación antes de crear una rama/proyecto aislado; además, reconciliar historial nativo y definir el cutover por separado. |
 
 ## 2026-10-13 — Perfiles deportivos y actividades complementarias
 

@@ -60,5 +60,7 @@ describe("contratos de activación y navegación de onboarding", () => {
     expect(registerForm).toContain('className="grid grid-cols-2 gap-2"');
     expect(registerForm).toContain("min-h-[82px]");
     expect(registerForm).toContain("primero crearás tu cuenta personal");
+    expect(registerForm).toContain("ownerEntry ?");
+    expect(registerForm).toContain("Cuenta de dirección de academia");
   });
 });

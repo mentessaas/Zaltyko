@@ -1,11 +1,69 @@
 ---
 status: active
 owner: producto
-last_reviewed: 2026-10-06
+last_reviewed: 2026-10-13
 source:
   - ../docs/audits/2026-10-03-launch-and-auth-followup.md
   - ../docs/architecture/zaltyko-domain-model.md
 ---
+
+## 2026-10-13 — Claims públicos y claridad del módulo de cobros
+
+- Revisé en el preview móvil la home, el alta de propietario y
+  `/modules/pagos-administracion`. El preview anunciaba cargos y recordatorios
+  automáticos aunque la nueva capa operativa solo registra pagos recibidos; la
+  ruta de pagos mostraba el desajuste desde su primer viewport.
+- Corregí en local la home, comparativa, página de cobros, funcionalidades,
+  integraciones, ayuda, catálogo de planes y `/llms-full.txt`. El copy ahora
+  distingue la suscripción SaaS de Zaltyko del cobro de cuotas familiares y
+  comunica el registro manual en todos los planes durante el lanzamiento.
+- Añadí un contrato de copy para impedir que vuelvan claims de automatización no
+  disponible. La preferencia `automatic` por sí sola no procesa cargos; la
+  automatización pagada sigue bloqueada por consentimiento/mandato, worker,
+  webhook, recuperación, Stripe Test y gates de release.
+- Capturas inspeccionadas: `docs/audit/evidence/ui/2026-10-13/`. Simplifiqué
+  además el CTA de owner: muestra el rol de dirección y oculta los otros cuatro
+  roles; el registro genérico conserva los cinco. Se añadió test de componente y
+  test E2E de la ruta owner. El E2E no se pudo ejecutar porque el guard exige un
+  proyecto Supabase de pruebas aprobado y este checkout no tiene ese destino;
+  no se eludió. El Owner Dashboard autenticado sigue `NO VERIFICADO`.
+- Verificación local: 48/48 tests de copy, onboarding y dashboard, 12/12 tests
+  del formulario de autenticación, typecheck y diff-check pasan. `pnpm build`
+  genera las 288 rutas; sin credenciales locales de servicios avisa durante la
+  generación de rutas dinámicas, por lo que no acredita integraciones. ESLint
+  focal no presenta errores y mantiene 9 warnings. El E2E no arrancó por el
+  guard; no cuenta como pasado.
+- No se modificaron producción, Stripe, credenciales ni Vercel; no se creó
+  cuenta ni se envió formulario. Falta revisar/mergear PR #225 con aprobación
+  independiente y verificar el copy en producción antes de captar clientes.
+
+## 2026-10-13 — Reconciliación de ledgers y gate E2E autenticado
+
+- Comprobación de solo lectura: producción tiene 54 filas en el ledger
+  aplicacional; todas coinciden con los hashes locales y no hay huérfanos, pero
+  quedan 54 migraciones locales pendientes. El sandbox E2E tiene 45 filas, una
+  diferencia de hash en `20260805120000_academies_status_semantics.sql`, cero
+  huérfanos y 63 migraciones locales pendientes. Hay además 53/70 filas en los
+  historiales nativos de Supabase. Los esquemas greenfield no están creados.
+- No se aplicó SQL, no se tocó ningún ledger y no se cambió producción. Se
+  descartó el cambio experimental que añadía migraciones remotas al job de CI:
+  el sandbox actual no es un destino reconciliado.
+- Siguiente gate: obtener autorización tras mostrar el coste de un destino
+  Supabase aislado, reconciliar su historial, aplicar únicamente migraciones
+  revisadas y ejecutar E2E autenticado con cuentas/datos sintéticos.
+- PR #225 mantiene CI completa verde pero requiere una aprobación independiente
+  antes de fusionarse; no se modificó la protección de `main`.
+- Higiene GitHub: se eliminaron 43 refs remotas de ramas cuyo PR está fusionado,
+  SHA exacto coincide con el head revisado, no tienen PR abierto ni worktree y
+  no están protegidas. El inventario bajó de 132 a 89 ramas; no se tocaron PRs,
+  branches con worktree, PRs cerrados sin merge ni ramas sin PR.
+- Seguridad móvil: siguen abiertas cuatro alertas altas (dos advisories
+  duplicados en `pnpm-lock.yaml` y `package-lock.json`): `braces <=3.0.3` y
+  `node-forge <=1.4.0`; GitHub aún no publica versión corregida. Las
+  mitigaciones locales `patch-package` se aplicaron durante la instalación y
+  las dos regresiones focales pasan (6/6). Las alertas continúan abiertas hasta
+  que exista upstream corregido y se pueda actualizar/verificar el grafo.
+- Referencias actualizadas: Runbook migraciones, Decisiones y Backlog priorizado.
 
 ## 2026-10-13 — Cierre local de proyección de cohortes y AC-12
 

@@ -43,8 +43,8 @@ const faqs = [
     answer: "Sí, desde el perfil de cada atleta puedes enviar emails o configurar notificaciones automáticas para padres.",
   },
   {
-    question: "¿Qué métodos de pago acepta Zaltyko?",
-    answer: "Aceptamos tarjetas de crédito/débito y domiciliaciones bancarias a través de Stripe. También puedes registrar pagos manuales.",
+    question: "¿Puedo cobrar automáticamente las cuotas a las familias?",
+    answer: "No en este lanzamiento. Puedes registrar manualmente los pagos que reciba la academia y consultar qué importes siguen pendientes.",
   },
   {
     question: "¿Cómo puedo cambiar de plan?",

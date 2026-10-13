@@ -57,14 +57,14 @@ export default function FeaturesSection() {
       content: {
         title: "Cobros claros para academias",
         features: [
-          "Cobros mensuales y recordatorios",
-          "Recordatorios de pago y recibos automatizados",
-          "Portal para familias con historial de pagos",
-          "Gestión de morosos con avisos automáticos",
-          "Panel de métricas de ingresos y morosidad",
-          "Recibos internos y trazabilidad sin hojas de cálculo",
+          "Consulta de cuotas pendientes",
+          "Registro manual de pagos recibidos",
+          "Historial de pagos por familia",
+          "Seguimiento de importes vencidos",
+          "Panel de ingresos registrados y pendientes",
+          "Trazabilidad de cada pago registrado",
         ],
-        impact: "Conciliar pagos recurrentes sin hojas de cálculo",
+        impact: "Revisar cuotas y pagos sin reunir hojas de cálculo",
       },
     },
     {

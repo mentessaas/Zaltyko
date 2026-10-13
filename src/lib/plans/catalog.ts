@@ -41,7 +41,7 @@ export const PRODUCT_PLANS: ProductPlan[] = [
       "1 academia",
       "3 grupos de entrenamiento",
       "10 clases activas",
-      "Asistencia y cobros básicos",
+      "Asistencia y cobros básicos con registro manual",
     ],
   },
   {
@@ -63,7 +63,7 @@ export const PRODUCT_PLANS: ProductPlan[] = [
     checkoutMode: "self-serve",
     features: [
       "Hasta 75 gimnastas · 1 academia",
-      "Cobros recurrentes y reportes básicos",
+      "Gestión de cuotas, registro manual de pagos y reportes básicos",
       "Portal familiar limitado: horarios, avisos, progreso publicado y cuotas",
       "Comunicación interna con familias",
     ],

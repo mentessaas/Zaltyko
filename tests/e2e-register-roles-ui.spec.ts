@@ -22,4 +22,17 @@ test.describe("role-based registration UI", () => {
     await expect(page.getByLabel("Correo electrónico")).not.toHaveAttribute("required");
     await expect(page.getByLabel("Contraseña")).not.toHaveAttribute("required");
   });
+
+  test("keeps the owner entry focused on creating an academy account", async ({ page }) => {
+    await page.goto("/auth/register?role=owner", {
+      waitUntil: "domcontentloaded",
+      timeout: 60_000,
+    });
+
+    await expect(page.getByText("Cuenta de dirección de academia")).toBeVisible();
+    await expect(page.getByRole("radiogroup", { name: "Tipo de cuenta" })).toHaveCount(0);
+    await expect(page.getByLabel("Nombre completo")).toBeVisible();
+    await expect(page.getByLabel("Correo electrónico")).toBeVisible();
+    await expect(page.getByLabel("Contraseña")).toBeVisible();
+  });
 });

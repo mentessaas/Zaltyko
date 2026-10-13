@@ -17,9 +17,17 @@ export const metadata: Metadata = {
   },
 };
 
-export default function Register() {
+export default async function Register({
+  searchParams,
+}: {
+  searchParams: Promise<Record<string, string | string[] | undefined>>;
+}) {
+  const query = await searchParams;
+  const ownerEntry = query.role === "owner";
+
   return (
     <RegisterForm
+      ownerEntry={ownerEntry}
       directoryDiscoveryEnabled={flag("catalog")}
       directoryClaimsEnabled={flag("claims")}
     />

@@ -10,7 +10,7 @@ const baseUrl = getPublicSiteUrl();
 export const metadata: Metadata = {
   title: "Integraciones | Software para academias de gimnasia",
   description:
-    "Conecta Zaltyko con Stripe, email transaccional y más. Automatiza pagos y comunicaciones.",
+    "Consulta las integraciones disponibles para facturar tu plan de Zaltyko y enviar comunicaciones transaccionales.",
   alternates: {
     canonical: `${baseUrl}/integraciones`,
   },
@@ -18,10 +18,10 @@ export const metadata: Metadata = {
 
 const integrations = [
   {
-    name: "Stripe",
-    description: "Procesa pagos de membresías y servicios de forma segura. Acepta tarjetas, domiciliaciones y pagos recurrentes.",
+    name: "Suscripción de Zaltyko (Stripe)",
+    description: "Stripe gestiona el pago del plan Starter o Growth de la academia. Esta integración no activa el cobro automático de las cuotas de sus familias.",
     icon: CreditCard,
-    features: ["Pagos recurrentes", "Recibos automáticos", "Gestión de suscripciones", "Webhook de eventos"],
+    features: ["Suscripción mensual o anual", "Gestión del plan de Zaltyko", "Estado de facturación"],
     status: "available",
   },
   {
@@ -76,7 +76,7 @@ export default function IntegrationsPage() {
             Integraciones de Zaltyko: pagos, emails y más
           </h1>
           <p className="mt-6 mx-auto max-w-2xl text-lg text-zaltyko-text-secondary">
-            Conecta Stripe y Brevo desde la configuración de tu academia. Otras integraciones están en roadmap y se habilitarán cuando su experiencia esté lista.
+            Stripe gestiona tu suscripción a Zaltyko y Brevo el email transaccional. Para las cuotas familiares, el registro es manual en este lanzamiento.
           </p>
           <p className="mt-3 text-sm font-medium text-zaltyko-text-secondary">
             2 integraciones disponibles · 4 en roadmap

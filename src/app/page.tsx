@@ -21,12 +21,12 @@ import { getPublicSiteUrl } from "@/lib/seo/site-url";
 
 const HOME_MARQUEE_ITEMS = [
   "Gimnastas por nivel y aparato",
-  "Cuotas recurrentes",
+  "Cuotas y pagos organizados",
   "Asistencia por sesión",
   "Portal familiar limitado",
   "Evaluaciones técnicas",
   "Eventos y competiciones",
-  "Recibos automáticos",
+  "Historial de pagos",
   "Comunicación interna",
   "Multi-sede",
   "Informes de dirección",
@@ -200,7 +200,7 @@ export default function HomePage() {
             "Gimnasia artística masculina",
             "Gimnasia rítmica",
             "Gestión deportiva",
-            "Cobros recurrentes",
+            "Gestión de cuotas y pagos",
             "Gestión de academias",
           ],
         }}

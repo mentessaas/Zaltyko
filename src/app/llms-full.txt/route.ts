@@ -22,7 +22,7 @@ hispana (España, México, Argentina, Colombia, Chile y Perú).
 Cubre:
 - Gestión de gimnastas y familias
 - Grupos, horarios, clases y sesiones recurrentes
-- Pagos y cobros recurrentes
+- Cuotas, registro manual de pagos y seguimiento de importes pendientes
 - Asistencia por sesión
 - Evaluaciones técnicas
 - Eventos y competiciones
@@ -36,13 +36,16 @@ Cubre:
 | Plan | Precio | Gimnastas | Sedes | Característica principal |
 | --- | --- | --- | --- | --- |
 | Trial | 0 € (sin tarjeta) | hasta 75 | 1 | Funciones y límites de Starter. 7 días, una activación por academia cada 12 meses. |
-| Free | 0 €/mes | hasta 30 | 1 | Crear academia, gimnastas, grupos, asistencia básica, comunicación interna limitada. |
-| Starter | 19 €/mes | hasta 75 | 1 | Pagos recurrentes, portal familiar limitado, reportes básicos, progresión técnica. |
+| Free | 0 €/mes | hasta 30 | 1 | Crear academia, gimnastas, grupos, asistencia básica, comunicación interna limitada y registro manual de pagos. |
+| Starter | 19 €/mes | hasta 75 | 1 | Gestión de cuotas, registro manual de pagos, portal familiar limitado, reportes básicos y progresión técnica. |
 | Growth | 49 €/mes | hasta 200 | 1 | Todo Starter + automatizaciones, reportes ejecutivos, soporte prioritario. |
 | Network | desde 99 €/mes | ilimitado | multi-sede | Bajo onboarding acompañado. Sin checkout autoservicio. |
 
 Promoción vigente: 7 días de Starter sin tarjeta, una activación por academia
 cada 12 meses; al terminar vuelve a Free y no hay cargo automático.
+
+En el lanzamiento, los pagos de las familias se registran manualmente en todos
+los planes. Zaltyko no inicia cargos automáticos a las familias.
 
 Fee de procesamiento: 0 € markup sobre Stripe directo.
 

@@ -1,7 +1,7 @@
 ---
 status: active
 owner: tech
-last_reviewed: 2026-10-02
+last_reviewed: 2026-10-13
 source:
   - ../docs/MIGRATIONS_RLS_RUNBOOK.md
   - ../docs/migrations-backlog.md
@@ -133,6 +133,28 @@ requiere cambio de esquema remoto; el runner efímero incluye además
 `20261006131000_add_organization_default_currency.sql` para resolver el scope
 del owner en la consulta. La modificación del runner solo afecta pruebas
 locales. El flujo no inicia cargos ni toca Stripe.
+
+### Reconciliación de historiales remotos — 2026-10-13
+
+La lectura de solo metadatos confirma que producción
+(`jegxfahsvugilbthbked`) contiene 54 filas en
+`public.zaltyko_schema_migrations`: las 54 coinciden con los SHA-256 de sus
+archivos locales, sin huérfanos; hay 54 archivos locales pendientes. El sandbox
+E2E (`aeeootdmuiqkfeernskw`) contiene 45 filas: 44 hashes coinciden y
+`20260805120000_academies_status_semantics.sql` difiere; no hay huérfanos y
+quedan 63 archivos locales pendientes. El repositorio tiene 108 migraciones SQL
+locales. Los historiales nativos de Supabase también divergen (53 entradas en
+producción y 70 en E2E). La inspección de catálogo previa no encontró tablas en
+los esquemas nuevos `zaltyko`/`zaltyko_private` de ninguno de los proyectos.
+
+No se ejecutó SQL ni se modificó ningún ledger. La ausencia de huérfanos en el
+ledger aplicacional no reconcilia por sí sola el historial nativo ni demuestra
+qué SQL produjo el hash distinto del sandbox. No ejecutar el runner, `db push`
+ni `apply_migration` en producción o en el sandbox legacy. El E2E greenfield
+requiere primero un destino aislado y limpio; revisar el coste y obtener
+confirmación explícita antes de crear un proyecto o rama. Después, registrar
+solo migraciones aprobadas con el runner versionado, verificar RLS y grants y
+ejecutar E2E sintético antes de cualquier promoción.
 
 ## Flujo recomendado
 

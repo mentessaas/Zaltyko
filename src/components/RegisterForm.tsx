@@ -76,9 +76,11 @@ const LEGAL_CONSENT_VERSION = "v1-2026-08-01";
 const LEGAL_CONSENT_PROOF = "signup:register-form-v1";
 
 export function RegisterForm({
+  ownerEntry = false,
   directoryDiscoveryEnabled = false,
   directoryClaimsEnabled = false,
 }: {
+  ownerEntry?: boolean;
   directoryDiscoveryEnabled?: boolean;
   directoryClaimsEnabled?: boolean;
 } = {}) {
@@ -370,7 +372,9 @@ export function RegisterForm({
   return (
     <AuthPageShell
       title="Crea tu cuenta"
-      description="Crea tu acceso personal y elige cómo quieres usar Zaltyko."
+      description={ownerEntry
+        ? "Crea tu acceso para gestionar una academia."
+        : "Crea tu acceso personal y elige cómo quieres usar Zaltyko."}
       footer={
         <>
           ¿Ya tienes cuenta?{" "}
@@ -379,18 +383,31 @@ export function RegisterForm({
           </Link>
         </>
       }
-      sideTitle="Una cuenta, varios vínculos"
-      sideDescription="Tu cuenta es tuya. Luego puedes crear una academia, aceptar invitaciones o publicar como proveedor."
-      highlights={[
-        "Padres, atletas, entrenadores y proveedores pueden tener cuenta propia.",
-        "Las academias se vinculan por invitación o solicitud aceptada.",
-        "Si sales de una academia, conservas tu cuenta global.",
-      ]}
+      sideTitle={ownerEntry ? "Empieza por tu academia" : "Una cuenta, varios vínculos"}
+      sideDescription={ownerEntry
+        ? "Crea tu cuenta de dirección y después configura el espacio de tu academia."
+        : "Tu cuenta es tuya. Luego puedes crear una academia, aceptar invitaciones o publicar como proveedor."}
+      highlights={ownerEntry
+        ? [
+            "Primero crearás el acceso personal.",
+            "Después configurarás la academia en un formulario breve.",
+            "Podrás invitar a entrenadores y familias desde tu espacio.",
+          ]
+        : [
+            "Padres, atletas, entrenadores y proveedores pueden tener cuenta propia.",
+            "Las academias se vinculan por invitación o solicitud aceptada.",
+            "Si sales de una academia, conservas tu cuenta global.",
+          ]}
     >
       <form onSubmit={handleRegister} className="space-y-4">
         <div className="space-y-2">
-          {!directoryRegistration && <Label>Tipo de cuenta</Label>}
-          <div style={directoryRegistration ? { display: "none" } : undefined} className="grid grid-cols-2 gap-2" role="radiogroup" aria-label="Tipo de cuenta">
+          {!directoryRegistration && !ownerEntry && <Label>Tipo de cuenta</Label>}
+          {ownerEntry && (
+            <p className="rounded-lg border border-zaltyko-teal/30 bg-zaltyko-teal/5 px-3 py-2 text-sm font-semibold text-foreground">
+              Cuenta de dirección de academia
+            </p>
+          )}
+          {!ownerEntry && <div style={directoryRegistration ? { display: "none" } : undefined} className="grid grid-cols-2 gap-2" role="radiogroup" aria-label="Tipo de cuenta">
             {ROLE_OPTIONS.map((option, index) => (
               <button
                 key={option.value}
@@ -413,7 +430,7 @@ export function RegisterForm({
                 <span className="mt-1 block text-xs">{option.description}</span>
               </button>
             ))}
-          </div>
+          </div>}
           {role === "owner" && !directoryRegistration && (
             <div className="rounded-lg border border-zaltyko-teal/30 bg-zaltyko-teal/5 px-3 py-2 text-xs text-muted-foreground">
               <span className="font-semibold text-foreground">Importante:</span> primero crearás tu cuenta personal. Después podrás buscar tu academia antes de crear un espacio de gestión.

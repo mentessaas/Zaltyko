@@ -10,7 +10,7 @@ const painPoints = [
   },
   {
     before: "Cobros manuales y persecución de morosos",
-    after: "Cobros automáticos y recordatorios programados",
+    after: "Pagos registrados y pendientes a la vista",
   },
   {
     before: "WhatsApp saturado de mensajes",

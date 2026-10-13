@@ -1,7 +1,7 @@
 ---
 status: active
 owner: producto
-last_reviewed: 2026-10-03
+last_reviewed: 2026-10-13
 source:
   - ../PRODUCT-ANALYSIS.md
   - ../BUSINESS-ANALYSIS.md
@@ -69,10 +69,11 @@ Code changes verificados: tsc OK, eslint OK, next build OK.
 ## 2026-10-13 — Plan maestro de implementación del SaaS
 
 Usar [`plan maestro`](../../docs/plans/2026-10-13-full-saas-implementation-plan.md)
-como secuencia vigente para el rebuild greenfield completo. El orden inmediato
-es cerrar el modelo deportivo y el alta sencilla; después revalidar operaciones,
-ledger/cobros, métricas, Score, Insights y Owner Dashboard. No declarar
-preparación de captación hasta completar el gate de lanzamiento del plan.
+como secuencia vigente para el rebuild greenfield completo. El modelo deportivo,
+el alta simplificada, los servicios locales, el ledger manual y el read model
+están implementados en esta rama, pero aún faltan pruebas autenticadas y gates
+de entorno. No declarar preparación de captación hasta completar los gates del
+plan y verificar el despliegue productivo.
 
 - [x] Cerrar Fase 1 local: migration, RLS/grants, contrato, onboarding y tests.
 - [x] Pasar stack canónico y las verificaciones focales locales.
@@ -103,6 +104,22 @@ preparación de captación hasta completar el gate de lanzamiento del plan.
       probarlo en Stripe Test; auditar/cerrar el cron legacy antes de reutilizarlo.
       Automático sigue deshabilitado para todas las cuentas.
 - [ ] Completar QA de roles, privacidad de menores, backup/restore y producción.
+- [ ] **Gate E2E remoto:** no aplicar el esquema greenfield al sandbox legacy. Crear
+      una rama/proyecto aislado solo después de mostrar el coste y recibir
+      confirmación; reconciliar historial nativo y probar migraciones/roles con
+      fixtures `.test` sintéticas. La verificación del 2026-10-13 encontró 54
+      hashes alineados y 54 pendientes en producción; en E2E, 1 hash discrepante
+      y 63 pendientes. No se ejecutó ninguna migración remota.
+- [ ] **Gate P0 de publicación:** PR #225 tiene checks verdes, pero no puede
+      fusionarse hasta recibir una aprobación independiente requerida por
+      protección de `main`. No reducir ni eludir esa regla. La auditoría del
+      preview encontró claims de cobro automático en varias páginas; se han
+      corregido localmente y se han añadido tests, pero no se han desplegado.
+- [ ] **Seguridad móvil:** mantener las mitigaciones de `braces` y `node-forge`
+      y los tests de regresión; actualizar cuando los advisories publiquen una
+      versión corregida. GitHub mantiene cuatro alertas altas duplicadas en los
+      dos lockfiles del proyecto móvil; confirmar el bundle/runtime y el estado
+      del advisory antes de cerrar el riesgo o publicar una versión móvil.
 
 ### Seguimiento 2026-10-13 — proyección de cohortes AC-12
 
