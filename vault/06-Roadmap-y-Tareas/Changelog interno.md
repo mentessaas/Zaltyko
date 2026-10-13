@@ -11603,3 +11603,25 @@ Modelo separado, reclamación manual, administración, importación revisada, fi
   PASS (79/79); `gate:auth` PASS (392 archivos).
 - E2E autenticado y walkthrough del Owner siguen pendientes por el gate del
   sandbox. Sin SQL remoto, despliegue, cambios de Stripe Live o credenciales.
+
+## 2026-10-13 — Pase de lista Owner y alta recuperable
+
+- Se integraron `/owner/attendance` y la navegación Owner. La lista usa la zona
+  horaria de cada sede; permite seleccionar sesión y guardar/corregir asistencia
+  por inscripción con estados claros y reintento de la misma clave/payload ante
+  un resultado incierto. Los botones de fila tienen nombres accesibles por
+  gimnasta y los guardados se serializan.
+- El alta de academia conserva la clave y el payload si una respuesta del
+  servidor deja el resultado incierto; un rechazo definitivo permite corregir
+  y volver a enviar sin reutilizar la clave anterior.
+- Validación local: 28/28 tests focales de Owner, TypeScript, ESLint, Prettier
+  y `git diff --check` PASS; API de asistencia 9/9 tests de ruta y harness
+  PostgreSQL de operaciones PASS. E2E autenticado del navegador NO VERIFICADO
+  por falta de referencia sandbox local. Integrado en `codex/zaltyko-plan-implementation`
+  (HEAD `93826c35`); no push, merge a `main`, migración remota ni despliegue.
+- **Bloqueo adicional para DEMO-READY:** la pantalla de pago solo registra
+  recibos contra un cargo abierto. No existe acción Owner greenfield para
+  emitir la cuota/factura/cargo desde la academia vacía; `issueInvoice()` no
+  está expuesto por una ruta Owner y la inscripción no tiene precio asignado.
+  Se documentó como P0; no se conectó la ruta legacy ni se inventaron reglas de
+  importe, pagador o vencimiento.

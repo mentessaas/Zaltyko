@@ -33,17 +33,38 @@ source:
   una fila de ledger desconocida o una tabla sin RLS, detener y revisar. No
   aplicar más migraciones desde este paso; no tocar Producción ni Stripe Live.
 
-## P1 — Pase de lista Owner greenfield — 2026-10-13
+## P0 — Emitir cuota para registrar un pago manual — 2026-10-13
 
-- **Hueco verificado:** el servicio `recordAttendance` trabaja con sesión e
-  inscripción greenfield. El backend está implementando el contrato acordado
-  para `GET/POST /api/v1/owner/sessions/[sessionId]/attendance`.
+- **Hueco confirmado:** `/owner/payments` solo muestra cargos abiertos y la API
+  manual requiere un `chargeId`; no hay acción Owner greenfield que cree la
+  cuota/factura/cargo en una academia vacía. `issueInvoice()` existe como
+  servicio interno, pero no tiene ruta Owner; la inscripción deja
+  `pricePlanId: null`.
+- No usar `/api/charges`: pertenece al modelo legacy y puede enlazar con la
+  automatización de cobro retirada en PR #225.
+- **Decisión de producto necesaria antes de implementar:** origen del importe
+  y periodo de servicio, pagador familiar y vencimiento. Recomendación: flujo
+  manual explícito, sin cobro automático; emitir cuota y después registrar el
+  pago recibido contra el cargo. No inventar importes ni crear pagadores con
+  datos implícitos.
+- **Gate:** no declarar DEMO-READY ni escribir un E2E que prepare cargos fuera
+  de la experiencia Owner hasta cerrar este flujo y añadir seed/limpieza
+  sintética segura.
+
+## P1 — Pase de lista Owner greenfield — implementación local 2026-10-13
+
+- **Hueco original cerrado localmente:** el servicio `recordAttendance` trabaja
+  con sesión e inscripción greenfield y ya existe
+  `GET/POST /api/v1/owner/sessions/[sessionId]/attendance`; no requiere
+  migración de esquema.
 - `/api/attendance` pertenece al modelo legacy (`academyId`/`athleteId`) y no
   debe conectarse a `/owner`.
-- **UI local:** `/owner/attendance` lee opciones de sesión con `resolveOwnerScope`,
-  consume el GET/POST greenfield con estados guardado/vacío/loading/error y
-  reintento idempotente. Tests usan mocks rotulados del contrato; endpoint aún
-  no presente en esta rama, E2E autenticado pendiente.
+- **Integración local:** `/owner/attendance` lista sesiones usando la zona
+  horaria de su sede y consume GET/POST greenfield con estados
+  guardado/vacío/loading/error y reintento idempotente. Tests UI usan mocks
+  rotulados del contrato; tests de ruta y harness PostgreSQL pasan. E2E
+  autenticado pendiente. Cambios unidos en la rama local candidata
+  `codex/zaltyko-plan-implementation` (HEAD `93826c35`), aún sin publicar.
 - Ver [`OWNER-MVP-FRONTEND-CONTRACT-GAPS.md`](../../docs/OWNER-MVP-FRONTEND-CONTRACT-GAPS.md).
 
 ## P2 — Aislar el catálogo sintético de los previews compartibles — 2026-10-13
