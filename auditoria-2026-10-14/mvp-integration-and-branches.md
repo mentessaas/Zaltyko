@@ -70,6 +70,12 @@ desechables. La causa no está establecida; QA recibió esta evidencia para
 verificar hidratación, eventos y navegación antes de atribuir un origen.
 El job autenticado remoto aún estaba activo al consultar.
 
+Resultado final CI `38477410346`: failure. El job autenticado Owner registra
+32 tests aprobados y uno fallido: WebKit, `common breakpoints`, navegación a
+la misma URL interrumpida por otra navegación (también en los reintentos).
+La navegación móvil «Más» pasa en los tres navegadores. QA investiga el nuevo
+fallo; no se atribuye automáticamente a producto o harness sin aislarlo.
+
 - [PR #226](https://github.com/mentessaas/Zaltyko/pull/226).
 - [MVP #227](https://github.com/mentessaas/Zaltyko/issues/227).
 - [Hotfix #225](https://github.com/mentessaas/Zaltyko/pull/225).
