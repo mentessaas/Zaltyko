@@ -7,6 +7,7 @@ import { RegisterForm } from "@/components/RegisterForm";
 const routerPush = vi.hoisted(() => vi.fn());
 const pushToast = vi.hoisted(() => vi.fn());
 const signUp = vi.hoisted(() => vi.fn());
+const getUser = vi.hoisted(() => vi.fn());
 const mockFetch = vi.hoisted(() => vi.fn());
 
 vi.mock("next/navigation", () => ({
@@ -20,7 +21,7 @@ vi.mock("next/link", () => ({
 }));
 
 vi.mock("@/lib/supabase/client", () => ({
-  createClient: () => ({ auth: { signUp } }),
+  createClient: () => ({ auth: { signUp, getUser } }),
 }));
 
 vi.mock("@/components/ui/toast-provider", () => ({
@@ -61,6 +62,7 @@ beforeEach(() => {
   routerPush.mockReset();
   pushToast.mockReset();
   signUp.mockReset();
+  getUser.mockReset();
   mockFetch.mockReset();
   vi.stubGlobal("fetch", mockFetch);
 });
@@ -113,7 +115,7 @@ describe("registro Owner ante fallos de red", () => {
     expect(alert).not.toHaveTextContent("Failed to fetch");
   });
 
-  it("envía a la recuperación de perfil si falla la petición tras confirmar la sesión", async () => {
+  it("continúa Owner al setup canónico sin crear un perfil global legacy", async () => {
     const user = userEvent.setup();
     signUp.mockResolvedValueOnce({
       data: {
@@ -122,7 +124,71 @@ describe("registro Owner ante fallos de red", () => {
       },
       error: null,
     });
-    mockFetch.mockRejectedValueOnce(new TypeError("Failed to fetch"));
+    getUser.mockResolvedValueOnce({
+      data: { user: { id: "synthetic-user" } },
+      error: null,
+    });
+    render(<RegisterForm ownerEntry />);
+    await completeOwnerRegistration(user);
+
+    await user.click(screen.getByRole("button", { name: "Crear cuenta" }));
+
+    await waitFor(() =>
+      expect(routerPush).toHaveBeenCalledWith("/owner/setup")
+    );
+    expect(signUp).toHaveBeenCalledTimes(1);
+    expect(getUser).toHaveBeenCalledOnce();
+    expect(mockFetch).not.toHaveBeenCalled();
+    expect(signUp.mock.calls[0][0].options.data).toMatchObject({
+      initial_role: "owner",
+      legal_consent_version: expect.any(String),
+      legal_consent_proof: expect.any(String),
+    });
+  });
+
+  it("mantiene el POST de perfil existente para otros roles", async () => {
+    const user = userEvent.setup();
+    signUp.mockResolvedValueOnce({
+      data: {
+        user: { id: "synthetic-user" },
+        session: { user: { id: "synthetic-user" } },
+      },
+      error: null,
+    });
+    mockFetch.mockResolvedValueOnce({ ok: true });
+    render(<RegisterForm />);
+    await user.click(screen.getByRole("radio", { name: /Entrenador/ }));
+    await completeOwnerRegistration(user);
+
+    await user.click(screen.getByRole("button", { name: "Crear cuenta" }));
+
+    await waitFor(() =>
+      expect(mockFetch).toHaveBeenCalledWith("/api/onboarding/profile", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          name: "Persona sintética",
+          role: "coach",
+        }),
+      })
+    );
+    expect(routerPush).toHaveBeenCalledWith("/onboarding/coach");
+    expect(getUser).not.toHaveBeenCalled();
+  });
+
+  it("no llama al perfil legacy si no se puede verificar la sesión Owner", async () => {
+    const user = userEvent.setup();
+    signUp.mockResolvedValueOnce({
+      data: {
+        user: { id: "synthetic-user" },
+        session: { user: { id: "synthetic-user" } },
+      },
+      error: null,
+    });
+    getUser.mockResolvedValueOnce({
+      data: { user: null },
+      error: { message: "session unavailable" },
+    });
     render(<RegisterForm ownerEntry />);
     await completeOwnerRegistration(user);
 
@@ -131,18 +197,26 @@ describe("registro Owner ante fallos de red", () => {
     await waitFor(() =>
       expect(routerPush).toHaveBeenCalledWith("/auth/login?profile_setup=retry")
     );
-    expect(signUp).toHaveBeenCalledTimes(1);
-    expect(mockFetch).toHaveBeenCalledTimes(1);
-    expect(pushToast).toHaveBeenCalledWith(
-      expect.objectContaining({
-        title: "Cuenta creada; configuración pendiente",
-        variant: "warning",
-        persistent: true,
-      })
+    expect(mockFetch).not.toHaveBeenCalled();
+    expect(signUp).toHaveBeenCalledOnce();
+  });
+
+  it("conserva el resultado incierto y no permite repetir el alta", async () => {
+    const user = userEvent.setup();
+    signUp.mockRejectedValueOnce(new TypeError("network dropped"));
+    render(<RegisterForm ownerEntry />);
+    await completeOwnerRegistration(user);
+
+    await user.click(screen.getByRole("button", { name: "Crear cuenta" }));
+
+    expect(await screen.findByRole("alert")).toHaveTextContent(
+      "No podemos confirmar si tu cuenta se creó"
     );
-    expect(pushToast.mock.calls.flat().join(" ")).not.toContain(
-      "Failed to fetch"
-    );
+    expect(signUp).toHaveBeenCalledOnce();
+    expect(
+      screen.getByRole("button", { name: "Alta pendiente de confirmar" })
+    ).toBeDisabled();
+    expect(mockFetch).not.toHaveBeenCalled();
   });
 
   it("no llama a Supabase si falta la aceptación de términos", async () => {

@@ -85,21 +85,17 @@ async function enterCredentials(user: ReturnType<typeof userEvent.setup>) {
   await user.type(screen.getByLabelText("Contraseña"), "synthetic-password");
 }
 
-describe("recuperación explícita del perfil desde el login activo", () => {
-  it("no envía el POST hasta que la persona confirma la continuación", async () => {
+describe("recuperación Owner explícita desde el login activo", () => {
+  it("solo después de confirmar y verificar la sesión continúa a Owner setup, sin POST de perfil", async () => {
     const user = userEvent.setup();
     getUser.mockResolvedValue({
       data: { user: { id: "synthetic-user" } },
       error: null,
     });
-    mockFetch.mockResolvedValue({
-      ok: true,
-      json: async () => ({ ok: true, data: { role: "owner" } }),
-    });
     render(<LoginForm profileSetupRetry sessionAvailableForRecovery />);
 
     expect(
-      screen.getByRole("button", { name: "Continuar como dirección" })
+      screen.getByRole("button", { name: "Continuar con la configuración" })
     ).toBeVisible();
     expect(
       screen.queryByRole("link", { name: "Crea una cuenta" })
@@ -107,53 +103,50 @@ describe("recuperación explícita del perfil desde el login activo", () => {
     expect(mockFetch).not.toHaveBeenCalled();
 
     await user.click(
-      screen.getByRole("button", { name: "Continuar como dirección" })
+      screen.getByRole("button", { name: "Continuar con la configuración" })
     );
 
-    await waitFor(() => expect(mockFetch).toHaveBeenCalledTimes(1));
-    expect(mockFetch).toHaveBeenCalledWith("/api/onboarding/profile", {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ role: "owner" }),
-    });
-    expect(routerReplace).toHaveBeenCalledWith("/owner/setup");
+    await waitFor(() =>
+      expect(routerReplace).toHaveBeenCalledWith("/owner/setup")
+    );
+    expect(getUser).toHaveBeenCalledOnce();
+    expect(mockFetch).not.toHaveBeenCalled();
     expect(routerRefresh).toHaveBeenCalledOnce();
   });
 
-  it("muestra un error de red en español, conserva el paso de confirmación y habilita el reintento", async () => {
+  it("muestra un error de red al verificar la sesión y permite reintentar sin crear perfil", async () => {
     const user = userEvent.setup();
-    getUser.mockResolvedValue({
-      data: { user: { id: "synthetic-user" } },
-      error: null,
-    });
-    mockFetch.mockRejectedValueOnce(new TypeError("Failed to fetch"));
+    getUser.mockRejectedValueOnce(new TypeError("Failed to fetch"));
     render(<LoginForm profileSetupRetry sessionAvailableForRecovery />);
 
     await user.click(
-      screen.getByRole("button", { name: "Continuar como dirección" })
+      screen.getByRole("button", { name: "Continuar con la configuración" })
     );
 
     const alert = await screen.findByRole("alert");
     expect(alert).toHaveTextContent("problema de conexión");
     expect(alert).not.toHaveTextContent("Failed to fetch");
     expect(
-      screen.getByRole("button", { name: "Continuar como dirección" })
+      screen.getByRole("button", { name: "Continuar con la configuración" })
     ).toBeEnabled();
     expect(routerReplace).not.toHaveBeenCalled();
+    expect(mockFetch).not.toHaveBeenCalled();
 
-    mockFetch.mockResolvedValueOnce({
-      ok: true,
-      json: async () => ({ ok: true, data: { role: "owner" } }),
+    getUser.mockResolvedValueOnce({
+      data: { user: { id: "synthetic-user" } },
+      error: null,
     });
     await user.click(
-      screen.getByRole("button", { name: "Continuar como dirección" })
+      screen.getByRole("button", { name: "Continuar con la configuración" })
     );
 
-    await waitFor(() => expect(mockFetch).toHaveBeenCalledTimes(2));
-    expect(routerReplace).toHaveBeenCalledWith("/owner/setup");
+    await waitFor(() =>
+      expect(routerReplace).toHaveBeenCalledWith("/owner/setup")
+    );
+    expect(mockFetch).not.toHaveBeenCalled();
   });
 
-  it("no envía el POST cuando la sesión deja de ser válida", async () => {
+  it("no continúa si la sesión deja de ser válida y ofrece iniciar sesión de nuevo", async () => {
     const user = userEvent.setup();
     getUser.mockResolvedValue({
       data: { user: null },
@@ -162,7 +155,7 @@ describe("recuperación explícita del perfil desde el login activo", () => {
     render(<LoginForm profileSetupRetry sessionAvailableForRecovery />);
 
     await user.click(
-      screen.getByRole("button", { name: "Continuar como dirección" })
+      screen.getByRole("button", { name: "Continuar con la configuración" })
     );
 
     expect(await screen.findByRole("alert")).toHaveTextContent(
@@ -192,7 +185,9 @@ describe("recuperación explícita del perfil desde el login activo", () => {
     );
 
     expect(
-      await screen.findByRole("button", { name: "Continuar como dirección" })
+      await screen.findByRole("button", {
+        name: "Continuar con la configuración",
+      })
     ).toBeVisible();
     expect(getUser).toHaveBeenCalledOnce();
     expect(mockFetch).not.toHaveBeenCalled();
@@ -297,16 +292,13 @@ describe("recuperación explícita del perfil desde el login activo", () => {
       data: { user: { id: "synthetic-user" } },
       error: null,
     });
-    mockFetch.mockResolvedValue({
-      ok: true,
-      json: async () => ({ ok: true, data: { role: "owner" } }),
-    });
     render(<LoginForm profileSetupRetry sessionAvailableForRecovery />);
     await user.click(
-      screen.getByRole("button", { name: "Continuar como dirección" })
+      screen.getByRole("button", { name: "Continuar con la configuración" })
     );
     await waitFor(() =>
       expect(routerReplace).toHaveBeenCalledWith("/owner/setup")
     );
+    expect(mockFetch).not.toHaveBeenCalled();
   });
 });
