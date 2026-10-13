@@ -9,6 +9,17 @@ source:
 
 ## 2026-10-14 — Mensualidades publicadas y siguiente bloque paralelo
 
+Actualización posterior: Backend+Frontend publicados en `78d7f14f`; corrección
+de recarga inicial SW publicada en `5708d130`. Diagnóstico A/B de QA demostró
+reload en primera adquisición del controller, no envío de formulario. En
+integración pasan 20 tests helper/acceso, tipos y lint. Se añadieron pruebas de
+comportamiento del worker: API/HTML privado sin cache, POST financiero sin
+intercepción, activación de actualización explícita; 11 tests PWA/controller,
+TypeScript y ESLint PASS. No prueba el E2E completo ni producción.
+QA prepara el recorrido sintético con SW permitido. Frontend cierra analítica
+browser default-deny detectada al revisar #66; eventos operativos de servidor
+se conservan. Regla financiera multiclase consultada, aún sin decisión.
+
 - Integradas entregas Backend/Frontend/QA y publicadas en #226, SHA 31a0dd02.
 - Contrato mensual documentado en ADR-0026 y billing; 23 focales y 12 auth PASS,
   tipos/lint/formato PASS. Chromium local falló en login; causa sin verificar.
