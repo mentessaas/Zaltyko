@@ -8,7 +8,9 @@
   `/modules/pagos-administracion`; solo lectura, sin crear cuentas ni enviar
   formularios.
 - Método: árbol de accesibilidad/DOM y capturas del viewport móvil actual.
-  Estas capturas representan el preview, no producción.
+  Las tres primeras capturas representan el Preview anterior al arreglo; la
+  captura local posterior registra la presentación corregida antes del nuevo
+  deployment.
 - Capturas: [home](../audit/evidence/ui/2026-10-13/home-mobile.jpg),
   [alta owner](../audit/evidence/ui/2026-10-13/owner-registration-mobile.jpg),
   [cobros](../audit/evidence/ui/2026-10-13/family-payments-mobile.jpg).
@@ -37,6 +39,12 @@
 - No se verificó el nuevo registro owner en navegador porque su shell intenta
   contactar Supabase. Se verificó el componente con prueba unitaria; no se envió
   formulario ni se creó una cuenta.
+- Después, el Preview del commit `0758acd535b33f2cd674d6c95c2d85f9fefe2165`
+  quedó `READY`. `/modules/pagos-administracion`, `/auth/register?role=owner` y
+  `/` respondieron HTTP 200. El HTML de cobros muestra registro manual y la
+  aclaración de que no hay cargos automáticos; el de alta muestra "Cuenta de
+  dirección de academia" sin el selector de roles. Esto verifica el Preview,
+  no producción.
 
 ## Copy de lanzamiento acordado
 
@@ -60,7 +68,7 @@ QA de release. Free y trial siguen en manual.
   guard que exige un `E2E_TARGET_SUPABASE_PROJECT_REF` aprobado; no se usó un
   sandbox legacy ni un valor ficticio para saltar el gate.
 - Publicar y comprobar el copy corregido en el dominio de producción después
-  del merge. No usar el preview como prueba de producción ni captar clientes
-  mientras la discrepancia siga visible.
+  del merge. El Preview actualizado no es producción; no captar clientes
+  mientras la discrepancia siga visible en el dominio público.
 - Completar walkthrough autenticado y revisión de teclado/lector del Owner
   Dashboard en un destino de pruebas aislado.

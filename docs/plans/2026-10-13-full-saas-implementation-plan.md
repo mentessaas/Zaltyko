@@ -193,9 +193,10 @@ integraciones, ayuda, planes y `llms-full.txt` se ha corregido en esta rama y
 cuenta con tests de contrato. El CTA owner también conserva el contexto y ya no
 obliga a escoger entre roles irrelevantes; el alta genérica no cambia. Pruebas
 focales, typecheck y build local pasan; el build no tiene credenciales de
-servicios y no valida integraciones remotas. El cambio no está desplegado; antes
-de captar se debe superar la revisión independiente de PR #225, integrar el
-hotfix de cron y verificar las rutas públicas en el deployment de producción.
+servicios y no valida integraciones remotas. El commit `0758acd5` está en el
+Preview de PR #226 y las rutas públicas comprobadas responden 200; producción no
+ha cambiado. Antes de captar se debe superar la revisión independiente de PR
+#225, integrar el hotfix de cron y verificar las rutas públicas en producción.
 
 Gate: QA independiente, E2E autenticado, migraciones reconciliadas, restore
 ensayado, producción verificada y rollback documentado. Preview/build verde no

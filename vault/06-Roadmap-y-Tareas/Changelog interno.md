@@ -33,9 +33,15 @@ source:
   generación de rutas dinámicas, por lo que no acredita integraciones. ESLint
   focal no presenta errores y mantiene 9 warnings. El E2E no arrancó por el
   guard; no cuenta como pasado.
-- No se modificaron producción, Stripe, credenciales ni Vercel; no se creó
-  cuenta ni se envió formulario. Falta revisar/mergear PR #225 con aprobación
-  independiente y verificar el copy en producción antes de captar clientes.
+- No se modificaron producción, Stripe ni credenciales; solo se publicó el
+  Preview de la rama. No se creó cuenta ni se envió formulario. Falta
+  revisar/mergear PR #225 con aprobación independiente y verificar el copy en
+  producción antes de captar clientes.
+- Tras el push autorizado, Vercel creó el Preview del commit `0758acd5` y quedó
+  `READY`. Cobros, alta owner y home respondieron HTTP 200; la ruta de cobros
+  muestra el aviso de registro manual/no cargos automáticos y el alta owner
+  oculta el selector de roles. Preview actualizado; producción permanece sin
+  cambios.
 
 ## 2026-10-13 — Reconciliación de ledgers y gate E2E autenticado
 
