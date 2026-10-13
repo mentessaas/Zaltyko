@@ -1,5 +1,7 @@
 "use client";
 
+import { Fragment } from "react";
+
 /**
  * Divide un texto en palabras y las anima con entrada escalonada.
  * Renderiza el texto plano en servidor (SEO intacto); la animación
@@ -11,15 +13,16 @@ export default function SplitWords({ text }: { text: string }) {
     <>
       <span className="sr-only">{text}</span>
       {words.map((word, i) => (
-        <span
-          key={`${word}-${i}`}
-          aria-hidden="true"
-          className="zk-word"
-          style={{ ["--zk-i" as string]: i }}
-        >
-          {word}
-          {i < words.length - 1 ? "\u00A0" : ""}
-        </span>
+        <Fragment key={`${word}-${i}`}>
+          <span
+            aria-hidden="true"
+            className="zk-word"
+            style={{ ["--zk-i" as string]: i }}
+          >
+            {word}
+          </span>
+          {i < words.length - 1 ? " " : null}
+        </Fragment>
       ))}
     </>
   );
