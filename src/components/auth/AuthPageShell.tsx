@@ -33,7 +33,7 @@ export function AuthPageShell({
     <div className="min-h-screen overflow-hidden bg-zaltyko-navy text-white">
       <div className="pointer-events-none absolute inset-0 opacity-80 zaltyko-motion-lines" />
       <div className="mx-auto grid min-h-screen max-w-7xl lg:grid-cols-[minmax(0,520px),1fr]">
-        <section className="relative flex min-h-screen flex-col px-6 py-6 sm:px-8 lg:px-12">
+        <main className="relative flex min-h-screen flex-col px-6 py-6 sm:px-8 lg:px-12">
           <div>
             <Link
               href={backHref}
@@ -73,7 +73,7 @@ export function AuthPageShell({
               <div className="mt-6 text-sm text-muted-foreground">{footer}</div>
             </div>
           </div>
-        </section>
+        </main>
 
         <aside className="relative hidden border-l border-white/10 lg:flex">
           <div className="flex w-full items-center px-10 py-12 xl:px-14">
