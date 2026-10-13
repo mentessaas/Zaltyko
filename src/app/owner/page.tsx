@@ -12,6 +12,7 @@ import { getCapacityHeatmap } from "@/modules/owner-dashboard/application/capaci
 import { getRetentionCohorts } from "@/modules/owner-dashboard/application/retention-cohorts";
 import { getOwnerDashboardFilterOptions } from "@/modules/owner-dashboard/application/dashboard-filter-options";
 import { getOwnerDashboardLayout } from "@/modules/owner-dashboard/application/dashboard-layout";
+import { getOwnerOperationalSummary } from "@/modules/owner-dashboard/application/operational-summary";
 import { OperationalError } from "@/modules/shared/domain/operational-error";
 
 export const dynamic = "force-dynamic";
@@ -62,31 +63,39 @@ export default async function OwnerDashboardPage({
     throw error;
   }
 
-  const [capacityResult, cohortsResult] = await Promise.allSettled([
-    getCapacityHeatmap({
-      userId: user.id,
-      organizationId: bundle.organization.id,
-      locationId: bundle.scope.locationId ?? undefined,
-      programId: query.data.programId,
-      groupId: query.data.groupId,
-      limit: 50,
-    }),
-    getRetentionCohorts({
-      userId: user.id,
-      organizationId: bundle.organization.id,
-      locationId: bundle.scope.locationId ?? undefined,
-      programId: query.data.programId,
-      groupId: query.data.groupId,
-      from: query.data.from,
-      to: query.data.to,
-      limit: 24,
-    }),
-  ]);
+  const [capacityResult, cohortsResult, operationalResult] =
+    await Promise.allSettled([
+      getCapacityHeatmap({
+        userId: user.id,
+        organizationId: bundle.organization.id,
+        locationId: bundle.scope.locationId ?? undefined,
+        programId: query.data.programId,
+        groupId: query.data.groupId,
+        limit: 50,
+      }),
+      getRetentionCohorts({
+        userId: user.id,
+        organizationId: bundle.organization.id,
+        locationId: bundle.scope.locationId ?? undefined,
+        programId: query.data.programId,
+        groupId: query.data.groupId,
+        from: query.data.from,
+        to: query.data.to,
+        limit: 24,
+      }),
+      getOwnerOperationalSummary({
+        userId: user.id,
+        organizationId: bundle.organization.id,
+        locationId: query.data.locationId,
+        from: query.data.from,
+        to: query.data.to,
+      }),
+    ]);
   const dashboardLayout = await getOwnerDashboardLayout({
     userId: user.id,
     organizationId: bundle.organization.id,
   });
-  for (const result of [capacityResult, cohortsResult]) {
+  for (const result of [capacityResult, cohortsResult, operationalResult]) {
     if (result.status === "rejected") {
       if (
         result.reason instanceof OperationalError &&
@@ -125,6 +134,11 @@ export default async function OwnerDashboardPage({
       cohorts={cohorts}
       dashboardFilters={dashboardFilters}
       dashboardLayout={dashboardLayout}
+      operationalSummary={
+        operationalResult.status === "fulfilled"
+          ? operationalResult.value
+          : null
+      }
     />
   );
 }

@@ -1,4 +1,5 @@
 import Link from "next/link";
+import { OwnerOperationalSummaryPanel } from "./OwnerOperationalSummaryPanel";
 import {
   ArrowRight,
   Banknote,
@@ -386,21 +387,31 @@ function OperationalEvidence({
   );
 }
 
-function EmptyDashboard({ bundle }: { bundle: OwnerDashboardBundle }) {
+function EmptyDashboard({
+  bundle,
+  operationalSummary,
+}: {
+  bundle: OwnerDashboardBundle;
+  operationalSummary?:
+    | import("@/modules/owner-dashboard/application/operational-summary").OwnerOperationalSummary
+    | null;
+}) {
   return (
-    <main
-      id="contenido"
-      className="mx-auto flex min-h-[80vh] max-w-3xl items-center px-5 py-16"
-    >
+    <main id="contenido" className="mx-auto max-w-5xl px-5 py-10">
+      {operationalSummary !== undefined && (
+        <OwnerOperationalSummaryPanel summary={operationalSummary} />
+      )}
       <section
         id="data-status"
-        className="w-full border-l-4 border-teal-700 bg-white p-7 shadow-soft sm:p-10"
+        className="mt-6 w-full border-l-4 border-teal-700 bg-white p-7 shadow-soft sm:p-10"
       >
         <p className="text-xs font-bold uppercase tracking-[0.2em] text-teal-800">
           Primer cierre
         </p>
         <h1 className="mt-3 text-3xl text-slate-950">
-          Tu panel todavía está esperando datos
+          {operationalSummary
+            ? "Tu Health Score todavía está esperando métricas"
+            : "Tu panel todavía está esperando datos"}
         </h1>
         <p className="mt-4 max-w-xl text-slate-600">
           {bundle.priorities[0]?.detail ??
@@ -494,6 +505,7 @@ export function OwnerDashboardView({
   dashboardFilters,
   dashboardLayout,
   preview = false,
+  operationalSummary,
 }: {
   bundle: OwnerDashboardBundle;
   capacity?: CapacityBundle | null;
@@ -501,11 +513,17 @@ export function OwnerDashboardView({
   dashboardFilters?: DashboardFilters;
   dashboardLayout?: OwnerDashboardLayout;
   preview?: boolean;
+  operationalSummary?:
+    | import("@/modules/owner-dashboard/application/operational-summary").OwnerOperationalSummary
+    | null;
 }) {
   if (bundle.state === "empty") {
     return (
       <div className="min-h-screen bg-[#F1F3EF] text-slate-950">
-        <EmptyDashboard bundle={bundle} />
+        <EmptyDashboard
+          bundle={bundle}
+          operationalSummary={operationalSummary}
+        />
         <div className="mx-auto max-w-3xl px-5 pb-16">
           <OperationalEvidence capacity={capacity} cohorts={cohorts} />
         </div>
@@ -679,6 +697,10 @@ export function OwnerDashboardView({
             </form>
           </div>
         </section>
+
+        {operationalSummary !== undefined && (
+          <OwnerOperationalSummaryPanel summary={operationalSummary} />
+        )}
 
         {bundle.state === "stale" && bundle.freshness.status === "current" && (
           <div

@@ -9,6 +9,16 @@ source:
 
 ## 2026-10-14 — Mensualidades publicadas y siguiente bloque paralelo
 
+Resumen operativo: integrado servicio Backend `f65a53a4` y conectado a
+`/owner`, también sin snapshots del Health Score. Gimnastas DISTINCT con
+membership M:N vigente y grupos activos se cuentan hoy; asistencia y cobros
+usan período local por sede. Importes brutos separados por moneda y solo
+owner/admin; manager no consulta pagos. Fallos visibles, no falsos ceros.
+Programa/grupo no filtran este resumen y se indica expresamente. 18 pruebas
+servicio/panel/consentimiento PASS; validación SQL real y E2E pendientes.
+Integrado follow-up privacidad `dbc1c92d`: clear de storage entre pestañas
+revoca, binding removible en pruebas, storage bloqueado default-deny.
+
 Privacidad: retirado el preconnect incondicional a PostHog del layout raíz.
 Una prueba impide reintroducir ese contacto previo al consentimiento. Este
 cambio complementa el gate browser en preparación; no activa analítica ni
