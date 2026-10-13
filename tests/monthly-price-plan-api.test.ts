@@ -115,6 +115,23 @@ describe("API Owner para crear tarifas mensuales", () => {
     expect(createMonthlyPricePlan).not.toHaveBeenCalled();
   });
 
+  it("acepta el máximo integer de PostgreSQL y rechaza el valor siguiente", async () => {
+    const maximumResponse = await createPricePlan(
+      request({ amountCents: 2_147_483_647 })
+    );
+    expect(maximumResponse.status).toBe(201);
+    expect(createMonthlyPricePlan).toHaveBeenCalledWith(
+      expect.objectContaining({ amountCents: 2_147_483_647 })
+    );
+
+    vi.mocked(createMonthlyPricePlan).mockClear();
+    const overflowResponse = await createPricePlan(
+      request({ amountCents: 2_147_483_648 })
+    );
+    expect(overflowResponse.status).toBe(400);
+    expect(createMonthlyPricePlan).not.toHaveBeenCalled();
+  });
+
   it("mantiene el rechazo de manager para escrituras financieras", async () => {
     vi.mocked(createMonthlyPricePlan).mockRejectedValue(
       new OperationalError("FORBIDDEN", "Forbidden", 403)

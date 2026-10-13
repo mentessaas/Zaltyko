@@ -8,7 +8,6 @@ import {
   outboxEvents,
   pricePlans,
 } from "@/db/zaltyko-schema";
-import type { OperationalActor } from "@/modules/shared/application/actor";
 import { OperationalError } from "@/modules/shared/domain/operational-error";
 import { assertOperationalAccess } from "@/modules/shared/infrastructure/operational-authorization";
 import {
@@ -22,7 +21,7 @@ const inputSchema = z.object({
   organizationId: z.string().uuid(),
   locationId: z.string().uuid(),
   name: z.string().trim().min(1).max(100),
-  amountCents: z.number().int().safe().positive(),
+  amountCents: z.number().int().safe().positive().max(2_147_483_647),
   currency: z
     .string()
     .regex(/^[A-Z]{3}$/)

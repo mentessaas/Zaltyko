@@ -19,7 +19,7 @@ const bodySchema = z
     organizationId: z.string().uuid(),
     locationId: z.string().uuid(),
     name: z.string().trim().min(1).max(100),
-    amountCents: z.number().int().safe().positive(),
+    amountCents: z.number().int().safe().positive().max(2_147_483_647),
     currency: z
       .string()
       .regex(/^[A-Z]{3}$/)
