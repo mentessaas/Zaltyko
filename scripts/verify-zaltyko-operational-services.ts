@@ -13,6 +13,11 @@ import {
   addGroupMembership,
   transitionGroupMembership,
 } from "@/modules/groups/application/group-membership-service";
+import {
+  createOperationalGroup,
+  getOwnerGroupsPageData,
+  searchGroupAthleteOptions,
+} from "@/modules/groups/application/group-management-service";
 import { materializeSessions } from "@/modules/scheduling/application/session-service";
 import { OperationalError } from "@/modules/shared/domain/operational-error";
 
@@ -185,6 +190,87 @@ async function count(table: string, where = "true"): Promise<number> {
 async function main(): Promise<void> {
   await seed();
 
+  const createdGroup = await createOperationalGroup({
+    organizationId: ID.orgA,
+    locationId: ID.locationA,
+    programId: ID.program,
+    name: "Grupo del servicio",
+    capacity: 3,
+    idempotencyKey: "create-operational-group-1",
+    actor: owner,
+  });
+  const createdGroupRetry = await createOperationalGroup({
+    organizationId: ID.orgA,
+    locationId: ID.locationA,
+    programId: ID.program,
+    name: "Grupo del servicio",
+    capacity: 3,
+    idempotencyKey: "create-operational-group-1",
+    actor: owner,
+  });
+  assert.equal(createdGroupRetry.id, createdGroup.id);
+  assert.equal(
+    await count("zaltyko.groups", `id = '${createdGroup.id}'`),
+    1,
+    "Repetir la creación del grupo no duplica recursos"
+  );
+  await expectOperationalError(
+    () =>
+      createOperationalGroup({
+        organizationId: ID.orgA,
+        locationId: ID.locationA,
+        programId: ID.program,
+        name: "Otro nombre con la misma clave",
+        capacity: 3,
+        idempotencyKey: "create-operational-group-1",
+        actor: owner,
+      }),
+    "IDEMPOTENCY_CONFLICT"
+  );
+  await expectOperationalError(
+    () =>
+      createOperationalGroup({
+        organizationId: ID.orgA,
+        locationId: ID.locationA2,
+        programId: ID.program,
+        name: "Grupo fuera de alcance",
+        capacity: 3,
+        idempotencyKey: "create-group-out-of-scope",
+        actor: manager,
+      }),
+    "LOCATION_SCOPE_DENIED"
+  );
+
+  const ownerGroups = await getOwnerGroupsPageData({
+    userId: ID.ownerUser,
+    organizationId: ID.orgA,
+  });
+  assert(ownerGroups.groups.some((group) => group.id === createdGroup.id));
+  const managerGroups = await getOwnerGroupsPageData({
+    userId: ID.managerUser,
+    organizationId: ID.orgA,
+  });
+  assert(
+    managerGroups.groups.every((group) => group.locationId === ID.locationA)
+  );
+  const athleteOptions = await searchGroupAthleteOptions({
+    userId: ID.managerUser,
+    organizationId: ID.orgA,
+    groupId: createdGroup.id,
+    query: "Atleta",
+  });
+  assert.equal(athleteOptions.length, 4);
+  await expectOperationalError(
+    () =>
+      searchGroupAthleteOptions({
+        userId: ID.managerUser,
+        organizationId: ID.orgA,
+        groupId: ID.groupNorth,
+        query: "Atleta",
+      }),
+    "NOT_FOUND"
+  );
+
   const groupMembership = await addGroupMembership({
     organizationId: ID.orgA,
     groupId: ID.groupMain,
@@ -282,6 +368,29 @@ async function main(): Promise<void> {
   assert(fullGroupResult?.status === "rejected");
   assert(fullGroupResult.reason instanceof OperationalError);
   assert.equal(fullGroupResult.reason.code, "GROUP_CAPACITY_FULL");
+
+  await expectOperationalError(
+    () =>
+      transitionGroupMembership({
+        organizationId: ID.orgA,
+        membershipId: groupMembership.id,
+        groupId: ID.groupSecond,
+        expectedStatus: "active",
+        toStatus: "paused",
+        effectiveOn: "2026-10-03",
+        idempotencyKey: "group-mismatched-transition",
+        actor: owner,
+      }),
+    "NOT_FOUND"
+  );
+  assert.equal(
+    await count(
+      "zaltyko.group_memberships",
+      `id = '${groupMembership.id}' and status = 'active'`
+    ),
+    1,
+    "Un grupo de ruta no coincidente no puede mutar una pertenencia"
+  );
 
   const pausedMembership = await transitionGroupMembership({
     organizationId: ID.orgA,

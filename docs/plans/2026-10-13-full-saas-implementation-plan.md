@@ -116,8 +116,12 @@ migración aditiva añade el historial, fuerza RLS y restringe sus grants; se
 probó desde cero con PostgreSQL efímero, incluidos reintentos con conflicto,
 capacidad concurrente, secuencia temporal y denegación de otro tenant/sede.
 Existe además un test pgTAP para CI/Supabase local; no se pudo ejecutar porque el
-daemon Docker local no estaba activo. **Pendiente:** API, interfaz para
-gestionar grupos y E2E autenticado; no se aplicó la migración remota.
+daemon Docker local no estaba activo. La API y la interfaz owner ya permiten
+crear grupos, asociar personas existentes y pausar/reactivar/finalizar
+pertenencias; tienen tests focales, rate limit por tenant e idempotencia. El
+flujo aún no crea atletas/personas y no se ha probado con sesión de navegador
+real. **Pendiente:** alta canónica de personas, E2E autenticado y migración
+remota; no se aplicó SQL remoto.
 
 Verificación transversal actual: TypeScript, `pnpm lint` global, build Next.js
 (288 rutas), integridad de migraciones (7 Drizzle + 110 Supabase) y `validate:rls`
@@ -290,8 +294,9 @@ realizarla esa persona; no se sustituye por una aprobación del autor.
 - El registro manual tiene endpoint y formulario locales; los tests HTTP usan
   autorización simulada y el ledger se prueba en PostgreSQL efímero. No se hizo
   walkthrough autenticado ni se promovieron cambios de esquema.
-- La relación M:N de grupos ya tiene un servicio de dominio probado desde cero,
-  pero aún no está conectada a una API ni a una pantalla de gestión; la nueva
+- La relación M:N está conectada a `/owner/groups` y su API para grupos y
+  pertenencias; solo asocia atletas ya existentes y todavía requiere alta de
+  personas, E2E autenticado, pgTAP y prueba de lector de pantalla. La nueva
   migración solo se aplicó al PostgreSQL efímero.
 - La preferencia familiar y el entitlement versionado están implementados solo
   en local. El entitlement pagado de pruebas usa fixtures/contrato sintéticos;

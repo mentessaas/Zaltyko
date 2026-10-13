@@ -49,6 +49,7 @@ const addMembershipSchema = z.object({
 const transitionMembershipSchema = z.object({
   organizationId: z.string().uuid(),
   membershipId: z.string().uuid(),
+  groupId: z.string().uuid().optional(),
   expectedStatus: openStatusSchema,
   toStatus: z.enum(["active", "paused", "ended"]),
   effectiveOn: z.string().date(),
@@ -401,6 +402,9 @@ export async function transitionGroupMembership(
       input.organizationId,
       input.membershipId
     );
+    if (input.groupId && current.groupId !== input.groupId) {
+      throw new OperationalError("NOT_FOUND", "Pertenencia no encontrada", 404);
+    }
     const group = await assertGroupAccess(tx, {
       organizationId: input.organizationId,
       groupId: current.groupId,

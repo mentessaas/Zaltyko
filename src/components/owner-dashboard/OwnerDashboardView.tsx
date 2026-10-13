@@ -418,6 +418,13 @@ function EmptyDashboard({ bundle }: { bundle: OwnerDashboardBundle }) {
               : "Revisar estado de datos"}{" "}
           <ArrowRight className="h-4 w-4" aria-hidden="true" />
         </Link>
+        <Link
+          href={`/owner/groups?organizationId=${bundle.organization.id}`}
+          className="touch-target ml-3 mt-7 inline-flex items-center gap-2 rounded-full border border-slate-400 bg-white px-5 py-3 text-sm font-bold text-slate-900"
+        >
+          Gestionar grupos
+          <ArrowRight className="h-4 w-4" aria-hidden="true" />
+        </Link>
       </section>
     </main>
   );
@@ -542,6 +549,10 @@ export function OwnerDashboardView({
           >
             {[
               ["Resumen", "/owner"],
+              [
+                "Grupos",
+                `/owner/groups?organizationId=${bundle.organization.id}`,
+              ],
               ["Insights", "/owner/insights"],
               ["Capacidad", "#capacity"],
               ["Inscripciones", "#retention"],

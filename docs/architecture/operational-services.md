@@ -49,7 +49,24 @@ una única transacción.
 - RLS forzada de memberships e historial respeta el alcance de sede, además del
   tenant. El cliente solo puede leer; el servicio modifica el estado y añade
   historial, cuyo rol no tiene UPDATE/DELETE.
-  La interfaz y el endpoint de gestión todavía no están implementados.
+
+### API y espacio de gestión de grupos
+
+- `/owner/groups` es la superficie canónica; no reutiliza rutas ni IDs de
+  academia legacy. La página requiere sesión y resuelve organización, rol y
+  sedes con el modelo greenfield.
+- Owner, admin y manager pueden crear grupos ligados a una actividad y sede,
+  consultar sus grupos y pertenencias abiertas, buscar personas registradas,
+  añadirlas y pausar/reactivar/finalizar su pertenencia.
+- Toda ruta API valida sesión, tenant, rol y sede en servidor. Las lecturas y
+  escrituras tienen rate limit por tenant verificado; los nombres personales
+  solo se exponen con acceso al grupo y no se copian al outbox ni a la auditoría.
+- Los comandos derivan el actor de la sesión, usan idempotencia y permiten
+  reintentar tras un fallo de red; el servicio vuelve a validar el alcance
+  transaccionalmente.
+- Limitación actual: el flujo asocia personas existentes; todavía no ofrece
+  alta canónica de atleta/persona desde esta pantalla. Una academia vacía debe
+  completar ese flujo antes de poder asignar gimnastas.
 
 ### Sesiones
 
@@ -81,7 +98,8 @@ una única transacción.
 ## Evidencia local
 
 `pnpm test:zaltyko-operations:local` levanta PostgreSQL efímero, aplica la
-migración fundacional y las migraciones de operación/historial; verifica:
+migración fundacional, moneda base y migraciones de operación/historial;
+verifica:
 
 - dos organizaciones y varias sedes sin acceso cruzado;
 - manager limitado a sede;
@@ -103,8 +121,10 @@ La batería pgTAP no se pudo ejecutar porque Docker no estaba activo y no había
 PostgreSQL local Supabase; el harness aislado sí ejercita las políticas con
 roles `anon`, `authenticated` y `service_role`.
 
-Esta evidencia no incluye API HTTP, sesión autenticada, UI, despliegue ni
-entornos remotos.
+Vitest focal de rutas y componente de grupos pasa localmente; `pnpm gate:auth`,
+`pnpm typecheck` y `pnpm lint` también pasan en este corte. Las pruebas HTTP
+simulan sesión/scope, no equivalen a navegador con sesión real. La evidencia no
+incluye E2E autenticado, despliegue ni entornos remotos.
 
 ## Siguiente dependencia
 

@@ -262,6 +262,7 @@ const ROUTE_LIMITS: Record<string, { limit: number; window: number }> = {
   "/api/classes": { limit: 30, window: 60 },
   "/api/coaches": { limit: 30, window: 60 },
   "/api/groups": { limit: 30, window: 60 },
+  "/api/v1/owner/groups": { limit: 30, window: 60 },
   "/api/attendance": { limit: 60, window: 60 },
   "/api/class-sessions": { limit: 30, window: 60 },
   "/api/academies": { limit: 10, window: 60 },

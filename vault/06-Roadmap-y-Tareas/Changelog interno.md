@@ -7,6 +7,20 @@ source:
   - ../docs/architecture/zaltyko-domain-model.md
 ---
 
+## 2026-10-13 — Gestión owner de grupos y pertenencias
+
+- Se incorporó `/owner/groups` con creación de grupos por actividad/sede,
+  listado de pertenencias, búsqueda de personas existentes y acciones para
+  añadir, pausar, reactivar o finalizar su pertenencia M:N.
+- Las rutas verifican sesión y scope canónico, limitan lecturas por tenant,
+  usan claves idempotentes y no copian nombres al outbox/auditoría. No se
+  conectó la ruta legacy ni se añadieron fixtures personales.
+- Vitest focal (9 tests), `gate:auth`, `pnpm typecheck`, `pnpm lint` y el
+  harness PostgreSQL efímero pasan. El harness incorpora la migración de moneda
+  faltante que necesita `resolveOwnerScope`.
+- Quedan alta canónica de personas, E2E autenticado, pgTAP, lector de pantalla,
+  migración remota y despliegue. No se tocó producción ni Stripe Live.
+
 ## 2026-10-13 — Hacer operativa la pertenencia M:N a grupos
 
 - La revisión de fase 2 confirmó que `group_memberships` estaba modelada como

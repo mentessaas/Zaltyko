@@ -15,7 +15,16 @@ source:
 | Evidencia | El núcleo greenfield tenía la relación M:N y estado actual, pero carecía de servicio operativo e historial tipado para reconstruir pausas, reactivaciones y bajas. El audit log genérico no debe ser la fuente de verdad de métricas. |
 | Decisión | Aceptar ADR-0023: mantener `group_memberships` canónica y añadir historial append-only con effective date, actor y clave idempotente. Cupo concurrente, estado, historial, auditoría y outbox se validan y escriben transaccionalmente; RLS también respeta la sede y el servicio no puede alterar/borrar el historial. |
 | Consecuencia | Las métricas pueden reconstruir periodos de pertenencia sin confundirlos con enrollment o plantilla. El servicio y la migración se verifican solo en PostgreSQL efímero. |
-| Estado | Servicio de dominio implementado localmente; API, interfaz, E2E autenticado y aplicación remota pendientes. Harness PostgreSQL PASS; pgTAP creado pero no ejecutado porque Docker local no estaba activo. No hay migración aplicada en Supabase. Ver [ADR-0023](../../docs/architecture/adr/0023-historial-de-pertenencia-a-grupos.md). |
+| Estado | Servicio de dominio, API y pantalla `/owner/groups` implementados localmente para crear grupos y asociar/pausar/reactivar/finalizar personas existentes. Vitest focal y harness PostgreSQL efímero PASS; `gate:auth`, TypeScript y lint PASS. E2E autenticado y pgTAP pendientes; no hay migración aplicada en Supabase. Ver [ADR-0023](../../docs/architecture/adr/0023-historial-de-pertenencia-a-grupos.md) y [plan maestro](../../docs/plans/2026-10-13-full-saas-implementation-plan.md). |
+
+## 2026-10-13 — Gestionar grupos desde el espacio Owner canónico
+
+| Campo | Valor |
+| --- | --- |
+| Evidencia | El servicio M:N y su historial ya estaban probados localmente, pero el Owner no tenía una pantalla operativa para crear grupos y mantener sus pertenencias. La ruta legacy usa IDs/modelos de academia incompatibles con el nuevo dominio. |
+| Decisión | Añadir `/owner/groups` y API propias del dominio de organización; permitir asociar únicamente personas existentes. Resolver sesión, rol y sede en servidor, limitar búsquedas por tenant verificado y mantener outbox/auditoría sin nombres personales. |
+| Consecuencia | Los grupos son utilizables desde el nuevo espacio Owner sin puente legacy; una academia vacía todavía necesita el alta canónica de personas antes de asignarlas. |
+| Estado | Implementado y probado localmente con datos sintéticos; HTTP usa sesión simulada. No E2E autenticado, pgTAP, migración remota ni despliegue. El harness local también aplica la migración de moneda que consulta OwnerScope. |
 
 ## 2026-10-13 — Buscar la academia antes de abrir un espacio owner
 
