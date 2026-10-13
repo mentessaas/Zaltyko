@@ -25,6 +25,12 @@ overrides:
   '@types/react-dom': 18.3.5
 
   # --- Security CVEs (patched versions) ---
+  # proxy-addr IP spoofing via malformed trusted IPv6 subnets (CVE-2026-90711)
+  proxy-addr: ^2.0.8
+  # source-map-js indexed-offset event-loop denial of service (CVE-2026-93749)
+  source-map-js: ^1.2.2
+  # MCP SDK OAuth credential routing (CVE-2026-104850)
+  '@modelcontextprotocol/sdk': ^1.31.0
   # brace-expansion: DoS via unbounded expansion (CVE-2026-14257 + bypasses)
   'brace-expansion@1': ^1.1.21
   'brace-expansion@2': ^2.1.4
@@ -45,8 +51,9 @@ overrides:
   # postcss: path traversal in previous source map + arbitrary file read
   postcss: 8.5.28
   'next>postcss': 8.5.28
-  sharp: ^0.35.4
-  'next>sharp': ^0.35.4
+  # sharp/librsvg memory-safety issue (CVE-2026-96889)
+  sharp: ^0.35.5
+  'next>sharp': ^0.35.5
   # qs / flatted / ajv pre-existing pins
   qs: ^6.14.2
   flatted: ^3.4.2

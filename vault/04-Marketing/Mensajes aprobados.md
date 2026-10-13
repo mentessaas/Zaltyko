@@ -1,7 +1,7 @@
 ---
 status: active
 owner: marketing
-last_reviewed: 2026-09-13
+last_reviewed: 2026-10-13
 source:
   - ../docs/marketing/zaltyko-messaging.md
   - ../PRODUCT-ANALYSIS.md
@@ -36,6 +36,16 @@ Para discovery, beta y mensajes de venta tempranos, enfocar Zaltyko en academias
 | Network | Multi-sede solo bajo diagnostico y onboarding acompanado. |
 | Pricing vigente | Free hasta 30 gimnastas; Starter 19 €/mes o 190 €/año hasta 75; Growth 49 €/mes o 490 €/año hasta 200; Network 99 €/mes multi-sede con onboarding acompañado. |
 | Trial | 7 días de Starter sin tarjeta, una activación por academia cada 12 meses; al terminar vuelve a Free y no hay cargo automático. |
+
+### Cobros a familias
+
+- Claim público aprobado por ahora: gestionar cuotas, registrar pagos recibidos,
+  iniciar manualmente un cobro cuando corresponda y consultar importes
+  pendientes.
+- No prometer cobros ni recordatorios automáticos a familias hasta que la
+  academia pueda elegir el modo, el plan tenga entitlement explícito y existan
+  consentimiento/mandato trazables, idempotencia, webhook y recuperación
+  probados.
 
 ## CTAs y claims seguros a 2026-07-12
 

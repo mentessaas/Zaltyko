@@ -13,10 +13,10 @@ const comparisonFeatures = [
     generic: "Según proveedor",
   },
   {
-    feature: "Cobros automáticos",
-    zaltyko: true,
+    feature: "Gestión de cuotas y pagos",
+    zaltyko: "Cargos por periodo, registro de pagos y seguimiento de pendientes",
     spreadsheets: false,
-    generic: "Limitado",
+    generic: "Según proveedor",
   },
   {
     feature: "Pase de lista por sesión",

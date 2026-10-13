@@ -1,7 +1,7 @@
 import { expect, test, type APIRequestContext, type Page } from "@playwright/test";
 
 /**
- * E2E Stripe Connect — SetupIntent + cobro off-session + cron.
+ * E2E Stripe Connect — SetupIntent, cobro manual off-session y guard del cron.
  *
  * Esta suite cierra ZAL-3 (cobertura E2E de cobros Connect contra Stripe test
  * mode) y reemplaza la verificación pendiente declarada en
@@ -141,7 +141,7 @@ test.describe("Stripe Connect E2E — SetupIntent + off-session collect + cron",
     expect(body?.error).toBe("UNAUTHENTICATED");
   });
 
-  test("cron collect-charges: 401 sin CRON_SECRET, 503 sin env", async ({ request }) => {
+  test("cron collect-charges: no cobra hasta habilitación explícita", async ({ request }) => {
     const noAuth = await request.get("/api/cron/collect-charges");
     expect([401, 503]).toContain(noAuth.status());
     const body = await noAuth.json().catch(() => ({}));
@@ -153,21 +153,11 @@ test.describe("Stripe Connect E2E — SetupIntent + off-session collect + cron",
     const okRes = await request.get("/api/cron/collect-charges", {
       headers: { Authorization: `Bearer ${cronSecret}` },
     });
-    // 200 cuando corre (incluye skipped=ALREADY_RUNNING si hay lease vivo), o
-    // 500 si la DB no responde. Nunca debe ser 401/403.
+    // El endpoint permanece autenticado y devuelve no-op. Nunca debe consultar
+    // cargos ni provocar un cobro mientras la función no tenga los gates de producto.
     expect([200]).toContain(okRes.status());
     const okBody = await okRes.json();
-    if (okBody.skipped) {
-      expect(okBody.reason).toBe("ALREADY_RUNNING");
-    } else {
-      // Estructura esperada del cron: academies/attempted/paid/failed/skipped
-      const totals = okBody.data ?? okBody;
-      expect(totals).toHaveProperty("academies");
-      expect(totals).toHaveProperty("attempted");
-      expect(totals).toHaveProperty("paid");
-      expect(totals).toHaveProperty("failed");
-      expect(totals).toHaveProperty("skipped");
-    }
+    expect((okBody.data ?? okBody).reason).toBe("AUTOMATIC_COLLECTION_NOT_ENABLED");
   });
 
   test("family payment-method GET: contrato 401/200 según sesión", async ({ browser }) => {
