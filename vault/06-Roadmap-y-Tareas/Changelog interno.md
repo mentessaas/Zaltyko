@@ -11167,6 +11167,27 @@ Modelo separado, reclamación manual, administración, importación revisada, fi
   existe aún mandato/consentimiento operativo, provisioning/webhook comercial,
   Stripe Test E2E ni cobro automático; no se tocó Stripe Live ni producción.
 
+## 2026-10-13 — Parches de dependencias para preparar el Preview greenfield
+
+- Se incorporó a esta rama el parche de producción de PR #224. `pnpm install
+  --frozen-lockfile` reproduce el lockfile y resuelve las dependencias
+  corregidas; `pnpm audit:dependencies --prod` no encuentra findings altos ni
+  críticos (quedan 3 moderados).
+- Se probó retirar del `package.json` el override duplicado de `tmp`/`uuid`,
+  pero `pnpm install --frozen-lockfile` rechazó la configuración con
+  `ERR_PNPM_LOCKFILE_CONFIG_MISMATCH`. Se restauró el bloque para preservar el
+  lockfile validado; permanece el warning de pnpm sobre `pnpm.overrides` y se
+  deja su saneamiento para un cambio dedicado que regenere y revise el lock.
+- **Revalidación final local:** instalación congelada PASS; 450 archivos
+  aprobados (1 omitido), 2.329 tests aprobados (3 omitidos); typecheck, lint,
+  `check:migrations` (7 Drizzle + 108 Supabase), `gate:auth` (385 archivos) y
+  build PASS (288 rutas). Audit de producción: 0 findings altos/críticos y 3
+  moderados.
+- El build no tenía credenciales de servidor locales y registró avisos de
+  variables ausentes/rutas dinámicas; no demuestra runtime configurado. No se
+  publicaron valores ni se aplicaron migraciones remotas. Warning pendiente de
+  pnpm sobre `pnpm.overrides` documentado arriba.
+
 ## 2026-10-13 — Owner Dashboard modular y proyección de cohortes
 
 - El orden de cuatro módulos secundarios se guarda por usuario/academia; drag,
