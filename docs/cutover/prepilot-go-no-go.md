@@ -22,6 +22,15 @@ Los apartados siguientes conservan el informe PR-09 original. Sus afirmaciones
 de aprobación local y de falta de autorización son históricas, no evidencia
 vigente ni autorización para eludir los controles de esta revalidación.
 
+### Avance de QA posterior al corte publicado
+
+Chromium local con parche CSP acotado (todavía en worktree QA) confirma login
+UI con Auth real y ausencia de violación CSP. Bootstrap devuelve 429: sin Redis,
+el rate limiter de producción deniega por diseño. Se autorizó un adaptador en
+memoria únicamente para el runner local aislado, conservando límites y 429;
+no un bypass ilimitado ni una degradación del entorno Vercel. Recorrido completo
+y signup UI continúan sin demostrar. Este avance no cambia NO-GO.
+
 ## Decisión
 
 **NO-GO para datos reales o tráfico de prepiloto.** El núcleo local está

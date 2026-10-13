@@ -9,6 +9,12 @@ source:
 
 ## 2026-10-14 — Mensualidades publicadas y siguiente bloque paralelo
 
+QA informa login Chromium con Auth real PASS tras excepción CSP exclusiva
+runner local; bootstrap 429 por KV ausente/fail-closed. Autorizado adaptador
+sliding-window local que mantenga límites, no bypass ilimitado, vetado Vercel.
+Cambio aún no integrado ni E2E completo. Frontend corrige rechazos de red del
+registro y mensajes de reintento; Backend audita consentimiento/autoridad.
+
 Añadidas cuatro regresiones de conexión server-page del resumen: conserva
 agregado organizativo sin elegir la sede por defecto del score, pasa sede y
 fechas explícitas sin filtros no soportados, expone fallo como null/unavailable
