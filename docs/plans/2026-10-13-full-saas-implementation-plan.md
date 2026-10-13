@@ -10,8 +10,24 @@ Este corte prevalece sobre los estados históricos fechados que aparecen abajo.
 El alcance completo del SaaS se mantiene; issue #227 define la primera entrega
 demostrable, no la finalización del producto.
 
-Último corte publicado: `e415040a` (14-10-2026). Prevalece sobre los cortes
-históricos de esta sección:
+Último corte publicado: `dec076e1` (14-10-2026). Incluye el gate contractual
+legacy y ADR-0027; no incluye todavía su sustitución canónica. Integración local
+posterior: `09046f51`, alta Owner y recuperación sin POST al perfil legacy.
+Las dos suites de recuperación/registro ejecutadas en esa integración pasan
+14 pruebas; la ruta de test de roles indicada en ese comando no se encontró,
+por lo que ese resultado no prueba la suite de roles. No hay E2E completo ni
+despliegue productivo demostrado para este corte.
+
+Bloque en curso: servicio, esquema y consentimiento canónicos de ADR-0027,
+aceptación explícita de cuentas existentes en Setup y walkthrough sintético
+en tres navegadores. Las migraciones nuevas siguen sin aplicación remota.
+
+La decisión del propietario sigue siendo **mensual por gimnasta y tarifa**.
+El código actual suma por inscripción y no demuestra todavía esa regla cuando
+hay varias clases: no emitir cuotas reales hasta definir cobertura de tarifa y
+verificar el caso multiclase, sin deduplicar importes arbitrariamente.
+
+Histórico, corte publicado `e415040a`:
 
 - Integrados recuperación del registro sin repetir signup, rechazo de roles
   privilegiados en perfil público y errores de setup en español conservando
