@@ -1,7 +1,14 @@
+import type { User as SupabaseUser } from "@supabase/supabase-js";
+import { cookies } from "next/headers";
 import { NextResponse } from "next/server";
 
 import { operationalProblem, problemResponse } from "@/app/api/v1/problem";
 import { getCurrentUser } from "@/lib/auth/current-user";
+import { createClient } from "@/lib/supabase/server";
+import {
+  OwnerSignupConsentError,
+  recordOwnerSignupConsent,
+} from "@/lib/consent/owner-consent-store";
 import {
   bootstrapOrganization,
   bootstrapOrganizationRequestSchema,
@@ -10,7 +17,7 @@ import { OperationalError } from "@/modules/shared/domain/operational-error";
 
 const bodySchema = bootstrapOrganizationRequestSchema;
 
-// @auth-flexible route-guard-reason: verified auth user is resolved before parsing; bootstrap binds ownership to that user inside one transaction.
+// @auth-flexible route-guard-reason: the verified session is resolved before parsing; a second auth.getUser read supplies signup metadata and must match the same subject before the consent gate or bootstrap.
 export async function POST(request: Request) {
   const user = await getCurrentUser(request);
   if (!user) {
@@ -19,6 +26,27 @@ export async function POST(request: Request) {
       title: "Autenticación requerida",
       detail: "Debes iniciar sesión para crear una organización.",
       type: "authentication-required",
+    });
+  }
+  let authUser: SupabaseUser | null;
+  try {
+    const supabase = await createClient(await cookies());
+    const result = await supabase.auth.getUser();
+    authUser = result.data.user;
+    if (result.error || !authUser || authUser.id !== user.id) {
+      return problemResponse({
+        status: 401,
+        title: "Autenticación requerida",
+        detail: "Debes iniciar sesión para crear una organización.",
+        type: "authentication-required",
+      });
+    }
+  } catch {
+    return problemResponse({
+      status: 503,
+      title: "No se pudo verificar la sesión",
+      detail: "Inténtalo de nuevo más tarde.",
+      type: "authentication-verification-unavailable",
     });
   }
   const payload = await request.json().catch(() => null);
@@ -36,12 +64,34 @@ export async function POST(request: Request) {
     });
   }
   try {
+    await recordOwnerSignupConsent(authUser);
     const result = await bootstrapOrganization({
       ...parsed.data,
       userId: user.id,
     });
     return NextResponse.json(result, { status: 201 });
   } catch (error) {
+    if (error instanceof OwnerSignupConsentError) {
+      if (error.code === "CONSENT_STORE_UNAVAILABLE") {
+        return problemResponse({
+          status: 503,
+          title: "No se pudo verificar el consentimiento",
+          detail: "Inténtalo de nuevo más tarde.",
+          type: "consent-verification-unavailable",
+        });
+      }
+      const rejected = error.code === "CONSENT_REJECTED";
+      return problemResponse({
+        status: rejected ? 403 : 428,
+        title: rejected
+          ? "Consentimiento no válido"
+          : "Consentimiento requerido",
+        detail: rejected
+          ? "Vuelve a iniciar el registro y acepta los términos vigentes."
+          : "Acepta los términos vigentes para crear la organización.",
+        type: rejected ? "consent-rejected" : "consent-required",
+      });
+    }
     if (error instanceof OperationalError) return operationalProblem(error);
     throw error;
   }
