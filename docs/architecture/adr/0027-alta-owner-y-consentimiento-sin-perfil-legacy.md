@@ -41,6 +41,19 @@ compatibilidad interna obligatoria ni migración compleja de clientes inexistent
    este corte. Recuperar configuración Owner tampoco recrea ese perfil.
 7. No importar consentimientos ni fixtures legacy para obtener un PASS. La
    primera validación empieza en registro UI real sobre un stack limpio.
+8. La ausencia de fila canónica no permite reutilizar silenciosamente una
+   declaración histórica de Auth, que podría preceder una revocación en otro
+   store. El primer grant desde signup exige identidad recién creada después
+   del inicio canónico, comprobado con timestamps verificados del servidor.
+   Identidades anteriores requieren aceptación explícita nueva, no un signup
+   duplicado ni reactivación por metadata. Este límite no concede roles.
+9. La recuperación explícita cabe en la pantalla de configuración existente:
+   el servidor indica versión vigente y necesidad de aceptación. El formulario
+   presenta los enlaces actuales y una casilla inicialmente desmarcada cuando
+   corresponda. El bootstrap recibe una declaración separada del comando de
+   organización; vuelve a verificar versión/actor y registra grant o re_grant
+   con auditoría atómica. Repetir una aceptación activa no duplica auditoría.
+   No se exige una segunda casilla al signup reciente ya declarado y válido.
 
 ## Reparto y gates
 
@@ -59,7 +72,7 @@ por el mero hecho de completar el código.
 
 ## Riesgos que permanecen explícitos
 
-Reaceptación tras revocación/cambio de versión necesita una acción autenticada
-y visible independiente: no se simula con metadata vieja. Otros flujos de rol
+Reaceptación tras revocación/cambio de versión necesita la acción autenticada
+y visible definida arriba: no se simula con metadata vieja. Otros flujos de rol
 y directorio siguen pendientes de su auditoría completa. La validación técnica
 no sustituye revisión legal ni gates de datos reales, restauración y release.

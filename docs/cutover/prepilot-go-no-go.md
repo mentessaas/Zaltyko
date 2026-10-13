@@ -10,9 +10,10 @@ Supabase de pago se mantiene: no provisionar recursos facturables.
 | Requisito | Estado y evidencia actual |
 | --- | --- |
 | Navegación Owner autenticada | CI `38481155607`, SHA `5708d130`, 33/33 PASS en tres navegadores, incluidos breakpoints; no demuestra alta desde cero. |
-| Alta cuenta y academia vacía | NO VERIFICADO. El setup local provisiona usuario sintético por API y luego falla login en tres navegadores. Signup UI necesita prueba independiente. |
+| Alta cuenta y academia vacía | Signup UI real local confirma Auth, pero POST del perfil legacy devuelve 500. Stack canónico no crea public.profiles; SQLSTATE exacto no capturado. ADR-0027 elimina esa dependencia. Alta completa pendiente. |
 | Recorrido completo issue #227 | NO DEMO-READY; no hay walkthrough de seis pasos aprobado. CI global verde tolera el fallo experimental del setup. |
-| Resumen de operaciones | SHA `aa23222d` integrado; 35 focales/tipos/lint PASS. Consultas PostgreSQL reales y runtime autenticado del resumen pendientes. |
+| Resumen de operaciones | Servicio validado con PostgreSQL efímero real: M:N, otro tenant, fechas/DST, bruto por moneda y manager sin SELECT financiero. Tablas mínimas sintéticas, no esquema completo/RLS remoto. Walkthrough autenticado del resumen pendiente. |
+| Aceptación contractual | Gate previo integrado en dec076e1: 43 tests + 3 guard harness, grant concurrente único y rollback audit reales PASS. Ese store sigue vinculado a perfil legacy; sustitución canónica ADR-0027 en curso, sin importación de declaraciones históricas. |
 | Analítica browser | Gate default-deny integrado; no UI de grant, no captura por defecto. No sustituye revisión integral RGPD/menores. |
 | Cuota mensual | Mensual por gimnasta y tarifa confirmado; cobertura multiclase sin decidir. No emitir cuotas reales ambiguas. |
 | Release | #225 sin aprobación independiente; #226 draft. Preview no prueba compatibilidad remota ni release productivo. |
@@ -24,12 +25,13 @@ vigente ni autorización para eludir los controles de esta revalidación.
 
 ### Avance de QA posterior al corte publicado
 
-Chromium local con parche CSP acotado (todavía en worktree QA) confirma login
-UI con Auth real y ausencia de violación CSP. Bootstrap devuelve 429: sin Redis,
-el rate limiter de producción deniega por diseño. Se autorizó un adaptador en
-memoria únicamente para el runner local aislado, conservando límites y 429;
-no un bypass ilimitado ni una degradación del entorno Vercel. Recorrido completo
-y signup UI continúan sin demostrar. Este avance no cambia NO-GO.
+CSP loopback y rate limiter acotados ya integrados: el runner conserva límites
+y 429, y las excepciones están vetadas en Vercel. Login y operaciones hasta
+activar inscripción se observaron en Chromium/Firefox con identidad sintética
+provisionada: no equivalen a signup real. La siguiente prueba sí empieza en
+registro público y confirma Auth, pero falla preparación del perfil legacy.
+QA corrige además SQL y período del panel; el gate canónico nuevo y el recorrido
+completo siguen pendientes. Este avance no cambia NO-GO.
 
 ## Decisión
 

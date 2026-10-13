@@ -9,6 +9,13 @@ source:
 
 ## 2026-10-14 — Mensualidades publicadas y siguiente bloque paralelo
 
+Revalidado GO/NO-GO con signup real y SQL local, sin datos productivos. ADR-0027
+añade protección contra reutilizar metadata histórica en un store vacío y
+recuperación explícita en la misma pantalla para cuentas existentes; no signup
+duplicado ni aceptación implícita. Backend/Frontend reciben ownership separado
+del contrato/checkbox; QA prepara prueba canónica sin POST al perfil legacy.
+Implementación nueva en curso; no declarar store canónico ni E2E completos.
+
 Integrado gate Backend `0dd4b4f9`: 43 tests consentimiento + 3 guard harness PASS;
 Tech Lead repitió PostgreSQL local real: grant concurrente único, no regrant
 revocado, rollback audit y perfil ausente rechazado. Typecheck y lint PASS.
