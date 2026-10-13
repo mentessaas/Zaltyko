@@ -9,7 +9,16 @@ import { handleApiError } from "@/lib/api-error-handler";
 import { logger } from "@/lib/logger";
 import { apiSuccess, apiError } from "@/lib/api-response";
 
-export const dynamic = 'force-dynamic';
+export const dynamic = "force-dynamic";
+
+// Self-service registration must never assign privileged global roles.
+const selfServiceRoleSchema = z.enum([
+  "owner",
+  "coach",
+  "athlete",
+  "parent",
+  "provider",
+]);
 
 async function resolveUserId(request: Request) {
   // SECURITY: Only use authenticated session, never trust custom headers
@@ -62,7 +71,10 @@ export async function GET(request: Request) {
       role: profile.role,
     });
   } catch (error) {
-    return handleApiError(error, { endpoint: "/api/onboarding/profile", method: "GET" });
+    return handleApiError(error, {
+      endpoint: "/api/onboarding/profile",
+      method: "GET",
+    });
   }
 }
 
@@ -85,9 +97,20 @@ export async function POST(request: Request) {
     }
 
     const bodyObj = body as Record<string, unknown>;
-    const name = typeof bodyObj.name === "string" && bodyObj.name.trim().length > 0
-      ? bodyObj.name.trim()
-      : null;
+    const requestedRole = selfServiceRoleSchema.safeParse(
+      bodyObj.role ?? "owner"
+    );
+    if (!requestedRole.success) {
+      return apiError(
+        "INVALID_ROLE",
+        "Ese rol no está disponible en el registro público",
+        400
+      );
+    }
+    const name =
+      typeof bodyObj.name === "string" && bodyObj.name.trim().length > 0
+        ? bodyObj.name.trim()
+        : null;
 
     try {
       // Check if profile exists first
@@ -122,9 +145,7 @@ export async function POST(request: Request) {
           .where(eq(profiles.id, profileId));
       } else {
         const tenantId = crypto.randomUUID();
-        const profileRole = (bodyObj.role as string) || "owner";
-        const validRoles = ["owner", "admin", "coach", "athlete", "parent", "provider"];
-        finalRole = validRoles.includes(profileRole) ? profileRole : "owner";
+        finalRole = requestedRole.data;
 
         const [newProfile] = await db
           .insert(profiles)
@@ -166,9 +187,15 @@ export async function POST(request: Request) {
       });
     } catch (error) {
       logger.error("Error in onboarding profile", error);
-      return handleApiError(error, { endpoint: "/api/onboarding/profile", method: "POST" });
+      return handleApiError(error, {
+        endpoint: "/api/onboarding/profile",
+        method: "POST",
+      });
     }
   } catch (error) {
-    return handleApiError(error, { endpoint: "/api/onboarding/profile", method: "POST" });
+    return handleApiError(error, {
+      endpoint: "/api/onboarding/profile",
+      method: "POST",
+    });
   }
 }

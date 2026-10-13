@@ -9,6 +9,31 @@ source:
 
 ## 2026-10-14 — Mensualidades publicadas y siguiente bloque paralelo
 
+Integrado `e85a93df`: CSP loopback y rate limiter sliding-window exclusivos
+del runner E2E local; vetados en Vercel. 37 pruebas focales PASS, sin demostrar
+todavía el recorrido completo. Cerrada asignación de admin en POST público de
+perfil: allowlist de roles self-service antes de consultar DB, 12 regresiones
+PASS; no se alteran permisos de perfiles existentes. Typecheck PASS y ESLint
+sin errores (cinco advertencias existentes). No equivale a auditoría completa
+de autoridad ni a autorización de despliegue.
+
+El resumen rechaza también strings vacíos/espacios, booleanos y notación
+exponencial como valores de agregado: no los convierte a cero/uno ni a cifras
+plausibles. 18 pruebas servicio + conexión server-page PASS; comprobación
+PostgreSQL repetida sobre el código, sin cambios de esquema productivo.
+
+QA informa login Chromium con Auth real PASS tras excepción CSP exclusiva
+runner local; bootstrap 429 por KV ausente/fail-closed. Autorizado adaptador
+sliding-window local que mantenga límites, no bypass ilimitado, vetado Vercel.
+Cambio aún no integrado ni E2E completo. Frontend corrige rechazos de red del
+registro y mensajes de reintento; Backend audita consentimiento/autoridad.
+
+Añadidas cuatro regresiones de conexión server-page del resumen: conserva
+agregado organizativo sin elegir la sede por defecto del score, pasa sede y
+fechas explícitas sin filtros no soportados, expone fallo como null/unavailable
+y deniega scope prohibido. 4/4 PASS con dependencias mock; no prueban Auth/RLS
+ni PostgreSQL. Complementan el verificador real anterior, no lo sustituyen.
+
 Integradas mejoras Frontend `e25b9f95` (h1 único, Ahora/período/cobros,
 fechas legibles) y Backend `0bdc8ca8`. PostgreSQL real detectó interpolación
 Drizzle `ANY(($2,$3)::uuid[])` inválida: corregida a array SQL tipado. Main

@@ -17,6 +17,12 @@ source:
 ---
 ## P0 — Cerrar el recorrido MVP publicado — 2026-10-14
 
+- [ ] Cerrar gate contractual del bootstrap canónico: persistencia server y
+  audit atómicos, política vigente, no regrant tras revocación y recuperación
+  explícita. Auditoría 105a1de5: metadata no prueba persistencia; recorder solo
+  en alta legacy. No confundir con consentimiento browser de analítica.
+  Fuente: `docs/qa/owner-bootstrap-consent-gap-2026-10-14.md`.
+
 - Cuota mensual implementada y publicada en #226, SHA 31a0dd02. La decisión de
   importe/periodo ya está aceptada en ADR-0026; el hueco histórico descrito más
   abajo queda sustituido por verificación del flujo real.
