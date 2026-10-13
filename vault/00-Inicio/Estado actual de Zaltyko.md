@@ -1,7 +1,7 @@
 ---
 status: active
 owner: producto
-last_reviewed: 2026-10-13
+last_reviewed: 2026-10-14
 source:
   - ../PRODUCT-ANALYSIS.md
   - ../BUSINESS-ANALYSIS.md
@@ -20,8 +20,17 @@ focales, 12 tests de auth, TypeScript, lint y formato. La build local completó,
 pero Chromium no demostró login ni el recorrido completo; DEMO-READY y
 PILOT-READY siguen NO.
 
-Los tres frentes activos revisan emisión/replay entre sedes, recorrido Owner
-responsive y login/E2E. CI `38477410346` y Preview están construyendo. El PR
+El cierre Backend+Frontend está integrado localmente en `eac4ab26`: crear
+tarifa mensual, validaciones compartidas, errores de catálogo diferenciados,
+opciones por sede y replay tras pago con estado real. Pasan 21 tests focales
+de integración, TypeScript y ESLint. Responsive real y E2E completo pendientes.
+La regla multiclase está consultada: el código suma por inscripción, no una
+cuota única por atleta. No validar cuotas reales hasta resolverlo.
+
+CI `38477410346` terminó failure: login efímero falla en tres navegadores;
+Owner dashboard 32 PASS y un fallo de navegación WebKit. «Más» móvil pasa.
+Preview `31a0dd02` está READY. QA prueba la posible recarga inicial del service
+worker; la causalidad aún no se ha demostrado. El PR
 #225 sigue `REVIEW_REQUIRED` con @elvisvaldes solicitado. La autorización del
 propietario incluye releases progresivos y entornos remotos; cada promoción
 requiere evidencia del bloque y respetar los controles reales de GitHub.
