@@ -62,6 +62,14 @@ Actualización de despliegue: `dpl_Q8nww8URJ6XqSnyxBnrvp1akWQbQ` está
 Build CI también pasó; los E2E seguían ejecutándose al consultar. Esto no
 demuestra un recorrido autenticado ni una publicación en producción.
 
+Actualización E2E: el job experimental `115571409266` terminó con fallo en
+Chromium, Firefox y WebKit. Los tres fallan en login sin observar POST a Auth;
+las longitudes posteriores fueron 0/40, 0/0 y 0/0 respectivamente, sin errores
+de página reportados. El log confirma limpieza del stack y volúmenes
+desechables. La causa no está establecida; QA recibió esta evidencia para
+verificar hidratación, eventos y navegación antes de atribuir un origen.
+El job autenticado remoto aún estaba activo al consultar.
+
 - [PR #226](https://github.com/mentessaas/Zaltyko/pull/226).
 - [MVP #227](https://github.com/mentessaas/Zaltyko/issues/227).
 - [Hotfix #225](https://github.com/mentessaas/Zaltyko/pull/225).
