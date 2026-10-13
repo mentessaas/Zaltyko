@@ -11290,3 +11290,26 @@ Modelo separado, reclamación manual, administración, importación revisada, fi
   posición. Botones subir/bajar y reset siguen disponibles con área táctil de
   44 px. Prueba real de controles/labels/instrucciones **4/4**, typecheck y
   ESLint focal PASS; VoiceOver humano y E2E de navegador siguen pendientes.
+
+## 2026-10-13 — Aclarar el guardado de tarjeta en el portal familiar
+
+- El portal ya no dice que guardar una tarjeta activa pagos automáticos.
+  Explica que guardar no cobra en ese paso y que la academia gestiona la
+  modalidad de cobro. No cambia la ejecución de pagos ni implementa el mandato.
+- Se añadió un contrato para impedir que vuelva el claim de cobro automático.
+- `.vercelignore` excluye `.claude/` y `.paperclip-scratch/` para que la
+  configuración local del agente y el scratch no entren en el paquete de
+  Vercel. Es el único fragmento integrado selectivamente del PR #113; sus
+  cambios de accesibilidad/documentación siguen sin incorporarse.
+- La rama del PR #105 se cerró como supersedida, sin borrarla: la base actual
+  ya exige `stripeSubscriptionId` para acceso de pago y limita el cálculo de
+  suscripciones pagadas al respaldo real de Stripe.
+- El cron legacy sigue siendo un gate P0 mientras PR #225 no se revise y
+  fusione; este cambio de interfaz no lo apaga ni sustituye el hotfix.
+- **Validación local:** contrato focal 2/2, TypeScript y `git diff --check`
+  pasan; ESLint tiene 0 errores y 1 advertencia preexistente en
+  `FamilyPaymentMethodCard.tsx:67`. `pnpm build` falló con `ENOSPC` al escribir
+  `.next` (5,2 GB; quedaban 129 MB). No había otro `next dev/build` activo; la
+  salida está ignorada por Git y se conserva porque el entorno rechazó el
+  borrado directo. El Preview remoto es el siguiente verificador del build.
+  Sin cambios en Stripe, migraciones, base de datos ni producción.

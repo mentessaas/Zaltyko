@@ -117,8 +117,8 @@ export function FamilyPaymentMethodCard({ academyId }: Props) {
       <CardHeader>
         <CardTitle>Método de pago</CardTitle>
         <CardDescription>
-          Guarda una tarjeta para pagar las cuotas automáticamente. El pago se procesa de forma
-          segura con Stripe.
+          Guarda una tarjeta con Stripe. Añadirla no hace un cargo; la academia
+          gestiona cómo se cobran las cuotas.
         </CardDescription>
       </CardHeader>
       <CardContent className="space-y-4">
@@ -225,6 +225,9 @@ function SetupForm({
   return (
     <div className="space-y-3">
       <PaymentElement />
+      <p className="text-sm text-muted-foreground">
+        Guardar la tarjeta no paga ninguna cuota en este paso.
+      </p>
       {error && <p className="text-sm text-red-600 dark:text-red-300" role="alert" aria-live="assertive">{error}</p>}
       <div className="flex gap-2">
         <Button onClick={submit} disabled={!stripe || submitting}>

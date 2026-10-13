@@ -57,6 +57,9 @@ Para discovery, beta y mensajes de venta tempranos, enfocar Zaltyko en academias
 - Solo revisar y aprobar un claim de automatización cuando estén activos y
   probados el entitlement de pago, consentimiento/mandato por pagador, Connect,
   worker idempotente, webhook verificado, recuperación, permisos y QA de release.
+- Portal familiar, tarjeta: «Guardar una tarjeta no realiza un cargo en ese
+  paso; la academia gestiona cómo se cobran las cuotas». No describir el alta
+  de tarjeta como activación de cobros automáticos.
 
 ## CTAs y claims seguros a 2026-07-12
 

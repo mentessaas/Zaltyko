@@ -110,6 +110,9 @@ plan y verificar el despliegue productivo.
       provisioning/webhook, implementar worker idempotente con recuperación y
       probarlo en Stripe Test; auditar/cerrar el cron legacy antes de reutilizarlo.
       Automático sigue deshabilitado para todas las cuentas.
+- [x] Corregir el texto del portal familiar al guardar tarjeta: no promete cobros
+      automáticos ni confunde guardar método con pagar una cuota. No cambia el
+      modo de cobro ni sustituye la aprobación del hotfix legacy.
 - [ ] Completar QA de roles, privacidad de menores, backup/restore y producción.
 - [ ] **Gate E2E remoto:** no aplicar el esquema greenfield al sandbox legacy. Crear
       una rama/proyecto aislado solo después de mostrar el coste y recibir
@@ -117,11 +120,20 @@ plan y verificar el despliegue productivo.
       fixtures `.test` sintéticas. La verificación del 2026-10-13 encontró 54
       hashes alineados y 54 pendientes en producción; en E2E, 1 hash discrepante
       y 63 pendientes. No se ejecutó ninguna migración remota.
-- [ ] **Gate P0 de publicación:** PR #225 tiene checks verdes, pero no puede
-      fusionarse hasta recibir una aprobación independiente requerida por
-      protección de `main`. No reducir ni eludir esa regla. La auditoría del
-      preview encontró claims de cobro automático en varias páginas; se han
-      corregido localmente y se han añadido tests, pero no se han desplegado.
+- [ ] **Gate P0 de publicación:** PR #225 sigue abierto y sin fusionar. La
+      solicitud de review a `@elvisvaldes` está activa y su permiso `write` ya
+      está concedido; falta su aprobación independiente requerida por la
+      protección de `main`. No reducir ni eludir esa regla. El copy de cobro
+      automático corregido localmente no equivale a despliegue productivo.
+- [x] **Triage #105:** cerrado como supersedido; `main` ya exige respaldo Stripe
+      para acceso de pago (`9aa7186a`, PR #178) y el dashboard actual filtra por
+      `stripeSubscriptionId`. La rama `cherry/billing-stripe-subscription` se
+      conserva; no se fusionó ni eliminó.
+- [x] **Triage #113:** cerrado como duplicado de #116, sin eliminar la rama.
+      Sus cuatro parches eran idénticos a los de #116; solo se integraron las
+      exclusiones `.claude/` y `.paperclip-scratch/` en `.vercelignore`. La
+      excepción `scrollable-region-focusable` de su test tiene revisión vencida
+      el 2026-09-15 y sigue pendiente de reevaluación en #116.
 - [ ] **Seguridad móvil:** mantener las mitigaciones de `braces` y `node-forge`
       y los tests de regresión; actualizar cuando los advisories publiquen una
       versión corregida. GitHub mantiene cuatro alertas altas duplicadas en los
