@@ -76,6 +76,19 @@ la misma URL interrumpida por otra navegación (también en los reintentos).
 La navegación móvil «Más» pasa en los tres navegadores. QA investiga el nuevo
 fallo; no se atribuye automáticamente a producto o harness sin aislarlo.
 
+### Causa del login demostrada por QA
+
+Con la misma build y contextos Chromium limpios, SW permitido produce dos
+peticiones de documento a `/auth/login`, un evento `controllerchange` y
+`navigationType=reload`. El control diagnóstico con SW bloqueado produce una
+petición, sin controller/evento, y `navigationType=navigate`. La traza falla
+antes de submit: después de rellenar, la segunda navegación vacía los campos.
+`useServiceWorker` recarga sin distinguir la primera adquisición del controller;
+`sw.js` activa con `skipWaiting`/`clients.claim` y `UpdateBanner` monta el hook.
+QA prepara corrección y regresión; el PASS final debe mantener SW permitido.
+Este diagnóstico explica el login observado, pero no acredita aún el recorrido
+MVP completo ni demuestra por sí solo la causa del caso WebKit.
+
 - [PR #226](https://github.com/mentessaas/Zaltyko/pull/226).
 - [MVP #227](https://github.com/mentessaas/Zaltyko/issues/227).
 - [Hotfix #225](https://github.com/mentessaas/Zaltyko/pull/225).
