@@ -156,6 +156,17 @@ E2E autenticado y QA accesible con identidades sintéticas en destino aislado;
 después, extensión programada de sesiones, transferencias, trials/waitlist,
 personal y asistencia.
 
+Revisión UX del 2026-10-13 en el Preview del commit `8e9af4ca`: el formulario
+abierto aparece antes del resumen y, en la lista, los registros preceden a las
+tarjetas de métricas. A 1280 px y 375 px no se observó desbordamiento horizontal.
+La vista es de solo lectura y usa datos sintéticos; los controles no escriben ni
+leen una academia. No equivale a pruebas manuales de teclado/VoiceOver ni a un
+recorrido autenticado. El alta solo encuentra personas ya vinculadas a la sede:
+si falta una ficha, el usuario debe ir a Grupos. Diseñar el alta mínima de
+persona/tutor desde esta tarea sigue pendiente de revisar privacidad de menores,
+consentimientos y minimización de datos; no capturar datos adicionales sin esa
+decisión.
+
 ### Gate remoto y decisión de migración — lectura del 2026-10-13
 
 Se inspeccionaron solo metadatos y catálogos, sin consultar filas de personas,
@@ -182,17 +193,31 @@ entonces se aplica la secuencia reconciliada a Producción. La autorización del
 propietario para migraciones remotas no sustituye este control de destino,
 compatibilidad y recuperación.
 
-En este bloque: `pnpm typecheck`, ESLint focal, `pnpm gate:auth`,
-`pnpm check:migrations` (7 Drizzle + 110 Supabase), `pnpm validate:rls`
-(79/79), las pruebas focales de clases (7/7), el harness PostgreSQL efímero,
-Prettier TS/TSX y `git diff --check` pasan. `pnpm build` también completa y
-genera 290 rutas; el Preview exacto de `8f836fb0` está `READY`. Next informa
-que el build omite tipos/lint (ejecutados por separado) y que faltan variables
-runtime de Stripe/Supabase. Por ello no prueba conectividad ni runtime. La
-última suite Vitest completa antes de este cambio fue 453 archivos PASS,
+Validación local del corte: 13/13 pruebas focales de inscripciones,
+`pnpm typecheck`, ESLint focal y `git diff --check` pasan. `pnpm build` con Next
+`15.5.27` completa y genera 291 rutas en el commit `1526fe74`; el cambio final
+de orden visual pasa su prueba focal, tipos y ESLint. Vercel construyó el commit
+`8e9af4ca` y su Preview está `READY` en
+https://zaltyko-phe8xtzyl-mentessaas-projects.vercel.app. Next omite tipos/lint
+en el build; se validaron por separado. Las variables runtime de Supabase y
+Stripe no están disponibles en el entorno local y el Preview está protegido;
+no se probó conexión a base ni flujo autenticado.
+
+Auditoría de dependencias del 2026-10-13: Next se actualizó de `15.5.24` a
+`15.5.27`, junto con sus paquetes de ESLint; los dos avisos de Next desaparecen.
+`pnpm audit --prod` todavía informa un moderado: `sprintf-js@1.0.3` vía
+`swagger-ui-react > remarkable > argparse`. La auditoría completa informa un
+alto y tres moderados: `braces@3.0.3` es el alto en dependencias de desarrollo;
+GitHub no publica aún una versión corregida para su advisory. El aviso de
+`sprintf-js` es el único moderado detectado en el escaneo de dependencias de
+producción. Además, el `git push` comunicó cuatro alertas altas en la rama por
+defecto; sus IDs y paquetes no se inspeccionaron en este corte. El gate completo
+de dependencias y el estado de seguridad de `main` siguen abiertos. No se
+alteró la base, credenciales, Stripe Live ni Vercel Production.
+
+La última suite Vitest completa previa a este corte fue 453 archivos PASS,
 1 omitido; 2.343 tests PASS, 3 omitidos, en 439,31 s; no se volvió a ejecutar
-completa en este bloque. La batería pgTAP queda pendiente por Docker local
-inactivo.
+completa. La batería pgTAP queda pendiente por Docker local inactivo.
 
 ### 3. Ledger y cobros
 

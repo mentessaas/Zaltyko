@@ -19,10 +19,20 @@ no crea personas/grupos ni inicia cuotas o cobros. La búsqueda se apoya en
 `group_memberships` canónica. Un preview visual local usa etiquetas sintéticas
 y datos fijos; no consulta ni modifica academias.
 
-Validación focal: 19 tests de ruta/UI, TypeScript, ESLint, `gate:auth` y harness
-PostgreSQL efímero PASS. Sigue sin E2E autenticado ni QA manual de accesibilidad
-contra un entorno aislado; este corte no requiere ni aplica migración remota.
-No hay deployment nuevo de este cambio, ni cambios en producción o Stripe Live.
+Validación del corte: 13/13 tests focales de rutas/UI, TypeScript, ESLint focal
+y `git diff --check` PASS; el build local con Next 15.5.27 genera 291 rutas. El
+Preview de Vercel del commit `8e9af4ca` está `READY` y se inspeccionó a 1280 px y
+375 px con datos sintéticos y controles deshabilitados. La lista aparece antes
+de sus métricas; el formulario, cuando se abre, va primero. No hay E2E owner
+autenticado, conexión a base verificada ni prueba manual de teclado/VoiceOver.
+No hubo migración remota ni cambios en producción o Stripe Live.
+
+Seguridad de dependencias: Next está en 15.5.27. `pnpm audit --prod` conserva un
+moderado en `sprintf-js` vía Swagger UI; la auditoría completa mantiene un alto
+en `braces@3.0.3` solo en dependencias de desarrollo y moderados transitivos.
+El advisory de `braces` todavía no publica versión corregida. El último push
+también informó 4 alertas altas en `main`; no se verificaron sus paquetes ni IDs.
+Gate completo y estado de seguridad de `main` pendientes.
 Ver [ADR-0025](../../docs/architecture/adr/0025-inscripcion-owner-pendiente-y-cobros-separados.md)
 y [plan maestro](../../docs/plans/2026-10-13-full-saas-implementation-plan.md).
 

@@ -7,6 +7,24 @@ source:
   - ../docs/architecture/zaltyko-domain-model.md
 ---
 
+## 2026-10-13 — Inscripciones Owner: prioridad móvil y parche de Next
+
+- La auditoría del Preview mostró que las tarjetas de resumen empujaban la
+  lista hacia abajo en móvil. Se priorizó la lista y se mantuvieron las métricas
+  al final; si se abre el alta, el formulario conserva prioridad.
+- El componente se separó en orquestador, formulario y lista. En el Preview
+  `READY` del commit `8e9af4ca`, escritorio 1280 px y móvil 375 px no muestran
+  desbordamiento horizontal. Solo son datos sintéticos de lectura; teclado,
+  VoiceOver y sesión Owner real siguen pendientes.
+- Next y sus paquetes ESLint se fijaron en `15.5.27`. `pnpm build` generó 291
+  rutas; `pnpm typecheck`, ESLint focal y Vitest de inscripción 13/13 pasan.
+- `pnpm audit --prod` aún marca un moderado `sprintf-js` en Swagger UI. El audit
+  completo marca un alto y tres moderados; `braces@3.0.3` es de desarrollo y
+  sigue sin versión upstream corregida. El push también informó 4 altas en
+  `main`, no revisadas por ID en este corte. La auditoría no está cerrada.
+- Preview: https://zaltyko-phe8xtzyl-mentessaas-projects.vercel.app. No se tocó
+  producción, Supabase remoto, Stripe Live, credenciales ni migraciones.
+
 ## 2026-10-13 — Inscripciones Owner pendientes y desacopladas de cobros
 
 - Se añadió `/owner/enrollments` con búsqueda acotada a la sede, consulta
@@ -18,12 +36,12 @@ source:
   escritura agrega historial, auditoría y outbox sin nombres.
 - Enrollment no crea grupo, tarifa, cuota, factura ni cobro. Trials y
   transferencias permanecen en sus flujos separados. No se añadió migración.
-- **Validación local:** Vitest focal 19/19, TypeScript, ESLint focal,
-  `gate:auth` (391 archivos) y harness PostgreSQL efímero PASS. Preview visual
-  local en escritorio/móvil; sin sesión real ni conexión a base del Preview.
-- **Pendiente:** E2E autenticado y QA accesible en base aislada, revisión de CI
-  y deployment Preview del PR. No se tocó Supabase remoto, producción, Stripe
-  Live, credenciales ni despliegues.
+- **Validación funcional inicial:** las pruebas de ruta/UI y el harness
+  PostgreSQL efímero pasaron en el corte previo. En el corte visual actual,
+  Vitest focal 13/13, TypeScript y ESLint focal PASS; sin sesión real ni
+  conexión a base del Preview.
+- **Pendiente:** E2E autenticado y QA accesible en base aislada, y revisión final
+  de CI. No se tocó Supabase remoto, producción, Stripe Live ni credenciales.
 - ADR-0025 y `docs/API.md` describen contrato, estados, efectos y límites.
 
 ## 2026-10-13 — Gestión owner de grupos y pertenencias

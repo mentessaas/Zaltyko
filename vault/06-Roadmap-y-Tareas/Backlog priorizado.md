@@ -104,13 +104,22 @@ No sustituye E2E autenticado ni prueba contra una base de datos aislada.
   activar/pausar/cancelar/completar con control de versión, idempotencia,
   auditoría y outbox. No activa precios o cobros; trials y transferencias quedan
   fuera del formulario.
-- **Validación:** tests focales 19/19, TypeScript, ESLint focal, gate de auth y
-  harness PostgreSQL efímero PASS; la vista sintética no consulta datos reales.
+- **Validación actual:** tests focales 13/13, TypeScript y ESLint focal PASS;
+  el Preview `8e9af4ca` está `READY` y la revisión visual sintética pasó a 1280
+  y 375 px. La lista precede a los contadores para reducir scroll móvil.
 - **Siguiente:** E2E owner/manager autenticado y revisión teclado/lector en un
   proyecto aislado; no aplicar SQL al sandbox legacy ni a producción. Después:
   workflow de transferencia, ciclo de trial/waitlist, horizonte de sesiones,
   staff y asistencia. No afirmar readiness de captación hasta completar los
   gates del plan.
+- **UX pendiente:** alta mínima de persona/tutor desde Inscripciones para evitar
+  saltar a Grupos cuando no existe ficha; definir primero mínimos de datos,
+  privacidad de menores y consentimiento. No reutilizar datos personales de
+  fixtures ni inventar texto legal.
+- **Seguridad pendiente:** Next 15.5.27 ya está actualizado. Resolver o aceptar
+  formalmente el alto de `braces@3.0.3` en la cadena de desarrollo (sin parche
+  upstream publicado) y el moderado de `sprintf-js` en producción; mantener
+  explícito este gate y volver a escanear antes de release.
 
 - [x] Cerrar Fase 1 local: migration, RLS/grants, contrato, onboarding y tests.
 - [x] Pasar stack canónico y las verificaciones focales locales.
