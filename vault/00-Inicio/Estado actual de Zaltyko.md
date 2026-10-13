@@ -57,7 +57,10 @@ PASS. `pnpm build` completa y genera 289 rutas, pero Next advierte que faltan
 variables runtime Stripe/Supabase; no verifica conectividad ni runtime. Quedan
 revisión final del diff, E2E con sesión real, QA manual de teclado/lector y
 conexión Preview a una base aislada. No se aplicó SQL remoto ni se modificó
-producción; el despliegue productivo sigue en `main`.
+producción; el despliegue productivo sigue en `main`. El Preview del commit
+`9d6cbcf2` está `READY` y el check Vercel pasa:
+https://zaltyko-luqqt6hkx-mentessaas-projects.vercel.app. Está protegido por
+SSO; no se verificó con sesión Owner ni contra su base de datos.
 
 ### Alta de owner: instrucciones más breves — 2026-10-13
 

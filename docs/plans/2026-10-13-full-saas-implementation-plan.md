@@ -244,16 +244,19 @@ Gate: QA independiente, E2E autenticado, migraciones reconciliadas, restore
 ensayado, producción verificada y rollback documentado. Preview/build verde no
 equivale a producción lista.
 
-Revalidación local 2026-10-13: `pnpm test -- --run` **453 archivos PASS, 1
-omitido; 2.343 tests PASS, 3 omitidos**; `pnpm typecheck`, `pnpm lint` y
-`pnpm check:migrations` (**7 Drizzle + 109 Supabase**) PASS. El Preview de
-El Preview Vercel del HEAD `082a4097` está `READY` en
-`https://zaltyko-g9fchzl3q-mentessaas-projects.vercel.app`; requiere SSO. La
-sesión autenticada y la base a la que apunta no están verificadas. Producción
-sigue en el deployment antiguo de `main`, no en este rebuild.
-`pnpm audit:dependencies --prod` en esta rama informa **3 vulnerabilidades
-moderadas, ninguna alta/crítica**. GitHub indicó que la rama por defecto sigue
-con 4 vulnerabilidades altas; validar el merge y volver a auditar main.
+Última suite Vitest completa anterior a esta mejora: `pnpm test -- --run`
+**453 archivos PASS, 1 omitido; 2.343 tests PASS, 3 omitidos**. No se volvió a
+ejecutar completa en este bloque. El control actual de migraciones valida **7
+Drizzle + 110 Supabase**.
+
+El Preview Vercel del HEAD `9d6cbcf2` está `READY` en
+`https://zaltyko-luqqt6hkx-mentessaas-projects.vercel.app`; requiere SSO y el
+check Vercel pasa. La sesión autenticada y la base a la que apunta no están
+verificadas. Producción sigue en el deployment antiguo de `main`, no en este
+rebuild. En la auditoría previa, `pnpm audit:dependencies --prod` informó 3
+vulnerabilidades moderadas y ninguna alta/crítica; el push confirmó que GitHub
+sigue detectando 4 altas en la rama por defecto. Hay que volver a auditar tras
+el merge.
 
 ## Siguiente orden ejecutable
 

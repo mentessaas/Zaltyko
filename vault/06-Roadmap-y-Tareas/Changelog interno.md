@@ -11480,4 +11480,5 @@ Modelo separado, reclamación manual, administración, importación revisada, fi
   `pnpm build` genera 289 rutas; variables runtime Stripe/Supabase ausentes,
   por lo que no valida conectividad ni ejecución real.
 - No se aplicó SQL remoto ni se modificó Producción, Stripe Live o Vercel
-  Production. El cambio aún no está desplegado.
+  Production. El commit `9d6cbcf2` está desplegado en Preview `READY`, protegido
+  por SSO; no se validó sesión Owner ni conexión a la base.
