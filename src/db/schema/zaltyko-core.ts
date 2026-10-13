@@ -289,9 +289,7 @@ export const organizationSaasSubscriptions = zaltyko.table(
     currentPeriodEndsAt: timestamp("current_period_ends_at", {
       withTimezone: true,
     }).notNull(),
-    cancelAtPeriodEnd: boolean("cancel_at_period_end")
-      .notNull()
-      .default(false),
+    cancelAtPeriodEnd: boolean("cancel_at_period_end").notNull().default(false),
     canceledAt: timestamp("canceled_at", { withTimezone: true }),
     lastProviderEventReference: text("last_provider_event_reference"),
     lastSyncedAt: timestamp("last_synced_at", { withTimezone: true }).notNull(),
@@ -405,7 +403,9 @@ export const organizationEntitlementChanges = zaltyko.table(
     source: entitlementSource("source").notNull(),
     sourceReference: text("source_reference").notNull(),
     subscriptionId: uuid("subscription_id"),
-    effectiveFrom: timestamp("effective_from", { withTimezone: true }).notNull(),
+    effectiveFrom: timestamp("effective_from", {
+      withTimezone: true,
+    }).notNull(),
     effectiveUntil: timestamp("effective_until", { withTimezone: true }),
     changedAt: timestamp("changed_at", { withTimezone: true })
       .notNull()
@@ -1063,7 +1063,10 @@ export const familyCollectionPreferences = zaltyko.table(
     foreignKey({
       name: "family_collection_preferences_member_fk",
       columns: [table.organizationId, table.updatedByMemberId],
-      foreignColumns: [organizationMembers.organizationId, organizationMembers.id],
+      foreignColumns: [
+        organizationMembers.organizationId,
+        organizationMembers.id,
+      ],
     }).onDelete("restrict"),
   ]
 );
@@ -1092,9 +1095,7 @@ export const organizationPaymentProviderAccounts = zaltyko.table(
     status: organizationPaymentAccountStatus("status")
       .notNull()
       .default("pending"),
-    cardPaymentsCapabilityStatus: text(
-      "card_payments_capability_status"
-    )
+    cardPaymentsCapabilityStatus: text("card_payments_capability_status")
       .notNull()
       .default("pending"),
     revision: integer("revision").notNull().default(1),
@@ -1116,11 +1117,7 @@ export const organizationPaymentProviderAccounts = zaltyko.table(
     ).on(table.organizationId, table.processor, table.environment),
     uniqueIndex(
       "organization_payment_provider_accounts_provider_reference_uq"
-    ).on(
-      table.processor,
-      table.environment,
-      table.providerAccountReference
-    ),
+    ).on(table.processor, table.environment, table.providerAccountReference),
     index("organization_payment_provider_accounts_collection_ready_idx").on(
       table.organizationId,
       table.environment,
@@ -1564,6 +1561,10 @@ export const groupMemberships = zaltyko.table(
       table.athleteId,
       table.status
     ),
+    uniqueIndex("group_memberships_organization_id_id_uq").on(
+      table.organizationId,
+      table.id
+    ),
     uniqueIndex("group_memberships_open_uq")
       .on(table.organizationId, table.groupId, table.athleteId)
       .where(sql`${table.status} in ('pending', 'active', 'paused')`),
@@ -1581,6 +1582,63 @@ export const groupMemberships = zaltyko.table(
       columns: [table.organizationId, table.athleteId],
       foreignColumns: [athletes.organizationId, athletes.id],
     }).onDelete("cascade"),
+  ]
+);
+
+export const groupMembershipHistory = zaltyko.table(
+  "group_membership_history",
+  {
+    id: uuid("id").primaryKey().defaultRandom(),
+    organizationId: uuid("organization_id")
+      .notNull()
+      .references(() => organizations.id, { onDelete: "cascade" }),
+    membershipId: uuid("membership_id").notNull(),
+    fromStatus: groupMembershipStatus("from_status"),
+    toStatus: groupMembershipStatus("to_status").notNull(),
+    reasonCode: text("reason_code"),
+    changedByMemberId: uuid("changed_by_member_id").notNull(),
+    idempotencyKey: text("idempotency_key").notNull(),
+    effectiveOn: date("effective_on").notNull(),
+    changedAt: timestamp("changed_at", { withTimezone: true })
+      .notNull()
+      .defaultNow(),
+  },
+  (table) => [
+    uniqueIndex("group_membership_history_idempotency_uq").on(
+      table.organizationId,
+      table.idempotencyKey
+    ),
+    check(
+      "group_membership_history_reason_code_valid",
+      sql`${table.reasonCode} is null or ${table.reasonCode} in (
+        'academy_request', 'family_request', 'athlete_request',
+        'schedule_change', 'temporary_pause', 'other'
+      )`
+    ),
+    index("group_membership_history_membership_idx").on(
+      table.organizationId,
+      table.membershipId,
+      table.changedAt
+    ),
+    index("group_membership_history_effective_idx").on(
+      table.organizationId,
+      table.membershipId,
+      table.effectiveOn,
+      table.changedAt
+    ),
+    foreignKey({
+      name: "group_membership_history_membership_fk",
+      columns: [table.organizationId, table.membershipId],
+      foreignColumns: [groupMemberships.organizationId, groupMemberships.id],
+    }).onDelete("cascade"),
+    foreignKey({
+      name: "group_membership_history_member_fk",
+      columns: [table.organizationId, table.changedByMemberId],
+      foreignColumns: [
+        organizationMembers.organizationId,
+        organizationMembers.id,
+      ],
+    }).onDelete("restrict"),
   ]
 );
 
@@ -2604,6 +2662,7 @@ export type Athlete = typeof athletes.$inferSelect;
 export type Family = typeof families.$inferSelect;
 export type Guardian = typeof guardians.$inferSelect;
 export type GroupMembership = typeof groupMemberships.$inferSelect;
+export type GroupMembershipHistory = typeof groupMembershipHistory.$inferSelect;
 export type ClassTemplate = typeof classTemplates.$inferSelect;
 export type Session = typeof sessions.$inferSelect;
 export type Enrollment = typeof enrollments.$inferSelect;

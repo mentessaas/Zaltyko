@@ -7,6 +7,37 @@ source:
   - ../docs/architecture/zaltyko-domain-model.md
 ---
 
+## 2026-10-13 — Hacer operativa la pertenencia M:N a grupos
+
+- La revisión de fase 2 confirmó que `group_memberships` estaba modelada como
+  M:N, pero el núcleo greenfield no tenía servicio de escritura ni historia
+  tipada para pausa/reactivación/baja. Se conserva separada de enrollment.
+- Se añadió servicio transaccional para altas, cambios de estado, capacidad
+  concurrente, idempotencia, audit log y outbox; una fecha futura no se acepta
+  en transiciones mientras no exista scheduler ni se admiten fechas anteriores
+  al último cambio. Los motivos son códigos cerrados, no texto libre.
+- La migración generada por Supabase CLI incorpora `group_membership_history`,
+  fuerza RLS de grupo/historial por tenant y sede, y no concede UPDATE/DELETE
+  del historial a `service_role`. Los eventos no copian datos personales.
+  ADR-0023 documenta la decisión.
+- **Validación local:** `pnpm test:zaltyko-operations:local` PASS en PostgreSQL
+  efímero con fixtures sintéticos: multigrupo, reintento, cupo concurrente,
+  cambio temporal y RLS negativo por tenant/sede. También pasan
+  `pnpm validate:rls` (79/79 de su inventario; la tabla nueva se comprueba en
+  el harness), `pnpm check:migrations` (7 Drizzle + 110 Supabase), TypeScript,
+  `pnpm lint` global y `pnpm build` (288 páginas). El build local reportó que
+  faltan variables runtime de Stripe/Supabase; no hubo valores secretos ni se
+  afirmó readiness de runtime.
+- Test pgTAP generado por CLI: `supabase/tests/group_membership_history_rls_test.sql`.
+  No ejecutable localmente en este corte: el daemon Docker no estaba activo;
+  `supabase test db` confirmó que no hay base local en `127.0.0.1:54322`.
+- Suite Vitest completa del corte actual: 453 archivos pasan y 1 se omite;
+  2.343 tests pasan y 3 se omiten en 439,31 s. El timeout de billing del corte
+  anterior no se reprodujo; no queda demostrada su causa.
+- **Pendiente:** API, flujo de propietario/manager, E2E autenticado y revisión
+  de accesibilidad. La migración no se aplicó a Supabase remoto ni se cambió
+  Vercel o producción.
+
 ## 2026-10-13 — Revalidar la implementación greenfield
 
 - La suite completa pasa: **453 archivos PASS, 1 omitido; 2.343 tests PASS, 3

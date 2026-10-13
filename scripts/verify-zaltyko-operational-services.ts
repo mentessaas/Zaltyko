@@ -1,6 +1,7 @@
 import assert from "node:assert/strict";
 
 import { Pool } from "pg";
+import { z } from "zod";
 
 import { recordAttendance } from "@/modules/attendance/application/attendance-service";
 import {
@@ -8,6 +9,10 @@ import {
   transferEnrollment,
   transitionEnrollment,
 } from "@/modules/enrollments/application/enrollment-service";
+import {
+  addGroupMembership,
+  transitionGroupMembership,
+} from "@/modules/groups/application/group-membership-service";
 import { materializeSessions } from "@/modules/scheduling/application/session-service";
 import { OperationalError } from "@/modules/shared/domain/operational-error";
 
@@ -37,6 +42,10 @@ const ID = {
   spaceLimited: "10000000-0000-4000-8000-000000000051",
   spaceA2: "10000000-0000-4000-8000-000000000052",
   program: "10000000-0000-4000-8000-000000000080",
+  groupMain: "10000000-0000-4000-8000-000000000090",
+  groupSecond: "10000000-0000-4000-8000-000000000091",
+  groupLimited: "10000000-0000-4000-8000-000000000092",
+  groupNorth: "10000000-0000-4000-8000-000000000093",
   templateMain: "10000000-0000-4000-8000-000000000100",
   templateLimited: "10000000-0000-4000-8000-000000000101",
   templateTarget: "10000000-0000-4000-8000-000000000102",
@@ -46,6 +55,8 @@ const ID = {
   athlete2: "10000000-0000-4000-8000-000000000072",
   athlete3: "10000000-0000-4000-8000-000000000073",
   athlete4: "10000000-0000-4000-8000-000000000074",
+  athleteB: "20000000-0000-4000-8000-000000000071",
+  groupB: "20000000-0000-4000-8000-000000000090",
 } as const;
 
 const owner = { userId: ID.ownerUser, memberId: ID.ownerMember };
@@ -110,6 +121,11 @@ async function seed(): Promise<void> {
       ('${ID.athlete3}', '${ID.orgA}', '10000000-0000-4000-8000-000000000063'),
       ('${ID.athlete4}', '${ID.orgA}', '10000000-0000-4000-8000-000000000064');
 
+    insert into zaltyko.people (id, organization_id, given_name, family_name)
+    values ('20000000-0000-4000-8000-000000000061', '${ID.orgB}', 'Atleta', 'Sintética');
+    insert into zaltyko.athletes (id, organization_id, person_id)
+    values ('${ID.athleteB}', '${ID.orgB}', '20000000-0000-4000-8000-000000000061');
+
     insert into zaltyko.staff_profiles (
       id, organization_id, person_id, member_id, is_active
     ) values (
@@ -122,6 +138,15 @@ async function seed(): Promise<void> {
       '${ID.program}', '${ID.orgA}', 'Base artística', 'gymnastics_sport',
       '${ID.organizationSport}', null, 'active'
     );
+
+    insert into zaltyko.groups (
+      id, organization_id, location_id, program_id, name, capacity, status
+    ) values
+      ('${ID.groupMain}', '${ID.orgA}', '${ID.locationA}', '${ID.program}', 'Iniciación', 4, 'active'),
+      ('${ID.groupSecond}', '${ID.orgA}', '${ID.locationA}', '${ID.program}', 'Preparación física', 4, 'active'),
+      ('${ID.groupLimited}', '${ID.orgA}', '${ID.locationA}', '${ID.program}', 'Grupo con una plaza', 1, 'active'),
+      ('${ID.groupNorth}', '${ID.orgA}', '${ID.locationA2}', '${ID.program}', 'Grupo norte', 2, 'active'),
+      ('${ID.groupB}', '${ID.orgB}', '${ID.locationB}', null, 'Grupo sintético B', 2, 'active');
 
     insert into zaltyko.class_templates (
       id, organization_id, location_id, program_id, default_space_id,
@@ -159,6 +184,372 @@ async function count(table: string, where = "true"): Promise<number> {
 
 async function main(): Promise<void> {
   await seed();
+
+  const groupMembership = await addGroupMembership({
+    organizationId: ID.orgA,
+    groupId: ID.groupMain,
+    athleteId: ID.athlete1,
+    startsOn: "2026-10-01",
+    status: "active",
+    idempotencyKey: "group-membership-main-1",
+    actor: owner,
+  });
+  const groupMembershipRetry = await addGroupMembership({
+    organizationId: ID.orgA,
+    groupId: ID.groupMain,
+    athleteId: ID.athlete1,
+    startsOn: "2026-10-01",
+    status: "active",
+    idempotencyKey: "group-membership-main-1",
+    actor: owner,
+  });
+  assert.equal(groupMembershipRetry.id, groupMembership.id);
+
+  await addGroupMembership({
+    organizationId: ID.orgA,
+    groupId: ID.groupSecond,
+    athleteId: ID.athlete1,
+    startsOn: "2026-10-01",
+    status: "active",
+    idempotencyKey: "group-membership-second-1",
+    actor: owner,
+  });
+  assert.equal(
+    await count(
+      "zaltyko.group_memberships",
+      `athlete_id = '${ID.athlete1}' and status = 'active'`
+    ),
+    2,
+    "Una atleta puede pertenecer a más de un grupo"
+  );
+
+  await expectOperationalError(
+    () =>
+      addGroupMembership({
+        organizationId: ID.orgA,
+        groupId: ID.groupMain,
+        athleteId: ID.athlete1,
+        startsOn: "2026-10-01",
+        status: "active",
+        idempotencyKey: "duplicate-group-membership",
+        actor: owner,
+      }),
+    "DUPLICATE_OPEN_GROUP_MEMBERSHIP"
+  );
+
+  await expectOperationalError(
+    () =>
+      addGroupMembership({
+        organizationId: ID.orgA,
+        groupId: ID.groupNorth,
+        athleteId: ID.athlete4,
+        startsOn: "2026-10-01",
+        status: "active",
+        idempotencyKey: "manager-out-of-scope-group",
+        actor: manager,
+      }),
+    "LOCATION_SCOPE_DENIED"
+  );
+  assert.equal(
+    await count(
+      "zaltyko.outbox_events",
+      "idempotency_key = 'manager-out-of-scope-group'"
+    ),
+    0
+  );
+
+  const groupCapacityAttempts = await Promise.allSettled(
+    [ID.athlete2, ID.athlete3].map((athleteId, index) =>
+      addGroupMembership({
+        organizationId: ID.orgA,
+        groupId: ID.groupLimited,
+        athleteId,
+        startsOn: "2026-10-01",
+        status: "active",
+        idempotencyKey: `group-capacity-${index + 1}`,
+        actor: owner,
+      })
+    )
+  );
+  assert.equal(
+    groupCapacityAttempts.filter((result) => result.status === "fulfilled")
+      .length,
+    1
+  );
+  const fullGroupResult = groupCapacityAttempts.find(
+    (result) => result.status === "rejected"
+  );
+  assert(fullGroupResult?.status === "rejected");
+  assert(fullGroupResult.reason instanceof OperationalError);
+  assert.equal(fullGroupResult.reason.code, "GROUP_CAPACITY_FULL");
+
+  const pausedMembership = await transitionGroupMembership({
+    organizationId: ID.orgA,
+    membershipId: groupMembership.id,
+    expectedStatus: "active",
+    toStatus: "paused",
+    effectiveOn: "2026-10-03",
+    reasonCode: "temporary_pause",
+    idempotencyKey: "group-membership-pause-1",
+    actor: owner,
+  });
+  assert.equal(pausedMembership.status, "paused");
+  const pausedMembershipRetry = await transitionGroupMembership({
+    organizationId: ID.orgA,
+    membershipId: groupMembership.id,
+    expectedStatus: "active",
+    toStatus: "paused",
+    effectiveOn: "2026-10-03",
+    reasonCode: "temporary_pause",
+    idempotencyKey: "group-membership-pause-1",
+    actor: owner,
+  });
+  assert.equal(pausedMembershipRetry.status, "paused");
+
+  await expectOperationalError(
+    () =>
+      transitionGroupMembership({
+        organizationId: ID.orgA,
+        membershipId: groupMembership.id,
+        expectedStatus: "active",
+        toStatus: "paused",
+        effectiveOn: "2026-10-03",
+        reasonCode: "family_request",
+        idempotencyKey: "group-membership-pause-1",
+        actor: owner,
+      }),
+    "IDEMPOTENCY_CONFLICT"
+  );
+
+  await assert.rejects(
+    () =>
+      transitionGroupMembership({
+        organizationId: ID.orgA,
+        membershipId: groupMembership.id,
+        expectedStatus: "paused",
+        toStatus: "active",
+        effectiveOn: "2026-10-05",
+        reasonCode: "other: comentario con datos personales" as never,
+        idempotencyKey: "group-membership-free-text-reason",
+        actor: owner,
+      }),
+    (error: unknown) => error instanceof z.ZodError
+  );
+
+  await expectOperationalError(
+    () =>
+      transitionGroupMembership({
+        organizationId: ID.orgA,
+        membershipId: groupMembership.id,
+        expectedStatus: "active",
+        toStatus: "ended",
+        effectiveOn: "2026-10-04",
+        idempotencyKey: "stale-group-membership-transition",
+        actor: owner,
+      }),
+    "VERSION_CONFLICT"
+  );
+
+  const resumedMembership = await transitionGroupMembership({
+    organizationId: ID.orgA,
+    membershipId: groupMembership.id,
+    expectedStatus: "paused",
+    toStatus: "active",
+    effectiveOn: "2026-10-05",
+    idempotencyKey: "group-membership-resume-1",
+    actor: owner,
+  });
+  assert.equal(resumedMembership.status, "active");
+  await expectOperationalError(
+    () =>
+      transitionGroupMembership({
+        organizationId: ID.orgA,
+        membershipId: groupMembership.id,
+        expectedStatus: "active",
+        toStatus: "ended",
+        effectiveOn: "2026-10-04",
+        idempotencyKey: "out-of-order-group-membership-transition",
+        actor: owner,
+      }),
+    "INVALID_DATE_RANGE"
+  );
+  const endedMembership = await transitionGroupMembership({
+    organizationId: ID.orgA,
+    membershipId: groupMembership.id,
+    expectedStatus: "active",
+    toStatus: "ended",
+    effectiveOn: "2026-10-06",
+    idempotencyKey: "group-membership-end-1",
+    actor: owner,
+  });
+  assert.equal(endedMembership.status, "ended");
+  assert.equal(endedMembership.endsOn, "2026-10-06");
+  const membershipHistory = await pool.query(
+    `select from_status, to_status, effective_on::text, reason_code
+     from zaltyko.group_membership_history
+     where organization_id = $1 and membership_id = $2
+     order by changed_at, id`,
+    [ID.orgA, groupMembership.id]
+  );
+  assert.deepEqual(
+    membershipHistory.rows.map((row) => [
+      row.from_status,
+      row.to_status,
+      row.effective_on,
+    ]),
+    [
+      [null, "active", "2026-10-01"],
+      ["active", "paused", "2026-10-03"],
+      ["paused", "active", "2026-10-05"],
+      ["active", "ended", "2026-10-06"],
+    ]
+  );
+  assert.equal(membershipHistory.rows[1].reason_code, "temporary_pause");
+  await assert.rejects(
+    () =>
+      pool.query(
+        `insert into zaltyko.group_membership_history (
+          organization_id, membership_id, from_status, to_status,
+          changed_by_member_id, idempotency_key, effective_on, reason_code
+        ) values ($1, $2, 'active', 'paused', $3, $4, '2026-10-03', 'free text')`,
+        [
+          ID.orgA,
+          groupMembership.id,
+          ID.ownerMember,
+          "group-membership-invalid-reason",
+        ]
+      ),
+    (error: { code?: string }) => error.code === "23514"
+  );
+
+  const groupEvent = await pool.query(
+    `select payload from zaltyko.outbox_events where idempotency_key = $1`,
+    ["group-membership-main-1"]
+  );
+  assert.equal("athleteId" in groupEvent.rows[0].payload, false);
+  assert.equal("athlete_id" in groupEvent.rows[0].payload, false);
+
+  await addGroupMembership({
+    organizationId: ID.orgB,
+    groupId: ID.groupB,
+    athleteId: ID.athleteB,
+    startsOn: "2026-10-01",
+    status: "active",
+    idempotencyKey: "org-b-group-membership",
+    actor: outsider,
+  });
+  await addGroupMembership({
+    organizationId: ID.orgA,
+    groupId: ID.groupNorth,
+    athleteId: ID.athlete4,
+    startsOn: "2026-10-01",
+    status: "active",
+    idempotencyKey: "owner-north-group-membership",
+    actor: owner,
+  });
+  const northMembershipRow = await pool.query(
+    `select id from zaltyko.group_memberships
+     where organization_id = $1 and group_id = $2`,
+    [ID.orgA, ID.groupNorth]
+  );
+  assert.equal(northMembershipRow.rowCount, 1);
+  const northMembershipId = northMembershipRow.rows[0].id as string;
+
+  const rlsClient = await pool.connect();
+  try {
+    const rlsConfig = await rlsClient.query(`
+      select
+        (select relrowsecurity from pg_class where oid = 'zaltyko.group_memberships'::regclass) as membership_rls_enabled,
+        (select relforcerowsecurity from pg_class where oid = 'zaltyko.group_memberships'::regclass) as membership_rls_forced,
+        class.relrowsecurity as history_rls_enabled,
+        class.relforcerowsecurity as history_rls_forced,
+        has_table_privilege('anon', 'zaltyko.group_memberships', 'select') as anon_membership_select,
+        has_table_privilege('anon', 'zaltyko.group_membership_history', 'select') as anon_select,
+        has_table_privilege('authenticated', 'zaltyko.group_membership_history', 'select') as member_select,
+        has_table_privilege('authenticated', 'zaltyko.group_memberships', 'select') as membership_select,
+        has_table_privilege('authenticated', 'zaltyko.group_memberships', 'insert') as member_membership_insert,
+        has_table_privilege('authenticated', 'zaltyko.group_membership_history', 'insert') as member_insert,
+        has_table_privilege('service_role', 'zaltyko.group_memberships', 'select') as service_membership_select,
+        has_table_privilege('service_role', 'zaltyko.group_memberships', 'insert') as service_membership_insert,
+        has_table_privilege('service_role', 'zaltyko.group_memberships', 'update') as service_membership_update,
+        has_table_privilege('service_role', 'zaltyko.group_memberships', 'delete') as service_membership_delete,
+        has_table_privilege('service_role', 'zaltyko.group_membership_history', 'select') as service_history_select,
+        has_table_privilege('service_role', 'zaltyko.group_membership_history', 'insert') as service_insert,
+        has_table_privilege('service_role', 'zaltyko.group_membership_history', 'update') as service_history_update,
+        has_table_privilege('service_role', 'zaltyko.group_membership_history', 'delete') as service_history_delete,
+        exists (
+          select 1 from pg_policies
+          where schemaname = 'zaltyko'
+            and tablename = 'group_memberships'
+            and policyname = 'group_memberships_select_member'
+        ) as has_membership_policy,
+        exists (
+          select 1 from pg_policies
+          where schemaname = 'zaltyko'
+            and tablename = 'group_membership_history'
+            and policyname = 'group_membership_history_select_member'
+        ) as has_tenant_policy
+      from pg_class class
+      join pg_namespace schema on schema.oid = class.relnamespace
+      where schema.nspname = 'zaltyko'
+        and class.relname = 'group_membership_history'
+    `);
+    assert.deepEqual(rlsConfig.rows[0], {
+      membership_rls_enabled: true,
+      membership_rls_forced: true,
+      history_rls_enabled: true,
+      history_rls_forced: true,
+      anon_membership_select: false,
+      anon_select: false,
+      member_select: true,
+      membership_select: true,
+      member_membership_insert: false,
+      member_insert: false,
+      service_membership_select: true,
+      service_membership_insert: true,
+      service_membership_update: true,
+      service_membership_delete: false,
+      service_history_select: true,
+      service_insert: true,
+      service_history_update: false,
+      service_history_delete: false,
+      has_membership_policy: true,
+      has_tenant_policy: true,
+    });
+
+    await rlsClient.query("set role authenticated");
+    await rlsClient.query(
+      "select set_config('request.jwt.claim.sub', $1, false)",
+      [ID.managerUser]
+    );
+    const ownHistory = await rlsClient.query(
+      `select count(*)::int as count from zaltyko.group_membership_history where organization_id = $1`,
+      [ID.orgA]
+    );
+    const crossTenantHistory = await rlsClient.query(
+      `select count(*)::int as count from zaltyko.group_membership_history where organization_id = $1`,
+      [ID.orgB]
+    );
+    const outOfScopeHistory = await rlsClient.query(
+      `select count(*)::int as count
+       from zaltyko.group_membership_history
+       where organization_id = $1 and membership_id = $2`,
+      [ID.orgA, northMembershipId]
+    );
+    const outOfScopeMembership = await rlsClient.query(
+      `select count(*)::int as count
+       from zaltyko.group_memberships
+       where organization_id = $1 and id = $2`,
+      [ID.orgA, northMembershipId]
+    );
+    assert(ownHistory.rows[0].count > 0);
+    assert.equal(crossTenantHistory.rows[0].count, 0);
+    assert.equal(outOfScopeHistory.rows[0].count, 0);
+    assert.equal(outOfScopeMembership.rows[0].count, 0);
+  } finally {
+    await rlsClient.query("reset role");
+    rlsClient.release();
+  }
 
   const enrollment1 = await createEnrollment({
     organizationId: ID.orgA,

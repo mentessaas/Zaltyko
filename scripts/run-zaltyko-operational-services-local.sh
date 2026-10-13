@@ -48,6 +48,9 @@ SQL
 "${PSQL[@]}" \
   -f "${ROOT_DIR}/supabase/migrations/20261006085254_add_operational_enrollment_invariants.sql" \
   >/dev/null
+"${PSQL[@]}" \
+  -f "${ROOT_DIR}/supabase/migrations/20261013170001_record_group_membership_history.sql" \
+  >/dev/null
 
 DATABASE_URL="postgresql://127.0.0.1:${PG_PORT}/postgres" \
 DATABASE_URL_POOL="postgresql://127.0.0.1:${PG_PORT}/postgres" \

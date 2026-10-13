@@ -40,6 +40,9 @@
 - las FKs compuestas rechazan referencias entre organizaciones;
 - un atleta puede pertenecer simultáneamente a varios grupos;
 - no puede tener dos memberships abiertas en el mismo grupo;
+- `group_membership_history` es el historial tipado append-only de cada
+  alta, pausa, reactivación y baja; grupo y sede se autorizan en servidor y
+  RLS por alcance físico;
 - no puede tener dos inscripciones abiertas en la misma plantilla;
 - una sesión tiene fin posterior a inicio y capacidad positiva;
 - historial de inscripción y outbox usan claves idempotentes;

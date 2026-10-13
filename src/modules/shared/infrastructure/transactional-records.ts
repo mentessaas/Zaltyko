@@ -42,6 +42,16 @@ export async function lockCapacity(
   );
 }
 
+export async function lockGroupCapacity(
+  tx: TransactionClient,
+  organizationId: string,
+  groupId: string
+): Promise<void> {
+  await tx.execute(
+    sql`select pg_advisory_xact_lock(hashtextextended(${`${organizationId}:group-capacity:${groupId}`}, 0))`
+  );
+}
+
 export async function findOutboxEvent(
   tx: TransactionClient,
   input: {

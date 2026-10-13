@@ -109,6 +109,24 @@ confirmaciones necesarias.
 Gate: concurrencia/cupo, doble inscripción, transferencia sin churn falso,
 historial/outbox, scope por sede y E2E autenticado por owner/manager/coach/familia.
 
+Estado local 2026-10-13: además de enrollment y asistencia, el servicio
+greenfield de `group_memberships` ya permite alta M:N, pausa/reactivación/baja,
+cupo serializado, historial tipado, audit log y outbox en una transacción. Una
+migración aditiva añade el historial, fuerza RLS y restringe sus grants; se
+probó desde cero con PostgreSQL efímero, incluidos reintentos con conflicto,
+capacidad concurrente, secuencia temporal y denegación de otro tenant/sede.
+Existe además un test pgTAP para CI/Supabase local; no se pudo ejecutar porque el
+daemon Docker local no estaba activo. **Pendiente:** API, interfaz para
+gestionar grupos y E2E autenticado; no se aplicó la migración remota.
+
+Verificación transversal actual: TypeScript, `pnpm lint` global, build Next.js
+(288 rutas), integridad de migraciones (7 Drizzle + 110 Supabase) y `validate:rls`
+pasan. El build local advirtió variables runtime Stripe/Supabase ausentes, por
+lo que no demuestra runtime. Vitest completa:
+453 archivos PASS, 1 omitido; 2.343 tests PASS, 3 omitidos, en 439,31 s. El
+timeout de billing del corte anterior no se reprodujo en esta corrida; su causa
+sigue sin demostrarse. La batería pgTAP queda pendiente por Docker local inactivo.
+
 ### 3. Ledger y cobros
 
 Separar cargo, invoice, pago, asignación, intento y devolución. Consolidar
@@ -272,6 +290,9 @@ realizarla esa persona; no se sustituye por una aprobación del autor.
 - El registro manual tiene endpoint y formulario locales; los tests HTTP usan
   autorización simulada y el ledger se prueba en PostgreSQL efímero. No se hizo
   walkthrough autenticado ni se promovieron cambios de esquema.
+- La relación M:N de grupos ya tiene un servicio de dominio probado desde cero,
+  pero aún no está conectada a una API ni a una pantalla de gestión; la nueva
+  migración solo se aplicó al PostgreSQL efímero.
 - La preferencia familiar y el entitlement versionado están implementados solo
   en local. El entitlement pagado de pruebas usa fixtures/contrato sintéticos;
   no existe webhook ni provisioning comercial verificado. Un snapshot

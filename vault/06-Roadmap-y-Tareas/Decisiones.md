@@ -8,6 +8,15 @@ source:
 
 # Decisiones
 
+## 2026-10-13 — Historial temporal de pertenencia M:N a grupos
+
+| Campo | Valor |
+| --- | --- |
+| Evidencia | El núcleo greenfield tenía la relación M:N y estado actual, pero carecía de servicio operativo e historial tipado para reconstruir pausas, reactivaciones y bajas. El audit log genérico no debe ser la fuente de verdad de métricas. |
+| Decisión | Aceptar ADR-0023: mantener `group_memberships` canónica y añadir historial append-only con effective date, actor y clave idempotente. Cupo concurrente, estado, historial, auditoría y outbox se validan y escriben transaccionalmente; RLS también respeta la sede y el servicio no puede alterar/borrar el historial. |
+| Consecuencia | Las métricas pueden reconstruir periodos de pertenencia sin confundirlos con enrollment o plantilla. El servicio y la migración se verifican solo en PostgreSQL efímero. |
+| Estado | Servicio de dominio implementado localmente; API, interfaz, E2E autenticado y aplicación remota pendientes. Harness PostgreSQL PASS; pgTAP creado pero no ejecutado porque Docker local no estaba activo. No hay migración aplicada en Supabase. Ver [ADR-0023](../../docs/architecture/adr/0023-historial-de-pertenencia-a-grupos.md). |
+
 ## 2026-10-13 — Buscar la academia antes de abrir un espacio owner
 
 | Campo | Valor |

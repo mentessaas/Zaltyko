@@ -100,6 +100,14 @@ No sustituye E2E autenticado ni prueba contra una base de datos aislada.
 - [x] Cerrar Fase 1 local: migration, RLS/grants, contrato, onboarding y tests.
 - [x] Pasar stack canónico y las verificaciones focales locales.
 - [ ] Revisar los servicios operativos y E2E autenticado por rol contra Fase 2.
+- [x] Implementar localmente el servicio de pertenencia M:N a grupos con cupo
+      concurrente, historial efectivo append-only, auditoría, outbox e
+      idempotencia; RLS incluye tenant y sede.
+- [ ] Añadir API y flujo owner/manager para altas, pertenencia múltiple, pausas
+      y bajas de grupos; probar permisos, concurrencia y estados en navegador
+      autenticado antes de cerrar Fase 2.
+- [ ] Repetir Vitest completo bajo carga de workers controlada y aclarar el
+      timeout de `tests/api-billing.test.ts` antes de declarar verde la suite.
 - [x] P0 local: writer/reader idempotentes del read model de cohortes; AC-12
       mide 362,8 ms p95 y la vista compuesta 654,3 ms p95. Solo service-layer
       sobre PostgreSQL 14.20 local; plataforma objetivo y coste del writer
