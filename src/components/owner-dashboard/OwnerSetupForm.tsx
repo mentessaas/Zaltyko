@@ -31,6 +31,7 @@ export function OwnerSetupForm() {
     setPending(true);
     setError(null);
     setRetryRequest({ key, body });
+    let responseFailureMessage: string | null = null;
     try {
       const response = await fetch("/api/v1/organizations/bootstrap", {
         method: "POST",
@@ -48,22 +49,21 @@ export function OwnerSetupForm() {
           idempotencyKey.current = null;
           setRetryRequest(null);
         }
-        throw new Error(
+        responseFailureMessage =
           response.status >= 500
-            ? "No sabemos si se creó el espacio. Reintenta este mismo envío; la clave segura evita duplicarlo."
-            : (problem?.detail ?? "No se ha podido crear el espacio.")
-        );
+            ? "No podemos confirmar si se creó el espacio. Reintenta este mismo envío; conservaremos los datos para evitar duplicados."
+            : (problem?.detail ?? "No se ha podido crear el espacio.");
+        throw new Error(responseFailureMessage);
       }
       const result = (await response.json()) as { organizationId: string };
       idempotencyKey.current = null;
       setRetryRequest(null);
       router.replace(`/owner?organizationId=${result.organizationId}`);
       router.refresh();
-    } catch (cause) {
+    } catch {
       setError(
-        cause instanceof Error
-          ? cause.message
-          : "No se ha podido crear el espacio."
+        responseFailureMessage ??
+          "No podemos confirmar si se creó el espacio. Reintenta este mismo envío; conservaremos los datos para evitar duplicados."
       );
       setPending(false);
     }

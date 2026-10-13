@@ -97,6 +97,7 @@ export function RegisterForm({
   const roleButtonRefs = useRef<Array<HTMLButtonElement | null>>([]);
   const [loading, setLoading] = useState(false);
   const [googleLoading, setGoogleLoading] = useState(false);
+  const [signupOutcomeUnknown, setSignupOutcomeUnknown] = useState(false);
   const router = useRouter();
   const supabase = createClient();
   const toast = useToast();
@@ -200,6 +201,8 @@ export function RegisterForm({
     }
 
     setLoading(true);
+    let signupPhase: "request_pending" | "account_created" | "session_confirmed" =
+      "request_pending";
     try {
       const emailRedirectTo =
         typeof window !== "undefined"
@@ -231,6 +234,7 @@ export function RegisterForm({
         });
         return;
       }
+      signupPhase = "account_created";
 
       toast.pushToast({
         title: directoryRegistration ? "Cuenta del directorio creada" : role === "owner" ? "Cuenta creada; falta tu academia" : "Cuenta creada",
@@ -245,6 +249,7 @@ export function RegisterForm({
       });
 
       if (data.session) {
+        signupPhase = "session_confirmed";
         // Instrumentación paid-acquisition: emite sign_up_completed solo
         // cuando hay sesión (signup funcional, no email-pendiente). La
         // atribución UTMs viaja en metadata para que PostHog/Google Ads
@@ -297,6 +302,27 @@ export function RegisterForm({
           },
         });
         router.push(`/auth/login?registered=1${directoryRegistration?`&next=${encodeURIComponent(directoryNext!)}`:""}`);
+      }
+    } catch {
+      if (signupPhase === "request_pending") {
+        setSignupOutcomeUnknown(true);
+      } else if (signupPhase === "session_confirmed") {
+        if (directoryRegistration) {
+          router.push(directoryNext!);
+        } else {
+          toast.pushToast({
+            title: "Cuenta creada; configuración pendiente",
+            description:
+              "No pudimos completar la configuración. Inicia sesión para reintentarla.",
+            variant: "warning",
+            persistent: true,
+          });
+          router.push("/auth/login?profile_setup=retry");
+        }
+      } else {
+        router.push(
+          `/auth/login?registered=1${directoryRegistration ? `&next=${encodeURIComponent(directoryNext!)}` : ""}`
+        );
       }
     } finally {
       setLoading(false);
@@ -505,8 +531,14 @@ export function RegisterForm({
             .
           </span>
         </label>
-        <Button type="submit" className="w-full" disabled={loading || googleLoading}>
-          {loading ? (
+        <Button
+          type="submit"
+          className="w-full"
+          disabled={loading || googleLoading || signupOutcomeUnknown}
+        >
+          {signupOutcomeUnknown ? (
+            "Alta pendiente de confirmar"
+          ) : loading ? (
             <>
               <Loader2 className="mr-2 h-4 w-4 animate-spin" />
               Creando cuenta...
@@ -516,6 +548,42 @@ export function RegisterForm({
           )}
         </Button>
       </form>
+
+      {signupOutcomeUnknown && (
+        <div
+          role="alert"
+          className="mt-4 border border-amber-400 bg-amber-50 p-4 text-sm text-amber-950"
+        >
+          <p className="font-semibold">
+            No podemos confirmar si tu cuenta se creó. No repitas el alta todavía.
+          </p>
+          <p className="mt-2">
+            Prueba a iniciar sesión o recuperar la contraseña para comprobarlo.
+          </p>
+          <div className="mt-3 flex flex-wrap gap-x-4 gap-y-2">
+            <Link
+              href={
+                directoryRegistration
+                  ? `/auth/login?next=${encodeURIComponent(directoryNext!)}`
+                  : "/auth/login"
+              }
+              className="font-semibold underline"
+            >
+              Iniciar sesión
+            </Link>
+            <Link
+              href={
+                directoryRegistration
+                  ? `/auth/forgot-password?next=${encodeURIComponent(directoryNext!)}`
+                  : "/auth/forgot-password"
+              }
+              className="font-semibold underline"
+            >
+              Recuperar contraseña
+            </Link>
+          </div>
+        </div>
+      )}
 
       <div className="mt-4">
         {!termsAccepted && (
@@ -533,7 +601,13 @@ export function RegisterForm({
           onClick={handleGoogleSignUp}
           variant="outline"
           className="w-full"
-          disabled={!isHydrated || googleLoading || loading || !termsAccepted}
+          disabled={
+            !isHydrated ||
+            googleLoading ||
+            loading ||
+            !termsAccepted ||
+            signupOutcomeUnknown
+          }
           aria-busy={!isHydrated || googleLoading}
           aria-describedby={
             !termsAccepted ? "google-signup-consent-hint" : undefined

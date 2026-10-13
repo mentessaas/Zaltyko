@@ -62,7 +62,7 @@ describe("alta owner greenfield", () => {
     );
 
     expect(await screen.findByRole("alert")).toHaveTextContent(
-      "No sabemos si se creó el espacio"
+      "No podemos confirmar si se creó el espacio"
     );
     expect(screen.getByLabelText("Nombre de la academia")).toBeDisabled();
     const retryButton = screen.getByRole("button", {
@@ -83,6 +83,45 @@ describe("alta owner greenfield", () => {
       locationName: "Sede sintética",
       primaryDiscipline: "artistic",
       countryCode: "ES",
+    });
+    expect(mockReplace).toHaveBeenCalledWith(
+      "/owner?organizationId=synthetic-organization"
+    );
+  });
+
+  it("explica el resultado incierto de red y reintenta con la misma clave y payload", async () => {
+    const user = userEvent.setup();
+    mockFetch
+      .mockRejectedValueOnce(new TypeError("Failed to fetch"))
+      .mockResolvedValueOnce({
+        ok: true,
+        status: 201,
+        json: async () => ({ organizationId: "synthetic-organization" }),
+      });
+
+    render(<OwnerSetupForm />);
+    await completeRequiredFields(user);
+    await user.click(
+      screen.getByRole("button", { name: "Crear espacio de dirección" })
+    );
+
+    const alert = await screen.findByRole("alert");
+    expect(alert).toHaveTextContent(
+      "No podemos confirmar si se creó el espacio. Reintenta este mismo envío"
+    );
+    expect(alert).not.toHaveTextContent("Failed to fetch");
+    expect(screen.getByLabelText("Nombre de la academia")).toBeDisabled();
+    await user.click(
+      screen.getByRole("button", { name: "Reintentar el mismo envío" })
+    );
+
+    await waitFor(() => expect(mockFetch).toHaveBeenCalledTimes(2));
+    const first = mockFetch.mock.calls[0]?.[1] as RequestInit;
+    const retry = mockFetch.mock.calls[1]?.[1] as RequestInit;
+    expect(retry.headers).toEqual(first.headers);
+    expect(retry.body).toBe(first.body);
+    expect(first.headers).toMatchObject({
+      "idempotency-key": "synthetic-bootstrap-key",
     });
     expect(mockReplace).toHaveBeenCalledWith(
       "/owner?organizationId=synthetic-organization"
