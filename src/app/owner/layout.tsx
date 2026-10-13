@@ -1,5 +1,9 @@
 import type { Metadata } from "next";
 
+import { OwnerWorkspaceNavigation } from "@/components/owner-dashboard/OwnerWorkspaceNavigation";
+
+export const dynamic = "force-dynamic";
+
 export const metadata: Metadata = {
   title: "Mesa de dirección",
   description: "Estado operativo, financiero y de crecimiento de la academia.",
@@ -11,5 +15,12 @@ export default function OwnerLayout({
 }: {
   children: React.ReactNode;
 }) {
-  return children;
+  return (
+    <>
+      <OwnerWorkspaceNavigation />
+      <div id="owner-workspace-content" tabIndex={-1}>
+        {children}
+      </div>
+    </>
+  );
 }

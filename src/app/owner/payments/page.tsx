@@ -12,6 +12,7 @@ export const dynamic = "force-dynamic";
 
 const pageQuerySchema = z.object({
   organizationId: z.string().uuid().optional(),
+  locationId: z.string().uuid().optional(),
 });
 
 export default async function OwnerPaymentsPage({
@@ -29,6 +30,7 @@ export default async function OwnerPaymentsPage({
   const query = pageQuerySchema.safeParse({
     organizationId:
       typeof raw.organizationId === "string" ? raw.organizationId : undefined,
+    locationId: typeof raw.locationId === "string" ? raw.locationId : undefined,
   });
   if (!query.success) notFound();
 
@@ -52,12 +54,19 @@ export default async function OwnerPaymentsPage({
     throw error;
   }
 
+  const dashboardQuery = new URLSearchParams({
+    organizationId: options.organization.id,
+  });
+  if (query.data.locationId) {
+    dashboardQuery.set("locationId", query.data.locationId);
+  }
+
   return (
     <main className="min-h-screen bg-[#F1F3EF] px-5 py-6 text-slate-950 sm:py-10">
       <div className="mx-auto grid max-w-4xl gap-8">
         <div className="grid gap-5">
           <Link
-            href={`/owner?organizationId=${options.organization.id}`}
+            href={`/owner?${dashboardQuery.toString()}`}
             className="min-h-11 w-fit content-center rounded-full border border-slate-300 bg-white px-4 text-sm font-semibold text-slate-700 hover:bg-slate-50 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-teal-800"
           >
             Volver al panel

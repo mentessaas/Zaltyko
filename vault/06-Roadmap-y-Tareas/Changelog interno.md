@@ -7,12 +7,30 @@ source:
   - ../docs/architecture/zaltyko-domain-model.md
 ---
 
+## 2026-10-13 — Navegación común para Owner y E2E alineado con el producto greenfield
+
+- La navegación principal se movió al layout compartido `/owner` para que el
+  estado vacío y los módulos operativos compartan el mismo acceso. En móvil se
+  priorizan cuatro tareas y el resto queda en un disclosure nativo; se conserva
+  el contexto de academia/sede y el skip link ahora apunta a contenido enfocable.
+- `test:e2e` pasa a cubrir rutas y navegación Owner greenfield; `/app` queda
+  disponible como `test:e2e:legacy`, con variables separadas para impedir que
+  fixtures legacy entren accidentalmente en el gate principal.
+- Evidencia de base: CI aplicó las 16 migraciones allowlist al Sandbox E2E. La
+  lectura posterior encontró 16 filas de ledger y 80/80 tablas con RLS
+  habilitada y forzada. El fallo anterior estaba en la aserción antigua de menú
+  `/app`, no en la ausencia del esquema greenfield.
+- **Validación local:** navegación 4/4, ESLint focal, TypeScript y
+  `git diff --check` PASS. Playwright recoge 33 pruebas en tres navegadores,
+  solo enumeradas; la nueva suite autenticada y Preview siguen pendientes de CI.
+  No se modificaron producción, Stripe Live ni credenciales.
+
 ## 2026-10-13 — Preparar CI greenfield en Sandbox E2E, sin tocar el ledger legacy
 
 - Se añadió un runner de migración de pruebas, allowlist de 16 archivos y ref
   fijo al proyecto `Zaltyko E2E Sandbox`. Usa un ledger/hash separado en
   `zaltyko_domain_private`; rechaza un schema sin ledger y cualquier divergencia.
-- El CI ejecutará el runner antes de crear las cuentas E2E. El seed Owner/admin/
+- El CI ejecuta el runner antes de crear las cuentas E2E. El seed Owner/admin/
   coach añade identidades `.test` a una academia sintética sin consultar datos
   personales existentes. Se añadió un contrato local que exige RLS habilitada
   y forzada para todas las tablas greenfield. El ledger permite reanudar un
@@ -20,8 +38,9 @@ source:
   desconocidas fallan cerrado.
 - PostgreSQL efímero: las 16 migraciones, contratos operativos y check de RLS
   PASS; typecheck, ESLint focal, integridad (7 Drizzle + 110 Supabase), Prettier
-  y YAML PASS. CI todavía no ha ejecutado la migración remota y el E2E sigue sin
-  verificar. No se tocó producción, Stripe Live ni la base remota.
+  y YAML PASS. El runner CI ya ejecutó la allowlist en el Sandbox E2E; la
+  navegación autenticada greenfield todavía no se ha validado. No se tocó
+  producción ni Stripe Live.
 
 ## 2026-10-13 — Inscripciones Owner: prioridad móvil y parche de Next
 

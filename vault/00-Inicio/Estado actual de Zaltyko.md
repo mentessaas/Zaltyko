@@ -1,7 +1,7 @@
 ---
 status: active
 owner: producto
-last_reviewed: 2026-10-13T03:17Z
+last_reviewed: 2026-10-13
 source:
   - ../PRODUCT-ANALYSIS.md
   - ../BUSINESS-ANALYSIS.md
@@ -12,25 +12,27 @@ source:
 
 ## Rebuild SaaS — estado actual 2026-10-13
 
-La rama local `codex/zaltyko-plan-implementation` (`de2579c2`) alimenta el PR
-#226, todavía draft. PR #225 está abierto; `@elvisvaldes` ya tiene `write` y
-aparece como revisor solicitado, pero no consta una review. No integrar ni
-publicar el hotfix antes de esa revisión independiente.
+El PR #226 sigue abierto y en borrador. El PR #225 está abierto: GitHub confirma
+que `@elvisvaldes` ya tiene permiso `write` y está solicitado como revisor;
+todavía no consta una review. No integrar ni publicar el hotfix antes de esa
+revisión independiente.
 
-El E2E autenticado falló porque el Sandbox E2E contiene el modelo público
-heredado y no tiene `zaltyko.organization_members`. El runner local nuevo permite
-solo 16 migraciones greenfield, comprueba hash/ledger propio y RLS forzada, y
-rechaza cualquier proyecto salvo el ref conocido del Sandbox. El seed crea una
-academia sintética separada, ligada a cuentas E2E `.test`; no copia registros
-personales ni adapta Owner al modelo antiguo. Aún no se ha ejecutado contra
-Supabase remoto: falta subir este corte, revisar el CI y validar el E2E real.
+El runner greenfield de CI ya aplicó las 16 migraciones permitidas al proyecto
+aislado `Zaltyko E2E Sandbox`, sin tocar su modelo público/legacy. La consulta
+remota de solo lectura confirmó 16 entradas en el ledger privado, 80 tablas
+greenfield, todas con RLS habilitada y forzada. El seed usa una academia y
+cuentas sintéticas `.test`; no copia datos personales. El último E2E falló por
+una expectativa heredada: el actor Owner llega a `/owner`, mientras el test
+anterior buscaba el menú de `/app`. El cambio mueve la navegación al layout
+compartido y sustituye el E2E principal por cobertura de las rutas Owner nuevas;
+el resultado de CI de este corte aún está pendiente.
 
-Validación local de este corte: stack canónico de 16 migraciones + contratos SQL
-y RLS forzada PASS; `pnpm typecheck`, `pnpm check:migrations` (7 Drizzle + 110
-Supabase), ESLint focal, Prettier/CI YAML y `git diff --check` PASS. Sigue sin
-demostrarse la sesión Owner real, el comportamiento autenticado en navegador ni
-la conexión del Preview actual. No hubo cambios en producción, Stripe Live ni
-Supabase remoto; tampoco se creó una rama Supabase de pago.
+Validación local actual: navegación Owner 4/4, TypeScript y ESLint focal PASS;
+Playwright recoge 33 pruebas configuradas para Chromium, Firefox y WebKit. Solo
+se enumeraron: la suite autenticada no se ejecutó desde local. Sigue sin
+demostrarse el recorrido autenticado del navegador contra este cambio ni la
+conexión del Preview actual. No se creó una rama Supabase de pago; no se
+modificaron Producción, Stripe Live ni credenciales.
 
 ## Inscripciones Owner — corte local 2026-10-13
 
@@ -91,7 +93,8 @@ bloqueada hasta aprobarse el hotfix y completar sus gates.
 
 No equivale a E2E autenticado completo, QA humana de accesibilidad, prueba de
 restore, medición en plataforma objetivo ni preparación para captar clientes.
-No se aplicaron migraciones remotas ni se modificó producción. Ver el
+Las migraciones greenfield se aplicaron únicamente al Sandbox E2E desde CI; no
+se modificó producción. Ver el
 [plan maestro](../../docs/plans/2026-10-13-full-saas-implementation-plan.md),
 el [backlog](../06-Roadmap-y-Tareas/Backlog priorizado.md) y la auditoría de
 [ramas y releases](../../auditoria-2026-10-13/branch-and-release-check.md).

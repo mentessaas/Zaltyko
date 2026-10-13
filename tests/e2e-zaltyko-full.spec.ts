@@ -6,8 +6,8 @@ import { expect, test, type Page } from "@playwright/test";
 config({ path: resolve(process.cwd(), ".env.local") });
 config({ path: resolve(process.cwd(), ".env") });
 
-const academyId = process.env.E2E_ACADEMY_ID;
-const storageState = process.env.E2E_STORAGE_STATE;
+const academyId = process.env.E2E_LEGACY_ACADEMY_ID;
+const storageState = process.env.E2E_LEGACY_STORAGE_STATE;
 const academyPath = (path: string) =>
   `/app/${academyId}/${path.replace(/^\//, "")}`;
 const criticalAcademyPaths = [
@@ -24,8 +24,8 @@ const criticalAcademyPaths = [
 ];
 
 test.skip(
-  !academyId,
-  "Set E2E_ACADEMY_ID to run Zaltyko full academy E2E tests."
+  !academyId || !storageState,
+  "Set E2E_LEGACY_ACADEMY_ID and E2E_LEGACY_STORAGE_STATE to run legacy academy E2E tests."
 );
 
 async function expectNoRouteError(page: Page) {

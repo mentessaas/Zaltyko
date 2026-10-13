@@ -465,48 +465,6 @@ export function InsightInbox({ bundle }: { bundle: InsightListBundle }) {
 
   return (
     <div className="min-h-screen bg-[#F1F3EF] text-slate-950">
-      <a
-        href="#contenido"
-        className="fixed left-4 top-3 z-50 -translate-y-24 bg-slate-950 px-4 py-3 text-sm font-bold text-white transition-transform focus:translate-y-0"
-      >
-        Saltar al contenido
-      </a>
-      <header className="border-b border-slate-300/80 bg-[#F8F8F4]">
-        <div className="mx-auto flex max-w-[92rem] items-center justify-between gap-4 px-5 py-4 lg:px-10">
-          <Link
-            href="/owner"
-            className="touch-target inline-flex items-center gap-3 text-slate-950"
-          >
-            <span className="grid h-9 w-9 place-items-center rounded-full bg-teal-800 font-display text-sm font-bold text-white">
-              Z
-            </span>
-            <span>
-              <span className="block font-display text-base font-bold leading-none">
-                Zaltyko
-              </span>
-              <span className="mt-1 block text-[10px] font-bold uppercase tracking-[0.18em] text-slate-600">
-                Mesa de dirección
-              </span>
-            </span>
-          </Link>
-          <nav aria-label="Principal" className="flex items-center gap-1">
-            <Link
-              href="/owner"
-              className="touch-target hidden items-center px-4 text-sm font-semibold text-slate-600 hover:text-slate-950 sm:inline-flex"
-            >
-              Resumen
-            </Link>
-            <Link
-              href="/owner/insights"
-              aria-current="page"
-              className="touch-target inline-flex items-center bg-slate-950 px-4 text-sm font-semibold text-white"
-            >
-              Insights
-            </Link>
-          </nav>
-        </div>
-      </header>
-
       <main
         id="contenido"
         className="mx-auto max-w-[92rem] px-5 pb-24 pt-7 lg:px-10 lg:pb-16 lg:pt-10"

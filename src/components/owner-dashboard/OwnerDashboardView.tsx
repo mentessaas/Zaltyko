@@ -504,12 +504,12 @@ export function OwnerDashboardView({
 }) {
   if (bundle.state === "empty") {
     return (
-      <>
+      <div className="min-h-screen bg-[#F1F3EF] text-slate-950">
         <EmptyDashboard bundle={bundle} />
         <div className="mx-auto max-w-3xl px-5 pb-16">
           <OperationalEvidence capacity={capacity} cohorts={cohorts} />
         </div>
-      </>
+      </div>
     );
   }
 
@@ -533,76 +533,6 @@ export function OwnerDashboardView({
 
   return (
     <div className="min-h-screen bg-[#F1F3EF] text-slate-950">
-      <a
-        href="#contenido"
-        className="fixed left-4 top-3 z-50 -translate-y-24 rounded-full bg-slate-950 px-4 py-3 text-sm font-bold text-white transition-transform focus:translate-y-0"
-      >
-        Saltar al contenido
-      </a>
-      <header className="border-b border-slate-300/80 bg-[#F8F8F4]">
-        <div className="mx-auto flex max-w-[92rem] items-center justify-between px-5 py-4 lg:px-10">
-          <Link
-            href="/owner"
-            className="touch-target inline-flex items-center gap-3 text-slate-950"
-          >
-            <span className="grid h-9 w-9 place-items-center rounded-full bg-teal-800 font-display text-sm font-bold text-white">
-              Z
-            </span>
-            <span>
-              <span className="block font-display text-base font-bold leading-none">
-                Zaltyko
-              </span>
-              <span className="mt-1 block text-[10px] font-bold uppercase tracking-[0.18em] text-slate-600">
-                Mesa de dirección
-              </span>
-            </span>
-          </Link>
-          <nav
-            aria-label="Principal"
-            className="hidden items-center gap-1 lg:flex"
-          >
-            {[
-              ["Resumen", "/owner"],
-              [
-                "Grupos",
-                `/owner/groups?organizationId=${bundle.organization.id}`,
-              ],
-              [
-                "Clases",
-                `/owner/classes?organizationId=${bundle.organization.id}`,
-              ],
-              ["Insights", "/owner/insights"],
-              ["Capacidad", "#capacity"],
-              [
-                "Inscripciones",
-                preview
-                  ? "#retention"
-                  : "/owner/enrollments?organizationId=" +
-                    bundle.organization.id,
-              ],
-              [
-                "Cobros",
-                preview
-                  ? "#metric-collection_rate"
-                  : `/owner/payments?organizationId=${bundle.organization.id}`,
-              ],
-            ].map(([label, href], index) => (
-              <Link
-                key={href}
-                href={href}
-                aria-current={index === 0 ? "page" : undefined}
-                className={`touch-target inline-flex items-center rounded-full px-4 text-sm font-semibold ${index === 0 ? "bg-slate-950 text-white" : "text-slate-600 hover:bg-white hover:text-slate-950"}`}
-              >
-                {label}
-              </Link>
-            ))}
-          </nav>
-          <span className="rounded-full border border-slate-300 px-3 py-2 text-xs font-semibold text-slate-600">
-            {preview ? "Vista sintética" : "Datos verificados"}
-          </span>
-        </div>
-      </header>
-
       <main
         id="contenido"
         className="mx-auto max-w-[92rem] px-5 pb-28 pt-6 lg:px-10 lg:pb-16 lg:pt-10"

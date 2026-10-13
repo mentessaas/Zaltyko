@@ -558,6 +558,8 @@ jobs:
         run: pnpm test:e2e
         env:
           E2E_STORAGE_STATE: .auth/user.json
+          E2E_DOMAIN_ORGANIZATION_ID: 90000000-0000-0000-0000-000000000001
+          E2E_DOMAIN_LOCATION_ID: 90000000-0000-0000-0000-000000000011
           E2E_ACADEMY_ID: ${{ secrets.E2E_ACADEMY_ID }}
           E2E_PROFILE_ID: ${{ secrets.E2E_PROFILE_ID }}
           E2E_ATHLETE_ID: ${{ secrets.E2E_ATHLETE_ID }}

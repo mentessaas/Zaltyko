@@ -15,25 +15,23 @@ source:
   - ../07-Auditorias-y-Riesgos/Auditoria MVP gimnasia - 2026-06-23.md
   - ../07-Auditorias-y-Riesgos/Registro de riesgos.md (bloqueantes con Elvis)
 ---
-## P0 — Desbloquear E2E autenticado greenfield sin migrar el modelo legacy — 2026-10-13
+## P0 — Completar el E2E autenticado de Owner greenfield — 2026-10-13
 
-- Evidencia: CI falla en `/owner/enrollments` con PostgreSQL `42P01` porque
-  `zaltyko.organization_members` no existe en el Sandbox E2E. El Sandbox tiene
-  modelo legacy en `public`; producción y Sandbox también tienen historiales
-  distintos. No se leyeron filas personales para este diagnóstico.
-- Trabajo local: runner dedicado al ref verificado del Sandbox, allowlist de 16
-  migraciones, ledger/hash privado separado, seed de academia E2E sintética y
-  contrato que exige RLS habilitada y forzada. No reconcilia ni modifica el
-  ledger legacy ni objetos `public`.
-- Validación local: 16 migraciones, RLS, contratos operativos, typecheck,
-  integridad de migraciones y ESLint focal PASS. El job remoto aún no se ha
-  ejecutado; no afirmar que el E2E se haya resuelto hasta que CI complete la
-  migración y el navegador Owner por rol.
-- Siguiente acción: subir el corte en PR #226, esperar CI; comprobar ledger,
-  tablas/RLS/grants y advisors del Sandbox; corregir el flujo autenticado y
-  repetir E2E. Si aparece drift, una fila de ledger desconocida o una tabla sin
-  RLS, detener y revisar. Un prefijo de migraciones con hashes válidos puede
-  reanudarse. Producción no se toca con este paso.
+- Evidencia: CI ya aplicó las 16 migraciones allowlist al esquema `zaltyko` del
+  Sandbox E2E. Una lectura posterior confirmó 16 filas en el ledger privado y
+  80/80 tablas con RLS habilitada y forzada. El E2E anterior falló porque el
+  actor Owner se redirige al workspace nuevo `/owner`, mientras la suite
+  heredada esperaba la navegación de `/app`.
+- Trabajo local: navegación responsiva compartida para todas las rutas Owner,
+  preservación de contexto de academia/sede, skip link enfocable, suite E2E
+  greenfield como gate principal y suite `/app` renombrada como legacy opt-in.
+- Validación local: test de navegación 4/4, TypeScript y ESLint focal PASS;
+  Playwright recoge 33 pruebas configuradas en tres navegadores (solo
+  enumeradas, no ejecutadas). La nueva suite autenticada aún debe pasar en CI.
+- Siguiente acción: publicar el corte en PR #226, esperar CI y revisar el E2E
+  Owner, scopes de sede/rol, advisor/RLS y deployment Preview. Si aparece drift,
+  una fila de ledger desconocida o una tabla sin RLS, detener y revisar. No
+  aplicar más migraciones desde este paso; no tocar Producción ni Stripe Live.
 
 ## P2 — Aislar el catálogo sintético de los previews compartibles — 2026-10-13
 

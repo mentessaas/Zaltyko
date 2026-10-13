@@ -8,6 +8,15 @@ source:
 
 # Decisiones
 
+## 2026-10-13 — Navegación Owner en el layout común y E2E greenfield como gate
+
+| Campo | Valor |
+| --- | --- |
+| Evidencia | La navegación estaba duplicada y ausente en el estado inicial vacío. El E2E anterior consultaba `/app`, aunque el actor Owner ya llega al workspace greenfield `/owner`. |
+| Decisión | Colocar una única navegación responsiva en `src/app/owner/layout.tsx`, conservar `organizationId` y `locationId` en enlaces operativos y dejar `test:e2e` apuntando al Owner greenfield. La suite heredada queda explícita como `test:e2e:legacy`. |
+| Consecuencia | Los módulos operativos pueden cambiarse sin volver al dashboard; teclado y móvil tienen un punto de acceso consistente. La navegación no concede acceso: cada ruta y servicio conserva sus comprobaciones de rol, academia y sede en servidor. |
+| Estado | Test focal 4/4, TypeScript y ESLint PASS. Playwright autenticado y Preview pendientes del siguiente CI; no se desplegó a producción. |
+
 ## 2026-10-13 — Usar el Sandbox E2E existente solo para el esquema greenfield
 
 | Campo | Valor |
@@ -15,7 +24,7 @@ source:
 | Evidencia | El E2E autenticado falla porque el proyecto de pruebas no contiene `zaltyko.organization_members`; el proyecto conserva tablas e historial legacy en `public`, y su ledger tiene un checksum histórico divergente. No se consultaron datos personales. |
 | Decisión | No crear la rama Supabase con coste potencial rechazado. Autorizar el uso del proyecto E2E ya existente únicamente con una allowlist de 16 migraciones en el esquema `zaltyko`, ledger privado separado, destino fijado por ref y cuentas/datos sintéticos. No aplicar migraciones legacy ni modificar producción. |
 | Consecuencia | CI puede probar el producto greenfield sin apuntar Owner al modelo antiguo ni fingir compatibilidad. Drift, hash distinto, fila desconocida, schema sin ledger o fallo RLS detienen el run para revisión; un prefijo registrado con hashes correctos se puede reanudar. El resultado no autoriza el cutover productivo. |
-| Estado | Runner, seed sintético y workflow implementados localmente; pruebas PostgreSQL efímeras, RLS forzada, typecheck, integridad y ESLint pasan. El Sandbox remoto aún no se ha modificado; falta subir el corte y completar CI/E2E. |
+| Estado | CI aplicó las 16 migraciones al Sandbox aislado. La lectura posterior confirmó 16 filas en el ledger privado y 80 tablas greenfield con RLS habilitada y forzada. No hubo cambio en producción ni en Stripe Live. El E2E anterior sigue fallando por una expectativa de navegación heredada `/app`; el corte nuevo de navegación Owner y E2E greenfield está pendiente de CI. |
 
 ## 2026-10-13 — Crear inscripciones Owner como pendientes, sin efecto financiero
 
