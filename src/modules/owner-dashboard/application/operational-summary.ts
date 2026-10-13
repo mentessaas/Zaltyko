@@ -103,6 +103,16 @@ function number(value: unknown): number {
       500
     );
   }
+  if (
+    typeof value !== "number" &&
+    (typeof value !== "string" || !/^\d+$/.test(value))
+  ) {
+    throw new OperationalError(
+      "INVALID_RELATION",
+      "El agregado operativo devolvió un tipo inválido",
+      500
+    );
+  }
   const parsed = Number(value);
   if (!Number.isSafeInteger(parsed) || parsed < 0) {
     throw new OperationalError(

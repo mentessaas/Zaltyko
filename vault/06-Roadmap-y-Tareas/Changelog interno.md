@@ -9,6 +9,11 @@ source:
 
 ## 2026-10-14 — Mensualidades publicadas y siguiente bloque paralelo
 
+El resumen rechaza también strings vacíos/espacios, booleanos y notación
+exponencial como valores de agregado: no los convierte a cero/uno ni a cifras
+plausibles. 18 pruebas servicio + conexión server-page PASS; comprobación
+PostgreSQL repetida sobre el código, sin cambios de esquema productivo.
+
 QA informa login Chromium con Auth real PASS tras excepción CSP exclusiva
 runner local; bootstrap 429 por KV ausente/fail-closed. Autorizado adaptador
 sliding-window local que mantenga límites, no bypass ilimitado, vetado Vercel.

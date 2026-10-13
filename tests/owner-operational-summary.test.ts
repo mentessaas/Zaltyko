@@ -216,6 +216,34 @@ describe("owner operational summary", () => {
     expect(mocks.execute).toHaveBeenCalledTimes(3);
   });
 
+  it.each(["", " ", false, true, "1e2"])(
+    "does not coerce malformed aggregate %s into a plausible count",
+    async (value) => {
+      mocks.resolveOwnerScope.mockResolvedValue(ownerScope("manager"));
+      mocks.execute.mockReset();
+      mocks.execute
+        .mockResolvedValueOnce({
+          rows: [{ default_timezone: "Europe/Madrid" }],
+        })
+        .mockResolvedValueOnce({
+          rows: [
+            {
+              id: allowedLocation,
+              name: "Sede Centro",
+              timezone: "Europe/Madrid",
+            },
+          ],
+        })
+        .mockResolvedValueOnce({
+          rows: [{ active_athletes: value, active_groups: 0 }],
+        });
+      await expect(
+        getOwnerOperationalSummary({ userId: "user-1", organizationId })
+      ).rejects.toMatchObject({ code: "INVALID_RELATION" });
+      expect(mocks.execute).toHaveBeenCalledTimes(3);
+    }
+  );
+
   it("rejects an unexpectedly missing attendance aggregate row", async () => {
     mocks.resolveOwnerScope.mockResolvedValue(ownerScope("manager"));
     mocks.execute.mockReset();
