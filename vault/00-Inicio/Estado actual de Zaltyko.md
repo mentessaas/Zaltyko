@@ -10,6 +10,26 @@ source:
   - ../AGENTS.md
 ---
 
+## Corte de integración MVP — 2026-10-14
+
+La facturación mensual por gimnasta y tarifa está integrada y publicada en
+PR #226, SHA `31a0dd02`: familia+sede+mes, pagador/vencimiento explícitos,
+cotización de servidor e idempotencia. Emite cargo pendiente manual. La UI
+resuelve familia y tarifa; el pago recibido sigue separado. Pasan 23 tests
+focales, 12 tests de auth, TypeScript, lint y formato. La build local completó,
+pero Chromium no demostró login ni el recorrido completo; DEMO-READY y
+PILOT-READY siguen NO.
+
+Los tres frentes activos revisan emisión/replay entre sedes, recorrido Owner
+responsive y login/E2E. CI `38477410346` y Preview están construyendo. El PR
+#225 sigue `REVIEW_REQUIRED` con @elvisvaldes solicitado. La autorización del
+propietario incluye releases progresivos y entornos remotos; cada promoción
+requiere evidencia del bloque y respetar los controles reales de GitHub.
+
+Ver [auditoría de integración y ramas](../../auditoria-2026-10-14/mvp-integration-and-branches.md)
+y [readiness E2E](../../docs/qa/monthly-billing-e2e-readiness-2026-10-14.md).
+Los estados siguientes son cortes históricos anteriores.
+
 ## Rebuild SaaS — estado actual 2026-10-13
 
 ### Owner MVP — pantallas y asistencia greenfield

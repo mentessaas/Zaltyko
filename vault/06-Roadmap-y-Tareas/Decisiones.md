@@ -8,6 +8,18 @@ source:
 
 # Decisiones
 
+## 2026-10-14 — Cuota mensual y base única de integración MVP
+
+La regla aprobada por el propietario es mensual por gimnasta y tarifa. ADR-0026
+fija factura por familia+sede+mes, importe efectivo de cada inscripción activa,
+mes completo sin prorrateo, pagador/vencimiento explícitos y cotización de
+servidor. Emisión crea obligación manual; pago recibido es otro comando.
+
+Se publica 31a0dd02 en #226 como base común de tres frentes, con ownership
+separado y Tech Lead responsable de vault/integración. Los bloques se integran
+tras revisar su evidencia; ninguna rama antigua se borra por antigüedad. El
+hotfix #225 conserva revisión independiente. E2E completo sigue pendiente.
+
 ## 2026-10-13 — API greenfield para pase de lista Owner
 
 | Campo | Valor |

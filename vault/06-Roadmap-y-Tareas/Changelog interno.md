@@ -7,6 +7,18 @@ source:
   - ../docs/architecture/zaltyko-domain-model.md
 ---
 
+## 2026-10-14 — Mensualidades publicadas y siguiente bloque paralelo
+
+- Integradas entregas Backend/Frontend/QA y publicadas en #226, SHA 31a0dd02.
+- Contrato mensual documentado en ADR-0026 y billing; 23 focales y 12 auth PASS,
+  tipos/lint/formato PASS. Chromium local falló en login; causa sin verificar.
+- Reactivados tres chats desde la misma base: ledger/sede/replay, UX Owner y
+  QA login/CI. Archivos compartidos del vault quedan a cargo de Tech Lead.
+- CI 38477410346 en ejecución. Revisión #225 pendiente; sin release productivo
+  ni nuevo cambio de esquema remoto en este bloque.
+- Auditoría de ramas registrada en auditoria-2026-10-14. Ramas preservadas
+  hasta revisar reglas y equivalencia; upgrades mayores fuera del cierre MVP.
+
 ## 2026-10-13 — Navegación común para Owner y E2E alineado con el producto greenfield
 
 - La navegación principal se movió al layout compartido `/owner` para que el

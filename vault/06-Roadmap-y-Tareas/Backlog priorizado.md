@@ -15,6 +15,18 @@ source:
   - ../07-Auditorias-y-Riesgos/Auditoria MVP gimnasia - 2026-06-23.md
   - ../07-Auditorias-y-Riesgos/Registro de riesgos.md (bloqueantes con Elvis)
 ---
+## P0 — Cerrar el recorrido MVP publicado — 2026-10-14
+
+- Cuota mensual implementada y publicada en #226, SHA 31a0dd02. La decisión de
+  importe/periodo ya está aceptada en ADR-0026; el hueco histórico descrito más
+  abajo queda sustituido por verificación del flujo real.
+- Backend verifica aislamiento de factura por sede y replay después de pago.
+- Frontend verifica contexto, navegación móvil y pasos Owner sin expansión.
+- QA aísla el fallo de login y completa E2E sintético de #227. CI
+  38477410346 está en ejecución; el job local efímero es experimental.
+- Release: revisión #225 pendiente; confirmar Preview del SHA y posteriormente
+  producción por bloques verificados. Sin declarar preparación por build solo.
+
 ## P0 — Completar el E2E autenticado de Owner greenfield — 2026-10-13
 
 - Evidencia: CI ya aplicó las 16 migraciones allowlist al esquema `zaltyko` del

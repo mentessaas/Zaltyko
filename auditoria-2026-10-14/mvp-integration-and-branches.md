@@ -1,0 +1,56 @@
+# MVP: integración, ramas y siguiente bloque — 14-10-2026
+
+## Hallazgos clave
+
+- La integración `31a0dd02` reúne las entregas locales de mensualidades y está
+  publicada en `codex/zaltyko-plan-implementation`, PR #226.
+- La issue #227 exige seis pasos operativos desde una academia vacía. La
+  facturación ahora tiene API/UI; el recorrido autenticado completo continúa
+  sin evidencia suficiente.
+- Tres chats activos comparten la base 31a0dd02 y tienen ownership separado:
+  Backend revisa ledger/cuotas; Frontend revisa pasos Owner y móvil; QA revisa
+  login, navegador y CI. Tech Lead mantiene integración y vault.
+- CI `38477410346` arrancó para esa base; no se presume resultado. El local
+  Chromium anterior falló en login después del relleno de campos.
+- El PR #225 tiene checks exitosos y `REVIEW_REQUIRED`; @elvisvaldes tiene
+  write y solicitud de review activa. Producción aún no contiene el hotfix.
+
+## Decisión sobre ramas abiertas
+
+| PRs | Decisión en este bloque | Motivo y siguiente acción |
+| --- | --- | --- |
+| #226 | Mantener como integración del MVP | Recibe los tres frentes; demostrar #227 antes de release. |
+| #225 | Mantener separado y prioritario | Cierre del cron legacy; revisión independiente requerida por GitHub. |
+| #224 | Conservar para comparar, no fusionar a ciegas | Tiene cuatro commits que no son ancestros de 31a0dd02; revisar equivalencia de patches antes de descartarlo. |
+| #213–223 | Posponer integración masiva | Incluyen upgrades mayores (Tailwind, Zod, dropzone, tipos Node, Analytics, SSR, herramientas). Evaluar seguridad/compatibilidad individualmente. |
+| #126, #116, #115, #112, #99 | Fuera del siguiente bloque operativo | Admin, rendimiento, SEO y refactors antiguos; conservar hasta revisar diff y reglas útiles. |
+| #80, #73 | Fuera del MVP operativo | Instrumentación y documentación de marketing; no introducirlas durante el cierre del recorrido. |
+| #66 | Revisar como antecedente de consentimiento | Preservar reglas válidas; contrastar con consentimiento ya implementado antes de cerrar. |
+
+No se borró ninguna rama ni checkout. Posponer integración no demuestra que un
+patch sea inútil; el descarte definitivo exige comparación de código y pruebas.
+
+## Criterios del siguiente bloque
+
+1. Backend: dos sedes de una familia no se bloquean incorrectamente entre sí;
+   reintentar emisión tras registrar pago no duplica ni modifica el ledger.
+2. Frontend: enlaces conservan organización/sede, móvil «Más» funciona con
+   disclosure nativo y teclado; pasos del MVP tienen acción accesible.
+3. QA: causa del login aislada, sesión real sintética y pasos completos
+   probados; Chromium, Firefox y WebKit ejecutados en CI. Mocks no prueban el
+   recorrido de producto.
+4. Tech Lead: revisar commits, integrar, actualizar #226/#227 y verificar el
+   deployment del SHA. Producción se libera por bloques que hayan pasado su
+   evidencia y los requisitos efectivos del repositorio.
+
+## Fuentes observadas
+
+- [PR #226](https://github.com/mentessaas/Zaltyko/pull/226).
+- [MVP #227](https://github.com/mentessaas/Zaltyko/issues/227).
+- [Hotfix #225](https://github.com/mentessaas/Zaltyko/pull/225).
+- [CI 38477410346](https://github.com/mentessaas/Zaltyko/actions/runs/38477410346).
+- `git fetch`, lista de PRs abiertos, `git worktree list`, comparación
+  `HEAD...origin/codex/rebrand-zaltyko-live-20261008` (89/4 commits distintos).
+
+Accionable: sí. Siguiente paso: integrar los tres cierres y su evidencia. No
+DEMO-READY ni PILOT-READY en este corte.
