@@ -11576,3 +11576,30 @@ Modelo separado, reclamación manual, administración, importación revisada, fi
   enumeración de casos como ejecución.
 - No se modificaron producción, Stripe Live, credenciales ni base de datos
   remota. El Preview de `aade3c9` sigue siendo solo una vista candidata.
+
+## 2026-10-13 — API Owner para el pase de lista greenfield
+
+- Se añadió `GET/POST /api/v1/owner/sessions/{sessionId}/attendance` sobre el
+  dominio `zaltyko`. GET devuelve `{ enrollmentId, athleteName,
+  attendanceStatus }` para inscripciones `active`/`trial` vigentes en la fecha
+  local de la sesión. POST acepta organización, sede, enrollment y estado,
+  exige `Idempotency-Key` y deriva el actor del usuario autenticado.
+- Owner/admin/manager requieren membresía activa y alcance a la sede; coaches
+  además necesitan perfil activo y asignación a la sesión. El writer valida
+  nuevamente la sede dentro de la transacción y delega idempotencia, corrección,
+  audit log y outbox a `recordAttendance()`. No se cambió RLS, esquema ni ruta
+  legacy; las respuestas incluyen `private, no-store`.
+- Se amplió `scripts/verify-zaltyko-operational-services.ts` con aislamiento
+  cross-tenant, manager fuera de sede, coach sin asignación, enrollment pending,
+  enrollment vencido, roster sin estado, estado previo, retry idempotente y
+  corrección. La primera ejecución detectó que la fixture de manager usaba su
+  sede permitida; se añadió una sesión sintética en la sede fuera de alcance y
+  el harness volvió a pasar.
+- Validación final: Vitest focal 5 archivos/30 tests PASS; harness
+  `test:zaltyko-operations:local` PASS (`one enrollment accepted, one
+  CAPACITY_FULL`; `sessions: 2`; `attendance: serialized corrections on one
+  row`; `outbox: 24`; `audit: 24`; `history: 6`); TypeScript y ESLint focal
+  PASS; `check:migrations` PASS (7 Drizzle + 110 Supabase); `validate:rls`
+  PASS (79/79); `gate:auth` PASS (392 archivos).
+- E2E autenticado y walkthrough del Owner siguen pendientes por el gate del
+  sandbox. Sin SQL remoto, despliegue, cambios de Stripe Live o credenciales.

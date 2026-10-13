@@ -5,6 +5,10 @@ import { z } from "zod";
 
 import { recordAttendance } from "@/modules/attendance/application/attendance-service";
 import {
+  getOwnerSessionAttendance,
+  resolveSessionAttendanceAccess,
+} from "@/modules/attendance/application/owner-session-attendance";
+import {
   createEnrollment,
   transferEnrollment,
   transitionEnrollment,
@@ -61,6 +65,7 @@ const ID = {
   templateLimited: "10000000-0000-4000-8000-000000000101",
   templateTarget: "10000000-0000-4000-8000-000000000102",
   templateExpired: "10000000-0000-4000-8000-000000000103",
+  sessionNorth: "10000000-0000-4000-8000-000000000104",
   coachPerson: "10000000-0000-4000-8000-000000000065",
   coachProfile: "10000000-0000-4000-8000-000000000075",
   athlete1: "10000000-0000-4000-8000-000000000071",
@@ -1088,6 +1093,130 @@ async function main(): Promise<void> {
     generated.map((session) => session.id)
   );
 
+  await pool.query(
+    `insert into zaltyko.sessions (
+       id, organization_id, location_id, class_template_id, status, starts_at, ends_at
+     ) values ($1, $2, $3, $4, 'scheduled', '2026-10-05T15:00:00Z', '2026-10-05T16:00:00Z')`,
+    [ID.sessionNorth, ID.orgA, ID.locationA2, ID.templateTarget]
+  );
+
+  await expectOperationalError(
+    () =>
+      resolveSessionAttendanceAccess({
+        userId: outsider.userId,
+        organizationId: ID.orgB,
+        locationId: ID.locationB,
+        sessionId: generated[0].id,
+      }),
+    "NOT_FOUND"
+  );
+  await expectOperationalError(
+    () =>
+      resolveSessionAttendanceAccess({
+        userId: manager.userId,
+        organizationId: ID.orgA,
+        locationId: ID.locationA2,
+        sessionId: ID.sessionNorth,
+      }),
+    "LOCATION_SCOPE_DENIED"
+  );
+  await expectOperationalError(
+    () =>
+      resolveSessionAttendanceAccess({
+        userId: coach.userId,
+        organizationId: ID.orgA,
+        locationId: ID.locationA,
+        sessionId: generated[0].id,
+      }),
+    "FORBIDDEN"
+  );
+
+  const initialRoster = await getOwnerSessionAttendance({
+    userId: owner.userId,
+    organizationId: ID.orgA,
+    locationId: ID.locationA,
+    sessionId: generated[0].id,
+  });
+  assert.deepEqual(
+    initialRoster.map(({ enrollmentId, attendanceStatus }) => ({
+      enrollmentId,
+      attendanceStatus,
+    })),
+    [{ enrollmentId: attendanceEnrollment.id, attendanceStatus: null }]
+  );
+
+  await expectOperationalError(
+    () =>
+      recordAttendance({
+        organizationId: ID.orgA,
+        expectedLocationId: ID.locationA2,
+        sessionId: generated[0].id,
+        enrollmentId: attendanceEnrollment.id,
+        status: "present",
+        idempotencyKey: "attendance-wrong-location",
+        actor: owner,
+      }),
+    "NOT_FOUND"
+  );
+
+  await pool.query(
+    `update zaltyko.enrollments set status = 'pending' where organization_id = $1 and id = $2`,
+    [ID.orgA, attendanceEnrollment.id]
+  );
+  await expectOperationalError(
+    () =>
+      recordAttendance({
+        organizationId: ID.orgA,
+        sessionId: generated[0].id,
+        enrollmentId: attendanceEnrollment.id,
+        status: "present",
+        idempotencyKey: "attendance-pending-enrollment",
+        actor: owner,
+      }),
+    "INVALID_STATE_TRANSITION"
+  );
+  await pool.query(
+    `update zaltyko.enrollments set status = 'active' where organization_id = $1 and id = $2`,
+    [ID.orgA, attendanceEnrollment.id]
+  );
+
+  await pool.query(
+    `update zaltyko.enrollments e
+       set ends_on = (s.starts_at at time zone l.timezone)::date
+      from zaltyko.sessions s
+      join zaltyko.locations l on l.organization_id = s.organization_id and l.id = s.location_id
+     where e.organization_id = $1 and e.id = $2 and s.id = $3`,
+    [ID.orgA, attendanceEnrollment.id, generated[0].id]
+  );
+  await expectOperationalError(
+    () =>
+      recordAttendance({
+        organizationId: ID.orgA,
+        sessionId: generated[0].id,
+        enrollmentId: attendanceEnrollment.id,
+        status: "present",
+        idempotencyKey: "attendance-expired-enrollment",
+        actor: owner,
+      }),
+    "INVALID_RELATION"
+  );
+  assert.equal(
+    (
+      await getOwnerSessionAttendance({
+        userId: owner.userId,
+        organizationId: ID.orgA,
+        locationId: ID.locationA,
+        sessionId: generated[0].id,
+      })
+    ).length,
+    0,
+    "La lista excluye inscripciones vencidas"
+  );
+  await pool.query(
+    `update zaltyko.enrollments set ends_on = null where organization_id = $1 and id = $2`,
+    [ID.orgA, attendanceEnrollment.id]
+  );
+
   const recurringClass = await createScheduledClass({
     organizationId: ID.orgA,
     locationId: ID.locationA,
@@ -1205,6 +1334,18 @@ async function main(): Promise<void> {
     idempotencyKey: "attendance-athlete-4-present",
     actor: coach,
   });
+  const rosterAfterAttendance = await getOwnerSessionAttendance({
+    userId: owner.userId,
+    organizationId: ID.orgA,
+    locationId: ID.locationA,
+    sessionId: generated[0].id,
+  });
+  assert.equal(
+    rosterAfterAttendance.find(
+      (item) => item.enrollmentId === attendanceEnrollment.id
+    )?.attendanceStatus,
+    "present"
+  );
   const attendanceRetry = await recordAttendance({
     organizationId: ID.orgA,
     sessionId: generated[0].id,

@@ -23,6 +23,7 @@ import {
 
 const recordAttendanceSchema = z.object({
   organizationId: z.string().uuid(),
+  expectedLocationId: z.string().uuid().optional(),
   sessionId: z.string().uuid(),
   enrollmentId: z.string().uuid(),
   status: z.enum(["present", "absent", "excused", "late"]),
@@ -76,6 +77,12 @@ export async function recordAttendance(
       )
       .limit(1);
     if (!session) {
+      throw new OperationalError("NOT_FOUND", "Sesión no encontrada", 404);
+    }
+    if (
+      input.expectedLocationId &&
+      session.locationId !== input.expectedLocationId
+    ) {
       throw new OperationalError("NOT_FOUND", "Sesión no encontrada", 404);
     }
 
