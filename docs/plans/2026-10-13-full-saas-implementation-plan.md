@@ -217,6 +217,12 @@ Gate: QA independiente, E2E autenticado, migraciones reconciliadas, restore
 ensayado, producción verificada y rollback documentado. Preview/build verde no
 equivale a producción lista.
 
+Revalidación local 2026-10-13: `pnpm test -- --run` **453 archivos PASS, 1
+omitido; 2.343 tests PASS, 3 omitidos**; `pnpm typecheck`, `pnpm lint` y
+`pnpm check:migrations` (**7 Drizzle + 109 Supabase**) PASS. El Preview de
+Vercel del HEAD `9582ede3` está `READY`; la sesión autenticada, los datos que
+consume el Preview y cualquier runtime productivo siguen sin verificarse.
+
 ## Siguiente orden ejecutable
 
 1. **Cerrado localmente 2026-10-13:** stack canónico, migraciones, contratos

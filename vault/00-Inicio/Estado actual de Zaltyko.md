@@ -21,14 +21,19 @@ operativo, provisioning comercial/webhook verificado, worker de cobro seguro y
 Stripe Test end-to-end para la arquitectura nueva. Free y trial no pueden usar
 automático.
 
-Verificación local del corte: suite completa **450 archivos (1 omitido), 2.329
-tests aprobados (3 omitidos)**; typecheck, lint, gate de autorización (385
-archivos), integridad de migraciones (7 Drizzle y 108 Supabase) y build PASS
-(288 rutas). Los runners de pagos, cohortes y layout usan PostgreSQL efímero y
-datos sintéticos; los tests HTTP de los endpoints nuevos usan autorización
-simulada. AC-12 pasa en PostgreSQL 14.20 local: cohortes 362,8 ms p95 y vista
-compuesta 654,3 ms p95; no mide HTTP, Auth, navegador ni infraestructura
-remota.
+Revalidación local del corte 2026-10-13: suite completa **453 archivos PASS, 1
+omitido; 2.343 tests PASS, 3 omitidos**; `pnpm typecheck`, `pnpm lint` e
+integridad de migraciones (**7 Drizzle + 109 Supabase**) PASS. El Preview de
+Vercel del HEAD `9582ede3` está `READY`; no es producción. Los runners de pagos,
+cohortes y layout usan PostgreSQL efímero y datos sintéticos; los tests HTTP de
+los endpoints nuevos usan autorización simulada. AC-12 pasa en PostgreSQL
+14.20 local: cohortes 362,8 ms p95 y vista compuesta 654,3 ms p95; no mide HTTP,
+Auth, navegador ni infraestructura remota.
+
+La revisión independiente del hotfix P0 #225 sigue pendiente aunque
+`@elvisvaldes` ya tiene permiso `write` y solicitud de review activa. El cierre
+del cron legacy no está integrado ni desplegado; la ruta de cobro seguro sigue
+bloqueada hasta aprobarse el hotfix y completar sus gates.
 
 No equivale a E2E autenticado completo, QA humana de accesibilidad, prueba de
 restore, medición en plataforma objetivo ni preparación para captar clientes.

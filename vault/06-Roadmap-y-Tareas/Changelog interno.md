@@ -7,6 +7,19 @@ source:
   - ../docs/architecture/zaltyko-domain-model.md
 ---
 
+## 2026-10-13 — Revalidar la implementación greenfield
+
+- La suite completa pasa: **453 archivos PASS, 1 omitido; 2.343 tests PASS, 3
+  omitidos**. `pnpm typecheck`, `pnpm lint` e integridad de migraciones (**7
+  Drizzle + 109 Supabase**) también pasan.
+- El Preview del HEAD `9582ede3` está `READY`; es una compilación de revisión,
+  no un despliegue de producción ni evidencia de E2E autenticado.
+- El PR #225 ya tiene a `@elvisvaldes` solicitado como revisor y con permiso
+  `write`; aún no hay review. El cron legacy y los claims corregidos siguen sin
+  desplegarse.
+- Los resultados locales no prueban las conexiones de Supabase del Preview,
+  Stripe Test/Live, sesión real por rol, restore ni readiness de captación.
+
 ## 2026-10-13 — Simplificar el primer paso del alta de owner
 
 - En `/auth/register?role=owner`, el texto del buscador contradecía el orden de
