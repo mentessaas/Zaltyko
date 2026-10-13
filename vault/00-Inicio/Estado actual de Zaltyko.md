@@ -21,18 +21,21 @@ El runner greenfield de CI ya aplicó las 16 migraciones permitidas al proyecto
 aislado `Zaltyko E2E Sandbox`, sin tocar su modelo público/legacy. La consulta
 remota de solo lectura confirmó 16 entradas en el ledger privado, 80 tablas
 greenfield, todas con RLS habilitada y forzada. El seed usa una academia y
-cuentas sintéticas `.test`; no copia datos personales. El último E2E falló por
-una expectativa heredada: el actor Owner llega a `/owner`, mientras el test
-anterior buscaba el menú de `/app`. El cambio mueve la navegación al layout
-compartido y sustituye el E2E principal por cobertura de las rutas Owner nuevas;
-el resultado de CI de este corte aún está pendiente.
+cuentas sintéticas `.test`; no copia datos personales.
 
-Validación local actual: navegación Owner 4/4, TypeScript y ESLint focal PASS;
-Playwright recoge 33 pruebas configuradas para Chromium, Firefox y WebKit. Solo
-se enumeraron: la suite autenticada no se ejecutó desde local. Sigue sin
-demostrarse el recorrido autenticado del navegador contra este cambio ni la
-conexión del Preview actual. No se creó una rama Supabase de pago; no se
-modificaron Producción, Stripe Live ni credenciales.
+El CI `38434571600` del commit `aade3c9` pasó build, lint/typecheck, unitarias,
+RLS, integridad de migraciones, móvil y SBOM. El E2E autenticado falló en los
+tres navegadores al no resolver el rol `button` del `<summary>` nativo de «Más»;
+el test ya fija el viewport a 375 px, así que no era un fallo de tamaño de
+pantalla. El test actualizado busca el disclosure nativo; el nuevo CI todavía
+está pendiente. El Preview de `aade3c9` está `READY` y conectado al proyecto
+E2E Sandbox; sigue protegido por SSO. No se creó una rama Supabase de pago.
+
+Validación local del ajuste: navegación Owner 4/4, ESLint y Prettier focal PASS.
+La suite autenticada no se ejecutó localmente; Playwright enumera 33 casos para
+Chromium, Firefox y WebKit. No se han demostrado aún todos los recorridos por
+rol/sede ni la revisión manual completa de accesibilidad. No se modificaron
+Producción, Stripe Live ni credenciales.
 
 ## Inscripciones Owner — corte local 2026-10-13
 

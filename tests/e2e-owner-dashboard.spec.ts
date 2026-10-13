@@ -96,7 +96,10 @@ test.describe("Greenfield Owner workspace", () => {
       await expect(navigation.getByRole("link", { name: label })).toBeVisible();
     }
 
-    const more = navigation.getByRole("button", { name: "Más" });
+    // The disclosure control is a native <summary>; query the element directly
+    // because browser accessibility trees don't consistently expose its role.
+    const more = navigation.locator("summary").filter({ hasText: "Más" });
+    await expect(more).toBeVisible();
     await more.focus();
     await expect(more).toBeFocused();
     await page.keyboard.press("Enter");

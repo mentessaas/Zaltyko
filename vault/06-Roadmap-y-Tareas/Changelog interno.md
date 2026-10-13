@@ -11559,3 +11559,20 @@ Modelo separado, reclamación manual, administración, importación revisada, fi
 - No se aplicó SQL remoto ni se modificó Producción, Stripe Live o Vercel
   Production. El commit `9d6cbcf2` está desplegado en Preview `READY`, protegido
   por SSO; no se validó sesión Owner ni conexión a la base.
+
+## 2026-10-13 — Hacer portable el E2E de navegación móvil Owner
+
+- El workflow `38434571600`, sobre `aade3c9`, pasó build, lint/typecheck,
+  unitarias, RLS, integridad de migraciones, móvil y SBOM. El E2E autenticado
+  falló en Chromium, Firefox y WebKit al resolver `getByRole("button")` para el
+  `<summary>` nativo «Más». El test ya usa viewport de 375 px y encontraba el
+  nav y sus cuatro enlaces principales; el fallo estaba en localizar el
+  disclosure, antes de verificar su apertura.
+- Se cambió el locator E2E para enfocar el elemento `<summary>` visible y
+  mantener la interacción por teclado con Enter y la aserción de enlaces
+  secundarios. No se cambió el componente ni su comportamiento visible.
+- Vitest de navegación 4/4, ESLint y Prettier focal PASS. El nuevo E2E
+  autenticado de los tres navegadores está pendiente en CI; no se interpreta la
+  enumeración de casos como ejecución.
+- No se modificaron producción, Stripe Live, credenciales ni base de datos
+  remota. El Preview de `aade3c9` sigue siendo solo una vista candidata.
