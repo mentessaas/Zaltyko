@@ -9,6 +9,11 @@ source:
 
 ## 2026-10-14 — Mensualidades publicadas y siguiente bloque paralelo
 
+Privacidad: retirado el preconnect incondicional a PostHog del layout raíz.
+Una prueba impide reintroducir ese contacto previo al consentimiento. Este
+cambio complementa el gate browser en preparación; no activa analítica ni
+modifica eventos operativos de servidor.
+
 Actualización posterior: Backend+Frontend publicados en `78d7f14f`; corrección
 de recarga inicial SW publicada en `5708d130`. Diagnóstico A/B de QA demostró
 reload en primera adquisición del controller, no envío de formulario. En

@@ -45,6 +45,14 @@ function workerRequest(path: string, method = "GET", mode = "cors") {
 }
 
 describe("PWA security contracts", () => {
+  it("does not contact analytics origins through unconditional layout hints", () => {
+    const layout = readFileSync(
+      fileURLToPath(new URL("../src/app/layout.tsx", import.meta.url)),
+      "utf8"
+    );
+    expect(layout).not.toMatch(/<link[^>]+href=["'][^"']*posthog/i);
+  });
+
   it("does not skip waiting during installation; activation is explicit", async () => {
     const worker = workerHarness();
     let installation: Promise<unknown> | undefined;
