@@ -162,6 +162,21 @@ describe("OwnerEnrollmentsManager", () => {
     expect(mocks.refresh).toHaveBeenCalledTimes(1);
   });
 
+  it("muestra la lista antes del resumen para priorizar la tarea", () => {
+    render(<OwnerEnrollmentsManager bundle={bundle()} selectedStatus="all" />);
+
+    const list = screen.getByRole("region", {
+      name: "Inscripciones de la academia",
+    });
+    const summary = screen.getByRole("region", {
+      name: "Resumen de inscripciones",
+    });
+
+    expect(
+      list.compareDocumentPosition(summary) & Node.DOCUMENT_POSITION_FOLLOWING
+    ).toBeTruthy();
+  });
+
   it("pausa una inscripción con su versión y fecha local", async () => {
     render(
       <OwnerEnrollmentsManager

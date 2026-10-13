@@ -427,6 +427,25 @@ export function OwnerEnrollmentsManager({
           />
         )}
 
+        <OwnerEnrollmentList
+          bundle={bundle}
+          selectedStatus={selectedStatus}
+          previewMode={previewMode}
+          createOpen={createOpen}
+          busyId={busyId}
+          confirmingCancelId={confirmingCancelId}
+          confirmingCompleteId={confirmingCompleteId}
+          error={error}
+          notice={notice}
+          onApplyFilters={applyFilters}
+          onOpenCreate={() => setCreateOpen(true)}
+          onConfirmCancel={confirmCancel}
+          onConfirmComplete={confirmComplete}
+          onChangeStatus={(enrollment, status) =>
+            void changeStatus(enrollment, status)
+          }
+        />
+
         <section
           aria-label="Resumen de inscripciones"
           className="mt-6 grid gap-3 sm:grid-cols-3"
@@ -449,25 +468,6 @@ export function OwnerEnrollmentsManager({
             </div>
           ))}
         </section>
-
-        <OwnerEnrollmentList
-          bundle={bundle}
-          selectedStatus={selectedStatus}
-          previewMode={previewMode}
-          createOpen={createOpen}
-          busyId={busyId}
-          confirmingCancelId={confirmingCancelId}
-          confirmingCompleteId={confirmingCompleteId}
-          error={error}
-          notice={notice}
-          onApplyFilters={applyFilters}
-          onOpenCreate={() => setCreateOpen(true)}
-          onConfirmCancel={confirmCancel}
-          onConfirmComplete={confirmComplete}
-          onChangeStatus={(enrollment, status) =>
-            void changeStatus(enrollment, status)
-          }
-        />
       </div>
     </main>
   );
