@@ -88,6 +88,7 @@ export async function POST(request: Request) {
       status: result.invoice.status,
       chargeStatus: result.chargeStatus,
       collectionMode: result.collectionMode,
+      charges: result.charges,
       totalAmountCents: result.invoice.totalAmountCents,
       currency: result.invoice.currency,
       servicePeriod: parsed.data.servicePeriod,

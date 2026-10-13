@@ -495,6 +495,7 @@ async function buildMonthlyInvoiceOptions(
         .where(
           and(
             eq(invoices.organizationId, input.organizationId),
+            eq(invoices.locationId, input.locationId),
             inArray(invoices.familyId, familyIds)
           )
         )
@@ -660,9 +661,20 @@ async function loadMonthlyChargeState(
   tx: TransactionClient,
   organizationId: string,
   invoiceId: string
-): Promise<{ chargeStatus: "due"; collectionMode: "manual" }> {
+): Promise<{
+  chargeStatus: "due" | "partially_paid" | "paid" | "void" | "mixed";
+  collectionMode: "manual";
+  charges: Array<{
+    id: string;
+    status: "due" | "partially_paid" | "paid" | "void";
+  }>;
+}> {
   const rows = await tx
-    .select({ status: charges.status, collectionMode: charges.collectionMode })
+    .select({
+      id: charges.id,
+      status: charges.status,
+      collectionMode: charges.collectionMode,
+    })
     .from(charges)
     .where(
       and(
@@ -672,7 +684,7 @@ async function loadMonthlyChargeState(
     );
   if (
     rows.length === 0 ||
-    rows.some((row) => row.status !== "due" || row.collectionMode !== "manual")
+    rows.some((row) => row.collectionMode !== "manual")
   ) {
     throw new OperationalError(
       "MONTHLY_INVOICE_BLOCKED",
@@ -680,7 +692,12 @@ async function loadMonthlyChargeState(
       500
     );
   }
-  return { chargeStatus: "due", collectionMode: "manual" };
+  const statuses = [...new Set(rows.map((row) => row.status))];
+  return {
+    chargeStatus: statuses.length === 1 ? statuses[0] : "mixed",
+    collectionMode: "manual",
+    charges: rows.map(({ id, status }) => ({ id, status })),
+  };
 }
 
 export async function issueMonthlyInvoice(
@@ -689,8 +706,12 @@ export async function issueMonthlyInvoice(
   invoice: Invoice;
   replayed: boolean;
   lines: Awaited<ReturnType<typeof loadIssuedLines>>;
-  chargeStatus: "due";
+  chargeStatus: "due" | "partially_paid" | "paid" | "void" | "mixed";
   collectionMode: "manual";
+  charges: Array<{
+    id: string;
+    status: "due" | "partially_paid" | "paid" | "void";
+  }>;
 }> {
   const input = {
     ...command,
