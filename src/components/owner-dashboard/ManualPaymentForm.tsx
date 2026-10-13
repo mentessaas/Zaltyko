@@ -221,27 +221,35 @@ export function ManualPaymentForm({
             </span>
             <span className="relative">
               <input
-                type="number"
+                type="text"
                 inputMode="decimal"
-                min="0.01"
-                max={(selectedCharge.outstandingCents / 100).toFixed(2)}
-                step="0.01"
+                pattern="[0-9]+([.,][0-9]{1,2})?"
                 value={amount}
                 onChange={(event) => setAmount(event.target.value)}
                 disabled={formLocked}
                 required
+                aria-invalid={
+                  amount.trim().length > 0 &&
+                  (!amountCents ||
+                    amountCents > selectedCharge.outstandingCents)
+                }
+                aria-describedby="manual-payment-amount-help"
                 className="min-h-12 w-full rounded-xl border border-slate-300 px-3 pr-16 text-base text-slate-950 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-teal-800 disabled:bg-slate-100"
               />
               <span className="pointer-events-none absolute right-3 top-1/2 -translate-y-1/2 text-sm font-semibold text-slate-500">
                 {selectedCharge.currency}
               </span>
             </span>
-            <span className="text-xs text-slate-600">
+            <span
+              id="manual-payment-amount-help"
+              className="text-xs text-slate-600"
+            >
               Pendiente:{" "}
               {formatMoney(
                 selectedCharge.outstandingCents,
                 selectedCharge.currency
-              )}
+              )}{" "}
+              · Usa coma o punto decimal.
             </span>
           </label>
 

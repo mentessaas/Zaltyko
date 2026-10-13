@@ -117,4 +117,36 @@ describe("registro manual de pagos en el dashboard owner", () => {
     });
     expect(mockRefresh).toHaveBeenCalledOnce();
   });
+
+  it("admite coma decimal al registrar un pago parcial", async () => {
+    const user = userEvent.setup();
+    mockFetch.mockResolvedValueOnce({ ok: true, status: 201 });
+
+    render(
+      <ManualPaymentForm
+        organizationId={organizationId}
+        charges={[charge]}
+        canManageFamilyCollectionPreferences={false}
+      />
+    );
+
+    const amount = screen.getByLabelText(/Importe recibido/);
+    expect(amount).toHaveAttribute("inputmode", "decimal");
+    expect(screen.getByText(/Usa coma o punto decimal/)).toBeVisible();
+    await user.clear(amount);
+    await user.type(amount, "12,50");
+
+    const saveButton = screen.getByRole("button", {
+      name: "Guardar pago recibido",
+    });
+    await waitFor(() => expect(saveButton).toBeEnabled());
+    await user.click(saveButton);
+
+    await waitFor(() => expect(mockFetch).toHaveBeenCalledOnce());
+    const request = mockFetch.mock.calls[0]?.[1] as RequestInit;
+    expect(JSON.parse(String(request.body))).toMatchObject({
+      amountCents: 1250,
+      chargeId: charge.chargeId,
+    });
+  });
 });
