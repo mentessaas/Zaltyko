@@ -18,12 +18,13 @@ Las pantallas Owner greenfield existentes permiten configurar la organización
 y sede, crear grupos y fichas mínimas, programar clases recurrentes, registrar
 inscripciones pendientes, conciliar pagos manuales recibidos y pasar lista por
 sesión con la API Owner greenfield integrada localmente en la rama candidata
-`codex/zaltyko-plan-implementation` (HEAD `93826c35`). `/api/attendance` es
+`codex/zaltyko-plan-implementation` (HEAD `cd39ab7d`). `/api/attendance` es
 legacy y no se debe reutilizar. La UI tiene pruebas focales con mocks; la ruta
 y el harness PostgreSQL pasan, pero el E2E autenticado del navegador aún no
 está verificado. Además, desde una academia vacía no se puede crear la factura/
 cuota que necesita la pantalla de pago manual; DEMO-READY = NO hasta cerrar ese
-P0. La rama no se ha publicado ni desplegado. El detalle está en
+P0. La rama está publicada en la PR #226, todavía en borrador; no se ha
+fusionado ni desplegado a producción. El detalle está en
 [`OWNER-MVP-FRONTEND-CONTRACT-GAPS.md`](../../docs/OWNER-MVP-FRONTEND-CONTRACT-GAPS.md).
 
 La prueba focal nueva cubre el reintento idempotente del alta de academia.

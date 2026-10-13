@@ -11618,7 +11618,8 @@ Modelo separado, reclamación manual, administración, importación revisada, fi
   y `git diff --check` PASS; API de asistencia 9/9 tests de ruta y harness
   PostgreSQL de operaciones PASS. E2E autenticado del navegador NO VERIFICADO
   por falta de referencia sandbox local. Integrado en `codex/zaltyko-plan-implementation`
-  (HEAD `93826c35`); no push, merge a `main`, migración remota ni despliegue.
+  (HEAD `cd39ab7d`), publicado en PR #226 en borrador; no merge a `main`,
+  migración remota ni despliegue.
 - **Bloqueo adicional para DEMO-READY:** la pantalla de pago solo registra
   recibos contra un cargo abierto. No existe acción Owner greenfield para
   emitir la cuota/factura/cargo desde la academia vacía; `issueInvoice()` no

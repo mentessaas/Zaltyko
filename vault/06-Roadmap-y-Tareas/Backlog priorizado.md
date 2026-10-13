@@ -28,8 +28,8 @@ source:
 - Validación local: test de navegación 4/4, TypeScript y ESLint focal PASS;
   Playwright recoge 33 pruebas configuradas en tres navegadores (solo
   enumeradas, no ejecutadas). La nueva suite autenticada aún debe pasar en CI.
-- Siguiente acción: publicar el corte en PR #226, esperar CI y revisar el E2E
-  Owner, scopes de sede/rol, advisor/RLS y deployment Preview. Si aparece drift,
+- Siguiente acción: esperar el CI del PR #226 y revisar el E2E Owner, scopes de
+  sede/rol, advisor/RLS y deployment Preview. Si aparece drift,
   una fila de ledger desconocida o una tabla sin RLS, detener y revisar. No
   aplicar más migraciones desde este paso; no tocar Producción ni Stripe Live.
 
@@ -64,7 +64,8 @@ source:
   guardado/vacío/loading/error y reintento idempotente. Tests UI usan mocks
   rotulados del contrato; tests de ruta y harness PostgreSQL pasan. E2E
   autenticado pendiente. Cambios unidos en la rama local candidata
-  `codex/zaltyko-plan-implementation` (HEAD `93826c35`), aún sin publicar.
+  `codex/zaltyko-plan-implementation` (HEAD `cd39ab7d`), publicada en PR #226
+  en borrador; no fusionada ni desplegada a producción.
 - Ver [`OWNER-MVP-FRONTEND-CONTRACT-GAPS.md`](../../docs/OWNER-MVP-FRONTEND-CONTRACT-GAPS.md).
 
 ## P2 — Aislar el catálogo sintético de los previews compartibles — 2026-10-13

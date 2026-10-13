@@ -15,7 +15,7 @@ source:
 | Evidencia | El servicio transaccional `recordAttendance()` ya escribía `zaltyko.attendance_records`, pero el endpoint disponible operaba sobre tablas legacy `public` y no podía leer el roster de sesiones e inscripciones greenfield. |
 | Decisión | Añadir `GET/POST /api/v1/owner/sessions/{sessionId}/attendance`. GET devuelve solo `enrollmentId`, `athleteName` y `attendanceStatus` para inscripciones activas/de prueba vigentes. POST recibe organización, sede, inscripción y estado más `Idempotency-Key`; el actor se deriva de la sesión autenticada. Coaches requieren asignación a la sesión. |
 | Consecuencia | El servicio existente conserva idempotencia, autorización transaccional, auditoría y outbox. El GET limita lectura a la sesión, sede y organización autorizadas. No se reutiliza la ruta legacy ni se añade migración. |
-| Estado | Implementado y unido localmente en `codex/zaltyko-plan-implementation` (HEAD `93826c35`); tests de ruta y harness PostgreSQL efímero PASS. E2E autenticado, push, merge de PR, migración remota y despliegue pendientes. |
+| Estado | Implementado y unido en `codex/zaltyko-plan-implementation` (HEAD `cd39ab7d`), publicado en PR #226 en borrador; tests de ruta y harness PostgreSQL efímero PASS. E2E autenticado, merge de PR, migración remota y despliegue pendientes. |
 
 ## 2026-10-13 — Navegación Owner en el layout común y E2E greenfield como gate
 

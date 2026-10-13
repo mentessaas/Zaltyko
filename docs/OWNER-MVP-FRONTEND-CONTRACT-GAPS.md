@@ -4,7 +4,8 @@ Revisión local del checkout `codex/mvp-owner-frontend-20261013`, sobre
 `23ee94ba76d441cba7a3a0721173cd335c8755c3`. Describe código disponible en esta
 rama como frente aislado; no demuestra despliegue ni estado de producción. La
 integración local de backend y frontend quedó en `codex/zaltyko-plan-implementation`
-en `93826c35`; no se ha publicado.
+en `cd39ab7d` y se publicó en la PR #226, que sigue en borrador; no se ha
+fusionado ni desplegado a producción.
 
 ## Pantallas con contrato greenfield disponible
 
