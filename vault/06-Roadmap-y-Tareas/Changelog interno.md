@@ -11311,5 +11311,8 @@ Modelo separado, reclamación manual, administración, importación revisada, fi
   `FamilyPaymentMethodCard.tsx:67`. `pnpm build` falló con `ENOSPC` al escribir
   `.next` (5,2 GB; quedaban 129 MB). No había otro `next dev/build` activo; la
   salida está ignorada por Git y se conserva porque el entorno rechazó el
-  borrado directo. El Preview remoto es el siguiente verificador del build.
+  borrado directo. Vercel construyó el mismo SHA y el Preview quedó `READY` en
+  `https://zaltyko-q1jk0s54p-mentessaas-projects.vercel.app` (deployment
+  `dpl_8zmG13n9Zob3UB2BZuaGZ7PdDL8s`, target Preview). Esto valida el build
+  remoto, no el flujo familiar autenticado.
   Sin cambios en Stripe, migraciones, base de datos ni producción.
