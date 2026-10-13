@@ -11202,3 +11202,8 @@ Modelo separado, reclamación manual, administración, importación revisada, fi
   Auth, navegador, Supabase ni runtime serverless.
 - Falta walkthrough autenticado, VoiceOver/teclado humano, coste/lag writer y
   medición en plataforma objetivo. Sin migraciones remotas ni despliegue.
+- La guía de uso del drag se localizó en español: espacio inicia/suelta,
+  flechas cambian posición, Escape cancela; los anuncios informan módulo y
+  posición. Botones subir/bajar y reset siguen disponibles con área táctil de
+  44 px. Prueba real de controles/labels/instrucciones **4/4**, typecheck y
+  ESLint focal PASS; VoiceOver humano y E2E de navegador siguen pendientes.

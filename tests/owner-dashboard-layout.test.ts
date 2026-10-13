@@ -58,5 +58,7 @@ describe("owner dashboard module layout", () => {
     expect(source).toContain("Bajar ${title}");
     expect(source).toContain("Restablecer orden");
     expect(source).toContain("/api/v1/owner/dashboard-layout");
+    expect(source).toContain("También puedes usar los botones Subir y Bajar.");
+    expect(source).toContain("seleccionado. Posición");
   });
 });

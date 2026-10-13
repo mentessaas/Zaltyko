@@ -255,6 +255,39 @@ export function DashboardModuleLayout({
         sensors={sensors}
         collisionDetection={closestCenter}
         onDragEnd={handleDragEnd}
+        accessibility={{
+          screenReaderInstructions: {
+            draggable:
+              "Para mover un módulo, pulsa espacio. Usa las flechas para cambiar su posición; pulsa espacio para soltar o Escape para cancelar. También puedes usar los botones Subir y Bajar.",
+          },
+          announcements: {
+            onDragStart({ active }) {
+              const id = active.id as OwnerDashboardModule;
+              const title = moduleById.get(id)?.title ?? "Módulo";
+              const index = order.indexOf(id);
+              return `${title} seleccionado. Posición ${index + 1} de ${order.length}.`;
+            },
+            onDragOver({ active, over }) {
+              if (!over) return "";
+              const id = active.id as OwnerDashboardModule;
+              const title = moduleById.get(id)?.title ?? "Módulo";
+              const index = order.indexOf(over.id as OwnerDashboardModule);
+              return `${title} sobre ${moduleById.get(over.id as OwnerDashboardModule)?.title ?? "otro módulo"}. Posición ${index + 1} de ${order.length}.`;
+            },
+            onDragEnd({ active, over }) {
+              if (!over) return "No se cambió el orden.";
+              const id = active.id as OwnerDashboardModule;
+              const title = moduleById.get(id)?.title ?? "Módulo";
+              const index = order.indexOf(over.id as OwnerDashboardModule);
+              return `${title} movido a la posición ${index + 1} de ${order.length}.`;
+            },
+            onDragCancel({ active }) {
+              const id = active.id as OwnerDashboardModule;
+              const title = moduleById.get(id)?.title ?? "Módulo";
+              return `Movimiento de ${title} cancelado.`;
+            },
+          },
+        }}
       >
         <SortableContext
           items={order}
