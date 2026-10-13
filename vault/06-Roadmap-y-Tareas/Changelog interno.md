@@ -15,7 +15,7 @@ source:
 - Las rutas verifican sesión y scope canónico, limitan lecturas por tenant,
   usan claves idempotentes y no copian nombres al outbox/auditoría. No se
   conectó la ruta legacy ni se añadieron fixtures personales.
-- Vitest focal (9 tests), `gate:auth`, `pnpm typecheck`, `pnpm lint` y el
+- Vitest focal (10 tests), `gate:auth`, `pnpm typecheck`, `pnpm lint` y el
   harness PostgreSQL efímero pasan. El harness incorpora la migración de moneda
   faltante que necesita `resolveOwnerScope`.
 - Quedan alta canónica de personas, E2E autenticado, pgTAP, lector de pantalla,

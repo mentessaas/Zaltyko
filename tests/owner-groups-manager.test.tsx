@@ -62,12 +62,14 @@ beforeEach(() => {
   mockPush.mockReset();
   mockRefresh.mockReset();
   mockFetch.mockReset();
+  window.sessionStorage.clear();
   vi.stubGlobal("fetch", mockFetch);
   vi.stubGlobal("crypto", { randomUUID: () => "synthetic-group-command" });
 });
 
 afterEach(() => {
   cleanup();
+  window.sessionStorage.clear();
   vi.unstubAllGlobals();
 });
 
@@ -118,6 +120,59 @@ describe("gestión de grupos owner", () => {
     expect(mockPush).toHaveBeenCalledWith(
       `/owner/groups?organizationId=${organizationId}&locationId=${locationId}&groupId=${groupId}`
     );
+  });
+
+  it("reutiliza la clave tras volver a abrir la página después de un resultado incierto", async () => {
+    const randomUUID = vi
+      .fn()
+      .mockReturnValueOnce("first-group-command")
+      .mockReturnValueOnce("new-group-command");
+    vi.stubGlobal("crypto", { randomUUID });
+    mockFetch
+      .mockResolvedValueOnce({
+        ok: false,
+        status: 503,
+        json: async () => ({ detail: "No se pudo confirmar el resultado." }),
+      })
+      .mockResolvedValueOnce({
+        ok: true,
+        status: 201,
+        json: async () => ({ ok: true, data: { id: groupId } }),
+      });
+
+    const firstUser = userEvent.setup();
+    const firstPage = render(<OwnerGroupsManager bundle={emptyBundle} />);
+    await firstUser.type(
+      screen.getByLabelText("Nombre del grupo"),
+      "Iniciación"
+    );
+    await firstUser.click(
+      screen.getByRole("button", { name: "Guardar grupo" })
+    );
+    expect(await screen.findByRole("alert")).toHaveTextContent(
+      "No se pudo confirmar el resultado."
+    );
+    firstPage.unmount();
+
+    const secondUser = userEvent.setup();
+    render(<OwnerGroupsManager bundle={emptyBundle} />);
+    await secondUser.type(
+      screen.getByLabelText("Nombre del grupo"),
+      "Iniciación"
+    );
+    await secondUser.click(
+      screen.getByRole("button", { name: "Guardar grupo" })
+    );
+    await waitFor(() => expect(mockFetch).toHaveBeenCalledTimes(2));
+
+    const first = mockFetch.mock.calls[0]?.[1] as RequestInit;
+    const retry = mockFetch.mock.calls[1]?.[1] as RequestInit;
+    expect(first.headers).toMatchObject({
+      "idempotency-key": "first-group-command",
+    });
+    expect(retry.headers).toEqual(first.headers);
+    expect(retry.body).toBe(first.body);
+    expect(randomUUID).toHaveBeenCalledOnce();
   });
 
   it("busca solo fichas disponibles y conserva la clave al reintentar el alta", async () => {

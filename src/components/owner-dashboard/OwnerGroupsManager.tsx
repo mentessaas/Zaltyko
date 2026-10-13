@@ -85,6 +85,14 @@ export function OwnerGroupsManager({ bundle }: { bundle: GroupsBundle }) {
     }
   }
 
+  function invalidateCreateKeyForEditedCommand() {
+    // A key stored by a previous page instance may represent a committed
+    // request whose response was lost; preserve it until the server resolves
+    // that retry. An in-memory key belongs to this form instance and can be
+    // cleared as soon as the command changes.
+    if (createKeyRef.current) clearCreateKey();
+  }
+
   function getCreateKey() {
     if (createKeyRef.current) return createKeyRef.current;
     try {
@@ -378,7 +386,7 @@ export function OwnerGroupsManager({ bundle }: { bundle: GroupsBundle }) {
                     value={groupName}
                     disabled={busy}
                     onChange={(event) => {
-                      clearCreateKey();
+                      invalidateCreateKeyForEditedCommand();
                       setGroupName(event.target.value);
                     }}
                     maxLength={120}
@@ -392,7 +400,7 @@ export function OwnerGroupsManager({ bundle }: { bundle: GroupsBundle }) {
                     value={programId}
                     disabled={busy}
                     onChange={(event) => {
-                      clearCreateKey();
+                      invalidateCreateKeyForEditedCommand();
                       setProgramId(event.target.value);
                     }}
                     required
@@ -411,7 +419,7 @@ export function OwnerGroupsManager({ bundle }: { bundle: GroupsBundle }) {
                     value={locationId}
                     disabled={busy}
                     onChange={(event) => {
-                      clearCreateKey();
+                      invalidateCreateKeyForEditedCommand();
                       setLocationId(event.target.value);
                     }}
                     required
@@ -435,7 +443,7 @@ export function OwnerGroupsManager({ bundle }: { bundle: GroupsBundle }) {
                     inputMode="numeric"
                     value={capacity}
                     onChange={(event) => {
-                      clearCreateKey();
+                      invalidateCreateKeyForEditedCommand();
                       setCapacity(event.target.value);
                     }}
                   />
