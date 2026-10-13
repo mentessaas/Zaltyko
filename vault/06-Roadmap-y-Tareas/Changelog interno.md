@@ -14,6 +14,13 @@ Una prueba impide reintroducir ese contacto previo al consentimiento. Este
 cambio complementa el gate browser en preparación; no activa analítica ni
 modifica eventos operativos de servidor.
 
+Gate integrado de Frontend (`8da6710c`, integración `b9fa1a24`): carga y
+captura browser solo con consentimiento vigente, revocación y comprobación
+tras import asíncrono; autocapture/replay desactivados. 19 pruebas conjuntas
+consentimiento/PWA/controller y lint focal PASS. No hay UI que conceda
+consentimiento, por lo que analítica permanece cerrada. Follow-up abierto:
+revocar ante localStorage.clear entre pestañas y limpiar binding de pruebas.
+
 Actualización posterior: Backend+Frontend publicados en `78d7f14f`; corrección
 de recarga inicial SW publicada en `5708d130`. Diagnóstico A/B de QA demostró
 reload en primera adquisición del controller, no envío de formulario. En
