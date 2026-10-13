@@ -64,6 +64,15 @@ function formatMoney(cents: number, currency: string): string {
   }
 }
 
+function parseMonthlyAmountCents(value: string): number | null {
+  const normalized = value.trim().replace(",", ".");
+  if (!/^\d+(?:\.\d{1,2})?$/.test(normalized)) return null;
+  const cents = Math.round(Number(normalized) * 100);
+  return Number.isSafeInteger(cents) && cents > 0 && cents <= 2_147_483_647
+    ? cents
+    : null;
+}
+
 const fieldClassName =
   "min-h-11 w-full border border-slate-400 bg-white px-3 py-2 text-sm focus-visible:outline focus-visible:outline-2 focus-visible:outline-teal-800";
 const primaryButtonClassName =
@@ -75,6 +84,7 @@ export function OwnerMonthlyInvoiceResolutionPanel({
   action,
   organizationId,
   locationId,
+  defaultCurrency,
   servicePeriodStart,
   onCancel,
   onSaved,
@@ -82,6 +92,7 @@ export function OwnerMonthlyInvoiceResolutionPanel({
   action: ResolutionAction;
   organizationId: string;
   locationId: string;
+  defaultCurrency: string;
   servicePeriodStart: string;
   onCancel: () => void;
   onSaved: (kind: "tariff" | "family") => Promise<void>;
@@ -89,9 +100,14 @@ export function OwnerMonthlyInvoiceResolutionPanel({
   const [loading, setLoading] = useState(true);
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState("");
+  const [pricePlanOptionsError, setPricePlanOptionsError] = useState(false);
+  const [optionsRetry, setOptionsRetry] = useState(0);
   const [pricePlans, setPricePlans] = useState<PricePlanOption[]>([]);
   const [families, setFamilies] = useState<FamilyAssociationOption[]>([]);
   const [selectedPricePlanId, setSelectedPricePlanId] = useState("");
+  const [newPricePlanName, setNewPricePlanName] = useState("");
+  const [newPricePlanAmount, setNewPricePlanAmount] = useState("");
+  const [pricePlanNotice, setPricePlanNotice] = useState("");
   const [priceStartsOn, setPriceStartsOn] = useState(servicePeriodStart);
   const [effectiveFrom, setEffectiveFrom] = useState(servicePeriodStart);
   const [selectedFamilyId, setSelectedFamilyId] = useState(
@@ -157,6 +173,7 @@ export function OwnerMonthlyInvoiceResolutionPanel({
         }
       } catch (cause) {
         if (active) {
+          if (action.kind === "tariff") setPricePlanOptionsError(true);
           setError(
             cause instanceof Error
               ? cause.message
@@ -170,7 +187,7 @@ export function OwnerMonthlyInvoiceResolutionPanel({
     return () => {
       active = false;
     };
-  }, [action.kind, locationId, organizationId]);
+  }, [action.kind, locationId, optionsRetry, organizationId]);
 
   function requestKey(prefix: string, body: unknown): string {
     const previous = retryRequest.current;
@@ -180,6 +197,79 @@ export function OwnerMonthlyInvoiceResolutionPanel({
         : `${prefix}:${crypto.randomUUID()}`;
     retryRequest.current = { key, body };
     return key;
+  }
+
+  async function createPricePlan() {
+    if (action.kind !== "tariff") return;
+    const name = newPricePlanName.trim();
+    const amountCents = parseMonthlyAmountCents(newPricePlanAmount);
+    if (!name || name.length > 100 || amountCents === null) {
+      setError(
+        "Introduce un nombre de hasta 100 caracteres y un importe mensual válido mayor que cero."
+      );
+      return;
+    }
+    const body = {
+      organizationId,
+      locationId,
+      name,
+      amountCents,
+    };
+    const key = requestKey("owner-monthly-price-plan", body);
+    setBusy(true);
+    setError("");
+    setPricePlanNotice("");
+    try {
+      const response = await fetch("/api/v1/owner/billing/price-plans", {
+        method: "POST",
+        headers: {
+          "content-type": "application/json",
+          "Idempotency-Key": key,
+        },
+        body: JSON.stringify(body),
+      });
+      const payload = await response.json().catch(() => null);
+      const created = responseData<PricePlanOption>(payload);
+      if (!response.ok) {
+        if (response.status >= 400 && response.status < 500) {
+          retryRequest.current = null;
+        }
+        throw new Error(
+          responseMessage(payload, "No se pudo crear la tarifa mensual.")
+        );
+      }
+      if (
+        !created ||
+        typeof created.id !== "string" ||
+        typeof created.name !== "string" ||
+        typeof created.amountCents !== "number" ||
+        typeof created.currency !== "string" ||
+        created.cadence !== "monthly"
+      ) {
+        throw new Error(
+          "La respuesta de la tarifa no tiene el formato esperado."
+        );
+      }
+      retryRequest.current = null;
+      setPricePlans((current) => [
+        ...current.filter((plan) => plan.id !== created.id),
+        created,
+      ]);
+      setSelectedPricePlanId(created.id);
+      setNewPricePlanName("");
+      setNewPricePlanAmount("");
+      setPricePlanNotice(
+        "Tarifa creada. Revisa el importe y confirma aparte su asignación a la inscripción."
+      );
+    } catch (cause) {
+      setError(
+        cause instanceof Error
+          ? cause.message
+          : "No se pudo crear la tarifa mensual."
+      );
+    } finally {
+      setBusy(false);
+    }
   }
 
   async function saveTariff() {
@@ -327,40 +417,124 @@ export function OwnerMonthlyInvoiceResolutionPanel({
 
       {action.kind === "tariff" && !loading && (
         <div className="grid gap-4 sm:grid-cols-2">
-          <label className="grid gap-2">
-            <span className="text-sm font-bold">Tarifa mensual</span>
-            <select
-              value={selectedPricePlanId}
-              onChange={(event) => setSelectedPricePlanId(event.target.value)}
-              disabled={busy || pricePlans.length === 0}
-              className={fieldClassName}
-              required
-            >
-              <option value="">Selecciona una tarifa</option>
-              {pricePlans.map((plan) => (
-                <option key={plan.id} value={plan.id}>
-                  {plan.name} · {formatMoney(plan.amountCents, plan.currency)}
-                </option>
-              ))}
-            </select>
-            {pricePlans.length === 0 && !error && (
-              <span className="text-sm text-slate-600">
-                No hay tarifas disponibles para esta sede.
-              </span>
-            )}
-          </label>
-          <label className="grid gap-2">
-            <span className="text-sm font-bold">Vigente desde</span>
-            <input
-              type="date"
-              value={priceStartsOn}
-              onChange={(event) => setPriceStartsOn(event.target.value)}
-              disabled={busy}
-              required
-              className={fieldClassName}
-            />
-          </label>
+          {pricePlans.length > 0 ? (
+            <>
+              <label className="grid gap-2">
+                <span className="text-sm font-bold">Tarifa mensual</span>
+                <select
+                  value={selectedPricePlanId}
+                  onChange={(event) => {
+                    setSelectedPricePlanId(event.target.value);
+                    setPricePlanNotice("");
+                  }}
+                  disabled={busy}
+                  className={fieldClassName}
+                  required
+                >
+                  <option value="">Selecciona una tarifa</option>
+                  {pricePlans.map((plan) => (
+                    <option key={plan.id} value={plan.id}>
+                      {plan.name} ·{" "}
+                      {formatMoney(plan.amountCents, plan.currency)}
+                    </option>
+                  ))}
+                </select>
+              </label>
+              <label className="grid gap-2">
+                <span className="text-sm font-bold">Vigente desde</span>
+                <input
+                  type="date"
+                  value={priceStartsOn}
+                  onChange={(event) => setPriceStartsOn(event.target.value)}
+                  disabled={busy}
+                  required
+                  className={fieldClassName}
+                />
+              </label>
+            </>
+          ) : pricePlanOptionsError ? (
+            <div className="grid gap-3 sm:col-span-2">
+              <p className="text-sm leading-6 text-slate-600">
+                No se pudieron comprobar las tarifas de esta sede. Reintenta
+                antes de crear una nueva.
+              </p>
+              <button
+                type="button"
+                onClick={() => {
+                  setError("");
+                  setLoading(true);
+                  setPricePlanOptionsError(false);
+                  setOptionsRetry((current) => current + 1);
+                }}
+                disabled={busy || loading}
+                className={`${secondaryButtonClassName} w-fit`}
+              >
+                Reintentar cargar tarifas
+              </button>
+            </div>
+          ) : (
+            <div className="grid gap-4 sm:col-span-2">
+              <p className="text-sm leading-6 text-slate-600">
+                No hay tarifas mensuales para esta sede. Crea una para poder
+                asignarla a la inscripción.
+              </p>
+              <label className="grid gap-2">
+                <span className="text-sm font-bold">Nombre de la tarifa</span>
+                <input
+                  value={newPricePlanName}
+                  onChange={(event) => setNewPricePlanName(event.target.value)}
+                  maxLength={100}
+                  disabled={busy}
+                  required
+                  className={fieldClassName}
+                />
+              </label>
+              <div className="grid max-w-md gap-2">
+                <label
+                  htmlFor="monthly-price-plan-amount"
+                  className="text-sm font-bold"
+                >
+                  Importe mensual ({defaultCurrency})
+                </label>
+                <input
+                  id="monthly-price-plan-amount"
+                  type="text"
+                  inputMode="decimal"
+                  value={newPricePlanAmount}
+                  onChange={(event) =>
+                    setNewPricePlanAmount(event.target.value)
+                  }
+                  placeholder="35,00"
+                  disabled={busy}
+                  required
+                  aria-describedby="monthly-price-plan-amount-help"
+                  className={fieldClassName}
+                />
+                <p
+                  id="monthly-price-plan-amount-help"
+                  className="text-xs text-slate-600"
+                >
+                  Se usará {defaultCurrency}, la moneda de la academia. Puedes
+                  usar coma o punto decimal; la tarifa será mensual.
+                </p>
+              </div>
+              <button
+                type="button"
+                onClick={() => void createPricePlan()}
+                disabled={busy}
+                className={`${primaryButtonClassName} w-fit`}
+              >
+                {busy ? "Guardando…" : "Crear tarifa mensual"}
+              </button>
+            </div>
+          )}
         </div>
+      )}
+
+      {pricePlanNotice && (
+        <p role="status" aria-live="polite" className="text-sm text-teal-900">
+          {pricePlanNotice}
+        </p>
       )}
 
       {(action.kind === "family" || action.kind === "payer") && !loading && (
@@ -536,7 +710,9 @@ export function OwnerMonthlyInvoiceResolutionPanel({
           <button
             type="button"
             onClick={() => void saveTariff()}
-            disabled={busy || loading || pricePlans.length === 0}
+            disabled={
+              busy || loading || pricePlans.length === 0 || !selectedPricePlanId
+            }
             className={primaryButtonClassName}
           >
             {busy ? "Guardando…" : "Guardar tarifa"}

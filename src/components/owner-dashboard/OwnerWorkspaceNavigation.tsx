@@ -49,16 +49,16 @@ export function OwnerWorkspaceNavigation() {
       active: isRouteActive(pathname, "/owner/classes"),
     },
     {
-      label: "Asistencia",
-      href: `/owner/attendance${scopedQuery}`,
-      active: isRouteActive(pathname, "/owner/attendance"),
-    },
-    {
       label: "Inscripciones",
       href: isDashboardPreview
         ? "#retention"
         : `/owner/enrollments${scopedQuery}`,
       active: isRouteActive(pathname, "/owner/enrollments"),
+    },
+    {
+      label: "Asistencia",
+      href: `/owner/attendance${scopedQuery}`,
+      active: isRouteActive(pathname, "/owner/attendance"),
     },
     {
       label: "Insights",

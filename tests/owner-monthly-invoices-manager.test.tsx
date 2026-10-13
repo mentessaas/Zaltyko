@@ -84,6 +84,30 @@ function monthlyOptions(
   };
 }
 
+function optionsWithUnassignedTariff() {
+  const family = monthlyOptions().families[0];
+  return monthlyOptions({
+    families: [
+      {
+        ...family,
+        lines: [],
+        totalAmountCents: null,
+        currency: null,
+        blockingReasons: ["PRICE_ASSIGNMENT_REQUIRED"],
+        canIssue: false,
+        quoteHash: null,
+        enrollments: [
+          {
+            ...family.enrollments[0],
+            assignedPrice: null,
+            blockingReasons: ["PRICE_ASSIGNMENT_REQUIRED"],
+          },
+        ],
+      },
+    ],
+  });
+}
+
 function response(data: unknown, status = 200) {
   return new Response(JSON.stringify({ data }), {
     status,
@@ -93,9 +117,27 @@ function response(data: unknown, status = 200) {
 
 describe("OwnerMonthlyInvoicesManager", () => {
   let currentOptions: MonthlyInvoiceOptionsResponse;
+  let currentPricePlans: Array<{
+    id: string;
+    name: string;
+    amountCents: number;
+    currency: string;
+    cadence: string;
+  }>;
+  let failPricePlanOptionsOnce: boolean;
 
   beforeEach(() => {
     currentOptions = monthlyOptions();
+    currentPricePlans = [
+      {
+        id: "price-plan-id",
+        name: "Tarifa sintética",
+        amountCents: 2700,
+        currency: "EUR",
+        cadence: "monthly",
+      },
+    ];
+    failPricePlanOptionsOnce = false;
     vi.stubGlobal("crypto", { randomUUID: () => "synthetic-idempotency-key" });
     vi.stubGlobal(
       "fetch",
@@ -105,17 +147,31 @@ describe("OwnerMonthlyInvoicesManager", () => {
           return response(currentOptions);
         }
         if (url.includes("price-plans/options")) {
+          if (failPricePlanOptionsOnce) {
+            failPricePlanOptionsOnce = false;
+            return response({ detail: "Error temporal" }, 503);
+          }
           return response({
-            items: [
-              {
-                id: "price-plan-id",
-                name: "Tarifa sintética",
-                amountCents: 2700,
-                currency: "EUR",
-                cadence: "monthly",
-              },
-            ],
+            items: currentPricePlans,
           });
+        }
+        if (url.includes("/billing/price-plans")) {
+          const body = JSON.parse(String(init?.body)) as {
+            organizationId: string;
+            locationId: string;
+            name: string;
+            amountCents: number;
+          };
+          return response(
+            {
+              id: "created-price-plan-id",
+              name: body.name,
+              amountCents: body.amountCents,
+              currency: "EUR",
+              cadence: "monthly",
+            },
+            201
+          );
         }
         if (url.includes("families/options")) {
           return response({
@@ -174,6 +230,7 @@ describe("OwnerMonthlyInvoicesManager", () => {
       <OwnerMonthlyInvoicesManager
         organizationId={organizationId}
         organizationName="Academia sintética"
+        defaultCurrency="EUR"
         locations={[{ id: locationId, name: "Sede sintética" }]}
         initialLocationId={locationId}
         initialServicePeriod="2026-10"
@@ -243,6 +300,159 @@ describe("OwnerMonthlyInvoicesManager", () => {
     expect(await screen.findByRole("status")).toHaveTextContent(
       "Tarifa mensual asignada"
     );
+  });
+
+  it("crea una tarifa mensual desde el catálogo vacío y exige confirmar su asignación", async () => {
+    currentPricePlans = [];
+    currentOptions = optionsWithUnassignedTariff();
+    const user = userEvent.setup();
+    renderManager();
+
+    await user.selectOptions(await screen.findByLabelText("Familia"), familyId);
+    await user.click(
+      await screen.findByRole("button", {
+        name: "Asignar tarifa mensual a Gimnasta sintética",
+      })
+    );
+    await screen.findByRole("heading", {
+      name: "Asignar tarifa a Gimnasta sintética",
+    });
+    expect(
+      await screen.findByText(/No hay tarifas mensuales para esta sede/)
+    ).toBeInTheDocument();
+
+    await user.type(screen.getByLabelText("Nombre de la tarifa"), "Cuota base");
+    await user.type(screen.getByLabelText("Importe mensual (EUR)"), "32,50");
+    await user.click(
+      screen.getByRole("button", { name: "Crear tarifa mensual" })
+    );
+
+    const createCall = await waitFor(() => {
+      const call = vi
+        .mocked(fetch)
+        .mock.calls.find((entry) =>
+          String(entry[0]).includes("/billing/price-plans")
+        );
+      expect(call).toBeDefined();
+      return call!;
+    });
+    expect(createCall[1]?.method).toBe("POST");
+    expect(createCall[1]?.headers).toMatchObject({
+      "Idempotency-Key": "owner-monthly-price-plan:synthetic-idempotency-key",
+    });
+    expect(JSON.parse(String(createCall[1]?.body))).toEqual({
+      organizationId,
+      locationId,
+      name: "Cuota base",
+      amountCents: 3250,
+    });
+    expect(await screen.findByRole("status")).toHaveTextContent(
+      /confirma aparte su asignación/
+    );
+    expect(screen.getByLabelText("Tarifa mensual")).toHaveValue(
+      "created-price-plan-id"
+    );
+    expect(
+      screen.getByRole("button", { name: "Guardar tarifa" })
+    ).toBeEnabled();
+    expect(
+      vi
+        .mocked(fetch)
+        .mock.calls.some((entry) =>
+          String(entry[0]).includes(`/enrollments/${enrollmentId}/price-plan`)
+        )
+    ).toBe(false);
+
+    await user.click(screen.getByRole("button", { name: "Guardar tarifa" }));
+    await waitFor(() =>
+      expect(
+        vi
+          .mocked(fetch)
+          .mock.calls.some((entry) =>
+            String(entry[0]).includes(`/enrollments/${enrollmentId}/price-plan`)
+          )
+      ).toBe(true)
+    );
+  });
+
+  it("distingue el error de carga de un catálogo vacío y permite reintentar", async () => {
+    failPricePlanOptionsOnce = true;
+    currentPricePlans = [];
+    currentOptions = optionsWithUnassignedTariff();
+    const user = userEvent.setup();
+    renderManager();
+
+    await user.selectOptions(await screen.findByLabelText("Familia"), familyId);
+    await user.click(
+      await screen.findByRole("button", {
+        name: "Asignar tarifa mensual a Gimnasta sintética",
+      })
+    );
+
+    expect(await screen.findByRole("alert")).toHaveTextContent(
+      "No se pudieron cargar las tarifas disponibles"
+    );
+    const retry = await screen.findByRole("button", {
+      name: "Reintentar cargar tarifas",
+    });
+    expect(
+      screen.queryByRole("button", { name: "Crear tarifa mensual" })
+    ).not.toBeInTheDocument();
+
+    await user.click(retry);
+    expect(
+      await screen.findByRole("button", { name: "Crear tarifa mensual" })
+    ).toBeEnabled();
+  });
+
+  it("rechaza importes fuera del límite PostgreSQL y nombres de más de 100 caracteres", async () => {
+    currentPricePlans = [];
+    currentOptions = optionsWithUnassignedTariff();
+    const user = userEvent.setup();
+    renderManager();
+
+    await user.selectOptions(await screen.findByLabelText("Familia"), familyId);
+    await user.click(
+      await screen.findByRole("button", {
+        name: "Asignar tarifa mensual a Gimnasta sintética",
+      })
+    );
+    const nameInput = await screen.findByLabelText("Nombre de la tarifa");
+    const amountInput = screen.getByLabelText("Importe mensual (EUR)");
+    expect(nameInput).toHaveAttribute("maxLength", "100");
+
+    await user.type(nameInput, "Cuota base");
+    await user.type(amountInput, "21474836,48");
+    await user.click(
+      screen.getByRole("button", { name: "Crear tarifa mensual" })
+    );
+    expect(await screen.findByRole("alert")).toHaveTextContent(
+      /importe mensual válido/
+    );
+    expect(
+      vi
+        .mocked(fetch)
+        .mock.calls.some((entry) =>
+          String(entry[0]).includes("/billing/price-plans")
+        )
+    ).toBe(false);
+
+    await user.clear(amountInput);
+    await user.type(amountInput, "12,00");
+    fireEvent.change(nameInput, { target: { value: "a".repeat(101) } });
+    await user.click(
+      screen.getByRole("button", { name: "Crear tarifa mensual" })
+    );
+    expect(await screen.findByRole("alert")).toHaveTextContent(
+      /nombre de hasta 100 caracteres/
+    );
+    expect(
+      vi
+        .mocked(fetch)
+        .mock.calls.some((entry) =>
+          String(entry[0]).includes("/billing/price-plans")
+        )
+    ).toBe(false);
   });
 
   it("crea una familia y vincula explícitamente una persona adulta pagadora", async () => {

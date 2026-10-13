@@ -99,13 +99,19 @@ describe("Owner dashboard navigation", () => {
       "Resumen",
       "Grupos",
       "Clases",
-      "Asistencia",
       "Inscripciones",
+      "Asistencia",
     ]) {
       expect(
         within(mobileNavigation).getByRole("link", { name: label })
       ).toBeInTheDocument();
     }
+    expect(
+      within(mobileNavigation)
+        .getAllByRole("link")
+        .slice(0, 5)
+        .map((link) => link.textContent?.trim())
+    ).toEqual(["Resumen", "Grupos", "Clases", "Inscripciones", "Asistencia"]);
 
     fireEvent.click(within(mobileNavigation).getByText("Más"));
     expect(
