@@ -8,6 +8,16 @@ source:
 
 # Decisiones
 
+## 2026-10-14 — Alta Owner independiente del perfil legacy
+
+ADR-0027 elimina la dependencia estructural de `public.profiles` en alta Owner:
+identidad Auth verificada y membresía canónica son la autoridad. Consentimiento
+contractual canónico se vincula a auth.users, con RLS/grants y auditoría atómica
+append-only; no concede roles ni habilita tracking/cobros. No se reconstruye el
+modelo legacy ni se importan consentimientos para pasar QA. La aceptación
+visible se verifica desde signup real sobre stack limpio. Implementación y SQL
+remotos pendientes; ver [ADR-0027](../../docs/architecture/adr/0027-alta-owner-y-consentimiento-sin-perfil-legacy.md).
+
 ## 2026-10-14 — Cuota mensual y base única de integración MVP
 
 La regla aprobada por el propietario es mensual por gimnasta y tarifa. ADR-0026

@@ -9,6 +9,14 @@ source:
 
 ## 2026-10-14 — Mensualidades publicadas y siguiente bloque paralelo
 
+Integrado gate Backend `0dd4b4f9`: 43 tests consentimiento + 3 guard harness PASS;
+Tech Lead repitió PostgreSQL local real: grant concurrente único, no regrant
+revocado, rollback audit y perfil ausente rechazado. Typecheck y lint PASS.
+Signup real QA detecta dependencia legacy de perfil: 500, sin SQLSTATE capturado.
+Allowlist limpia no crea public.profiles ni consentimiento legacy. ADR-0027
+documenta decisión de desvincular alta Owner de ese perfil y mantener identidad
+Auth+membership como autoridad. Nuevo bloque canónico aún no implementado; no GO.
+
 Integrado Frontend `a3f32864`: recovery explícito de perfil en login activo,
 con sesión verificada antes de POST self-service owner, respuesta de rol
 confirmada, errores en español y sin repetir signup. Sesión existente puede
