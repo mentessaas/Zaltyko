@@ -13,10 +13,10 @@ demostrable, no la finalización del producto.
 Último corte publicado: `dec076e1` (14-10-2026). Incluye el gate contractual
 legacy y ADR-0027; no incluye todavía su sustitución canónica. Integración local
 posterior: `09046f51`, alta Owner y recuperación sin POST al perfil legacy.
-Las dos suites de recuperación/registro ejecutadas en esa integración pasan
-14 pruebas; la ruta de test de roles indicada en ese comando no se encontró,
-por lo que ese resultado no prueba la suite de roles. No hay E2E completo ni
-despliegue productivo demostrado para este corte.
+La primera ejecución de dos suites pasó 14 pruebas; tras corregir el nombre de
+la suite de roles se ejecutaron cinco suites (ruta/recovery Login, recuperación
+Register, roles públicos y enlace de recuperación): **39/39 PASS**. No hay E2E
+completo ni despliegue productivo demostrado para este corte.
 
 Bloque en curso: servicio, esquema y consentimiento canónicos de ADR-0027,
 aceptación explícita de cuentas existentes en Setup y walkthrough sintético
