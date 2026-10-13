@@ -116,6 +116,24 @@ describe("OwnerEnrollmentsManager", () => {
                 { status: 200, headers: { "content-type": "application/json" } }
               );
             }
+            if (String(_input).includes("/owner/price-plans/options")) {
+              return new Response(
+                JSON.stringify({
+                  data: {
+                    items: [
+                      {
+                        id: "synthetic-price-plan",
+                        name: "Tarifa mensual sintética",
+                        amountCents: 2700,
+                        currency: "EUR",
+                        cadence: "monthly",
+                      },
+                    ],
+                  },
+                }),
+                { status: 200, headers: { "content-type": "application/json" } }
+              );
+            }
             return new Response(
               JSON.stringify({
                 data: { items: [{ id: athleteId, name: "Luz Sintética" }] },
@@ -144,7 +162,7 @@ describe("OwnerEnrollmentsManager", () => {
     fireEvent.click(candidate);
 
     fireEvent.submit(screen.getByRole("form", { name: "Crear inscripción" }));
-    await waitFor(() => expect(fetch).toHaveBeenCalledTimes(2));
+    await waitFor(() => expect(fetch).toHaveBeenCalledTimes(3));
     const createCall = vi
       .mocked(fetch)
       .mock.calls.find(([, init]) => init?.method === "POST");
@@ -155,6 +173,7 @@ describe("OwnerEnrollmentsManager", () => {
       athleteId,
       classTemplateId,
       startsOn: "2026-10-13",
+      pricePlanId: "synthetic-price-plan",
     });
     expect(await screen.findByRole("status")).toHaveTextContent(
       "Inscripción pendiente registrada. No se ha generado ningún cobro."

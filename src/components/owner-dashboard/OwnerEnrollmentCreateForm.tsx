@@ -4,11 +4,27 @@ import Link from "next/link";
 import { Check, Search } from "lucide-react";
 import type { FormEventHandler } from "react";
 
-import {
-  fieldClassName,
-  primaryButtonClassName,
-} from "./owner-enrollment-ui";
+import { fieldClassName, primaryButtonClassName } from "./owner-enrollment-ui";
 import type { Candidate, EnrollmentBundle } from "./owner-enrollment-types";
+
+type PricePlanOption = {
+  id: string;
+  name: string;
+  amountCents: number;
+  currency: string;
+  cadence: string;
+};
+
+function formatMoney(cents: number, currency: string): string {
+  try {
+    return new Intl.NumberFormat("es-ES", {
+      style: "currency",
+      currency,
+    }).format(cents / 100);
+  } catch {
+    return `${(cents / 100).toFixed(2)} ${currency}`;
+  }
+}
 
 type Props = {
   organizationId: string;
@@ -26,6 +42,10 @@ type Props = {
   candidateError: string;
   candidateNotice: string;
   startsOn: string;
+  pricePlans: PricePlanOption[];
+  pricePlansLoading: boolean;
+  pricePlansError: string;
+  pricePlanId: string;
   createToday: string;
   busyCreate: boolean;
   previewMode: boolean;
@@ -35,6 +55,7 @@ type Props = {
   onCandidateSelect: (candidate: Candidate) => void;
   onCandidateClear: () => void;
   onStartsOnChange: (date: string) => void;
+  onPricePlanChange: (pricePlanId: string) => void;
   onSubmit: FormEventHandler<HTMLFormElement>;
 };
 
@@ -54,6 +75,10 @@ export function OwnerEnrollmentCreateForm({
   candidateError,
   candidateNotice,
   startsOn,
+  pricePlans,
+  pricePlansLoading,
+  pricePlansError,
+  pricePlanId,
   createToday,
   busyCreate,
   previewMode,
@@ -63,6 +88,7 @@ export function OwnerEnrollmentCreateForm({
   onCandidateSelect,
   onCandidateClear,
   onStartsOnChange,
+  onPricePlanChange,
   onSubmit,
 }: Props) {
   return (
@@ -276,6 +302,55 @@ export function OwnerEnrollmentCreateForm({
               disabled={busyCreate || previewMode}
               required
             />
+          </div>
+
+          <div>
+            <label
+              htmlFor="enrollment-price-plan"
+              className="mb-1 block text-sm font-semibold"
+            >
+              Tarifa mensual
+            </label>
+            <select
+              id="enrollment-price-plan"
+              className={fieldClassName}
+              value={pricePlanId}
+              onChange={(event) => onPricePlanChange(event.currentTarget.value)}
+              disabled={busyCreate || previewMode || pricePlansLoading}
+              aria-describedby="enrollment-price-plan-help"
+            >
+              <option value="">Sin tarifa asignada</option>
+              {pricePlans.map((plan) => (
+                <option key={plan.id} value={plan.id}>
+                  {plan.name} · {formatMoney(plan.amountCents, plan.currency)}
+                </option>
+              ))}
+            </select>
+            <p
+              id="enrollment-price-plan-help"
+              className="mt-1 text-xs leading-5 text-slate-600"
+            >
+              El importe viene de la tarifa. Si queda sin asignar, no se podrá
+              incluir en una factura hasta resolverlo.
+            </p>
+            {pricePlansLoading && (
+              <p role="status" className="mt-1 text-sm text-slate-700">
+                Cargando tarifas…
+              </p>
+            )}
+            {pricePlansError && (
+              <p role="alert" className="mt-1 text-sm text-red-800">
+                {pricePlansError}
+              </p>
+            )}
+            {!pricePlansLoading &&
+              !pricePlansError &&
+              pricePlans.length === 0 &&
+              !previewMode && (
+                <p className="mt-1 text-sm text-slate-700">
+                  No hay tarifas mensuales disponibles para esta sede.
+                </p>
+              )}
           </div>
 
           <div className="flex items-end">
