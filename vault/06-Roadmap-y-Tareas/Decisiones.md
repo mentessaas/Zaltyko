@@ -8,7 +8,43 @@ source:
 
 # Decisiones
 
-## 2026-10-06 — Proyección mensual agregada de cohortes para el Owner Dashboard
+## 2026-10-13 — Perfiles deportivos y actividades complementarias
+
+| Campo | Valor |
+| --- | --- |
+| Evidencia | El modelo greenfield trataba la disciplina como texto de programa y el onboarding pedía moneda/código de sede. No distinguía especialidad principal, segunda disciplina ni actividades complementarias; tampoco había perfiles versionados por país/federación en el nuevo esquema. |
+| Decisión | Aceptar ADR-0018: `sport_profiles` versionados por país/federación; relación M:N `organization_sports`; programas clasificados como deporte o actividad complementaria. `identity_only` no contiene reglas. El alta deriva defaults para España y falla cerrado para mercados no revisados. |
+| Consecuencia | El esquema se modifica desde cero sin conservar contratos internos legacy. La migration falla si encuentra programas en la base greenfield para impedir pérdida silenciosa. No se muestran reglas deportivas no verificadas. |
+| Estado | Implementado en rama local y probado con PostgreSQL efímero. Sin migration remota, despliegue ni cambios de producción. Referencias: [ADR-0018](../../docs/architecture/adr/0018-perfiles-deportivos-y-programas-complementarios.md) y [plan maestro](../../docs/plans/2026-10-13-full-saas-implementation-plan.md). |
+
+## 2026-10-13 — Proyección de cohortes como única lectura del dashboard
+
+| Campo | Valor |
+| --- | --- |
+| Evidencia | El cálculo operacional directo excedía el presupuesto AC-12. La migración local ya define generations/projections sin PII, RLS forzado y grants solo de servicio. La reejecución a 5.000 atletas/2 M asistencias/20 identidades da 362,8 ms p95 para cohortes y 654,3 ms para la vista compuesta, en PostgreSQL 14.20 local. |
+| Decisión | Escribir una proyección reconstruible de forma transaccional e idempotente por metric run y ámbito org/sede; leer solo la última generación exitosa, conservar filtros y exponer estado unavailable/updating sin fallback lento. Datos de entrada: enrollment e historial canónicos. |
+| Consecuencia | Los reintentos no duplican filas ni publican una generación incompleta; la agregación no persiste IDs personales. Cambiar de fuente exige nueva decisión y medición. |
+| Estado | Implementado y probado localmente. El resultado solo demuestra capa de servicio/PostgreSQL local: quedan duración/lag del writer, HTTP/Auth/browser, runtime de plataforma y E2E por rol. No migración remota ni despliegue. Ver [plan maestro](../../docs/plans/2026-10-13-full-saas-implementation-plan.md). |
+
+## 2026-10-13 — Preferencia individual para ordenar módulos del dashboard
+
+| Campo | Valor |
+| --- | --- |
+| Evidencia | Personalizar el orden puede facilitar el acceso a información habitual, pero un constructor libre o el arrastre sin alternativa dificulta comprensión y accesibilidad. |
+| Decisión | Aceptar ADR-0019: prioridades y score quedan fijos arriba; indicadores, tendencias/cobros, explicación y operación se pueden ordenar con drag, botones subir/bajar, reset y persistencia por usuario/academia. |
+| Consecuencia | La API valida lista completa y control de versión; `owner_dashboard_layouts` usa RLS forzado, fila propia y rol owner/manager/admin. La preferencia no cambia autorización ni datos. |
+| Estado | Implementado en rama local; migración, query/service, control de versión y alternativa de botones probados con fixtures sintéticos. Falta walkthrough autenticado y VoiceOver humano. Sin despliegue ni migración remota. Referencia: [ADR-0019](../../docs/architecture/adr/0019-preferencias-modulares-owner-dashboard.md). |
+
+## 2026-10-13 — Cobro familiar manual por defecto y automático con entitlement
+
+| Campo | Valor |
+| --- | --- |
+| Evidencia | El cron legacy `/api/cron/collect-charges` recorre academias con Stripe Connect habilitado y pasa cargos vencidos a `collectCharge`; esta ruta no comprueba un modo automático elegido ni un entitlement de plan pagado. No se encontró verificación trazable de mandato en esta ruta; ese consentimiento sigue `NO VERIFICADO`. |
+| Decisión | Mantener el cobro manual disponible para todos. El modo automático queda opt-in y solo efectivo con plan pagado elegible, Connect activo, consentimiento/mandato válido por pagador y cobro idempotente. Free/trial se mantienen manuales. La misma regla debe aplicarse al botón de cobro y al worker, no solo a la interfaz. |
+| Consecuencia | No reutilizar el cron legacy como prestación del núcleo nuevo hasta cerrar gates de plan, elección y consentimiento; corregir claims públicos si no describen la disponibilidad real. No generar cargos durante pruebas. |
+| Estado | Registro manual con API/UI owner-admin y preferencia familiar manual/automático con entitlement Free/paid implementados y probados localmente con datos sintéticos. Free/trial no permite automático y el modo efectivo sigue manual: la preferencia por sí sola nunca inicia cargos. Consentimiento/mandato operativo, provisioning/webhook comercial, worker, Stripe Test E2E y gates remotos siguen pendientes; sin cambios en Stripe Live ni producción. Referencia: [ADR-0003](../../docs/architecture/adr/0003-ledger-financiero-interno.md), [operaciones](../../docs/architecture/ledger-operations.md) y [plan maestro](../../docs/plans/2026-10-13-full-saas-implementation-plan.md). |
+
+## 2026-10-06 — Proyección mensual agregada de cohortes para el Owner Dashboard (estado inicial)
 
 | Campo | Valor |
 | --- | --- |
@@ -16,6 +52,11 @@ source:
 | Decisión | Aceptar ADR-0017. Crear read model reconstruible por organización/sede/programa/grupo y meses de cohorte/observación, enlazado a metric run y watermark, sin IDs personales. La primera migración añade generaciones y filas, fuerza RLS y no concede acceso directo Data API. |
 | Consecuencia | Falta el writer idempotente integrado al outbox y el reader del dashboard; AC-12 sigue NO CUMPLE. Sin migración remota, sin despliegue y sin rebajar el SLO. El reader deberá conservar filtros y exponer staleness, no hacer fallback al cálculo lento. |
 | Estado | Esquema verificado solo en PostgreSQL efímero; `pnpm test:zaltyko-owner-dashboard-query:local`, typecheck y ESLint pasan. Fuente: `docs/architecture/adr/0017-proyeccion-de-cohortes-para-el-owner-dashboard.md`. |
+
+Actualización 2026-10-13: el writer/reader y el benchmark AC-12 se cerraron
+localmente después de esta decisión inicial; consultar la decisión «Proyección
+de cohortes como única lectura del dashboard» y el plan maestro. Los gates de
+plataforma, writer lag y E2E autenticado siguen pendientes.
 
 ## 2026-10-06 — No tratar el sandbox E2E legacy como base de datos vacía
 

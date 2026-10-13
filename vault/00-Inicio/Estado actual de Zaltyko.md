@@ -1,7 +1,7 @@
 ---
 status: active
 owner: producto
-last_reviewed: 2026-09-14T15:39Z
+last_reviewed: 2026-10-13T03:17Z
 source:
   - ../PRODUCT-ANALYSIS.md
   - ../BUSINESS-ANALYSIS.md
@@ -10,7 +10,34 @@ source:
   - ../AGENTS.md
 ---
 
-## Revalidación focal — 2026-10-05 (estado vigente)
+## Corte de implementación greenfield — 2026-10-13
+
+La rama local `codex/zaltyko-plan-implementation` ya contiene el modelo
+deportivo versionado, alta de academia simplificada, pagos manuales idempotentes,
+preferencia familiar manual/automático con entitlement Free/paid, proyección de
+cohortes y orden modular del Owner Dashboard. El modo efectivo de cobro sigue
+siendo manual: elegir «automático» no inicia cargos. Falta mandato/consentimiento
+operativo, provisioning comercial/webhook verificado, worker de cobro seguro y
+Stripe Test end-to-end para la arquitectura nueva. Free y trial no pueden usar
+automático.
+
+Verificación local del corte: suite completa **450 archivos (1 omitido), 2.329
+tests aprobados (3 omitidos)**; typecheck, lint, gate de autorización (385
+archivos), integridad de migraciones (7 Drizzle y 108 Supabase) y build PASS
+(288 rutas). Los runners de pagos, cohortes y layout usan PostgreSQL efímero y
+datos sintéticos; los tests HTTP de los endpoints nuevos usan autorización
+simulada. AC-12 pasa en PostgreSQL 14.20 local: cohortes 362,8 ms p95 y vista
+compuesta 654,3 ms p95; no mide HTTP, Auth, navegador ni infraestructura
+remota.
+
+No equivale a E2E autenticado completo, QA humana de accesibilidad, prueba de
+restore, medición en plataforma objetivo ni preparación para captar clientes.
+No se aplicaron migraciones remotas ni se modificó producción. Ver el
+[plan maestro](../../docs/plans/2026-10-13-full-saas-implementation-plan.md),
+el [backlog](../06-Roadmap-y-Tareas/Backlog priorizado.md) y la auditoría de
+[ramas y releases](../../auditoria-2026-10-13/branch-and-release-check.md).
+
+## Revalidación focal — 2026-10-05 (histórica; supersedida)
 
 Producción sirve el deployment READY dpl_EtTisvbmfBSiUyuiWsyvZMXG85nD, commit 12814441. El acceso canónico y el alias /login muestran “¿Olvidaste tu contraseña?” y /auth/forgot-password responde 200. Google inicia el flujo con el cliente Web de Zaltyko y vuelve al callback de Supabase esperado; no se completó la sesión porque no se eligió una cuenta. El registro de dueño mantiene Google desactivado hasta aceptar los términos.
 
@@ -65,6 +92,33 @@ Esta pasada cubrió Google OAuth, recuperación de contraseña, onboarding de pr
 > **Último release verificado — 14/09/2026 03:00Z:** `dpl_BYhdNbXQbV1RWRTNAh7MVVwLPh5k` está en `READY` y es el deployment vigente de `zaltyko.com`. El dashboard operativo respeta `academies.timezone` y consulta `class_sessions.session_date` como fecha de calendario exacta, evitando desplazamientos UTC en clases y pendientes de asistencia. Gate: **281 archivos PASS + 1 omitido; 1.790 tests PASS + 2 omitidos; 324 APIs (215 mutantes) sin riesgos; RLS 71/71; build 227/227**. Smoke live: rutas públicas 200, dashboard sin sesión 307, atención protegida 401.
 
 # Estado actual de Zaltyko
+
+## Corte de implementación greenfield — 2026-10-13
+
+En la rama local `codex/zaltyko-plan-implementation` se implementó y probó el
+modelo versionado de especialidades/actividades complementarias, el alta simple
+de academia, la proyección de cohortes conectada al motor de invalidaciones y
+el orden modular persistente por usuario/academia (drag, botones alternativos y
+reset, con prioridades/score anclados).
+El benchmark sintético local (PostgreSQL 14.20; 5.000 atletas, 2 M asistencias,
+20 identidades) pasa AC-12: cohortes 362,8 ms p95; vista compuesta 654,3 ms p95.
+Es una medida de capa de servicio, no de HTTP, Auth, navegador ni infraestructura
+remota. Falta revisar los recorridos autenticados por rol, observar SLA del
+writer, validar la ejecución en plataforma, cerrar cobros seguros y probar el
+reordenador con VoiceOver y propietarios. No es una declaración de lanzamiento.
+
+Verificación de release solo lectura, revalidada el 2026-10-13 05:31 UTC: aliases
+`zaltyko.com` y `www.zaltyko.com` siguen en `dpl_8fcdzLweJt7vDRBxNeR9Tu6kfzgv`,
+deployment **READY** de `main` (`aac78521`). El PR #224 sigue abierto. El hotfix
+P0 #225 está abierto y no fusionado; su preview `dpl_AFpK2LvPdQEeRfqmAzag1kXhVeTY`
+está **READY** y los checks obligatorios consultados están verdes (E2E público,
+Lighthouse y smoke se omiten por configuración). La mitigación todavía no está
+en producción, por lo que sigue vigente el riesgo del cron legacy. Los
+historiales remotos de migraciones continúan divergentes. No se fusionó PR,
+desplegó, cambió alias ni aplicó migraciones. Ver
+[`auditoría de ramas y releases`](../../auditoria-2026-10-13/branch-and-release-check.md).
+Los valores de release son una observación puntual; comprobarlos de nuevo antes
+de actuar.
 
 > **Release productivo vigente — 14/09/2026 22:27 CEST:** `dpl_4iJiwrMNCZAq1ThGLvNtwsUQJfR7` está en `READY` y aliasado a `zaltyko.com`. La pantalla de Preferencias ahora gobierna los envíos reales: email e in-app aplican switches por tipo, recordatorios por ventana y canales legacy; el cron no cuenta como entregado lo que el destinatario desactivó y el recordatorio manual de pago comunica el estado real. Gate: **301 archivos (1 omitido), 1.845 tests PASS (2 omitidos), 324 APIs sin riesgos, RLS 71/71, build 227/227**. Smoke público y `/api/health` 200 con DB/cronAuth `ok`; preferencias autenticadas visualizadas sin errores/avisos de consola. No hubo migraciones ni cambios de datos reales. Siguen `NO VERIFICADO` la entregabilidad externa, contactos legacy sin perfil, E2E por rol real, WCAG manual, privacidad de menores, Stripe Live/webhooks, pagos locales y cohortes de activación.
 

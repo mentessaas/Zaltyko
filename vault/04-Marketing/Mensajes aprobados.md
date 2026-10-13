@@ -37,6 +37,22 @@ Para discovery, beta y mensajes de venta tempranos, enfocar Zaltyko en academias
 | Pricing vigente | Free hasta 30 gimnastas; Starter 19 €/mes o 190 €/año hasta 75; Growth 49 €/mes o 490 €/año hasta 200; Network 99 €/mes multi-sede con onboarding acompañado. |
 | Trial | 7 días de Starter sin tarjeta, una activación por academia cada 12 meses; al terminar vuelve a Free y no hay cargo automático. |
 
+### Cobros a familias — copy objetivo después del hotfix P0
+
+- Copy propuesto para PR #225, no descripción de producción mientras siga
+  pendiente su revisión, merge y despliegue: «Cobros
+  mensuales, registro manual de pagos y seguimiento de pendientes. No se realizan
+  cobros automáticos».
+- No activar campañas de captación con ese copy hasta verificar en producción
+  que el cron legacy está desactivado y el comportamiento público coincide.
+- Free y trial se mantienen en registro/cobro manual. En planes de pago puede
+  configurarse una preferencia automática en el núcleo nuevo, pero hoy es solo
+  una preferencia: no autoriza ni inicia cargos y no debe anunciarse como una
+  función disponible.
+- Solo revisar y aprobar un claim de automatización cuando estén activos y
+  probados el entitlement de pago, consentimiento/mandato por pagador, Connect,
+  worker idempotente, webhook verificado, recuperación, permisos y QA de release.
+
 ## CTAs y claims seguros a 2026-07-12
 
 - Free puede dirigir al registro de owner.

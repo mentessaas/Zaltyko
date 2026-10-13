@@ -7,6 +7,70 @@ source:
   - ../docs/architecture/zaltyko-domain-model.md
 ---
 
+## 2026-10-13 — Cierre local de proyección de cohortes y AC-12
+
+- Se implementó writer transaccional/idempotente por metric run y ámbito, ligado
+  al procesamiento de invalidaciones; el lector del Owner Dashboard consume la
+  última proyección exitosa sin volver a escanear datos operativos y comunica
+  explícitamente la ausencia/actualización del read model.
+- La vista agregada no persiste identificadores personales. La reejecución del
+  benchmark usa 5.000 atletas, 2 M asistencias, 20 identidades y PostgreSQL
+  14.20 local: dashboard 293,6 ms p95, capacidad 304,4 ms, cohortes 362,8 ms,
+  filtros 204,7 ms y vista compuesta 654,3 ms p95. AC-12 local pasa.
+- La primera query de proyección excedió el timeout de 120 s; se resolvió
+  sustituyendo las uniones null-safe no hashables por igualdad hashable usando
+  UUID coalescido. La re-ejecución de escala terminó PASS.
+- Owner Dashboard query, health-score harness, typecheck y ESLint focal pasan;
+  verificar de nuevo el stack canónico y `git diff --check` al cerrar el corte.
+- **Límites:** benchmark service-layer local, no HTTP/Auth/browser/Supabase ni
+  runtime serverless; coste/lag del writer todavía sin SLO. Sin cambios en
+  bases remotas, Stripe Live, Vercel, credenciales ni despliegues.
+
+## 2026-10-13 — Reordenación accesible del Owner Dashboard
+
+- Se añadieron layout y persistencia por usuario/academia para cuatro módulos
+  secundarios. Prioridades/Health Score quedan anclados; mover/restablecer no
+  altera permisos, filtros ni cálculos.
+- Nueva migración local `20261013120000_owner_dashboard_layout_preferences.sql`:
+  RLS forzado, fila propia, roles de la superficie owner y grants limitados.
+  API GET/PUT valida claves completas y usa versión/bloqueo para evitar pisar
+  cambios concurrentes. Sin ruta de borrado.
+- UI permite arrastrar con teclado y ofrece botones subir/bajar como alternativa
+  de puntero; restablecer y estado guardando/guardado/error también están claros.
+- Test de persistencia/versión/tenant añadido al harness; SQL valida grants y
+  aislamiento; contrato unitario cubre claves y controles.
+- **Límites:** falta navegador autenticado, VoiceOver humano y validación con
+  propietarios. No está listo para producción; sin migración remota ni deploy.
+
+## 2026-10-13 — Estado inicial del modelo deportivo y alta simplificada (supersedido)
+
+- ADR-0018 separa perfiles deportivos por país/federación de programas de
+  actividad complementaria. La academia puede tener especialidad principal y
+  adicional; `programs` distingue gimnasia de otras actividades. España queda
+  identificada como mercado inicial sin inferir categorías ni reglas
+  federativas.
+- Estado al abrir este corte; la medición y el read model descritos aquí fueron
+  supersedidos por «Cierre local de proyección de cohortes y AC-12» más abajo.
+- El alta owner deja de pedir código de sede, moneda o zona horaria. La sede se
+  normaliza y los defaults salen del perfil ES del servidor. Las actividades
+  secundarias son opcionales y plegadas; los reintentos conservan la clave
+  idempotente.
+- PostgreSQL efímero valida migration y alta idempotente con disciplinas y
+  actividades sintéticas.
+- Stack canónico, servicios operativos, ledger y métricas pasan en local. La
+  revalidación de escala mantiene AC-12 en `NO CUMPLE`: compartir consultas
+  idénticas en curso reduce cohortes de 7.941,3 a 1.709,6 ms p95, aún sobre el
+  objetivo de 800 ms; dashboard/capacidad/filtros sí pasan. Una variante con
+  lookup lateral del historial empeoró a 8.819,4 ms y se descartó. El read model
+  todavía necesita writer y reader integrados.
+- Revisión del cron legacy muestra que intenta cobros vencidos en cuentas
+  Connect sin filtrar explícitamente modo elegido, plan pagado o evidencia de
+  mandato. Es P0 antes de reutilizarlo como prestación.
+- No se aplicó migration en Supabase remoto ni se desplegó. Falta el writer/
+  reader del modelo de cohortes y cerrar gates de release. Estado local, no
+  pilot-ready.
+- Plan vigente: [`implementación de todo el SaaS`](../../docs/plans/2026-10-13-full-saas-implementation-plan.md).
+
 ## 2026-10-06 — Esquema local para la proyección de cohortes
 
 - Nueva migración `20261006165917_owner_cohort_retention_projections.sql` crea
@@ -11065,3 +11129,55 @@ Modelo separado, reclamación manual, administración, importación revisada, fi
 - **Alta de dueño:** `/auth/register?role=owner` muestra el rol correcto, permite explorar academias públicas y explica que tras crear la cuenta puede buscar antes de crear el espacio. El onboarding comprueba duplicados también en servidor. La búsqueda visible cubre solo perfiles disponibles; las reclamaciones de fichas externas siguen apagadas y el catálogo aún no contiene fichas externas ni eventos.
 - **Validación local:** `pnpm typecheck`, compilación TypeScript focal de la spec, ESLint, Prettier, `git diff --check` y contratos anuales **5/5** pasan.
 - **Pendientes:** una persona debe completar el callback Google y aceptar los términos por sí misma; probar recuperación con una cuenta existente autorizada; reconciliar migraciones antes de activar reclamaciones/importaciones; registrar permisos de fuentes antes de cargar academias o eventos externos. Stripe Live/Connect/Tax permanece aplazado hasta disponer de figura legal.
+
+## 2026-10-13 — Registro manual de pagos desde Owner Dashboard
+
+- El ledger diferencia `manual` de `provider`. `/owner/payments` permite
+  consultar cargos abiertos y registrar dinero ya recibido, total o parcial,
+  desde un formulario de una sola pantalla. No crea cargos ni inicia cobros.
+- `GET/POST /api/v1/owner/billing/manual-payments` exige owner/admin y scope de
+  sede; pago, asignación, estado derivado, auditoría y outbox se escriben
+  atómicamente. Clave idempotente más payload igual no duplica; payload distinto
+  y sobrepago se rechazan.
+- **Validación local:** PostgreSQL efímero comprueba pagos concurrentes,
+  asignación única, saldo, manager denegado y rechazo de sobrepago. Suite focal
+  de pagos/fecha/layout (8/8), typecheck, lint focal, auditoría de 384 rutas,
+  gate auth y `pnpm build` PASS con 287 páginas. También se corrigió la fecha de
+  hoy para que un pago registrado por la mañana no se convierta en un instante
+  futuro. Los tests HTTP
+  usan auth simulada; falta walkthrough autenticado y QA humana.
+- **Límite en este estado inicial:** Free/trial deben seguir manuales;
+  automático espera entitlement, opt-in, mandato/consentimiento y controles de
+  worker/webhook. La preferencia configurable se registra en la entrada de
+  billing siguiente. Sin migración remota, Stripe Live, Vercel ni cambios de
+  producción.
+
+## 2026-10-13 — Preferencia de cobro familiar con entitlement
+
+- Se añadió preferencia manual/automática por pagador, con historial de
+  revisiones y control de concurrencia. Solo un entitlement de plan pagado,
+  vigente y versionado permite guardar la preferencia automática; Free/trial y
+  entitlements ausentes fallan cerrados.
+- Cada cargo nuevo puede guardar un snapshot ligado a la revisión vigente. Una
+  preferencia desactualizada exige reconfirmación; una modificación posterior
+  no altera cargos ya emitidos. El snapshot no es consentimiento ni permiso para
+  iniciar un cargo: `effectiveMode` sigue manual y no hay worker automático.
+- **Validación local:** PostgreSQL efímero, fixtures sintéticos, permisos,
+  RLS/grants, auditoría, outbox, idempotencia y downgrade/reconfirmación. No
+  existe aún mandato/consentimiento operativo, provisioning/webhook comercial,
+  Stripe Test E2E ni cobro automático; no se tocó Stripe Live ni producción.
+
+## 2026-10-13 — Owner Dashboard modular y proyección de cohortes
+
+- El orden de cuatro módulos secundarios se guarda por usuario/academia; drag,
+  botones subir/bajar, reset y control de versión. Prioridades y score quedan
+  anclados; RLS forzado y sin acceso a datos adicionales por reordenar.
+- Alcance acotado: una columna vertical y solo reordenación; no hay selector
+  para añadir/ocultar módulos ni drag de tarjetas individuales o entre zonas.
+- El reader de cohortes usa la última proyección exitosa. Reejecución sintética
+  a 5.000 atletas/2 M asistencias/20 identidades: dashboard 293,6 ms p95,
+  capacidad 304,4 ms, cohortes 362,8 ms, filtros 204,7 ms y vista compuesta
+  654,3 ms p95. Es capa de servicio PostgreSQL 14.20 local, no HTTP,
+  Auth, navegador, Supabase ni runtime serverless.
+- Falta walkthrough autenticado, VoiceOver/teclado humano, coste/lag writer y
+  medición en plataforma objetivo. Sin migraciones remotas ni despliegue.

@@ -87,6 +87,53 @@ La verificación local del 2026-10-02 pasa `pnpm validate:rls` (79/79 tablas), `
 
 El Advisor de producción todavía señala tres tablas RLS sin policies (`__drizzle_migrations`, `lead_interactions`, `zaltyko_schema_migrations`). Performance Advisor lista 60 FKs sin índice, 58 policies con reevaluación RLS por fila, 358 avisos de policies permisivas solapadas, 214 índices sin uso observado y dos índices duplicados. Son avisos de inventario; no se crean ni eliminan índices en bloque antes de reconciliar los historiales.
 
+### Migration local del modelo deportivo — 2026-10-13
+
+`20261013100000_model_sport_profiles_and_complementary_activities.sql`
+actualiza el esquema greenfield `zaltyko`: perfiles deportivos, relación M:N
+con la academia y clasificación de programas. Requiere `zaltyko.programs` vacía
+y aborta si encuentra filas, para no descartar silenciosamente su clasificación.
+Los fixtures sintéticos se insertan después.
+
+Los runners `test:zaltyko-*:local` la aplican en PostgreSQL efímero. No está
+aprobada para ningún proyecto remoto. Antes de promoverla, revisar ledgers,
+procedencia y estado real de tablas, y aprobar el cutover por separado.
+
+### Proyección de cohortes y servicios de analítica — 2026-10-13
+
+El writer/reader de cohortes usa las tablas `zaltyko.retention_cohort_projection_runs`
+y `zaltyko.retention_cohort_projections` creadas por
+`20261006165917_owner_cohort_retention_projections.sql`; no requiere añadir una
+migración para este cambio. El benchmark y los retries corren solo en PostgreSQL
+efímero/local. Grants y RLS no se relajan; el proceso con privilegios de servicio
+es el único escritor. Antes de cualquier promoción remota, reconciliar historial
+y hashes de migraciones del proyecto destino, revisar la ruta del worker y medir
+timeouts/rollback con backup restaurable. No usar `drizzle-kit push`.
+
+### Preferencias Owner Dashboard — 2026-10-13
+
+`20261013120000_owner_dashboard_layout_preferences.sql` crea la preferencia
+por usuario/academia. Está probada solo en migraciones efímeras. RLS se fuerza,
+`authenticated` solo tiene SELECT/INSERT/UPDATE de su fila y no existe permiso
+DELETE. Antes de promover, reconciliar hashes/ledgers remotos y revisar el plan
+de cutover; su migración no se puede aplicar a un entorno divergente sin revisar
+la procedencia y aprobar por separado.
+
+### Ledger local: pagos manuales — 2026-10-13
+
+La migración local greenfield `20261006093047_add_internal_billing_ledger.sql`
+define el origen `manual/provider` y campos mutuamente condicionados para pagos.
+La tabla queda dentro de los grants/RLS del ledger. Los servicios y sus fixtures
+se prueban exclusivamente contra PostgreSQL efímero. La migración de ledger fue
+editada en esta rama y ya no debe tratarse como checksum compatible con
+historiales remotos existentes. No correrla en Supabase remoto ni reconciliar
+ledgers automáticamente: primero comparar procedencia, SQL/hash, estructura y
+efectos, con un plan de cutover aprobado. La UI/API local de registro manual no
+requiere cambio de esquema remoto; el runner efímero incluye además
+`20261006131000_add_organization_default_currency.sql` para resolver el scope
+del owner en la consulta. La modificación del runner solo afecta pruebas
+locales. El flujo no inicia cargos ni toca Stripe.
+
 ## Flujo recomendado
 
 1. Revisar schema actual en `src/db/schema/`.

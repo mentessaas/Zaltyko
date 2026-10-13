@@ -1,5 +1,9 @@
 # Plan de implementación — Owner Dashboard y Academy Health Score
 
+> Este archivo conserva el detalle del corte Dashboard/Score. El orden de
+> trabajo de todo el SaaS, incluidos perfiles deportivos, cobros, UX modular y
+> preparación de lanzamiento, está consolidado en el [plan maestro](./2026-10-13-full-saas-implementation-plan.md).
+
 ## Decisión de ejecución
 
 El PRD es la especificación principal. El nuevo núcleo no preservará contratos
@@ -161,6 +165,25 @@ sala y E2E autenticado siguen pendientes. ADR-0011 y el query layer muestran
 delta contra el snapshot previo solo con mismo perfil, score válido y duración
 comparable (±3 días); si no, explican por qué no hay delta. Selección de modo,
 año anterior y validación con snapshots reales siguen pendientes.
+
+Revalidación inicial local 2026-10-13 (antes de integrar writer/reader): el harness de volumen objetivo con el esquema
+deportivo actualizado mide dashboard 275,7 ms p95, capacidad 262,1 ms, filtros
+62,5 ms y cohortes 7.941,3 ms (objetivo 800 ms). AC-12 sigue `NO CUMPLE` y es
+bloqueo P0; el migration del read model existe, pero faltan writer/reader. Estas
+mediciones son PostgreSQL local, no HTTP, Supabase ni runtime desplegado. Ver
+[plan maestro SaaS](./2026-10-13-full-saas-implementation-plan.md).
+
+Implementación local posterior: writer idempotente conectado al worker de
+invalidaciones y reader PII-free desde la última proyección exitosa por ámbito
+de academia/sede. El harness funcional de dashboard pasa con la nueva ruta;
+la revalidación AC-12 del 2026-10-13 pasa localmente: cohorte 362,8 ms p95 y
+vista compuesta 654,3 ms p95, bajo los presupuestos de 800 ms y 2.000 ms. El
+fixture sintético contiene 5.000 atletas, 2 M asistencias y 20 identidades. La
+prueba es service-layer sobre PostgreSQL 14.20 local, no HTTP/Auth/browser,
+Supabase ni serverless; el coste del writer necesita métrica separada y la
+validación de plataforma sigue pendiente. La primera consulta de proyección
+superó el timeout local de 120 s; se corrigió usando igualdad hashable sobre
+UUID coalescido en las uniones dimensionales. No se rebajó el SLO.
 
 ### PR-08 — Insights y acciones
 

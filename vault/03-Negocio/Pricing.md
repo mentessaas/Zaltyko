@@ -75,6 +75,16 @@ Estado: oficial para producto, marketing, landing y limites.
 | **Growth** | 49 €/mes (≈ 52 USD) | hasta 200 | 1 | Todo Starter + automatizaciones, reportes ejecutivos, add-ons premium, soporte prioritario. | >200 gimnastas O multi-sede. |
 | **Network** | 99 €/mes (≈ 105 USD) | ilimitado | multi-sede | Todo Growth + multi-sede acompanada, reportes de direccion y soporte prioritario. | Bajo onboarding acompanado (ver [[Decisiones#2026-06-22 - V1 comercial con una academia por cliente]]). |
 
+**Límite de la promesa de cobros (decisión 2026-10-13):** «pagos/cuotas
+recurrentes» describe la programación/gestión de cargos, no una autorización para
+cobrar automáticamente. Free y trial son manuales. Los planes de pago podrán
+optar a cobro automático cuando se habiliten los gates de consentimiento,
+mandato, Connect, worker/webhook y recuperación; hasta entonces la preferencia
+automática del núcleo nuevo no inicia cargos y no es un claim comercial.
+Esta regla describe el producto objetivo; la producción conserva un riesgo
+legacy hasta integrar y verificar PR #225. No iniciar captación con una promesa
+de cobro manual-only antes de comprobar ese hotfix en el deployment productivo.
+
 Fee de procesamiento: **0 € markup sobre Stripe directo**. La promesa es "pagas lo que Stripe cobra, sin sorpresas".
 
 ### Por que 19 €/mes unico para Espana + LATAM

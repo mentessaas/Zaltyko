@@ -17,11 +17,12 @@ source:
 ---
 ## 2026-10-06 — Producto Health Score y Owner Dashboard (corte activo)
 
-- **AC-12 pendiente P0:** fixture a volumen objetivo arroja cohortes 6,42 s p95;
-  heatmap <800 ms. El esquema de proyección agregada ya está en la migración
-  `20261006165917_owner_cohort_retention_projections.sql`, forzado con RLS y
-  sin grants Data API; writer, reader y staleness siguen pendientes. No aplicar
-  remoto. Ver ADR-0017 y backlog específico más abajo.
+- **AC-12 local PASS con alcance limitado:** fixture sintético de 5.000 atletas,
+  2 M asistencias y 20 identidades mide cohortes 362,8 ms p95 y consulta
+  compuesta 654,3 ms p95 en PostgreSQL 14.20 local. No cubre HTTP/Auth/browser,
+  Supabase ni serverless; validar writer lag y plataforma antes de afirmar SLO
+  de producción. No aplicar migraciones remotamente. Ver ADR-0017 y el plan
+  maestro vigente.
 
 - **Hecho local:** nueve reglas P0 leen fuentes canónicas por sede y alimentan Insights con autorización e idempotencia; PostgreSQL efímero sintético pasa.
 - **Hecho local, no activado:** endpoint protegido y dispatcher de outbox con lease, backoff, dead-letter, idempotencia; faltan retries inyectados, lag/alertas y scheduler remoto.
@@ -65,6 +66,58 @@ Code changes verificados: tsc OK, eslint OK, next build OK.
 
 # Backlog priorizado
 
+## 2026-10-13 — Plan maestro de implementación del SaaS
+
+Usar [`plan maestro`](../../docs/plans/2026-10-13-full-saas-implementation-plan.md)
+como secuencia vigente para el rebuild greenfield completo. El orden inmediato
+es cerrar el modelo deportivo y el alta sencilla; después revalidar operaciones,
+ledger/cobros, métricas, Score, Insights y Owner Dashboard. No declarar
+preparación de captación hasta completar el gate de lanzamiento del plan.
+
+- [x] Cerrar Fase 1 local: migration, RLS/grants, contrato, onboarding y tests.
+- [x] Pasar stack canónico y las verificaciones focales locales.
+- [ ] Revisar los servicios operativos y E2E autenticado por rol contra Fase 2.
+- [x] P0 local: writer/reader idempotentes del read model de cohortes; AC-12
+      mide 362,8 ms p95 y la vista compuesta 654,3 ms p95. Solo service-layer
+      sobre PostgreSQL 14.20 local; plataforma objetivo y coste del writer
+      pendientes. No implica despliegue ni preparación de piloto.
+- [x] Implementar localmente orden modular por persona/academia, con drag,
+      botones alternativos, persistencia, control de versión y reset.
+- [ ] Diseñar slots válidos y decidir si conviene añadir/ocultar módulos; la
+      versión actual solo reordena cuatro módulos secundarios en una columna,
+      sin mover tarjetas interiores ni alterar la prioridad del Score.
+- [ ] Probar reordenación en navegador autenticado con teclado/VoiceOver y
+      revisar comprensión con propietarios antes de cerrar Fase 6.
+- [x] Servicio local idempotente para registrar pagos ya recibidos; ledger,
+      outbox y auditoría en transacción, sin iniciar cobros.
+- [x] API owner/admin y formulario local para consultar cargos abiertos y
+      registrar pagos parciales/totales atómicamente; tests de ruta con auth
+      simulada y PostgreSQL efímero.
+- [ ] Walkthrough autenticado de `/owner/payments`, prueba real de permisos por
+      sede y QA de errores/accesibilidad en móvil y teclado.
+- [x] Preferencia familiar manual/automático, entitlement versionado Free/paid
+      y snapshot por cargo implementados localmente. Free/trial falla cerrado;
+      la preferencia `automatic` no habilita ni inicia cargos.
+- [ ] P0: capturar consentimiento/mandato trazable por pagador, completar
+      provisioning/webhook, implementar worker idempotente con recuperación y
+      probarlo en Stripe Test; auditar/cerrar el cron legacy antes de reutilizarlo.
+      Automático sigue deshabilitado para todas las cuentas.
+- [ ] Completar QA de roles, privacidad de menores, backup/restore y producción.
+
+### Seguimiento 2026-10-13 — proyección de cohortes AC-12
+
+- **Implementado local:** el worker escribe una generación transaccional y
+  reintentable por metric run y ámbito; el reader usa únicamente la última
+  proyección exitosa y devuelve estado explícito si falta una generación.
+- **Medición más reciente:** 5.000 atletas, 2 M asistencias, 20 identidades;
+  dashboard 293,6 ms p95, capacidad 304,4 ms, cohortes 362,8 ms, filtros 204,7 ms
+  y vista compuesta 654,3 ms p95. PostgreSQL 14.20 local;
+  no mide HTTP/Auth/browser, Supabase ni runtime serverless.
+- **Pendiente:** observar duración/lag del writer, validar aislamiento con E2E
+  autenticado y medir en plataforma objetivo antes de habilitarlo para clientes.
+- **Seguridad:** proyección agregada sin identificadores personales; RLS
+  forzado y grants de servicio existentes en la migración. Sin migración remota.
+
 ## Revalidación 2026-10-06 — Reconstrucción Owner Dashboard
 
 La cobertura del PRD está abierta. Consultar
@@ -90,6 +143,10 @@ La retención individual continúa en draft hasta cerrar revisión de privacidad
 - **Límites:** no aplicar la migración a Supabase remoto; no servir cohortes
   desde filas individuales ni volver al scan lento como fallback. AC-12 seguirá
   `NO CUMPLE` hasta pasar 800 ms/2 s a volumen.
+
+> **Estado actualizado 2026-10-13:** writer/reader ya implementados y AC-12
+> cumple en el benchmark local indicado arriba. Este bloque conserva el
+> hallazgo histórico; el gate de plataforma y operación continúa abierto.
 
 ## P0 — Cerrar servicios operativos antes del motor de métricas — 2026-10-06
 
