@@ -9,6 +9,12 @@ source:
 
 ## 2026-10-14 — Mensualidades publicadas y siguiente bloque paralelo
 
+Actualizado corte del plan maestro a `e415040a`; estados anteriores conservados
+como históricos. Separados unitarios/SQL mínimo, recorrido UI parcial y gates
+pendientes de consentimiento, signup real, CI y revisión independiente.
+QA debe comprobar row/audit tras bootstrap, no antes: ese es el punto de
+persistencia server-side. No se declara DEMO/PILOT-READY ni fin del SaaS.
+
 CI `38485117022` detectó contrato env incompleto tras integración QA:
 `E2E_LOCAL_SUPABASE` y `VERCEL` estaban usados pero no documentados.
 Reproducido con `audit:env`; añadidos ejemplos seguros (false/vacío), sin
