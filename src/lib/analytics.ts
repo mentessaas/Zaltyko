@@ -1,5 +1,6 @@
-import { getOptionalEnvVar, isProduction } from "./env";
+import { isProduction } from "./env";
 import { logger } from "./logger";
+import { hasAnalyticsConsent } from "./consent/state";
 
 export interface AnalyticsPayload {
   userId?: string;
@@ -13,7 +14,8 @@ export interface AnalyticsPayload {
   idempotencyKey?: string;
 }
 
-const isAnalyticsDisabled = getOptionalEnvVar("NEXT_PUBLIC_DISABLE_ANALYTICS") === "true";
+const isAnalyticsDisabled =
+  process.env.NEXT_PUBLIC_DISABLE_ANALYTICS === "true";
 
 // posthog-js se importaba de forma estatica y quedaba en el bundle
 // compartido de TODAS las paginas (incluida la home publica), sumando
@@ -21,21 +23,40 @@ const isAnalyticsDisabled = getOptionalEnvVar("NEXT_PUBLIC_DISABLE_ANALYTICS") =
 // perezosa (solo en cliente, solo cuando se usa) para que viva en un
 // chunk aparte, igual que el fix de Sentry Replay.
 let posthogModulePromise: Promise<typeof import("posthog-js")> | null = null;
+let posthogModule: typeof import("posthog-js") | null = null;
+let posthogInitialized = false;
+let initPromise: Promise<void> | null = null;
 
 function loadPostHog() {
   if (typeof window === "undefined") return null;
   if (!posthogModulePromise) {
-    posthogModulePromise = import("posthog-js");
+    posthogModulePromise = import("posthog-js").then((mod) => {
+      posthogModule = mod;
+      return mod;
+    });
   }
   return posthogModulePromise;
 }
 
-// Initialize PostHog (call once in your app initialization)
+// Initialize PostHog only after an explicit, current browser consent.
 export async function initAnalytics() {
-  if (typeof window === "undefined") return;
+  if (
+    isAnalyticsDisabled ||
+    typeof window === "undefined" ||
+    !hasAnalyticsConsent()
+  ) {
+    return;
+  }
+
+  if (posthogInitialized) {
+    posthogModule?.posthog.opt_in_capturing({ captureEventName: false });
+    return;
+  }
+  if (initPromise) return initPromise;
 
   const key = process.env.NEXT_PUBLIC_POSTHOG_KEY;
-  const host = process.env.NEXT_PUBLIC_POSTHOG_HOST || "https://app.posthog.com";
+  const host =
+    process.env.NEXT_PUBLIC_POSTHOG_HOST || "https://app.posthog.com";
 
   if (!key) {
     if (!isProduction()) {
@@ -44,30 +65,86 @@ export async function initAnalytics() {
     return;
   }
 
-  const mod = await loadPostHog();
-  if (!mod) return;
+  initPromise = (async () => {
+    const mod = await loadPostHog();
+    if (
+      !mod ||
+      isAnalyticsDisabled ||
+      typeof window === "undefined" ||
+      !hasAnalyticsConsent()
+    ) {
+      return;
+    }
 
-  mod.posthog.init(key, {
-    api_host: host,
-    person_profiles: "identified_only",
-    capture_pageview: false, // We'll track pageviews manually for better control
-    capture_pageleave: true,
-    loaded: (posthog) => {
-      if (!isProduction()) {
-        posthog.debug();
-      }
-    },
-  });
+    mod.posthog.init(key, {
+      api_host: host,
+      person_profiles: "identified_only",
+      opt_out_capturing_by_default: true,
+      autocapture: false,
+      capture_pageview: false,
+      capture_pageleave: false,
+      disable_session_recording: true,
+      loaded: (posthog) => {
+        if (!isProduction()) {
+          posthog.debug();
+        }
+      },
+    });
+    posthogInitialized = true;
+    mod.posthog.opt_in_capturing({ captureEventName: false });
+  })();
+
+  try {
+    await initPromise;
+  } catch (error) {
+    logger.warn("Failed to initialize analytics", { error });
+  } finally {
+    if (!posthogInitialized) initPromise = null;
+  }
+}
+
+/** Stops new PostHog captures after consent is revoked. */
+export function revokeAnalytics(): void {
+  if (
+    isAnalyticsDisabled ||
+    typeof window === "undefined" ||
+    hasAnalyticsConsent()
+  ) {
+    return;
+  }
+
+  if (posthogInitialized) {
+    posthogModule?.posthog.opt_out_capturing();
+    return;
+  }
+
+  // An import may have started while consent was granted. If it completes
+  // after revocation, initAnalytics rechecks consent and skips initialization.
+  // No module is imported solely to process a revoke.
 }
 
 // Track pageview
-export async function trackPageView(path: string, properties?: Record<string, unknown>) {
-  if (isAnalyticsDisabled || typeof window === "undefined") {
+export async function trackPageView(
+  path: string,
+  properties?: Record<string, unknown>
+) {
+  if (
+    isAnalyticsDisabled ||
+    typeof window === "undefined" ||
+    !hasAnalyticsConsent()
+  ) {
     return;
   }
 
   try {
     const mod = await loadPostHog();
+    if (
+      isAnalyticsDisabled ||
+      typeof window === "undefined" ||
+      !hasAnalyticsConsent()
+    ) {
+      return;
+    }
     mod?.posthog.capture("$pageview", {
       path,
       ...properties,
@@ -78,7 +155,10 @@ export async function trackPageView(path: string, properties?: Record<string, un
 }
 
 // Track event
-export async function trackEvent(eventName: string, payload: AnalyticsPayload = {}) {
+export async function trackEvent(
+  eventName: string,
+  payload: AnalyticsPayload = {}
+) {
   if (isAnalyticsDisabled) {
     return;
   }
@@ -93,11 +173,12 @@ export async function trackEvent(eventName: string, payload: AnalyticsPayload = 
       const { userId, academyId, tenantId, metadata, idempotencyKey } = payload;
       const { recordGrowthEvent } = await import("@/lib/growth/events");
       const properties = Object.fromEntries(
-        Object.entries(metadata ?? {}).filter(([, value]) =>
-          value === null ||
-          typeof value === "string" ||
-          typeof value === "number" ||
-          typeof value === "boolean"
+        Object.entries(metadata ?? {}).filter(
+          ([, value]) =>
+            value === null ||
+            typeof value === "string" ||
+            typeof value === "number" ||
+            typeof value === "boolean"
         )
       ) as Record<string, string | number | boolean | null>;
 
@@ -111,15 +192,35 @@ export async function trackEvent(eventName: string, payload: AnalyticsPayload = 
         idempotencyKey: idempotencyKey ?? null,
       });
     } catch (error) {
-      logger.warn("Failed to persist server analytics event", { eventName, error });
+      logger.warn("Failed to persist server analytics event", {
+        eventName,
+        error,
+      });
     }
     return;
   }
 
+  if (!hasAnalyticsConsent()) return;
+
   try {
-    const { userId, academyId, tenantId, metadata, idempotencyKey: _idempotencyKey, ...rest } = payload;
+    const {
+      userId,
+      academyId,
+      tenantId,
+      metadata,
+      idempotencyKey: _idempotencyKey,
+      ...rest
+    } = payload;
+    void _idempotencyKey;
 
     const mod = await loadPostHog();
+    if (
+      isAnalyticsDisabled ||
+      typeof window === "undefined" ||
+      !hasAnalyticsConsent()
+    ) {
+      return;
+    }
     mod?.posthog.capture(eventName, {
       user_id: userId,
       academy_id: academyId,
@@ -134,7 +235,8 @@ export async function trackEvent(eventName: string, payload: AnalyticsPayload = 
 
 // Convenience methods for common events
 export const analytics = {
-  pageView: (path: string, properties?: Record<string, unknown>) => trackPageView(path, properties),
+  pageView: (path: string, properties?: Record<string, unknown>) =>
+    trackPageView(path, properties),
 
   signUp: (userId: string, plan?: string) =>
     trackEvent("sign_up_completed", { userId, metadata: { plan } }),
@@ -146,10 +248,16 @@ export const analytics = {
     trackEvent("checkout_completed", { userId, metadata: { plan } }),
 
   subscriptionUpgraded: (userId: string, fromPlan: string, toPlan: string) =>
-    trackEvent("subscription_upgraded", { userId, metadata: { from_plan: fromPlan, to_plan: toPlan } }),
+    trackEvent("subscription_upgraded", {
+      userId,
+      metadata: { from_plan: fromPlan, to_plan: toPlan },
+    }),
 
   subscriptionDowngraded: (userId: string, fromPlan: string, toPlan: string) =>
-    trackEvent("subscription_downgraded", { userId, metadata: { from_plan: fromPlan, to_plan: toPlan } }),
+    trackEvent("subscription_downgraded", {
+      userId,
+      metadata: { from_plan: fromPlan, to_plan: toPlan },
+    }),
 
   subscriptionCanceled: (userId: string, plan: string) =>
     trackEvent("subscription_canceled", { userId, metadata: { plan } }),
