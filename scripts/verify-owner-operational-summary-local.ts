@@ -263,6 +263,20 @@ async function runChild(role: "owner" | "manager"): Promise<void> {
       "1",
       "El modo child solo se ejecuta en el harness local"
     );
+    for (const name of [
+      "DATABASE_URL",
+      "DATABASE_URL_POOL",
+      "DATABASE_URL_DIRECT",
+    ]) {
+      const target = new URL(process.env[name] ?? "");
+      assert.equal(
+        target.hostname,
+        "127.0.0.1",
+        "El verificador solo admite loopback"
+      );
+      assert.equal(target.protocol, "postgresql:");
+      assert.equal(target.pathname, "/postgres");
+    }
     const result = await runServiceAs(role);
     assert.equal(
       result.scope && (result.scope as { kind: string }).kind,
@@ -356,11 +370,11 @@ async function main(): Promise<void> {
       const env: NodeJS.ProcessEnv = {
         ...process.env,
         DATABASE_URL: localPgUrl(user, port),
+        DATABASE_URL_POOL: localPgUrl(user, port),
+        DATABASE_URL_DIRECT: localPgUrl(user, port),
         NODE_ENV: "test",
         [LOCAL_ONLY]: "1",
       };
-      delete env.DATABASE_URL_POOL;
-      delete env.DATABASE_URL_DIRECT;
       const child = spawnSync(
         "pnpm",
         [
