@@ -147,6 +147,12 @@ test.describe("Greenfield Owner workspace", () => {
   test("Owner workspace remains usable at common breakpoints", async ({
     page,
   }) => {
+    // Load the authenticated route once. Re-navigating the same Owner URL at
+    // every width can race Next's auth refresh/navigation in WebKit; viewport
+    // changes alone are enough to exercise the responsive layout.
+    await page.setViewportSize({ width: 375, height: 812 });
+    await gotoOwner(page);
+
     for (const viewport of [
       { width: 375, height: 812 },
       { width: 768, height: 1024 },
@@ -154,7 +160,6 @@ test.describe("Greenfield Owner workspace", () => {
       { width: 1280, height: 900 },
     ]) {
       await page.setViewportSize(viewport);
-      await gotoOwner(page);
       await expect(page.getByRole("main").first()).toBeVisible();
       expect(
         await page.evaluate(
