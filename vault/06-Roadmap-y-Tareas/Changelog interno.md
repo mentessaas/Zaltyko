@@ -11365,3 +11365,17 @@ Modelo separado, reclamación manual, administración, importación revisada, fi
   cuentas y se repitió exitosamente la secuencia desde cero.
 - No se crearon cuentas ni se llamó a Stripe; no hubo migraciones remotas,
   cambios en Vercel Production ni en producción.
+
+## 2026-10-13 — Verificar el Preview del alta owner
+
+- El Preview `dpl_AoNp9HAgGb2gLMLjqLXNuU6F7rH8` quedó `READY` para el commit
+  `795c7c0e5a861aa0ada709cfcd10348f3491ea19`. Registro y directorio se
+  inspeccionaron en la URL única del deployment; el formulario muestra el copy
+  acortado, pero el catálogo expone `TEST active`.
+- El ID coincide con una fila pública del sandbox E2E y no con una fila de
+  producción. Vercel devolvió metadatos de variables Preview limitadas a otra
+  rama; no se descifraron valores, por lo que la conexión runtime sigue
+  **NO VERIFICADA**.
+- No se borró ni alteró la fila, no se creó cuenta y no se envió el formulario.
+  El cambio no se fusionó ni se publicó en producción. Evidencia:
+  [`auditoría UX`](../../../../Zaltyko/auditoria-2026-10-13/OWNER-REGISTRATION-UX.md).

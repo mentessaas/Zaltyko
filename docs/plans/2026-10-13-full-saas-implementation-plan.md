@@ -197,16 +197,18 @@ seguridad, backup/restore, monitorización, soporte, onboarding, accesibilidad,
 incidentes, límites de plan, correo y pagos. Validar con academias piloto antes
 de escalar captación.
 
-Revisión local 2026-10-13: el preview contenía promesas de cobro automático a
-familias que el runtime greenfield no cumple. El copy de home, cobros,
-integraciones, ayuda, planes y `llms-full.txt` se ha corregido en esta rama y
-cuenta con tests de contrato. El CTA owner también conserva el contexto y ya no
-obliga a escoger entre roles irrelevantes; el alta genérica no cambia. Pruebas
-focales, typecheck y build local pasan; el build no tiene credenciales de
-servicios y no valida integraciones remotas. El commit `0758acd5` está en el
-Preview de PR #226 y las rutas públicas comprobadas responden 200; producción no
-ha cambiado. Antes de captar se debe superar la revisión independiente de PR
-#225, integrar el hotfix de cron y verificar las rutas públicas en producción.
+Revisión local y Preview 2026-10-13: el copy de cobro automático a familias se
+retiró de las superficies públicas porque el runtime greenfield no inicia
+cargos; el contrato focal lo protege. El CTA owner conserva su contexto, no
+obliga a elegir roles irrelevantes y explica la secuencia cuenta personal →
+configuración de academia. Tests focales 17/17, TypeScript y ESLint pasan. El
+commit `795c7c0e5a861aa0ada709cfcd10348f3491ea19` está `READY` en Preview de PR
+#226; `/auth/register?role=owner` y `/academias` se inspeccionaron visualmente.
+El directorio muestra una ficha `TEST active` que existe en el sandbox E2E y no
+en producción; la conexión runtime del Preview sigue **NO VERIFICADA**. No se
+creó cuenta ni se alteró la fila. No es un release de producción. Antes de
+captar se debe superar la revisión independiente del hotfix #225, integrar el
+cierre del cron legacy y verificar las rutas públicas en producción.
 
 Gate: QA independiente, E2E autenticado, migraciones reconciliadas, restore
 ensayado, producción verificada y rollback documentado. Preview/build verde no
@@ -238,6 +240,10 @@ equivale a producción lista.
    lanzamiento. Mantener bloqueada la captación hasta que el copy corregido y
    el hotfix estén desplegados y verificados. Deployment y cualquier cambio
    remoto requieren su gate propio.
+
+La revisión de PR #225 está solicitada a `@elvisvaldes`; GitHub confirma que
+ya tiene permiso `write`, pero todavía no consta review. La aprobación debe
+realizarla esa persona; no se sustituye por una aprobación del autor.
 
 ## Estado que no debe confundirse
 

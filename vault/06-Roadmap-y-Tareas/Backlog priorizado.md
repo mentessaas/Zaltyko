@@ -19,6 +19,10 @@ source:
 
 - En el Preview actual aparece la ficha pública `TEST active`; el ID coincide
   con una fila marcada pública en el sandbox E2E y no existe en producción.
+- El Preview `READY` del commit `795c7c0e5a861aa0ada709cfcd10348f3491ea19`
+  reproduce la ficha. Vercel mostró variables Preview ligadas a otra rama y no
+  se descifraron secretos; la conexión efectiva a base de datos sigue sin
+  verificar.
 - No se cambió la fila: puede formar parte de pruebas operativas aún no
   localizadas. Confirmar qué entorno alimenta cada tipo de Preview y sustituir
   o despublicar la muestra solo después de revisar dependencias E2E.
