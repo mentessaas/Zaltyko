@@ -222,6 +222,9 @@ omitido; 2.343 tests PASS, 3 omitidos**; `pnpm typecheck`, `pnpm lint` y
 `pnpm check:migrations` (**7 Drizzle + 109 Supabase**) PASS. El Preview de
 Vercel del HEAD `9582ede3` está `READY`; la sesión autenticada, los datos que
 consume el Preview y cualquier runtime productivo siguen sin verificarse.
+`pnpm audit:dependencies --prod` en esta rama informa **3 vulnerabilidades
+moderadas, ninguna alta/crítica**. GitHub indicó que la rama por defecto sigue
+con 4 vulnerabilidades altas; validar el merge y volver a auditar main.
 
 ## Siguiente orden ejecutable
 

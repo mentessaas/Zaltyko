@@ -12,6 +12,9 @@ source:
 - La suite completa pasa: **453 archivos PASS, 1 omitido; 2.343 tests PASS, 3
   omitidos**. `pnpm typecheck`, `pnpm lint` e integridad de migraciones (**7
   Drizzle + 109 Supabase**) también pasan.
+- El audit de dependencias de esta rama informa **3 vulnerabilidades
+  moderadas, ninguna alta/crítica**. GitHub comunicó 4 altas en la rama por
+  defecto; la auditoría de esta rama no implica que main esté corregida.
 - El Preview del HEAD `9582ede3` está `READY`; es una compilación de revisión,
   no un despliegue de producción ni evidencia de E2E autenticado.
 - El PR #225 ya tiene a `@elvisvaldes` solicitado como revisor y con permiso
