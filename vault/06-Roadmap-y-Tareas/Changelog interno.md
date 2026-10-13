@@ -9,6 +9,20 @@ source:
 
 ## 2026-10-14 — Mensualidades publicadas y siguiente bloque paralelo
 
+Integrado Frontend `a3f32864`: recovery explícito de perfil en login activo,
+con sesión verificada antes de POST self-service owner, respuesta de rol
+confirmada, errores en español y sin repetir signup. Sesión existente puede
+recuperar sin redirigirse antes; Google/magic link mantienen la intención con
+next interno fijo, no un destino externo. Main repitió cinco suites: 36/36
+PASS. Consentimiento server-side aún pendiente de integración; sin E2E completo.
+Corregida nota QA: la FK es owner_consent.owner_id → profiles.user_id.
+
+Actualizado corte del plan maestro a `e415040a`; estados anteriores conservados
+como históricos. Separados unitarios/SQL mínimo, recorrido UI parcial y gates
+pendientes de consentimiento, signup real, CI y revisión independiente.
+QA debe comprobar row/audit tras bootstrap, no antes: ese es el punto de
+persistencia server-side. No se declara DEMO/PILOT-READY ni fin del SaaS.
+
 CI `38485117022` detectó contrato env incompleto tras integración QA:
 `E2E_LOCAL_SUPABASE` y `VERCEL` estaban usados pero no documentados.
 Reproducido con `audit:env`; añadidos ejemplos seguros (false/vacío), sin

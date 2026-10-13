@@ -10,7 +10,30 @@ Este corte prevalece sobre los estados históricos fechados que aparecen abajo.
 El alcance completo del SaaS se mantiene; issue #227 define la primera entrega
 demostrable, no la finalización del producto.
 
-Actualización verificada posterior, SHA publicado `aa23222d`:
+Último corte publicado: `e415040a` (14-10-2026). Prevalece sobre los cortes
+históricos de esta sección:
+
+- Integrados recuperación del registro sin repetir signup, rechazo de roles
+  privilegiados en perfil público y errores de setup en español conservando
+  payload/clave idempotente. Main: 18 pruebas focales y typecheck PASS.
+- Resumen operativo validado con PostgreSQL efímero real: M:N deduplicada,
+  tenant adversario excluido, fechas locales/DST y pagos brutos por moneda;
+  manager sin SELECT financiero. Tablas mínimas sintéticas: no equivale a
+  validación completa del esquema ni RLS productivo.
+- Integrados CSP loopback y rate limiter local con límites reales para E2E;
+  ambos vetados en Vercel. Suites focales de seguridad/resumen: 37 PASS.
+  Contrato env corregido: 72 variables documentadas, `audit:env` PASS.
+- QA alcanzó activación de inscripción vía UI en Chromium/Firefox. El runner
+  detectó assertions/fallback de navegación pendientes de corregir; todavía
+  no se demuestra asistencia → cuota → panel ni signup real completo.
+- Detectado P0: bootstrap canónico no persistía/exigía aceptación contractual.
+  Backend implementa el gate y auditoría atómica; Frontend prepara recuperación
+  explícita del perfil. Aún no integrados en este corte. No se sembrará
+  consentimiento por SQL/API administrativa para conseguir un test verde.
+- CI `38485316860` en ejecución al corte; #226 DRAFT con revisión independiente
+  requerida. Sin publicación productiva ni nuevas migraciones remotas.
+
+Histórico, SHA publicado `aa23222d`:
 
 - Integradas primera tarifa mensual, UI de cuotas y corrección de primera
   activación del service worker (ya no recarga ni descarta campos del login).
