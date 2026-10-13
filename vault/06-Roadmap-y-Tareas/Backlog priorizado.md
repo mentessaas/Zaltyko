@@ -116,10 +116,14 @@ No sustituye E2E autenticado ni prueba contra una base de datos aislada.
   saltar a Grupos cuando no existe ficha; definir primero mínimos de datos,
   privacidad de menores y consentimiento. No reutilizar datos personales de
   fixtures ni inventar texto legal.
-- **Seguridad pendiente:** Next 15.5.27 ya está actualizado. Resolver o aceptar
-  formalmente el alto de `braces@3.0.3` en la cadena de desarrollo (sin parche
-  upstream publicado) y el moderado de `sprintf-js` en producción; mantener
-  explícito este gate y volver a escanear antes de release.
+- **Seguridad pendiente:** Next 15.5.27 ya está actualizado. `pnpm audit --prod`
+  conserva `sprintf-js` moderado; audit completo, `braces@3.0.3` alto en
+  desarrollo. Las cuatro alertas altas de `main` son dos advisories repetidos
+  en npm/pnpm móvil: `braces` (#304/#305) y `node-forge` (#300/#301). Hay
+  mitigaciones locales y regresiones para ambos en `mobile/patches` y
+  `mobile/tests`, pero sin versión corregida de upstream y con alertas abiertas.
+  Revisar además la copia raíz de `braces` y la clasificación GitHub runtime de
+  `node-forge` frente a su manifest devDependency antes de aceptar el riesgo.
 
 - [x] Cerrar Fase 1 local: migration, RLS/grants, contrato, onboarding y tests.
 - [x] Pasar stack canónico y las verificaciones focales locales.

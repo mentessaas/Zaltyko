@@ -29,10 +29,14 @@ No hubo migración remota ni cambios en producción o Stripe Live.
 
 Seguridad de dependencias: Next está en 15.5.27. `pnpm audit --prod` conserva un
 moderado en `sprintf-js` vía Swagger UI; la auditoría completa mantiene un alto
-en `braces@3.0.3` solo en dependencias de desarrollo y moderados transitivos.
-El advisory de `braces` todavía no publica versión corregida. El último push
-también informó 4 alertas altas en `main`; no se verificaron sus paquetes ni IDs.
-Gate completo y estado de seguridad de `main` pendientes.
+en `braces@3.0.3` en desarrollo y moderados transitivos. Las cuatro alertas altas
+de `main` son dos advisories repetidos en los lockfiles móvil npm/pnpm:
+`braces` (#304/#305) y `node-forge` (#300/#301); no hay versión upstream
+corregida. Hay parches locales y pruebas de regresión móviles para ambos, pero
+las alertas permanecen abiertas. La copia raíz de `braces` no usa esa mitigación.
+GitHub clasifica `node-forge` como runtime pese a su declaración como
+devDependency y uso local encontrado solo en prueba; revisar discrepancia. Gate
+completo de dependencias pendiente.
 Ver [ADR-0025](../../docs/architecture/adr/0025-inscripcion-owner-pendiente-y-cobros-separados.md)
 y [plan maestro](../../docs/plans/2026-10-13-full-saas-implementation-plan.md).
 

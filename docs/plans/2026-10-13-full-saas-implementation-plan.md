@@ -208,12 +208,19 @@ Auditoría de dependencias del 2026-10-13: Next se actualizó de `15.5.24` a
 `pnpm audit --prod` todavía informa un moderado: `sprintf-js@1.0.3` vía
 `swagger-ui-react > remarkable > argparse`. La auditoría completa informa un
 alto y tres moderados: `braces@3.0.3` es el alto en dependencias de desarrollo;
-GitHub no publica aún una versión corregida para su advisory. El aviso de
-`sprintf-js` es el único moderado detectado en el escaneo de dependencias de
-producción. Además, el `git push` comunicó cuatro alertas altas en la rama por
-defecto; sus IDs y paquetes no se inspeccionaron en este corte. El gate completo
-de dependencias y el estado de seguridad de `main` siguen abiertos. No se
-alteró la base, credenciales, Stripe Live ni Vercel Production.
+GitHub aún no publica una versión corregida. Las cuatro alertas altas de `main`
+se inspeccionaron en GitHub: son dos advisories duplicados por los lockfiles
+`mobile/pnpm-lock.yaml` y `mobile/package-lock.json`: `braces` (Dependabot
+#304/#305, GHSA-vfj7-8cjw-p6xm) y `node-forge` (#300/#301,
+GHSA-86w9-cpqp-85rv). Ambas tienen `first_patched_version=null`. El código móvil
+contiene mitigaciones locales y pruebas de regresión para las dos, pero las
+alertas siguen abiertas mientras no haya una versión oficial corregida. La
+mitigación móvil no cubre la copia raíz de `braces` hallada por `pnpm audit`;
+debe revisarse por separado. GitHub clasifica `node-forge` como runtime, aunque
+el manifest móvil lo declara devDependency y el uso encontrado localmente es una
+prueba: resolver esta discrepancia antes de cerrar el riesgo. Los gates de
+dependencias siguen abiertos. No se alteró la base, credenciales, Stripe Live ni
+Vercel Production.
 
 La última suite Vitest completa previa a este corte fue 453 archivos PASS,
 1 omitido; 2.343 tests PASS, 3 omitidos, en 439,31 s; no se volvió a ejecutar

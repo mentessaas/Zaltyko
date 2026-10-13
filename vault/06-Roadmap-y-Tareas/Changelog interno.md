@@ -19,9 +19,12 @@ source:
 - Next y sus paquetes ESLint se fijaron en `15.5.27`. `pnpm build` generó 291
   rutas; `pnpm typecheck`, ESLint focal y Vitest de inscripción 13/13 pasan.
 - `pnpm audit --prod` aún marca un moderado `sprintf-js` en Swagger UI. El audit
-  completo marca un alto y tres moderados; `braces@3.0.3` es de desarrollo y
-  sigue sin versión upstream corregida. El push también informó 4 altas en
-  `main`, no revisadas por ID en este corte. La auditoría no está cerrada.
+  completo marca un alto y tres moderados. GitHub confirmó que las cuatro altas
+  de `main` son advisories de `braces` (#304/#305) y `node-forge` (#300/#301),
+  duplicadas entre lockfiles npm/pnpm de mobile; existen mitigaciones/tests
+  locales pero no hay versiones corregidas y las alertas siguen abiertas. El
+  `braces` de la raíz no está mitigado por el patch móvil. La auditoría no está
+  cerrada.
 - Preview: https://zaltyko-phe8xtzyl-mentessaas-projects.vercel.app. No se tocó
   producción, Supabase remoto, Stripe Live, credenciales ni migraciones.
 
