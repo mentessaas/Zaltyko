@@ -43,6 +43,19 @@ copy con las decisiones posteriores de facturación manual/opcional automática.
 
 ## Criterios del siguiente bloque
 
+### Comparación de #66 y gate de analítica
+
+Comparado con `origin/feat/zal-158-owner-consent-cut1`, el schema y servicio
+`owner-consent` solo difieren en comentarios; la migración y su test principal
+no difieren. No conviene reintroducir todo el PR. Sin embargo, el test
+`consent-gate.test.ts` (645 líneas) no existe en la integración, y los cambios
+de `PostHogProvider`/`analytics` eliminaron controles previos de consentimiento.
+El layout monta el proveedor y `initAnalytics` puede importar/iniciar PostHog
+sin consentimiento analítico. Se asignó a Frontend recuperar un gate
+browser default-deny con pruebas, sin alterar los eventos operativos internos
+server-side, inventar textos legales ni confundir consentimiento de cuenta
+con marketing. #66 se conserva hasta extraer/verificar esas reglas útiles.
+
 1. Backend: dos sedes de una familia no se bloquean incorrectamente entre sí;
    reintentar emisión tras registrar pago no duplica ni modifica el ledger.
 2. Frontend: enlaces conservan organización/sede, móvil «Más» funciona con
