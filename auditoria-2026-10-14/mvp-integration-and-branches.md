@@ -30,6 +30,17 @@
 No se borró ninguna rama ni checkout. Posponer integración no demuestra que un
 patch sea inútil; el descarte definitivo exige comparación de código y pruebas.
 
+### Comparación adicional de #224
+
+`git cherry HEAD origin/codex/rebrand-zaltyko-live-20261008` identifica el
+patch de seguridad `9e4ba9a1` como equivalente ya integrado. Los otros tres
+commits no tienen equivalencia de patch. La comparación de árboles confirma
+39 archivos distintos en web pública, branding, emails y configuración visual,
+incluidas imágenes editoriales ausentes en la integración. Por tanto #224 **no
+es una rama redundante**: conservar su trabajo de marca y evaluar una integración
+separada cuando el recorrido MVP esté probado. No mezclar automáticamente su
+copy con las decisiones posteriores de facturación manual/opcional automática.
+
 ## Criterios del siguiente bloque
 
 1. Backend: dos sedes de una familia no se bloquean incorrectamente entre sí;
