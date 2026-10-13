@@ -12,6 +12,19 @@ source:
 
 ## Rebuild SaaS — estado actual 2026-10-13
 
+### Owner MVP — pantallas y asistencia greenfield
+
+Las pantallas Owner greenfield existentes permiten configurar la organización
+y sede, crear grupos y fichas mínimas, programar clases recurrentes, registrar
+inscripciones pendientes, conciliar pagos manuales recibidos y pasar lista por
+sesión con la ruta Owner greenfield cuyo backend está en implementación.
+`/api/attendance` es legacy y no se debe reutilizar. La UI de asistencia tiene
+pruebas con mocks del contrato; HTTP/E2E autenticado aún no está verificado. El
+detalle está en
+[`OWNER-MVP-FRONTEND-CONTRACT-GAPS.md`](../../docs/OWNER-MVP-FRONTEND-CONTRACT-GAPS.md).
+
+La prueba focal nueva cubre el reintento idempotente del alta de academia.
+
 El PR #226 sigue abierto y en borrador. El PR #225 está abierto: GitHub confirma
 que `@elvisvaldes` ya tiene permiso `write` y está solicitado como revisor;
 todavía no consta una review. No integrar ni publicar el hotfix antes de esa

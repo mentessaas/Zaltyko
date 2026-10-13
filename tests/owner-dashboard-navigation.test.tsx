@@ -95,7 +95,13 @@ describe("Owner dashboard navigation", () => {
     const mobileNavigation = screen.getByRole("navigation", {
       name: "Navegación móvil",
     });
-    for (const label of ["Resumen", "Grupos", "Clases", "Inscripciones"]) {
+    for (const label of [
+      "Resumen",
+      "Grupos",
+      "Clases",
+      "Asistencia",
+      "Inscripciones",
+    ]) {
       expect(
         within(mobileNavigation).getByRole("link", { name: label })
       ).toBeInTheDocument();

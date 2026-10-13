@@ -49,6 +49,11 @@ export function OwnerWorkspaceNavigation() {
       active: isRouteActive(pathname, "/owner/classes"),
     },
     {
+      label: "Asistencia",
+      href: `/owner/attendance${scopedQuery}`,
+      active: isRouteActive(pathname, "/owner/attendance"),
+    },
+    {
       label: "Inscripciones",
       href: isDashboardPreview
         ? "#retention"
@@ -73,8 +78,8 @@ export function OwnerWorkspaceNavigation() {
       active: isRouteActive(pathname, "/owner/payments"),
     },
   ];
-  const mobileItems = navigationItems.slice(0, 4);
-  const secondaryMobileItems = navigationItems.slice(4);
+  const mobileItems = navigationItems.slice(0, 5);
+  const secondaryMobileItems = navigationItems.slice(5);
 
   return (
     <>
@@ -127,7 +132,7 @@ export function OwnerWorkspaceNavigation() {
           {showNavigation ? (
             <nav
               aria-label="Navegación móvil"
-              className="mt-3 grid grid-cols-5 border-t border-slate-300 pt-2 lg:hidden"
+              className="mt-3 grid grid-cols-6 border-t border-slate-300 pt-2 lg:hidden"
             >
               {mobileItems.map((item) => (
                 <Link

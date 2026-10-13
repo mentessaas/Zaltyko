@@ -33,6 +33,19 @@ source:
   una fila de ledger desconocida o una tabla sin RLS, detener y revisar. No
   aplicar más migraciones desde este paso; no tocar Producción ni Stripe Live.
 
+## P1 — Pase de lista Owner greenfield — 2026-10-13
+
+- **Hueco verificado:** el servicio `recordAttendance` trabaja con sesión e
+  inscripción greenfield. El backend está implementando el contrato acordado
+  para `GET/POST /api/v1/owner/sessions/[sessionId]/attendance`.
+- `/api/attendance` pertenece al modelo legacy (`academyId`/`athleteId`) y no
+  debe conectarse a `/owner`.
+- **UI local:** `/owner/attendance` lee opciones de sesión con `resolveOwnerScope`,
+  consume el GET/POST greenfield con estados guardado/vacío/loading/error y
+  reintento idempotente. Tests usan mocks rotulados del contrato; endpoint aún
+  no presente en esta rama, E2E autenticado pendiente.
+- Ver [`OWNER-MVP-FRONTEND-CONTRACT-GAPS.md`](../../docs/OWNER-MVP-FRONTEND-CONTRACT-GAPS.md).
+
 ## P2 — Aislar el catálogo sintético de los previews compartibles — 2026-10-13
 
 - En el Preview actual aparece la ficha pública `TEST active`; el ID coincide
