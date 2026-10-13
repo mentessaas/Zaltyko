@@ -1,17 +1,17 @@
 begin;
 
 create schema if not exists zaltyko;
-create schema if not exists zaltyko_private;
+create schema if not exists zaltyko_domain_private;
 
 comment on schema zaltyko is
   'Authoritative domain boundary for the rebuilt Zaltyko product.';
-comment on schema zaltyko_private is
-  'Non-exposed helpers used by RLS and database invariants.';
+comment on schema zaltyko_domain_private is
+  'Non-exposed helpers for the greenfield domain; legacy zaltyko_private remains untouched.';
 
 revoke all on schema zaltyko from public, anon, authenticated;
-revoke all on schema zaltyko_private from public, anon, authenticated;
+revoke all on schema zaltyko_domain_private from public, anon, authenticated;
 grant usage on schema zaltyko to authenticated, service_role;
-grant usage on schema zaltyko_private to authenticated, service_role;
+grant usage on schema zaltyko_domain_private to authenticated, service_role;
 
 create type zaltyko.organization_status as enum ('trial', 'active', 'suspended', 'closed');
 create type zaltyko.member_role as enum ('owner', 'manager', 'admin', 'coach');
@@ -480,7 +480,7 @@ comment on table zaltyko.outbox_events is
 comment on table zaltyko.audit_log is
   'Append-only audit trail for sensitive actions.';
 
-create or replace function zaltyko_private.has_organization_access(target_organization_id uuid)
+create or replace function zaltyko_domain_private.has_organization_access(target_organization_id uuid)
 returns boolean
 language sql
 stable
@@ -496,7 +496,7 @@ as $$
   )
 $$;
 
-create or replace function zaltyko_private.has_location_access(
+create or replace function zaltyko_domain_private.has_location_access(
   target_organization_id uuid,
   target_location_id uuid
 )
@@ -525,14 +525,14 @@ as $$
   )
 $$;
 
-revoke all on function zaltyko_private.has_organization_access(uuid) from public;
-revoke all on function zaltyko_private.has_location_access(uuid, uuid) from public;
-grant execute on function zaltyko_private.has_organization_access(uuid)
+revoke all on function zaltyko_domain_private.has_organization_access(uuid) from public;
+revoke all on function zaltyko_domain_private.has_location_access(uuid, uuid) from public;
+grant execute on function zaltyko_domain_private.has_organization_access(uuid)
   to authenticated, service_role;
-grant execute on function zaltyko_private.has_location_access(uuid, uuid)
+grant execute on function zaltyko_domain_private.has_location_access(uuid, uuid)
   to authenticated, service_role;
 
-create or replace function zaltyko_private.reject_audit_mutation()
+create or replace function zaltyko_domain_private.reject_audit_mutation()
 returns trigger
 language plpgsql
 security definer
@@ -542,11 +542,11 @@ begin
   raise exception 'zaltyko.audit_log is append-only' using errcode = '55000';
 end
 $$;
-revoke all on function zaltyko_private.reject_audit_mutation() from public;
+revoke all on function zaltyko_domain_private.reject_audit_mutation() from public;
 
 create trigger audit_log_immutable
 before update or delete on zaltyko.audit_log
-for each row execute function zaltyko_private.reject_audit_mutation();
+for each row execute function zaltyko_domain_private.reject_audit_mutation();
 
 do $$
 declare
@@ -570,7 +570,7 @@ $$;
 
 create policy organizations_select_member on zaltyko.organizations
 for select to authenticated
-using ((select zaltyko_private.has_organization_access(id)));
+using ((select zaltyko_domain_private.has_organization_access(id)));
 
 create policy organization_members_select_self on zaltyko.organization_members
 for select to authenticated
@@ -591,75 +591,75 @@ using (
 
 create policy locations_select_scoped on zaltyko.locations
 for select to authenticated
-using ((select zaltyko_private.has_location_access(organization_id, id)));
+using ((select zaltyko_domain_private.has_location_access(organization_id, id)));
 
 create policy facilities_select_scoped on zaltyko.facilities
 for select to authenticated
-using ((select zaltyko_private.has_location_access(organization_id, location_id)));
+using ((select zaltyko_domain_private.has_location_access(organization_id, location_id)));
 
 create policy spaces_select_scoped on zaltyko.spaces
 for select to authenticated
-using ((select zaltyko_private.has_location_access(organization_id, location_id)));
+using ((select zaltyko_domain_private.has_location_access(organization_id, location_id)));
 
 create policy groups_select_scoped on zaltyko.groups
 for select to authenticated
-using ((select zaltyko_private.has_location_access(organization_id, location_id)));
+using ((select zaltyko_domain_private.has_location_access(organization_id, location_id)));
 
 create policy class_templates_select_scoped on zaltyko.class_templates
 for select to authenticated
-using ((select zaltyko_private.has_location_access(organization_id, location_id)));
+using ((select zaltyko_domain_private.has_location_access(organization_id, location_id)));
 
 create policy sessions_select_scoped on zaltyko.sessions
 for select to authenticated
-using ((select zaltyko_private.has_location_access(organization_id, location_id)));
+using ((select zaltyko_domain_private.has_location_access(organization_id, location_id)));
 
 create policy programs_select_member on zaltyko.programs
 for select to authenticated
-using ((select zaltyko_private.has_organization_access(organization_id)));
+using ((select zaltyko_domain_private.has_organization_access(organization_id)));
 
 create policy class_template_groups_select_member on zaltyko.class_template_groups
 for select to authenticated
-using ((select zaltyko_private.has_organization_access(organization_id)));
+using ((select zaltyko_domain_private.has_organization_access(organization_id)));
 
 create policy class_template_weekdays_select_member on zaltyko.class_template_weekdays
 for select to authenticated
-using ((select zaltyko_private.has_organization_access(organization_id)));
+using ((select zaltyko_domain_private.has_organization_access(organization_id)));
 
 create policy session_staff_select_member on zaltyko.session_staff
 for select to authenticated
-using ((select zaltyko_private.has_organization_access(organization_id)));
+using ((select zaltyko_domain_private.has_organization_access(organization_id)));
 
 create policy price_plans_select_member on zaltyko.price_plans
 for select to authenticated
-using ((select zaltyko_private.has_organization_access(organization_id)));
+using ((select zaltyko_domain_private.has_organization_access(organization_id)));
 
 -- Sensitive and worker-only tables remain default-deny at Data API level. The
 -- policies below are defense in depth for future explicit grants; current app
 -- access must go through server authorization and organization-scoped queries.
 create policy people_select_member on zaltyko.people
 for select to authenticated
-using ((select zaltyko_private.has_organization_access(organization_id)));
+using ((select zaltyko_domain_private.has_organization_access(organization_id)));
 create policy athletes_select_member on zaltyko.athletes
 for select to authenticated
-using ((select zaltyko_private.has_organization_access(organization_id)));
+using ((select zaltyko_domain_private.has_organization_access(organization_id)));
 create policy staff_profiles_select_member on zaltyko.staff_profiles
 for select to authenticated
-using ((select zaltyko_private.has_organization_access(organization_id)));
+using ((select zaltyko_domain_private.has_organization_access(organization_id)));
 create policy group_memberships_select_member on zaltyko.group_memberships
 for select to authenticated
-using ((select zaltyko_private.has_organization_access(organization_id)));
+using ((select zaltyko_domain_private.has_organization_access(organization_id)));
 create policy enrollments_select_member on zaltyko.enrollments
 for select to authenticated
-using ((select zaltyko_private.has_organization_access(organization_id)));
+using ((select zaltyko_domain_private.has_organization_access(organization_id)));
 create policy enrollment_status_history_select_member on zaltyko.enrollment_status_history
 for select to authenticated
-using ((select zaltyko_private.has_organization_access(organization_id)));
+using ((select zaltyko_domain_private.has_organization_access(organization_id)));
 create policy enrollment_pauses_select_member on zaltyko.enrollment_pauses
 for select to authenticated
-using ((select zaltyko_private.has_organization_access(organization_id)));
+using ((select zaltyko_domain_private.has_organization_access(organization_id)));
 create policy attendance_records_select_member on zaltyko.attendance_records
 for select to authenticated
-using ((select zaltyko_private.has_organization_access(organization_id)));
+using ((select zaltyko_domain_private.has_organization_access(organization_id)));
 
 revoke all on all tables in schema zaltyko from anon, authenticated;
 revoke all on all sequences in schema zaltyko from anon, authenticated;

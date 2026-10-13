@@ -31,5 +31,6 @@ Stripe Live ni cambios de credenciales.
 | [0018](./0018-perfiles-deportivos-y-programas-complementarios.md) | Contexto deportivo versionado y programas complementarios |
 | [0019](./0019-preferencias-modulares-owner-dashboard.md)          | Orden individual accesible de módulos del dashboard       |
 | [0020](./0020-modalidad-de-cobro-y-entitlement-saas.md)           | Preferencia por familia y entitlement SaaS versionado     |
+| [0021](./0021-aislamiento-de-helpers-legacy.md)                   | Aislar helpers nuevos del namespace privado heredado       |
 
 Contrato analítico inicial: [diccionario de métricas v0](../metric-dictionary-v0.md).

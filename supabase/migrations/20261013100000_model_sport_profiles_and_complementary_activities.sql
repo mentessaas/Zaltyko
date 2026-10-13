@@ -134,7 +134,7 @@ create policy sport_profiles_select_catalog on zaltyko.sport_profiles
 for select to authenticated using (true);
 create policy organization_sports_select_member on zaltyko.organization_sports
 for select to authenticated
-using ((select zaltyko_private.has_organization_access(organization_id)));
+using ((select zaltyko_domain_private.has_organization_access(organization_id)));
 
 revoke all on zaltyko.sport_profiles, zaltyko.organization_sports
   from public, anon, authenticated;

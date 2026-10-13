@@ -237,13 +237,13 @@ create policy insight_rule_versions_member on zaltyko.insight_rule_versions
 for select to authenticated using (true);
 create policy insight_rule_runs_member on zaltyko.insight_rule_runs
 for select to authenticated
-using ((select zaltyko_private.has_organization_access(organization_id)));
+using ((select zaltyko_domain_private.has_organization_access(organization_id)));
 create policy insights_member on zaltyko.insights
 for select to authenticated
-using ((select zaltyko_private.has_organization_access(organization_id)));
+using ((select zaltyko_domain_private.has_organization_access(organization_id)));
 create policy insight_actions_member on zaltyko.insight_actions
 for select to authenticated
-using ((select zaltyko_private.has_organization_access(organization_id)));
+using ((select zaltyko_domain_private.has_organization_access(organization_id)));
 
 revoke all on table
   zaltyko.insight_rule_versions,
@@ -265,7 +265,7 @@ grant all privileges on table
   zaltyko.insight_notifications
 to service_role;
 
-create or replace function zaltyko_private.reject_insight_history_mutation()
+create or replace function zaltyko_domain_private.reject_insight_history_mutation()
 returns trigger
 language plpgsql
 security definer
@@ -275,10 +275,10 @@ begin
   raise exception 'zaltyko.insight_status_history is append-only' using errcode = '55000';
 end
 $$;
-revoke all on function zaltyko_private.reject_insight_history_mutation() from public;
+revoke all on function zaltyko_domain_private.reject_insight_history_mutation() from public;
 
 create trigger insight_status_history_immutable
 before update or delete on zaltyko.insight_status_history
-for each row execute function zaltyko_private.reject_insight_history_mutation();
+for each row execute function zaltyko_domain_private.reject_insight_history_mutation();
 
 commit;

@@ -26,8 +26,10 @@ frontera única y exige aislamiento por organización y sede.
 5. RLS y grants son capas separadas. `anon` no recibe acceso; `authenticated`
    solo recibe lectura explícita de estructuras no sensibles; las mutaciones y
    la PII pasan por servicios de servidor con autorización previa.
-6. Los helpers `SECURITY DEFINER` se limitan a `zaltyko_private`, fijan
-   `search_path = ''`, usan nombres cualificados y no exponen tablas.
+6. Los helpers `SECURITY DEFINER` del dominio nuevo se limitan a
+   `zaltyko_domain_private`, fijan `search_path = ''`, usan nombres
+   cualificados y no exponen tablas. El esquema histórico `zaltyko_private`
+   queda fuera de la autoridad del dominio nuevo (ADR-0021).
 
 ## Consecuencias
 

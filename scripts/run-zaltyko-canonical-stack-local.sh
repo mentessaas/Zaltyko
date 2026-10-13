@@ -36,6 +36,8 @@ GRANT SELECT ON auth.users TO service_role;
 GRANT EXECUTE ON FUNCTION auth.uid() TO anon, authenticated, service_role;
 SQL
 
+"${PSQL[@]}" -f "${ROOT_DIR}/supabase/fixtures/zaltyko_legacy_authz_schema.sql" >/dev/null
+
 MIGRATIONS=(
   20261006080702_establish_zaltyko_domain_foundation.sql
   20261013100000_model_sport_profiles_and_complementary_activities.sql

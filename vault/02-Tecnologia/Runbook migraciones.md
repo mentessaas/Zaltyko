@@ -156,6 +156,36 @@ confirmación explícita antes de crear un proyecto o rama. Después, registrar
 solo migraciones aprobadas con el runner versionado, verificar RLS y grants y
 ejecutar E2E sintético antes de cualquier promoción.
 
+### Aislamiento de helpers del núcleo greenfield — 2026-10-13
+
+Producción y E2E ya tienen `zaltyko_private` heredado, con `USAGE` para
+`anon`, `authenticated` y `service_role`. La migración fundacional greenfield
+antes revocaba permisos del esquema y cambiaba su comentario; eso podía alterar
+políticas o rutas legacy durante una promoción gradual aunque los nombres de
+función nuevos fueran distintos.
+
+ADR-0021 separa los helpers nuevos en `zaltyko_domain_private`. Los archivos
+históricos ya aplicados permanecen inmutables; las migraciones greenfield aún no
+aparecen en los historiales remotos. El harness local siembra un helper legacy
+sintético y verifica que sobreviven sus permisos, función y comentario, mientras
+`anon` no obtiene acceso al esquema nuevo. No aplicar esos SQL al proyecto
+legacy: el aislamiento elimina un efecto lateral, pero no resuelve el drift de
+ledgers ni autoriza un cutover.
+
+### Próximo mantenimiento PostgreSQL — 2026-10-13
+
+Supabase anunció PostgreSQL 17.11 desde 17.6. En la lectura de proyectos ambos
+siguen en 17.6; `pgcrypto` está instalado y `ltree`/`btree_gist` no aparecen
+instalados. El repositorio no contiene llamadas `pgp_*`, pero eso no descarta
+datos cifrados heredados. Antes de aceptar o programar el upgrade, ejecutar las
+consultas de detección oficiales para índices y revisar columnas/datos de
+`pgcrypto`; no reindexar ni migrar datos sin evidencia y ventana aprobada.
+Supabase también anunció retirar un subconjunto antiguo de TLS 1.2 el
+10-11-2026; usar clientes y runtimes con TLS moderno.
+
+Fuentes actuales: [PostgreSQL 17.11: acciones para extensiones](https://supabase.com/changelog/postgres-15-19-17-11-breaking-changes) y
+[cambio de suites TLS](https://supabase.com/changelog?types=breaking-change).
+
 ## Flujo recomendado
 
 1. Revisar schema actual en `src/db/schema/`.

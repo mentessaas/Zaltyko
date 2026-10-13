@@ -25,6 +25,9 @@ source:
   maestro vigente.
 
 - **Hecho local:** nueve reglas P0 leen fuentes canónicas por sede y alimentan Insights con autorización e idempotencia; PostgreSQL efímero sintético pasa.
+- [x] Aislar helpers de autorización greenfield en `zaltyko_domain_private`; el
+      harness con namespace legacy sintético conserva grants y función. No se
+      aplicó a Supabase remoto.
 - **Hecho local, no activado:** endpoint protegido y dispatcher de outbox con lease, backoff, dead-letter, idempotencia; faltan retries inyectados, lag/alertas y scheduler remoto.
 - **Hecho local:** score actual/historial y serie de métricas paginada, con scope por organización/sede, explicaciones y dimensiones; sin PII de persona en historial.
 - **Hecho local:** API heatmap agrupada por slot con drill-down agregado por clase y filtros sede/programa/grupo.
@@ -96,6 +99,10 @@ plan y verificar el despliegue productivo.
       simulada y PostgreSQL efímero.
 - [ ] Walkthrough autenticado de `/owner/payments`, prueba real de permisos por
       sede y QA de errores/accesibilidad en móvil y teclado.
+- [ ] Antes del upgrade gestionado a PostgreSQL 17.11, ejecutar las consultas
+      de detección de `ltree`/`btree_gist` y revisar uso/datos cifrados de
+      `pgcrypto` en producción y E2E. No aplicar reindexado ni recifrado sin
+      evidencia y ventana aprobada.
 - [x] Preferencia familiar manual/automático, entitlement versionado Free/paid
       y snapshot por cargo implementados localmente. Free/trial falla cerrado;
       la preferencia `automatic` no habilita ni inicia cargos.

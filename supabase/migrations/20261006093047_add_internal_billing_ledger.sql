@@ -394,31 +394,31 @@ $$;
 -- financial table is granted to authenticated or anon in this migration.
 create policy enrollment_price_assignments_select_scoped
 on zaltyko.enrollment_price_assignments for select to authenticated
-using ((select zaltyko_private.has_location_access(organization_id, location_id)));
+using ((select zaltyko_domain_private.has_location_access(organization_id, location_id)));
 create policy invoices_select_member on zaltyko.invoices
 for select to authenticated
-using ((select zaltyko_private.has_organization_access(organization_id)));
+using ((select zaltyko_domain_private.has_organization_access(organization_id)));
 create policy invoice_lines_select_member on zaltyko.invoice_lines
 for select to authenticated
-using ((select zaltyko_private.has_organization_access(organization_id)));
+using ((select zaltyko_domain_private.has_organization_access(organization_id)));
 create policy charges_select_member on zaltyko.charges
 for select to authenticated
-using ((select zaltyko_private.has_organization_access(organization_id)));
+using ((select zaltyko_domain_private.has_organization_access(organization_id)));
 create policy payments_select_member on zaltyko.payments
 for select to authenticated
-using ((select zaltyko_private.has_organization_access(organization_id)));
+using ((select zaltyko_domain_private.has_organization_access(organization_id)));
 create policy payment_attempts_select_member on zaltyko.payment_attempts
 for select to authenticated
-using ((select zaltyko_private.has_organization_access(organization_id)));
+using ((select zaltyko_domain_private.has_organization_access(organization_id)));
 create policy payment_allocations_select_member on zaltyko.payment_allocations
 for select to authenticated
-using ((select zaltyko_private.has_organization_access(organization_id)));
+using ((select zaltyko_domain_private.has_organization_access(organization_id)));
 create policy refunds_select_member on zaltyko.refunds
 for select to authenticated
-using ((select zaltyko_private.has_organization_access(organization_id)));
+using ((select zaltyko_domain_private.has_organization_access(organization_id)));
 create policy financial_reconciliation_runs_select_member
 on zaltyko.financial_reconciliation_runs for select to authenticated
-using ((select zaltyko_private.has_organization_access(organization_id)));
+using ((select zaltyko_domain_private.has_organization_access(organization_id)));
 
 revoke all on table
   zaltyko.enrollment_price_assignments,

@@ -37,6 +37,20 @@ No se aplicaron migraciones remotas ni se modificó producción. Ver el
 el [backlog](../06-Roadmap-y-Tareas/Backlog priorizado.md) y la auditoría de
 [ramas y releases](../../auditoria-2026-10-13/branch-and-release-check.md).
 
+### Corrección de aislamiento SQL — 2026-10-13
+
+Producción y E2E ya contienen helpers legacy en `zaltyko_private`, con acceso
+de esquema para `anon`, `authenticated` y `service_role`. Las migraciones nuevas
+usan ahora `zaltyko_domain_private`; un test de PostgreSQL efímero conserva el
+helper, sus grants y el comentario legacy, mientras niega `anon` en el esquema
+nuevo. La cadena canónica de 14 migraciones, RLS (79/79) y el control de
+integridad (7+108) pasan localmente. No se aplicó SQL remoto. Ver ADR-0021.
+
+La lectura de plataforma confirma Supabase PostgreSQL 17.6 en ambos proyectos.
+`pgcrypto` está instalado; falta revisar los datos/columnas heredados antes del
+upgrade 17.11 anunciado por Supabase. No se han reindexado tablas ni recifrado
+datos.
+
 ## Revalidación focal — 2026-10-05 (histórica; supersedida)
 
 Producción sirve el deployment READY dpl_EtTisvbmfBSiUyuiWsyvZMXG85nD, commit 12814441. El acceso canónico y el alias /login muestran “¿Olvidaste tu contraseña?” y /auth/forgot-password responde 200. Google inicia el flujo con el cliente Web de Zaltyko y vuelve al callback de Supabase esperado; no se completó la sesión porque no se eligió una cuenta. El registro de dueño mantiene Google desactivado hasta aceptar los términos.

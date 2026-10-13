@@ -1,5 +1,37 @@
 begin;
 
+-- A greenfield install must isolate its RLS helpers from the legacy namespace.
+select 1 / (to_regnamespace('zaltyko_domain_private') is not null)::integer;
+select 1 / (has_schema_privilege('authenticated', 'zaltyko_domain_private', 'USAGE')::integer);
+select 1 / ((not has_schema_privilege('anon', 'zaltyko_domain_private', 'USAGE'))::integer);
+select 1 / (has_function_privilege(
+  'authenticated', 'zaltyko_domain_private.has_organization_access(uuid)', 'EXECUTE'
+)::integer);
+select 1 / ((not has_function_privilege(
+  'anon', 'zaltyko_domain_private.has_organization_access(uuid)', 'EXECUTE'
+))::integer);
+select 1 / ((
+  select coalesce(proconfig @> ARRAY['search_path=""'], false)
+  from pg_proc
+  where oid = 'zaltyko_domain_private.has_organization_access(uuid)'::regprocedure
+)::integer);
+
+-- The production legacy schema has anon/authenticated usage; preserve it verbatim.
+select 1 / (has_schema_privilege('anon', 'zaltyko_private', 'USAGE')::integer);
+select 1 / (has_function_privilege(
+  'anon', 'zaltyko_private.current_tenant_id()', 'EXECUTE'
+)::integer);
+select 1 / ((obj_description(
+  'zaltyko_private'::regnamespace, 'pg_namespace'
+) = 'legacy auth helpers - must remain unchanged')::integer);
+select 1 / ((zaltyko_private.current_tenant_id() =
+  '10000000-0000-4000-8000-000000000099'::uuid)::integer);
+select 1 / ((
+  select coalesce(proconfig @> ARRAY['search_path=pg_catalog'], false)
+  from pg_proc
+  where oid = 'zaltyko_private.current_tenant_id()'::regprocedure
+)::integer);
+
 insert into auth.users (id) values
   ('10000000-0000-4000-8000-000000000001'),
   ('20000000-0000-4000-8000-000000000001');

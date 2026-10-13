@@ -11,6 +11,9 @@
    autoridad de operaciones o facturación.
 5. RLS reduce el daño de errores, pero no sustituye autorización de servidor ni
    claves foráneas que impiden cruces de organización.
+6. Los helpers `SECURITY DEFINER` del dominio nuevo viven en
+   `zaltyko_domain_private`; `zaltyko_private` conserva la frontera heredada
+   hasta un cutover explícito.
 
 ## Bounded contexts
 

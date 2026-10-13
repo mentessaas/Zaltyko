@@ -212,13 +212,13 @@ $$;
 
 create policy benchmark_profiles_member on zaltyko.benchmark_profiles
 for select to authenticated
-using (organization_id is null or (select zaltyko_private.has_organization_access(organization_id)));
+using (organization_id is null or (select zaltyko_domain_private.has_organization_access(organization_id)));
 create policy health_score_snapshots_member on zaltyko.health_score_snapshots
 for select to authenticated
-using ((select zaltyko_private.has_organization_access(organization_id)));
+using ((select zaltyko_domain_private.has_organization_access(organization_id)));
 create policy health_score_dimension_snapshots_member on zaltyko.health_score_dimension_snapshots
 for select to authenticated
-using ((select zaltyko_private.has_organization_access(organization_id)));
+using ((select zaltyko_domain_private.has_organization_access(organization_id)));
 
 revoke all on table
   zaltyko.benchmark_profiles,

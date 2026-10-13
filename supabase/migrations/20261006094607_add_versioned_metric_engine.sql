@@ -228,13 +228,13 @@ $$;
 
 create policy metric_runs_select_member on zaltyko.metric_runs
 for select to authenticated
-using ((select zaltyko_private.has_organization_access(organization_id)));
+using ((select zaltyko_domain_private.has_organization_access(organization_id)));
 create policy metric_values_select_member on zaltyko.metric_values
 for select to authenticated
-using ((select zaltyko_private.has_organization_access(organization_id)));
+using ((select zaltyko_domain_private.has_organization_access(organization_id)));
 create policy data_quality_issues_select_member on zaltyko.data_quality_issues
 for select to authenticated
-using ((select zaltyko_private.has_organization_access(organization_id)));
+using ((select zaltyko_domain_private.has_organization_access(organization_id)));
 
 revoke all on table
   zaltyko.metric_definitions,

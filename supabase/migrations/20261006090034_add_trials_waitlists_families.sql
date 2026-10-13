@@ -347,38 +347,38 @@ $$;
 
 create policy families_select_member on zaltyko.families
 for select to authenticated
-using ((select zaltyko_private.has_organization_access(organization_id)));
+using ((select zaltyko_domain_private.has_organization_access(organization_id)));
 create policy guardians_select_member on zaltyko.guardians
 for select to authenticated
-using ((select zaltyko_private.has_organization_access(organization_id)));
+using ((select zaltyko_domain_private.has_organization_access(organization_id)));
 create policy guardian_contacts_select_member on zaltyko.guardian_contacts
 for select to authenticated
-using ((select zaltyko_private.has_organization_access(organization_id)));
+using ((select zaltyko_domain_private.has_organization_access(organization_id)));
 create policy family_guardians_select_member on zaltyko.family_guardians
 for select to authenticated
-using ((select zaltyko_private.has_organization_access(organization_id)));
+using ((select zaltyko_domain_private.has_organization_access(organization_id)));
 create policy family_members_select_member on zaltyko.family_members
 for select to authenticated
-using ((select zaltyko_private.has_organization_access(organization_id)));
+using ((select zaltyko_domain_private.has_organization_access(organization_id)));
 create policy family_payers_select_member on zaltyko.family_payers
 for select to authenticated
-using ((select zaltyko_private.has_organization_access(organization_id)));
+using ((select zaltyko_domain_private.has_organization_access(organization_id)));
 
 create policy trials_select_scoped on zaltyko.trials
 for select to authenticated
-using ((select zaltyko_private.has_location_access(organization_id, location_id)));
+using ((select zaltyko_domain_private.has_location_access(organization_id, location_id)));
 create policy trial_status_history_select_scoped on zaltyko.trial_status_history
 for select to authenticated
-using ((select zaltyko_private.has_location_access(organization_id, location_id)));
+using ((select zaltyko_domain_private.has_location_access(organization_id, location_id)));
 create policy trial_followups_select_scoped on zaltyko.trial_followups
 for select to authenticated
-using ((select zaltyko_private.has_location_access(organization_id, location_id)));
+using ((select zaltyko_domain_private.has_location_access(organization_id, location_id)));
 create policy waitlist_entries_select_scoped on zaltyko.waitlist_entries
 for select to authenticated
-using ((select zaltyko_private.has_location_access(organization_id, location_id)));
+using ((select zaltyko_domain_private.has_location_access(organization_id, location_id)));
 create policy waitlist_offers_select_scoped on zaltyko.waitlist_offers
 for select to authenticated
-using ((select zaltyko_private.has_location_access(organization_id, location_id)));
+using ((select zaltyko_domain_private.has_location_access(organization_id, location_id)));
 
 revoke all on table
   zaltyko.families,

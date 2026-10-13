@@ -7,6 +7,25 @@ source:
   - ../docs/architecture/zaltyko-domain-model.md
 ---
 
+## 2026-10-13 — Aislar helpers greenfield del esquema privado legacy
+
+- La lectura de catálogos confirma que producción y el sandbox tienen
+  `zaltyko_private` con 14 funciones `SECURITY DEFINER`; `anon`,
+  `authenticated` y `service_role` conservan `USAGE` en el esquema. La
+  migración fundacional greenfield modificaba permisos y comentario del mismo
+  esquema.
+- Separé funciones, policies y triggers del dominio nuevo en
+  `zaltyko_domain_private`; no modifiqué migraciones históricas ya aplicadas.
+  Los SQL greenfield implicados no aparecen en los historiales remotos.
+- Añadí un fixture de namespace legacy sintético y aserciones de permisos,
+  función centinela y comentario. La cadena canónica completa (14 migraciones),
+  pruebas SQL, `validate:rls` (79/79) y `check:migrations` (7+108) pasan.
+- PostgreSQL 17.11 desde 17.6: ambos proyectos siguen en 17.6; `pgcrypto` está
+  instalado, sin llamadas `pgp_*` en el repo. Queda por revisar datos legacy con
+  las consultas oficiales antes de cualquier upgrade; no se tocó la plataforma.
+- No se ejecutó migración remota, no se creó proyecto/branch y no se desplegó.
+  E2E autenticado, backup/restore y cutover siguen pendientes.
+
 ## 2026-10-13 — Claims públicos y claridad del módulo de cobros
 
 - Revisé en el preview móvil la home, el alta de propietario y

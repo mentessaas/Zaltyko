@@ -8,6 +8,15 @@ source:
 
 # Decisiones
 
+## 2026-10-13 — Aislar helpers SQL del núcleo greenfield
+
+| Campo | Valor |
+| --- | --- |
+| Evidencia | Producción y E2E ya tienen `zaltyko_private` con helpers `SECURITY DEFINER` y `USAGE` concedido a `anon`, `authenticated` y `service_role`. La migration fundacional greenfield revocaba permisos en bloque y reescribía el comentario del esquema compartido. |
+| Decisión | Crear `zaltyko_domain_private` para helpers, políticas y triggers del dominio nuevo. No cambiar las funciones, grants ni comentarios de `zaltyko_private`; los archivos históricos aplicados no se editan. |
+| Consecuencia | Las políticas nuevas mantienen la autorización de organización/sede sin tocar accesos legacy. El esquema nuevo solo da `USAGE/EXECUTE` a `authenticated` y `service_role`; `anon` queda fuera. El cutover sigue requiriendo destino y ledgers reconciliados. |
+| Estado | SQL greenfield y harness local actualizados; secuencia canónica, RLS 79/79 e integridad de migrations pasan. Sin SQL remoto, despliegue, ni datos reales; ver ADR-0021. |
+
 ## 2026-10-13 — Alta owner enfocada desde CTA de academia
 
 | Campo | Valor |
