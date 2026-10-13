@@ -170,7 +170,9 @@ describe("L2 — copy pública presente en componentes", () => {
   const pricing = readSiteFile("src/app/(site)/pricing.tsx");
 
   it("ComparisonSection afirma features clave", () => {
-    expect(comparison).toContain("Cobros automáticos");
+    expect(comparison).toContain("Gestión de cuotas y pagos");
+    expect(comparison).toContain("Cargos por periodo, registro de pagos y seguimiento de pendientes");
+    expect(comparison).not.toContain("Cobros automáticos");
     expect(comparison).toContain("Pase de lista por sesión");
     expect(comparison).toContain("Evaluaciones con rúbrica");
     expect(comparison).toContain("7 días de Starter sin tarjeta");
@@ -311,8 +313,9 @@ describe("L2 — claims de módulos alineados con capacidades verificadas", () =
     expect(faqPage).not.toContain("importar gimnastas y familias");
   });
 
-  it("describe las exportaciones como apoyo operativo revisable", () => {
-    expect(payments).toContain("reportes por módulo para revisarlos con tu equipo");
+  it("describe los cobros manuales y las exportaciones como apoyo operativo", () => {
+    expect(payments).toContain("Registro manual de pagos recibidos");
+    expect(payments).toContain("no se realizan cobros automáticos");
     expect(reports).toContain("Reportes para tu equipo");
     expect(reports).toContain("compártelos con tu equipo");
   });

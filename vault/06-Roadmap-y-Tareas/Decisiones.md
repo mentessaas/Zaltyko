@@ -15,7 +15,7 @@ source:
 | Evidencia | El cron productivo seleccionaba academias activas con Stripe Connect habilitado y cobraba cargos vencidos sin comprobar modo elegido, plan de pago ni autorización trazable. La consulta agregada de producción observó una cuenta candidata sin suscripción SaaS, dos cargos vencidos y ningún medio de pago familiar resoluble en ese momento. No se consultó Stripe ni se ejecutó un cobro. |
 | Decisión | Retirar el cron legacy de la programación y mantener su endpoint autenticado como no-op. No reactivar cobro hasta implementar por academia: elección expresa, entitlement de plan pagado, mandato/consentimiento trazable, webhook verificado, idempotencia y recuperación probada. |
 | Consecuencia | El cambio preparado no modifica cargos, métodos de pago, filas de Connect ni credenciales. Las demás tareas programadas permanecen intactas. La ruta manual de registro de pagos no inicia cobros y no se ve afectada; la web deja de prometer cobros o recordatorios automáticos antes de contar con los controles del producto. |
-| Estado | Rama aislada basada en el commit productivo observado; test focal, TypeScript, ESLint y build locales pasan. CI y revisión pendientes. Aún no está fusionado ni desplegado. |
+| Estado | Rama aislada basada en el commit productivo observado. Suite completa (2.267/2.270), typecheck, lint, integridad local de migraciones, gate de autorización, build (274 páginas) y audit de producción (sin hallazgos altos/críticos) pasan. CI actualizada y revisión independiente pendientes. Aún no está fusionado ni desplegado a producción. |
 
 ## 2026-10-04 — Fallar cerrado si CI no genera inventarios SBOM
 
