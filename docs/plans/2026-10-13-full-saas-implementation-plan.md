@@ -34,6 +34,11 @@ alterará permisos, cálculos, datos compartidos ni el flujo de una tarea.
   Los fixtures de validación son sintéticos.
 - La facturación de Zaltyko a la academia y los cobros de una academia a sus
   familias son productos y ledgers distintos.
+- Para cobros familiares, el modelo v1 separa una cuenta Connect de la academia
+  por entorno (test/live) de la cuenta que cobra el SaaS de Zaltyko. La decisión
+  local fija Accounts v2, cargos directos, dashboard completo y
+  responsabilidades de tarifas/pérdidas en Stripe; disponibilidad y efecto
+  contractual para la plataforma Zaltyko siguen sin verificarse. Ver ADR-0022.
 - El cobro manual es una opción real para todos los planes. El cobro automático
   a familias solo se ofrece a planes de pago con procesador configurado, mandato
   y consentimiento adecuados, idempotencia, webhook verificado y recuperación
@@ -129,7 +134,12 @@ automático. La preferencia queda ligada a una revisión y exige reconfirmación
 cambia el plan. Al emitir cargos, solo una preferencia vigente y coincidente se
 guarda como snapshot; editarla no transforma cargos previos. Autorización y
 consentimiento del pagador siguen siendo un modelo server-only reservado, no
-capturado ni operativo. La preferencia y los snapshots nunca inician pagos:
+capturado ni operativo. Se añadió una proyección server-only de cuenta Connect y
+la autorización futura queda ligada por FK tenant-aware a una cuenta concreta;
+la evaluación fail-closed exige coincidencia de tenant, entorno, modelo, estado
+y capacidad activa. La frescura de `last_synced_at` sigue como gate pendiente.
+No se han creado cuentas ni confirmado que Accounts v2 esté
+disponible en la cuenta de plataforma. La preferencia y los snapshots nunca inician pagos:
 `effectiveMode` sigue manual. La prueba local comprueba migración desde cero,
 seed Free, historial, permisos/grants, downgrade/reconfirmación, snapshots y FKs.
 No hay todavía provisioning comercial/webhook verificado, flujo real de
@@ -214,9 +224,12 @@ equivale a producción lista.
    downgrade y revisiones desactualizadas fallan cerrados; ningún snapshot
    autoriza o inicia un pago. El hotfix del cron legacy está en PR separado y
    sigue pendiente de revisión/merge/deploy.
-4. Implementar provisioning/reconciliación comercial desde servidor y completar
-   mandato/consentimiento, idempotencia de cada intento, webhook firmado y
-   recuperación. Solo después evaluar Stripe Test; no ejecutar cargos reales.
+4. Confirmar acceso a Accounts v2, términos, responsabilidades de tarifa/riesgo
+   y contrato antes de crear cuentas de prueba. Implementar provisioning y
+   sincronización; después completar SetupIntent y mandato/consentimiento
+   revocable, inbox/webhook firmado ligado a cuenta+entorno, worker idempotente
+   fuera de la transacción de BD, SCA, recuperación y conciliación. Solo tras
+   los gates de seguridad/legal evaluar Stripe Test; no ejecutar cargos reales.
 5. Revalidar métricas, score, Insights y dashboard sobre el modelo operativo
    completo, incluidas las nuevas señales financieras.
 6. Validar el reordenador modular con usuarios, teclado y lector; decidir

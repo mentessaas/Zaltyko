@@ -11306,6 +11306,11 @@ Modelo separado, reclamación manual, administración, importación revisada, fi
   suscripciones pagadas al respaldo real de Stripe.
 - El cron legacy sigue siendo un gate P0 mientras PR #225 no se revise y
   fusione; este cambio de interfaz no lo apaga ni sustituye el hotfix.
+- Se eliminaron del remoto las refs
+  `docs/ZAL-92-antispoofing-policy-and-repoPath-whitelist` y
+  `fix/contact-api-uuid-validation`: sin PR histórico, sin protección y con
+  `ahead_by=0` respecto de `main`; los commits siguen en el historial. No se
+  hizo limpieza masiva.
 - **Validación local:** contrato focal 2/2, TypeScript y `git diff --check`
   pasan; ESLint tiene 0 errores y 1 advertencia preexistente en
   `FamilyPaymentMethodCard.tsx:67`. `pnpm build` falló con `ENOSPC` al escribir
@@ -11316,3 +11321,29 @@ Modelo separado, reclamación manual, administración, importación revisada, fi
   `dpl_8zmG13n9Zob3UB2BZuaGZ7PdDL8s`, target Preview). Esto valida el build
   remoto, no el flujo familiar autenticado.
   Sin cambios en Stripe, migraciones, base de datos ni producción.
+
+## 2026-10-13 — Vincular la autorización familiar a la cuenta de cobro de su academia
+
+- Se añadió una proyección server-only de Stripe Connect con cuenta única por
+  organización/procesador/entorno y configuración explícita: Accounts v2,
+  cargos directos, dashboard completo y responsabilidades de tarifas/pérdidas
+  en Stripe.
+- La autorización familiar ahora requiere referencia de SetupIntent y FK
+  compuesta a la cuenta de su misma organización. El mandato es opcional en el
+  esquema porque el medio de pago puede no tener mandato separado; el
+  consentimiento verificable sigue siendo obligatorio para operar.
+- La elegibilidad dejó de aceptar un booleano genérico de proveedor listo:
+  valida desde datos server-loaded tenant, entorno, modelo, estado, capacidad
+  card_payments activa y que la autorización use esa misma cuenta. Free/trial y
+  el runtime no liberado continúan fallando cerrados. El umbral de frescura de
+  last_synced_at aún no se aplica y bloquea cualquier liberación del worker.
+- Se añadió ADR-0022 y se actualizaron el plan, ledger/runbook, decisiones y
+  backlog.
+- **Validación local:** elegibilidad 27/27; pruebas de billing familiar y
+  ledger pasan en PostgreSQL efímero; stack canónico completo pasa; validate:rls
+  cubre 79/79 tablas tenant-scoped; check:migrations valida 7 Drizzle + 109
+  Supabase; TypeScript pasa. Un primer fallo local reveló que el enum del
+  entorno estaba en la migración posterior; se movió a la migración previa de
+  cuentas y se repitió exitosamente la secuencia desde cero.
+- No se crearon cuentas ni se llamó a Stripe; no hubo migraciones remotas,
+  cambios en Vercel Production ni en producción.

@@ -2,7 +2,6 @@ begin;
 
 create type zaltyko.saas_plan_code as enum ('free', 'starter', 'growth', 'network');
 create type zaltyko.entitlement_source as enum ('bootstrap', 'stripe_subscription', 'contract');
-create type zaltyko.stripe_environment as enum ('test', 'live');
 create type zaltyko.saas_billing_interval as enum ('month', 'year');
 create type zaltyko.family_collection_mode as enum ('manual', 'automatic');
 create type zaltyko.payment_authorization_status as enum (
@@ -223,10 +222,14 @@ create table zaltyko.family_payment_authorizations (
     references zaltyko.organizations(id) on delete cascade,
   family_id uuid not null,
   family_payer_id uuid not null,
+  payment_provider_account_id uuid not null,
   status zaltyko.payment_authorization_status not null default 'pending',
-  processor text not null check (btrim(processor) <> ''),
+  provider_setup_reference text not null
+    check (btrim(provider_setup_reference) <> ''),
   payment_method_reference text not null check (btrim(payment_method_reference) <> ''),
-  mandate_reference text not null check (btrim(mandate_reference) <> ''),
+  mandate_reference text check (
+    mandate_reference is null or btrim(mandate_reference) <> ''
+  ),
   consent_version text,
   consent_evidence_reference text check (
     consent_evidence_reference is null or btrim(consent_evidence_reference) <> ''
@@ -242,6 +245,8 @@ create table zaltyko.family_payment_authorizations (
   updated_at timestamptz not null default now(),
   constraint family_payment_authorizations_organization_id_id_uq
     unique (organization_id, id),
+  constraint family_payment_authorizations_setup_uq
+    unique (organization_id, payment_provider_account_id, provider_setup_reference),
   constraint family_payment_authorizations_active_consent_valid check (
     status <> 'active' or (
       consent_version is not null and btrim(consent_version) <> ''
@@ -260,12 +265,17 @@ create table zaltyko.family_payment_authorizations (
   constraint family_payment_authorizations_payer_fk
     foreign key (organization_id, family_id, family_payer_id)
     references zaltyko.family_payers (organization_id, family_id, id) on delete restrict,
+  constraint family_payment_authorizations_provider_account_fk
+    foreign key (organization_id, payment_provider_account_id)
+    references zaltyko.organization_payment_provider_accounts
+      (organization_id, id) on delete restrict,
   constraint family_payment_authorizations_guardian_fk
     foreign key (organization_id, family_id, consented_by_guardian_id)
     references zaltyko.family_guardians (organization_id, family_id, guardian_id) on delete restrict
 );
 create unique index family_payment_authorizations_active_method_uq
-  on zaltyko.family_payment_authorizations (organization_id, family_payer_id, processor)
+  on zaltyko.family_payment_authorizations
+    (organization_id, payment_provider_account_id, family_payer_id)
   where status = 'active';
 create index family_payment_authorizations_payer_status_idx
   on zaltyko.family_payment_authorizations
@@ -322,7 +332,7 @@ comment on table zaltyko.organization_entitlement_changes is
 comment on table zaltyko.family_collection_preferences is
   'Per-family requested collection mode only. It is not payer consent or an instruction to initiate payment.';
 comment on table zaltyko.family_payment_authorizations is
-  'Reserved server-only model for provider references and verifiable payer consent; not operational in this release.';
+  'Reserved server-only model bound to one organization payment account and verifiable payer consent; not operational in this release.';
 comment on column zaltyko.charges.collection_mode is
   'Collection-mode snapshot fixed at charge creation; defaults to manual and is not changed by later preference updates.';
 

@@ -5,6 +5,7 @@ declare
     'organization_entitlements',
     'organization_entitlement_changes',
     'family_collection_preferences',
+    'organization_payment_provider_accounts',
     'family_payment_authorizations'
   ];
   protected_tables integer;
@@ -34,22 +35,41 @@ begin
     or not has_table_privilege('service_role', 'zaltyko.organization_entitlement_changes', 'SELECT,INSERT')
     or has_table_privilege('service_role', 'zaltyko.organization_entitlement_changes', 'UPDATE,DELETE')
     or not has_table_privilege('service_role', 'zaltyko.family_collection_preferences', 'SELECT,INSERT,UPDATE')
-    or has_table_privilege('service_role', 'zaltyko.family_collection_preferences', 'DELETE') then
+    or has_table_privilege('service_role', 'zaltyko.family_collection_preferences', 'DELETE')
+    or not has_table_privilege('service_role', 'zaltyko.family_payment_authorizations', 'SELECT,INSERT,UPDATE')
+    or has_table_privilege('service_role', 'zaltyko.family_payment_authorizations', 'DELETE')
+    or not has_table_privilege('service_role', 'zaltyko.organization_payment_provider_accounts', 'SELECT,INSERT,UPDATE')
+    or has_table_privilege('service_role', 'zaltyko.organization_payment_provider_accounts', 'DELETE') then
     raise exception 'Expected least-privilege server grants and append-only history';
   end if;
 end
 $$;
 
+insert into zaltyko.organization_payment_provider_accounts (
+  id, organization_id, provider_account_reference, environment, status,
+  card_payments_capability_status
+) values
+  ('10000000-0000-0000-0000-000000000801',
+   '10000000-0000-0000-0000-000000000001',
+   'acct_synthetictest', 'test', 'active', 'active'),
+  ('10000000-0000-0000-0000-000000000802',
+   '10000000-0000-0000-0000-000000000001',
+   'acct_syntheticlive', 'live', 'pending', 'pending'),
+  ('20000000-0000-0000-0000-000000000801',
+   '20000000-0000-0000-0000-000000000001',
+   'acct_syntheticothertenant', 'test', 'active', 'active');
+
 insert into zaltyko.family_payment_authorizations (
-  organization_id, family_id, family_payer_id, status, processor,
-  payment_method_reference, mandate_reference, consent_version,
+  organization_id, family_id, family_payer_id, payment_provider_account_id,
+  status, provider_setup_reference, payment_method_reference, consent_version,
   consent_evidence_reference, consent_evidence_sha256, consented_at,
   consented_by_guardian_id
 ) values (
   '10000000-0000-0000-0000-000000000001',
   '10000000-0000-0000-0000-000000000601',
   '10000000-0000-0000-0000-000000000631',
-  'active', 'synthetic', 'pm_synthetic_001', 'mandate_synthetic_001',
+  '10000000-0000-0000-0000-000000000801',
+  'active', 'seti_synthetic_001', 'pm_synthetic_001',
   'synthetic-v1', 'synthetic://consent/record-001', repeat('a', 64), now(),
   '10000000-0000-0000-0000-000000000501'
 );
@@ -58,15 +78,37 @@ do $$
 begin
   begin
     insert into zaltyko.family_payment_authorizations (
-      organization_id, family_id, family_payer_id, processor,
-      payment_method_reference, mandate_reference
+      organization_id, family_id, family_payer_id,
+      payment_provider_account_id, status, provider_setup_reference,
+      payment_method_reference
     ) values (
       '10000000-0000-0000-0000-000000000001',
-      '20000000-0000-0000-0000-000000000601',
-      '20000000-0000-0000-0000-000000000631',
-      'synthetic', 'pm_cross_tenant', 'mandate_cross_tenant'
+      '10000000-0000-0000-0000-000000000601',
+      '10000000-0000-0000-0000-000000000631',
+      '10000000-0000-0000-0000-000000000801',
+      'pending', 'seti_synthetic_001', 'pm_duplicate_setup'
     );
-    raise exception 'Cross-tenant payer authorization was accepted';
+    raise exception 'SetupIntent reference was accepted more than once';
+  exception when unique_violation then null;
+  end;
+end
+$$;
+
+do $$
+begin
+  begin
+    insert into zaltyko.family_payment_authorizations (
+      organization_id, family_id, family_payer_id,
+      payment_provider_account_id, provider_setup_reference,
+      payment_method_reference
+    ) values (
+      '10000000-0000-0000-0000-000000000001',
+      '10000000-0000-0000-0000-000000000601',
+      '10000000-0000-0000-0000-000000000631',
+      '20000000-0000-0000-0000-000000000801',
+      'seti_cross_tenant', 'pm_cross_tenant'
+    );
+    raise exception 'Cross-tenant payment account authorization was accepted';
   exception when foreign_key_violation then null;
   end;
 end

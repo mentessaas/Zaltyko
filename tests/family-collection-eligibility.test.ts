@@ -61,11 +61,22 @@ function eligibleInput(): CollectionEligibilityInput {
       familyPayerId: "payer-a",
       collectionMode: "automatic",
     },
-    providerReady: true,
+    processorEnvironment: "test",
+    providerAccount: {
+      id: "provider-account-a",
+      organizationId: "org-a",
+      processor: "stripe",
+      environment: "test",
+      accountsApiGeneration: 2,
+      chargeModel: "direct",
+      status: "active",
+      cardPaymentsCapabilityStatus: "active",
+    },
     authorization: {
       organizationId: "org-a",
       familyId: "family-a",
       familyPayerId: "payer-a",
+      paymentProviderAccountId: "provider-account-a",
       status: "active",
       consentVersion: "consent-v1",
       consentEvidenceReference: "synthetic-consent-object-ref",
@@ -205,7 +216,66 @@ describe("family automatic-collection execution gates", () => {
       },
       "charge_manual",
     ],
-    ["provider not ready", { providerReady: false }, "provider_not_ready"],
+    [
+      "payment account missing",
+      { providerAccount: null },
+      "provider_not_ready",
+    ],
+    [
+      "payment account belongs to another organization",
+      {
+        providerAccount: {
+          ...eligibleInput().providerAccount!,
+          organizationId: "org-b",
+        },
+      },
+      "provider_scope_mismatch",
+    ],
+    [
+      "test account cannot run in live environment",
+      { processorEnvironment: "live" as const },
+      "provider_environment_mismatch",
+    ],
+    [
+      "legacy account API generation",
+      {
+        providerAccount: {
+          ...eligibleInput().providerAccount!,
+          accountsApiGeneration: 1,
+        },
+      },
+      "provider_api_generation_unsupported",
+    ],
+    [
+      "unsupported destination charge account",
+      {
+        providerAccount: {
+          ...eligibleInput().providerAccount!,
+          chargeModel: "destination",
+        },
+      },
+      "provider_charge_model_unsupported",
+    ],
+    [
+      "inactive card payments capability",
+      {
+        providerAccount: {
+          ...eligibleInput().providerAccount!,
+          cardPaymentsCapabilityStatus: "pending",
+        },
+      },
+      "provider_not_ready",
+    ],
+    [
+      "authorization points at another connected account",
+      {
+        authorization: {
+          ...eligibleInput().authorization!,
+          paymentProviderAccountId: "provider-account-b",
+        },
+      },
+      "authorization_provider_mismatch",
+    ],
     ["missing payer authorization", { authorization: null }, "authorization_missing"],
     [
       "revoked authorization",
@@ -260,5 +330,14 @@ describe("family automatic-collection execution gates", () => {
         },
       })
     ).toEqual({ eligible: false, reason: "authorization_scope_mismatch" });
+    expect(
+      evaluateCollectionEligibility({
+        ...eligibleInput(),
+        providerAccount: {
+          ...eligibleInput().providerAccount!,
+          organizationId: "org-b",
+        },
+      })
+    ).toEqual({ eligible: false, reason: "provider_scope_mismatch" });
   });
 });

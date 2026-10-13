@@ -17,9 +17,14 @@ export type CollectionEligibilityReason =
   | "preference_entitlement_stale"
   | "charge_scope_mismatch"
   | "charge_manual"
+  | "provider_scope_mismatch"
+  | "provider_environment_mismatch"
+  | "provider_api_generation_unsupported"
+  | "provider_charge_model_unsupported"
   | "provider_not_ready"
   | "authorization_missing"
   | "authorization_scope_mismatch"
+  | "authorization_provider_mismatch"
   | "authorization_inactive"
   | "authorization_expired"
   | "consent_incomplete"
@@ -44,11 +49,22 @@ export interface CollectionEligibilityInput {
     familyPayerId: string | null;
     collectionMode: "manual" | "automatic";
   };
-  providerReady: boolean;
+  processorEnvironment: "test" | "live";
+  providerAccount: {
+    id: string;
+    organizationId: string;
+    processor: string;
+    environment: "test" | "live";
+    accountsApiGeneration: number;
+    chargeModel: string;
+    status: string;
+    cardPaymentsCapabilityStatus: string;
+  } | null;
   authorization: {
     organizationId: string;
     familyId: string;
     familyPayerId: string;
+    paymentProviderAccountId: string;
     status: "pending" | "active" | "revoked" | "expired";
     consentVersion: string | null;
     consentEvidenceReference: string | null;
@@ -115,7 +131,30 @@ export function evaluateCollectionEligibility(
   if (input.charge.collectionMode !== "automatic") {
     return { eligible: false, reason: "charge_manual" };
   }
-  if (!input.providerReady) {
+  const providerAccount = input.providerAccount;
+  if (!providerAccount) {
+    return { eligible: false, reason: "provider_not_ready" };
+  }
+  if (providerAccount.organizationId !== input.organization.id) {
+    return { eligible: false, reason: "provider_scope_mismatch" };
+  }
+  if (providerAccount.environment !== input.processorEnvironment) {
+    return { eligible: false, reason: "provider_environment_mismatch" };
+  }
+  if (providerAccount.accountsApiGeneration !== 2) {
+    return {
+      eligible: false,
+      reason: "provider_api_generation_unsupported",
+    };
+  }
+  if (providerAccount.chargeModel !== "direct") {
+    return { eligible: false, reason: "provider_charge_model_unsupported" };
+  }
+  if (
+    providerAccount.processor !== "stripe" ||
+    providerAccount.status !== "active" ||
+    providerAccount.cardPaymentsCapabilityStatus !== "active"
+  ) {
     return { eligible: false, reason: "provider_not_ready" };
   }
   if (!input.charge.familyPayerId || !input.authorization) {
@@ -127,6 +166,9 @@ export function evaluateCollectionEligibility(
     input.authorization.familyPayerId !== input.charge.familyPayerId
   ) {
     return { eligible: false, reason: "authorization_scope_mismatch" };
+  }
+  if (input.authorization.paymentProviderAccountId !== providerAccount.id) {
+    return { eligible: false, reason: "authorization_provider_mismatch" };
   }
   if (
     input.authorization.status !== "active" ||

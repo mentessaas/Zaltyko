@@ -80,6 +80,15 @@ source:
 | Consecuencia | No reutilizar el cron legacy como prestación del núcleo nuevo hasta cerrar gates de plan, elección y consentimiento; corregir claims públicos si no describen la disponibilidad real. No generar cargos durante pruebas. |
 | Estado | Registro manual con API/UI owner-admin y preferencia familiar manual/automático con entitlement Free/paid implementados y probados localmente con datos sintéticos. Free/trial no permite automático y el modo efectivo sigue manual: la preferencia por sí sola nunca inicia cargos. Consentimiento/mandato operativo, provisioning/webhook comercial, worker, Stripe Test E2E y gates remotos siguen pendientes; sin cambios en Stripe Live ni producción. Referencia: [ADR-0003](../../docs/architecture/adr/0003-ledger-financiero-interno.md), [operaciones](../../docs/architecture/ledger-operations.md) y [plan maestro](../../docs/plans/2026-10-13-full-saas-implementation-plan.md). |
 
+## 2026-10-13 — Cuenta Connect separada por academia y entorno
+
+| Campo | Valor |
+| --- | --- |
+| Evidencia | La autorización familiar reservaba un procesador sin distinguir la cuenta conectada concreta. Una academia puede tener setup de test y live distintos; los cobros familiares deben usar la cuenta de la propia academia, separada de la facturación SaaS de Zaltyko. |
+| Decisión | Aceptar ADR-0022: tabla server-only única por organización/procesador/entorno; Accounts v2, cargos directos, dashboard completo y responsabilidades Stripe para tarifas/saldos negativos. La autorización familiar apunta a esa cuenta mediante FK compuesta tenant-aware; la elegibilidad compara entorno, cuenta y capacidad exacta 'active'. |
+| Consecuencia | No se reutiliza el modelo legacy de cuentas Standard ni se llama a Stripe dentro de una transacción SQL. La elección de responsabilidades afecta tarifas y riesgo y no se cambia por feature flag; contrato y disponibilidad de Accounts v2 se confirman antes de provisionar. El futuro webhook debe validar firma, cuenta conectada, entorno y tenant antes de un efecto idempotente en ledger. |
+| Estado | Esquema, Drizzle, reglas de elegibilidad y fixtures sintéticos implementados localmente; migración desde cero y RLS/grants en validación. No se creó cuenta ni se llamó a Stripe; Accounts v2 en la plataforma Zaltyko, autorización de pagador, webhooks, worker y entorno remoto siguen pendientes. Sin cambios en producción. Referencia: [ADR-0022](../../docs/architecture/adr/0022-cuenta-conectada-de-cobro-por-academia.md). |
+
 ## 2026-10-06 — Proyección mensual agregada de cohortes para el Owner Dashboard (estado inicial)
 
 | Campo | Valor |

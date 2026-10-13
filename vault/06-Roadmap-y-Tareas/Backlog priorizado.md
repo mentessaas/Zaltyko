@@ -106,8 +106,15 @@ plan y verificar el despliegue productivo.
 - [x] Preferencia familiar manual/automático, entitlement versionado Free/paid
       y snapshot por cargo implementados localmente. Free/trial falla cerrado;
       la preferencia `automatic` no habilita ni inicia cargos.
+- [x] Proyección server-only de Stripe Connect separada del Stripe SaaS, con
+      cuenta por academia/entorno y FK tenant-aware desde autorización familiar;
+      elegibilidad valida entorno, API v2, cargo directo, estado y capacidad.
+      Solo esquema/contrato local; disponibilidad de Accounts v2 en la
+      plataforma, provisioning, onboarding, webhooks y consentimiento operativo
+      siguen pendientes (NO VERIFICADO donde aplica).
 - [ ] P0: capturar consentimiento/mandato trazable por pagador, completar
-      provisioning/webhook, implementar worker idempotente con recuperación y
+      provisioning/reconciliación Connect y webhook ligado a cuenta,
+      implementar worker idempotente con recuperación y
       probarlo en Stripe Test; auditar/cerrar el cron legacy antes de reutilizarlo.
       Automático sigue deshabilitado para todas las cuentas.
 - [x] Corregir el texto del portal familiar al guardar tarjeta: no promete cobros
@@ -134,6 +141,10 @@ plan y verificar el despliegue productivo.
       exclusiones `.claude/` y `.paperclip-scratch/` en `.vercelignore`. La
       excepción `scrollable-region-focusable` de su test tiene revisión vencida
       el 2026-09-15 y sigue pendiente de reevaluación en #116.
+- [x] **Refs sin PR:** eliminadas del remoto `docs/ZAL-92-antispoofing-policy-and-repoPath-whitelist`
+      y `fix/contact-api-uuid-validation` tras verificar que no tenían PR
+      histórico, no estaban protegidas y sus commits ya eran ancestros de
+      `main` (`ahead_by=0`). Sus commits siguen preservados en el historial.
 - [ ] **Seguridad móvil:** mantener las mitigaciones de `braces` y `node-forge`
       y los tests de regresión; actualizar cuando los advisories publiquen una
       versión corregida. GitHub mantiene cuatro alertas altas duplicadas en los

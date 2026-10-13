@@ -29,6 +29,21 @@ pnpm test -- --run
 4. Run `pnpm validate:rls` and review missing tables.
 5. Apply migrations and RLS in staging before production.
 
+## Greenfield Family Billing Order
+
+The local canonical billing stack applies the new connected-account projection
+before family payment authorizations, because the latter has a tenant-aware
+foreign key to the former:
+
+1. `20261013082806_organization_payment_accounts.sql`
+2. `20261013160000_canonical_family_collection_and_entitlements.sql`
+
+Local runners use synthetic fixtures and a disposable PostgreSQL instance.
+Do not apply either migration to a remote Supabase project until its migration
+history and target are reconciled, the change is reviewed, and the environment
+has an explicit release authorization. The isolated Supabase branch was not
+authorized; no remote migration has been run.
+
 ## API Route Audit
 
 `pnpm audit:api-routes` prints a JSON inventory of every `src/app/api/**/route.ts` file, including methods, auth classification, rate limiting, response standardization, and service-role usage.

@@ -67,6 +67,11 @@ export const paymentAuthorizationStatus = zaltyko.enum(
   ["pending", "active", "revoked", "expired"]
 );
 
+export const organizationPaymentAccountStatus = zaltyko.enum(
+  "organization_payment_account_status",
+  ["pending", "onboarding", "restricted", "active", "disabled"]
+);
+
 export const memberRole = zaltyko.enum("member_role", [
   "owner",
   "manager",
@@ -1064,8 +1069,106 @@ export const familyCollectionPreferences = zaltyko.table(
 );
 
 /**
- * Restricted processor and consent references for a family payer. No card,
- * bank-account, or raw identity data belongs in this table.
+ * Server-owned Connect account projection for academy direct charges. It is
+ * separate from the processor account used for the academy's Zaltyko plan.
+ */
+export const organizationPaymentProviderAccounts = zaltyko.table(
+  "organization_payment_provider_accounts",
+  {
+    id: uuid("id").primaryKey().defaultRandom(),
+    organizationId: uuid("organization_id")
+      .notNull()
+      .references(() => organizations.id, { onDelete: "restrict" }),
+    processor: text("processor").notNull().default("stripe"),
+    environment: stripeEnvironment("environment").notNull(),
+    providerAccountReference: text("provider_account_reference").notNull(),
+    accountsApiGeneration: integer("accounts_api_generation")
+      .notNull()
+      .default(2),
+    chargeModel: text("charge_model").notNull().default("direct"),
+    dashboardAccess: text("dashboard_access").notNull().default("full"),
+    feesCollector: text("fees_collector").notNull().default("stripe"),
+    lossesCollector: text("losses_collector").notNull().default("stripe"),
+    status: organizationPaymentAccountStatus("status")
+      .notNull()
+      .default("pending"),
+    cardPaymentsCapabilityStatus: text(
+      "card_payments_capability_status"
+    )
+      .notNull()
+      .default("pending"),
+    revision: integer("revision").notNull().default(1),
+    lastProviderEventReference: text("last_provider_event_reference"),
+    lastSyncedAt: timestamp("last_synced_at", { withTimezone: true }),
+    createdAt: timestamp("created_at", { withTimezone: true })
+      .notNull()
+      .defaultNow(),
+    updatedAt: timestamp("updated_at", { withTimezone: true })
+      .notNull()
+      .defaultNow(),
+  },
+  (table) => [
+    uniqueIndex(
+      "organization_payment_provider_accounts_organization_id_id_uq"
+    ).on(table.organizationId, table.id),
+    uniqueIndex(
+      "organization_payment_provider_accounts_org_processor_env_uq"
+    ).on(table.organizationId, table.processor, table.environment),
+    uniqueIndex(
+      "organization_payment_provider_accounts_provider_reference_uq"
+    ).on(
+      table.processor,
+      table.environment,
+      table.providerAccountReference
+    ),
+    index("organization_payment_provider_accounts_collection_ready_idx").on(
+      table.organizationId,
+      table.environment,
+      table.status,
+      table.cardPaymentsCapabilityStatus
+    ),
+    check(
+      "organization_payment_provider_accounts_processor_supported",
+      sql.raw("processor = 'stripe'")
+    ),
+    check(
+      "organization_payment_provider_accounts_reference_valid",
+      sql.raw("provider_account_reference ~ '^acct_[A-Za-z0-9]+$'")
+    ),
+    check(
+      "organization_payment_provider_accounts_api_generation_supported",
+      sql.raw("accounts_api_generation = 2")
+    ),
+    check(
+      "organization_payment_provider_accounts_charge_model_supported",
+      sql.raw("charge_model = 'direct'")
+    ),
+    check(
+      "organization_payment_provider_accounts_dashboard_supported",
+      sql.raw("dashboard_access = 'full'")
+    ),
+    check(
+      "organization_payment_provider_accounts_fees_collector_supported",
+      sql.raw("fees_collector = 'stripe'")
+    ),
+    check(
+      "organization_payment_provider_accounts_losses_collector_supported",
+      sql.raw("losses_collector = 'stripe'")
+    ),
+    check(
+      "organization_payment_provider_accounts_capability_status_not_blank",
+      sql.raw("btrim(card_payments_capability_status) <> ''")
+    ),
+    check(
+      "organization_payment_provider_accounts_revision_positive",
+      sql.raw("revision > 0")
+    ),
+  ]
+);
+
+/**
+ * Restricted payment-account and consent references for a family payer. No
+ * card, bank-account, or raw identity data belongs in this table.
  */
 export const familyPaymentAuthorizations = zaltyko.table(
   "family_payment_authorizations",
@@ -1076,10 +1179,11 @@ export const familyPaymentAuthorizations = zaltyko.table(
       .references(() => organizations.id, { onDelete: "cascade" }),
     familyId: uuid("family_id").notNull(),
     familyPayerId: uuid("family_payer_id").notNull(),
+    paymentProviderAccountId: uuid("payment_provider_account_id").notNull(),
     status: paymentAuthorizationStatus("status").notNull().default("pending"),
-    processor: text("processor").notNull(),
+    providerSetupReference: text("provider_setup_reference").notNull(),
     paymentMethodReference: text("payment_method_reference").notNull(),
-    mandateReference: text("mandate_reference").notNull(),
+    mandateReference: text("mandate_reference"),
     consentVersion: text("consent_version"),
     consentEvidenceReference: text("consent_evidence_reference"),
     consentEvidenceSha256: text("consent_evidence_sha256"),
@@ -1099,8 +1203,17 @@ export const familyPaymentAuthorizations = zaltyko.table(
       table.organizationId,
       table.id
     ),
+    uniqueIndex("family_payment_authorizations_setup_uq").on(
+      table.organizationId,
+      table.paymentProviderAccountId,
+      table.providerSetupReference
+    ),
     uniqueIndex("family_payment_authorizations_active_method_uq")
-      .on(table.organizationId, table.familyPayerId, table.processor)
+      .on(
+        table.organizationId,
+        table.paymentProviderAccountId,
+        table.familyPayerId
+      )
       .where(sql`${table.status} = 'active'`),
     index("family_payment_authorizations_payer_status_idx").on(
       table.organizationId,
@@ -1110,12 +1223,10 @@ export const familyPaymentAuthorizations = zaltyko.table(
       table.validUntil
     ),
     check(
-      "family_payment_authorizations_processor_not_blank",
-      sql`btrim(${table.processor}) <> ''`
-    ),
-    check(
       "family_payment_authorizations_references_not_blank",
-      sql`btrim(${table.paymentMethodReference}) <> '' and btrim(${table.mandateReference}) <> ''`
+      sql.raw(
+        "btrim(provider_setup_reference) <> '' and btrim(payment_method_reference) <> '' and (mandate_reference is null or btrim(mandate_reference) <> '')"
+      )
     ),
     check(
       "family_payment_authorizations_consent_digest_valid",
@@ -1127,7 +1238,7 @@ export const familyPaymentAuthorizations = zaltyko.table(
     ),
     check(
       "family_payment_authorizations_active_consent_valid",
-      sql`${table.status} <> 'active' or (${table.consentVersion} is not null and btrim(${table.consentVersion}) <> '' and ${table.consentEvidenceReference} is not null and ${table.consentEvidenceSha256} is not null and ${table.consentedAt} is not null and ${table.consentedByGuardianId} is not null and ${table.revokedAt} is null)`
+      sql`${table.status} <> 'active' or (${table.consentVersion} is not null and btrim(${table.consentVersion}) <> '' and ${table.consentEvidenceReference} is not null and ${table.consentEvidenceSha256} is not null and ${table.consentedAt} is not null and ${table.consentedByGuardianId} is not null and (${table.validUntil} is null or ${table.validUntil} > ${table.consentedAt}) and ${table.revokedAt} is null)`
     ),
     check(
       "family_payment_authorizations_revocation_valid",
@@ -1140,6 +1251,14 @@ export const familyPaymentAuthorizations = zaltyko.table(
         familyPayers.organizationId,
         familyPayers.familyId,
         familyPayers.id,
+      ],
+    }).onDelete("restrict"),
+    foreignKey({
+      name: "family_payment_authorizations_provider_account_fk",
+      columns: [table.organizationId, table.paymentProviderAccountId],
+      foreignColumns: [
+        organizationPaymentProviderAccounts.organizationId,
+        organizationPaymentProviderAccounts.id,
       ],
     }).onDelete("restrict"),
     foreignKey({

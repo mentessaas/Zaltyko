@@ -14,6 +14,7 @@ const canonicalMigrations = [
   "20261006113000_add_actionable_insights.sql",
   "20261006123000_add_organization_bootstrap.sql",
   "20261006131000_add_organization_default_currency.sql",
+  "20261013082806_organization_payment_accounts.sql",
   "20261013160000_canonical_family_collection_and_entitlements.sql",
 ];
 const canonicalModules = [

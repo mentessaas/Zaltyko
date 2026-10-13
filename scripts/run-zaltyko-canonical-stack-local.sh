@@ -52,6 +52,7 @@ MIGRATIONS=(
   20261006160012_track_owner_pipeline_freshness.sql \
   20261006165917_owner_cohort_retention_projections.sql \
   20261013120000_owner_dashboard_layout_preferences.sql \
+  20261013082806_organization_payment_accounts.sql \
   20261013160000_canonical_family_collection_and_entitlements.sql
 )
 

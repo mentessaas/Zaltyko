@@ -96,10 +96,24 @@ plan efectivo y `organization_entitlement_changes` conserva revisiones
 append-only. Las organizaciones nuevas reciben Free; las existentes sin
 entitlement fallan cerradas. `family_payment_authorizations` solo reserva
 referencias restringidas para un futuro flujo de mandato/consentimiento y no
-está poblada ni operativa. La elegibilidad de dominio exige plan/revisión,
-preferencia familiar, snapshot del cargo, proveedor, tenant/pagador,
-consentimiento, vigencia y release del runtime. El cron legacy no satisface esos
-requisitos y permanece fuera de este flujo.
+está poblada ni operativa; ahora cada registro debe enlazar mediante FK
+tenant-aware a `organization_payment_provider_accounts`. Esta proyección
+separa la cuenta Connect de la academia de la cuenta que factura la suscripción
+de Zaltyko, con una fila por academia/procesador/entorno. La decisión v1 fija
+Connect Accounts v2, cargos directos, dashboard Stripe completo y Stripe como
+recaudador de sus tarifas y responsable de saldos negativos (ADR-0022). Su
+disponibilidad para la cuenta de plataforma de Zaltyko sigue **NO VERIFICADO**.
+
+La elegibilidad de dominio ahora recibe el estado server-loaded de la cuenta y
+exige tenant, entorno, modelo de API v2, cargo directo, estado activo y
+capacidad `card_payments=active`; la autorización debe apuntar a esa misma
+cuenta. Sigue exigiendo plan/revisión, preferencia familiar, snapshot del
+cargo, tenant/pagador, consentimiento, vigencia y release del runtime. El
+inbox y el worker de webhooks reales aún deben validar y persistir la identidad
+de la cuenta conectada antes de producir efectos en el ledger. Tampoco se
+impone todavía edad máxima a `last_synced_at`; la frescura del estado Connect
+es un gate pendiente antes de liberar el worker. El cron legacy no satisface
+estos requisitos y permanece fuera de este flujo.
 
 ## Reconciliación v1
 
