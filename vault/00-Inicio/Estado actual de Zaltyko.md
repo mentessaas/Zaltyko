@@ -10,6 +10,28 @@ source:
   - ../AGENTS.md
 ---
 
+## Rebuild SaaS — estado actual 2026-10-13
+
+La rama local `codex/zaltyko-plan-implementation` (`de2579c2`) alimenta el PR
+#226, todavía draft. PR #225 está abierto; `@elvisvaldes` ya tiene `write` y
+aparece como revisor solicitado, pero no consta una review. No integrar ni
+publicar el hotfix antes de esa revisión independiente.
+
+El E2E autenticado falló porque el Sandbox E2E contiene el modelo público
+heredado y no tiene `zaltyko.organization_members`. El runner local nuevo permite
+solo 16 migraciones greenfield, comprueba hash/ledger propio y RLS forzada, y
+rechaza cualquier proyecto salvo el ref conocido del Sandbox. El seed crea una
+academia sintética separada, ligada a cuentas E2E `.test`; no copia registros
+personales ni adapta Owner al modelo antiguo. Aún no se ha ejecutado contra
+Supabase remoto: falta subir este corte, revisar el CI y validar el E2E real.
+
+Validación local de este corte: stack canónico de 16 migraciones + contratos SQL
+y RLS forzada PASS; `pnpm typecheck`, `pnpm check:migrations` (7 Drizzle + 110
+Supabase), ESLint focal, Prettier/CI YAML y `git diff --check` PASS. Sigue sin
+demostrarse la sesión Owner real, el comportamiento autenticado en navegador ni
+la conexión del Preview actual. No hubo cambios en producción, Stripe Live ni
+Supabase remoto; tampoco se creó una rama Supabase de pago.
+
 ## Inscripciones Owner — corte local 2026-10-13
 
 `/owner/enrollments` y su API permiten consultar, buscar personas ya

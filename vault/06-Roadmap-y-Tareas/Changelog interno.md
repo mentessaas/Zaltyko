@@ -7,6 +7,22 @@ source:
   - ../docs/architecture/zaltyko-domain-model.md
 ---
 
+## 2026-10-13 — Preparar CI greenfield en Sandbox E2E, sin tocar el ledger legacy
+
+- Se añadió un runner de migración de pruebas, allowlist de 16 archivos y ref
+  fijo al proyecto `Zaltyko E2E Sandbox`. Usa un ledger/hash separado en
+  `zaltyko_domain_private`; rechaza un schema sin ledger y cualquier divergencia.
+- El CI ejecutará el runner antes de crear las cuentas E2E. El seed Owner/admin/
+  coach añade identidades `.test` a una academia sintética sin consultar datos
+  personales existentes. Se añadió un contrato local que exige RLS habilitada
+  y forzada para todas las tablas greenfield. El ledger permite reanudar un
+  prefijo completo con hashes coincidentes; schema sin ledger, drift o filas
+  desconocidas fallan cerrado.
+- PostgreSQL efímero: las 16 migraciones, contratos operativos y check de RLS
+  PASS; typecheck, ESLint focal, integridad (7 Drizzle + 110 Supabase), Prettier
+  y YAML PASS. CI todavía no ha ejecutado la migración remota y el E2E sigue sin
+  verificar. No se tocó producción, Stripe Live ni la base remota.
+
 ## 2026-10-13 — Inscripciones Owner: prioridad móvil y parche de Next
 
 - La auditoría del Preview mostró que las tarjetas de resumen empujaban la

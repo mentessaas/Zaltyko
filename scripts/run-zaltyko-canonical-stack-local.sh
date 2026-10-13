@@ -54,12 +54,16 @@ MIGRATIONS=(
   20261013120000_owner_dashboard_layout_preferences.sql \
   20261013082806_organization_payment_accounts.sql \
   20261013160000_canonical_family_collection_and_entitlements.sql
+  20261013170001_record_group_membership_history.sql
 )
 
 for migration in "${MIGRATIONS[@]}"; do
   echo "APPLY ${migration}"
   "${PSQL[@]}" -f "${ROOT_DIR}/supabase/migrations/${migration}" >/dev/null
 done
+
+"${PSQL[@]}" -f "${ROOT_DIR}/supabase/tests/zaltyko_domain_rls_contract.sql" >/dev/null
+echo "CHECK domain RLS: PASS"
 
 "${PSQL[@]}" -f "${ROOT_DIR}/supabase/tests/zaltyko_domain_foundation.sql" >/dev/null
 "${PSQL[@]}" -f "${ROOT_DIR}/supabase/fixtures/zaltyko_synthetic_academies.sql" >/dev/null

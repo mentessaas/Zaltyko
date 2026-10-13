@@ -6,7 +6,10 @@ import { resolve } from "node:path";
 
 import { createClient } from "@supabase/supabase-js";
 import { Pool } from "pg";
-import { assertDisposableE2EEmail, assertE2ESandboxTarget } from "./lib/e2e-sandbox-target";
+import {
+  assertDisposableE2EEmail,
+  assertE2ESandboxTarget,
+} from "./lib/e2e-sandbox-target";
 
 config({ path: resolve(process.cwd(), ".env.local") });
 config({ path: resolve(process.cwd(), ".env") });
@@ -28,6 +31,8 @@ const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL;
 const serviceKey = process.env.SUPABASE_SERVICE_ROLE_KEY;
 const databaseUrl = process.env.DATABASE_URL;
 const academyId = process.env.E2E_ACADEMY_ID;
+const E2E_DOMAIN_ORGANIZATION_ID = "90000000-0000-0000-0000-000000000001";
+const E2E_DOMAIN_LOCATION_ID = "90000000-0000-0000-0000-000000000011";
 const fallbackPassword = process.env.E2E_AUTH_PASSWORD;
 const caCertPath = process.env.NODE_EXTRA_CA_CERTS;
 const ca =
@@ -248,6 +253,98 @@ async function ensureProfileAndMembership(
   console.log(`profile ${role.label}: ready`);
 }
 
+async function ensureGreenfieldMembership(
+  pool: Pool,
+  role: RoleConfig,
+  userId: string
+) {
+  const domainRole =
+    role.profileRole === "owner"
+      ? "owner"
+      : role.profileRole === "admin"
+        ? "admin"
+        : role.profileRole === "coach"
+          ? "coach"
+          : null;
+  if (!domainRole) return;
+
+  const organization = await pool.query<{ id: string }>(
+    `
+      insert into zaltyko.organizations (id, name, status, country_code, default_timezone, default_currency)
+      values ($1::uuid, 'Academia Sintética E2E', 'active', 'ES', 'Europe/Madrid', 'EUR')
+      on conflict (id) do nothing
+      returning id
+    `,
+    [E2E_DOMAIN_ORGANIZATION_ID]
+  );
+  if (!organization.rows[0]) {
+    const existing = await pool.query<{ id: string }>(
+      `
+        select id
+        from zaltyko.organizations
+        where id = $1::uuid
+          and name = 'Academia Sintética E2E'
+          and country_code = 'ES'
+          and default_currency = 'EUR'
+      `,
+      [E2E_DOMAIN_ORGANIZATION_ID]
+    );
+    if (!existing.rows[0]) {
+      throw new Error(
+        "E2E domain organization ID conflicts with non-fixture data."
+      );
+    }
+  }
+
+  const location = await pool.query<{ id: string }>(
+    `
+      insert into zaltyko.locations (id, organization_id, code, name, timezone)
+      values ($1::uuid, $2::uuid, 'e2e-principal', 'Sede principal E2E', 'Europe/Madrid')
+      on conflict (id) do nothing
+      returning id
+    `,
+    [E2E_DOMAIN_LOCATION_ID, E2E_DOMAIN_ORGANIZATION_ID]
+  );
+  if (!location.rows[0]) {
+    const existing = await pool.query<{ id: string }>(
+      `
+        select id
+        from zaltyko.locations
+        where id = $1::uuid
+          and organization_id = $2::uuid
+          and code = 'e2e-principal'
+          and name = 'Sede principal E2E'
+      `,
+      [E2E_DOMAIN_LOCATION_ID, E2E_DOMAIN_ORGANIZATION_ID]
+    );
+    if (!existing.rows[0]) {
+      throw new Error(
+        "E2E domain location ID conflicts with non-fixture data."
+      );
+    }
+  }
+
+  await pool.query(
+    `
+      insert into zaltyko.organization_members (
+        organization_id, user_id, role, status, location_scope_mode
+      ) values ($1::uuid, $2::uuid, $3::zaltyko.member_role, 'active', $4::zaltyko.location_scope_mode)
+      on conflict (organization_id, user_id) do update set
+        role = excluded.role,
+        status = excluded.status,
+        location_scope_mode = excluded.location_scope_mode,
+        updated_at = now()
+    `,
+    [
+      E2E_DOMAIN_ORGANIZATION_ID,
+      userId,
+      domainRole,
+      domainRole === "coach" ? "selected" : "all",
+    ]
+  );
+  console.log(`greenfield membership ${role.label}: ready`);
+}
+
 async function main() {
   if (!supabaseUrl || !serviceKey || !databaseUrl || !academyId) {
     throw new Error(
@@ -286,6 +383,7 @@ async function main() {
     for (const role of roles) {
       const user = await ensureAuthUser(supabase, role);
       await ensureProfileAndMembership(pool, role, user.id, tenantId);
+      await ensureGreenfieldMembership(pool, role, user.id);
     }
   } finally {
     await pool.end();

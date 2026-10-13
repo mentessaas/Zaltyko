@@ -185,13 +185,23 @@ familias, cargos ni credenciales:
   `codex/fix-blog-route-ci`. No se leyeron valores de variables sensibles.
 
 **Decisión:** no ejecutar en bloque las 110 migraciones del checkout contra
-Producción ni contra el Sandbox. Primero se compara el ledger de cada proyecto
-con cada SQL pendiente, se inspecciona el DDL que pueda colisionar con objetos
-legacy y se prepara una secuencia verificable en el Sandbox existente. Después
-se valida el esquema resultante y el comportamiento con datos sintéticos; solo
-entonces se aplica la secuencia reconciliada a Producción. La autorización del
-propietario para migraciones remotas no sustituye este control de destino,
-compatibilidad y recuperación.
+Producción ni reconciliar el ledger legacy del Sandbox para el E2E greenfield.
+El usuario autorizó migraciones remotas, pero rechazó crear una rama Supabase
+con coste potencial de hasta 35 USD/mes. Como siguiente paso limitado, usar el
+Sandbox E2E existente solo para el esquema nuevo `zaltyko`, con ref fijado,
+allowlist de 16 migraciones, ledger/hash separado, RLS forzada y fixtures
+sintéticas `.test`. No tocar `public`, ledger legacy, producción o Stripe Live.
+Un resultado E2E verde no habilita por sí solo un cutover productivo: producción
+requiere backup restaurable, plan/rollback, seguridad, aprobación independiente
+y validación de cada migración/cutover.
+
+**Implementación local 2026-10-13:** el runner y el seed Owner sintético están
+en el checkout; 16 migraciones, sus contratos SQL/RLS, typecheck e integridad
+local pasan. El paso de CI aún no se ha ejecutado contra Supabase: el Sandbox no
+se ha modificado. El primer run deberá comprobar el ledger privado, `RLS FORCE`,
+grants y advisor. Un prefijo íntegro registrado con hashes correctos puede
+reanudar; schema sin ledger, filas desconocidas o hash distinto detienen la
+ejecución para revisión manual.
 
 Validación local del corte: 13/13 pruebas focales de inscripciones,
 `pnpm typecheck`, ESLint focal y `git diff --check` pasan. `pnpm build` con Next
@@ -386,9 +396,10 @@ el merge.
    historiales, restauración probada, seguridad ni confirmación específica
    antes de iniciar cargos a familias.
 
-   Para el E2E remoto no se autorizó crear una rama de Supabase cuyo coste
-   potencial pueda alcanzar 35 USD el primer mes. No usar el sandbox E2E legacy
-   ni aplicar SQL remoto mientras los historiales no estén reconciliados.
+   Para E2E remoto no crear una rama o proyecto Supabase de pago. El corte actual
+   autoriza solo el Sandbox existente y el esquema greenfield aislado, según el
+   runner allowlisted anterior; no ejecutar las migraciones legacy pendientes ni
+   copiar registros de `public`.
 
 La revisión de PR #225 está solicitada a `@elvisvaldes`; GitHub confirma que
 ya tiene permiso `write`, pero todavía no consta review. La aprobación debe

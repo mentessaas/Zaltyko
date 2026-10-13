@@ -15,6 +15,26 @@ source:
   - ../07-Auditorias-y-Riesgos/Auditoria MVP gimnasia - 2026-06-23.md
   - ../07-Auditorias-y-Riesgos/Registro de riesgos.md (bloqueantes con Elvis)
 ---
+## P0 — Desbloquear E2E autenticado greenfield sin migrar el modelo legacy — 2026-10-13
+
+- Evidencia: CI falla en `/owner/enrollments` con PostgreSQL `42P01` porque
+  `zaltyko.organization_members` no existe en el Sandbox E2E. El Sandbox tiene
+  modelo legacy en `public`; producción y Sandbox también tienen historiales
+  distintos. No se leyeron filas personales para este diagnóstico.
+- Trabajo local: runner dedicado al ref verificado del Sandbox, allowlist de 16
+  migraciones, ledger/hash privado separado, seed de academia E2E sintética y
+  contrato que exige RLS habilitada y forzada. No reconcilia ni modifica el
+  ledger legacy ni objetos `public`.
+- Validación local: 16 migraciones, RLS, contratos operativos, typecheck,
+  integridad de migraciones y ESLint focal PASS. El job remoto aún no se ha
+  ejecutado; no afirmar que el E2E se haya resuelto hasta que CI complete la
+  migración y el navegador Owner por rol.
+- Siguiente acción: subir el corte en PR #226, esperar CI; comprobar ledger,
+  tablas/RLS/grants y advisors del Sandbox; corregir el flujo autenticado y
+  repetir E2E. Si aparece drift, una fila de ledger desconocida o una tabla sin
+  RLS, detener y revisar. Un prefijo de migraciones con hashes válidos puede
+  reanudarse. Producción no se toca con este paso.
+
 ## P2 — Aislar el catálogo sintético de los previews compartibles — 2026-10-13
 
 - En el Preview actual aparece la ficha pública `TEST active`; el ID coincide

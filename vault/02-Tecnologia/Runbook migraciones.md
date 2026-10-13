@@ -204,3 +204,31 @@ Fuentes actuales: [PostgreSQL 17.11: acciones para extensiones](https://supabase
 
 - Registrar riesgos o pendientes en [[Backlog priorizado]].
 - Para cambios grandes, crear decision en [[Decisiones]].
+
+### Sandbox E2E: migraciones greenfield con ledger aislado — 2026-10-13
+
+La lectura actual confirma que `Zaltyko E2E Sandbox` sigue activo y conserva
+tablas legacy en `public`, pero no tiene el esquema nuevo `zaltyko`. El E2E
+autenticado falló al consultar `zaltyko.organization_members`. No se leyeron
+valores de personas, familias, cargos, credenciales ni historial de Auth.
+
+Para no conciliar ni aplicar el historial legacy, el corte local añade
+`scripts/apply-e2e-domain-migrations.ts`: acepta únicamente el ref
+`aeeootdmuiqkfeernskw`, exige `E2E_ALLOW_PROVISIONING=true`, valida que URL y
+conexiones pertenezcan al Sandbox y aplica una allowlist cerrada de 16
+migraciones dentro de `zaltyko`. Mantiene hashes en
+`zaltyko_domain_private.e2e_schema_migrations`, no modifica
+`public.zaltyko_schema_migrations` ni aplica migraciones legacy. Si encuentra
+schema sin ledger, una ledger con filas huérfanas o hashes distintos, falla
+cerrado. Un prefijo de migraciones completo y registrado puede reanudarse de
+forma idempotente; cada migración y su hash se confirman en la misma transacción.
+El seed de owner/admin/coach usa una organización de prueba fija y sintética; no
+reutiliza academias ni datos personales de `public`.
+
+Las 16 migraciones y el contrato de RLS forzada pasan en PostgreSQL efímero
+local. La integración de CI todavía no se ha subido/ejecutado; por tanto el
+estado remoto sigue sin cambio. Tras pasar CI, comprobar solo presencia de
+tablas, ledger/hash, RLS/grants y advisors en el Sandbox. No promover estas
+migraciones a producción hasta preparar backup restaurable, cutover, pruebas de
+aislamiento y release con revisión. No crear una rama de Supabase: el usuario
+rechazó el coste potencial de hasta 35 USD/mes.

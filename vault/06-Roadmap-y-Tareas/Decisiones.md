@@ -8,6 +8,15 @@ source:
 
 # Decisiones
 
+## 2026-10-13 — Usar el Sandbox E2E existente solo para el esquema greenfield
+
+| Campo | Valor |
+| --- | --- |
+| Evidencia | El E2E autenticado falla porque el proyecto de pruebas no contiene `zaltyko.organization_members`; el proyecto conserva tablas e historial legacy en `public`, y su ledger tiene un checksum histórico divergente. No se consultaron datos personales. |
+| Decisión | No crear la rama Supabase con coste potencial rechazado. Autorizar el uso del proyecto E2E ya existente únicamente con una allowlist de 16 migraciones en el esquema `zaltyko`, ledger privado separado, destino fijado por ref y cuentas/datos sintéticos. No aplicar migraciones legacy ni modificar producción. |
+| Consecuencia | CI puede probar el producto greenfield sin apuntar Owner al modelo antiguo ni fingir compatibilidad. Drift, hash distinto, fila desconocida, schema sin ledger o fallo RLS detienen el run para revisión; un prefijo registrado con hashes correctos se puede reanudar. El resultado no autoriza el cutover productivo. |
+| Estado | Runner, seed sintético y workflow implementados localmente; pruebas PostgreSQL efímeras, RLS forzada, typecheck, integridad y ESLint pasan. El Sandbox remoto aún no se ha modificado; falta subir el corte y completar CI/E2E. |
+
 ## 2026-10-13 — Crear inscripciones Owner como pendientes, sin efecto financiero
 
 | Campo | Valor |
