@@ -60,32 +60,46 @@ function safeGetStorage(): Storage | null {
 function readRaw(storage: Storage | null): ConsentValue {
   if (!storage) return "unset";
   try {
-    const raw = storage.getItem(STORAGE_KEY);
-    if (raw === "granted" || raw === "revoked") return raw;
-    return "unset";
+    return parseConsentValue(storage.getItem(STORAGE_KEY));
   } catch {
     return "unset";
   }
+}
+
+function parseConsentValue(raw: string | null): ConsentValue {
+  return raw === "granted" || raw === "revoked" ? raw : "unset";
 }
 
 // --- listener registry (in-memory) -----------------------------------------
 
 const listeners = new Set<ConsentListener>();
 let storageBindingInstalled = false;
+let storageBindingWindow: Window | null = null;
+let volatileSnapshot: ConsentSnapshot | null = null;
+
+function handleStorageEvent(event: StorageEvent): void {
+  if (event.key !== STORAGE_KEY && event.key !== null) return;
+
+  const storage = safeGetStorage();
+  if (event.storageArea && storage && event.storageArea !== storage) return;
+
+  const value =
+    event.key === null ? "unset" : parseConsentValue(event.newValue);
+  const snapshot: ConsentSnapshot = { value, updatedAt: Date.now() };
+  volatileSnapshot = snapshot;
+  notify(snapshot);
+}
 
 function ensureBrowserBindings(): void {
   if (!isBrowser() || storageBindingInstalled) return;
   storageBindingInstalled = true;
-  // El `storage` event se dispara en pestañas distintas a la que
-  // escribió. Aquí notificamos a los listeners locales con el snapshot
-  // vigente para que cualquier consumidor (p. ej. `usePageTracking`
-  // en otra pestaña) reaccione al cambio.
-  window.addEventListener("storage", (event) => {
-    if (event.key !== STORAGE_KEY) return;
-    const value = readRaw(safeGetStorage());
-    const snapshot: ConsentSnapshot = { value, updatedAt: Date.now() };
-    notify(snapshot);
-  });
+  storageBindingWindow = window;
+  // El `storage` event se dispara en pestañas distintas a la que escribió.
+  // `key === null` representa `localStorage.clear()` y también debe revocar.
+  // Conservamos la ventana y el handler para poder retirarlo en tests.
+  const target = window;
+  storageBindingWindow = target;
+  target.addEventListener("storage", handleStorageEvent);
 }
 
 function notify(snapshot: ConsentSnapshot): void {
@@ -108,6 +122,7 @@ function notify(snapshot: ConsentSnapshot): void {
 export function readConsent(): ConsentSnapshot {
   if (!isBrowser()) return { ...DEFAULT_SNAPSHOT };
   ensureBrowserBindings();
+  if (volatileSnapshot) return { ...volatileSnapshot };
   const storage = safeGetStorage();
   const value = readRaw(storage);
   return { value, updatedAt: Date.now() };
@@ -147,17 +162,22 @@ export function writeConsent(value: ConsentValue): ConsentSnapshot {
   if (!isBrowser()) return { ...DEFAULT_SNAPSHOT };
   ensureBrowserBindings();
   const storage = safeGetStorage();
+  const snapshot: ConsentSnapshot = { value, updatedAt: Date.now() };
+  let persisted = false;
   try {
-    if (value === "unset") {
-      storage?.removeItem(STORAGE_KEY);
-    } else {
-      storage?.setItem(STORAGE_KEY, value);
+    if (storage) {
+      if (value === "unset") {
+        storage.removeItem(STORAGE_KEY);
+      } else {
+        storage.setItem(STORAGE_KEY, value);
+      }
+      persisted = true;
     }
   } catch {
-    // storage lleno o deshabilitado: persistimos en memoria via listeners
-    // igual, aunque no sobrevivan a un reload.
+    // Mantiene la última elección explícita en memoria; sin elección previa,
+    // un storage bloqueado sigue leyendo como unset (default-deny).
   }
-  const snapshot: ConsentSnapshot = { value, updatedAt: Date.now() };
+  volatileSnapshot = persisted ? null : snapshot;
   notify(snapshot);
   return snapshot;
 }
@@ -173,6 +193,9 @@ export function __resetConsentForTests(): void {
   if (process.env.NODE_ENV === "production") {
     throw new Error("__resetConsentForTests is not available in production");
   }
+  storageBindingWindow?.removeEventListener("storage", handleStorageEvent);
+  storageBindingWindow = null;
   listeners.clear();
   storageBindingInstalled = false;
+  volatileSnapshot = null;
 }

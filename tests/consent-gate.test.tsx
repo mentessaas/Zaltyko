@@ -55,8 +55,10 @@ beforeEach(async () => {
   store.writeConsent("unset");
 });
 
-afterEach(() => {
+afterEach(async () => {
   cleanup();
+  const { __resetConsentForTests } = await import("@/lib/consent/store");
+  __resetConsentForTests();
   vi.unstubAllEnvs();
   vi.unstubAllGlobals();
 });
@@ -143,6 +145,86 @@ describe("analytics consent gate", () => {
     await analytics.trackPageView("/after-revoke");
     await analytics.trackEvent("after_revoke");
     expect(mocks.posthog.capture).toHaveBeenCalledTimes(captureCount);
+  });
+
+  it("revokes in this tab when another tab clears localStorage", async () => {
+    const { store, PostHogProvider } = await loadConsentAndAnalytics();
+    store.writeConsent("granted");
+    render(<PostHogProvider>Contenido</PostHogProvider>);
+    await waitFor(() => expect(mocks.posthog.init).toHaveBeenCalledTimes(1));
+
+    act(() => {
+      window.localStorage.clear();
+      window.dispatchEvent(
+        new StorageEvent("storage", {
+          key: null,
+          oldValue: null,
+          newValue: null,
+          storageArea: window.localStorage,
+        })
+      );
+    });
+
+    await waitFor(() =>
+      expect(mocks.posthog.opt_out_capturing).toHaveBeenCalledTimes(1)
+    );
+    expect(store.readConsent().value).toBe("unset");
+  });
+
+  it("removes the old storage listener when resetting the test store", async () => {
+    const { store } = await loadConsentAndAnalytics();
+    const beforeReset = vi.fn();
+    store.subscribeConsent(beforeReset);
+
+    store.__resetConsentForTests();
+
+    const afterReset = vi.fn();
+    store.subscribeConsent(afterReset);
+    afterReset.mockClear();
+    window.localStorage.setItem("zaltyko.consent.v1", "revoked");
+    window.dispatchEvent(
+      new StorageEvent("storage", {
+        key: "zaltyko.consent.v1",
+        oldValue: null,
+        newValue: "revoked",
+        storageArea: window.localStorage,
+      })
+    );
+
+    expect(beforeReset).toHaveBeenCalledTimes(1);
+    expect(afterReset).toHaveBeenCalledTimes(1);
+    expect(afterReset).toHaveBeenLastCalledWith(
+      expect.objectContaining({ value: "revoked" })
+    );
+  });
+
+  it("keeps consent unset when browser storage is blocked", async () => {
+    const descriptor = Object.getOwnPropertyDescriptor(window, "localStorage");
+    Object.defineProperty(window, "localStorage", {
+      configurable: true,
+      get() {
+        throw new DOMException("Storage unavailable", "SecurityError");
+      },
+    });
+
+    try {
+      const { store, analytics, PostHogProvider } =
+        await loadConsentAndAnalytics();
+      render(<PostHogProvider>Contenido</PostHogProvider>);
+      expect(store.readConsent().value).toBe("unset");
+      await analytics.initAnalytics();
+      await analytics.trackPageView("/");
+      await analytics.trackEvent("storage_blocked");
+      expect(mocks.importStarted).not.toHaveBeenCalled();
+      expect(mocks.posthog.init).not.toHaveBeenCalled();
+      expect(mocks.posthog.capture).not.toHaveBeenCalled();
+    } finally {
+      if (descriptor) {
+        Object.defineProperty(window, "localStorage", descriptor);
+      } else {
+        Reflect.deleteProperty(window, "localStorage");
+      }
+    }
   });
 
   it("honors NEXT_PUBLIC_DISABLE_ANALYTICS before import, init, and capture", async () => {

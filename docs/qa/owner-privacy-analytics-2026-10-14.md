@@ -10,6 +10,8 @@ La inicialización también respeta `NEXT_PUBLIC_DISABLE_ANALYTICS` usando acces
 
 El bloque server-side de `trackEvent` que persiste eventos operativos first-party vía `recordGrowthEvent` permanece sin cambios funcionales y no consulta el consentimiento browser. Esto no habilita eventos de marketing en server: conserva el camino interno ya existente.
 
+El store sincroniza la revocación entre pestañas: el `storage` event con `key === null` de `localStorage.clear()` produce `unset`. `__resetConsentForTests()` elimina el handler nombrado para evitar callbacks duplicados. Con storage bloqueado y sin una elección explícita en memoria, el estado permanece `unset`; PostHog no se importa ni inicializa.
+
 ## Límites vigentes
 
 - **No hay UI de consentimiento de analytics conectada.** No se añadió banner ni texto legal ni se reutilizó el consentimiento contractual. En este checkout, `writeConsent()` no tiene consumidores de producción; solo está definido en el store y usado en pruebas. Por tanto, analytics del navegador queda bloqueado hasta que una UI existente o futura llame explícitamente a `writeConsent("granted")` tras una decisión del usuario.
@@ -19,7 +21,7 @@ El bloque server-side de `trackEvent` que persiste eventos operativos first-part
 
 ## Verificaciones
 
-- `tests/consent-gate.test.tsx` y `tests/consent-gate-race.test.tsx`: 7/7 PASS, también con orden aleatorio (seeds 42 y 20261014). La prueba de importación diferida está aislada, no depende del orden con otros tests. Cubre unset/revoked, grant/revoke/regrant, flag disabled, captura posterior a revoke, revocación durante import, SSR y persistencia server-side de un evento first-party.
+- `tests/consent-gate.test.tsx` y `tests/consent-gate-race.test.tsx`: 10/10 PASS, también con orden aleatorio (seeds 42 y 20261014). La prueba de importación diferida está aislada, no depende del orden con otros tests. Cubre unset/revoked, grant/revoke/regrant, flag disabled, captura posterior a revoke, revocación durante import, clear entre pestañas, limpieza del listener, storage bloqueado, SSR y persistencia server-side de un evento first-party.
 - `pnpm typecheck`: PASS.
 - ESLint focal: PASS, sin warnings.
 - Prettier focal: PASS.
