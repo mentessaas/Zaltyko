@@ -20,26 +20,14 @@ const routeFixtureConversationId = process.env.E2E_ROUTE_AUDIT_CONVERSATION_ID;
 const routeFixtureCoachId = process.env.E2E_ROUTE_AUDIT_COACH_ID;
 const routeFixtureCoachProfileId = process.env.E2E_ROUTE_AUDIT_COACH_PROFILE_ID;
 const routeFixtureOwnerProfileId = process.env.E2E_ROUTE_AUDIT_OWNER_PROFILE_ID;
-const ownerStorageState =
-  process.env.E2E_OWNER_STORAGE_STATE ?? process.env.E2E_STORAGE_STATE;
+const ownerStorageState = process.env.E2E_OWNER_STORAGE_STATE ?? process.env.E2E_STORAGE_STATE;
 const adminStorageState = process.env.E2E_ADMIN_STORAGE_STATE;
 const coachStorageState = process.env.E2E_COACH_STORAGE_STATE;
 const familyStorageState = process.env.E2E_FAMILY_STORAGE_STATE;
 const athleteStorageState = process.env.E2E_ATHLETE_STORAGE_STATE;
 const superAdminStorageState = process.env.E2E_SUPER_ADMIN_STORAGE_STATE;
-const superAdminPaths = [
-  "/super-admin/dashboard",
-  "/super-admin/academies",
-  "/super-admin/users",
-];
-const ownerAcademyPaths = [
-  "dashboard",
-  "athletes",
-  "groups",
-  "classes",
-  "billing",
-  "settings",
-];
+const superAdminPaths = ["/super-admin/dashboard", "/super-admin/academies", "/super-admin/users"];
+const ownerAcademyPaths = ["dashboard", "athletes", "groups", "classes", "billing", "settings"];
 const ownerReadOnlyPaths = [
   "announcements",
   "announcements/new",
@@ -113,11 +101,7 @@ test.beforeEach(async ({ page }) => {
   page.on("response", (response) => {
     const url = new URL(response.url());
     if (url.origin !== baseURL || !url.pathname.startsWith("/api/")) return;
-    if (
-      response.status() === 400 ||
-      response.status() === 429 ||
-      response.status() >= 500
-    ) {
+    if (response.status() === 400 || response.status() === 429 || response.status() >= 500) {
       failures.add(`${response.status()} ${url.pathname}`);
     }
   });
@@ -125,21 +109,12 @@ test.beforeEach(async ({ page }) => {
 });
 
 test.afterEach(async ({ page }) => {
-  expect(
-    [...(runtimeFailures.get(page) ?? [])],
-    "Unexpected API or browser runtime failures"
-  ).toEqual([]);
+  expect([...runtimeFailures.get(page) ?? []], "Unexpected API or browser runtime failures").toEqual([]);
 });
 
 async function expectNoRouteError(page: import("@playwright/test").Page) {
-  await expect(
-    page.getByText(
-      /Failed query|This page could not be found|Application error/i
-    )
-  ).toHaveCount(0);
-  await expect(page.locator("body")).not.toContainText(
-    /RATE_LIMIT_EXCEEDED|Rate limiting unavailable/i
-  );
+  await expect(page.getByText(/Failed query|This page could not be found|Application error/i)).toHaveCount(0);
+  await expect(page.locator("body")).not.toContainText(/RATE_LIMIT_EXCEEDED|Rate limiting unavailable/i);
 }
 
 async function gotoAppPath(
@@ -148,16 +123,10 @@ async function gotoAppPath(
   options: { allowRedirectAbort?: boolean; expectedStatus?: number } = {}
 ) {
   try {
-    const response = await page.goto(path, {
-      waitUntil: "domcontentloaded",
-      timeout: 120_000,
-    });
+    const response = await page.goto(path, { waitUntil: "domcontentloaded", timeout: 120_000 });
     if (response) {
       if (options.expectedStatus !== undefined) {
-        expect(
-          response.status(),
-          `Unexpected HTTP status for ${new URL(path, baseURL).pathname}`
-        ).toBe(options.expectedStatus);
+        expect(response.status(), `Unexpected HTTP status for ${new URL(path, baseURL).pathname}`).toBe(options.expectedStatus);
       } else {
         expect(
           response.status(),
@@ -166,11 +135,7 @@ async function gotoAppPath(
       }
     }
   } catch (error) {
-    if (
-      options.allowRedirectAbort &&
-      error instanceof Error &&
-      error.message.includes("net::ERR_ABORTED")
-    ) {
+    if (options.allowRedirectAbort && error instanceof Error && error.message.includes("net::ERR_ABORTED")) {
       return;
     }
 
@@ -187,13 +152,8 @@ async function assertLegacySelfPages(page: import("@playwright/test").Page) {
 }
 
 test.describe("role smoke: super admin", () => {
-  test.skip(
-    !superAdminStorageState,
-    "Set E2E_SUPER_ADMIN_STORAGE_STATE to run super admin smoke."
-  );
-  test.use(
-    superAdminStorageState ? { storageState: superAdminStorageState } : {}
-  );
+  test.skip(!superAdminStorageState, "Set E2E_SUPER_ADMIN_STORAGE_STATE to run super admin smoke.");
+  test.use(superAdminStorageState ? { storageState: superAdminStorageState } : {});
   test.describe.configure({ mode: "serial" });
 
   for (const path of superAdminPaths) {
@@ -204,54 +164,39 @@ test.describe("role smoke: super admin", () => {
       await expect(page).not.toHaveURL(/\/auth\/login/);
 
       if (path === "/super-admin/users") {
-        const academyOwners = page
-          .getByRole("row")
-          .filter({ hasText: /Propietario de \d+ academias?/ });
+        const academyOwners = page.getByRole("row").filter({ hasText: /Propietario de \d+ academias?/ });
         await expect(academyOwners).not.toHaveCount(0);
         for (const row of await academyOwners.all()) {
-          await expect(
-            row.getByRole("button", { name: "Eliminar" })
-          ).toBeDisabled();
+          await expect(row.getByRole("button", { name: "Eliminar" })).toBeDisabled();
         }
       }
     });
   }
 
   for (const path of superAdminReadOnlyPaths) {
-    test(`can open additional admin read surface: ${path}`, async ({
-      page,
-    }) => {
+    test(`can open additional admin read surface: ${path}`, async ({ page }) => {
       test.setTimeout(180_000);
-      await gotoAppPath(page, `${baseURL}${path}`, {
-        allowRedirectAbort: true,
-      });
+      await gotoAppPath(page, `${baseURL}${path}`, { allowRedirectAbort: true });
       await expectNoRouteError(page);
       await expect(page).not.toHaveURL(/\/auth\/login/);
     });
   }
 
   test("can open synthetic academy and profile details", async ({ page }) => {
-    test.skip(
-      !academyId || !routeFixtureCoachProfileId || !routeFixtureTicketId,
-      "Seed read-only Super Admin detail fixtures."
-    );
+    test.skip(!academyId || !routeFixtureCoachProfileId || !routeFixtureTicketId, "Seed read-only Super Admin detail fixtures.");
     test.setTimeout(180_000);
     for (const path of [
       `/super-admin/academies/${academyId}`,
       `/super-admin/users/${routeFixtureCoachProfileId}`,
       `/super-admin/support/${routeFixtureTicketId}`,
     ]) {
-      await gotoAppPath(page, `${baseURL}${path}`, {
-        allowRedirectAbort: true,
-      });
+      await gotoAppPath(page, `${baseURL}${path}`, { allowRedirectAbort: true });
       await expectNoRouteError(page);
       await expect(page).not.toHaveURL(/\/auth\/login/);
     }
   });
 
-  test("experimental admin pages stay hidden while their schema flags are off", async ({
-    page,
-  }) => {
+  test("experimental admin pages stay hidden while their schema flags are off", async ({ page }) => {
     test.setTimeout(180_000);
     const syntheticActorId = "00000000-0000-4000-8000-000000000001";
     for (const path of [
@@ -274,10 +219,7 @@ test.describe("role smoke: super admin", () => {
 });
 
 test.describe("role smoke: academy owner", () => {
-  test.skip(
-    !academyId || !ownerStorageState,
-    "Set E2E_ACADEMY_ID and E2E_OWNER_STORAGE_STATE/E2E_STORAGE_STATE."
-  );
+  test.skip(!academyId || !ownerStorageState, "Set E2E_ACADEMY_ID and E2E_OWNER_STORAGE_STATE/E2E_STORAGE_STATE.");
   test.use(ownerStorageState ? { storageState: ownerStorageState } : {});
   test.describe.configure({ mode: "serial" });
 
@@ -290,9 +232,7 @@ test.describe("role smoke: academy owner", () => {
     });
   }
 
-  test("can open owner enrollments without entering the billing flow", async ({
-    page,
-  }) => {
+  test("can open owner enrollments without entering the billing flow", async ({ page }) => {
     test.setTimeout(180_000);
     await gotoAppPath(page, `${baseURL}/owner/enrollments`);
     await expectNoRouteError(page);
@@ -311,34 +251,23 @@ test.describe("role smoke: academy owner", () => {
   for (const path of ownerReadOnlyPaths) {
     test(`can open additional read surface: ${path}`, async ({ page }) => {
       test.setTimeout(180_000);
-      await gotoAppPath(page, `${baseURL}/app/${academyId}/${path}`, {
-        allowRedirectAbort: true,
-      });
+      await gotoAppPath(page, `${baseURL}/app/${academyId}/${path}`, { allowRedirectAbort: true });
       await expectNoRouteError(page);
       await expect(page).not.toHaveURL(/\/auth\/login/);
     });
   }
 
   for (const path of ownerLegacyReadOnlyPaths) {
-    test(`can open additional legacy read surface: ${path}`, async ({
-      page,
-    }) => {
+    test(`can open additional legacy read surface: ${path}`, async ({ page }) => {
       test.setTimeout(180_000);
-      await gotoAppPath(page, `${baseURL}${path}`, {
-        allowRedirectAbort: true,
-      });
+      await gotoAppPath(page, `${baseURL}${path}`, { allowRedirectAbort: true });
       await expectNoRouteError(page);
       await expect(page).not.toHaveURL(/\/auth\/login/);
     });
   }
 
-  test("can open the linked athlete record and its read surfaces", async ({
-    page,
-  }) => {
-    test.skip(
-      !athleteId,
-      "Set E2E_ATHLETE_ID for the linked synthetic athlete."
-    );
+  test("can open the linked athlete record and its read surfaces", async ({ page }) => {
+    test.skip(!athleteId, "Set E2E_ATHLETE_ID for the linked synthetic athlete.");
     test.setTimeout(180_000);
 
     for (const suffix of [
@@ -349,29 +278,7 @@ test.describe("role smoke: academy owner", () => {
       "/history",
       "/notes",
     ]) {
-      await gotoAppPath(
-        page,
-        `${baseURL}/app/${academyId}/athletes/${athleteId}${suffix}`,
-        {
-          allowRedirectAbort: true,
-        }
-      );
-      await expectNoRouteError(page);
-      await expect(page).not.toHaveURL(/\/auth\/login/);
-    }
-  });
-
-  test("can resolve the authenticated app root and owner onboarding entry", async ({
-    page,
-  }) => {
-    test.setTimeout(180_000);
-    for (const path of [
-      "/app",
-      `/app/${academyId}`,
-      "/onboarding",
-      "/onboarding/owner",
-    ]) {
-      await gotoAppPath(page, `${baseURL}${path}`, {
+      await gotoAppPath(page, `${baseURL}/app/${academyId}/athletes/${athleteId}${suffix}`, {
         allowRedirectAbort: true,
       });
       await expectNoRouteError(page);
@@ -379,21 +286,20 @@ test.describe("role smoke: academy owner", () => {
     }
   });
 
-  test("can open synthetic class, group, session, event, announcement and support details", async ({
-    page,
-  }) => {
+  test("can resolve the authenticated app root and owner onboarding entry", async ({ page }) => {
+    test.setTimeout(180_000);
+    for (const path of ["/app", `/app/${academyId}`, "/onboarding", "/onboarding/owner"]) {
+      await gotoAppPath(page, `${baseURL}${path}`, { allowRedirectAbort: true });
+      await expectNoRouteError(page);
+      await expect(page).not.toHaveURL(/\/auth\/login/);
+    }
+  });
+
+  test("can open synthetic class, group, session, event, announcement and support details", async ({ page }) => {
     test.skip(
-      !academyId ||
-        !athleteId ||
-        !routeFixtureGroupId ||
-        !routeFixtureClassId ||
-        !routeFixtureSessionId ||
-        !routeFixtureEventId ||
-        !routeFixtureAnnouncementId ||
-        !routeFixtureTicketId ||
-        !routeFixtureCoachId ||
-        !routeFixtureOwnerProfileId ||
-        !routeFixtureConversationId,
+      !academyId || !athleteId || !routeFixtureGroupId || !routeFixtureClassId || !routeFixtureSessionId ||
+        !routeFixtureEventId || !routeFixtureAnnouncementId || !routeFixtureTicketId || !routeFixtureCoachId ||
+        !routeFixtureOwnerProfileId || !routeFixtureConversationId,
       "Create the isolated read-only route fixtures in the E2E sandbox."
     );
     test.setTimeout(240_000);
@@ -420,52 +326,31 @@ test.describe("role smoke: academy owner", () => {
       `/dashboard/view/${routeFixtureCoachProfileId}`,
     ];
     for (const path of paths) {
-      await gotoAppPath(page, `${baseURL}${path}`, {
-        allowRedirectAbort: true,
-      });
+      await gotoAppPath(page, `${baseURL}${path}`, { allowRedirectAbort: true });
       await expectNoRouteError(page);
       await expect(page).not.toHaveURL(/\/auth\/login/);
     }
   });
 
-  test("legacy calendar and profile remain scoped to the signed-in owner", async ({
-    page,
-  }) => {
+  test("legacy calendar and profile remain scoped to the signed-in owner", async ({ page }) => {
     test.setTimeout(180_000);
     await assertLegacySelfPages(page);
   });
 });
 
 test.describe("role smoke: coach", () => {
-  test.skip(
-    !academyId || !coachStorageState,
-    "Set E2E_ACADEMY_ID and E2E_COACH_STORAGE_STATE."
-  );
+  test.skip(!academyId || !coachStorageState, "Set E2E_ACADEMY_ID and E2E_COACH_STORAGE_STATE.");
   test.use(coachStorageState ? { storageState: coachStorageState } : {});
 
-  test("can open assigned work surfaces without admin billing/settings content", async ({
-    page,
-  }) => {
+  test("can open assigned work surfaces without admin billing/settings content", async ({ page }) => {
     test.setTimeout(180_000);
 
-    for (const path of [
-      "dashboard",
-      "classes",
-      "groups",
-      "attendance",
-      "attendance/today",
-      "assessments",
-      "coach/today-simple",
-    ]) {
-      await gotoAppPath(page, `${baseURL}/app/${academyId}/${path}`, {
-        allowRedirectAbort: true,
-      });
+    for (const path of ["dashboard", "classes", "groups", "attendance", "attendance/today", "assessments", "coach/today-simple"]) {
+      await gotoAppPath(page, `${baseURL}/app/${academyId}/${path}`, { allowRedirectAbort: true });
       await expectNoRouteError(page);
       await expect(page).not.toHaveURL(/\/auth\/login/);
     }
-    await gotoAppPath(page, `${baseURL}/onboarding/coach`, {
-      allowRedirectAbort: true,
-    });
+    await gotoAppPath(page, `${baseURL}/onboarding/coach`, { allowRedirectAbort: true });
     await expectNoRouteError(page);
     await expect(page).not.toHaveURL(/\/auth\/login/);
 
@@ -475,42 +360,27 @@ test.describe("role smoke: coach", () => {
         `/app/${academyId}/groups/${routeFixtureGroupId}`,
         `/app/${academyId}/coach/today/${routeFixtureSessionId}`,
       ]) {
-        await gotoAppPath(page, `${baseURL}${path}`, {
-          allowRedirectAbort: true,
-        });
+        await gotoAppPath(page, `${baseURL}${path}`, { allowRedirectAbort: true });
         await expectNoRouteError(page);
         await expect(page).not.toHaveURL(/\/auth\/login/);
       }
     }
 
-    await gotoAppPath(page, `${baseURL}/app/${academyId}/billing`, {
-      allowRedirectAbort: true,
-    });
+    await gotoAppPath(page, `${baseURL}/app/${academyId}/billing`, { allowRedirectAbort: true });
     await expect(page.getByText("E2E Coach")).toBeVisible();
-    await expect(
-      page.getByRole("heading", { name: "Planes y cobros" })
-    ).toHaveCount(0);
-    await gotoAppPath(page, `${baseURL}/app/${academyId}/settings`, {
-      allowRedirectAbort: true,
-    });
+    await expect(page.getByRole("heading", { name: "Planes y cobros" })).toHaveCount(0);
+    await gotoAppPath(page, `${baseURL}/app/${academyId}/settings`, { allowRedirectAbort: true });
     await expect(page.getByText("E2E Coach")).toBeVisible();
-    await expect(
-      page.getByRole("heading", { name: "Ajustes de la academia" })
-    ).toHaveCount(0);
+    await expect(page.getByRole("heading", { name: "Ajustes de la academia" })).toHaveCount(0);
     await assertLegacySelfPages(page);
   });
 });
 
 test.describe("role smoke: academy admin", () => {
-  test.skip(
-    !academyId || !adminStorageState,
-    "Set academy and admin storage state."
-  );
+  test.skip(!academyId || !adminStorageState, "Set academy and admin storage state.");
   test.use(adminStorageState ? { storageState: adminStorageState } : {});
 
-  test("admin without owner membership never sees subscription controls", async ({
-    page,
-  }) => {
+  test("admin without owner membership never sees subscription controls", async ({ page }) => {
     test.setTimeout(180_000);
     await gotoAppPath(page, `${baseURL}/app/${academyId}/dashboard`);
     await expectNoRouteError(page);
@@ -519,16 +389,10 @@ test.describe("role smoke: academy admin", () => {
     // E2E_ADMIN must be a disposable non-owner membership. If it accidentally
     // inherits owner privileges, the plan controls become visible and fail
     // this check instead of making the role matrix look green.
-    await gotoAppPath(page, `${baseURL}/app/${academyId}/billing`, {
-      allowRedirectAbort: true,
-    });
+    await gotoAppPath(page, `${baseURL}/app/${academyId}/billing`, { allowRedirectAbort: true });
     await expectNoRouteError(page);
-    await expect(
-      page.getByRole("heading", { name: "Planes y suscripción" })
-    ).toHaveCount(0);
-    await expect(
-      page.getByRole("heading", { name: "Planes disponibles" })
-    ).toHaveCount(0);
+    await expect(page.getByRole("heading", { name: "Planes y suscripción" })).toHaveCount(0);
+    await expect(page.getByRole("heading", { name: "Planes disponibles" })).toHaveCount(0);
     await assertLegacySelfPages(page);
   });
 });
@@ -538,46 +402,29 @@ for (const [role, storageState] of [
   ["athlete", athleteStorageState],
 ] as const) {
   test.describe(`role smoke: ${role}`, () => {
-    test.skip(
-      !academyId || !storageState || !athleteId,
-      `Set academy, ${role} state, and E2E_ATHLETE_ID.`
-    );
+    test.skip(!academyId || !storageState || !athleteId, `Set academy, ${role} state, and E2E_ATHLETE_ID.`);
     test.use(storageState ? { storageState } : {});
 
-    test("can open linked self-service pages without administrative billing", async ({
-      page,
-    }) => {
+    test("can open linked self-service pages without administrative billing", async ({ page }) => {
       test.setTimeout(180_000);
       await gotoAppPath(page, `${baseURL}/app/${academyId}/my-dashboard`);
       await expectNoRouteError(page);
       await expect(page).not.toHaveURL(/\/auth\/login/);
 
-      await gotoAppPath(page, `${baseURL}/app/${academyId}/billing`, {
-        allowRedirectAbort: true,
-      });
-      await expect(
-        page.getByRole("heading", { name: "Planes y cobros" })
-      ).toHaveCount(0);
-      await gotoAppPath(page, `${baseURL}/app/${academyId}/settings`, {
-        allowRedirectAbort: true,
-      });
-      await expect(
-        page.getByRole("heading", { name: "Ajustes de la academia" })
-      ).toHaveCount(0);
+      await gotoAppPath(page, `${baseURL}/app/${academyId}/billing`, { allowRedirectAbort: true });
+      await expect(page.getByRole("heading", { name: "Planes y cobros" })).toHaveCount(0);
+      await gotoAppPath(page, `${baseURL}/app/${academyId}/settings`, { allowRedirectAbort: true });
+      await expect(page.getByRole("heading", { name: "Ajustes de la academia" })).toHaveCount(0);
 
       for (const path of ["my-events", "notifications"]) {
-        await gotoAppPath(page, `${baseURL}/app/${academyId}/${path}`, {
-          allowRedirectAbort: true,
-        });
+        await gotoAppPath(page, `${baseURL}/app/${academyId}/${path}`, { allowRedirectAbort: true });
         await expectNoRouteError(page);
         await expect(page).not.toHaveURL(/\/auth\/login/);
       }
 
       const extraSelfServicePaths = [
         role === "family" ? "/onboarding/parent" : "/onboarding/athlete",
-        ...(routeFixtureEventId
-          ? [`/app/${academyId}/events/${routeFixtureEventId}/register`]
-          : []),
+        ...(routeFixtureEventId ? [`/app/${academyId}/events/${routeFixtureEventId}/register`] : []),
       ];
       for (const path of extraSelfServicePaths) {
         const url = path.startsWith("/app/") ? path : `${baseURL}${path}`;
@@ -586,19 +433,12 @@ for (const [role, storageState] of [
         await expect(page).not.toHaveURL(/\/auth\/login/);
       }
 
-      await gotoAppPath(
-        page,
-        `${baseURL}/app/${academyId}/athletes/${athleteId}/progress`
-      );
+      await gotoAppPath(page, `${baseURL}/app/${academyId}/athletes/${athleteId}/progress`);
       await expectNoRouteError(page);
       await expect(page).not.toHaveURL(/\/auth\/login/);
-      await gotoAppPath(
-        page,
-        `${baseURL}/app/${academyId}/athletes/${athleteId}/history`,
-        {
-          allowRedirectAbort: true,
-        }
-      );
+      await gotoAppPath(page, `${baseURL}/app/${academyId}/athletes/${athleteId}/history`, {
+        allowRedirectAbort: true,
+      });
       await expectNoRouteError(page);
       await expect(page).not.toHaveURL(/\/auth\/login/);
       await assertLegacySelfPages(page);
@@ -607,10 +447,7 @@ for (const [role, storageState] of [
 }
 
 test.describe("role smoke: academy isolation", () => {
-  test.skip(
-    !academyId || !otherAcademyId || !ownerStorageState,
-    "Set two academies and owner storage state."
-  );
+  test.skip(!academyId || !otherAcademyId || !ownerStorageState, "Set two academies and owner storage state.");
   test.use(ownerStorageState ? { storageState: ownerStorageState } : {});
 
   test("owner A cannot open academy B dashboard", async ({ page }) => {
