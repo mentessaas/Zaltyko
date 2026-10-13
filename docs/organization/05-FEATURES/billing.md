@@ -18,6 +18,14 @@ SaaS ni la asociación del Preview con una base válida.
 
 ## Cuota mensual por gimnasta y tarifa
 
+**Decisión pendiente detectada en revisión:** la respuesta del propietario fue
+«mensual por gimnasta y tarifa», pero la implementación actual es por
+inscripción a una plantilla de clase. Dos inscripciones de una misma gimnasta
+pueden producir dos líneas y sumar dos cuotas. Se ha solicitado confirmar si
+la tarifa cubre todas sus clases o si cada clase es facturable aparte. Hasta
+resolver esta ambigüedad y probar el caso multiclase, esta regla no está
+validada para emitir cuotas reales. Crear una tarifa no ejecuta ningún cobro.
+
 La decisión de producto es emitir una factura mensual por **familia + sede +
 periodo**, con una línea por cada inscripción activa que cumpla los requisitos.
 Cada importe procede de la asignación de tarifa efectiva para esa inscripción;
