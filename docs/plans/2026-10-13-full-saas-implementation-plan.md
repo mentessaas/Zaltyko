@@ -222,8 +222,11 @@ equivale a producción lista.
 1. **Cerrado localmente 2026-10-13:** stack canónico, migraciones, contratos
    RLS y pruebas SQL desde cero pasan; registro manual de pagos expuesto en API
    y Owner Dashboard. Nada de esto se ha promovido a un entorno remoto.
-2. Completar walkthrough autenticado de pagos por owner/admin y verificar
-   permisos por sede, estados vacíos/errores y accesibilidad.
+2. **Refuerzo local 2026-10-13:** la UI de pago manual ahora prueba estado
+   vacío y reintento incierto con la misma clave idempotente (2/2), además de
+   TypeScript/ESLint/Prettier. Esto no equivale a sesión real ni a escritura
+   contra Postgres; sigue pendiente el walkthrough autenticado owner/admin,
+   permisos por sede, errores reales y accesibilidad con lector de pantalla.
 3. **Implementado localmente 2026-10-13:** preferencia manual/automático por
    familia, entitlement SaaS con historial y snapshot por cargo. Free/trial,
    downgrade y revisiones desactualizadas fallan cerrados; ningún snapshot

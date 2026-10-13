@@ -93,6 +93,10 @@ están implementados en esta rama, pero aún faltan pruebas autenticadas y gates
 de entorno. No declarar preparación de captación hasta completar los gates del
 plan y verificar el despliegue productivo.
 
+El formulario local de pagos ahora prueba el estado sin cargos y conserva la
+misma clave/cuerpo al reintentar un fallo incierto (2/2). No sustituye E2E
+autenticado ni prueba contra una base de datos aislada.
+
 - [x] Cerrar Fase 1 local: migration, RLS/grants, contrato, onboarding y tests.
 - [x] Pasar stack canónico y las verificaciones focales locales.
 - [ ] Revisar los servicios operativos y E2E autenticado por rol contra Fase 2.
