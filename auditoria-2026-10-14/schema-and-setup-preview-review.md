@@ -7,9 +7,11 @@
 2. La revisión encontró que faltaban revocación completa de grants heredados,
    protección física del historial de clases de una línea y vínculo entre sede
    de la línea y sede de su factura. Backend recibe casos negativos requeridos.
-3. Fechas nullable en una línea mensual de atleta permitirían eludir su índice
-   único; deben ser obligatorias y delimitar el mes completo. No basta un test
-   del servicio si el esquema admite esa fila.
+3. Revalidación de la alerta inicial sobre fechas: el esquema base del ledger
+   ya declara ambos períodos NOT NULL (`20261006093047`, líneas 105–106) y
+   Drizzle coincide. No existe el supuesto bypass NULL en esa instalación.
+   Mantener la prueba negativa 23502; el nuevo control necesario es delimitar
+   el mes completo. Una comparación con NULL por sí sola no sustituye NOT NULL.
 4. El contrato puro requiere importe entero seguro y conjuntos sin duplicados.
    Estas observaciones son de código WIP, no fallos ya corregidos/verificados.
 5. `/owner/setup/preview` llama al formulario sin DTO contractual. El componente
