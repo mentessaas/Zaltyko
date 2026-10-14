@@ -1,4 +1,4 @@
-import { and, eq, inArray, sql } from "drizzle-orm";
+import { and, asc, eq, inArray, sql } from "drizzle-orm";
 
 import { db } from "@/db";
 import { metricRuns, retentionCohortProjectionRuns } from "@/db/zaltyko-schema";
@@ -11,6 +11,19 @@ import { assertCurrentCronSystemActor } from "@/lib/cron-system-actor";
 import type { SystemActor } from "@/modules/shared/application/actor";
 
 const FORMULA_VERSION = 1;
+const RUN_BATCH_SIZE = 500;
+
+function chunks<T>(items: readonly T[], size = RUN_BATCH_SIZE): T[][] {
+  const result: T[][] = [];
+  for (let index = 0; index < items.length; index += size) {
+    result.push(items.slice(index, index + size));
+  }
+  return result;
+}
+
+function compareIds(left: string, right: string): number {
+  return left < right ? -1 : left > right ? 1 : 0;
+}
 
 /**
  * Builds privacy-safe monthly cohort aggregates from operational enrollment
@@ -60,47 +73,83 @@ export async function buildRetentionCohortProjections(input: {
 
   return db.transaction(async (tx) => {
     await tx.execute(sql`set local statement_timeout = '120s'`);
-    await tx
-      .insert(retentionCohortProjectionRuns)
-      .values(
-        scopes.map((scope) => ({
-          organizationId: input.organizationId,
-          metricRunId: metricRun.id,
-          locationId: scope.locationId,
-          formulaVersion: FORMULA_VERSION,
-          sourceWatermark: metricRun.sourceWatermark,
-          status: "running" as const,
-          idempotencyKey: scope.idempotencyKey,
-        }))
-      )
-      .onConflictDoNothing({
-        target: [
-          retentionCohortProjectionRuns.organizationId,
-          retentionCohortProjectionRuns.idempotencyKey,
-        ],
-      });
-
-    const runs = await tx
-      .select({
-        id: retentionCohortProjectionRuns.id,
-        locationId: retentionCohortProjectionRuns.locationId,
-        status: retentionCohortProjectionRuns.status,
-        idempotencyKey: retentionCohortProjectionRuns.idempotencyKey,
-      })
-      .from(retentionCohortProjectionRuns)
-      .where(
-        and(
-          eq(
+    const orderedScopes = scopes
+      .slice()
+      .sort((left, right) =>
+        compareIds(left.idempotencyKey, right.idempotencyKey)
+      );
+    for (const scopeBatch of chunks(orderedScopes)) {
+      await tx
+        .insert(retentionCohortProjectionRuns)
+        .values(
+          scopeBatch.map((scope) => ({
+            organizationId: input.organizationId,
+            metricRunId: metricRun.id,
+            locationId: scope.locationId,
+            formulaVersion: FORMULA_VERSION,
+            sourceWatermark: metricRun.sourceWatermark,
+            status: "running" as const,
+            idempotencyKey: scope.idempotencyKey,
+          }))
+        )
+        .onConflictDoNothing({
+          target: [
             retentionCohortProjectionRuns.organizationId,
-            input.organizationId
-          ),
-          inArray(
             retentionCohortProjectionRuns.idempotencyKey,
-            scopes.map((scope) => scope.idempotencyKey)
+          ],
+        });
+    }
+
+    const scopeKeys = [...new Set(scopes.map((scope) => scope.idempotencyKey))];
+    const discoveredRunIds: string[] = [];
+    for (const keyBatch of chunks(scopeKeys)) {
+      const batchRuns = await tx
+        .select({ id: retentionCohortProjectionRuns.id })
+        .from(retentionCohortProjectionRuns)
+        .where(
+          and(
+            eq(
+              retentionCohortProjectionRuns.organizationId,
+              input.organizationId
+            ),
+            inArray(retentionCohortProjectionRuns.idempotencyKey, keyBatch)
           )
         )
-      )
-      .for("update");
+        .orderBy(asc(retentionCohortProjectionRuns.id))
+        .limit(keyBatch.length);
+      discoveredRunIds.push(...batchRuns.map((run) => run.id));
+    }
+
+    const orderedRunIds = [...new Set(discoveredRunIds)].sort(compareIds);
+    const runs: Array<{
+      id: string;
+      locationId: string | null;
+      status: string;
+      idempotencyKey: string;
+    }> = [];
+    for (const idBatch of chunks(orderedRunIds)) {
+      const lockedRuns = await tx
+        .select({
+          id: retentionCohortProjectionRuns.id,
+          locationId: retentionCohortProjectionRuns.locationId,
+          status: retentionCohortProjectionRuns.status,
+          idempotencyKey: retentionCohortProjectionRuns.idempotencyKey,
+        })
+        .from(retentionCohortProjectionRuns)
+        .where(
+          and(
+            eq(
+              retentionCohortProjectionRuns.organizationId,
+              input.organizationId
+            ),
+            inArray(retentionCohortProjectionRuns.id, idBatch)
+          )
+        )
+        .orderBy(asc(retentionCohortProjectionRuns.id))
+        .limit(idBatch.length)
+        .for("update");
+      runs.push(...lockedRuns);
+    }
 
     const pendingRuns = runs.filter((run) => run.status !== "succeeded");
     if (pendingRuns.length === 0) {
@@ -111,25 +160,32 @@ export async function buildRetentionCohortProjections(input: {
     }
 
     const runIds = pendingRuns.map((run) => run.id);
-    const runIdList = sql.join(
-      runIds.map((id) => sql`${id}::uuid`),
-      sql`, `
-    );
+    const runIdsArray = sql`${sql.param(runIds)}::uuid[]`;
     await tx.execute(sql`
       delete from zaltyko.retention_cohort_projections
       where organization_id = ${input.organizationId}::uuid
-        and projection_run_id in (${runIdList})
+        and projection_run_id = any(${runIdsArray})
     `);
-    await tx
-      .update(retentionCohortProjectionRuns)
-      .set({
-        status: "running",
-        rowCount: 0,
-        startedAt: new Date(),
-        completedAt: null,
-        errorCode: null,
-      })
-      .where(inArray(retentionCohortProjectionRuns.id, runIds));
+    for (const idBatch of chunks(runIds)) {
+      await tx
+        .update(retentionCohortProjectionRuns)
+        .set({
+          status: "running",
+          rowCount: 0,
+          startedAt: new Date(),
+          completedAt: null,
+          errorCode: null,
+        })
+        .where(
+          and(
+            eq(
+              retentionCohortProjectionRuns.organizationId,
+              input.organizationId
+            ),
+            inArray(retentionCohortProjectionRuns.id, idBatch)
+          )
+        );
+    }
 
     await tx.execute(sql`
       with projection_scopes as materialized (
@@ -138,7 +194,7 @@ export async function buildRetentionCohortProjections(input: {
           timezone('UTC', run.source_watermark)::date as as_of
         from zaltyko.retention_cohort_projection_runs run
         where run.organization_id = ${input.organizationId}::uuid
-          and run.id in (${runIdList})
+          and run.id = any(${runIdsArray})
       ), first_active_history as (
         select history.organization_id, history.enrollment_id,
           min(history.effective_on)::date as first_active_on
@@ -314,16 +370,26 @@ export async function buildRetentionCohortProjections(input: {
               and projection.projection_run_id = run.id
           )
       where run.organization_id = ${input.organizationId}::uuid
-        and run.id in (${runIdList})
+        and run.id = any(${runIdsArray})
     `);
 
-    const completedRuns = await tx
-      .select({
-        id: retentionCohortProjectionRuns.id,
-        rowCount: retentionCohortProjectionRuns.rowCount,
-      })
-      .from(retentionCohortProjectionRuns)
-      .where(inArray(retentionCohortProjectionRuns.id, runIds));
+    const completedRuns: Array<{ rowCount: number }> = [];
+    for (const idBatch of chunks(runIds)) {
+      const batch = await tx
+        .select({ rowCount: retentionCohortProjectionRuns.rowCount })
+        .from(retentionCohortProjectionRuns)
+        .where(
+          and(
+            eq(
+              retentionCohortProjectionRuns.organizationId,
+              input.organizationId
+            ),
+            inArray(retentionCohortProjectionRuns.id, idBatch)
+          )
+        )
+        .limit(idBatch.length);
+      completedRuns.push(...batch);
+    }
 
     return {
       projectionRuns: runs.length,
