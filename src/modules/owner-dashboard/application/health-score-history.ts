@@ -4,6 +4,7 @@ import { z } from "zod";
 import { db } from "@/db";
 import {
   benchmarkProfiles,
+  healthDimension,
   healthScoreDimensionSnapshots,
   healthScoreSnapshots,
 } from "@/db/zaltyko-schema";
@@ -93,7 +94,7 @@ export async function getHealthScoreHistory(
     : await db.select().from(healthScoreDimensionSnapshots).where(and(
         eq(healthScoreDimensionSnapshots.organizationId, scope.organization.id),
         inArray(healthScoreDimensionSnapshots.healthScoreSnapshotId, snapshotIds)
-      ));
+      )).limit(snapshotIds.length * healthDimension.enumValues.length);
   const dimensionsBySnapshot = new Map<string, typeof dimensions>();
   for (const dimension of dimensions) {
     const items = dimensionsBySnapshot.get(dimension.healthScoreSnapshotId) ?? [];
