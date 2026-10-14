@@ -12076,3 +12076,15 @@ Modelo separado, reclamación manual, administración, importación revisada, fi
 - Mocks focales: 23/23; TypeScript, ESLint focal, Prettier y diff check PASS.
   Sin build, browsers, Docker, Supabase, PostgreSQL ni E2E. La ejecución local
   sigue pendiente de autorización del flujo principal.
+
+## 2026-10-15 — QA65: permiso loopback solo para Chromium local
+
+- La traza QA65 demuestra intento POST a Auth sin respuesta por denegación
+  Chromium de acceso a `loopback`; HIBP respondió 200. Sentry Replay fue
+  bloqueado aparte por el guard. En suite local Chromium, se concede el permiso
+  `local-network-access` solo al origen app loopback validado. La petición
+  exacta de Replay sigue abortada y se registra aparte; el resto de bloqueos y
+  errores de página/consola siguen visibles.
+- Mocks permiso/origen y Sentry: 19/19; TypeScript, ESLint focal, Prettier y
+  diff check PASS. Sin nueva ejecución de navegador ni servicios. Cleanup
+  completo consta en el informe QA65 preservado sin modificar.

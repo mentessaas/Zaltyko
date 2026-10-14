@@ -3,7 +3,12 @@ import { createHash, randomUUID } from "node:crypto";
 import { expect, test } from "@playwright/test";
 import { Pool } from "pg";
 
-import { installLocalE2ENetworkGuard } from "./support/local-e2e-network";
+import {
+  grantLocalNetworkAccess,
+  installLocalE2ENetworkGuard,
+  shouldGrantLocalNetworkAccess,
+  type LocalNetworkGuardReport,
+} from "./support/local-e2e-network";
 
 const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL;
 const databaseUrl = process.env.DATABASE_URL;
@@ -41,7 +46,10 @@ type BrowserDiagnosticEvent = {
 };
 
 let browserDiagnostics: BrowserDiagnosticEvent[] = [];
-let blockedExternalRequests: () => string[] = () => [];
+let networkGuardReport: () => LocalNetworkGuardReport = () => ({
+  unexpectedBlockedRequests: [],
+  expectedBlockedTelemetryRequests: [],
+});
 
 function diagnosticPathname(value: string): string {
   try {
@@ -73,11 +81,20 @@ function sanitizeDiagnosticText(value: string): string {
 test.describe("Isolated local Supabase Owner setup", () => {
   test.describe.configure({ mode: "serial", timeout: 300_000 });
 
-  test.beforeEach(async ({ page }) => {
-    blockedExternalRequests = await installLocalE2ENetworkGuard(
-      page.context(),
-      { baseUrl: process.env.BASE_URL!, supabaseUrl: supabaseUrl! }
-    );
+  test.beforeEach(async ({ page }, testInfo) => {
+    const baseUrl = process.env.BASE_URL!;
+    if (
+      shouldGrantLocalNetworkAccess(
+        process.env.E2E_LOCAL_SUPABASE === "true",
+        testInfo.project.name
+      )
+    ) {
+      await grantLocalNetworkAccess(page.context(), baseUrl);
+    }
+    networkGuardReport = await installLocalE2ENetworkGuard(page.context(), {
+      baseUrl,
+      supabaseUrl: supabaseUrl!,
+    });
     const diagnostics: BrowserDiagnosticEvent[] = [];
     browserDiagnostics = diagnostics;
     const record = (event: Omit<BrowserDiagnosticEvent, "at">) => {
@@ -145,21 +162,23 @@ test.describe("Isolated local Supabase Owner setup", () => {
   });
 
   test.afterEach(async ({}, testInfo) => {
-    const blockedRequests = blockedExternalRequests();
+    const { unexpectedBlockedRequests, expectedBlockedTelemetryRequests } =
+      networkGuardReport();
     await testInfo.attach("browser-navigation-diagnostics.json", {
       body: JSON.stringify(
         {
           browser: testInfo.project.name,
           status: testInfo.status,
           events: browserDiagnostics,
-          blockedExternalRequests: blockedRequests,
+          blockedExternalRequests: unexpectedBlockedRequests,
+          expectedBlockedTelemetryRequests,
         },
         null,
         2
       ),
       contentType: "application/json",
     });
-    expect(blockedRequests).toEqual([]);
+    expect(unexpectedBlockedRequests).toEqual([]);
   });
 
   test.afterAll(async () => {
@@ -171,7 +190,7 @@ test.describe("Isolated local Supabase Owner setup", () => {
   // destroys this unique project's entire database volume after the test.
   test("signs up and completes synthetic Owner operations through the UI", async ({
     page,
-  }) => {
+  }, testInfo) => {
     const cspViolations: string[] = [];
     const profileRequests: string[] = [];
     page.on("console", (message) => {
@@ -1111,6 +1130,14 @@ test.describe("Isolated local Supabase Owner setup", () => {
     if (!browser)
       throw new Error("The authenticated E2E browser is unavailable.");
     const secondOwnerContext = await browser.newContext();
+    if (
+      shouldGrantLocalNetworkAccess(
+        process.env.E2E_LOCAL_SUPABASE === "true",
+        testInfo.project.name
+      )
+    ) {
+      await grantLocalNetworkAccess(secondOwnerContext, process.env.BASE_URL!);
+    }
     const secondOwnerBlockedExternalRequests =
       await installLocalE2ENetworkGuard(secondOwnerContext, {
         baseUrl: process.env.BASE_URL!,
@@ -1335,8 +1362,8 @@ test.describe("Isolated local Supabase Owner setup", () => {
       expect(coachDashboard.status()).toBe(403);
     } finally {
       await secondOwnerContext.close();
-      const blockedRequests = secondOwnerBlockedExternalRequests();
-      expect(blockedRequests).toEqual([]);
+      const secondOwnerNetworkReport = secondOwnerBlockedExternalRequests();
+      expect(secondOwnerNetworkReport.unexpectedBlockedRequests).toEqual([]);
     }
   });
 });

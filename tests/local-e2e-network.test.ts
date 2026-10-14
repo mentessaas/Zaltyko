@@ -3,8 +3,11 @@ import { describe, expect, it, vi } from "vitest";
 
 import {
   classifyLocalE2ERequest,
+  grantLocalNetworkAccess,
   HIBP_FIXTURE_BODY,
   installLocalE2ENetworkGuard,
+  isExpectedBlockedTelemetryRequest,
+  shouldGrantLocalNetworkAccess,
   stripExternalResourceHints,
   validateHibpFixtureResponse,
 } from "./support/local-e2e-network";
@@ -36,6 +39,7 @@ function fakeContext() {
     route: vi.fn(async (_pattern: string, registered: unknown) => {
       handler = registered as (route: Route) => Promise<void>;
     }),
+    grantPermissions: vi.fn().mockResolvedValue(undefined),
   };
   return {
     context: context as unknown as BrowserContext,
@@ -69,7 +73,7 @@ describe("local browser network guard", () => {
       },
       body: HIBP_FIXTURE_BODY,
     });
-    expect(violations()).toEqual([]);
+    expect(violations().unexpectedBlockedRequests).toEqual([]);
     expect(() => validateHibpFixtureResponse(HIBP_FIXTURE_BODY)).not.toThrow();
   });
 
@@ -96,7 +100,7 @@ describe("local browser network guard", () => {
     expect(localRoute.continue).toHaveBeenCalledOnce();
     expect(externalRoute.abort).toHaveBeenCalledWith("blockedbyclient");
     expect(wrongPortRoute.abort).toHaveBeenCalledWith("blockedbyclient");
-    expect(violations()).toEqual([
+    expect(violations().unexpectedBlockedRequests).toEqual([
       "https://example.invalid",
       "http://127.0.0.1:43124",
     ]);
@@ -129,6 +133,92 @@ describe("local browser network guard", () => {
     expect(() => validateHibpFixtureResponse("malformed response")).toThrow(
       "valid zero-count range row"
     );
+  });
+
+  it("grants local network access only to the validated app loopback origin", async () => {
+    const { context } = fakeContext();
+
+    await grantLocalNetworkAccess(
+      context,
+      "http://127.0.0.1:43123/register?role=owner"
+    );
+
+    expect(context.grantPermissions).toHaveBeenCalledOnce();
+    expect(context.grantPermissions).toHaveBeenCalledWith(
+      ["local-network-access"],
+      { origin: "http://127.0.0.1:43123" }
+    );
+  });
+
+  it("refuses the local network permission for non-loopback origins", async () => {
+    const { context } = fakeContext();
+
+    await expect(
+      grantLocalNetworkAccess(context, "https://example.com")
+    ).rejects.toThrow("credential-free loopback URL");
+
+    expect(context.grantPermissions).not.toHaveBeenCalled();
+  });
+
+  it.each([
+    [true, "chromium", true],
+    [true, "firefox", false],
+    [true, "webkit", false],
+    [false, "chromium", false],
+  ])(
+    "scopes local-network grants to local Chromium runs (%s, %s)",
+    (isLocalSupabaseRun, projectName, expected) => {
+      expect(
+        shouldGrantLocalNetworkAccess(isLocalSupabaseRun, projectName)
+      ).toBe(expected);
+    }
+  );
+
+  it("classifies only the observed Sentry replay script as expected blocked telemetry", () => {
+    expect(
+      isExpectedBlockedTelemetryRequest({
+        url: "https://browser.sentry-cdn.com/10.73.0/replay.min.js",
+        method: "GET",
+        resourceType: "script",
+      })
+    ).toBe(true);
+    expect(
+      isExpectedBlockedTelemetryRequest({
+        url: "https://browser.sentry-cdn.com/10.73.0/envelope/",
+        method: "POST",
+        resourceType: "fetch",
+      })
+    ).toBe(false);
+    expect(
+      isExpectedBlockedTelemetryRequest({
+        url: "https://browser.sentry-cdn.com/10.73.0/replay.min.js?unexpected=1",
+        method: "GET",
+        resourceType: "script",
+      })
+    ).toBe(false);
+  });
+
+  it("continues blocking the exact Sentry script and records it separately", async () => {
+    const { context, handler } = fakeContext();
+    const networkReport = await installLocalE2ENetworkGuard(context, {
+      baseUrl: "http://127.0.0.1:43123",
+      supabaseUrl: "http://127.0.0.1:54321",
+    });
+    const route = fakeRoute({
+      url: "https://browser.sentry-cdn.com/10.73.0/replay.min.js",
+      resourceType: "script",
+    });
+
+    await handler()(route);
+
+    expect(route.abort).toHaveBeenCalledWith("blockedbyclient");
+    expect(route.continue).not.toHaveBeenCalled();
+    expect(networkReport()).toEqual({
+      unexpectedBlockedRequests: [],
+      expectedBlockedTelemetryRequests: [
+        "https://browser.sentry-cdn.com/10.73.0/replay.min.js",
+      ],
+    });
   });
 
   it("strips external resource hints while preserving allowed local hints", () => {

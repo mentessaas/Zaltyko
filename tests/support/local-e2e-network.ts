@@ -1,6 +1,8 @@
 import type { BrowserContext, Route } from "@playwright/test";
 
 export const HIBP_FIXTURE_BODY = `${"0".repeat(35)}:0\r\n`;
+const EXPECTED_SENTRY_REPLAY_URL =
+  "https://browser.sentry-cdn.com/10.73.0/replay.min.js";
 
 type RequestInput = {
   url: string;
@@ -96,6 +98,18 @@ export function classifyLocalE2ERequest(
   return { kind: "block", label: `${url.protocol}//${url.host}` };
 }
 
+export function isExpectedBlockedTelemetryRequest(input: {
+  url: string;
+  method: string;
+  resourceType: string;
+}): boolean {
+  return (
+    input.method === "GET" &&
+    input.resourceType === "script" &&
+    input.url === EXPECTED_SENTRY_REPLAY_URL
+  );
+}
+
 function localOrigin(value: string, label: string): string {
   const url = new URL(value);
   if (
@@ -109,15 +123,38 @@ function localOrigin(value: string, label: string): string {
   return url.origin;
 }
 
+/** Grant Chromium local-network access only to the validated app loopback origin. */
+export async function grantLocalNetworkAccess(
+  context: BrowserContext,
+  baseUrl: string
+): Promise<void> {
+  await context.grantPermissions(["local-network-access"], {
+    origin: localOrigin(baseUrl, "Browser base URL"),
+  });
+}
+
+export function shouldGrantLocalNetworkAccess(
+  isLocalSupabaseRun: boolean,
+  projectName: string
+): boolean {
+  return isLocalSupabaseRun && projectName === "chromium";
+}
+
+export type LocalNetworkGuardReport = {
+  unexpectedBlockedRequests: string[];
+  expectedBlockedTelemetryRequests: string[];
+};
+
 export async function installLocalE2ENetworkGuard(
   context: BrowserContext,
   input: { baseUrl: string; supabaseUrl: string }
-): Promise<() => string[]> {
+): Promise<() => LocalNetworkGuardReport> {
   const allowedOrigins = new Set([
     localOrigin(input.baseUrl, "Browser base URL"),
     localOrigin(input.supabaseUrl, "Local Supabase URL"),
   ]);
-  const blockedRequests: string[] = [];
+  const unexpectedBlockedRequests: string[] = [];
+  const expectedBlockedTelemetryRequests: string[] = [];
 
   await context.route("**/*", async (route: Route) => {
     const request = route.request();
@@ -170,9 +207,23 @@ export async function installLocalE2ENetworkGuard(
       });
       return;
     }
-    blockedRequests.push(decision.label);
+    if (
+      isExpectedBlockedTelemetryRequest({
+        url: request.url(),
+        method: request.method(),
+        resourceType: request.resourceType(),
+      })
+    ) {
+      const { origin, pathname } = new URL(request.url());
+      expectedBlockedTelemetryRequests.push(`${origin}${pathname}`);
+    } else {
+      unexpectedBlockedRequests.push(decision.label);
+    }
     await route.abort("blockedbyclient");
   });
 
-  return () => [...blockedRequests];
+  return () => ({
+    unexpectedBlockedRequests: [...unexpectedBlockedRequests],
+    expectedBlockedTelemetryRequests: [...expectedBlockedTelemetryRequests],
+  });
 }

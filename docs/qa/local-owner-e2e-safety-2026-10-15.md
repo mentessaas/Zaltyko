@@ -48,3 +48,24 @@ ejecutó en QA59.
 - ESLint focal, Prettier `--check` y `git diff --check`: PASS.
 - No se inició Docker/Supabase ni se ejecutó build, Playwright/E2E,
   PostgreSQL, contenedores o tráfico de red.
+
+## Follow-up: diagnóstico QA65 y contención local
+
+- La traza QA65 registra el click y un intento `POST /auth/v1/signup`, pero no
+  una respuesta HTTP (`status: -1`, `net::ERR_FAILED`). Chromium informa que la
+  solicitud desde el origen de la app a `loopback` fue denegada por su permiso
+  de acceso a red local. El fixture HIBP consta como respuesta 200; no explica
+  el fallo de signup. Evidencia preservada: [error-context](../../test-results/e2e-owner-local-setup-Isol-3104f-r-operations-through-the-UI-chromium/error-context.md), [traza](../../test-results/e2e-owner-local-setup-Isol-3104f-r-operations-through-the-UI-chromium/trace.zip) e [informe de corrida](local-owner-e2e-chromium-run-2026-10-15.md).
+- La solicitud exacta del Replay de Sentry fue abortada por el guard y causó
+  una violación secundaria en el `afterEach`; no hay evidencia de que causara
+  el fallo de Auth. El informe QA65 registra cleanup completo del stack tras el
+  timeout de 300 s.
+- Corrección acotada: solo la suite local Chromium concede
+  `local-network-access` al origen loopback validado de `BASE_URL`. La ruta
+  externa exacta de Replay sigue abortada y se informa aparte como denegación
+  esperada; otros destinos bloqueados siguen siendo fallos. No se suprimen
+  `pageerror` ni errores de consola. Esta corrección no se ha ejecutado en
+  navegador.
+- Mocks de permiso/origen y clasificación/aborto de Sentry: 19/19 PASS.
+  TypeScript, ESLint focal, Prettier y `git diff --check`: PASS. No se ejecutó
+  Chromium ni otro navegador.
