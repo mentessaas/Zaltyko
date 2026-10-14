@@ -4,7 +4,7 @@ import { z } from "zod";
 
 import { operationalProblem, problemResponse } from "@/app/api/v1/problem";
 import { db } from "@/db";
-import { pricePlans } from "@/db/zaltyko-schema";
+import { classTemplates, pricePlans } from "@/db/zaltyko-schema";
 import { apiSuccess } from "@/lib/api-response";
 import { getCurrentUser } from "@/lib/auth/current-user";
 import {
@@ -67,13 +67,13 @@ export async function GET(request: Request) {
       ...getLimitForRoute(new URL(request.url).pathname),
     });
     if (!limit.success) return rateLimitExceededResponse(limit);
-    const plans = await db.transaction(async (tx) => {
+    const options = await db.transaction(async (tx) => {
       await assertOperationalAccess(tx, {
         ...query.data,
         actor: { userId: user.id, memberId: scope.member.id },
         allowedRoles: ["owner", "admin", "manager"],
       });
-      return tx
+      const plans = await tx
         .select({
           id: pricePlans.id,
           name: pricePlans.name,
@@ -91,8 +91,32 @@ export async function GET(request: Request) {
         )
         .orderBy(asc(pricePlans.name))
         .limit(100);
+      const classes = await tx
+        .select({
+          id: classTemplates.id,
+          name: classTemplates.name,
+          effectiveFrom: classTemplates.effectiveFrom,
+          effectiveTo: classTemplates.effectiveTo,
+        })
+        .from(classTemplates)
+        .where(
+          and(
+            eq(classTemplates.organizationId, scope.organization.id),
+            eq(classTemplates.locationId, query.data.locationId),
+            eq(classTemplates.status, "active")
+          )
+        )
+        .orderBy(asc(classTemplates.name), asc(classTemplates.id))
+        .limit(101);
+      return {
+        organizationId: scope.organization.id,
+        locationId: query.data.locationId,
+        items: plans,
+        classTemplates: classes.slice(0, 100),
+        classTemplatesHasMore: classes.length > 100,
+      };
     });
-    return noStore(apiSuccess({ items: plans }));
+    return noStore(apiSuccess(options));
   } catch (error) {
     if (error instanceof OperationalError) return operationalProblem(error);
     throw error;
