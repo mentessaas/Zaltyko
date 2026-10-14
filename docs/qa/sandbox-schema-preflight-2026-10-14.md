@@ -241,3 +241,29 @@ contexto de la solicitud, no de los metadatos disponibles en MCP. No se
 verificaron filas legacy de consentimiento, disponibilidad de backup, RPO/RTO,
 mapa Preview→Sandbox, actores autenticados ni compatibilidad remota posterior a
 la migración.
+
+## Runner de consulta previa — DRYRUN_READONLY
+
+Se añadió `pnpm e2e:schema-delta:preflight` como consulta separada. Sin opciones
+devuelve el plan estático con `NO_VERIFICADO` y los dos hashes locales. La
+consulta catalogada requiere `--connect --confirm-target aeeootdmuiqkfeernskw`,
+ref, URL de Supabase y CA TLS explícitos/configurados. Abre una transacción
+`READ ONLY` y valida el ledger base exacto de 16 migraciones, sus checksums, las
+dependencias de catálogo y el ledger delta si existe. No crea el ledger ni
+aplica SQL; tampoco existe opción de escritura. Los errores muestran códigos
+seguros, no URL, usuario, contraseña, certificado ni texto del driver.
+
+Los tests usan un cliente PostgreSQL simulado. No conectan con el Sandbox. La
+consulta remota sigue pendiente de revisión Main y no equivale a backup,
+compatibilidad PG17, aprobación de DDL ni autorización de aplicación.
+
+### Corrección de propiedad de objetos
+
+La extensión `btree_gist` se trata como dependencia compartida, no como objeto
+propiedad de la migración mensual: si ya existe en la base de 16, no genera
+drift. Triggers y policies de consentimiento pertenecen a la migración #17;
+los objetos de cobertura/snapshots quedan en #18. Los fixtures verifican base
+de 16 con la extensión preexistente y el prefijo #17 aplicado sin objetos #18.
+El resultado expone `sharedDependencies.btreeGistPresent` sin clasificarlo como
+objeto delta. La carga de `.env` usa `quiet` para evitar que dotenv imprima rutas
+o valores de configuración durante una ejecución explícita.

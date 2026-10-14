@@ -26,6 +26,7 @@
     "test:e2e:auth": "playwright test tests/e2e-zaltyko-auth-save.spec.ts --project=chromium",
     "test:e2e:auth:provision": "pnpm e2e:prepare-auth && pnpm test:e2e:auth",
     "e2e:prepare-domain": "tsx scripts/apply-e2e-domain-migrations.ts",
+    "e2e:schema-delta:preflight": "tsx scripts/preflight-e2e-schema-delta.ts",
     "test:e2e:verify-supabase": "tsx scripts/verify-supabase-auth.ts",
     "test:e2e": "playwright test tests/e2e-owner-dashboard.spec.ts",
     "test:e2e:local": "tsx scripts/run-e2e-local.ts",
