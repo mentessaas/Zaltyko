@@ -1098,6 +1098,37 @@ async function loadMonthlyChargeState(
   };
 }
 
+export async function loadMonthlyReplayState(
+  tx: TransactionClient,
+  organizationId: string,
+  invoiceId: string
+): Promise<{
+  invoice: Invoice;
+  chargeStatus: "due" | "partially_paid" | "paid" | "void" | "mixed";
+  collectionMode: "manual";
+  charges: Array<{
+    id: string;
+    status: "due" | "partially_paid" | "paid" | "void";
+  }>;
+}> {
+  // Payment commands lock charge rows before updating invoice status. Preserve
+  // that order and read invoice status only after the charge locks have settled.
+  const chargeState = await loadMonthlyChargeState(
+    tx,
+    organizationId,
+    invoiceId
+  );
+  const invoice = await loadInvoice(tx, organizationId, invoiceId);
+  if (invoice.voidedAt || invoice.status === "void") {
+    throw conflict(
+      "INVOICE_VOIDED",
+      "La factura del periodo está anulada. La reemisión requiere una decisión específica.",
+      { invoiceId: invoice.id }
+    );
+  }
+  return { invoice, ...chargeState };
+}
+
 export async function issueMonthlyInvoice(
   command: IssueMonthlyInvoiceInput
 ): Promise<{
@@ -1292,10 +1323,9 @@ export async function issueMonthlyInvoice(
         }
       }
       return {
-        invoice,
+        ...(await loadMonthlyReplayState(tx, input.organizationId, invoice.id)),
         replayed: true,
         lines,
-        ...(await loadMonthlyChargeState(tx, input.organizationId, invoice.id)),
       };
     }
 
@@ -1446,13 +1476,6 @@ export async function issueMonthlyInvoice(
         input.organizationId,
         invoice.id
       );
-      if (invoice.voidedAt || invoice.status === "void") {
-        throw conflict(
-          "INVOICE_VOIDED",
-          "La factura del periodo está anulada. La reemisión requiere una decisión específica.",
-          { invoiceId: invoice.id }
-        );
-      }
       const marker = await tx
         .select()
         .from(outboxEvents)
@@ -1491,14 +1514,13 @@ export async function issueMonthlyInvoice(
         marker[0].payload.quoteHash === input.quoteHash
       ) {
         return {
-          invoice,
-          replayed: true,
-          lines: existingLines,
-          ...(await loadMonthlyChargeState(
+          ...(await loadMonthlyReplayState(
             tx,
             input.organizationId,
             invoice.id
           )),
+          replayed: true,
+          lines: existingLines,
         };
       }
       throw conflict(
