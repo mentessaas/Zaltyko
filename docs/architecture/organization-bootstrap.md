@@ -23,6 +23,20 @@ La tabla de recibos tiene RLS forzada, cero grants para `authenticated` y no
 contiene nombres personales. La API canónica es
 `POST /api/v1/organizations/bootstrap` y exige `Idempotency-Key`.
 
+## Perfiles deportivos canónicos
+
+El bootstrap asocia cada disciplina solicitada al perfil español
+`identity-v1` con `federationCode = unconfigured`. En este catálogo,
+`unconfigured` identifica una fila canónica de disciplina sin reglas propias
+de una federación; `identity-v1` aporta identidad deportiva, no requisitos de
+categorías, niveles o aparatos. Los perfiles de federaciones concretas no se
+usan hasta que el producto tenga una selección explícita de federación.
+
+La consulta se limita al número de disciplinas solicitadas y falla cerrada si
+falta alguna fila canónica. La asociación se resuelve por clave de disciplina,
+de modo que el orden de filas devuelto por la base no cambia qué disciplina es
+principal o adicional.
+
 ## Entrada de autenticación
 
 `resolveUserEntry` consulta primero memberships canónicos para owner/admin/

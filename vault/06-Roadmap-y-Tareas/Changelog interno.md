@@ -7,6 +7,22 @@ source:
   - ../docs/architecture/zaltyko-domain-model.md
 ---
 
+## 2026-10-14 — Selección canónica de perfiles deportivos en bootstrap
+
+- Rama local `codex/bootstrap-canonical-sport-profile-20261014`, desde
+  `884e862cb0d37b2f816b080f42ca3a0e3aeb3c57`. El bootstrap filtra por país,
+  disciplina, `federationCode = unconfigured` y versión `identity-v1`; limita
+  filas al número de disciplinas solicitadas, falla si falta alguna y las
+  asocia por clave para que el orden de consulta no altere el rol principal.
+- La migración y su seed definen esos perfiles como identidad de disciplina,
+  sin inferir reglas de federación, categorías, niveles o aparatos. No requiere
+  migración. Se añadió test focal para dos disciplinas, exclusión de otras
+  federaciones/países/versiones y cierre seguro ante perfil canónico ausente.
+- Vitest focal 2/2, ESLint focal, Prettier en archivos de código/documentación
+  y `git diff --check` PASS.
+  No se ejecutaron PostgreSQL, navegador/E2E, suite completa, Sandbox,
+  remotos, producción ni push.
+
 ## 2026-10-14 — Preflight solo lectura del Sandbox de esquema
 
 Sobre Main `e0ebecfa`, el proyecto `aeeootdmuiqkfeernskw` tiene las 16
