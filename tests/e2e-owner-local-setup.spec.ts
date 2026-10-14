@@ -331,6 +331,12 @@ test.describe("Isolated local Supabase Owner setup", () => {
         )
       ).toBeVisible();
       await page.waitForLoadState("networkidle");
+      const classesList = page.getByRole("region", {
+        name: "Clases de tu academia",
+      });
+      await expect(
+        classesList.getByRole("heading", { name, exact: true })
+      ).toBeVisible();
       return {
         classTemplateId: classPayload.data.id,
         sessionCount: classPayload.data.sessionCount,
@@ -938,6 +944,12 @@ test.describe("Isolated local Supabase Owner setup", () => {
         .getByRole("status")
         .filter({ hasText: "Pago guardado y asignado al cargo" })
     ).toBeVisible();
+    await expect(
+      page.getByRole("heading", { name: "No hay cargos pendientes" })
+    ).toBeVisible();
+    await expect(
+      page.getByRole("combobox", { name: "Cargo pendiente" })
+    ).toHaveCount(0);
 
     const dashboardPeriod = dashboardRange(
       selectedSessionStartsAt,
