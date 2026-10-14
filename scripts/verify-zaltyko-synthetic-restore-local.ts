@@ -46,7 +46,12 @@ async function readCatalog(pool: Pool) {
     order by extname
   `);
   const columns = await pool.query(`
-    select table_schema, table_name, column_name, ordinal_position,
+    -- pg_dump omits dropped columns, compacting physical attnum gaps.
+    -- Preserve visible column order without treating those gaps as data loss.
+    select table_schema, table_name, column_name,
+           row_number() over (
+             partition by table_schema, table_name order by ordinal_position
+           )::int as visible_position,
            data_type, is_nullable, coalesce(column_default, '') as column_default
     from information_schema.columns
     where table_schema = 'zaltyko' or (table_schema = 'auth' and table_name = 'users')
@@ -386,60 +391,67 @@ async function verifyImmutability(pool: Pool): Promise<void> {
 const sourcePool = new Pool({ connectionString: sourceUrl, max: 2 });
 const targetPool = new Pool({ connectionString: targetUrl, max: 2 });
 
-try {
-  const [sourceCatalog, targetCatalog] = await Promise.all([
-    readCatalog(sourcePool),
-    readCatalog(targetPool),
-  ]);
-  assert.deepEqual(
-    targetCatalog,
-    sourceCatalog,
-    "Restored PostgreSQL catalog differs"
-  );
+async function main(): Promise<void> {
+  try {
+    const [sourceCatalog, targetCatalog] = await Promise.all([
+      readCatalog(sourcePool),
+      readCatalog(targetPool),
+    ]);
+    assert.deepEqual(
+      targetCatalog,
+      sourceCatalog,
+      "Restored PostgreSQL catalog differs"
+    );
 
-  const [sourceLedger, targetLedger] = await Promise.all([
-    readMonthlyLedger(sourcePool),
-    readMonthlyLedger(targetPool),
-  ]);
-  assert.deepEqual(
-    targetLedger,
-    sourceLedger,
-    "Restored financial ledger differs"
-  );
+    const [sourceLedger, targetLedger] = await Promise.all([
+      readMonthlyLedger(sourcePool),
+      readMonthlyLedger(targetPool),
+    ]);
+    assert.deepEqual(
+      targetLedger,
+      sourceLedger,
+      "Restored financial ledger differs"
+    );
 
-  await Promise.all([
-    verifyRls(sourcePool),
-    verifyRls(targetPool),
-    verifyImmutability(sourcePool),
-    verifyImmutability(targetPool),
-  ]);
+    await Promise.all([
+      verifyRls(sourcePool),
+      verifyRls(targetPool),
+      verifyImmutability(sourcePool),
+      verifyImmutability(targetPool),
+    ]);
 
-  const catalogSha256 = createHash("sha256")
-    .update(JSON.stringify(sourceCatalog))
-    .digest("hex");
-  console.log(
-    JSON.stringify({
-      status: "PASS",
-      databases: 2,
-      catalogTables: sourceCatalog.rowSecurity.length,
-      catalogConstraints: sourceCatalog.constraints.length,
-      catalogPolicies: sourceCatalog.policies.length,
-      catalogTriggers: sourceCatalog.triggers.length,
-      catalogSha256,
-      monthlyLedger: {
-        invoices: sourceLedger.invoices.length,
-        lines: sourceLedger.lines.length,
-        enrollmentSnapshots: sourceLedger.snapshots.length,
-        charges: sourceLedger.charges.length,
-        manualPayments: sourceLedger.payments.length,
-        consentAudits: sourceLedger.consentAudit.length,
-        reconciled: true,
-      },
-      rls: "forced and cross-user consent read denied",
-      immutabilityChecks: 8,
-      databaseScope: "loopback-only",
-    })
-  );
-} finally {
-  await Promise.all([sourcePool.end(), targetPool.end()]);
+    const catalogSha256 = createHash("sha256")
+      .update(JSON.stringify(sourceCatalog))
+      .digest("hex");
+    console.log(
+      JSON.stringify({
+        status: "PASS",
+        databases: 2,
+        catalogTables: sourceCatalog.rowSecurity.length,
+        catalogConstraints: sourceCatalog.constraints.length,
+        catalogPolicies: sourceCatalog.policies.length,
+        catalogTriggers: sourceCatalog.triggers.length,
+        catalogSha256,
+        monthlyLedger: {
+          invoices: sourceLedger.invoices.length,
+          lines: sourceLedger.lines.length,
+          enrollmentSnapshots: sourceLedger.snapshots.length,
+          charges: sourceLedger.charges.length,
+          manualPayments: sourceLedger.payments.length,
+          consentAudits: sourceLedger.consentAudit.length,
+          reconciled: true,
+        },
+        rls: "forced and cross-user consent read denied",
+        immutabilityChecks: 8,
+        databaseScope: "loopback-only",
+      })
+    );
+  } finally {
+    await Promise.all([sourcePool.end(), targetPool.end()]);
+  }
 }
+
+main().catch((error: unknown) => {
+  console.error(error);
+  process.exitCode = 1;
+});
