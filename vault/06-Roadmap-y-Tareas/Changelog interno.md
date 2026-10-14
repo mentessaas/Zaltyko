@@ -11921,3 +11921,10 @@ Modelo separado, reclamación manual, administración, importación revisada, fi
 - Validación focal documentada en [nota QA](../../docs/qa/family-billing-copy-clarity-2026-10-14.md).
   No hay navegador/E2E, sandbox, plataformas, producción ni Stripe Live en el
   alcance.
+
+## 2026-10-14 — Paginación íntegra para replay de facturas mensuales
+
+- En rama `codex/monthly-billing-a2-paging-20261014` desde `148e4e55`, se paginan por cursor estable los miembros familiares, la cobertura de tarifa durante idempotencia, líneas/snapshots de una factura y cargos. La asociación familiar conserva su lock compartido; los cargos se bloquean al leerse; el replay busca IDs de factura con centinela 2 y rechaza duplicados, luego compara y devuelve el conjunto completo. La búsqueda de cuotas previas limita a 1 porque cualquier coincidencia bloquea la emisión.
+- La consulta de plantillas limita a `n+1` para la entrada validada de hasta 100 y falla explícitamente ante exceso. En ambos caminos de replay, el estado de cargos se bloquea primero y el estado de factura se vuelve a leer después, sin bloquear la fila de factura. El flujo de pago observado bloquea cargo antes de actualizar factura; la ruta de anulación no se verificó, así que no se afirma un orden global sin ciclos.
+- Tests unitarios focales de paginación y replay: 11/11 PASS; `pnpm typecheck`, Prettier y `bash -n` PASS. Runner dedicado PostgreSQL 17 efímero: PASS, 205 memberships/coberturas/líneas/snapshots/cargos; pago concurrente sintético leído por replay; corte de snapshot visible y revertido; cleanup PASS. `pnpm gate:reads:strict` previamente devolvió 15 hallazgos en otros módulos y 0 en los dos servicios de facturación. Sin E2E, browser, sandbox, producción ni acceso remoto.
+- Riesgo diferido: `buildMonthlyInvoiceOptions()` aún tiene topes silenciosos; está registrado en el backlog para parche separado. Sin migración ni cambios remotos.

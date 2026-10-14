@@ -69,6 +69,7 @@
     "test:rls:local": "bash scripts/run-rls-semantics-local.sh",
     "test:zaltyko-domain:local": "bash scripts/run-zaltyko-domain-foundation-local.sh",
     "test:zaltyko-operations:local": "bash scripts/run-zaltyko-operational-services-local.sh",
+    "test:zaltyko-monthly-billing-paging:local": "bash scripts/run-zaltyko-monthly-billing-paging-local.sh",
     "test:zaltyko-synthetic-restore:local": "bash scripts/run-zaltyko-synthetic-restore-local.sh",
     "test:zaltyko-monthly-athlete-tariff:local": "bash scripts/run-zaltyko-monthly-athlete-tariff-local.sh",
     "test:zaltyko-growth-foundation:local": "bash scripts/run-zaltyko-growth-foundation-local.sh",

@@ -934,3 +934,9 @@ La comparación estructural de columnas/restricciones/índices/trigger da parida
 - Antes de exportar, el responsable de datos debe clasificar/proteger el posible PII y aprobar alcance; Seguridad/Operaciones debe designar un runner remoto y destino cifrado con región, acceso, retención, borrado y custodia de claves definidos. No usar el portátil.
 - Evaluar dump lógico selectivo por CLI excluyendo Auth, Storage y esquemas/tablas innecesarios. Un dump schema-only o de `zaltyko` sin filas no restablece estado operativo; datos greenfield también requieren clasificación y cierre de dependencias/fixtures. Restauración gestionada Supabase requiere plan pagado y copia Auth.
 - No exportar, pagar, crear recursos ni correr restore remoto hasta resolver los gates. Restore sintético local PostgreSQL 17 PASS en Main no prueba el backup/restore remoto. Evidencia: [`sandbox-backup-restore-viability-2026-10-14.md`](../../docs/qa/sandbox-backup-restore-viability-2026-10-14.md).
+
+## P1 — Eliminar topes silenciosos en la cotización mensual — 2026-10-14
+
+- `buildMonthlyInvoiceOptions()` en `monthly-invoice-service.ts` conserva topes fijos sin detectar excedentes: 100 tarifas, 1.000 inscripciones, 2.000 membresías/asignaciones, 4.000 coberturas y 1.000 pagadores/facturas existentes.
+- En sedes que superen esos conteos, la vista previa puede omitir datos de facturación; en especial, una factura previa omitida podría permitir una emisión duplicada.
+- Resolver en un parche separado con paginación keyset completa o centinela que bloquee toda la cotización al detectar exceso. No aceptar totales ni emitir parcialmente.
