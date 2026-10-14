@@ -20,6 +20,21 @@ type PricePlanOption = {
   cadence: string;
 };
 
+type ClassTemplateOption = {
+  id: string;
+  name: string;
+  effectiveFrom: string;
+  effectiveTo: string | null;
+};
+
+type PricePlanOptionsResponse = {
+  organizationId: string;
+  locationId: string;
+  items: PricePlanOption[];
+  classTemplates: ClassTemplateOption[];
+  classTemplatesHasMore: boolean;
+};
+
 type FamilyAssociationOption = {
   familyId: string;
   athletes: Array<{ athleteId: string; athleteName: string | null }>;
@@ -82,6 +97,29 @@ function parseMonthlyAmountCents(value: string): number | null {
     : null;
 }
 
+function isDateValue(value: unknown): value is string {
+  if (typeof value !== "string" || !/^\d{4}-\d{2}-\d{2}$/.test(value)) {
+    return false;
+  }
+  const date = new Date(`${value}T00:00:00.000Z`);
+  return (
+    !Number.isNaN(date.valueOf()) && date.toISOString().slice(0, 10) === value
+  );
+}
+
+function isClassTemplateOption(value: unknown): value is ClassTemplateOption {
+  if (!value || typeof value !== "object") return false;
+  const option = value as Partial<ClassTemplateOption>;
+  return (
+    isUuid(option.id) &&
+    typeof option.name === "string" &&
+    option.name.trim().length > 0 &&
+    isDateValue(option.effectiveFrom) &&
+    (option.effectiveTo === null || isDateValue(option.effectiveTo)) &&
+    (option.effectiveTo === null || option.effectiveTo >= option.effectiveFrom)
+  );
+}
+
 const fieldClassName =
   "min-h-11 w-full border border-slate-400 bg-white px-3 py-2 text-sm focus-visible:outline focus-visible:outline-2 focus-visible:outline-teal-800";
 const primaryButtonClassName =
@@ -112,10 +150,26 @@ export function OwnerMonthlyInvoiceResolutionPanel({
   const [pricePlanOptionsError, setPricePlanOptionsError] = useState(false);
   const [optionsRetry, setOptionsRetry] = useState(0);
   const [pricePlans, setPricePlans] = useState<PricePlanOption[]>([]);
+  const [classTemplates, setClassTemplates] = useState<ClassTemplateOption[]>(
+    []
+  );
+  const [classTemplatesHasMore, setClassTemplatesHasMore] = useState(false);
+  const [pricePlanOptionsScope, setPricePlanOptionsScope] = useState<{
+    organizationId: string;
+    locationId: string;
+  } | null>(null);
   const [families, setFamilies] = useState<FamilyAssociationOption[]>([]);
   const [selectedPricePlanId, setSelectedPricePlanId] = useState("");
   const [newPricePlanName, setNewPricePlanName] = useState("");
   const [newPricePlanAmount, setNewPricePlanAmount] = useState("");
+  const [selectedClassTemplateIds, setSelectedClassTemplateIds] = useState<
+    string[]
+  >([]);
+  const [coverageStartsOn, setCoverageStartsOn] = useState(
+    `${servicePeriodStart.slice(0, 7)}-01`
+  );
+  const [coverageHasNoEnd, setCoverageHasNoEnd] = useState(true);
+  const [coverageEndsOn, setCoverageEndsOn] = useState("");
   const [pricePlanNotice, setPricePlanNotice] = useState("");
   const [priceStartsOn, setPriceStartsOn] = useState(servicePeriodStart);
   const [effectiveFrom, setEffectiveFrom] = useState(servicePeriodStart);
@@ -136,6 +190,23 @@ export function OwnerMonthlyInvoiceResolutionPanel({
     "parent" | "legal_guardian" | "foster_guardian" | "other"
   >("parent");
   const retryRequest = useRef<RetryRequest | null>(null);
+  const selectedCoverageClassIds = [
+    ...new Set(selectedClassTemplateIds),
+  ].sort();
+  const classOptionsMatchCurrentScope =
+    pricePlanOptionsScope?.organizationId === organizationId &&
+    pricePlanOptionsScope.locationId === locationId;
+  const canCreatePricePlan =
+    !loading &&
+    !busy &&
+    !pricePlanOptionsError &&
+    classOptionsMatchCurrentScope &&
+    classTemplates.length > 0 &&
+    selectedCoverageClassIds.length > 0 &&
+    selectedCoverageClassIds.length <= 100 &&
+    selectedCoverageClassIds.every((id) =>
+      classTemplates.some((classTemplate) => classTemplate.id === id)
+    );
 
   useEffect(() => {
     let active = true;
@@ -159,15 +230,44 @@ export function OwnerMonthlyInvoiceResolutionPanel({
           );
         }
         if (action.kind === "tariff") {
-          const data = responseData<{ items: PricePlanOption[] }>(payload);
-          if (!data || !Array.isArray(data.items)) {
+          const data = responseData<PricePlanOptionsResponse>(payload);
+          if (
+            !data ||
+            data.organizationId !== organizationId ||
+            data.locationId !== locationId
+          ) {
             throw new Error(
-              "La respuesta de tarifas no tiene el formato esperado."
+              "Las opciones recibidas no corresponden a esta academia y sede. Reintenta la carga."
+            );
+          }
+          if (
+            !Array.isArray(data.items) ||
+            !Array.isArray(data.classTemplates) ||
+            data.classTemplates.length > 100 ||
+            typeof data.classTemplatesHasMore !== "boolean" ||
+            !data.classTemplates.every(isClassTemplateOption) ||
+            new Set(data.classTemplates.map((item) => item.id)).size !==
+              data.classTemplates.length
+          ) {
+            throw new Error(
+              "La respuesta de tarifas y clases no tiene el formato esperado."
             );
           }
           if (active) {
             setPricePlans(data.items);
-            setSelectedPricePlanId(data.items[0]?.id ?? "");
+            setSelectedPricePlanId((current) =>
+              data.items.some((item) => item.id === current)
+                ? current
+                : (data.items[0]?.id ?? "")
+            );
+            setClassTemplates(data.classTemplates);
+            setClassTemplatesHasMore(data.classTemplatesHasMore);
+            setPricePlanOptionsScope({ organizationId, locationId });
+            setSelectedClassTemplateIds((current) =>
+              current.filter((id) =>
+                data.classTemplates.some((item) => item.id === id)
+              )
+            );
           }
         } else {
           const data = responseData<{ families: FamilyAssociationOption[] }>(
@@ -218,11 +318,43 @@ export function OwnerMonthlyInvoiceResolutionPanel({
       );
       return;
     }
+    if (!classOptionsMatchCurrentScope || pricePlanOptionsError) {
+      setError(
+        "Vuelve a cargar las opciones de clases de esta academia y sede antes de crear la tarifa."
+      );
+      return;
+    }
+    if (
+      classTemplates.length === 0 ||
+      selectedCoverageClassIds.length === 0 ||
+      selectedCoverageClassIds.length > 100 ||
+      selectedCoverageClassIds.some(
+        (id) => !classTemplates.some((classTemplate) => classTemplate.id === id)
+      )
+    ) {
+      setError("Selecciona al menos una clase activa de esta sede.");
+      return;
+    }
+    if (
+      !isDateValue(coverageStartsOn) ||
+      (!coverageHasNoEnd &&
+        (!isDateValue(coverageEndsOn) || coverageEndsOn < coverageStartsOn))
+    ) {
+      setError(
+        "Indica una vigencia válida: la fecha de inicio es obligatoria y el fin no puede ser anterior."
+      );
+      return;
+    }
     const body = {
       organizationId,
       locationId,
       name,
       amountCents,
+      coverage: {
+        classTemplateIds: selectedCoverageClassIds,
+        startsOn: coverageStartsOn,
+        endsOn: coverageHasNoEnd ? null : coverageEndsOn,
+      },
     };
     const key = requestKey("owner-monthly-price-plan", body);
     setBusy(true);
@@ -268,8 +400,11 @@ export function OwnerMonthlyInvoiceResolutionPanel({
       setNewPricePlanName("");
       setNewPricePlanAmount("");
       setPricePlanNotice(
-        "Tarifa creada. Revisa el importe y confirma aparte su asignación a la inscripción."
+        `Tarifa creada con cobertura para ${selectedCoverageClassIds.length} ${selectedCoverageClassIds.length === 1 ? "clase" : "clases"}. Revisa el importe y confirma aparte su asignación a la inscripción.`
       );
+      setPricePlanOptionsError(false);
+      setLoading(true);
+      setOptionsRetry((current) => current + 1);
     } catch (cause) {
       setError(
         cause instanceof Error
@@ -468,8 +603,8 @@ export function OwnerMonthlyInvoiceResolutionPanel({
           ) : pricePlanOptionsError ? (
             <div className="grid gap-3 sm:col-span-2">
               <p className="text-sm leading-6 text-slate-600">
-                No se pudieron comprobar las tarifas de esta sede. Reintenta
-                antes de crear una nueva.
+                No se pudieron comprobar las tarifas y clases activas de esta
+                sede. Reintenta antes de crear una nueva.
               </p>
               <button
                 type="button"
@@ -489,7 +624,7 @@ export function OwnerMonthlyInvoiceResolutionPanel({
             <div className="grid gap-4 sm:col-span-2">
               <p className="text-sm leading-6 text-slate-600">
                 No hay tarifas mensuales para esta sede. Crea una para poder
-                asignarla a la inscripción.
+                asignarla a la inscripción y selecciona las clases que cubrirá.
               </p>
               <label className="grid gap-2">
                 <span className="text-sm font-bold">Nombre de la tarifa</span>
@@ -531,10 +666,133 @@ export function OwnerMonthlyInvoiceResolutionPanel({
                   usar coma o punto decimal; la tarifa será mensual.
                 </p>
               </div>
+              <fieldset
+                aria-describedby="monthly-price-plan-coverage-help"
+                className="grid gap-3 border border-slate-300 p-4"
+              >
+                <legend className="px-1 text-sm font-bold">
+                  Clases cubiertas
+                </legend>
+                <p
+                  id="monthly-price-plan-coverage-help"
+                  className="text-sm leading-6 text-slate-600"
+                >
+                  Marca cada clase activa a la que se aplicará esta tarifa. No
+                  se incluirán otras clases automáticamente.
+                </p>
+                {classTemplates.length === 0 ? (
+                  <p role="status" className="text-sm text-slate-700">
+                    No hay clases activas disponibles en esta sede. No se puede
+                    crear una tarifa sin cobertura explícita.
+                  </p>
+                ) : (
+                  <ul className="grid gap-2 sm:grid-cols-2">
+                    {classTemplates.map((classTemplate) => {
+                      const checkboxId = `monthly-price-plan-class-${classTemplate.id}`;
+
+                      return (
+                        <li key={classTemplate.id}>
+                          <label
+                            htmlFor={checkboxId}
+                            className="flex min-h-11 items-center gap-3 border border-slate-200 px-3 py-2 text-sm font-medium text-slate-900 focus-within:outline focus-within:outline-2 focus-within:outline-offset-2 focus-within:outline-teal-800"
+                          >
+                            <input
+                              id={checkboxId}
+                              type="checkbox"
+                              checked={selectedClassTemplateIds.includes(
+                                classTemplate.id
+                              )}
+                              onChange={(event) => {
+                                setSelectedClassTemplateIds((current) =>
+                                  event.target.checked
+                                    ? current.includes(classTemplate.id)
+                                      ? current
+                                      : [...current, classTemplate.id]
+                                    : current.filter(
+                                        (id) => id !== classTemplate.id
+                                      )
+                                );
+                              }}
+                              disabled={busy}
+                              className="size-5 shrink-0 accent-teal-800"
+                            />
+                            <span className="min-w-0">
+                              {classTemplate.name}
+                            </span>
+                          </label>
+                        </li>
+                      );
+                    })}
+                  </ul>
+                )}
+                {classTemplatesHasMore && (
+                  <p role="status" className="text-sm text-amber-900">
+                    Hay más de 100 clases activas. La lista es parcial; solo se
+                    cubrirán las clases que marques aquí.
+                  </p>
+                )}
+              </fieldset>
+              <div className="grid gap-3 sm:grid-cols-2">
+                <label
+                  htmlFor="monthly-price-plan-coverage-starts"
+                  className="grid gap-2"
+                >
+                  <span className="text-sm font-bold">Vigente desde</span>
+                  <input
+                    id="monthly-price-plan-coverage-starts"
+                    type="date"
+                    value={coverageStartsOn}
+                    onChange={(event) =>
+                      setCoverageStartsOn(event.target.value)
+                    }
+                    disabled={busy}
+                    required
+                    className={fieldClassName}
+                  />
+                </label>
+                <label className="flex min-h-11 items-center gap-3 text-sm font-medium text-slate-900">
+                  <input
+                    type="checkbox"
+                    checked={coverageHasNoEnd}
+                    onChange={(event) =>
+                      setCoverageHasNoEnd(event.target.checked)
+                    }
+                    disabled={busy}
+                    className="size-5 shrink-0 accent-teal-800"
+                  />
+                  <span>Sin fecha de fin</span>
+                </label>
+                {!coverageHasNoEnd && (
+                  <label
+                    htmlFor="monthly-price-plan-coverage-ends"
+                    className="grid gap-2 sm:col-span-2"
+                  >
+                    <span className="text-sm font-bold">Vigente hasta</span>
+                    <input
+                      id="monthly-price-plan-coverage-ends"
+                      type="date"
+                      value={coverageEndsOn}
+                      onChange={(event) =>
+                        setCoverageEndsOn(event.target.value)
+                      }
+                      disabled={busy}
+                      required
+                      aria-describedby="monthly-price-plan-coverage-dates-help"
+                      className={fieldClassName}
+                    />
+                    <span
+                      id="monthly-price-plan-coverage-dates-help"
+                      className="text-xs text-slate-600"
+                    >
+                      La fecha de fin debe ser igual o posterior al inicio.
+                    </span>
+                  </label>
+                )}
+              </div>
               <button
                 type="button"
                 onClick={() => void createPricePlan()}
-                disabled={busy}
+                disabled={!canCreatePricePlan}
                 className={`${primaryButtonClassName} w-fit`}
               >
                 {busy ? "Guardando…" : "Crear tarifa mensual"}

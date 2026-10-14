@@ -21,6 +21,7 @@ const enrollmentId = "10000000-0000-4000-8000-000000000103";
 const athleteId = "10000000-0000-4000-8000-000000000201";
 const createdFamilyId = "10000000-0000-4000-8000-000000000301";
 const createdPayerId = "10000000-0000-4000-8000-000000000302";
+const classTemplateId = "10000000-0000-4000-8000-000000000303";
 
 function monthlyOptions(
   overrides: Partial<MonthlyInvoiceOptionsResponse> = {}
@@ -226,7 +227,18 @@ describe("OwnerMonthlyInvoicesManager", () => {
             return response({ detail: "Error temporal" }, 503);
           }
           return response({
+            organizationId,
+            locationId,
             items: currentPricePlans,
+            classTemplates: [
+              {
+                id: classTemplateId,
+                name: "Grupo sintético",
+                effectiveFrom: "2026-09-01",
+                effectiveTo: null,
+              },
+            ],
+            classTemplatesHasMore: false,
           });
         }
         if (url.includes("/billing/price-plans")) {
@@ -236,16 +248,15 @@ describe("OwnerMonthlyInvoicesManager", () => {
             name: string;
             amountCents: number;
           };
-          return response(
-            {
-              id: "created-price-plan-id",
-              name: body.name,
-              amountCents: body.amountCents,
-              currency: "EUR",
-              cadence: "monthly",
-            },
-            201
-          );
+          const createdPlan = {
+            id: "created-price-plan-id",
+            name: body.name,
+            amountCents: body.amountCents,
+            currency: "EUR",
+            cadence: "monthly",
+          };
+          currentPricePlans = [createdPlan];
+          return response(createdPlan, 201);
         }
         if (url.includes("families/options")) {
           return response({
@@ -409,6 +420,7 @@ describe("OwnerMonthlyInvoicesManager", () => {
 
     await user.type(screen.getByLabelText("Nombre de la tarifa"), "Cuota base");
     await user.type(screen.getByLabelText("Importe mensual (EUR)"), "32,50");
+    await user.click(screen.getByRole("checkbox", { name: "Grupo sintético" }));
     await user.click(
       screen.getByRole("button", { name: "Crear tarifa mensual" })
     );
@@ -431,9 +443,14 @@ describe("OwnerMonthlyInvoicesManager", () => {
       locationId,
       name: "Cuota base",
       amountCents: 3250,
+      coverage: {
+        classTemplateIds: [classTemplateId],
+        startsOn: "2026-10-01",
+        endsOn: null,
+      },
     });
     expect(await screen.findByRole("status")).toHaveTextContent(
-      /confirma aparte su asignación/
+      /cobertura para 1 clase.*confirma aparte su asignación/
     );
     expect(screen.getByLabelText("Tarifa mensual")).toHaveValue(
       "created-price-plan-id"
@@ -486,9 +503,12 @@ describe("OwnerMonthlyInvoicesManager", () => {
     ).not.toBeInTheDocument();
 
     await user.click(retry);
-    expect(
-      await screen.findByRole("button", { name: "Crear tarifa mensual" })
-    ).toBeEnabled();
+    const createButton = await screen.findByRole("button", {
+      name: "Crear tarifa mensual",
+    });
+    expect(createButton).toBeDisabled();
+    await user.click(screen.getByRole("checkbox", { name: "Grupo sintético" }));
+    expect(createButton).toBeEnabled();
   });
 
   it("rechaza importes fuera del límite PostgreSQL y nombres de más de 100 caracteres", async () => {
@@ -509,6 +529,7 @@ describe("OwnerMonthlyInvoicesManager", () => {
 
     await user.type(nameInput, "Cuota base");
     await user.type(amountInput, "21474836,48");
+    await user.click(screen.getByRole("checkbox", { name: "Grupo sintético" }));
     await user.click(
       screen.getByRole("button", { name: "Crear tarifa mensual" })
     );
