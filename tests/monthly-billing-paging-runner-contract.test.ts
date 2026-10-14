@@ -1,3 +1,4 @@
+import { execFileSync } from "node:child_process";
 import { readFileSync } from "node:fs";
 import { resolve } from "node:path";
 import { describe, expect, it } from "vitest";
@@ -99,7 +100,7 @@ describe("monthly billing paging local runner contract", () => {
     }
     expect(runner).toContain("if ((USE_VERIFIER_WATCHDOG == 1)); then");
     expect(runner).toContain(
-      'python3 "${ROOT_DIR}/scripts/run-zaltyko-verifier-with-deadline.py" --'
+      'python3 -I "${ROOT_DIR}/scripts/run-zaltyko-verifier-with-deadline.py" --'
     );
     const retentionDispatch = runner
       .slice(runner.lastIndexOf("if ((USE_VERIFIER_WATCHDOG == 1)); then"))
@@ -166,6 +167,58 @@ describe("monthly billing paging local runner contract", () => {
     );
     expect(retentionVerifier).toContain("const STATEMENT_TIMEOUT_MS = 8_000");
     expect(retentionVerifier).toContain("const LOCK_TIMEOUT_MS = 4_000");
+  });
+
+  it("runs Node and Python prechecks without inherited interpreter options", () => {
+    expect(runner).toContain(
+      'env -i "PATH=${SAFE_PATH}" "HOME=${RUN_DIR}" LC_ALL=C python3 -I "$@"'
+    );
+    expect(runner).toContain(
+      'env -i "PATH=${SAFE_PATH}" "HOME=${RUN_DIR}" LC_ALL=C "${NODE_BIN}" "$@"'
+    );
+    expect(runner).toContain(
+      'python3 -I "${ROOT_DIR}/scripts/run-zaltyko-verifier-with-deadline.py"'
+    );
+
+    const pythonFunction = runner.match(
+      /python_clean\(\) \{([\s\S]*?)\n\}/
+    )?.[1];
+    const nodeFunction = runner.match(/node_clean\(\) \{([\s\S]*?)\n\}/)?.[1];
+    expect(pythonFunction).toBeDefined();
+    expect(nodeFunction).toBeDefined();
+
+    const path = process.env.PATH ?? "/usr/bin:/bin";
+    const pythonMock = `
+      SAFE_PATH=${JSON.stringify(path)}
+      RUN_DIR="/tmp"
+      python_clean() {${pythonFunction}\n}
+      python_clean -c 'import os; assert "PYTHONPATH" not in os.environ; assert "PYTHONSTARTUP" not in os.environ'
+    `;
+    const nodeMock = `
+      SAFE_PATH=${JSON.stringify(path)}
+      RUN_DIR="/tmp"
+      NODE_BIN=${JSON.stringify(process.execPath)}
+      node_clean() {${nodeFunction}\n}
+      node_clean -e 'if (process.env.NODE_OPTIONS) process.exit(23)'
+    `;
+
+    expect(() =>
+      execFileSync("bash", ["-c", pythonMock], {
+        env: {
+          ...process.env,
+          PYTHONPATH: "/tmp/untrusted-python-path",
+          PYTHONSTARTUP: "/tmp/untrusted-python-startup",
+        },
+      })
+    ).not.toThrow();
+    expect(() =>
+      execFileSync("bash", ["-c", nodeMock], {
+        env: {
+          ...process.env,
+          NODE_OPTIONS: "--require=/tmp/untrusted-node-preload.js",
+        },
+      })
+    ).not.toThrow();
   });
 
   it("loads actual paginated service readers with deterministic synthetic cases", () => {

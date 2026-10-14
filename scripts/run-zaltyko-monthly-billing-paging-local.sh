@@ -26,7 +26,15 @@ case "${ZALTYKO_MONTHLY_BILLING_PAGING_CASE:-full}" in
 esac
 RUN_DIR="$(mktemp -d /tmp/zaltyko-monthly-paging.XXXXXX)"
 PG_DATA="${RUN_DIR}/data"
-PG_PORT="$(env -i "PATH=${SAFE_PATH}" LC_ALL=C python3 - <<'PY'
+python_clean() {
+  env -i "PATH=${SAFE_PATH}" "HOME=${RUN_DIR}" LC_ALL=C python3 -I "$@"
+}
+
+node_clean() {
+  env -i "PATH=${SAFE_PATH}" "HOME=${RUN_DIR}" LC_ALL=C "${NODE_BIN}" "$@"
+}
+
+PG_PORT="$(python_clean - <<'PY'
 import socket
 
 with socket.socket() as probe:
@@ -112,8 +120,8 @@ if ((USE_VERIFIER_WATCHDOG == 1)); then
     echo "Required local Node.js executable not found" >&2
     exit 1
   fi
-  NODE_BIN="$(python3 -c 'import os,sys; print(os.path.realpath(sys.argv[1]))' "${NODE_BIN}")"
-  if [[ ! -x "${NODE_BIN}" ]] || ! "${NODE_BIN}" -e '
+  NODE_BIN="$(python_clean -c 'import os,sys; print(os.path.realpath(sys.argv[1]))' "${NODE_BIN}")"
+  if [[ ! -x "${NODE_BIN}" ]] || ! node_clean -e '
     const [major, minor] = process.versions.node.split(".").map(Number);
     const supported = (major === 20 && minor >= 19) || (major === 22 && minor >= 12);
     process.exit(supported ? 0 : 1);
@@ -132,11 +140,11 @@ if ((USE_VERIFIER_WATCHDOG == 1)); then
       exit;
     }
   ' "${ROOT_DIR}/pnpm-lock.yaml")"
-  TSX_INSTALLED_VERSION="$("${NODE_BIN}" -e \
+  TSX_INSTALLED_VERSION="$(node_clean -e \
     'process.stdout.write(require(process.argv[1]).version)' \
     "${TSX_PACKAGE_JSON}" 2>/dev/null || true)"
-  TSX_CLI_REALPATH="$(python3 -c 'import os,sys; print(os.path.realpath(sys.argv[1]))' "${TSX_CLI}")"
-  TSX_PACKAGE_ROOT="$(python3 -c 'import os,sys; print(os.path.dirname(os.path.realpath(sys.argv[1])))' "${TSX_PACKAGE_JSON}")"
+  TSX_CLI_REALPATH="$(python_clean -c 'import os,sys; print(os.path.realpath(sys.argv[1]))' "${TSX_CLI}")"
+  TSX_PACKAGE_ROOT="$(python_clean -c 'import os,sys; print(os.path.dirname(os.path.realpath(sys.argv[1])))' "${TSX_PACKAGE_JSON}")"
   if [[ ! -f "${TSX_CLI}" ||
         ! "${TSX_LOCK_VERSION}" =~ ^[0-9]+\.[0-9]+\.[0-9]+$ ||
         "${TSX_INSTALLED_VERSION}" != "${TSX_LOCK_VERSION}" ||
@@ -242,7 +250,7 @@ VERIFIER_ENV=(
 )
 if ((USE_VERIFIER_WATCHDOG == 1)); then
   env -i "${VERIFIER_ENV[@]}" \
-    python3 "${ROOT_DIR}/scripts/run-zaltyko-verifier-with-deadline.py" -- \
+    python3 -I "${ROOT_DIR}/scripts/run-zaltyko-verifier-with-deadline.py" -- \
     "${NODE_BIN}" "${TSX_CLI_REALPATH}" "${ROOT_DIR}/${VERIFIER_SCRIPT}"
 else
   env -i "${VERIFIER_ENV[@]}" \
