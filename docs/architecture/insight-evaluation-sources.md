@@ -12,6 +12,15 @@ por `runInsightEvaluation`, que vuelve a autorizar y registra corrida,
 observaciones, deduplicación y resolución. El watermark se propaga a las
 consultas históricas y a cada corrida.
 
+La carga de reglas activas pagina por cursor UUID (`id` ascendente), sin filtrar
+por el catálogo de claves implementadas. Antes de consultar fuentes o persistir
+corridas, el evaluador comprueba que cada clave implementada tenga como máximo
+una versión activa. Una duplicidad lanza `AMBIGUOUS_ACTIVE_INSIGHT_RULE` (409) y
+bloquea la evaluación completa; no selecciona la versión máxima ni produce
+resultados parciales. Las claves implementadas ausentes conservan el
+comportamiento previo (se omiten); las claves futuras siguen entrando en el
+conjunto leído y no se evalúan hasta que exista implementación.
+
 | Regla | Fuente canónica y criterio |
 | --- | --- |
 | `underutilized_class` | sesiones no canceladas en ventana configurada; capacidad efectiva limitada por plantilla, override, espacio; plazas por atletas distintos en inscripciones vigentes en la fecha local, usando historial de estado. |

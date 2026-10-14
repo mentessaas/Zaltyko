@@ -7,6 +7,21 @@ source:
   - ../docs/architecture/zaltyko-domain-model.md
 ---
 
+## 2026-10-14 — Fail-closed para versiones activas ambiguas en Insights P0
+
+- En `codex/evaluate-p0-active-rule-uniqueness-20261014`, basada en
+  `b7d8924b`, la carga de reglas activas pagina por cursor UUID estable (`id`),
+  manteniendo el conjunto sin filtro de claves conocidas. Antes de consultar
+  datos operativos o persistir, una clave implementada con más de una versión
+  activa lanza `AMBIGUOUS_ACTIVE_INSIGHT_RULE` (409) y bloquea la evaluación
+  completa; no hay selección `MAX(version)` ni resultados parciales.
+- Claves futuras se conservan en la carga e ignoran como antes; claves
+  implementadas ausentes mantienen el comportamiento previo. Se documentó la
+  decisión y queda pendiente reconciliar versiones activas en un entorno
+  autorizado, sin migración ni escritura remota en este cambio.
+- Vitest focal 3/3, typecheck y ESLint PASS. No se ejecutaron PostgreSQL,
+  navegador/E2E, suite completa, remoto ni push.
+
 ## 2026-10-14 — Asociación familiar cuenta atletas distintos por sede
 
 - En `codex/family-association-distinct-athletes-20261014`, desde

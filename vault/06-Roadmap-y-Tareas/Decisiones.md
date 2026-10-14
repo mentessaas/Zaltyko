@@ -8,6 +8,15 @@ source:
 
 # Decisiones
 
+## 2026-10-14 — Fail-closed ante versiones activas ambiguas de Insights P0
+
+| Campo | Valor |
+| --- | --- |
+| Evidencia | `insight_rule_versions` permite varias filas activas con la misma clave. El evaluador construía un `Map` sin orden, de modo que la versión elegida dependía del orden devuelto por PostgreSQL. El esquema y la documentación no establecen que el mayor entero sea la versión semánticamente aprobada. |
+| Decisión | Leer todas las reglas activas en páginas keyset ordenadas por UUID `id`, sin filtrar claves futuras. Antes de consultas de métricas y persistencia, rechazar la evaluación completa con `AMBIGUOUS_ACTIVE_INSIGHT_RULE` si cualquiera de las nueve claves implementadas tiene más de una versión activa. No elegir `MAX(version)`. |
+| Consecuencia | Se conservan claves futuras y el comportamiento de claves implementadas ausentes; una duplicidad no puede producir escrituras parciales. Resolver filas activas duplicadas sigue siendo una acción explícita de datos/operación, fuera de este cambio sin migración ni acceso remoto. |
+| Estado | Implementación local en `codex/evaluate-p0-active-rule-uniqueness-20261014`, basada en `b7d8924b`. Tests focales (3/3), typecheck y ESLint pasan. Sin migración, PostgreSQL, navegador, suite completa, remoto ni push. |
+
 ## 2026-10-14 — Alta Owner independiente del perfil legacy
 
 ADR-0027 elimina la dependencia estructural de `public.profiles` en alta Owner:

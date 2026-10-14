@@ -1,4 +1,4 @@
-import { and, eq, sql } from "drizzle-orm";
+import { and, asc, eq, gt, sql } from "drizzle-orm";
 
 import { db } from "@/db";
 import { insightRuleVersions } from "@/db/zaltyko-schema";
@@ -33,6 +33,7 @@ const activeRuleKeys = [
   "session_without_coach",
   "critical_data_missing",
 ] as const;
+const activeRulePageSize = 100;
 
 type RuleKey = (typeof activeRuleKeys)[number];
 type DbRow = Record<string, unknown>;
@@ -100,14 +101,55 @@ export async function evaluateP0Insights(input: {
     }
   });
 
-  const ruleRows = await db
-    .select({
-      key: insightRuleVersions.key,
-      version: insightRuleVersions.version,
-      config: insightRuleVersions.config,
-    })
-    .from(insightRuleVersions)
-    .where(and(eq(insightRuleVersions.status, "active")));
+  const ruleRows: Array<{
+    id: string;
+    key: string;
+    version: number;
+    config: Record<string, unknown>;
+  }> = [];
+  let afterRuleId: string | undefined;
+  while (true) {
+    const page = await db
+      .select({
+        id: insightRuleVersions.id,
+        key: insightRuleVersions.key,
+        version: insightRuleVersions.version,
+        config: insightRuleVersions.config,
+      })
+      .from(insightRuleVersions)
+      .where(
+        afterRuleId
+          ? and(
+              eq(insightRuleVersions.status, "active"),
+              gt(insightRuleVersions.id, afterRuleId)
+            )
+          : eq(insightRuleVersions.status, "active")
+      )
+      .orderBy(asc(insightRuleVersions.id))
+      .limit(activeRulePageSize);
+    ruleRows.push(...page);
+    if (page.length < activeRulePageSize) break;
+    afterRuleId = page[page.length - 1].id;
+  }
+
+  const ruleRowsByKey = new Map<string, (typeof ruleRows)[number][]>();
+  for (const rule of ruleRows) {
+    const rowsForKey = ruleRowsByKey.get(rule.key) ?? [];
+    rowsForKey.push(rule);
+    ruleRowsByKey.set(rule.key, rowsForKey);
+  }
+  for (const key of activeRuleKeys) {
+    const rowsForKey = ruleRowsByKey.get(key) ?? [];
+    if (rowsForKey.length > 1) {
+      throw new OperationalError(
+        "AMBIGUOUS_ACTIVE_INSIGHT_RULE",
+        `La regla activa ${key} tiene varias versiones; se bloqueó la evaluación completa`,
+        409,
+        { ruleKey: key, versions: rowsForKey.map((rule) => rule.version) }
+      );
+    }
+  }
+
   const rules = new Map(ruleRows.map((rule) => [rule.key, rule]));
   const candidatesByRule = new Map<RuleKey, InsightCandidate[]>();
   for (const key of activeRuleKeys) candidatesByRule.set(key, []);
