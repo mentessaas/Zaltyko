@@ -23,25 +23,19 @@ if [[ "${E2E_TARGET_SUPABASE_PROJECT_REF:-}" == "jegxfahsvugilbthbked" ]]; then
 fi
 
 event_name="${E2E_EVENT_NAME:-}"
-pr_author="${E2E_PR_AUTHOR:-}"
-head_repository="${E2E_HEAD_REPOSITORY:-}"
-github_repository="${GITHUB_REPOSITORY:-}"
 github_ref="${GITHUB_REF:-}"
 
 if [[ "$missing" -eq 0 ]]; then
   echo "enabled=true" >> "$GITHUB_OUTPUT"
-elif [[ "$event_name" == "pull_request" && "$pr_author" == "dependabot[bot]" ]]; then
+elif [[ "$event_name" == "pull_request" ]]; then
   echo "enabled=false" >> "$GITHUB_OUTPUT"
-  echo "Authenticated E2E skipped for Dependabot; repository secrets are unavailable to the dependency update workflow."
+  echo "Authenticated E2E is required for pull requests; protected e2e-sandbox credentials are missing." >&2
+  exit 1
 elif [[ "$event_name" == "push" && "$github_ref" == "refs/heads/main" ]]; then
   echo "enabled=false" >> "$GITHUB_OUTPUT"
   echo "Authenticated E2E requires all staging-only secrets before main can pass." >&2
   exit 1
-elif [[ "$event_name" == "pull_request" && "$head_repository" == "$github_repository" ]]; then
-  echo "enabled=false" >> "$GITHUB_OUTPUT"
-  echo "Authenticated E2E requires staging-only secrets for same-repository pull requests." >&2
-  exit 1
 else
   echo "enabled=false" >> "$GITHUB_OUTPUT"
-  echo "Authenticated E2E skipped for an external fork without repository secrets."
+  echo "Authenticated E2E is not required for this non-PR event without complete credentials."
 fi

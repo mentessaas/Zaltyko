@@ -31,16 +31,18 @@ afterEach(() => {
 
 function runReadiness(options: {
   event: string;
-  author?: string;
-  actor?: string;
-  headRepository?: string;
   ref?: string;
+  targetProjectRef?: string;
   withTestSecrets?: boolean;
 }) {
   const directory = mkdtempSync(path.join(tmpdir(), "zaltyko-e2e-readiness-"));
   temporaryDirectories.push(directory);
   const outputPath = path.join(directory, "github-output.txt");
-  const env: NodeJS.ProcessEnv = { ...process.env };
+  const env: NodeJS.ProcessEnv = Object.fromEntries(
+    ["PATH", "HOME", "TMPDIR", "TEMP", "TMP", "LANG", "LC_ALL"].flatMap(
+      (key) => (process.env[key] ? [[key, process.env[key] as string]] : [])
+    )
+  );
 
   for (const name of REQUIRED_SECRETS) env[name] = "";
   if (options.withTestSecrets) {
@@ -51,16 +53,16 @@ function runReadiness(options: {
       "test",
       makeTestCredential(),
     ].join("_");
-    env.E2E_TARGET_SUPABASE_PROJECT_REF = `sandbox-${makeTestCredential()}`;
+    env.E2E_TARGET_SUPABASE_PROJECT_REF =
+      options.targetProjectRef ?? `sandbox-${makeTestCredential()}`;
+  } else if (options.targetProjectRef) {
+    env.E2E_TARGET_SUPABASE_PROJECT_REF = options.targetProjectRef;
   }
 
   env.GITHUB_OUTPUT = outputPath;
   env.GITHUB_REPOSITORY = REPOSITORY;
   env.GITHUB_REF = options.ref ?? "refs/pull/1/merge";
   env.E2E_EVENT_NAME = options.event;
-  env.E2E_PR_AUTHOR = options.author ?? "human-maintainer";
-  env.E2E_HEAD_REPOSITORY = options.headRepository ?? REPOSITORY;
-  env.GITHUB_ACTOR = options.actor ?? env.E2E_PR_AUTHOR;
 
   const result = spawnSync("bash", [SCRIPT], {
     cwd: ROOT,
@@ -89,40 +91,39 @@ describe("authenticated E2E credentials readiness", () => {
     expect(script).toBeGreaterThan(checkout);
   });
 
-  it("skips only the authenticated suite for a Dependabot PR even when a maintainer reruns it", () => {
+  it("fails closed for a Dependabot PR without protected E2E credentials", () => {
     const { result, output } = runReadiness({
       event: "pull_request",
-      author: "dependabot[bot]",
-      actor: "human-maintainer",
     });
 
-    expect(result.status).toBe(0);
+    expect(result.status).toBe(1);
     expect(output).toBe("enabled=false\n");
-    expect(result.stdout).toContain("skipped for Dependabot");
+    expect(result.stderr).toContain(
+      "required for pull requests; protected e2e-sandbox credentials are missing"
+    );
   });
 
   it("fails closed for a same-repository human PR without staging secrets", () => {
     const { result } = runReadiness({
       event: "pull_request",
-      author: "human-maintainer",
     });
 
     expect(result.status).toBe(1);
     expect(result.stderr).toContain(
-      "requires staging-only secrets for same-repository pull requests"
+      "required for pull requests; protected e2e-sandbox credentials are missing"
     );
   });
 
-  it("skips authenticated E2E for an external fork without repository secrets", () => {
+  it("fails closed for an external fork without protected E2E credentials", () => {
     const { result, output } = runReadiness({
       event: "pull_request",
-      author: "contributor",
-      headRepository: "contributor/Zaltyko",
     });
 
-    expect(result.status).toBe(0);
+    expect(result.status).toBe(1);
     expect(output).toBe("enabled=false\n");
-    expect(result.stdout).toContain("external fork");
+    expect(result.stderr).toContain(
+      "required for pull requests; protected e2e-sandbox credentials are missing"
+    );
   });
 
   it("fails closed on main when staging secrets are missing", () => {
@@ -134,6 +135,17 @@ describe("authenticated E2E credentials readiness", () => {
     );
   });
 
+  it("keeps the non-PR develop push skipped when staging secrets are missing", () => {
+    const { result, output } = runReadiness({
+      event: "push",
+      ref: "refs/heads/develop",
+    });
+
+    expect(result.status).toBe(0);
+    expect(output).toBe("enabled=false\n");
+    expect(result.stderr).toBe("");
+  });
+
   it("enables authenticated E2E when complete test-mode staging secrets exist", () => {
     const { result, output } = runReadiness({
       event: "pull_request",
@@ -142,5 +154,19 @@ describe("authenticated E2E credentials readiness", () => {
 
     expect(result.status).toBe(0);
     expect(output).toBe("enabled=true\n");
+  });
+
+  it("rejects complete test credentials when the target is the production project", () => {
+    const { result, output } = runReadiness({
+      event: "pull_request",
+      withTestSecrets: true,
+      targetProjectRef: "jegxfahsvugilbthbked",
+    });
+
+    expect(result.status).toBe(1);
+    expect(output).toBe("enabled=false\n");
+    expect(result.stdout).toContain(
+      "E2E_TARGET_SUPABASE_PROJECT_REF cannot be the production project"
+    );
   });
 });
