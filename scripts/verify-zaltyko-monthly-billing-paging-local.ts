@@ -28,6 +28,8 @@ const PAYMENT_APPLICATION_NAME = "zaltyko_monthly_paging_payment";
 const REPLAY_APPLICATION_NAME = "zaltyko_monthly_paging_replay";
 const BARRIER_LOCK_CLASS = 867530;
 const BARRIER_LOCK_OBJECT = 900001;
+const LOCAL_PG_STATEMENT_TIMEOUT_MS = 8_000;
+const LOCAL_PG_LOCK_TIMEOUT_MS = 4_000;
 
 function assertLoopbackUrl(name: string): string {
   const value = process.env[name];
@@ -38,6 +40,14 @@ function assertLoopbackUrl(name: string): string {
   assert.equal(parsed.pathname, "/postgres");
   assert.equal(parsed.password, "");
   assert.equal(parsed.port, process.env.ZALTYKO_MONTHLY_BILLING_PAGING_PORT);
+  assert.equal(
+    parsed.searchParams.get("statement_timeout"),
+    String(LOCAL_PG_STATEMENT_TIMEOUT_MS)
+  );
+  assert.equal(
+    parsed.searchParams.get("lock_timeout"),
+    String(LOCAL_PG_LOCK_TIMEOUT_MS)
+  );
   return value;
 }
 
@@ -422,7 +432,13 @@ async function main(): Promise<void> {
   assertLoopbackUrl("DATABASE_URL");
   assertLoopbackUrl("DATABASE_URL_POOL");
   assertLoopbackUrl("DATABASE_URL_DIRECT");
-  const pool = new Pool({ connectionString: process.env.DATABASE_URL, max: 4 });
+  const pool = new Pool({
+    connectionString: process.env.DATABASE_URL,
+    max: 4,
+    connectionTimeoutMillis: 10_000,
+    statement_timeout: LOCAL_PG_STATEMENT_TIMEOUT_MS,
+    lock_timeout: LOCAL_PG_LOCK_TIMEOUT_MS,
+  });
   try {
     await seed(pool);
     const memberships = await db.transaction((tx) =>

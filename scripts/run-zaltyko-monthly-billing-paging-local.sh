@@ -140,10 +140,11 @@ for migration in "${MIGRATIONS[@]}"; do
     >/dev/null
 done
 
+HARNESS_DATABASE_URL="postgresql://postgres@127.0.0.1:${PG_PORT}/postgres?statement_timeout=8000&lock_timeout=4000"
 env -i "PATH=${SAFE_PATH}" "HOME=${RUN_DIR}" \
-    DATABASE_URL="postgresql://postgres@127.0.0.1:${PG_PORT}/postgres" \
-    DATABASE_URL_POOL="postgresql://postgres@127.0.0.1:${PG_PORT}/postgres" \
-    DATABASE_URL_DIRECT="postgresql://postgres@127.0.0.1:${PG_PORT}/postgres" \
+    DATABASE_URL="${HARNESS_DATABASE_URL}" \
+    DATABASE_URL_POOL="${HARNESS_DATABASE_URL}" \
+    DATABASE_URL_DIRECT="${HARNESS_DATABASE_URL}" \
     DATABASE_POOL_MAX=6 DOTENV_CONFIG_PATH=/dev/null NODE_ENV=test \
     ZALTYKO_MONTHLY_BILLING_PAGING_PORT="${PG_PORT}" \
     ZALTYKO_MONTHLY_BILLING_PAGING_LOCAL=1 \

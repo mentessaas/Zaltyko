@@ -33,6 +33,7 @@ describe("monthly billing paging local runner contract", () => {
     expect(runner).toContain('"-h 127.0.0.1 -p ${PG_PORT}');
     expect(runner).toContain('if [[ "${version}" != "17" ]]');
     expect(runner).toContain('env -i "PATH=${SAFE_PATH}"');
+    expect(runner).toContain('?statement_timeout=8000&lock_timeout=4000"');
     expect(runner).toContain("DOTENV_CONFIG_PATH=/dev/null");
     expect(runner).not.toMatch(/supabase\.co|vercel\.app|stripe\.com/i);
   });
@@ -71,6 +72,14 @@ describe("monthly billing paging local runner contract", () => {
     expect(verifier).toContain("activity_lock.locktype = 'advisory'");
     expect(verifier).toContain("activity_lock.granted = false");
     expect(verifier).toContain("activity.application_name = $1");
+    expect(verifier).toContain("LOCAL_PG_STATEMENT_TIMEOUT_MS = 8_000");
+    expect(verifier).toContain("LOCAL_PG_LOCK_TIMEOUT_MS = 4_000");
+    expect(verifier).toContain(
+      "statement_timeout: LOCAL_PG_STATEMENT_TIMEOUT_MS"
+    );
+    expect(verifier).toContain("lock_timeout: LOCAL_PG_LOCK_TIMEOUT_MS");
+    expect(verifier).toContain('parsed.searchParams.get("statement_timeout")');
+    expect(verifier).toContain("connectionTimeoutMillis: 10_000");
     expect(verifier).not.toMatch(
       /update zaltyko\.(charges|invoices) set status/
     );
