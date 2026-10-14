@@ -15,6 +15,13 @@ const verifier = readFileSync(
   ),
   "utf8"
 );
+const optionsVerifier = readFileSync(
+  resolve(
+    process.cwd(),
+    "scripts/verify-zaltyko-monthly-invoice-options-local.ts"
+  ),
+  "utf8"
+);
 
 describe("monthly billing paging local runner contract", () => {
   it("matches quoted and unquoted PostgreSQL identifiers consistently", () => {
@@ -46,6 +53,23 @@ describe("monthly billing paging local runner contract", () => {
       runner.indexOf('rm -rf -- "${RUN_DIR}"')
     );
     expect(runner).toContain("recovery path: ${RUN_DIR}");
+  });
+
+  it("dispatches only the allowlisted options verifier without changing the default case", () => {
+    expect(runner).toContain('case "${ZALTYKO_MONTHLY_BILLING_PAGING_CASE:-full}" in');
+    expect(runner).toContain('full)\n    VERIFIER_SCRIPT="scripts/verify-zaltyko-monthly-billing-paging-local.ts"');
+    expect(runner).toContain('options)\n    VERIFIER_SCRIPT="scripts/verify-zaltyko-monthly-invoice-options-local.ts"');
+    expect(runner).toContain("Unsupported local harness case; allowed values: full, options");
+    expect(runner).toContain('"${VERIFIER_SCRIPT}"');
+    expect(optionsVerifier).toContain("getMonthlyInvoiceOptions({");
+    expect(optionsVerifier).toContain('servicePeriod: "2026-10"');
+    expect(optionsVerifier).toContain('process.env.DOTENV_CONFIG_PATH, "/dev/null"');
+    expect(optionsVerifier).toContain('assert.equal(parsed.hostname, "127.0.0.1")');
+    expect(optionsVerifier).toContain("const BASE_ATHLETES_AND_PLANS = 201");
+    expect(optionsVerifier).toContain("const ACTIVE_ENROLLMENTS = 202");
+    expect(optionsVerifier).toContain("coverage_pair_count");
+    expect(optionsVerifier).not.toMatch(/recordManualPaymentForCharge|verifyConcurrentPaymentReplay/);
+    expect(runner).not.toMatch(/supabase\.co|vercel\.app|stripe\.com/i);
   });
 
   it("loads actual paginated service readers with deterministic synthetic cases", () => {
