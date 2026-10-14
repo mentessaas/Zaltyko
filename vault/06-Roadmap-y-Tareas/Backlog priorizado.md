@@ -940,8 +940,10 @@ La comparación estructural de columnas/restricciones/índices/trigger da parida
 - `buildMonthlyInvoiceOptions()` en `monthly-invoice-service.ts` conserva topes fijos sin detectar excedentes: 100 tarifas, 1.000 inscripciones, 2.000 membresías/asignaciones, 4.000 coberturas y 1.000 pagadores/facturas existentes.
 - En sedes que superen esos conteos, la vista previa puede omitir datos de facturación; en especial, una factura previa omitida podría permitir una emisión duplicada.
 - Resolver en un parche separado con paginación keyset completa o centinela que bloquee toda la cotización al detectar exceso. No aceptar totales ni emitir parcialmente.
-# P1 — Verificar snapshot Repeatable Read de ubicaciones activas — 2026-10-14
 
-- El lector keyset y el consumo de worklist están cubiertos con unit tests que simulan el contrato Drizzle; no se ejecutó PostgreSQL y esos mocks no prueban que `SET TRANSACTION ... READ ONLY` sea la primera instrucción efectiva ni que una modificación concurrente mantenga el snapshot.
-- Próximo paso: test PostgreSQL local con dos conexiones, cambio de `is_active` entre páginas y verificación de que el lector devuelve el conjunto visible al abrir la transacción. Mantener sin cambios el timeout de escritura y SQL de cohorts.
-- No correr contra Supabase remoto ni Sandbox para esta validación.
+# P1 — Cerrar verificación runtime de proyecciones de retención — 2026-10-14
+
+- Fases 1/2 están integradas en Main `820eedb06ce627c49322054ff5ad347faffb9aed`, pero solo hay unit tests con mocks y compilación Drizzle/param de `pg`; no se probó PostgreSQL ni E2E. El SQL compilado y `prepareValue` no demuestran que el aislamiento, locks, replay y agregados funcionen en una transacción real.
+- Antes de cambiar el gate: PostgreSQL sintético local con activación/desactivación concurrente entre páginas, dos workers compitiendo por scopes y replay idempotente; verificar locks ascendentes, rollback y sumas completas sin alterar el CTE. Después completar E2E autenticado apropiado.
+- **NO-GO** hasta cerrar evidencia runtime. Sin remoto/Sandbox para esta validación.
+- Evidencia y comandos focales ya reportados: [`retention-projections-runtime-gate-2026-10-14.md`](../../docs/qa/retention-projections-runtime-gate-2026-10-14.md).
