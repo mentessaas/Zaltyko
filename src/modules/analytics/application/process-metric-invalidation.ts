@@ -149,7 +149,8 @@ export async function processMetricInvalidation(input: {
         eq(benchmarkProfiles.organizationId, input.organizationId),
         eq(benchmarkProfiles.status, "active")
       )
-    );
+    )
+    .limit(2);
   if (profiles.length === 0) {
     scoreSkippedReason = "benchmark_missing";
   } else if (profiles.length !== 1) {
