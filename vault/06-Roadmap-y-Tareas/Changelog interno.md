@@ -7,6 +7,23 @@ source:
   - ../docs/architecture/zaltyko-domain-model.md
 ---
 
+## 2026-10-14 — Runner local sintético de backup y restore
+
+Se añadió en `codex/synthetic-restore-local-20261014` un runner efímero para
+comparar una base PostgreSQL local fuente con una restauración vacía: manifiesto
+y checksum, esquema, catálogo (RLS/policies/triggers/grants), conciliación del
+ledger mensual, consentimiento sintético e invariantes de inmutabilidad.
+Incluye el harness operacional existente y usa solo `127.0.0.1`, entorno de
+proceso limpio y datos sintéticos. El follow-up de revisión endurece el cleanup
+para preservar y reportar la ruta si no confirma el stop, compara el catálogo
+estructuralmente (sin diff byte a byte de `pg_dump`) y verifica la versión
+mayor de las herramientas PostgreSQL. Comprobaciones permitidas: sintaxis
+Bash y diff-check; tests estáticos contractuales y TypeScript siguen sin
+ejecutarse porque este worktree no tiene `node_modules`. El runner y PostgreSQL
+siguen **sin ejecutar** hasta que QA cierre Firefox y Main revise/autorice este
+SHA. No hay migración, conexión remota ni evidencia de restore Preview o
+producción. Plan y límites: `docs/qa/synthetic-restore-runner-2026-10-14.md`.
+
 ## 2026-10-14 — Compatibilidad de esquema y gates de restore
 
 Auditoría solo lectura sobre catálogos de Zaltyko y Zaltyko E2E Sandbox:

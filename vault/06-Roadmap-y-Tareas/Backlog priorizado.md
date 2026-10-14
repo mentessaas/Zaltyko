@@ -17,6 +17,14 @@ source:
 ---
 ## P0 — Cerrar el recorrido MVP publicado — 2026-10-14
 
+- [ ] Completar QA de navegadores y revisar el runner local sintético de backup
+  y restore antes de autorizar su ejecución. El runner ya está implementado en
+  `codex/synthetic-restore-local-20261014`, pero permanece sin ejecutar; no
+  arrancar PostgreSQL ni crear dumps hasta el cierre de QA y autorización de
+  Main. La prueba prevista usa dos bases loopback y datos sintéticos, y no
+  acredita restauración Preview/producción. Fuente:
+  `docs/qa/synthetic-restore-runner-2026-10-14.md`.
+
 - [ ] Alinear la cuota mensual con la regla confirmada por gimnasta y tarifa.
   La base auditada factura por enrollment; el diseño propone cobertura explícita
   de plantillas, una línea por gimnasta y bloqueo ante tarifas incompatibles.
