@@ -237,8 +237,8 @@ test.describe("Isolated local Supabase Owner setup", () => {
       const classSelect = createEnrollment.getByLabel("Clase");
       const classOption = classSelect
         .locator("option")
-        .filter({ hasText: enrolledClassName })
-        .first();
+        .filter({ hasText: enrolledClassName });
+      await expect(classOption).toHaveCount(1);
       expect(await classOption.getAttribute("value")).toBe(classTemplateId);
       await classSelect.selectOption(classTemplateId);
       const search = createEnrollment.getByLabel("Gimnasta");
@@ -257,11 +257,17 @@ test.describe("Isolated local Supabase Owner setup", () => {
       await createEnrollment
         .getByRole("button", { name: "Registrar inscripción pendiente" })
         .click();
-      expect((await enrollmentResponse).ok()).toBe(true);
+      const enrollmentResult = await enrollmentResponse;
+      expect(enrollmentResult.ok()).toBe(true);
+      const enrollmentPayload = (await enrollmentResult.json()) as {
+        data: { id: string; athleteId: string };
+      };
+      expect(enrollmentPayload.data.athleteId).toBe(athleteId);
       const pendingRow = page
         .locator("li")
         .filter({ hasText: athleteName })
-        .last();
+        .filter({ hasText: enrolledClassName });
+      await expect(pendingRow).toHaveCount(1);
       await expect(pendingRow).toBeVisible();
       const activateResponse = page.waitForResponse(
         (candidate) =>
@@ -269,19 +275,30 @@ test.describe("Isolated local Supabase Owner setup", () => {
           candidate.request().method() === "PATCH"
       );
       await pendingRow.getByRole("button", { name: "Activar" }).click();
-      expect((await activateResponse).ok()).toBe(true);
+      const activationResult = await activateResponse;
+      expect(activationResult.ok()).toBe(true);
+      expect(
+        new URL(activationResult.url()).pathname.match(
+          /\/api\/v1\/owner\/enrollments\/([^/]+)$/
+        )?.[1]
+      ).toBe(enrollmentPayload.data.id);
       await page.waitForLoadState("networkidle");
       await page.goto(`/owner/enrollments?${scope}&status=active`);
       const activeRows = page.locator("li").filter({ hasText: athleteName });
       await expect(activeRows).toHaveCount(expectedActiveCount);
+      const activeEnrollmentRow = activeRows.filter({
+        hasText: enrolledClassName,
+      });
+      await expect(activeEnrollmentRow).toHaveCount(1);
       await expect(
-        activeRows.last().getByText("Activa", { exact: true })
+        activeEnrollmentRow.getByText("Activa", { exact: true })
       ).toBeVisible();
+      return enrollmentPayload.data.id;
     }
 
     await page.goto(`/owner/groups?${scope}`);
     await expect(
-      page.getByRole("heading", { name: /grupos/i }).first()
+      page.getByRole("heading", { name: "Grupos y equipos", exact: true })
     ).toBeVisible();
     await page.getByLabel("Nombre del grupo").fill(groupName);
     await page.getByLabel("Plazas (opcional)").fill("2");
@@ -302,7 +319,15 @@ test.describe("Isolated local Supabase Owner setup", () => {
         candidate.request().method() === "POST"
     );
     await page.getByRole("button", { name: "Crear y añadir al grupo" }).click();
-    expect((await athleteResponse).ok()).toBe(true);
+    const createdAthleteResponse = await athleteResponse;
+    expect(createdAthleteResponse.ok()).toBe(true);
+    const createdAthletePayload = (await createdAthleteResponse.json()) as {
+      data: { athleteId: string };
+    };
+    expect(createdAthletePayload.data.athleteId).toMatch(
+      /^[0-9a-f]{8}-[0-9a-f]{4}-[1-8][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i
+    );
+    const athleteId = createdAthletePayload.data.athleteId;
     await expect(page.getByText(athleteName, { exact: true })).toBeVisible();
 
     const firstClass = await createClassWithSessions(className, "Lunes");
@@ -312,12 +337,17 @@ test.describe("Isolated local Supabase Owner setup", () => {
     );
     const classTemplateId = firstClass.classTemplateId;
     const secondClassTemplateId = secondClass.classTemplateId;
-    await createAndActivateEnrollment(className, classTemplateId, 1);
-    await createAndActivateEnrollment(
+    const firstEnrollmentId = await createAndActivateEnrollment(
+      className,
+      classTemplateId,
+      1
+    );
+    const secondEnrollmentId = await createAndActivateEnrollment(
       secondClassName,
       secondClassTemplateId,
       2
     );
+    expect(firstEnrollmentId).not.toBe(secondEnrollmentId);
 
     await page.goto(`/owner/attendance?${scope}`);
     await expect(
@@ -331,9 +361,11 @@ test.describe("Isolated local Supabase Owner setup", () => {
       .toBeGreaterThan(1);
     const firstClassSession = sessionSelect
       .locator("option")
-      .filter({ hasText: className })
-      .first();
-    const firstClassSessionId = await firstClassSession.getAttribute("value");
+      .filter({ hasText: className });
+    expect(await firstClassSession.count()).toBeGreaterThan(0);
+    const firstClassSessionId = await firstClassSession
+      .first()
+      .getAttribute("value");
     expect(firstClassSessionId).toBeTruthy();
     await sessionSelect.selectOption(firstClassSessionId!);
     const selectedSessionId = await sessionSelect.inputValue();
@@ -369,25 +401,32 @@ test.describe("Isolated local Supabase Owner setup", () => {
     // athlete-level line with both covered enrollments.
     const servicePeriod = nextMonth();
     await page.getByLabel("Mes de la cuota").fill(servicePeriod);
-    await expect(
-      page.getByRole("button", {
-        name: `Vincular a una familia a ${athleteName}`,
-      })
-    ).toBeVisible();
-    await page
-      .getByRole("button", { name: `Vincular a una familia a ${athleteName}` })
-      .click();
+    const linkAthleteToFamily = page.getByRole("button", {
+      name: `Vincular a una familia a ${athleteName}`,
+      exact: true,
+    });
+    await expect(linkAthleteToFamily).toHaveCount(2);
+    await linkAthleteToFamily.first().click();
     await expect(
       page.getByRole("heading", {
         name: `Vincular a ${athleteName} a una familia`,
       })
     ).toBeVisible();
     await page.getByLabel("Nombre de la persona adulta").fill(adultGivenName);
-    await page
-      .getByLabel("Apellidos", { exact: true })
-      .last()
-      .fill(adultFamilyName);
+    const adultFamilyNameField = page.getByLabel("Apellidos", {
+      exact: true,
+    });
+    await expect(adultFamilyNameField).toHaveCount(1);
+    await adultFamilyNameField.fill(adultFamilyName);
     await page.getByLabel("Fecha efectiva").fill(`${servicePeriod}-01`);
+    const refreshedMonthlyOptionsPromise = page.waitForResponse(
+      (candidate) =>
+        candidate
+          .url()
+          .includes("/api/v1/owner/billing/monthly-invoices/options") &&
+        candidate.url().includes(`servicePeriod=${servicePeriod}`) &&
+        candidate.request().method() === "GET"
+    );
     const associationResponse = page.waitForResponse(
       (candidate) =>
         candidate.url().endsWith("/api/v1/owner/families/associations") &&
@@ -396,9 +435,83 @@ test.describe("Isolated local Supabase Owner setup", () => {
     await page.getByRole("button", { name: "Guardar vínculo" }).click();
     const associationResult = await associationResponse;
     expect(associationResult.ok()).toBe(true);
+    const associationRequest = associationResult.request().postDataJSON() as {
+      organizationId: string;
+      locationId: string;
+      athleteIds: string[];
+    };
+    expect(associationRequest).toMatchObject({
+      organizationId: result.organizationId,
+      locationId: result.locationId,
+      athleteIds: [athleteId],
+    });
     const associationData = (await associationResult.json()) as {
       data: { familyId: string };
     };
+    const refreshedMonthlyOptionsResponse =
+      await refreshedMonthlyOptionsPromise;
+    expect(refreshedMonthlyOptionsResponse.ok()).toBe(true);
+    const refreshedMonthlyOptions =
+      (await refreshedMonthlyOptionsResponse.json()) as {
+        data: {
+          organizationId: string;
+          locationId: string;
+          servicePeriod: string;
+          families: Array<{
+            familyId: string;
+            enrollments: Array<{
+              enrollmentId: string;
+              athleteId: string;
+              blockingReasons: string[];
+            }>;
+          }>;
+          unassignedEnrollments: Array<{ enrollmentId: string }>;
+        };
+      };
+    expect(refreshedMonthlyOptions.data.organizationId).toBe(
+      result.organizationId
+    );
+    expect(refreshedMonthlyOptions.data.locationId).toBe(result.locationId);
+    expect(refreshedMonthlyOptions.data.servicePeriod).toBe(servicePeriod);
+    expect(refreshedMonthlyOptions.data.families).toHaveLength(1);
+    const associatedFamily = refreshedMonthlyOptions.data.families[0];
+    expect(associatedFamily?.familyId).toBe(associationData.data.familyId);
+    expect(
+      associatedFamily?.enrollments
+        .map(({ enrollmentId }) => enrollmentId)
+        .sort()
+    ).toEqual([firstEnrollmentId, secondEnrollmentId].sort());
+    expect(
+      new Set(
+        associatedFamily?.enrollments.map(
+          ({ athleteId: linkedAthleteId }) => linkedAthleteId
+        )
+      )
+    ).toEqual(new Set([athleteId]));
+    expect(
+      associatedFamily?.enrollments.every(
+        ({ blockingReasons }) => !blockingReasons.includes("FAMILY_REQUIRED")
+      )
+    ).toBe(true);
+    expect(refreshedMonthlyOptions.data.unassignedEnrollments).toHaveLength(0);
+    const familyMemberships = await pool.query<{ family_id: string }>(
+      `select family_id
+         from zaltyko.family_members
+        where organization_id = $1::uuid
+          and family_id = $2::uuid
+          and athlete_id = $3::uuid
+          and starts_on <= (
+            $4::date + interval '1 month - 1 day'
+          )::date
+          and (ends_on is null or ends_on >= $4::date)`,
+      [
+        result.organizationId,
+        associationData.data.familyId,
+        athleteId,
+        `${servicePeriod}-01`,
+      ]
+    );
+    expect(familyMemberships.rows).toHaveLength(1);
     const familySelect = page.getByRole("combobox", {
       name: "Familia",
       exact: true,
@@ -409,6 +522,7 @@ test.describe("Isolated local Supabase Owner setup", () => {
       exact: true,
     });
     await expect(payerSelect).toHaveValue("");
+    await expect(linkAthleteToFamily).toHaveCount(0);
     const tariffAssignmentButtons = page.getByRole("button", {
       name: `Asignar tarifa mensual a ${athleteName}`,
     });
@@ -533,7 +647,16 @@ test.describe("Isolated local Supabase Owner setup", () => {
         ) && candidate.request().method() === "PATCH"
     );
     await page.getByRole("button", { name: "Guardar tarifa" }).click();
-    expect((await tariffAssignment).ok()).toBe(true);
+    const firstTariffAssignmentResponse = await tariffAssignment;
+    expect(firstTariffAssignmentResponse.ok()).toBe(true);
+    const firstAssignedEnrollmentId = new URL(
+      firstTariffAssignmentResponse.url()
+    ).pathname.match(
+      /\/api\/v1\/owner\/enrollments\/([^/]+)\/price-plan$/
+    )?.[1];
+    expect([firstEnrollmentId, secondEnrollmentId]).toContain(
+      firstAssignedEnrollmentId
+    );
 
     await expect(tariffAssignmentButtons).toHaveCount(1);
     const secondPricePlanOptionsResponsePromise = waitForPricePlanOptions();
@@ -576,7 +699,17 @@ test.describe("Isolated local Supabase Owner setup", () => {
         ) && candidate.request().method() === "PATCH"
     );
     await page.getByRole("button", { name: "Guardar tarifa" }).click();
-    expect((await secondTariffAssignment).ok()).toBe(true);
+    const secondTariffAssignmentResponse = await secondTariffAssignment;
+    expect(secondTariffAssignmentResponse.ok()).toBe(true);
+    const secondAssignedEnrollmentId = new URL(
+      secondTariffAssignmentResponse.url()
+    ).pathname.match(
+      /\/api\/v1\/owner\/enrollments\/([^/]+)\/price-plan$/
+    )?.[1];
+    expect([firstEnrollmentId, secondEnrollmentId].sort()).toEqual(
+      [firstAssignedEnrollmentId, secondAssignedEnrollmentId].sort()
+    );
+    await expect(tariffAssignmentButtons).toHaveCount(0);
 
     const invoiceLines = page.getByRole("list", {
       name: "Desglose por gimnasta",
