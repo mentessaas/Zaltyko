@@ -30,6 +30,9 @@ existentes y añade `organizationId`, `locationId`, `classTemplates` con
 `id`, `name`, `effectiveFrom`, `effectiveTo` y `classTemplatesHasMore`.
 Las clases se filtran por tenant, sede y estado activo. Devuelve hasta cien;
 el indicador de truncado distingue catálogo parcial de completo.
+Las tarifas seleccionables requieren cobertura explícita de esta sede; una
+tarifa creada en otra sede no oculta la acción de crear la primera tarifa local
+ni se presenta como asignable por pertenecer solo a la misma organización.
 La UI rechaza respuestas de otro ámbito. Errores o ausencia de clases no
 se convierten en opciones inventadas ni en selección automática.
 

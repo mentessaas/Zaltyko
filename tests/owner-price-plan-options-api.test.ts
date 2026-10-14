@@ -111,6 +111,11 @@ describe("opciones de tarifas y clases con alcance Owner", () => {
     expect(compiled.sql).toContain('"class_templates"."location_id"');
     expect(compiled.sql).toContain('"class_templates"."status"');
     expect(compiled.params).toEqual([organizationId, locationId, "active"]);
+    const planFilter = new PgDialect().sqlToQuery(mocks.where.mock.calls[0][0]);
+    expect(planFilter.sql).toContain("exists");
+    expect(planFilter.sql).toContain('"price_plan_class_template_coverage"');
+    expect(planFilter.sql).toContain('"location_id"');
+    expect(planFilter.params).toContain(locationId);
     expect(assertOperationalAccess).toHaveBeenCalledWith(
       expect.anything(),
       expect.objectContaining({
@@ -122,16 +127,14 @@ describe("opciones de tarifas y clases con alcance Owner", () => {
   });
 
   it("explicita el truncado sin convertir un catálogo parcial en completo", async () => {
-    mocks.limit
-      .mockResolvedValueOnce([])
-      .mockResolvedValueOnce(
-        Array.from({ length: 101 }, (_, index) => ({
-          id: String(index),
-          name: "Clase sintética",
-          effectiveFrom: "2026-10-01",
-          effectiveTo: null,
-        }))
-      );
+    mocks.limit.mockResolvedValueOnce([]).mockResolvedValueOnce(
+      Array.from({ length: 101 }, (_, index) => ({
+        id: String(index),
+        name: "Clase sintética",
+        effectiveFrom: "2026-10-01",
+        effectiveTo: null,
+      }))
+    );
     const response = await GET(request());
     const payload = await response.json();
     expect(payload.data.classTemplates).toHaveLength(100);

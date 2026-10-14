@@ -1,10 +1,14 @@
 import { NextResponse } from "next/server";
-import { and, asc, eq } from "drizzle-orm";
+import { and, asc, eq, sql } from "drizzle-orm";
 import { z } from "zod";
 
 import { operationalProblem, problemResponse } from "@/app/api/v1/problem";
 import { db } from "@/db";
-import { classTemplates, pricePlans } from "@/db/zaltyko-schema";
+import {
+  classTemplates,
+  pricePlans,
+  pricePlanClassTemplateCoverage,
+} from "@/db/zaltyko-schema";
 import { apiSuccess } from "@/lib/api-response";
 import { getCurrentUser } from "@/lib/auth/current-user";
 import {
@@ -86,7 +90,13 @@ export async function GET(request: Request) {
           and(
             eq(pricePlans.organizationId, scope.organization.id),
             eq(pricePlans.isActive, true),
-            eq(pricePlans.cadence, "monthly")
+            eq(pricePlans.cadence, "monthly"),
+            sql`exists (
+              select 1 from ${pricePlanClassTemplateCoverage}
+              where ${pricePlanClassTemplateCoverage.organizationId} = ${pricePlans.organizationId}
+                and ${pricePlanClassTemplateCoverage.pricePlanId} = ${pricePlans.id}
+                and ${pricePlanClassTemplateCoverage.locationId} = ${query.data.locationId}::uuid
+            )`
           )
         )
         .orderBy(asc(pricePlans.name))
