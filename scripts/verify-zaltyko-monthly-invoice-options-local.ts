@@ -47,60 +47,60 @@ async function seed(pool: Pool): Promise<void> {
   await pool.query(`
     insert into zaltyko.organizations (id, name, status)
     values
-      ('${ORGANIZATION_ID}', 'Synthetic options academy', 'active'),
-      ('${OTHER_ORGANIZATION_ID}', 'Synthetic excluded academy', 'active');
+      ('${ORGANIZATION_ID}'::uuid, 'Synthetic options academy', 'active'),
+      ('${OTHER_ORGANIZATION_ID}'::uuid, 'Synthetic excluded academy', 'active');
     insert into zaltyko.locations (id, organization_id, code, name, timezone)
     values
-      ('${LOCATION_ID}', '${ORGANIZATION_ID}', 'options-test', 'Options test', 'Europe/Madrid'),
-      ('${SECOND_LOCATION_ID}', '${ORGANIZATION_ID}', 'options-other', 'Other site', 'Europe/Madrid'),
-      ('${OTHER_LOCATION_ID}', '${OTHER_ORGANIZATION_ID}', 'other-org', 'Other academy', 'Europe/Madrid');
-    insert into auth.users (id) values ('${OWNER_USER_ID}');
+      ('${LOCATION_ID}'::uuid, '${ORGANIZATION_ID}'::uuid, 'options-test', 'Options test', 'Europe/Madrid'),
+      ('${SECOND_LOCATION_ID}'::uuid, '${ORGANIZATION_ID}'::uuid, 'options-other', 'Other site', 'Europe/Madrid'),
+      ('${OTHER_LOCATION_ID}'::uuid, '${OTHER_ORGANIZATION_ID}'::uuid, 'other-org', 'Other academy', 'Europe/Madrid');
+    insert into auth.users (id) values ('${OWNER_USER_ID}'::uuid);
     insert into zaltyko.organization_members (
       id, organization_id, user_id, role, status, location_scope_mode
     ) values (
-      '${OWNER_MEMBER_ID}', '${ORGANIZATION_ID}', '${OWNER_USER_ID}',
+      '${OWNER_MEMBER_ID}'::uuid, '${ORGANIZATION_ID}'::uuid, '${OWNER_USER_ID}'::uuid,
       'owner', 'active', 'all'
     );
 
     insert into zaltyko.people (id, organization_id, given_name, family_name)
     select
       ('31000000-0000-4000-8000-' || lpad(n::text, 12, '0'))::uuid,
-      '${ORGANIZATION_ID}', 'Gimnasta', 'Sintética ' || n
+      '${ORGANIZATION_ID}'::uuid, 'Gimnasta', 'Sintética ' || n
     from generate_series(1, ${BASE_ATHLETES_AND_PLANS}) as n
     union all
     select
       ('32000000-0000-4000-8000-' || lpad(n::text, 12, '0'))::uuid,
-      '${ORGANIZATION_ID}', 'Tutor', 'Sintético ' || n
+      '${ORGANIZATION_ID}'::uuid, 'Tutor', 'Sintético ' || n
     from generate_series(1, ${BASE_ATHLETES_AND_PLANS}) as n
     union all
     select '33000000-0000-4000-8000-000000000001'::uuid,
-      '${OTHER_ORGANIZATION_ID}', 'Gimnasta', 'Excluida';
+      '${OTHER_ORGANIZATION_ID}'::uuid, 'Gimnasta', 'Excluida';
     insert into zaltyko.athletes (id, organization_id, person_id)
     select
       ('34000000-0000-4000-8000-' || lpad(n::text, 12, '0'))::uuid,
-      '${ORGANIZATION_ID}',
+      '${ORGANIZATION_ID}'::uuid,
       ('31000000-0000-4000-8000-' || lpad(n::text, 12, '0'))::uuid
     from generate_series(1, ${BASE_ATHLETES_AND_PLANS}) as n
     union all
     select '35000000-0000-4000-8000-000000000001'::uuid,
-      '${OTHER_ORGANIZATION_ID}', '33000000-0000-4000-8000-000000000001'::uuid;
+      '${OTHER_ORGANIZATION_ID}'::uuid, '33000000-0000-4000-8000-000000000001'::uuid;
     insert into zaltyko.guardians (id, organization_id, person_id)
     select
       ('36000000-0000-4000-8000-' || lpad(n::text, 12, '0'))::uuid,
-      '${ORGANIZATION_ID}',
+      '${ORGANIZATION_ID}'::uuid,
       ('32000000-0000-4000-8000-' || lpad(n::text, 12, '0'))::uuid
     from generate_series(1, ${BASE_ATHLETES_AND_PLANS}) as n;
     insert into zaltyko.families (id, organization_id, is_active)
     select
       ('37000000-0000-4000-8000-' || lpad(n::text, 12, '0'))::uuid,
-      '${ORGANIZATION_ID}', true
+      '${ORGANIZATION_ID}'::uuid, true
     from generate_series(1, ${BASE_ATHLETES_AND_PLANS}) as n;
     insert into zaltyko.family_guardians (
       id, organization_id, family_id, guardian_id, relationship, is_active
     )
     select
       ('38000000-0000-4000-8000-' || lpad(n::text, 12, '0'))::uuid,
-      '${ORGANIZATION_ID}',
+      '${ORGANIZATION_ID}'::uuid,
       ('37000000-0000-4000-8000-' || lpad(n::text, 12, '0'))::uuid,
       ('36000000-0000-4000-8000-' || lpad(n::text, 12, '0'))::uuid,
       'parent', true
@@ -110,7 +110,7 @@ async function seed(pool: Pool): Promise<void> {
     )
     select
       ('39000000-0000-4000-8000-' || lpad(n::text, 12, '0'))::uuid,
-      '${ORGANIZATION_ID}',
+      '${ORGANIZATION_ID}'::uuid,
       ('37000000-0000-4000-8000-' || lpad(n::text, 12, '0'))::uuid,
       ('34000000-0000-4000-8000-' || lpad(n::text, 12, '0'))::uuid,
       'parent', '2026-10-01'
@@ -120,7 +120,7 @@ async function seed(pool: Pool): Promise<void> {
     )
     select
       ('3a000000-0000-4000-8000-' || lpad(n::text, 12, '0'))::uuid,
-      '${ORGANIZATION_ID}',
+      '${ORGANIZATION_ID}'::uuid,
       ('37000000-0000-4000-8000-' || lpad(n::text, 12, '0'))::uuid,
       ('36000000-0000-4000-8000-' || lpad(n::text, 12, '0'))::uuid,
       true, '2026-10-01'
@@ -131,7 +131,7 @@ async function seed(pool: Pool): Promise<void> {
     )
     select
       ('41000000-0000-4000-8000-' || lpad(n::text, 12, '0'))::uuid,
-      '${ORGANIZATION_ID}', 'Cuota sintética ' || lpad(n::text, 3, '0'),
+      '${ORGANIZATION_ID}'::uuid, 'Cuota sintética ' || lpad(n::text, 3, '0'),
       'monthly', 1000 + n, 'EUR', true
     from generate_series(1, ${BASE_ATHLETES_AND_PLANS}) as n;
     insert into zaltyko.class_templates (
@@ -139,20 +139,20 @@ async function seed(pool: Pool): Promise<void> {
     )
     select
       ('42000000-0000-4000-8000-' || lpad(n::text, 12, '0'))::uuid,
-      '${ORGANIZATION_ID}', '${LOCATION_ID}', 'Clase sintética ' || n,
+      '${ORGANIZATION_ID}'::uuid, '${LOCATION_ID}'::uuid, 'Clase sintética ' || n,
       500, 'active', '2026-09-01'
     from generate_series(1, 205) as n;
     insert into zaltyko.class_templates (
       id, organization_id, location_id, name, capacity, status, effective_from
     ) values (
-      '42000000-0000-4000-8000-000000000206', '${ORGANIZATION_ID}',
-      '${SECOND_LOCATION_ID}', 'Clase de otra sede', 20, 'active', '2026-09-01'
+      '42000000-0000-4000-8000-000000000206', '${ORGANIZATION_ID}'::uuid,
+      '${SECOND_LOCATION_ID}'::uuid, 'Clase de otra sede', 20, 'active', '2026-09-01'
     );
     insert into zaltyko.class_templates (
       id, organization_id, location_id, name, capacity, status, effective_from
     ) values (
-      '42000000-0000-4000-8000-000000000207', '${OTHER_ORGANIZATION_ID}',
-      '${OTHER_LOCATION_ID}', 'Clase de otra academia', 20, 'active', '2026-09-01'
+      '42000000-0000-4000-8000-000000000207', '${OTHER_ORGANIZATION_ID}'::uuid,
+      '${OTHER_LOCATION_ID}'::uuid, 'Clase de otra academia', 20, 'active', '2026-09-01'
     );
 
     insert into zaltyko.enrollments (
@@ -161,7 +161,7 @@ async function seed(pool: Pool): Promise<void> {
     )
     select
       ('51000000-0000-4000-8000-' || lpad(n::text, 12, '0'))::uuid,
-      '${ORGANIZATION_ID}', '${LOCATION_ID}',
+      '${ORGANIZATION_ID}'::uuid, '${LOCATION_ID}'::uuid,
       ('34000000-0000-4000-8000-' || lpad(n::text, 12, '0'))::uuid,
       ('42000000-0000-4000-8000-' || lpad(n::text, 12, '0'))::uuid,
       ('41000000-0000-4000-8000-' || lpad(n::text, 12, '0'))::uuid,
@@ -170,7 +170,7 @@ async function seed(pool: Pool): Promise<void> {
     union all
     select
       '51000000-0000-4000-8000-000000000202'::uuid,
-      '${ORGANIZATION_ID}', '${LOCATION_ID}',
+      '${ORGANIZATION_ID}'::uuid, '${LOCATION_ID}'::uuid,
       '34000000-0000-4000-8000-000000000001'::uuid,
       '42000000-0000-4000-8000-000000000202'::uuid,
       '41000000-0000-4000-8000-000000000001'::uuid,
@@ -178,7 +178,7 @@ async function seed(pool: Pool): Promise<void> {
     union all
     select
       '51000000-0000-4000-8000-000000000203'::uuid,
-      '${ORGANIZATION_ID}', '${LOCATION_ID}',
+      '${ORGANIZATION_ID}'::uuid, '${LOCATION_ID}'::uuid,
       '34000000-0000-4000-8000-000000000002'::uuid,
       '42000000-0000-4000-8000-000000000203'::uuid,
       '41000000-0000-4000-8000-000000000002'::uuid,
@@ -186,7 +186,7 @@ async function seed(pool: Pool): Promise<void> {
     union all
     select
       '51000000-0000-4000-8000-000000000204'::uuid,
-      '${ORGANIZATION_ID}', '${LOCATION_ID}',
+      '${ORGANIZATION_ID}'::uuid, '${LOCATION_ID}'::uuid,
       '34000000-0000-4000-8000-000000000003'::uuid,
       '42000000-0000-4000-8000-000000000204'::uuid,
       '41000000-0000-4000-8000-000000000003'::uuid,
@@ -194,7 +194,7 @@ async function seed(pool: Pool): Promise<void> {
     union all
     select
       '51000000-0000-4000-8000-000000000205'::uuid,
-      '${ORGANIZATION_ID}', '${LOCATION_ID}',
+      '${ORGANIZATION_ID}'::uuid, '${LOCATION_ID}'::uuid,
       '34000000-0000-4000-8000-000000000004'::uuid,
       '42000000-0000-4000-8000-000000000205'::uuid,
       '41000000-0000-4000-8000-000000000004'::uuid,
@@ -202,14 +202,14 @@ async function seed(pool: Pool): Promise<void> {
     union all
     select
       '51000000-0000-4000-8000-000000000206'::uuid,
-      '${ORGANIZATION_ID}', '${SECOND_LOCATION_ID}',
+      '${ORGANIZATION_ID}'::uuid, '${SECOND_LOCATION_ID}'::uuid,
       '34000000-0000-4000-8000-000000000005'::uuid,
       '42000000-0000-4000-8000-000000000206'::uuid,
       null, 'active', '2026-10-01', null, 'owner'
     union all
     select
       '51000000-0000-4000-8000-000000000207'::uuid,
-      '${OTHER_ORGANIZATION_ID}', '${OTHER_LOCATION_ID}',
+      '${OTHER_ORGANIZATION_ID}'::uuid, '${OTHER_LOCATION_ID}'::uuid,
       '35000000-0000-4000-8000-000000000001'::uuid,
       '42000000-0000-4000-8000-000000000207'::uuid,
       null, 'active', '2026-10-01', null, 'owner';
@@ -220,7 +220,7 @@ async function seed(pool: Pool): Promise<void> {
     )
     select
       ('61000000-0000-4000-8000-' || lpad(n::text, 12, '0'))::uuid,
-      '${ORGANIZATION_ID}', '${LOCATION_ID}',
+      '${ORGANIZATION_ID}'::uuid, '${LOCATION_ID}'::uuid,
       ('51000000-0000-4000-8000-' || lpad(n::text, 12, '0'))::uuid,
       ('41000000-0000-4000-8000-' || lpad(n::text, 12, '0'))::uuid,
       1000 + n, 'EUR', '2026-10-01'
@@ -228,14 +228,14 @@ async function seed(pool: Pool): Promise<void> {
     union all
     select
       '61000000-0000-4000-8000-000000000202'::uuid,
-      '${ORGANIZATION_ID}', '${LOCATION_ID}',
+      '${ORGANIZATION_ID}'::uuid, '${LOCATION_ID}'::uuid,
       '51000000-0000-4000-8000-000000000202'::uuid,
       '41000000-0000-4000-8000-000000000001'::uuid,
       1001, 'EUR', '2026-10-01'
     union all
     select
       '61000000-0000-4000-8000-000000000203'::uuid,
-      '${ORGANIZATION_ID}', '${LOCATION_ID}',
+      '${ORGANIZATION_ID}'::uuid, '${LOCATION_ID}'::uuid,
       '51000000-0000-4000-8000-000000000203'::uuid,
       '41000000-0000-4000-8000-000000000002'::uuid,
       1002, 'EUR', '2026-10-01';
@@ -246,7 +246,7 @@ async function seed(pool: Pool): Promise<void> {
     )
     select
       ('71000000-0000-4000-8000-' || lpad(n::text, 12, '0'))::uuid,
-      '${ORGANIZATION_ID}', '${LOCATION_ID}',
+      '${ORGANIZATION_ID}'::uuid, '${LOCATION_ID}'::uuid,
       ('41000000-0000-4000-8000-' || lpad(n::text, 12, '0'))::uuid,
       ('42000000-0000-4000-8000-' || lpad(n::text, 12, '0'))::uuid,
       '2026-10-01', null
@@ -254,14 +254,14 @@ async function seed(pool: Pool): Promise<void> {
     union all
     select
       '71000000-0000-4000-8000-000000000202'::uuid,
-      '${ORGANIZATION_ID}', '${LOCATION_ID}',
+      '${ORGANIZATION_ID}'::uuid, '${LOCATION_ID}'::uuid,
       '41000000-0000-4000-8000-000000000001'::uuid,
       '42000000-0000-4000-8000-000000000202'::uuid,
       '2026-10-01', null
     union all
     select
       '71000000-0000-4000-8000-000000000203'::uuid,
-      '${ORGANIZATION_ID}', '${LOCATION_ID}',
+      '${ORGANIZATION_ID}'::uuid, '${LOCATION_ID}'::uuid,
       '41000000-0000-4000-8000-000000000002'::uuid,
       '42000000-0000-4000-8000-000000000203'::uuid,
       '2026-10-01', null;
