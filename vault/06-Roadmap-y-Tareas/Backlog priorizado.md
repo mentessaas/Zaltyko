@@ -58,6 +58,20 @@ source:
 - Release: revisión #225 pendiente; confirmar Preview del SHA y posteriormente
   producción por bloques verificados. Sin declarar preparación por build solo.
 
+## P1 — Reconciliar reglas P0 con varias versiones activas — 2026-10-14
+
+- El evaluador local falla la evaluación completa antes de leer métricas o
+  persistir corridas si detecta más de una versión activa para cualquiera de
+  las nueve claves implementadas. No selecciona la versión máxima y no emite
+  insights parciales.
+- Verificar el inventario de reglas en el entorno aislado autorizado y acordar
+  explícitamente qué versión debe quedar activa por clave antes de resolver los
+  duplicados. No inferir retiro por número de versión ni aplicar cambios
+  remotos desde este fix. No confirmado aquí: cuáles filas activas duplicadas
+  existen actualmente en cada entorno.
+- Fuente: `docs/architecture/insight-evaluation-sources.md` y decisión
+  `Fail-closed ante versiones activas ambiguas de Insights P0`.
+
 ## P0 — Completar el E2E autenticado de Owner greenfield — 2026-10-13
 
 - Evidencia: CI ya aplicó las 16 migraciones allowlist al esquema `zaltyko` del
