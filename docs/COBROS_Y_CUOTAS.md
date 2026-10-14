@@ -8,7 +8,8 @@ El ledger `charges` es la fuente operativa de verdad. Stripe procesa tarjetas y 
 
 - Stripe Connect Standard por academia.
 - SetupIntent + Stripe Elements para tarjeta familiar.
-- PaymentIntent off-session para cobro automático.
+- Cobro familiar automático con PaymentIntent off-session: previsto, no
+  liberado en este lanzamiento.
 - Cobro manual desde el panel.
 - Recordatorios `-3`, `0`, `+3` y `+7` días.
 - Reembolsos parciales y totales.

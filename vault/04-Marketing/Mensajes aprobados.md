@@ -57,6 +57,11 @@ Para discovery, beta y mensajes de venta tempranos, enfocar Zaltyko en academias
 - Solo revisar y aprobar un claim de automatización cuando estén activos y
   probados el entitlement de pago, consentimiento/mandato por pagador, Connect,
   worker idempotente, webhook verificado, recuperación, permisos y QA de release.
+- Copy local 2026-10-14: Growth conserva la mención genérica a
+  automatizaciones, con aclaración visible de que el cobro familiar automático
+  no está disponible. El artículo de cobros separa consejo general de las
+  capacidades actuales de Zaltyko. No modifica precios ni habilita cobros; la
+  corrección está en una rama local sin merge ni despliegue.
 - Portal familiar, tarjeta: «Guardar una tarjeta no realiza un cargo en ese
   paso; la academia gestiona cómo se cobran las cuotas». No describir el alta
   de tarjeta como activación de cobros automáticos.

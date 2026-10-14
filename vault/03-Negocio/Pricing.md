@@ -72,11 +72,11 @@ Estado: oficial para producto, marketing, landing y limites.
 | **Trial 7 dias** | 0 € (sin tarjeta) | hasta 75 | 1 | Funciones elegibles de Starter; el cobro familiar se mantiene manual. | Downgrade automatico a Free al dia 7. Un trial por academia cada 12 meses. |
 | **Free** | 0 €/mes perpetuo | hasta 30 | 1 | Crear academia, gimnastas, grupos/clases, asistencia basica, comunicacion interna limitada y registro manual de pagos. | >30 gimnastas O necesidad de funciones avanzadas. |
 | **Starter** | **19 €/mes** (≈ 20 USD) | hasta 75 | 1 | Gestion de cuotas, registro manual de pagos, portal familiar limitado (horarios, avisos, progreso publicado y cuotas), reportes basicos, progresion tecnica, comunicacion interna. | >75 gimnastas O necesidad de automatizaciones disponibles y reportes ejecutivos. |
-| **Growth** | 49 €/mes (≈ 52 USD) | hasta 200 | 1 | Todo Starter + automatizaciones, reportes ejecutivos, add-ons premium, soporte prioritario. | >200 gimnastas O multi-sede. |
+| **Growth** | 49 €/mes (≈ 52 USD) | hasta 200 | 1 | Todo Starter + automatizaciones (sin cobro automático familiar disponible todavía), reportes ejecutivos, add-ons premium, soporte prioritario. | >200 gimnastas O multi-sede. |
 | **Network** | 99 €/mes (≈ 105 USD) | ilimitado | multi-sede | Todo Growth + multi-sede acompanada, reportes de direccion y soporte prioritario. | Bajo onboarding acompanado (ver [[Decisiones#2026-06-22 - V1 comercial con una academia por cliente]]). |
 
-**Límite de la promesa de cobros (decisión 2026-10-13):** el precio Starter no
-incluye hoy el cobro automático a familias. Free y trial son manuales. Los
+**Límite de la promesa de cobros (decisión 2026-10-13):** ningún plan incluye
+hoy el cobro automático a familias. Free y trial son manuales. Los
 planes de pago podrán optar a cobro automático cuando se habiliten los gates de consentimiento,
 mandato, Connect, worker/webhook y recuperación; hasta entonces la preferencia
 automática del núcleo nuevo no inicia cargos y no es un claim comercial.

@@ -90,7 +90,7 @@ export const PRODUCT_PLANS: ProductPlan[] = [
     features: [
       "Hasta 200 gimnastas · 1 academia",
       "Todo lo de Starter",
-      "Reportes ejecutivos y automatizaciones",
+      "Reportes ejecutivos y automatizaciones (el cobro familiar automático aún no está disponible)",
       "Soporte prioritario",
     ],
   },

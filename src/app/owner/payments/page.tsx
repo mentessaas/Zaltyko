@@ -85,8 +85,8 @@ export default async function OwnerPaymentsPage({
               Registrar un pago recibido
             </h1>
             <p className="mt-3 max-w-2xl text-sm leading-6 text-slate-600 sm:text-base">
-              Anota una transferencia, efectivo o pago en el local. Zaltyko lo
-              vincula al cargo y actualiza el saldo pendiente automáticamente.
+              Anota una transferencia, efectivo o pago en el local. Al guardar,
+              Zaltyko lo vincula al cargo y actualiza el saldo pendiente.
             </p>
           </div>
           <Link
