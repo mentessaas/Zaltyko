@@ -55,6 +55,7 @@ MIGRATIONS=(
   20261013082806_organization_payment_accounts.sql \
   20261013160000_canonical_family_collection_and_entitlements.sql
   20261013170001_record_group_membership_history.sql
+  20261014001209_monthly_athlete_tariff_coverage_and_invoice_line_enrollments.sql
 )
 
 for migration in "${MIGRATIONS[@]}"; do
