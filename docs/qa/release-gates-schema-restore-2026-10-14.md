@@ -19,10 +19,10 @@
 - Firefox falló en el mismo SHA tras 20,7 s, con `NS_BINDING_ABORTED` al
   navegar a inscripciones pendientes (`tests/e2e-owner-local-setup.spec.ts`,
   línea 233). El runner confirmó cleanup. No alcanzó facturación ni dashboard.
-  La causa no está establecida; no se autorizó reintento ni aumento de timeout.
-- WebKit tiene stack local efímera y está compilando; el test de navegador aún
-  no tiene resultado. QA informa que no hay otro navegador en ejecución. Hay que
-  cerrar Firefox y completar WebKit antes de considerar cerrado el gate local.
+  La causa no está establecida. Una corrida diagnóstica Firefox está autorizada
+  en `2fa03896`, sin cambios de flujo o timeout; no es un fallo resuelto.
+- WebKit pasó 1/1 en 30,7 s sobre `0e145bb0`, con cleanup confirmado.
+  Firefox sigue pendiente antes de considerar cerrado el gate local.
 
 Fuente del corte: [readiness E2E](monthly-billing-e2e-readiness-2026-10-14.md).
 
@@ -33,7 +33,7 @@ metadatos de `information_schema`; no se consultaron filas de negocio.
 
 | Proyecto | Ref | PostgreSQL | Última versión listada | Hallazgos de esquema |
 | --- | --- | --- | --- | --- |
-| Zaltyko | `jegxfahsvugilbthbked` | 17.6.1.038 | `20261005003634` | `information_schema.schemata` no devuelve `zaltyko`; existe `public.owner_consent`. |
+| Zaltyko | `jegxfahsvugilbthbked` | 17.6.1.038 | `20261005003634` | No aparecen las tablas operativas `zaltyko` consultadas; existe `public.owner_consent`. |
 | Zaltyko E2E Sandbox | `aeeootdmuiqkfeernskw` | 17.6.1.147 | `20261005002950` | Existe `zaltyko` y parte del dominio operativo; existe `zaltyko.family_collection_preferences` y `invoice_lines` legado. |
 
 En el Sandbox no aparecen `price_plan_class_template_coverage`,
@@ -41,7 +41,7 @@ En el Sandbox no aparecen `price_plan_class_template_coverage`,
 `owner_signup_consent_policy`, `owner_signup_consents` y
 `owner_signup_consent_audits`. La tabla `invoice_lines` no tiene las columnas
 `location_id` ni `athlete_id` que añade la migración de facturación mensual.
-En producción tampoco se encontró el esquema `zaltyko`. Esto deja sin demostrar
+En el proyecto Zaltyko tampoco aparecieron las tablas operativas consultadas. Esto deja sin demostrar
 la compatibilidad del código candidato con ambos destinos.
 
 `family_collection_preferences` existe en Sandbox, pero el catálogo de
@@ -104,8 +104,8 @@ ejecutó PostgreSQL por esta auditoría mientras QA mantiene el navegador activo
 
 ## Secuencia de cierre propuesta — no ejecutada
 
-1. Resolver Firefox solo con evidencia de traza/causa; después ejecutar WebKit
-   de forma secuencial sobre el SHA aprobado y registrar cleanup.
+1. Completar diagnóstico Firefox sin relajar gates y registrar cleanup;
+   conservar el PASS WebKit y Chromium sobre el SHA aprobado.
 2. Fijar el SHA candidato y el destino exacto. Capturar de nuevo catálogo,
    versiones, columnas, RLS y grants de forma read-only.
 3. Acordar cómo preservar el consentimiento legado; revisar orden, checksums,
