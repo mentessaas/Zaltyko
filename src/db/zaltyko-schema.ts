@@ -10,3 +10,4 @@ export * from "./schema/zaltyko-ledger";
 export * from "./schema/zaltyko-metrics";
 export * from "./schema/zaltyko-health-score";
 export * from "./schema/zaltyko-insights";
+export * from "./schema/owner-signup-consent";
