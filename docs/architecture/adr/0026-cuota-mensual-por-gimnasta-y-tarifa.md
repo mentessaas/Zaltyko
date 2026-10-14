@@ -1,7 +1,7 @@
 # ADR-0026 — Cuota mensual por gimnasta y tarifa
 
-- Estado: aceptada; emisión manual implementada localmente, E2E autenticado
-  pendiente.
+- Estado: decisión revisada aceptada; implementación por inscripción anterior
+  no satisface aún el caso multiclase. Nuevo esquema/servicio y E2E pendientes.
 - Fecha: 2026-10-14.
 - Contexto: decisión explícita del propietario sobre la regla de primera cuota.
 - Relacionados: ADR-0002, ADR-0003, ADR-0004, ADR-0020, ADR-0025.
@@ -16,9 +16,15 @@ trazabilidad sin confiar en cálculos del navegador.
 
 ## Decisión
 
-1. Se emite una factura por familia, sede y periodo mensual, con una línea por
-   cada inscripción elegible de una gimnasta. El importe de cada línea se toma
-   de su única asignación de tarifa mensual efectiva y versionada para el mes.
+1. Se emite una factura por familia, sede y periodo mensual, con una sola línea
+   mensual y un solo cargo por gimnasta. Su tarifa declara explícitamente las
+   clases incluidas, con cobertura vigente todo el mes. Las inscripciones son
+   hechos operativos M:N, no multiplicadores automáticos de la cuota.
+   Todas las inscripciones elegibles de esa gimnasta deben resolver al mismo
+   plan, importe snapshot y moneda y estar cubiertas por él. Diferencias de
+   tarifa/snapshot o cobertura incompleta bloquean la cotización: nunca se
+   suman ni se elige una tarifa a ciegas. La cobertura se limita a esta sede;
+   esta decisión no deduplica contratos entre sedes.
 2. Solo una inscripción `active`, vigente del primer al último día del mes, con
    relación familiar única y vigente todo el mes, y tarifa mensual positiva de
    una sola moneda puede formar una línea. No se prorratea. Pendientes, periodos
@@ -31,7 +37,9 @@ trazabilidad sin confiar en cálculos del navegador.
    cliente no puede enviar importes ni seleccionar líneas parciales; solo
    devuelve la huella SHA-256 de la cotización visible. Emisión revalida la
    huella bajo bloqueo de familia/inscripciones y responde conflicto si los
-   datos cambiaron.
+   datos cambiaron. La huella incluye atleta, tarifa, snapshots y el conjunto
+   ordenado de inscripciones/clases cubiertas; una nueva línea conserva esas
+   relaciones históricas sin reescribir las facturas existentes.
 5. Se permite una única factura vigente por familia+sede+periodo. Una factura
    anulada no se reemite de forma implícita. La idempotencia se valida contra el
    payload completo; factura, líneas, cargo pendiente, auditoría y outbox se
@@ -63,8 +71,21 @@ se resolverán con importes editables en el formulario.
 
 ## Verificación local
 
+### Revisión de producto — 14-10-2026
+
+La regla confirmada por el propietario es por gimnasta, no por inscripción.
+Se acepta el diseño de [cobertura explícita](../../qa/monthly-athlete-billing-gap-2026-10-14.md):
+relación efectiva tarifa/plantilla, línea por atleta y relación histórica de
+inscripciones incluidas. Es una decisión de implementación, no evidencia de
+que el código ya la aplique. Primero esquema/contratos en un bloque revisable;
+después servicio transaccional, UI y pruebas reales de dos clases/una gimnasta,
+dos hermanas, conflicto, vigencia, cotización obsoleta y replay concurrente.
+
+### Implementación anterior — evidencia histórica
+
 `GET /api/v1/owner/billing/monthly-invoices/options` y
-`POST /api/v1/owner/billing/monthly-invoices/issue` aplican la regla. La UI está
+`POST /api/v1/owner/billing/monthly-invoices/issue` aplicaban una línea por
+inscripción, no la regla multiclase revisada. La UI está
 en `/owner/monthly-invoices`. En el corte 2026-10-14 pasan 23 tests focales,
 TypeScript y ESLint; el build local de producción terminó. El harness de
 Chromium no consiguió completar Auth, así que emisión con sesión autenticada,
