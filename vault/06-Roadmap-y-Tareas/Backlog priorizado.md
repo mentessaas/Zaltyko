@@ -940,3 +940,8 @@ La comparación estructural de columnas/restricciones/índices/trigger da parida
 - `buildMonthlyInvoiceOptions()` en `monthly-invoice-service.ts` conserva topes fijos sin detectar excedentes: 100 tarifas, 1.000 inscripciones, 2.000 membresías/asignaciones, 4.000 coberturas y 1.000 pagadores/facturas existentes.
 - En sedes que superen esos conteos, la vista previa puede omitir datos de facturación; en especial, una factura previa omitida podría permitir una emisión duplicada.
 - Resolver en un parche separado con paginación keyset completa o centinela que bloquee toda la cotización al detectar exceso. No aceptar totales ni emitir parcialmente.
+# P1 — Verificar snapshot Repeatable Read de ubicaciones activas — 2026-10-14
+
+- El lector keyset y el consumo de worklist están cubiertos con unit tests que simulan el contrato Drizzle; no se ejecutó PostgreSQL y esos mocks no prueban que `SET TRANSACTION ... READ ONLY` sea la primera instrucción efectiva ni que una modificación concurrente mantenga el snapshot.
+- Próximo paso: test PostgreSQL local con dos conexiones, cambio de `is_active` entre páginas y verificación de que el lector devuelve el conjunto visible al abrir la transacción. Mantener sin cambios el timeout de escritura y SQL de cohorts.
+- No correr contra Supabase remoto ni Sandbox para esta validación.

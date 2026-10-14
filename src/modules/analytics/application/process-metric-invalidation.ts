@@ -5,7 +5,6 @@ import {
   benchmarkProfiles,
   auditLog,
   healthScoreVersions,
-  locations,
   metricInvalidations,
   organizations,
   outboxEvents,
@@ -16,6 +15,10 @@ import { calculateAcademyHealthScore } from "@/modules/health-score/application/
 import { evaluateP0Insights } from "@/modules/insights/application/evaluate-p0-rules";
 import { recomputeMetrics } from "@/modules/analytics/application/metric-engine";
 import { buildRetentionCohortProjections } from "@/modules/analytics/application/build-retention-cohort-projections";
+import {
+  getSnapshotLocationIds,
+  loadActiveLocationSnapshot,
+} from "@/modules/analytics/application/active-location-snapshot";
 
 export interface MetricInvalidationPipelineResult {
   invalidationId: string;
@@ -80,20 +83,18 @@ export async function processMetricInvalidation(input: {
     return null;
   }
 
-  const activeLocations = await db
-    .select({ id: locations.id })
-    .from(locations)
-    .where(
-      and(
-        eq(locations.organizationId, input.organizationId),
-        eq(locations.isActive, true)
-      )
-    );
+  const locationSnapshot = await loadActiveLocationSnapshot(
+    input.organizationId
+  );
+  const activeLocationIds = getSnapshotLocationIds(
+    locationSnapshot,
+    input.organizationId
+  );
   const scopedLocationIds = invalidation.locationId
-    ? activeLocations
-        .filter((location) => location.id === invalidation.locationId)
-        .map((location) => location.id)
-    : activeLocations.map((location) => location.id);
+    ? activeLocationIds.filter(
+        (locationId) => locationId === invalidation.locationId
+      )
+    : activeLocationIds;
   if (scopedLocationIds.length === 0) return null;
 
   const occurredAt = event.occurredAt.toISOString();
@@ -139,6 +140,7 @@ export async function processMetricInvalidation(input: {
     organizationId: input.organizationId,
     metricRunId: metricRun.id,
     actor,
+    locationSnapshot,
   });
 
   const profiles = await db

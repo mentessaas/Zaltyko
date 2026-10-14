@@ -1,11 +1,12 @@
 import { and, eq, inArray, sql } from "drizzle-orm";
 
 import { db } from "@/db";
+import { metricRuns, retentionCohortProjectionRuns } from "@/db/zaltyko-schema";
 import {
-  locations,
-  metricRuns,
-  retentionCohortProjectionRuns,
-} from "@/db/zaltyko-schema";
+  getSnapshotLocationIds,
+  loadActiveLocationSnapshot,
+  type ActiveLocationSnapshot,
+} from "@/modules/analytics/application/active-location-snapshot";
 import { assertCurrentCronSystemActor } from "@/lib/cron-system-actor";
 import type { SystemActor } from "@/modules/shared/application/actor";
 
@@ -20,6 +21,7 @@ export async function buildRetentionCohortProjections(input: {
   organizationId: string;
   metricRunId: string;
   actor: SystemActor;
+  locationSnapshot?: ActiveLocationSnapshot;
 }): Promise<{ projectionRuns: number; projectionRows: number }> {
   assertCurrentCronSystemActor(input.actor);
 
@@ -38,23 +40,21 @@ export async function buildRetentionCohortProjections(input: {
     throw new Error("Retention projection requires a successful metric run");
   }
 
-  const activeLocations = await db
-    .select({ id: locations.id })
-    .from(locations)
-    .where(
-      and(
-        eq(locations.organizationId, input.organizationId),
-        eq(locations.isActive, true)
-      )
-    );
+  const locationSnapshot =
+    input.locationSnapshot ??
+    (await loadActiveLocationSnapshot(input.organizationId));
+  const activeLocationIds = getSnapshotLocationIds(
+    locationSnapshot,
+    input.organizationId
+  );
   const scopes: Array<{ locationId: string | null; idempotencyKey: string }> = [
     {
       locationId: null,
       idempotencyKey: `metric:${metricRun.id}:scope:organization`,
     },
-    ...activeLocations.map(({ id }) => ({
-      locationId: id,
-      idempotencyKey: `metric:${metricRun.id}:scope:location:${id}`,
+    ...activeLocationIds.map((locationId) => ({
+      locationId,
+      idempotencyKey: `metric:${metricRun.id}:scope:location:${locationId}`,
     })),
   ];
 
@@ -90,7 +90,10 @@ export async function buildRetentionCohortProjections(input: {
       .from(retentionCohortProjectionRuns)
       .where(
         and(
-          eq(retentionCohortProjectionRuns.organizationId, input.organizationId),
+          eq(
+            retentionCohortProjectionRuns.organizationId,
+            input.organizationId
+          ),
           inArray(
             retentionCohortProjectionRuns.idempotencyKey,
             scopes.map((scope) => scope.idempotencyKey)
@@ -324,7 +327,10 @@ export async function buildRetentionCohortProjections(input: {
 
     return {
       projectionRuns: runs.length,
-      projectionRows: completedRuns.reduce((total, run) => total + run.rowCount, 0),
+      projectionRows: completedRuns.reduce(
+        (total, run) => total + run.rowCount,
+        0
+      ),
     };
   });
 }
