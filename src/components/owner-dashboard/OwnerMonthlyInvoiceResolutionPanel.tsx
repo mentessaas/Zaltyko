@@ -39,6 +39,15 @@ function responseData<T>(payload: unknown): T | null {
   return null;
 }
 
+function isUuid(value: unknown): value is string {
+  return (
+    typeof value === "string" &&
+    /^[0-9a-f]{8}-[0-9a-f]{4}-[1-8][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i.test(
+      value
+    )
+  );
+}
+
 function responseMessage(payload: unknown, fallback: string): string {
   if (payload && typeof payload === "object") {
     const detail = "detail" in payload ? payload.detail : undefined;
@@ -95,7 +104,7 @@ export function OwnerMonthlyInvoiceResolutionPanel({
   defaultCurrency: string;
   servicePeriodStart: string;
   onCancel: () => void;
-  onSaved: (kind: "tariff" | "family") => Promise<void>;
+  onSaved: (kind: "tariff" | "family", familyId?: string) => Promise<void>;
 }) {
   const [loading, setLoading] = useState(true);
   const [busy, setBusy] = useState(false);
@@ -377,7 +386,11 @@ export function OwnerMonthlyInvoiceResolutionPanel({
         );
       }
       retryRequest.current = null;
-      await onSaved("family");
+      const data = responseData<{ familyId?: unknown }>(payload);
+      await onSaved(
+        "family",
+        isUuid(data?.familyId) ? data.familyId : undefined
+      );
     } catch (cause) {
       setError(
         cause instanceof Error

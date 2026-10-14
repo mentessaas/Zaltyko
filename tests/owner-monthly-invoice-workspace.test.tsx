@@ -172,6 +172,40 @@ describe("OwnerMonthlyInvoiceWorkspace", () => {
     });
   });
 
+  it("restablece el pagador cuando se guarda un vínculo familiar, aunque la familia no cambie", async () => {
+    const user = userEvent.setup();
+    const handlers = {
+      onFamilyChange: vi.fn(),
+      onDueDateChange: vi.fn(),
+      onRetry: vi.fn(),
+      onAssignTariff: vi.fn(),
+      onLinkFamily: vi.fn(),
+      onAssignPayer: vi.fn(),
+      onIssue: vi.fn(),
+    };
+    const renderWorkspaceWithResetKey = (payerResetKey: number) => (
+      <OwnerMonthlyInvoiceWorkspace
+        state="ready"
+        options={options()}
+        selectedFamilyId={familyId}
+        payerResetKey={payerResetKey}
+        dueDate="2026-10-31"
+        {...handlers}
+      />
+    );
+    const view = render(renderWorkspaceWithResetKey(0));
+
+    await user.selectOptions(screen.getByLabelText("Quién paga"), payerId);
+    expect(screen.getByLabelText("Quién paga")).toHaveValue(payerId);
+
+    view.rerender(renderWorkspaceWithResetKey(1));
+
+    expect(screen.getByLabelText("Quién paga")).toHaveValue("");
+    expect(
+      screen.getByRole("button", { name: /Emitir factura pendiente/ })
+    ).toBeDisabled();
+  });
+
   it("usa canIssue y bloqueo de servidor; los unassigned avisan sin bloquear otras familias", async () => {
     const user = userEvent.setup();
     const handlers = renderWorkspace({
