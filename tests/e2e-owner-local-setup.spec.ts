@@ -307,7 +307,9 @@ test.describe("Isolated local Supabase Owner setup", () => {
     );
     expect(selectedSessionResult.rows).toHaveLength(1);
     const selectedSessionStartsAt = selectedSessionResult.rows[0].starts_at;
-    const attendance = page.getByLabel(`Asistencia de ${athleteName}`);
+    const attendance = page.getByLabel(`Asistencia de ${athleteName}`, {
+      exact: true,
+    });
     await expect(attendance).toBeVisible();
     await attendance.selectOption({ label: "Presente" });
     const attendanceResponse = page.waitForResponse(
