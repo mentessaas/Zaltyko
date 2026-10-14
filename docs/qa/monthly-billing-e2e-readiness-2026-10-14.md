@@ -2,6 +2,20 @@
 
 ## Corte vigente de integración
 
+Actualización vigente: `ce45564a` integra confirmación accesible del último
+pago y consumo/validación del JSON 201 antes de refrescar la pantalla.
+Main repitió las ocho pruebas de formulario y ruta: PASS.
+
+Chromium en `f67aae66` confirmó por UI la emisión de una cuota de 35 euros
+para una gimnasta con dos clases y recibió HTTP 201 al registrar el pago.
+La lectura del cuerpo quedó pendiente hasta el timeout: no se alcanzaron
+las comprobaciones de persistencia, dashboard, tamaños ni aislamiento.
+Los encabezados llegaron en 34,6 ms; no hay evidencia de transacción lenta.
+La posible interrupción durante el refresh es una hipótesis, no causa probada.
+QA confirmó limpieza del stack y tiene autorizada una sola corrida Chromium
+sobre `ce45564a`. No hay E2E completo PASS ni autorización de publicación
+derivada de estos resultados. Los cortes siguientes son históricos.
+
 Main `b0efe43d` integra alta real de tarifa con clases/fechas, servicio por
 gimnasta, snapshots de emisión y el spec multiclase `34c34d19`. Las afirmaciones
 de los apartados siguientes son históricas: el alta ya alcanzó Auth, bootstrap,
@@ -44,11 +58,10 @@ ambas inscripciones se reconcilian. Mantener negativos y conteos exactos.
 
 ## Veredicto
 
-**No hay E2E autenticado verde. La emisión mensual está implementada localmente,
-pero aún no se ha demostrado desde una sesión de navegador.** La última pasada
-de Chromium llega a la página de login, pero no observa la petición a Supabase
-Auth; no alcanza bootstrap de academia ni facturación. El harness y la build
-local de producción sí arrancan y limpian su entorno temporal.
+**No hay E2E completo verde.** La emisión mensual multiclase sí se ha
+demostrado desde una sesión real local de navegador. El pago recibió 201,
+pero persistencia y dashboard siguen pendientes de validación. No hay
+equivalencia demostrada con la base de datos de Preview o producción.
 
 ## Qué se ejecutó y qué quedó demostrado
 
