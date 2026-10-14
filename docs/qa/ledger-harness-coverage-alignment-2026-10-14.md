@@ -18,3 +18,22 @@ Se añadió la migración al final de la lista de cada runner, después de que e
 Validación estática ejecutada: `pnpm exec vitest run tests/ledger-harness-migration-scope.test.ts` (3/3), `bash -n` en ambos scripts, presencia del archivo de migración, Prettier en el test y esta nota, y `git diff --check`.
 
 Los harnesses PostgreSQL de ledger y stack canónico no se ejecutaron durante la ventana de QA Chromium autorizada. Por tanto, la integración de la migración en ambos PostgreSQL temporales queda pendiente de ejecución por Main tras QA; este cambio no acredita comportamiento runtime ni compatibilidad con base de datos remota.
+
+### Verificación posterior de Main
+
+Tras confirmar el runner Chromium terminal y limpieza completa, Main ejecutó
+ambos comandos sobre integración `1a16c005`, cada uno en su PostgreSQL
+desechable independiente:
+
+- `pnpm test:zaltyko-ledger-services:local`: PASS, importes esperados 30.000
+  céntimos, neto cobrado 9.000, pendiente 20.000, tres reintentos manuales,
+  tres efectos financieros, 13 auditorías y 13 eventos outbox.
+- `pnpm test:zaltyko-canonical-stack:local`: PASS, migración de cobertura
+  aplicada junto a las fundaciones, contrato SQL RLS PASS, preferencias por
+  familia/entitlement de pago/autorización/auditoría PASS. Worker: invalidación
+  idempotente, métricas recomputadas, nueve reglas P0 evaluadas, suplantación
+  del actor de sistema rechazada. Sin benchmark válido no produce score.
+
+Los procesos terminaron exit 0 con limpieza de su PostgreSQL temporal. No se
+usaron servicios remotos. Esto cierra la ejecución local pendiente de estos
+dos runners, no el walkthrough autenticado, el restore ni el release remoto.

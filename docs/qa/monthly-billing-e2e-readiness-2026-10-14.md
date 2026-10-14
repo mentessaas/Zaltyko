@@ -34,6 +34,14 @@ QA autorizado para un único Chromium sobre `b0efe43d`, conservando los negativo
 y sin sembrar cobertura; requiere informar resultado y cierre del stack antes
 de autorizar Firefox/WebKit. La variación documental posterior no cambia código.
 
+Resultado Chromium de ese SHA: FAIL en 12,2 segundos de test, después de alta,
+dos clases/inscripciones y asistencia, antes de familia/tarifa/emisión/pago.
+El locator de vincular familia resolvió dos botones para la misma gimnasta
+porque hay dos inscripciones. QA confirmó stack/volúmenes cerrados, sin nueva
+ejecución ni cambios de producto. Corrección autorizada del spec: verificar
+dos acciones iniciales, vincular una sola familia por atleta y comprobar que
+ambas inscripciones se reconcilian. Mantener negativos y conteos exactos.
+
 ## Veredicto
 
 **No hay E2E autenticado verde. La emisión mensual está implementada localmente,
