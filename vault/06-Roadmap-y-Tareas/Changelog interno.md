@@ -7,6 +7,19 @@ source:
   - ../docs/architecture/zaltyko-domain-model.md
 ---
 
+## 2026-10-14 — Límite derivado para dimensiones del historial de Health Score
+
+- En `codex/health-score-history-dimension-limit-20261014`, desde
+  `f33bd512055ff5a45921b4c79c5b5cb8cd2a054d`, la consulta secundaria limita
+  filas a `snapshotIds.length × healthDimension.enumValues.length`, usando el
+  enum de esquema existente. Conserva el filtro de organización y no ejecuta
+  consulta de dimensiones cuando la página no contiene snapshots.
+- Test focal añadido para 50 snapshots/200 dimensiones máximas, scope de
+  organización y página vacía. No requiere cambios de esquema ni migración.
+- Vitest focal 2/2, ESLint focal, Prettier del test y `git diff --check` PASS.
+  No se ejecutaron PostgreSQL, navegador/E2E, suite completa, remoto, Sandbox,
+  producción ni push.
+
 ## 2026-10-14 — Selección canónica de perfiles deportivos en bootstrap
 
 - Rama local `codex/bootstrap-canonical-sport-profile-20261014`, desde

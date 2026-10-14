@@ -18,6 +18,11 @@ Cada snapshot conserva:
 - una contribución por métrica configurada con valor, target, normalización,
   peso, cobertura, calidad, numerador, denominador y versión de fórmula.
 
+El historial pagina los snapshots y limita su lectura secundaria de dimensiones
+a `número de snapshots × valores del enum canónico health_dimension`. Así se
+cubren todas las dimensiones de cada snapshot sin depender de un tope fijo; si
+el enum incorpora una dimensión futura, el límite se ajusta con el esquema.
+
 No se copian nombres, contactos, notas médicas ni deuda individual.
 
 ## Versión `zaltyko_owner_health@1`
@@ -64,6 +69,8 @@ mercado.
 - AC-13: dos snapshots con mismo metric run, versión y perfil producen el mismo
   score, banda y cobertura; el reintento con la misma clave no duplica filas.
 - Perfil de otro tenant y actor sin membership no obtienen acceso.
+- Historial de 50 snapshots: la consulta de dimensiones queda limitada a 200
+  filas con filtro de organización; historial vacío no ejecuta esa consulta.
 
 Comandos:
 
