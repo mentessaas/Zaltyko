@@ -1,4 +1,4 @@
-import { and, asc, eq, inArray, sql } from "drizzle-orm";
+import { and, asc, eq, gt, inArray, sql } from "drizzle-orm";
 import { z } from "zod";
 
 import { db } from "@/db";
@@ -13,6 +13,7 @@ import {
 import type { TransactionClient } from "@/lib/db-transactions";
 import { OperationalError } from "@/modules/shared/domain/operational-error";
 import { assertOperationalAccess } from "@/modules/shared/infrastructure/operational-authorization";
+import { readAllKeysetPages } from "@/modules/billing/application/keyset-pagination";
 import {
   appendAuditEntry,
   appendOutboxEvent,
@@ -85,22 +86,40 @@ async function loadPricePlanCoverage(
   locationId: string,
   pricePlanId: string
 ): Promise<CanonicalCoverage[]> {
-  const rows = await tx
-    .select({
-      classTemplateId: pricePlanClassTemplateCoverage.classTemplateId,
-      startsOn: pricePlanClassTemplateCoverage.startsOn,
-      endsOn: pricePlanClassTemplateCoverage.endsOn,
-    })
-    .from(pricePlanClassTemplateCoverage)
-    .where(
-      and(
+  const rows = await readAllKeysetPages<
+    CanonicalCoverage & { cursorId: string }
+  >({
+    pageSize: 200,
+    cursorOf: (row) => row.cursorId,
+    fetchPage: (cursor, limit) => {
+      const conditions = [
         eq(pricePlanClassTemplateCoverage.organizationId, organizationId),
         eq(pricePlanClassTemplateCoverage.locationId, locationId),
-        eq(pricePlanClassTemplateCoverage.pricePlanId, pricePlanId)
-      )
-    )
-    .orderBy(asc(pricePlanClassTemplateCoverage.classTemplateId));
-  return rows;
+        eq(pricePlanClassTemplateCoverage.pricePlanId, pricePlanId),
+      ];
+      if (cursor)
+        conditions.push(gt(pricePlanClassTemplateCoverage.id, cursor));
+      return tx
+        .select({
+          cursorId: pricePlanClassTemplateCoverage.id,
+          classTemplateId: pricePlanClassTemplateCoverage.classTemplateId,
+          startsOn: pricePlanClassTemplateCoverage.startsOn,
+          endsOn: pricePlanClassTemplateCoverage.endsOn,
+        })
+        .from(pricePlanClassTemplateCoverage)
+        .where(and(...conditions))
+        .orderBy(asc(pricePlanClassTemplateCoverage.id))
+        .limit(limit);
+    },
+  });
+  return rows
+    .map(({ cursorId: _cursorId, ...coverage }) => coverage)
+    .sort(
+      (left, right) =>
+        left.classTemplateId.localeCompare(right.classTemplateId) ||
+        left.startsOn.localeCompare(right.startsOn) ||
+        (left.endsOn ?? "").localeCompare(right.endsOn ?? "")
+    );
 }
 
 function canonicalCoverage(
@@ -267,7 +286,16 @@ export async function createMonthlyPricePlan(
         )
       )
       .orderBy(asc(classTemplates.id))
+      .limit(coverage.length + 1)
       .for("update");
+    if (templateRows.length > coverage.length) {
+      throw new OperationalError(
+        "MONTHLY_INVOICE_BLOCKED",
+        "No se pudo validar la cobertura completa de plantillas; no se creó la tarifa.",
+        500,
+        { reason: "TEMPLATE_RESULT_OVERFLOW" }
+      );
+    }
     if (
       templateRows.length !== coverage.length ||
       templateRows.some((template) => template.status !== "active")
