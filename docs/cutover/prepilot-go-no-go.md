@@ -15,7 +15,7 @@ Supabase de pago se mantiene: no provisionar recursos facturables.
 | Resumen de operaciones | Servicio validado con PostgreSQL efímero real: M:N, otro tenant, fechas/DST, bruto por moneda y manager sin SELECT financiero. Tablas mínimas sintéticas, no esquema completo/RLS remoto. Walkthrough autenticado del resumen pendiente. |
 | Aceptación contractual | Backend canónico integrado: 57 pruebas focales y harness PostgreSQL real PASS, sin public.profiles. Frescura Auth, reaceptación explícita, grant concurrente único, rollback audit, RLS propia y bloqueo UPDATE/DELETE/TRUNCATE comprobados. Esquema mínimo temporal; no prueba instalación completa ni estado remoto. |
 | Analítica browser | Gate default-deny integrado; no UI de grant, no captura por defecto. No sustituye revisión integral RGPD/menores. |
-| Cuota mensual | Mensual por gimnasta y tarifa confirmado; cobertura multiclase sin decidir. No emitir cuotas reales ambiguas. |
+| Cuota mensual | ADR-0026 revisada: cobertura multiclase explícita, una línea/cargo por gimnasta; conflicto de planes/snapshots bloquea. Esquema/servicio/UI/pruebas de esta regla aún pendientes. No emitir cuotas reales con cálculo por inscripción. |
 | Release | #225 sin aprobación independiente; #226 draft. Preview no prueba compatibilidad remota ni release productivo. |
 | Backup y restore | Runbook existente; simulacro restaurable/reconciliación no verificados en este corte. |
 

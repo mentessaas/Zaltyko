@@ -36,8 +36,11 @@ sin siembra de consentimiento. La migración nueva sigue sin aplicación remota.
 
 La decisión del propietario sigue siendo **mensual por gimnasta y tarifa**.
 El código actual suma por inscripción y no demuestra todavía esa regla cuando
-hay varias clases: no emitir cuotas reales hasta definir cobertura de tarifa y
-verificar el caso multiclase, sin deduplicar importes arbitrariamente.
+hay varias clases. ADR-0026 revisada en `df610dd9` acepta cobertura explícita
+tarifa/plantilla vigente todo el mes, una línea/cargo por gimnasta y bloqueo por
+planes/snapshots incompatibles. Backend implementa primero esquema/contratos;
+servicio, UI y pruebas multiclase siguen pendientes. No emitir cuotas reales
+hasta verificar la regla, sin deduplicar importes arbitrariamente.
 
 Histórico, corte publicado `e415040a`:
 
