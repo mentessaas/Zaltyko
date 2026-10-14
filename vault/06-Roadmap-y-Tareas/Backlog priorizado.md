@@ -129,6 +129,7 @@ source:
 - **Decisión previa a KPI retention:** fecha de alta y días de gracia de pausa; riesgos individuales siguen desactivados hasta EIPD/RGPD y permisos.
 - **Siguiente P1:** UI heatmap, cohortes y filtros globales/comparativa; simulador CTA; 5.000 atletas / 2 M asistencias / 20 identidades.
 - **No-go piloto:** E2E autenticado y Supabase limpio autorizados, backup/restore ensayado, revisión de privacidad aprobada y métricas de runtime verificadas. No usar el sandbox legacy con siete academias.
+- **Corte 2026-10-14:** Chromium completo PASS; Firefox falla con `NS_BINDING_ABORTED`; WebKit compila su stack local sin resultado aún. El esquema de producción no incluye `zaltyko`; el Sandbox carece de cobertura/snapshots mensuales y consentimiento canónico. Restore/RPO/RTO siguen sin probarse. Ver [auditoría de release-gates](../../docs/qa/release-gates-schema-restore-2026-10-14.md). Sin operaciones remotas.
 - Fuente de estado: [`plan de implementación`](../../docs/plans/2026-10-06-owner-dashboard-implementation-plan.md), [`auditoría PRD`](../../docs/audits/2026-10-06-prd-completion-audit.md).
 
 ## Pendiente operativo (post-commit 352adf89) — Tracking paid acquisition
