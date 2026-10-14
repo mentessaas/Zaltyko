@@ -83,6 +83,7 @@
     "test:zaltyko-insight-engine:local": "bash scripts/run-zaltyko-insight-engine-local.sh",
     "gate:zaltyko-cutover": "tsx scripts/verify-zaltyko-cutover-boundary.ts",
     "test:zaltyko-organization-bootstrap:local": "bash scripts/run-zaltyko-organization-bootstrap-local.sh",
+    "test:owner-signup-consent:local": "bash scripts/run-owner-signup-consent-local.sh",
     "test:zaltyko-canonical-stack:local": "bash scripts/run-zaltyko-canonical-stack-local.sh",
     "check:migrations": "tsx scripts/check-migrations-integrity.ts"
   },
