@@ -6,6 +6,7 @@ import {
   assertLocalPlaywrightTarget,
   assertLocalSupabasePlaywrightTarget,
 } from "./scripts/lib/e2e-sandbox-target";
+import { localCliEntrypoint } from "./scripts/lib/local-e2e-preflight";
 
 const isLocalSupabaseRun = process.env.E2E_LOCAL_SUPABASE === "true";
 
@@ -18,7 +19,7 @@ if (!isLocalSupabaseRun) {
 
 const baseURL = process.env.BASE_URL ?? "http://127.0.0.1:3000";
 const isCI = Boolean(process.env.CI);
-const nextCli = resolve(process.cwd(), "node_modules/next/dist/bin/next");
+const nextCli = localCliEntrypoint(process.cwd(), "next");
 const quoteShellArgument = (value: string) =>
   `'${value.replace(/'/g, "'\\''")}'`;
 const nextServerCommand = `${quoteShellArgument(process.execPath)} ${quoteShellArgument(nextCli)} ${isCI || isLocalSupabaseRun ? "start" : "dev"}`;

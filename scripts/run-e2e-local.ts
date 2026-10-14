@@ -23,7 +23,7 @@ import {
 import {
   assertSupportedNodeVersion,
   findMissingImages,
-  localCliPath,
+  localNodeCliInvocation,
   REQUIRED_LOCAL_SUPABASE_IMAGES,
   resolveExecutableOnPath,
   verifyInstalledRunnerPackages,
@@ -179,8 +179,11 @@ void (async () => {
   try {
     assertSupportedNodeVersion(process.versions.node);
     verifyInstalledRunnerPackages(root);
-    const nextCli = localCliPath(root, "next");
-    const playwrightCli = localCliPath(root, "playwright");
+    const nextBuild = localNodeCliInvocation(root, "next", ["build"]);
+    const playwrightCli = localNodeCliInvocation(root, "playwright", [
+      "test",
+      "tests/e2e-owner-local-setup.spec.ts",
+    ]);
     supabaseCli = resolveExecutableOnPath("supabase", safeEnvironment.PATH);
     const dockerCli = resolveExecutableOnPath("docker", safeEnvironment.PATH);
     verifySupabaseCliBinary(supabaseCli);
@@ -300,20 +303,20 @@ void (async () => {
       "Building the app against the disposable local Supabase stack."
     );
     await run(
-      process.execPath,
-      [nextCli, "build"],
+      nextBuild.command,
+      nextBuild.args,
       { ...childEnv, NODE_ENV: "production" },
       LOCAL_E2E_TIMEOUTS.build,
       abortController.signal
     );
 
-    const playwrightArgs = ["test", "tests/e2e-owner-local-setup.spec.ts"];
+    const playwrightArgs = playwrightCli.args;
     if (process.env.E2E_LOCAL_PROJECT) {
       playwrightArgs.push("--project", process.env.E2E_LOCAL_PROJECT);
     }
 
     const result = await runAllowExitCode(
-      playwrightCli,
+      playwrightCli.command,
       playwrightArgs,
       childEnv,
       LOCAL_E2E_TIMEOUTS.browser,

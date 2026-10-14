@@ -20,6 +20,10 @@ Base: `ae3e7b6e727a8613dc514cd6c7db1b6c1017149e`
 - En HTML local, el guard reescribe solo documentos servidos desde el origen
   local de la app y elimina hints `preconnect`/`dns-prefetch` a orígenes no
   permitidos. Conserva hints al origen local de Supabase.
+- Follow-up launcher: Next y Playwright resuelven el `bin` desde el manifiesto
+  del paquete instalado y se ejecutan como `process.execPath <entrypoint.js>`.
+  El `webServer` usa el mismo entrypoint JavaScript de Next. Mocks comprueban que
+  el argumento de Node es el archivo real del paquete y nunca `node_modules/.bin`.
 - El guard HTTP de Playwright no demuestra aislamiento egress completo: no
   prueba DNS/TLS especulativo, tráfico del servidor, sockets ni otros canales.
   Quitar hints HTML conocidos reduce una vía observada, pero no equivale a una
@@ -38,6 +42,8 @@ ejecutó en QA59.
 ## Verificación de esta pasada
 
 - Tests mock focales: 5 archivos, 35/35 tests PASS.
+- Follow-up launcher: 3 archivos, 23/23 tests mock PASS; TypeScript, ESLint
+  focal, Prettier y `git diff --check` PASS.
 - `./node_modules/.bin/tsc --noEmit`: PASS.
 - ESLint focal, Prettier `--check` y `git diff --check`: PASS.
 - No se inició Docker/Supabase ni se ejecutó build, Playwright/E2E,

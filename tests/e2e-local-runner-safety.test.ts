@@ -26,8 +26,19 @@ describe("local E2E runner wiring", () => {
 
   it("uses lockfile-installed CLIs directly and preflights images before start", () => {
     expect(runnerSource).toContain("verifyInstalledRunnerPackages(root)");
-    expect(runnerSource).toContain("process.execPath");
-    expect(runnerSource).toContain('localCliPath(root, "playwright")');
+    expect(runnerSource).toContain('localNodeCliInvocation(root, "playwright"');
+    expect(runnerSource).toContain('localNodeCliInvocation(root, "next"');
+    expect(runnerSource).toContain(
+      "runAllowExitCode(\n      playwrightCli.command"
+    );
+    expect(runnerSource).toContain("run(\n      nextBuild.command");
+    expect(playwrightConfigSource).toContain(
+      'localCliEntrypoint(process.cwd(), "next")'
+    );
+    expect(playwrightConfigSource).toContain(
+      "quoteShellArgument(process.execPath)"
+    );
+    expect(playwrightConfigSource).toContain("quoteShellArgument(nextCli)");
     expect(runnerSource).not.toContain('run("pnpm"');
     expect(runnerSource).not.toContain('spawnSync("pnpm"');
     expect(

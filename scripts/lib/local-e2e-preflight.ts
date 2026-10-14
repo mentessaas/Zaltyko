@@ -1,6 +1,6 @@
 import { createHash } from "node:crypto";
 import { accessSync, constants, existsSync, readFileSync } from "node:fs";
-import { join, resolve } from "node:path";
+import { join, relative, resolve, sep } from "node:path";
 
 export const SUPPORTED_SUPABASE_CLI_VERSION = "2.84.2";
 export const SUPPORTED_SUPABASE_CLI_SHA256 =
@@ -24,11 +24,7 @@ export const REQUIRED_LOCAL_SUPABASE_IMAGES = [
   "public.ecr.aws/supabase/edge-runtime:v1.73.0",
 ] as const;
 
-const runnerPackages = [
-  { name: "next", bin: "next" },
-  { name: "playwright", bin: "playwright" },
-  { name: "tsx", bin: "tsx" },
-] as const;
+const runnerPackages = ["next", "playwright", "tsx"] as const;
 
 function escapeRegExp(value: string): string {
   return value.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
@@ -36,45 +32,27 @@ function escapeRegExp(value: string): string {
 
 export function verifyInstalledRunnerPackages(root: string): void {
   const lockfile = readFileSync(join(root, "pnpm-lock.yaml"), "utf8");
-  for (const entry of runnerPackages) {
-    const packagePath = resolve(
-      root,
-      "node_modules",
-      entry.name,
-      "package.json"
-    );
-    const binPath = resolve(
-      root,
-      "node_modules",
-      ".bin",
-      process.platform === "win32" ? `${entry.bin}.cmd` : entry.bin
-    );
-    if (!existsSync(packagePath) || !existsSync(binPath)) {
+  for (const name of runnerPackages) {
+    const packagePath = resolve(root, "node_modules", name, "package.json");
+    if (!existsSync(packagePath)) {
       throw new Error(
-        `Required local ${entry.bin} CLI is missing; refusing package-manager installation.`
+        `Required local ${name} package is missing; refusing package-manager installation.`
       );
-    }
-    try {
-      accessSync(binPath, constants.X_OK);
-    } catch {
-      if (process.platform !== "win32") {
-        throw new Error(`Required local ${entry.bin} CLI is not executable.`);
-      }
     }
     const version = (
       JSON.parse(readFileSync(packagePath, "utf8")) as { version?: string }
     ).version;
-    if (!version)
-      throw new Error(`Could not read installed ${entry.name} version.`);
+    if (!version) throw new Error(`Could not read installed ${name} version.`);
     const lockPattern = new RegExp(
-      `^  ${escapeRegExp(entry.name)}@${escapeRegExp(version)}(?:[:(])`,
+      `^  ${escapeRegExp(name)}@${escapeRegExp(version)}(?:[:(])`,
       "m"
     );
     if (!lockPattern.test(lockfile)) {
       throw new Error(
-        `Installed ${entry.name}@${version} does not match pnpm-lock.yaml; refusing to run.`
+        `Installed ${name}@${version} does not match pnpm-lock.yaml; refusing to run.`
       );
     }
+    localCliEntrypoint(root, name);
   }
 }
 
@@ -138,15 +116,49 @@ export function findMissingImages(
   return requiredImages.filter((image) => !installed.has(image));
 }
 
-export function localCliPath(
+export type LocalRunnerPackage = "next" | "playwright" | "tsx";
+
+export function localCliEntrypoint(
   root: string,
-  name: "next" | "playwright"
+  name: LocalRunnerPackage
 ): string {
-  const cliPath = resolve(root, "node_modules", ".bin", name);
-  if (!existsSync(cliPath)) {
+  const packageDirectory = resolve(root, "node_modules", name);
+  const packagePath = join(packageDirectory, "package.json");
+  if (!existsSync(packagePath)) {
     throw new Error(
-      `Required local ${name} CLI is missing; refusing to install it.`
+      `Required local ${name} package is missing; refusing to install it.`
     );
   }
+  const manifest = JSON.parse(readFileSync(packagePath, "utf8")) as {
+    bin?: string | Record<string, string>;
+  };
+  const entrypoint =
+    typeof manifest.bin === "string" ? manifest.bin : manifest.bin?.[name];
+  if (!entrypoint) {
+    throw new Error(
+      `Installed ${name} package does not declare its CLI entrypoint.`
+    );
+  }
+  const cliPath = resolve(packageDirectory, entrypoint);
+  const relativePath = relative(packageDirectory, cliPath);
+  if (
+    !relativePath ||
+    relativePath === ".." ||
+    relativePath.startsWith(`..${sep}`) ||
+    !existsSync(cliPath)
+  ) {
+    throw new Error(`Installed ${name} CLI entrypoint is invalid or missing.`);
+  }
   return cliPath;
+}
+
+export function localNodeCliInvocation(
+  root: string,
+  name: LocalRunnerPackage,
+  args: string[]
+): { command: string; args: string[] } {
+  return {
+    command: process.execPath,
+    args: [localCliEntrypoint(root, name), ...args],
+  };
 }

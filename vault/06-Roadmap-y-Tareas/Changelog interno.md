@@ -12066,3 +12066,13 @@ Modelo separado, reclamación manual, administración, importación revisada, fi
 - Tests mock focales: 35/35; TypeScript, ESLint focal, Prettier y diff check
   PASS. Sin Docker/Supabase, build, E2E,
   PostgreSQL, contenedores ni red en esta pasada.
+
+## 2026-10-15 — QA59 follow-up: dispatcher Node para Next y Playwright
+
+- En `codex/a2-local-owner-e2e-safety-20261014`, el harness resuelve los bins
+  `next` y `playwright` desde el `package.json` instalado y pasa sus entrypoints
+  JavaScript a `process.execPath`; ya no ejecuta los shims `.bin`. El
+  `webServer` de Playwright resuelve Next del mismo modo.
+- Mocks focales: 23/23; TypeScript, ESLint focal, Prettier y diff check PASS.
+  Sin build, browsers, Docker, Supabase, PostgreSQL ni E2E. La ejecución local
+  sigue pendiente de autorización del flujo principal.
