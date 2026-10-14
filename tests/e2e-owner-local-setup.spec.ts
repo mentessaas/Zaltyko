@@ -361,9 +361,16 @@ test.describe("Isolated local Supabase Owner setup", () => {
     const associationData = (await associationResult.json()) as {
       data: { familyId: string };
     };
-    await page
-      .getByRole("combobox", { name: "Familia", exact: true })
-      .selectOption({ value: associationData.data.familyId });
+    const familySelect = page.getByRole("combobox", {
+      name: "Familia",
+      exact: true,
+    });
+    await expect(familySelect).toHaveValue(associationData.data.familyId);
+    const payerSelect = page.getByRole("combobox", {
+      name: "Quién paga",
+      exact: true,
+    });
+    await expect(payerSelect).toHaveValue("");
     await expect(
       page.getByRole("button", {
         name: `Asignar tarifa mensual a ${athleteName}`,
@@ -400,9 +407,7 @@ test.describe("Isolated local Supabase Owner setup", () => {
     );
     await page.getByRole("button", { name: "Guardar tarifa" }).click();
     expect((await tariffAssignment).ok()).toBe(true);
-    await page
-      .getByRole("combobox", { name: "Quién paga", exact: true })
-      .selectOption({ label: adultName });
+    await payerSelect.selectOption({ label: adultName });
     await expect(page.getByText("Total de la factura")).toBeVisible();
     await expect(
       page
