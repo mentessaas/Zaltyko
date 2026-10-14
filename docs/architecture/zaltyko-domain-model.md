@@ -47,6 +47,10 @@
 - una sesión tiene fin posterior a inicio y capacidad positiva;
 - historial de inscripción y outbox usan claves idempotentes;
 - tutor, contacto, permiso familiar y pagador son relaciones separadas;
+- al asociar atletas a una familia, la validación de sede cuenta IDs distintos
+  con al menos una inscripción `pending`/`active` en la organización y sede;
+  el join M:N usa `DISTINCT` y limita por el número de IDs únicos solicitados;
+  el conjunto resultante debe cubrir la solicitud completa;
 - `price_plans` son precios de clases de la academia; nunca representan la
   suscripción SaaS. `organization_saas_subscriptions` es la proyección del
   proveedor, `organization_entitlements` el plan efectivo y
