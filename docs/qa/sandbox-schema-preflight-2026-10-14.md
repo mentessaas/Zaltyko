@@ -1,5 +1,18 @@
 # Preflight de esquema para Zaltyko E2E Sandbox — 14-10-2026
 
+## Actualización de integración local
+
+Main integró el preflight de solo lectura en `44dcc7f2`. Validación posterior:
+10 pruebas focales PASS, `tsc --noEmit` exit 0 y ejecución estática de
+`pnpm e2e:schema-delta:preflight` exit 0. Esta última devuelve explícitamente
+`NO_VERIFICADO`: no se utilizó `--connect` ni se consultó la base remota.
+La dependencia compartida `btree_gist` no se atribuye a una delta pendiente;
+triggers y policies de consentimiento pertenecen a su propia migración.
+
+El restore sintético ya pasó también en PostgreSQL **17.11**; la referencia
+a PostgreSQL 14 más abajo describe el corte histórico de este informe.
+Esto no demuestra backup/restauración del Sandbox real ni autoriza su DDL.
+
 ## Resultado
 
 **NO-GO para DDL remoto por ahora.** La base del Sandbox sí está reconciliada:
