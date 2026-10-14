@@ -437,6 +437,7 @@ export async function searchGroupAthleteOptions(input: {
                 inArray(groupMemberships.status, [...openMembershipStatuses])
               )
             )
+            .limit(1)
         )
       )
     )

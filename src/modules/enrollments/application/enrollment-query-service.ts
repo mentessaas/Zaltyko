@@ -399,6 +399,7 @@ export async function searchOwnerEnrollmentCandidates(input: {
           inArray(groups.locationId, targetLocationIds)
         )
       )
+      .limit(1)
   );
   const hasOpenEnrollmentAtLocation = exists(
     db
@@ -412,6 +413,7 @@ export async function searchOwnerEnrollmentCandidates(input: {
           inArray(enrollments.status, [...openEnrollmentStatuses])
         )
       )
+      .limit(1)
   );
   const alreadyInTargetClass = not(
     exists(
@@ -426,6 +428,7 @@ export async function searchOwnerEnrollmentCandidates(input: {
             inArray(enrollments.status, [...openEnrollmentStatuses])
           )
         )
+        .limit(1)
     )
   );
 
