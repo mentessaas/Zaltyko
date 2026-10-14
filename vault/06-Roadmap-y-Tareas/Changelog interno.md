@@ -12051,3 +12051,18 @@ Modelo separado, reclamación manual, administración, importación revisada, fi
   - `git diff --check` — PASS.
 - `PgDialect.sqlToQuery` valida SQL y parámetros; `pg/lib/utils.prepareValue` valida la serialización local del array. Eso, y los mocks, **no es una ejecución PostgreSQL**: siguen sin verificarse aislamiento Repeatable Read efectivo ante cambios concurrentes, orden real de locks entre workers, replay/transacción y equivalencia agregada del CTE con datos.
 - **NO-GO** hasta verificación PostgreSQL local sintética y E2E autenticado del flujo. No se ejecutaron PostgreSQL, E2E/browser, suite completa, Sandbox, remoto ni producción en esta tarea documental. Detalle: [`retention-projections-runtime-gate-2026-10-14.md`](../../docs/qa/retention-projections-runtime-gate-2026-10-14.md).
+
+## 2026-10-15 — QA59: límites del harness Owner E2E local
+
+- En rama local `codex/a2-local-owner-e2e-safety-20261014`, la prevalidación
+  resuelve y fija un Docker Unix socket local; el cleanup termina el grupo de
+  procesos aunque el líder cierre antes y preserva el directorio si no confirma
+  la salida. La suite local bloquea service workers y elimina hints externos
+  conocidos de HTML local. No se cambia código de producto.
+- La ruta de requests HTTP de Playwright no acredita egress cero: DNS/TLS
+  especulativo, tráfico server-side y otros canales quedan fuera. Aislamiento
+  efectivo requeriría una frontera de red aparte. Detalle y comando directo sin
+  pnpm: [`local-owner-e2e-safety-2026-10-15.md`](../../docs/qa/local-owner-e2e-safety-2026-10-15.md).
+- Tests mock focales: 35/35; TypeScript, ESLint focal, Prettier y diff check
+  PASS. Sin Docker/Supabase, build, E2E,
+  PostgreSQL, contenedores ni red en esta pasada.

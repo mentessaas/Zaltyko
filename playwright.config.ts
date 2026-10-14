@@ -84,7 +84,9 @@ export default defineConfig({
   ],
   use: {
     baseURL,
-    ...(isPublicReadOnlyRun ? { serviceWorkers: "block" as const } : {}),
+    ...(isPublicReadOnlyRun || isLocalSupabaseRun
+      ? { serviceWorkers: "block" as const }
+      : {}),
     navigationTimeout: 60_000,
     trace: "retain-on-failure",
     screenshot: "only-on-failure",

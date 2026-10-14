@@ -17,6 +17,7 @@ import {
   createTerminationHandler,
   LOCAL_E2E_TIMEOUTS,
   LocalCommandError,
+  ProcessGroupCleanupError,
   runLocalCommand,
 } from "./lib/local-e2e-runner-core";
 import {
@@ -28,6 +29,7 @@ import {
   verifyInstalledRunnerPackages,
   verifySupabaseCliBinary,
 } from "./lib/local-e2e-preflight";
+import { resolveLocalDockerEndpoint } from "./lib/local-docker-endpoint";
 import {
   E2E_DOMAIN_MIGRATIONS,
   E2E_LOCAL_OWNER_MONTHLY_TARIFF_MIGRATIONS,
@@ -95,6 +97,7 @@ async function run(
     return result.stdout;
   } catch (error) {
     if (error instanceof LocalCommandError) {
+      if (error instanceof ProcessGroupCleanupError) throw error;
       throw formatCommandError(command, error);
     }
     throw error;
@@ -161,6 +164,8 @@ void (async () => {
   let stackStartAttempted = false;
   let testExitCode = 1;
   let supabaseCli: string | undefined;
+  let dockerEnvironment: NodeJS.ProcessEnv | undefined;
+  let preserveProjectDirectory = false;
   let receivedSignal: NodeJS.Signals | undefined;
   const abortController = new AbortController();
   const signalHandler = createTerminationHandler(abortController, (signal) => {
@@ -179,10 +184,20 @@ void (async () => {
     supabaseCli = resolveExecutableOnPath("supabase", safeEnvironment.PATH);
     const dockerCli = resolveExecutableOnPath("docker", safeEnvironment.PATH);
     verifySupabaseCliBinary(supabaseCli);
+    const dockerEndpoint = resolveLocalDockerEndpoint({
+      dockerHost: process.env.DOCKER_HOST,
+      dockerContext: process.env.DOCKER_CONTEXT,
+      dockerConfig: process.env.DOCKER_CONFIG,
+      home: safeEnvironment.HOME,
+    });
+    dockerEnvironment = {
+      ...safeEnvironment,
+      DOCKER_HOST: dockerEndpoint,
+    };
     await run(
       dockerCli,
       ["info", "--format", "{{.ServerVersion}}"],
-      safeEnvironment as NodeJS.ProcessEnv,
+      dockerEnvironment,
       LOCAL_E2E_TIMEOUTS.preflight,
       abortController.signal
     );
@@ -190,7 +205,7 @@ void (async () => {
       await run(
         dockerCli,
         ["image", "ls", "--format", "{{.Repository}}:{{.Tag}}"],
-        safeEnvironment as NodeJS.ProcessEnv,
+        dockerEnvironment,
         LOCAL_E2E_TIMEOUTS.preflight,
         abortController.signal
       )
@@ -241,7 +256,7 @@ void (async () => {
     await run(
       supabaseCli,
       localProject(["start", "--exclude", "supavisor"]),
-      undefined,
+      dockerEnvironment,
       LOCAL_E2E_TIMEOUTS.setup,
       abortController.signal
     );
@@ -250,7 +265,7 @@ void (async () => {
       await run(
         supabaseCli,
         localProject(["status", "-o", "env"]),
-        undefined,
+        dockerEnvironment,
         LOCAL_E2E_TIMEOUTS.setup,
         abortController.signal
       )
@@ -307,6 +322,9 @@ void (async () => {
     );
     testExitCode = result.status ?? 1;
   } catch (error) {
+    if (error instanceof ProcessGroupCleanupError) {
+      preserveProjectDirectory = true;
+    }
     const message =
       error instanceof Error ? error.message : "Unknown local E2E error.";
     console.error(message);
@@ -314,11 +332,12 @@ void (async () => {
   } finally {
     const cleanup = await cleanupLocalProject({
       startAttempted: stackStartAttempted,
+      preserveProjectDirectory,
       stop: async () => {
         await run(
           supabaseCli!,
           localProject(["stop", "--no-backup"]),
-          undefined,
+          dockerEnvironment!,
           LOCAL_E2E_TIMEOUTS.stop
         );
         console.log(

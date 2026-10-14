@@ -13,6 +13,7 @@ import {
   createTerminationHandler,
   LOCAL_E2E_TIMEOUTS,
   LocalCommandError,
+  ProcessGroupCleanupError,
   runLocalCommand,
   terminateProcessGroup,
   type LocalSpawn,
@@ -151,6 +152,106 @@ describe("local E2E runner process safety", () => {
     await expect(promise).rejects.toThrow("exceeded its 10 ms timeout");
   });
 
+  it("keeps cleanup active when the leader closes before its descendant", async () => {
+    vi.useFakeTimers();
+    const child = fakeChild(92);
+    const spawnMock = vi.fn(
+      () => child as unknown as ChildProcess
+    ) as unknown as LocalSpawn;
+    let groupAlive = true;
+    const killGroup = vi.fn((_pid: number, signal: NodeJS.Signals) => {
+      if (signal === "SIGKILL") groupAlive = false;
+    });
+    const probeGroup = vi.fn(() => {
+      if (!groupAlive)
+        throw Object.assign(new Error("gone"), { code: "ESRCH" });
+    });
+    const promise = runLocalCommand(
+      "node",
+      ["leader-with-descendant.js"],
+      { cwd: "/tmp", env: {}, timeoutMs: 10_000 },
+      spawnMock,
+      killGroup,
+      probeGroup
+    );
+
+    child.emit("close", 0, null);
+    expect(killGroup).toHaveBeenNthCalledWith(1, -92, "SIGTERM");
+    await vi.advanceTimersByTimeAsync(LOCAL_E2E_TIMEOUTS.terminateGrace);
+
+    await expect(promise).resolves.toMatchObject({ status: 0 });
+    expect(killGroup).toHaveBeenNthCalledWith(2, -92, "SIGKILL");
+    expect(probeGroup).toHaveBeenCalledTimes(3);
+  });
+
+  it("reports signal errors after killing the remaining group", async () => {
+    vi.useFakeTimers();
+    const child = fakeChild(93);
+    const spawnMock = vi.fn(
+      () => child as unknown as ChildProcess
+    ) as unknown as LocalSpawn;
+    let groupAlive = true;
+    const killGroup = vi.fn((_pid: number, signal: NodeJS.Signals) => {
+      if (signal === "SIGTERM") {
+        throw Object.assign(new Error("permission denied"), { code: "EPERM" });
+      }
+      groupAlive = false;
+    });
+    const probeGroup = vi.fn(() => {
+      if (!groupAlive)
+        throw Object.assign(new Error("gone"), { code: "ESRCH" });
+    });
+    const promise = runLocalCommand(
+      "supabase",
+      ["start"],
+      { cwd: "/tmp", env: {}, timeoutMs: 10 },
+      spawnMock,
+      killGroup,
+      probeGroup
+    );
+    const rejection = expect(promise).rejects.toMatchObject({
+      name: LocalCommandError.name,
+      message: expect.stringContaining("signal error EPERM"),
+    });
+
+    await vi.advanceTimersByTimeAsync(10);
+    child.emit("close", null, "SIGTERM");
+    await vi.advanceTimersByTimeAsync(LOCAL_E2E_TIMEOUTS.terminateGrace);
+
+    await rejection;
+    expect(killGroup).toHaveBeenNthCalledWith(2, -93, "SIGKILL");
+    expect(probeGroup).toHaveBeenCalled();
+  });
+
+  it("surfaces a cleanup error when SIGKILL cannot remove the process group", async () => {
+    vi.useFakeTimers();
+    const child = fakeChild(94);
+    const spawnMock = vi.fn(
+      () => child as unknown as ChildProcess
+    ) as unknown as LocalSpawn;
+    const killGroup = vi.fn();
+    const probeGroup = vi.fn();
+    const promise = runLocalCommand(
+      "node",
+      ["stuck-descendant.js"],
+      { cwd: "/tmp", env: {}, timeoutMs: 10 },
+      spawnMock,
+      killGroup,
+      probeGroup
+    );
+    const rejection = expect(promise).rejects.toBeInstanceOf(
+      ProcessGroupCleanupError
+    );
+
+    await vi.advanceTimersByTimeAsync(10);
+    child.emit("close", null, "SIGTERM");
+    await vi.advanceTimersByTimeAsync(LOCAL_E2E_TIMEOUTS.terminateGrace);
+    await vi.advanceTimersByTimeAsync(LOCAL_E2E_TIMEOUTS.terminateGrace);
+
+    await rejection;
+    expect(killGroup).toHaveBeenNthCalledWith(2, -94, "SIGKILL");
+  });
+
   it("removes a successful project after stopping the exact stack", async () => {
     const stop = vi.fn().mockResolvedValue(undefined);
     const removeProject = vi.fn();
@@ -193,6 +294,20 @@ describe("local E2E runner process safety", () => {
     expect(removeProject).toHaveBeenCalledOnce();
     expect(unstarted.preserveProjectDirectory).toBe(false);
     expect(stop).toHaveBeenCalledOnce();
+  });
+
+  it("preserves project files when a child process group may still exist", async () => {
+    const removeProject = vi.fn();
+    const result = await cleanupLocalProject({
+      startAttempted: true,
+      preserveProjectDirectory: true,
+      stop: vi.fn().mockResolvedValue(undefined),
+      removeProject,
+      onStopError: vi.fn(),
+    });
+
+    expect(result.preserveProjectDirectory).toBe(true);
+    expect(removeProject).not.toHaveBeenCalled();
   });
 
   it("uses negative process IDs to signal only the detached process group", () => {

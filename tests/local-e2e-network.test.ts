@@ -5,20 +5,24 @@ import {
   classifyLocalE2ERequest,
   HIBP_FIXTURE_BODY,
   installLocalE2ENetworkGuard,
+  stripExternalResourceHints,
   validateHibpFixtureResponse,
 } from "./support/local-e2e-network";
 
 function fakeRoute(input: {
   url: string;
   method?: string;
+  resourceType?: string;
   headers?: Record<string, string>;
 }) {
   const route = {
     request: () => ({
       url: () => input.url,
       method: () => input.method ?? "GET",
+      resourceType: () => input.resourceType ?? "image",
       allHeaders: async () => input.headers ?? {},
     }),
+    fetch: vi.fn(),
     continue: vi.fn().mockResolvedValue(undefined),
     fulfill: vi.fn().mockResolvedValue(undefined),
     abort: vi.fn().mockResolvedValue(undefined),
@@ -125,5 +129,58 @@ describe("local browser network guard", () => {
     expect(() => validateHibpFixtureResponse("malformed response")).toThrow(
       "valid zero-count range row"
     );
+  });
+
+  it("strips external resource hints while preserving allowed local hints", () => {
+    const html = `<html><head>
+      <link rel="preconnect" href="https://js.stripe.com">
+      <link href="https://api.stripe.com" rel="preconnect">
+      <link rel="dns-prefetch" href="//example.invalid">
+      <link rel="preconnect" href="http://127.0.0.1:54321">
+      <link rel="stylesheet" href="https://example.invalid/app.css">
+    </head></html>`;
+
+    const result = stripExternalResourceHints(
+      html,
+      new Set(["http://127.0.0.1:54321"])
+    );
+
+    expect(result).not.toContain("https://js.stripe.com");
+    expect(result).not.toContain("https://api.stripe.com");
+    expect(result).not.toContain('rel="dns-prefetch"');
+    expect(result).toContain('href="http://127.0.0.1:54321"');
+    expect(result).toContain('rel="stylesheet"');
+  });
+
+  it("rewrites only local HTML documents before browser delivery", async () => {
+    const { context, handler } = fakeContext();
+    await installLocalE2ENetworkGuard(context, {
+      baseUrl: "http://127.0.0.1:43123",
+      supabaseUrl: "http://127.0.0.1:54321",
+    });
+    const route = fakeRoute({
+      url: "http://127.0.0.1:43123/owner",
+      resourceType: "document",
+    });
+    route.fetch.mockResolvedValue({
+      headers: () => ({
+        "content-type": "text/html; charset=utf-8",
+        "content-length": "100",
+        "content-encoding": "gzip",
+      }),
+      text: async () =>
+        '<html><link rel="preconnect" href="https://js.stripe.com"></html>',
+    });
+
+    await handler()(route);
+
+    expect(route.fetch).toHaveBeenCalledOnce();
+    expect(route.fulfill).toHaveBeenCalledWith(
+      expect.objectContaining({
+        headers: { "content-type": "text/html; charset=utf-8" },
+        body: "<html></html>",
+      })
+    );
+    expect(route.continue).not.toHaveBeenCalled();
   });
 });

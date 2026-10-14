@@ -195,13 +195,8 @@ test.describe("Isolated local Supabase Owner setup", () => {
     await expect(
       page.getByRole("heading", { name: "Crea tu cuenta" })
     ).toBeVisible();
-    await page.waitForFunction(
-      () =>
-        "serviceWorker" in navigator &&
-        Boolean(navigator.serviceWorker.controller),
-      undefined,
-      { timeout: 30_000 }
-    );
+    // El runner local bloquea service workers para que la ruta Playwright
+    // observe las solicitudes. Esta suite no valida el comportamiento del SW.
     expect(
       await page.evaluate(
         () => performance.getEntriesByType("navigation")[0]?.type

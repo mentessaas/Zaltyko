@@ -27,6 +27,33 @@ export function validateHibpFixtureResponse(body: string): void {
   }
 }
 
+/** Remove only external DNS/preconnect hints from a locally-served HTML document. */
+export function stripExternalResourceHints(
+  html: string,
+  allowedOrigins: ReadonlySet<string>
+): string {
+  return html.replace(/<link\b[^>]*>/gi, (tag) => {
+    const rel = tag
+      .match(/\brel\s*=\s*(["'])(.*?)\1/i)?.[2]
+      ?.toLowerCase()
+      .split(/\s+/);
+    if (
+      !rel?.some((value) => value === "preconnect" || value === "dns-prefetch")
+    ) {
+      return tag;
+    }
+    const href = tag.match(/\bhref\s*=\s*(["'])(.*?)\1/i)?.[2];
+    if (!href) return tag;
+    try {
+      return allowedOrigins.has(new URL(href, "http://local.invalid").origin)
+        ? tag
+        : "";
+    } catch {
+      return tag;
+    }
+  });
+}
+
 export function classifyLocalE2ERequest(
   request: RequestInput,
   allowedOrigins: ReadonlySet<string>
@@ -103,6 +130,31 @@ export async function installLocalE2ENetworkGuard(
       allowedOrigins
     );
     if (decision.kind === "allow") {
+      const requestUrl = new URL(request.url());
+      const appOrigin = localOrigin(input.baseUrl, "Browser base URL");
+      if (
+        request.method() === "GET" &&
+        request.resourceType() === "document" &&
+        requestUrl.origin === appOrigin
+      ) {
+        const response = await route.fetch();
+        const contentType = response.headers()["content-type"] ?? "";
+        if (contentType.toLowerCase().includes("text/html")) {
+          const headers = { ...response.headers() };
+          delete headers["content-length"];
+          delete headers["content-encoding"];
+          delete headers["transfer-encoding"];
+          await route.fulfill({
+            response,
+            headers,
+            body: stripExternalResourceHints(
+              await response.text(),
+              allowedOrigins
+            ),
+          });
+          return;
+        }
+      }
       await route.continue();
       return;
     }
