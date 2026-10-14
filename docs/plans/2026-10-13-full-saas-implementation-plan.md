@@ -10,7 +10,10 @@ Este corte prevalece sobre los estados históricos fechados que aparecen abajo.
 El alcance completo del SaaS se mantiene; issue #227 define la primera entrega
 demostrable, no la finalización del producto.
 
-Último corte publicado: `48d72dcc` (14-10-2026), PR #226 DRAFT y REVIEW_REQUIRED.
+Último corte publicado: `63d97a24` (14-10-2026), PR #226 DRAFT y REVIEW_REQUIRED.
+Añade el selector exacto de asistencia y la decisión multiclase; nueva CI
+`38489363325` en ejecución. El Preview READY siguiente corresponde aún al
+corte anterior `48d72dcc`, no a este nuevo commit.
 Incluye Backend canónico ADR-0027, alta/recuperación sin perfil legacy,
 Setup con requisito contractual del servidor y runner E2E con migración solo
 local. CI `38488365005` en ejecución al corte. Vercel/GitHub registran Preview
@@ -40,6 +43,14 @@ bootstrap/replay y consentimiento canónico único, grupo/gimnasta/clase e
 inscripción activa; se detuvo en asistencia por un selector ambiguo del spec.
 Corrección QA `76691165` integrada; repetición única autorizada después de
 confirmar proceso terminal y limpieza. No full walkthrough PASS todavía.
+Segunda ejecución Chromium confirmó también asistencia; fallo posterior del
+spec por esperar tarifa sin seleccionar antes la familia. Trace confirma
+asociación guardada y familia disponible. Orden corregido en `2aaad4ae`,
+integrado localmente; nueva ejecución autorizada tras limpieza terminal.
+
+Vista previa local segura integrada en `6d2280b4`: DTO sintético, submit
+forzado no envía y guard de producción conserva 404. Tres suites Main pasan
+11 pruebas; comprobación visual/Axe en navegador todavía pendiente.
 La migración nueva sigue sin aplicación remota.
 
 La decisión del propietario sigue siendo **mensual por gimnasta y tarifa**.
