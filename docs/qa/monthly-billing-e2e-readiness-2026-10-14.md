@@ -2,6 +2,13 @@
 
 ## Corte vigente de integración
 
+Firefox en `d6ac32654c0faa506212cb1eb21a677207069947`: **PASS**,
+1/1 en 54,9 segundos, exit 0 y cleanup confirmado. Incluye el bypass RSC
+del service worker, probado además con 13 tests unitarios PASS en Main.
+Esto no demuestra la causa raíz de los abortos de navegación anteriores.
+Chromium y WebKit tienen autorizada una ejecución secuencial cada uno sobre
+ese mismo SHA para homogeneizar el candidato, todavía pendientes.
+
 WebKit en `0e145bb0`: **PASS**, 1/1 prueba en 30,7 segundos, todos los
 gates seriales y cleanup confirmados. Firefox sigue pendiente: el diagnóstico
 del fallo anterior no demuestra causa. Instrumentación de navegación limitada
