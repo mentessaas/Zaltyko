@@ -21,6 +21,29 @@ type PaymentRequest = {
   receivedAt: string;
 };
 
+function isMatchingManualPaymentResponse(
+  value: unknown,
+  request: PaymentRequest
+): boolean {
+  if (!value || typeof value !== "object") return false;
+  const response = value as { ok?: unknown; data?: unknown };
+  if (!response.data || typeof response.data !== "object") return false;
+  const data = response.data as {
+    chargeId?: unknown;
+    amountCents?: unknown;
+    method?: unknown;
+    receivedAt?: unknown;
+  };
+
+  return (
+    response.ok === true &&
+    data.chargeId === request.chargeId &&
+    data.amountCents === request.amountCents &&
+    data.method === request.method &&
+    data.receivedAt === request.receivedAt
+  );
+}
+
 function formatMoney(cents: number, currency: string): string {
   try {
     return new Intl.NumberFormat("es-ES", {
@@ -119,6 +142,17 @@ export function ManualPaymentForm({
         return;
       }
 
+      const result: unknown = await response.json();
+      if (
+        response.status !== 201 ||
+        !isMatchingManualPaymentResponse(result, body)
+      ) {
+        setError(
+          "No sabemos si se guardó. Reintenta este mismo envío; la clave segura evita duplicarlo."
+        );
+        return;
+      }
+
       setRetryRequest(null);
       setSaved(true);
       setAmount("");
@@ -171,6 +205,14 @@ export function ManualPaymentForm({
           Cuando la academia tenga un cargo abierto, podrás registrar aquí el
           dinero que ya hayas recibido y dejarlo conciliado en un solo paso.
         </p>
+        {saved && (
+          <p
+            role="status"
+            className="mt-4 rounded-xl border border-emerald-300 bg-emerald-50 px-4 py-3 text-sm font-semibold text-emerald-950"
+          >
+            Pago guardado y asignado al cargo.
+          </p>
+        )}
       </div>
     );
   }
