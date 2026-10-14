@@ -8,6 +8,7 @@ import {
   charges,
   financialReconciliationRuns,
   invoiceLines,
+  invoiceLineEnrollments,
   invoices,
   paymentAllocations,
   paymentAttempts,
@@ -38,28 +39,126 @@ const commandKeySchema = z.string().trim().min(8).max(150);
 const currencySchema = z.string().regex(/^[A-Z]{3}$/);
 const financialRoles = ["owner", "admin"] as const;
 
-const invoiceLineSchema = z.object({
-  enrollmentId: z.string().uuid().optional(),
-  pricePlanId: z.string().uuid().optional(),
-  lineType: z.string().trim().min(1).max(80),
-  quantity: z.number().int().positive(),
-  unitAmountCents: z.number().int().nonnegative(),
-  servicePeriodStart: z.string().date(),
-  servicePeriodEnd: z.string().date(),
-});
+const invoiceLineCoverageSchema = z
+  .object({
+    enrollmentId: z.string().uuid(),
+    classTemplateId: z.string().uuid(),
+    className: z.string().trim().min(2).max(120),
+    assignmentId: z.string().uuid(),
+  })
+  .strict();
 
-const issueInvoiceSchema = z.object({
-  organizationId: z.string().uuid(),
-  locationId: z.string().uuid(),
-  familyId: z.string().uuid(),
-  familyPayerId: z.string().uuid().optional(),
-  reference: z.string().trim().min(1).max(80),
-  currency: currencySchema,
-  dueAt: z.string().datetime({ offset: true }),
-  lines: z.array(invoiceLineSchema).min(1).max(100),
-  idempotencyKey: commandKeySchema,
-  actor: operationalActorSchema,
-});
+const invoiceLineSchema = z
+  .object({
+    athleteId: z.string().uuid().optional(),
+    coveredEnrollments: z.array(invoiceLineCoverageSchema).min(1).optional(),
+    enrollmentId: z.string().uuid().optional(),
+    pricePlanId: z.string().uuid().optional(),
+    lineType: z.string().trim().min(1).max(80),
+    quantity: z.number().int().positive().safe(),
+    unitAmountCents: z.number().int().nonnegative().safe(),
+    servicePeriodStart: z.string().date(),
+    servicePeriodEnd: z.string().date(),
+  })
+  .superRefine((line, context) => {
+    if (line.athleteId) {
+      if (
+        line.lineType !== "monthly_fee" ||
+        line.enrollmentId !== undefined ||
+        line.pricePlanId === undefined ||
+        line.quantity !== 1 ||
+        line.coveredEnrollments === undefined
+      ) {
+        context.addIssue({
+          code: z.ZodIssueCode.custom,
+          path: ["athleteId"],
+          message:
+            "La línea mensual por gimnasta requiere plan y cobertura explícita.",
+        });
+      }
+      const start = new Date(`${line.servicePeriodStart}T00:00:00.000Z`);
+      const expectedEnd = new Date(
+        Date.UTC(start.getUTCFullYear(), start.getUTCMonth() + 1, 0)
+      )
+        .toISOString()
+        .slice(0, 10);
+      if (line.servicePeriodEnd !== expectedEnd) {
+        context.addIssue({
+          code: z.ZodIssueCode.custom,
+          path: ["servicePeriodEnd"],
+          message: "La línea mensual por gimnasta debe cubrir el mes completo.",
+        });
+      }
+      const enrollmentIds = line.coveredEnrollments?.map(
+        (enrollment) => enrollment.enrollmentId
+      );
+      if (
+        enrollmentIds &&
+        new Set(enrollmentIds).size !== enrollmentIds.length
+      ) {
+        context.addIssue({
+          code: z.ZodIssueCode.custom,
+          path: ["coveredEnrollments"],
+          message: "La cobertura repite una inscripción.",
+        });
+      }
+      for (const field of ["classTemplateId", "assignmentId"] as const) {
+        const values = line.coveredEnrollments?.map(
+          (enrollment) => enrollment[field]
+        );
+        if (values && new Set(values).size !== values.length) {
+          context.addIssue({
+            code: z.ZodIssueCode.custom,
+            path: ["coveredEnrollments"],
+            message: `La cobertura repite ${field}.`,
+          });
+        }
+      }
+    } else if (line.coveredEnrollments !== undefined) {
+      context.addIssue({
+        code: z.ZodIssueCode.custom,
+        path: ["coveredEnrollments"],
+        message:
+          "La cobertura solo se admite en una línea mensual por gimnasta.",
+      });
+    }
+  });
+
+const issueInvoiceSchema = z
+  .object({
+    organizationId: z.string().uuid(),
+    locationId: z.string().uuid(),
+    familyId: z.string().uuid(),
+    familyPayerId: z.string().uuid().optional(),
+    reference: z.string().trim().min(1).max(80),
+    currency: currencySchema,
+    dueAt: z.string().datetime({ offset: true }),
+    lines: z.array(invoiceLineSchema).min(1).max(100),
+    idempotencyKey: commandKeySchema,
+    actor: operationalActorSchema,
+  })
+  .superRefine((command, context) => {
+    const athleteLines = command.lines.filter((line) => line.athleteId);
+    const athleteIds = athleteLines.map((line) => line.athleteId!);
+    if (new Set(athleteIds).size !== athleteIds.length) {
+      context.addIssue({
+        code: z.ZodIssueCode.custom,
+        path: ["lines"],
+        message: "La factura repite una línea mensual para la misma gimnasta.",
+      });
+    }
+    const coveredEnrollmentIds = athleteLines.flatMap(
+      (line) =>
+        line.coveredEnrollments?.map((covered) => covered.enrollmentId) ?? []
+    );
+    if (new Set(coveredEnrollmentIds).size !== coveredEnrollmentIds.length) {
+      context.addIssue({
+        code: z.ZodIssueCode.custom,
+        path: ["lines"],
+        message: "Una inscripción no puede quedar cubierta por dos líneas.",
+      });
+    }
+  });
 
 const allocatePaymentSchema = z.object({
   organizationId: z.string().uuid(),
@@ -426,7 +525,7 @@ export async function issueInvoiceInTransaction(
     (total, line) => total + line.quantity * line.unitAmountCents,
     0
   );
-  if (totalAmountCents <= 0) {
+  if (!Number.isSafeInteger(totalAmountCents) || totalAmountCents <= 0) {
     throw new OperationalError(
       "INVALID_RELATION",
       "La factura debe contener al menos un importe positivo",
@@ -453,163 +552,180 @@ export async function issueInvoiceInTransaction(
   });
 
   await lockCommand(tx, input.organizationId, input.idempotencyKey);
-    const priorEvent = await findOutboxEvent(tx, {
-      organizationId: input.organizationId,
-      eventName: "invoice.issued",
-      idempotencyKey: input.idempotencyKey,
-    });
-    if (priorEvent) {
-      assertIdempotencyPayload(priorEvent.payload, { commandFingerprint });
-      const priorInvoiceId = priorEvent.payload.invoiceId;
-      if (typeof priorInvoiceId !== "string") {
-        throw new OperationalError(
-          "IDEMPOTENCY_CONFLICT",
-          "Evento de factura inválido",
-          409
-        );
-      }
-      const prior = await loadInvoice(tx, input.organizationId, priorInvoiceId);
-      await assertOperationalAccess(tx, {
-        organizationId: input.organizationId,
-        locationId: prior.locationId ?? input.locationId,
-        actor: input.actor,
-        allowedRoles: financialRoles,
-      });
-      return prior;
+  const priorEvent = await findOutboxEvent(tx, {
+    organizationId: input.organizationId,
+    eventName: "invoice.issued",
+    idempotencyKey: input.idempotencyKey,
+  });
+  if (priorEvent) {
+    assertIdempotencyPayload(priorEvent.payload, { commandFingerprint });
+    const priorInvoiceId = priorEvent.payload.invoiceId;
+    if (typeof priorInvoiceId !== "string") {
+      throw new OperationalError(
+        "IDEMPOTENCY_CONFLICT",
+        "Evento de factura inválido",
+        409
+      );
     }
-
+    const prior = await loadInvoice(tx, input.organizationId, priorInvoiceId);
     await assertOperationalAccess(tx, {
       organizationId: input.organizationId,
-      locationId: input.locationId,
+      locationId: prior.locationId ?? input.locationId,
       actor: input.actor,
       allowedRoles: financialRoles,
     });
+    return prior;
+  }
 
-    const collectionMode =
-      options.collectionMode ??
-      (await getChargeCollectionModeSnapshot({
-        executor: tx,
-        organizationId: input.organizationId,
-        familyId: input.familyId,
-      }));
+  await assertOperationalAccess(tx, {
+    organizationId: input.organizationId,
+    locationId: input.locationId,
+    actor: input.actor,
+    allowedRoles: financialRoles,
+  });
 
-    const now = new Date();
-    const [invoice] = await tx
-      .insert(invoices)
+  const collectionMode =
+    options.collectionMode ??
+    (await getChargeCollectionModeSnapshot({
+      executor: tx,
+      organizationId: input.organizationId,
+      familyId: input.familyId,
+    }));
+
+  const now = new Date();
+  const [invoice] = await tx
+    .insert(invoices)
+    .values({
+      organizationId: input.organizationId,
+      locationId: input.locationId,
+      familyId: input.familyId,
+      familyPayerId: input.familyPayerId,
+      reference: input.reference,
+      status: "issued",
+      currency: input.currency,
+      totalAmountCents,
+      issuedAt: now,
+      dueAt: new Date(input.dueAt),
+      idempotencyKey: input.idempotencyKey,
+    })
+    .returning();
+
+  for (const [index, line] of input.lines.entries()) {
+    const lineId = crypto.randomUUID();
+    const amountCents = line.quantity * line.unitAmountCents;
+    await tx.insert(invoiceLines).values({
+      id: lineId,
+      organizationId: input.organizationId,
+      invoiceId: invoice.id,
+      locationId: line.athleteId ? input.locationId : null,
+      athleteId: line.athleteId ?? null,
+      enrollmentId: line.enrollmentId,
+      pricePlanId: line.pricePlanId,
+      lineType: line.lineType,
+      quantity: line.quantity,
+      unitAmountCents: line.unitAmountCents,
+      amountCents,
+      currency: input.currency,
+      servicePeriodStart: line.servicePeriodStart,
+      servicePeriodEnd: line.servicePeriodEnd,
+    });
+    if (line.athleteId && line.coveredEnrollments) {
+      await tx.insert(invoiceLineEnrollments).values(
+        line.coveredEnrollments.map((covered) => ({
+          organizationId: input.organizationId,
+          locationId: input.locationId,
+          athleteId: line.athleteId!,
+          invoiceLineId: lineId,
+          pricePlanId: line.pricePlanId!,
+          enrollmentId: covered.enrollmentId,
+          classTemplateId: covered.classTemplateId,
+          priceAssignmentId: covered.assignmentId,
+          classNameSnapshot: covered.className,
+        }))
+      );
+    }
+    const [charge] = await tx
+      .insert(charges)
       .values({
         organizationId: input.organizationId,
         locationId: input.locationId,
+        invoiceId: invoice.id,
+        invoiceLineId: lineId,
         familyId: input.familyId,
         familyPayerId: input.familyPayerId,
-        reference: input.reference,
-        status: "issued",
-        currency: input.currency,
-        totalAmountCents,
-        issuedAt: now,
-        dueAt: new Date(input.dueAt),
-        idempotencyKey: input.idempotencyKey,
-      })
-      .returning();
-
-    for (const [index, line] of input.lines.entries()) {
-      const lineId = crypto.randomUUID();
-      const amountCents = line.quantity * line.unitAmountCents;
-      await tx.insert(invoiceLines).values({
-        id: lineId,
-        organizationId: input.organizationId,
-        invoiceId: invoice.id,
-        enrollmentId: line.enrollmentId,
-        pricePlanId: line.pricePlanId,
-        lineType: line.lineType,
-        quantity: line.quantity,
-        unitAmountCents: line.unitAmountCents,
+        enrollmentId: line.enrollmentId ?? null,
+        collectionMode,
+        status: "due",
         amountCents,
         currency: input.currency,
+        dueAt: new Date(input.dueAt),
         servicePeriodStart: line.servicePeriodStart,
         servicePeriodEnd: line.servicePeriodEnd,
-      });
-      const [charge] = await tx
-        .insert(charges)
-        .values({
-          organizationId: input.organizationId,
-          locationId: input.locationId,
-          invoiceId: invoice.id,
-          invoiceLineId: lineId,
-          familyId: input.familyId,
-          familyPayerId: input.familyPayerId,
-          enrollmentId: line.enrollmentId,
-          collectionMode,
-          status: "due",
-          amountCents,
-          currency: input.currency,
-          dueAt: new Date(input.dueAt),
-          servicePeriodStart: line.servicePeriodStart,
-          servicePeriodEnd: line.servicePeriodEnd,
-          idempotencyKey: `${input.idempotencyKey}:charge:${index}`,
-        })
-        .returning();
-      await appendOutboxEvent(tx, {
-        organizationId: input.organizationId,
-        locationId: input.locationId,
-        eventName: "charge.due",
-        aggregateType: "charge",
-        aggregateId: charge.id,
         idempotencyKey: `${input.idempotencyKey}:charge:${index}`,
-        payload: {
-          chargeId: charge.id,
-          invoiceId: invoice.id,
-          amountCents,
-          currency: input.currency,
-          dueAt: input.dueAt,
-        },
-      });
-      await appendAuditEntry(tx, {
-        organizationId: input.organizationId,
-        locationId: input.locationId,
-        actorUserId: input.actor.userId,
-        action: "charge.due",
-        targetType: "charge",
-        targetId: charge.id,
-        idempotencyKey: `${input.idempotencyKey}:charge:${index}`,
-        after: {
-          invoiceId: invoice.id,
-          amountCents,
-          currency: input.currency,
-          dueAt: input.dueAt,
-        },
-      });
-    }
-
+      })
+      .returning();
     await appendOutboxEvent(tx, {
       organizationId: input.organizationId,
       locationId: input.locationId,
-      eventName: "invoice.issued",
-      aggregateType: "invoice",
-      aggregateId: invoice.id,
-      idempotencyKey: input.idempotencyKey,
+      eventName: "charge.due",
+      aggregateType: "charge",
+      aggregateId: charge.id,
+      idempotencyKey: `${input.idempotencyKey}:charge:${index}`,
       payload: {
+        chargeId: charge.id,
         invoiceId: invoice.id,
-        familyId: invoice.familyId,
-        totalAmountCents,
-        currency: invoice.currency,
+        amountCents,
+        currency: input.currency,
         dueAt: input.dueAt,
-        commandFingerprint,
       },
     });
     await appendAuditEntry(tx, {
       organizationId: input.organizationId,
       locationId: input.locationId,
       actorUserId: input.actor.userId,
-      action: "invoice.issued",
-      targetType: "invoice",
-      targetId: invoice.id,
-      idempotencyKey: input.idempotencyKey,
+      action: "charge.due",
+      targetType: "charge",
+      targetId: charge.id,
+      idempotencyKey: `${input.idempotencyKey}:charge:${index}`,
       after: {
-        status: invoice.status,
-        totalAmountCents,
-        currency: invoice.currency,
+        invoiceId: invoice.id,
+        amountCents,
+        currency: input.currency,
+        dueAt: input.dueAt,
       },
     });
+  }
+
+  await appendOutboxEvent(tx, {
+    organizationId: input.organizationId,
+    locationId: input.locationId,
+    eventName: "invoice.issued",
+    aggregateType: "invoice",
+    aggregateId: invoice.id,
+    idempotencyKey: input.idempotencyKey,
+    payload: {
+      invoiceId: invoice.id,
+      familyId: invoice.familyId,
+      totalAmountCents,
+      currency: invoice.currency,
+      dueAt: input.dueAt,
+      commandFingerprint,
+    },
+  });
+  await appendAuditEntry(tx, {
+    organizationId: input.organizationId,
+    locationId: input.locationId,
+    actorUserId: input.actor.userId,
+    action: "invoice.issued",
+    targetType: "invoice",
+    targetId: invoice.id,
+    idempotencyKey: input.idempotencyKey,
+    after: {
+      status: invoice.status,
+      totalAmountCents,
+      currency: invoice.currency,
+    },
+  });
   return invoice;
 }
 

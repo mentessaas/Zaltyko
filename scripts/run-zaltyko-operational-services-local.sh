@@ -62,6 +62,9 @@ for migration in \
 do
   "${PSQL[@]}" -f "${ROOT_DIR}/supabase/migrations/${migration}" >/dev/null
 done
+"${PSQL[@]}" \
+  -f "${ROOT_DIR}/supabase/migrations/20261014001209_monthly_athlete_tariff_coverage_and_invoice_line_enrollments.sql" \
+  >/dev/null
 
 DATABASE_URL="postgresql://127.0.0.1:${PG_PORT}/postgres" \
 DATABASE_URL_POOL="postgresql://127.0.0.1:${PG_PORT}/postgres" \
