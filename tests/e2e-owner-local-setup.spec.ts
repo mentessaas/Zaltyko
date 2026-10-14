@@ -356,8 +356,14 @@ test.describe("Isolated local Supabase Owner setup", () => {
         candidate.request().method() === "POST"
     );
     await page.getByRole("button", { name: "Guardar vínculo" }).click();
-    expect((await associationResponse).ok()).toBe(true);
-    await page.getByLabel("Familia").selectOption({ label: athleteName });
+    const associationResult = await associationResponse;
+    expect(associationResult.ok()).toBe(true);
+    const associationData = (await associationResult.json()) as {
+      data: { familyId: string };
+    };
+    await page
+      .getByLabel("Familia")
+      .selectOption({ value: associationData.data.familyId });
     await expect(
       page.getByRole("button", {
         name: `Asignar tarifa mensual a ${athleteName}`,
