@@ -1,5 +1,33 @@
 # Readiness E2E: Owner y facturación mensual — corte 14-10-2026
 
+## Corte vigente de integración
+
+Main `b0efe43d` integra alta real de tarifa con clases/fechas, servicio por
+gimnasta, snapshots de emisión y el spec multiclase `34c34d19`. Las afirmaciones
+de los apartados siguientes son históricas: el alta ya alcanzó Auth, bootstrap,
+operaciones, asistencia y tarifa, pero no se ha probado el recorrido completo.
+
+Verificación independiente: 71 pruebas focales integradas PASS, tipos y lint
+focal PASS; dos harness PostgreSQL desechables PASS con alta de cobertura por
+servicio real, rollback atómico y emisión/alta concurrentes. Claves ganadoras
+de la carrera se verifican explícitamente; no se elimina la prueba negativa
+de cotización cambiada para obtener un resultado verde.
+
+CI `38491147838` del candidato publicado `1182f0c6` terminó global SUCCESS
+con setup experimental FAILURE tolerado en tres navegadores: fecha requerida
+omitida en el spec. La siguiente pasada local llegó a emitir y recibió 500
+`42703` por esquema local incompleto. Ambos bloqueos están corregidos en la
+integración, sin que ello sea evidencia de E2E PASS. Allowlist de cuota solo
+local, separada de las 16 migraciones compartidas de sandbox.
+
+El spec ahora crea dos clases y dos inscripciones de una gimnasta por UI;
+selecciona explícitamente clases, tarifa y pagador; verifica una línea de
+35 euros, dos snapshots de clase, un cargo y un pago. Mantiene comprobaciones
+de otro tenant/sede/roles y tamaños 375/768/1280. No se sembrará cobertura por
+SQL. QA espera resultado de la suite unitaria completa antes de iniciar un
+único Chromium desde este SHA. Firefox/WebKit requieren ese PASS y cleanup.
+Estado: **NO DEMO-READY / NO PILOT-READY**. Sin nuevos cambios remotos.
+
 ## Veredicto
 
 **No hay E2E autenticado verde. La emisión mensual está implementada localmente,
