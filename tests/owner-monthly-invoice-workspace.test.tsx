@@ -1,5 +1,5 @@
 // @vitest-environment jsdom
-import { cleanup, render, screen } from "@testing-library/react";
+import { cleanup, render, screen, within } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { afterEach, describe, expect, it, vi } from "vitest";
 
@@ -72,23 +72,46 @@ function options(
         ],
         lines: [
           {
-            enrollmentId: enrollmentA,
+            athleteId: "10000000-0000-4000-8000-000000000201",
             athleteName: "Gimnasta sintética A",
             pricePlanId: "plan-a",
             pricePlanName: "Tarifa mensual sintética A",
-            amountCents: 1500,
+            amountCents: 3500,
             currency: "EUR",
+            coveredEnrollments: [
+              {
+                enrollmentId: enrollmentA,
+                classTemplateId: "10000000-0000-4000-8000-000000000301",
+                className: "Precompetición",
+                assignmentId: "10000000-0000-4000-8000-000000000401",
+              },
+              {
+                enrollmentId: "10000000-0000-4000-8000-000000000105",
+                classTemplateId: "10000000-0000-4000-8000-000000000302",
+                className: "Aro avanzado",
+                assignmentId: "10000000-0000-4000-8000-000000000402",
+              },
+            ],
           },
           {
-            enrollmentId: enrollmentB,
+            athleteId: "10000000-0000-4000-8000-000000000202",
             athleteName: "Gimnasta sintética B",
             pricePlanId: "plan-b",
             pricePlanName: "Tarifa mensual sintética B",
-            amountCents: 1200,
+            amountCents: 2000,
             currency: "EUR",
+            coveredEnrollments: [
+              {
+                enrollmentId: enrollmentB,
+                classTemplateId: "10000000-0000-4000-8000-000000000303",
+                className: "Sábados",
+                assignmentId: "10000000-0000-4000-8000-000000000403",
+              },
+            ],
           },
         ],
-        totalAmountCents: 2700,
+        conflicts: [],
+        totalAmountCents: 5200,
         currency: "EUR",
         blockingReasons: [],
         canIssue: true,
@@ -131,16 +154,29 @@ function renderWorkspace(
 afterEach(cleanup);
 
 describe("OwnerMonthlyInvoiceWorkspace", () => {
-  it("presenta las líneas y el total del servidor, sin seleccionar líneas ni registrar pagos", () => {
+  it("muestra una tarifa por gimnasta y clases cubiertas sin recalcular el total del servidor", () => {
     renderWorkspace();
 
-    expect(screen.getByText("Gimnasta sintética A")).toBeVisible();
-    expect(screen.getByText("Gimnasta sintética B")).toBeVisible();
+    const breakdown = screen.getByRole("list", {
+      name: "Desglose por gimnasta",
+    });
+    const athleteLines = within(breakdown).getAllByRole("listitem");
+    expect(athleteLines).toHaveLength(2);
+    expect(athleteLines[0]).toHaveTextContent("Gimnasta sintética A");
+    expect(athleteLines[0]).toHaveTextContent("Precompetición");
+    expect(athleteLines[0]).toHaveTextContent("Aro avanzado");
+    expect(athleteLines[0]).toHaveTextContent(/35,00\s*€/);
+    expect(within(athleteLines[0]!).getAllByText(/35,00\s*€/)).toHaveLength(1);
+    expect(athleteLines[0]).not.toHaveTextContent(/70,00\s*€/);
+    expect(athleteLines[1]).toHaveTextContent("Gimnasta sintética B");
+    expect(athleteLines[1]).toHaveTextContent("Sábados");
+    expect(athleteLines[1]).toHaveTextContent(/20,00\s*€/);
+    expect(athleteLines[0]).toHaveClass("sm:grid-cols-[minmax(0,1fr)_auto]");
     expect(
       screen.getByText("Total de la factura").parentElement
-    ).toHaveTextContent(/27,00\s*€/);
+    ).toHaveTextContent(/52,00\s*€/);
     expect(
-      screen.getByRole("button", { name: /Emitir factura pendiente · 27,00/ })
+      screen.getByRole("button", { name: /Emitir factura pendiente · 52,00/ })
     ).toBeDisabled();
     expect(screen.queryByRole("checkbox")).not.toBeInTheDocument();
     expect(
@@ -151,6 +187,51 @@ describe("OwnerMonthlyInvoiceWorkspace", () => {
       screen.queryByRole("group", { name: /¿Emitir/ })
     ).not.toBeInTheDocument();
   });
+
+  it.each([
+    [
+      "tarifas distintas",
+      "ATHLETE_TARIFF_CONFLICT" as const,
+      "Esta gimnasta tiene tarifas distintas entre sus clases mensuales.",
+    ],
+    [
+      "cobertura incompleta",
+      "TARIFF_COVERAGE_INCOMPLETE" as const,
+      "La tarifa no cubre todas las clases mensuales de esta gimnasta.",
+    ],
+  ])(
+    "bloquea la emisión con conflicto de %s aunque canIssue y quoteHash lleguen habilitados",
+    async (_label, code, conflictMessage) => {
+      const user = userEvent.setup();
+      renderWorkspace({
+        options: options({
+          families: [
+            {
+              ...options().families[0]!,
+              conflicts: [
+                {
+                  athleteId: "10000000-0000-4000-8000-000000000201",
+                  code,
+                  enrollmentIds: [enrollmentA, enrollmentB],
+                },
+              ],
+            },
+          ],
+        }),
+      });
+
+      expect(await screen.findByRole("alert")).toHaveTextContent(
+        conflictMessage
+      );
+      expect(screen.getByRole("alert")).toHaveTextContent(
+        "Gimnasta sintética A"
+      );
+      await user.selectOptions(screen.getByLabelText("Quién paga"), payerId);
+      expect(
+        screen.getByRole("button", { name: /Emitir factura pendiente/ })
+      ).toBeDisabled();
+    }
+  );
 
   it("emite con un clic la familia, pagador, periodo, fecha y quoteHash sin mandar importe ni líneas", async () => {
     const user = userEvent.setup();
