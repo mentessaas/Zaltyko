@@ -1,3 +1,4 @@
+import { execFileSync } from "node:child_process";
 import { readFileSync } from "node:fs";
 import { resolve } from "node:path";
 import { describe, expect, it } from "vitest";
@@ -22,6 +23,17 @@ const optionsVerifier = readFileSync(
   ),
   "utf8"
 );
+const retentionVerifier = readFileSync(
+  resolve(
+    process.cwd(),
+    "scripts/verify-zaltyko-retention-location-batches-local.ts"
+  ),
+  "utf8"
+);
+const verifierWatchdog = readFileSync(
+  resolve(process.cwd(), "scripts/run-zaltyko-verifier-with-deadline.py"),
+  "utf8"
+);
 
 describe("monthly billing paging local runner contract", () => {
   it("matches quoted and unquoted PostgreSQL identifiers consistently", () => {
@@ -40,6 +52,7 @@ describe("monthly billing paging local runner contract", () => {
     expect(runner).toContain('"-h 127.0.0.1 -p ${PG_PORT}');
     expect(runner).toContain('if [[ "${version}" != "17" ]]');
     expect(runner).toContain('env -i "PATH=${SAFE_PATH}"');
+    expect(runner).toContain('"HOME=${RUN_DIR}"');
     expect(runner).toContain('?statement_timeout=8000&lock_timeout=4000"');
     expect(runner).toContain("DOTENV_CONFIG_PATH=/dev/null");
     expect(runner).not.toMatch(/supabase\.co|vercel\.app|stripe\.com/i);
@@ -53,23 +66,159 @@ describe("monthly billing paging local runner contract", () => {
       runner.indexOf('rm -rf -- "${RUN_DIR}"')
     );
     expect(runner).toContain("recovery path: ${RUN_DIR}");
+    expect(runner).toContain(
+      'if ((status != 3)) || [[ -f "${PG_DATA}/postmaster.pid" ]]'
+    );
   });
 
   it("dispatches only the allowlisted options verifier without changing the default case", () => {
-    expect(runner).toContain('case "${ZALTYKO_MONTHLY_BILLING_PAGING_CASE:-full}" in');
-    expect(runner).toContain('full)\n    VERIFIER_SCRIPT="scripts/verify-zaltyko-monthly-billing-paging-local.ts"');
-    expect(runner).toContain('options)\n    VERIFIER_SCRIPT="scripts/verify-zaltyko-monthly-invoice-options-local.ts"');
-    expect(runner).toContain("Unsupported local harness case; allowed values: full, options");
+    expect(runner).toContain(
+      'case "${ZALTYKO_MONTHLY_BILLING_PAGING_CASE:-full}" in'
+    );
+    expect(runner).toContain(
+      'full)\n    VERIFIER_SCRIPT="scripts/verify-zaltyko-monthly-billing-paging-local.ts"'
+    );
+    expect(runner).toContain(
+      'options)\n    VERIFIER_SCRIPT="scripts/verify-zaltyko-monthly-invoice-options-local.ts"'
+    );
+    expect(runner).toContain(
+      'retention)\n    VERIFIER_SCRIPT="scripts/verify-zaltyko-retention-location-batches-local.ts"'
+    );
+    expect(runner).toContain(
+      "Unsupported local harness case; allowed values: full, options, retention"
+    );
     expect(runner).toContain('"${VERIFIER_SCRIPT}"');
+    expect(runner).toContain('if [[ "${MIGRATION_PROFILE}" == "retention" ]]');
+    for (const migration of [
+      "20261006080702_establish_zaltyko_domain_foundation.sql",
+      "20261006085254_add_operational_enrollment_invariants.sql",
+      "20261006094607_add_versioned_metric_engine.sql",
+      "20261006165917_owner_cohort_retention_projections.sql",
+    ]) {
+      expect(runner).toContain(migration);
+      expect(retentionVerifier).not.toContain(migration);
+    }
+    expect(runner).toContain("if ((USE_VERIFIER_WATCHDOG == 1)); then");
+    expect(runner).toContain(
+      'python3 -I "${ROOT_DIR}/scripts/run-zaltyko-verifier-with-deadline.py" --'
+    );
+    const retentionDispatch = runner
+      .slice(runner.lastIndexOf("if ((USE_VERIFIER_WATCHDOG == 1)); then"))
+      .split("\nelse\n")[0];
+    expect(retentionDispatch).toContain(
+      '"${NODE_BIN}" "${TSX_CLI_REALPATH}" "${ROOT_DIR}/${VERIFIER_SCRIPT}"'
+    );
+    expect(retentionDispatch).not.toMatch(/pnpm|corepack|npx/);
+    expect(runner).toContain('NODE_BIN="$(command -v node || true)"');
+    expect(runner).toContain(
+      'TSX_CLI="${ROOT_DIR}/node_modules/tsx/dist/cli.mjs"'
+    );
+    expect(runner).toContain('TSX_LOCK_VERSION="$(awk');
+    expect(runner).toContain(
+      '"${TSX_INSTALLED_VERSION}" != "${TSX_LOCK_VERSION}"'
+    );
+    expect(runner).toContain(
+      '"${TSX_CLI_REALPATH}" != "${TSX_PACKAGE_ROOT}/dist/cli.mjs"'
+    );
+    expect(verifierWatchdog).toContain("VERIFIER_DEADLINE_SECONDS = 8.0");
+    expect(verifierWatchdog).toContain("start_new_session=True");
+    expect(verifierWatchdog).toContain("os.killpg");
     expect(optionsVerifier).toContain("getMonthlyInvoiceOptions({");
     expect(optionsVerifier).toContain('servicePeriod: "2026-10"');
-    expect(optionsVerifier).toContain('process.env.DOTENV_CONFIG_PATH, "/dev/null"');
-    expect(optionsVerifier).toContain('assert.equal(parsed.hostname, "127.0.0.1")');
+    expect(optionsVerifier).toContain(
+      'process.env.DOTENV_CONFIG_PATH, "/dev/null"'
+    );
+    expect(optionsVerifier).toContain(
+      'assert.equal(parsed.hostname, "127.0.0.1")'
+    );
     expect(optionsVerifier).toContain("const BASE_ATHLETES_AND_PLANS = 201");
     expect(optionsVerifier).toContain("const ACTIVE_ENROLLMENTS = 202");
     expect(optionsVerifier).toContain("coverage_pair_count");
-    expect(optionsVerifier).not.toMatch(/recordManualPaymentForCharge|verifyConcurrentPaymentReplay/);
+    expect(optionsVerifier).not.toMatch(
+      /recordManualPaymentForCharge|verifyConcurrentPaymentReplay/
+    );
     expect(runner).not.toMatch(/supabase\.co|vercel\.app|stripe\.com/i);
+  });
+
+  it("verifies the real retention builder across paged locations and retries", () => {
+    expect(retentionVerifier).toContain("buildRetentionCohortProjections({");
+    expect(retentionVerifier).toContain(
+      "loadActiveLocationSnapshot(ORGANIZATION_ID)"
+    );
+    expect(retentionVerifier).toContain("const ACTIVE_LOCATION_COUNT = 501");
+    expect(retentionVerifier).toContain(
+      "const PROJECTION_RUN_COUNT = ACTIVE_LOCATION_COUNT + 1"
+    );
+    expect(retentionVerifier).toContain(
+      "projectionRows: EXPECTED_PROJECTION_ROWS"
+    );
+    expect(retentionVerifier).toContain("batchBoundaries: [500, 2]");
+    expect(retentionVerifier).toContain(
+      "locationSnapshotPages: [200, 200, 101]"
+    );
+    expect(retentionVerifier).toContain(
+      "where organization_id = $1 and is_active"
+    );
+    expect(retentionVerifier).toContain(
+      "/Retention projection requires a successful metric run/"
+    );
+    expect(retentionVerifier).toContain(
+      'idempotentRetry: "no new projection rows"'
+    );
+    expect(retentionVerifier).toContain("const STATEMENT_TIMEOUT_MS = 8_000");
+    expect(retentionVerifier).toContain("const LOCK_TIMEOUT_MS = 4_000");
+  });
+
+  it("runs Node and Python prechecks without inherited interpreter options", () => {
+    expect(runner).toContain(
+      'env -i "PATH=${SAFE_PATH}" "HOME=${RUN_DIR}" LC_ALL=C python3 -I "$@"'
+    );
+    expect(runner).toContain(
+      'env -i "PATH=${SAFE_PATH}" "HOME=${RUN_DIR}" LC_ALL=C "${NODE_BIN}" "$@"'
+    );
+    expect(runner).toContain(
+      'python3 -I "${ROOT_DIR}/scripts/run-zaltyko-verifier-with-deadline.py"'
+    );
+
+    const pythonFunction = runner.match(
+      /python_clean\(\) \{([\s\S]*?)\n\}/
+    )?.[1];
+    const nodeFunction = runner.match(/node_clean\(\) \{([\s\S]*?)\n\}/)?.[1];
+    expect(pythonFunction).toBeDefined();
+    expect(nodeFunction).toBeDefined();
+
+    const path = process.env.PATH ?? "/usr/bin:/bin";
+    const pythonMock = `
+      SAFE_PATH=${JSON.stringify(path)}
+      RUN_DIR="/tmp"
+      python_clean() {${pythonFunction}\n}
+      python_clean -c 'import os; assert "PYTHONPATH" not in os.environ; assert "PYTHONSTARTUP" not in os.environ'
+    `;
+    const nodeMock = `
+      SAFE_PATH=${JSON.stringify(path)}
+      RUN_DIR="/tmp"
+      NODE_BIN=${JSON.stringify(process.execPath)}
+      node_clean() {${nodeFunction}\n}
+      node_clean -e 'if (process.env.NODE_OPTIONS) process.exit(23)'
+    `;
+
+    expect(() =>
+      execFileSync("bash", ["-c", pythonMock], {
+        env: {
+          ...process.env,
+          PYTHONPATH: "/tmp/untrusted-python-path",
+          PYTHONSTARTUP: "/tmp/untrusted-python-startup",
+        },
+      })
+    ).not.toThrow();
+    expect(() =>
+      execFileSync("bash", ["-c", nodeMock], {
+        env: {
+          ...process.env,
+          NODE_OPTIONS: "--require=/tmp/untrusted-node-preload.js",
+        },
+      })
+    ).not.toThrow();
   });
 
   it("loads actual paginated service readers with deterministic synthetic cases", () => {
