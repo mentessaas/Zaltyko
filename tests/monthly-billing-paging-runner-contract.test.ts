@@ -51,6 +51,7 @@ describe("monthly billing paging local runner contract", () => {
     expect(runner).toContain('"-h 127.0.0.1 -p ${PG_PORT}');
     expect(runner).toContain('if [[ "${version}" != "17" ]]');
     expect(runner).toContain('env -i "PATH=${SAFE_PATH}"');
+    expect(runner).toContain('"HOME=${RUN_DIR}"');
     expect(runner).toContain('?statement_timeout=8000&lock_timeout=4000"');
     expect(runner).toContain("DOTENV_CONFIG_PATH=/dev/null");
     expect(runner).not.toMatch(/supabase\.co|vercel\.app|stripe\.com/i);
@@ -99,6 +100,24 @@ describe("monthly billing paging local runner contract", () => {
     expect(runner).toContain("if ((USE_VERIFIER_WATCHDOG == 1)); then");
     expect(runner).toContain(
       'python3 "${ROOT_DIR}/scripts/run-zaltyko-verifier-with-deadline.py" --'
+    );
+    const retentionDispatch = runner
+      .slice(runner.lastIndexOf("if ((USE_VERIFIER_WATCHDOG == 1)); then"))
+      .split("\nelse\n")[0];
+    expect(retentionDispatch).toContain(
+      '"${NODE_BIN}" "${TSX_CLI_REALPATH}" "${ROOT_DIR}/${VERIFIER_SCRIPT}"'
+    );
+    expect(retentionDispatch).not.toMatch(/pnpm|corepack|npx/);
+    expect(runner).toContain('NODE_BIN="$(command -v node || true)"');
+    expect(runner).toContain(
+      'TSX_CLI="${ROOT_DIR}/node_modules/tsx/dist/cli.mjs"'
+    );
+    expect(runner).toContain('TSX_LOCK_VERSION="$(awk');
+    expect(runner).toContain(
+      '"${TSX_INSTALLED_VERSION}" != "${TSX_LOCK_VERSION}"'
+    );
+    expect(runner).toContain(
+      '"${TSX_CLI_REALPATH}" != "${TSX_PACKAGE_ROOT}/dist/cli.mjs"'
     );
     expect(verifierWatchdog).toContain("VERIFIER_DEADLINE_SECONDS = 8.0");
     expect(verifierWatchdog).toContain("start_new_session=True");

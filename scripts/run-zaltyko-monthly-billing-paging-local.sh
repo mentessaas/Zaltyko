@@ -97,15 +97,62 @@ cleanup() {
 }
 trap cleanup EXIT
 
-for command in initdb postgres pg_ctl psql python3 pnpm; do
+for command in initdb postgres pg_ctl psql python3; do
   if ! command -v "${command}" >/dev/null 2>&1; then
     echo "Required local tool not found: ${command}" >&2
     exit 1
   fi
 done
-if [[ ! -x "${ROOT_DIR}/node_modules/.bin/tsx" ]]; then
-  echo "Local tsx dependency missing; install project dependencies before running this harness" >&2
-  exit 1
+
+NODE_BIN=""
+TSX_CLI=""
+if ((USE_VERIFIER_WATCHDOG == 1)); then
+  NODE_BIN="$(command -v node || true)"
+  if [[ -z "${NODE_BIN}" || ! -x "${NODE_BIN}" ]]; then
+    echo "Required local Node.js executable not found" >&2
+    exit 1
+  fi
+  NODE_BIN="$(python3 -c 'import os,sys; print(os.path.realpath(sys.argv[1]))' "${NODE_BIN}")"
+  if [[ ! -x "${NODE_BIN}" ]] || ! "${NODE_BIN}" -e '
+    const [major, minor] = process.versions.node.split(".").map(Number);
+    const supported = (major === 20 && minor >= 19) || (major === 22 && minor >= 12);
+    process.exit(supported ? 0 : 1);
+  '; then
+    echo "Node.js must satisfy the project engine range: ^20.19 or >=22.12 <23" >&2
+    exit 1
+  fi
+
+  TSX_CLI="${ROOT_DIR}/node_modules/tsx/dist/cli.mjs"
+  TSX_PACKAGE_JSON="${ROOT_DIR}/node_modules/tsx/package.json"
+  TSX_LOCK_VERSION="$(awk '
+    /^  tsx@[0-9]/ {
+      sub(/^  tsx@/, "");
+      sub(/:.*/, "");
+      print;
+      exit;
+    }
+  ' "${ROOT_DIR}/pnpm-lock.yaml")"
+  TSX_INSTALLED_VERSION="$("${NODE_BIN}" -e \
+    'process.stdout.write(require(process.argv[1]).version)' \
+    "${TSX_PACKAGE_JSON}" 2>/dev/null || true)"
+  TSX_CLI_REALPATH="$(python3 -c 'import os,sys; print(os.path.realpath(sys.argv[1]))' "${TSX_CLI}")"
+  TSX_PACKAGE_ROOT="$(python3 -c 'import os,sys; print(os.path.dirname(os.path.realpath(sys.argv[1])))' "${TSX_PACKAGE_JSON}")"
+  if [[ ! -f "${TSX_CLI}" ||
+        ! "${TSX_LOCK_VERSION}" =~ ^[0-9]+\.[0-9]+\.[0-9]+$ ||
+        "${TSX_INSTALLED_VERSION}" != "${TSX_LOCK_VERSION}" ||
+        "${TSX_CLI_REALPATH}" != "${TSX_PACKAGE_ROOT}/dist/cli.mjs" ]]; then
+    echo "Installed tsx CLI does not match the locked dependency in pnpm-lock.yaml" >&2
+    exit 1
+  fi
+else
+  if ! command -v pnpm >/dev/null 2>&1; then
+    echo "Required local tool not found: pnpm" >&2
+    exit 1
+  fi
+  if [[ ! -x "${ROOT_DIR}/node_modules/.bin/tsx" ]]; then
+    echo "Local tsx dependency missing; install project dependencies before running this harness" >&2
+    exit 1
+  fi
 fi
 
 pg_tool_major_version() {
@@ -196,7 +243,7 @@ VERIFIER_ENV=(
 if ((USE_VERIFIER_WATCHDOG == 1)); then
   env -i "${VERIFIER_ENV[@]}" \
     python3 "${ROOT_DIR}/scripts/run-zaltyko-verifier-with-deadline.py" -- \
-    pnpm --dir "${ROOT_DIR}" exec tsx "${VERIFIER_SCRIPT}"
+    "${NODE_BIN}" "${TSX_CLI_REALPATH}" "${ROOT_DIR}/${VERIFIER_SCRIPT}"
 else
   env -i "${VERIFIER_ENV[@]}" \
     pnpm --dir "${ROOT_DIR}" exec tsx "${VERIFIER_SCRIPT}"
