@@ -74,6 +74,18 @@ describe("monthly billing paging local runner contract", () => {
     expect(verifier).toContain("activity.application_name = $1");
     expect(verifier).toContain("LOCAL_PG_STATEMENT_TIMEOUT_MS = 8_000");
     expect(verifier).toContain("LOCAL_PG_LOCK_TIMEOUT_MS = 4_000");
+    expect(verifier).toContain("OBSERVATION_DEADLINE_MS = 3_000");
+    expect(verifier).toContain("ACTIVITY_QUERY_TIMEOUT_MS = 500");
+    expect(verifier).toContain("ACTIVITY_CONNECT_TIMEOUT_MS = 1_000");
+    expect(
+      verifier.match(/Date\.now\(\) \+ OBSERVATION_DEADLINE_MS/g)
+    ).toHaveLength(1);
+    expect(verifier).toMatch(
+      /waitForPaymentBarrier\(\s*activityPool,\s*observationDeadline\s*\)/
+    );
+    expect(verifier).toMatch(
+      /waitForReplayBlockedByPayment\(\s*activityPool,\s*paymentWaiter\.pid,\s*observationDeadline\s*\)/
+    );
     expect(verifier).toContain(
       "statement_timeout: LOCAL_PG_STATEMENT_TIMEOUT_MS"
     );

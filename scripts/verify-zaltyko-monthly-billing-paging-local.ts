@@ -30,6 +30,9 @@ const BARRIER_LOCK_CLASS = 867530;
 const BARRIER_LOCK_OBJECT = 900001;
 const LOCAL_PG_STATEMENT_TIMEOUT_MS = 8_000;
 const LOCAL_PG_LOCK_TIMEOUT_MS = 4_000;
+const OBSERVATION_DEADLINE_MS = 3_000;
+const ACTIVITY_QUERY_TIMEOUT_MS = 500;
+const ACTIVITY_CONNECT_TIMEOUT_MS = 1_000;
 
 function assertLoopbackUrl(name: string): string {
   const value = process.env[name];
@@ -217,8 +220,10 @@ async function seed(pool: Pool): Promise<void> {
   `);
 }
 
-async function waitForPaymentBarrier(pool: Pool): Promise<{ pid: number }> {
-  const deadline = Date.now() + 10_000;
+async function waitForPaymentBarrier(
+  pool: Pool,
+  deadline: number
+): Promise<{ pid: number }> {
   while (Date.now() < deadline) {
     const result = await pool.query<{
       pid: number;
@@ -258,9 +263,9 @@ async function waitForPaymentBarrier(pool: Pool): Promise<{ pid: number }> {
 
 async function waitForReplayBlockedByPayment(
   pool: Pool,
-  paymentPid: number
+  paymentPid: number,
+  deadline: number
 ): Promise<void> {
-  const deadline = Date.now() + 10_000;
   while (Date.now() < deadline) {
     const result = await pool.query<{
       pid: number;
@@ -291,7 +296,10 @@ async function waitForReplayBlockedByPayment(
   throw new Error("Replay did not wait on the payment service charge lock");
 }
 
-async function verifyConcurrentPaymentReplay(pool: Pool): Promise<void> {
+async function verifyConcurrentPaymentReplay(
+  pool: Pool,
+  activityPool: Pool
+): Promise<void> {
   const barrier = await pool.connect();
   let barrierOpen = false;
   let paymentPromise:
@@ -323,6 +331,7 @@ async function verifyConcurrentPaymentReplay(pool: Pool): Promise<void> {
     await barrier.query(
       `select pg_advisory_xact_lock(${BARRIER_LOCK_CLASS}, ${BARRIER_LOCK_OBJECT})`
     );
+    const observationDeadline = Date.now() + OBSERVATION_DEADLINE_MS;
     paymentPromise = recordManualPaymentForCharge({
       organizationId: ORGANIZATION_ID,
       chargeId: "38000000-0000-4000-8000-000000000001",
@@ -333,14 +342,21 @@ async function verifyConcurrentPaymentReplay(pool: Pool): Promise<void> {
       actor: { userId: OWNER_USER_ID, memberId: OWNER_MEMBER_ID },
     });
     void paymentPromise.catch(() => undefined);
-    const paymentWaiter = await waitForPaymentBarrier(pool);
+    const paymentWaiter = await waitForPaymentBarrier(
+      activityPool,
+      observationDeadline
+    );
     replayPromise = db.transaction(async (tx) => {
       await tx.execute(sql`
         select set_config('application_name', ${REPLAY_APPLICATION_NAME}, true)
       `);
       return loadMonthlyReplayState(tx, ORGANIZATION_ID, INVOICE_ID);
     });
-    await waitForReplayBlockedByPayment(pool, paymentWaiter.pid);
+    await waitForReplayBlockedByPayment(
+      activityPool,
+      paymentWaiter.pid,
+      observationDeadline
+    );
     await barrier.query("commit");
     barrierOpen = false;
 
@@ -429,15 +445,31 @@ async function verifyRollbackAndSnapshotCut(pool: Pool): Promise<void> {
 
 async function main(): Promise<void> {
   assert.equal(process.env[LOCAL_ONLY], "1", "Local harness flag is required");
-  assertLoopbackUrl("DATABASE_URL");
+  const databaseUrl = assertLoopbackUrl("DATABASE_URL");
   assertLoopbackUrl("DATABASE_URL_POOL");
   assertLoopbackUrl("DATABASE_URL_DIRECT");
   const pool = new Pool({
-    connectionString: process.env.DATABASE_URL,
+    connectionString: databaseUrl,
     max: 4,
     connectionTimeoutMillis: 10_000,
     statement_timeout: LOCAL_PG_STATEMENT_TIMEOUT_MS,
     lock_timeout: LOCAL_PG_LOCK_TIMEOUT_MS,
+  });
+  const activityUrl = new URL(databaseUrl);
+  activityUrl.searchParams.set(
+    "statement_timeout",
+    String(ACTIVITY_QUERY_TIMEOUT_MS)
+  );
+  activityUrl.searchParams.set(
+    "lock_timeout",
+    String(ACTIVITY_QUERY_TIMEOUT_MS)
+  );
+  const activityPool = new Pool({
+    connectionString: activityUrl.toString(),
+    max: 1,
+    connectionTimeoutMillis: ACTIVITY_CONNECT_TIMEOUT_MS,
+    statement_timeout: ACTIVITY_QUERY_TIMEOUT_MS,
+    lock_timeout: ACTIVITY_QUERY_TIMEOUT_MS,
   });
   try {
     await seed(pool);
@@ -477,7 +509,7 @@ async function main(): Promise<void> {
     assert.equal(charges.charges.length, ROW_COUNT);
     assert.equal(charges.chargeStatus, "due");
 
-    await verifyConcurrentPaymentReplay(pool);
+    await verifyConcurrentPaymentReplay(pool, activityPool);
     await verifyRollbackAndSnapshotCut(pool);
     console.log(
       JSON.stringify({
@@ -496,7 +528,7 @@ async function main(): Promise<void> {
       })
     );
   } finally {
-    await pool.end();
+    await Promise.all([pool.end(), activityPool.end()]);
   }
 }
 
