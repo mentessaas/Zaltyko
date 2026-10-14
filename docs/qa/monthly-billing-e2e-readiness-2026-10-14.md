@@ -2,6 +2,12 @@
 
 ## Corte vigente de integración
 
+WebKit en `0e145bb0`: **PASS**, 1/1 prueba en 30,7 segundos, todos los
+gates seriales y cleanup confirmados. Firefox sigue pendiente: el diagnóstico
+del fallo anterior no demuestra causa. Instrumentación de navegación limitada
+y sanitizada integrada en `2fa03896`; una única corrida diagnóstica Firefox
+autorizada, sin alterar flujo, waits, reintentos o timeout. No publica trazas.
+
 Firefox en el mismo SHA `0e145bb0`: **FAIL**, una única ejecución,
 20,7 segundos, `NS_BINDING_ABORTED` al navegar a inscripciones pendientes
 (spec línea 233). No alcanzó pago, persistencia, dashboard ni negativos.
