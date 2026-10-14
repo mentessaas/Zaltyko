@@ -2,6 +2,12 @@
 
 ## Corte vigente de integración
 
+Firefox en el mismo SHA `0e145bb0`: **FAIL**, una única ejecución,
+20,7 segundos, `NS_BINDING_ABORTED` al navegar a inscripciones pendientes
+(spec línea 233). No alcanzó pago, persistencia, dashboard ni negativos.
+QA confirmó cleanup y checkout limpio. WebKit no iniciado; diagnóstico de
+la navegación solicitado, sin reintento ni relajación del timeout.
+
 Chromium en `0e145bb0a1a517b34535b64d533f31bcf9373357`: **PASS**,
 1/1 prueba en 41,8 segundos, runner exit 0. Incluye pago 201 con JSON leído,
 confirmación visible, dashboard scoped, consulta SQL de persistencia
