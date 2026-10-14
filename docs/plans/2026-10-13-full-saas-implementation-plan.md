@@ -13,8 +13,11 @@ demostrable, no la finalización del producto.
 Último corte publicado: `48d72dcc` (14-10-2026), PR #226 DRAFT y REVIEW_REQUIRED.
 Incluye Backend canónico ADR-0027, alta/recuperación sin perfil legacy,
 Setup con requisito contractual del servidor y runner E2E con migración solo
-local. CI `38488365005` iniciado/en cola al corte; Preview todavía sin URL nueva
-verificada. No promoción productiva ni migración remota.
+local. CI `38488365005` en ejecución al corte. Vercel/GitHub registran Preview
+SUCCESS de ese SHA, deployment `7053262036`:
+https://zaltyko-pmlaw3crq-mentessaas-projects.vercel.app . No demuestra conexión
+de datos ni runtime autenticado de ese entorno. Sin promoción productiva ni
+migración remota.
 
 Integración anterior: `09046f51`, alta Owner sin POST al perfil legacy.
 La primera ejecución de dos suites pasó 14 pruebas; tras corregir el nombre de
@@ -32,7 +35,12 @@ ni E2E autenticado. Frontend conecta Setup; QA prepara walkthrough en tres
 navegadores. Setup Page/Form ya integrados en `48d72dcc`; cinco suites focales
 en main pasan 23 pruebas y TypeScript PASS. Cuatro checks del boundary local y
 guard de harness PASS; ESLint focal PASS. QA prepara ejecución Chromium real
-sin siembra de consentimiento. La migración nueva sigue sin aplicación remota.
+sin siembra de consentimiento. Primera ejecución Chromium confirmó signup,
+bootstrap/replay y consentimiento canónico único, grupo/gimnasta/clase e
+inscripción activa; se detuvo en asistencia por un selector ambiguo del spec.
+Corrección QA `76691165` integrada; repetición única autorizada después de
+confirmar proceso terminal y limpieza. No full walkthrough PASS todavía.
+La migración nueva sigue sin aplicación remota.
 
 La decisión del propietario sigue siendo **mensual por gimnasta y tarifa**.
 El código actual suma por inscripción y no demuestra todavía esa regla cuando
