@@ -362,7 +362,7 @@ test.describe("Isolated local Supabase Owner setup", () => {
       data: { familyId: string };
     };
     await page
-      .getByLabel("Familia")
+      .getByRole("combobox", { name: "Familia", exact: true })
       .selectOption({ value: associationData.data.familyId });
     await expect(
       page.getByRole("button", {
@@ -400,11 +400,8 @@ test.describe("Isolated local Supabase Owner setup", () => {
     );
     await page.getByRole("button", { name: "Guardar tarifa" }).click();
     expect((await tariffAssignment).ok()).toBe(true);
-    await expect(
-      page.getByLabel("Familia", { exact: true })
-    ).toBeVisible();
     await page
-      .getByLabel("Quién paga", { exact: true })
+      .getByRole("combobox", { name: "Quién paga", exact: true })
       .selectOption({ label: adultName });
     await expect(page.getByText("Total de la factura")).toBeVisible();
     await expect(
