@@ -1,5 +1,26 @@
 # Gate PR-09 — GO/NO-GO de prepiloto
 
+## Estado vigente y límites — actualización 14-10-2026
+
+**NO-GO para publicar.** La instrucción vigente del usuario prohíbe acceder al
+Sandbox y a producción. Las referencias a autorizaciones anteriores en este
+documento son históricas y no autorizan operaciones actuales.
+
+El recorrido local de pago manual y dashboard pasó en tres navegadores; véase
+la [evidencia y salvedad de procedencia de Chromium](../qa/monthly-billing-e2e-readiness-2026-10-14.md).
+El restore sintético pasó en PostgreSQL 17, no en el Sandbox remoto. La suite
+completa anterior pasó 2613 pruebas en `986f32df`; los cambios posteriores
+tienen pruebas focales y la revalidación completa del candidato está en curso.
+
+Se configuró y verificó el Environment GitHub `e2e-sandbox` con aprobación y sin
+ramas autorizadas, sin secretos ni ejecuciones. El workflow que lo referencia
+sigue local: no protege retroactivamente los jobs ya publicados. Faltan CI del
+candidato exacto, destino de Preview aislado y compatible, controles de
+recuperación remota y revisión independiente. No hacer push/PR que active el
+CI remoto o despliegues sin resolver esos efectos.
+
+## Historial de revalidaciones (no estado vigente)
+
 ## Revalidación vigente — 14 de octubre de 2026
 
 Continúa **NO-GO para datos reales**. El propietario ya autorizó producción,
