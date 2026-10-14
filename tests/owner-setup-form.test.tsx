@@ -1,5 +1,11 @@
 // @vitest-environment jsdom
-import { cleanup, render, screen, waitFor } from "@testing-library/react";
+import {
+  cleanup,
+  fireEvent,
+  render,
+  screen,
+  waitFor,
+} from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
@@ -252,5 +258,37 @@ describe("alta owner greenfield", () => {
       accepted: true,
       policyVersion: "v2-2026-10-14",
     });
+  });
+
+  it("mantiene la vista previa sin aceptar ni enviar aunque se fuerce el submit", () => {
+    render(
+      <OwnerSetupForm
+        contractualConsent={{
+          policyVersion: "preview-synthetic",
+          requiresAcceptance: true,
+        }}
+        previewOnly
+      />
+    );
+
+    const consentCheckbox = screen.getByRole("checkbox", {
+      name: /Acepto los términos y condiciones y he leído la política de privacidad/,
+    });
+    const submitButton = screen.getByRole("button", {
+      name: "Crear espacio de dirección",
+    });
+
+    expect(consentCheckbox).not.toBeChecked();
+    expect(consentCheckbox).toBeDisabled();
+    expect(submitButton).toBeDisabled();
+
+    const form = submitButton.closest("form");
+    expect(form).not.toBeNull();
+    if (form) fireEvent.submit(form);
+
+    expect(mockFetch).not.toHaveBeenCalled();
+    expect(mockReplace).not.toHaveBeenCalled();
+    expect(mockRefresh).not.toHaveBeenCalled();
+    expect(consentCheckbox).not.toBeChecked();
   });
 });
