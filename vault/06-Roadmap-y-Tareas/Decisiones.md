@@ -1000,3 +1000,11 @@ Una ficha externa no crea dueño, academia operativa, trial ni suscripción. Sol
 | Decisión | Guardar en `sessionStorage` un snapshot versionado y por organización con clave y cuerpo serializado; reintentar exclusivamente ese snapshot. Mantener los campos congelados mientras el resultado sea incierto y liberar el snapshot ante un 4xx definitivo, de modo que una edición posterior obtenga una clave nueva. |
 | Consecuencia | Recarga/reintento conserva el mismo cuerpo y clave; al cambiar de organización se oculta el snapshot anterior y se bloquea el alta hasta cargar el scope nuevo. Las sesiones antiguas que solo guardaron la clave quedan bloqueadas y conservadas; la UI permite actualizar la lista o contactar soporte sin prometer resolución. |
 | Estado | Implementación local en `codex/owner-groups-idempotency-20261014`, basada en `b64a6533`; 7/7 tests focales, TypeScript y ESLint focal pasan. No integrada, no E2E, no PostgreSQL y sin cambios remotos. La suite completa sigue fallida y sin causa raíz demostrada. |
+# 2026-10-14 — Snapshot paginado para ubicaciones activas de métricas
+
+| Campo | Valor |
+| --- | --- |
+| Evidencia | La invalidación y el builder de cohorts leían todas las ubicaciones activas en consultas independientes y sin límite; podía variar el conjunto entre páginas y entre consumidores. |
+| Decisión | Enumerar una sola vez por organización en páginas keyset dentro de una transacción `READ ONLY REPEATABLE READ`, antes de la primera lectura. Transportar una lista congelada, emitida por el lector y validada por organización; el builder conserva su lector propio para llamadas independientes. |
+| Consecuencia | La invalidación reutiliza el mismo conjunto; insights mantienen su scope actual y cohorts incluyen el scope de organización una vez, incluso sin ubicaciones. SQL de cohorts, locks/runs, timeout y esquema quedan fuera de esta fase. |
+| Estado | Implementación local en rama `codex/retention-location-snapshot-phase1`, desde `884e862c`. Tests focales con mocks; no prueban comportamiento PostgreSQL. Validación de aislamiento/paginación real pendiente. |

@@ -3,6 +3,11 @@ import { beforeEach, describe, expect, it, vi } from "vitest";
 const mocks = vi.hoisted(() => ({
   benchmarkProfiles: [] as Array<{ id: string; currency: string | null }>,
   benchmarkProfileLimits: [] as number[],
+  invalidationLocationId: null as string | null,
+  activeLocationSnapshot: null as unknown,
+  activeLocationIds: [] as string[],
+  loadActiveLocationSnapshot: vi.fn(),
+  getSnapshotLocationIds: vi.fn(),
   calculateAcademyHealthScore: vi.fn(),
   evaluateP0Insights: vi.fn(),
   recomputeMetrics: vi.fn(),
@@ -15,7 +20,6 @@ vi.mock("@/db/zaltyko-schema", () => {
     auditLog: table("auditLog"),
     benchmarkProfiles: table("benchmarkProfiles"),
     healthScoreVersions: table("healthScoreVersions"),
-    locations: table("locations"),
     metricInvalidations: table("metricInvalidations"),
     organizations: table("organizations"),
     outboxEvents: table("outboxEvents"),
@@ -32,7 +36,7 @@ vi.mock("@/db", () => ({
             return [
               {
                 id: "invalidation-1",
-                locationId: null,
+                locationId: mocks.invalidationLocationId,
                 affectedFrom: "2026-10-01",
                 affectedTo: "2026-10-14",
               },
@@ -41,8 +45,6 @@ vi.mock("@/db", () => ({
             return [{ occurredAt: new Date("2026-10-14T10:00:00.000Z") }];
           case "organizations":
             return [{ status: "active", currency: "EUR" }];
-          case "locations":
-            return [{ id: "location-1" }];
           case "benchmarkProfiles":
             return mocks.benchmarkProfiles.slice(0, limit);
           case "healthScoreVersions":
@@ -96,6 +98,10 @@ vi.mock(
     buildRetentionCohortProjections: mocks.buildRetentionCohortProjections,
   })
 );
+vi.mock("@/modules/analytics/application/active-location-snapshot", () => ({
+  loadActiveLocationSnapshot: mocks.loadActiveLocationSnapshot,
+  getSnapshotLocationIds: mocks.getSnapshotLocationIds,
+}));
 vi.mock("@/modules/health-score/application/health-score-service", () => ({
   calculateAcademyHealthScore: mocks.calculateAcademyHealthScore,
 }));
@@ -110,6 +116,20 @@ describe("processMetricInvalidation benchmark profile cardinality", () => {
   beforeEach(() => {
     mocks.benchmarkProfiles = [];
     mocks.benchmarkProfileLimits = [];
+    mocks.invalidationLocationId = null;
+    mocks.activeLocationIds = ["00000000-0000-4000-8000-000000000001"];
+    mocks.activeLocationSnapshot = {
+      organizationId: "organization-1",
+      locationIds: mocks.activeLocationIds,
+    };
+    mocks.loadActiveLocationSnapshot.mockReset();
+    mocks.loadActiveLocationSnapshot.mockResolvedValue(
+      mocks.activeLocationSnapshot
+    );
+    mocks.getSnapshotLocationIds.mockReset();
+    mocks.getSnapshotLocationIds.mockImplementation(
+      (snapshot: { locationIds: string[] }) => snapshot.locationIds
+    );
     mocks.calculateAcademyHealthScore.mockReset();
     mocks.calculateAcademyHealthScore.mockResolvedValue({ id: "snapshot-1" });
     mocks.evaluateP0Insights.mockReset();
@@ -163,6 +183,55 @@ describe("processMetricInvalidation benchmark profile cardinality", () => {
       expect(mocks.calculateAcademyHealthScore).toHaveBeenCalledTimes(
         count === 1 ? 1 : 0
       );
+      expect(mocks.loadActiveLocationSnapshot).toHaveBeenCalledTimes(1);
+      expect(mocks.buildRetentionCohortProjections).toHaveBeenCalledWith(
+        expect.objectContaining({
+          locationSnapshot: mocks.activeLocationSnapshot,
+        })
+      );
     }
   );
+
+  it("keeps a location invalidation scoped to that insight target and shares the full snapshot with cohorts", async () => {
+    const locationIds = [
+      "00000000-0000-4000-8000-000000000001",
+      "00000000-0000-4000-8000-000000000002",
+    ];
+    mocks.invalidationLocationId = locationIds[1];
+    mocks.activeLocationIds = locationIds;
+    mocks.activeLocationSnapshot = {
+      organizationId: "organization-1",
+      locationIds,
+    };
+    mocks.loadActiveLocationSnapshot.mockResolvedValue(
+      mocks.activeLocationSnapshot
+    );
+    mocks.getSnapshotLocationIds.mockImplementation(
+      (snapshot: { locationIds: string[] }) => snapshot.locationIds
+    );
+
+    await processMetricInvalidation({
+      organizationId: "organization-1",
+      outboxEventId: "outbox-1",
+      actor: {} as SystemActor,
+    });
+
+    expect(mocks.loadActiveLocationSnapshot).toHaveBeenCalledTimes(1);
+    expect(mocks.recomputeMetrics).toHaveBeenCalledTimes(2);
+    expect(mocks.recomputeMetrics).toHaveBeenLastCalledWith(
+      expect.objectContaining({
+        authorizationLocationId: locationIds[1],
+        targetLocationId: locationIds[1],
+      })
+    );
+    expect(mocks.evaluateP0Insights).toHaveBeenCalledTimes(1);
+    expect(mocks.evaluateP0Insights).toHaveBeenCalledWith(
+      expect.objectContaining({ locationId: locationIds[1] })
+    );
+    expect(mocks.buildRetentionCohortProjections).toHaveBeenCalledWith(
+      expect.objectContaining({
+        locationSnapshot: mocks.activeLocationSnapshot,
+      })
+    );
+  });
 });
