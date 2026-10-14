@@ -357,6 +357,7 @@ test.describe("Isolated local Supabase Owner setup", () => {
     );
     await page.getByRole("button", { name: "Guardar vínculo" }).click();
     expect((await associationResponse).ok()).toBe(true);
+    await page.getByLabel("Familia").selectOption({ label: athleteName });
     await expect(
       page.getByRole("button", {
         name: `Asignar tarifa mensual a ${athleteName}`,
@@ -390,7 +391,6 @@ test.describe("Isolated local Supabase Owner setup", () => {
     await page.getByRole("button", { name: "Guardar tarifa" }).click();
     expect((await tariffAssignment).ok()).toBe(true);
     await expect(page.getByLabel("Familia")).toBeVisible();
-    await page.getByLabel("Familia").selectOption({ label: athleteName });
     await page.getByLabel("Quién paga").selectOption({ label: adultName });
     await expect(page.getByText("Total de la factura")).toBeVisible();
     await expect(page.getByText(/35,00/)).toBeVisible();
