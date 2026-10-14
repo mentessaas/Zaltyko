@@ -500,10 +500,10 @@ test.describe("Isolated local Supabase Owner setup", () => {
         where organization_id = $1::uuid
           and family_id = $2::uuid
           and athlete_id = $3::uuid
-          and starts_on <= (
+          and starts_on <= $4::date
+          and (ends_on is null or ends_on >= (
             $4::date + interval '1 month - 1 day'
-          )::date
-          and (ends_on is null or ends_on >= $4::date)`,
+          )::date)`,
       [
         result.organizationId,
         associationData.data.familyId,
