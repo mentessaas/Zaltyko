@@ -1,0 +1,64 @@
+name: Isolated CI (no credentials)
+
+on:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: ci-isolated-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  static-and-unit:
+    name: Isolated static and unit checks
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    env:
+      NODE_ENV: test
+      NEXT_PUBLIC_APP_URL: http://127.0.0.1:3000
+      NEXT_PUBLIC_SUPABASE_URL: http://127.0.0.1:54321
+      NEXT_PUBLIC_SUPABASE_ANON_KEY: local-ci-placeholder-not-a-secret
+      DATABASE_URL: postgresql://local:local@127.0.0.1:54322/local_ci
+      DATABASE_URL_POOL: postgresql://local:local@127.0.0.1:54322/local_ci
+      DATABASE_URL_DIRECT: postgresql://local:local@127.0.0.1:54322/local_ci
+      INTERNAL_AUTH_SECRET: local-ci-placeholder-only
+      SUPABASE_JWT_SECRET: local-ci-placeholder-only
+    steps:
+      - name: Checkout without persisted credentials
+        uses: actions/checkout@v7
+        with:
+          persist-credentials: false
+
+      - name: Setup pnpm
+        uses: pnpm/action-setup@v6
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v7
+        with:
+          node-version: "22"
+          cache: pnpm
+
+      - name: Install dependencies
+        run: pnpm install --frozen-lockfile
+
+      - name: Verify isolated workflow contract
+        run: pnpm exec vitest run tests/ci-isolated-workflow-contract.test.ts
+
+      - name: Lint
+        run: pnpm lint
+
+      - name: Type check
+        run: pnpm typecheck
+
+      - name: Unit tests
+        run: pnpm vitest run
+
+      - name: Validate RLS and migration sources
+        run: |
+          pnpm validate:rls
+          pnpm check:migrations
+
+      - name: Run strict static application gates
+        run: pnpm gate:all
