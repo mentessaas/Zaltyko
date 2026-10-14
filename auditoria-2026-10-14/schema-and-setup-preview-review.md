@@ -56,3 +56,20 @@ Fuentes: reporte del chat QA de su tercera ejecución y `gh run view
 38489363325 --repo mentessaas/Zaltyko --json status,conclusion,headSha,jobs`.
 La regla confirmada por el usuario sigue siendo mensual por gimnasta y tarifa;
 el walkthrough de una sola inscripción no verifica deduplicación multiclase.
+
+## Revisión del servicio por gimnasta en desarrollo
+
+El servicio WIP de Backend consolida líneas y conserva clases cubiertas;
+todavía no está integrado. El precheck observado busca inscripciones ya
+facturadas, tanto legacy como mediante `invoice_line_enrollments`. Debe también
+demostrar unicidad comercial por gimnasta/sede/mes frente a cambios de familia
+o sustitución de inscripción: una nueva inscripción sin IDs compartidos no
+puede producir una segunda cuota de la misma gimnasta en ese ámbito.
+
+Se pidió revisar el histórico por atleta y añadir pruebas secuenciales y
+concurrentes, preservando contratos independientes de otras sedes. Es un
+riesgo identificado en código WIP, no un incidente de cobro observado ni una
+corrección verificada. Otros checks pendientes: orden de locks con writers
+operativos, importe/suma enteros seguros y lectura/replay del desglose histórico.
+Fuente: lectura de `monthly-invoice-service.ts` y `ledger-service.ts` en la rama
+`codex/monthly-athlete-billing-service-20261014`. Accionable: sí, antes de integrar.
