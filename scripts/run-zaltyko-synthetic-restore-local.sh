@@ -37,7 +37,7 @@ MIGRATIONS=(
 )
 
 run_clean() {
-  env -i "PATH=${SAFE_PATH}" "$@"
+  env -i "PATH=${SAFE_PATH}" LC_ALL=C "$@"
 }
 
 psql_db() {
@@ -128,9 +128,13 @@ done
 
 run_clean initdb -D "${PG_DATA}" -U postgres -A trust --no-locale -E UTF8 >/dev/null
 PG_START_ATTEMPTED=1
-run_clean pg_ctl -D "${PG_DATA}" \
+if ! run_clean pg_ctl -D "${PG_DATA}" \
   -o "-h 127.0.0.1 -p ${PG_PORT} -c listen_addresses=127.0.0.1" \
-  -l "${RUN_DIR}/postgres.log" start >/dev/null
+  -l "${RUN_DIR}/postgres.log" start >/dev/null; then
+  echo "Disposable loopback PostgreSQL startup failed:" >&2
+  tail -n 20 "${RUN_DIR}/postgres.log" >&2
+  exit 1
+fi
 psql_db postgres <<'SQL' >/dev/null
 create role anon nologin;
 create role authenticated nologin;

@@ -2,6 +2,13 @@
 
 ## Resultado vigente de Main
 
+**PASS también en PostgreSQL 17.11 local**, exit 0, cleanup PASS. Mismos
+59 tablas, 484 restricciones, 49 políticas, nueve triggers, conciliación,
+ocho controles de inmutabilidad y aislamiento del consentimiento.
+El primer arranque PG17 falló por locale en macOS; se añadió `LC_ALL=C`
+al entorno aislado tras capturar el diagnóstico concreto del servidor.
+No acredita backup ni restore del Sandbox remoto: sigue siendo dato sintético.
+
 **PASS local**, dos ejecuciones completas tras el fixture independiente.
 La última valida versión mayor PostgreSQL 14 (corregida extracción Homebrew),
 backup/restore entre dos bases efímeras y catálogos equivalentes: 59 tablas,
