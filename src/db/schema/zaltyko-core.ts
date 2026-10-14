@@ -1924,6 +1924,13 @@ export const enrollments = zaltyko.table(
       table.locationId,
       table.id
     ),
+    uniqueIndex("enrollments_billing_coverage_fk_uq").on(
+      table.organizationId,
+      table.locationId,
+      table.athleteId,
+      table.classTemplateId,
+      table.id
+    ),
     index("enrollments_class_status_idx").on(
       table.organizationId,
       table.classTemplateId,
