@@ -1,6 +1,7 @@
 import type { User as SupabaseUser } from "@supabase/supabase-js";
 import { cookies } from "next/headers";
 import { NextResponse } from "next/server";
+import { z } from "zod";
 
 import { operationalProblem, problemResponse } from "@/app/api/v1/problem";
 import { getCurrentUser } from "@/lib/auth/current-user";
@@ -8,7 +9,7 @@ import { createClient } from "@/lib/supabase/server";
 import {
   OwnerSignupConsentError,
   recordOwnerSignupConsent,
-} from "@/lib/consent/owner-consent-store";
+} from "@/modules/organizations/application/owner-signup-consent";
 import {
   bootstrapOrganization,
   bootstrapOrganizationRequestSchema,
@@ -16,6 +17,12 @@ import {
 import { OperationalError } from "@/modules/shared/domain/operational-error";
 
 const bodySchema = bootstrapOrganizationRequestSchema;
+const contractualAcceptanceSchema = z
+  .object({
+    accepted: z.literal(true),
+    policyVersion: z.string().min(1).max(64),
+  })
+  .strict();
 
 // @auth-flexible route-guard-reason: the verified session is resolved before parsing; a second auth.getUser read supplies signup metadata and must match the same subject before the consent gate or bootstrap.
 export async function POST(request: Request) {
@@ -63,8 +70,29 @@ export async function POST(request: Request) {
       errors: parsed.error.flatten(),
     });
   }
+  const acceptanceValue =
+    payload && typeof payload === "object"
+      ? (payload as Record<string, unknown>).contractualAcceptance
+      : undefined;
+  let contractualAcceptance:
+    { accepted: true; policyVersion: string } | undefined;
+  if (acceptanceValue !== undefined) {
+    const acceptance = contractualAcceptanceSchema.safeParse(acceptanceValue);
+    if (!acceptance.success) {
+      return problemResponse({
+        status: 400,
+        title: "Aceptación no válida",
+        detail: "Revisa la aceptación de los términos vigentes.",
+        type: "invalid-contractual-acceptance",
+      });
+    }
+    contractualAcceptance = acceptance.data;
+  }
   try {
-    await recordOwnerSignupConsent(authUser);
+    await recordOwnerSignupConsent(authUser, {
+      requestKey: parsed.data.idempotencyKey,
+      contractualAcceptance,
+    });
     const result = await bootstrapOrganization({
       ...parsed.data,
       userId: user.id,
