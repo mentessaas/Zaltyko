@@ -141,6 +141,7 @@ export function OwnerMonthlyInvoiceWorkspace({
   state,
   options,
   selectedFamilyId,
+  payerResetKey = 0,
   dueDate,
   errorMessage,
   successMessage,
@@ -157,6 +158,7 @@ export function OwnerMonthlyInvoiceWorkspace({
   state: "loading" | "error" | "empty" | "ready";
   options?: MonthlyInvoiceOptionsResponse;
   selectedFamilyId: string;
+  payerResetKey?: number;
   dueDate: string;
   errorMessage?: string;
   successMessage?: string;
@@ -170,7 +172,16 @@ export function OwnerMonthlyInvoiceWorkspace({
   onAssignPayer: (familyId: string) => void;
   onIssue: (command: IssueCommand) => void;
 }) {
-  const [familyPayerId, setFamilyPayerId] = useState("");
+  const [payerSelection, setPayerSelection] = useState({
+    familyId: selectedFamilyId,
+    resetKey: payerResetKey,
+    payerId: "",
+  });
+  const familyPayerId =
+    payerSelection.familyId === selectedFamilyId &&
+    payerSelection.resetKey === payerResetKey
+      ? payerSelection.payerId
+      : "";
   const selectedFamily = options?.families.find(
     (family) => family.familyId === selectedFamilyId
   );
@@ -285,8 +296,13 @@ export function OwnerMonthlyInvoiceWorkspace({
                   <select
                     value={selectedFamilyId}
                     onChange={(event) => {
-                      setFamilyPayerId("");
-                      onFamilyChange(event.target.value);
+                      const familyId = event.target.value;
+                      setPayerSelection({
+                        familyId,
+                        resetKey: payerResetKey,
+                        payerId: "",
+                      });
+                      onFamilyChange(familyId);
                     }}
                     disabled={busy}
                     required
@@ -311,7 +327,13 @@ export function OwnerMonthlyInvoiceWorkspace({
                   <select
                     id="monthly-invoice-payer-select"
                     value={familyPayerId}
-                    onChange={(event) => setFamilyPayerId(event.target.value)}
+                    onChange={(event) =>
+                      setPayerSelection({
+                        familyId: selectedFamilyId,
+                        resetKey: payerResetKey,
+                        payerId: event.target.value,
+                      })
+                    }
                     disabled={
                       busy ||
                       !selectedFamily ||

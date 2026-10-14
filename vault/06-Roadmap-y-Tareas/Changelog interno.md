@@ -1,13 +1,36 @@
 ---
 status: active
 owner: producto
-last_reviewed: 2026-10-13
+last_reviewed: 2026-10-14
 source:
   - ../docs/audits/2026-10-03-launch-and-auth-followup.md
   - ../docs/architecture/zaltyko-domain-model.md
 ---
 
+## 2026-10-14 — Auditar cuota mensual por gimnasta y tarifa
+
+En la base `4f10141a` confirmé por inspección estática que la cotización y el
+ledger siguen cobrando por enrollment: dos enrollments activos de una gimnasta
+pueden producir dos líneas/cargos. No hay asociación de cobertura entre una
+tarifa y sus plantillas; planes distintos en una moneda pueden sumarse. El
+propietario confirmó la regla comercial: una cuota por gimnasta y tarifa,
+clases cubiertas explícitamente y conflicto ante tarifas distintas. La
+propuesta de delta está en
+`docs/qa/monthly-athlete-billing-gap-2026-10-14.md`.
+
+Este commit es diseño/revisión solamente. No se cambió servicio, API, UI,
+esquema ni migración; no se ejecutaron pruebas ni se consultaron bases de datos.
+Siguiente gate: revisar modelo de cobertura/línea histórica y después reconciliar
+el detalle de ADR-0026 en un bloque separado. Sin migración remota ni cobros.
+
 ## 2026-10-14 — Mensualidades publicadas y siguiente bloque paralelo
+
+Revalidado GO/NO-GO con signup real y SQL local, sin datos productivos. ADR-0027
+añade protección contra reutilizar metadata histórica en un store vacío y
+recuperación explícita en la misma pantalla para cuentas existentes; no signup
+duplicado ni aceptación implícita. Backend/Frontend reciben ownership separado
+del contrato/checkbox; QA prepara prueba canónica sin POST al perfil legacy.
+Implementación nueva en curso; no declarar store canónico ni E2E completos.
 
 Integrado gate Backend `0dd4b4f9`: 43 tests consentimiento + 3 guard harness PASS;
 Tech Lead repitió PostgreSQL local real: grant concurrente único, no regrant

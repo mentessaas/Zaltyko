@@ -1,7 +1,7 @@
 ---
 status: active
 owner: producto
-last_reviewed: 2026-10-13
+last_reviewed: 2026-10-14
 source:
   - ../PRODUCT-ANALYSIS.md
   - ../BUSINESS-ANALYSIS.md
@@ -16,6 +16,13 @@ source:
   - ../07-Auditorias-y-Riesgos/Registro de riesgos.md (bloqueantes con Elvis)
 ---
 ## P0 — Cerrar el recorrido MVP publicado — 2026-10-14
+
+- [ ] Alinear la cuota mensual con la regla confirmada por gimnasta y tarifa.
+  La base auditada factura por enrollment; el diseño propone cobertura explícita
+  de plantillas, una línea por gimnasta y bloqueo ante tarifas incompatibles.
+  Revisar la propuesta antes de modificar servicio, contrato o esquema; después
+  reconciliar el detalle compartido de ADR-0026. Fuente:
+  `docs/qa/monthly-athlete-billing-gap-2026-10-14.md`.
 
 - [ ] Cerrar gate contractual del bootstrap canónico: persistencia server y
   audit atómicos, política vigente, no regrant tras revocación y recuperación

@@ -10,8 +10,73 @@ Este corte prevalece sobre los estados históricos fechados que aparecen abajo.
 El alcance completo del SaaS se mantiene; issue #227 define la primera entrega
 demostrable, no la finalización del producto.
 
-Último corte publicado: `e415040a` (14-10-2026). Prevalece sobre los cortes
-históricos de esta sección:
+Último corte publicado: `e7a19b20` (14-10-2026), PR #226 DRAFT y REVIEW_REQUIRED.
+Integra esquema/contrato multiclase `87d81999` y selectores E2E `bab43a0d`.
+Verificación independiente Main: contrato 7/7, PostgreSQL efímero 14.20
+schema/RLS PASS, typecheck e integridad de migraciones PASS. El informe
+RLS estático cubre 79 tablas legacy; las nuevas se verificaron en SQL real.
+CI `38490500823` en ejecución; Static Gates y Directory integrity PASS.
+No hay aún URL READY verificada de este SHA ni aplicación remota del esquema.
+Backend trabaja en servicio quote/emisión por gimnasta. Frontend prepara
+autoselección de la familia validada sin elegir pagador; revisión exige rechazar
+respuestas de opciones de otro tenant/sede/mes completas. QA ejecuta un único
+Chromium tras corregir selección de familia por ID y colisión de tarifa/total.
+La tercera pasada falló por selector, no demuestra un defecto del cobro.
+El recorrido de una inscripción no prueba la regla multiclase. No DEMO/PILOT-READY.
+
+Histórico, corte publicado: `63d97a24`:
+Añade el selector exacto de asistencia y la decisión multiclase; nueva CI
+`38489363325` en ejecución. El Preview READY siguiente corresponde aún al
+corte anterior `48d72dcc`, no a este nuevo commit.
+Incluye Backend canónico ADR-0027, alta/recuperación sin perfil legacy,
+Setup con requisito contractual del servidor y runner E2E con migración solo
+local. CI `38488365005` en ejecución al corte. Vercel/GitHub registran Preview
+SUCCESS de ese SHA, deployment `7053262036`:
+https://zaltyko-pmlaw3crq-mentessaas-projects.vercel.app . No demuestra conexión
+de datos ni runtime autenticado de ese entorno. Sin promoción productiva ni
+migración remota.
+
+Integración anterior: `09046f51`, alta Owner sin POST al perfil legacy.
+La primera ejecución de dos suites pasó 14 pruebas; tras corregir el nombre de
+la suite de roles se ejecutaron cinco suites (ruta/recovery Login, recuperación
+Register, roles públicos y enlace de recuperación): **39/39 PASS**. No hay E2E
+completo ni despliegue productivo demostrado para este corte.
+
+Backend ADR-0027 integrado localmente en `19b94c3f` (entrega `4f10141a`):
+consentimiento sin perfil legacy, frescura Auth, reaceptación explícita y audit
+atómica. Cinco suites de consentimiento/regresión pasan **57/57** en integración.
+Harness PostgreSQL efímero real PASS: concurrencia, rollback, RLS propia,
+UPDATE/DELETE/TRUNCATE de audit rechazados y ninguna tabla `public.profiles`.
+Cobertura RLS estática y migraciones PASS. Esto no sustituye instalación completa
+ni E2E autenticado. Frontend conecta Setup; QA prepara walkthrough en tres
+navegadores. Setup Page/Form ya integrados en `48d72dcc`; cinco suites focales
+en main pasan 23 pruebas y TypeScript PASS. Cuatro checks del boundary local y
+guard de harness PASS; ESLint focal PASS. QA prepara ejecución Chromium real
+sin siembra de consentimiento. Primera ejecución Chromium confirmó signup,
+bootstrap/replay y consentimiento canónico único, grupo/gimnasta/clase e
+inscripción activa; se detuvo en asistencia por un selector ambiguo del spec.
+Corrección QA `76691165` integrada; repetición única autorizada después de
+confirmar proceso terminal y limpieza. No full walkthrough PASS todavía.
+Segunda ejecución Chromium confirmó también asistencia; fallo posterior del
+spec por esperar tarifa sin seleccionar antes la familia. Trace confirma
+asociación guardada y familia disponible. Orden corregido en `2aaad4ae`,
+integrado localmente; nueva ejecución autorizada tras limpieza terminal.
+
+Vista previa local segura integrada en `6d2280b4`: DTO sintético, submit
+forzado no envía y guard de producción conserva 404. Tres suites Main pasan
+11 pruebas; comprobación visual/Axe en navegador todavía pendiente.
+La migración nueva sigue sin aplicación remota.
+
+La decisión del propietario sigue siendo **mensual por gimnasta y tarifa**.
+El código actual suma por inscripción y no demuestra todavía esa regla cuando
+hay varias clases. ADR-0026 revisada en `df610dd9` acepta cobertura explícita
+tarifa/plantilla vigente todo el mes, una línea/cargo por gimnasta y bloqueo por
+planes/snapshots incompatibles. Backend implementa primero esquema/contratos;
+El esquema/contratos ya está integrado y probado en el corte superior;
+servicio, UI y pruebas multiclase siguen pendientes. No emitir cuotas reales
+hasta verificar la regla, sin deduplicar importes arbitrariamente.
+
+Histórico, corte publicado `e415040a`:
 
 - Integrados recuperación del registro sin repetir signup, rechazo de roles
   privilegiados en perfil público y errores de setup en español conservando

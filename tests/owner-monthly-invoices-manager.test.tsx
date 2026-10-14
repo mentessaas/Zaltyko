@@ -1,6 +1,7 @@
 // @vitest-environment jsdom
 import {
   cleanup,
+  act,
   fireEvent,
   render,
   screen,
@@ -18,6 +19,8 @@ const familyId = "10000000-0000-4000-8000-000000000101";
 const payerId = "10000000-0000-4000-8000-000000000102";
 const enrollmentId = "10000000-0000-4000-8000-000000000103";
 const athleteId = "10000000-0000-4000-8000-000000000201";
+const createdFamilyId = "10000000-0000-4000-8000-000000000301";
+const createdPayerId = "10000000-0000-4000-8000-000000000302";
 
 function monthlyOptions(
   overrides: Partial<MonthlyInvoiceOptionsResponse> = {}
@@ -108,6 +111,49 @@ function optionsWithUnassignedTariff() {
   });
 }
 
+function optionsWithNewlyLinkedFamily(
+  servicePeriod = "2026-10"
+): MonthlyInvoiceOptionsResponse {
+  const family = monthlyOptions().families[0];
+  if (!family) throw new Error("Missing synthetic family fixture.");
+  return monthlyOptions({
+    servicePeriod,
+    servicePeriodStart: `${servicePeriod}-01`,
+    servicePeriodEnd: servicePeriod === "2026-11" ? "2026-11-30" : "2026-10-31",
+    families: [
+      {
+        ...family,
+        familyId: createdFamilyId,
+        athleteNames: ["Gimnasta sin familia"],
+        payers: [
+          {
+            familyPayerId: createdPayerId,
+            displayName: "Persona adulta sintética",
+            isPrimary: true,
+          },
+        ],
+        enrollments: [
+          {
+            ...family.enrollments[0]!,
+            enrollmentId,
+            athleteId,
+            athleteName: "Gimnasta sin familia",
+            assignedPrice: null,
+            blockingReasons: ["PRICE_ASSIGNMENT_REQUIRED"],
+          },
+        ],
+        lines: [],
+        totalAmountCents: null,
+        currency: null,
+        blockingReasons: ["PRICE_ASSIGNMENT_REQUIRED"],
+        canIssue: false,
+        quoteHash: null,
+      },
+    ],
+    unassignedEnrollments: [],
+  });
+}
+
 function response(data: unknown, status = 200) {
   return new Response(JSON.stringify({ data }), {
     status,
@@ -125,6 +171,11 @@ describe("OwnerMonthlyInvoicesManager", () => {
     cadence: string;
   }>;
   let failPricePlanOptionsOnce: boolean;
+  let familyAssociationResponse: unknown;
+  let familyOptionsAfterAssociation: MonthlyInvoiceOptionsResponse | null;
+  let failFamilyAssociationOnce: boolean;
+  let deferFamilyAssociationResponse: (() => Promise<Response>) | null;
+  let deferNextMonthlyOptions: (() => Promise<Response>) | null;
 
   beforeEach(() => {
     currentOptions = monthlyOptions();
@@ -138,12 +189,26 @@ describe("OwnerMonthlyInvoicesManager", () => {
       },
     ];
     failPricePlanOptionsOnce = false;
+    familyAssociationResponse = {
+      familyId,
+      familyPayerId: payerId,
+      guardianId: "guardian-synthetic",
+    };
+    familyOptionsAfterAssociation = null;
+    failFamilyAssociationOnce = false;
+    deferFamilyAssociationResponse = null;
+    deferNextMonthlyOptions = null;
     vi.stubGlobal("crypto", { randomUUID: () => "synthetic-idempotency-key" });
     vi.stubGlobal(
       "fetch",
       vi.fn(async (input: RequestInfo | URL, init?: RequestInit) => {
         const url = String(input);
         if (url.includes("monthly-invoices/options")) {
+          if (deferNextMonthlyOptions) {
+            const deferred = deferNextMonthlyOptions;
+            deferNextMonthlyOptions = null;
+            return deferred();
+          }
           return response(currentOptions);
         }
         if (url.includes("price-plans/options")) {
@@ -191,15 +256,27 @@ describe("OwnerMonthlyInvoicesManager", () => {
           });
         }
         if (url.includes("/price-plan")) return response({ id: enrollmentId });
-        if (url.includes("families/associations"))
-          return response(
-            {
-              familyId,
-              familyPayerId: payerId,
-              guardianId: "guardian-synthetic",
-            },
-            201
-          );
+        if (url.includes("families/associations")) {
+          if (failFamilyAssociationOnce) {
+            failFamilyAssociationOnce = false;
+            return new Response(
+              JSON.stringify({ detail: "Error temporal sintético" }),
+              {
+                status: 503,
+                headers: { "content-type": "application/json" },
+              }
+            );
+          }
+          if (familyOptionsAfterAssociation) {
+            currentOptions = familyOptionsAfterAssociation;
+          }
+          if (deferFamilyAssociationResponse) {
+            const deferred = deferFamilyAssociationResponse;
+            deferFamilyAssociationResponse = null;
+            return deferred();
+          }
+          return response(familyAssociationResponse, 201);
+        }
         if (url.includes("monthly-invoices/issue"))
           return response(
             {
@@ -509,6 +586,403 @@ describe("OwnerMonthlyInvoicesManager", () => {
     });
     expect(associationCall?.[1]?.headers).toMatchObject({
       "Idempotency-Key": "owner-family-association:synthetic-idempotency-key",
+    });
+  });
+
+  it("selecciona la familia devuelta por el servidor y deja visible su tarifa sin elegir pagador", async () => {
+    currentOptions = monthlyOptions({
+      families: [],
+      unassignedEnrollments: [
+        {
+          enrollmentId,
+          athleteId,
+          athleteName: "Gimnasta sin familia",
+          status: "active",
+          blockingReasons: ["FAMILY_REQUIRED"],
+        },
+      ],
+    });
+    familyAssociationResponse = {
+      familyId: createdFamilyId,
+      familyPayerId: createdPayerId,
+    };
+    familyOptionsAfterAssociation = optionsWithNewlyLinkedFamily();
+    const user = userEvent.setup();
+    renderManager();
+
+    await user.click(
+      await screen.findByRole("button", {
+        name: "Vincular a una familia a Gimnasta sin familia",
+      })
+    );
+    await waitFor(() =>
+      expect(
+        screen.getByRole("button", { name: "Guardar vínculo" })
+      ).toBeEnabled()
+    );
+    await user.type(
+      screen.getByLabelText("Nombre de la persona adulta"),
+      "Persona"
+    );
+    await user.type(screen.getByLabelText("Apellidos"), "Adulta sintética");
+    await user.click(screen.getByRole("button", { name: "Guardar vínculo" }));
+
+    await waitFor(() => {
+      expect(
+        vi
+          .mocked(fetch)
+          .mock.calls.some((call) =>
+            String(call[0]).includes("families/associations")
+          )
+      ).toBe(true);
+    });
+    expect(screen.getAllByLabelText("Familia")[0]).toHaveValue(createdFamilyId);
+    expect(screen.getByLabelText("Quién paga")).toHaveValue("");
+    await user.click(
+      await screen.findByRole("button", {
+        name: "Asignar tarifa mensual a Gimnasta sin familia",
+      })
+    );
+    expect(await screen.findByLabelText("Tarifa mensual")).toHaveValue(
+      "price-plan-id"
+    );
+    expect(screen.getByLabelText("Quién paga")).toHaveValue("");
+  });
+
+  it.each([
+    ["sin familyId", { familyPayerId: createdPayerId }],
+    [
+      "con un familyId que no está en las opciones",
+      {
+        familyId: "10000000-0000-4000-8000-000000000399",
+        familyPayerId: createdPayerId,
+      },
+    ],
+  ])(
+    "no autoselecciona la familia si la respuesta llega %s",
+    async (_case, result) => {
+      currentOptions = monthlyOptions({
+        families: [],
+        unassignedEnrollments: [
+          {
+            enrollmentId,
+            athleteId,
+            athleteName: "Gimnasta sin familia",
+            status: "active",
+            blockingReasons: ["FAMILY_REQUIRED"],
+          },
+        ],
+      });
+      familyAssociationResponse = result;
+      familyOptionsAfterAssociation = optionsWithNewlyLinkedFamily();
+      const user = userEvent.setup();
+      renderManager();
+
+      await user.click(
+        await screen.findByRole("button", {
+          name: "Vincular a una familia a Gimnasta sin familia",
+        })
+      );
+      await user.type(
+        screen.getByLabelText("Nombre de la persona adulta"),
+        "Persona"
+      );
+      await user.type(screen.getByLabelText("Apellidos"), "Adulta sintética");
+      await user.click(screen.getByRole("button", { name: "Guardar vínculo" }));
+
+      await waitFor(() =>
+        expect(screen.getByRole("status")).toHaveTextContent(
+          "Familia y persona pagadora vinculadas"
+        )
+      );
+      expect(screen.getByLabelText("Familia")).toHaveValue("");
+      expect(screen.getByLabelText("Quién paga")).toHaveValue("");
+    }
+  );
+
+  it.each([
+    ["academia", { organizationId: "10000000-0000-4000-8000-000000000999" }],
+    ["sede", { locationId: "10000000-0000-4000-8000-000000000999" }],
+    ["mes", { servicePeriod: "2026-11" }],
+  ])(
+    "falla de forma cerrada si la respuesta pertenece a otro %s",
+    async (_scope, mismatchedScope) => {
+      currentOptions = monthlyOptions({
+        ...mismatchedScope,
+        families: [
+          {
+            ...monthlyOptions().families[0]!,
+            familyId: createdFamilyId,
+          },
+        ],
+      });
+      renderManager();
+
+      expect(await screen.findByRole("alert")).toHaveTextContent(
+        "La respuesta no corresponde a la academia, sede y mes solicitados. Vuelve a intentarlo."
+      );
+      expect(screen.queryByLabelText("Familia")).not.toBeInTheDocument();
+    }
+  );
+
+  it("ignora una recarga antigua tras cambiar el periodo y conserva las opciones actuales", async () => {
+    currentOptions = monthlyOptions({
+      families: [],
+      unassignedEnrollments: [
+        {
+          enrollmentId,
+          athleteId,
+          athleteName: "Gimnasta sin familia",
+          status: "active",
+          blockingReasons: ["FAMILY_REQUIRED"],
+        },
+      ],
+    });
+    familyAssociationResponse = {
+      familyId: createdFamilyId,
+      familyPayerId: createdPayerId,
+    };
+    familyOptionsAfterAssociation = optionsWithNewlyLinkedFamily();
+    let resolveOldOptions: ((result: Response) => void) | undefined;
+    const novemberOptions = monthlyOptions({
+      servicePeriod: "2026-11",
+      servicePeriodStart: "2026-11-01",
+      servicePeriodEnd: "2026-11-30",
+    });
+    const user = userEvent.setup();
+    renderManager();
+
+    await user.click(
+      await screen.findByRole("button", {
+        name: "Vincular a una familia a Gimnasta sin familia",
+      })
+    );
+    await waitFor(() =>
+      expect(
+        screen.getByRole("button", { name: "Guardar vínculo" })
+      ).toBeEnabled()
+    );
+    await user.type(
+      screen.getByLabelText("Nombre de la persona adulta"),
+      "Persona"
+    );
+    await user.type(screen.getByLabelText("Apellidos"), "Adulta sintética");
+    deferNextMonthlyOptions = () =>
+      new Promise<Response>((resolve) => {
+        resolveOldOptions = resolve;
+      });
+    await user.click(screen.getByRole("button", { name: "Guardar vínculo" }));
+
+    await waitFor(() =>
+      expect(
+        vi
+          .mocked(fetch)
+          .mock.calls.filter((call) =>
+            String(call[0]).includes("monthly-invoices/options")
+          )
+      ).toHaveLength(2)
+    );
+
+    currentOptions = novemberOptions;
+    fireEvent.change(document.querySelector('input[type="month"]')!, {
+      target: { value: "2026-11" },
+    });
+    await waitFor(() =>
+      expect(
+        vi
+          .mocked(fetch)
+          .mock.calls.some((call) =>
+            String(call[0]).includes("servicePeriod=2026-11")
+          )
+      ).toBe(true)
+    );
+    await waitFor(() =>
+      expect(document.querySelector('input[type="month"]')).toHaveValue(
+        "2026-11"
+      )
+    );
+    expect(screen.getByLabelText("Familia")).toHaveValue("");
+
+    expect(resolveOldOptions).toBeDefined();
+    await act(async () => {
+      resolveOldOptions?.(response(optionsWithNewlyLinkedFamily()));
+    });
+
+    expect(document.querySelector('input[type="month"]')).toHaveValue(
+      "2026-11"
+    );
+    expect(screen.getByLabelText("Familia")).toHaveValue("");
+    expect(
+      screen.queryByRole("button", {
+        name: "Asignar tarifa mensual a Gimnasta sin familia",
+      })
+    ).not.toBeInTheDocument();
+  });
+
+  it("usa el periodo actual cuando la asociación responde después del cambio de mes", async () => {
+    currentOptions = monthlyOptions({
+      families: [],
+      unassignedEnrollments: [
+        {
+          enrollmentId,
+          athleteId,
+          athleteName: "Gimnasta sin familia",
+          status: "active",
+          blockingReasons: ["FAMILY_REQUIRED"],
+        },
+      ],
+    });
+    familyAssociationResponse = {
+      familyId: createdFamilyId,
+      familyPayerId: createdPayerId,
+    };
+    const novemberOptions = monthlyOptions({
+      servicePeriod: "2026-11",
+      servicePeriodStart: "2026-11-01",
+      servicePeriodEnd: "2026-11-30",
+    });
+    familyOptionsAfterAssociation = novemberOptions;
+    let resolveAssociation: ((result: Response) => void) | undefined;
+    deferFamilyAssociationResponse = () =>
+      new Promise<Response>((resolve) => {
+        resolveAssociation = resolve;
+      });
+    const user = userEvent.setup();
+    renderManager();
+
+    await user.click(
+      await screen.findByRole("button", {
+        name: "Vincular a una familia a Gimnasta sin familia",
+      })
+    );
+    await waitFor(() =>
+      expect(
+        screen.getByRole("button", { name: "Guardar vínculo" })
+      ).toBeEnabled()
+    );
+    await user.type(
+      screen.getByLabelText("Nombre de la persona adulta"),
+      "Persona"
+    );
+    await user.type(screen.getByLabelText("Apellidos"), "Adulta sintética");
+    await user.click(screen.getByRole("button", { name: "Guardar vínculo" }));
+    await waitFor(() =>
+      expect(
+        vi
+          .mocked(fetch)
+          .mock.calls.some((call) =>
+            String(call[0]).includes("families/associations")
+          )
+      ).toBe(true)
+    );
+
+    fireEvent.change(document.querySelector('input[type="month"]')!, {
+      target: { value: "2026-11" },
+    });
+    await waitFor(() =>
+      expect(
+        vi
+          .mocked(fetch)
+          .mock.calls.some((call) =>
+            String(call[0]).includes("servicePeriod=2026-11")
+          )
+      ).toBe(true)
+    );
+    await waitFor(() =>
+      expect(document.querySelector('input[type="month"]')).toHaveValue(
+        "2026-11"
+      )
+    );
+
+    expect(resolveAssociation).toBeDefined();
+    await act(async () => {
+      resolveAssociation?.(response(familyAssociationResponse, 201));
+    });
+
+    await waitFor(() =>
+      expect(
+        vi
+          .mocked(fetch)
+          .mock.calls.filter((call) =>
+            String(call[0]).includes("monthly-invoices/options")
+          )
+          .at(-1)?.[0]
+      ).toContain("servicePeriod=2026-11")
+    );
+    expect(screen.getByLabelText("Familia")).toHaveValue("");
+    expect(screen.getByLabelText("Quién paga")).toHaveValue("");
+  });
+
+  it("conserva la misma clave y el mismo cuerpo al reintentar una asociación incierta", async () => {
+    currentOptions = monthlyOptions({
+      families: [],
+      unassignedEnrollments: [
+        {
+          enrollmentId,
+          athleteId,
+          athleteName: "Gimnasta sin familia",
+          status: "active",
+          blockingReasons: ["FAMILY_REQUIRED"],
+        },
+      ],
+    });
+    familyAssociationResponse = {
+      familyId: createdFamilyId,
+      familyPayerId: createdPayerId,
+    };
+    familyOptionsAfterAssociation = optionsWithNewlyLinkedFamily();
+    failFamilyAssociationOnce = true;
+    vi.stubGlobal("crypto", {
+      randomUUID: vi
+        .fn()
+        .mockReturnValueOnce("owner-family-association-key-1")
+        .mockReturnValueOnce("owner-family-association-key-2"),
+    });
+    const user = userEvent.setup();
+    renderManager();
+
+    await user.click(
+      await screen.findByRole("button", {
+        name: "Vincular a una familia a Gimnasta sin familia",
+      })
+    );
+    await waitFor(() =>
+      expect(
+        screen.getByRole("button", { name: "Guardar vínculo" })
+      ).toBeEnabled()
+    );
+    await user.type(
+      screen.getByLabelText("Nombre de la persona adulta"),
+      "Persona"
+    );
+    await user.type(screen.getByLabelText("Apellidos"), "Adulta sintética");
+    await user.click(screen.getByRole("button", { name: "Guardar vínculo" }));
+    expect(
+      await screen.findByText("Error temporal sintético", { exact: true })
+    ).toHaveAttribute("role", "alert");
+    await user.click(screen.getByRole("button", { name: "Guardar vínculo" }));
+
+    await waitFor(() => {
+      expect(
+        vi
+          .mocked(fetch)
+          .mock.calls.filter((call) =>
+            String(call[0]).includes("families/associations")
+          )
+      ).toHaveLength(2);
+    });
+    const associationCalls = vi
+      .mocked(fetch)
+      .mock.calls.filter((call) =>
+        String(call[0]).includes("families/associations")
+      );
+    expect(associationCalls[0]?.[1]?.headers).toEqual(
+      associationCalls[1]?.[1]?.headers
+    );
+    expect(associationCalls[0]?.[1]?.body).toBe(associationCalls[1]?.[1]?.body);
+    expect(associationCalls[0]?.[1]?.headers).toMatchObject({
+      "Idempotency-Key":
+        "owner-family-association:owner-family-association-key-1",
     });
   });
 

@@ -8,6 +8,7 @@ import {
   index,
   integer,
   jsonb,
+  primaryKey,
   text,
   timestamp,
   uniqueIndex,
@@ -16,6 +17,8 @@ import {
 
 import { authUsers } from "./auth-users";
 import {
+  athletes,
+  classTemplates,
   enrollments,
   families,
   familyCollectionMode,
@@ -92,6 +95,61 @@ export const reconciliationStatus = zaltyko.enum("reconciliation_status", [
 
 const money = (name: string) => bigint(name, { mode: "number" });
 
+export const pricePlanClassTemplateCoverage = zaltyko.table(
+  "price_plan_class_template_coverage",
+  {
+    id: uuid("id").primaryKey().defaultRandom(),
+    organizationId: uuid("organization_id")
+      .notNull()
+      .references(() => organizations.id, { onDelete: "cascade" }),
+    locationId: uuid("location_id").notNull(),
+    pricePlanId: uuid("price_plan_id").notNull(),
+    classTemplateId: uuid("class_template_id").notNull(),
+    startsOn: date("starts_on").notNull(),
+    endsOn: date("ends_on"),
+    createdAt: timestamp("created_at", { withTimezone: true })
+      .notNull()
+      .defaultNow(),
+  },
+  (table) => [
+    uniqueIndex("price_plan_class_template_coverage_org_id_uq").on(
+      table.organizationId,
+      table.id
+    ),
+    index("price_plan_class_template_coverage_lookup_idx").on(
+      table.organizationId,
+      table.locationId,
+      table.pricePlanId,
+      table.classTemplateId,
+      table.startsOn,
+      table.endsOn
+    ),
+    check(
+      "price_plan_class_template_coverage_dates_valid",
+      sql`${table.endsOn} is null or ${table.endsOn} >= ${table.startsOn}`
+    ),
+    foreignKey({
+      name: "price_plan_class_template_coverage_location_fk",
+      columns: [table.organizationId, table.locationId],
+      foreignColumns: [locations.organizationId, locations.id],
+    }).onDelete("restrict"),
+    foreignKey({
+      name: "price_plan_class_template_coverage_plan_fk",
+      columns: [table.organizationId, table.pricePlanId],
+      foreignColumns: [pricePlans.organizationId, pricePlans.id],
+    }).onDelete("restrict"),
+    foreignKey({
+      name: "price_plan_class_template_coverage_template_fk",
+      columns: [table.organizationId, table.locationId, table.classTemplateId],
+      foreignColumns: [
+        classTemplates.organizationId,
+        classTemplates.locationId,
+        classTemplates.id,
+      ],
+    }).onDelete("restrict"),
+  ]
+);
+
 export const enrollmentPriceAssignments = zaltyko.table(
   "enrollment_price_assignments",
   {
@@ -116,6 +174,13 @@ export const enrollmentPriceAssignments = zaltyko.table(
   (table) => [
     uniqueIndex("enrollment_price_assignments_organization_id_id_uq").on(
       table.organizationId,
+      table.id
+    ),
+    uniqueIndex("enrollment_price_assignments_coverage_fk_uq").on(
+      table.organizationId,
+      table.locationId,
+      table.pricePlanId,
+      table.enrollmentId,
       table.id
     ),
     uniqueIndex("enrollment_price_assignments_one_open_uq")
@@ -195,6 +260,11 @@ export const invoices = zaltyko.table(
       table.organizationId,
       table.id
     ),
+    uniqueIndex("invoices_billing_line_location_fk_uq").on(
+      table.organizationId,
+      table.locationId,
+      table.id
+    ),
     uniqueIndex("invoices_organization_id_currency_uq").on(
       table.organizationId,
       table.id,
@@ -243,6 +313,8 @@ export const invoiceLines = zaltyko.table(
       .notNull()
       .references(() => organizations.id, { onDelete: "cascade" }),
     invoiceId: uuid("invoice_id").notNull(),
+    locationId: uuid("location_id"),
+    athleteId: uuid("athlete_id"),
     enrollmentId: uuid("enrollment_id"),
     pricePlanId: uuid("price_plan_id"),
     lineType: text("line_type").notNull(),
@@ -266,6 +338,24 @@ export const invoiceLines = zaltyko.table(
       table.id,
       table.currency
     ),
+    uniqueIndex("invoice_lines_coverage_parent_fk_uq").on(
+      table.organizationId,
+      table.locationId,
+      table.athleteId,
+      table.pricePlanId,
+      table.id
+    ),
+    uniqueIndex("invoice_lines_monthly_athlete_uq")
+      .on(
+        table.organizationId,
+        table.invoiceId,
+        table.athleteId,
+        table.servicePeriodStart,
+        table.servicePeriodEnd
+      )
+      .where(
+        sql`${table.lineType} = 'monthly_fee' and ${table.athleteId} is not null`
+      ),
     index("invoice_lines_invoice_idx").on(
       table.organizationId,
       table.invoiceId
@@ -288,10 +378,33 @@ export const invoiceLines = zaltyko.table(
       "invoice_lines_period_valid",
       sql`${table.servicePeriodEnd} >= ${table.servicePeriodStart}`
     ),
+    check(
+      "invoice_lines_athlete_monthly_shape",
+      sql`${table.athleteId} is null or (
+        ${table.lineType} = 'monthly_fee'
+        and ${table.locationId} is not null
+        and ${table.pricePlanId} is not null
+        and ${table.enrollmentId} is null
+        and ${table.quantity} = 1
+        and ${table.servicePeriodStart} = date_trunc('month', ${table.servicePeriodStart})::date
+        and ${table.servicePeriodEnd} = (
+          date_trunc('month', ${table.servicePeriodStart}) + interval '1 month - 1 day'
+        )::date
+      )`
+    ),
     foreignKey({
       name: "invoice_lines_invoice_fk",
       columns: [table.organizationId, table.invoiceId, table.currency],
       foreignColumns: [invoices.organizationId, invoices.id, invoices.currency],
+    }).onDelete("cascade"),
+    foreignKey({
+      name: "invoice_lines_location_invoice_fk",
+      columns: [table.organizationId, table.locationId, table.invoiceId],
+      foreignColumns: [
+        invoices.organizationId,
+        invoices.locationId,
+        invoices.id,
+      ],
     }).onDelete("cascade"),
     foreignKey({
       name: "invoice_lines_enrollment_fk",
@@ -299,9 +412,129 @@ export const invoiceLines = zaltyko.table(
       foreignColumns: [enrollments.organizationId, enrollments.id],
     }).onDelete("restrict"),
     foreignKey({
+      name: "invoice_lines_location_fk",
+      columns: [table.organizationId, table.locationId],
+      foreignColumns: [locations.organizationId, locations.id],
+    }).onDelete("restrict"),
+    foreignKey({
+      name: "invoice_lines_athlete_fk",
+      columns: [table.organizationId, table.athleteId],
+      foreignColumns: [athletes.organizationId, athletes.id],
+    }).onDelete("restrict"),
+    foreignKey({
       name: "invoice_lines_price_plan_fk",
       columns: [table.organizationId, table.pricePlanId],
       foreignColumns: [pricePlans.organizationId, pricePlans.id],
+    }).onDelete("restrict"),
+  ]
+);
+
+export const invoiceLineEnrollments = zaltyko.table(
+  "invoice_line_enrollments",
+  {
+    organizationId: uuid("organization_id")
+      .notNull()
+      .references(() => organizations.id, { onDelete: "cascade" }),
+    locationId: uuid("location_id").notNull(),
+    athleteId: uuid("athlete_id").notNull(),
+    invoiceLineId: uuid("invoice_line_id").notNull(),
+    pricePlanId: uuid("price_plan_id").notNull(),
+    enrollmentId: uuid("enrollment_id").notNull(),
+    classTemplateId: uuid("class_template_id").notNull(),
+    priceAssignmentId: uuid("price_assignment_id").notNull(),
+    classNameSnapshot: text("class_name_snapshot").notNull(),
+    createdAt: timestamp("created_at", { withTimezone: true })
+      .notNull()
+      .defaultNow(),
+  },
+  (table) => [
+    primaryKey({
+      name: "invoice_line_enrollments_pkey",
+      columns: [table.organizationId, table.invoiceLineId, table.enrollmentId],
+    }),
+    uniqueIndex("invoice_line_enrollments_line_template_uq").on(
+      table.organizationId,
+      table.invoiceLineId,
+      table.classTemplateId
+    ),
+    index("invoice_line_enrollments_enrollment_idx").on(
+      table.organizationId,
+      table.locationId,
+      table.enrollmentId
+    ),
+    check(
+      "invoice_line_enrollments_class_name_not_blank",
+      sql`char_length(btrim(${table.classNameSnapshot})) between 2 and 120`
+    ),
+    foreignKey({
+      name: "invoice_line_enrollments_location_fk",
+      columns: [table.organizationId, table.locationId],
+      foreignColumns: [locations.organizationId, locations.id],
+    }).onDelete("restrict"),
+    foreignKey({
+      name: "invoice_line_enrollments_athlete_fk",
+      columns: [table.organizationId, table.athleteId],
+      foreignColumns: [athletes.organizationId, athletes.id],
+    }).onDelete("restrict"),
+    foreignKey({
+      name: "invoice_line_enrollments_line_fk",
+      columns: [
+        table.organizationId,
+        table.locationId,
+        table.athleteId,
+        table.pricePlanId,
+        table.invoiceLineId,
+      ],
+      foreignColumns: [
+        invoiceLines.organizationId,
+        invoiceLines.locationId,
+        invoiceLines.athleteId,
+        invoiceLines.pricePlanId,
+        invoiceLines.id,
+      ],
+    }).onDelete("restrict"),
+    foreignKey({
+      name: "invoice_line_enrollments_enrollment_fk",
+      columns: [
+        table.organizationId,
+        table.locationId,
+        table.athleteId,
+        table.classTemplateId,
+        table.enrollmentId,
+      ],
+      foreignColumns: [
+        enrollments.organizationId,
+        enrollments.locationId,
+        enrollments.athleteId,
+        enrollments.classTemplateId,
+        enrollments.id,
+      ],
+    }).onDelete("restrict"),
+    foreignKey({
+      name: "invoice_line_enrollments_class_template_fk",
+      columns: [table.organizationId, table.locationId, table.classTemplateId],
+      foreignColumns: [
+        classTemplates.organizationId,
+        classTemplates.locationId,
+        classTemplates.id,
+      ],
+    }).onDelete("restrict"),
+    foreignKey({
+      name: "invoice_line_enrollments_price_assignment_fk",
+      columns: [
+        table.organizationId,
+        table.locationId,
+        table.pricePlanId,
+        table.enrollmentId,
+        table.priceAssignmentId,
+      ],
+      foreignColumns: [
+        enrollmentPriceAssignments.organizationId,
+        enrollmentPriceAssignments.locationId,
+        enrollmentPriceAssignments.pricePlanId,
+        enrollmentPriceAssignments.enrollmentId,
+        enrollmentPriceAssignments.id,
+      ],
     }).onDelete("restrict"),
   ]
 );

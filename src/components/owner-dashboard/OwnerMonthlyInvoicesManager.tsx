@@ -47,6 +47,15 @@ function isServicePeriod(value: string): boolean {
   return /^\d{4}-(0[1-9]|1[0-2])$/.test(value);
 }
 
+function isUuid(value: unknown): value is string {
+  return (
+    typeof value === "string" &&
+    /^[0-9a-f]{8}-[0-9a-f]{4}-[1-8][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i.test(
+      value
+    )
+  );
+}
+
 export function OwnerMonthlyInvoicesManager({
   organizationId,
   organizationName,
@@ -74,14 +83,20 @@ export function OwnerMonthlyInvoicesManager({
   const [busy, setBusy] = useState(false);
   const [resolutionAction, setResolutionAction] =
     useState<ResolutionAction | null>(null);
+  const [payerResetKey, setPayerResetKey] = useState(0);
   const [resolutionNotice, setResolutionNotice] = useState("");
   const [quoteNeedsReview, setQuoteNeedsReview] = useState(false);
   const [refreshKey, setRefreshKey] = useState(0);
   const requestSequence = useRef(0);
   const issueRetry = useRef<RetryIssue | null>(null);
+  const currentScopeRef = useRef({
+    organizationId,
+    locationId: initialLocationId,
+    servicePeriod: initialServicePeriod,
+  });
 
   const loadOptions = useCallback(
-    async (signal?: AbortSignal) => {
+    async (signal?: AbortSignal, preferredFamilyId?: string) => {
       if (!locationId || !isServicePeriod(servicePeriod)) {
         return;
       }
@@ -97,7 +112,6 @@ export function OwnerMonthlyInvoicesManager({
           { cache: "no-store", signal }
         );
         const payload = await response.json().catch(() => null);
-        setLoadError("");
         const data = responseData<MonthlyInvoiceOptionsResponse>(payload);
         if (!response.ok || !data || !Array.isArray(data.families)) {
           throw new Error(
@@ -105,12 +119,29 @@ export function OwnerMonthlyInvoicesManager({
           );
         }
         if (requestSequence.current !== requestId) return;
+        if (
+          data.organizationId !== organizationId ||
+          data.locationId !== locationId ||
+          data.servicePeriod !== servicePeriod
+        ) {
+          throw new Error(
+            "La respuesta no corresponde a la academia, sede y mes solicitados. Vuelve a intentarlo."
+          );
+        }
+        setLoadError("");
         setOptions(data);
-        setSelectedFamilyId((current) =>
-          data.families.some((family) => family.familyId === current)
+        const preferredFamilyIsAvailable =
+          isUuid(preferredFamilyId) &&
+          data.organizationId === organizationId &&
+          data.locationId === locationId &&
+          data.servicePeriod === servicePeriod &&
+          data.families.some((family) => family.familyId === preferredFamilyId);
+        setSelectedFamilyId((current) => {
+          if (preferredFamilyIsAvailable) return preferredFamilyId;
+          return data.families.some((family) => family.familyId === current)
             ? current
-            : ""
-        );
+            : "";
+        });
         setState(data.families.length > 0 ? "ready" : "empty");
       } catch (error) {
         if (signal?.aborted || requestSequence.current !== requestId) return;
@@ -126,6 +157,12 @@ export function OwnerMonthlyInvoicesManager({
     [locationId, organizationId, servicePeriod]
   );
 
+  const loadOptionsRef = useRef(loadOptions);
+  useEffect(() => {
+    currentScopeRef.current = { organizationId, locationId, servicePeriod };
+    loadOptionsRef.current = loadOptions;
+  }, [loadOptions, locationId, organizationId, servicePeriod]);
+
   useEffect(() => {
     const controller = new AbortController();
     // eslint-disable-next-line react-hooks/set-state-in-effect -- initial state is already loading; this call starts the async server read.
@@ -139,15 +176,30 @@ export function OwnerMonthlyInvoicesManager({
     setRefreshKey((value) => value + 1);
   }
 
-  async function handleResolutionSaved(kind: "tariff" | "family") {
+  async function handleResolutionSaved(
+    kind: "tariff" | "family",
+    returnedFamilyId?: string
+  ) {
     setResolutionAction(null);
+    if (kind === "family") setPayerResetKey((current) => current + 1);
     setResolutionNotice(
       kind === "tariff"
         ? "Tarifa mensual asignada a la inscripción."
         : "Familia y persona pagadora vinculadas a la inscripción."
     );
     setState("loading");
-    await loadOptions();
+    const currentScope = currentScopeRef.current;
+    const callbackScopeMatchesCurrent =
+      currentScope.organizationId === organizationId &&
+      currentScope.locationId === locationId &&
+      currentScope.servicePeriod === servicePeriod;
+    const preferredFamilyId =
+      kind === "family" &&
+      callbackScopeMatchesCurrent &&
+      isUuid(returnedFamilyId)
+        ? returnedFamilyId
+        : undefined;
+    await loadOptionsRef.current(undefined, preferredFamilyId);
   }
 
   async function issueInvoice(command: {
@@ -308,6 +360,7 @@ export function OwnerMonthlyInvoicesManager({
         state={state}
         options={options}
         selectedFamilyId={selectedFamilyId}
+        payerResetKey={payerResetKey}
         dueDate={dueDate}
         errorMessage={loadError || issueError}
         successMessage={successMessage}
