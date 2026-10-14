@@ -17,10 +17,12 @@ Rama de revisión local: `codex/e2e-sandbox-env-barrier-20261014`.
 
 El nombre `environment: e2e-sandbox` en YAML no acredita que GitHub tenga protección configurada. Antes de publicar, ese Environment debe requerir aprobación de reviewers y no permitir autoaprobación o bypass. Las credenciales E2E deben moverse a secretos del Environment y quitarse de Repository Secrets antes de que cualquier PR use la rama; si quedan secretos duplicados a nivel repo, otros jobs/workflows podrían consumirlos sin pasar por este Environment. No he accedido a GitHub ni configurado estas reglas o secretos.
 
+El fail-closed para Dependabot y PRs de fork es intencional: sin credenciales en el Environment, el PR no satisface el check remoto y no puede mergearse por un `enabled=false` exitoso. El push a `develop` conserva el comportamiento previo de `enabled=false` sin error cuando faltan variables; el push a `main` sigue fallando.
+
 Se asignó el mismo Environment a dos jobs para respetar el alcance. GitHub puede solicitar aprobación por cada job; si aparecen dos solicitudes, la alternativa mínima es integrar la comprobación de readiness como primer paso de `e2e-auth` y mantener el gate estable sobre el único job protegido. No consolidé los jobs aquí.
 
 El gate estable solo bloquea merges si branch protection lo marca como check requerido. Esa configuración tampoco se ha inspeccionado ni cambiado. Hasta configurar y verificar Environment, secretos y check requerido, el cambio permanece **NO-GO para publicar**. El E2E remoto conserva la capacidad de provisionar y aplicar esquema en Sandbox, pero no debería obtener credenciales antes de la aprobación configurada.
 
 ## Validación
 
-El test añadido solo inspecciona el YAML y el script de readiness: 3/3 tests PASS. También pasan Prettier y ESLint del test, Prettier sobre `ci.yml`, y `bash -n` del script. No se ejecutó E2E, Postgres, Supabase, producción ni plataforma externa. No se cambiaron los workflows de deploy/producción ni otros gates.
+Los dos contratos focales pasan: 11/11 tests. Cubren el YAML y ejecutan el script de readiness con un entorno allowlist limpio, sin heredar secretos del proceso: PR sin credenciales, Dependabot/fork, `main` sin credenciales, `develop` sin credenciales, credenciales test dummy completas y ref de producción. Prettier, ESLint del test, `bash -n` y `git diff --check` también pasan. No se ejecutó E2E, Postgres, Supabase, producción ni plataforma externa. No se cambiaron los workflows de deploy/producción ni otros gates.
