@@ -33,6 +33,12 @@ self.addEventListener('fetch', (event) => {
     return;
   }
 
+  // Next owns its RSC and prefetch transport. Leave these requests untouched
+  // so browser navigation and router refresh are not wrapped by this worker.
+  if (request.headers.get('RSC') === '1' || url.searchParams.has('_rsc')) {
+    return;
+  }
+
   // Tenant/user data must always come from the network.
   if (url.pathname.startsWith('/api/')) {
     event.respondWith(fetch(request));
