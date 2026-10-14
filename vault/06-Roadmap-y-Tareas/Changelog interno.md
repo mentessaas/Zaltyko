@@ -7,6 +7,27 @@ source:
   - ../docs/architecture/zaltyko-domain-model.md
 ---
 
+## 2026-10-14 — Preflight solo lectura del Sandbox de esquema
+
+Sobre Main `e0ebecfa`, el proyecto `aeeootdmuiqkfeernskw` tiene las 16
+migraciones compartidas del dominio en `zaltyko_domain_private.e2e_schema_migrations`
+con SHA-256 idénticos a los archivos locales. El historial nativo Supabase
+termina en `20261005002950`; el ledger público de aplicación es distinto y no
+registra los 11 nombres consultados. No se deben copiar filas entre ledgers.
+
+Consentimiento canónico y cobertura/snapshots mensuales siguen locales y
+ausentes en el Sandbox; el runner remoto solo admite las 16 compartidas. El
+restore sintético PASS dos veces cubre 11 migraciones en PostgreSQL 14, no la
+delta ni el destino PostgreSQL 17. RLS/grants se inspeccionaron sin filas de
+negocio. `public.owner_consent` conserva grants amplios a `anon` y
+`authenticated` bajo RLS y no se leyeron sus filas. ADR-0027 ya define
+aceptación explícita en Setup para identidades previas, sin backfill ni regrant
+automático; se confirmó que `auth.users` y la FK de miembros existen en el
+destino. Se propone runner delta con ledger privado separado, sin tocar el
+allowlist base; no se implementó. No hubo escrituras remotas, cambios de
+SQL/allowlist ni despliegue. Detalle y gates en
+`docs/qa/sandbox-schema-preflight-2026-10-14.md`.
+
 ## 2026-10-14 — Runner local sintético de backup y restore
 
 Se añadió en `codex/synthetic-restore-local-20261014` un runner efímero para
