@@ -12,11 +12,24 @@ test("owner clean-start setup is responsive and WCAG A/AA clean", async ({
       timeout: 120_000,
     });
     await expect(
-      page.getByRole("heading", { name: "Crea tu espacio de dirección" })
+      page.getByRole("heading", { name: "Crea tu academia" })
     ).toBeVisible();
+    await expect(page.getByRole("status")).toContainText(
+      "No se creará ninguna academia ni se guardará tu aceptación"
+    );
     await expect(
       page.getByRole("button", { name: "Crear espacio de dirección" })
-    ).toBeVisible();
+    ).toBeDisabled();
+    await expect(
+      page.getByRole("checkbox", {
+        name: /Acepto los términos y condiciones y he leído la política de privacidad/,
+      })
+    ).not.toBeChecked();
+    await expect(
+      page.getByRole("checkbox", {
+        name: /Acepto los términos y condiciones y he leído la política de privacidad/,
+      })
+    ).toBeDisabled();
     expect(
       await page.evaluate(
         () => document.documentElement.scrollWidth > window.innerWidth

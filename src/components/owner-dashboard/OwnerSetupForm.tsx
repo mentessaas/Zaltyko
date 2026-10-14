@@ -22,8 +22,10 @@ export type OwnerSetupContractualConsent = {
 
 export function OwnerSetupForm({
   contractualConsent,
+  previewOnly = false,
 }: {
   contractualConsent?: OwnerSetupContractualConsent | null;
+  previewOnly?: boolean;
 } = {}) {
   const router = useRouter();
   const [pending, setPending] = useState(false);
@@ -82,6 +84,8 @@ export function OwnerSetupForm({
 
   async function submit(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
+    if (previewOnly) return;
+
     if (!contractualConsent) {
       setError(
         "No pudimos comprobar los términos vigentes de tu cuenta. Recarga la página para volver a intentarlo."
@@ -289,7 +293,7 @@ export function OwnerSetupForm({
             name="contractualAcceptance"
             required
             checked={consentAccepted}
-            disabled={fieldsLocked}
+            disabled={previewOnly || fieldsLocked}
             onChange={(event) => setConsentAccepted(event.target.checked)}
             className="mt-0.5 h-5 w-5 accent-teal-800"
           />
@@ -326,7 +330,7 @@ export function OwnerSetupForm({
       )}
       <button
         type="submit"
-        disabled={pending}
+        disabled={previewOnly || pending}
         className="touch-target inline-flex items-center justify-center gap-2 bg-slate-950 px-5 py-3 text-sm font-bold text-white hover:bg-teal-900 disabled:bg-slate-500"
       >
         {pending
