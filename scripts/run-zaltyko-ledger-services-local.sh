@@ -47,7 +47,8 @@ for migration in \
   20261006090034_add_trials_waitlists_families.sql \
   20261006093047_add_internal_billing_ledger.sql \
   20261013082806_organization_payment_accounts.sql \
-  20261013160000_canonical_family_collection_and_entitlements.sql
+  20261013160000_canonical_family_collection_and_entitlements.sql \
+  20261014001209_monthly_athlete_tariff_coverage_and_invoice_line_enrollments.sql
 do
   "${PSQL[@]}" -f "${ROOT_DIR}/supabase/migrations/${migration}" >/dev/null
 done
