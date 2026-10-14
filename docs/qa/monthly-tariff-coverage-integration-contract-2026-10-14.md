@@ -43,9 +43,18 @@ se convierten en opciones inventadas ni en selección automática.
 - Main: opciones GET, contrato, integración y revisión independiente.
 - QA: allowlist local y E2E solo después de integrar los tres consumidores.
 
-El esquema de cobertura y servicio por atleta están integrados localmente.
-Main verificó 35 tests de dominio/API/workspace/manager y harness transaccional
-PASS; opciones GET, cinco tests PASS. Falta alta atómica con cobertura y su UI.
+El esquema, servicio por atleta, alta atómica de cobertura y formulario están
+integrados localmente en `120d90ed` (Backend `355c310e`, Front `2915e314`).
+Main verificó 71 tests focales integrados y TypeScript PASS. La prueba
+transaccional independiente pasó tras corregir una expectativa no determinista:
+el command ganador de dos emisiones simultáneas puede tener cualquiera de sus
+claves. La prueba identifica la clave persistida y exige `IDEMPOTENCY_CONFLICT`
+ante quote cambiado; con clave nueva exige `PERIOD_ALREADY_INVOICED`. Ambos
+rechazos conservan factura, líneas, cargos, outbox y auditoría. No se cambió
+la lógica de emisión para hacer pasar el test.
+El harness demuestra alta real de tarifa con cobertura, rollback conjunto y
+creación/emisión concurrentes en menos de 15 segundos. No demuestra todavía UI
+autenticada, rendimiento comercial ni compatibilidad de datos remotos.
 El sexto Chromium falló al emitir por esquema local incompleto (`42703`).
 No hay recorrido E2E completo ni aplicación remota verificada. No publicar el
 servicio nuevo contra un esquema antiguo ni sembrar cobertura para fingir QA.

@@ -1840,21 +1840,36 @@ async function main(): Promise<void> {
   );
   const monthlyRetry = await issueMonthlyInvoice(monthlyCommand);
   assert.equal(monthlyRetry.invoice.id, issuedMonthlyInvoice.invoice.id);
+  // Either concurrent key may win. Test the persisted command key, not the
+  // first promise's key, so rejection semantics do not depend on scheduling.
+  const winningMonthlyKey = concurrentMonthlyIssues[0].replayed
+    ? "monthly-invoice-issue-concurrent-002"
+    : monthlyCommand.idempotencyKey;
   const replayQuoteChangeBefore = await invoiceEffectSnapshot(
     issuedMonthlyInvoice.invoice.id,
-    monthlyCommand.idempotencyKey
+    winningMonthlyKey
   );
   await expectOperationalError(
     () =>
       issueMonthlyInvoice({
         ...monthlyCommand,
+        idempotencyKey: winningMonthlyKey,
+        quoteHash: "f".repeat(64),
+      }),
+    "IDEMPOTENCY_CONFLICT"
+  );
+  await expectOperationalError(
+    () =>
+      issueMonthlyInvoice({
+        ...monthlyCommand,
+        idempotencyKey: "monthly-invoice-changed-quote-new-key",
         quoteHash: "f".repeat(64),
       }),
     "PERIOD_ALREADY_INVOICED"
   );
   const replayQuoteChangeAfter = await invoiceEffectSnapshot(
     issuedMonthlyInvoice.invoice.id,
-    monthlyCommand.idempotencyKey
+    winningMonthlyKey
   );
   assert.deepEqual(
     replayQuoteChangeAfter,
