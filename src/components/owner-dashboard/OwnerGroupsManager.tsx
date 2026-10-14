@@ -29,9 +29,13 @@ type PendingGroupCreate = {
 };
 
 type PendingGroupCreateState =
-  | { kind: "replayable"; command: PendingGroupCreate }
-  | { kind: "legacy" }
-  | { kind: "invalid" };
+  | {
+      kind: "replayable";
+      organizationId: string;
+      command: PendingGroupCreate;
+    }
+  | { kind: "legacy"; organizationId: string }
+  | { kind: "invalid"; organizationId: string };
 
 function responseData<T>(payload: unknown): T | null {
   if (payload && typeof payload === "object" && "data" in payload) {
@@ -98,10 +102,12 @@ function readPendingGroupCreate(
     const stored = window.sessionStorage.getItem(storageKey);
     if (stored !== null) {
       const command = parsePendingGroupCreate(stored, organizationId);
-      return command ? { kind: "replayable", command } : { kind: "invalid" };
+      return command
+        ? { kind: "replayable", organizationId, command }
+        : { kind: "invalid", organizationId };
     }
     return window.sessionStorage.getItem(legacyStorageKey)
-      ? { kind: "legacy" }
+      ? { kind: "legacy", organizationId }
       : null;
   } catch {
     return null;
@@ -124,15 +130,16 @@ function statusLabel(status: string): string {
 
 export function OwnerGroupsManager({ bundle }: { bundle: GroupsBundle }) {
   const router = useRouter();
-  const [createOpen, setCreateOpen] = useState(bundle.groups.length === 0);
-  const [groupName, setGroupName] = useState("");
-  const [programId, setProgramId] = useState(bundle.programs[0]?.id ?? "");
-  const [locationId, setLocationId] = useState(
+  const defaultProgramId = bundle.programs[0]?.id ?? "";
+  const defaultLocationId =
     bundle.groups.find((group) => group.id === bundle.selectedGroupId)
       ?.locationId ??
-      bundle.locations[0]?.id ??
-      ""
-  );
+    bundle.locations[0]?.id ??
+    "";
+  const [createOpen, setCreateOpen] = useState(bundle.groups.length === 0);
+  const [groupName, setGroupName] = useState("");
+  const [programId, setProgramId] = useState(defaultProgramId);
+  const [locationId, setLocationId] = useState(defaultLocationId);
   const [capacity, setCapacity] = useState("");
   const [candidateQuery, setCandidateQuery] = useState("");
   const [candidates, setCandidates] = useState<Candidate[]>([]);
@@ -141,8 +148,8 @@ export function OwnerGroupsManager({ bundle }: { bundle: GroupsBundle }) {
   const [busy, setBusy] = useState(false);
   const [pendingGroupCreate, setPendingGroupCreate] =
     useState<PendingGroupCreateState | null>(null);
-  const [pendingGroupCreateLoaded, setPendingGroupCreateLoaded] =
-    useState(false);
+  const [pendingGroupCreateLoadedFor, setPendingGroupCreateLoadedFor] =
+    useState<string | null>(null);
   const [error, setError] = useState("");
   const [notice, setNotice] = useState("");
   const groupCreateRequestRef = useRef(false);
@@ -156,15 +163,20 @@ export function OwnerGroupsManager({ bundle }: { bundle: GroupsBundle }) {
   const selectedToday = selectedGroup
     ? (bundle.localTodayByLocation[selectedGroup.locationId] ?? "")
     : "";
+  const currentPendingGroupCreate =
+    pendingGroupCreate?.organizationId === organizationId
+      ? pendingGroupCreate
+      : null;
   const replayableGroupCreate =
-    pendingGroupCreate?.kind === "replayable"
-      ? pendingGroupCreate.command
+    currentPendingGroupCreate?.kind === "replayable"
+      ? currentPendingGroupCreate.command
       : null;
   const replayableGroupPayload = replayableGroupCreate
     ? (JSON.parse(replayableGroupCreate.body) as GroupCreatePayload)
     : null;
+  const groupCreateScopeLoaded = pendingGroupCreateLoadedFor === organizationId;
   const groupCreateLocked =
-    busy || !pendingGroupCreateLoaded || pendingGroupCreate !== null;
+    busy || !groupCreateScopeLoaded || currentPendingGroupCreate !== null;
   const createStorageKey = `zaltyko:pending-group-create:v2:${organizationId}`;
   const legacyCreateStorageKey = `zaltyko:pending-group-create:${organizationId}`;
   const createAthleteStorageKey = `zaltyko:pending-group-athlete:${organizationId}:${bundle.selectedGroupId ?? "none"}`;
@@ -185,9 +197,22 @@ export function OwnerGroupsManager({ bundle }: { bundle: GroupsBundle }) {
       setLocationId(payload.locationId);
       setCapacity(payload.capacity === null ? "" : String(payload.capacity));
       setCreateOpen(true);
+    } else {
+      setGroupName("");
+      setProgramId(defaultProgramId);
+      setLocationId(defaultLocationId);
+      setCapacity("");
+      setCreateOpen(bundle.groups.length === 0);
     }
-    setPendingGroupCreateLoaded(true);
-  }, [createStorageKey, legacyCreateStorageKey, organizationId]);
+    setPendingGroupCreateLoadedFor(organizationId);
+  }, [
+    bundle.groups.length,
+    createStorageKey,
+    defaultLocationId,
+    defaultProgramId,
+    legacyCreateStorageKey,
+    organizationId,
+  ]);
 
   function clearPendingGroupCreate() {
     try {
@@ -195,7 +220,9 @@ export function OwnerGroupsManager({ bundle }: { bundle: GroupsBundle }) {
     } catch {
       // The in-memory state still reflects the server's definitive response.
     }
-    setPendingGroupCreate(null);
+    setPendingGroupCreate((current) =>
+      current?.organizationId === organizationId ? null : current
+    );
   }
 
   function clearCreateAthleteKey() {
@@ -235,7 +262,12 @@ export function OwnerGroupsManager({ bundle }: { bundle: GroupsBundle }) {
   }
 
   async function sendGroupCreate(command: PendingGroupCreate) {
-    if (groupCreateRequestRef.current) return;
+    if (
+      command.organizationId !== organizationId ||
+      groupCreateRequestRef.current
+    ) {
+      return;
+    }
     groupCreateRequestRef.current = true;
     setError("");
     setNotice("");
@@ -249,7 +281,11 @@ export function OwnerGroupsManager({ bundle }: { bundle: GroupsBundle }) {
       return;
     }
 
-    setPendingGroupCreate({ kind: "replayable", command });
+    setPendingGroupCreate({
+      kind: "replayable",
+      organizationId,
+      command,
+    });
     setBusy(true);
     try {
       const response = await fetch("/api/v1/owner/groups", {
@@ -285,7 +321,12 @@ export function OwnerGroupsManager({ bundle }: { bundle: GroupsBundle }) {
 
   async function createGroup(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
-    if (pendingGroupCreate || !pendingGroupCreateLoaded) return;
+    if (
+      currentPendingGroupCreate ||
+      pendingGroupCreateLoadedFor !== organizationId
+    ) {
+      return;
+    }
     if (!groupName.trim() || !programId || !locationId) {
       setError("Completa el nombre, la actividad y la sede.");
       return;
@@ -315,8 +356,14 @@ export function OwnerGroupsManager({ bundle }: { bundle: GroupsBundle }) {
   }
 
   async function retryPendingGroupCreate() {
-    if (pendingGroupCreate?.kind !== "replayable" || busy) return;
-    await sendGroupCreate(pendingGroupCreate.command);
+    if (
+      currentPendingGroupCreate?.kind !== "replayable" ||
+      currentPendingGroupCreate.command.organizationId !== organizationId ||
+      busy
+    ) {
+      return;
+    }
+    await sendGroupCreate(currentPendingGroupCreate.command);
   }
 
   async function searchAthletes(event: FormEvent<HTMLFormElement>) {
@@ -540,13 +587,19 @@ export function OwnerGroupsManager({ bundle }: { bundle: GroupsBundle }) {
           <button
             type="button"
             className={primaryButtonClassName}
-            disabled={busy || pendingGroupCreate !== null}
+            disabled={busy || groupCreateLocked}
             onClick={() => setCreateOpen((open) => !open)}
           >
             <Plus className="h-4 w-4" aria-hidden="true" />
             {createOpen ? "Cerrar formulario" : "Crear grupo"}
           </button>
         </header>
+
+        {!groupCreateScopeLoaded && (
+          <p role="status" className="mt-5 text-sm text-slate-700">
+            Comprobando si hay una creación pendiente…
+          </p>
+        )}
 
         {error && (
           <p
@@ -565,7 +618,7 @@ export function OwnerGroupsManager({ bundle }: { bundle: GroupsBundle }) {
           </p>
         )}
 
-        {pendingGroupCreate && (
+        {currentPendingGroupCreate && (
           <section
             aria-labelledby="pending-group-create-title"
             className="mt-5 border border-amber-700 bg-amber-50 p-4 text-sm text-slate-950"
@@ -577,10 +630,9 @@ export function OwnerGroupsManager({ bundle }: { bundle: GroupsBundle }) {
             {replayableGroupCreate && replayableGroupPayload ? (
               <>
                 <p className="mt-2 leading-6">
-                  Se conserva la solicitud original para «
-                  {replayableGroupPayload.name}». Reintentar enviará el mismo
-                  cuerpo y la misma clave; el formulario queda protegido hasta
-                  conocer el resultado.
+                  Volveremos a comprobar la solicitud original para «
+                  {replayableGroupPayload.name}» y evitar duplicados. El
+                  formulario queda protegido hasta conocer el resultado.
                 </p>
                 <button
                   type="button"
@@ -595,16 +647,33 @@ export function OwnerGroupsManager({ bundle }: { bundle: GroupsBundle }) {
               </>
             ) : (
               <p className="mt-2 leading-6">
-                Esta sesión conserva una solicitud antigua sin su cuerpo
-                original. Para evitar duplicados, no se enviará una creación
-                nueva con esa clave. Actualiza la lista de grupos y comprueba si
-                la creación ya se completó.
+                Hay una solicitud anterior que no se puede reenviar de forma
+                segura. No la borraremos ni enviaremos otra creación desde aquí.
+                Actualiza la lista de grupos para comprobar su estado. Si no
+                aparece o tienes dudas, contacta con soporte.
               </p>
+            )}
+            {(!replayableGroupCreate || !replayableGroupPayload) && (
+              <div className="mt-3 flex flex-wrap items-center gap-3">
+                <button
+                  type="button"
+                  className={secondaryButtonClassName}
+                  onClick={() => router.refresh()}
+                >
+                  Actualizar lista de grupos
+                </button>
+                <Link
+                  href="/contact?type=support"
+                  className="touch-target inline-flex min-h-11 items-center font-semibold text-teal-900 underline underline-offset-4 focus-visible:outline focus-visible:outline-2 focus-visible:outline-teal-800"
+                >
+                  Contactar soporte
+                </Link>
+              </div>
             )}
           </section>
         )}
 
-        {createOpen && (
+        {createOpen && groupCreateScopeLoaded && (
           <section
             aria-labelledby="create-group-title"
             className="mt-6 border border-slate-300 bg-white p-5 sm:p-6"

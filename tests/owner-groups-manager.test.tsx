@@ -263,19 +263,29 @@ describe("gestión de grupos owner", () => {
     expect(await screen.findByRole("alert")).toHaveTextContent(
       "No se pudo confirmar el resultado."
     );
-    firstPage.unmount();
+    const oldOrganizationRetry = screen.getByRole("button", {
+      name: "Reintentar creación pendiente",
+    });
 
     const otherBundle = {
       ...emptyBundle,
       organization: { ...emptyBundle.organization, id: otherOrganizationId },
     } as never;
     const secondUser = userEvent.setup();
-    render(<OwnerGroupsManager bundle={otherBundle} />);
+    firstPage.rerender(<OwnerGroupsManager bundle={otherBundle} />);
+    await waitFor(() =>
+      expect(
+        screen.getByRole("button", { name: "Guardar grupo" })
+      ).toBeEnabled()
+    );
+    oldOrganizationRetry.click();
     expect(
       screen.queryByRole("heading", {
         name: "Creación de grupo pendiente de confirmar",
       })
     ).not.toBeInTheDocument();
+    expect(screen.getByLabelText("Nombre del grupo")).toHaveValue("");
+    expect(mockFetch).toHaveBeenCalledTimes(1);
     await secondUser.type(screen.getByLabelText("Nombre del grupo"), "Rítmica");
     await secondUser.click(
       screen.getByRole("button", { name: "Guardar grupo" })
@@ -308,11 +318,17 @@ describe("gestión de grupos owner", () => {
       })
     ).toBeVisible();
     expect(
-      screen.getByText(/solicitud antigua sin su cuerpo original/i)
+      screen.getByText(/solicitud anterior.*no se puede reenviar/i)
     ).toBeVisible();
     expect(
       screen.getByRole("button", { name: "Guardar grupo" })
     ).toBeDisabled();
+    expect(
+      screen.getByRole("button", { name: "Actualizar lista de grupos" })
+    ).toBeVisible();
+    expect(
+      screen.getByRole("link", { name: "Contactar soporte" })
+    ).toHaveAttribute("href", "/contact?type=support");
     expect(
       screen.queryByRole("button", { name: "Reintentar creación pendiente" })
     ).not.toBeInTheDocument();

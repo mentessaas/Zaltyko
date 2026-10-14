@@ -11898,6 +11898,11 @@ Modelo separado, reclamación manual, administración, importación revisada, fi
   incierto. Un 4xx definitivo limpia el snapshot; una edición posterior genera
   una clave nueva. Los registros legacy con solo clave no se reenvían ni
   permiten crear otro grupo; su resolución segura queda en backlog.
+- El copy de reintento habla de volver a comprobar la solicitud original para
+  evitar duplicados. Los registros legacy/dañados ofrecen actualizar la lista o
+  contactar soporte, sin borrarlos ni prometer un resultado. Al cambiar de
+  organización en el mismo componente se oculta el snapshot anterior, se
+  restablece el borrador y el alta queda bloqueada hasta cargar el nuevo scope.
 - Tests UI focales 7/7, TypeScript, ESLint focal, Prettier y `git diff --check`
   PASS. No se ejecutaron E2E, PostgreSQL, navegadores, Sandbox ni producción.
   Este arreglo no atribuye ni resuelve los fallos de la suite completa.
