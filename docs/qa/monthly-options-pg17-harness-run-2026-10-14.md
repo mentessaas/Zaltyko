@@ -36,6 +36,32 @@ Post-run: HEAD permaneció en el commit bajo prueba, el árbol siguió limpio y 
 
 ## Seguimiento
 
-El fixture recibió casts explícitos `::uuid` en el commit local separado `d49bc380d0c07247353a6a2708b9db1d5eb83e46`. Después pasaron el test focal del contrato (5/5), `pnpm typecheck`, `bash -n` y `git diff --check`. **El harness PG no se volvió a ejecutar**, así que el resultado del servicio después de la corrección permanece sin verificar.
+El fixture recibió casts explícitos `::uuid` en el commit local separado `d49bc380d0c07247353a6a2708b9db1d5eb83e46`; el commit `4edc59dea209c296832eb709bc9a3d550542d342` completó los casts de enums y fechas. La corrida posterior se registra a continuación; el FAIL de `0501` se conserva como evidencia histórica de ese SHA.
+
+## Corrida posterior autorizada
+
+**Fecha/hora:** 2026-10-14 19:42:42.316 UTC
+
+**Commit bajo prueba:** `4edc59dea209c296832eb709bc9a3d550542d342`
+
+**Resultado:** PASS.
+
+El preflight confirmó SHA exacto, árbol limpio, ausencia de otro runner/cluster residual y PostgreSQL 17.11 para los cuatro binarios (`initdb`, `postgres`, `pg_ctl`, `psql`) resueltos bajo `/opt/homebrew/opt/postgresql@17/bin/`. Se comprobó que `package.json`, `pnpm-lock.yaml`, `pnpm-workspace.yaml` y `.npmrc` coincidían con el checkout local antes de enlazar temporalmente `node_modules`; el enlace se retiró al terminar.
+
+Comando ejecutado una vez, sin ampliar timeouts:
+
+```bash
+PATH="/opt/homebrew/opt/postgresql@17/bin:$PATH" \
+  ZALTYKO_MONTHLY_BILLING_PAGING_CASE=options \
+  bash scripts/run-zaltyko-monthly-billing-paging-local.sh
+```
+
+Salida JSON del verificador:
+
+```json
+{"status":"PASS","service":"getMonthlyInvoiceOptions","monthlyPlans":201,"familiesWithAthletes":201,"includedEnrollments":203,"activeBillableEnrollments":202,"activeCoveragePairs":203,"excludedEnrollments":4,"pagination":"201 plans, 201 family-athlete rows, 203 enrollment reads, 203 coverage pairs","database":"disposable PostgreSQL 17 loopback only"}
+```
+
+El runner informó `monthly billing paging cleanup: PASS` y terminó con **exit 0**. Post-run: HEAD permaneció en `4edc59dea209c296832eb709bc9a3d550542d342`, el árbol quedó limpio y no quedaron directorios temporales ni procesos PostgreSQL 17. El proceso preexistente PID 1729 de PostgreSQL 14 permaneció sin uso.
 
 Vault: no aplica; esta nota registra únicamente una ejecución local de QA de un harness sintético y no cambia producto, arquitectura ni dirección.
