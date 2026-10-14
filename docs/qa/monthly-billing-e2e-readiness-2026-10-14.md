@@ -10,6 +10,15 @@ salvedad impide describir Chromium como checkout inmutable durante la corrida.
 Todos terminaron exit 0 y cleanup confirmado. Restore sintético local también
 PASS (véase nota específica); remoto, CI del candidato y revisión siguen abiertos.
 
+Suite unitaria completa verificada por QA en checkout detached limpio de
+`986f32dfab70623aa4893ce23e90c372b17faa98`: **495 archivos PASS y 1
+omitido; 2613 pruebas PASS y 3 omitidas**, exit 0, 611,87 segundos.
+Se observaron avisos React `act` en OwnerEnrollmentsManager; no fallos.
+Este resultado es anterior a la integración del preflight de esquema de solo
+lectura, que se valida por separado; no equivale a CI del candidato publicado.
+
+## Historial de cortes anteriores (no estado vigente)
+
 Firefox en `d6ac32654c0faa506212cb1eb21a677207069947`: **PASS**,
 1/1 en 54,9 segundos, exit 0 y cleanup confirmado. Incluye el bypass RSC
 del service worker, probado además con 13 tests unitarios PASS en Main.
