@@ -49,9 +49,9 @@ export function FamilyCollectionModeCard({
     )
       .then(async (response) => {
         const payload = (await response.json().catch(() => null)) as
-          | FamilyCollectionPreference
-          | { detail?: string }
-          | null;
+            | FamilyCollectionPreference
+            | { detail?: string }
+            | null;
         if (!response.ok || !payload || !("familyId" in payload)) {
           throw new Error(
             payload && "detail" in payload
@@ -117,7 +117,7 @@ export function FamilyCollectionModeCard({
       setPreference(payload);
       setSavedMessage(
         mode === "automatic"
-          ? "Preferencia automática guardada para esta familia. Los cobros automáticos todavía no están activos."
+          ? "Solicitud automática guardada; el cobro efectivo sigue siendo manual."
           : "Preferencia manual guardada para esta familia."
       );
     } catch (error) {
@@ -154,10 +154,11 @@ export function FamilyCollectionModeCard({
           id="family-collection-mode-title"
           className="text-sm font-bold text-slate-900"
         >
-          Preferencia de cobro de esta familia
+          Cobro familiar: modalidad efectiva manual
         </h3>
         <p className="mt-1 text-sm leading-5 text-slate-600">
-          Se aplica a sus futuros cargos; no modifica los ya emitidos.
+          Puedes guardar una solicitud futura de cobro automático; aún no inicia
+          cargos ni modifica los ya emitidos.
         </p>
       </div>
 
@@ -203,7 +204,7 @@ export function FamilyCollectionModeCard({
                 value="automatic"
               />
               <span className="text-sm font-semibold text-slate-900">
-                Automático
+                Solicitar automático
               </span>
             </label>
           </fieldset>
@@ -211,19 +212,20 @@ export function FamilyCollectionModeCard({
           {preference?.requiresConfirmation ? (
             <p className="mt-3 rounded-xl bg-amber-50 px-3 py-2 text-sm leading-5 text-amber-950">
               {preference.automaticPreferenceAvailable
-                ? "La solicitud automática anterior dejó de ser válida al cambiar el plan. La familia queda en modo manual; elige Automático de nuevo para confirmar."
+                ? "La solicitud automática anterior dejó de ser válida al cambiar el plan. La familia sigue en modo manual; vuelve a solicitarla si quieres conservar esa preferencia futura."
                 : "La solicitud automática anterior dejó de ser válida al cambiar el plan. La familia queda en modo manual; podrás volver a solicitarla con un plan de pago vigente."}
             </p>
           ) : null}
           {preference && !preference.automaticPreferenceAvailable ? (
             <p className="mt-2 text-xs leading-5 text-slate-600">
-              Automático solo se puede solicitar con un plan de pago vigente.
+              La solicitud automática solo se puede guardar con un plan de pago
+              vigente.
             </p>
           ) : null}
           <p className="mt-3 rounded-xl bg-amber-50 px-3 py-2 text-xs leading-5 text-amber-950">
-            Guardar «Automático» solo registra la preferencia. No autoriza al
-            pagador ni inicia cobros; el modo efectivo sigue siendo manual hasta
-            completar consentimiento, procesador y pruebas de seguridad.
+            La solicitud no autoriza al pagador ni inicia cobros. Activar esta
+            modalidad requiere consentimiento, habilitar el procesamiento y
+            completar sus pruebas de seguridad.
           </p>
         </>
       )}

@@ -11872,3 +11872,18 @@ Modelo separado, reclamación manual, administración, importación revisada, fi
 - Se evaluó sin ejecutar el dump lógico por CLI, el recorte a esquema greenfield y el restore gestionado de Supabase. El plan Free permite considerar dump lógico en un runner remoto aprobado, pero no hay destino seguro/retención/autorización de datos definido; CLI excluye Auth/Storage y los objetos de Storage requieren copia aparte. Esquema-only no restaura estado operativo.
 - El restore local PostgreSQL 17 PASS de Main valida el runner con fixtures sintéticas; no demuestra recuperación del Sandbox remoto.
 - Sin exports, consultas nuevas al proveedor, recursos, pagos, migraciones ni runners. Detalle: [`sandbox-backup-restore-viability-2026-10-14.md`](../../docs/qa/sandbox-backup-restore-viability-2026-10-14.md).
+
+## 2026-10-14 — Claridad de copy sobre cobro familiar automático
+
+- En rama local `codex/family-billing-copy-clarity-20261014`, basada en
+  `67820e47`, se hace explícito que «Solicitar automático» solo guarda una
+  preferencia futura y la modalidad efectiva continúa manual. Free y trial
+  siguen manuales; Growth aclara que el cobro familiar automático aún no está
+  disponible. No cambian lógica de planes, preferencias, consentimiento,
+  procesamiento ni precios.
+- El artículo público distingue recomendación general de capacidad actual; el
+  formulario de pago manual describe el saldo actualizado al guardar. La nota
+  técnica marca el PaymentIntent off-session como previsto/no liberado.
+- Validación focal documentada en [nota QA](../../docs/qa/family-billing-copy-clarity-2026-10-14.md).
+  No hay navegador/E2E, sandbox, plataformas, producción ni Stripe Live en el
+  alcance.
