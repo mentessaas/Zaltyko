@@ -369,6 +369,23 @@ describe("monthly invoice options keyset pagination", () => {
       true
     );
     expect(result.unassignedEnrollments).toHaveLength(0);
+    const lastFamily = result.families.at(-1);
+    expect(lastFamily).toMatchObject({
+      familyId: "family-4001",
+      existingInvoiceId: "invoice-4001",
+      existingInvoiceVoided: false,
+    });
+    expect(lastFamily?.payers.map((payer) => payer.familyPayerId)).toEqual([
+      "payer-4001",
+    ]);
+    expect(lastFamily?.enrollments[0].assignedPrice).toMatchObject({
+      pricePlanId: "plan-001",
+      name: "Plan 001",
+      amountCents: 10000,
+      currency: "EUR",
+    });
+    expect(lastFamily?.lines[0].pricePlanId).toBe("plan-001");
+    expect(lastFamily?.blockingReasons).toContain("PERIOD_ALREADY_INVOICED");
     expect(
       fixtureState.pageCalls.some(
         (call) => call.table === "pricePlans" && call.cursor !== null
@@ -379,6 +396,13 @@ describe("monthly invoice options keyset pagination", () => {
         (call) => call.table === "enrollments" && call.cursor !== null
       )
     ).toBe(true);
+    for (const table of ["enrollmentPriceAssignments", "familyPayers"]) {
+      const calls = fixtureState.pageCalls.filter(
+        (call) => call.table === table
+      );
+      expect(calls.length).toBeGreaterThan(40);
+      expect(calls.some((call) => call.cursor !== null)).toBe(true);
+    }
     const coverageCalls = fixtureState.pageCalls.filter(
       (call) => call.table === "pricePlanClassTemplateCoverage"
     );
