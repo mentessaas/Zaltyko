@@ -11,12 +11,14 @@ import {
   loadMonthlyReplayState,
 } from "@/modules/billing/application/monthly-invoice-service";
 import { loadPricePlanCoverage } from "@/modules/billing/application/monthly-price-plan-service";
+import { recordManualPaymentForCharge } from "@/modules/billing/application/ledger-service";
 
 const LOCAL_ONLY = "ZALTYKO_MONTHLY_BILLING_PAGING_LOCAL";
 const ORGANIZATION_ID = "10000000-0000-4000-8000-000000000010";
 const LOCATION_ID = "10000000-0000-4000-8000-000000000020";
 const FAMILY_ID = "10000000-0000-4000-8000-000000000030";
-const TEMPLATE_ID = "10000000-0000-4000-8000-000000000100";
+const OWNER_USER_ID = "10000000-0000-4000-8000-000000000001";
+const OWNER_MEMBER_ID = "10000000-0000-4000-8000-000000000002";
 const PRICE_PLAN_ID = "10000000-0000-4000-8000-000000000105";
 const INVOICE_ID = "10000000-0000-4000-8000-000000000200";
 const ROW_COUNT = 205;
@@ -39,6 +41,13 @@ async function seed(pool: Pool): Promise<void> {
     values ('${ORGANIZATION_ID}', 'Synthetic paging academy', 'active');
     insert into zaltyko.locations (id, organization_id, code, name, timezone)
     values ('${LOCATION_ID}', '${ORGANIZATION_ID}', 'paging-test', 'Paging test', 'UTC');
+    insert into auth.users (id) values ('${OWNER_USER_ID}');
+    insert into zaltyko.organization_members (
+      id, organization_id, user_id, role, status, location_scope_mode
+    ) values (
+      '${OWNER_MEMBER_ID}', '${ORGANIZATION_ID}', '${OWNER_USER_ID}',
+      'owner', 'active', 'all'
+    );
     insert into zaltyko.families (id, organization_id, is_active)
     values ('${FAMILY_ID}', '${ORGANIZATION_ID}', true);
     insert into zaltyko.people (id, organization_id, given_name, family_name)
@@ -69,10 +78,12 @@ async function seed(pool: Pool): Promise<void> {
     );
     insert into zaltyko.class_templates (
       id, organization_id, location_id, name, capacity, status, effective_from
-    ) values (
-      '${TEMPLATE_ID}', '${ORGANIZATION_ID}', '${LOCATION_ID}',
-      'Synthetic class', 500, 'active', '2026-09-01'
-    );
+    )
+    select
+      ('39000000-0000-4000-8000-' || lpad(n::text, 12, '0'))::uuid,
+      '${ORGANIZATION_ID}', '${LOCATION_ID}', 'Synthetic class ' || n,
+      500, 'active', '2026-09-01'
+    from generate_series(1, ${ROW_COUNT}) as n;
     insert into zaltyko.enrollments (
       id, organization_id, location_id, athlete_id, class_template_id,
       price_plan_id, status, starts_on, source
@@ -81,7 +92,8 @@ async function seed(pool: Pool): Promise<void> {
       ('34000000-0000-4000-8000-' || lpad(n::text, 12, '0'))::uuid,
       '${ORGANIZATION_ID}', '${LOCATION_ID}',
       ('32000000-0000-4000-8000-' || lpad(n::text, 12, '0'))::uuid,
-      '${TEMPLATE_ID}', '${PRICE_PLAN_ID}', 'active', '2026-10-01', 'owner'
+      ('39000000-0000-4000-8000-' || lpad(n::text, 12, '0'))::uuid,
+      '${PRICE_PLAN_ID}', 'active', '2026-10-01', 'owner'
     from generate_series(1, ${ROW_COUNT}) as n;
     insert into zaltyko.enrollment_price_assignments (
       id, organization_id, location_id, enrollment_id, price_plan_id,
@@ -99,7 +111,8 @@ async function seed(pool: Pool): Promise<void> {
     )
     select
       ('36000000-0000-4000-8000-' || lpad(n::text, 12, '0'))::uuid,
-      '${ORGANIZATION_ID}', '${LOCATION_ID}', '${PRICE_PLAN_ID}', '${TEMPLATE_ID}',
+      '${ORGANIZATION_ID}', '${LOCATION_ID}', '${PRICE_PLAN_ID}',
+      ('39000000-0000-4000-8000-' || lpad(n::text, 12, '0'))::uuid,
       date '2000-01-01' + (n * 3), date '2000-01-01' + (n * 3)
     from generate_series(1, ${ROW_COUNT}) as n;
     insert into zaltyko.invoices (
@@ -132,7 +145,7 @@ async function seed(pool: Pool): Promise<void> {
       ('37000000-0000-4000-8000-' || lpad(n::text, 12, '0'))::uuid,
       '${PRICE_PLAN_ID}',
       ('34000000-0000-4000-8000-' || lpad(n::text, 12, '0'))::uuid,
-      '${TEMPLATE_ID}',
+      ('39000000-0000-4000-8000-' || lpad(n::text, 12, '0'))::uuid,
       ('35000000-0000-4000-8000-' || lpad(n::text, 12, '0'))::uuid,
       'Synthetic gymnastics class'
     from generate_series(1, ${ROW_COUNT}) as n;
@@ -153,55 +166,72 @@ async function seed(pool: Pool): Promise<void> {
   `);
 }
 
-async function waitForReplayLock(pool: Pool): Promise<void> {
+async function waitForBlockedQuery(pool: Pool, pattern: string): Promise<void> {
   const deadline = Date.now() + 10_000;
   while (Date.now() < deadline) {
-    const result = await pool.query<{ waiting: number }>(`
-      select count(*)::int as waiting
-      from pg_stat_activity
-      where datname = current_database()
-        and pid <> pg_backend_pid()
-        and wait_event_type = 'Lock'
-        and query ilike '%charges%'
-        and query ilike '%for update%'
-    `);
+    const result = await pool.query<{ waiting: number }>(
+      `
+        select count(*)::int as waiting
+        from pg_stat_activity
+        where datname = current_database()
+          and pid <> pg_backend_pid()
+          and wait_event_type = 'Lock'
+          and query ilike $1
+      `,
+      [`%${pattern}%`]
+    );
     if (result.rows[0]?.waiting > 0) return;
     await new Promise((resolve) => setTimeout(resolve, 20));
   }
-  throw new Error("Replay reader did not wait on the held charge lock");
+  throw new Error(`Expected query to wait on a lock: ${pattern}`);
 }
 
 async function verifyConcurrentPaymentReplay(pool: Pool): Promise<void> {
-  const payment = await pool.connect();
-  let paymentOpen = false;
+  const barrier = await pool.connect();
+  let barrierOpen = false;
+  let paymentPromise:
+    ReturnType<typeof recordManualPaymentForCharge> | undefined;
   let replayPromise:
     Promise<Awaited<ReturnType<typeof loadMonthlyReplayState>>> | undefined;
   try {
-    await payment.query("begin");
-    paymentOpen = true;
-    await payment.query(
-      `select id from zaltyko.charges
-       where organization_id = $1 and invoice_id = $2
-       order by id limit 1 for update`,
-      [ORGANIZATION_ID, INVOICE_ID]
-    );
+    await pool.query(`
+      create or replace function zaltyko.monthly_paging_payment_barrier()
+      returns trigger language plpgsql as $$
+      begin
+        if new.organization_id = '${ORGANIZATION_ID}'::uuid then
+          perform pg_advisory_xact_lock(867530900001);
+        end if;
+        return new;
+      end;
+      $$;
+      create trigger monthly_paging_payment_barrier
+      before insert on zaltyko.payments
+      for each row execute function zaltyko.monthly_paging_payment_barrier();
+    `);
+    await barrier.query("begin");
+    barrierOpen = true;
+    await barrier.query("select pg_advisory_xact_lock(867530900001)");
+    paymentPromise = recordManualPaymentForCharge({
+      organizationId: ORGANIZATION_ID,
+      chargeId: "38000000-0000-4000-8000-000000000001",
+      amountCents: 1000,
+      method: "bank_transfer",
+      receivedAt: new Date().toISOString(),
+      idempotencyKey: "synthetic-monthly-paging-payment-1",
+      actor: { userId: OWNER_USER_ID, memberId: OWNER_MEMBER_ID },
+    });
+    void paymentPromise.catch(() => undefined);
+    await waitForBlockedQuery(pool, "insert into zaltyko.payments");
     replayPromise = db.transaction((tx) =>
       loadMonthlyReplayState(tx, ORGANIZATION_ID, INVOICE_ID)
     );
-    await waitForReplayLock(pool);
-    await payment.query(
-      `update zaltyko.charges set status = 'paid', updated_at = now()
-       where id = $1`,
-      ["38000000-0000-4000-8000-000000000001"]
-    );
-    await payment.query(
-      `update zaltyko.invoices set status = 'partially_paid', version = version + 1,
-       updated_at = now() where id = $1`,
-      [INVOICE_ID]
-    );
-    await payment.query("commit");
-    paymentOpen = false;
+    await waitForBlockedQuery(pool, "charges");
+    await barrier.query("commit");
+    barrierOpen = false;
 
+    const payment = await paymentPromise;
+    assert.equal(payment.payment.status, "succeeded");
+    assert.equal(payment.allocation.amountCents, 1000);
     const snapshot = await replayPromise;
     assert.equal(snapshot.invoice.status, "partially_paid");
     assert.equal(snapshot.chargeStatus, "mixed");
@@ -211,9 +241,18 @@ async function verifyConcurrentPaymentReplay(pool: Pool): Promise<void> {
       1
     );
   } finally {
-    if (paymentOpen) await payment.query("rollback").catch(() => undefined);
+    if (barrierOpen) await barrier.query("rollback").catch(() => undefined);
+    await paymentPromise?.catch(() => undefined);
     if (replayPromise) await replayPromise.catch(() => undefined);
-    payment.release();
+    barrier.release();
+    await pool
+      .query(
+        `
+        drop trigger if exists monthly_paging_payment_barrier on zaltyko.payments;
+        drop function if exists zaltyko.monthly_paging_payment_barrier();
+      `
+      )
+      .catch(() => undefined);
   }
 }
 
@@ -310,7 +349,7 @@ async function main(): Promise<void> {
         invoiceLineSnapshots: ROW_COUNT,
         charges: charges.charges.length,
         replayAfterConcurrentPayment:
-          "synthetic SQL payment transaction; partially_paid with mixed charge page state",
+          "recordManualPaymentForCharge behind a deterministic advisory-lock barrier",
         inconsistentSnapshotCut: "surfaced and rolled back",
         rollback: "PASS",
       })

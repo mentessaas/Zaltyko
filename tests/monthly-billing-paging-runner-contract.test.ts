@@ -42,7 +42,15 @@ describe("monthly billing paging local runner contract", () => {
     expect(verifier).toContain("loadMonthlyChargeState");
     expect(verifier).toContain("loadMonthlyReplayState");
     expect(verifier).toContain("ROW_COUNT = 205");
-    expect(verifier).toContain("waitForReplayLock");
+    expect(verifier).toContain("generate_series(1, ${ROW_COUNT})");
+    expect(verifier).toContain("recordManualPaymentForCharge({");
+    expect(verifier).toContain(
+      'waitForBlockedQuery(pool, "insert into zaltyko.payments")'
+    );
+    expect(verifier).toContain('waitForBlockedQuery(pool, "charges")');
+    expect(verifier).not.toMatch(
+      /update zaltyko\.(charges|invoices) set status/
+    );
     expect(verifier).toContain("rollback synthetic snapshot cut");
     expect(verifier).toContain('hostname, "127.0.0.1"');
     expect(verifier).toContain(
