@@ -8,6 +8,7 @@ import { createServer } from "node:net";
 
 import {
   E2E_DOMAIN_MIGRATIONS,
+  E2E_LOCAL_OWNER_MONTHLY_TARIFF_MIGRATIONS,
   E2E_LOCAL_OWNER_SIGNUP_MIGRATIONS,
 } from "./lib/e2e-domain-migrations";
 
@@ -118,6 +119,7 @@ void (async () => {
     const localMigrations = [
       ...E2E_DOMAIN_MIGRATIONS,
       ...E2E_LOCAL_OWNER_SIGNUP_MIGRATIONS,
+      ...E2E_LOCAL_OWNER_MONTHLY_TARIFF_MIGRATIONS,
     ];
     for (const filename of localMigrations) {
       cpSync(
