@@ -11789,3 +11789,15 @@ Modelo separado, reclamación manual, administración, importación revisada, fi
   está expuesto por una ruta Owner y la inscripción no tiene precio asignado.
   Se documentó como P0; no se conectó la ruta legacy ni se inventaron reglas de
   importe, pagador o vencimiento.
+
+## 2026-10-14 — Bypass del service worker para Next RSC
+
+- Las peticiones GET con `RSC: 1` o `_rsc` ahora quedan fuera del `respondWith`
+  del service worker y siguen por el fetch nativo del navegador. Se mantienen
+  sin cambios el paso de APIs por red, el HTML/offline y el cache-first de
+  assets estáticos. No se incrementó la versión de caché porque RSC no se
+  almacenaba.
+- Tests focales de `tests/pwa-security.test.ts`: 13/13 PASS. El trace Firefox
+  muestra RSC abortado junto con una navegación explícita concurrente; no
+  demuestra que el service worker fuera la causa raíz. Sin E2E, PostgreSQL ni
+  accesos remotos en este cambio.

@@ -35,12 +35,17 @@ function workerHarness() {
   return { handlers, caches, fetch, put, addAll, offline, skipWaiting };
 }
 
-function workerRequest(path: string, method = "GET", mode = "cors") {
+function workerRequest(
+  path: string,
+  method = "GET",
+  mode = "cors",
+  headers: HeadersInit = {}
+) {
   return {
     url: `https://synthetic.test${path}`,
     method,
     mode,
-    headers: new Headers(),
+    headers: new Headers(headers),
   };
 }
 
@@ -91,6 +96,68 @@ describe("PWA security contracts", () => {
     }
   );
 
+  it.each([
+    ["RSC header", "/owner/enrollments?organizationId=synthetic", { RSC: "1" }],
+    ["RSC query", "/owner/enrollments?_rsc=synthetic", {}],
+  ])("leaves Next RSC requests to the browser: %s", (_label, path, headers) => {
+    const worker = workerHarness();
+    const request = workerRequest(path, "GET", "cors", headers);
+    const respondWith = vi.fn();
+
+    worker.handlers.get("fetch")!({ request, respondWith });
+
+    expect(respondWith).not.toHaveBeenCalled();
+    expect(worker.fetch).not.toHaveBeenCalled();
+    expect(worker.caches.match).not.toHaveBeenCalled();
+    expect(worker.caches.open).not.toHaveBeenCalled();
+  });
+
+  it("continues network pass-through for ordinary dynamic GET requests", async () => {
+    const worker = workerHarness();
+    const request = workerRequest(
+      "/owner/enrollments?status=pending&organizationId=synthetic"
+    );
+    let response: Promise<Response> | undefined;
+
+    worker.handlers.get("fetch")!({
+      request,
+      respondWith: (work: Promise<Response>) => {
+        response = work;
+      },
+    });
+
+    await response;
+    expect(worker.fetch).toHaveBeenCalledWith(request);
+    expect(worker.caches.match).not.toHaveBeenCalled();
+    expect(worker.caches.open).not.toHaveBeenCalled();
+  });
+
+  it("continues cache-first handling for safe static assets", async () => {
+    const worker = workerHarness();
+    worker.caches.match.mockResolvedValueOnce(undefined);
+    const request = workerRequest("/_next/static/chunks/app.js");
+    const cachedResponse = { body: "static" };
+    const networkResponse = {
+      ok: true,
+      type: "basic",
+      clone: vi.fn(() => cachedResponse),
+    };
+    worker.fetch.mockResolvedValueOnce(networkResponse as unknown as Response);
+    let response: Promise<Response> | undefined;
+
+    worker.handlers.get("fetch")!({
+      request,
+      respondWith: (work: Promise<Response>) => {
+        response = work;
+      },
+    });
+
+    await expect(response).resolves.toBe(networkResponse);
+    expect(worker.caches.match).toHaveBeenCalledWith(request);
+    expect(worker.fetch).toHaveBeenCalledWith(request);
+    expect(worker.put).toHaveBeenCalledWith(request, cachedResponse);
+  });
+
   it("never caches private navigation and returns only static offline content on network failure", async () => {
     const worker = workerHarness();
     const request = workerRequest(
@@ -135,7 +202,7 @@ describe("PWA security contracts", () => {
     expect(source).not.toContain("API_CACHE");
     expect(source).not.toContain("pendingOperations");
     expect(source).not.toContain("addEventListener('sync'");
-    expect(source).toContain("url.pathname.startsWith('/api/')");
+    expect(source).toMatch(/url\.pathname\.startsWith\(["']\/api\/["']\)/);
     expect(source).toContain("event.respondWith(fetch(request))");
   });
 
