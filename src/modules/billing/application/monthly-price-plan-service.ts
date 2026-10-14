@@ -1,13 +1,16 @@
-import { and, eq } from "drizzle-orm";
+import { and, asc, eq, inArray, sql } from "drizzle-orm";
 import { z } from "zod";
 
 import { db } from "@/db";
 import {
+  classTemplates,
   locations,
   organizations,
   outboxEvents,
   pricePlans,
+  pricePlanClassTemplateCoverage,
 } from "@/db/zaltyko-schema";
+import type { TransactionClient } from "@/lib/db-transactions";
 import { OperationalError } from "@/modules/shared/domain/operational-error";
 import { assertOperationalAccess } from "@/modules/shared/infrastructure/operational-authorization";
 import {
@@ -17,25 +20,117 @@ import {
   lockCommand,
 } from "@/modules/shared/infrastructure/transactional-records";
 
-const inputSchema = z.object({
-  organizationId: z.string().uuid(),
-  locationId: z.string().uuid(),
-  name: z.string().trim().min(1).max(100),
-  amountCents: z.number().int().safe().positive().max(2_147_483_647),
-  currency: z
-    .string()
-    .regex(/^[A-Z]{3}$/)
-    .optional(),
-  idempotencyKey: z.string().trim().min(8).max(180),
-  actor: z.object({ userId: z.string().uuid(), memberId: z.string().uuid() }),
-});
+const coverageInputSchema = z
+  .object({
+    classTemplateIds: z
+      .array(
+        z
+          .string()
+          .uuid()
+          .transform((id) => id.toLowerCase())
+      )
+      .min(1)
+      .max(100),
+    startsOn: z.string().date(),
+    endsOn: z.string().date().nullable(),
+  })
+  .strict()
+  .superRefine((coverage, context) => {
+    if (
+      new Set(coverage.classTemplateIds).size !==
+      coverage.classTemplateIds.length
+    ) {
+      context.addIssue({
+        code: z.ZodIssueCode.custom,
+        path: ["classTemplateIds"],
+        message: "No repitas una plantilla en la cobertura.",
+      });
+    }
+    if (coverage.endsOn && coverage.endsOn < coverage.startsOn) {
+      context.addIssue({
+        code: z.ZodIssueCode.custom,
+        path: ["endsOn"],
+        message: "La fecha final no puede ser anterior a la inicial.",
+      });
+    }
+  });
+
+const inputSchema = z
+  .object({
+    organizationId: z.string().uuid(),
+    locationId: z.string().uuid(),
+    name: z.string().trim().min(1).max(100),
+    amountCents: z.number().int().safe().positive().max(2_147_483_647),
+    currency: z
+      .string()
+      .regex(/^[A-Z]{3}$/)
+      .optional(),
+    coverage: coverageInputSchema,
+    idempotencyKey: z.string().trim().min(8).max(180),
+    actor: z.object({ userId: z.string().uuid(), memberId: z.string().uuid() }),
+  })
+  .strict();
 
 export type CreateMonthlyPricePlanInput = z.infer<typeof inputSchema>;
+
+type CanonicalCoverage = {
+  classTemplateId: string;
+  startsOn: string;
+  endsOn: string | null;
+};
+
+async function loadPricePlanCoverage(
+  tx: TransactionClient,
+  organizationId: string,
+  locationId: string,
+  pricePlanId: string
+): Promise<CanonicalCoverage[]> {
+  const rows = await tx
+    .select({
+      classTemplateId: pricePlanClassTemplateCoverage.classTemplateId,
+      startsOn: pricePlanClassTemplateCoverage.startsOn,
+      endsOn: pricePlanClassTemplateCoverage.endsOn,
+    })
+    .from(pricePlanClassTemplateCoverage)
+    .where(
+      and(
+        eq(pricePlanClassTemplateCoverage.organizationId, organizationId),
+        eq(pricePlanClassTemplateCoverage.locationId, locationId),
+        eq(pricePlanClassTemplateCoverage.pricePlanId, pricePlanId)
+      )
+    )
+    .orderBy(asc(pricePlanClassTemplateCoverage.classTemplateId));
+  return rows;
+}
+
+function canonicalCoverage(
+  input: CreateMonthlyPricePlanInput["coverage"]
+): CanonicalCoverage[] {
+  return [...input.classTemplateIds].sort().map((classTemplateId) => ({
+    classTemplateId,
+    startsOn: input.startsOn,
+    endsOn: input.endsOn,
+  }));
+}
+
+function assertCoverageMatches(
+  actual: CanonicalCoverage[],
+  expected: CanonicalCoverage[]
+): void {
+  if (JSON.stringify(actual) !== JSON.stringify(expected)) {
+    throw new OperationalError(
+      "IDEMPOTENCY_CONFLICT",
+      "La cobertura de la tarifa mensual anterior ya no coincide.",
+      409
+    );
+  }
+}
 
 export async function createMonthlyPricePlan(
   command: CreateMonthlyPricePlanInput
 ) {
   const input = inputSchema.parse(command);
+  const coverage = canonicalCoverage(input.coverage);
 
   return db.transaction(async (tx) => {
     await assertOperationalAccess(tx, {
@@ -74,6 +169,7 @@ export async function createMonthlyPricePlan(
 
     const currency = input.currency ?? organization.defaultCurrency;
     const eventName = "billing.monthly_price_plan_created";
+    const coverageFingerprint = JSON.stringify(coverage);
     await lockCommand(
       tx,
       input.organizationId,
@@ -98,6 +194,7 @@ export async function createMonthlyPricePlan(
       currency,
       cadence: "monthly",
       isActive: true,
+      coverageFingerprint,
     };
     if (prior) {
       assertIdempotencyPayload(prior.payload, expected);
@@ -126,7 +223,75 @@ export async function createMonthlyPricePlan(
           409
         );
       }
-      return { pricePlan, replayed: true };
+      const storedCoverage = await loadPricePlanCoverage(
+        tx,
+        input.organizationId,
+        input.locationId,
+        pricePlan.id
+      );
+      assertCoverageMatches(storedCoverage, coverage);
+      return { pricePlan, coverage: storedCoverage, replayed: true };
+    }
+
+    const lockedLocation = await tx.execute(sql`
+      select id from zaltyko.locations
+      where organization_id = ${input.organizationId}::uuid
+        and id = ${input.locationId}::uuid
+        and is_active = true
+      for update
+    `);
+    if (lockedLocation.rows.length === 0) {
+      throw new OperationalError(
+        "NOT_FOUND",
+        "Academia o sede no encontrada",
+        404
+      );
+    }
+
+    const templateRows = await tx
+      .select({
+        id: classTemplates.id,
+        status: classTemplates.status,
+        effectiveFrom: classTemplates.effectiveFrom,
+        effectiveTo: classTemplates.effectiveTo,
+      })
+      .from(classTemplates)
+      .where(
+        and(
+          eq(classTemplates.organizationId, input.organizationId),
+          eq(classTemplates.locationId, input.locationId),
+          inArray(
+            classTemplates.id,
+            coverage.map((item) => item.classTemplateId)
+          )
+        )
+      )
+      .orderBy(asc(classTemplates.id))
+      .for("update");
+    if (
+      templateRows.length !== coverage.length ||
+      templateRows.some((template) => template.status !== "active")
+    ) {
+      throw new OperationalError(
+        "NOT_FOUND",
+        "Una o más plantillas activas no pertenecen a esta sede.",
+        404
+      );
+    }
+    if (
+      templateRows.some(
+        (template) =>
+          (template.effectiveTo !== null &&
+            input.coverage.startsOn > template.effectiveTo) ||
+          (input.coverage.endsOn !== null &&
+            input.coverage.endsOn < template.effectiveFrom)
+      )
+    ) {
+      throw new OperationalError(
+        "INVALID_DATE_RANGE",
+        "El periodo de cobertura no coincide con la vigencia de las plantillas.",
+        422
+      );
     }
 
     const [pricePlan] = await tx
@@ -141,6 +306,28 @@ export async function createMonthlyPricePlan(
       })
       .returning();
 
+    const insertedCoverage = await tx
+      .insert(pricePlanClassTemplateCoverage)
+      .values(
+        coverage.map((item) => ({
+          organizationId: input.organizationId,
+          locationId: input.locationId,
+          pricePlanId: pricePlan.id,
+          classTemplateId: item.classTemplateId,
+          startsOn: item.startsOn,
+          endsOn: item.endsOn,
+        }))
+      )
+      .returning({
+        classTemplateId: pricePlanClassTemplateCoverage.classTemplateId,
+        startsOn: pricePlanClassTemplateCoverage.startsOn,
+        endsOn: pricePlanClassTemplateCoverage.endsOn,
+      });
+    const canonicalInsertedCoverage = [...insertedCoverage].sort(
+      (left, right) => left.classTemplateId.localeCompare(right.classTemplateId)
+    );
+    assertCoverageMatches(canonicalInsertedCoverage, coverage);
+
     await appendOutboxEvent(tx, {
       organizationId: input.organizationId,
       locationId: input.locationId,
@@ -148,7 +335,11 @@ export async function createMonthlyPricePlan(
       aggregateType: "price_plan",
       aggregateId: pricePlan.id,
       idempotencyKey: input.idempotencyKey,
-      payload: { ...expected, pricePlanId: pricePlan.id },
+      payload: {
+        ...expected,
+        coverage,
+        pricePlanId: pricePlan.id,
+      },
     });
     await appendAuditEntry(tx, {
       organizationId: input.organizationId,
@@ -164,9 +355,10 @@ export async function createMonthlyPricePlan(
         currency: pricePlan.currency,
         cadence: pricePlan.cadence,
         isActive: pricePlan.isActive,
+        coverage: canonicalInsertedCoverage,
       },
     });
 
-    return { pricePlan, replayed: false };
+    return { pricePlan, coverage: canonicalInsertedCoverage, replayed: false };
   });
 }

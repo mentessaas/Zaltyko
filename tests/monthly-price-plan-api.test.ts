@@ -26,6 +26,13 @@ const memberId = "10000000-0000-4000-8000-000000000002";
 const organizationId = "10000000-0000-4000-8000-000000000003";
 const locationId = "10000000-0000-4000-8000-000000000004";
 const pricePlanId = "10000000-0000-4000-8000-000000000005";
+const classTemplateId = "a0000000-0000-4000-8000-000000000006";
+const secondClassTemplateId = "b0000000-0000-4000-8000-000000000007";
+const coverage = {
+  classTemplateIds: [classTemplateId, secondClassTemplateId],
+  startsOn: "2026-10-01",
+  endsOn: null,
+};
 
 function request(
   overrides: Record<string, unknown> = {},
@@ -39,6 +46,7 @@ function request(
       locationId,
       name: "Cuota mensual",
       amountCents: 12500,
+      coverage,
       ...overrides,
     }),
   });
@@ -62,6 +70,14 @@ describe("API Owner para crear tarifas mensuales", () => {
         cadence: "monthly",
         isActive: true,
       },
+      coverage: [
+        { classTemplateId, startsOn: "2026-10-01", endsOn: null },
+        {
+          classTemplateId: secondClassTemplateId,
+          startsOn: "2026-10-01",
+          endsOn: null,
+        },
+      ],
       replayed: false,
     } as never);
   });
@@ -78,6 +94,7 @@ describe("API Owner para crear tarifas mensuales", () => {
       locationId,
       name: "Cuota mensual",
       amountCents: 12500,
+      coverage,
       idempotencyKey: "price-plan-001",
       actor: { userId, memberId },
     });
@@ -88,6 +105,14 @@ describe("API Owner para crear tarifas mensuales", () => {
         currency: "EUR",
         cadence: "monthly",
         isActive: true,
+        coverage: [
+          { classTemplateId, startsOn: "2026-10-01", endsOn: null },
+          {
+            classTemplateId: secondClassTemplateId,
+            startsOn: "2026-10-01",
+            endsOn: null,
+          },
+        ],
       },
     });
   });
@@ -102,15 +127,135 @@ describe("API Owner para crear tarifas mensuales", () => {
         cadence: "monthly",
         isActive: true,
       },
+      coverage: [
+        { classTemplateId, startsOn: "2026-10-01", endsOn: null },
+        {
+          classTemplateId: secondClassTemplateId,
+          startsOn: "2026-10-01",
+          endsOn: null,
+        },
+      ],
       replayed: true,
     } as never);
 
     const response = await createPricePlan(request());
     expect(response.status).toBe(200);
+    await expect(response.json()).resolves.toMatchObject({
+      data: {
+        coverage: [
+          { classTemplateId, startsOn: "2026-10-01", endsOn: null },
+          {
+            classTemplateId: secondClassTemplateId,
+            startsOn: "2026-10-01",
+            endsOn: null,
+          },
+        ],
+      },
+    });
+  });
+
+  it("acepta una fecha de cobertura a mitad de mes sin forzar inicio de mes", async () => {
+    const response = await createPricePlan(
+      request({ coverage: { ...coverage, startsOn: "2026-10-02" } })
+    );
+
+    expect(response.status).toBe(201);
+    expect(createMonthlyPricePlan).toHaveBeenCalledWith(
+      expect.objectContaining({
+        coverage: { ...coverage, startsOn: "2026-10-02" },
+      })
+    );
+  });
+
+  it("normaliza IDs de plantilla en mayúsculas antes de llamar al servicio", async () => {
+    const response = await createPricePlan(
+      request({
+        coverage: {
+          ...coverage,
+          classTemplateIds: coverage.classTemplateIds.map((id) =>
+            id.toUpperCase()
+          ),
+        },
+      })
+    );
+
+    expect(response.status).toBe(201);
+    expect(createMonthlyPricePlan).toHaveBeenCalledWith(
+      expect.objectContaining({ coverage })
+    );
   });
 
   it("rechaza campos de organización/tarifa no admitidos por el contrato", async () => {
     const response = await createPricePlan(request({ cadence: "annual" }));
+    expect(response.status).toBe(400);
+    expect(createMonthlyPricePlan).not.toHaveBeenCalled();
+  });
+
+  it("responde 401 antes de resolver el scope cuando no hay sesión", async () => {
+    vi.mocked(getCurrentUser).mockResolvedValue(null);
+
+    const response = await createPricePlan(request());
+
+    expect(response.status).toBe(401);
+    expect(resolveOwnerScope).not.toHaveBeenCalled();
+    expect(createMonthlyPricePlan).not.toHaveBeenCalled();
+  });
+
+  it("responde 403 si la sede no pertenece al scope del actor", async () => {
+    vi.mocked(resolveOwnerScope).mockRejectedValue(
+      new OperationalError("LOCATION_SCOPE_DENIED", "Forbidden", 403)
+    );
+
+    const response = await createPricePlan(request());
+
+    expect(response.status).toBe(403);
+    expect(createMonthlyPricePlan).not.toHaveBeenCalled();
+  });
+
+  it.each([
+    ["falta cobertura", { coverage: undefined }],
+    [
+      "la cobertura está vacía",
+      { coverage: { ...coverage, classTemplateIds: [] } },
+    ],
+    [
+      "la cobertura repite IDs",
+      {
+        coverage: {
+          ...coverage,
+          classTemplateIds: [classTemplateId.toUpperCase(), classTemplateId],
+        },
+      },
+    ],
+    [
+      "la fecha no existe",
+      { coverage: { ...coverage, startsOn: "2026-02-30" } },
+    ],
+    [
+      "el final precede al inicio",
+      {
+        coverage: { ...coverage, startsOn: "2026-10-02", endsOn: "2026-10-01" },
+      },
+    ],
+    [
+      "coverage rechaza campos extra",
+      {
+        coverage: {
+          ...coverage,
+          athleteId: "10000000-0000-4000-8000-000000000008",
+        },
+      },
+    ],
+  ])("rechaza en HTTP 400 cuando %s", async (_description, overrides) => {
+    const response = await createPricePlan(request(overrides));
+
+    expect(response.status).toBe(400);
+    expect(createMonthlyPricePlan).not.toHaveBeenCalled();
+  });
+
+  it("responde 400 si falta Idempotency-Key", async () => {
+    const response = await createPricePlan(request({}, ""));
+
     expect(response.status).toBe(400);
     expect(createMonthlyPricePlan).not.toHaveBeenCalled();
   });
