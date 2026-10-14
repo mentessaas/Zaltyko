@@ -10,9 +10,13 @@ Este corte prevalece sobre los estados históricos fechados que aparecen abajo.
 El alcance completo del SaaS se mantiene; issue #227 define la primera entrega
 demostrable, no la finalización del producto.
 
-Último corte publicado: `dec076e1` (14-10-2026). Incluye el gate contractual
-legacy y ADR-0027; no incluye todavía su sustitución canónica. Integración local
-posterior: `09046f51`, alta Owner y recuperación sin POST al perfil legacy.
+Último corte publicado: `48d72dcc` (14-10-2026), PR #226 DRAFT y REVIEW_REQUIRED.
+Incluye Backend canónico ADR-0027, alta/recuperación sin perfil legacy,
+Setup con requisito contractual del servidor y runner E2E con migración solo
+local. CI `38488365005` iniciado/en cola al corte; Preview todavía sin URL nueva
+verificada. No promoción productiva ni migración remota.
+
+Integración anterior: `09046f51`, alta Owner sin POST al perfil legacy.
 La primera ejecución de dos suites pasó 14 pruebas; tras corregir el nombre de
 la suite de roles se ejecutaron cinco suites (ruta/recovery Login, recuperación
 Register, roles públicos y enlace de recuperación): **39/39 PASS**. No hay E2E
@@ -25,7 +29,10 @@ Harness PostgreSQL efímero real PASS: concurrencia, rollback, RLS propia,
 UPDATE/DELETE/TRUNCATE de audit rechazados y ninguna tabla `public.profiles`.
 Cobertura RLS estática y migraciones PASS. Esto no sustituye instalación completa
 ni E2E autenticado. Frontend conecta Setup; QA prepara walkthrough en tres
-navegadores. La migración nueva sigue sin aplicación remota.
+navegadores. Setup Page/Form ya integrados en `48d72dcc`; cinco suites focales
+en main pasan 23 pruebas y TypeScript PASS. Cuatro checks del boundary local y
+guard de harness PASS; ESLint focal PASS. QA prepara ejecución Chromium real
+sin siembra de consentimiento. La migración nueva sigue sin aplicación remota.
 
 La decisión del propietario sigue siendo **mensual por gimnasta y tarifa**.
 El código actual suma por inscripción y no demuestra todavía esa regla cuando
