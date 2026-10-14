@@ -57,6 +57,32 @@ const periodSchema = z.string().regex(/^\d{4}-(0[1-9]|1[0-2])$/);
 const keySchema = z.string().trim().min(8).max(180);
 const financialRoles = ["owner", "admin"] as const;
 const READ_PAGE_SIZE = 200;
+const READ_FILTER_BATCH_SIZE = 200;
+const COVERAGE_PAIR_BATCH_SIZE = 100;
+
+async function readKeysetPagesByBatches<T, K>(args: {
+  values: readonly K[];
+  batchSize: number;
+  cursorOf: (row: T) => string;
+  fetchPage: (
+    values: K[],
+    cursor: string | null,
+    limit: number
+  ) => PromiseLike<readonly T[]>;
+}): Promise<T[]> {
+  const rows: T[] = [];
+  for (let start = 0; start < args.values.length; start += args.batchSize) {
+    const batch = args.values.slice(start, start + args.batchSize);
+    rows.push(
+      ...(await readAllKeysetPages({
+        pageSize: READ_PAGE_SIZE,
+        cursorOf: args.cursorOf,
+        fetchPage: (cursor, limit) => args.fetchPage(batch, cursor, limit),
+      }))
+    );
+  }
+  return rows;
+}
 
 function compareNullableStrings(
   left: string | null,
@@ -257,78 +283,145 @@ async function buildMonthlyInvoiceOptions(
     throw new OperationalError("NOT_FOUND", "Sede no encontrada", 404);
   }
 
-  const plans = await tx
-    .select({
-      id: pricePlans.id,
-      name: pricePlans.name,
-      amountCents: pricePlans.amountCents,
-      currency: pricePlans.currency,
-      cadence: pricePlans.cadence,
-    })
-    .from(pricePlans)
-    .where(
-      and(
+  const plans = await readAllKeysetPages<{
+    id: string;
+    name: string;
+    amountCents: number;
+    currency: string | null;
+    cadence: string;
+  }>({
+    pageSize: READ_PAGE_SIZE,
+    cursorOf: (plan) => plan.id,
+    fetchPage: (cursor, limit) => {
+      const conditions = [
         eq(pricePlans.organizationId, input.organizationId),
         eq(pricePlans.isActive, true),
-        eq(pricePlans.cadence, "monthly")
-      )
-    )
-    .orderBy(asc(pricePlans.name))
-    .limit(100);
+        eq(pricePlans.cadence, "monthly"),
+      ];
+      if (cursor) conditions.push(gt(pricePlans.id, cursor));
+      return tx
+        .select({
+          id: pricePlans.id,
+          name: pricePlans.name,
+          amountCents: pricePlans.amountCents,
+          currency: pricePlans.currency,
+          cadence: pricePlans.cadence,
+        })
+        .from(pricePlans)
+        .where(and(...conditions))
+        .orderBy(asc(pricePlans.id))
+        .limit(limit);
+    },
+  });
+  plans.sort(
+    (left, right) =>
+      left.name.localeCompare(right.name, "es") ||
+      left.id.localeCompare(right.id)
+  );
   const planById = new Map(plans.map((plan) => [plan.id, plan]));
 
-  const enrollmentRows = await tx
-    .select({
-      enrollmentId: enrollments.id,
-      athleteId: enrollments.athleteId,
-      classTemplateId: enrollments.classTemplateId,
-      className: classTemplates.name,
-      athleteName: sql<string>`nullif(btrim(concat_ws(' ', ${people.givenName}, ${people.familyName})), '')`,
-      status: enrollments.status,
-      startsOn: enrollments.startsOn,
-      endsOn: enrollments.endsOn,
-    })
-    .from(enrollments)
-    .innerJoin(
-      athletes,
-      and(
-        eq(athletes.organizationId, enrollments.organizationId),
-        eq(athletes.id, enrollments.athleteId),
-        eq(athletes.isActive, true)
-      )
-    )
-    .innerJoin(
-      people,
-      and(
-        eq(people.organizationId, athletes.organizationId),
-        eq(people.id, athletes.personId)
-      )
-    )
-    .innerJoin(
-      classTemplates,
-      and(
-        eq(classTemplates.organizationId, enrollments.organizationId),
-        eq(classTemplates.locationId, enrollments.locationId),
-        eq(classTemplates.id, enrollments.classTemplateId)
-      )
-    )
-    .where(
-      and(
+  const enrollmentRows = await readAllKeysetPages<{
+    enrollmentId: string;
+    athleteId: string;
+    classTemplateId: string;
+    className: string;
+    athleteName: string | null;
+    familySortName: string;
+    givenSortName: string;
+    status: string;
+    startsOn: string;
+    endsOn: string | null;
+  }>({
+    pageSize: READ_PAGE_SIZE,
+    cursorOf: (row) => row.enrollmentId,
+    fetchPage: (cursor, limit) => {
+      const conditions = [
         eq(enrollments.organizationId, input.organizationId),
         eq(enrollments.locationId, input.locationId),
         inArray(enrollments.status, ["active", "pending"]),
         lte(enrollments.startsOn, bounds.end),
-        or(isNull(enrollments.endsOn), gte(enrollments.endsOn, bounds.start))
-      )
-    )
-    .orderBy(asc(people.familyName), asc(people.givenName), asc(enrollments.id))
-    .limit(1000);
+        or(isNull(enrollments.endsOn), gte(enrollments.endsOn, bounds.start)),
+      ];
+      if (cursor) conditions.push(gt(enrollments.id, cursor));
+      return tx
+        .select({
+          enrollmentId: enrollments.id,
+          athleteId: enrollments.athleteId,
+          classTemplateId: enrollments.classTemplateId,
+          className: classTemplates.name,
+          athleteName: sql<string>`nullif(btrim(concat_ws(' ', ${people.givenName}, ${people.familyName})), '')`,
+          familySortName: people.familyName,
+          givenSortName: people.givenName,
+          status: enrollments.status,
+          startsOn: enrollments.startsOn,
+          endsOn: enrollments.endsOn,
+        })
+        .from(enrollments)
+        .innerJoin(
+          athletes,
+          and(
+            eq(athletes.organizationId, enrollments.organizationId),
+            eq(athletes.id, enrollments.athleteId),
+            eq(athletes.isActive, true)
+          )
+        )
+        .innerJoin(
+          people,
+          and(
+            eq(people.organizationId, athletes.organizationId),
+            eq(people.id, athletes.personId)
+          )
+        )
+        .innerJoin(
+          classTemplates,
+          and(
+            eq(classTemplates.organizationId, enrollments.organizationId),
+            eq(classTemplates.locationId, enrollments.locationId),
+            eq(classTemplates.id, enrollments.classTemplateId)
+          )
+        )
+        .where(and(...conditions))
+        .orderBy(asc(enrollments.id))
+        .limit(limit);
+    },
+  });
+  enrollmentRows.sort(
+    (left, right) =>
+      left.familySortName.localeCompare(right.familySortName, "es") ||
+      left.givenSortName.localeCompare(right.givenSortName, "es") ||
+      left.enrollmentId.localeCompare(right.enrollmentId)
+  );
 
   const athleteIds = [...new Set(enrollmentRows.map((row) => row.athleteId))];
   const enrollmentIds = enrollmentRows.map((row) => row.enrollmentId);
-  const memberRows = athleteIds.length
-    ? await tx
+  const memberRows = await readKeysetPagesByBatches<
+    {
+      memberId: string;
+      familyId: string;
+      athleteId: string;
+      startsOn: string;
+      endsOn: string | null;
+      familyIsActive: boolean;
+    },
+    string
+  >({
+    values: athleteIds,
+    batchSize: READ_FILTER_BATCH_SIZE,
+    cursorOf: (row) => row.memberId,
+    fetchPage: (ids, cursor, limit) => {
+      const conditions = [
+        eq(familyMembers.organizationId, input.organizationId),
+        inArray(familyMembers.athleteId, ids),
+        lte(familyMembers.startsOn, bounds.end),
+        or(
+          isNull(familyMembers.endsOn),
+          gte(familyMembers.endsOn, bounds.start)
+        ),
+      ];
+      if (cursor) conditions.push(gt(familyMembers.id, cursor));
+      return tx
         .select({
+          memberId: familyMembers.id,
           familyId: familyMembers.familyId,
           athleteId: familyMembers.athleteId,
           startsOn: familyMembers.startsOn,
@@ -343,83 +436,136 @@ async function buildMonthlyInvoiceOptions(
             eq(families.id, familyMembers.familyId)
           )
         )
-        .where(
-          and(
-            eq(familyMembers.organizationId, input.organizationId),
-            inArray(familyMembers.athleteId, athleteIds),
-            lte(familyMembers.startsOn, bounds.end),
-            or(
-              isNull(familyMembers.endsOn),
-              gte(familyMembers.endsOn, bounds.start)
-            )
-          )
-        )
-        .limit(2000)
-    : [];
-  const assignmentRows = enrollmentIds.length
-    ? await tx
+        .where(and(...conditions))
+        .orderBy(asc(familyMembers.id))
+        .limit(limit);
+    },
+  });
+  const assignmentRows = await readKeysetPagesByBatches<
+    typeof enrollmentPriceAssignments.$inferSelect,
+    string
+  >({
+    values: enrollmentIds,
+    batchSize: READ_FILTER_BATCH_SIZE,
+    cursorOf: (row) => row.id,
+    fetchPage: (ids, cursor, limit) => {
+      const conditions = [
+        eq(enrollmentPriceAssignments.organizationId, input.organizationId),
+        inArray(enrollmentPriceAssignments.enrollmentId, ids),
+        lte(enrollmentPriceAssignments.startsOn, bounds.end),
+        or(
+          isNull(enrollmentPriceAssignments.endsOn),
+          gte(enrollmentPriceAssignments.endsOn, bounds.start)
+        ),
+      ];
+      if (cursor) conditions.push(gt(enrollmentPriceAssignments.id, cursor));
+      return tx
         .select()
         .from(enrollmentPriceAssignments)
-        .where(
-          and(
-            eq(enrollmentPriceAssignments.organizationId, input.organizationId),
-            inArray(enrollmentPriceAssignments.enrollmentId, enrollmentIds),
-            lte(enrollmentPriceAssignments.startsOn, bounds.end),
-            or(
-              isNull(enrollmentPriceAssignments.endsOn),
-              gte(enrollmentPriceAssignments.endsOn, bounds.start)
-            )
-          )
-        )
-        .orderBy(asc(enrollmentPriceAssignments.startsOn))
-        .limit(2000)
-    : [];
+        .where(and(...conditions))
+        .orderBy(asc(enrollmentPriceAssignments.id))
+        .limit(limit);
+    },
+  });
 
-  const assignedPlanIds = [
-    ...new Set(assignmentRows.map((assignment) => assignment.pricePlanId)),
+  const assignmentEnrollmentById = new Map(
+    assignmentRows.map((row) => [row.enrollmentId, row])
+  );
+  const coveragePairs = [
+    ...new Map(
+      enrollmentRows.flatMap((enrollment) => {
+        const assignment = assignmentEnrollmentById.get(
+          enrollment.enrollmentId
+        );
+        if (!assignment) return [];
+        const key = `${assignment.pricePlanId}:${enrollment.classTemplateId}`;
+        return [
+          [
+            key,
+            {
+              pricePlanId: assignment.pricePlanId,
+              classTemplateId: enrollment.classTemplateId,
+            },
+          ] as const,
+        ];
+      })
+    ).values(),
   ];
-  const classTemplateIds = [
-    ...new Set(enrollmentRows.map((enrollment) => enrollment.classTemplateId)),
-  ];
-  const coverageRows =
-    assignedPlanIds.length && classTemplateIds.length
-      ? await tx
-          .select({
-            pricePlanId: pricePlanClassTemplateCoverage.pricePlanId,
-            classTemplateId: pricePlanClassTemplateCoverage.classTemplateId,
-            startsOn: pricePlanClassTemplateCoverage.startsOn,
-            endsOn: pricePlanClassTemplateCoverage.endsOn,
-          })
-          .from(pricePlanClassTemplateCoverage)
-          .where(
+  const coverageRows = await readKeysetPagesByBatches<
+    {
+      id: string;
+      pricePlanId: string;
+      classTemplateId: string;
+      startsOn: string;
+      endsOn: string | null;
+    },
+    (typeof coveragePairs)[number]
+  >({
+    values: coveragePairs,
+    batchSize: COVERAGE_PAIR_BATCH_SIZE,
+    cursorOf: (row) => row.id,
+    fetchPage: (pairs, cursor, limit) => {
+      const conditions = [
+        eq(pricePlanClassTemplateCoverage.organizationId, input.organizationId),
+        eq(pricePlanClassTemplateCoverage.locationId, input.locationId),
+        lte(pricePlanClassTemplateCoverage.startsOn, bounds.end),
+        or(
+          isNull(pricePlanClassTemplateCoverage.endsOn),
+          gte(pricePlanClassTemplateCoverage.endsOn, bounds.start)
+        ),
+        or(
+          ...pairs.map((pair) =>
             and(
+              eq(pricePlanClassTemplateCoverage.pricePlanId, pair.pricePlanId),
               eq(
-                pricePlanClassTemplateCoverage.organizationId,
-                input.organizationId
-              ),
-              eq(pricePlanClassTemplateCoverage.locationId, input.locationId),
-              inArray(
-                pricePlanClassTemplateCoverage.pricePlanId,
-                assignedPlanIds
-              ),
-              inArray(
                 pricePlanClassTemplateCoverage.classTemplateId,
-                classTemplateIds
-              ),
-              lte(pricePlanClassTemplateCoverage.startsOn, bounds.end),
-              or(
-                isNull(pricePlanClassTemplateCoverage.endsOn),
-                gte(pricePlanClassTemplateCoverage.endsOn, bounds.start)
+                pair.classTemplateId
               )
             )
           )
-          .orderBy(asc(pricePlanClassTemplateCoverage.startsOn))
-          .limit(4000)
-      : [];
+        ),
+      ];
+      if (cursor)
+        conditions.push(gt(pricePlanClassTemplateCoverage.id, cursor));
+      return tx
+        .select({
+          id: pricePlanClassTemplateCoverage.id,
+          pricePlanId: pricePlanClassTemplateCoverage.pricePlanId,
+          classTemplateId: pricePlanClassTemplateCoverage.classTemplateId,
+          startsOn: pricePlanClassTemplateCoverage.startsOn,
+          endsOn: pricePlanClassTemplateCoverage.endsOn,
+        })
+        .from(pricePlanClassTemplateCoverage)
+        .where(and(...conditions))
+        .orderBy(asc(pricePlanClassTemplateCoverage.id))
+        .limit(limit);
+    },
+  });
 
   const familyIds = [...new Set(memberRows.map((row) => row.familyId))];
-  const payerRows = familyIds.length
-    ? await tx
+  const payerRows = await readKeysetPagesByBatches<
+    {
+      familyId: string;
+      familyPayerId: string;
+      isPrimary: boolean;
+      displayName: string | null;
+      startsOn: string;
+      endsOn: string | null;
+    },
+    string
+  >({
+    values: familyIds,
+    batchSize: READ_FILTER_BATCH_SIZE,
+    cursorOf: (row) => row.familyPayerId,
+    fetchPage: (ids, cursor, limit) => {
+      const conditions = [
+        eq(familyPayers.organizationId, input.organizationId),
+        inArray(familyPayers.familyId, ids),
+        lte(familyPayers.startsOn, bounds.start),
+        or(isNull(familyPayers.endsOn), gte(familyPayers.endsOn, bounds.end)),
+      ];
+      if (cursor) conditions.push(gt(familyPayers.id, cursor));
+      return tx
         .select({
           familyId: familyPayers.familyId,
           familyPayerId: familyPayers.id,
@@ -453,20 +599,17 @@ async function buildMonthlyInvoiceOptions(
             eq(people.id, guardians.personId)
           )
         )
-        .where(
-          and(
-            eq(familyPayers.organizationId, input.organizationId),
-            inArray(familyPayers.familyId, familyIds),
-            lte(familyPayers.startsOn, bounds.start),
-            or(
-              isNull(familyPayers.endsOn),
-              gte(familyPayers.endsOn, bounds.end)
-            )
-          )
-        )
-        .orderBy(asc(familyPayers.familyId), asc(familyPayers.isPrimary))
-        .limit(1000)
-    : [];
+        .where(and(...conditions))
+        .orderBy(asc(familyPayers.id))
+        .limit(limit);
+    },
+  });
+  payerRows.sort(
+    (left, right) =>
+      left.familyId.localeCompare(right.familyId) ||
+      Number(left.isPrimary) - Number(right.isPrimary) ||
+      left.familyPayerId.localeCompare(right.familyPayerId)
+  );
 
   const memberByAthlete = new Map<string, typeof memberRows>();
   for (const row of memberRows) {
@@ -753,8 +896,29 @@ async function buildMonthlyInvoiceOptions(
       left.athleteId.localeCompare(right.athleteId)
     );
   }
-  const existingRows = familyIds.length
-    ? await tx
+  const existingRows = await readKeysetPagesByBatches<
+    {
+      familyId: string;
+      invoiceId: string;
+      status: string;
+      voidedAt: Date | null;
+    },
+    string
+  >({
+    values: familyIds,
+    batchSize: READ_FILTER_BATCH_SIZE,
+    cursorOf: (row) => row.invoiceId,
+    fetchPage: (ids, cursor, limit) => {
+      const conditions = [
+        eq(invoices.organizationId, input.organizationId),
+        eq(invoices.locationId, input.locationId),
+        inArray(invoices.familyId, ids),
+        eq(invoiceLines.lineType, "monthly_fee"),
+        eq(invoiceLines.servicePeriodStart, bounds.start),
+        eq(invoiceLines.servicePeriodEnd, bounds.end),
+      ];
+      if (cursor) conditions.push(gt(invoices.id, cursor));
+      return tx
         .select({
           familyId: invoices.familyId,
           invoiceId: invoices.id,
@@ -766,21 +930,20 @@ async function buildMonthlyInvoiceOptions(
           invoiceLines,
           and(
             eq(invoiceLines.organizationId, invoices.organizationId),
-            eq(invoiceLines.invoiceId, invoices.id),
-            eq(invoiceLines.lineType, "monthly_fee"),
-            eq(invoiceLines.servicePeriodStart, bounds.start),
-            eq(invoiceLines.servicePeriodEnd, bounds.end)
+            eq(invoiceLines.invoiceId, invoices.id)
           )
         )
-        .where(
-          and(
-            eq(invoices.organizationId, input.organizationId),
-            eq(invoices.locationId, input.locationId),
-            inArray(invoices.familyId, familyIds)
-          )
+        .where(and(...conditions))
+        .groupBy(
+          invoices.id,
+          invoices.familyId,
+          invoices.status,
+          invoices.voidedAt
         )
-        .limit(1000)
-    : [];
+        .orderBy(asc(invoices.id))
+        .limit(limit);
+    },
+  });
   const existingByFamily = new Map<string, (typeof existingRows)[number]>();
   for (const row of existingRows) existingByFamily.set(row.familyId, row);
 
