@@ -43,6 +43,9 @@ describe("monthly billing paging local runner contract", () => {
     expect(verifier).toContain("loadMonthlyReplayState");
     expect(verifier).toContain("ROW_COUNT = 205");
     expect(verifier).toContain("generate_series(1, ${ROW_COUNT})");
+    expect(verifier).toContain("const SNAPSHOT_ROW_COUNT = ROW_COUNT * 2 - 1");
+    expect(verifier).toContain("from generate_series(2, ${ROW_COUNT}) as n");
+    expect(verifier).toContain("snapshotsOnFirstLine");
     expect(verifier).toContain("recordManualPaymentForCharge({");
     expect(verifier).toContain(
       'waitForBlockedQuery(pool, "insert into zaltyko.payments")'

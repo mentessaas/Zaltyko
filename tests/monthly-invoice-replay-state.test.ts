@@ -373,6 +373,45 @@ describe("monthly invoice replay state", () => {
     ).toEqual([200, 200, 200, 200]);
   });
 
+  it("pages more than 200 snapshots within one invoice line by composite cursor", async () => {
+    const snapshotRows = Array.from({ length: 205 }, (_, index) => ({
+      invoiceLineId: "line-001",
+      enrollmentId: `enrollment-${String(index + 1).padStart(3, "0")}`,
+      classTemplateId: `template-${String(index + 1).padStart(3, "0")}`,
+      className: `Class ${index + 1}`,
+      assignmentId: `assignment-${String(index + 1).padStart(3, "0")}`,
+    }));
+    const harness = createReaderTx({
+      lineRows: [
+        {
+          id: "line-001",
+          athleteId: "athlete-001",
+          sortAthleteId: "athlete-001",
+          enrollmentId: null,
+          pricePlanId: "plan-1",
+          athleteName: "Gymnast 1",
+          amountCents: 1000,
+          currency: "EUR",
+        },
+      ],
+      snapshotRows,
+    });
+
+    const result = await loadIssuedLines(harness.tx, "org-1", "invoice-1");
+
+    expect(result).toHaveLength(1);
+    expect(result[0].coveredEnrollments).toHaveLength(205);
+    expect(result[0].coveredEnrollments[0].enrollmentId).toBe("enrollment-001");
+    expect(result[0].coveredEnrollments.at(-1)?.enrollmentId).toBe(
+      "enrollment-205"
+    );
+    expect(
+      harness.pageCalls
+        .filter((page) => page.table === "invoiceLineEnrollments")
+        .map((page) => page.limit)
+    ).toEqual([200, 200]);
+  });
+
   it("locks and returns every charge over multiple pages", async () => {
     const chargeRows = Array.from({ length: 205 }, (_, index) => ({
       id: `charge-${String(index + 1).padStart(3, "0")}`,

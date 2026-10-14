@@ -22,6 +22,7 @@ const OWNER_MEMBER_ID = "10000000-0000-4000-8000-000000000002";
 const PRICE_PLAN_ID = "10000000-0000-4000-8000-000000000105";
 const INVOICE_ID = "10000000-0000-4000-8000-000000000200";
 const ROW_COUNT = 205;
+const SNAPSHOT_ROW_COUNT = ROW_COUNT * 2 - 1;
 
 function assertLoopbackUrl(name: string): string {
   const value = process.env[name];
@@ -95,6 +96,17 @@ async function seed(pool: Pool): Promise<void> {
       ('39000000-0000-4000-8000-' || lpad(n::text, 12, '0'))::uuid,
       '${PRICE_PLAN_ID}', 'active', '2026-10-01', 'owner'
     from generate_series(1, ${ROW_COUNT}) as n;
+    insert into zaltyko.enrollments (
+      id, organization_id, location_id, athlete_id, class_template_id,
+      price_plan_id, status, starts_on, source
+    )
+    select
+      ('34100000-0000-4000-8000-' || lpad((n - 1)::text, 12, '0'))::uuid,
+      '${ORGANIZATION_ID}', '${LOCATION_ID}',
+      '32000000-0000-4000-8000-000000000001'::uuid,
+      ('39000000-0000-4000-8000-' || lpad(n::text, 12, '0'))::uuid,
+      '${PRICE_PLAN_ID}', 'active', '2026-10-01', 'owner'
+    from generate_series(2, ${ROW_COUNT}) as n;
     insert into zaltyko.enrollment_price_assignments (
       id, organization_id, location_id, enrollment_id, price_plan_id,
       unit_amount_cents, currency, starts_on
@@ -105,6 +117,16 @@ async function seed(pool: Pool): Promise<void> {
       ('34000000-0000-4000-8000-' || lpad(n::text, 12, '0'))::uuid,
       '${PRICE_PLAN_ID}', 1000, 'EUR', '2026-10-01'
     from generate_series(1, ${ROW_COUNT}) as n;
+    insert into zaltyko.enrollment_price_assignments (
+      id, organization_id, location_id, enrollment_id, price_plan_id,
+      unit_amount_cents, currency, starts_on
+    )
+    select
+      ('35100000-0000-4000-8000-' || lpad((n - 1)::text, 12, '0'))::uuid,
+      '${ORGANIZATION_ID}', '${LOCATION_ID}',
+      ('34100000-0000-4000-8000-' || lpad((n - 1)::text, 12, '0'))::uuid,
+      '${PRICE_PLAN_ID}', 1000, 'EUR', '2026-10-01'
+    from generate_series(2, ${ROW_COUNT}) as n;
     insert into zaltyko.price_plan_class_template_coverage (
       id, organization_id, location_id, price_plan_id, class_template_id,
       starts_on, ends_on
@@ -149,6 +171,20 @@ async function seed(pool: Pool): Promise<void> {
       ('35000000-0000-4000-8000-' || lpad(n::text, 12, '0'))::uuid,
       'Synthetic gymnastics class'
     from generate_series(1, ${ROW_COUNT}) as n;
+    insert into zaltyko.invoice_line_enrollments (
+      organization_id, location_id, athlete_id, invoice_line_id, price_plan_id,
+      enrollment_id, class_template_id, price_assignment_id, class_name_snapshot
+    )
+    select
+      '${ORGANIZATION_ID}', '${LOCATION_ID}',
+      '32000000-0000-4000-8000-000000000001'::uuid,
+      '37000000-0000-4000-8000-000000000001'::uuid,
+      '${PRICE_PLAN_ID}',
+      ('34100000-0000-4000-8000-' || lpad((n - 1)::text, 12, '0'))::uuid,
+      ('39000000-0000-4000-8000-' || lpad(n::text, 12, '0'))::uuid,
+      ('35100000-0000-4000-8000-' || lpad((n - 1)::text, 12, '0'))::uuid,
+      'Synthetic gymnastics class'
+    from generate_series(2, ${ROW_COUNT}) as n;
     insert into zaltyko.charges (
       id, organization_id, location_id, invoice_id, invoice_line_id, family_id,
       enrollment_id, collection_mode, status, amount_cents, currency, due_at,
@@ -257,7 +293,7 @@ async function verifyConcurrentPaymentReplay(pool: Pool): Promise<void> {
 }
 
 async function verifyRollbackAndSnapshotCut(pool: Pool): Promise<void> {
-  const originalCount = ROW_COUNT;
+  const originalCount = SNAPSHOT_ROW_COUNT;
   let rollbackSeen = false;
   try {
     await db.transaction(async (tx) => {
@@ -325,10 +361,13 @@ async function main(): Promise<void> {
       loadIssuedLines(tx, ORGANIZATION_ID, INVOICE_ID)
     );
     assert.equal(lines.length, ROW_COUNT);
-    assert(lines.every((line) => line.coveredEnrollments.length === 1));
+    assert.equal(lines[0].coveredEnrollments.length, ROW_COUNT);
+    assert(
+      lines.slice(1).every((line) => line.coveredEnrollments.length === 1)
+    );
     assert.equal(
       lines.reduce((total, line) => total + line.coveredEnrollments.length, 0),
-      ROW_COUNT
+      SNAPSHOT_ROW_COUNT
     );
 
     const charges = await db.transaction((tx) =>
@@ -346,7 +385,8 @@ async function main(): Promise<void> {
         familyMemberships: memberships.length,
         pricePlanCoverage: coverage.length,
         invoiceLines: lines.length,
-        invoiceLineSnapshots: ROW_COUNT,
+        invoiceLineSnapshots: SNAPSHOT_ROW_COUNT,
+        snapshotsOnFirstLine: lines[0].coveredEnrollments.length,
         charges: charges.charges.length,
         replayAfterConcurrentPayment:
           "recordManualPaymentForCharge behind a deterministic advisory-lock barrier",
