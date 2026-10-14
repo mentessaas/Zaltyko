@@ -77,7 +77,30 @@ describe("API Owner de facturación mensual", () => {
         dueAt: new Date("2026-10-31T22:59:59.999Z"),
       },
       replayed: false,
-      lines: [],
+      lines: [
+        {
+          athleteId: "10000000-0000-4000-8000-000000000011",
+          enrollmentId: null,
+          pricePlanId: "10000000-0000-4000-8000-000000000012",
+          athleteName: "Gimnasta sintética",
+          amountCents: 12000,
+          currency: "EUR",
+          coveredEnrollments: [
+            {
+              enrollmentId: "10000000-0000-4000-8000-000000000013",
+              classTemplateId: "10000000-0000-4000-8000-000000000014",
+              className: "Clase sintética",
+              assignmentId: "10000000-0000-4000-8000-000000000015",
+            },
+            {
+              enrollmentId: "10000000-0000-4000-8000-000000000016",
+              classTemplateId: "10000000-0000-4000-8000-000000000017",
+              className: "Actividad complementaria sintética",
+              assignmentId: "10000000-0000-4000-8000-000000000018",
+            },
+          ],
+        },
+      ],
       chargeStatus: "due",
       collectionMode: "manual",
       charges: [{ id: "10000000-0000-4000-8000-000000000009", status: "due" }],
@@ -124,6 +147,18 @@ describe("API Owner de facturación mensual", () => {
         chargeStatus: "due",
         collectionMode: "manual",
         charges: [{ status: "due" }],
+        lines: [
+          {
+            athleteId: "10000000-0000-4000-8000-000000000011",
+            enrollmentId: null,
+            pricePlanId: "10000000-0000-4000-8000-000000000012",
+            amountCents: 12000,
+            coveredEnrollments: [
+              { className: "Clase sintética" },
+              { className: "Actividad complementaria sintética" },
+            ],
+          },
+        ],
       },
     });
   });

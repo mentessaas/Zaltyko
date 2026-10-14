@@ -95,10 +95,13 @@ export async function POST(request: Request) {
       dueDate: parsed.data.dueDate,
       dueAt: result.invoice.dueAt.toISOString(),
       lines: result.lines.map((line) => ({
+        athleteId: line.athleteId,
         enrollmentId: line.enrollmentId,
+        pricePlanId: line.pricePlanId,
         athleteName: line.athleteName,
         amountCents: line.amountCents,
         currency: line.currency,
+        coveredEnrollments: line.coveredEnrollments,
       })),
     };
     return noStore(result.replayed ? apiSuccess(payload) : apiCreated(payload));

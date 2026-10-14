@@ -1,7 +1,7 @@
 # ADR-0026 — Cuota mensual por gimnasta y tarifa
 
-- Estado: decisión revisada aceptada; implementación por inscripción anterior
-  no satisface aún el caso multiclase. Nuevo esquema/servicio y E2E pendientes.
+- Estado: decisión revisada aceptada; esquema, servicio transaccional y desglose
+  por gimnasta integrados localmente. Configuración de cobertura y E2E pendientes.
 - Fecha: 2026-10-14.
 - Contexto: decisión explícita del propietario sobre la regla de primera cuota.
 - Relacionados: ADR-0002, ADR-0003, ADR-0004, ADR-0020, ADR-0025.

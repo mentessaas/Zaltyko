@@ -73,3 +73,24 @@ corrección verificada. Otros checks pendientes: orden de locks con writers
 operativos, importe/suma enteros seguros y lectura/replay del desglose histórico.
 Fuente: lectura de `monthly-invoice-service.ts` y `ledger-service.ts` en la rama
 `codex/monthly-athlete-billing-service-20261014`. Accionable: sí, antes de integrar.
+
+## Integración de facturación por atleta y fallo de esquema E2E
+
+- Backend `5b4a4e7e` y Frontend `fa61bf97` integrados tras revisión. Main
+  repitió el harness transaccional con Postgres desechable: PASS, 41 auditorías
+  y 41 eventos outbox. La protección incluye sustitución de familia e inscripción
+  para evitar otra cuota de la misma gimnasta/sede/mes.
+- Main ejecutó dominio, API, workspace y manager: 35/35 PASS; TypeScript PASS.
+  La respuesta de emisión ahora conserva atleta, tarifa y snapshots de las
+  inscripciones/clases cubiertas; el test API verifica dos clases, una línea.
+- El sexto Chromium de QA, HEAD `8a768899`, llegó a emisión y recibió 500:
+  SQLSTATE `42703`, falta `invoice_lines.location_id` en su esquema local.
+  Es una incompatibilidad real app/esquema, no un fallo de selector. La migración
+  de cobertura estaba excluida de la allowlist local. QA confirmó cierre y
+  eliminación de volúmenes desechables. No se aplicó nada remoto.
+- No repetir E2E hasta alinear migraciones locales, servicio, configuración de
+  cobertura y UI. Sigue pendiente crear tarifas con clases y vigencia explícitas;
+  no se admite sembrar cobertura para simular que la academia la configuró.
+
+Fuentes: ejecución independiente de Main, entregas de Backend/Frontend y trace
+del runner QA. No acredita DEMO-READY, PILOT-READY ni producción.
