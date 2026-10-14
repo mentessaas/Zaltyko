@@ -1,5 +1,16 @@
 # Runner de restore sintético local — 14-10-2026
 
+## Resultado vigente de Main
+
+Seis pruebas estáticas, tipos y lint PASS. Tres ejecuciones locales terminaron
+FAIL con cleanup PASS. Se corrigieron arranque CJS y comparación de posiciones
+lógicas de columnas (pg_dump compacta huecos de columnas eliminadas).
+La tercera ejecución pasó la comparación del catálogo restaurado, pero falló
+por esperar una factura parcialmente pagada: el fixture operativo deja esa
+factura en `void` deliberadamente. Backend revisa el contrato del fixture;
+no se harán más ejecuciones hasta decidir la corrección. **Restore completo
+NO VALIDADO**. Ninguna conexión remota ni restauración de datos reales.
+
 ## Alcance
 
 La rama `codex/synthetic-restore-local-20261014` añade un runner manual y
