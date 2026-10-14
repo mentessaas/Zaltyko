@@ -415,6 +415,13 @@ test.describe("Isolated local Supabase Owner setup", () => {
         .locator("..")
         .getByText(/35,00/)
     ).toBeVisible();
+    await page
+      .getByLabel("Fecha de vencimiento", { exact: true })
+      .fill(`${servicePeriod}-15`);
+    const invoiceButton = page.getByRole("button", {
+      name: /Emitir factura pendiente/,
+    });
+    await expect(invoiceButton).toBeEnabled();
     const invoiceResponse = page.waitForResponse(
       (candidate) =>
         candidate
@@ -422,9 +429,7 @@ test.describe("Isolated local Supabase Owner setup", () => {
           .endsWith("/api/v1/owner/billing/monthly-invoices/issue") &&
         candidate.request().method() === "POST"
     );
-    await page
-      .getByRole("button", { name: /Emitir factura pendiente/ })
-      .click();
+    await invoiceButton.click();
     expect((await invoiceResponse).ok()).toBe(true);
     await expect(
       page
