@@ -1,6 +1,6 @@
 import { createHash } from "node:crypto";
 
-import { and, eq, inArray, sql } from "drizzle-orm";
+import { and, asc, eq, inArray, sql } from "drizzle-orm";
 import { z } from "zod";
 
 import { db } from "@/db";
@@ -181,11 +181,23 @@ export async function bootstrapOrganization(
         and(
           eq(sportProfiles.countryCode, input.countryCode),
           eq(sportProfiles.profileVersion, "identity-v1"),
+          eq(sportProfiles.federationCode, "unconfigured"),
           inArray(sportProfiles.disciplineKey, requestedDisciplines),
           inArray(sportProfiles.status, ["identity_only", "verified"])
         )
-      );
-    if (availableProfiles.length !== requestedDisciplines.length) {
+      )
+      .orderBy(asc(sportProfiles.disciplineKey))
+      .limit(requestedDisciplines.length);
+    const availableDisciplineKeys = new Set(
+      availableProfiles.map((profile) => profile.disciplineKey)
+    );
+    if (
+      availableProfiles.length !== requestedDisciplines.length ||
+      availableDisciplineKeys.size !== requestedDisciplines.length ||
+      requestedDisciplines.some(
+        (discipline) => !availableDisciplineKeys.has(discipline)
+      )
+    ) {
       throw new OperationalError(
         "INVALID_RELATION",
         "Aún no hay un perfil deportivo disponible para el país y las disciplinas seleccionadas.",
