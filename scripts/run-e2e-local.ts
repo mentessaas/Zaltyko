@@ -1,11 +1,33 @@
 /* eslint-disable no-console */
-import { execFileSync, spawnSync } from "node:child_process";
-import { cpSync, mkdtempSync, mkdirSync, readFileSync, rmSync } from "node:fs";
+import {
+  cpSync,
+  mkdtempSync,
+  mkdirSync,
+  readFileSync,
+  rmSync,
+  writeFileSync,
+} from "node:fs";
 import { tmpdir } from "node:os";
 import { basename, join, resolve } from "node:path";
 import { randomUUID } from "node:crypto";
 import { createServer } from "node:net";
 
+import {
+  cleanupLocalProject,
+  createTerminationHandler,
+  LOCAL_E2E_TIMEOUTS,
+  LocalCommandError,
+  runLocalCommand,
+} from "./lib/local-e2e-runner-core";
+import {
+  assertSupportedNodeVersion,
+  findMissingImages,
+  localCliPath,
+  REQUIRED_LOCAL_SUPABASE_IMAGES,
+  resolveExecutableOnPath,
+  verifyInstalledRunnerPackages,
+  verifySupabaseCliBinary,
+} from "./lib/local-e2e-preflight";
 import {
   E2E_DOMAIN_MIGRATIONS,
   E2E_LOCAL_OWNER_MONTHLY_TARIFF_MIGRATIONS,
@@ -39,31 +61,62 @@ const safeEnvironment = Object.fromEntries(
 safeEnvironment.NODE_ENV = "test";
 safeEnvironment.NEXT_TELEMETRY_DISABLED = "1";
 
-function run(
+function formatCommandError(command: string, error: LocalCommandError) {
+  const output = `${error.stdout}\n${error.stderr}`
+    .replace(/sb_(?:publishable|secret)_[A-Za-z0-9_-]+/g, "<redacted>")
+    .replace(
+      /((?:ANON_KEY|SERVICE_ROLE_KEY|JWT_SECRET|SECRET_KEY|PUBLISHABLE_KEY|Access Key|Secret Key)\s*[=:|]\s*)[^\s|]+/gi,
+      "$1<redacted>"
+    );
+  const details = output.trim().split("\n").slice(-35).join("\n");
+  const reason = error.message.replace(
+    /((?:ANON_KEY|SERVICE_ROLE_KEY|JWT_SECRET|SECRET_KEY|PUBLISHABLE_KEY)\s*[=:|]\s*)[^\s|]+/gi,
+    "$1<redacted>"
+  );
+  return new Error(`${command}: ${reason}\n${details}`);
+}
+
+async function run(
   command: string,
   args: string[],
-  env: NodeJS.ProcessEnv = safeEnvironment as NodeJS.ProcessEnv
+  env: NodeJS.ProcessEnv = safeEnvironment as NodeJS.ProcessEnv,
+  timeoutMs: number = LOCAL_E2E_TIMEOUTS.setup,
+  signal?: AbortSignal,
+  stdio: "pipe" | "inherit" = "pipe"
 ) {
-  const result = spawnSync(command, args, {
+  try {
+    const result = await runLocalCommand(command, args, {
+      cwd: root,
+      env,
+      timeoutMs,
+      signal,
+      stdio,
+    });
+    return result.stdout;
+  } catch (error) {
+    if (error instanceof LocalCommandError) {
+      throw formatCommandError(command, error);
+    }
+    throw error;
+  }
+}
+
+async function runAllowExitCode(
+  command: string,
+  args: string[],
+  env: NodeJS.ProcessEnv,
+  timeoutMs: number,
+  signal?: AbortSignal,
+  stdio: "pipe" | "inherit" = "pipe"
+) {
+  return runLocalCommand(command, args, {
     cwd: root,
     env,
-    encoding: "utf8",
-    maxBuffer: 20 * 1024 * 1024,
+    timeoutMs,
+    signal,
+    stdio,
+    allowNonZero: true,
   });
-  if (result.error) throw result.error;
-  if (result.status !== 0) {
-    const output = `${result.stdout ?? ""}\n${result.stderr ?? ""}`
-      .replace(/sb_(?:publishable|secret)_[A-Za-z0-9_-]+/g, "<redacted>")
-      .replace(
-        /((?:ANON_KEY|SERVICE_ROLE_KEY|JWT_SECRET|SECRET_KEY|PUBLISHABLE_KEY|Access Key|Secret Key)\s*[=:|]\s*)[^\s|]+/gi,
-        "$1<redacted>"
-      );
-    const details = output.trim().split("\n").slice(-35).join("\n");
-    throw new Error(
-      `${command} failed with exit code ${result.status}.\n${details}`
-    );
-  }
-  return result.stdout ?? "";
 }
 
 function parseEnv(output: string) {
@@ -106,15 +159,61 @@ async function findAvailablePort() {
 
 void (async () => {
   let stackStartAttempted = false;
-  let preserveProjectDirectory = false;
   let testExitCode = 1;
+  let supabaseCli: string | undefined;
+  let receivedSignal: NodeJS.Signals | undefined;
+  const abortController = new AbortController();
+  const signalHandler = createTerminationHandler(abortController, (signal) => {
+    receivedSignal ??= signal;
+  });
+  const onSigint = () => signalHandler("SIGINT");
+  const onSigterm = () => signalHandler("SIGTERM");
+  process.on("SIGINT", onSigint);
+  process.on("SIGTERM", onSigterm);
 
   try {
-    execFileSync("supabase", localProject(["init", "--yes"]), {
-      cwd: root,
-      env: safeEnvironment as NodeJS.ProcessEnv,
-      stdio: "ignore",
-    });
+    assertSupportedNodeVersion(process.versions.node);
+    verifyInstalledRunnerPackages(root);
+    const nextCli = localCliPath(root, "next");
+    const playwrightCli = localCliPath(root, "playwright");
+    supabaseCli = resolveExecutableOnPath("supabase", safeEnvironment.PATH);
+    const dockerCli = resolveExecutableOnPath("docker", safeEnvironment.PATH);
+    verifySupabaseCliBinary(supabaseCli);
+    await run(
+      dockerCli,
+      ["info", "--format", "{{.ServerVersion}}"],
+      safeEnvironment as NodeJS.ProcessEnv,
+      LOCAL_E2E_TIMEOUTS.preflight,
+      abortController.signal
+    );
+    const installedImages = (
+      await run(
+        dockerCli,
+        ["image", "ls", "--format", "{{.Repository}}:{{.Tag}}"],
+        safeEnvironment as NodeJS.ProcessEnv,
+        LOCAL_E2E_TIMEOUTS.preflight,
+        abortController.signal
+      )
+    )
+      .split(/\r?\n/)
+      .filter(Boolean);
+    const missingImages = findMissingImages(
+      REQUIRED_LOCAL_SUPABASE_IMAGES,
+      installedImages
+    );
+    if (missingImages.length > 0) {
+      throw new Error(
+        `Local E2E is fail-closed: Docker images are missing and will not be pulled:\n${missingImages.map((image) => `- ${image}`).join("\n")}`
+      );
+    }
+
+    await run(
+      supabaseCli,
+      localProject(["init", "--yes"]),
+      undefined,
+      LOCAL_E2E_TIMEOUTS.setup,
+      abortController.signal
+    );
 
     const migrationDirectory = join(projectDirectory, "supabase", "migrations");
     mkdirSync(migrationDirectory, { recursive: true });
@@ -136,13 +235,25 @@ void (async () => {
       /^project_id\s*=.*$/m,
       `project_id = "${projectId}"`
     );
-    require("node:fs").writeFileSync(configPath, config);
+    writeFileSync(configPath, config);
 
     stackStartAttempted = true;
-    run("supabase", localProject(["start"]));
+    await run(
+      supabaseCli,
+      localProject(["start", "--exclude", "supavisor"]),
+      undefined,
+      LOCAL_E2E_TIMEOUTS.setup,
+      abortController.signal
+    );
 
     const values = parseEnv(
-      run("supabase", localProject(["status", "-o", "env"]))
+      await run(
+        supabaseCli,
+        localProject(["status", "-o", "env"]),
+        undefined,
+        LOCAL_E2E_TIMEOUTS.setup,
+        abortController.signal
+      )
     );
     const supabaseUrl = required(values, "API_URL");
     const databaseUrl = required(values, "DB_URL");
@@ -173,27 +284,27 @@ void (async () => {
     console.log(
       "Building the app against the disposable local Supabase stack."
     );
-    run("pnpm", ["build"], {
-      ...childEnv,
-      NODE_ENV: "production",
-    });
+    await run(
+      process.execPath,
+      [nextCli, "build"],
+      { ...childEnv, NODE_ENV: "production" },
+      LOCAL_E2E_TIMEOUTS.build,
+      abortController.signal
+    );
 
-    const playwrightArgs = [
-      "exec",
-      "playwright",
-      "test",
-      "tests/e2e-owner-local-setup.spec.ts",
-    ];
+    const playwrightArgs = ["test", "tests/e2e-owner-local-setup.spec.ts"];
     if (process.env.E2E_LOCAL_PROJECT) {
       playwrightArgs.push("--project", process.env.E2E_LOCAL_PROJECT);
     }
 
-    const result = spawnSync("pnpm", playwrightArgs, {
-      cwd: root,
-      env: childEnv,
-      stdio: "inherit",
-    });
-    if (result.error) throw result.error;
+    const result = await runAllowExitCode(
+      playwrightCli,
+      playwrightArgs,
+      childEnv,
+      LOCAL_E2E_TIMEOUTS.browser,
+      abortController.signal,
+      "inherit"
+    );
     testExitCode = result.status ?? 1;
   } catch (error) {
     const message =
@@ -201,26 +312,35 @@ void (async () => {
     console.error(message);
     testExitCode = 1;
   } finally {
-    if (stackStartAttempted) {
-      try {
-        run("supabase", localProject(["stop", "--no-backup"]));
+    const cleanup = await cleanupLocalProject({
+      startAttempted: stackStartAttempted,
+      stop: async () => {
+        await run(
+          supabaseCli!,
+          localProject(["stop", "--no-backup"]),
+          undefined,
+          LOCAL_E2E_TIMEOUTS.stop
+        );
         console.log(
           "Supabase local stack stopped and disposable data volumes removed."
         );
-      } catch (error) {
-        preserveProjectDirectory = true;
+      },
+      removeProject: () =>
+        rmSync(projectDirectory, { recursive: true, force: true }),
+      onStopError: (error) => {
         const message =
           error instanceof Error ? error.message : "unknown stop error";
         console.error(
           `Could not fully stop the isolated Supabase stack; project files preserved at ${projectDirectory}: ${message}`
         );
         testExitCode = 1;
-      }
-    }
-    if (!preserveProjectDirectory) {
-      rmSync(projectDirectory, { recursive: true, force: true });
-    }
+      },
+    });
+    if (cleanup.preserveProjectDirectory) testExitCode = 1;
+    process.off("SIGINT", onSigint);
+    process.off("SIGTERM", onSigterm);
   }
 
+  if (receivedSignal) testExitCode = receivedSignal === "SIGINT" ? 130 : 143;
   process.exitCode = testExitCode;
 })();

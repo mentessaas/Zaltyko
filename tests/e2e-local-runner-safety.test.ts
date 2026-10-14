@@ -8,34 +8,40 @@ const runnerSource = readFileSync(
   "utf8"
 );
 
-describe("local E2E runner safety", () => {
-  it("forces Next telemetry off in the sanitized child environment", () => {
+describe("local E2E runner wiring", () => {
+  it("forwards telemetry-off through the sanitized child environment", () => {
     expect(runnerSource).toContain(
       'safeEnvironment.NEXT_TELEMETRY_DISABLED = "1"'
     );
     expect(runnerSource).toContain("...safeEnvironment,");
   });
 
-  it("stops the exact isolated project after any start attempt", () => {
-    expect(runnerSource).toContain(
-      "const localProject = (args: string[]) => ["
+  it("uses lockfile-installed CLIs directly and preflights images before start", () => {
+    expect(runnerSource).toContain("verifyInstalledRunnerPackages(root)");
+    expect(runnerSource).toContain("process.execPath");
+    expect(runnerSource).toContain('localCliPath(root, "playwright")');
+    expect(runnerSource).not.toContain('run("pnpm"');
+    expect(runnerSource).not.toContain('spawnSync("pnpm"');
+    expect(
+      runnerSource.indexOf("const missingImages = findMissingImages(")
+    ).toBeLessThan(
+      runnerSource.indexOf('localProject(["start", "--exclude", "supavisor"])')
     );
-    expect(runnerSource).toContain('"--workdir",\n  projectDirectory,');
-    expect(runnerSource).toContain('localProject(["start"])');
-    expect(runnerSource).toContain('localProject(["stop", "--no-backup"])');
-    expect(runnerSource).toContain("let stackStartAttempted = false;");
-    expect(runnerSource).toMatch(
-      /stackStartAttempted = true;\s*run\("supabase", localProject\(\["start"\]\)\);/
-    );
-    expect(runnerSource).toContain("if (stackStartAttempted)");
   });
 
-  it("preserves the project directory when stopping the stack fails", () => {
+  it("marks stack start attempted before the command and stops the same workdir", () => {
     expect(runnerSource).toMatch(
-      /catch \(error\) \{\s*preserveProjectDirectory = true;/
+      /stackStartAttempted = true;\s*await run\(\s*supabaseCli,\s*localProject\(\["start", "--exclude", "supavisor"\]\)/
     );
-    expect(runnerSource).toMatch(
-      /if \(!preserveProjectDirectory\) \{\s*rmSync\(projectDirectory/
-    );
+    expect(runnerSource).toContain('localProject(["stop", "--no-backup"])');
+    expect(runnerSource).toContain("cleanupLocalProject({");
+    expect(runnerSource).toContain("preserved at ${projectDirectory}");
+  });
+
+  it("installs SIGINT and SIGTERM handlers for the entire stack lifecycle", () => {
+    expect(runnerSource).toContain('process.on("SIGINT", onSigint)');
+    expect(runnerSource).toContain('process.on("SIGTERM", onSigterm)');
+    expect(runnerSource).toContain('process.off("SIGINT", onSigint)');
+    expect(runnerSource).toContain('process.off("SIGTERM", onSigterm)');
   });
 });

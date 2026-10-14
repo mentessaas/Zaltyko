@@ -7,6 +7,19 @@ source:
   - ../docs/architecture/zaltyko-domain-model.md
 ---
 
+## 2026-10-15 — QA58: runner local sin package manager ni pull de imágenes
+
+- En `codex/a2-local-owner-e2e-safety-20261014`, el E2E usa un fixture HIBP
+  local validado y bloquea orígenes de red fuera de app/Supabase loopback.
+  Next, Playwright y tsx se validan contra el lockfile y se ejecutan sin pnpm.
+- El runner valida el hash del Supabase CLI y cada imagen Docker antes de
+  iniciar; una imagen ausente detiene el flujo sin pull. SIGINT/SIGTERM cierran
+  el grupo hijo y el cleanup intenta `stop` sobre el mismo `--workdir`; conserva
+  el directorio temporal si la parada falla. Los límites de spec (300 s) y
+  webServer (240 s) se mantienen.
+- Vitest mock focal 22/22, TypeScript, ESLint, Prettier y `git diff --check`
+  PASS. No se ejecutaron navegador/E2E, build ni arranque de Supabase/PostgreSQL.
+
 ## 2026-10-14 — Refuerzo del harness local Owner mensual
 
 - En `codex/a2-local-owner-e2e-safety-20261014`, desde `7ac8b87e`, el E2E

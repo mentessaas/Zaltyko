@@ -3,6 +3,8 @@ import { createHash, randomUUID } from "node:crypto";
 import { expect, test } from "@playwright/test";
 import { Pool } from "pg";
 
+import { installLocalE2ENetworkGuard } from "./support/local-e2e-network";
+
 const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL;
 const databaseUrl = process.env.DATABASE_URL;
 const runId = process.env.E2E_LOCAL_RUN_ID;
@@ -13,7 +15,7 @@ if (
   !databaseUrl ||
   !runId
 ) {
-  throw new Error("Run this suite only through `pnpm test:e2e:local`.");
+  throw new Error("Run this suite only through the isolated local E2E runner.");
 }
 
 assertLoopbackUrl(supabaseUrl, ["http:", "https:"]);
@@ -39,6 +41,7 @@ type BrowserDiagnosticEvent = {
 };
 
 let browserDiagnostics: BrowserDiagnosticEvent[] = [];
+let blockedExternalRequests: () => string[] = () => [];
 
 function diagnosticPathname(value: string): string {
   try {
@@ -71,6 +74,10 @@ test.describe("Isolated local Supabase Owner setup", () => {
   test.describe.configure({ mode: "serial", timeout: 300_000 });
 
   test.beforeEach(async ({ page }) => {
+    blockedExternalRequests = await installLocalE2ENetworkGuard(
+      page.context(),
+      { baseUrl: process.env.BASE_URL!, supabaseUrl: supabaseUrl! }
+    );
     const diagnostics: BrowserDiagnosticEvent[] = [];
     browserDiagnostics = diagnostics;
     const record = (event: Omit<BrowserDiagnosticEvent, "at">) => {
@@ -138,18 +145,21 @@ test.describe("Isolated local Supabase Owner setup", () => {
   });
 
   test.afterEach(async ({}, testInfo) => {
+    const blockedRequests = blockedExternalRequests();
     await testInfo.attach("browser-navigation-diagnostics.json", {
       body: JSON.stringify(
         {
           browser: testInfo.project.name,
           status: testInfo.status,
           events: browserDiagnostics,
+          blockedExternalRequests: blockedRequests,
         },
         null,
         2
       ),
       contentType: "application/json",
     });
+    expect(blockedRequests).toEqual([]);
   });
 
   test.afterAll(async () => {
@@ -1106,6 +1116,11 @@ test.describe("Isolated local Supabase Owner setup", () => {
     if (!browser)
       throw new Error("The authenticated E2E browser is unavailable.");
     const secondOwnerContext = await browser.newContext();
+    const secondOwnerBlockedExternalRequests =
+      await installLocalE2ENetworkGuard(secondOwnerContext, {
+        baseUrl: process.env.BASE_URL!,
+        supabaseUrl: supabaseUrl!,
+      });
     try {
       const secondOwnerPage = await secondOwnerContext.newPage();
       const secondOwnerId = randomUUID();
@@ -1325,6 +1340,8 @@ test.describe("Isolated local Supabase Owner setup", () => {
       expect(coachDashboard.status()).toBe(403);
     } finally {
       await secondOwnerContext.close();
+      const blockedRequests = secondOwnerBlockedExternalRequests();
+      expect(blockedRequests).toEqual([]);
     }
   });
 });

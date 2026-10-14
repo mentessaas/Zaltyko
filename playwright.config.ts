@@ -18,6 +18,10 @@ if (!isLocalSupabaseRun) {
 
 const baseURL = process.env.BASE_URL ?? "http://127.0.0.1:3000";
 const isCI = Boolean(process.env.CI);
+const nextCli = resolve(process.cwd(), "node_modules/next/dist/bin/next");
+const quoteShellArgument = (value: string) =>
+  `'${value.replace(/'/g, "'\\''")}'`;
+const nextServerCommand = `${quoteShellArgument(process.execPath)} ${quoteShellArgument(nextCli)} ${isCI || isLocalSupabaseRun ? "start" : "dev"}`;
 
 const isPublicReadOnlyRun = process.env.E2E_PUBLIC_READ_ONLY === "true";
 
@@ -90,7 +94,7 @@ export default defineConfig({
     process.env.BASE_URL && !isLocalSupabaseRun
       ? undefined
       : {
-          command: isCI || isLocalSupabaseRun ? "pnpm start" : "pnpm dev",
+          command: nextServerCommand,
           ...(isLocalSupabaseRun ? { env: { NODE_ENV: "production" } } : {}),
           url: baseURL,
           reuseExistingServer: !isLocalSupabaseRun && !isCI,
