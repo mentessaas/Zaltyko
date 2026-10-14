@@ -375,13 +375,29 @@ async function verifyRollbackAndSnapshotCut(pool: Pool): Promise<void> {
           and invoice_line_id = ${"37000000-0000-4000-8000-000000000001"}::uuid
       `);
       const lines = await loadIssuedLines(tx, ORGANIZATION_ID, INVOICE_ID);
-      assert.equal(lines.length, originalCount);
+      assert.equal(lines.length, ROW_COUNT);
+      const cutLine = lines.find(
+        (line) => line.athleteId === "32000000-0000-4000-8000-000000000001"
+      );
       assert.equal(
-        lines.find(
-          (line) => line.athleteId === "32000000-0000-4000-8000-000000000001"
-        )?.coveredEnrollments.length,
+        cutLine?.coveredEnrollments.length,
         0,
         "El lector debe exponer el corte sintético inconsistente al validador"
+      );
+      const remainingLines = lines.filter(
+        (line) => line.athleteId !== "32000000-0000-4000-8000-000000000001"
+      );
+      assert.equal(remainingLines.length, ROW_COUNT - 1);
+      assert(
+        remainingLines.every((line) => line.coveredEnrollments.length === 1),
+        "Las otras líneas deben conservar su snapshot"
+      );
+      assert.equal(
+        remainingLines.reduce(
+          (total, line) => total + line.coveredEnrollments.length,
+          0
+        ),
+        ROW_COUNT - 1
       );
       throw new Error("rollback synthetic snapshot cut");
     });

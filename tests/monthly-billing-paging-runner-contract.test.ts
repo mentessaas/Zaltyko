@@ -58,6 +58,14 @@ describe("monthly billing paging local runner contract", () => {
     expect(verifier).toContain("const SNAPSHOT_ROW_COUNT = ROW_COUNT * 2 - 1");
     expect(verifier).toContain("from generate_series(2, ${ROW_COUNT}) as n");
     expect(verifier).toContain("snapshotsOnFirstLine");
+    expect(verifier).toContain("assert.equal(lines.length, ROW_COUNT)");
+    expect(verifier).toContain(
+      "assert.equal(remainingLines.length, ROW_COUNT - 1)"
+    );
+    expect(verifier).toContain("Las otras líneas deben conservar su snapshot");
+    expect(verifier).toContain(
+      "assert.equal(result.rows[0]?.count, originalCount)"
+    );
     expect(verifier).toContain("recordManualPaymentForCharge({");
     expect(verifier).toContain("pg_blocking_pids(replay.pid)");
     expect(verifier).toContain("activity_lock.locktype = 'advisory'");
