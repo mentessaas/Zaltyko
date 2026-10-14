@@ -65,14 +65,23 @@ function monthlyOptions(
         ],
         lines: [
           {
-            enrollmentId,
+            athleteId,
             athleteName: "Gimnasta sintética",
             pricePlanId: "price-plan-id",
             pricePlanName: "Tarifa sintética",
             amountCents: 2700,
             currency: "EUR",
+            coveredEnrollments: [
+              {
+                enrollmentId,
+                classTemplateId: "10000000-0000-4000-8000-000000000301",
+                className: "Grupo sintético",
+                assignmentId: "10000000-0000-4000-8000-000000000401",
+              },
+            ],
           },
         ],
+        conflicts: [],
         totalAmountCents: 2700,
         currency: "EUR",
         blockingReasons: [],

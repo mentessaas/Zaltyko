@@ -42,12 +42,23 @@ export type MonthlyInvoiceOptionsResponse = {
       } | null;
     }>;
     lines: Array<{
-      enrollmentId: string;
+      athleteId: string;
       athleteName: string | null;
       pricePlanId: string;
       pricePlanName: string;
       amountCents: number;
       currency: string;
+      coveredEnrollments: Array<{
+        enrollmentId: string;
+        classTemplateId: string;
+        className: string;
+        assignmentId: string;
+      }>;
+    }>;
+    conflicts: Array<{
+      athleteId: string;
+      code: "ATHLETE_TARIFF_CONFLICT" | "TARIFF_COVERAGE_INCOMPLETE";
+      enrollmentIds: string[];
     }>;
     totalAmountCents: number | null;
     currency: string | null;
@@ -137,6 +148,15 @@ function reasonLabel(reason: string): string {
   );
 }
 
+function conflictLabel(
+  code: "ATHLETE_TARIFF_CONFLICT" | "TARIFF_COVERAGE_INCOMPLETE"
+): string {
+  if (code === "ATHLETE_TARIFF_CONFLICT") {
+    return "Esta gimnasta tiene tarifas distintas entre sus clases mensuales.";
+  }
+  return "La tarifa no cubre todas las clases mensuales de esta gimnasta.";
+}
+
 export function OwnerMonthlyInvoiceWorkspace({
   state,
   options,
@@ -193,6 +213,7 @@ export function OwnerMonthlyInvoiceWorkspace({
     state === "ready" &&
     options &&
     selectedFamily?.canIssue &&
+    selectedFamily.conflicts.length === 0 &&
     selectedPayer &&
     dueDate &&
     selectedFamily.totalAmountCents !== null &&
@@ -209,6 +230,8 @@ export function OwnerMonthlyInvoiceWorkspace({
       !options ||
       !selectedFamily ||
       !selectedPayer ||
+      !selectedFamily.canIssue ||
+      selectedFamily.conflicts.length > 0 ||
       !selectedFamily.quoteHash
     ) {
       return;
@@ -436,6 +459,42 @@ export function OwnerMonthlyInvoiceWorkspace({
                 </section>
               ) : null}
 
+              {selectedFamily && selectedFamily.conflicts.length > 0 && (
+                <section
+                  role="alert"
+                  aria-labelledby="monthly-invoice-conflicts-heading"
+                  className="grid gap-3 border border-amber-300 bg-amber-50 p-4"
+                >
+                  <h3
+                    id="monthly-invoice-conflicts-heading"
+                    className="font-bold text-amber-950"
+                  >
+                    Resuelve los conflictos de tarifa antes de emitir
+                  </h3>
+                  <ul className="grid gap-2">
+                    {selectedFamily.conflicts.map((conflict) => {
+                      const athleteName =
+                        selectedFamily.enrollments.find(
+                          (enrollment) =>
+                            enrollment.athleteId === conflict.athleteId
+                        )?.athleteName ?? null;
+
+                      return (
+                        <li
+                          key={`${conflict.athleteId}:${conflict.code}`}
+                          className="text-sm text-amber-950"
+                        >
+                          <span className="font-semibold">
+                            {athleteLabel(athleteName)}:{" "}
+                          </span>
+                          {conflictLabel(conflict.code)}
+                        </li>
+                      );
+                    })}
+                  </ul>
+                </section>
+              )}
+
               {selectedFamily &&
                 selectedFamily.enrollments.some(
                   (item) =>
@@ -593,19 +652,30 @@ export function OwnerMonthlyInvoiceWorkspace({
                       {options.pricingNote}
                     </p>
                   )}
-                  <ul className="divide-y divide-slate-200 border-y border-slate-200">
+                  <ul
+                    aria-label="Desglose por gimnasta"
+                    className="divide-y divide-slate-200 border-y border-slate-200"
+                  >
                     {selectedFamily.lines.map((line) => (
                       <li
-                        key={line.enrollmentId}
-                        className="grid gap-1 py-3 sm:grid-cols-[minmax(0,1fr)_auto] sm:items-center"
+                        key={line.athleteId}
+                        className="grid gap-2 py-4 sm:grid-cols-[minmax(0,1fr)_auto] sm:items-start"
                       >
-                        <span className="font-semibold">
-                          {athleteLabel(line.athleteName)}
-                        </span>
-                        <span className="text-sm text-slate-700">
+                        <div className="grid gap-1">
+                          <h4 className="font-semibold">
+                            {athleteLabel(line.athleteName)}
+                          </h4>
+                          <p className="text-sm text-slate-700">
+                            Clases cubiertas:{" "}
+                            {line.coveredEnrollments
+                              .map((enrollment) => enrollment.className)
+                              .join(", ")}
+                          </p>
+                        </div>
+                        <p className="text-sm font-semibold text-slate-800 sm:text-right">
                           {line.pricePlanName} ·{" "}
                           {formatMoney(line.amountCents, line.currency)}
-                        </span>
+                        </p>
                       </li>
                     ))}
                   </ul>
