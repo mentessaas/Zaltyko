@@ -11,7 +11,8 @@
    limpios ni permite borrarlos.
 4. CI `38486557090`: build, unitarios, tipos/lint, RLS, integridad de migraciones,
    dependencias y móvil pasan; setup E2E experimental falla. E2E autenticado
-   sigue en ejecución al corte. No hay DEMO-READY.
+   terminó PASS en revalidación. Global SUCCESS permite el fallo experimental:
+   no prueba alta completa ni DEMO-READY.
 
 ## Disposición revisable
 
@@ -39,6 +40,13 @@ afirma que sean redundantes sin inspeccionar sus diffs.
   [P0](https://github.com/mentessaas/Zaltyko/pull/225),
   [CI observado](https://github.com/mentessaas/Zaltyko/actions/runs/38486557090).
 - GitHub registra Preview de `dec076e1`, deployment `7052984016`; estado de
-  runtime, entorno de datos y dominio productivo no verificados en esta pasada.
+  deployment SUCCESS, URL `https://zaltyko-6ngs37ytn-mentessaas-projects.vercel.app`.
+  Runtime, entorno de datos y dominio productivo no verificados en esta pasada.
+- #224 no es ancestro del HEAD local (`merge-base --is-ancestor` devuelve 1).
+  Los archivos públicos revisados difieren; no se cierra como duplicado por
+  coincidencia del título ni se fusiona para revertir la arquitectura nueva.
+- #66 incluye cambios adicionales en Stripe, analítica y fixtures, no solo
+  consentimiento. Su regla de estado/versionado/auditoría es generalizable,
+  pero no se importará su patch completo a la instalación greenfield.
 - Solo inventario/decisiones documentales: no se borraron ramas, cerraron PR,
   modificaron aliases ni aplicaron migraciones remotas.
