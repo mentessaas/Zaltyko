@@ -18,11 +18,14 @@ source:
 ## P0 — Cerrar el recorrido MVP publicado — 2026-10-14
 
 - [ ] Completar QA de navegadores y revisar el runner local sintético de backup
-  y restore antes de autorizar su ejecución. El runner ya está implementado en
-  `codex/synthetic-restore-local-20261014`, pero permanece sin ejecutar; no
-  arrancar PostgreSQL ni crear dumps hasta el cierre de QA y autorización de
-  Main. La prueba prevista usa dos bases loopback y datos sintéticos, y no
-  acredita restauración Preview/producción. Fuente:
+  y restore antes de autorizar su ejecución. La rama
+  `codex/synthetic-restore-fixture-nov-20261014` prepara una factura de
+  noviembre con servicios reales;
+  la fila void de octubre solo verifica fidelidad del restore del guard. El
+  runner permanece sin ejecutar: no arrancar PostgreSQL ni crear dumps hasta
+  el cierre de QA y autorización de Main. La prueba prevista usa dos bases
+  loopback y datos sintéticos, y no acredita restauración Preview/producción.
+  Fuente:
   `docs/qa/synthetic-restore-runner-2026-10-14.md`.
 
 - [ ] Alinear la cuota mensual con la regla confirmada por gimnasta y tarifa.

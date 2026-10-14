@@ -165,10 +165,20 @@ done
 MIGRATION_MANIFEST_SHA256="$(shasum -a 256 "${MIGRATION_MANIFEST}" | awk '{print $1}')"
 
 env -i "PATH=${SAFE_PATH}" \
+  DOTENV_CONFIG_PATH=/dev/null \
   DATABASE_URL="${SOURCE_URL}" \
   DATABASE_URL_POOL="${SOURCE_URL}" \
   DATABASE_URL_DIRECT="${SOURCE_URL}" \
+  NODE_ENV=test \
   pnpm exec tsx scripts/verify-zaltyko-operational-services.ts
+
+env -i "PATH=${SAFE_PATH}" \
+  DOTENV_CONFIG_PATH=/dev/null \
+  DATABASE_URL="${SOURCE_URL}" \
+  DATABASE_URL_POOL="${SOURCE_URL}" \
+  DATABASE_URL_DIRECT="${SOURCE_URL}" \
+  NODE_ENV=test \
+  pnpm exec tsx scripts/seed-zaltyko-synthetic-restore-monthly-invoice.ts
 
 psql_db "${SOURCE_DB}" <<'SQL' >/dev/null
 insert into zaltyko.owner_signup_consents (

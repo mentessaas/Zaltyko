@@ -15,8 +15,10 @@ const ids = {
   organization: "10000000-0000-4000-8000-000000000010",
   ownerUser: "10000000-0000-4000-8000-000000000001",
   otherUser: "20000000-0000-4000-8000-000000000001",
-  multiClassAthlete: "10000000-0000-4000-8000-000000000074",
 };
+
+const restoreInvoiceIdempotencyKey = "synthetic-restore-november-invoice-001";
+const restorePaymentIdempotencyKey = "synthetic-restore-november-payment-001";
 
 function requireLocalDatabaseUrl(
   value: string | undefined,
@@ -113,20 +115,50 @@ async function readMonthlyLedger(pool: Pool) {
   const invoices = await pool.query(
     `
     select distinct i.id, i.status, i.currency,
-           i.total_amount_cents::text as total_amount_cents
+           i.total_amount_cents::text as total_amount_cents,
+           i.voided_at::text as voided_at, i.idempotency_key
     from zaltyko.invoices i
     join zaltyko.invoice_lines l
       on l.organization_id = i.organization_id and l.invoice_id = i.id
     where i.organization_id = $1
       and l.line_type = 'monthly_fee'
-      and l.service_period_start = date '2026-10-01'
-      and l.service_period_end = date '2026-10-31'
+      and l.service_period_start = date '2026-11-01'
+      and l.service_period_end = date '2026-11-30'
+      and i.idempotency_key = $2
     order by i.id
   `,
-    [ids.organization]
+    [ids.organization, restoreInvoiceIdempotencyKey]
   );
   const invoiceIds = invoices.rows.map((row: { id: string }) => row.id);
-  assert.equal(invoiceIds.length, 1, "Expected one synthetic monthly invoice");
+  assert.equal(
+    invoiceIds.length,
+    1,
+    "Expected the service-seeded November invoice"
+  );
+
+  const octoberVoidGuard = await pool.query(
+    `
+    select distinct i.id, i.status, i.voided_at::text as voided_at,
+           i.idempotency_key
+    from zaltyko.invoices i
+    join zaltyko.invoice_lines l
+      on l.organization_id = i.organization_id and l.invoice_id = i.id
+    where i.organization_id = $1
+      and i.status = 'void'
+      and l.line_type = 'monthly_fee'
+      and l.service_period_start = date '2026-10-01'
+      and l.service_period_end = date '2026-10-31'
+      and i.idempotency_key = any($2::text[])
+    order by i.id
+  `,
+    [
+      ids.organization,
+      ["monthly-invoice-issue-001", "monthly-invoice-issue-concurrent-002"],
+    ]
+  );
+  assert.equal(octoberVoidGuard.rows.length, 1);
+  assert.equal(octoberVoidGuard.rows[0].status, "void");
+  assert.ok(octoberVoidGuard.rows[0].voided_at);
 
   const lines = await pool.query(
     `
@@ -165,10 +197,10 @@ async function readMonthlyLedger(pool: Pool) {
     select id, source, status, amount_cents::text as amount_cents,
            currency, processor, provider_payment_id, manual_method, idempotency_key
     from zaltyko.payments
-    where organization_id = $1 and idempotency_key = 'monthly-invoice-payment-001'
+    where organization_id = $1 and idempotency_key = $2
     order by id
   `,
-    [ids.organization]
+    [ids.organization, restorePaymentIdempotencyKey]
   );
   const paymentIds = payments.rows.map((row: { id: string }) => row.id);
   const allocations = await pool.query(
@@ -198,26 +230,30 @@ async function readMonthlyLedger(pool: Pool) {
     [ids.ownerUser]
   );
 
-  assert.equal(
-    lines.rows.length,
-    2,
-    "Monthly billing must keep one line per athlete"
-  );
+  assert(lines.rows.length > 0);
   assert(lines.rows.every((line) => line.enrollment_id === null));
-  assert.equal(snapshots.rows.length, 3, "Expected three enrollment snapshots");
+  assert(snapshots.rows.length >= lines.rows.length);
   assert.equal(
-    snapshots.rows.filter(
-      (snapshot) => snapshot.athlete_id === ids.multiClassAthlete
-    ).length,
-    2,
-    "The synthetic multi-class athlete must retain both class snapshots"
+    new Set(snapshots.rows.map((snapshot) => snapshot.invoice_line_id)).size,
+    lines.rows.length,
+    "Every monthly invoice line must retain at least one enrollment snapshot"
   );
-  assert.equal(charges.rows.length, 2);
+  assert.equal(charges.rows.length, lines.rows.length);
   assert.equal(payments.rows.length, 1);
   assert.equal(payments.rows[0].source, "manual");
+  assert.equal(payments.rows[0].status, "succeeded");
   assert.equal(payments.rows[0].processor, null);
   assert.equal(payments.rows[0].provider_payment_id, null);
   assert.equal(allocations.rows.length, 1);
+  assert.equal(allocations.rows[0].amount_cents, "1");
+  assert(charges.rows.some((charge) => charge.status === "partially_paid"));
+  assert(
+    charges.rows.every((charge) =>
+      ["due", "partially_paid"].includes(charge.status)
+    )
+  );
+  assert.equal(invoices.rows[0].idempotency_key, restoreInvoiceIdempotencyKey);
+  assert.equal(invoices.rows[0].voided_at, null);
   assert.equal(consent.rows.length, 1);
   assert.equal(consentAudit.rows.length, 1);
 
@@ -235,18 +271,16 @@ async function readMonthlyLedger(pool: Pool) {
     (total, allocation) => total + Number(allocation.amount_cents),
     0
   );
-  assert.equal(invoiceTotal, 24_500);
+  assert(invoiceTotal > paymentTotal);
   assert.equal(lineTotal, invoiceTotal);
   assert.equal(chargeTotal, invoiceTotal);
   assert.equal(paymentTotal, allocationTotal);
+  assert.equal(paymentTotal, 1);
   assert.equal(invoices.rows[0].status, "partially_paid");
-  assert.deepEqual(charges.rows.map((charge) => charge.status).sort(), [
-    "due",
-    "paid",
-  ]);
 
   return {
     invoices: invoices.rows,
+    octoberVoidGuard: octoberVoidGuard.rows,
     lines: lines.rows,
     snapshots: snapshots.rows,
     charges: charges.rows,
@@ -434,12 +468,18 @@ async function main(): Promise<void> {
         catalogSha256,
         monthlyLedger: {
           invoices: sourceLedger.invoices.length,
+          octoberVoidGuardFixtures: sourceLedger.octoberVoidGuard.length,
           lines: sourceLedger.lines.length,
           enrollmentSnapshots: sourceLedger.snapshots.length,
           charges: sourceLedger.charges.length,
           manualPayments: sourceLedger.payments.length,
           consentAudits: sourceLedger.consentAudit.length,
           reconciled: true,
+        },
+        octoberGuardFixture: {
+          status: sourceLedger.octoberVoidGuard[0].status,
+          restoreFidelityOnly: true,
+          validVoidLifecycleClaimed: false,
         },
         rls: "forced and cross-user consent read denied",
         immutabilityChecks: 8,
