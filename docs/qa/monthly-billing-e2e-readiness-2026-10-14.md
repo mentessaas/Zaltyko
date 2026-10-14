@@ -28,6 +28,12 @@ SQL. QA espera resultado de la suite unitaria completa antes de iniciar un
 único Chromium desde este SHA. Firefox/WebKit requieren ese PASS y cleanup.
 Estado: **NO DEMO-READY / NO PILOT-READY**. Sin nuevos cambios remotos.
 
+Suite unitaria completa de Main terminada: 492 archivos PASS y uno omitido;
+2.592 pruebas PASS y tres omitidas, 255,16 segundos, exit 0. No sustituye E2E.
+QA autorizado para un único Chromium sobre `b0efe43d`, conservando los negativos
+y sin sembrar cobertura; requiere informar resultado y cierre del stack antes
+de autorizar Firefox/WebKit. La variación documental posterior no cambia código.
+
 ## Veredicto
 
 **No hay E2E autenticado verde. La emisión mensual está implementada localmente,
