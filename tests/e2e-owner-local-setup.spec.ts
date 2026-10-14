@@ -805,9 +805,11 @@ test.describe("Isolated local Supabase Owner setup", () => {
     await expect(
       page.getByRole("heading", { name: "Registrar un pago recibido" })
     ).toBeVisible();
-    await page
-      .getByLabel("Método de pago", { exact: true })
-      .selectOption({ label: "Transferencia" });
+    const paymentMethod = page.getByRole("combobox", {
+      name: "Método de pago",
+    });
+    await expect(paymentMethod).toHaveCount(1);
+    await paymentMethod.selectOption({ label: "Transferencia" });
     const paymentResponse = page.waitForResponse(
       (candidate) =>
         candidate.url().endsWith("/api/v1/owner/billing/manual-payments") &&
