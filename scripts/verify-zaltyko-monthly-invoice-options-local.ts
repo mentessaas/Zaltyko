@@ -165,7 +165,8 @@ async function seed(pool: Pool): Promise<void> {
       ('34000000-0000-4000-8000-' || lpad(n::text, 12, '0'))::uuid,
       ('42000000-0000-4000-8000-' || lpad(n::text, 12, '0'))::uuid,
       ('41000000-0000-4000-8000-' || lpad(n::text, 12, '0'))::uuid,
-      'active', '2026-10-01', null, 'owner'
+      'active'::zaltyko.enrollment_status, date '2026-10-01', null::date,
+      'owner'::zaltyko.enrollment_source
     from generate_series(1, ${BASE_ATHLETES_AND_PLANS}) as n
     union all
     select
@@ -174,7 +175,8 @@ async function seed(pool: Pool): Promise<void> {
       '34000000-0000-4000-8000-000000000001'::uuid,
       '42000000-0000-4000-8000-000000000202'::uuid,
       '41000000-0000-4000-8000-000000000001'::uuid,
-      'active', '2026-10-01', null, 'owner'
+      'active'::zaltyko.enrollment_status, date '2026-10-01', null::date,
+      'owner'::zaltyko.enrollment_source
     union all
     select
       '51000000-0000-4000-8000-000000000203'::uuid,
@@ -182,7 +184,8 @@ async function seed(pool: Pool): Promise<void> {
       '34000000-0000-4000-8000-000000000002'::uuid,
       '42000000-0000-4000-8000-000000000203'::uuid,
       '41000000-0000-4000-8000-000000000002'::uuid,
-      'pending', '2026-10-01', null, 'owner'
+      'pending'::zaltyko.enrollment_status, date '2026-10-01', null::date,
+      'owner'::zaltyko.enrollment_source
     union all
     select
       '51000000-0000-4000-8000-000000000204'::uuid,
@@ -190,7 +193,8 @@ async function seed(pool: Pool): Promise<void> {
       '34000000-0000-4000-8000-000000000003'::uuid,
       '42000000-0000-4000-8000-000000000204'::uuid,
       '41000000-0000-4000-8000-000000000003'::uuid,
-      'cancelled', '2026-10-01', null, 'owner'
+      'cancelled'::zaltyko.enrollment_status, date '2026-10-01', null::date,
+      'owner'::zaltyko.enrollment_source
     union all
     select
       '51000000-0000-4000-8000-000000000205'::uuid,
@@ -198,21 +202,24 @@ async function seed(pool: Pool): Promise<void> {
       '34000000-0000-4000-8000-000000000004'::uuid,
       '42000000-0000-4000-8000-000000000205'::uuid,
       '41000000-0000-4000-8000-000000000004'::uuid,
-      'active', '2026-08-01', '2026-09-30', 'owner'
+      'active'::zaltyko.enrollment_status, date '2026-08-01',
+      date '2026-09-30', 'owner'::zaltyko.enrollment_source
     union all
     select
       '51000000-0000-4000-8000-000000000206'::uuid,
       '${ORGANIZATION_ID}'::uuid, '${SECOND_LOCATION_ID}'::uuid,
       '34000000-0000-4000-8000-000000000005'::uuid,
       '42000000-0000-4000-8000-000000000206'::uuid,
-      null, 'active', '2026-10-01', null, 'owner'
+      null::uuid, 'active'::zaltyko.enrollment_status, date '2026-10-01',
+      null::date, 'owner'::zaltyko.enrollment_source
     union all
     select
       '51000000-0000-4000-8000-000000000207'::uuid,
       '${OTHER_ORGANIZATION_ID}'::uuid, '${OTHER_LOCATION_ID}'::uuid,
       '35000000-0000-4000-8000-000000000001'::uuid,
       '42000000-0000-4000-8000-000000000207'::uuid,
-      null, 'active', '2026-10-01', null, 'owner';
+      null::uuid, 'active'::zaltyko.enrollment_status, date '2026-10-01',
+      null::date, 'owner'::zaltyko.enrollment_source;
 
     insert into zaltyko.enrollment_price_assignments (
       id, organization_id, location_id, enrollment_id, price_plan_id,
@@ -223,7 +230,7 @@ async function seed(pool: Pool): Promise<void> {
       '${ORGANIZATION_ID}'::uuid, '${LOCATION_ID}'::uuid,
       ('51000000-0000-4000-8000-' || lpad(n::text, 12, '0'))::uuid,
       ('41000000-0000-4000-8000-' || lpad(n::text, 12, '0'))::uuid,
-      1000 + n, 'EUR', '2026-10-01'
+      1000 + n, 'EUR', date '2026-10-01'
     from generate_series(1, ${BASE_ATHLETES_AND_PLANS}) as n
     union all
     select
@@ -231,14 +238,14 @@ async function seed(pool: Pool): Promise<void> {
       '${ORGANIZATION_ID}'::uuid, '${LOCATION_ID}'::uuid,
       '51000000-0000-4000-8000-000000000202'::uuid,
       '41000000-0000-4000-8000-000000000001'::uuid,
-      1001, 'EUR', '2026-10-01'
+      1001, 'EUR', date '2026-10-01'
     union all
     select
       '61000000-0000-4000-8000-000000000203'::uuid,
       '${ORGANIZATION_ID}'::uuid, '${LOCATION_ID}'::uuid,
       '51000000-0000-4000-8000-000000000203'::uuid,
       '41000000-0000-4000-8000-000000000002'::uuid,
-      1002, 'EUR', '2026-10-01';
+      1002, 'EUR', date '2026-10-01';
 
     insert into zaltyko.price_plan_class_template_coverage (
       id, organization_id, location_id, price_plan_id, class_template_id,
@@ -249,7 +256,7 @@ async function seed(pool: Pool): Promise<void> {
       '${ORGANIZATION_ID}'::uuid, '${LOCATION_ID}'::uuid,
       ('41000000-0000-4000-8000-' || lpad(n::text, 12, '0'))::uuid,
       ('42000000-0000-4000-8000-' || lpad(n::text, 12, '0'))::uuid,
-      '2026-10-01', null
+      date '2026-10-01', null::date
     from generate_series(1, ${BASE_ATHLETES_AND_PLANS}) as n
     union all
     select
@@ -257,14 +264,14 @@ async function seed(pool: Pool): Promise<void> {
       '${ORGANIZATION_ID}'::uuid, '${LOCATION_ID}'::uuid,
       '41000000-0000-4000-8000-000000000001'::uuid,
       '42000000-0000-4000-8000-000000000202'::uuid,
-      '2026-10-01', null
+      date '2026-10-01', null::date
     union all
     select
       '71000000-0000-4000-8000-000000000203'::uuid,
       '${ORGANIZATION_ID}'::uuid, '${LOCATION_ID}'::uuid,
       '41000000-0000-4000-8000-000000000002'::uuid,
       '42000000-0000-4000-8000-000000000203'::uuid,
-      '2026-10-01', null;
+      date '2026-10-01', null::date;
   `);
 }
 
