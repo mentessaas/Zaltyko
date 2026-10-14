@@ -1,4 +1,4 @@
-import { and, desc, eq } from "drizzle-orm";
+import { and, desc, eq, inArray, isNull, or } from "drizzle-orm";
 import { z } from "zod";
 
 import { db } from "@/db";
@@ -18,26 +18,115 @@ import {
 } from "@/modules/shared/infrastructure/transactional-records";
 
 const targetDefinitions = [
-  { key: "class_fill_rate", direction: "higher_better", grain: "month" },
-  { key: "cohort_retention_rate", direction: "higher_better", grain: "month" },
-  { key: "churn_rate", direction: "lower_better", grain: "month" },
-  { key: "collection_rate", direction: "higher_better", grain: "month" },
-  { key: "attendance_coverage", direction: "higher_better", grain: "month" },
+  {
+    key: "class_fill_rate",
+    direction: "higher_better",
+    grain: "month",
+    currency: "none",
+  },
+  {
+    key: "cohort_retention_rate",
+    direction: "higher_better",
+    grain: "month",
+    currency: "none",
+  },
+  {
+    key: "churn_rate",
+    direction: "lower_better",
+    grain: "month",
+    currency: "none",
+  },
+  {
+    key: "collection_rate",
+    direction: "higher_better",
+    grain: "month",
+    currency: "profile",
+  },
+  {
+    key: "attendance_coverage",
+    direction: "higher_better",
+    grain: "month",
+    currency: "none",
+  },
 ] as const;
+const targetMetricKeys = targetDefinitions.map(({ key }) => key);
+
+type TargetRow = {
+  metricKey: string;
+  value: string | number;
+  currency: string | null;
+};
+
+function invalidTargetProfile(isReplay: boolean): never {
+  throw new OperationalError(
+    isReplay ? "IDEMPOTENCY_CONFLICT" : "INVALID_RELATION",
+    isReplay
+      ? "El perfil guardado no contiene exactamente las metas y monedas canónicas"
+      : "No se puede cargar el perfil porque sus metas o monedas no son válidas",
+    isReplay ? 409 : 422
+  );
+}
+
+function canonicalTargetsWhere(
+  profileId: string,
+  profileCurrency: string | null,
+  isReplay: boolean
+) {
+  if (!profileCurrency) invalidTargetProfile(isReplay);
+  return and(
+    eq(benchmarkMetricTargets.benchmarkProfileId, profileId),
+    inArray(benchmarkMetricTargets.metricKey, targetMetricKeys),
+    or(
+      ...targetDefinitions.map((definition) =>
+        and(
+          eq(benchmarkMetricTargets.metricKey, definition.key),
+          definition.currency === "profile"
+            ? eq(benchmarkMetricTargets.currency, profileCurrency)
+            : isNull(benchmarkMetricTargets.currency)
+        )
+      )
+    )
+  );
+}
+
+function assertCanonicalTargetRows(
+  targets: TargetRow[],
+  profileCurrency: string | null,
+  isReplay: boolean
+) {
+  if (targets.length !== targetDefinitions.length) {
+    invalidTargetProfile(isReplay);
+  }
+  const targetsByKey = new Map<string, TargetRow>();
+  for (const target of targets) {
+    const definition = targetDefinitions.find(({ key }) => key === target.metricKey);
+    const expectedCurrency =
+      definition?.currency === "profile" ? profileCurrency : null;
+    if (
+      !definition ||
+      target.currency !== expectedCurrency ||
+      targetsByKey.has(target.metricKey)
+    ) {
+      invalidTargetProfile(isReplay);
+    }
+    targetsByKey.set(target.metricKey, target);
+  }
+  if (targetDefinitions.some(({ key }) => !targetsByKey.has(key))) {
+    invalidTargetProfile(isReplay);
+  }
+}
 
 const ratioTarget = z.number().finite().min(0.01).max(1);
 const storedTarget = (value: number) => Number(value.toFixed(8));
+type TargetMetricKey = (typeof targetDefinitions)[number]["key"];
+const targetSchema = Object.fromEntries(
+  targetDefinitions.map(({ key }) => [key, ratioTarget])
+) as Record<TargetMetricKey, typeof ratioTarget>;
 export const academyTargetProfileSchema = z.object({
   organizationId: z.string().uuid(),
   authorizationLocationId: z.string().uuid(),
   actor: z.object({ userId: z.string().uuid(), memberId: z.string().uuid() }),
-  targets: z.object({
-    class_fill_rate: ratioTarget,
-    cohort_retention_rate: ratioTarget,
-    churn_rate: ratioTarget,
-    collection_rate: ratioTarget,
-    attendance_coverage: ratioTarget,
-  }),
+  targets: z.object(targetSchema),
   idempotencyKey: z.string().trim().min(8).max(150),
 });
 
@@ -59,13 +148,17 @@ export async function getAcademyTargetProfile(organizationId: string) {
     .orderBy(desc(benchmarkProfiles.version))
     .limit(1);
   if (!profile) return null;
-  const targets = await db
+  if (!profile.currency) invalidTargetProfile(false);
+  const targets = (await db
     .select({
       metricKey: benchmarkMetricTargets.metricKey,
       value: benchmarkMetricTargets.targetNumeric,
+      currency: benchmarkMetricTargets.currency,
     })
     .from(benchmarkMetricTargets)
-    .where(eq(benchmarkMetricTargets.benchmarkProfileId, profile.id));
+    .where(canonicalTargetsWhere(profile.id, profile.currency, false))
+    .limit(targetDefinitions.length + 1)) as TargetRow[];
+  assertCanonicalTargetRows(targets, profile.currency, false);
   return {
     id: profile.id,
     version: profile.version,
@@ -140,20 +233,17 @@ export async function saveAcademyTargetProfile(
           404
         );
       }
-      const existingTargets = await tx
+      if (!profile.currency) invalidTargetProfile(true);
+      const existingTargets = (await tx
         .select({
           metricKey: benchmarkMetricTargets.metricKey,
           value: benchmarkMetricTargets.targetNumeric,
+          currency: benchmarkMetricTargets.currency,
         })
         .from(benchmarkMetricTargets)
-        .where(eq(benchmarkMetricTargets.benchmarkProfileId, profile.id));
-      if (existingTargets.length !== targetDefinitions.length) {
-        throw new OperationalError(
-          "IDEMPOTENCY_CONFLICT",
-          "El perfil guardado no coincide con esta solicitud",
-          409
-        );
-      }
+        .where(canonicalTargetsWhere(profile.id, profile.currency, true))
+        .limit(targetDefinitions.length + 1)) as TargetRow[];
+      assertCanonicalTargetRows(existingTargets, profile.currency, true);
       for (const target of existingTargets) {
         const requestedTarget =
           input.targets[target.metricKey as keyof typeof input.targets];
@@ -230,7 +320,7 @@ export async function saveAcademyTargetProfile(
         metricKey: definition.key,
         targetNumeric: storedTarget(input.targets[definition.key]),
         currency:
-          definition.key === "collection_rate" ? organization.currency : null,
+          definition.currency === "profile" ? organization.currency : null,
         grain: definition.grain,
         normalizationDirection: definition.direction,
         notes: "Objetivo interno configurado por owner/admin.",

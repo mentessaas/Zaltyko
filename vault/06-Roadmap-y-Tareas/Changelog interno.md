@@ -7,6 +7,22 @@ source:
   - ../docs/architecture/zaltyko-domain-model.md
 ---
 
+## 2026-10-14 — Lecturas canónicas y fail-closed del perfil de objetivos
+
+- En `codex/academy-target-profile-canonical-reads-20261014`, desde
+  `820eedb06ce627c49322054ff5ad347faffb9aed`, ambas lecturas filtran cada una
+  de las cinco claves con su moneda esperada, limitan a cardinalidad + 1 y
+  validan el conjunto exacto sin claves duplicadas. Cuatro métricas requieren
+  `currency IS NULL`; `collection_rate` usa la moneda histórica guardada en el
+  perfil, nunca la moneda actual de la organización.
+- El perfil incompleto, duplicado, con moneda no conservada o moneda
+  incompatible falla explícitamente. El formulario Owner muestra un error y no
+  inventa ceros. Replay inválido responde conflicto; autorización sigue antes
+  de leer objetivos. Sin cambios de esquema o del cálculo de score.
+- Vitest focal 7/7, ESLint focal, Prettier del test, `pnpm typecheck` y
+  `git diff --check` PASS. Sin PostgreSQL, navegador/E2E, suite completa,
+  remoto, Sandbox, producción ni push.
+
 ## 2026-10-14 — Límite derivado para dimensiones del historial de Health Score
 
 - En `codex/health-score-history-dimension-limit-20261014`, desde

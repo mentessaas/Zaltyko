@@ -39,7 +39,40 @@ export default async function AcademyHealthScoreSetupPage({
     throw error;
   }
   if (!new Set(["owner", "admin"]).has(scope.member.role)) redirect("/owner");
-  const profile = await getAcademyTargetProfile(scope.organization.id);
+  let profile: Awaited<ReturnType<typeof getAcademyTargetProfile>>;
+  try {
+    profile = await getAcademyTargetProfile(scope.organization.id);
+  } catch (error) {
+    if (error instanceof OperationalError && error.code === "INVALID_RELATION") {
+      return (
+        <main className="min-h-screen bg-[#F1F3EF] px-5 py-8 text-slate-950 sm:py-14">
+          <div className="mx-auto max-w-3xl">
+            <a
+              href={`/owner?organizationId=${scope.organization.id}`}
+              className="touch-target inline-flex items-center text-sm font-bold text-teal-900 underline underline-offset-4"
+            >
+              ← Volver a Mesa de dirección
+            </a>
+            <section
+              role="alert"
+              className="mt-8 border-l-4 border-amber-700 bg-white p-6 sm:p-8"
+            >
+              <h1 className="font-display text-2xl font-bold">
+                No se pudieron validar las metas guardadas
+              </h1>
+              <p className="mt-3 leading-6 text-slate-700">
+                No hemos rellenado ni cambiado ningún objetivo. El perfil
+                contiene metas incompletas o una moneda que no coincide con su
+                versión. Vuelve al panel o contacta con soporte para revisar la
+                configuración.
+              </p>
+            </section>
+          </div>
+        </main>
+      );
+    }
+    throw error;
+  }
   const [organizationSettings] = await db
     .select({ currency: organizations.defaultCurrency })
     .from(organizations)
