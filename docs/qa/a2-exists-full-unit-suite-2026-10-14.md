@@ -1,13 +1,17 @@
-# Suite unitaria completa — candidato A2 EXISTS
+# Corrida de suite unitaria en SHA distinto del autorizado
+
+> **Evidencia no válida para el SHA autorizado de Main.** Se solicitó ejecutar la suite sobre `0a1bcd1dee3087437b664987cca5168c16555906`, pero el comando se ejecutó en otro checkout, fijado a `5e2105bdd887f4a3de2a17af5bc48fed83a3ef19`. No se debe atribuir este resultado a Main ni declarar completo su gate de suite.
 
 ## Candidato y aislamiento
 
-- Candidato inmutable: `5e2105bdd887f4a3de2a17af5bc48fed83a3ef19` (`fix: bound owner existence subqueries`).
-- Corrida desde el worktree detached `/Users/elvisvaldesinerarte/Desktop/_PROYECTOS/.nosync/Zaltyko-a2-exists-limits-suite-20261014`; HEAD se comprobó antes y después y permaneció en ese SHA.
+- SHA autorizado: `0a1bcd1dee3087437b664987cca5168c16555906`.
+- SHA realmente probado: `5e2105bdd887f4a3de2a17af5bc48fed83a3ef19` (`fix: bound owner existence subqueries`).
+- Ruta real de ejecución: `/Users/elvisvaldesinerarte/Desktop/_PROYECTOS/.nosync/Zaltyko-a2-exists-limits-suite-20261014` (worktree detached).
+- El wrapper comprobó `git rev-parse HEAD` antes y después de la corrida; ambas comprobaciones devolvieron `5e2105bdd887f4a3de2a17af5bc48fed83a3ef19`. El commit no coincide con el SHA autorizado.
 - Se reutilizó `node_modules` del checkout local en `0a1bcd1dee3087437b664987cca5168c16555906`. `package.json`, `pnpm-lock.yaml` y `vitest.config.ts` no difieren entre ambos commits. No se instalaron dependencias.
 - Vitest instalado: `4.1.11`, una sola versión del paquete en el store pnpm; la lista del proyecto raíz también resuelve una sola versión. La app móvil declara `4.1.11` y no se encontró un árbol `mobile/node_modules` separado.
 
-## Ejecución
+## Resultado observado únicamente en `5e2105bd`
 
 - Comando: `pnpm exec vitest run --reporter=dot`.
 - Exit code: `0`.
@@ -25,4 +29,6 @@
 
 ## Alcance
 
-Esta evidencia cubre la suite unitaria local del candidato. No ejecuta PostgreSQL, navegador, E2E, servicios, CI, Sandbox ni producción y no declara release readiness.
+El exit `0` y los conteos anteriores describen exclusivamente la corrida local de `5e2105bd`. No son evidencia de la suite del SHA autorizado `0a1bcd1`; esa suite permanece sin verificar y no se repitió.
+
+La corrida no ejecutó PostgreSQL, navegador, E2E, servicios, CI, Sandbox ni producción y no declara release readiness.
