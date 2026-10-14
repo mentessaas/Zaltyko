@@ -59,8 +59,8 @@ async function main() {
 
   // Environment files are loaded only after an explicit --connect opt-in.
   const { config } = await import("dotenv");
-  config({ path: resolve(process.cwd(), ".env.local") });
-  config({ path: resolve(process.cwd(), ".env") });
+  config({ path: resolve(process.cwd(), ".env.local"), quiet: true });
+  config({ path: resolve(process.cwd(), ".env"), quiet: true });
   const databaseUrl = process.env.DATABASE_URL;
   assertConfirmedTarget({
     confirmation: flags.confirmation,

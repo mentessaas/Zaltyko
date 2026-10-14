@@ -37,6 +37,7 @@ export interface PreflightResult {
   verification: "NO_VERIFICADO" | "VERIFICADO" | "BLOQUEADO";
   baseLedger: { expected: number; actual: number | null; status: string };
   deltaLedger: { exists: boolean | null; applied: number | null };
+  sharedDependencies: { btreeGistPresent: boolean | null };
   migrations: Array<{
     filename: string;
     version: string;
@@ -60,12 +61,15 @@ const EXPECTED_DELTA_OBJECTS: Record<string, readonly string[]> = {
     "function:reject_owner_signup_consent_audit_mutation()",
     "index:owner_signup_consents_policy_version_idx",
     "index:owner_signup_consent_audits_user_recorded_idx",
+    "trigger:owner_signup_consent_audits.owner_signup_consent_audit_append_only",
+    "trigger:owner_signup_consent_audits.owner_signup_consent_audit_no_truncate",
+    "policy:owner_signup_consents.owner_signup_consents_self_read",
+    "policy:owner_signup_consent_audits.owner_signup_consent_audits_self_read",
   ],
   [E2E_LOCAL_OWNER_MONTHLY_TARIFF_MIGRATIONS[0]]: [
     "table:price_plan_class_template_coverage",
     "table:invoice_line_enrollments",
     "function_private:prevent_invoice_line_enrollment_mutation()",
-    "extension:btree_gist",
     "column:invoice_lines.location_id",
     "column:invoice_lines.athlete_id",
     "constraint:enrollments.enrollments_billing_coverage_fk_uq",
@@ -94,12 +98,8 @@ const EXPECTED_DELTA_OBJECTS: Record<string, readonly string[]> = {
     "index:invoice_lines_monthly_athlete_uq",
     "index:price_plan_class_template_coverage_lookup_idx",
     "index:invoice_line_enrollments_enrollment_idx",
-    "trigger:owner_signup_consent_audits.owner_signup_consent_audit_append_only",
-    "trigger:owner_signup_consent_audits.owner_signup_consent_audit_no_truncate",
     "trigger:invoice_line_enrollments.invoice_line_enrollments_immutable_row",
     "trigger:invoice_line_enrollments.invoice_line_enrollments_immutable_truncate",
-    "policy:owner_signup_consents.owner_signup_consents_self_read",
-    "policy:owner_signup_consent_audits.owner_signup_consent_audits_self_read",
     "policy:price_plan_class_template_coverage.price_plan_class_template_coverage_deny_clients",
     "policy:invoice_line_enrollments.invoice_line_enrollments_deny_clients",
   ],
@@ -127,6 +127,7 @@ export function buildStaticPlan(delta: DeltaMigration[]): PreflightResult {
       status: "NO_CONSULTADO",
     },
     deltaLedger: { exists: null, applied: null },
+    sharedDependencies: { btreeGistPresent: null },
     migrations: delta.map((item) => ({
       filename: item.filename,
       version: item.version,
@@ -212,6 +213,7 @@ export async function runReadOnlyPreflight(
       delta_object_migrations: string[];
       missing_delta_objects: string[];
       delta_unprotected_tables: string[];
+      btree_gist_present: boolean;
     }>(`
       with expected_objects(migration, name) as (
         values ${Object.entries(EXPECTED_DELTA_OBJECTS)
@@ -269,6 +271,7 @@ export async function runReadOnlyPreflight(
         to_regnamespace('zaltyko_domain_private') is not null as private_schema,
         to_regclass('${BASE_LEDGER}') is not null as base_ledger,
         to_regclass('${DELTA_LEDGER}') is not null as delta_ledger,
+        exists (select 1 from pg_extension where extname = 'btree_gist') as btree_gist_present,
         to_regclass('auth.users') is not null as auth_users,
         exists (
           select 1 from pg_constraint c
@@ -301,6 +304,7 @@ export async function runReadOnlyPreflight(
 
     const catalog = catalogResult.rows[0];
     if (!catalog) throw new Error("CATALOG_QUERY_FAILED");
+    result.sharedDependencies.btreeGistPresent = catalog.btree_gist_present;
 
     const expectedBaseTables = 9;
     const baseTablePass = catalog.base_tables.length === expectedBaseTables;
@@ -405,6 +409,13 @@ export async function runReadOnlyPreflight(
             )
         ) {
           throw new Error("DELTA_RLS_NOT_FORCED");
+        }
+        if (
+          recorded &&
+          migration.filename === E2E_LOCAL_OWNER_MONTHLY_TARIFF_MIGRATIONS[0] &&
+          !catalog.btree_gist_present
+        ) {
+          throw new Error("DELTA_DEPENDENCY_MISSING");
         }
       }
       const expectedPrefix = delta.slice(0, applied.length);

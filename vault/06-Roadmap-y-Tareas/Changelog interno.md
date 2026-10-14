@@ -37,6 +37,14 @@ ejecuta DDL ni conecta con el remoto durante los tests. No habilita `--apply`;
 el runner de escritura, backup restaurable, compatibilidad PostgreSQL 17 y
 aplicación continúan pendientes de revisión y autorización aparte.
 
+Revisión Main detectó falsa atribución de catálogo: `btree_gist` puede ser
+preexistente y es dependencia compartida; los triggers/policies de consentimiento
+son de #17, no de #18. Se separó la extensión del conjunto delta y se corrigió
+la propiedad por archivo. Tests añadidos para base #16 con extensión existente
+y prefijo #17 completo sin objetos de #18; además, dotenv se carga en modo
+silencioso. Solo Vitest, typecheck, CLI con confirmación inválida y modo estático;
+sin conexión o pruebas PostgreSQL.
+
 ## 2026-10-14 — Runner local sintético de backup y restore
 
 Se añadió en `codex/synthetic-restore-local-20261014` un runner efímero para

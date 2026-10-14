@@ -51,6 +51,7 @@ function goodCatalog(overrides: Record<string, unknown> = {}) {
     delta_object_migrations: [],
     missing_delta_objects: [],
     delta_unprotected_tables: [],
+    btree_gist_present: false,
     ...overrides,
   };
 }
@@ -156,6 +157,26 @@ describe("E2E schema delta preflight", () => {
     ).toBe(false);
   });
 
+  it("acepta btree_gist preexistente en la base de 16 sin tratarlo como delta huérfana", async () => {
+    const queries: string[] = [];
+    const result = await runReadOnlyPreflight(
+      createPool({
+        queries,
+        catalog: { btree_gist_present: true },
+      }),
+      base,
+      delta
+    );
+    expect(result.verification).toBe("VERIFICADO");
+    expect(result.deltaLedger).toEqual({ exists: false, applied: 0 });
+    expect(result.sharedDependencies.btreeGistPresent).toBe(true);
+    const catalogSql = queries.find((sql) =>
+      sql.includes("with expected_objects")
+    );
+    expect(catalogSql).toContain("as btree_gist_present");
+    expect(catalogSql).not.toContain("'extension:btree_gist'");
+  });
+
   it("bloquea hashes cambiados y filas huérfanas del ledger base", async () => {
     const changedRows = base.map(({ version, filename, checksum }) => ({
       version,
@@ -222,6 +243,51 @@ describe("E2E schema delta preflight", () => {
       delta
     );
     expect(result.blockers).toContain("DELTA_LEDGER_DRIFT");
+  });
+
+  it("acepta solo el prefijo #17 registrado con sus propios objetos y dependencia compartida", async () => {
+    const firstRow = {
+      version: delta[0].version,
+      filename: delta[0].filename,
+      checksum: delta[0].checksum,
+    };
+    const queries: string[] = [];
+    const result = await runReadOnlyPreflight(
+      createPool({
+        queries,
+        catalog: {
+          delta_ledger: true,
+          delta_object_migrations: [delta[0].filename],
+          missing_delta_objects: [
+            `${delta[1].filename}:table:price_plan_class_template_coverage`,
+            `${delta[1].filename}:table:invoice_line_enrollments`,
+          ],
+          btree_gist_present: true,
+        },
+        deltaRows: [firstRow],
+      }),
+      base,
+      delta
+    );
+    expect(result.verification).toBe("VERIFICADO");
+    expect(result.deltaLedger).toEqual({ exists: true, applied: 1 });
+    expect(result.migrations.map((migration) => migration.status)).toEqual([
+      "REGISTRADA",
+      "PENDIENTE",
+    ]);
+    const catalogSql = queries.find((sql) =>
+      sql.includes("with expected_objects")
+    );
+    expect(catalogSql).toContain(
+      `('${delta[0].filename}', 'trigger:owner_signup_consent_audits.owner_signup_consent_audit_append_only')`
+    );
+    expect(catalogSql).toContain(
+      `('${delta[0].filename}', 'policy:owner_signup_consents.owner_signup_consents_self_read')`
+    );
+    expect(catalogSql).not.toContain(
+      `('${delta[1].filename}', 'trigger:owner_signup_consent_audits.owner_signup_consent_audit_append_only')`
+    );
+    expect(catalogSql).not.toContain("'extension:btree_gist'");
   });
 
   it("bloquea objetos de migración pendiente aunque exista un prefijo ledger válido", async () => {

@@ -256,3 +256,14 @@ seguros, no URL, usuario, contraseña, certificado ni texto del driver.
 Los tests usan un cliente PostgreSQL simulado. No conectan con el Sandbox. La
 consulta remota sigue pendiente de revisión Main y no equivale a backup,
 compatibilidad PG17, aprobación de DDL ni autorización de aplicación.
+
+### Corrección de propiedad de objetos
+
+La extensión `btree_gist` se trata como dependencia compartida, no como objeto
+propiedad de la migración mensual: si ya existe en la base de 16, no genera
+drift. Triggers y policies de consentimiento pertenecen a la migración #17;
+los objetos de cobertura/snapshots quedan en #18. Los fixtures verifican base
+de 16 con la extensión preexistente y el prefijo #17 aplicado sin objetos #18.
+El resultado expone `sharedDependencies.btreeGistPresent` sin clasificarlo como
+objeto delta. La carga de `.env` usa `quiet` para evitar que dotenv imprima rutas
+o valores de configuración durante una ejecución explícita.
