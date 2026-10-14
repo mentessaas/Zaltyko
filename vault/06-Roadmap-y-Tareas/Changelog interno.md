@@ -7,6 +7,20 @@ source:
   - ../docs/architecture/zaltyko-domain-model.md
 ---
 
+## 2026-10-14 — Gate estático PASS; release permanece NO-GO
+
+- Main ejecutó `pnpm gate:all` sobre `0a1bcd1dee3087437b664987cca5168c16555906`:
+  PASS (exit 0), A2=1.797, A3=399, A4=76, cero hallazgos. QA44 fue una revisión
+  estática de `84f688f4`; no originó ese gate ni las focales del SHA integrado.
+- Main reporta las focales integradas en `0a1b`: historial/analítica 14,
+  objetivos 9, familia 6, `EXISTS` 2 e Insights P0 3. Los 2.680 tests PASS
+  corresponden exclusivamente a `5e2105bd`; ese SHA difiere de `0a1b` en cinco
+  archivos de producto y no valida ese candidato. La suite completa de `0a1b`
+  queda PENDIENTE. No se duplicó runner.
+- Sigue **NO-GO**: suite final pendiente, SQL/runtime sin validar y gates de
+  release pendientes. No se acredita CI ni navegador/E2E. Ver
+  [detalle y límites](../../docs/qa/static-gates-no-go-2026-10-14.md).
+
 ## 2026-10-14 — Fail-closed para versiones activas ambiguas en Insights P0
 
 - En `codex/evaluate-p0-active-rule-uniqueness-20261014`, basada en
