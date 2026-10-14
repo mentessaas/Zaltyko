@@ -11865,3 +11865,10 @@ Modelo separado, reclamación manual, administración, importación revisada, fi
   muestra RSC abortado junto con una navegación explícita concurrente; no
   demuestra que el service worker fuera la causa raíz. Sin E2E, PostgreSQL ni
   accesos remotos en este cambio.
+
+## 2026-10-14 — Viabilidad de backup/restore del Sandbox
+
+- Se documentó que el Sandbox no está verificado como exclusivamente sintético: los metadatos previos muestran conteos no nulos en tablas `public`, pero no prueban procedencia; no se leyeron filas ni Auth. La lectura previa de organización indicó plan Free.
+- Se evaluó sin ejecutar el dump lógico por CLI, el recorte a esquema greenfield y el restore gestionado de Supabase. El plan Free permite considerar dump lógico en un runner remoto aprobado, pero no hay destino seguro/retención/autorización de datos definido; CLI excluye Auth/Storage y los objetos de Storage requieren copia aparte. Esquema-only no restaura estado operativo.
+- El restore local PostgreSQL 17 PASS de Main valida el runner con fixtures sintéticas; no demuestra recuperación del Sandbox remoto.
+- Sin exports, consultas nuevas al proveedor, recursos, pagos, migraciones ni runners. Detalle: [`sandbox-backup-restore-viability-2026-10-14.md`](../../docs/qa/sandbox-backup-restore-viability-2026-10-14.md).
