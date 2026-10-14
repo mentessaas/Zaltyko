@@ -117,6 +117,10 @@ test.describe("Isolated local Supabase Owner setup", () => {
     expect(cspViolations).toEqual([]);
     await expect(page).toHaveURL(/\/owner\/setup$/);
     expect(profileRequests).toEqual([]);
+    await expect(page.getByRole("checkbox")).toHaveCount(0);
+    await expect(
+      page.getByRole("button", { name: "Crear espacio de dirección" })
+    ).toBeVisible();
 
     await page.getByLabel("Nombre de la academia").fill(organizationName!);
     await page.getByRole("radio", { name: "Gimnasia rítmica" }).check();
@@ -581,6 +585,12 @@ test.describe("Isolated local Supabase Owner setup", () => {
       expect((await secondSignupResponsePromise).ok()).toBe(true);
       await expect(secondOwnerPage).toHaveURL(/\/owner\/setup$/);
       expect(secondOwnerProfileRequests).toEqual([]);
+      await expect(secondOwnerPage.getByRole("checkbox")).toHaveCount(0);
+      await expect(
+        secondOwnerPage.getByRole("button", {
+          name: "Crear espacio de dirección",
+        })
+      ).toBeVisible();
       await secondOwnerPage
         .getByLabel("Nombre de la academia")
         .fill(`Academia E2E aislada ${secondOwnerId.slice(0, 8)}`);
