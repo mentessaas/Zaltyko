@@ -6,7 +6,10 @@ import { basename, join, resolve } from "node:path";
 import { randomUUID } from "node:crypto";
 import { createServer } from "node:net";
 
-import { E2E_DOMAIN_MIGRATIONS } from "./lib/e2e-domain-migrations";
+import {
+  E2E_DOMAIN_MIGRATIONS,
+  E2E_LOCAL_OWNER_SIGNUP_MIGRATIONS,
+} from "./lib/e2e-domain-migrations";
 
 const root = process.cwd();
 const projectDirectory = mkdtempSync(join(tmpdir(), "zaltyko-e2e-local-"));
@@ -112,7 +115,11 @@ void (async () => {
 
     const migrationDirectory = join(projectDirectory, "supabase", "migrations");
     mkdirSync(migrationDirectory, { recursive: true });
-    for (const filename of E2E_DOMAIN_MIGRATIONS) {
+    const localMigrations = [
+      ...E2E_DOMAIN_MIGRATIONS,
+      ...E2E_LOCAL_OWNER_SIGNUP_MIGRATIONS,
+    ];
+    for (const filename of localMigrations) {
       cpSync(
         resolve(root, "supabase", "migrations", filename),
         join(migrationDirectory, filename)
