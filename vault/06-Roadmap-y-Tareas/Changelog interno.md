@@ -11873,6 +11873,20 @@ Modelo separado, reclamación manual, administración, importación revisada, fi
 - El restore local PostgreSQL 17 PASS de Main valida el runner con fixtures sintéticas; no demuestra recuperación del Sandbox remoto.
 - Sin exports, consultas nuevas al proveedor, recursos, pagos, migraciones ni runners. Detalle: [`sandbox-backup-restore-viability-2026-10-14.md`](../../docs/qa/sandbox-backup-restore-viability-2026-10-14.md).
 
+## 2026-10-14 — Diagnóstico focal del fallo de la suite Vitest
+
+- La suite completa de `3e225fc7521afa94b7ca9a69cdd38234ac3bf5cd` terminó con
+  497 archivos PASS, 2 FAIL, 1 omitido; 2.633 tests PASS, 3 FAIL y 3 omitidos.
+  Fallaron dos tests por timeout de 5 s y uno por diferencia del cuerpo en el
+  reintento de grupo. Una corrida focal única de ambos archivos pasó 7/7, pero
+  no invalida el fallo completo ni demuestra flakiness.
+- La revisión de cleanup y payload no identificó causa raíz probada. No se
+  cambiaron tests, timeouts, exclusiones ni código; se mantiene en backlog la
+  investigación. Nota: [`vitest-full-suite-focal-diagnosis-2026-10-14.md`](../../docs/qa/vitest-full-suite-focal-diagnosis-2026-10-14.md).
+- La suite incluye 486 archivos web y 14 móviles; dos regresiones móviles
+  siguen excluidas por configuración y faltan dependencias móviles locales.
+  Sin instalación, E2E, PostgreSQL, sandbox ni plataformas.
+
 ## 2026-10-14 — Claridad de copy sobre cobro familiar automático
 
 - En rama local `codex/family-billing-copy-clarity-20261014`, basada en

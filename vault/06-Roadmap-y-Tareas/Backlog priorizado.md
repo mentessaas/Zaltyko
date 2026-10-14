@@ -245,8 +245,13 @@ No sustituye E2E autenticado ni prueba contra una base de datos aislada.
       de teclado/lector de pantalla. El E2E remoto sigue bloqueado hasta
       disponer de un entorno aislado aprobado; no usar el sandbox legacy ni
       aplicar SQL remoto.
-- [ ] Repetir Vitest completo bajo carga de workers controlada y aclarar el
-      timeout de `tests/api-billing.test.ts` antes de declarar verde la suite.
+- [ ] Repetir Vitest completo bajo carga de workers controlada y aclarar los
+      timeouts de `tests/api-billing.test.ts` y `tests/api-admin-users.test.ts`,
+      además del timeout y desajuste de cuerpo observado en
+      `tests/owner-groups-manager.test.tsx`. Una corrida focal 2/2 archivos,
+      7/7 tests PASS en 3e225fc no invalida el fallo completo de 500 archivos;
+      el origen de la diferencia aún no está demostrado. Ver
+      [diagnóstico QA](../../docs/qa/vitest-full-suite-focal-diagnosis-2026-10-14.md).
 - [x] P0 local: writer/reader idempotentes del read model de cohortes; AC-12
       mide 362,8 ms p95 y la vista compuesta 654,3 ms p95. Solo service-layer
       sobre PostgreSQL 14.20 local; plataforma objetivo y coste del writer
