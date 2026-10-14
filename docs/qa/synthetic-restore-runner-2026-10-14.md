@@ -13,19 +13,24 @@ NO VALIDADO**. Ninguna conexión remota ni restauración de datos reales.
 
 ## Alcance
 
-La rama `codex/synthetic-restore-local-20261014` añade un runner manual y
-efímero para ensayar backup/restauración en dos bases PostgreSQL de loopback.
-La fuente se prepara con las migraciones canónicas requeridas, consentimiento
-canónico sintético y el harness de operaciones existente. Después se genera
-un dump custom, se verifica SHA-256, se restaura en una base vacía y se compara
+La rama `codex/synthetic-restore-fixture-nov-20261014` contiene el runner
+manual y efímero para ensayar backup/restauración en dos bases PostgreSQL de
+loopback.
+La fuente se prepara con las migraciones canónicas requeridas, el harness
+operativo existente y una fixture independiente de noviembre creada con los
+servicios de emisión mensual y pago manual. Esa factura se identifica mediante
+claves de idempotencia sintéticas y queda parcialmente pagada por un céntimo.
+También se inserta el consentimiento canónico sintético. Después se genera un
+dump custom, se verifica SHA-256, se restaura en una base vacía y se compara
 estructuralmente el catálogo (columnas, constraints, RLS, policies, triggers,
 grants y extensiones), además del ledger. Comprueba que `initdb`, `pg_ctl`,
 `psql`, `createdb`, `pg_dump` y `pg_restore` compartan la misma versión mayor.
 
-El fixture del harness contiene una factura mensual por atleta, dos clases en
-uno de los atletas, snapshots de cobertura, cargos, un pago manual sintético y
-un consentimiento sintético. No importa filas ni identidades de Supabase y no
-llama a Stripe. Las utilidades PostgreSQL reciben únicamente URLs a
+La factura de octubre anulada por SQL en el harness solo se usa como fixture del
+guard de reemisión y se comprueba por fidelidad de restore; el checker no la
+presenta como un ciclo válido de anulación. La factura financiera objetivo es
+la de noviembre, emitida y pagada por los servicios reales. No importa filas ni
+identidades de Supabase y no llama a Stripe. Las utilidades PostgreSQL reciben únicamente URLs a
 `127.0.0.1`; los procesos de Node arrancan con un entorno reducido mediante
 `env -i`. Un `trap` detiene el clúster y borra el directorio temporal.
 
@@ -33,13 +38,15 @@ llama a Stripe. Las utilidades PostgreSQL reciben únicamente URLs a
 
 - `bash -n scripts/run-zaltyko-synthetic-restore-local.sh`: PASS.
 - `git diff --check`: PASS.
-- No ejecutado: `tests/synthetic-restore-runner-contract.test.ts` y
-  `pnpm typecheck`; este worktree no tiene `node_modules`, por lo que `vitest`
-  y `tsc` no están disponibles. No se instalaron dependencias mientras QA
-  sigue activo.
+- `pnpm exec vitest run tests/synthetic-restore-runner-contract.test.ts`: 8/8
+  PASS.
+- `pnpm typecheck`: PASS.
+- ESLint focal para los dos scripts TypeScript y el contrato: PASS.
+- Prettier para los tres archivos TypeScript: PASS.
+- Dependencias disponibles mediante
+  `pnpm install --offline --frozen-lockfile` (cero paquetes descargados).
 
-Incluso cuando estén disponibles, las verificaciones estáticas no equivalen a
-un restore PostgreSQL ejecutado.
+Estas verificaciones no equivalen a un restore PostgreSQL ejecutado.
 
 ## Ejecución bloqueada hasta cierre/revisión de QA
 

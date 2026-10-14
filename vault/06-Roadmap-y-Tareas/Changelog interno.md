@@ -17,12 +17,21 @@ Incluye el harness operacional existente y usa solo `127.0.0.1`, entorno de
 proceso limpio y datos sintéticos. El follow-up de revisión endurece el cleanup
 para preservar y reportar la ruta si no confirma el stop, compara el catálogo
 estructuralmente (sin diff byte a byte de `pg_dump`) y verifica la versión
-mayor de las herramientas PostgreSQL. Comprobaciones permitidas: sintaxis
-Bash y diff-check; tests estáticos contractuales y TypeScript siguen sin
-ejecutarse porque este worktree no tiene `node_modules`. El runner y PostgreSQL
-siguen **sin ejecutar** hasta que QA cierre Firefox y Main revise/autorice este
-SHA. No hay migración, conexión remota ni evidencia de restore Preview o
-producción. Plan y límites: `docs/qa/synthetic-restore-runner-2026-10-14.md`.
+mayor de las herramientas PostgreSQL. En el follow-up de fixture, Bash syntax,
+diff-check, contrato estático 8/8, TypeScript, ESLint focal y Prettier de los
+scripts pasan; las dependencias se instalaron offline sin descargas. El runner
+y PostgreSQL siguen **sin ejecutar** hasta que QA cierre Firefox y Main
+revise/autorice este SHA. No hay migración, conexión remota ni evidencia de
+restore Preview o producción. Plan y límites:
+`docs/qa/synthetic-restore-runner-2026-10-14.md`.
+
+Follow-up de fixture en rama separada desde `fa64e84b`: la factura de octubre
+que el harness marca `void` solo cubre la fidelidad de restore del caso que
+bloquea reemisión. La factura objetivo se crea para noviembre mediante
+`getMonthlyInvoiceOptions()` e `issueMonthlyInvoice()`, y recibe un pago parcial
+mediante `recordManualPaymentForCharge()`; el checker valida ese estado final
+sin updates SQL para fabricar el resultado. Sigue sin ejecutar PostgreSQL,
+pendiente de QA Firefox y autorización de Main.
 
 ## 2026-10-14 — Compatibilidad de esquema y gates de restore
 
