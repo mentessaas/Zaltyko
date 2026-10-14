@@ -13,6 +13,15 @@ vi.mock("next/navigation", () => ({
 
 import { OwnerSetupForm } from "@/components/owner-dashboard/OwnerSetupForm";
 
+const freshSignupConsent = {
+  policyVersion: "v1-2026-10-14",
+  requiresAcceptance: false,
+};
+
+function renderFreshSignupForm() {
+  return render(<OwnerSetupForm contractualConsent={freshSignupConsent} />);
+}
+
 beforeEach(() => {
   mockReplace.mockReset();
   mockRefresh.mockReset();
@@ -55,7 +64,12 @@ describe("alta owner greenfield", () => {
         json: async () => ({ organizationId: "synthetic-organization" }),
       });
 
-    render(<OwnerSetupForm />);
+    renderFreshSignupForm();
+    expect(
+      screen.queryByRole("checkbox", {
+        name: /Acepto los términos y condiciones y he leído la política de privacidad/,
+      })
+    ).not.toBeInTheDocument();
     await completeRequiredFields(user);
     await user.click(
       screen.getByRole("button", { name: "Crear espacio de dirección" })
@@ -84,6 +98,9 @@ describe("alta owner greenfield", () => {
       primaryDiscipline: "artistic",
       countryCode: "ES",
     });
+    expect(JSON.parse(String(first.body))).not.toHaveProperty(
+      "contractualAcceptance"
+    );
     expect(mockReplace).toHaveBeenCalledWith(
       "/owner?organizationId=synthetic-organization"
     );
@@ -99,7 +116,7 @@ describe("alta owner greenfield", () => {
         json: async () => ({ organizationId: "synthetic-organization" }),
       });
 
-    render(<OwnerSetupForm />);
+    renderFreshSignupForm();
     await completeRequiredFields(user);
     await user.click(
       screen.getByRole("button", { name: "Crear espacio de dirección" })
@@ -148,7 +165,7 @@ describe("alta owner greenfield", () => {
         json: async () => ({ organizationId: "synthetic-organization" }),
       });
 
-    render(<OwnerSetupForm />);
+    renderFreshSignupForm();
     await completeRequiredFields(user);
     await user.click(
       screen.getByRole("button", { name: "Crear espacio de dirección" })
@@ -175,6 +192,65 @@ describe("alta owner greenfield", () => {
     });
     expect(JSON.parse(String(second.body))).toMatchObject({
       organizationName: "Otro club sintético",
+    });
+  });
+
+  it("falla cerrada cuando no se pudo leer el estado contractual", () => {
+    render(<OwnerSetupForm />);
+
+    expect(screen.getByRole("alert")).toHaveTextContent(
+      "No pudimos comprobar los términos vigentes de tu cuenta"
+    );
+    expect(
+      screen.queryByRole("button", { name: "Crear espacio de dirección" })
+    ).not.toBeInTheDocument();
+    expect(mockFetch).not.toHaveBeenCalled();
+  });
+
+  it("pide aceptación solo si hace falta y envía la versión entregada por el servidor", async () => {
+    const user = userEvent.setup();
+    mockFetch.mockResolvedValueOnce({
+      ok: true,
+      status: 201,
+      json: async () => ({ organizationId: "synthetic-organization" }),
+    });
+    render(
+      <OwnerSetupForm
+        contractualConsent={{
+          policyVersion: "v2-2026-10-14",
+          requiresAcceptance: true,
+        }}
+      />
+    );
+    await completeRequiredFields(user);
+
+    const consentCheckbox = screen.getByRole("checkbox", {
+      name: /Acepto los términos y condiciones y he leído la política de privacidad/,
+    });
+    expect(consentCheckbox).not.toBeChecked();
+    expect(consentCheckbox).toBeRequired();
+    expect(
+      screen.getByRole("link", { name: "términos y condiciones" })
+    ).toHaveAttribute("href", "/terminos");
+    expect(
+      screen.getByRole("link", { name: "política de privacidad" })
+    ).toHaveAttribute("href", "/politica-privacidad");
+
+    await user.click(
+      screen.getByRole("button", { name: "Crear espacio de dirección" })
+    );
+    expect(mockFetch).not.toHaveBeenCalled();
+
+    await user.click(consentCheckbox);
+    await user.click(
+      screen.getByRole("button", { name: "Crear espacio de dirección" })
+    );
+
+    await waitFor(() => expect(mockFetch).toHaveBeenCalledOnce());
+    const body = JSON.parse(String(mockFetch.mock.calls[0]?.[1]?.body));
+    expect(body.contractualAcceptance).toEqual({
+      accepted: true,
+      policyVersion: "v2-2026-10-14",
     });
   });
 });

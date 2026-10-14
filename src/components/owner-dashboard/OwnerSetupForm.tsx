@@ -12,12 +12,23 @@ type BootstrapRequest = {
   complementaryActivities: string[];
   customActivityName?: string;
   countryCode: "ES";
+  contractualAcceptance?: { accepted: true; policyVersion: string };
 };
 
-export function OwnerSetupForm() {
+export type OwnerSetupContractualConsent = {
+  policyVersion: string;
+  requiresAcceptance: boolean;
+};
+
+export function OwnerSetupForm({
+  contractualConsent,
+}: {
+  contractualConsent?: OwnerSetupContractualConsent | null;
+} = {}) {
   const router = useRouter();
   const [pending, setPending] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [consentAccepted, setConsentAccepted] = useState(false);
   const [primaryDiscipline, setPrimaryDiscipline] = useState<
     "artistic" | "rhythmic" | null
   >(null);
@@ -71,6 +82,18 @@ export function OwnerSetupForm() {
 
   async function submit(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
+    if (!contractualConsent) {
+      setError(
+        "No pudimos comprobar los términos vigentes de tu cuenta. Recarga la página para volver a intentarlo."
+      );
+      return;
+    }
+    if (contractualConsent.requiresAcceptance && !consentAccepted) {
+      setError(
+        "Acepta los términos y la política de privacidad para continuar."
+      );
+      return;
+    }
     if (retryRequest) {
       await sendBootstrap(retryRequest.key, retryRequest.body);
       return;
@@ -90,6 +113,14 @@ export function OwnerSetupForm() {
       customActivityName:
         String(formData.get("customActivityName") ?? "").trim() || undefined,
       countryCode: "ES",
+      ...(contractualConsent.requiresAcceptance
+        ? {
+            contractualAcceptance: {
+              accepted: true as const,
+              policyVersion: contractualConsent.policyVersion,
+            },
+          }
+        : {}),
     };
     const key = idempotencyKey.current ?? crypto.randomUUID();
     idempotencyKey.current = key;
@@ -97,6 +128,18 @@ export function OwnerSetupForm() {
   }
 
   const fieldsLocked = pending || retryRequest !== null;
+
+  if (!contractualConsent) {
+    return (
+      <p
+        role="alert"
+        className="mt-8 border border-amber-400 bg-amber-50 p-4 text-sm text-amber-950"
+      >
+        No pudimos comprobar los términos vigentes de tu cuenta. Recarga la
+        página para volver a intentarlo.
+      </p>
+    );
+  }
 
   return (
     <form onSubmit={submit} aria-busy={pending} className="mt-8 grid gap-6">
@@ -239,6 +282,40 @@ export function OwnerSetupForm() {
           </p>
         </div>
       </fieldset>
+      {contractualConsent.requiresAcceptance && (
+        <label className="flex items-start gap-3 rounded-lg border border-slate-300 bg-white px-3 py-3 text-sm leading-relaxed text-slate-800">
+          <input
+            type="checkbox"
+            name="contractualAcceptance"
+            required
+            checked={consentAccepted}
+            disabled={fieldsLocked}
+            onChange={(event) => setConsentAccepted(event.target.checked)}
+            className="mt-0.5 h-5 w-5 accent-teal-800"
+          />
+          <span>
+            Acepto los{" "}
+            <a
+              href="/terminos"
+              target="_blank"
+              rel="noreferrer"
+              className="font-semibold underline"
+            >
+              términos y condiciones
+            </a>{" "}
+            y he leído la{" "}
+            <a
+              href="/politica-privacidad"
+              target="_blank"
+              rel="noreferrer"
+              className="font-semibold underline"
+            >
+              política de privacidad
+            </a>
+            .
+          </span>
+        </label>
+      )}
       {error && (
         <p
           role="alert"
