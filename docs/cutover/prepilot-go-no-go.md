@@ -10,12 +10,12 @@ Supabase de pago se mantiene: no provisionar recursos facturables.
 | Requisito | Estado y evidencia actual |
 | --- | --- |
 | Navegación Owner autenticada | CI `38481155607`, SHA `5708d130`, 33/33 PASS en tres navegadores, incluidos breakpoints; no demuestra alta desde cero. |
-| Alta cuenta y academia vacía | Fallo histórico: signup Auth PASS y perfil legacy 500. Alta Owner ahora omite ese POST; backend ADR-0027 integrado en 19b94c3f. Conexión de Setup y nuevo E2E completo pendientes. |
+| Alta cuenta y academia vacía | Signup Auth, bootstrap/replay y aceptación canónica observados en Chromium local; pasos hasta asistencia y tarifa confirmados. Setup integrado. No walkthrough completo PASS: sexta pasada recibió 500 por esquema local incompleto al emitir. |
 | Recorrido completo issue #227 | NO DEMO-READY; no hay walkthrough de seis pasos aprobado. CI global verde tolera el fallo experimental del setup. |
 | Resumen de operaciones | Servicio validado con PostgreSQL efímero real: M:N, otro tenant, fechas/DST, bruto por moneda y manager sin SELECT financiero. Tablas mínimas sintéticas, no esquema completo/RLS remoto. Walkthrough autenticado del resumen pendiente. |
 | Aceptación contractual | Backend canónico integrado: 57 pruebas focales y harness PostgreSQL real PASS, sin public.profiles. Frescura Auth, reaceptación explícita, grant concurrente único, rollback audit, RLS propia y bloqueo UPDATE/DELETE/TRUNCATE comprobados. Esquema mínimo temporal; no prueba instalación completa ni estado remoto. |
 | Analítica browser | Gate default-deny integrado; no UI de grant, no captura por defecto. No sustituye revisión integral RGPD/menores. |
-| Cuota mensual | ADR-0026 revisada: cobertura multiclase explícita, una línea/cargo por gimnasta; conflicto de planes/snapshots bloquea. Esquema/servicio/UI/pruebas de esta regla aún pendientes. No emitir cuotas reales con cálculo por inscripción. |
+| Cuota mensual | Esquema, servicio por gimnasta y desglose UI integrados localmente; harness PostgreSQL real PASS y 35 pruebas focales PASS. Alta atómica de cobertura y recorrido multiclase de navegador pendientes. No emitir cuotas reales por pruebas focales. |
 | Release | #225 sin aprobación independiente; #226 draft. Preview no prueba compatibilidad remota ni release productivo. |
 | Backup y restore | Runbook existente; simulacro restaurable/reconciliación no verificados en este corte. |
 
@@ -24,6 +24,19 @@ de aprobación local y de falta de autorización son históricas, no evidencia
 vigente ni autorización para eludir los controles de esta revalidación.
 
 ### Avance de QA posterior al corte publicado
+
+Corte actualizado: CI `38491147838`, SHA `1182f0c6`, terminó global SUCCESS
+con setup experimental FAILURE tolerado. Log del job `115616701507` confirma
+tres navegadores detenidos en botón de emitir deshabilitado por fecha requerida
+no cumplimentada en el spec. Corrección local `8a768899` ya integrada; no cambia
+resultado de ese CI histórico. Job autenticado PASS; público, smoke y Lighthouse
+omitidos. Sexta pasada local posterior recibió `42703` por columnas ausentes:
+QA confirmó cierre del stack y Main integró allowlist exclusivamente local
+`a3ab1738` en `cbb97434`, sin aplicar nada remoto. Falta integrar alta real de
+tarifa con clases/fechas y verificar el recorrido. No DEMO/PILOT-READY.
+
+Fuente: consulta de Actions y log del job, reporte QA y revisión Main. Las
+afirmaciones de los párrafos históricos siguientes no sustituyen este corte.
 
 CSP loopback y rate limiter acotados ya integrados: el runner conserva límites
 y 429, y las excepciones están vetadas en Vercel. Login y operaciones hasta

@@ -13,11 +13,13 @@ demostrable, no la finalización del producto.
 Último corte publicado: `1182f0c6` (14-10-2026), PR #226 DRAFT y REVIEW_REQUIRED.
 Preview READY: https://zaltyko-40j3sljcr-mentessaas-projects.vercel.app .
 No acredita datos/runtime autenticado ni promoción productiva. CI `38491147838`
-sigue activo al corte: autenticado, unitarias, build, tipos/lint y gates estáticos
-PASS; setup experimental en ejecución y público/smoke/Lighthouse omitidos.
+terminó global SUCCESS: autenticado, unitarias, build, tipos/lint y gates estáticos
+PASS; setup experimental FAILURE tolerado y público/smoke/Lighthouse omitidos.
+Tres navegadores se detuvieron en botón de emitir deshabilitado por fecha que
+el spec no rellenaba. Corrección local `8a768899` integrada, no prueba PASS aún.
 El CI anterior `38490500823` fue cancelado tras el nuevo push.
 
-Integración local más reciente: `8b36a706`, aún no publicada. Integra servicio
+Integración local más reciente: `cbb97434`, aún no publicada. Integra servicio
 por gimnasta `5b4a4e7e`, desglose/conflictos Front `fa61bf97`, respuesta de emisión
 con snapshots y opciones de clases activas filtradas por tenant/sede.
 Main repitió harness transaccional PostgreSQL PASS, 35 pruebas de dominio/API/UI
@@ -28,8 +30,8 @@ Sexto Chromium llegó a emitir y falló con HTTP 500 / SQLSTATE `42703` porque
 su allowlist local no instaló las columnas nuevas de `invoice_lines`. QA confirmó
 stack y volúmenes cerrados. No repetir hasta integrar alta real de tarifa con
 cobertura, UI y migraciones exclusivamente locales. Backend y Front trabajan
-en crear tarifa + clases incluidas + fechas con un solo guardado; QA prepara
-allowlist aislada, sin ampliar migraciones remotas. No se simulará configuración
+en crear tarifa + clases incluidas + fechas con un solo guardado; allowlist
+aislada QA `a3ab1738` integrada, sin ampliar migraciones remotas. No se simulará configuración
 mediante SQL. No DEMO/PILOT-READY ni cuota real autorizada por tests focales.
 
 Histórico, corte publicado: `63d97a24`:
