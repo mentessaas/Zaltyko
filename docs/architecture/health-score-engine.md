@@ -41,6 +41,12 @@ métricas ya materializadas:
 Esto no elimina el roadmap del PRD. Evita puntuar ceros o inventar adopción de
 portal, automatizaciones o estabilidad de staff antes de modelarlas.
 
+Las lecturas del perfil de objetivos seleccionan las cinco métricas canónicas
+con su moneda esperada: cuatro sin moneda y `collection_rate` con la moneda
+guardada en esa versión del perfil. Validan claves distintas y rechazan perfiles
+incompletos, duplicados o con moneda incompatible. No se sustituyen objetivos
+inválidos por ceros; el replay devuelve conflicto si el conjunto no es exacto.
+
 Una dimensión requiere ≥60% de su peso configurado disponible. El global
 requiere al menos tres dimensiones válidas y ≥70% de cobertura. Las bandas son
 las del PRD: crítico 0–49, necesita atención 50–69, saludable 70–84 y excelente
