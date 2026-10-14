@@ -2,7 +2,7 @@
 
 import Link from "next/link";
 import { useRouter } from "next/navigation";
-import { useRef, useState, type FormEvent } from "react";
+import { useEffect, useRef, useState, type FormEvent } from "react";
 import { ArrowLeft, Check, Plus, Search, UsersRound } from "lucide-react";
 
 type GroupsBundle = Awaited<
@@ -12,6 +12,30 @@ type GroupsBundle = Awaited<
 >;
 
 type Candidate = { id: string; name: string };
+
+type GroupCreatePayload = {
+  organizationId: string;
+  locationId: string;
+  programId: string;
+  name: string;
+  capacity: number | null;
+};
+
+type PendingGroupCreate = {
+  version: 1;
+  organizationId: string;
+  idempotencyKey: string;
+  body: string;
+};
+
+type PendingGroupCreateState =
+  | {
+      kind: "replayable";
+      organizationId: string;
+      command: PendingGroupCreate;
+    }
+  | { kind: "legacy"; organizationId: string }
+  | { kind: "invalid"; organizationId: string };
 
 function responseData<T>(payload: unknown): T | null {
   if (payload && typeof payload === "object" && "data" in payload) {
@@ -33,6 +57,63 @@ function responseError(payload: unknown): string {
       : "No se pudo completar el cambio. Inténtalo de nuevo.";
 }
 
+function parsePendingGroupCreate(
+  value: string,
+  organizationId: string
+): PendingGroupCreate | null {
+  try {
+    const parsed = JSON.parse(value) as Partial<PendingGroupCreate>;
+    if (
+      parsed.version !== 1 ||
+      parsed.organizationId !== organizationId ||
+      typeof parsed.idempotencyKey !== "string" ||
+      parsed.idempotencyKey.length === 0 ||
+      typeof parsed.body !== "string"
+    ) {
+      return null;
+    }
+    const body = JSON.parse(parsed.body) as Partial<GroupCreatePayload>;
+    if (
+      body.organizationId !== organizationId ||
+      typeof body.locationId !== "string" ||
+      typeof body.programId !== "string" ||
+      typeof body.name !== "string" ||
+      !(body.capacity === null || typeof body.capacity === "number")
+    ) {
+      return null;
+    }
+    return {
+      version: 1,
+      organizationId,
+      idempotencyKey: parsed.idempotencyKey,
+      body: parsed.body,
+    };
+  } catch {
+    return null;
+  }
+}
+
+function readPendingGroupCreate(
+  storageKey: string,
+  legacyStorageKey: string,
+  organizationId: string
+): PendingGroupCreateState | null {
+  try {
+    const stored = window.sessionStorage.getItem(storageKey);
+    if (stored !== null) {
+      const command = parsePendingGroupCreate(stored, organizationId);
+      return command
+        ? { kind: "replayable", organizationId, command }
+        : { kind: "invalid", organizationId };
+    }
+    return window.sessionStorage.getItem(legacyStorageKey)
+      ? { kind: "legacy", organizationId }
+      : null;
+  } catch {
+    return null;
+  }
+}
+
 const fieldClassName =
   "min-h-11 w-full border border-slate-400 bg-white px-3 py-2 text-sm text-slate-950 focus-visible:outline focus-visible:outline-2 focus-visible:outline-teal-800";
 const primaryButtonClassName =
@@ -49,24 +130,29 @@ function statusLabel(status: string): string {
 
 export function OwnerGroupsManager({ bundle }: { bundle: GroupsBundle }) {
   const router = useRouter();
-  const [createOpen, setCreateOpen] = useState(bundle.groups.length === 0);
-  const [groupName, setGroupName] = useState("");
-  const [programId, setProgramId] = useState(bundle.programs[0]?.id ?? "");
-  const [locationId, setLocationId] = useState(
+  const defaultProgramId = bundle.programs[0]?.id ?? "";
+  const defaultLocationId =
     bundle.groups.find((group) => group.id === bundle.selectedGroupId)
       ?.locationId ??
-      bundle.locations[0]?.id ??
-      ""
-  );
+    bundle.locations[0]?.id ??
+    "";
+  const [createOpen, setCreateOpen] = useState(bundle.groups.length === 0);
+  const [groupName, setGroupName] = useState("");
+  const [programId, setProgramId] = useState(defaultProgramId);
+  const [locationId, setLocationId] = useState(defaultLocationId);
   const [capacity, setCapacity] = useState("");
   const [candidateQuery, setCandidateQuery] = useState("");
   const [candidates, setCandidates] = useState<Candidate[]>([]);
   const [newAthleteGivenName, setNewAthleteGivenName] = useState("");
   const [newAthleteFamilyName, setNewAthleteFamilyName] = useState("");
   const [busy, setBusy] = useState(false);
+  const [pendingGroupCreate, setPendingGroupCreate] =
+    useState<PendingGroupCreateState | null>(null);
+  const [pendingGroupCreateLoadedFor, setPendingGroupCreateLoadedFor] =
+    useState<string | null>(null);
   const [error, setError] = useState("");
   const [notice, setNotice] = useState("");
-  const createKeyRef = useRef<string | null>(null);
+  const groupCreateRequestRef = useRef(false);
   const createAthleteKeyRef = useRef<string | null>(null);
   const addKeyByAthleteRef = useRef(new Map<string, string>());
   const transitionKeysRef = useRef(new Map<string, string>());
@@ -77,36 +163,66 @@ export function OwnerGroupsManager({ bundle }: { bundle: GroupsBundle }) {
   const selectedToday = selectedGroup
     ? (bundle.localTodayByLocation[selectedGroup.locationId] ?? "")
     : "";
-  const createStorageKey = `zaltyko:pending-group-create:${organizationId}`;
+  const currentPendingGroupCreate =
+    pendingGroupCreate?.organizationId === organizationId
+      ? pendingGroupCreate
+      : null;
+  const replayableGroupCreate =
+    currentPendingGroupCreate?.kind === "replayable"
+      ? currentPendingGroupCreate.command
+      : null;
+  const replayableGroupPayload = replayableGroupCreate
+    ? (JSON.parse(replayableGroupCreate.body) as GroupCreatePayload)
+    : null;
+  const groupCreateScopeLoaded = pendingGroupCreateLoadedFor === organizationId;
+  const groupCreateLocked =
+    busy || !groupCreateScopeLoaded || currentPendingGroupCreate !== null;
+  const createStorageKey = `zaltyko:pending-group-create:v2:${organizationId}`;
+  const legacyCreateStorageKey = `zaltyko:pending-group-create:${organizationId}`;
   const createAthleteStorageKey = `zaltyko:pending-group-athlete:${organizationId}:${bundle.selectedGroupId ?? "none"}`;
 
-  function clearCreateKey() {
-    createKeyRef.current = null;
+  useEffect(() => {
+    const pending = readPendingGroupCreate(
+      createStorageKey,
+      legacyCreateStorageKey,
+      organizationId
+    );
+    // Restore sessionStorage after hydration so server and first client markup match.
+    // eslint-disable-next-line react-hooks/set-state-in-effect
+    setPendingGroupCreate(pending);
+    if (pending?.kind === "replayable") {
+      const payload = JSON.parse(pending.command.body) as GroupCreatePayload;
+      setGroupName(payload.name);
+      setProgramId(payload.programId);
+      setLocationId(payload.locationId);
+      setCapacity(payload.capacity === null ? "" : String(payload.capacity));
+      setCreateOpen(true);
+    } else {
+      setGroupName("");
+      setProgramId(defaultProgramId);
+      setLocationId(defaultLocationId);
+      setCapacity("");
+      setCreateOpen(bundle.groups.length === 0);
+    }
+    setPendingGroupCreateLoadedFor(organizationId);
+  }, [
+    bundle.groups.length,
+    createStorageKey,
+    defaultLocationId,
+    defaultProgramId,
+    legacyCreateStorageKey,
+    organizationId,
+  ]);
+
+  function clearPendingGroupCreate() {
     try {
       window.sessionStorage.removeItem(createStorageKey);
     } catch {
-      // In-memory idempotency still protects retries if storage is unavailable.
+      // The in-memory state still reflects the server's definitive response.
     }
-  }
-
-  function invalidateCreateKeyForEditedCommand() {
-    // A key stored by a previous page instance may represent a committed
-    // request whose response was lost; preserve it until the server resolves
-    // that retry. An in-memory key belongs to this form instance and can be
-    // cleared as soon as the command changes.
-    if (createKeyRef.current) clearCreateKey();
-  }
-
-  function getCreateKey() {
-    if (createKeyRef.current) return createKeyRef.current;
-    try {
-      createKeyRef.current =
-        window.sessionStorage.getItem(createStorageKey) ?? crypto.randomUUID();
-      window.sessionStorage.setItem(createStorageKey, createKeyRef.current);
-    } catch {
-      createKeyRef.current = crypto.randomUUID();
-    }
-    return createKeyRef.current;
+    setPendingGroupCreate((current) =>
+      current?.organizationId === organizationId ? null : current
+    );
   }
 
   function clearCreateAthleteKey() {
@@ -145,10 +261,72 @@ export function OwnerGroupsManager({ bundle }: { bundle: GroupsBundle }) {
     return `/owner/groups?${params.toString()}`;
   }
 
-  async function createGroup(event: FormEvent<HTMLFormElement>) {
-    event.preventDefault();
+  async function sendGroupCreate(command: PendingGroupCreate) {
+    if (
+      command.organizationId !== organizationId ||
+      groupCreateRequestRef.current
+    ) {
+      return;
+    }
+    groupCreateRequestRef.current = true;
     setError("");
     setNotice("");
+    try {
+      window.sessionStorage.setItem(createStorageKey, JSON.stringify(command));
+    } catch {
+      groupCreateRequestRef.current = false;
+      setError(
+        "No se pudo guardar la solicitud pendiente en esta sesión. No se ha enviado; inténtalo de nuevo cuando el almacenamiento esté disponible."
+      );
+      return;
+    }
+
+    setPendingGroupCreate({
+      kind: "replayable",
+      organizationId,
+      command,
+    });
+    setBusy(true);
+    try {
+      const response = await fetch("/api/v1/owner/groups", {
+        method: "POST",
+        headers: {
+          "content-type": "application/json",
+          "idempotency-key": command.idempotencyKey,
+        },
+        body: command.body,
+      });
+      const payload = await response.json().catch(() => null);
+      const created = responseData<{ id: string }>(payload);
+      if (!response.ok || !created?.id) {
+        if (response.status >= 400 && response.status < 500) {
+          clearPendingGroupCreate();
+        }
+        setError(responseError(payload));
+        return;
+      }
+      clearPendingGroupCreate();
+      const submittedPayload = JSON.parse(command.body) as GroupCreatePayload;
+      router.push(groupHref(created.id, submittedPayload.locationId));
+      router.refresh();
+    } catch {
+      setError(
+        "No se pudo crear el grupo. Comprueba la conexión e inténtalo de nuevo."
+      );
+    } finally {
+      setBusy(false);
+      groupCreateRequestRef.current = false;
+    }
+  }
+
+  async function createGroup(event: FormEvent<HTMLFormElement>) {
+    event.preventDefault();
+    if (
+      currentPendingGroupCreate ||
+      pendingGroupCreateLoadedFor !== organizationId
+    ) {
+      return;
+    }
     if (!groupName.trim() || !programId || !locationId) {
       setError("Completa el nombre, la actividad y la sede.");
       return;
@@ -162,40 +340,30 @@ export function OwnerGroupsManager({ bundle }: { bundle: GroupsBundle }) {
       return;
     }
 
-    setBusy(true);
-    const idempotencyKey = getCreateKey();
-    try {
-      const response = await fetch("/api/v1/owner/groups", {
-        method: "POST",
-        headers: {
-          "content-type": "application/json",
-          "idempotency-key": idempotencyKey,
-        },
-        body: JSON.stringify({
-          organizationId,
-          locationId,
-          programId,
-          name: groupName.trim(),
-          capacity: parsedCapacity,
-        }),
-      });
-      const payload = await response.json().catch(() => null);
-      const created = responseData<{ id: string }>(payload);
-      if (!response.ok || !created?.id) {
-        if (response.status < 500) clearCreateKey();
-        setError(responseError(payload));
-        return;
-      }
-      clearCreateKey();
-      router.push(groupHref(created.id, locationId));
-      router.refresh();
-    } catch {
-      setError(
-        "No se pudo crear el grupo. Comprueba la conexión e inténtalo de nuevo."
-      );
-    } finally {
-      setBusy(false);
+    const payload: GroupCreatePayload = {
+      organizationId,
+      locationId,
+      programId,
+      name: groupName.trim(),
+      capacity: parsedCapacity,
+    };
+    await sendGroupCreate({
+      version: 1,
+      organizationId,
+      idempotencyKey: crypto.randomUUID(),
+      body: JSON.stringify(payload),
+    });
+  }
+
+  async function retryPendingGroupCreate() {
+    if (
+      currentPendingGroupCreate?.kind !== "replayable" ||
+      currentPendingGroupCreate.command.organizationId !== organizationId ||
+      busy
+    ) {
+      return;
     }
+    await sendGroupCreate(currentPendingGroupCreate.command);
   }
 
   async function searchAthletes(event: FormEvent<HTMLFormElement>) {
@@ -419,13 +587,19 @@ export function OwnerGroupsManager({ bundle }: { bundle: GroupsBundle }) {
           <button
             type="button"
             className={primaryButtonClassName}
-            disabled={busy}
+            disabled={busy || groupCreateLocked}
             onClick={() => setCreateOpen((open) => !open)}
           >
             <Plus className="h-4 w-4" aria-hidden="true" />
             {createOpen ? "Cerrar formulario" : "Crear grupo"}
           </button>
         </header>
+
+        {!groupCreateScopeLoaded && (
+          <p role="status" className="mt-5 text-sm text-slate-700">
+            Comprobando si hay una creación pendiente…
+          </p>
+        )}
 
         {error && (
           <p
@@ -444,7 +618,62 @@ export function OwnerGroupsManager({ bundle }: { bundle: GroupsBundle }) {
           </p>
         )}
 
-        {createOpen && (
+        {currentPendingGroupCreate && (
+          <section
+            aria-labelledby="pending-group-create-title"
+            className="mt-5 border border-amber-700 bg-amber-50 p-4 text-sm text-slate-950"
+            role="status"
+          >
+            <h2 id="pending-group-create-title" className="font-bold">
+              Creación de grupo pendiente de confirmar
+            </h2>
+            {replayableGroupCreate && replayableGroupPayload ? (
+              <>
+                <p className="mt-2 leading-6">
+                  Volveremos a comprobar la solicitud original para «
+                  {replayableGroupPayload.name}» y evitar duplicados. El
+                  formulario queda protegido hasta conocer el resultado.
+                </p>
+                <button
+                  type="button"
+                  className={`${primaryButtonClassName} mt-3`}
+                  disabled={busy}
+                  onClick={retryPendingGroupCreate}
+                >
+                  {busy
+                    ? "Comprobando resultado…"
+                    : "Reintentar creación pendiente"}
+                </button>
+              </>
+            ) : (
+              <p className="mt-2 leading-6">
+                Hay una solicitud anterior que no se puede reenviar de forma
+                segura. No la borraremos ni enviaremos otra creación desde aquí.
+                Actualiza la lista de grupos para comprobar su estado. Si no
+                aparece o tienes dudas, contacta con soporte.
+              </p>
+            )}
+            {(!replayableGroupCreate || !replayableGroupPayload) && (
+              <div className="mt-3 flex flex-wrap items-center gap-3">
+                <button
+                  type="button"
+                  className={secondaryButtonClassName}
+                  onClick={() => router.refresh()}
+                >
+                  Actualizar lista de grupos
+                </button>
+                <Link
+                  href="/contact?type=support"
+                  className="touch-target inline-flex min-h-11 items-center font-semibold text-teal-900 underline underline-offset-4 focus-visible:outline focus-visible:outline-2 focus-visible:outline-teal-800"
+                >
+                  Contactar soporte
+                </Link>
+              </div>
+            )}
+          </section>
+        )}
+
+        {createOpen && groupCreateScopeLoaded && (
           <section
             aria-labelledby="create-group-title"
             className="mt-6 border border-slate-300 bg-white p-5 sm:p-6"
@@ -467,11 +696,8 @@ export function OwnerGroupsManager({ bundle }: { bundle: GroupsBundle }) {
                   <input
                     className={`${fieldClassName} mt-2`}
                     value={groupName}
-                    disabled={busy}
-                    onChange={(event) => {
-                      invalidateCreateKeyForEditedCommand();
-                      setGroupName(event.target.value);
-                    }}
+                    disabled={groupCreateLocked}
+                    onChange={(event) => setGroupName(event.target.value)}
                     maxLength={120}
                     required
                   />
@@ -481,11 +707,8 @@ export function OwnerGroupsManager({ bundle }: { bundle: GroupsBundle }) {
                   <select
                     className={`${fieldClassName} mt-2`}
                     value={programId}
-                    disabled={busy}
-                    onChange={(event) => {
-                      invalidateCreateKeyForEditedCommand();
-                      setProgramId(event.target.value);
-                    }}
+                    disabled={groupCreateLocked}
+                    onChange={(event) => setProgramId(event.target.value)}
                     required
                   >
                     {bundle.programs.map((program) => (
@@ -500,11 +723,8 @@ export function OwnerGroupsManager({ bundle }: { bundle: GroupsBundle }) {
                   <select
                     className={`${fieldClassName} mt-2`}
                     value={locationId}
-                    disabled={busy}
-                    onChange={(event) => {
-                      invalidateCreateKeyForEditedCommand();
-                      setLocationId(event.target.value);
-                    }}
+                    disabled={groupCreateLocked}
+                    onChange={(event) => setLocationId(event.target.value)}
                     required
                   >
                     {bundle.locations.map((location) => (
@@ -518,24 +738,21 @@ export function OwnerGroupsManager({ bundle }: { bundle: GroupsBundle }) {
                   Plazas (opcional)
                   <input
                     className={`${fieldClassName} mt-2`}
-                    disabled={busy}
+                    disabled={groupCreateLocked}
                     type="number"
                     min="1"
                     max="5000"
                     step="1"
                     inputMode="numeric"
                     value={capacity}
-                    onChange={(event) => {
-                      invalidateCreateKeyForEditedCommand();
-                      setCapacity(event.target.value);
-                    }}
+                    onChange={(event) => setCapacity(event.target.value)}
                   />
                 </label>
                 <div className="sm:col-span-2 lg:col-span-4">
                   <button
                     type="submit"
                     className={primaryButtonClassName}
-                    disabled={busy}
+                    disabled={groupCreateLocked}
                   >
                     {busy ? "Guardando…" : "Guardar grupo"}
                   </button>

@@ -96,11 +96,14 @@ describe("gestión de grupos owner", () => {
     await user.type(screen.getByLabelText("Nombre del grupo"), "Iniciación");
     await user.type(screen.getByLabelText("Plazas (opcional)"), "12");
     await user.click(screen.getByRole("button", { name: "Guardar grupo" }));
+    await waitFor(() => expect(mockFetch).toHaveBeenCalledTimes(1));
     expect(await screen.findByRole("alert")).toHaveTextContent(
       "No se pudo confirmar el resultado."
     );
 
-    await user.click(screen.getByRole("button", { name: "Guardar grupo" }));
+    await user.click(
+      screen.getByRole("button", { name: "Reintentar creación pendiente" })
+    );
     await waitFor(() => expect(mockFetch).toHaveBeenCalledTimes(2));
 
     const first = mockFetch.mock.calls[0]?.[1] as RequestInit;
@@ -122,11 +125,119 @@ describe("gestión de grupos owner", () => {
     );
   });
 
-  it("reutiliza la clave tras volver a abrir la página después de un resultado incierto", async () => {
+  it("restaura y reintenta el snapshot exacto tras volver a abrir la página", async () => {
     const randomUUID = vi
       .fn()
       .mockReturnValueOnce("first-group-command")
       .mockReturnValueOnce("new-group-command");
+    vi.stubGlobal("crypto", { randomUUID });
+    mockFetch
+      .mockResolvedValueOnce({
+        ok: false,
+        status: 503,
+        json: async () => ({ detail: "No se pudo confirmar el resultado." }),
+      })
+      .mockResolvedValueOnce({
+        ok: true,
+        status: 201,
+        json: async () => ({ ok: true, data: { id: groupId } }),
+      });
+
+    const firstUser = userEvent.setup();
+    const firstPage = render(<OwnerGroupsManager bundle={emptyBundle} />);
+    await firstUser.type(
+      screen.getByLabelText("Nombre del grupo"),
+      "Iniciación"
+    );
+    await firstUser.type(screen.getByLabelText("Plazas (opcional)"), "12");
+    await firstUser.click(
+      screen.getByRole("button", { name: "Guardar grupo" })
+    );
+    expect(await screen.findByRole("alert")).toHaveTextContent(
+      "No se pudo confirmar el resultado."
+    );
+    firstPage.unmount();
+
+    const secondUser = userEvent.setup();
+    render(<OwnerGroupsManager bundle={emptyBundle} />);
+    expect(
+      await screen.findByRole("heading", {
+        name: "Creación de grupo pendiente de confirmar",
+      })
+    ).toBeVisible();
+    expect(screen.getByLabelText("Nombre del grupo")).toHaveValue("Iniciación");
+    expect(screen.getByLabelText("Plazas (opcional)")).toHaveValue(12);
+    expect(screen.getByLabelText("Nombre del grupo")).toBeDisabled();
+    await secondUser.click(
+      screen.getByRole("button", { name: "Reintentar creación pendiente" })
+    );
+    await waitFor(() => expect(mockFetch).toHaveBeenCalledTimes(2));
+
+    const first = mockFetch.mock.calls[0]?.[1] as RequestInit;
+    const retry = mockFetch.mock.calls[1]?.[1] as RequestInit;
+    expect(first.headers).toMatchObject({
+      "idempotency-key": "first-group-command",
+    });
+    expect(retry.headers).toEqual(first.headers);
+    expect(retry.body).toBe(first.body);
+    expect(JSON.parse(String(retry.body))).toMatchObject({
+      name: "Iniciación",
+      capacity: 12,
+    });
+    expect(randomUUID).toHaveBeenCalledOnce();
+  });
+
+  it("usa una clave nueva al editar el comando tras un rechazo definitivo", async () => {
+    const randomUUID = vi
+      .fn()
+      .mockReturnValueOnce("rejected-group-command")
+      .mockReturnValueOnce("edited-group-command");
+    vi.stubGlobal("crypto", { randomUUID });
+    mockFetch
+      .mockResolvedValueOnce({
+        ok: false,
+        status: 400,
+        json: async () => ({ detail: "El grupo no se pudo crear." }),
+      })
+      .mockResolvedValueOnce({
+        ok: true,
+        status: 201,
+        json: async () => ({ ok: true, data: { id: groupId } }),
+      });
+
+    const user = userEvent.setup();
+    render(<OwnerGroupsManager bundle={emptyBundle} />);
+    const nameInput = screen.getByLabelText("Nombre del grupo");
+    await user.type(nameInput, "Iniciación");
+    await user.click(screen.getByRole("button", { name: "Guardar grupo" }));
+    expect(await screen.findByRole("alert")).toHaveTextContent(
+      "El grupo no se pudo crear."
+    );
+
+    await user.clear(nameInput);
+    await user.type(nameInput, "Avanzado");
+    await user.click(screen.getByRole("button", { name: "Guardar grupo" }));
+    await waitFor(() => expect(mockFetch).toHaveBeenCalledTimes(2));
+
+    const rejected = mockFetch.mock.calls[0]?.[1] as RequestInit;
+    const edited = mockFetch.mock.calls[1]?.[1] as RequestInit;
+    expect(rejected.headers).toMatchObject({
+      "idempotency-key": "rejected-group-command",
+    });
+    expect(edited.headers).toMatchObject({
+      "idempotency-key": "edited-group-command",
+    });
+    expect(edited.body).not.toBe(rejected.body);
+    expect(JSON.parse(String(edited.body))).toMatchObject({ name: "Avanzado" });
+    expect(randomUUID).toHaveBeenCalledTimes(2);
+  });
+
+  it("no reutiliza el snapshot pendiente de otra organización", async () => {
+    const otherOrganizationId = "20000000-0000-4000-8000-000000000001";
+    const randomUUID = vi
+      .fn()
+      .mockReturnValueOnce("first-organization-command")
+      .mockReturnValueOnce("second-organization-command");
     vi.stubGlobal("crypto", { randomUUID });
     mockFetch
       .mockResolvedValueOnce({
@@ -152,27 +263,76 @@ describe("gestión de grupos owner", () => {
     expect(await screen.findByRole("alert")).toHaveTextContent(
       "No se pudo confirmar el resultado."
     );
-    firstPage.unmount();
+    const oldOrganizationRetry = screen.getByRole("button", {
+      name: "Reintentar creación pendiente",
+    });
 
+    const otherBundle = {
+      ...emptyBundle,
+      organization: { ...emptyBundle.organization, id: otherOrganizationId },
+    } as never;
     const secondUser = userEvent.setup();
-    render(<OwnerGroupsManager bundle={emptyBundle} />);
-    await secondUser.type(
-      screen.getByLabelText("Nombre del grupo"),
-      "Iniciación"
+    firstPage.rerender(<OwnerGroupsManager bundle={otherBundle} />);
+    await waitFor(() =>
+      expect(
+        screen.getByRole("button", { name: "Guardar grupo" })
+      ).toBeEnabled()
     );
+    oldOrganizationRetry.click();
+    expect(
+      screen.queryByRole("heading", {
+        name: "Creación de grupo pendiente de confirmar",
+      })
+    ).not.toBeInTheDocument();
+    expect(screen.getByLabelText("Nombre del grupo")).toHaveValue("");
+    expect(mockFetch).toHaveBeenCalledTimes(1);
+    await secondUser.type(screen.getByLabelText("Nombre del grupo"), "Rítmica");
     await secondUser.click(
       screen.getByRole("button", { name: "Guardar grupo" })
     );
     await waitFor(() => expect(mockFetch).toHaveBeenCalledTimes(2));
 
-    const first = mockFetch.mock.calls[0]?.[1] as RequestInit;
-    const retry = mockFetch.mock.calls[1]?.[1] as RequestInit;
-    expect(first.headers).toMatchObject({
-      "idempotency-key": "first-group-command",
+    const otherOrganizationRequest = mockFetch.mock
+      .calls[1]?.[1] as RequestInit;
+    expect(otherOrganizationRequest.headers).toMatchObject({
+      "idempotency-key": "second-organization-command",
     });
-    expect(retry.headers).toEqual(first.headers);
-    expect(retry.body).toBe(first.body);
-    expect(randomUUID).toHaveBeenCalledOnce();
+    expect(JSON.parse(String(otherOrganizationRequest.body))).toMatchObject({
+      organizationId: otherOrganizationId,
+      name: "Rítmica",
+    });
+    expect(randomUUID).toHaveBeenCalledTimes(2);
+  });
+
+  it("bloquea una clave legacy que no tiene un cuerpo recuperable", async () => {
+    window.sessionStorage.setItem(
+      `zaltyko:pending-group-create:${organizationId}`,
+      "legacy-group-command"
+    );
+
+    render(<OwnerGroupsManager bundle={emptyBundle} />);
+
+    expect(
+      await screen.findByRole("heading", {
+        name: "Creación de grupo pendiente de confirmar",
+      })
+    ).toBeVisible();
+    expect(
+      screen.getByText(/solicitud anterior.*no se puede reenviar/i)
+    ).toBeVisible();
+    expect(
+      screen.getByRole("button", { name: "Guardar grupo" })
+    ).toBeDisabled();
+    expect(
+      screen.getByRole("button", { name: "Actualizar lista de grupos" })
+    ).toBeVisible();
+    expect(
+      screen.getByRole("link", { name: "Contactar soporte" })
+    ).toHaveAttribute("href", "/contact?type=support");
+    expect(
+      screen.queryByRole("button", { name: "Reintentar creación pendiente" })
+    ).not.toBeInTheDocument();
+    expect(mockFetch).not.toHaveBeenCalled();
   });
 
   it("busca solo fichas disponibles y conserva la clave al reintentar el alta", async () => {

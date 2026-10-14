@@ -11887,6 +11887,26 @@ Modelo separado, reclamación manual, administración, importación revisada, fi
   siguen excluidas por configuración y faltan dependencias móviles locales.
   Sin instalación, E2E, PostgreSQL, sandbox ni plataformas.
 
+## 2026-10-14 — Snapshot inmutable para alta de grupo Owner (local)
+
+- En rama propia `codex/owner-groups-idempotency-20261014`, desde el SHA exacto
+  `b64a65335c11ee5000eaba6ab28aa368c078c419`, el alta guarda el cuerpo serializado
+  junto a su clave, versionado y con scope de organización. Resultado 5xx,
+  respuesta 2xx incompleta o error de red conserva el pendiente; el botón
+  explícito reenvía el mismo cuerpo y la misma clave, incluso tras recargar.
+- Los campos se restauran y quedan bloqueados mientras el resultado siga
+  incierto. Un 4xx definitivo limpia el snapshot; una edición posterior genera
+  una clave nueva. Los registros legacy con solo clave no se reenvían ni
+  permiten crear otro grupo; su resolución segura queda en backlog.
+- El copy de reintento habla de volver a comprobar la solicitud original para
+  evitar duplicados. Los registros legacy/dañados ofrecen actualizar la lista o
+  contactar soporte, sin borrarlos ni prometer un resultado. Al cambiar de
+  organización en el mismo componente se oculta el snapshot anterior, se
+  restablece el borrador y el alta queda bloqueada hasta cargar el nuevo scope.
+- Tests UI focales 7/7, TypeScript, ESLint focal, Prettier y `git diff --check`
+  PASS. No se ejecutaron E2E, PostgreSQL, navegadores, Sandbox ni producción.
+  Este arreglo no atribuye ni resuelve los fallos de la suite completa.
+
 ## 2026-10-14 — Claridad de copy sobre cobro familiar automático
 
 - En rama local `codex/family-billing-copy-clarity-20261014`, basada en
