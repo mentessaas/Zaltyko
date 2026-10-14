@@ -237,6 +237,8 @@ jobs:
   e2e-readiness:
     name: E2E Credentials Readiness
     runs-on: ubuntu-latest
+    environment:
+      name: e2e-sandbox
     outputs:
       enabled: ${{ steps.check.outputs.enabled }}
     steps:
@@ -269,8 +271,6 @@ jobs:
           STRIPE_WEBHOOK_SECRET: ${{ secrets.E2E_STRIPE_WEBHOOK_SECRET }}
           NEXT_PUBLIC_STRIPE_PUBLISHABLE_KEY: ${{ secrets.E2E_STRIPE_PUBLISHABLE_KEY }}
           E2E_EVENT_NAME: ${{ github.event_name }}
-          E2E_PR_AUTHOR: ${{ github.event.pull_request.user.login }}
-          E2E_HEAD_REPOSITORY: ${{ github.event.pull_request.head.repo.full_name || github.repository }}
         run: bash scripts/ci/check-e2e-readiness.sh
 
   e2e-local-owner:
@@ -432,6 +432,8 @@ jobs:
   e2e-auth:
     name: E2E Authenticated Flows
     runs-on: ubuntu-latest
+    environment:
+      name: e2e-sandbox
     timeout-minutes: 45
     concurrency:
       group: zaltyko-authenticated-e2e-${{ github.repository }}
@@ -621,3 +623,19 @@ jobs:
           STRIPE_SECRET_KEY: ${{ secrets.E2E_STRIPE_SECRET_KEY }}
           STRIPE_WEBHOOK_SECRET: ${{ secrets.E2E_STRIPE_WEBHOOK_SECRET }}
           NEXT_PUBLIC_STRIPE_PUBLISHABLE_KEY: ${{ secrets.E2E_STRIPE_PUBLISHABLE_KEY }}
+
+  e2e-auth-required-gate:
+    name: E2E Authenticated PR Required Gate
+    runs-on: ubuntu-latest
+    needs: [e2e-readiness, e2e-auth]
+    if: ${{ always() && github.event_name == 'pull_request' }}
+    steps:
+      - name: Require readiness and authenticated E2E success
+        env:
+          E2E_READINESS_RESULT: ${{ needs.e2e-readiness.result }}
+          E2E_AUTH_RESULT: ${{ needs.e2e-auth.result }}
+        run: |
+          if [[ "${E2E_READINESS_RESULT}" != "success" || "${E2E_AUTH_RESULT}" != "success" ]]; then
+            echo "Authenticated E2E is required for PRs; readiness=${E2E_READINESS_RESULT}, e2e=${E2E_AUTH_RESULT}." >&2
+            exit 1
+          fi
