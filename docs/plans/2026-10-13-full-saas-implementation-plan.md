@@ -10,7 +10,21 @@ Este corte prevalece sobre los estados históricos fechados que aparecen abajo.
 El alcance completo del SaaS se mantiene; issue #227 define la primera entrega
 demostrable, no la finalización del producto.
 
-Último corte publicado: `63d97a24` (14-10-2026), PR #226 DRAFT y REVIEW_REQUIRED.
+Último corte publicado: `e7a19b20` (14-10-2026), PR #226 DRAFT y REVIEW_REQUIRED.
+Integra esquema/contrato multiclase `87d81999` y selectores E2E `bab43a0d`.
+Verificación independiente Main: contrato 7/7, PostgreSQL efímero 14.20
+schema/RLS PASS, typecheck e integridad de migraciones PASS. El informe
+RLS estático cubre 79 tablas legacy; las nuevas se verificaron en SQL real.
+CI `38490500823` en ejecución; Static Gates y Directory integrity PASS.
+No hay aún URL READY verificada de este SHA ni aplicación remota del esquema.
+Backend trabaja en servicio quote/emisión por gimnasta. Frontend prepara
+autoselección de la familia validada sin elegir pagador; revisión exige rechazar
+respuestas de opciones de otro tenant/sede/mes completas. QA ejecuta un único
+Chromium tras corregir selección de familia por ID y colisión de tarifa/total.
+La tercera pasada falló por selector, no demuestra un defecto del cobro.
+El recorrido de una inscripción no prueba la regla multiclase. No DEMO/PILOT-READY.
+
+Histórico, corte publicado: `63d97a24`:
 Añade el selector exacto de asistencia y la decisión multiclase; nueva CI
 `38489363325` en ejecución. El Preview READY siguiente corresponde aún al
 corte anterior `48d72dcc`, no a este nuevo commit.
@@ -58,6 +72,7 @@ El código actual suma por inscripción y no demuestra todavía esa regla cuando
 hay varias clases. ADR-0026 revisada en `df610dd9` acepta cobertura explícita
 tarifa/plantilla vigente todo el mes, una línea/cargo por gimnasta y bloqueo por
 planes/snapshots incompatibles. Backend implementa primero esquema/contratos;
+El esquema/contratos ya está integrado y probado en el corte superior;
 servicio, UI y pruebas multiclase siguen pendientes. No emitir cuotas reales
 hasta verificar la regla, sin deduplicar importes arbitrariamente.
 
