@@ -16,3 +16,10 @@ export const E2E_DOMAIN_MIGRATIONS = [
   "20261013160000_canonical_family_collection_and_entitlements.sql",
   "20261013170001_record_group_membership_history.sql",
 ] as const;
+
+// This migration belongs only to the ephemeral local browser runner. The
+// shared E2E_DOMAIN_MIGRATIONS list is also consumed by the guarded sandbox
+// migration job, so keep this separate to avoid implicit remote application.
+export const E2E_LOCAL_OWNER_SIGNUP_MIGRATIONS = [
+  "20261013235142_owner_signup_consent_canonical.sql",
+] as const;

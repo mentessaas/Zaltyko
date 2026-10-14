@@ -1,4 +1,4 @@
-import { randomUUID } from "node:crypto";
+import { createHash, randomUUID } from "node:crypto";
 
 import { expect, test } from "@playwright/test";
 import { Pool } from "pg";
@@ -149,7 +149,10 @@ test.describe("Isolated local Supabase Owner setup", () => {
     const bootstrapIdempotencyKey =
       bootstrapRequest.headers()["idempotency-key"];
     expect(bootstrapIdempotencyKey).toBeTruthy();
+    if (!bootstrapIdempotencyKey)
+      throw new Error("Owner bootstrap request omitted its idempotency key.");
     const bootstrapBody = bootstrapRequest.postDataJSON();
+    expect(bootstrapBody).not.toHaveProperty("contractualAcceptance");
     const replay = await page.evaluate(
       async ({ key, body }) => {
         const replayResponse = await fetch("/api/v1/organizations/bootstrap", {
@@ -169,6 +172,7 @@ test.describe("Isolated local Supabase Owner setup", () => {
     );
     expect(replay.status).toBe(201);
     expect(replay.payload).toMatchObject(result);
+    await expectPersistedOwnerSignupConsent(userId!, bootstrapIdempotencyKey);
     expect(result.organizationId).toMatch(
       /^[0-9a-f]{8}-[0-9a-f]{4}-[1-8][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i
     );
@@ -582,7 +586,19 @@ test.describe("Isolated local Supabase Owner setup", () => {
       await secondOwnerPage
         .getByRole("button", { name: "Crear cuenta", exact: true })
         .click();
-      expect((await secondSignupResponsePromise).ok()).toBe(true);
+      const secondSignupResponse = await secondSignupResponsePromise;
+      expect(secondSignupResponse.ok()).toBe(true);
+      const secondSignupPayload = (await secondSignupResponse.json()) as {
+        id?: string;
+        user?: { id?: string };
+      };
+      const secondUserId =
+        secondSignupPayload.user?.id ?? secondSignupPayload.id;
+      expect(secondUserId).toMatch(
+        /^[0-9a-f]{8}-[0-9a-f]{4}-[1-8][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i
+      );
+      if (!secondUserId)
+        throw new Error("Second local signup response omitted the user ID.");
       await expect(secondOwnerPage).toHaveURL(/\/owner\/setup$/);
       expect(secondOwnerProfileRequests).toEqual([]);
       await expect(secondOwnerPage.getByRole("checkbox")).toHaveCount(0);
@@ -600,6 +616,11 @@ test.describe("Isolated local Supabase Owner setup", () => {
       await secondOwnerPage
         .getByLabel("Nombre de la primera sede")
         .fill(`Sede E2E aislada ${secondOwnerId.slice(0, 8)}`);
+      const secondBootstrapRequestPromise = secondOwnerPage.waitForRequest(
+        (request) =>
+          request.url().endsWith("/api/v1/organizations/bootstrap") &&
+          request.method() === "POST"
+      );
       const secondBootstrapResponsePromise = secondOwnerPage.waitForResponse(
         (candidate) =>
           candidate.url().endsWith("/api/v1/organizations/bootstrap") &&
@@ -608,12 +629,22 @@ test.describe("Isolated local Supabase Owner setup", () => {
       await secondOwnerPage
         .getByRole("button", { name: "Crear espacio de dirección" })
         .click();
+      const secondBootstrapRequest = await secondBootstrapRequestPromise;
       const secondBootstrapResponse = await secondBootstrapResponsePromise;
       expect(secondBootstrapResponse.status()).toBe(201);
+      const secondBootstrapIdempotencyKey =
+        secondBootstrapRequest.headers()["idempotency-key"];
+      expect(secondBootstrapIdempotencyKey).toBeTruthy();
+      if (!secondBootstrapIdempotencyKey)
+        throw new Error("Second Owner bootstrap omitted its idempotency key.");
       const secondOrganization = (await secondBootstrapResponse.json()) as {
         organizationId: string;
         locationId: string;
       };
+      await expectPersistedOwnerSignupConsent(
+        secondUserId,
+        secondBootstrapIdempotencyKey
+      );
 
       const secondTenantRequest = new URL("/api/v1/owner/groups", appOrigin);
       secondTenantRequest.searchParams.set(
@@ -666,6 +697,47 @@ function nextMonth(): string {
   next.setUTCDate(1);
   next.setUTCMonth(next.getUTCMonth() + 1);
   return `${next.getUTCFullYear()}-${String(next.getUTCMonth() + 1).padStart(2, "0")}`;
+}
+
+async function expectPersistedOwnerSignupConsent(
+  ownerUserId: string,
+  idempotencyKey: string
+): Promise<void> {
+  const consentProof = `signup:${createHash("sha256")
+    .update(idempotencyKey)
+    .digest("hex")}`;
+  const persisted = await pool.query<{
+    state: string;
+    policy_version: string;
+    source: string;
+    consent_proof: string;
+    grant_events: number;
+    total_events: number;
+  }>(
+    `select consent.state,
+            consent.policy_version,
+            consent.source,
+            consent.consent_proof,
+            (select count(*)::int
+               from zaltyko.owner_signup_consent_audits audit
+              where audit.user_id = consent.user_id and audit.event = 'grant') as grant_events,
+            (select count(*)::int
+               from zaltyko.owner_signup_consent_audits audit
+              where audit.user_id = consent.user_id) as total_events
+       from zaltyko.owner_signup_consents consent
+      where consent.user_id = $1::uuid`,
+    [ownerUserId]
+  );
+  expect(persisted.rows).toEqual([
+    {
+      state: "granted",
+      policy_version: "v1-2026-08-01",
+      source: "signup",
+      consent_proof: consentProof,
+      grant_events: 1,
+      total_events: 1,
+    },
+  ]);
 }
 
 function dashboardRange(...instants: string[]): { from: string; to: string } {
