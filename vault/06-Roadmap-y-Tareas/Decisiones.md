@@ -991,3 +991,12 @@ Una ficha externa no crea dueño, academia operativa, trial ni suscripción. Sol
 | Decisión | Permitir crear desde el grupo una ficha mínima (nombre y apellidos) y su primera pertenencia como una sola operación idempotente y transaccional. No crear automáticamente familia, usuario, enrollment, consentimiento ni cargo. |
 | Consecuencia | Reduce pasos sin mezclar conceptos del dominio; comprueba tenant/sede/cupo en servidor, conserva historial M:N y no duplica gimnastas. Eventos/auditoría excluyen PII. |
 | Estado | Implementado localmente y validado con tests focales y PostgreSQL efímero. E2E autenticado, QA manual accesible y base remota aislada pendientes; no hay migración ni despliegue productivo asociado. |
+
+## 2026-10-14 — Reintento inmutable del alta de grupo Owner
+
+| Campo | Valor |
+| --- | --- |
+| Evidencia | La pantalla conservaba una clave en `sessionStorage` tras un resultado ambiguo, pero reconstruía el cuerpo desde valores actuales del formulario al reabrirla. Eso permitía reutilizar la clave con otra solicitud; no demuestra la causa del fallo global de Vitest. |
+| Decisión | Guardar en `sessionStorage` un snapshot versionado y por organización con clave y cuerpo serializado; reintentar exclusivamente ese snapshot. Mantener los campos congelados mientras el resultado sea incierto y liberar el snapshot ante un 4xx definitivo, de modo que una edición posterior obtenga una clave nueva. |
+| Consecuencia | Recarga/reintento conserva el mismo cuerpo y clave; otra organización no lee ese snapshot. Las sesiones antiguas que solo guardaron la clave quedan bloqueadas para evitar una posible duplicación hasta definir cómo resolverlas. |
+| Estado | Implementación local en `codex/owner-groups-idempotency-20261014`, basada en `b64a6533`; 7/7 tests focales, TypeScript y ESLint focal pasan. No integrada, no E2E, no PostgreSQL y sin cambios remotos. La suite completa sigue fallida y sin causa raíz demostrada. |
