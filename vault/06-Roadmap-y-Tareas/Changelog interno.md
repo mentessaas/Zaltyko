@@ -7,6 +7,17 @@ source:
   - ../docs/architecture/zaltyko-domain-model.md
 ---
 
+## 2026-10-14 — Refuerzo del harness local Owner mensual
+
+- En `codex/a2-local-owner-e2e-safety-20261014`, desde `7ac8b87e`, el E2E
+  verifica recuento e importe del pago en Owner a 375, 768 y 1280 px. Añade
+  denegaciones sintéticas por organización, sede y rol coach en pagos y resumen.
+- El runner fija `NEXT_TELEMETRY_DISABLED=1`, intenta parar el proyecto local
+  incluso tras un `supabase start` parcial y conserva sus archivos si `stop`
+  falla. No cambia producto ni inicia servicios.
+- Vitest focal 5/5, TypeScript, ESLint focal, Prettier y `git diff --check`
+  PASS. Chromium/E2E, Supabase, build, producción y remoto no ejecutados.
+
 ## 2026-10-14 — Gate estático PASS; release permanece NO-GO
 
 - Main ejecutó `pnpm gate:all` sobre `0a1bcd1dee3087437b664987cca5168c16555906`:

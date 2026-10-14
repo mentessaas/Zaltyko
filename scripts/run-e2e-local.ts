@@ -37,6 +37,7 @@ const safeEnvironment = Object.fromEntries(
   )
 ) as NodeJS.ProcessEnv & { NODE_ENV?: "development" | "production" | "test" };
 safeEnvironment.NODE_ENV = "test";
+safeEnvironment.NEXT_TELEMETRY_DISABLED = "1";
 
 function run(
   command: string,
@@ -104,7 +105,8 @@ async function findAvailablePort() {
 }
 
 void (async () => {
-  let stackStarted = false;
+  let stackStartAttempted = false;
+  let preserveProjectDirectory = false;
   let testExitCode = 1;
 
   try {
@@ -136,8 +138,8 @@ void (async () => {
     );
     require("node:fs").writeFileSync(configPath, config);
 
+    stackStartAttempted = true;
     run("supabase", localProject(["start"]));
-    stackStarted = true;
 
     const values = parseEnv(
       run("supabase", localProject(["status", "-o", "env"]))
@@ -199,22 +201,25 @@ void (async () => {
     console.error(message);
     testExitCode = 1;
   } finally {
-    if (stackStarted) {
+    if (stackStartAttempted) {
       try {
         run("supabase", localProject(["stop", "--no-backup"]));
         console.log(
           "Supabase local stack stopped and disposable data volumes removed."
         );
       } catch (error) {
+        preserveProjectDirectory = true;
         const message =
           error instanceof Error ? error.message : "unknown stop error";
         console.error(
-          `Could not fully stop the isolated Supabase stack: ${message}`
+          `Could not fully stop the isolated Supabase stack; project files preserved at ${projectDirectory}: ${message}`
         );
         testExitCode = 1;
       }
     }
-    rmSync(projectDirectory, { recursive: true, force: true });
+    if (!preserveProjectDirectory) {
+      rmSync(projectDirectory, { recursive: true, force: true });
+    }
   }
 
   process.exitCode = testExitCode;
