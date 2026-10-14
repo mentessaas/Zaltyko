@@ -23,3 +23,9 @@ export const E2E_DOMAIN_MIGRATIONS = [
 export const E2E_LOCAL_OWNER_SIGNUP_MIGRATIONS = [
   "20261013235142_owner_signup_consent_canonical.sql",
 ] as const;
+
+// Monthly athlete tariff coverage is required by the local authenticated
+// browser journey, but must not leak into the guarded sandbox migration job.
+export const E2E_LOCAL_OWNER_MONTHLY_TARIFF_MIGRATIONS = [
+  "20261014001209_monthly_athlete_tariff_coverage_and_invoice_line_enrollments.sql",
+] as const;
