@@ -28,16 +28,128 @@ let organizationName: string | undefined;
 let locationName: string | undefined;
 let ownerName: string | undefined;
 
+type BrowserDiagnosticEvent = {
+  at: string;
+  type: string;
+  pathname: string;
+  method?: string;
+  status?: number;
+  error?: string;
+  message?: string;
+};
+
+let browserDiagnostics: BrowserDiagnosticEvent[] = [];
+
+function diagnosticPathname(value: string): string {
+  try {
+    return new URL(value).pathname;
+  } catch {
+    return "<invalid-url>";
+  }
+}
+
+function sanitizeDiagnosticText(value: string): string {
+  return value
+    .replace(/https?:\/\/[^\s"'<>]+/gi, diagnosticPathname)
+    .replace(/\bBearer\s+[^\s,;]+/gi, "Bearer <redacted>")
+    .replace(
+      /((?:authorization|cookie|set-cookie|access[_-]?token|refresh[_-]?token|password|secret|idempotency-key)\s*[:=]\s*)[^\s,;]+/gi,
+      "$1<redacted>"
+    )
+    .replace(/\b[A-Z0-9._%+-]+@[A-Z0-9.-]+\.[A-Z]{2,}\b/gi, "<email>")
+    .replace(
+      /\b[0-9a-f]{8}-[0-9a-f]{4}-[1-8][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}\b/gi,
+      "<uuid>"
+    )
+    .replace(/\b[A-Za-z0-9_-]{40,}\b/g, "<redacted>")
+    .replace(/\s+/g, " ")
+    .trim()
+    .slice(0, 400);
+}
+
 test.describe("Isolated local Supabase Owner setup", () => {
   test.describe.configure({ mode: "serial", timeout: 300_000 });
 
-  test.beforeEach(async () => {
+  test.beforeEach(async ({ page }) => {
+    const diagnostics: BrowserDiagnosticEvent[] = [];
+    browserDiagnostics = diagnostics;
+    const record = (event: Omit<BrowserDiagnosticEvent, "at">) => {
+      if (diagnostics.length < 100) {
+        diagnostics.push({ at: new Date().toISOString(), ...event });
+      }
+    };
+
+    page.on("requestfailed", (request) => {
+      if (request.resourceType() !== "document") return;
+      record({
+        type: "document-request-failed",
+        pathname: diagnosticPathname(request.url()),
+        method: request.method(),
+        error: sanitizeDiagnosticText(request.failure()?.errorText ?? ""),
+      });
+    });
+    page.on("response", (response) => {
+      if (response.request().resourceType() !== "document") return;
+      record({
+        type: "document-response",
+        pathname: diagnosticPathname(response.url()),
+        method: response.request().method(),
+        status: response.status(),
+      });
+    });
+    page.on("framenavigated", (frame) => {
+      if (frame !== page.mainFrame()) return;
+      record({
+        type: "main-frame-navigation",
+        pathname: diagnosticPathname(frame.url()),
+      });
+    });
+    page.on("pageerror", (error) => {
+      record({
+        type: "page-error",
+        pathname: diagnosticPathname(page.url()),
+        error: sanitizeDiagnosticText(error.name),
+        message: sanitizeDiagnosticText(error.message),
+      });
+    });
+    page.on("console", (message) => {
+      if (message.type() !== "error" && message.type() !== "warning") return;
+      const text = message.text();
+      if (
+        !/NS_BINDING_ABORTED|navigat|redirect|router|refresh|fetch|network|failed|uncaught|hydration|loading/i.test(
+          text
+        )
+      ) {
+        return;
+      }
+      record({
+        type: `console-${message.type()}`,
+        pathname: diagnosticPathname(page.url()),
+        message: sanitizeDiagnosticText(text),
+      });
+    });
+
     const unique = randomUUID();
     email = `e2e-${unique}@example.test`;
     password = `${randomUUID()}aA1!`;
     ownerName = `Owner E2E ${unique.slice(0, 8)}`;
     organizationName = `Academia E2E ${runId.slice(0, 8)} ${unique.slice(0, 8)}`;
     locationName = `Sede E2E ${runId.slice(0, 8)} ${unique.slice(0, 8)}`;
+  });
+
+  test.afterEach(async ({}, testInfo) => {
+    await testInfo.attach("browser-navigation-diagnostics.json", {
+      body: JSON.stringify(
+        {
+          browser: testInfo.project.name,
+          status: testInfo.status,
+          events: browserDiagnostics,
+        },
+        null,
+        2
+      ),
+      contentType: "application/json",
+    });
   });
 
   test.afterAll(async () => {
