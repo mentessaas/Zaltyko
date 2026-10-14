@@ -7,7 +7,9 @@ efímero para ensayar backup/restauración en dos bases PostgreSQL de loopback.
 La fuente se prepara con las migraciones canónicas requeridas, consentimiento
 canónico sintético y el harness de operaciones existente. Después se genera
 un dump custom, se verifica SHA-256, se restaura en una base vacía y se compara
-el esquema y el catálogo financiero/RLS/constraints/triggers/grants.
+estructuralmente el catálogo (columnas, constraints, RLS, policies, triggers,
+grants y extensiones), además del ledger. Comprueba que `initdb`, `pg_ctl`,
+`psql`, `createdb`, `pg_dump` y `pg_restore` compartan la misma versión mayor.
 
 El fixture del harness contiene una factura mensual por atleta, dos clases en
 uno de los atletas, snapshots de cobertura, cargos, un pago manual sintético y
@@ -35,7 +37,10 @@ parte recibido, WebKit pasó y Firefox seguía bajo diagnóstico. Main debe cerr
 QA, revisar este SHA y autorizar expresamente el runner. Hasta entonces no se
 arranca PostgreSQL, no se ejecuta el harness operativo y no se crean dumps.
 
-Después de la autorización, el único comando de ejecución es:
+El cleanup borra solo el directorio temporal validado después de confirmar que
+el servidor se detuvo. Si `pg_ctl stop` falla o su estado no puede confirmarse,
+preserva el directorio y muestra su ruta de recuperación. Después de la
+autorización, el único comando de ejecución es:
 
 ```bash
 pnpm test:zaltyko-synthetic-restore:local

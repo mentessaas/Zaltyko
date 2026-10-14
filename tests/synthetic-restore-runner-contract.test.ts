@@ -23,12 +23,37 @@ describe("synthetic local restore runner contract", () => {
     expect(runner).not.toMatch(/supabase\.co|vercel\.app|stripe\.com/i);
   });
 
-  it("backs up, hashes, restores, and compares the schema dump", () => {
+  it("backs up, hashes, restores, and compares the structural catalog", () => {
     expect(runner).toContain("pg_dump");
     expect(runner).toContain("pg_restore --exit-on-error");
     expect(runner).toContain("shasum -a 256 -c");
-    expect(runner).toContain("cmp -s");
-    expect(runner).toContain("rm -rf -- \"${RUN_DIR}\"");
+    expect(runner).not.toContain("cmp -s");
+    expect(verifier).toContain("assert.deepEqual(targetCatalog, sourceCatalog");
+  });
+
+  it("preserves the temporary cluster if stop or path validation fails", () => {
+    expect(runner).toContain("PG_START_ATTEMPTED=1");
+    expect(runner).toContain(
+      'if run_clean pg_ctl -D "${PG_DATA}" -m fast stop'
+    );
+    expect(runner).toMatch(
+      /if run_clean pg_ctl -D "\$\{PG_DATA\}" -m fast stop[\s\S]*?else[\s\S]*?preserve_dir=1/
+    );
+    expect(runner).toContain('preserve_dir=1');
+    expect(runner).toContain('if ((preserve_dir == 0)); then');
+    expect(runner).toMatch(
+      /if \(\(preserve_dir == 0\)\); then[\s\S]*?rm -rf -- "\$\{RUN_DIR\}"/
+    );
+    expect(runner.indexOf('if run_clean pg_ctl -D "${PG_DATA}" -m fast stop'))
+      .toBeLessThan(runner.indexOf('rm -rf -- "${RUN_DIR}"'));
+    expect(runner).toContain("recovery path: ${RUN_DIR}");
+  });
+
+  it("requires matching PostgreSQL major versions across local tools", () => {
+    expect(runner).toContain("pg_tool_major_version()");
+    expect(runner).toContain('PG_MAJOR_VERSION="$(pg_tool_major_version initdb)"');
+    expect(runner).toContain('for command in postgres pg_ctl psql createdb pg_dump pg_restore; do');
+    expect(runner).toContain('"${tool_major_version}" != "${PG_MAJOR_VERSION}"');
   });
 
   it("includes local-only consent and monthly coverage migrations", () => {

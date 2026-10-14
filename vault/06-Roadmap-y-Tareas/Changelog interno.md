@@ -14,8 +14,12 @@ comparar una base PostgreSQL local fuente con una restauración vacía: manifies
 y checksum, esquema, catálogo (RLS/policies/triggers/grants), conciliación del
 ledger mensual, consentimiento sintético e invariantes de inmutabilidad.
 Incluye el harness operacional existente y usa solo `127.0.0.1`, entorno de
-proceso limpio y datos sintéticos. Comprobaciones permitidas: sintaxis Bash,
-tests estáticos contractuales, TypeScript y diff-check. El runner y PostgreSQL
+proceso limpio y datos sintéticos. El follow-up de revisión endurece el cleanup
+para preservar y reportar la ruta si no confirma el stop, compara el catálogo
+estructuralmente (sin diff byte a byte de `pg_dump`) y verifica la versión
+mayor de las herramientas PostgreSQL. Comprobaciones permitidas: sintaxis
+Bash y diff-check; tests estáticos contractuales y TypeScript siguen sin
+ejecutarse porque este worktree no tiene `node_modules`. El runner y PostgreSQL
 siguen **sin ejecutar** hasta que QA cierre Firefox y Main revise/autorice este
 SHA. No hay migración, conexión remota ni evidencia de restore Preview o
 producción. Plan y límites: `docs/qa/synthetic-restore-runner-2026-10-14.md`.

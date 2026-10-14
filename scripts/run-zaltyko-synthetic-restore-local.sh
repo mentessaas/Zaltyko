@@ -3,8 +3,6 @@ set -euo pipefail
 
 ROOT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
 cd "${ROOT_DIR}"
-RUN_DIR="$(mktemp -d /tmp/zaltyko-restore.XXXXXX)"
-PG_DATA="${RUN_DIR}/data"
 PG_PORT="$(python3 - <<'PY'
 import socket
 
@@ -13,6 +11,8 @@ with socket.socket() as probe:
     print(probe.getsockname()[1])
 PY
 )"
+RUN_DIR="$(mktemp -d /tmp/zaltyko-restore.XXXXXX)"
+PG_DATA="${RUN_DIR}/data"
 SAFE_PATH="${PATH}"
 SOURCE_DB="zaltyko_restore_source"
 TARGET_DB="zaltyko_restore_target"
@@ -20,6 +20,7 @@ SOURCE_URL="postgresql://postgres@127.0.0.1:${PG_PORT}/${SOURCE_DB}"
 TARGET_URL="postgresql://postgres@127.0.0.1:${PG_PORT}/${TARGET_DB}"
 DUMP_FILE="${RUN_DIR}/source.dump"
 MIGRATION_MANIFEST="${RUN_DIR}/migrations.sha256"
+PG_START_ATTEMPTED=0
 
 MIGRATIONS=(
   20261006080702_establish_zaltyko_domain_foundation.sql
@@ -49,29 +50,67 @@ psql_db() {
 cleanup() {
   local result=$?
   local cleanup_failed=0
+  local preserve_dir=0
+  local server_status=0
   trap - EXIT
   set +e
 
-  if [[ -f "${PG_DATA}/postmaster.pid" ]]; then
-    run_clean pg_ctl -D "${PG_DATA}" -m fast stop >/dev/null 2>&1
-    [[ $? -eq 0 ]] || cleanup_failed=1
+  if ((PG_START_ATTEMPTED == 1)); then
+    if [[ -f "${PG_DATA}/postmaster.pid" ]]; then
+      if run_clean pg_ctl -D "${PG_DATA}" -m fast stop >/dev/null 2>&1; then
+        :
+      else
+        echo "Could not stop local PostgreSQL; preserving ${RUN_DIR}" >&2
+        preserve_dir=1
+      fi
+    else
+      run_clean pg_ctl -D "${PG_DATA}" status >/dev/null 2>&1
+      server_status=$?
+      if ((server_status != 3)); then
+        echo "Could not confirm PostgreSQL is stopped; preserving ${RUN_DIR}" >&2
+        preserve_dir=1
+      fi
+    fi
   fi
-  rm -rf -- "${RUN_DIR}"
-  [[ $? -eq 0 ]] || cleanup_failed=1
 
-  if ((cleanup_failed == 0)); then
+  if ((preserve_dir == 0)); then
+    if [[ "$(dirname -- "${RUN_DIR}")" == "/tmp" &&
+          "$(basename -- "${RUN_DIR}")" == zaltyko-restore.* &&
+          -d "${RUN_DIR}" && ! -L "${RUN_DIR}" ]]; then
+      rm -rf -- "${RUN_DIR}"
+      [[ $? -eq 0 ]] || cleanup_failed=1
+    else
+      echo "Refusing to remove unexpected temporary path: ${RUN_DIR}" >&2
+      preserve_dir=1
+    fi
+  fi
+
+  if ((cleanup_failed == 0 && preserve_dir == 0)); then
     echo "synthetic restore cleanup: PASS" >&2
   else
-    echo "synthetic restore cleanup: FAIL" >&2
+    echo "synthetic restore cleanup: FAIL; recovery path: ${RUN_DIR}" >&2
     result=1
   fi
   exit "${result}"
 }
 trap cleanup EXIT
 
-for command in initdb pg_ctl psql createdb pg_dump pg_restore shasum python3 pnpm; do
+for command in initdb postgres pg_ctl psql createdb pg_dump pg_restore shasum python3 pnpm; do
   if ! command -v "${command}" >/dev/null 2>&1; then
     echo "Required local tool not found: ${command}" >&2
+    exit 1
+  fi
+done
+
+pg_tool_major_version() {
+  run_clean "$1" --version | awk '{print $NF}' | cut -d. -f1
+}
+
+PG_MAJOR_VERSION="$(pg_tool_major_version initdb)"
+for command in postgres pg_ctl psql createdb pg_dump pg_restore; do
+  tool_major_version="$(pg_tool_major_version "${command}")"
+  if [[ "${tool_major_version}" != "${PG_MAJOR_VERSION}" ]]; then
+    echo "PostgreSQL major version mismatch: initdb=${PG_MAJOR_VERSION}, ${command}=${tool_major_version}" >&2
     exit 1
   fi
 done
@@ -84,6 +123,7 @@ for migration in "${MIGRATIONS[@]}"; do
 done
 
 run_clean initdb -D "${PG_DATA}" -U postgres -A trust --no-locale -E UTF8 >/dev/null
+PG_START_ATTEMPTED=1
 run_clean pg_ctl -D "${PG_DATA}" \
   -o "-h 127.0.0.1 -p ${PG_PORT} -c listen_addresses=127.0.0.1" \
   -l "${RUN_DIR}/postgres.log" start >/dev/null
@@ -156,19 +196,11 @@ run_clean shasum -a 256 -c "${DUMP_FILE}.sha256" >/dev/null
 run_clean pg_restore --exit-on-error --no-owner --dbname="${TARGET_URL}" \
   "${DUMP_FILE}"
 
-run_clean pg_dump -h 127.0.0.1 -p "${PG_PORT}" -U postgres \
-  --schema-only --no-owner --dbname="${SOURCE_DB}" \
-  --file="${RUN_DIR}/source-schema.sql"
-run_clean pg_dump -h 127.0.0.1 -p "${PG_PORT}" -U postgres \
-  --schema-only --no-owner --dbname="${TARGET_DB}" \
-  --file="${RUN_DIR}/target-schema.sql"
-cmp -s "${RUN_DIR}/source-schema.sql" "${RUN_DIR}/target-schema.sql"
-
 env -i "PATH=${SAFE_PATH}" \
   RESTORE_SOURCE_DATABASE_URL="${SOURCE_URL}" \
   RESTORE_TARGET_DATABASE_URL="${TARGET_URL}" \
   pnpm exec tsx scripts/verify-zaltyko-synthetic-restore-local.ts
 
 DUMP_SHA256="$(shasum -a 256 "${DUMP_FILE}" | awk '{print $1}')"
-printf '{"status":"PASS","scope":"two loopback databases","migrationCount":%s,"migrationManifestSha256":"%s","dumpSha256":"%s","schemaDump":"identical"}\n' \
-  "${#MIGRATIONS[@]}" "${MIGRATION_MANIFEST_SHA256}" "${DUMP_SHA256}"
+printf '{"status":"PASS","scope":"two loopback databases","migrationCount":%s,"migrationManifestSha256":"%s","dumpSha256":"%s","catalog":"identical","pgMajorVersion":"%s"}\n' \
+  "${#MIGRATIONS[@]}" "${MIGRATION_MANIFEST_SHA256}" "${DUMP_SHA256}" "${PG_MAJOR_VERSION}"
