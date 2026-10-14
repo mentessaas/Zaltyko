@@ -24,6 +24,32 @@ const bodySchema = z
       .string()
       .regex(/^[A-Z]{3}$/)
       .optional(),
+    coverage: z
+      .object({
+        classTemplateIds: z.array(z.string().uuid()).min(1).max(100),
+        startsOn: z.string().date(),
+        endsOn: z.string().date().nullable(),
+      })
+      .strict()
+      .superRefine((coverage, context) => {
+        if (
+          new Set(coverage.classTemplateIds).size !==
+          coverage.classTemplateIds.length
+        ) {
+          context.addIssue({
+            code: z.ZodIssueCode.custom,
+            path: ["classTemplateIds"],
+            message: "No repitas una plantilla en la cobertura.",
+          });
+        }
+        if (coverage.endsOn && coverage.endsOn < coverage.startsOn) {
+          context.addIssue({
+            code: z.ZodIssueCode.custom,
+            path: ["endsOn"],
+            message: "La fecha final no puede ser anterior a la inicial.",
+          });
+        }
+      }),
   })
   .strict();
 const idempotencyKeySchema = z.string().trim().min(8).max(180);
@@ -54,7 +80,7 @@ export async function POST(request: Request) {
     return problemResponse({
       status: 400,
       title: "Tarifa mensual incompleta",
-      detail: "Indica un nombre y un importe mensual válido.",
+      detail: "Indica un nombre, un importe y una cobertura mensual válidos.",
       type: "invalid-monthly-price-plan-command",
       errors: {
         ...(parsed.success ? {} : { body: parsed.error.flatten() }),
@@ -92,6 +118,7 @@ export async function POST(request: Request) {
       currency: result.pricePlan.currency,
       cadence: result.pricePlan.cadence,
       isActive: result.pricePlan.isActive,
+      coverage: result.coverage,
     };
     return noStore(result.replayed ? apiSuccess(payload) : apiCreated(payload));
   } catch (error) {

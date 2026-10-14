@@ -74,6 +74,7 @@ const ID = {
   templateTarget: "10000000-0000-4000-8000-000000000102",
   templateExpired: "10000000-0000-4000-8000-000000000103",
   templateSecond: "10000000-0000-4000-8000-000000000107",
+  templateB: "20000000-0000-4000-8000-000000000100",
   sessionNorth: "10000000-0000-4000-8000-000000000104",
   pricePlanMonthly: "10000000-0000-4000-8000-000000000105",
   pricePlanAnnual: "10000000-0000-4000-8000-000000000106",
@@ -194,6 +195,14 @@ async function seed(): Promise<void> {
       ('${ID.templateExpired}', '${ID.orgA}', '${ID.locationA}', '${ID.program}', '${ID.spaceA}', 'Clase terminada', 4, 'active', '2026-09-01', '2026-09-30'),
       ('${ID.templateSecond}', '${ID.orgA}', '${ID.locationA}', '${ID.program}', '${ID.spaceA}', 'Base miércoles', 4, 'active', '2026-09-01', null);
 
+    insert into zaltyko.class_templates (
+      id, organization_id, location_id, name, capacity, status,
+      effective_from, effective_to
+    ) values (
+      '${ID.templateB}', '${ID.orgB}', '${ID.locationB}',
+      'Base sintética B', 4, 'active', '2026-09-01', null
+    );
+
     insert into zaltyko.class_template_weekdays (
       organization_id, class_template_id, iso_weekday, starts_at_local, ends_at_local
     ) values
@@ -221,6 +230,27 @@ async function count(table: string, where = "true"): Promise<number> {
   return Number(result.rows[0]?.count ?? 0);
 }
 
+async function withTimeout<T>(
+  promise: Promise<T>,
+  timeoutMs: number,
+  label: string
+): Promise<T> {
+  let timer: ReturnType<typeof setTimeout> | undefined;
+  try {
+    return await Promise.race([
+      promise,
+      new Promise<never>((_, reject) => {
+        timer = setTimeout(
+          () => reject(new Error(`${label} excedió ${timeoutMs} ms`)),
+          timeoutMs
+        );
+      }),
+    ]);
+  } finally {
+    if (timer) clearTimeout(timer);
+  }
+}
+
 async function main(): Promise<void> {
   await seed();
 
@@ -229,6 +259,11 @@ async function main(): Promise<void> {
     locationId: ID.locationB,
     name: "Cuota inicial",
     amountCents: 14500,
+    coverage: {
+      classTemplateIds: [ID.templateB],
+      startsOn: "2026-10-01",
+      endsOn: null,
+    },
     idempotencyKey: "blank-academy-monthly-plan",
     actor: outsider,
   });
@@ -239,6 +274,11 @@ async function main(): Promise<void> {
     locationId: ID.locationB,
     name: "Cuota inicial",
     amountCents: 14500,
+    coverage: {
+      classTemplateIds: [ID.templateB],
+      startsOn: "2026-10-01",
+      endsOn: null,
+    },
     idempotencyKey: "blank-academy-monthly-plan",
     actor: outsider,
   });
@@ -254,6 +294,11 @@ async function main(): Promise<void> {
         locationId: ID.locationB,
         name: "Tarifa sin autorización",
         amountCents: 15000,
+        coverage: {
+          classTemplateIds: [ID.templateB],
+          startsOn: "2026-10-01",
+          endsOn: null,
+        },
         idempotencyKey: "cross-tenant-monthly-plan",
         actor: owner,
       }),
@@ -266,11 +311,175 @@ async function main(): Promise<void> {
         locationId: ID.locationA,
         name: "Tarifa de manager",
         amountCents: 15000,
+        coverage: {
+          classTemplateIds: [ID.templateMain],
+          startsOn: "2026-10-01",
+          endsOn: null,
+        },
         idempotencyKey: "manager-monthly-plan",
         actor: manager,
       }),
     "FORBIDDEN"
   );
+
+  const incompleteMonthlyPlan = await createMonthlyPricePlan({
+    organizationId: ID.orgA,
+    locationId: ID.locationA,
+    name: "Cuota mensual por una clase",
+    amountCents: 12000,
+    coverage: {
+      classTemplateIds: [ID.templateMain],
+      startsOn: "2026-10-01",
+      endsOn: "2026-12-31",
+    },
+    idempotencyKey: "monthly-price-incomplete-coverage",
+    actor: owner,
+  });
+  const monthlyCoverageCommand = {
+    organizationId: ID.orgA,
+    locationId: ID.locationA,
+    name: "Cuota mensual multiclass",
+    amountCents: 12000,
+    coverage: {
+      classTemplateIds: [
+        ID.templateMain,
+        ID.templateSecond,
+        ID.templateLimited,
+      ],
+      startsOn: "2026-10-01",
+      endsOn: "2026-12-31",
+    },
+    idempotencyKey: "monthly-price-multiclass",
+    actor: owner,
+  };
+  const [monthlyCoveragePlan, monthlyCoverageConcurrent] = await Promise.all([
+    createMonthlyPricePlan(monthlyCoverageCommand),
+    createMonthlyPricePlan(monthlyCoverageCommand),
+  ]);
+  assert.equal(
+    monthlyCoverageConcurrent.pricePlan.id,
+    monthlyCoveragePlan.pricePlan.id
+  );
+  assert.deepEqual(
+    monthlyCoveragePlan.coverage.map((item) => item.classTemplateId),
+    [ID.templateLimited, ID.templateMain, ID.templateSecond].sort()
+  );
+  assert.deepEqual(
+    [monthlyCoveragePlan.replayed, monthlyCoverageConcurrent.replayed].sort(),
+    [false, true]
+  );
+  const monthlyCoverageEvent = await pool.query(
+    `select payload from zaltyko.outbox_events where idempotency_key = $1`,
+    [monthlyCoverageCommand.idempotencyKey]
+  );
+  assert.deepEqual(
+    monthlyCoverageEvent.rows[0].payload.coverage,
+    monthlyCoveragePlan.coverage
+  );
+  const monthlyCoverageAudit = await pool.query(
+    `select after from zaltyko.audit_log where idempotency_key = $1`,
+    [`${monthlyCoverageCommand.idempotencyKey}:audit`]
+  );
+  assert.deepEqual(
+    monthlyCoverageAudit.rows[0].after.coverage,
+    monthlyCoveragePlan.coverage
+  );
+  assert.equal(
+    JSON.stringify(monthlyCoverageAudit.rows[0].after).includes(
+      "Base miércoles"
+    ),
+    false,
+    "La auditoría guarda IDs y fechas, no nombres de plantillas"
+  );
+  const monthlyCoverageRetry = await createMonthlyPricePlan({
+    ...monthlyCoverageCommand,
+    coverage: {
+      ...monthlyCoverageCommand.coverage,
+      classTemplateIds: [
+        ...monthlyCoverageCommand.coverage.classTemplateIds,
+      ].reverse(),
+    },
+  });
+  assert.equal(
+    monthlyCoverageRetry.pricePlan.id,
+    monthlyCoveragePlan.pricePlan.id
+  );
+  assert.equal(monthlyCoverageRetry.replayed, true);
+  await expectOperationalError(
+    () =>
+      createMonthlyPricePlan({
+        ...monthlyCoverageCommand,
+        coverage: {
+          ...monthlyCoverageCommand.coverage,
+          startsOn: "2026-10-02",
+        },
+      }),
+    "IDEMPOTENCY_CONFLICT"
+  );
+  await expectOperationalError(
+    () =>
+      createMonthlyPricePlan({
+        ...monthlyCoverageCommand,
+        idempotencyKey: "monthly-price-out-of-site-template",
+        coverage: {
+          classTemplateIds: [ID.templateTarget],
+          startsOn: "2026-10-01",
+          endsOn: null,
+        },
+      }),
+    "NOT_FOUND"
+  );
+  await expectOperationalError(
+    () =>
+      createMonthlyPricePlan({
+        ...monthlyCoverageCommand,
+        idempotencyKey: "monthly-price-expired-template",
+        coverage: {
+          classTemplateIds: [ID.templateExpired],
+          startsOn: "2026-10-01",
+          endsOn: null,
+        },
+      }),
+    "INVALID_DATE_RANGE"
+  );
+  await assert.rejects(
+    () =>
+      createMonthlyPricePlan({
+        ...monthlyCoverageCommand,
+        idempotencyKey: "monthly-price-invalid-calendar-date",
+        coverage: {
+          ...monthlyCoverageCommand.coverage,
+          startsOn: "2026-02-30",
+        },
+      }),
+    (error: unknown) => error instanceof z.ZodError
+  );
+  const alternateMonthlyPlan = await createMonthlyPricePlan({
+    organizationId: ID.orgA,
+    locationId: ID.locationA,
+    name: "Cuota mensual alternativa",
+    amountCents: 12500,
+    coverage: {
+      classTemplateIds: [ID.templateSecond],
+      startsOn: "2026-10-01",
+      endsOn: "2026-12-31",
+    },
+    idempotencyKey: "monthly-price-alternative-coverage",
+    actor: owner,
+  });
+  const northMonthlyPlan = await createMonthlyPricePlan({
+    organizationId: ID.orgA,
+    locationId: ID.locationA2,
+    name: "Cuota mensual norte",
+    amountCents: 12000,
+    coverage: {
+      classTemplateIds: [ID.templateTarget],
+      startsOn: "2026-10-01",
+      endsOn: "2026-12-31",
+    },
+    idempotencyKey: "monthly-price-north-coverage",
+    actor: owner,
+  });
 
   const createdGroup = await createOperationalGroup({
     organizationId: ID.orgA,
@@ -1147,7 +1356,7 @@ async function main(): Promise<void> {
     status: "active",
     startsOn: "2026-10-01",
     source: "owner",
-    pricePlanId: ID.pricePlanMonthly,
+    pricePlanId: incompleteMonthlyPlan.pricePlan.id,
     idempotencyKey: "enroll-athlete-4-main",
     actor: owner,
   });
@@ -1159,7 +1368,7 @@ async function main(): Promise<void> {
     status: "active",
     startsOn: "2026-10-01",
     source: "owner",
-    pricePlanId: ID.pricePlanMonthly,
+    pricePlanId: incompleteMonthlyPlan.pricePlan.id,
     idempotencyKey: "enroll-athlete-4-second-class",
     actor: owner,
   });
@@ -1256,7 +1465,7 @@ async function main(): Promise<void> {
       organizationId: ID.orgA,
       locationId: ID.locationA,
       enrollmentId: enrollment.id,
-      pricePlanId: ID.pricePlanMonthly,
+      pricePlanId: incompleteMonthlyPlan.pricePlan.id,
       startsOn: enrollment.starts_on,
       idempotencyKey: `monthly-price-assignment-${enrollment.id}`,
       actor: owner,
@@ -1286,28 +1495,39 @@ async function main(): Promise<void> {
     "La falta de cobertura no produce una línea parcial por gimnasta"
   );
 
-  const coverageRows = await pool.query<{ id: string }>(
-    `insert into zaltyko.price_plan_class_template_coverage (
-       organization_id, location_id, price_plan_id, class_template_id,
-       starts_on, ends_on
-     ) values
-       ($1, $2, $3, $4, '2026-10-01', '2026-10-31'),
-       ($1, $2, $3, $5, '2026-10-02', '2026-10-31'),
-       ($1, $2, $3, $6, '2026-10-01', '2026-10-31'),
-       ($1, $2, $7, $5, '2026-10-01', '2026-10-31'),
-       ($8, $9, $3, $10, '2026-10-01', '2026-10-31')
-     returning id`,
+  const coverageRows = await pool.query<{
+    id: string;
+    class_template_id: string;
+  }>(
+    `select id, class_template_id
+     from zaltyko.price_plan_class_template_coverage
+     where organization_id = $1 and location_id = $2 and price_plan_id = $3
+     order by class_template_id`,
+    [ID.orgA, ID.locationA, monthlyCoveragePlan.pricePlan.id]
+  );
+  assert.equal(coverageRows.rowCount, 3);
+  const secondTemplateCoverageId = coverageRows.rows.find(
+    (row) => row.class_template_id === ID.templateSecond
+  )!.id;
+  await pool.query(
+    `update zaltyko.price_plan_class_template_coverage
+     set starts_on = '2026-10-02'
+     where organization_id = $1 and id = $2`,
+    [ID.orgA, secondTemplateCoverageId]
+  );
+  const quotedEnrollmentIds = uncoveredFamily!.enrollments.map(
+    (enrollment) => enrollment.enrollmentId
+  );
+  await pool.query(
+    `update zaltyko.enrollment_price_assignments
+     set price_plan_id = $3
+     where organization_id = $1 and location_id = $2
+       and enrollment_id = any($4::uuid[])`,
     [
       ID.orgA,
       ID.locationA,
-      ID.pricePlanMonthly,
-      ID.templateMain,
-      ID.templateSecond,
-      ID.templateLimited,
-      ID.pricePlanMonthlyAlt,
-      ID.orgA,
-      ID.locationA2,
-      ID.templateTarget,
+      monthlyCoveragePlan.pricePlan.id,
+      quotedEnrollmentIds,
     ]
   );
   const partialCoverageQuote = await getMonthlyInvoiceOptions({
@@ -1328,7 +1548,7 @@ async function main(): Promise<void> {
     `update zaltyko.price_plan_class_template_coverage
      set starts_on = '2026-10-01'
      where organization_id = $1 and id = $2`,
-    [ID.orgA, coverageRows.rows[1].id]
+    [ID.orgA, secondTemplateCoverageId]
   );
 
   const monthlyOptions = await getMonthlyInvoiceOptions({
@@ -1406,7 +1626,7 @@ async function main(): Promise<void> {
     `update zaltyko.enrollment_price_assignments
      set price_plan_id = $3
      where organization_id = $1 and enrollment_id = $2`,
-    [ID.orgA, secondAttendanceEnrollment.id, ID.pricePlanMonthlyAlt]
+    [ID.orgA, secondAttendanceEnrollment.id, alternateMonthlyPlan.pricePlan.id]
   );
   const conflictingPlanOptions = await getMonthlyInvoiceOptions({
     organizationId: ID.orgA,
@@ -1433,7 +1653,7 @@ async function main(): Promise<void> {
     `update zaltyko.enrollment_price_assignments
      set price_plan_id = $3
      where organization_id = $1 and enrollment_id = $2`,
-    [ID.orgA, secondAttendanceEnrollment.id, ID.pricePlanMonthly]
+    [ID.orgA, secondAttendanceEnrollment.id, monthlyCoveragePlan.pricePlan.id]
   );
   const stableAmountQuote = await getMonthlyInvoiceOptions({
     organizationId: ID.orgA,
@@ -1450,7 +1670,7 @@ async function main(): Promise<void> {
     `update zaltyko.price_plan_class_template_coverage
      set ends_on = '2026-10-30'
      where organization_id = $1 and id = $2`,
-    [ID.orgA, coverageRows.rows[1].id]
+    [ID.orgA, secondTemplateCoverageId]
   );
   await expectOperationalError(
     () =>
@@ -1469,9 +1689,9 @@ async function main(): Promise<void> {
   );
   await pool.query(
     `update zaltyko.price_plan_class_template_coverage
-     set ends_on = '2026-10-31'
+     set ends_on = '2026-12-31'
      where organization_id = $1 and id = $2`,
-    [ID.orgA, coverageRows.rows[1].id]
+    [ID.orgA, secondTemplateCoverageId]
   );
 
   await pool.query(
@@ -1519,13 +1739,33 @@ async function main(): Promise<void> {
     idempotencyKey: "monthly-invoice-issue-001",
     actor: owner,
   };
-  const concurrentMonthlyIssues = await Promise.all([
-    issueMonthlyInvoice(monthlyCommand),
-    issueMonthlyInvoice({
-      ...monthlyCommand,
-      idempotencyKey: "monthly-invoice-issue-concurrent-002",
-    }),
-  ]);
+  const [concurrentMonthlyIssues, concurrentCoverageCreate] = await withTimeout(
+    Promise.all([
+      Promise.all([
+        issueMonthlyInvoice(monthlyCommand),
+        issueMonthlyInvoice({
+          ...monthlyCommand,
+          idempotencyKey: "monthly-invoice-issue-concurrent-002",
+        }),
+      ]),
+      createMonthlyPricePlan({
+        organizationId: ID.orgA,
+        locationId: ID.locationA,
+        name: "Cuota concurrente con emisión",
+        amountCents: 11500,
+        coverage: {
+          classTemplateIds: [ID.templateMain, ID.templateSecond],
+          startsOn: "2026-10-01",
+          endsOn: null,
+        },
+        idempotencyKey: "monthly-price-concurrent-with-issue",
+        actor: owner,
+      }),
+    ]),
+    15_000,
+    "La creación de cobertura y la emisión concurrentes"
+  );
+  assert.equal(concurrentCoverageCreate.coverage.length, 2);
   const issuedMonthlyInvoice = concurrentMonthlyIssues[0];
   assert.equal(
     concurrentMonthlyIssues[1].invoice.id,
@@ -1575,14 +1815,6 @@ async function main(): Promise<void> {
   );
   const monthlyRetry = await issueMonthlyInvoice(monthlyCommand);
   assert.equal(monthlyRetry.invoice.id, issuedMonthlyInvoice.invoice.id);
-  await expectOperationalError(
-    () =>
-      issueMonthlyInvoice({
-        ...monthlyCommand,
-        locationId: ID.locationA2,
-      }),
-    "IDEMPOTENCY_CONFLICT"
-  );
   const monthlyAlternateKeyRetry = await issueMonthlyInvoice({
     ...monthlyCommand,
     idempotencyKey: "monthly-invoice-issue-002",
@@ -1674,7 +1906,7 @@ async function main(): Promise<void> {
     organizationId: ID.orgA,
     locationId: ID.locationA2,
     enrollmentId: transferredBilledEnrollment.target.id,
-    pricePlanId: ID.pricePlanMonthly,
+    pricePlanId: northMonthlyPlan.pricePlan.id,
     startsOn: "2026-10-01",
     idempotencyKey: "monthly-site-isolation-price",
     actor: owner,
@@ -2086,7 +2318,7 @@ async function main(): Promise<void> {
     `update zaltyko.price_plan_class_template_coverage
      set ends_on = null
      where organization_id = $1 and location_id = $2 and price_plan_id = $3`,
-    [ID.orgA, ID.locationA, ID.pricePlanMonthly]
+    [ID.orgA, ID.locationA, monthlyCoveragePlan.pricePlan.id]
   );
   const rollbackQuote = await getMonthlyInvoiceOptions({
     organizationId: ID.orgA,
@@ -2190,7 +2422,7 @@ async function main(): Promise<void> {
     status: "active",
     startsOn: "2026-10-01",
     source: "owner",
-    pricePlanId: ID.pricePlanMonthly,
+    pricePlanId: monthlyCoveragePlan.pricePlan.id,
     idempotencyKey: "monthly-replacement-enrollment",
     actor: owner,
   });
@@ -2262,6 +2494,81 @@ async function main(): Promise<void> {
     "No se crea una segunda factura por gimnasta en la misma sede y periodo"
   );
 
+  const monthlyPlanRollbackKey = "monthly-price-rollback-001";
+  await pool.query(`
+    create or replace function zaltyko_domain_private.fail_monthly_plan_audit()
+    returns trigger language plpgsql as $$
+    begin
+      if new.action = 'billing.monthly_price_plan_created'
+         and new.idempotency_key = '${monthlyPlanRollbackKey}:audit' then
+        raise exception using errcode = '23514', message = 'forced plan audit rollback';
+      end if;
+      return new;
+    end
+    $$;
+    create trigger fail_monthly_plan_audit
+      before insert on zaltyko.audit_log
+      for each row execute function zaltyko_domain_private.fail_monthly_plan_audit();
+  `);
+  try {
+    await assert.rejects(
+      createMonthlyPricePlan({
+        organizationId: ID.orgA,
+        locationId: ID.locationA,
+        name: "Cuota rollback transaccional",
+        amountCents: 12500,
+        coverage: {
+          classTemplateIds: [ID.templateMain, ID.templateSecond],
+          startsOn: "2026-10-01",
+          endsOn: null,
+        },
+        idempotencyKey: monthlyPlanRollbackKey,
+        actor: owner,
+      })
+    );
+  } finally {
+    await pool.query(`
+      drop trigger fail_monthly_plan_audit on zaltyko.audit_log;
+      drop function zaltyko_domain_private.fail_monthly_plan_audit();
+    `);
+  }
+  assert.equal(
+    await count("zaltyko.price_plans", "name = 'Cuota rollback transaccional'"),
+    0
+  );
+  assert.equal(
+    await count(
+      "zaltyko.price_plan_class_template_coverage",
+      `price_plan_id in (select id from zaltyko.price_plans where name = 'Cuota rollback transaccional')`
+    ),
+    0
+  );
+  assert.equal(
+    await count(
+      "zaltyko.outbox_events",
+      `idempotency_key = '${monthlyPlanRollbackKey}'`
+    ),
+    0
+  );
+  assert.equal(
+    await count(
+      "zaltyko.audit_log",
+      `idempotency_key = '${monthlyPlanRollbackKey}:audit'`
+    ),
+    0
+  );
+
+  await pool.query(
+    `update zaltyko.price_plan_class_template_coverage
+     set ends_on = '2026-12-30'
+     where organization_id = $1 and location_id = $2 and price_plan_id = $3`,
+    [ID.orgA, ID.locationA, monthlyCoveragePlan.pricePlan.id]
+  );
+  await expectOperationalError(
+    () => createMonthlyPricePlan(monthlyCoverageCommand),
+    "IDEMPOTENCY_CONFLICT"
+  );
+
   const integrity = await pool.query(`
     select
       (select count(*)::int from zaltyko.outbox_events) as outbox_count,
@@ -2284,6 +2591,10 @@ async function main(): Promise<void> {
     JSON.stringify({
       status: "PASS",
       concurrency: "one enrollment accepted, one CAPACITY_FULL",
+      monthlyTariff:
+        "one fee covers two classes; concurrent create and issue completed under 15000ms",
+      monthlyTariffRollback:
+        "plan, coverage, outbox and audit rolled back together",
       sessions: generated.length,
       attendance: "serialized corrections on one row",
       outbox: integrity.rows[0].outbox_count,
