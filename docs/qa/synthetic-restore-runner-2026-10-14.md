@@ -2,6 +2,16 @@
 
 ## Resultado vigente de Main
 
+**PASS local**, dos ejecuciones completas tras el fixture independiente.
+La última valida versión mayor PostgreSQL 14 (corregida extracción Homebrew),
+backup/restore entre dos bases efímeras y catálogos equivalentes: 59 tablas,
+484 restricciones, 49 políticas y nueve triggers. Ledger de noviembre creado
+por servicios: factura 12.000 céntimos, pago parcial de un céntimo, conciliado;
+ocho controles de inmutabilidad y lectura cruzada de consentimiento denegada.
+Once migraciones con manifest SHA-256 registrado por el runner. Cleanup PASS,
+exit 0. Octubre `void` se comprueba solo como fidelidad del fixture de guard.
+No demuestra recuperación remota ni RPO/RTO. Los fallos siguientes son historia.
+
 Seis pruebas estáticas, tipos y lint PASS. Tres ejecuciones locales terminaron
 FAIL con cleanup PASS. Se corrigieron arranque CJS y comparación de posiciones
 lógicas de columnas (pg_dump compacta huecos de columnas eliminadas).

@@ -103,10 +103,14 @@ for command in initdb postgres pg_ctl psql createdb pg_dump pg_restore shasum py
 done
 
 pg_tool_major_version() {
-  run_clean "$1" --version | awk '{print $NF}' | cut -d. -f1
+  run_clean "$1" --version | sed -E 's/^[^0-9]*([0-9]+)(\.[0-9]+)*.*$/\1/'
 }
 
 PG_MAJOR_VERSION="$(pg_tool_major_version initdb)"
+if [[ ! "${PG_MAJOR_VERSION}" =~ ^[0-9]+$ ]]; then
+  echo "Could not parse local PostgreSQL major version" >&2
+  exit 1
+fi
 for command in postgres pg_ctl psql createdb pg_dump pg_restore; do
   tool_major_version="$(pg_tool_major_version "${command}")"
   if [[ "${tool_major_version}" != "${PG_MAJOR_VERSION}" ]]; then

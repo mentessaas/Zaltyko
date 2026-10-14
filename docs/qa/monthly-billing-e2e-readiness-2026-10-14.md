@@ -2,6 +2,14 @@
 
 ## Corte vigente de integración
 
+Los tres navegadores tienen recorrido completo PASS con el producto de
+`d6ac3265`: Firefox 54,9 s y WebKit 34,5 s fijados a ese SHA; Chromium
+29,7 s inició allí, pero la rama avanzó a `7acde8c5` durante la ejecución.
+La comparación posterior no mostró cambios de producto, worker o spec; esta
+salvedad impide describir Chromium como checkout inmutable durante la corrida.
+Todos terminaron exit 0 y cleanup confirmado. Restore sintético local también
+PASS (véase nota específica); remoto, CI del candidato y revisión siguen abiertos.
+
 Firefox en `d6ac32654c0faa506212cb1eb21a677207069947`: **PASS**,
 1/1 en 54,9 segundos, exit 0 y cleanup confirmado. Incluye el bypass RSC
 del service worker, probado además con 13 tests unitarios PASS en Main.
