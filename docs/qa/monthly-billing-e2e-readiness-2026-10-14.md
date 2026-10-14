@@ -2,6 +2,17 @@
 
 ## Corte vigente de integración
 
+Chromium en `0e145bb0a1a517b34535b64d533f31bcf9373357`: **PASS**,
+1/1 prueba en 41,8 segundos, runner exit 0. Incluye pago 201 con JSON leído,
+confirmación visible, dashboard scoped, consulta SQL de persistencia
+(una factura, una línea por gimnasta, dos snapshots, un cargo pagado y un
+pago manual), viewports 375/768/1280 y negativos de alcance/roles.
+QA verificó cleanup de stack/volúmenes y ausencia de runners/contenedores.
+Firefox y WebKit autorizados secuencialmente sobre ese mismo SHA, todavía
+pendientes. La validación local no demuestra compatibilidad del esquema
+remoto ni aprobación del PR ni restauración: **no listo para publicar aún**.
+Los resultados de fallo descritos a continuación son históricos.
+
 Actualización vigente: `ce45564a` integra confirmación accesible del último
 pago y consumo/validación del JSON 201 antes de refrescar la pantalla.
 Main repitió las ocho pruebas de formulario y ruta: PASS.
@@ -58,10 +69,9 @@ ambas inscripciones se reconcilian. Mantener negativos y conteos exactos.
 
 ## Veredicto
 
-**No hay E2E completo verde.** La emisión mensual multiclase sí se ha
-demostrado desde una sesión real local de navegador. El pago recibió 201,
-pero persistencia y dashboard siguen pendientes de validación. No hay
-equivalencia demostrada con la base de datos de Preview o producción.
+**E2E completo Chromium local verde.** Pago, persistencia y dashboard
+comprobados; Firefox y WebKit pendientes. No hay equivalencia demostrada
+con la base de datos de Preview o producción ni gate de publicación cerrado.
 
 ## Qué se ejecutó y qué quedó demostrado
 
