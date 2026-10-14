@@ -18,15 +18,20 @@ source:
 ## P0 — Cerrar el recorrido MVP publicado — 2026-10-14
 
 - [ ] Completar QA de navegadores y revisar el runner local sintético de backup
-  y restore antes de autorizar su ejecución. La rama
-  `codex/synthetic-restore-fixture-nov-20261014` prepara una factura de
-  noviembre con servicios reales;
-  la fila void de octubre solo verifica fidelidad del restore del guard. El
-  runner permanece sin ejecutar: no arrancar PostgreSQL ni crear dumps hasta
-  el cierre de QA y autorización de Main. La prueba prevista usa dos bases
-  loopback y datos sintéticos, y no acredita restauración Preview/producción.
-  Fuente:
-  `docs/qa/synthetic-restore-runner-2026-10-14.md`.
+  y autorizar cualquier escritura remota. Main ya registra tres navegadores
+  PASS y dos restores locales PASS; el restore cubre 11 migraciones en
+  PostgreSQL 14, no la delta ni PostgreSQL 17. El Sandbox actual tiene las 16
+  migraciones compartidas con hashes verificados; consentimiento canónico y
+  cobertura mensual siguen pendientes, y el runner no las admite sin un
+  mecanismo revisado aparte. ADR-0027 ya fija aceptación explícita en Setup
+  para identidades previas (también legacy revoked/obsoletas), sin backfill ni
+  regrant automático; preservar intacto `public.owner_consent`. Antes de DDL:
+  aprobar un runner delta con ledger privado separado, obtener backup lógico
+  cifrado con restore verificable (los backups del plan Free no se pueden
+  descargar) y validar en PostgreSQL 17. No aplicar nada mientras esos gates
+  sigan abiertos. Fuentes:
+  `docs/qa/synthetic-restore-runner-2026-10-14.md` y
+  `docs/qa/sandbox-schema-preflight-2026-10-14.md`.
 
 - [ ] Alinear la cuota mensual con la regla confirmada por gimnasta y tarifa.
   La base auditada factura por enrollment; el diseño propone cobertura explícita
