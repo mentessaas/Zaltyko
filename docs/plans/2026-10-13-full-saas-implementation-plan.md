@@ -18,9 +18,14 @@ la suite de roles se ejecutaron cinco suites (ruta/recovery Login, recuperación
 Register, roles públicos y enlace de recuperación): **39/39 PASS**. No hay E2E
 completo ni despliegue productivo demostrado para este corte.
 
-Bloque en curso: servicio, esquema y consentimiento canónicos de ADR-0027,
-aceptación explícita de cuentas existentes en Setup y walkthrough sintético
-en tres navegadores. Las migraciones nuevas siguen sin aplicación remota.
+Backend ADR-0027 integrado localmente en `19b94c3f` (entrega `4f10141a`):
+consentimiento sin perfil legacy, frescura Auth, reaceptación explícita y audit
+atómica. Cinco suites de consentimiento/regresión pasan **57/57** en integración.
+Harness PostgreSQL efímero real PASS: concurrencia, rollback, RLS propia,
+UPDATE/DELETE/TRUNCATE de audit rechazados y ninguna tabla `public.profiles`.
+Cobertura RLS estática y migraciones PASS. Esto no sustituye instalación completa
+ni E2E autenticado. Frontend conecta Setup; QA prepara walkthrough en tres
+navegadores. La migración nueva sigue sin aplicación remota.
 
 La decisión del propietario sigue siendo **mensual por gimnasta y tarifa**.
 El código actual suma por inscripción y no demuestra todavía esa regla cuando
