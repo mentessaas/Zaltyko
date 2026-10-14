@@ -184,6 +184,7 @@ test.describe("Isolated local Supabase Owner setup", () => {
     const scope = `organizationId=${result.organizationId}&locationId=${result.locationId}`;
     const groupName = `Grupo ${runId.slice(0, 8)}`;
     const className = `Clase ${runId.slice(0, 8)}`;
+    const secondClassName = `Clase extra ${runId.slice(0, 8)}`;
     const athleteGivenName = "Gimnasta";
     const athleteFamilyName = runId.slice(0, 8);
     const athleteName = `${athleteGivenName} ${athleteFamilyName}`;
@@ -191,12 +192,99 @@ test.describe("Isolated local Supabase Owner setup", () => {
     const adultFamilyName = runId.slice(0, 8);
     const adultName = `${adultGivenName} ${adultFamilyName}`;
 
+    async function createClassWithSessions(name: string, weekday: string) {
+      await page.goto(`/owner/classes?${scope}`);
+      await page.getByLabel("Nombre de la clase").fill(name);
+      await page.getByLabel("Plazas disponibles").fill("1");
+      await page.getByLabel("Día 1").selectOption({ label: weekday });
+      const classResponsePromise = page.waitForResponse(
+        (candidate) =>
+          candidate.url().endsWith("/api/v1/owner/classes") &&
+          candidate.request().method() === "POST"
+      );
+      await page
+        .getByRole("button", { name: "Crear clase y sesiones" })
+        .click();
+      const classResponse = await classResponsePromise;
+      expect(classResponse.ok()).toBe(true);
+      const classPayload = (await classResponse.json()) as {
+        data: { id: string; sessionCount: number };
+      };
+      expect(classPayload.data.sessionCount).toBeGreaterThan(0);
+      await expect(
+        page.getByText(
+          new RegExp(
+            `Clase creada con ${classPayload.data.sessionCount} sesiones`
+          )
+        )
+      ).toBeVisible();
+      await page.waitForLoadState("networkidle");
+      return {
+        classTemplateId: classPayload.data.id,
+        sessionCount: classPayload.data.sessionCount,
+      };
+    }
+
+    async function createAndActivateEnrollment(
+      enrolledClassName: string,
+      classTemplateId: string,
+      expectedActiveCount: number
+    ) {
+      await page.goto(`/owner/enrollments?${scope}&status=pending`);
+      const createEnrollment = page.getByRole("form", {
+        name: "Crear inscripción",
+      });
+      const classSelect = createEnrollment.getByLabel("Clase");
+      const classOption = classSelect
+        .locator("option")
+        .filter({ hasText: enrolledClassName })
+        .first();
+      expect(await classOption.getAttribute("value")).toBe(classTemplateId);
+      await classSelect.selectOption(classTemplateId);
+      const search = createEnrollment.getByLabel("Gimnasta");
+      await search.fill(athleteGivenName);
+      await expect(
+        page.getByRole("list", { name: "Resultados de búsqueda" })
+      ).toBeVisible();
+      await page
+        .getByRole("button", { name: athleteName, exact: true })
+        .click();
+      const enrollmentResponse = page.waitForResponse(
+        (candidate) =>
+          candidate.url().endsWith("/api/v1/owner/enrollments") &&
+          candidate.request().method() === "POST"
+      );
+      await createEnrollment
+        .getByRole("button", { name: "Registrar inscripción pendiente" })
+        .click();
+      expect((await enrollmentResponse).ok()).toBe(true);
+      const pendingRow = page
+        .locator("li")
+        .filter({ hasText: athleteName })
+        .last();
+      await expect(pendingRow).toBeVisible();
+      const activateResponse = page.waitForResponse(
+        (candidate) =>
+          /\/api\/v1\/owner\/enrollments\/[^/]+$/.test(candidate.url()) &&
+          candidate.request().method() === "PATCH"
+      );
+      await pendingRow.getByRole("button", { name: "Activar" }).click();
+      expect((await activateResponse).ok()).toBe(true);
+      await page.waitForLoadState("networkidle");
+      await page.goto(`/owner/enrollments?${scope}&status=active`);
+      const activeRows = page.locator("li").filter({ hasText: athleteName });
+      await expect(activeRows).toHaveCount(expectedActiveCount);
+      await expect(
+        activeRows.last().getByText("Activa", { exact: true })
+      ).toBeVisible();
+    }
+
     await page.goto(`/owner/groups?${scope}`);
     await expect(
       page.getByRole("heading", { name: /grupos/i }).first()
     ).toBeVisible();
     await page.getByLabel("Nombre del grupo").fill(groupName);
-    await page.getByLabel("Plazas (opcional)").fill("1");
+    await page.getByLabel("Plazas (opcional)").fill("2");
     const groupResponse = page.waitForResponse(
       (candidate) =>
         candidate.url().endsWith("/api/v1/owner/groups") &&
@@ -217,75 +305,19 @@ test.describe("Isolated local Supabase Owner setup", () => {
     expect((await athleteResponse).ok()).toBe(true);
     await expect(page.getByText(athleteName, { exact: true })).toBeVisible();
 
-    await page.goto(`/owner/classes?${scope}`);
-    await page.getByLabel("Nombre de la clase").fill(className);
-    await page.getByLabel("Plazas disponibles").fill("1");
-    const classResponsePromise = page.waitForResponse(
-      (candidate) =>
-        candidate.url().endsWith("/api/v1/owner/classes") &&
-        candidate.request().method() === "POST"
+    const firstClass = await createClassWithSessions(className, "Lunes");
+    const secondClass = await createClassWithSessions(
+      secondClassName,
+      "Miércoles"
     );
-    await page.getByRole("button", { name: "Crear clase y sesiones" }).click();
-    const classResponse = await classResponsePromise;
-    expect(classResponse.ok()).toBe(true);
-    const classPayload = (await classResponse.json()) as {
-      data: { id: string; sessionCount: number };
-    };
-    expect(classPayload.data.sessionCount).toBeGreaterThan(0);
-    await expect(
-      page.getByText(
-        new RegExp(
-          `Clase creada con ${classPayload.data.sessionCount} sesiones`
-        )
-      )
-    ).toBeVisible();
-    await page.waitForLoadState("networkidle");
-
-    await page.goto(`/owner/enrollments?${scope}&status=pending`);
-    const createEnrollment = page.getByRole("form", {
-      name: "Crear inscripción",
-    });
-    const classSelect = createEnrollment.getByLabel("Clase");
-    const classOption = classSelect
-      .locator("option")
-      .filter({ hasText: className })
-      .first();
-    await classSelect.selectOption((await classOption.getAttribute("value"))!);
-    const search = createEnrollment.getByLabel("Gimnasta");
-    await search.fill(athleteGivenName);
-    await expect(
-      page.getByRole("list", { name: "Resultados de búsqueda" })
-    ).toBeVisible();
-    await page.getByRole("button", { name: athleteName, exact: true }).click();
-    const enrollmentResponse = page.waitForResponse(
-      (candidate) =>
-        candidate.url().endsWith("/api/v1/owner/enrollments") &&
-        candidate.request().method() === "POST"
+    const classTemplateId = firstClass.classTemplateId;
+    const secondClassTemplateId = secondClass.classTemplateId;
+    await createAndActivateEnrollment(className, classTemplateId, 1);
+    await createAndActivateEnrollment(
+      secondClassName,
+      secondClassTemplateId,
+      2
     );
-    await createEnrollment
-      .getByRole("button", { name: "Registrar inscripción pendiente" })
-      .click();
-    expect((await enrollmentResponse).ok()).toBe(true);
-    const pendingRow = page
-      .locator("li")
-      .filter({ hasText: athleteName })
-      .last();
-    await expect(pendingRow).toBeVisible();
-    const activateResponse = page.waitForResponse(
-      (candidate) =>
-        /\/api\/v1\/owner\/enrollments\/[^/]+$/.test(candidate.url()) &&
-        candidate.request().method() === "PATCH"
-    );
-    await pendingRow.getByRole("button", { name: "Activar" }).click();
-    expect((await activateResponse).ok()).toBe(true);
-    await page.waitForLoadState("networkidle");
-    await page.goto(`/owner/enrollments?${scope}&status=active`);
-    await expect(
-      page
-        .locator("li")
-        .filter({ hasText: athleteName })
-        .getByText("Activa", { exact: true })
-    ).toBeVisible();
 
     await page.goto(`/owner/attendance?${scope}`);
     await expect(
@@ -297,7 +329,13 @@ test.describe("Isolated local Supabase Owner setup", () => {
         timeout: 30_000,
       })
       .toBeGreaterThan(1);
-    await sessionSelect.selectOption({ index: 1 });
+    const firstClassSession = sessionSelect
+      .locator("option")
+      .filter({ hasText: className })
+      .first();
+    const firstClassSessionId = await firstClassSession.getAttribute("value");
+    expect(firstClassSessionId).toBeTruthy();
+    await sessionSelect.selectOption(firstClassSessionId!);
     const selectedSessionId = await sessionSelect.inputValue();
     const selectedSessionResult = await pool.query<{ starts_at: string }>(
       `select starts_at
@@ -327,8 +365,8 @@ test.describe("Isolated local Supabase Owner setup", () => {
     await expect(
       page.getByRole("heading", { name: "Emitir cuota mensual" })
     ).toBeVisible();
-    // This run intentionally has one enrollment; it does not prove per-athlete
-    // deduplication when the same gymnast attends multiple classes.
+    // One gymnast is enrolled in two classes so the invoice proves one
+    // athlete-level line with both covered enrollments.
     const servicePeriod = nextMonth();
     await page.getByLabel("Mes de la cuota").fill(servicePeriod);
     await expect(
@@ -371,31 +409,120 @@ test.describe("Isolated local Supabase Owner setup", () => {
       exact: true,
     });
     await expect(payerSelect).toHaveValue("");
-    await expect(
-      page.getByRole("button", {
-        name: `Asignar tarifa mensual a ${athleteName}`,
-      })
-    ).toBeVisible();
-    await page
-      .getByRole("button", { name: `Asignar tarifa mensual a ${athleteName}` })
-      .click();
+    const tariffAssignmentButtons = page.getByRole("button", {
+      name: `Asignar tarifa mensual a ${athleteName}`,
+    });
+    await expect(tariffAssignmentButtons).toHaveCount(2);
+
+    const waitForPricePlanOptions = () =>
+      page.waitForResponse(
+        (candidate) =>
+          candidate.url().includes("/api/v1/owner/price-plans/options") &&
+          candidate.request().method() === "GET"
+      );
+    const pricePlanOptionsResponsePromise = waitForPricePlanOptions();
+    await tariffAssignmentButtons.first().click();
     await expect(
       page.getByRole("heading", { name: `Asignar tarifa a ${athleteName}` })
     ).toBeVisible();
+    const pricePlanOptionsResponse = await pricePlanOptionsResponsePromise;
+    expect(pricePlanOptionsResponse.ok()).toBe(true);
+    const pricePlanOptionsPayload = (await pricePlanOptionsResponse.json()) as {
+      data: {
+        organizationId: string;
+        locationId: string;
+        classTemplates: Array<{ id: string; name: string }>;
+      };
+    };
+    expect(pricePlanOptionsPayload.data.organizationId).toBe(
+      result.organizationId
+    );
+    expect(pricePlanOptionsPayload.data.locationId).toBe(result.locationId);
+    const coveredClassOptions = pricePlanOptionsPayload.data.classTemplates
+      .filter(({ name }) => [className, secondClassName].includes(name))
+      .sort((left, right) => left.name.localeCompare(right.name));
+    expect(coveredClassOptions.map(({ name }) => name)).toEqual(
+      [className, secondClassName].sort((left, right) =>
+        left.localeCompare(right)
+      )
+    );
+    const coveredClassTemplateIds = coveredClassOptions
+      .map(({ id }) => id)
+      .sort();
+    expect(coveredClassTemplateIds).toEqual(
+      [classTemplateId, secondClassTemplateId].sort()
+    );
+
+    const coverageGroup = page.getByRole("group", {
+      name: "Clases cubiertas",
+    });
+    const firstCoverageCheckbox = coverageGroup.getByRole("checkbox", {
+      name: className,
+      exact: true,
+    });
+    const secondCoverageCheckbox = coverageGroup.getByRole("checkbox", {
+      name: secondClassName,
+      exact: true,
+    });
+    await expect(firstCoverageCheckbox).not.toBeChecked();
+    await expect(secondCoverageCheckbox).not.toBeChecked();
+    await firstCoverageCheckbox.check();
+    await secondCoverageCheckbox.check();
     await page
       .getByLabel("Nombre de la tarifa")
       .fill(`Cuota ${runId.slice(0, 8)}`);
     await page.getByLabel(/Importe mensual/).fill("35,00");
+    await page
+      .getByLabel("Vigente desde", { exact: true })
+      .fill(`${servicePeriod}-01`);
+    await expect(
+      page.getByRole("checkbox", { name: "Sin fecha de fin", exact: true })
+    ).toBeChecked();
     const pricePlanResponse = page.waitForResponse(
       (candidate) =>
         candidate.url().endsWith("/api/v1/owner/billing/price-plans") &&
         candidate.request().method() === "POST"
     );
     await page.getByRole("button", { name: "Crear tarifa mensual" }).click();
-    expect((await pricePlanResponse).ok()).toBe(true);
+    const pricePlanResult = await pricePlanResponse;
+    expect(pricePlanResult.ok()).toBe(true);
+    const pricePlanRequest = pricePlanResult.request().postDataJSON() as {
+      organizationId: string;
+      locationId: string;
+      name: string;
+      amountCents: number;
+      coverage: {
+        classTemplateIds: string[];
+        startsOn: string;
+        endsOn: string | null;
+      };
+    };
+    expect(pricePlanRequest).toEqual({
+      organizationId: result.organizationId,
+      locationId: result.locationId,
+      name: `Cuota ${runId.slice(0, 8)}`,
+      amountCents: 3500,
+      coverage: {
+        classTemplateIds: coveredClassTemplateIds,
+        startsOn: `${servicePeriod}-01`,
+        endsOn: null,
+      },
+    });
+    const pricePlanPayload = (await pricePlanResult.json()) as {
+      data: { id: string };
+    };
+    expect(pricePlanPayload.data.id).toMatch(
+      /^[0-9a-f]{8}-[0-9a-f]{4}-[1-8][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i
+    );
+    const pricePlanId = pricePlanPayload.data.id;
+    await expect(
+      page
+        .getByRole("status")
+        .filter({ hasText: "Tarifa creada con cobertura para 2 clases" })
+    ).toBeVisible();
     await expect(
       page.getByRole("combobox", { name: "Tarifa mensual", exact: true })
-    ).toBeVisible();
+    ).toHaveValue(pricePlanId);
     await page
       .getByLabel("Vigente desde", { exact: true })
       .fill(`${servicePeriod}-01`);
@@ -407,13 +534,65 @@ test.describe("Isolated local Supabase Owner setup", () => {
     );
     await page.getByRole("button", { name: "Guardar tarifa" }).click();
     expect((await tariffAssignment).ok()).toBe(true);
+
+    await expect(tariffAssignmentButtons).toHaveCount(1);
+    const secondPricePlanOptionsResponsePromise = waitForPricePlanOptions();
+    await tariffAssignmentButtons.click();
+    await expect(
+      page.getByRole("heading", { name: `Asignar tarifa a ${athleteName}` })
+    ).toBeVisible();
+    const secondPricePlanOptionsResponse =
+      await secondPricePlanOptionsResponsePromise;
+    expect(secondPricePlanOptionsResponse.ok()).toBe(true);
+    const secondPricePlanOptionsPayload =
+      (await secondPricePlanOptionsResponse.json()) as {
+        data: {
+          organizationId: string;
+          locationId: string;
+          items: Array<{ id: string }>;
+        };
+      };
+    expect(secondPricePlanOptionsPayload.data.organizationId).toBe(
+      result.organizationId
+    );
+    expect(secondPricePlanOptionsPayload.data.locationId).toBe(
+      result.locationId
+    );
+    expect(
+      secondPricePlanOptionsPayload.data.items.some(
+        (item) => item.id === pricePlanId
+      )
+    ).toBe(true);
+    await expect(
+      page.getByRole("combobox", { name: "Tarifa mensual", exact: true })
+    ).toHaveValue(pricePlanId);
+    await page
+      .getByLabel("Vigente desde", { exact: true })
+      .fill(`${servicePeriod}-01`);
+    const secondTariffAssignment = page.waitForResponse(
+      (candidate) =>
+        /\/api\/v1\/owner\/enrollments\/[^/]+\/price-plan$/.test(
+          candidate.url()
+        ) && candidate.request().method() === "PATCH"
+    );
+    await page.getByRole("button", { name: "Guardar tarifa" }).click();
+    expect((await secondTariffAssignment).ok()).toBe(true);
+
+    const invoiceLines = page.getByRole("list", {
+      name: "Desglose por gimnasta",
+    });
+    const invoiceLine = invoiceLines.getByRole("listitem");
+    await expect(invoiceLine).toHaveCount(1);
+    await expect(invoiceLine).toContainText(athleteName);
+    await expect(invoiceLine).toContainText("Clases cubiertas:");
+    await expect(invoiceLine).toContainText(className);
+    await expect(invoiceLine).toContainText(secondClassName);
+    await expect(invoiceLine).toContainText(/35,00/);
+    await expect(payerSelect).toHaveValue("");
     await payerSelect.selectOption({ label: adultName });
     await expect(page.getByText("Total de la factura")).toBeVisible();
     await expect(
-      page
-        .getByText("Total de la factura")
-        .locator("..")
-        .getByText(/35,00/)
+      page.getByText("Total de la factura").locator("..").getByText(/35,00/)
     ).toBeVisible();
     await page
       .getByLabel("Fecha de vencimiento", { exact: true })
@@ -430,7 +609,45 @@ test.describe("Isolated local Supabase Owner setup", () => {
         candidate.request().method() === "POST"
     );
     await invoiceButton.click();
-    expect((await invoiceResponse).ok()).toBe(true);
+    const issuedInvoiceResponse = await invoiceResponse;
+    expect(issuedInvoiceResponse.ok()).toBe(true);
+    const issuedInvoicePayload = (await issuedInvoiceResponse.json()) as {
+      data: {
+        totalAmountCents: number;
+        lines: Array<{
+          athleteId: string;
+          enrollmentId: string | null;
+          pricePlanId: string;
+          amountCents: number;
+          coveredEnrollments: Array<{
+            classTemplateId: string;
+            className: string;
+          }>;
+        }>;
+      };
+    };
+    expect(issuedInvoicePayload.data.totalAmountCents).toBe(3500);
+    expect(issuedInvoicePayload.data.lines).toHaveLength(1);
+    expect(issuedInvoicePayload.data.lines[0]).toMatchObject({
+      athleteId: expect.any(String),
+      enrollmentId: null,
+      pricePlanId,
+      amountCents: 3500,
+    });
+    expect(
+      issuedInvoicePayload.data.lines[0]?.coveredEnrollments
+        .map(({ classTemplateId }) => classTemplateId)
+        .sort()
+    ).toEqual(coveredClassTemplateIds);
+    expect(
+      issuedInvoicePayload.data.lines[0]?.coveredEnrollments
+        .map(({ className: coveredClassName }) => coveredClassName)
+        .sort((left, right) => left.localeCompare(right))
+    ).toEqual(
+      [className, secondClassName].sort((left, right) =>
+        left.localeCompare(right)
+      )
+    );
     await expect(
       page
         .getByRole("status")
@@ -515,12 +732,17 @@ test.describe("Isolated local Supabase Owner setup", () => {
       role: string;
       groups: number;
       members: number;
+      athletes: number;
       class_templates: number;
       sessions: number;
       active_enrollments: number;
+      family_members: number;
+      family_payers: number;
+      tariff_coverage: number;
       attendance: number;
       invoices: number;
       invoice_lines: number;
+      invoice_line_enrollments: number;
       paid_charges: number;
       manual_payments: number;
     }>(
@@ -529,12 +751,17 @@ test.describe("Isolated local Supabase Owner setup", () => {
               member.role::text as role,
               (select count(*)::int from zaltyko.groups g where g.organization_id = organization.id) as groups,
               (select count(*)::int from zaltyko.group_memberships gm where gm.organization_id = organization.id) as members,
+              (select count(*)::int from zaltyko.athletes a where a.organization_id = organization.id) as athletes,
               (select count(*)::int from zaltyko.class_templates ct where ct.organization_id = organization.id) as class_templates,
               (select count(*)::int from zaltyko.sessions s where s.organization_id = organization.id) as sessions,
               (select count(*)::int from zaltyko.enrollments e where e.organization_id = organization.id and e.status = 'active') as active_enrollments,
+              (select count(*)::int from zaltyko.family_members fm where fm.organization_id = organization.id) as family_members,
+              (select count(*)::int from zaltyko.family_payers fp where fp.organization_id = organization.id) as family_payers,
+              (select count(*)::int from zaltyko.price_plan_class_template_coverage pc where pc.organization_id = organization.id) as tariff_coverage,
               (select count(*)::int from zaltyko.attendance_records ar where ar.organization_id = organization.id and ar.status = 'present') as attendance,
               (select count(*)::int from zaltyko.invoices i where i.organization_id = organization.id) as invoices,
               (select count(*)::int from zaltyko.invoice_lines il where il.organization_id = organization.id) as invoice_lines,
+              (select count(*)::int from zaltyko.invoice_line_enrollments ile where ile.organization_id = organization.id) as invoice_line_enrollments,
               (select count(*)::int from zaltyko.charges c where c.organization_id = organization.id and c.status = 'paid' and c.collection_mode = 'manual') as paid_charges,
               (select count(*)::int from zaltyko.payments p where p.organization_id = organization.id and p.source = 'manual') as manual_payments
          from zaltyko.organizations as organization
@@ -551,12 +778,17 @@ test.describe("Isolated local Supabase Owner setup", () => {
         role: "owner",
         groups: 1,
         members: 1,
-        class_templates: 1,
-        sessions: classPayload.data.sessionCount,
-        active_enrollments: 1,
+        athletes: 1,
+        class_templates: 2,
+        sessions: firstClass.sessionCount + secondClass.sessionCount,
+        active_enrollments: 2,
+        family_members: 1,
+        family_payers: 1,
+        tariff_coverage: 2,
         attendance: 1,
         invoices: 1,
         invoice_lines: 1,
+        invoice_line_enrollments: 2,
         paid_charges: 1,
         manual_payments: 1,
       },
