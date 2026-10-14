@@ -25,7 +25,11 @@ function requireLocalDatabaseUrl(
   assert.ok(value, "Restore verifier requires explicit local database URLs");
   const url = new URL(value);
   assert.equal(url.protocol, "postgresql:");
-  assert.equal(url.hostname, "127.0.0.1", "Only loopback PostgreSQL is allowed");
+  assert.equal(
+    url.hostname,
+    "127.0.0.1",
+    "Only loopback PostgreSQL is allowed"
+  );
   assert.equal(url.username, "postgres");
   assert.equal(url.password, "");
   assert.equal(url.pathname, `/${expectedDatabase}`);
@@ -101,7 +105,8 @@ async function readCatalog(pool: Pool) {
 }
 
 async function readMonthlyLedger(pool: Pool) {
-  const invoices = await pool.query(`
+  const invoices = await pool.query(
+    `
     select distinct i.id, i.status, i.currency,
            i.total_amount_cents::text as total_amount_cents
     from zaltyko.invoices i
@@ -112,64 +117,93 @@ async function readMonthlyLedger(pool: Pool) {
       and l.service_period_start = date '2026-10-01'
       and l.service_period_end = date '2026-10-31'
     order by i.id
-  `, [ids.organization]);
+  `,
+    [ids.organization]
+  );
   const invoiceIds = invoices.rows.map((row: { id: string }) => row.id);
   assert.equal(invoiceIds.length, 1, "Expected one synthetic monthly invoice");
 
-  const lines = await pool.query(`
+  const lines = await pool.query(
+    `
     select id, athlete_id, enrollment_id, price_plan_id,
            amount_cents::text as amount_cents, currency,
            service_period_start, service_period_end
     from zaltyko.invoice_lines
     where organization_id = $1 and invoice_id = $2
     order by id
-  `, [ids.organization, invoiceIds[0]]);
+  `,
+    [ids.organization, invoiceIds[0]]
+  );
   const lineIds = lines.rows.map((row: { id: string }) => row.id);
-  const snapshots = await pool.query(`
+  const snapshots = await pool.query(
+    `
     select invoice_line_id, athlete_id, enrollment_id, class_template_id,
            price_assignment_id, class_name_snapshot
     from zaltyko.invoice_line_enrollments
     where organization_id = $1 and invoice_line_id = any($2::uuid[])
     order by invoice_line_id, enrollment_id
-  `, [ids.organization, lineIds]);
-  const charges = await pool.query(`
+  `,
+    [ids.organization, lineIds]
+  );
+  const charges = await pool.query(
+    `
     select id, invoice_line_id, status, collection_mode,
            amount_cents::text as amount_cents, currency
     from zaltyko.charges
     where organization_id = $1 and invoice_id = $2
     order by id
-  `, [ids.organization, invoiceIds[0]]);
-  const payments = await pool.query(`
+  `,
+    [ids.organization, invoiceIds[0]]
+  );
+  const payments = await pool.query(
+    `
     select id, source, status, amount_cents::text as amount_cents,
            currency, processor, provider_payment_id, manual_method, idempotency_key
     from zaltyko.payments
     where organization_id = $1 and idempotency_key = 'monthly-invoice-payment-001'
     order by id
-  `, [ids.organization]);
+  `,
+    [ids.organization]
+  );
   const paymentIds = payments.rows.map((row: { id: string }) => row.id);
-  const allocations = await pool.query(`
+  const allocations = await pool.query(
+    `
     select payment_id, charge_id, amount_cents::text as amount_cents, currency
     from zaltyko.payment_allocations
     where organization_id = $1 and payment_id = any($2::uuid[])
     order by payment_id, charge_id
-  `, [ids.organization, paymentIds]);
-  const consent = await pool.query(`
+  `,
+    [ids.organization, paymentIds]
+  );
+  const consent = await pool.query(
+    `
     select state, policy_version, source, consent_proof
     from zaltyko.owner_signup_consents
     where user_id = $1
-  `, [ids.ownerUser]);
-  const consentAudit = await pool.query(`
+  `,
+    [ids.ownerUser]
+  );
+  const consentAudit = await pool.query(
+    `
     select event, policy_version, source, consent_proof
     from zaltyko.owner_signup_consent_audits
     where user_id = $1
     order by recorded_at, id
-  `, [ids.ownerUser]);
+  `,
+    [ids.ownerUser]
+  );
 
-  assert.equal(lines.rows.length, 2, "Monthly billing must keep one line per athlete");
+  assert.equal(
+    lines.rows.length,
+    2,
+    "Monthly billing must keep one line per athlete"
+  );
   assert(lines.rows.every((line) => line.enrollment_id === null));
   assert.equal(snapshots.rows.length, 3, "Expected three enrollment snapshots");
   assert.equal(
-    snapshots.rows.filter((snapshot) => snapshot.athlete_id === ids.multiClassAthlete).length,
+    snapshots.rows.filter(
+      (snapshot) => snapshot.athlete_id === ids.multiClassAthlete
+    ).length,
     2,
     "The synthetic multi-class athlete must retain both class snapshots"
   );
@@ -201,10 +235,10 @@ async function readMonthlyLedger(pool: Pool) {
   assert.equal(chargeTotal, invoiceTotal);
   assert.equal(paymentTotal, allocationTotal);
   assert.equal(invoices.rows[0].status, "partially_paid");
-  assert.deepEqual(
-    charges.rows.map((charge) => charge.status).sort(),
-    ["due", "paid"]
-  );
+  assert.deepEqual(charges.rows.map((charge) => charge.status).sort(), [
+    "due",
+    "paid",
+  ]);
 
   return {
     invoices: invoices.rows,
@@ -215,28 +249,48 @@ async function readMonthlyLedger(pool: Pool) {
     allocations: allocations.rows,
     consent: consent.rows,
     consentAudit: consentAudit.rows,
-    reconciliation: { invoiceTotal, lineTotal, chargeTotal, paymentTotal, allocationTotal },
+    reconciliation: {
+      invoiceTotal,
+      lineTotal,
+      chargeTotal,
+      paymentTotal,
+      allocationTotal,
+    },
   };
 }
 
 async function verifyRls(pool: Pool): Promise<void> {
-  const catalog = await pool.query<{ table_name: string; rls_enabled: boolean; rls_forced: boolean }>(`
+  const catalog = await pool.query<{
+    table_name: string;
+    rls_enabled: boolean;
+    rls_forced: boolean;
+  }>(
+    `
     select c.relname as table_name, c.relrowsecurity as rls_enabled,
            c.relforcerowsecurity as rls_forced
     from pg_class c join pg_namespace n on n.oid = c.relnamespace
     where n.nspname = 'zaltyko'
       and c.relname = any($1::text[])
     order by c.relname
-  `, [[
-    "invoice_line_enrollments",
-    "price_plan_class_template_coverage",
-    "owner_signup_consents",
-    "owner_signup_consent_audits",
-  ]]);
+  `,
+    [
+      [
+        "invoice_line_enrollments",
+        "price_plan_class_template_coverage",
+        "owner_signup_consents",
+        "owner_signup_consent_audits",
+      ],
+    ]
+  );
   assert.equal(catalog.rows.length, 4);
   assert(catalog.rows.every((row) => row.rls_enabled && row.rls_forced));
 
-  const privileges = await pool.query<{ anon_read: boolean; authenticated_snapshot_read: boolean; service_snapshot_read: boolean; service_snapshot_insert: boolean }>(`
+  const privileges = await pool.query<{
+    anon_read: boolean;
+    authenticated_snapshot_read: boolean;
+    service_snapshot_read: boolean;
+    service_snapshot_insert: boolean;
+  }>(`
     select has_table_privilege('anon', 'zaltyko.invoice_line_enrollments', 'select') as anon_read,
            has_table_privilege('authenticated', 'zaltyko.invoice_line_enrollments', 'select') as authenticated_snapshot_read,
            has_table_privilege('service_role', 'zaltyko.invoice_line_enrollments', 'select') as service_snapshot_read,
@@ -253,12 +307,16 @@ async function verifyRls(pool: Pool): Promise<void> {
   try {
     await client.query("begin");
     await client.query("set local role authenticated");
-    await client.query("select set_config('request.jwt.claim.sub', $1, true)", [ids.ownerUser]);
+    await client.query("select set_config('request.jwt.claim.sub', $1, true)", [
+      ids.ownerUser,
+    ]);
     const ownConsent = await client.query(
       "select count(*)::int as count from zaltyko.owner_signup_consents"
     );
     assert.equal(ownConsent.rows[0].count, 1);
-    await client.query("select set_config('request.jwt.claim.sub', $1, true)", [ids.otherUser]);
+    await client.query("select set_config('request.jwt.claim.sub', $1, true)", [
+      ids.otherUser,
+    ]);
     const crossUserConsent = await client.query(
       "select count(*)::int as count from zaltyko.owner_signup_consents"
     );
@@ -286,7 +344,11 @@ async function expectImmutableFailure(
   }
   await client.query("rollback");
   assert(failure instanceof Error, `${label} unexpectedly succeeded`);
-  assert.match(failure.message, /immutable|append.only/i, `${label} failed for another reason`);
+  assert.match(
+    failure.message,
+    /immutable|append.only/i,
+    `${label} failed for another reason`
+  );
 }
 
 async function verifyImmutability(pool: Pool): Promise<void> {
@@ -329,13 +391,21 @@ try {
     readCatalog(sourcePool),
     readCatalog(targetPool),
   ]);
-  assert.deepEqual(targetCatalog, sourceCatalog, "Restored PostgreSQL catalog differs");
+  assert.deepEqual(
+    targetCatalog,
+    sourceCatalog,
+    "Restored PostgreSQL catalog differs"
+  );
 
   const [sourceLedger, targetLedger] = await Promise.all([
     readMonthlyLedger(sourcePool),
     readMonthlyLedger(targetPool),
   ]);
-  assert.deepEqual(targetLedger, sourceLedger, "Restored financial ledger differs");
+  assert.deepEqual(
+    targetLedger,
+    sourceLedger,
+    "Restored financial ledger differs"
+  );
 
   await Promise.all([
     verifyRls(sourcePool),
@@ -347,27 +417,29 @@ try {
   const catalogSha256 = createHash("sha256")
     .update(JSON.stringify(sourceCatalog))
     .digest("hex");
-  console.log(JSON.stringify({
-    status: "PASS",
-    databases: 2,
-    catalogTables: sourceCatalog.rowSecurity.length,
-    catalogConstraints: sourceCatalog.constraints.length,
-    catalogPolicies: sourceCatalog.policies.length,
-    catalogTriggers: sourceCatalog.triggers.length,
-    catalogSha256,
-    monthlyLedger: {
-      invoices: sourceLedger.invoices.length,
-      lines: sourceLedger.lines.length,
-      enrollmentSnapshots: sourceLedger.snapshots.length,
-      charges: sourceLedger.charges.length,
-      manualPayments: sourceLedger.payments.length,
-      consentAudits: sourceLedger.consentAudit.length,
-      reconciled: true,
-    },
-    rls: "forced and cross-user consent read denied",
-    immutabilityChecks: 8,
-    databaseScope: "loopback-only",
-  }));
+  console.log(
+    JSON.stringify({
+      status: "PASS",
+      databases: 2,
+      catalogTables: sourceCatalog.rowSecurity.length,
+      catalogConstraints: sourceCatalog.constraints.length,
+      catalogPolicies: sourceCatalog.policies.length,
+      catalogTriggers: sourceCatalog.triggers.length,
+      catalogSha256,
+      monthlyLedger: {
+        invoices: sourceLedger.invoices.length,
+        lines: sourceLedger.lines.length,
+        enrollmentSnapshots: sourceLedger.snapshots.length,
+        charges: sourceLedger.charges.length,
+        manualPayments: sourceLedger.payments.length,
+        consentAudits: sourceLedger.consentAudit.length,
+        reconciled: true,
+      },
+      rls: "forced and cross-user consent read denied",
+      immutabilityChecks: 8,
+      databaseScope: "loopback-only",
+    })
+  );
 } finally {
   await Promise.all([sourcePool.end(), targetPool.end()]);
 }

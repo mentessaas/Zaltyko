@@ -14,7 +14,7 @@ const verifier = readFileSync(
 describe("synthetic local restore runner contract", () => {
   it("uses two loopback databases and an isolated disposable cluster", () => {
     expect(runner).toContain("mktemp -d /tmp/zaltyko-restore.");
-    expect(runner).toContain('trap cleanup EXIT');
+    expect(runner).toContain("trap cleanup EXIT");
     expect(runner).toContain("-h 127.0.0.1");
     expect(runner).toContain('SOURCE_DB="zaltyko_restore_source"');
     expect(runner).toContain('TARGET_DB="zaltyko_restore_target"');
@@ -39,21 +39,28 @@ describe("synthetic local restore runner contract", () => {
     expect(runner).toMatch(
       /if run_clean pg_ctl -D "\$\{PG_DATA\}" -m fast stop[\s\S]*?else[\s\S]*?preserve_dir=1/
     );
-    expect(runner).toContain('preserve_dir=1');
-    expect(runner).toContain('if ((preserve_dir == 0)); then');
+    expect(runner).toContain("preserve_dir=1");
+    expect(runner).toContain("if ((preserve_dir == 0)); then");
     expect(runner).toMatch(
       /if \(\(preserve_dir == 0\)\); then[\s\S]*?rm -rf -- "\$\{RUN_DIR\}"/
     );
-    expect(runner.indexOf('if run_clean pg_ctl -D "${PG_DATA}" -m fast stop'))
-      .toBeLessThan(runner.indexOf('rm -rf -- "${RUN_DIR}"'));
+    expect(
+      runner.indexOf('if run_clean pg_ctl -D "${PG_DATA}" -m fast stop')
+    ).toBeLessThan(runner.indexOf('rm -rf -- "${RUN_DIR}"'));
     expect(runner).toContain("recovery path: ${RUN_DIR}");
   });
 
   it("requires matching PostgreSQL major versions across local tools", () => {
     expect(runner).toContain("pg_tool_major_version()");
-    expect(runner).toContain('PG_MAJOR_VERSION="$(pg_tool_major_version initdb)"');
-    expect(runner).toContain('for command in postgres pg_ctl psql createdb pg_dump pg_restore; do');
-    expect(runner).toContain('"${tool_major_version}" != "${PG_MAJOR_VERSION}"');
+    expect(runner).toContain(
+      'PG_MAJOR_VERSION="$(pg_tool_major_version initdb)"'
+    );
+    expect(runner).toContain(
+      "for command in postgres pg_ctl psql createdb pg_dump pg_restore; do"
+    );
+    expect(runner).toContain(
+      '"${tool_major_version}" != "${PG_MAJOR_VERSION}"'
+    );
   });
 
   it("includes local-only consent and monthly coverage migrations", () => {
