@@ -2,6 +2,8 @@ import { readFileSync } from "node:fs";
 import { resolve } from "node:path";
 import { describe, expect, it } from "vitest";
 
+import { normalizePostgresQuery } from "../scripts/lib/postgres-query-normalization";
+
 const runner = readFileSync(
   resolve(process.cwd(), "scripts/run-zaltyko-monthly-billing-paging-local.sh"),
   "utf8"
@@ -15,6 +17,16 @@ const verifier = readFileSync(
 );
 
 describe("monthly billing paging local runner contract", () => {
+  it("matches quoted and unquoted PostgreSQL identifiers consistently", () => {
+    expect(
+      normalizePostgresQuery(
+        'INSERT INTO "zaltyko"."payments" ("id") VALUES ($1)'
+      )
+    ).toBe(
+      normalizePostgresQuery("insert into zaltyko.payments (id) values ($1)")
+    );
+  });
+
   it("requires an isolated PostgreSQL 17 cluster bound to loopback", () => {
     expect(runner).toContain("mktemp -d /tmp/zaltyko-monthly-paging.");
     expect(runner).toContain("trap cleanup EXIT");
@@ -47,10 +59,10 @@ describe("monthly billing paging local runner contract", () => {
     expect(verifier).toContain("from generate_series(2, ${ROW_COUNT}) as n");
     expect(verifier).toContain("snapshotsOnFirstLine");
     expect(verifier).toContain("recordManualPaymentForCharge({");
-    expect(verifier).toContain(
-      'waitForBlockedQuery(pool, "insert into zaltyko.payments")'
-    );
-    expect(verifier).toContain('waitForBlockedQuery(pool, "charges")');
+    expect(verifier).toContain("pg_blocking_pids(replay.pid)");
+    expect(verifier).toContain("activity_lock.locktype = 'advisory'");
+    expect(verifier).toContain("activity_lock.granted = false");
+    expect(verifier).toContain("activity.application_name = $1");
     expect(verifier).not.toMatch(
       /update zaltyko\.(charges|invoices) set status/
     );

@@ -4,6 +4,7 @@ import { Pool } from "pg";
 import { sql } from "drizzle-orm";
 
 import { db } from "@/db";
+import { normalizePostgresQuery } from "./lib/postgres-query-normalization";
 import {
   loadIssuedLines,
   loadMonthlyChargeState,
@@ -23,6 +24,10 @@ const PRICE_PLAN_ID = "10000000-0000-4000-8000-000000000105";
 const INVOICE_ID = "10000000-0000-4000-8000-000000000200";
 const ROW_COUNT = 205;
 const SNAPSHOT_ROW_COUNT = ROW_COUNT * 2 - 1;
+const PAYMENT_APPLICATION_NAME = "zaltyko_monthly_paging_payment";
+const REPLAY_APPLICATION_NAME = "zaltyko_monthly_paging_replay";
+const BARRIER_LOCK_CLASS = 867530;
+const BARRIER_LOCK_OBJECT = 900001;
 
 function assertLoopbackUrl(name: string): string {
   const value = process.env[name];
@@ -202,24 +207,78 @@ async function seed(pool: Pool): Promise<void> {
   `);
 }
 
-async function waitForBlockedQuery(pool: Pool, pattern: string): Promise<void> {
+async function waitForPaymentBarrier(pool: Pool): Promise<{ pid: number }> {
   const deadline = Date.now() + 10_000;
   while (Date.now() < deadline) {
-    const result = await pool.query<{ waiting: number }>(
+    const result = await pool.query<{
+      pid: number;
+      application_name: string;
+      query: string;
+    }>(
       `
-        select count(*)::int as waiting
-        from pg_stat_activity
-        where datname = current_database()
-          and pid <> pg_backend_pid()
-          and wait_event_type = 'Lock'
-          and query ilike $1
+        select activity.pid, activity.application_name, activity.query
+        from pg_stat_activity as activity
+        join pg_locks as activity_lock
+          on activity_lock.pid = activity.pid
+        where activity.datname = current_database()
+          and activity.application_name = $1
+          and activity.wait_event_type = 'Lock'
+          and activity_lock.locktype = 'advisory'
+          and activity_lock.classid = $2::oid
+          and activity_lock.objid = $3::oid
+          and activity_lock.objsubid = 2
+          and activity_lock.granted = false
+        limit 1
       `,
-      [`%${pattern}%`]
+      [PAYMENT_APPLICATION_NAME, BARRIER_LOCK_CLASS, BARRIER_LOCK_OBJECT]
     );
-    if (result.rows[0]?.waiting > 0) return;
+    const waiter = result.rows[0];
+    if (waiter) {
+      assert.equal(waiter.application_name, PAYMENT_APPLICATION_NAME);
+      assert.match(
+        normalizePostgresQuery(waiter.query),
+        /^insert into zaltyko\.payments\b/
+      );
+      return { pid: waiter.pid };
+    }
     await new Promise((resolve) => setTimeout(resolve, 20));
   }
-  throw new Error(`Expected query to wait on a lock: ${pattern}`);
+  throw new Error("Payment service did not wait on the expected advisory lock");
+}
+
+async function waitForReplayBlockedByPayment(
+  pool: Pool,
+  paymentPid: number
+): Promise<void> {
+  const deadline = Date.now() + 10_000;
+  while (Date.now() < deadline) {
+    const result = await pool.query<{
+      pid: number;
+      application_name: string;
+      query: string;
+    }>(
+      `
+        select replay.pid, replay.application_name, replay.query
+        from pg_stat_activity as replay
+        where replay.datname = current_database()
+          and replay.application_name = $1
+          and replay.wait_event_type = 'Lock'
+          and $2::integer = any(pg_blocking_pids(replay.pid))
+        limit 1
+      `,
+      [REPLAY_APPLICATION_NAME, paymentPid]
+    );
+    const waiter = result.rows[0];
+    if (waiter) {
+      assert.equal(waiter.application_name, REPLAY_APPLICATION_NAME);
+      const normalizedQuery = normalizePostgresQuery(waiter.query);
+      assert.match(normalizedQuery, /from zaltyko\.charges\b/);
+      assert.match(normalizedQuery, /for update\b/);
+      return;
+    }
+    await new Promise((resolve) => setTimeout(resolve, 20));
+  }
+  throw new Error("Replay did not wait on the payment service charge lock");
 }
 
 async function verifyConcurrentPaymentReplay(pool: Pool): Promise<void> {
@@ -235,7 +294,12 @@ async function verifyConcurrentPaymentReplay(pool: Pool): Promise<void> {
       returns trigger language plpgsql as $$
       begin
         if new.organization_id = '${ORGANIZATION_ID}'::uuid then
-          perform pg_advisory_xact_lock(867530900001);
+          perform set_config(
+            'application_name', '${PAYMENT_APPLICATION_NAME}', true
+          );
+          perform pg_advisory_xact_lock(
+            ${BARRIER_LOCK_CLASS}, ${BARRIER_LOCK_OBJECT}
+          );
         end if;
         return new;
       end;
@@ -246,7 +310,9 @@ async function verifyConcurrentPaymentReplay(pool: Pool): Promise<void> {
     `);
     await barrier.query("begin");
     barrierOpen = true;
-    await barrier.query("select pg_advisory_xact_lock(867530900001)");
+    await barrier.query(
+      `select pg_advisory_xact_lock(${BARRIER_LOCK_CLASS}, ${BARRIER_LOCK_OBJECT})`
+    );
     paymentPromise = recordManualPaymentForCharge({
       organizationId: ORGANIZATION_ID,
       chargeId: "38000000-0000-4000-8000-000000000001",
@@ -257,11 +323,14 @@ async function verifyConcurrentPaymentReplay(pool: Pool): Promise<void> {
       actor: { userId: OWNER_USER_ID, memberId: OWNER_MEMBER_ID },
     });
     void paymentPromise.catch(() => undefined);
-    await waitForBlockedQuery(pool, "insert into zaltyko.payments");
-    replayPromise = db.transaction((tx) =>
-      loadMonthlyReplayState(tx, ORGANIZATION_ID, INVOICE_ID)
-    );
-    await waitForBlockedQuery(pool, "charges");
+    const paymentWaiter = await waitForPaymentBarrier(pool);
+    replayPromise = db.transaction(async (tx) => {
+      await tx.execute(sql`
+        select set_config('application_name', ${REPLAY_APPLICATION_NAME}, true)
+      `);
+      return loadMonthlyReplayState(tx, ORGANIZATION_ID, INVOICE_ID);
+    });
+    await waitForReplayBlockedByPayment(pool, paymentWaiter.pid);
     await barrier.query("commit");
     barrierOpen = false;
 
