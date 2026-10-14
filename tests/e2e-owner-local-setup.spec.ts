@@ -873,7 +873,15 @@ test.describe("Isolated local Supabase Owner setup", () => {
         .getByText("1", { exact: true })
     ).toBeVisible();
     await expect(operationalSummary.getByText("35,00")).toBeVisible();
-    await expect(page.getByRole("link", { name: "Principal" })).toBeVisible();
+    const primaryNavigation = page.getByRole("navigation", {
+      name: "Principal",
+    });
+    await expect(primaryNavigation).toBeVisible();
+    const dashboardLink = primaryNavigation.getByRole("link", {
+      name: "Resumen",
+    });
+    await expect(dashboardLink).toBeVisible();
+    await expect(dashboardLink).toHaveAttribute("href", `/owner?${scope}`);
 
     const persisted = await pool.query<{
       organization_name: string;
