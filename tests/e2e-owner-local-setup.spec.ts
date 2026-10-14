@@ -259,10 +259,24 @@ test.describe("Isolated local Supabase Owner setup", () => {
         .click();
       const enrollmentResult = await enrollmentResponse;
       expect(enrollmentResult.ok()).toBe(true);
-      const enrollmentPayload = (await enrollmentResult.json()) as {
-        data: { id: string; athleteId: string };
+      const enrollmentRequest = enrollmentResult.request().postDataJSON() as {
+        organizationId: string;
+        locationId: string;
+        athleteId: string;
+        classTemplateId: string;
       };
-      expect(enrollmentPayload.data.athleteId).toBe(athleteId);
+      expect(enrollmentRequest).toMatchObject({
+        organizationId: result.organizationId,
+        locationId: result.locationId,
+        athleteId,
+        classTemplateId,
+      });
+      const enrollmentPayload = (await enrollmentResult.json()) as {
+        data: { id: string };
+      };
+      expect(enrollmentPayload.data.id).toMatch(
+        /^[0-9a-f]{8}-[0-9a-f]{4}-[1-8][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i
+      );
       const pendingRow = page
         .locator("li")
         .filter({ hasText: athleteName })
