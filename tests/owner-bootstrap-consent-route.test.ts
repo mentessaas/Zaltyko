@@ -16,7 +16,7 @@ vi.mock("@/lib/supabase/server", () => ({
 vi.mock("@/lib/auth/current-user", () => ({
   getCurrentUser: mocks.getCurrentUser,
 }));
-vi.mock("@/lib/consent/owner-consent-store", () => {
+vi.mock("@/modules/organizations/application/owner-signup-consent", () => {
   class OwnerSignupConsentError extends Error {
     constructor(readonly code: string) {
       super(code);
@@ -38,7 +38,7 @@ vi.mock("@/modules/organizations/application/bootstrap-organization", () => ({
 }));
 
 import { POST } from "@/app/api/v1/organizations/bootstrap/route";
-import { OwnerSignupConsentError } from "@/lib/consent/owner-consent-store";
+import { OwnerSignupConsentError } from "@/modules/organizations/application/owner-signup-consent";
 
 const payload = {
   organizationName: "Club de Prueba",
@@ -54,14 +54,14 @@ const authUser = {
   user_metadata: { legal_consent_version: "v1-2026-10-14" },
 };
 
-function request() {
+function request(extra: Record<string, unknown> = {}) {
   return new Request("http://localhost/api/v1/organizations/bootstrap", {
     method: "POST",
     headers: {
       "content-type": "application/json",
       "idempotency-key": "request-12345678",
     },
-    body: JSON.stringify(payload),
+    body: JSON.stringify({ ...payload, ...extra }),
   });
 }
 
@@ -92,7 +92,34 @@ describe("POST /api/v1/organizations/bootstrap consent gate", () => {
   it("usa el usuario completo obtenido de auth.getUser, ligado a la sesión", async () => {
     const response = await POST(request());
     expect(response.status).toBe(201);
-    expect(mocks.recordConsent).toHaveBeenCalledWith(authUser);
+    expect(mocks.recordConsent).toHaveBeenCalledWith(authUser, {
+      requestKey: payload.idempotencyKey,
+      contractualAcceptance: undefined,
+    });
+  });
+
+  it("pasa la aceptación explícita al gate para una cuenta existente", async () => {
+    const contractualAcceptance = {
+      accepted: true as const,
+      policyVersion: "v1-2026-08-01",
+    };
+    const response = await POST(request({ contractualAcceptance }));
+    expect(response.status).toBe(201);
+    expect(mocks.recordConsent).toHaveBeenCalledWith(authUser, {
+      requestKey: payload.idempotencyKey,
+      contractualAcceptance,
+    });
+  });
+
+  it("rechaza la forma de aceptación explícita antes de consultar el store", async () => {
+    const response = await POST(
+      request({
+        contractualAcceptance: { accepted: false, policyVersion: "v1" },
+      })
+    );
+    expect(response.status).toBe(400);
+    expect(mocks.recordConsent).not.toHaveBeenCalled();
+    expect(mocks.bootstrap).not.toHaveBeenCalled();
   });
 
   it("rechaza una segunda lectura auth inconsistente antes del gate", async () => {
