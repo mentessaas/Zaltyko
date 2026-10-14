@@ -3,6 +3,18 @@ set -euo pipefail
 
 ROOT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
 SAFE_PATH="${PATH}"
+case "${ZALTYKO_MONTHLY_BILLING_PAGING_CASE:-full}" in
+  full)
+    VERIFIER_SCRIPT="scripts/verify-zaltyko-monthly-billing-paging-local.ts"
+    ;;
+  options)
+    VERIFIER_SCRIPT="scripts/verify-zaltyko-monthly-invoice-options-local.ts"
+    ;;
+  *)
+    echo "Unsupported local harness case; allowed values: full, options" >&2
+    exit 2
+    ;;
+esac
 RUN_DIR="$(mktemp -d /tmp/zaltyko-monthly-paging.XXXXXX)"
 PG_DATA="${RUN_DIR}/data"
 PG_PORT="$(env -i "PATH=${SAFE_PATH}" LC_ALL=C python3 - <<'PY'
@@ -149,4 +161,4 @@ env -i "PATH=${SAFE_PATH}" "HOME=${RUN_DIR}" \
     ZALTYKO_MONTHLY_BILLING_PAGING_PORT="${PG_PORT}" \
     ZALTYKO_MONTHLY_BILLING_PAGING_LOCAL=1 \
     pnpm --dir "${ROOT_DIR}" exec tsx \
-      scripts/verify-zaltyko-monthly-billing-paging-local.ts
+      "${VERIFIER_SCRIPT}"
