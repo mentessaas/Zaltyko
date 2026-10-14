@@ -28,6 +28,15 @@ allowlist base; no se implementó. No hubo escrituras remotas, cambios de
 SQL/allowlist ni despliegue. Detalle y gates en
 `docs/qa/sandbox-schema-preflight-2026-10-14.md`.
 
+Se implementó la fase `DRYRUN_READONLY` como `pnpm e2e:schema-delta:preflight`.
+Sin `--connect` devuelve el plan local `NO_VERIFICADO`; la consulta opcional
+exige confirmación literal del ref sandbox, URL coherente y CA TLS, y solo usa
+una transacción PostgreSQL `READ ONLY`. Verifica la base de 16 hashes y detecta
+drift delta en catálogos/ledger sin consultar filas de negocio. No crea ledger,
+ejecuta DDL ni conecta con el remoto durante los tests. No habilita `--apply`;
+el runner de escritura, backup restaurable, compatibilidad PostgreSQL 17 y
+aplicación continúan pendientes de revisión y autorización aparte.
+
 ## 2026-10-14 — Runner local sintético de backup y restore
 
 Se añadió en `codex/synthetic-restore-local-20261014` un runner efímero para

@@ -22,8 +22,10 @@ source:
   PASS y dos restores locales PASS; el restore cubre 11 migraciones en
   PostgreSQL 14, no la delta ni PostgreSQL 17. El Sandbox actual tiene las 16
   migraciones compartidas con hashes verificados; consentimiento canónico y
-  cobertura mensual siguen pendientes, y el runner no las admite sin un
-  mecanismo revisado aparte. ADR-0027 ya fija aceptación explícita en Setup
+  cobertura mensual siguen pendientes. Existe `pnpm e2e:schema-delta:preflight`
+  en modo solo lectura para validar ledger y catálogos; no crea ledger ni aplica
+  SQL y los tests no conectan al Sandbox. El runner de escritura continúa
+  pendiente de revisión independiente. ADR-0027 ya fija aceptación explícita en Setup
   para identidades previas (también legacy revoked/obsoletas), sin backfill ni
   regrant automático; preservar intacto `public.owner_consent`. Antes de DDL:
   aprobar un runner delta con ledger privado separado, obtener backup lógico
