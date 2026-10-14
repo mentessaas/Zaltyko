@@ -10,10 +10,10 @@ Supabase de pago se mantiene: no provisionar recursos facturables.
 | Requisito | Estado y evidencia actual |
 | --- | --- |
 | Navegación Owner autenticada | CI `38481155607`, SHA `5708d130`, 33/33 PASS en tres navegadores, incluidos breakpoints; no demuestra alta desde cero. |
-| Alta cuenta y academia vacía | Signup UI real local confirma Auth, pero POST del perfil legacy devuelve 500. Stack canónico no crea public.profiles; SQLSTATE exacto no capturado. ADR-0027 elimina esa dependencia. Alta completa pendiente. |
+| Alta cuenta y academia vacía | Fallo histórico: signup Auth PASS y perfil legacy 500. Alta Owner ahora omite ese POST; backend ADR-0027 integrado en 19b94c3f. Conexión de Setup y nuevo E2E completo pendientes. |
 | Recorrido completo issue #227 | NO DEMO-READY; no hay walkthrough de seis pasos aprobado. CI global verde tolera el fallo experimental del setup. |
 | Resumen de operaciones | Servicio validado con PostgreSQL efímero real: M:N, otro tenant, fechas/DST, bruto por moneda y manager sin SELECT financiero. Tablas mínimas sintéticas, no esquema completo/RLS remoto. Walkthrough autenticado del resumen pendiente. |
-| Aceptación contractual | Gate previo integrado en dec076e1: 43 tests + 3 guard harness, grant concurrente único y rollback audit reales PASS. Ese store sigue vinculado a perfil legacy; sustitución canónica ADR-0027 en curso, sin importación de declaraciones históricas. |
+| Aceptación contractual | Backend canónico integrado: 57 pruebas focales y harness PostgreSQL real PASS, sin public.profiles. Frescura Auth, reaceptación explícita, grant concurrente único, rollback audit, RLS propia y bloqueo UPDATE/DELETE/TRUNCATE comprobados. Esquema mínimo temporal; no prueba instalación completa ni estado remoto. |
 | Analítica browser | Gate default-deny integrado; no UI de grant, no captura por defecto. No sustituye revisión integral RGPD/menores. |
 | Cuota mensual | Mensual por gimnasta y tarifa confirmado; cobertura multiclase sin decidir. No emitir cuotas reales ambiguas. |
 | Release | #225 sin aprobación independiente; #226 draft. Preview no prueba compatibilidad remota ni release productivo. |
@@ -31,7 +31,10 @@ activar inscripción se observaron en Chromium/Firefox con identidad sintética
 provisionada: no equivalen a signup real. La siguiente prueba sí empieza en
 registro público y confirma Auth, pero falla preparación del perfil legacy.
 QA corrige además SQL y período del panel; el gate canónico nuevo y el recorrido
-completo siguen pendientes. Este avance no cambia NO-GO.
+completo requieren nueva validación UI. Backend canónico ya pasa en integración;
+Setup Page y walkthrough siguen en curso. CI `38486557090` termina SUCCESS,
+incluido E2E autenticado, pero setup experimental termina FAILURE tolerado.
+Este avance no cambia NO-GO.
 
 ## Decisión
 
