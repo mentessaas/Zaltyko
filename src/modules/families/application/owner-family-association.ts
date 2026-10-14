@@ -98,7 +98,7 @@ async function verifyAthletesAtLocation(
   input: OwnerFamilyAssociationCommand
 ): Promise<void> {
   const rows = await tx
-    .select({ athleteId: athletes.id })
+    .selectDistinct({ athleteId: athletes.id })
     .from(athletes)
     .innerJoin(
       enrollments,
@@ -115,7 +115,8 @@ async function verifyAthletesAtLocation(
         inArray(athletes.id, input.athleteIds),
         eq(athletes.isActive, true)
       )
-    );
+    )
+    .limit(uniqueIds(input.athleteIds).length);
   const found = new Set(rows.map((row) => row.athleteId));
   if (input.athleteIds.some((id) => !found.has(id))) {
     throw new OperationalError(

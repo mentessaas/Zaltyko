@@ -7,6 +7,19 @@ source:
   - ../docs/architecture/zaltyko-domain-model.md
 ---
 
+## 2026-10-14 — Asociación familiar cuenta atletas distintos por sede
+
+- En `codex/family-association-distinct-athletes-20261014`, desde
+  `ebcbc587d9ad1d792f5966555eae06f03eb33fa0`, la validación de atletas usa
+  `selectDistinct(athleteId)` y limita a los IDs únicos solicitados antes de
+  comparar el conjunto completo. Conserva filtros de organización, atleta
+  activa, sede e inscripción `pending`/`active`; locks, autorización,
+  idempotencia, auditoría y fechas de negocio no cambian.
+- Vitest focal 6/6 (incluye M:N con dos clases, falta/inactividad, otra
+  organización/sede y estado de inscripción), ESLint focal, Prettier del test
+  y `pnpm typecheck` PASS. No se ejecutaron PostgreSQL, navegador/E2E, suite
+  completa, remoto, Sandbox, producción ni push.
+
 ## 2026-10-14 — Lecturas canónicas y fail-closed del perfil de objetivos
 
 - En `codex/academy-target-profile-canonical-reads-20261014`, desde
