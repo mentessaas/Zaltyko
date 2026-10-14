@@ -356,8 +356,14 @@ test.describe("Isolated local Supabase Owner setup", () => {
         candidate.request().method() === "POST"
     );
     await page.getByRole("button", { name: "Guardar vínculo" }).click();
-    expect((await associationResponse).ok()).toBe(true);
-    await page.getByLabel("Familia").selectOption({ label: athleteName });
+    const associationResult = await associationResponse;
+    expect(associationResult.ok()).toBe(true);
+    const associationData = (await associationResult.json()) as {
+      data: { familyId: string };
+    };
+    await page
+      .getByLabel("Familia")
+      .selectOption({ value: associationData.data.familyId });
     await expect(
       page.getByRole("button", {
         name: `Asignar tarifa mensual a ${athleteName}`,
@@ -380,8 +386,12 @@ test.describe("Isolated local Supabase Owner setup", () => {
     );
     await page.getByRole("button", { name: "Crear tarifa mensual" }).click();
     expect((await pricePlanResponse).ok()).toBe(true);
-    await expect(page.getByLabel("Tarifa mensual")).toBeVisible();
-    await page.getByLabel("Vigente desde").fill(`${servicePeriod}-01`);
+    await expect(
+      page.getByRole("combobox", { name: "Tarifa mensual", exact: true })
+    ).toBeVisible();
+    await page
+      .getByLabel("Vigente desde", { exact: true })
+      .fill(`${servicePeriod}-01`);
     const tariffAssignment = page.waitForResponse(
       (candidate) =>
         /\/api\/v1\/owner\/enrollments\/[^/]+\/price-plan$/.test(
@@ -390,10 +400,19 @@ test.describe("Isolated local Supabase Owner setup", () => {
     );
     await page.getByRole("button", { name: "Guardar tarifa" }).click();
     expect((await tariffAssignment).ok()).toBe(true);
-    await expect(page.getByLabel("Familia")).toBeVisible();
-    await page.getByLabel("Quién paga").selectOption({ label: adultName });
+    await expect(
+      page.getByLabel("Familia", { exact: true })
+    ).toBeVisible();
+    await page
+      .getByLabel("Quién paga", { exact: true })
+      .selectOption({ label: adultName });
     await expect(page.getByText("Total de la factura")).toBeVisible();
-    await expect(page.getByText(/35,00/)).toBeVisible();
+    await expect(
+      page
+        .getByText("Total de la factura")
+        .locator("..")
+        .getByText(/35,00/)
+    ).toBeVisible();
     const invoiceResponse = page.waitForResponse(
       (candidate) =>
         candidate
@@ -416,7 +435,7 @@ test.describe("Isolated local Supabase Owner setup", () => {
       page.getByRole("heading", { name: "Registrar un pago recibido" })
     ).toBeVisible();
     await page
-      .getByLabel("Método de pago")
+      .getByLabel("Método de pago", { exact: true })
       .selectOption({ label: "Transferencia" });
     const paymentResponse = page.waitForResponse(
       (candidate) =>
