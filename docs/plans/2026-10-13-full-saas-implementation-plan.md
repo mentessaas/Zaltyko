@@ -10,19 +10,27 @@ Este corte prevalece sobre los estados históricos fechados que aparecen abajo.
 El alcance completo del SaaS se mantiene; issue #227 define la primera entrega
 demostrable, no la finalización del producto.
 
-Último corte publicado: `e7a19b20` (14-10-2026), PR #226 DRAFT y REVIEW_REQUIRED.
-Integra esquema/contrato multiclase `87d81999` y selectores E2E `bab43a0d`.
-Verificación independiente Main: contrato 7/7, PostgreSQL efímero 14.20
-schema/RLS PASS, typecheck e integridad de migraciones PASS. El informe
-RLS estático cubre 79 tablas legacy; las nuevas se verificaron en SQL real.
-CI `38490500823` en ejecución; Static Gates y Directory integrity PASS.
-No hay aún URL READY verificada de este SHA ni aplicación remota del esquema.
-Backend trabaja en servicio quote/emisión por gimnasta. Frontend prepara
-autoselección de la familia validada sin elegir pagador; revisión exige rechazar
-respuestas de opciones de otro tenant/sede/mes completas. QA ejecuta un único
-Chromium tras corregir selección de familia por ID y colisión de tarifa/total.
-La tercera pasada falló por selector, no demuestra un defecto del cobro.
-El recorrido de una inscripción no prueba la regla multiclase. No DEMO/PILOT-READY.
+Último corte publicado: `1182f0c6` (14-10-2026), PR #226 DRAFT y REVIEW_REQUIRED.
+Preview READY: https://zaltyko-40j3sljcr-mentessaas-projects.vercel.app .
+No acredita datos/runtime autenticado ni promoción productiva. CI `38491147838`
+sigue activo al corte: autenticado, unitarias, build, tipos/lint y gates estáticos
+PASS; setup experimental en ejecución y público/smoke/Lighthouse omitidos.
+El CI anterior `38490500823` fue cancelado tras el nuevo push.
+
+Integración local más reciente: `8b36a706`, aún no publicada. Integra servicio
+por gimnasta `5b4a4e7e`, desglose/conflictos Front `fa61bf97`, respuesta de emisión
+con snapshots y opciones de clases activas filtradas por tenant/sede.
+Main repitió harness transaccional PostgreSQL PASS, 35 pruebas de dominio/API/UI
+y cinco de opciones PASS, typecheck/lint focal PASS. El esquema/contrato ya fue
+probado con SQL real; RLS estático legacy no sustituye esa prueba.
+
+Sexto Chromium llegó a emitir y falló con HTTP 500 / SQLSTATE `42703` porque
+su allowlist local no instaló las columnas nuevas de `invoice_lines`. QA confirmó
+stack y volúmenes cerrados. No repetir hasta integrar alta real de tarifa con
+cobertura, UI y migraciones exclusivamente locales. Backend y Front trabajan
+en crear tarifa + clases incluidas + fechas con un solo guardado; QA prepara
+allowlist aislada, sin ampliar migraciones remotas. No se simulará configuración
+mediante SQL. No DEMO/PILOT-READY ni cuota real autorizada por tests focales.
 
 Histórico, corte publicado: `63d97a24`:
 Añade el selector exacto de asistencia y la decisión multiclase; nueva CI
@@ -68,12 +76,13 @@ forzado no envía y guard de producción conserva 404. Tres suites Main pasan
 La migración nueva sigue sin aplicación remota.
 
 La decisión del propietario sigue siendo **mensual por gimnasta y tarifa**.
-El código actual suma por inscripción y no demuestra todavía esa regla cuando
-hay varias clases. ADR-0026 revisada en `df610dd9` acepta cobertura explícita
+El servicio local integrado agrupa por gimnasta; todavía falta demostrar la
+configuración de cobertura y el recorrido multiclase real. ADR-0026 revisada
+en `df610dd9` acepta cobertura explícita
 tarifa/plantilla vigente todo el mes, una línea/cargo por gimnasta y bloqueo por
-planes/snapshots incompatibles. Backend implementa primero esquema/contratos;
-El esquema/contratos ya está integrado y probado en el corte superior;
-servicio, UI y pruebas multiclase siguen pendientes. No emitir cuotas reales
+planes/snapshots incompatibles. Esquema, servicio y desglose están integrados
+y probados localmente en el corte superior; alta de cobertura y E2E multiclase
+siguen pendientes. No emitir cuotas reales
 hasta verificar la regla, sin deduplicar importes arbitrariamente.
 
 Histórico, corte publicado `e415040a`:
