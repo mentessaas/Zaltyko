@@ -219,7 +219,10 @@ test.describe("Isolated local Supabase Owner setup", () => {
         )
       ).toBeVisible();
       await page.waitForLoadState("networkidle");
-      return classPayload.data.id;
+      return {
+        classTemplateId: classPayload.data.id,
+        sessionCount: classPayload.data.sessionCount,
+      };
     }
 
     async function createAndActivateEnrollment(
@@ -302,11 +305,13 @@ test.describe("Isolated local Supabase Owner setup", () => {
     expect((await athleteResponse).ok()).toBe(true);
     await expect(page.getByText(athleteName, { exact: true })).toBeVisible();
 
-    const classTemplateId = await createClassWithSessions(className, "Lunes");
-    const secondClassTemplateId = await createClassWithSessions(
+    const firstClass = await createClassWithSessions(className, "Lunes");
+    const secondClass = await createClassWithSessions(
       secondClassName,
       "Miércoles"
     );
+    const classTemplateId = firstClass.classTemplateId;
+    const secondClassTemplateId = secondClass.classTemplateId;
     await createAndActivateEnrollment(className, classTemplateId, 1);
     await createAndActivateEnrollment(
       secondClassName,
@@ -727,12 +732,17 @@ test.describe("Isolated local Supabase Owner setup", () => {
       role: string;
       groups: number;
       members: number;
+      athletes: number;
       class_templates: number;
       sessions: number;
       active_enrollments: number;
+      family_members: number;
+      family_payers: number;
+      tariff_coverage: number;
       attendance: number;
       invoices: number;
       invoice_lines: number;
+      invoice_line_enrollments: number;
       paid_charges: number;
       manual_payments: number;
     }>(
@@ -741,12 +751,17 @@ test.describe("Isolated local Supabase Owner setup", () => {
               member.role::text as role,
               (select count(*)::int from zaltyko.groups g where g.organization_id = organization.id) as groups,
               (select count(*)::int from zaltyko.group_memberships gm where gm.organization_id = organization.id) as members,
+              (select count(*)::int from zaltyko.athletes a where a.organization_id = organization.id) as athletes,
               (select count(*)::int from zaltyko.class_templates ct where ct.organization_id = organization.id) as class_templates,
               (select count(*)::int from zaltyko.sessions s where s.organization_id = organization.id) as sessions,
               (select count(*)::int from zaltyko.enrollments e where e.organization_id = organization.id and e.status = 'active') as active_enrollments,
+              (select count(*)::int from zaltyko.family_members fm where fm.organization_id = organization.id) as family_members,
+              (select count(*)::int from zaltyko.family_payers fp where fp.organization_id = organization.id) as family_payers,
+              (select count(*)::int from zaltyko.price_plan_class_template_coverage pc where pc.organization_id = organization.id) as tariff_coverage,
               (select count(*)::int from zaltyko.attendance_records ar where ar.organization_id = organization.id and ar.status = 'present') as attendance,
               (select count(*)::int from zaltyko.invoices i where i.organization_id = organization.id) as invoices,
               (select count(*)::int from zaltyko.invoice_lines il where il.organization_id = organization.id) as invoice_lines,
+              (select count(*)::int from zaltyko.invoice_line_enrollments ile where ile.organization_id = organization.id) as invoice_line_enrollments,
               (select count(*)::int from zaltyko.charges c where c.organization_id = organization.id and c.status = 'paid' and c.collection_mode = 'manual') as paid_charges,
               (select count(*)::int from zaltyko.payments p where p.organization_id = organization.id and p.source = 'manual') as manual_payments
          from zaltyko.organizations as organization
@@ -763,12 +778,17 @@ test.describe("Isolated local Supabase Owner setup", () => {
         role: "owner",
         groups: 1,
         members: 1,
-        class_templates: 1,
-        sessions: classPayload.data.sessionCount,
-        active_enrollments: 1,
+        athletes: 1,
+        class_templates: 2,
+        sessions: firstClass.sessionCount + secondClass.sessionCount,
+        active_enrollments: 2,
+        family_members: 1,
+        family_payers: 1,
+        tariff_coverage: 2,
         attendance: 1,
         invoices: 1,
         invoice_lines: 1,
+        invoice_line_enrollments: 2,
         paid_charges: 1,
         manual_payments: 1,
       },
