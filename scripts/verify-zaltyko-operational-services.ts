@@ -73,9 +73,11 @@ const ID = {
   templateLimited: "10000000-0000-4000-8000-000000000101",
   templateTarget: "10000000-0000-4000-8000-000000000102",
   templateExpired: "10000000-0000-4000-8000-000000000103",
+  templateSecond: "10000000-0000-4000-8000-000000000107",
   sessionNorth: "10000000-0000-4000-8000-000000000104",
   pricePlanMonthly: "10000000-0000-4000-8000-000000000105",
   pricePlanAnnual: "10000000-0000-4000-8000-000000000106",
+  pricePlanMonthlyAlt: "10000000-0000-4000-8000-000000000108",
   coachPerson: "10000000-0000-4000-8000-000000000065",
   coachProfile: "10000000-0000-4000-8000-000000000075",
   athlete1: "10000000-0000-4000-8000-000000000071",
@@ -152,7 +154,8 @@ async function seed(): Promise<void> {
       id, organization_id, name, cadence, amount_cents, currency, is_active
     ) values
       ('${ID.pricePlanMonthly}', '${ID.orgA}', 'Cuota mensual sintética', 'monthly', 12000, 'EUR', true),
-      ('${ID.pricePlanAnnual}', '${ID.orgA}', 'Cuota anual sintética', 'annual', 90000, 'EUR', true);
+      ('${ID.pricePlanAnnual}', '${ID.orgA}', 'Cuota anual sintética', 'annual', 90000, 'EUR', true),
+      ('${ID.pricePlanMonthlyAlt}', '${ID.orgA}', 'Cuota mensual alternativa', 'monthly', 12500, 'EUR', true);
 
     insert into zaltyko.people (id, organization_id, given_name, family_name)
     values ('20000000-0000-4000-8000-000000000061', '${ID.orgB}', 'Atleta', 'Sintética');
@@ -188,13 +191,15 @@ async function seed(): Promise<void> {
       ('${ID.templateMain}', '${ID.orgA}', '${ID.locationA}', '${ID.program}', '${ID.spaceA}', 'Base lunes', 4, 'active', '2026-09-01', null),
       ('${ID.templateLimited}', '${ID.orgA}', '${ID.locationA}', '${ID.program}', '${ID.spaceLimited}', 'Última plaza', 1, 'active', '2026-09-01', null),
       ('${ID.templateTarget}', '${ID.orgA}', '${ID.locationA2}', '${ID.program}', '${ID.spaceA2}', 'Base norte', 4, 'active', '2026-09-01', null),
-      ('${ID.templateExpired}', '${ID.orgA}', '${ID.locationA}', '${ID.program}', '${ID.spaceA}', 'Clase terminada', 4, 'active', '2026-09-01', '2026-09-30');
+      ('${ID.templateExpired}', '${ID.orgA}', '${ID.locationA}', '${ID.program}', '${ID.spaceA}', 'Clase terminada', 4, 'active', '2026-09-01', '2026-09-30'),
+      ('${ID.templateSecond}', '${ID.orgA}', '${ID.locationA}', '${ID.program}', '${ID.spaceA}', 'Base miércoles', 4, 'active', '2026-09-01', null);
 
     insert into zaltyko.class_template_weekdays (
       organization_id, class_template_id, iso_weekday, starts_at_local, ends_at_local
     ) values
       ('${ID.orgA}', '${ID.templateMain}', 1, '17:00', '18:30'),
-      ('${ID.orgA}', '${ID.templateTarget}', 3, '18:00', '19:30');
+      ('${ID.orgA}', '${ID.templateTarget}', 3, '18:00', '19:30'),
+      ('${ID.orgA}', '${ID.templateSecond}', 3, '18:00', '19:30');
   `);
 }
 
@@ -1146,6 +1151,18 @@ async function main(): Promise<void> {
     idempotencyKey: "enroll-athlete-4-main",
     actor: owner,
   });
+  const secondAttendanceEnrollment = await createEnrollment({
+    organizationId: ID.orgA,
+    locationId: ID.locationA,
+    athleteId: ID.athlete4,
+    classTemplateId: ID.templateSecond,
+    status: "active",
+    startsOn: "2026-10-01",
+    source: "owner",
+    pricePlanId: ID.pricePlanMonthly,
+    idempotencyKey: "enroll-athlete-4-second-class",
+    actor: owner,
+  });
   const familyAssociationCommand = {
     organizationId: ID.orgA,
     locationId: ID.locationA,
@@ -1177,6 +1194,29 @@ async function main(): Promise<void> {
     ),
     1,
     "El responsable de facturación no obtiene acceso al portal"
+  );
+  await expectOperationalError(
+    () =>
+      issueMonthlyInvoice({
+        organizationId: ID.orgB,
+        locationId: ID.locationB,
+        familyId: familyAssociation.family.id,
+        familyPayerId: familyAssociation.familyPayerId,
+        servicePeriod: "2026-10",
+        dueDate: "2026-10-31",
+        quoteHash: "a".repeat(64),
+        idempotencyKey: "monthly-invoice-cross-tenant",
+        actor: owner,
+      }),
+    "FORBIDDEN"
+  );
+  assert.equal(
+    await count(
+      "zaltyko.outbox_events",
+      "idempotency_key = 'monthly-invoice-cross-tenant'"
+    ),
+    0,
+    "La denegación de tenant ocurre antes de registrar efectos de emisión"
   );
 
   const initialMonthlyOptions = await getMonthlyInvoiceOptions({
@@ -1223,6 +1263,74 @@ async function main(): Promise<void> {
     });
   }
 
+  const uncoveredQuote = await getMonthlyInvoiceOptions({
+    organizationId: ID.orgA,
+    locationId: ID.locationA,
+    servicePeriod: "2026-10",
+    actor: owner,
+  });
+  const uncoveredFamily = uncoveredQuote.families.find(
+    (family) => family.familyId === familyAssociation.family.id
+  );
+  assert.equal(uncoveredFamily?.canIssue, false);
+  assert(
+    uncoveredFamily?.conflicts.some(
+      (conflict) =>
+        conflict.athleteId === ID.athlete4 &&
+        conflict.code === "TARIFF_COVERAGE_INCOMPLETE"
+    )
+  );
+  assert.equal(
+    uncoveredFamily?.lines.some((line) => line.athleteId === ID.athlete4),
+    false,
+    "La falta de cobertura no produce una línea parcial por gimnasta"
+  );
+
+  const coverageRows = await pool.query<{ id: string }>(
+    `insert into zaltyko.price_plan_class_template_coverage (
+       organization_id, location_id, price_plan_id, class_template_id,
+       starts_on, ends_on
+     ) values
+       ($1, $2, $3, $4, '2026-10-01', '2026-10-31'),
+       ($1, $2, $3, $5, '2026-10-02', '2026-10-31'),
+       ($1, $2, $3, $6, '2026-10-01', '2026-10-31'),
+       ($1, $2, $7, $5, '2026-10-01', '2026-10-31'),
+       ($8, $9, $3, $10, '2026-10-01', '2026-10-31')
+     returning id`,
+    [
+      ID.orgA,
+      ID.locationA,
+      ID.pricePlanMonthly,
+      ID.templateMain,
+      ID.templateSecond,
+      ID.templateLimited,
+      ID.pricePlanMonthlyAlt,
+      ID.orgA,
+      ID.locationA2,
+      ID.templateTarget,
+    ]
+  );
+  const partialCoverageQuote = await getMonthlyInvoiceOptions({
+    organizationId: ID.orgA,
+    locationId: ID.locationA,
+    servicePeriod: "2026-10",
+    actor: owner,
+  });
+  const partialCoverageFamily = partialCoverageQuote.families.find(
+    (family) => family.familyId === familyAssociation.family.id
+  );
+  assert.equal(partialCoverageFamily?.canIssue, false);
+  assert.equal(
+    partialCoverageFamily?.lines.some((line) => line.athleteId === ID.athlete4),
+    false
+  );
+  await pool.query(
+    `update zaltyko.price_plan_class_template_coverage
+     set starts_on = '2026-10-01'
+     where organization_id = $1 and id = $2`,
+    [ID.orgA, coverageRows.rows[1].id]
+  );
+
   const monthlyOptions = await getMonthlyInvoiceOptions({
     organizationId: ID.orgA,
     locationId: ID.locationA,
@@ -1235,13 +1343,42 @@ async function main(): Promise<void> {
   assert(familyQuote?.canIssue, JSON.stringify(familyQuote));
   assert.equal(familyQuote?.lines.length, 2);
   assert.equal(familyQuote?.totalAmountCents, 24000);
+  const athlete4QuoteLine = familyQuote?.lines.find(
+    (line) => line.athleteId === ID.athlete4
+  );
+  assert.equal(athlete4QuoteLine?.coveredEnrollments.length, 2);
+  assert.equal(athlete4QuoteLine?.amountCents, 12000);
   assert(familyQuote?.quoteHash);
 
   await pool.query(
     `update zaltyko.enrollment_price_assignments
-     set unit_amount_cents = 12500
+     set unit_amount_cents = 13000
      where organization_id = $1 and enrollment_id = $2`,
-    [ID.orgA, attendanceEnrollment.id]
+    [ID.orgA, secondAttendanceEnrollment.id]
+  );
+  const conflictingAmountOptions = await getMonthlyInvoiceOptions({
+    organizationId: ID.orgA,
+    locationId: ID.locationA,
+    servicePeriod: "2026-10",
+    actor: owner,
+  });
+  const conflictingAmountFamily = conflictingAmountOptions.families.find(
+    (family) => family.familyId === familyAssociation.family.id
+  );
+  assert.equal(conflictingAmountFamily?.canIssue, false);
+  assert(
+    conflictingAmountFamily?.conflicts.some(
+      (conflict) =>
+        conflict.athleteId === ID.athlete4 &&
+        conflict.code === "ATHLETE_TARIFF_CONFLICT"
+    )
+  );
+  assert.equal(
+    conflictingAmountFamily?.lines.some(
+      (line) => line.athleteId === ID.athlete4
+    ),
+    false,
+    "Un conflicto de importes bloquea la línea completa de la gimnasta"
   );
   await expectOperationalError(
     () =>
@@ -1257,6 +1394,84 @@ async function main(): Promise<void> {
         actor: owner,
       }),
     "QUOTE_STALE"
+  );
+
+  await pool.query(
+    `update zaltyko.enrollment_price_assignments
+     set unit_amount_cents = 12500
+     where organization_id = $1 and enrollment_id in ($2, $3)`,
+    [ID.orgA, attendanceEnrollment.id, secondAttendanceEnrollment.id]
+  );
+  await pool.query(
+    `update zaltyko.enrollment_price_assignments
+     set price_plan_id = $3
+     where organization_id = $1 and enrollment_id = $2`,
+    [ID.orgA, secondAttendanceEnrollment.id, ID.pricePlanMonthlyAlt]
+  );
+  const conflictingPlanOptions = await getMonthlyInvoiceOptions({
+    organizationId: ID.orgA,
+    locationId: ID.locationA,
+    servicePeriod: "2026-10",
+    actor: owner,
+  });
+  const conflictingPlanFamily = conflictingPlanOptions.families.find(
+    (family) => family.familyId === familyAssociation.family.id
+  );
+  assert.equal(conflictingPlanFamily?.canIssue, false);
+  assert(
+    conflictingPlanFamily?.conflicts.some(
+      (conflict) =>
+        conflict.athleteId === ID.athlete4 &&
+        conflict.code === "ATHLETE_TARIFF_CONFLICT"
+    )
+  );
+  assert.equal(
+    conflictingPlanFamily?.lines.some((line) => line.athleteId === ID.athlete4),
+    false
+  );
+  await pool.query(
+    `update zaltyko.enrollment_price_assignments
+     set price_plan_id = $3
+     where organization_id = $1 and enrollment_id = $2`,
+    [ID.orgA, secondAttendanceEnrollment.id, ID.pricePlanMonthly]
+  );
+  const stableAmountQuote = await getMonthlyInvoiceOptions({
+    organizationId: ID.orgA,
+    locationId: ID.locationA,
+    servicePeriod: "2026-10",
+    actor: owner,
+  });
+  const stableAmountFamily = stableAmountQuote.families.find(
+    (family) => family.familyId === familyAssociation.family.id
+  )!;
+  assert(stableAmountFamily.canIssue);
+
+  await pool.query(
+    `update zaltyko.price_plan_class_template_coverage
+     set ends_on = '2026-10-30'
+     where organization_id = $1 and id = $2`,
+    [ID.orgA, coverageRows.rows[1].id]
+  );
+  await expectOperationalError(
+    () =>
+      issueMonthlyInvoice({
+        organizationId: ID.orgA,
+        locationId: ID.locationA,
+        familyId: familyAssociation.family.id,
+        familyPayerId: familyAssociation.familyPayerId,
+        servicePeriod: "2026-10",
+        dueDate: "2026-10-31",
+        quoteHash: stableAmountFamily.quoteHash!,
+        idempotencyKey: "monthly-invoice-stale-coverage",
+        actor: owner,
+      }),
+    "QUOTE_STALE"
+  );
+  await pool.query(
+    `update zaltyko.price_plan_class_template_coverage
+     set ends_on = '2026-10-31'
+     where organization_id = $1 and id = $2`,
+    [ID.orgA, coverageRows.rows[1].id]
   );
 
   await pool.query(
@@ -1331,7 +1546,25 @@ async function main(): Promise<void> {
       `invoice_id = '${issuedMonthlyInvoice.invoice.id}' and line_type = 'monthly_fee'`
     ),
     2,
-    "La factura contiene una línea por inscripción activa"
+    "La factura contiene una línea por gimnasta"
+  );
+  assert.equal(
+    await count(
+      "zaltyko.invoice_line_enrollments",
+      `invoice_line_id in (select id from zaltyko.invoice_lines where invoice_id = '${issuedMonthlyInvoice.invoice.id}')`
+    ),
+    3,
+    "Las dos clases de una gimnasta quedan cubiertas por snapshots de inscripción"
+  );
+  assert.equal(
+    issuedMonthlyInvoice.lines.find((line) => line.athleteId === ID.athlete4)
+      ?.coveredEnrollments.length,
+    2
+  );
+  assert.equal(
+    issuedMonthlyInvoice.lines.find((line) => line.athleteId === ID.athlete4)
+      ?.amountCents,
+    12500
   );
   assert.equal(
     await count(
@@ -1377,7 +1610,7 @@ async function main(): Promise<void> {
       "zaltyko.enrollment_price_assignments",
       `organization_id = '${ID.orgA}' and enrollment_id in (${familyQuote!.enrollments.map((enrollment) => `'${enrollment.enrollmentId}'`).join(", ")})`
     ),
-    2,
+    3,
     "Cada inscripción conserva su snapshot tarifario"
   );
   assert.equal(
@@ -1847,6 +2080,186 @@ async function main(): Promise<void> {
       "payload::text ~* '(medical|email|phone|address)'"
     ),
     0
+  );
+
+  await pool.query(
+    `update zaltyko.price_plan_class_template_coverage
+     set ends_on = null
+     where organization_id = $1 and location_id = $2 and price_plan_id = $3`,
+    [ID.orgA, ID.locationA, ID.pricePlanMonthly]
+  );
+  const rollbackQuote = await getMonthlyInvoiceOptions({
+    organizationId: ID.orgA,
+    locationId: ID.locationA,
+    servicePeriod: "2026-11",
+    actor: owner,
+  });
+  const rollbackFamily = rollbackQuote.families.find(
+    (family) => family.familyId === familyAssociation.family.id
+  )!;
+  assert.equal(rollbackFamily.canIssue, true);
+  const rollbackKey = "monthly-invoice-rollback-001";
+  await pool.query(`
+    create or replace function zaltyko_domain_private.fail_monthly_charge_audit()
+    returns trigger language plpgsql as $$
+    begin
+      if new.action = 'charge.due'
+         and new.idempotency_key like '${rollbackKey}:charge:%' then
+        raise exception using errcode = '23514', message = 'forced monthly rollback';
+      end if;
+      return new;
+    end
+    $$;
+    create trigger fail_monthly_charge_audit
+      before insert on zaltyko.audit_log
+      for each row execute function zaltyko_domain_private.fail_monthly_charge_audit();
+  `);
+  try {
+    await assert.rejects(
+      issueMonthlyInvoice({
+        organizationId: ID.orgA,
+        locationId: ID.locationA,
+        familyId: familyAssociation.family.id,
+        familyPayerId: familyAssociation.familyPayerId,
+        servicePeriod: "2026-11",
+        dueDate: "2026-11-30",
+        quoteHash: rollbackFamily.quoteHash!,
+        idempotencyKey: rollbackKey,
+        actor: owner,
+      })
+    );
+  } finally {
+    await pool.query(`
+      drop trigger fail_monthly_charge_audit on zaltyko.audit_log;
+      drop function zaltyko_domain_private.fail_monthly_charge_audit();
+    `);
+  }
+  assert.equal(
+    await count(
+      "zaltyko.invoices",
+      `reference = 'MENSUAL-202611-${familyAssociation.family.id}'`
+    ),
+    0,
+    "El fallo de auditoría revierte la factura mensual"
+  );
+  assert.equal(
+    await count(
+      "zaltyko.charges",
+      `idempotency_key like '${rollbackKey}:charge:%'`
+    ),
+    0
+  );
+  assert.equal(
+    await count(
+      "zaltyko.invoice_line_enrollments",
+      `enrollment_id in ('${attendanceEnrollment.id}', '${secondAttendanceEnrollment.id}') and invoice_line_id in (select id from zaltyko.invoice_lines where service_period_start = '2026-11-01')`
+    ),
+    0
+  );
+  assert.equal(
+    await count(
+      "zaltyko.outbox_events",
+      `idempotency_key like '${rollbackKey}%'`
+    ),
+    0
+  );
+  assert.equal(
+    await count("zaltyko.audit_log", `idempotency_key like '${rollbackKey}%'`),
+    0
+  );
+
+  // A new family and enrollment must not create a second monthly fee for the
+  // same gymnast at this site when an older invoice already covered her.
+  await pool.query(
+    `update zaltyko.enrollments
+     set status = 'completed', ends_on = '2026-10-01'
+     where organization_id = $1 and athlete_id = $2
+       and location_id = $3 and status = 'active'`,
+    [ID.orgA, ID.athlete4, ID.locationA]
+  );
+  await pool.query(
+    `delete from zaltyko.family_members
+     where organization_id = $1 and family_id = $2 and athlete_id = $3`,
+    [ID.orgA, familyAssociation.family.id, ID.athlete4]
+  );
+  const replacementEnrollment = await createEnrollment({
+    organizationId: ID.orgA,
+    locationId: ID.locationA,
+    athleteId: ID.athlete4,
+    classTemplateId: ID.templateMain,
+    status: "active",
+    startsOn: "2026-10-01",
+    source: "owner",
+    pricePlanId: ID.pricePlanMonthly,
+    idempotencyKey: "monthly-replacement-enrollment",
+    actor: owner,
+  });
+  const replacementFamily = await associateOwnerFamily({
+    organizationId: ID.orgA,
+    locationId: ID.locationA,
+    athleteIds: [ID.athlete4],
+    effectiveFrom: "2026-10-01",
+    payer: {
+      givenName: "Responsable",
+      familyName: "Reasignado",
+      relationship: "parent",
+    },
+    idempotencyKey: "monthly-replacement-family",
+    actor: owner,
+  });
+  const replacementQuote = await getMonthlyInvoiceOptions({
+    organizationId: ID.orgA,
+    locationId: ID.locationA,
+    servicePeriod: "2026-10",
+    actor: owner,
+  });
+  const replacementFamilyQuote = replacementQuote.families.find(
+    (family) => family.familyId === replacementFamily.family.id
+  )!;
+  assert.equal(
+    replacementFamilyQuote.canIssue,
+    true,
+    JSON.stringify(replacementFamilyQuote)
+  );
+  assert.deepEqual(
+    replacementFamilyQuote.lines.flatMap((line) =>
+      line.coveredEnrollments.map((covered) => covered.enrollmentId)
+    ),
+    [replacementEnrollment.id],
+    "La segunda familia presenta una inscripción distinta de la ya facturada"
+  );
+  await expectOperationalError(
+    () =>
+      issueMonthlyInvoice({
+        organizationId: ID.orgA,
+        locationId: ID.locationA,
+        familyId: replacementFamily.family.id,
+        familyPayerId: replacementFamily.familyPayerId,
+        servicePeriod: "2026-10",
+        dueDate: "2026-10-31",
+        quoteHash: replacementFamilyQuote.quoteHash!,
+        idempotencyKey: "monthly-invoice-replacement-family",
+        actor: owner,
+      }),
+    "ENROLLMENT_ALREADY_BILLED"
+  );
+  assert.equal(
+    Number(
+      (
+        await pool.query(
+          `select count(*)::int as count
+           from zaltyko.invoices invoice
+           join zaltyko.invoice_lines line
+             on line.organization_id = invoice.organization_id
+            and line.invoice_id = invoice.id
+           where invoice.family_id = $1
+             and line.service_period_start = '2026-10-01'`,
+          [replacementFamily.family.id]
+        )
+      ).rows[0]?.count ?? 0
+    ),
+    0,
+    "No se crea una segunda factura por gimnasta en la misma sede y periodo"
   );
 
   const integrity = await pool.query(`

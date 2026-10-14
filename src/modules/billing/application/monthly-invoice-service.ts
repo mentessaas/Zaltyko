@@ -7,6 +7,7 @@ import { db } from "@/db";
 import {
   athletes,
   charges,
+  classTemplates,
   enrollmentPriceAssignments,
   enrollments,
   families,
@@ -15,11 +16,13 @@ import {
   familyPayers,
   guardians,
   invoiceLines,
+  invoiceLineEnrollments,
   invoices,
   locations,
   outboxEvents,
   people,
   pricePlans,
+  pricePlanClassTemplateCoverage,
   type Invoice,
 } from "@/db/zaltyko-schema";
 import type { TransactionClient } from "@/lib/db-transactions";
@@ -75,15 +78,94 @@ function fingerprint(value: unknown): string {
   return createHash("sha256").update(JSON.stringify(value)).digest("hex");
 }
 
+function canonicalMonthlyLines(
+  lines: Array<{
+    athleteId: string;
+    pricePlanId: string | null;
+    amountCents: number;
+    currency: string;
+    coveredEnrollments: Array<{
+      enrollmentId: string;
+      classTemplateId: string;
+      className: string;
+      assignmentId: string;
+    }>;
+  }>
+) {
+  return [...lines]
+    .sort((left, right) => left.athleteId.localeCompare(right.athleteId))
+    .map((line) => ({
+      athleteId: line.athleteId,
+      pricePlanId: line.pricePlanId,
+      amountCents: line.amountCents,
+      currency: line.currency,
+      coveredEnrollments: [...line.coveredEnrollments]
+        .sort((left, right) =>
+          left.enrollmentId.localeCompare(right.enrollmentId)
+        )
+        .map((covered) => ({
+          enrollmentId: covered.enrollmentId,
+          classTemplateId: covered.classTemplateId,
+          className: covered.className,
+          assignmentId: covered.assignmentId,
+        })),
+    }));
+}
+
+function monthlyQuoteHash(input: {
+  organizationId: string;
+  locationId: string;
+  familyId: string;
+  servicePeriod: string;
+  lines: Array<{
+    athleteId: string;
+    pricePlanId: string | null;
+    amountCents: number;
+    currency: string;
+    coveredEnrollments: Array<{
+      enrollmentId: string;
+      classTemplateId: string;
+      className: string;
+      assignmentId: string;
+    }>;
+  }>;
+  conflicts: QuoteFamily["conflicts"];
+  blockingReasons: string[];
+  totalAmountCents: number;
+  currency: string | null;
+}): string {
+  return fingerprint({
+    organizationId: input.organizationId,
+    locationId: input.locationId,
+    familyId: input.familyId,
+    servicePeriod: input.servicePeriod,
+    lines: canonicalMonthlyLines(input.lines),
+    conflicts: [...input.conflicts]
+      .sort((left, right) => left.athleteId.localeCompare(right.athleteId))
+      .map((conflict) => ({
+        athleteId: conflict.athleteId,
+        code: conflict.code,
+        enrollmentIds: [...conflict.enrollmentIds].sort(),
+      })),
+    blockingReasons: [...input.blockingReasons].sort(),
+    totalAmountCents: input.totalAmountCents,
+    currency: input.currency,
+  });
+}
+
 type QuoteLine = {
-  enrollmentId: string;
   athleteId: string;
   athleteName: string | null;
   pricePlanId: string;
   pricePlanName: string;
-  assignmentId: string;
   unitAmountCents: number;
   currency: string;
+  coveredEnrollments: Array<{
+    enrollmentId: string;
+    classTemplateId: string;
+    className: string;
+    assignmentId: string;
+  }>;
 };
 
 type QuoteFamily = {
@@ -102,6 +184,7 @@ type QuoteFamily = {
     billable: boolean;
     blockingReasons: string[];
     assignedPrice: {
+      assignmentId: string;
       pricePlanId: string;
       name: string;
       amountCents: number;
@@ -111,6 +194,11 @@ type QuoteFamily = {
     } | null;
   }>;
   lines: QuoteLine[];
+  conflicts: Array<{
+    athleteId: string;
+    code: "ATHLETE_TARIFF_CONFLICT" | "TARIFF_COVERAGE_INCOMPLETE";
+    enrollmentIds: string[];
+  }>;
   totalAmountCents: number;
   currency: string | null;
   blockingReasons: string[];
@@ -171,6 +259,8 @@ async function buildMonthlyInvoiceOptions(
     .select({
       enrollmentId: enrollments.id,
       athleteId: enrollments.athleteId,
+      classTemplateId: enrollments.classTemplateId,
+      className: classTemplates.name,
       athleteName: sql<string>`nullif(btrim(concat_ws(' ', ${people.givenName}, ${people.familyName})), '')`,
       status: enrollments.status,
       startsOn: enrollments.startsOn,
@@ -190,6 +280,14 @@ async function buildMonthlyInvoiceOptions(
       and(
         eq(people.organizationId, athletes.organizationId),
         eq(people.id, athletes.personId)
+      )
+    )
+    .innerJoin(
+      classTemplates,
+      and(
+        eq(classTemplates.organizationId, enrollments.organizationId),
+        eq(classTemplates.locationId, enrollments.locationId),
+        eq(classTemplates.id, enrollments.classTemplateId)
       )
     )
     .where(
@@ -255,6 +353,48 @@ async function buildMonthlyInvoiceOptions(
         .limit(2000)
     : [];
 
+  const assignedPlanIds = [
+    ...new Set(assignmentRows.map((assignment) => assignment.pricePlanId)),
+  ];
+  const classTemplateIds = [
+    ...new Set(enrollmentRows.map((enrollment) => enrollment.classTemplateId)),
+  ];
+  const coverageRows =
+    assignedPlanIds.length && classTemplateIds.length
+      ? await tx
+          .select({
+            pricePlanId: pricePlanClassTemplateCoverage.pricePlanId,
+            classTemplateId: pricePlanClassTemplateCoverage.classTemplateId,
+            startsOn: pricePlanClassTemplateCoverage.startsOn,
+            endsOn: pricePlanClassTemplateCoverage.endsOn,
+          })
+          .from(pricePlanClassTemplateCoverage)
+          .where(
+            and(
+              eq(
+                pricePlanClassTemplateCoverage.organizationId,
+                input.organizationId
+              ),
+              eq(pricePlanClassTemplateCoverage.locationId, input.locationId),
+              inArray(
+                pricePlanClassTemplateCoverage.pricePlanId,
+                assignedPlanIds
+              ),
+              inArray(
+                pricePlanClassTemplateCoverage.classTemplateId,
+                classTemplateIds
+              ),
+              lte(pricePlanClassTemplateCoverage.startsOn, bounds.end),
+              or(
+                isNull(pricePlanClassTemplateCoverage.endsOn),
+                gte(pricePlanClassTemplateCoverage.endsOn, bounds.start)
+              )
+            )
+          )
+          .orderBy(asc(pricePlanClassTemplateCoverage.startsOn))
+          .limit(4000)
+      : [];
+
   const familyIds = [...new Set(memberRows.map((row) => row.familyId))];
   const payerRows = familyIds.length
     ? await tx
@@ -318,6 +458,13 @@ async function buildMonthlyInvoiceOptions(
     current.push(row);
     assignmentsByEnrollment.set(row.enrollmentId, current);
   }
+  const coverageByPlanTemplate = new Map<string, typeof coverageRows>();
+  for (const row of coverageRows) {
+    const key = `${row.pricePlanId}:${row.classTemplateId}`;
+    const current = coverageByPlanTemplate.get(key) ?? [];
+    current.push(row);
+    coverageByPlanTemplate.set(key, current);
+  }
   const payersByFamily = new Map<string, typeof payerRows>();
   for (const row of payerRows) {
     const current = payersByFamily.get(row.familyId) ?? [];
@@ -326,6 +473,7 @@ async function buildMonthlyInvoiceOptions(
   }
 
   const familyMap = new Map<string, QuoteFamily>();
+  const candidatesByFamily = new Map<string, QuoteLine[]>();
   const unassignedEnrollments: Array<{
     enrollmentId: string;
     athleteId: string;
@@ -377,6 +525,13 @@ async function buildMonthlyInvoiceOptions(
       enrollmentReasons.push("PRICE_ASSIGNMENT_PERIOD_INCOMPLETE");
     }
 
+    if (
+      enrollment.className.trim().length < 2 ||
+      enrollment.className.trim().length > 120
+    ) {
+      enrollmentReasons.push("CLASS_NAME_SNAPSHOT_INVALID");
+    }
+
     let assignedPrice: QuoteFamily["enrollments"][number]["assignedPrice"] =
       null;
     let quoteLine: QuoteLine | null = null;
@@ -386,10 +541,25 @@ async function buildMonthlyInvoiceOptions(
         enrollmentReasons.push("PRICE_PLAN_NOT_AVAILABLE");
       } else if (assignment.currency !== plan.currency) {
         enrollmentReasons.push("PRICE_ASSIGNMENT_CURRENCY_MISMATCH");
+      } else if (!Number.isSafeInteger(assignment.unitAmountCents)) {
+        enrollmentReasons.push("PRICE_AMOUNT_UNSAFE");
       } else if (assignment.unitAmountCents <= 0) {
         enrollmentReasons.push("PRICE_PLAN_ZERO_AMOUNT");
       } else {
+        const coverage = coverageByPlanTemplate.get(
+          `${plan.id}:${enrollment.classTemplateId}`
+        );
+        if (
+          !coverage?.some(
+            (row) =>
+              row.startsOn <= bounds.start &&
+              (row.endsOn === null || row.endsOn >= bounds.end)
+          )
+        ) {
+          enrollmentReasons.push("TARIFF_COVERAGE_INCOMPLETE");
+        }
         assignedPrice = {
+          assignmentId: assignment.id,
           pricePlanId: plan.id,
           name: plan.name,
           amountCents: assignment.unitAmountCents,
@@ -397,16 +567,24 @@ async function buildMonthlyInvoiceOptions(
           startsOn: assignment.startsOn,
           endsOn: assignment.endsOn,
         };
-        quoteLine = {
-          enrollmentId: enrollment.enrollmentId,
-          athleteId: enrollment.athleteId,
-          athleteName: enrollment.athleteName,
-          pricePlanId: plan.id,
-          pricePlanName: plan.name,
-          assignmentId: assignment.id,
-          unitAmountCents: assignment.unitAmountCents,
-          currency: assignment.currency,
-        };
+        if (!enrollmentReasons.includes("TARIFF_COVERAGE_INCOMPLETE")) {
+          quoteLine = {
+            athleteId: enrollment.athleteId,
+            athleteName: enrollment.athleteName,
+            pricePlanId: plan.id,
+            pricePlanName: plan.name,
+            unitAmountCents: assignment.unitAmountCents,
+            currency: assignment.currency,
+            coveredEnrollments: [
+              {
+                enrollmentId: enrollment.enrollmentId,
+                classTemplateId: enrollment.classTemplateId,
+                className: enrollment.className.trim(),
+                assignmentId: assignment.id,
+              },
+            ],
+          };
+        }
       }
     }
 
@@ -436,6 +614,7 @@ async function buildMonthlyInvoiceOptions(
           ),
           enrollments: [],
           lines: [],
+          conflicts: [],
           totalAmountCents: 0,
           currency: null,
           blockingReasons: [],
@@ -467,12 +646,91 @@ async function buildMonthlyInvoiceOptions(
         quoteLine &&
         enrollmentReasons.length === 0
       ) {
-        family.lines.push(quoteLine);
+        const candidates = candidatesByFamily.get(family.familyId) ?? [];
+        candidates.push(quoteLine);
+        candidatesByFamily.set(family.familyId, candidates);
       }
     }
   }
 
   const familyResults = [...familyMap.values()];
+  for (const family of familyResults) {
+    const candidates = candidatesByFamily.get(family.familyId) ?? [];
+    const activeEnrollmentsByAthlete = new Map<
+      string,
+      QuoteFamily["enrollments"]
+    >();
+    for (const enrollment of family.enrollments) {
+      if (enrollment.status !== "active") continue;
+      const current =
+        activeEnrollmentsByAthlete.get(enrollment.athleteId) ?? [];
+      current.push(enrollment);
+      activeEnrollmentsByAthlete.set(enrollment.athleteId, current);
+    }
+
+    for (const [athleteId, activeEnrollments] of activeEnrollmentsByAthlete) {
+      const enrollmentIds = activeEnrollments
+        .map((enrollment) => enrollment.enrollmentId)
+        .sort();
+      const athleteCandidates = candidates
+        .filter((line) => line.athleteId === athleteId)
+        .sort((left, right) =>
+          left.coveredEnrollments[0].enrollmentId.localeCompare(
+            right.coveredEnrollments[0].enrollmentId
+          )
+        );
+      const incompleteCoverage = activeEnrollments.some((enrollment) =>
+        enrollment.blockingReasons.includes("TARIFF_COVERAGE_INCOMPLETE")
+      );
+      if (incompleteCoverage) {
+        family.conflicts.push({
+          athleteId,
+          code: "TARIFF_COVERAGE_INCOMPLETE",
+          enrollmentIds,
+        });
+      }
+      if (
+        athleteCandidates.length !== enrollmentIds.length ||
+        incompleteCoverage
+      ) {
+        continue;
+      }
+
+      const signatures = new Set(
+        athleteCandidates.map((line) =>
+          JSON.stringify({
+            pricePlanId: line.pricePlanId,
+            amountCents: line.unitAmountCents,
+            currency: line.currency,
+          })
+        )
+      );
+      if (signatures.size > 1) {
+        family.conflicts.push({
+          athleteId,
+          code: "ATHLETE_TARIFF_CONFLICT",
+          enrollmentIds,
+        });
+        continue;
+      }
+
+      const [snapshot] = athleteCandidates;
+      family.lines.push({
+        ...snapshot,
+        coveredEnrollments: athleteCandidates
+          .flatMap((line) => line.coveredEnrollments)
+          .sort((left, right) =>
+            left.enrollmentId.localeCompare(right.enrollmentId)
+          ),
+      });
+    }
+    family.lines.sort((left, right) =>
+      left.athleteId.localeCompare(right.athleteId)
+    );
+    family.conflicts.sort((left, right) =>
+      left.athleteId.localeCompare(right.athleteId)
+    );
+  }
   const existingRows = familyIds.length
     ? await tx
         .select({
@@ -507,9 +765,11 @@ async function buildMonthlyInvoiceOptions(
   for (const family of familyResults) {
     family.blockingReasons = [
       ...new Set(
-        family.enrollments.flatMap((item) =>
-          item.status === "active" ? item.blockingReasons : []
-        )
+        family.enrollments
+          .flatMap((item) =>
+            item.status === "active" ? item.blockingReasons : []
+          )
+          .concat(family.conflicts.map((item) => item.code))
       ),
     ];
     if (!family.payers.length)
@@ -523,7 +783,6 @@ async function buildMonthlyInvoiceOptions(
       (total, line) => total + line.unitAmountCents,
       0
     );
-    family.lines.sort((a, b) => a.enrollmentId.localeCompare(b.enrollmentId));
     const existing = existingByFamily.get(family.familyId);
     if (existing) {
       family.existingInvoiceId = existing.invoiceId;
@@ -537,23 +796,23 @@ async function buildMonthlyInvoiceOptions(
     }
     family.blockingReasons = [...new Set(family.blockingReasons)];
     family.canIssue = family.blockingReasons.length === 0;
-    if (family.canIssue) {
-      family.quoteHash = fingerprint({
-        organizationId: input.organizationId,
-        locationId: input.locationId,
-        familyId: family.familyId,
-        servicePeriod: input.servicePeriod,
-        lines: family.lines.map((line) => ({
-          enrollmentId: line.enrollmentId,
-          assignmentId: line.assignmentId,
-          pricePlanId: line.pricePlanId,
-          amountCents: line.unitAmountCents,
-          currency: line.currency,
-        })),
-        totalAmountCents: family.totalAmountCents,
-        currency: family.currency,
-      });
-    }
+    family.quoteHash = monthlyQuoteHash({
+      organizationId: input.organizationId,
+      locationId: input.locationId,
+      familyId: family.familyId,
+      servicePeriod: input.servicePeriod,
+      lines: family.lines.map((line) => ({
+        athleteId: line.athleteId,
+        pricePlanId: line.pricePlanId,
+        amountCents: line.unitAmountCents,
+        currency: line.currency,
+        coveredEnrollments: line.coveredEnrollments,
+      })),
+      conflicts: family.conflicts,
+      blockingReasons: family.blockingReasons,
+      totalAmountCents: family.totalAmountCents,
+      currency: family.currency,
+    });
   }
 
   return {
@@ -563,17 +822,19 @@ async function buildMonthlyInvoiceOptions(
     servicePeriodStart: bounds.start,
     servicePeriodEnd: bounds.end,
     timezone: location.timezone,
-    pricingNote: "Cuota mensual completa por inscripción; no se prorratea.",
+    pricingNote:
+      "Una cuota mensual completa por gimnasta; las clases incluidas se declaran explícitamente. No se prorratea.",
     pricePlans: plans,
     families: familyResults.map((family) => ({
       ...family,
       lines: family.lines.map((line) => ({
-        enrollmentId: line.enrollmentId,
+        athleteId: line.athleteId,
         athleteName: line.athleteName,
         pricePlanId: line.pricePlanId,
         pricePlanName: line.pricePlanName,
         amountCents: line.unitAmountCents,
         currency: line.currency,
+        coveredEnrollments: line.coveredEnrollments,
       })),
     })),
     unassignedEnrollments,
@@ -619,9 +880,14 @@ async function loadIssuedLines(
   organizationId: string,
   invoiceId: string
 ) {
-  return tx
+  const lineRows = await tx
     .select({
+      id: invoiceLines.id,
+      athleteId: sql<
+        string | null
+      >`coalesce(${invoiceLines.athleteId}, ${enrollments.athleteId})`,
       enrollmentId: invoiceLines.enrollmentId,
+      pricePlanId: invoiceLines.pricePlanId,
       athleteName: sql<string>`nullif(btrim(concat_ws(' ', ${people.givenName}, ${people.familyName})), '')`,
       amountCents: invoiceLines.amountCents,
       currency: invoiceLines.currency,
@@ -637,8 +903,11 @@ async function loadIssuedLines(
     .leftJoin(
       athletes,
       and(
-        eq(athletes.organizationId, enrollments.organizationId),
-        eq(athletes.id, enrollments.athleteId)
+        eq(athletes.organizationId, invoiceLines.organizationId),
+        eq(
+          athletes.id,
+          sql`coalesce(${invoiceLines.athleteId}, ${enrollments.athleteId})`
+        )
       )
     )
     .leftJoin(
@@ -654,7 +923,41 @@ async function loadIssuedLines(
         eq(invoiceLines.invoiceId, invoiceId)
       )
     )
-    .orderBy(asc(invoiceLines.enrollmentId));
+    .orderBy(asc(invoiceLines.athleteId), asc(invoiceLines.enrollmentId));
+  const lineIds = lineRows.map((line) => line.id);
+  const coveredRows = lineIds.length
+    ? await tx
+        .select({
+          invoiceLineId: invoiceLineEnrollments.invoiceLineId,
+          enrollmentId: invoiceLineEnrollments.enrollmentId,
+          classTemplateId: invoiceLineEnrollments.classTemplateId,
+          className: invoiceLineEnrollments.classNameSnapshot,
+          assignmentId: invoiceLineEnrollments.priceAssignmentId,
+        })
+        .from(invoiceLineEnrollments)
+        .where(
+          and(
+            eq(invoiceLineEnrollments.organizationId, organizationId),
+            inArray(invoiceLineEnrollments.invoiceLineId, lineIds)
+          )
+        )
+        .orderBy(
+          asc(invoiceLineEnrollments.invoiceLineId),
+          asc(invoiceLineEnrollments.enrollmentId)
+        )
+    : [];
+  const coveredByLine = new Map<string, typeof coveredRows>();
+  for (const covered of coveredRows) {
+    const current = coveredByLine.get(covered.invoiceLineId) ?? [];
+    current.push(covered);
+    coveredByLine.set(covered.invoiceLineId, current);
+  }
+  return lineRows.map(({ id, ...line }) => ({
+    ...line,
+    coveredEnrollments: (coveredByLine.get(id) ?? []).map(
+      ({ invoiceLineId: _invoiceLineId, ...covered }) => covered
+    ),
+  }));
 }
 
 async function loadMonthlyChargeState(
@@ -726,6 +1029,27 @@ export async function issueMonthlyInvoice(
   const bounds = periodBounds(input.servicePeriod);
 
   return db.transaction(async (tx) => {
+    await assertOperationalAccess(tx, {
+      organizationId: input.organizationId,
+      locationId: input.locationId,
+      actor: input.actor,
+      allowedRoles: financialRoles,
+    });
+    await lockCommand(
+      tx,
+      input.organizationId,
+      `monthly-period:${input.locationId}:${input.servicePeriod}`
+    );
+    const lockedLocation = await tx.execute(sql`
+      select id from zaltyko.locations
+      where organization_id = ${input.organizationId}::uuid
+        and id = ${input.locationId}::uuid
+        and is_active = true
+      for update
+    `);
+    if (lockedLocation.rows.length === 0) {
+      throw new OperationalError("NOT_FOUND", "Sede no encontrada", 404);
+    }
     await lockCommand(
       tx,
       input.organizationId,
@@ -821,10 +1145,45 @@ export async function issueMonthlyInvoice(
         actor: input.actor,
         allowedRoles: financialRoles,
       });
+      const lines = await loadIssuedLines(tx, input.organizationId, invoice.id);
+      if (priorMarker.payload.pricingModel === "athlete_monthly_v1") {
+        const persistedHash = monthlyQuoteHash({
+          organizationId: input.organizationId,
+          locationId: invoice.locationId ?? input.locationId,
+          familyId: invoice.familyId,
+          servicePeriod: input.servicePeriod,
+          lines: lines.map((line) => ({
+            athleteId: line.athleteId ?? "",
+            pricePlanId: line.pricePlanId,
+            amountCents: line.amountCents,
+            currency: line.currency,
+            coveredEnrollments: line.coveredEnrollments,
+          })),
+          conflicts: [],
+          blockingReasons: [],
+          totalAmountCents: invoice.totalAmountCents,
+          currency: invoice.currency,
+        });
+        if (
+          lines.some(
+            (line) =>
+              !line.athleteId ||
+              !line.pricePlanId ||
+              line.coveredEnrollments.length === 0
+          ) ||
+          persistedHash !== input.quoteHash
+        ) {
+          throw new OperationalError(
+            "MONTHLY_INVOICE_BLOCKED",
+            "La factura emitida no conserva la cobertura tarifaria esperada.",
+            500
+          );
+        }
+      }
       return {
         invoice,
         replayed: true,
-        lines: await loadIssuedLines(tx, input.organizationId, invoice.id),
+        lines,
         ...(await loadMonthlyChargeState(tx, input.organizationId, invoice.id)),
       };
     }
@@ -850,12 +1209,75 @@ export async function issueMonthlyInvoice(
         `monthly-enrollment:${enrollmentId}:${input.servicePeriod}`
       );
     }
-    if (enrollmentIds.length) {
-      await tx.execute(sql`
-        select id from zaltyko.enrollments
+    const lockedEnrollments = enrollmentIds.length
+      ? await tx.execute(sql`
+        select id, class_template_id from zaltyko.enrollments
         where organization_id = ${input.organizationId}::uuid
           and id in (${sql.join(
             enrollmentIds.map((id) => sql`${id}::uuid`),
+            sql`, `
+          )})
+        order by id for update
+      `)
+      : { rows: [] as Array<Record<string, unknown>> };
+    const classTemplateIds = [
+      ...new Set(
+        lockedEnrollments.rows.map((row) => String(row.class_template_id))
+      ),
+    ].sort();
+    const assignmentLocks = enrollmentIds.length
+      ? await tx.execute(sql`
+        select id, price_plan_id from zaltyko.enrollment_price_assignments
+        where organization_id = ${input.organizationId}::uuid
+          and location_id = ${input.locationId}::uuid
+          and enrollment_id in (${sql.join(
+            enrollmentIds.map((id) => sql`${id}::uuid`),
+            sql`, `
+          )})
+          and starts_on <= ${bounds.end}::date
+          and (ends_on is null or ends_on >= ${bounds.start}::date)
+        order by id for update
+      `)
+      : { rows: [] as Array<Record<string, unknown>> };
+    const pricePlanIds = [
+      ...new Set(assignmentLocks.rows.map((row) => String(row.price_plan_id))),
+    ].sort();
+    if (classTemplateIds.length && pricePlanIds.length) {
+      await tx.execute(sql`
+        select id from zaltyko.price_plan_class_template_coverage
+        where organization_id = ${input.organizationId}::uuid
+          and location_id = ${input.locationId}::uuid
+          and price_plan_id in (${sql.join(
+            pricePlanIds.map((id) => sql`${id}::uuid`),
+            sql`, `
+          )})
+          and class_template_id in (${sql.join(
+            classTemplateIds.map((id) => sql`${id}::uuid`),
+            sql`, `
+          )})
+          and starts_on <= ${bounds.end}::date
+          and (ends_on is null or ends_on >= ${bounds.start}::date)
+        order by id for update
+      `);
+    }
+    if (classTemplateIds.length) {
+      await tx.execute(sql`
+        select id from zaltyko.class_templates
+        where organization_id = ${input.organizationId}::uuid
+          and location_id = ${input.locationId}::uuid
+          and id in (${sql.join(
+            classTemplateIds.map((id) => sql`${id}::uuid`),
+            sql`, `
+          )})
+        order by id for update
+      `);
+    }
+    if (pricePlanIds.length) {
+      await tx.execute(sql`
+        select id from zaltyko.price_plans
+        where organization_id = ${input.organizationId}::uuid
+          and id in (${sql.join(
+            pricePlanIds.map((id) => sql`${id}::uuid`),
             sql`, `
           )})
         order by id for update
@@ -876,6 +1298,7 @@ export async function issueMonthlyInvoice(
     const existing = await tx
       .select({
         invoice: invoices,
+        invoiceLineId: invoiceLines.id,
         enrollmentId: invoiceLines.enrollmentId,
       })
       .from(invoices)
@@ -916,12 +1339,29 @@ export async function issueMonthlyInvoice(
           )
         )
         .limit(1);
-      const currentEnrollmentIds = existing
-        .map((row) => row.enrollmentId)
-        .filter((id): id is string => id !== null)
-        .sort();
+      const currentCoverage = await tx
+        .select({ enrollmentId: invoiceLineEnrollments.enrollmentId })
+        .from(invoiceLineEnrollments)
+        .where(
+          and(
+            eq(invoiceLineEnrollments.organizationId, input.organizationId),
+            inArray(
+              invoiceLineEnrollments.invoiceLineId,
+              existing.map((row) => row.invoiceLineId)
+            )
+          )
+        );
+      const currentEnrollmentIds = (
+        currentCoverage.length
+          ? currentCoverage.map((row) => row.enrollmentId)
+          : existing
+              .map((row) => row.enrollmentId)
+              .filter((id): id is string => id !== null)
+      ).sort();
       const quotedEnrollmentIds = family.lines
-        .map((line) => line.enrollmentId)
+        .flatMap((line) =>
+          line.coveredEnrollments.map((covered) => covered.enrollmentId)
+        )
         .sort();
       const sameSelection =
         JSON.stringify(currentEnrollmentIds) ===
@@ -952,10 +1392,16 @@ export async function issueMonthlyInvoice(
       );
     }
 
-    if (!family.canIssue || !family.quoteHash || !family.currency) {
+    if (family.quoteHash !== input.quoteHash) {
+      throw conflict(
+        "QUOTE_STALE",
+        "La cotización cambió. Actualiza la vista previa."
+      );
+    }
+    if (!family.canIssue || !family.currency) {
       throw new OperationalError(
         "MONTHLY_INVOICE_BLOCKED",
-        "Completa la familia, el responsable y las tarifas mensuales de todas las inscripciones activas antes de emitir.",
+        "Completa la familia, el responsable y la cobertura tarifaria de todas las gimnastas antes de emitir.",
         422,
         { blockingReasons: family.blockingReasons }
       );
@@ -971,36 +1417,55 @@ export async function issueMonthlyInvoice(
         422
       );
     }
-    if (family.quoteHash !== input.quoteHash) {
-      throw conflict(
-        "QUOTE_STALE",
-        "La cotización cambió. Actualiza la vista previa."
-      );
-    }
-
-    const existingEnrollmentCharges = await tx
+    const quotedEnrollmentIds = family.lines
+      .flatMap((line) =>
+        line.coveredEnrollments.map((covered) => covered.enrollmentId)
+      )
+      .sort();
+    const athleteIds = family.lines.map((line) => line.athleteId).sort();
+    const previouslyBilledAthletes = await tx
       .select({
-        enrollmentId: invoiceLines.enrollmentId,
         invoiceId: invoiceLines.invoiceId,
+        athleteId: sql<
+          string | null
+        >`coalesce(${invoiceLines.athleteId}, ${enrollments.athleteId})`,
       })
       .from(invoiceLines)
+      .innerJoin(
+        invoices,
+        and(
+          eq(invoices.organizationId, invoiceLines.organizationId),
+          eq(invoices.id, invoiceLines.invoiceId)
+        )
+      )
+      .leftJoin(
+        enrollments,
+        and(
+          eq(enrollments.organizationId, invoiceLines.organizationId),
+          eq(enrollments.id, invoiceLines.enrollmentId)
+        )
+      )
       .where(
         and(
           eq(invoiceLines.organizationId, input.organizationId),
-          inArray(
-            invoiceLines.enrollmentId,
-            family.lines.map((line) => line.enrollmentId)
-          ),
+          eq(invoices.locationId, input.locationId),
           eq(invoiceLines.lineType, "monthly_fee"),
           eq(invoiceLines.servicePeriodStart, bounds.start),
-          eq(invoiceLines.servicePeriodEnd, bounds.end)
+          eq(invoiceLines.servicePeriodEnd, bounds.end),
+          or(
+            inArray(invoiceLines.athleteId, athleteIds),
+            inArray(enrollments.athleteId, athleteIds)
+          )
         )
       );
-    if (existingEnrollmentCharges.length) {
+    if (previouslyBilledAthletes.length) {
       throw conflict(
         "ENROLLMENT_ALREADY_BILLED",
-        "Una o más inscripciones ya tienen una cuota para este periodo.",
-        { invoiceId: existingEnrollmentCharges[0].invoiceId }
+        "Una o más gimnastas ya tienen una cuota para esta sede y este periodo.",
+        {
+          invoiceId: previouslyBilledAthletes[0].invoiceId,
+          athleteId: previouslyBilledAthletes[0].athleteId,
+        }
       );
     }
 
@@ -1018,7 +1483,8 @@ export async function issueMonthlyInvoice(
         idempotencyKey: input.idempotencyKey,
         actor: input.actor,
         lines: family.lines.map((line) => ({
-          enrollmentId: line.enrollmentId,
+          athleteId: line.athleteId,
+          coveredEnrollments: line.coveredEnrollments,
           pricePlanId: line.pricePlanId,
           lineType: "monthly_fee",
           quantity: 1,
@@ -1047,7 +1513,9 @@ export async function issueMonthlyInvoice(
         quoteHash: input.quoteHash,
         totalAmountCents: family.totalAmountCents,
         currency: family.currency,
-        enrollmentIds: family.lines.map((line) => line.enrollmentId).sort(),
+        pricingModel: "athlete_monthly_v1",
+        athleteIds: family.lines.map((line) => line.athleteId).sort(),
+        enrollmentIds: quotedEnrollmentIds,
       },
     });
     await appendAuditEntry(tx, {
