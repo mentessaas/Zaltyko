@@ -7,6 +7,24 @@ source:
   - ../docs/architecture/zaltyko-domain-model.md
 ---
 
+## 2026-10-14 — Compatibilidad de esquema y gates de restore
+
+Auditoría solo lectura sobre catálogos de Zaltyko y Zaltyko E2E Sandbox:
+producción no tiene el esquema `zaltyko`; el Sandbox tiene dominio parcial,
+pero carece de cobertura/snapshots de tarifa y del consentimiento canónico.
+El consentimiento legado `public.owner_consent` se conserva; no se leyó su
+contenido ni se inventó backfill. Chromium pasó; Firefox falló con
+`NS_BINDING_ABORTED` en la navegación a inscripciones pendientes. WebKit tiene
+stack local en compilación, sin resultado de navegador aún. PR #225 no tiene
+revisión; PR #226 continúa en borrador con head/CI anteriores al SHA local
+probado. Restore/RPO/RTO no verificados.
+
+El detalle, la matriz de migraciones, la secuencia segura y la propuesta de
+restore sintético local no ejecutada están en
+`docs/qa/release-gates-schema-restore-2026-10-14.md`. Sin PII, credenciales,
+migraciones, escrituras remotas ni cambios de esquema. No se inició PostgreSQL
+mientras QA ejecuta Firefox.
+
 ## 2026-10-14 — Auditar cuota mensual por gimnasta y tarifa
 
 En la base `4f10141a` confirmé por inspección estática que la cotización y el
