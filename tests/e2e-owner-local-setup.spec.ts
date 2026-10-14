@@ -89,6 +89,7 @@ test.describe("Isolated local Supabase Owner setup", () => {
     await page.getByLabel("Correo electrónico").fill(email!);
     await page.getByLabel("Contraseña").fill(password!);
     const termsCheckbox = page.getByRole("checkbox");
+    await expect(termsCheckbox).toHaveCount(1);
     await termsCheckbox.check();
     await expect(termsCheckbox).toBeChecked();
 
@@ -316,6 +317,8 @@ test.describe("Isolated local Supabase Owner setup", () => {
     await expect(
       page.getByRole("heading", { name: "Emitir cuota mensual" })
     ).toBeVisible();
+    // This run intentionally has one enrollment; it does not prove per-athlete
+    // deduplication when the same gymnast attends multiple classes.
     const servicePeriod = nextMonth();
     await page.getByLabel("Mes de la cuota").fill(servicePeriod);
     await expect(
@@ -564,7 +567,9 @@ test.describe("Isolated local Supabase Owner setup", () => {
         .getByLabel("Correo electrónico")
         .fill(secondOwnerEmail);
       await secondOwnerPage.getByLabel("Contraseña").fill(secondOwnerPassword);
-      await secondOwnerPage.getByRole("checkbox").check();
+      const secondTermsCheckbox = secondOwnerPage.getByRole("checkbox");
+      await expect(secondTermsCheckbox).toHaveCount(1);
+      await secondTermsCheckbox.check();
       const secondSignupResponsePromise = secondOwnerPage.waitForResponse(
         (candidate) =>
           candidate.url().includes("/auth/v1/signup") &&
