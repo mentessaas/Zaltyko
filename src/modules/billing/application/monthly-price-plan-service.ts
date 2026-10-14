@@ -80,7 +80,7 @@ type CanonicalCoverage = {
   endsOn: string | null;
 };
 
-async function loadPricePlanCoverage(
+export async function loadPricePlanCoverage(
   tx: TransactionClient,
   organizationId: string,
   locationId: string,

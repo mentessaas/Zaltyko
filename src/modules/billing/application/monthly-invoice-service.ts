@@ -897,7 +897,7 @@ async function loadInvoice(
   return invoice;
 }
 
-async function loadIssuedLines(
+export async function loadIssuedLines(
   tx: TransactionClient,
   organizationId: string,
   invoiceId: string
@@ -1041,7 +1041,7 @@ async function loadIssuedLines(
   );
 }
 
-async function loadMonthlyChargeState(
+export async function loadMonthlyChargeState(
   tx: TransactionClient,
   organizationId: string,
   invoiceId: string
@@ -1129,6 +1129,39 @@ export async function loadMonthlyReplayState(
   return { invoice, ...chargeState };
 }
 
+export async function loadMonthlyFamilyMemberships(
+  tx: TransactionClient,
+  organizationId: string,
+  familyId: string,
+  bounds: { start: string; end: string }
+): Promise<Array<{ cursorId: string; athleteId: string }>> {
+  return readAllKeysetPages<{ cursorId: string; athleteId: string }>({
+    pageSize: READ_PAGE_SIZE,
+    cursorOf: (row) => row.cursorId,
+    fetchPage: (cursor, limit) => {
+      const conditions = [
+        eq(familyMembers.organizationId, organizationId),
+        eq(familyMembers.familyId, familyId),
+        lte(familyMembers.startsOn, bounds.end),
+        or(
+          isNull(familyMembers.endsOn),
+          gte(familyMembers.endsOn, bounds.start)
+        ),
+      ];
+      if (cursor) conditions.push(gt(familyMembers.id, cursor));
+      return tx
+        .select({
+          cursorId: familyMembers.id,
+          athleteId: familyMembers.athleteId,
+        })
+        .from(familyMembers)
+        .where(and(...conditions))
+        .orderBy(asc(familyMembers.id))
+        .limit(limit);
+    },
+  });
+}
+
 export async function issueMonthlyInvoice(
   command: IssueMonthlyInvoiceInput
 ): Promise<{
@@ -1211,34 +1244,12 @@ export async function issueMonthlyInvoice(
     const dueAt = calendarDueDateToUtc(input.dueDate, location.timezone);
     // The shared family-scope lock above serializes this complete cohort read
     // with family association changes while stable pages are fetched.
-    const familyAthletes = await readAllKeysetPages<{
-      cursorId: string;
-      athleteId: string;
-    }>({
-      pageSize: READ_PAGE_SIZE,
-      cursorOf: (row) => row.cursorId,
-      fetchPage: (cursor, limit) => {
-        const conditions = [
-          eq(familyMembers.organizationId, input.organizationId),
-          eq(familyMembers.familyId, input.familyId),
-          lte(familyMembers.startsOn, bounds.end),
-          or(
-            isNull(familyMembers.endsOn),
-            gte(familyMembers.endsOn, bounds.start)
-          ),
-        ];
-        if (cursor) conditions.push(gt(familyMembers.id, cursor));
-        return tx
-          .select({
-            cursorId: familyMembers.id,
-            athleteId: familyMembers.athleteId,
-          })
-          .from(familyMembers)
-          .where(and(...conditions))
-          .orderBy(asc(familyMembers.id))
-          .limit(limit);
-      },
-    });
+    const familyAthletes = await loadMonthlyFamilyMemberships(
+      tx,
+      input.organizationId,
+      input.familyId,
+      bounds
+    );
     const familyAthleteIds = [
       ...new Set(familyAthletes.map((row) => row.athleteId)),
     ].sort();
@@ -1476,6 +1487,11 @@ export async function issueMonthlyInvoice(
         input.organizationId,
         invoice.id
       );
+      const replayState = await loadMonthlyReplayState(
+        tx,
+        input.organizationId,
+        invoice.id
+      );
       const marker = await tx
         .select()
         .from(outboxEvents)
@@ -1514,11 +1530,7 @@ export async function issueMonthlyInvoice(
         marker[0].payload.quoteHash === input.quoteHash
       ) {
         return {
-          ...(await loadMonthlyReplayState(
-            tx,
-            input.organizationId,
-            invoice.id
-          )),
+          ...replayState,
           replayed: true,
           lines: existingLines,
         };
