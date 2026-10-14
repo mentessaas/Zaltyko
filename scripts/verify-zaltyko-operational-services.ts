@@ -74,7 +74,7 @@ const ID = {
   templateTarget: "10000000-0000-4000-8000-000000000102",
   templateExpired: "10000000-0000-4000-8000-000000000103",
   templateSecond: "10000000-0000-4000-8000-000000000107",
-  templateB: "20000000-0000-4000-8000-000000000100",
+  templateB: "b0000000-0000-4000-8000-000000000100",
   sessionNorth: "10000000-0000-4000-8000-000000000104",
   pricePlanMonthly: "10000000-0000-4000-8000-000000000105",
   pricePlanAnnual: "10000000-0000-4000-8000-000000000106",
@@ -230,6 +230,30 @@ async function count(table: string, where = "true"): Promise<number> {
   return Number(result.rows[0]?.count ?? 0);
 }
 
+async function invoiceEffectSnapshot(
+  invoiceId: string,
+  idempotencyKey: string
+): Promise<Record<string, unknown>> {
+  const result = await pool.query(
+    `select
+       (select jsonb_build_object(
+          'status', status,
+          'totalAmountCents', total_amount_cents,
+          'currency', currency
+        ) from zaltyko.invoices where id = $1) as invoice_state,
+       (select count(*)::int from zaltyko.invoice_lines where invoice_id = $1) as line_count,
+       (select count(*)::int from zaltyko.charges where invoice_id = $1) as charge_count,
+       (select count(*)::int from zaltyko.outbox_events
+        where idempotency_key = $2 or idempotency_key like ($2 || ':%')) as outbox_count,
+       (select count(*)::int from zaltyko.audit_log
+        where target_id = $1
+          or idempotency_key = $2
+          or idempotency_key like ($2 || ':%')) as audit_count`,
+    [invoiceId, idempotencyKey]
+  );
+  return result.rows[0];
+}
+
 async function withTimeout<T>(
   promise: Promise<T>,
   timeoutMs: number,
@@ -260,7 +284,7 @@ async function main(): Promise<void> {
     name: "Cuota inicial",
     amountCents: 14500,
     coverage: {
-      classTemplateIds: [ID.templateB],
+      classTemplateIds: [ID.templateB.toUpperCase()],
       startsOn: "2026-10-01",
       endsOn: null,
     },
@@ -269,6 +293,7 @@ async function main(): Promise<void> {
   });
   assert.equal(blankAcademyPlan.pricePlan.currency, "EUR");
   assert.equal(blankAcademyPlan.pricePlan.cadence, "monthly");
+  assert.equal(blankAcademyPlan.coverage[0].classTemplateId, ID.templateB);
   const blankAcademyPlanRetry = await createMonthlyPricePlan({
     organizationId: ID.orgB,
     locationId: ID.locationB,
@@ -1815,6 +1840,27 @@ async function main(): Promise<void> {
   );
   const monthlyRetry = await issueMonthlyInvoice(monthlyCommand);
   assert.equal(monthlyRetry.invoice.id, issuedMonthlyInvoice.invoice.id);
+  const replayQuoteChangeBefore = await invoiceEffectSnapshot(
+    issuedMonthlyInvoice.invoice.id,
+    monthlyCommand.idempotencyKey
+  );
+  await expectOperationalError(
+    () =>
+      issueMonthlyInvoice({
+        ...monthlyCommand,
+        quoteHash: "f".repeat(64),
+      }),
+    "PERIOD_ALREADY_INVOICED"
+  );
+  const replayQuoteChangeAfter = await invoiceEffectSnapshot(
+    issuedMonthlyInvoice.invoice.id,
+    monthlyCommand.idempotencyKey
+  );
+  assert.deepEqual(
+    replayQuoteChangeAfter,
+    replayQuoteChangeBefore,
+    "Una cotización cambiada rechazada no muta factura, líneas, cargos, outbox ni auditoría"
+  );
   const monthlyAlternateKeyRetry = await issueMonthlyInvoice({
     ...monthlyCommand,
     idempotencyKey: "monthly-invoice-issue-002",

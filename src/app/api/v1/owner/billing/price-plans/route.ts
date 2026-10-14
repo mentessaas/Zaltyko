@@ -26,7 +26,15 @@ const bodySchema = z
       .optional(),
     coverage: z
       .object({
-        classTemplateIds: z.array(z.string().uuid()).min(1).max(100),
+        classTemplateIds: z
+          .array(
+            z
+              .string()
+              .uuid()
+              .transform((id) => id.toLowerCase())
+          )
+          .min(1)
+          .max(100),
         startsOn: z.string().date(),
         endsOn: z.string().date().nullable(),
       })

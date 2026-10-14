@@ -9,7 +9,7 @@ const { transaction } = vi.hoisted(() => ({ transaction: vi.fn() }));
 vi.mock("@/db", () => ({ db: { transaction } }));
 
 const coverage = {
-  classTemplateIds: ["10000000-0000-4000-8000-000000000005"],
+  classTemplateIds: ["a0000000-0000-4000-8000-000000000005"],
   startsOn: "2026-10-01",
   endsOn: null,
 };
@@ -43,7 +43,7 @@ describe("servicio de tarifas mensuales", () => {
       value: {
         ...coverage,
         classTemplateIds: [
-          coverage.classTemplateIds[0],
+          coverage.classTemplateIds[0].toUpperCase(),
           coverage.classTemplateIds[0],
         ],
       },

@@ -26,8 +26,8 @@ const memberId = "10000000-0000-4000-8000-000000000002";
 const organizationId = "10000000-0000-4000-8000-000000000003";
 const locationId = "10000000-0000-4000-8000-000000000004";
 const pricePlanId = "10000000-0000-4000-8000-000000000005";
-const classTemplateId = "10000000-0000-4000-8000-000000000006";
-const secondClassTemplateId = "10000000-0000-4000-8000-000000000007";
+const classTemplateId = "a0000000-0000-4000-8000-000000000006";
+const secondClassTemplateId = "b0000000-0000-4000-8000-000000000007";
 const coverage = {
   classTemplateIds: [classTemplateId, secondClassTemplateId],
   startsOn: "2026-10-01",
@@ -167,6 +167,24 @@ describe("API Owner para crear tarifas mensuales", () => {
     );
   });
 
+  it("normaliza IDs de plantilla en mayúsculas antes de llamar al servicio", async () => {
+    const response = await createPricePlan(
+      request({
+        coverage: {
+          ...coverage,
+          classTemplateIds: coverage.classTemplateIds.map((id) =>
+            id.toUpperCase()
+          ),
+        },
+      })
+    );
+
+    expect(response.status).toBe(201);
+    expect(createMonthlyPricePlan).toHaveBeenCalledWith(
+      expect.objectContaining({ coverage })
+    );
+  });
+
   it("rechaza campos de organización/tarifa no admitidos por el contrato", async () => {
     const response = await createPricePlan(request({ cadence: "annual" }));
     expect(response.status).toBe(400);
@@ -205,7 +223,7 @@ describe("API Owner para crear tarifas mensuales", () => {
       {
         coverage: {
           ...coverage,
-          classTemplateIds: [classTemplateId, classTemplateId],
+          classTemplateIds: [classTemplateId.toUpperCase(), classTemplateId],
         },
       },
     ],
