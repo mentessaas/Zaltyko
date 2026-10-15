@@ -4,6 +4,10 @@
 
 No confundir validación local con CI remoto, compatibilidad del destino o autorización de despliegue. La autorización posterior permite inspección de metadata remota; no se han aplicado DDL ni modificado filas de negocio.
 
+## Candidato vigente — 5344e9d5, 10:19 UTC
+
+PR226 actualizado sin merge al SHA5344e9d5e246ce6dc91d096e5f57571beaae40fb. CI38719360128 queued, Static38719360372 y Directory38719360008 en curso; ningún PASS funcional ni cleanup de este SHA demostrado. Main379/379mockPASS, Frontend92/QA149GO y protecciones reconfirmadas antes del push. [Evidencia y límites](./ci-5344e9d5-candidate-2026-10-15.md). No duplicar corridas ni empujar notas durante CI. Las secciones inferiores son historial.
+
 ## Candidato vigente —2b581cd9,09:31UTC
 
 **Preparación10:18UTC:** alias exactos del mismo pin/digest integrados, Frontend92/QA149GO y Main379/379mockPASS9files/tsc0/eslint0. Protecciones GitHub/Vercel reconfirmadas; preparar único SHA nuevo sin rerun. No es CI verde ni demuestra resolverFirefox/WebKit; NO-GO continúa. [Revisión y evidencia](./ci-2b581cd9-local-diagnostics-2026-10-15.md#actualización1018utc--alias-revisados-e-integrados-localmente).
