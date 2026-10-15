@@ -6,6 +6,8 @@ No confundir validación local con CI remoto, compatibilidad del destino o autor
 
 ## Actualización vigente — candidato de6c3a64
 
+Preparado localmente, aún sin otro CI: correcciones unitarias `c8f9c621`, catálogo seguro `509f3597`, diagnóstico build `8cf19bb1` y fallback ECR→Hub por digest exacto. Frontend75 y QA119 dan GO estático del fallback después de cerrar status null; Main80/80 mock PASS, typecheck salida0. Una nueva corrida justificada sobre un nuevo SHA, no un rerun idéntico, debe demostrar descargas y pruebas. Ni el fallback ni el diagnóstico demuestran resolver el build240s. Se mantienen tres navegadores, todos los checks y los mismos plazos.
+
 CI `38703429157` terminó FAILURE: Chromium/WebKit fallan en precarga con indicador rate-limit; Firefox supera precarga pero agota build240s durante tracing, sin iniciar Playwright. Registra cleanup. Unitarios: tres fallos (cwd móvil y coste del mock paginación); fixes locales revisados y 4/4 de paginación con coverage PASS, aún sin nuevo candidato CI. Otros build/lint/móvil/security/RLS/migraciones PASS; Sandbox SKIPPED. Detalle y límites: `ci-de6c3a64-failures-2026-10-15.md`.
 
 Manifiesto18/hashchecker local PASS no acredita compatibilidad destino ni recuperación. Seguridad residual braces/node-forge mitigada localmente, aprobación independiente PR y autorización de release siguen pendientes. Metadata remota consultada sin filas: `remote-schema-metadata-2026-10-15.md`. Las secciones inferiores sobre 5001651c y anteriores son históricas y no describen el candidato vigente.

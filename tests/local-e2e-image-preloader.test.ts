@@ -5,8 +5,68 @@ import {
   sanitizeDockerPullStderr,
 } from "../scripts/lib/local-e2e-image-preloader";
 import { REQUIRED_LOCAL_SUPABASE_IMAGES } from "../scripts/lib/local-e2e-preflight";
+import { LOCAL_E2E_DIGEST_PINS } from "../scripts/lib/local-e2e-digest-pins";
 
 describe("GitHub Actions local Supabase image preloader", () => {
+  it("maps every CLI image to an exact fallback pin without additions", () => {
+    expect(LOCAL_E2E_DIGEST_PINS.map((pin) => pin.ecr)).toEqual(
+      REQUIRED_LOCAL_SUPABASE_IMAGES
+    );
+  });
+
+  it("wires quota fallback through the same filtered Docker environment", async () => {
+    const pin = LOCAL_E2E_DIGEST_PINS[0];
+    const hubRef = `docker.io/${pin.hub}@${pin.manifest}`;
+    const identity = JSON.stringify([
+      {
+        Os: "linux",
+        Architecture: "amd64",
+        Id: pin.config,
+        RepoDigests: [`${pin.hub}@${pin.manifest}`],
+      },
+    ]);
+    const commands: string[][] = [];
+    const environments: NodeJS.ProcessEnv[] = [];
+    let tagged = false;
+    await preloadLocalE2eImages(
+      {
+        GITHUB_ACTIONS: "true",
+        DOCKER_HOST: "unix:///var/run/docker.sock",
+        AWS_SECRET_ACCESS_KEY: "synthetic-not-forwarded",
+        STRIPE_SECRET_KEY: "synthetic-not-forwarded",
+      },
+      async (args, env, timeoutMs) => {
+        commands.push(args);
+        environments.push(env);
+        expect(timeoutMs).toBeGreaterThan(0);
+        expect(timeoutMs).toBeLessThanOrEqual(600_000);
+        if (args[0] === "info")
+          return { status: 0, stdout: "27.5.1", stderr: "" };
+        if (args[0] === "pull" && args.includes(pin.ecr)) {
+          return { status: 1, stdout: "", stderr: "toomanyrequests: 429" };
+        }
+        if (args[1] === "tag") tagged = true;
+        if (args[1] === "inspect" && args[2] === pin.ecr && !tagged) {
+          return { status: 1, stdout: "", stderr: "absent" };
+        }
+        return { status: 0, stdout: identity, stderr: "" };
+      }
+    );
+    expect(commands.filter(([op]) => op === "pull")).toEqual([
+      ["pull", "--platform", "linux/amd64", pin.ecr],
+      ["pull", "--platform", "linux/amd64", hubRef],
+    ]);
+    expect(commands).toContainEqual(["image", "tag", pin.config, pin.ecr]);
+    expect(
+      environments.every(
+        (env) =>
+          env.DOCKER_HOST === "unix:///var/run/docker.sock" &&
+          env.AWS_SECRET_ACCESS_KEY === undefined &&
+          env.STRIPE_SECRET_KEY === undefined
+      )
+    ).toBe(true);
+  });
+
   it("refuses to execute outside GitHub Actions without invoking Docker", async () => {
     const run = vi.fn();
 
@@ -40,7 +100,12 @@ describe("GitHub Actions local Supabase image preloader", () => {
 
     expect(commands[0]).toEqual(["info", "--format", "{{.ServerVersion}}"]);
     expect(commands.filter(([command]) => command === "pull")).toEqual(
-      REQUIRED_LOCAL_SUPABASE_IMAGES.slice(1).map((image) => ["pull", image])
+      REQUIRED_LOCAL_SUPABASE_IMAGES.slice(1).map((image) => [
+        "pull",
+        "--platform",
+        "linux/amd64",
+        image,
+      ])
     );
     expect(commands.some((args) => args.includes("latest"))).toBe(false);
   });

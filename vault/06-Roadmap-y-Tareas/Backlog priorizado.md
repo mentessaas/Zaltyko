@@ -971,6 +971,8 @@ La comparación estructural de columnas/restricciones/índices/trigger da parida
 
 ## P0 — Desbloquear CI sintético y cerrar gates de publicación — 2026-10-15
 
+Integración local posterior: fallback por13digests, status entero positivo, identidad linuxamd64/config/RepoDigests antesydespuésretag,600s compartidos; Frontend75GO+QA119sinbloqueantes, Main80/80mockPASS. Pendiente único CI nuevo tras comprobar protecciones. Diagnóstico tracingNOresuelve causa240s; no repetir pruebas locales completas ya cerradas. Fuente digest-fallback-prepared-2026-10-15.md.
+
 Actualización vigente de6c3a64: CI38703429157FAIL por rate-limitChromium/WebKit, build240sFirefox y3unitarios. Fixunitario localc8f9c621 revisado; diagnósticobuild localc60a28b1 integrado31/31PASS, sincausaresuelta niotraCI. QA prepara fallback PORdigestlinuxamd64idéntico, sin pullsruntime todavíaycuotaHub no garantizada. No repetir corridaidéntica/ampliartimeouts.
 
 Catálogo remoto autorizadoMain15oct: prod no tiene namespaceszaltyko/domain_private; Sandbox faltan5tablasnuevas y2columnasmensuales; ambos no tienenbtree_gist. Debe cerrar esquema+recuperación antes deDDL/activación. No tocar filas ni inferir datos sintéticos. Datosactuales en remote-schema-catalog-2026-10-15.json; no esreadiness. Los puntos inferiores de5001651c sonhistóricos, no prohibiciónvigente de consultar metadata.

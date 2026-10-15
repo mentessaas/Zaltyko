@@ -12203,3 +12203,9 @@ Modelo separado, reclamación manual, administración, importación revisada, fi
 
 - Frontendc60a28b1 integrado selectivamente: resumen.next/trace solo5fasesallowlist yduraciónmáximadespan, envoltorioJSONbuildTracePhases. Backend72 sinbloqueantes; Main31/31diagnóstico/core/wiringPASS,tsc/formatoPASS. AdaptacióncontratoestáticoverificacallCLI,args,envproduction,240s,abortsignal dentrodelwrapper.
 - Máximo8MiB/100keventos; erroresdeldiagnóstico no sustituyenoriginal ni finallycleanup. Límites: JSONparseantesdecontarevents, padre.nextpuedesersymlink, trazavieja/fragmentaria no identificaejecuciónactual, diagnósticosíncrononoformaunplazoglobal240s. Docsactualizados; ningunanuevabuild/E2E/CI. No esfixdelacausa.
+
+## 2026-10-15 — Integración de alternativa por digest, sin ampliar plazos
+
+- QAefde620b integrado selectivamente al precargador.13pins linuxamd64 coincidenconallowlist; unaalternativaHub soloanteECRrate-limitexclusivo+statusenteropositivo. VerificaConfigID+RepoDigests antesydespuésretag;600scompartidos entrecomandos,sinlogin/secretos/retries. EntornofiltradoyguardGHAconservados.
+- Frontend encontróstatusnull429 permitíafallback: Maincerróguardcon5regresiones(null/-1/1.5/NaN/Infinity). Frontend75GOestático,QA119sinbloqueantes. Main80/80mockPASS5archivos2.78s;tscsalida0,eslint0errores1warningexistenteparámetromockno usado. NoDocker/pullreal/E2E/CI nuevo durantepreparación.
+- Requiere unúnicocandidatoCIrevisado; cuotasHub/normalización/retagSupabaseruntimeaúnNOdemostrados. Build240ssigueabierto condiagnóstico acotado, nofixpresumido. NoDDL/merge/despliegue niresoluciónfalsa de alertasresiduales.

@@ -1,5 +1,11 @@
 import { REQUIRED_LOCAL_SUPABASE_IMAGES } from "./local-e2e-preflight";
 import { resolveLocalDockerEndpoint } from "./local-docker-endpoint";
+import { pullPinnedImageWithDigestFallback } from "./local-e2e-digest-fallback";
+import {
+  DigestFallbackError,
+  dockerDiagnosticFlags,
+  formatDockerDiagnosticFlags,
+} from "./local-e2e-docker-diagnostics";
 
 export type DockerCommand = (
   args: string[],
@@ -11,27 +17,7 @@ export type DockerCommand = (
 // or JSON values. Emit only fixed diagnostic labels, not redacted excerpts.
 export function sanitizeDockerPullStderr(stderr: string): string {
   if (!stderr.trim()) return "No stderr output was captured.";
-  const categories: Array<[string, RegExp]> = [
-    ["rate-limit", /too many requests|toomanyrequests|rate.?limit|\b429\b/i],
-    [
-      "authentication-or-permission",
-      /unauthorized|authentication required|access denied|denied:|\b(?:401|403)\b/i,
-    ],
-    [
-      "manifest-or-platform",
-      /manifest unknown|no matching manifest|manifest.*not found|unsupported platform/i,
-    ],
-    ["disk-space", /no space left on device|disk quota exceeded/i],
-    ["timeout", /timed? ?out|deadline exceeded/i],
-    [
-      "network-or-registry",
-      /connection reset|connection refused|no such host|unexpected EOF|TLS handshake|\b(?:500|502|503|504)\b/i,
-    ],
-  ];
-  const labels = categories
-    .filter(([, pattern]) => pattern.test(stderr))
-    .map(([label]) => label);
-  return `Diagnostic indicators: ${labels.length ? labels.join(", ") : "unclassified"}. Raw stderr omitted.`;
+  return formatDockerDiagnosticFlags(dockerDiagnosticFlags(stderr));
 }
 
 export async function preloadLocalE2eImages(
@@ -76,11 +62,21 @@ export async function preloadLocalE2eImages(
     );
     if (inspection.status === 0) continue;
 
-    const pull = await run(["pull", image], dockerEnvironment, 600_000);
-    if (pull.status !== 0) {
-      const stderr = sanitizeDockerPullStderr(pull.stderr);
+    try {
+      await pullPinnedImageWithDigestFallback(image, (args, timeoutMs) =>
+        run(args, dockerEnvironment, timeoutMs)
+      );
+    } catch (error) {
+      if (error instanceof DigestFallbackError) {
+        const operation = error.stage.endsWith("-pull")
+          ? "docker pull"
+          : "docker";
+        throw new Error(
+          `Could not preload pinned Supabase image ${image} (${operation} exit status ${error.status ?? "unknown"}).\n${error.message}`
+        );
+      }
       throw new Error(
-        `Could not preload pinned Supabase image ${image} (docker pull exit status ${pull.status ?? "unknown"}).\n${stderr}`
+        `Could not preload pinned Supabase image ${image}; raw error omitted.`
       );
     }
   }
