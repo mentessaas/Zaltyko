@@ -1,7 +1,9 @@
 import { describe, expect, it, vi } from "vitest";
 import { pullPinnedImageWithDigestFallback } from "../scripts/lib/local-e2e-digest-fallback";
 import { LOCAL_E2E_DIGEST_PINS } from "../scripts/lib/local-e2e-digest-pins";
-const pin = LOCAL_E2E_DIGEST_PINS[0];
+const pin = LOCAL_E2E_DIGEST_PINS.find((candidate) =>
+  candidate.ecr.includes("/studio:")
+)!;
 const ok = { status: 0, stdout: "", stderr: "" };
 const limited = {
   status: 1,
@@ -24,6 +26,7 @@ function harness(
   } = {}
 ) {
   const run = vi.fn(async (args: string[], _timeout: number) => {
+    void _timeout;
     if (args[0] === "pull")
       return args.includes(pin.ecr)
         ? (options.primary ?? limited)

@@ -1,5 +1,9 @@
 # Logflare: origen primario Hub fijado por digest
 
+Nota histórica del candidato0dfb: el siguiente cambio permanece solo local y se
+documenta por separado en [Hub primario del plan activo](./active-images-hub-primary-2026-10-15.md).
+No interpretar esa preparación como nuevo CI ni como corrección del build240s.
+
 ## Alcance
 
 Cambio local basado en `210aadda`, validado exclusivamente con mocks.

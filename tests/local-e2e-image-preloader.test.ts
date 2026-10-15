@@ -9,6 +9,7 @@ import {
   REQUIRED_LOCAL_SUPABASE_IMAGES,
 } from "../scripts/lib/local-e2e-preflight";
 import { LOCAL_E2E_DIGEST_PINS } from "../scripts/lib/local-e2e-digest-pins";
+const requiredImageRefs = new Set<string>(REQUIRED_LOCAL_SUPABASE_IMAGES);
 
 describe("GitHub Actions local Supabase image preloader", () => {
   it("maps every CLI image to an exact fallback pin without additions", () => {
@@ -17,7 +18,7 @@ describe("GitHub Actions local Supabase image preloader", () => {
     );
   });
 
-  it("wires quota fallback through the same filtered Docker environment", async () => {
+  it("wires the Hub primary through the same filtered Docker environment", async () => {
     const pin = LOCAL_E2E_DIGEST_PINS[0];
     const hubRef = `docker.io/${pin.hub}@${pin.manifest}`;
     const identity = JSON.stringify([
@@ -45,9 +46,6 @@ describe("GitHub Actions local Supabase image preloader", () => {
         expect(timeoutMs).toBeLessThanOrEqual(600_000);
         if (args[0] === "info")
           return { status: 0, stdout: "27.5.1", stderr: "" };
-        if (args[0] === "pull" && args.includes(pin.ecr)) {
-          return { status: 1, stdout: "", stderr: "toomanyrequests: 429" };
-        }
         if (args[1] === "tag") tagged = true;
         if (args[1] === "inspect" && args[2] === pin.ecr && !tagged) {
           return { status: 1, stdout: "", stderr: "absent" };
@@ -56,7 +54,6 @@ describe("GitHub Actions local Supabase image preloader", () => {
       }
     );
     expect(commands.filter(([op]) => op === "pull")).toEqual([
-      ["pull", "--platform", "linux/amd64", pin.ecr],
       ["pull", "--platform", "linux/amd64", hubRef],
     ]);
     expect(commands).toContainEqual(["image", "tag", pin.config, pin.ecr]);
@@ -81,10 +78,7 @@ describe("GitHub Actions local Supabase image preloader", () => {
 
   it("validates the local daemon and pulls only missing manifest images", async () => {
     const commands: string[][] = [];
-    const logflare = LOCAL_E2E_DIGEST_PINS.find(
-      (pin) => pin.ecr === "public.ecr.aws/supabase/logflare:1.34.14"
-    )!;
-    let logflareTagged = false;
+    const tagged = new Set<string>();
     const run = vi.fn(async (args: string[]) => {
       commands.push(args);
       if (args[0] === "info") {
@@ -92,22 +86,23 @@ describe("GitHub Actions local Supabase image preloader", () => {
       }
       if (args[0] === "image") {
         if (args[1] === "tag") {
-          logflareTagged = true;
+          tagged.add(args[3]);
           return { status: 0, stdout: "", stderr: "" };
         }
-        if (
-          args[1] === "inspect" &&
-          (args[2] === `docker.io/${logflare.hub}@${logflare.manifest}` ||
-            (args[2] === logflare.ecr && logflareTagged))
-        ) {
+        const pin = LOCAL_E2E_DIGEST_PINS.find(
+          (candidate) =>
+            args[2] === `docker.io/${candidate.hub}@${candidate.manifest}` ||
+            (args[2] === candidate.ecr && tagged.has(candidate.ecr))
+        );
+        if (args[1] === "inspect" && pin) {
           return {
             status: 0,
             stdout: JSON.stringify([
               {
                 Os: "linux",
                 Architecture: "amd64",
-                Id: logflare.config,
-                RepoDigests: [`${logflare.hub}@${logflare.manifest}`],
+                Id: pin.config,
+                RepoDigests: [`${pin.hub}@${pin.manifest}`],
               },
             ]),
             stderr: "",
@@ -129,15 +124,41 @@ describe("GitHub Actions local Supabase image preloader", () => {
 
     expect(commands[0]).toEqual(["info", "--format", "{{.ServerVersion}}"]);
     expect(commands.filter(([command]) => command === "pull")).toEqual(
-      ACTIVE_LOCAL_SUPABASE_IMAGES.slice(1).map((image) => [
-        "pull",
-        "--platform",
-        "linux/amd64",
-        image === logflare.ecr
-          ? `docker.io/${logflare.hub}@${logflare.manifest}`
-          : image,
-      ])
+      ACTIVE_LOCAL_SUPABASE_IMAGES.slice(1).map((image) => {
+        const pin = LOCAL_E2E_DIGEST_PINS.find(
+          (candidate) => candidate.ecr === image
+        )!;
+        return [
+          "pull",
+          "--platform",
+          "linux/amd64",
+          `docker.io/${pin.hub}@${pin.manifest}`,
+        ];
+      })
     );
+    const inspectedPinnedImages = new Set(
+      commands
+        .filter(
+          (args) =>
+            args[0] === "image" &&
+            args[1] === "inspect" &&
+            requiredImageRefs.has(args[2])
+        )
+        .map((args) => args[2])
+    );
+    expect(inspectedPinnedImages).toEqual(
+      new Set(ACTIVE_LOCAL_SUPABASE_IMAGES)
+    );
+    expect(
+      commands.some(
+        (args) => args[0] === "pull" && requiredImageRefs.has(args[3])
+      )
+    ).toBe(false);
+    expect(
+      commands.some(
+        (args) => args.includes("studio") || args.includes("postgres-meta")
+      )
+    ).toBe(false);
     expect(commands.some((args) => args.includes("latest"))).toBe(false);
   });
 

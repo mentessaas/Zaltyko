@@ -1,6 +1,7 @@
 import { describe, expect, it, vi } from "vitest";
 import { pullPinnedImageWithDigestFallback } from "../scripts/lib/local-e2e-digest-fallback";
 import { LOCAL_E2E_DIGEST_PINS } from "../scripts/lib/local-e2e-digest-pins";
+import { ACTIVE_LOCAL_SUPABASE_IMAGES } from "../scripts/lib/local-e2e-preflight";
 type Pin = (typeof LOCAL_E2E_DIGEST_PINS)[number];
 function docker(
   pin: Pin,
@@ -45,7 +46,7 @@ describe("exact pinned repository representations", () => {
       const run = docker(pin, [representation]);
       await pullPinnedImageWithDigestFallback(pin.ecr, run, () => 0);
       expect(run.mock.calls.map((c) => c[0])).toEqual([
-        ...(pin.ecr === "public.ecr.aws/supabase/logflare:1.34.14"
+        ...(ACTIVE_LOCAL_SUPABASE_IMAGES.includes(pin.ecr)
           ? []
           : [["pull", "--platform", "linux/amd64", pin.ecr]]),
         [
@@ -135,7 +136,9 @@ describe("exact pinned repository representations", () => {
       stage: "ecr-inspect",
       identityChecks: { "repo-digest-match": false },
     });
-    expect(run).toHaveBeenCalledTimes(5);
+    expect(run).toHaveBeenCalledTimes(
+      ACTIVE_LOCAL_SUPABASE_IMAGES.includes(pin.ecr) ? 4 : 5
+    );
   });
   it("does not coerce nonstring RepoDigest entries", async () => {
     const pin = LOCAL_E2E_DIGEST_PINS[0];

@@ -1,6 +1,7 @@
 import { describe, expect, it, vi } from "vitest";
 import { pullPinnedImageWithDigestFallback } from "../scripts/lib/local-e2e-digest-fallback";
 import { LOCAL_E2E_DIGEST_PINS } from "../scripts/lib/local-e2e-digest-pins";
+import { EXCLUDED_LOCAL_SUPABASE_IMAGES } from "../scripts/lib/local-e2e-preflight";
 
 const exact = "public.ecr.aws/supabase/logflare:1.34.14";
 const pin = LOCAL_E2E_DIGEST_PINS.find((p) => p.ecr === exact)!;
@@ -52,24 +53,25 @@ describe("exact logflare Hub primary, mocks only", () => {
       }
     }
   );
-  it.each(LOCAL_E2E_DIGEST_PINS.filter((p) => p.ecr !== exact))(
-    "keeps exclusive quota authorization for $ecr",
-    async (other) => {
-      for (const [status, stderr] of [
-        [1, "429 timeout"],
-        [null, "429"],
-        [NaN, "429"],
-        [-1, "429"],
-        [1.5, "429"],
-      ] as const) {
-        const run = vi.fn(async () => ({ status, stdout: "", stderr }));
-        await expect(
-          pullPinnedImageWithDigestFallback(other.ecr, run, () => 0)
-        ).rejects.toMatchObject({ stage: "ecr-pull" });
-        expect(run).toHaveBeenCalledTimes(1);
-      }
+  it.each(
+    LOCAL_E2E_DIGEST_PINS.filter((p) =>
+      EXCLUDED_LOCAL_SUPABASE_IMAGES.some((ref) => ref === p.ecr)
+    )
+  )("keeps exclusive quota authorization for $ecr", async (other) => {
+    for (const [status, stderr] of [
+      [1, "429 timeout"],
+      [null, "429"],
+      [NaN, "429"],
+      [-1, "429"],
+      [1.5, "429"],
+    ] as const) {
+      const run = vi.fn(async () => ({ status, stdout: "", stderr }));
+      await expect(
+        pullPinnedImageWithDigestFallback(other.ecr, run, () => 0)
+      ).rejects.toMatchObject({ stage: "ecr-pull" });
+      expect(run).toHaveBeenCalledTimes(1);
     }
-  );
+  });
   it("uses exactly one digest pull then verify, ID retag and postverify", async () => {
     const run = harness();
     await pullPinnedImageWithDigestFallback(exact, run, () => 0);
@@ -164,18 +166,19 @@ describe("exact logflare Hub primary, mocks only", () => {
     ).rejects.toMatchObject({ stage: "pin" });
     expect(run).not.toHaveBeenCalled();
   });
-  it.each(LOCAL_E2E_DIGEST_PINS.filter((p) => p.ecr !== exact))(
-    "preserves primary ECR for $ecr",
-    async (other) => {
-      const run = vi.fn(async () => ok);
-      await pullPinnedImageWithDigestFallback(other.ecr, run, () => 0);
-      expect(run.mock.calls).toHaveLength(1);
-      expect(run).toHaveBeenCalledWith(
-        ["pull", "--platform", "linux/amd64", other.ecr],
-        600_000
-      );
-    }
-  );
+  it.each(
+    LOCAL_E2E_DIGEST_PINS.filter((p) =>
+      EXCLUDED_LOCAL_SUPABASE_IMAGES.some((ref) => ref === p.ecr)
+    )
+  )("preserves primary ECR for $ecr", async (other) => {
+    const run = vi.fn(async () => ok);
+    await pullPinnedImageWithDigestFallback(other.ecr, run, () => 0);
+    expect(run.mock.calls).toHaveLength(1);
+    expect(run).toHaveBeenCalledWith(
+      ["pull", "--platform", "linux/amd64", other.ecr],
+      600_000
+    );
+  });
   it("shares the existing 600s across the Hub path", async () => {
     let time = 0;
     const base = harness();

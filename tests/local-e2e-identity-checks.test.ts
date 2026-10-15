@@ -8,6 +8,13 @@ import {
   type IdentityChecks,
 } from "../scripts/lib/local-e2e-docker-diagnostics";
 const kong = LOCAL_E2E_DIGEST_PINS.find((p) => p.hub === "library/kong")!;
+const kongHub = `docker.io/${kong.hub}@${kong.manifest}`;
+const expectedKongSequence = [
+  ["pull", "--platform", "linux/amd64", kongHub],
+  ["image", "inspect", kongHub],
+  ["image", "tag", kong.config, kong.ecr],
+  ["image", "inspect", kong.ecr],
+];
 const identity = {
   Os: "linux",
   Architecture: "amd64",
@@ -46,7 +53,7 @@ describe("closed identity diagnostics, Kong fixtures (not observed Docker output
       kong.config,
       kong.ecr,
     ]);
-    expect(run).toHaveBeenCalledTimes(5);
+    expect(run.mock.calls.map(([args]) => args)).toEqual(expectedKongSequence);
   });
   it("reports invalid JSON and leaves dependent checks unevaluated", async () => {
     const error = await failure("malformed-provider-secret");
@@ -99,7 +106,7 @@ describe("closed identity diagnostics, Kong fixtures (not observed Docker output
       kong.config,
       kong.ecr,
     ]);
-    expect(run).toHaveBeenCalledTimes(5);
+    expect(run.mock.calls.map(([args]) => args)).toEqual(expectedKongSequence);
   });
   it("reports all independent mismatches without short circuit", async () => {
     const error = await failure(
@@ -131,7 +138,7 @@ describe("closed identity diagnostics, Kong fixtures (not observed Docker output
       status: 0,
       identityChecks: { "config-match": false, "repo-digest-match": true },
     });
-    expect(run).toHaveBeenCalledTimes(5);
+    expect(run.mock.calls.map(([args]) => args)).toEqual(expectedKongSequence);
   });
   it("never retains observed values, arbitrary keys, stderr or cause", async () => {
     const error = await failure(

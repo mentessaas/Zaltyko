@@ -8,6 +8,18 @@ source:
 
 # Decisiones
 
+## 2026-10-15 — Origen fijo Hub del plan activo, solo local
+
+Tras Frontend110/QA184 GO sobre Backendc98077a6, integrar hunks de selección
+exacta11activos y pin exacto; catálogo13/versiones/identidad/600s/sinretryECR
+intactos. Dos excluidos conservan ECR/fallback429 positivo si helper directo.
+Preservar nota histórica y suite Logflare; matrices ECR pasan a exclusiones2.
+Añadir excepciones lanzadas por etapa×11; adaptar contrato Kong a secuenciaHub
+exacta sin relajar identidad. Main509/509mocks12files/tscPASS; Frontend111/QA186
+GOvariante. No push/CI automático: NO-GO build109 sigue sin causa concreta y
+no se afirma ahorro/disponibilidadHub. Tampoco merge/deploy/DDL autorizado.
+Fuente docs/qa/active-images-hub-primary-2026-10-15.md.
+
 ## 2026-10-15 — Plan activo compartido y cambio de origen aún local
 
 Integrar4a60de36 tras QA166GO: precarga/preflight usan11imágenes activas, manteniendo

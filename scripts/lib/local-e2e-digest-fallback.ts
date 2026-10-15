@@ -7,6 +7,7 @@ import {
   type DigestFallbackStage,
 } from "./local-e2e-docker-diagnostics";
 import { LOCAL_E2E_DIGEST_PINS } from "./local-e2e-digest-pins";
+import { ACTIVE_LOCAL_SUPABASE_IMAGES } from "./local-e2e-preflight";
 
 type Result = { status: number | null; stdout: string; stderr: string };
 export type DigestDockerCommand = (
@@ -57,7 +58,7 @@ function inspectIdentity(
 }
 
 /** Call in place of the existing missing-image pull; caller retains its filtered env.
- * Only the exact logflare pin uses Hub first; all other pins retain quota-only fallback.
+ * Only exact refs in the active local image plan use Hub first.
  * No login, registry env override, retries, raw provider output, or mutable Hub tag.
  */
 export async function pullPinnedImageWithDigestFallback(
@@ -114,7 +115,9 @@ export async function pullPinnedImageWithDigestFallback(
     elapsedAt(stage, result.status);
     return result;
   }
-  const hubPrimary = ecrRef === "public.ecr.aws/supabase/logflare:1.34.14";
+  const hubPrimary = ACTIVE_LOCAL_SUPABASE_IMAGES.some(
+    (activeRef) => activeRef === ecrRef
+  );
   if (!hubPrimary) {
     const primary = await command("ecr-pull", [
       "pull",

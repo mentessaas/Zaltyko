@@ -2,6 +2,12 @@
 
 ## Decisión: NO-GO para publicar
 
+**Preparación local12:40UTC:** hunks Backendc98077a6 integrados trasFrontend110/
+QA184 GO; 509/509mocks12files PASS después de corregir3expectativas antiguas de
+Kong a secuenciaHub exacta. Lint/formato/audit73/tscPASS; Frontend111/QA186 GO de
+variante integrada. Remoto sigue0dfb/CIFAIL. No push/nuevoCI autorizado:
+origenHub11 no acredita resolver build240s. [Evidencia local](./active-images-hub-primary-2026-10-15.md).
+
 Frontend109: NO-GO para cambiar build sin causa concreta demostrada; conservar
 Sentry/tracing/Node22/entorno/240s. Backend115 sigue SOLOLOCAL políticaHub11,
 pendiente entrega/reviews. Cambiar origen no acredita resolver el timeout build.
