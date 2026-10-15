@@ -2,6 +2,13 @@
 
 ## Decisión: NO-GO para publicar
 
+**Candidato vigente12:00UTC:** PR226 remoto0dfb8762d5f8eda83b0213b4210bec0ad0c744a2,
+OPEN/draft/blocked, push normal sinmerge. CI38731333899queued, Static38731333844 y
+Directory38731333850encurso. Sin resultadofuncional/cleanup/gate nuevo; notas
+locales no empujar duranteCI. [Evidencia exacta](./ci-0dfb8762-candidate-2026-10-15.md).
+Seguridad/destino/recuperación/rolapp/review/release siguen pendientes; secciones
+inferiores describen cortes históricos, no trasladar PASS210 al nuevoSHA.
+
 Preparación11:58UTC: Main integra Hub primario por digest SOLO Logflare exacto
 tras Frontend105/QA171 GO, conservando plan11/pins13/identidad/600s/240s. Main
 453/453mock11filesPASS, tsc0/ESLint0/formato/diffcheck0/audit73; protecciones
