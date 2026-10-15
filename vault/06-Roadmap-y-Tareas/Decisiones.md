@@ -785,3 +785,13 @@ Una ficha externa no crea dueño, academia operativa, trial ni suscripción. Sol
 | Conservación | Prospectos no convertidos: máximo 12 meses desde el último contacto significativo; si existe negociación, prueba o entrevista, el cómputo usa su última actividad. El cron mensual elimina prospectos vencidos no vinculados a academia/tenant y anonimiza la entrevista ligada para conservar solo señales no identificativas. Límite de 250 filas por ejecución. |
 | Fuente legal | La AEPD recomienda información por capas y que la capa detallada identifique plazos o criterios de conservación: [Derecho de información](https://www.aepd.es/derechos-y-deberes/conoce-tus-derechos/derecho-de-informacion). El art. 6 del RGPD distingue medidas precontractuales solicitadas e interés legítimo: [Reglamento en BOE](https://boe.es/buscar/doc.php?id=DOUE-L-2016-80807&lang=es). Los 12 meses son una decisión operativa de Zaltyko, no un plazo legal general. |
 | Estado | Preparado en la rama aislada `codex/academy-lead-privacy-2026-10-15`. Pendientes de publicación: revisión jurídica humana, Preview/deploy y verificación de la entrega del aviso en `hola@zaltyko.com`. No se modificó producción ni DNS. |
+
+## 2026-10-15 — Consentimiento separado para medición de la captación
+
+| Campo | Valor |
+| --- | --- |
+| Contexto | La landing y el formulario pueden recibir visitas de España/UE. La medición de analítica y campañas no es necesaria para enviar una solicitud ni para crear una cuenta. |
+| Decisión | Mantener cookies necesarias siempre activas y pedir elecciones separadas para analítica (PostHog, Vercel y eventos/atribución propios) y campañas (Google Ads). Rechazar opcionales no bloquea registro ni contacto; país y modalidad permanecen fuera del primer paso. |
+| Fuente | La [AEPD](https://www.aepd.es/guias/guia-cookies.pdf) indica que las cookies no exentas requieren consentimiento previo e informado y que rechazar debe ser una opción accesible. |
+| Consecuencia | No se inicializan los proveedores opcionales hasta la categoría elegida; retirar analítica borra el identificador de visitante y los UTMs de sesión y detiene la medición futura. |
+| Estado | Implementado en la rama del producto; tests y TypeScript locales pasan. Verificación en preview y revisión jurídica de proveedores/transferencias pendientes; no se declara cumplimiento legal definitivo. |

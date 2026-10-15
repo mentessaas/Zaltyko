@@ -55,7 +55,19 @@ describe("contact growth contracts", () => {
     });
 
     vi.stubGlobal("window", {
-      localStorage: { getItem, setItem },
+      localStorage: {
+        getItem: (key: string) =>
+          key === "zaltyko.cookie-consent.v1"
+            ? JSON.stringify({
+                version: 1,
+                necessary: true,
+                analytics: true,
+                marketing: false,
+                savedAt: "2026-10-15T00:00:00.000Z",
+              })
+            : getItem(key),
+        setItem,
+      },
     });
     vi.stubGlobal("crypto", {
       randomUUID: vi.fn(() => newVisitorId),
@@ -72,16 +84,16 @@ describe("contact growth contracts", () => {
     expect(storage.get(VISITOR_STORAGE_KEY)).toBe(newVisitorId);
   });
 
-  it("rechaza un contacto sin visitorId", () => {
+  it("permite un contacto sin visitorId cuando no hay consentimiento de analítica", () => {
     expect(
       ContactRequestSchema.safeParse(
         buildContactRequest({ visitorId: undefined })
       ).success
-    ).toBe(false);
+    ).toBe(true);
     expect(
       ContactRequestSchema.safeParse(buildContactRequest({ visitorId: null }))
         .success
-    ).toBe(false);
+    ).toBe(true);
   });
 
   it("usa una cohorte rolling de 30 días y solo cruza visitantes elegibles", () => {

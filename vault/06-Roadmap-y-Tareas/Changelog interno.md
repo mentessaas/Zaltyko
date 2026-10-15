@@ -8,10 +8,13 @@ source:
 
 ## 2026-10-15 — Captación de academias y conservación de leads (en revisión)
 
-- El primer paso comercial mantiene el alta directa de academia con país y modalidad deportiva en el onboarding posterior. Las consultas asistidas se guardan en el panel comercial; el aviso por correo no contiene los datos del lead, y el alta pendiente de confirmación de email ya no se cuenta como registro completado.
-- Se actualizó la información de privacidad de contacto, el aviso por capas del formulario y una conservación de 12 meses para leads inactivos. La tarea mensual elimina o anonimiza datos vencidos y preserva evaluaciones comerciales todavía activas.
-- Validación local focalizada: 4 archivos de pruebas, 11/11; TypeScript y ESLint sin errores; `git diff --check` pasa. La compilación Next local falló por `ENOSPC` cuando el volumen del equipo quedó con menos de 120 MB libres; se limpiaron los artefactos `.next` generados. Reintento de build/CI en Preview pendiente.
-- No se cambió DNS ni se hizo envío real. La activación pública en `waitlist.zaltyko.com` espera confirmar el CNAME de Hostinger; quedan CI/Preview y revisión legal de proveedores/transferencias.
+- El primer paso comercial mantiene el alta directa para academias estándar; país y modalidad se piden al configurar la academia. Migraciones complejas y multi-sede conservan un recorrido asistido. Las solicitudes se guardan en Super Admin → Growth y el aviso interno no copia datos del lead. Un alta con confirmación de email pendiente ya no se etiqueta como registro completado.
+- El formulario no suscribe a comunicaciones comerciales. La captura antigua de novedades se retiró de la portada. El banner permite aceptar, rechazar o configurar cookies; PostHog, Vercel Analytics/Speed Insights, eventos públicos, UTMs, ID de visitante y Google Ads solo se activan con el consentimiento de su categoría.
+- La política y el aviso de contacto describen responsable, finalidad, bases legales, proveedores, derechos y retención máxima de 12 meses desde la última actividad significativa para solicitudes no convertidas. El cron mensual elimina o anonimiza datos vencidos por lotes de hasta 250.
+- Se fijaron versiones corregidas de `proxy-addr`, `source-map-js`, `sharp` y `@modelcontextprotocol/sdk`. `pnpm audit --prod --audit-level=high` pasa sin vulnerabilidades altas/críticas; persisten tres moderadas.
+- Validación local: seis archivos de pruebas focales, 50/50; TypeScript y ESLint sin errores; instalación congelada y `git diff --check` pasan. En el CI del commit anterior pasó la build y falló una expectativa de fecha legal desactualizada y el audit de dependencias; ambas causas se corrigieron en esta rama. CI actualizado pendiente.
+- La landing está en preview de Vercel y la política/captación en PR #231. El proyecto Vercel ya tiene `waitlist.zaltyko.com` asignado a producción, pero lo marca `Invalid Configuration`. Hostinger no tiene el CNAME `waitlist`; Vercel indica `waitlist` → `87f3b447175c9d79.vercel-dns-017.com.`. No se ha cambiado DNS ni enviado un lead real.
+- Antes de dirigir tráfico faltan CI actualizado, revisión jurídica humana de proveedores/transferencias, comprobación controlada de persistencia y entrega del email, y confirmación exacta del usuario para escribir el CNAME de Hostinger.
 
 ## 2026-10-04 — Revalidar acceso Google, recuperación y búsqueda del onboarding
 

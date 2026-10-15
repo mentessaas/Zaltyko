@@ -1,5 +1,6 @@
 import { getOptionalEnvVar, isProduction } from "./env";
 import { logger } from "./logger";
+import { readCookieConsent } from "./consent/cookie-consent";
 
 export interface AnalyticsPayload {
   userId?: string;
@@ -21,6 +22,8 @@ const isAnalyticsDisabled = getOptionalEnvVar("NEXT_PUBLIC_DISABLE_ANALYTICS") =
 // perezosa (solo en cliente, solo cuando se usa) para que viva en un
 // chunk aparte, igual que el fix de Sentry Replay.
 let posthogModulePromise: Promise<typeof import("posthog-js")> | null = null;
+let posthogInitialized = false;
+let posthogInitialization: Promise<void> | null = null;
 
 function loadPostHog() {
   if (typeof window === "undefined") return null;
@@ -33,6 +36,7 @@ function loadPostHog() {
 // Initialize PostHog (call once in your app initialization)
 export async function initAnalytics() {
   if (typeof window === "undefined") return;
+  if (!readCookieConsent()?.analytics) return;
 
   const key = process.env.NEXT_PUBLIC_POSTHOG_KEY;
   const host = process.env.NEXT_PUBLIC_POSTHOG_HOST || "https://app.posthog.com";
@@ -47,22 +51,56 @@ export async function initAnalytics() {
   const mod = await loadPostHog();
   if (!mod) return;
 
-  mod.posthog.init(key, {
-    api_host: host,
-    person_profiles: "identified_only",
-    capture_pageview: false, // We'll track pageviews manually for better control
-    capture_pageleave: true,
-    loaded: (posthog) => {
-      if (!isProduction()) {
-        posthog.debug();
-      }
-    },
+  if (posthogInitialized) {
+    mod.posthog.opt_in_capturing();
+    return;
+  }
+  if (posthogInitialization) {
+    await posthogInitialization;
+    if (posthogInitialized && readCookieConsent()?.analytics) {
+      mod.posthog.opt_in_capturing();
+    } else if (!posthogInitialized) {
+      posthogInitialization = null;
+    }
+    return;
+  }
+
+  posthogInitialization = Promise.resolve().then(() => {
+    if (!readCookieConsent()?.analytics) return;
+    mod.posthog.init(key, {
+      api_host: host,
+      person_profiles: "identified_only",
+      capture_pageview: false, // We'll track pageviews manually for better control
+      capture_pageleave: true,
+      loaded: (posthog) => {
+        if (!isProduction()) {
+          posthog.debug();
+        }
+      },
+    });
+    posthogInitialized = true;
   });
+  await posthogInitialization;
+  if (!posthogInitialized) posthogInitialization = null;
+}
+
+export async function stopAnalytics() {
+  if (!posthogInitialized) return;
+  try {
+    const mod = await loadPostHog();
+    mod?.posthog.opt_out_capturing();
+  } catch (error) {
+    logger.warn("Failed to stop analytics after consent changed", { error });
+  }
 }
 
 // Track pageview
 export async function trackPageView(path: string, properties?: Record<string, unknown>) {
-  if (isAnalyticsDisabled || typeof window === "undefined") {
+  if (
+    isAnalyticsDisabled ||
+    typeof window === "undefined" ||
+    !readCookieConsent()?.analytics
+  ) {
     return;
   }
 
@@ -80,6 +118,10 @@ export async function trackPageView(path: string, properties?: Record<string, un
 // Track event
 export async function trackEvent(eventName: string, payload: AnalyticsPayload = {}) {
   if (isAnalyticsDisabled) {
+    return;
+  }
+
+  if (typeof window !== "undefined" && !readCookieConsent()?.analytics) {
     return;
   }
 

@@ -20,6 +20,7 @@ import {
 import { getRegistrationContinuationPath } from "@/lib/auth/registration-paths";
 import { getNextRegistrationRoleIndex } from "@/lib/auth/registration-role-navigation";
 import { useHydrated } from "@/lib/auth/use-hydrated";
+import { readCookieConsent } from "@/lib/consent/cookie-consent";
 
 // Lee UTMs del first-touch capturado por `UtmCapture` (sessionStorage)
 // o de la query string actual. Wrapper sobre `readUtmWithFallback` para
@@ -33,6 +34,9 @@ function readAttribution(): {
   utm_term: string;
 } {
   if (typeof window === "undefined") {
+    return readUtmWithFallback(new URLSearchParams(), undefined);
+  }
+  if (!readCookieConsent()?.analytics) {
     return readUtmWithFallback(new URLSearchParams(), undefined);
   }
   return readUtmWithFallback(

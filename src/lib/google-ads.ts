@@ -1,3 +1,5 @@
+import { readCookieConsent } from "@/lib/consent/cookie-consent";
+
 /**
  * Google Ads conversion tracking — helper puro, importable desde client y server.
  *
@@ -43,6 +45,7 @@ export function trackGoogleAdsConversion(
   transactionId?: string,
 ): void {
   if (typeof window === "undefined" || !ENABLED) return;
+  if (!readCookieConsent()?.marketing) return;
   if (typeof window.gtag !== "function") return;
   window.gtag("event", "conversion", {
     send_to: `${ADS_ID}/${conversionLabel}`,

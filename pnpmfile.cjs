@@ -15,7 +15,10 @@ const PATCHED_DEPENDENCIES = new Map([
   ["puppeteer-core", "^25.12.0"],
   ["proxy-agent", "^8.0.1"],
   ["moment", "^2.31.0"],
-  ["sharp", "^0.35.4"],
+  ["proxy-addr", "^2.0.8"],
+  ["source-map-js", "^1.2.2"],
+  ["sharp", "^0.35.5"],
+  ["@modelcontextprotocol/sdk", "^1.31.0"],
 ]);
 
 /** @type {import('pnpm').PnpmFileHooks} */

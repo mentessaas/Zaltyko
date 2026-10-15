@@ -1,9 +1,7 @@
 "use client";
 
 import { Sparkles, ArrowRight, Check } from "lucide-react";
-import { cn } from "@/lib/utils";
 import Link from "next/link";
-import { EmailCapture } from "@/components/EmailCapture";
 import Reveal from "@/components/motion/Reveal";
 
 const benefits = [
@@ -76,23 +74,8 @@ export default function FinalCtaSection() {
           </div>
         </Reveal>
 
-        {/* Email Capture */}
-        <Reveal delay={500}>
-          <div className="mt-8 p-6 rounded-2xl bg-white/10 backdrop-blur-sm border border-white/20">
-            <p className="text-white/80 text-sm mb-4">
-              ¿Quieres recibir ideas de gestión para academias de artística y rítmica?
-            </p>
-            <EmailCapture
-              source="final_cta"
-              variant="inline"
-              placeholder="tu@email.com"
-              buttonText="Suscribirme"
-            />
-          </div>
-        </Reveal>
-
         {/* Trust */}
-        <Reveal delay={600}>
+        <Reveal delay={500}>
           <p className="mt-8 text-white/60 text-sm">
             Trabajáis con datos de menores: cada academia está aislada y cada rol ve solo lo suyo.
           </p>

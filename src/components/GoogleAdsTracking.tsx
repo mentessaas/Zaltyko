@@ -3,7 +3,7 @@
 import Script from "next/script";
 import { useEffect } from "react";
 
-import { trackPageView } from "@/lib/analytics";
+import { useCookieConsent } from "@/hooks/useCookieConsent";
 import { isGoogleAdsEnabled } from "@/lib/google-ads";
 
 /**
@@ -24,16 +24,17 @@ import { isGoogleAdsEnabled } from "@/lib/google-ads";
 export { trackGoogleAdsConversion, isGoogleAdsEnabled } from "@/lib/google-ads";
 
 export function GoogleAdsTracking({ nonce }: { nonce?: string }) {
+  const consent = useCookieConsent();
   useEffect(() => {
-    if (!isGoogleAdsEnabled()) return;
-    // page_view se emite manualmente para mantener consistencia con el resto
-    // del tracking SPA (PostHog + Vercel Analytics). gtag ya recibe
-    // page_view automático al cargar, pero el segundo page_view (en SPA)
-    // hay que empujarlo nosotros.
-    trackPageView(window.location.pathname);
-  }, []);
+    if (consent?.marketing) return;
+    window.gtag?.("consent", "update", {
+      ad_storage: "denied",
+      ad_user_data: "denied",
+      ad_personalization: "denied",
+    });
+  }, [consent?.marketing]);
 
-  if (!isGoogleAdsEnabled()) return null;
+  if (!isGoogleAdsEnabled() || !consent?.marketing) return null;
 
   const adsId = process.env.NEXT_PUBLIC_GOOGLE_ADS_ID ?? "";
 

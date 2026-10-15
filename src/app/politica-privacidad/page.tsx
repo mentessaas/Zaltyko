@@ -12,7 +12,7 @@ const sections = [
   {
     title: "1. Quiénes somos",
     content: [
-      "El responsable del tratamiento es Elvis Valdes Inerarte, persona física que opera bajo la marca Zaltyko. Domicilio de contacto: Calle Río Amazonas 5, 29660 Marbella, Málaga, España. Correo de privacidad y contacto: hola@zaltyko.com.",
+      "El responsable del tratamiento es Elvis Valdes Inerarte, persona física. La plataforma es operada bajo la marca Zaltyko. Domicilio de contacto: Calle Río Amazonas 5, 29660 Marbella, Málaga, España. Correo de privacidad y contacto: hola@zaltyko.com.",
       "Zaltyko es una plataforma software-as-a-service que ayuda a academias de gimnasia a gestionar gimnastas, personal, clases y cobros internos.",
       "Esta política describe cómo tratamos los datos personales cuando utilizas nuestro sitio web, la aplicación web y las APIs asociadas.",
     ],
@@ -24,7 +24,7 @@ const sections = [
       "Solicitudes de contacto: nombre, correo electrónico, motivo, mensaje y, si lo facilitas, nombre de la academia. La información de país y modalidad deportiva se solicita después, al configurar una academia; no es necesaria para enviar una consulta.",
       "Datos operativos: información de academias, atletas, coaches, asistencia, evaluaciones y eventos que tu organización introduce voluntariamente en la plataforma.",
       "Datos de suscripción y pago: identificadores de cliente en Stripe, historial de suscripción y metadatos de pago. No almacenamos números completos de tarjeta ni CVV.",
-      "Datos técnicos: registros de acceso, direcciones IP, tipo de dispositivo, idioma, cookies esenciales y tokens de sesión para garantizar la seguridad y la experiencia de uso.",
+      "Datos técnicos: registros de acceso, dirección IP, tipo de dispositivo, idioma y cookies necesarias. Si aceptas analítica, también usamos un identificador aleatorio de visitante y parámetros UTM para entender el recorrido de captación.",
     ],
   },
   {
@@ -32,7 +32,8 @@ const sections = [
     content: [
       "Prestar el servicio contratado, incluyendo autenticación, control de acceso por roles y mantenimiento de tus academias.",
       "Procesar pagos y upgrades de plan mediante Stripe u otros procesadores compatibles.",
-      "Generar analíticas agregadas para ayudarte a monitorear desempeño y uso de la plataforma.",
+      "Medir el uso y rendimiento de la web con analítica opcional, únicamente si la autorizas.",
+      "Medir campañas publicitarias, únicamente si habilitas esa categoría de cookies.",
       "Comunicarnos contigo sobre novedades del producto, soporte y cambios relevantes en los servicios.",
       "Responder a las solicitudes de información, migración o acompañamiento comercial y gestionar los pasos previos que nos pidas. El formulario de contacto no te suscribe a comunicaciones comerciales.",
     ],
@@ -57,41 +58,52 @@ const sections = [
   {
     title: "6. Compartición de datos",
     content: [
-      "Proveedores esenciales: Supabase, Stripe, Brevo y herramientas de observabilidad necesarias para operar el servicio.",
+      "Proveedores de servicio: Supabase (cuentas y base de datos, región UE); Vercel (alojamiento y, si autorizas analítica, medición de rendimiento); Stripe (pagos); Brevo (correo transaccional); Google (inicio de sesión y, si configuras y autorizas campañas, Google Ads); PostHog (analítica opcional); y Sentry (diagnóstico de errores cuando está configurado).",
+      "Estos proveedores actúan según el servicio que prestan y las instrucciones aplicables. La región y las garantías de transferencias internacionales dependen de la configuración y del contrato vigente de cada cuenta; consulta al responsable si necesitas información específica sobre el tratamiento que afecta a tu solicitud.",
       "Cumplimiento legal: podemos divulgar información si una autoridad competente lo solicita conforme a la legislación aplicable.",
       "No vendemos datos personales ni los compartimos con fines publicitarios de terceros.",
     ],
   },
   {
-    title: "7. Derechos de los usuarios",
+    title: "7. Cookies y tecnologías similares",
+    id: "cookies",
+    content: [
+      "Las tecnologías necesarias mantienen la sesión, protegen la cuenta y recuerdan tu elección de privacidad. Se usan para prestar el servicio solicitado.",
+      "Si aceptas analítica, guardamos el identificador aleatorio y los parámetros UTM durante la sesión, y PostHog, Vercel y la medición interna de Zaltyko pueden registrar páginas y eventos de uso. Si aceptas campañas, Google Ads puede medir interacciones publicitarias cuando esa integración esté configurada. El identificador y los UTMs no se guardan antes de tu elección y estas herramientas no se cargan hasta que autorizas cada categoría.",
+      "Puedes aceptar todas, rechazar las opcionales o elegir cada categoría por separado. «Configurar cookies» en el pie de página permite cambiar o retirar tu elección; al retirarla se detiene la medición futura. La retirada no elimina datos tratados antes de cambiar la preferencia.",
+    ],
+  },
+  {
+    title: "8. Derechos de los usuarios",
     content: [
       "Acceder, rectificar o borrar tus datos personales.",
       "Limitar u oponerte a determinados tratamientos.",
       "Solicitar la portabilidad de la información en un formato estructurado.",
+      "Retirar en cualquier momento los consentimientos que hayas otorgado, sin afectar la licitud del tratamiento anterior a su retirada.",
       "Ejercer estos derechos escribiendo a hola@zaltyko.com. También puedes reclamar ante la Agencia Española de Protección de Datos (AEPD).",
     ],
   },
   {
-    title: "8. Seguridad",
+    title: "9. Seguridad",
     content: [
       "Aplicamos políticas RLS en Supabase, cifrado TLS, almacenamiento seguro de contraseñas y auditoría de accesos.",
       "Recomendamos habilitar autenticación multifactor cuando esté disponible y limitar los accesos compartidos.",
     ],
   },
   {
-    title: "9. Menores de edad",
+    title: "10. Menores de edad",
     content: [
       "Zaltyko está pensada para administradores y personal autorizado de academias. No recopilamos datos directamente de menores sin consentimiento de su representante legal.",
     ],
   },
   {
-    title: "10. Cambios en la política",
+    title: "11. Cambios en la política",
     content: [
       "Podremos actualizar esta política para reflejar mejoras o requisitos legales. Notificaremos a los administradores por correo electrónico y publicaremos la fecha de la última revisión.",
     ],
   },
   {
-    title: "11. Contacto",
+    title: "12. Contacto",
     content: [
       "Para consultas sobre privacidad o ejercer tus derechos, contacta con Elvis Valdes Inerarte, responsable del tratamiento, en hola@zaltyko.com o en Calle Río Amazonas 5, 29660 Marbella, Málaga, España. Si ya tienes cuenta, también puedes contactar desde la sección de soporte del dashboard.",
     ],
@@ -134,7 +146,11 @@ export default function PrivacyPolicy() {
 
           <section className="mt-10 space-y-10">
             {sections.map((section) => (
-              <article key={section.title} className="space-y-4">
+              <article
+                key={section.title}
+                id={"id" in section ? section.id : undefined}
+                className="space-y-4"
+              >
                 <h2 className="text-xl font-semibold text-zaltyko-text-main">
                   {section.title}
                 </h2>

@@ -16,6 +16,17 @@ const retentionRoute = readFileSync(
   "utf8"
 );
 const registerForm = readFileSync("src/components/RegisterForm.tsx", "utf8");
+const cookieConsent = readFileSync("src/lib/consent/cookie-consent.ts", "utf8");
+const posthogProvider = readFileSync("src/components/PostHogProvider.tsx", "utf8");
+const googleAdsTracking = readFileSync(
+  "src/components/GoogleAdsTracking.tsx",
+  "utf8"
+);
+const rootLayout = readFileSync("src/app/layout.tsx", "utf8");
+const publicGrowthClient = readFileSync("src/lib/growth/client.ts", "utf8");
+const utmCapture = readFileSync("src/components/growth/UtmCapture.tsx", "utf8");
+const googleAdsClient = readFileSync("src/lib/google-ads.ts", "utf8");
+const finalCta = readFileSync("src/app/(site)/home/FinalCtaSection.tsx", "utf8");
 
 describe("academy lead funnel readiness contract", () => {
   it("gives a concise privacy notice without describing the request as marketing consent", () => {
@@ -59,5 +70,22 @@ describe("academy lead funnel readiness contract", () => {
     expect(retentionRoute).toContain("RETENTION_MONTHS = 12");
     expect(retentionRoute).toContain("BATCH_LIMIT = 250");
     expect(retentionRoute).toContain("leadTrialOutcomes");
+  });
+
+  it("loads optional browser analytics only after the matching cookie preference", () => {
+    expect(cookieConsent).toContain("zaltyko.cookie-consent.v1");
+    expect(posthogProvider).toContain("readCookieConsent()?.analytics");
+    expect(googleAdsTracking).toContain("!consent?.marketing");
+    expect(rootLayout).toContain("<ConsentAwareVercelTelemetry />");
+    expect(rootLayout).toContain("<CookieConsentManager />");
+    expect(privacyPage).toContain('id: "cookies"');
+    expect(privacyPage).toContain(
+      "no se cargan hasta que autorizas cada categoría"
+    );
+    expect(publicGrowthClient).toContain("if (!readCookieConsent()?.analytics) return;");
+    expect(publicGrowthClient).toContain("if (!readCookieConsent()?.analytics)");
+    expect(utmCapture).toContain("readCookieConsent()?.analytics");
+    expect(googleAdsClient).toContain("readCookieConsent()?.marketing");
+    expect(finalCta).not.toContain("EmailCapture");
   });
 });

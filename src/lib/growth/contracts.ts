@@ -109,7 +109,7 @@ export const ContactRequestSchema = z
       ])
       .default("demo"),
     plan: z.enum(COMMERCIAL_PLAN_SLUGS).nullable().optional(),
-    visitorId: z.string().uuid(),
+    visitorId: z.string().uuid().nullable().optional(),
     source: z
       .string()
       .trim()

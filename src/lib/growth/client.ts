@@ -3,11 +3,12 @@
 import type { z } from "zod";
 
 import type { PublicGrowthEventSchema } from "@/lib/growth/contracts";
+import { readCookieConsent } from "@/lib/consent/cookie-consent";
 
 type PublicGrowthEvent = z.input<typeof PublicGrowthEventSchema>;
 type GrowthEventInput = Omit<PublicGrowthEvent, "eventId" | "visitorId">;
 
-const VISITOR_STORAGE_KEY = "zaltyko_growth_visitor_id";
+export const VISITOR_STORAGE_KEY = "zaltyko_growth_visitor_id";
 const UUID_V4_PATTERN =
   /^[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
 let inMemoryVisitorId: string | null = null;
@@ -16,7 +17,11 @@ function isUuidV4(value: string | null): value is string {
   return Boolean(value && UUID_V4_PATTERN.test(value));
 }
 
-export function getGrowthVisitorId(): string {
+export function getGrowthVisitorId(): string | null {
+  if (!readCookieConsent()?.analytics) {
+    clearGrowthVisitorId();
+    return null;
+  }
   if (isUuidV4(inMemoryVisitorId)) return inMemoryVisitorId;
 
   try {
@@ -39,6 +44,15 @@ export function getGrowthVisitorId(): string {
   return visitorId;
 }
 
+export function clearGrowthVisitorId(): void {
+  inMemoryVisitorId = null;
+  try {
+    window.localStorage.removeItem(VISITOR_STORAGE_KEY);
+  } catch {
+    // Storage may be blocked; the identifier remains unavailable without consent.
+  }
+}
+
 export function getPublicAttribution() {
   const searchParams = new URLSearchParams(window.location.search);
   let referrerHost: string | null = null;
@@ -59,11 +73,14 @@ export function getPublicAttribution() {
 
 export function capturePublicGrowthEvent(input: GrowthEventInput): void {
   if (process.env.NEXT_PUBLIC_DISABLE_ANALYTICS === "true") return;
+  if (!readCookieConsent()?.analytics) return;
+  const visitorId = getGrowthVisitorId();
+  if (!visitorId) return;
 
   const payload: PublicGrowthEvent = {
     ...input,
     eventId: crypto.randomUUID(),
-    visitorId: getGrowthVisitorId(),
+    visitorId,
   };
   const body = JSON.stringify(payload);
 

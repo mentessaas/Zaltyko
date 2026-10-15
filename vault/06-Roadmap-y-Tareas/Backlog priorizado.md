@@ -560,5 +560,7 @@ La comparación estructural de columnas/restricciones/índices/trigger da parida
 ## Captación de academias — pendientes de activación · 2026-10-15
 
 - **P0 / antes de dirigir tráfico:** revisión jurídica humana del aviso de privacidad y confirmar que los proveedores/transferencias descritos corresponden a la configuración productiva.
-- **P0 / antes de producción:** integrar y desplegar la rama de privacidad del producto; validar con datos de prueba la persistencia en base de datos, la bandeja Super Admin → Growth y el email de aviso a `hola@zaltyko.com` sin enviar PII del prospecto al buzón.
-- **P0 / Hostinger:** el CNAME de `waitlist.zaltyko.com` sigue pendiente. Presentar el registro exacto y pedir confirmación en la conversación antes de escribir DNS; el subdominio aún requiere verificación DNS.
+- **P0 / antes de producción:** integrar y desplegar la rama del producto; verificar con datos ficticios controlados la persistencia, Super Admin → Growth y el email de aviso a `hola@zaltyko.com` sin incluir PII del prospecto. No se envió ningún formulario real.
+- **P0 / Hostinger:** Vercel muestra el dominio asociado pero mal configurado. En la zona actual de Hostinger falta `CNAME waitlist → 87f3b447175c9d79.vercel-dns-017.com.` (TTL sugerido 300). No modificar los registros A/MX/SPF/DKIM existentes. Pedir confirmación exacta antes de escribirlo; validar después la propagación.
+- **P0 / CI:** volver a comprobar toda la suite después del último push. En el commit anterior falló una expectativa de fecha legal y el audit de versiones transitivas; las dos causas se corrigieron en esta rama.
+- **P1 / después de aprobación y despliegue:** probar en entorno controlado el email y la bandeja de leads, revisar móvil/teclado y comprobar la página servida bajo el dominio propio.
