@@ -18,7 +18,7 @@ case "${ZALTYKO_MONTHLY_BILLING_PAGING_CASE:-full}" in
   financial)
     VERIFIER_SCRIPT="scripts/verify-zaltyko-monthly-financial-controls-local.ts"
     MIGRATION_PROFILE="monthly"
-    USE_VERIFIER_WATCHDOG=0
+    USE_VERIFIER_WATCHDOG=1
     DATABASE_APPLICATION_NAME="zaltyko_monthly_financial"
     ;;
   retention)
