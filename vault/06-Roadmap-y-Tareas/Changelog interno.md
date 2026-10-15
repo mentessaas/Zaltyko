@@ -12094,3 +12094,9 @@ Modelo separado, reclamación manual, administración, importación revisada, fi
 - Mocks permiso/origen y Sentry: 19/19; TypeScript, ESLint focal, Prettier y
   diff check PASS. Sin nueva ejecución de navegador ni servicios. Cleanup
   completo consta en el informe QA65 preservado sin modificar.
+
+## 2026-10-15 — QA72: E2E Owner mensual local Chromium PASS
+
+- Corrida fría del candidato a1edf37d56ac2b1d9f21a1bfa49a62c7b58bb681 en worktree detached nuevo. Node 22.22.3, Next 15.5.27, tsx 4.23.13 y dependencias preexistentes con lock/manifiesto coincidentes; sin caché Next previa, instalación ni pull.
+- Chromium completó el test de alta y operaciones Owner: roster/asistencia, cuota, pago manual y dashboard. La consulta SQL confirmó persistencia del cargo/pago; pasó el resumen a 375/768/1280 sin overflow y las negativas sintéticas de organización, sede y coach devolvieron 403. Un test/worker, exit 0.
+- Cleanup del stack/volúmenes informado por el runner y verificado sin recursos temporales propios. Sin Firefox/WebKit, CI, Sandbox, remotos ni producción. Detalle y log: [informe QA72](../../docs/qa/local-owner-e2e-chromium-a1edf37-2026-10-15.md).
