@@ -6,6 +6,8 @@ No confundir validación local con CI remoto, compatibilidad del destino o autor
 
 ## Candidato vigente — 5344e9d5, 10:19 UTC
 
+10:22UTC: Security/SBOM, lint/tipos, móvil, RLS/migraciones y Static/Directory PASS en el SHA exacto. Build/Unit y matriz/gate pendientes, sin evidencia funcional/cleanup nueva; alertas residuales y destino/recovery/review siguen separados. No listo. [Detalle](./ci-5344e9d5-candidate-2026-10-15.md).
+
 PR226 actualizado sin merge al SHA5344e9d5e246ce6dc91d096e5f57571beaae40fb. CI38719360128 queued, Static38719360372 y Directory38719360008 en curso; ningún PASS funcional ni cleanup de este SHA demostrado. Main379/379mockPASS, Frontend92/QA149GO y protecciones reconfirmadas antes del push. [Evidencia y límites](./ci-5344e9d5-candidate-2026-10-15.md). No duplicar corridas ni empujar notas durante CI. Las secciones inferiores son historial.
 
 ## Candidato vigente —2b581cd9,09:31UTC
