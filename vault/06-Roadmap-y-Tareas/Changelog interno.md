@@ -12235,3 +12235,5 @@ Modelo separado, reclamación manual, administración, importación revisada, fi
 - Main integrahunks Frontende4d7caee rootbraces sinreemplazarmanifiesto/lockantiguos;Backend88/QA133GO. 10regresionesraízPASS, frozenoffline sin scripts salida0; hashpatchdymdrenw7322ki6dxkzzldxbhm/2refs, versionesintactas;restoriesgoupstreamnoresuelto.
 - Main integraworker2987da78+testajustec3663449;Frontend84/QA135GO. Primerfocal31PASS1FAIL porcostetestconfig5s; optimizaciónpreserva8casosVM/2configreales, noampliar5s/15s/240s. Main89/89en7archivosPASS3.67s,tsc0,eslint0,Prettier6filesPASS;locknoformateadoglobalmente,whitespacepatchcontextdocumentado. Sinbuildlocalnuevo.
 - Proteccionesmain/Vercel/DeployverificadasantesnuevoSHA; nomerge/DDL/deploy/pagos. Gates esquema/backup/rolapp/reviewindependiente siguenabiertos; peticiónBackupsyaenviada,sinrepetir.
+
+- Pushnormal2b581cd92be6cc1bf3531032a9914e006e409161confirmado09:31UTC;PR226draftREVIEW_REQUIRED. CIautomáticoporSHAenindexación,listadoprevio[], no dispatch/rerun. GitHubdeploymentrecordsSHA0. QAmonitorizasolonuevoSHAconbackoff. Notasci-2b581cd9-candidate-2026-10-15.mdlocalessinpushduranteCI. Ningúnmerge/despliegue/DDL.
