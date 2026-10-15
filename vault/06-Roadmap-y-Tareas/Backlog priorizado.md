@@ -17,6 +17,14 @@ source:
 ---
 ## P0 — Cerrar el recorrido MVP publicado — 2026-10-14
 
+14:14UTC vigente: candidato bf0aad14 ya remoto por push normal, sin merge/deploy.
+Única corrida adicional autorizada CI38749323693 en progreso de jobs; Static38749323931/
+Directory38749323676 pendientes de cierre. Main528mocks13files PASS y privacidad/
+wiring sampler revisados QA203; mantener240s/checks/protecciones14:11. Sin nuevo
+funcional/cleanup/gate todavía. QA monitoriza exactSHA. Pendientes separados
+seguridad residual, esquema/historial/rol app/recuperación, reviewGitHub y release;
+no CI por notas ni repetir Backups. Informes inferiores históricos.
+
 Autorización humana posterior: preparar UNA corrida adicional del CI existente
 con diagnóstico CPU/memoria saneado y revisado; ya no esperar permiso para ese
 paso ni repetir pregunta. Backend implementa local aislado, Frontend/QA revisan;

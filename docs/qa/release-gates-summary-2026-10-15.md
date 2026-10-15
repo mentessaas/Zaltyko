@@ -2,6 +2,18 @@
 
 ## Decisión: NO-GO para publicar
 
+**Estado vigente14:14UTC:** push normal confirmado a `bf0aad14b51e27ec149ddd74738ba31be97ae5b9`,
+PR226 OPEN/draft/REVIEW_REQUIRED, sin merge/deploy. Único CI38749323693 creado
+14:12:26UTC; Chromium/Unit/Build/lint progresan, Firefox/WebKit en cola.
+Móvil/SecuritySBOM/RLS/migraciones PASS; readiness/auth SKIPPED. Static38749323931/
+Directory38749323676 en curso al observar inicialmente. Ningún funcional/cleanup/
+gate nuevo todavía. La única corrida adicional autorizada ya fue iniciada:
+no encadenar otras. Protecciones GitHub/Vercel/Deploy/Production reconfirmadas
+14:11UTC; GitHub deployments porSHA0, no inventario universal. QA monitoriza
+solo esos runs; notas locales no se empujan duranteCI.
+[Evidencia y límites](./ci-bf0aad14-candidate-2026-10-15.md).
+Las secciones inferiores son cortes anteriores; no representan el estado vigente.
+
 **Preparación14:11UTC:** sampler Frontend57af90c3 integrado por hunks tras
 QA203 GO estático exacto; cinco archivos sin Changelog histórico formateado.
 Main528/528 en13files PASS, ESLint0avisos/Prettier/audit73/diff-check PASS.

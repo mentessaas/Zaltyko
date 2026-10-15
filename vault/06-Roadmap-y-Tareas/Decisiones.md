@@ -8,6 +8,16 @@ source:
 
 # Decisiones
 
+## 2026-10-15 — Ejecutada la única corrida adicional autorizada
+
+14:12UTC push normal del candidato bf0aad14, sin merge/despliegue, tras QA203 GO
+exacto del sampler, integración Main528/528mocks13files y checks. Se conservan
+protecciones verificadas14:11UTC y240s/Node22/Sentry/tracing/matriz/cleanup.
+CI38749323693 es la única corrida nueva; QA monitoriza ese SHA y sus Static/
+Directory sin rerun/dispatch. No más diagnósticosCI automáticos por notas ni
+afirmar causa/readiness por métricas host. No empujar notas mientras corre CI.
+Seguridad/destino/recuperación/revisión independiente/publicación siguen NO-GO.
+
 ## 2026-10-15 — Autorizada una corrida de diagnóstico acotado
 
 El usuario responde «Si te autorizo a todos pero termina de poner todo listo»
