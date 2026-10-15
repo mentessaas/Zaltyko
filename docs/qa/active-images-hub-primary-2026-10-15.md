@@ -98,3 +98,28 @@ todos pero termina de poner todo listo» al permiso solicitado. Se autoriza esa
 Frontend/QA/Main revisan antes de integrar/push. Todavía no se implementó ni
 ejecutó el diagnóstico en CI. Se conservan240s/checks/matriz/Sentry/tracing y
 protecciones; no autoriza merge/despliegue ni uso de datos reales.
+
+### Seguimiento de implementación — 13:57 UTC
+
+Frontend asume completar el helper, wiring y pruebas en copia aislada basada en
+`844902db`. Backend deja un helper parcial, sin tests/wiring/commit de entrega;
+su cierre posterior respondió billing histórico y **no acredita** la tarea de
+instrumentación. No se recrea ese servicio ni se integra el parcial sin revisión.
+QA espera el diff completo y Main conserva únicamente documentación local.
+
+La medición aprobada es de ámbito **host**, que incluye los servicios Supabase,
+no de consumo atribuible exclusivamente al proceso Next. Cinco fuentes fijas de
+`/proc`, máximo una muestra por segundo, 250 muestras y lecturas acotadas; solo
+un resumen numérico cerrado. La primera línea CPU completa puede aceptarse del
+prefijo acotado de `/proc/stat`, aunque su cuerpo posterior sea mayor; no se
+procesan los registros de procesos ni el resto de ese cuerpo.
+
+Según las [referencias del kernel para procfs](https://www.kernel.org/doc/html/v6.10/filesystems/proc.html),
+MemAvailable es una estimación e iowait tiene limitaciones y puede decrecer.
+Las [métricas PSI](https://www.kernel.org/doc/html/v6.6/accounting/psi.html)
+son proporciones de tiempo en espera sobre ventanas móviles; `avg10` no es
+porcentaje de CPU del build ni una ventana exclusiva de su ejecución. Los
+resultados se interpretarán con esos límites, sin afirmar causalidad.
+
+Pendientes entrega, revisión estática QA/Main, contratos con mocks y checks
+locales. No se ha ejecutado la corrida autorizada ni empujado un candidato.
