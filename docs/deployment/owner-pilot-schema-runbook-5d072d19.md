@@ -11,15 +11,39 @@ un ejecutor de aplicación ni cambia SQL, rutas, permisos o datos remotos.
 Un resultado estático PASS y una inspección de metadatos no acreditan readiness,
 backup restaurable, aislamiento efectivo, E2E autenticado ni activación segura.
 
-En el checkout backend `6ed06ad4`, las primeras 16 migraciones coinciden byte
-a byte con el candidato. Los SQL 17 y 18 están ausentes. La librería
-`scripts/lib/e2e-domain-migrations.ts` se incorpora idéntica a la del candidato
-para reutilizar sus listas; no se modifica el runner sandbox ni se copian los
-dos SQL ausentes. El checker de worktree debe bloquear esta situación.
+Referencia histórica del checkout backend `6ed06ad4`: las primeras 16 migraciones
+coincidían byte a byte con el candidato y los SQL 17/18 estaban ausentes. El
+paquete `db448d7c` incorporó `scripts/lib/e2e-domain-migrations.ts` idéntica a la
+del candidato para reutilizar sus listas, sin modificar el runner sandbox ni
+copiar esos dos SQL. El bloqueo del checker correspondía a ese worktree. No
+extrapolarlo a integración: Main confirmó allí los 18 archivos del manifiesto.
 
-El dato aportado por coordinación de que producción no tiene tablas ordinarias
-`zaltyko` no prueba que sus namespaces, funciones, tipos o ledger no existan.
-No se ha consultado producción ni sandbox para redactar este documento.
+### Evidencia posterior comunicada por Main — 2026-10-15
+
+Fuente de catálogo en integración: `509f3597`,
+`docs/qa/remote-schema-catalog-2026-10-15.json` y
+`docs/qa/remote-schema-metadata-2026-10-15.md`. Sustituye la incertidumbre inicial
+sobre namespaces: producción no tiene `zaltyko` ni `zaltyko_domain_private`;
+mantiene el helper legacy `zaltyko_private`. Sandbox sí tiene los namespaces
+nuevos, pero carece de las cinco tablas de los deltas 17/18 y de
+`invoice_lines.location_id/athlete_id`. Ambos destinos carecen de `btree_gist`.
+
+Main comunicó además reconciliación técnica READ ONLY, timeout 10 s, solo Sandbox:
+16/16 entradas base con una fila y versión/checksum exactos; 17/18 ausentes y
+cero filas ajenas al manifiesto. El ledger delta está ausente según catálogo.
+Esto verifica los registros del ledger base respecto al candidato; no demuestra
+equivalencia semántica de objetos, procedencia de filas ni ACL del ledger. Main
+adjunta el resultado en
+[`sandbox-deployment-ledger-comparison-2026-10-15.json`](../qa/sandbox-deployment-ledger-comparison-2026-10-15.json)
+y el alcance en
+[`remote-history-and-recovery-2026-10-15.md`](../qa/remote-history-and-recovery-2026-10-15.md).
+La observación de ACL posterior no reemplaza la comprobación del rol de aplicación.
+
+El historial nativo independiente registra 53 entradas en producción y 70 en
+Sandbox, ninguna de las 18 versiones esperadas. Solo aportó versión/nombre, no
+checksums: no invalida el ledger E2E ni prueba que sus migraciones no se ejecutaran.
+El rol/path observados mediante MCP no describen la conexión de aplicación.
+Este agente no realizó consultas remotas para actualizar el documento.
 
 ## Comprobación estática local
 
@@ -93,6 +117,65 @@ objetos de extensión potencialmente fuera de `zaltyko`. Los archivos usan
 `gen_random_uuid()` y no instalan `pgcrypto`; verificar su resolución en destino.
 No desinstalar una extensión compartida como parte del rollback del piloto.
 
+## Contrato propuesto del futuro apply por destino
+
+Diseño pendiente de implementación y revisión. Ninguno de los comandos estáticos
+anteriores admite apply. La elección de destino/alcance debe ser explícita, sin
+un modo genérico que descubra todo el directorio o permita un `--only` arbitrario.
+
+| Perfil futuro                   | Destino fijado         | Precondición histórica                                                        | Migraciones permitidas               |
+| ------------------------------- | ---------------------- | ----------------------------------------------------------------------------- | ------------------------------------ |
+| Deltas Sandbox                  | `aeeootdmuiqkfeernskw` | Base 16 exacta, sin extras/duplicados, catálogo base compatible               | Pasos 17 y 18 en ese orden           |
+| Instalación completa producción | `jegxfahsvugilbthbked` | Namespaces nuevos ausentes y sin registros contradictorios de estas versiones | Pasos 1 a 18 en orden del manifiesto |
+
+Para Sandbox, no volver a ejecutar ni cambiar los registros base. El ledger de
+los deltas será `zaltyko_domain_private.e2e_delta_schema_migrations`, nombre ya
+usado por el preflight del candidato. Para producción, proponer un ledger propio
+`zaltyko_domain_private.production_schema_migrations`, separado de los historiales
+E2E, `public` y Supabase. La creación y ACL del ledger son DDL de infraestructura
+que debe estar incluido expresamente en el plan aprobado, no un efecto oculto.
+No rellenar retrospectivamente el historial nativo ni registrar versiones ficticias.
+
+La ausencia de namespaces en producción es una precondición del inicio vacío,
+no de una reanudación: tras confirmar pasos, solo se admite el prefijo exacto
+registrado y su catálogo compatible. Un namespace creado sin ese historial
+aprobado bloquea; no se adopta ni se borra para simular una instalación nueva.
+
+Requisitos de ambos perfiles:
+
+1. Dry-run por defecto. Fijar ref de destino, candidato, hash del manifiesto,
+   secuencia pendiente, snapshot de precondiciones y referencia de recuperación.
+   Resolver conexiones/rol del operador sin imprimir credenciales.
+2. Antes de cualquier escritura, repetir comprobación de artefactos, catálogo e
+   historial bajo exclusión mutua. Si cambia el plan revisado, detenerse. La
+   aprobación no permite adoptar objetos inesperados o reparar hashes.
+3. Cada paso y su registro real de archivo/hash se confirman juntos en una
+   transacción. Un fallo revierte ese paso y detiene el lote. Registrar ordinal
+   del manifiesto; el timestamp del nombre no define el orden de ejecución.
+4. Reanudar únicamente un prefijo verificado del ledger del perfil: duplicados,
+   huecos, hashes distintos, objetos sin registro o registros sin objetos bloquean.
+   En Sandbox debe verificarse de nuevo la base 16 antes de cualquier delta.
+5. No instalar el delta 18 sobre objetos parciales ni retirar `btree_gist` al
+   revertir la aplicación. Revisar su esquema/versión antes de autorizar creación.
+6. Emitir solo estado, archivo esperado, hash local, tiempos y conteos técnicos
+   aprobados; no copiar filas devueltas por las migraciones. El éxito de instalación
+   no activa bootstrap, rutas o workers ni acredita readiness del piloto.
+
+### Bloqueos independientes
+
+- **Recuperación:** backup/punto recuperable y ensayo pertinente con resultado y
+  duración frente a RPO/RTO acordados. La disponibilidad declarada por proveedor
+  y los checksums del ledger no prueban restaurabilidad. No exportar PII para
+  comprobarlo ni crear destinos/costes sin alcance aprobado. Aplica también a
+  Sandbox: su nombre no demuestra que todos sus datos sean sintéticos.
+- **Rol de aplicación:** verificar conexión efectiva, privilegios mínimos y acceso
+  por organización/sede. BYPASSRLS del MCP no resuelve este requisito. Las rutas
+  usan DB servidor y nombres calificados; no necesitan exponer `zaltyko` en Data API.
+- **Activación:** gate servidor por participantes, cierre de escritores/consumidores
+  y release compatible. Instalar esquema y habilitar usuarios son pasos separados.
+- **Ejecución:** implementador/revisor, plan exacto y autorización de la ventana
+  todavía pendientes; esta propuesta no concede permiso de DDL para ningún destino.
+
 ## Fase A: instalar sin activar rutas
 
 1. Fijar artefacto, commit, manifiesto y hashes. Revisar cualquier diferencia
@@ -111,8 +194,9 @@ No desinstalar una extensión compartida como parte del rollback del piloto.
 5. Mantener cerrados bootstrap, endpoints y workers del piloto. Preparar un gate
    servidor por participantes y un cierre operativo de escrituras. No hay un gate
    nuevo implementado por esta entrega; ocultar enlaces no bloquea endpoints.
-6. En la futura ventana autorizada, instalar las 18 migraciones y registrar cada
-   resultado. Un fallo detiene el lote y revierte la transacción de ese paso.
+6. En la futura ventana autorizada, ejecutar solo el perfil aprobado: dos deltas
+   en Sandbox o instalación completa de 18 en producción. Registrar cada resultado.
+   Un fallo detiene el lote y revierte la transacción de ese paso.
 7. Revisar metadatos y hashes tras la instalación. Confirmar que no hubo cambios
    inesperados en tablas/políticas legacy, `auth` ni helpers privados anteriores.
 
@@ -164,7 +248,7 @@ Una corrección contable debe preservar auditoría e instantáneas inmutables.
 
 ## Pendientes y registro de revisión
 
-Validación local de esta entrega:
+Validación histórica del paquete de manifiesto `db448d7c`:
 
 - Vitest focal: 1 archivo, 25 tests PASS (lectores inyectados con bytes sintéticos).
 - Checker sobre candidato Git: PASS, 18 archivos comprobados.
@@ -174,11 +258,15 @@ Validación local de esta entrega:
   remotas; estas pruebas no acreditan instalación ni readiness.
 
 - Ejecutor de producción, gate servidor y mecanismo de cierre de escrituras.
-- Catálogo/historial real reconciliado, revisión de extensión y rol efectivo.
+- Revalidar catálogo/semántica y adjuntar evidencia del historial base Sandbox ya
+  reconciliado por Main; revisión de extensión, ACL de ledgers y rol de aplicación.
 - Backup/restauración ensayados y corte aprobado; E2E/operación del candidato.
 - Responsable de instalación: pendiente. Responsable de activación: pendiente.
 - Evidencia estática: registrar fuente `worktree` o `candidate`, commit y salida;
   no etiquetar ninguna de ellas como readiness de producción.
+
+Esta actualización modifica solo el runbook. No se implementó apply, no se
+cambiaron SQL/manifiesto y no se repitieron tests/runners ni consultas remotas.
 
 Vault: no modificada por instrucción expresa de evitar notas compartidas. Main
 deberá trasladar decisiones y resultados reales a las notas canónicas al integrar.

@@ -12209,3 +12209,10 @@ Modelo separado, reclamación manual, administración, importación revisada, fi
 - QAefde620b integrado selectivamente al precargador.13pins linuxamd64 coincidenconallowlist; unaalternativaHub soloanteECRrate-limitexclusivo+statusenteropositivo. VerificaConfigID+RepoDigests antesydespuésretag;600scompartidos entrecomandos,sinlogin/secretos/retries. EntornofiltradoyguardGHAconservados.
 - Frontend encontróstatusnull429 permitíafallback: Maincerróguardcon5regresiones(null/-1/1.5/NaN/Infinity). Frontend75GOestático,QA119sinbloqueantes. Main80/80mockPASS5archivos2.78s;tscsalida0,eslint0errores1warningexistenteparámetromockno usado. NoDocker/pullreal/E2E/CI nuevo durantepreparación.
 - Requiere unúnicocandidatoCIrevisado; cuotasHub/normalización/retagSupabaseruntimeaúnNOdemostrados. Build240ssigueabierto condiagnóstico acotado, nofixpresumido. NoDDL/merge/despliegue niresoluciónfalsa de alertasresiduales.
+
+- Push normal confirmado e7dff88b39ba4fdf19c2f35f1f918a8ff3fa02a1 aPR226 draft. CI38707901100 queued,Static38707901067yDirectory38707901250 encurso08:45UTC. ProteccionesMain/Vercel/Deployreconfirmadas; sinmerge/publicación. QAmonitoriza únicascorridasautomáticas exactSHA. Noempujar estas notas duranteCI. Evidencia ci-e7dff88b-candidate-2026-10-15.md.
+
+## 2026-10-15 — Historial técnico conciliado sin aplicar esquema
+
+- list_migrations metadata53prod/70Sandbox,0versionesnativasde18; no equivale aSQLnoejecutado. Catálogo confirma baseledgerSandboxpresente/deltaausente, ambosausentesprod. Backend76GO SQLfijo yMain2regresionesPASS:16/16baseSandboxversion+checksumcoinciden,2deltasausentes,0extras. Lectura técnicaREADONLY10s, no negocio/Auth/finanzas niDDL.
+- ACLprivadaSandbox: authenticatedUSAGEsí,anonno; ambosSELECTledgerno, RLSledgerfalse; noafirmarexposiciónDataAPI. MCPgetprojecthealthy/PG17.6 no acreditabackup. Herramientasactualesnoinforman disponibilidadcopias; navegadorcontrolnohabilitadoporfaltaSKILLobligatorio. Pedirevidenciamínima deBackups,sinrestore/export/costes. Fuente remote-history-and-recovery-2026-10-15.md.

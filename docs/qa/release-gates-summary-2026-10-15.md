@@ -6,6 +6,8 @@ No confundir validación local con CI remoto, compatibilidad del destino o autor
 
 ## Actualización vigente — candidato de6c3a64
 
+**Observación posterior, 08:45UTC:** PR226 actualizado sin merge a `e7dff88b39ba4fdf19c2f35f1f918a8ff3fa02a1`. CI38707901100 queued, Static38707901067 y Directory38707901250 en curso. No son PASS. Revisión estática Frontend75 yQA119, protecciones reconfirmadas; [evidencia nueva](./ci-e7dff88b-candidate-2026-10-15.md). Lo siguiente describe el fallo anterior y su preparación, no el estado final de la nueva corrida.
+
 Preparado localmente, aún sin otro CI: correcciones unitarias `c8f9c621`, catálogo seguro `509f3597`, diagnóstico build `8cf19bb1` y fallback ECR→Hub por digest exacto. Frontend75 y QA119 dan GO estático del fallback después de cerrar status null; Main80/80 mock PASS, typecheck salida0. Una nueva corrida justificada sobre un nuevo SHA, no un rerun idéntico, debe demostrar descargas y pruebas. Ni el fallback ni el diagnóstico demuestran resolver el build240s. Se mantienen tres navegadores, todos los checks y los mismos plazos.
 
 CI `38703429157` terminó FAILURE: Chromium/WebKit fallan en precarga con indicador rate-limit; Firefox supera precarga pero agota build240s durante tracing, sin iniciar Playwright. Registra cleanup. Unitarios: tres fallos (cwd móvil y coste del mock paginación); fixes locales revisados y 4/4 de paginación con coverage PASS, aún sin nuevo candidato CI. Otros build/lint/móvil/security/RLS/migraciones PASS; Sandbox SKIPPED. Detalle y límites: `ci-de6c3a64-failures-2026-10-15.md`.

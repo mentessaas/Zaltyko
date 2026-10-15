@@ -1,0 +1,179 @@
+{
+  "observedDate": "2026-10-15",
+  "scope": "Provider native migration metadata only; unknown versions/names omitted. No checksums returned by list_migrations, no business/Auth/financial rows.",
+  "candidate": "e7dff88b39ba4fdf19c2f35f1f918a8ff3fa02a1",
+  "manifestCandidate": "5d072d1902a8f735eae7c0ad6ef367adf09656dc",
+  "projects": [
+    {
+      "project_id": "jegxfahsvugilbthbked",
+      "nativeHistoryCount": 53,
+      "expected": [
+        {
+          "version": "20261006080702",
+          "registered": false
+        },
+        {
+          "version": "20261013100000",
+          "registered": false
+        },
+        {
+          "version": "20261006085254",
+          "registered": false
+        },
+        {
+          "version": "20261006090034",
+          "registered": false
+        },
+        {
+          "version": "20261006093047",
+          "registered": false
+        },
+        {
+          "version": "20261006094607",
+          "registered": false
+        },
+        {
+          "version": "20261006100146",
+          "registered": false
+        },
+        {
+          "version": "20261006113000",
+          "registered": false
+        },
+        {
+          "version": "20261006123000",
+          "registered": false
+        },
+        {
+          "version": "20261006131000",
+          "registered": false
+        },
+        {
+          "version": "20261006160012",
+          "registered": false
+        },
+        {
+          "version": "20261006165917",
+          "registered": false
+        },
+        {
+          "version": "20261013120000",
+          "registered": false
+        },
+        {
+          "version": "20261013082806",
+          "registered": false
+        },
+        {
+          "version": "20261013160000",
+          "registered": false
+        },
+        {
+          "version": "20261013170001",
+          "registered": false
+        },
+        {
+          "version": "20261013235142",
+          "registered": false
+        },
+        {
+          "version": "20261014001209",
+          "registered": false
+        }
+      ],
+      "returnedFields": [
+        "version",
+        "name"
+      ],
+      "unknownMigrationsRedacted": 53
+    },
+    {
+      "project_id": "aeeootdmuiqkfeernskw",
+      "nativeHistoryCount": 70,
+      "expected": [
+        {
+          "version": "20261006080702",
+          "registered": false
+        },
+        {
+          "version": "20261013100000",
+          "registered": false
+        },
+        {
+          "version": "20261006085254",
+          "registered": false
+        },
+        {
+          "version": "20261006090034",
+          "registered": false
+        },
+        {
+          "version": "20261006093047",
+          "registered": false
+        },
+        {
+          "version": "20261006094607",
+          "registered": false
+        },
+        {
+          "version": "20261006100146",
+          "registered": false
+        },
+        {
+          "version": "20261006113000",
+          "registered": false
+        },
+        {
+          "version": "20261006123000",
+          "registered": false
+        },
+        {
+          "version": "20261006131000",
+          "registered": false
+        },
+        {
+          "version": "20261006160012",
+          "registered": false
+        },
+        {
+          "version": "20261006165917",
+          "registered": false
+        },
+        {
+          "version": "20261013120000",
+          "registered": false
+        },
+        {
+          "version": "20261013082806",
+          "registered": false
+        },
+        {
+          "version": "20261013160000",
+          "registered": false
+        },
+        {
+          "version": "20261013170001",
+          "registered": false
+        },
+        {
+          "version": "20261013235142",
+          "registered": false
+        },
+        {
+          "version": "20261014001209",
+          "registered": false
+        }
+      ],
+      "returnedFields": [
+        "version",
+        "name"
+      ],
+      "unknownMigrationsRedacted": 70
+    }
+  ],
+  "limitations": [
+    "Native migration history is separate from the private E2E deployment ledger.",
+    "Absence of an expected native version does not demonstrate its SQL was never executed.",
+    "No backup/restore evidence from this tool."
+  ]
+}
