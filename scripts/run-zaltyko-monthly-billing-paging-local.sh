@@ -3,6 +3,7 @@ set -euo pipefail
 
 ROOT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
 SAFE_PATH="${PATH}"
+DATABASE_APPLICATION_NAME=""
 case "${ZALTYKO_MONTHLY_BILLING_PAGING_CASE:-full}" in
   full)
     VERIFIER_SCRIPT="scripts/verify-zaltyko-monthly-billing-paging-local.ts"
@@ -14,13 +15,19 @@ case "${ZALTYKO_MONTHLY_BILLING_PAGING_CASE:-full}" in
     MIGRATION_PROFILE="monthly"
     USE_VERIFIER_WATCHDOG=0
     ;;
+  financial)
+    VERIFIER_SCRIPT="scripts/verify-zaltyko-monthly-financial-controls-local.ts"
+    MIGRATION_PROFILE="monthly"
+    USE_VERIFIER_WATCHDOG=0
+    DATABASE_APPLICATION_NAME="zaltyko_monthly_financial"
+    ;;
   retention)
     VERIFIER_SCRIPT="scripts/verify-zaltyko-retention-location-batches-local.ts"
     MIGRATION_PROFILE="retention"
     USE_VERIFIER_WATCHDOG=1
     ;;
   *)
-    echo "Unsupported local harness case; allowed values: full, options, retention" >&2
+    echo "Unsupported local harness case; allowed values: full, options, financial, retention" >&2
     exit 2
     ;;
 esac
@@ -235,7 +242,15 @@ for migration in "${MIGRATIONS[@]}"; do
     >/dev/null
 done
 
+if [[ -n "${DATABASE_APPLICATION_NAME}" ]]; then
+  psql_db postgres -f "${ROOT_DIR}/supabase/fixtures/zaltyko_synthetic_academies.sql" \
+    >/dev/null
+fi
+
 HARNESS_DATABASE_URL="postgresql://postgres@127.0.0.1:${PG_PORT}/postgres?statement_timeout=8000&lock_timeout=4000"
+if [[ -n "${DATABASE_APPLICATION_NAME}" ]]; then
+  HARNESS_DATABASE_URL="${HARNESS_DATABASE_URL}&application_name=${DATABASE_APPLICATION_NAME}"
+fi
 VERIFIER_ENV=(
   "PATH=${SAFE_PATH}"
   "HOME=${RUN_DIR}"

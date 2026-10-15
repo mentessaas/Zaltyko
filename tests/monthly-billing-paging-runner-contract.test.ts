@@ -16,6 +16,13 @@ const verifier = readFileSync(
   ),
   "utf8"
 );
+const financialVerifier = readFileSync(
+  resolve(
+    process.cwd(),
+    "scripts/verify-zaltyko-monthly-financial-controls-local.ts"
+  ),
+  "utf8"
+);
 const optionsVerifier = readFileSync(
   resolve(
     process.cwd(),
@@ -82,10 +89,13 @@ describe("monthly billing paging local runner contract", () => {
       'options)\n    VERIFIER_SCRIPT="scripts/verify-zaltyko-monthly-invoice-options-local.ts"'
     );
     expect(runner).toContain(
+      'financial)\n    VERIFIER_SCRIPT="scripts/verify-zaltyko-monthly-financial-controls-local.ts"'
+    );
+    expect(runner).toContain(
       'retention)\n    VERIFIER_SCRIPT="scripts/verify-zaltyko-retention-location-batches-local.ts"'
     );
     expect(runner).toContain(
-      "Unsupported local harness case; allowed values: full, options, retention"
+      "Unsupported local harness case; allowed values: full, options, financial, retention"
     );
     expect(runner).toContain('"${VERIFIER_SCRIPT}"');
     expect(runner).toContain('if [[ "${MIGRATION_PROFILE}" == "retention" ]]');
@@ -273,5 +283,36 @@ describe("monthly billing paging local runner contract", () => {
     expect(verifier).toContain(
       "parsed.port, process.env.ZALTYKO_MONTHLY_BILLING_PAGING_PORT"
     );
+  });
+
+  it("defines local PostgreSQL service checks for billing replay and authorization", () => {
+    expect(financialVerifier).toContain(
+      'process.env[LOCAL_ONLY], "1", "Local harness flag is required"'
+    );
+    expect(financialVerifier).toContain('assertLoopbackUrl("DATABASE_URL")');
+    expect(financialVerifier).toContain('"statement_timeout"');
+    expect(financialVerifier).toContain('"lock_timeout"');
+    expect(financialVerifier).toContain("OBSERVATION_DEADLINE_MS = 3_000");
+    expect(financialVerifier).toContain("APPLICATION_NAME");
+    expect(runner).toContain(
+      'DATABASE_APPLICATION_NAME="zaltyko_monthly_financial"'
+    );
+    expect(runner).toContain(
+      "supabase/fixtures/zaltyko_synthetic_academies.sql"
+    );
+    expect(financialVerifier).toContain("getMonthlyInvoiceOptions({");
+    expect(financialVerifier).toContain("issueMonthlyInvoice(homeCommand)");
+    expect(financialVerifier).toContain(
+      "recordManualPaymentForCharge(paymentCommand)"
+    );
+    expect(financialVerifier).toContain('"IDEMPOTENCY_CONFLICT"');
+    expect(financialVerifier).toContain('"LOCATION_SCOPE_DENIED"');
+    expect(financialVerifier).toContain('"FORBIDDEN"');
+    expect(financialVerifier).toContain("readFinancialCounts(pool");
+    expect(financialVerifier).toContain(
+      'scope: "service-level PostgreSQL only; no HTTP route invoked"'
+    );
+    expect(financialVerifier).not.toMatch(/fetch\(|\/api\/v1\/owner/);
+    expect(runner).toContain('if [[ "${MIGRATION_PROFILE}" == "retention" ]]');
   });
 });
