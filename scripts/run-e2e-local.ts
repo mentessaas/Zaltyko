@@ -35,6 +35,10 @@ import {
   E2E_LOCAL_OWNER_MONTHLY_TARIFF_MIGRATIONS,
   E2E_LOCAL_OWNER_SIGNUP_MIGRATIONS,
 } from "./lib/e2e-domain-migrations";
+import {
+  readBuildTraceSummary,
+  withBuildFailureDiagnostic,
+} from "./lib/local-build-trace-diagnostic";
 
 const root = process.cwd();
 const projectDirectory = mkdtempSync(join(tmpdir(), "zaltyko-e2e-local-"));
@@ -302,12 +306,17 @@ void (async () => {
     console.log(
       "Building the app against the disposable local Supabase stack."
     );
-    await run(
-      nextBuild.command,
-      nextBuild.args,
-      { ...childEnv, NODE_ENV: "production" },
-      LOCAL_E2E_TIMEOUTS.build,
-      abortController.signal
+    await withBuildFailureDiagnostic(
+      () =>
+        run(
+          nextBuild.command,
+          nextBuild.args,
+          { ...childEnv, NODE_ENV: "production" },
+          LOCAL_E2E_TIMEOUTS.build,
+          abortController.signal
+        ),
+      () => readBuildTraceSummary(root),
+      (summary) => console.error(JSON.stringify({ buildTracePhases: summary }))
     );
 
     const playwrightArgs = playwrightCli.args;

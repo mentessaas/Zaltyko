@@ -971,6 +971,10 @@ La comparación estructural de columnas/restricciones/índices/trigger da parida
 
 ## P0 — Desbloquear CI sintético y cerrar gates de publicación — 2026-10-15
 
+Actualización vigente de6c3a64: CI38703429157FAIL por rate-limitChromium/WebKit, build240sFirefox y3unitarios. Fixunitario localc8f9c621 revisado; diagnósticobuild localc60a28b1 integrado31/31PASS, sincausaresuelta niotraCI. QA prepara fallback PORdigestlinuxamd64idéntico, sin pullsruntime todavíaycuotaHub no garantizada. No repetir corridaidéntica/ampliartimeouts.
+
+Catálogo remoto autorizadoMain15oct: prod no tiene namespaceszaltyko/domain_private; Sandbox faltan5tablasnuevas y2columnasmensuales; ambos no tienenbtree_gist. Debe cerrar esquema+recuperación antes deDDL/activación. No tocar filas ni inferir datos sintéticos. Datosactuales en remote-schema-catalog-2026-10-15.json; no esreadiness. Los puntos inferiores de5001651c sonhistóricos, no prohibiciónvigente de consultar metadata.
+
 - Candidato `5001651c`, PR #226 sin merge: run `38698304250` falla en descarga de distintas imágenes, antes del E2E funcional. Build, unitarios y demás checks ejecutados pasan; jobs Sandbox SKIPPED. Diagnosticar con errores acotados/saneados, sin cambiar imágenes ni relajar pruebas, plazos o aislamiento.
 - QA prepara parche local de diagnóstico; Frontend revisa corrección mínima de shell-quote móvil y aplicación efectiva de parches braces/node-forge. No asumir que seguridad/SBOM web verifica dependencias móviles.
 - Previews y workflow Deploy desactivados; gate sintético requerido en main. No merge/despliegue ni acceso a datos Sandbox/producción autorizado. Mantener pendientes revisión independiente, compatibilidad/recuperación del destino y autorización de publicación.

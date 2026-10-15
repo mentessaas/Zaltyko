@@ -31,7 +31,9 @@ describe("local E2E runner wiring", () => {
     expect(runnerSource).toContain(
       "runAllowExitCode(\n      playwrightCli.command"
     );
-    expect(runnerSource).toContain("run(\n      nextBuild.command");
+    expect(runnerSource).toMatch(
+      /withBuildFailureDiagnostic\(\s*\(\) =>\s*run\(\s*nextBuild\.command,\s*nextBuild\.args,\s*\{ \.\.\.childEnv, NODE_ENV: "production" \},\s*LOCAL_E2E_TIMEOUTS\.build,\s*abortController\.signal\s*\)/
+    );
     expect(playwrightConfigSource).toContain(
       'localCliEntrypoint(process.cwd(), "next")'
     );

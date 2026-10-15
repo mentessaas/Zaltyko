@@ -12192,3 +12192,14 @@ Modelo separado, reclamación manual, administración, importación revisada, fi
 - Frontend7627dc6c integrado selectivamente: cwdmobile para subprocesos de seguridad. EvidenciaFrontend2/2desdeamboscwd; integraciónMain sinmobile/node_modules no puedevalidarambos (nofalsoPASS).
 - Paginación: falloMainreproducido6108ms; predicadomock compilado+sets depertenencia evita interpretaciónrepetida. Frontend68GO; 4/4focalconcoveragePASS, caso4001familias2155ms; sinrebajardeadline5s/fixtures/assertions, sin modificarservicio. Añadida equivalenciacomparaciones/booleanos/nulos/pertenencia.
 - QA prepara evidencia13/13manifiestosECR/DockerHubiguales; metadataúnicamente, sindescargasdecapas. Frontend investiga build/tracing; Backend prepara consultacatálogo mínima sinapply. Sinpush/dispatch/DDL/merge/despliegue ni datosreales. Detalle: docs/qa/ci-de6c3a64-failures-2026-10-15.md.
+
+## 2026-10-15 — Preflight parcial de catálogo remoto, sin filas
+
+- Integrado Backend59b19e0a como SQL/documento/test estáticos; Frontend72GO. Main42/42testsPASS(17catálogo+25manifiesto). El guardregex no autoriza SQL arbitrario; fuentes con coma/funciones no prefijadas son límites conocidos, cada SQL necesita revisión.
+- Main ejecutó solo SELECT1/2/10 y3/4/5 derivados/filtrados a8nombres, READONLY+10s, ambosproyectos. ProdNO namespaceszaltyko/domain_private; Sandbox faltan3tablasconsentimiento+2mensuales yinvoice_linesSINlocation_id/athlete_id. AmbosSINbtree_gist, pgcrypto1.3. RolMCPbypassrlsNOpruebarolapp. No filas Auth/negocio/ledger, cuerpos/expresiones niDDL. Snapshotdocs/qa/remote-schema-catalog-2026-10-15.json y explicaciónremote-schema-metadata.
+- Esquema contractual no listo; historial/backuprecuperable/privilegiosapp siguenpendientes. Sin restauración/exportación/datosfixtures/pagos/merge/despliegue.
+
+## 2026-10-15 — Diagnóstico seguro de fallo build, sin ampliar plazo
+
+- Frontendc60a28b1 integrado selectivamente: resumen.next/trace solo5fasesallowlist yduraciónmáximadespan, envoltorioJSONbuildTracePhases. Backend72 sinbloqueantes; Main31/31diagnóstico/core/wiringPASS,tsc/formatoPASS. AdaptacióncontratoestáticoverificacallCLI,args,envproduction,240s,abortsignal dentrodelwrapper.
+- Máximo8MiB/100keventos; erroresdeldiagnóstico no sustituyenoriginal ni finallycleanup. Límites: JSONparseantesdecontarevents, padre.nextpuedesersymlink, trazavieja/fragmentaria no identificaejecuciónactual, diagnósticosíncrononoformaunplazoglobal240s. Docsactualizados; ningunanuevabuild/E2E/CI. No esfixdelacausa.
