@@ -4,7 +4,17 @@
 
 No confundir validación local con CI remoto, compatibilidad del destino o autorización de despliegue. La autorización posterior permite inspección de metadata remota; no se han aplicado DDL ni modificado filas de negocio.
 
-## Candidato vigente — 210aadda, 10:59 UTC
+## Candidato vigente — 210aadda, observación11:14 UTC
+
+Main verificó Chromium116385372011 PASS31.3s y Firefox116385372289 PASS36.1s,
+con stack/volúmenes limpiados según ambos runners. Builds235617/236955ms,
+próximos a240s: no demuestran causalidad ni estabilidad universal. WebKit en curso,
+gate agregado pendiente. Build/unitarios/lint/móvil/RLS/migraciones/SecuritySBOM
+PASS; Sandbox/públicos siguen SKIPPED. Seguridad residual, destino/recuperación,
+rol real del pool, revisión independiente y decisión de publicar siguen pendientes.
+NO-GO; no reruns ni push duranteCI. [Evidencia exacta](./ci-210aadda-candidate-2026-10-15.md).
+
+Observación inicial10:59UTC:
 
 PR226 actualizado por push normal a210aaddaed46dc4ee6b54191c4398fcf86f9d96d,
 OPEN/draft/REVIEW_REQUIRED. Único CI38724036863queued, Static38724036892 y

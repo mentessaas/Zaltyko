@@ -2,9 +2,24 @@
 
 PR226 OPEN/draft/REVIEW_REQUIRED actualizado mediante push normal al SHA
 `210aaddaed46dc4ee6b54191c4398fcf86f9d96d`, sin merge ni despliegue.
-NO-GO para publicar: todavía no hay prueba funcional/cleanup/gate de este SHA.
+NO-GO para publicar: Chromium y Firefox pasan con cleanup reportado; WebKit y
+el gate agregado siguen pendientes, además de los gates de destino y revisión.
 
-## Evidencia y siguiente paso
+## Observación 11:14 UTC — avance parcial, no cierre de matriz
+
+Main verificó API y logs del SHA exacto en el único CI38724036863:
+
+- [Chromium116385372011](https://github.com/mentessaas/Zaltyko/actions/runs/38724036863/job/116385372011): SUCCESS, `1 passed (31.3s)` a11:06:04.597UTC; stack detenido y volúmenes desechables eliminados según runner a11:06:22.726UTC. Span next-build235617.086ms; hitos177943/204995/212490/212492ms.
+- [Firefox116385372289](https://github.com/mentessaas/Zaltyko/actions/runs/38724036863/job/116385372289): SUCCESS, `1 passed (36.1s)` a11:13:55.763UTC; mismo cleanup reportado a11:14:14.084UTC. Span next-build236954.569ms; hitos177608/206487/213608/213608ms. Webpack3spans, suma172616.307ms y máximo135249.397ms: la suma no es tiempo de pared.
+- WebKit116385372370 en curso; gate agregado aún no demostrado. Build, Unit Tests, lint/tipos, móvil, cobertura RLS declarativa, integridad migraciones y Security/SBOM SUCCESS. Directory/Static PASS según QA160. Sandbox readiness/auth y públicos/Smoke/Lighthouse SKIPPED.
+
+Los dos builds pasan cerca del límite240s. Esto no prueba ahorro causal, estabilidad
+universal ni que todos los navegadores hayan completado. Cleanup es evidencia del
+runner, no inventario Docker independiente. No cambia el NO-GO por seguridad
+residual, esquema/recuperación, rol real de aplicación y revisión del PR.
+QA continúa únicamente WebKit/cierre/gate; no rerun, dispatch, nuevo push o despliegue.
+
+## Observación inicial 10:59 UTC y siguiente paso
 
 - [CI38724036863](https://github.com/mentessaas/Zaltyko/actions/runs/38724036863): queued.
 - [Directory38724036865](https://github.com/mentessaas/Zaltyko/actions/runs/38724036865): in_progress.
