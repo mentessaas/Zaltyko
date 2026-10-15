@@ -1,0 +1,780 @@
+{
+  "observedDate": "2026-10-15",
+  "scope": "pg_catalog only; explicit read-only transactions; 10 second statement timeout; no business/Auth/ledger rows; no DDL",
+  "limitations": [
+    "MCP effective role is not the application pool role",
+    "Column/constraint shape is not policy/default/expression equivalence",
+    "No proof of backup/recovery or synthetic data",
+    "Structural filters applied to bounded inventories; global relation total 246 below 400 on Sandbox"
+  ],
+  "projects": [
+    {
+      "projectId": "jegxfahsvugilbthbked",
+      "capabilities": {
+        "extensions": [
+          {
+            "extversion": null,
+            "extension_name": "btree_gist",
+            "extension_exists": false,
+            "extension_schema": "OTHER_REDACTED"
+          },
+          {
+            "extversion": "1.3",
+            "extension_name": "pgcrypto",
+            "extension_exists": true,
+            "extension_schema": "extensions"
+          }
+        ],
+        "namespaces": [
+          {
+            "schema_name": "auth",
+            "schema_exists": true,
+            "effective_usage": true,
+            "effective_create": false,
+            "owned_by_effective_role": false
+          },
+          {
+            "schema_name": "public",
+            "schema_exists": true,
+            "effective_usage": true,
+            "effective_create": true,
+            "owned_by_effective_role": false
+          },
+          {
+            "schema_name": "zaltyko",
+            "schema_exists": false,
+            "effective_usage": null,
+            "effective_create": null,
+            "owned_by_effective_role": null
+          },
+          {
+            "schema_name": "zaltyko_domain_private",
+            "schema_exists": false,
+            "effective_usage": null,
+            "effective_create": null,
+            "owned_by_effective_role": null
+          },
+          {
+            "schema_name": "zaltyko_private",
+            "schema_exists": true,
+            "effective_usage": true,
+            "effective_create": true,
+            "owned_by_effective_role": true
+          }
+        ],
+        "effective_role_capabilities": [
+          {
+            "path_has_auth": false,
+            "path_has_public": true,
+            "path_has_zaltyko": false,
+            "effective_inherits": true,
+            "effective_bypassrls": true,
+            "effective_superuser": false,
+            "path_has_domain_private": false,
+            "path_has_other_redacted": true,
+            "effective_equals_session_role": true
+          }
+        ]
+      },
+      "targetShape": {
+        "column_shape": null,
+        "constraints_shape": null,
+        "required_relations": null
+      }
+    },
+    {
+      "projectId": "aeeootdmuiqkfeernskw",
+      "capabilities": {
+        "extensions": [
+          {
+            "extversion": null,
+            "extension_name": "btree_gist",
+            "extension_exists": false,
+            "extension_schema": "OTHER_REDACTED"
+          },
+          {
+            "extversion": "1.3",
+            "extension_name": "pgcrypto",
+            "extension_exists": true,
+            "extension_schema": "extensions"
+          }
+        ],
+        "namespaces": [
+          {
+            "schema_name": "auth",
+            "schema_exists": true,
+            "effective_usage": true,
+            "effective_create": false,
+            "owned_by_effective_role": false
+          },
+          {
+            "schema_name": "public",
+            "schema_exists": true,
+            "effective_usage": true,
+            "effective_create": true,
+            "owned_by_effective_role": false
+          },
+          {
+            "schema_name": "zaltyko",
+            "schema_exists": true,
+            "effective_usage": true,
+            "effective_create": true,
+            "owned_by_effective_role": true
+          },
+          {
+            "schema_name": "zaltyko_domain_private",
+            "schema_exists": true,
+            "effective_usage": true,
+            "effective_create": true,
+            "owned_by_effective_role": true
+          },
+          {
+            "schema_name": "zaltyko_private",
+            "schema_exists": true,
+            "effective_usage": true,
+            "effective_create": true,
+            "owned_by_effective_role": true
+          }
+        ],
+        "effective_role_capabilities": [
+          {
+            "path_has_auth": false,
+            "path_has_public": true,
+            "path_has_zaltyko": false,
+            "effective_inherits": true,
+            "effective_bypassrls": true,
+            "effective_superuser": false,
+            "path_has_domain_private": false,
+            "path_has_other_redacted": true,
+            "effective_equals_session_role": true
+          }
+        ]
+      },
+      "targetShape": {
+        "column_shape": [
+          {
+            "not_null": true,
+            "atttypmod": -1,
+            "type_name": "uuid",
+            "total_rows": 2758,
+            "column_name": "id",
+            "has_default": true,
+            "schema_name": "zaltyko",
+            "type_schema": "pg_catalog",
+            "identity_kind": "",
+            "relation_name": "enrollments",
+            "generated_kind": "",
+            "column_position": 1
+          },
+          {
+            "not_null": true,
+            "atttypmod": -1,
+            "type_name": "uuid",
+            "total_rows": 2758,
+            "column_name": "organization_id",
+            "has_default": false,
+            "schema_name": "zaltyko",
+            "type_schema": "pg_catalog",
+            "identity_kind": "",
+            "relation_name": "enrollments",
+            "generated_kind": "",
+            "column_position": 2
+          },
+          {
+            "not_null": true,
+            "atttypmod": -1,
+            "type_name": "uuid",
+            "total_rows": 2758,
+            "column_name": "location_id",
+            "has_default": false,
+            "schema_name": "zaltyko",
+            "type_schema": "pg_catalog",
+            "identity_kind": "",
+            "relation_name": "enrollments",
+            "generated_kind": "",
+            "column_position": 3
+          },
+          {
+            "not_null": true,
+            "atttypmod": -1,
+            "type_name": "uuid",
+            "total_rows": 2758,
+            "column_name": "athlete_id",
+            "has_default": false,
+            "schema_name": "zaltyko",
+            "type_schema": "pg_catalog",
+            "identity_kind": "",
+            "relation_name": "enrollments",
+            "generated_kind": "",
+            "column_position": 4
+          },
+          {
+            "not_null": true,
+            "atttypmod": -1,
+            "type_name": "uuid",
+            "total_rows": 2758,
+            "column_name": "class_template_id",
+            "has_default": false,
+            "schema_name": "zaltyko",
+            "type_schema": "pg_catalog",
+            "identity_kind": "",
+            "relation_name": "enrollments",
+            "generated_kind": "",
+            "column_position": 5
+          },
+          {
+            "not_null": false,
+            "atttypmod": -1,
+            "type_name": "uuid",
+            "total_rows": 2758,
+            "column_name": "price_plan_id",
+            "has_default": false,
+            "schema_name": "zaltyko",
+            "type_schema": "pg_catalog",
+            "identity_kind": "",
+            "relation_name": "enrollments",
+            "generated_kind": "",
+            "column_position": 6
+          },
+          {
+            "not_null": true,
+            "atttypmod": -1,
+            "type_name": "enrollment_status",
+            "total_rows": 2758,
+            "column_name": "status",
+            "has_default": true,
+            "schema_name": "zaltyko",
+            "type_schema": "zaltyko",
+            "identity_kind": "",
+            "relation_name": "enrollments",
+            "generated_kind": "",
+            "column_position": 7
+          },
+          {
+            "not_null": true,
+            "atttypmod": -1,
+            "type_name": "date",
+            "total_rows": 2758,
+            "column_name": "starts_on",
+            "has_default": false,
+            "schema_name": "zaltyko",
+            "type_schema": "pg_catalog",
+            "identity_kind": "",
+            "relation_name": "enrollments",
+            "generated_kind": "",
+            "column_position": 8
+          },
+          {
+            "not_null": false,
+            "atttypmod": -1,
+            "type_name": "date",
+            "total_rows": 2758,
+            "column_name": "ends_on",
+            "has_default": false,
+            "schema_name": "zaltyko",
+            "type_schema": "pg_catalog",
+            "identity_kind": "",
+            "relation_name": "enrollments",
+            "generated_kind": "",
+            "column_position": 9
+          },
+          {
+            "not_null": true,
+            "atttypmod": -1,
+            "type_name": "enrollment_source",
+            "total_rows": 2758,
+            "column_name": "source",
+            "has_default": false,
+            "schema_name": "zaltyko",
+            "type_schema": "zaltyko",
+            "identity_kind": "",
+            "relation_name": "enrollments",
+            "generated_kind": "",
+            "column_position": 10
+          },
+          {
+            "not_null": false,
+            "atttypmod": -1,
+            "type_name": "uuid",
+            "total_rows": 2758,
+            "column_name": "source_entity_id",
+            "has_default": false,
+            "schema_name": "zaltyko",
+            "type_schema": "pg_catalog",
+            "identity_kind": "",
+            "relation_name": "enrollments",
+            "generated_kind": "",
+            "column_position": 11
+          },
+          {
+            "not_null": true,
+            "atttypmod": -1,
+            "type_name": "int4",
+            "total_rows": 2758,
+            "column_name": "version",
+            "has_default": true,
+            "schema_name": "zaltyko",
+            "type_schema": "pg_catalog",
+            "identity_kind": "",
+            "relation_name": "enrollments",
+            "generated_kind": "",
+            "column_position": 12
+          },
+          {
+            "not_null": true,
+            "atttypmod": -1,
+            "type_name": "timestamptz",
+            "total_rows": 2758,
+            "column_name": "created_at",
+            "has_default": true,
+            "schema_name": "zaltyko",
+            "type_schema": "pg_catalog",
+            "identity_kind": "",
+            "relation_name": "enrollments",
+            "generated_kind": "",
+            "column_position": 13
+          },
+          {
+            "not_null": true,
+            "atttypmod": -1,
+            "type_name": "timestamptz",
+            "total_rows": 2758,
+            "column_name": "updated_at",
+            "has_default": true,
+            "schema_name": "zaltyko",
+            "type_schema": "pg_catalog",
+            "identity_kind": "",
+            "relation_name": "enrollments",
+            "generated_kind": "",
+            "column_position": 14
+          },
+          {
+            "not_null": true,
+            "atttypmod": -1,
+            "type_name": "uuid",
+            "total_rows": 2758,
+            "column_name": "id",
+            "has_default": true,
+            "schema_name": "zaltyko",
+            "type_schema": "pg_catalog",
+            "identity_kind": "",
+            "relation_name": "invoice_lines",
+            "generated_kind": "",
+            "column_position": 1
+          },
+          {
+            "not_null": true,
+            "atttypmod": -1,
+            "type_name": "uuid",
+            "total_rows": 2758,
+            "column_name": "organization_id",
+            "has_default": false,
+            "schema_name": "zaltyko",
+            "type_schema": "pg_catalog",
+            "identity_kind": "",
+            "relation_name": "invoice_lines",
+            "generated_kind": "",
+            "column_position": 2
+          },
+          {
+            "not_null": true,
+            "atttypmod": -1,
+            "type_name": "uuid",
+            "total_rows": 2758,
+            "column_name": "invoice_id",
+            "has_default": false,
+            "schema_name": "zaltyko",
+            "type_schema": "pg_catalog",
+            "identity_kind": "",
+            "relation_name": "invoice_lines",
+            "generated_kind": "",
+            "column_position": 3
+          },
+          {
+            "not_null": false,
+            "atttypmod": -1,
+            "type_name": "uuid",
+            "total_rows": 2758,
+            "column_name": "enrollment_id",
+            "has_default": false,
+            "schema_name": "zaltyko",
+            "type_schema": "pg_catalog",
+            "identity_kind": "",
+            "relation_name": "invoice_lines",
+            "generated_kind": "",
+            "column_position": 4
+          },
+          {
+            "not_null": false,
+            "atttypmod": -1,
+            "type_name": "uuid",
+            "total_rows": 2758,
+            "column_name": "price_plan_id",
+            "has_default": false,
+            "schema_name": "zaltyko",
+            "type_schema": "pg_catalog",
+            "identity_kind": "",
+            "relation_name": "invoice_lines",
+            "generated_kind": "",
+            "column_position": 5
+          },
+          {
+            "not_null": true,
+            "atttypmod": -1,
+            "type_name": "text",
+            "total_rows": 2758,
+            "column_name": "line_type",
+            "has_default": false,
+            "schema_name": "zaltyko",
+            "type_schema": "pg_catalog",
+            "identity_kind": "",
+            "relation_name": "invoice_lines",
+            "generated_kind": "",
+            "column_position": 6
+          },
+          {
+            "not_null": true,
+            "atttypmod": -1,
+            "type_name": "int4",
+            "total_rows": 2758,
+            "column_name": "quantity",
+            "has_default": false,
+            "schema_name": "zaltyko",
+            "type_schema": "pg_catalog",
+            "identity_kind": "",
+            "relation_name": "invoice_lines",
+            "generated_kind": "",
+            "column_position": 7
+          },
+          {
+            "not_null": true,
+            "atttypmod": -1,
+            "type_name": "int8",
+            "total_rows": 2758,
+            "column_name": "unit_amount_cents",
+            "has_default": false,
+            "schema_name": "zaltyko",
+            "type_schema": "pg_catalog",
+            "identity_kind": "",
+            "relation_name": "invoice_lines",
+            "generated_kind": "",
+            "column_position": 8
+          },
+          {
+            "not_null": true,
+            "atttypmod": -1,
+            "type_name": "int8",
+            "total_rows": 2758,
+            "column_name": "amount_cents",
+            "has_default": false,
+            "schema_name": "zaltyko",
+            "type_schema": "pg_catalog",
+            "identity_kind": "",
+            "relation_name": "invoice_lines",
+            "generated_kind": "",
+            "column_position": 9
+          },
+          {
+            "not_null": true,
+            "atttypmod": -1,
+            "type_name": "text",
+            "total_rows": 2758,
+            "column_name": "currency",
+            "has_default": false,
+            "schema_name": "zaltyko",
+            "type_schema": "pg_catalog",
+            "identity_kind": "",
+            "relation_name": "invoice_lines",
+            "generated_kind": "",
+            "column_position": 10
+          },
+          {
+            "not_null": true,
+            "atttypmod": -1,
+            "type_name": "date",
+            "total_rows": 2758,
+            "column_name": "service_period_start",
+            "has_default": false,
+            "schema_name": "zaltyko",
+            "type_schema": "pg_catalog",
+            "identity_kind": "",
+            "relation_name": "invoice_lines",
+            "generated_kind": "",
+            "column_position": 11
+          },
+          {
+            "not_null": true,
+            "atttypmod": -1,
+            "type_name": "date",
+            "total_rows": 2758,
+            "column_name": "service_period_end",
+            "has_default": false,
+            "schema_name": "zaltyko",
+            "type_schema": "pg_catalog",
+            "identity_kind": "",
+            "relation_name": "invoice_lines",
+            "generated_kind": "",
+            "column_position": 12
+          },
+          {
+            "not_null": true,
+            "atttypmod": -1,
+            "type_name": "timestamptz",
+            "total_rows": 2758,
+            "column_name": "created_at",
+            "has_default": true,
+            "schema_name": "zaltyko",
+            "type_schema": "pg_catalog",
+            "identity_kind": "",
+            "relation_name": "invoice_lines",
+            "generated_kind": "",
+            "column_position": 13
+          },
+          {
+            "not_null": true,
+            "atttypmod": -1,
+            "type_name": "uuid",
+            "total_rows": 2758,
+            "column_name": "id",
+            "has_default": true,
+            "schema_name": "zaltyko",
+            "type_schema": "pg_catalog",
+            "identity_kind": "",
+            "relation_name": "organizations",
+            "generated_kind": "",
+            "column_position": 1
+          },
+          {
+            "not_null": true,
+            "atttypmod": -1,
+            "type_name": "text",
+            "total_rows": 2758,
+            "column_name": "name",
+            "has_default": false,
+            "schema_name": "zaltyko",
+            "type_schema": "pg_catalog",
+            "identity_kind": "",
+            "relation_name": "organizations",
+            "generated_kind": "",
+            "column_position": 2
+          },
+          {
+            "not_null": false,
+            "atttypmod": -1,
+            "type_name": "text",
+            "total_rows": 2758,
+            "column_name": "legal_name",
+            "has_default": false,
+            "schema_name": "zaltyko",
+            "type_schema": "pg_catalog",
+            "identity_kind": "",
+            "relation_name": "organizations",
+            "generated_kind": "",
+            "column_position": 3
+          },
+          {
+            "not_null": true,
+            "atttypmod": -1,
+            "type_name": "organization_status",
+            "total_rows": 2758,
+            "column_name": "status",
+            "has_default": true,
+            "schema_name": "zaltyko",
+            "type_schema": "zaltyko",
+            "identity_kind": "",
+            "relation_name": "organizations",
+            "generated_kind": "",
+            "column_position": 4
+          },
+          {
+            "not_null": true,
+            "atttypmod": -1,
+            "type_name": "text",
+            "total_rows": 2758,
+            "column_name": "country_code",
+            "has_default": true,
+            "schema_name": "zaltyko",
+            "type_schema": "pg_catalog",
+            "identity_kind": "",
+            "relation_name": "organizations",
+            "generated_kind": "",
+            "column_position": 5
+          },
+          {
+            "not_null": true,
+            "atttypmod": -1,
+            "type_name": "text",
+            "total_rows": 2758,
+            "column_name": "default_timezone",
+            "has_default": true,
+            "schema_name": "zaltyko",
+            "type_schema": "pg_catalog",
+            "identity_kind": "",
+            "relation_name": "organizations",
+            "generated_kind": "",
+            "column_position": 6
+          },
+          {
+            "not_null": true,
+            "atttypmod": -1,
+            "type_name": "timestamptz",
+            "total_rows": 2758,
+            "column_name": "created_at",
+            "has_default": true,
+            "schema_name": "zaltyko",
+            "type_schema": "pg_catalog",
+            "identity_kind": "",
+            "relation_name": "organizations",
+            "generated_kind": "",
+            "column_position": 7
+          },
+          {
+            "not_null": true,
+            "atttypmod": -1,
+            "type_name": "timestamptz",
+            "total_rows": 2758,
+            "column_name": "updated_at",
+            "has_default": true,
+            "schema_name": "zaltyko",
+            "type_schema": "pg_catalog",
+            "identity_kind": "",
+            "relation_name": "organizations",
+            "generated_kind": "",
+            "column_position": 8
+          },
+          {
+            "not_null": true,
+            "atttypmod": -1,
+            "type_name": "text",
+            "total_rows": 2758,
+            "column_name": "default_currency",
+            "has_default": true,
+            "schema_name": "zaltyko",
+            "type_schema": "pg_catalog",
+            "identity_kind": "",
+            "relation_name": "organizations",
+            "generated_kind": "",
+            "column_position": 9
+          }
+        ],
+        "constraints_shape": [
+          {
+            "contype": "c",
+            "schema_name": "zaltyko",
+            "all_validated": true,
+            "relation_name": "enrollments",
+            "constraints_count": 2
+          },
+          {
+            "contype": "f",
+            "schema_name": "zaltyko",
+            "all_validated": true,
+            "relation_name": "enrollments",
+            "constraints_count": 5
+          },
+          {
+            "contype": "p",
+            "schema_name": "zaltyko",
+            "all_validated": true,
+            "relation_name": "enrollments",
+            "constraints_count": 1
+          },
+          {
+            "contype": "u",
+            "schema_name": "zaltyko",
+            "all_validated": true,
+            "relation_name": "enrollments",
+            "constraints_count": 1
+          },
+          {
+            "contype": "c",
+            "schema_name": "zaltyko",
+            "all_validated": true,
+            "relation_name": "invoice_lines",
+            "constraints_count": 7
+          },
+          {
+            "contype": "f",
+            "schema_name": "zaltyko",
+            "all_validated": true,
+            "relation_name": "invoice_lines",
+            "constraints_count": 4
+          },
+          {
+            "contype": "p",
+            "schema_name": "zaltyko",
+            "all_validated": true,
+            "relation_name": "invoice_lines",
+            "constraints_count": 1
+          },
+          {
+            "contype": "u",
+            "schema_name": "zaltyko",
+            "all_validated": true,
+            "relation_name": "invoice_lines",
+            "constraints_count": 2
+          },
+          {
+            "contype": "c",
+            "schema_name": "zaltyko",
+            "all_validated": true,
+            "relation_name": "organizations",
+            "constraints_count": 3
+          },
+          {
+            "contype": "p",
+            "schema_name": "zaltyko",
+            "all_validated": true,
+            "relation_name": "organizations",
+            "constraints_count": 1
+          },
+          {
+            "contype": "u",
+            "schema_name": "zaltyko",
+            "all_validated": true,
+            "relation_name": "organizations",
+            "constraints_count": 1
+          }
+        ],
+        "required_relations": [
+          {
+            "relkind": "r",
+            "rls_forced": true,
+            "total_rows": 246,
+            "rls_enabled": true,
+            "schema_name": "zaltyko",
+            "relation_name": "enrollments",
+            "effective_delete": true,
+            "effective_insert": true,
+            "effective_select": true,
+            "effective_update": true
+          },
+          {
+            "relkind": "r",
+            "rls_forced": true,
+            "total_rows": 246,
+            "rls_enabled": true,
+            "schema_name": "zaltyko",
+            "relation_name": "invoice_lines",
+            "effective_delete": true,
+            "effective_insert": true,
+            "effective_select": true,
+            "effective_update": true
+          },
+          {
+            "relkind": "r",
+            "rls_forced": true,
+            "total_rows": 246,
+            "rls_enabled": true,
+            "schema_name": "zaltyko",
+            "relation_name": "organizations",
+            "effective_delete": true,
+            "effective_insert": true,
+            "effective_select": true,
+            "effective_update": true
+          }
+        ]
+      }
+    }
+  ]
+}
