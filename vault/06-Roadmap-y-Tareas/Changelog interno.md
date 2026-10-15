@@ -7,6 +7,17 @@ source:
   - ../docs/architecture/zaltyko-domain-model.md
 ---
 
+## 2026-10-15 — Suite completa Vitest PASS en `bf094a1f`
+
+- Worktree aislado en el SHA exacto `bf094a1f0af85f11fa6ea0406a5024d21a6e4340`:
+  517/518 archivos PASS (1 omitido), 2736/2739 tests PASS (3 omitidos), cero
+  fallos, exit 0 y duración de 273,38 s. Se utilizó el Vitest local existente;
+  no se instalaron dependencias ni se alteraron filtros o configuración.
+- El reporter `dot` no identificó los elementos omitidos. La configuración
+  conserva dos excludes móviles preexistentes. No se ejecutaron build, E2E,
+  navegador, PostgreSQL, Docker, Sandbox, remoto o producción. El detalle y los
+  límites constan en `docs/qa/vitest-full-suite-bf094a1f-2026-10-15.md`.
+
 ## 2026-10-15 — QA58: runner local sin package manager ni pull de imágenes
 
 - En `codex/a2-local-owner-e2e-safety-20261014`, el E2E usa un fixture HIBP
