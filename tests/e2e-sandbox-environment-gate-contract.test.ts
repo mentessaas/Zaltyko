@@ -2,11 +2,26 @@ import { readFileSync } from "node:fs";
 import { resolve } from "node:path";
 import { describe, expect, it } from "vitest";
 
+const { load } = require("js-yaml") as {
+  load: (source: string) => Record<string, unknown>;
+};
+
 const workflow = readFileSync(
   resolve(process.cwd(), ".github/workflows/ci.yml"),
   "utf8"
 );
+const parsedWorkflow = load(workflow) as {
+  jobs: Record<string, { if?: unknown }>;
+};
+
 describe("synthetic E2E CI contract", () => {
+  it("parses as YAML with no duplicate keys", () => {
+    expect(() => load(workflow)).not.toThrow();
+    expect(() => load("job:\n  if: false\n  if: true\n")).toThrow(
+      /duplicated mapping key/i
+    );
+  });
+
   it("disables remote Sandbox provisioning on the default workflow", () => {
     const readinessJob = workflow
       .split("  e2e-readiness:\n")[1]
@@ -16,7 +31,9 @@ describe("synthetic E2E CI contract", () => {
       ?.split("\n  e2e-auth-required-gate:")[0];
 
     expect(readinessJob).toContain("if: ${{ false }}");
-    expect(authenticatedJob).toContain("if: ${{ false }}");
+    expect(authenticatedJob.match(/^    if:/gm)).toHaveLength(1);
+    expect(parsedWorkflow.jobs["e2e-readiness"]?.if).toBe("${{ false }}");
+    expect(parsedWorkflow.jobs["e2e-auth"]?.if).toBe("${{ false }}");
     const gate = workflow.split("  e2e-auth-required-gate:\n")[1];
     expect(gate).not.toContain("e2e-readiness");
     expect(gate).not.toContain("e2e-auth");

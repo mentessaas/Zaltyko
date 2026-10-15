@@ -456,7 +456,6 @@ jobs:
       VERCEL_ENV: preview
       E2E_RATE_LIMIT_BYPASS: "true"
     needs: [e2e-readiness]
-    if: ${{ needs.e2e-readiness.outputs.enabled == 'true' && (github.event_name == 'pull_request' || github.ref == 'refs/heads/main') }}
     steps:
       - uses: actions/checkout@v7
 

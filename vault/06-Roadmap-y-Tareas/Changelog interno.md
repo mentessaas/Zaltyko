@@ -12119,3 +12119,15 @@ Modelo separado, reclamación manual, administración, importación revisada, fi
   CI remoto ni servicios externos en esta tarea.
 - Vault: actualizados `Decisiones.md`, `Backlog priorizado.md` y este changelog;
   sin cambios de producto, pricing, migraciones o datos.
+
+## 2026-10-15 — Corrección del `if` duplicado en E2E remoto desactivado
+
+- En `codex/ci-local-synthetic-gate-20261015`, se elimina el segundo `if` de
+  `e2e-auth`, que podía sobreescribir el `false` de protección. La suite de
+  contrato ahora parsea `ci.yml` con `js-yaml`, verifica condiciones efectivas
+  y prueba que una fixture con claves duplicadas es rechazada. Se añade
+  `js-yaml` 4.3.2 como dependencia de desarrollo; queda bajo el override de
+  seguridad existente.
+- No se cambia el bloqueo del hash binario Linux, no se ejecuta CI, E2E, Docker,
+  servicios remotos ni se altera branch protection.
+- Contrato YAML local: 4/4 PASS; detecta claves duplicadas mediante parser.

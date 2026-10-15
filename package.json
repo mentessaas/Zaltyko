@@ -180,6 +180,7 @@
     "eslint": "^8.57.0",
     "eslint-config-next": "15.5.27",
     "eslint-plugin-react-hooks": "^7.0.1",
+    "js-yaml": "^4.3.2",
     "jsdom": "^29.1.1",
     "pg-mem": "^3.0.5",
     "playwright": "1.63.0",

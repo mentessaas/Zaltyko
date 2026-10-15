@@ -14,7 +14,10 @@
   desactivados en este workflow. No se suministran secretos al gate sintético.
 - Se actualizan contratos YAML y pruebas del preloader para confirmar la matriz,
   el gate, el guard de GitHub Actions, la comprobación del daemon y los tags
-  permitidos.
+  permitidos. El contrato carga `ci.yml` con `js-yaml` y contiene una fixture
+  que demuestra el rechazo de claves duplicadas.
+- Se elimina la condición `if` duplicada de `e2e-auth`; queda una única
+  condición explícita `false` mientras el Sandbox permanezca desactivado.
 
 ## Bloqueo verificado
 
@@ -30,9 +33,13 @@ red ni se inventó un digest.
 ## Verificación de este cambio
 
 Contratos de workflow y preloader: 6/6 PASS. `tsc --noEmit --pretty false` y
-Prettier `--check` de archivos de código/documentación modificados: PASS;
+Prettier `--check` de workflow, package manifest, contratos y nota QA: PASS;
 `git diff --check`: PASS. Este trabajo no ejecuta `test:e2e:local`, Playwright,
 Docker, Supabase, GitHub Actions ni servicios remotos. El gate configurado es un
 cambio candidato; no equivale a CI verde ni a protección de rama habilitada. La
 regla de branch protection debe exigir el nuevo check estable `Local Synthetic
 Owner E2E Required Gate` mediante configuración humana de GitHub.
+
+En la revisión posterior de YAML, el contrato parseado con `js-yaml` pasó 4/4,
+incluida la detección de claves repetidas y la única condición `false` en cada
+job remoto desactivado.
