@@ -12027,3 +12027,9 @@ Modelo separado, reclamación manual, administración, importación revisada, fi
   - `git diff --check` — PASS.
 - `PgDialect.sqlToQuery` valida SQL y parámetros; `pg/lib/utils.prepareValue` valida la serialización local del array. Eso, y los mocks, **no es una ejecución PostgreSQL**: siguen sin verificarse aislamiento Repeatable Read efectivo ante cambios concurrentes, orden real de locks entre workers, replay/transacción y equivalencia agregada del CTE con datos.
 - **NO-GO** hasta verificación PostgreSQL local sintética y E2E autenticado del flujo. No se ejecutaron PostgreSQL, E2E/browser, suite completa, Sandbox, remoto ni producción en esta tarea documental. Detalle: [`retention-projections-runtime-gate-2026-10-14.md`](../../docs/qa/retention-projections-runtime-gate-2026-10-14.md).
+
+## 2026-10-15 — Corregir carga al reseleccionar sesión de asistencia Owner
+
+- La traza de QA71 (`68a734fb39b30478916112d3606b1488efdbf9b7`) muestra que el GET del roster respondió 200 con la gimnasta esperada. El test vuelve a seleccionar la primera sesión, que ya estaba seleccionada por defecto; el manejador vaciaba el roster y activaba `loading`, aunque el ID no cambiaba y por tanto no empezaba otra carga. El estado resultante coincide con «Cargando lista…» y la ausencia del control accesible.
+- `OwnerAttendanceManager` ahora ignora un cambio al mismo ID antes de limpiar estado; cambiar a otra sesión conserva el fetch y refresco normales. La regresión cubre ambas transiciones.
+- Validación en rama aislada desde `7ac8b87e8d39133abec9faf4a6a05585f83d32fa`: `vitest run tests/owner-attendance-manager.test.tsx` — 6/6; `tsc --noEmit` — PASS; `git diff --check` — PASS. Sin build, E2E/browser, servicios locales, PostgreSQL, Sandbox ni producción. QA71 sigue siendo FAIL y no se hizo otra corrida.
