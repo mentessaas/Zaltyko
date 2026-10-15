@@ -1,6 +1,19 @@
-# Candidato2b581cd9: PR actualizado, CI nuevo pendiente
+# Candidato2b581cd9: CI abierto con fallo del contrato de entorno
 
 15 octubre2026,09:31UTC. [PR226](https://github.com/mentessaas/Zaltyko/pull/226) OPEN/DRAFT/REVIEW_REQUIRED, SHA remoto confirmado `2b581cd92be6cc1bf3531032a9914e006e409161`. Push normal desde e7dff88b, sin merge/despliegue. Una sola corrida automática por este nuevo candidato; listado inmediato todavía vacío por indexación. No dispatch ni rerun.
+
+## Observación posterior —09:38UTC
+
+- [CI38713511027](https://github.com/mentessaas/Zaltyko/actions/runs/38713511027) sigue abierto, SHA exacto confirmado por Main. Static38713511033 y Directory38713511029 PASS según QA136.
+- Build116350475347 PASS09:36:56UTC, incluidos contratos generados de rutas; lint/typecheck, móvil, RLS y migraciones PASS. Unitarios y Chromium abiertos; Firefox/WebKit en cola en esta observación. Aún sin resultado funcional ni cleanup del nuevo candidato.
+- [Dependency Security & SBOM116350475551](https://github.com/mentessaas/Zaltyko/actions/runs/38713511027/job/116350475551) FAIL: auditoría de dependencias de producción PASS, pero `audit:env` identifica exclusivamente `ZALTYKO_E2E_WEBPACK_BUILD_WORKER` ausente de `.env.example`09:31:34UTC. SBOM no generado por ese fallo, no confundir con vulnerabilidad nueva. Main comprobó el log del job mediante API y reprodujo `pnpm audit:env` localmente (exit1, misma única variable).
+- Frontend prepara corrección LOCAL mínima: documentar marcador sintético con valor por defecto desactivado y prueba focal; sin modificar el auditor, ampliar excepciones ni configurar entornos remotos. No empujar mientras corre la matriz actual ni repetir el SHA idéntico. CI completo, seguridad residual, esquema/recuperación y aprobación independiente siguen pendientes.
+
+### Corrección local revisada —09:41UTC, sin push
+
+Frontend `d0c32c99d190ec6e2b68503e1607c84acfa5f8fb`, Backend92 GO estático. Main integró únicamente la declaración con `false` y el test nuevo; el hunk se adaptó junto al marcador local ya existente, preservando sus advertencias y `VERCEL`. El padre antiguo del peer no reemplaza `.env.example` completo. Auditor/runtime/selector/wrapper intactos, sin valores reales ni entorno remoto.
+
+Main `pnpm audit:env` PASS73 variables (antes exit1); regresiones de contrato/selector/wrapper18/18 PASS en3archivos10.21s. Nuevos tres casos verifican defaultfalse/noNEXT_PUBLIC, rechazo/aceptación del marcador y rechazo de otra variable no documentada usando el auditor real, fixtures temporales y cleanup. ESLint/Prettier focales y diffcheck PASS. No build/E2E/Docker ni CI nuevo. QA138 conserva monitoreo del run original; este fix local aún no cuenta como CI PASS.
 
 ## Qué cambia y qué se verificó
 

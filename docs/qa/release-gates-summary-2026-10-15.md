@@ -6,6 +6,10 @@ No confundir validación local con CI remoto, compatibilidad del destino o autor
 
 ## Candidato vigente —2b581cd9,09:31UTC
 
+Observación09:38UTC: CI38713511027 abierto; Build/lint/móvil/RLS/migraciones y Static/Directory PASS. Security FAIL por marcador sintético no documentado en `.env.example`, reproducido localmente; Frontend prepara corrección mínima, sin relajar auditor. Matriz/Unit pendientes, no resultado funcional ni cleanup nuevo demostrado. No listo para publicar; no push mientras corre CI. Detalle en el informe del candidato.
+
+09:41UTC: corrección documental integrada solo LOCAL, Backend92GO; audit:envPASS73 y18/18focalesMain, ESLint/Prettier/diffcheckPASS. Auditor/runtime intactos. No push adicional ni resultado CI verde atribuido al fix local.
+
 PR226 actualizado sinmerge al SHA `2b581cd92be6cc1bf3531032a9914e006e409161` tras89/89MainPASS, revisionesestáticas yproteccionesreconfirmadas. Una sola CI automática nueva pendiente de indexación; no dispatch/rerun. Cambios: workerúnicamentebuildsintético+parchebracesraíz, conservandoSentry/tracing/22/240s/3navegadores/cleanup. No demuestran CI verde ni readinessdestino. [Evidencia/alcance](./ci-2b581cd9-candidate-2026-10-15.md). Las secciones siguientes son historial de candidatos anteriores.
 
 ## Actualización vigente — candidato e7dff88b

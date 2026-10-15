@@ -17,6 +17,10 @@ source:
 ---
 ## P0 — Cerrar el recorrido MVP publicado — 2026-10-14
 
+09:41UTC: fix de contrato integradoLOCAL(d0c32c99,Backend92GO), audit:envPASS73 y18/18focalesMain, ESLint/Prettier/diffcheckPASS. Pendiente incorporarlo a siguiente candidato tras cierre/revisión de CI actual y protecciones verificadas; no repetir run idéntico ni empujar notas mientras corre.
+
+Actualización15oct09:38UTC: candidato remoto2b581cd9/CI38713511027 abierto. Build/lint/móvil/RLS/migraciones y Static/Directory PASS; Security FAIL por marcador sintético no documentado, confirmado log/reproducción local. Frontend prepara fix mínimo `.env.example` defaultfalse+regresión, sin modificar auditor; no empujar mientras corre matriz. CI completo, seguridad residual, esquema/recuperación y aprobación independiente siguen pendientes. No merge ni deploy.
+
 Actualización15oct09:27UTC sustituye estados CI históricos de este bloque: e7dff88b/38707901100FAILURE, Chromium/WebKitPASS y Firefoxbuild240santesPlaywright. PreparadoLOCAL siguiente candidato rootbraces/worker sintético, revisiones estáticas y89tests focalesPASS; pendiente CI exacto nuevo, no repetirSHAidéntico. Esquema/backuprecuperable/rolapp/reviewGitHub siguenpendientes. Rootbracesyparchesmóvilesmitiganprofundidad/ciclos/ASN.1,no cierranadvisoriesupstream. OtrosjobsNode20EOL sondeudadealineación separada a22; nocambiarproducciónautomáticamente. Evidencia ci-e7dff88b-candidate-2026-10-15.md y dependency-alerts-e7dff88b-2026-10-15.md.
 
 - [ ] Tras implementar el instalador pinneado del CLI, ejecutar el gate en una
