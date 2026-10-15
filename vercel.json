@@ -1,4 +1,7 @@
 {
+  "git": {
+    "deploymentEnabled": false
+  },
   "framework": "nextjs",
   "regions": ["arn1"],
   "crons": [
