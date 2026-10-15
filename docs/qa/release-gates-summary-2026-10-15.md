@@ -2,6 +2,16 @@
 
 ## Decisión: NO-GO para publicar
 
+**Preparación14:11UTC:** sampler Frontend57af90c3 integrado por hunks tras
+QA203 GO estático exacto; cinco archivos sin Changelog histórico formateado.
+Main528/528 en13files PASS, ESLint0avisos/Prettier/audit73/diff-check PASS.
+Código/tests/manifiestos idénticos al commit con TypeScript PASS verificado;
+no se repite tsc sobre esa misma fuente. Solo run(build) GitHub Linux/browser,
+fuentes host fijas, resumen cerrado; trazas fuera de su intervalo. Sin build/
+Docker/E2E/pulls locales ni nuevo CI todavía. La aprobación humana permite un
+único push/candidato con esta medición, preservando240s/checks/protecciones.
+[Detalle y límites](./build-host-resource-sampler-2026-10-15.md).
+
 **Autorización humana posterior a12:44UTC:** el usuario aprueba la única corrida
 adicional solicitada para medir CPU/memoria. Se prepara instrumentación local
 saneada y acotada, revisión Frontend/QA/Main y checks antes de un nuevo push.

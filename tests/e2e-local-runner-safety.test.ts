@@ -44,7 +44,7 @@ describe("local E2E runner wiring", () => {
       "runAllowExitCode(\n      playwrightCli.command"
     );
     expect(runnerSource).toMatch(
-      /withBuildDiagnostic\(\s*\(\) =>\s*run\(\s*nextBuild\.command,\s*nextBuild\.args,\s*\{\s*\.\.\.childEnv,\s*NODE_ENV: "production",\s*ZALTYKO_E2E_WEBPACK_BUILD_WORKER: "true",\s*\},\s*LOCAL_E2E_TIMEOUTS\.build,\s*abortController\.signal,\s*"pipe",\s*progress\.push\s*\)/
+      /withBuildDiagnostic\(\s*\(\) =>\s*withBuildHostResourceMetrics\(\s*\(\) =>\s*run\(\s*nextBuild\.command,\s*nextBuild\.args,\s*\{\s*\.\.\.childEnv,\s*NODE_ENV: "production",\s*ZALTYKO_E2E_WEBPACK_BUILD_WORKER: "true",\s*\},\s*LOCAL_E2E_TIMEOUTS\.build,\s*abortController\.signal,\s*"pipe",\s*progress\.push\s*\)/
     );
     expect(playwrightConfigSource).toContain(
       'localCliEntrypoint(process.cwd(), "next")'
@@ -71,6 +71,29 @@ describe("local E2E runner wiring", () => {
     expect(runnerSource).toContain('localProject(["stop", "--no-backup"])');
     expect(runnerSource).toContain("cleanupLocalProject({");
     expect(runnerSource).toContain("preserved at ${projectDirectory}");
+  });
+
+  it("scopes host metrics to the synthetic Linux build callback without child env flags", () => {
+    const metricsSource = readFileSync(
+      resolve(
+        process.cwd(),
+        "scripts/lib/local-build-host-resource-metrics.ts"
+      ),
+      "utf8"
+    );
+    expect(runnerSource).toContain("withBuildHostResourceMetrics(");
+    expect(runnerSource).toContain("platform: process.platform");
+    expect(runnerSource).toContain("env: process.env");
+    expect(runnerSource).toContain("emit: (metrics) =>");
+    expect(metricsSource).toContain('env.GITHUB_ACTIONS === "true"');
+    expect(metricsSource).toContain('env.RUNNER_OS === "Linux"');
+    expect(metricsSource).toContain('env.CI === "true"');
+    expect(metricsSource).toContain("browserProjects.some(");
+    expect(runnerSource).not.toMatch(/ZALTYKO_E2E_BUILD_HOST_METRICS/);
+    expect(runnerSource).not.toMatch(/buildHostResourceMetrics:\s*"true"/);
+    expect(runnerSource).toMatch(
+      /withBuildDiagnostic\(\s*\(\) =>\s*withBuildHostResourceMetrics\(\s*\(\) =>\s*run\(/
+    );
   });
 
   it("installs SIGINT and SIGTERM handlers for the entire stack lifecycle", () => {

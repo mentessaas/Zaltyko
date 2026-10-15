@@ -41,6 +41,7 @@ import {
 } from "./lib/local-build-trace-diagnostic";
 
 import { createBuildProgressObserver } from "./lib/local-build-progress";
+import { withBuildHostResourceMetrics } from "./lib/local-build-host-resource-metrics";
 
 const root = process.cwd();
 const projectDirectory = mkdtempSync(join(tmpdir(), "zaltyko-e2e-local-"));
@@ -313,18 +314,29 @@ void (async () => {
     const progress = createBuildProgressObserver();
     await withBuildDiagnostic(
       () =>
-        run(
-          nextBuild.command,
-          nextBuild.args,
+        withBuildHostResourceMetrics(
+          () =>
+            run(
+              nextBuild.command,
+              nextBuild.args,
+              {
+                ...childEnv,
+                NODE_ENV: "production",
+                ZALTYKO_E2E_WEBPACK_BUILD_WORKER: "true",
+              },
+              LOCAL_E2E_TIMEOUTS.build,
+              abortController.signal,
+              "pipe",
+              progress.push
+            ),
           {
-            ...childEnv,
-            NODE_ENV: "production",
-            ZALTYKO_E2E_WEBPACK_BUILD_WORKER: "true",
-          },
-          LOCAL_E2E_TIMEOUTS.build,
-          abortController.signal,
-          "pipe",
-          progress.push
+            platform: process.platform,
+            env: process.env,
+            emit: (metrics) =>
+              console.error(
+                JSON.stringify({ buildHostResourceMetrics: metrics })
+              ),
+          }
         ),
       () => readBuildTraceSummary(root),
       (summary) =>
