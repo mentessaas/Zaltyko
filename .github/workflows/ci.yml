@@ -237,6 +237,8 @@ jobs:
   e2e-readiness:
     name: E2E Credentials Readiness
     runs-on: ubuntu-latest
+    # Remote Sandbox E2E stays disabled pending separate explicit authorization.
+    if: ${{ false }}
     environment:
       name: e2e-sandbox
     outputs:
@@ -274,11 +276,13 @@ jobs:
         run: bash scripts/ci/check-e2e-readiness.sh
 
   e2e-local-owner:
-    # Experimental: keep visible in CI while the local browser journey is validated.
-    name: Experimental E2E Local Supabase Owner Setup
+    name: Local Synthetic Owner E2E (${{ matrix.project }})
     runs-on: ubuntu-latest
     timeout-minutes: 30
-    continue-on-error: true
+    strategy:
+      fail-fast: false
+      matrix:
+        project: [chromium, firefox, webkit]
     steps:
       - uses: actions/checkout@v7
 
@@ -299,11 +303,18 @@ jobs:
       - name: Install dependencies
         run: pnpm install --frozen-lockfile
 
-      - name: Install Playwright browsers
-        run: pnpm exec playwright install --with-deps chromium firefox webkit
+      - name: Install Playwright browser
+        run: pnpm exec playwright install --with-deps "${{ matrix.project }}"
+
+      - name: Preload pinned local Supabase images
+        run: pnpm exec tsx scripts/ci/preload-local-e2e-images.ts
+        env:
+          GITHUB_ACTIONS: "true"
 
       - name: Run isolated local Supabase Owner setup E2E
         run: pnpm test:e2e:local
+        env:
+          E2E_LOCAL_PROJECT: ${{ matrix.project }}
 
   validate-rls:
     name: Validate RLS Coverage
@@ -432,6 +443,8 @@ jobs:
   e2e-auth:
     name: E2E Authenticated Flows
     runs-on: ubuntu-latest
+    # Remote Sandbox E2E stays disabled pending separate explicit authorization.
+    if: ${{ false }}
     environment:
       name: e2e-sandbox
     timeout-minutes: 45
@@ -625,17 +638,16 @@ jobs:
           NEXT_PUBLIC_STRIPE_PUBLISHABLE_KEY: ${{ secrets.E2E_STRIPE_PUBLISHABLE_KEY }}
 
   e2e-auth-required-gate:
-    name: E2E Authenticated PR Required Gate
+    name: Local Synthetic Owner E2E Required Gate
     runs-on: ubuntu-latest
-    needs: [e2e-readiness, e2e-auth]
-    if: ${{ always() && github.event_name == 'pull_request' }}
+    needs: [e2e-local-owner]
+    if: ${{ always() && (github.event_name == 'pull_request' || github.event_name == 'push') }}
     steps:
-      - name: Require readiness and authenticated E2E success
+      - name: Require all local synthetic browser projects to pass
         env:
-          E2E_READINESS_RESULT: ${{ needs.e2e-readiness.result }}
-          E2E_AUTH_RESULT: ${{ needs.e2e-auth.result }}
+          E2E_LOCAL_RESULT: ${{ needs.e2e-local-owner.result }}
         run: |
-          if [[ "${E2E_READINESS_RESULT}" != "success" || "${E2E_AUTH_RESULT}" != "success" ]]; then
-            echo "Authenticated E2E is required for PRs; readiness=${E2E_READINESS_RESULT}, e2e=${E2E_AUTH_RESULT}." >&2
+          if [[ "${E2E_LOCAL_RESULT}" != "success" ]]; then
+            echo "Local synthetic Owner E2E is required; result=${E2E_LOCAL_RESULT}." >&2
             exit 1
           fi

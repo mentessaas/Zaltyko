@@ -1,7 +1,7 @@
 ---
 status: active
 owner: producto
-last_reviewed: 2026-10-14
+last_reviewed: 2026-10-15
 source:
   - ../PRODUCT-ANALYSIS.md
   - ../BUSINESS-ANALYSIS.md
@@ -16,6 +16,14 @@ source:
   - ../07-Auditorias-y-Riesgos/Registro de riesgos.md (bloqueantes con Elvis)
 ---
 ## P0 — Cerrar el recorrido MVP publicado — 2026-10-14
+
+- [ ] Antes de exigir el nuevo gate local de Owner en branch protection,
+  verificar y fijar el SHA-256 de Supabase CLI 2.84.2 para Linux x64 desde una
+  fuente autorizada. El runner conserva el hash macOS y compara estrictamente;
+  no iniciar Docker/E2E en CI hasta que el hash Linux esté documentado y probado.
+  Después comprobar el gate en una ejecución CI autorizada y exigir su nombre
+  estable en branch protection. Estado y evidencia:
+  `docs/qa/local-synthetic-ci-gate-2026-10-15.md`.
 
 - [ ] Completar QA de navegadores y revisar el runner local sintético de backup
   y autorizar cualquier escritura remota. Main ya registra tres navegadores

@@ -1,7 +1,7 @@
 ---
 status: active
 owner: producto
-last_reviewed: 2026-10-14
+last_reviewed: 2026-10-15
 source:
   - ../docs/audits/2026-10-03-launch-and-auth-followup.md
   - ../docs/architecture/zaltyko-domain-model.md
@@ -12100,3 +12100,22 @@ Modelo separado, reclamación manual, administración, importación revisada, fi
 - Corrida fría del candidato a1edf37d56ac2b1d9f21a1bfa49a62c7b58bb681 en worktree detached nuevo. Node 22.22.3, Next 15.5.27, tsx 4.23.13 y dependencias preexistentes con lock/manifiesto coincidentes; sin caché Next previa, instalación ni pull.
 - Chromium completó el test de alta y operaciones Owner: roster/asistencia, cuota, pago manual y dashboard. La consulta SQL confirmó persistencia del cargo/pago; pasó el resumen a 375/768/1280 sin overflow y las negativas sintéticas de organización, sede y coach devolvieron 403. Un test/worker, exit 0.
 - Cleanup del stack/volúmenes informado por el runner y verificado sin recursos temporales propios. Sin Firefox/WebKit, CI, Sandbox, remotos ni producción. Detalle y log: [informe QA72](../../docs/qa/local-owner-e2e-chromium-a1edf37-2026-10-15.md).
+
+## 2026-10-15 — Gate CI sintético local para E2E Owner
+
+- En `codex/ci-local-synthetic-gate-20261015` sobre `bf094a1f`, el workflow
+  predeterminado desactiva readiness y E2E del Sandbox remoto. El E2E Owner
+  sintético queda como matriz bloqueante de Chromium, Firefox y WebKit para PR y
+  push. Se conservan timeouts del spec/build, retries cero y un worker.
+- `preload-local-e2e-images.ts` solo opera bajo `GITHUB_ACTIONS=true`, valida el
+  endpoint Unix local y daemon Docker, y descarga refs exactas del manifiesto
+  compartido; la verificación posterior del runner sigue fail-closed.
+- Bloqueo: el SHA disponible de Supabase CLI 2.84.2 corresponde a macOS y no se
+  encontró hash Linux verificado localmente. No se aflojó el guard ni se buscó
+  en red; el job Linux abortará hasta resolverlo. La protección de rama también
+  debe exigir el nuevo check estable desde GitHub.
+- Validación: contratos de workflow/preloader 6/6 PASS, `tsc --noEmit` PASS,
+  Prettier `--check` y `git diff --check` PASS. No correr E2E, Docker/Supabase,
+  CI remoto ni servicios externos en esta tarea.
+- Vault: actualizados `Decisiones.md`, `Backlog priorizado.md` y este changelog;
+  sin cambios de producto, pricing, migraciones o datos.

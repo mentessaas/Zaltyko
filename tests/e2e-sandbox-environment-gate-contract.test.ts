@@ -6,13 +6,8 @@ const workflow = readFileSync(
   resolve(process.cwd(), ".github/workflows/ci.yml"),
   "utf8"
 );
-const readiness = readFileSync(
-  resolve(process.cwd(), "scripts/ci/check-e2e-readiness.sh"),
-  "utf8"
-);
-
-describe("remote E2E protected environment contract", () => {
-  it("puts both secret-bearing jobs behind the same sandbox environment", () => {
+describe("synthetic E2E CI contract", () => {
+  it("disables remote Sandbox provisioning on the default workflow", () => {
     const readinessJob = workflow
       .split("  e2e-readiness:\n")[1]
       ?.split("\n  e2e-local-owner:")[0];
@@ -20,31 +15,37 @@ describe("remote E2E protected environment contract", () => {
       .split("  e2e-auth:\n")[1]
       ?.split("\n  e2e-auth-required-gate:")[0];
 
-    expect(readinessJob).toContain("environment:\n      name: e2e-sandbox");
-    expect(authenticatedJob).toContain("environment:\n      name: e2e-sandbox");
+    expect(readinessJob).toContain("if: ${{ false }}");
+    expect(authenticatedJob).toContain("if: ${{ false }}");
+    const gate = workflow.split("  e2e-auth-required-gate:\n")[1];
+    expect(gate).not.toContain("e2e-readiness");
+    expect(gate).not.toContain("e2e-auth");
   });
 
-  it("fails readiness for every PR with missing E2E credentials", () => {
-    expect(readiness).toMatch(
-      /elif \[\[ "\$event_name" == "pull_request" \]\]; then[\s\S]*?enabled=false[\s\S]*?exit 1/
+  it("runs the synthetic local Owner journey as a blocking three-browser matrix", () => {
+    const localJob = workflow
+      .split("  e2e-local-owner:\n")[1]
+      ?.split("\n  validate-rls:")[0];
+
+    expect(localJob).toContain("project: [chromium, firefox, webkit]");
+    expect(localJob).not.toContain("continue-on-error");
+    expect(localJob).toContain(
+      "pnpm exec tsx scripts/ci/preload-local-e2e-images.ts"
     );
-    expect(readiness).not.toMatch(
-      /skipped for (?:Dependabot|an external fork)/
-    );
+    expect(localJob).toContain("E2E_LOCAL_PROJECT: ${{ matrix.project }}");
+    expect(localJob).toContain("pnpm test:e2e:local");
   });
 
-  it("fails the stable PR gate when readiness or E2E is skipped or fails", () => {
+  it("fails the stable PR and push gate when the local E2E matrix is skipped or fails", () => {
     const gate = workflow.split("  e2e-auth-required-gate:\n")[1];
 
-    expect(gate).toContain("name: E2E Authenticated PR Required Gate");
-    expect(gate).toContain("needs: [e2e-readiness, e2e-auth]");
-    expect(gate).toContain("always() && github.event_name == 'pull_request'");
-    expect(gate).toContain("needs.e2e-readiness.result");
-    expect(gate).toContain("needs.e2e-auth.result");
+    expect(gate).toContain("name: Local Synthetic Owner E2E Required Gate");
+    expect(gate).toContain("needs: [e2e-local-owner]");
+    expect(gate).toContain(
+      "github.event_name == 'pull_request' || github.event_name == 'push'"
+    );
+    expect(gate).toContain("needs.e2e-local-owner.result");
     expect(gate).toContain('!= "success"');
     expect(gate).toContain("exit 1");
-    expect(
-      workflow.indexOf("Verify contact write and idempotency in sandbox")
-    ).toBeLessThan(workflow.indexOf("  e2e-auth-required-gate:"));
   });
 });
