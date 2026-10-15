@@ -84,7 +84,7 @@ async function seedAcademy(pool: Pool, ids: AcademyFixture): Promise<void> {
       [ids.pricePlanId, ids.organizationId]
     );
     await client.query(
-      "insert into zaltyko.enrollments (id, organization_id, location_id, athlete_id, class_template_id, price_plan_id, status, starts_on, source) values ($1::uuid, $2::uuid, $3::uuid, $4::uuid, $5::uuid, 'active', current_date - 30, 'owner')",
+      "insert into zaltyko.enrollments (id, organization_id, location_id, athlete_id, class_template_id, price_plan_id, status, starts_on, source) values ($1::uuid, $2::uuid, $3::uuid, $4::uuid, $5::uuid, $6::uuid, 'active', current_date - 30, 'owner')",
       [
         ids.enrollmentId,
         ids.organizationId,

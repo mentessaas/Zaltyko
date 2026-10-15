@@ -287,6 +287,9 @@ describe("monthly billing paging local runner contract", () => {
 
   it("defines local PostgreSQL service checks for billing replay and authorization", () => {
     expect(financialVerifier).toContain(
+      "class_template_id, price_plan_id, status, starts_on, source) values ($1::uuid, $2::uuid, $3::uuid, $4::uuid, $5::uuid, $6::uuid, 'active', current_date - 30, 'owner')"
+    );
+    expect(financialVerifier).toContain(
       'process.env[LOCAL_ONLY], "1", "Local harness flag is required"'
     );
     expect(financialVerifier).toContain('assertLoopbackUrl("DATABASE_URL")');
