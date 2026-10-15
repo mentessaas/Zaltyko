@@ -12170,3 +12170,12 @@ Modelo separado, reclamación manual, administración, importación revisada, fi
 - Metadata remota de solo lectura documentada en remote-schema-metadata-2026-10-15.md.
   Sin DDL, datos de negocio, merge ni despliegue. Alcance comercial priorizado a piloto
   con flujo esencial, sujeto a CI, seguridad, esquema/recuperación y aprobación PR.
+
+## 2026-10-15 — Segundo CI: preparar corrección de dependencias de test y ráfaga ECR
+
+- CI38700837089 sobre5d072d19 terminó FAILURE: WebKitSUCCESS, Chromium/Firefoxpullrate-limit; UnitTests falla cargando regresión móvil shell-quote por dependencia no instalada en job combinado. No excluimos la prueba: se añade instalación móvil congelada antes de coverage.
+- Propuesta max-parallel1 mantiene3navegadores,gate,timeout30m; reduce simultaneidad sin prometer corregir cuota externa. Main contratos22/22PASS,diffcheckPASS; revisiónQA pendiente.
+- Aplicación selectiva Frontend eae53e02: compression1.8.2 ysource-map-js1.2.2 enlocksmóviles,regresiones;339/339 local conambosgestores segúnFrontend. Residual2advisoriesbraces/node-forge sinfixupstream,parcheslocales yregresionesaplicados;no alertasremotas cerradas.
+- Backend prepara manifiesto18migraciones en checkoutaislado corregido Zaltyko-mvp-ops-backend-20261013; no ejecutorapply ni DDL. Sin cambiosdedatos ni despliegues. Fuentes: ci-5d072d19-rate-limit-2026-10-15 y mobile-tooling-dos-2026-10-15.
+
+- Revisión QA110 GO tras Node22 solo en job UnitTests y contrato correspondiente;22/22MainPASS repetido. QA confirma WebKitfuncional1PASS y cleanupreportado porrunner en5d072d19; globalCI sigueFAIL. Manifiesto backenddb448d7c listo local25testsPASS, pendiente revisiónFrontend e integración separada; no readinessdestino.

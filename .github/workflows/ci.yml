@@ -154,11 +154,17 @@ jobs:
       - name: Setup Node.js
         uses: actions/setup-node@v7
         with:
-          node-version: "20"
+          node-version: "22"
           cache: "pnpm"
 
       - name: Install dependencies
         run: pnpm install --frozen-lockfile
+
+      # Root Vitest also discovers mobile tests; install their real dependencies
+      # rather than excluding security regressions from the required gate.
+      - name: Install mobile dependencies for combined unit suite
+        working-directory: mobile
+        run: pnpm install --frozen-lockfile --ignore-workspace
 
       - name: Run unit tests with coverage
         run: pnpm vitest run --coverage
@@ -283,6 +289,9 @@ jobs:
     timeout-minutes: 30
     strategy:
       fail-fast: false
+      # ECR Public anonymous pulls are rate-limited; keep all browser checks but
+      # avoid three independent daemons pulling the same images simultaneously.
+      max-parallel: 1
       matrix:
         project: [chromium, firefox, webkit]
     steps:
