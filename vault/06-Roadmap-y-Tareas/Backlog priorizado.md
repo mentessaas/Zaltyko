@@ -17,6 +17,28 @@ source:
 ---
 ## P0 — Cerrar el recorrido MVP publicado — 2026-10-14
 
+## Nueva autorización — 2026-10-16, 00:10 CEST (15 oct 22:10 UTC)
+
+El humano autoriza expresamente preparar, revisar y ejecutar **UNA corrida
+adicional del CI existente**, manteniendo 240 segundos y sin desplegar.
+Sustituye la espera de permiso de las entradas históricas inferiores; la
+corrida anterior bf0aad14/38749323693 ya consumió su autorización y acabó FAIL.
+La nueva todavía NO se ha lanzado ni consumido. Main coordina únicamente los
+tres chats APP existentes: Frontend diseña atribución por compilador/módulo,
+Backend contrasta tracing/rutas en Next15.5.27, QA define y revisa privacidad,
+límites, sobrecoste y contratos. Primero diseño readonly, después revisión e
+implementación acotada; no cambios de producto/config de optimización a ciegas.
+
+Preferir resumen de trazas ya existentes tras build a nueva instrumentación.
+Sin perfiles crudos, fuentes, secretos, valores de entorno o datos reales.
+Conservar matriz/checks/Node22/Sentry/tracing/worker/240s/cleanup/protecciones.
+Solo Main podrá integrar y efectuar un único push sustantivo que active CI,
+tras validación focal y reconfirmación readonly de protecciones; sin reruns,
+dispatch, nuevos runners/jobs ni pushes de notas durante la ejecución.
+No builds/E2E/Docker/pulls/instalaciones locales. Sin merge/deploy/DDL/pagos;
+seguridad, esquema/rol app/recuperación y revisión independiente siguen gates
+separados. No repetir petición Backups. **Publicación continúa NO-GO.**
+
 14:47UTC Frontend145 NO-GO para optimizar código/config sin atribución concreta.
 Falta diagnóstico por compilador/módulo/tracing; solicitada al humano UNA
 corrida adicional, AÚN NO autorizada ni instrumentada. Diseño/revisión privacidad/
