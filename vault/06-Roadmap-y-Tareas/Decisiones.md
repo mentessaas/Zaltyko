@@ -8,6 +8,19 @@ source:
 
 # Decisiones
 
+## 2026-10-15 — Autorizada una corrida de diagnóstico acotado
+
+El usuario responde «Si te autorizo a todos pero termina de poner todo listo»
+a la solicitud explícita de una única corrida adicional del CI existente con
+CPU/memoria saneados. Queda revocada la espera de permiso de diagnóstico, no
+los gates de publicación. Backend prepara instrumentación local aislada;
+Frontend/QA/Main revisan privacidad, límites y lifecycle antes de integrar.
+Un candidato sustantivo y una corrida automática tras checks/protecciones:
+sin dispatch/reruns duplicados, nuevos jobs/runners, ampliar240s ni retirar
+Sentry/tracing/Node22/comprobaciones/cleanup. Sin datos reales ni despliegue.
+Merge, publicación, DDL irreversible y pagos requieren decisión específica.
+No inferir causalidad de métricas host ni readiness de mocks verdes.
+
 ## 2026-10-15 — Origen fijo Hub del plan activo, solo local
 
 Tras Frontend110/QA184 GO sobre Backendc98077a6, integrar hunks de selección

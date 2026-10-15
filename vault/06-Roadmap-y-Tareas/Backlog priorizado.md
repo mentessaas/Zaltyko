@@ -17,6 +17,14 @@ source:
 ---
 ## P0 — Cerrar el recorrido MVP publicado — 2026-10-14
 
+Autorización humana posterior: preparar UNA corrida adicional del CI existente
+con diagnóstico CPU/memoria saneado y revisado; ya no esperar permiso para ese
+paso ni repetir pregunta. Backend implementa local aislado, Frontend/QA revisan;
+conservar240s/checks/Sentry/tracing/matriz y protecciones. Pendientes entrega,
+tests/Main/review y reconfirmar protecciones antes de push. No merge/deploy ni
+datos reales. CI verde, seguridad residual y esquema/recuperación/rol app siguen
+gates separados; el objetivo sigue NO-GO hasta evidencia completa.
+
 12:40UTC origenHub11 integrado SOLOLOCAL trasFrontend110/QA184GO;Main509mocks
 PASS12files tras3contratosKongactualizados,lintformatoaudit73/tscPASS,Frontend111/
 QA186GOvariante. No CI/push automático ni buildresuelto: Frontend109NO-GOajustebuild.

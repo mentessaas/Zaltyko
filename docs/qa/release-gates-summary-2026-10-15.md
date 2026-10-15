@@ -2,6 +2,14 @@
 
 ## Decisión: NO-GO para publicar
 
+**Autorización humana posterior a12:44UTC:** el usuario aprueba la única corrida
+adicional solicitada para medir CPU/memoria. Se prepara instrumentación local
+saneada y acotada, revisión Frontend/QA/Main y checks antes de un nuevo push.
+No se ha iniciado otra corrida; remoto continúa0dfb/FAIL. Se mantienen240s,
+Sentry/tracing/Node22/matriz/checks/cleanup/protecciones. No autoriza publicar
+por anticipado: seguridad, destino/rol app/recuperación y review independiente
+siguen pendientes. Los textos inferiores de permiso pendiente son históricos.
+
 **Preparación local12:40UTC:** hunks Backendc98077a6 integrados trasFrontend110/
 QA184 GO; 509/509mocks12files PASS después de corregir3expectativas antiguas de
 Kong a secuenciaHub exacta. Lint/formato/audit73/tscPASS; Frontend111/QA186 GO de

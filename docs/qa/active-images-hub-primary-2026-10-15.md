@@ -91,3 +91,10 @@ con medición acotada y saneada de CPU/memoria del build, sin nuevos runners/job
 ampliar240s, retirar checks, Sentry/tracing, acceder a datos o desplegar. No está
 autorizada todavía: no se ha implementado instrumentación ni empujado4f62f423.
 No repetir la petición automáticamente mientras espera respuesta humana.
+
+Actualización posterior: el usuario responde explícitamente «Si te autorizo a
+todos pero termina de poner todo listo» al permiso solicitado. Se autoriza esa
+única corrida adicional con métricas saneadas; Backend prepara local aislado y
+Frontend/QA/Main revisan antes de integrar/push. Todavía no se implementó ni
+ejecutó el diagnóstico en CI. Se conservan240s/checks/matriz/Sentry/tracing y
+protecciones; no autoriza merge/despliegue ni uso de datos reales.
