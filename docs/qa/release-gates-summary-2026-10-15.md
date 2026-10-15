@@ -2,6 +2,17 @@
 
 ## Decisión: NO-GO para publicar
 
+**Cierre14:37UTC:** CI38749323693 exactbf0aad14 FAILURE(updated14:35:30),
+gate116483093666 FAIL14:35:29; Static/Directory y otroschecksprincipales PASS.
+Chromium/WebKit timeout240s antesPlaywright; Firefox1PASS test26.9s(total36.2s),
+build238910ms. Cleanup reportado por runner en los tres. MétricasHOST CPUmax100%
+y memoria disponiblemín~49.6–51.7% no identifican causa ni carga exclusivaNext.
+La única corrida autorizada está consumida: no nuevoCI/push/rerun ni cambios
+de240s/checks/Node22/Sentry/tracing/cleanup. Frontend compara SOLOlectura nueva
+evidencia con código, sin implementación ni prueba nueva. Seguridad/destino/
+recuperación/rolapp/review independiente/publicación siguen pendientes.
+[Cierre y límites](./ci-bf0aad14-candidate-2026-10-15.md).
+
 **Estado vigente14:14UTC:** push normal confirmado a `bf0aad14b51e27ec149ddd74738ba31be97ae5b9`,
 PR226 OPEN/draft/REVIEW_REQUIRED, sin merge/deploy. Único CI38749323693 creado
 14:12:26UTC; Chromium/Unit/Build/lint progresan, Firefox/WebKit en cola.

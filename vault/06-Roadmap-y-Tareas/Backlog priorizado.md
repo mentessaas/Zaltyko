@@ -17,6 +17,14 @@ source:
 ---
 ## P0 — Cerrar el recorrido MVP publicado — 2026-10-14
 
+14:37UTC cierre bf0aad14: CI38749323693/gateFAIL, Static/Directory/otroschecksPASS;
+Chromium/WebKit build240s antesPlaywright, Firefox1PASS26.9s(total36.2s),
+build238910ms. Trescleanup reportados, no inventarioDockerindependiente.
+HOST CPUmax100%/MemAvailablemín49.6–51.7% no prueba causa ni consumoNext.
+Frontend SOLOcomparaciónestática nuevaevidencia; no fixciego/nuevoCI/push/rerun.
+Autorizaciónúnicaconsumida. Seguridad/destino/rolapp/recuperación/review/publicación
+NO-GO; no repetirBackups. Fuente ci-bf0aad14-candidate-2026-10-15.md.
+
 14:14UTC vigente: candidato bf0aad14 ya remoto por push normal, sin merge/deploy.
 Única corrida adicional autorizada CI38749323693 en progreso de jobs; Static38749323931/
 Directory38749323676 pendientes de cierre. Main528mocks13files PASS y privacidad/

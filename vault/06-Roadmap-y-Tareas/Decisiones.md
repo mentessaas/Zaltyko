@@ -8,6 +8,18 @@ source:
 
 # Decisiones
 
+## 2026-10-15 — Cerrar el diagnóstico CI sin encadenar ejecuciones
+
+14:37UTC MainAPI/logs+QA208: CIbf0aad14/38749323693 FAILURE y gateFAIL.
+Chromium/WebKit timeout240s antesPlaywright; Firefox1test26.9s(total36.2s)PASS,
+build238910ms. Trescleanups reportados. CPUhostmax100%/PSI/memoria50% no
+atribuyen carga a Next ni demuestran causa; no cambiar a ciegas build/checks.
+Autorizar SOLO Frontendcomparaciónreadonly de nuevaevidencia/código instalado,
+sin implementaciones/builds/tests/Docker/nuevoCI/push ni instrumentación nueva.
+Autorización humana de UNA corrida ya consumida; no repetir permiso ni encadenar
+CI. Conservar240s/Node22/Sentry/tracing/cleanup/protecciones y gates separados.
+NO-GOrelease, sin merge/deploy/DDL/filasreales; Backups no repetirpetición.
+
 ## 2026-10-15 — Ejecutada la única corrida adicional autorizada
 
 14:12UTC push normal del candidato bf0aad14, sin merge/despliegue, tras QA203 GO
