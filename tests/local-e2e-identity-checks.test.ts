@@ -88,12 +88,18 @@ describe("closed identity diagnostics, Kong fixtures (not observed Docker output
       );
     }
   );
-  it("does not accept the hypothetical kong alias", async () => {
-    const error = await failure(
+  it("accepts the exact familiar Kong representation without changing identity", async () => {
+    const run = mock(
       JSON.stringify([{ ...identity, RepoDigests: [`kong@${kong.manifest}`] }])
     );
-    expect(error.identityChecks?.["repo-digest-match"]).toBe(false);
-    expect(error.identityChecks?.["config-match"]).toBe(true);
+    await pullPinnedImageWithDigestFallback(kong.ecr, run, () => 0);
+    expect(run.mock.calls.map((c) => c[0])).toContainEqual([
+      "image",
+      "tag",
+      kong.config,
+      kong.ecr,
+    ]);
+    expect(run).toHaveBeenCalledTimes(5);
   });
   it("reports all independent mismatches without short circuit", async () => {
     const error = await failure(

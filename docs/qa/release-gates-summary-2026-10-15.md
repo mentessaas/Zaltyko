@@ -6,6 +6,8 @@ No confundir validación local con CI remoto, compatibilidad del destino o autor
 
 ## Candidato vigente —2b581cd9,09:31UTC
 
+**Preparación10:18UTC:** alias exactos del mismo pin/digest integrados, Frontend92/QA149GO y Main379/379mockPASS9files/tsc0/eslint0. Protecciones GitHub/Vercel reconfirmadas; preparar único SHA nuevo sin rerun. No es CI verde ni demuestra resolverFirefox/WebKit; NO-GO continúa. [Revisión y evidencia](./ci-2b581cd9-local-diagnostics-2026-10-15.md#actualización1018utc--alias-revisados-e-integrados-localmente).
+
 **Preparación local10:12UTC:** observabilidad de identidad/build integrada tras Frontend91GO; Main126/126mockPASS y tsc0. Ningún build/Docker/CI nuevo. Guard de status entero positivo, identidad exacta y240s intactos; alias familiares solo propuesta aprobada para commit separado. No cambia el cierreFAIL ni el NO-GO. [Evidencia y límites](./ci-2b581cd9-local-diagnostics-2026-10-15.md).
 
 **Cierre09:57UTC:** CI38713511027COMPLETED/FAILURE y gateFAIL; Chromium32.4sPASS/cleanup y Unit2886PASS3skip. Firefox build240s antesPlaywright/cleanup; WebKit falla identidadkonghub-inspect antesretag/Supabase, campo noverificado; Securityaudit:envFAIL con fix soloLOCAL57a09b27. QA/Backend preparan observabilidad local sin relajarchecks ni prometerresolver. No nuevo push/run hasta revisión; esquema/recuperación/seguridadresidual/reviewPR pendientes. [Evidencia final](./ci-2b581cd9-candidate-2026-10-15.md). Estados abiertos de párrafos inferiores son históricos.

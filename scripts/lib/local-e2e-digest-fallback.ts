@@ -18,7 +18,7 @@ const digestPattern = /^sha256:[a-f0-9]{64}$/;
 
 function inspectIdentity(
   output: string,
-  repoDigest: string,
+  repoDigests: readonly string[],
   config: string,
   stage: DigestFallbackStage
 ): string {
@@ -45,7 +45,11 @@ function inspectIdentity(
   checks["arch-match"] = image.Architecture === "amd64";
   checks["config-match"] = image.Id === config;
   checks["repo-digest-match"] =
-    Array.isArray(image.RepoDigests) && image.RepoDigests.includes(repoDigest);
+    Array.isArray(image.RepoDigests) &&
+    image.RepoDigests.some(
+      (value: unknown) =>
+        typeof value === "string" && repoDigests.includes(value)
+    );
   if (Object.values(checks).some((value) => value !== true)) {
     throw new DigestFallbackError(stage, 0, "identity", [], checks);
   }
@@ -68,6 +72,13 @@ export async function pullPinnedImageWithDigestFallback(
   ) {
     throw new DigestFallbackError("pin", null, "pin");
   }
+  // Derive representations only from the trusted pin, never from observed strings.
+  const repoDigests = [
+    `${pin.hub}@${pin.manifest}`,
+    `docker.io/${pin.hub}@${pin.manifest}`,
+  ];
+  const official = /^library\/([a-z0-9]+(?:[._-][a-z0-9]+)*)$/.exec(pin.hub);
+  if (official) repoDigests.push(`${official[1]}@${pin.manifest}`);
   const started = now();
   let lastElapsed = 0;
   function elapsedAt(
@@ -144,10 +155,10 @@ export async function pullPinnedImageWithDigestFallback(
       "inspection",
       dockerDiagnosticFlags(inspection.stderr)
     );
-  // Docker canonicalizes Docker Hub RepoDigests without docker.io.
+  // Accept only exact canonical/familiar representations of this pinned repository.
   const imageId = inspectIdentity(
     inspection.stdout,
-    `${pin.hub}@${pin.manifest}`,
+    repoDigests,
     pin.config,
     "hub-inspect"
   );
@@ -167,10 +178,5 @@ export async function pullPinnedImageWithDigestFallback(
       "inspection",
       dockerDiagnosticFlags(tagged.stderr)
     );
-  inspectIdentity(
-    tagged.stdout,
-    `${pin.hub}@${pin.manifest}`,
-    pin.config,
-    "ecr-inspect"
-  );
+  inspectIdentity(tagged.stdout, repoDigests, pin.config, "ecr-inspect");
 }
