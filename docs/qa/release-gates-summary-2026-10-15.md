@@ -15,6 +15,18 @@ No confundir validación local con CI remoto, compatibilidad del destino o autor
 
 ## Gates pendientes independientes
 
+### Actualización vigente — 15 de octubre, candidato `5001651c`
+
+Esta actualización sustituye el estado histórico de configuración/publicación de rama descrito debajo. PR #226 actualizado sin merge; CI `38698304250` completado: build, unitarios, lint/typecheck, móvil, migraciones, cobertura declarativa RLS y seguridad/SBOM PASS. Matriz Owner E2E y gate agregado FAILURE durante descarga de imágenes, antes de pruebas funcionales. Los jobs Sandbox están SKIPPED. Véase `ci-5001651c-initial-failure-2026-10-15.md`.
+
+QA verificó que las tres imágenes que fallaron son distintas (Chromium: postgrest, Firefox: postgres, WebKit: logflare); los manifiestos públicos responden actualmente HTTP 200 y ofrecen linux/amd64. Esto no acredita la respuesta del registro durante el run. Causa exacta pendiente: se prepara diagnóstico saneado de la descarga, conservando versiones, plazos y comprobaciones.
+
+Protecciones verificadas en la pasada de configuración: previews Vercel desactivadas, Deploy workflow deshabilitado y fail-closed en candidato, gate sintético requerido y enforce_admins en main; entorno Production restringido a main con revisión independiente. El bypass administrativo del entorno sigue permitido: no presentar protección absoluta. Ningún despliegue autorizado.
+
+Dependencias móviles requieren cierre separado: shell-quote afectado y parches locales de braces/node-forge no equivalen a versiones upstream corregidas. La aprobación independiente del PR, compatibilidad/recuperación del destino y autorización explícita de publicación siguen pendientes. No se consultan Sandbox ni producción.
+
+### Estado histórico anterior a actualizar el PR
+
 1. Ejecutar CI remoto sobre el candidato exacto y configurar/verificar el nuevo check requerido. La definición existe solo localmente: no se ha publicado ni ejecutado.
 2. Verificar compatibilidad del esquema del destino autorizado y su procedimiento de recuperación. No consultar ni modificar el Sandbox o producción sin nueva autorización.
 3. Revisión independiente del PR y resolución de los requisitos de GitHub sobre el candidato actual. Las revisiones locales de agentes no sustituyen una aprobación requerida por GitHub.

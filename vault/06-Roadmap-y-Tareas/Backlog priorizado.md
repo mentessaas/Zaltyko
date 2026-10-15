@@ -968,3 +968,12 @@ La comparación estructural de columnas/restricciones/índices/trigger da parida
 - Antes de cambiar el gate: PostgreSQL sintético local con activación/desactivación concurrente entre páginas, dos workers compitiendo por scopes y replay idempotente; verificar locks ascendentes, rollback y sumas completas sin alterar el CTE. Después completar E2E autenticado apropiado.
 - **NO-GO** hasta cerrar evidencia runtime. Sin remoto/Sandbox para esta validación.
 - Evidencia y comandos focales ya reportados: [`retention-projections-runtime-gate-2026-10-14.md`](../../docs/qa/retention-projections-runtime-gate-2026-10-14.md).
+
+## P0 — Desbloquear CI sintético y cerrar gates de publicación — 2026-10-15
+
+- Candidato `5001651c`, PR #226 sin merge: run `38698304250` falla en descarga de distintas imágenes, antes del E2E funcional. Build, unitarios y demás checks ejecutados pasan; jobs Sandbox SKIPPED. Diagnosticar con errores acotados/saneados, sin cambiar imágenes ni relajar pruebas, plazos o aislamiento.
+- QA prepara parche local de diagnóstico; Frontend revisa corrección mínima de shell-quote móvil y aplicación efectiva de parches braces/node-forge. No asumir que seguridad/SBOM web verifica dependencias móviles.
+- Previews y workflow Deploy desactivados; gate sintético requerido en main. No merge/despliegue ni acceso a datos Sandbox/producción autorizado. Mantener pendientes revisión independiente, compatibilidad/recuperación del destino y autorización de publicación.
+- Fuente vigente: [`release-gates-summary-2026-10-15.md`](../../docs/qa/release-gates-summary-2026-10-15.md). Prioridad comercial: recibir usuarios esta semana; no prometer fecha hasta cerrar los gates.
+
+- Actualización: diagnóstico CI endurecido a etiquetas fijas sin stderr arbitrario, revisión QA103 GO y 13/13 pruebas PASS; shell-quote móvil1.11.0 de Frontend bb8b94ba integrado selectivamente con evidencia local 337/337. Pendientes nueva CI y alcance de 23 avisos high npm móvil (no asumir que son 23 vulnerabilidades distintas). Producción public139/RLS139 sin tablas zaltyko; Sandbox public138/RLS138 y zaltyko80/RLS80, solo metadatos, sin prueba de políticas/procedencia. Usuario permite intervenir si necesario; por ahora sin DDL/datos/despliegues. Preparar compatibilidad y recuperación antes de aplicar.

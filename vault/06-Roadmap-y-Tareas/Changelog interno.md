@@ -12151,3 +12151,22 @@ Modelo separado, reclamación manual, administración, importación revisada, fi
 - No ejecutar CI, descargar/instalar el CLI localmente, ni abrir Docker/Supabase/E2E o servicios remotos.
 - Verificación mock-local: 20/20 Vitest de contrato/preflight, 5/5 pruebas del instalador con tar sintético, TypeScript y Prettier focal PASS. `git diff --check` PASS. Sin descarga/ejecución del CLI oficial ni ejecución CI.
 - Revisión final del manifiesto tar: el release contiene exactamente `LICENSE`, `README.md` y `supabase`, los tres archivos regulares. El extractor permite esos nombres una vez cada uno, selecciona solo `supabase` y rechaza links, duplicados, rutas y extras; los fixtures sintéticos cubren esas formas.
+
+## 2026-10-15 — Diagnóstico saneado de fallo al precargar imágenes E2E
+
+- El run `38698304250` del SHA `5001651c` falló en la precarga en Chromium
+  (`postgrest:v14.7`), Firefox (`postgres:17.6.1.095`) y WebKit
+  (`logflare:1.34.14`). Los tres manifests consultados ahora existen y declaran
+  `linux/amd64`; no se concluye que estuvieran disponibles durante ese run.
+- El preloader ignoraba stderr cuando `docker pull` devolvía código no cero. Main
+  endureció la propuesta QA: incluye status e indicadores fijos, nunca fragmentos
+  arbitrarios de stderr. No cambian imágenes, versiones, timeouts, checks ni retries.
+- Revisión QA103 GO. Pruebas Main: 13/13 preloader y 2/2 protección despliegues PASS;
+  formato y diff-check PASS. Causa remota todavía pendiente de observación.
+- Integración selectiva de Frontend bb8b94ba: pin móvil shell-quote1.11.0 y regresión;
+  evidencia Frontend 337/337 móvil, typecheck/lint y parches locales aplicados. No
+  equivale a alertas cerradas en main ni a app distribuida. Se investiga inventario
+  npm23high sin upgrades indiscriminados.
+- Metadata remota de solo lectura documentada en remote-schema-metadata-2026-10-15.md.
+  Sin DDL, datos de negocio, merge ni despliegue. Alcance comercial priorizado a piloto
+  con flujo esencial, sujeto a CI, seguridad, esquema/recuperación y aprobación PR.

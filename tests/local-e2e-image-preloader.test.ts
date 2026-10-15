@@ -1,6 +1,9 @@
 import { describe, expect, it, vi } from "vitest";
 
-import { preloadLocalE2eImages } from "../scripts/lib/local-e2e-image-preloader";
+import {
+  preloadLocalE2eImages,
+  sanitizeDockerPullStderr,
+} from "../scripts/lib/local-e2e-image-preloader";
 import { REQUIRED_LOCAL_SUPABASE_IMAGES } from "../scripts/lib/local-e2e-preflight";
 
 describe("GitHub Actions local Supabase image preloader", () => {
@@ -52,5 +55,110 @@ describe("GitHub Actions local Supabase image preloader", () => {
       )
     ).rejects.toThrow("local Docker daemon is unavailable");
     expect(run).toHaveBeenCalledTimes(1);
+  });
+
+  it("redacts auth, token values, and URL credentials and queries", () => {
+    const sanitized = sanitizeDockerPullStderr(
+      [
+        "Authorization: Bearer header-secret",
+        "proxy-authorization=Basic proxy-secret",
+        "token=assignment-secret password=quoted-secret",
+        "registry https://reader:url-secret@registry.example/v2/repo/manifests/tag?X-Amz-Credential=signed-secret&X-Amz-Signature=signature-secret",
+        "provider token ghp_123456789012345678901234567890123456",
+      ].join("\n")
+    );
+
+    expect(sanitized).toBe(
+      "Diagnostic indicators: unclassified. Raw stderr omitted."
+    );
+    for (const secret of [
+      "header-secret",
+      "proxy-secret",
+      "assignment-secret",
+      "quoted-secret",
+      "reader",
+      "url-secret",
+      "X-Amz-Credential",
+      "signed-secret",
+      "X-Amz-Signature",
+      "signature-secret",
+      "ghp_123456789012345678901234567890123456",
+    ]) {
+      expect(sanitized).not.toContain(secret);
+    }
+    expect(sanitized).not.toContain("?");
+  });
+
+  it("omits long unclassified stderr entirely", () => {
+    const sanitized = sanitizeDockerPullStderr(
+      `${"x".repeat(2_500)}last-error`
+    );
+
+    expect(sanitized.length).toBeLessThanOrEqual(2_100);
+    expect(sanitized).toBe(
+      "Diagnostic indicators: unclassified. Raw stderr omitted."
+    );
+    expect(sanitized).not.toContain("last-error");
+  });
+
+  it.each([
+    ["toomanyrequests: 429", "rate-limit"],
+    ["unauthorized: 401", "authentication-or-permission"],
+    ["no matching manifest for linux/amd64", "manifest-or-platform"],
+    ["no space left on device", "disk-space"],
+    ["context deadline exceeded", "timeout"],
+    ["connection reset by peer", "network-or-registry"],
+  ])("classifies %s without exposing arbitrary text", (detail, expected) => {
+    expect(
+      sanitizeDockerPullStderr(
+        `${detail} Bearer sensitive-value https://registry.example/private-secret {\"token\":\"json-secret\"}`
+      )
+    ).toBe(`Diagnostic indicators: ${expected}. Raw stderr omitted.`);
+  });
+
+  it("handles empty stderr without echoing input", () => {
+    expect(sanitizeDockerPullStderr("  ")).toBe(
+      "No stderr output was captured."
+    );
+  });
+
+  it("reports the pull status and sanitized stderr when image preload fails", async () => {
+    const secretUrl =
+      "https://user:password@registry.example/v2/repo/manifests/tag?token=query-secret";
+    const run = vi.fn(async (args: string[]) => {
+      if (args[0] === "info") {
+        return { status: 0, stdout: "27.5.1", stderr: "" };
+      }
+      if (args[0] === "image") {
+        return { status: 1, stdout: "", stderr: "not present" };
+      }
+      return {
+        status: 17,
+        stdout: "",
+        stderr: `pull failed: ${secretUrl}\nAuthorization: Bearer pull-secret`,
+      };
+    });
+
+    let error: unknown;
+    try {
+      await preloadLocalE2eImages(
+        { GITHUB_ACTIONS: "true", DOCKER_HOST: "unix:///var/run/docker.sock" },
+        run
+      );
+    } catch (caught) {
+      error = caught;
+    }
+
+    expect(error).toBeInstanceOf(Error);
+    const message = (error as Error).message;
+    expect(message).toMatch(
+      /public\.ecr\.aws\/supabase\/postgres:17\.6\.1\.095 \(docker pull exit status 17\)/
+    );
+    expect(message).toContain("Raw stderr omitted.");
+    expect(message).not.toContain("registry.example");
+    expect(message).not.toContain("pull-secret");
+    expect(message).not.toContain("query-secret");
+    expect(message).not.toContain("user:password");
+    expect(run).toHaveBeenCalledTimes(3);
   });
 });
