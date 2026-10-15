@@ -4,7 +4,18 @@
 
 No confundir validación local con CI remoto, compatibilidad del destino o autorización de despliegue. La autorización posterior permite inspección de metadata remota; no se han aplicado DDL ni modificado filas de negocio.
 
-## Candidato vigente — 210aadda, observación11:14 UTC
+## Candidato vigente — 210aadda, cierre observado11:24UTC
+
+CI38724036863 COMPLETED/FAILURE, gate116393272760FAIL11:18:46UTC.
+WebKit116385372370 falla precargando logflareECR: pull exit1/indicador timeout,
+fallback correctamente rechazado por no ser rate limit exclusivo. Sin runner/
+stack iniciado ni prueba funcional WebKit en este SHA. Chromium/Firefox PASS y
+cleanup reportado; otros jobs ejecutados/Static/Directory PASS. Los SKIPPED no
+validan Sandbox/producción. QA/Frontend investigan sololectura; no nuevoCI/push
+ni relajar checks/plazos. Seguridad/destino/recuperación/review siguen pendientes.
+[Cierre exacto](./ci-210aadda-candidate-2026-10-15.md). NO-GO.
+
+Observación11:14UTC:
 
 Main verificó Chromium116385372011 PASS31.3s y Firefox116385372289 PASS36.1s,
 con stack/volúmenes limpiados según ambos runners. Builds235617/236955ms,

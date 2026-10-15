@@ -2,8 +2,29 @@
 
 PR226 OPEN/draft/REVIEW_REQUIRED actualizado mediante push normal al SHA
 `210aaddaed46dc4ee6b54191c4398fcf86f9d96d`, sin merge ni despliegue.
-NO-GO para publicar: Chromium y Firefox pasan con cleanup reportado; WebKit y
-el gate agregado siguen pendientes, además de los gates de destino y revisión.
+NO-GO para publicar: CI38724036863 cerró FAILURE. Chromium y Firefox pasan con
+cleanup reportado; WebKit falla en precarga y el gate agregado falla.
+
+## Cierre observado11:24UTC — WebKit detenido antes del stack
+
+Main verificó API/logs: run exactSHA COMPLETED/FAILURE, actualizado11:18:47UTC.
+WebKit116385372370 FAILURE a11:18:40UTC y gate116393272760 FAILURE11:18:46UTC.
+La precarga comenzó11:15:26.578UTC; a11:18:37.959UTC informa fallo de Docker pull
+exit1 para public.ecr.aws/supabase/logflare:1.34.14, indicador fijo `timeout`.
+El fallback fue rechazado porque no había indicador exclusivo de rate limit.
+No se cambia esa condición ni identidad/pins/plazos. El indicador no demuestra
+por sí solo agotamiento de los600s del helper ni causa de red/CPU/registro.
+
+No arrancaron runner ni stack Supabase según QA163; no hay cleanup de stack
+requerido para WebKit ni resultado funcional de ese navegador en este SHA.
+Chromium/Firefox y demás jobs ejecutados SUCCESS, con límites y tiempos debajo;
+Static/Directory SUCCESS exactSHA reconfirmados por Main11:24UTC.
+Sandbox/públicos omitidos siguen sin validar. No repetir corrida idéntica.
+
+QA y Frontend investigan SOLOLOCAL/READONLY la cronología del timeout y la
+relación entre plan de13 imágenes y exclusiones de servicios. Ningún cambio
+de precarga, ampliación de fallback, nuevo build/pull/CI o push autorizado aún.
+Siguen separados seguridad residual, esquema/recuperación/rolapp, revisión y release.
 
 ## Observación 11:14 UTC — avance parcial, no cierre de matriz
 
