@@ -17,6 +17,12 @@ source:
 ---
 ## P0 — Cerrar el recorrido MVP publicado — 2026-10-14
 
+12:20UTC CI0dfb cerradoFAIL: ChromiumPASS; Firefoxprecargaimgproxytimeout;
+WebKitbuild240s antesPlaywright/cleanupreportado, gateFAIL. Backend implementación
+SOLOLOCAL políticaHubprimaria11 trasGOdiseñoFrontend108/Backend113, pendiente
+review; Frontend revisiónreadonly build. Sin nuevoCI/push ni solución build
+presumida. Pins13/identidad/600s/240s/checks/protecciones íntegros; NO-GOrelease.
+
 12:16UTC CI0dfbabierto:ChromiumPASS25.3s/cleanupreportado,FirefoxFAILprecargaECR
 imgproxytimeoutantesstack,WebKit/gatependientes;otrosjobsejecutadosPASS. No repetir
 candidato ni encadenarexcepciones/CIporimagen. Backend/FrontendSOLOdiseñoreadonly

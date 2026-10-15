@@ -7,6 +7,28 @@ no es inventario universal de Vercel. No despliegue ni cambio de base de datos.
 
 ## Ejecuciones automáticas únicas observadas
 
+### Cierre confirmado12:20UTC — CI y gate FAILURE
+
+Main API confirma SHA exacto, COMPLETED/FAILURE, updated12:17:02UTC;
+gate116416673717 FAILURE12:17:01. QA179 confirma Static/Directory SUCCESS.
+WebKit116409588310 supera precarga pero agota build240000ms a12:16:37.110UTC,
+antes de Playwright; cleanup de stack/volúmenes reportado a12:16:55.041UTC.
+Hitos185047/213742/220791/220791ms, webpack3spans acumulados180387.632ms,
+máximo143727.831ms: no tiempo de pared total ni causa completa demostrada.
+ChromiumPASS y FirefoxprecargaFAIL del corte inferior se mantienen; no nueva
+corrida ni resultados funcionales Firefox/WebKit en este SHA. Otros ejecutados
+PASS; Sandbox/auth/públicosSKIPPED no validan destino remoto.
+
+Frontend108/Backend113 GO de diseño condicionado para Hub primario por digest
+SOLO11 activos, sin excepciones sucesivas: identidad antes/después retagID,
+600s por imagen, sin retry/ECR alternativo. Pins13 intactos, dos excluidos
+conservan política ECR/fallback429 si helper se invoca directamente. Hasta33 pulls
+potenciales; cuota/disponibilidad/rendimiento Hub no verificados. Main autoriza
+SOLO implementación LOCAL aislada Backend+mocks, pendiente reviews; Frontend
+investiga readonly build240s recurrente sin ampliar plazos ni retirar tracing/
+Sentry. QA idle espera diff. No integración/candidato/CI nuevo autorizado aún;
+cambio de origen no resuelve por sí mismo el bloqueo build. NO-GO publicación.
+
 ### Actualización12:14–12:16UTC — Firefox detenido antes del stack
 
 Main confirmó API SHAexacto/run38731333899 aún in_progress y logs de los jobs:

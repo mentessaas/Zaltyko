@@ -2,6 +2,14 @@
 
 ## Decisión: NO-GO para publicar
 
+**Cierre12:20UTC:** MainAPI/logs+QA179 confirman CI0dfb38731333899 y gateFAILURE.
+Chromium25.3sPASS/cleanup; Firefoxprecargaimgproxytimeout antesstack; WebKit
+build240s antesPlaywright/cleanupreportado12:16:55.041. OtroschecksPASS/omitidos
+no prueban destino. Backend prepara SOLOLOCAL políticaHubprimaria fija11 tras
+GOdiseñoFrontend108/Backend113; Frontend analiza buildreadonly. Pendientes reviews,
+checks/protecciones antes cualquier candidato; NO nuevoCI/push/merge/deploy/DDL.
+[Evidencia de cierre](./ci-0dfb8762-candidate-2026-10-15.md).
+
 **Actualización12:16UTC:** CI0dfb38731333899 aún abierto. MainverificaChromium
 1PASS25.3s/cleanupreportado yFirefoxFAILprecargaECRimgproxytimeoutantesstack;
 WebKit/gatependientes. Otrosjobs ejecutadosPASS,Sandbox/auth/públicosSKIPPED.
