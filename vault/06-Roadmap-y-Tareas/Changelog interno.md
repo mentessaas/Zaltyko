@@ -12179,3 +12179,9 @@ Modelo separado, reclamación manual, administración, importación revisada, fi
 - Backend prepara manifiesto18migraciones en checkoutaislado corregido Zaltyko-mvp-ops-backend-20261013; no ejecutorapply ni DDL. Sin cambiosdedatos ni despliegues. Fuentes: ci-5d072d19-rate-limit-2026-10-15 y mobile-tooling-dos-2026-10-15.
 
 - Revisión QA110 GO tras Node22 solo en job UnitTests y contrato correspondiente;22/22MainPASS repetido. QA confirma WebKitfuncional1PASS y cleanupreportado porrunner en5d072d19; globalCI sigueFAIL. Manifiesto backenddb448d7c listo local25testsPASS, pendiente revisiónFrontend e integración separada; no readinessdestino.
+
+## 2026-10-15 — Candidato de6c3a64 y manifiesto estático de esquema
+
+- PR226 actualizado sinmerge/despliegue a de6c3a64534c8ccdd3d71050a00aa728c733a5d6 tras QA110GO/22contratosPASS/protecciones verificadas. CI38703429157 pendiente; Directory38703429149 yStatic38703429248SUCCESS. No duplicar dispatch/runners.
+- Frontend66GO para db448d7c solo como checker/documentación. Main integra5archivos nuevos, sin alterar allowlist ya existente de Sandbox. Main25/25testsPASS y CLIworktree18/18hashesPASS; schemaReadinessNOT_VERIFIED,activationAllowedfalse. Manifiesto referencia bytes5d072d19, noaprueba versiónposteriorsemántica ni DBreal.
+- Sin ejecutorapply/DDL/backup ni recuperaciónremota; Backendcontinúa diseño read-only. Conservar esta integración local sinpushmientrascorreCI para no reiniciar matriz.
