@@ -17,6 +17,12 @@ source:
 ---
 ## P0 — Cerrar el recorrido MVP publicado — 2026-10-14
 
+12:16UTC CI0dfbabierto:ChromiumPASS25.3s/cleanupreportado,FirefoxFAILprecargaECR
+imgproxytimeoutantesstack,WebKit/gatependientes;otrosjobsejecutadosPASS. No repetir
+candidato ni encadenarexcepciones/CIporimagen. Backend/FrontendSOLOdiseñoreadonly
+origenHubfijopinsverificados,NOimplementaciónautorizada/hasta cierre-review.
+No fallbacktimeout ni plazosrelajados;destino/recovery/rolapp/seguridad/review siguen.
+
 12:00UTC: pushnormalPR2260dfb8762confirmado,draft/blocked; únicoCI38731333899queued,
 Static38731333844/Directory38731333850encurso. QAmonitorizasoloSHA, no empujarnotas
 duranteCI/duplicarruns ni atribuirPASS210. GitHubdeploymentrecordsSHA0(noinventario

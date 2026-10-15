@@ -7,6 +7,34 @@ no es inventario universal de Vercel. No despliegue ni cambio de base de datos.
 
 ## Ejecuciones automáticas únicas observadas
 
+### Actualización12:14–12:16UTC — Firefox detenido antes del stack
+
+Main confirmó API SHAexacto/run38731333899 aún in_progress y logs de los jobs:
+
+- Chromium116409588496 SUCCESS: `1 passed (25.3s)` a12:05:49.764UTC; stack detenido
+  y volúmenes eliminados según runner a12:06:06.738UTC. Next-build161215.456ms;
+  hitoscompiled125360/generated142583/optimizing146993/tracing146993ms.
+- Firefox116409588429 FAILURE: precarga public.ecr.aws/supabase/imgproxy:v3.8.0,
+  exit1/indicador cerrado timeout a12:09:33.431UTC. Fallback correctamente
+  rechazado por no ser rate-limit exclusivo. Antes del runner/stack; no prueba
+  funcional Firefox ni cleanup de stack requerido. No se amplía fallback.
+- WebKit116409588310 en curso/gate pendiente. Build116409588391,
+  Unit116409588265, lint116409588230, móvil116409587854, RLS116409588353,
+  migrations116409588135 y SecuritySBOM116409588283 SUCCESS en API Main.
+  Static/Directory SUCCESS según QA175; Sandbox/auth/públicosSKIPPED.
+
+Cleanup es evidencia del runner, no inventario Docker independiente. La mejora
+de duración Chromium no demuestra causalidad ni estabilidad universal. Alcanzar
+imgproxy tras Logflare sin error no publica los seis checks individuales.
+
+Se solicita SOLO propuesta readonly a Backend/Frontend sobre política Hubprimaria
+por digest para conjunto fijo ya verificado, frente a encadenar excepciones por
+imagen; identidad/pins/600s/240s y fail-closed sin retryECR intactos. NO código,
+nuevoCI/push/pulls ni cambio del run actual autorizado mientras cierra la matriz.
+La causa completa, cuota/disponibilidad Hub y readiness siguen sin demostrar.
+
+### Corte inicial12:00UTC (histórico)
+
 - [CI38731333899](https://github.com/mentessaas/Zaltyko/actions/runs/38731333899): queued.
 - [Static38731333844](https://github.com/mentessaas/Zaltyko/actions/runs/38731333844): in_progress.
 - [Directory38731333850](https://github.com/mentessaas/Zaltyko/actions/runs/38731333850): in_progress.

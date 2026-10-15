@@ -2,6 +2,12 @@
 
 ## Decisión: NO-GO para publicar
 
+**Actualización12:16UTC:** CI0dfb38731333899 aún abierto. MainverificaChromium
+1PASS25.3s/cleanupreportado yFirefoxFAILprecargaECRimgproxytimeoutantesstack;
+WebKit/gatependientes. Otrosjobs ejecutadosPASS,Sandbox/auth/públicosSKIPPED.
+Backend/FrontendpreparanSOLOpropuestareadonly depolíticaorigenfijopinsverificados,
+no implementación/nuevoCI/push/plazosrelajados. [Evidencia](./ci-0dfb8762-candidate-2026-10-15.md).
+
 **Candidato vigente12:00UTC:** PR226 remoto0dfb8762d5f8eda83b0213b4210bec0ad0c744a2,
 OPEN/draft/blocked, push normal sinmerge. CI38731333899queued, Static38731333844 y
 Directory38731333850encurso. Sin resultadofuncional/cleanup/gate nuevo; notas
