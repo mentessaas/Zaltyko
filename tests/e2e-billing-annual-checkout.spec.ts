@@ -87,6 +87,12 @@ test("owner creates annual Checkout and syncs a signed Stripe Test webhook", asy
       waitUntil: "domcontentloaded",
     });
     await expect(page).not.toHaveURL(/\/auth\/login/);
+    const rejectOptionalCookies = page.getByRole("button", {
+      name: "Rechazar opcionales",
+    });
+    if (await rejectOptionalCookies.isVisible().catch(() => false)) {
+      await rejectOptionalCookies.click();
+    }
     await expect(
       page.getByRole("heading", { name: "Planes disponibles" })
     ).toBeVisible();
