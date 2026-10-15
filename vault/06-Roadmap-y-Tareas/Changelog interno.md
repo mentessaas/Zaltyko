@@ -12228,3 +12228,10 @@ Modelo separado, reclamación manual, administración, importación revisada, fi
 
 - Seguimiento09:11UTC: QA130WebKitresultado/cleanuppendientes. Frontend81parchebracesraíz9regresionesPASS+frozenoffline, Mainpidiójustificarcambioscomillas/procedenciayrevisardifffinalantesintegración.
 - Backend84workerWebpackcompatibleestáticamentesinbloqueoexplícito, preparaLOCALexperimentosintéticodoblemarcador+testsaislados,sinbuildniatribuirahorro. Node20oficialEOL,22LTS, no seaceptabajarE2Ecomoarreglo. Fuente build-worker-investigation-e7dff88b-2026-10-15.md;240s/Sentry/tracing/checks/produccióninalterados.
+
+## 2026-10-15 — Cierre e7 y candidato siguiente revisado
+
+- CI38707901100FAILURE confirmadoMain: Chromium28.5s/WebKit40.2sPASS+cleanupinformadorunner;Firefox240santesPlaywright/gateFAIL,otrosjobsPASS,SandboxSKIPPED. No rerunidéntico.
+- Main integrahunks Frontende4d7caee rootbraces sinreemplazarmanifiesto/lockantiguos;Backend88/QA133GO. 10regresionesraízPASS, frozenoffline sin scripts salida0; hashpatchdymdrenw7322ki6dxkzzldxbhm/2refs, versionesintactas;restoriesgoupstreamnoresuelto.
+- Main integraworker2987da78+testajustec3663449;Frontend84/QA135GO. Primerfocal31PASS1FAIL porcostetestconfig5s; optimizaciónpreserva8casosVM/2configreales, noampliar5s/15s/240s. Main89/89en7archivosPASS3.67s,tsc0,eslint0,Prettier6filesPASS;locknoformateadoglobalmente,whitespacepatchcontextdocumentado. Sinbuildlocalnuevo.
+- Proteccionesmain/Vercel/DeployverificadasantesnuevoSHA; nomerge/DDL/deploy/pagos. Gates esquema/backup/rolapp/reviewindependiente siguenabiertos; peticiónBackupsyaenviada,sinrepetir.

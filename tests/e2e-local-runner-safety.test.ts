@@ -32,7 +32,7 @@ describe("local E2E runner wiring", () => {
       "runAllowExitCode(\n      playwrightCli.command"
     );
     expect(runnerSource).toMatch(
-      /withBuildFailureDiagnostic\(\s*\(\) =>\s*run\(\s*nextBuild\.command,\s*nextBuild\.args,\s*\{ \.\.\.childEnv, NODE_ENV: "production" \},\s*LOCAL_E2E_TIMEOUTS\.build,\s*abortController\.signal\s*\)/
+      /withBuildFailureDiagnostic\(\s*\(\) =>\s*run\(\s*nextBuild\.command,\s*nextBuild\.args,\s*\{\s*\.\.\.childEnv,\s*NODE_ENV: "production",\s*ZALTYKO_E2E_WEBPACK_BUILD_WORKER: "true",\s*\},\s*LOCAL_E2E_TIMEOUTS\.build,\s*abortController\.signal\s*\)/
     );
     expect(playwrightConfigSource).toContain(
       'localCliEntrypoint(process.cwd(), "next")'

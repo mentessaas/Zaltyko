@@ -6,6 +6,8 @@ No confundir validación local con CI remoto, compatibilidad del destino o autor
 
 ## Actualización vigente — candidato e7dff88b
 
+**Cierre09:27UTC:** CI38707901100FAILURE del SHA exacto: Chromium1PASS28.5s y WebKit1PASS40.2s; cleanup de ambos verificado en logs Main, reportado por runner. Firefoxbuild240santesPlaywright y gateFAILURE. Otros jobs ejecutados/Static/DirectoryPASS; Sandbox y públicos no ejecutados. Candidato siguiente preparado localmente con worker solo sintético y rootbraces; QA135GO estático, Main89/89focalPASS tras corregir coste del test sin subir5s/240s. No es CI verde ni versión publicada; nuevo push sujeto a protecciones. [Cierre y evidencia](./ci-e7dff88b-candidate-2026-10-15.md).
+
 **09:02UTC:** Chromium remoto SUCCESS en CI38707901100 sobre `e7dff88b39ba4fdf19c2f35f1f918a8ff3fa02a1`: Main comprobó `1 passed (28.5s)` y cleanup informado por runner. Firefox dentro del E2E según QA126; WebKit y gate agregado pendientes. Build/unitarios/lint/móvil/RLS/migraciones/security, Static y Directory PASS. Sandbox readiness/auth SKIPPED. [Detalle y límites](./ci-e7dff88b-candidate-2026-10-15.md).
 
 **09:04UTC, QA127:** Firefox volvió a agotar build240s antes de Playwright; runner informa cleanup09:02:10UTC. WebKit iniciado, cierre global pendiente. No atribuir causa al único span completado del diagnóstico ni relanzar sin corrección revisada. Se mantienen plazos y checks.

@@ -8,6 +8,12 @@ source:
 
 # Decisiones
 
+## 2026-10-15 — Experimento sintético sin relajar gates y mitigación raíz acotada
+
+CIe7dff88b cerróFAILURE: dos navegadoresfuncionalesPASS, celdaFirefoxagotóbuild240santesPlaywright. Se preparaunúniconuevoSHArevisado conwebpackBuildWorker solo dosmarcadoressintéticos y solo entorno nextbuild. Fuera conjunciónpropiedadausente;Sentry/tracing/Node22/240s/errores/cleanup intactos. Noesfixtemporalprobado. Node20EOLnoseusa comoarreglo. Testconfigcostosooptimizado compartiendodependenciaSentryen2importsrealesy8casosselectorVM,sin ampliar5s/15s; Main89/89PASS,QA135GOestático.
+
+Rootbraces3.0.3recibeparchepnpmprofundidad/ciclos,2refs sinversiondrift; intégransolohunks porpadreFrontendanterior, scripts/js-yamlpreservados. Mitigaciónlocalnoresoluciónupstreamniaceptaciónuniversalderiesgo. Manteneralertasidentificables. Sinmerge/despliegue/DDL;esquema/backup/rolapp/reviewindependiente/publicaciónseparados. Fuentesdocs/qa/ci-e7dff88b-candidate-2026-10-15.md y docs/security/root-braces-cve-2026-93687.md.
+
 ## 2026-10-15 — CI por defecto sin Sandbox remoto; Owner E2E sintético como gate
 
 | Campo | Valor |

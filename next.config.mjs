@@ -112,6 +112,11 @@ const nextConfig = {
 
   // Configuración de experimental features
   experimental: {
+    // Local synthetic experiment only; keep the production configuration unchanged.
+    ...(process.env.E2E_LOCAL_SUPABASE === "true" &&
+    process.env.ZALTYKO_E2E_WEBPACK_BUILD_WORKER === "true"
+      ? { webpackBuildWorker: true }
+      : {}),
     // Optimizar re-renders
     optimizePackageImports: ["lucide-react", "@radix-ui/react-icons"],
   },

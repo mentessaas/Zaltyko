@@ -17,6 +17,8 @@ source:
 ---
 ## P0 — Cerrar el recorrido MVP publicado — 2026-10-14
 
+Actualización15oct09:27UTC sustituye estados CI históricos de este bloque: e7dff88b/38707901100FAILURE, Chromium/WebKitPASS y Firefoxbuild240santesPlaywright. PreparadoLOCAL siguiente candidato rootbraces/worker sintético, revisiones estáticas y89tests focalesPASS; pendiente CI exacto nuevo, no repetirSHAidéntico. Esquema/backuprecuperable/rolapp/reviewGitHub siguenpendientes. Rootbracesyparchesmóvilesmitiganprofundidad/ciclos/ASN.1,no cierranadvisoriesupstream. OtrosjobsNode20EOL sondeudadealineación separada a22; nocambiarproducciónautomáticamente. Evidencia ci-e7dff88b-candidate-2026-10-15.md y dependency-alerts-e7dff88b-2026-10-15.md.
+
 - [ ] Tras implementar el instalador pinneado del CLI, ejecutar el gate en una
   corrida CI autorizada y comprobar el check requerido antes de configurar
   branch protection. El hash del tar oficial y del binario Linux x64 se verificó

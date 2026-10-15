@@ -311,7 +311,11 @@ void (async () => {
         run(
           nextBuild.command,
           nextBuild.args,
-          { ...childEnv, NODE_ENV: "production" },
+          {
+            ...childEnv,
+            NODE_ENV: "production",
+            ZALTYKO_E2E_WEBPACK_BUILD_WORKER: "true",
+          },
           LOCAL_E2E_TIMEOUTS.build,
           abortController.signal
         ),
