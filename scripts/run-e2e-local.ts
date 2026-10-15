@@ -37,8 +37,10 @@ import {
 } from "./lib/e2e-domain-migrations";
 import {
   readBuildTraceSummary,
-  withBuildFailureDiagnostic,
+  withBuildDiagnostic,
 } from "./lib/local-build-trace-diagnostic";
+
+import { createBuildProgressObserver } from "./lib/local-build-progress";
 
 const root = process.cwd();
 const projectDirectory = mkdtempSync(join(tmpdir(), "zaltyko-e2e-local-"));
@@ -88,7 +90,8 @@ async function run(
   env: NodeJS.ProcessEnv = safeEnvironment as NodeJS.ProcessEnv,
   timeoutMs: number = LOCAL_E2E_TIMEOUTS.setup,
   signal?: AbortSignal,
-  stdio: "pipe" | "inherit" = "pipe"
+  stdio: "pipe" | "inherit" = "pipe",
+  onOutput?: (stream: "stdout" | "stderr", chunk: Buffer | string) => void
 ) {
   try {
     const result = await runLocalCommand(command, args, {
@@ -97,6 +100,7 @@ async function run(
       timeoutMs,
       signal,
       stdio,
+      onOutput,
     });
     return result.stdout;
   } catch (error) {
@@ -306,7 +310,8 @@ void (async () => {
     console.log(
       "Building the app against the disposable local Supabase stack."
     );
-    await withBuildFailureDiagnostic(
+    const progress = createBuildProgressObserver();
+    await withBuildDiagnostic(
       () =>
         run(
           nextBuild.command,
@@ -317,10 +322,18 @@ void (async () => {
             ZALTYKO_E2E_WEBPACK_BUILD_WORKER: "true",
           },
           LOCAL_E2E_TIMEOUTS.build,
-          abortController.signal
+          abortController.signal,
+          "pipe",
+          progress.push
         ),
       () => readBuildTraceSummary(root),
-      (summary) => console.error(JSON.stringify({ buildTracePhases: summary }))
+      (summary) =>
+        console.error(
+          JSON.stringify({
+            buildTracePhases: summary,
+            buildProgress: progress.finish(),
+          })
+        )
     );
 
     const playwrightArgs = playwrightCli.args;

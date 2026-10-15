@@ -46,6 +46,38 @@ afterEach(() => {
 });
 
 describe("local E2E runner process safety", () => {
+  it.each([0, 1])(
+    "keeps command outcome %s when observation throws",
+    async (status) => {
+      const child = fakeChild();
+      const observer = vi.fn(() => {
+        throw new Error("private observer failure");
+      });
+      const promise = runLocalCommand(
+        "next",
+        ["build"],
+        {
+          cwd: "/tmp",
+          env: {},
+          timeoutMs: 240_000,
+          onOutput: observer,
+        },
+        () => child as unknown as ChildProcess
+      );
+      const assertion =
+        status === 0
+          ? expect(promise).resolves.toMatchObject({
+              status: 0,
+              stdout: "safe\n",
+            })
+          : expect(promise).rejects.toBeInstanceOf(LocalCommandError);
+      child.stdout.write("safe\n");
+      child.stderr.write("stderr fixture\n");
+      child.emit("close", status, null);
+      await assertion;
+      expect(observer).toHaveBeenCalledTimes(2);
+    }
+  );
   it("keeps finite setup, build, stop, and browser envelope limits", () => {
     expect(LOCAL_E2E_TIMEOUTS.setup).toBe(240_000);
     expect(LOCAL_E2E_TIMEOUTS.build).toBe(240_000);
@@ -138,11 +170,19 @@ describe("local E2E runner process safety", () => {
     const promise = runLocalCommand(
       "supabase",
       ["start"],
-      { cwd: "/tmp", env: {}, timeoutMs: 10 },
+      {
+        cwd: "/tmp",
+        env: {},
+        timeoutMs: 10,
+        onOutput: () => {
+          throw new Error("observer");
+        },
+      },
       spawnMock,
       killGroup
     );
 
+    child.stdout.write("Collecting build traces ...\n");
     await vi.advanceTimersByTimeAsync(10);
     expect(killGroup).toHaveBeenNthCalledWith(1, -91, "SIGTERM");
     await vi.advanceTimersByTimeAsync(LOCAL_E2E_TIMEOUTS.terminateGrace);

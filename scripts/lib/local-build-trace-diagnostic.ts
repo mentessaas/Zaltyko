@@ -10,13 +10,21 @@ const phases = [
   "apply-include-excludes",
 ] as const;
 type Phase = (typeof phases)[number];
-export type PhaseDuration = { phase: Phase; durationMs: number };
+export type PhaseDuration = {
+  phase: Phase;
+  count: number;
+  accumulatedDurationMs: number;
+  maxDurationMs: number;
+};
 
 /** Only completed allowlisted spans; no attributes, paths or raw diagnostics. */
 export function summarizeBuildTrace(bytes: Buffer): PhaseDuration[] {
-  if (bytes.length > MAX_TRACE_BYTES) return [];
+  if (!Buffer.isBuffer(bytes) || bytes.length > MAX_TRACE_BYTES) return [];
   try {
-    const maximum = new Map<Phase, number>();
+    const totals = new Map<
+      Phase,
+      { count: number; sum: number; max: number }
+    >();
     let count = 0;
     for (const line of bytes.toString("utf8").split("\n")) {
       if (!line.trim()) continue;
@@ -36,14 +44,27 @@ export function summarizeBuildTrace(bytes: Buffer): PhaseDuration[] {
         )
           continue;
         const phase = name as Phase;
-        maximum.set(phase, Math.max(maximum.get(phase) ?? 0, duration));
+        const prior = totals.get(phase) ?? { count: 0, sum: 0, max: 0 };
+        if (!Number.isSafeInteger(prior.sum + duration)) return [];
+        totals.set(phase, {
+          count: prior.count + 1,
+          sum: prior.sum + duration,
+          max: Math.max(prior.max, duration),
+        });
       }
     }
     return phases.flatMap((phase) => {
-      const duration = maximum.get(phase);
-      return duration === undefined
+      const total = totals.get(phase);
+      return total === undefined
         ? []
-        : [{ phase, durationMs: duration / 1000 }];
+        : [
+            {
+              phase,
+              count: total.count,
+              accumulatedDurationMs: total.sum / 1000,
+              maxDurationMs: total.max / 1000,
+            },
+          ];
     });
   } catch {
     return [];
@@ -81,19 +102,18 @@ export function readBuildTraceSummary(root: string): PhaseDuration[] {
 }
 
 /** Diagnostics must never replace the build error or bypass caller cleanup. */
-export async function withBuildFailureDiagnostic<T>(
+export async function withBuildDiagnostic<T>(
   build: () => Promise<T>,
   read: () => PhaseDuration[],
   emit: (summary: PhaseDuration[]) => void
 ): Promise<T> {
   try {
     return await build();
-  } catch (error) {
+  } finally {
     try {
       emit(read());
     } catch {
-      /* Preserve original failure. */
+      /* Preserve build success/failure and caller cleanup. */
     }
-    throw error;
   }
 }

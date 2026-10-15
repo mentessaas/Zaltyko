@@ -3,6 +3,7 @@ import { performance } from "node:perf_hooks";
 import {
   DigestFallbackError,
   dockerDiagnosticFlags,
+  emptyIdentityChecks,
   type DigestFallbackStage,
 } from "./local-e2e-docker-diagnostics";
 import { LOCAL_E2E_DIGEST_PINS } from "./local-e2e-digest-pins";
@@ -21,22 +22,34 @@ function inspectIdentity(
   config: string,
   stage: DigestFallbackStage
 ): string {
+  const checks = emptyIdentityChecks();
+  let data: unknown;
   try {
-    const data: unknown = JSON.parse(output);
-    if (!Array.isArray(data) || data.length !== 1) throw new Error();
-    const image = data[0];
-    if (
-      image.Os !== "linux" ||
-      image.Architecture !== "amd64" ||
-      image.Id !== config ||
-      !Array.isArray(image.RepoDigests) ||
-      !image.RepoDigests.includes(repoDigest)
-    )
-      throw new Error();
-    return image.Id;
+    data = JSON.parse(output);
+    checks["json-valid"] = true;
   } catch {
-    throw new DigestFallbackError(stage, 0, "identity");
+    checks["json-valid"] = false;
+    throw new DigestFallbackError(stage, 0, "identity", [], checks);
   }
+  checks["single-object"] =
+    Array.isArray(data) &&
+    data.length === 1 &&
+    data[0] !== null &&
+    typeof data[0] === "object" &&
+    !Array.isArray(data[0]);
+  if (!checks["single-object"]) {
+    throw new DigestFallbackError(stage, 0, "identity", [], checks);
+  }
+  const image = (data as Record<string, unknown>[])[0];
+  checks["os-match"] = image.Os === "linux";
+  checks["arch-match"] = image.Architecture === "amd64";
+  checks["config-match"] = image.Id === config;
+  checks["repo-digest-match"] =
+    Array.isArray(image.RepoDigests) && image.RepoDigests.includes(repoDigest);
+  if (Object.values(checks).some((value) => value !== true)) {
+    throw new DigestFallbackError(stage, 0, "identity", [], checks);
+  }
+  return image.Id as string;
 }
 
 /** Call in place of the existing missing-image pull; caller retains its filtered env.

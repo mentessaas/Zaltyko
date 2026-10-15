@@ -84,6 +84,7 @@ export function runLocalCommand(
     signal?: AbortSignal;
     stdio?: "pipe" | "inherit";
     allowNonZero?: boolean;
+    onOutput?: (stream: "stdout" | "stderr", chunk: Buffer | string) => void;
   },
   spawnChild: LocalSpawn = spawn,
   killGroup?: LocalGroupKill,
@@ -121,6 +122,11 @@ export function runLocalCommand(
       { status: number | null; signal: NodeJS.Signals | null } | undefined;
 
     const append = (key: "stdout" | "stderr", chunk: Buffer | string) => {
+      try {
+        options.onOutput?.(key, chunk);
+      } catch {
+        /* Observation cannot change command lifecycle. */
+      }
       if (options.stdio === "inherit") return;
       chunks[key] = `${chunks[key]}${chunk.toString()}`.slice(
         -20 * 1024 * 1024

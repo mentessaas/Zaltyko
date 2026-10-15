@@ -12,12 +12,41 @@ import {
   MAX_TRACE_BYTES,
   readBuildTraceSummary,
   summarizeBuildTrace,
-  withBuildFailureDiagnostic,
+  withBuildDiagnostic,
 } from "../scripts/lib/local-build-trace-diagnostic";
 
 const encode = (value: unknown) => Buffer.from(JSON.stringify(value));
 describe("bounded build trace diagnostics", () => {
-  it("emits only fixed phase names and maximum duration in milliseconds", () => {
+  it.each([false, true])(
+    "emits the same bounded payload with failure=%s and preserves cleanup",
+    async (failure) => {
+      const error = new Error("build result");
+      const emit = vi.fn();
+      const cleanup = vi.fn();
+      const payload = summarizeBuildTrace(
+        encode([{ name: "next-build", duration: 1000 }])
+      );
+      const attempt = async () => {
+        try {
+          return await withBuildDiagnostic(
+            async () => {
+              if (failure) throw error;
+              return 42;
+            },
+            () => payload,
+            emit
+          );
+        } finally {
+          cleanup();
+        }
+      };
+      if (failure) await expect(attempt()).rejects.toBe(error);
+      else await expect(attempt()).resolves.toBe(42);
+      expect(emit).toHaveBeenCalledExactlyOnceWith(payload);
+      expect(cleanup).toHaveBeenCalledOnce();
+    }
+  );
+  it("emits only fixed phases, counts and accumulated/maximum span durations", () => {
     const bytes = Buffer.from(
       encode([
         {
@@ -31,7 +60,14 @@ describe("bounded build trace diagnostics", () => {
         encode([{ name: "static-generation", duration: 3000, path: "private" }])
     );
     const result = summarizeBuildTrace(bytes);
-    expect(result).toEqual([{ phase: "static-generation", durationMs: 3 }]);
+    expect(result).toEqual([
+      {
+        phase: "static-generation",
+        count: 2,
+        accumulatedDurationMs: 5,
+        maxDurationMs: 3,
+      },
+    ]);
     expect(JSON.stringify(result)).not.toMatch(/secret|private|tags|path/);
   });
   it.each(["{broken", "{}", '[{"name":"next-build","duration":1}]\n['])(
@@ -41,6 +77,7 @@ describe("bounded build trace diagnostics", () => {
     }
   );
   it("rejects excessive bytes and event counts", () => {
+    expect(summarizeBuildTrace(null as unknown as Buffer)).toEqual([]);
     expect(summarizeBuildTrace(Buffer.alloc(MAX_TRACE_BYTES + 1))).toEqual([]);
     expect(summarizeBuildTrace(encode(Array(100001).fill(null)))).toEqual([]);
   });
@@ -73,7 +110,12 @@ describe("bounded build trace diagnostics", () => {
         encode([{ name: "next-build", duration: 1000 }])
       );
       expect(readBuildTraceSummary(root)).toEqual([
-        { phase: "next-build", durationMs: 1 },
+        {
+          phase: "next-build",
+          count: 1,
+          accumulatedDurationMs: 1,
+          maxDurationMs: 1,
+        },
       ]);
     } finally {
       rmSync(root, { recursive: true, force: true });
@@ -86,7 +128,7 @@ describe("bounded build trace diagnostics", () => {
       const cleanup = vi.fn();
       const run = async () => {
         try {
-          return await withBuildFailureDiagnostic(
+          return await withBuildDiagnostic(
             async () => {
               throw error;
             },
@@ -106,13 +148,31 @@ describe("bounded build trace diagnostics", () => {
       expect(cleanup).toHaveBeenCalledOnce();
     }
   );
-  it("does not read diagnostics after a successful build", async () => {
-    const read = vi.fn();
+  it("reads the same diagnostics after a successful build", async () => {
+    const read = vi.fn(() => []);
     const emit = vi.fn();
-    await expect(
-      withBuildFailureDiagnostic(async () => 42, read, emit)
-    ).resolves.toBe(42);
-    expect(read).not.toHaveBeenCalled();
-    expect(emit).not.toHaveBeenCalled();
+    await expect(withBuildDiagnostic(async () => 42, read, emit)).resolves.toBe(
+      42
+    );
+    expect(read).toHaveBeenCalledOnce();
+    expect(emit).toHaveBeenCalledWith([]);
   });
 });
+
+it.each(["read", "emit"])(
+  "preserves success when %s throws",
+  async (failure) => {
+    await expect(
+      withBuildDiagnostic(
+        async () => 42,
+        () => {
+          if (failure === "read") throw Error("secret");
+          return [];
+        },
+        () => {
+          throw Error("secret");
+        }
+      )
+    ).resolves.toBe(42);
+  }
+);
