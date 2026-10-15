@@ -24,7 +24,7 @@ import {
   assertSupportedNodeVersion,
   findMissingImages,
   localNodeCliInvocation,
-  REQUIRED_LOCAL_SUPABASE_IMAGES,
+  ACTIVE_LOCAL_SUPABASE_IMAGES,
   resolveExecutableOnPath,
   verifyInstalledRunnerPackages,
   verifySupabaseCliBinary,
@@ -224,7 +224,7 @@ void (async () => {
       .split(/\r?\n/)
       .filter(Boolean);
     const missingImages = findMissingImages(
-      REQUIRED_LOCAL_SUPABASE_IMAGES,
+      ACTIVE_LOCAL_SUPABASE_IMAGES,
       installedImages
     );
     if (missingImages.length > 0) {

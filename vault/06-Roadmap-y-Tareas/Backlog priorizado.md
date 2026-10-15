@@ -17,6 +17,14 @@ source:
 ---
 ## P0 — Cerrar el recorrido MVP publicado — 2026-10-14
 
+Actualización15oct11:34–11:40UTC: CI210cerradoFAIL soloWebKitprecargalogflaretimeout,
+Chromium/FirefoxPASScleanup. Plan11localintegrado/Main335mockPASS/tsc0/QA166GO;
+no arregla directamente origenfallido. CacheNO-GO porintegridad/tamaño/tiempo/coste
+sinprueba. Backend prepara LOCALHubprimario exactdigestSOLOlogflare tras diseño
+Frontend103/QA167GO; pendiente difftests/review/Mainchecks/proteccionesantescandidato.
+Sin fallbacktimeout/retries/plazosrelajados ni nuevoCI/push. GatesDB/recovery/rolapp/
+seguridad/review/publicación siguen independientes; Backupsya solicitados no repetir.
+
 Actualización15oct09:57UTC: CI2b38713511027cerróFAILURE; Chromium/UnitPASS, Firefoxbuild240s/WebKitidentidadkong/SecuritycontratoFAIL. FixSecuritysoloLOCAL57a09b27. Pendiente observabilidadrevisada QAidentidad/Backendmilestonesbuild(noarregloscausalesdemostrados), siguienteSHAúnicotrasrevisión/protecciones, no rerun. Esquema/backup/rolapp/reviewPR siguen pendientes; captaciónlistaesperaseparada no equivale a SaaSpublicable.
 
 09:41UTC: fix de contrato integradoLOCAL(d0c32c99,Backend92GO), audit:envPASS73 y18/18focalesMain, ESLint/Prettier/diffcheckPASS. Pendiente incorporarlo a siguiente candidato tras cierre/revisión de CI actual y protecciones verificadas; no repetir run idéntico ni empujar notas mientras corre.

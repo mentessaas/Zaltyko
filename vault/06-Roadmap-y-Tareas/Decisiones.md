@@ -8,6 +8,18 @@ source:
 
 # Decisiones
 
+## 2026-10-15 — Plan activo compartido y cambio de origen aún local
+
+Integrar4a60de36 tras QA166GO: precarga/preflight usan11imágenes activas, manteniendo
+catálogo/pins13 y servicios ya aprobados. Main335mockPASS/tsc0/lintformato0. No se
+presenta como solución al timeoutlogflare ni se autoriza otroCI por este cleanup.
+Descartar cache por falta de prueba de identidadsave/load, tamaño/tiempo/coste.
+Preparar LOCAL el diseño Backend105/Frontend103/QA167: HubporDIGEST primario SOLO
+logflareexacto, sinECRretry/fallbacktimeout; verify+retag+postverify/600s intactos,
+otros12pins conservan política anterior. Requiere diff/tests/review antesintegrar,
+no disponibilidadHub asegurada ni push/CI/merge/deploy/DDL autorizado todavía.
+Fuente docs/qa/ci-210aadda-candidate-2026-10-15.md.
+
 ## 2026-10-15 — Experimento sintético sin relajar gates y mitigación raíz acotada
 
 CIe7dff88b cerróFAILURE: dos navegadoresfuncionalesPASS, celdaFirefoxagotóbuild240santesPlaywright. Se preparaunúniconuevoSHArevisado conwebpackBuildWorker solo dosmarcadoressintéticos y solo entorno nextbuild. Fuera conjunciónpropiedadausente;Sentry/tracing/Node22/240s/errores/cleanup intactos. Noesfixtemporalprobado. Node20EOLnoseusa comoarreglo. Testconfigcostosooptimizado compartiendodependenciaSentryen2importsrealesy8casosselectorVM,sin ampliar5s/15s; Main89/89PASS,QA135GOestático.

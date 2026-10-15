@@ -30,6 +30,21 @@ export const REQUIRED_LOCAL_SUPABASE_IMAGES = [
   "public.ecr.aws/supabase/edge-runtime:v1.73.0",
 ] as const;
 
+type LocalSupabaseImage = (typeof REQUIRED_LOCAL_SUPABASE_IMAGES)[number];
+export const EXCLUDED_LOCAL_SUPABASE_IMAGES = [
+  "public.ecr.aws/supabase/studio:2026.03.23-sha-b7847b7",
+  "public.ecr.aws/supabase/postgres-meta:v0.96.1",
+] as const satisfies readonly LocalSupabaseImage[];
+
+// Match the runner's management-service exclusions; retain all 13 catalog pins.
+export const ACTIVE_LOCAL_SUPABASE_IMAGES: readonly LocalSupabaseImage[] =
+  Object.freeze(
+    REQUIRED_LOCAL_SUPABASE_IMAGES.filter(
+      (image) =>
+        !EXCLUDED_LOCAL_SUPABASE_IMAGES.some((excluded) => excluded === image)
+    )
+  );
+
 const runnerPackages = ["next", "playwright", "tsx"] as const;
 
 function escapeRegExp(value: string): string {

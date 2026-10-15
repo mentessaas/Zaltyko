@@ -38,6 +38,27 @@ build/pull/CI/push ni ampliación de fallback autorizados. No añadir diagnósti
 numérico adicional sin necesidad: la distinción del fallo ya está establecida.
 Siguen separados seguridad residual, esquema/recuperación/rolapp, revisión y release.
 
+## Preparación local posterior — plan11 integrado, origen primario pendiente
+
+Main integra Frontend4a60de36 por hunks tras QA166 GO: plan activo compartido11,
+catálogo/pins13 intactos. Main335/335mockPASS5files3.56s, tsc0, ESLint focal0sinavisos,
+Prettier/diffcheck0. Sin Docker/build/E2E/pull/install/CI. Elimina requisitos de dos
+servicios ya excluidos, pero no evita por sí solo el timeout de logflare.
+
+Backend104 descarta cache/artifact como arreglo pequeño inmediato: tamaño/tiempo/
+coste no acreditados y save/load no demuestra conservar RepoDigests exigidos.
+No se implementa cache ni se confía en inspect0 para aceptar contenido restaurado.
+
+Diseño separado Backend105/Frontend103/QA167 GO condicionado: origen primario Hub
+por digest existente SOLO para referencia exacta de logflare. Una descarga seguida
+de verificación linux/amd64/config/RepoDigest, retag por ID y postverificación,
+600s compartidos; cualquier fallo termina sin retry ni alternativa ECR. Los otros
+12pins conservan política ECR y fallback solo rate limit exclusivo. Esto cambia
+explícitamente el origen, no habilita fallback en timeout. Backend prepara solo
+implementación LOCAL/mocks para revisión posterior; NO integrado ni probado aún.
+Repositorio Supabase fijado, no Docker Official Image library; disponibilidad,
+cuota o rapidez Hub no demostradas. No nuevoCI/push autorizado por este diseño.
+
 ## Observación 11:14 UTC — avance parcial, no cierre de matriz
 
 Main verificó API y logs del SHA exacto en el único CI38724036863:

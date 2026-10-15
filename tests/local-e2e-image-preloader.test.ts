@@ -4,7 +4,10 @@ import {
   preloadLocalE2eImages,
   sanitizeDockerPullStderr,
 } from "../scripts/lib/local-e2e-image-preloader";
-import { REQUIRED_LOCAL_SUPABASE_IMAGES } from "../scripts/lib/local-e2e-preflight";
+import {
+  ACTIVE_LOCAL_SUPABASE_IMAGES,
+  REQUIRED_LOCAL_SUPABASE_IMAGES,
+} from "../scripts/lib/local-e2e-preflight";
 import { LOCAL_E2E_DIGEST_PINS } from "../scripts/lib/local-e2e-digest-pins";
 
 describe("GitHub Actions local Supabase image preloader", () => {
@@ -100,7 +103,7 @@ describe("GitHub Actions local Supabase image preloader", () => {
 
     expect(commands[0]).toEqual(["info", "--format", "{{.ServerVersion}}"]);
     expect(commands.filter(([command]) => command === "pull")).toEqual(
-      REQUIRED_LOCAL_SUPABASE_IMAGES.slice(1).map((image) => [
+      ACTIVE_LOCAL_SUPABASE_IMAGES.slice(1).map((image) => [
         "pull",
         "--platform",
         "linux/amd64",

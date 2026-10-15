@@ -1,4 +1,4 @@
-import { REQUIRED_LOCAL_SUPABASE_IMAGES } from "./local-e2e-preflight";
+import { ACTIVE_LOCAL_SUPABASE_IMAGES } from "./local-e2e-preflight";
 import { resolveLocalDockerEndpoint } from "./local-docker-endpoint";
 import { pullPinnedImageWithDigestFallback } from "./local-e2e-digest-fallback";
 import {
@@ -54,7 +54,7 @@ export async function preloadLocalE2eImages(
     throw new Error("GitHub Actions local Docker daemon is unavailable.");
   }
 
-  for (const image of REQUIRED_LOCAL_SUPABASE_IMAGES) {
+  for (const image of ACTIVE_LOCAL_SUPABASE_IMAGES) {
     const inspection = await run(
       ["image", "inspect", image],
       dockerEnvironment,
