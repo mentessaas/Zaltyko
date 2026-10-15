@@ -273,6 +273,9 @@ importers:
       eslint-plugin-react-hooks:
         specifier: ^7.0.1
         version: 7.1.1(eslint@8.57.1)
+      js-yaml:
+        specifier: ^4.3.2
+        version: 4.3.2
       jsdom:
         specifier: ^29.1.1
         version: 29.1.1

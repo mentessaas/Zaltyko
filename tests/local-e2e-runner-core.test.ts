@@ -1,5 +1,4 @@
 import { EventEmitter } from "node:events";
-import { createHash } from "node:crypto";
 import { mkdtempSync, rmSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
@@ -21,6 +20,7 @@ import {
 import {
   assertSupportedNodeVersion,
   findMissingImages,
+  getSupportedSupabaseCliSha256,
   REQUIRED_LOCAL_SUPABASE_IMAGES,
   resolveExecutableOnPath,
   verifyInstalledRunnerPackages,
@@ -342,20 +342,31 @@ describe("local E2E preflight", () => {
     expect(() => verifyInstalledRunnerPackages(process.cwd())).not.toThrow();
   });
 
-  it("resolves a local executable and verifies its pinned binary digest", () => {
+  it("uses only verified Supabase CLI platform hashes and rejects unknown targets", () => {
+    expect(getSupportedSupabaseCliSha256("darwin", "arm64")).toBe(
+      "c1c2bf3cac9cfb9679be798334821910f916d1cafe2cc5dc12d55443a15e920f"
+    );
+    expect(getSupportedSupabaseCliSha256("linux", "x64")).toBe(
+      "3132b218461bf90d4cd5983b27b44031cd9b6c797c259a431b2e2520b5f7bdce"
+    );
+    expect(() => getSupportedSupabaseCliSha256("linux", "arm64")).toThrow(
+      "No verified Supabase CLI"
+    );
+
     const directory = mkdtempSync(join(tmpdir(), "zaltyko-runner-preflight-"));
     const binaryPath = join(directory, "supabase");
     const binary = Buffer.from("synthetic local Supabase CLI binary");
     writeFileSync(binaryPath, binary);
-    const digest = createHash("sha256").update(binary).digest("hex");
     try {
       expect(resolveExecutableOnPath("node", process.env.PATH)).toContain(
         "node"
       );
-      expect(() => verifySupabaseCliBinary(binaryPath, digest)).not.toThrow();
-      expect(() => verifySupabaseCliBinary(binaryPath, "0".repeat(64))).toThrow(
+      expect(() => verifySupabaseCliBinary(binaryPath, "linux", "x64")).toThrow(
         "Refusing to start containers"
       );
+      expect(() =>
+        verifySupabaseCliBinary(binaryPath, "freebsd", "x64")
+      ).toThrow("No verified Supabase CLI");
     } finally {
       rmSync(directory, { recursive: true, force: true });
     }

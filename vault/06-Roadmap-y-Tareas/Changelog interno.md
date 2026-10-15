@@ -1,7 +1,7 @@
 ---
 status: active
 owner: producto
-last_reviewed: 2026-10-14
+last_reviewed: 2026-10-15
 source:
   - ../docs/audits/2026-10-03-launch-and-auth-followup.md
   - ../docs/architecture/zaltyko-domain-model.md
@@ -12111,3 +12111,43 @@ Modelo separado, reclamación manual, administración, importación revisada, fi
 - Corrida fría del candidato a1edf37d56ac2b1d9f21a1bfa49a62c7b58bb681 en worktree detached nuevo. Node 22.22.3, Next 15.5.27, tsx 4.23.13 y dependencias preexistentes con lock/manifiesto coincidentes; sin caché Next previa, instalación ni pull.
 - Chromium completó el test de alta y operaciones Owner: roster/asistencia, cuota, pago manual y dashboard. La consulta SQL confirmó persistencia del cargo/pago; pasó el resumen a 375/768/1280 sin overflow y las negativas sintéticas de organización, sede y coach devolvieron 403. Un test/worker, exit 0.
 - Cleanup del stack/volúmenes informado por el runner y verificado sin recursos temporales propios. Sin Firefox/WebKit, CI, Sandbox, remotos ni producción. Detalle y log: [informe QA72](../../docs/qa/local-owner-e2e-chromium-a1edf37-2026-10-15.md).
+
+## 2026-10-15 — Gate CI sintético local para E2E Owner
+
+- En `codex/ci-local-synthetic-gate-20261015` sobre `bf094a1f`, el workflow
+  predeterminado desactiva readiness y E2E del Sandbox remoto. El E2E Owner
+  sintético queda como matriz bloqueante de Chromium, Firefox y WebKit para PR y
+  push. Se conservan timeouts del spec/build, retries cero y un worker.
+- `preload-local-e2e-images.ts` solo opera bajo `GITHUB_ACTIONS=true`, valida el
+  endpoint Unix local y daemon Docker, y descarga refs exactas del manifiesto
+  compartido; la verificación posterior del runner sigue fail-closed.
+- Bloqueo: el SHA disponible de Supabase CLI 2.84.2 corresponde a macOS y no se
+  encontró hash Linux verificado localmente. No se aflojó el guard ni se buscó
+  en red; el job Linux abortará hasta resolverlo. La protección de rama también
+  debe exigir el nuevo check estable desde GitHub.
+- Validación: contratos de workflow/preloader 6/6 PASS, `tsc --noEmit` PASS,
+  Prettier `--check` y `git diff --check` PASS. No correr E2E, Docker/Supabase,
+  CI remoto ni servicios externos en esta tarea.
+- Vault: actualizados `Decisiones.md`, `Backlog priorizado.md` y este changelog;
+  sin cambios de producto, pricing, migraciones o datos.
+
+## 2026-10-15 — Corrección del `if` duplicado en E2E remoto desactivado
+
+- En `codex/ci-local-synthetic-gate-20261015`, se elimina el segundo `if` de
+  `e2e-auth`, que podía sobreescribir el `false` de protección. La suite de
+  contrato ahora parsea `ci.yml` con `js-yaml`, verifica condiciones efectivas
+  y prueba que una fixture con claves duplicadas es rechazada. Se añade
+  `js-yaml` 4.3.2 como dependencia de desarrollo; queda bajo el override de
+  seguridad existente.
+- No se cambia el bloqueo del hash binario Linux, no se ejecuta CI, E2E, Docker,
+  servicios remotos ni se altera branch protection.
+- Contrato YAML local: 4/4 PASS; detecta claves duplicadas mediante parser.
+
+## 2026-10-15 — Pin del binario Supabase CLI Linux x64 para E2E CI
+
+- Se fija `linux-x64` a `3132b218461bf90d4cd5983b27b44031cd9b6c797c259a431b2e2520b5f7bdce`, preservando `darwin-arm64` y rechazando otros targets. La verificación previa registró tar oficial v2.84.2 de 29.936.583 bytes con SHA `620a5f6ea7b60f9b4fe112a5d72464ea0e53d04022035641674a2e6d121e0eb5`; miembro único `supabase` regular de 94.924.984 bytes con el SHA binario fijado. El CLI no se ejecutó en esa verificación.
+- CI descarga desde el release oficial y solo lo pone en `GITHUB_PATH` después de validar SHA del archivo, miembro tar permitido, tamaño/SHA del binario y versión. El instalador opera solo en GitHub Actions bajo `RUNNER_TEMP`; tests sintéticos no descargan nada.
+- Fuentes/evidencia: [release v2.84.2](https://github.com/supabase/cli/releases/tag/v2.84.2), [assets y checksum oficial](https://github.com/supabase/cli/releases/expanded_assets/v2.84.2), `/tmp/supabase-cli-2.84.2.sQ6wuV/verification.txt`.
+- No ejecutar CI, descargar/instalar el CLI localmente, ni abrir Docker/Supabase/E2E o servicios remotos.
+- Verificación mock-local: 20/20 Vitest de contrato/preflight, 5/5 pruebas del instalador con tar sintético, TypeScript y Prettier focal PASS. `git diff --check` PASS. Sin descarga/ejecución del CLI oficial ni ejecución CI.
+- Revisión final del manifiesto tar: el release contiene exactamente `LICENSE`, `README.md` y `supabase`, los tres archivos regulares. El extractor permite esos nombres una vez cada uno, selecciona solo `supabase` y rechaza links, duplicados, rutas y extras; los fixtures sintéticos cubren esas formas.

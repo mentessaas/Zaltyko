@@ -1,7 +1,7 @@
 ---
 status: active
 owner: producto
-last_reviewed: 2026-10-14
+last_reviewed: 2026-10-15
 source:
   - ../PRODUCT-ANALYSIS.md
   - ../BUSINESS-ANALYSIS.md
@@ -16,6 +16,13 @@ source:
   - ../07-Auditorias-y-Riesgos/Registro de riesgos.md (bloqueantes con Elvis)
 ---
 ## P0 — Cerrar el recorrido MVP publicado — 2026-10-14
+
+- [ ] Tras implementar el instalador pinneado del CLI, ejecutar el gate en una
+  corrida CI autorizada y comprobar el check requerido antes de configurar
+  branch protection. El hash del tar oficial y del binario Linux x64 se verificó
+  localmente; el instalador se cubre con archives sintéticos, aún sin ejecución
+  CI. Evidencia:
+  `docs/qa/local-synthetic-ci-gate-2026-10-15.md`.
 
 - [ ] Completar QA de navegadores y revisar el runner local sintético de backup
   y autorizar cualquier escritura remota. Main ya registra tres navegadores
