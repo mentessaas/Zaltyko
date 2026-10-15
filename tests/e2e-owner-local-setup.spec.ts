@@ -3,6 +3,13 @@ import { createHash, randomUUID } from "node:crypto";
 import { expect, test } from "@playwright/test";
 import { Pool } from "pg";
 
+import {
+  grantLocalNetworkAccess,
+  installLocalE2ENetworkGuard,
+  shouldGrantLocalNetworkAccess,
+  type LocalNetworkGuardReport,
+} from "./support/local-e2e-network";
+
 const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL;
 const databaseUrl = process.env.DATABASE_URL;
 const runId = process.env.E2E_LOCAL_RUN_ID;
@@ -13,7 +20,7 @@ if (
   !databaseUrl ||
   !runId
 ) {
-  throw new Error("Run this suite only through `pnpm test:e2e:local`.");
+  throw new Error("Run this suite only through the isolated local E2E runner.");
 }
 
 assertLoopbackUrl(supabaseUrl, ["http:", "https:"]);
@@ -39,6 +46,10 @@ type BrowserDiagnosticEvent = {
 };
 
 let browserDiagnostics: BrowserDiagnosticEvent[] = [];
+let networkGuardReport: () => LocalNetworkGuardReport = () => ({
+  unexpectedBlockedRequests: [],
+  expectedBlockedTelemetryRequests: [],
+});
 
 function diagnosticPathname(value: string): string {
   try {
@@ -70,7 +81,20 @@ function sanitizeDiagnosticText(value: string): string {
 test.describe("Isolated local Supabase Owner setup", () => {
   test.describe.configure({ mode: "serial", timeout: 300_000 });
 
-  test.beforeEach(async ({ page }) => {
+  test.beforeEach(async ({ page }, testInfo) => {
+    const baseUrl = process.env.BASE_URL!;
+    if (
+      shouldGrantLocalNetworkAccess(
+        process.env.E2E_LOCAL_SUPABASE === "true",
+        testInfo.project.name
+      )
+    ) {
+      await grantLocalNetworkAccess(page.context(), baseUrl);
+    }
+    networkGuardReport = await installLocalE2ENetworkGuard(page.context(), {
+      baseUrl,
+      supabaseUrl: supabaseUrl!,
+    });
     const diagnostics: BrowserDiagnosticEvent[] = [];
     browserDiagnostics = diagnostics;
     const record = (event: Omit<BrowserDiagnosticEvent, "at">) => {
@@ -138,18 +162,23 @@ test.describe("Isolated local Supabase Owner setup", () => {
   });
 
   test.afterEach(async ({}, testInfo) => {
+    const { unexpectedBlockedRequests, expectedBlockedTelemetryRequests } =
+      networkGuardReport();
     await testInfo.attach("browser-navigation-diagnostics.json", {
       body: JSON.stringify(
         {
           browser: testInfo.project.name,
           status: testInfo.status,
           events: browserDiagnostics,
+          blockedExternalRequests: unexpectedBlockedRequests,
+          expectedBlockedTelemetryRequests,
         },
         null,
         2
       ),
       contentType: "application/json",
     });
+    expect(unexpectedBlockedRequests).toEqual([]);
   });
 
   test.afterAll(async () => {
@@ -161,7 +190,7 @@ test.describe("Isolated local Supabase Owner setup", () => {
   // destroys this unique project's entire database volume after the test.
   test("signs up and completes synthetic Owner operations through the UI", async ({
     page,
-  }) => {
+  }, testInfo) => {
     const cspViolations: string[] = [];
     const profileRequests: string[] = [];
     page.on("console", (message) => {
@@ -185,13 +214,8 @@ test.describe("Isolated local Supabase Owner setup", () => {
     await expect(
       page.getByRole("heading", { name: "Crea tu cuenta" })
     ).toBeVisible();
-    await page.waitForFunction(
-      () =>
-        "serviceWorker" in navigator &&
-        Boolean(navigator.serviceWorker.controller),
-      undefined,
-      { timeout: 30_000 }
-    );
+    // El runner local bloquea service workers para que la ruta Playwright
+    // observe las solicitudes. Esta suite no valida el comportamiento del SW.
     expect(
       await page.evaluate(
         () => performance.getEntriesByType("navigation")[0]?.type
@@ -1080,9 +1104,21 @@ test.describe("Isolated local Supabase Owner setup", () => {
       await page.goto(
         `/owner?${scope}&from=${dashboardPeriod.from}&to=${dashboardPeriod.to}`
       );
+      const responsiveSummary = page.getByRole("region", {
+        name: "Tu academia en marcha",
+      });
       await expect(
-        page.getByRole("heading", { name: "Tu academia en marcha" })
+        responsiveSummary.getByRole("heading", {
+          name: "Cobros recibidos en este periodo",
+        })
       ).toBeVisible();
+      await expect(
+        responsiveSummary
+          .getByText("Cobros", { exact: true })
+          .locator("..")
+          .getByText("1", { exact: true })
+      ).toBeVisible();
+      await expect(responsiveSummary.getByText("35,00")).toBeVisible();
       const viewport = await page.evaluate(() => ({
         width: window.innerWidth,
         scrollWidth: document.documentElement.scrollWidth,
@@ -1094,6 +1130,19 @@ test.describe("Isolated local Supabase Owner setup", () => {
     if (!browser)
       throw new Error("The authenticated E2E browser is unavailable.");
     const secondOwnerContext = await browser.newContext();
+    if (
+      shouldGrantLocalNetworkAccess(
+        process.env.E2E_LOCAL_SUPABASE === "true",
+        testInfo.project.name
+      )
+    ) {
+      await grantLocalNetworkAccess(secondOwnerContext, process.env.BASE_URL!);
+    }
+    const secondOwnerBlockedExternalRequests =
+      await installLocalE2ENetworkGuard(secondOwnerContext, {
+        baseUrl: process.env.BASE_URL!,
+        supabaseUrl: supabaseUrl!,
+      });
     try {
       const secondOwnerPage = await secondOwnerContext.newPage();
       const secondOwnerId = randomUUID();
@@ -1182,6 +1231,22 @@ test.describe("Isolated local Supabase Owner setup", () => {
         organizationId: string;
         locationId: string;
       };
+
+      const syntheticCoach = await pool.query<{ member_id: string }>(
+        `with coach_member as (
+           insert into zaltyko.organization_members
+             (organization_id, user_id, role, status, location_scope_mode)
+           values ($1::uuid, $2::uuid, 'coach', 'active', 'selected')
+           returning organization_id, id
+         )
+         insert into zaltyko.member_location_scopes
+           (organization_id, member_id, location_id)
+         select organization_id, id, $3::uuid from coach_member
+         returning member_id::text as member_id`,
+        [result.organizationId, secondUserId, result.locationId]
+      );
+      expect(syntheticCoach.rows).toHaveLength(1);
+
       await expectPersistedOwnerSignupConsent(
         secondUserId,
         secondBootstrapIdempotencyKey
@@ -1227,8 +1292,78 @@ test.describe("Isolated local Supabase Owner setup", () => {
         otherLocationRequest.toString()
       );
       expect(otherLocationResponse.status()).toBe(403);
+
+      const manualPaymentUrl = new URL(
+        "/api/v1/owner/billing/manual-payments",
+        appOrigin
+      );
+      manualPaymentUrl.searchParams.set(
+        "organizationId",
+        secondOrganization.organizationId
+      );
+      manualPaymentUrl.searchParams.set(
+        "locationId",
+        secondOrganization.locationId
+      );
+      const paymentOtherOrganization = await page.request.get(
+        manualPaymentUrl.toString()
+      );
+      expect(paymentOtherOrganization.status()).toBe(403);
+
+      manualPaymentUrl.searchParams.set(
+        "organizationId",
+        result.organizationId
+      );
+      manualPaymentUrl.searchParams.set(
+        "locationId",
+        secondOrganization.locationId
+      );
+      const paymentOtherLocation = await page.request.get(
+        manualPaymentUrl.toString()
+      );
+      expect(paymentOtherLocation.status()).toBe(403);
+
+      manualPaymentUrl.searchParams.set("locationId", result.locationId);
+      const coachPaymentOptions = await secondOwnerPage.request.get(
+        manualPaymentUrl.toString()
+      );
+      expect(coachPaymentOptions.status()).toBe(403);
+
+      const dashboardUrl = new URL("/api/v1/owner/dashboard", appOrigin);
+      dashboardUrl.searchParams.set(
+        "organization_id",
+        secondOrganization.organizationId
+      );
+      dashboardUrl.searchParams.set(
+        "location_id",
+        secondOrganization.locationId
+      );
+      dashboardUrl.searchParams.set("from", dashboardPeriod.from);
+      dashboardUrl.searchParams.set("to", dashboardPeriod.to);
+      const dashboardOtherOrganization = await page.request.get(
+        dashboardUrl.toString()
+      );
+      expect(dashboardOtherOrganization.status()).toBe(403);
+
+      dashboardUrl.searchParams.set("organization_id", result.organizationId);
+      dashboardUrl.searchParams.set(
+        "location_id",
+        secondOrganization.locationId
+      );
+      const dashboardOtherLocation = await page.request.get(
+        dashboardUrl.toString()
+      );
+      expect(dashboardOtherLocation.status()).toBe(403);
+
+      dashboardUrl.searchParams.set("location_id", result.locationId);
+      const coachDashboard = await secondOwnerPage.request.get(
+        dashboardUrl.toString()
+      );
+      expect(coachDashboard.status()).toBe(403);
     } finally {
       await secondOwnerContext.close();
+      const secondOwnerNetworkReport = secondOwnerBlockedExternalRequests();
+      expect(secondOwnerNetworkReport.unexpectedBlockedRequests).toEqual([]);
     }
   });
 });

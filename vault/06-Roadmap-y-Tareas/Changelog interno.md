@@ -7,6 +7,30 @@ source:
   - ../docs/architecture/zaltyko-domain-model.md
 ---
 
+## 2026-10-15 — QA58: runner local sin package manager ni pull de imágenes
+
+- En `codex/a2-local-owner-e2e-safety-20261014`, el E2E usa un fixture HIBP
+  local validado y bloquea orígenes de red fuera de app/Supabase loopback.
+  Next, Playwright y tsx se validan contra el lockfile y se ejecutan sin pnpm.
+- El runner valida el hash del Supabase CLI y cada imagen Docker antes de
+  iniciar; una imagen ausente detiene el flujo sin pull. SIGINT/SIGTERM cierran
+  el grupo hijo y el cleanup intenta `stop` sobre el mismo `--workdir`; conserva
+  el directorio temporal si la parada falla. Los límites de spec (300 s) y
+  webServer (240 s) se mantienen.
+- Vitest mock focal 22/22, TypeScript, ESLint, Prettier y `git diff --check`
+  PASS. No se ejecutaron navegador/E2E, build ni arranque de Supabase/PostgreSQL.
+
+## 2026-10-14 — Refuerzo del harness local Owner mensual
+
+- En `codex/a2-local-owner-e2e-safety-20261014`, desde `7ac8b87e`, el E2E
+  verifica recuento e importe del pago en Owner a 375, 768 y 1280 px. Añade
+  denegaciones sintéticas por organización, sede y rol coach en pagos y resumen.
+- El runner fija `NEXT_TELEMETRY_DISABLED=1`, intenta parar el proyecto local
+  incluso tras un `supabase start` parcial y conserva sus archivos si `stop`
+  falla. No cambia producto ni inicia servicios.
+- Vitest focal 5/5, TypeScript, ESLint focal, Prettier y `git diff --check`
+  PASS. Chromium/E2E, Supabase, build, producción y remoto no ejecutados.
+
 ## 2026-10-14 — Gate estático PASS; release permanece NO-GO
 
 - Main ejecutó `pnpm gate:all` sobre `0a1bcd1dee3087437b664987cca5168c16555906`:
@@ -12033,3 +12057,40 @@ Modelo separado, reclamación manual, administración, importación revisada, fi
 - La traza de QA71 (`68a734fb39b30478916112d3606b1488efdbf9b7`) muestra que el GET del roster respondió 200 con la gimnasta esperada. El test vuelve a seleccionar la primera sesión, que ya estaba seleccionada por defecto; el manejador vaciaba el roster y activaba `loading`, aunque el ID no cambiaba y por tanto no empezaba otra carga. El estado resultante coincide con «Cargando lista…» y la ausencia del control accesible.
 - `OwnerAttendanceManager` ahora ignora un cambio al mismo ID antes de limpiar estado; cambiar a otra sesión conserva el fetch y refresco normales. La regresión cubre ambas transiciones.
 - Validación en rama aislada desde `7ac8b87e8d39133abec9faf4a6a05585f83d32fa`: `vitest run tests/owner-attendance-manager.test.tsx` — 6/6; `tsc --noEmit` — PASS; `git diff --check` — PASS. Sin build, E2E/browser, servicios locales, PostgreSQL, Sandbox ni producción. QA71 sigue siendo FAIL y no se hizo otra corrida.
+
+## 2026-10-15 — QA59: límites del harness Owner E2E local
+
+- En rama local `codex/a2-local-owner-e2e-safety-20261014`, la prevalidación
+  resuelve y fija un Docker Unix socket local; el cleanup termina el grupo de
+  procesos aunque el líder cierre antes y preserva el directorio si no confirma
+  la salida. La suite local bloquea service workers y elimina hints externos
+  conocidos de HTML local. No se cambia código de producto.
+- La ruta de requests HTTP de Playwright no acredita egress cero: DNS/TLS
+  especulativo, tráfico server-side y otros canales quedan fuera. Aislamiento
+  efectivo requeriría una frontera de red aparte. Detalle y comando directo sin
+  pnpm: [`local-owner-e2e-safety-2026-10-15.md`](../../docs/qa/local-owner-e2e-safety-2026-10-15.md).
+- Tests mock focales: 35/35; TypeScript, ESLint focal, Prettier y diff check
+  PASS. Sin Docker/Supabase, build, E2E,
+  PostgreSQL, contenedores ni red en esta pasada.
+
+## 2026-10-15 — QA59 follow-up: dispatcher Node para Next y Playwright
+
+- En `codex/a2-local-owner-e2e-safety-20261014`, el harness resuelve los bins
+  `next` y `playwright` desde el `package.json` instalado y pasa sus entrypoints
+  JavaScript a `process.execPath`; ya no ejecuta los shims `.bin`. El
+  `webServer` de Playwright resuelve Next del mismo modo.
+- Mocks focales: 23/23; TypeScript, ESLint focal, Prettier y diff check PASS.
+  Sin build, browsers, Docker, Supabase, PostgreSQL ni E2E. La ejecución local
+  sigue pendiente de autorización del flujo principal.
+
+## 2026-10-15 — QA65: permiso loopback solo para Chromium local
+
+- La traza QA65 demuestra intento POST a Auth sin respuesta por denegación
+  Chromium de acceso a `loopback`; HIBP respondió 200. Sentry Replay fue
+  bloqueado aparte por el guard. En suite local Chromium, se concede el permiso
+  `local-network-access` solo al origen app loopback validado. La petición
+  exacta de Replay sigue abortada y se registra aparte; el resto de bloqueos y
+  errores de página/consola siguen visibles.
+- Mocks permiso/origen y Sentry: 19/19; TypeScript, ESLint focal, Prettier y
+  diff check PASS. Sin nueva ejecución de navegador ni servicios. Cleanup
+  completo consta en el informe QA65 preservado sin modificar.

@@ -6,6 +6,7 @@ import {
   assertLocalPlaywrightTarget,
   assertLocalSupabasePlaywrightTarget,
 } from "./scripts/lib/e2e-sandbox-target";
+import { localCliEntrypoint } from "./scripts/lib/local-e2e-preflight";
 
 const isLocalSupabaseRun = process.env.E2E_LOCAL_SUPABASE === "true";
 
@@ -18,6 +19,10 @@ if (!isLocalSupabaseRun) {
 
 const baseURL = process.env.BASE_URL ?? "http://127.0.0.1:3000";
 const isCI = Boolean(process.env.CI);
+const nextCli = localCliEntrypoint(process.cwd(), "next");
+const quoteShellArgument = (value: string) =>
+  `'${value.replace(/'/g, "'\\''")}'`;
+const nextServerCommand = `${quoteShellArgument(process.execPath)} ${quoteShellArgument(nextCli)} ${isCI || isLocalSupabaseRun ? "start" : "dev"}`;
 
 const isPublicReadOnlyRun = process.env.E2E_PUBLIC_READ_ONLY === "true";
 
@@ -80,7 +85,9 @@ export default defineConfig({
   ],
   use: {
     baseURL,
-    ...(isPublicReadOnlyRun ? { serviceWorkers: "block" as const } : {}),
+    ...(isPublicReadOnlyRun || isLocalSupabaseRun
+      ? { serviceWorkers: "block" as const }
+      : {}),
     navigationTimeout: 60_000,
     trace: "retain-on-failure",
     screenshot: "only-on-failure",
@@ -90,7 +97,7 @@ export default defineConfig({
     process.env.BASE_URL && !isLocalSupabaseRun
       ? undefined
       : {
-          command: isCI || isLocalSupabaseRun ? "pnpm start" : "pnpm dev",
+          command: nextServerCommand,
           ...(isLocalSupabaseRun ? { env: { NODE_ENV: "production" } } : {}),
           url: baseURL,
           reuseExistingServer: !isLocalSupabaseRun && !isCI,
