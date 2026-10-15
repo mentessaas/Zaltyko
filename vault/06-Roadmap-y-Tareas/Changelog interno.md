@@ -12216,3 +12216,12 @@ Modelo separado, reclamación manual, administración, importación revisada, fi
 
 - list_migrations metadata53prod/70Sandbox,0versionesnativasde18; no equivale aSQLnoejecutado. Catálogo confirma baseledgerSandboxpresente/deltaausente, ambosausentesprod. Backend76GO SQLfijo yMain2regresionesPASS:16/16baseSandboxversion+checksumcoinciden,2deltasausentes,0extras. Lectura técnicaREADONLY10s, no negocio/Auth/finanzas niDDL.
 - ACLprivadaSandbox: authenticatedUSAGEsí,anonno; ambosSELECTledgerno, RLSledgerfalse; noafirmarexposiciónDataAPI. MCPgetprojecthealthy/PG17.6 no acreditabackup. Herramientasactualesnoinforman disponibilidadcopias; navegadorcontrolnohabilitadoporfaltaSKILLobligatorio. Pedirevidenciamínima deBackups,sinrestore/export/costes. Fuente remote-history-and-recovery-2026-10-15.md.
+
+## 2026-10-15 — Chromium remoto aprobado; gates restantes separados
+
+- SHAe7dff88b, CI38707901100: Chromiumjob116331776745SUCCESS, logMain1PASS28.5s ycleanupreportadoporrunner. FirefoxE2EencursoQA126; WebKit/gatependientes. Static/Directory/otrosjobsPASS, SandboxSKIPPED. Sinreruns/pushduranteCI ni despliegues.
+- Frontend77+Main alertas: sieteabiertasmain,cuatroadvisories. Tresregistroscorregidosporversióncandidato(MCPSDK/shellquote); cuatroregistrosbraces/nodeforge mitigadosmóvilnocerrados. Bracesraízsinparchemóvil requierealcanceindependiente. MatrizconSHAs/fuentes/límites en docs/security/dependency-alerts-e7dff88b-2026-10-15.md.
+- Historialmetadata/backups/rolapp noequivalenaesquemalisto; peticiónBackupsyaenviada,sinrepetir. Backendrevisaactivaciónoperativa sololectura. PRdraftsinaprobaciónrelease, nomerge/DDL/publicación.
+
+- QA127: Firefoxfallabuild240santesPlaywright,cleanupreportado09:02:10UTC;WebKitiniciado. Diagnósticounspanwebpack169841msnoatribuye causa. Compararlogs sinrerejecución.
+- Backend81: sininterruptorpilotoobservadoenbootstrap/finanzas/outbox; roles/lease/suspensiónnoequivalenacierreuniversal. Propuestaflagsservidornoimplementada, noactivarpublicacióndeformaaccidentalalprepararesquema. Informe owner-pilot-activation-audit-e7dff88b-2026-10-15.md. Sinampliaralcanceaciegas.

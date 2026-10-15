@@ -4,7 +4,17 @@
 
 No confundir validación local con CI remoto, compatibilidad del destino o autorización de despliegue. La autorización posterior permite inspección de metadata remota; no se han aplicado DDL ni modificado filas de negocio.
 
-## Actualización vigente — candidato de6c3a64
+## Actualización vigente — candidato e7dff88b
+
+**09:02UTC:** Chromium remoto SUCCESS en CI38707901100 sobre `e7dff88b39ba4fdf19c2f35f1f918a8ff3fa02a1`: Main comprobó `1 passed (28.5s)` y cleanup informado por runner. Firefox dentro del E2E según QA126; WebKit y gate agregado pendientes. Build/unitarios/lint/móvil/RLS/migraciones/security, Static y Directory PASS. Sandbox readiness/auth SKIPPED. [Detalle y límites](./ci-e7dff88b-candidate-2026-10-15.md).
+
+**09:04UTC, QA127:** Firefox volvió a agotar build240s antes de Playwright; runner informa cleanup09:02:10UTC. WebKit iniciado, cierre global pendiente. No atribuir causa al único span completado del diagnóstico ni relanzar sin corrección revisada. Se mantienen plazos y checks.
+
+Seguridad: tres de siete registros de alerta de main tienen versiones corregidas en candidato; cuatro registros de dos advisories siguen mitigados localmente en móvil, no cerrados upstream. Braces raíz requiere análisis adicional. [Matriz exacta y fuentes](../security/dependency-alerts-e7dff88b-2026-10-15.md). Esquema/rol app/recuperación y revisión independiente GitHub siguen pendientes; no listo para publicar. Petición de metadata de Backups ya enviada al usuario; no repetir mientras se espera. No DDL, merge ni despliegue.
+
+Backend81 auditó el candidato solo estáticamente: autenticación/roles/idempotencia no equivalen a interruptor de activación. Bootstrap, mutaciones financieras y outbox no tienen cierre operativo específico del piloto. No desplegar primero confiando en que tablas ausentes impidan escrituras; crear esquema puede habilitar operaciones inmediatamente si ya están expuestas. [Evidencia y propuesta sin implementar](./owner-pilot-activation-audit-e7dff88b-2026-10-15.md). Mantener orden de preparación validado y decisión explícita de publicación; no inventar flags existentes.
+
+### Historial de preparación y ejecución previa
 
 **Observación posterior, 08:45UTC:** PR226 actualizado sin merge a `e7dff88b39ba4fdf19c2f35f1f918a8ff3fa02a1`. CI38707901100 queued, Static38707901067 y Directory38707901250 en curso. No son PASS. Revisión estática Frontend75 yQA119, protecciones reconfirmadas; [evidencia nueva](./ci-e7dff88b-candidate-2026-10-15.md). Lo siguiente describe el fallo anterior y su preparación, no el estado final de la nueva corrida.
 

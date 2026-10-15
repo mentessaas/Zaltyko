@@ -19,6 +19,16 @@ Son estados de esta observación, no resultados finales. QA monitoriza el SHA ex
 
 Observación posterior QA123: Static yDirectoryPASS; Build, unitarios,lint/móvil/security/RLS/migracionesPASS según jobs. Solo matriz/gate funcional siguen abiertos, Chromium dentrodelE2E, Firefox/WebKitencola; sin resultado funcional ni cleanup todavía. No equivale a publicación lista.
 
+### Observación posterior — 09:02 UTC
+
+Chromium [job116331776745](https://github.com/mentessaas/Zaltyko/actions/runs/38707901100/job/116331776745) SUCCESS sobre el mismo SHA. Main comprobó el log del job: `1 passed (28.5s)` a las08:53:59UTC y `Supabase local stack stopped and disposable data volumes removed.` a las08:54:19UTC. Limpieza informada por el runner; no inspección independiente de inventario Docker. Es evidencia funcional remota de Chromium, no PASS global ni de producción.
+
+QA126: Firefox superó precarga y entró en E2E aislado, sin resultado funcional todavía; WebKit sigue pendiente. Matriz y gate agregado aún abiertos. Static/Directory y los demás jobs enumerados arriba PASS; readiness/auth de Sandbox SKIPPED. No hay rerun, dispatch, ampliación de plazos ni nueva prueba local.
+
+Actualización QA127, 09:04UTC: Firefox falló por build240s tras completar294páginas y llegar a Collecting build traces, antes de Playwright. El diagnóstico contiene una fase completada `run-webpack-compiler` de169841ms; no prueba la causa del retraso final. Cleanup informado por runner09:02:10UTC, sin marcador de error de parada. WebKit comenzó; cierre global pendiente. Chromium PASS no resuelve este fallo. QA compara logs/fases de ambos jobs sin nueva ejecución ni cambio de límites.
+
+Auditoría independiente Frontend77 y consulta Main de alertas: siete registros abiertos en main corresponden a cuatro advisories. En el candidato, MCP SDK1.32.1 y shell-quote1.11.0 corrigen por versión tres registros; quedan cuatro registros de braces/node-forge con mitigación móvil local, no resolución upstream. El lock raíz también contiene braces3.0.3 y el parche móvil no lo cubre; alcance pendiente de análisis estático. Véase [matriz de seguridad](../security/dependency-alerts-e7dff88b-2026-10-15.md). No se han cerrado alertas ni aprobado la release.
+
 ## Protecciones y gates separados
 
 Antes del push: Vercel previewDeploymentsDisabled=true, ProductionBranch=main; Deploy disabled_manually y fail-closed en YAML; main strict/enforce_admins, una aprobación y gate sintético requerido. Entorno Production restringido a main, prevent_self_review=true; can_admins_bypass=true, no protección absoluta. GitHub deployment records del SHA nuevo: cero en esta observación; no se ha ordenado publicar.
