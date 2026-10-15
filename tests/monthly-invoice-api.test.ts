@@ -45,6 +45,20 @@ describe("API Owner de facturación mensual", () => {
 
   afterEach(() => vi.clearAllMocks());
 
+  it("rechaza identidad sintética ausente antes de parsear el POST", async () => {
+    vi.mocked(getCurrentUser).mockResolvedValue(null);
+    const response = await issueInvoice(
+      new Request(
+        "https://zaltyko.test/api/v1/owner/billing/monthly-invoices/issue",
+        { method: "POST", body: "not-json" }
+      )
+    );
+    expect(response.status).toBe(401);
+    expect(resolveOwnerScope).not.toHaveBeenCalled();
+    expect(rateLimit).not.toHaveBeenCalled();
+    expect(issueMonthlyInvoice).not.toHaveBeenCalled();
+  });
+
   it("devuelve opciones sin caché y deriva el actor del usuario autenticado", async () => {
     vi.mocked(getMonthlyInvoiceOptions).mockResolvedValue({
       families: [],

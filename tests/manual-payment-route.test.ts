@@ -23,7 +23,10 @@ const organizationId = "10000000-0000-0000-0000-000000000001";
 const memberId = "10000000-0000-0000-0000-000000000201";
 const chargeId = "10000000-0000-0000-0000-000000000301";
 
-function postRequest(body: unknown, idempotencyKey = "manual-payment-test-001") {
+function postRequest(
+  body: unknown,
+  idempotencyKey = "manual-payment-test-001"
+) {
   return new Request(
     "https://zaltyko.test/api/v1/owner/billing/manual-payments",
     {
@@ -48,7 +51,11 @@ describe("manual payment endpoint", () => {
     });
     vi.mocked(getCurrentUser).mockResolvedValue({ id: actorUserId });
     vi.mocked(resolveOwnerScope).mockResolvedValue({
-      organization: { id: organizationId, name: "Academia sintética", defaultCurrency: "EUR" },
+      organization: {
+        id: organizationId,
+        name: "Academia sintética",
+        defaultCurrency: "EUR",
+      },
       member: { id: memberId, role: "owner", locationScopeMode: "all" },
       locations: [],
       selectedLocationId: null,
@@ -114,6 +121,28 @@ describe("manual payment endpoint", () => {
       actor: { userId: actorUserId, memberId },
     });
   });
+
+  it.each(["manager", "coach"])(
+    "rejects synthetic %s scope before processing a payment",
+    async (role) => {
+      vi.mocked(resolveOwnerScope).mockResolvedValue({
+        organization: { id: organizationId },
+        member: { id: memberId, role, locationScopeMode: "all" },
+      } as never);
+      const response = await POST(
+        postRequest({
+          organizationId,
+          chargeId,
+          amountCents: 2500,
+          method: "bank_transfer",
+          receivedAt: "2026-10-13T11:00:00.000Z",
+        })
+      );
+      expect(response.status).toBe(403);
+      expect(rateLimit).not.toHaveBeenCalled();
+      expect(recordManualPaymentForCharge).not.toHaveBeenCalled();
+    }
+  );
 
   it("rejects client-supplied actor or tenant role overrides", async () => {
     const response = await POST(
