@@ -286,11 +286,10 @@ export function RegisterForm({
         }
         router.push(getRegistrationContinuationPath(role));
       } else {
-        await trackEvent(directoryRegistration ? "directory_account_registered" : "sign_up_completed", {
+        await trackEvent(directoryRegistration ? "directory_account_confirmation_pending" : "sign_up_confirmation_pending", {
           metadata: {
             role: directoryRegistration ? "directory" : role,
             signup_method: "email_password",
-            email_confirmation_pending: true,
             ...readAttribution(),
           },
         });

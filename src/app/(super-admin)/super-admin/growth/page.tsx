@@ -11,6 +11,23 @@ import { getGrowthDashboardData } from "@/lib/growth/dashboard";
 
 export const dynamic = "force-dynamic";
 
+const inquiryReasonLabels: Record<string, string> = {
+  demo: "Solicitar demo",
+  network: "Plan Network / multi-sede",
+  sales: "Información de ventas",
+  migracion: "Migración o varias sedes",
+  support: "Soporte técnico",
+  billing: "Cobros",
+  partnership: "Colaboración",
+  other: "Otro",
+};
+
+const madridDateTime = new Intl.DateTimeFormat("es-ES", {
+  dateStyle: "medium",
+  timeStyle: "short",
+  timeZone: "Europe/Madrid",
+});
+
 function rateLabel(rate: number | null) {
   return rate === null ? "— sin base" : `${rate}%`;
 }
@@ -215,6 +232,73 @@ export default async function SuperAdminGrowthPage() {
             </div>
           </dl>
         </article>
+      </section>
+
+      <section aria-labelledby="recent-inquiries-heading" className="space-y-4">
+        <header className="flex flex-wrap items-end justify-between gap-3">
+          <div>
+            <p className="text-xs uppercase tracking-[0.2em] text-white/55">
+              Bandeja de captación
+            </p>
+            <h2
+              id="recent-inquiries-heading"
+              className="mt-1 font-display text-xl font-semibold text-white"
+            >
+              Solicitudes recientes
+            </h2>
+          </div>
+          <p className="text-xs text-white/55">
+            Últimas {data.inquiries.length} · se guardan aquí aunque falle el
+            aviso por email
+          </p>
+        </header>
+
+        {data.inquiries.length === 0 ? (
+          <p className="rounded-2xl border border-white/10 bg-white/[0.045] p-5 text-sm text-white/60">
+            Todavía no hay solicitudes de contacto.
+          </p>
+        ) : (
+          <ul className="space-y-3">
+            {data.inquiries.map((inquiry) => (
+              <li
+                key={inquiry.id}
+                className="rounded-2xl border border-white/10 bg-white/[0.045] p-5"
+              >
+                <article className="space-y-3">
+                  <header className="flex flex-wrap items-start justify-between gap-3">
+                    <div className="min-w-0">
+                      <h3 className="font-semibold text-white">
+                        {inquiry.name}
+                      </h3>
+                      <a
+                        href={`mailto:${inquiry.email}?subject=${encodeURIComponent("Solicitud Zaltyko")}`}
+                        className="break-all text-sm text-zaltyko-electric underline underline-offset-2"
+                      >
+                        {inquiry.email}
+                      </a>
+                      {inquiry.academy && (
+                        <p className="mt-1 text-sm text-white/65">
+                          {inquiry.academy}
+                        </p>
+                      )}
+                    </div>
+                    <div className="text-left text-xs text-white/55 sm:text-right">
+                      <p>
+                        {inquiryReasonLabels[inquiry.reason] ?? inquiry.reason}
+                      </p>
+                      <time dateTime={inquiry.createdAt}>
+                        {madridDateTime.format(new Date(inquiry.createdAt))}
+                      </time>
+                    </div>
+                  </header>
+                  <p className="whitespace-pre-wrap break-words border-t border-white/10 pt-3 text-sm leading-6 text-white/80">
+                    {inquiry.message}
+                  </p>
+                </article>
+              </li>
+            ))}
+          </ul>
+        )}
       </section>
 
       <CommercialInterviewWorkspace

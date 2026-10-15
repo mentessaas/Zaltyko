@@ -556,3 +556,9 @@ La comparación estructural de columnas/restricciones/índices/trigger da parida
 - El primer run de PR #211 alcanzó Stripe Test y creó sesiones, pero Playwright perdió el cuerpo al salir el navegador hacia Checkout. La prueba ahora captura la respuesta dentro de una ruta de red y expira sesiones anteriores abiertas del mismo owner sintético.
 - El segundo run `37259234974` pasó el E2E de Checkout: sesión de suscripción Starter anual, metadata y Price correctos, `livemode=false`, y sesión expirada sin pago. También terminó verde la suite autenticada multibrowser, el test de escritura/idempotencia y todos los checks obligatorios del PR. El PR sigue abierto y aún no está desplegado.
 - **En validación — PR #211:** la spec también envía un evento `customer.subscription.created` firmado al webhook de la app, comprueba la suscripción anual `incomplete`, el contexto de academia, el estado del evento y la idempotencia; restaura y limpia los datos de staging/Test. Contratos locales 7/7, TypeScript, ESLint y `git diff --check` pasan. Falta CI del nuevo commit; Playwright local se abstuvo de ejecutar porque falta declarar el proyecto sandbox en el guard. El PR sigue abierto, sin fusionar ni desplegar.
+
+## Captación de academias — pendientes de activación · 2026-10-15
+
+- **P0 / antes de dirigir tráfico:** revisión jurídica humana del aviso de privacidad y confirmar que los proveedores/transferencias descritos corresponden a la configuración productiva.
+- **P0 / antes de producción:** integrar y desplegar la rama de privacidad del producto; validar con datos de prueba la persistencia en base de datos, la bandeja Super Admin → Growth y el email de aviso a `hola@zaltyko.com` sin enviar PII del prospecto al buzón.
+- **P0 / Hostinger:** el CNAME de `waitlist.zaltyko.com` sigue pendiente. Presentar el registro exacto y pedir confirmación en la conversación antes de escribir DNS; el subdominio aún requiere verificación DNS.

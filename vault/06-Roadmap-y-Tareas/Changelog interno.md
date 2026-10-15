@@ -1,10 +1,17 @@
 ---
 status: active
 owner: producto
-last_reviewed: 2026-10-04
+last_reviewed: 2026-10-15
 source:
   - ../docs/audits/2026-10-03-launch-and-auth-followup.md
 ---
+
+## 2026-10-15 — Captación de academias y conservación de leads (en revisión)
+
+- El primer paso comercial mantiene el alta directa de academia con país y modalidad deportiva en el onboarding posterior. Las consultas asistidas se guardan en el panel comercial; el aviso por correo no contiene los datos del lead, y el alta pendiente de confirmación de email ya no se cuenta como registro completado.
+- Se actualizó la información de privacidad de contacto, el aviso por capas del formulario y una conservación de 12 meses para leads inactivos. La tarea mensual elimina o anonimiza datos vencidos y preserva evaluaciones comerciales todavía activas.
+- Validación local focalizada: 4 archivos de pruebas, 11/11; TypeScript y ESLint sin errores; `git diff --check` pasa. La compilación Next local falló por `ENOSPC` cuando el volumen del equipo quedó con menos de 120 MB libres; se limpiaron los artefactos `.next` generados. Reintento de build/CI en Preview pendiente.
+- No se cambió DNS ni se hizo envío real. La activación pública en `waitlist.zaltyko.com` espera confirmar el CNAME de Hostinger; quedan CI/Preview y revisión legal de proveedores/transferencias.
 
 ## 2026-10-04 — Revalidar acceso Google, recuperación y búsqueda del onboarding
 

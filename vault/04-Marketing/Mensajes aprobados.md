@@ -18,6 +18,13 @@ Gestiona tu academia deportiva sin perder el foco en lo que importa: formar atle
 
 Para discovery, beta y mensajes de venta tempranos, enfocar Zaltyko en academias de gimnasia artistica y ritmica en espanol. El posicionamiento general de "academias deportivas" se mantiene como arquitectura de expansion, pero el go-to-market inicial debe hablar de gimnastas, familias, clases, cuotas, asistencia y progreso tecnico.
 
+### Captación de academias — 2026-10-15
+
+- Mensaje principal de landing: **"Las cuotas cobradas. Los grupos montados. La lista pasada."** Mantener el foco en el trabajo que consume el día a día de dirección: cuotas, grupos, asistencia y comunicación con familias dispersos entre hojas y chats.
+- Para academias estándar, ofrecer creación gratuita en autoservicio. Reservar el contacto asistido para varias sedes o migraciones complejas; no pedir país ni modalidad antes del registro. País y artística/rítmica se completan al configurar la academia.
+- El formulario de contacto responde a una solicitud concreta y no suscribe a novedades. No añadir testimonios, resultados numéricos ni fechas de disponibilidad sin evidencia.
+- Fuente de lenguaje de marca: [web pública de Zaltyko](https://zaltyko.com/). Criterio de segmento: gimnasia artística y rítmica, según esta guía y el ICP vigente.
+
 ## Taglines permitidos
 
 - Tu academia ordenada, tu mente libre.

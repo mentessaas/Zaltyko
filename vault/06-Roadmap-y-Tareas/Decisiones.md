@@ -775,3 +775,13 @@ Una ficha externa no crea dueño, academia operativa, trial ni suscripción. Sol
 | Decisión | Ofrecer alta autoservicio para Free, Starter y Growth; mantener Network con acompañamiento. Mostrar precios anuales y ahorro estimado con claridad. La selección efectiva del ciclo continúa en Facturación. |
 | Consecuencia | La página orienta los planes estándar a crear una academia sin bloquear la captación con una demo. |
 | Estado | PR #207 se integró por squash en `93b152d1` después de pasar build, lint/typecheck, unitarias, RLS, migraciones, seguridad móvil y E2E autenticado con verificación de escrituras idempotentes. El bypass administrativo se usó con autorización del usuario porque GitHub exigía una aprobación de otro colaborador. Vercel `dpl_ET8Auj2t4xY3h8n6oF58mXE1jL4o` está `Ready`; `/pricing` responde 200 y muestra CTA de alta y selector anual. No se creó Checkout ni se hizo un cargo. Checkout Test y su webhook siguen pendientes. |
+
+## 2026-10-15 — Captación de academias y conservación de consultas
+
+| Campo | Valor |
+| --- | --- |
+| Contexto | La landing de captación debe conservar la marca de Zaltyko y llevar a las academias estándar al registro autoservicio. El formulario asistido se reserva para migraciones complejas o multi-sede; país y modalidad aumentan fricción antes de la cuenta. |
+| Decisión | Mantener el primer paso corto: email y nombre de cuenta en registro, país y modalidad en el onboarding de academia. El formulario de contacto solo responde a la solicitud, sin suscripción comercial. Añadir aviso claro, bandeja de solicitudes en Super Admin → Growth y notificación interna sin PII del prospecto. |
+| Conservación | Prospectos no convertidos: máximo 12 meses desde el último contacto significativo; si existe negociación, prueba o entrevista, el cómputo usa su última actividad. El cron mensual elimina prospectos vencidos no vinculados a academia/tenant y anonimiza la entrevista ligada para conservar solo señales no identificativas. Límite de 250 filas por ejecución. |
+| Fuente legal | La AEPD recomienda información por capas y que la capa detallada identifique plazos o criterios de conservación: [Derecho de información](https://www.aepd.es/derechos-y-deberes/conoce-tus-derechos/derecho-de-informacion). El art. 6 del RGPD distingue medidas precontractuales solicitadas e interés legítimo: [Reglamento en BOE](https://boe.es/buscar/doc.php?id=DOUE-L-2016-80807&lang=es). Los 12 meses son una decisión operativa de Zaltyko, no un plazo legal general. |
+| Estado | Preparado en la rama aislada `codex/academy-lead-privacy-2026-10-15`. Pendientes de publicación: revisión jurídica humana, Preview/deploy y verificación de la entrega del aviso en `hola@zaltyko.com`. No se modificó producción ni DNS. |

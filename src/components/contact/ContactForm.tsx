@@ -130,7 +130,7 @@ export function ContactForm({ defaultReason = "demo", defaultPlan, directoryEntr
       form.reset();
       setState({
         status: "success",
-        message: "Mensaje enviado. Te responderemos desde el equipo de Zaltyko.",
+        message: "Solicitud registrada. El equipo de Zaltyko revisará tu mensaje y te responderá por email.",
       });
     } catch (error) {
       if (!failureReported) {
@@ -276,8 +276,19 @@ export function ContactForm({ defaultReason = "demo", defaultPlan, directoryEntr
         {!isHydrated ? "Preparando formulario..." : submitting ? "Enviando..." : "Enviar mensaje"}
       </button>
 
-      <p className="text-center text-xs text-muted-foreground">
-        Al enviar este formulario, aceptas nuestra{" "}
+      <p className="text-xs leading-relaxed text-muted-foreground">
+        Responsable: Elvis Valdes Inerarte (Zaltyko). Usaremos tu nombre, email,
+        academia si la indicas y mensaje para responder y gestionar tu solicitud;
+        la base jurídica será la gestión de los pasos precontractuales que pidas
+        o, para otras consultas, nuestro interés legítimo en atenderlas. Este
+        envío no te suscribe a novedades comerciales. Conservaremos la solicitud
+        hasta 12 meses desde el último contacto significativo, salvo relación
+        contractual u obligación legal. Puedes ejercer tus derechos en{" "}
+        <a href="mailto:hola@zaltyko.com" className="underline hover:text-zaltyko-primary">
+          hola@zaltyko.com
+        </a>{" "}
+        y reclamar ante la AEPD. Los proveedores técnicos necesarios pueden tratar
+        los datos para prestar el servicio. Consulta los detalles en nuestra{" "}
         <Link href="/politica-privacidad" className="underline hover:text-zaltyko-primary">
           política de privacidad
         </Link>

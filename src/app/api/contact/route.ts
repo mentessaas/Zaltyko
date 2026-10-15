@@ -10,6 +10,7 @@ import { NextRequest } from "next/server";
 import { withRateLimit } from "@/lib/rate-limit";
 import { sendEmailWithLogging } from "@/lib/email/email-service";
 import { escapeHtml } from "@/lib/email/escape-html";
+import { getPublicSiteUrl } from "@/lib/seo/site-url";
 
 /**
  * Sanitizes input by stripping all HTML tags to prevent XSS
@@ -67,9 +68,7 @@ export const POST = withRateLimit(
         partnership: "Colaboración",
         other: "Otro",
       };
-      const subject = academy
-        ? `${reasonLabels[reason]} - ${academy}`
-        : reasonLabels[reason];
+      const subject = `Nueva solicitud · ${reasonLabels[reason]}`;
       const sanitizedName = stripHtml(name);
       const sanitizedAcademy = academy ? stripHtml(academy) : null;
       const sanitizedMessage = stripHtml(message);
@@ -131,18 +130,13 @@ export const POST = withRateLimit(
 
       // Send email notification
       try {
+        const inboxUrl = new URL("/super-admin/growth", getPublicSiteUrl()).toString();
         await sendEmailWithLogging({
           to: "hola@zaltyko.com",
-          subject: `[Zaltyko Contact] ${subject} - ${normalizedEmail}`,
-          text: `Nombre: ${sanitizedName}\nEmail: ${normalizedEmail}\nAcademia: ${sanitizedAcademy ?? "No indicada"}\nPlan: ${plan ?? "No indicado"}\n\nMensaje:\n${sanitizedMessage}`,
-          html: `<p><strong>Nombre:</strong> ${escapeHtml(sanitizedName)}</p>
-<p><strong>Email:</strong> ${escapeHtml(normalizedEmail)}</p>
-<p><strong>Academia:</strong> ${escapeHtml(sanitizedAcademy ?? "No indicada")}</p>
-<p><strong>Plan:</strong> ${escapeHtml(plan ?? "No indicado")}</p>
-<p><strong>Asunto:</strong> ${escapeHtml(subject)}</p>
-<p><strong>Mensaje:</strong></p>
-<p>${escapeHtml(sanitizedMessage).replace(/\n/g, "<br>")}</p>`,
-          replyTo: normalizedEmail,
+          subject: `[Zaltyko] ${subject}`,
+          text: `Hay una nueva solicitud de contacto. Revísala en el panel comercial: ${inboxUrl}`,
+          html: `<p>Hay una nueva solicitud de contacto.</p><p><a href="${escapeHtml(inboxUrl)}">Abrir solicitudes recientes en Zaltyko</a></p>`,
+          replyTo: "hola@zaltyko.com",
           template: "public-contact-lead",
           dedupeKey: `public-contact-lead:${submissionId}`,
         });
