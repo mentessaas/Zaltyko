@@ -21,9 +21,21 @@ Chromium/Firefox y demás jobs ejecutados SUCCESS, con límites y tiempos debajo
 Static/Directory SUCCESS exactSHA reconfirmados por Main11:24UTC.
 Sandbox/públicos omitidos siguen sin validar. No repetir corrida idéntica.
 
-QA y Frontend investigan SOLOLOCAL/READONLY la cronología del timeout y la
-relación entre plan de13 imágenes y exclusiones de servicios. Ningún cambio
-de precarga, ampliación de fallback, nuevo build/pull/CI o push autorizado aún.
+QA164 y revisión Main distinguen `primary` exit1/timeout de `clock`: el control
+posterior de reloj del helper no había vencido. Los600s se reinician por imagen
+faltante y se comparten entre ECR y eventual fallback/verificación de esa imagen;
+no son presupuesto global del lote ni uno separado por registro. Preloader y
+preflight aún exigen13 imágenes, incluidas Studio/meta no arrancadas. Excluirlas
+solo del preloader rompería el preflight; logflare permanece activo en todo caso.
+
+Frontend100 propone plan activo fijo compartido11, manteniendo catálogo/pins13.
+Main autoriza SOLO preparación LOCAL con mocks y revisión QA posterior, no CI:
+elimina dos requisitos de precarga sin uso, pero NO soluciona directamente el
+timeout logflare. Backend evalúa SOLO propuesta readonly de reutilización segura
+de imágenes entre los jobs seriales existentes, con límites/cache-poisoning/
+integridad y sin añadir jobs/runners/costes. Sin implementación remota, nuevo
+build/pull/CI/push ni ampliación de fallback autorizados. No añadir diagnóstico
+numérico adicional sin necesidad: la distinción del fallo ya está establecida.
 Siguen separados seguridad residual, esquema/recuperación/rolapp, revisión y release.
 
 ## Observación 11:14 UTC — avance parcial, no cierre de matriz
