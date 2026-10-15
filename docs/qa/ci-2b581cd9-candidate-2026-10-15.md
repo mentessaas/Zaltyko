@@ -1,5 +1,9 @@
 # Candidato2b581cd9: CI abierto con fallo del contrato de entorno
 
+## Actualización09:47UTC — resultados parciales del SHA exacto
+
+Main confirmó API del run38713511027 y logs de los jobs. Chromium116350475505SUCCESS:1testPASS32.4s09:38:44UTC; runner informa stack detenido y volúmenes desechables retirados09:39:05UTC. No inventario Docker independiente. Unit116350475345SUCCESS:529archivosPASS/1skip,2886testsPASS/3skip,334.20s; sin fallos. Firefox116350475568 en curso, WebKit116350475834 en cola. El run sigue abierto y Security sigueFAIL; gate/matriz no acreditados. No empujar fix local57a09b27 ni notas durante esta ejecución; no rerun/dispatch. Estos resultados pertenecen a2b, no al fix posterior.
+
 15 octubre2026,09:31UTC. [PR226](https://github.com/mentessaas/Zaltyko/pull/226) OPEN/DRAFT/REVIEW_REQUIRED, SHA remoto confirmado `2b581cd92be6cc1bf3531032a9914e006e409161`. Push normal desde e7dff88b, sin merge/despliegue. Una sola corrida automática por este nuevo candidato; listado inmediato todavía vacío por indexación. No dispatch ni rerun.
 
 ## Observación posterior —09:38UTC
