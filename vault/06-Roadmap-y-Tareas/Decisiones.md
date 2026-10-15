@@ -20,6 +20,12 @@ GOvariante. No push/CI automático: NO-GO build109 sigue sin causa concreta y
 no se afirma ahorro/disponibilidadHub. Tampoco merge/deploy/DDL autorizado.
 Fuente docs/qa/active-images-hub-primary-2026-10-15.md.
 
+Para desbloquear la causa del build sin violar la prohibición de CI solo por
+diagnóstico, pedir decisión específica para una sola corrida con métricas
+CPU/memoria saneadas, matriz/plazos/checks actuales y sin despliegue/datos.
+Artifactsmetadata del run0dfb solo muestraSBOM; no perfil existente reutilizable.
+No implementar instrumentación ni push hasta respuesta; no repetir petición.
+
 ## 2026-10-15 — Plan activo compartido y cambio de origen aún local
 
 Integrar4a60de36 tras QA166GO: precarga/preflight usan11imágenes activas, manteniendo

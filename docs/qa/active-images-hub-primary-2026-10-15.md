@@ -78,3 +78,16 @@ Fuentes: [pull por digest y plataforma](https://docs.docker.com/reference/cli/do
 [comparación previa de manifiestos](./ci-firefox-build-images-evidence-2026-10-15.md).
 Changelog Supabase revisado: .NET14oct y deprecación TLS HTTP efectiva10nov no
 cambian este mapa local CLI2.84.2 ni acreditan disponibilidad de los registros.
+
+## Siguiente evidencia y decisión requerida
+
+Main consultó únicamente metadata de artifacts del run38731333899: un SBOM,
+sin artifact de perfil del build; no se descargó su contenido. Los logs actuales
+no separan CPU/memoria/IO del tramo final. No se repite la investigación estática
+ya cerrada por Frontend109 ni se inventa una optimización.
+
+Se solicita decisión específica para una única corrida adicional del CI existente
+con medición acotada y saneada de CPU/memoria del build, sin nuevos runners/jobs,
+ampliar240s, retirar checks, Sentry/tracing, acceder a datos o desplegar. No está
+autorizada todavía: no se ha implementado instrumentación ni empujado4f62f423.
+No repetir la petición automáticamente mientras espera respuesta humana.

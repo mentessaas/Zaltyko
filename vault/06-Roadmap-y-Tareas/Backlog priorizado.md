@@ -22,6 +22,11 @@ PASS12files tras3contratosKongactualizados,lintformatoaudit73/tscPASS,Frontend11
 QA186GOvariante. No CI/push automático ni buildresuelto: Frontend109NO-GOajustebuild.
 PreservadasregresionesLogflare yhistorial; seguridad/destino/recovery/review siguen.
 
+Decisión pendiente: una corridaCI adicional con métricasCPU/memoria saneadas del
+build, matriz240s/checks intactos, sin nuevosjobs/runners/deploy/datos. Metadata
+artifacts0dfb soloSBOM; no perfilguardado. No implementar/push sinrespuesta ni
+repetir petición en cadaheartbeat. OrigenHub validadoLOCAL no resuelvebuild.
+
 12:20UTC CI0dfb cerradoFAIL: ChromiumPASS; Firefoxprecargaimgproxytimeout;
 WebKitbuild240s antesPlaywright/cleanupreportado, gateFAIL. Backend implementación
 SOLOLOCAL políticaHubprimaria11 trasGOdiseñoFrontend108/Backend113, pendiente
