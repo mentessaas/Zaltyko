@@ -2,6 +2,11 @@
 
 ## Decisión: NO-GO para publicar
 
+Frontend109: NO-GO para cambiar build sin causa concreta demostrada; conservar
+Sentry/tracing/Node22/entorno/240s. Backend115 sigue SOLOLOCAL políticaHub11,
+pendiente entrega/reviews. Cambiar origen no acredita resolver el timeout build.
+No nuevoCI/push autorizado; no repetir investigación idéntica sin evidencia.
+
 **Cierre12:20UTC:** MainAPI/logs+QA179 confirman CI0dfb38731333899 y gateFAILURE.
 Chromium25.3sPASS/cleanup; Firefoxprecargaimgproxytimeout antesstack; WebKit
 build240s antesPlaywright/cleanupreportado12:16:55.041. OtroschecksPASS/omitidos

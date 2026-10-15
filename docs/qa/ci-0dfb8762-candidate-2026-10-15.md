@@ -29,6 +29,18 @@ investiga readonly build240s recurrente sin ampliar plazos ni retirar tracing/
 Sentry. QA idle espera diff. No integración/candidato/CI nuevo autorizado aún;
 cambio de origen no resuelve por sí mismo el bloqueo build. NO-GO publicación.
 
+### Revisión estática Frontend109 — sin ajuste build justificable
+
+Frontend no identifica una modificación mínima respaldada por evidencia que
+conserve build de producción real, Sentry/tracing, entorno, Node22 y240s.
+Los hitos de salida y spans no separan la tarea final; source maps desactivados
+y worker sintético ya presentes no prueban que Sentry sea el cuello. El navegador
+aún no se ejecutaba. Sin builds ni tests nuevos en esta revisión. Se conserva
+el código de build sin cambios; no reabrir la misma investigación sin evidencia
+adicional ni asumir que cambiar el registro de imágenes resolverá ese timeout.
+Backend115 continúa implementación LOCAL del origen fijo11; entrega/reviews
+pendientes. QA180 espera diff. No nuevo push/CI ni decisión de publicar.
+
 ### Actualización12:14–12:16UTC — Firefox detenido antes del stack
 
 Main confirmó API SHAexacto/run38731333899 aún in_progress y logs de los jobs:
