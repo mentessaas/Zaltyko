@@ -2,7 +2,13 @@
 
 ## Decisión: NO-GO para publicar
 
-No confundir validación local con CI remoto, compatibilidad del destino o autorización de despliegue. Sandbox y producción no se han utilizado en esta pasada.
+No confundir validación local con CI remoto, compatibilidad del destino o autorización de despliegue. La autorización posterior permite inspección de metadata remota; no se han aplicado DDL ni modificado filas de negocio.
+
+## Actualización vigente — candidato de6c3a64
+
+CI `38703429157` terminó FAILURE: Chromium/WebKit fallan en precarga con indicador rate-limit; Firefox supera precarga pero agota build240s durante tracing, sin iniciar Playwright. Registra cleanup. Unitarios: tres fallos (cwd móvil y coste del mock paginación); fixes locales revisados y 4/4 de paginación con coverage PASS, aún sin nuevo candidato CI. Otros build/lint/móvil/security/RLS/migraciones PASS; Sandbox SKIPPED. Detalle y límites: `ci-de6c3a64-failures-2026-10-15.md`.
+
+Manifiesto18/hashchecker local PASS no acredita compatibilidad destino ni recuperación. Seguridad residual braces/node-forge mitigada localmente, aprobación independiente PR y autorización de release siguen pendientes. Metadata remota consultada sin filas: `remote-schema-metadata-2026-10-15.md`. Las secciones inferiores sobre 5001651c y anteriores son históricas y no describen el candidato vigente.
 
 ## Evidencia local cerrada
 

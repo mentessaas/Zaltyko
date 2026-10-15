@@ -1,5 +1,9 @@
 # Correcciones móviles de compression y source-map-js
 
+## Compatibilidad con el proyecto Vitest combinado
+
+Integración selectiva de Frontend `7627dc6c`: los subprocesos fijan cwd a mobile resuelto desde import.meta.url. Frontend reprodujo los dos MODULE_NOT_FOUND desde raíz antes del cambio; después 2/2 pasan desde raíz y desde mobile. Sin nuevas dependencias, exclusiones ni cambios de timeout. La comprobación Main en integración no pudo validar estas dos pruebas: este checkout no tiene mobile/node_modules; no se atribuye ese resultado al parche ni se presenta como PASS.
+
 Parche local del 15 de octubre de 2026. npm lock: compression 1.8.1 → 1.8.2 y source-map-js 1.2.1 → 1.2.2. pnpm lock: compression ya estaba corregido; source-map-js pasa a 1.2.2. Ambos cambios satisfacen los rangos existentes. Sin overrides nuevos, cambios de Expo/RN ni modificación de parches previos. Se descarta la salida amplia de pnpm update; la instalación congelada valida el lock acotado.
 
 ## Evidencia

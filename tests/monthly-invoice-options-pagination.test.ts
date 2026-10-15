@@ -91,24 +91,81 @@ function collectNodes(value: unknown, op?: string): Condition[] {
   ];
 }
 
-function matches(condition: unknown, row: FixtureRow): boolean {
-  if (!condition || typeof condition !== "object") return true;
+function compilePredicate(condition: unknown): (row: FixtureRow) => boolean {
+  if (!condition || typeof condition !== "object") return () => true;
   const node = condition as Condition;
-  if (node.op === "and") return node.args.every((item) => matches(item, row));
-  if (node.op === "or") return node.args.some((item) => matches(item, row));
+  if (node.op === "and" || node.op === "or") {
+    const predicates = node.args.map(compilePredicate);
+    return node.op === "and"
+      ? (row) => predicates.every((predicate) => predicate(row))
+      : (row) => predicates.some((predicate) => predicate(row));
+  }
   const [column, value] = node.args as [{ columnName: string }, unknown];
-  const actual = row[column.columnName];
-  if (node.op === "eq") return actual === value;
-  if (node.op === "gt") return String(actual) > String(value);
-  if (node.op === "gte") return String(actual) >= String(value);
-  if (node.op === "lte") return String(actual) <= String(value);
-  if (node.op === "inArray") return (value as unknown[]).includes(actual);
-  if (node.op === "isNull") return actual === null;
-  return true;
+  const key = column.columnName;
+  if (node.op === "eq") return (row) => row[key] === value;
+  if (node.op === "gt") return (row) => String(row[key]) > String(value);
+  if (node.op === "gte") return (row) => String(row[key]) >= String(value);
+  if (node.op === "lte") return (row) => String(row[key]) <= String(value);
+  if (node.op === "inArray") {
+    const values = new Set(value as unknown[]);
+    return (row) => values.has(row[key]);
+  }
+  if (node.op === "isNull") return (row) => row[key] === null;
+  return () => true;
 }
+
+describe("fixture predicate compiler", () => {
+  it("preserves comparisons, membership and nested boolean conditions", () => {
+    const column = { columnName: "value" };
+    const condition = (op: string, ...args: unknown[]): Condition => ({
+      op,
+      args,
+    });
+    const cases: Array<[unknown, FixtureRow, boolean]> = [
+      [undefined, {}, true],
+      [condition("eq", column, "a"), { value: "a" }, true],
+      [condition("eq", column, "a"), { value: "b" }, false],
+      [condition("gt", column, "a"), { value: "b" }, true],
+      [condition("gt", column, "a"), { value: "a" }, false],
+      [condition("gte", column, "a"), { value: "a" }, true],
+      [condition("gte", column, "b"), { value: "a" }, false],
+      [condition("lte", column, "b"), { value: "b" }, true],
+      [condition("lte", column, "a"), { value: "b" }, false],
+      [condition("inArray", column, ["a", "b"]), { value: "b" }, true],
+      [condition("inArray", column, ["a", "b"]), { value: "c" }, false],
+      [condition("inArray", column, []), { value: "a" }, false],
+      [condition("inArray", column, [undefined]), {}, true],
+      [condition("inArray", column, [Number.NaN]), { value: Number.NaN }, true],
+      [condition("inArray", column, [null]), { value: null }, true],
+      [condition("isNull", column), { value: null }, true],
+      [condition("isNull", column), {}, false],
+      [condition("and"), {}, true],
+      [condition("or"), {}, false],
+    ];
+    for (const [predicate, row, expected] of cases) {
+      expect(compilePredicate(predicate)(row)).toBe(expected);
+    }
+    const nested = condition(
+      "and",
+      condition("gte", column, "b"),
+      condition(
+        "or",
+        condition("eq", column, "b"),
+        condition("eq", column, "d")
+      )
+    );
+    expect(
+      ["a", "b", "c", "d"].filter((value) =>
+        compilePredicate(nested)({ value })
+      )
+    ).toEqual(["b", "d"]);
+  });
+});
 
 /**
  * This unit mock evaluates the built WHERE predicate trees against fixture rows.
+ * Compile each query once, including membership sets, instead of interpreting
+ * every predicate and scanning each IN list again for every fixture row.
  * It does not execute SQL or model join semantics; passing these tests does not
  * validate the generated query against PostgreSQL.
  */
@@ -165,7 +222,7 @@ function makeTx() {
                 .map((node) => node.args.length),
             });
             const rows = ((fixtureState.rows[tableName] ?? []) as FixtureRow[])
-              .filter((row) => matches(where, row))
+              .filter(compilePredicate(where))
               .sort((left, right) => {
                 for (const column of order) {
                   const comparison = String(

@@ -1,5 +1,9 @@
 import { execFileSync } from "node:child_process";
+import { fileURLToPath } from "node:url";
 import { expect, it } from "vitest";
+
+// Vitest projects may keep the repository root as the parent process cwd.
+const mobileRoot = fileURLToPath(new URL("../", import.meta.url));
 
 it("handles an indexed source map far beyond the generated code without blocking", () => {
   const result = execFileSync(
@@ -20,7 +24,7 @@ it("handles an indexed source map far beyond the generated code without blocking
        assert.equal(SourceNode.fromStringWithSourceMap('x', consumer).toString(), 'x');
        process.stdout.write('completed');`,
     ],
-    { timeout: 3000, encoding: "utf8" }
+    { cwd: mobileRoot, timeout: 3000, encoding: "utf8" }
   );
   expect(result).toBe("completed");
 });
@@ -57,7 +61,7 @@ it("destroys the gzip stream when a compressed response closes early", () => {
          }).on('error', () => {});
        });`,
     ],
-    { timeout: 3000, encoding: "utf8" }
+    { cwd: mobileRoot, timeout: 3000, encoding: "utf8" }
   );
   expect(result).toBe("true");
 });

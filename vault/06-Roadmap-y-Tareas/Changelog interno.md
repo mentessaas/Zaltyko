@@ -12185,3 +12185,10 @@ Modelo separado, reclamación manual, administración, importación revisada, fi
 - PR226 actualizado sinmerge/despliegue a de6c3a64534c8ccdd3d71050a00aa728c733a5d6 tras QA110GO/22contratosPASS/protecciones verificadas. CI38703429157 pendiente; Directory38703429149 yStatic38703429248SUCCESS. No duplicar dispatch/runners.
 - Frontend66GO para db448d7c solo como checker/documentación. Main integra5archivos nuevos, sin alterar allowlist ya existente de Sandbox. Main25/25testsPASS y CLIworktree18/18hashesPASS; schemaReadinessNOT_VERIFIED,activationAllowedfalse. Manifiesto referencia bytes5d072d19, noaprueba versiónposteriorsemántica ni DBreal.
 - Sin ejecutorapply/DDL/backup ni recuperaciónremota; Backendcontinúa diseño read-only. Conservar esta integración local sinpushmientrascorreCI para no reiniciar matriz.
+
+## 2026-10-15 — Cierre CI de6c3a64 y regresiones unitarias locales
+
+- CI38703429157 terminóFAIL: Chromium/WebKit precarga rate-limit; Firefox build240s agotado tras294/294páginas yCollectingbuildtraces, sin Playwright, cleanupreportado porrunner. Main verificó logs; QA113 confirmó. Otros build/móvil/estáticos/securityPASS; SandboxSKIPPED. No relanzar corrida idéntica.
+- Frontend7627dc6c integrado selectivamente: cwdmobile para subprocesos de seguridad. EvidenciaFrontend2/2desdeamboscwd; integraciónMain sinmobile/node_modules no puedevalidarambos (nofalsoPASS).
+- Paginación: falloMainreproducido6108ms; predicadomock compilado+sets depertenencia evita interpretaciónrepetida. Frontend68GO; 4/4focalconcoveragePASS, caso4001familias2155ms; sinrebajardeadline5s/fixtures/assertions, sin modificarservicio. Añadida equivalenciacomparaciones/booleanos/nulos/pertenencia.
+- QA prepara evidencia13/13manifiestosECR/DockerHubiguales; metadataúnicamente, sindescargasdecapas. Frontend investiga build/tracing; Backend prepara consultacatálogo mínima sinapply. Sinpush/dispatch/DDL/merge/despliegue ni datosreales. Detalle: docs/qa/ci-de6c3a64-failures-2026-10-15.md.
