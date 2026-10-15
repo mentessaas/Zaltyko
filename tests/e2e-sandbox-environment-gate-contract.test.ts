@@ -46,6 +46,16 @@ describe("synthetic E2E CI contract", () => {
 
     expect(localJob).toContain("project: [chromium, firefox, webkit]");
     expect(localJob).not.toContain("continue-on-error");
+    expect(localJob).not.toContain("supabase/setup-cli");
+    expect(localJob).toContain(
+      "https://github.com/supabase/cli/releases/download/v2.84.2/supabase_linux_amd64.tar.gz"
+    );
+    expect(localJob).toContain(
+      "python3 scripts/ci/test_install_pinned_supabase_cli.py"
+    );
+    expect(localJob).toContain(
+      'echo "$RUNNER_TEMP/supabase-cli-2.84.2" >> "$GITHUB_PATH"'
+    );
     expect(localJob).toContain(
       "pnpm exec tsx scripts/ci/preload-local-e2e-images.ts"
     );

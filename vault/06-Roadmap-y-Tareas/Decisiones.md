@@ -12,9 +12,9 @@ source:
 
 | Campo | Valor |
 | --- | --- |
-| Evidencia | El job sintético local no era bloqueante y el gate PR dependía de readiness y E2E con credenciales del entorno `e2e-sandbox`. El preflight local fija hash macOS de Supabase CLI 2.84.2; no hay un hash Linux verificado en este checkout. |
+| Evidencia | El job sintético local no era bloqueante y el gate PR dependía de readiness y E2E con credenciales del entorno `e2e-sandbox`. Se verificó en el release oficial el SHA del tar Linux x64 de Supabase CLI 2.84.2 y, en una verificación local previa, el hash del miembro binario regular extraído. |
 | Decisión | Desactivar los jobs que acceden al Sandbox en el workflow CI predeterminado. Configurar el recorrido sintético local de Owner como matriz bloqueante de Chromium, Firefox y WebKit, y precargar solo las imágenes exactas del manifiesto desde GitHub Actions. |
-| Consecuencia | PR y pushes ya no ejecutan readiness, migraciones ni autenticación remota del Sandbox. No se altera el hash fail-closed: el gate Linux no puede completar hasta verificar el binario CLI Linux. La protección de rama debe requerir el nuevo check estable desde GitHub. |
+| Consecuencia | PR y pushes ya no ejecutan readiness, migraciones ni autenticación remota del Sandbox. El runner conserva fail-closed con hashes fijos solo para `darwin-arm64` y `linux-x64`; CI valida el archivo y la extracción segura antes de añadir el CLI a PATH. La protección de rama debe requerir el nuevo check estable desde GitHub. |
 | Estado | Cambio local candidato en `codex/ci-local-synthetic-gate-20261015`; no hubo ejecución de CI, Docker/Supabase, servicios remotos ni cambio de branch protection. Evidencia: [`local-synthetic-ci-gate-2026-10-15.md`](../../docs/qa/local-synthetic-ci-gate-2026-10-15.md). |
 
 ## 2026-10-14 — Fail-closed ante versiones activas ambiguas de Insights P0

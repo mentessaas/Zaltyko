@@ -19,27 +19,41 @@
 - Se elimina la condición `if` duplicada de `e2e-auth`; queda una única
   condición explícita `false` mientras el Sandbox permanezca desactivado.
 
-## Bloqueo verificado
+## Pin y extracción segura de Supabase CLI Linux x64
 
-El preflight existente fija SHA-256
-`c1c2bf3cac9cfb9679be798334821910f916d1cafe2cc5dc12d55443a15e920f`, verificado
-para el binario Supabase CLI macOS. No hay un SHA Linux verificado en este
-checkout. El runner compara el binario instalado con ese SHA y aborta si difiere;
-no se añadió una excepción por plataforma ni se relajó la verificación. Por
-tanto, la matriz Linux no puede considerarse ejecutable hasta obtener una fuente
-local verificada y revisar el hash Linux de CLI 2.84.2. No se hizo búsqueda de
-red ni se inventó un digest.
+El [release oficial v2.84.2](https://github.com/supabase/cli/releases/tag/v2.84.2)
+y sus [assets oficiales](https://github.com/supabase/cli/releases/expanded_assets/v2.84.2)
+identifican el artefacto `supabase_linux_amd64.tar.gz`. El SHA-256 publicado para
+ese archivo es
+`620a5f6ea7b60f9b4fe112a5d72464ea0e53d04022035641674a2e6d121e0eb5`.
+
+La verificación local previamente registrada en
+`/tmp/supabase-cli-2.84.2.sQ6wuV/verification.txt` coincide: archivo de
+29.936.583 bytes y mismo SHA-256. El tar contenía un único miembro regular
+`supabase` de 94.924.984 bytes; el binario extraído dio SHA-256
+`3132b218461bf90d4cd5983b27b44031cd9b6c797c259a431b2e2520b5f7bdce`. Esa
+verificación no ejecutó el binario. El runner ahora admite hashes compilados solo
+para `darwin-arm64` (hash previo) y `linux-x64`; cualquier otra plataforma o
+arquitectura falla cerrado.
+
+En CI, `curl` descarga solo la URL de release fijada. El instalador Python
+comprueba el SHA del archivo antes de abrirlo, exige exactamente el miembro
+regular `supabase` sin rutas, links ni miembros extra, verifica tamaño y SHA del
+binario y solo entonces lo coloca bajo `RUNNER_TEMP` y lo añade a `GITHUB_PATH`.
+El script exige `GITHUB_ACTIONS=true` y `RUNNER_TEMP`; no usa root ni acepta
+hashes suministrados por el entorno. Tests Python generan tar sintético local y
+cubren digest del archivo, miembro seguro, links/path traversal, extra files y
+digest del binario.
 
 ## Verificación de este cambio
 
-Contratos de workflow y preloader: 6/6 PASS. `tsc --noEmit --pretty false` y
-Prettier `--check` de workflow, package manifest, contratos y nota QA: PASS;
-`git diff --check`: PASS. Este trabajo no ejecuta `test:e2e:local`, Playwright,
-Docker, Supabase, GitHub Actions ni servicios remotos. El gate configurado es un
-cambio candidato; no equivale a CI verde ni a protección de rama habilitada. La
-regla de branch protection debe exigir el nuevo check estable `Local Synthetic
-Owner E2E Required Gate` mediante configuración humana de GitHub.
-
-En la revisión posterior de YAML, el contrato parseado con `js-yaml` pasó 4/4,
-incluida la detección de claves repetidas y la única condición `false` en cada
-job remoto desactivado.
+En el commit de seguimiento, contratos locales Vitest (workflow YAML y runner
+preflight): 20/20 PASS; pruebas Python del instalador con tar sintético: 5/5
+PASS; `tsc --noEmit --pretty false`, Prettier `--check` de workflow, package
+manifest, contratos y nota QA, y `git diff --check`: PASS. Los tests de
+instalación no descargan ni ejecutan el artefacto oficial. Esta tarea no ejecuta
+`test:e2e:local`, Playwright, Docker, Supabase, GitHub Actions ni servicios
+remotos. El gate configurado es un cambio candidato; no equivale a CI verde ni a
+protección de rama habilitada. La regla de branch protection debe exigir el
+nuevo check estable `Local Synthetic Owner E2E Required Gate` mediante
+configuración humana de GitHub.

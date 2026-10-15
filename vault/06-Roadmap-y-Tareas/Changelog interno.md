@@ -12131,3 +12131,11 @@ Modelo separado, reclamación manual, administración, importación revisada, fi
 - No se cambia el bloqueo del hash binario Linux, no se ejecuta CI, E2E, Docker,
   servicios remotos ni se altera branch protection.
 - Contrato YAML local: 4/4 PASS; detecta claves duplicadas mediante parser.
+
+## 2026-10-15 — Pin del binario Supabase CLI Linux x64 para E2E CI
+
+- Se fija `linux-x64` a `3132b218461bf90d4cd5983b27b44031cd9b6c797c259a431b2e2520b5f7bdce`, preservando `darwin-arm64` y rechazando otros targets. La verificación previa registró tar oficial v2.84.2 de 29.936.583 bytes con SHA `620a5f6ea7b60f9b4fe112a5d72464ea0e53d04022035641674a2e6d121e0eb5`; miembro único `supabase` regular de 94.924.984 bytes con el SHA binario fijado. El CLI no se ejecutó en esa verificación.
+- CI descarga desde el release oficial y solo lo pone en `GITHUB_PATH` después de validar SHA del archivo, miembro tar permitido, tamaño/SHA del binario y versión. El instalador opera solo en GitHub Actions bajo `RUNNER_TEMP`; tests sintéticos no descargan nada.
+- Fuentes/evidencia: [release v2.84.2](https://github.com/supabase/cli/releases/tag/v2.84.2), [assets y checksum oficial](https://github.com/supabase/cli/releases/expanded_assets/v2.84.2), `/tmp/supabase-cli-2.84.2.sQ6wuV/verification.txt`.
+- No ejecutar CI, descargar/instalar el CLI localmente, ni abrir Docker/Supabase/E2E o servicios remotos.
+- Verificación mock-local: 20/20 Vitest de contrato/preflight, 5/5 pruebas del instalador con tar sintético, TypeScript y Prettier focal PASS. `git diff --check` PASS. Sin descarga/ejecución del CLI oficial ni ejecución CI.

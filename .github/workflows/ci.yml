@@ -295,10 +295,20 @@ jobs:
           node-version: "22"
           cache: "pnpm"
 
-      - name: Setup Supabase CLI
-        uses: supabase/setup-cli@v3
-        with:
-          version: 2.84.2
+      - name: Test pinned Supabase CLI installer against synthetic archives
+        run: python3 scripts/ci/test_install_pinned_supabase_cli.py
+
+      - name: Download, verify, and install pinned Supabase CLI
+        run: |
+          set -euo pipefail
+          archive="$RUNNER_TEMP/supabase_linux_amd64.tar.gz"
+          curl --fail --location --retry 3 \
+            https://github.com/supabase/cli/releases/download/v2.84.2/supabase_linux_amd64.tar.gz \
+            --output "$archive"
+          python3 scripts/ci/install_pinned_supabase_cli.py "$archive"
+          version_output="$("$RUNNER_TEMP/supabase-cli-2.84.2/supabase" --version)"
+          [[ "$version_output" == *"2.84.2"* ]]
+          echo "$RUNNER_TEMP/supabase-cli-2.84.2" >> "$GITHUB_PATH"
 
       - name: Install dependencies
         run: pnpm install --frozen-lockfile

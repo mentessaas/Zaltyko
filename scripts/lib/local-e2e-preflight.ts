@@ -3,8 +3,14 @@ import { accessSync, constants, existsSync, readFileSync } from "node:fs";
 import { join, relative, resolve, sep } from "node:path";
 
 export const SUPPORTED_SUPABASE_CLI_VERSION = "2.84.2";
-export const SUPPORTED_SUPABASE_CLI_SHA256 =
-  "c1c2bf3cac9cfb9679be798334821910f916d1cafe2cc5dc12d55443a15e920f";
+export const SUPPORTED_SUPABASE_CLI_SHA256_BY_TARGET: Readonly<
+  Record<string, string>
+> = {
+  "darwin-arm64":
+    "c1c2bf3cac9cfb9679be798334821910f916d1cafe2cc5dc12d55443a15e920f",
+  "linux-x64":
+    "3132b218461bf90d4cd5983b27b44031cd9b6c797c259a431b2e2520b5f7bdce",
+};
 
 // Image refs embedded in the verified Supabase CLI 2.84.2 default local stack.
 // Keep this list versioned: a CLI upgrade must refresh and review the manifest.
@@ -74,16 +80,32 @@ export function resolveExecutableOnPath(
   throw new Error(`Required local ${name} CLI is unavailable on PATH.`);
 }
 
+export function getSupportedSupabaseCliSha256(
+  platform: string,
+  architecture: string
+): string {
+  const target = `${platform}-${architecture}`;
+  const expectedHash = SUPPORTED_SUPABASE_CLI_SHA256_BY_TARGET[target];
+  if (!expectedHash) {
+    throw new Error(
+      `No verified Supabase CLI ${SUPPORTED_SUPABASE_CLI_VERSION} binary hash for ${target}; refusing to start containers.`
+    );
+  }
+  return expectedHash;
+}
+
 export function verifySupabaseCliBinary(
   binaryPath: string,
-  expectedHash = SUPPORTED_SUPABASE_CLI_SHA256
+  platform = process.platform,
+  architecture = process.arch
 ): void {
+  const expectedHash = getSupportedSupabaseCliSha256(platform, architecture);
   const actualHash = createHash("sha256")
     .update(readFileSync(binaryPath))
     .digest("hex");
   if (actualHash !== expectedHash) {
     throw new Error(
-      `Local E2E image manifest is verified only for Supabase CLI ${SUPPORTED_SUPABASE_CLI_VERSION} (${expectedHash}); found binary SHA-256 ${actualHash}. Refusing to start containers.`
+      `Local E2E image manifest is verified only for Supabase CLI ${SUPPORTED_SUPABASE_CLI_VERSION} on ${platform}-${architecture} (${expectedHash}); found binary SHA-256 ${actualHash}. Refusing to start containers.`
     );
   }
 }
