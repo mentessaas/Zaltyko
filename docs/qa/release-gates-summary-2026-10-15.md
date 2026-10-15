@@ -4,7 +4,17 @@
 
 No confundir validación local con CI remoto, compatibilidad del destino o autorización de despliegue. La autorización posterior permite inspección de metadata remota; no se han aplicado DDL ni modificado filas de negocio.
 
-## Candidato vigente — 5344e9d5, 10:19 UTC
+## Candidato vigente — 210aadda, 10:59 UTC
+
+PR226 actualizado por push normal a210aaddaed46dc4ee6b54191c4398fcf86f9d96d,
+OPEN/draft/REVIEW_REQUIRED. Único CI38724036863queued, Static38724036892 y
+Directory38724036865encurso. QA159 GO diff integrado/Main393mockPASS/tsc0/ESLint0/
+audit73/formato0; protecciones reconfirmadas antes del push. Experimento solo
+excluirStudio/meta, sin causa/ahorro ni runtime demostrados. No nuevoPASSfuncional
+o cleanup del SHA ni readiness. [Evidencia y límites](./ci-210aadda-candidate-2026-10-15.md).
+Sin dispatch/rerun ni notas empujadas duranteCI. Secciones inferiores históricas.
+
+## Candidato anterior — 5344e9d5, 10:19 UTC
 
 **Cierre10:48UTC:** CI38719360128 FAILURE y gate116378981309FAIL. Main verificó
 Chromium31.6s/WebKit32.3sPASS y cleanup informado por ambos runners; Firefox
