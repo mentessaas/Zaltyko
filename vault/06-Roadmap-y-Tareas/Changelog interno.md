@@ -12139,3 +12139,4 @@ Modelo separado, reclamación manual, administración, importación revisada, fi
 - Fuentes/evidencia: [release v2.84.2](https://github.com/supabase/cli/releases/tag/v2.84.2), [assets y checksum oficial](https://github.com/supabase/cli/releases/expanded_assets/v2.84.2), `/tmp/supabase-cli-2.84.2.sQ6wuV/verification.txt`.
 - No ejecutar CI, descargar/instalar el CLI localmente, ni abrir Docker/Supabase/E2E o servicios remotos.
 - Verificación mock-local: 20/20 Vitest de contrato/preflight, 5/5 pruebas del instalador con tar sintético, TypeScript y Prettier focal PASS. `git diff --check` PASS. Sin descarga/ejecución del CLI oficial ni ejecución CI.
+- Revisión final del manifiesto tar: el release contiene exactamente `LICENSE`, `README.md` y `supabase`, los tres archivos regulares. El extractor permite esos nombres una vez cada uno, selecciona solo `supabase` y rechaza links, duplicados, rutas y extras; los fixtures sintéticos cubren esas formas.

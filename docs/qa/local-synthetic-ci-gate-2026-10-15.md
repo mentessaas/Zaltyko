@@ -29,17 +29,19 @@ ese archivo es
 
 La verificación local previamente registrada en
 `/tmp/supabase-cli-2.84.2.sQ6wuV/verification.txt` coincide: archivo de
-29.936.583 bytes y mismo SHA-256. El tar contenía un único miembro regular
-`supabase` de 94.924.984 bytes; el binario extraído dio SHA-256
+29.936.583 bytes y mismo SHA-256. El tar oficial contiene tres miembros
+regulares: `LICENSE`, `README.md` y `supabase`. El binario `supabase` mide
+94.924.984 bytes y dio SHA-256
 `3132b218461bf90d4cd5983b27b44031cd9b6c797c259a431b2e2520b5f7bdce`. Esa
 verificación no ejecutó el binario. El runner ahora admite hashes compilados solo
 para `darwin-arm64` (hash previo) y `linux-x64`; cualquier otra plataforma o
 arquitectura falla cerrado.
 
 En CI, `curl` descarga solo la URL de release fijada. El instalador Python
-comprueba el SHA del archivo antes de abrirlo, exige exactamente el miembro
-regular `supabase` sin rutas, links ni miembros extra, verifica tamaño y SHA del
-binario y solo entonces lo coloca bajo `RUNNER_TEMP` y lo añade a `GITHUB_PATH`.
+comprueba el SHA del archivo antes de abrirlo, permite solo los tres miembros
+regulares esperados, exige cada nombre una sola vez y rechaza rutas, links y
+miembros extra. Verifica tamaño y SHA del binario y solo entonces lo coloca bajo
+`RUNNER_TEMP` y lo añade a `GITHUB_PATH`.
 El script exige `GITHUB_ACTIONS=true` y `RUNNER_TEMP`; no usa root ni acepta
 hashes suministrados por el entorno. Tests Python generan tar sintético local y
 cubren digest del archivo, miembro seguro, links/path traversal, extra files y

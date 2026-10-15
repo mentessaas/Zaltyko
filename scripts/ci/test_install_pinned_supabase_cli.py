@@ -32,9 +32,11 @@ class PinnedSupabaseCliInstallerTests(unittest.TestCase):
             for member, content in entries:
                 archive.addfile(member, BytesIO(content) if content is not None else None)
 
-    def regular_member(self, name: str = "supabase") -> tarfile.TarInfo:
+    def regular_member(
+        self, name: str = "supabase", content: bytes | None = None
+    ) -> tarfile.TarInfo:
         member = tarfile.TarInfo(name)
-        member.size = len(self.payload)
+        member.size = len(content if content is not None else self.payload)
         member.mode = 0o644
         return member
 
@@ -61,8 +63,14 @@ class PinnedSupabaseCliInstallerTests(unittest.TestCase):
         )
         self.assertEqual(installer.BINARY_SIZE, 94_924_984)
 
-    def test_extracts_only_verified_regular_binary(self) -> None:
-        self.write_archive([(self.regular_member(), self.payload)])
+    def test_extracts_pinned_binary_from_three_verified_regular_members(self) -> None:
+        self.write_archive(
+            [
+                (self.regular_member("LICENSE", b"synthetic license"), b"synthetic license"),
+                (self.regular_member("README.md", b"synthetic readme"), b"synthetic readme"),
+                (self.regular_member(), self.payload),
+            ]
+        )
 
         binary = self.install_with_fixture_pins()
 
@@ -76,16 +84,38 @@ class PinnedSupabaseCliInstallerTests(unittest.TestCase):
             installer.extract_verified_cli(self.archive, self.destination)
         self.assertFalse(self.destination.exists())
 
-    def test_rejects_paths_links_and_extra_members(self) -> None:
+    def test_rejects_paths_links_duplicates_missing_members_and_extras(self) -> None:
         unsafe_members: list[list[tuple[tarfile.TarInfo, bytes | None]]] = [
             [(self.regular_member("../supabase"), self.payload)],
         ]
-        link = tarfile.TarInfo("supabase")
+        link = tarfile.TarInfo("README.md")
         link.type = tarfile.SYMTYPE
         link.linkname = "../../outside"
         unsafe_members.append([(link, None)])
+        hardlink = tarfile.TarInfo("README.md")
+        hardlink.type = tarfile.LNKTYPE
+        hardlink.linkname = "supabase"
+        unsafe_members.append([(hardlink, None)])
+        unsafe_members.append([(self.regular_member("extra"), self.payload)])
         unsafe_members.append(
-            [(self.regular_member(), self.payload), (self.regular_member("extra"), self.payload)]
+            [
+                (self.regular_member("LICENSE", b"license"), b"license"),
+                (self.regular_member("README.md", b"readme"), b"readme"),
+                (self.regular_member(), self.payload),
+                (self.regular_member(), self.payload),
+            ]
+        )
+        unsafe_members.append(
+            [
+                (self.regular_member("LICENSE", b"license"), b"license"),
+                (self.regular_member(), self.payload),
+            ]
+        )
+        unsafe_members.append(
+            [
+                (self.regular_member("LICENSE", b"license"), b"license"),
+                (self.regular_member("README.md", b"readme"), b"readme"),
+            ]
         )
 
         for entries in unsafe_members:
@@ -101,7 +131,13 @@ class PinnedSupabaseCliInstallerTests(unittest.TestCase):
                 self.assertFalse(self.destination.exists())
 
     def test_rejects_binary_digest_mismatch_and_removes_partial_install(self) -> None:
-        self.write_archive([(self.regular_member(), self.payload)])
+        self.write_archive(
+            [
+                (self.regular_member("LICENSE", b"synthetic license"), b"synthetic license"),
+                (self.regular_member("README.md", b"synthetic readme"), b"synthetic readme"),
+                (self.regular_member(), self.payload),
+            ]
+        )
 
         with (
             patch.object(
