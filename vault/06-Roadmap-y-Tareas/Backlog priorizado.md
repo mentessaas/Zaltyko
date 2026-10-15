@@ -17,6 +17,8 @@ source:
 ---
 ## P0 — Cerrar el recorrido MVP publicado — 2026-10-14
 
+Actualización15oct09:57UTC: CI2b38713511027cerróFAILURE; Chromium/UnitPASS, Firefoxbuild240s/WebKitidentidadkong/SecuritycontratoFAIL. FixSecuritysoloLOCAL57a09b27. Pendiente observabilidadrevisada QAidentidad/Backendmilestonesbuild(noarregloscausalesdemostrados), siguienteSHAúnicotrasrevisión/protecciones, no rerun. Esquema/backup/rolapp/reviewPR siguen pendientes; captaciónlistaesperaseparada no equivale a SaaSpublicable.
+
 09:41UTC: fix de contrato integradoLOCAL(d0c32c99,Backend92GO), audit:envPASS73 y18/18focalesMain, ESLint/Prettier/diffcheckPASS. Pendiente incorporarlo a siguiente candidato tras cierre/revisión de CI actual y protecciones verificadas; no repetir run idéntico ni empujar notas mientras corre.
 
 Actualización15oct09:38UTC: candidato remoto2b581cd9/CI38713511027 abierto. Build/lint/móvil/RLS/migraciones y Static/Directory PASS; Security FAIL por marcador sintético no documentado, confirmado log/reproducción local. Frontend prepara fix mínimo `.env.example` defaultfalse+regresión, sin modificar auditor; no empujar mientras corre matriz. CI completo, seguridad residual, esquema/recuperación y aprobación independiente siguen pendientes. No merge ni deploy.

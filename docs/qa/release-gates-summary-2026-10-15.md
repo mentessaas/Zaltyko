@@ -6,6 +6,8 @@ No confundir validación local con CI remoto, compatibilidad del destino o autor
 
 ## Candidato vigente —2b581cd9,09:31UTC
 
+**Cierre09:57UTC:** CI38713511027COMPLETED/FAILURE y gateFAIL; Chromium32.4sPASS/cleanup y Unit2886PASS3skip. Firefox build240s antesPlaywright/cleanup; WebKit falla identidadkonghub-inspect antesretag/Supabase, campo noverificado; Securityaudit:envFAIL con fix soloLOCAL57a09b27. QA/Backend preparan observabilidad local sin relajarchecks ni prometerresolver. No nuevo push/run hasta revisión; esquema/recuperación/seguridadresidual/reviewPR pendientes. [Evidencia final](./ci-2b581cd9-candidate-2026-10-15.md). Estados abiertos de párrafos inferiores son históricos.
+
 Observación09:38UTC: CI38713511027 abierto; Build/lint/móvil/RLS/migraciones y Static/Directory PASS. Security FAIL por marcador sintético no documentado en `.env.example`, reproducido localmente; Frontend prepara corrección mínima, sin relajar auditor. Matriz/Unit pendientes, no resultado funcional ni cleanup nuevo demostrado. No listo para publicar; no push mientras corre CI. Detalle en el informe del candidato.
 
 09:41UTC: corrección documental integrada solo LOCAL, Backend92GO; audit:envPASS73 y18/18focalesMain, ESLint/Prettier/diffcheckPASS. Auditor/runtime intactos. No push adicional ni resultado CI verde atribuido al fix local.

@@ -1,4 +1,16 @@
-# Candidato2b581cd9: CI abierto con fallo del contrato de entorno
+# Candidato2b581cd9: cierre CI FAILURE, tres fallos independientes
+
+## Cierre confirmado —15oct09:57UTC
+
+[CI38713511027](https://github.com/mentessaas/Zaltyko/actions/runs/38713511027) COMPLETED/FAILURE sobre SHA exacto2b581cd92be6cc1bf3531032a9914e006e409161. Main verificó API/logs y QA141 cerró la observación. RequiredGate116357831554FAILURE09:49:12UTC. Chromium/Unit/Build/lint/móvil/RLS/migraciones/Static/DirectoryPASS, con límites descritos abajo. Sandbox readiness/auth y públicosSKIPPED.
+
+- Firefox116350475568FAILURE: `next build` agota240000ms antes de Playwright; cleanup comunicado09:46:56UTC. Config confirma worker activado, no diferencia de selección según navegador. Next informa compilación2.9min/294páginas/optimización/tracing; spancompletado137961.723ms es máximo de un nombre, no tiempo total. La causa de lentitud y beneficio causal del worker siguen NO VERIFICADOS.
+- WebKit116350475834FAILURE: precarga kong:2.8.1 rechaza identidad hub-inspect con status0, antes de retag y Supabase. No corresponde atribuir cleanup de stack no iniciado. Logs sin campo observado y cero artifacts segúnQA142: parseo/formaJSON, OS, arquitectura, config o RepoDigests no se distinguen. Hipótesis `kong`/`library/kong` no demostrada; no relajar digest/config/plataforma para hacer pasar el job.
+- SecurityFAIL por documentación de marcador, fix local57a09b27 revisado y verificado; SBOM no ejecutado. Este fix no resuelve Firefox ni WebKit ni cambia el resultado del SHA remoto.
+
+Próximo trabajo autorizado LOCAL: QA instrumenta checks cerrados boolean/not-evaluated de identidad con fixtures/no-leaks; Backend prepara hitos de build allowlist con tiempos monotónicos y resumen comparable éxito/fallo, más count/sum/max de cinco fases permitidas. Son observabilidad, no arreglos causales demostrados. Sin builds/E2E/Docker/pulls/instalaciones ni nuevo push/run; revisión independiente antes de integración y candidato. Captación/lista de espera dispone de otro chat solicitado por el usuario, aislado de estos tres frentes y de los despliegues del SaaS.
+
+Las observaciones siguientes son históricas y no mantienen el run abierto.
 
 ## Actualización09:47UTC — resultados parciales del SHA exacto
 
