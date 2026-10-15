@@ -40,6 +40,15 @@ Siguen separados seguridad residual, esquema/recuperación/rolapp, revisión y r
 
 ## Preparación local posterior — plan11 integrado, origen primario pendiente
 
+**Actualización11:58UTC:** Backend3ba7fbab integrado localmente por hunks tras
+Frontend105/QA171 GO. Hub primario exacto Logflare, mismo pin/digest y verify→
+retagID→postverify/600s, sin retry/ECR alternativo. Otros12pins/fallback429 y
+plan11/catálogo13 intactos. Main453/453mock11filesPASS9.44s, tsc0, ESLint0,
+Prettier/diffcheck0/audit73. Protecciones GitHub/Vercel reconfirmadas11:57UTC;
+preparar único candidato distinto, no rerun de210. [Evidencia y límites](./logflare-hub-primary-2026-10-15.md).
+No cambia el cierreFAIL de210 ni acredita runtime, disponibilidad Hub o readiness.
+Las frases «pendiente/no integrado» siguientes describen el corte11:40UTC.
+
 Main integra Frontend4a60de36 por hunks tras QA166 GO: plan activo compartido11,
 catálogo/pins13 intactos. Main335/335mockPASS5files3.56s, tsc0, ESLint focal0sinavisos,
 Prettier/diffcheck0. Sin Docker/build/E2E/pull/install/CI. Elimina requisitos de dos

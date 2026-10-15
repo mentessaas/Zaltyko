@@ -45,7 +45,9 @@ describe("exact pinned repository representations", () => {
       const run = docker(pin, [representation]);
       await pullPinnedImageWithDigestFallback(pin.ecr, run, () => 0);
       expect(run.mock.calls.map((c) => c[0])).toEqual([
-        ["pull", "--platform", "linux/amd64", pin.ecr],
+        ...(pin.ecr === "public.ecr.aws/supabase/logflare:1.34.14"
+          ? []
+          : [["pull", "--platform", "linux/amd64", pin.ecr]]),
         [
           "pull",
           "--platform",

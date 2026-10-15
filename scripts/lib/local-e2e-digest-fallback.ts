@@ -57,6 +57,7 @@ function inspectIdentity(
 }
 
 /** Call in place of the existing missing-image pull; caller retains its filtered env.
+ * Only the exact logflare pin uses Hub first; all other pins retain quota-only fallback.
  * No login, registry env override, retries, raw provider output, or mutable Hub tag.
  */
 export async function pullPinnedImageWithDigestFallback(
@@ -113,25 +114,33 @@ export async function pullPinnedImageWithDigestFallback(
     elapsedAt(stage, result.status);
     return result;
   }
-  const primary = await command("ecr-pull", [
-    "pull",
-    "--platform",
-    "linux/amd64",
-    ecrRef,
-  ]);
-  if (primary.status === 0) return;
-  // A terminated process has no exit code: quota-like stderr cannot authorize
-  // another pull after termination or an invalid command result.
-  if (
-    primary.status === null ||
-    !Number.isInteger(primary.status) ||
-    primary.status <= 0
-  ) {
-    throw new DigestFallbackError("ecr-pull", primary.status, "primary");
-  }
-  const flags = dockerDiagnosticFlags(primary.stderr);
-  if (flags.length !== 1 || flags[0] !== "rate-limit") {
-    throw new DigestFallbackError("ecr-pull", primary.status, "primary", flags);
+  const hubPrimary = ecrRef === "public.ecr.aws/supabase/logflare:1.34.14";
+  if (!hubPrimary) {
+    const primary = await command("ecr-pull", [
+      "pull",
+      "--platform",
+      "linux/amd64",
+      ecrRef,
+    ]);
+    if (primary.status === 0) return;
+    // A terminated process has no exit code: quota-like stderr cannot authorize
+    // another pull after termination or an invalid command result.
+    if (
+      primary.status === null ||
+      !Number.isInteger(primary.status) ||
+      primary.status <= 0
+    ) {
+      throw new DigestFallbackError("ecr-pull", primary.status, "primary");
+    }
+    const flags = dockerDiagnosticFlags(primary.stderr);
+    if (flags.length !== 1 || flags[0] !== "rate-limit") {
+      throw new DigestFallbackError(
+        "ecr-pull",
+        primary.status,
+        "primary",
+        flags
+      );
+    }
   }
   const hubRef = `docker.io/${pin.hub}@${pin.manifest}`;
   const fallback = await command("hub-pull", [
@@ -144,7 +153,7 @@ export async function pullPinnedImageWithDigestFallback(
     throw new DigestFallbackError(
       "hub-pull",
       fallback.status,
-      "hub",
+      hubPrimary ? "hub-primary" : "hub",
       dockerDiagnosticFlags(fallback.stderr)
     );
   const inspection = await command("hub-inspect", ["image", "inspect", hubRef]);

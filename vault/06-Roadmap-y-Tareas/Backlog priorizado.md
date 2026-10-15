@@ -17,6 +17,12 @@ source:
 ---
 ## P0 — Cerrar el recorrido MVP publicado — 2026-10-14
 
+11:58UTC: Backend3ba7fbab integradoLOCAL tras Frontend105/QA171GO; Hubprimario
+exactdigestSOLOLogflare,verify→retagID→postverify600s/sinretryECR,otros12sin cambios.
+Main453mock11filesPASS/tsc0/ESLint0/formato0/audit73; proteccionesreconfirmadas.
+Preparar únicoSHA distinto, no repetir210. CI nuevo/destino/recuperación/rolapp/
+seguridadresidual/reviewPR/release pendientes; disponibilidadHub NOdemostrada.
+
 Actualización15oct11:34–11:40UTC: CI210cerradoFAIL soloWebKitprecargalogflaretimeout,
 Chromium/FirefoxPASScleanup. Plan11localintegrado/Main335mockPASS/tsc0/QA166GO;
 no arregla directamente origenfallido. CacheNO-GO porintegridad/tamaño/tiempo/coste

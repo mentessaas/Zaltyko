@@ -59,6 +59,8 @@ const reasons = {
   primary:
     "ECR pull failed without an exclusive rate-limit indicator; fallback refused.",
   hub: "Docker Hub digest fallback failed; no retry permitted.",
+  "hub-primary":
+    "Docker Hub pinned primary pull failed; no retry or alternative permitted.",
   inspection: "Image inspection failed; refusing retag.",
   identity: "Image identity verification failed; refusing ECR retag.",
   tag: "Verified image ECR retag failed.",

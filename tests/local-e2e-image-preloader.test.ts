@@ -81,12 +81,38 @@ describe("GitHub Actions local Supabase image preloader", () => {
 
   it("validates the local daemon and pulls only missing manifest images", async () => {
     const commands: string[][] = [];
+    const logflare = LOCAL_E2E_DIGEST_PINS.find(
+      (pin) => pin.ecr === "public.ecr.aws/supabase/logflare:1.34.14"
+    )!;
+    let logflareTagged = false;
     const run = vi.fn(async (args: string[]) => {
       commands.push(args);
       if (args[0] === "info") {
         return { status: 0, stdout: "27.5.1", stderr: "" };
       }
       if (args[0] === "image") {
+        if (args[1] === "tag") {
+          logflareTagged = true;
+          return { status: 0, stdout: "", stderr: "" };
+        }
+        if (
+          args[1] === "inspect" &&
+          (args[2] === `docker.io/${logflare.hub}@${logflare.manifest}` ||
+            (args[2] === logflare.ecr && logflareTagged))
+        ) {
+          return {
+            status: 0,
+            stdout: JSON.stringify([
+              {
+                Os: "linux",
+                Architecture: "amd64",
+                Id: logflare.config,
+                RepoDigests: [`${logflare.hub}@${logflare.manifest}`],
+              },
+            ]),
+            stderr: "",
+          };
+        }
         return {
           status: args[2] === REQUIRED_LOCAL_SUPABASE_IMAGES[0] ? 0 : 1,
           stdout: "",
@@ -107,7 +133,9 @@ describe("GitHub Actions local Supabase image preloader", () => {
         "pull",
         "--platform",
         "linux/amd64",
-        image,
+        image === logflare.ecr
+          ? `docker.io/${logflare.hub}@${logflare.manifest}`
+          : image,
       ])
     );
     expect(commands.some((args) => args.includes("latest"))).toBe(false);

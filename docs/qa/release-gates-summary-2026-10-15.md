@@ -2,6 +2,12 @@
 
 ## Decisión: NO-GO para publicar
 
+Preparación11:58UTC: Main integra Hub primario por digest SOLO Logflare exacto
+tras Frontend105/QA171 GO, conservando plan11/pins13/identidad/600s/240s. Main
+453/453mock11filesPASS, tsc0/ESLint0/formato/diffcheck0/audit73; protecciones
+reconfirmadas solo lectura. Justifica candidato distinto y una corrida porSHA,
+no cierre CI ni publicación. [Detalle](./logflare-hub-primary-2026-10-15.md).
+
 No confundir validación local con CI remoto, compatibilidad del destino o autorización de despliegue. La autorización posterior permite inspección de metadata remota; no se han aplicado DDL ni modificado filas de negocio.
 
 ## Candidato vigente — 210aadda, cierre observado11:24UTC

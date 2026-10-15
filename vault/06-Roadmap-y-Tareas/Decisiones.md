@@ -1058,3 +1058,16 @@ PASS, sin runtime nuevo todavía. Un candidato distinto solo tras checks complet
 reviewfinal y protecciones; ningún rerun idéntico ni promesa de ahorro/readiness.
 No producción/merge/despliegue autorizado por este experimento. Metadata17.6 en
 ambos destinos no autoriza upgrade ni afirma CVEs concretos sin contraste/backups.
+
+## 2026-10-15 — Origen Hub primario acotado a Logflare
+
+Backend3ba7fbab, Frontend105/QA171 GO estático; integrado Main por hunks sobre
+plan11 actual. Solo referencia exacta public.ecr.aws/supabase/logflare:1.34.14,
+pin/digest existentes, verify→retagID→postverify600s compartidos; sin retry ni ECR
+alternativo. Otros12pins conservan fallback solo rate-limit exclusivo. No es
+Docker Official Image ni fallback ante timeout. Main453/453mock11filesPASS/tsc0/
+ESLint0/formato0/audit73; sin Docker/build/pulls/E2E locales. Protecciones
+GitHub/Vercel reconfirmadas11:57UTC. Preparar una corrida automática de candidato
+distinto, sin merge/deploy/DDL. Disponibilidad Hub y runtime NO VERIFICADOS;
+gates destino/recovery/rolapp/seguridad/review siguen NO-GO. Detalle:
+[evidencia local](../../docs/qa/logflare-hub-primary-2026-10-15.md).
