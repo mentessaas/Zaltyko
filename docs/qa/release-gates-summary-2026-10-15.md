@@ -2,6 +2,14 @@
 
 ## Decisión: NO-GO para publicar
 
+**14:47UTC Frontend145:** revisión readonly concluye NO-GO para cambiar código/
+config: falta atribución a compilador/módulo/tracing, no fix causal demostrado.
+Solicitada UNA nueva corrida diagnóstica más específica, sujeta a aprobación
+humana y diseño/revisión de privacidad/volumen/coste; AÚN NO autorizada ni
+implementada. Mantener240s/matriz/Node22/Sentry/tracing/cleanup, no push ni CI
+por notas. No repetir solicitud ni peticiónBackups; resto de gates abiertos.
+
+
 **Cierre14:37UTC:** CI38749323693 exactbf0aad14 FAILURE(updated14:35:30),
 gate116483093666 FAIL14:35:29; Static/Directory y otroschecksprincipales PASS.
 Chromium/WebKit timeout240s antesPlaywright; Firefox1PASS test26.9s(total36.2s),

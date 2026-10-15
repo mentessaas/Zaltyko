@@ -17,6 +17,13 @@ source:
 ---
 ## P0 — Cerrar el recorrido MVP publicado — 2026-10-14
 
+14:47UTC Frontend145 NO-GO para optimizar código/config sin atribución concreta.
+Falta diagnóstico por compilador/módulo/tracing; solicitada al humano UNA
+corrida adicional, AÚN NO autorizada ni instrumentada. Diseño/revisión privacidad/
+volumen/coste antes de ejecutar si aprueba;240s/checks/Sentry/Node22/cleanup
+intactos. No reiterar pregunta en heartbeat, push/CI/ediciones no autorizados.
+
+
 14:37UTC cierre bf0aad14: CI38749323693/gateFAIL, Static/Directory/otroschecksPASS;
 Chromium/WebKit build240s antesPlaywright, Firefox1PASS26.9s(total36.2s),
 build238910ms. Trescleanup reportados, no inventarioDockerindependiente.

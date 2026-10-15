@@ -7,6 +7,19 @@ source:
   - ../docs/architecture/zaltyko-domain-model.md
 ---
 
+## 2026-10-15 — Revisión final de diagnóstico; decisión humana pendiente14:47UTC
+
+- Frontend145 readonly localiza fases costosas, no módulo/ruta/plugin ni ajuste
+  causal justificable. NO-GO para optimizar código/config; ninguna edición,
+  prueba, build, Docker o CI nueva por su revisión.
+- Se solicita UNA corrida adicional del CI existente con diagnóstico específico
+  por compilador/módulo/tracing y revisión previa de privacidad/volumen/coste.
+  AÚN NO autorizada ni implementada;240s/checks/Node22/Sentry/tracing/cleanup
+  intactos. Sin perfiles crudos/fuentes/secrets/env/filasreales. No repetir
+  pregunta, instrumentar ni empujar notas mientras espera; sin merge/deploy/DDL.
+- Informe bf0aad14/releasegates/Backlog/Decisiones/Obsidian actualizados, diff-check
+  PASS. Remoto bf0aad14/CI cerradoFAIL sin rerun; cacheajeno preservado. NO-GO.
+
 ## 2026-10-15 — Suite completa Vitest PASS en `bf094a1f`
 
 - Worktree aislado en el SHA exacto `bf094a1f0af85f11fa6ea0406a5024d21a6e4340`:

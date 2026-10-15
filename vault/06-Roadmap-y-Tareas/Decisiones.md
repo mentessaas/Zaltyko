@@ -8,6 +8,18 @@ source:
 
 # Decisiones
 
+## 2026-10-15 — Bloqueo causal confirmado; siguiente ejecución requiere decisión
+
+Frontend145 termina readonly: datos nuevos localizan fases, no módulo/ruta/
+plugin ni ajuste mínimo justificable. NO-GO para optimizar código/config.
+Solicitar UNA corrida adicional del CI existente para atribución por compilador
+módulo/tracing, con diseño/revisión previa de privacidad/volumen/sobrecoste,
+matriz240s/Node22/Sentry/tracing/cleanup y protecciones intactos. Sin perfiles
+crudos/fuentes/secretos/env ni datos reales. AÚN NO hay permiso ni diseño
+implementado ni ejecución. No repetir solicitud en cadaheartbeat; esperar
+respuesta sin nuevosCI/push/instrumentación. No merge/deploy/DDL ni GOrelease.
+
+
 ## 2026-10-15 — Cerrar el diagnóstico CI sin encadenar ejecuciones
 
 14:37UTC MainAPI/logs+QA208: CIbf0aad14/38749323693 FAILURE y gateFAIL.

@@ -1,5 +1,25 @@
 # Candidato bf0aad14 — una corrida acotada autorizada
 
+## Revisión estática final — 14:47 UTC
+
+Frontend145 contrasta el commit y Next15.5.27 instalado: worker activo en los
+tres jobs; la evidencia localiza coste agregado en compilación/tracing, no
+un módulo, ruta, plugin o cambio concreto. NO-GO para optimizar código/config
+con estos datos. No se modifica el worktree ni se ejecutan nuevas pruebas.
+La memoria host disponible no permite descartar presión del heap/proceso;
+las sumas y máximos host no prueban causa exclusiva de Next.
+
+Falta atribución por compilador y trabajo de tracing ligada a módulos/rutas
+para justificar un fix. Se solicita al humano UNA nueva corrida del CI existente
+con ese diagnóstico más específico, después de diseñarlo/revisarlo y acotar
+privacidad/volumen/sobrecoste; sin perfiles crudos, fuentes/secretos/entornos
+ni datos reales. Mantener matriz/240s/Node22/Sentry/tracing/cleanup/protecciones.
+**Aún NO autorizada ni preparada/implementada ni ejecutada.** No encadenar CI,
+push o instrumentación mientras se espera; no repetir esta petición en cada
+heartbeat. La autorización anterior de una corrida ya está consumida.
+Fuente Frontend145 y logs exactos de la sección de cierre siguiente. NO-GO.
+
+
 ## Cierre verificado — 14:37 UTC
 
 Main API/logs y QA208 confirman **CI38749323693 COMPLETED/FAILURE**, SHA exacto
