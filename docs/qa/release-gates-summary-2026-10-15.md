@@ -21,3 +21,5 @@ No confundir validación local con CI remoto, compatibilidad del destino o autor
 4. Confirmar el candidato de despliegue y autorización explícita antes de publicar. Ningún PASS local habilita un despliegue automático.
 
 La primera acción externa propuesta es publicar únicamente la rama candidata y actualizar el PR de revisión para ejecutar CI sintético sin secretos de Sandbox. Requiere confirmar antes que esa publicación no dispara despliegues o flujos remotos no autorizados. No se ha realizado.
+
+Revisión estática independiente Frontend 50: PR a main/develop activa CI; los jobs de Sandbox están desactivados. `deploy.yml` conserva despliegue automático al push a main y despacho manual sin restricción de rama en YAML. No usar ninguno para esta validación. Integración Git de Vercel, previews automáticas, Production Branch y protecciones del entorno remoto: **NO VERIFICADO**. Antes de publicar cualquier rama, se solicita autorización para inspeccionar exclusivamente esa configuración remota de GitHub/Vercel, sin leer valores secretos, ejecutar workflows o desplegar. Typecheck sobre `df53a788`: salida 0.

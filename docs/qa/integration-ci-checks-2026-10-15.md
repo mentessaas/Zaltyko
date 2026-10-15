@@ -1,5 +1,7 @@
 # Verificación local de integración CI — 2026-10-15
 
+Estado histórico del candidato indicado. La cobertura financiera posterior y los gates actuales se consolidan en `release-gates-summary-2026-10-15.md`; la sección pendiente de esta nota no invalida los PASS posteriores documentados allí.
+
 Candidato: `43050ba3fac9e7fc22e1def8eb4be2067bbb927e`.
 
 Se integró la rama CI hasta `35a2bab961933648f3b803fa1f6fdc3a2d6f4670`, tras revisión independiente Frontend (revisión 43). Incluye corrección del instalador para el archivo oficial con LICENSE, README.md y supabase regulares únicos; mantiene desactivados los dos jobs del Sandbox y define una matriz local sintética bloqueante.
