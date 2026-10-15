@@ -1,0 +1,75 @@
+{
+  "observed_utc": "2026-10-15T10:51Z",
+  "source_sql_sha256": "803f2c6b1437ff57b374945fd381291a634198332324fefce92334c87c457e66",
+  "source_commit": "883ed06d86b3416cb1b3b57b03f146a0d4c89ca0",
+  "review": "Main and Frontend98 static GO; Main12/12 static tests PASS before execution",
+  "transaction": "BEGIN READ ONLY; SET LOCAL statement_timeout = '10s'; SELECT catalog evidence; COMMIT;",
+  "scope": "Numeric server version and three fixed extension catalog entries only; no business/Auth/accounting rows, DDL, dynamic SQL, functions, export or upgrade.",
+  "targets": [
+    {
+      "target": "Sandbox",
+      "project_id": "aeeootdmuiqkfeernskw",
+      "evidence": {
+        "extensions": [
+          {
+            "extversion": null,
+            "extension_name": "btree_gist",
+            "schema_category": null,
+            "extension_exists": false,
+            "version_format_valid": null
+          },
+          {
+            "extversion": null,
+            "extension_name": "ltree",
+            "schema_category": null,
+            "extension_exists": false,
+            "version_format_valid": null
+          },
+          {
+            "extversion": "1.3",
+            "extension_name": "pgcrypto",
+            "schema_category": "extensions",
+            "extension_exists": true,
+            "version_format_valid": true
+          }
+        ],
+        "server_version_num": 170006
+      }
+    },
+    {
+      "target": "Production",
+      "project_id": "jegxfahsvugilbthbked",
+      "evidence": {
+        "extensions": [
+          {
+            "extversion": null,
+            "extension_name": "btree_gist",
+            "schema_category": null,
+            "extension_exists": false,
+            "version_format_valid": null
+          },
+          {
+            "extversion": null,
+            "extension_name": "ltree",
+            "schema_category": null,
+            "extension_exists": false,
+            "version_format_valid": null
+          },
+          {
+            "extversion": "1.3",
+            "extension_name": "pgcrypto",
+            "schema_category": "extensions",
+            "extension_exists": true,
+            "version_format_valid": true
+          }
+        ],
+        "server_version_num": 170006
+      }
+    }
+  ],
+  "limits": [
+    "Observed endpoint/session, not every pool/deployment.",
+    "Does not prove provider security backports, individual CVE applicability, use of affected pgcrypto functions or encrypted data.",
+    "Does not authorize an upgrade, reindex, restore or DDL; recovery and provider maintenance decision remain separate."
+  ]
+}

@@ -266,7 +266,7 @@ void (async () => {
     stackStartAttempted = true;
     await run(
       supabaseCli,
-      localProject(["start", "--exclude", "supavisor"]),
+      localProject(["start", "--exclude", "supavisor,studio,postgres-meta"]),
       dockerEnvironment,
       LOCAL_E2E_TIMEOUTS.setup,
       abortController.signal

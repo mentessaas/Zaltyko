@@ -17,6 +17,18 @@ const localSetupSpec = readFileSync(
 );
 
 describe("local E2E runner wiring", () => {
+  it("excludes only the pooler and management UI services", () => {
+    const start = runnerSource.split(
+      'localProject(["start", "--exclude", "'
+    )[1];
+    expect(start?.split('"')[0].split(",")).toEqual([
+      "supavisor",
+      "studio",
+      "postgres-meta",
+    ]);
+    expect(runnerSource).not.toContain("--ignore-health-check");
+  });
+
   it("forwards telemetry-off through the sanitized child environment", () => {
     expect(runnerSource).toContain(
       'safeEnvironment.NEXT_TELEMETRY_DISABLED = "1"'
@@ -46,13 +58,15 @@ describe("local E2E runner wiring", () => {
     expect(
       runnerSource.indexOf("const missingImages = findMissingImages(")
     ).toBeLessThan(
-      runnerSource.indexOf('localProject(["start", "--exclude", "supavisor"])')
+      runnerSource.indexOf(
+        'localProject(["start", "--exclude", "supavisor,studio,postgres-meta"])'
+      )
     );
   });
 
   it("marks stack start attempted before the command and stops the same workdir", () => {
     expect(runnerSource).toMatch(
-      /stackStartAttempted = true;\s*await run\(\s*supabaseCli,\s*localProject\(\["start", "--exclude", "supavisor"\]\)/
+      /stackStartAttempted = true;\s*await run\(\s*supabaseCli,\s*localProject\(\["start", "--exclude", "supavisor,studio,postgres-meta"\]\)/
     );
     expect(runnerSource).toContain('localProject(["stop", "--no-backup"])');
     expect(runnerSource).toContain("cleanupLocalProject({");

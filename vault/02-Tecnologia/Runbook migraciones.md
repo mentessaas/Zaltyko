@@ -188,6 +188,15 @@ Fuentes actuales: [PostgreSQL 17.11: acciones para extensiones](https://supabase
 
 ## Flujo recomendado
 
+**Actualización15oct2026,10:51UTC (metadata-only):** Main confirmó por SQL
+`server_version_num=170006` en Sandbox y producción; pgcrypto1.3 en extensions,
+ltree/btree_gist ausentes. SQL fijo revisado Frontend98/Main, READONLY10s,
+sin filas reales ni DDL. [Evidencia y hash](../../docs/deployment/owner-pilot-version-extensions.md).
+No prueba backports ni CVEs individualmente aplicables. La instrucción histórica
+de revisar datos cifrados no autoriza hacerlo bajo este seguimiento: requiere
+alcance/clasificación/recuperación y decisión específicos antes de upgrade,
+reindex, restauración o escaneos de filas. La lectura de catálogo no cierra ese gate.
+
 1. Revisar schema actual en `src/db/schema/`.
 2. Generar migracion con `pnpm db:generate`.
 3. Leer SQL generado.

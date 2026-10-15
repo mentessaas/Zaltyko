@@ -979,6 +979,14 @@ La comparación estructural de columnas/restricciones/índices/trigger da parida
 
 ## P0 — Desbloquear CI sintético y cerrar gates de publicación — 2026-10-15
 
+10:48UTC: candidato5344e9d5/CI38719360128FAIL, Chromium31.6s/WebKit32.3sPASS+cleanup
+reportadorunner, Firefoxbuild240santesPlaywright/cleanup; gate116378981309FAIL.
+Security/SBOM/Unit/Build/restoejecutadosPASS. Preparar experimento acotado de
+excluir únicamenteStudio/meta si fuenteCLI2.84.2 y revisión respaldan independencia,
+sin tocar auth/db/REST/storage/Kong/env/checks/240s/cleanup. No causalidadprobada,
+no nuevoCI hastaentregafinal/review/protecciones. SuplementoSQLversion/extensiones
+solo catálogo pendiente de revisión; no upgrade ni mantenimiento automático.
+
 Integración local posterior: fallback por13digests, status entero positivo, identidad linuxamd64/config/RepoDigests antesydespuésretag,600s compartidos; Frontend75GO+QA119sinbloqueantes, Main80/80mockPASS. Pendiente único CI nuevo tras comprobar protecciones. Diagnóstico tracingNOresuelve causa240s; no repetir pruebas locales completas ya cerradas. Fuente digest-fallback-prepared-2026-10-15.md.
 
 Actualización vigente de6c3a64: CI38703429157FAIL por rate-limitChromium/WebKit, build240sFirefox y3unitarios. Fixunitario localc8f9c621 revisado; diagnósticobuild localc60a28b1 integrado31/31PASS, sincausaresuelta niotraCI. QA prepara fallback PORdigestlinuxamd64idéntico, sin pullsruntime todavíaycuotaHub no garantizada. No repetir corridaidéntica/ampliartimeouts.

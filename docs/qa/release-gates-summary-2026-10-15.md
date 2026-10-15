@@ -6,6 +6,13 @@ No confundir validación local con CI remoto, compatibilidad del destino o autor
 
 ## Candidato vigente — 5344e9d5, 10:19 UTC
 
+**Cierre10:48UTC:** CI38719360128 FAILURE y gate116378981309FAIL. Main verificó
+Chromium31.6s/WebKit32.3sPASS y cleanup informado por ambos runners; Firefox
+build240s antesPlaywright/cleanup. Demás checks ejecutados, Static/DirectoryPASS;
+Sandbox/públicosSKIPPED. No nuevoCI ni publicación. Excluir auxiliares de gestión
+es solo experimento local pendiente de revisión, no arreglo causal demostrado.
+[Cierre y evidencia](./ci-5344e9d5-candidate-2026-10-15.md).
+
 10:37UTC: Main verificó Chromium31.6sPASS/cleanup reportado por runner10:26:57,
 Build/UnitSUCCESS. QA153 informa Firefoxbuild240sFAIL antesPlaywright/cleanup;
 WebKit y cierre/gate pendientes. Catálogo Sandbox de roles/esquemas/privilegios

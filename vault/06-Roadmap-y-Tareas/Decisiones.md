@@ -1032,3 +1032,17 @@ Una ficha externa no crea dueño, academia operativa, trial ni suscripción. Sol
 | Decisión | Reutilizar snapshot keyset tenant-scoped `READ ONLY REPEATABLE READ`; insertar y consultar scopes en lotes con límites derivados del bloque; descubrir IDs y bloquearlos en orden global ascendente; resumir `completedRuns` por bloques tenant-scoped. Mantener el CTE de cohorts y transportar IDs con un único `uuid[]` y `ANY`. |
 | Consecuencia | No se truncan scopes ni filas; se conserva una transacción de escritura y `statement_timeout = '120s'`. Tests unitarios compilan SQL y verifican parámetros/driver local, pero no acreditan snapshot, locks, replay ni agregados en PostgreSQL. |
 | Estado | Fase 1 `8a67e8dc94918f944230adffb0f57d15ffaecb15`; fase 2 `34e0afdb3bf8f7614fc818a62340737a7fd4bd09`; integradas en Main `820eedb06ce627c49322054ff5ad347faffb9aed` tras QA38 según reporte del responsable. Runtime PostgreSQL y E2E pendientes; **NO-GO**. Ver [evidencia focal](../../docs/qa/retention-projections-runtime-gate-2026-10-14.md). |
+
+## 2026-10-15 — Experimento acotado de recursos del E2E sintético
+
+CI5344 cerró FAIL: Chromium/WebKit funcionales PASS, Firefox240s antes de Playwright.
+La diferencia de duraciones no identifica causa por navegador/CPU/IO. Se acepta
+solo experimento revisado Frontend9949694c/QA158: excluir al arrancar Studio y
+postgres-meta, además del pooler ya excluido. Fuente CLI2.84.2 y Kong separan esas
+superficies de gestión; /pg/* y /mcp quedan sin backend, no se eliminan rutas.
+Mantener todos los servicios usados por Owner, health checks, entorno real del
+stack sintético, migraciones, pins, Sentry/tracing,240s y cleanup. Main393/393mock
+PASS, sin runtime nuevo todavía. Un candidato distinto solo tras checks completos,
+reviewfinal y protecciones; ningún rerun idéntico ni promesa de ahorro/readiness.
+No producción/merge/despliegue autorizado por este experimento. Metadata17.6 en
+ambos destinos no autoriza upgrade ni afirma CVEs concretos sin contraste/backups.
