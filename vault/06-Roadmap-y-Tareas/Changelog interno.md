@@ -12225,3 +12225,6 @@ Modelo separado, reclamación manual, administración, importación revisada, fi
 
 - QA127: Firefoxfallabuild240santesPlaywright,cleanupreportado09:02:10UTC;WebKitiniciado. Diagnósticounspanwebpack169841msnoatribuye causa. Compararlogs sinrerejecución.
 - Backend81: sininterruptorpilotoobservadoenbootstrap/finanzas/outbox; roles/lease/suspensiónnoequivalenacierreuniversal. Propuestaflagsservidornoimplementada, noactivarpublicacióndeformaaccidentalalprepararesquema. Informe owner-pilot-activation-audit-e7dff88b-2026-10-15.md. Sinampliaralcanceaciegas.
+
+- Seguimiento09:11UTC: QA130WebKitresultado/cleanuppendientes. Frontend81parchebracesraíz9regresionesPASS+frozenoffline, Mainpidiójustificarcambioscomillas/procedenciayrevisardifffinalantesintegración.
+- Backend84workerWebpackcompatibleestáticamentesinbloqueoexplícito, preparaLOCALexperimentosintéticodoblemarcador+testsaislados,sinbuildniatribuirahorro. Node20oficialEOL,22LTS, no seaceptabajarE2Ecomoarreglo. Fuente build-worker-investigation-e7dff88b-2026-10-15.md;240s/Sentry/tracing/checks/produccióninalterados.

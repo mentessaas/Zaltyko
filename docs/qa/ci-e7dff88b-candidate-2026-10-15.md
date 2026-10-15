@@ -27,6 +27,8 @@ QA126: Firefox superó precarga y entró en E2E aislado, sin resultado funcional
 
 Actualización QA127, 09:04UTC: Firefox falló por build240s tras completar294páginas y llegar a Collecting build traces, antes de Playwright. El diagnóstico contiene una fase completada `run-webpack-compiler` de169841ms; no prueba la causa del retraso final. Cleanup informado por runner09:02:10UTC, sin marcador de error de parada. WebKit comenzó; cierre global pendiente. Chromium PASS no resuelve este fallo. QA compara logs/fases de ambos jobs sin nueva ejecución ni cambio de límites.
 
+09:11UTC, QA130: WebKit continúa en E2E; resultado/cleanup aún pendientes. Backend84 no encontró bloqueo explícito del build worker con callback/Sentry; prepara experimento sintético de doble marcador y pruebas de separación, **no fix ni mejora temporal demostrada**. Se descarta Node20 EOL como supuesto arreglo. [Investigación y límites](./build-worker-investigation-e7dff88b-2026-10-15.md). Frontend81 informa9regresiones raíz bracesPASS e instalación congelada offline; pendiente revisar diff final/procedencia del parche antes de integración, no resuelve alertas upstream.
+
 Auditoría independiente Frontend77 y consulta Main de alertas: siete registros abiertos en main corresponden a cuatro advisories. En el candidato, MCP SDK1.32.1 y shell-quote1.11.0 corrigen por versión tres registros; quedan cuatro registros de braces/node-forge con mitigación móvil local, no resolución upstream. El lock raíz también contiene braces3.0.3 y el parche móvil no lo cubre; alcance pendiente de análisis estático. Véase [matriz de seguridad](../security/dependency-alerts-e7dff88b-2026-10-15.md). No se han cerrado alertas ni aprobado la release.
 
 ## Protecciones y gates separados
