@@ -1,5 +1,11 @@
 // @vitest-environment jsdom
-import { cleanup, render, screen, waitFor } from "@testing-library/react";
+import {
+  cleanup,
+  fireEvent,
+  render,
+  screen,
+  waitFor,
+} from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
@@ -8,6 +14,7 @@ import { OwnerAttendanceManager } from "@/components/owner-dashboard/OwnerAttend
 const organizationId = "10000000-0000-4000-8000-000000000001";
 const locationId = "10000000-0000-4000-8000-000000000002";
 const sessionId = "10000000-0000-4000-8000-000000000003";
+const secondSessionId = "10000000-0000-4000-8000-000000000005";
 const enrollmentId = "10000000-0000-4000-8000-000000000004";
 const mockFetch = vi.hoisted(() => vi.fn());
 
@@ -20,13 +27,23 @@ const sessionOptions = [
   },
 ];
 
-function renderAttendance() {
+const secondSessionOption = {
+  id: secondSessionId,
+  className: "Grupo alternativo",
+  startsAt: "2026-10-14T16:00:00.000Z",
+  timezone: "Atlantic/Canary",
+};
+
+function renderAttendance(
+  sessions = sessionOptions,
+  initialSessionId: string | null = sessionId
+) {
   return render(
     <OwnerAttendanceManager
       organizationId={organizationId}
       locationId={locationId}
-      sessions={sessionOptions}
-      initialSessionId={sessionId}
+      sessions={sessions}
+      initialSessionId={initialSessionId}
     />
   );
 }
@@ -136,6 +153,64 @@ describe("pase de lista Owner (mock del contrato greenfield acordado)", () => {
     expect(
       await screen.findByRole("combobox", { name: "Seleccionar sesión" })
     ).toHaveTextContent("17:00");
+  });
+
+  it("conserva la lista si se vuelve a seleccionar la sesión actual y la recarga al cambiar", async () => {
+    mockFetch
+      .mockResolvedValueOnce({
+        ok: true,
+        status: 200,
+        json: async () => ({
+          ok: true,
+          data: {
+            items: [
+              {
+                enrollmentId,
+                athleteName: "Gimnasta A",
+                attendanceStatus: null,
+              },
+            ],
+          },
+        }),
+      })
+      .mockResolvedValueOnce({
+        ok: true,
+        status: 200,
+        json: async () => ({
+          ok: true,
+          data: {
+            items: [
+              {
+                enrollmentId: "10000000-0000-4000-8000-000000000006",
+                athleteName: "Gimnasta B",
+                attendanceStatus: null,
+              },
+            ],
+          },
+        }),
+      });
+
+    renderAttendance([...sessionOptions, secondSessionOption]);
+    expect(await screen.findByText("Gimnasta A")).toBeVisible();
+
+    const sessionSelect = screen.getByRole("combobox", {
+      name: "Seleccionar sesión",
+    });
+    fireEvent.change(sessionSelect, { target: { value: sessionId } });
+
+    expect(screen.getByText("Gimnasta A")).toBeVisible();
+    expect(screen.queryByText("Cargando lista…")).not.toBeInTheDocument();
+    expect(mockFetch).toHaveBeenCalledTimes(1);
+
+    fireEvent.change(sessionSelect, { target: { value: secondSessionId } });
+
+    expect(await screen.findByText("Gimnasta B")).toBeVisible();
+    expect(screen.queryByText("Gimnasta A")).not.toBeInTheDocument();
+    expect(screen.queryByText("Cargando lista…")).not.toBeInTheDocument();
+    expect(mockFetch).toHaveBeenCalledTimes(2);
+    expect(mockFetch.mock.calls[1]?.[0]).toBe(
+      `/api/v1/owner/sessions/${secondSessionId}/attendance?organizationId=${organizationId}&locationId=${locationId}`
+    );
   });
 
   it("distingue los botones por gimnasta y serializa los guardados", async () => {

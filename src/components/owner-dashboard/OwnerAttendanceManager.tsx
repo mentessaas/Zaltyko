@@ -245,13 +245,16 @@ export function OwnerAttendanceManager({
               <select
                 value={sessionId}
                 onChange={(event) => {
+                  const nextSessionId = event.target.value;
+                  if (nextSessionId === sessionId) return;
+
                   setAttendees([]);
                   setSelectedStatuses({});
                   setLoadError("");
                   setSaveError("");
                   setNotice("");
                   setLoading(true);
-                  setSessionId(event.target.value);
+                  setSessionId(nextSessionId);
                 }}
                 disabled={savingEnrollmentId !== null || hasPendingRetry}
                 className={fieldClassName}
