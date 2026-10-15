@@ -6,6 +6,13 @@ No confundir validación local con CI remoto, compatibilidad del destino o autor
 
 ## Candidato vigente — 5344e9d5, 10:19 UTC
 
+10:37UTC: Main verificó Chromium31.6sPASS/cleanup reportado por runner10:26:57,
+Build/UnitSUCCESS. QA153 informa Firefoxbuild240sFAIL antesPlaywright/cleanup;
+WebKit y cierre/gate pendientes. Catálogo Sandbox de roles/esquemas/privilegios
+ejecutado READONLY10s tras revisión, no identidad del pool ni aislamiento RLS
+funcional. Sin DDL/producción/nuevoCI/push. NO-GO sigue por CI y gates independientes.
+[Detalle actualizado](./ci-5344e9d5-candidate-2026-10-15.md).
+
 10:22UTC: Security/SBOM, lint/tipos, móvil, RLS/migraciones y Static/Directory PASS en el SHA exacto. Build/Unit y matriz/gate pendientes, sin evidencia funcional/cleanup nueva; alertas residuales y destino/recovery/review siguen separados. No listo. [Detalle](./ci-5344e9d5-candidate-2026-10-15.md).
 
 PR226 actualizado sin merge al SHA5344e9d5e246ce6dc91d096e5f57571beaae40fb. CI38719360128 queued, Static38719360372 y Directory38719360008 en curso; ningún PASS funcional ni cleanup de este SHA demostrado. Main379/379mockPASS, Frontend92/QA149GO y protecciones reconfirmadas antes del push. [Evidencia y límites](./ci-5344e9d5-candidate-2026-10-15.md). No duplicar corridas ni empujar notas durante CI. Las secciones inferiores son historial.
