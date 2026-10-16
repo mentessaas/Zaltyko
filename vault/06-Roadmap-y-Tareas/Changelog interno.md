@@ -6,16 +6,22 @@ source:
   - ../docs/audits/2026-10-03-launch-and-auth-followup.md
 ---
 
-## 2026-10-16 — Copy de lanzamiento y suscripción confirmada para academias
+## 2026-10-16 — Captura simple y recurso de agradecimiento
 
-- La landing explica que Zaltyko es una plataforma para academias de gimnasia artística y rítmica que ordena gimnastas, grupos, cuotas y asistencia; comunica que llegará próximamente sin dar fecha.
-- El formulario mantiene nombre y email obligatorios y academia opcional. Añade una casilla de novedades separada y desmarcada por defecto. El endpoint guarda la solicitud y registra el consentimiento en `directory_subscriptions` con doble opt-in, `source=academy_waitlist` y versión `academy-waitlist-2026-10-16`. No se incorporan contactos anteriores.
-- Super Admin → Growth muestra el estado de confirmación y baja en las solicitudes de waitlist. La política de privacidad y los mensajes aprobados describen la nueva finalidad; los contactos generales siguen sin suscripción.
-- Verificación y lanzamiento pendientes: tests focales, comprobación sintética en sandbox de lead/evento/consentimiento/confirmación/baja/email interno, entrega de correo del proveedor y revisión jurídica humana. Sin escrituras de prueba a producción ni publicación en esta pasada.
+- La landing recoge nombre y email obligatorios y academia opcional. No pide país, modalidad, teléfono, mensaje libre ni consentimiento de marketing.
+- La solicitud usa `source=academy_waitlist` para clasificar el lead, conservar UTM y aplicar idempotencia; no crea una suscripción ni activa una secuencia de emails.
+- Tras respuesta satisfactoria del servidor, lleva a `/gracias/`, explica qué prepara Zaltyko y ofrece una checklist PDF de inicio de temporada que se descarga sin registro adicional.
+- Se elimina el enlace "Crear academia gratis" de la landing para mantener una sola acción principal.
+- Pendiente antes de publicar: CI con lead/evento/UTM/aviso interno en sandbox, revisión humana de privacidad y confirmación operativa del aviso interno. No se enviaron pruebas a producción.
+
+## 2026-10-16 — Borrador anterior de suscripción (descartado antes de publicar)
+
+- Una iteración añadió una casilla de marketing, doble opt-in y estados de suscripción a la waitlist. El usuario decidió mantener el formulario como solicitud de información, sin suscripción.
+- Esa funcionalidad se retiró de la landing, el endpoint y la bandeja de Growth antes de integrar o publicar; no se migran ni se inscriben contactos.
 
 ## 2026-10-16 — Landing directa de captación y conservación de UTM
 
-- La página se simplifica a una propuesta breve sobre cuotas, grupos y asistencia, tres campos (nombre, email y academia opcional), aviso de privacidad y confirmación en la misma pantalla. País y modalidad quedan para más adelante; no hay alta de cuenta ni suscripción comercial en este paso.
+- La página se simplifica a una propuesta breve sobre cuotas, grupos y asistencia, tres campos (nombre, email y academia opcional) y aviso de privacidad. País y modalidad quedan para más adelante; no hay alta de cuenta ni suscripción comercial en este paso. El éxito redirige a una página de gracias con información y recurso descargable.
 - La landing envía `reason=sales`, `source=academy_waitlist` y una clave de idempotencia al endpoint de contacto. El producto valida hasta cinco campos UTM y los guarda en los metadatos del lead y en el evento `contact_submitted`; el aviso interno conserva el enlace a Super Admin → Growth sin copiar PII.
 - El proxy oculta la IP del visitante al llegar al deployment del producto; por eso el endpoint limita esta fuente a cinco envíos por minuto y hash del email normalizado. Los demás contactos mantienen el límite por IP.
 - El proxy `/api/contact` solo reenvía a `https://zaltyko.com/api/contact` en un deployment de producción. Preview y local responden 503 sin enviar datos. La prueba visual del formulario debe simular el endpoint; el probe con escritura solo se ejecuta contra el sandbox aislado.

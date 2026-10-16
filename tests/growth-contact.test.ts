@@ -67,6 +67,17 @@ describe("contact growth contracts", () => {
     expect(toContactAttributionProperties(undefined)).toEqual({});
   });
 
+  it("mantiene la solicitud de academias fuera del contrato de suscripción de marketing", () => {
+    expect(
+      ContactRequestSchema.safeParse(
+        buildContactRequest({
+          source: "academy_waitlist",
+          marketingConsent: true,
+        })
+      ).success
+    ).toBe(false);
+  });
+
   it("rechaza UTMs libres, demasiado largos y claves desconocidas", () => {
     expect(
       ContactRequestSchema.safeParse(

@@ -141,21 +141,11 @@ export const ContactRequestSchema = z
       .default("contact_form"),
     attribution: ContactAttributionSchema.optional(),
     message: z.string().trim().min(10).max(2_000),
-    marketingConsent: z.boolean().optional().default(false),
     honeypot: z.string().max(100).nullable().optional(),
     directoryEntryId: z.string().uuid().optional(),
     submissionId: z.string().uuid(),
   })
-  .strict()
-  .superRefine((value, context) => {
-    if (value.source !== "academy_waitlist" && value.marketingConsent) {
-      context.addIssue({
-        code: z.ZodIssueCode.custom,
-        path: ["marketingConsent"],
-        message: "El consentimiento comercial debe proceder del formulario de espera",
-      });
-    }
-  });
+  .strict();
 
 const nullableShortText = z.string().trim().max(180).nullable().optional();
 const nullableLongText = z.string().trim().max(2_000).nullable().optional();

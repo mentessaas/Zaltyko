@@ -21,8 +21,7 @@ const sections = [
     title: "2. Datos que recopilamos",
     content: [
       "Datos de cuenta: nombre, apellidos, correo electrónico, contraseña (hash) y rol asignado dentro de la academia.",
-      "Solicitudes de contacto: nombre, correo electrónico, motivo, mensaje y, si lo facilitas, nombre de la academia. La información de país y modalidad deportiva se solicita después, al configurar una academia; no es necesaria para enviar una consulta.",
-      "Lista de lanzamiento: si marcas la casilla de la landing de academias, registramos tu email, el nombre que facilites, el nombre opcional de la academia, el origen y la versión y fecha del consentimiento. Enviaremos un mensaje de confirmación; la suscripción solo queda activa cuando confirmas tu dirección.",
+      "Solicitudes de contacto: nombre, correo electrónico, motivo, mensaje y, si lo facilitas, nombre de la academia. Si la solicitud llega desde una campaña, también podemos recibir sus parámetros UTM para identificar su origen. En el formulario de interés de academias, país y modalidad deportiva no son necesarios para enviar la solicitud.",
       "Datos operativos: información de academias, atletas, coaches, asistencia, evaluaciones y eventos que tu organización introduce voluntariamente en la plataforma.",
       "Datos de suscripción y pago: identificadores de cliente en Stripe, historial de suscripción y metadatos de pago. No almacenamos números completos de tarjeta ni CVV.",
       "Datos técnicos: registros de acceso, dirección IP, tipo de dispositivo, idioma y cookies necesarias. Si aceptas analítica, también usamos un identificador aleatorio de visitante y parámetros UTM para entender el recorrido de captación.",
@@ -35,8 +34,7 @@ const sections = [
       "Procesar pagos y upgrades de plan mediante Stripe u otros procesadores compatibles.",
       "Medir el uso y rendimiento de la web con analítica opcional, únicamente si la autorizas.",
       "Medir campañas publicitarias, únicamente si habilitas esa categoría de cookies.",
-      "Enviar, si lo autorizas en la landing de academias, el aviso de disponibilidad de Zaltyko y novedades sobre el producto. Solo activamos la suscripción tras confirmar el email; podrás darte de baja cuando quieras.",
-      "Responder a las solicitudes de información, migración o acompañamiento comercial y gestionar los pasos previos que nos pidas. Las demás consultas no te suscriben a comunicaciones comerciales.",
+      "Responder a las solicitudes de información, incluidas las solicitudes sobre el lanzamiento de Zaltyko, migración o acompañamiento comercial, y gestionar los pasos previos que nos pidas. Enviar una solicitud desde la landing de academias no te suscribe a comunicaciones comerciales.",
     ],
   },
   {
@@ -44,7 +42,6 @@ const sections = [
     content: [
       "Ejecución de contrato cuando actúas como cliente o usuario autorizado de una academia.",
       "Para responder a solicitudes comerciales o de información: medidas precontractuales solicitadas por ti cuando correspondan; para otras consultas, interés legítimo en atender y gestionar la comunicación, ponderado con tus derechos.",
-      "Consentimiento para enviar novedades del producto y el aviso de disponibilidad, solicitado mediante una casilla separada, desmarcada por defecto y confirmada por email. Retirarlo no afecta al tratamiento anterior a la retirada.",
       "Interés legítimo para mejorar el servicio, prevenir fraudes y garantizar la seguridad de la plataforma.",
       "Consentimiento explícito cuando lo requerimos para comunicaciones comerciales o integraciones opcionales.",
     ],

@@ -776,7 +776,7 @@ Una ficha externa no crea dueño, academia operativa, trial ni suscripción. Sol
 | Consecuencia | La página orienta los planes estándar a crear una academia sin bloquear la captación con una demo. |
 | Estado | PR #207 se integró por squash en `93b152d1` después de pasar build, lint/typecheck, unitarias, RLS, migraciones, seguridad móvil y E2E autenticado con verificación de escrituras idempotentes. El bypass administrativo se usó con autorización del usuario porque GitHub exigía una aprobación de otro colaborador. Vercel `dpl_ET8Auj2t4xY3h8n6oF58mXE1jL4o` está `Ready`; `/pricing` responde 200 y muestra CTA de alta y selector anual. No se creó Checkout ni se hizo un cargo. Checkout Test y su webhook siguen pendientes. |
 
-## 2026-10-16 — Avisos de lanzamiento con consentimiento confirmado
+## 2026-10-16 — Borrador previo de suscripción (descartado antes de publicar)
 
 | Campo | Valor |
 | --- | --- |
@@ -785,18 +785,18 @@ Una ficha externa no crea dueño, academia operativa, trial ni suscripción. Sol
 | Evidencia | Registrar el consentimiento en `directory_subscriptions` con `purpose=marketing`, `source=academy_waitlist`, versión `academy-waitlist-2026-10-16`, fecha, token de confirmación y estado. Mostrar en Super Admin → Growth si la suscripción está pendiente, confirmada, retirada o no registrada. No incorporar contactos anteriores sin prueba de consentimiento. |
 | Copy | Explicar que Zaltyko organiza gimnastas, grupos, cuotas y asistencia para academias de gimnasia artística y rítmica; presentar el lanzamiento como próximo, sin fecha concreta. El éxito en pantalla dirige a confirmar el email y solo entonces promete avisos. |
 | Gate | Antes de activar tráfico: revisión jurídica humana de la capa informativa y la base de datos; prueba sintética en sandbox del contacto, consentimiento, confirmación, baja y entrega del mensaje; no mandar pruebas a producción. La casilla y el registro de consentimiento no demuestran por sí solos que el proveedor entregue el correo. |
-| Estado | Implementación en el PR de landing y extensión de PR #231 del producto. No desplegado. El criterio sustituye para la waitlist el “sin suscripción” de la decisión inmediatamente posterior; las consultas generales mantienen la decisión anterior. |
+| Estado | Borrador retirado antes de fusionar o publicar. La decisión vigente para la landing es captar una solicitud de información sin crear una suscripción ni una secuencia de marketing. |
 
 ## 2026-10-16 — Captura directa de interés en academias
 
 | Campo | Valor |
 | --- | --- |
 | Contexto | La landing anterior explicaba el producto y dirigía a otros pasos, pero no permitía dejar datos directamente. Se prioriza captar una solicitud de información antes de pedir datos operativos de la academia. |
-| Decisión | Formulario principal con nombre y email obligatorios y nombre de academia opcional. País y modalidad se preguntan más adelante. Mostrar confirmación en pantalla solo tras respuesta satisfactoria del servidor; no suscribir a novedades ni prometer correo automático. Mantener "Crear academia gratis" como CTA secundaria. |
-| Funnel | Publicar `/api/contact` en el mismo dominio de la landing como proxy al contacto existente. Enviar `source=academy_waitlist`, `reason=sales`, `submissionId` idempotente y UTM validados; guardar la atribución en los metadatos del lead y el evento `contact_submitted`. El aviso interno enlaza a Growth sin copiar datos personales. |
+| Decisión | Formulario principal con nombre y email obligatorios y nombre de academia opcional. País y modalidad se preguntan más adelante. El email se usa para responder a la solicitud; no se pide consentimiento de marketing, no se suscribe a novedades ni se promete un aviso automático. El CTA a crear una cuenta se elimina de la landing. |
+| Funnel | Publicar `/api/contact` en el mismo dominio de la landing como proxy al contacto existente. Enviar `source=academy_waitlist`, `reason=sales`, `submissionId` idempotente y UTM validados; guardar la atribución en los metadatos del lead y el evento `contact_submitted`. El aviso interno enlaza a Growth sin copiar datos personales. Tras guardar correctamente, llevar a `/gracias/` con información de Zaltyko y una checklist PDF descargable sin registro adicional. |
 | Límite | Vercel no conserva la IP original al reenviar entre deployments. Para evitar un único límite compartido entre todos los visitantes, la waitlist aplica cinco envíos/minuto sobre hash del email normalizado; el resto de contactos mantiene el límite por IP. |
 | Seguridad de pruebas | Preview y local no reenvían al producto de producción. Los casos UI usan respuestas simuladas; cualquier prueba con escritura usa exclusivamente el sandbox, con datos sintéticos y limpieza. |
-| Estado | Implementación en `codex/direct-academy-capture` y extensión del PR #231 del producto. DNS del subdominio verificado; los cambios no están desplegados. Siguen pendientes CI, aprobación humana obligatoria, revisión jurídica y E2E controlado del inbox/aviso antes de dirigir tráfico. |
+| Estado | Implementación en `codex/direct-academy-capture` y PR #231 del producto. DNS del subdominio verificado; los cambios no están desplegados. Siguen pendientes CI, revisión humana de privacidad y E2E controlado del lead, evento, UTM y aviso interno antes de dirigir tráfico. |
 
 ## 2026-10-15 — Captación de academias y conservación de consultas
 

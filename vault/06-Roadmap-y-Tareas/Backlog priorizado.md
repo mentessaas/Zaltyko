@@ -46,11 +46,11 @@ Code changes verificados: tsc OK, eslint OK, next build OK.
 
 # Backlog priorizado
 
-## P1 — Validar consentimiento y entrega de novedades de la waitlist — 2026-10-16
+## P1 — Verificar captación directa y recurso de agradecimiento — 2026-10-16
 
-- **Criterio:** revisión jurídica humana de la política y la casilla; con datos sintéticos en sandbox, comprobar lead, evento, consentimiento/versionado, email de confirmación, alta tras confirmar, baja y bloqueo de envíos después de retirarla.
-- **Gate de publicación:** verificar la entrega real del mensaje por Brevo en el entorno aislado y reevaluar tras el SHA que se publique. No usar registros reales, no importar contactos previos sin consentimiento y no dirigir tráfico mientras falten la revisión y la entrega confirmada.
-- **Estado:** código preparado en los PR de waitlist y producto; no publicado ni probado con escrituras en producción.
+- **Criterio:** revisar el aviso de privacidad; con datos sintéticos en sandbox, comprobar lead, evento, UTM, idempotencia e intento de aviso interno. Confirmar que el flujo no crea una suscripción de marketing y que `/gracias/` ofrece el PDF descargable.
+- **Gate de publicación:** revisar el email interno en el proveedor o inbox de prueba aislado; verificar el PDF en móvil y escritorio; reevaluar tras el SHA que se publique. No enviar datos sintéticos a producción.
+- **Estado:** implementación en ramas/PR de waitlist y producto; no publicada ni probada con escrituras en producción.
 
 ## P1 — Hacer fiable el control SBOM de CI — 2026-10-04
 

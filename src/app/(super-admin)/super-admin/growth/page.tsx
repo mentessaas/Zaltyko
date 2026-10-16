@@ -22,13 +22,6 @@ const inquiryReasonLabels: Record<string, string> = {
   other: "Otro",
 };
 
-const waitlistStatusLabels = {
-  confirmed: "Novedades confirmadas",
-  pending_confirmation: "Pendiente de confirmar email",
-  withdrawn: "Baja de novedades",
-  not_registered: "Sin alta de novedades",
-} as const;
-
 const madridDateTime = new Intl.DateTimeFormat("es-ES", {
   dateStyle: "medium",
   timeStyle: "short",
@@ -290,7 +283,7 @@ export default async function SuperAdminGrowthPage() {
                       )}
                       {inquiry.source === "academy_waitlist" && (
                         <p className="mt-2 inline-flex rounded-full border border-zaltyko-electric/25 bg-zaltyko-electric/10 px-2.5 py-1 text-xs font-medium text-zaltyko-electric">
-                          {waitlistStatusLabels[inquiry.marketingSubscriptionStatus]}
+                          Interés en academias
                         </p>
                       )}
                     </div>
