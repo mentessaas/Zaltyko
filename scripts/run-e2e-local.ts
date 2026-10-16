@@ -36,6 +36,7 @@ import {
   E2E_LOCAL_OWNER_SIGNUP_MIGRATIONS,
 } from "./lib/e2e-domain-migrations";
 import {
+  createBuildTraceCatalog,
   readBuildTraceSummary,
   withBuildDiagnostic,
 } from "./lib/local-build-trace-diagnostic";
@@ -312,6 +313,7 @@ void (async () => {
       "Building the app against the disposable local Supabase stack."
     );
     const progress = createBuildProgressObserver();
+    const buildTraceCatalog = createBuildTraceCatalog(root);
     await withBuildDiagnostic(
       () =>
         withBuildHostResourceMetrics(
@@ -338,11 +340,16 @@ void (async () => {
               ),
           }
         ),
-      () => readBuildTraceSummary(root),
+      () => readBuildTraceSummary(root, buildTraceCatalog),
       (summary) =>
         console.error(
           JSON.stringify({
-            buildTracePhases: summary,
+            buildTracePhases: {
+              status: summary.status,
+              reasons: summary.reasons,
+              phases: summary.phases,
+            },
+            buildTraceDetail: summary.detail,
             buildProgress: progress.finish(),
           })
         )
