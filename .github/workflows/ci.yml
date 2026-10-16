@@ -574,6 +574,8 @@ jobs:
           DATABASE_URL: ${{ secrets.E2E_DATABASE_URL }}
           DATABASE_URL_POOL: ${{ secrets.E2E_DATABASE_URL }}
           DATABASE_URL_DIRECT: ${{ secrets.E2E_DATABASE_URL }}
+          DIRECTORY_COMMUNICATIONS_ENABLED: "true"
+          DIRECTORY_TOKEN_SECRET: e2e-only-directory-confirmation-token-secret
           STRIPE_SECRET_KEY: ${{ secrets.E2E_STRIPE_SECRET_KEY }}
           STRIPE_WEBHOOK_SECRET: ${{ secrets.E2E_STRIPE_WEBHOOK_SECRET }}
           NEXT_PUBLIC_STRIPE_PUBLISHABLE_KEY: ${{ secrets.E2E_STRIPE_PUBLISHABLE_KEY }}
