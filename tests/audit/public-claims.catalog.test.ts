@@ -228,7 +228,7 @@ describe("L2 — copy pública presente en componentes", () => {
     expect(terms).toContain("Zaltyko se reserva");
     expect(privacy).toContain("operada bajo la marca Zaltyko");
     expect(terms).toContain("13 de septiembre de 2026");
-    expect(privacy).toContain("13 de septiembre de 2026");
+    expect(privacy).toContain("16 de octubre de 2026");
   });
 
   it("los CTAs públicos no confunden cuenta con academia", () => {

@@ -775,3 +775,45 @@ Una ficha externa no crea dueño, academia operativa, trial ni suscripción. Sol
 | Decisión | Ofrecer alta autoservicio para Free, Starter y Growth; mantener Network con acompañamiento. Mostrar precios anuales y ahorro estimado con claridad. La selección efectiva del ciclo continúa en Facturación. |
 | Consecuencia | La página orienta los planes estándar a crear una academia sin bloquear la captación con una demo. |
 | Estado | PR #207 se integró por squash en `93b152d1` después de pasar build, lint/typecheck, unitarias, RLS, migraciones, seguridad móvil y E2E autenticado con verificación de escrituras idempotentes. El bypass administrativo se usó con autorización del usuario porque GitHub exigía una aprobación de otro colaborador. Vercel `dpl_ET8Auj2t4xY3h8n6oF58mXE1jL4o` está `Ready`; `/pricing` responde 200 y muestra CTA de alta y selector anual. No se creó Checkout ni se hizo un cargo. Checkout Test y su webhook siguen pendientes. |
+
+## 2026-10-16 — Borrador previo de suscripción (descartado antes de publicar)
+
+| Campo | Valor |
+| --- | --- |
+| Contexto | La dirección de marketing pide explicar qué es Zaltyko, para quién es, qué organiza y cuándo estará disponible; además quiere mantener informadas a las academias interesadas. Esto amplía la decisión previa que no suscribía a novedades. |
+| Decisión | `waitlist.zaltyko.com` se presenta como lista de lanzamiento. Nombre y email son obligatorios, academia opcional; país y modalidad se dejan para más adelante. La autorización comercial se solicita con una casilla separada y desmarcada por defecto. Solo se envían novedades tras doble opt-in y se ofrece baja sencilla. Los formularios generales de contacto siguen sin suscribir. |
+| Evidencia | Registrar el consentimiento en `directory_subscriptions` con `purpose=marketing`, `source=academy_waitlist`, versión `academy-waitlist-2026-10-16`, fecha, token de confirmación y estado. Mostrar en Super Admin → Growth si la suscripción está pendiente, confirmada, retirada o no registrada. No incorporar contactos anteriores sin prueba de consentimiento. |
+| Copy | Explicar que Zaltyko organiza gimnastas, grupos, cuotas y asistencia para academias de gimnasia artística y rítmica; presentar el lanzamiento como próximo, sin fecha concreta. El éxito en pantalla dirige a confirmar el email y solo entonces promete avisos. |
+| Gate | Antes de activar tráfico: revisión jurídica humana de la capa informativa y la base de datos; prueba sintética en sandbox del contacto, consentimiento, confirmación, baja y entrega del mensaje; no mandar pruebas a producción. La casilla y el registro de consentimiento no demuestran por sí solos que el proveedor entregue el correo. |
+| Estado | Borrador retirado antes de fusionar o publicar. La decisión vigente para la landing es captar una solicitud de información sin crear una suscripción ni una secuencia de marketing. |
+
+## 2026-10-16 — Captura directa de interés en academias
+
+| Campo | Valor |
+| --- | --- |
+| Contexto | La landing anterior explicaba el producto y dirigía a otros pasos, pero no permitía dejar datos directamente. Se prioriza captar una solicitud de información antes de pedir datos operativos de la academia. |
+| Decisión | Formulario principal con nombre y email obligatorios y nombre de academia opcional. País y modalidad se preguntan más adelante. El email se usa para responder a la solicitud; no se pide consentimiento de marketing, no se suscribe a novedades ni se promete un aviso automático. El CTA a crear una cuenta se elimina de la landing. |
+| Funnel | Publicar `/api/contact` en el mismo dominio de la landing como proxy al contacto existente. Enviar `source=academy_waitlist`, `reason=sales`, `submissionId` idempotente y UTM validados; guardar la atribución en los metadatos del lead y el evento `contact_submitted`. El aviso interno enlaza a Growth sin copiar datos personales. Tras guardar correctamente, llevar a `/gracias/` con información de Zaltyko y una checklist PDF descargable sin registro adicional. |
+| Límite | Vercel no conserva la IP original al reenviar entre deployments. Para evitar un único límite compartido entre todos los visitantes, la waitlist aplica cinco envíos/minuto sobre hash del email normalizado; el resto de contactos mantiene el límite por IP. |
+| Seguridad de pruebas | Preview y local no reenvían al producto de producción. Los casos UI usan respuestas simuladas; cualquier prueba con escritura usa exclusivamente el sandbox, con datos sintéticos y limpieza. |
+| Estado | Implementación en `codex/direct-academy-capture` y PR #231 del producto. DNS del subdominio verificado; los cambios no están desplegados. Siguen pendientes CI, revisión humana de privacidad y E2E controlado del lead, evento, UTM y aviso interno antes de dirigir tráfico. |
+
+## 2026-10-15 — Captación de academias y conservación de consultas
+
+| Campo | Valor |
+| --- | --- |
+| Contexto | La landing de captación debe conservar la marca de Zaltyko y llevar a las academias estándar al registro autoservicio. El formulario asistido se reserva para migraciones complejas o multi-sede; país y modalidad aumentan fricción antes de la cuenta. |
+| Decisión | Mantener el primer paso corto: email y nombre de cuenta en registro, país y modalidad en el onboarding de academia. El formulario de contacto solo responde a la solicitud, sin suscripción comercial. Añadir aviso claro, bandeja de solicitudes en Super Admin → Growth y notificación interna sin PII del prospecto. |
+| Conservación | Prospectos no convertidos: máximo 12 meses desde el último contacto significativo; si existe negociación, prueba o entrevista, el cómputo usa su última actividad. El cron mensual elimina prospectos vencidos no vinculados a academia/tenant y anonimiza la entrevista ligada para conservar solo señales no identificativas. Límite de 250 filas por ejecución. |
+| Fuente legal | La AEPD recomienda información por capas y que la capa detallada identifique plazos o criterios de conservación: [Derecho de información](https://www.aepd.es/derechos-y-deberes/conoce-tus-derechos/derecho-de-informacion). El art. 6 del RGPD distingue medidas precontractuales solicitadas e interés legítimo: [Reglamento en BOE](https://boe.es/buscar/doc.php?id=DOUE-L-2016-80807&lang=es). Los 12 meses son una decisión operativa de Zaltyko, no un plazo legal general. |
+| Estado | Preparado en la rama aislada `codex/academy-lead-privacy-2026-10-15`. Pendientes de publicación: revisión jurídica humana, Preview/deploy y verificación de la entrega del aviso en `hola@zaltyko.com`. No se modificó producción ni DNS. |
+
+## 2026-10-15 — Consentimiento separado para medición de la captación
+
+| Campo | Valor |
+| --- | --- |
+| Contexto | La landing y el formulario pueden recibir visitas de España/UE. La medición de analítica y campañas no es necesaria para enviar una solicitud ni para crear una cuenta. |
+| Decisión | Mantener cookies necesarias siempre activas y pedir elecciones separadas para analítica (PostHog, Vercel y eventos/atribución propios) y campañas (Google Ads). Rechazar opcionales no bloquea registro ni contacto; país y modalidad permanecen fuera del primer paso. |
+| Fuente | La [AEPD](https://www.aepd.es/guias/guia-cookies.pdf) indica que las cookies no exentas requieren consentimiento previo e informado y que rechazar debe ser una opción accesible. |
+| Consecuencia | No se inicializan los proveedores opcionales hasta la categoría elegida; retirar analítica borra el identificador de visitante y los UTMs de sesión y detiene la medición futura. |
+| Estado | Implementado en la rama del producto; tests y TypeScript locales pasan. Verificación en preview y revisión jurídica de proveedores/transferencias pendientes; no se declara cumplimiento legal definitivo. |

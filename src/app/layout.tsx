@@ -7,14 +7,14 @@ import { cn } from "@/lib/utils";
 import { ServiceWorkerRegister } from "@/components/ServiceWorkerRegister";
 import { BottomNav } from "@/components/navigation/BottomNav";
 import { AppProviders } from "./providers";
-import { Analytics } from "@vercel/analytics/react";
-import { SpeedInsights } from "@vercel/speed-insights/next";
 import { OfflineBanner } from "@/components/ui/offline-banner";
 import { UpdateBanner } from "@/components/ui/update-banner";
 import { InstallPrompt } from "@/components/ui/install-prompt";
 import { PostHogProvider } from "@/components/PostHogProvider";
 import { UtmCapture } from "@/components/growth/UtmCapture";
 import { GoogleAdsTracking } from "@/components/GoogleAdsTracking";
+import { CookieConsentManager } from "@/components/CookieConsentManager";
+import { ConsentAwareVercelTelemetry } from "@/components/ConsentAwareVercelTelemetry";
 import { getPublicSiteUrl } from "@/lib/seo/site-url";
 
 const spaceGrotesk = localFont({
@@ -191,8 +191,8 @@ export default async function RootLayout({
           </PostHogProvider>
         </AppProviders>
         <ServiceWorkerRegister />
-        <Analytics />
-        <SpeedInsights />
+        <ConsentAwareVercelTelemetry />
+        <CookieConsentManager />
       </body>
     </html>
   );

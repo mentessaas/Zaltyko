@@ -20,6 +20,7 @@ import {
 import { getRegistrationContinuationPath } from "@/lib/auth/registration-paths";
 import { getNextRegistrationRoleIndex } from "@/lib/auth/registration-role-navigation";
 import { useHydrated } from "@/lib/auth/use-hydrated";
+import { readCookieConsent } from "@/lib/consent/cookie-consent";
 
 // Lee UTMs del first-touch capturado por `UtmCapture` (sessionStorage)
 // o de la query string actual. Wrapper sobre `readUtmWithFallback` para
@@ -33,6 +34,9 @@ function readAttribution(): {
   utm_term: string;
 } {
   if (typeof window === "undefined") {
+    return readUtmWithFallback(new URLSearchParams(), undefined);
+  }
+  if (!readCookieConsent()?.analytics) {
     return readUtmWithFallback(new URLSearchParams(), undefined);
   }
   return readUtmWithFallback(
@@ -286,11 +290,10 @@ export function RegisterForm({
         }
         router.push(getRegistrationContinuationPath(role));
       } else {
-        await trackEvent(directoryRegistration ? "directory_account_registered" : "sign_up_completed", {
+        await trackEvent(directoryRegistration ? "directory_account_confirmation_pending" : "sign_up_confirmation_pending", {
           metadata: {
             role: directoryRegistration ? "directory" : role,
             signup_method: "email_password",
-            email_confirmation_pending: true,
             ...readAttribution(),
           },
         });

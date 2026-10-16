@@ -14,6 +14,7 @@ import {
   academyTrials,
   commercialInterviews,
   growthEvents,
+  leadInteractions,
   leads,
   subscriptions,
 } from "@/db/schema";
@@ -61,6 +62,17 @@ export interface CommercialLeadRow {
   createdAt: string;
 }
 
+export interface ContactInquiryRow {
+  id: string;
+  name: string;
+  email: string;
+  academy: string | null;
+  reason: string;
+  source: string;
+  message: string;
+  createdAt: string;
+}
+
 export interface GrowthDashboardData {
   metrics: {
     interviewGoal: number;
@@ -87,6 +99,7 @@ export interface GrowthDashboardData {
   };
   interviews: CommercialInterviewRow[];
   leads: CommercialLeadRow[];
+  inquiries: ContactInquiryRow[];
 }
 
 export function getSafeRate(
@@ -111,6 +124,7 @@ export async function getGrowthDashboardData(): Promise<GrowthDashboardData> {
     activationRows,
     trialRows,
     paidRows,
+    inquiryRows,
   ] = await Promise.all([
     // unbounded-read-ok: cohort window and event allowlist bound this analytical read
     db
@@ -190,6 +204,20 @@ export async function getGrowthDashboardData(): Promise<GrowthDashboardData> {
           inArray(subscriptions.status, ["active", "trialing"])
         )
       ),
+    db
+      .select({
+        id: leadInteractions.id,
+        name: leadInteractions.name,
+        email: leadInteractions.email,
+        academy: leadInteractions.academy,
+        reason: leadInteractions.reason,
+        source: leadInteractions.source,
+        message: leadInteractions.message,
+        createdAt: leadInteractions.createdAt,
+      })
+      .from(leadInteractions)
+      .orderBy(desc(leadInteractions.createdAt))
+      .limit(50),
   ]);
 
   const eventMap = new Map(eventRows.map((row) => [row.eventName, row]));
@@ -330,6 +358,10 @@ export async function getGrowthDashboardData(): Promise<GrowthDashboardData> {
       createdAt: row.createdAt.toISOString(),
     })),
     leads: leadRows.map((row) => ({
+      ...row,
+      createdAt: row.createdAt.toISOString(),
+    })),
+    inquiries: inquiryRows.map((row) => ({
       ...row,
       createdAt: row.createdAt.toISOString(),
     })),

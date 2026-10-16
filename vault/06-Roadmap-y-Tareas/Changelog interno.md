@@ -1,10 +1,43 @@
 ---
 status: active
 owner: producto
-last_reviewed: 2026-10-04
+last_reviewed: 2026-10-16
 source:
   - ../docs/audits/2026-10-03-launch-and-auth-followup.md
 ---
+
+## 2026-10-16 — Captura simple y recurso de agradecimiento
+
+- La landing recoge nombre y email obligatorios y academia opcional. No pide país, modalidad, teléfono, mensaje libre ni consentimiento de marketing.
+- La solicitud usa `source=academy_waitlist` para clasificar el lead, conservar UTM y aplicar idempotencia; no crea una suscripción ni activa una secuencia de emails.
+- La landing y el contrato del endpoint conservan valores UTM comunes con letras acentuadas, espacios, puntos, guiones y guiones bajos; rechazan símbolos libres como `@` o `/` para no admitir direcciones de correo como valores de atribución.
+- Tras respuesta satisfactoria del servidor, lleva a `/gracias/`, explica qué prepara Zaltyko y ofrece una checklist PDF de inicio de temporada que se descarga sin registro adicional.
+- Se elimina el enlace "Crear academia gratis" de la landing para mantener una sola acción principal.
+- Pendiente antes de publicar: CI con lead/evento/UTM/aviso interno en sandbox, revisión humana de privacidad y confirmación operativa del aviso interno. No se enviaron pruebas a producción.
+
+## 2026-10-16 — Borrador anterior de suscripción (descartado antes de publicar)
+
+- Una iteración añadió una casilla de marketing, doble opt-in y estados de suscripción a la waitlist. El usuario decidió mantener el formulario como solicitud de información, sin suscripción.
+- Esa funcionalidad se retiró de la landing, el endpoint y la bandeja de Growth antes de integrar o publicar; no se migran ni se inscriben contactos.
+
+## 2026-10-16 — Landing directa de captación y conservación de UTM
+
+- La página se simplifica a una propuesta breve sobre cuotas, grupos y asistencia, tres campos (nombre, email y academia opcional) y aviso de privacidad. País y modalidad quedan para más adelante; no hay alta de cuenta ni suscripción comercial en este paso. El éxito redirige a una página de gracias con información y recurso descargable.
+- La landing envía `reason=sales`, `source=academy_waitlist` y una clave de idempotencia al endpoint de contacto. El producto valida hasta cinco campos UTM y los guarda en los metadatos del lead y en el evento `contact_submitted`; el aviso interno conserva el enlace a Super Admin → Growth sin copiar PII.
+- El proxy oculta la IP del visitante al llegar al deployment del producto; por eso el endpoint limita esta fuente a cinco envíos por minuto y hash del email normalizado. Los demás contactos mantienen el límite por IP.
+- El proxy `/api/contact` solo reenvía a `https://zaltyko.com/api/contact` en un deployment de producción. Preview y local responden 503 sin enviar datos. La prueba visual del formulario debe simular el endpoint; el probe con escritura solo se ejecuta contra el sandbox aislado.
+- **Estado del deployment al revisar:** `waitlist.zaltyko.com` resuelve por CNAME a `87f3b447175c9d79.vercel-dns-017.com.` y la versión actual responde HTTP 200. El nuevo diseño y el contrato de UTM siguen en ramas de PR; no se desplegó el cambio.
+- Pendiente antes de activar la captura: aprobación humana obligatoria del PR del producto, CI actualizado, revisión jurídica humana y ejecución del probe aislado para lead, evento, UTM e intento de aviso registrado en `email_logs`. La entrega real del proveedor de email sigue sin verificar. No se envió ningún lead de prueba a producción.
+
+## 2026-10-15 — Captación de academias y conservación de leads (en revisión)
+
+- El primer paso comercial mantiene el alta directa para academias estándar; país y modalidad se piden al configurar la academia. Migraciones complejas y multi-sede conservan un recorrido asistido. Las solicitudes se guardan en Super Admin → Growth y el aviso interno no copia datos del lead. Un alta con confirmación de email pendiente ya no se etiqueta como registro completado.
+- El formulario no suscribe a comunicaciones comerciales. La captura antigua de novedades se retiró de la portada. El banner permite aceptar, rechazar o configurar cookies; PostHog, Vercel Analytics/Speed Insights, eventos públicos, UTMs, ID de visitante y Google Ads solo se activan con el consentimiento de su categoría.
+- La política y el aviso de contacto describen responsable, finalidad, bases legales, proveedores, derechos y retención máxima de 12 meses desde la última actividad significativa para solicitudes no convertidas. El cron mensual elimina o anonimiza datos vencidos por lotes de hasta 250.
+- Se fijaron versiones corregidas de `proxy-addr`, `source-map-js`, `sharp` y `@modelcontextprotocol/sdk`. `pnpm audit --prod --audit-level=high` pasa sin vulnerabilidades altas/críticas; persisten tres moderadas.
+- Validación local: seis archivos de pruebas focales, 50/50; TypeScript y ESLint sin errores; instalación congelada y `git diff --check` pasan. En el CI del commit anterior pasó la build y falló una expectativa de fecha legal desactualizada y el audit de dependencias; ambas causas se corrigieron en esta rama. CI actualizado pendiente.
+- La landing está en preview de Vercel y la política/captación en PR #231. El proyecto Vercel ya tiene `waitlist.zaltyko.com` asignado a producción, pero lo marca `Invalid Configuration`. Hostinger no tiene el CNAME `waitlist`; Vercel indica `waitlist` → `87f3b447175c9d79.vercel-dns-017.com.`. No se ha cambiado DNS ni enviado un lead real.
+- Antes de dirigir tráfico faltan CI actualizado, revisión jurídica humana de proveedores/transferencias, comprobación controlada de persistencia y entrega del email, y confirmación exacta del usuario para escribir el CNAME de Hostinger.
 
 ## 2026-10-04 — Revalidar acceso Google, recuperación y búsqueda del onboarding
 

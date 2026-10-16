@@ -304,7 +304,15 @@ export async function processDeliveries(deliver: typeof sendEmail = sendEmail) {
         id,
         new Date(String(delivery.token_expires_at)).toISOString()
       );
-      text = `Has solicitado ${delivery.purpose === "kit" ? "el kit gratuito" : delivery.purpose === "marketing" ? "información comercial" : delivery.purpose === "claim_updates" ? "avisos sobre tus solicitudes de representación" : "avisos del calendario"} en Zaltyko. Confirma únicamente si lo solicitaste: ${base}/directorio/confirmar?id=${id}&token=${token}`;
+      const requestedUpdate =
+        delivery.purpose === "kit"
+          ? "el kit gratuito"
+          : delivery.purpose === "marketing"
+            ? "información comercial"
+            : delivery.purpose === "claim_updates"
+              ? "avisos sobre tus solicitudes de representación"
+              : "avisos del calendario";
+      text = `Has solicitado ${requestedUpdate} en Zaltyko. Confirma únicamente si lo solicitaste: ${base}/directorio/confirmar?id=${id}&token=${token}`;
     } else if (delivery.purpose === "kit") {
       subject = "Tu kit de organización de academias";
       text = `Descarga el kit gratuito: ${base}/recursos/kit-academias. Esta entrega no te suscribe a marketing.`;

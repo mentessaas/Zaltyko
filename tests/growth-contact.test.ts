@@ -1,6 +1,10 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
-import { ContactRequestSchema } from "@/lib/growth/contracts";
+import {
+  ContactRequestSchema,
+  toContactAttributionProperties,
+} from "@/lib/growth/contracts";
+import { getContactRateLimitIdentifier } from "@/lib/rate-limit";
 import {
   calculatePricingToContactMetric,
   PRICING_TO_CONTACT_MIN_DENOMINATOR,
@@ -41,6 +45,99 @@ describe("contact growth contracts", () => {
     expect(parsed.data.reason).toBe("migracion");
   });
 
+  it("acepta y valida los cinco campos UTM de la landing de academias", () => {
+    const attribution = {
+      utm_source: "linkedin.com",
+      utm_medium: "paid social",
+      utm_campaign: "academy_acquisition_2026",
+      utm_term: "gimnasia artística",
+      utm_content: "hero.v1",
+    };
+    const parsed = ContactRequestSchema.safeParse(
+      buildContactRequest({ source: "academy_waitlist", attribution })
+    );
+
+    expect(parsed.success).toBe(true);
+    if (!parsed.success) return;
+    expect(parsed.data.source).toBe("academy_waitlist");
+    expect(parsed.data.attribution).toEqual(attribution);
+    expect(toContactAttributionProperties(parsed.data.attribution)).toEqual(
+      attribution
+    );
+    expect(toContactAttributionProperties(undefined)).toEqual({});
+  });
+
+  it("mantiene la solicitud de academias fuera del contrato de suscripción de marketing", () => {
+    expect(
+      ContactRequestSchema.safeParse(
+        buildContactRequest({
+          source: "academy_waitlist",
+          marketingConsent: true,
+        })
+      ).success
+    ).toBe(false);
+  });
+
+  it("rechaza datos personales, símbolos libres, valores demasiado largos y claves desconocidas en UTMs", () => {
+    expect(
+      ContactRequestSchema.safeParse(
+        buildContactRequest({ attribution: { utm_source: "ana@example.com" } })
+      ).success
+    ).toBe(false);
+    expect(
+      ContactRequestSchema.safeParse(
+        buildContactRequest({ attribution: { utm_source: "instagram/ana" } })
+      ).success
+    ).toBe(false);
+    expect(
+      ContactRequestSchema.safeParse(
+        buildContactRequest({ attribution: { utm_campaign: "a".repeat(129) } })
+      ).success
+    ).toBe(false);
+    expect(
+      ContactRequestSchema.safeParse(
+        buildContactRequest({ attribution: { email: "ana@example.com" } })
+      ).success
+    ).toBe(false);
+  });
+
+  it("limita la waitlist por hash de email y conserva el límite IP del contacto general", async () => {
+    const waitlistRequest = (email: string, ip: string) =>
+      new Request("https://zaltyko.com/api/contact", {
+        method: "POST",
+        headers: {
+          "content-type": "application/json",
+          "x-forwarded-for": ip,
+        },
+        body: JSON.stringify({ source: "academy_waitlist", email }),
+      });
+
+    const first = await getContactRateLimitIdentifier(
+      waitlistRequest("Academy@Example.test", "198.51.100.1")
+    );
+    const normalizedRetry = await getContactRateLimitIdentifier(
+      waitlistRequest(" academy@example.test ", "203.0.113.2")
+    );
+    const anotherEmail = await getContactRateLimitIdentifier(
+      waitlistRequest("other@example.test", "203.0.113.2")
+    );
+    expect(first).toBe(normalizedRetry);
+    expect(first).not.toContain("academy@example.test");
+    expect(anotherEmail).not.toBe(first);
+
+    const regularRequest = new Request("https://zaltyko.com/api/contact", {
+      method: "POST",
+      headers: {
+        "content-type": "application/json",
+        "x-forwarded-for": "198.51.100.9",
+      },
+      body: JSON.stringify({ source: "public_contact", email: "test@example.com" }),
+    });
+    expect(await getContactRateLimitIdentifier(regularRequest)).toBe(
+      "ip:198.51.100.9"
+    );
+  });
+
   it("conserva la atribución de ficha sin aceptar identificadores inválidos", () => {
     expect(ContactRequestSchema.parse(buildContactRequest({directoryEntryId:"00000000-0000-4000-8000-000000000001"})).directoryEntryId).toBe("00000000-0000-4000-8000-000000000001");
     expect(ContactRequestSchema.safeParse(buildContactRequest({directoryEntryId:"correo@example.com"})).success).toBe(false);
@@ -55,7 +152,19 @@ describe("contact growth contracts", () => {
     });
 
     vi.stubGlobal("window", {
-      localStorage: { getItem, setItem },
+      localStorage: {
+        getItem: (key: string) =>
+          key === "zaltyko.cookie-consent.v1"
+            ? JSON.stringify({
+                version: 1,
+                necessary: true,
+                analytics: true,
+                marketing: false,
+                savedAt: "2026-10-15T00:00:00.000Z",
+              })
+            : getItem(key),
+        setItem,
+      },
     });
     vi.stubGlobal("crypto", {
       randomUUID: vi.fn(() => newVisitorId),
@@ -72,16 +181,16 @@ describe("contact growth contracts", () => {
     expect(storage.get(VISITOR_STORAGE_KEY)).toBe(newVisitorId);
   });
 
-  it("rechaza un contacto sin visitorId", () => {
+  it("permite un contacto sin visitorId cuando no hay consentimiento de analítica", () => {
     expect(
       ContactRequestSchema.safeParse(
         buildContactRequest({ visitorId: undefined })
       ).success
-    ).toBe(false);
+    ).toBe(true);
     expect(
       ContactRequestSchema.safeParse(buildContactRequest({ visitorId: null }))
         .success
-    ).toBe(false);
+    ).toBe(true);
   });
 
   it("usa una cohorte rolling de 30 días y solo cruza visitantes elegibles", () => {

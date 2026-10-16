@@ -1,5 +1,6 @@
 import Link from "next/link";
 import Image from "next/image";
+import { CookieSettingsButton } from "@/components/CookieSettingsButton";
 
 const footerLinks = {
   producto: [
@@ -98,6 +99,11 @@ export default function Footer() {
                     </Link>
                   </li>
                 ))}
+                {section === "legal" ? (
+                  <li>
+                    <CookieSettingsButton />
+                  </li>
+                ) : null}
               </ul>
             </div>
           ))}

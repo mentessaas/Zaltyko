@@ -76,6 +76,36 @@ export function getAddressHashRateLimitIdentifier(
 }
 
 /**
+ * The waitlist is sent through a same-origin proxy, so the product deployment
+ * sees the proxy's Vercel IP instead of each visitor's address. Use a
+ * normalized, non-reversible email hash for this source to avoid imposing one
+ * shared five-per-minute budget on every academy inquiry.
+ */
+export async function getContactRateLimitIdentifier(
+  request: Request
+): Promise<string> {
+  const contentLength = Number(request.headers.get("content-length") || 0);
+  if (contentLength > 8 * 1024) return getClientIdentifier(request);
+
+  const body = (await request
+    .clone()
+    .json()
+    .catch(() => null)) as { source?: unknown; email?: unknown } | null;
+  if (body?.source !== "academy_waitlist" || typeof body.email !== "string") {
+    return getClientIdentifier(request);
+  }
+
+  const normalizedEmail = normalizeEmail(body.email);
+  if (!normalizedEmail) return getClientIdentifier(request);
+
+  const emailHash = createHash("sha256")
+    .update(normalizedEmail, "utf8")
+    .digest("hex")
+    .slice(0, 32);
+  return `academy_waitlist:email:${emailHash}`;
+}
+
+/**
  * Implements sliding window rate limiting using Redis (Vercel KV)
  *
  * @param config - Rate limit configuration
@@ -379,7 +409,7 @@ export function withRateLimit(
     context?: any
   ) => Promise<Response | NextResponse>,
   options?: {
-    identifier?: (request: NextRequest) => string;
+    identifier?: (request: NextRequest) => string | Promise<string>;
     limit?: number;
     window?: number;
   }
@@ -392,7 +422,7 @@ export function withRateLimit(
 
     // Get identifier (IP or user ID)
     const identifier = options?.identifier
-      ? options.identifier(request)
+      ? await options.identifier(request)
       : getClientIdentifier(request);
 
     // Get limits for this route

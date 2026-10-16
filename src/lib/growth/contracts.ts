@@ -91,6 +91,35 @@ export const LeadCaptureSchema = z
   })
   .strict();
 
+const contactUtmValue = z
+  .string()
+  .trim()
+  .min(1)
+  .max(128)
+  .regex(/^[\p{L}\p{N}._ -]+$/u);
+
+export const ContactAttributionSchema = z
+  .object({
+    utm_source: contactUtmValue.optional(),
+    utm_medium: contactUtmValue.optional(),
+    utm_campaign: contactUtmValue.optional(),
+    utm_term: contactUtmValue.optional(),
+    utm_content: contactUtmValue.optional(),
+  })
+  .strict();
+
+export type ContactAttribution = z.infer<typeof ContactAttributionSchema>;
+
+export function toContactAttributionProperties(
+  attribution: ContactAttribution | undefined
+): Record<string, string> {
+  return Object.fromEntries(
+    Object.entries(attribution ?? {}).filter(
+      (entry): entry is [string, string] => typeof entry[1] === "string"
+    )
+  );
+}
+
 export const ContactRequestSchema = z
   .object({
     name: z.string().trim().min(2).max(100),
@@ -109,7 +138,7 @@ export const ContactRequestSchema = z
       ])
       .default("demo"),
     plan: z.enum(COMMERCIAL_PLAN_SLUGS).nullable().optional(),
-    visitorId: z.string().uuid(),
+    visitorId: z.string().uuid().nullable().optional(),
     source: z
       .string()
       .trim()
@@ -117,6 +146,7 @@ export const ContactRequestSchema = z
       .max(64)
       .regex(/^[a-z0-9_-]+$/i)
       .default("contact_form"),
+    attribution: ContactAttributionSchema.optional(),
     message: z.string().trim().min(10).max(2_000),
     honeypot: z.string().max(100).nullable().optional(),
     directoryEntryId: z.string().uuid().optional(),

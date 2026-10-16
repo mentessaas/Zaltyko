@@ -7,6 +7,10 @@ import {
   captureFirstTouchUtm,
   pickUtmFromQuery,
 } from "@/lib/growth/utm";
+import {
+  COOKIE_CONSENT_CHANGE_EVENT,
+  readCookieConsent,
+} from "@/lib/consent/cookie-consent";
 
 /**
  * Captura UTMs (first-touch) en cada page view. El componente no renderiza
@@ -19,8 +23,26 @@ import {
 export function UtmCapture() {
   useEffect(() => {
     if (typeof window === "undefined") return;
-    const params = pickUtmFromQuery(new URLSearchParams(window.location.search));
-    captureFirstTouchUtm(params, window.sessionStorage, UTM_STORAGE_KEY);
+    const syncAttributionStorage = () => {
+      if (!readCookieConsent()?.analytics) {
+        try {
+          window.sessionStorage.removeItem(UTM_STORAGE_KEY);
+        } catch {
+          // Keep the signup flow usable when browser storage is unavailable.
+        }
+        return;
+      }
+      const params = pickUtmFromQuery(new URLSearchParams(window.location.search));
+      captureFirstTouchUtm(params, window.sessionStorage, UTM_STORAGE_KEY);
+    };
+
+    syncAttributionStorage();
+    window.addEventListener(COOKIE_CONSENT_CHANGE_EVENT, syncAttributionStorage);
+    window.addEventListener("storage", syncAttributionStorage);
+    return () => {
+      window.removeEventListener(COOKIE_CONSENT_CHANGE_EVENT, syncAttributionStorage);
+      window.removeEventListener("storage", syncAttributionStorage);
+    };
   }, []);
 
   return null;

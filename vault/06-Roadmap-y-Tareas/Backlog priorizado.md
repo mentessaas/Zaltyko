@@ -46,6 +46,12 @@ Code changes verificados: tsc OK, eslint OK, next build OK.
 
 # Backlog priorizado
 
+## P1 — Verificar captación directa y recurso de agradecimiento — 2026-10-16
+
+- **Criterio:** revisar el aviso de privacidad; con datos sintéticos en sandbox, comprobar lead, evento, UTM, idempotencia e intento de aviso interno. Confirmar que el flujo no crea una suscripción de marketing y que `/gracias/` ofrece el PDF descargable.
+- **Gate de publicación:** revisar el email interno en el proveedor o inbox de prueba aislado; verificar el PDF en móvil y escritorio; reevaluar tras el SHA que se publique. No enviar datos sintéticos a producción.
+- **Estado:** implementación en ramas/PR de waitlist y producto; no publicada ni probada con escrituras en producción.
+
 ## P1 — Hacer fiable el control SBOM de CI — 2026-10-04
 
 - **Hallazgo:** el job “Dependency Security & SBOM” figuraba verde aunque `cyclonedx-npm` fallaba con pnpm 9, `continue-on-error` ocultaba el error y la subida del archivo ausente estaba configurada para ignorarlo. El run `37200407681` confirmó que no se publicó ningún SBOM.
@@ -556,3 +562,11 @@ La comparación estructural de columnas/restricciones/índices/trigger da parida
 - El primer run de PR #211 alcanzó Stripe Test y creó sesiones, pero Playwright perdió el cuerpo al salir el navegador hacia Checkout. La prueba ahora captura la respuesta dentro de una ruta de red y expira sesiones anteriores abiertas del mismo owner sintético.
 - El segundo run `37259234974` pasó el E2E de Checkout: sesión de suscripción Starter anual, metadata y Price correctos, `livemode=false`, y sesión expirada sin pago. También terminó verde la suite autenticada multibrowser, el test de escritura/idempotencia y todos los checks obligatorios del PR. El PR sigue abierto y aún no está desplegado.
 - **En validación — PR #211:** la spec también envía un evento `customer.subscription.created` firmado al webhook de la app, comprueba la suscripción anual `incomplete`, el contexto de academia, el estado del evento y la idempotencia; restaura y limpia los datos de staging/Test. Contratos locales 7/7, TypeScript, ESLint y `git diff --check` pasan. Falta CI del nuevo commit; Playwright local se abstuvo de ejecutar porque falta declarar el proyecto sandbox en el guard. El PR sigue abierto, sin fusionar ni desplegar.
+
+## Captación directa de academias — pendientes de activación · 2026-10-16
+
+- **P0 / revisión y CI:** actualizar y completar CI del PR #231 del producto; requiere revisión humana antes de poder fusionar. No saltarse la protección de rama.
+- **P0 / verificación aislada:** el CI ejecuta el probe con nombre y email sintéticos solo tras confirmar el sandbox; comprobar lead, evento `contact_submitted`, UTMs, idempotencia e intento de aviso en `email_logs`. Confirmar también entrega real con un destino de prueba aislado antes de dar el aviso por operativo. No enviar datos de prueba al CRM de producción.
+- **P0 / privacidad:** completar revisión jurídica humana del texto, la finalidad y los proveedores/transferencias descritos antes de dirigir tráfico.
+- **Verificado por DNS/HTTP el 2026-10-16:** `waitlist.zaltyko.com` resuelve a `87f3b447175c9d79.vercel-dns-017.com.` y la web actual devuelve 200. El nuevo diseño aún no está desplegado.
+- **P1 / publicación:** publicar la nueva landing cuando el producto con contrato UTM esté aprobado y desplegado; después confirmar la ruta proxy en producción, el guardado y el aviso, y revisar teclado y tamaños móvil/tablet/escritorio. El proxy de preview debe permanecer desconectado de producción.

@@ -1,7 +1,7 @@
 ---
 status: active
 owner: marketing
-last_reviewed: 2026-09-13
+last_reviewed: 2026-10-16
 source:
   - ../docs/marketing/zaltyko-messaging.md
   - ../PRODUCT-ANALYSIS.md
@@ -17,6 +17,20 @@ Gestiona tu academia deportiva sin perder el foco en lo que importa: formar atle
 ## Enfoque comercial inicial
 
 Para discovery, beta y mensajes de venta tempranos, enfocar Zaltyko en academias de gimnasia artistica y ritmica en espanol. El posicionamiento general de "academias deportivas" se mantiene como arquitectura de expansion, pero el go-to-market inicial debe hablar de gimnastas, familias, clases, cuotas, asistencia y progreso tecnico.
+
+### Captación de academias — 2026-10-16
+
+- Mensaje principal de landing: **"Cuotas, grupos y asistencia. En orden."** Como apoyo de marca: **"Las cuotas cobradas. Los grupos montados. La lista pasada."** Mantener el foco en la gestión diaria que se dispersa entre hojas y mensajes.
+- Para academias estándar, ofrecer creación gratuita en autoservicio. Reservar el contacto asistido para varias sedes o migraciones complejas; no pedir país ni modalidad antes del registro. País y artística/rítmica se completan al configurar la academia.
+- Los formularios de contacto responden a una solicitud concreta y no suscriben a novedades. La landing de academias recoge una solicitud de información; no añade a la persona a una lista comercial. No añadir testimonios, resultados numéricos ni fechas de disponibilidad sin evidencia.
+- Fuente de lenguaje de marca: [web pública de Zaltyko](https://zaltyko.com/). Criterio de segmento: gimnasia artística y rítmica, según esta guía y el ICP vigente.
+
+### Solicitud de información de academias — 2026-10-16
+
+- Para `waitlist.zaltyko.com`, la acción principal es dejar nombre y email; el nombre de la academia es opcional. No se piden país, modalidad, teléfono ni mensaje libre en este primer contacto.
+- Copy principal: **"Tu academia, en orden."** Apoyo: **"Próximamente: plataforma Zaltyko para academias de gimnasia artística y rítmica. Ordena gimnastas, grupos, cuotas y asistencia sin hojas ni mensajes dispersos."** No fijar una fecha.
+- La solicitud no implica suscripción a novedades ni a comunicaciones comerciales. El email se usa para responder a la consulta; no se promete una secuencia ni un aviso automático de lanzamiento.
+- Tras confirmar el guardado en el servidor, llevar a `/gracias/` con más información de Zaltyko y una checklist descargable de inicio de temporada. No incluir "Crear academia gratis" en esta landing.
 
 ## Taglines permitidos
 
