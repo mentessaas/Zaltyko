@@ -6,7 +6,7 @@ import { getPublicSiteUrl } from "@/lib/seo/site-url";
 
 const baseUrl = getPublicSiteUrl();
 
-const updatedAt = "15 de octubre de 2026";
+const updatedAt = "16 de octubre de 2026";
 
 const sections = [
   {
@@ -22,6 +22,7 @@ const sections = [
     content: [
       "Datos de cuenta: nombre, apellidos, correo electrónico, contraseña (hash) y rol asignado dentro de la academia.",
       "Solicitudes de contacto: nombre, correo electrónico, motivo, mensaje y, si lo facilitas, nombre de la academia. La información de país y modalidad deportiva se solicita después, al configurar una academia; no es necesaria para enviar una consulta.",
+      "Lista de lanzamiento: si marcas la casilla de la landing de academias, registramos tu email, el nombre que facilites, el nombre opcional de la academia, el origen y la versión y fecha del consentimiento. Enviaremos un mensaje de confirmación; la suscripción solo queda activa cuando confirmas tu dirección.",
       "Datos operativos: información de academias, atletas, coaches, asistencia, evaluaciones y eventos que tu organización introduce voluntariamente en la plataforma.",
       "Datos de suscripción y pago: identificadores de cliente en Stripe, historial de suscripción y metadatos de pago. No almacenamos números completos de tarjeta ni CVV.",
       "Datos técnicos: registros de acceso, dirección IP, tipo de dispositivo, idioma y cookies necesarias. Si aceptas analítica, también usamos un identificador aleatorio de visitante y parámetros UTM para entender el recorrido de captación.",
@@ -34,8 +35,8 @@ const sections = [
       "Procesar pagos y upgrades de plan mediante Stripe u otros procesadores compatibles.",
       "Medir el uso y rendimiento de la web con analítica opcional, únicamente si la autorizas.",
       "Medir campañas publicitarias, únicamente si habilitas esa categoría de cookies.",
-      "Comunicarnos contigo sobre novedades del producto, soporte y cambios relevantes en los servicios.",
-      "Responder a las solicitudes de información, migración o acompañamiento comercial y gestionar los pasos previos que nos pidas. El formulario de contacto no te suscribe a comunicaciones comerciales.",
+      "Enviar, si lo autorizas en la landing de academias, el aviso de disponibilidad de Zaltyko y novedades sobre el producto. Solo activamos la suscripción tras confirmar el email; podrás darte de baja cuando quieras.",
+      "Responder a las solicitudes de información, migración o acompañamiento comercial y gestionar los pasos previos que nos pidas. Las demás consultas no te suscriben a comunicaciones comerciales.",
     ],
   },
   {
@@ -43,6 +44,7 @@ const sections = [
     content: [
       "Ejecución de contrato cuando actúas como cliente o usuario autorizado de una academia.",
       "Para responder a solicitudes comerciales o de información: medidas precontractuales solicitadas por ti cuando correspondan; para otras consultas, interés legítimo en atender y gestionar la comunicación, ponderado con tus derechos.",
+      "Consentimiento para enviar novedades del producto y el aviso de disponibilidad, solicitado mediante una casilla separada, desmarcada por defecto y confirmada por email. Retirarlo no afecta al tratamiento anterior a la retirada.",
       "Interés legítimo para mejorar el servicio, prevenir fraudes y garantizar la seguridad de la plataforma.",
       "Consentimiento explícito cuando lo requerimos para comunicaciones comerciales o integraciones opcionales.",
     ],
@@ -52,13 +54,14 @@ const sections = [
     content: [
       "Los datos se almacenan en la infraestructura de Supabase (UE) y se conservan mientras mantengas una cuenta activa o exista una obligación legal.",
       "Si una solicitud comercial no da lugar a una relación contractual, conservaremos sus datos identificativos y el contenido de la consulta durante un máximo de 12 meses desde el último contacto significativo. Si continúa una evaluación, prueba o negociación, el plazo empieza al cerrar ese proceso. Después los eliminaremos o anonimizaremos, salvo los datos que debamos conservar para cumplir una obligación legal o formular, ejercer o defender reclamaciones.",
+      "Los datos de suscripción se conservan mientras la suscripción esté activa. Al darte de baja, conservamos el registro mínimo de la retirada para evitar nuevos envíos y acreditar que se respetó tu elección.",
       "Podemos anonimizar o agregar información para fines estadísticos una vez finalizada la relación contractual.",
     ],
   },
   {
     title: "6. Compartición de datos",
     content: [
-      "Proveedores de servicio: Supabase (cuentas y base de datos, región UE); Vercel (alojamiento y, si autorizas analítica, medición de rendimiento); Stripe (pagos); Brevo (correo transaccional); Google (inicio de sesión y, si configuras y autorizas campañas, Google Ads); PostHog (analítica opcional); y Sentry (diagnóstico de errores cuando está configurado).",
+      "Proveedores de servicio: Supabase (cuentas y base de datos, región UE); Vercel (alojamiento y, si autorizas analítica, medición de rendimiento); Stripe (pagos); Brevo (correo de confirmación y, cuando proceda, comunicaciones solicitadas); Google (inicio de sesión y, si configuras y autorizas campañas, Google Ads); PostHog (analítica opcional); y Sentry (diagnóstico de errores cuando está configurado).",
       "Estos proveedores actúan según el servicio que prestan y las instrucciones aplicables. La región y las garantías de transferencias internacionales dependen de la configuración y del contrato vigente de cada cuenta; consulta al responsable si necesitas información específica sobre el tratamiento que afecta a tu solicitud.",
       "Cumplimiento legal: podemos divulgar información si una autoridad competente lo solicita conforme a la legislación aplicable.",
       "No vendemos datos personales ni los compartimos con fines publicitarios de terceros.",
@@ -80,6 +83,7 @@ const sections = [
       "Limitar u oponerte a determinados tratamientos.",
       "Solicitar la portabilidad de la información en un formato estructurado.",
       "Retirar en cualquier momento los consentimientos que hayas otorgado, sin afectar la licitud del tratamiento anterior a su retirada.",
+      "Darte de baja desde el enlace incluido en las comunicaciones comerciales o escribiendo a hola@zaltyko.com.",
       "Ejercer estos derechos escribiendo a hola@zaltyko.com. También puedes reclamar ante la Agencia Española de Protección de Datos (AEPD).",
     ],
   },

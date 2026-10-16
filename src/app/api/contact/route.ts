@@ -17,6 +17,10 @@ import {
 import { sendEmailWithLogging } from "@/lib/email/email-service";
 import { escapeHtml } from "@/lib/email/escape-html";
 import { getPublicSiteUrl } from "@/lib/seo/site-url";
+import {
+  academyWaitlistConsentVersion,
+  requestSubscription,
+} from "@/lib/directory/communications";
 
 /**
  * Sanitizes input by stripping all HTML tags to prevent XSS
@@ -50,6 +54,7 @@ export const POST = withRateLimit(
         source,
         attribution,
         message,
+        marketingConsent,
         honeypot,
         visitorId,
         directoryEntryId,
@@ -125,6 +130,34 @@ export const POST = withRateLimit(
         .onConflictDoNothing({ target: leadInteractions.submissionId })
         .returning({ id: leadInteractions.id });
 
+      if (source === "academy_waitlist" && marketingConsent) {
+        try {
+          await requestSubscription(
+            {
+              email: normalizedEmail,
+              purpose: "marketing",
+              consent: true,
+              version: academyWaitlistConsentVersion,
+              source: "academy_waitlist",
+              filters: {},
+            },
+            null
+          );
+        } catch (subscriptionError) {
+          logger.warn("Academy waitlist subscription could not be registered", {
+            error:
+              subscriptionError instanceof Error
+                ? subscriptionError.message
+                : "unknown",
+          });
+          return apiError(
+            "WAITLIST_SUBSCRIPTION_UNAVAILABLE",
+            "No se ha podido completar el alta de novedades. Inténtalo de nuevo en unos minutos.",
+            503
+          );
+        }
+      }
+
       await recordGrowthEvent({
         eventName: "contact_submitted",
         visitorId,
@@ -133,6 +166,7 @@ export const POST = withRateLimit(
         properties: {
           reason,
           has_academy_name: Boolean(sanitizedAcademy),
+          marketing_opt_in: marketingConsent,
           ...attributionProperties,
           ...directoryAttribution,
         },
@@ -165,6 +199,7 @@ export const POST = withRateLimit(
         leadId: lead.id,
         interactionId: interaction?.id ?? null,
         idempotent: !interaction,
+        marketingSubscriptionRequestAccepted: marketingConsent,
         message: "Contact message sent successfully",
       });
     } catch (error) {

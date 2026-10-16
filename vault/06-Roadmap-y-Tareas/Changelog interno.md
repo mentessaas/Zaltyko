@@ -6,6 +6,13 @@ source:
   - ../docs/audits/2026-10-03-launch-and-auth-followup.md
 ---
 
+## 2026-10-16 — Copy de lanzamiento y suscripción confirmada para academias
+
+- La landing explica que Zaltyko es una plataforma para academias de gimnasia artística y rítmica que ordena gimnastas, grupos, cuotas y asistencia; comunica que llegará próximamente sin dar fecha.
+- El formulario mantiene nombre y email obligatorios y academia opcional. Añade una casilla de novedades separada y desmarcada por defecto. El endpoint guarda la solicitud y registra el consentimiento en `directory_subscriptions` con doble opt-in, `source=academy_waitlist` y versión `academy-waitlist-2026-10-16`. No se incorporan contactos anteriores.
+- Super Admin → Growth muestra el estado de confirmación y baja en las solicitudes de waitlist. La política de privacidad y los mensajes aprobados describen la nueva finalidad; los contactos generales siguen sin suscripción.
+- Verificación y lanzamiento pendientes: tests focales, comprobación sintética en sandbox de lead/evento/consentimiento/confirmación/baja/email interno, entrega de correo del proveedor y revisión jurídica humana. Sin escrituras de prueba a producción ni publicación en esta pasada.
+
 ## 2026-10-16 — Landing directa de captación y conservación de UTM
 
 - La página se simplifica a una propuesta breve sobre cuotas, grupos y asistencia, tres campos (nombre, email y academia opcional), aviso de privacidad y confirmación en la misma pantalla. País y modalidad quedan para más adelante; no hay alta de cuenta ni suscripción comercial en este paso.

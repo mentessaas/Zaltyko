@@ -776,6 +776,17 @@ Una ficha externa no crea dueño, academia operativa, trial ni suscripción. Sol
 | Consecuencia | La página orienta los planes estándar a crear una academia sin bloquear la captación con una demo. |
 | Estado | PR #207 se integró por squash en `93b152d1` después de pasar build, lint/typecheck, unitarias, RLS, migraciones, seguridad móvil y E2E autenticado con verificación de escrituras idempotentes. El bypass administrativo se usó con autorización del usuario porque GitHub exigía una aprobación de otro colaborador. Vercel `dpl_ET8Auj2t4xY3h8n6oF58mXE1jL4o` está `Ready`; `/pricing` responde 200 y muestra CTA de alta y selector anual. No se creó Checkout ni se hizo un cargo. Checkout Test y su webhook siguen pendientes. |
 
+## 2026-10-16 — Avisos de lanzamiento con consentimiento confirmado
+
+| Campo | Valor |
+| --- | --- |
+| Contexto | La dirección de marketing pide explicar qué es Zaltyko, para quién es, qué organiza y cuándo estará disponible; además quiere mantener informadas a las academias interesadas. Esto amplía la decisión previa que no suscribía a novedades. |
+| Decisión | `waitlist.zaltyko.com` se presenta como lista de lanzamiento. Nombre y email son obligatorios, academia opcional; país y modalidad se dejan para más adelante. La autorización comercial se solicita con una casilla separada y desmarcada por defecto. Solo se envían novedades tras doble opt-in y se ofrece baja sencilla. Los formularios generales de contacto siguen sin suscribir. |
+| Evidencia | Registrar el consentimiento en `directory_subscriptions` con `purpose=marketing`, `source=academy_waitlist`, versión `academy-waitlist-2026-10-16`, fecha, token de confirmación y estado. Mostrar en Super Admin → Growth si la suscripción está pendiente, confirmada, retirada o no registrada. No incorporar contactos anteriores sin prueba de consentimiento. |
+| Copy | Explicar que Zaltyko organiza gimnastas, grupos, cuotas y asistencia para academias de gimnasia artística y rítmica; presentar el lanzamiento como próximo, sin fecha concreta. El éxito en pantalla dirige a confirmar el email y solo entonces promete avisos. |
+| Gate | Antes de activar tráfico: revisión jurídica humana de la capa informativa y la base de datos; prueba sintética en sandbox del contacto, consentimiento, confirmación, baja y entrega del mensaje; no mandar pruebas a producción. La casilla y el registro de consentimiento no demuestran por sí solos que el proveedor entregue el correo. |
+| Estado | Implementación en el PR de landing y extensión de PR #231 del producto. No desplegado. El criterio sustituye para la waitlist el “sin suscripción” de la decisión inmediatamente posterior; las consultas generales mantienen la decisión anterior. |
+
 ## 2026-10-16 — Captura directa de interés en academias
 
 | Campo | Valor |

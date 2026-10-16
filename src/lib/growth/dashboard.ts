@@ -3,6 +3,7 @@ import {
   count,
   countDistinct,
   desc,
+  eq,
   gte,
   inArray,
   isNotNull,
@@ -16,6 +17,7 @@ import {
   growthEvents,
   leadInteractions,
   leads,
+  directorySubscriptions,
   subscriptions,
 } from "@/db/schema";
 import {
@@ -71,6 +73,11 @@ export interface ContactInquiryRow {
   source: string;
   message: string;
   createdAt: string;
+  marketingSubscriptionStatus:
+    | "confirmed"
+    | "pending_confirmation"
+    | "withdrawn"
+    | "not_registered";
 }
 
 export interface GrowthDashboardData {
@@ -220,6 +227,48 @@ export async function getGrowthDashboardData(): Promise<GrowthDashboardData> {
       .limit(50),
   ]);
 
+  const waitlistEmails = [
+    ...new Set(
+      inquiryRows
+        .filter((row) => row.source === "academy_waitlist")
+        .map((row) => row.email)
+    ),
+  ];
+  const waitlistSubscriptions = waitlistEmails.length
+    ? await db
+        .select({
+          email: directorySubscriptions.email,
+          confirmedAt: directorySubscriptions.confirmedAt,
+          withdrawnAt: directorySubscriptions.withdrawnAt,
+          createdAt: directorySubscriptions.createdAt,
+        })
+        .from(directorySubscriptions)
+        .where(
+          and(
+            inArray(directorySubscriptions.email, waitlistEmails),
+            eq(directorySubscriptions.purpose, "marketing"),
+            eq(directorySubscriptions.source, "academy_waitlist")
+          )
+        )
+        .orderBy(desc(directorySubscriptions.createdAt))
+        .limit(200)
+    : [];
+  const waitlistStatusByEmail = new Map<
+    string,
+    ContactInquiryRow["marketingSubscriptionStatus"]
+  >();
+  for (const subscription of waitlistSubscriptions) {
+    if (waitlistStatusByEmail.has(subscription.email)) continue;
+    waitlistStatusByEmail.set(
+      subscription.email,
+      subscription.withdrawnAt
+        ? "withdrawn"
+        : subscription.confirmedAt
+          ? "confirmed"
+          : "pending_confirmation"
+    );
+  }
+
   const eventMap = new Map(eventRows.map((row) => [row.eventName, row]));
   const trialMap = new Map(
     trialRows.map((row) => [row.status, Number(row.total)])
@@ -364,6 +413,8 @@ export async function getGrowthDashboardData(): Promise<GrowthDashboardData> {
     inquiries: inquiryRows.map((row) => ({
       ...row,
       createdAt: row.createdAt.toISOString(),
+      marketingSubscriptionStatus:
+        waitlistStatusByEmail.get(row.email) ?? "not_registered",
     })),
   };
 }

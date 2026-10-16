@@ -13,6 +13,7 @@ import { sendEmail } from "@/lib/brevo";
 import { getPublicSiteUrl } from "@/lib/seo/site-url";
 import { escapeHtml } from "@/lib/email/escape-html";
 export const consentVersion = "directory-2026-09-30";
+export const academyWaitlistConsentVersion = "academy-waitlist-2026-10-16";
 export const SubscriptionSchema = z
   .object({
     email: z
@@ -29,8 +30,8 @@ export const SubscriptionSchema = z
       "claim_updates",
     ]),
     consent: z.literal(true),
-    version: z.literal(consentVersion),
-    source: z.enum(["directory", "kit", "my-listings"]),
+    version: z.enum([consentVersion, academyWaitlistConsentVersion]),
+    source: z.enum(["directory", "kit", "my-listings", "academy_waitlist"]),
     filters: z
       .object({
         country: z
@@ -43,7 +44,20 @@ export const SubscriptionSchema = z
       .strict()
       .default({}),
   })
-  .strict();
+  .strict()
+  .superRefine((value, context) => {
+    const expectedVersion =
+      value.source === "academy_waitlist"
+        ? academyWaitlistConsentVersion
+        : consentVersion;
+    if (value.version !== expectedVersion) {
+      context.addIssue({
+        code: z.ZodIssueCode.custom,
+        path: ["version"],
+        message: "La versión de consentimiento no corresponde a este origen",
+      });
+    }
+  });
 function secret() {
   const value = process.env.DIRECTORY_TOKEN_SECRET;
   if (!value || value.length < 32)
@@ -263,7 +277,7 @@ export async function processDeliveries(deliver: typeof sendEmail = sendEmail) {
     const delivery = await db.transaction(async (tx) => {
       const row = (
         await tx.execute(
-          sql`SELECT d.*,s.email,s.purpose,s.filters,s.confirmed_at,s.withdrawn_at,s.bounce_at,s.complaint_at,s.token_expires_at,s.user_id FROM directory_deliveries d JOIN directory_subscriptions s ON s.id=d.subscription_id WHERE (d.status='pending' OR (d.status='sending' AND d.lease_until<now())) AND d.attempts<3 ORDER BY d.created_at FOR UPDATE OF d SKIP LOCKED LIMIT 1`
+          sql`SELECT d.*,s.email,s.purpose,s.source,s.filters,s.confirmed_at,s.withdrawn_at,s.bounce_at,s.complaint_at,s.token_expires_at,s.user_id FROM directory_deliveries d JOIN directory_subscriptions s ON s.id=d.subscription_id WHERE (d.status='pending' OR (d.status='sending' AND d.lease_until<now())) AND d.attempts<3 ORDER BY d.created_at FOR UPDATE OF d SKIP LOCKED LIMIT 1`
         )
       ).rows[0];
       if (!row) return null;
@@ -300,11 +314,24 @@ export async function processDeliveries(deliver: typeof sendEmail = sendEmail) {
     let subject = "Confirma tu solicitud en Zaltyko",
       text = "";
     if (confirmation) {
+      if (delivery.source === "academy_waitlist") {
+        subject = "Confirma tu email para recibir novedades de Zaltyko";
+      }
       const token = confirmationToken(
         id,
         new Date(String(delivery.token_expires_at)).toISOString()
       );
-      text = `Has solicitado ${delivery.purpose === "kit" ? "el kit gratuito" : delivery.purpose === "marketing" ? "información comercial" : delivery.purpose === "claim_updates" ? "avisos sobre tus solicitudes de representación" : "avisos del calendario"} en Zaltyko. Confirma únicamente si lo solicitaste: ${base}/directorio/confirmar?id=${id}&token=${token}`;
+      const requestedUpdate =
+        delivery.source === "academy_waitlist"
+          ? "recibir el aviso de lanzamiento y novedades del producto Zaltyko"
+          : delivery.purpose === "kit"
+            ? "el kit gratuito"
+            : delivery.purpose === "marketing"
+              ? "información comercial"
+              : delivery.purpose === "claim_updates"
+                ? "avisos sobre tus solicitudes de representación"
+                : "avisos del calendario";
+      text = `Has solicitado ${requestedUpdate} en Zaltyko. Confirma únicamente si lo solicitaste: ${base}/directorio/confirmar?id=${id}&token=${token}`;
     } else if (delivery.purpose === "kit") {
       subject = "Tu kit de organización de academias";
       text = `Descarga el kit gratuito: ${base}/recursos/kit-academias. Esta entrega no te suscribe a marketing.`;
