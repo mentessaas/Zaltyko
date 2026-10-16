@@ -1,5 +1,28 @@
 # Pago y Owner Dashboard — estado de publicación
 
+## Preparación verificada — 2026-10-16, 07:35 UTC
+
+Integrado LOCAL el diagnóstico post-build `e8782f3a67466902a000109161d51b3db904d8f4`,
+cuatro archivos selectivos tras Frontend1799cda4. QA final exacto GO estático
+para UNA corrida existente, NO publicación. Corregidos anchors cerrados/IDs
+inequívocos, ranking cooperativo y agregado traceEntryCount 0..1000000:
+overflow omite el campo de esa clave sin emitir después un total parcial.
+Catálogo fijo versionado, no fuentes/perfiles/env/datos reales en salida;
+resumen16KiB, línea con sobre/progreso <=16653bytes. 1s cooperativo postproceso,
+no hardkill; 240s del build y sampler/lifecycle/protecciones intactos.
+
+Main85/85tests sintéticos en5suites,18.60s(tests2.97s),tsc noEmit incrementalfalse0,
+ESLint0warnings, formato y diff-check PASS; audit:env73 sin leer valores.
+Sin installs/build/E2E/Docker/pulls locales. Protecciones readonly07:28–29UTC:
+Vercel previewsDisabled/prodbranchmain, deploymentEnabledfalse, Deploydisabled,
+main strict/admins/1review/dismiss-stale/6checks, Actionsread/noapprove;
+Productionmainonly/preventselfreviewtrue, bypassadminpermitido(NOabsoluto).
+PR226OPENdraftREVIEW_REQUIRED remoto bf0aad14. NO merge/deploy/DDL/pagos.
+A esta hora NO push ni nuevoCI: permiso aún NOconsumido; Main hará un único
+push sustantivo, registrará SHA/run y no encadenará reruns/dispatch ni notas.
+Fuente: docs/qa/build-trace-attribution-2026-10-16.md. Gates seguridad/esquema/
+rolapp/recuperación/review/publicación separados; **NO-GO release**.
+
 ## Nueva autorización — 2026-10-16, 00:10 CEST (15 oct 22:10 UTC)
 
 El humano autoriza expresamente preparar, revisar y ejecutar **UNA corrida
