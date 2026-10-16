@@ -7,18 +7,30 @@ const mocks = vi.hoisted(() => ({
   summary: vi.fn(),
   notFound: vi.fn(),
   error: vi.fn(),
+  getUser: vi.fn(),
+  legacyMemberships: vi.fn(),
+  resolveUserHome: vi.fn(),
+  redirect: vi.fn((path: string) => {
+    throw new Error(`REDIRECT:${path}`);
+  }),
 }));
 vi.mock("next/headers", () => ({ cookies: async () => ({}) }));
 vi.mock("next/navigation", () => ({
-  redirect: vi.fn(),
+  redirect: mocks.redirect,
   notFound: mocks.notFound,
 }));
 vi.mock("@/lib/supabase/server", () => ({
   createClient: async () => ({
     auth: {
-      getUser: async () => ({ data: { user: { id: "synthetic-user" } } }),
+      getUser: mocks.getUser,
     },
   }),
+}));
+vi.mock("@/lib/auth/legacy-academy-access", () => ({
+  findLegacyAcademyMemberships: mocks.legacyMemberships,
+}));
+vi.mock("@/lib/auth/resolve-user-home", () => ({
+  resolveUserHome: mocks.resolveUserHome,
 }));
 vi.mock("@/lib/logger", () => ({ logger: { error: mocks.error } }));
 vi.mock("@/components/owner-dashboard/OwnerDashboardView", () => ({
@@ -60,6 +72,14 @@ const locationId = "00000000-0000-4000-8000-000000000002";
 describe("Owner page operational summary boundary", () => {
   beforeEach(() => {
     vi.clearAllMocks();
+    mocks.getUser.mockResolvedValue({
+      data: { user: { id: "synthetic-user" } },
+    });
+    mocks.legacyMemberships.mockResolvedValue([]);
+    mocks.resolveUserHome.mockResolvedValue({
+      destination: "academy_workspace",
+      redirectUrl: "/app/synthetic-legacy-academy/dashboard",
+    });
     mocks.dashboard.mockResolvedValue({
       organization: { id: organizationId },
       scope: { locationId },
@@ -68,6 +88,64 @@ describe("Owner page operational summary boundary", () => {
     mocks.notFound.mockImplementation(() => {
       throw new Error("NOT_FOUND");
     });
+  });
+  it("mantiene la academia legacy antes de consultar un dashboard canónico solicitado", async () => {
+    mocks.legacyMemberships.mockResolvedValue([
+      { academyId: "synthetic-legacy-academy" },
+    ]);
+    await expect(
+      OwnerDashboardPage({ searchParams: Promise.resolve({ organizationId }) })
+    ).rejects.toThrow("REDIRECT:/app/synthetic-legacy-academy/dashboard");
+    expect(mocks.resolveUserHome).toHaveBeenCalledWith({
+      userId: "synthetic-user",
+      email: undefined,
+    });
+    expect(mocks.dashboard).not.toHaveBeenCalled();
+    expect(mocks.summary).not.toHaveBeenCalled();
+  });
+  it("no ofrece alta alternativa a una cuenta legacy bloqueada", async () => {
+    mocks.legacyMemberships.mockResolvedValue([
+      { academyId: "synthetic-legacy-academy" },
+    ]);
+    mocks.resolveUserHome.mockResolvedValue({
+      destination: "blocked",
+      redirectUrl: "/auth/login?error=access_disabled",
+    });
+    await expect(
+      OwnerDashboardPage({ searchParams: Promise.resolve({}) })
+    ).rejects.toThrow("REDIRECT:/auth/login?error=access_disabled");
+    expect(mocks.dashboard).not.toHaveBeenCalled();
+  });
+  it("un vínculo legacy sin destino autorizado no abre el dashboard nuevo", async () => {
+    mocks.legacyMemberships.mockResolvedValue([
+      { academyId: "synthetic-legacy-academy" },
+    ]);
+    mocks.resolveUserHome.mockResolvedValue({
+      destination: "global_dashboard",
+      redirectUrl: "/dashboard/profile",
+    });
+    await expect(
+      OwnerDashboardPage({ searchParams: Promise.resolve({}) })
+    ).rejects.toThrow("REDIRECT:/owner/setup");
+    expect(mocks.dashboard).not.toHaveBeenCalled();
+  });
+  it("no convierte un error legacy en alta nueva o panel vacío", async () => {
+    mocks.legacyMemberships.mockRejectedValueOnce(
+      new Error("Synthetic legacy catalog failure")
+    );
+    await expect(
+      OwnerDashboardPage({ searchParams: Promise.resolve({}) })
+    ).rejects.toThrow("Synthetic legacy catalog failure");
+    expect(mocks.redirect).not.toHaveBeenCalled();
+    expect(mocks.dashboard).not.toHaveBeenCalled();
+  });
+  it("exige identidad autenticada antes de consultar relaciones o datos", async () => {
+    mocks.getUser.mockResolvedValue({ data: { user: null } });
+    await expect(
+      OwnerDashboardPage({ searchParams: Promise.resolve({}) })
+    ).rejects.toThrow("REDIRECT:/auth/login?next=/owner");
+    expect(mocks.legacyMemberships).not.toHaveBeenCalled();
+    expect(mocks.dashboard).not.toHaveBeenCalled();
   });
   it("does not silently narrow an organization aggregate to the score's default site", async () => {
     const page = await OwnerDashboardPage({

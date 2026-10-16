@@ -21,6 +21,7 @@ import {
   LAUNCH_MARKET_DEFAULTS,
 } from "@/modules/organizations/domain/academy-offerings";
 import { OperationalError } from "@/modules/shared/domain/operational-error";
+import { inspectLegacyAcademySchema } from "@/lib/auth/legacy-academy-access";
 import {
   appendAuditEntry,
   appendOutboxEvent,
@@ -146,6 +147,35 @@ export async function bootstrapOrganization(
         locationId: prior.locationId,
         memberId: prior.memberId,
       };
+    }
+
+    const legacySchemaState = await inspectLegacyAcademySchema((query) =>
+      tx.execute(query)
+    );
+    if (legacySchemaState === "present") {
+      const legacyMembership = await tx.execute(sql`
+        select 1
+        from public.profiles profile
+        join public.academies academy
+          on academy.tenant_id = profile.tenant_id
+        left join public.memberships membership
+          on membership.academy_id = academy.id
+         and membership.user_id = profile.user_id
+        where profile.user_id = ${input.userId}::uuid
+          and (
+            membership.user_id is not null
+            or academy.owner_id = profile.id
+          )
+        limit 1
+      `);
+      if (legacyMembership.rows.length > 0) {
+        throw new OperationalError(
+          "INVALID_STATE_TRANSITION",
+          "La cuenta ya tiene una relación con una academia existente. Solicita su vinculación antes de crear otra organización.",
+          409,
+          { reason: "legacy-academy-link-required" }
+        );
+      }
     }
 
     const [existing] = await tx

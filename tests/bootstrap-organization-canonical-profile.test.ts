@@ -34,6 +34,9 @@ const { fixture, testTables } = vi.hoisted(() => {
         limit: number | null;
       }>,
       inserts: [] as Array<{ table: string; values: unknown }>,
+      executeCalls: [] as string[],
+      hasLegacyMembership: false,
+      legacySchemaState: "absent" as "absent" | "present" | "partial" | "error",
     },
     testTables,
   };
@@ -87,7 +90,39 @@ function matches(predicate: unknown, row: Row): boolean {
 function makeTx() {
   let nextId = 0;
   const tx = {
-    execute: vi.fn(async () => ({ rows: [] })),
+    execute: vi.fn(async (statement: unknown) => {
+      const parts =
+        statement && typeof statement === "object" && "parts" in statement
+          ? (statement as { parts: string[] }).parts
+          : [];
+      const sqlText = parts.join("");
+      fixture.executeCalls.push(sqlText);
+      if (sqlText.includes("to_regclass")) {
+        if (fixture.legacySchemaState === "error") {
+          throw new Error("catalog permission denied");
+        }
+        return {
+          rows: [
+            {
+              profiles_present:
+                fixture.legacySchemaState === "present" ||
+                fixture.legacySchemaState === "partial",
+              academies_present: fixture.legacySchemaState === "present",
+              memberships_present:
+                fixture.legacySchemaState === "present" ||
+                fixture.legacySchemaState === "partial",
+            },
+          ],
+        };
+      }
+      return {
+        rows:
+          fixture.hasLegacyMembership &&
+          sqlText.includes("from public.profiles")
+            ? [{ exists: 1 }]
+            : [],
+      };
+    }),
     select: vi.fn(() => {
       let table = "";
       let where: unknown;
@@ -184,10 +219,14 @@ describe("organization bootstrap canonical sport profiles", () => {
     };
     fixture.selectCalls = [];
     fixture.inserts = [];
+    fixture.executeCalls = [];
+    fixture.hasLegacyMembership = false;
+    fixture.legacySchemaState = "absent";
     fixture.tx = makeTx();
   });
 
   it("uses one unconfigured identity profile per requested discipline", async () => {
+    fixture.legacySchemaState = "present";
     fixture.rows.sportProfiles = [
       {
         id: "configured-artistic-profile",
@@ -288,5 +327,81 @@ describe("organization bootstrap canonical sport profiles", () => {
       status: 422,
     });
     expect(fixture.inserts).toEqual([]);
+  });
+
+  it("blocks direct service calls for an account with legacy academy membership", async () => {
+    fixture.hasLegacyMembership = true;
+    fixture.legacySchemaState = "present";
+
+    await expect(bootstrapOrganization(command)).rejects.toMatchObject({
+      code: "INVALID_STATE_TRANSITION",
+      status: 409,
+      details: { reason: "legacy-academy-link-required" },
+    });
+
+    expect(fixture.inserts).toEqual([]);
+    expect(
+      fixture.executeCalls.some((sqlText) =>
+        sqlText.includes("public.memberships")
+      )
+    ).toBe(true);
+    expect(
+      fixture.selectCalls.some((call) => call.table === "organizationMembers")
+    ).toBe(false);
+  });
+
+  it("no consulta tablas legacy ausentes dentro de la transacción canónica", async () => {
+    fixture.legacySchemaState = "absent";
+    fixture.rows.sportProfiles = [
+      {
+        id: "canonical-artistic-profile",
+        countryCode: "ES",
+        disciplineKey: "artistic",
+        federationCode: "unconfigured",
+        profileVersion: "identity-v1",
+        status: "identity_only",
+      },
+      {
+        id: "canonical-rhythmic-profile",
+        countryCode: "ES",
+        disciplineKey: "rhythmic",
+        federationCode: "unconfigured",
+        profileVersion: "identity-v1",
+        status: "identity_only",
+      },
+    ];
+
+    await bootstrapOrganization(command);
+
+    expect(
+      fixture.executeCalls.some((sqlText) =>
+        sqlText.includes("from public.profiles")
+      )
+    ).toBe(false);
+  });
+
+  it("falla cerrado con schema legacy parcial o sin permiso de catálogo", async () => {
+    fixture.legacySchemaState = "partial";
+    await expect(bootstrapOrganization(command)).rejects.toThrow(
+      "está incompleto"
+    );
+    expect(fixture.inserts).toEqual([]);
+    expect(
+      fixture.executeCalls.some((sqlText) =>
+        sqlText.includes("from public.profiles")
+      )
+    ).toBe(false);
+
+    fixture.executeCalls = [];
+    fixture.legacySchemaState = "error";
+    await expect(bootstrapOrganization(command)).rejects.toThrow(
+      "catalog permission denied"
+    );
+    expect(fixture.inserts).toEqual([]);
+    expect(
+      fixture.executeCalls.some((sqlText) =>
+        sqlText.includes("from public.profiles")
+      )
+    ).toBe(false);
   });
 });

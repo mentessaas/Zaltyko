@@ -2,6 +2,8 @@ import { cookies } from "next/headers";
 import { notFound, redirect } from "next/navigation";
 
 import { OwnerDashboardView } from "@/components/owner-dashboard/OwnerDashboardView";
+import { findLegacyAcademyMemberships } from "@/lib/auth/legacy-academy-access";
+import { resolveUserHome } from "@/lib/auth/resolve-user-home";
 import { createClient } from "@/lib/supabase/server";
 import { logger } from "@/lib/logger";
 import {
@@ -27,6 +29,19 @@ export default async function OwnerDashboardPage({
     data: { user },
   } = await supabase.auth.getUser();
   if (!user) redirect("/auth/login?next=/owner");
+
+  const legacyMemberships = await findLegacyAcademyMemberships(user.id);
+  if (legacyMemberships.length > 0) {
+    const legacyHome = await resolveUserHome({
+      userId: user.id,
+      email: user.email,
+    });
+    if (legacyHome.destination === "academy_workspace") {
+      redirect(legacyHome.redirectUrl);
+    }
+    if (legacyHome.destination === "blocked") redirect(legacyHome.redirectUrl);
+    redirect("/owner/setup");
+  }
 
   const raw = await searchParams;
   const query = ownerDashboardQuerySchema.safeParse({

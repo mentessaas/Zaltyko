@@ -6,6 +6,7 @@ import {
 } from "@/lib/auth/ensure-global-profile";
 import { resolveUserHome } from "@/lib/auth/resolve-user-home";
 import { getRegistrationContinuationPath } from "@/lib/auth/registration-paths";
+import { isMissingCanonicalOwnerSchema } from "@/lib/auth/canonical-owner-schema";
 
 /**
  * Resuelve la entrada tras autenticar sin adelantarse a una invitación.
@@ -21,25 +22,44 @@ export async function resolveUserEntry(
     : isOpenRegistrationRole(user.user_metadata?.initial_role)
       ? user.user_metadata.initial_role
       : null;
-  if (requestedInitialRole === null || requestedInitialRole === "owner") {
-    // Carga diferida: altas de coach/familia siguen su resolver propio sin
-    // acoplar sus bundles al esquema owner canónico.
+  const currentHome = await resolveUserHome({
+    userId: user.id,
+    email: user.email,
+  });
+  if (
+    currentHome.destination === "blocked" ||
+    currentHome.destination === "invite_acceptance" ||
+    currentHome.destination === "super_admin"
+  ) {
+    return currentHome;
+  }
+
+  // Una relación legacy válida tiene prioridad y evita que una ausencia del
+  // esquema canónico interrumpa la entrada de cuentas actuales.
+  if (currentHome.destination === "academy_workspace") return currentHome;
+
+  // Resuelve una cuenta existente desde la membresía de base de datos antes de
+  // interpretar initial_role, que solo sirve para continuar altas nuevas.
+  let canonicalMembership = null;
+  try {
     const { findCanonicalOwnerEntry } =
       await import("@/modules/organizations/application/resolve-canonical-owner-entry");
-    const canonicalMembership = await findCanonicalOwnerEntry(user.id);
-    if (canonicalMembership) {
-      return {
-        destination: "academy_workspace" as const,
-        redirectUrl: `/owner?organizationId=${canonicalMembership.organizationId}`,
-        reason: "canonical-owner-membership",
-        profileRole:
-          canonicalMembership.role === "owner"
-            ? ("owner" as const)
-            : ("admin" as const),
-        membershipRole: null,
-        activeAcademyId: null,
-      };
-    }
+    canonicalMembership = await findCanonicalOwnerEntry(user.id);
+  } catch (error) {
+    if (!isMissingCanonicalOwnerSchema(error)) throw error;
+  }
+  if (canonicalMembership) {
+    return {
+      destination: "academy_workspace" as const,
+      redirectUrl: `/owner?organizationId=${canonicalMembership.organizationId}`,
+      reason: "canonical-owner-membership",
+      profileRole:
+        canonicalMembership.role === "owner"
+          ? ("owner" as const)
+          : ("admin" as const),
+      membershipRole: null,
+      activeAcademyId: null,
+    };
   }
   if (requestedInitialRole === "owner") {
     return {
@@ -52,10 +72,6 @@ export async function resolveUserEntry(
     };
   }
 
-  const currentHome = await resolveUserHome({
-    userId: user.id,
-    email: user.email,
-  });
   if (currentHome.destination !== "owner_setup") return currentHome;
 
   if (

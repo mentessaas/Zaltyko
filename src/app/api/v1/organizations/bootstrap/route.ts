@@ -5,6 +5,7 @@ import { z } from "zod";
 
 import { operationalProblem, problemResponse } from "@/app/api/v1/problem";
 import { getCurrentUser } from "@/lib/auth/current-user";
+import { findLegacyAcademyMemberships } from "@/lib/auth/legacy-academy-access";
 import { createClient } from "@/lib/supabase/server";
 import {
   OwnerSignupConsentError,
@@ -88,6 +89,21 @@ export async function POST(request: Request) {
     }
     contractualAcceptance = acceptance.data;
   }
+
+  // Esta lectura legacy se hace antes del consentimiento y del bootstrap.
+  // Una cuenta con academia existente necesita una vinculación revisada; no
+  // debe crear una organización canónica paralela.
+  const legacyMemberships = await findLegacyAcademyMemberships(user.id);
+  if (legacyMemberships.length > 0) {
+    return problemResponse({
+      status: 409,
+      title: "La cuenta ya pertenece a una academia",
+      detail:
+        "Solicita la vinculación o revisión de tu academia existente. No se creará otra organización para esta cuenta.",
+      type: "legacy-academy-link-required",
+    });
+  }
+
   try {
     await recordOwnerSignupConsent(authUser, {
       requestKey: parsed.data.idempotencyKey,

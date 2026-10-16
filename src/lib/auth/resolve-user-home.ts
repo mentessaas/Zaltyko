@@ -1,8 +1,13 @@
-import { and, asc, eq, gt, inArray } from "drizzle-orm";
+import { and, asc, eq, gt } from "drizzle-orm";
 
 import { db } from "@/db";
-import { academies, invitations, memberships, profiles } from "@/db/schema";
+import { invitations, profiles } from "@/db/schema";
 import type { MembershipRole, ProfileRole } from "@/lib/product/roles";
+import {
+  findLegacyAcademyMemberships,
+  inspectLegacyAcademySchema,
+  isAvailableLegacyAcademy,
+} from "@/lib/auth/legacy-academy-access";
 import {
   canAccessAcademyWorkspace,
   getDefaultDashboardPath,
@@ -46,6 +51,20 @@ export async function resolveUserHome(args: {
   email?: string | null;
 }): Promise<ResolveUserHomeResult> {
   const normalizedEmail = args.email?.trim().toLowerCase() ?? null;
+  const legacySchemaState = await inspectLegacyAcademySchema((query) =>
+    db.execute(query)
+  );
+
+  if (legacySchemaState === "absent") {
+    return {
+      destination: "owner_setup",
+      redirectUrl: "/owner/setup",
+      reason: "legacy-schema-absent",
+      profileRole: null,
+      membershipRole: null,
+      activeAcademyId: null,
+    };
+  }
 
   const [profile] = await db
     .select({
@@ -129,53 +148,38 @@ export async function resolveUserHome(args: {
     };
   }
 
-  const membershipsRows = await db
-    .select({
-      academyId: memberships.academyId,
-      role: memberships.role,
-    })
-    .from(memberships)
-    .innerJoin(academies, eq(academies.id, memberships.academyId))
-    .where(
-      and(
-        eq(memberships.userId, args.userId),
-        eq(academies.tenantId, profile.tenantId),
-        eq(academies.isSuspended, false),
-        inArray(academies.status, ["active", "trial"])
+  const legacyRows = (
+    await findLegacyAcademyMemberships(args.userId, legacySchemaState)
+  ).filter(
+    (row) =>
+      row.profileId === profile.id &&
+      row.profileUserId === args.userId &&
+      row.profileRole === profile.role &&
+      row.profileTenantId === profile.tenantId &&
+      row.academyTenantId === profile.tenantId &&
+      isAvailableLegacyAcademy(row)
+  );
+  const ownerOrAdmin = profile.role === "owner" || profile.role === "admin";
+  // membership_role legacy no incluye "admin": un perfil admin conserva
+  // acceso solo con relación owner o propiedad directa de esa academia.
+  const eligibleRows = ownerOrAdmin
+    ? legacyRows.filter(
+        (row) =>
+          row.profileId === profile.id &&
+          (row.academyOwnerId === profile.id || row.membershipRole === "owner")
       )
-    )
-    .orderBy(asc(memberships.createdAt))
-    .limit(1000);
-
+    : legacyRows.filter((row) => row.membershipUserId === args.userId);
   const activeMembership =
-    membershipsRows.find(
+    eligibleRows.find(
       (membership) => membership.academyId === profile.activeAcademyId
     ) ??
-    membershipsRows[0] ??
+    eligibleRows[0] ??
     null;
 
-  // Nunca confiar en activeAcademyId por sí solo: debe existir una membresía
-  // vigente en el tenant actual. Así una referencia obsoleta no concede acceso.
-  let academyId = activeMembership?.academyId ?? null;
-
-  if (!academyId && (profile.role === "owner" || profile.role === "admin")) {
-    const [academy] = await db
-      .select({ id: academies.id })
-      .from(academies)
-      .where(
-        and(
-          eq(academies.tenantId, profile.tenantId),
-          eq(academies.isSuspended, false),
-          inArray(academies.status, ["active", "trial"])
-        )
-      )
-      .orderBy(asc(academies.name))
-      .limit(1);
-
-    academyId = academy?.id ?? null;
-  }
-
-  const membershipRole = (activeMembership?.role ??
+  // activeAcademyId solo selecciona entre relaciones verificadas; nunca crea
+  // acceso por sí mismo ni permite elegir una academia de otro tenant.
+  const academyId = activeMembership?.academyId ?? null;
+  const membershipRole = (activeMembership?.membershipRole ??
     null) as MembershipRole | null;
 
   if (
@@ -196,12 +200,16 @@ export async function resolveUserHome(args: {
   if (
     academyId &&
     (profile.role === "owner" || profile.role === "admin") &&
-    canAccessAcademyWorkspace(profile.role, membershipRole)
+    canAccessAcademyWorkspace(
+      profile.role,
+      membershipRole,
+      activeMembership?.academyOwnerId === profile.id
+    )
   ) {
     return {
       destination: "academy_workspace",
-      redirectUrl: "/owner",
-      reason: "canonical-owner-surface",
+      redirectUrl: `/app/${academyId}/dashboard`,
+      reason: "legacy-owner-membership",
       profileRole: profile.role,
       membershipRole,
       activeAcademyId: academyId,

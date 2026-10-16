@@ -4,6 +4,8 @@ import { beforeEach, describe, expect, it, vi } from "vitest";
 const getUser = vi.hoisted(() => vi.fn());
 const getConsentRequirement = vi.hoisted(() => vi.fn());
 const dbLimit = vi.hoisted(() => vi.fn());
+const findLegacyAcademyMemberships = vi.hoisted(() => vi.fn());
+const resolveUserHome = vi.hoisted(() => vi.fn());
 
 vi.mock("next/headers", () => ({
   cookies: vi.fn().mockResolvedValue({}),
@@ -33,6 +35,12 @@ vi.mock("@/db/zaltyko-schema", () => ({
     role: "organization_members.role",
   },
 }));
+
+vi.mock("@/lib/auth/legacy-academy-access", () => ({
+  findLegacyAcademyMemberships,
+}));
+
+vi.mock("@/lib/auth/resolve-user-home", () => ({ resolveUserHome }));
 
 vi.mock("drizzle-orm", () => ({
   and: vi.fn(),
@@ -66,6 +74,8 @@ beforeEach(() => {
   });
   getConsentRequirement.mockReset();
   dbLimit.mockReset().mockResolvedValue([]);
+  findLegacyAcademyMemberships.mockReset().mockResolvedValue([]);
+  resolveUserHome.mockReset();
 });
 
 describe("lectura de aceptación contractual antes del setup Owner", () => {
@@ -106,6 +116,55 @@ describe("lectura de aceptación contractual antes del setup Owner", () => {
     await expect(OwnerSetupPage()).rejects.toThrow(
       "NEXT_REDIRECT:/auth/login?next=/owner/setup"
     );
+    expect(getConsentRequirement).not.toHaveBeenCalled();
+  });
+
+  it("redirige al dashboard legacy antes de consultar organizaciones canónicas", async () => {
+    findLegacyAcademyMemberships.mockResolvedValue([
+      { academyId: "legacy-academy-1", membershipRole: "owner" },
+    ]);
+    resolveUserHome.mockResolvedValue({
+      destination: "academy_workspace",
+      redirectUrl: "/app/legacy-academy-1/dashboard",
+    });
+
+    await expect(OwnerSetupPage()).rejects.toThrow(
+      "NEXT_REDIRECT:/app/legacy-academy-1/dashboard"
+    );
+    expect(dbLimit).not.toHaveBeenCalled();
+    expect(getConsentRequirement).not.toHaveBeenCalled();
+  });
+
+  it("no muestra el formulario si existe una academia legacy sin acceso activo", async () => {
+    findLegacyAcademyMemberships.mockResolvedValue([
+      { academyId: "legacy-academy-suspended", membershipRole: "owner" },
+    ]);
+    resolveUserHome.mockResolvedValue({ destination: "owner_setup" });
+
+    const page = await OwnerSetupPage();
+
+    expect(findSetupForm(page)).toBeUndefined();
+    expect(dbLimit).not.toHaveBeenCalled();
+    expect(getConsentRequirement).not.toHaveBeenCalled();
+  });
+
+  it("solo trata la relación canónica ausente como cuenta nueva", async () => {
+    dbLimit.mockRejectedValue({
+      code: "42P01",
+      table: "organization_members",
+      message: 'relation "zaltyko.organization_members" does not exist',
+    });
+    getConsentRequirement.mockResolvedValue(null);
+
+    const page = await OwnerSetupPage();
+
+    expect(findSetupForm(page)).toBeDefined();
+  });
+
+  it("no oculta errores genéricos de lectura canónica como ausencia", async () => {
+    dbLimit.mockRejectedValue(new Error("connection reset"));
+
+    await expect(OwnerSetupPage()).rejects.toThrow("connection reset");
     expect(getConsentRequirement).not.toHaveBeenCalled();
   });
 });

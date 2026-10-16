@@ -3,6 +3,7 @@ import { beforeEach, describe, expect, it, vi } from "vitest";
 const mocks = vi.hoisted(() => ({
   getCurrentUser: vi.fn(),
   getAuthUser: vi.fn(),
+  findLegacyAcademyMemberships: vi.fn(),
   recordConsent: vi.fn(),
   bootstrap: vi.fn(),
 }));
@@ -15,6 +16,9 @@ vi.mock("@/lib/supabase/server", () => ({
 
 vi.mock("@/lib/auth/current-user", () => ({
   getCurrentUser: mocks.getCurrentUser,
+}));
+vi.mock("@/lib/auth/legacy-academy-access", () => ({
+  findLegacyAcademyMemberships: mocks.findLegacyAcademyMemberships,
 }));
 vi.mock("@/modules/organizations/application/owner-signup-consent", () => {
   class OwnerSignupConsentError extends Error {
@@ -69,6 +73,7 @@ describe("POST /api/v1/organizations/bootstrap consent gate", () => {
   beforeEach(() => {
     vi.clearAllMocks();
     mocks.getCurrentUser.mockResolvedValue(owner);
+    mocks.findLegacyAcademyMemberships.mockResolvedValue([]);
     mocks.getAuthUser.mockResolvedValue({
       data: { user: authUser },
       error: null,
@@ -96,6 +101,31 @@ describe("POST /api/v1/organizations/bootstrap consent gate", () => {
       requestKey: payload.idempotencyKey,
       contractualAcceptance: undefined,
     });
+  });
+
+  it("bloquea cuentas legacy antes de registrar consentimiento o crear organización", async () => {
+    mocks.findLegacyAcademyMemberships.mockResolvedValue([
+      { academyId: "legacy-academy-1", membershipRole: "owner" },
+    ]);
+
+    const response = await POST(request());
+
+    expect(response.status).toBe(409);
+    expect(await response.json()).toMatchObject({
+      type: expect.stringContaining("legacy-academy-link-required"),
+    });
+    expect(mocks.recordConsent).not.toHaveBeenCalled();
+    expect(mocks.bootstrap).not.toHaveBeenCalled();
+  });
+
+  it("falla cerrado si no puede comprobar membresías legacy", async () => {
+    mocks.findLegacyAcademyMemberships.mockRejectedValue(
+      new Error("catalog permission denied")
+    );
+
+    await expect(POST(request())).rejects.toThrow("catalog permission denied");
+    expect(mocks.recordConsent).not.toHaveBeenCalled();
+    expect(mocks.bootstrap).not.toHaveBeenCalled();
   });
 
   it("pasa la aceptación explícita al gate para una cuenta existente", async () => {
