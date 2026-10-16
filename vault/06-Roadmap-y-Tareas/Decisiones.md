@@ -776,6 +776,17 @@ Una ficha externa no crea dueño, academia operativa, trial ni suscripción. Sol
 | Consecuencia | La página orienta los planes estándar a crear una academia sin bloquear la captación con una demo. |
 | Estado | PR #207 se integró por squash en `93b152d1` después de pasar build, lint/typecheck, unitarias, RLS, migraciones, seguridad móvil y E2E autenticado con verificación de escrituras idempotentes. El bypass administrativo se usó con autorización del usuario porque GitHub exigía una aprobación de otro colaborador. Vercel `dpl_ET8Auj2t4xY3h8n6oF58mXE1jL4o` está `Ready`; `/pricing` responde 200 y muestra CTA de alta y selector anual. No se creó Checkout ni se hizo un cargo. Checkout Test y su webhook siguen pendientes. |
 
+## 2026-10-16 — Captura directa de interés en academias
+
+| Campo | Valor |
+| --- | --- |
+| Contexto | La landing anterior explicaba el producto y dirigía a otros pasos, pero no permitía dejar datos directamente. Se prioriza captar una solicitud de información antes de pedir datos operativos de la academia. |
+| Decisión | Formulario principal con nombre y email obligatorios y nombre de academia opcional. País y modalidad se preguntan más adelante. Mostrar confirmación en pantalla solo tras respuesta satisfactoria del servidor; no suscribir a novedades ni prometer correo automático. Mantener "Crear academia gratis" como CTA secundaria. |
+| Funnel | Publicar `/api/contact` en el mismo dominio de la landing como proxy al contacto existente. Enviar `source=academy_waitlist`, `reason=sales`, `submissionId` idempotente y UTM validados; guardar la atribución en los metadatos del lead y el evento `contact_submitted`. El aviso interno enlaza a Growth sin copiar datos personales. |
+| Límite | Vercel no conserva la IP original al reenviar entre deployments. Para evitar un único límite compartido entre todos los visitantes, la waitlist aplica cinco envíos/minuto sobre hash del email normalizado; el resto de contactos mantiene el límite por IP. |
+| Seguridad de pruebas | Preview y local no reenvían al producto de producción. Los casos UI usan respuestas simuladas; cualquier prueba con escritura usa exclusivamente el sandbox, con datos sintéticos y limpieza. |
+| Estado | Implementación en `codex/direct-academy-capture` y extensión del PR #231 del producto. DNS del subdominio verificado; los cambios no están desplegados. Siguen pendientes CI, aprobación humana obligatoria, revisión jurídica y E2E controlado del inbox/aviso antes de dirigir tráfico. |
+
 ## 2026-10-15 — Captación de academias y conservación de consultas
 
 | Campo | Valor |

@@ -1,10 +1,19 @@
 ---
 status: active
 owner: producto
-last_reviewed: 2026-10-15
+last_reviewed: 2026-10-16
 source:
   - ../docs/audits/2026-10-03-launch-and-auth-followup.md
 ---
+
+## 2026-10-16 — Landing directa de captación y conservación de UTM
+
+- La página se simplifica a una propuesta breve sobre cuotas, grupos y asistencia, tres campos (nombre, email y academia opcional), aviso de privacidad y confirmación en la misma pantalla. País y modalidad quedan para más adelante; no hay alta de cuenta ni suscripción comercial en este paso.
+- La landing envía `reason=sales`, `source=academy_waitlist` y una clave de idempotencia al endpoint de contacto. El producto valida hasta cinco campos UTM y los guarda en los metadatos del lead y en el evento `contact_submitted`; el aviso interno conserva el enlace a Super Admin → Growth sin copiar PII.
+- El proxy oculta la IP del visitante al llegar al deployment del producto; por eso el endpoint limita esta fuente a cinco envíos por minuto y hash del email normalizado. Los demás contactos mantienen el límite por IP.
+- El proxy `/api/contact` solo reenvía a `https://zaltyko.com/api/contact` en un deployment de producción. Preview y local responden 503 sin enviar datos. La prueba visual del formulario debe simular el endpoint; el probe con escritura solo se ejecuta contra el sandbox aislado.
+- **Estado del deployment al revisar:** `waitlist.zaltyko.com` resuelve por CNAME a `87f3b447175c9d79.vercel-dns-017.com.` y la versión actual responde HTTP 200. El nuevo diseño y el contrato de UTM siguen en ramas de PR; no se desplegó el cambio.
+- Pendiente antes de activar la captura: aprobación humana obligatoria del PR del producto, CI actualizado, revisión jurídica humana y ejecución del probe aislado para lead, evento, UTM e intento de aviso registrado en `email_logs`. La entrega real del proveedor de email sigue sin verificar. No se envió ningún lead de prueba a producción.
 
 ## 2026-10-15 — Captación de academias y conservación de leads (en revisión)
 

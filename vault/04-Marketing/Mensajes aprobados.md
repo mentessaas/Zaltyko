@@ -1,7 +1,7 @@
 ---
 status: active
 owner: marketing
-last_reviewed: 2026-09-13
+last_reviewed: 2026-10-16
 source:
   - ../docs/marketing/zaltyko-messaging.md
   - ../PRODUCT-ANALYSIS.md
@@ -18,12 +18,19 @@ Gestiona tu academia deportiva sin perder el foco en lo que importa: formar atle
 
 Para discovery, beta y mensajes de venta tempranos, enfocar Zaltyko en academias de gimnasia artistica y ritmica en espanol. El posicionamiento general de "academias deportivas" se mantiene como arquitectura de expansion, pero el go-to-market inicial debe hablar de gimnastas, familias, clases, cuotas, asistencia y progreso tecnico.
 
-### Captación de academias — 2026-10-15
+### Captación de academias — 2026-10-16
 
-- Mensaje principal de landing: **"Las cuotas cobradas. Los grupos montados. La lista pasada."** Mantener el foco en el trabajo que consume el día a día de dirección: cuotas, grupos, asistencia y comunicación con familias dispersos entre hojas y chats.
+- Mensaje principal de landing: **"Cuotas, grupos y asistencia. En orden."** Como apoyo de marca: **"Las cuotas cobradas. Los grupos montados. La lista pasada."** Mantener el foco en la gestión diaria que se dispersa entre hojas y mensajes.
 - Para academias estándar, ofrecer creación gratuita en autoservicio. Reservar el contacto asistido para varias sedes o migraciones complejas; no pedir país ni modalidad antes del registro. País y artística/rítmica se completan al configurar la academia.
 - El formulario de contacto responde a una solicitud concreta y no suscribe a novedades. No añadir testimonios, resultados numéricos ni fechas de disponibilidad sin evidencia.
 - Fuente de lenguaje de marca: [web pública de Zaltyko](https://zaltyko.com/). Criterio de segmento: gimnasia artística y rítmica, según esta guía y el ICP vigente.
+
+### Solicitud de información de academias — 2026-10-16
+
+- Para `waitlist.zaltyko.com`, la acción principal es dejar nombre y email; el nombre de la academia es opcional. No se piden país, modalidad, teléfono ni mensaje libre en este primer contacto.
+- Copy principal: **"Cuotas, grupos y asistencia. En orden."** El texto de apoyo conecta la gestión dispersa entre hojas y mensajes con el orden de cuotas, grupos y asistencia, sin atribuir resultados numéricos.
+- El aviso indica que los datos se usan para atender la solicitud y que no se activa una suscripción comercial. La página confirma únicamente después de que el servidor acepte la solicitud; no promete un email automático ni una guía.
+- "Crear academia gratis" queda como enlace secundario para quien prefiera iniciar el autoservicio.
 
 ## Taglines permitidos
 

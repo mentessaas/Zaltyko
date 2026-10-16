@@ -48,6 +48,13 @@ describe("academy lead funnel readiness contract", () => {
     expect(contactRoute).not.toContain("Mensaje:</strong>");
   });
 
+  it("stores waitlist attribution with the lead and its contact event", () => {
+    expect(contactRoute).toContain("toContactAttributionProperties(attribution)");
+    expect(contactRoute).toContain("attribution: attributionProperties");
+    expect(contactRoute).toContain("...attributionProperties");
+    expect(contactRoute).toContain('eventName: "contact_submitted"');
+  });
+
   it("keeps recent contact details available in the protected growth inbox", () => {
     expect(growthDashboard).toContain("from(leadInteractions)");
     expect(growthDashboard).toContain(".limit(50)");

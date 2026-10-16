@@ -3,11 +3,17 @@ import { apiCreated, apiError } from "@/lib/api-response";
 import { eq } from "drizzle-orm";
 import { db } from "@/db";
 import { leadInteractions, leads } from "@/db/schema";
-import { ContactRequestSchema } from "@/lib/growth/contracts";
+import {
+  ContactRequestSchema,
+  toContactAttributionProperties,
+} from "@/lib/growth/contracts";
 import { recordGrowthEvent } from "@/lib/growth/events";
 import { logger } from "@/lib/logger";
 import { NextRequest } from "next/server";
-import { withRateLimit } from "@/lib/rate-limit";
+import {
+  getContactRateLimitIdentifier,
+  withRateLimit,
+} from "@/lib/rate-limit";
 import { sendEmailWithLogging } from "@/lib/email/email-service";
 import { escapeHtml } from "@/lib/email/escape-html";
 import { getPublicSiteUrl } from "@/lib/seo/site-url";
@@ -42,6 +48,7 @@ export const POST = withRateLimit(
         reason,
         plan,
         source,
+        attribution,
         message,
         honeypot,
         visitorId,
@@ -73,6 +80,7 @@ export const POST = withRateLimit(
       const sanitizedAcademy = academy ? stripHtml(academy) : null;
       const sanitizedMessage = stripHtml(message);
       const normalizedEmail = email.toLowerCase();
+      const attributionProperties = toContactAttributionProperties(attribution);
 
       await db
         .insert(leads)
@@ -86,6 +94,9 @@ export const POST = withRateLimit(
             academy: sanitizedAcademy,
             message: sanitizedMessage,
             capturedAt: new Date().toISOString(),
+            ...(Object.keys(attributionProperties).length > 0
+              ? { attribution: attributionProperties }
+              : {}),
           }),
         })
         .onConflictDoNothing({ target: leads.email });
@@ -119,7 +130,12 @@ export const POST = withRateLimit(
         visitorId,
         planCode: plan ?? null,
         source,
-        properties: { reason, has_academy_name: Boolean(sanitizedAcademy), ...directoryAttribution },
+        properties: {
+          reason,
+          has_academy_name: Boolean(sanitizedAcademy),
+          ...attributionProperties,
+          ...directoryAttribution,
+        },
         idempotencyKey: `contact:${submissionId}`,
       });
 
@@ -156,5 +172,5 @@ export const POST = withRateLimit(
       return apiError("INTERNAL_ERROR", "Internal Server Error", 500);
     }
   },
-  { limit: 5, window: 60 }
-); // 5 requests per minute per IP
+  { identifier: getContactRateLimitIdentifier, limit: 5, window: 60 }
+); // 5 requests/minute; academy waitlist uses a normalized email hash behind the proxy.

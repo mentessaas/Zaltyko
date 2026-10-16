@@ -91,6 +91,28 @@ export const LeadCaptureSchema = z
   })
   .strict();
 
+export const ContactAttributionSchema = z
+  .object({
+    utm_source: z.string().max(128).regex(/^[a-z0-9_-]+$/).optional(),
+    utm_medium: z.string().max(128).regex(/^[a-z0-9_-]+$/).optional(),
+    utm_campaign: z.string().max(128).regex(/^[a-z0-9_-]+$/).optional(),
+    utm_term: z.string().max(128).regex(/^[a-z0-9_-]+$/).optional(),
+    utm_content: z.string().max(128).regex(/^[a-z0-9_-]+$/).optional(),
+  })
+  .strict();
+
+export type ContactAttribution = z.infer<typeof ContactAttributionSchema>;
+
+export function toContactAttributionProperties(
+  attribution: ContactAttribution | undefined
+): Record<string, string> {
+  return Object.fromEntries(
+    Object.entries(attribution ?? {}).filter(
+      (entry): entry is [string, string] => typeof entry[1] === "string"
+    )
+  );
+}
+
 export const ContactRequestSchema = z
   .object({
     name: z.string().trim().min(2).max(100),
@@ -117,6 +139,7 @@ export const ContactRequestSchema = z
       .max(64)
       .regex(/^[a-z0-9_-]+$/i)
       .default("contact_form"),
+    attribution: ContactAttributionSchema.optional(),
     message: z.string().trim().min(10).max(2_000),
     honeypot: z.string().max(100).nullable().optional(),
     directoryEntryId: z.string().uuid().optional(),

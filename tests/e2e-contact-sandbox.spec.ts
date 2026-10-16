@@ -19,19 +19,26 @@ const pool = enabled
   ? new Pool({ connectionString: process.env.DATABASE_URL })
   : null;
 const submissionId = randomUUID();
-const visitorId = randomUUID();
 const email = `e2e-contact-${submissionId}@zaltyko.test`;
 const idempotencyKey = `contact:${submissionId}`;
+const emailDedupeKey = `public-contact-lead:${submissionId}`;
+const emailLogIdempotencyKey = `email:${emailDedupeKey}`;
 
 const payload = {
   name: "E2E Contact Probe",
   email,
   academy: "Zaltyko E2E Sandbox",
-  reason: "demo" as const,
-  plan: "starter" as const,
-  source: "e2e_sandbox_contact",
-  message: "Prueba controlada del formulario de contacto en sandbox.",
-  visitorId,
+  reason: "sales" as const,
+  source: "academy_waitlist",
+  message: "Solicitud de información desde la landing de academias.",
+  visitorId: null,
+  attribution: {
+    utm_source: "e2e_sandbox",
+    utm_medium: "test",
+    utm_campaign: "academy_waitlist",
+    utm_term: "artistic_gymnastics",
+    utm_content: "form_test",
+  },
   submissionId,
 };
 
@@ -45,6 +52,9 @@ test.afterAll(async () => {
     await pool.query("DELETE FROM growth_events WHERE idempotency_key = $1", [
       idempotencyKey,
     ]);
+    await pool.query("DELETE FROM email_logs WHERE idempotency_key = $1", [
+      emailLogIdempotencyKey,
+    ]);
     await pool.query("DELETE FROM leads WHERE email = $1", [email]);
     await pool.query("COMMIT");
   } catch (error) {
@@ -55,7 +65,7 @@ test.afterAll(async () => {
   }
 });
 
-test("persists one contact and keeps retries idempotent in the sandbox", async ({
+test("persists one academy waitlist lead, its attribution, event and notification attempt in sandbox", async ({
   request,
 }) => {
   const first = await request.post("/api/contact", { data: payload });
@@ -76,19 +86,37 @@ test("persists one contact and keeps retries idempotent in the sandbox", async (
     lead_count: string;
     interaction_count: string;
     growth_count: string;
+    lead_attribution: Record<string, string>;
+    event_source: string;
+    event_utm_campaign: string;
+    notification_count: string;
+    notification_to: string;
+    notification_subject: string;
   }>(
     `
       select
         (select count(*) from leads where email = $1)::text as lead_count,
         (select count(*) from lead_interactions where submission_id = $2)::text as interaction_count,
-        (select count(*) from growth_events where idempotency_key = $3)::text as growth_count
+        (select count(*) from growth_events where idempotency_key = $3)::text as growth_count,
+        (select metadata::jsonb -> 'attribution' from leads where email = $1) as lead_attribution,
+        (select source from growth_events where idempotency_key = $3) as event_source,
+        (select properties ->> 'utm_campaign' from growth_events where idempotency_key = $3) as event_utm_campaign,
+        (select count(*) from email_logs where idempotency_key = $4 and template = 'public-contact-lead')::text as notification_count,
+        (select to_email from email_logs where idempotency_key = $4 and template = 'public-contact-lead') as notification_to,
+        (select subject from email_logs where idempotency_key = $4 and template = 'public-contact-lead') as notification_subject
     `,
-    [email, submissionId, idempotencyKey]
+    [email, submissionId, idempotencyKey, emailLogIdempotencyKey]
   );
 
   expect(rows.rows[0]).toEqual({
     lead_count: "1",
     interaction_count: "1",
     growth_count: "1",
+    lead_attribution: payload.attribution,
+    event_source: "academy_waitlist",
+    event_utm_campaign: "academy_waitlist",
+    notification_count: "1",
+    notification_to: "hola@zaltyko.com",
+    notification_subject: "[Zaltyko] Nueva solicitud · Información de ventas",
   });
 });

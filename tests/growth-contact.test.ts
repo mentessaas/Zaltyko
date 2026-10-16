@@ -1,6 +1,10 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
-import { ContactRequestSchema } from "@/lib/growth/contracts";
+import {
+  ContactRequestSchema,
+  toContactAttributionProperties,
+} from "@/lib/growth/contracts";
+import { getContactRateLimitIdentifier } from "@/lib/rate-limit";
 import {
   calculatePricingToContactMetric,
   PRICING_TO_CONTACT_MIN_DENOMINATOR,
@@ -39,6 +43,83 @@ describe("contact growth contracts", () => {
     expect(parsed.success).toBe(true);
     if (!parsed.success) return;
     expect(parsed.data.reason).toBe("migracion");
+  });
+
+  it("acepta y valida los cinco campos UTM de la landing de academias", () => {
+    const attribution = {
+      utm_source: "instagram",
+      utm_medium: "social",
+      utm_campaign: "academy_acquisition_2026",
+      utm_term: "gimnasia_artistica",
+      utm_content: "hero_v1",
+    };
+    const parsed = ContactRequestSchema.safeParse(
+      buildContactRequest({ source: "academy_waitlist", attribution })
+    );
+
+    expect(parsed.success).toBe(true);
+    if (!parsed.success) return;
+    expect(parsed.data.source).toBe("academy_waitlist");
+    expect(parsed.data.attribution).toEqual(attribution);
+    expect(toContactAttributionProperties(parsed.data.attribution)).toEqual(
+      attribution
+    );
+    expect(toContactAttributionProperties(undefined)).toEqual({});
+  });
+
+  it("rechaza UTMs libres, demasiado largos y claves desconocidas", () => {
+    expect(
+      ContactRequestSchema.safeParse(
+        buildContactRequest({ attribution: { utm_source: "instagram/ana@example.com" } })
+      ).success
+    ).toBe(false);
+    expect(
+      ContactRequestSchema.safeParse(
+        buildContactRequest({ attribution: { utm_campaign: "a".repeat(129) } })
+      ).success
+    ).toBe(false);
+    expect(
+      ContactRequestSchema.safeParse(
+        buildContactRequest({ attribution: { email: "ana@example.com" } })
+      ).success
+    ).toBe(false);
+  });
+
+  it("limita la waitlist por hash de email y conserva el límite IP del contacto general", async () => {
+    const waitlistRequest = (email: string, ip: string) =>
+      new Request("https://zaltyko.com/api/contact", {
+        method: "POST",
+        headers: {
+          "content-type": "application/json",
+          "x-forwarded-for": ip,
+        },
+        body: JSON.stringify({ source: "academy_waitlist", email }),
+      });
+
+    const first = await getContactRateLimitIdentifier(
+      waitlistRequest("Academy@Example.test", "198.51.100.1")
+    );
+    const normalizedRetry = await getContactRateLimitIdentifier(
+      waitlistRequest(" academy@example.test ", "203.0.113.2")
+    );
+    const anotherEmail = await getContactRateLimitIdentifier(
+      waitlistRequest("other@example.test", "203.0.113.2")
+    );
+    expect(first).toBe(normalizedRetry);
+    expect(first).not.toContain("academy@example.test");
+    expect(anotherEmail).not.toBe(first);
+
+    const regularRequest = new Request("https://zaltyko.com/api/contact", {
+      method: "POST",
+      headers: {
+        "content-type": "application/json",
+        "x-forwarded-for": "198.51.100.9",
+      },
+      body: JSON.stringify({ source: "public_contact", email: "test@example.com" }),
+    });
+    expect(await getContactRateLimitIdentifier(regularRequest)).toBe(
+      "ip:198.51.100.9"
+    );
   });
 
   it("conserva la atribución de ficha sin aceptar identificadores inválidos", () => {
