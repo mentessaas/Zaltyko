@@ -1,5 +1,32 @@
 # Pago y Owner Dashboard — estado de publicación
 
+## Cierre CI exacto — 2026-10-16, 08:10 UTC
+
+CI38868296319 terminó **COMPLETED/SUCCESS**, updated07:59:04UTC, para
+`cd764dc2de0d52bad5f5df4b49fbc3562f4cff27`. Main reconfirmó API y jobs;
+gate116873698349SUCCESS. Static38868296301 y Directory38868296302SUCCESS
+exactSHA (QA). Chromium/Firefox/WebKit: 1passed31.3/35.0/36.7s; fase next-build
+213590.206/221241.228/231119.265ms, bajo240s. Cleanup reportado por runner:
+07:43:30.864/07:51:14.916/07:58:57.716UTC; NO inventarioDockerindependiente.
+
+Los3detailcomplete,22564events,249.893/263.09/262.911ms de análisis. Server
+webpack96.3/103.3/109.8s; NFTglobal51.1/51.7/52.9s aggregate_only. Spans
+inclusivos/solapados NOCPU/tiempoparedcausal.1225IDsdesconocidos,7spans
+no soportados y1255rutas sinatribuir impiden cobertura universal; top10por
+679client/1864servergrupos. **Timeout anterior NO reproducido; NO causa
+raíz demostrada ni fix de rendimiento acreditado.** Frontend cerró revisión
+readonly (cursor2): NO-GO optimizar código/config sin ajuste causal mínimo;
+no inició inspecciones, pruebas ni ejecuciones. Todos los peers quedan IDLE.
+
+Autorización **CONSUMIDA**, sin más push/rerun/dispatch/cancel ni despliegue.
+Auth/readiness/public/smoke/LighthouseSKIPPED, no validación de producción.
+Seguridad residual, esquema/orden/rolapp/recuperación/review/publicación
+siguen **NO-GO**, independientes del CI verde. Backups ya consultados;
+no repetir pregunta ni operarDB. Notas SOLOLOCAL, no empujar por documentos.
+Fuente: docs/qa/ci-cd764dc2-candidate-2026-10-16.md y API/logs saneados del
+[único run](https://github.com/mentessaas/Zaltyko/actions/runs/38868296319).
+La cola y autorizaciones de debajo son HISTÓRICO, no estado vigente.
+
 ## Corrida única lanzada — 2026-10-16, 07:37 UTC
 
 Main efectuó UN push normal a PR226 a las07:36UTC, bf0aad14→
