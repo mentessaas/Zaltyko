@@ -47,11 +47,11 @@ describe("contact growth contracts", () => {
 
   it("acepta y valida los cinco campos UTM de la landing de academias", () => {
     const attribution = {
-      utm_source: "instagram",
-      utm_medium: "social",
+      utm_source: "linkedin.com",
+      utm_medium: "paid social",
       utm_campaign: "academy_acquisition_2026",
-      utm_term: "gimnasia_artistica",
-      utm_content: "hero_v1",
+      utm_term: "gimnasia artística",
+      utm_content: "hero.v1",
     };
     const parsed = ContactRequestSchema.safeParse(
       buildContactRequest({ source: "academy_waitlist", attribution })
@@ -78,10 +78,15 @@ describe("contact growth contracts", () => {
     ).toBe(false);
   });
 
-  it("rechaza UTMs libres, demasiado largos y claves desconocidas", () => {
+  it("rechaza datos personales, símbolos libres, valores demasiado largos y claves desconocidas en UTMs", () => {
     expect(
       ContactRequestSchema.safeParse(
-        buildContactRequest({ attribution: { utm_source: "instagram/ana@example.com" } })
+        buildContactRequest({ attribution: { utm_source: "ana@example.com" } })
+      ).success
+    ).toBe(false);
+    expect(
+      ContactRequestSchema.safeParse(
+        buildContactRequest({ attribution: { utm_source: "instagram/ana" } })
       ).success
     ).toBe(false);
     expect(

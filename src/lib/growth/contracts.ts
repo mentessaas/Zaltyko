@@ -91,13 +91,20 @@ export const LeadCaptureSchema = z
   })
   .strict();
 
+const contactUtmValue = z
+  .string()
+  .trim()
+  .min(1)
+  .max(128)
+  .regex(/^[\p{L}\p{N}._ -]+$/u);
+
 export const ContactAttributionSchema = z
   .object({
-    utm_source: z.string().max(128).regex(/^[a-z0-9_-]+$/).optional(),
-    utm_medium: z.string().max(128).regex(/^[a-z0-9_-]+$/).optional(),
-    utm_campaign: z.string().max(128).regex(/^[a-z0-9_-]+$/).optional(),
-    utm_term: z.string().max(128).regex(/^[a-z0-9_-]+$/).optional(),
-    utm_content: z.string().max(128).regex(/^[a-z0-9_-]+$/).optional(),
+    utm_source: contactUtmValue.optional(),
+    utm_medium: contactUtmValue.optional(),
+    utm_campaign: contactUtmValue.optional(),
+    utm_term: contactUtmValue.optional(),
+    utm_content: contactUtmValue.optional(),
   })
   .strict();
 

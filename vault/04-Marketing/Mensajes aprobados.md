@@ -28,7 +28,7 @@ Para discovery, beta y mensajes de venta tempranos, enfocar Zaltyko en academias
 ### Solicitud de información de academias — 2026-10-16
 
 - Para `waitlist.zaltyko.com`, la acción principal es dejar nombre y email; el nombre de la academia es opcional. No se piden país, modalidad, teléfono ni mensaje libre en este primer contacto.
-- Copy principal: **"Tu academia, en orden."** Explicar en la primera pantalla que Zaltyko está preparando una plataforma para academias de gimnasia artística y rítmica que reunirá gimnastas, grupos, cuotas y asistencia para dejar atrás hojas y mensajes dispersos. Indicar que llegará próximamente, sin fijar una fecha.
+- Copy principal: **"Tu academia, en orden."** Apoyo: **"Próximamente: plataforma Zaltyko para academias de gimnasia artística y rítmica. Ordena gimnastas, grupos, cuotas y asistencia sin hojas ni mensajes dispersos."** No fijar una fecha.
 - La solicitud no implica suscripción a novedades ni a comunicaciones comerciales. El email se usa para responder a la consulta; no se promete una secuencia ni un aviso automático de lanzamiento.
 - Tras confirmar el guardado en el servidor, llevar a `/gracias/` con más información de Zaltyko y una checklist descargable de inicio de temporada. No incluir "Crear academia gratis" en esta landing.
 

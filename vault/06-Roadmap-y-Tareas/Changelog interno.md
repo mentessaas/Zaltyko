@@ -10,6 +10,7 @@ source:
 
 - La landing recoge nombre y email obligatorios y academia opcional. No pide país, modalidad, teléfono, mensaje libre ni consentimiento de marketing.
 - La solicitud usa `source=academy_waitlist` para clasificar el lead, conservar UTM y aplicar idempotencia; no crea una suscripción ni activa una secuencia de emails.
+- La landing y el contrato del endpoint conservan valores UTM comunes con letras acentuadas, espacios, puntos, guiones y guiones bajos; rechazan símbolos libres como `@` o `/` para no admitir direcciones de correo como valores de atribución.
 - Tras respuesta satisfactoria del servidor, lleva a `/gracias/`, explica qué prepara Zaltyko y ofrece una checklist PDF de inicio de temporada que se descarga sin registro adicional.
 - Se elimina el enlace "Crear academia gratis" de la landing para mantener una sola acción principal.
 - Pendiente antes de publicar: CI con lead/evento/UTM/aviso interno en sandbox, revisión humana de privacidad y confirmación operativa del aviso interno. No se enviaron pruebas a producción.
