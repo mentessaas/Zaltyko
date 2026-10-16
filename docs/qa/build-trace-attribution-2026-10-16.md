@@ -2,6 +2,17 @@
 
 ## Estado y autorización
 
+### Estado vigente — 16 oct, 07:37 UTC
+
+El único push autorizado ya se realizó a las07:36UTC: candidato
+`cd764dc2de0d52bad5f5df4b49fbc3562f4cff27`. CI38868296319 está queued;
+Static38868296301 y Directory38868296302 SUCCESS exactSHA. Autorización
+**CONSUMIDA**, sin otra ejecución, merge o despliegue. QA observa el run.
+El código es idéntico a `e8782f3a` revisado y validado, sin modificaciones
+de fuentes tras GO. Vercel reconfirmado07:36 previewsdisabled/prodmain.
+Detalle en [ci-cd764dc2-candidate-2026-10-16.md](./ci-cd764dc2-candidate-2026-10-16.md).
+Las secciones inferiores conservan la preparación previa; no autorizan rerun.
+
 ### Integración local comprobada — 16 oct, 07:30 UTC
 
 Frontend entregó `1799cda4bb48706f842ace41a85890b20845af78`, posterior

@@ -1,5 +1,23 @@
 # Candidato bf0aad14 — una corrida acotada autorizada
 
+## Corrida única lanzada — 2026-10-16, 07:37 UTC
+
+Main efectuó UN push normal a PR226 a las07:36UTC, bf0aad14→
+`cd764dc2de0d52bad5f5df4b49fbc3562f4cff27`. La nueva autorización está
+**CONSUMIDA**. CI38868296319 creada07:36:32UTC está QUEUED según API07:37.
+Static38868296301SUCCESS07:37:07 y Directory38868296302SUCCESS07:37:09,
+ambas exactSHA; no son gatefuncional ni cierreCI. QA monitoriza esa única
+corrida readonly con backoff, sin reruns/dispatch/cancel/push ni pruebaslocales.
+Fuente nueva: docs/qa/ci-cd764dc2-candidate-2026-10-16.md.
+
+Fuentes idénticas al GO estático QA e8782f3a, Main85/85mocks/tsc/lint/formato/
+audit/diffPASS; protecciones GH07:28–29/Vercel07:36 verificadas sin cambios.
+240s/matriz/Node22/Sentry/tracing/worker/cleanup intactos. Sin merge/deploy/DDL/
+pagos/filasreales. Estas notas de lanzamiento son SOLOLOCAL, NOempujar ni
+causar otroCI. GitHub push informó7vulnerabilidadesdefault(2critical5high);
+seguridad/esquema/rolapp/recuperación/review/publicación siguen **NO-GO**.
+Preparación y autorizaciones de debajo son historial, no permiso de otra corrida.
+
 ## Preparación verificada — 2026-10-16, 07:35 UTC
 
 Integrado LOCAL el diagnóstico post-build `e8782f3a67466902a000109161d51b3db904d8f4`,
