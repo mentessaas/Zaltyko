@@ -1,5 +1,8 @@
 name: CI
 
+permissions:
+  contents: read
+
 on:
   push:
     branches: [main, develop]
@@ -151,23 +154,28 @@ jobs:
       - name: Setup Node.js
         uses: actions/setup-node@v7
         with:
-          node-version: "20"
+          node-version: "22"
           cache: "pnpm"
 
       - name: Install dependencies
         run: pnpm install --frozen-lockfile
 
+      # Root Vitest also discovers mobile tests; install their real dependencies
+      # rather than excluding security regressions from the required gate.
+      - name: Install mobile dependencies for combined unit suite
+        working-directory: mobile
+        run: pnpm install --frozen-lockfile --ignore-workspace
+
       - name: Run unit tests with coverage
         run: pnpm vitest run --coverage
 
       - name: Upload coverage to Codecov
-        if: always()
+        if: github.event_name == 'push' && github.ref == 'refs/heads/main'
         uses: codecov/codecov-action@v7
         with:
           files: ./coverage/lcov.info
           flags: unittests
           fail_ci_if_error: false
-          token: ${{ secrets.CODECOV_TOKEN }}
 
   build:
     name: Build
@@ -237,6 +245,10 @@ jobs:
   e2e-readiness:
     name: E2E Credentials Readiness
     runs-on: ubuntu-latest
+    # Remote Sandbox E2E stays disabled pending separate explicit authorization.
+    if: ${{ false }}
+    environment:
+      name: e2e-sandbox
     outputs:
       enabled: ${{ steps.check.outputs.enabled }}
     steps:
@@ -269,9 +281,63 @@ jobs:
           STRIPE_WEBHOOK_SECRET: ${{ secrets.E2E_STRIPE_WEBHOOK_SECRET }}
           NEXT_PUBLIC_STRIPE_PUBLISHABLE_KEY: ${{ secrets.E2E_STRIPE_PUBLISHABLE_KEY }}
           E2E_EVENT_NAME: ${{ github.event_name }}
-          E2E_PR_AUTHOR: ${{ github.event.pull_request.user.login }}
-          E2E_HEAD_REPOSITORY: ${{ github.event.pull_request.head.repo.full_name || github.repository }}
         run: bash scripts/ci/check-e2e-readiness.sh
+
+  e2e-local-owner:
+    name: Local Synthetic Owner E2E (${{ matrix.project }})
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    strategy:
+      fail-fast: false
+      # ECR Public anonymous pulls are rate-limited; keep all browser checks but
+      # avoid three independent daemons pulling the same images simultaneously.
+      max-parallel: 1
+      matrix:
+        project: [chromium, firefox, webkit]
+    steps:
+      - uses: actions/checkout@v7
+        with:
+          persist-credentials: false
+
+      - name: Setup pnpm
+        uses: pnpm/action-setup@v6
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v7
+        with:
+          node-version: "22"
+          cache: "pnpm"
+
+      - name: Test pinned Supabase CLI installer against synthetic archives
+        run: python3 scripts/ci/test_install_pinned_supabase_cli.py
+
+      - name: Download, verify, and install pinned Supabase CLI
+        run: |
+          set -euo pipefail
+          archive="$RUNNER_TEMP/supabase_linux_amd64.tar.gz"
+          curl --fail --location --retry 3 \
+            https://github.com/supabase/cli/releases/download/v2.84.2/supabase_linux_amd64.tar.gz \
+            --output "$archive"
+          python3 scripts/ci/install_pinned_supabase_cli.py "$archive"
+          version_output="$("$RUNNER_TEMP/supabase-cli-2.84.2/supabase" --version)"
+          [[ "$version_output" == *"2.84.2"* ]]
+          echo "$RUNNER_TEMP/supabase-cli-2.84.2" >> "$GITHUB_PATH"
+
+      - name: Install dependencies
+        run: pnpm install --frozen-lockfile
+
+      - name: Install Playwright browser
+        run: pnpm exec playwright install --with-deps "${{ matrix.project }}"
+
+      - name: Preload pinned local Supabase images
+        run: pnpm exec tsx scripts/ci/preload-local-e2e-images.ts
+        env:
+          GITHUB_ACTIONS: "true"
+
+      - name: Run isolated local Supabase Owner setup E2E
+        run: pnpm test:e2e:local
+        env:
+          E2E_LOCAL_PROJECT: ${{ matrix.project }}
 
   validate-rls:
     name: Validate RLS Coverage
@@ -400,6 +466,10 @@ jobs:
   e2e-auth:
     name: E2E Authenticated Flows
     runs-on: ubuntu-latest
+    # Remote Sandbox E2E stays disabled pending separate explicit authorization.
+    if: ${{ false }}
+    environment:
+      name: e2e-sandbox
     timeout-minutes: 45
     concurrency:
       group: zaltyko-authenticated-e2e-${{ github.repository }}
@@ -409,7 +479,6 @@ jobs:
       VERCEL_ENV: preview
       E2E_RATE_LIMIT_BYPASS: "true"
     needs: [e2e-readiness]
-    if: ${{ needs.e2e-readiness.outputs.enabled == 'true' && (github.event_name == 'pull_request' || github.ref == 'refs/heads/main') }}
     steps:
       - uses: actions/checkout@v7
 
@@ -447,6 +516,16 @@ jobs:
           STRIPE_WEBHOOK_SECRET: ${{ secrets.E2E_STRIPE_WEBHOOK_SECRET }}
           STRIPE_CONNECT_WEBHOOK_SECRET: ${{ secrets.E2E_STRIPE_CONNECT_WEBHOOK_SECRET }}
           NEXT_PUBLIC_STRIPE_PUBLISHABLE_KEY: ${{ secrets.E2E_STRIPE_PUBLISHABLE_KEY }}
+
+      - name: Apply the allowlisted greenfield domain migrations to the E2E sandbox
+        run: pnpm e2e:prepare-domain
+        env:
+          E2E_ALLOW_PROVISIONING: "true"
+          E2E_TARGET_SUPABASE_PROJECT_REF: ${{ secrets.E2E_TARGET_SUPABASE_PROJECT_REF }}
+          NEXT_PUBLIC_SUPABASE_URL: ${{ secrets.E2E_SUPABASE_URL }}
+          DATABASE_URL: ${{ secrets.E2E_DATABASE_URL }}
+          DATABASE_URL_POOL: ${{ secrets.E2E_DATABASE_URL }}
+          DATABASE_URL_DIRECT: ${{ secrets.E2E_DATABASE_URL }}
 
       - name: Provision owner, admin, coach and super-admin sandbox accounts
         run: pnpm e2e:prepare-auth
@@ -548,6 +627,8 @@ jobs:
         run: pnpm test:e2e
         env:
           E2E_STORAGE_STATE: .auth/user.json
+          E2E_DOMAIN_ORGANIZATION_ID: 90000000-0000-0000-0000-000000000001
+          E2E_DOMAIN_LOCATION_ID: 90000000-0000-0000-0000-000000000011
           E2E_ACADEMY_ID: ${{ secrets.E2E_ACADEMY_ID }}
           E2E_PROFILE_ID: ${{ secrets.E2E_PROFILE_ID }}
           E2E_ATHLETE_ID: ${{ secrets.E2E_ATHLETE_ID }}
@@ -577,3 +658,18 @@ jobs:
           STRIPE_SECRET_KEY: ${{ secrets.E2E_STRIPE_SECRET_KEY }}
           STRIPE_WEBHOOK_SECRET: ${{ secrets.E2E_STRIPE_WEBHOOK_SECRET }}
           NEXT_PUBLIC_STRIPE_PUBLISHABLE_KEY: ${{ secrets.E2E_STRIPE_PUBLISHABLE_KEY }}
+
+  e2e-auth-required-gate:
+    name: Local Synthetic Owner E2E Required Gate
+    runs-on: ubuntu-latest
+    needs: [e2e-local-owner]
+    if: ${{ always() && (github.event_name == 'pull_request' || github.event_name == 'push') }}
+    steps:
+      - name: Require all local synthetic browser projects to pass
+        env:
+          E2E_LOCAL_RESULT: ${{ needs.e2e-local-owner.result }}
+        run: |
+          if [[ "${E2E_LOCAL_RESULT}" != "success" ]]; then
+            echo "Local synthetic Owner E2E is required; result=${E2E_LOCAL_RESULT}." >&2
+            exit 1
+          fi

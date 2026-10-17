@@ -1,7 +1,7 @@
 ---
 status: active
 owner: producto
-last_reviewed: 2026-10-03
+last_reviewed: 2026-10-15
 source:
   - ../PRODUCT-ANALYSIS.md
   - ../BUSINESS-ANALYSIS.md
@@ -15,6 +15,332 @@ source:
   - ../07-Auditorias-y-Riesgos/Auditoria MVP gimnasia - 2026-06-23.md
   - ../07-Auditorias-y-Riesgos/Registro de riesgos.md (bloqueantes con Elvis)
 ---
+## P0 — Cerrar el recorrido MVP publicado — 2026-10-14
+
+## Cierre CI exacto — 2026-10-16, 08:10 UTC
+
+CI38868296319 terminó **COMPLETED/SUCCESS**, updated07:59:04UTC, para
+`cd764dc2de0d52bad5f5df4b49fbc3562f4cff27`. Main reconfirmó API y jobs;
+gate116873698349SUCCESS. Static38868296301 y Directory38868296302SUCCESS
+exactSHA (QA). Chromium/Firefox/WebKit: 1passed31.3/35.0/36.7s; fase next-build
+213590.206/221241.228/231119.265ms, bajo240s. Cleanup reportado por runner:
+07:43:30.864/07:51:14.916/07:58:57.716UTC; NO inventarioDockerindependiente.
+
+Los3detailcomplete,22564events,249.893/263.09/262.911ms de análisis. Server
+webpack96.3/103.3/109.8s; NFTglobal51.1/51.7/52.9s aggregate_only. Spans
+inclusivos/solapados NOCPU/tiempoparedcausal.1225IDsdesconocidos,7spans
+no soportados y1255rutas sinatribuir impiden cobertura universal; top10por
+679client/1864servergrupos. **Timeout anterior NO reproducido; NO causa
+raíz demostrada ni fix de rendimiento acreditado.** Frontend cerró revisión
+readonly (cursor2): NO-GO optimizar código/config sin ajuste causal mínimo;
+no inició inspecciones, pruebas ni ejecuciones. Todos los peers quedan IDLE.
+
+Autorización **CONSUMIDA**, sin más push/rerun/dispatch/cancel ni despliegue.
+Auth/readiness/public/smoke/LighthouseSKIPPED, no validación de producción.
+Seguridad residual, esquema/orden/rolapp/recuperación/review/publicación
+siguen **NO-GO**, independientes del CI verde. Backups ya consultados;
+no repetir pregunta ni operarDB. Notas SOLOLOCAL, no empujar por documentos.
+Fuente: docs/qa/ci-cd764dc2-candidate-2026-10-16.md y API/logs saneados del
+[único run](https://github.com/mentessaas/Zaltyko/actions/runs/38868296319).
+La cola y autorizaciones de debajo son HISTÓRICO, no estado vigente.
+
+## Corrida única lanzada — 2026-10-16, 07:37 UTC
+
+Main efectuó UN push normal a PR226 a las07:36UTC, bf0aad14→
+`cd764dc2de0d52bad5f5df4b49fbc3562f4cff27`. La nueva autorización está
+**CONSUMIDA**. CI38868296319 creada07:36:32UTC está QUEUED según API07:37.
+Static38868296301SUCCESS07:37:07 y Directory38868296302SUCCESS07:37:09,
+ambas exactSHA; no son gatefuncional ni cierreCI. QA monitoriza esa única
+corrida readonly con backoff, sin reruns/dispatch/cancel/push ni pruebaslocales.
+Fuente nueva: docs/qa/ci-cd764dc2-candidate-2026-10-16.md.
+
+Fuentes idénticas al GO estático QA e8782f3a, Main85/85mocks/tsc/lint/formato/
+audit/diffPASS; protecciones GH07:28–29/Vercel07:36 verificadas sin cambios.
+240s/matriz/Node22/Sentry/tracing/worker/cleanup intactos. Sin merge/deploy/DDL/
+pagos/filasreales. Estas notas de lanzamiento son SOLOLOCAL, NOempujar ni
+causar otroCI. GitHub push informó7vulnerabilidadesdefault(2critical5high);
+seguridad/esquema/rolapp/recuperación/review/publicación siguen **NO-GO**.
+Preparación y autorizaciones de debajo son historial, no permiso de otra corrida.
+
+## Preparación verificada — 2026-10-16, 07:35 UTC
+
+Integrado LOCAL el diagnóstico post-build `e8782f3a67466902a000109161d51b3db904d8f4`,
+cuatro archivos selectivos tras Frontend1799cda4. QA final exacto GO estático
+para UNA corrida existente, NO publicación. Corregidos anchors cerrados/IDs
+inequívocos, ranking cooperativo y agregado traceEntryCount 0..1000000:
+overflow omite el campo de esa clave sin emitir después un total parcial.
+Catálogo fijo versionado, no fuentes/perfiles/env/datos reales en salida;
+resumen16KiB, línea con sobre/progreso <=16653bytes. 1s cooperativo postproceso,
+no hardkill; 240s del build y sampler/lifecycle/protecciones intactos.
+
+Main85/85tests sintéticos en5suites,18.60s(tests2.97s),tsc noEmit incrementalfalse0,
+ESLint0warnings, formato y diff-check PASS; audit:env73 sin leer valores.
+Sin installs/build/E2E/Docker/pulls locales. Protecciones readonly07:28–29UTC:
+Vercel previewsDisabled/prodbranchmain, deploymentEnabledfalse, Deploydisabled,
+main strict/admins/1review/dismiss-stale/6checks, Actionsread/noapprove;
+Productionmainonly/preventselfreviewtrue, bypassadminpermitido(NOabsoluto).
+PR226OPENdraftREVIEW_REQUIRED remoto bf0aad14. NO merge/deploy/DDL/pagos.
+A esta hora NO push ni nuevoCI: permiso aún NOconsumido; Main hará un único
+push sustantivo, registrará SHA/run y no encadenará reruns/dispatch ni notas.
+Fuente: docs/qa/build-trace-attribution-2026-10-16.md. Gates seguridad/esquema/
+rolapp/recuperación/review/publicación separados; **NO-GO release**.
+
+## Nueva autorización — 2026-10-16, 00:10 CEST (15 oct 22:10 UTC)
+
+El humano autoriza expresamente preparar, revisar y ejecutar **UNA corrida
+adicional del CI existente**, manteniendo 240 segundos y sin desplegar.
+Sustituye la espera de permiso de las entradas históricas inferiores; la
+corrida anterior bf0aad14/38749323693 ya consumió su autorización y acabó FAIL.
+La nueva todavía NO se ha lanzado ni consumido. Main coordina únicamente los
+tres chats APP existentes: Frontend diseña atribución por compilador/módulo,
+Backend contrasta tracing/rutas en Next15.5.27, QA define y revisa privacidad,
+límites, sobrecoste y contratos. Primero diseño readonly, después revisión e
+implementación acotada; no cambios de producto/config de optimización a ciegas.
+
+Preferir resumen de trazas ya existentes tras build a nueva instrumentación.
+Sin perfiles crudos, fuentes, secretos, valores de entorno o datos reales.
+Conservar matriz/checks/Node22/Sentry/tracing/worker/240s/cleanup/protecciones.
+Solo Main podrá integrar y efectuar un único push sustantivo que active CI,
+tras validación focal y reconfirmación readonly de protecciones; sin reruns,
+dispatch, nuevos runners/jobs ni pushes de notas durante la ejecución.
+No builds/E2E/Docker/pulls/instalaciones locales. Sin merge/deploy/DDL/pagos;
+seguridad, esquema/rol app/recuperación y revisión independiente siguen gates
+separados. No repetir petición Backups. **Publicación continúa NO-GO.**
+
+14:47UTC Frontend145 NO-GO para optimizar código/config sin atribución concreta.
+Falta diagnóstico por compilador/módulo/tracing; solicitada al humano UNA
+corrida adicional, AÚN NO autorizada ni instrumentada. Diseño/revisión privacidad/
+volumen/coste antes de ejecutar si aprueba;240s/checks/Sentry/Node22/cleanup
+intactos. No reiterar pregunta en heartbeat, push/CI/ediciones no autorizados.
+
+
+14:37UTC cierre bf0aad14: CI38749323693/gateFAIL, Static/Directory/otroschecksPASS;
+Chromium/WebKit build240s antesPlaywright, Firefox1PASS26.9s(total36.2s),
+build238910ms. Trescleanup reportados, no inventarioDockerindependiente.
+HOST CPUmax100%/MemAvailablemín49.6–51.7% no prueba causa ni consumoNext.
+Frontend SOLOcomparaciónestática nuevaevidencia; no fixciego/nuevoCI/push/rerun.
+Autorizaciónúnicaconsumida. Seguridad/destino/rolapp/recuperación/review/publicación
+NO-GO; no repetirBackups. Fuente ci-bf0aad14-candidate-2026-10-15.md.
+
+14:14UTC vigente: candidato bf0aad14 ya remoto por push normal, sin merge/deploy.
+Única corrida adicional autorizada CI38749323693 en progreso de jobs; Static38749323931/
+Directory38749323676 pendientes de cierre. Main528mocks13files PASS y privacidad/
+wiring sampler revisados QA203; mantener240s/checks/protecciones14:11. Sin nuevo
+funcional/cleanup/gate todavía. QA monitoriza exactSHA. Pendientes separados
+seguridad residual, esquema/historial/rol app/recuperación, reviewGitHub y release;
+no CI por notas ni repetir Backups. Informes inferiores históricos.
+
+Autorización humana posterior: preparar UNA corrida adicional del CI existente
+con diagnóstico CPU/memoria saneado y revisado; ya no esperar permiso para ese
+paso ni repetir pregunta. Backend implementa local aislado, Frontend/QA revisan;
+conservar240s/checks/Sentry/tracing/matriz y protecciones. Pendientes entrega,
+tests/Main/review y reconfirmar protecciones antes de push. No merge/deploy ni
+datos reales. CI verde, seguridad residual y esquema/recuperación/rol app siguen
+gates separados; el objetivo sigue NO-GO hasta evidencia completa.
+
+12:40UTC origenHub11 integrado SOLOLOCAL trasFrontend110/QA184GO;Main509mocks
+PASS12files tras3contratosKongactualizados,lintformatoaudit73/tscPASS,Frontend111/
+QA186GOvariante. No CI/push automático ni buildresuelto: Frontend109NO-GOajustebuild.
+PreservadasregresionesLogflare yhistorial; seguridad/destino/recovery/review siguen.
+
+Decisión pendiente: una corridaCI adicional con métricasCPU/memoria saneadas del
+build, matriz240s/checks intactos, sin nuevosjobs/runners/deploy/datos. Metadata
+artifacts0dfb soloSBOM; no perfilguardado. No implementar/push sinrespuesta ni
+repetir petición en cadaheartbeat. OrigenHub validadoLOCAL no resuelvebuild.
+
+12:20UTC CI0dfb cerradoFAIL: ChromiumPASS; Firefoxprecargaimgproxytimeout;
+WebKitbuild240s antesPlaywright/cleanupreportado, gateFAIL. Backend implementación
+SOLOLOCAL políticaHubprimaria11 trasGOdiseñoFrontend108/Backend113, pendiente
+review; Frontend revisiónreadonly build. Sin nuevoCI/push ni solución build
+presumida. Pins13/identidad/600s/240s/checks/protecciones íntegros; NO-GOrelease.
+
+12:16UTC CI0dfbabierto:ChromiumPASS25.3s/cleanupreportado,FirefoxFAILprecargaECR
+imgproxytimeoutantesstack,WebKit/gatependientes;otrosjobsejecutadosPASS. No repetir
+candidato ni encadenarexcepciones/CIporimagen. Backend/FrontendSOLOdiseñoreadonly
+origenHubfijopinsverificados,NOimplementaciónautorizada/hasta cierre-review.
+No fallbacktimeout ni plazosrelajados;destino/recovery/rolapp/seguridad/review siguen.
+
+12:00UTC: pushnormalPR2260dfb8762confirmado,draft/blocked; únicoCI38731333899queued,
+Static38731333844/Directory38731333850encurso. QAmonitorizasoloSHA, no empujarnotas
+duranteCI/duplicarruns ni atribuirPASS210. GitHubdeploymentrecordsSHA0(noinventario
+Verceluniversal). Esquema/recovery/rolapp/alertasresiduales/reviewreleasependientes.
+
+11:58UTC: Backend3ba7fbab integradoLOCAL tras Frontend105/QA171GO; Hubprimario
+exactdigestSOLOLogflare,verify→retagID→postverify600s/sinretryECR,otros12sin cambios.
+Main453mock11filesPASS/tsc0/ESLint0/formato0/audit73; proteccionesreconfirmadas.
+Preparar únicoSHA distinto, no repetir210. CI nuevo/destino/recuperación/rolapp/
+seguridadresidual/reviewPR/release pendientes; disponibilidadHub NOdemostrada.
+
+Actualización15oct11:34–11:40UTC: CI210cerradoFAIL soloWebKitprecargalogflaretimeout,
+Chromium/FirefoxPASScleanup. Plan11localintegrado/Main335mockPASS/tsc0/QA166GO;
+no arregla directamente origenfallido. CacheNO-GO porintegridad/tamaño/tiempo/coste
+sinprueba. Backend prepara LOCALHubprimario exactdigestSOLOlogflare tras diseño
+Frontend103/QA167GO; pendiente difftests/review/Mainchecks/proteccionesantescandidato.
+Sin fallbacktimeout/retries/plazosrelajados ni nuevoCI/push. GatesDB/recovery/rolapp/
+seguridad/review/publicación siguen independientes; Backupsya solicitados no repetir.
+
+Actualización15oct09:57UTC: CI2b38713511027cerróFAILURE; Chromium/UnitPASS, Firefoxbuild240s/WebKitidentidadkong/SecuritycontratoFAIL. FixSecuritysoloLOCAL57a09b27. Pendiente observabilidadrevisada QAidentidad/Backendmilestonesbuild(noarregloscausalesdemostrados), siguienteSHAúnicotrasrevisión/protecciones, no rerun. Esquema/backup/rolapp/reviewPR siguen pendientes; captaciónlistaesperaseparada no equivale a SaaSpublicable.
+
+09:41UTC: fix de contrato integradoLOCAL(d0c32c99,Backend92GO), audit:envPASS73 y18/18focalesMain, ESLint/Prettier/diffcheckPASS. Pendiente incorporarlo a siguiente candidato tras cierre/revisión de CI actual y protecciones verificadas; no repetir run idéntico ni empujar notas mientras corre.
+
+Actualización15oct09:38UTC: candidato remoto2b581cd9/CI38713511027 abierto. Build/lint/móvil/RLS/migraciones y Static/Directory PASS; Security FAIL por marcador sintético no documentado, confirmado log/reproducción local. Frontend prepara fix mínimo `.env.example` defaultfalse+regresión, sin modificar auditor; no empujar mientras corre matriz. CI completo, seguridad residual, esquema/recuperación y aprobación independiente siguen pendientes. No merge ni deploy.
+
+Actualización15oct09:27UTC sustituye estados CI históricos de este bloque: e7dff88b/38707901100FAILURE, Chromium/WebKitPASS y Firefoxbuild240santesPlaywright. PreparadoLOCAL siguiente candidato rootbraces/worker sintético, revisiones estáticas y89tests focalesPASS; pendiente CI exacto nuevo, no repetirSHAidéntico. Esquema/backuprecuperable/rolapp/reviewGitHub siguenpendientes. Rootbracesyparchesmóvilesmitiganprofundidad/ciclos/ASN.1,no cierranadvisoriesupstream. OtrosjobsNode20EOL sondeudadealineación separada a22; nocambiarproducciónautomáticamente. Evidencia ci-e7dff88b-candidate-2026-10-15.md y dependency-alerts-e7dff88b-2026-10-15.md.
+
+- [ ] Tras implementar el instalador pinneado del CLI, ejecutar el gate en una
+  corrida CI autorizada y comprobar el check requerido antes de configurar
+  branch protection. El hash del tar oficial y del binario Linux x64 se verificó
+  localmente; el instalador se cubre con archives sintéticos, aún sin ejecución
+  CI. Evidencia:
+  `docs/qa/local-synthetic-ci-gate-2026-10-15.md`.
+
+- [ ] Completar QA de navegadores y revisar el runner local sintético de backup
+  y autorizar cualquier escritura remota. Main ya registra tres navegadores
+  PASS y dos restores locales PASS; el restore cubre 11 migraciones en
+  PostgreSQL 14, no la delta ni PostgreSQL 17. El Sandbox actual tiene las 16
+  migraciones compartidas con hashes verificados; consentimiento canónico y
+  cobertura mensual siguen pendientes. Existe `pnpm e2e:schema-delta:preflight`
+  en modo solo lectura para validar ledger y catálogos; no crea ledger ni aplica
+  SQL y los tests no conectan al Sandbox. El runner de escritura continúa
+  pendiente de revisión independiente. ADR-0027 ya fija aceptación explícita en Setup
+  para identidades previas (también legacy revoked/obsoletas), sin backfill ni
+  regrant automático; preservar intacto `public.owner_consent`. Antes de DDL:
+  aprobar un runner delta con ledger privado separado, obtener backup lógico
+  cifrado con restore verificable (los backups del plan Free no se pueden
+  descargar) y validar en PostgreSQL 17. No aplicar nada mientras esos gates
+  sigan abiertos. Fuentes:
+  `docs/qa/synthetic-restore-runner-2026-10-14.md` y
+  `docs/qa/sandbox-schema-preflight-2026-10-14.md`.
+
+- [ ] Alinear la cuota mensual con la regla confirmada por gimnasta y tarifa.
+  La base auditada factura por enrollment; el diseño propone cobertura explícita
+  de plantillas, una línea por gimnasta y bloqueo ante tarifas incompatibles.
+  Revisar la propuesta antes de modificar servicio, contrato o esquema; después
+  reconciliar el detalle compartido de ADR-0026. Fuente:
+  `docs/qa/monthly-athlete-billing-gap-2026-10-14.md`.
+
+- [ ] Cerrar gate contractual del bootstrap canónico: persistencia server y
+  audit atómicos, política vigente, no regrant tras revocación y recuperación
+  explícita. Auditoría 105a1de5: metadata no prueba persistencia; recorder solo
+  en alta legacy. No confundir con consentimiento browser de analítica.
+  Fuente: `docs/qa/owner-bootstrap-consent-gap-2026-10-14.md`.
+
+- Cuota mensual implementada y publicada en #226, SHA 31a0dd02. La decisión de
+  importe/periodo ya está aceptada en ADR-0026; el hueco histórico descrito más
+  abajo queda sustituido por verificación del flujo real.
+- Backend verifica aislamiento de factura por sede y replay después de pago.
+- Frontend verifica contexto, navegación móvil y pasos Owner sin expansión.
+- QA aísla el fallo de login y completa E2E sintético de #227. CI
+  38477410346 está en ejecución; el job local efímero es experimental.
+- Release: revisión #225 pendiente; confirmar Preview del SHA y posteriormente
+  producción por bloques verificados. Sin declarar preparación por build solo.
+
+## P1 — Reconciliar reglas P0 con varias versiones activas — 2026-10-14
+
+- El evaluador local falla la evaluación completa antes de leer métricas o
+  persistir corridas si detecta más de una versión activa para cualquiera de
+  las nueve claves implementadas. No selecciona la versión máxima y no emite
+  insights parciales.
+- Verificar el inventario de reglas en el entorno aislado autorizado y acordar
+  explícitamente qué versión debe quedar activa por clave antes de resolver los
+  duplicados. No inferir retiro por número de versión ni aplicar cambios
+  remotos desde este fix. No confirmado aquí: cuáles filas activas duplicadas
+  existen actualmente en cada entorno.
+- Fuente: `docs/architecture/insight-evaluation-sources.md` y decisión
+  `Fail-closed ante versiones activas ambiguas de Insights P0`.
+
+## P0 — Completar el E2E autenticado de Owner greenfield — 2026-10-13
+
+- Evidencia: CI ya aplicó las 16 migraciones allowlist al esquema `zaltyko` del
+  Sandbox E2E. Una lectura posterior confirmó 16 filas en el ledger privado y
+  80/80 tablas con RLS habilitada y forzada. El E2E anterior falló porque el
+  actor Owner se redirige al workspace nuevo `/owner`, mientras la suite
+  heredada esperaba la navegación de `/app`.
+- Trabajo local: navegación responsiva compartida para todas las rutas Owner,
+  preservación de contexto de academia/sede, skip link enfocable, suite E2E
+  greenfield como gate principal y suite `/app` renombrada como legacy opt-in.
+- Validación local: test de navegación 4/4, TypeScript y ESLint focal PASS;
+  Playwright recoge 33 pruebas configuradas en tres navegadores (solo
+  enumeradas, no ejecutadas). La nueva suite autenticada aún debe pasar en CI.
+- Siguiente acción: esperar el CI del PR #226 y revisar el E2E Owner, scopes de
+  sede/rol, advisor/RLS y deployment Preview. Si aparece drift,
+  una fila de ledger desconocida o una tabla sin RLS, detener y revisar. No
+  aplicar más migraciones desde este paso; no tocar Producción ni Stripe Live.
+
+## P0 — Emitir cuota para registrar un pago manual — 2026-10-13
+
+- **Hueco confirmado:** `/owner/payments` solo muestra cargos abiertos y la API
+  manual requiere un `chargeId`; no hay acción Owner greenfield que cree la
+  cuota/factura/cargo en una academia vacía. `issueInvoice()` existe como
+  servicio interno, pero no tiene ruta Owner; la inscripción deja
+  `pricePlanId: null`.
+- No usar `/api/charges`: pertenece al modelo legacy y puede enlazar con la
+  automatización de cobro retirada en PR #225.
+- **Decisión de producto necesaria antes de implementar:** origen del importe
+  y periodo de servicio, pagador familiar y vencimiento. Recomendación: flujo
+  manual explícito, sin cobro automático; emitir cuota y después registrar el
+  pago recibido contra el cargo. No inventar importes ni crear pagadores con
+  datos implícitos.
+- **Gate:** no declarar DEMO-READY ni escribir un E2E que prepare cargos fuera
+  de la experiencia Owner hasta cerrar este flujo y añadir seed/limpieza
+  sintética segura.
+
+## P1 — Pase de lista Owner greenfield — implementación local 2026-10-13
+
+- **Hueco original cerrado localmente:** el servicio `recordAttendance` trabaja
+  con sesión e inscripción greenfield y ya existe
+  `GET/POST /api/v1/owner/sessions/[sessionId]/attendance`; no requiere
+  migración de esquema.
+- `/api/attendance` pertenece al modelo legacy (`academyId`/`athleteId`) y no
+  debe conectarse a `/owner`.
+- **Integración local:** `/owner/attendance` lista sesiones usando la zona
+  horaria de su sede y consume GET/POST greenfield con estados
+  guardado/vacío/loading/error y reintento idempotente. Tests UI usan mocks
+  rotulados del contrato; tests de ruta y harness PostgreSQL pasan. E2E
+  autenticado pendiente. Cambios unidos en la rama local candidata
+  `codex/zaltyko-plan-implementation` (HEAD `cd39ab7d`), publicada en PR #226
+  en borrador; no fusionada ni desplegada a producción.
+- Ver [`OWNER-MVP-FRONTEND-CONTRACT-GAPS.md`](../../docs/OWNER-MVP-FRONTEND-CONTRACT-GAPS.md).
+
+## P2 — Aislar el catálogo sintético de los previews compartibles — 2026-10-13
+
+- En el Preview actual aparece la ficha pública `TEST active`; el ID coincide
+  con una fila marcada pública en el sandbox E2E y no existe en producción.
+- El Preview `READY` del commit `795c7c0e5a861aa0ada709cfcd10348f3491ea19`
+  reproduce la ficha. Vercel mostró variables Preview ligadas a otra rama y no
+  se descifraron secretos; la conexión efectiva a base de datos sigue sin
+  verificar.
+- No se cambió la fila: puede formar parte de pruebas operativas aún no
+  localizadas. Confirmar qué entorno alimenta cada tipo de Preview y sustituir
+  o despublicar la muestra solo después de revisar dependencias E2E.
+- Antes de captar o promover un release, el directorio público debe mostrar
+  fichas autorizadas/reales o un estado vacío honesto, nunca datos de prueba
+  que puedan confundirse con clientes.
+
+## 2026-10-06 — Producto Health Score y Owner Dashboard (corte activo)
+
+- **AC-12 local PASS con alcance limitado:** fixture sintético de 5.000 atletas,
+  2 M asistencias y 20 identidades mide cohortes 362,8 ms p95 y consulta
+  compuesta 654,3 ms p95 en PostgreSQL 14.20 local. No cubre HTTP/Auth/browser,
+  Supabase ni serverless; validar writer lag y plataforma antes de afirmar SLO
+  de producción. No aplicar migraciones remotamente. Ver ADR-0017 y el plan
+  maestro vigente.
+
+- **Hecho local:** nueve reglas P0 leen fuentes canónicas por sede y alimentan Insights con autorización e idempotencia; PostgreSQL efímero sintético pasa.
+- [x] Aislar helpers de autorización greenfield en `zaltyko_domain_private`; el
+      harness con namespace legacy sintético conserva grants y función. No se
+      aplicó a Supabase remoto.
+- **Hecho local, no activado:** endpoint protegido y dispatcher de outbox con lease, backoff, dead-letter, idempotencia; faltan retries inyectados, lag/alertas y scheduler remoto.
+- **Hecho local:** score actual/historial y serie de métricas paginada, con scope por organización/sede, explicaciones y dimensiones; sin PII de persona en historial.
+- **Hecho local:** API heatmap agrupada por slot con drill-down agregado por clase y filtros sede/programa/grupo.
+- **Hecho local con caveat:** cohortes agregadas calculadas desde historial; no publicar tasa cuando una pausa hace depender resultado de gracia aún no decidida.
+- **Siguiente P0:** actor de sistema auditado y pipeline invalidación→recompute→score→P0→outcomes; solo después medir SLA ≤15 min. Completar pruebas de activación/resolución por regla, watermark histórico y refunds parciales.
+- **Decisión previa a KPI retention:** fecha de alta y días de gracia de pausa; riesgos individuales siguen desactivados hasta EIPD/RGPD y permisos.
+- **Siguiente P1:** UI heatmap, cohortes y filtros globales/comparativa; simulador CTA; 5.000 atletas / 2 M asistencias / 20 identidades.
+- **No-go piloto:** E2E autenticado y Supabase limpio autorizados, backup/restore ensayado, revisión de privacidad aprobada y métricas de runtime verificadas. No usar el sandbox legacy con siete academias.
+- **Corte 2026-10-14:** Chromium completo PASS; Firefox falla con `NS_BINDING_ABORTED`; WebKit compila su stack local sin resultado aún. El esquema de producción no incluye `zaltyko`; el Sandbox carece de cobertura/snapshots mensuales y consentimiento canónico. Restore/RPO/RTO siguen sin probarse. Ver [auditoría de release-gates](../../docs/qa/release-gates-schema-restore-2026-10-14.md). Sin operaciones remotas.
+- Fuente de estado: [`plan de implementación`](../../docs/plans/2026-10-06-owner-dashboard-implementation-plan.md), [`auditoría PRD`](../../docs/audits/2026-10-06-prd-completion-audit.md).
+
 ## Pendiente operativo (post-commit 352adf89) — Tracking paid acquisition
 
 Acciones para Elvis antes del primer lanzamiento de Google Ads:
@@ -45,6 +371,242 @@ Code changes verificados: tsc OK, eslint OK, next build OK.
 
 
 # Backlog priorizado
+
+## 2026-10-13 — Plan maestro de implementación del SaaS
+
+Usar [`plan maestro`](../../docs/plans/2026-10-13-full-saas-implementation-plan.md)
+como secuencia vigente para el rebuild greenfield completo. El modelo deportivo,
+el alta simplificada, los servicios locales, el ledger manual y el read model
+están implementados en esta rama, pero aún faltan pruebas autenticadas y gates
+de entorno. No declarar preparación de captación hasta completar los gates del
+plan y verificar el despliegue productivo.
+
+El formulario local de pagos prueba el estado sin cargos, la misma clave/cuerpo
+al reintentar un fallo incierto y la entrada decimal con coma española (3/3).
+No sustituye E2E autenticado ni prueba contra una base de datos aislada.
+
+### Corte operativo de inscripciones — 2026-10-13
+
+- **Hecho local:** `/owner/enrollments` permite consultar, buscar una persona
+  vinculada a la sede, crear inscripción `pending` con plaza reservada y
+  activar/pausar/cancelar/completar con control de versión, idempotencia,
+  auditoría y outbox. No activa precios o cobros; trials y transferencias quedan
+  fuera del formulario.
+- **Validación actual:** tests focales 13/13, TypeScript y ESLint focal PASS;
+  el Preview `8e9af4ca` está `READY` y la revisión visual sintética pasó a 1280
+  y 375 px. La lista precede a los contadores para reducir scroll móvil.
+- **Siguiente:** E2E owner/manager autenticado y revisión teclado/lector en un
+  proyecto aislado; no aplicar SQL al sandbox legacy ni a producción. Después:
+  workflow de transferencia, ciclo de trial/waitlist, horizonte de sesiones,
+  staff y asistencia. No afirmar readiness de captación hasta completar los
+  gates del plan.
+- **UX pendiente:** alta mínima de persona/tutor desde Inscripciones para evitar
+  saltar a Grupos cuando no existe ficha; definir primero mínimos de datos,
+  privacidad de menores y consentimiento. No reutilizar datos personales de
+  fixtures ni inventar texto legal.
+- **Seguridad pendiente:** Next 15.5.27 ya está actualizado. `pnpm audit --prod`
+  conserva `sprintf-js` moderado; audit completo, `braces@3.0.3` alto en
+  desarrollo. Las cuatro alertas altas de `main` son dos advisories repetidos
+  en npm/pnpm móvil: `braces` (#304/#305) y `node-forge` (#300/#301). Hay
+  mitigaciones locales y regresiones para ambos en `mobile/patches` y
+  `mobile/tests` (focales 6/6 por Vitest directo), pero sin versión corregida de
+  upstream y con alertas abiertas. El wrapper pnpm intentó instalar y bloqueó un
+  script de build no aprobado antes de correrlas; el test directo pasó sin
+  cambiar esa política. Revisar además la copia raíz de `braces` y la
+  clasificación GitHub runtime de `node-forge` frente a su manifest devDependency
+  antes de aceptar el riesgo.
+
+- [x] Cerrar Fase 1 local: migration, RLS/grants, contrato, onboarding y tests.
+- [x] Pasar stack canónico y las verificaciones focales locales.
+- [ ] Revisar los servicios operativos y E2E autenticado por rol contra Fase 2.
+- [x] Crear y consultar inscripciones Owner como pendientes; registrar
+      transición explícita con historial, outbox, idempotencia y scope.
+- [ ] Completar transferencias de inscripción y el flujo de trials/waitlist en
+      sus módulos, sin acoplar matrícula a cobro.
+- [x] Implementar localmente el servicio de pertenencia M:N a grupos con cupo
+      concurrente, historial efectivo append-only, auditoría, outbox e
+      idempotencia; RLS incluye tenant y sede.
+- [x] Añadir API y flujo owner/manager para crear grupos, asociar personas
+      existentes y pausar/reactivar/finalizar pertenencias. Tests focales
+      simulan sesión/scope; el harness PostgreSQL verifica concurrencia,
+      idempotencia, historial y aislamiento tenant/sede.
+- [x] Alta mínima canónica de persona+atleta+pertenencia M:N desde grupos en
+      una operación idempotente, con tests focales y PostgreSQL efímero.
+- [ ] Probar grupos en navegador con sesión real owner/manager y realizar QA
+      de teclado/lector de pantalla. El E2E remoto sigue bloqueado hasta
+      disponer de un entorno aislado aprobado; no usar el sandbox legacy ni
+      aplicar SQL remoto.
+- [ ] Repetir Vitest completo bajo carga de workers controlada y aclarar los
+      timeouts de `tests/api-billing.test.ts` y `tests/api-admin-users.test.ts`,
+      además del timeout y desajuste de cuerpo observado en
+      `tests/owner-groups-manager.test.tsx`. Una corrida focal 2/2 archivos,
+      7/7 tests PASS en 3e225fc no invalida el fallo completo de 500 archivos;
+      el origen de la diferencia aún no está demostrado. El arreglo local del
+      snapshot de creación tampoco demuestra la causa del fallo global. Ver
+      [diagnóstico QA](../../docs/qa/vitest-full-suite-focal-diagnosis-2026-10-14.md).
+- [ ] Definir recuperación para sesiones antiguas de creación de grupo que
+      solo guardaron la clave de idempotencia y no el cuerpo original. El
+      cambio local las bloquea para evitar reenviar una clave con otro cuerpo;
+      falta un camino operativo seguro para resolverlas antes de integrar.
+- [x] P0 local: writer/reader idempotentes del read model de cohortes; AC-12
+      mide 362,8 ms p95 y la vista compuesta 654,3 ms p95. Solo service-layer
+      sobre PostgreSQL 14.20 local; plataforma objetivo y coste del writer
+      pendientes. No implica despliegue ni preparación de piloto.
+- [x] Implementar localmente orden modular por persona/academia, con drag,
+      botones alternativos, persistencia, control de versión y reset.
+- [ ] Diseñar slots válidos y decidir si conviene añadir/ocultar módulos; la
+      versión actual solo reordena cuatro módulos secundarios en una columna,
+      sin mover tarjetas interiores ni alterar la prioridad del Score.
+- [ ] Probar reordenación en navegador autenticado con teclado/VoiceOver y
+      revisar comprensión con propietarios antes de cerrar Fase 6.
+- [x] Servicio local idempotente para registrar pagos ya recibidos; ledger,
+      outbox y auditoría en transacción, sin iniciar cobros.
+- [x] API owner/admin y formulario local para consultar cargos abiertos y
+      registrar pagos parciales/totales atómicamente; tests de ruta con auth
+      simulada y PostgreSQL efímero.
+- [ ] Walkthrough autenticado de `/owner/payments`, prueba real de permisos por
+      sede y QA de errores/accesibilidad en móvil y teclado.
+- [ ] Antes del upgrade gestionado a PostgreSQL 17.11, ejecutar las consultas
+      de detección de `ltree`/`btree_gist` y revisar uso/datos cifrados de
+      `pgcrypto` en producción y E2E. No aplicar reindexado ni recifrado sin
+      evidencia y ventana aprobada.
+- [x] Preferencia familiar manual/automático, entitlement versionado Free/paid
+      y snapshot por cargo implementados localmente. Free/trial falla cerrado;
+      la preferencia `automatic` no habilita ni inicia cargos.
+- [x] Proyección server-only de Stripe Connect separada del Stripe SaaS, con
+      cuenta por academia/entorno y FK tenant-aware desde autorización familiar;
+      elegibilidad valida entorno, API v2, cargo directo, estado y capacidad.
+      Solo esquema/contrato local; disponibilidad de Accounts v2 en la
+      plataforma, provisioning, onboarding, webhooks y consentimiento operativo
+      siguen pendientes (NO VERIFICADO donde aplica).
+- [ ] P0: capturar consentimiento/mandato trazable por pagador, completar
+      provisioning/reconciliación Connect y webhook ligado a cuenta,
+      implementar worker idempotente con recuperación y
+      probarlo en Stripe Test; auditar/cerrar el cron legacy antes de reutilizarlo.
+      Automático sigue deshabilitado para todas las cuentas.
+- [x] Corregir el texto del portal familiar al guardar tarjeta: no promete cobros
+      automáticos ni confunde guardar método con pagar una cuota. No cambia el
+      modo de cobro ni sustituye la aprobación del hotfix legacy.
+- [ ] Completar QA de roles, privacidad de menores, backup/restore y producción.
+- [ ] **Gate E2E remoto:** no aplicar el esquema greenfield al sandbox legacy. Crear
+      una rama/proyecto aislado solo después de mostrar el coste y recibir
+      confirmación; reconciliar historial nativo y probar migraciones/roles con
+      fixtures `.test` sintéticas. La verificación del 2026-10-13 encontró 54
+      hashes alineados y 54 pendientes en producción; en E2E, 1 hash discrepante
+      y 63 pendientes. No se ejecutó ninguna migración remota.
+- [ ] **Gate P0 de publicación:** PR #225 sigue abierto y sin fusionar. La
+      solicitud de review a `@elvisvaldes` está activa y su permiso `write` ya
+      está concedido; falta su aprobación independiente requerida por la
+      protección de `main`. No reducir ni eludir esa regla. El copy de cobro
+      automático corregido localmente no equivale a despliegue productivo.
+- [x] **Triage #105:** cerrado como supersedido; `main` ya exige respaldo Stripe
+      para acceso de pago (`9aa7186a`, PR #178) y el dashboard actual filtra por
+      `stripeSubscriptionId`. La rama `cherry/billing-stripe-subscription` se
+      conserva; no se fusionó ni eliminó.
+- [x] **Triage #113:** cerrado como duplicado de #116, sin eliminar la rama.
+      Sus cuatro parches eran idénticos a los de #116; solo se integraron las
+      exclusiones `.claude/` y `.paperclip-scratch/` en `.vercelignore`. La
+      excepción `scrollable-region-focusable` de su test tiene revisión vencida
+      el 2026-09-15 y sigue pendiente de reevaluación en #116.
+- [x] **Refs sin PR:** eliminadas del remoto `docs/ZAL-92-antispoofing-policy-and-repoPath-whitelist`
+      y `fix/contact-api-uuid-validation` tras verificar que no tenían PR
+      histórico, no estaban protegidas y sus commits ya eran ancestros de
+      `main` (`ahead_by=0`). Sus commits siguen preservados en el historial.
+- [ ] **Seguridad móvil:** mantener las mitigaciones de `braces` y `node-forge`
+      y los tests de regresión; actualizar cuando los advisories publiquen una
+      versión corregida. GitHub mantiene cuatro alertas altas duplicadas en los
+      dos lockfiles del proyecto móvil; confirmar el bundle/runtime y el estado
+      del advisory antes de cerrar el riesgo o publicar una versión móvil.
+
+### Seguimiento 2026-10-13 — proyección de cohortes AC-12
+
+- **Implementado local:** el worker escribe una generación transaccional y
+  reintentable por metric run y ámbito; el reader usa únicamente la última
+  proyección exitosa y devuelve estado explícito si falta una generación.
+- **Medición más reciente:** 5.000 atletas, 2 M asistencias, 20 identidades;
+  dashboard 293,6 ms p95, capacidad 304,4 ms, cohortes 362,8 ms, filtros 204,7 ms
+  y vista compuesta 654,3 ms p95. PostgreSQL 14.20 local;
+  no mide HTTP/Auth/browser, Supabase ni runtime serverless.
+- **Pendiente:** observar duración/lag del writer, validar aislamiento con E2E
+  autenticado y medir en plataforma objetivo antes de habilitarlo para clientes.
+- **Seguridad:** proyección agregada sin identificadores personales; RLS
+  forzado y grants de servicio existentes en la migración. Sin migración remota.
+
+## Revalidación 2026-10-06 — Reconstrucción Owner Dashboard
+
+La cobertura del PRD está abierta. Consultar
+[`2026-10-06-prd-completion-audit.md`](../../docs/audits/2026-10-06-prd-completion-audit.md)
+y el plan PR-10…PR-16. No usar como estado vigente los ítems históricos de
+ledger/métricas que describen la arquitectura anterior: esos ítems quedaron
+implementados localmente en `codex/health-score-v2`.
+
+Prioridad activa: evaluadores de ocho reglas P0; luego worker durable, APIs de
+drill-down y filtros, dashboard completo y pruebas aisladas de Supabase/E2E/carga.
+La retención individual continúa en draft hasta cerrar revisión de privacidad.
+
+## P0 — Completar proyección de cohortes AC-12 — 2026-10-06
+
+- **Estado:** esquema de generaciones y proyecciones creado localmente, con RLS
+  forzado, FKs tenant-aware, sin grants Data API y sin identificadores
+  personales. El smoke del esquema pasa en PostgreSQL efímero.
+- **Hallazgo:** query operacional actual queda en 6,42 s p95 a escala; no
+  cumple el presupuesto de 800 ms. El heatmap queda bajo el límite local.
+- **Pendiente:** writer idempotente enlazado a metric run + watermark, cobertura
+  de combinaciones org/sede/programa/grupo, endpoint lector de última generación
+  completa, estado stale/unavailable y benchmark repetido de 20 usuarios.
+- **Límites:** no aplicar la migración a Supabase remoto; no servir cohortes
+  desde filas individuales ni volver al scan lento como fallback. AC-12 seguirá
+  `NO CUMPLE` hasta pasar 800 ms/2 s a volumen.
+
+> **Estado actualizado 2026-10-13:** writer/reader ya implementados y AC-12
+> cumple en el benchmark local indicado arriba. Este bloque conserva el
+> hallazgo histórico; el gate de plataforma y operación continúa abierto.
+
+## P0 — Cerrar servicios operativos antes del motor de métricas — 2026-10-06
+
+> Estado histórico supersedido por la reconstrucción en `codex/health-score-v2`;
+> ver revalidación 2026-10-06 al comienzo de este backlog.
+
+- **Estado:** cerrado localmente. Enrollment, sesiones y asistencia escriben
+  dominio + historial + audit log + outbox en una transacción y resuelven rol y
+  sede desde base de datos.
+- **Evidencia:** reintentos idempotentes, dos organizaciones, varias sedes,
+  última plaza concurrente, transferencia, coach asignado y correcciones
+  concurrentes de asistencia en PostgreSQL efímero. PR-03 añade trial,
+  follow-up, waitlist, ofertas, familias y pagadores con fixture sintético
+  mono/multi-sede y tres journeys completos.
+- **Siguiente corte:** PR-04, ledger mínimo. El motor de métricas continúa
+  bloqueado hasta contar con hechos financieros reconciliables.
+
+## P0 — Construir ledger mínimo reconciliable — 2026-10-06
+
+> Estado histórico supersedido por PR-04 local; ver revalidación 2026-10-06.
+
+- **Estado:** pendiente. Solo existe el catálogo `price_plans`; no hay invoices,
+  cargos, pagos, allocations, intentos, refunds ni webhook inbox canónicos.
+- **Gate:** pago parcial, fallo/reintento/refund, tres entregas del mismo evento
+  con un solo efecto y reconciliación por moneda.
+- **Límite:** adaptador local/sintético; no conectar Stripe Live ni usar claves o
+  datos financieros reales sin autorización explícita.
+
+## P0 — Privacidad del riesgo individual de abandono — 2026-10-06
+
+- **Hallazgo:** combinar asistencia, deuda y conducta de atletas que pueden ser
+  menores implica perfilado y acceso especialmente sensible.
+- **Decisión pendiente antes del piloto:** necesidad/proporcionalidad, EIPD si
+  corresponde, visibilidad por rol, retención, explicación, corrección y
+  prohibición de decisiones adversas automáticas.
+- **Límite:** no incluir PII, deuda familiar ni notas médicas en eventos o
+  analytics; el coach no verá deuda.
+
+## P1 — Reconciliar historiales solo si se decide importar legado — 2026-10-06
+
+- El nuevo producto puede arrancar con fixtures y datos sintéticos. No diseñar
+  una migración compleja por defecto.
+- Si se autoriza importar, exigir fuente→staging→destino idempotente, reporte de
+  rechazos, cero huérfanos/cruces y reconciliación financiera. Los ledgers de
+  migración productivo/staging existentes siguen siendo un bloqueo para operar
+  remotamente, no para validar el nuevo esquema en PostgreSQL local aislado.
 
 ## P1 — Hacer fiable el control SBOM de CI — 2026-10-04
 
@@ -556,3 +1118,46 @@ La comparación estructural de columnas/restricciones/índices/trigger da parida
 - El primer run de PR #211 alcanzó Stripe Test y creó sesiones, pero Playwright perdió el cuerpo al salir el navegador hacia Checkout. La prueba ahora captura la respuesta dentro de una ruta de red y expira sesiones anteriores abiertas del mismo owner sintético.
 - El segundo run `37259234974` pasó el E2E de Checkout: sesión de suscripción Starter anual, metadata y Price correctos, `livemode=false`, y sesión expirada sin pago. También terminó verde la suite autenticada multibrowser, el test de escritura/idempotencia y todos los checks obligatorios del PR. El PR sigue abierto y aún no está desplegado.
 - **En validación — PR #211:** la spec también envía un evento `customer.subscription.created` firmado al webhook de la app, comprueba la suscripción anual `incomplete`, el contexto de academia, el estado del evento y la idempotencia; restaura y limpia los datos de staging/Test. Contratos locales 7/7, TypeScript, ESLint y `git diff --check` pasan. Falta CI del nuevo commit; Playwright local se abstuvo de ejecutar porque falta declarar el proyecto sandbox en el guard. El PR sigue abierto, sin fusionar ni desplegar.
+
+## P1 — Aprobar destino seguro para backup del E2E Sandbox — 2026-10-14
+
+- El proyecto `aeeootdmuiqkfeernskw` figura en plan Free y no está verificado como exclusivamente sintético. Los conteos previos de `public` no prueban procedencia; no se leyeron filas ni Auth.
+- Antes de exportar, el responsable de datos debe clasificar/proteger el posible PII y aprobar alcance; Seguridad/Operaciones debe designar un runner remoto y destino cifrado con región, acceso, retención, borrado y custodia de claves definidos. No usar el portátil.
+- Evaluar dump lógico selectivo por CLI excluyendo Auth, Storage y esquemas/tablas innecesarios. Un dump schema-only o de `zaltyko` sin filas no restablece estado operativo; datos greenfield también requieren clasificación y cierre de dependencias/fixtures. Restauración gestionada Supabase requiere plan pagado y copia Auth.
+- No exportar, pagar, crear recursos ni correr restore remoto hasta resolver los gates. Restore sintético local PostgreSQL 17 PASS en Main no prueba el backup/restore remoto. Evidencia: [`sandbox-backup-restore-viability-2026-10-14.md`](../../docs/qa/sandbox-backup-restore-viability-2026-10-14.md).
+
+## P1 — Eliminar topes silenciosos en la cotización mensual — 2026-10-14
+
+- `buildMonthlyInvoiceOptions()` en `monthly-invoice-service.ts` conserva topes fijos sin detectar excedentes: 100 tarifas, 1.000 inscripciones, 2.000 membresías/asignaciones, 4.000 coberturas y 1.000 pagadores/facturas existentes.
+- En sedes que superen esos conteos, la vista previa puede omitir datos de facturación; en especial, una factura previa omitida podría permitir una emisión duplicada.
+- Resolver en un parche separado con paginación keyset completa o centinela que bloquee toda la cotización al detectar exceso. No aceptar totales ni emitir parcialmente.
+
+# P1 — Cerrar verificación runtime de proyecciones de retención — 2026-10-14
+
+- Fases 1/2 están integradas en Main `820eedb06ce627c49322054ff5ad347faffb9aed`, pero solo hay unit tests con mocks y compilación Drizzle/param de `pg`; no se probó PostgreSQL ni E2E. El SQL compilado y `prepareValue` no demuestran que el aislamiento, locks, replay y agregados funcionen en una transacción real.
+- Antes de cambiar el gate: PostgreSQL sintético local con activación/desactivación concurrente entre páginas, dos workers compitiendo por scopes y replay idempotente; verificar locks ascendentes, rollback y sumas completas sin alterar el CTE. Después completar E2E autenticado apropiado.
+- **NO-GO** hasta cerrar evidencia runtime. Sin remoto/Sandbox para esta validación.
+- Evidencia y comandos focales ya reportados: [`retention-projections-runtime-gate-2026-10-14.md`](../../docs/qa/retention-projections-runtime-gate-2026-10-14.md).
+
+## P0 — Desbloquear CI sintético y cerrar gates de publicación — 2026-10-15
+
+10:48UTC: candidato5344e9d5/CI38719360128FAIL, Chromium31.6s/WebKit32.3sPASS+cleanup
+reportadorunner, Firefoxbuild240santesPlaywright/cleanup; gate116378981309FAIL.
+Security/SBOM/Unit/Build/restoejecutadosPASS. Preparar experimento acotado de
+excluir únicamenteStudio/meta si fuenteCLI2.84.2 y revisión respaldan independencia,
+sin tocar auth/db/REST/storage/Kong/env/checks/240s/cleanup. No causalidadprobada,
+no nuevoCI hastaentregafinal/review/protecciones. SuplementoSQLversion/extensiones
+solo catálogo pendiente de revisión; no upgrade ni mantenimiento automático.
+
+Integración local posterior: fallback por13digests, status entero positivo, identidad linuxamd64/config/RepoDigests antesydespuésretag,600s compartidos; Frontend75GO+QA119sinbloqueantes, Main80/80mockPASS. Pendiente único CI nuevo tras comprobar protecciones. Diagnóstico tracingNOresuelve causa240s; no repetir pruebas locales completas ya cerradas. Fuente digest-fallback-prepared-2026-10-15.md.
+
+Actualización vigente de6c3a64: CI38703429157FAIL por rate-limitChromium/WebKit, build240sFirefox y3unitarios. Fixunitario localc8f9c621 revisado; diagnósticobuild localc60a28b1 integrado31/31PASS, sincausaresuelta niotraCI. QA prepara fallback PORdigestlinuxamd64idéntico, sin pullsruntime todavíaycuotaHub no garantizada. No repetir corridaidéntica/ampliartimeouts.
+
+Catálogo remoto autorizadoMain15oct: prod no tiene namespaceszaltyko/domain_private; Sandbox faltan5tablasnuevas y2columnasmensuales; ambos no tienenbtree_gist. Debe cerrar esquema+recuperación antes deDDL/activación. No tocar filas ni inferir datos sintéticos. Datosactuales en remote-schema-catalog-2026-10-15.json; no esreadiness. Los puntos inferiores de5001651c sonhistóricos, no prohibiciónvigente de consultar metadata.
+
+- Candidato `5001651c`, PR #226 sin merge: run `38698304250` falla en descarga de distintas imágenes, antes del E2E funcional. Build, unitarios y demás checks ejecutados pasan; jobs Sandbox SKIPPED. Diagnosticar con errores acotados/saneados, sin cambiar imágenes ni relajar pruebas, plazos o aislamiento.
+- QA prepara parche local de diagnóstico; Frontend revisa corrección mínima de shell-quote móvil y aplicación efectiva de parches braces/node-forge. No asumir que seguridad/SBOM web verifica dependencias móviles.
+- Previews y workflow Deploy desactivados; gate sintético requerido en main. No merge/despliegue ni acceso a datos Sandbox/producción autorizado. Mantener pendientes revisión independiente, compatibilidad/recuperación del destino y autorización de publicación.
+- Fuente vigente: [`release-gates-summary-2026-10-15.md`](../../docs/qa/release-gates-summary-2026-10-15.md). Prioridad comercial: recibir usuarios esta semana; no prometer fecha hasta cerrar los gates.
+
+- Actualización: diagnóstico CI endurecido a etiquetas fijas sin stderr arbitrario, revisión QA103 GO y 13/13 pruebas PASS; shell-quote móvil1.11.0 de Frontend bb8b94ba integrado selectivamente con evidencia local 337/337. Pendientes nueva CI y alcance de 23 avisos high npm móvil (no asumir que son 23 vulnerabilidades distintas). Producción public139/RLS139 sin tablas zaltyko; Sandbox public138/RLS138 y zaltyko80/RLS80, solo metadatos, sin prueba de políticas/procedencia. Usuario permite intervenir si necesario; por ahora sin DDL/datos/despliegues. Preparar compatibilidad y recuperación antes de aplicar.

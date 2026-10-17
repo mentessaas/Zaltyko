@@ -1,14 +1,35 @@
 ---
 status: active
 owner: tech
-last_reviewed: 2026-07-12
+last_reviewed: 2026-10-06
 source:
   - ../README.md
   - ../AGENTS.md
   - ../docs/architecture.md
   - ../package.json
+  - ../docs/architecture/zaltyko-domain-model.md
+  - ../docs/architecture/adr/README.md
 ---
 # Arquitectura
+
+## Nuevo núcleo Owner Dashboard / Academy Health Score — 2026-10-06
+
+- El esquema PostgreSQL `zaltyko` y `src/modules/*` son la frontera canónica
+  del producto replanteado. `organization_id` sustituye la ambigüedad
+  `tenant_id`/`academy_id`; `location_id` expresa scope de sede.
+- El esquema `public` y las rutas actuales son legado transitorio, no autoridad
+  ni contrato de compatibilidad. Los entrypoints Drizzle permanecen separados
+  para impedir imports accidentales entre ambos modelos.
+- `group_memberships` conserva la relación M:N atleta↔grupo. Enrollment,
+  plantilla recurrente y sesión son entidades separadas.
+- Operaciones publican outbox; analytics materializa métricas; Health Score
+  consume métricas versionadas; Insights consume métricas/snapshots; Dashboard
+  es solo lectura. Ninguna dependencia apunta en sentido inverso.
+- RLS, grants, autorización de servidor y FKs compuestas son controles
+  complementarios. PII, inscripciones, asistencia, outbox y auditoría no tienen
+  acceso Data API autenticado en la primera fase.
+- Decisiones completas: [[../../docs/architecture/adr/README]] y
+  [[../../docs/architecture/zaltyko-domain-model]].
 
 ## Stack
 

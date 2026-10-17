@@ -6,6 +6,101 @@ All notable changes to Zaltyko are documented here. Format follows
 > SHA referenced corresponds to commits on `zaltyko-onboarding-ZAL-137`.
 > For commits on previous branches, refer to the git history directly.
 
+## 2026-10-06 — Nuevo núcleo PR-09: cutover prepiloto
+
+### Changed
+
+- Arranque limpio decidido: sin dual-write ni importación de clientes
+  inexistentes.
+- Entradas owner heredadas redirigen a `/owner`; navegación y home de
+  owner/admin convergen en la Mesa de dirección.
+- Threat model, RGPD inicial, observabilidad, backup/restore, matriz de retirada
+  y gate automatizado añadidos.
+- Bootstrap idempotente organización+sede+owner y entrada `/owner/setup`, sin
+  crear entidades legacy.
+
+### Gate
+
+- `NO-GO` para datos reales: bootstrap remoto, sandbox, E2E autenticado,
+  workers, restore, carga y aprobación RGPD siguen pendientes.
+
+## 2026-10-06 — Nuevo núcleo PR-08: Insights y acciones
+
+### Added
+
+- Reglas versionadas, ejecuciones idempotentes, deduplicación por serie,
+  prioridad explícita, cooldown, snooze, descarte y resolución trazable.
+- Acciones y outcomes con evidencia antes/después, actor, ventana de evaluación
+  e historial inmutable.
+- APIs protegidas y bandeja `/owner/insights` responsive con evidencia,
+  supuestos e hipótesis de valor etiquetadas.
+
+### Límites
+
+- Solo `excess_demand` tiene evaluador conectado. Sin scheduler, digest externo,
+  E2E autenticado, carga objetivo, datos reales, despliegue ni producción.
+
+## 2026-10-06 — Nuevo núcleo PR-07: Owner Dashboard
+
+### Added
+
+- Query layer agregada y API `/api/v1/owner/dashboard` con auth antes de
+  validación, scope de sede y errores problem+json.
+- `/owner` mobile-first con score explicable, prioridades, KPIs, tendencia,
+  cobros, calidad, estados degradados y tabla accesible equivalente.
+- Preview exclusivamente local y gate de contrato cross-tenant/sede con
+  20 lecturas concurrentes.
+
+### Límites
+
+- P95 a volumen objetivo, filtros por programa/grupo, VoiceOver humano, E2E
+  autenticado, cache remoto, despliegue y producción no verificados.
+
+## 2026-10-06 — Nuevo núcleo PR-06: Academy Health Score
+
+### Added
+
+- Perfiles benchmark y targets versionados, versión de score, pesos de
+  dimensión/métrica y snapshots explicables.
+- Gates de publicación por cobertura y datos insuficientes, normalización
+  higher/lower y bandas de presentación.
+- Evidencia local para AC-01, AC-02 y AC-13 con perfil exclusivamente sintético.
+
+### Límites
+
+- Sin benchmark España validado, Workforce Health, API, UI, despliegue ni
+  calibración con datos reales.
+
+## 2026-10-06 — Nuevo núcleo PR-05: motor de métricas
+
+### Added
+
+- Definiciones y ejecuciones versionadas, valores actuales, evidencia inmutable,
+  watermarks, calidad, invalidaciones y consumo idempotente de outbox.
+- Doce métricas de enrollment, ocupación, asistencia, cohorte, finanzas y
+  waitlist, con fixture golden y property tests.
+
+### Límites
+
+- Sin scheduler desplegado, API, cache remoto, score, UI, datos reales ni
+  cambios en producción.
+
+## 2026-10-06 — Nuevo núcleo PR-04: ledger interno
+
+### Added
+
+- Facturas, líneas, cargos, pagos, intentos, asignaciones, refunds e inbox
+  idempotente de proveedor bajo el esquema canónico `zaltyko`.
+- Servicios transaccionales de emisión, asignación, ingestión sandbox y
+  conciliación por organización, moneda, período y watermark.
+- Gates PostgreSQL locales para RLS/grants, tenant, moneda, pagos parciales,
+  reintentos, refund y triple entrega concurrente.
+
+### Límites
+
+- Sin llamadas a Stripe, credenciales, migraciones remotas, despliegue ni
+  producción. Impuestos, descuentos, prorrateos, API y UI quedan pendientes.
+
 ## 2026-08-15 — ZAL-556 A3 alias/order hardening
 
 ### Cambios
@@ -25,7 +120,7 @@ All notable changes to Zaltyko are documented here. Format follows
 Todo lo siguiente es local/sandbox; no es evidencia de producción, readiness,
 adopción ni validación humana.
 
-````text
+```text
 $ ls -la /Users/elvisvaldesinerarte/Desktop/_PROYECTOS/Zaltyko/package.json
 -rw-r--r--@ 1 elvisvaldesinerarte  staff  8823 Aug 15 12:32 /Users/elvisvaldesinerarte/Desktop/_PROYECTOS/Zaltyko/package.json
 $ wc -l /Users/elvisvaldesinerarte/Desktop/_PROYECTOS/Zaltyko/package.json
@@ -66,7 +161,7 @@ $ CI=1 pnpm exec vitest run tests/gates-static.test.ts --config vitest.gates.con
 ...
 close timed out after 1000ms
 Tests closed successfully but something prevents Vite server from exiting
-````
+```
 
 No se tocaron producción, dominios, secretos, datos reales, Stripe live,
 pricing, campañas, publicaciones, stores ni migraciones remotas.
@@ -80,8 +175,8 @@ pricing, campañas, publicaciones, stores ni migraciones remotas.
   (>7 min at 0% CPU, no child process spawned), which left `pnpm gate:all` —
   the CI entrypoint — unusable. tsx is now resolved through Node's own
   resolver (`require.resolve("tsx/cli")`) and run with `process.execPath`.
-- `run-all.ts` conflated a gate that *found violations* with a gate that
-  *failed to launch*: both collapsed into exit 1 via `proc.status ?? 1`. A
+- `run-all.ts` conflated a gate that _found violations_ with a gate that
+  _failed to launch_: both collapsed into exit 1 via `proc.status ?? 1`. A
   launch failure is now reported explicitly on stderr.
 - `gates.test.ts` spawned its end-to-end smoke tests with `cwd` set to the
   repo's **parent** directory (`path.join(ROOT, "..", "..", "..")` where
@@ -163,7 +258,7 @@ pricing, campañas, publicaciones, stores ni migraciones remotas.
   mode correctly exits non-zero and reports file, line, rule, reason and hint.
 - `pnpm gate:test` now exercises A2, A3, A4, the aggregate runner and retention:
   17/17 custom checks passed. The focal Vitest suite emitted `Tests  4 passed
-  (4)`, then the local runner reported a close timeout; it is retained as a
+(4)`, then the local runner reported a close timeout; it is retained as a
   fixture contract but is not treated as an overall CI green result.
 - No production, external domain, Stripe live, secrets, real data, pricing,
   campaigns, publications or remote migrations were touched. This is local

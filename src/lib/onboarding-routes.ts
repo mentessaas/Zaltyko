@@ -40,7 +40,7 @@ export const ITEM_ROUTES: Record<
     allowManualCompletion: true,
   },
   login_again: {
-    href: (academyId) => `/app/${academyId}/dashboard`,
-    cta: "Ir al dashboard",
+    href: () => "/owner",
+    cta: "Ir a la mesa de dirección",
   },
 };

@@ -32,7 +32,7 @@ const solutionTitles = {
     features: [
       { icon: Users, text: "Gestión de atletas con categorías oficiales" },
       { icon: Calendar, text: "Control de asistencia y horarios" },
-      { icon: CreditCard, text: "Cobros automatizados con Stripe" },
+      { icon: CreditCard, text: "Cuotas y registro manual de pagos" },
       { icon: FileText, text: "Renovación de licencias simplificada" },
     ],
   },
@@ -41,7 +41,7 @@ const solutionTitles = {
     features: [
       { icon: Users, text: "Athlete management with official categories" },
       { icon: Calendar, text: "Attendance and schedule control" },
-      { icon: CreditCard, text: "Automated payments with Stripe" },
+      { icon: CreditCard, text: "Fees and manual payment recording" },
       { icon: FileText, text: "Simplified license renewal" },
     ],
   },

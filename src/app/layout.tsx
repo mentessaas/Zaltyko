@@ -160,10 +160,9 @@ export default async function RootLayout({
       <head>
         {/* Preconnect to critical third-party origins (W5 + W9 GEO audit).
             Wildcards aren't valid in preconnect — concrete subdomains only.
-            PostHog, Supabase (project-scoped), and
+            Supabase (project-scoped) and
             Stripe (js.stripe.com + api.stripe.com) added now to cut cold
             DNS+TCP+TLS when users sign in or start checkout. */}
-        <link rel="preconnect" href="https://app.posthog.com" crossOrigin="anonymous" />
         <link rel="preconnect" href="https://js.stripe.com" crossOrigin="anonymous" />
         <link rel="preconnect" href="https://api.stripe.com" crossOrigin="anonymous" />
         {supabaseOrigin && (

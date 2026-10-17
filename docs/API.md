@@ -149,6 +149,35 @@ export const POST = withTenant(async (request: Request) => {
 ### LemonSqueezy
 - `POST /api/webhooks/lemon-squeezy` - Handle subscription events
 
+## Owner API v1 — Inscripciones del núcleo greenfield
+
+Estas rutas no siguen el wrapper legacy `withTenant`: verifican una sesión
+Supabase en servidor, resuelven la membresía y el ámbito de la academia/sede con
+`resolveOwnerScope`, derivan el actor de la sesión y vuelven a comprobar el
+permiso dentro del servicio transaccional. No aceptan un `userId` ni un rol
+aportado por el cliente. Todas las respuestas autenticadas son `private,
+no-store` y las operaciones están limitadas por rate limit.
+
+| Método | Ruta | Uso |
+| --- | --- | --- |
+| GET | `/api/v1/owner/enrollments?organizationId=&locationId=&classTemplateId=&q=` | Buscar hasta 20 personas activas, con mínimo dos letras, solo si ya tienen pertenencia M:N o inscripción abierta en la sede. Devuelve ID y nombre mínimo. |
+| POST | `/api/v1/owner/enrollments` | Registrar inscripción pendiente. Requiere `Idempotency-Key` y cuerpo estricto: `organizationId`, `locationId`, `athleteId`, `classTemplateId`, `startsOn`. El servidor fija `status=pending`, `source=owner` y `pricePlanId=null`. |
+| PATCH | `/api/v1/owner/enrollments/{enrollmentId}` | Transición a `active`, `paused`, `cancelled` o `completed`; requiere `Idempotency-Key`, `organizationId`, `expectedVersion`, `effectiveOn` y opcionalmente `reasonCode`. |
+
+La lista paginada se renderiza en servidor en `/owner/enrollments`; no existe
+un endpoint GET de listado en este corte. Crear `pending` reserva plaza.
+Capacidad, sede, relación de la persona,
+periodo efectivo de la clase y duplicados se revalidan en la transacción. Cada
+comando añade historial tipado, auditoría y outbox de forma atómica; eventos y
+trazas no incluyen nombres personales. La inscripción no crea grupo, tarifa,
+cuota, factura, cargo, pago ni mandato. Trials y transferencias no se gestionan
+desde esta pantalla/API. La consulta de candidatos usa `group_memberships`
+como relación canónica, no el campo legacy `athletes.group_id`.
+
+La existencia de autenticación de aplicación no sustituye RLS ni los grants de
+Postgres: la política tenant/sede y sus pruebas deben mantenerse en el esquema
+greenfield. Este corte no aplicó migraciones a Supabase remoto.
+
 ## Rate Limiting
 
 Rate limits son aplicados usando Vercel KV (Redis):

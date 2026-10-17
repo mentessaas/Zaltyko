@@ -232,6 +232,22 @@ test.describe("role smoke: academy owner", () => {
     });
   }
 
+  test("can open owner enrollments without entering the billing flow", async ({ page }) => {
+    test.setTimeout(180_000);
+    await gotoAppPath(page, `${baseURL}/owner/enrollments`);
+    await expectNoRouteError(page);
+    await expect(page).not.toHaveURL(/\/auth\/login/);
+    await expect(
+      page.getByRole("heading", { name: "Inscripciones", exact: true })
+    ).toBeVisible();
+    await expect(
+      page.getByText(/El alta queda pendiente y reserva una plaza/)
+    ).toBeVisible();
+    await expect(
+      page.getByText(/No crea una cuota ni inicia cobros/)
+    ).toBeVisible();
+  });
+
   for (const path of ownerReadOnlyPaths) {
     test(`can open additional read surface: ${path}`, async ({ page }) => {
       test.setTimeout(180_000);

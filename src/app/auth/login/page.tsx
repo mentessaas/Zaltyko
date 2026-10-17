@@ -28,8 +28,13 @@ export const metadata: Metadata = {
 // `Dynamic server usage: Route /auth/login couldn't be rendered statically`.
 export const dynamic = "force-dynamic";
 
-export default async function Login({searchParams}:{searchParams:Promise<Record<string,string|undefined>>}) {
-  const params=await searchParams;
+export default async function Login({
+  searchParams,
+}: {
+  searchParams: Promise<Record<string, string | undefined>>;
+}) {
+  const params = await searchParams;
+  const profileSetupRetry = params.profile_setup === "retry";
   // Si ya hay sesión, redirigir al panel adecuado en lugar de mostrar el login.
   // Sin env de Supabase configurado o con el servicio caído, se muestra el
   // formulario en lugar de un 500 (la sesión simplemente no se puede resolver).
@@ -43,14 +48,24 @@ export default async function Login({searchParams}:{searchParams:Promise<Record<
 
   // Render the callback notice even if OAuth established a session before a
   // later consent-recording step failed. The notice explains how to recover.
+  if (sessionUser && profileSetupRetry && !isLoginNoticeCode(params.error)) {
+    return <LoginForm profileSetupRetry sessionAvailableForRecovery />;
+  }
+
   if (sessionUser && !isLoginNoticeCode(params.error)) {
     const home = await resolveUserEntry(sessionUser);
-    const next=params.next??params.callbackUrl;
-    if(home.destination!=="blocked"&&next&&/^\/(academias|events|directorio)\//.test(next)&&!next.includes("\\"))redirect(next);
+    const next = params.next ?? params.callbackUrl;
+    if (
+      home.destination !== "blocked" &&
+      next &&
+      /^\/(academias|events|directorio)\//.test(next) &&
+      !next.includes("\\")
+    )
+      redirect(next);
     redirect(home.redirectUrl);
   }
 
-  return <LoginForm />;
+  return <LoginForm profileSetupRetry={profileSetupRetry} />;
 }
 
 async function getSessionUser() {

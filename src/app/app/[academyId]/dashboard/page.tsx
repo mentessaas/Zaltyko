@@ -1,49 +1,32 @@
 import { cookies } from "next/headers";
-import { redirect } from "next/navigation";
-import { Metadata } from "next";
-import { and, eq } from "drizzle-orm";
+import { notFound, redirect } from "next/navigation";
+import type { Metadata } from "next";
 import nextDynamic from "next/dynamic";
 
-import { db } from "@/db";
-import { academies, memberships, profiles } from "@/db/schema";
-import { createClient } from "@/lib/supabase/server";
-import { getDashboardData } from "@/lib/dashboard";
 import { DashboardPageSkeleton } from "@/components/dashboard/DashboardPage";
+import { getDashboardData } from "@/lib/dashboard";
 import { getDevSessionFromCookieStore } from "@/lib/dev-session";
-import { AccessDenied } from "@/components/ui/access-denied";
-import { PageHeader } from "@/components/ui/page-header";
-import { LayoutDashboard } from "lucide-react";
+import { getLegacyOwnerAcademyAccess } from "@/lib/auth/legacy-academy-access";
+import { createClient } from "@/lib/supabase/server";
 
-// Lazy load del DashboardPage (942 lineas, ~30 widgets) con code-splitting
-// automatico. Reduce el bundle inicial del segmento dashboard en ~70%.
 const DashboardPage = nextDynamic(
-  () => import("@/components/dashboard/DashboardPage").then((m) => ({ default: m.DashboardPage })),
-  {
-    loading: () => <DashboardPageSkeleton />,
-  }
+  () =>
+    import("@/components/dashboard/DashboardPage").then((module) => ({
+      default: module.DashboardPage,
+    })),
+  { loading: () => <DashboardPageSkeleton /> }
 );
 
 interface PageProps {
-  params: Promise<{
-    academyId: string;
-  }>;
+  params: Promise<{ academyId: string }>;
 }
 
 export const dynamic = "force-dynamic";
 
-export async function generateMetadata({ params }: PageProps): Promise<Metadata> {
-  const { academyId } = await params;
-  const [academy] = await db
-    .select({ name: academies.name })
-    .from(academies)
-    .where(eq(academies.id, academyId))
-    .limit(1);
-
-  const name = academy?.name ?? "Academia";
-
+export async function generateMetadata(): Promise<Metadata> {
   return {
-    title: `${name} · Dashboard`,
-    description: `Panel de control para la academia ${name}.`,
+    title: "Dashboard · Zaltyko",
+    description: "Panel de gestión de la academia.",
   };
 }
 
@@ -51,107 +34,33 @@ export default async function AcademyDashboard({ params }: PageProps) {
   const { academyId } = await params;
   const cookieStore = await cookies();
   const supabase = await createClient(cookieStore);
-  const devSession = await getDevSessionFromCookieStore(cookieStore);
-
   const {
     data: { user },
   } = await supabase.auth.getUser();
-
+  const devSession =
+    process.env.NODE_ENV === "production"
+      ? null
+      : await getDevSessionFromCookieStore(cookieStore);
   const effectiveUserId = user?.id ?? devSession?.userId ?? null;
-  const effectiveUserEmail = user?.email ?? null;
 
   if (!effectiveUserId) {
-    redirect("/auth/login");
+    redirect(`/auth/login?next=/app/${academyId}/dashboard`);
   }
 
-  const [profile] = await db
-    .select({
-      id: profiles.id,
-      name: profiles.name,
-      role: profiles.role,
-    })
-    .from(profiles)
-    .where(eq(profiles.userId, effectiveUserId))
-    .limit(1);
+  const access = await getLegacyOwnerAcademyAccess(effectiveUserId, academyId);
+  if (!access?.allowed || !access.academy) notFound();
 
-  const [membership] = await db
-    .select({ role: memberships.role })
-    .from(memberships)
-    .where(
-      and(eq(memberships.userId, effectiveUserId), eq(memberships.academyId, academyId))
-    )
-    .limit(1);
-
-  const allowedProfileRoles = new Set(["owner", "admin", "super_admin"]);
-  const allowedMembershipRoles = new Set(["owner"]);
-
-  const hasAccess =
-    (profile && allowedProfileRoles.has(profile.role)) ||
-    (membership && allowedMembershipRoles.has(membership.role));
-
-  if (!hasAccess) {
-    // PR 15 (Operate P2): antes redirigía silenciosamente a
-    // /app/[academyId]/athletes. Ahora muestra AccessDenied explicando
-    // que el dashboard admin es solo para owner/admin, con CTA al home
-    // real del rol.
-    const isCoach = profile?.role === "coach";
-    const isAthleteOrParent =
-      profile?.role === "athlete" || profile?.role === "parent";
-
-    const homeHref = isCoach
-      ? `/app/${academyId}/coach`
-      : isAthleteOrParent
-        ? `/app/${academyId}/my-dashboard`
-        : `/app/${academyId}/athletes`;
-    const ctaLabel = isCoach
-      ? "Ir a mi panel de coach"
-      : isAthleteOrParent
-        ? "Ir a mi dashboard familiar"
-        : "Ver atletas";
-
-    return (
-      <div className="mx-auto max-w-[1500px] space-y-6">
-        <PageHeader
-          breadcrumbs={[
-            { label: "Dashboard", href: `/app/${academyId}/dashboard` },
-          ]}
-          title="Dashboard"
-          icon={<LayoutDashboard className="h-5 w-5" strokeWidth={1.8} />}
-        />
-        <AccessDenied
-          variant="admin"
-          title="Dashboard solo para administradores"
-          description={`Tu rol actual (${profile?.role ?? "sin perfil"}) no tiene acceso al dashboard de administración. Solo el owner o admin de la academia puede verlo.`}
-          ctaLabel={ctaLabel}
-          ctaHref={homeHref}
-        />
-      </div>
-    );
-  }
-
-  let academy;
-  let data;
-
-  try {
-    const dashboardData = await getDashboardData(academyId);
-    academy = dashboardData.academy;
-    data = dashboardData.data;
-  } catch (error) {
-    if (devSession?.academyId === academyId) {
-      redirect(`/app/${academyId}/athletes`);
-    }
-    throw error;
-  }
+  const dashboardData = await getDashboardData(academyId);
 
   return (
     <DashboardPage
       academyId={academyId}
-      tenantId={academy.tenantId}
-      academyName={academy.name}
-      academyType={academy.academyType}
-      academyCountry={academy.country}
-      profileName={profile?.name ?? effectiveUserEmail ?? null}
-      initialData={data}
+      tenantId={access.academy.tenantId}
+      academyName={dashboardData.academy.name}
+      academyType={dashboardData.academy.academyType}
+      academyCountry={dashboardData.academy.country}
+      profileName={access.profile.name ?? user?.email ?? null}
+      initialData={dashboardData.data}
     />
   );
 }

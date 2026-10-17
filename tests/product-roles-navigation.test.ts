@@ -17,9 +17,15 @@ import {
 
 describe("product roles and navigation", () => {
   it("maps invitation roles to the canonical acceptance paths", () => {
-    expect(buildInvitationAcceptancePath("coach", "abc")).toBe("/invite/accept?token=abc");
-    expect(buildInvitationAcceptancePath("athlete", "abc")).toBe("/invite/athlete?token=abc");
-    expect(buildInvitationAcceptancePath("parent", "abc")).toBe("/invite/parent?token=abc");
+    expect(buildInvitationAcceptancePath("coach", "abc")).toBe(
+      "/invite/accept?token=abc"
+    );
+    expect(buildInvitationAcceptancePath("athlete", "abc")).toBe(
+      "/invite/athlete?token=abc"
+    );
+    expect(buildInvitationAcceptancePath("parent", "abc")).toBe(
+      "/invite/parent?token=abc"
+    );
   });
 
   it("restricts academy workspace for athlete and parent roles", () => {
@@ -32,14 +38,30 @@ describe("product roles and navigation", () => {
   });
 
   it("allows only limited academy paths for athlete and parent portal roles", () => {
-    expect(isLimitedAcademyWorkspacePath("/app/academy-1/my-dashboard", "academy-1")).toBe(true);
-    expect(isLimitedAcademyWorkspacePath("/app/academy-1/messages", "academy-1")).toBe(true);
-    expect(isLimitedAcademyWorkspacePath("/app/academy-1/notifications", "academy-1")).toBe(true);
-    expect(isLimitedAcademyWorkspacePath("/app/academy-1/athletes", "academy-1")).toBe(false);
-    expect(isLimitedAcademyWorkspacePath("/app/academy-1/billing", "academy-1")).toBe(false);
-    expect(isLimitedAcademyWorkspacePath("/app/academy-1/settings", "academy-1")).toBe(false);
-    expect(isLimitedAcademyWorkspacePath("/app/academy-1/reports", "academy-1")).toBe(false);
-    expect(isLimitedAcademyWorkspacePath("/app/academy-2/my-dashboard", "academy-1")).toBe(false);
+    expect(
+      isLimitedAcademyWorkspacePath("/app/academy-1/my-dashboard", "academy-1")
+    ).toBe(true);
+    expect(
+      isLimitedAcademyWorkspacePath("/app/academy-1/messages", "academy-1")
+    ).toBe(true);
+    expect(
+      isLimitedAcademyWorkspacePath("/app/academy-1/notifications", "academy-1")
+    ).toBe(true);
+    expect(
+      isLimitedAcademyWorkspacePath("/app/academy-1/athletes", "academy-1")
+    ).toBe(false);
+    expect(
+      isLimitedAcademyWorkspacePath("/app/academy-1/billing", "academy-1")
+    ).toBe(false);
+    expect(
+      isLimitedAcademyWorkspacePath("/app/academy-1/settings", "academy-1")
+    ).toBe(false);
+    expect(
+      isLimitedAcademyWorkspacePath("/app/academy-1/reports", "academy-1")
+    ).toBe(false);
+    expect(
+      isLimitedAcademyWorkspacePath("/app/academy-2/my-dashboard", "academy-1")
+    ).toBe(false);
   });
 
   it("builds role-aware global navigation", () => {
@@ -76,10 +98,13 @@ describe("product roles and navigation", () => {
 
     expect(ownerNav).toContain("/app/academy-1/billing");
     expect(ownerNav).toContain("/app/academy-1/settings");
+    expect(ownerNav).toContain("/owner");
     expect(coachMobileNav).not.toContain("reports");
     expect(coachNav.map((item) => item.key)).not.toContain("reports");
     expect(coachMobileNav).not.toContain("billing");
-    expect(coachNav.find((item) => item.key === "dashboard")?.href).toBe("/app/academy-1/coach");
+    expect(coachNav.find((item) => item.key === "coach-dashboard")?.href).toBe(
+      "/app/academy-1/coach"
+    );
   });
 
   it("builds limited academy navigation for parent roles", () => {
@@ -89,7 +114,12 @@ describe("product roles and navigation", () => {
       membershipRole: "viewer",
     }).map((item) => item.key);
 
-    expect(parentNav).toEqual(["my-dashboard", "my-events", "messages", "notifications"]);
+    expect(parentNav).toEqual([
+      "my-dashboard",
+      "my-events",
+      "messages",
+      "notifications",
+    ]);
   });
 
   it("does not derive academy privileges from the global profile role", () => {
@@ -106,8 +136,12 @@ describe("product roles and navigation", () => {
     expect(getRoleLabel("super_admin")).toBe("Super administrador");
     expect(getDefaultDashboardPath("parent")).toBe("/dashboard/profile");
     expect(getRoleLabel("provider")).toBe("Proveedor");
-    expect(getDefaultDashboardPath("provider")).toBe("/dashboard/marketplace/mis-productos");
-    expect(getSuperAdminNavigation().map((item) => item.key)).toContain("academies");
+    expect(getDefaultDashboardPath("provider")).toBe(
+      "/dashboard/marketplace/mis-productos"
+    );
+    expect(getSuperAdminNavigation().map((item) => item.key)).toContain(
+      "academies"
+    );
   });
 
   it("prefers the academy workspace home when the role can operate inside it", () => {
@@ -117,7 +151,7 @@ describe("product roles and navigation", () => {
         membershipRole: "owner",
         academyId: "academy-1",
       })
-    ).toBe("/app/academy-1/dashboard");
+    ).toBe("/owner");
 
     expect(
       getPreferredHomePath({

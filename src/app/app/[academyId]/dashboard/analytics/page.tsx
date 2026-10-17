@@ -1,12 +1,16 @@
+import { cookies } from "next/headers";
+import { notFound, redirect } from "next/navigation";
+
 import { AnalyticsWidgets } from "@/components/analytics/AnalyticsWidgets";
 import { FeatureUnavailableState } from "@/components/product/FeatureUnavailableState";
 import { Breadcrumb } from "@/components/ui/breadcrumb";
+import { getLegacyOwnerAcademyAccess } from "@/lib/auth/legacy-academy-access";
+import { getDevSessionFromCookieStore } from "@/lib/dev-session";
+import { createClient } from "@/lib/supabase/server";
 import { isFeatureEnabled } from "@/lib/product/features";
 
 interface PageProps {
-  params: Promise<{
-    academyId: string;
-  }>;
+  params: Promise<{ academyId: string }>;
   searchParams: Promise<{
     dateRange?: string;
     classId?: string;
@@ -14,9 +18,29 @@ interface PageProps {
   }>;
 }
 
-export default async function AnalyticsPage({ params, searchParams }: PageProps) {
+export default async function AnalyticsPage({
+  params,
+  searchParams,
+}: PageProps) {
   const { academyId } = await params;
   await searchParams;
+
+  const cookieStore = await cookies();
+  const supabase = await createClient(cookieStore);
+  const {
+    data: { user },
+  } = await supabase.auth.getUser();
+  const devSession =
+    process.env.NODE_ENV === "production"
+      ? null
+      : await getDevSessionFromCookieStore(cookieStore);
+  const effectiveUserId = user?.id ?? devSession?.userId ?? null;
+  if (!effectiveUserId) {
+    redirect(`/auth/login?next=/app/${academyId}/dashboard/analytics`);
+  }
+
+  const access = await getLegacyOwnerAcademyAccess(effectiveUserId, academyId);
+  if (!access?.allowed) notFound();
 
   if (!isFeatureEnabled("advancedAnalytics")) {
     return (
@@ -39,7 +63,7 @@ export default async function AnalyticsPage({ params, searchParams }: PageProps)
       />
       <div>
         <h1 className="text-2xl font-bold">Analytics Avanzado</h1>
-        <p className="text-muted-foreground mt-1">
+        <p className="mt-1 text-muted-foreground">
           Métricas detalladas, gráficos y análisis de rendimiento
         </p>
       </div>

@@ -168,3 +168,67 @@ export function assertLocalPlaywrightTarget({
   }
   return projectRef;
 }
+
+export function assertLocalSupabasePlaywrightTarget({
+  baseUrl,
+  supabaseUrl,
+  databaseUrl,
+  stripeSecretKey,
+  stripePublishableKey,
+}: {
+  baseUrl: string;
+  supabaseUrl: string | undefined;
+  databaseUrl: string;
+  stripeSecretKey: string | undefined;
+  stripePublishableKey: string | undefined;
+}): "local" {
+  const loopback = new Set(["127.0.0.1", "localhost", "::1"]);
+  const localUrl = (value: string, expectedPort: string) => {
+    try {
+      const url = new URL(value);
+      return (
+        url.protocol === "http:" &&
+        loopback.has(url.hostname) &&
+        url.port === expectedPort
+      );
+    } catch {
+      return false;
+    }
+  };
+
+  if (
+    process.env.E2E_LOCAL_SUPABASE !== "true" ||
+    !localUrl(baseUrl, process.env.PORT ?? "3000") ||
+    !supabaseUrl ||
+    !localUrl(supabaseUrl, "54321")
+  ) {
+    throw new Error(
+      `Local Supabase E2E target check failed (mode=${process.env.E2E_LOCAL_SUPABASE === "true"}, app=${localUrl(baseUrl, process.env.PORT ?? "3000")}, api=${Boolean(supabaseUrl && localUrl(supabaseUrl, "54321"))}).`
+    );
+  }
+
+  try {
+    const database = new URL(databaseUrl);
+    if (
+      !loopback.has(database.hostname) ||
+      database.port !== "54322" ||
+      database.username !== "postgres" ||
+      database.pathname !== "/postgres"
+    ) {
+      throw new Error();
+    }
+  } catch {
+    throw new Error(
+      "Local Supabase E2E requires the disposable loopback database on port 54322."
+    );
+  }
+
+  if (stripeSecretKey && !stripeSecretKey.startsWith("sk_test_")) {
+    throw new Error("Playwright refuses a non-test Stripe secret key.");
+  }
+  if (stripePublishableKey && !stripePublishableKey.startsWith("pk_test_")) {
+    throw new Error("Playwright refuses a non-test Stripe publishable key.");
+  }
+
+  return "local";
+}

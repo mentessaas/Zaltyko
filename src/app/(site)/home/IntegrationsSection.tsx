@@ -1,15 +1,14 @@
 "use client";
 
-import { CreditCard, Mail, Users, ArrowRight } from "lucide-react";
+import { CreditCard, Mail, Users } from "lucide-react";
 import { cn } from "@/lib/utils";
-import Link from "next/link";
 
 const integrations = [
   {
     name: "Cobros",
-    description: "Controla cuotas, pagos pendientes y recordatorios para que dirección sepa qué falta por cobrar.",
+    description: "Organiza las cuotas, registra los pagos recibidos y consulta qué queda pendiente.",
     icon: CreditCard,
-    features: ["Pagos pendientes", "Cobros recurrentes", "Historial por familia"],
+    features: ["Registro manual de pagos", "Cuotas pendientes", "Historial por familia"],
     color: "from-zaltyko-indigo to-zaltyko-navy",
   },
   {

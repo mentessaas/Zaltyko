@@ -76,9 +76,11 @@ const LEGAL_CONSENT_VERSION = "v1-2026-08-01";
 const LEGAL_CONSENT_PROOF = "signup:register-form-v1";
 
 export function RegisterForm({
+  ownerEntry = false,
   directoryDiscoveryEnabled = false,
   directoryClaimsEnabled = false,
 }: {
+  ownerEntry?: boolean;
   directoryDiscoveryEnabled?: boolean;
   directoryClaimsEnabled?: boolean;
 } = {}) {
@@ -95,6 +97,7 @@ export function RegisterForm({
   const roleButtonRefs = useRef<Array<HTMLButtonElement | null>>([]);
   const [loading, setLoading] = useState(false);
   const [googleLoading, setGoogleLoading] = useState(false);
+  const [signupOutcomeUnknown, setSignupOutcomeUnknown] = useState(false);
   const router = useRouter();
   const supabase = createClient();
   const toast = useToast();
@@ -198,6 +201,8 @@ export function RegisterForm({
     }
 
     setLoading(true);
+    let signupPhase: "request_pending" | "account_created" | "session_confirmed" =
+      "request_pending";
     try {
       const emailRedirectTo =
         typeof window !== "undefined"
@@ -229,6 +234,7 @@ export function RegisterForm({
         });
         return;
       }
+      signupPhase = "account_created";
 
       toast.pushToast({
         title: directoryRegistration ? "Cuenta del directorio creada" : role === "owner" ? "Cuenta creada; falta tu academia" : "Cuenta creada",
@@ -243,6 +249,7 @@ export function RegisterForm({
       });
 
       if (data.session) {
+        signupPhase = "session_confirmed";
         // Instrumentación paid-acquisition: emite sign_up_completed solo
         // cuando hay sesión (signup funcional, no email-pendiente). La
         // atribución UTMs viaja en metadata para que PostHog/Google Ads
@@ -265,7 +272,32 @@ export function RegisterForm({
         // esté listo. Sin label, gtag ignora el evento silenciosamente.
         if (!directoryRegistration) trackGoogleAdsConversion("signup_completed");
 
-        if(directoryRegistration){router.push(directoryNext!);return;}
+        if (directoryRegistration) {
+          router.push(directoryNext!);
+          return;
+        }
+
+        if (role === "owner") {
+          const {
+            data: { user },
+            error: verificationError,
+          } = await supabase.auth.getUser();
+          if (verificationError || !user) {
+            toast.pushToast({
+              title: "Cuenta creada; configuración pendiente",
+              description:
+                "No pudimos confirmar tu sesión. Inicia sesión para continuar con la configuración.",
+              variant: "warning",
+              persistent: true,
+            });
+            router.push("/auth/login?profile_setup=retry");
+            return;
+          }
+
+          router.push("/owner/setup");
+          return;
+        }
+
         const profileResponse = await fetch("/api/onboarding/profile", {
           method: "POST",
           headers: { "Content-Type": "application/json" },
@@ -295,6 +327,27 @@ export function RegisterForm({
           },
         });
         router.push(`/auth/login?registered=1${directoryRegistration?`&next=${encodeURIComponent(directoryNext!)}`:""}`);
+      }
+    } catch {
+      if (signupPhase === "request_pending") {
+        setSignupOutcomeUnknown(true);
+      } else if (signupPhase === "session_confirmed") {
+        if (directoryRegistration) {
+          router.push(directoryNext!);
+        } else {
+          toast.pushToast({
+            title: "Cuenta creada; configuración pendiente",
+            description:
+              "No pudimos completar la configuración. Inicia sesión para reintentarla.",
+            variant: "warning",
+            persistent: true,
+          });
+          router.push("/auth/login?profile_setup=retry");
+        }
+      } else {
+        router.push(
+          `/auth/login?registered=1${directoryRegistration ? `&next=${encodeURIComponent(directoryNext!)}` : ""}`
+        );
       }
     } finally {
       setLoading(false);
@@ -370,7 +423,9 @@ export function RegisterForm({
   return (
     <AuthPageShell
       title="Crea tu cuenta"
-      description="Crea tu acceso personal y elige cómo quieres usar Zaltyko."
+      description={ownerEntry
+        ? "Primero crearás tu cuenta personal; después, configurarás tu academia."
+        : "Crea tu acceso personal y elige cómo quieres usar Zaltyko."}
       footer={
         <>
           ¿Ya tienes cuenta?{" "}
@@ -379,18 +434,31 @@ export function RegisterForm({
           </Link>
         </>
       }
-      sideTitle="Una cuenta, varios vínculos"
-      sideDescription="Tu cuenta es tuya. Luego puedes crear una academia, aceptar invitaciones o publicar como proveedor."
-      highlights={[
-        "Padres, atletas, entrenadores y proveedores pueden tener cuenta propia.",
-        "Las academias se vinculan por invitación o solicitud aceptada.",
-        "Si sales de una academia, conservas tu cuenta global.",
-      ]}
+      sideTitle={ownerEntry ? "Empieza por tu academia" : "Una cuenta, varios vínculos"}
+      sideDescription={ownerEntry
+        ? "Crea tu cuenta de dirección y después configura el espacio de tu academia."
+        : "Tu cuenta es tuya. Luego puedes crear una academia, aceptar invitaciones o publicar como proveedor."}
+      highlights={ownerEntry
+        ? [
+            "Primero crearás el acceso personal.",
+            "Después configurarás la academia en un formulario breve.",
+            "Podrás invitar a entrenadores y familias desde tu espacio.",
+          ]
+        : [
+            "Padres, atletas, entrenadores y proveedores pueden tener cuenta propia.",
+            "Las academias se vinculan por invitación o solicitud aceptada.",
+            "Si sales de una academia, conservas tu cuenta global.",
+          ]}
     >
       <form onSubmit={handleRegister} className="space-y-4">
         <div className="space-y-2">
-          {!directoryRegistration && <Label>Tipo de cuenta</Label>}
-          <div style={directoryRegistration ? { display: "none" } : undefined} className="grid grid-cols-2 gap-2" role="radiogroup" aria-label="Tipo de cuenta">
+          {!directoryRegistration && !ownerEntry && <Label>Tipo de cuenta</Label>}
+          {ownerEntry && (
+            <p className="rounded-lg border border-zaltyko-teal/30 bg-zaltyko-teal/5 px-3 py-2 text-sm font-semibold text-foreground">
+              Cuenta de dirección de academia
+            </p>
+          )}
+          {!ownerEntry && <div style={directoryRegistration ? { display: "none" } : undefined} className="grid grid-cols-2 gap-2" role="radiogroup" aria-label="Tipo de cuenta">
             {ROLE_OPTIONS.map((option, index) => (
               <button
                 key={option.value}
@@ -413,17 +481,17 @@ export function RegisterForm({
                 <span className="mt-1 block text-xs">{option.description}</span>
               </button>
             ))}
-          </div>
+          </div>}
           {role === "owner" && !directoryRegistration && (
             <div className="rounded-lg border border-zaltyko-teal/30 bg-zaltyko-teal/5 px-3 py-2 text-xs text-muted-foreground">
-              <span className="font-semibold text-foreground">Importante:</span> primero crearás tu cuenta personal. Después podrás buscar tu academia antes de crear un espacio de gestión.
+              <span className="font-semibold text-foreground">¿Tu academia ya está en Zaltyko?</span> Búscala antes de crear otro espacio.
               <p className="mt-2">
                 {directoryDiscoveryEnabled && directoryClaimsEnabled
-                  ? "Si ya tiene una ficha pública, podrás solicitar su reclamación gratuita; requiere revisión y no concede acceso al espacio privado."
-                  : "La búsqueda muestra perfiles públicos disponibles, no todas las academias. Si la tuya ya tiene un espacio en Zaltyko, pide una invitación a su responsable para no duplicarlo."}
+                  ? "Si tiene una ficha pública, podrás solicitar su reclamación gratuita. Requiere revisión y no da acceso al espacio privado."
+                  : "Solo aparecen fichas públicas. Si no encuentras la tuya, pide una invitación a su responsable."}
               </p>
               <Link href="/academias" className="mt-2 block font-semibold underline">
-                Buscar academias públicas antes de crear mi espacio
+                Buscar academias públicas
               </Link>
             </div>
           )}
@@ -488,8 +556,14 @@ export function RegisterForm({
             .
           </span>
         </label>
-        <Button type="submit" className="w-full" disabled={loading || googleLoading}>
-          {loading ? (
+        <Button
+          type="submit"
+          className="w-full"
+          disabled={loading || googleLoading || signupOutcomeUnknown}
+        >
+          {signupOutcomeUnknown ? (
+            "Alta pendiente de confirmar"
+          ) : loading ? (
             <>
               <Loader2 className="mr-2 h-4 w-4 animate-spin" />
               Creando cuenta...
@@ -499,6 +573,42 @@ export function RegisterForm({
           )}
         </Button>
       </form>
+
+      {signupOutcomeUnknown && (
+        <div
+          role="alert"
+          className="mt-4 border border-amber-400 bg-amber-50 p-4 text-sm text-amber-950"
+        >
+          <p className="font-semibold">
+            No podemos confirmar si tu cuenta se creó. No repitas el alta todavía.
+          </p>
+          <p className="mt-2">
+            Prueba a iniciar sesión o recuperar la contraseña para comprobarlo.
+          </p>
+          <div className="mt-3 flex flex-wrap gap-x-4 gap-y-2">
+            <Link
+              href={
+                directoryRegistration
+                  ? `/auth/login?next=${encodeURIComponent(directoryNext!)}`
+                  : "/auth/login"
+              }
+              className="font-semibold underline"
+            >
+              Iniciar sesión
+            </Link>
+            <Link
+              href={
+                directoryRegistration
+                  ? `/auth/forgot-password?next=${encodeURIComponent(directoryNext!)}`
+                  : "/auth/forgot-password"
+              }
+              className="font-semibold underline"
+            >
+              Recuperar contraseña
+            </Link>
+          </div>
+        </div>
+      )}
 
       <div className="mt-4">
         {!termsAccepted && (
@@ -516,7 +626,13 @@ export function RegisterForm({
           onClick={handleGoogleSignUp}
           variant="outline"
           className="w-full"
-          disabled={!isHydrated || googleLoading || loading || !termsAccepted}
+          disabled={
+            !isHydrated ||
+            googleLoading ||
+            loading ||
+            !termsAccepted ||
+            signupOutcomeUnknown
+          }
           aria-busy={!isHydrated || googleLoading}
           aria-describedby={
             !termsAccepted ? "google-signup-consent-hint" : undefined

@@ -170,11 +170,33 @@ describe("L2 — copy pública presente en componentes", () => {
   const pricing = readSiteFile("src/app/(site)/pricing.tsx");
 
   it("ComparisonSection afirma features clave", () => {
-    expect(comparison).toContain("Cobros automáticos");
+    expect(comparison).toContain("Registro y seguimiento de pagos");
+    expect(comparison).not.toContain("Cobros automáticos");
     expect(comparison).toContain("Pase de lista por sesión");
     expect(comparison).toContain("Evaluaciones con rúbrica");
     expect(comparison).toContain("7 días de Starter sin tarjeta");
     expect(comparison).toContain("Importación base desde Excel");
+  });
+
+  it("explica el cobro familiar manual del lanzamiento sin prometer automatización", () => {
+    const paymentsPage = readSiteFile("src/app/(site)/modules/pagos-administracion/page.tsx");
+    const integrations = readSiteFile("src/app/integraciones/page.tsx");
+    const homeModules = readSiteFile("src/app/(site)/home/ModulesSection.tsx");
+    const seoExtended = readSiteFile("src/app/(site)/home/SeoExtendedSection.tsx");
+    const help = readSiteFile("src/app/ayuda/page.tsx");
+    const llmsFull = readSiteFile("src/app/llms-full.txt/route.ts");
+    const planCatalog = readSiteFile("src/lib/plans/catalog.ts");
+
+    expect(paymentsPage).toContain("En este lanzamiento no se realizan cargos automáticos a las familias");
+    expect(paymentsPage).toContain("registrar manualmente los pagos");
+    expect(integrations).toContain("no activa el cobro automático de las cuotas de sus familias");
+    expect(homeModules).toContain("Registro manual de pagos");
+    expect(seoExtended).toContain("Pagos registrados y pendientes a la vista");
+    expect(help).toContain("No en este lanzamiento");
+    expect(llmsFull).toContain("Zaltyko no inicia cargos automáticos a las familias");
+    expect(planCatalog).toContain("Gestión de cuotas, registro manual de pagos y reportes básicos");
+    expect(homeModules).not.toContain("avisos automáticos a familias");
+    expect(seoExtended).not.toContain("Cobros automáticos y recordatorios programados");
   });
 
   it("FaqSection contiene respuesta RGPD sobre menores", () => {
@@ -312,7 +334,8 @@ describe("L2 — claims de módulos alineados con capacidades verificadas", () =
   });
 
   it("describe las exportaciones como apoyo operativo revisable", () => {
-    expect(payments).toContain("reportes por módulo para revisarlos con tu equipo");
+    expect(payments).toContain("registrar manualmente los pagos");
+    expect(payments).not.toContain("reportes por módulo para revisarlos con tu equipo");
     expect(reports).toContain("Reportes para tu equipo");
     expect(reports).toContain("compártelos con tu equipo");
   });

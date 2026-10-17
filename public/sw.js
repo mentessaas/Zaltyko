@@ -14,7 +14,6 @@ self.addEventListener('install', (event) => {
   event.waitUntil(
     caches.open(CACHE_NAME).then((cache) => cache.addAll(STATIC_ASSETS))
   );
-  self.skipWaiting();
 });
 
 self.addEventListener('activate', (event) => {
@@ -31,6 +30,12 @@ self.addEventListener('fetch', (event) => {
   const url = new URL(request.url);
 
   if (request.method !== 'GET' || url.origin !== self.location.origin) {
+    return;
+  }
+
+  // Next owns its RSC and prefetch transport. Leave these requests untouched
+  // so browser navigation and router refresh are not wrapped by this worker.
+  if (request.headers.get('RSC') === '1' || url.searchParams.has('_rsc')) {
     return;
   }
 

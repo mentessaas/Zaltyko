@@ -1,12 +1,401 @@
 ---
 status: active
 owner: producto
-last_reviewed: 2026-10-02
+last_reviewed: 2026-10-15
 source:
   - ../AGENTS.md
 ---
 
 # Decisiones
+
+## Cierre CI exacto — 2026-10-16, 08:10 UTC
+
+CI38868296319 terminó **COMPLETED/SUCCESS**, updated07:59:04UTC, para
+`cd764dc2de0d52bad5f5df4b49fbc3562f4cff27`. Main reconfirmó API y jobs;
+gate116873698349SUCCESS. Static38868296301 y Directory38868296302SUCCESS
+exactSHA (QA). Chromium/Firefox/WebKit: 1passed31.3/35.0/36.7s; fase next-build
+213590.206/221241.228/231119.265ms, bajo240s. Cleanup reportado por runner:
+07:43:30.864/07:51:14.916/07:58:57.716UTC; NO inventarioDockerindependiente.
+
+Los3detailcomplete,22564events,249.893/263.09/262.911ms de análisis. Server
+webpack96.3/103.3/109.8s; NFTglobal51.1/51.7/52.9s aggregate_only. Spans
+inclusivos/solapados NOCPU/tiempoparedcausal.1225IDsdesconocidos,7spans
+no soportados y1255rutas sinatribuir impiden cobertura universal; top10por
+679client/1864servergrupos. **Timeout anterior NO reproducido; NO causa
+raíz demostrada ni fix de rendimiento acreditado.** Frontend cerró revisión
+readonly (cursor2): NO-GO optimizar código/config sin ajuste causal mínimo;
+no inició inspecciones, pruebas ni ejecuciones. Todos los peers quedan IDLE.
+
+Autorización **CONSUMIDA**, sin más push/rerun/dispatch/cancel ni despliegue.
+Auth/readiness/public/smoke/LighthouseSKIPPED, no validación de producción.
+Seguridad residual, esquema/orden/rolapp/recuperación/review/publicación
+siguen **NO-GO**, independientes del CI verde. Backups ya consultados;
+no repetir pregunta ni operarDB. Notas SOLOLOCAL, no empujar por documentos.
+Fuente: docs/qa/ci-cd764dc2-candidate-2026-10-16.md y API/logs saneados del
+[único run](https://github.com/mentessaas/Zaltyko/actions/runs/38868296319).
+La cola y autorizaciones de debajo son HISTÓRICO, no estado vigente.
+
+## Corrida única lanzada — 2026-10-16, 07:37 UTC
+
+Main efectuó UN push normal a PR226 a las07:36UTC, bf0aad14→
+`cd764dc2de0d52bad5f5df4b49fbc3562f4cff27`. La nueva autorización está
+**CONSUMIDA**. CI38868296319 creada07:36:32UTC está QUEUED según API07:37.
+Static38868296301SUCCESS07:37:07 y Directory38868296302SUCCESS07:37:09,
+ambas exactSHA; no son gatefuncional ni cierreCI. QA monitoriza esa única
+corrida readonly con backoff, sin reruns/dispatch/cancel/push ni pruebaslocales.
+Fuente nueva: docs/qa/ci-cd764dc2-candidate-2026-10-16.md.
+
+Fuentes idénticas al GO estático QA e8782f3a, Main85/85mocks/tsc/lint/formato/
+audit/diffPASS; protecciones GH07:28–29/Vercel07:36 verificadas sin cambios.
+240s/matriz/Node22/Sentry/tracing/worker/cleanup intactos. Sin merge/deploy/DDL/
+pagos/filasreales. Estas notas de lanzamiento son SOLOLOCAL, NOempujar ni
+causar otroCI. GitHub push informó7vulnerabilidadesdefault(2critical5high);
+seguridad/esquema/rolapp/recuperación/review/publicación siguen **NO-GO**.
+Preparación y autorizaciones de debajo son historial, no permiso de otra corrida.
+
+## Preparación verificada — 2026-10-16, 07:35 UTC
+
+Integrado LOCAL el diagnóstico post-build `e8782f3a67466902a000109161d51b3db904d8f4`,
+cuatro archivos selectivos tras Frontend1799cda4. QA final exacto GO estático
+para UNA corrida existente, NO publicación. Corregidos anchors cerrados/IDs
+inequívocos, ranking cooperativo y agregado traceEntryCount 0..1000000:
+overflow omite el campo de esa clave sin emitir después un total parcial.
+Catálogo fijo versionado, no fuentes/perfiles/env/datos reales en salida;
+resumen16KiB, línea con sobre/progreso <=16653bytes. 1s cooperativo postproceso,
+no hardkill; 240s del build y sampler/lifecycle/protecciones intactos.
+
+Main85/85tests sintéticos en5suites,18.60s(tests2.97s),tsc noEmit incrementalfalse0,
+ESLint0warnings, formato y diff-check PASS; audit:env73 sin leer valores.
+Sin installs/build/E2E/Docker/pulls locales. Protecciones readonly07:28–29UTC:
+Vercel previewsDisabled/prodbranchmain, deploymentEnabledfalse, Deploydisabled,
+main strict/admins/1review/dismiss-stale/6checks, Actionsread/noapprove;
+Productionmainonly/preventselfreviewtrue, bypassadminpermitido(NOabsoluto).
+PR226OPENdraftREVIEW_REQUIRED remoto bf0aad14. NO merge/deploy/DDL/pagos.
+A esta hora NO push ni nuevoCI: permiso aún NOconsumido; Main hará un único
+push sustantivo, registrará SHA/run y no encadenará reruns/dispatch ni notas.
+Fuente: docs/qa/build-trace-attribution-2026-10-16.md. Gates seguridad/esquema/
+rolapp/recuperación/review/publicación separados; **NO-GO release**.
+
+## Nueva autorización — 2026-10-16, 00:10 CEST (15 oct 22:10 UTC)
+
+El humano autoriza expresamente preparar, revisar y ejecutar **UNA corrida
+adicional del CI existente**, manteniendo 240 segundos y sin desplegar.
+Sustituye la espera de permiso de las entradas históricas inferiores; la
+corrida anterior bf0aad14/38749323693 ya consumió su autorización y acabó FAIL.
+La nueva todavía NO se ha lanzado ni consumido. Main coordina únicamente los
+tres chats APP existentes: Frontend diseña atribución por compilador/módulo,
+Backend contrasta tracing/rutas en Next15.5.27, QA define y revisa privacidad,
+límites, sobrecoste y contratos. Primero diseño readonly, después revisión e
+implementación acotada; no cambios de producto/config de optimización a ciegas.
+
+Preferir resumen de trazas ya existentes tras build a nueva instrumentación.
+Sin perfiles crudos, fuentes, secretos, valores de entorno o datos reales.
+Conservar matriz/checks/Node22/Sentry/tracing/worker/240s/cleanup/protecciones.
+Solo Main podrá integrar y efectuar un único push sustantivo que active CI,
+tras validación focal y reconfirmación readonly de protecciones; sin reruns,
+dispatch, nuevos runners/jobs ni pushes de notas durante la ejecución.
+No builds/E2E/Docker/pulls/instalaciones locales. Sin merge/deploy/DDL/pagos;
+seguridad, esquema/rol app/recuperación y revisión independiente siguen gates
+separados. No repetir petición Backups. **Publicación continúa NO-GO.**
+
+## 2026-10-15 — Bloqueo causal confirmado; siguiente ejecución requiere decisión
+
+Frontend145 termina readonly: datos nuevos localizan fases, no módulo/ruta/
+plugin ni ajuste mínimo justificable. NO-GO para optimizar código/config.
+Solicitar UNA corrida adicional del CI existente para atribución por compilador
+módulo/tracing, con diseño/revisión previa de privacidad/volumen/sobrecoste,
+matriz240s/Node22/Sentry/tracing/cleanup y protecciones intactos. Sin perfiles
+crudos/fuentes/secretos/env ni datos reales. AÚN NO hay permiso ni diseño
+implementado ni ejecución. No repetir solicitud en cadaheartbeat; esperar
+respuesta sin nuevosCI/push/instrumentación. No merge/deploy/DDL ni GOrelease.
+
+
+## 2026-10-15 — Cerrar el diagnóstico CI sin encadenar ejecuciones
+
+14:37UTC MainAPI/logs+QA208: CIbf0aad14/38749323693 FAILURE y gateFAIL.
+Chromium/WebKit timeout240s antesPlaywright; Firefox1test26.9s(total36.2s)PASS,
+build238910ms. Trescleanups reportados. CPUhostmax100%/PSI/memoria50% no
+atribuyen carga a Next ni demuestran causa; no cambiar a ciegas build/checks.
+Autorizar SOLO Frontendcomparaciónreadonly de nuevaevidencia/código instalado,
+sin implementaciones/builds/tests/Docker/nuevoCI/push ni instrumentación nueva.
+Autorización humana de UNA corrida ya consumida; no repetir permiso ni encadenar
+CI. Conservar240s/Node22/Sentry/tracing/cleanup/protecciones y gates separados.
+NO-GOrelease, sin merge/deploy/DDL/filasreales; Backups no repetirpetición.
+
+## 2026-10-15 — Ejecutada la única corrida adicional autorizada
+
+14:12UTC push normal del candidato bf0aad14, sin merge/despliegue, tras QA203 GO
+exacto del sampler, integración Main528/528mocks13files y checks. Se conservan
+protecciones verificadas14:11UTC y240s/Node22/Sentry/tracing/matriz/cleanup.
+CI38749323693 es la única corrida nueva; QA monitoriza ese SHA y sus Static/
+Directory sin rerun/dispatch. No más diagnósticosCI automáticos por notas ni
+afirmar causa/readiness por métricas host. No empujar notas mientras corre CI.
+Seguridad/destino/recuperación/revisión independiente/publicación siguen NO-GO.
+
+## 2026-10-15 — Autorizada una corrida de diagnóstico acotado
+
+El usuario responde «Si te autorizo a todos pero termina de poner todo listo»
+a la solicitud explícita de una única corrida adicional del CI existente con
+CPU/memoria saneados. Queda revocada la espera de permiso de diagnóstico, no
+los gates de publicación. Backend prepara instrumentación local aislada;
+Frontend/QA/Main revisan privacidad, límites y lifecycle antes de integrar.
+Un candidato sustantivo y una corrida automática tras checks/protecciones:
+sin dispatch/reruns duplicados, nuevos jobs/runners, ampliar240s ni retirar
+Sentry/tracing/Node22/comprobaciones/cleanup. Sin datos reales ni despliegue.
+Merge, publicación, DDL irreversible y pagos requieren decisión específica.
+No inferir causalidad de métricas host ni readiness de mocks verdes.
+
+## 2026-10-15 — Origen fijo Hub del plan activo, solo local
+
+Tras Frontend110/QA184 GO sobre Backendc98077a6, integrar hunks de selección
+exacta11activos y pin exacto; catálogo13/versiones/identidad/600s/sinretryECR
+intactos. Dos excluidos conservan ECR/fallback429 positivo si helper directo.
+Preservar nota histórica y suite Logflare; matrices ECR pasan a exclusiones2.
+Añadir excepciones lanzadas por etapa×11; adaptar contrato Kong a secuenciaHub
+exacta sin relajar identidad. Main509/509mocks12files/tscPASS; Frontend111/QA186
+GOvariante. No push/CI automático: NO-GO build109 sigue sin causa concreta y
+no se afirma ahorro/disponibilidadHub. Tampoco merge/deploy/DDL autorizado.
+Fuente docs/qa/active-images-hub-primary-2026-10-15.md.
+
+Para desbloquear la causa del build sin violar la prohibición de CI solo por
+diagnóstico, pedir decisión específica para una sola corrida con métricas
+CPU/memoria saneadas, matriz/plazos/checks actuales y sin despliegue/datos.
+Artifactsmetadata del run0dfb solo muestraSBOM; no perfil existente reutilizable.
+No implementar instrumentación ni push hasta respuesta; no repetir petición.
+
+## 2026-10-15 — Plan activo compartido y cambio de origen aún local
+
+Integrar4a60de36 tras QA166GO: precarga/preflight usan11imágenes activas, manteniendo
+catálogo/pins13 y servicios ya aprobados. Main335mockPASS/tsc0/lintformato0. No se
+presenta como solución al timeoutlogflare ni se autoriza otroCI por este cleanup.
+Descartar cache por falta de prueba de identidadsave/load, tamaño/tiempo/coste.
+Preparar LOCAL el diseño Backend105/Frontend103/QA167: HubporDIGEST primario SOLO
+logflareexacto, sinECRretry/fallbacktimeout; verify+retag+postverify/600s intactos,
+otros12pins conservan política anterior. Requiere diff/tests/review antesintegrar,
+no disponibilidadHub asegurada ni push/CI/merge/deploy/DDL autorizado todavía.
+Fuente docs/qa/ci-210aadda-candidate-2026-10-15.md.
+
+## 2026-10-15 — Experimento sintético sin relajar gates y mitigación raíz acotada
+
+CIe7dff88b cerróFAILURE: dos navegadoresfuncionalesPASS, celdaFirefoxagotóbuild240santesPlaywright. Se preparaunúniconuevoSHArevisado conwebpackBuildWorker solo dosmarcadoressintéticos y solo entorno nextbuild. Fuera conjunciónpropiedadausente;Sentry/tracing/Node22/240s/errores/cleanup intactos. Noesfixtemporalprobado. Node20EOLnoseusa comoarreglo. Testconfigcostosooptimizado compartiendodependenciaSentryen2importsrealesy8casosselectorVM,sin ampliar5s/15s; Main89/89PASS,QA135GOestático.
+
+Rootbraces3.0.3recibeparchepnpmprofundidad/ciclos,2refs sinversiondrift; intégransolohunks porpadreFrontendanterior, scripts/js-yamlpreservados. Mitigaciónlocalnoresoluciónupstreamniaceptaciónuniversalderiesgo. Manteneralertasidentificables. Sinmerge/despliegue/DDL;esquema/backup/rolapp/reviewindependiente/publicaciónseparados. Fuentesdocs/qa/ci-e7dff88b-candidate-2026-10-15.md y docs/security/root-braces-cve-2026-93687.md.
+
+## 2026-10-15 — CI por defecto sin Sandbox remoto; Owner E2E sintético como gate
+
+| Campo | Valor |
+| --- | --- |
+| Evidencia | El job sintético local no era bloqueante y el gate PR dependía de readiness y E2E con credenciales del entorno `e2e-sandbox`. Se verificó en el release oficial el SHA del tar Linux x64 de Supabase CLI 2.84.2 y, en una verificación local previa, el hash del miembro binario regular extraído. |
+| Decisión | Desactivar los jobs que acceden al Sandbox en el workflow CI predeterminado. Configurar el recorrido sintético local de Owner como matriz bloqueante de Chromium, Firefox y WebKit, y precargar solo las imágenes exactas del manifiesto desde GitHub Actions. |
+| Consecuencia | PR y pushes ya no ejecutan readiness, migraciones ni autenticación remota del Sandbox. El runner conserva fail-closed con hashes fijos solo para `darwin-arm64` y `linux-x64`; CI valida el archivo y la extracción segura antes de añadir el CLI a PATH. La protección de rama debe requerir el nuevo check estable desde GitHub. |
+| Estado | Cambio local candidato en `codex/ci-local-synthetic-gate-20261015`; no hubo ejecución de CI, Docker/Supabase, servicios remotos ni cambio de branch protection. Evidencia: [`local-synthetic-ci-gate-2026-10-15.md`](../../docs/qa/local-synthetic-ci-gate-2026-10-15.md). |
+
+## 2026-10-14 — Fail-closed ante versiones activas ambiguas de Insights P0
+
+| Campo | Valor |
+| --- | --- |
+| Evidencia | `insight_rule_versions` permite varias filas activas con la misma clave. El evaluador construía un `Map` sin orden, de modo que la versión elegida dependía del orden devuelto por PostgreSQL. El esquema y la documentación no establecen que el mayor entero sea la versión semánticamente aprobada. |
+| Decisión | Leer todas las reglas activas en páginas keyset ordenadas por UUID `id`, sin filtrar claves futuras. Antes de consultas de métricas y persistencia, rechazar la evaluación completa con `AMBIGUOUS_ACTIVE_INSIGHT_RULE` si cualquiera de las nueve claves implementadas tiene más de una versión activa. No elegir `MAX(version)`. |
+| Consecuencia | Se conservan claves futuras y el comportamiento de claves implementadas ausentes; una duplicidad no puede producir escrituras parciales. Resolver filas activas duplicadas sigue siendo una acción explícita de datos/operación, fuera de este cambio sin migración ni acceso remoto. |
+| Estado | Implementación local en `codex/evaluate-p0-active-rule-uniqueness-20261014`, basada en `b7d8924b`. Tests focales (3/3), typecheck y ESLint pasan. Sin migración, PostgreSQL, navegador, suite completa, remoto ni push. |
+
+## 2026-10-14 — Alta Owner independiente del perfil legacy
+
+ADR-0027 elimina la dependencia estructural de `public.profiles` en alta Owner:
+identidad Auth verificada y membresía canónica son la autoridad. Consentimiento
+contractual canónico se vincula a auth.users, con RLS/grants y auditoría atómica
+append-only; no concede roles ni habilita tracking/cobros. No se reconstruye el
+modelo legacy ni se importan consentimientos para pasar QA. La aceptación
+visible se verifica desde signup real sobre stack limpio. Implementación y SQL
+remotos pendientes; ver [ADR-0027](../../docs/architecture/adr/0027-alta-owner-y-consentimiento-sin-perfil-legacy.md).
+
+## 2026-10-14 — Cuota mensual y base única de integración MVP
+
+La regla aprobada por el propietario es mensual por gimnasta y tarifa. ADR-0026
+fija factura por familia+sede+mes, importe efectivo de cada inscripción activa,
+mes completo sin prorrateo, pagador/vencimiento explícitos y cotización de
+servidor. Emisión crea obligación manual; pago recibido es otro comando.
+
+Se publica 31a0dd02 en #226 como base común de tres frentes, con ownership
+separado y Tech Lead responsable de vault/integración. Los bloques se integran
+tras revisar su evidencia; ninguna rama antigua se borra por antigüedad. El
+hotfix #225 conserva revisión independiente. E2E completo sigue pendiente.
+
+## 2026-10-13 — API greenfield para pase de lista Owner
+
+| Campo | Valor |
+| --- | --- |
+| Evidencia | El servicio transaccional `recordAttendance()` ya escribía `zaltyko.attendance_records`, pero el endpoint disponible operaba sobre tablas legacy `public` y no podía leer el roster de sesiones e inscripciones greenfield. |
+| Decisión | Añadir `GET/POST /api/v1/owner/sessions/{sessionId}/attendance`. GET devuelve solo `enrollmentId`, `athleteName` y `attendanceStatus` para inscripciones activas/de prueba vigentes. POST recibe organización, sede, inscripción y estado más `Idempotency-Key`; el actor se deriva de la sesión autenticada. Coaches requieren asignación a la sesión. |
+| Consecuencia | El servicio existente conserva idempotencia, autorización transaccional, auditoría y outbox. El GET limita lectura a la sesión, sede y organización autorizadas. No se reutiliza la ruta legacy ni se añade migración. |
+| Estado | Implementado y unido en `codex/zaltyko-plan-implementation` (HEAD `cd39ab7d`), publicado en PR #226 en borrador; tests de ruta y harness PostgreSQL efímero PASS. E2E autenticado, merge de PR, migración remota y despliegue pendientes. |
+
+## 2026-10-13 — Navegación Owner en el layout común y E2E greenfield como gate
+
+| Campo | Valor |
+| --- | --- |
+| Evidencia | La navegación estaba duplicada y ausente en el estado inicial vacío. El E2E anterior consultaba `/app`, aunque el actor Owner ya llega al workspace greenfield `/owner`. |
+| Decisión | Colocar una única navegación responsiva en `src/app/owner/layout.tsx`, conservar `organizationId` y `locationId` en enlaces operativos y dejar `test:e2e` apuntando al Owner greenfield. La suite heredada queda explícita como `test:e2e:legacy`. |
+| Consecuencia | Los módulos operativos pueden cambiarse sin volver al dashboard; teclado y móvil tienen un punto de acceso consistente. La navegación no concede acceso: cada ruta y servicio conserva sus comprobaciones de rol, academia y sede en servidor. |
+| Estado | Test focal 4/4, TypeScript y ESLint PASS. Playwright autenticado y Preview pendientes del siguiente CI; no se desplegó a producción. |
+
+## 2026-10-13 — Usar el Sandbox E2E existente solo para el esquema greenfield
+
+| Campo | Valor |
+| --- | --- |
+| Evidencia | El E2E autenticado falla porque el proyecto de pruebas no contiene `zaltyko.organization_members`; el proyecto conserva tablas e historial legacy en `public`, y su ledger tiene un checksum histórico divergente. No se consultaron datos personales. |
+| Decisión | No crear la rama Supabase con coste potencial rechazado. Autorizar el uso del proyecto E2E ya existente únicamente con una allowlist de 16 migraciones en el esquema `zaltyko`, ledger privado separado, destino fijado por ref y cuentas/datos sintéticos. No aplicar migraciones legacy ni modificar producción. |
+| Consecuencia | CI puede probar el producto greenfield sin apuntar Owner al modelo antiguo ni fingir compatibilidad. Drift, hash distinto, fila desconocida, schema sin ledger o fallo RLS detienen el run para revisión; un prefijo registrado con hashes correctos se puede reanudar. El resultado no autoriza el cutover productivo. |
+| Estado | CI aplicó las 16 migraciones al Sandbox aislado. La lectura posterior confirmó 16 filas en el ledger privado y 80 tablas greenfield con RLS habilitada y forzada. No hubo cambio en producción ni en Stripe Live. El E2E anterior sigue fallando por una expectativa de navegación heredada `/app`; el corte nuevo de navegación Owner y E2E greenfield está pendiente de CI. |
+
+## 2026-10-13 — Crear inscripciones Owner como pendientes, sin efecto financiero
+
+| Campo | Valor |
+| --- | --- |
+| Evidencia | El modelo distingue enrollment, pertenencia M:N a grupo, trial, ledger y pago. Permitir crear una inscripción ya activa o vincular un flujo de cobro implícito mezclaría estados operativos con decisión familiar y facturación. |
+| Decisión | Aceptar ADR-0025: el Owner crea una inscripción `pending` para persona activa ya vinculada a la sede. La transacción reserva plaza, comprueba capacidad/duplicados/periodo, registra historia, auditoría y outbox. Activación, pausa, baja y finalización son comandos explícitos optimistas e idempotentes; trial y transferencia siguen en flujos separados. |
+| Consecuencia | Registrar o activar una inscripción no genera grupo, precio, cuota, factura, cargo ni pago. La UI explica la reserva de plaza y reduce la acción inicial a un formulario breve. Los eventos no copian nombres personales. |
+| Estado | API, servicio y `/owner/enrollments` implementados localmente; Vitest focal 19/19, TypeScript, ESLint, `gate:auth` y harness PostgreSQL efímero PASS. E2E autenticado, QA manual accesible y validación de base aislada pendientes. No se aplicó migración remota ni hubo cambios de producción/Stripe Live. |
+
+## 2026-10-13 — Historial temporal de pertenencia M:N a grupos
+
+| Campo | Valor |
+| --- | --- |
+| Evidencia | El núcleo greenfield tenía la relación M:N y estado actual, pero carecía de servicio operativo e historial tipado para reconstruir pausas, reactivaciones y bajas. El audit log genérico no debe ser la fuente de verdad de métricas. |
+| Decisión | Aceptar ADR-0023: mantener `group_memberships` canónica y añadir historial append-only con effective date, actor y clave idempotente. Cupo concurrente, estado, historial, auditoría y outbox se validan y escriben transaccionalmente; RLS también respeta la sede y el servicio no puede alterar/borrar el historial. |
+| Consecuencia | Las métricas pueden reconstruir periodos de pertenencia sin confundirlos con enrollment o plantilla. El servicio y la migración se verifican solo en PostgreSQL efímero. |
+| Estado | Servicio de dominio, API y pantalla `/owner/groups` implementados localmente para crear grupos y asociar/pausar/reactivar/finalizar personas existentes. Vitest focal y harness PostgreSQL efímero PASS; `gate:auth`, TypeScript y lint PASS. E2E autenticado y pgTAP pendientes; no hay migración aplicada en Supabase. Ver [ADR-0023](../../docs/architecture/adr/0023-historial-de-pertenencia-a-grupos.md) y [plan maestro](../../docs/plans/2026-10-13-full-saas-implementation-plan.md). |
+
+## 2026-10-13 — Gestionar grupos desde el espacio Owner canónico
+
+| Campo | Valor |
+| --- | --- |
+| Evidencia | El servicio M:N y su historial ya estaban probados localmente, pero el Owner no tenía una pantalla operativa para crear grupos y mantener sus pertenencias. La ruta legacy usa IDs/modelos de academia incompatibles con el nuevo dominio. |
+| Decisión | Añadir `/owner/groups` y API propias del dominio de organización; permitir asociar únicamente personas existentes. Resolver sesión, rol y sede en servidor, limitar búsquedas por tenant verificado y mantener outbox/auditoría sin nombres personales. |
+| Consecuencia | Los grupos son utilizables desde el nuevo espacio Owner sin puente legacy; una academia vacía todavía necesita el alta canónica de personas antes de asignarlas. |
+| Estado | Implementado y probado localmente con datos sintéticos; HTTP usa sesión simulada. No E2E autenticado, pgTAP, migración remota ni despliegue. El harness local también aplica la migración de moneda que consulta OwnerScope. |
+
+## 2026-10-13 — Buscar la academia antes de abrir un espacio owner
+
+| Campo | Valor |
+| --- | --- |
+| Evidencia | En el Preview móvil, el formulario permitía abrir `/academias` antes de crear la cuenta, pero el texto decía que la búsqueda ocurriría después. Eso confundía el orden y repetía instrucciones. |
+| Decisión | Explicar que la cuenta personal va primero y la configuración de academia después; presentar la búsqueda como comprobación opcional antes de crear un espacio nuevo. Mantener la advertencia de catálogo público incompleto y no dar a entender que una reclamación da acceso privado. |
+| Consecuencia | No cambian autenticación, roles, consentimiento ni transacciones. Se reduce el texto sin quitar la prevención de academias duplicadas. La ficha `TEST active` queda sin cambios mientras se comprueban dependencias del sandbox. |
+| Estado | Preview `READY` para `45d28de7aef64d9f1a362a406ac9d4f0f7a8fa48`; registro móvil revisado y DOM con un landmark `<main>` que contiene el formulario. El directorio aún muestra `TEST active`, hallado en el sandbox y no en producción. La conexión runtime sigue **NO VERIFICADA**; no se tocó la fila. Tests focales 17/17 y prueba de landmark 1/1; TypeScript y ESLint pasan. Sin cambio de producción. |
+
+## 2026-10-13 — Aislar helpers SQL del núcleo greenfield
+
+| Campo | Valor |
+| --- | --- |
+| Evidencia | Producción y E2E ya tienen `zaltyko_private` con helpers `SECURITY DEFINER` y `USAGE` concedido a `anon`, `authenticated` y `service_role`. La migration fundacional greenfield revocaba permisos en bloque y reescribía el comentario del esquema compartido. |
+| Decisión | Crear `zaltyko_domain_private` para helpers, políticas y triggers del dominio nuevo. No cambiar las funciones, grants ni comentarios de `zaltyko_private`; los archivos históricos aplicados no se editan. |
+| Consecuencia | Las políticas nuevas mantienen la autorización de organización/sede sin tocar accesos legacy. El esquema nuevo solo da `USAGE/EXECUTE` a `authenticated` y `service_role`; `anon` queda fuera. El cutover sigue requiriendo destino y ledgers reconciliados. |
+| Estado | SQL greenfield y harness local actualizados; secuencia canónica, RLS 79/79 e integridad de migrations pasan. Sin SQL remoto, despliegue, ni datos reales; ver ADR-0021. |
+
+## 2026-10-13 — Alta owner enfocada desde CTA de academia
+
+| Campo | Valor |
+| --- | --- |
+| Evidencia | Los enlaces públicos de owner ya incluyen `role=owner`, pero el formulario mostraba cinco roles; los botones genéricos siguen siendo necesarios en `/auth/register`. |
+| Decisión | Respetar el contexto de entrada: el CTA owner muestra la cuenta de dirección y no presenta selector de rol. El registro genérico conserva los cinco roles; no se cambia la creación de identidad ni los siguientes pasos de la academia. |
+| Consecuencia | Reduce opciones ajenas al objetivo sin quitar acceso a entrenador, familia, atleta o proveedor. El servidor sigue recibiendo el rol `owner` por el estado inicial canónico del formulario. |
+| Estado | Implementado localmente en page/form; prueba de componente y E2E añadidas. Playwright local exige un proyecto Supabase aprobado y no se ejecutó sin ese gate. Sin cambios remotos ni despliegue. |
+
+## 2026-10-13 — Copy de lanzamiento para cobros a familias
+
+| Campo | Valor |
+| --- | --- |
+| Evidencia | En el preview del commit `b54a49a3`, home, comparativa, página de cobros e integraciones anunciaban cobros/reintentos automáticos. El núcleo greenfield solo registra pagos manuales; su modo automático es una preferencia que no inicia cargos. El cron legacy sigue detrás del gate de PR #225. |
+| Decisión | En todas las superficies públicas se describe el registro manual del lanzamiento y se elimina el claim de cobro automático disponible. Stripe debe identificarse como facturación del plan Zaltyko, no como cobro automático familiar. |
+| Consecuencia | La opción automática queda como capacidad futura exclusiva de planes de pago, condicionada a entitlement, consentimiento/mandato, Connect, worker/webhook idempotentes, recuperación y QA. No se convierte una preferencia en autorización de cobro. |
+| Estado | Copy y tests actualizados en la rama de trabajo; preview auditado y capturas guardadas. Producción no se modificó: falta aprobación independiente, merge y despliegue de PR #225/este cambio, además de verificar el comportamiento final en dominio público. |
+
+## 2026-10-13 — No usar el sandbox E2E legacy para migraciones greenfield
+
+| Campo | Valor |
+| --- | --- |
+| Evidencia | La reconciliación de metadatos encuentra 54/54 hashes del ledger aplicacional de producción alineados con archivos locales, sin huérfanos, pero 54 archivos locales pendientes. El sandbox tiene 45 filas, 1 hash distinto (`20260805120000_academies_status_semantics.sql`) y 63 pendientes. Los historiales nativos de Supabase son 53 y 70, respectivamente; ninguno de los dos esquemas nuevos contiene tablas. |
+| Decisión | No ejecutar el runner ni aplicar migraciones al sandbox legacy o producción para hacer pasar el E2E. Mantener el bloqueo visible hasta disponer de un destino aislado/limpio y reconciliar la fuente de cada historial. La automatización de CI no tendrá escritura remota implícita. |
+| Consecuencia | Evita mezclar el esquema greenfield con datos/fixtures históricos y evita ocultar un hash divergente. La prueba autenticada necesita un proyecto o rama aislados y las mismas fixtures sintéticas con las que se validó localmente. |
+| Estado | Verificación solo lectura completada el 2026-10-13. No se aplicó SQL ni se creó recurso cloud. Pendiente consultar coste y obtener confirmación antes de crear una rama/proyecto aislado; además, reconciliar historial nativo y definir el cutover por separado. |
+
+## 2026-10-13 — Perfiles deportivos y actividades complementarias
+
+| Campo | Valor |
+| --- | --- |
+| Evidencia | El modelo greenfield trataba la disciplina como texto de programa y el onboarding pedía moneda/código de sede. No distinguía especialidad principal, segunda disciplina ni actividades complementarias; tampoco había perfiles versionados por país/federación en el nuevo esquema. |
+| Decisión | Aceptar ADR-0018: `sport_profiles` versionados por país/federación; relación M:N `organization_sports`; programas clasificados como deporte o actividad complementaria. `identity_only` no contiene reglas. El alta deriva defaults para España y falla cerrado para mercados no revisados. |
+| Consecuencia | El esquema se modifica desde cero sin conservar contratos internos legacy. La migration falla si encuentra programas en la base greenfield para impedir pérdida silenciosa. No se muestran reglas deportivas no verificadas. |
+| Estado | Implementado en rama local y probado con PostgreSQL efímero. Sin migration remota, despliegue ni cambios de producción. Referencias: [ADR-0018](../../docs/architecture/adr/0018-perfiles-deportivos-y-programas-complementarios.md) y [plan maestro](../../docs/plans/2026-10-13-full-saas-implementation-plan.md). |
+
+## 2026-10-13 — Proyección de cohortes como única lectura del dashboard
+
+| Campo | Valor |
+| --- | --- |
+| Evidencia | El cálculo operacional directo excedía el presupuesto AC-12. La migración local ya define generations/projections sin PII, RLS forzado y grants solo de servicio. La reejecución a 5.000 atletas/2 M asistencias/20 identidades da 362,8 ms p95 para cohortes y 654,3 ms para la vista compuesta, en PostgreSQL 14.20 local. |
+| Decisión | Escribir una proyección reconstruible de forma transaccional e idempotente por metric run y ámbito org/sede; leer solo la última generación exitosa, conservar filtros y exponer estado unavailable/updating sin fallback lento. Datos de entrada: enrollment e historial canónicos. |
+| Consecuencia | Los reintentos no duplican filas ni publican una generación incompleta; la agregación no persiste IDs personales. Cambiar de fuente exige nueva decisión y medición. |
+| Estado | Implementado y probado localmente. El resultado solo demuestra capa de servicio/PostgreSQL local: quedan duración/lag del writer, HTTP/Auth/browser, runtime de plataforma y E2E por rol. No migración remota ni despliegue. Ver [plan maestro](../../docs/plans/2026-10-13-full-saas-implementation-plan.md). |
+
+## 2026-10-13 — Preferencia individual para ordenar módulos del dashboard
+
+| Campo | Valor |
+| --- | --- |
+| Evidencia | Personalizar el orden puede facilitar el acceso a información habitual, pero un constructor libre o el arrastre sin alternativa dificulta comprensión y accesibilidad. |
+| Decisión | Aceptar ADR-0019: prioridades y score quedan fijos arriba; indicadores, tendencias/cobros, explicación y operación se pueden ordenar con drag, botones subir/bajar, reset y persistencia por usuario/academia. |
+| Consecuencia | La API valida lista completa y control de versión; `owner_dashboard_layouts` usa RLS forzado, fila propia y rol owner/manager/admin. La preferencia no cambia autorización ni datos. |
+| Estado | Implementado en rama local; migración, query/service, control de versión y alternativa de botones probados con fixtures sintéticos. Falta walkthrough autenticado y VoiceOver humano. Sin despliegue ni migración remota. Referencia: [ADR-0019](../../docs/architecture/adr/0019-preferencias-modulares-owner-dashboard.md). |
+
+## 2026-10-13 — Cobro familiar manual por defecto y automático con entitlement
+
+| Campo | Valor |
+| --- | --- |
+| Evidencia | El cron legacy `/api/cron/collect-charges` recorre academias con Stripe Connect habilitado y pasa cargos vencidos a `collectCharge`; esta ruta no comprueba un modo automático elegido ni un entitlement de plan pagado. No se encontró verificación trazable de mandato en esta ruta; ese consentimiento sigue `NO VERIFICADO`. |
+| Decisión | Mantener el cobro manual disponible para todos. El modo automático queda opt-in y solo efectivo con plan pagado elegible, Connect activo, consentimiento/mandato válido por pagador y cobro idempotente. Free/trial se mantienen manuales. La misma regla debe aplicarse al botón de cobro y al worker, no solo a la interfaz. |
+| Consecuencia | No reutilizar el cron legacy como prestación del núcleo nuevo hasta cerrar gates de plan, elección y consentimiento; corregir claims públicos si no describen la disponibilidad real. No generar cargos durante pruebas. |
+| Estado | Registro manual con API/UI owner-admin y preferencia familiar manual/automático con entitlement Free/paid implementados y probados localmente con datos sintéticos. Free/trial no permite automático y el modo efectivo sigue manual: la preferencia por sí sola nunca inicia cargos. Consentimiento/mandato operativo, provisioning/webhook comercial, worker, Stripe Test E2E y gates remotos siguen pendientes; sin cambios en Stripe Live ni producción. Referencia: [ADR-0003](../../docs/architecture/adr/0003-ledger-financiero-interno.md), [operaciones](../../docs/architecture/ledger-operations.md) y [plan maestro](../../docs/plans/2026-10-13-full-saas-implementation-plan.md). |
+
+## 2026-10-13 — Cuenta Connect separada por academia y entorno
+
+| Campo | Valor |
+| --- | --- |
+| Evidencia | La autorización familiar reservaba un procesador sin distinguir la cuenta conectada concreta. Una academia puede tener setup de test y live distintos; los cobros familiares deben usar la cuenta de la propia academia, separada de la facturación SaaS de Zaltyko. |
+| Decisión | Aceptar ADR-0022: tabla server-only única por organización/procesador/entorno; Accounts v2, cargos directos, dashboard completo y responsabilidades Stripe para tarifas/saldos negativos. La autorización familiar apunta a esa cuenta mediante FK compuesta tenant-aware; la elegibilidad compara entorno, cuenta y capacidad exacta 'active'. |
+| Consecuencia | No se reutiliza el modelo legacy de cuentas Standard ni se llama a Stripe dentro de una transacción SQL. La elección de responsabilidades afecta tarifas y riesgo y no se cambia por feature flag; contrato y disponibilidad de Accounts v2 se confirman antes de provisionar. El futuro webhook debe validar firma, cuenta conectada, entorno y tenant antes de un efecto idempotente en ledger. |
+| Estado | Esquema, Drizzle, reglas de elegibilidad y fixtures sintéticos implementados localmente; migración desde cero y RLS/grants en validación. No se creó cuenta ni se llamó a Stripe; Accounts v2 en la plataforma Zaltyko, autorización de pagador, webhooks, worker y entorno remoto siguen pendientes. Sin cambios en producción. Referencia: [ADR-0022](../../docs/architecture/adr/0022-cuenta-conectada-de-cobro-por-academia.md). |
+
+## 2026-10-06 — Proyección mensual agregada de cohortes para el Owner Dashboard (estado inicial)
+
+| Campo | Valor |
+| --- | --- |
+| Evidencia | Harness sintético AC-12 alcanzó 5.000 atletas, 100.000 sesiones, 2 M asistencias, 500.000 cargos/pagos y 20 identidades. Tras optimizaciones set-based, cohortes quedó en 6,42 s p95 local frente al SLO de 800 ms; el heatmap sí quedó bajo 800 ms. |
+| Decisión | Aceptar ADR-0017. Crear read model reconstruible por organización/sede/programa/grupo y meses de cohorte/observación, enlazado a metric run y watermark, sin IDs personales. La primera migración añade generaciones y filas, fuerza RLS y no concede acceso directo Data API. |
+| Consecuencia | Falta el writer idempotente integrado al outbox y el reader del dashboard; AC-12 sigue NO CUMPLE. Sin migración remota, sin despliegue y sin rebajar el SLO. El reader deberá conservar filtros y exponer staleness, no hacer fallback al cálculo lento. |
+| Estado | Esquema verificado solo en PostgreSQL efímero; `pnpm test:zaltyko-owner-dashboard-query:local`, typecheck y ESLint pasan. Fuente: `docs/architecture/adr/0017-proyeccion-de-cohortes-para-el-owner-dashboard.md`. |
+
+Actualización 2026-10-13: el writer/reader y el benchmark AC-12 se cerraron
+localmente después de esta decisión inicial; consultar la decisión «Proyección
+de cohortes como única lectura del dashboard» y el plan maestro. Los gates de
+plataforma, writer lag y E2E autenticado siguen pendientes.
+
+## 2026-10-06 — No tratar el sandbox E2E legacy como base de datos vacía
+
+| Campo | Valor |
+| --- | --- |
+| Evidencia | La inspección de solo lectura del proyecto Supabase `Zaltyko E2E Sandbox` encontró siete filas en `public.academies` y el historial de migraciones del producto legacy. No se leyeron filas ni PII. |
+| Decisión | No correr migraciones ni pruebas con datos dentro de ese proyecto. La reconstrucción local continuará en PostgreSQL efímero; el gate de Supabase requiere una base aislada cuya vaciedad y coste/organización estén comprobados. |
+| Consecuencia | No se mezcla el esquema nuevo con el estado de QA ni se destruyen/resetean datos existentes. |
+| Estado | Auditoría completada el 2026-10-06; sin escrituras remotas. |
+
+## 2026-10-06 — Owner Dashboard y Health Score pasan a ser el nuevo núcleo canónico
+
+| Campo | Valor |
+| --- | --- |
+| Evidencia | No existen clientes activos ni una obligación de compatibilidad interna. El PRD del 6 de octubre define organización/sede, enrollment, ledger, métricas, score e insights como un sistema coherente. El modelo heredado conserva aprendizajes válidos —especialmente la pertenencia M:N— pero mezcla fronteras y semánticas incompatibles con esas métricas. |
+| Decisión | Construir un dominio nuevo en el esquema `zaltyko`, con `organization_id` como frontera tenant y `location_id` como scope. Mantener `public.*` solo mientras se sustituyen cortes revisables; no sincronizar ambos modelos ni hacer del dashboard una capa sobre tablas ambiguas. Implementar primero dominio/RLS/outbox, luego servicios operativos, ledger, métricas, Health Score, dashboard e insights. |
+| Consecuencia | Se rompen deliberadamente contratos internos heredados cuando interfieren con el PRD. Producción, despliegue, credenciales, Stripe Live y migración de datos siguen requiriendo autorización específica. El riesgo de privacidad del perfilado individual de menores conserva un gate separado antes de piloto. |
+| Estado | ADR-0001…0005, modelo de dominio, migración fundacional, contratos y pruebas locales creados en `codex/health-score-v2`. No integrado ni desplegado. |
 
 ## 2026-10-04 — Fallar cerrado si CI no genera inventarios SBOM
 
@@ -775,3 +1164,65 @@ Una ficha externa no crea dueño, academia operativa, trial ni suscripción. Sol
 | Decisión | Ofrecer alta autoservicio para Free, Starter y Growth; mantener Network con acompañamiento. Mostrar precios anuales y ahorro estimado con claridad. La selección efectiva del ciclo continúa en Facturación. |
 | Consecuencia | La página orienta los planes estándar a crear una academia sin bloquear la captación con una demo. |
 | Estado | PR #207 se integró por squash en `93b152d1` después de pasar build, lint/typecheck, unitarias, RLS, migraciones, seguridad móvil y E2E autenticado con verificación de escrituras idempotentes. El bypass administrativo se usó con autorización del usuario porque GitHub exigía una aprobación de otro colaborador. Vercel `dpl_ET8Auj2t4xY3h8n6oF58mXE1jL4o` está `Ready`; `/pricing` responde 200 y muestra CTA de alta y selector anual. No se creó Checkout ni se hizo un cargo. Checkout Test y su webhook siguen pendientes. |
+
+## 2026-10-06 — Política de evidencia para Insights P0
+
+| Campo | Valor |
+| --- | --- |
+| Evidencia | Las nueve reglas activas recorren fuentes canónicas y persistencia idempotente sobre PostgreSQL efímero con fixture sintético. La conversión requiere meta interna explícita; retention risk sigue `draft`; el sandbox remoto inspeccionado contiene filas legacy. |
+| Decisión | Mantener todos los evaluadores por sede y por watermark, sin PII en evidencia financiera; implementar worker local protegido pero no registrar scheduler ni apuntar a base remota hasta cerrar autorización de entorno, pruebas por regla y worker, carga, backup/restore y revisión RGPD. |
+| Consecuencia | Reglas y dispatcher son integrables localmente, pero pipeline automatizado, preparación de piloto y SLA de frescura permanecen `NO VERIFICADO`; CTA de simulación no se presenta como acción terminada. |
+| Estado | Aplicada en código/docs locales; ninguna migración, scheduler ni escritura remota. Ver [fuentes de evaluación](../../docs/architecture/insight-evaluation-sources.md), [worker outbox](../../docs/architecture/outbox-worker.md) y [auditoría PRD](../../docs/audits/2026-10-06-prd-completion-audit.md). |
+
+## 2026-10-13 — Alta mínima de gimnasta ligada al grupo
+
+| Campo | Valor |
+| --- | --- |
+| Evidencia | La pantalla de grupos solo podía asociar atletas existentes, bloqueando el primer flujo operativo de una academia nueva. El dominio distingue `people`, `athletes`, enrollment y pertenencia M:N temporal `group_memberships`. |
+| Decisión | Permitir crear desde el grupo una ficha mínima (nombre y apellidos) y su primera pertenencia como una sola operación idempotente y transaccional. No crear automáticamente familia, usuario, enrollment, consentimiento ni cargo. |
+| Consecuencia | Reduce pasos sin mezclar conceptos del dominio; comprueba tenant/sede/cupo en servidor, conserva historial M:N y no duplica gimnastas. Eventos/auditoría excluyen PII. |
+| Estado | Implementado localmente y validado con tests focales y PostgreSQL efímero. E2E autenticado, QA manual accesible y base remota aislada pendientes; no hay migración ni despliegue productivo asociado. |
+
+## 2026-10-14 — Reintento inmutable del alta de grupo Owner
+
+| Campo | Valor |
+| --- | --- |
+| Evidencia | La pantalla conservaba una clave en `sessionStorage` tras un resultado ambiguo, pero reconstruía el cuerpo desde valores actuales del formulario al reabrirla. Eso permitía reutilizar la clave con otra solicitud; no demuestra la causa del fallo global de Vitest. |
+| Decisión | Guardar en `sessionStorage` un snapshot versionado y por organización con clave y cuerpo serializado; reintentar exclusivamente ese snapshot. Mantener los campos congelados mientras el resultado sea incierto y liberar el snapshot ante un 4xx definitivo, de modo que una edición posterior obtenga una clave nueva. |
+| Consecuencia | Recarga/reintento conserva el mismo cuerpo y clave; al cambiar de organización se oculta el snapshot anterior y se bloquea el alta hasta cargar el scope nuevo. Las sesiones antiguas que solo guardaron la clave quedan bloqueadas y conservadas; la UI permite actualizar la lista o contactar soporte sin prometer resolución. |
+| Estado | Implementación local en `codex/owner-groups-idempotency-20261014`, basada en `b64a6533`; 7/7 tests focales, TypeScript y ESLint focal pasan. No integrada, no E2E, no PostgreSQL y sin cambios remotos. La suite completa sigue fallida y sin causa raíz demostrada. |
+## 2026-10-14 — Snapshot y lotes para proyecciones de retención
+
+| Campo | Valor |
+| --- | --- |
+| Evidencia | Las fases locales detectaron lecturas completas sin límite y una lista `runIds` expandida en parámetros; en Drizzle sobre `node-postgres`, un array interpolado directamente se expande, mientras `sql.param(array)` conserva un parámetro. |
+| Decisión | Reutilizar snapshot keyset tenant-scoped `READ ONLY REPEATABLE READ`; insertar y consultar scopes en lotes con límites derivados del bloque; descubrir IDs y bloquearlos en orden global ascendente; resumir `completedRuns` por bloques tenant-scoped. Mantener el CTE de cohorts y transportar IDs con un único `uuid[]` y `ANY`. |
+| Consecuencia | No se truncan scopes ni filas; se conserva una transacción de escritura y `statement_timeout = '120s'`. Tests unitarios compilan SQL y verifican parámetros/driver local, pero no acreditan snapshot, locks, replay ni agregados en PostgreSQL. |
+| Estado | Fase 1 `8a67e8dc94918f944230adffb0f57d15ffaecb15`; fase 2 `34e0afdb3bf8f7614fc818a62340737a7fd4bd09`; integradas en Main `820eedb06ce627c49322054ff5ad347faffb9aed` tras QA38 según reporte del responsable. Runtime PostgreSQL y E2E pendientes; **NO-GO**. Ver [evidencia focal](../../docs/qa/retention-projections-runtime-gate-2026-10-14.md). |
+
+## 2026-10-15 — Experimento acotado de recursos del E2E sintético
+
+CI5344 cerró FAIL: Chromium/WebKit funcionales PASS, Firefox240s antes de Playwright.
+La diferencia de duraciones no identifica causa por navegador/CPU/IO. Se acepta
+solo experimento revisado Frontend9949694c/QA158: excluir al arrancar Studio y
+postgres-meta, además del pooler ya excluido. Fuente CLI2.84.2 y Kong separan esas
+superficies de gestión; /pg/* y /mcp quedan sin backend, no se eliminan rutas.
+Mantener todos los servicios usados por Owner, health checks, entorno real del
+stack sintético, migraciones, pins, Sentry/tracing,240s y cleanup. Main393/393mock
+PASS, sin runtime nuevo todavía. Un candidato distinto solo tras checks completos,
+reviewfinal y protecciones; ningún rerun idéntico ni promesa de ahorro/readiness.
+No producción/merge/despliegue autorizado por este experimento. Metadata17.6 en
+ambos destinos no autoriza upgrade ni afirma CVEs concretos sin contraste/backups.
+
+## 2026-10-15 — Origen Hub primario acotado a Logflare
+
+Backend3ba7fbab, Frontend105/QA171 GO estático; integrado Main por hunks sobre
+plan11 actual. Solo referencia exacta public.ecr.aws/supabase/logflare:1.34.14,
+pin/digest existentes, verify→retagID→postverify600s compartidos; sin retry ni ECR
+alternativo. Otros12pins conservan fallback solo rate-limit exclusivo. No es
+Docker Official Image ni fallback ante timeout. Main453/453mock11filesPASS/tsc0/
+ESLint0/formato0/audit73; sin Docker/build/pulls/E2E locales. Protecciones
+GitHub/Vercel reconfirmadas11:57UTC. Preparar una corrida automática de candidato
+distinto, sin merge/deploy/DDL. Disponibilidad Hub y runtime NO VERIFICADOS;
+gates destino/recovery/rolapp/seguridad/review siguen NO-GO. Detalle:
+[evidencia local](../../docs/qa/logflare-hub-primary-2026-10-15.md).

@@ -2,6 +2,7 @@ import { beforeEach, describe, expect, it, vi } from "vitest";
 
 const resolveUserHomeMock = vi.hoisted(() => vi.fn());
 const ensureGlobalProfileMock = vi.hoisted(() => vi.fn());
+const findCanonicalOwnerEntryMock = vi.hoisted(() => vi.fn());
 
 vi.mock("@/lib/auth/resolve-user-home", () => ({
   resolveUserHome: resolveUserHomeMock,
@@ -12,13 +13,19 @@ vi.mock("@/lib/auth/ensure-global-profile", () => ({
   isOpenRegistrationRole: (value: unknown) =>
     ["owner", "coach", "parent", "athlete", "provider"].includes(String(value)),
 }));
+vi.mock(
+  "@/modules/organizations/application/resolve-canonical-owner-entry",
+  () => ({ findCanonicalOwnerEntry: findCanonicalOwnerEntryMock })
+);
 
 const cookiesMock = vi.hoisted(() => vi.fn());
 const createClientMock = vi.hoisted(() => vi.fn());
 const updateUserMock = vi.hoisted(() => vi.fn());
-const redirectMock = vi.hoisted(() => vi.fn((path: string) => {
-  throw new Error(`REDIRECT:${path}`);
-}));
+const redirectMock = vi.hoisted(() =>
+  vi.fn((path: string) => {
+    throw new Error(`REDIRECT:${path}`);
+  })
+);
 
 vi.mock("next/headers", () => ({ cookies: cookiesMock }));
 vi.mock("next/navigation", () => ({ redirect: redirectMock }));
@@ -42,6 +49,7 @@ describe("Google signup role routing", () => {
       redirectUrl: "/onboarding/owner",
     });
     ensureGlobalProfileMock.mockResolvedValue({ id: "profile-1" });
+    findCanonicalOwnerEntryMock.mockResolvedValue(null);
     cookiesMock.mockResolvedValue({});
     createClientMock.mockResolvedValue({
       auth: {
@@ -54,8 +62,15 @@ describe("Google signup role routing", () => {
 
   it("uses the selected open-registration role when creating the profile", async () => {
     resolveUserHomeMock
-      .mockResolvedValueOnce({ destination: "owner_setup", redirectUrl: "/onboarding/owner" })
-      .mockResolvedValueOnce({ destination: "global_dashboard", redirectUrl: "/dashboard/profile", activeAcademyId: null });
+      .mockResolvedValueOnce({
+        destination: "owner_setup",
+        redirectUrl: "/onboarding/owner",
+      })
+      .mockResolvedValueOnce({
+        destination: "global_dashboard",
+        redirectUrl: "/dashboard/profile",
+        activeAcademyId: null,
+      });
 
     const home = await resolveUserEntry(user, "parent");
 
@@ -65,16 +80,29 @@ describe("Google signup role routing", () => {
 
   it("carries the selected role from the OAuth callback to the resolver", async () => {
     resolveUserHomeMock
-      .mockResolvedValueOnce({ destination: "owner_setup", redirectUrl: "/onboarding/owner" })
-      .mockResolvedValueOnce({ destination: "global_dashboard", redirectUrl: "/dashboard/profile", activeAcademyId: null });
+      .mockResolvedValueOnce({
+        destination: "owner_setup",
+        redirectUrl: "/onboarding/owner",
+      })
+      .mockResolvedValueOnce({
+        destination: "global_dashboard",
+        redirectUrl: "/dashboard/profile",
+        activeAcademyId: null,
+      });
 
     await expect(
-      GET(new Request("http://localhost/auth/redirect?code=oauth-code&initial_role=provider") as never)
+      GET(
+        new Request(
+          "http://localhost/auth/redirect?code=oauth-code&initial_role=provider"
+        ) as never
+      )
     ).rejects.toThrow("REDIRECT:/dashboard/marketplace/mis-productos");
 
     expect(resolveUserHomeMock).toHaveBeenCalled();
     expect(ensureGlobalProfileMock).toHaveBeenCalledWith(user, "provider");
-    expect(redirectMock).toHaveBeenCalledWith("/dashboard/marketplace/mis-productos");
+    expect(redirectMock).toHaveBeenCalledWith(
+      "/dashboard/marketplace/mis-productos"
+    );
   });
 
   it("records signup consent from Google before redirecting to onboarding", async () => {

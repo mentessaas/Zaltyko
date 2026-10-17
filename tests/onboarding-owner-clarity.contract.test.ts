@@ -2,18 +2,33 @@ import { describe, expect, it } from "vitest";
 import { readFileSync } from "node:fs";
 
 describe("owner onboarding clarity", () => {
-  it("separates account creation from academy creation", () => {
-    const page = readFileSync("src/app/onboarding/owner/page.tsx", "utf8");
-    const form = readFileSync("src/components/onboarding/OwnerOnboardingForm.tsx", "utf8");
+  it("authenticates the owner before the separate academy bootstrap", () => {
+    const legacyPage = readFileSync(
+      "src/app/onboarding/owner/page.tsx",
+      "utf8"
+    );
+    const setupPage = readFileSync("src/app/owner/setup/page.tsx", "utf8");
+    const form = readFileSync(
+      "src/components/owner-dashboard/OwnerSetupForm.tsx",
+      "utf8"
+    );
 
-    expect(page).toContain('data-testid="owner-onboarding-progress"');
-    expect(page).toContain("1. Cuenta personal");
-    expect(page).toContain("2. Tu academia");
-    expect(form).toContain("Tu cuenta personal ya está creada");
-    expect(form).toContain("Crear mi academia y entrar");
-    expect(form).toContain("{!directoryEntryId && (");
-    expect(form).toContain("<OwnerAcademyLookup");
-    expect(form).toContain("if (!directoryEntryId && reviewedLookup !== ownerLookupKey) return;");
-    expect(form).toContain("disabled={pending || (!directoryEntryId && reviewedLookup !== ownerLookupKey)}");
+    expect(legacyPage).toContain('redirect("/owner/setup")');
+    expect(setupPage).toContain("await supabase.auth.getUser()");
+    expect(setupPage).toContain('redirect("/auth/login?next=/owner/setup")');
+    expect(setupPage).toContain(
+      "<OwnerSetupForm contractualConsent={contractualConsent} />"
+    );
+    expect(setupPage).toContain("getOwnerContractualConsentRequirement(user)");
+    expect(setupPage).toContain("contractualConsent = null");
+    expect(setupPage).toContain("Crea tu academia");
+    expect(setupPage).toContain("Indica el nombre, la sede y las actividades.");
+    expect(setupPage).toContain("gimnastas, clases y cuotas.");
+    expect(form).toContain("Nombre de la academia");
+    expect(form).toContain("Nombre de la primera sede");
+    expect(form).toContain("Crear espacio de dirección");
+    expect(form).toContain('fetch("/api/v1/organizations/bootstrap"');
+    expect(form).not.toContain("Crear cuenta");
+    expect(form).not.toContain("OwnerOnboardingForm");
   });
 });

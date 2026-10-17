@@ -1,7 +1,7 @@
 ---
 status: active
 owner: tech
-last_reviewed: 2026-10-02
+last_reviewed: 2026-10-13
 source:
   - ../docs/MIGRATIONS_RLS_RUNBOOK.md
   - ../docs/migrations-backlog.md
@@ -87,7 +87,115 @@ La verificación local del 2026-10-02 pasa `pnpm validate:rls` (79/79 tablas), `
 
 El Advisor de producción todavía señala tres tablas RLS sin policies (`__drizzle_migrations`, `lead_interactions`, `zaltyko_schema_migrations`). Performance Advisor lista 60 FKs sin índice, 58 policies con reevaluación RLS por fila, 358 avisos de policies permisivas solapadas, 214 índices sin uso observado y dos índices duplicados. Son avisos de inventario; no se crean ni eliminan índices en bloque antes de reconciliar los historiales.
 
+### Migration local del modelo deportivo — 2026-10-13
+
+`20261013100000_model_sport_profiles_and_complementary_activities.sql`
+actualiza el esquema greenfield `zaltyko`: perfiles deportivos, relación M:N
+con la academia y clasificación de programas. Requiere `zaltyko.programs` vacía
+y aborta si encuentra filas, para no descartar silenciosamente su clasificación.
+Los fixtures sintéticos se insertan después.
+
+Los runners `test:zaltyko-*:local` la aplican en PostgreSQL efímero. No está
+aprobada para ningún proyecto remoto. Antes de promoverla, revisar ledgers,
+procedencia y estado real de tablas, y aprobar el cutover por separado.
+
+### Proyección de cohortes y servicios de analítica — 2026-10-13
+
+El writer/reader de cohortes usa las tablas `zaltyko.retention_cohort_projection_runs`
+y `zaltyko.retention_cohort_projections` creadas por
+`20261006165917_owner_cohort_retention_projections.sql`; no requiere añadir una
+migración para este cambio. El benchmark y los retries corren solo en PostgreSQL
+efímero/local. Grants y RLS no se relajan; el proceso con privilegios de servicio
+es el único escritor. Antes de cualquier promoción remota, reconciliar historial
+y hashes de migraciones del proyecto destino, revisar la ruta del worker y medir
+timeouts/rollback con backup restaurable. No usar `drizzle-kit push`.
+
+### Preferencias Owner Dashboard — 2026-10-13
+
+`20261013120000_owner_dashboard_layout_preferences.sql` crea la preferencia
+por usuario/academia. Está probada solo en migraciones efímeras. RLS se fuerza,
+`authenticated` solo tiene SELECT/INSERT/UPDATE de su fila y no existe permiso
+DELETE. Antes de promover, reconciliar hashes/ledgers remotos y revisar el plan
+de cutover; su migración no se puede aplicar a un entorno divergente sin revisar
+la procedencia y aprobar por separado.
+
+### Ledger local: pagos manuales — 2026-10-13
+
+La migración local greenfield `20261006093047_add_internal_billing_ledger.sql`
+define el origen `manual/provider` y campos mutuamente condicionados para pagos.
+La tabla queda dentro de los grants/RLS del ledger. Los servicios y sus fixtures
+se prueban exclusivamente contra PostgreSQL efímero. La migración de ledger fue
+editada en esta rama y ya no debe tratarse como checksum compatible con
+historiales remotos existentes. No correrla en Supabase remoto ni reconciliar
+ledgers automáticamente: primero comparar procedencia, SQL/hash, estructura y
+efectos, con un plan de cutover aprobado. La UI/API local de registro manual no
+requiere cambio de esquema remoto; el runner efímero incluye además
+`20261006131000_add_organization_default_currency.sql` para resolver el scope
+del owner en la consulta. La modificación del runner solo afecta pruebas
+locales. El flujo no inicia cargos ni toca Stripe.
+
+### Reconciliación de historiales remotos — 2026-10-13
+
+La lectura de solo metadatos confirma que producción
+(`jegxfahsvugilbthbked`) contiene 54 filas en
+`public.zaltyko_schema_migrations`: las 54 coinciden con los SHA-256 de sus
+archivos locales, sin huérfanos; hay 54 archivos locales pendientes. El sandbox
+E2E (`aeeootdmuiqkfeernskw`) contiene 45 filas: 44 hashes coinciden y
+`20260805120000_academies_status_semantics.sql` difiere; no hay huérfanos y
+quedan 63 archivos locales pendientes. El repositorio tiene 108 migraciones SQL
+locales. Los historiales nativos de Supabase también divergen (53 entradas en
+producción y 70 en E2E). La inspección de catálogo previa no encontró tablas en
+los esquemas nuevos `zaltyko`/`zaltyko_private` de ninguno de los proyectos.
+
+No se ejecutó SQL ni se modificó ningún ledger. La ausencia de huérfanos en el
+ledger aplicacional no reconcilia por sí sola el historial nativo ni demuestra
+qué SQL produjo el hash distinto del sandbox. No ejecutar el runner, `db push`
+ni `apply_migration` en producción o en el sandbox legacy. El E2E greenfield
+requiere primero un destino aislado y limpio; revisar el coste y obtener
+confirmación explícita antes de crear un proyecto o rama. Después, registrar
+solo migraciones aprobadas con el runner versionado, verificar RLS y grants y
+ejecutar E2E sintético antes de cualquier promoción.
+
+### Aislamiento de helpers del núcleo greenfield — 2026-10-13
+
+Producción y E2E ya tienen `zaltyko_private` heredado, con `USAGE` para
+`anon`, `authenticated` y `service_role`. La migración fundacional greenfield
+antes revocaba permisos del esquema y cambiaba su comentario; eso podía alterar
+políticas o rutas legacy durante una promoción gradual aunque los nombres de
+función nuevos fueran distintos.
+
+ADR-0021 separa los helpers nuevos en `zaltyko_domain_private`. Los archivos
+históricos ya aplicados permanecen inmutables; las migraciones greenfield aún no
+aparecen en los historiales remotos. El harness local siembra un helper legacy
+sintético y verifica que sobreviven sus permisos, función y comentario, mientras
+`anon` no obtiene acceso al esquema nuevo. No aplicar esos SQL al proyecto
+legacy: el aislamiento elimina un efecto lateral, pero no resuelve el drift de
+ledgers ni autoriza un cutover.
+
+### Próximo mantenimiento PostgreSQL — 2026-10-13
+
+Supabase anunció PostgreSQL 17.11 desde 17.6. En la lectura de proyectos ambos
+siguen en 17.6; `pgcrypto` está instalado y `ltree`/`btree_gist` no aparecen
+instalados. El repositorio no contiene llamadas `pgp_*`, pero eso no descarta
+datos cifrados heredados. Antes de aceptar o programar el upgrade, ejecutar las
+consultas de detección oficiales para índices y revisar columnas/datos de
+`pgcrypto`; no reindexar ni migrar datos sin evidencia y ventana aprobada.
+Supabase también anunció retirar un subconjunto antiguo de TLS 1.2 el
+10-11-2026; usar clientes y runtimes con TLS moderno.
+
+Fuentes actuales: [PostgreSQL 17.11: acciones para extensiones](https://supabase.com/changelog/postgres-15-19-17-11-breaking-changes) y
+[cambio de suites TLS](https://supabase.com/changelog?types=breaking-change).
+
 ## Flujo recomendado
+
+**Actualización15oct2026,10:51UTC (metadata-only):** Main confirmó por SQL
+`server_version_num=170006` en Sandbox y producción; pgcrypto1.3 en extensions,
+ltree/btree_gist ausentes. SQL fijo revisado Frontend98/Main, READONLY10s,
+sin filas reales ni DDL. [Evidencia y hash](../../docs/deployment/owner-pilot-version-extensions.md).
+No prueba backports ni CVEs individualmente aplicables. La instrucción histórica
+de revisar datos cifrados no autoriza hacerlo bajo este seguimiento: requiere
+alcance/clasificación/recuperación y decisión específicos antes de upgrade,
+reindex, restauración o escaneos de filas. La lectura de catálogo no cierra ese gate.
 
 1. Revisar schema actual en `src/db/schema/`.
 2. Generar migracion con `pnpm db:generate`.
@@ -105,3 +213,31 @@ El Advisor de producción todavía señala tres tablas RLS sin policies (`__driz
 
 - Registrar riesgos o pendientes en [[Backlog priorizado]].
 - Para cambios grandes, crear decision en [[Decisiones]].
+
+### Sandbox E2E: migraciones greenfield con ledger aislado — 2026-10-13
+
+La lectura actual confirma que `Zaltyko E2E Sandbox` sigue activo y conserva
+tablas legacy en `public`, pero no tiene el esquema nuevo `zaltyko`. El E2E
+autenticado falló al consultar `zaltyko.organization_members`. No se leyeron
+valores de personas, familias, cargos, credenciales ni historial de Auth.
+
+Para no conciliar ni aplicar el historial legacy, el corte local añade
+`scripts/apply-e2e-domain-migrations.ts`: acepta únicamente el ref
+`aeeootdmuiqkfeernskw`, exige `E2E_ALLOW_PROVISIONING=true`, valida que URL y
+conexiones pertenezcan al Sandbox y aplica una allowlist cerrada de 16
+migraciones dentro de `zaltyko`. Mantiene hashes en
+`zaltyko_domain_private.e2e_schema_migrations`, no modifica
+`public.zaltyko_schema_migrations` ni aplica migraciones legacy. Si encuentra
+schema sin ledger, una ledger con filas huérfanas o hashes distintos, falla
+cerrado. Un prefijo de migraciones completo y registrado puede reanudarse de
+forma idempotente; cada migración y su hash se confirman en la misma transacción.
+El seed de owner/admin/coach usa una organización de prueba fija y sintética; no
+reutiliza academias ni datos personales de `public`.
+
+Las 16 migraciones y el contrato de RLS forzada pasan en PostgreSQL efímero
+local. La integración de CI todavía no se ha subido/ejecutado; por tanto el
+estado remoto sigue sin cambio. Tras pasar CI, comprobar solo presencia de
+tablas, ledger/hash, RLS/grants y advisors en el Sandbox. No promover estas
+migraciones a producción hasta preparar backup restaurable, cutover, pruebas de
+aislamiento y release con revisión. No crear una rama de Supabase: el usuario
+rechazó el coste potencial de hasta 35 USD/mes.

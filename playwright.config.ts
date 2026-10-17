@@ -2,13 +2,27 @@ import { defineConfig, devices } from "@playwright/test";
 import { config } from "dotenv";
 import { resolve } from "node:path";
 
-import { assertLocalPlaywrightTarget } from "./scripts/lib/e2e-sandbox-target";
+import {
+  assertLocalPlaywrightTarget,
+  assertLocalSupabasePlaywrightTarget,
+} from "./scripts/lib/e2e-sandbox-target";
+import { localCliEntrypoint } from "./scripts/lib/local-e2e-preflight";
 
-config({ path: resolve(process.cwd(), ".env.local") });
-config({ path: resolve(process.cwd(), ".env") });
+const isLocalSupabaseRun = process.env.E2E_LOCAL_SUPABASE === "true";
+
+// The isolated local harness passes its own explicit environment. Do not
+// hydrate it with workstation credentials from dotenv files.
+if (!isLocalSupabaseRun) {
+  config({ path: resolve(process.cwd(), ".env.local") });
+  config({ path: resolve(process.cwd(), ".env") });
+}
 
 const baseURL = process.env.BASE_URL ?? "http://127.0.0.1:3000";
 const isCI = Boolean(process.env.CI);
+const nextCli = localCliEntrypoint(process.cwd(), "next");
+const quoteShellArgument = (value: string) =>
+  `'${value.replace(/'/g, "'\\''")}'`;
+const nextServerCommand = `${quoteShellArgument(process.execPath)} ${quoteShellArgument(nextCli)} ${isCI || isLocalSupabaseRun ? "start" : "dev"}`;
 
 const isPublicReadOnlyRun = process.env.E2E_PUBLIC_READ_ONLY === "true";
 
@@ -25,6 +39,14 @@ if (isPublicReadOnlyRun) {
       "Read-only public E2E is restricted to Zaltyko production or localhost."
     );
   }
+} else if (isLocalSupabaseRun) {
+  assertLocalSupabasePlaywrightTarget({
+    baseUrl: baseURL,
+    supabaseUrl: process.env.NEXT_PUBLIC_SUPABASE_URL,
+    databaseUrl: process.env.DATABASE_URL ?? "",
+    stripeSecretKey: process.env.STRIPE_SECRET_KEY,
+    stripePublishableKey: process.env.NEXT_PUBLIC_STRIPE_PUBLISHABLE_KEY,
+  });
 } else {
   assertLocalPlaywrightTarget({
     baseUrl: baseURL,
@@ -49,12 +71,11 @@ export default defineConfig({
     : "**/*.spec.ts",
   testIgnore: [".claude/**", ".worktrees/**", "node_modules/**"],
   // En CI habilitamos paralelismo para reducir tiempo de ejecucion.
-  // The authenticated academy suite compiles data-heavy routes in `next dev`.
-  // A single local worker avoids cross-browser compilation starvation; CI
-  // keeps its isolated parallel capacity.
+  // The local authenticated suite uses a production build so HMR/chunk
+  // recompilation cannot race the login and bootstrap browser flow.
   fullyParallel: isCI,
-  workers: isCI ? 3 : 1,
-  retries: isCI ? 2 : 1,
+  workers: isLocalSupabaseRun ? 1 : isCI ? 3 : 1,
+  retries: isLocalSupabaseRun ? 0 : isCI ? 2 : 1,
   // Limite de fail-fast para no quemar minutos en CI si el setup falla.
   maxFailures: isCI ? 5 : undefined,
   reporter: [
@@ -64,20 +85,24 @@ export default defineConfig({
   ],
   use: {
     baseURL,
-    ...(isPublicReadOnlyRun ? { serviceWorkers: "block" as const } : {}),
+    ...(isPublicReadOnlyRun || isLocalSupabaseRun
+      ? { serviceWorkers: "block" as const }
+      : {}),
     navigationTimeout: 60_000,
     trace: "retain-on-failure",
     screenshot: "only-on-failure",
     video: "retain-on-failure",
   },
-  webServer: process.env.BASE_URL
-    ? undefined
-    : {
-        command: process.env.CI ? "pnpm start" : "pnpm dev",
-        url: baseURL,
-        reuseExistingServer: true,
-        timeout: 240_000,
-      },
+  webServer:
+    process.env.BASE_URL && !isLocalSupabaseRun
+      ? undefined
+      : {
+          command: nextServerCommand,
+          ...(isLocalSupabaseRun ? { env: { NODE_ENV: "production" } } : {}),
+          url: baseURL,
+          reuseExistingServer: !isLocalSupabaseRun && !isCI,
+          timeout: 240_000,
+        },
   projects: [
     {
       name: "chromium",

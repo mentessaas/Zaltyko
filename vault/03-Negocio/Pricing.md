@@ -1,7 +1,7 @@
 ---
 status: active
 owner: negocio
-last_reviewed: 2026-10-05
+last_reviewed: 2026-10-13
 source:
   - ../BUSINESS-ANALYSIS.md
   - ../docs/marketing/zaltyko-pricing.md
@@ -69,11 +69,20 @@ Estado: oficial para producto, marketing, landing y limites.
 
 | Plan | Precio unico | Gimnastas | Sedes | Feature principal | Disparador de upgrade |
 | --- | --- | --- | --- | --- | --- |
-| **Trial 7 dias** | 0 € (sin tarjeta) | hasta 75 | 1 | Todas las funciones y limites del Starter activas. | Downgrade automatico a Free al dia 7. Un trial por academia cada 12 meses. |
-| **Free** | 0 €/mes perpetuo | hasta 30 | 1 | Crear academia, gimnastas, grupos/clases, asistencia basica, comunicacion interna limitada. | >30 gimnastas O activar pagos recurrentes. |
-| **Starter** | **19 €/mes** (≈ 20 USD) | hasta 75 | 1 | Pagos/cuotas recurrentes, portal familiar limitado (horarios, avisos, progreso publicado y cuotas), reportes basicos, progresion tecnica, comunicacion interna. | >75 gimnastas O necesidad de automatizaciones O reportes ejecutivos. |
-| **Growth** | 49 €/mes (≈ 52 USD) | hasta 200 | 1 | Todo Starter + automatizaciones, reportes ejecutivos, add-ons premium, soporte prioritario. | >200 gimnastas O multi-sede. |
+| **Trial 7 dias** | 0 € (sin tarjeta) | hasta 75 | 1 | Funciones elegibles de Starter; el cobro familiar se mantiene manual. | Downgrade automatico a Free al dia 7. Un trial por academia cada 12 meses. |
+| **Free** | 0 €/mes perpetuo | hasta 30 | 1 | Crear academia, gimnastas, grupos/clases, asistencia basica, comunicacion interna limitada y registro manual de pagos. | >30 gimnastas O necesidad de funciones avanzadas. |
+| **Starter** | **19 €/mes** (≈ 20 USD) | hasta 75 | 1 | Gestion de cuotas, registro manual de pagos, portal familiar limitado (horarios, avisos, progreso publicado y cuotas), reportes basicos, progresion tecnica, comunicacion interna. | >75 gimnastas O necesidad de automatizaciones disponibles y reportes ejecutivos. |
+| **Growth** | 49 €/mes (≈ 52 USD) | hasta 200 | 1 | Todo Starter + automatizaciones (sin cobro automático familiar disponible todavía), reportes ejecutivos, add-ons premium, soporte prioritario. | >200 gimnastas O multi-sede. |
 | **Network** | 99 €/mes (≈ 105 USD) | ilimitado | multi-sede | Todo Growth + multi-sede acompanada, reportes de direccion y soporte prioritario. | Bajo onboarding acompanado (ver [[Decisiones#2026-06-22 - V1 comercial con una academia por cliente]]). |
+
+**Límite de la promesa de cobros (decisión 2026-10-13):** ningún plan incluye
+hoy el cobro automático a familias. Free y trial son manuales. Los
+planes de pago podrán optar a cobro automático cuando se habiliten los gates de consentimiento,
+mandato, Connect, worker/webhook y recuperación; hasta entonces la preferencia
+automática del núcleo nuevo no inicia cargos y no es un claim comercial.
+Esta regla describe el producto objetivo; la producción conserva un riesgo
+legacy hasta integrar y verificar PR #225. No iniciar captación con una promesa
+de cobro manual-only antes de comprobar ese hotfix en el deployment productivo.
 
 Fee de procesamiento: **0 € markup sobre Stripe directo**. La promesa es "pagas lo que Stripe cobra, sin sorpresas".
 

@@ -59,6 +59,12 @@ describe("contratos de activación y navegación de onboarding", () => {
     expect(registerForm).toContain('role="radiogroup" aria-label="Tipo de cuenta"');
     expect(registerForm).toContain('className="grid grid-cols-2 gap-2"');
     expect(registerForm).toContain("min-h-[82px]");
-    expect(registerForm).toContain("primero crearás tu cuenta personal");
+    expect(registerForm).toContain(
+      "Primero crearás tu cuenta personal; después, configurarás tu academia."
+    );
+    expect(registerForm).toContain("Búscala antes de crear otro espacio.");
+    expect(registerForm).toContain("Buscar academias públicas");
+    expect(registerForm).toContain("ownerEntry ?");
+    expect(registerForm).toContain("Cuenta de dirección de academia");
   });
 });

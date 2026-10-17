@@ -90,6 +90,7 @@ export function isKvConfigured(): boolean {
 }
 
 const E2E_SANDBOX_PROJECT_REF = "aeeootdmuiqkfeernskw";
+const localE2ERateLimitEvents = new Map<string, number[]>();
 
 function isGitHubE2ESandboxRateLimitBypassEnabled(): boolean {
   return (
@@ -99,6 +100,61 @@ function isGitHubE2ESandboxRateLimitBypassEnabled(): boolean {
     process.env.NEXT_PUBLIC_SUPABASE_URL ===
       `https://${E2E_SANDBOX_PROJECT_REF}.supabase.co`
   );
+}
+
+export function isLocalE2ERateLimitAdapterEnabled(): boolean {
+  if (
+    process.env.NODE_ENV !== "production" ||
+    process.env.E2E_LOCAL_SUPABASE !== "true" ||
+    process.env.VERCEL === "1" ||
+    Boolean(process.env.VERCEL_ENV)
+  ) {
+    return false;
+  }
+
+  const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL;
+  if (!supabaseUrl) return false;
+  try {
+    const target = new URL(supabaseUrl);
+    return (
+      !target.username &&
+      !target.password &&
+      ["127.0.0.1", "localhost", "[::1]"].includes(target.hostname) &&
+      ["http:", "https:"].includes(target.protocol)
+    );
+  } catch {
+    return false;
+  }
+}
+
+function localE2ERateLimit(
+  identifier: string,
+  limit: number,
+  window: number,
+  now: number
+): RateLimitResult {
+  const cutoff = now - window;
+  const activeEvents = (localE2ERateLimitEvents.get(identifier) ?? []).filter(
+    (timestamp) => timestamp > cutoff
+  );
+  if (activeEvents.length >= limit) {
+    localE2ERateLimitEvents.set(identifier, activeEvents);
+    return {
+      success: false,
+      limit,
+      remaining: 0,
+      reset: Math.ceil(activeEvents[0] + window),
+    };
+  }
+
+  activeEvents.push(now);
+  localE2ERateLimitEvents.set(identifier, activeEvents);
+  return {
+    success: true,
+    limit,
+    remaining: limit - activeEvents.length,
+    reset: now + window,
+  };
 }
 
 export async function rateLimit(
@@ -118,6 +174,13 @@ export async function rateLimit(
   // deployments or against any other project.
   if (isGitHubE2ESandboxRateLimitBypassEnabled()) {
     return { success: true, limit, remaining: limit, reset: now + window };
+  }
+
+  // The isolated local runner owns a disposable loopback Supabase project and
+  // has no Vercel KV. Preserve the window and limit in this single process;
+  // this does not model distributed Redis behavior. Never enable on Vercel.
+  if (isLocalE2ERateLimitAdapterEnabled()) {
+    return localE2ERateLimit(identifier, limit, window, now);
   }
 
   // En producción, una configuración parcial o ausente no puede degradar el
@@ -262,6 +325,8 @@ const ROUTE_LIMITS: Record<string, { limit: number; window: number }> = {
   "/api/classes": { limit: 30, window: 60 },
   "/api/coaches": { limit: 30, window: 60 },
   "/api/groups": { limit: 30, window: 60 },
+  "/api/v1/owner/groups": { limit: 30, window: 60 },
+  "/api/v1/owner/classes": { limit: 30, window: 60 },
   "/api/attendance": { limit: 60, window: 60 },
   "/api/class-sessions": { limit: 30, window: 60 },
   "/api/academies": { limit: 10, window: 60 },

@@ -22,5 +22,5 @@ export default async function OnboardingPage() {
 
   const home = await resolveUserEntry(user);
 
-  redirect(home.destination === "owner_setup" ? "/onboarding/owner" : home.redirectUrl);
+  redirect(home.redirectUrl);
 }

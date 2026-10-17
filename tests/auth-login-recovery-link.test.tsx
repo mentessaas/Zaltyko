@@ -35,8 +35,17 @@ vi.mock("@/components/ui/toast-provider", () => ({
 }));
 
 vi.mock("@/components/auth/AuthPageShell", () => ({
-  AuthPageShell: ({ children }: { children: React.ReactNode }) => (
-    <main>{children}</main>
+  AuthPageShell: ({
+    children,
+    description,
+  }: {
+    children: React.ReactNode;
+    description: string;
+  }) => (
+    <main>
+      <p>{description}</p>
+      {children}
+    </main>
   ),
 }));
 
@@ -45,16 +54,33 @@ vi.mock("@/utils/seo", () => ({ default: () => null }));
 import LoginForm from "@/components/login-form";
 
 describe("enlace de recuperación en el login activo", () => {
+  it("enfoca el alta que viene del CTA de academia en el rol owner", () => {
+    render(<RegisterForm ownerEntry />);
+
+    expect(screen.getByText("Cuenta de dirección de academia")).toBeVisible();
+    expect(
+      screen.getByText(
+        "Primero crearás tu cuenta personal; después, configurarás tu academia."
+      )
+    ).toBeVisible();
+    expect(
+      screen.queryByRole("radiogroup", { name: "Tipo de cuenta" })
+    ).not.toBeInTheDocument();
+    expect(screen.getByLabelText("Nombre completo")).toBeVisible();
+    expect(screen.getByLabelText("Correo electrónico")).toBeVisible();
+    expect(screen.getByLabelText("Contraseña")).toBeVisible();
+  });
+
   it("permite consultar academias públicas antes del alta aunque el catálogo externo siga apagado", () => {
     render(<RegisterForm />);
 
     expect(
       screen.getByRole("link", {
-        name: "Buscar academias públicas antes de crear mi espacio",
+        name: "Buscar academias públicas",
       })
     ).toHaveAttribute("href", "/academias");
     expect(
-      screen.getByText(/La búsqueda muestra perfiles públicos disponibles/)
+      screen.getByText(/Solo aparecen fichas públicas/)
     ).toBeVisible();
     expect(
       screen.queryByText(/solicitar su reclamación gratuita/)
@@ -69,9 +95,7 @@ describe("enlace de recuperación en el login activo", () => {
       />
     );
 
-    expect(
-      screen.getByText(/solicitar su reclamación gratuita/)
-    ).toBeVisible();
+    expect(screen.getByText(/solicitar su reclamación gratuita/)).toBeVisible();
   });
 
   it("renderiza Google desactivado hasta que cargue la interfaz cliente", () => {

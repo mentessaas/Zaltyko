@@ -1,10 +1,846 @@
 ---
 status: active
 owner: producto
-last_reviewed: 2026-10-04
+last_reviewed: 2026-10-15
 source:
   - ../docs/audits/2026-10-03-launch-and-auth-followup.md
+  - ../docs/architecture/zaltyko-domain-model.md
 ---
+
+## Cierre CI exacto — 2026-10-16, 08:10 UTC
+
+CI38868296319 terminó **COMPLETED/SUCCESS**, updated07:59:04UTC, para
+`cd764dc2de0d52bad5f5df4b49fbc3562f4cff27`. Main reconfirmó API y jobs;
+gate116873698349SUCCESS. Static38868296301 y Directory38868296302SUCCESS
+exactSHA (QA). Chromium/Firefox/WebKit: 1passed31.3/35.0/36.7s; fase next-build
+213590.206/221241.228/231119.265ms, bajo240s. Cleanup reportado por runner:
+07:43:30.864/07:51:14.916/07:58:57.716UTC; NO inventarioDockerindependiente.
+
+Los3detailcomplete,22564events,249.893/263.09/262.911ms de análisis. Server
+webpack96.3/103.3/109.8s; NFTglobal51.1/51.7/52.9s aggregate_only. Spans
+inclusivos/solapados NOCPU/tiempoparedcausal.1225IDsdesconocidos,7spans
+no soportados y1255rutas sinatribuir impiden cobertura universal; top10por
+679client/1864servergrupos. **Timeout anterior NO reproducido; NO causa
+raíz demostrada ni fix de rendimiento acreditado.** Frontend cerró revisión
+readonly (cursor2): NO-GO optimizar código/config sin ajuste causal mínimo;
+no inició inspecciones, pruebas ni ejecuciones. Todos los peers quedan IDLE.
+
+Autorización **CONSUMIDA**, sin más push/rerun/dispatch/cancel ni despliegue.
+Auth/readiness/public/smoke/LighthouseSKIPPED, no validación de producción.
+Seguridad residual, esquema/orden/rolapp/recuperación/review/publicación
+siguen **NO-GO**, independientes del CI verde. Backups ya consultados;
+no repetir pregunta ni operarDB. Notas SOLOLOCAL, no empujar por documentos.
+Fuente: docs/qa/ci-cd764dc2-candidate-2026-10-16.md y API/logs saneados del
+[único run](https://github.com/mentessaas/Zaltyko/actions/runs/38868296319).
+La cola y autorizaciones de debajo son HISTÓRICO, no estado vigente.
+
+## Corrida única lanzada — 2026-10-16, 07:37 UTC
+
+Main efectuó UN push normal a PR226 a las07:36UTC, bf0aad14→
+`cd764dc2de0d52bad5f5df4b49fbc3562f4cff27`. La nueva autorización está
+**CONSUMIDA**. CI38868296319 creada07:36:32UTC está QUEUED según API07:37.
+Static38868296301SUCCESS07:37:07 y Directory38868296302SUCCESS07:37:09,
+ambas exactSHA; no son gatefuncional ni cierreCI. QA monitoriza esa única
+corrida readonly con backoff, sin reruns/dispatch/cancel/push ni pruebaslocales.
+Fuente nueva: docs/qa/ci-cd764dc2-candidate-2026-10-16.md.
+
+Fuentes idénticas al GO estático QA e8782f3a, Main85/85mocks/tsc/lint/formato/
+audit/diffPASS; protecciones GH07:28–29/Vercel07:36 verificadas sin cambios.
+240s/matriz/Node22/Sentry/tracing/worker/cleanup intactos. Sin merge/deploy/DDL/
+pagos/filasreales. Estas notas de lanzamiento son SOLOLOCAL, NOempujar ni
+causar otroCI. GitHub push informó7vulnerabilidadesdefault(2critical5high);
+seguridad/esquema/rolapp/recuperación/review/publicación siguen **NO-GO**.
+Preparación y autorizaciones de debajo son historial, no permiso de otra corrida.
+
+## Preparación verificada — 2026-10-16, 07:35 UTC
+
+Integrado LOCAL el diagnóstico post-build `e8782f3a67466902a000109161d51b3db904d8f4`,
+cuatro archivos selectivos tras Frontend1799cda4. QA final exacto GO estático
+para UNA corrida existente, NO publicación. Corregidos anchors cerrados/IDs
+inequívocos, ranking cooperativo y agregado traceEntryCount 0..1000000:
+overflow omite el campo de esa clave sin emitir después un total parcial.
+Catálogo fijo versionado, no fuentes/perfiles/env/datos reales en salida;
+resumen16KiB, línea con sobre/progreso <=16653bytes. 1s cooperativo postproceso,
+no hardkill; 240s del build y sampler/lifecycle/protecciones intactos.
+
+Main85/85tests sintéticos en5suites,18.60s(tests2.97s),tsc noEmit incrementalfalse0,
+ESLint0warnings, formato y diff-check PASS; audit:env73 sin leer valores.
+Sin installs/build/E2E/Docker/pulls locales. Protecciones readonly07:28–29UTC:
+Vercel previewsDisabled/prodbranchmain, deploymentEnabledfalse, Deploydisabled,
+main strict/admins/1review/dismiss-stale/6checks, Actionsread/noapprove;
+Productionmainonly/preventselfreviewtrue, bypassadminpermitido(NOabsoluto).
+PR226OPENdraftREVIEW_REQUIRED remoto bf0aad14. NO merge/deploy/DDL/pagos.
+A esta hora NO push ni nuevoCI: permiso aún NOconsumido; Main hará un único
+push sustantivo, registrará SHA/run y no encadenará reruns/dispatch ni notas.
+Fuente: docs/qa/build-trace-attribution-2026-10-16.md. Gates seguridad/esquema/
+rolapp/recuperación/review/publicación separados; **NO-GO release**.
+
+## Nueva autorización — 2026-10-16, 00:10 CEST (15 oct 22:10 UTC)
+
+El humano autoriza expresamente preparar, revisar y ejecutar **UNA corrida
+adicional del CI existente**, manteniendo 240 segundos y sin desplegar.
+Sustituye la espera de permiso de las entradas históricas inferiores; la
+corrida anterior bf0aad14/38749323693 ya consumió su autorización y acabó FAIL.
+La nueva todavía NO se ha lanzado ni consumido. Main coordina únicamente los
+tres chats APP existentes: Frontend diseña atribución por compilador/módulo,
+Backend contrasta tracing/rutas en Next15.5.27, QA define y revisa privacidad,
+límites, sobrecoste y contratos. Primero diseño readonly, después revisión e
+implementación acotada; no cambios de producto/config de optimización a ciegas.
+
+Preferir resumen de trazas ya existentes tras build a nueva instrumentación.
+Sin perfiles crudos, fuentes, secretos, valores de entorno o datos reales.
+Conservar matriz/checks/Node22/Sentry/tracing/worker/240s/cleanup/protecciones.
+Solo Main podrá integrar y efectuar un único push sustantivo que active CI,
+tras validación focal y reconfirmación readonly de protecciones; sin reruns,
+dispatch, nuevos runners/jobs ni pushes de notas durante la ejecución.
+No builds/E2E/Docker/pulls/instalaciones locales. Sin merge/deploy/DDL/pagos;
+seguridad, esquema/rol app/recuperación y revisión independiente siguen gates
+separados. No repetir petición Backups. **Publicación continúa NO-GO.**
+
+## 2026-10-15 — Revisión final de diagnóstico; decisión humana pendiente14:47UTC
+
+- Frontend145 readonly localiza fases costosas, no módulo/ruta/plugin ni ajuste
+  causal justificable. NO-GO para optimizar código/config; ninguna edición,
+  prueba, build, Docker o CI nueva por su revisión.
+- Se solicita UNA corrida adicional del CI existente con diagnóstico específico
+  por compilador/módulo/tracing y revisión previa de privacidad/volumen/coste.
+  AÚN NO autorizada ni implementada;240s/checks/Node22/Sentry/tracing/cleanup
+  intactos. Sin perfiles crudos/fuentes/secrets/env/filasreales. No repetir
+  pregunta, instrumentar ni empujar notas mientras espera; sin merge/deploy/DDL.
+- Informe bf0aad14/releasegates/Backlog/Decisiones/Obsidian actualizados, diff-check
+  PASS. Remoto bf0aad14/CI cerradoFAIL sin rerun; cacheajeno preservado. NO-GO.
+
+## 2026-10-15 — Suite completa Vitest PASS en `bf094a1f`
+
+- Worktree aislado en el SHA exacto `bf094a1f0af85f11fa6ea0406a5024d21a6e4340`:
+  517/518 archivos PASS (1 omitido), 2736/2739 tests PASS (3 omitidos), cero
+  fallos, exit 0 y duración de 273,38 s. Se utilizó el Vitest local existente;
+  no se instalaron dependencias ni se alteraron filtros o configuración.
+- El reporter `dot` no identificó los elementos omitidos. La configuración
+  conserva dos excludes móviles preexistentes. No se ejecutaron build, E2E,
+  navegador, PostgreSQL, Docker, Sandbox, remoto o producción. El detalle y los
+  límites constan en `docs/qa/vitest-full-suite-bf094a1f-2026-10-15.md`.
+
+## 2026-10-15 — QA58: runner local sin package manager ni pull de imágenes
+
+- En `codex/a2-local-owner-e2e-safety-20261014`, el E2E usa un fixture HIBP
+  local validado y bloquea orígenes de red fuera de app/Supabase loopback.
+  Next, Playwright y tsx se validan contra el lockfile y se ejecutan sin pnpm.
+- El runner valida el hash del Supabase CLI y cada imagen Docker antes de
+  iniciar; una imagen ausente detiene el flujo sin pull. SIGINT/SIGTERM cierran
+  el grupo hijo y el cleanup intenta `stop` sobre el mismo `--workdir`; conserva
+  el directorio temporal si la parada falla. Los límites de spec (300 s) y
+  webServer (240 s) se mantienen.
+- Vitest mock focal 22/22, TypeScript, ESLint, Prettier y `git diff --check`
+  PASS. No se ejecutaron navegador/E2E, build ni arranque de Supabase/PostgreSQL.
+
+## 2026-10-14 — Refuerzo del harness local Owner mensual
+
+- En `codex/a2-local-owner-e2e-safety-20261014`, desde `7ac8b87e`, el E2E
+  verifica recuento e importe del pago en Owner a 375, 768 y 1280 px. Añade
+  denegaciones sintéticas por organización, sede y rol coach en pagos y resumen.
+- El runner fija `NEXT_TELEMETRY_DISABLED=1`, intenta parar el proyecto local
+  incluso tras un `supabase start` parcial y conserva sus archivos si `stop`
+  falla. No cambia producto ni inicia servicios.
+- Vitest focal 5/5, TypeScript, ESLint focal, Prettier y `git diff --check`
+  PASS. Chromium/E2E, Supabase, build, producción y remoto no ejecutados.
+
+## 2026-10-14 — Gate estático PASS; release permanece NO-GO
+
+- Main ejecutó `pnpm gate:all` sobre `0a1bcd1dee3087437b664987cca5168c16555906`:
+  PASS (exit 0), A2=1.797, A3=399, A4=76, cero hallazgos. QA44 fue una revisión
+  estática de `84f688f4`; no originó ese gate ni las focales del SHA integrado.
+- Main reporta las focales integradas en `0a1b`: historial/analítica 14,
+  objetivos 9, familia 6, `EXISTS` 2 e Insights P0 3. Los 2.680 tests PASS
+  corresponden exclusivamente a `5e2105bd`; ese SHA difiere de `0a1b` en cinco
+  archivos de producto y no valida ese candidato. La suite completa de `0a1b`
+  queda PENDIENTE. No se duplicó runner.
+- Sigue **NO-GO**: suite final pendiente, SQL/runtime sin validar y gates de
+  release pendientes. No se acredita CI ni navegador/E2E. Ver
+  [detalle y límites](../../docs/qa/static-gates-no-go-2026-10-14.md).
+
+## 2026-10-14 — Fail-closed para versiones activas ambiguas en Insights P0
+
+- En `codex/evaluate-p0-active-rule-uniqueness-20261014`, basada en
+  `b7d8924b`, la carga de reglas activas pagina por cursor UUID estable (`id`),
+  manteniendo el conjunto sin filtro de claves conocidas. Antes de consultar
+  datos operativos o persistir, una clave implementada con más de una versión
+  activa lanza `AMBIGUOUS_ACTIVE_INSIGHT_RULE` (409) y bloquea la evaluación
+  completa; no hay selección `MAX(version)` ni resultados parciales.
+- Claves futuras se conservan en la carga e ignoran como antes; claves
+  implementadas ausentes mantienen el comportamiento previo. Se documentó la
+  decisión y queda pendiente reconciliar versiones activas en un entorno
+  autorizado, sin migración ni escritura remota en este cambio.
+- Vitest focal 3/3, typecheck y ESLint PASS. No se ejecutaron PostgreSQL,
+  navegador/E2E, suite completa, remoto ni push.
+
+## 2026-10-14 — Asociación familiar cuenta atletas distintos por sede
+
+- En `codex/family-association-distinct-athletes-20261014`, desde
+  `ebcbc587d9ad1d792f5966555eae06f03eb33fa0`, la validación de atletas usa
+  `selectDistinct(athleteId)` y limita a los IDs únicos solicitados antes de
+  comparar el conjunto completo. Conserva filtros de organización, atleta
+  activa, sede e inscripción `pending`/`active`; locks, autorización,
+  idempotencia, auditoría y fechas de negocio no cambian.
+- Vitest focal 6/6 (incluye M:N con dos clases, falta/inactividad, otra
+  organización/sede y estado de inscripción), ESLint focal, Prettier del test
+  y `pnpm typecheck` PASS. No se ejecutaron PostgreSQL, navegador/E2E, suite
+  completa, remoto, Sandbox, producción ni push.
+
+## 2026-10-14 — Lecturas canónicas y fail-closed del perfil de objetivos
+
+- En `codex/academy-target-profile-canonical-reads-20261014`, desde
+  `820eedb06ce627c49322054ff5ad347faffb9aed`, ambas lecturas filtran cada una
+  de las cinco claves con su moneda esperada, limitan a cardinalidad + 1 y
+  validan el conjunto exacto sin claves duplicadas. Cuatro métricas requieren
+  `currency IS NULL`; `collection_rate` usa la moneda histórica guardada en el
+  perfil, nunca la moneda actual de la organización.
+- El perfil incompleto, duplicado, con moneda no conservada o moneda
+  incompatible falla explícitamente. El formulario Owner muestra un error y no
+  inventa ceros. Replay inválido responde conflicto; autorización sigue antes
+  de leer objetivos. Sin cambios de esquema o del cálculo de score.
+- Vitest focal 7/7, ESLint focal, Prettier del test, `pnpm typecheck` y
+  `git diff --check` PASS. Sin PostgreSQL, navegador/E2E, suite completa,
+  remoto, Sandbox, producción ni push.
+
+## 2026-10-14 — Límite derivado para dimensiones del historial de Health Score
+
+- En `codex/health-score-history-dimension-limit-20261014`, desde
+  `f33bd512055ff5a45921b4c79c5b5cb8cd2a054d`, la consulta secundaria limita
+  filas a `snapshotIds.length × healthDimension.enumValues.length`, usando el
+  enum de esquema existente. Conserva el filtro de organización y no ejecuta
+  consulta de dimensiones cuando la página no contiene snapshots.
+- Test focal añadido para 50 snapshots/200 dimensiones máximas, scope de
+  organización y página vacía. No requiere cambios de esquema ni migración.
+- Vitest focal 2/2, ESLint focal, Prettier del test y `git diff --check` PASS.
+  No se ejecutaron PostgreSQL, navegador/E2E, suite completa, remoto, Sandbox,
+  producción ni push.
+
+## 2026-10-14 — Selección canónica de perfiles deportivos en bootstrap
+
+- Rama local `codex/bootstrap-canonical-sport-profile-20261014`, desde
+  `884e862cb0d37b2f816b080f42ca3a0e3aeb3c57`. El bootstrap filtra por país,
+  disciplina, `federationCode = unconfigured` y versión `identity-v1`; limita
+  filas al número de disciplinas solicitadas, falla si falta alguna y las
+  asocia por clave para que el orden de consulta no altere el rol principal.
+- La migración y su seed definen esos perfiles como identidad de disciplina,
+  sin inferir reglas de federación, categorías, niveles o aparatos. No requiere
+  migración. Se añadió test focal para dos disciplinas, exclusión de otras
+  federaciones/países/versiones y cierre seguro ante perfil canónico ausente.
+- Vitest focal 2/2, ESLint focal, Prettier en archivos de código/documentación
+  y `git diff --check` PASS.
+  No se ejecutaron PostgreSQL, navegador/E2E, suite completa, Sandbox,
+  remotos, producción ni push.
+
+## 2026-10-14 — Preflight solo lectura del Sandbox de esquema
+
+Sobre Main `e0ebecfa`, el proyecto `aeeootdmuiqkfeernskw` tiene las 16
+migraciones compartidas del dominio en `zaltyko_domain_private.e2e_schema_migrations`
+con SHA-256 idénticos a los archivos locales. El historial nativo Supabase
+termina en `20261005002950`; el ledger público de aplicación es distinto y no
+registra los 11 nombres consultados. No se deben copiar filas entre ledgers.
+
+Consentimiento canónico y cobertura/snapshots mensuales siguen locales y
+ausentes en el Sandbox; el runner remoto solo admite las 16 compartidas. El
+restore sintético PASS dos veces cubre 11 migraciones en PostgreSQL 14, no la
+delta ni el destino PostgreSQL 17. RLS/grants se inspeccionaron sin filas de
+negocio. `public.owner_consent` conserva grants amplios a `anon` y
+`authenticated` bajo RLS y no se leyeron sus filas. ADR-0027 ya define
+aceptación explícita en Setup para identidades previas, sin backfill ni regrant
+automático; se confirmó que `auth.users` y la FK de miembros existen en el
+destino. Se propone runner delta con ledger privado separado, sin tocar el
+allowlist base; no se implementó. No hubo escrituras remotas, cambios de
+SQL/allowlist ni despliegue. Detalle y gates en
+`docs/qa/sandbox-schema-preflight-2026-10-14.md`.
+
+Se implementó la fase `DRYRUN_READONLY` como `pnpm e2e:schema-delta:preflight`.
+Sin `--connect` devuelve el plan local `NO_VERIFICADO`; la consulta opcional
+exige confirmación literal del ref sandbox, URL coherente y CA TLS, y solo usa
+una transacción PostgreSQL `READ ONLY`. Verifica la base de 16 hashes y detecta
+drift delta en catálogos/ledger sin consultar filas de negocio. No crea ledger,
+ejecuta DDL ni conecta con el remoto durante los tests. No habilita `--apply`;
+el runner de escritura, backup restaurable, compatibilidad PostgreSQL 17 y
+aplicación continúan pendientes de revisión y autorización aparte.
+
+Revisión Main detectó falsa atribución de catálogo: `btree_gist` puede ser
+preexistente y es dependencia compartida; los triggers/policies de consentimiento
+son de #17, no de #18. Se separó la extensión del conjunto delta y se corrigió
+la propiedad por archivo. Tests añadidos para base #16 con extensión existente
+y prefijo #17 completo sin objetos de #18; además, dotenv se carga en modo
+silencioso. Solo Vitest, typecheck, CLI con confirmación inválida y modo estático;
+sin conexión o pruebas PostgreSQL.
+
+## 2026-10-14 — Runner local sintético de backup y restore
+
+Se añadió en `codex/synthetic-restore-local-20261014` un runner efímero para
+comparar una base PostgreSQL local fuente con una restauración vacía: manifiesto
+y checksum, esquema, catálogo (RLS/policies/triggers/grants), conciliación del
+ledger mensual, consentimiento sintético e invariantes de inmutabilidad.
+Incluye el harness operacional existente y usa solo `127.0.0.1`, entorno de
+proceso limpio y datos sintéticos. El follow-up de revisión endurece el cleanup
+para preservar y reportar la ruta si no confirma el stop, compara el catálogo
+estructuralmente (sin diff byte a byte de `pg_dump`) y verifica la versión
+mayor de las herramientas PostgreSQL. En el follow-up de fixture, Bash syntax,
+diff-check, contrato estático 8/8, TypeScript, ESLint focal y Prettier de los
+scripts pasan; las dependencias se instalaron offline sin descargas. El runner
+y PostgreSQL siguen **sin ejecutar** hasta que QA cierre Firefox y Main
+revise/autorice este SHA. No hay migración, conexión remota ni evidencia de
+restore Preview o producción. Plan y límites:
+`docs/qa/synthetic-restore-runner-2026-10-14.md`.
+
+Follow-up de fixture en rama separada desde `fa64e84b`: la factura de octubre
+que el harness marca `void` solo cubre la fidelidad de restore del caso que
+bloquea reemisión. La factura objetivo se crea para noviembre mediante
+`getMonthlyInvoiceOptions()` e `issueMonthlyInvoice()`, y recibe un pago parcial
+mediante `recordManualPaymentForCharge()`; el checker valida ese estado final
+sin updates SQL para fabricar el resultado. Sigue sin ejecutar PostgreSQL,
+pendiente de QA Firefox y autorización de Main.
+
+## 2026-10-14 — Compatibilidad de esquema y gates de restore
+
+Auditoría solo lectura sobre catálogos de Zaltyko y Zaltyko E2E Sandbox:
+producción no tiene el esquema `zaltyko`; el Sandbox tiene dominio parcial,
+pero carece de cobertura/snapshots de tarifa y del consentimiento canónico.
+El consentimiento legado `public.owner_consent` se conserva; no se leyó su
+contenido ni se inventó backfill. Chromium pasó; Firefox falló con
+`NS_BINDING_ABORTED` en la navegación a inscripciones pendientes. WebKit tiene
+stack local en compilación, sin resultado de navegador aún. PR #225 no tiene
+revisión; PR #226 continúa en borrador con head/CI anteriores al SHA local
+probado. Restore/RPO/RTO no verificados.
+
+El detalle, la matriz de migraciones, la secuencia segura y la propuesta de
+restore sintético local no ejecutada están en
+`docs/qa/release-gates-schema-restore-2026-10-14.md`. Sin PII, credenciales,
+migraciones, escrituras remotas ni cambios de esquema. No se inició PostgreSQL
+mientras QA ejecuta Firefox.
+
+## 2026-10-14 — Auditar cuota mensual por gimnasta y tarifa
+
+En la base `4f10141a` confirmé por inspección estática que la cotización y el
+ledger siguen cobrando por enrollment: dos enrollments activos de una gimnasta
+pueden producir dos líneas/cargos. No hay asociación de cobertura entre una
+tarifa y sus plantillas; planes distintos en una moneda pueden sumarse. El
+propietario confirmó la regla comercial: una cuota por gimnasta y tarifa,
+clases cubiertas explícitamente y conflicto ante tarifas distintas. La
+propuesta de delta está en
+`docs/qa/monthly-athlete-billing-gap-2026-10-14.md`.
+
+Este commit es diseño/revisión solamente. No se cambió servicio, API, UI,
+esquema ni migración; no se ejecutaron pruebas ni se consultaron bases de datos.
+Siguiente gate: revisar modelo de cobertura/línea histórica y después reconciliar
+el detalle de ADR-0026 en un bloque separado. Sin migración remota ni cobros.
+
+## 2026-10-14 — Mensualidades publicadas y siguiente bloque paralelo
+
+Revalidado GO/NO-GO con signup real y SQL local, sin datos productivos. ADR-0027
+añade protección contra reutilizar metadata histórica en un store vacío y
+recuperación explícita en la misma pantalla para cuentas existentes; no signup
+duplicado ni aceptación implícita. Backend/Frontend reciben ownership separado
+del contrato/checkbox; QA prepara prueba canónica sin POST al perfil legacy.
+Implementación nueva en curso; no declarar store canónico ni E2E completos.
+
+Integrado gate Backend `0dd4b4f9`: 43 tests consentimiento + 3 guard harness PASS;
+Tech Lead repitió PostgreSQL local real: grant concurrente único, no regrant
+revocado, rollback audit y perfil ausente rechazado. Typecheck y lint PASS.
+Signup real QA detecta dependencia legacy de perfil: 500, sin SQLSTATE capturado.
+Allowlist limpia no crea public.profiles ni consentimiento legacy. ADR-0027
+documenta decisión de desvincular alta Owner de ese perfil y mantener identidad
+Auth+membership como autoridad. Nuevo bloque canónico aún no implementado; no GO.
+
+Integrado Frontend `a3f32864`: recovery explícito de perfil en login activo,
+con sesión verificada antes de POST self-service owner, respuesta de rol
+confirmada, errores en español y sin repetir signup. Sesión existente puede
+recuperar sin redirigirse antes; Google/magic link mantienen la intención con
+next interno fijo, no un destino externo. Main repitió cinco suites: 36/36
+PASS. Consentimiento server-side aún pendiente de integración; sin E2E completo.
+Corregida nota QA: la FK es owner_consent.owner_id → profiles.user_id.
+
+Actualizado corte del plan maestro a `e415040a`; estados anteriores conservados
+como históricos. Separados unitarios/SQL mínimo, recorrido UI parcial y gates
+pendientes de consentimiento, signup real, CI y revisión independiente.
+QA debe comprobar row/audit tras bootstrap, no antes: ese es el punto de
+persistencia server-side. No se declara DEMO/PILOT-READY ni fin del SaaS.
+
+CI `38485117022` detectó contrato env incompleto tras integración QA:
+`E2E_LOCAL_SUPABASE` y `VERCEL` estaban usados pero no documentados.
+Reproducido con `audit:env`; añadidos ejemplos seguros (false/vacío), sin
+cambiar credenciales, flags desplegados ni relajar el auditor.
+
+Integrado Frontend `f6416064`: ante resultado incierto del signup bloquea
+reenvío y ofrece login/recuperación; con sesión confirmada y fallo de preparación
+redirige a recuperación del perfil. Setup conserva datos/clave idempotente y
+explica fallos de red en español. Main repitió suites de recuperación, setup y
+roles públicos: 18/18 PASS. No prueba signup real ni consentimiento persistido;
+gate server-side continúa en Backend y E2E completo en QA.
+
+Integrado `e85a93df`: CSP loopback y rate limiter sliding-window exclusivos
+del runner E2E local; vetados en Vercel. 37 pruebas focales PASS, sin demostrar
+todavía el recorrido completo. Cerrada asignación de admin en POST público de
+perfil: allowlist de roles self-service antes de consultar DB, 12 regresiones
+PASS; no se alteran permisos de perfiles existentes. Typecheck PASS y ESLint
+sin errores (cinco advertencias existentes). No equivale a auditoría completa
+de autoridad ni a autorización de despliegue.
+
+El resumen rechaza también strings vacíos/espacios, booleanos y notación
+exponencial como valores de agregado: no los convierte a cero/uno ni a cifras
+plausibles. 18 pruebas servicio + conexión server-page PASS; comprobación
+PostgreSQL repetida sobre el código, sin cambios de esquema productivo.
+
+QA informa login Chromium con Auth real PASS tras excepción CSP exclusiva
+runner local; bootstrap 429 por KV ausente/fail-closed. Autorizado adaptador
+sliding-window local que mantenga límites, no bypass ilimitado, vetado Vercel.
+Cambio aún no integrado ni E2E completo. Frontend corrige rechazos de red del
+registro y mensajes de reintento; Backend audita consentimiento/autoridad.
+
+Añadidas cuatro regresiones de conexión server-page del resumen: conserva
+agregado organizativo sin elegir la sede por defecto del score, pasa sede y
+fechas explícitas sin filtros no soportados, expone fallo como null/unavailable
+y deniega scope prohibido. 4/4 PASS con dependencias mock; no prueban Auth/RLS
+ni PostgreSQL. Complementan el verificador real anterior, no lo sustituyen.
+
+Integradas mejoras Frontend `e25b9f95` (h1 único, Ahora/período/cobros,
+fechas legibles) y Backend `0bdc8ca8`. PostgreSQL real detectó interpolación
+Drizzle `ANY(($2,$3)::uuid[])` inválida: corregida a array SQL tipado. Main
+repitió verificador local aislado PASS: M:N deduplicada, tenant adversario,
+DST Madrid/Pacific, bruto por moneda y manager sin SELECT financiero.
+Harness usa tablas mínimas sintéticas, no prueba migraciones completas/RLS.
+15 tests servicio/panel/jerarquía PASS. Endurecido script para fijar y validar
+las tres URLs DB loopback antes del import, evitando fallback de dotenv remoto.
+Responsive del panel nuevo permanece NO VERIFICADO. QA confirmó CSP como
+segundo bloqueo del login y prepara excepción exclusiva de E2E local sin Vercel.
+
+Revalidado GO/NO-GO: navegación autenticada CI `38481155607` Owner 33/33
+PASS, pero setup academia vacía 3 FAIL tolerados por CI. Usuario provisionado
+por API no demuestra signup UI: requisito explicitado a QA. Permanece
+NO-DEMO/PILOT-READY; autorización general de producción/remoto sí existe,
+no sustituye revisión, restore y datos de menores. Corte actualizado en
+`docs/cutover/prepilot-go-no-go.md`; historial PR-09 se conserva identificado.
+
+Resumen operativo: integrado servicio Backend `f65a53a4` y conectado a
+`/owner`, también sin snapshots del Health Score. Gimnastas DISTINCT con
+membership M:N vigente y grupos activos se cuentan hoy; asistencia y cobros
+usan período local por sede. Importes brutos separados por moneda y solo
+owner/admin; manager no consulta pagos. Fallos visibles, no falsos ceros.
+Programa/grupo no filtran este resumen y se indica expresamente. 18 pruebas
+servicio/panel/consentimiento PASS; validación SQL real y E2E pendientes.
+Integrado follow-up privacidad `dbc1c92d`: clear de storage entre pestañas
+revoca, binding removible en pruebas, storage bloqueado default-deny.
+
+Privacidad: retirado el preconnect incondicional a PostHog del layout raíz.
+Una prueba impide reintroducir ese contacto previo al consentimiento. Este
+cambio complementa el gate browser en preparación; no activa analítica ni
+modifica eventos operativos de servidor.
+
+Gate integrado de Frontend (`8da6710c`, integración `b9fa1a24`): carga y
+captura browser solo con consentimiento vigente, revocación y comprobación
+tras import asíncrono; autocapture/replay desactivados. 19 pruebas conjuntas
+consentimiento/PWA/controller y lint focal PASS. No hay UI que conceda
+consentimiento, por lo que analítica permanece cerrada. Follow-up abierto:
+revocar ante localStorage.clear entre pestañas y limpiar binding de pruebas.
+
+Actualización posterior: Backend+Frontend publicados en `78d7f14f`; corrección
+de recarga inicial SW publicada en `5708d130`. Diagnóstico A/B de QA demostró
+reload en primera adquisición del controller, no envío de formulario. En
+integración pasan 20 tests helper/acceso, tipos y lint. Se añadieron pruebas de
+comportamiento del worker: API/HTML privado sin cache, POST financiero sin
+intercepción, activación de actualización explícita; 11 tests PWA/controller,
+TypeScript y ESLint PASS. No prueba el E2E completo ni producción.
+QA prepara el recorrido sintético con SW permitido. Frontend cierra analítica
+browser default-deny detectada al revisar #66; eventos operativos de servidor
+se conservan. Regla financiera multiclase consultada, aún sin decisión.
+
+- Integradas entregas Backend/Frontend/QA y publicadas en #226, SHA 31a0dd02.
+- Contrato mensual documentado en ADR-0026 y billing; 23 focales y 12 auth PASS,
+  tipos/lint/formato PASS. Chromium local falló en login; causa sin verificar.
+- Reactivados tres chats desde la misma base: ledger/sede/replay, UX Owner y
+  QA login/CI. Archivos compartidos del vault quedan a cargo de Tech Lead.
+- CI 38477410346 en ejecución. Revisión #225 pendiente; sin release productivo
+  ni nuevo cambio de esquema remoto en este bloque.
+- Auditoría de ramas registrada en auditoria-2026-10-14. Ramas preservadas
+  hasta revisar reglas y equivalencia; upgrades mayores fuera del cierre MVP.
+
+## 2026-10-13 — Navegación común para Owner y E2E alineado con el producto greenfield
+
+- La navegación principal se movió al layout compartido `/owner` para que el
+  estado vacío y los módulos operativos compartan el mismo acceso. En móvil se
+  priorizan cuatro tareas y el resto queda en un disclosure nativo; se conserva
+  el contexto de academia/sede y el skip link ahora apunta a contenido enfocable.
+- `test:e2e` pasa a cubrir rutas y navegación Owner greenfield; `/app` queda
+  disponible como `test:e2e:legacy`, con variables separadas para impedir que
+  fixtures legacy entren accidentalmente en el gate principal.
+- Evidencia de base: CI aplicó las 16 migraciones allowlist al Sandbox E2E. La
+  lectura posterior encontró 16 filas de ledger y 80/80 tablas con RLS
+  habilitada y forzada. El fallo anterior estaba en la aserción antigua de menú
+  `/app`, no en la ausencia del esquema greenfield.
+- **Validación local:** navegación 4/4, ESLint focal, TypeScript y
+  `git diff --check` PASS. Playwright recoge 33 pruebas en tres navegadores,
+  solo enumeradas; la nueva suite autenticada y Preview siguen pendientes de CI.
+  No se modificaron producción, Stripe Live ni credenciales.
+
+## 2026-10-13 — Preparar CI greenfield en Sandbox E2E, sin tocar el ledger legacy
+
+- Se añadió un runner de migración de pruebas, allowlist de 16 archivos y ref
+  fijo al proyecto `Zaltyko E2E Sandbox`. Usa un ledger/hash separado en
+  `zaltyko_domain_private`; rechaza un schema sin ledger y cualquier divergencia.
+- El CI ejecuta el runner antes de crear las cuentas E2E. El seed Owner/admin/
+  coach añade identidades `.test` a una academia sintética sin consultar datos
+  personales existentes. Se añadió un contrato local que exige RLS habilitada
+  y forzada para todas las tablas greenfield. El ledger permite reanudar un
+  prefijo completo con hashes coincidentes; schema sin ledger, drift o filas
+  desconocidas fallan cerrado.
+- PostgreSQL efímero: las 16 migraciones, contratos operativos y check de RLS
+  PASS; typecheck, ESLint focal, integridad (7 Drizzle + 110 Supabase), Prettier
+  y YAML PASS. El runner CI ya ejecutó la allowlist en el Sandbox E2E; la
+  navegación autenticada greenfield todavía no se ha validado. No se tocó
+  producción ni Stripe Live.
+
+## 2026-10-13 — Inscripciones Owner: prioridad móvil y parche de Next
+
+- La auditoría del Preview mostró que las tarjetas de resumen empujaban la
+  lista hacia abajo en móvil. Se priorizó la lista y se mantuvieron las métricas
+  al final; si se abre el alta, el formulario conserva prioridad.
+- El componente se separó en orquestador, formulario y lista. En el Preview
+  `READY` del commit `8e9af4ca`, escritorio 1280 px y móvil 375 px no muestran
+  desbordamiento horizontal. Solo son datos sintéticos de lectura; teclado,
+  VoiceOver y sesión Owner real siguen pendientes.
+- Next y sus paquetes ESLint se fijaron en `15.5.27`. `pnpm build` generó 291
+  rutas; `pnpm typecheck`, ESLint focal y Vitest de inscripción 13/13 pasan.
+- `pnpm audit --prod` aún marca un moderado `sprintf-js` en Swagger UI. El audit
+  completo marca un alto y tres moderados. GitHub confirmó que las cuatro altas
+  de `main` son advisories de `braces` (#304/#305) y `node-forge` (#300/#301),
+  duplicadas entre lockfiles npm/pnpm de mobile; las mitigaciones locales tienen
+  regresiones focales 6/6 por Vitest directo, pero no hay versiones corregidas y
+  las alertas siguen abiertas. El wrapper pnpm se detuvo en una reinstalación al
+  bloquear el script de build no aprobado de `unrs-resolver`; no se aprobó ni
+  ejecutó ese script. El `braces` de la raíz no está mitigado por el patch móvil.
+  La auditoría no está cerrada.
+- Preview: https://zaltyko-phe8xtzyl-mentessaas-projects.vercel.app. No se tocó
+  producción, Supabase remoto, Stripe Live, credenciales ni migraciones.
+
+## 2026-10-13 — Inscripciones Owner pendientes y desacopladas de cobros
+
+- Se añadió `/owner/enrollments` con búsqueda acotada a la sede, consulta
+  paginada y una sola acción principal para registrar una plaza como pendiente.
+  Los nombres de persona se muestran solo en la superficie autorizada; la vista
+  de ejemplo usa etiquetas sintéticas y operaciones deshabilitadas.
+- Alta, activación, pausa, baja y finalización revalidan rol, tenant, sede,
+  periodo de clase, capacidad, versión y clave idempotente en transacción; cada
+  escritura agrega historial, auditoría y outbox sin nombres.
+- Enrollment no crea grupo, tarifa, cuota, factura ni cobro. Trials y
+  transferencias permanecen en sus flujos separados. No se añadió migración.
+- **Validación funcional inicial:** las pruebas de ruta/UI y el harness
+  PostgreSQL efímero pasaron en el corte previo. En el corte visual actual,
+  Vitest focal 13/13, TypeScript y ESLint focal PASS; sin sesión real ni
+  conexión a base del Preview.
+- **Pendiente:** E2E autenticado y QA accesible en base aislada, y revisión final
+  de CI. No se tocó Supabase remoto, producción, Stripe Live ni credenciales.
+- ADR-0025 y `docs/API.md` describen contrato, estados, efectos y límites.
+
+## 2026-10-13 — Gestión owner de grupos y pertenencias
+
+- Se incorporó `/owner/groups` con creación de grupos por actividad/sede,
+  listado de pertenencias, búsqueda de personas existentes y acciones para
+  añadir, pausar, reactivar o finalizar su pertenencia M:N.
+- Las rutas verifican sesión y scope canónico, limitan lecturas por tenant,
+  usan claves idempotentes y no copian nombres al outbox/auditoría. No se
+  conectó la ruta legacy ni se añadieron fixtures personales.
+- Vitest focal (10 tests), `gate:auth`, `pnpm typecheck`, `pnpm lint` y el
+  harness PostgreSQL efímero pasan. El harness incorpora la migración de moneda
+  faltante que necesita `resolveOwnerScope`.
+- Quedan alta canónica de personas, E2E autenticado, pgTAP, lector de pantalla,
+  migración remota y despliegue. No se tocó producción ni Stripe Live.
+
+## 2026-10-13 — Hacer operativa la pertenencia M:N a grupos
+
+- La revisión de fase 2 confirmó que `group_memberships` estaba modelada como
+  M:N, pero el núcleo greenfield no tenía servicio de escritura ni historia
+  tipada para pausa/reactivación/baja. Se conserva separada de enrollment.
+- Se añadió servicio transaccional para altas, cambios de estado, capacidad
+  concurrente, idempotencia, audit log y outbox; una fecha futura no se acepta
+  en transiciones mientras no exista scheduler ni se admiten fechas anteriores
+  al último cambio. Los motivos son códigos cerrados, no texto libre.
+- La migración generada por Supabase CLI incorpora `group_membership_history`,
+  fuerza RLS de grupo/historial por tenant y sede, y no concede UPDATE/DELETE
+  del historial a `service_role`. Los eventos no copian datos personales.
+  ADR-0023 documenta la decisión.
+- **Validación local:** `pnpm test:zaltyko-operations:local` PASS en PostgreSQL
+  efímero con fixtures sintéticos: multigrupo, reintento, cupo concurrente,
+  cambio temporal y RLS negativo por tenant/sede. También pasan
+  `pnpm validate:rls` (79/79 de su inventario; la tabla nueva se comprueba en
+  el harness), `pnpm check:migrations` (7 Drizzle + 110 Supabase), TypeScript,
+  `pnpm lint` global y `pnpm build` (288 páginas). El build local reportó que
+  faltan variables runtime de Stripe/Supabase; no hubo valores secretos ni se
+  afirmó readiness de runtime.
+- Test pgTAP generado por CLI: `supabase/tests/group_membership_history_rls_test.sql`.
+  No ejecutable localmente en este corte: el daemon Docker no estaba activo;
+  `supabase test db` confirmó que no hay base local en `127.0.0.1:54322`.
+- Suite Vitest completa del corte actual: 453 archivos pasan y 1 se omite;
+  2.343 tests pasan y 3 se omiten en 439,31 s. El timeout de billing del corte
+  anterior no se reprodujo; no queda demostrada su causa.
+- **Pendiente:** API, flujo de propietario/manager, E2E autenticado y revisión
+  de accesibilidad. La migración no se aplicó a Supabase remoto ni se cambió
+  Vercel o producción.
+
+## 2026-10-13 — Revalidar la implementación greenfield
+
+- La suite completa pasa: **453 archivos PASS, 1 omitido; 2.343 tests PASS, 3
+  omitidos**. `pnpm typecheck`, `pnpm lint` e integridad de migraciones (**7
+  Drizzle + 109 Supabase**) también pasan.
+- El audit de dependencias de esta rama informa **3 vulnerabilidades
+  moderadas, ninguna alta/crítica**. GitHub comunicó 4 altas en la rama por
+  defecto; la auditoría de esta rama no implica que main esté corregida.
+- El Preview del HEAD `9582ede3` está `READY`; es una compilación de revisión,
+  no un despliegue de producción ni evidencia de E2E autenticado.
+- El PR #225 ya tiene a `@elvisvaldes` solicitado como revisor y con permiso
+  `write`; aún no hay review. El cron legacy y los claims corregidos siguen sin
+  desplegarse.
+- Los resultados locales no prueban las conexiones de Supabase del Preview,
+  Stripe Test/Live, sesión real por rol, restore ni readiness de captación.
+
+## 2026-10-13 — Simplificar el primer paso del alta de owner
+
+- En `/auth/register?role=owner`, el texto del buscador contradecía el orden de
+  la pantalla: la persona podía buscar antes de crear la cuenta aunque el aviso
+  decía que lo haría después. El link ahora es una comprobación opcional antes
+  de abrir un espacio nuevo.
+- Se acorta la explicación, pero se conserva que solo aparecen perfiles
+  públicos y que una academia no listada requiere invitación. La reclamación,
+  cuando está habilitada, mantiene la revisión y la aclaración de que no da
+  acceso al espacio privado.
+- No cambia autenticación, consentimiento, roles ni persistencia. No se envió el
+  formulario ni se creó una cuenta.
+- El Preview muestra una ficha sintética `TEST active`; el ID exacto existe en
+  el sandbox E2E y no en producción. El destino de BD configurado para este
+  Preview no está confirmado. No se modificaron filas remotas.
+- Verificación local: tests focales 17/17; TypeScript, ESLint y
+  `git diff --check` pasan. Preview actualizado pendiente de push.
+
+## 2026-10-13 — Aislar helpers greenfield del esquema privado legacy
+
+- La lectura de catálogos confirma que producción y el sandbox tienen
+  `zaltyko_private` con 14 funciones `SECURITY DEFINER`; `anon`,
+  `authenticated` y `service_role` conservan `USAGE` en el esquema. La
+  migración fundacional greenfield modificaba permisos y comentario del mismo
+  esquema.
+- Separé funciones, policies y triggers del dominio nuevo en
+  `zaltyko_domain_private`; no modifiqué migraciones históricas ya aplicadas.
+  Los SQL greenfield implicados no aparecen en los historiales remotos.
+- Añadí un fixture de namespace legacy sintético y aserciones de permisos,
+  función centinela y comentario. La cadena canónica completa (14 migraciones),
+  pruebas SQL, `validate:rls` (79/79) y `check:migrations` (7+108) pasan.
+- PostgreSQL 17.11 desde 17.6: ambos proyectos siguen en 17.6; `pgcrypto` está
+  instalado, sin llamadas `pgp_*` en el repo. Queda por revisar datos legacy con
+  las consultas oficiales antes de cualquier upgrade; no se tocó la plataforma.
+- No se ejecutó migración remota, no se creó proyecto/branch y no se desplegó.
+  E2E autenticado, backup/restore y cutover siguen pendientes.
+
+## 2026-10-13 — Claims públicos y claridad del módulo de cobros
+
+- Revisé en el preview móvil la home, el alta de propietario y
+  `/modules/pagos-administracion`. El preview anunciaba cargos y recordatorios
+  automáticos aunque la nueva capa operativa solo registra pagos recibidos; la
+  ruta de pagos mostraba el desajuste desde su primer viewport.
+- Corregí en local la home, comparativa, página de cobros, funcionalidades,
+  integraciones, ayuda, catálogo de planes y `/llms-full.txt`. El copy ahora
+  distingue la suscripción SaaS de Zaltyko del cobro de cuotas familiares y
+  comunica el registro manual en todos los planes durante el lanzamiento.
+- Añadí un contrato de copy para impedir que vuelvan claims de automatización no
+  disponible. La preferencia `automatic` por sí sola no procesa cargos; la
+  automatización pagada sigue bloqueada por consentimiento/mandato, worker,
+  webhook, recuperación, Stripe Test y gates de release.
+- Capturas inspeccionadas: `docs/audit/evidence/ui/2026-10-13/`. Simplifiqué
+  además el CTA de owner: muestra el rol de dirección y oculta los otros cuatro
+  roles; el registro genérico conserva los cinco. Se añadió test de componente y
+  test E2E de la ruta owner. El E2E no se pudo ejecutar porque el guard exige un
+  proyecto Supabase de pruebas aprobado y este checkout no tiene ese destino;
+  no se eludió. El Owner Dashboard autenticado sigue `NO VERIFICADO`.
+- Verificación local: 48/48 tests de copy, onboarding y dashboard, 12/12 tests
+  del formulario de autenticación, typecheck y diff-check pasan. `pnpm build`
+  genera las 288 rutas; sin credenciales locales de servicios avisa durante la
+  generación de rutas dinámicas, por lo que no acredita integraciones. ESLint
+  focal no presenta errores y mantiene 9 warnings. El E2E no arrancó por el
+  guard; no cuenta como pasado.
+- No se modificaron producción, Stripe ni credenciales; solo se publicó el
+  Preview de la rama. No se creó cuenta ni se envió formulario. Falta
+  revisar/mergear PR #225 con aprobación independiente y verificar el copy en
+  producción antes de captar clientes.
+- Tras el push autorizado, Vercel creó el Preview del commit `0758acd5` y quedó
+  `READY`. Cobros, alta owner y home respondieron HTTP 200; la ruta de cobros
+  muestra el aviso de registro manual/no cargos automáticos y el alta owner
+  oculta el selector de roles. Preview actualizado; producción permanece sin
+  cambios.
+
+## 2026-10-13 — Reconciliación de ledgers y gate E2E autenticado
+
+- Comprobación de solo lectura: producción tiene 54 filas en el ledger
+  aplicacional; todas coinciden con los hashes locales y no hay huérfanos, pero
+  quedan 54 migraciones locales pendientes. El sandbox E2E tiene 45 filas, una
+  diferencia de hash en `20260805120000_academies_status_semantics.sql`, cero
+  huérfanos y 63 migraciones locales pendientes. Hay además 53/70 filas en los
+  historiales nativos de Supabase. Los esquemas greenfield no están creados.
+- No se aplicó SQL, no se tocó ningún ledger y no se cambió producción. Se
+  descartó el cambio experimental que añadía migraciones remotas al job de CI:
+  el sandbox actual no es un destino reconciliado.
+- Siguiente gate: obtener autorización tras mostrar el coste de un destino
+  Supabase aislado, reconciliar su historial, aplicar únicamente migraciones
+  revisadas y ejecutar E2E autenticado con cuentas/datos sintéticos.
+- PR #225 mantiene CI completa verde pero requiere una aprobación independiente
+  antes de fusionarse; no se modificó la protección de `main`.
+- Higiene GitHub: se eliminaron 43 refs remotas de ramas cuyo PR está fusionado,
+  SHA exacto coincide con el head revisado, no tienen PR abierto ni worktree y
+  no están protegidas. El inventario bajó de 132 a 89 ramas; no se tocaron PRs,
+  branches con worktree, PRs cerrados sin merge ni ramas sin PR.
+- Seguridad móvil: siguen abiertas cuatro alertas altas (dos advisories
+  duplicados en `pnpm-lock.yaml` y `package-lock.json`): `braces <=3.0.3` y
+  `node-forge <=1.4.0`; GitHub aún no publica versión corregida. Las
+  mitigaciones locales `patch-package` se aplicaron durante la instalación y
+  las dos regresiones focales pasan (6/6). Las alertas continúan abiertas hasta
+  que exista upstream corregido y se pueda actualizar/verificar el grafo.
+- Referencias actualizadas: Runbook migraciones, Decisiones y Backlog priorizado.
+
+## 2026-10-13 — Cierre local de proyección de cohortes y AC-12
+
+- Se implementó writer transaccional/idempotente por metric run y ámbito, ligado
+  al procesamiento de invalidaciones; el lector del Owner Dashboard consume la
+  última proyección exitosa sin volver a escanear datos operativos y comunica
+  explícitamente la ausencia/actualización del read model.
+- La vista agregada no persiste identificadores personales. La reejecución del
+  benchmark usa 5.000 atletas, 2 M asistencias, 20 identidades y PostgreSQL
+  14.20 local: dashboard 293,6 ms p95, capacidad 304,4 ms, cohortes 362,8 ms,
+  filtros 204,7 ms y vista compuesta 654,3 ms p95. AC-12 local pasa.
+- La primera query de proyección excedió el timeout de 120 s; se resolvió
+  sustituyendo las uniones null-safe no hashables por igualdad hashable usando
+  UUID coalescido. La re-ejecución de escala terminó PASS.
+- Owner Dashboard query, health-score harness, typecheck y ESLint focal pasan;
+  verificar de nuevo el stack canónico y `git diff --check` al cerrar el corte.
+- **Límites:** benchmark service-layer local, no HTTP/Auth/browser/Supabase ni
+  runtime serverless; coste/lag del writer todavía sin SLO. Sin cambios en
+  bases remotas, Stripe Live, Vercel, credenciales ni despliegues.
+
+## 2026-10-13 — Reordenación accesible del Owner Dashboard
+
+- Se añadieron layout y persistencia por usuario/academia para cuatro módulos
+  secundarios. Prioridades/Health Score quedan anclados; mover/restablecer no
+  altera permisos, filtros ni cálculos.
+- Nueva migración local `20261013120000_owner_dashboard_layout_preferences.sql`:
+  RLS forzado, fila propia, roles de la superficie owner y grants limitados.
+  API GET/PUT valida claves completas y usa versión/bloqueo para evitar pisar
+  cambios concurrentes. Sin ruta de borrado.
+- UI permite arrastrar con teclado y ofrece botones subir/bajar como alternativa
+  de puntero; restablecer y estado guardando/guardado/error también están claros.
+- Test de persistencia/versión/tenant añadido al harness; SQL valida grants y
+  aislamiento; contrato unitario cubre claves y controles.
+- **Límites:** falta navegador autenticado, VoiceOver humano y validación con
+  propietarios. No está listo para producción; sin migración remota ni deploy.
+
+## 2026-10-13 — Estado inicial del modelo deportivo y alta simplificada (supersedido)
+
+- ADR-0018 separa perfiles deportivos por país/federación de programas de
+  actividad complementaria. La academia puede tener especialidad principal y
+  adicional; `programs` distingue gimnasia de otras actividades. España queda
+  identificada como mercado inicial sin inferir categorías ni reglas
+  federativas.
+- Estado al abrir este corte; la medición y el read model descritos aquí fueron
+  supersedidos por «Cierre local de proyección de cohortes y AC-12» más abajo.
+- El alta owner deja de pedir código de sede, moneda o zona horaria. La sede se
+  normaliza y los defaults salen del perfil ES del servidor. Las actividades
+  secundarias son opcionales y plegadas; los reintentos conservan la clave
+  idempotente.
+- PostgreSQL efímero valida migration y alta idempotente con disciplinas y
+  actividades sintéticas.
+- Stack canónico, servicios operativos, ledger y métricas pasan en local. La
+  revalidación de escala mantiene AC-12 en `NO CUMPLE`: compartir consultas
+  idénticas en curso reduce cohortes de 7.941,3 a 1.709,6 ms p95, aún sobre el
+  objetivo de 800 ms; dashboard/capacidad/filtros sí pasan. Una variante con
+  lookup lateral del historial empeoró a 8.819,4 ms y se descartó. El read model
+  todavía necesita writer y reader integrados.
+- Revisión del cron legacy muestra que intenta cobros vencidos en cuentas
+  Connect sin filtrar explícitamente modo elegido, plan pagado o evidencia de
+  mandato. Es P0 antes de reutilizarlo como prestación.
+- No se aplicó migration en Supabase remoto ni se desplegó. Falta el writer/
+  reader del modelo de cohortes y cerrar gates de release. Estado local, no
+  pilot-ready.
+- Plan vigente: [`implementación de todo el SaaS`](../../docs/plans/2026-10-13-full-saas-implementation-plan.md).
+
+## 2026-10-06 — Esquema local para la proyección de cohortes
+
+- Nueva migración `20261006165917_owner_cohort_retention_projections.sql` crea
+  generaciones idempotentes y filas PII-free por scope y mes; incluye RLS
+  forzado, policies owner/sede, grants únicamente a `service_role`, constraints
+  y FKs tenant-aware.
+- Se integró la migración y el test de catálogo/RLS en harnesses efímero de
+  query y de escala. TypeScript, ESLint y suite owner dashboard pasan.
+- No existe todavía escritor ni lectura desde el dashboard; la migración no se
+  aplicó a staging, sandbox, producción ni ningún Supabase remoto.
+- AC-12 permanece `NO CUMPLE`: cohortes 6,42 s p95. Siguiente entrega: writer
+  transaccional/idempotente integrado a invalidación/outbox y endpoint lector.
+
+## 2026-10-06 — Revalidación completa del PRD de Owner Dashboard
+
+- Se añadió `docs/audits/2026-10-06-prd-completion-audit.md` para contrastar
+  AC-01…AC-15 y requisitos funcionales con código y pruebas existentes. La
+  cobertura anterior sobrestimaba el dashboard: faltan ocho evaluadores P0,
+  worker/SLA, APIs de drill-down, filtros y pruebas a escala.
+- Se añadió `test:zaltyko-canonical-stack:local`, que aplica desde cero ocho
+  migraciones canónicas y ejecuta seis pruebas SQL con fixtures sintéticos. El
+  primer intento detectó que las pruebas de crecimiento requieren el fixture
+  compartido; se corrigió el orden. Resultado final: PASS.
+- Supabase «Zaltyko E2E Sandbox» está activo pero conserva siete academias
+  legacy. No se aplicaron migraciones ni se consultaron filas. Decisión: no
+  reutilizarlo como base vacía; los próximos cortes siguen en el plan PR-11…16.
+- PR-11 comenzó con ocho evaluadores puros y sin PII para las reglas agregadas
+  activas. Tests de umbrales, datos faltantes, allowlist de campos y no
+  generación bajo los mínimos: **5/5 PASS**; `pnpm typecheck` PASS. El worker y
+  la lectura de evidencia transaccional aún no están conectados.
+- Vault: backlog, decisiones y este changelog actualizados. No se desplegó nada.
+
+## 2026-10-06 — Trials, familias y waitlist sobre capacidad canónica
+
+- Añadidas familias, tutores, contactos, permisos familiares y pagadores como
+  relaciones separadas; ser tutor no concede permiso financiero.
+- Trials, follow-ups, waitlist y ofertas tienen estado, versión, historial,
+  idempotencia, RLS forzado y FKs de organización/sede.
+- Reservar trial o enviar oferta crea un enrollment canónico que consume
+  capacidad. Aceptar activa la reserva; expirar la cancela y vuelve a `waiting`.
+- Fixture reutilizable exclusivamente sintético con academia mono-sede y
+  multi-sede, contactos `.invalid` y ningún dato real de menores.
+- Gate local PASS: trial→waitlist→enrollment, conversión directa, expiración,
+  reintentos, scope de sede, vínculo tutor-atleta y payloads sin claves PII.
+- Sin API, UI, comunicaciones, portal de tutor, entorno remoto, Stripe,
+  producción ni despliegue.
+- Diseño y evidencia: `docs/architecture/growth-operations.md`.
+
+## 2026-10-06 — Servicios operativos transaccionales del nuevo núcleo
+
+- Implementados servicios de inscripciones, materialización de sesiones y
+  asistencia sobre el esquema `zaltyko`.
+- Alta, transición y transferencia son idempotentes; cada cambio escribe
+  dominio, historial, outbox y auditoría en una sola transacción.
+- Capacidad y correcciones de asistencia quedan serializadas con advisory
+  locks. La última plaza concurrente produce un único ganador.
+- Las pausas conservan intervalos explícitos; un coach solo registra asistencia
+  cuando está asignado a la sesión y el scope de sede se resuelve en base de
+  datos.
+- El historial separa fecha efectiva y fecha de ejecución; los intervalos son
+  semiabiertos y las transiciones futuras esperan un scheduler explícito.
+- Verificación local: dos organizaciones, varias sedes, reintentos, concurrencia,
+  transferencia, sesiones y asistencia PASS. Sin API, UI, entorno remoto,
+  producción, Stripe, credenciales ni despliegue.
+- Diseño y evidencia: `docs/architecture/operational-services.md`.
+
+## 2026-10-06 — Fundación del nuevo dominio Owner Dashboard / Health Score
+
+- Creado el esquema canónico `zaltyko` con organización, sedes, instalaciones,
+  espacios, miembros/scopes, personas, atletas, staff, programas, grupos M:N,
+  plantillas, sesiones, enrollment, asistencia, catálogo de precios, outbox y
+  audit log.
+- La migración usa FKs compuestas para rechazar cruces de organización, RLS
+  forzado, grants Data API explícitos y helpers de scope en esquema privado.
+- Añadidos contratos TypeScript de autorización por sede, transiciones de
+  enrollment, capacidad efectiva y eventos sin PII/datos médicos.
+- Validación local: PostgreSQL aislado PASS, 5/5 contratos PASS, ESLint focal y
+  `tsc --noEmit` PASS. Sin migraciones remotas, producción, Stripe ni despliegue.
+- Plan de ejecución: `docs/plans/2026-10-06-owner-dashboard-implementation-plan.md`.
 
 ## 2026-10-04 — Revalidar acceso Google, recuperación y búsqueda del onboarding
 
@@ -10932,6 +11768,47 @@ Modelo separado, reclamación manual, administración, importación revisada, fi
 - **Validación local:** `pnpm typecheck`, compilación TypeScript aislada de la spec Playwright, ESLint focal, Prettier, `git diff --check` y contratos de facturación **7/7** pasan.
 - **Pendiente:** CI de PR #211 debe ejecutar el recorrido en el sandbox con credenciales protegidas. El Playwright integrado no se ejecutó en este Mac: el guard detuvo la carga de configuración porque aquí no está especificado `E2E_TARGET_SUPABASE_PROJECT_REF`. No se eludió esa protección. El PR continúa abierto y sin despliegue.
 
+## 2026-10-06 — Evaluadores P0 conectados a hechos canónicos
+
+- `evaluateP0Insights` ejecuta las nueve reglas P0 activas con consultas scoped por organización y sede, umbrales de la versión activa y watermark explícito. La persistencia usa `runInsightEvaluation` para autorización repetida, idempotencia, deduplicación y resolución.
+- La ocupación sigue la métrica canónica: capacidad efectiva y atletas distintos inscritos en la fecha local de cada sesión. Cobros agregan por moneda e incluyen allocations menos refunds exitosos; no exponen nombres, contactos ni datos de atletas.
+- La conversión baja solo compara contra una meta interna activa de la organización. La retención individual sigue en draft. `simulate_group` sigue siendo CTA, no flujo terminado.
+- **Validación local:** `pnpm typecheck`, ESLint y `bash scripts/run-zaltyko-insight-engine-local.sh` pasan con PostgreSQL efímero y fixture sintético; nueve rule runs, reintento idempotente.
+- **No verificado:** worker/digest/SLA de 15 min, volumen de producción, Supabase Auth/PostgREST remoto, E2E autenticado y readiness de piloto. No se modificó ninguna base remota.
+- Detalle: [`insight-evaluation-sources.md`](../../docs/architecture/insight-evaluation-sources.md), [auditoría PRD](../../docs/audits/2026-10-06-prd-completion-audit.md).
+
+## 2026-10-06 — Dispatcher outbox local con lease recuperable
+
+- Se añadió claim por `FOR UPDATE SKIP LOCKED`, lease en `available_at`, retry con backoff y dead-letter en intentos agotados, con código de error sanitizado. La ruta POST exige `CRON_SECRET` y evita solapamiento global.
+- **Validación local:** tres dispatchers concurrentes reclaman una vez; el consumidor crea una invalidación idempotente; lease expirado se recupera. TypeScript, ESLint y `scripts/run-zaltyko-metrics-engine-local.sh` pasan.
+- **Sin activación:** no se registró cron en `vercel.json` ni se desplegó. Falta probar inyección de error/backoff/dead-letter, instrumentar lag y definir actor de sistema para recompute/score/Insights; por tanto SLA, digest y pipeline siguen `NO VERIFICADO`.
+- Detalle: [`outbox-worker.md`](../../docs/architecture/outbox-worker.md).
+
+## 2026-10-06 — Endpoints de score actual e histórico
+
+- Se añadieron `GET /api/v1/health-scores/current` y `/history`, autorizados con sesión y scope de `resolveOwnerScope`; historial con cursor estable y dimensiones en una lectura bulk.
+- **Validación local:** paginación de las tres snapshots sintéticas, cursor inválido, denegación de sede al manager, sede sin snapshots y ausencia de PII nominal; `pnpm typecheck`, ESLint y runner integrado del score/dashboard pasan.
+- **Pendiente:** serie y explicación de métricas, heatmap, cohortes, riesgos protegidos, benchmark settings, filtros programa/grupo/comparación, E2E autenticado y volumen objetivo.
+
+## 2026-10-06 — Serie histórica explicable de métricas
+
+- `GET /api/v1/metrics/:key` consulta runs exitosos inmutables, devuelve fórmula/versión, numerador/denominador, calidad, cobertura, dimensiones, diagnósticos y source watermark; filtra período/moneda y usa cursor estable.
+- **Validación local:** 3 páginas de snapshots métricos sintéticos, sin IDs duplicados; denegación de manager para sede fuera de scope, typecheck y ESLint pasan con el runner de score/dashboard.
+- **Pendiente:** heatmap/drill-down, cohortes/retention risks, benchmark settings, filtros de programa/grupo/comparación, E2E autenticado y carga objetivo.
+
+## 2026-10-06 — API de heatmap de capacidad
+
+- `GET /api/v1/capacity/heatmap` agrega slots semanales por día/hora, pondera ocupación por capacidad efectiva y devuelve drill-down por clase sin exponer personas. Scope por sede; filtros program/group y cursor.
+- **Validación local:** dos celdas sintéticas, página cursor, filtro programa, filtro grupo sin datos y manager denegado fuera de sede; typecheck/ESLint y runner integrado score/dashboard pasan.
+- **Límite:** no hay visualización heatmap integrada en `/owner`, todavía no se probó fecha local distinta entre sedes ni volumen a escala.
+
+## 2026-10-06 — API agregada de cohortes de retención
+
+- `GET /api/v1/retention/cohorts` calcula cohortes mensuales desde enrollment/status history, scope por organización/sede/programa/grupo y respuesta agregada sin IDs de atleta.
+- **Precaución de definición:** PRD deja abierta fecha de alta y gracia de pausa. Se publica el criterio provisional de primer estado `active` efectivo (fallback a `starts_on` sin historial); si hay pausa en el período, `retentionRate=null` en vez de tratarla como alta o baja.
+- **Validación local:** PostgreSQL efímero, resultado sintético no vacío, matriz mensual y sin nombres de atleta; typecheck/ESLint y runner de owner dashboard pasan.
+- **Pendiente:** decidir alta/gracia antes de usar como KPI; no se construye endpoint individual de riesgo hasta revisión RGPD/permisos. UI, carga y E2E autenticado siguen pendientes.
+
 
 ## 2026-10-05 — Cierre de anual Test y revalidación de acceso
 
@@ -10943,3 +11820,553 @@ Modelo separado, reclamación manual, administración, importación revisada, fi
 - **Alta de dueño:** `/auth/register?role=owner` muestra el rol correcto, permite explorar academias públicas y explica que tras crear la cuenta puede buscar antes de crear el espacio. El onboarding comprueba duplicados también en servidor. La búsqueda visible cubre solo perfiles disponibles; las reclamaciones de fichas externas siguen apagadas y el catálogo aún no contiene fichas externas ni eventos.
 - **Validación local:** `pnpm typecheck`, compilación TypeScript focal de la spec, ESLint, Prettier, `git diff --check` y contratos anuales **5/5** pasan.
 - **Pendientes:** una persona debe completar el callback Google y aceptar los términos por sí misma; probar recuperación con una cuenta existente autorizada; reconciliar migraciones antes de activar reclamaciones/importaciones; registrar permisos de fuentes antes de cargar academias o eventos externos. Stripe Live/Connect/Tax permanece aplazado hasta disponer de figura legal.
+
+## 2026-10-13 — Registro manual de pagos desde Owner Dashboard
+
+- El ledger diferencia `manual` de `provider`. `/owner/payments` permite
+  consultar cargos abiertos y registrar dinero ya recibido, total o parcial,
+  desde un formulario de una sola pantalla. No crea cargos ni inicia cobros.
+- `GET/POST /api/v1/owner/billing/manual-payments` exige owner/admin y scope de
+  sede; pago, asignación, estado derivado, auditoría y outbox se escriben
+  atómicamente. Clave idempotente más payload igual no duplica; payload distinto
+  y sobrepago se rechazan.
+- **Validación local:** PostgreSQL efímero comprueba pagos concurrentes,
+  asignación única, saldo, manager denegado y rechazo de sobrepago. Suite focal
+  de pagos/fecha/layout (8/8), typecheck, lint focal, auditoría de 384 rutas,
+  gate auth y `pnpm build` PASS con 287 páginas. También se corrigió la fecha de
+  hoy para que un pago registrado por la mañana no se convierta en un instante
+  futuro. Los tests HTTP
+  usan auth simulada; falta walkthrough autenticado y QA humana.
+- **Límite en este estado inicial:** Free/trial deben seguir manuales;
+  automático espera entitlement, opt-in, mandato/consentimiento y controles de
+  worker/webhook. La preferencia configurable se registra en la entrada de
+  billing siguiente. Sin migración remota, Stripe Live, Vercel ni cambios de
+  producción.
+
+## 2026-10-13 — Preferencia de cobro familiar con entitlement
+
+- Se añadió preferencia manual/automática por pagador, con historial de
+  revisiones y control de concurrencia. Solo un entitlement de plan pagado,
+  vigente y versionado permite guardar la preferencia automática; Free/trial y
+  entitlements ausentes fallan cerrados.
+- Cada cargo nuevo puede guardar un snapshot ligado a la revisión vigente. Una
+  preferencia desactualizada exige reconfirmación; una modificación posterior
+  no altera cargos ya emitidos. El snapshot no es consentimiento ni permiso para
+  iniciar un cargo: `effectiveMode` sigue manual y no hay worker automático.
+- **Validación local:** PostgreSQL efímero, fixtures sintéticos, permisos,
+  RLS/grants, auditoría, outbox, idempotencia y downgrade/reconfirmación. No
+  existe aún mandato/consentimiento operativo, provisioning/webhook comercial,
+  Stripe Test E2E ni cobro automático; no se tocó Stripe Live ni producción.
+
+## 2026-10-13 — Parches de dependencias para preparar el Preview greenfield
+
+- Se incorporó a esta rama el parche de producción de PR #224. `pnpm install
+  --frozen-lockfile` reproduce el lockfile y resuelve las dependencias
+  corregidas; `pnpm audit:dependencies --prod` no encuentra findings altos ni
+  críticos (quedan 3 moderados).
+- Se probó retirar del `package.json` el override duplicado de `tmp`/`uuid`,
+  pero `pnpm install --frozen-lockfile` rechazó la configuración con
+  `ERR_PNPM_LOCKFILE_CONFIG_MISMATCH`. Se restauró el bloque para preservar el
+  lockfile validado; permanece el warning de pnpm sobre `pnpm.overrides` y se
+  deja su saneamiento para un cambio dedicado que regenere y revise el lock.
+- **Revalidación final local:** instalación congelada PASS; 450 archivos
+  aprobados (1 omitido), 2.329 tests aprobados (3 omitidos); typecheck, lint,
+  `check:migrations` (7 Drizzle + 108 Supabase), `gate:auth` (385 archivos) y
+  build PASS (288 rutas). Audit de producción: 0 findings altos/críticos y 3
+  moderados.
+- El build no tenía credenciales de servidor locales y registró avisos de
+  variables ausentes/rutas dinámicas; no demuestra runtime configurado. No se
+  publicaron valores ni se aplicaron migraciones remotas. Warning pendiente de
+  pnpm sobre `pnpm.overrides` documentado arriba.
+
+## 2026-10-13 — Owner Dashboard modular y proyección de cohortes
+
+- El orden de cuatro módulos secundarios se guarda por usuario/academia; drag,
+  botones subir/bajar, reset y control de versión. Prioridades y score quedan
+  anclados; RLS forzado y sin acceso a datos adicionales por reordenar.
+- Alcance acotado: una columna vertical y solo reordenación; no hay selector
+  para añadir/ocultar módulos ni drag de tarjetas individuales o entre zonas.
+- El reader de cohortes usa la última proyección exitosa. Reejecución sintética
+  a 5.000 atletas/2 M asistencias/20 identidades: dashboard 293,6 ms p95,
+  capacidad 304,4 ms, cohortes 362,8 ms, filtros 204,7 ms y vista compuesta
+  654,3 ms p95. Es capa de servicio PostgreSQL 14.20 local, no HTTP,
+  Auth, navegador, Supabase ni runtime serverless.
+- Falta walkthrough autenticado, VoiceOver/teclado humano, coste/lag writer y
+  medición en plataforma objetivo. Sin migraciones remotas ni despliegue.
+- La guía de uso del drag se localizó en español: espacio inicia/suelta,
+  flechas cambian posición, Escape cancela; los anuncios informan módulo y
+  posición. Botones subir/bajar y reset siguen disponibles con área táctil de
+  44 px. Prueba real de controles/labels/instrucciones **4/4**, typecheck y
+  ESLint focal PASS; VoiceOver humano y E2E de navegador siguen pendientes.
+
+## 2026-10-13 — Aclarar el guardado de tarjeta en el portal familiar
+
+- El portal ya no dice que guardar una tarjeta activa pagos automáticos.
+  Explica que guardar no cobra en ese paso y que la academia gestiona la
+  modalidad de cobro. No cambia la ejecución de pagos ni implementa el mandato.
+- Se añadió un contrato para impedir que vuelva el claim de cobro automático.
+- `.vercelignore` excluye `.claude/` y `.paperclip-scratch/` para que la
+  configuración local del agente y el scratch no entren en el paquete de
+  Vercel. Es el único fragmento integrado selectivamente del PR #113; sus
+  cambios de accesibilidad/documentación siguen sin incorporarse.
+- La rama del PR #105 se cerró como supersedida, sin borrarla: la base actual
+  ya exige `stripeSubscriptionId` para acceso de pago y limita el cálculo de
+  suscripciones pagadas al respaldo real de Stripe.
+- El cron legacy sigue siendo un gate P0 mientras PR #225 no se revise y
+  fusione; este cambio de interfaz no lo apaga ni sustituye el hotfix.
+- Se eliminaron del remoto las refs
+  `docs/ZAL-92-antispoofing-policy-and-repoPath-whitelist` y
+  `fix/contact-api-uuid-validation`: sin PR histórico, sin protección y con
+  `ahead_by=0` respecto de `main`; los commits siguen en el historial. No se
+  hizo limpieza masiva.
+- **Validación local:** contrato focal 2/2, TypeScript y `git diff --check`
+  pasan; ESLint tiene 0 errores y 1 advertencia preexistente en
+  `FamilyPaymentMethodCard.tsx:67`. `pnpm build` falló con `ENOSPC` al escribir
+  `.next` (5,2 GB; quedaban 129 MB). No había otro `next dev/build` activo; la
+  salida está ignorada por Git y se conserva porque el entorno rechazó el
+  borrado directo. Vercel construyó el mismo SHA y el Preview quedó `READY` en
+  `https://zaltyko-q1jk0s54p-mentessaas-projects.vercel.app` (deployment
+  `dpl_8zmG13n9Zob3UB2BZuaGZ7PdDL8s`, target Preview). Esto valida el build
+  remoto, no el flujo familiar autenticado.
+  Sin cambios en Stripe, migraciones, base de datos ni producción.
+
+## 2026-10-13 — Vincular la autorización familiar a la cuenta de cobro de su academia
+
+- Se añadió una proyección server-only de Stripe Connect con cuenta única por
+  organización/procesador/entorno y configuración explícita: Accounts v2,
+  cargos directos, dashboard completo y responsabilidades de tarifas/pérdidas
+  en Stripe.
+- La autorización familiar ahora requiere referencia de SetupIntent y FK
+  compuesta a la cuenta de su misma organización. El mandato es opcional en el
+  esquema porque el medio de pago puede no tener mandato separado; el
+  consentimiento verificable sigue siendo obligatorio para operar.
+- La elegibilidad dejó de aceptar un booleano genérico de proveedor listo:
+  valida desde datos server-loaded tenant, entorno, modelo, estado, capacidad
+  card_payments activa y que la autorización use esa misma cuenta. Free/trial y
+  el runtime no liberado continúan fallando cerrados. El umbral de frescura de
+  last_synced_at aún no se aplica y bloquea cualquier liberación del worker.
+- Se añadió ADR-0022 y se actualizaron el plan, ledger/runbook, decisiones y
+  backlog.
+- **Validación local:** elegibilidad 27/27; pruebas de billing familiar y
+  ledger pasan en PostgreSQL efímero; stack canónico completo pasa; validate:rls
+  cubre 79/79 tablas tenant-scoped; check:migrations valida 7 Drizzle + 109
+  Supabase; TypeScript pasa. Un primer fallo local reveló que el enum del
+  entorno estaba en la migración posterior; se movió a la migración previa de
+  cuentas y se repitió exitosamente la secuencia desde cero.
+- No se crearon cuentas ni se llamó a Stripe; no hubo migraciones remotas,
+  cambios en Vercel Production ni en producción.
+
+## 2026-10-13 — Verificar el Preview del alta owner
+
+- El Preview `dpl_AoNp9HAgGb2gLMLjqLXNuU6F7rH8` quedó `READY` para el commit
+  `795c7c0e5a861aa0ada709cfcd10348f3491ea19`. Registro y directorio se
+  inspeccionaron en la URL única del deployment; el formulario muestra el copy
+  acortado, pero el catálogo expone `TEST active`.
+- El ID coincide con una fila pública del sandbox E2E y no con una fila de
+  producción. Vercel devolvió metadatos de variables Preview limitadas a otra
+  rama; no se descifraron valores, por lo que la conexión runtime sigue
+  **NO VERIFICADA**.
+- No se borró ni alteró la fila, no se creó cuenta y no se envió el formulario.
+  El cambio no se fusionó ni se publicó en producción. Evidencia:
+  [`auditoría UX`](../../../../Zaltyko/auditoria-2026-10-13/OWNER-REGISTRATION-UX.md).
+
+## 2026-10-13 — Exponer el formulario de autenticación como landmark principal
+
+- La revisión de teclado del registro encontró que el formulario no tenía
+  landmark `<main>`. Se reemplazó el `section` exterior del shell compartido de
+  autenticación por `<main>` para registro, login y recuperación.
+- Prueba de regresión 1/1; TypeScript y ESLint focal PASS. El Preview
+  `dpl_83JvPMPiDhcZxH7opjL6pXQ3ncFg` está `READY` para
+  `45d28de7aef64d9f1a362a406ac9d4f0f7a8fa48`; el DOM contiene un `main` que
+  incluye el formulario, sin cambio visual ni envío/creación de cuenta.
+- La secuencia de Tab, nombres y foco visible se probaron manualmente de forma
+  parcial. VoiceOver, zoom, contraste medido y errores dinámicos siguen
+  pendientes; no es certificación WCAG. Producción no cambió.
+
+## 2026-10-13 — Simplificar y proteger el registro manual de pagos
+
+- La UI muestra un estado vacío explícito cuando no hay cargos abiertos. Si el
+  servidor devuelve un error 5xx de resultado incierto, el botón permite
+  reintentar el mismo cuerpo y la misma clave idempotente para evitar duplicar
+  el pago. El campo decimal admite coma española en móvil y conserva la
+  validación del saldo máximo antes de enviar.
+- Pruebas de componente 3/3 (estado vacío, reintento idempotente y `12,50` →
+  1.250 céntimos); TypeScript, ESLint y Prettier focal PASS. Usa
+  respuestas sintéticas en jsdom: no valida una sesión autenticada, una
+  transacción real ni el aislamiento por sede. No se llamó a ninguna API real
+  ni se modificaron datos.
+
+## 2026-10-13 — Crear y añadir una gimnasta desde el grupo
+
+- `/owner/groups` permite crear una ficha mínima (nombre y apellidos) y añadirla
+  al grupo con un único envío. La transacción crea `people`, `athletes`, la
+  relación canónica M:N `group_memberships` y su historial; verifica scope y
+  capacidad, registra outbox/auditoría sin PII y permite reintento idempotente.
+- No crea familia, cuenta de acceso, enrollment, consentimiento ni pago. Tests
+  focales de rutas/UI 12/12, harness PostgreSQL local, TypeScript, ESLint focal
+  y Prettier en TS/TSX PASS; gates auth/RLS/migraciones también PASS. Queda la
+  revisión final del diff; sesión real en navegador y E2E remoto pendientes.
+  `pnpm build` genera 289 rutas; variables runtime Stripe/Supabase ausentes,
+  por lo que no valida conectividad ni ejecución real.
+- No se aplicó SQL remoto ni se modificó Producción, Stripe Live o Vercel
+  Production. El commit `9d6cbcf2` está desplegado en Preview `READY`, protegido
+  por SSO; no se validó sesión Owner ni conexión a la base.
+
+## 2026-10-13 — Hacer portable el E2E de navegación móvil Owner
+
+- El workflow `38434571600`, sobre `aade3c9`, pasó build, lint/typecheck,
+  unitarias, RLS, integridad de migraciones, móvil y SBOM. El E2E autenticado
+  falló en Chromium, Firefox y WebKit al resolver `getByRole("button")` para el
+  `<summary>` nativo «Más». El test ya usa viewport de 375 px y encontraba el
+  nav y sus cuatro enlaces principales; el fallo estaba en localizar el
+  disclosure, antes de verificar su apertura.
+- Se cambió el locator E2E para enfocar el elemento `<summary>` visible y
+  mantener la interacción por teclado con Enter y la aserción de enlaces
+  secundarios. No se cambió el componente ni su comportamiento visible.
+- Vitest de navegación 4/4, ESLint y Prettier focal PASS. El nuevo E2E
+  autenticado de los tres navegadores está pendiente en CI; no se interpreta la
+  enumeración de casos como ejecución.
+- No se modificaron producción, Stripe Live, credenciales ni base de datos
+  remota. El Preview de `aade3c9` sigue siendo solo una vista candidata.
+
+## 2026-10-13 — API Owner para el pase de lista greenfield
+
+- Se añadió `GET/POST /api/v1/owner/sessions/{sessionId}/attendance` sobre el
+  dominio `zaltyko`. GET devuelve `{ enrollmentId, athleteName,
+  attendanceStatus }` para inscripciones `active`/`trial` vigentes en la fecha
+  local de la sesión. POST acepta organización, sede, enrollment y estado,
+  exige `Idempotency-Key` y deriva el actor del usuario autenticado.
+- Owner/admin/manager requieren membresía activa y alcance a la sede; coaches
+  además necesitan perfil activo y asignación a la sesión. El writer valida
+  nuevamente la sede dentro de la transacción y delega idempotencia, corrección,
+  audit log y outbox a `recordAttendance()`. No se cambió RLS, esquema ni ruta
+  legacy; las respuestas incluyen `private, no-store`.
+- Se amplió `scripts/verify-zaltyko-operational-services.ts` con aislamiento
+  cross-tenant, manager fuera de sede, coach sin asignación, enrollment pending,
+  enrollment vencido, roster sin estado, estado previo, retry idempotente y
+  corrección. La primera ejecución detectó que la fixture de manager usaba su
+  sede permitida; se añadió una sesión sintética en la sede fuera de alcance y
+  el harness volvió a pasar.
+- Validación final: Vitest focal 5 archivos/30 tests PASS; harness
+  `test:zaltyko-operations:local` PASS (`one enrollment accepted, one
+  CAPACITY_FULL`; `sessions: 2`; `attendance: serialized corrections on one
+  row`; `outbox: 24`; `audit: 24`; `history: 6`); TypeScript y ESLint focal
+  PASS; `check:migrations` PASS (7 Drizzle + 110 Supabase); `validate:rls`
+  PASS (79/79); `gate:auth` PASS (392 archivos).
+- E2E autenticado y walkthrough del Owner siguen pendientes por el gate del
+  sandbox. Sin SQL remoto, despliegue, cambios de Stripe Live o credenciales.
+
+## 2026-10-13 — Pase de lista Owner y alta recuperable
+
+- Se integraron `/owner/attendance` y la navegación Owner. La lista usa la zona
+  horaria de cada sede; permite seleccionar sesión y guardar/corregir asistencia
+  por inscripción con estados claros y reintento de la misma clave/payload ante
+  un resultado incierto. Los botones de fila tienen nombres accesibles por
+  gimnasta y los guardados se serializan.
+- El alta de academia conserva la clave y el payload si una respuesta del
+  servidor deja el resultado incierto; un rechazo definitivo permite corregir
+  y volver a enviar sin reutilizar la clave anterior.
+- Validación local: 28/28 tests focales de Owner, TypeScript, ESLint, Prettier
+  y `git diff --check` PASS; API de asistencia 9/9 tests de ruta y harness
+  PostgreSQL de operaciones PASS. E2E autenticado del navegador NO VERIFICADO
+  por falta de referencia sandbox local. Integrado en `codex/zaltyko-plan-implementation`
+  (HEAD `cd39ab7d`), publicado en PR #226 en borrador; no merge a `main`,
+  migración remota ni despliegue.
+- **Bloqueo adicional para DEMO-READY:** la pantalla de pago solo registra
+  recibos contra un cargo abierto. No existe acción Owner greenfield para
+  emitir la cuota/factura/cargo desde la academia vacía; `issueInvoice()` no
+  está expuesto por una ruta Owner y la inscripción no tiene precio asignado.
+  Se documentó como P0; no se conectó la ruta legacy ni se inventaron reglas de
+  importe, pagador o vencimiento.
+
+## 2026-10-14 — Bypass del service worker para Next RSC
+
+- Las peticiones GET con `RSC: 1` o `_rsc` ahora quedan fuera del `respondWith`
+  del service worker y siguen por el fetch nativo del navegador. Se mantienen
+  sin cambios el paso de APIs por red, el HTML/offline y el cache-first de
+  assets estáticos. No se incrementó la versión de caché porque RSC no se
+  almacenaba.
+- Tests focales de `tests/pwa-security.test.ts`: 13/13 PASS. El trace Firefox
+  muestra RSC abortado junto con una navegación explícita concurrente; no
+  demuestra que el service worker fuera la causa raíz. Sin E2E, PostgreSQL ni
+  accesos remotos en este cambio.
+
+## 2026-10-14 — Viabilidad de backup/restore del Sandbox
+
+- Se documentó que el Sandbox no está verificado como exclusivamente sintético: los metadatos previos muestran conteos no nulos en tablas `public`, pero no prueban procedencia; no se leyeron filas ni Auth. La lectura previa de organización indicó plan Free.
+- Se evaluó sin ejecutar el dump lógico por CLI, el recorte a esquema greenfield y el restore gestionado de Supabase. El plan Free permite considerar dump lógico en un runner remoto aprobado, pero no hay destino seguro/retención/autorización de datos definido; CLI excluye Auth/Storage y los objetos de Storage requieren copia aparte. Esquema-only no restaura estado operativo.
+- El restore local PostgreSQL 17 PASS de Main valida el runner con fixtures sintéticas; no demuestra recuperación del Sandbox remoto.
+- Sin exports, consultas nuevas al proveedor, recursos, pagos, migraciones ni runners. Detalle: [`sandbox-backup-restore-viability-2026-10-14.md`](../../docs/qa/sandbox-backup-restore-viability-2026-10-14.md).
+
+## 2026-10-14 — Diagnóstico focal del fallo de la suite Vitest
+
+- La suite completa de `3e225fc7521afa94b7ca9a69cdd38234ac3bf5cd` terminó con
+  497 archivos PASS, 2 FAIL, 1 omitido; 2.633 tests PASS, 3 FAIL y 3 omitidos.
+  Fallaron dos tests por timeout de 5 s y uno por diferencia del cuerpo en el
+  reintento de grupo. Una corrida focal única de ambos archivos pasó 7/7, pero
+  no invalida el fallo completo ni demuestra flakiness.
+- La revisión de cleanup y payload no identificó causa raíz probada. No se
+  cambiaron tests, timeouts, exclusiones ni código; se mantiene en backlog la
+  investigación. Nota: [`vitest-full-suite-focal-diagnosis-2026-10-14.md`](../../docs/qa/vitest-full-suite-focal-diagnosis-2026-10-14.md).
+- La suite incluye 486 archivos web y 14 móviles; dos regresiones móviles
+  siguen excluidas por configuración y faltan dependencias móviles locales.
+  Sin instalación, E2E, PostgreSQL, sandbox ni plataformas.
+
+## 2026-10-14 — Snapshot inmutable para alta de grupo Owner (local)
+
+- En rama propia `codex/owner-groups-idempotency-20261014`, desde el SHA exacto
+  `b64a65335c11ee5000eaba6ab28aa368c078c419`, el alta guarda el cuerpo serializado
+  junto a su clave, versionado y con scope de organización. Resultado 5xx,
+  respuesta 2xx incompleta o error de red conserva el pendiente; el botón
+  explícito reenvía el mismo cuerpo y la misma clave, incluso tras recargar.
+- Los campos se restauran y quedan bloqueados mientras el resultado siga
+  incierto. Un 4xx definitivo limpia el snapshot; una edición posterior genera
+  una clave nueva. Los registros legacy con solo clave no se reenvían ni
+  permiten crear otro grupo; su resolución segura queda en backlog.
+- El copy de reintento habla de volver a comprobar la solicitud original para
+  evitar duplicados. Los registros legacy/dañados ofrecen actualizar la lista o
+  contactar soporte, sin borrarlos ni prometer un resultado. Al cambiar de
+  organización en el mismo componente se oculta el snapshot anterior, se
+  restablece el borrador y el alta queda bloqueada hasta cargar el nuevo scope.
+- Tests UI focales 7/7, TypeScript, ESLint focal, Prettier y `git diff --check`
+  PASS. No se ejecutaron E2E, PostgreSQL, navegadores, Sandbox ni producción.
+  Este arreglo no atribuye ni resuelve los fallos de la suite completa.
+
+## 2026-10-14 — Claridad de copy sobre cobro familiar automático
+
+- En rama local `codex/family-billing-copy-clarity-20261014`, basada en
+  `67820e47`, se hace explícito que «Solicitar automático» solo guarda una
+  preferencia futura y la modalidad efectiva continúa manual. Free y trial
+  siguen manuales; Growth aclara que el cobro familiar automático aún no está
+  disponible. No cambian lógica de planes, preferencias, consentimiento,
+  procesamiento ni precios.
+- El artículo público distingue recomendación general de capacidad actual; el
+  formulario de pago manual describe el saldo actualizado al guardar. La nota
+  técnica marca el PaymentIntent off-session como previsto/no liberado.
+- Validación focal documentada en [nota QA](../../docs/qa/family-billing-copy-clarity-2026-10-14.md).
+  No hay navegador/E2E, sandbox, plataformas, producción ni Stripe Live en el
+  alcance.
+
+## 2026-10-14 — Paginación íntegra para replay de facturas mensuales
+
+- En rama `codex/monthly-billing-a2-paging-20261014` desde `148e4e55`, se paginan por cursor estable los miembros familiares, la cobertura de tarifa durante idempotencia, líneas/snapshots de una factura y cargos. La asociación familiar conserva su lock compartido; los cargos se bloquean al leerse; el replay busca IDs de factura con centinela 2 y rechaza duplicados, luego compara y devuelve el conjunto completo. La búsqueda de cuotas previas limita a 1 porque cualquier coincidencia bloquea la emisión.
+- La consulta de plantillas limita a `n+1` para la entrada validada de hasta 100 y falla explícitamente ante exceso. En ambos caminos de replay, el estado de cargos se bloquea primero y el estado de factura se vuelve a leer después, sin bloquear la fila de factura. El flujo de pago observado bloquea cargo antes de actualizar factura; la ruta de anulación no se verificó, así que no se afirma un orden global sin ciclos.
+- Tests unitarios focales de paginación y replay: 11/11 PASS; `pnpm typecheck`, Prettier y `bash -n` PASS. Runner dedicado PostgreSQL 17 efímero: PASS, 205 memberships/coberturas/líneas/snapshots/cargos; pago concurrente sintético leído por replay; corte de snapshot visible y revertido; cleanup PASS. `pnpm gate:reads:strict` previamente devolvió 15 hallazgos en otros módulos y 0 en los dos servicios de facturación. Sin E2E, browser, sandbox, producción ni acceso remoto.
+- Riesgo diferido: `buildMonthlyInvoiceOptions()` aún tiene topes silenciosos; está registrado en el backlog para parche separado. Sin migración ni cambios remotos.
+
+# 2026-10-14 — Snapshot y batches de proyecciones de retención: evidencia y NO-GO
+
+- Fase 1: `8a67e8dc94918f944230adffb0f57d15ffaecb15`; fase 2: `34e0afdb3bf8f7614fc818a62340737a7fd4bd09`; integraciones reportadas: `f33bd512055ff5a45921b4c79c5b5cb8cd2a054d` y Main `820eedb06ce627c49322054ff5ad347faffb9aed` (incluye health-history; QA38 reportado sin bloqueantes).
+- Fase 1 comparte un snapshot keyset por organización en `READ ONLY REPEATABLE READ`. Fase 2 inserta 500 scopes por batch, descubre claves/IDs con límites por bloque, bloquea IDs en orden global ascendente, pagina `completedRuns` por organización y pasa run IDs como un único `uuid[]` mediante `sql.param`/`ANY`. El CTE agregado y timeout `120s` se conservan.
+- Comandos focales reportados en las ramas de fase, no ejecutados de nuevo en este commit documental:
+  - `node_modules/.bin/vitest run tests/active-location-snapshot.test.ts tests/build-retention-cohort-projections-snapshot.test.ts tests/process-metric-invalidation.test.ts` — fase 1: 11/11; fase 2: 12/12.
+  - `pnpm typecheck` — PASS en ambas fases.
+  - ESLint focal del lector/pipeline/tests (fase 1) y `node_modules/.bin/eslint src/modules/analytics/application/build-retention-cohort-projections.ts tests/build-retention-cohort-projections-snapshot.test.ts` (fase 2) — PASS.
+  - `git diff --check` — PASS.
+- `PgDialect.sqlToQuery` valida SQL y parámetros; `pg/lib/utils.prepareValue` valida la serialización local del array. Eso, y los mocks, **no es una ejecución PostgreSQL**: siguen sin verificarse aislamiento Repeatable Read efectivo ante cambios concurrentes, orden real de locks entre workers, replay/transacción y equivalencia agregada del CTE con datos.
+- **NO-GO** hasta verificación PostgreSQL local sintética y E2E autenticado del flujo. No se ejecutaron PostgreSQL, E2E/browser, suite completa, Sandbox, remoto ni producción en esta tarea documental. Detalle: [`retention-projections-runtime-gate-2026-10-14.md`](../../docs/qa/retention-projections-runtime-gate-2026-10-14.md).
+
+## 2026-10-15 — Corregir carga al reseleccionar sesión de asistencia Owner
+
+- La traza de QA71 (`68a734fb39b30478916112d3606b1488efdbf9b7`) muestra que el GET del roster respondió 200 con la gimnasta esperada. El test vuelve a seleccionar la primera sesión, que ya estaba seleccionada por defecto; el manejador vaciaba el roster y activaba `loading`, aunque el ID no cambiaba y por tanto no empezaba otra carga. El estado resultante coincide con «Cargando lista…» y la ausencia del control accesible.
+- `OwnerAttendanceManager` ahora ignora un cambio al mismo ID antes de limpiar estado; cambiar a otra sesión conserva el fetch y refresco normales. La regresión cubre ambas transiciones.
+- Validación en rama aislada desde `7ac8b87e8d39133abec9faf4a6a05585f83d32fa`: `vitest run tests/owner-attendance-manager.test.tsx` — 6/6; `tsc --noEmit` — PASS; `git diff --check` — PASS. Sin build, E2E/browser, servicios locales, PostgreSQL, Sandbox ni producción. QA71 sigue siendo FAIL y no se hizo otra corrida.
+
+## 2026-10-15 — QA59: límites del harness Owner E2E local
+
+- En rama local `codex/a2-local-owner-e2e-safety-20261014`, la prevalidación
+  resuelve y fija un Docker Unix socket local; el cleanup termina el grupo de
+  procesos aunque el líder cierre antes y preserva el directorio si no confirma
+  la salida. La suite local bloquea service workers y elimina hints externos
+  conocidos de HTML local. No se cambia código de producto.
+- La ruta de requests HTTP de Playwright no acredita egress cero: DNS/TLS
+  especulativo, tráfico server-side y otros canales quedan fuera. Aislamiento
+  efectivo requeriría una frontera de red aparte. Detalle y comando directo sin
+  pnpm: [`local-owner-e2e-safety-2026-10-15.md`](../../docs/qa/local-owner-e2e-safety-2026-10-15.md).
+- Tests mock focales: 35/35; TypeScript, ESLint focal, Prettier y diff check
+  PASS. Sin Docker/Supabase, build, E2E,
+  PostgreSQL, contenedores ni red en esta pasada.
+
+## 2026-10-15 — QA59 follow-up: dispatcher Node para Next y Playwright
+
+- En `codex/a2-local-owner-e2e-safety-20261014`, el harness resuelve los bins
+  `next` y `playwright` desde el `package.json` instalado y pasa sus entrypoints
+  JavaScript a `process.execPath`; ya no ejecuta los shims `.bin`. El
+  `webServer` de Playwright resuelve Next del mismo modo.
+- Mocks focales: 23/23; TypeScript, ESLint focal, Prettier y diff check PASS.
+  Sin build, browsers, Docker, Supabase, PostgreSQL ni E2E. La ejecución local
+  sigue pendiente de autorización del flujo principal.
+
+## 2026-10-15 — QA65: permiso loopback solo para Chromium local
+
+- La traza QA65 demuestra intento POST a Auth sin respuesta por denegación
+  Chromium de acceso a `loopback`; HIBP respondió 200. Sentry Replay fue
+  bloqueado aparte por el guard. En suite local Chromium, se concede el permiso
+  `local-network-access` solo al origen app loopback validado. La petición
+  exacta de Replay sigue abortada y se registra aparte; el resto de bloqueos y
+  errores de página/consola siguen visibles.
+- Mocks permiso/origen y Sentry: 19/19; TypeScript, ESLint focal, Prettier y
+  diff check PASS. Sin nueva ejecución de navegador ni servicios. Cleanup
+  completo consta en el informe QA65 preservado sin modificar.
+
+## 2026-10-15 — QA72: E2E Owner mensual local Chromium PASS
+
+- Corrida fría del candidato a1edf37d56ac2b1d9f21a1bfa49a62c7b58bb681 en worktree detached nuevo. Node 22.22.3, Next 15.5.27, tsx 4.23.13 y dependencias preexistentes con lock/manifiesto coincidentes; sin caché Next previa, instalación ni pull.
+- Chromium completó el test de alta y operaciones Owner: roster/asistencia, cuota, pago manual y dashboard. La consulta SQL confirmó persistencia del cargo/pago; pasó el resumen a 375/768/1280 sin overflow y las negativas sintéticas de organización, sede y coach devolvieron 403. Un test/worker, exit 0.
+- Cleanup del stack/volúmenes informado por el runner y verificado sin recursos temporales propios. Sin Firefox/WebKit, CI, Sandbox, remotos ni producción. Detalle y log: [informe QA72](../../docs/qa/local-owner-e2e-chromium-a1edf37-2026-10-15.md).
+
+## 2026-10-15 — Gate CI sintético local para E2E Owner
+
+- En `codex/ci-local-synthetic-gate-20261015` sobre `bf094a1f`, el workflow
+  predeterminado desactiva readiness y E2E del Sandbox remoto. El E2E Owner
+  sintético queda como matriz bloqueante de Chromium, Firefox y WebKit para PR y
+  push. Se conservan timeouts del spec/build, retries cero y un worker.
+- `preload-local-e2e-images.ts` solo opera bajo `GITHUB_ACTIONS=true`, valida el
+  endpoint Unix local y daemon Docker, y descarga refs exactas del manifiesto
+  compartido; la verificación posterior del runner sigue fail-closed.
+- Bloqueo: el SHA disponible de Supabase CLI 2.84.2 corresponde a macOS y no se
+  encontró hash Linux verificado localmente. No se aflojó el guard ni se buscó
+  en red; el job Linux abortará hasta resolverlo. La protección de rama también
+  debe exigir el nuevo check estable desde GitHub.
+- Validación: contratos de workflow/preloader 6/6 PASS, `tsc --noEmit` PASS,
+  Prettier `--check` y `git diff --check` PASS. No correr E2E, Docker/Supabase,
+  CI remoto ni servicios externos en esta tarea.
+- Vault: actualizados `Decisiones.md`, `Backlog priorizado.md` y este changelog;
+  sin cambios de producto, pricing, migraciones o datos.
+
+## 2026-10-15 — Corrección del `if` duplicado en E2E remoto desactivado
+
+- En `codex/ci-local-synthetic-gate-20261015`, se elimina el segundo `if` de
+  `e2e-auth`, que podía sobreescribir el `false` de protección. La suite de
+  contrato ahora parsea `ci.yml` con `js-yaml`, verifica condiciones efectivas
+  y prueba que una fixture con claves duplicadas es rechazada. Se añade
+  `js-yaml` 4.3.2 como dependencia de desarrollo; queda bajo el override de
+  seguridad existente.
+- No se cambia el bloqueo del hash binario Linux, no se ejecuta CI, E2E, Docker,
+  servicios remotos ni se altera branch protection.
+- Contrato YAML local: 4/4 PASS; detecta claves duplicadas mediante parser.
+
+## 2026-10-15 — Pin del binario Supabase CLI Linux x64 para E2E CI
+
+- Se fija `linux-x64` a `3132b218461bf90d4cd5983b27b44031cd9b6c797c259a431b2e2520b5f7bdce`, preservando `darwin-arm64` y rechazando otros targets. La verificación previa registró tar oficial v2.84.2 de 29.936.583 bytes con SHA `620a5f6ea7b60f9b4fe112a5d72464ea0e53d04022035641674a2e6d121e0eb5`; miembro único `supabase` regular de 94.924.984 bytes con el SHA binario fijado. El CLI no se ejecutó en esa verificación.
+- CI descarga desde el release oficial y solo lo pone en `GITHUB_PATH` después de validar SHA del archivo, miembro tar permitido, tamaño/SHA del binario y versión. El instalador opera solo en GitHub Actions bajo `RUNNER_TEMP`; tests sintéticos no descargan nada.
+- Fuentes/evidencia: [release v2.84.2](https://github.com/supabase/cli/releases/tag/v2.84.2), [assets y checksum oficial](https://github.com/supabase/cli/releases/expanded_assets/v2.84.2), `/tmp/supabase-cli-2.84.2.sQ6wuV/verification.txt`.
+- No ejecutar CI, descargar/instalar el CLI localmente, ni abrir Docker/Supabase/E2E o servicios remotos.
+- Verificación mock-local: 20/20 Vitest de contrato/preflight, 5/5 pruebas del instalador con tar sintético, TypeScript y Prettier focal PASS. `git diff --check` PASS. Sin descarga/ejecución del CLI oficial ni ejecución CI.
+- Revisión final del manifiesto tar: el release contiene exactamente `LICENSE`, `README.md` y `supabase`, los tres archivos regulares. El extractor permite esos nombres una vez cada uno, selecciona solo `supabase` y rechaza links, duplicados, rutas y extras; los fixtures sintéticos cubren esas formas.
+
+## 2026-10-15 — Diagnóstico saneado de fallo al precargar imágenes E2E
+
+- El run `38698304250` del SHA `5001651c` falló en la precarga en Chromium
+  (`postgrest:v14.7`), Firefox (`postgres:17.6.1.095`) y WebKit
+  (`logflare:1.34.14`). Los tres manifests consultados ahora existen y declaran
+  `linux/amd64`; no se concluye que estuvieran disponibles durante ese run.
+- El preloader ignoraba stderr cuando `docker pull` devolvía código no cero. Main
+  endureció la propuesta QA: incluye status e indicadores fijos, nunca fragmentos
+  arbitrarios de stderr. No cambian imágenes, versiones, timeouts, checks ni retries.
+- Revisión QA103 GO. Pruebas Main: 13/13 preloader y 2/2 protección despliegues PASS;
+  formato y diff-check PASS. Causa remota todavía pendiente de observación.
+- Integración selectiva de Frontend bb8b94ba: pin móvil shell-quote1.11.0 y regresión;
+  evidencia Frontend 337/337 móvil, typecheck/lint y parches locales aplicados. No
+  equivale a alertas cerradas en main ni a app distribuida. Se investiga inventario
+  npm23high sin upgrades indiscriminados.
+- Metadata remota de solo lectura documentada en remote-schema-metadata-2026-10-15.md.
+  Sin DDL, datos de negocio, merge ni despliegue. Alcance comercial priorizado a piloto
+  con flujo esencial, sujeto a CI, seguridad, esquema/recuperación y aprobación PR.
+
+## 2026-10-15 — Segundo CI: preparar corrección de dependencias de test y ráfaga ECR
+
+- CI38700837089 sobre5d072d19 terminó FAILURE: WebKitSUCCESS, Chromium/Firefoxpullrate-limit; UnitTests falla cargando regresión móvil shell-quote por dependencia no instalada en job combinado. No excluimos la prueba: se añade instalación móvil congelada antes de coverage.
+- Propuesta max-parallel1 mantiene3navegadores,gate,timeout30m; reduce simultaneidad sin prometer corregir cuota externa. Main contratos22/22PASS,diffcheckPASS; revisiónQA pendiente.
+- Aplicación selectiva Frontend eae53e02: compression1.8.2 ysource-map-js1.2.2 enlocksmóviles,regresiones;339/339 local conambosgestores segúnFrontend. Residual2advisoriesbraces/node-forge sinfixupstream,parcheslocales yregresionesaplicados;no alertasremotas cerradas.
+- Backend prepara manifiesto18migraciones en checkoutaislado corregido Zaltyko-mvp-ops-backend-20261013; no ejecutorapply ni DDL. Sin cambiosdedatos ni despliegues. Fuentes: ci-5d072d19-rate-limit-2026-10-15 y mobile-tooling-dos-2026-10-15.
+
+- Revisión QA110 GO tras Node22 solo en job UnitTests y contrato correspondiente;22/22MainPASS repetido. QA confirma WebKitfuncional1PASS y cleanupreportado porrunner en5d072d19; globalCI sigueFAIL. Manifiesto backenddb448d7c listo local25testsPASS, pendiente revisiónFrontend e integración separada; no readinessdestino.
+
+## 2026-10-15 — Candidato de6c3a64 y manifiesto estático de esquema
+
+- PR226 actualizado sinmerge/despliegue a de6c3a64534c8ccdd3d71050a00aa728c733a5d6 tras QA110GO/22contratosPASS/protecciones verificadas. CI38703429157 pendiente; Directory38703429149 yStatic38703429248SUCCESS. No duplicar dispatch/runners.
+- Frontend66GO para db448d7c solo como checker/documentación. Main integra5archivos nuevos, sin alterar allowlist ya existente de Sandbox. Main25/25testsPASS y CLIworktree18/18hashesPASS; schemaReadinessNOT_VERIFIED,activationAllowedfalse. Manifiesto referencia bytes5d072d19, noaprueba versiónposteriorsemántica ni DBreal.
+- Sin ejecutorapply/DDL/backup ni recuperaciónremota; Backendcontinúa diseño read-only. Conservar esta integración local sinpushmientrascorreCI para no reiniciar matriz.
+
+## 2026-10-15 — Cierre CI de6c3a64 y regresiones unitarias locales
+
+- CI38703429157 terminóFAIL: Chromium/WebKit precarga rate-limit; Firefox build240s agotado tras294/294páginas yCollectingbuildtraces, sin Playwright, cleanupreportado porrunner. Main verificó logs; QA113 confirmó. Otros build/móvil/estáticos/securityPASS; SandboxSKIPPED. No relanzar corrida idéntica.
+- Frontend7627dc6c integrado selectivamente: cwdmobile para subprocesos de seguridad. EvidenciaFrontend2/2desdeamboscwd; integraciónMain sinmobile/node_modules no puedevalidarambos (nofalsoPASS).
+- Paginación: falloMainreproducido6108ms; predicadomock compilado+sets depertenencia evita interpretaciónrepetida. Frontend68GO; 4/4focalconcoveragePASS, caso4001familias2155ms; sinrebajardeadline5s/fixtures/assertions, sin modificarservicio. Añadida equivalenciacomparaciones/booleanos/nulos/pertenencia.
+- QA prepara evidencia13/13manifiestosECR/DockerHubiguales; metadataúnicamente, sindescargasdecapas. Frontend investiga build/tracing; Backend prepara consultacatálogo mínima sinapply. Sinpush/dispatch/DDL/merge/despliegue ni datosreales. Detalle: docs/qa/ci-de6c3a64-failures-2026-10-15.md.
+
+## 2026-10-15 — Preflight parcial de catálogo remoto, sin filas
+
+- Integrado Backend59b19e0a como SQL/documento/test estáticos; Frontend72GO. Main42/42testsPASS(17catálogo+25manifiesto). El guardregex no autoriza SQL arbitrario; fuentes con coma/funciones no prefijadas son límites conocidos, cada SQL necesita revisión.
+- Main ejecutó solo SELECT1/2/10 y3/4/5 derivados/filtrados a8nombres, READONLY+10s, ambosproyectos. ProdNO namespaceszaltyko/domain_private; Sandbox faltan3tablasconsentimiento+2mensuales yinvoice_linesSINlocation_id/athlete_id. AmbosSINbtree_gist, pgcrypto1.3. RolMCPbypassrlsNOpruebarolapp. No filas Auth/negocio/ledger, cuerpos/expresiones niDDL. Snapshotdocs/qa/remote-schema-catalog-2026-10-15.json y explicaciónremote-schema-metadata.
+- Esquema contractual no listo; historial/backuprecuperable/privilegiosapp siguenpendientes. Sin restauración/exportación/datosfixtures/pagos/merge/despliegue.
+
+## 2026-10-15 — Diagnóstico seguro de fallo build, sin ampliar plazo
+
+- Frontendc60a28b1 integrado selectivamente: resumen.next/trace solo5fasesallowlist yduraciónmáximadespan, envoltorioJSONbuildTracePhases. Backend72 sinbloqueantes; Main31/31diagnóstico/core/wiringPASS,tsc/formatoPASS. AdaptacióncontratoestáticoverificacallCLI,args,envproduction,240s,abortsignal dentrodelwrapper.
+- Máximo8MiB/100keventos; erroresdeldiagnóstico no sustituyenoriginal ni finallycleanup. Límites: JSONparseantesdecontarevents, padre.nextpuedesersymlink, trazavieja/fragmentaria no identificaejecuciónactual, diagnósticosíncrononoformaunplazoglobal240s. Docsactualizados; ningunanuevabuild/E2E/CI. No esfixdelacausa.
+
+## 2026-10-15 — Integración de alternativa por digest, sin ampliar plazos
+
+- QAefde620b integrado selectivamente al precargador.13pins linuxamd64 coincidenconallowlist; unaalternativaHub soloanteECRrate-limitexclusivo+statusenteropositivo. VerificaConfigID+RepoDigests antesydespuésretag;600scompartidos entrecomandos,sinlogin/secretos/retries. EntornofiltradoyguardGHAconservados.
+- Frontend encontróstatusnull429 permitíafallback: Maincerróguardcon5regresiones(null/-1/1.5/NaN/Infinity). Frontend75GOestático,QA119sinbloqueantes. Main80/80mockPASS5archivos2.78s;tscsalida0,eslint0errores1warningexistenteparámetromockno usado. NoDocker/pullreal/E2E/CI nuevo durantepreparación.
+- Requiere unúnicocandidatoCIrevisado; cuotasHub/normalización/retagSupabaseruntimeaúnNOdemostrados. Build240ssigueabierto condiagnóstico acotado, nofixpresumido. NoDDL/merge/despliegue niresoluciónfalsa de alertasresiduales.
+
+- Push normal confirmado e7dff88b39ba4fdf19c2f35f1f918a8ff3fa02a1 aPR226 draft. CI38707901100 queued,Static38707901067yDirectory38707901250 encurso08:45UTC. ProteccionesMain/Vercel/Deployreconfirmadas; sinmerge/publicación. QAmonitoriza únicascorridasautomáticas exactSHA. Noempujar estas notas duranteCI. Evidencia ci-e7dff88b-candidate-2026-10-15.md.
+
+## 2026-10-15 — Historial técnico conciliado sin aplicar esquema
+
+- list_migrations metadata53prod/70Sandbox,0versionesnativasde18; no equivale aSQLnoejecutado. Catálogo confirma baseledgerSandboxpresente/deltaausente, ambosausentesprod. Backend76GO SQLfijo yMain2regresionesPASS:16/16baseSandboxversion+checksumcoinciden,2deltasausentes,0extras. Lectura técnicaREADONLY10s, no negocio/Auth/finanzas niDDL.
+- ACLprivadaSandbox: authenticatedUSAGEsí,anonno; ambosSELECTledgerno, RLSledgerfalse; noafirmarexposiciónDataAPI. MCPgetprojecthealthy/PG17.6 no acreditabackup. Herramientasactualesnoinforman disponibilidadcopias; navegadorcontrolnohabilitadoporfaltaSKILLobligatorio. Pedirevidenciamínima deBackups,sinrestore/export/costes. Fuente remote-history-and-recovery-2026-10-15.md.
+
+## 2026-10-15 — Chromium remoto aprobado; gates restantes separados
+
+- SHAe7dff88b, CI38707901100: Chromiumjob116331776745SUCCESS, logMain1PASS28.5s ycleanupreportadoporrunner. FirefoxE2EencursoQA126; WebKit/gatependientes. Static/Directory/otrosjobsPASS, SandboxSKIPPED. Sinreruns/pushduranteCI ni despliegues.
+- Frontend77+Main alertas: sieteabiertasmain,cuatroadvisories. Tresregistroscorregidosporversióncandidato(MCPSDK/shellquote); cuatroregistrosbraces/nodeforge mitigadosmóvilnocerrados. Bracesraízsinparchemóvil requierealcanceindependiente. MatrizconSHAs/fuentes/límites en docs/security/dependency-alerts-e7dff88b-2026-10-15.md.
+- Historialmetadata/backups/rolapp noequivalenaesquemalisto; peticiónBackupsyaenviada,sinrepetir. Backendrevisaactivaciónoperativa sololectura. PRdraftsinaprobaciónrelease, nomerge/DDL/publicación.
+
+- QA127: Firefoxfallabuild240santesPlaywright,cleanupreportado09:02:10UTC;WebKitiniciado. Diagnósticounspanwebpack169841msnoatribuye causa. Compararlogs sinrerejecución.
+- Backend81: sininterruptorpilotoobservadoenbootstrap/finanzas/outbox; roles/lease/suspensiónnoequivalenacierreuniversal. Propuestaflagsservidornoimplementada, noactivarpublicacióndeformaaccidentalalprepararesquema. Informe owner-pilot-activation-audit-e7dff88b-2026-10-15.md. Sinampliaralcanceaciegas.
+
+- Seguimiento09:11UTC: QA130WebKitresultado/cleanuppendientes. Frontend81parchebracesraíz9regresionesPASS+frozenoffline, Mainpidiójustificarcambioscomillas/procedenciayrevisardifffinalantesintegración.
+- Backend84workerWebpackcompatibleestáticamentesinbloqueoexplícito, preparaLOCALexperimentosintéticodoblemarcador+testsaislados,sinbuildniatribuirahorro. Node20oficialEOL,22LTS, no seaceptabajarE2Ecomoarreglo. Fuente build-worker-investigation-e7dff88b-2026-10-15.md;240s/Sentry/tracing/checks/produccióninalterados.
+
+## 2026-10-15 — Cierre e7 y candidato siguiente revisado
+
+- CI38707901100FAILURE confirmadoMain: Chromium28.5s/WebKit40.2sPASS+cleanupinformadorunner;Firefox240santesPlaywright/gateFAIL,otrosjobsPASS,SandboxSKIPPED. No rerunidéntico.
+- Main integrahunks Frontende4d7caee rootbraces sinreemplazarmanifiesto/lockantiguos;Backend88/QA133GO. 10regresionesraízPASS, frozenoffline sin scripts salida0; hashpatchdymdrenw7322ki6dxkzzldxbhm/2refs, versionesintactas;restoriesgoupstreamnoresuelto.
+- Main integraworker2987da78+testajustec3663449;Frontend84/QA135GO. Primerfocal31PASS1FAIL porcostetestconfig5s; optimizaciónpreserva8casosVM/2configreales, noampliar5s/15s/240s. Main89/89en7archivosPASS3.67s,tsc0,eslint0,Prettier6filesPASS;locknoformateadoglobalmente,whitespacepatchcontextdocumentado. Sinbuildlocalnuevo.
+- Proteccionesmain/Vercel/DeployverificadasantesnuevoSHA; nomerge/DDL/deploy/pagos. Gates esquema/backup/rolapp/reviewindependiente siguenabiertos; peticiónBackupsyaenviada,sinrepetir.
+
+- Pushnormal2b581cd92be6cc1bf3531032a9914e006e409161confirmado09:31UTC;PR226draftREVIEW_REQUIRED. CIautomáticoporSHAenindexación,listadoprevio[], no dispatch/rerun. GitHubdeploymentrecordsSHA0. QAmonitorizasolonuevoSHAconbackoff. Notasci-2b581cd9-candidate-2026-10-15.mdlocalessinpushduranteCI. Ningúnmerge/despliegue/DDL.
+- Actualización09:38UTC: CI38713511027 abierto; Build/lint/móvil/RLS/migracionesPASS. Security116350475551FAIL únicamente por marcador `ZALTYKO_E2E_WEBPACK_BUILD_WORKER` ausente de `.env.example`; auditoría dependencias producciónPASS, SBOMskip. Main confirmó log y reproducción local `pnpm audit:env` exit1. Frontend prepara documentación mínima/defaultfalse+regresión sin tocar auditor ni remoto. Matriz/Unit pendientes, no readiness. Sin push adicional durante CI.
+- Corrección09:41UTC integrada LOCAL de Frontendd0c32c99, Backend92GO: solo declaración desactivada y3tests; Mainaudit:envPASS73, focal18/18en3archivosPASS10.21s, ESLint/Prettier/diffcheckPASS. Preservadas advertencias locales/VERCEL existentes; no copiar archivo antiguo completo. Sin modificar auditor/runtime, ni builds/E2E/Docker/push/remoto. QA138 sigue matriz original; no declarar CIverde ni publicar.
+- Observación09:47UTC MainSHA2b: Chromium116350475505SUCCESS1PASS32.4s09:38:44,cleanupinformadorunner09:39:05; Unit116350475345SUCCESS529filesPASS1skip/2886testsPASS3skip334.20s. Firefoxencurso/WebKitcola;run38713511027abierto,SecurityFAILyaanalizado,gatependiente. No push de fixlocal57a09b27/notas ni rerun. Sin datos remotos/DDL/despliegue; detalle y límitesci-2b581cd9-candidate-2026-10-15.md.
+- Cierre09:57UTC Main/QA141:CI38713511027FAILURE/gateFAIL. Firefoxbuild240santesPlaywrightcleanup09:46:56;WebKithub-inspectkongidentidadexit0antesretag/Supabase,camponoverificado,sinartifact/cleanupstackporquenoinició. Securityfixlocal57a09b27solodocumental. QA142/Backend93diagnosticanlimitesevidencia:seautorizaSOLOobservabilidadLOCALacotadaidentidadbooleana/buildmilestones+count/sum/max,sinrelajarchecks/240s niatribuirarreglocausal. Frontendrevisaráentregas. Sinpush/rerun/pulls/build/Docker/remoto. Captaciónenchatnuevoexplícitamenteautorizadoporusuario,independientedelrelease.
+- 10:12UTC Main integra hunks QA c9a70c8b (identidad6checks cerrados, guardMainpreservado) y Backend c276a1a6 (build4hitos/5fases count-sum-max, éxito/fallo). Frontend91GOestático; Main126/126mockPASS8files8.90s,tsc0,diffcheckPASS. Sinbuild/E2E/Docker/install/pulls/remoto. AliasfamiliarKongdemuestradefectocompatibilidadporfixture/fuenteMoby,NOcampoobservadoCI; QApreparacommitseparadoconGOdiseñoFrontend, aúnnointegrado. CI2bsigueFAIL/NO-GO; evidencia ci-2b581cd9-local-diagnostics-2026-10-15.md.
+- 10:18UTC f7de2825aliasexactos integradosporhunks,Frontend92GO/QA149GO,Main379/379mock9filesPASS20.75s/tsc0/eslint0/formatodiffcheck0; guardpositivo/plataforma/config/digest/600s/antesdespuésretagintactos. ConfigGitHub/VercelverificadasREADONLY:previewsdisabled/main,Deploydisabledmanualfailclosed,mainstrict/admins/review/gates,Productionmainpreventselfreviewconadminbypasssí. PrepararúniconuevoSHAautomático,no rerun ni despliegue; timeoutFirefox240s/camporealWebKitnoresueltos. Captaciónindependiente,esquemarecuperación/alertas/reviewpendientes.
+- 10:19UTC pushnormal5344e9d5e246ce6dc91d096e5f57571beaae40fb confirmadoPR226draftREVIEW_REQUIRED. CIúnico38719360128queued,Static38719360372/Directory38719360008encurso,GitHubdeploymentrecordsSHA0. QAmonitorizasoloSHAconnuevosdiagnósticos, sin dispatch/rerun/nuevosrunners. Noresultadofuncional/cleanupnuevo ni readiness; notaslocalesnopushduranteCI. Informe ci-5344e9d5-candidate-2026-10-15.md.
+- 10:22UTC MainAPI exactSHA5344: Security/SBOM116369818300/lint/móvil/RLS/migracionesPASS;Static38719360372/Directory38719360008SUCCESS. Build/Unitencurso,ChromiumprecargasuperadasegúnQA151,sinPlaywright/cleanupnuevo;Firefox/WebKitcola/gatependiente. BackendpreparaevidenciaLOCALmínimadeprivilegios/rolappsinremoto/DDL, noMCPbypass=rolapp, norepetirBackups. Nopushnotas/publicación.
+- 10:37–10:42UTC: Main verifica Chromium5344 PASS31.6s10:26:36/cleanupreportado10:26:57, Build/UnitSUCCESS. FirefoxFAILbuild240santesPlaywright, APIcompleted10:34:32/cleanupreportado10:34:29; WebKit/gate pendientes. BuildChromium238903ms, hitosFirefoxmáslentos sincausacompleta. FrontendpreparaLOCALexclusiónsoloStudio/postgres-meta sujeta a evidenciaCLI/revisión, sin tocar serviciosprobados/checks/240s ni lanzarnuevoCI.
+- Main integra Backenddcdb4b32 trasFrontend94GO: roles/esquemas/privilegios fijos,5/5testsPASS; formato test corregido conPrettier yESLint0. Sandbox SQLSHA8f65846bb606769826837921575ebf5b7a994419b9149c182d2f56ec5e812ffd ejecutado READONLY10s, sinfilas negocio/Auth/contables niDDL. MCPúltimoSELECT24filas;primeros2obtenidosindividualmente(sinrepetirrelaciones). SnapshotJSON3roles6esquemas24relaciones. service_roleBYPASSRLStrue; no prueba rolpool ni RLSfuncional. PrivilegiosausenciasNULL; anonnoUSAGE,auth/serviceUSAGEsíCREATEno. Version/patchproveedor pendientecontrastecatalogadoantesmantenimiento;noactualizarautomático. Docowner-pilot-fixed-role-evidence. No producción/push/merge/deploy; NO-GO sigue.
+- 10:48UTC MainAPI/logs: CI5344/38719360128COMPLETEDFAILURE,gate116378981309FAIL10:42:12. WebKit1PASS32.3s10:41:46/cleanupreportado10:42:03/build187555.783ms;Chromium31.6sPASS/cleanup;Firefoxbuild240sFAILantesPlaywright/cleanup. Resto checks ejecutadosPASS, Sandbox/públicosSKIPPED. QA155 tresprecargasPASS/sinchecksidentidadfallidosemitidos; no prueba ramasfallbacktodas. Frontend97parchepreparadoSINcommit/test;Mainpidióregexcorrecta/fuenteversionadadeindependencia+mocktests antesreview. Backend883ed06dversionextensionesSQLlocalpendientereview. Ningúnpush/nuevoCI/DDL/despliegue; NO-GO.
+- 10:51UTC Main integraBackend883ed06d trasFrontend98GO;12/12staticPASS/ESLint0/formatoSQLhash803f2c6b1437ff57b374945fd381291a634198332324fefce92334c87c457e66. Una consulta catálogo/version por Sandbox yproducción READONLY10s confirma170006/pgcrypto1.3extensions yltree-btree_gistausentes. No business/Auth/contables/PII,DDL/export/upgrade. Snapshotremote-version-extensions-2026-10-15.json. Backports/aplicabilidadCVEs/usocifrados/recuperaciónnoacreditados; mantenimiento exigeplan/decisiónseparados, no escaneosvendor que leanfilas bajoestepermiso. SolicitudBackupsnorepetida.
+- 10:54UTC MainintegrahunksFrontend9949694c trasQA158GO: SOLO Studio/postgres-meta añadidos aexclusiónsupavisor. FuenteCLI2.84.2/Kongprimariaexclusionesindependientes,healthchecksserviciosarrancados; /pg/* y /mcp sinbackend, no usadosdirectamenteporsuiteOwner/helper. Pins13/preload/env/auth/db/REST/storage/Kong/migraciones/checks/240s/cleanupintactos. Main393/393mock12filesPASS6.28s;primerfocal18/18en3filesPASS(dosfiltrosinexistentesnoprobados). Sinbuild/E2E/Docker/install/pull;ni causalidad/ahorro ni runtimeprobados. Proteccionesreconfirmadas10:55UTC. NuevoCIpendientereviewfinal/tsc/eslint/commit; noampliartimeout.
+- Cierrelocal10:58UTC: QA159GO diffMain2files; tscsalida0,ESLintfocal0sinavisos,audit:envPASS73/Prettier/diffcheckPASS. Sejustificaunsolo nuevocandidatodistinto conexperimentoexclusiónrevisado;CI5344cerradoFAIL, protecciones vigentes. Sin autorizarmerge/deploy/DDL/upgrade. No afirmarcorreccióndeltimeout ni readinessdestino.
+- 10:59UTC pushnormal210aaddaed46dc4ee6b54191c4398fcf86f9d96d confirmadoPR226OPENdraftREVIEW_REQUIRED. CIúnico38724036863queued,Directory38724036865/Static38724036892encurso;GitHubdeploymentrecordsSHA0. QAmonitorizasoloSHAconbackoff,sin rerun/dispatch/duplicados. Notasci-210aadda-candidate yreleasegates quedanLOCALessinpushduranteCI. NO-GO, nadaquecambiarremoto ni decisiónnuevausuariomientrasesperamos.
+- 11:14UTC MainAPI/logs210: Chromium116385372011 SUCCESS1PASS31.3s11:06:04.597/cleanupreportado11:06:22.726; Firefox116385372289 SUCCESS1PASS36.1s11:13:55.763/cleanup11:14:14.084. Builds235617.086/236954.569ms cerca240s, no ahorrocausal/estabilidaduniversal demostrados. WebKit116385372370encurso/gatependiente; demásjobs ejecutadosPASS,Sandbox/públicosSKIPPED. QA162 informado; documentación LOCAL sinpushduranteCI. NO-GO por gatesrestantes, sinmerge/deploy/DDL/filasremotas ni nueva peticiónBackups.
+- 11:24UTC MainAPI/logs+QA163: CI210/38724036863COMPLETEDFAILURE,WebKit116385372370FAIL11:18:40/gate116393272760FAIL11:18:46. PrecargaECRlogflare1.34.14exit1/indicadortimeout, fallbackrechazadocorrectamenteporno ser rate-limitexclusivo; sinrunner/stackiniciado, nocleanupstackrequerido. Chromium/FirefoxPASS+cleanup,otrosjobs/Static/DirectoryPASS. QA/FrontendnuevatareaLOCALreadonlycronología/plan13vsserviciosexcluidos, sinimplementación/pulls/builds/rerun/CI/push ni cambiarfallback600s/checks. Evidenciadocs/vault/Obsidianactualizada; NO-GOrestante, ningúnDDL/deploy ni peticiónBackupsnueva.
+- RevisiónQA164/Frontend100/Main: timeoutprimaryexit1NOclock;600sPORimagenfaltante compartidosECR/fallback/verify,NOglobal13 ni porregistro. Preloader/preflightsiguen13inclStudio/meta. Autorizado Frontend prepararLOCALplanactivo11compartido omitiendosolodosauxiliares/catalog13pinsintactos+mocks,NOarreglodirectologflare/NO CIautorizado. Backendpropuestareadonlycacheintegridad/límitesseguridadentrejobsexistentes sinrunnersnuevos;QAesperadiffparareview. Sinobservabilidadextra porahora. NoDocker/build/E2E/pulls/install/push ni remutaciones.
+- 11:34–11:40UTC Mainintegra4a60de36porhunks trasQA166GO,335/335mock5filesPASS3.56s/tsc0/ESLint0warnings/Prettierdiffcheck0. SextofiltrotestinexistenteNOcobertura. Planactivo11compartido omitesoloStudio/meta,catalog13pins/start/fallback600s/checks240sintactos;NO fixdirectologflare. Backend104cacheNO-GOporintegridadsave/loadRepoDigests/tamaño/tiempo/coste; noimplementar. Backend105/Frontend103/QA167GOdiseñoHubprimarioSOLOlogflareexactdigest, verify+retagID+postverify/600s/failclosedSINretryECR;restopins429policyinalterados. BackendpreparaLOCAL+mocks, pendienteentregareview/nointegrado. SinDocker/build/E2E/pulls/install/nuevoCI/push/DDL/deploy. FuentesprimariasCLI2.84.2/Dockerpull+changelogSupabaserevisadas.
+- 11:58UTC Mainintegra3ba7fbabporhunks trasFrontend105/QA171GO: primarioHubporDIGESTsoloLogflareexacto, verify→retagID→postverify600s/sinretryECR; otros12pins/policy429 yplan11 conservados. Main453/453mock11filesPASS9.44s/tsc0/ESLint0warnings/Prettierdiffcheck0/audit73. Backend107 sehabíadesviadobillinghistórico; MainreorientóyBackend109entregócommitcorrecto,nobillingduplicado. ProteccionesGitHub/Vercelreconfirmadas11:57UTC,nodeploy/merge/DDL. Preparar únicoSHA distinto, noCIpornotas ni rerun210; Hubcuota/disponibilidad/runtime NOdemostrados. CI210FAIL/seguridadresidual/destino-recovery-rolapp/reviewPR siguen NO-GO. Evidencia logflare-hub-primary-2026-10-15.md.
+- 12:00UTC pushnormal0dfb8762d5f8eda83b0213b4210bec0ad0c744a2confirmadoPR226OPENdraftblocked trasQA173GOintegración. CIúnico38731333899queued,Static38731333844/Directory38731333850encursoexactSHA;GitHubdeploymentrecordsSHA0(noinventarioVerceluniversal). QAmonitorizasoloesosrunsconbackoff, no dispatch/rerun/duplicados/notaspushduranteCI. Aúnningúnresultadofuncional/cleanup/gatenuevo, sinmerge/deploy/DDL ni readiness. Informe ci-0dfb8762-candidate-2026-10-15.md quedaLOCALposterior, NOempujarhasta cierre/necesidadsustantiva.
+- 12:14–12:16UTC MainAPI/logs0dfb: Chromium116409588496SUCCESS1PASS25.3s12:05:49.764/cleanupreportado12:06:06.738/build161215.456ms,nocausalahorrodemostrado. Firefox116409588429FAILprecargaECRimgproxyv3.8.0exit1timeout12:09:33.431fallbackcorrectamente rechazado/antesstack,sinfuncional/cleanupstackrequerido;WebKit116409588310/gatependientes,otrosjobsSUCCESS/SandboxpúblicosSKIPPED. Backend112/Frontend107 preparanSOLOdiseñoreadonlyorigenHubfijopinsverificadosparanoencadenarexcepciones,NOimplementación/pushCI/cambiorunactual. QA178continúamonitoreoactual;preservaridentidad/pins/600s/240s/noretryECR/protecciones. SinDocker/build/E2E/pulls/localnuevo/DDL/merge/deploy;peticiónBackupsnorepetida. Docs/vault/ObsidianactualizadosLOCAL, noempujarnotasduranteCI.
+- 12:20UTC MainAPI/logs+QA179 confirman CI0dfb38731333899FAILURE updated12:17:02/gate116416673717FAIL12:17:01. WebKit116409588310FAILbuild240000ms12:16:37.110antesPlaywright;cleanupreportado12:16:55.041,hitos185047/213742/220791/220791,webpack3sum180387.632max143727.831(no pared/causa). ChromiumPASS25.3s/FirefoxprecargaimgproxyFAIL/otrosjobsPASS/StaticDirectoryPASSsegúnQA179;omitidosno validanremoto. Frontend108/Backend113GOdiseñoHubprimario11fijos; Main autorizaSOLOBackendLOCAL+mocks/review, sinnuevoCI/push,catálogo13/excluidos2/pins/identity600s/failclosedSINretryECRintactos. Frontendreadonlybuild240s recurrente, QAesperadiff. No disponibilidad/cuota/ahorrocausal demostrados ni soluciónbuildpresumida. Docs/vault/ObsidianactualizadossinDDL/merge/deploy ni peticiónBackupsrepetida;NO-GOrelease.
+- 12:24UTC seguimientoBackend115activo/Frontend109idle/QA180idle: implementaciónLOCALHub11 pendiente entrega, reviewers esperan diff. Frontend109NO-GO para cambio build: sin causa final demostrada ni ajuste mínimo que preserve producciónreal/Sentry/tracing/Node22/env/240s; no builds/tests nuevos. Código build intacto, no repetir misma investigación ni considerar Hub solución del timeout. Evidencia en informe0dfb/releasegates/Obsidian, sinpush/CI/remoto/DDL ni peticiónBackupsrepetida.
+- 12:40UTC Main integrahunks Backendc98077a6(base0dfb) trasFrontend110/QA184GO:Hubprimario11exactos/pinlookup,2excluidosECR/fallback429positivos,catálogo13/pins/identidad/600s/checksbuild240sintactos. No sustituirnota histórica ni borrarsuiteLogflare:dosloopsECRacotadosaexcluidos2; nuevotestexcepcioneslanzadas4etapas×11 atiendehuecoQA. PrimeraMain12files506PASS3FAILKongconteoECRantiguo; se adapta a igualdadsecuenciaHub4sinrelajaridentidad. Segunda509/509mock12filesPASS10.50s(test2.45s),tsc--noEmit--incrementalfalse0,ESLint0warnings,Prettier8files/diffcheckPASS/audit:env73. Frontend111/QA186GOvarianteexacta; sininstalls/build/E2E/Docker/pulls/CI/push/remoto/DDL/merge/deploy. Fuenteactive-images-hub-primary-2026-10-15.md;Supabasechangelog/Dockerpullprimariosrevisados. NO-GObuild109sinfixmínimojustificable,Hubcuota/disponibilidad/rapidezNOprobadas; ningúnCIautomáticoporpreparación. VaultBacklog/Decisiones/Changelog yObsidianResearch/Decisionsactualizados,seguridad/destino/recovery/approle/reviewPR/publicaciónpendientes,Backupsnorepetir.
+- 13:49UTC: humano autoriza expresamente UNA corrida adicional de CI con CPU/memoria saneados. Backend120 diseña helper HOST fijo/proc, sin PID/argv/env, <=1Hz/250muestras/4KiBlectura/resumenúnico, callbackbuildGitHubActionsLinux únicamente. MainGOdiseño; Frontend114/QA188 revisarán diff antesintegrar. No atribuciónCPUalbuild ni causa probada. Sin nuevosjobs/runners/240srelajado/checksquitados/Sentrytracingcambiados; no CI/push aún. Main relee PRhead0dfb/CIcerradoFAIL, mainstrict/admins/1review/6checks yDeploydisabled; APIdependabot7abiertas(2critical5high). BrowserSKILLoficialsigueausente/noalternativa, backupsnoacreditados/no repetir petición. Docs/vault/Obsidian registran aprobación y gatespendientes; no DB/deploy/merge.
+- 13:57UTC: Frontend115 asume implementación aislada del profiler HOST desde844902db; Backend deja helper parcial sin wiring/tests/commit y vuelve a responder billing histórico en127, que NO acredita esta tarea. Main no recrea billing ni integra el parcial; QA189 espera entrega. Fuentes kernel procfs/PSI revisadas: /proc/stat acepta solo cabecera CPU completa acotada pese a cuerpo largo; MemAvailable estimado, iowait no fiable/puede decrecer y PSIavg10 ventana móvil10s, no atribución exclusiva a Next. Sin instrumentación integrada, CI, push, DB o despliegue nuevos.
+- 14:11UTC: Main integra Frontend57af90c3 trasQA203 GOestáticoexacto; cinco archivos, noChangelogformatterchurn. Sampler SOLOcallbackrunbuild;trazasafuera,scopeHOST/noCPUatribuida,5procpaths/1Hz/250,4KiBútiles(+1centinelarechazooverflowenotrasfuentes). Main528/528mock13filesPASS5.78s(test1.19s),ESLint0warnings/Prettier5files/audit:env73/diffcheckPASS. Índicecode/tests/manifiestosTS/JSON/YAMLidénticoaentregaFrontendcontscnoEmitincrementalfalse0, norepetidoMain. Rechazostimeout/abortsintéticosnoeventosreales;core/wiringconservados. Sininstalls/build/E2E/Docker/pulls/DB/deploy;únicocandidatoCIautorizadosujetoprotecciones. Fuente docs/qa/build-host-resource-sampler-2026-10-15.md. NO-GOseguridad/destino/recovery/approle/reviewPR/publicaciónindependientes.
+- 14:12–14:14UTC pushnormalbf0aad14b51e27ec149ddd74738ba31be97ae5b9confirmadoPR226OPENdraftREVIEW_REQUIRED, protecciones14:11reconfirmadas. ÚnicoCI38749323693/Static38749323931/Directory38749323676exactSHA. MainjobsChromium/Unit/Build/lintencurso;Firefox/WebKitcola,móvil/SecuritySBOM/RLS/migracionesPASS,readiness/authSKIPPED,sinfuncional/cleanup/gatenuevo. GHdeploymentrecordsSHA0noinventarioVerceluniversal. QA204monitorizasoloesosrunsconbackoff; no pushnotas duranteCI ni rerun/dispatch. Alertasmain7notificadaspush(2critical5high),nodismiss. Docs ci-bf0aad14-candidate/releasegates/Backlog/Decisiones/ObsidianactualizadosLOCAL,sinDB/merge/deploy. ÚnicaautorizacióndiagnósticoCIconsumida, no otrascorridasautomáticas.
+- 14:37UTC cierre MainAPI/logs+QA208: CI38749323693bf0aad14COMPLETEDFAILUREupdated14:35:30/gate116483093666FAIL14:35:29;Static/Directory/otroschecksPASS. Chromium240stimeoutcleanup14:19:46.952;Firefox1test26.9s(total36.2s)PASS/build238910.458ms/cleanup14:27:23.759;WebKit240stimeout/solo compiled224977ms/cleanup14:35:20.733. Sampler240/240/241muestras,cerolecturasno disponibles,CPUmax100%,MemAvailablemín49.87/51.68/49.63%;HOSTinclSupabase/PSIventanamóvil/maxaisladosNOcausaNext. No nuevosCI/push/implementación/pruebas/Docker/DB/deploy;FrontendSOLOcomparaciónreadonlynuevaevidencia, no repetir investigaciónidéntica. Actualizadosinformeexacto/releasegates/Backlog/Decisiones/Obsidian;NO-GOgatesindependientesyBackupsnopeticiónrepetida.

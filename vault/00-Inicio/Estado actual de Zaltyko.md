@@ -1,7 +1,7 @@
 ---
 status: active
 owner: producto
-last_reviewed: 2026-09-14T15:39Z
+last_reviewed: 2026-10-14
 source:
   - ../PRODUCT-ANALYSIS.md
   - ../BUSINESS-ANALYSIS.md
@@ -10,7 +10,199 @@ source:
   - ../AGENTS.md
 ---
 
-## Revalidación focal — 2026-10-05 (estado vigente)
+## Corte de integración MVP — 2026-10-14
+
+La facturación mensual por gimnasta y tarifa está integrada y publicada en
+PR #226, SHA `31a0dd02`: familia+sede+mes, pagador/vencimiento explícitos,
+cotización de servidor e idempotencia. Emite cargo pendiente manual. La UI
+resuelve familia y tarifa; el pago recibido sigue separado. Pasan 23 tests
+focales, 12 tests de auth, TypeScript, lint y formato. La build local completó,
+pero Chromium no demostró login ni el recorrido completo; DEMO-READY y
+PILOT-READY siguen NO.
+
+El cierre Backend+Frontend está integrado localmente en `eac4ab26`: crear
+tarifa mensual, validaciones compartidas, errores de catálogo diferenciados,
+opciones por sede y replay tras pago con estado real. Pasan 21 tests focales
+de integración, TypeScript y ESLint. Responsive real y E2E completo pendientes.
+La regla multiclase está consultada: el código suma por inscripción, no una
+cuota única por atleta. No validar cuotas reales hasta resolverlo.
+
+CI `38477410346` terminó failure: login efímero falla en tres navegadores;
+Owner dashboard 32 PASS y un fallo de navegación WebKit. «Más» móvil pasa.
+Preview `31a0dd02` está READY. QA prueba la posible recarga inicial del service
+worker; la causalidad aún no se ha demostrado. El PR
+#225 sigue `REVIEW_REQUIRED` con @elvisvaldes solicitado. La autorización del
+propietario incluye releases progresivos y entornos remotos; cada promoción
+requiere evidencia del bloque y respetar los controles reales de GitHub.
+
+Ver [auditoría de integración y ramas](../../auditoria-2026-10-14/mvp-integration-and-branches.md)
+y [readiness E2E](../../docs/qa/monthly-billing-e2e-readiness-2026-10-14.md).
+Los estados siguientes son cortes históricos anteriores.
+
+## Rebuild SaaS — estado actual 2026-10-13
+
+### Owner MVP — pantallas y asistencia greenfield
+
+Las pantallas Owner greenfield existentes permiten configurar la organización
+y sede, crear grupos y fichas mínimas, programar clases recurrentes, registrar
+inscripciones pendientes, conciliar pagos manuales recibidos y pasar lista por
+sesión con la API Owner greenfield integrada localmente en la rama candidata
+`codex/zaltyko-plan-implementation` (HEAD `cd39ab7d`). `/api/attendance` es
+legacy y no se debe reutilizar. La UI tiene pruebas focales con mocks; la ruta
+y el harness PostgreSQL pasan, pero el E2E autenticado del navegador aún no
+está verificado. Además, desde una academia vacía no se puede crear la factura/
+cuota que necesita la pantalla de pago manual; DEMO-READY = NO hasta cerrar ese
+P0. La rama está publicada en la PR #226, todavía en borrador; no se ha
+fusionado ni desplegado a producción. El detalle está en
+[`OWNER-MVP-FRONTEND-CONTRACT-GAPS.md`](../../docs/OWNER-MVP-FRONTEND-CONTRACT-GAPS.md).
+
+La prueba focal nueva cubre el reintento idempotente del alta de academia.
+
+El PR #226 sigue abierto y en borrador. El PR #225 está abierto: GitHub confirma
+que `@elvisvaldes` ya tiene permiso `write` y está solicitado como revisor;
+todavía no consta una review. No integrar ni publicar el hotfix antes de esa
+revisión independiente.
+
+El runner greenfield de CI ya aplicó las 16 migraciones permitidas al proyecto
+aislado `Zaltyko E2E Sandbox`, sin tocar su modelo público/legacy. La consulta
+remota de solo lectura confirmó 16 entradas en el ledger privado, 80 tablas
+greenfield, todas con RLS habilitada y forzada. El seed usa una academia y
+cuentas sintéticas `.test`; no copia datos personales.
+
+El CI `38434571600` del commit `aade3c9` pasó build, lint/typecheck, unitarias,
+RLS, integridad de migraciones, móvil y SBOM. El E2E autenticado falló en los
+tres navegadores al no resolver el rol `button` del `<summary>` nativo de «Más»;
+el test ya fija el viewport a 375 px, así que no era un fallo de tamaño de
+pantalla. El test actualizado busca el disclosure nativo; el nuevo CI todavía
+está pendiente. El Preview de `aade3c9` está `READY` y conectado al proyecto
+E2E Sandbox; sigue protegido por SSO. No se creó una rama Supabase de pago.
+
+Validación local del ajuste: navegación Owner 4/4, ESLint y Prettier focal PASS.
+La suite autenticada no se ejecutó localmente; Playwright enumera 33 casos para
+Chromium, Firefox y WebKit. No se han demostrado aún todos los recorridos por
+rol/sede ni la revisión manual completa de accesibilidad. No se modificaron
+Producción, Stripe Live ni credenciales.
+
+## Inscripciones Owner — corte local 2026-10-13
+
+`/owner/enrollments` y su API permiten consultar, buscar personas ya
+vinculadas a la sede y crear una inscripción `pending` que reserva capacidad;
+owner puede activar, pausar, cancelar o completar con historial. El formulario
+no crea personas/grupos ni inicia cuotas o cobros. La búsqueda se apoya en
+`group_memberships` canónica. Un preview visual local usa etiquetas sintéticas
+y datos fijos; no consulta ni modifica academias.
+
+Validación del corte: 13/13 tests focales de rutas/UI, TypeScript, ESLint focal
+y `git diff --check` PASS; el build local con Next 15.5.27 genera 291 rutas. El
+Preview de Vercel del commit `8e9af4ca` está `READY` y se inspeccionó a 1280 px y
+375 px con datos sintéticos y controles deshabilitados. La lista aparece antes
+de sus métricas; el formulario, cuando se abre, va primero. No hay E2E owner
+autenticado, conexión a base verificada ni prueba manual de teclado/VoiceOver.
+No hubo migración remota ni cambios en producción o Stripe Live.
+
+Seguridad de dependencias: Next está en 15.5.27. `pnpm audit --prod` conserva un
+moderado en `sprintf-js` vía Swagger UI; la auditoría completa mantiene un alto
+en `braces@3.0.3` en desarrollo y moderados transitivos. Las cuatro alertas altas
+de `main` son dos advisories repetidos en los lockfiles móvil npm/pnpm:
+`braces` (#304/#305) y `node-forge` (#300/#301); no hay versión upstream
+corregida. Hay parches locales y pruebas de regresión móviles para ambos; las
+regresiones focales pasan 6/6 con Vitest directo. El wrapper pnpm se bloqueó
+antes de testear al intentar reinstalar dependencias y rechazar un script
+ignorado de `unrs-resolver`; no se aprobó ningún script. Las alertas permanecen
+abiertas. La copia raíz de `braces` no usa esa mitigación. GitHub clasifica
+`node-forge` como runtime pese a su declaración como devDependency y uso local
+encontrado solo en prueba; revisar discrepancia. Gate completo pendiente.
+Ver [ADR-0025](../../docs/architecture/adr/0025-inscripcion-owner-pendiente-y-cobros-separados.md)
+y [plan maestro](../../docs/plans/2026-10-13-full-saas-implementation-plan.md).
+
+## Corte de implementación greenfield — 2026-10-13
+
+La rama local `codex/zaltyko-plan-implementation` ya contiene el modelo
+deportivo versionado, alta de academia simplificada, pagos manuales idempotentes,
+preferencia familiar manual/automático con entitlement Free/paid, proyección de
+cohortes y orden modular del Owner Dashboard. El modo efectivo de cobro sigue
+siendo manual: elegir «automático» no inicia cargos. Falta mandato/consentimiento
+operativo, provisioning comercial/webhook verificado, worker de cobro seguro y
+Stripe Test end-to-end para la arquitectura nueva. Free y trial no pueden usar
+automático.
+
+Revalidación local del corte 2026-10-13: suite completa **453 archivos PASS, 1
+omitido; 2.343 tests PASS, 3 omitidos**; `pnpm typecheck`, `pnpm lint` e
+integridad de migraciones (**7 Drizzle + 109 Supabase**) PASS. El Preview de
+Vercel del HEAD `9582ede3` está `READY`; no es producción. Los runners de pagos,
+cohortes y layout usan PostgreSQL efímero y datos sintéticos; los tests HTTP de
+los endpoints nuevos usan autorización simulada. AC-12 pasa en PostgreSQL
+14.20 local: cohortes 362,8 ms p95 y vista compuesta 654,3 ms p95; no mide HTTP,
+Auth, navegador ni infraestructura remota.
+
+La revisión independiente del hotfix P0 #225 sigue pendiente aunque
+`@elvisvaldes` ya tiene permiso `write` y solicitud de review activa. El cierre
+del cron legacy no está integrado ni desplegado; la ruta de cobro seguro sigue
+bloqueada hasta aprobarse el hotfix y completar sus gates.
+
+No equivale a E2E autenticado completo, QA humana de accesibilidad, prueba de
+restore, medición en plataforma objetivo ni preparación para captar clientes.
+Las migraciones greenfield se aplicaron únicamente al Sandbox E2E desde CI; no
+se modificó producción. Ver el
+[plan maestro](../../docs/plans/2026-10-13-full-saas-implementation-plan.md),
+el [backlog](../06-Roadmap-y-Tareas/Backlog priorizado.md) y la auditoría de
+[ramas y releases](../../auditoria-2026-10-13/branch-and-release-check.md).
+
+### Alta mínima canónica desde grupos — 2026-10-13
+
+El formulario de grupos permite crear una ficha mínima de gimnasta y añadirla
+al grupo en un único envío. La transacción crea persona, atleta, pertenencia
+M:N e historial; comprueba organización, rol, sede y cupo; admite reintento
+idempotente y no deja ficha huérfana si la plaza no está disponible. Solo pide
+nombre y apellidos: no crea familia, cuenta, matrícula, consentimiento ni pago.
+Outbox y auditoría no incluyen nombres ni otros datos personales.
+
+Tests focales de ruta/UI (12/12), harness PostgreSQL efímero, TypeScript,
+ESLint focal y Prettier en TS/TSX PASS. Los gates auth/RLS/migraciones también
+PASS. `pnpm build` completa y genera 289 rutas, pero Next advierte que faltan
+variables runtime Stripe/Supabase; no verifica conectividad ni runtime. Quedan
+revisión final del diff, E2E con sesión real, QA manual de teclado/lector y
+conexión Preview a una base aislada. No se aplicó SQL remoto ni se modificó
+producción; el despliegue productivo sigue en `main`. El Preview del commit
+`9d6cbcf2` está `READY` y el check Vercel pasa:
+https://zaltyko-luqqt6hkx-mentessaas-projects.vercel.app. Está protegido por
+SSO; no se verificó con sesión Owner ni contra su base de datos.
+
+### Alta de owner: instrucciones más breves — 2026-10-13
+
+El registro owner explica que primero se crea la cuenta personal y luego se
+configura la academia. La búsqueda opcional aparece como comprobación previa a
+abrir un espacio nuevo; el texto conserva el límite de perfiles públicos y la
+invitación necesaria si la ficha no aparece. La rama de reclamaciones sigue
+indicando que requiere revisión y no concede acceso privado. Tests focales
+17/17, TypeScript y ESLint pasan. No cambió el alta, el consentimiento ni la
+base de datos. En `45d28de7aef64d9f1a362a406ac9d4f0f7a8fa48` se añadió el
+landmark `<main>` al shell común de autenticación. Vercel Preview está `READY`:
+https://zaltyko-orspo1ez1-mentessaas-projects.vercel.app. DOM confirmado con un
+`main` que contiene el formulario; visualmente no altera el diseño. La prueba
+focal es 1/1; producción no cambia.
+
+El Preview muestra la academia sintética `TEST active`. La consulta read-only
+encuentra ese ID en el sandbox E2E y no en producción; la conexión exacta de la
+base de datos del Preview queda **NO VERIFICADA**. La consulta de metadatos de
+Vercel halló variables Preview limitadas a otra rama; no se descifraron valores.
+No se modificó ningún registro ni se creó cuenta. Ver `OWNER-REGISTRATION-UX.md`.
+
+### Corrección de aislamiento SQL — 2026-10-13
+
+Producción y E2E ya contienen helpers legacy en `zaltyko_private`, con acceso
+de esquema para `anon`, `authenticated` y `service_role`. Las migraciones nuevas
+usan ahora `zaltyko_domain_private`; un test de PostgreSQL efímero conserva el
+helper, sus grants y el comentario legacy, mientras niega `anon` en el esquema
+nuevo. La cadena canónica de 14 migraciones, RLS (79/79) y el control de
+integridad (7+108) pasan localmente. No se aplicó SQL remoto. Ver ADR-0021.
+
+La lectura de plataforma confirma Supabase PostgreSQL 17.6 en ambos proyectos.
+`pgcrypto` está instalado; falta revisar los datos/columnas heredados antes del
+upgrade 17.11 anunciado por Supabase. No se han reindexado tablas ni recifrado
+datos.
+
+## Revalidación focal — 2026-10-05 (histórica; supersedida)
 
 Producción sirve el deployment READY dpl_EtTisvbmfBSiUyuiWsyvZMXG85nD, commit 12814441. El acceso canónico y el alias /login muestran “¿Olvidaste tu contraseña?” y /auth/forgot-password responde 200. Google inicia el flujo con el cliente Web de Zaltyko y vuelve al callback de Supabase esperado; no se completó la sesión porque no se eligió una cuenta. El registro de dueño mantiene Google desactivado hasta aceptar los términos.
 
@@ -65,6 +257,33 @@ Esta pasada cubrió Google OAuth, recuperación de contraseña, onboarding de pr
 > **Último release verificado — 14/09/2026 03:00Z:** `dpl_BYhdNbXQbV1RWRTNAh7MVVwLPh5k` está en `READY` y es el deployment vigente de `zaltyko.com`. El dashboard operativo respeta `academies.timezone` y consulta `class_sessions.session_date` como fecha de calendario exacta, evitando desplazamientos UTC en clases y pendientes de asistencia. Gate: **281 archivos PASS + 1 omitido; 1.790 tests PASS + 2 omitidos; 324 APIs (215 mutantes) sin riesgos; RLS 71/71; build 227/227**. Smoke live: rutas públicas 200, dashboard sin sesión 307, atención protegida 401.
 
 # Estado actual de Zaltyko
+
+## Corte de implementación greenfield — 2026-10-13
+
+En la rama local `codex/zaltyko-plan-implementation` se implementó y probó el
+modelo versionado de especialidades/actividades complementarias, el alta simple
+de academia, la proyección de cohortes conectada al motor de invalidaciones y
+el orden modular persistente por usuario/academia (drag, botones alternativos y
+reset, con prioridades/score anclados).
+El benchmark sintético local (PostgreSQL 14.20; 5.000 atletas, 2 M asistencias,
+20 identidades) pasa AC-12: cohortes 362,8 ms p95; vista compuesta 654,3 ms p95.
+Es una medida de capa de servicio, no de HTTP, Auth, navegador ni infraestructura
+remota. Falta revisar los recorridos autenticados por rol, observar SLA del
+writer, validar la ejecución en plataforma, cerrar cobros seguros y probar el
+reordenador con VoiceOver y propietarios. No es una declaración de lanzamiento.
+
+Verificación de release solo lectura, revalidada el 2026-10-13 05:31 UTC: aliases
+`zaltyko.com` y `www.zaltyko.com` siguen en `dpl_8fcdzLweJt7vDRBxNeR9Tu6kfzgv`,
+deployment **READY** de `main` (`aac78521`). El PR #224 sigue abierto. El hotfix
+P0 #225 está abierto y no fusionado; su preview `dpl_AFpK2LvPdQEeRfqmAzag1kXhVeTY`
+está **READY** y los checks obligatorios consultados están verdes (E2E público,
+Lighthouse y smoke se omiten por configuración). La mitigación todavía no está
+en producción, por lo que sigue vigente el riesgo del cron legacy. Los
+historiales remotos de migraciones continúan divergentes. No se fusionó PR,
+desplegó, cambió alias ni aplicó migraciones. Ver
+[`auditoría de ramas y releases`](../../auditoria-2026-10-13/branch-and-release-check.md).
+Los valores de release son una observación puntual; comprobarlos de nuevo antes
+de actuar.
 
 > **Release productivo vigente — 14/09/2026 22:27 CEST:** `dpl_4iJiwrMNCZAq1ThGLvNtwsUQJfR7` está en `READY` y aliasado a `zaltyko.com`. La pantalla de Preferencias ahora gobierna los envíos reales: email e in-app aplican switches por tipo, recordatorios por ventana y canales legacy; el cron no cuenta como entregado lo que el destinatario desactivó y el recordatorio manual de pago comunica el estado real. Gate: **301 archivos (1 omitido), 1.845 tests PASS (2 omitidos), 324 APIs sin riesgos, RLS 71/71, build 227/227**. Smoke público y `/api/health` 200 con DB/cronAuth `ok`; preferencias autenticadas visualizadas sin errores/avisos de consola. No hubo migraciones ni cambios de datos reales. Siguen `NO VERIFICADO` la entregabilidad externa, contactos legacy sin perfil, E2E por rol real, WCAG manual, privacidad de menores, Stripe Live/webhooks, pagos locales y cohortes de activación.
 
