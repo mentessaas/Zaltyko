@@ -1,0 +1,496 @@
+"use client";
+import { useEffect, useRef, useState } from "react";
+import { useRouter, useSearchParams } from "next/navigation";
+import Link from "next/link";
+import { Loader2 } from "lucide-react";
+import { createClient } from "@/lib/supabase/client";
+import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
+import { useToast } from "@/components/ui/toast-provider";
+import { AuthPageShell } from "@/components/auth/AuthPageShell";
+import { isValidEmail, normalizeEmail } from "@/lib/validation/email-utils";
+import { getSafeAuthNextPath } from "@/lib/auth/safe-next-path";
+import { useHydrated } from "@/lib/auth/use-hydrated";
+
+type LoginFormProps = {
+  profileSetupRetry?: boolean;
+  sessionAvailableForRecovery?: boolean;
+};
+
+export function LoginForm({
+  profileSetupRetry = false,
+  sessionAvailableForRecovery = false,
+}: LoginFormProps) {
+  const [email, setEmail] = useState("");
+  const [password, setPassword] = useState("");
+  const [loading, setLoading] = useState(false);
+  const [magicLinkLoading, setMagicLinkLoading] = useState(false);
+  const [googleLoading, setGoogleLoading] = useState(false);
+  const [profileRecoveryReady, setProfileRecoveryReady] = useState(
+    sessionAvailableForRecovery
+  );
+  const [profileRecoveryLoading, setProfileRecoveryLoading] = useState(false);
+  const [profileRecoveryError, setProfileRecoveryError] = useState<
+    string | null
+  >(null);
+  const isHydrated = useHydrated();
+  const router = useRouter();
+  const searchParams = useSearchParams();
+  // Cliente creado perezosamente: sin env de Supabase el formulario se renderiza
+  // igualmente y los handlers informan del problema en vez de tumbar la página.
+  let supabase: ReturnType<typeof createClient> | null = null;
+  try {
+    supabase = createClient();
+  } catch {
+    supabase = null;
+  }
+  const toast = useToast();
+  const noticeShownRef = useRef(false);
+  const callbackUrl =
+    searchParams.get("callbackUrl") ?? searchParams.get("next");
+  const nextPath = getSafeAuthNextPath(callbackUrl);
+  const authFlowNextPath = profileSetupRetry
+    ? "/auth/login?profile_setup=retry"
+    : nextPath;
+
+  const authUnavailable = () => {
+    toast.pushToast({
+      title: "Servicio de acceso no disponible",
+      description:
+        "La autenticación no está configurada en este entorno. Contacta con soporte si el problema continúa.",
+      variant: "error",
+    });
+  };
+
+  useEffect(() => {
+    if (noticeShownRef.current) return;
+
+    const callbackError = searchParams.get("error");
+    const callbackNotices: Record<
+      string,
+      { title: string; description: string }
+    > = {
+      access_disabled: {
+        title: "Esta cuenta no tiene acceso activo",
+        description:
+          "Contacta con el administrador de tu academia o con soporte si crees que es un error.",
+      },
+      callback_failed: {
+        title: "No pudimos completar el acceso",
+        description:
+          "Inténtalo de nuevo. Si el enlace expiró, solicita uno nuevo.",
+      },
+      consent_invalid: {
+        title: "No pudimos confirmar tu aceptación",
+        description:
+          "Vuelve a iniciar el registro y acepta los términos y la política de privacidad.",
+      },
+      consent_record_failed: {
+        title: "No pudimos guardar tu aceptación",
+        description:
+          "No se completó el acceso. Inténtalo de nuevo; si el problema continúa, contacta con soporte.",
+      },
+    };
+    const callbackNotice = callbackError
+      ? callbackNotices[callbackError]
+      : undefined;
+    if (callbackNotice) {
+      noticeShownRef.current = true;
+      toast.pushToast({ ...callbackNotice, variant: "error" });
+      return;
+    }
+
+    if (searchParams.get("registered") === "1") {
+      noticeShownRef.current = true;
+      toast.pushToast({
+        title: "Revisa tu correo",
+        description:
+          "Confirma tu cuenta desde el email y luego inicia sesión para continuar.",
+        variant: "success",
+      });
+    }
+  }, [searchParams, toast]);
+
+  const handleLogin = async (e: React.FormEvent) => {
+    e.preventDefault();
+
+    // Validar email antes de enviar
+    if (!email.trim()) {
+      toast.pushToast({
+        title: "Correo requerido",
+        description: "Por favor ingresa tu correo electrónico",
+        variant: "error",
+      });
+      return;
+    }
+
+    if (!isValidEmail(email)) {
+      toast.pushToast({
+        title: "Correo inválido",
+        description: "Por favor ingresa un correo electrónico válido",
+        variant: "error",
+      });
+      return;
+    }
+
+    if (!password.trim()) {
+      toast.pushToast({
+        title: "Contraseña requerida",
+        description: "Por favor ingresa tu contraseña",
+        variant: "error",
+      });
+      return;
+    }
+
+    if (!supabase) {
+      authUnavailable();
+      return;
+    }
+    setLoading(true);
+    try {
+      const normalizedEmail = normalizeEmail(email);
+      if (!normalizedEmail) {
+        throw new Error("Email inválido");
+      }
+
+      const { error } = await supabase.auth.signInWithPassword({
+        email: normalizedEmail,
+        password,
+      });
+      if (error) {
+        toast.pushToast({
+          title: "Error al iniciar sesión",
+          description: profileSetupRetry
+            ? "No pudimos verificar el acceso. Revisa el correo y la contraseña e inténtalo de nuevo."
+            : error.message,
+          variant: "error",
+        });
+      } else if (profileSetupRetry) {
+        const { data, error: userError } = await supabase.auth.getUser();
+        if (userError || !data.user) {
+          toast.pushToast({
+            title: "No pudimos verificar tu sesión",
+            description:
+              "Vuelve a iniciar sesión para continuar con la recuperación.",
+            variant: "error",
+          });
+        } else {
+          setProfileRecoveryError(null);
+          setProfileRecoveryReady(true);
+        }
+      } else {
+        toast.pushToast({
+          title: "Sesión iniciada",
+          description: "Redirigiendo a tu espacio de trabajo...",
+          variant: "success",
+        });
+        router.push(nextPath);
+        router.refresh();
+      }
+    } catch {
+      toast.pushToast({
+        title: "No pudimos iniciar sesión",
+        description: profileSetupRetry
+          ? "Ha ocurrido un problema de conexión. Inténtalo de nuevo."
+          : "Ha ocurrido un error inesperado. Inténtalo de nuevo.",
+        variant: "error",
+      });
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const handleProfileRecovery = async () => {
+    if (!supabase) {
+      authUnavailable();
+      return;
+    }
+
+    setProfileRecoveryLoading(true);
+    setProfileRecoveryError(null);
+    try {
+      const { data, error } = await supabase.auth.getUser();
+      if (error || !data.user) {
+        setProfileRecoveryReady(false);
+        setProfileRecoveryError(
+          "Tu sesión ha caducado. Inicia sesión de nuevo para continuar."
+        );
+        return;
+      }
+
+      // profile_setup is only a recovery prompt. The authenticated user must
+      // explicitly continue; the canonical bootstrap resolves Owner membership.
+      router.replace("/owner/setup");
+      router.refresh();
+    } catch {
+      setProfileRecoveryError(
+        "Ha ocurrido un problema de conexión. Inténtalo de nuevo."
+      );
+    } finally {
+      setProfileRecoveryLoading(false);
+    }
+  };
+
+  const handleMagicLink = async (e: React.FormEvent) => {
+    e.preventDefault();
+
+    if (!email.trim()) {
+      toast.pushToast({
+        title: "Correo requerido",
+        description: "Por favor ingresa tu correo electrónico",
+        variant: "error",
+      });
+      return;
+    }
+
+    if (!isValidEmail(email)) {
+      toast.pushToast({
+        title: "Correo inválido",
+        description: "Por favor ingresa un correo electrónico válido",
+        variant: "error",
+      });
+      return;
+    }
+
+    if (!supabase) {
+      authUnavailable();
+      return;
+    }
+    setMagicLinkLoading(true);
+    try {
+      const normalizedEmail = normalizeEmail(email);
+      if (!normalizedEmail) {
+        throw new Error("Email inválido");
+      }
+
+      const { error } = await supabase.auth.signInWithOtp({
+        email: normalizedEmail,
+        options: {
+          emailRedirectTo: `${window.location.origin}/auth/callback?next=${encodeURIComponent(authFlowNextPath)}`,
+        },
+      });
+      if (error) {
+        toast.pushToast({
+          title: "Error al enviar enlace mágico",
+          description: error.message,
+          variant: "error",
+        });
+      } else {
+        toast.pushToast({
+          title: "Enlace mágico enviado",
+          description: "Revisa tu correo para acceder con el enlace mágico.",
+          variant: "success",
+        });
+      }
+    } finally {
+      setMagicLinkLoading(false);
+    }
+  };
+
+  const handleGoogleSignIn = async () => {
+    if (!supabase) {
+      authUnavailable();
+      return;
+    }
+    setGoogleLoading(true);
+    try {
+      const { data, error } = await supabase.auth.signInWithOAuth({
+        provider: "google",
+        options: {
+          redirectTo: `${window.location.origin}/auth/callback?next=${encodeURIComponent(authFlowNextPath)}`,
+          // Supabase/Google need the basic identity scopes; overriding this
+          // with only `openid` can omit the email/profile claims used to link
+          // and create the Auth user.
+          scopes: "openid email profile",
+          skipBrowserRedirect: true,
+        },
+      });
+      if (error) {
+        toast.pushToast({
+          title: "Error al iniciar sesión con Google",
+          description: error.message,
+          variant: "error",
+        });
+        setGoogleLoading(false);
+        return;
+      }
+      if (!data?.url) {
+        toast.pushToast({
+          title: "No pudimos iniciar Google",
+          description:
+            "El proveedor no devolvió una URL de autenticación. Inténtalo de nuevo.",
+          variant: "error",
+        });
+        setGoogleLoading(false);
+        return;
+      }
+      window.location.assign(data.url);
+    } catch {
+      toast.pushToast({
+        title: "Error inesperado",
+        description: "No se pudo iniciar sesión con Google",
+        variant: "error",
+      });
+      setGoogleLoading(false);
+    }
+  };
+
+  return (
+    <>
+      <AuthPageShell
+        title="Bienvenido de nuevo"
+        description="Accede para gestionar atletas, clases, pagos y comunicación desde tu academia."
+        footer={
+          profileSetupRetry ? (
+            "Tu cuenta ya está creada. Confirma tu sesión y continúa la configuración; no necesitas registrarte otra vez."
+          ) : (
+            <>
+              ¿Aún no tienes cuenta?{" "}
+              <Link
+                href="/auth/register"
+                className="font-semibold text-zaltyko-indigo hover:underline"
+              >
+                Crea una cuenta
+              </Link>
+            </>
+          )
+        }
+        sideTitle="Todo tu equipo en el lugar correcto"
+        sideDescription="Zaltyko lleva a cada usuario a su espacio: dirección, entrenadores, familias o administración."
+        highlights={[
+          "Dirección y administración entran directamente al panel de la academia.",
+          "Entrenadores acceden a sus clases, atletas y tareas del día.",
+          "Familias y atletas ven solo la información que necesitan.",
+        ]}
+      >
+        {profileSetupRetry && profileRecoveryReady ? (
+          <section
+            className="space-y-4"
+            aria-labelledby="profile-recovery-title"
+          >
+            <h2 id="profile-recovery-title" className="text-lg font-semibold">
+              Termina de configurar tu academia
+            </h2>
+            <p className="text-sm text-muted-foreground">
+              Tu cuenta ya está creada. Confirma que quieres continuar con la
+              configuración de tu academia. No necesitas registrarte otra vez.
+            </p>
+            {profileRecoveryError && (
+              <p role="alert" className="text-sm text-red-700">
+                {profileRecoveryError}
+              </p>
+            )}
+            <Button
+              type="button"
+              className="w-full"
+              onClick={handleProfileRecovery}
+              disabled={profileRecoveryLoading}
+              aria-busy={profileRecoveryLoading}
+            >
+              {profileRecoveryLoading
+                ? "Comprobando sesión..."
+                : "Continuar con la configuración"}
+            </Button>
+          </section>
+        ) : (
+          <>
+            {profileSetupRetry && profileRecoveryError && (
+              <p role="alert" className="mb-4 text-sm text-red-700">
+                {profileRecoveryError}
+              </p>
+            )}
+            <form onSubmit={handleLogin} className="space-y-4">
+              <div className="space-y-2">
+                <Label htmlFor="email">Correo electrónico</Label>
+                <Input
+                  id="email"
+                  type="email"
+                  value={email}
+                  onChange={(e) => setEmail(e.target.value)}
+                  required
+                  autoComplete="email"
+                />
+              </div>
+              <div className="space-y-2">
+                <Label htmlFor="password">Contraseña</Label>
+                <Input
+                  id="password"
+                  type="password"
+                  value={password}
+                  onChange={(e) => setPassword(e.target.value)}
+                  required
+                  autoComplete="current-password"
+                />
+              </div>
+              <Link
+                href={`/auth/forgot-password?next=${encodeURIComponent(authFlowNextPath)}`}
+                className="inline-flex min-h-11 w-full items-center justify-center rounded-md border-2 border-zaltyko-indigo/40 bg-zaltyko-indigo/10 px-4 text-sm font-semibold text-zaltyko-indigo underline decoration-1 underline-offset-4 transition-colors hover:bg-zaltyko-indigo/15 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-zaltyko-indigo focus-visible:ring-offset-2"
+              >
+                ¿Olvidaste tu contraseña?
+              </Link>
+              <Button
+                type="submit"
+                className="w-full"
+                disabled={!isHydrated || loading}
+              >
+                {loading ? (
+                  <>
+                    <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                    Iniciando sesión...
+                  </>
+                ) : !isHydrated ? (
+                  "Preparando acceso..."
+                ) : profileSetupRetry ? (
+                  "Iniciar sesión para recuperar el perfil"
+                ) : (
+                  "Iniciar sesión"
+                )}
+              </Button>
+            </form>
+
+            <div className="mt-4 flex flex-col gap-3">
+              <Button
+                onClick={handleMagicLink}
+                variant="outline"
+                className="w-full border-zaltyko-primary-dark text-zaltyko-primary-dark hover:bg-zaltyko-primary-dark hover:text-white"
+                disabled={!isHydrated || magicLinkLoading || loading}
+              >
+                {magicLinkLoading ? (
+                  <>
+                    <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                    Enviando...
+                  </>
+                ) : !isHydrated ? (
+                  "Preparando enlace mágico..."
+                ) : (
+                  "Enviarme un enlace mágico"
+                )}
+              </Button>
+              <Button
+                onClick={handleGoogleSignIn}
+                variant="outline"
+                className="w-full"
+                disabled={!isHydrated || googleLoading || loading}
+                aria-busy={!isHydrated || googleLoading}
+              >
+                {googleLoading ? (
+                  <>
+                    <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                    Conectando...
+                  </>
+                ) : !isHydrated ? (
+                  "Preparando Google..."
+                ) : (
+                  "Entrar con Google"
+                )}
+              </Button>
+            </div>
+          </>
+        )}
+      </AuthPageShell>
+    </>
+  );
+}
+
+export default LoginForm;

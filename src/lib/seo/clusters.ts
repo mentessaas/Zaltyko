@@ -1,0 +1,630 @@
+import type { Locale } from '@/i18n';
+import { notInArray } from 'drizzle-orm';
+import {
+  COUNTRIES,
+  MODALITIES,
+} from './availability';
+import type {
+  CountrySlug,
+  ModalitySlug,
+} from './availability';
+
+export {
+  AVAILABLE_MODALITIES,
+  COUNTRIES,
+  MODALITIES,
+} from './availability';
+export type {
+  ClusterKey,
+  CountrySlug,
+  ModalitySlug,
+} from './availability';
+
+// Public academy type for cluster pages
+export interface PublicAcademy {
+  id: string;
+  name: string;
+  city: string | null;
+  region: string | null;
+  country: string | null;
+  academyType: string | null;
+  publicDescription: string | null;
+  logoUrl: string | null;
+  website: string | null;
+  socialInstagram: string | null;
+}
+
+// Public coach type for cluster pages
+export interface PublicCoach {
+  id: string;
+  name: string;
+  photoUrl: string | null;
+  academyName?: string;
+  academySlug?: string;
+  publicBio?: string | null;
+  specialties?: string[];
+  yearsExperience?: number;
+}
+
+// Public event type for cluster pages
+export interface PublicEvent {
+  id: string;
+  title: string;
+  startDate: string | null;
+  endDate: string | null;
+  cityName?: string | null;
+  provinceName?: string | null;
+  countryName?: string | null;
+  level?: string;
+  academyName?: string;
+  description?: string | null;
+  maxCapacity?: number | null;
+  registrationFee?: number | null;
+}
+
+// Cluster content interface
+export interface ClusterContent {
+  meta: {
+    title: string;
+    description: string;
+    keywords: string[];
+  };
+  hero: {
+    badge: string;
+    headline: string;
+    subheadline: string;
+  };
+  federation: {
+    name: string;
+    competitions: string[];
+  };
+  categories: {
+    [key: string]: string[];
+  };
+  painPoints: {
+    generic: string;
+    specific: string;
+  };
+  interlinking: {
+    relatedCountries: CountrySlug[];
+    relatedModalities: ModalitySlug[];
+  };
+}
+
+// Get all clusters for a locale
+export function getAllClusters(locale: Locale): Array<{
+  modality: ModalitySlug;
+  country: CountrySlug;
+  url: string;
+  label: string;
+}> {
+  const clusters: Array<{
+    modality: ModalitySlug;
+    country: CountrySlug;
+    url: string;
+    label: string;
+  }> = [];
+
+  for (const modality of Object.keys(MODALITIES) as ModalitySlug[]) {
+    for (const country of Object.keys(COUNTRIES) as CountrySlug[]) {
+      const modalitySlug = MODALITIES[modality][locale];
+      const countrySlug = COUNTRIES[country][locale];
+      if (!modalitySlug || !countrySlug) continue;
+      clusters.push({
+        modality,
+        country,
+        url: `/${locale}/${modalitySlug}/${countrySlug}`,
+        label: `${MODALITIES[modality].label[locale]} - ${COUNTRIES[country].label[locale]}`,
+      });
+    }
+  }
+
+  return clusters;
+}
+
+// Get cluster content from JSON
+export async function getClusterContent(
+  locale: Locale,
+  modality: ModalitySlug,
+  country: CountrySlug
+): Promise<ClusterContent | null> {
+  try {
+    const modalitySlug = MODALITIES[modality][locale];
+    const countrySlug = COUNTRIES[country][locale];
+
+    const content = await import(`@/content/clusters/${locale}/${countrySlug}/${modalitySlug}.json`).then(
+      (m) => m.default as ClusterContent
+    );
+
+    // Cluster JSON `meta.title` ends with `| Zaltyko - {federation}`. Root layout
+    // appends the global `%s | Zaltyko` template, so leaving the suffix in place
+    // produces duplicate brand text in SERPs (e.g. `... | Zaltyko - RFEG | Zaltyko`).
+    // Strip the cluster-local brand suffix at read time so the global template
+    // owns the only `| Zaltyko` suffix in the rendered <title>.
+    content.meta.title = cleanTitle(content.meta.title);
+
+    return content;
+  } catch {
+    return null;
+  }
+}
+
+// Strip the cluster-local `| Zaltyko - {federation}` suffix from cluster JSON
+// titles before exposing them to Next.js metadata. Global brand suffix is
+// re-applied by `metadata.title.template` in `src/app/layout.tsx`.
+export function cleanTitle(title: string): string {
+  return title.replace(/\s*\|\s*Zaltyko\s*-\s*.+$/i, "").trim();
+}
+
+// Build the JSON-LD schema bundle for a cluster page. Combines three
+// independent schema.org nodes (WebPage, BreadcrumbList, and when academies
+// are available, ItemList) inside a single @graph so the page emits one
+// <script type="application/ld+json"> block instead of three.
+//
+// WebPage: gives crawlers a canonical entity for this URL with the page's
+//   title/description/language and binds it to the site root via isPartOf.
+// BreadcrumbList: mirrors the visual breadcrumb in the hero (Inicio/Home
+//   → Modality → [Country]).
+// ItemList: only emitted when academies are passed AND we are on a country
+//   variant. Each academy is a ListItem with position, name and city. This
+//   is the schema that materially increases AI citation rate for prompts
+//   like "best gymnastics academies in [country]" — ChatGPT and Perplexity
+//   read structured lists far more reliably than they read prose <ul>s.
+//
+// Cluster pages do not currently render an academy list in the visible UI
+// (only hero + interlinking). The ItemList therefore describes a "may be a
+// partial list" (schema.org spec explicitly allows it) sourced from the
+// same `getClusterAcademies()` query that the future directory UI will use.
+// When the directory UI lands, the schema will already be correct.
+export interface ClusterJsonLdAcademy {
+  id: string;
+  name: string;
+  city?: string | null;
+  region?: string | null;
+}
+
+export interface ClusterJsonLdInput {
+  baseUrl: string;
+  locale: "es" | "en";
+  modalityLabel: string;
+  modalitySlug: string;
+  countryLabel?: string;
+  countrySlug?: string;
+  pageTitle: string;
+  pageDescription: string;
+  academies?: ClusterJsonLdAcademy[];
+}
+
+export function generateClusterJsonLd(
+  input: ClusterJsonLdInput,
+): Record<string, unknown> {
+  const pagePath = input.countrySlug
+    ? `/${input.locale}/${input.modalitySlug}/${input.countrySlug}`
+    : `/${input.locale}/${input.modalitySlug}`;
+  const pageUrl = `${input.baseUrl}${pagePath}`;
+  const homeLabel = input.locale === "es" ? "Inicio" : "Home";
+  const websiteId = `${input.baseUrl}/#website`;
+
+  const webPage = {
+    "@type": "WebPage",
+    "@id": `${pageUrl}#webpage`,
+    url: pageUrl,
+    name: input.pageTitle,
+    description: input.pageDescription,
+    inLanguage: input.locale,
+    isPartOf: { "@id": websiteId },
+    publisher: { "@id": `${input.baseUrl}/#organization` },
+  };
+
+  const breadcrumbItems = [
+    {
+      "@type": "ListItem",
+      position: 1,
+      name: homeLabel,
+      item: `${input.baseUrl}/${input.locale}`,
+    },
+    {
+      "@type": "ListItem",
+      position: 2,
+      name: input.modalityLabel,
+      item: `${input.baseUrl}/${input.locale}/${input.modalitySlug}`,
+    },
+  ];
+  if (input.countryLabel && input.countrySlug) {
+    breadcrumbItems.push({
+      "@type": "ListItem",
+      position: 3,
+      name: input.countryLabel,
+      item: pageUrl,
+    });
+  }
+
+  const breadcrumbList = {
+    "@type": "BreadcrumbList",
+    itemListElement: breadcrumbItems,
+  };
+
+  const graph: Array<Record<string, unknown>> = [webPage, breadcrumbList];
+
+  if (input.countrySlug && input.academies && input.academies.length > 0) {
+    graph.push({
+      "@type": "ItemList",
+      "@id": `${pageUrl}#academies`,
+      numberOfItems: input.academies.length,
+      itemListElement: input.academies.map((academy, index) => {
+        const location = [academy.city, academy.region]
+          .filter(Boolean)
+          .join(", ");
+        return {
+          "@type": "ListItem",
+          position: index + 1,
+          name: academy.name,
+          ...(location ? { description: location } : {}),
+          url: `${input.baseUrl}/academias/${academy.id}`,
+        };
+      }),
+    });
+  }
+
+  return {
+    "@context": "https://schema.org",
+    "@graph": graph,
+  };
+}
+
+// Get all modality pages (parent pages listing countries)
+export function getAllModalityPages(locale: Locale): Array<{
+  modality: ModalitySlug;
+  url: string;
+  label: string;
+}> {
+  return Object.keys(MODALITIES).flatMap((modality) => {
+    const modalitySlug = MODALITIES[modality as ModalitySlug][locale];
+    if (!modalitySlug) return [];
+    return {
+      modality: modality as ModalitySlug,
+      url: `/${locale}/${modalitySlug}`,
+      label: MODALITIES[modality as ModalitySlug].label[locale],
+    };
+  });
+}
+
+// Get countries for a modality in a locale
+export function getCountriesForModality(
+  locale: Locale,
+  modality: ModalitySlug
+): Array<{ slug: CountrySlug; label: string; url: string }> {
+  return Object.keys(COUNTRIES).flatMap((country) => {
+    const countrySlug = COUNTRIES[country as CountrySlug][locale];
+    const modalitySlug = MODALITIES[modality][locale];
+    if (!countrySlug || !modalitySlug) return [];
+    return {
+      slug: country as CountrySlug,
+      label: COUNTRIES[country as CountrySlug].label[locale],
+      url: `/${locale}/${modalitySlug}/${countrySlug}`,
+    };
+  });
+}
+
+// Get modalities for a country in a locale
+export function getModalitiesForCountry(
+  locale: Locale,
+  country: CountrySlug
+): Array<{ slug: ModalitySlug; label: string; url: string }> {
+  return Object.keys(MODALITIES).flatMap((modality) => {
+    const modalitySlug = MODALITIES[modality as ModalitySlug][locale];
+    const countrySlug = COUNTRIES[country][locale];
+    if (!modalitySlug || !countrySlug) return [];
+    return {
+      slug: modality as ModalitySlug,
+      label: MODALITIES[modality as ModalitySlug].label[locale],
+      url: `/${locale}/${modalitySlug}/${countrySlug}`,
+    };
+  });
+}
+
+// Get related clusters (same modality, different countries)
+export function getRelatedByModality(
+  locale: Locale,
+  modality: ModalitySlug,
+  excludeCountry: CountrySlug,
+  limit = 4
+): Array<{ slug: CountrySlug; label: string; url: string }> {
+  const related: Array<{ slug: CountrySlug; label: string; url: string }> = [];
+
+  for (const country of Object.keys(COUNTRIES) as CountrySlug[]) {
+    if (country !== excludeCountry) {
+      const countrySlug = COUNTRIES[country][locale];
+      const modalitySlug = MODALITIES[modality][locale];
+      if (!countrySlug || !modalitySlug) continue;
+      related.push({
+        slug: country,
+        label: COUNTRIES[country].label[locale],
+        url: `/${locale}/${modalitySlug}/${countrySlug}`,
+      });
+
+      if (related.length >= limit) break;
+    }
+  }
+
+  return related;
+}
+
+// Locales that have SEO content published. Keep in sync with VALID_LOCALES
+// in (site)/[locale]/[modality]/[country]/page.tsx.
+const CLUSTER_LOCALES = ['es', 'en'] as const;
+type ClusterLocale = (typeof CLUSTER_LOCALES)[number];
+
+// Build hreflang matrix for a modality page (`/[locale]/[modality]`).
+// Lists locale variants for every modality that has content in that locale,
+// plus an x-default fallback to the site root. Country variants are scoped
+// per-modality below.
+export function getModalityHreflang(
+  modalityKey: ModalitySlug,
+  baseUrl: string,
+): Record<string, string> {
+  const languages: Record<string, string> = {};
+
+  for (const locale of CLUSTER_LOCALES) {
+    const slug = MODALITIES[modalityKey][locale];
+    if (!slug) continue;
+    languages[locale] = `${baseUrl}/${locale}/${slug}`;
+  }
+
+  languages['x-default'] = `${baseUrl}/`;
+  return languages;
+}
+
+// Build hreflang matrix for a country cluster page
+// (`/[locale]/[modality]/[country]`). Emits both locale (`es`, `en`) and
+// language-region (`es-AR`, `es-MX`, ...) variants so Google does not
+// collapse per-country pages into a single es cluster, plus x-default
+// pointing at the root for unmatched locales.
+export function getClusterHreflang(
+  modalityKey: ModalitySlug,
+  countryKey: CountrySlug,
+  baseUrl: string,
+): Record<string, string> {
+  const languages: Record<string, string> = {};
+  const countryCode = COUNTRIES[countryKey]?.code;
+
+  for (const locale of CLUSTER_LOCALES) {
+    const modalitySlug = MODALITIES[modalityKey][locale];
+    const countrySlug = COUNTRIES[countryKey][locale];
+    if (!modalitySlug || !countrySlug) continue;
+    languages[locale] = `${baseUrl}/${locale}/${modalitySlug}/${countrySlug}`;
+  }
+
+  // Per-region tags (es-AR, en-US, ...) so Google disambiguates country
+  // variants even when content is similar across countries.
+  if (countryCode) {
+    const primaryLocale: ClusterLocale = MODALITIES[modalityKey].es
+      ? 'es'
+      : 'en';
+    const primarySlug = MODALITIES[modalityKey][primaryLocale];
+    const primaryCountrySlug = COUNTRIES[countryKey][primaryLocale];
+    if (primarySlug && primaryCountrySlug) {
+      languages[`${primaryLocale}-${countryCode}`] =
+        `${baseUrl}/${primaryLocale}/${primarySlug}/${primaryCountrySlug}`;
+    }
+  }
+
+  languages['x-default'] = `${baseUrl}/`;
+  return languages;
+}
+
+// Get related clusters (same country, different modalities)
+export function getRelatedByCountry(
+  locale: Locale,
+  country: CountrySlug,
+  excludeModality: ModalitySlug,
+  limit = 4
+): Array<{ slug: ModalitySlug; label: string; url: string }> {
+  const related: Array<{ slug: ModalitySlug; label: string; url: string }> = [];
+
+  for (const modality of Object.keys(MODALITIES) as ModalitySlug[]) {
+    if (modality !== excludeModality) {
+      const countrySlug = COUNTRIES[country][locale];
+      const modalitySlug = MODALITIES[modality][locale];
+      if (!countrySlug || !modalitySlug) continue;
+      related.push({
+        slug: modality,
+        label: MODALITIES[modality].label[locale],
+        url: `/${locale}/${modalitySlug}/${countrySlug}`,
+      });
+
+      if (related.length >= limit) break;
+    }
+  }
+
+  return related;
+}
+
+// Get academies for a cluster (filtered by modality/country)
+export async function getClusterAcademies(
+  locale: Locale,
+  modality: ModalitySlug,
+  country: CountrySlug,
+  limit = 12
+) {
+  // Public cluster pages are prerendered during `next build`; the database
+  // intentionally rejects connections in that phase. Returning an empty
+  // collection keeps the static page valid and lets runtime requests hydrate
+  // the real directory data without noisy build-time errors.
+  if (
+    process.env.NEXT_PHASE === "phase-production-build" ||
+    process.env.NEXT_PHASE === "phase-development-build" ||
+    process.env.ZALTYKO_SKIP_PUBLIC_DB === "1"
+  ) {
+    return [];
+  }
+  const { flag, entryPath } = await import('@/lib/directory/contracts');
+  if (flag('catalog')) {
+    const { listEntries } = await import('@/lib/directory/service');
+    const disciplines: Record<ModalitySlug, string[]> = {
+      artistic: ['artistic_female', 'artistic_male'],
+      rhythmic: ['rhythmic'],
+      acrobatic: ['acrobatics'],
+      trampoline: ['trampoline'],
+    };
+    const countryCode = COUNTRIES[country]?.code;
+    if (!countryCode) return [];
+    const pages = await Promise.all(disciplines[modality].map(discipline =>
+      listEntries({kind:'academy', country:countryCode, discipline, limit: Math.min(limit,50)})
+    ));
+    const entries = Array.from(new Map(pages.flatMap(page => page.items).map(entry => [entry.id,entry])).values())
+      .sort((a,b) => a.data.name.localeCompare(b.data.name,locale)).slice(0,limit);
+    return entries.map(entry => ({id:entryPath(entry).replace('/academias/',''),name:entry.data.name,city:entry.data.city ?? null,region:entry.data.region ?? null,logoUrl:entry.data.imageUrl ?? null}));
+  }
+  const { db } = await import('@/db');
+  const { academies } = await import('@/db/schema');
+  const { eq, and } = await import('drizzle-orm');
+
+  const countryCode = COUNTRIES[country]?.code;
+  if (!countryCode) return [];
+
+  const dbType = MODALITY_DB_TYPES[modality];
+
+  const conditions = [
+    eq(academies.isPublic, true),
+    eq(academies.isSuspended, false),
+    notInArray(academies.status, ["churned", "fraud_hold"]),
+  ];
+
+  // @ts-ignore - country is stored as code
+  conditions.push(eq(academies.country, countryCode));
+
+  if (dbType && dbType !== 'general') {
+    conditions.push(eq(academies.academyType, dbType as any));
+  }
+
+  const result = await db
+    .select({
+      id: academies.id,
+      name: academies.name,
+      city: academies.city,
+      region: academies.region,
+      logoUrl: academies.logoUrl,
+    })
+    .from(academies)
+    .where(and(...conditions))
+    .limit(limit);
+
+  return result;
+}
+
+// Get coaches for a cluster
+export async function getClusterCoaches(
+  locale: Locale,
+  modality: ModalitySlug,
+  country: CountrySlug,
+  limit = 12
+) {
+  if (process.env.NEXT_PHASE === "phase-production-build" || process.env.NEXT_PHASE === "phase-development-build") {
+    return [];
+  }
+  const { db } = await import('@/db');
+  const { coaches, academies } = await import('@/db/schema');
+  const { eq, and, sql } = await import('drizzle-orm');
+
+  const countryCode = COUNTRIES[country]?.code;
+  if (!countryCode) return [];
+
+  const result = await db
+    .select({
+      id: coaches.id,
+      name: coaches.name,
+      specialties: coaches.specialties,
+      publicBio: coaches.publicBio,
+      photoUrl: coaches.photoUrl,
+      yearsExperience: coaches.yearsExperience,
+      academyName: academies.name,
+    })
+    .from(coaches)
+    .innerJoin(academies, eq(coaches.academyId, academies.id))
+    .where(
+      and(
+        eq(academies.isPublic, true),
+        eq(academies.isSuspended, false),
+        notInArray(academies.status, ["churned", "fraud_hold"]),
+        sql`${academies.country} = ${countryCode}`
+      )
+    )
+    .limit(limit);
+
+  // Map to PublicCoach interface
+  return result.map(c => ({
+    id: c.id,
+    name: c.name,
+    photoUrl: c.photoUrl,
+    academyName: c.academyName,
+    publicBio: c.publicBio,
+    specialties: c.specialties ?? [],
+    yearsExperience: c.yearsExperience ? parseInt(String(c.yearsExperience), 10) : undefined,
+  }));
+}
+
+// Get events for a cluster
+export async function getClusterEvents(
+  locale: Locale,
+  modality: ModalitySlug,
+  country: CountrySlug,
+  limit = 12
+) {
+  const { db } = await import('@/db');
+  const { events, academies } = await import('@/db/schema');
+  const { eq, and, sql } = await import('drizzle-orm');
+
+  const countryCode = COUNTRIES[country]?.code;
+  if (!countryCode) return [];
+
+  const dbDiscipline = MODALITY_DB_DISCIPLINES[modality];
+
+  const conditions = [
+    eq(events.isPublic, true),
+    eq(events.status, 'published' as any),
+    sql`${events.countryCode} = ${countryCode}`,
+  ];
+
+  if (dbDiscipline) {
+    conditions.push(eq(events.discipline, dbDiscipline as any));
+  }
+
+  const result = await db
+    .select({
+      id: events.id,
+      title: events.title,
+      startDate: events.startDate,
+      endDate: events.endDate,
+      cityName: events.cityName,
+      provinceName: events.provinceName,
+      countryName: events.countryName,
+      level: events.level,
+      description: events.description,
+      maxCapacity: events.maxCapacity,
+      registrationFee: events.registrationFee,
+      academyName: academies.name,
+    })
+    .from(events)
+    .innerJoin(academies, eq(events.academyId, academies.id))
+    .where(and(...conditions))
+    .limit(limit);
+
+  return result;
+}
+
+// Mapping from modality to academy type
+const MODALITY_DB_TYPES: Record<ModalitySlug, string> = {
+  artistic: 'artistica',
+  rhythmic: 'ritmica',
+  acrobatic: 'general',
+  trampoline: 'general',
+};
+
+// Mapping from modality to event discipline
+const MODALITY_DB_DISCIPLINES: Record<ModalitySlug, string> = {
+  artistic: 'artistic_female',
+  rhythmic: 'rhythmic',
+  acrobatic: '',
+  trampoline: '',
+};

@@ -1,0 +1,438 @@
+import { and, eq } from "drizzle-orm";
+import { z } from "zod";
+
+import { db } from "@/db";
+import { events, academies } from "@/db/schema";
+import { withTenant } from "@/lib/authz";
+import { authorizeAcademyCapability } from "@/lib/authz/resource-scope";
+import { getUserIdentifier, withRateLimit } from "@/lib/rate-limit";
+import { handleApiError } from "@/lib/api-error-handler";
+import { logger } from "@/lib/logger";
+import { apiSuccess, apiError } from "@/lib/api-response";
+import { getAcademySportConfigOptions, verifyAcademySportConfig } from "@/lib/sport-config/service";
+import { NextResponse } from "next/server";
+import { cookies } from "next/headers";
+import { createClient } from "@/lib/supabase/server";
+import { profiles } from "@/db/schema";
+
+export const dynamic = "force-dynamic";
+
+const EVENT_LEVELS = ["internal", "local", "national", "international"] as const;
+const EVENT_DISCIPLINES = ["artistic_female", "artistic_male", "rhythmic"] as const;
+
+// PR 10 (Operate P2): `.nullable().optional()` en todos los campos de
+// texto/email/url/array/number que el form de edición de evento puede
+// limpiar (clear field). Antes, `null` → 400. Booleans (notify*/isPublic/
+// allowWaitlist) y campos ya nullable se quedan como estaban.
+const UpdateEventSchema = z.object({
+  title: z.string().min(1).max(200).nullable().optional(),
+  description: z.string().nullable().optional(),
+  category: z.array(z.string()).nullable().optional(),
+  isPublic: z.boolean().optional(),
+  level: z.enum(EVENT_LEVELS).nullable().optional(),
+  discipline: z.enum(EVENT_DISCIPLINES).nullable().optional(),
+  sportConfigId: z.string().uuid().nullable().optional(),
+  eventType: z.enum(["competitions", "courses", "camps", "workshops", "clinics", "evaluations", "other"]).nullable().optional(),
+  competitionTypeCode: z.string().trim().min(1).max(80).nullable().optional(),
+  startDate: z.string().nullable().optional(),
+  endDate: z.string().nullable().optional(),
+  registrationStartDate: z.string().nullable().optional(),
+  registrationEndDate: z.string().nullable().optional(),
+  countryCode: z.string().nullable().optional(),
+  countryName: z.string().nullable().optional(),
+  provinceName: z.string().nullable().optional(),
+  cityName: z.string().nullable().optional(),
+  // Mantener campos antiguos para compatibilidad
+  country: z.string().nullable().optional(),
+  province: z.string().nullable().optional(),
+  city: z.string().nullable().optional(),
+  contactEmail: z.string().email().nullable().optional(),
+  contactPhone: z.string().nullable().optional(),
+  contactInstagram: z.string().nullable().optional(),
+  contactWebsite: z.string().url().nullable().optional(),
+  images: z.array(z.string().url()).nullable().optional(),
+  attachments: z.array(z.object({ name: z.string(), url: z.string().url() })).nullable().optional(),
+  notifyInternalStaff: z.boolean().optional(),
+  notifyCityAcademies: z.boolean().optional(),
+  notifyProvinceAcademies: z.boolean().optional(),
+  notifyCountryAcademies: z.boolean().optional(),
+  // Nuevos campos para inscripciones
+  status: z.enum(["draft", "published", "cancelled", "completed"]).nullable().optional(),
+  maxCapacity: z.number().int().positive().nullable().optional(),
+  registrationFee: z.number().int().positive().nullable().optional(),
+  allowWaitlist: z.boolean().optional(),
+  waitlistMaxSize: z.number().int().positive().nullable().optional(),
+}).refine((data) => {
+  if (data.registrationStartDate && data.registrationEndDate) {
+    return new Date(data.registrationStartDate) <= new Date(data.registrationEndDate);
+  }
+  return true;
+}, {
+  message: "La fecha de inicio de inscripción debe ser anterior a la fecha de fin",
+  path: ["registrationStartDate"],
+}).refine((data) => {
+  if (data.registrationEndDate && data.startDate) {
+    return new Date(data.registrationEndDate) <= new Date(data.startDate);
+  }
+  return true;
+}, {
+  message: "La fecha de fin de inscripción debe ser anterior a la fecha de inicio del evento",
+  path: ["registrationEndDate"],
+}).refine((data) => {
+  if (data.startDate && data.endDate) {
+    return new Date(data.startDate) <= new Date(data.endDate);
+  }
+  return true;
+}, {
+  message: "La fecha de inicio debe ser anterior a la fecha de fin",
+  path: ["startDate"],
+});
+
+interface RouteContext {
+  params: Promise<{ id: string }>;
+}
+
+/**
+ * GET /api/events/[id]
+ * 
+ * Obtiene el detalle de un evento (público si is_public = true, o del tenant si autenticado)
+ */
+// @auth-flexible route-guard-reason: public events are readable without auth; private events authenticate before returning data.
+export async function GET(request: Request, context: RouteContext) {
+  try {
+    const { id } = await context.params;
+    if (!z.string().uuid().safeParse(id).success) {
+      return apiError("INVALID_EVENT_ID", "Identificador de evento inválido", 400);
+    }
+
+    // Obtener evento
+    const [event] = await db
+      .select({
+        id: events.id,
+        tenantId: events.tenantId,
+        academyId: events.academyId,
+        title: events.title,
+        description: events.description,
+        category: events.category,
+        isPublic: events.isPublic,
+        level: events.level,
+        discipline: events.discipline,
+        sportConfigId: events.sportConfigId,
+        competitionTypeCode: events.competitionTypeCode,
+        eventType: events.eventType,
+        startDate: events.startDate,
+        endDate: events.endDate,
+        country: events.country,
+        province: events.province,
+        city: events.city,
+        contactEmail: events.contactEmail,
+        contactPhone: events.contactPhone,
+        contactInstagram: events.contactInstagram,
+        contactWebsite: events.contactWebsite,
+        images: events.images,
+        attachments: events.attachments,
+        createdAt: events.createdAt,
+        updatedAt: events.updatedAt,
+      })
+      .from(events)
+      .where(eq(events.id, id))
+      .limit(1);
+
+    if (!event) {
+      return apiError("EVENT_NOT_FOUND", "Evento no encontrado", 404);
+    }
+
+    // Los eventos privados nunca deben exponerse desde esta ruta pública.
+    if (!event.isPublic) {
+      const cookieStore = await cookies();
+      const supabase = await createClient(cookieStore);
+      const { data: { user } } = await supabase.auth.getUser();
+      if (!user) return apiError("EVENT_NOT_FOUND", "Evento no encontrado", 404);
+      const [profile] = await db
+        .select()
+        .from(profiles)
+        .where(eq(profiles.userId, user.id))
+        .limit(1);
+      if (!profile || profile.tenantId !== event.tenantId) {
+        return apiError("EVENT_NOT_FOUND", "Evento no encontrado", 404);
+      }
+      const scope = await authorizeAcademyCapability({
+        context: { tenantId: profile.tenantId, userId: user.id, profile },
+        resourceTenantId: event.tenantId,
+        academyId: event.academyId,
+        permission: "events:read",
+      });
+      if (!scope.allowed) {
+        return apiError("EVENT_NOT_FOUND", "Evento no encontrado", 404);
+      }
+    }
+
+    // Obtener información de la academia organizadora
+    const [academy] = await db
+      .select({
+        id: academies.id,
+        name: academies.name,
+        logoUrl: academies.logoUrl,
+      })
+      .from(academies)
+      .where(and(eq(academies.id, event.academyId), eq(academies.tenantId, event.tenantId)))
+      .limit(1);
+
+    return apiSuccess({
+      ...event,
+      academy: academy || null,
+    });
+  } catch (error) {
+    return handleApiError(error, { endpoint: "/api/events/[id]", method: "GET" });
+  }
+}
+
+/**
+ * PATCH /api/events/[id]
+ *
+ * Edita un evento (solo dueño de la academia)
+ */
+const patchEventHandler = withTenant(async (request, context) => {
+  try {
+    const { id } = await (context.params as Promise<{ id: string }>);
+
+    if (!context.tenantId) {
+      return apiError("TENANT_REQUIRED", "Tenant required", 400);
+    }
+
+    const body = UpdateEventSchema.parse(await request.json());
+
+    // Verificar que el evento existe y pertenece al tenant
+    const [event] = await db
+      .select({
+        id: events.id,
+        academyId: events.academyId,
+        tenantId: events.tenantId,
+        sportConfigId: events.sportConfigId,
+      })
+      .from(events)
+      .where(and(eq(events.id, id), eq(events.tenantId, context.tenantId)))
+      .limit(1);
+
+    if (!event) {
+      return apiError("EVENT_NOT_FOUND", "Evento no encontrado", 404);
+    }
+
+    const capability = await authorizeAcademyCapability({
+      context,
+      resourceTenantId: context.tenantId,
+      academyId: event.academyId,
+      permission: "events:update",
+    });
+    if (!capability.allowed) {
+      return apiError("FORBIDDEN", "No tienes permiso para editar eventos de esta academia", 403);
+    }
+
+    // Verificar que la academia pertenece al tenant
+    const [academy] = await db
+      .select({ tenantId: academies.tenantId })
+      .from(academies)
+      .where(eq(academies.id, event.academyId))
+      .limit(1);
+
+    if (!academy || academy.tenantId !== context.tenantId) {
+      return apiError("FORBIDDEN", "Forbidden", 403);
+    }
+
+    const effectiveSportConfigId =
+      body.sportConfigId !== undefined ? body.sportConfigId : event.sportConfigId;
+    let sportConfigDiscipline = body.discipline ?? null;
+
+    if (effectiveSportConfigId) {
+      const verifiedConfig = await verifyAcademySportConfig({
+        academyId: event.academyId,
+        tenantId: context.tenantId,
+        sportConfigId: effectiveSportConfigId,
+      });
+
+      if (!verifiedConfig) {
+        return apiError("SPORT_CONFIG_NOT_FOUND", "La rama/modalidad no está activa en esta academia", 400);
+      }
+
+      sportConfigDiscipline = verifiedConfig.defaultDisciplineVariant as typeof EVENT_DISCIPLINES[number];
+
+      if (body.competitionTypeCode) {
+        const activeConfigs = await getAcademySportConfigOptions(event.academyId);
+        const selectedConfig = activeConfigs.find((config) => config.id === effectiveSportConfigId);
+        const validCompetitionTypes = new Set(selectedConfig?.competitionTypes.map((item) => item.code) ?? []);
+        if (validCompetitionTypes.size > 0 && !validCompetitionTypes.has(body.competitionTypeCode)) {
+          return apiError("INVALID_COMPETITION_TYPE", "El tipo de competición no pertenece a esta rama/modalidad", 400);
+        }
+      }
+    } else if (body.competitionTypeCode) {
+      return apiError("SPORT_CONFIG_REQUIRED", "Selecciona una rama/modalidad para usar un tipo de competición configurado", 400);
+    }
+
+    // Construir objeto de actualización solo con campos presentes
+    const updateData: Partial<typeof events.$inferInsert> = {};
+    // PR 10: tratar `null` como no-op para columnas DB requeridas (title,
+    // level, startDate, status). El form puede mandar `null` al limpiar el
+    // campo (clear field) y esos valores no deben pisar el contenido previo.
+    if (body.title !== undefined && body.title !== null) updateData.title = body.title;
+    if (body.description !== undefined) updateData.description = body.description || null;
+    if (body.category !== undefined) updateData.category = body.category || null;
+    if (body.isPublic !== undefined) updateData.isPublic = body.isPublic;
+    if (body.level !== undefined && body.level !== null) updateData.level = body.level;
+    if (body.discipline !== undefined || body.sportConfigId !== undefined) updateData.discipline = sportConfigDiscipline;
+    if (body.sportConfigId !== undefined) updateData.sportConfigId = body.sportConfigId || null;
+    if (body.eventType !== undefined) updateData.eventType = body.eventType || null;
+    if (body.competitionTypeCode !== undefined) updateData.competitionTypeCode = body.competitionTypeCode || null;
+    if (body.startDate !== undefined && body.startDate !== null) updateData.startDate = body.startDate;
+    if (body.endDate !== undefined) updateData.endDate = body.endDate || null;
+    if (body.registrationStartDate !== undefined) updateData.registrationStartDate = body.registrationStartDate || null;
+    if (body.registrationEndDate !== undefined) updateData.registrationEndDate = body.registrationEndDate || null;
+    if (body.countryCode !== undefined) updateData.countryCode = body.countryCode || null;
+    if (body.countryName !== undefined) updateData.countryName = body.countryName || null;
+    if (body.provinceName !== undefined) updateData.provinceName = body.provinceName || null;
+    if (body.cityName !== undefined) updateData.cityName = body.cityName || null;
+    // Mantener campos antiguos para compatibilidad
+    if (body.country !== undefined) updateData.country = body.countryName || body.country || null;
+    if (body.province !== undefined) updateData.province = body.provinceName || body.province || null;
+    if (body.city !== undefined) updateData.city = body.cityName || body.city || null;
+    if (body.contactEmail !== undefined) updateData.contactEmail = body.contactEmail || null;
+    if (body.contactPhone !== undefined) updateData.contactPhone = body.contactPhone || null;
+    if (body.contactInstagram !== undefined) updateData.contactInstagram = body.contactInstagram || null;
+    if (body.contactWebsite !== undefined) updateData.contactWebsite = body.contactWebsite || null;
+    if (body.images !== undefined) updateData.images = body.images || null;
+    if (body.attachments !== undefined) updateData.attachments = body.attachments || null;
+    if (body.notifyInternalStaff !== undefined) updateData.notifyInternalStaff = body.notifyInternalStaff;
+    if (body.notifyCityAcademies !== undefined) updateData.notifyCityAcademies = body.notifyCityAcademies;
+    if (body.notifyProvinceAcademies !== undefined) updateData.notifyProvinceAcademies = body.notifyProvinceAcademies;
+    if (body.notifyCountryAcademies !== undefined) updateData.notifyCountryAcademies = body.notifyCountryAcademies;
+    // Nuevos campos
+    if (body.status !== undefined && body.status !== null) updateData.status = body.status;
+    if (body.maxCapacity !== undefined) updateData.maxCapacity = body.maxCapacity ?? null;
+    if (body.registrationFee !== undefined) updateData.registrationFee = body.registrationFee ?? null;
+    if (body.allowWaitlist !== undefined) updateData.allowWaitlist = body.allowWaitlist;
+    if (body.waitlistMaxSize !== undefined) updateData.waitlistMaxSize = body.waitlistMaxSize ?? null;
+
+    updateData.updatedAt = new Date();
+
+    // Actualizar evento
+    const [updatedEvent] = await db
+      .update(events)
+      .set(updateData)
+      .where(eq(events.id, id))
+      .returning();
+
+    // Enviar notificaciones según toggles activados (solo si se actualizaron)
+    if (body.notifyInternalStaff) {
+      try {
+        const { notifyInternalStaff } = await import("@/lib/notifications/eventsNotifier");
+        await notifyInternalStaff(updatedEvent.academyId, id);
+      } catch (err) {
+        logger.error("Error enviando notificación a personal interno", err as Error, { academyId: updatedEvent.academyId, id: id });
+      }
+    }
+    if (body.notifyCityAcademies && (body.cityName || updatedEvent.cityName)) {
+      try {
+        const { notifyCity } = await import("@/lib/notifications/eventsNotifier");
+        await notifyCity(updatedEvent.academyId, id);
+      } catch (err) {
+        logger.error("Error enviando notificación a academias de la ciudad", err as Error, { academyId: updatedEvent.academyId, id: id });
+      }
+    }
+    if (body.notifyProvinceAcademies && (body.provinceName || updatedEvent.provinceName)) {
+      try {
+        const { notifyProvince } = await import("@/lib/notifications/eventsNotifier");
+        await notifyProvince(updatedEvent.academyId, id);
+      } catch (err) {
+        logger.error("Error enviando notificación a academias de la provincia", err as Error, { academyId: updatedEvent.academyId, id: id });
+      }
+    }
+    if (body.notifyCountryAcademies && (body.countryName || updatedEvent.countryName)) {
+      try {
+        const { notifyCountry } = await import("@/lib/notifications/eventsNotifier");
+        await notifyCountry(updatedEvent.academyId, id);
+      } catch (err) {
+        logger.error("Error enviando notificación a academias del país", err as Error, { academyId: updatedEvent.academyId, id: id });
+      }
+    }
+
+    return apiSuccess({ event: updatedEvent });
+  } catch (error: unknown) {
+    if (error instanceof z.ZodError) {
+      return apiError("VALIDATION_ERROR", "Validation failed", 400);
+    }
+    return handleApiError(error, { endpoint: "/api/events/[id]", method: "PATCH" });
+  }
+});
+
+// Rate-limited PATCH handler: 30 requests per minute
+export const PATCH = withRateLimit(
+  async (request, context) => {
+    return (await patchEventHandler(request, context)) as NextResponse;
+  },
+  { identifier: getUserIdentifier, limit: 30, window: 60 }
+);
+
+/**
+ * DELETE /api/events/[id]
+ *
+ * Elimina un evento (solo dueño de la academia)
+ */
+const deleteEventHandler = withTenant(async (request, context) => {
+  try {
+    const { id } = await (context.params as Promise<{ id: string }>);
+
+    if (!context.tenantId) {
+      return apiError("TENANT_REQUIRED", "Tenant required", 400);
+    }
+
+    // Verificar que el evento existe y pertenece al tenant
+    const [event] = await db
+      .select({
+        id: events.id,
+        academyId: events.academyId,
+        tenantId: events.tenantId,
+      })
+      .from(events)
+      .where(and(eq(events.id, id), eq(events.tenantId, context.tenantId)))
+      .limit(1);
+
+    if (!event) {
+      return apiError("EVENT_NOT_FOUND", "Evento no encontrado", 404);
+    }
+
+    const capability = await authorizeAcademyCapability({
+      context,
+      resourceTenantId: event.tenantId,
+      academyId: event.academyId,
+      permission: "events:delete",
+    });
+    if (!capability.allowed) {
+      return apiError("EVENT_NOT_FOUND", "Evento no encontrado", 404);
+    }
+
+    // Verificar que la academia pertenece al tenant
+    const [academy] = await db
+      .select({ tenantId: academies.tenantId })
+      .from(academies)
+      .where(eq(academies.id, event.academyId))
+      .limit(1);
+
+    if (!academy || academy.tenantId !== context.tenantId) {
+      return apiError("FORBIDDEN", "Forbidden", 403);
+    }
+
+    // Eliminar evento
+    await db.delete(events).where(and(eq(events.id, id), eq(events.tenantId, event.tenantId)));
+
+    return apiSuccess({ ok: true });
+  } catch (error) {
+    return handleApiError(error, { endpoint: "/api/events/[id]", method: "DELETE" });
+  }
+});
+
+// Rate-limited DELETE handler: 5 requests per minute
+export const DELETE = withRateLimit(
+  async (request, context) => {
+    return (await deleteEventHandler(request, context)) as NextResponse;
+  },
+  { identifier: getUserIdentifier, limit: 5, window: 60 }
+);

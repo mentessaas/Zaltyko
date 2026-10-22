@@ -1,0 +1,102 @@
+"use client";
+
+import { memo } from "react";
+import { Users, UserCheck, LayoutDashboard } from "lucide-react";
+import type { LucideIcon } from "lucide-react";
+
+import { DashboardCard } from "./DashboardCard";
+import type { KpiTrends } from "@/lib/dashboard/kpi-trends";
+import { pluralizeFirstWord } from "@/lib/specialization/registry";
+
+interface KPISectionProps {
+  metrics: {
+    athletes: number;
+    coaches: number;
+    groups: number;
+    attendancePercent: number;
+  };
+  academyId: string;
+  labels: {
+    groupLabel: string;
+    disciplineName: string;
+    athletesPlural: string;
+    coachLabel: string;
+  };
+  trends: KpiTrends | null;
+}
+
+type TrendKey = keyof KpiTrends;
+
+interface MetricCard {
+  title: string;
+  value: string | number;
+  valueSuffix?: string;
+  subtitle: string;
+  href: string;
+  icon: LucideIcon;
+  accent: "sky" | "emerald" | "red" | "amber" | "coral" | "slate" | "zaltyko-primary" | "zaltyko-accent";
+  trendKey: TrendKey;
+}
+
+function KPISectionImpl({ metrics, academyId, labels, trends }: KPISectionProps) {
+  const metricCards: MetricCard[] = [
+    {
+      title: labels.athletesPlural,
+      value: metrics.athletes,
+      subtitle: "En tu academia",
+      href: `/app/${academyId}/athletes`,
+      icon: Users,
+      accent: "zaltyko-primary",
+      trendKey: "athletes",
+    },
+    {
+      title: pluralizeFirstWord(labels.coachLabel),
+      value: metrics.coaches,
+      subtitle: "Profesionales en tu equipo",
+      href: `/app/${academyId}/coaches`,
+      icon: UserCheck,
+      accent: "sky",
+      trendKey: "coaches",
+    },
+    {
+      title: pluralizeFirstWord(labels.groupLabel),
+      value: metrics.groups,
+      subtitle: `${pluralizeFirstWord(labels.groupLabel)} activos`,
+      href: `/app/${academyId}/groups`,
+      icon: LayoutDashboard,
+      accent: "zaltyko-accent",
+      trendKey: "groups",
+    },
+    {
+      title: "Asistencia",
+      value: metrics.attendancePercent,
+      valueSuffix: "%",
+      subtitle: "Últimos 7 días",
+      href: `/app/${academyId}/attendance`,
+      icon: UserCheck,
+      accent: "zaltyko-primary",
+      trendKey: "attendance",
+    },
+  ];
+
+  return (
+    <section className="grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
+      {metricCards.map((card) => (
+        <DashboardCard
+          key={card.title}
+          title={card.title}
+          value={card.value}
+          valueSuffix={card.valueSuffix}
+          subtitle={card.subtitle}
+          href={card.href}
+          icon={card.icon}
+          accent={card.accent}
+          trendData={trends?.[card.trendKey]}
+        />
+      ))}
+    </section>
+  );
+}
+
+export default memo(KPISectionImpl);
+export const KPISection = memo(KPISectionImpl);

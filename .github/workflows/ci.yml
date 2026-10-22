@@ -1,0 +1,675 @@
+name: CI
+
+permissions:
+  contents: read
+
+on:
+  push:
+    branches: [main, develop]
+  pull_request:
+    branches: [main, develop]
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  mobile-quality:
+    name: Mobile typecheck, lint & tests
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: mobile
+    steps:
+      - uses: actions/checkout@v7
+
+      - name: Setup pnpm
+        uses: pnpm/action-setup@v6
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v7
+        with:
+          node-version: "20"
+          cache: "pnpm"
+          cache-dependency-path: mobile/pnpm-lock.yaml
+
+      - name: Install mobile dependencies
+        run: pnpm install --frozen-lockfile --ignore-workspace
+
+      - name: Type check mobile
+        run: pnpm typecheck
+
+      - name: Lint mobile
+        run: pnpm lint
+
+      - name: Test mobile
+        run: pnpm test
+
+  dependency-security:
+    name: Dependency Security & SBOM
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+    steps:
+      - uses: actions/checkout@v7
+        with:
+          persist-credentials: false
+
+      - name: Setup pnpm
+        uses: pnpm/action-setup@v6
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v7
+        with:
+          node-version: "20"
+          cache: "pnpm"
+
+      - name: Install dependencies
+        run: pnpm install --frozen-lockfile
+
+      - name: Audit production dependencies
+        run: pnpm audit:dependencies --prod
+
+      - name: Audit environment contract
+        run: pnpm audit:env
+
+      - name: Download pinned cdxgen
+        run: |
+          mkdir -p "$RUNNER_TEMP/cdxgen"
+          curl --fail --location --retry 3 \
+            https://github.com/cdxgen/cdxgen/releases/download/v13.3.0/cdxgen-linux-amd64 \
+            --output "$RUNNER_TEMP/cdxgen/cdxgen-linux-amd64"
+          printf '%s  %s\n' \
+            '1a1decfa0236284e12797f120d8638608af76a91baa4b17a244948182ca47952' \
+            "$RUNNER_TEMP/cdxgen/cdxgen-linux-amd64" \
+            | sha256sum --check
+          chmod +x "$RUNNER_TEMP/cdxgen/cdxgen-linux-amd64"
+
+      - name: Generate web and mobile CycloneDX SBOMs
+        run: |
+          env -i HOME="$HOME" PATH="$PATH" TMPDIR="$RUNNER_TEMP" CI=true \
+            "$RUNNER_TEMP/cdxgen/cdxgen-linux-amd64" \
+            --no-install-deps --no-recurse -t pnpm \
+            -o "$RUNNER_TEMP/zaltyko-web.cdx.json" .
+          env -i HOME="$HOME" PATH="$PATH" TMPDIR="$RUNNER_TEMP" CI=true \
+            "$RUNNER_TEMP/cdxgen/cdxgen-linux-amd64" \
+            --no-install-deps --no-recurse -t pnpm \
+            -o "$RUNNER_TEMP/zaltyko-mobile.cdx.json" mobile
+          node <<'NODE'
+          const fs = require('node:fs');
+          for (const [file, expectedName] of [
+            [`${process.env.RUNNER_TEMP}/zaltyko-web.cdx.json`, 'zaltyko'],
+            [`${process.env.RUNNER_TEMP}/zaltyko-mobile.cdx.json`, 'zaltyko-mobile'],
+          ]) {
+            const bom = JSON.parse(fs.readFileSync(file, 'utf8'));
+            if (bom.bomFormat !== 'CycloneDX' || bom.metadata?.component?.name !== expectedName || !Array.isArray(bom.components) || bom.components.length === 0) {
+              throw new Error(`Invalid or incomplete CycloneDX SBOM: ${file}`);
+            }
+            console.log(`${expectedName}: ${bom.components.length} components`);
+          }
+          NODE
+
+      - name: Upload SBOM
+        uses: actions/upload-artifact@v7
+        with:
+          name: zaltyko-sbom-${{ github.sha }}
+          path: |
+            ${{ runner.temp }}/zaltyko-web.cdx.json
+            ${{ runner.temp }}/zaltyko-mobile.cdx.json
+          if-no-files-found: error
+
+  lint-and-typecheck:
+    name: Lint & Type Check
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v7
+
+      - name: Setup pnpm
+        uses: pnpm/action-setup@v6
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v7
+        with:
+          node-version: "20"
+          cache: "pnpm"
+
+      - name: Install dependencies
+        run: pnpm install --frozen-lockfile
+
+      - name: Lint
+        run: pnpm lint
+
+      - name: Type check
+        run: pnpm typecheck
+
+  test:
+    name: Unit Tests
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v7
+
+      - name: Setup pnpm
+        uses: pnpm/action-setup@v6
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v7
+        with:
+          node-version: "22"
+          cache: "pnpm"
+
+      - name: Install dependencies
+        run: pnpm install --frozen-lockfile
+
+      # Root Vitest also discovers mobile tests; install their real dependencies
+      # rather than excluding security regressions from the required gate.
+      - name: Install mobile dependencies for combined unit suite
+        working-directory: mobile
+        run: pnpm install --frozen-lockfile --ignore-workspace
+
+      - name: Run unit tests with coverage
+        run: pnpm vitest run --coverage
+
+      - name: Upload coverage to Codecov
+        if: github.event_name == 'push' && github.ref == 'refs/heads/main'
+        uses: codecov/codecov-action@v7
+        with:
+          files: ./coverage/lcov.info
+          flags: unittests
+          fail_ci_if_error: false
+
+  build:
+    name: Build
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v7
+
+      - name: Setup pnpm
+        uses: pnpm/action-setup@v6
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v7
+        with:
+          node-version: "20"
+          cache: "pnpm"
+
+      - name: Install dependencies
+        run: pnpm install --frozen-lockfile
+
+      - name: Build
+        run: pnpm build
+        env:
+          NODE_ENV: production
+          NEXT_PUBLIC_SUPABASE_URL: https://placeholder.supabase.co
+          NEXT_PUBLIC_SUPABASE_ANON_KEY: placeholder-anon-key-for-ci-build
+          DATABASE_URL: postgresql://placeholder:placeholder@placeholder:5432/placeholder
+          INTERNAL_AUTH_SECRET: placeholder-internal-auth-secret-for-ci-build
+          SUPABASE_JWT_SECRET: placeholder-supabase-jwt-secret-for-ci-build
+
+      - name: Type check generated Next.js route contracts
+        run: pnpm typecheck
+
+  # Smoke tests require a running database and services
+  smoke-test:
+    name: Smoke Tests
+    runs-on: ubuntu-latest
+    needs: build
+    if: github.event_name == 'push' && github.ref == 'refs/heads/main'
+    steps:
+      - uses: actions/checkout@v7
+
+      - name: Setup pnpm
+        uses: pnpm/action-setup@v6
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v7
+        with:
+          node-version: "20"
+          cache: "pnpm"
+
+      - name: Install dependencies
+        run: pnpm install --frozen-lockfile
+
+      - name: Install Playwright browsers
+        run: pnpm exec playwright install --with-deps chromium
+
+      # R1 fix 2026-09-06: delega al runner @playwright/test en lugar de invocar
+      # el script con `tsx`. Asi Playwright CLI y runtime comparten la misma
+      # version (1.58.2), evitando el skew chromium-1208 vs chromium-1243 que
+      # reventaba Playwright al `chromium.launch` en da21facda.
+      - name: Run public smoke tests against production
+        run: pnpm test:e2e:public:ci
+        env:
+          BASE_URL: https://zaltyko.com
+          E2E_PUBLIC_READ_ONLY: "true"
+
+  e2e-readiness:
+    name: E2E Credentials Readiness
+    runs-on: ubuntu-latest
+    # Remote Sandbox E2E stays disabled pending separate explicit authorization.
+    if: ${{ false }}
+    environment:
+      name: e2e-sandbox
+    outputs:
+      enabled: ${{ steps.check.outputs.enabled }}
+    steps:
+      - uses: actions/checkout@v7
+
+      - id: check
+        name: Confirm required E2E secrets are configured
+        env:
+          E2E_AUTH_EMAIL: ${{ secrets.E2E_AUTH_EMAIL }}
+          E2E_AUTH_PASSWORD: ${{ secrets.E2E_AUTH_PASSWORD }}
+          E2E_ACADEMY_ID: ${{ secrets.E2E_ACADEMY_ID }}
+          E2E_ACADEMY_B_ID: ${{ secrets.E2E_ACADEMY_B_ID }}
+          E2E_ATHLETE_ID: ${{ secrets.E2E_ATHLETE_ID }}
+          E2E_ADMIN_EMAIL: ${{ secrets.E2E_ADMIN_EMAIL }}
+          E2E_ADMIN_PASSWORD: ${{ secrets.E2E_ADMIN_PASSWORD }}
+          E2E_COACH_EMAIL: ${{ secrets.E2E_COACH_EMAIL }}
+          E2E_COACH_PASSWORD: ${{ secrets.E2E_COACH_PASSWORD }}
+          E2E_FAMILY_EMAIL: ${{ secrets.E2E_FAMILY_EMAIL }}
+          E2E_FAMILY_PASSWORD: ${{ secrets.E2E_FAMILY_PASSWORD }}
+          E2E_ATHLETE_EMAIL: ${{ secrets.E2E_ATHLETE_EMAIL }}
+          E2E_ATHLETE_PASSWORD: ${{ secrets.E2E_ATHLETE_PASSWORD }}
+          E2E_SUPER_ADMIN_EMAIL: ${{ secrets.E2E_SUPER_ADMIN_EMAIL }}
+          E2E_SUPER_ADMIN_PASSWORD: ${{ secrets.E2E_SUPER_ADMIN_PASSWORD }}
+          E2E_TARGET_SUPABASE_PROJECT_REF: ${{ secrets.E2E_TARGET_SUPABASE_PROJECT_REF }}
+          NEXT_PUBLIC_SUPABASE_URL: ${{ secrets.E2E_SUPABASE_URL }}
+          NEXT_PUBLIC_SUPABASE_ANON_KEY: ${{ secrets.E2E_SUPABASE_ANON_KEY }}
+          SUPABASE_SERVICE_ROLE_KEY: ${{ secrets.E2E_SUPABASE_SERVICE_ROLE_KEY }}
+          DATABASE_URL: ${{ secrets.E2E_DATABASE_URL }}
+          STRIPE_SECRET_KEY: ${{ secrets.E2E_STRIPE_SECRET_KEY }}
+          STRIPE_WEBHOOK_SECRET: ${{ secrets.E2E_STRIPE_WEBHOOK_SECRET }}
+          NEXT_PUBLIC_STRIPE_PUBLISHABLE_KEY: ${{ secrets.E2E_STRIPE_PUBLISHABLE_KEY }}
+          E2E_EVENT_NAME: ${{ github.event_name }}
+        run: bash scripts/ci/check-e2e-readiness.sh
+
+  e2e-local-owner:
+    name: Local Synthetic Owner E2E (${{ matrix.project }})
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    strategy:
+      fail-fast: false
+      # ECR Public anonymous pulls are rate-limited; keep all browser checks but
+      # avoid three independent daemons pulling the same images simultaneously.
+      max-parallel: 1
+      matrix:
+        project: [chromium, firefox, webkit]
+    steps:
+      - uses: actions/checkout@v7
+        with:
+          persist-credentials: false
+
+      - name: Setup pnpm
+        uses: pnpm/action-setup@v6
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v7
+        with:
+          node-version: "22"
+          cache: "pnpm"
+
+      - name: Test pinned Supabase CLI installer against synthetic archives
+        run: python3 scripts/ci/test_install_pinned_supabase_cli.py
+
+      - name: Download, verify, and install pinned Supabase CLI
+        run: |
+          set -euo pipefail
+          archive="$RUNNER_TEMP/supabase_linux_amd64.tar.gz"
+          curl --fail --location --retry 3 \
+            https://github.com/supabase/cli/releases/download/v2.84.2/supabase_linux_amd64.tar.gz \
+            --output "$archive"
+          python3 scripts/ci/install_pinned_supabase_cli.py "$archive"
+          version_output="$("$RUNNER_TEMP/supabase-cli-2.84.2/supabase" --version)"
+          [[ "$version_output" == *"2.84.2"* ]]
+          echo "$RUNNER_TEMP/supabase-cli-2.84.2" >> "$GITHUB_PATH"
+
+      - name: Install dependencies
+        run: pnpm install --frozen-lockfile
+
+      - name: Install Playwright browser
+        run: pnpm exec playwright install --with-deps "${{ matrix.project }}"
+
+      - name: Preload pinned local Supabase images
+        run: pnpm exec tsx scripts/ci/preload-local-e2e-images.ts
+        env:
+          GITHUB_ACTIONS: "true"
+
+      - name: Run isolated local Supabase Owner setup E2E
+        run: pnpm test:e2e:local
+        env:
+          E2E_LOCAL_PROJECT: ${{ matrix.project }}
+
+  validate-rls:
+    name: Validate RLS Coverage
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v7
+
+      - name: Setup pnpm
+        uses: pnpm/action-setup@v6
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v7
+        with:
+          node-version: "20"
+          cache: "pnpm"
+
+      - name: Install dependencies
+        run: pnpm install --frozen-lockfile
+
+      - name: Run validate:rls
+        run: pnpm validate:rls
+
+  check-migrations:
+    name: Check Drizzle Migrations Integrity
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v7
+
+      - name: Setup pnpm
+        uses: pnpm/action-setup@v6
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v7
+        with:
+          node-version: "20"
+          cache: "pnpm"
+
+      - name: Install dependencies
+        run: pnpm install --frozen-lockfile
+
+      - name: Run check:migrations
+        run: pnpm check:migrations
+
+  # Lighthouse CI: corre contra un build local tras `pnpm build`. Solo en push
+  # a main para no penalizar PRs de forks sin secrets. SEO marca warning por
+  # debajo de 0.90; performance/a11y/best-practices son warn hasta
+  # tener baseline real de las 5 paginas clave. Las reglas explicitas evitan
+  # que LHCI aplique auditorias obsoletas del preset al actualizar Lighthouse.
+  lighthouse:
+    name: Lighthouse SEO/Perf Budget
+    runs-on: ubuntu-latest
+    needs: build
+    if: github.event_name == 'push' && github.ref == 'refs/heads/main'
+    steps:
+      - uses: actions/checkout@v7
+
+      - name: Setup pnpm
+        uses: pnpm/action-setup@v6
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v7
+        with:
+          node-version: "22"
+          cache: "pnpm"
+
+      - name: Install dependencies
+        run: pnpm install --frozen-lockfile
+
+      - name: Build for Lighthouse
+        run: pnpm build
+        env:
+          NODE_ENV: production
+          NEXT_PUBLIC_SUPABASE_URL: https://placeholder.supabase.co
+          NEXT_PUBLIC_SUPABASE_ANON_KEY: placeholder-anon-key-for-lhci
+          DATABASE_URL: postgresql://placeholder:placeholder@placeholder:5432/placeholder
+          INTERNAL_AUTH_SECRET: placeholder-internal-auth-secret-for-lhci
+          SUPABASE_JWT_SECRET: placeholder-supabase-jwt-secret-for-lhci
+
+      - name: Run Lighthouse CI
+        uses: treosh/lighthouse-ci-action@v12
+        env:
+          NODE_ENV: production
+          # Lighthouse audits the public shell with placeholder credentials;
+          # keep the audit independent from a live database while production
+          # requests continue using the real public academy query.
+          ZALTYKO_SKIP_PUBLIC_DB: "1"
+          NEXT_PUBLIC_SUPABASE_URL: https://placeholder.supabase.co
+          NEXT_PUBLIC_SUPABASE_ANON_KEY: placeholder-anon-key-for-lhci
+          DATABASE_URL: postgresql://placeholder:placeholder@placeholder:5432/placeholder
+          INTERNAL_AUTH_SECRET: placeholder-internal-auth-secret-for-lhci
+          SUPABASE_JWT_SECRET: placeholder-supabase-jwt-secret-for-lhci
+        with:
+          configPath: .lighthouserc.json
+          uploadArtifacts: true
+          temporaryPublicStorage: false
+
+  e2e-public:
+    name: E2E Public (no auth)
+    runs-on: ubuntu-latest
+    needs: smoke-test
+    if: github.event_name == 'push' && github.ref == 'refs/heads/main'
+    steps:
+      - uses: actions/checkout@v7
+
+      - name: Setup pnpm
+        uses: pnpm/action-setup@v6
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v7
+        with:
+          node-version: "20"
+          cache: "pnpm"
+
+      - name: Install dependencies
+        run: pnpm install --frozen-lockfile
+
+      - name: Install Playwright browsers
+        run: pnpm exec playwright install --with-deps chromium
+
+      - name: Run public E2E
+        run: pnpm test:e2e:public:ci
+        env:
+          BASE_URL: https://zaltyko.com
+          E2E_PUBLIC_READ_ONLY: "true"
+
+  e2e-auth:
+    name: E2E Authenticated Flows
+    runs-on: ubuntu-latest
+    # Remote Sandbox E2E stays disabled pending separate explicit authorization.
+    if: ${{ false }}
+    environment:
+      name: e2e-sandbox
+    timeout-minutes: 45
+    concurrency:
+      group: zaltyko-authenticated-e2e-${{ github.repository }}
+      cancel-in-progress: false
+    env:
+      NODE_EXTRA_CA_CERTS: ${{ github.workspace }}/certs/supabase-root-ca.crt
+      VERCEL_ENV: preview
+      E2E_RATE_LIMIT_BYPASS: "true"
+    needs: [e2e-readiness]
+    steps:
+      - uses: actions/checkout@v7
+
+      - name: Setup pnpm
+        uses: pnpm/action-setup@v6
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v7
+        with:
+          node-version: "22"
+          cache: "pnpm"
+
+      - name: Install dependencies
+        run: pnpm install --frozen-lockfile
+
+      - name: Install Playwright browsers
+        # The authenticated E2E runs Chromium, Firefox, and WebKit projects.
+        run: pnpm exec playwright install --with-deps chromium firefox webkit
+
+      - name: Build isolated E2E app for production-mode runtime
+        run: pnpm build
+        env:
+          NODE_ENV: production
+          INTERNAL_AUTH_SECRET: e2e-build-placeholder
+          SUPABASE_JWT_SECRET: e2e-build-placeholder
+          NEXT_PUBLIC_APP_URL: http://127.0.0.1:3000
+          NEXT_PUBLIC_SUPABASE_URL: ${{ secrets.E2E_SUPABASE_URL }}
+          NEXT_PUBLIC_SUPABASE_ANON_KEY: ${{ secrets.E2E_SUPABASE_ANON_KEY }}
+          SUPABASE_SERVICE_ROLE_KEY: ${{ secrets.E2E_SUPABASE_SERVICE_ROLE_KEY }}
+          E2E_TARGET_SUPABASE_PROJECT_REF: ${{ secrets.E2E_TARGET_SUPABASE_PROJECT_REF }}
+          DATABASE_URL: ${{ secrets.E2E_DATABASE_URL }}
+          DATABASE_URL_POOL: ${{ secrets.E2E_DATABASE_URL }}
+          DATABASE_URL_DIRECT: ${{ secrets.E2E_DATABASE_URL }}
+          STRIPE_SECRET_KEY: ${{ secrets.E2E_STRIPE_SECRET_KEY }}
+          STRIPE_WEBHOOK_SECRET: ${{ secrets.E2E_STRIPE_WEBHOOK_SECRET }}
+          STRIPE_CONNECT_WEBHOOK_SECRET: ${{ secrets.E2E_STRIPE_CONNECT_WEBHOOK_SECRET }}
+          NEXT_PUBLIC_STRIPE_PUBLISHABLE_KEY: ${{ secrets.E2E_STRIPE_PUBLISHABLE_KEY }}
+
+      - name: Apply the allowlisted greenfield domain migrations to the E2E sandbox
+        run: pnpm e2e:prepare-domain
+        env:
+          E2E_ALLOW_PROVISIONING: "true"
+          E2E_TARGET_SUPABASE_PROJECT_REF: ${{ secrets.E2E_TARGET_SUPABASE_PROJECT_REF }}
+          NEXT_PUBLIC_SUPABASE_URL: ${{ secrets.E2E_SUPABASE_URL }}
+          DATABASE_URL: ${{ secrets.E2E_DATABASE_URL }}
+          DATABASE_URL_POOL: ${{ secrets.E2E_DATABASE_URL }}
+          DATABASE_URL_DIRECT: ${{ secrets.E2E_DATABASE_URL }}
+
+      - name: Provision owner, admin, coach and super-admin sandbox accounts
+        run: pnpm e2e:prepare-auth
+        env:
+          E2E_ALLOW_PROVISIONING: "true"
+          E2E_AUTH_EMAIL: ${{ secrets.E2E_AUTH_EMAIL }}
+          E2E_AUTH_PASSWORD: ${{ secrets.E2E_AUTH_PASSWORD }}
+          E2E_ADMIN_EMAIL: ${{ secrets.E2E_ADMIN_EMAIL }}
+          E2E_ADMIN_PASSWORD: ${{ secrets.E2E_ADMIN_PASSWORD }}
+          E2E_COACH_EMAIL: ${{ secrets.E2E_COACH_EMAIL }}
+          E2E_COACH_PASSWORD: ${{ secrets.E2E_COACH_PASSWORD }}
+          E2E_SUPER_ADMIN_EMAIL: ${{ secrets.E2E_SUPER_ADMIN_EMAIL }}
+          E2E_SUPER_ADMIN_PASSWORD: ${{ secrets.E2E_SUPER_ADMIN_PASSWORD }}
+          E2E_ACADEMY_ID: ${{ secrets.E2E_ACADEMY_ID }}
+          E2E_TARGET_SUPABASE_PROJECT_REF: ${{ secrets.E2E_TARGET_SUPABASE_PROJECT_REF }}
+          NEXT_PUBLIC_SUPABASE_URL: ${{ secrets.E2E_SUPABASE_URL }}
+          NEXT_PUBLIC_SUPABASE_ANON_KEY: ${{ secrets.E2E_SUPABASE_ANON_KEY }}
+          SUPABASE_SERVICE_ROLE_KEY: ${{ secrets.E2E_SUPABASE_SERVICE_ROLE_KEY }}
+          DATABASE_URL: ${{ secrets.E2E_DATABASE_URL }}
+
+      - name: Provision linked family and athlete sandbox accounts
+        run: pnpm tsx scripts/prepare-e2e-family-auth.ts
+        env:
+          E2E_ALLOW_PROVISIONING: "true"
+          E2E_FAMILY_EMAIL: ${{ secrets.E2E_FAMILY_EMAIL }}
+          E2E_FAMILY_PASSWORD: ${{ secrets.E2E_FAMILY_PASSWORD }}
+          E2E_ATHLETE_EMAIL: ${{ secrets.E2E_ATHLETE_EMAIL }}
+          E2E_ATHLETE_PASSWORD: ${{ secrets.E2E_ATHLETE_PASSWORD }}
+          E2E_ATHLETE_ID: ${{ secrets.E2E_ATHLETE_ID }}
+          E2E_ACADEMY_ID: ${{ secrets.E2E_ACADEMY_ID }}
+          E2E_TARGET_SUPABASE_PROJECT_REF: ${{ secrets.E2E_TARGET_SUPABASE_PROJECT_REF }}
+          NEXT_PUBLIC_SUPABASE_URL: ${{ secrets.E2E_SUPABASE_URL }}
+          NEXT_PUBLIC_SUPABASE_ANON_KEY: ${{ secrets.E2E_SUPABASE_ANON_KEY }}
+          SUPABASE_SERVICE_ROLE_KEY: ${{ secrets.E2E_SUPABASE_SERVICE_ROLE_KEY }}
+          DATABASE_URL: ${{ secrets.E2E_DATABASE_URL }}
+
+      - name: Generate auth storage state
+        run: pnpm test:e2e:auth
+        env:
+          E2E_AUTH_EMAIL: ${{ secrets.E2E_AUTH_EMAIL }}
+          E2E_AUTH_PASSWORD: ${{ secrets.E2E_AUTH_PASSWORD }}
+          E2E_ACADEMY_ID: ${{ secrets.E2E_ACADEMY_ID }}
+          E2E_ADMIN_EMAIL: ${{ secrets.E2E_ADMIN_EMAIL }}
+          E2E_ADMIN_PASSWORD: ${{ secrets.E2E_ADMIN_PASSWORD }}
+          E2E_COACH_EMAIL: ${{ secrets.E2E_COACH_EMAIL }}
+          E2E_COACH_PASSWORD: ${{ secrets.E2E_COACH_PASSWORD }}
+          E2E_FAMILY_EMAIL: ${{ secrets.E2E_FAMILY_EMAIL }}
+          E2E_FAMILY_PASSWORD: ${{ secrets.E2E_FAMILY_PASSWORD }}
+          E2E_ATHLETE_EMAIL: ${{ secrets.E2E_ATHLETE_EMAIL }}
+          E2E_ATHLETE_PASSWORD: ${{ secrets.E2E_ATHLETE_PASSWORD }}
+          E2E_SUPER_ADMIN_EMAIL: ${{ secrets.E2E_SUPER_ADMIN_EMAIL }}
+          E2E_SUPER_ADMIN_PASSWORD: ${{ secrets.E2E_SUPER_ADMIN_PASSWORD }}
+          E2E_TARGET_SUPABASE_PROJECT_REF: ${{ secrets.E2E_TARGET_SUPABASE_PROJECT_REF }}
+          NEXT_PUBLIC_SUPABASE_URL: ${{ secrets.E2E_SUPABASE_URL }}
+          NEXT_PUBLIC_SUPABASE_ANON_KEY: ${{ secrets.E2E_SUPABASE_ANON_KEY }}
+          SUPABASE_SERVICE_ROLE_KEY: ${{ secrets.E2E_SUPABASE_SERVICE_ROLE_KEY }}
+          DATABASE_URL: ${{ secrets.E2E_DATABASE_URL }}
+          STRIPE_SECRET_KEY: ${{ secrets.E2E_STRIPE_SECRET_KEY }}
+          STRIPE_WEBHOOK_SECRET: ${{ secrets.E2E_STRIPE_WEBHOOK_SECRET }}
+          NEXT_PUBLIC_STRIPE_PUBLISHABLE_KEY: ${{ secrets.E2E_STRIPE_PUBLISHABLE_KEY }}
+
+      - name: Run internal role smoke on isolated staging
+        run: pnpm exec playwright test tests/e2e-role-smoke.spec.ts --project=chromium
+        env:
+          E2E_STORAGE_STATE: .auth/user.json
+          E2E_ACADEMY_ID: ${{ secrets.E2E_ACADEMY_ID }}
+          E2E_ACADEMY_B_ID: ${{ secrets.E2E_ACADEMY_B_ID }}
+          E2E_ATHLETE_ID: ${{ secrets.E2E_ATHLETE_ID }}
+          E2E_TARGET_SUPABASE_PROJECT_REF: ${{ secrets.E2E_TARGET_SUPABASE_PROJECT_REF }}
+          NEXT_PUBLIC_SUPABASE_URL: ${{ secrets.E2E_SUPABASE_URL }}
+          NEXT_PUBLIC_SUPABASE_ANON_KEY: ${{ secrets.E2E_SUPABASE_ANON_KEY }}
+          SUPABASE_SERVICE_ROLE_KEY: ${{ secrets.E2E_SUPABASE_SERVICE_ROLE_KEY }}
+          DATABASE_URL: ${{ secrets.E2E_DATABASE_URL }}
+          STRIPE_SECRET_KEY: ${{ secrets.E2E_STRIPE_SECRET_KEY }}
+          STRIPE_WEBHOOK_SECRET: ${{ secrets.E2E_STRIPE_WEBHOOK_SECRET }}
+          NEXT_PUBLIC_STRIPE_PUBLISHABLE_KEY: ${{ secrets.E2E_STRIPE_PUBLISHABLE_KEY }}
+          E2E_ADMIN_STORAGE_STATE: .auth/admin.json
+          E2E_COACH_STORAGE_STATE: .auth/coach.json
+          E2E_FAMILY_STORAGE_STATE: .auth/family.json
+          E2E_ATHLETE_STORAGE_STATE: .auth/athlete.json
+          E2E_SUPER_ADMIN_STORAGE_STATE: .auth/super-admin.json
+
+      - name: Verify annual Stripe Test Checkout on isolated staging
+        run: pnpm exec playwright test tests/e2e-billing-annual-checkout.spec.ts --project=chromium
+        env:
+          E2E_RUN_ANNUAL_CHECKOUT: "true"
+          E2E_STORAGE_STATE: .auth/user.json
+          E2E_ACADEMY_ID: ${{ secrets.E2E_ACADEMY_ID }}
+          E2E_TARGET_SUPABASE_PROJECT_REF: ${{ secrets.E2E_TARGET_SUPABASE_PROJECT_REF }}
+          NEXT_PUBLIC_SUPABASE_URL: ${{ secrets.E2E_SUPABASE_URL }}
+          NEXT_PUBLIC_SUPABASE_ANON_KEY: ${{ secrets.E2E_SUPABASE_ANON_KEY }}
+          SUPABASE_SERVICE_ROLE_KEY: ${{ secrets.E2E_SUPABASE_SERVICE_ROLE_KEY }}
+          DATABASE_URL: ${{ secrets.E2E_DATABASE_URL }}
+          STRIPE_SECRET_KEY: ${{ secrets.E2E_STRIPE_SECRET_KEY }}
+          STRIPE_WEBHOOK_SECRET: ${{ secrets.E2E_STRIPE_WEBHOOK_SECRET }}
+          NEXT_PUBLIC_STRIPE_PUBLISHABLE_KEY: ${{ secrets.E2E_STRIPE_PUBLISHABLE_KEY }}
+
+      - name: Run authenticated E2E
+        run: pnpm test:e2e
+        env:
+          E2E_STORAGE_STATE: .auth/user.json
+          E2E_DOMAIN_ORGANIZATION_ID: 90000000-0000-0000-0000-000000000001
+          E2E_DOMAIN_LOCATION_ID: 90000000-0000-0000-0000-000000000011
+          E2E_ACADEMY_ID: ${{ secrets.E2E_ACADEMY_ID }}
+          E2E_PROFILE_ID: ${{ secrets.E2E_PROFILE_ID }}
+          E2E_ATHLETE_ID: ${{ secrets.E2E_ATHLETE_ID }}
+          E2E_TARGET_SUPABASE_PROJECT_REF: ${{ secrets.E2E_TARGET_SUPABASE_PROJECT_REF }}
+          NEXT_PUBLIC_SUPABASE_URL: ${{ secrets.E2E_SUPABASE_URL }}
+          NEXT_PUBLIC_SUPABASE_ANON_KEY: ${{ secrets.E2E_SUPABASE_ANON_KEY }}
+          SUPABASE_SERVICE_ROLE_KEY: ${{ secrets.E2E_SUPABASE_SERVICE_ROLE_KEY }}
+          DATABASE_URL: ${{ secrets.E2E_DATABASE_URL }}
+          STRIPE_SECRET_KEY: ${{ secrets.E2E_STRIPE_SECRET_KEY }}
+          STRIPE_WEBHOOK_SECRET: ${{ secrets.E2E_STRIPE_WEBHOOK_SECRET }}
+          NEXT_PUBLIC_STRIPE_PUBLISHABLE_KEY: ${{ secrets.E2E_STRIPE_PUBLISHABLE_KEY }}
+
+      - name: Verify contact write and idempotency in sandbox
+        run: |
+          pnpm tsx scripts/apply-e2e-contact-schema.ts
+          pnpm exec playwright test tests/e2e-contact-sandbox.spec.ts --project=chromium
+        env:
+          E2E_STAGING_WRITE_TEST: "true"
+          E2E_ALLOW_PROVISIONING: "true"
+          E2E_TARGET_SUPABASE_PROJECT_REF: ${{ secrets.E2E_TARGET_SUPABASE_PROJECT_REF }}
+          NEXT_PUBLIC_SUPABASE_URL: ${{ secrets.E2E_SUPABASE_URL }}
+          NEXT_PUBLIC_SUPABASE_ANON_KEY: ${{ secrets.E2E_SUPABASE_ANON_KEY }}
+          SUPABASE_SERVICE_ROLE_KEY: ${{ secrets.E2E_SUPABASE_SERVICE_ROLE_KEY }}
+          DATABASE_URL: ${{ secrets.E2E_DATABASE_URL }}
+          DATABASE_URL_POOL: ${{ secrets.E2E_DATABASE_URL }}
+          DATABASE_URL_DIRECT: ${{ secrets.E2E_DATABASE_URL }}
+          STRIPE_SECRET_KEY: ${{ secrets.E2E_STRIPE_SECRET_KEY }}
+          STRIPE_WEBHOOK_SECRET: ${{ secrets.E2E_STRIPE_WEBHOOK_SECRET }}
+          NEXT_PUBLIC_STRIPE_PUBLISHABLE_KEY: ${{ secrets.E2E_STRIPE_PUBLISHABLE_KEY }}
+
+  e2e-auth-required-gate:
+    name: Local Synthetic Owner E2E Required Gate
+    runs-on: ubuntu-latest
+    needs: [e2e-local-owner]
+    if: ${{ always() && (github.event_name == 'pull_request' || github.event_name == 'push') }}
+    steps:
+      - name: Require all local synthetic browser projects to pass
+        env:
+          E2E_LOCAL_RESULT: ${{ needs.e2e-local-owner.result }}
+        run: |
+          if [[ "${E2E_LOCAL_RESULT}" != "success" ]]; then
+            echo "Local synthetic Owner E2E is required; result=${E2E_LOCAL_RESULT}." >&2
+            exit 1
+          fi

@@ -1,0 +1,78 @@
+import { cookies } from "next/headers";
+import { redirect } from "next/navigation";
+import { Metadata } from "next";
+import LoginForm from "@/components/login-form";
+import { createClient } from "@/lib/supabase/server";
+import { resolveUserEntry } from "@/lib/auth/resolve-user-entry";
+import { isLoginNoticeCode } from "@/lib/auth/login-error";
+import { logger } from "@/lib/logger";
+import { getPublicSiteUrl } from "@/lib/seo/site-url";
+
+export const metadata: Metadata = {
+  title: "Iniciar sesión",
+  description: "Accede a tu cuenta para gestionar tu academia",
+  alternates: {
+    canonical: `${getPublicSiteUrl()}/auth/login`,
+  },
+  openGraph: {
+    title: "Iniciar sesión",
+    description: "Accede a tu cuenta de Zaltyko",
+    url: `${getPublicSiteUrl()}/auth/login`,
+    type: "website",
+  },
+};
+
+// La ruta lee cookies() para resolver sesión y redirigir si ya hay login.
+// Next.js 15 requiere marca dinámica explícita cuando se usa cookies() /
+// headers() en una server component, si no aborta con
+// `Dynamic server usage: Route /auth/login couldn't be rendered statically`.
+export const dynamic = "force-dynamic";
+
+export default async function Login({
+  searchParams,
+}: {
+  searchParams: Promise<Record<string, string | undefined>>;
+}) {
+  const params = await searchParams;
+  const profileSetupRetry = params.profile_setup === "retry";
+  // Si ya hay sesión, redirigir al panel adecuado en lugar de mostrar el login.
+  // Sin env de Supabase configurado o con el servicio caído, se muestra el
+  // formulario en lugar de un 500 (la sesión simplemente no se puede resolver).
+  // Nota: redirect() lanza internamente, por eso sale del try antes del catch.
+  let sessionUser: Awaited<ReturnType<typeof getSessionUser>> = null;
+  try {
+    sessionUser = await getSessionUser();
+  } catch (error) {
+    logger.error("No se pudo resolver la sesión en /auth/login:", error);
+  }
+
+  // Render the callback notice even if OAuth established a session before a
+  // later consent-recording step failed. The notice explains how to recover.
+  if (sessionUser && profileSetupRetry && !isLoginNoticeCode(params.error)) {
+    return <LoginForm profileSetupRetry sessionAvailableForRecovery />;
+  }
+
+  if (sessionUser && !isLoginNoticeCode(params.error)) {
+    const home = await resolveUserEntry(sessionUser);
+    const next = params.next ?? params.callbackUrl;
+    if (
+      home.destination !== "blocked" &&
+      next &&
+      /^\/(academias|events|directorio)\//.test(next) &&
+      !next.includes("\\")
+    )
+      redirect(next);
+    redirect(home.redirectUrl);
+  }
+
+  return <LoginForm profileSetupRetry={profileSetupRetry} />;
+}
+
+async function getSessionUser() {
+  const cookieStore = await cookies();
+  const supabase = await createClient(cookieStore);
+  const {
+    data: { user },
+  } = await supabase.auth.getUser();
+  return user ?? null;
+}

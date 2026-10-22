@@ -1,0 +1,71 @@
+import { fileURLToPath, URL } from "node:url";
+import { defineConfig } from "vitest/config";
+import react from "@vitejs/plugin-react";
+
+export default defineConfig({
+  test: {
+    // API-heavy suites import large route graphs. Keep one worker globally;
+    // project-level configs do not accept maxWorkers (vitest 4 removed
+    // minWorkers — see vitest 4 migration guide).
+    maxWorkers: 1,
+    coverage: {
+      provider: "v8",
+      reporter: ["text", "json", "html", "lcov"],
+      reportsDirectory: "./coverage",
+      include: ["src/**/*.{ts,tsx}"],
+      exclude: [
+        "src/**/*.d.ts",
+        "src/**/*.stories.tsx",
+        "src/**/index.ts",
+        "src/types/**",
+      ],
+    },
+    projects: [
+      {
+        plugins: [react()],
+        resolve: {
+          alias: {
+            "@": fileURLToPath(new URL("./src", import.meta.url)),
+          },
+        },
+        test: {
+          name: "web",
+          root: ".",
+          environment: "node",
+          globals: true,
+          setupFiles: ["./tests/setup.ts"],
+          include: ["tests/**/*.test.ts", "tests/**/*.test.tsx"],
+          // Las suites Web no deben descubrir las pruebas del proyecto Mobile.
+          // Todas las suites web forman parte del gate principal. Las pruebas
+          // del proyecto Mobile se ejecutan en su propio proyecto Vitest.
+          exclude: ["node_modules", ".next", "coverage", "mobile/**"],
+        },
+      },
+      {
+        resolve: {
+          alias: {
+            "@": fileURLToPath(new URL("./mobile", import.meta.url)),
+          },
+        },
+        test: {
+          name: "mobile",
+          root: "./mobile",
+          environment: "node",
+          globals: true,
+          include: ["**/*.test.ts"],
+          // Security regressions import dev dependencies installed only by the
+          // dedicated Mobile CI job. The mobile Vitest config still runs both.
+          exclude: [
+            "node_modules",
+            "dist",
+            ".expo",
+            "android",
+            "ios",
+            "tests/braces-nesting-regression.test.ts",
+            "tests/node-forge-signature-regression.test.ts",
+          ],
+        },
+      },
+    ],
+  },
+});

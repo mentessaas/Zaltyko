@@ -1,0 +1,56 @@
+{
+  "meta": {
+    "title": "Software para Trampolín en México | Zaltyko - Gestión FMGM",
+    "description": "Gestiona tu escuela de trampolín federada con Zaltyko. Control total sobre atletas, categorías, niveles, Tumbling, DMT, Sincronizado y licencias FMGM-CONADE.",
+    "keywords": [
+      "trampolín méxico",
+      "software fmgm",
+      "gestión trampolín méxico",
+      "academia trampolín",
+      "tumbling méxico",
+      "double mini trampolín méxico",
+      "olimpiada nacional trampolín"
+    ]
+  },
+  "hero": {
+    "badge": "Gestión pensada para academias de trampolín",
+    "headline": "Gestiona tu escuela de trampolín federada sin complicaciones",
+    "subheadline": "Control total sobre atletas, categorías, niveles de Tumbling, DMT, Sincronizado y licencias. Olimpiada Nacional y Circuito Nacional."
+  },
+  "federation": {
+    "name": "Federación Mexicana de Gimnasia (FMGM) + CONADE",
+    "competitions": [
+      "Olimpiada Nacional (CONADE)",
+      "Circuito Nacional de Trampolín",
+      "Campeonato Nacional",
+      "Selectivos para Juegos Panamericanos",
+      "Torneos Estatales"
+    ]
+  },
+  "categories": {
+    "preinfantil": "5-7 años - Iniciación",
+    "infantil": "8-9 años - Nivel 1-2",
+    "prejuvenil": "10-11 años - Nivel 3-4",
+    "juvenil": "12-13 años - Nivel 5-6",
+    "junior": "14-15 años - Nivel 7-8",
+    "senior": "16+ años - Nivel 9-10 / Élite"
+  },
+  "painPoints": {
+    "generic": "Gestionar gimnastas de Tumbling, DMT y Sincronizado es un reto. El tracking de niveles de dificultad y sesiones de entrenamiento es caótico.",
+    "specific": "Coordinar pruebas de sincronización entre gimnastas, gestionar seguimiento de puntuaciones de dificultad, renovar licencias FMGM y registro CONADE."
+  },
+  "interlinking": {
+    "relatedCountries": [
+      "espana",
+      "argentina",
+      "colombia",
+      "chile",
+      "peru"
+    ],
+    "relatedModalities": [
+      "artistic",
+      "rhythmic",
+      "acrobatic"
+    ]
+  }
+}

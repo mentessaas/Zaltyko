@@ -1,0 +1,69 @@
+{
+  "git": {
+    "deploymentEnabled": false
+  },
+  "framework": "nextjs",
+  "regions": ["arn1"],
+  "crons": [
+    {
+      "path": "/api/cron/class-reminders",
+      "schedule": "0 8 * * *"
+    },
+    {
+      "path": "/api/cron/generate-sessions",
+      "schedule": "0 2 * * *"
+    },
+    {
+      "path": "/api/cron/scheduled-notifications",
+      "schedule": "0 9 * * *"
+    },
+    {
+      "path": "/api/cron/scheduled-reports",
+      "schedule": "0 9 * * *"
+    },
+    {
+      "path": "/api/cron/trial-lifecycle",
+      "schedule": "15 9 * * *"
+    },
+    {
+      "path": "/api/cron/payment-reminders",
+      "schedule": "30 9 * * *"
+    },
+    {
+      "path": "/api/cron/daily-alerts",
+      "schedule": "30 6 * * *"
+    },
+    {
+      "path": "/api/cron/indexnow-submit",
+      "schedule": "0 4 * * *"
+    },
+    {
+      "path": "/api/cron/onboarding-owner?step=d2",
+      "schedule": "0 10 * * *"
+    },
+    {
+      "path": "/api/cron/onboarding-owner?step=d7",
+      "schedule": "30 10 * * *"
+    },
+    {
+      "path": "/api/cron/directory",
+      "schedule": "17 11 * * *"
+    }
+  ],
+  "env": {
+    "NODE_ENV": "production",
+    "NODE_OPTIONS": "--max-old-space-size=6144",
+    "NEXT_TELEMETRY_DISABLED": "1"
+  },
+  "build": {
+    "env": {
+      "NODE_OPTIONS": "--max-old-space-size=6144",
+      "NEXT_TELEMETRY_DISABLED": "1"
+    }
+  },
+  "functions": {
+    "src/app/api/cron/**/*.ts": {
+      "maxDuration": 300
+    }
+  }
+}

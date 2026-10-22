@@ -1,0 +1,173 @@
+import type { CommercialPlanCode, PlanCode } from "@/types/billing";
+
+export interface ProductPlan {
+  code: CommercialPlanCode;
+  publicName: string;
+  internalName: string;
+  priceEurCents: number;
+  /** Precio anual cobrado de una vez; ausencia = no disponible para autoservicio. */
+  annualPriceEurCents?: number;
+  description: string;
+  shortDescription: string;
+  athleteLimit: number | null;
+  groupLimit: number | null;
+  classLimit: number | null;
+  academyLimit: number | null;
+  highlight?: boolean;
+  cta: string;
+  ctaHref: string;
+  checkoutMode: "included" | "self-serve" | "sales-assisted";
+  features: string[];
+}
+
+export const PRODUCT_PLANS: ProductPlan[] = [
+  {
+    code: "free",
+    publicName: "Free",
+    internalName: "Free",
+    priceEurCents: 0,
+    description:
+      "Para academias que están empezando a digitalizar su gestión diaria.",
+    shortDescription: "Hasta 30 gimnastas · 1 academia",
+    athleteLimit: 30,
+    groupLimit: 3,
+    classLimit: 10,
+    academyLimit: 1,
+    cta: "Crear academia gratis",
+    ctaHref: "/auth/register?role=owner",
+    checkoutMode: "included",
+    features: [
+      "Hasta 30 gimnastas",
+      "1 academia",
+      "3 grupos de entrenamiento",
+      "10 clases activas",
+      "Asistencia y cobros básicos con registro manual",
+    ],
+  },
+  {
+    // Decisión activa 2026-06-24: `pro` es el código interno de Starter.
+    code: "pro",
+    publicName: "Starter",
+    internalName: "Starter",
+    priceEurCents: 1900,
+    annualPriceEurCents: 19000,
+    description:
+      "Para academias pequeñas que quieren ordenar grupos, asistencia y cobros.",
+    shortDescription: "Hasta 75 gimnastas · 1 academia",
+    athleteLimit: 75,
+    groupLimit: 5,
+    classLimit: 20,
+    academyLimit: 1,
+    cta: "Crear academia gratis",
+    ctaHref: "/auth/register?role=owner",
+    checkoutMode: "self-serve",
+    features: [
+      "Hasta 75 gimnastas · 1 academia",
+      "Gestión de cuotas, registro manual de pagos y reportes básicos",
+      "Portal familiar limitado: horarios, avisos, progreso publicado y cuotas",
+      "Comunicación interna con familias",
+    ],
+  },
+  {
+    // Decisión activa 2026-06-24: `premium` es el código interno de Growth.
+    // Growth se contrata desde Facturación después del registro; no requiere demo.
+    code: "premium",
+    publicName: "Growth",
+    internalName: "Growth",
+    priceEurCents: 4900,
+    annualPriceEurCents: 49000,
+    description:
+      "Para academias en crecimiento que necesitan más capacidad y seguimiento diario.",
+    shortDescription: "Hasta 200 gimnastas · 1 academia",
+    athleteLimit: 200,
+    groupLimit: 10,
+    classLimit: 40,
+    academyLimit: 1,
+    highlight: true,
+    cta: "Crear academia gratis",
+    ctaHref: "/auth/register?role=owner",
+    checkoutMode: "self-serve",
+    features: [
+      "Hasta 200 gimnastas · 1 academia",
+      "Todo lo de Starter",
+      "Reportes ejecutivos y automatizaciones (el cobro familiar automático aún no está disponible)",
+      "Soporte prioritario",
+    ],
+  },
+  {
+    code: "network",
+    publicName: "Network",
+    internalName: "Network",
+    priceEurCents: 9900,
+    description:
+      "Para academias multi-sede o equipos que necesitan límites amplios y soporte prioritario.",
+    shortDescription: "Multi-sede con onboarding acompañado",
+    athleteLimit: null,
+    groupLimit: null,
+    classLimit: null,
+    academyLimit: null,
+    cta: "Hablar con Zaltyko",
+    ctaHref: "/contact?type=network",
+    checkoutMode: "sales-assisted",
+    features: [
+      "Gimnastas ilimitadas",
+      "Multi-sede con onboarding acompañado",
+      "Grupos y clases ilimitados",
+      "Reportes de dirección",
+      "Soporte prioritario",
+    ],
+  },
+];
+
+export const PRODUCT_PLAN_BY_CODE = Object.fromEntries(
+  PRODUCT_PLANS.map((plan) => [plan.code, plan])
+) as Record<CommercialPlanCode, ProductPlan>;
+
+const INTERNAL_PLAN_CODES = new Set([
+  "free",
+  "pro",
+  "premium",
+  "network",
+  "custom",
+]);
+
+/**
+ * Nombre que se puede mostrar a una persona para un código persistido.
+ *
+ * Los códigos `pro` y `premium` se mantienen por compatibilidad con Stripe y
+ * la base de datos, pero nunca deben aparecer como nombres comerciales en la
+ * interfaz. Para códigos no reconocidos (por ejemplo, un plan histórico o
+ * personalizado) preferimos una etiqueta segura antes que filtrar un
+ * identificador interno.
+ */
+export function getProductPlanPublicName(
+  code: string | null | undefined,
+  fallback?: string | null
+): string {
+  const normalizedCode = code?.trim().toLowerCase() ?? "";
+  const canonical = PRODUCT_PLAN_BY_CODE[normalizedCode as CommercialPlanCode];
+  if (canonical) return canonical.publicName;
+
+  const normalizedFallback = fallback?.trim() ?? "";
+  if (
+    normalizedFallback &&
+    normalizedFallback.toLowerCase() !== normalizedCode &&
+    !INTERNAL_PLAN_CODES.has(normalizedFallback.toLowerCase())
+  ) {
+    return normalizedFallback;
+  }
+
+  return "Plan personalizado";
+}
+
+export const BILLABLE_PRODUCT_PLANS = PRODUCT_PLANS.filter(
+  (plan): plan is ProductPlan & { code: PlanCode } => plan.code !== "network"
+);
+
+export function formatPlanAmount(priceEurCents: number) {
+  return new Intl.NumberFormat("es-ES", {
+    style: "currency",
+    currency: "EUR",
+    minimumFractionDigits: 0,
+  }).format(priceEurCents / 100);
+}

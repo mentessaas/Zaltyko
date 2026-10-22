@@ -1,0 +1,17 @@
+<svg width="64" height="64" viewBox="0 0 64 64" fill="none" xmlns="http://www.w3.org/2000/svg" role="img" aria-label="Zaltyko">
+  <rect width="64" height="64" rx="16" fill="#0F172A"/>
+  <defs>
+    <linearGradient id="zaltyko-favicon-gradient" x1="14" y1="14" x2="50" y2="50" gradientUnits="userSpaceOnUse">
+      <stop offset="0" stop-color="#2B2E83"/>
+      <stop offset="0.55" stop-color="#153A86"/>
+      <stop offset="1" stop-color="#1FC7B6"/>
+    </linearGradient>
+    <linearGradient id="zaltyko-favicon-highlight" x1="18" y1="45" x2="48" y2="19" gradientUnits="userSpaceOnUse">
+      <stop offset="0" stop-color="#1FC7B6"/>
+      <stop offset="1" stop-color="#2B2E83"/>
+    </linearGradient>
+  </defs>
+  <path d="M19.4 13.8H47.1C50.8 13.8 52.9 18.1 50.6 21L29.7 49.4H16.8L37.8 22.7H14.2L19.4 13.8Z" fill="url(#zaltyko-favicon-gradient)"/>
+  <path d="M17.7 43.2C23.1 35.3 31.5 28.1 42.5 21.9H52C45.3 30.1 37.1 37.3 27.1 43.2H17.7Z" fill="url(#zaltyko-favicon-highlight)"/>
+  <path d="M16.8 49.4H42.7C46.1 49.4 49.2 47.5 50.7 44.5L53 39.8H28.1L16.8 49.4Z" fill="#1FC7B6"/>
+</svg>

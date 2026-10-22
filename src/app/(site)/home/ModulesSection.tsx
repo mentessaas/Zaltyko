@@ -1,0 +1,144 @@
+"use client";
+
+import Link from "next/link";
+import {
+  Users,
+  Calendar,
+  CreditCard,
+  MessageSquare,
+  Award,
+  ClipboardList,
+  BarChart3,
+  Shield,
+} from "lucide-react";
+import { cn } from "@/lib/utils";
+import Reveal from "@/components/motion/Reveal";
+
+const modules = [
+  {
+    title: "Cobros",
+    description: "Organiza las cuotas, registra los pagos recibidos y consulta los importes pendientes de cada familia.",
+    icon: CreditCard,
+    span: "lg:col-span-2",
+    features: ["Registro manual de pagos", "Cuotas por grupo", "Seguimiento de pendientes", "Historial por familia"],
+  },
+  {
+    title: "Clases & Horarios",
+    description: "Programación flexible con control de aforo, pase de lista por sesión y gestión de listas de espera.",
+    icon: Calendar,
+    features: ["Calendario interactivo", "Control de aforo", "Pase de lista por sesión", "Listas de espera"],
+  },
+  {
+    title: "Comunicación",
+    description: "Mensajes y notificaciones internas por grupo con historial auditable, sin saturar los chats del club.",
+    icon: MessageSquare,
+    features: ["Mensajes grupales", "Plantillas", "Notificaciones internas", "Familias informadas"],
+  },
+  {
+    title: "Gimnastas",
+    description: "Fichas con nivel, categoría, aparatos, rutinas, documentación y evolución técnica de cada gimnasta.",
+    icon: Users,
+    features: ["Perfiles completos", "Niveles y categorías", "Aparatos y rutinas", "Documentación"],
+  },
+  {
+    title: "Eventos",
+    description: "Inscripciones a competiciones con categorías por edad y nivel, y lista de espera gestionada.",
+    icon: Award,
+    features: ["Inscripciones online", "Gestión de plazas", "Lista de espera", "Comunicación"],
+  },
+  {
+    title: "Evaluaciones",
+    description: "Sistema de evaluaciones técnicas y artísticas con rúbricas configurables, vídeos adjuntos y exportación a PDF.",
+    icon: ClipboardList,
+    features: ["Rúbricas personalizadas", "Vídeos adjuntos", "Gráficos de progreso", "Exportación PDF"],
+  },
+  {
+    title: "Reportes",
+    description: "Informes de asistencia, cobros, ocupación y evolución para decidir dirección con datos reales.",
+    icon: BarChart3,
+    features: ["Export multi-formato", "Panel de dirección", "Métricas de ocupación y cobros", "Datos para decidir"],
+  },
+  {
+    title: "Multi-Sede",
+    description: "Gestión multi-sede para Network con diagnóstico y puesta en marcha acompañada, además de aislamiento por academia y control de acceso por rol.",
+    icon: Shield,
+    features: ["Varias sedes", "Roles por usuario", "Panel de director", "Datos aislados"],
+  },
+];
+
+export default function ModulesSection() {
+  return (
+    <section className="bg-zaltyko-white py-24">
+      <div className="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8">
+        {/* Section header */}
+        <div className="text-center max-w-3xl mx-auto mb-16">
+          <p className="mb-4 text-xs font-semibold uppercase tracking-[0.08em] text-zaltyko-teal">
+            Funcionalidades
+          </p>
+          <h2 className="text-4xl sm:text-5xl font-bold text-zaltyko-navy mb-6">
+            Hecho para cómo funciona un club de gimnasia
+          </h2>
+          <p className="text-xl text-zaltyko-text-secondary">
+            Niveles, aparatos, ramas GAF/GAM/rítmica, cuotas por grupo, evaluaciones con rúbrica.
+            Cosas que un CRM genérico no sabe ni escribir.
+          </p>
+        </div>
+
+        {/* Modules grid — bento (tamaños variados) */}
+        <div className="grid md:grid-cols-2 lg:grid-cols-4 lg:grid-flow-dense gap-6">
+          {modules.map((module, index) => (
+            <Reveal
+              key={module.title}
+              delay={(index % 4) * 80}
+              className={cn("h-full", module.span)}
+            >
+              <div
+                className={cn(
+                  "h-full rounded-card border border-zaltyko-mist dark:border-border bg-white dark:bg-card p-6 transition-all duration-200 hover:-translate-y-1.5 hover:border-zaltyko-teal hover:shadow-lift"
+                )}
+              >
+              {/* Icon */}
+              <div className="mb-4 flex h-12 w-12 items-center justify-center rounded-[6px] bg-zaltyko-primary-ultralight">
+                <module.icon className="h-6 w-6 text-zaltyko-teal" />
+              </div>
+
+              {/* Title */}
+              <h3 className="mb-2 text-lg font-bold text-zaltyko-navy">
+                {module.title}
+              </h3>
+
+              {/* Description */}
+              <p className="text-sm text-zaltyko-text-secondary mb-4 leading-relaxed">
+                {module.description}
+              </p>
+
+              {/* Features tags */}
+              <ul className={cn("gap-x-6 gap-y-2", module.span ? "grid grid-cols-2" : "space-y-2")}>
+                {module.features.map((feature) => (
+                  <li key={feature} className="flex items-center gap-2 text-xs text-gray-500">
+                    <div className="h-1.5 w-1.5 rounded-full bg-zaltyko-teal" />
+                    {feature}
+                  </li>
+                ))}
+              </ul>
+              </div>
+            </Reveal>
+          ))}
+        </div>
+
+        {/* Bottom CTA */}
+        <Reveal>
+          <div className="text-center mt-12">
+            <Link
+              href="/features"
+              className="inline-flex items-center gap-2 font-semibold text-zaltyko-teal transition-all hover:gap-3"
+            >
+              Ver todas las funcionalidades
+              <span className="text-xl">→</span>
+            </Link>
+          </div>
+        </Reveal>
+      </div>
+    </section>
+  );
+}

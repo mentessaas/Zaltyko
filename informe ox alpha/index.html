@@ -1,0 +1,354 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Informe Ox Alpha · Zaltyko-fresh</title>
+<meta name="description" content="Auditoría técnica integral de Zaltyko-fresh: arquitectura, seguridad, base de datos, calidad de código, testing, dependencias y rendimiento.">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Bricolage+Grotesque:opsz,wght@12..96,500;12..96,700&family=Hanken+Grotesk:wght@400;500;600&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="assets/styles.css">
+</head>
+<body>
+
+<div class="progress" aria-hidden="true"><span id="progressBar"></span></div>
+
+<div class="shell">
+
+  <aside class="side">
+    <p class="brand">Ox Alpha<span>/ auditoría</span></p>
+    <nav class="toc" aria-label="Índice del informe">
+      <a href="#veredicto" class="active">Veredicto</a>
+      <a href="#arquitectura">Arquitectura</a>
+      <a href="#datos">Base de datos</a>
+      <a href="#seguridad">Seguridad</a>
+      <a href="#calidad">Calidad de código</a>
+      <a href="#testing">Testing</a>
+      <a href="#deps">Dependencias</a>
+      <a href="#rendimiento">Rendimiento</a>
+      <a href="#plan">Plan de mejoras</a>
+    </nav>
+    <dl class="side-facts">
+      <div><dt>Alcance</dt><dd>~200k líneas en src/</dd></div>
+      <div><dt>Superficie</dt><dd>171 páginas · 310 APIs</dd></div>
+      <div><dt>Fecha</dt><dd>23 ago 2026</dd></div>
+      <div><dt>Modo</dt><dd>Solo lectura, sin cambios en el proyecto</dd></div>
+    </dl>
+  </aside>
+
+  <main>
+
+    <header class="hero">
+      <h1>Zaltyko-fresh,<br>bajo el microscopio.</h1>
+      <p class="lede">Un SaaS multi-tenant para academias deportivas con ingeniería defensiva poco común: resolución de tenant desde base de datos, rate limiting que falla cerrado y gates estáticos propios. Los riesgos reales viven en los bordes, no en el núcleo.</p>
+      <p class="byline">Informe técnico generado por Ox Alpha · Next.js 15.5 · Supabase · Drizzle · Stripe</p>
+    </header>
+
+    <!-- ============ VEREDICTO ============ -->
+    <section id="veredicto">
+      <h2>Veredicto</h2>
+      <p class="callout" id="veredicto-text">
+        El proyecto está <strong>listo para crecer sobre bases sólidas</strong>, pero hay cuatro cosas que arreglaría esta semana: las cabeceras de seguridad que se creen aplicadas y no lo están, el typecheck roto que el build silencia, la dependencia <code>xlsx</code> instalada fuera del registro oficial y las 35 rutas API fuera de convención.
+      </p>
+
+      <figure class="chart" aria-labelledby="sev-caption">
+        <figcaption id="sev-caption">Hallazgos clasificados por severidad <small>(seguridad + dependencias)</small></figcaption>
+        <div class="bars" role="img" aria-label="Gráfico de barras: 2 hallazgos críticos, 3 altos, 8 medios, 1 bajo">
+          <div class="bar"><span class="bar-label">Crítica</span><span class="bar-track"><span class="bar-fill sev-crit" style="--w:100%">2</span></span></div>
+          <div class="bar"><span class="bar-label">Alta</span><span class="bar-track"><span class="bar-fill sev-high" style="--w:75%">3</span></span></div>
+          <div class="bar"><span class="bar-label">Media</span><span class="bar-track"><span class="bar-fill sev-med" style="--w:100%;max-width:calc(100% * .8)">8</span></span></div>
+          <div class="bar"><span class="bar-label">Baja</span><span class="bar-track"><span class="bar-fill sev-low" style="--w:10%">1</span></span></div>
+        </div>
+      </figure>
+
+      <div class="duo">
+        <div>
+          <h3>Lo que está muy bien</h3>
+          <ul class="ticks">
+            <li>El tenant se resuelve siempre desde membresía en BD; jamás del input del cliente.</li>
+            <li>Rate limiting fail-closed en producción: si Redis falla, responde 429.</li>
+            <li>Gates estáticos caseros: reads acotados, auth-before-validate, rutas huérfanas.</li>
+            <li>Tres webhooks (Stripe, Lemon Squeezy, Mailgun) con verificación criptográfica real.</li>
+            <li>Migraciones SQL versionadas con ledger SHA-256 y pasadas de hardening RLS.</li>
+          </ul>
+        </div>
+        <div>
+          <h3>Lo urgente</h3>
+          <ul class="crosses">
+            <li>Sin CSP, HSTS ni X-Frame-Options, aunque <code>next.config.mjs:7</code> afirma lo contrario.</li>
+            <li><code>pnpm typecheck</code> falla hoy y el build tiene <code>ignoreBuildErrors</code>.</li>
+            <li><code>xlsx</code> llega de un tarball CDN, fuera de npm.</li>
+            <li>35 de 306 rutas API fuera de convención; 3 aún devuelven <code>{ ok: true }</code>.</li>
+          </ul>
+        </div>
+      </div>
+    </section>
+
+    <!-- ============ ARQUITECTURA ============ -->
+    <section id="arquitectura">
+      <h2>Arquitectura</h2>
+      <p>Cuatro superficies claras más una app móvil Expo separada. El problema no es lo que hay, es lo que se duplica.</p>
+      <table>
+        <thead><tr><th scope="col">Segmento</th><th scope="col">Ubicación</th><th scope="col" class="num">Págs.</th><th scope="col">Observación</th></tr></thead>
+        <tbody>
+          <tr><td>Dashboard academia</td><td><code>app/[academyId]/</code></td><td class="num">64</td><td>25 módulos: atletas, clases, asistencia, billing, evaluaciones…</td></tr>
+          <tr><td>Marketing</td><td><code>(site)/</code></td><td class="num">19</td><td>i18n con <code>[locale]</code> y páginas de módulos</td></tr>
+          <tr><td>Directorio público</td><td><code>(public)/</code></td><td class="num">9</td><td>marketplace, eventos, empleo</td></tr>
+          <tr><td>Super admin</td><td><code>(super-admin)/</code></td><td class="num">13</td><td>usuarios, academias, growth, logs</td></tr>
+          <tr><td>Rutas sueltas raíz</td><td><code>src/app/*</code></td><td class="num">~66</td><td>Duplican parcialmente (site): riesgo de SEO y copy divergente</td></tr>
+        </tbody>
+      </table>
+      <ul class="notes">
+        <li><strong>Duplicación real:</strong> <code>login/page.tsx</code> convive con <code>auth/login/page.tsx</code>; lo mismo pasa con el directorio de academias.</li>
+        <li><strong>Ruta dev expuesta:</strong> <code>src/app/dev/theme-preview/page.tsx</code> sin gate de desarrollo visible.</li>
+        <li><strong>Server actions:</strong> 9 en <code>src/app/actions/</code>; verificar que sigan el patrón de autorización de las APIs.</li>
+      </ul>
+    </section>
+
+    <!-- ============ BASE DE DATOS ============ -->
+    <section id="datos">
+      <h2>Base de datos</h2>
+      <p>83 archivos de esquema (~4.380 líneas) más plantillas por deporte. Diseño disciplinado, con una excepción que exige disciplina extra.</p>
+      <ul class="ticks">
+        <li><strong>Multi-tenancy consistente:</strong> casi toda tabla lleva <code>tenantId NOT NULL</code> + <code>academyId FK ON DELETE CASCADE</code>. 332 índices, 76 únicos, compuestos tenant-first sistemáticos.</li>
+        <li><strong>200 foreign keys</strong>, todas con <code>onDelete</code> explícito: cero comportamiento implícito.</li>
+        <li><strong>Soft deletes</b> con <code>deletedAt</code> indexado donde corresponde; CHECK constraints declarados en Drizzle.</li>
+        <li><strong>Sport-config:</strong> tablas template por disciplina que impulsan etiquetas como «Gimnastas». Decisión de producto bien modelada.</li>
+        <li><strong>RLS robusto:</strong> 48 migraciones versionadas, 411 políticas, scripts de auditoría semántica dedicados.</li>
+      </ul>
+      <div class="flag">
+        <h3>Dualismo de migraciones</h3>
+        <p>Conviven Drizzle generado (<code>drizzle/</code>) y SQL manual (<code>supabase/migrations/</code>). El ledger SHA-256 los reconcilia, pero un agente despistado puede aplicar por el camino equivocado. Es deuda de proceso, no de código: documentar el camino único y gatearlo.</p>
+      </div>
+    </section>
+
+    <!-- ============ SEGURIDAD ============ -->
+    <section id="seguridad">
+      <h2>Seguridad</h2>
+      <p>El núcleo (<code>withTenant</code>, 604 líneas) es fuerte: usuario → canLogin → conflicto de contexto → tenant desde membresía en BD → RBAC por ruta → rate limit por tenant. Los hallazgos están alrededor.</p>
+
+      <div class="filterbar" role="group" aria-label="Filtrar hallazgos por severidad">
+        <label for="q" class="visually-hidden">Buscar hallazgo</label>
+        <input type="search" id="q" placeholder="Buscar hallazgo…">
+        <button class="chip is-on" data-sev="all">Todos</button>
+        <button class="chip" data-sev="crit">Crítica</button>
+        <button class="chip" data-sev="high">Alta</button>
+        <button class="chip" data-sev="med">Media</button>
+      </div>
+
+      <table class="findings">
+        <thead><tr><th scope="col">Hallazgo</th><th scope="col">Evidencia</th><th scope="col">Sev.</th></tr></thead>
+        <tbody>
+          <tr data-sev="crit">
+            <td><strong>Cabeceras de seguridad ausentes.</strong> No existe CSP, HSTS ni X-Frame-Options en middleware, aunque next.config afirma que «se aplican desde middleware.ts».</td>
+            <td><code>middleware.ts</code> — grep sin resultados</td>
+            <td><span class="tag crit">Crítica</span></td>
+          </tr>
+          <tr data-sev="high">
+            <td><strong>Caso especial events.</strong> <code>/api/events*</code> sin tenant recibe <code>tenantId=""</code> y el handler se auto-resuelve del body: enforcement inconsistente.</td>
+            <td><code>authz.ts:252,281-284</code></td>
+            <td><span class="tag high">Alta</span></td>
+          </tr>
+          <tr data-sev="high">
+            <td><strong>Duplicación authz.</strong> ~150 líneas casi idénticas entre <code>withTenant</code> y <code>withBearerTenant</code>: parchear uno y no el otro introduce drift.</td>
+            <td><code>authz.ts:286 vs :555</code></td>
+            <td><span class="tag high">Alta</span></td>
+          </tr>
+          <tr data-sev="med">
+            <td><strong>Rate limiting no atómico.</strong> 5 round-trips Redis secuenciales por check; carrera posible bajo concurrencia.</td>
+            <td><code>src/lib/rate-limit.ts</code></td>
+            <td><span class="tag med">Media</span></td>
+          </tr>
+          <tr data-sev="med">
+            <td><strong>Doble conteo de rate limit:</strong> middleware limita mutaciones globales y <code>withTenant</code> vuelve a limitarlas.</td>
+            <td><code>middleware.ts:305 · authz.ts:308</code></td>
+            <td><span class="tag med">Media</span></td>
+          </tr>
+          <tr data-sev="med">
+            <td><strong>e2eRole como fuente de rol:</strong> <code>extractRole</code> acepta <code>appMetadata.e2eRole</code> como fallback.</td>
+            <td><code>middleware.ts:228-239</code></td>
+            <td><span class="tag med">Media</span></td>
+          </tr>
+          <tr data-sev="med">
+            <td><strong>Rutas family/me fuera del wrapper:</strong> autenticadas con patrón propio de cookies, fuera del estándar authz.</td>
+            <td><code>api/family/children/route.ts:20-27</code></td>
+            <td><span class="tag med">Media</span></td>
+          </tr>
+        </tbody>
+      </table>
+      <p class="after-table">Sólido y verificado: Stripe con tolerancia 300s y fallo duro sin firma, HMAC en Lemon Squeezy, firma + frescura de timestamp en Mailgun, crons con lease distribuido.</p>
+    </section>
+
+    <!-- ============ CALIDAD ============ -->
+    <section id="calidad">
+      <h2>Calidad de código</h2>
+      <p>Convenciones mayoritariamente respetadas, con focos de deuda localizados y verificables.</p>
+      <ul class="crosses">
+        <li><strong>Typecheck roto hoy:</strong> <code>scripts/test-dashboard-flows.ts(30,1): error TS1005</code>. Con <code>ignoreBuildErrors</code> activo, esto llega a producción en silencio.</li>
+        <li><strong>41 archivos &gt; 500 líneas.</strong> Mayores: <code>citiesByRegion.ts</code> (1.654), <code>SuperAdminUserDetail.tsx</code> (1.006), <code>dashboard.ts</code> (853).</li>
+        <li><strong>Erosión de tipos:</strong> 105 <code>as any</code> + 80 anotaciones <code>: any</code>.</li>
+        <li><strong>35 rutas API</strong> sin <code>apiSuccess/apiCreated</code>; tres devuelven aún la forma vetada <code>{ ok: true }</code>: marketplace/mis-productos, family/payment-method, tooltips.</li>
+        <li><strong>TODOs funcionales pendientes:</strong> emails a padres nunca implementados (<code>class-reminders.ts:102</code>, <code>payment-alerts.ts:114</code>); payment method de Stripe stubbeado (<code>api/billing/payment-method/route.ts:38</code>).</li>
+        <li><strong>Higiene de repo:</strong> backups <code>.bak</code> commiteados, <code>tsconfig.tsbuildinfo</code> de 948 KB en git, <code>"main"</code> apunta a un archivo inexistente.</li>
+      </ul>
+      <ul class="ticks">
+        <li><strong>Cero console.log</strong> en src: migración al logger completa.</li>
+        <li>Duplicación estructural esperable a esta escala: diálogos Create/Edit gemelos y parsing de paginación repetido en ~39 routes.</li>
+      </ul>
+    </section>
+
+    <!-- ============ TESTING ============ -->
+    <section id="testing">
+      <h2>Testing</h2>
+      <p>237 archivos de test (~24k líneas). Es, junto a la capa de datos, el punto fuerte del proyecto.</p>
+      <table>
+        <thead><tr><th scope="col">Capa</th><th scope="col">Estado</th><th scope="col">Detalle</th></tr></thead>
+        <tbody>
+          <tr><td>Vitest 3.2</td><td><span class="tag low">Fuerte</span></td><td>75 suites: contratos API exhaustivos, suite authz de 8 archivos, Stripe webhooks, marketplace. Suite de seguridad separada.</td></tr>
+          <tr><td>Playwright 1.58</td><td><span class="tag low">Fuerte</span></td><td>16 specs E2E: flujos de academia, Stripe Connect, SCA/3DS, axe a11y, workflow de sesión guardada documentado.</td></tr>
+          <tr><td>Gates propios</td><td><span class="tag low">Diferencial</span></td><td>Análisis estático casero poco común: reads acotados, auth-before-validate, rutas huérfanas (<code>pnpm gate:all</code>).</td></tr>
+          <tr><td>Huecos</td><td><span class="tag med">Pendiente</span></td><td>Cobertura medida pero sin thresholds; semántica RLS solo contra Postgres local efímero (no CI); testing de componentes UI muy fino.</td></tr>
+        </tbody>
+      </table>
+    </section>
+
+    <!-- ============ DEPENDENCIAS ============ -->
+    <section id="deps">
+      <h2>Dependencias</h2>
+      <p>Core moderno y coherente (Next 15.5 exacto, Drizzle 0.45, Stripe 22, Zod 3), con un riesgo de supply chain y redundancias que pesan en el bundle.</p>
+      <table class="findings">
+        <tbody>
+          <tr data-sev="crit">
+            <td><strong><code>xlsx</code> desde tarball CDN.</strong> Instalado desde cdn.sheetjs.com, fuera del registro npm: reproducibilidad y auditoría de supply chain comprometidas.</td>
+            <td><code>package.json</code></td>
+            <td><span class="tag crit">Crítica</span></td>
+          </tr>
+          <tr data-sev="high">
+            <td><strong>ESLint 8.x EOL.</strong> Sin soporte upstream; migrar a flat config de ESLint 9.</td>
+            <td>—</td>
+            <td><span class="tag high">Alta</span></td>
+          </tr>
+          <tr data-sev="med">
+            <td><strong>~30 overrides en pnpm.</strong> Firefighting continuo de CVEs transitivas en vez de bumps de causa raíz.</td>
+            <td><code>pnpm-lock.yaml</code></td>
+            <td><span class="tag med">Media</span></td>
+          </tr>
+          <tr data-sev="med">
+            <td><strong>@vercel/kv ^3.</strong> Vercel empuja hacia Marketplace Redis; riesgo de deprecación del backbone del rate limiter.</td>
+            <td>—</td>
+            <td><span class="tag med">Media</span></td>
+          </tr>
+          <tr data-sev="med">
+            <td><strong>Redundancias en prod:</strong> swagger-ui-react en deps de producción; react-icons + lucide-react; papaparse + csv-parse; axios junto a fetch nativo.</td>
+            <td><code>package.json</code></td>
+            <td><span class="tag med">Media</span></td>
+          </tr>
+          <tr data-sev="low">
+            <td><strong>React 18.3 / Zod 3.x.</strong> Aging pero coherente; React 19 ya soportado por Next 15 cuando toque.</td>
+            <td>—</td>
+            <td><span class="tag low">Baja</span></td>
+          </tr>
+        </tbody>
+      </table>
+    </section>
+
+    <!-- ============ RENDIMIENTO ============ -->
+    <section id="rendimiento">
+      <h2>Rendimiento</h2>
+      <p>Buenas prácticas aplicadas donde importa; margen claro en caché y peso del cliente.</p>
+      <ul class="ticks">
+        <li>37 dynamic imports estratégicos (charts, hubs, swagger) y 27 componentes memoizados.</li>
+        <li>18 usos de <code>next/image</code>, cero tags <code>&lt;img&gt;</code> raw; AVIF/WebP con escalera completa de device sizes.</li>
+        <li>geo-loader con lazy import de datasets de 1.654 líneas; <code>optimizePackageImports</code> configurado.</li>
+      </ul>
+      <ul class="crosses">
+        <li><strong>209 declaraciones force-dynamic:</strong> prácticamente todo sin caché. Correcto funcionalmente, headroom desperdiciado.</li>
+        <li><strong>422 componentes «use client» vs 264 server:</strong> el bundle cliente carga la mayor parte de la app.</li>
+        <li><strong>Triple observabilidad en cliente</strong> (Sentry + PostHog + Vercel Analytics): coste de arranque acumulado.</li>
+        <li><strong>Build sin typecheck ni lint:</strong> errores pueden llegar a previews de Vercel.</li>
+      </ul>
+    </section>
+
+    <!-- ============ PLAN ============ -->
+    <section id="plan">
+      <h2>Plan de mejoras priorizado</h2>
+      <p>Ordenado por impacto sobre riesgo. Nada de esto fue aplicado: es propuesta. Cada cambio debería registrarse en <code>vault/06-Roadmap-y-Tareas/Backlog priorizado.md</code> según la guía del vault.</p>
+
+      <figure class="chart" aria-labelledby="plan-caption">
+        <figcaption id="plan-caption">Distribución del plan por prioridad</figcaption>
+        <div class="bars" role="img" aria-label="Gráfico de barras: 3 acciones P0, 3 P1, 4 P2, 3 P3">
+          <div class="bar"><span class="bar-label">P0</span><span class="bar-track"><span class="bar-fill sev-crit" style="--w:100%">3</span></span></div>
+          <div class="bar"><span class="bar-label">P1</span><span class="bar-track"><span class="bar-fill sev-high" style="--w:100%">3</span></span></div>
+          <div class="bar"><span class="bar-label">P2</span><span class="bar-track"><span class="bar-fill sev-med" style="--w:100%">4</span></span></div>
+          <div class="bar"><span class="bar-label">P3</span><span class="bar-track"><span class="bar-fill sev-low" style="--w:100%">3</span></span></div>
+        </div>
+      </figure>
+
+      <ol class="roadmap">
+        <li class="p0">
+          <span class="tag crit">P0</span>
+          <div><h3>Añadir cabeceras de seguridad reales</h3><p>CSP con nonce, HSTS, X-Frame-Options, X-Content-Type-Options y Referrer-Policy en middleware o next.config; corregir el comentario falso de <code>next.config.mjs:7-9</code>. <em>Esfuerzo bajo · impacto muy alto.</em></p></div>
+        </li>
+        <li class="p0">
+          <span class="tag crit">P0</span>
+          <div><h3>Arreglar typecheck y devolverlo al build</h3><p>Corregir <code>scripts/test-dashboard-flows.ts:30</code> y quitar <code>ignoreBuildErrors</code> gradualmente para que nada roto llegue a Vercel. <em>Esfuerzo bajo · impacto alto.</em></p></div>
+        </li>
+        <li class="p0">
+          <span class="tag crit">P0</span>
+          <div><h3>Sacar xlsx del CDN</h3><p>Sustituirlo por un paquete del registro (<code>exceljs</code> o SheetJS publicado). <em>Esfuerzo bajo-medio · impacto alto.</em></p></div>
+        </li>
+        <li class="p1">
+          <span class="tag high">P1</span>
+          <div><h3>Unificar authz y eliminar el caso especial events</h3><p>Extraer la lógica compartida entre <code>withTenant</code> y <code>withBearerTenant</code> a un módulo común; documentar o eliminar el bypass de events. <em>Esfuerzo medio · impacto alto.</em></p></div>
+        </li>
+        <li class="p1">
+          <span class="tag high">P1</span>
+          <div><h3>Rate limiting atómico y sin doble conteo</h3><p>Pipeline o script Lua en Redis para la ventana deslizante; decidir una sola capa de limitación. <em>Esfuerzo medio · impacto medio-alto.</em></p></div>
+        </li>
+        <li class="p1">
+          <span class="tag high">P1</span>
+          <div><h3>Cerrar la brecha de convenciones API</h3><p>Migrar las 3 rutas restantes a <code>apiSuccess/apiError</code> y evaluar integrar family/me dentro del estándar authz. <em>Esfuerzo bajo · impacto medio.</em></p></div>
+        </li>
+        <li class="p2">
+          <span class="tag med">P2</span>
+          <div><h3>Consolidar rutas duplicadas</h3><p>Redirects 301 de las ~66 páginas sueltas hacia (site)/(public); gatear la ruta dev. <em>Esfuerzo medio · impacto medio.</em></p></div>
+        </li>
+        <li class="p2">
+          <span class="tag med">P2</span>
+          <div><h3>Gatear cobertura y llevar RLS a CI</h3><p>Thresholds mínimos en Vitest y tests de semántica RLS contra Postgres efímero en CI. <em>Esfuerzo medio · impacto medio.</em></p></div>
+        </li>
+        <li class="p2">
+          <span class="tag med">P2</span>
+          <div><h3>Adelgazar dependencias de producción</h3><p>swagger-ui-react como dynamic import dev-only; consolidar icon libraries y parsers CSV; evaluar axios→fetch. <em>Esfuerzo bajo · impacto medio.</em></p></div>
+        </li>
+        <li class="p2">
+          <span class="tag med">P2</span>
+          <div><h3>Caché selectiva</h3><p>Auditar los 209 force-dynamic caso por caso e introducir ISR/revalidate en lecturas públicas y directorio. <em>Esfuerzo medio-alto · impacto medio.</em></p></div>
+        </li>
+        <li class="p3">
+          <span class="tag low">P3</span>
+          <div><h3>Higiene de repo</h3><p>Mover MDs de análisis a docs/, quitar .bak y tsbuildinfo del tracking, arreglar campo «main». <em>Esfuerzo mínimo · impacto bajo.</em></p></div>
+        </li>
+        <li class="p3">
+          <span class="tag low">P3</span>
+          <div><h3>Cerrar TODOs funcionales</h3><p>Emails a padres y payment method de Stripe, o moverlos formalmente al backlog de producto. <em>Esfuerzo medio · impacto producto.</em></p></div>
+        </li>
+        <li class="p3">
+          <span class="tag low">P3</span>
+          <div><h3>Modernizar tooling de largo plazo</h3><p>ESLint 8→9 y plan de salida de @vercel/kv antes de cualquier anuncio de deprecación. <em>Esfuerzo medio · impacto a futuro.</em></p></div>
+        </li>
+      </ol>
+    </section>
+
+    <footer>
+      <p>Informe Ox Alpha · 23 de agosto de 2026 · Análisis de solo lectura: ningún archivo del proyecto fue modificado ni eliminado.</p>
+      <p class="method">Metodología: exploración exhaustiva del código, typecheck en vivo, conteos verificados con grep/wc y revisión de la guía operativa del vault.</p>
+    </footer>
+
+  </main>
+</div>
+
+<script src="assets/app.js"></script>
+</body>
+</html>

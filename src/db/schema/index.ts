@@ -1,0 +1,111 @@
+/**
+ * Esquemas de Base de Datos - Zaltyko
+ *
+ * Relaciones principales:
+ * - profiles -> memberships -> academies
+ * - athletes -> groups (via groupAthletes)
+ * - classes -> classSessions -> attendanceRecords
+ * - academies -> charges -> billingItems
+ */
+
+// Export all schemas
+export * from "./enums";
+export * from "./plans";
+export * from "./academies";
+export * from "./academy-trials";
+export * from "./lead-trials";
+export * from "./lead-trial-outcomes";
+export * from "./academy-messages";
+export * from "./announcements";
+export * from "./direct-messages";
+export * from "./message-history";
+export * from "./academy-geo-groups";
+export * from "./profiles";
+export * from "./memberships";
+export * from "./academy-link-requests";
+export * from "./subscriptions";
+export * from "./stripe-accounts";
+export * from "./family-stripe-customers";
+export * from "./payment-attempts";
+export * from "./refunds";
+export * from "./athletes";
+export * from "./athlete-import-batches";
+export * from "./coaches";
+export * from "./empleo";
+export * from "./classes";
+export * from "./class-weekdays";
+export * from "./events";
+export * from "./audit-logs";
+export * from "./class-sessions";
+export * from "./attendance-records";
+export * from "./family-contacts";
+export * from "./skill-catalog";
+export * from "./athlete-skills";
+export * from "./actor-pages";
+export * from "./suppliers";
+export * from "./store";
+export * from "./marketplace";
+export * from "./variants";
+export * from "./athlete-assessments";
+export * from "./assessment-scores";
+export * from "./coach-notes";
+export * from "./guardians";
+export * from "./invitations";
+export * from "./athlete-invitations";
+export * from "./auth-users";
+export * from "./class-coach-assignments";
+export * from "./coach-sport-configs";
+export * from "./class-groups";
+export * from "./class-enrollments";
+export * from "./athlete-extra-classes";
+export * from "./billing-invoices";
+export * from "./billing-events";
+export * from "./groups";
+export * from "./onboarding-states";
+export * from "./onboarding-checklist-items";
+export * from "./user-preferences";
+export * from "./billing-items";
+export * from "./charges";
+export * from "./event-logs";
+export * from "./notifications";
+export * from "./email-logs";
+export * from "./scholarships";
+export * from "./discounts";
+export * from "./discount-campaigns";
+export * from "./discount-usage-history";
+export * from "./receipts";
+export * from "./event-invitations";
+export * from "./contact-messages";
+export * from "./class-exceptions";
+export * from "./push-subscriptions";
+export * from "./push-tokens";
+export * from "./support-tickets";
+export * from "./advertising";
+export * from "./event-registration";
+export * from "./assessment-extended";
+export * from "./federative-licenses";
+export * from "./competition-results";
+export * from "./athlete-documents";
+export * from "./class-waiting-list";
+export * from "./scheduled-reports";
+export * from "./communication";
+export * from "./permissions";
+export * from "./roles";
+export * from "./templates";
+export * from "./sport-config";
+export * from "./athlete-sport-configs";
+export * from "./leads";
+export * from "./lead-interactions";
+export * from "./growth-events";
+export * from "./commercial-interviews";
+export * from "./leak-profitability";
+
+// ZAL-158 [GTM-DEP.2] Server-side consent storage
+export * from "./owner-consent";
+
+// Categories (listing taxonomy)
+export * from "./categories";
+
+// Trust pack (marketplace disputes + ratings)
+export * from "./trust";
+export * from "./directory";

@@ -1,0 +1,163 @@
+"use client";
+
+import { usePathname, useRouter } from "next/navigation";
+import { useEffect, useRef, useState } from "react";
+import { ChevronUp, MoreHorizontal, X } from "lucide-react";
+
+import { useAcademyContext } from "@/hooks/use-academy-context";
+import { isAcademyNavigationActive } from "@/lib/navigation/active";
+import { getMobileAcademyNavigation } from "@/lib/navigation/registry";
+import { isProfileRole, type MembershipRole } from "@/lib/product/roles";
+import { cn } from "@/lib/utils";
+
+export function MobileAcademyNav() {
+  const pathname = usePathname();
+  const router = useRouter();
+  const context = useAcademyContext();
+  const [isVisible, setIsVisible] = useState(true);
+  const [moreOpen, setMoreOpen] = useState(false);
+  const lastScrollY = useRef(0);
+
+  const academyId = context?.academyId;
+
+  useEffect(() => {
+    if (!academyId) return;
+
+    if (window.innerWidth >= 1024) {
+      return;
+    }
+
+    const handleScroll = () => {
+      const currentScrollY = window.scrollY;
+      if (currentScrollY > lastScrollY.current && currentScrollY > 100) {
+        setIsVisible(false);
+      } else {
+        setIsVisible(true);
+      }
+      lastScrollY.current = currentScrollY;
+    };
+
+    window.addEventListener("scroll", handleScroll, { passive: true });
+    return () => window.removeEventListener("scroll", handleScroll);
+  }, [academyId]);
+
+  if (!academyId) {
+    return null;
+  }
+
+  const mobileNavItems = getMobileAcademyNavigation({
+    academyId,
+    profileRole: isProfileRole(context?.profileRole) ? context.profileRole : "owner",
+    membershipRole: (context?.membershipRole ?? null) as MembershipRole | null,
+    specialization: context?.specialization,
+  });
+
+  const isActive = (href: string) => {
+    return isAcademyNavigationActive(pathname, href, academyId);
+  };
+
+  const primaryItems = mobileNavItems.slice(0, 4);
+  const secondaryItems = mobileNavItems.slice(4);
+
+  return (
+    <>
+    {/* Grip persistente: aparece solo cuando la nav está oculta para
+        ofrecer una salida sin tener que hacer scroll hacia arriba. Coach
+        en el suelo del gimnasio con una mano: un toque y vuelve el menú. */}
+    {!isVisible && (
+      <div className="pointer-events-none fixed inset-x-0 bottom-0 z-50 lg:hidden">
+        <div className="safe-area-bottom flex justify-center pb-2">
+          <button
+            type="button"
+            onClick={() => setIsVisible(true)}
+            aria-label="Mostrar navegación inferior"
+            aria-expanded="false"
+            className="pointer-events-auto inline-flex items-center gap-1 rounded-full border border-border bg-card/95 px-3 py-1.5 text-xs font-semibold text-muted-foreground shadow-soft backdrop-blur transition-colors hover:bg-muted focus:outline-none focus-visible:ring-2 focus-visible:ring-zaltyko-teal"
+          >
+            <ChevronUp className="h-4 w-4" />
+            Menú
+          </button>
+        </div>
+      </div>
+    )}
+    <nav
+      className={cn(
+        "fixed bottom-0 left-0 right-0 z-50 transition-transform duration-300 ease-in-out lg:hidden",
+        isVisible ? "translate-y-0" : "translate-y-full"
+      )}
+      aria-hidden={!isVisible}
+    >
+      <div className="border-t border-border/70 bg-card/95 shadow-soft backdrop-blur">
+        <div className="safe-area-bottom grid h-[72px] grid-cols-5 items-center gap-1 px-2">
+          {primaryItems.map((item) => {
+            const Icon = item.icon;
+            const active = isActive(item.href);
+
+            return (
+              <button
+                key={item.key}
+                type="button"
+                onClick={() => router.push(item.href)}
+                className={cn(
+                  "flex h-14 min-h-[44px] min-w-0 flex-col items-center justify-center rounded-xl border border-transparent transition-colors",
+                  active
+                    ? "border-zaltyko-teal/20 bg-zaltyko-teal/12 text-zaltyko-teal"
+                    : "text-muted-foreground hover:bg-muted hover:text-foreground"
+                )}
+                aria-label={item.label}
+                aria-current={active ? "page" : undefined}
+              >
+                <Icon className={cn("mb-1 h-5 w-5", active && "scale-110")} />
+                <span className="max-w-full truncate px-1 text-[11px] font-semibold leading-4">{item.label}</span>
+              </button>
+            );
+          })}
+          {secondaryItems.length > 0 && (
+            <button
+              type="button"
+              onClick={() => setMoreOpen((value) => !value)}
+              className={cn(
+                "flex h-14 min-h-[44px] min-w-0 flex-col items-center justify-center rounded-xl border border-transparent text-muted-foreground transition-colors",
+                moreOpen && "bg-muted text-foreground"
+              )}
+              aria-expanded={moreOpen}
+              aria-label="Más secciones"
+            >
+              {moreOpen ? <X className="mb-1 h-5 w-5" /> : <MoreHorizontal className="mb-1 h-5 w-5" />}
+              <span className="text-[11px] font-semibold leading-4">Más</span>
+            </button>
+          )}
+        </div>
+        {moreOpen && secondaryItems.length > 0 && (
+          <div className="border-t border-border bg-card px-3 py-3 shadow-[0_-12px_30px_-20px_rgba(15,23,42,0.45)]">
+            <div className="grid grid-cols-4 gap-2">
+              {secondaryItems.map((item) => {
+                const Icon = item.icon;
+                const active = isActive(item.href);
+                return (
+                  <button
+                    key={item.key}
+                    type="button"
+                    onClick={() => {
+                      setMoreOpen(false);
+                      router.push(item.href);
+                    }}
+                    className={cn(
+                      "flex min-h-14 flex-col items-center justify-center gap-1 rounded-xl px-1 text-center text-[11px] font-semibold",
+                      active ? "bg-zaltyko-teal/10 text-zaltyko-teal" : "text-muted-foreground hover:bg-muted/50"
+                    )}
+                    aria-current={active ? "page" : undefined}
+                  >
+                    <Icon className="h-5 w-5" />
+                    <span className="max-w-full truncate">{item.label}</span>
+                  </button>
+                );
+              })}
+            </div>
+          </div>
+        )}
+      </div>
+    </nav>
+    </>
+  );
+}

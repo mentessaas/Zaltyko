@@ -1,0 +1,19 @@
+name: Deploy
+
+# Release is intentionally locked. No push trigger, credentials or deploy steps.
+# Restoring deployment requires a reviewed workflow change and human approval.
+on:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  deployment-locked:
+    name: Deployment locked pending explicit release authorization
+    runs-on: ubuntu-latest
+    steps:
+      - name: Refuse deployment
+        run: |
+          echo "Deployment is locked. Review release gates before enabling a release workflow." >&2
+          exit 1

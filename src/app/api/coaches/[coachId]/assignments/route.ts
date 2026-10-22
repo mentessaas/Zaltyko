@@ -1,0 +1,170 @@
+import { and, eq, inArray, isNull } from "drizzle-orm";
+import { z } from "zod";
+
+import { db } from "@/db";
+import {
+  classCoachAssignments,
+  classes,
+  coaches,
+} from "@/db/schema";
+import { withTenant } from "@/lib/authz";
+import { authorizeAcademyCapability } from "@/lib/authz/resource-scope";
+import { apiSuccess, apiError } from "@/lib/api-response";
+import { handleApiError } from "@/lib/api-error-handler";
+import { withTransaction } from "@/lib/db-transactions";
+import { assertCoachesCanHandleSportConfig } from "@/lib/coaches/sport-scope";
+
+const updateSchema = z.object({
+  classIds: z.array(z.string().uuid()),
+});
+
+export const GET = withTenant(async (_request, context) => {
+  const coachId = (context.params as { coachId?: string })?.coachId;
+
+  if (!coachId) {
+    return apiError("COACH_ID_REQUIRED", "coachId es requerido", 400);
+  }
+
+  const [coach] = await db
+    .select({ tenantId: coaches.tenantId, academyId: coaches.academyId })
+    .from(coaches)
+    .where(eq(coaches.id, coachId))
+    .limit(1);
+
+  if (!coach) {
+    return apiError("COACH_NOT_FOUND", "Coach no encontrado", 404);
+  }
+
+  const scope = await authorizeAcademyCapability({
+    context,
+    resourceTenantId: coach.tenantId,
+    academyId: coach.academyId,
+    permission: "coaches:read",
+  });
+
+  if (!scope.allowed) {
+    return apiError("COACH_NOT_FOUND", "Coach no encontrado", 404);
+  }
+
+  const assignmentRows = await db
+    .select({
+      classId: classCoachAssignments.classId,
+      className: classes.name,
+      academyId: classes.academyId,
+      sportConfigId: classes.sportConfigId,
+    })
+    .from(classCoachAssignments)
+    .innerJoin(classes, eq(classCoachAssignments.classId, classes.id))
+    .where(
+      and(
+        eq(classCoachAssignments.coachId, coachId),
+        eq(classCoachAssignments.tenantId, coach.tenantId),
+        eq(classes.tenantId, coach.tenantId),
+        eq(classes.academyId, coach.academyId),
+        isNull(classes.deletedAt)
+      )
+    )
+    .limit(2000);
+
+  return apiSuccess({ items: assignmentRows });
+});
+
+export const PUT = withTenant(async (request, context) => {
+  try {
+    const coachId = (context.params as { coachId?: string })?.coachId;
+
+    if (!coachId) {
+      return apiError("COACH_ID_REQUIRED", "coachId es requerido", 400);
+    }
+
+    if (!context.tenantId) {
+      return apiError("TENANT_REQUIRED", "tenantId es requerido", 400);
+    }
+
+    const body = updateSchema.parse(await request.json());
+
+    const [coachRow] = await db
+      .select({ tenantId: coaches.tenantId, academyId: coaches.academyId })
+      .from(coaches)
+      .where(eq(coaches.id, coachId))
+      .limit(1);
+
+    if (!coachRow || coachRow.tenantId !== context.tenantId) {
+      return apiError("COACH_NOT_FOUND", "Coach no encontrado", 404);
+    }
+
+    const scope = await authorizeAcademyCapability({
+      context,
+      resourceTenantId: coachRow.tenantId,
+      academyId: coachRow.academyId,
+      permission: "coaches:update",
+    });
+
+    if (!scope.allowed) {
+      return apiError("COACH_NOT_FOUND", "Coach no encontrado", 404);
+    }
+
+    const uniqueClassIds = Array.from(new Set(body.classIds));
+    if (uniqueClassIds.length > 0) {
+      const classRows = await db
+        .select({ id: classes.id, sportConfigId: classes.sportConfigId })
+        .from(classes)
+        .where(
+          and(
+            eq(classes.tenantId, context.tenantId),
+            eq(classes.academyId, coachRow.academyId),
+            inArray(classes.id, uniqueClassIds),
+            isNull(classes.deletedAt)
+          )
+        )
+        .limit(2000);
+
+      if (classRows.length !== uniqueClassIds.length) {
+        return apiError("CLASS_NOT_FOUND", "Una o más clases no pertenecen a esta academia", 404);
+      }
+
+      for (const classRow of classRows) {
+        const scope = await assertCoachesCanHandleSportConfig({
+          coachIds: [coachId],
+          academyId: coachRow.academyId,
+          tenantId: context.tenantId,
+          sportConfigId: classRow.sportConfigId,
+        });
+
+        if (!scope.ok) {
+          return apiError("COACH_SPORT_CONFIG_SCOPE_MISMATCH", "El entrenador no puede asignarse a clases de esa rama", 400);
+        }
+      }
+    }
+
+    // Usar transacción para garantizar atomicidad
+    await withTransaction(async (tx) => {
+      // Eliminar asignaciones existentes
+      await tx
+        .delete(classCoachAssignments)
+        .where(
+          and(
+            eq(classCoachAssignments.coachId, coachId),
+            eq(classCoachAssignments.tenantId, coachRow.tenantId)
+          )
+        );
+
+      // Crear nuevas asignaciones
+      if (body.classIds.length > 0) {
+        const records = uniqueClassIds.map((classId) => ({
+          id: crypto.randomUUID(),
+          tenantId: context.tenantId,
+          classId,
+          coachId,
+        }));
+
+        await tx.insert(classCoachAssignments).values(records);
+      }
+    });
+
+    return apiSuccess({ ok: true });
+  } catch (error) {
+    const coachId = (context.params as { coachId?: string })?.coachId;
+    return handleApiError(error, { endpoint: `/api/coaches/${coachId}/assignments`, method: "PUT" });
+  }
+});

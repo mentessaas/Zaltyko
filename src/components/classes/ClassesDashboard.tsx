@@ -1,0 +1,516 @@
+"use client";
+
+import { useCallback, useEffect, useMemo, useState, useTransition } from "react";
+import Link from "next/link";
+import { usePathname, useRouter, useSearchParams } from "next/navigation";
+import {
+  Calendar,
+  Users,
+  Clock,
+  TrendingUp,
+  AlertCircle,
+  ChevronRight,
+  Loader2,
+} from "lucide-react";
+
+import { ClassesTableView } from "@/components/classes/ClassesTableView";
+import { CreateClassDialog } from "@/components/classes/CreateClassDialog";
+import { EditClassDialog } from "@/components/classes/EditClassDialog";
+import { Badge } from "@/components/ui/badge";
+import { Button } from "@/components/ui/button";
+import { useAcademyContext } from "@/hooks/use-academy-context";
+import { summarizeStarterClassSetup } from "@/lib/classes/starter-setup";
+import { pluralizeFirstWord } from "@/lib/specialization/registry";
+import type { SportConfigOption } from "@/components/groups/types";
+import { logger } from "@/lib/logger";
+
+interface ClassItem {
+  id: string;
+  name: string;
+  weekdays: number[];
+  startTime: string | null;
+  endTime: string | null;
+  capacity: number | null;
+  technicalFocus?: string | null;
+  apparatus?: string[];
+  sportConfigId?: string | null;
+  isExtra: boolean;
+  autoGenerateSessions: boolean;
+  allowsFreeTrial: boolean;
+  waitingListEnabled: boolean;
+  cancellationHoursBefore: number;
+  cancellationPolicy: string;
+  currentEnrollment?: number;
+  createdAt: string | null;
+  coaches: Array<{ id: string; name: string; email: string | null }>;
+  groups: Array<{ id: string; name: string; color: string | null; sportConfigId?: string | null }>;
+}
+
+interface CoachOption {
+  id: string;
+  name: string;
+  email: string | null;
+  sportConfigIds?: string[];
+}
+
+interface GroupOption {
+  id: string;
+  name: string;
+  color: string | null;
+  sportConfigId?: string | null;
+}
+
+interface StatsCardProps {
+  title: string;
+  value: string | number;
+  icon: React.ReactNode;
+  description?: string;
+  trend?: { value: number; label: string };
+  variant?: "default" | "success" | "warning" | "danger";
+}
+
+function StatsCard({ title, value, icon, description, trend, variant = "default" }: StatsCardProps) {
+  const variantStyles = {
+    default: "bg-card border-border",
+    success: "bg-card border-zaltyko-teal/30",
+    warning: "bg-card border-zaltyko-indigo/25",
+    danger: "bg-card border-zaltyko-coral/35",
+  };
+
+  const iconStyles = {
+    default: "text-zaltyko-indigo",
+    success: "text-zaltyko-teal",
+    warning: "text-zaltyko-indigo",
+    danger: "text-zaltyko-coral",
+  };
+
+  return (
+    <div className={`rounded-2xl border p-5 shadow-soft ${variantStyles[variant]}`}>
+      <div className="flex items-start justify-between">
+        <div>
+          <p className="text-xs font-medium uppercase tracking-[0.05em] text-muted-foreground">{title}</p>
+          <p className="mt-1 font-display text-3xl font-bold text-foreground">{value}</p>
+          {description && (
+            <p className="mt-1 text-xs text-muted-foreground">{description}</p>
+          )}
+          {trend && (
+            <div className="mt-2 flex items-center gap-1 text-xs">
+              <TrendingUp className="h-3 w-3 text-zaltyko-teal" />
+              <span className="text-zaltyko-teal">{trend.value}%</span>
+              <span className="text-muted-foreground">{trend.label}</span>
+            </div>
+          )}
+        </div>
+        <div className="rounded-xl bg-muted/40 p-3">
+          <div className={iconStyles[variant]}>{icon}</div>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+interface ClassesDashboardProps {
+  academyId: string;
+  initialClasses?: ClassItem[];
+  initialStats?: {
+    totalSessions: number;
+    upcomingSessions: number;
+  };
+  availableCoaches: CoachOption[];
+  groupOptions: GroupOption[];
+  sportConfigs?: SportConfigOption[];
+  initialFocusClassId?: string;
+}
+
+export function ClassesDashboard({
+  academyId,
+  initialClasses = [],
+  initialStats = { totalSessions: 0, upcomingSessions: 0 },
+  availableCoaches,
+  groupOptions,
+  sportConfigs = [],
+  initialFocusClassId,
+}: ClassesDashboardProps) {
+  const { specialization } = useAcademyContext();
+  const router = useRouter();
+  const pathname = usePathname();
+  const searchParams = useSearchParams();
+  const sportConfigFilter = searchParams?.get("sportConfigId") ?? "";
+  const [classes, setClasses] = useState<ClassItem[]>(initialClasses);
+  const [stats, setStats] = useState({
+    totalClasses: 0,
+    totalSessions: initialStats.totalSessions,
+    upcomingSessions: initialStats.upcomingSessions,
+    utilizationRate: 0,
+  });
+  const [isLoading, setIsLoading] = useState(initialClasses.length === 0);
+  const [createOpen, setCreateOpen] = useState(false);
+  const [guidedEditingClass, setGuidedEditingClass] = useState<ClassItem | null>(null);
+  const [isPending, startTransition] = useTransition();
+  const starterSetup = useMemo(
+    () => summarizeStarterClassSetup(specialization, classes),
+    [classes, specialization]
+  );
+  const starterClassCount = starterSetup.starterClassCount;
+  const guidedSetupAction = useMemo(() => {
+    if (starterSetup.missingCoachCount > 0 && availableCoaches.length === 0) {
+      return {
+        href: `/app/${academyId}/coaches`,
+        label: `Agregar ${pluralizeFirstWord(specialization.labels.coachLabel).toLowerCase()}`,
+      };
+    }
+
+    if (starterSetup.missingGroupCount > 0 && groupOptions.length === 0) {
+      return {
+        href: `/app/${academyId}/groups`,
+        label: `Crear ${pluralizeFirstWord(specialization.labels.groupLabel).toLowerCase()}`,
+      };
+    }
+
+    const firstReadyClass = starterSetup.items.find((item) => item.isReady);
+    if (
+      firstReadyClass &&
+      starterSetup.missingTemplateCount === 0 &&
+      starterSetup.items.every((item) => item.isReady) &&
+      stats.totalSessions === 0
+    ) {
+      return {
+        href: `/app/${academyId}/classes/${firstReadyClass.id}/recurring`,
+        label: "Generar sesiones",
+      };
+    }
+
+    return {
+      href: "#classes-list",
+      label: `Revisar ${pluralizeFirstWord(specialization.labels.classLabel).toLowerCase()}`,
+    };
+  }, [
+    academyId,
+    availableCoaches.length,
+    groupOptions.length,
+    specialization,
+    starterSetup,
+    stats.totalSessions,
+  ]);
+
+  useEffect(() => {
+    setClasses(initialClasses);
+  }, [initialClasses]);
+
+  useEffect(() => {
+    setStats((current) => ({
+      ...current,
+      totalSessions: initialStats.totalSessions,
+      upcomingSessions: initialStats.upcomingSessions,
+    }));
+  }, [initialStats.totalSessions, initialStats.upcomingSessions]);
+
+  // Cargar clases desde la API
+  const fetchClasses = useCallback(async () => {
+    setIsLoading(true);
+    try {
+      const params = new URLSearchParams({ academyId, limit: "100" });
+      if (sportConfigFilter) {
+        params.set("sportConfigId", sportConfigFilter);
+      }
+
+      const response = await fetch(`/api/classes?${params.toString()}`);
+      if (response.ok) {
+        const data = await response.json();
+        setClasses(data.data?.items ?? data.items ?? []);
+      }
+    } catch (error) {
+      logger.error("Error fetching classes:", error);
+    } finally {
+      setIsLoading(false);
+    }
+  }, [academyId, sportConfigFilter]);
+
+  useEffect(() => {
+    if (initialClasses.length === 0) {
+      fetchClasses();
+    }
+  }, [academyId, fetchClasses, initialClasses.length]);
+
+  useEffect(() => {
+    if (!initialFocusClassId || guidedEditingClass) {
+      return;
+    }
+
+    const target = classes.find((item) => item.id === initialFocusClassId);
+    if (!target) {
+      return;
+    }
+
+    setGuidedEditingClass(target);
+
+    const params = new URLSearchParams(searchParams?.toString());
+    params.delete("focusClass");
+    const nextUrl = params.toString() ? `${pathname}?${params.toString()}` : pathname;
+    router.replace(nextUrl, { scroll: false });
+  }, [classes, guidedEditingClass, initialFocusClassId, pathname, router, searchParams]);
+
+  // Calcular estadísticas
+  useEffect(() => {
+    const totalClasses = classes.length;
+    const withCapacity = classes.filter((c) => c.capacity && c.capacity > 0);
+    const utilizedCapacity = withCapacity.reduce((acc, c) => {
+      const enrollment = c.currentEnrollment ?? 0;
+      const capacity = c.capacity ?? 1;
+      return acc + (capacity > 0 ? (enrollment / capacity) * 100 : 0);
+    }, 0);
+    const utilizationRate = withCapacity.length > 0
+      ? Math.round(utilizedCapacity / withCapacity.length)
+      : 0;
+
+    setStats((current) => ({
+      ...current,
+      totalClasses,
+      utilizationRate,
+    }));
+  }, [classes]);
+
+  const handleRefresh = () => {
+    startTransition(() => {
+      router.refresh();
+      fetchClasses();
+    });
+  };
+
+  const handleCreated = () => {
+    setCreateOpen(false);
+    handleRefresh();
+  };
+
+  const handleGuidedEdit = (classId: string) => {
+    const target = classes.find((item) => item.id === classId) ?? null;
+    setGuidedEditingClass(target);
+  };
+
+  const classLabelPlural = pluralizeFirstWord(specialization.labels.classLabel);
+  const sessionLabelPlural = pluralizeFirstWord(specialization.labels.sessionLabel);
+  const coachLabelPlural = pluralizeFirstWord(specialization.labels.coachLabel);
+
+  return (
+    <div className="space-y-6">
+      {/* Header con stats */}
+      <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-4">
+        <StatsCard
+          title={`Total ${classLabelPlural}`}
+          value={stats.totalClasses}
+          icon={<Calendar className="h-5 w-5" />}
+          description={`${classLabelPlural} disponibles`}
+        />
+        <StatsCard
+          title={`${sessionLabelPlural} este mes`}
+          value={stats.totalSessions}
+          icon={<Clock className="h-5 w-5" />}
+          description={stats.totalSessions > 0 ? `${classLabelPlural} programadas` : "Aún no hay sesiones en este periodo"}
+        />
+        <StatsCard
+          title={`Próximas ${sessionLabelPlural.toLowerCase()}`}
+          value={stats.upcomingSessions}
+          icon={<AlertCircle className="h-5 w-5" />}
+          description={stats.upcomingSessions > 0 ? "En agenda" : "No hay sesiones próximas"}
+          variant="warning"
+        />
+        <StatsCard
+          title="Tasa de ocupación"
+          value={`${stats.utilizationRate}%`}
+          icon={<Users className="h-5 w-5" />}
+          variant={stats.utilizationRate > 80 ? "success" : "default"}
+        />
+      </div>
+
+      {starterClassCount > 0 && (
+        <div className="space-y-4 rounded-2xl border border-zaltyko-teal/20 bg-zaltyko-teal/5 p-5 shadow-soft">
+          <div className="space-y-1">
+            <p className="text-sm font-semibold text-foreground">
+              La plantilla inicial ya incluye {starterClassCount} {starterClassCount === 1 ? specialization.labels.classLabel.toLowerCase() : pluralizeFirstWord(specialization.labels.classLabel).toLowerCase()}.
+            </p>
+            <p className="text-sm text-muted-foreground">
+              Revisa estos entrenamientos, ajusta horarios y asigna responsables para adaptarlos a la operativa real de tu academia.
+            </p>
+          </div>
+
+          <div className="grid gap-3 md:grid-cols-2 xl:grid-cols-4">
+            <div className="rounded-xl border border-border bg-card p-4">
+              <p className="text-xs font-medium uppercase tracking-[0.05em] text-muted-foreground">
+                Listas para operar
+              </p>
+              <p className="mt-1 font-display text-2xl font-bold text-foreground">{starterSetup.readyCount}</p>
+              <p className="mt-1 text-xs text-muted-foreground">
+                {starterSetup.completionPercentage}% de la plantilla ya está afinada
+              </p>
+            </div>
+            <div className="rounded-xl border border-border bg-card p-4">
+              <p className="text-xs font-medium uppercase tracking-[0.05em] text-muted-foreground">
+                Responsables pendientes
+              </p>
+              <p className="mt-1 font-display text-2xl font-bold text-foreground">{starterSetup.missingCoachCount}</p>
+              <p className="mt-1 text-xs text-muted-foreground">
+                {coachLabelPlural} sin asignar en clases base
+              </p>
+            </div>
+            <div className="rounded-xl border border-border bg-card p-4">
+              <p className="text-xs font-medium uppercase tracking-[0.05em] text-muted-foreground">
+                Horarios por cerrar
+              </p>
+              <p className="mt-1 font-display text-2xl font-bold text-foreground">{starterSetup.flexibleScheduleCount}</p>
+              <p className="mt-1 text-xs text-muted-foreground">
+                Bloques con días u horas todavía abiertos
+              </p>
+            </div>
+            <div className="rounded-xl border border-border bg-card p-4">
+              <p className="text-xs font-medium uppercase tracking-[0.05em] text-muted-foreground">
+                Estructura pendiente
+              </p>
+              <p className="mt-1 font-display text-2xl font-bold text-foreground">
+                {starterSetup.missingTemplateCount + starterSetup.missingGroupCount + starterSetup.missingCapacityCount}
+              </p>
+              <p className="mt-1 text-xs text-muted-foreground">
+                Entre plantillas no creadas, aforo o grupos por vincular
+              </p>
+            </div>
+          </div>
+
+          {(starterSetup.items.some((item) => !item.isReady) || starterSetup.missingTemplateCount > 0) && (
+            <div className="rounded-xl border border-border bg-card p-4">
+              <div className="flex flex-wrap items-center justify-between gap-3">
+                <div>
+                  <p className="text-sm font-semibold text-foreground">Puesta a punto guiada</p>
+                  <p className="text-sm text-muted-foreground">
+                    Empieza por las clases base que todavía necesitan ajustes.
+                  </p>
+                </div>
+                <Button variant="outline" asChild>
+                  <Link href={guidedSetupAction.href}>
+                    {guidedSetupAction.label}
+                    <ChevronRight className="ml-2 h-4 w-4" />
+                  </Link>
+                </Button>
+              </div>
+
+              <div className="mt-4 space-y-3">
+                {starterSetup.items
+                  .filter((item) => !item.isReady)
+                  .slice(0, 3)
+                  .map((item) => (
+                    <div
+                      key={item.id}
+                      className="flex flex-col gap-3 rounded-xl border border-dashed border-border p-3 lg:flex-row lg:items-center lg:justify-between"
+                    >
+                      <div className="space-y-2">
+                        <Link
+                          href={`/app/${academyId}/classes/${item.id}`}
+                          className="text-sm font-semibold text-zaltyko-teal hover:underline"
+                        >
+                          {item.name}
+                        </Link>
+                        <div className="flex flex-wrap gap-2">
+                          {item.issues.map((issue) => (
+                            <Badge key={issue} variant="outline" className="bg-card">
+                              {issue}
+                            </Badge>
+                          ))}
+                        </div>
+                      </div>
+                      <div className="flex flex-wrap gap-2">
+                        <Button variant="outline" onClick={() => handleGuidedEdit(item.id)}>
+                          Ajustar ahora
+                        </Button>
+                        <Button variant="outline" asChild>
+                          <Link href={`/app/${academyId}/classes/${item.id}`}>Abrir ficha</Link>
+                        </Button>
+                      </div>
+                    </div>
+                  ))}
+
+                {starterSetup.missingTemplateNames.slice(0, 2).map((name) => (
+                  <div
+                    key={name}
+                    className="flex flex-col gap-3 rounded-xl border border-dashed border-border p-3 lg:flex-row lg:items-center lg:justify-between"
+                  >
+                    <div className="space-y-1">
+                      <p className="text-sm font-semibold text-foreground">{name}</p>
+                      <p className="text-sm text-muted-foreground">
+                        Esta clase sugerida de la plantilla inicial aún no se ha creado.
+                      </p>
+                    </div>
+                    <Button variant="outline" onClick={() => setCreateOpen(true)}>
+                      Crear {specialization.labels.classLabel.toLowerCase()}
+                    </Button>
+                  </div>
+                ))}
+              </div>
+            </div>
+          )}
+        </div>
+      )}
+
+      {/* Quick actions */}
+      <div className="flex flex-wrap gap-3">
+        <Button onClick={() => setCreateOpen(true)}>
+          Nuevo {specialization.labels.classLabel}
+        </Button>
+        <Button variant="outline" asChild>
+          <Link href={`/dashboard/calendar?academyId=${encodeURIComponent(academyId)}`}>
+            <Calendar className="mr-2 h-4 w-4" />
+            Ver calendario
+          </Link>
+        </Button>
+        <Button variant="outline" asChild>
+          <Link href={`/app/${academyId}/groups`}>
+            <Users className="mr-2 h-4 w-4" />
+            Gestionar {pluralizeFirstWord(specialization.labels.groupLabel).toLowerCase()}
+          </Link>
+        </Button>
+      </div>
+
+      {/* Tabla de clases */}
+      {isLoading ? (
+        <div className="flex items-center justify-center py-12">
+          <Loader2 className="h-8 w-8 animate-spin text-muted-foreground" />
+        </div>
+      ) : (
+        <div id="classes-list">
+          <ClassesTableView
+          academyId={academyId}
+          classes={classes}
+          availableCoaches={availableCoaches}
+          groupOptions={groupOptions}
+          sportConfigs={sportConfigs}
+          filters={{ sportConfigId: sportConfigFilter }}
+          />
+        </div>
+      )}
+
+      <CreateClassDialog
+        academyId={academyId}
+        open={createOpen}
+        onClose={() => setCreateOpen(false)}
+        onCreated={handleCreated}
+        groupOptions={groupOptions}
+        coachOptions={availableCoaches}
+        sportConfigs={sportConfigs}
+        initialSportConfigId={sportConfigFilter || undefined}
+      />
+
+      {guidedEditingClass && (
+        <EditClassDialog
+          classItem={guidedEditingClass}
+          availableCoaches={availableCoaches}
+          availableGroups={groupOptions}
+          sportConfigs={sportConfigs}
+          open={Boolean(guidedEditingClass)}
+          onClose={() => setGuidedEditingClass(null)}
+          onUpdated={() => {
+            setGuidedEditingClass(null);
+            handleRefresh();
+          }}
+          academyId={academyId}
+        />
+      )}
+    </div>
+  );
+}
