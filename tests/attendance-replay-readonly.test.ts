@@ -119,10 +119,10 @@ function makeTransaction() {
       innerJoin: (_value: unknown, clause: Parameters<PgDialect["sqlToQuery"]>[0]) => {
         const compiled = dialect.sqlToQuery(clause);
         const normalized = compiled.sql.toLowerCase().replaceAll('"', "");
-        const memberPredicate = /staff_profiles\.member_id\s*=\s*\$(\d+)/.exec(
+        const memberPredicate = /zaltyko\.staff_profiles\.member_id\s*=\s*\$(\d+)/.exec(
           normalized
         );
-        const activePredicate = /staff_profiles\.is_active\s*=\s*\$(\d+)/.exec(
+        const activePredicate = /zaltyko\.staff_profiles\.is_active\s*=\s*\$(\d+)/.exec(
           normalized
         );
         profileJoinIsCorrect = _value === staffProfiles
@@ -131,8 +131,8 @@ function makeTransaction() {
           && compiled.params[Number(memberPredicate[1]) - 1] === memberId
           && activePredicate !== null
           && compiled.params[Number(activePredicate[1]) - 1] === true
-          && /staff_profiles\.organization_id\s*=\s*session_staff\.organization_id/.test(normalized)
-          && /staff_profiles\.id\s*=\s*session_staff\.staff_profile_id/.test(normalized);
+          && /zaltyko\.staff_profiles\.organization_id\s*=\s*zaltyko\.session_staff\.organization_id/.test(normalized)
+          && /zaltyko\.staff_profiles\.id\s*=\s*zaltyko\.session_staff\.staff_profile_id/.test(normalized);
         return query;
       },
       where: (clause: Parameters<PgDialect["sqlToQuery"]>[0]) => {
