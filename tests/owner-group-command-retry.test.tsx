@@ -222,6 +222,11 @@ describe("intención inmutable en grupos", () => {
       expect(pause).toBeDisabled();
       fireEvent.click(pause);
       expect(writes()).toHaveLength(0);
+      await userEvent.setup().click(screen.getByText("¿No aparece? Crear ficha y añadir"));
+      const athleteForm = screen.getByLabelText("Nombre").closest("form");
+      expect(athleteForm).not.toBeNull();
+      fireEvent.submit(athleteForm!);
+      expect(writes()).toHaveLength(0);
       manager.unmount();
 
       render(<OwnerGroupsManager bundle={{ ...bundle, groups: [], selectedGroupId: null, memberships: [] } as Bundle} />);
@@ -233,11 +238,6 @@ describe("intención inmutable en grupos", () => {
       const groupForm = screen.getByRole("button", { name: "Guardar grupo" }).closest("form");
       expect(groupForm).not.toBeNull();
       fireEvent.submit(groupForm!);
-      expect(writes()).toHaveLength(0);
-      await userEvent.setup().click(screen.getByText("¿No aparece? Crear ficha y añadir"));
-      const athleteForm = screen.getByLabelText("Nombre").closest("form");
-      expect(athleteForm).not.toBeNull();
-      fireEvent.submit(athleteForm!);
       expect(writes()).toHaveLength(0);
     } finally {
       readSpy.mockRestore();

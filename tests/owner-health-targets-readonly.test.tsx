@@ -452,7 +452,7 @@ describe("metas Owner durante solo lectura", () => {
     expect(
       screen.getByRole("button", { name: "Guardando metas…" })
     ).toBeDisabled();
-    expect(fetchMock.mock.calls.filter(([, init]) => init?.method === "POST")).toHaveLength(1);
+    expect(mocks.fetch.mock.calls.filter(([, init]) => init?.method === "POST")).toHaveLength(1);
 
     await act(async () => {
       resolvePost({
