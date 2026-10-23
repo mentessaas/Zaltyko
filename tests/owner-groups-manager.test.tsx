@@ -73,7 +73,7 @@ beforeEach(() => {
   mockFetch.mockReset();
   window.sessionStorage.clear();
   vi.stubGlobal("fetch", mockFetch);
-  vi.stubGlobal("crypto", { randomUUID: () => "synthetic-group-command" });
+  vi.stubGlobal("crypto", { randomUUID: () => "00000000-0000-4000-8000-000000000007" });
   publishOwnerPlanUsage(organizationId, { readOnly: false, planCode: "free" });
 });
 
@@ -209,8 +209,9 @@ describe("gestión de grupos owner", () => {
     expect(screen.getByRole("button", { name: "Crear y añadir al grupo" })).toBeDisabled();
 
     await waitFor(() => expect(screen.queryByText(/Comprobando si hay una creación pendiente/)).not.toBeInTheDocument());
-    await user.click(screen.getByRole("button", { name: "Crear grupo" }));
-    expect(screen.getByRole("button", { name: "Guardar grupo" })).toBeDisabled();
+    expect(screen.getByRole("button", { name: "Crear grupo" })).toBeDisabled();
+    expect(screen.queryByLabelText("Nombre del grupo")).not.toBeInTheDocument();
+    expect(screen.queryByRole("button", { name: "Guardar grupo" })).not.toBeInTheDocument();
     expect(mockFetch.mock.calls.filter(([, options]) => options?.method === "POST")).toHaveLength(0);
   });
 
@@ -250,7 +251,7 @@ describe("gestión de grupos owner", () => {
     const retry = mockFetch.mock.calls[1]?.[1] as RequestInit;
     expect(first.headers).toEqual(retry.headers);
     expect(first.headers).toMatchObject({
-      "idempotency-key": "synthetic-group-command",
+      "idempotency-key": "00000000-0000-4000-8000-000000000007",
     });
     expect(first.body).toBe(retry.body);
     expect(JSON.parse(String(first.body))).toMatchObject({
@@ -411,6 +412,7 @@ describe("gestión de grupos owner", () => {
       ...emptyBundle,
       organization: { ...emptyBundle.organization, id: otherOrganizationId },
     } as never;
+    publishOwnerPlanUsage(otherOrganizationId, { readOnly: false, planCode: "free" });
     const secondUser = userEvent.setup();
     firstPage.rerender(<OwnerGroupsManager bundle={otherBundle} />);
     await waitFor(() =>
