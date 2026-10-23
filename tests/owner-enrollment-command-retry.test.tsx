@@ -169,7 +169,7 @@ describe("intención de inscripción inmutable en la página abierta", () => {
     fireEvent.submit(screen.getByRole("form", { name: "Crear inscripción" }));
 
     expect(await screen.findByRole("alert")).toHaveTextContent("No se ha enviado ni se sobrescribirá ninguna operación");
-    expect(screen.getByRole("button", { name: "Nueva inscripción", exact: true })).toBeDisabled();
+    expect(screen.getByRole("button", { name: "Cerrar formulario", exact: true })).toBeDisabled();
     fireEvent.submit(screen.getByRole("form", { name: "Crear inscripción" }));
     expect(mutations()).toHaveLength(0);
     expect(window.sessionStorage.getItem(storageKey)).toBeNull();
@@ -403,7 +403,8 @@ describe("intención de inscripción inmutable en la página abierta", () => {
     if (result === "confirmed") {
       expect(screen.queryByRole("region", { name: "Operación de inscripción pendiente" })).not.toBeInTheDocument();
       expect(leavingPageIsPrevented()).toBe(false);
-      expect(router.refresh).toHaveBeenCalledOnce();
+      // El comando confirmado pertenece a A; no refrescar la academia visible B.
+      expect(router.refresh).not.toHaveBeenCalled();
     } else {
       expect(screen.getByText(/Vuelve a la academia de esa operación/)).toBeVisible();
       expect(leavingPageIsPrevented()).toBe(true);
@@ -462,6 +463,6 @@ describe("intención de inscripción inmutable en la página abierta", () => {
     expect(screen.getByRole("button", { name: "Reintentar la misma operación" })).toBeEnabled();
     expect(window.sessionStorage.getItem(otherStorageKey)).toBe(storedOtherIntent);
     expect(mutations()).toHaveLength(1);
-    expect(router.refresh).toHaveBeenCalledOnce();
+    expect(router.refresh).not.toHaveBeenCalled();
   });
 });

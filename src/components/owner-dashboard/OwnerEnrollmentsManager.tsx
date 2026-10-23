@@ -379,6 +379,7 @@ export function OwnerEnrollmentsManager({
     else setBusyId(intent.enrollmentId ?? "");
     setError(""); setNotice("");
     let operationConfirmed = false;
+    let preserveStorageFailure = false;
     const isCurrentIntent = () =>
       currentOrganizationIdRef.current === intent.organizationId &&
       pendingIntentRef.current === intent;
@@ -403,6 +404,7 @@ export function OwnerEnrollmentsManager({
       }
       if (!clearPendingEnrollmentIntent(intent)) {
         if (isCurrentIntent()) {
+          preserveStorageFailure = true;
           setPendingStorageError("La respuesta llegó, pero no se pudo quitar la operación guardada. Mantendremos el bloqueo y el mismo reintento hasta poder limpiar el almacenamiento.");
           setPendingStorageFailureKind("write");
           setError(outcome.message);
@@ -440,7 +442,10 @@ export function OwnerEnrollmentsManager({
       sendingRef.current = false; setBusyCreate(false); setBusyId("");
       // Re-read whichever academy is visible now, including A -> B -> A while
       // the request was pending and temporarily left the scope gate closed.
-      setPendingIntentReadAttempt(attempt => attempt + 1);
+      // A same-scope cleanup failure must remain visible until explicit recovery.
+      if (!preserveStorageFailure) {
+        setPendingIntentReadAttempt(attempt => attempt + 1);
+      }
     }
   }
 
