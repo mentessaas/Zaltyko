@@ -1,5 +1,6 @@
 // @vitest-environment jsdom
 import "@testing-library/jest-dom/vitest";
+import { useLayoutEffect } from "react";
 import {
   act,
   cleanup,
@@ -23,6 +24,10 @@ vi.mock("next/navigation", () => ({ useRouter: () => ({ refresh: mocks.refresh }
 const organizationId = "90000000-0000-4000-8000-000000000001";
 const otherOrganizationId = "90000000-0000-4000-8000-000000000002";
 let generatedCommand = 10;
+
+function getSaveStatusRegion() {
+  return screen.getByRole("status", { name: "Estado del guardado de metas" });
+}
 
 beforeEach(() => {
   mocks.fetch.mockReset();
@@ -59,6 +64,86 @@ describe("metas Owner durante solo lectura", () => {
     expect(screen.getByLabelText(/Retención de inscripciones/)).toBeDisabled();
     expect(screen.getByRole("button", { name: /Guardar versión 2/ })).toBeDisabled();
     expect(mocks.fetch).not.toHaveBeenCalled();
+  });
+
+  it("anuncia progreso y éxito en la misma región y oculta el éxito al cambiar de academia", async () => {
+    type TestResponse = {
+      ok: boolean;
+      status: number;
+      json: () => Promise<unknown>;
+    };
+    let resolvePost!: (value: TestResponse) => void;
+    const statusAtAcademyCommit: string[] = [];
+    mocks.fetch.mockImplementation(
+      () => new Promise<TestResponse>((resolve) => {
+        resolvePost = resolve;
+      })
+    );
+
+    function AcademyScopeProbe({ currentOrganizationId }: { currentOrganizationId: string }) {
+      useLayoutEffect(() => {
+        if (currentOrganizationId !== otherOrganizationId) return;
+        statusAtAcademyCommit.push(
+          document
+            .querySelector('[aria-label="Estado del guardado de metas"]')
+            ?.textContent?.trim() ?? ""
+        );
+      }, [currentOrganizationId]);
+      return (
+        <AcademyTargetProfileForm
+          organizationId={currentOrganizationId}
+          profile={null}
+        />
+      );
+    }
+
+    const view = render(
+      <AcademyScopeProbe currentOrganizationId={organizationId} />
+    );
+    const form = view.container.querySelector("form")!;
+    const statusRegion = getSaveStatusRegion();
+    expect(statusRegion).toBeEmptyDOMElement();
+    for (const [label, value] of [
+      [/Ocupación de plazas/, "75"],
+      [/Retención de inscripciones/, "80"],
+      [/Límite de bajas/, "10"],
+      [/Cobro de vencimientos/, "95"],
+      [/Asistencia registrada/, "90"],
+    ] as const) {
+      fireEvent.change(screen.getByLabelText(label), { target: { value } });
+    }
+
+    act(() => {
+      fireEvent.submit(form);
+    });
+
+    expect(form).toHaveAttribute("aria-busy", "true");
+    expect(form.contains(statusRegion)).toBe(false);
+    expect(statusRegion).toHaveTextContent("Guardando metas de esta academia.");
+
+    await act(async () => {
+      resolvePost({
+        ok: true,
+        status: 201,
+        json: async () => ({
+          profileId: "90000000-0000-4000-8000-000000000011",
+          version: 1,
+          replayed: false,
+        }),
+      });
+    });
+
+    expect(getSaveStatusRegion()).toBe(statusRegion);
+    expect(statusRegion).toHaveTextContent("Metas guardadas. El score se actualizará al procesar la cola de métricas.");
+    expect(form).toHaveAttribute("aria-busy", "false");
+
+    view.rerender(<AcademyScopeProbe currentOrganizationId={otherOrganizationId} />);
+
+    expect(statusAtAcademyCommit).toEqual([""]);
+    expect(getSaveStatusRegion()).toBe(statusRegion);
+    expect(statusRegion).toBeEmptyDOMElement();
+    expect(screen.queryByText(/Metas guardadas/)).not.toBeInTheDocument();
+    expect(mocks.refresh).toHaveBeenCalledTimes(1);
   });
 
   it("bloquea la edición y reenvía la misma clave y el mismo payload tras un error de red", async () => {
@@ -173,6 +258,7 @@ describe("metas Owner durante solo lectura", () => {
       name: "Reintentar el mismo envío",
     });
     expect(retryButton).toBeEnabled();
+    expect(getSaveStatusRegion()).toBeEmptyDOMElement();
     expect(screen.getByLabelText(/Ocupación de plazas/)).toHaveValue(75);
     expect(screen.getByLabelText(/Ocupación de plazas/)).toBeDisabled();
 
@@ -186,7 +272,7 @@ describe("metas Owner durante solo lectura", () => {
       body: originalRequest[1].body,
     });
     expect(window.sessionStorage.length).toBe(0);
-    expect(screen.getByRole("status")).toHaveTextContent("Metas guardadas");
+    expect(getSaveStatusRegion()).toHaveTextContent("Metas guardadas");
     expect(screen.getByLabelText(/Ocupación de plazas/)).toBeEnabled();
   });
 
@@ -286,6 +372,8 @@ describe("metas Owner durante solo lectura", () => {
         profile={null}
       />
     );
+    const statusRegion = getSaveStatusRegion();
+    expect(statusRegion).toBeEmptyDOMElement();
     const fields = [
       [/Ocupación de plazas/, "75"],
       [/Retención de inscripciones/, "80"],
@@ -304,6 +392,8 @@ describe("metas Owner durante solo lectura", () => {
       fireEvent.submit(view.container.querySelector("form")!);
     });
     expect(mocks.fetch).toHaveBeenCalledTimes(1);
+    expect(statusRegion).toHaveTextContent("Guardando metas de esta academia.");
+    expect(view.container.querySelector("form")).toHaveAttribute("aria-busy", "true");
     expect(
       window.sessionStorage.getItem(
         "zaltyko:owner-health-target-command:v1:" + organizationId
@@ -319,6 +409,12 @@ describe("metas Owner durante solo lectura", () => {
     await waitFor(() =>
       expect(screen.getByLabelText(/Ocupación de plazas/)).toHaveValue(33)
     );
+    expect(statusRegion).toHaveTextContent(
+      "Hay un guardado de otra academia en curso. Esta pantalla seguirá bloqueada hasta conocer su resultado."
+    );
+    expect(screen.getByLabelText(/Ocupación de plazas/)).toBeDisabled();
+    expect(screen.getByRole("button", { name: "Esperando el guardado de otra academia…" })).toBeDisabled();
+    expect(view.container.querySelector("form")).toHaveAttribute("aria-busy", "true");
     const storedOtherCommand = window.sessionStorage.getItem(
       "zaltyko:owner-health-target-command:v1:" + otherOrganizationId
     );
@@ -346,6 +442,7 @@ describe("metas Owner durante solo lectura", () => {
       )
     ).toBe(storedOtherCommand);
     expect(screen.getByRole("button", { name: "Reintentar el mismo envío" })).toBeEnabled();
+    expect(statusRegion).toBeEmptyDOMElement();
     expect(screen.queryByText(/Metas guardadas/)).not.toBeInTheDocument();
     expect(mocks.refresh).not.toHaveBeenCalled();
   });
@@ -394,6 +491,7 @@ describe("metas Owner durante solo lectura", () => {
         profile={null}
       />
     );
+    const statusRegion = getSaveStatusRegion();
     const originalTargets = {
       class_fill_rate: 0.75,
       cohort_retention_rate: 0.8,
@@ -419,6 +517,7 @@ describe("metas Owner durante solo lectura", () => {
     act(() => {
       fireEvent.submit(view.container.querySelector("form")!);
     });
+    expect(statusRegion).toHaveTextContent("Guardando metas de esta academia.");
     const originalRequest = mocks.fetch.mock.calls[0];
     const originalStoredCommand = window.sessionStorage.getItem(
       "zaltyko:owner-health-target-command:v1:" + organizationId
@@ -438,12 +537,16 @@ describe("metas Owner durante solo lectura", () => {
     await waitFor(() =>
       expect(screen.getByLabelText(/Ocupación de plazas/)).toHaveValue(33)
     );
+    expect(statusRegion).toHaveTextContent(
+      "Hay un guardado de otra academia en curso. Esta pantalla seguirá bloqueada hasta conocer su resultado."
+    );
     view.rerender(
       <AcademyTargetProfileForm organizationId={organizationId} profile={null} />
     );
     await waitFor(() =>
       expect(screen.getByLabelText(/Ocupación de plazas/)).toHaveValue(75)
     );
+    expect(statusRegion).toHaveTextContent("Guardando metas de esta academia.");
     expect(
       window.sessionStorage.getItem(
         "zaltyko:owner-health-target-command:v1:" + organizationId
@@ -476,7 +579,7 @@ describe("metas Owner durante solo lectura", () => {
         "zaltyko:owner-health-target-command:v1:" + otherOrganizationId
       )
     ).not.toBeNull();
-    expect(screen.getByRole("status")).toHaveTextContent("Metas guardadas");
+    expect(statusRegion).toHaveTextContent("Metas guardadas");
     expect(mocks.refresh).toHaveBeenCalledTimes(1);
   });
 

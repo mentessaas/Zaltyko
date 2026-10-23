@@ -69,11 +69,15 @@ export function AcademyTargetProfileForm({
   const currentOrganizationId = useRef(organizationId);
   currentOrganizationId.current = organizationId;
   const [pending, setPending] = useState(false);
+  const [pendingCommandOrganizationId, setPendingCommandOrganizationId] =
+    useState<string | null>(null);
   const [retryRequired, setRetryRequired] = useState(false);
   const [storageReady, setStorageReady] = useState(false);
   const [storageIssue, setStorageIssue] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
-  const [saved, setSaved] = useState(false);
+  const [savedOrganizationId, setSavedOrganizationId] = useState<string | null>(
+    null
+  );
   const values = profile?.targets as Targets | undefined;
 
   useEffect(() => {
@@ -81,7 +85,7 @@ export function AcademyTargetProfileForm({
     setStorageReady(false);
     setStorageIssue(null);
     setError(null);
-    setSaved(false);
+    setSavedOrganizationId(null);
     setRetryRequired(false);
     uncertainCommand.current = null;
     idempotencyKey.current = null;
@@ -181,9 +185,10 @@ export function AcademyTargetProfileForm({
         return;
       }
 
+      setPendingCommandOrganizationId(command.organizationId);
       setPending(true);
       setError(null);
-      setSaved(false);
+      setSavedOrganizationId(null);
       try {
         const response = await fetch("/api/v1/owner/health-score/targets", {
           method: "POST",
@@ -264,7 +269,7 @@ export function AcademyTargetProfileForm({
         if (ownsCurrentCommand()) {
           uncertainCommand.current = null;
           setRetryRequired(false);
-          setSaved(true);
+          setSavedOrganizationId(command.organizationId);
           idempotencyKey.current = null;
           idempotencyKeyOrganizationId.current = command.organizationId;
           router.refresh();
@@ -287,8 +292,26 @@ export function AcademyTargetProfileForm({
   }
 
   const groups = [...new Set(fields.map((field) => field.group))];
+  const savedForCurrentOrganization = savedOrganizationId === organizationId;
+  const pendingForAnotherOrganization =
+    pending &&
+    pendingCommandOrganizationId !== null &&
+    pendingCommandOrganizationId !== organizationId;
+  const saveStatusMessage = pending
+    ? pendingCommandOrganizationId === organizationId
+      ? "Guardando metas de esta academia."
+      : pendingCommandOrganizationId
+        ? "Hay un guardado de otra academia en curso. Esta pantalla seguirá bloqueada hasta conocer su resultado."
+        : ""
+    : "";
   return (
-    <form ref={formRef} onSubmit={submit} className="grid gap-8">
+    <>
+      <form
+        ref={formRef}
+        onSubmit={submit}
+        className="grid gap-8"
+        aria-busy={pending}
+      >
       <OwnerOperationalReadOnlyNotice organizationId={organizationId} />
       {groups.map((group) => (
         <section key={group} aria-labelledby={`group-${group}`}>
@@ -384,9 +407,9 @@ export function AcademyTargetProfileForm({
           {storageIssue}
         </p>
       )}
-      {saved && (
+      {savedForCurrentOrganization && (
         <p
-          role="status"
+          aria-hidden="true"
           className="flex items-center gap-2 text-sm font-bold text-teal-900"
         >
           <Check className="h-4 w-4" aria-hidden="true" />
@@ -402,7 +425,9 @@ export function AcademyTargetProfileForm({
         className="touch-target inline-flex items-center justify-center gap-2 justify-self-start rounded-full bg-slate-950 px-6 py-3 text-sm font-bold text-white hover:bg-teal-900 disabled:bg-slate-500"
       >
         {pending
-          ? "Guardando metas…"
+          ? pendingForAnotherOrganization
+            ? "Esperando el guardado de otra academia…"
+            : "Guardando metas…"
           : retryRequired
             ? "Reintentar el mismo envío"
             : profile
@@ -410,6 +435,20 @@ export function AcademyTargetProfileForm({
             : "Activar Academy Health Score"}
         <ArrowRight className="h-4 w-4" aria-hidden="true" />
       </button>
-    </form>
+      </form>
+      <p
+        role="status"
+        aria-label="Estado del guardado de metas"
+        aria-live="polite"
+        aria-atomic="true"
+        className="sr-only"
+      >
+        {pending ? (
+          saveStatusMessage
+        ) : savedForCurrentOrganization ? (
+          "Metas guardadas. El score se actualizará al procesar la cola de métricas."
+        ) : null}
+      </p>
+    </>
   );
 }
