@@ -11,6 +11,7 @@ const lockfileGuard = require(lockfileGuardPath) as {
   MAX_GIT_OUTPUT_BYTES: number;
   TARGET_VERSIONS: Array<{ name: string; from: string; to: string; integrity: string }>;
   assertGitOutputWithinLimit: (output: string | Buffer) => string | Buffer;
+  assertExpectedGitStatus: (status: string) => void;
   execGit: (args: string[], run?: (...args: unknown[]) => string) => string;
   validateLockfileRefresh: (input: {
     beforeText: string;
@@ -125,6 +126,7 @@ describe("isolated CI workflow contract", () => {
       { name: "hono", from: "4.13.7", to: "4.13.11" },
     ]);
     expect(lockfileGuard.assertGitOutputWithinLimit).toBeTypeOf("function");
+    expect(lockfileGuard.assertExpectedGitStatus).toBeTypeOf("function");
     expect(lockfileGuard.execGit).toBeTypeOf("function");
     expect(lockfileGuard.validateLockfileRefresh).toBeTypeOf("function");
   });

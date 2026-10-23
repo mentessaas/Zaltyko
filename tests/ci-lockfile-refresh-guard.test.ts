@@ -3,12 +3,14 @@ const {
   MAX_GIT_OUTPUT_BYTES,
   TARGET_VERSIONS,
   assertGitOutputWithinLimit,
+  assertExpectedGitStatus,
   execGit,
   validateLockfileRefresh,
 } = require("../scripts/ci/validate-lockfile-refresh.cjs") as {
   MAX_GIT_OUTPUT_BYTES: number;
   TARGET_VERSIONS: Array<{ name: string; from: string; to: string; integrity: string }>;
   assertGitOutputWithinLimit: (output: string | Buffer) => string | Buffer;
+  assertExpectedGitStatus: (status: string) => void;
   execGit: (args: string[], run?: (...args: unknown[]) => string) => string;
   validateLockfileRefresh: (input: {
     beforeText: string;
@@ -114,6 +116,35 @@ describe("lockfile refresh guard", () => {
       ["show", "expected:pnpm-lock.yaml"],
       { encoding: "utf8", maxBuffer: MAX_GIT_OUTPUT_BYTES },
     ]);
+  });
+
+  it("accepts only the lockfile change and the exact generated node_modules entry", () => {
+    expect(() => assertExpectedGitStatus(" M pnpm-lock.yaml\n")).not.toThrow();
+    expect(() => assertExpectedGitStatus(" M pnpm-lock.yaml\n?? node_modules/\n")).not.toThrow();
+  });
+
+  it.each([
+    ["untracked file inside node_modules", " M pnpm-lock.yaml\n?? node_modules/cache/file\n"],
+    ["lookalike node_modules directory", " M pnpm-lock.yaml\n?? node_modules-extra/\n"],
+    ["another untracked file", " M pnpm-lock.yaml\n?? unrelated.txt\n"],
+    ["another tracked file", " M pnpm-lock.yaml\n M package.json\n"],
+    ["missing lockfile change", "?? node_modules/\n"],
+  ])("rejects %s", (_reason, status) => {
+    expect(() => assertExpectedGitStatus(status)).toThrow();
+  });
+
+  it("reports only the fixed Git command, SHA and error code", () => {
+    const secretLikeError = Object.assign(new Error("sensitive process detail"), { code: "ENOBUFS" });
+    let thrown: Error | undefined;
+    try {
+      execGit(["show", "a".repeat(40) + ":pnpm-lock.yaml"], () => {
+        throw secretLikeError;
+      });
+    } catch (error) {
+      thrown = error as Error;
+    }
+    expect(thrown?.message).toContain(`git show ${"a".repeat(40)}:pnpm-lock.yaml (ENOBUFS)`);
+    expect(thrown?.message).not.toContain("sensitive process detail");
   });
 
   it("accepts only the two target package updates and their pinned references", () => {

@@ -32,12 +32,62 @@ function assertGitOutputWithinLimit(output) {
   return output;
 }
 
+function assertExpectedGitStatus(statusOutput) {
+  const entries = statusOutput.split(/\r?\n/).filter(Boolean);
+  let lockfileCount = 0;
+  let nodeModulesCount = 0;
+
+  for (const entry of entries) {
+    if (entry === " M pnpm-lock.yaml" || entry === "M  pnpm-lock.yaml") {
+      lockfileCount += 1;
+      continue;
+    }
+    if (entry === "?? node_modules/") {
+      nodeModulesCount += 1;
+      continue;
+    }
+    throw new Error("El checkout contiene cambios fuera del lockfile y node_modules/ generado por pnpm");
+  }
+
+  assert(lockfileCount === 1, "El checkout debe contener solo el cambio esperado de pnpm-lock.yaml");
+  assert(nodeModulesCount <= 1, "La salida Git contiene una entrada node_modules/ duplicada");
+}
+
+function safeGitCommand(args) {
+  if (
+    args.length === 3 && args[0] === "status" && args[1] === "--porcelain" &&
+    args[2] === "--untracked-files=normal"
+  ) {
+    return "git status --porcelain --untracked-files=normal";
+  }
+  if (
+    args.length === 4 && args[0] === "diff" && args[1] === "--name-only" &&
+    /^[0-9a-f]{40}$/.test(args[2]) && args[3] === "--"
+  ) return `git diff --name-only ${args[2]} --`;
+  if (args.length === 2 && /^[0-9a-f]{40}:pnpm-lock\.yaml$/.test(args[1]) && args[0] === "show") {
+    return `git show ${args[1]}`;
+  }
+  if (args.length === 3 && args[0] === "diff" && args[1] === "--" && args[2] === "pnpm-lock.yaml") {
+    return "git diff -- pnpm-lock.yaml";
+  }
+  return "git command with fixed arguments";
+}
+
 function execGit(args, run = execFileSync) {
-  const output = run("git", args, {
-    encoding: "utf8",
-    maxBuffer: MAX_GIT_OUTPUT_BYTES,
-  });
-  return assertGitOutputWithinLimit(output);
+  try {
+    const output = run("git", args, {
+      encoding: "utf8",
+      maxBuffer: MAX_GIT_OUTPUT_BYTES,
+    });
+    return assertGitOutputWithinLimit(output);
+  } catch (error) {
+    const code =
+      error && typeof error === "object" && "code" in error &&
+      typeof error.code === "string" && /^[A-Z0-9_]+$/.test(error.code)
+        ? error.code
+        : "ERROR";
+    throw new Error(`Falló ${safeGitCommand(args)} (${code})`);
+  }
 }
 
 function locatorVersion(name, version) {
@@ -227,13 +277,8 @@ function validateLockfileRefresh({ beforeText, afterText, changedFiles }) {
 function main() {
   const baseSha = process.env.BASE_SHA ?? "";
   assert(/^[0-9a-f]{40}$/.test(baseSha), "BASE_SHA debe ser un SHA completo");
-  const status = execGit(["status", "--porcelain", "--untracked-files=all"])
-    .split("\n")
-    .filter(Boolean);
-  assert(
-    status.length === 1 && /^(?: M |M  )pnpm-lock\.yaml$/.test(status[0]),
-    "El checkout contiene cambios fuera del lockfile"
-  );
+  const status = execGit(["status", "--porcelain", "--untracked-files=normal"]);
+  assertExpectedGitStatus(status);
   const changedFiles = execGit(["diff", "--name-only", baseSha, "--"])
     .trim()
     .split("\n")
@@ -249,6 +294,7 @@ module.exports = {
   MAX_GIT_OUTPUT_BYTES,
   TARGET_VERSIONS: versions,
   assertGitOutputWithinLimit,
+  assertExpectedGitStatus,
   execGit,
   validateLockfileRefresh,
 };
