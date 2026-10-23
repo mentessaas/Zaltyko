@@ -135,7 +135,7 @@ jobs:
         run: pnpm install --frozen-lockfile --ignore-scripts --no-optional
 
       - name: Refresh only the two approved transitive versions
-        run: pnpm update --depth 99 --lockfile-only --no-save --ignore-scripts "follow-redirects@1.16.1" "hono@4.13.11"
+        run: pnpm update --depth 99 --lockfile-only --no-save --ignore-scripts follow-redirects hono
 
       - name: Validate lockfile scope and print sanitized diff
         env:

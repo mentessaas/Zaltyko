@@ -58,7 +58,24 @@ describe("isolated CI workflow contract", () => {
     expect(refreshJob).toContain("[[ \"$EXPECTED_SHA\" == \"$head_sha\" ]]");
     expect(refreshJob).toContain("version: 9.15.9");
     expect(refreshJob).toContain('node-version: "22"');
-    expect(refreshJob).toContain("pnpm update --depth 99 --lockfile-only --no-save --ignore-scripts");
+    expect(refreshJob).toContain(
+      "pnpm update --depth 99 --lockfile-only --no-save --ignore-scripts follow-redirects hono"
+    );
+    expect(refreshJob).not.toMatch(/follow-redirects@|hono@/);
+    expect(lockfileGuard.TARGET_VERSIONS).toEqual([
+      {
+        name: "follow-redirects",
+        from: "1.16.0",
+        to: "1.16.1",
+        integrity: "sha512-FNvFGzoMLWmE6Yj9spb/zjd7yiNCHiAW9/Tg9CXrQ8wuu32HtlJOwWO11OJafl5FfY3DxTdQ0vj42zU1kvv5jg==",
+      },
+      {
+        name: "hono",
+        from: "4.13.7",
+        to: "4.13.11",
+        integrity: "sha512-/SMX/RQNJn7oNmFwH6DtwDqcrzZU2otm1FD6OJe2cWF6cfy/F8hq0XVBv7xW3FTJshRQwuBnXHDq2kNsdZnshg==",
+      },
+    ]);
     expect(refreshJob).toContain("node scripts/ci/validate-lockfile-refresh.cjs");
     expect(refreshJob).not.toMatch(/\bsecrets\.|cache:|upload-artifact|git push|git commit|pnpm (?:build|typecheck|test)\b/i);
   });
