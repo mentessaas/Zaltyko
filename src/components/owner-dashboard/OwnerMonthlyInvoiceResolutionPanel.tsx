@@ -1288,7 +1288,7 @@ export function OwnerMonthlyInvoiceResolutionPanel({
           >
             {busy ? "Guardando…" : "Guardar vínculo"}
           </button>
-        )}
+        ) : null}
         <button
           type="button"
           onClick={onCancel}
