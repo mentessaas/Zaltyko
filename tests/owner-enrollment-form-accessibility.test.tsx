@@ -87,10 +87,106 @@ describe("inscripción: controles y estados accesibles sin llamadas externas", (
   it("expone la búsqueda en curso y el aviso de ausencia de resultados", () => {
     const { rerender } = render(<OwnerEnrollmentCreateForm {...props({ candidateLoading: true })} />);
     expect(screen.getByRole("searchbox")).toHaveAttribute("aria-busy", "true");
-    expect(screen.getByRole("status")).toHaveTextContent("Buscando…");
+    expect(screen.getByText("Buscando…")).toHaveAttribute("role", "status");
     rerender(<OwnerEnrollmentCreateForm {...props({ candidates: [], candidateNotice: "No hay coincidencias en esta sede." })} />);
     expect(screen.getByRole("searchbox")).toHaveAttribute("aria-busy", "false");
-    expect(screen.getByRole("status")).toHaveTextContent("No hay coincidencias en esta sede.");
+    expect(screen.getByText("No hay coincidencias en esta sede.")).toHaveAttribute("role", "status");
+  });
+  it("asocia al selector y anuncia cuando no hay clases activas en la sede", () => {
+    const { rerender } = render(
+      <OwnerEnrollmentCreateForm
+        {...props({
+          classTemplateId: "",
+          classesForLocation: [],
+          selectedClass: undefined,
+          candidateQuery: "",
+          candidates: [],
+        })}
+      />
+    );
+
+    const classSelect = screen.getByRole("combobox", { name: "Clase" });
+    expect(classSelect).toBeDisabled();
+    expect(classSelect).toHaveAccessibleDescription(
+      "No hay clases activas en esta sede."
+    );
+    expect(screen.getByText("No hay clases activas en esta sede.")).toHaveAttribute(
+      "role",
+      "status"
+    );
+    const classStatus = document.getElementById("enrollment-class-empty-help");
+    expect(classStatus).not.toBeNull();
+
+    rerender(<OwnerEnrollmentCreateForm {...props()} />);
+    expect(classStatus).toBeEmptyDOMElement();
+  });
+  it("anuncia solo el número de resultados positivos tras terminar la búsqueda", () => {
+    const { rerender } = render(
+      <OwnerEnrollmentCreateForm
+        {...props({
+          candidateQuery: "si",
+          candidates: [
+            { id: "a", name: "Gimnasta A" },
+            { id: "b", name: "Gimnasta B" },
+          ],
+        })}
+      />
+    );
+    const resultsStatus = screen.getByRole("status", {
+      name: "Resultados de búsqueda de gimnastas",
+    });
+    expect(resultsStatus).toHaveTextContent("2 resultados disponibles.");
+
+    rerender(
+      <OwnerEnrollmentCreateForm
+        {...props({
+          candidateQuery: "sis",
+          candidates: [{ id: "a", name: "Gimnasta A" }],
+          candidateLoading: true,
+        })}
+      />
+    );
+    expect(resultsStatus).toBeEmptyDOMElement();
+
+    rerender(
+      <OwnerEnrollmentCreateForm
+        {...props({
+          candidateQuery: "sis",
+          candidates: [{ id: "a", name: "Gimnasta A" }],
+          candidateError: "No se pudo consultar la búsqueda.",
+        })}
+      />
+    );
+    expect(resultsStatus).toBeEmptyDOMElement();
+
+    rerender(
+      <OwnerEnrollmentCreateForm
+        {...props({
+          candidateQuery: "sis",
+          candidates: [],
+          candidateNotice: "No hay coincidencias en esta sede.",
+        })}
+      />
+    );
+    expect(resultsStatus).toBeEmptyDOMElement();
+
+    rerender(
+      <OwnerEnrollmentCreateForm
+        {...props({
+          candidateQuery: "si",
+          candidates: [{ id: "a", name: "Gimnasta A" }],
+          selectedCandidate: { id: "a", name: "Gimnasta A" },
+        })}
+      />
+    );
+    expect(resultsStatus).toBeEmptyDOMElement();
+
+    rerender(
+      <OwnerEnrollmentCreateForm
+        {...props({ candidateQuery: "", candidates: [{ id: "a", name: "Gimnasta A" }] })}
+      />
+    );
+    expect(resultsStatus).toBeEmptyDOMElement();
   });
   it("mantiene nombre del grupo seleccionado y una acción de cambio inequívoca", () => {
     const input = props({ selectedCandidate: { id: "synthetic-athlete", name: "Gimnasta sintética" } });

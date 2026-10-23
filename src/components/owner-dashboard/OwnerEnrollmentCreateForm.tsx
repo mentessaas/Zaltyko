@@ -113,6 +113,15 @@ export function OwnerEnrollmentCreateForm({
       startsOn &&
       !isEnrollmentStartDateAllowed(startsOn, selectedClass)
   );
+  const candidateResultsAnnouncement =
+    !selectedCandidate &&
+    !candidateLoading &&
+    !candidateError &&
+    !candidateNotice &&
+    candidateQuery.trim().length >= 2 &&
+    candidates.length > 0
+      ? `${candidates.length} ${candidates.length === 1 ? "resultado" : "resultados"} disponibles.`
+      : "";
 
   useEffect(() => {
     const request = focusRequestRef.current;
@@ -214,6 +223,11 @@ export function OwnerEnrollmentCreateForm({
               disabled={
                 busyCreate || previewMode || classesForLocation.length === 0
               }
+              aria-describedby={
+                classesForLocation.length === 0
+                  ? "enrollment-class-empty-help"
+                  : undefined
+              }
               required
             >
               <option value="">Selecciona una clase</option>
@@ -232,11 +246,20 @@ export function OwnerEnrollmentCreateForm({
                 </option>
               ))}
             </select>
-            {classesForLocation.length === 0 && (
-              <p className="mt-1 text-sm text-slate-700">
-                No hay clases activas en esta sede.
-              </p>
-            )}
+            <p
+              id="enrollment-class-empty-help"
+              role="status"
+              aria-live="polite"
+              className={
+                classesForLocation.length === 0
+                  ? "mt-1 text-sm text-slate-700"
+                  : "sr-only"
+              }
+            >
+              {classesForLocation.length === 0
+                ? "No hay clases activas en esta sede."
+                : ""}
+            </p>
           </div>
 
           <div className="md:col-span-2">
@@ -294,6 +317,15 @@ export function OwnerEnrollmentCreateForm({
               className="mt-1 text-xs leading-5 text-slate-600"
             >
               Solo aparecen personas vinculadas a esta sede.
+            </p>
+            <p
+              role="status"
+              aria-live="polite"
+              aria-atomic="true"
+              aria-label="Resultados de búsqueda de gimnastas"
+              className="sr-only"
+            >
+              {candidateResultsAnnouncement}
             </p>
             {candidateLoading && (
               <p role="status" className="mt-2 text-sm text-slate-700">

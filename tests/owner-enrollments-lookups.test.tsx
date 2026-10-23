@@ -483,7 +483,12 @@ describe("consultas de inscripción sin respuestas obsoletas", () => {
     render(<OwnerEnrollmentsManager bundle={bundle} selectedStatus="all" />); await tick();
     fireEvent.change(screen.getByRole("combobox", { name: "Clase" }), { target: { value: classA } });
     search("zz"); await tick();
-    expect(screen.getByRole("status")).toHaveTextContent("No hay coincidencias en esta sede.");
+    const noMatchesMessage = screen.getByText(
+      "No hay coincidencias en esta sede. Si falta la ficha, créala desde Grupos."
+    );
+    const noMatchesStatus = noMatchesMessage.closest('[role="status"]');
+    expect(noMatchesStatus).not.toBeNull();
+    expect(noMatchesStatus!).toHaveTextContent("No hay coincidencias en esta sede.");
     expect(screen.queryByRole("alert")).not.toBeInTheDocument();
     expect(screen.queryByRole("button", { name: "Volver a buscar" })).not.toBeInTheDocument();
   });
