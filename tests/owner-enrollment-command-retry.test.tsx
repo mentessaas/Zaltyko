@@ -17,6 +17,7 @@ const org = "10000000-0000-4000-8000-000000000001";
 const otherOrg = "10000000-0000-4000-8000-000000000011";
 const site = "10000000-0000-4000-8000-000000000002";
 const classId = "10000000-0000-4000-8000-000000000003";
+const pricePlanId = "10000000-0000-4000-8000-000000000016";
 const enrollment: Bundle["enrollments"][number] = {
   id: "10000000-0000-4000-8000-000000000004", athleteId: "10000000-0000-4000-8000-000000000005",
   givenName: "Ana", familyName: "Sintética", preferredName: null, athleteName: "Ana Sintética",
@@ -42,7 +43,7 @@ function leavingPageIsPrevented() {
   return event.defaultPrevented;
 }
 function reads(url: string) {
-  if (url.startsWith("/api/v1/owner/price-plans/options?")) return response({ ok: true, data: { organizationId: org, locationId: site, items: [{ id: "synthetic-price", name: "Tarifa sintética", amountCents: 3500, currency: "EUR", cadence: "monthly" }] } });
+  if (url.startsWith("/api/v1/owner/price-plans/options?")) return response({ ok: true, data: { organizationId: org, locationId: site, items: [{ id: pricePlanId, name: "Tarifa sintética", amountCents: 3500, currency: "EUR", cadence: "monthly" }] } });
   return response({ ok: true, data: { items: [{ id: enrollment.athleteId, name: "Ana Sintética" }] } });
 }
 beforeEach(() => { fetchMock.mockReset(); router.push.mockReset(); router.refresh.mockReset(); window.sessionStorage.clear(); vi.stubGlobal("fetch", fetchMock); publishOwnerPlanUsage(org, { readOnly: false, planCode: "free" }); });
@@ -331,7 +332,7 @@ describe("intención de inscripción inmutable en la página abierta", () => {
 
   it("POST mantiene el alta original pese a cambios de capacidad y fecha", async () => {
     let count = 0;
-    fetchMock.mockImplementation(async (url, options) => options.method === "POST" ? ++count === 1 ? Promise.reject(new Error("lost after mock commit")) : response({ ok: true, data: { id: "10000000-0000-4000-8000-000000000006", status: "pending", startsOn: "2026-10-22", pricePlanId: "synthetic-price", version: 3, commandReceipt: { idempotencyKey: options.headers["idempotency-key"], body: options.body } } }, 201) : reads(url));
+    fetchMock.mockImplementation(async (url, options) => options.method === "POST" ? ++count === 1 ? Promise.reject(new Error("lost after mock commit")) : response({ ok: true, data: { id: "10000000-0000-4000-8000-000000000006", status: "pending", startsOn: "2026-10-22", pricePlanId, version: 3, commandReceipt: { idempotencyKey: options.headers["idempotency-key"], body: options.body } } }, 201) : reads(url));
     const empty = { ...bundle, enrollments: [], total: 0, page: 1, pages: 1 };
     const view = render(<OwnerEnrollmentsManager bundle={empty} selectedStatus="all" />);
     await screen.findByRole("option", { name: /Tarifa sintética/ });
@@ -354,11 +355,11 @@ describe("intención de inscripción inmutable en la página abierta", () => {
     await waitFor(() => expect(router.refresh).toHaveBeenCalledTimes(1));
     expect(mutations()[1]).toEqual(mutations()[0]);
     expect(leavingPageIsPrevented()).toBe(false);
-    expect(JSON.parse(mutations()[0][1].body)).toEqual({ organizationId: org, locationId: site, athleteId: enrollment.athleteId, classTemplateId: classId, startsOn: "2026-10-22", pricePlanId: "synthetic-price" });
+    expect(JSON.parse(mutations()[0][1].body)).toEqual({ organizationId: org, locationId: site, athleteId: enrollment.athleteId, classTemplateId: classId, startsOn: "2026-10-22", pricePlanId });
   });
 
   it.each([
-    ["fecha", { startsOn: "2026-10-23", pricePlanId: "synthetic-price" }],
+    ["fecha", { startsOn: "2026-10-23", pricePlanId }],
     ["tarifa", { startsOn: "2026-10-22", pricePlanId: null }],
   ] as const)("un acuse de alta con %s contradictoria conserva el comando persistido", async (_field, mismatch) => {
     const empty = { ...bundle, enrollments: [], total: 0, page: 1, pages: 1 };
