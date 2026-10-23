@@ -13,16 +13,48 @@ describe("isolated CI workflow contract", () => {
 
   it("runs only on manual dispatch with read-only repository permissions", () => {
     expect(workflow).toMatch(/on:\s*\n\s+workflow_dispatch:/);
+    expect(workflow).toContain("resolution_mode:");
+    expect(workflow).toContain("default: checks");
+    expect(workflow).toContain("- lockfile-refresh");
+    expect(workflow).toContain("expected_sha:");
     expect(workflow).toMatch(/permissions:\s*\n\s+contents:\s*read/);
     expect(workflow).toMatch(/persist-credentials:\s*false/);
     expect(workflow).not.toMatch(/^\s*(push|pull_request|schedule):/m);
+  });
+
+  it("keeps the existing checks unconditional and isolates the optional lockfile refresh", () => {
+    const checksJob = workflow.match(/  static-and-unit:([\s\S]*?)(?=\n  lockfile-refresh:|$)/)?.[1] ?? "";
+    const refreshJob = workflow.match(/  lockfile-refresh:([\s\S]*)$/)?.[1] ?? "";
+    const checksJobHeader = checksJob.split("\n    steps:")[0] ?? "";
+    expect(checksJobHeader).not.toMatch(/^\s+if:/m);
+    expect(refreshJob).toContain("if: ${{ inputs.resolution_mode == 'lockfile-refresh' }}");
+    const refreshActions = [...refreshJob.matchAll(/^\s+uses:\s*(\S+)/gm)].map((match) => match[1]);
+    expect(refreshActions).toEqual([
+      "actions/checkout@v7",
+      "pnpm/action-setup@v6",
+      "actions/setup-node@v7",
+    ]);
+    expect(refreshJob).toContain("contents: read");
+    expect(refreshJob).toContain("persist-credentials: false");
+    expect(refreshJob).toContain("EXPECTED_SHA: ${{ inputs.expected_sha }}");
+    expect(refreshJob).toContain("DISPATCH_SHA: ${{ github.sha }}");
+    expect(refreshJob).toContain("DISPATCH_REF: ${{ github.ref }}");
+    expect(refreshJob).toContain("[[ \"$EXPECTED_SHA\" =~ ^[0-9a-f]{40}$ ]]");
+    expect(refreshJob).toContain("[[ \"$DISPATCH_SHA\" == \"$head_sha\" ]]");
+    expect(refreshJob).toContain("[[ \"$EXPECTED_SHA\" == \"$head_sha\" ]]");
+    expect(refreshJob).toContain("version: 9.15.9");
+    expect(refreshJob).toContain('node-version: "22"');
+    expect(refreshJob).toContain("pnpm update --depth 99 --lockfile-only --no-save --ignore-scripts");
+    expect(refreshJob).toContain("node scripts/ci/validate-lockfile-refresh.cjs");
+    expect(refreshJob).not.toMatch(/\bsecrets\.|cache:|upload-artifact|git push|git commit|pnpm (?:build|typecheck|test)\b/i);
   });
 
   it("uses local placeholders and avoids cache, provider credentials, and deployments", () => {
     expect(workflow).toContain("http://127.0.0.1:54321");
     expect(workflow).toContain("postgresql://local:local@127.0.0.1:54322/local_ci");
     expect(workflow).not.toMatch(/\bsecrets\./i);
-    const actions = [...workflow.matchAll(/^\s+uses:\s*(\S+)/gm)].map((match) => match[1]);
+    const checksJob = workflow.match(/  static-and-unit:([\s\S]*?)(?=\n  lockfile-refresh:|$)/)?.[1] ?? "";
+    const actions = [...checksJob.matchAll(/^\s+uses:\s*(\S+)/gm)].map((match) => match[1]);
     expect(actions).toEqual([
       "actions/checkout@v7",
       "pnpm/action-setup@v6",
@@ -71,5 +103,27 @@ describe("isolated CI workflow contract", () => {
     }
     expect(workflow.match(/if: always\(\) && !cancelled\(\) && steps\.dependencies\.outcome == 'success' && steps\.network-isolation\.outcome == 'success'/g)).toHaveLength(7);
     expect(workflow).not.toMatch(/continue-on-error:/);
+  });
+
+  it("includes a semantic, fail-closed lockfile guard and focused guard cases", () => {
+    const guard = readFileSync(resolve(process.cwd(), "scripts/ci/validate-lockfile-refresh.cjs"), "utf8");
+    const guardTests = readFileSync(resolve(process.cwd(), "tests/ci-lockfile-refresh-guard.test.ts"), "utf8");
+    expect(guard).toContain('require("js-yaml")');
+    expect(guard).toContain('changedFiles[0] === "pnpm-lock.yaml"');
+    expect(guard).toContain('"follow-redirects", from: "1.16.0", to: "1.16.1"');
+    expect(guard).toContain('"hono", from: "4.13.7", to: "4.13.11"');
+    expect(guard).toContain("yaml.load(afterText, { schema: yaml.JSON_SCHEMA })");
+    expect(guard).toContain("assertNoStaleReferences(after)");
+    expect(guard).toContain('snapshot.dependencies["follow-redirects"]');
+    expect(guard).toContain('key.startsWith("@hono/node-server@2.1.1")');
+    expect(guard).toContain("assertRefreshContract(before, after)");
+    expect(guard).toContain("process.stdout.write(execFileSync(\"git\", [\"diff\", \"--\", \"pnpm-lock.yaml\"]");
+    expect(guardTests).toContain("accepts only the two target package updates");
+    expect(guardTests).toContain("rejects changes to another package version");
+    expect(guardTests).toContain("rejects manifest or other file changes");
+    expect(guardTests).toContain("rejects valid-looking but non-registry integrity values");
+    expect(guardTests).toContain("retains an indirect old follow-redirects reference");
+    expect(guardTests).toContain("retains the old node-server peer key and dependency");
+    expect(guardTests).toContain("rejects an old package locator left beside the refreshed version");
   });
 });

@@ -2,6 +2,20 @@ name: Isolated CI (no credentials)
 
 on:
   workflow_dispatch:
+    inputs:
+      resolution_mode:
+        description: "Ejecución habitual o propuesta remota de actualización del lockfile"
+        type: choice
+        required: true
+        default: checks
+        options:
+          - checks
+          - lockfile-refresh
+      expected_sha:
+        description: "SHA completo del HEAD seleccionado (solo para lockfile-refresh)"
+        type: string
+        required: false
+        default: ""
 
 permissions:
   contents: read
@@ -77,3 +91,53 @@ jobs:
       - name: Run strict static application gates
         if: always() && !cancelled() && steps.dependencies.outcome == 'success' && steps.network-isolation.outcome == 'success'
         run: sudo --preserve-env=PATH,HOME,CI,NODE_ENV,NEXT_PUBLIC_APP_URL,NEXT_PUBLIC_SUPABASE_URL,NEXT_PUBLIC_SUPABASE_ANON_KEY,DATABASE_URL,DATABASE_URL_POOL,DATABASE_URL_DIRECT,INTERNAL_AUTH_SECRET,SUPABASE_JWT_SECRET unshare --net -- bash -euc 'ip link set lo up && exec "$@"' isolated-check pnpm gate:all
+
+  lockfile-refresh:
+    name: Propose targeted dependency lockfile refresh
+    if: ${{ inputs.resolution_mode == 'lockfile-refresh' }}
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    permissions:
+      contents: read
+    env:
+      EXPECTED_SHA: ${{ inputs.expected_sha }}
+      DISPATCH_SHA: ${{ github.sha }}
+      DISPATCH_REF: ${{ github.ref }}
+    steps:
+      - name: Checkout without persisted credentials
+        uses: actions/checkout@v7
+        with:
+          persist-credentials: false
+
+      - name: Require the candidate branch and exact SHA
+        shell: bash
+        run: |
+          set -euo pipefail
+          branch='codex/owner-isolated-validation-20261023'
+          head_sha="$(git rev-parse HEAD)"
+          [[ "$GITHUB_REF" == "refs/heads/$branch" ]]
+          [[ "$DISPATCH_REF" == "refs/heads/$branch" ]]
+          [[ "$EXPECTED_SHA" =~ ^[0-9a-f]{40}$ ]]
+          [[ "$DISPATCH_SHA" == "$head_sha" ]]
+          [[ "$EXPECTED_SHA" == "$head_sha" ]]
+
+      - name: Setup pnpm 9.15.9
+        uses: pnpm/action-setup@v6
+        with:
+          version: 9.15.9
+
+      - name: Setup Node.js 22
+        uses: actions/setup-node@v7
+        with:
+          node-version: "22"
+
+      - name: Install the existing YAML guard dependency without scripts
+        run: pnpm install --frozen-lockfile --ignore-scripts --no-optional
+
+      - name: Refresh only the two approved transitive versions
+        run: pnpm update --depth 99 --lockfile-only --no-save --ignore-scripts "follow-redirects@1.16.1" "hono@4.13.11"
+
+      - name: Validate lockfile scope and print sanitized diff
+        env:
+          BASE_SHA: ${{ inputs.expected_sha }}
+        run: node scripts/ci/validate-lockfile-refresh.cjs
