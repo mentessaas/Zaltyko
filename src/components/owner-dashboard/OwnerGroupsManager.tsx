@@ -629,8 +629,11 @@ export function OwnerGroupsManager({ bundle }: { bundle: GroupsBundle }) {
       const outcome = groupCommandOutcome(response, payload, {
         kind: activeCommand.kind,
         groupId: activeCommand.groupId,
-        athleteId: activeCommand.athleteId,
-        membershipId: activeCommand.membershipId,
+        ...(activeCommand.kind === "add"
+          ? { athleteId: activeCommand.athleteId }
+          : activeCommand.kind === "transition"
+            ? { membershipId: activeCommand.membershipId }
+            : {}),
         previouslyUncertain: membershipUncertainRef.current,
       });
       if (outcome.status === "uncertain") {

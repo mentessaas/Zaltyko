@@ -96,7 +96,7 @@ export function persistPendingGroupAthleteCreate(
         intent.organizationId,
         intent.groupId
       );
-      if (!existing || existing === false || existing.idempotencyKey !== intent.idempotencyKey) return false;
+      if (!existing || existing.idempotencyKey !== intent.idempotencyKey) return false;
     }
     storage.setItem(storageKey, encoded);
     if (storage.getItem(storageKey) !== encoded) return false;
@@ -122,7 +122,7 @@ export function clearPendingGroupAthleteCreate(
       intent.organizationId,
       intent.groupId
     );
-    if (!decoded || decoded === false || decoded.idempotencyKey !== intent.idempotencyKey) return false;
+    if (!decoded || decoded.idempotencyKey !== intent.idempotencyKey) return false;
     storage.removeItem(storageKey);
     return storage.getItem(storageKey) === null;
   } catch {

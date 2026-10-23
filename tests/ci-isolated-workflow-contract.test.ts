@@ -4,10 +4,12 @@ import { describe, expect, it } from "vitest";
 
 const workflowPath = resolve(process.cwd(), ".github/workflows/ci-isolated.yml");
 const vitestConfigPath = resolve(process.cwd(), "vitest.config.ts");
+const sharedSetupPath = resolve(process.cwd(), "tests/setup.ts");
 
 describe("isolated CI workflow contract", () => {
   const workflow = readFileSync(workflowPath, "utf8");
   const vitestConfig = readFileSync(vitestConfigPath, "utf8");
+  const sharedSetup = readFileSync(sharedSetupPath, "utf8");
 
   it("runs only on manual dispatch with read-only repository permissions", () => {
     expect(workflow).toMatch(/on:\s*\n\s+workflow_dispatch:/);
@@ -46,6 +48,10 @@ describe("isolated CI workflow contract", () => {
     expect(unitStep).toMatch(/--preserve-env=[^\n]*\bCI_ISOLATED\b/);
     expect(unitStep).toContain("pnpm vitest run");
     expect(unitStep).not.toContain("--exclude");
+  });
+
+  it("keeps Drizzle schema and SQL implementations real in shared test setup", () => {
+    expect(sharedSetup).not.toMatch(/vi\.mock\(\s*["']drizzle-orm(?:\/pg-core)?["']/);
   });
 
   it("keeps static gates and runs checks in the network namespace", () => {
