@@ -15,7 +15,7 @@ vi.mock("next/navigation", () => ({
 
 import { OwnerGroupsManager } from "@/components/owner-dashboard/OwnerGroupsManager";
 import {
-  markOwnerPlanUsageLoading,
+  beginOwnerPlanUsageRead,
   markOwnerPlanUsageUnavailable,
   publishOwnerPlanUsage,
 } from "@/components/owner-dashboard/owner-plan-usage-store";
@@ -104,7 +104,7 @@ describe("gestión de grupos owner", () => {
   });
 
   it("bloquea nuevas escrituras mientras el uso es desconocido y ofrece volver a consultarlo", async () => {
-    markOwnerPlanUsageLoading(organizationId);
+    const usageRead = beginOwnerPlanUsageRead(organizationId);
     const user = userEvent.setup();
     render(<OwnerGroupsManager bundle={groupBundle} />);
 
@@ -113,7 +113,7 @@ describe("gestión de grupos owner", () => {
     expect(screen.getByRole("button", { name: "Crear grupo" })).toBeDisabled();
     expect(screen.getByRole("button", { name: "Buscar" })).toBeEnabled();
 
-    act(() => markOwnerPlanUsageUnavailable(organizationId));
+    act(() => markOwnerPlanUsageUnavailable(organizationId, usageRead));
     expect(screen.getByText(/No se pudieron comprobar los límites del plan/)).toBeVisible();
     expect(screen.getByRole("link", { name: "Consultar uso y regularizar" })).toHaveAttribute("href", `/owner/subscription?organizationId=${organizationId}#regularizar`);
     const dispatch = vi.spyOn(window, "dispatchEvent");
@@ -195,7 +195,7 @@ describe("gestión de grupos owner", () => {
     expect(screen.getByText(/La academia está en solo lectura/)).toBeVisible();
     expect(screen.getByRole("link", { name: "Uso y regularización" })).toHaveAttribute("href", `/owner/subscription?organizationId=${organizationId}#regularizar`);
     expect(screen.getByText("Ana Sintética")).toBeVisible();
-    expect(screen.getByRole("button", { name: "Reactivar" })).toBeDisabled();
+    expect(screen.getByRole("button", { name: "Reactivar a Ana Sintética" })).toBeDisabled();
     expect(screen.getByRole("button", { name: "Crear grupo" })).toBeDisabled();
     expect(screen.getByRole("button", { name: "Buscar" })).toBeEnabled();
 

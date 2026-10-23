@@ -128,7 +128,7 @@ describe("intención inmutable en grupos", () => {
     mocks.fetch.mockResolvedValueOnce(uncertain()).mockResolvedValueOnce(response(200, { ...receipt, data: { ...receipt.data, status: "paused" } }));
     const user = userEvent.setup();
     const view = render(<OwnerGroupsManager bundle={{ ...bundle, memberships: [row] } as Bundle} />);
-    await user.click(screen.getByRole("button", { name: "Poner en pausa" }));
+    await user.click(screen.getByRole("button", { name: "Poner en pausa a Ficha sintética" }));
     await screen.findByRole("alert");
     view.rerender(<OwnerGroupsManager bundle={{ ...bundle, localTodayByLocation: { [site]: "2026-10-23" }, memberships: [{ ...row, status: "paused" }] } as Bundle} />);
     await user.click(screen.getByRole("button", { name: "Reintentar operación pendiente" }));
@@ -141,7 +141,7 @@ describe("intención inmutable en grupos", () => {
     const props = { bundle: { ...bundle, memberships: [row] } as Bundle };
     const user = userEvent.setup();
     const firstView = render(<OwnerGroupsManager {...props} />);
-    await user.click(screen.getByRole("button", { name: "Poner en pausa" }));
+    await user.click(screen.getByRole("button", { name: "Poner en pausa a Ficha sintética" }));
     expect(await screen.findByRole("alert")).toHaveTextContent("No sabemos si se guardó");
     const firstRequest = writes()[0];
     expect(window.sessionStorage.getItem(PENDING_GROUP_MEMBERSHIP_STORAGE_KEY)).not.toContain("Ficha sintética");
@@ -207,7 +207,7 @@ describe("intención inmutable en grupos", () => {
     const manager = render(<OwnerGroupsManager bundle={{ ...bundle, memberships: [row] } as Bundle} />);
     try {
       expect(await screen.findByText(/No se pudo consultar el almacenamiento de esta sesión/)).toBeVisible();
-      const pause = screen.getByRole("button", { name: "Poner en pausa" });
+      const pause = screen.getByRole("button", { name: "Poner en pausa a Ficha sintética" });
       expect(pause).toBeDisabled();
       fireEvent.click(pause);
       expect(writes()).toHaveLength(0);
