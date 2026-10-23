@@ -25,8 +25,29 @@ const bundle: Parameters<typeof OwnerEnrollmentsManager>[0]["bundle"] = {
 };
 const fetchMock = vi.fn();
 const response = (payload: unknown, ok = true) => ({ ok, json: async () => payload });
-const candidatePayload = (name: string) => ({ ok: true, data: { items: [{ id: "synthetic-athlete", name }] } });
+const candidatePayload = (name: string) => ({ ok: true, data: { items: [{ id: "10000000-0000-4000-8000-000000000099", name }] } });
 const pricePayload = (site = locationA, name = "Tarifa A") => ({ ok: true, data: { organizationId, locationId: site, items: [{ id: `price-${site}`, name, amountCents: 3500, currency: "EUR", cadence: "monthly" }] } });
+type FetchOptions = { method?: string; body?: string; headers?: Record<string, string> };
+function confirmedEnrollmentResponse(options: FetchOptions) {
+  const body = JSON.parse(options.body ?? "{}") as { startsOn?: string; pricePlanId?: string | null };
+  return {
+    ...response({
+      ok: true,
+      data: {
+        id: "10000000-0000-4000-8000-000000000007",
+        status: "pending",
+        startsOn: body.startsOn,
+        pricePlanId: body.pricePlanId,
+        version: 1,
+        commandReceipt: {
+          body: options.body,
+          idempotencyKey: options.headers?.["idempotency-key"],
+        },
+      },
+    }),
+    status: 201,
+  };
+}
 function deferred<T>() { let resolve!: (value: T) => void; const promise = new Promise<T>(done => { resolve = done; }); return { promise, resolve }; }
 async function tick() { await act(async () => { await vi.advanceTimersByTimeAsync(251); }); }
 function search(value: string) { fireEvent.change(screen.getByRole("searchbox"), { target: { value } }); }
@@ -195,8 +216,8 @@ describe("consultas de inscripción sin respuestas obsoletas", () => {
     let attempts = 0;
     const replacement = pricePayload();
     replacement.data.items = catalogEmpty ? [] : [{ ...replacement.data.items[0], id: "10000000-0000-4000-8000-000000000006", name: "Tarifa alternativa" }];
-    fetchMock.mockImplementation((url: string, options: { method?: string }) => Promise.resolve(options.method === "POST"
-      ? { ...response({ ok: true, data: { id: "10000000-0000-4000-8000-000000000007", status: "pending", startsOn: "2026-10-22", pricePlanId: choice || null, version: 1 } }), status: 201 }
+    fetchMock.mockImplementation((url: string, options: FetchOptions) => Promise.resolve(options.method === "POST"
+      ? confirmedEnrollmentResponse(options)
       : url.startsWith("/api/v1/owner/price-plans/options?")
         ? response(++attempts === 1 ? pricePayload() : replacement)
         : response(candidatePayload("Elección necesaria"))));
@@ -229,8 +250,8 @@ describe("consultas de inscripción sin respuestas obsoletas", () => {
     expect(JSON.parse(writes[0][1].body).pricePlanId).toBe(choice || null);
   });
   it("reabrir conserva la elección explícita sin tarifa y el alta envía null", async () => {
-    fetchMock.mockImplementation((url: string, options: { method?: string }) => Promise.resolve(options.method === "POST"
-      ? { ...response({ ok: true, data: { id: "10000000-0000-4000-8000-000000000007", status: "pending", startsOn: "2026-10-22", pricePlanId: null, version: 1 } }), status: 201 }
+    fetchMock.mockImplementation((url: string, options: FetchOptions) => Promise.resolve(options.method === "POST"
+      ? confirmedEnrollmentResponse(options)
       : url.startsWith("/api/v1/owner/price-plans/options?") ? response(pricePayload()) : response(candidatePayload("Sin tarifa elegida"))));
     render(<OwnerEnrollmentsManager bundle={bundle} selectedStatus="all" />);
     await tick();
@@ -518,8 +539,8 @@ describe("consultas de inscripción sin respuestas obsoletas", () => {
     expect(router.refresh).not.toHaveBeenCalled();
   });
   it("permite el alta sin tarifa tras una lista vacía confirmada, solo mediante envío explícito", async () => {
-    fetchMock.mockImplementation((url: string, options: { method?: string }) => Promise.resolve(options.method === "POST"
-      ? { ...response({ ok: true, data: { id: "10000000-0000-4000-8000-000000000007", status: "pending", startsOn: "2026-10-22", pricePlanId: null, version: 1 } }), status: 201 }
+    fetchMock.mockImplementation((url: string, options: FetchOptions) => Promise.resolve(options.method === "POST"
+      ? confirmedEnrollmentResponse(options)
       : url.startsWith("/api/v1/owner/price-plans/options?")
         ? response({ ok: true, data: { organizationId, locationId: locationA, items: [] } })
         : response(candidatePayload("Gimnasta sintética"))));
@@ -556,8 +577,8 @@ describe("consultas de inscripción sin respuestas obsoletas", () => {
     expect(screen.getByRole("combobox", { name: "Tarifa mensual" })).toBeEnabled();
   });
   it("respeta elegir sin tarifa aunque existan opciones confirmadas", async () => {
-    fetchMock.mockImplementation((url: string, options: { method?: string }) => Promise.resolve(options.method === "POST"
-      ? { ...response({ ok: true, data: { id: "10000000-0000-4000-8000-000000000007", status: "pending", startsOn: "2026-10-22", pricePlanId: null, version: 1 } }), status: 201 }
+    fetchMock.mockImplementation((url: string, options: FetchOptions) => Promise.resolve(options.method === "POST"
+      ? confirmedEnrollmentResponse(options)
       : url.startsWith("/api/v1/owner/price-plans/options?")
         ? response(pricePayload())
         : response(candidatePayload("Gimnasta sintética"))));
