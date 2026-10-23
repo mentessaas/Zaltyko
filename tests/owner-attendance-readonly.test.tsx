@@ -555,7 +555,10 @@ describe("asistencia Owner en solo lectura", () => {
         }),
       });
     });
-    vi.stubGlobal("crypto", { randomUUID: () => "80000000-0000-4000-8000-000000000012" });
+    let generatedCommand = 10;
+    vi.stubGlobal("crypto", {
+      randomUUID: () => `80000000-0000-4000-8000-${String(++generatedCommand).padStart(12, "0")}`,
+    });
     const originalProps = {
       organizationId,
       locationId,
@@ -597,6 +600,10 @@ describe("asistencia Owner en solo lectura", () => {
     fireEvent.change(bAttendance, { target: { value: "present" } });
     fireEvent.click(screen.getByRole("button", { name: "Guardar asistencia de Beatriz Sintética" }));
     await waitFor(() => expect(fetchMock.mock.calls.filter(([, init]) => init?.method === "POST")).toHaveLength(2));
+    const postsBeforeResolution = fetchMock.mock.calls.filter(([, init]) => init?.method === "POST");
+    const headersA = postsBeforeResolution[0]?.[1]?.headers as Record<string, string>;
+    const headersB = postsBeforeResolution[1]?.[1]?.headers as Record<string, string>;
+    expect(headersA["Idempotency-Key"]).not.toBe(headersB["Idempotency-Key"]);
 
     await act(async () => {
       resolvePostA({
@@ -738,7 +745,10 @@ describe("asistencia Owner en solo lectura", () => {
       }
       return { ok: true, status: 200, json: async () => ({ ok: true, data: { items: [{ enrollmentId, athleteName: "Ana Sintética", attendanceStatus: null }] } }) };
     });
-    vi.stubGlobal("crypto", { randomUUID: () => "80000000-0000-4000-8000-000000000016" });
+    let generatedCommand = 15;
+    vi.stubGlobal("crypto", {
+      randomUUID: () => `80000000-0000-4000-8000-${String(++generatedCommand).padStart(12, "0")}`,
+    });
     render(<OwnerAttendanceManager organizationId={organizationId} locationId={locationId} sessions={[{ id: sessionId, className: "Clase", startsAt: "2026-10-23T16:00:00.000Z", timezone: "Europe/Madrid" }]} />);
     await screen.findByText("Ana Sintética");
     await waitFor(() => expect(screen.queryByText("Cargando lista…")).not.toBeInTheDocument());
@@ -749,7 +759,10 @@ describe("asistencia Owner en solo lectura", () => {
     fireEvent.click(screen.getByRole("button", { name: "Guardar asistencia de Ana Sintética" }));
     await waitFor(() => expect(postCount).toBe(2));
     const posts = fetchMock.mock.calls.filter(([, request]) => request?.method === "POST");
-    expect(posts[0]?.[1]?.headers).not.toEqual(posts[1]?.[1]?.headers);
+    const firstHeaders = posts[0]?.[1]?.headers as Record<string, string>;
+    const secondHeaders = posts[1]?.[1]?.headers as Record<string, string>;
+    expect(firstHeaders["Idempotency-Key"]).not.toBe(secondHeaders["Idempotency-Key"]);
+    expect(posts[0]?.[1]?.body).toBe(posts[1]?.[1]?.body);
   });
 
   it.each([401, 429])("mantiene la intención incierta después de HTTP %i y recargar", async (status) => {
