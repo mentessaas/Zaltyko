@@ -2,7 +2,7 @@
 
 import Link from "next/link";
 import { useRouter } from "next/navigation";
-import { useEffect, useMemo, useRef, useState } from "react";
+import { useEffect, useId, useMemo, useRef, useState } from "react";
 import { OwnerOperationalReadOnlyNotice } from "./OwnerOperationalReadOnlyNotice";
 import { formatPaymentDueDate } from "./owner-payment-date";
 import { useOwnerPlanPolicy } from "./owner-plan-usage-store";
@@ -74,6 +74,11 @@ export function ManualPaymentForm({
   charges: OpenManualPaymentCharge[];
   canManageFamilyCollectionPreferences?: boolean;
 }) {
+  const fieldIdPrefix = useId();
+  const chargeSelectId = `${fieldIdPrefix}-charge`;
+  const chargeHelpId = `${fieldIdPrefix}-charge-help`;
+  const amountInputId = `${fieldIdPrefix}-amount`;
+  const amountHelpId = `${fieldIdPrefix}-amount-help`;
   const planPolicy = useOwnerPlanPolicy(organizationId);
   const writesBlocked = planPolicy.status !== "ready" || planPolicy.readOnly;
   const router = useRouter();
@@ -359,14 +364,21 @@ export function ManualPaymentForm({
         </p>
       )}
 
-      <label className="grid gap-2">
-        <span className="text-sm font-bold text-slate-900">
+      <div className="grid gap-2">
+        <label
+          htmlFor={chargeSelectId}
+          className="text-sm font-bold text-slate-900"
+        >
           Cargo pendiente
-        </span>
+        </label>
         <select
+          id={chargeSelectId}
           value={chargeId}
           onChange={(event) => chooseCharge(event.target.value)}
           disabled={formLocked}
+          aria-describedby={
+            selectedCharge ? chargeHelpId : undefined
+          }
           className="min-h-12 rounded-xl border border-slate-300 bg-white px-3 text-sm text-slate-950 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-teal-800 disabled:bg-slate-100"
         >
           {charges.map((charge) => (
@@ -378,7 +390,10 @@ export function ManualPaymentForm({
           ))}
         </select>
         {selectedCharge && (
-          <span className="text-xs leading-5 text-slate-600">
+          <span
+            id={chargeHelpId}
+            className="text-xs leading-5 text-slate-600"
+          >
             {selectedCharge.locationName} · Vence el{" "}
             {formatPaymentDueDate(
               selectedCharge.dueAt,
@@ -386,16 +401,20 @@ export function ManualPaymentForm({
             )}
           </span>
         )}
-      </label>
+      </div>
 
       {selectedCharge && (
         <div className="grid gap-4 sm:grid-cols-2">
-          <label className="grid gap-2">
-            <span className="text-sm font-bold text-slate-900">
+          <div className="grid gap-2">
+            <label
+              htmlFor={amountInputId}
+              className="text-sm font-bold text-slate-900"
+            >
               Importe recibido
-            </span>
+            </label>
             <span className="relative">
               <input
+                id={amountInputId}
                 type="text"
                 inputMode="decimal"
                 pattern="[0-9]+([.,][0-9]{1,2})?"
@@ -408,15 +427,18 @@ export function ManualPaymentForm({
                   (!amountCents ||
                     amountCents > selectedCharge.outstandingCents)
                 }
-                aria-describedby="manual-payment-amount-help"
+                aria-describedby={amountHelpId}
                 className="min-h-12 w-full rounded-xl border border-slate-300 px-3 pr-16 text-base text-slate-950 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-teal-800 disabled:bg-slate-100"
               />
-              <span className="pointer-events-none absolute right-3 top-1/2 -translate-y-1/2 text-sm font-semibold text-slate-500">
+              <span
+                aria-hidden="true"
+                className="pointer-events-none absolute right-3 top-1/2 -translate-y-1/2 text-sm font-semibold text-slate-500"
+              >
                 {selectedCharge.currency}
               </span>
             </span>
             <span
-              id="manual-payment-amount-help"
+              id={amountHelpId}
               className="text-xs text-slate-600"
             >
               Pendiente:{" "}
@@ -426,7 +448,7 @@ export function ManualPaymentForm({
               )}{" "}
               · Usa coma o punto decimal.
             </span>
-          </label>
+          </div>
 
           <label className="grid gap-2">
             <span className="text-sm font-bold text-slate-900">

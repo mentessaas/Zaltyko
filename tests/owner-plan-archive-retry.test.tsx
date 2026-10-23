@@ -239,14 +239,21 @@ describe("archivo explícito con resultado incierto, solo solicitudes simuladas"
       ? response({ ok: false, error: "NOT_FOUND", code: "NOT_FOUND", message: "Ficha no encontrada" }, 404) : acknowledged());
     render(<OwnerPlanUsage organizationId={organizationId} />);
     await selectAndConfirm();
-    expect(await screen.findByRole("alert")).toHaveTextContent("Ficha no encontrada");
+    const changedNotice = await screen.findByText(
+      "El servidor indica que la ficha o el excedente ya cambió. Comprueba de nuevo el uso y la lista antes de elegir otra ficha."
+    );
+    expect(changedNotice).toHaveAttribute("role", "status");
+    expect(screen.queryByRole("alert")).not.toBeInTheDocument();
     expect(leavingPageIsPrevented()).toBe(false);
-    expect(screen.getByRole("checkbox")).not.toBeChecked();
-    expect(screen.getByRole("button", { name: "Confirmar archivo" })).toBeDisabled();
-    expect(screen.getByRole("button", { name: "Cancelar selección" })).toBeEnabled();
-    fireEvent.click(screen.getByRole("button", { name: "Confirmar archivo" }));
+    expect(screen.queryByRole("group")).not.toBeInTheDocument();
+    expect(screen.queryByRole("checkbox")).not.toBeInTheDocument();
+    expect(screen.getByRole("button", { name: "Elegir para archivar: Ficha A" })).toBeEnabled();
     expect(posts()).toHaveLength(1);
+
+    fireEvent.click(screen.getByRole("button", { name: "Elegir para archivar: Ficha A" }));
+    expect(screen.getByRole("group", { name: "Confirmar archivo de Ficha A" })).toBeVisible();
     fireEvent.click(screen.getByRole("checkbox"));
+    expect(screen.getByRole("checkbox")).toBeChecked();
     fireEvent.click(screen.getByRole("button", { name: "Confirmar archivo" }));
     await waitFor(() => expect(screen.queryByRole("group")).not.toBeInTheDocument());
     expect(posts()).toHaveLength(2);

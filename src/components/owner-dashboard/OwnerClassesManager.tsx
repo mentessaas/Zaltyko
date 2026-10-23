@@ -2,7 +2,7 @@
 
 import Link from "next/link";
 import { useRouter } from "next/navigation";
-import { useEffect, useLayoutEffect, useRef, useState, type FormEvent } from "react";
+import { useEffect, useId, useLayoutEffect, useRef, useState, type FormEvent } from "react";
 import { ArrowRight, Plus, X } from "lucide-react";
 import { useOrganizationDraftField } from "@/components/owner-dashboard/use-organization-draft-field";
 import {
@@ -98,6 +98,9 @@ function hasOverlappingSchedule(schedule: ScheduleSlot[]): boolean {
 }
 
 export function OwnerClassesManager({ bundle }: { bundle: ClassesBundle }) {
+  const fieldIdPrefix = useId();
+  const programSelectId = `${fieldIdPrefix}-program`;
+  const programHelpId = `${fieldIdPrefix}-program-help`;
   const router = useRouter();
   const organizationId = bundle.organization.id;
   const planPolicy = useOwnerPlanPolicy(organizationId);
@@ -461,15 +464,20 @@ export function OwnerClassesManager({ bundle }: { bundle: ClassesBundle }) {
               las matrículas se gestionan por separado.
             </p>
 
-            <label className="grid gap-2">
-              <span className="text-sm font-bold text-slate-900">
+            <div className="grid gap-2">
+              <label
+                htmlFor={programSelectId}
+                className="text-sm font-bold text-slate-900"
+              >
                 Actividad
-              </span>
+              </label>
               <select
+                id={programSelectId}
                 value={programId}
                 onChange={(event) => setProgramId(event.target.value)}
                 disabled={formLocked}
                 required
+                aria-describedby={programHelpId}
                 className={fieldClassName}
               >
                 {bundle.programs.map((program) => (
@@ -478,11 +486,14 @@ export function OwnerClassesManager({ bundle }: { bundle: ClassesBundle }) {
                   </option>
                 ))}
               </select>
-              <span className="text-xs leading-5 text-slate-600">
+              <span
+                id={programHelpId}
+                className="text-xs leading-5 text-slate-600"
+              >
                 Incluye gimnasia artística, rítmica y las actividades
                 complementarias configuradas.
               </span>
-            </label>
+            </div>
 
             {bundle.locations.length > 1 && (
               <label className="grid gap-2">

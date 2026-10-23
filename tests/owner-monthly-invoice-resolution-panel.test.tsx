@@ -12,6 +12,7 @@ const organizationB = "10000000-0000-4000-8000-000000000002";
 const locationB = "20000000-0000-4000-8000-000000000002";
 const enrollmentId = "50000000-0000-4000-8000-000000000001";
 const pricePlanId = "60000000-0000-4000-8000-000000000001";
+const pricePlanIdB = "60000000-0000-4000-8000-000000000002";
 const classTemplateId = "70000000-0000-4000-8000-000000000001";
 const familyId = "80000000-0000-4000-8000-000000000001";
 const fetchMock = vi.fn();
@@ -20,15 +21,19 @@ function jsonResponse(data: unknown, status = 200) {
   return { ok: status >= 200 && status < 300, status, json: async () => data };
 }
 
-function planOptions(organizationId: string, locationId: string) {
+function planOptions(
+  organizationId: string,
+  locationId: string,
+  items = [
+    { id: pricePlanId, name: "Tarifa academia A", amountCents: 5000, currency: "EUR", cadence: "monthly" },
+  ]
+) {
   return jsonResponse({
     ok: true,
     data: {
       organizationId,
       locationId,
-      items: [
-        { id: pricePlanId, name: "Tarifa academia A", amountCents: 5000, currency: "EUR", cadence: "monthly" },
-      ],
+      items,
       classTemplates: [
         { id: classTemplateId, name: "Rítmica iniciación", effectiveFrom: "2025-01-01", effectiveTo: null },
       ],
@@ -146,13 +151,16 @@ describe("ámbito del panel de resolución de facturas", () => {
           finishCreate = resolve as typeof finishCreate;
         });
       }
-      if (params.get("organizationId") === organizationB) return new Promise(() => undefined);
-      return Promise.resolve(planOptions(organizationA, locationA));
+      if (params.get("organizationId") === organizationB) {
+        return Promise.resolve(planOptions(organizationB, locationB, [
+          { id: pricePlanIdB, name: "Tarifa academia B", amountCents: 6200, currency: "EUR", cadence: "monthly" },
+        ]));
+      }
+      return Promise.resolve(planOptions(organizationA, locationA, []));
     });
     const props = panelProps();
     const view = render(<OwnerMonthlyInvoiceResolutionPanel {...props} />);
-    await screen.findByRole("option", { name: /Tarifa academia A/ });
-    fireEvent.change(screen.getByLabelText("Nombre de la tarifa"), {
+    fireEvent.change(await screen.findByLabelText("Nombre de la tarifa"), {
       target: { value: "Tarifa nueva A" },
     });
     fireEvent.change(screen.getByLabelText(/Importe mensual/), {
@@ -169,6 +177,7 @@ describe("ámbito del panel de resolución de facturas", () => {
         servicePeriodStart="2026-02-01"
       />
     );
+    await screen.findByRole("option", { name: /Tarifa academia B/ });
     finishCreate(
       jsonResponse({
         ok: true,
@@ -184,6 +193,7 @@ describe("ámbito del panel de resolución de facturas", () => {
 
     expect(await screen.findByText(/se creó correctamente en la operación iniciada para su ámbito original/)).toBeVisible();
     expect(screen.queryByRole("option", { name: /Tarifa nueva A/ })).not.toBeInTheDocument();
+    expect(screen.getByRole("option", { name: /Tarifa academia B/ })).toBeVisible();
     expect(screen.queryByText(/Tarifa creada con cobertura/)).not.toBeInTheDocument();
     expect(screen.getByRole("link", { name: "Volver al ámbito de la operación" })).toHaveAttribute(
       "href",

@@ -249,9 +249,13 @@ describe("replay de materialización de sesiones en solo lectura", () => {
       organizationId,
       locationId,
       actor,
-      intent: "write",
       allowedRoles: ["owner", "manager", "admin"],
     });
+    expect(mocks.findEvent).toHaveBeenCalledOnce();
+    expect(mocks.assertWritable).toHaveBeenCalledOnce();
+    expect(mocks.findEvent.mock.invocationCallOrder[0]).toBeLessThan(
+      mocks.assertWritable.mock.invocationCallOrder[0]!
+    );
     expectNoWrites();
   });
 
