@@ -513,27 +513,33 @@ describe("intención inmutable en grupos", () => {
     expect(writes()).toHaveLength(1);
   });
   it("mantiene el error del servidor al retirar solo la alerta de validación local", async () => {
+    const serverMessage = "Espera antes de reintentar.";
+    const capacityMessage = "La capacidad debe ser un número entero mayor que cero.";
+    const alertTexts = () =>
+      screen.getAllByRole("alert").map((alert) => alert.textContent?.trim());
     mocks.fetch.mockResolvedValueOnce(response(429, {
       error: "RATE_LIMIT_EXCEEDED",
-      message: "Espera antes de reintentar.",
+      message: serverMessage,
     }));
     const user = userEvent.setup();
     render(<OwnerGroupsManager bundle={emptyGroupBundle} />);
     const name = await screen.findByLabelText("Nombre del grupo");
     await user.type(name, "Grupo QA");
     await user.click(screen.getByRole("button", { name: "Guardar grupo" }));
-    expect(await screen.findByText("Espera antes de reintentar.")).toBeInTheDocument();
+    expect(await screen.findByRole("alert")).toHaveTextContent(serverMessage);
 
     const capacity = screen.getByLabelText("Plazas (opcional)");
     fireEvent.change(capacity, { target: { value: "0" } });
     fireEvent.submit(name.closest("form")!);
-    expect(await screen.findByText("La capacidad debe ser un número entero mayor que cero.")).toBeInTheDocument();
-    expect(screen.getByText("Espera antes de reintentar.")).toBeInTheDocument();
+    await waitFor(() =>
+      expect(alertTexts()).toEqual(expect.arrayContaining([serverMessage, capacityMessage]))
+    );
+    expect(capacity).toHaveAccessibleDescription(capacityMessage);
     expect(screen.getAllByRole("alert")).toHaveLength(2);
 
     await user.clear(capacity);
-    expect(screen.queryByText("La capacidad debe ser un número entero mayor que cero.")).not.toBeInTheDocument();
-    expect(screen.getByText("Espera antes de reintentar.")).toBeInTheDocument();
+    expect(alertTexts()).toContain(serverMessage);
+    expect(alertTexts()).not.toContain(capacityMessage);
     expect(screen.getAllByRole("alert")).toHaveLength(1);
     expect(writes()).toHaveLength(1);
   });
