@@ -262,9 +262,9 @@ describe("replay autorizado de gimnastas y pertenencias en solo lectura", () => 
   ] as const)("el alta directa aplica ámbito por sede: %s", async (_name, relationships, expectedEligible) => {
     athleteLocationRelationships = [...relationships];
     usage = { athletes: "20", groups: "2", classes: "5" };
-    writes = vi.fn(() => ({ values: () => ({ returning: async () => [membership] }) }));
 
     if (expectedEligible) {
+      writes.mockImplementation(() => ({ values: () => ({ returning: async () => [membership] }) }));
       await expect(run("add")).resolves.toEqual(membership);
       expect(writes).toHaveBeenCalled();
     } else {
