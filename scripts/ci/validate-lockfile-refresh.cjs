@@ -5,6 +5,8 @@ const { execFileSync } = require("node:child_process");
 const { readFileSync } = require("node:fs");
 const yaml = require("js-yaml");
 
+const MAX_GIT_OUTPUT_BYTES = 4 * 1024 * 1024;
+
 const versions = [
   {
     name: "follow-redirects",
@@ -22,6 +24,20 @@ const versions = [
 
 function assert(condition, message) {
   if (!condition) throw new Error(message);
+}
+
+function assertGitOutputWithinLimit(output) {
+  const bytes = Buffer.byteLength(output);
+  assert(bytes <= MAX_GIT_OUTPUT_BYTES, `Salida Git excede el límite de ${MAX_GIT_OUTPUT_BYTES} bytes`);
+  return output;
+}
+
+function execGit(args, run = execFileSync) {
+  const output = run("git", args, {
+    encoding: "utf8",
+    maxBuffer: MAX_GIT_OUTPUT_BYTES,
+  });
+  return assertGitOutputWithinLimit(output);
 }
 
 function locatorVersion(name, version) {
@@ -211,25 +227,31 @@ function validateLockfileRefresh({ beforeText, afterText, changedFiles }) {
 function main() {
   const baseSha = process.env.BASE_SHA ?? "";
   assert(/^[0-9a-f]{40}$/.test(baseSha), "BASE_SHA debe ser un SHA completo");
-  const status = execFileSync("git", ["status", "--porcelain", "--untracked-files=all"], { encoding: "utf8" })
+  const status = execGit(["status", "--porcelain", "--untracked-files=all"])
     .split("\n")
     .filter(Boolean);
   assert(
     status.length === 1 && /^(?: M |M  )pnpm-lock\.yaml$/.test(status[0]),
     "El checkout contiene cambios fuera del lockfile"
   );
-  const changedFiles = execFileSync("git", ["diff", "--name-only", baseSha, "--"], { encoding: "utf8" })
+  const changedFiles = execGit(["diff", "--name-only", baseSha, "--"])
     .trim()
     .split("\n")
     .filter(Boolean);
-  const beforeText = execFileSync("git", ["show", `${baseSha}:pnpm-lock.yaml`], { encoding: "utf8" });
+  const beforeText = execGit(["show", `${baseSha}:pnpm-lock.yaml`]);
   const afterText = readFileSync("pnpm-lock.yaml", "utf8");
   validateLockfileRefresh({ beforeText, afterText, changedFiles });
   process.stdout.write("Lockfile validado: solo follow-redirects, hono y referencias de peer autorizadas.\n");
-  process.stdout.write(execFileSync("git", ["diff", "--", "pnpm-lock.yaml"], { encoding: "utf8" }));
+  process.stdout.write(execGit(["diff", "--", "pnpm-lock.yaml"]));
 }
 
-module.exports = { validateLockfileRefresh };
+module.exports = {
+  MAX_GIT_OUTPUT_BYTES,
+  TARGET_VERSIONS: versions,
+  assertGitOutputWithinLimit,
+  execGit,
+  validateLockfileRefresh,
+};
 
 if (require.main === module) {
   try {

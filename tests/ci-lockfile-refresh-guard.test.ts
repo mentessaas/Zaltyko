@@ -1,5 +1,15 @@
 import { describe, expect, it } from "vitest";
-const { validateLockfileRefresh } = require("../scripts/ci/validate-lockfile-refresh.cjs") as {
+const {
+  MAX_GIT_OUTPUT_BYTES,
+  TARGET_VERSIONS,
+  assertGitOutputWithinLimit,
+  execGit,
+  validateLockfileRefresh,
+} = require("../scripts/ci/validate-lockfile-refresh.cjs") as {
+  MAX_GIT_OUTPUT_BYTES: number;
+  TARGET_VERSIONS: Array<{ name: string; from: string; to: string; integrity: string }>;
+  assertGitOutputWithinLimit: (output: string | Buffer) => string | Buffer;
+  execGit: (args: string[], run?: (...args: unknown[]) => string) => string;
   validateLockfileRefresh: (input: {
     beforeText: string;
     afterText: string;
@@ -68,6 +78,44 @@ const refreshedLock = lockfile({
 });
 
 describe("lockfile refresh guard", () => {
+  it("uses the exact audited targets and their official registry integrities", () => {
+    expect(TARGET_VERSIONS).toEqual([
+      {
+        name: "follow-redirects",
+        from: "1.16.0",
+        to: "1.16.1",
+        integrity: "sha512-FNvFGzoMLWmE6Yj9spb/zjd7yiNCHiAW9/Tg9CXrQ8wuu32HtlJOwWO11OJafl5FfY3DxTdQ0vj42zU1kvv5jg==",
+      },
+      {
+        name: "hono",
+        from: "4.13.7",
+        to: "4.13.11",
+        integrity: "sha512-/SMX/RQNJn7oNmFwH6DtwDqcrzZU2otm1FD6OJe2cWF6cfy/F8hq0XVBv7xW3FTJshRQwuBnXHDq2kNsdZnshg==",
+      },
+    ]);
+  });
+
+  it("bounds Git output and rejects a response that exceeds the fixed buffer", () => {
+    expect(MAX_GIT_OUTPUT_BYTES).toBe(4 * 1024 * 1024);
+    expect(() => assertGitOutputWithinLimit(Buffer.alloc(MAX_GIT_OUTPUT_BYTES))).not.toThrow();
+    expect(() => assertGitOutputWithinLimit(Buffer.alloc(MAX_GIT_OUTPUT_BYTES + 1))).toThrow(/excede el límite/);
+  });
+
+  it("passes the fixed output cap to every Git subprocess", () => {
+    let invocation: unknown[] = [];
+    const output = execGit(["show", "expected:pnpm-lock.yaml"], (...args: unknown[]) => {
+      invocation = args;
+      return "synthetic output";
+    });
+
+    expect(output).toBe("synthetic output");
+    expect(invocation).toEqual([
+      "git",
+      ["show", "expected:pnpm-lock.yaml"],
+      { encoding: "utf8", maxBuffer: MAX_GIT_OUTPUT_BYTES },
+    ]);
+  });
+
   it("accepts only the two target package updates and their pinned references", () => {
     expect(() => validateLockfileRefresh({
       beforeText: oldLock,

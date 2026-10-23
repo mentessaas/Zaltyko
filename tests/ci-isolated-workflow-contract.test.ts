@@ -5,6 +5,19 @@ import { describe, expect, it } from "vitest";
 const workflowPath = resolve(process.cwd(), ".github/workflows/ci-isolated.yml");
 const vitestConfigPath = resolve(process.cwd(), "vitest.config.ts");
 const sharedSetupPath = resolve(process.cwd(), "tests/setup.ts");
+const lockfileGuardPath = resolve(process.cwd(), "scripts/ci/validate-lockfile-refresh.cjs");
+
+const lockfileGuard = require(lockfileGuardPath) as {
+  MAX_GIT_OUTPUT_BYTES: number;
+  TARGET_VERSIONS: Array<{ name: string; from: string; to: string; integrity: string }>;
+  assertGitOutputWithinLimit: (output: string | Buffer) => string | Buffer;
+  execGit: (args: string[], run?: (...args: unknown[]) => string) => string;
+  validateLockfileRefresh: (input: {
+    beforeText: string;
+    afterText: string;
+    changedFiles: string[];
+  }) => void;
+};
 
 describe("isolated CI workflow contract", () => {
   const workflow = readFileSync(workflowPath, "utf8");
@@ -106,24 +119,13 @@ describe("isolated CI workflow contract", () => {
   });
 
   it("includes a semantic, fail-closed lockfile guard and focused guard cases", () => {
-    const guard = readFileSync(resolve(process.cwd(), "scripts/ci/validate-lockfile-refresh.cjs"), "utf8");
-    const guardTests = readFileSync(resolve(process.cwd(), "tests/ci-lockfile-refresh-guard.test.ts"), "utf8");
-    expect(guard).toContain('require("js-yaml")');
-    expect(guard).toContain('changedFiles[0] === "pnpm-lock.yaml"');
-    expect(guard).toContain('"follow-redirects", from: "1.16.0", to: "1.16.1"');
-    expect(guard).toContain('"hono", from: "4.13.7", to: "4.13.11"');
-    expect(guard).toContain("yaml.load(afterText, { schema: yaml.JSON_SCHEMA })");
-    expect(guard).toContain("assertNoStaleReferences(after)");
-    expect(guard).toContain('snapshot.dependencies["follow-redirects"]');
-    expect(guard).toContain('key.startsWith("@hono/node-server@2.1.1")');
-    expect(guard).toContain("assertRefreshContract(before, after)");
-    expect(guard).toContain("process.stdout.write(execFileSync(\"git\", [\"diff\", \"--\", \"pnpm-lock.yaml\"]");
-    expect(guardTests).toContain("accepts only the two target package updates");
-    expect(guardTests).toContain("rejects changes to another package version");
-    expect(guardTests).toContain("rejects manifest or other file changes");
-    expect(guardTests).toContain("rejects valid-looking but non-registry integrity values");
-    expect(guardTests).toContain("retains an indirect old follow-redirects reference");
-    expect(guardTests).toContain("retains the old node-server peer key and dependency");
-    expect(guardTests).toContain("rejects an old package locator left beside the refreshed version");
+    expect(lockfileGuard.MAX_GIT_OUTPUT_BYTES).toBe(4 * 1024 * 1024);
+    expect(lockfileGuard.TARGET_VERSIONS.map(({ name, from, to }) => ({ name, from, to }))).toEqual([
+      { name: "follow-redirects", from: "1.16.0", to: "1.16.1" },
+      { name: "hono", from: "4.13.7", to: "4.13.11" },
+    ]);
+    expect(lockfileGuard.assertGitOutputWithinLimit).toBeTypeOf("function");
+    expect(lockfileGuard.execGit).toBeTypeOf("function");
+    expect(lockfileGuard.validateLockfileRefresh).toBeTypeOf("function");
   });
 });
