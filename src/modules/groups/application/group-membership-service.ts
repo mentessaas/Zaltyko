@@ -652,7 +652,8 @@ export async function recoverCreatedAthleteForGroup(
           eq(outboxEvents.organizationId, input.organizationId),
           eq(outboxEvents.idempotencyKey, input.idempotencyKey)
         )
-      );
+      )
+      .limit(3);
     const [audit] = await tx
       .select()
       .from(auditLog)

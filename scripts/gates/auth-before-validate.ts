@@ -14,7 +14,7 @@
  *   - Inline handlers are walked top-down. The first call to
  *     `request.json()` / `request.formData()` / `<expr>.parse(...)` /
  *     `<expr>.safeParse(...)` is recorded; if no auth primitive
- *     (`withTenant`, `withSuperAdmin`, `resolveUserId`,
+ *     (`withTenant`, `withSuperAdmin`, `authenticateSuperAdminOperator`, `resolveUserId`,
  *     `getBearerToken`, `createBearerSupabaseClient`, `assertSuperAdmin`,
  *     `getCurrentProfile`, `verifyWebhookSignature`) appears before
  *     that line, the export is flagged.
@@ -61,6 +61,7 @@ const AUTH_PRIMITIVES = new Set([
   "getBearerToken",
   "createBearerSupabaseClient",
   "assertSuperAdmin",
+  "authenticateSuperAdminOperator",
   "getCurrentProfile",
   "verifyWebhookSignature",
 ]);

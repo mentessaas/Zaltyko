@@ -42,6 +42,7 @@ let usage: { athletes: string; groups: string; classes: string };
 let events: Record<string, Event>;
 let recoveryEvents: Array<Record<string, unknown>>;
 let recoveryAudit: Record<string, unknown> | null;
+let recoveryOutboxLimit: number | null;
 let writes: ReturnType<typeof vi.fn>;
 let execute: ReturnType<typeof vi.fn>;
 let athleteLocationRelationships: Array<
@@ -114,6 +115,7 @@ beforeEach(() => {
   events = {};
   recoveryEvents = [];
   recoveryAudit = null;
+  recoveryOutboxLimit = null;
   athleteLocationRelationships = [{
     kind: "group",
     locationId: site,
@@ -148,7 +150,8 @@ beforeEach(() => {
         return query;
       },
       then: (resolve: (value: unknown[]) => unknown, reject: (reason: unknown) => unknown) => Promise.resolve(rowsForQuery()).then(resolve, reject),
-      limit: async () => {
+      limit: async (count = 1) => {
+        if (table === outboxEvents) recoveryOutboxLimit = count;
         if (table === groups) return group && [group.organizationId, group.id].every(value => params.includes(value)) ? [group] : [];
         if (table === athletes) {
           const matchesIdentity = athlete && [athlete.organizationId, athlete.id].every(value => params.includes(value));
@@ -159,7 +162,7 @@ beforeEach(() => {
           return eligible ? [athlete] : [];
         }
         if (table === groupMemberships) return membership && [membership.organizationId, membership.id].every(value => params.includes(value)) ? [membership] : [];
-        if (table === auditLog) return rowsForQuery();
+        if (table === auditLog || table === outboxEvents) return rowsForQuery().slice(0, count);
         if (table === organizationMembers) return member && [org, userId, memberId, "active"].every(value => params.includes(value)) ? [member] : [];
         if (table === memberLocationScopes) return scoped && [org, memberId, site].every(value => params.includes(value)) ? [{ id: "synthetic-scope" }] : [];
         throw new Error("Unexpected table in replay/denial test");
@@ -217,6 +220,14 @@ describe("replay autorizado de gimnastas y pertenencias en solo lectura", () => 
     prepareRecovery();
     await expect(recoverCreatedAthleteForGroup({ ...base, idempotencyKey: recoveryKey })).resolves.toEqual(membership);
     expect(writes).not.toHaveBeenCalled();
+    expect(recoveryOutboxLimit).toBe(3);
+  });
+  it("rechaza un recibo ambiguo con tres eventos sin leer más de tres", async () => {
+    prepareRecovery();
+    recoveryEvents.push({ ...recoveryEvents[1] });
+    await expect(recoverCreatedAthleteForGroup({ ...base, idempotencyKey: recoveryKey })).rejects.toMatchObject({ code: "IDEMPOTENCY_CONFLICT", status: 409 });
+    expect(writes).not.toHaveBeenCalled();
+    expect(recoveryOutboxLimit).toBe(3);
   });
   it.each(["missing-membership-event", "wrong-group", "wrong-audit-after"] as const)("rechaza un recibo de alta parcial o incoherente: %s", async issue => {
     prepareRecovery();

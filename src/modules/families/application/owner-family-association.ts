@@ -1,6 +1,6 @@
 import { createHash } from "node:crypto";
 
-import { and, eq, gte, inArray, isNull, lte, or, sql } from "drizzle-orm";
+import { and, eq, gt, gte, inArray, isNull, lte, or, sql } from "drizzle-orm";
 import { z } from "zod";
 
 import { db } from "@/db";
@@ -150,35 +150,44 @@ export function familyMemberOverlapPredicate(effectiveFrom: string) {
   )!;
 }
 
+export function familyMemberStartsAfterPredicate(effectiveFrom: string) {
+  return gt(familyMembers.startsOn, effectiveFrom);
+}
+
+export function familyMemberStartsOnOrBeforePredicate(effectiveFrom: string) {
+  return lte(familyMembers.startsOn, effectiveFrom);
+}
+
 async function linkAthletesToFamily(
   tx: TransactionClient,
   input: OwnerFamilyAssociationCommand,
   familyId: string
 ): Promise<void> {
   for (const athleteId of input.athleteIds) {
-    const existingRows = await tx
+    const basePredicate = and(
+      eq(familyMembers.organizationId, input.organizationId),
+      eq(familyMembers.familyId, familyId),
+      eq(familyMembers.athleteId, athleteId),
+      familyMemberOverlapPredicate(input.effectiveFrom)
+    );
+    const [futureOverlap] = await tx
       .select({ startsOn: familyMembers.startsOn, endsOn: familyMembers.endsOn })
       .from(familyMembers)
-      .where(
-        and(
-          eq(familyMembers.organizationId, input.organizationId),
-          eq(familyMembers.familyId, familyId),
-          eq(familyMembers.athleteId, athleteId),
-          familyMemberOverlapPredicate(input.effectiveFrom)
-        )
-      );
-    const associationAction = resolveFamilyMemberAssociation(
-      existingRows,
-      input.effectiveFrom
-    );
-    if (associationAction === "date-conflict") {
+      .where(and(basePredicate, familyMemberStartsAfterPredicate(input.effectiveFrom)))
+      .limit(1);
+    if (futureOverlap) {
       throw new OperationalError(
         "FAMILY_MEMBERSHIP_DATE_CONFLICT",
         "La fecha efectiva se solapa con una relación familiar existente.",
         409
       );
     }
-    if (associationAction === "already-associated") {
+    const [existingAssociation] = await tx
+      .select({ startsOn: familyMembers.startsOn, endsOn: familyMembers.endsOn })
+      .from(familyMembers)
+      .where(and(basePredicate, familyMemberStartsOnOrBeforePredicate(input.effectiveFrom)))
+      .limit(1);
+    if (existingAssociation) {
       continue;
     }
     await tx.insert(familyMembers).values({
