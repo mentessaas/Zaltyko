@@ -29,7 +29,11 @@ const baseBundle = {
 };
 type Bundle = Parameters<typeof OwnerGroupsManager>[0]["bundle"];
 const bundle = baseBundle as unknown as Bundle;
-const receipt = { ok: true, data: { id: membership, groupId: group, athleteId: athlete, startsOn: today, status: "active", endsOn: null } };
+const receipt = { ok: true, data: { id: membership, groupId: group, athleteId: athlete, startsOn: today, status: "active" } };
+const transitionReceipt = {
+  ok: true,
+  data: { id: membership, groupId: group, startsOn: today, status: "paused", endsOn: null },
+};
 function response(status: number, payload: unknown) { return { ok: status >= 200 && status < 300, status, json: async () => payload }; }
 function uncertain() { return response(409, { type: "https://zaltyko.com/problems/idempotency-conflict", status: 409, title: "Conflicto", detail: "No se puede recuperar el resultado anterior." }); }
 function writes() { return mocks.fetch.mock.calls.filter(([, init]) => init?.method === "POST" || init?.method === "PATCH"); }
@@ -125,7 +129,7 @@ describe("intención inmutable en grupos", () => {
   });
   it("una transición conserva estado esperado y fecha tras refrescar los datos", async () => {
     const row = { id: membership, athleteId: athlete, athleteName: "Ficha sintética", status: "active", startsOn: today };
-    mocks.fetch.mockResolvedValueOnce(uncertain()).mockResolvedValueOnce(response(200, { ...receipt, data: { ...receipt.data, status: "paused" } }));
+    mocks.fetch.mockResolvedValueOnce(uncertain()).mockResolvedValueOnce(response(200, transitionReceipt));
     const user = userEvent.setup();
     const view = render(<OwnerGroupsManager bundle={{ ...bundle, memberships: [row] } as Bundle} />);
     await user.click(screen.getByRole("button", { name: "Poner en pausa a Ficha sintética" }));
@@ -136,7 +140,7 @@ describe("intención inmutable en grupos", () => {
     expect(JSON.parse(String(writes()[1][1].body))).toMatchObject({ expectedStatus: "active", toStatus: "paused", effectiveOn: today });
   });
   it("restaura una transición incierta tras recargar y reintenta la misma clave manualmente", async () => {
-    mocks.fetch.mockResolvedValueOnce(response(503, { detail: "Resultado no confirmado." })).mockResolvedValueOnce(response(201, { ...receipt, data: { ...receipt.data, status: "paused" } }));
+    mocks.fetch.mockResolvedValueOnce(response(503, { detail: "Resultado no confirmado." })).mockResolvedValueOnce(response(200, transitionReceipt));
     const row = { id: membership, athleteId: athlete, athleteName: "Ficha sintética", status: "active", startsOn: today };
     const props = { bundle: { ...bundle, memberships: [row] } as Bundle };
     const user = userEvent.setup();
@@ -200,8 +204,10 @@ describe("intención inmutable en grupos", () => {
     expect(writes()).toHaveLength(0);
   });
   it("si sessionStorage.getItem falla bloquea POST/PATCH y submit directo de creación", async () => {
-    const readSpy = vi.spyOn(window.sessionStorage, "getItem").mockImplementation(() => {
-      throw new DOMException("Read denied", "SecurityError");
+    const originalGetItem = Storage.prototype.getItem;
+    const readSpy = vi.spyOn(Storage.prototype, "getItem").mockImplementation(function (key) {
+      if (this === window.sessionStorage) throw new DOMException("Read denied", "SecurityError");
+      return originalGetItem.call(this, key);
     });
     const row = { id: membership, athleteId: athlete, athleteName: "Ficha sintética", status: "active", startsOn: today };
     const manager = render(<OwnerGroupsManager bundle={{ ...bundle, memberships: [row] } as Bundle} />);
@@ -265,14 +271,16 @@ describe("intención inmutable en grupos", () => {
   });
   it.each(["sin borrador", "con borrador pendiente"] as const)("relee el borrador al recuperarse sessionStorage (%s)", async scenario => {
     const storageKey = `zaltyko:pending-group-create:v2:${org}`;
-    const originalGetItem = window.sessionStorage.getItem.bind(window.sessionStorage);
-    const getItem = vi.spyOn(window.sessionStorage, "getItem").mockImplementation((key) => {
-      if (key === storageKey) throw new DOMException("Read denied", "SecurityError");
-      return originalGetItem(key);
+    const originalGetItem = Storage.prototype.getItem;
+    const getItem = vi.spyOn(Storage.prototype, "getItem").mockImplementation(function (key) {
+      if (this === window.sessionStorage && key === storageKey) {
+        throw new DOMException("Read denied", "SecurityError");
+      }
+      return originalGetItem.call(this, key);
     });
     const setItem = vi.spyOn(window.sessionStorage, "setItem");
     window.sessionStorage.setItem("synthetic-storage-probe", "available");
-    expect(originalGetItem("synthetic-storage-probe")).toBe("available");
+    expect(window.sessionStorage.getItem("synthetic-storage-probe")).toBe("available");
     setItem.mockClear();
 
     const user = userEvent.setup();
@@ -386,15 +394,39 @@ describe("intención inmutable en grupos", () => {
   });
   it("permite reconsultar un recibo tras fallo de red sin abrir otra operación", async () => {
     const key = `zaltyko:pending-group-athlete:${org}:${group}`;
-    window.sessionStorage.setItem(key, "retry-key-01234567");
+    const intent = {
+      version: 1,
+      organizationId: org,
+      groupId: group,
+      kind: "create-athlete-and-membership",
+      idempotencyKey: "retry-key-01234567",
+    };
+    window.sessionStorage.setItem(key, JSON.stringify(intent));
     mocks.fetch.mockRejectedValueOnce(new Error("offline")).mockResolvedValueOnce(response(200, { ok: true, data: { status: "none" } }));
     const user = userEvent.setup(); render(<OwnerGroupsManager bundle={bundle} />);
     await user.click(screen.getByText("¿No aparece? Crear ficha y añadir"));
     expect(await screen.findByText(/No se pudo consultar el recibo/)).toBeVisible();
+    const receiptCalls = mocks.fetch.mock.calls.filter(([input]) =>
+      String(input).includes("/memberships/receipt?")
+    );
+    expect(receiptCalls).toHaveLength(1);
+    const [receiptUrl, receiptOptions] = receiptCalls[0];
+    const parsedReceiptUrl = new URL(String(receiptUrl), "https://zaltyko.test");
+    expect(parsedReceiptUrl.pathname).toBe(`/api/v1/owner/groups/${intent.groupId}/memberships/receipt`);
+    expect(parsedReceiptUrl.searchParams.get("organizationId")).toBe(intent.organizationId);
+    expect(parsedReceiptUrl.searchParams.get("idempotencyKey")).toBe(intent.idempotencyKey);
+    expect(receiptOptions).toMatchObject({ cache: "no-store" });
     await user.click(screen.getByRole("button", { name: "Reintentar comprobación" }));
+    await waitFor(() => expect(
+      mocks.fetch.mock.calls.filter(([input]) => String(input).includes("/memberships/receipt?")).length
+    ).toBe(2));
+    const repeatedReceiptCalls = mocks.fetch.mock.calls.filter(([input]) =>
+      String(input).includes("/memberships/receipt?")
+    );
+    expect(String(repeatedReceiptCalls[1][0])).toBe(String(receiptCalls[0][0]));
     expect(await screen.findByText(/No aparece ningún recibo.*Reintroduce exactamente el mismo nombre y apellidos/)).toBeVisible();
     expect(writes()).toHaveLength(0);
-    expect(window.sessionStorage.getItem(key)).toContain("retry-key-01234567");
+    expect(window.sessionStorage.getItem(key)).toContain(intent.idempotencyKey);
   });
   it("muestra el recibo ID-only y solo limpia la clave tras confirmación", async () => {
     const key = `zaltyko:pending-group-athlete:${org}:${group}`;

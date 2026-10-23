@@ -1,6 +1,6 @@
 // @vitest-environment jsdom
 import "@testing-library/jest-dom/vitest";
-import { act, cleanup, fireEvent, render, screen, waitFor } from "@testing-library/react";
+import { act, cleanup, fireEvent, render, screen, waitFor, within } from "@testing-library/react";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { useLayoutEffect } from "react";
 import { OwnerSaasBillingManager } from "@/components/owner-dashboard/OwnerSaasBillingManager";
@@ -395,7 +395,9 @@ describe("mensajes de comandos simulados ligados a su academia", () => {
     view.rerender(<OwnerSaasBillingManager organizationId={otherOrg} organizationName="Academia B" />);
     expect(await screen.findByText("Academia B confirmada")).toBeVisible();
     await act(async () => { fail(new Error("Fallo sintético del Portal de A")); });
-    expect(screen.queryByRole("alert")).not.toBeInTheDocument();
+    expect(screen.getByRole("alert")).toHaveTextContent("Hay una operación pendiente en otra academia.");
+    expect(screen.queryByText(/No podemos confirmar el resultado/)).not.toBeInTheDocument();
+    expect(screen.queryByText("Fallo sintético del Portal de A")).not.toBeInTheDocument();
     expect(screen.getByRole("button", { name: "Gestionar suscripción" })).toBeDisabled();
     expect(screen.getByText(/Hay una operación de facturación pendiente en otra academia/)).toBeVisible();
     expect(postCalls()).toHaveLength(1);
@@ -653,7 +655,10 @@ describe("exclusión síncrona de comandos simulados de facturación", () => {
       : response(actionResult(action)));
     render(<OwnerSaasBillingManager organizationId={org} organizationName="Academia sintética" />);
     const retry = await screen.findByRole("button", { name: "Reintentar la operación pendiente" });
-    expect(screen.getByRole("button", { name: actionNames[action] })).toBeDisabled();
+    const actionButton = action === "checkout"
+      ? within(screen.getByRole("heading", { name: "Growth" }).closest("article")!).getByRole("button", { name: "No disponible ahora" })
+      : screen.getByRole("button", { name: actionNames[action] });
+    expect(actionButton).toBeDisabled();
     fireEvent.click(retry);
     expect(await screen.findByRole("alert")).toHaveTextContent("No podemos confirmar");
     expect(window.sessionStorage.getItem(key)).not.toBeNull();
@@ -682,7 +687,9 @@ describe("exclusión síncrona de comandos simulados de facturación", () => {
     fetchMock.mockImplementation(async (_url, options) => options.method === "POST" ? response(actionResult("checkout")) : response(actionFixture("checkout")));
     render(<OwnerSaasBillingManager organizationId={org} organizationName="Academia sintética" />);
     expect(await screen.findByRole("alert")).toHaveTextContent("no se puede validar");
-    expect(screen.getByRole("button", { name: actionNames.checkout })).toBeDisabled();
+    const growthCard = screen.getByRole("heading", { name: "Growth" }).closest("article");
+    expect(growthCard).not.toBeNull();
+    expect(within(growthCard!).getByRole("button", { name: "No disponible ahora" })).toBeDisabled();
     expect(posts()).toHaveLength(0);
   });
 
