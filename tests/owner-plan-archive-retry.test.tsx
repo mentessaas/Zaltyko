@@ -3,6 +3,7 @@ import "@testing-library/jest-dom/vitest";
 import { act, cleanup, fireEvent, render, screen, waitFor } from "@testing-library/react";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { OwnerPlanUsage } from "@/components/owner-dashboard/OwnerPlanUsage";
+import { persistArchiveIntent, readStoredArchiveIntent, type StoredArchiveIntent } from "@/components/owner-dashboard/owner-archive-intent-storage";
 
 const organizationId = "10000000-0000-4000-8000-000000000001";
 const usage = { readOnly: true, planCode: "free", resources: [
@@ -35,6 +36,60 @@ beforeEach(() => {
 afterEach(() => { cleanup(); vi.unstubAllGlobals(); vi.restoreAllMocks(); });
 
 describe("archivo explícito con resultado incierto, solo solicitudes simuladas", () => {
+  it("proyecta una intención con item al contrato almacenado, sin nombre y sin sobrescribir otra operación", () => {
+    const candidate: StoredArchiveIntent & { item: { id: string; name: string } } = {
+      organizationId,
+      resource: "athletes",
+      resourceId: "20000000-0000-4000-8000-000000000001",
+      key: "archive-30000000-0000-4000-8000-000000000001",
+      item: { id: "20000000-0000-4000-8000-000000000001", name: "Nombre privado de ficha" },
+    };
+
+    expect(persistArchiveIntent(window.sessionStorage, candidate)).toBe(true);
+    const raw = window.sessionStorage.getItem("zaltyko:owner-plan-archive-intent:v1");
+    expect(raw).not.toBeNull();
+    expect(JSON.parse(raw!)).toEqual({
+      version: 1,
+      organizationId,
+      resource: "athletes",
+      resourceId: candidate.resourceId,
+      key: candidate.key,
+    });
+    expect(raw).not.toContain("item");
+    expect(raw).not.toContain("Nombre privado de ficha");
+    expect(readStoredArchiveIntent(window.sessionStorage)).toEqual({
+      status: "pending",
+      intent: {
+        organizationId,
+        resource: "athletes",
+        resourceId: candidate.resourceId,
+        key: candidate.key,
+      },
+    });
+
+    const otherCandidate = { ...candidate, key: "archive-30000000-0000-4000-8000-000000000002" };
+    expect(persistArchiveIntent(window.sessionStorage, otherCandidate)).toBe(false);
+    expect(window.sessionStorage.getItem("zaltyko:owner-plan-archive-intent:v1")).toBe(raw);
+  });
+
+  it("mantiene unavailable cerrado y no intenta escribir si no se puede leer el almacenamiento", () => {
+    const storage = {
+      getItem: vi.fn(() => { throw new Error("storage unavailable"); }),
+      setItem: vi.fn(),
+      removeItem: vi.fn(),
+    };
+    const candidate: StoredArchiveIntent = {
+      organizationId,
+      resource: "athletes",
+      resourceId: "20000000-0000-4000-8000-000000000001",
+      key: "archive-30000000-0000-4000-8000-000000000001",
+    };
+
+    expect(readStoredArchiveIntent(storage)).toEqual({ status: "unavailable" });
+    expect(persistArchiveIntent(storage, candidate)).toBe(false);
+    expect(storage.setItem).not.toHaveBeenCalled();
+  });
+
   it.each([
     [404, "NOT_FOUND", "La ficha ya no está disponible."],
     [409, "RESOURCE_NOT_OVER_LIMIT", "El excedente ya no está disponible."],

@@ -59,7 +59,13 @@ export function persistArchiveIntent(storage: ArchiveIntentStorage, intent: Stor
   if (current.status === "pending") return sameIntent(current.intent, intent);
   if (current.status !== "empty") return false;
   try {
-    storage.setItem(STORAGE_KEY, JSON.stringify({ version: 1, ...intent }));
+    storage.setItem(STORAGE_KEY, JSON.stringify({
+      version: 1,
+      organizationId: intent.organizationId,
+      resource: intent.resource,
+      resourceId: intent.resourceId,
+      key: intent.key,
+    }));
     const saved = readStoredArchiveIntent(storage);
     return saved.status === "pending" && sameIntent(saved.intent, intent);
   } catch {
