@@ -1,7 +1,8 @@
 /**
  * RLS Policy Validation Script
  *
- * Validates tenant-scoped Drizzle tables against the SQL sources used by the
+ * Validates directly tenant-scoped Drizzle tables and explicitly registered
+ * foreign-key-dependent tenant identities against the SQL sources used by the
  * project: supabase/rls-consolidated.sql plus supabase/migrations/*.sql.
  */
 
@@ -35,6 +36,7 @@ export interface ValidationResult {
   missingRls: SchemaTable[];
   missingPolicies: SchemaTable[];
   tenantTables: SchemaTable[];
+  requiredRlsTables: SchemaTable[];
   policyTables: string[];
   coverage: number;
   errors: string[];
@@ -42,6 +44,18 @@ export interface ValidationResult {
 
 const ROOT = process.cwd();
 const IDENTIFIER = String.raw`(?:"((?:""|[^"])*)"|([a-zA-Z_][a-zA-Z0-9_$]*))`;
+
+/**
+ * Tenant ownership is inherited through a foreign key, not a direct
+ * organizationId column. Payload conflicts follow webhook events, which may be
+ * platform-level or tenant-linked; reconciliation results follow decisions
+ * that carry organizationId. Keep this explicit and schema-backed: the
+ * validator checks RLS/policy presence, not policy predicates or grants.
+ */
+const INDIRECT_TENANT_RLS_IDENTITIES: TableIdentity[] = [
+  { schema: "zaltyko", table: "organization_saas_webhook_payload_conflicts" },
+  { schema: "zaltyko", table: "organization_saas_webhook_reconciliation_results" },
+];
 
 function identityKey(identity: TableIdentity): string {
   return JSON.stringify([identity.schema, identity.table]);
@@ -429,6 +443,16 @@ export function validateRLSFromSources(
     )
   );
   const tenantTables = schemaTables.filter((table) => table.tenantScoped);
+  const schemaTablesByIdentity = new Map(schemaTables.map((table) => [identityKey(table), table]));
+  const requiredRlsTables = [
+    ...tenantTables,
+    ...INDIRECT_TENANT_RLS_IDENTITIES.flatMap((identity) => {
+      const table = schemaTablesByIdentity.get(identityKey(identity));
+      return table ? [table] : [];
+    }),
+  ].filter((table, index, tables) =>
+    tables.findIndex((candidate) => identityKey(candidate) === identityKey(table)) === index
+  );
   if (tenantTables.length === 0) {
     errors.push("No tenant-scoped schema tables found; RLS coverage cannot pass with an empty inventory.");
   }
@@ -440,13 +464,13 @@ export function validateRLSFromSources(
   }
 
   const policyIdentities = new Set(allPolicies.map((policy) => identityKey(policy)));
-  const missingRls = tenantTables.filter((table) => !rlsTables.has(identityKey(table)));
-  const missingPolicies = tenantTables.filter((table) => !policyIdentities.has(identityKey(table)));
+  const missingRls = requiredRlsTables.filter((table) => !rlsTables.has(identityKey(table)));
+  const missingPolicies = requiredRlsTables.filter((table) => !policyIdentities.has(identityKey(table)));
   const duplicatePolicies = findDuplicatePolicies(allPolicies);
-  const covered = tenantTables.filter(
+  const covered = requiredRlsTables.filter(
     (table) => rlsTables.has(identityKey(table)) && policyIdentities.has(identityKey(table))
   ).length;
-  const coverage = tenantTables.length === 0 ? 0 : (covered / tenantTables.length) * 100;
+  const coverage = requiredRlsTables.length === 0 ? 0 : (covered / requiredRlsTables.length) * 100;
 
   return {
     success:
@@ -454,6 +478,7 @@ export function validateRLSFromSources(
       schemaSources.length > 0 &&
       sqlSources.length > 0 &&
       tenantTables.length > 0 &&
+      requiredRlsTables.length > 0 &&
       duplicatePolicies.length === 0 &&
       missingRls.length === 0 &&
       missingPolicies.length === 0,
@@ -461,6 +486,7 @@ export function validateRLSFromSources(
     missingRls,
     missingPolicies,
     tenantTables,
+    requiredRlsTables,
     policyTables: [...new Set(allPolicies.map(displayIdentity))].sort(),
     coverage,
     errors,
@@ -541,8 +567,10 @@ function generateReport(result: ValidationResult, root: string = ROOT): string {
     "===========================================================",
     "",
     `Status: ${result.success ? "PASS" : "FAIL"}`,
-    `Tenant-scoped tables: ${result.tenantTables.length}`,
+    `Direct tenant-scoped tables: ${result.tenantTables.length}`,
+    `RLS-required table identities: ${result.requiredRlsTables.length}`,
     `Coverage: ${result.coverage.toFixed(1)}%`,
+    "Coverage checks RLS and policy presence; it does not evaluate policy predicates or grants.",
     "",
   ];
 
@@ -564,19 +592,19 @@ function generateReport(result: ValidationResult, root: string = ROOT): string {
   }
 
   if (result.missingRls.length > 0) {
-    lines.push(`TENANT TABLES WITHOUT RLS (${result.missingRls.length}):`);
+    lines.push(`RLS-REQUIRED TABLES WITHOUT RLS (${result.missingRls.length}):`);
     result.missingRls.forEach((table) => lines.push(`  - ${formatTable(table)}`));
     lines.push("");
   } else {
-    lines.push("All tenant-scoped tables have RLS enabled in SQL sources", "");
+    lines.push("All RLS-required tables have RLS enabled in SQL sources", "");
   }
 
   if (result.missingPolicies.length > 0) {
-    lines.push(`TENANT TABLES WITHOUT POLICIES (${result.missingPolicies.length}):`);
+    lines.push(`RLS-REQUIRED TABLES WITHOUT POLICIES (${result.missingPolicies.length}):`);
     result.missingPolicies.forEach((table) => lines.push(`  - ${formatTable(table)}`));
     lines.push("");
   } else {
-    lines.push("All tenant-scoped tables have at least one policy in SQL sources", "");
+    lines.push("All RLS-required tables have at least one policy in SQL sources", "");
   }
 
   lines.push("SQL sources checked:");

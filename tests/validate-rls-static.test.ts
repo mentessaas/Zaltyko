@@ -71,20 +71,55 @@ describe("inventario estático RLS por identidad de esquema y tabla", () => {
     );
   });
 
-  it("inventaría las diez tablas tenant del schema SaaS actual", () => {
+  it("distingue las diez tablas SaaS de las ocho con organizationId directo", () => {
     const billingSchema = readFileSync(
       resolve(process.cwd(), "src/db/schema/zaltyko-saas-billing.ts"),
       "utf8"
     );
-    const coreSchema = readFileSync(resolve(process.cwd(), "src/db/schema/zaltyko-core.ts"), "utf8");
+    const allBillingTables = extractSchemaTablesFromSource(
+      billingSchema,
+      "src/db/schema/zaltyko-saas-billing.ts",
+      new Map([["zaltyko", "zaltyko"]])
+    );
+    const directBillingTables = allBillingTables.filter(table => table.tenantScoped);
+    const directOnlySql = directBillingTables.map(({ schema, table }, index) => `
+ALTER TABLE ${schema}.${table} ENABLE ROW LEVEL SECURITY;
+CREATE POLICY "synthetic_read_${index}" ON ${schema}.${table} USING (true);
+`).join("\n");
     const result = validateRLSFromSources(
       [
-        { name: "src/db/schema/zaltyko-core.ts", content: coreSchema },
+        {
+          name: "src/db/schema/zaltyko-core.ts",
+          content: 'export const zaltyko = pgSchema("zaltyko");',
+        },
         { name: "src/db/schema/zaltyko-saas-billing.ts", content: billingSchema },
       ],
-      [{ name: "synthetic.sql", content: "" }]
+      [{ name: "synthetic.sql", content: directOnlySql }]
     );
 
+    expect(allBillingTables).toHaveLength(10);
+    expect(directBillingTables).toHaveLength(8);
+    // These two tables inherit tenant ownership through webhookEventId and decisionId FKs.
+    // The direct-column RLS inventory must not invent organizationId columns for them.
+    expect(allBillingTables
+      .filter(table => !table.tenantScoped)
+      .map(table => table.table)).toEqual([
+      "organization_saas_webhook_payload_conflicts",
+      "organization_saas_webhook_reconciliation_results",
+    ]);
+    expect(result.requiredRlsTables
+      .filter(table => table.schema === "zaltyko" && table.file === "src/db/schema/zaltyko-saas-billing.ts")
+      .map(table => table.table)).toHaveLength(10);
+    expect(result.missingRls.map(({ schema, table }) => `${schema}.${table}`)).toEqual([
+      "zaltyko.organization_saas_webhook_payload_conflicts",
+      "zaltyko.organization_saas_webhook_reconciliation_results",
+    ]);
+    expect(result.missingPolicies.map(({ schema, table }) => `${schema}.${table}`)).toEqual([
+      "zaltyko.organization_saas_webhook_payload_conflicts",
+      "zaltyko.organization_saas_webhook_reconciliation_results",
+    ]);
+    expect(result.coverage).toBe(80);
+    expect(result.success).toBe(false);
     expect(result.tenantTables
       .filter(table => table.schema === "zaltyko" && table.file === "src/db/schema/zaltyko-saas-billing.ts")
       .map(table => table.table)).toEqual([
@@ -94,9 +129,7 @@ describe("inventario estático RLS por identidad de esquema y tabla", () => {
       "organization_saas_customers",
       "organization_saas_subscriptions",
       "organization_saas_trials",
-      "organization_saas_webhook_payload_conflicts",
       "organization_saas_webhook_reconciliation_decisions",
-      "organization_saas_webhook_reconciliation_results",
       "organization_saas_webhook_events",
     ].sort());
   });

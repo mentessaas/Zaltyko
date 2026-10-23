@@ -212,7 +212,10 @@ describe("intención inmutable en grupos", () => {
     const row = { id: membership, athleteId: athlete, athleteName: "Ficha sintética", status: "active", startsOn: today };
     const manager = render(<OwnerGroupsManager bundle={{ ...bundle, memberships: [row] } as Bundle} />);
     try {
-      expect(await screen.findByRole("alert")).toHaveTextContent(
+      const membershipRecoveryMessage = await screen.findByText(
+        /No se pudo consultar el almacenamiento de esta sesión\. No se permitirán cambios/
+      );
+      expect(membershipRecoveryMessage.closest('section[role="alert"]')).toHaveTextContent(
         "No se pudo consultar el almacenamiento de esta sesión"
       );
       const pause = screen.getByRole("button", { name: "Poner en pausa a Ficha sintética" });
@@ -230,6 +233,7 @@ describe("intención inmutable en grupos", () => {
       const groupForm = screen.getByRole("button", { name: "Guardar grupo" }).closest("form");
       expect(groupForm).not.toBeNull();
       fireEvent.submit(groupForm!);
+      expect(writes()).toHaveLength(0);
       await userEvent.setup().click(screen.getByText("¿No aparece? Crear ficha y añadir"));
       const athleteForm = screen.getByLabelText("Nombre").closest("form");
       expect(athleteForm).not.toBeNull();
