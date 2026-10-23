@@ -29,6 +29,7 @@ const baseBundle = {
 };
 type Bundle = Parameters<typeof OwnerGroupsManager>[0]["bundle"];
 const bundle = baseBundle as unknown as Bundle;
+const emptyGroupBundle = { ...bundle, groups: [], selectedGroupId: null } as Bundle;
 const receipt = { ok: true, data: { id: membership, groupId: group, athleteId: athlete, startsOn: today, status: "active" } };
 const transitionReceipt = {
   ok: true,
@@ -272,6 +273,269 @@ describe("intención inmutable en grupos", () => {
     expect(screen.getByRole("button", { name: "Reintentar creación pendiente" })).toBeEnabled();
     expect(screen.getByLabelText("Nombre del grupo")).toBeDisabled();
     expect(window.sessionStorage.getItem(`zaltyko:pending-group-create:v2:${org}`)).not.toBeNull();
+  });
+  it("asocia los errores locales de nombre y capacidad sin enviar", async () => {
+    const user = userEvent.setup();
+    render(<OwnerGroupsManager bundle={emptyGroupBundle} />);
+    const name = await screen.findByLabelText("Nombre del grupo");
+    const form = name.closest("form")!;
+    await user.type(name, "   ");
+    fireEvent.submit(form);
+
+    expect(await screen.findByRole("alert")).toHaveTextContent(
+      "Escribe el nombre del grupo."
+    );
+    expect(name).toHaveAttribute("aria-invalid", "true");
+    expect(name).toHaveAccessibleDescription("Escribe el nombre del grupo.");
+    expect(screen.getByLabelText("Actividad")).not.toHaveAttribute("aria-invalid", "true");
+    expect(screen.getByLabelText("Sede")).not.toHaveAttribute("aria-invalid", "true");
+    expect(writes()).toHaveLength(0);
+    expect(window.sessionStorage.getItem(`zaltyko:pending-group-create:v2:${org}`)).toBeNull();
+
+    await user.clear(name);
+    await user.type(name, "Grupo válido");
+    expect(name).not.toHaveAttribute("aria-invalid", "true");
+    expect(name).not.toHaveAttribute("aria-describedby");
+    expect(screen.queryByRole("alert")).not.toBeInTheDocument();
+
+    const capacity = screen.getByLabelText("Plazas (opcional)");
+    fireEvent.change(capacity, { target: { value: "0" } });
+    fireEvent.submit(form);
+    expect(await screen.findByRole("alert")).toHaveTextContent(
+      "La capacidad debe ser un número entero mayor que cero."
+    );
+    expect(capacity).toHaveAttribute("aria-invalid", "true");
+    expect(capacity).toHaveAccessibleDescription(
+      "La capacidad debe ser un número entero mayor que cero."
+    );
+    expect(name).not.toHaveAttribute("aria-invalid", "true");
+    expect(writes()).toHaveLength(0);
+    await user.clear(capacity);
+    expect(capacity).not.toHaveAttribute("aria-invalid", "true");
+    expect(screen.queryByRole("alert")).not.toBeInTheDocument();
+  });
+  it("usa validación nativa y asocia su mensaje sin cancelar el evento invalid", async () => {
+    render(<OwnerGroupsManager bundle={emptyGroupBundle} />);
+    const name = await screen.findByLabelText("Nombre del grupo");
+    const form = name.closest("form")!;
+    expect(name).toBeRequired();
+    expect(form).not.toHaveAttribute("novalidate");
+
+    const invalidEvent = new Event("invalid", { bubbles: true, cancelable: true });
+    fireEvent(name, invalidEvent);
+
+    expect(invalidEvent.defaultPrevented).toBe(false);
+    expect(name).toHaveAttribute("aria-invalid", "true");
+    expect(name).toHaveAccessibleDescription("Escribe el nombre del grupo.");
+    expect(writes()).toHaveLength(0);
+  });
+  it("recalcula el resumen nativo con los campos que siguen inválidos", async () => {
+    const user = userEvent.setup();
+    render(<OwnerGroupsManager bundle={emptyGroupBundle} />);
+    const name = await screen.findByLabelText("Nombre del grupo");
+    const capacity = screen.getByLabelText("Plazas (opcional)");
+    fireEvent.change(capacity, { target: { value: "5001" } });
+    fireEvent(name, new Event("invalid", { bubbles: true, cancelable: true }));
+    fireEvent(capacity, new Event("invalid", { bubbles: true, cancelable: true }));
+
+    expect(screen.getByRole("alert")).toHaveTextContent(
+      "Escribe el nombre del grupo. Introduce un número entero entre 1 y 5000."
+    );
+    expect(name).toHaveAttribute("aria-invalid", "true");
+    expect(capacity).toHaveAttribute("aria-invalid", "true");
+
+    await user.type(name, "Grupo válido");
+    expect(name).not.toHaveAttribute("aria-invalid", "true");
+    expect(capacity).toHaveAttribute("aria-invalid", "true");
+    expect(screen.getByRole("alert")).toHaveTextContent(
+      "Introduce un número entero entre 1 y 5000."
+    );
+    expect(screen.getByRole("alert")).not.toHaveTextContent("Escribe el nombre del grupo.");
+    expect(writes()).toHaveLength(0);
+  });
+  it.each([
+    { label: "Actividad", field: "programId" as const },
+    { label: "Sede", field: "locationId" as const },
+  ])("marca %s fuera del alcance de la academia y no envía", async ({ label, field }) => {
+    const outsideProgram = {
+      id: "30000000-0000-4000-8000-000000000021",
+      name: "Actividad ajena",
+      kind: "gymnastics_sport",
+    };
+    const outsideLocation = {
+      id: "30000000-0000-4000-8000-000000000022",
+      name: "Sede ajena",
+      timezone: "Europe/Madrid",
+    };
+    const expandedBundle = {
+      ...emptyGroupBundle,
+      programs: [...emptyGroupBundle.programs, outsideProgram],
+      locations: [...emptyGroupBundle.locations, outsideLocation],
+    } as Bundle;
+    const user = userEvent.setup();
+    const view = render(<OwnerGroupsManager bundle={expandedBundle} />);
+    const control = await screen.findByLabelText(label);
+    await user.type(screen.getByLabelText("Nombre del grupo"), "Grupo válido");
+    const foreignValue = field === "programId" ? outsideProgram.id : outsideLocation.id;
+    await user.selectOptions(control, foreignValue);
+
+    const narrowedBundle = field === "programId"
+      ? { ...expandedBundle, programs: emptyGroupBundle.programs }
+      : { ...expandedBundle, locations: emptyGroupBundle.locations };
+    view.rerender(<OwnerGroupsManager bundle={narrowedBundle as Bundle} />);
+    fireEvent.submit(control.closest("form")!);
+
+    expect(control).toHaveAttribute("aria-invalid", "true");
+    expect(control).toHaveAccessibleDescription(
+      field === "programId"
+        ? "La actividad seleccionada ya no pertenece a esta academia."
+        : "La sede seleccionada ya no pertenece a esta academia."
+    );
+    expect(await screen.findByRole("alert")).toHaveTextContent(
+      field === "programId"
+        ? "La actividad seleccionada ya no pertenece a esta academia."
+        : "La sede seleccionada ya no pertenece a esta academia."
+    );
+    expect(writes()).toHaveLength(0);
+  });
+  it("conserva el resumen mientras quede otro campo inválido", async () => {
+    const outsideProgram = {
+      id: "30000000-0000-4000-8000-000000000023",
+      name: "Actividad temporal",
+      kind: "gymnastics_sport",
+    };
+    const outsideLocation = {
+      id: "30000000-0000-4000-8000-000000000024",
+      name: "Sede temporal",
+      timezone: "Europe/Madrid",
+    };
+    const expandedBundle = {
+      ...emptyGroupBundle,
+      programs: [...emptyGroupBundle.programs, outsideProgram],
+      locations: [...emptyGroupBundle.locations, outsideLocation],
+    } as Bundle;
+    const view = render(<OwnerGroupsManager bundle={expandedBundle} />);
+    const programControl = await screen.findByLabelText("Actividad");
+    const locationControl = screen.getByLabelText("Sede");
+    fireEvent.change(screen.getByLabelText("Nombre del grupo"), { target: { value: "Grupo válido" } });
+    fireEvent.change(programControl, { target: { value: outsideProgram.id } });
+    fireEvent.change(locationControl, { target: { value: outsideLocation.id } });
+    view.rerender(<OwnerGroupsManager bundle={emptyGroupBundle} />);
+    fireEvent.submit(screen.getByLabelText("Nombre del grupo").closest("form")!);
+
+    const summary = "La actividad seleccionada ya no pertenece a esta academia. La sede seleccionada ya no pertenece a esta academia.";
+    expect(await screen.findByRole("alert")).toHaveTextContent(summary);
+    expect(programControl).toHaveAttribute("aria-invalid", "true");
+    expect(locationControl).toHaveAttribute("aria-invalid", "true");
+
+    fireEvent.change(programControl, { target: { value: program } });
+    expect(programControl).not.toHaveAttribute("aria-invalid", "true");
+    expect(locationControl).toHaveAttribute("aria-invalid", "true");
+    expect(screen.getByRole("alert")).toHaveTextContent(
+      "La sede seleccionada ya no pertenece a esta academia."
+    );
+    expect(writes()).toHaveLength(0);
+  });
+  it("mantiene vacía la capacidad como válida y envía null sin error de campo", async () => {
+    mocks.fetch.mockResolvedValueOnce(response(201, {
+      ok: true,
+      data: {
+        id: otherGroup,
+        name: "Grupo sin límite",
+        locationId: site,
+        programId: program,
+        capacity: null,
+      },
+    }));
+    const user = userEvent.setup();
+    render(<OwnerGroupsManager bundle={emptyGroupBundle} />);
+    await user.type(await screen.findByLabelText("Nombre del grupo"), "Grupo sin límite");
+    const capacity = screen.getByLabelText("Plazas (opcional)");
+    expect(capacity).not.toBeRequired();
+    await user.click(screen.getByRole("button", { name: "Guardar grupo" }));
+
+    await waitFor(() => expect(writes()).toHaveLength(1));
+    expect(JSON.parse(String(writes()[0]?.[1]?.body))).toEqual({
+      organizationId: org,
+      locationId: site,
+      programId: program,
+      name: "Grupo sin límite",
+      capacity: null,
+    });
+    expect(capacity).not.toHaveAttribute("aria-invalid", "true");
+  });
+  it("al cerrar y cambiar de academia limpia solo los errores de campo", async () => {
+    const user = userEvent.setup();
+    const view = render(<OwnerGroupsManager bundle={emptyGroupBundle} />);
+    const name = await screen.findByLabelText("Nombre del grupo");
+    await user.type(name, "   ");
+    fireEvent.submit(name.closest("form")!);
+    expect(await screen.findByRole("alert")).toHaveTextContent(
+      "Escribe el nombre del grupo."
+    );
+    expect(name).toHaveAttribute("aria-invalid", "true");
+
+    await user.click(screen.getByRole("button", { name: "Cerrar formulario" }));
+    await user.click(screen.getByRole("button", { name: "Crear grupo" }));
+    const reopenedName = await screen.findByLabelText("Nombre del grupo");
+    expect(reopenedName).not.toHaveAttribute("aria-invalid", "true");
+    expect(screen.queryByRole("alert")).not.toBeInTheDocument();
+
+    const otherAcademy = {
+      ...emptyGroupBundle,
+      organization: { ...emptyGroupBundle.organization, id: otherOrg },
+    } as Bundle;
+    view.rerender(<OwnerGroupsManager bundle={otherAcademy} />);
+    const otherName = await screen.findByLabelText("Nombre del grupo");
+    expect(otherName).toHaveValue("");
+    expect(otherName).not.toHaveAttribute("aria-invalid", "true");
+    expect(screen.queryByRole("alert")).not.toBeInTheDocument();
+    expect(writes()).toHaveLength(0);
+  });
+  it("editar un campo no borra una alerta de rechazo del servidor", async () => {
+    mocks.fetch.mockResolvedValueOnce(response(429, {
+      error: "RATE_LIMIT_EXCEEDED",
+      message: "Espera antes de reintentar.",
+    }));
+    const user = userEvent.setup();
+    render(<OwnerGroupsManager bundle={emptyGroupBundle} />);
+    const name = await screen.findByLabelText("Nombre del grupo");
+    await user.type(name, "Grupo QA");
+    await user.click(screen.getByRole("button", { name: "Guardar grupo" }));
+    expect(await screen.findByRole("alert")).toHaveTextContent(
+      "Espera antes de reintentar."
+    );
+
+    await user.type(name, " corregido");
+    expect(screen.getByRole("alert")).toHaveTextContent(
+      "Espera antes de reintentar."
+    );
+    expect(writes()).toHaveLength(1);
+  });
+  it("mantiene el error del servidor al retirar solo la alerta de validación local", async () => {
+    mocks.fetch.mockResolvedValueOnce(response(429, {
+      error: "RATE_LIMIT_EXCEEDED",
+      message: "Espera antes de reintentar.",
+    }));
+    const user = userEvent.setup();
+    render(<OwnerGroupsManager bundle={emptyGroupBundle} />);
+    const name = await screen.findByLabelText("Nombre del grupo");
+    await user.type(name, "Grupo QA");
+    await user.click(screen.getByRole("button", { name: "Guardar grupo" }));
+    expect(await screen.findByText("Espera antes de reintentar.")).toBeInTheDocument();
+
+    const capacity = screen.getByLabelText("Plazas (opcional)");
+    fireEvent.change(capacity, { target: { value: "0" } });
+    fireEvent.submit(name.closest("form")!);
+    expect(await screen.findByText("La capacidad debe ser un número entero mayor que cero.")).toBeInTheDocument();
+    expect(screen.getByText("Espera antes de reintentar.")).toBeInTheDocument();
+    expect(screen.getAllByRole("alert")).toHaveLength(2);
+
+    await user.clear(capacity);
+    expect(screen.queryByText("La capacidad debe ser un número entero mayor que cero.")).not.toBeInTheDocument();
+    expect(screen.getByText("Espera antes de reintentar.")).toBeInTheDocument();
+    expect(screen.getAllByRole("alert")).toHaveLength(1);
+    expect(writes()).toHaveLength(1);
   });
   it.each(["sin borrador", "con borrador pendiente"] as const)("relee el borrador al recuperarse sessionStorage (%s)", async scenario => {
     const storageKey = `zaltyko:pending-group-create:v2:${org}`;

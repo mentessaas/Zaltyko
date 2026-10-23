@@ -35,6 +35,32 @@ type GroupsBundle = Awaited<
 >;
 
 type Candidate = { id: string; name: string };
+type GroupCreateField = "name" | "programId" | "locationId" | "capacity";
+type GroupCreateFieldErrors = Partial<Record<GroupCreateField, string>>;
+type GroupCreateValidationState = {
+  fieldErrors: GroupCreateFieldErrors;
+  summary: string;
+};
+
+const GROUP_CREATE_FIELD_ERROR_IDS: Record<GroupCreateField, string> = {
+  name: "group-create-name-error",
+  programId: "group-create-program-error",
+  locationId: "group-create-location-error",
+  capacity: "group-create-capacity-error",
+};
+
+const GROUP_CREATE_NATIVE_FIELD_ERRORS: Record<GroupCreateField, string> = {
+  name: "Escribe el nombre del grupo.",
+  programId: "Selecciona una actividad.",
+  locationId: "Selecciona una sede.",
+  capacity: "Introduce un número entero entre 1 y 5000.",
+};
+
+function summarizeGroupCreateFieldErrors(errors: GroupCreateFieldErrors): string {
+  const fields = (Object.keys(GROUP_CREATE_FIELD_ERROR_IDS) as GroupCreateField[])
+    .filter((field) => Boolean(errors[field]));
+  return [...new Set(fields.map((field) => errors[field]).filter(Boolean))].join(" ");
+}
 
 type PendingMembershipCommand = GroupMembershipCommand | Readonly<{
   organizationId: string;
@@ -194,6 +220,13 @@ export function OwnerGroupsManager({ bundle }: { bundle: GroupsBundle }) {
     defaultLocationId
   );
   const [capacity, setCapacity] = useOrganizationDraftField(organizationId, "");
+  const [groupCreateValidation, setGroupCreateValidation] =
+    useOrganizationDraftField<GroupCreateValidationState>(organizationId, () => ({
+      fieldErrors: {},
+      summary: "",
+    }));
+  const groupCreateFieldErrors = groupCreateValidation.fieldErrors;
+  const groupCreateValidationSummary = groupCreateValidation.summary;
   const [candidateQuery, setCandidateQuery] = useOrganizationDraftField(membershipScope, "");
   const [candidates, setCandidates] = useOrganizationDraftField<Candidate[]>(membershipScope, []);
   const [newAthleteGivenName, setNewAthleteGivenName] = useOrganizationDraftField(membershipScope, "");
@@ -302,6 +335,8 @@ export function OwnerGroupsManager({ bundle }: { bundle: GroupsBundle }) {
     // Restore sessionStorage after hydration so server and first client markup match.
     // eslint-disable-next-line react-hooks/set-state-in-effect
     setPendingGroupCreate(pending);
+    // eslint-disable-next-line react-hooks/set-state-in-effect
+    setGroupCreateValidation({ fieldErrors: {}, summary: "" });
     if (pending?.kind === "replayable") {
       const payload = JSON.parse(pending.command.body) as GroupCreatePayload;
       setGroupName(payload.name);
@@ -326,6 +361,7 @@ export function OwnerGroupsManager({ bundle }: { bundle: GroupsBundle }) {
     organizationId,
     membershipScope,
     pendingGroupCreateReadAttempt,
+    setGroupCreateValidation,
   ]);
 
   useEffect(() => {
@@ -394,6 +430,48 @@ export function OwnerGroupsManager({ bundle }: { bundle: GroupsBundle }) {
     if (nextLocationId) params.set("locationId", nextLocationId);
     if (groupId) params.set("groupId", groupId);
     return `/owner/groups?${params.toString()}`;
+  }
+
+  function clearGroupCreateFieldError(field: GroupCreateField) {
+    setGroupCreateValidation((current) => {
+      if (!current.fieldErrors[field]) return current;
+      const fieldErrors = { ...current.fieldErrors };
+      delete fieldErrors[field];
+      return {
+        fieldErrors,
+        summary: summarizeGroupCreateFieldErrors(fieldErrors),
+      };
+    });
+  }
+
+  function markNativeGroupCreateFieldInvalid(event: FormEvent<HTMLFormElement>) {
+    const target = event.target;
+    if (!(target instanceof HTMLInputElement || target instanceof HTMLSelectElement)) {
+      return;
+    }
+    const field = (Object.keys(GROUP_CREATE_FIELD_ERROR_IDS) as GroupCreateField[]).find(
+      (key) => GROUP_CREATE_FIELD_ERROR_IDS[key] === `${target.id}-error`
+    );
+    if (!field) return;
+    setGroupCreateValidation((current) => {
+      const fieldErrors = {
+        ...current.fieldErrors,
+        [field]: GROUP_CREATE_NATIVE_FIELD_ERRORS[field],
+      };
+      return {
+        fieldErrors,
+        summary: summarizeGroupCreateFieldErrors(fieldErrors),
+      };
+    });
+  }
+
+  function toggleGroupCreateForm() {
+    if (createOpen) {
+      setCreateOpen(false);
+      setGroupCreateValidation({ fieldErrors: {}, summary: "" });
+    } else if (writesAllowed) {
+      setCreateOpen(true);
+    }
   }
 
   async function sendGroupCreate(command: PendingGroupCreate, previouslyUncertain = false) {
@@ -494,17 +572,37 @@ export function OwnerGroupsManager({ bundle }: { bundle: GroupsBundle }) {
     ) {
       return;
     }
-    if (!groupName.trim() || !programId || !locationId) {
-      setError("Completa el nombre, la actividad y la sede.");
+    const incompleteFieldErrors: GroupCreateFieldErrors = {};
+    if (!groupName.trim()) {
+      incompleteFieldErrors.name = "Escribe el nombre del grupo.";
+    }
+    if (!programId) {
+      incompleteFieldErrors.programId = "Selecciona una actividad.";
+    }
+    if (!locationId) {
+      incompleteFieldErrors.locationId = "Selecciona una sede.";
+    }
+    if (Object.keys(incompleteFieldErrors).length > 0) {
+      setGroupCreateValidation({
+        fieldErrors: incompleteFieldErrors,
+        summary: summarizeGroupCreateFieldErrors(incompleteFieldErrors),
+      });
       return;
     }
-    if (
-      !bundle.programs.some((program) => program.id === programId) ||
-      !bundle.locations.some((location) => location.id === locationId)
-    ) {
-      setError(
-        "La actividad o la sede ya no pertenecen a esta academia. Vuelve a elegirlas."
-      );
+    const programIsInScope = bundle.programs.some((program) => program.id === programId);
+    const locationIsInScope = bundle.locations.some((location) => location.id === locationId);
+    if (!programIsInScope || !locationIsInScope) {
+      const scopeFieldErrors: GroupCreateFieldErrors = {};
+      if (!programIsInScope) {
+        scopeFieldErrors.programId = "La actividad seleccionada ya no pertenece a esta academia.";
+      }
+      if (!locationIsInScope) {
+        scopeFieldErrors.locationId = "La sede seleccionada ya no pertenece a esta academia.";
+      }
+      setGroupCreateValidation({
+        fieldErrors: scopeFieldErrors,
+        summary: summarizeGroupCreateFieldErrors(scopeFieldErrors),
+      });
       return;
     }
     const parsedCapacity = capacity.trim() ? Number(capacity) : null;
@@ -512,10 +610,17 @@ export function OwnerGroupsManager({ bundle }: { bundle: GroupsBundle }) {
       parsedCapacity !== null &&
       (!Number.isInteger(parsedCapacity) || parsedCapacity < 1)
     ) {
-      setError("La capacidad debe ser un número entero mayor que cero.");
+      const fieldErrors: GroupCreateFieldErrors = {
+        capacity: "La capacidad debe ser un número entero mayor que cero.",
+      };
+      setGroupCreateValidation({
+        fieldErrors,
+        summary: summarizeGroupCreateFieldErrors(fieldErrors),
+      });
       return;
     }
 
+    setGroupCreateValidation({ fieldErrors: {}, summary: "" });
     const payload: GroupCreatePayload = {
       organizationId,
       locationId,
@@ -838,7 +943,7 @@ export function OwnerGroupsManager({ bundle }: { bundle: GroupsBundle }) {
             type="button"
             className={primaryButtonClassName}
             disabled={(!writesAllowed && !createOpen) || busy || !groupCreateScopeLoaded || !membershipRecoveryReady || membershipRecoveryError !== "" || currentPendingGroupCreate !== null || pendingMembership !== null || foreignMembershipScope !== null}
-            onClick={() => setCreateOpen((open) => writesAllowed ? !open : false)}
+            onClick={toggleGroupCreateForm}
           >
             <Plus className="h-4 w-4" aria-hidden="true" />
             {createOpen ? "Cerrar formulario" : "Crear grupo"}
@@ -876,6 +981,14 @@ export function OwnerGroupsManager({ bundle }: { bundle: GroupsBundle }) {
             className="mt-5 border border-red-700 bg-red-50 p-3 text-sm text-red-950"
           >
             {error}
+          </p>
+        )}
+        {groupCreateValidationSummary && (
+          <p
+            role="alert"
+            className="mt-5 border border-amber-700 bg-amber-50 p-3 text-sm text-amber-950"
+          >
+            {groupCreateValidationSummary}
           </p>
         )}
         {notice && (
@@ -1011,26 +1124,52 @@ export function OwnerGroupsManager({ bundle }: { bundle: GroupsBundle }) {
               <form
                 className="mt-4 grid gap-4 sm:grid-cols-2 lg:grid-cols-4"
                 onSubmit={createGroup}
+                onInvalidCapture={markNativeGroupCreateFieldInvalid}
               >
                 <label className="block text-sm font-semibold">
                   Nombre del grupo
                   <input
+                    id="group-create-name"
                     className={`${fieldClassName} mt-2`}
                     value={groupName}
                     disabled={groupCreateLocked}
-                    onChange={(event) => setGroupName(event.target.value)}
+                    onChange={(event) => {
+                      setGroupName(event.target.value);
+                      clearGroupCreateFieldError("name");
+                    }}
                     maxLength={120}
                     required
+                    aria-invalid={groupCreateFieldErrors.name ? true : undefined}
+                    aria-describedby={
+                      groupCreateFieldErrors.name
+                        ? GROUP_CREATE_FIELD_ERROR_IDS.name
+                        : undefined
+                    }
                   />
                 </label>
+                {groupCreateFieldErrors.name && (
+                  <span id={GROUP_CREATE_FIELD_ERROR_IDS.name} className="sr-only">
+                    {groupCreateFieldErrors.name}
+                  </span>
+                )}
                 <label className="block text-sm font-semibold">
                   Actividad
                   <select
+                    id="group-create-program"
                     className={`${fieldClassName} mt-2`}
                     value={programId}
                     disabled={groupCreateLocked}
-                    onChange={(event) => setProgramId(event.target.value)}
+                    onChange={(event) => {
+                      setProgramId(event.target.value);
+                      clearGroupCreateFieldError("programId");
+                    }}
                     required
+                    aria-invalid={groupCreateFieldErrors.programId ? true : undefined}
+                    aria-describedby={
+                      groupCreateFieldErrors.programId
+                        ? GROUP_CREATE_FIELD_ERROR_IDS.programId
+                        : undefined
+                    }
                   >
                     {bundle.programs.map((program) => (
                       <option key={program.id} value={program.id}>
@@ -1039,14 +1178,29 @@ export function OwnerGroupsManager({ bundle }: { bundle: GroupsBundle }) {
                     ))}
                   </select>
                 </label>
+                {groupCreateFieldErrors.programId && (
+                  <span id={GROUP_CREATE_FIELD_ERROR_IDS.programId} className="sr-only">
+                    {groupCreateFieldErrors.programId}
+                  </span>
+                )}
                 <label className="block text-sm font-semibold">
                   Sede
                   <select
+                    id="group-create-location"
                     className={`${fieldClassName} mt-2`}
                     value={locationId}
                     disabled={groupCreateLocked}
-                    onChange={(event) => setLocationId(event.target.value)}
+                    onChange={(event) => {
+                      setLocationId(event.target.value);
+                      clearGroupCreateFieldError("locationId");
+                    }}
                     required
+                    aria-invalid={groupCreateFieldErrors.locationId ? true : undefined}
+                    aria-describedby={
+                      groupCreateFieldErrors.locationId
+                        ? GROUP_CREATE_FIELD_ERROR_IDS.locationId
+                        : undefined
+                    }
                   >
                     {bundle.locations.map((location) => (
                       <option key={location.id} value={location.id}>
@@ -1055,9 +1209,15 @@ export function OwnerGroupsManager({ bundle }: { bundle: GroupsBundle }) {
                     ))}
                   </select>
                 </label>
+                {groupCreateFieldErrors.locationId && (
+                  <span id={GROUP_CREATE_FIELD_ERROR_IDS.locationId} className="sr-only">
+                    {groupCreateFieldErrors.locationId}
+                  </span>
+                )}
                 <label className="block text-sm font-semibold">
                   Plazas (opcional)
                   <input
+                    id="group-create-capacity"
                     className={`${fieldClassName} mt-2`}
                     disabled={groupCreateLocked}
                     type="number"
@@ -1066,9 +1226,23 @@ export function OwnerGroupsManager({ bundle }: { bundle: GroupsBundle }) {
                     step="1"
                     inputMode="numeric"
                     value={capacity}
-                    onChange={(event) => setCapacity(event.target.value)}
+                    onChange={(event) => {
+                      setCapacity(event.target.value);
+                      clearGroupCreateFieldError("capacity");
+                    }}
+                    aria-invalid={groupCreateFieldErrors.capacity ? true : undefined}
+                    aria-describedby={
+                      groupCreateFieldErrors.capacity
+                        ? GROUP_CREATE_FIELD_ERROR_IDS.capacity
+                        : undefined
+                    }
                   />
                 </label>
+                {groupCreateFieldErrors.capacity && (
+                  <span id={GROUP_CREATE_FIELD_ERROR_IDS.capacity} className="sr-only">
+                    {groupCreateFieldErrors.capacity}
+                  </span>
+                )}
                 <div className="sm:col-span-2 lg:col-span-4">
                   <button
                     type="submit"
