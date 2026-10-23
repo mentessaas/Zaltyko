@@ -3,11 +3,13 @@ import { z } from "zod";
 
 import { db } from "@/db";
 import {
+  auditLog,
   athletes,
   groupMemberships,
   groupMembershipHistory,
   groups,
   locations,
+  outboxEvents,
   people,
   type GroupMembership,
 } from "@/db/zaltyko-schema";
@@ -15,8 +17,11 @@ import type { TransactionClient } from "@/lib/db-transactions";
 import { operationalActorSchema } from "@/modules/shared/application/actor";
 import { OperationalError } from "@/modules/shared/domain/operational-error";
 import { resolveEffectiveOrganizationEntitlement } from "@/modules/saas-billing/application/entitlement-service";
+import { assertOrganizationOperationalWritable } from "@/modules/saas-billing/application/organization-usage";
 import { assertOrganizationAthleteCapacity } from "./organization-athlete-capacity";
 import { assertOperationalAccess } from "@/modules/shared/infrastructure/operational-authorization";
+import { matchesAthleteCreateAuditAfter } from "./athlete-create-audit-contract";
+import { hasEligibleGroupLocationRelationship } from "./group-athlete-location-eligibility";
 import {
   appendAuditEntry,
   appendOutboxEvent,
@@ -86,12 +91,24 @@ export type TransitionGroupMembershipCommand = z.infer<
   typeof transitionMembershipSchema
 >;
 
+const recoverCreatedAthleteSchema = z.object({
+  organizationId: z.string().uuid(),
+  groupId: z.string().uuid(),
+  idempotencyKey: z.string().trim().min(8).max(150),
+  actor: operationalActorSchema,
+});
+
+function isRecord(value: unknown): value is Record<string, unknown> {
+  return value !== null && typeof value === "object" && !Array.isArray(value);
+}
+
 const privilegedRoles = ["owner", "manager", "admin"] as const;
 
 async function loadMembership(
   tx: TransactionClient,
   organizationId: string,
-  membershipId: string
+  membershipId: string,
+  options: { priorResult?: boolean } = {}
 ): Promise<GroupMembership> {
   const [membership] = await tx
     .select()
@@ -106,9 +123,9 @@ async function loadMembership(
 
   if (!membership) {
     throw new OperationalError(
-      "NOT_FOUND",
-      "Pertenencia al grupo no encontrada",
-      404
+      options.priorResult ? "IDEMPOTENCY_CONFLICT" : "NOT_FOUND",
+      options.priorResult ? "No se puede recuperar el resultado de la operación anterior" : "Pertenencia al grupo no encontrada",
+      options.priorResult ? 409 : 404
     );
   }
   return membership;
@@ -121,6 +138,7 @@ async function assertGroupAccess(
     groupId: string;
     actor: AddGroupMembershipCommand["actor"];
     requireActive?: boolean;
+    intent?: "read" | "write";
   }
 ): Promise<{
   id: string;
@@ -152,7 +170,7 @@ async function assertGroupAccess(
     organizationId: input.organizationId,
     locationId: group.locationId,
     actor: input.actor,
-    intent: "write",
+    intent: input.intent === "read" ? undefined : "write",
     allowedRoles: privilegedRoles,
   });
 
@@ -172,9 +190,15 @@ async function loadMembershipFromEvent(
   if (!event) return null;
 
   assertIdempotencyPayload(event.payload, input.expectedPayload);
-  const membershipId = event.payload.membershipId;
-  if (typeof membershipId !== "string") return null;
-  return loadMembership(tx, input.organizationId, membershipId);
+  const membershipId = z.string().uuid().safeParse(event.payload.membershipId);
+  if (!membershipId.success || event.aggregateId !== membershipId.data) {
+    throw new OperationalError(
+      "IDEMPOTENCY_CONFLICT",
+      "El registro de la operación anterior no identifica una pertenencia coherente",
+      409
+    );
+  }
+  return loadMembership(tx, input.organizationId, membershipId.data, { priorResult: true });
 }
 
 export async function addGroupMembership(
@@ -211,6 +235,8 @@ export async function addGroupMembership(
         organizationId: input.organizationId,
         groupId: prior.groupId,
         actor: input.actor,
+        requireActive: false,
+        intent: "read",
       });
       return prior;
     }
@@ -221,26 +247,27 @@ export async function addGroupMembership(
       actor: input.actor,
     });
 
-    await lockGroupCapacity(tx, input.organizationId, group.id);
-
-    const [athlete] = await tx
+    const [eligibleAthlete] = await tx
       .select({ id: athletes.id })
       .from(athletes)
       .where(
         and(
           eq(athletes.organizationId, input.organizationId),
           eq(athletes.id, input.athleteId),
-          eq(athletes.isActive, true)
+          eq(athletes.isActive, true),
+          hasEligibleGroupLocationRelationship({
+            organizationId: input.organizationId,
+            groupId: input.groupId,
+            locationId: group.locationId,
+          })
         )
       )
       .limit(1);
-    if (!athlete) {
-      throw new OperationalError(
-        "NOT_FOUND",
-        "Atleta activo no encontrado",
-        404
-      );
+    if (!eligibleAthlete) {
+      throw new OperationalError("NOT_FOUND", "Atleta activo no encontrado", 404);
     }
+
+    await lockGroupCapacity(tx, input.organizationId, group.id);
 
     const [existing] = await tx
       .select({ id: groupMemberships.id })
@@ -382,6 +409,7 @@ export async function createAthleteForGroup(
         groupId: input.groupId,
         actor: input.actor,
         requireActive: false,
+        intent: "read",
       });
 
       const [existingAthlete] = await tx
@@ -407,9 +435,9 @@ export async function createAthleteForGroup(
         .limit(1);
       if (!existingAthlete) {
         throw new OperationalError(
-          "NOT_FOUND",
+          "IDEMPOTENCY_CONFLICT",
           "La ficha creada anteriormente ya no está disponible",
-          404
+          409
         );
       }
       if (
@@ -426,7 +454,8 @@ export async function createAthleteForGroup(
       const membership = await loadMembership(
         tx,
         input.organizationId,
-        membershipId
+        membershipId,
+        { priorResult: true }
       );
       if (
         membership.athleteId !== athleteId ||
@@ -598,6 +627,121 @@ export async function createAthleteForGroup(
   });
 }
 
+/**
+ * Recovers only the ID-based receipt for an athlete-create operation. Names
+ * never leave the operational tables; both outbox events and the matching
+ * human audit entry must agree before a receipt is exposed.
+ */
+export async function recoverCreatedAthleteForGroup(
+  command: z.input<typeof recoverCreatedAthleteSchema>
+): Promise<GroupMembership | null> {
+  const input = recoverCreatedAthleteSchema.parse(command);
+  return db.transaction(async (tx) => {
+    const group = await assertGroupAccess(tx, {
+      organizationId: input.organizationId,
+      groupId: input.groupId,
+      actor: input.actor,
+      requireActive: false,
+      intent: "read",
+    });
+    const events = await tx
+      .select()
+      .from(outboxEvents)
+      .where(
+        and(
+          eq(outboxEvents.organizationId, input.organizationId),
+          eq(outboxEvents.idempotencyKey, input.idempotencyKey)
+        )
+      );
+    const [audit] = await tx
+      .select()
+      .from(auditLog)
+      .where(
+        and(
+          eq(auditLog.organizationId, input.organizationId),
+          eq(auditLog.idempotencyKey, `athlete-created:${input.idempotencyKey}`)
+        )
+      )
+      .limit(2);
+
+    if (events.length === 0 && !audit) return null;
+    if (events.length !== 2 || !audit) {
+      throw new OperationalError(
+        "IDEMPOTENCY_CONFLICT",
+        "El alta anterior tiene un recibo incompleto y requiere revisión",
+        409
+      );
+    }
+
+    const createEvent = events.find((event) => event.eventName === "athlete.created");
+    const membershipEvent = events.find((event) => event.eventName === "group.membership_added");
+    const athleteId = createEvent?.aggregateId;
+    const membershipId = membershipEvent?.aggregateId;
+    const createPayload = createEvent?.payload;
+    const membershipPayload = membershipEvent?.payload;
+    if (
+      !createEvent || !membershipEvent ||
+      createEvent.eventVersion !== 1 || membershipEvent.eventVersion !== 1 ||
+      createEvent.aggregateType !== "athlete" || membershipEvent.aggregateType !== "group_membership" ||
+      !athleteId || !membershipId ||
+      !isRecord(createPayload) || !isRecord(membershipPayload) ||
+      Object.keys(createPayload).sort().join(",") !== "athleteId" ||
+      Object.keys(membershipPayload).sort().join(",") !== "athleteId,groupId,membershipId,startsOn,status" ||
+      createPayload.athleteId !== athleteId ||
+      membershipPayload.membershipId !== membershipId ||
+      audit.action !== "athlete.created_and_added_to_group" ||
+      audit.targetType !== "athlete" || audit.targetId !== athleteId ||
+      audit.actorUserId !== input.actor.userId ||
+      !matchesAthleteCreateAuditAfter(audit.after, input.groupId, membershipId) ||
+      !z.string().date().safeParse(membershipPayload.startsOn).success ||
+      membershipPayload.status !== "active"
+    ) {
+      throw new OperationalError(
+        "IDEMPOTENCY_CONFLICT",
+        "El recibo del alta no coincide con la operación y el actor actuales",
+        409
+      );
+    }
+
+    assertIdempotencyPayload(membershipPayload, {
+      groupId: input.groupId,
+      athleteId,
+    });
+    if (
+      createEvent.locationId !== membershipEvent.locationId ||
+      audit.locationId !== membershipEvent.locationId
+    ) {
+      throw new OperationalError(
+        "IDEMPOTENCY_CONFLICT",
+        "El recibo del alta contiene datos de alcance incoherentes",
+        409
+      );
+    }
+
+    if (group.locationId !== membershipEvent.locationId) {
+      throw new OperationalError(
+        "IDEMPOTENCY_CONFLICT",
+        "La pertenencia anterior ya no coincide con el alcance de la sede",
+        409
+      );
+    }
+
+    const membership = await loadMembership(tx, input.organizationId, membershipId, { priorResult: true });
+    if (
+      membership.athleteId !== athleteId ||
+      membership.groupId !== input.groupId ||
+      membership.startsOn !== membershipPayload.startsOn
+    ) {
+      throw new OperationalError(
+        "IDEMPOTENCY_CONFLICT",
+        "La pertenencia actual no coincide con el recibo del alta",
+        409
+      );
+    }
+    return membership;
+  });
+}
+
 function canTransition(from: MembershipStatus, to: MembershipStatus): boolean {
   if (from === "pending") return to === "active" || to === "ended";
   if (from === "active") return to === "paused" || to === "ended";
@@ -695,6 +839,7 @@ export async function transitionGroupMembership(
       groupId: current.groupId,
       actor: input.actor,
       requireActive: false,
+      intent: "read",
     });
 
     const prior = await loadMembershipFromEvent(tx, {
@@ -710,6 +855,9 @@ export async function transitionGroupMembership(
       },
     });
     if (prior) return prior;
+
+    // Reading an authorized prior result is not a new operational write.
+    await assertOrganizationOperationalWritable(tx, input.organizationId);
 
     if (current.status !== input.expectedStatus) {
       throw new OperationalError(

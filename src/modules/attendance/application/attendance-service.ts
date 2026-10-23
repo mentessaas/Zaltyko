@@ -12,6 +12,7 @@ import {
 } from "@/db/zaltyko-schema";
 import { operationalActorSchema } from "@/modules/shared/application/actor";
 import { OperationalError } from "@/modules/shared/domain/operational-error";
+import { assertOrganizationOperationalWritable } from "@/modules/saas-billing/application/organization-usage";
 import { assertOperationalAccess } from "@/modules/shared/infrastructure/operational-authorization";
 import {
   appendAuditEntry,
@@ -90,7 +91,6 @@ export async function recordAttendance(
       organizationId: input.organizationId,
       locationId: session.locationId,
       actor: input.actor,
-      intent: "write",
       allowedRoles: ["owner", "manager", "admin", "coach"],
     });
 
@@ -135,16 +135,41 @@ export async function recordAttendance(
         enrollmentId: input.enrollmentId,
         status: input.status,
       });
-    }
-    const priorAttendanceId = priorEvent?.payload.attendanceId;
-    if (typeof priorAttendanceId === "string") {
+      const parsedAttendanceId = z.string().uuid().safeParse(priorEvent.payload.attendanceId);
+      if (
+        !parsedAttendanceId.success ||
+        priorEvent.aggregateType !== "attendance" ||
+        priorEvent.aggregateId !== parsedAttendanceId.data
+      ) {
+        throw new OperationalError(
+          "IDEMPOTENCY_CONFLICT",
+          "El registro previo no identifica una asistencia coherente",
+          409
+        );
+      }
       const prior = await loadAttendance(
         tx,
         input.organizationId,
-        priorAttendanceId
+        parsedAttendanceId.data
       );
-      if (prior) return prior;
+      if (
+        !prior ||
+        prior.sessionId !== input.sessionId ||
+        prior.enrollmentId !== input.enrollmentId ||
+        prior.status !== input.status
+      ) {
+        throw new OperationalError(
+          "IDEMPOTENCY_CONFLICT",
+          "La asistencia del resultado anterior ya no coincide con la operación",
+          409
+        );
+      }
+      return prior;
     }
+
+    // A replay only recovers an already committed record; enforce the plan's
+    // write gate only when this command would create or correct attendance.
+    await assertOrganizationOperationalWritable(tx, input.organizationId);
 
     if (session.status === "cancelled") {
       throw new OperationalError(

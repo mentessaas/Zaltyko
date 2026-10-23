@@ -2,8 +2,24 @@
 
 import Link from "next/link";
 import { useRouter } from "next/navigation";
-import { useRef, useState, type FormEvent } from "react";
+import { useEffect, useLayoutEffect, useRef, useState, type FormEvent } from "react";
 import { ArrowRight, Plus, X } from "lucide-react";
+import { useOrganizationDraftField } from "@/components/owner-dashboard/use-organization-draft-field";
+import {
+  clearPendingOwnerClassCreate,
+  ownerClassCreateRejection,
+  persistPendingOwnerClassCreate,
+  readOwnerClassCreateReceipt,
+  readPendingOwnerClassCreate,
+  type PendingOwnerClassCreate,
+} from "@/components/owner-dashboard/owner-class-command-response";
+import { usePendingCommandExitWarning } from "@/components/owner-dashboard/use-pending-command-exit-warning";
+import { OwnerOperationalReadOnlyNotice } from "@/components/owner-dashboard/OwnerOperationalReadOnlyNotice";
+import { useOwnerPlanPolicy } from "@/components/owner-dashboard/owner-plan-usage-store";
+import { ownerDashboardScopeHref } from "@/components/owner-dashboard/owner-dashboard-scope-url";
+
+const useCommittedLayoutEffect =
+  typeof window === "undefined" ? useEffect : useLayoutEffect;
 
 type ClassesBundle = Awaited<
   ReturnType<
@@ -59,26 +75,6 @@ const fieldClassName =
 const primaryButtonClassName =
   "touch-target inline-flex min-h-11 items-center justify-center gap-2 bg-teal-800 px-4 py-2 text-sm font-bold text-white hover:bg-teal-900 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-teal-800 disabled:cursor-not-allowed disabled:opacity-50";
 
-function responseData<T>(payload: unknown): T | null {
-  if (payload && typeof payload === "object" && "data" in payload) {
-    return (payload as { data: T }).data;
-  }
-  return null;
-}
-
-function responseError(payload: unknown): string {
-  if (!payload || typeof payload !== "object") {
-    return "No se pudo crear la clase. Inténtalo de nuevo.";
-  }
-  const detail = "detail" in payload ? payload.detail : undefined;
-  const message = "message" in payload ? payload.message : undefined;
-  return typeof detail === "string"
-    ? detail
-    : typeof message === "string"
-      ? message
-      : "No se pudo crear la clase. Inténtalo de nuevo.";
-}
-
 function formatDate(value: string): string {
   return new Intl.DateTimeFormat("es-ES", {
     day: "numeric",
@@ -103,32 +99,89 @@ function hasOverlappingSchedule(schedule: ScheduleSlot[]): boolean {
 
 export function OwnerClassesManager({ bundle }: { bundle: ClassesBundle }) {
   const router = useRouter();
+  const organizationId = bundle.organization.id;
+  const planPolicy = useOwnerPlanPolicy(organizationId);
+  const writesAllowed = planPolicy.status === "ready" && !planPolicy.readOnly;
+  const writesBlocked = !writesAllowed;
+  const currentOrganizationRef = useRef(organizationId);
+  useCommittedLayoutEffect(() => {
+    currentOrganizationRef.current = organizationId;
+  }, [organizationId]);
   const initialLocationId =
     bundle.selectedLocationId ?? bundle.locations[0]?.id ?? "";
-  const [locationId, setLocationId] = useState(initialLocationId);
-  const [programId, setProgramId] = useState(bundle.programs[0]?.id ?? "");
-  const [name, setName] = useState("");
-  const [capacity, setCapacity] = useState("12");
-  const [effectiveFrom, setEffectiveFrom] = useState(
-    bundle.localTodayByLocation[initialLocationId] ?? ""
+  const [locationId, setLocationId] = useOrganizationDraftField(
+    organizationId,
+    initialLocationId
   );
-  const [effectiveTo, setEffectiveTo] = useState("");
-  const [schedule, setSchedule] = useState<ScheduleSlot[]>([
-    {
-      id: "schedule-1",
-      isoWeekday: 1,
-      startsAtLocal: "17:00",
-      endsAtLocal: "18:00",
-    },
-  ]);
+  const [programId, setProgramId] = useOrganizationDraftField(
+    organizationId,
+    () => bundle.programs[0]?.id ?? ""
+  );
+  const [name, setName] = useOrganizationDraftField(organizationId, "");
+  const [capacity, setCapacity] = useOrganizationDraftField(
+    organizationId,
+    "12"
+  );
+  const [effectiveFrom, setEffectiveFrom] = useOrganizationDraftField(
+    organizationId,
+    () => bundle.localTodayByLocation[initialLocationId] ?? ""
+  );
+  const [effectiveTo, setEffectiveTo] = useOrganizationDraftField(
+    organizationId,
+    ""
+  );
+  const [schedule, setSchedule] = useOrganizationDraftField<ScheduleSlot[]>(
+    organizationId,
+    () => [
+      {
+        id: "schedule-1",
+        isoWeekday: 1,
+        startsAtLocal: "17:00",
+        endsAtLocal: "18:00",
+      },
+    ]
+  );
   const [busy, setBusy] = useState(false);
+  const createInFlightRef = useRef(false);
   const [error, setError] = useState("");
   const [notice, setNotice] = useState("");
-  const [retryRequest, setRetryRequest] = useState<{
-    key: string;
-    body: CreateClassBody;
-  } | null>(null);
+  const [retryRequest, setRetryRequest] = useState<PendingOwnerClassCreate | null>(null);
+  const pendingRequestRef = useRef<PendingOwnerClassCreate | null>(null);
+  const [pendingScopeLoadedFor, setPendingScopeLoadedFor] = useState<string | null>(null);
+  const [pendingStorageError, setPendingStorageError] = useState("");
+  const [blockedMarkerPersistenceFailed, setBlockedMarkerPersistenceFailed] = useState(false);
+  usePendingCommandExitWarning(retryRequest !== null, pendingRequestRef);
   const nextSlotId = useRef(1);
+
+  useEffect(() => {
+    const result = readPendingOwnerClassCreate(organizationId);
+    pendingRequestRef.current = result.status === "pending" ? result.command : null;
+    setRetryRequest(result.status === "pending" ? result.command : null);
+    setPendingStorageError(
+      result.status === "invalid"
+        ? "Hay una solicitud de clase pendiente que no se puede recuperar con seguridad. No se iniciará otra; solicita ayuda para revisar esta sesión."
+        : result.status === "unavailable"
+          ? "No se pudo comprobar la solicitud pendiente de esta academia. No se iniciará otra hasta recuperar el almacenamiento de sesión."
+          : ""
+    );
+    setBlockedMarkerPersistenceFailed(false);
+    setPendingScopeLoadedFor(organizationId);
+    if (result.status === "pending") {
+      const body = JSON.parse(result.command.body) as CreateClassBody;
+      setLocationId(body.locationId);
+      setProgramId(body.programId ?? "");
+      setName(body.name);
+      setCapacity(String(body.capacity));
+      setEffectiveFrom(body.effectiveFrom);
+      setEffectiveTo(body.effectiveTo ?? "");
+      setSchedule(body.schedule.map((slot, index) => ({ id: `schedule-${index + 1}`, ...slot })));
+    }
+  }, [organizationId]);
+
+  function setPendingRequest(command: PendingOwnerClassCreate | null) {
+    pendingRequestRef.current = command;
+    setRetryRequest(command);
+  }
 
   function updateSchedule(slotId: string, patch: Partial<ScheduleSlot>) {
     setSchedule((current) =>
@@ -145,44 +198,83 @@ export function OwnerClassesManager({ bundle }: { bundle: ClassesBundle }) {
     }
   }
 
-  async function sendCreate(key: string, body: CreateClassBody) {
+  async function sendCreate(command: PendingOwnerClassCreate) {
+    if (
+      createInFlightRef.current ||
+      command.organizationId !== currentOrganizationRef.current ||
+      command.blocked
+    ) return;
+    createInFlightRef.current = true;
+    if (!persistPendingOwnerClassCreate(command)) {
+      setError("No se pudo guardar la solicitud pendiente en esta sesión. No se ha enviado; inténtalo de nuevo cuando el almacenamiento esté disponible.");
+      createInFlightRef.current = false;
+      return;
+    }
     setBusy(true);
     setError("");
     setNotice("");
-    setRetryRequest({ key, body });
+    setPendingRequest(command);
     try {
       const response = await fetch("/api/v1/owner/classes", {
         method: "POST",
         headers: {
           "content-type": "application/json",
-          "idempotency-key": key,
+          "idempotency-key": command.key,
         },
-        body: JSON.stringify(body),
+        body: command.body,
       });
       const payload = await response.json().catch(() => null);
-      const created = responseData<{
-        id: string;
-        sessionCount: number;
-        generatedThrough: string;
-      }>(payload);
-      if (!response.ok || !created?.id) {
-        setError(responseError(payload));
-        if (response.status < 500) setRetryRequest(null);
+      if (!response.ok) {
+        const outcome = ownerClassCreateRejection(response, payload, command.previouslyUncertain);
+        if (outcome.status === "blocked") {
+          const blockedCommand = { ...command, previouslyUncertain: true, blocked: true };
+          setBlockedMarkerPersistenceFailed(
+            !persistPendingOwnerClassCreate(blockedCommand)
+          );
+          if (currentOrganizationRef.current === command.organizationId) {
+            setPendingRequest(blockedCommand);
+            setError(outcome.message);
+          }
+        } else if (outcome.status === "rejected") {
+          clearPendingOwnerClassCreate(command.organizationId);
+          if (currentOrganizationRef.current === command.organizationId) setPendingRequest(null);
+        } else {
+          const uncertainCommand = { ...command, previouslyUncertain: true, blocked: false };
+          if (currentOrganizationRef.current === command.organizationId) setPendingRequest(uncertainCommand);
+        }
+        if (currentOrganizationRef.current === command.organizationId) setError(outcome.message);
         return;
       }
 
-      setRetryRequest(null);
-      setName("");
-      setEffectiveTo("");
-      setNotice(
-        `Clase creada con ${created.sessionCount} sesiones preparadas hasta el ${formatDate(created.generatedThrough)}.`
-      );
-      router.refresh();
+      const expectedBody = JSON.parse(command.body) as CreateClassBody;
+      const created = readOwnerClassCreateReceipt(payload, expectedBody.name);
+      if (!created) {
+        const uncertainCommand = { ...command, previouslyUncertain: true, blocked: false };
+        if (currentOrganizationRef.current === command.organizationId) {
+          setPendingRequest(uncertainCommand);
+          setError("No sabemos si se guardó. El acuse no coincide con esta clase; reintenta este mismo envío para comprobar el resultado.");
+        }
+        return;
+      }
+
+      clearPendingOwnerClassCreate(command.organizationId);
+      if (currentOrganizationRef.current === command.organizationId) {
+        setPendingRequest(null);
+        setName("");
+        setEffectiveTo("");
+        setNotice(
+          `Clase creada con ${created.sessionCount} sesiones preparadas hasta el ${formatDate(created.generatedThrough)}.`
+        );
+        router.refresh();
+      }
     } catch {
-      setError(
-        "No sabemos si se guardó. Reintenta este mismo envío; la clave segura evita duplicar la clase."
-      );
+      const uncertainCommand = { ...command, previouslyUncertain: true, blocked: false };
+      if (currentOrganizationRef.current === command.organizationId) {
+        setPendingRequest(uncertainCommand);
+        setError("No sabemos si se guardó. Reintenta este mismo envío; conservaremos el cuerpo y la clave para evitar duplicados.");
+      }
     } finally {
+      createInFlightRef.current = false;
       setBusy(false);
     }
   }
@@ -190,11 +282,23 @@ export function OwnerClassesManager({ bundle }: { bundle: ClassesBundle }) {
   function submit(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
     if (retryRequest) {
-      void sendCreate(retryRequest.key, retryRequest.body);
+      if (retryRequest.organizationId === organizationId) void sendCreate(retryRequest);
       return;
     }
+    if (writesBlocked) return;
+    if (pendingScopeLoadedFor !== organizationId || pendingStorageError) return;
     setError("");
     setNotice("");
+
+    if (
+      !bundle.locations.some((location) => location.id === locationId) ||
+      !bundle.programs.some((program) => program.id === programId)
+    ) {
+      setError(
+        "La actividad o la sede ya no pertenecen a esta academia. Vuelve a elegirlas."
+      );
+      return;
+    }
 
     const parsedCapacity = Number(capacity);
     if (
@@ -221,7 +325,7 @@ export function OwnerClassesManager({ bundle }: { bundle: ClassesBundle }) {
     }
 
     const body: CreateClassBody = {
-      organizationId: bundle.organization.id,
+      organizationId,
       locationId,
       programId,
       name: name.trim(),
@@ -234,10 +338,18 @@ export function OwnerClassesManager({ bundle }: { bundle: ClassesBundle }) {
         endsAtLocal,
       })),
     };
-    void sendCreate(`owner-class:${crypto.randomUUID()}`, body);
+    void sendCreate({
+      version: 1,
+      organizationId,
+      key: `owner-class:${crypto.randomUUID()}`,
+      body: JSON.stringify(body),
+      previouslyUncertain: false,
+      blocked: false,
+    });
   }
 
-  const formLocked = busy || retryRequest !== null;
+  const pendingForCurrentOrganization = retryRequest?.organizationId === organizationId ? retryRequest : null;
+  const formLocked = busy || retryRequest !== null || pendingScopeLoadedFor !== organizationId || pendingStorageError !== "" || writesBlocked;
   const canCreate = bundle.locations.length > 0 && bundle.programs.length > 0;
 
   return (
@@ -245,7 +357,11 @@ export function OwnerClassesManager({ bundle }: { bundle: ClassesBundle }) {
       <header className="mb-8 flex flex-wrap items-end justify-between gap-4">
         <div>
           <Link
-            href={`/owner?organizationId=${bundle.organization.id}`}
+            href={ownerDashboardScopeHref(
+              "/owner",
+              bundle.organization.id,
+              bundle.selectedLocationId
+            )}
             className="touch-target inline-flex items-center text-sm font-semibold text-teal-900 underline underline-offset-4"
           >
             <span>Volver al resumen</span>
@@ -266,6 +382,8 @@ export function OwnerClassesManager({ bundle }: { bundle: ClassesBundle }) {
         </Link>
       </header>
 
+      <OwnerOperationalReadOnlyNotice organizationId={organizationId} />
+
       {notice && (
         <p
           role="status"
@@ -284,6 +402,31 @@ export function OwnerClassesManager({ bundle }: { bundle: ClassesBundle }) {
         >
           {error}
         </p>
+      )}
+
+      {pendingStorageError && (
+        <p role="alert" aria-live="assertive" className="mb-5 border border-rose-700 bg-rose-50 p-4 text-sm text-rose-950">
+          {pendingStorageError}
+        </p>
+      )}
+
+      {retryRequest && !pendingForCurrentOrganization && (
+        <p role="status" className="mb-5 border border-amber-700 bg-amber-50 p-4 text-sm text-amber-950">
+          Hay una creación pendiente en otra academia. Vuelve a esa academia para resolverla antes de iniciar otra.
+        </p>
+      )}
+
+      {pendingForCurrentOrganization?.blocked && (
+        <section className="mb-5 border border-amber-700 bg-amber-50 p-4 text-sm text-amber-950" aria-label="Creación bloqueada por conflicto">
+          <p role="status">
+            {blockedMarkerPersistenceFailed
+              ? "No volveremos a enviar esta creación en esta pantalla. No se pudo guardar la marca de bloqueo; no recargues ni cierres esta pestaña y no inicies otra clase hasta que soporte revise el resultado. Este bloqueo podría no conservarse al recargar."
+              : "No volveremos a enviar esta creación. Recarga la lista para comprobar si la clase aparece; si no aparece o el resultado no está claro, contacta con soporte antes de iniciar otra."}
+          </p>
+          <Link href="/contact?type=support" className="mt-3 inline-flex min-h-11 items-center font-semibold underline underline-offset-4">
+            Contactar con soporte
+          </Link>
+        </section>
       )}
 
       {!canCreate ? (
@@ -534,14 +677,20 @@ export function OwnerClassesManager({ bundle }: { bundle: ClassesBundle }) {
 
             <button
               type="submit"
-              disabled={busy || !canCreate}
+              disabled={busy || !canCreate || pendingScopeLoadedFor !== organizationId || pendingStorageError !== "" || (retryRequest !== null && !pendingForCurrentOrganization) || pendingForCurrentOrganization?.blocked === true || (writesBlocked && !pendingForCurrentOrganization)}
               className={primaryButtonClassName}
             >
               {busy
                 ? "Guardando…"
-                : retryRequest
+                : pendingForCurrentOrganization?.blocked
+                  ? "Revisión de soporte necesaria"
+                  : pendingForCurrentOrganization
                   ? "Reintentar el mismo envío"
-                  : "Crear clase y sesiones"}
+                  : retryRequest
+                    ? "Operación pendiente en otra academia"
+                    : pendingScopeLoadedFor !== organizationId
+                      ? "Comprobando solicitudes…"
+                      : "Crear clase y sesiones"}
             </button>
           </form>
 

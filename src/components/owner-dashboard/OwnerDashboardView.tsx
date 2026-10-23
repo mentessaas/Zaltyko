@@ -23,6 +23,7 @@ import {
   DashboardModule,
   DashboardModuleLayout,
 } from "@/components/owner-dashboard/DashboardModuleLayout";
+import { ownerDashboardScopeHref } from "@/components/owner-dashboard/owner-dashboard-scope-url";
 
 type CapacityBundle = Awaited<ReturnType<typeof getCapacityHeatmap>>;
 type CohortsBundle = Awaited<ReturnType<typeof getRetentionCohorts>>;
@@ -46,11 +47,12 @@ const statusLabels: Record<string, string> = {
   insufficient: "Insuficiente",
 };
 
-function formatDate(value: string): string {
+export function formatDate(value: string): string {
   return new Intl.DateTimeFormat("es-ES", {
     day: "2-digit",
     month: "short",
     year: "numeric",
+    timeZone: "UTC",
   }).format(new Date(`${value}T12:00:00Z`));
 }
 
@@ -397,6 +399,21 @@ function EmptyDashboard({
     | null;
 }) {
   const hasOperationalSummary = operationalSummary !== undefined;
+  const groupsHref = ownerDashboardScopeHref(
+    "/owner/groups",
+    bundle.organization.id,
+    bundle.scope.locationId
+  );
+  const classesHref = ownerDashboardScopeHref(
+    "/owner/classes",
+    bundle.organization.id,
+    bundle.scope.locationId
+  );
+  const enrollmentsHref = ownerDashboardScopeHref(
+    "/owner/enrollments",
+    bundle.organization.id,
+    bundle.scope.locationId
+  );
 
   return (
     <main id="contenido" className="mx-auto max-w-5xl px-5 py-10">
@@ -439,21 +456,21 @@ function EmptyDashboard({
           <ArrowRight className="h-4 w-4" aria-hidden="true" />
         </Link>
         <Link
-          href={`/owner/groups?organizationId=${bundle.organization.id}`}
+          href={groupsHref}
           className="touch-target ml-3 mt-7 inline-flex items-center gap-2 rounded-full border border-slate-400 bg-white px-5 py-3 text-sm font-bold text-slate-900"
         >
           Gestionar grupos
           <ArrowRight className="h-4 w-4" aria-hidden="true" />
         </Link>
         <Link
-          href={`/owner/classes?organizationId=${bundle.organization.id}`}
+          href={classesHref}
           className="touch-target ml-3 mt-7 inline-flex items-center gap-2 rounded-full border border-slate-400 bg-white px-5 py-3 text-sm font-bold text-slate-900"
         >
           Gestionar clases
           <ArrowRight className="h-4 w-4" aria-hidden="true" />
         </Link>
         <Link
-          href={"/owner/enrollments?organizationId=" + bundle.organization.id}
+          href={enrollmentsHref}
           className="touch-target ml-3 mt-7 inline-flex items-center gap-2 rounded-full border border-slate-400 bg-white px-5 py-3 text-sm font-bold text-slate-900"
         >
           Gestionar inscripciones

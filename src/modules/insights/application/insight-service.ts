@@ -26,6 +26,7 @@ import {
   type SystemActor,
 } from "@/modules/shared/application/actor";
 import { OperationalError } from "@/modules/shared/domain/operational-error";
+import { assertOrganizationOperationalWritable } from "@/modules/saas-billing/application/organization-usage";
 import {
   assertOperationalAccess,
   assertSystemOperationalScope,
@@ -186,7 +187,6 @@ export async function runInsightEvaluation(
         organizationId: input.organizationId,
         locationId: input.authorizationLocationId,
         actor: input.actor,
-        intent: "write",
         allowedRoles: ["owner", "admin"],
       });
     }
@@ -202,7 +202,6 @@ export async function runInsightEvaluation(
           organizationId: input.organizationId,
           locationId: input.targetLocationId,
           actor: input.actor,
-          intent: "write",
           allowedRoles: ["owner", "admin"],
         });
       }
@@ -225,6 +224,12 @@ export async function runInsightEvaluation(
         targetLocationId: input.targetLocationId ?? null,
       });
       return prior.result as unknown as InsightEvaluationResult;
+    }
+
+    // Cron/system actors keep their existing scoped flow. Human actors must
+    // pass the SaaS write gate, but only for a fresh evaluation (first DML).
+    if (!("type" in input.actor)) {
+      await assertOrganizationOperationalWritable(tx, input.organizationId);
     }
 
     const [rule] = await tx

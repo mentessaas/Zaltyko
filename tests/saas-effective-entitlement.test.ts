@@ -121,6 +121,27 @@ describe("effective canonical SaaS entitlement (mocked DB, real resolver)", () =
     }
   );
 
+  it("preserves only the already-paid plan window for unpaid before effective_until", async () => {
+    const justBeforeEnd = new Date(new Date(end).getTime() - 1);
+    const result = await resolve(
+      paid({ subscription_provider_status: "unpaid" }),
+      justBeforeEnd
+    );
+    expect(result.planCode).toBe("growth");
+    expect(result.limits.athleteLimit).toBe(200);
+    expect(result.effectiveUntil?.toISOString()).toBe(end);
+  });
+
+  it("switches unpaid to Free at the exclusive effective_until boundary", async () => {
+    const result = await resolve(
+      paid({ subscription_provider_status: "unpaid" }),
+      new Date(end)
+    );
+    expect(result.planCode).toBe("free");
+    expect(result.limits.athleteLimit).toBe(30);
+    expect(result.effectiveUntil).toBeNull();
+  });
+
   it.each(["incomplete", "incomplete_expired", "trialing"])(
     "does not grant paid access from provider state %s without a paid right",
     async (status) => {

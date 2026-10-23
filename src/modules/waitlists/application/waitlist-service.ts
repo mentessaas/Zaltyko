@@ -188,12 +188,55 @@ async function loadEntryFromEvent(
   }
 ): Promise<WaitlistEntry | null> {
   const event = await findOutboxEvent(tx, input);
-  if (event) {
-    assertIdempotencyPayload(event.payload, input.expectedPayload);
+  if (!event) return null;
+  assertIdempotencyPayload(event.payload, input.expectedPayload);
+  const parsedEntryId = z.string().uuid().safeParse(event.payload.waitlistEntryId);
+  if (
+    !parsedEntryId.success ||
+    event.aggregateType !== "waitlist_entry" ||
+    event.aggregateId !== parsedEntryId.data
+  ) {
+    throw new OperationalError(
+      "IDEMPOTENCY_CONFLICT",
+      "El resultado previo de la lista de espera no es coherente",
+      409
+    );
   }
-  const entryId = event?.payload.waitlistEntryId;
-  if (typeof entryId !== "string") return null;
-  return loadEntry(tx, input.organizationId, entryId);
+  return loadEntry(tx, input.organizationId, parsedEntryId.data);
+}
+
+function assertJoinReplayMatchesStoredCommand(
+  entry: WaitlistEntry,
+  input: z.infer<typeof joinWaitlistSchema>
+): void {
+  const storedPreferences = waitlistPreferencesSchema
+    .passthrough()
+    .safeParse(entry.preferences);
+  const expectedConsentRecordedAt = input.contactConsentRecordedAt
+    ? new Date(input.contactConsentRecordedAt).getTime()
+    : null;
+  const storedConsentRecordedAt =
+    entry.contactConsentRecordedAt?.getTime() ?? null;
+
+  if (
+    entry.contactGuardianId !== (input.contactGuardianId ?? null) ||
+    storedConsentRecordedAt !== expectedConsentRecordedAt ||
+    !storedPreferences.success ||
+    storedPreferences.data.weekdays.length !== input.preferences.weekdays.length ||
+    storedPreferences.data.weekdays.some(
+      (weekday, index) => weekday !== input.preferences.weekdays[index]
+    ) ||
+    storedPreferences.data.timeBands.length !== input.preferences.timeBands.length ||
+    storedPreferences.data.timeBands.some(
+      (timeBand, index) => timeBand !== input.preferences.timeBands[index]
+    )
+  ) {
+    throw new OperationalError(
+      "IDEMPOTENCY_CONFLICT",
+      "La clave de idempotencia ya fue usada con otros parámetros",
+      409
+    );
+  }
 }
 
 async function loadOfferFromEvent(
@@ -206,12 +249,28 @@ async function loadOfferFromEvent(
   }
 ): Promise<WaitlistOffer | null> {
   const event = await findOutboxEvent(tx, input);
-  if (event) {
-    assertIdempotencyPayload(event.payload, input.expectedPayload);
+  if (!event) return null;
+  assertIdempotencyPayload(event.payload, input.expectedPayload);
+  const parsedOfferId = z.string().uuid().safeParse(event.payload.offerId);
+  if (!parsedOfferId.success) {
+    throw new OperationalError(
+      "IDEMPOTENCY_CONFLICT",
+      "El resultado previo de la oferta no es coherente",
+      409
+    );
   }
-  const offerId = event?.payload.offerId;
-  if (typeof offerId !== "string") return null;
-  return loadOffer(tx, input.organizationId, offerId);
+  const offer = await loadOffer(tx, input.organizationId, parsedOfferId.data);
+  if (
+    event.aggregateType !== "waitlist_entry" ||
+    event.aggregateId !== offer.waitlistEntryId
+  ) {
+    throw new OperationalError(
+      "IDEMPOTENCY_CONFLICT",
+      "El resultado previo de la oferta no es coherente",
+      409
+    );
+  }
+  return offer;
 }
 
 async function locationBusinessDate(
@@ -292,11 +351,11 @@ export async function joinWaitlist(
       },
     });
     if (prior) {
+      assertJoinReplayMatchesStoredCommand(prior, input);
       await assertOperationalAccess(tx, {
         organizationId: input.organizationId,
         locationId: prior.locationId,
         actor: input.actor,
-        intent: "write",
         allowedRoles: privilegedRoles,
       });
       return prior;
@@ -526,7 +585,6 @@ export async function sendWaitlistOffer(
         organizationId: input.organizationId,
         locationId: entry.locationId,
         actor: input.actor,
-        intent: "write",
         allowedRoles: privilegedRoles,
       });
       return { entry, offer: priorOffer };
@@ -735,7 +793,6 @@ export async function acceptWaitlistOffer(
         organizationId: input.organizationId,
         locationId: entry.locationId,
         actor: input.actor,
-        intent: "write",
         allowedRoles: privilegedRoles,
       });
       return { entry, offer: priorOffer };
@@ -927,7 +984,6 @@ export async function expireWaitlistOffer(
         organizationId: input.organizationId,
         locationId: entry.locationId,
         actor: input.actor,
-        intent: "write",
         allowedRoles: privilegedRoles,
       });
       return { entry, offer: priorOffer };

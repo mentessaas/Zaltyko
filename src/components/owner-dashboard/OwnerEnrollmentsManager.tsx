@@ -3,45 +3,34 @@
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useEffect, useRef, useState, type FormEvent } from "react";
+import { usePendingCommandExitWarning } from "./use-pending-command-exit-warning";
+import { useOrganizationDraftField } from "./use-organization-draft-field";
+import { OwnerOperationalReadOnlyNotice } from "./OwnerOperationalReadOnlyNotice";
+import { useOwnerPlanPolicy } from "./owner-plan-usage-store";
 import { ArrowLeft, UserPlus } from "lucide-react";
 
 import { OwnerEnrollmentCreateForm } from "./OwnerEnrollmentCreateForm";
 import { OwnerEnrollmentList } from "./OwnerEnrollmentList";
+import { enrollmentCandidates, enrollmentLookupError, enrollmentPricePlans } from "./owner-enrollment-lookups";
+import {
+  clearPendingEnrollmentIntent,
+  enrollmentCommandOutcome,
+  persistPendingEnrollmentIntent,
+  readPendingEnrollmentIntent,
+  type PendingEnrollmentIntent,
+} from "./owner-enrollment-command-response";
 import { primaryButtonClassName, statusHref } from "./owner-enrollment-ui";
+import {
+  constrainEnrollmentStartDate,
+  isEnrollmentStartDateAllowed,
+} from "./owner-enrollment-date";
 import type {
   Candidate,
   ChangeableStatus,
   EnrollmentBundle,
+  PricePlanOption,
   StatusFilter,
 } from "./owner-enrollment-types";
-
-type PricePlanOption = {
-  id: string;
-  name: string;
-  amountCents: number;
-  currency: string;
-  cadence: string;
-};
-
-function responseData<T>(payload: unknown): T | null {
-  if (payload && typeof payload === "object" && "data" in payload) {
-    return (payload as { data: T }).data;
-  }
-  return null;
-}
-
-function responseError(payload: unknown): string {
-  if (!payload || typeof payload !== "object") {
-    return "No se pudo guardar. Inténtalo de nuevo.";
-  }
-  const detail = "detail" in payload ? payload.detail : undefined;
-  const message = "message" in payload ? payload.message : undefined;
-  return typeof detail === "string"
-    ? detail
-    : typeof message === "string"
-      ? message
-      : "No se pudo guardar. Inténtalo de nuevo.";
-}
 
 export function OwnerEnrollmentsManager({
   bundle,
@@ -55,18 +44,27 @@ export function OwnerEnrollmentsManager({
   previewCreateForm?: boolean;
 }) {
   const router = useRouter();
-  const [createOpen, setCreateOpen] = useState(
+  const organizationId = bundle.organization.id;
+  const planPolicy = useOwnerPlanPolicy(organizationId, !previewMode);
+  const writesAllowed = planPolicy.status === "ready" && !planPolicy.readOnly;
+  const writesBlocked = !writesAllowed;
+  const [createOpen, setCreateOpen] = useOrganizationDraftField(organizationId,
     previewCreateForm || (!previewMode && bundle.enrollments.length === 0)
   );
-  const [createLocationId, setCreateLocationId] = useState(
+  const [createLocationId, setCreateLocationId] = useOrganizationDraftField(organizationId,
     bundle.selectedLocationId ?? bundle.locations[0]?.id ?? ""
   );
-  const [classTemplateId, setClassTemplateId] = useState(
+  const [classTemplateId, setClassTemplateId] = useOrganizationDraftField(organizationId,
     previewCreateForm ? (bundle.classes[0]?.id ?? "") : ""
   );
-  const [candidateQuery, setCandidateQuery] = useState("");
-  const [candidates, setCandidates] = useState<Candidate[]>([]);
-  const [selectedCandidate, setSelectedCandidate] = useState<Candidate | null>(
+  const initialSelectedClass = bundle.classes.find(
+    (classItem) =>
+      classItem.id === classTemplateId &&
+      classItem.locationId === createLocationId
+  );
+  const [candidateQuery, setCandidateQuery] = useOrganizationDraftField(organizationId, "");
+  const [candidates, setCandidates] = useOrganizationDraftField<Candidate[]>(organizationId, []);
+  const [selectedCandidate, setSelectedCandidate] = useOrganizationDraftField<Candidate | null>(organizationId,
     previewCreateForm
       ? {
           id: "20000000-0000-0000-0000-000000000071",
@@ -74,28 +72,42 @@ export function OwnerEnrollmentsManager({
         }
       : null
   );
-  const [candidateLoading, setCandidateLoading] = useState(false);
-  const [candidateError, setCandidateError] = useState("");
-  const [candidateNotice, setCandidateNotice] = useState("");
-  const [startsOn, setStartsOn] = useState(
-    bundle.localTodayByLocation[createLocationId] ?? ""
-  );
-  const [pricePlans, setPricePlans] = useState<PricePlanOption[]>([]);
-  const [pricePlansLoading, setPricePlansLoading] = useState(false);
-  const [pricePlansError, setPricePlansError] = useState("");
-  const [pricePlanId, setPricePlanId] = useState("");
+  const [candidateLoading, setCandidateLoading] = useOrganizationDraftField(organizationId, false);
+  const [candidateError, setCandidateError] = useOrganizationDraftField(organizationId, "");
+  const [candidateNotice, setCandidateNotice] = useOrganizationDraftField(organizationId, "");
+  const [startsOn, setStartsOn] = useOrganizationDraftField(organizationId, () => {
+    const localToday = bundle.localTodayByLocation[createLocationId] ?? "";
+    return initialSelectedClass
+      ? constrainEnrollmentStartDate(localToday, initialSelectedClass)
+      : localToday;
+  });
+  const [pricePlans, setPricePlans] = useOrganizationDraftField<PricePlanOption[]>(organizationId, []);
+  const [pricePlansLoading, setPricePlansLoading] = useOrganizationDraftField(organizationId, false);
+  const [pricePlansError, setPricePlansError] = useOrganizationDraftField(organizationId, "");
+  // null means not initialized; "" records no tariff, including an explicit choice.
+  const [pricePlanId, setPricePlanId] = useOrganizationDraftField<string | null>(organizationId, null);
+  const [candidateRetry, setCandidateRetry] = useOrganizationDraftField(organizationId, 0);
+  const [pricePlansRetry, setPricePlansRetry] = useOrganizationDraftField(organizationId, 0);
   const [busyId, setBusyId] = useState("");
   const [busyCreate, setBusyCreate] = useState(false);
-  const [confirmingCancelId, setConfirmingCancelId] = useState("");
-  const [confirmingCompleteId, setConfirmingCompleteId] = useState("");
-  const [error, setError] = useState("");
-  const [notice, setNotice] = useState("");
-  const retryCreate = useRef<{
-    key: string;
-    body: Record<string, string | null>;
-  } | null>(null);
-  const retryTransitions = useRef(new Map<string, string>());
-  const organizationId = bundle.organization.id;
+  const [confirmingCancelId, setConfirmingCancelId] = useOrganizationDraftField(organizationId, "");
+  const [confirmingCompleteId, setConfirmingCompleteId] = useOrganizationDraftField(organizationId, "");
+  const [error, setError] = useOrganizationDraftField(organizationId, "");
+  const [notice, setNotice] = useOrganizationDraftField(organizationId, "");
+  const currentOrganizationIdRef = useRef(organizationId);
+  currentOrganizationIdRef.current = organizationId;
+  const pendingIntentRef = useRef<PendingEnrollmentIntent | null>(null);
+  const uncertainIntentRef = useRef(false);
+  const sendingRef = useRef(false);
+  const [pendingIntent, setPendingIntent] = useState<PendingEnrollmentIntent | null>(null);
+  const [pendingScopeLoadedFor, setPendingScopeLoadedFor] = useState<string | null>(null);
+  const [pendingStorageError, setPendingStorageError] = useState("");
+  const [pendingStorageFailureKind, setPendingStorageFailureKind] = useState<"read" | "write" | null>(null);
+  const [pendingIntentReadAttempt, setPendingIntentReadAttempt] = useState(0);
+  usePendingCommandExitWarning(pendingIntent !== null, pendingIntentRef);
+  const retryButtonRef = useRef<HTMLButtonElement | null>(null);
+  const commandsLocked = pendingIntent !== null || busyCreate || busyId !== "" ||
+    (!previewMode && (pendingScopeLoadedFor !== organizationId || pendingStorageError !== ""));
   const classesForLocation = bundle.classes.filter(
     (classItem) => classItem.locationId === createLocationId
   );
@@ -109,6 +121,65 @@ export function OwnerEnrollmentsManager({
         ? "Participante"
         : "Gimnasta o participante";
   const createToday = bundle.localTodayByLocation[createLocationId] ?? "";
+  const pricePlanUnavailable = pricePlanId !== null && pricePlanId !== "" &&
+    !pricePlansLoading && !pricePlansError && !pricePlans.some(plan => plan.id === pricePlanId);
+
+  useEffect(() => {
+    if (pendingIntent?.organizationId === organizationId && !busyCreate && !busyId) retryButtonRef.current?.focus();
+  }, [pendingIntent, organizationId, busyCreate, busyId]);
+
+  useEffect(() => {
+    if (previewMode) return;
+    // Do not mark the new academy as checked while another academy's request
+    // is still in flight. Its completion will trigger a fresh read for this scope.
+    if (sendingRef.current) {
+      setPendingScopeLoadedFor(null);
+      return;
+    }
+    const previousIntent = pendingIntentRef.current;
+    const result = readPendingEnrollmentIntent(organizationId);
+    if (result.status === "pending") {
+      pendingIntentRef.current = result.intent;
+      uncertainIntentRef.current = true;
+      setPendingIntent(result.intent);
+      setPendingStorageError("");
+      setPendingStorageFailureKind(null);
+    } else if (result.status === "empty") {
+      const otherAcademyIntent = previousIntent &&
+        previousIntent.organizationId !== organizationId
+        ? readPendingEnrollmentIntent(previousIntent.organizationId)
+        : null;
+      if (otherAcademyIntent?.status === "pending") {
+        pendingIntentRef.current = otherAcademyIntent.intent;
+        uncertainIntentRef.current = true;
+        setPendingIntent(otherAcademyIntent.intent);
+        setPendingStorageError("");
+        setPendingStorageFailureKind(null);
+      } else if (otherAcademyIntent?.status === "unavailable" || otherAcademyIntent?.status === "invalid") {
+        pendingIntentRef.current = previousIntent;
+        setPendingIntent(previousIntent);
+        setPendingStorageError("No se pudo comprobar la operación pendiente de otra academia. No se iniciarán más escrituras hasta poder recuperarla.");
+        setPendingStorageFailureKind(otherAcademyIntent.status === "unavailable" ? "read" : null);
+      } else {
+        pendingIntentRef.current = null;
+        uncertainIntentRef.current = false;
+        setPendingIntent(null);
+        setPendingStorageError("");
+        setPendingStorageFailureKind(null);
+      }
+    } else {
+      pendingIntentRef.current = null;
+      uncertainIntentRef.current = false;
+      setPendingIntent(null);
+      setPendingStorageError(result.status === "unavailable"
+        ? "No se pudo leer el almacenamiento de sesión. No se enviará ni sobrescribirá ninguna operación hasta poder comprobar si hay una inscripción pendiente."
+        : "Hay una operación anterior que no se puede validar con seguridad. No se enviará ni sobrescribirá ninguna inscripción; contacta con soporte para revisarla.");
+      setPendingStorageFailureKind(result.status === "unavailable" ? "read" : null);
+    }
+    setPendingScopeLoadedFor(organizationId);
+    // sessionStorage is read after hydration to preserve server/client markup.
+    // eslint-disable-next-line react-hooks/set-state-in-effect
+  }, [organizationId, pendingIntentReadAttempt, previewMode]);
 
   useEffect(() => {
     if (previewMode || !createOpen || !createLocationId) return;
@@ -120,22 +191,20 @@ export function OwnerEnrollmentsManager({
     void (async () => {
       setPricePlansLoading(true);
       setPricePlansError("");
+      setPricePlans([]);
       try {
         const response = await fetch(
           `/api/v1/owner/price-plans/options?${params.toString()}`,
           { cache: "no-store", signal: controller.signal }
         );
         const payload = await response.json().catch(() => null);
-        const data = responseData<{ items: PricePlanOption[] }>(payload);
-        if (!response.ok || !data || !Array.isArray(data.items)) {
-          throw new Error(responseError(payload));
+        if (controller.signal.aborted) return;
+        const items = enrollmentPricePlans(payload, { organizationId, locationId: createLocationId });
+        if (!response.ok || !items) {
+          throw new Error(enrollmentLookupError(payload, "No se pudieron cargar las tarifas mensuales."));
         }
-        setPricePlans(data.items);
-        setPricePlanId((current) =>
-          data.items.some((plan) => plan.id === current)
-            ? current
-            : (data.items[0]?.id ?? "")
-        );
+        setPricePlans(items);
+        setPricePlanId(current => current === null ? (items[0]?.id ?? "") : current);
       } catch (cause) {
         if (!controller.signal.aborted) {
           setPricePlans([]);
@@ -150,11 +219,12 @@ export function OwnerEnrollmentsManager({
       }
     })();
     return () => controller.abort();
-  }, [createLocationId, createOpen, organizationId, previewMode]);
+  }, [createLocationId, createOpen, organizationId, previewMode, pricePlansRetry, setPricePlansLoading, setPricePlansError, setPricePlans, setPricePlanId]);
 
   useEffect(() => {
     if (
       previewMode ||
+      !createOpen ||
       selectedCandidate ||
       candidateQuery.trim().length < 2 ||
       !createLocationId ||
@@ -180,14 +250,15 @@ export function OwnerEnrollmentsManager({
           { cache: "no-store", signal: controller.signal }
         );
         const payload = await response.json().catch(() => null);
-        const data = responseData<{ items: Candidate[] }>(payload);
-        if (!response.ok || !data) {
+        if (controller.signal.aborted) return;
+        const items = enrollmentCandidates(payload);
+        if (!response.ok || !items) {
           setCandidates([]);
-          setCandidateError(responseError(payload));
+          setCandidateError(enrollmentLookupError(payload, "No se pudo buscar. Comprueba la conexión e inténtalo de nuevo."));
           return;
         }
-        setCandidates(data.items);
-        if (data.items.length === 0) {
+        setCandidates(items);
+        if (items.length === 0) {
           setCandidateNotice(
             "No hay coincidencias en esta sede. Si falta la ficha, créala desde Grupos."
           );
@@ -209,13 +280,30 @@ export function OwnerEnrollmentsManager({
       controller.abort();
     };
   }, [
+    createOpen,
     candidateQuery,
     classTemplateId,
     createLocationId,
     organizationId,
     previewMode,
     selectedCandidate,
+    candidateRetry,
+    setCandidateLoading,
+    setCandidateError,
+    setCandidateNotice,
+    setCandidates,
   ]);
+
+  function toggleCreateForm() {
+    if (pendingIntentRef.current || sendingRef.current) return;
+    setCreateOpen(open => !open);
+    if (createOpen) {
+      setCandidates([]);
+      setCandidateLoading(false);
+      setCandidateError("");
+      setCandidateNotice("");
+    }
+  }
 
   function changeCreateLocation(nextLocationId: string) {
     setCreateLocationId(nextLocationId);
@@ -227,7 +315,10 @@ export function OwnerEnrollmentsManager({
     setCandidateError("");
     setCandidateNotice("");
     setStartsOn(bundle.localTodayByLocation[nextLocationId] ?? "");
-    setPricePlanId("");
+    setPricePlans([]);
+    setPricePlansError("");
+    setPricePlansLoading(true);
+    setPricePlanId(null);
   }
 
   function changeCandidateQuery(value: string) {
@@ -246,25 +337,144 @@ export function OwnerEnrollmentsManager({
     setCandidateLoading(false);
     setCandidateError("");
     setCandidateNotice("");
+    const nextClass = classesForLocation.find(
+      (classItem) => classItem.id === nextClassTemplateId
+    );
+    setStartsOn((current) => {
+      const preferredDate = current || createToday;
+      return nextClass
+        ? constrainEnrollmentStartDate(preferredDate, nextClass)
+        : preferredDate;
+    });
   }
 
   function confirmCancel(enrollmentId: string) {
+    if (pendingIntentRef.current || sendingRef.current) return;
     setConfirmingCancelId(enrollmentId);
     if (enrollmentId) setConfirmingCompleteId("");
   }
 
   function confirmComplete(enrollmentId: string) {
+    if (pendingIntentRef.current || sendingRef.current) return;
     setConfirmingCompleteId(enrollmentId);
     if (enrollmentId) setConfirmingCancelId("");
   }
 
+  async function sendIntent(intent: PendingEnrollmentIntent) {
+    if (previewMode || sendingRef.current || intent.organizationId !== organizationId ||
+      pendingScopeLoadedFor !== organizationId || pendingStorageError !== "" ||
+      (pendingIntentRef.current !== null && pendingIntentRef.current !== intent)) return;
+    const wasPreviouslyUncertain =
+      pendingIntentRef.current === intent && uncertainIntentRef.current;
+    if (!persistPendingEnrollmentIntent(intent)) {
+      setPendingStorageError("No se pudo guardar la operación en el almacenamiento de sesión. No se ha enviado ni se sobrescribirá ninguna operación; vuelve a comprobar el almacenamiento antes de continuar.");
+      setPendingStorageFailureKind("write");
+      return;
+    }
+    sendingRef.current = true;
+    if (pendingIntentRef.current === null) uncertainIntentRef.current = false;
+    pendingIntentRef.current = intent;
+    setPendingIntent(intent);
+    if (intent.kind === "create") setBusyCreate(true);
+    else setBusyId(intent.enrollmentId ?? "");
+    setError(""); setNotice("");
+    let operationConfirmed = false;
+    const isCurrentIntent = () =>
+      currentOrganizationIdRef.current === intent.organizationId &&
+      pendingIntentRef.current === intent;
+    try {
+      const response = await fetch(intent.endpoint, {
+        method: intent.method,
+        headers: { "content-type": "application/json", "idempotency-key": intent.key },
+        body: intent.body,
+      });
+      const payload = await response.json().catch(() => null);
+      const outcome = enrollmentCommandOutcome(response, payload, intent.enrollmentId, {
+        previouslyUncertain: wasPreviouslyUncertain,
+        expectedCreateBody: intent.kind === "create" ? intent.body : undefined,
+        expectedIdempotencyKey: intent.kind === "create" ? intent.key : undefined,
+      });
+      if (outcome.status === "uncertain") {
+        if (isCurrentIntent()) {
+          uncertainIntentRef.current = true;
+          setError(outcome.message);
+        }
+        return;
+      }
+      if (!clearPendingEnrollmentIntent(intent)) {
+        if (isCurrentIntent()) {
+          setPendingStorageError("La respuesta llegó, pero no se pudo quitar la operación guardada. Mantendremos el bloqueo y el mismo reintento hasta poder limpiar el almacenamiento.");
+          setPendingStorageFailureKind("write");
+          setError(outcome.message);
+        }
+        return;
+      }
+      const currentIntent = isCurrentIntent();
+      if (currentIntent) {
+        pendingIntentRef.current = null;
+        uncertainIntentRef.current = false;
+        setPendingIntent(null);
+        setPendingStorageError("");
+        setPendingStorageFailureKind(null);
+      }
+      if (outcome.status === "rejected") {
+        if (currentIntent) setError(outcome.message);
+        return;
+      }
+      operationConfirmed = true;
+      if (currentIntent) {
+        setConfirmingCancelId(""); setConfirmingCompleteId("");
+        if (intent.kind === "create") {
+          setSelectedCandidate(null); setCandidateQuery(""); setCandidates([]);
+          setClassTemplateId(""); setPricePlanId(null);
+          setNotice("Inscripción registrada. Consulta su estado actualizado en el listado. Este envío no genera ningún cobro.");
+        } else setNotice("Operación confirmada. Consulta el estado actualizado en el listado.");
+        router.refresh();
+      }
+    } catch {
+      if (currentOrganizationIdRef.current === intent.organizationId) {
+        if (!operationConfirmed && isCurrentIntent()) uncertainIntentRef.current = true;
+        setError(operationConfirmed ? "La operación se confirmó, pero no se pudo actualizar el listado. Recarga la página para consultar su estado." : "No sabemos si se guardó. Reintenta la misma operación sin recargar esta página; conservaremos sus datos y su clave para evitar duplicados.");
+      }
+    } finally {
+      sendingRef.current = false; setBusyCreate(false); setBusyId("");
+      // Re-read whichever academy is visible now, including A -> B -> A while
+      // the request was pending and temporarily left the scope gate closed.
+      setPendingIntentReadAttempt(attempt => attempt + 1);
+    }
+  }
+
+  function recoverPendingStorage() {
+    if (pendingStorageFailureKind === "write" && pendingIntentRef.current?.organizationId === organizationId) {
+      if (persistPendingEnrollmentIntent(pendingIntentRef.current)) {
+        setPendingStorageError("");
+        setPendingStorageFailureKind(null);
+      }
+      return;
+    }
+    setPendingIntentReadAttempt(attempt => attempt + 1);
+  }
+
   async function createEnrollment(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
-    if (previewMode) return;
+    if (previewMode || writesBlocked || pendingIntentRef.current || sendingRef.current) return;
     setError("");
     setNotice("");
+    if (pricePlansLoading || pricePlansError) {
+      setError("Antes de registrar la inscripción, espera a que termine la consulta de tarifas o vuelve a consultarlas. No se ha enviado ninguna solicitud.");
+      return;
+    }
+    if (pricePlanUnavailable) {
+      event.currentTarget.querySelector<HTMLSelectElement>("#enrollment-price-plan")?.focus();
+      return;
+    }
     if (!selectedCandidate || !selectedClass || !startsOn) {
       setError("Elige una persona, una clase con plazas y una fecha.");
+      return;
+    }
+    if (!isEnrollmentStartDateAllowed(startsOn, selectedClass)) {
+      setError("La fecha de inicio debe quedar dentro del periodo de la clase.");
+      document.getElementById("enrollment-starts-on")?.focus();
       return;
     }
     if (selectedClass.availableSeats < 1) {
@@ -280,45 +490,14 @@ export function OwnerEnrollmentsManager({
       startsOn,
       pricePlanId: pricePlanId || null,
     };
-    const retry = retryCreate.current;
-    const key =
-      retry && JSON.stringify(retry.body) === JSON.stringify(body)
-        ? retry.key
-        : "owner-enrollment:" + crypto.randomUUID();
-    retryCreate.current = { key, body };
-    setBusyCreate(true);
     try {
-      const response = await fetch("/api/v1/owner/enrollments", {
-        method: "POST",
-        headers: {
-          "content-type": "application/json",
-          "idempotency-key": key,
-        },
-        body: JSON.stringify(body),
+      await sendIntent({
+        organizationId, kind: "create", key: "owner-enrollment:" + crypto.randomUUID(),
+        endpoint: "/api/v1/owner/enrollments", method: "POST", body: JSON.stringify(body),
+        description: `Alta de ${selectedCandidate.name} · ${selectedClass.name} · ${startsOn}`,
       });
-      const payload = await response.json().catch(() => null);
-      const created = responseData<{ id: string }>(payload);
-      if (!response.ok || !created?.id) {
-        if (response.status < 500) retryCreate.current = null;
-        setError(responseError(payload));
-        return;
-      }
-      retryCreate.current = null;
-      setSelectedCandidate(null);
-      setCandidateQuery("");
-      setCandidates([]);
-      setClassTemplateId("");
-      setPricePlanId("");
-      setNotice(
-        "Inscripción pendiente registrada. No se ha generado ningún cobro."
-      );
-      router.refresh();
     } catch {
-      setError(
-        "No sabemos si se guardó. Repite el mismo envío; la clave segura evita duplicarlo."
-      );
-    } finally {
-      setBusyCreate(false);
+      setError("No se ha podido preparar la inscripción. No se ha enviado ninguna solicitud.");
     }
   }
 
@@ -326,58 +505,26 @@ export function OwnerEnrollmentsManager({
     enrollment: EnrollmentBundle["enrollments"][number],
     toStatus: ChangeableStatus
   ) {
+    if (previewMode || writesBlocked || pendingIntentRef.current || sendingRef.current) return;
     const effectiveOn = bundle.localTodayByLocation[enrollment.locationId];
     if (!effectiveOn) {
       setError("No se pudo determinar la fecha local de la sede.");
       return;
     }
-    const command = enrollment.id + ":" + toStatus;
-    const key =
-      retryTransitions.current.get(command) ??
-      "owner-enrollment-status:" + crypto.randomUUID();
-    retryTransitions.current.set(command, key);
-    setBusyId(enrollment.id);
-    setError("");
-    setNotice("");
     try {
-      const response = await fetch(
-        "/api/v1/owner/enrollments/" + enrollment.id,
-        {
-          method: "PATCH",
-          headers: {
-            "content-type": "application/json",
-            "idempotency-key": key,
-          },
-          body: JSON.stringify({
-            organizationId,
-            expectedVersion: enrollment.version,
-            toStatus,
-            effectiveOn,
-          }),
-        }
-      );
-      const payload = await response.json().catch(() => null);
-      const updated = responseData<{ id: string }>(payload);
-      if (!response.ok || !updated?.id) {
-        if (response.status < 500) retryTransitions.current.delete(command);
-        setError(responseError(payload));
-        return;
-      }
-      retryTransitions.current.delete(command);
-      setConfirmingCancelId("");
-      setConfirmingCompleteId("");
-      setNotice("Inscripción actualizada.");
-      router.refresh();
+      await sendIntent({ organizationId, kind: "transition", enrollmentId: enrollment.id,
+        key: "owner-enrollment-status:" + crypto.randomUUID(),
+        endpoint: "/api/v1/owner/enrollments/" + enrollment.id, method: "PATCH",
+        body: JSON.stringify({ organizationId, expectedVersion: enrollment.version, toStatus, effectiveOn }),
+        description: `Cambio de ${enrollment.athleteName} · ${enrollment.className} · ${effectiveOn}`,
+      });
     } catch {
-      setError(
-        "No sabemos si se guardó el cambio. Repite la acción para comprobarlo sin duplicarlo."
-      );
-    } finally {
-      setBusyId("");
+      setError("No se ha podido preparar el cambio. No se ha enviado ninguna solicitud.");
     }
   }
 
   function applyFilters(nextStatus: StatusFilter, nextLocationId: string) {
+    if (pendingIntentRef.current || sendingRef.current) return;
     router.push(
       statusHref(
         bundle,
@@ -425,7 +572,8 @@ export function OwnerEnrollmentsManager({
           {!previewMode && (
             <button
               type="button"
-              onClick={() => setCreateOpen((open) => !open)}
+              disabled={commandsLocked || (writesBlocked && !createOpen)}
+              onClick={toggleCreateForm}
               className={primaryButtonClassName}
               aria-expanded={createOpen}
               aria-controls={createOpen ? "new-enrollment-form" : undefined}
@@ -443,11 +591,35 @@ export function OwnerEnrollmentsManager({
           </p>
         )}
 
+        {!previewMode ? (
+          <OwnerOperationalReadOnlyNotice organizationId={organizationId} />
+        ) : null}
+
         <p className="mt-5 border-l-4 border-teal-700 bg-teal-50 px-4 py-3 text-sm leading-6 text-teal-950">
           El alta queda pendiente y reserva una plaza. No crea una cuota ni
           inicia cobros; los pagos se gestionan aparte.
         </p>
 
+        {pendingStorageError ? (
+          <section className="mt-5 border border-rose-700 bg-rose-50 p-4 text-sm text-rose-950" aria-label="Almacenamiento de operación pendiente">
+            <p role="alert">{pendingStorageError}</p>
+            {pendingStorageFailureKind && (
+              <button type="button" className={primaryButtonClassName + " mt-3"} onClick={recoverPendingStorage}>
+                Volver a comprobar almacenamiento
+              </button>
+            )}
+          </section>
+        ) : null}
+
+        {pendingIntent ? (
+          <section className="mt-5 border border-amber-600 bg-amber-50 p-4" aria-label="Operación de inscripción pendiente" aria-busy={busyCreate || busyId !== ""}>
+            <p role="status">{pendingIntent.organizationId === organizationId ? <>{pendingIntent.description}. {busyCreate || busyId ? "Enviando la solicitud…" : "Resultado sin confirmar. La solicitud original está guardada en esta sesión; al volver solo podrás reintentar exactamente el mismo cuerpo y clave."}</> : "Hay una operación de inscripción pendiente en otra academia."}</p>
+            {pendingIntent.organizationId === organizationId ? <button ref={retryButtonRef} type="button" className={primaryButtonClassName + " mt-3"} disabled={busyCreate || busyId !== ""} onClick={() => void sendIntent(pendingIntent)}>Reintentar la misma operación</button> : <p>Vuelve a la academia de esa operación antes de iniciar otra.</p>}
+          </section>
+        ) : null}
+
+        <fieldset disabled={commandsLocked} className="min-w-0 border-0 p-0 m-0">
+          <legend className="sr-only">Gestionar inscripciones</legend>
         {createOpen && (
           <OwnerEnrollmentCreateForm
             organizationId={organizationId}
@@ -468,9 +640,11 @@ export function OwnerEnrollmentsManager({
             pricePlans={pricePlans}
             pricePlansLoading={pricePlansLoading}
             pricePlansError={pricePlansError}
-            pricePlanId={pricePlanId}
+            pricePlanUnavailable={pricePlanUnavailable}
+            pricePlanId={pricePlanId ?? ""}
             createToday={createToday}
             busyCreate={busyCreate}
+            writesBlocked={writesBlocked}
             previewMode={previewMode}
             onLocationChange={changeCreateLocation}
             onClassChange={changeClassTemplate}
@@ -485,6 +659,8 @@ export function OwnerEnrollmentsManager({
             }}
             onStartsOnChange={setStartsOn}
             onPricePlanChange={setPricePlanId}
+            onRetryCandidates={() => setCandidateRetry(value => value + 1)}
+            onRetryPricePlans={() => setPricePlansRetry(value => value + 1)}
             onSubmit={createEnrollment}
           />
         )}
@@ -493,6 +669,8 @@ export function OwnerEnrollmentsManager({
           bundle={bundle}
           selectedStatus={selectedStatus}
           previewMode={previewMode}
+          writesBlocked={writesBlocked}
+          navigationLocked={commandsLocked}
           createOpen={createOpen}
           busyId={busyId}
           confirmingCancelId={confirmingCancelId}
@@ -507,6 +685,7 @@ export function OwnerEnrollmentsManager({
             void changeStatus(enrollment, status)
           }
         />
+        </fieldset>
 
         <section
           aria-label="Resumen de inscripciones"

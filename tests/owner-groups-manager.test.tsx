@@ -1,6 +1,7 @@
 // @vitest-environment jsdom
 import "@testing-library/jest-dom/vitest";
-import { cleanup, render, screen, waitFor } from "@testing-library/react";
+import { useLayoutEffect } from "react";
+import { act, cleanup, render, screen, waitFor } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
@@ -13,6 +14,11 @@ vi.mock("next/navigation", () => ({
 }));
 
 import { OwnerGroupsManager } from "@/components/owner-dashboard/OwnerGroupsManager";
+import {
+  markOwnerPlanUsageLoading,
+  markOwnerPlanUsageUnavailable,
+  publishOwnerPlanUsage,
+} from "@/components/owner-dashboard/owner-plan-usage-store";
 
 const organizationId = "10000000-0000-4000-8000-000000000001";
 const locationId = "10000000-0000-4000-8000-000000000002";
@@ -20,6 +26,8 @@ const programId = "10000000-0000-4000-8000-000000000003";
 const groupId = "10000000-0000-4000-8000-000000000004";
 const athleteId = "10000000-0000-4000-8000-000000000005";
 const membershipId = "10000000-0000-4000-8000-000000000006";
+const groupReceipt = { ok: true, data: { id: groupId, name: "Iniciación", locationId, programId, capacity: 12 } };
+const membershipReceipt = { ok: true, data: { id: membershipId, groupId, athleteId, startsOn: "2026-10-13", status: "active" } };
 
 const emptyBundle = {
   organization: {
@@ -66,6 +74,7 @@ beforeEach(() => {
   window.sessionStorage.clear();
   vi.stubGlobal("fetch", mockFetch);
   vi.stubGlobal("crypto", { randomUUID: () => "synthetic-group-command" });
+  publishOwnerPlanUsage(organizationId, { readOnly: false, planCode: "free" });
 });
 
 afterEach(() => {
@@ -75,6 +84,58 @@ afterEach(() => {
 });
 
 describe("gestión de grupos owner", () => {
+  it("conserva la sede al volver al resumen y omite locationId si el ámbito es agregado", () => {
+    const scopedBundle = { ...groupBundle, selectedLocationId: locationId } as never;
+    const { rerender } = render(<OwnerGroupsManager bundle={scopedBundle} />);
+    expect(screen.getByRole("link", { name: "Volver al resumen" })).toHaveAttribute(
+      "href",
+      `/owner?organizationId=${organizationId}&locationId=${locationId}`
+    );
+
+    rerender(
+      <OwnerGroupsManager
+        bundle={{ ...groupBundle, selectedLocationId: null } as never}
+      />
+    );
+    expect(screen.getByRole("link", { name: "Volver al resumen" })).toHaveAttribute(
+      "href",
+      `/owner?organizationId=${organizationId}`
+    );
+  });
+
+  it("bloquea nuevas escrituras mientras el uso es desconocido y ofrece volver a consultarlo", async () => {
+    markOwnerPlanUsageLoading(organizationId);
+    const user = userEvent.setup();
+    render(<OwnerGroupsManager bundle={groupBundle} />);
+
+    await waitFor(() => expect(screen.queryByText(/Comprobando si hay una creación pendiente/)).not.toBeInTheDocument());
+    expect(screen.getByText(/Comprobando los límites del plan/)).toBeVisible();
+    expect(screen.getByRole("button", { name: "Crear grupo" })).toBeDisabled();
+    expect(screen.getByRole("button", { name: "Buscar" })).toBeEnabled();
+
+    act(() => markOwnerPlanUsageUnavailable(organizationId));
+    expect(screen.getByText(/No se pudieron comprobar los límites del plan/)).toBeVisible();
+    expect(screen.getByRole("link", { name: "Consultar uso y regularizar" })).toHaveAttribute("href", `/owner/subscription?organizationId=${organizationId}#regularizar`);
+    const dispatch = vi.spyOn(window, "dispatchEvent");
+    await user.click(screen.getByRole("button", { name: "Volver a comprobar límites" }));
+    expect(dispatch).toHaveBeenCalledWith(expect.objectContaining({ type: "zaltyko:plan-usage-changed" }));
+  });
+
+  it("permite cerrar un formulario de grupo abierto al bloquearse, sin permitir abrirlo", async () => {
+    const user = userEvent.setup();
+    render(<OwnerGroupsManager bundle={groupBundle} />);
+    await waitFor(() => expect(screen.getByRole("button", { name: "Crear grupo" })).toBeEnabled());
+    await user.click(screen.getByRole("button", { name: "Crear grupo" }));
+    expect(screen.getByLabelText("Nombre del grupo")).toBeVisible();
+
+    act(() => publishOwnerPlanUsage(organizationId, { readOnly: true, planCode: "free" }));
+    const closeButton = screen.getByRole("button", { name: "Cerrar formulario" });
+    expect(closeButton).toBeEnabled();
+    await user.click(closeButton);
+    expect(screen.queryByLabelText("Nombre del grupo")).not.toBeInTheDocument();
+    expect(screen.getByRole("button", { name: "Crear grupo" })).toBeDisabled();
+  });
+
   it("mantiene el buscador y la indicación de añadir en un grupo activo vacío", () => {
     render(<OwnerGroupsManager bundle={groupBundle} />);
 
@@ -98,6 +159,61 @@ describe("gestión de grupos owner", () => {
     expect(mockFetch).not.toHaveBeenCalled();
   });
 
+  it("identifica a la gimnasta afectada en el nombre accesible de cada transición", () => {
+    const bundleWithMemberships = {
+      ...groupBundle,
+      memberships: [
+        { id: "pending-membership", athleteId, athleteName: "Ana Sintética", status: "pending", startsOn: "2026-10-13" },
+        { id: "active-membership", athleteId: "athlete-active", athleteName: "Bea Sintética", status: "active", startsOn: "2026-10-13" },
+        { id: "paused-membership", athleteId: "athlete-paused", athleteName: "Carla Sintética", status: "paused", startsOn: "2026-10-13" },
+      ],
+    } as never;
+    render(<OwnerGroupsManager bundle={bundleWithMemberships} />);
+
+    expect(screen.getByRole("button", { name: "Activar a Ana Sintética" })).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: "Dar de baja a Ana Sintética" })).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: "Poner en pausa a Bea Sintética" })).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: "Dar de baja a Bea Sintética" })).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: "Reactivar a Carla Sintética" })).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: "Dar de baja a Carla Sintética" })).toBeInTheDocument();
+  });
+
+  it("en solo lectura conserva la consulta y el historial y desactiva las altas y transiciones", async () => {
+    publishOwnerPlanUsage(organizationId, { readOnly: true, planCode: "free" });
+    const bundleWithHistory = {
+      ...groupBundle,
+      memberships: [{ id: membershipId, athleteId, athleteName: "Ana Sintética", status: "paused", startsOn: "2026-10-13" }],
+    } as never;
+    mockFetch.mockResolvedValue({
+      ok: true,
+      status: 200,
+      json: async () => ({ ok: true, data: { items: [{ id: athleteId, name: "Bea Sintética" }] } }),
+    });
+    const user = userEvent.setup();
+    render(<OwnerGroupsManager bundle={bundleWithHistory} />);
+
+    expect(screen.getByText(/La academia está en solo lectura/)).toBeVisible();
+    expect(screen.getByRole("link", { name: "Uso y regularización" })).toHaveAttribute("href", `/owner/subscription?organizationId=${organizationId}#regularizar`);
+    expect(screen.getByText("Ana Sintética")).toBeVisible();
+    expect(screen.getByRole("button", { name: "Reactivar" })).toBeDisabled();
+    expect(screen.getByRole("button", { name: "Crear grupo" })).toBeDisabled();
+    expect(screen.getByRole("button", { name: "Buscar" })).toBeEnabled();
+
+    await user.type(screen.getByLabelText("Añadir una gimnasta"), "Bea");
+    await user.click(screen.getByRole("button", { name: "Buscar" }));
+    expect(await screen.findByText("Bea Sintética")).toBeVisible();
+    await waitFor(() => expect(screen.getByRole("button", { name: "Buscar" })).toBeEnabled());
+    expect(screen.getByRole("button", { name: "Añadir" })).toBeDisabled();
+    await user.click(screen.getByText("¿No aparece? Crear ficha y añadir"));
+    expect(screen.getByLabelText("Nombre")).toBeDisabled();
+    expect(screen.getByRole("button", { name: "Crear y añadir al grupo" })).toBeDisabled();
+
+    await waitFor(() => expect(screen.queryByText(/Comprobando si hay una creación pendiente/)).not.toBeInTheDocument());
+    await user.click(screen.getByRole("button", { name: "Crear grupo" }));
+    expect(screen.getByRole("button", { name: "Guardar grupo" })).toBeDisabled();
+    expect(mockFetch.mock.calls.filter(([, options]) => options?.method === "POST")).toHaveLength(0);
+  });
+
   it("presenta la creación en el estado vacío y reintenta con la misma clave", async () => {
     const user = userEvent.setup();
     mockFetch
@@ -109,7 +225,7 @@ describe("gestión de grupos owner", () => {
       .mockResolvedValueOnce({
         ok: true,
         status: 201,
-        json: async () => ({ ok: true, data: { id: groupId } }),
+        json: async () => groupReceipt,
       });
 
     render(<OwnerGroupsManager bundle={emptyBundle} />);
@@ -164,7 +280,7 @@ describe("gestión de grupos owner", () => {
       .mockResolvedValueOnce({
         ok: true,
         status: 201,
-        json: async () => ({ ok: true, data: { id: groupId } }),
+        json: async () => groupReceipt,
       });
 
     const firstUser = userEvent.setup();
@@ -221,12 +337,12 @@ describe("gestión de grupos owner", () => {
       .mockResolvedValueOnce({
         ok: false,
         status: 400,
-        json: async () => ({ detail: "El grupo no se pudo crear." }),
+        json: async () => ({ type: "https://zaltyko.com/problems/invalid-group-command", status: 400, title: "Solicitud no válida", detail: "El grupo no se pudo crear." }),
       })
       .mockResolvedValueOnce({
         ok: true,
         status: 201,
-        json: async () => ({ ok: true, data: { id: groupId } }),
+        json: async () => groupReceipt,
       });
 
     const user = userEvent.setup();
@@ -272,7 +388,7 @@ describe("gestión de grupos owner", () => {
       .mockResolvedValueOnce({
         ok: true,
         status: 201,
-        json: async () => ({ ok: true, data: { id: groupId } }),
+        json: async () => groupReceipt,
       });
 
     const firstUser = userEvent.setup();
@@ -328,6 +444,80 @@ describe("gestión de grupos owner", () => {
     expect(randomUUID).toHaveBeenCalledTimes(2);
   });
 
+  it("reinicia el borrador de crear grupo antes de mostrar otra academia", async () => {
+    const otherOrganizationId = "20000000-0000-4000-8000-000000000010";
+    const otherLocationId = "20000000-0000-4000-8000-000000000011";
+    const otherProgramId = "20000000-0000-4000-8000-000000000012";
+    const otherBundle = {
+      ...emptyBundle,
+      organization: { ...emptyBundle.organization, id: otherOrganizationId },
+      locations: [{ ...emptyBundle.locations[0], id: otherLocationId, name: "Sede Norte" }],
+      programs: [{ ...emptyBundle.programs[0], id: otherProgramId, name: "Gimnasia rítmica" }],
+      localTodayByLocation: { [otherLocationId]: "2026-10-14" },
+    } as never;
+    publishOwnerPlanUsage(otherOrganizationId, {
+      readOnly: false,
+      planCode: "free",
+    });
+    const layoutSnapshots: Array<null | {
+      name: string;
+      program: string;
+      location: string;
+      capacity: string;
+    }> = [];
+    function LayoutProbe({ id }: { id: string }) {
+      useLayoutEffect(() => {
+        const name = screen.queryByLabelText("Nombre del grupo");
+        const program = screen.queryByLabelText("Actividad");
+        const location = screen.queryByLabelText("Sede");
+        const capacity = screen.queryByLabelText("Plazas (opcional)");
+        if (!name || !program || !location || !capacity) {
+          layoutSnapshots.push(null);
+          return;
+        }
+        layoutSnapshots.push({
+          name: (name as HTMLInputElement).value,
+          program: (program as HTMLSelectElement).value,
+          location: (location as HTMLSelectElement).value,
+          capacity: (capacity as HTMLInputElement).value,
+        });
+      }, [id]);
+      return null;
+    }
+
+    const user = userEvent.setup();
+    const view = render(
+      <>
+        <OwnerGroupsManager bundle={emptyBundle} />
+        <LayoutProbe id={organizationId} />
+      </>
+    );
+    await waitFor(() =>
+      expect(screen.getByRole("button", { name: "Guardar grupo" })).toBeEnabled()
+    );
+    await user.type(screen.getByLabelText("Nombre del grupo"), "Borrador anterior");
+    await user.type(screen.getByLabelText("Plazas (opcional)"), "19");
+
+    view.rerender(
+      <>
+        <OwnerGroupsManager bundle={otherBundle} />
+        <LayoutProbe id={otherOrganizationId} />
+      </>
+    );
+
+    expect(layoutSnapshots[layoutSnapshots.length - 1]).toBeNull();
+    await waitFor(() =>
+      expect(screen.getByRole("button", { name: "Guardar grupo" })).toBeEnabled()
+    );
+    expect(screen.getByLabelText("Nombre del grupo")).toHaveValue("");
+    expect(screen.getByLabelText("Actividad")).toHaveValue(otherProgramId);
+    expect(screen.getByLabelText("Sede")).toHaveValue(otherLocationId);
+    expect(
+      (screen.getByLabelText("Plazas (opcional)") as HTMLInputElement).value
+    ).toBe("");
+    expect(mockFetch).not.toHaveBeenCalled();
+  });
+
   it("bloquea una clave legacy que no tiene un cuerpo recuperable", async () => {
     window.sessionStorage.setItem(
       `zaltyko:pending-group-create:${organizationId}`,
@@ -378,7 +568,7 @@ describe("gestión de grupos owner", () => {
       .mockResolvedValueOnce({
         ok: true,
         status: 201,
-        json: async () => ({ ok: true, data: { id: membershipId } }),
+        json: async () => membershipReceipt,
       });
 
     render(<OwnerGroupsManager bundle={groupBundle} />);
@@ -388,7 +578,7 @@ describe("gestión de grupos owner", () => {
     expect(await screen.findByRole("alert")).toHaveTextContent(
       "No se pudo confirmar el resultado."
     );
-    await user.click(screen.getByRole("button", { name: "Añadir" }));
+    await user.click(screen.getByRole("button", { name: "Reintentar operación pendiente" }));
 
     await waitFor(() => expect(mockFetch).toHaveBeenCalledTimes(3));
     const firstAdd = mockFetch.mock.calls[1]?.[1] as RequestInit;
@@ -415,7 +605,7 @@ describe("gestión de grupos owner", () => {
       .mockResolvedValueOnce({
         ok: true,
         status: 201,
-        json: async () => ({ ok: true, data: { id: membershipId } }),
+        json: async () => membershipReceipt,
       });
 
     render(<OwnerGroupsManager bundle={groupBundle} />);
@@ -430,7 +620,7 @@ describe("gestión de grupos owner", () => {
     );
 
     await user.click(
-      screen.getByRole("button", { name: "Crear y añadir al grupo" })
+      screen.getByRole("button", { name: "Reintentar operación pendiente" })
     );
     expect(await screen.findByRole("status")).toHaveTextContent(
       "Ficha creada y añadida al grupo."
@@ -449,5 +639,43 @@ describe("gestión de grupos owner", () => {
       newAthlete: { givenName: "Gimnasta", familyName: "Sintética" },
     });
     expect(mockRefresh).toHaveBeenCalledOnce();
+  });
+
+  it("recupera tras recarga un alta incierta sin guardar nombres y limpia solo al confirmar", async () => {
+    mockFetch.mockResolvedValueOnce({
+      ok: false,
+      status: 503,
+      json: async () => ({ detail: "No se pudo confirmar el resultado." }),
+    });
+    const user = userEvent.setup();
+    const view = render(<OwnerGroupsManager bundle={groupBundle} />);
+    await user.click(screen.getByText("¿No aparece? Crear ficha y añadir"));
+    await user.type(screen.getByLabelText("Nombre"), "Gimnasta");
+    await user.type(screen.getByLabelText("Apellidos"), "Sintética");
+    await user.click(screen.getByRole("button", { name: "Crear y añadir al grupo" }));
+    expect(await screen.findByRole("alert")).toHaveTextContent("No sabemos si se guardó");
+
+    const storageKey = `zaltyko:pending-group-athlete:${organizationId}:${groupId}`;
+    const pending = window.sessionStorage.getItem(storageKey)!;
+    expect(pending).not.toMatch(/Gimnasta|Sintética|givenName|familyName/);
+    const idempotencyKey = (JSON.parse(pending) as { idempotencyKey: string }).idempotencyKey;
+    view.unmount();
+
+    mockFetch.mockReset().mockResolvedValueOnce({
+      ok: true,
+      status: 200,
+      json: async () => ({ ok: true, data: { status: "complete", receipt: {
+        id: membershipId, groupId, athleteId, startsOn: "2026-10-23", status: "active",
+      } } }),
+    });
+    const reloaded = render(<OwnerGroupsManager bundle={groupBundle} />);
+    await user.click(screen.getByText("¿No aparece? Crear ficha y añadir"));
+    expect(await screen.findByText(/El recibo confirma el alta y la pertenencia al grupo/)).toBeVisible();
+    expect(window.sessionStorage.getItem(storageKey)).toContain(idempotencyKey);
+    expect(mockFetch.mock.calls.every(([, options]) => options?.method !== "POST")).toBe(true);
+
+    await user.click(screen.getByRole("button", { name: "Confirmar resultado y limpiar clave pendiente" }));
+    expect(window.sessionStorage.getItem(storageKey)).toBeNull();
+    reloaded.unmount();
   });
 });

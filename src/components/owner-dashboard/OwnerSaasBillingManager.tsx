@@ -1,7 +1,18 @@
 "use client";
 
-import { useCallback, useEffect, useRef, useState } from "react";
+import Link from "next/link";
+import { useCallback, useEffect, useLayoutEffect, useRef, useState } from "react";
+import { usePendingCommandExitWarning } from "./use-pending-command-exit-warning";
+import { isCheckoutSessionUrl, isPortalSessionUrl } from "./owner-saas-session-url";
+import { isSaasTimestamp } from "./owner-saas-timestamp";
 import { OwnerPlanUsage } from "./OwnerPlanUsage";
+import { decodeOwnerSaasBillingSnapshot } from "./owner-saas-billing-response";
+import { isDefinitiveSaasCommandRejection } from "./owner-saas-command-rejection";
+import { clearStoredSaasCommand, persistStoredSaasCommand, readStoredSaasCommand, saasCommandStorageKey } from "./owner-saas-pending-command";
+import {
+  formatSaasAccessDate as formatDate,
+  saasPaymentNotice,
+} from "./owner-saas-presentation";
 
 import {
   formatPlanAmount,
@@ -18,6 +29,9 @@ import type {
   OwnerSaasTrialResult,
 } from "./owner-saas-billing-types";
 
+const useCommittedLayoutEffect =
+  typeof window === "undefined" ? useEffect : useLayoutEffect;
+
 type LoadState =
   | { organizationId: string; status: "loading" }
   | { organizationId: string; status: "ready" }
@@ -25,11 +39,23 @@ type LoadState =
 
 type PendingCheckout = OwnerSaasCheckoutResult & { organizationId: string };
 type PendingPortal = OwnerSaasPortalResult & { organizationId: string };
+type ActionMessage = { organizationId: string; message: string };
 type RequestIntent = {
   key: string;
   storageKey: string;
   body: Record<string, unknown>;
+  serializedBody: string;
+  hasPriorAttempt: boolean;
 };
+type PendingCommand = {
+  organizationId: string;
+  action: "checkout" | "portal" | "trial";
+  planCode?: "starter" | "growth";
+  intent: RequestIntent;
+};
+class SaasCommandError extends Error {
+  constructor(message: string, readonly definitive: boolean) { super(message); }
+}
 
 const CHECKOUT_ENDPOINT = "/api/v1/owner/saas/checkout";
 const PORTAL_ENDPOINT = "/api/v1/owner/saas/portal";
@@ -54,6 +80,7 @@ function responseCode(payload: unknown): string | undefined {
   if ("code" in payload && typeof payload.code === "string") {
     return payload.code;
   }
+  if ("error" in payload && typeof payload.error === "string") return payload.error;
   if ("error" in payload && payload.error && typeof payload.error === "object") {
     const error = payload.error as Record<string, unknown>;
     if (typeof error.code === "string") return error.code;
@@ -77,84 +104,21 @@ function apiErrorMessage(payload: unknown, fallback: string): string {
     BILLING_CONFIGURATION_UNAVAILABLE: "La contratación no está disponible ahora. El plan actual no ha cambiado.",
     BILLING_PROVIDER_UNAVAILABLE: "No hemos podido conectar con el proveedor de pagos. El plan actual no ha cambiado.",
     RATE_LIMITED: "Has realizado varias solicitudes seguidas. Espera un momento y vuelve a intentarlo.",
+    RATE_LIMIT_EXCEEDED: "Has realizado varias solicitudes seguidas. Espera un momento y vuelve a intentarlo.",
   };
   return (code && known[code]) || fallback;
 }
 
 function isRecord(value: unknown): value is Record<string, unknown> {
-  return Boolean(value) && typeof value === "object";
-}
-
-function isBillingSnapshot(value: unknown): value is OwnerSaasBillingSnapshot {
-  if (!isRecord(value)) return false;
-  const org = value.organization;
-  const entitlement = value.entitlement;
-  const limits = value.limits;
-  const trial = value.trial;
-  const subscription = value.subscription;
-  const actions = value.actions;
-  if (
-    !isRecord(org) ||
-    typeof org.id !== "string" ||
-    typeof org.name !== "string" ||
-    !isRecord(entitlement) ||
-    typeof entitlement.planCode !== "string" ||
-    typeof entitlement.source !== "string" ||
-    typeof entitlement.revision !== "number" ||
-    !isRecord(limits) ||
-    !(typeof limits.maxAthletes === "number" || limits.maxAthletes === null) ||
-    !(typeof limits.maxGroups === "number" || limits.maxGroups === null) ||
-    !(typeof limits.maxClasses === "number" || limits.maxClasses === null) ||
-    !(typeof limits.maxAcademies === "number" || limits.maxAcademies === null) ||
-    !isRecord(trial) ||
-    typeof trial.eligible !== "boolean" ||
-    !(typeof trial.startsAt === "string" || trial.startsAt === null) ||
-    !(typeof trial.endsAt === "string" || trial.endsAt === null) ||
-    !(typeof trial.nextEligibleAt === "string" || trial.nextEligibleAt === null) ||
-    !(subscription === null || isRecord(subscription)) ||
-    typeof value.syncStatus !== "string" ||
-    !isRecord(actions)
-  ) {
-    return false;
-  }
-  if (
-    !["free", "starter", "growth", "network"].includes(
-      entitlement.planCode
-    ) ||
-    typeof entitlement.effectiveFrom !== "string" ||
-    !(
-      typeof entitlement.effectiveUntil === "string" ||
-      entitlement.effectiveUntil === null
-    ) ||
-    typeof actions.canStartTrial !== "boolean" ||
-    typeof actions.canCheckoutStarter !== "boolean" ||
-    typeof actions.canCheckoutGrowth !== "boolean" ||
-    typeof actions.canOpenPortal !== "boolean"
-  ) {
-    return false;
-  }
-  if (
-    subscription &&
-    (typeof subscription.status !== "string" ||
-      !(
-        subscription.billingInterval === "month" ||
-        subscription.billingInterval === "year" ||
-        subscription.billingInterval === null
-      ) ||
-      typeof subscription.currentPeriodEndsAt !== "string" ||
-      typeof subscription.cancelAtPeriodEnd !== "boolean")
-  ) {
-    return false;
-  }
-  return true;
+  return Boolean(value) && typeof value === "object" && !Array.isArray(value);
 }
 
 function isCheckoutResult(value: unknown): value is OwnerSaasCheckoutResult {
   return (
     isRecord(value) &&
-    typeof value.operationId === "string" &&
+    typeof value.operationId === "string" && value.operationId.trim().length > 0 &&
     typeof value.checkoutUrl === "string" &&
-    typeof value.expiresAt === "string" &&
+    isSaasTimestamp(value.expiresAt) &&
     value.status === "pending"
   );
 }
@@ -166,30 +130,13 @@ function isPortalResult(value: unknown): value is OwnerSaasPortalResult {
 function isTrialResult(value: unknown): value is OwnerSaasTrialResult {
   return (
     isRecord(value) &&
-    typeof value.trialId === "string" &&
-    typeof value.startsAt === "string" &&
-    typeof value.endsAt === "string" &&
+    typeof value.trialId === "string" && value.trialId.trim().length > 0 &&
+    isSaasTimestamp(value.startsAt) && isSaasTimestamp(value.endsAt) &&
+    Date.parse(value.endsAt) > Date.parse(value.startsAt) &&
     value.planCode === "starter" &&
-    typeof value.entitlementRevision === "number"
+    typeof value.entitlementRevision === "number" && Number.isSafeInteger(value.entitlementRevision)
+    && value.entitlementRevision > 0
   );
-}
-
-function isHttpsUrl(value: string): boolean {
-  try {
-    return new URL(value).protocol === "https:";
-  } catch {
-    return false;
-  }
-}
-
-function formatDate(value: string | null | undefined): string | null {
-  if (!value) return null;
-  const date = new Date(value);
-  if (Number.isNaN(date.getTime())) return null;
-  return new Intl.DateTimeFormat("es-ES", {
-    dateStyle: "long",
-    timeZone: "Europe/Madrid",
-  }).format(date);
 }
 
 function planLabel(code: OwnerSaasPlanCode): string {
@@ -307,21 +254,6 @@ function syncStatusPresentation(status: string): {
   };
 }
 
-function sessionStorageKey(
-  organizationId: string,
-  action: string,
-  planCode?: OwnerSaasPlanCode,
-  interval?: OwnerSaasBillingInterval
-) {
-  return [
-    "owner-saas-idempotency",
-    organizationId,
-    action,
-    planCode ?? "",
-    interval ?? "",
-  ].join(":");
-}
-
 function formatPrice(code: "starter" | "growth", interval: OwnerSaasBillingInterval) {
   const product = PRODUCT_PLAN_BY_CODE[code === "starter" ? "pro" : "premium"];
   const cents =
@@ -345,6 +277,10 @@ export function OwnerSaasBillingManager({
   organizationId: string;
   organizationName: string;
 }) {
+  const activeOrganizationIdRef = useRef(organizationId);
+  useCommittedLayoutEffect(() => {
+    activeOrganizationIdRef.current = organizationId;
+  }, [organizationId]);
   const [snapshot, setSnapshot] = useState<OwnerSaasBillingSnapshot | null>(null);
   const [loadState, setLoadState] = useState<LoadState>({
     organizationId,
@@ -352,15 +288,69 @@ export function OwnerSaasBillingManager({
   });
   const [refreshVersion, setRefreshVersion] = useState(0);
   const [interval, setInterval] = useState<OwnerSaasBillingInterval>("month");
-  const [busyAction, setBusyAction] = useState<string | null>(null);
-  const [actionError, setActionError] = useState("");
-  const [notice, setNotice] = useState("");
+  const [busyActionState, setBusyActionState] = useState<{ organizationId: string; action: string } | null>(null);
+  const busyAction = busyActionState?.action ?? null;
+  const displayedBusyAction = busyActionState?.organizationId === organizationId ? busyAction : null;
+  const [actionErrorState, setActionErrorState] = useState<ActionMessage | null>(null);
+  const [noticeState, setNoticeState] = useState<ActionMessage | null>(null);
+  const actionError = actionErrorState?.organizationId === organizationId ? actionErrorState.message : "";
+  const notice = noticeState?.organizationId === organizationId ? noticeState.message : "";
   const [pendingCheckout, setPendingCheckout] =
     useState<PendingCheckout | null>(null);
   const [pendingPortal, setPendingPortal] = useState<PendingPortal | null>(null);
   const [trialConfirmed, setTrialConfirmed] = useState<string | null>(null);
   const requestSequence = useRef(0);
-  const fallbackKeys = useRef(new Map<string, string>());
+  const actionInFlight = useRef(false);
+  const pendingCommandRef = useRef<PendingCommand | null>(null);
+  const uncertainCommandRef = useRef(false);
+  const [pendingCommand, setPendingCommand] = useState<PendingCommand | null>(null);
+  const [pendingReadState, setPendingReadState] = useState<{ organizationId: string; status: "loading" | "ready" | "blocked"; message?: string }>({ organizationId, status: "loading" });
+  const [pendingReadAttempt, setPendingReadAttempt] = useState(0);
+  usePendingCommandExitWarning(pendingCommand !== null, pendingCommandRef);
+
+  useEffect(() => {
+    if (pendingCommandRef.current && pendingCommandRef.current.organizationId !== organizationId) {
+      setPendingReadState({ organizationId, status: "blocked", message: "Hay una operación pendiente en otra academia. Vuelve a ella para resolverla antes de continuar." });
+      return;
+    }
+    setPendingReadState({ organizationId, status: "loading" });
+    const stored = readStoredSaasCommand(organizationId);
+    if (stored.status === "pending") {
+      const command = stored.command;
+      const intent: RequestIntent = {
+        key: command.key,
+        storageKey: saasCommandStorageKey(organizationId),
+        body: JSON.parse(command.serializedBody) as Record<string, unknown>,
+        serializedBody: command.serializedBody,
+        hasPriorAttempt: true,
+      };
+      const pending = { organizationId, action: command.action, planCode: command.planCode, intent } as PendingCommand;
+      pendingCommandRef.current = pending;
+      uncertainCommandRef.current = true;
+      setPendingCommand(pending);
+      setPendingReadState({ organizationId, status: "ready" });
+      return;
+    }
+    if (stored.status === "invalid" || stored.status === "unavailable") {
+      setPendingReadState({ organizationId, status: "blocked", message: stored.status === "invalid"
+        ? "Hay una operación guardada que no se puede validar. No iniciaremos otra solicitud. Revisa el almacenamiento e inténtalo de nuevo."
+        : "No se puede leer el almacenamiento de la operación. No se ha enviado ninguna solicitud." });
+      return;
+    }
+    setPendingReadState({ organizationId, status: "ready" });
+  }, [organizationId, pendingReadAttempt]);
+
+  function setBusyAction(action: string | null) {
+    setBusyActionState(action === null ? null : { organizationId, action });
+  }
+
+  function setActionError(message: string) {
+    setActionErrorState({ organizationId, message });
+  }
+
+  function setNotice(message: string) {
+    setNoticeState({ organizationId, message });
+  }
 
   const loadSnapshot = useCallback(
     async (signal?: AbortSignal) => {
@@ -372,18 +362,13 @@ export function OwnerSaasBillingManager({
           { cache: "no-store", signal }
         );
         const payload = await response.json().catch(() => null);
-        const data = responseData<unknown>(payload);
-        if (!response.ok || !isBillingSnapshot(data)) {
+        const data = decodeOwnerSaasBillingSnapshot(payload, organizationId);
+        if (!response.ok || !data) {
           throw new Error(
             apiErrorMessage(
               payload,
               "No se ha podido cargar el estado del plan. Comprueba la conexión e inténtalo de nuevo."
             )
-          );
-        }
-        if (data.organization.id !== organizationId) {
-          throw new Error(
-            "La respuesta no corresponde a la academia seleccionada. Vuelve a actualizar el estado."
           );
         }
         if (signal?.aborted || requestSequence.current !== requestId) return;
@@ -428,6 +413,8 @@ export function OwnerSaasBillingManager({
     stateIsCurrent &&
     syncIsReady &&
     !busyAction &&
+    pendingReadState.organizationId === organizationId && pendingReadState.status === "ready" &&
+    !pendingCommand &&
     pendingCheckout?.organizationId !== organizationId;
 
   function refresh() {
@@ -437,44 +424,13 @@ export function OwnerSaasBillingManager({
     setRefreshVersion((value) => value + 1);
   }
 
-  function getIntent(
-    action: "checkout" | "portal" | "trial",
-    body: Record<string, unknown>,
-    planCode?: OwnerSaasPlanCode,
-    selectedInterval?: OwnerSaasBillingInterval
-  ): RequestIntent {
-    const storageKey = sessionStorageKey(
-      organizationId,
-      action,
-      planCode,
-      selectedInterval
-    );
-    let key: string | null = null;
-    try {
-      key = window.sessionStorage.getItem(storageKey);
-    } catch {
-      key = null;
-    }
-    key ??= fallbackKeys.current.get(storageKey) ?? null;
-    if (!key) {
-      key = crypto.randomUUID();
-      fallbackKeys.current.set(storageKey, key);
-      try {
-        window.sessionStorage.setItem(storageKey, key);
-      } catch {
-        // An in-memory key still keeps retries stable while this page stays open.
-      }
-    }
-    return { key, storageKey, body };
+  function getIntent(body: Record<string, unknown>): RequestIntent {
+    return { key: crypto.randomUUID(), storageKey: saasCommandStorageKey(organizationId), body, serializedBody: JSON.stringify(body), hasPriorAttempt: false };
   }
 
-  function forgetIntent(storageKey: string) {
-    fallbackKeys.current.delete(storageKey);
-    try {
-      window.sessionStorage.removeItem(storageKey);
-    } catch {
-      // Storage is optional; the server remains the idempotency authority.
-    }
+  function persistCommand(action: PendingCommand["action"], intent: RequestIntent, planCode?: "starter" | "growth") {
+    const command = { organizationId, action, ...(planCode ? { planCode, billingInterval: intent.body.billingInterval as OwnerSaasBillingInterval } : {}), key: intent.key, serializedBody: intent.serializedBody };
+    return persistStoredSaasCommand(command);
   }
 
   async function postAction<T>(endpoint: string, intent: RequestIntent) {
@@ -484,39 +440,94 @@ export function OwnerSaasBillingManager({
         "content-type": "application/json",
         "Idempotency-Key": intent.key,
       },
-      body: JSON.stringify(intent.body),
+      body: intent.serializedBody,
     });
     const payload = await response.json().catch(() => null);
     const data = responseData<unknown>(payload);
     if (!response.ok || !data) {
-      throw new Error(
+      throw new SaasCommandError(
         apiErrorMessage(
           payload,
           "No hemos podido confirmar la operación. Al reintentar se usará la misma solicitud."
-        )
+        ),
+        isDefinitiveSaasCommandRejection(response, payload, { previouslyUncertain: uncertainCommandRef.current })
       );
     }
     return data as T;
   }
 
-  async function startCheckout(planCode: "starter" | "growth") {
-    if (!currentSnapshot || !canStartOperation || pendingCheckout) return;
+  function mayRetry(action: PendingCommand["action"], intent: RequestIntent) {
+    const pending = pendingCommandRef.current;
+    return pending?.organizationId === organizationId && pending.action === action && pending.intent === intent;
+  }
+
+  function rememberCommand(action: PendingCommand["action"], intent: RequestIntent, planCode?: "starter" | "growth") {
+    if (pendingCommandRef.current) return;
+    const pending = { organizationId, action, intent, planCode };
+    uncertainCommandRef.current = intent.hasPriorAttempt;
+    pendingCommandRef.current = pending;
+    setPendingCommand(pending);
+  }
+
+  function clearCommand(intent: RequestIntent) {
+    const pending = pendingCommandRef.current;
+    if (pending?.intent !== intent) return false;
+    const expectedCommand = {
+      organizationId,
+      action: pending.action,
+      ...(pending.planCode ? { planCode: pending.planCode, billingInterval: intent.body.billingInterval as OwnerSaasBillingInterval } : {}),
+      key: intent.key,
+      serializedBody: intent.serializedBody,
+    };
+    if (!clearStoredSaasCommand(organizationId, expectedCommand)) return false;
+    pendingCommandRef.current = null;
+    uncertainCommandRef.current = false;
+    setPendingCommand(null);
+    return true;
+  }
+
+  function commandFailure(error: unknown, intent: RequestIntent | null, preparationMessage: string) {
+    if (!intent) { setActionError(preparationMessage); return; }
+    if (error instanceof Error && error.message.includes("No se pudo guardar la operación")) {
+      setPendingReadState({ organizationId, status: "blocked", message: error.message });
+      return;
+    }
+    if (error instanceof SaasCommandError && error.definitive) {
+      if (!clearCommand(intent)) {
+        setActionError("El servidor rechazó la operación, pero no hemos podido limpiar su registro local. No inicies otra operación hasta recuperar el almacenamiento.");
+        return;
+      }
+      setActionError(error.message);
+      return;
+    }
+    if (pendingCommandRef.current?.intent === intent) uncertainCommandRef.current = true;
+    setActionError("No podemos confirmar el resultado. No inicies otra operación: reintenta únicamente la solicitud pendiente sin cerrar ni recargar esta página.");
+  }
+
+  async function startCheckout(planCode: "starter" | "growth", retryIntent?: RequestIntent) {
+    if (actionInFlight.current || (retryIntent ? !mayRetry("checkout", retryIntent)
+      : (!currentSnapshot || !canStartOperation || pendingCheckout || pendingCommandRef.current))) return;
+    actionInFlight.current = true;
     setActionError("");
     setNotice("");
     setPendingPortal(null);
-    const body = { organizationId, planCode, billingInterval: interval };
-    const intent = getIntent("checkout", body, planCode, interval);
     setBusyAction(`checkout:${planCode}`);
+    let intent: RequestIntent | null = null;
     try {
+      const body = { organizationId, planCode, billingInterval: interval };
+      intent = retryIntent ?? getIntent(body);
+      if (!persistCommand("checkout", intent, planCode)) throw new Error("No se pudo guardar la operación antes de enviarla. No se ha enviado ninguna solicitud.");
+      rememberCommand("checkout", intent, planCode);
       const result = await postAction<OwnerSaasCheckoutResult>(
         CHECKOUT_ENDPOINT,
         intent
       );
-      if (!isCheckoutResult(result) || !isHttpsUrl(result.checkoutUrl)) {
+      if (!isCheckoutResult(result) || !isCheckoutSessionUrl(result.checkoutUrl)) {
         throw new Error(
           "La respuesta de contratación no contiene un enlace válido. No hemos cambiado tu plan; actualiza el estado antes de reintentar."
         );
       }
+      if (!clearCommand(intent)) throw new Error("La respuesta se ha validado, pero no hemos podido limpiar el registro local. Reintenta la misma operación.");
       setPendingCheckout({ ...result, organizationId });
       setNotice(
         "La sesión de pago está pendiente. El plan y los límites solo cambiarán cuando el servidor confirme el pago."
@@ -524,91 +535,101 @@ export function OwnerSaasBillingManager({
       setLoadState({ organizationId, status: "loading" });
       setRefreshVersion((value) => value + 1);
     } catch (error) {
-      setActionError(
-        error instanceof Error
-          ? error.message
-          : "No se ha podido confirmar la contratación. Reintenta la misma solicitud."
-      );
+      commandFailure(error, intent, "No se ha podido preparar la contratación. No se ha enviado ninguna solicitud.");
     } finally {
+      actionInFlight.current = false;
       setBusyAction(null);
     }
   }
 
-  async function openPortal() {
-    if (!currentSnapshot || !canStartOperation || !currentSnapshot.actions.canOpenPortal) {
+  async function openPortal(retryIntent?: RequestIntent) {
+    if (actionInFlight.current || (retryIntent ? !mayRetry("portal", retryIntent)
+      : (!currentSnapshot || !canStartOperation || !currentSnapshot.actions.canOpenPortal || pendingCommandRef.current))) {
       return;
     }
+    actionInFlight.current = true;
     setActionError("");
     setNotice("");
     setPendingCheckout(null);
-    const body = { organizationId };
-    const intent = getIntent("portal", body);
     setBusyAction("portal");
+    let intent: RequestIntent | null = null;
     try {
+      const body = { organizationId };
+      intent = retryIntent ?? getIntent(body);
+      if (!persistCommand("portal", intent)) throw new Error("No se pudo guardar la operación antes de enviarla. No se ha enviado ninguna solicitud.");
+      rememberCommand("portal", intent);
       const result = await postAction<OwnerSaasPortalResult>(
         PORTAL_ENDPOINT,
         intent
       );
-      if (!isPortalResult(result) || !isHttpsUrl(result.portalUrl)) {
+      if (!isPortalResult(result) || !isPortalSessionUrl(result.portalUrl)) {
         throw new Error(
           "El portal no ha devuelto un enlace seguro. El plan actual no ha cambiado; actualiza el estado."
         );
       }
+      if (!clearCommand(intent)) throw new Error("La respuesta se ha validado, pero no hemos podido limpiar el registro local. Reintenta la misma operación.");
       setPendingPortal({ ...result, organizationId });
-      forgetIntent(intent.storageKey);
       setNotice("El portal de facturación está listo. El estado de tu plan se mantiene hasta que el servidor confirme cualquier cambio.");
     } catch (error) {
-      setActionError(
-        error instanceof Error
-          ? error.message
-          : "No se ha podido abrir el portal. Al reintentar se usará la misma solicitud."
-      );
+      commandFailure(error, intent, "No se ha podido preparar el portal. No se ha enviado ninguna solicitud.");
     } finally {
+      actionInFlight.current = false;
       setBusyAction(null);
     }
   }
 
-  async function startTrial() {
+  async function startTrial(retryIntent?: RequestIntent) {
     if (
-      !currentSnapshot ||
-      !canStartOperation ||
-      !currentSnapshot.actions.canStartTrial
+      actionInFlight.current || (retryIntent ? !mayRetry("trial", retryIntent)
+        : (!currentSnapshot || !canStartOperation || !currentSnapshot.actions.canStartTrial || pendingCommandRef.current))
     ) {
       return;
     }
+    actionInFlight.current = true;
     setActionError("");
     setNotice("");
     setPendingCheckout(null);
-    const body = { organizationId };
-    const intent = getIntent("trial", body);
     setBusyAction("trial");
+    let intent: RequestIntent | null = null;
     try {
+      const body = { organizationId };
+      intent = retryIntent ?? getIntent(body);
+      if (!persistCommand("trial", intent)) throw new Error("No se pudo guardar la operación antes de enviarla. No se ha enviado ninguna solicitud.");
+      rememberCommand("trial", intent);
       const result = await postAction<OwnerSaasTrialResult>(TRIAL_ENDPOINT, intent);
       if (!isTrialResult(result)) {
         throw new Error(
           "No hemos podido validar la respuesta de activación. Actualiza el estado; al reintentar se usará la misma solicitud."
         );
       }
+      if (!clearCommand(intent)) throw new Error("La respuesta se ha validado, pero no hemos podido limpiar el registro local. Reintenta la misma operación.");
       setTrialConfirmed(organizationId);
-      forgetIntent(intent.storageKey);
       setNotice(
         `El servidor confirma la prueba Starter hasta el ${formatDate(result.endsAt) ?? "final de su periodo"}. No se ha solicitado ningún cobro.`
       );
-      setSnapshot(null);
-      setLoadState({ organizationId, status: "loading" });
-      setRefreshVersion((value) => value + 1);
+      if (activeOrganizationIdRef.current === organizationId) {
+        setSnapshot(null);
+        setLoadState({ organizationId, status: "loading" });
+        setRefreshVersion((value) => value + 1);
+      }
     } catch (error) {
-      setActionError(
-        error instanceof Error
-          ? error.message
-          : "No se ha podido confirmar la activación. Al reintentar se usará la misma solicitud."
-      );
+      commandFailure(error, intent, "No se ha podido preparar la prueba. No se ha enviado ninguna solicitud.");
     } finally {
+      actionInFlight.current = false;
       setBusyAction(null);
     }
   }
 
+  function retryPendingCommand() {
+    const pending = pendingCommandRef.current;
+    if (!pending || pending.organizationId !== organizationId || actionInFlight.current) return;
+    if (pending.action === "checkout" && pending.planCode) void startCheckout(pending.planCode, pending.intent);
+    else if (pending.action === "portal") void openPortal(pending.intent);
+    else if (pending.action === "trial") void startTrial(pending.intent);
+  }
+
   const subscription = currentSnapshot?.subscription ?? null;
+  const paymentNotice = subscription ? saasPaymentNotice(subscription.status) : null;
   const planCode = currentSnapshot?.entitlement.planCode;
   const trial = currentSnapshot?.trial ?? null;
   const canCheckoutStarter =
@@ -738,8 +759,14 @@ export function OwnerSaasBillingManager({
                     </p>
                     {subscription.cancelAtPeriodEnd ? (
                       <p className="mt-2 text-sm font-semibold text-amber-900">
-                        La cancelación está programada al final del periodo; el
-                        acceso vigente se conserva hasta esa fecha.
+                        La renovación está desactivada y la cancelación está
+                        programada al final del periodo indicado. El acceso
+                        efectivo es el que confirma el servidor.
+                      </p>
+                    ) : null}
+                    {paymentNotice ? (
+                      <p className="mt-2 max-w-2xl text-sm text-amber-900" role="status">
+                        {paymentNotice}
                       </p>
                     ) : null}
                   </div>
@@ -754,7 +781,7 @@ export function OwnerSaasBillingManager({
                       activePortal
                     }
                   >
-                    {busyAction === "portal"
+                    {displayedBusyAction === "portal"
                       ? "Preparando portal…"
                       : "Gestionar suscripción"}
                   </button>
@@ -806,13 +833,27 @@ export function OwnerSaasBillingManager({
             {notice}
           </div>
         ) : null}
+        {pendingCommand ? (
+          <section className="mt-4 border border-amber-700 bg-white p-5" aria-label="Operación de facturación pendiente" aria-busy={busyAction !== null}>
+            {pendingCommand.organizationId === organizationId ? <>
+              <p className="font-semibold">{pendingCommand.action === "checkout" ? `Contratación de ${pendingCommand.planCode === "growth" ? "Growth" : "Starter"} · ${pendingCommand.intent.body.billingInterval === "year" ? "pago anual" : "mensual"}` : pendingCommand.action === "portal" ? "Preparación del Portal" : "Activación de la prueba"}: pendiente de confirmar.</p>
+              <p className="mt-2 text-sm">No cierres ni recargues esta página. El reintento conserva la operación, el cuerpo y la clave originales; no inicia otra contratación.</p>
+              <button type="button" className="touch-target mt-3 rounded-full border px-5 text-sm font-bold disabled:opacity-50" disabled={busyAction !== null} onClick={retryPendingCommand}>Reintentar la operación pendiente</button>
+            </> : <p>Hay una operación de facturación pendiente en otra academia. Vuelve a ella para resolverla antes de iniciar otra operación.</p>}
+          </section>
+        ) : null}
         {actionError ? (
           <div className="mt-4 border-l-4 border-rose-700 bg-white p-4" role="alert">
             <p className="text-sm leading-6 text-slate-800">{actionError}</p>
-            <p className="mt-2 text-xs leading-5 text-slate-600">
-              Si la respuesta fue incierta, el próximo intento conservará la
-              misma clave para evitar duplicar la operación.
-            </p>
+            {pendingCommand?.organizationId === organizationId ? <p className="mt-2 text-xs leading-5 text-slate-600">
+              El reintento de la operación pendiente conservará la misma clave y el mismo cuerpo.
+            </p> : null}
+          </div>
+        ) : null}
+        {pendingReadState.organizationId === organizationId && pendingReadState.status === "blocked" ? (
+          <div className="mt-4 border-l-4 border-amber-700 bg-white p-4" role="alert">
+            <p className="text-sm leading-6 text-slate-800">{pendingReadState.message}</p>
+            <button type="button" className="touch-target mt-2 rounded-full border px-4 text-sm font-bold" onClick={() => setPendingReadAttempt((value) => value + 1)}>Volver a comprobar la operación guardada</button>
           </div>
         ) : null}
 
@@ -873,7 +914,7 @@ export function OwnerSaasBillingManager({
                   Elige un plan para tu academia
                 </h2>
               </div>
-              <fieldset className="flex items-center gap-1 rounded-full border border-slate-300 bg-white p-1">
+              <fieldset className="flex items-center gap-1 rounded-full border border-slate-300 bg-white p-1" disabled={pendingCommand !== null || busyAction !== null}>
                 <legend className="sr-only">Periodo de facturación</legend>
                 {(["month", "year"] as const).map((value) => (
                   <button
@@ -881,7 +922,7 @@ export function OwnerSaasBillingManager({
                     type="button"
                     aria-pressed={interval === value}
                     className={`touch-target rounded-full px-4 text-sm font-semibold ${interval === value ? "bg-slate-950 text-white" : "text-slate-700 hover:bg-slate-100"}`}
-                    onClick={() => setInterval(value)}
+                    onClick={() => { if (!pendingCommandRef.current && !actionInFlight.current) setInterval(value); }}
                   >
                     {value === "month" ? "Mensual" : "Anual"}
                   </button>
@@ -910,7 +951,7 @@ export function OwnerSaasBillingManager({
                     trialConfirmed === organizationId
                   }
                 >
-                  {busyAction === "trial" ? "Activando prueba…" : "Activar prueba"}
+                  {displayedBusyAction === "trial" ? "Activando prueba…" : "Activar prueba"}
                 </button>
                 {trial.nextEligibleAt ? (
                   <p className="text-xs text-slate-600">
@@ -926,7 +967,7 @@ export function OwnerSaasBillingManager({
                   PRODUCT_PLAN_BY_CODE[code === "starter" ? "pro" : "premium"];
                 const available =
                   code === "starter" ? canCheckoutStarter : canCheckoutGrowth;
-                const busy = busyAction === `checkout:${code}`;
+                const busy = displayedBusyAction === `checkout:${code}`;
                 const checkoutButtonLabel = (() => {
                   if (busy) return "Preparando sesión…";
                   if (!stateIsCurrent) return "Actualizando estado…";
@@ -1007,12 +1048,12 @@ export function OwnerSaasBillingManager({
               <p className="mt-1 text-sm leading-6 text-slate-700">
                 Network requiere una conversación y un onboarding acompañado.
               </p>
-              <a
+              <Link
                 className="touch-target mt-3 inline-flex items-center text-sm font-bold text-teal-900 underline underline-offset-4"
                 href="/contact?type=network"
               >
                 Hablar con Zaltyko
-              </a>
+              </Link>
             </aside>
           </section>
         ) : null}

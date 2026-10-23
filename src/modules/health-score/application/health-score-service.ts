@@ -27,6 +27,7 @@ import {
   aggregateAcademyScore,
   aggregateDimension,
   normalizeMetric,
+  resolveMetricTarget,
   roundScore,
 } from "@/modules/health-score/domain/score-formulas";
 
@@ -199,11 +200,7 @@ export async function calculateAcademyHealthScore(
       values.map((value) => [value.metricKey, value])
     );
     const targetFor = (metricKey: string, currency: string | null) =>
-      targets.find(
-        (target) =>
-          target.metricKey === metricKey &&
-          (target.currency === null || target.currency === currency)
-      );
+      resolveMetricTarget(targets, metricKey, currency);
 
     const dimensionResults = dimensions.map((dimension) => {
       const configured = metricWeights.filter(

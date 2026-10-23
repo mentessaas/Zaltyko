@@ -14,6 +14,7 @@ export async function getOwnerAttendanceSessionOptions(input: {
   userId: string;
   organizationId?: string;
   locationId?: string;
+  sessionId?: string;
 }) {
   const scope = await resolveOwnerScope(input);
   const locationId =
@@ -39,45 +40,97 @@ export async function getOwnerAttendanceSessionOptions(input: {
     latestSelectableStart.getUTCDate() + selectableDaysAfter
   );
 
-  const rows = await db
-    .select({
-      id: sessions.id,
-      className: classTemplates.name,
-      startsAt: sessions.startsAt,
-      timezone: locations.timezone,
-    })
-    .from(sessions)
-    .innerJoin(
-      locations,
-      and(
-        eq(locations.organizationId, sessions.organizationId),
-        eq(locations.id, sessions.locationId)
+  const normalSelection = and(
+    inArray(sessions.status, [...selectableSessionStatuses]),
+    gte(sessions.startsAt, earliestSelectableStart),
+    lte(sessions.startsAt, latestSelectableStart)
+  );
+  const [normalRows, requestedRows] = await Promise.all([
+    db
+      .select({
+        id: sessions.id,
+        className: classTemplates.name,
+        startsAt: sessions.startsAt,
+        timezone: locations.timezone,
+        status: sessions.status,
+      })
+      .from(sessions)
+      .innerJoin(
+        locations,
+        and(
+          eq(locations.organizationId, sessions.organizationId),
+          eq(locations.id, sessions.locationId)
+        )
       )
-    )
-    .innerJoin(
-      classTemplates,
-      and(
-        eq(classTemplates.organizationId, sessions.organizationId),
-        eq(classTemplates.id, sessions.classTemplateId)
+      .innerJoin(
+        classTemplates,
+        and(
+          eq(classTemplates.organizationId, sessions.organizationId),
+          eq(classTemplates.id, sessions.classTemplateId)
+        )
       )
-    )
-    .where(
-      and(
-        eq(sessions.organizationId, scope.organization.id),
-        eq(sessions.locationId, locationId),
-        inArray(sessions.status, [...selectableSessionStatuses]),
-        gte(sessions.startsAt, earliestSelectableStart),
-        lte(sessions.startsAt, latestSelectableStart)
+      .where(
+        and(
+          eq(sessions.organizationId, scope.organization.id),
+          eq(sessions.locationId, locationId),
+          normalSelection
+        )
       )
-    )
-    .orderBy(asc(sessions.startsAt))
-    .limit(selectableSessionLimit);
+      .orderBy(asc(sessions.startsAt))
+      .limit(selectableSessionLimit),
+    input.sessionId
+      ? db
+          .select({
+            id: sessions.id,
+            className: classTemplates.name,
+            startsAt: sessions.startsAt,
+            timezone: locations.timezone,
+            status: sessions.status,
+          })
+          .from(sessions)
+          .innerJoin(
+            locations,
+            and(
+              eq(locations.organizationId, sessions.organizationId),
+              eq(locations.id, sessions.locationId)
+            )
+          )
+          .innerJoin(
+            classTemplates,
+            and(
+              eq(classTemplates.organizationId, sessions.organizationId),
+              eq(classTemplates.id, sessions.classTemplateId)
+            )
+          )
+          .where(
+            and(
+              eq(sessions.organizationId, scope.organization.id),
+              eq(sessions.locationId, locationId),
+              eq(sessions.id, input.sessionId)
+            )
+          )
+          .limit(1)
+      : Promise.resolve([]),
+  ]);
+
+  const normalSessionIds = new Set(normalRows.map((session) => session.id));
+  const rows = [
+    ...normalRows,
+    ...requestedRows.filter((session) => !normalSessionIds.has(session.id)),
+  ].sort((left, right) => left.startsAt.getTime() - right.startsAt.getTime());
 
   return {
     organization: scope.organization,
     locationId,
     sessions: rows.map((session) => ({
-      ...session,
+      id: session.id,
+      className: session.className,
+      timezone: session.timezone,
+      retryOnly: !(
+        (session.status === "scheduled" || session.status === "completed") &&
+        session.startsAt >= earliestSelectableStart &&
+        session.startsAt <= latestSelectableStart
+      ),
       startsAt: session.startsAt.toISOString(),
     })),
   };

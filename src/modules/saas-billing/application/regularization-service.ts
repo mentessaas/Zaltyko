@@ -1,24 +1,36 @@
 import { sql } from "drizzle-orm";
+import { z } from "zod";
 import { db } from "@/db";
 import type { TransactionClient } from "@/lib/db-transactions";
 import { OperationalError } from "@/modules/shared/domain/operational-error";
 import { appendAuditEntry, appendOutboxEvent, lockCommand } from "@/modules/shared/infrastructure/transactional-records";
+import { lockOrganizationForSaasMutation } from "./entitlement-service";
 import { resolveSaasOwnerScope } from "./owner-access";
 import { getOrganizationUsage, type LimitedResource } from "./organization-usage";
 
 /** Owner-only recovery path. Never calls the operational-write guard. */
+export async function getRegularizationStatusInTransaction(tx: TransactionClient, input: { userId: string; organizationId: string; resource?: LimitedResource; after?: string }) {
+  await resolveSaasOwnerScope({ userId: input.userId, organizationId: input.organizationId, tx });
+  const usage = await getOrganizationUsage(tx, input.organizationId);
+  if (!input.resource) return { ...usage, items: [], next: null };
+  const resource = input.resource;
+  if ((usage.resources.find(item => item.resource === resource)?.excess ?? 0) <= 0) {
+    return { ...usage, items: [], next: null };
+  }
+  const table = resource === "athletes" ? sql`zaltyko.athletes r join zaltyko.people p on p.organization_id = r.organization_id and p.id = r.person_id` : resource === "groups" ? sql`zaltyko.groups r` : sql`zaltyko.class_templates r`;
+  const name = resource === "athletes" ? sql`concat(p.given_name, ' ', p.family_name)` : sql`r.name`;
+  const active = resource === "athletes" ? sql`r.is_active` : sql`r.status = 'active'`;
+  const result = await tx.execute(sql`select r.id, ${name} as name from ${table} where r.organization_id = ${input.organizationId}::uuid and ${active} ${input.after ? sql`and r.id > ${input.after}::uuid` : sql``} order by r.id limit 51`);
+  const items = result.rows.slice(0, 50) as Array<{ id: string; name: string }>;
+  return { ...usage, items, next: result.rows.length > 50 ? items[49].id : null };
+}
+
 export async function getRegularizationStatus(input: { userId: string; organizationId: string; resource?: LimitedResource; after?: string }) {
   return db.transaction(async tx => {
-    await resolveSaasOwnerScope({ ...input, tx });
-    const usage = await getOrganizationUsage(tx, input.organizationId);
-    if (!input.resource) return { ...usage, items: [], next: null };
-    const resource = input.resource;
-    const table = resource === "athletes" ? sql`zaltyko.athletes r join zaltyko.people p on p.organization_id = r.organization_id and p.id = r.person_id` : resource === "groups" ? sql`zaltyko.groups r` : sql`zaltyko.class_templates r`;
-    const name = resource === "athletes" ? sql`concat(p.given_name, ' ', p.family_name)` : sql`r.name`;
-    const active = resource === "athletes" ? sql`r.is_active` : sql`r.status = 'active'`;
-    const result = await tx.execute(sql`select r.id, ${name} as name from ${table} where r.organization_id = ${input.organizationId}::uuid and ${active} ${input.after ? sql`and r.id > ${input.after}::uuid` : sql``} order by r.id limit 51`);
-    const items = result.rows.slice(0, 50) as Array<{ id: string; name: string }>;
-    return { ...usage, items, next: result.rows.length > 50 ? items[49].id : null };
+    // Keep entitlement, usage counts, and the excess-resource page on the same
+    // MVCC snapshot so concurrent regularization cannot produce a mixed view.
+    await tx.execute(sql.raw("SET TRANSACTION ISOLATION LEVEL REPEATABLE READ, READ ONLY"));
+    return getRegularizationStatusInTransaction(tx, input);
   });
 }
 
@@ -27,17 +39,50 @@ export type ArchiveResourceInput = { userId: string; organizationId: string; res
 /** Retains people, invoices, attendance and all history. No automatic selection. */
 export async function archiveResourceInTransaction(tx: TransactionClient, input: ArchiveResourceInput) {
   const scope = await resolveSaasOwnerScope({ ...input, tx });
+  // Match resource-creation transactions: owner authorization, organization
+  // serialization, then idempotency and usage checks before resource locks.
+  await lockOrganizationForSaasMutation(tx, scope.organizationId);
   await lockCommand(tx, input.organizationId, input.idempotencyKey);
   const resource = input.resource;
   const table = resource === "athletes" ? sql`zaltyko.athletes` : resource === "groups" ? sql`zaltyko.groups` : sql`zaltyko.class_templates`;
-  const prior = await tx.execute(sql`select aggregate_id, payload from zaltyko.outbox_events where organization_id = ${input.organizationId}::uuid and event_name = 'saas.resource_archived' and idempotency_key = ${input.idempotencyKey} limit 1`);
+  const prior = await tx.execute(sql`select aggregate_id, aggregate_type, payload from zaltyko.outbox_events where organization_id = ${input.organizationId}::uuid and event_name = 'saas.resource_archived' and idempotency_key = ${input.idempotencyKey} limit 1`);
   if (prior.rows[0]) {
-    const payload = prior.rows[0].payload as Record<string, unknown>;
-    if (prior.rows[0].aggregate_id !== input.resourceId || payload.resource !== resource) throw new OperationalError("IDEMPOTENCY_CONFLICT", "La clave corresponde a otro archivo", 409);
+    const payload = prior.rows[0].payload;
+    const payloadRecord =
+      payload && typeof payload === "object" && !Array.isArray(payload)
+        ? (payload as Record<string, unknown>)
+        : null;
+    const requestedResourceId = z.string().uuid().safeParse(input.resourceId);
+    const aggregateId = z.string().uuid().safeParse(prior.rows[0].aggregate_id);
+    const payloadResourceId = z
+      .string()
+      .uuid()
+      .safeParse(payloadRecord?.resourceId);
+    if (
+      !requestedResourceId.success ||
+      !aggregateId.success ||
+      !payloadRecord ||
+      prior.rows[0].aggregate_type !== resource ||
+      payloadRecord.resource !== resource ||
+      !payloadResourceId.success ||
+      aggregateId.data.toLowerCase() !== requestedResourceId.data.toLowerCase() ||
+      payloadResourceId.data.toLowerCase() !== requestedResourceId.data.toLowerCase()
+    ) {
+      throw new OperationalError(
+        "IDEMPOTENCY_CONFLICT",
+        "La clave corresponde a otro archivo",
+        409
+      );
+    }
     return getOrganizationUsage(tx, input.organizationId);
   }
-  const before = await tx.execute(sql`select id from ${table} where organization_id = ${input.organizationId}::uuid and id = ${input.resourceId}::uuid for update`);
-  if (!before.rows[0]) throw new OperationalError("NOT_FOUND", "Ficha no encontrada", 404);
+  const usage = await getOrganizationUsage(tx, input.organizationId);
+  if ((usage.resources.find(item => item.resource === resource)?.excess ?? 0) <= 0) {
+    throw new OperationalError("RESOURCE_NOT_OVER_LIMIT", "No hay excedente de este tipo para archivar", 409);
+  }
+  const active = resource === "athletes" ? sql`is_active = true` : sql`status = 'active'`;
+  const before = await tx.execute(sql`select id from ${table} where organization_id = ${input.organizationId}::uuid and id = ${input.resourceId}::uuid and ${active} for update`);
+  if (!before.rows[0]) throw new OperationalError("NOT_FOUND", "Ficha no encontrada o ya archivada", 404);
 
   // Close affiliations at the site's current date, retaining status histories.
   // Future starts end at their own start (valid zero-length range), never become active.

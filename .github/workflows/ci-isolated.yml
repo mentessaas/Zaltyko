@@ -38,27 +38,40 @@ jobs:
         uses: actions/setup-node@v7
         with:
           node-version: "22"
-          cache: pnpm
 
       - name: Install dependencies
+        id: dependencies
         run: pnpm install --frozen-lockfile
 
+      - name: Verify loopback-only network namespace
+        id: network-isolation
+        if: always() && !cancelled() && steps.dependencies.outcome == 'success'
+        run: sudo unshare --net -- bash -euc 'ip link set lo up && test "$(ip -o link show | wc -l)" -eq 1 && test -z "$(ip route show default)" && test -z "$(ip -6 route show default)"' isolated-check
+
       - name: Verify isolated workflow contract
-        run: pnpm exec vitest run tests/ci-isolated-workflow-contract.test.ts
+        if: always() && !cancelled() && steps.dependencies.outcome == 'success' && steps.network-isolation.outcome == 'success'
+        run: sudo --preserve-env=PATH,HOME,CI,NODE_ENV,NEXT_PUBLIC_APP_URL,NEXT_PUBLIC_SUPABASE_URL,NEXT_PUBLIC_SUPABASE_ANON_KEY,DATABASE_URL,DATABASE_URL_POOL,DATABASE_URL_DIRECT,INTERNAL_AUTH_SECRET,SUPABASE_JWT_SECRET unshare --net -- bash -euc 'ip link set lo up && exec "$@"' isolated-check pnpm exec vitest run tests/ci-isolated-workflow-contract.test.ts
 
       - name: Lint
-        run: pnpm lint
+        if: always() && !cancelled() && steps.dependencies.outcome == 'success' && steps.network-isolation.outcome == 'success'
+        run: sudo --preserve-env=PATH,HOME,CI,NODE_ENV,NEXT_PUBLIC_APP_URL,NEXT_PUBLIC_SUPABASE_URL,NEXT_PUBLIC_SUPABASE_ANON_KEY,DATABASE_URL,DATABASE_URL_POOL,DATABASE_URL_DIRECT,INTERNAL_AUTH_SECRET,SUPABASE_JWT_SECRET unshare --net -- bash -euc 'ip link set lo up && exec "$@"' isolated-check pnpm lint
 
       - name: Type check
-        run: pnpm typecheck
+        if: always() && !cancelled() && steps.dependencies.outcome == 'success' && steps.network-isolation.outcome == 'success'
+        run: sudo --preserve-env=PATH,HOME,CI,NODE_ENV,NEXT_PUBLIC_APP_URL,NEXT_PUBLIC_SUPABASE_URL,NEXT_PUBLIC_SUPABASE_ANON_KEY,DATABASE_URL,DATABASE_URL_POOL,DATABASE_URL_DIRECT,INTERNAL_AUTH_SECRET,SUPABASE_JWT_SECRET unshare --net -- bash -euc 'ip link set lo up && exec "$@"' isolated-check pnpm typecheck
 
       - name: Unit tests
-        run: pnpm vitest run
+        if: always() && !cancelled() && steps.dependencies.outcome == 'success' && steps.network-isolation.outcome == 'success'
+        run: sudo --preserve-env=PATH,HOME,CI,NODE_ENV,NEXT_PUBLIC_APP_URL,NEXT_PUBLIC_SUPABASE_URL,NEXT_PUBLIC_SUPABASE_ANON_KEY,DATABASE_URL,DATABASE_URL_POOL,DATABASE_URL_DIRECT,INTERNAL_AUTH_SECRET,SUPABASE_JWT_SECRET unshare --net -- bash -euc 'ip link set lo up && exec "$@"' isolated-check pnpm vitest run --exclude 'tests/saas-preview-{regularization,readonly-boundaries}-pg.test.ts'
 
       - name: Validate RLS and migration sources
-        run: |
-          pnpm validate:rls
-          pnpm check:migrations
+        if: always() && !cancelled() && steps.dependencies.outcome == 'success' && steps.network-isolation.outcome == 'success'
+        run: sudo --preserve-env=PATH,HOME,CI,NODE_ENV,NEXT_PUBLIC_APP_URL,NEXT_PUBLIC_SUPABASE_URL,NEXT_PUBLIC_SUPABASE_ANON_KEY,DATABASE_URL,DATABASE_URL_POOL,DATABASE_URL_DIRECT,INTERNAL_AUTH_SECRET,SUPABASE_JWT_SECRET unshare --net -- bash -euc 'ip link set lo up && exec "$@"' isolated-check pnpm validate:rls
+
+      - name: Validate migration sources
+        if: always() && !cancelled() && steps.dependencies.outcome == 'success' && steps.network-isolation.outcome == 'success'
+        run: sudo --preserve-env=PATH,HOME,CI,NODE_ENV,NEXT_PUBLIC_APP_URL,NEXT_PUBLIC_SUPABASE_URL,NEXT_PUBLIC_SUPABASE_ANON_KEY,DATABASE_URL,DATABASE_URL_POOL,DATABASE_URL_DIRECT,INTERNAL_AUTH_SECRET,SUPABASE_JWT_SECRET unshare --net -- bash -euc 'ip link set lo up && exec "$@"' isolated-check pnpm check:migrations
 
       - name: Run strict static application gates
-        run: pnpm gate:all
+        if: always() && !cancelled() && steps.dependencies.outcome == 'success' && steps.network-isolation.outcome == 'success'
+        run: sudo --preserve-env=PATH,HOME,CI,NODE_ENV,NEXT_PUBLIC_APP_URL,NEXT_PUBLIC_SUPABASE_URL,NEXT_PUBLIC_SUPABASE_ANON_KEY,DATABASE_URL,DATABASE_URL_POOL,DATABASE_URL_DIRECT,INTERNAL_AUTH_SECRET,SUPABASE_JWT_SECRET unshare --net -- bash -euc 'ip link set lo up && exec "$@"' isolated-check pnpm gate:all

@@ -58,6 +58,7 @@ export default async function OwnerGroupsPage({
         redirect("/owner/setup");
       }
       if (
+        error.code === "NOT_FOUND" ||
         error.code === "FORBIDDEN" ||
         error.code === "LOCATION_SCOPE_DENIED" ||
         error.code === "INVALID_RELATION"

@@ -1,8 +1,19 @@
 "use client";
 
 import { useRouter } from "next/navigation";
-import { useRef, useState } from "react";
+import { useEffect, useRef, useState, type FormEvent } from "react";
 import { ArrowRight, Check, Gauge, RotateCcw, WalletCards } from "lucide-react";
+import { OwnerOperationalReadOnlyNotice } from "./OwnerOperationalReadOnlyNotice";
+import { useOwnerPlanPolicy } from "./owner-plan-usage-store";
+import {
+  clearStoredHealthTargetCommand,
+  isCanonicalHealthTargetRejection,
+  persistHealthTargetCommand,
+  readStoredHealthTargetCommand,
+  validHealthTargetReceipt,
+  type HealthScoreTargetKey,
+  type StoredHealthTargetCommand,
+} from "./owner-health-target-command";
 
 const fields = [
   {
@@ -37,7 +48,7 @@ const fields = [
   },
 ] as const;
 
-type TargetKey = (typeof fields)[number]["key"];
+type TargetKey = HealthScoreTargetKey;
 type Targets = Partial<Record<TargetKey, number>>;
 
 export function AcademyTargetProfileForm({
@@ -48,53 +59,237 @@ export function AcademyTargetProfileForm({
   profile: { version: number; targets: Record<string, number> } | null;
 }) {
   const router = useRouter();
-  const idempotencyKey = useRef(crypto.randomUUID());
+  const planPolicy = useOwnerPlanPolicy(organizationId);
+  const writesBlocked = planPolicy.status !== "ready" || planPolicy.readOnly;
+  const formRef = useRef<HTMLFormElement | null>(null);
+  const submitInFlight = useRef(false);
+  const idempotencyKey = useRef<string | null>(null);
+  const idempotencyKeyOrganizationId = useRef(organizationId);
+  const uncertainCommand = useRef<StoredHealthTargetCommand | null>(null);
+  const currentOrganizationId = useRef(organizationId);
+  currentOrganizationId.current = organizationId;
   const [pending, setPending] = useState(false);
+  const [retryRequired, setRetryRequired] = useState(false);
+  const [storageReady, setStorageReady] = useState(false);
+  const [storageIssue, setStorageIssue] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [saved, setSaved] = useState(false);
   const values = profile?.targets as Targets | undefined;
 
-  async function submit(formData: FormData) {
-    setPending(true);
+  useEffect(() => {
+    if (currentOrganizationId.current !== organizationId) return;
+    setStorageReady(false);
+    setStorageIssue(null);
     setError(null);
     setSaved(false);
-    const targets = Object.fromEntries(
-      fields.map((field) => [field.key, Number(formData.get(field.key)) / 100])
-    ) as Record<TargetKey, number>;
+    setRetryRequired(false);
+    uncertainCommand.current = null;
+    idempotencyKey.current = null;
+    idempotencyKeyOrganizationId.current = organizationId;
+
     try {
-      const response = await fetch("/api/v1/owner/health-score/targets", {
-        method: "POST",
-        headers: {
-          "content-type": "application/json",
-          "idempotency-key": idempotencyKey.current,
-        },
-        body: JSON.stringify({ organizationId, targets }),
-      });
-      if (!response.ok) {
-        const problem = (await response.json().catch(() => null)) as {
-          detail?: string;
-        } | null;
-        throw new Error(
-          problem?.detail ?? "No se han podido guardar las metas."
+      const read = readStoredHealthTargetCommand(
+        window.sessionStorage,
+        organizationId
+      );
+      if (read.status === "unavailable" || read.status === "invalid") {
+        setStorageIssue(
+          "No se pudo recuperar de forma segura el estado de una solicitud anterior. No guardaremos metas nuevas desde esta sesión."
         );
+      } else if (read.status === "pending") {
+        uncertainCommand.current = read.command;
+        idempotencyKey.current = read.command.key;
+        idempotencyKeyOrganizationId.current = organizationId;
+        setRetryRequired(true);
+        setError(
+          "Hay un guardado anterior cuyo resultado no se pudo confirmar. Reinténtalo para recuperar su resultado antes de editar las metas."
+        );
+        for (const field of fields) {
+          const input = formRef.current?.elements.namedItem(field.key);
+          if (input instanceof HTMLInputElement) {
+            input.value = (read.command.targets[field.key] * 100).toFixed(1);
+          }
+        }
       }
-      setSaved(true);
-      idempotencyKey.current = crypto.randomUUID();
-      router.refresh();
-    } catch (cause) {
-      setError(
-        cause instanceof Error
-          ? cause.message
-          : "No se han podido guardar las metas."
+    } catch {
+      setStorageIssue(
+        "El almacenamiento de esta pestaña no está disponible. No guardaremos metas nuevas sin poder recuperar una solicitud incierta."
       );
     } finally {
-      setPending(false);
+      setStorageReady(true);
+    }
+  }, [organizationId]);
+
+  async function submit(event: FormEvent<HTMLFormElement>) {
+    event.preventDefault();
+    if (submitInFlight.current) return;
+    submitInFlight.current = true;
+
+    try {
+      const formData = new FormData(event.currentTarget);
+      if (writesBlocked || pending || !storageReady || storageIssue) return;
+
+      const previous =
+        uncertainCommand.current?.organizationId === organizationId
+          ? uncertainCommand.current
+          : null;
+      const previouslyUncertain = previous !== null;
+      const command: StoredHealthTargetCommand =
+        previous ??
+        (() => {
+          const targets = Object.fromEntries(
+            fields.map((field) => [
+              field.key,
+              Number(formData.get(field.key)) / 100,
+            ])
+          ) as Record<TargetKey, number>;
+          return {
+            organizationId,
+            key:
+              (idempotencyKeyOrganizationId.current === organizationId
+                ? idempotencyKey.current
+                : null) ?? crypto.randomUUID(),
+            body: JSON.stringify({ organizationId, targets }),
+            targets,
+          };
+        })();
+      uncertainCommand.current = command;
+      idempotencyKey.current = command.key;
+      idempotencyKeyOrganizationId.current = command.organizationId;
+      const ownsCurrentCommand = () => {
+        const current = uncertainCommand.current;
+        return (
+          current !== null &&
+          currentOrganizationId.current === command.organizationId &&
+          current.organizationId === command.organizationId &&
+          current.key === command.key &&
+          current.body === command.body
+        );
+      };
+
+      try {
+        if (!persistHealthTargetCommand(window.sessionStorage, command)) {
+          setStorageIssue(
+            "No se pudo conservar la solicitud pendiente en esta pestaña. No se ha enviado; no edites ni reenvíes otra solicitud hasta resolverlo."
+          );
+          return;
+        }
+      } catch {
+        setStorageIssue(
+          "El almacenamiento de esta pestaña no está disponible. No se ha enviado la solicitud."
+        );
+        return;
+      }
+
+      setPending(true);
+      setError(null);
+      setSaved(false);
+      try {
+        const response = await fetch("/api/v1/owner/health-score/targets", {
+          method: "POST",
+          headers: {
+            "content-type": "application/json",
+            "idempotency-key": command.key,
+          },
+          body: command.body,
+        });
+        const payload: unknown = await response.json().catch(() => null);
+        if (!response.ok) {
+          const commandWasCurrent = ownsCurrentCommand();
+          const rejected = isCanonicalHealthTargetRejection(
+            response.status,
+            payload,
+            previouslyUncertain
+          );
+          if (rejected) {
+            if (clearStoredHealthTargetCommand(window.sessionStorage, command)) {
+              if (commandWasCurrent) {
+                uncertainCommand.current = null;
+                idempotencyKey.current = null;
+                idempotencyKeyOrganizationId.current = command.organizationId;
+                setRetryRequired(false);
+              }
+            } else {
+              if (commandWasCurrent) {
+                setRetryRequired(true);
+                setError(
+                  "El servidor rechazó el guardado, pero no se pudo cerrar de forma segura la solicitud local. Reintenta el mismo envío."
+                );
+              }
+              return;
+            }
+          }
+          const detail =
+            payload !== null &&
+            typeof payload === "object" &&
+            "detail" in payload &&
+            typeof payload.detail === "string"
+              ? payload.detail
+              : "No se han podido guardar las metas.";
+          if (commandWasCurrent) {
+            setError(
+              rejected
+                ? detail
+                : `${detail} Reintenta para confirmar el resultado; mantendremos bloqueadas las metas y reutilizaremos la misma solicitud.`
+            );
+            if (!rejected) setRetryRequired(true);
+          }
+          return;
+        }
+
+        if (
+          response.status < 200 ||
+          response.status >= 300 ||
+          !validHealthTargetReceipt(payload)
+        ) {
+          if (ownsCurrentCommand()) {
+            setRetryRequired(true);
+            setError(
+              "La respuesta no permite confirmar si se guardaron las metas. Reintenta para consultar el mismo envío; las metas seguirán bloqueadas."
+            );
+          }
+          return;
+        }
+
+        if (!clearStoredHealthTargetCommand(window.sessionStorage, command)) {
+          if (ownsCurrentCommand()) {
+            setRetryRequired(true);
+            setError(
+              "El servidor confirmó el guardado, pero no se pudo cerrar de forma segura la solicitud local. Reintenta el mismo envío para confirmar y cerrar el estado pendiente."
+            );
+          }
+          return;
+        }
+
+        if (ownsCurrentCommand()) {
+          uncertainCommand.current = null;
+          setRetryRequired(false);
+          setSaved(true);
+          idempotencyKey.current = null;
+          idempotencyKeyOrganizationId.current = command.organizationId;
+          router.refresh();
+        }
+      } catch (cause) {
+        if (ownsCurrentCommand()) {
+          setRetryRequired(true);
+          setError(
+            cause instanceof Error
+              ? cause.message
+              : "No se han podido guardar las metas."
+          );
+        }
+      } finally {
+        setPending(false);
+      }
+    } finally {
+      submitInFlight.current = false;
     }
   }
 
   const groups = [...new Set(fields.map((field) => field.group))];
   return (
-    <form action={submit} className="grid gap-8">
+    <form ref={formRef} onSubmit={submit} className="grid gap-8">
+      <OwnerOperationalReadOnlyNotice organizationId={organizationId} />
       {groups.map((group) => (
         <section key={group} aria-labelledby={`group-${group}`}>
           <div className="mb-3 flex items-center gap-3 border-b border-slate-300 pb-3">
@@ -128,6 +323,13 @@ export function AcademyTargetProfileForm({
                     <input
                       name={field.key}
                       type="number"
+                      disabled={
+                        writesBlocked ||
+                        pending ||
+                        retryRequired ||
+                        !storageReady ||
+                        Boolean(storageIssue)
+                      }
                       required
                       min="1"
                       max="100"
@@ -170,6 +372,16 @@ export function AcademyTargetProfileForm({
           className="border border-red-300 bg-red-50 p-3 text-sm text-red-900"
         >
           {error}
+          {retryRequired &&
+            " Reintenta para reenviar exactamente la misma solicitud; las metas están bloqueadas hasta confirmar el resultado."}
+        </p>
+      )}
+      {storageIssue && (
+        <p
+          role="alert"
+          className="border border-red-300 bg-red-50 p-3 text-sm text-red-900"
+        >
+          {storageIssue}
         </p>
       )}
       {saved && (
@@ -184,12 +396,16 @@ export function AcademyTargetProfileForm({
       )}
       <button
         type="submit"
-        disabled={pending}
+        disabled={
+          pending || writesBlocked || !storageReady || Boolean(storageIssue)
+        }
         className="touch-target inline-flex items-center justify-center gap-2 justify-self-start rounded-full bg-slate-950 px-6 py-3 text-sm font-bold text-white hover:bg-teal-900 disabled:bg-slate-500"
       >
         {pending
           ? "Guardando metas…"
-          : profile
+          : retryRequired
+            ? "Reintentar el mismo envío"
+            : profile
             ? `Guardar versión ${profile.version + 1}`
             : "Activar Academy Health Score"}
         <ArrowRight className="h-4 w-4" aria-hidden="true" />

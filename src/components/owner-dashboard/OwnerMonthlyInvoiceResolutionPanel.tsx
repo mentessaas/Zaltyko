@@ -1,6 +1,12 @@
 "use client";
 
-import { useEffect, useRef, useState } from "react";
+import Link from "next/link";
+import { useEffect, useLayoutEffect, useRef, useState } from "react";
+import { useOwnerPlanPolicy } from "./owner-plan-usage-store";
+import { usePendingCommandExitWarning } from "./use-pending-command-exit-warning";
+
+const useCommittedLayoutEffect =
+  typeof window === "undefined" ? useEffect : useLayoutEffect;
 
 export type ResolutionAction =
   | { kind: "tariff"; enrollmentId: string; athleteName: string | null }
@@ -45,7 +51,34 @@ type FamilyAssociationOption = {
   }>;
 };
 
-type RetryRequest = { key: string; body: unknown };
+type PendingResolutionCommand = {
+  scopeKey: string;
+  organizationId: string;
+  locationId: string;
+  servicePeriod: string;
+  actionKey: string;
+  operation: "create-price-plan" | "assign-tariff" | "associate-family";
+  endpoint: string;
+  method: "POST" | "PATCH";
+  key: string;
+  hasAmbiguousAttempt: boolean;
+  body: unknown;
+  serializedBody: string;
+};
+
+function resolutionScopeKey(input: {
+  organizationId: string;
+  locationId: string;
+  servicePeriod: string;
+  actionKey: string;
+}) {
+  return JSON.stringify([
+    input.organizationId,
+    input.locationId,
+    input.servicePeriod,
+    input.actionKey,
+  ]);
+}
 
 function responseData<T>(payload: unknown): T | null {
   if (payload && typeof payload === "object" && "data" in payload) {
@@ -71,6 +104,15 @@ function responseMessage(payload: unknown, fallback: string): string {
     if (typeof message === "string") return message;
   }
   return fallback;
+}
+
+function problemCode(payload: unknown): string | undefined {
+  if (!payload || typeof payload !== "object") return undefined;
+  if ("code" in payload && typeof payload.code === "string") return payload.code;
+  if ("type" in payload && typeof payload.type === "string") {
+    return payload.type.split("/").at(-1)?.replaceAll("-", "_").toUpperCase();
+  }
+  return undefined;
 }
 
 function displayName(value: string | null | undefined, fallback: string) {
@@ -130,6 +172,7 @@ const secondaryButtonClassName =
 export function OwnerMonthlyInvoiceResolutionPanel({
   action,
   organizationId,
+  writesBlocked,
   locationId,
   defaultCurrency,
   servicePeriodStart,
@@ -138,12 +181,32 @@ export function OwnerMonthlyInvoiceResolutionPanel({
 }: {
   action: ResolutionAction;
   organizationId: string;
+  writesBlocked: boolean;
   locationId: string;
   defaultCurrency: string;
   servicePeriodStart: string;
   onCancel: () => void;
   onSaved: (kind: "tariff" | "family", familyId?: string) => Promise<void>;
 }) {
+  const planPolicy = useOwnerPlanPolicy(organizationId);
+  const blocked = writesBlocked || planPolicy.status !== "ready" || planPolicy.readOnly;
+  const actionKey =
+    action.kind === "payer"
+      ? `payer:${action.familyId}`
+      : `${action.kind}:${action.enrollmentId}`;
+  const currentScope = {
+    organizationId,
+    locationId,
+    servicePeriod: servicePeriodStart.slice(0, 7),
+    actionKey,
+  };
+  const currentScopeKey = resolutionScopeKey(currentScope);
+  const currentScopeKeyRef = useRef(currentScopeKey);
+  const onSavedRef = useRef(onSaved);
+  useCommittedLayoutEffect(() => {
+    currentScopeKeyRef.current = currentScopeKey;
+    onSavedRef.current = onSaved;
+  }, [currentScopeKey, onSaved]);
   const [loading, setLoading] = useState(true);
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState("");
@@ -157,8 +220,14 @@ export function OwnerMonthlyInvoiceResolutionPanel({
   const [pricePlanOptionsScope, setPricePlanOptionsScope] = useState<{
     organizationId: string;
     locationId: string;
+    servicePeriod: string;
   } | null>(null);
   const [families, setFamilies] = useState<FamilyAssociationOption[]>([]);
+  const [familyOptionsScope, setFamilyOptionsScope] = useState<{
+    organizationId: string;
+    locationId: string;
+    servicePeriod: string;
+  } | null>(null);
   const [selectedPricePlanId, setSelectedPricePlanId] = useState("");
   const [newPricePlanName, setNewPricePlanName] = useState("");
   const [newPricePlanAmount, setNewPricePlanAmount] = useState("");
@@ -171,6 +240,7 @@ export function OwnerMonthlyInvoiceResolutionPanel({
   const [coverageHasNoEnd, setCoverageHasNoEnd] = useState(true);
   const [coverageEndsOn, setCoverageEndsOn] = useState("");
   const [pricePlanNotice, setPricePlanNotice] = useState("");
+  const [pricePlanNoticeScope, setPricePlanNoticeScope] = useState("");
   const [priceStartsOn, setPriceStartsOn] = useState(servicePeriodStart);
   const [effectiveFrom, setEffectiveFrom] = useState(servicePeriodStart);
   const [selectedFamilyId, setSelectedFamilyId] = useState(
@@ -189,23 +259,60 @@ export function OwnerMonthlyInvoiceResolutionPanel({
   const [relationship, setRelationship] = useState<
     "parent" | "legal_guardian" | "foster_guardian" | "other"
   >("parent");
-  const retryRequest = useRef<RetryRequest | null>(null);
+  const pendingCommandRef = useRef<PendingResolutionCommand | null>(null);
+  const [pendingCommand, setPendingCommand] =
+    useState<PendingResolutionCommand | null>(null);
+  const [commandReceipt, setCommandReceipt] = useState<{
+    organizationId: string;
+    locationId: string;
+    servicePeriod: string;
+    message: string;
+  } | null>(null);
+  usePendingCommandExitWarning(pendingCommand !== null, pendingCommandRef);
+
+  function recordLateReceipt(
+    command: PendingResolutionCommand,
+    message: string
+  ) {
+    setCommandReceipt({
+      organizationId: command.organizationId,
+      locationId: command.locationId,
+      servicePeriod: command.servicePeriod,
+      message,
+    });
+  }
   const selectedCoverageClassIds = [
     ...new Set(selectedClassTemplateIds),
   ].sort();
-  const classOptionsMatchCurrentScope =
+  const pricePlanOptionsMatchCurrentScope =
     pricePlanOptionsScope?.organizationId === organizationId &&
-    pricePlanOptionsScope.locationId === locationId;
+    pricePlanOptionsScope.locationId === locationId &&
+    pricePlanOptionsScope.servicePeriod === currentScope.servicePeriod;
+  const familyOptionsMatchCurrentScope =
+    familyOptionsScope?.organizationId === organizationId &&
+    familyOptionsScope.locationId === locationId &&
+    familyOptionsScope.servicePeriod === currentScope.servicePeriod;
+  const catalogMatchesCurrentScope =
+    action.kind === "tariff"
+      ? pricePlanOptionsMatchCurrentScope
+      : familyOptionsMatchCurrentScope;
+  const currentLoading = loading || !catalogMatchesCurrentScope;
+  const currentPricePlans = pricePlanOptionsMatchCurrentScope ? pricePlans : [];
+  const currentClassTemplates = pricePlanOptionsMatchCurrentScope
+    ? classTemplates
+    : [];
+  const currentFamilies = familyOptionsMatchCurrentScope ? families : [];
   const canCreatePricePlan =
-    !loading &&
+    !currentLoading &&
     !busy &&
+    !blocked &&
     !pricePlanOptionsError &&
-    classOptionsMatchCurrentScope &&
-    classTemplates.length > 0 &&
+    pricePlanOptionsMatchCurrentScope &&
+    currentClassTemplates.length > 0 &&
     selectedCoverageClassIds.length > 0 &&
     selectedCoverageClassIds.length <= 100 &&
     selectedCoverageClassIds.every((id) =>
-      classTemplates.some((classTemplate) => classTemplate.id === id)
+      currentClassTemplates.some((classTemplate) => classTemplate.id === id)
     );
 
   useEffect(() => {
@@ -254,6 +361,7 @@ export function OwnerMonthlyInvoiceResolutionPanel({
             );
           }
           if (active) {
+            setPricePlanOptionsError(false);
             setPricePlans(data.items);
             setSelectedPricePlanId((current) =>
               data.items.some((item) => item.id === current)
@@ -262,7 +370,11 @@ export function OwnerMonthlyInvoiceResolutionPanel({
             );
             setClassTemplates(data.classTemplates);
             setClassTemplatesHasMore(data.classTemplatesHasMore);
-            setPricePlanOptionsScope({ organizationId, locationId });
+            setPricePlanOptionsScope({
+              organizationId,
+              locationId,
+              servicePeriod: currentScope.servicePeriod,
+            });
             setSelectedClassTemplateIds((current) =>
               current.filter((id) =>
                 data.classTemplates.some((item) => item.id === id)
@@ -278,11 +390,34 @@ export function OwnerMonthlyInvoiceResolutionPanel({
               "La respuesta de familias no tiene el formato esperado."
             );
           }
-          if (active) setFamilies(data.families);
+          if (active) {
+            setFamilies(data.families);
+            setFamilyOptionsScope({
+              organizationId,
+              locationId,
+              servicePeriod: currentScope.servicePeriod,
+            });
+          }
         }
       } catch (cause) {
         if (active) {
-          if (action.kind === "tariff") setPricePlanOptionsError(true);
+          if (action.kind === "tariff") {
+            setPricePlanOptionsError(true);
+            setPricePlans([]);
+            setClassTemplates([]);
+            setPricePlanOptionsScope({
+              organizationId,
+              locationId,
+              servicePeriod: currentScope.servicePeriod,
+            });
+          } else {
+            setFamilies([]);
+            setFamilyOptionsScope({
+              organizationId,
+              locationId,
+              servicePeriod: currentScope.servicePeriod,
+            });
+          }
           setError(
             cause instanceof Error
               ? cause.message
@@ -296,19 +431,94 @@ export function OwnerMonthlyInvoiceResolutionPanel({
     return () => {
       active = false;
     };
-  }, [action.kind, locationId, optionsRetry, organizationId]);
+  }, [action.kind, currentScope.servicePeriod, locationId, optionsRetry, organizationId]);
 
-  function requestKey(prefix: string, body: unknown): string {
-    const previous = retryRequest.current;
-    const key =
-      previous && JSON.stringify(previous.body) === JSON.stringify(body)
-        ? previous.key
-        : `${prefix}:${crypto.randomUUID()}`;
-    retryRequest.current = { key, body };
-    return key;
+  function createPendingCommand(
+    operation: PendingResolutionCommand["operation"],
+    prefix: string,
+    endpoint: string,
+    method: PendingResolutionCommand["method"],
+    body: unknown
+  ) {
+    if (pendingCommandRef.current) return null;
+    const command: PendingResolutionCommand = {
+      ...currentScope,
+      scopeKey: currentScopeKey,
+      operation,
+      endpoint,
+      method,
+      key: `${prefix}:${crypto.randomUUID()}`,
+      hasAmbiguousAttempt: false,
+      body,
+      serializedBody: JSON.stringify(body),
+    };
+    pendingCommandRef.current = command;
+    setPendingCommand(command);
+    return command;
+  }
+
+  function clearPendingCommand(command: PendingResolutionCommand) {
+    if (pendingCommandRef.current?.key !== command.key) return;
+    pendingCommandRef.current = null;
+    setPendingCommand(null);
+  }
+
+  function markPendingCommandAmbiguous(command: PendingResolutionCommand) {
+    const current = pendingCommandRef.current;
+    if (current?.key !== command.key || current.hasAmbiguousAttempt) return;
+    const updated = { ...current, hasAmbiguousAttempt: true };
+    pendingCommandRef.current = updated;
+    setPendingCommand(updated);
+  }
+
+  async function sendPendingCommand(
+    command: PendingResolutionCommand,
+    fallback: string
+  ): Promise<{ response: Response; payload: unknown } | null> {
+    setBusy(true);
+    setError("");
+    try {
+      const response = await fetch(command.endpoint, {
+        method: command.method,
+        headers: {
+          "content-type": "application/json",
+          "Idempotency-Key": command.key,
+        },
+        body: command.serializedBody,
+      });
+      const payload = await response.json().catch(() => null);
+      if (!response.ok) {
+        const knownPreCommitDomainRejection =
+          command.operation === "create-price-plan" &&
+          problemCode(payload) === "MONTHLY_INVOICE_BLOCKED";
+        // On a first request, 4xx routes reject before service work or the transaction rolls back.
+        // Replays after an ambiguous attempt keep the exact command for any status.
+        const definitiveFirstRejection =
+          !command.hasAmbiguousAttempt &&
+          ((response.status >= 400 && response.status < 500) ||
+            knownPreCommitDomainRejection);
+        if (definitiveFirstRejection) {
+          clearPendingCommand(command);
+        } else {
+          markPendingCommandAmbiguous(command);
+        }
+        setError(responseMessage(payload, fallback));
+        return null;
+      }
+      return { response, payload };
+    } catch {
+      markPendingCommandAmbiguous(command);
+      setError(
+        "No sabemos si se guardó. Conservamos exactamente la operación para reintentarla con la misma clave."
+      );
+      return null;
+    } finally {
+      setBusy(false);
+    }
   }
 
   async function createPricePlan() {
+    if (blocked || currentLoading || pendingCommandRef.current) return;
     if (action.kind !== "tariff") return;
     const name = newPricePlanName.trim();
     const amountCents = parseMonthlyAmountCents(newPricePlanAmount);
@@ -318,18 +528,19 @@ export function OwnerMonthlyInvoiceResolutionPanel({
       );
       return;
     }
-    if (!classOptionsMatchCurrentScope || pricePlanOptionsError) {
+    if (!pricePlanOptionsMatchCurrentScope || pricePlanOptionsError) {
       setError(
         "Vuelve a cargar las opciones de clases de esta academia y sede antes de crear la tarifa."
       );
       return;
     }
     if (
-      classTemplates.length === 0 ||
+      currentClassTemplates.length === 0 ||
       selectedCoverageClassIds.length === 0 ||
       selectedCoverageClassIds.length > 100 ||
       selectedCoverageClassIds.some(
-        (id) => !classTemplates.some((classTemplate) => classTemplate.id === id)
+        (id) =>
+          !currentClassTemplates.some((classTemplate) => classTemplate.id === id)
       )
     ) {
       setError("Selecciona al menos una clase activa de esta sede.");
@@ -356,68 +567,25 @@ export function OwnerMonthlyInvoiceResolutionPanel({
         endsOn: coverageHasNoEnd ? null : coverageEndsOn,
       },
     };
-    const key = requestKey("owner-monthly-price-plan", body);
-    setBusy(true);
-    setError("");
+    const command = createPendingCommand(
+      "create-price-plan",
+      "owner-monthly-price-plan",
+      "/api/v1/owner/billing/price-plans",
+      "POST",
+      body
+    );
+    if (!command) return;
     setPricePlanNotice("");
-    try {
-      const response = await fetch("/api/v1/owner/billing/price-plans", {
-        method: "POST",
-        headers: {
-          "content-type": "application/json",
-          "Idempotency-Key": key,
-        },
-        body: JSON.stringify(body),
-      });
-      const payload = await response.json().catch(() => null);
-      const created = responseData<PricePlanOption>(payload);
-      if (!response.ok) {
-        if (response.status >= 400 && response.status < 500) {
-          retryRequest.current = null;
-        }
-        throw new Error(
-          responseMessage(payload, "No se pudo crear la tarifa mensual.")
-        );
-      }
-      if (
-        !created ||
-        typeof created.id !== "string" ||
-        typeof created.name !== "string" ||
-        typeof created.amountCents !== "number" ||
-        typeof created.currency !== "string" ||
-        created.cadence !== "monthly"
-      ) {
-        throw new Error(
-          "La respuesta de la tarifa no tiene el formato esperado."
-        );
-      }
-      retryRequest.current = null;
-      setPricePlans((current) => [
-        ...current.filter((plan) => plan.id !== created.id),
-        created,
-      ]);
-      setSelectedPricePlanId(created.id);
-      setNewPricePlanName("");
-      setNewPricePlanAmount("");
-      setPricePlanNotice(
-        `Tarifa creada con cobertura para ${selectedCoverageClassIds.length} ${selectedCoverageClassIds.length === 1 ? "clase" : "clases"}. Revisa el importe y confirma aparte su asignación a la inscripción.`
-      );
-      setPricePlanOptionsError(false);
-      setLoading(true);
-      setOptionsRetry((current) => current + 1);
-    } catch (cause) {
-      setError(
-        cause instanceof Error
-          ? cause.message
-          : "No se pudo crear la tarifa mensual."
-      );
-    } finally {
-      setBusy(false);
-    }
+    await resolvePendingCommand(command);
   }
 
   async function saveTariff() {
-    if (action.kind !== "tariff" || !selectedPricePlanId || !priceStartsOn) {
+    if (blocked || currentLoading || pendingCommandRef.current) return;
+    if (
+      action.kind !== "tariff" ||
+      !currentPricePlans.some((plan) => plan.id === selectedPricePlanId) ||
+      !priceStartsOn
+    ) {
       setError("Selecciona una tarifa y la fecha desde la que se aplica.");
       return;
     }
@@ -427,47 +595,24 @@ export function OwnerMonthlyInvoiceResolutionPanel({
       pricePlanId: selectedPricePlanId,
       startsOn: priceStartsOn,
     };
-    const key = requestKey("owner-price-assignment", body);
-    setBusy(true);
-    setError("");
-    try {
-      const response = await fetch(
-        `/api/v1/owner/enrollments/${encodeURIComponent(action.enrollmentId)}/price-plan`,
-        {
-          method: "PATCH",
-          headers: {
-            "content-type": "application/json",
-            "Idempotency-Key": key,
-          },
-          body: JSON.stringify(body),
-        }
-      );
-      const payload = await response.json().catch(() => null);
-      if (!response.ok) {
-        if (response.status >= 400 && response.status < 500) {
-          retryRequest.current = null;
-        }
-        throw new Error(
-          responseMessage(payload, "No se pudo asignar la tarifa.")
-        );
-      }
-      retryRequest.current = null;
-      await onSaved("tariff");
-    } catch (cause) {
-      setError(
-        cause instanceof Error ? cause.message : "No se pudo asignar la tarifa."
-      );
-    } finally {
-      setBusy(false);
-    }
+    const command = createPendingCommand(
+      "assign-tariff",
+      "owner-price-assignment",
+      `/api/v1/owner/enrollments/${encodeURIComponent(action.enrollmentId)}/price-plan`,
+      "PATCH",
+      body
+    );
+    if (!command) return;
+    await resolvePendingCommand(command);
   }
 
   async function saveAssociation() {
+    if (blocked || currentLoading || pendingCommandRef.current) return;
     if (action.kind === "tariff") return;
     const familyId =
       action.kind === "payer" ? action.familyId : selectedFamilyId;
     const uniqueAthleteIds = [...new Set(athleteIds)];
-    const selectedFamily = families.find(
+    const selectedFamily = currentFamilies.find(
       (family) => family.familyId === familyId
     );
     const existingPayerId = selectedFamily?.payers.some(
@@ -499,47 +644,143 @@ export function OwnerMonthlyInvoiceResolutionPanel({
           },
       effectiveFrom,
     };
-    const key = requestKey("owner-family-association", body);
-    setBusy(true);
-    setError("");
-    try {
-      const response = await fetch("/api/v1/owner/families/associations", {
-        method: "POST",
-        headers: {
-          "content-type": "application/json",
-          "Idempotency-Key": key,
-        },
-        body: JSON.stringify(body),
-      });
-      const payload = await response.json().catch(() => null);
-      if (!response.ok) {
-        if (response.status >= 400 && response.status < 500) {
-          retryRequest.current = null;
-        }
-        throw new Error(
-          responseMessage(payload, "No se pudo guardar la relación familiar.")
-        );
-      }
-      retryRequest.current = null;
-      const data = responseData<{ familyId?: unknown }>(payload);
-      await onSaved(
-        "family",
-        isUuid(data?.familyId) ? data.familyId : undefined
-      );
-    } catch (cause) {
-      setError(
-        cause instanceof Error
-          ? cause.message
-          : "No se pudo guardar la relación familiar."
-      );
-    } finally {
-      setBusy(false);
-    }
+    const command = createPendingCommand(
+      "associate-family",
+      "owner-family-association",
+      "/api/v1/owner/families/associations",
+      "POST",
+      body
+    );
+    if (!command) return;
+    await resolvePendingCommand(command);
   }
 
-  const selectedFamily = families.find(
+  async function resolvePendingCommand(command: PendingResolutionCommand) {
+    const result = await sendPendingCommand(
+      command,
+      "No se pudo confirmar la operación de facturación."
+    );
+    if (!result) return;
+    const data = responseData<Record<string, unknown>>(result.payload);
+    if (!data) {
+      markPendingCommandAmbiguous(command);
+      setError(
+        "La respuesta no confirma la operación. Conservamos el body y la clave para reintentarla exactamente."
+      );
+      return;
+    }
+
+    if (command.operation === "create-price-plan") {
+      const body = command.body as {
+        name: string;
+        amountCents: number;
+        coverage: { classTemplateIds: string[] };
+      };
+      const created = data as unknown as PricePlanOption;
+      if (
+        !isUuid(created.id) ||
+        created.name !== body.name ||
+        created.amountCents !== body.amountCents ||
+        typeof created.currency !== "string" ||
+        created.cadence !== "monthly"
+      ) {
+        markPendingCommandAmbiguous(command);
+        setError(
+          "La respuesta no confirma la tarifa solicitada. Conservamos el body y la clave para reintentarla exactamente."
+        );
+        return;
+      }
+      clearPendingCommand(command);
+      if (command.scopeKey !== currentScopeKeyRef.current) {
+        recordLateReceipt(
+          command,
+          `La tarifa «${created.name}» se creó correctamente en la operación iniciada para su ámbito original.`
+        );
+        return;
+      }
+      setPricePlans((current) => [
+        ...current.filter((plan) => plan.id !== created.id),
+        created,
+      ]);
+      setSelectedPricePlanId(created.id);
+      setNewPricePlanName("");
+      setNewPricePlanAmount("");
+      setPricePlanNotice(
+        `Tarifa creada con cobertura para ${body.coverage.classTemplateIds.length} ${body.coverage.classTemplateIds.length === 1 ? "clase" : "clases"}. Revisa el importe y confirma aparte su asignación a la inscripción.`
+      );
+      setPricePlanNoticeScope(command.scopeKey);
+      setPricePlanOptionsError(false);
+      setLoading(true);
+      setOptionsRetry((current) => current + 1);
+      return;
+    }
+
+    if (command.operation === "assign-tariff") {
+      const body = command.body as {
+        pricePlanId: string;
+        startsOn: string;
+      };
+      if (
+        !isUuid(data.id) ||
+        action.kind !== "tariff" ||
+        data.enrollmentId !== action.enrollmentId ||
+        data.pricePlanId !== body.pricePlanId ||
+        data.startsOn !== body.startsOn
+      ) {
+        markPendingCommandAmbiguous(command);
+        setError(
+          "La respuesta no confirma la asignación solicitada. Conservamos el body y la clave para reintentarla exactamente."
+        );
+        return;
+      }
+      clearPendingCommand(command);
+      if (command.scopeKey !== currentScopeKeyRef.current) {
+        recordLateReceipt(
+          command,
+          "La asignación de tarifa se confirmó para la inscripción del ámbito original."
+        );
+        return;
+      }
+      await onSavedRef.current("tariff");
+      return;
+    }
+
+    const familyId = data.familyId;
+    if (!isUuid(familyId) || !isUuid(data.familyPayerId)) {
+      markPendingCommandAmbiguous(command);
+      setError(
+        "La respuesta no confirma la relación familiar. Conservamos el body y la clave para reintentarla exactamente."
+      );
+      return;
+    }
+    clearPendingCommand(command);
+    if (command.scopeKey !== currentScopeKeyRef.current) {
+      recordLateReceipt(
+        command,
+        "La relación familiar se confirmó para la operación del ámbito original."
+      );
+      return;
+    }
+    await onSavedRef.current("family", familyId);
+  }
+
+  function replayPendingCommand() {
+    const command = pendingCommandRef.current;
+    if (
+      !command ||
+      command.scopeKey !== currentScopeKey ||
+      busy
+    ) {
+      return;
+    }
+    void resolvePendingCommand(command);
+  }
+
+  const selectedFamily = currentFamilies.find(
     (family) => family.familyId === selectedFamilyId
   );
+  const pendingMatchesCurrentScope =
+    pendingCommand?.scopeKey === currentScopeKey;
 
   return (
     <section
@@ -561,11 +802,61 @@ export function OwnerMonthlyInvoiceResolutionPanel({
         </p>
       </div>
 
-      {loading && <p role="status">Cargando opciones…</p>}
+      {pendingCommand && (
+        <div
+          role="status"
+          className="grid gap-3 border border-amber-500 bg-amber-50 p-4 text-sm text-amber-950"
+        >
+          <p>
+            Hay una operación de facturación cuyo resultado sigue sin
+            confirmar. Conservamos su academia, sede, periodo, endpoint, body y
+            clave originales. No iniciaremos otra operación desde este panel.
+          </p>
+          {pendingMatchesCurrentScope ? (
+            <button
+              type="button"
+              disabled={busy}
+              onClick={replayPendingCommand}
+              className={`${primaryButtonClassName} w-fit`}
+            >
+              Reintentar la misma operación
+            </button>
+          ) : (
+            <Link
+              className="min-h-11 w-fit content-center font-bold underline underline-offset-2"
+              href={`/owner/monthly-invoices?${new URLSearchParams({
+                organizationId: pendingCommand.organizationId,
+                locationId: pendingCommand.locationId,
+                servicePeriod: pendingCommand.servicePeriod,
+              }).toString()}`}
+            >
+              Volver a su academia, sede y periodo
+            </Link>
+          )}
+        </div>
+      )}
 
-      {action.kind === "tariff" && !loading && (
+      {commandReceipt && (
+        <div role="status" className="grid gap-2 border border-teal-300 bg-teal-50 p-4 text-sm text-teal-950">
+          <p>{commandReceipt.message} No hemos cambiado el catálogo de la vista actual.</p>
+          <Link
+            className="min-h-11 w-fit content-center font-bold underline underline-offset-2"
+            href={`/owner/monthly-invoices?${new URLSearchParams({
+              organizationId: commandReceipt.organizationId,
+              locationId: commandReceipt.locationId,
+              servicePeriod: commandReceipt.servicePeriod,
+            }).toString()}`}
+          >
+            Volver al ámbito de la operación
+          </Link>
+        </div>
+      )}
+
+      {currentLoading && <p role="status">Cargando opciones…</p>}
+
+      {action.kind === "tariff" && !currentLoading && (
         <div className="grid gap-4 sm:grid-cols-2">
-          {pricePlans.length > 0 ? (
+          {currentPricePlans.length > 0 ? (
             <>
               <label className="grid gap-2">
                 <span className="text-sm font-bold">Tarifa mensual</span>
@@ -580,7 +871,7 @@ export function OwnerMonthlyInvoiceResolutionPanel({
                   required
                 >
                   <option value="">Selecciona una tarifa</option>
-                  {pricePlans.map((plan) => (
+                  {currentPricePlans.map((plan) => (
                     <option key={plan.id} value={plan.id}>
                       {plan.name} ·{" "}
                       {formatMoney(plan.amountCents, plan.currency)}
@@ -614,7 +905,7 @@ export function OwnerMonthlyInvoiceResolutionPanel({
                   setPricePlanOptionsError(false);
                   setOptionsRetry((current) => current + 1);
                 }}
-                disabled={busy || loading}
+                disabled={busy || currentLoading}
                 className={`${secondaryButtonClassName} w-fit`}
               >
                 Reintentar cargar tarifas
@@ -680,14 +971,14 @@ export function OwnerMonthlyInvoiceResolutionPanel({
                   Marca cada clase activa a la que se aplicará esta tarifa. No
                   se incluirán otras clases automáticamente.
                 </p>
-                {classTemplates.length === 0 ? (
+                {currentClassTemplates.length === 0 ? (
                   <p role="status" className="text-sm text-slate-700">
                     No hay clases activas disponibles en esta sede. No se puede
                     crear una tarifa sin cobertura explícita.
                   </p>
                 ) : (
                   <ul className="grid gap-2 sm:grid-cols-2">
-                    {classTemplates.map((classTemplate) => {
+                    {currentClassTemplates.map((classTemplate) => {
                       const checkboxId = `monthly-price-plan-class-${classTemplate.id}`;
 
                       return (
@@ -725,7 +1016,7 @@ export function OwnerMonthlyInvoiceResolutionPanel({
                     })}
                   </ul>
                 )}
-                {classTemplatesHasMore && (
+                {pricePlanOptionsMatchCurrentScope && classTemplatesHasMore && (
                   <p role="status" className="text-sm text-amber-900">
                     Hay más de 100 clases activas. La lista es parcial; solo se
                     cubrirán las clases que marques aquí.
@@ -802,13 +1093,13 @@ export function OwnerMonthlyInvoiceResolutionPanel({
         </div>
       )}
 
-      {pricePlanNotice && (
+      {pricePlanNotice && pricePlanNoticeScope === currentScopeKey && (
         <p role="status" aria-live="polite" className="text-sm text-teal-900">
           {pricePlanNotice}
         </p>
       )}
 
-      {(action.kind === "family" || action.kind === "payer") && !loading && (
+      {(action.kind === "family" || action.kind === "payer") && !currentLoading && (
         <div className="grid gap-4">
           {action.kind === "family" ? (
             <label className="grid gap-2">
@@ -823,7 +1114,7 @@ export function OwnerMonthlyInvoiceResolutionPanel({
                 className={fieldClassName}
               >
                 <option value="">Crear una familia nueva</option>
-                {families.map((family) => (
+                {currentFamilies.map((family) => (
                   <option key={family.familyId} value={family.familyId}>
                     {family.athletes.length
                       ? family.athletes
@@ -851,7 +1142,7 @@ export function OwnerMonthlyInvoiceResolutionPanel({
           )}
 
           {action.kind === "payer" &&
-            families
+            currentFamilies
               .find((family) => family.familyId === action.familyId)
               ?.athletes.map((athlete) => (
                 <label
@@ -977,22 +1268,22 @@ export function OwnerMonthlyInvoiceResolutionPanel({
       )}
 
       <div className="flex flex-wrap gap-3">
-        {action.kind === "tariff" ? (
+        {!pendingCommand && action.kind === "tariff" ? (
           <button
             type="button"
             onClick={() => void saveTariff()}
             disabled={
-              busy || loading || pricePlans.length === 0 || !selectedPricePlanId
+              blocked || busy || currentLoading || currentPricePlans.length === 0 || !selectedPricePlanId
             }
             className={primaryButtonClassName}
           >
             {busy ? "Guardando…" : "Guardar tarifa"}
           </button>
-        ) : (
+        ) : !pendingCommand ? (
           <button
             type="button"
             onClick={() => void saveAssociation()}
-            disabled={busy || loading}
+            disabled={blocked || busy || currentLoading}
             className={primaryButtonClassName}
           >
             {busy ? "Guardando…" : "Guardar vínculo"}
@@ -1001,7 +1292,7 @@ export function OwnerMonthlyInvoiceResolutionPanel({
         <button
           type="button"
           onClick={onCancel}
-          disabled={busy}
+          disabled={busy || pendingCommand !== null}
           className={secondaryButtonClassName}
         >
           Cancelar

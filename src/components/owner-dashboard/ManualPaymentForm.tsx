@@ -1,12 +1,17 @@
 "use client";
 
+import Link from "next/link";
 import { useRouter } from "next/navigation";
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
+import { OwnerOperationalReadOnlyNotice } from "./OwnerOperationalReadOnlyNotice";
+import { formatPaymentDueDate } from "./owner-payment-date";
+import { useOwnerPlanPolicy } from "./owner-plan-usage-store";
+import { useOrganizationDraftField } from "./use-organization-draft-field";
 
 import type { OpenManualPaymentCharge } from "@/modules/billing/application/manual-payments";
 import {
-  getLocalCalendarDate,
-  localDateToReceivedAt,
+  calendarDateToReceivedAt,
+  getCalendarDateInTimezone,
 } from "@/modules/billing/domain/manual-payment-date";
 
 type ManualPaymentMethod = "cash" | "bank_transfer" | "card_terminal" | "other";
@@ -69,53 +74,100 @@ export function ManualPaymentForm({
   charges: OpenManualPaymentCharge[];
   canManageFamilyCollectionPreferences?: boolean;
 }) {
+  const planPolicy = useOwnerPlanPolicy(organizationId);
+  const writesBlocked = planPolicy.status !== "ready" || planPolicy.readOnly;
   const router = useRouter();
   const firstCharge = charges[0];
-  const [chargeId, setChargeId] = useState(firstCharge?.chargeId ?? "");
+  const [chargeId, setChargeId] = useOrganizationDraftField(
+    organizationId,
+    () => firstCharge?.chargeId ?? ""
+  );
   const selectedCharge = useMemo(
     () => charges.find((charge) => charge.chargeId === chargeId) ?? null,
     [chargeId, charges]
   );
-  const [amount, setAmount] = useState(
-    firstCharge ? (firstCharge.outstandingCents / 100).toFixed(2) : ""
+  const selectedTimezone = selectedCharge?.locationTimezone ?? null;
+  const [amount, setAmount] = useOrganizationDraftField(
+    organizationId,
+    () => (firstCharge ? (firstCharge.outstandingCents / 100).toFixed(2) : "")
   );
-  const [method, setMethod] = useState<ManualPaymentMethod>("bank_transfer");
-  const [reference, setReference] = useState("");
+  const [method, setMethod] = useOrganizationDraftField<ManualPaymentMethod>(
+    organizationId,
+    "bank_transfer"
+  );
+  const [reference, setReference] = useOrganizationDraftField(organizationId, "");
   const [today, setToday] = useState("");
-  const [receivedOn, setReceivedOn] = useState("");
+  const [dateInterpretationError, setDateInterpretationError] =
+    useOrganizationDraftField<"timezone" | "received-date" | null>(
+      organizationId,
+      null
+    );
+  const [receivedOn, setReceivedOn] = useOrganizationDraftField(
+    organizationId,
+    ""
+  );
   const [busy, setBusy] = useState(false);
-  const [error, setError] = useState<string | null>(null);
-  const [saved, setSaved] = useState(false);
+  const [error, setError] = useOrganizationDraftField<string | null>(
+    organizationId,
+    null
+  );
+  const [saved, setSaved] = useOrganizationDraftField(organizationId, false);
   const [retryRequest, setRetryRequest] = useState<{
     key: string;
     body: PaymentRequest;
   } | null>(null);
+  const paymentInFlight = useRef(false);
 
   useEffect(() => {
-    const localToday = getLocalCalendarDate();
+    setToday("");
+    setDateInterpretationError(null);
+    if (!selectedTimezone) {
+      return;
+    }
+    let locationToday: string;
+    try {
+      locationToday = getCalendarDateInTimezone(new Date(), selectedTimezone);
+    } catch {
+      setDateInterpretationError("timezone");
+      return;
+    }
     const frame = window.requestAnimationFrame(() => {
-      setToday(localToday);
-      setReceivedOn((current) => current || localToday);
+      setToday(locationToday);
     });
     return () => window.cancelAnimationFrame(frame);
-  }, []);
+  }, [organizationId, selectedTimezone]);
 
   function chooseCharge(nextChargeId: string) {
-    setChargeId(nextChargeId);
+    const currentCharge = charges.find(
+      (charge) => charge.chargeId === chargeId
+    );
     const nextCharge = charges.find(
       (charge) => charge.chargeId === nextChargeId
     );
+    if (
+      currentCharge?.locationTimezone !== nextCharge?.locationTimezone
+    ) {
+      setReceivedOn("");
+      setToday("");
+    }
+    setChargeId(nextChargeId);
     setAmount(nextCharge ? (nextCharge.outstandingCents / 100).toFixed(2) : "");
     setSaved(false);
     setError(null);
   }
 
-  async function sendPayment(key: string, body: PaymentRequest) {
-    setBusy(true);
-    setError(null);
-    setSaved(false);
-    setRetryRequest({ key, body });
+  async function sendPayment(
+    key: string,
+    body: PaymentRequest,
+    isRetry = false
+  ) {
+    if (paymentInFlight.current) return;
+    paymentInFlight.current = true;
     try {
+      setBusy(true);
+      setError(null);
+      setSaved(false);
+      setRetryRequest({ key, body });
       const response = await fetch("/api/v1/owner/billing/manual-payments", {
         method: "POST",
         headers: {
@@ -136,7 +188,13 @@ export function ManualPaymentForm({
                 problem?.message ??
                 "No se ha podido registrar el pago.")
         );
-        if (response.status < 500) setRetryRequest(null);
+        const retryMayStillNeedReceipt =
+          response.status >= 500 ||
+          [408, 425, 429].includes(response.status) ||
+          (isRetry && [401, 403, 404, 409].includes(response.status));
+        if (!retryMayStillNeedReceipt) {
+          setRetryRequest(null);
+        }
         return;
       }
 
@@ -161,17 +219,23 @@ export function ManualPaymentForm({
         "No sabemos si se guardó. Reintenta este mismo envío; la clave segura evita duplicarlo."
       );
     } finally {
+      paymentInFlight.current = false;
       setBusy(false);
     }
   }
 
   function submit(event: React.FormEvent<HTMLFormElement>) {
     event.preventDefault();
+    if (paymentInFlight.current) return;
+    // Resolve an existing idempotent command before blocking new writes.
     if (retryRequest) {
-      void sendPayment(retryRequest.key, retryRequest.body);
+      if (retryRequest.body.organizationId !== organizationId) return;
+      void sendPayment(retryRequest.key, retryRequest.body, true);
       return;
     }
-    if (!selectedCharge || !receivedOn) return;
+    if (dateInterpretationError) return;
+    if (writesBlocked) return;
+    if (!selectedCharge || !effectiveReceivedOn) return;
     const amountCents = parseAmountCents(amount);
     if (!amountCents || amountCents > selectedCharge.outstandingCents) {
       setError(
@@ -179,7 +243,16 @@ export function ManualPaymentForm({
       );
       return;
     }
-    const receivedAt = localDateToReceivedAt(receivedOn);
+    let receivedAt: string;
+    try {
+      receivedAt = calendarDateToReceivedAt(
+        effectiveReceivedOn,
+        selectedCharge.locationTimezone
+      );
+    } catch {
+      setDateInterpretationError("received-date");
+      return;
+    }
     void sendPayment(`owner-manual-payment:${crypto.randomUUID()}`, {
       organizationId,
       chargeId: selectedCharge.chargeId,
@@ -191,7 +264,29 @@ export function ManualPaymentForm({
   }
 
   const amountCents = parseAmountCents(amount);
+  const effectiveReceivedOn = receivedOn || today;
   const formLocked = busy || retryRequest !== null;
+  const retryBelongsToCurrentOrganization =
+    retryRequest?.body.organizationId === organizationId;
+  const retryScopeNotice =
+    retryRequest && !retryBelongsToCurrentOrganization ? (
+      <div
+        role="alert"
+        className="rounded-xl border border-amber-300 bg-amber-50 px-4 py-3 text-sm leading-6 text-amber-950"
+      >
+        <p>
+          Hay un envío de pago pendiente de confirmar en otra academia. Para
+          evitar duplicados o confusiones, resuélvelo primero en su academia de
+          origen.
+        </p>
+        <Link
+          href={`/owner/payments?organizationId=${encodeURIComponent(retryRequest.body.organizationId)}`}
+          className="mt-2 inline-block font-bold underline underline-offset-2"
+        >
+          Volver a los pagos de la academia del envío pendiente
+        </Link>
+      </div>
+    ) : null;
 
   if (charges.length === 0) {
     return (
@@ -203,6 +298,33 @@ export function ManualPaymentForm({
           Cuando la academia tenga un cargo abierto, podrás registrar aquí el
           dinero que ya hayas recibido y dejarlo conciliado en un solo paso.
         </p>
+        {retryScopeNotice}
+        {retryRequest && retryBelongsToCurrentOrganization && (
+          <div className="mt-4 rounded-xl border border-amber-300 bg-amber-50 px-4 py-3 text-sm leading-6 text-amber-950">
+            <p>
+              Hay un envío anterior cuyo resultado no se pudo confirmar. Puedes
+              consultar el mismo envío sin crear otro registro.
+            </p>
+            <button
+              type="button"
+              disabled={busy}
+              onClick={() =>
+                void sendPayment(retryRequest.key, retryRequest.body, true)
+              }
+              className="mt-2 min-h-11 rounded-full bg-amber-900 px-4 text-sm font-bold text-white hover:bg-amber-800 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-amber-900 disabled:cursor-not-allowed disabled:opacity-60"
+            >
+              {busy ? "Comprobando…" : "Reintentar el mismo registro"}
+            </button>
+          </div>
+        )}
+        {error && (
+          <p
+            role="alert"
+            className="mt-4 rounded-xl border border-rose-300 bg-rose-50 px-4 py-3 text-sm text-rose-900"
+          >
+            {error}
+          </p>
+        )}
         {saved && (
           <p
             role="status"
@@ -224,6 +346,18 @@ export function ManualPaymentForm({
         Registra solo dinero que ya has recibido. Zaltyko no iniciará ningún
         cobro.
       </div>
+      {retryScopeNotice}
+      <OwnerOperationalReadOnlyNotice organizationId={organizationId} />
+      {dateInterpretationError && (
+        <p
+          role="alert"
+          className="rounded-xl border border-amber-300 bg-amber-50 px-4 py-3 text-sm text-amber-950"
+        >
+          {dateInterpretationError === "timezone"
+            ? "No se pudo interpretar la zona horaria de esta sede. No se puede registrar el pago."
+            : "No se pudo interpretar la fecha de recepción en la zona horaria de la sede. Corrige la fecha o selecciona otra sede."}
+        </p>
+      )}
 
       <label className="grid gap-2">
         <span className="text-sm font-bold text-slate-900">
@@ -246,8 +380,9 @@ export function ManualPaymentForm({
         {selectedCharge && (
           <span className="text-xs leading-5 text-slate-600">
             {selectedCharge.locationName} · Vence el{" "}
-            {new Intl.DateTimeFormat("es-ES", { dateStyle: "medium" }).format(
-              new Date(selectedCharge.dueAt)
+            {formatPaymentDueDate(
+              selectedCharge.dueAt,
+              selectedCharge.locationTimezone
             )}
           </span>
         )}
@@ -318,9 +453,14 @@ export function ManualPaymentForm({
             </span>
             <input
               type="date"
-              value={receivedOn}
+              value={effectiveReceivedOn}
               max={today || undefined}
-              onChange={(event) => setReceivedOn(event.target.value)}
+              onChange={(event) => {
+                if (dateInterpretationError === "received-date") {
+                  setDateInterpretationError(null);
+                }
+                setReceivedOn(event.target.value);
+              }}
               disabled={formLocked}
               required
               className="min-h-12 rounded-xl border border-slate-300 px-3 text-sm text-slate-950 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-teal-800 disabled:bg-slate-100"
@@ -376,14 +516,24 @@ export function ManualPaymentForm({
       <div className="flex flex-wrap items-center gap-4">
         <button
           type="submit"
-          disabled={busy || (!retryRequest && (!selectedCharge || !receivedOn))}
+          disabled={
+            busy ||
+            (retryRequest
+              ? !retryBelongsToCurrentOrganization
+              : writesBlocked ||
+                dateInterpretationError !== null ||
+                !selectedCharge ||
+                !effectiveReceivedOn)
+          }
           className="min-h-12 rounded-full bg-teal-900 px-6 text-sm font-bold text-white hover:bg-teal-800 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-teal-800 disabled:cursor-not-allowed disabled:opacity-60"
         >
           {busy
             ? "Guardando…"
-            : retryRequest
+            : retryRequest && retryBelongsToCurrentOrganization
               ? "Reintentar el mismo registro"
-              : "Guardar pago recibido"}
+              : retryRequest
+                ? "Resuelve primero el envío pendiente"
+                : "Guardar pago recibido"}
         </button>
         <span className="text-xs text-slate-500">
           {selectedCharge && amountCents

@@ -1355,7 +1355,6 @@ export async function issueMonthlyInvoice(
       organizationId: input.organizationId,
       locationId: input.locationId,
       actor: input.actor,
-      intent: "write",
       allowedRoles: financialRoles,
     });
     await lockCommand(
@@ -1460,7 +1459,6 @@ export async function issueMonthlyInvoice(
         organizationId: input.organizationId,
         locationId: invoice.locationId ?? input.locationId,
         actor: input.actor,
-        intent: "write",
         allowedRoles: financialRoles,
       });
       const lines = await loadIssuedLines(tx, input.organizationId, invoice.id);
@@ -1784,6 +1782,16 @@ export async function issueMonthlyInvoice(
         }
       );
     }
+
+    // A new monthly issuance writes both invoice and monthly replay markers.
+    // Replays return above and remain readable after the academy becomes read-only.
+    await assertOperationalAccess(tx, {
+      organizationId: input.organizationId,
+      locationId: input.locationId,
+      actor: input.actor,
+      intent: "write",
+      allowedRoles: financialRoles,
+    });
 
     const reference = `MENSUAL-${input.servicePeriod.replace("-", "")}-${input.familyId}`;
     const invoice = await issueInvoiceInTransaction(

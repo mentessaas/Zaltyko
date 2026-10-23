@@ -154,6 +154,17 @@ export async function POST(request: Request) {
         startsOn: enrollment.startsOn,
         pricePlanId: enrollment.pricePlanId,
         version: enrollment.version,
+        commandReceipt: {
+          idempotencyKey: idempotencyKey.data,
+          body: JSON.stringify({
+            organizationId: parsedBody.data.organizationId,
+            locationId: parsedBody.data.locationId,
+            athleteId: parsedBody.data.athleteId,
+            classTemplateId: parsedBody.data.classTemplateId,
+            startsOn: parsedBody.data.startsOn,
+            pricePlanId: parsedBody.data.pricePlanId ?? null,
+          }),
+        },
       })
     );
   } catch (error) {

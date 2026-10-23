@@ -1,6 +1,8 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
+import { OwnerOperationalReadOnlyNotice } from "./OwnerOperationalReadOnlyNotice";
+import { useOwnerPlanPolicy } from "./owner-plan-usage-store";
 
 interface FamilyCollectionPreference {
   organizationId: string;
@@ -16,6 +18,58 @@ interface FamilyCollectionPreference {
   requiresConfirmation: boolean;
 }
 
+interface FamilyCollectionCommand {
+  organizationId: string;
+  familyId: string;
+  mode: "manual" | "automatic";
+  expectedVersion: number;
+  key: string;
+  body: string;
+}
+
+function isRevision(value: unknown): value is number | null {
+  return value === null || (Number.isSafeInteger(value) && Number(value) >= 0);
+}
+
+function isMatchingPreferenceReceipt(
+  value: unknown,
+  command: FamilyCollectionCommand
+): value is FamilyCollectionPreference {
+  if (!value || typeof value !== "object") return false;
+  const receipt = value as Partial<FamilyCollectionPreference>;
+  return (
+    receipt.organizationId === command.organizationId &&
+    receipt.familyId === command.familyId &&
+    receipt.requestedMode === command.mode &&
+    receipt.effectiveMode === "manual" &&
+    receipt.version === command.expectedVersion + 1 &&
+    isRevision(receipt.entitlementRevision) &&
+    isRevision(receipt.preferenceEntitlementRevision) &&
+    receipt.automaticPreferenceAvailable === false &&
+    receipt.automaticProcessingEnabled === false &&
+    receipt.automaticStatus === "not_released" &&
+    receipt.requiresConfirmation === false
+  );
+}
+
+function isDefinitiveRejection(status: number, payload: unknown): boolean {
+  if (status < 400 || status >= 500 || !payload || typeof payload !== "object") {
+    return false;
+  }
+  const type = (payload as { type?: unknown }).type;
+  if (typeof type !== "string") return false;
+  const problemType = type.split("/").pop();
+  return (
+    (status === 400 && problemType === "invalid-family-collection-preference") ||
+    (status === 409 &&
+      [
+        "version-conflict",
+        "idempotency-conflict",
+        "family-automatic-collection-disabled",
+      ].includes(problemType ?? ""))
+  );
+}
+
 export function FamilyCollectionModeCard({
   organizationId,
   familyId,
@@ -25,10 +79,18 @@ export function FamilyCollectionModeCard({
   familyId: string;
   canManage: boolean;
 }) {
+  const planPolicy = useOwnerPlanPolicy(organizationId);
+  const writesBlocked = planPolicy.status !== "ready" || planPolicy.readOnly;
   const [preference, setPreference] =
     useState<FamilyCollectionPreference | null>(null);
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
+  const saveInFlight = useRef(false);
+  const pendingCommandRef = useRef<FamilyCollectionCommand | null>(null);
+  const [pendingCommand, setPendingCommand] =
+    useState<FamilyCollectionCommand | null>(null);
+  const currentScope = useRef({ organizationId, familyId });
+  currentScope.current = { organizationId, familyId };
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
   const [savedMessage, setSavedMessage] = useState<string | null>(null);
 
@@ -52,7 +114,14 @@ export function FamilyCollectionModeCard({
             | FamilyCollectionPreference
             | { detail?: string }
             | null;
-        if (!response.ok || !payload || !("familyId" in payload)) {
+        if (controller.signal.aborted) return;
+        if (
+          !response.ok ||
+          !payload ||
+          !("familyId" in payload) ||
+          payload.organizationId !== organizationId ||
+          payload.familyId !== familyId
+        ) {
           throw new Error(
             payload && "detail" in payload
               ? payload.detail
@@ -62,6 +131,7 @@ export function FamilyCollectionModeCard({
         setPreference(payload);
       })
       .catch((error: unknown) => {
+        if (controller.signal.aborted) return;
         if (error instanceof DOMException && error.name === "AbortError") return;
         setErrorMessage(
           error instanceof Error
@@ -75,14 +145,24 @@ export function FamilyCollectionModeCard({
     return () => controller.abort();
   }, [canManage, familyId, organizationId]);
 
-  async function chooseMode(mode: "manual" | "automatic") {
-    if (!preference || saving) return;
-    const currentMode = preference.requiresConfirmation
-      ? "manual"
-      : preference.requestedMode;
-    if (mode === currentMode) return;
-    if (mode === "automatic" && !preference.automaticPreferenceAvailable) return;
+  async function sendPreference(command: FamilyCollectionCommand) {
+    if (saveInFlight.current || writesBlocked) return;
+    if (
+      command.organizationId !== currentScope.current.organizationId ||
+      command.familyId !== currentScope.current.familyId
+    ) {
+      return;
+    }
+    if (
+      pendingCommandRef.current &&
+      pendingCommandRef.current !== command
+    ) {
+      return;
+    }
 
+    saveInFlight.current = true;
+    pendingCommandRef.current = command;
+    setPendingCommand(command);
     setSaving(true);
     setErrorMessage(null);
     setSavedMessage(null);
@@ -93,42 +173,113 @@ export function FamilyCollectionModeCard({
           method: "PUT",
           headers: {
             "content-type": "application/json",
-            "idempotency-key": `family-preference-${crypto.randomUUID()}`,
+            "idempotency-key": command.key,
           },
-          body: JSON.stringify({
-            organizationId,
-            familyId,
-            mode,
-            expectedVersion: preference.version,
-          }),
+          body: command.body,
         }
       );
-      const payload = (await response.json().catch(() => null)) as
-        | FamilyCollectionPreference
-        | { detail?: string }
-        | null;
-      if (!response.ok || !payload || !("familyId" in payload)) {
-        throw new Error(
-          payload && "detail" in payload
+      const payload: unknown = await response.json().catch(() => null);
+      if (!response.ok) {
+        const rejected = isDefinitiveRejection(response.status, payload);
+        if (rejected && pendingCommandRef.current === command) {
+          pendingCommandRef.current = null;
+          setPendingCommand(null);
+        }
+        const detail =
+          payload &&
+          typeof payload === "object" &&
+          "detail" in payload &&
+          typeof payload.detail === "string"
             ? payload.detail
-            : "No se pudo guardar. Recarga e inténtalo de nuevo."
+            : "No se pudo guardar. No sabemos si se aplicó la preferencia.";
+        if (
+          command.organizationId === currentScope.current.organizationId &&
+          command.familyId === currentScope.current.familyId
+        ) {
+          setErrorMessage(
+            rejected
+              ? detail
+              : `${detail} Reintenta la misma solicitud para recuperar su resultado.`
+          );
+        }
+        return;
+      }
+
+      if (
+        response.status !== 200 ||
+        !isMatchingPreferenceReceipt(payload, command)
+      ) {
+        if (
+          command.organizationId === currentScope.current.organizationId &&
+          command.familyId === currentScope.current.familyId
+        ) {
+          setErrorMessage(
+            "La respuesta no confirma esta preferencia. Reintenta la misma solicitud; no se enviará una nueva clave."
+          );
+        }
+        return;
+      }
+
+      if (pendingCommandRef.current === command) {
+        pendingCommandRef.current = null;
+        setPendingCommand(null);
+      }
+      if (
+        command.organizationId === currentScope.current.organizationId &&
+        command.familyId === currentScope.current.familyId
+      ) {
+        setPreference(payload);
+        setSavedMessage(
+          command.mode === "automatic"
+            ? "Solicitud automática guardada; el cobro efectivo sigue siendo manual."
+            : "Preferencia manual guardada para esta familia."
         );
       }
-      setPreference(payload);
-      setSavedMessage(
-        mode === "automatic"
-          ? "Solicitud automática guardada; el cobro efectivo sigue siendo manual."
-          : "Preferencia manual guardada para esta familia."
-      );
     } catch (error) {
-      setErrorMessage(
-        error instanceof Error
-          ? error.message
-          : "No se pudo guardar. Recarga e inténtalo de nuevo."
-      );
+      if (
+        command.organizationId === currentScope.current.organizationId &&
+        command.familyId === currentScope.current.familyId
+      ) {
+        setErrorMessage(
+          error instanceof Error
+            ? `${error.message} Reintenta la misma solicitud para recuperar su resultado.`
+            : "No se pudo confirmar el guardado. Reintenta la misma solicitud para recuperar su resultado."
+        );
+      }
     } finally {
+      saveInFlight.current = false;
       setSaving(false);
     }
+  }
+
+  async function chooseMode(mode: "manual" | "automatic") {
+    if (
+      saveInFlight.current ||
+      pendingCommandRef.current ||
+      !preference ||
+      saving ||
+      writesBlocked
+    ) return;
+    const currentMode = preference.requiresConfirmation
+      ? "manual"
+      : preference.requestedMode;
+    if (mode === currentMode) return;
+    if (mode === "automatic" && !preference.automaticPreferenceAvailable) return;
+
+    const body = JSON.stringify({
+      organizationId,
+      familyId,
+      mode,
+      expectedVersion: preference.version,
+    });
+    void sendPreference({
+      organizationId,
+      familyId,
+      mode,
+      expectedVersion: preference.version,
+      key: `family-preference-${crypto.randomUUID()}`,
+      body,
+    });
   }
 
   if (!canManage) {
@@ -143,12 +294,16 @@ export function FamilyCollectionModeCard({
   const selectedMode = preference?.requiresConfirmation
     ? "manual"
     : (preference?.requestedMode ?? "manual");
+  const pendingCommandMatchesScope =
+    pendingCommand?.organizationId === organizationId &&
+    pendingCommand.familyId === familyId;
 
   return (
     <section
       aria-labelledby="family-collection-mode-title"
       className="rounded-2xl border border-slate-200 bg-slate-50 p-4"
     >
+      <OwnerOperationalReadOnlyNotice organizationId={organizationId} />
       <div>
         <h3
           id="family-collection-mode-title"
@@ -162,6 +317,32 @@ export function FamilyCollectionModeCard({
         </p>
       </div>
 
+      {pendingCommand && !pendingCommandMatchesScope ? (
+        <p
+          className="mt-3 rounded-xl border border-amber-300 bg-amber-50 px-3 py-2 text-sm leading-5 text-amber-950"
+          role="alert"
+        >
+          Hay una solicitud pendiente para otra familia o academia. Vuelve a su
+          contexto original para reintentarla; no enviaremos este cambio aquí.
+        </p>
+      ) : null}
+      {pendingCommand && pendingCommandMatchesScope ? (
+        <div className="mt-3 rounded-xl border border-amber-300 bg-amber-50 px-3 py-3 text-sm leading-5 text-amber-950">
+          <p>
+            No se pudo confirmar la solicitud anterior. Puedes reintentarla con
+            la misma clave y el mismo contenido.
+          </p>
+          <button
+            type="button"
+            disabled={saving || writesBlocked}
+            onClick={() => void sendPreference(pendingCommand)}
+            className="mt-2 min-h-11 rounded-full bg-amber-900 px-4 text-sm font-bold text-white hover:bg-amber-800 disabled:cursor-not-allowed disabled:opacity-60"
+          >
+            {saving ? "Reintentando…" : "Reintentar solicitud pendiente"}
+          </button>
+        </div>
+      ) : null}
+
       {loading ? (
         <p className="mt-3 text-sm text-slate-600" role="status">
           Cargando preferencia…
@@ -172,7 +353,12 @@ export function FamilyCollectionModeCard({
         </p>
       ) : (
         <>
-          <fieldset className="mt-3 grid gap-2 sm:grid-cols-2" disabled={saving}>
+          <fieldset
+            className="mt-3 grid gap-2 sm:grid-cols-2"
+            disabled={
+              saving || writesBlocked || pendingCommand !== null
+            }
+          >
             <legend className="sr-only">Preferencia de cobro</legend>
             <label className="flex min-h-12 cursor-pointer items-center gap-3 rounded-xl border border-slate-200 bg-white px-3 py-2">
               <input

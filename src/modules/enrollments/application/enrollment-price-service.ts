@@ -131,7 +131,6 @@ export async function assignEnrollmentPriceInTransaction(
       organizationId: input.organizationId,
       locationId: prior.locationId,
       actor: input.actor,
-      intent: "write",
       allowedRoles: priceAssignmentRoles,
     });
     return prior;
