@@ -206,7 +206,9 @@ describe("intención inmutable en grupos", () => {
     const row = { id: membership, athleteId: athlete, athleteName: "Ficha sintética", status: "active", startsOn: today };
     const manager = render(<OwnerGroupsManager bundle={{ ...bundle, memberships: [row] } as Bundle} />);
     try {
-      expect(await screen.findByText(/No se pudo consultar el almacenamiento de esta sesión/)).toBeVisible();
+      expect(await screen.findByRole("alert")).toHaveTextContent(
+        "No se pudo consultar el almacenamiento de esta sesión"
+      );
       const pause = screen.getByRole("button", { name: "Poner en pausa a Ficha sintética" });
       expect(pause).toBeDisabled();
       fireEvent.click(pause);
@@ -214,7 +216,11 @@ describe("intención inmutable en grupos", () => {
       manager.unmount();
 
       render(<OwnerGroupsManager bundle={{ ...bundle, groups: [], selectedGroupId: null, memberships: [] } as Bundle} />);
-      expect(await screen.findByText(/No se pudo consultar el almacenamiento de esta sesión/)).toBeVisible();
+      expect(
+        await screen.findByRole("status", {
+          name: "Borrador de grupo no disponible",
+        })
+      ).toHaveTextContent("No se pudo consultar el almacenamiento de esta sesión");
       const groupForm = screen.getByRole("button", { name: "Guardar grupo" }).closest("form");
       expect(groupForm).not.toBeNull();
       fireEvent.submit(groupForm!);
@@ -271,7 +277,11 @@ describe("intención inmutable en grupos", () => {
 
     const user = userEvent.setup();
     render(<OwnerGroupsManager bundle={{ ...bundle, groups: [], selectedGroupId: null }} />);
-    expect(await screen.findByText(/No se pudo consultar el almacenamiento de esta sesión/)).toBeVisible();
+    expect(
+      await screen.findByRole("status", {
+        name: "Borrador de grupo no disponible",
+      })
+    ).toHaveTextContent("No se pudo consultar el almacenamiento de esta sesión");
     const form = screen.getByRole("button", { name: "Guardar grupo" }).closest("form")!;
     expect(screen.getByRole("button", { name: "Guardar grupo" })).toBeDisabled();
     fireEvent.submit(form);
@@ -296,7 +306,9 @@ describe("intención inmutable en grupos", () => {
       expect(window.sessionStorage.getItem(storageKey)).toContain("synthetic-pending-group-key");
     } else {
       await waitFor(() => expect(screen.getByRole("button", { name: "Guardar grupo" })).toBeEnabled());
-      expect(screen.queryByText(/No se pudo consultar el almacenamiento de esta sesión/)).not.toBeInTheDocument();
+      expect(
+        screen.queryByRole("status", { name: "Borrador de grupo no disponible" })
+      ).not.toBeInTheDocument();
       expect(window.sessionStorage.getItem(storageKey)).toBeNull();
     }
     expect(writes()).toHaveLength(0);
@@ -483,15 +495,34 @@ describe("intención inmutable en grupos", () => {
     mocks.fetch.mockResolvedValueOnce(uncertain()).mockResolvedValueOnce(response(201, receipt));
     const user = userEvent.setup(); render(<OwnerGroupsManager bundle={bundle} />);
     await fillAthlete(user); await user.click(screen.getByRole("button", { name: "Crear y añadir al grupo" })); await screen.findByRole("alert");
-    expect(window.sessionStorage.length).toBe(0);
+    const pendingCreate = window.sessionStorage.getItem(
+      `zaltyko:pending-group-athlete:${org}:${group}`
+    );
+    expect(pendingCreate).not.toBeNull();
+    expect(Object.keys(JSON.parse(pendingCreate!)).sort()).toEqual(
+      ["version", "organizationId", "groupId", "kind", "idempotencyKey"].sort()
+    );
+    expect(pendingCreate).not.toContain("Ficha");
+    expect(pendingCreate).not.toContain("Sintética");
     await user.click(screen.getByRole("button", { name: "Reintentar operación pendiente" }));
     const event = new Event("beforeunload", { cancelable: true }); window.dispatchEvent(event);
     expect(event.defaultPrevented).toBe(false);
+    expect(
+      window.sessionStorage.getItem(`zaltyko:pending-group-athlete:${org}:${group}`)
+    ).toBeNull();
     expect(screen.getByLabelText("Nombre")).toBeEnabled();
     expect(screen.getByLabelText("Nombre")).toHaveValue("");
   });
   it("un error al navegar tras la creación confirmada no invita a reenviar", async () => {
-    mocks.fetch.mockResolvedValueOnce(response(201, { ok: true, data: { id: group, name: "Grupo QA", locationId: site, programId: program, capacity: null } }));
+    mocks.fetch.mockImplementationOnce(async (_input, init) => {
+      const submitted = JSON.parse(String(init?.body)) as {
+        locationId: string;
+        programId: string;
+        name: string;
+        capacity: number | null;
+      };
+      return response(201, { ok: true, data: { id: group, ...submitted } });
+    });
     mocks.push.mockImplementationOnce(() => { throw new Error("Synthetic navigation error"); });
     const user = userEvent.setup(); render(<OwnerGroupsManager bundle={{ ...bundle, groups: [], selectedGroupId: null }} />);
     await user.type(screen.getByLabelText("Nombre del grupo"), "Grupo QA");
