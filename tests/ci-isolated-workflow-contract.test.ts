@@ -72,8 +72,8 @@ describe("isolated CI workflow contract", () => {
       {
         name: "hono",
         from: "4.13.7",
-        to: "4.13.11",
-        integrity: "sha512-/SMX/RQNJn7oNmFwH6DtwDqcrzZU2otm1FD6OJe2cWF6cfy/F8hq0XVBv7xW3FTJshRQwuBnXHDq2kNsdZnshg==",
+        to: "4.13.13",
+        integrity: "sha512-CQ46U0ZkAGmbT/4UxdzzGJpacP2IeKgY4a5/tOI9AABbpOMfK739wfDXmv1usCk+3RkKj1hQy4/fjhiwa2xlrA==",
       },
     ]);
     expect(refreshJob).toContain("node scripts/ci/validate-lockfile-refresh.cjs");
@@ -140,7 +140,7 @@ describe("isolated CI workflow contract", () => {
     expect(lockfileGuard.MAX_GIT_OUTPUT_BYTES).toBe(4 * 1024 * 1024);
     expect(lockfileGuard.TARGET_VERSIONS.map(({ name, from, to }) => ({ name, from, to }))).toEqual([
       { name: "follow-redirects", from: "1.16.0", to: "1.16.1" },
-      { name: "hono", from: "4.13.7", to: "4.13.11" },
+      { name: "hono", from: "4.13.7", to: "4.13.13" },
     ]);
     expect(lockfileGuard.assertGitOutputWithinLimit).toBeTypeOf("function");
     expect(lockfileGuard.assertExpectedGitStatus).toBeTypeOf("function");

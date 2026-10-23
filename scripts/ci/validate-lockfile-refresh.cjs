@@ -17,8 +17,8 @@ const versions = [
   {
     name: "hono",
     from: "4.13.7",
-    to: "4.13.11",
-    integrity: "sha512-/SMX/RQNJn7oNmFwH6DtwDqcrzZU2otm1FD6OJe2cWF6cfy/F8hq0XVBv7xW3FTJshRQwuBnXHDq2kNsdZnshg==",
+    to: "4.13.13",
+    integrity: "sha512-CQ46U0ZkAGmbT/4UxdzzGJpacP2IeKgY4a5/tOI9AABbpOMfK739wfDXmv1usCk+3RkKj1hQy4/fjhiwa2xlrA==",
   },
 ];
 
@@ -239,8 +239,8 @@ function assertRefreshContract(before, after) {
   );
   assert(honoServerSnapshots.length > 0, "No aparece el snapshot de @hono/node-server");
   for (const [key, snapshot] of honoServerSnapshots) {
-    assert(key.includes("(hono@4.13.11)"), `${key} conserva un peer context obsoleto`);
-    assert(snapshot.dependencies?.hono === "4.13.11", `${key} no resuelve hono@4.13.11`);
+    assert(key.includes("(hono@4.13.13)"), `${key} conserva un peer context obsoleto`);
+    assert(snapshot.dependencies?.hono === "4.13.13", `${key} no resuelve hono@4.13.13`);
   }
 
   const sdkSnapshots = Object.entries(after.snapshots ?? {}).filter(([key]) =>
@@ -248,11 +248,11 @@ function assertRefreshContract(before, after) {
   );
   assert(sdkSnapshots.length > 0, "No aparece el snapshot del SDK MCP esperado");
   for (const [key, sdk] of sdkSnapshots) {
-    assert(sdk.dependencies?.hono === "4.13.11", `${key} no resuelve hono@4.13.11`);
+    assert(sdk.dependencies?.hono === "4.13.13", `${key} no resuelve hono@4.13.13`);
     assert(
       Object.keys(sdk.dependencies ?? {}).includes("@hono/node-server") &&
-        Object.values(sdk.dependencies).some((value) => String(value).includes("hono@4.13.11")),
-      `${key} no conserva la resolución del peer node-server con hono@4.13.11`
+        Object.values(sdk.dependencies).some((value) => String(value).includes("hono@4.13.13")),
+      `${key} no conserva la resolución del peer node-server con hono@4.13.13`
     );
   }
 }

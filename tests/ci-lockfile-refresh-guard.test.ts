@@ -74,9 +74,9 @@ const oldLock = lockfile({
 });
 const refreshedLock = lockfile({
   followVersion: "1.16.1",
-  honoVersion: "4.13.11",
+  honoVersion: "4.13.13",
   followIntegrity: "sha512-FNvFGzoMLWmE6Yj9spb/zjd7yiNCHiAW9/Tg9CXrQ8wuu32HtlJOwWO11OJafl5FfY3DxTdQ0vj42zU1kvv5jg==",
-  honoIntegrity: "sha512-/SMX/RQNJn7oNmFwH6DtwDqcrzZU2otm1FD6OJe2cWF6cfy/F8hq0XVBv7xW3FTJshRQwuBnXHDq2kNsdZnshg==",
+  honoIntegrity: "sha512-CQ46U0ZkAGmbT/4UxdzzGJpacP2IeKgY4a5/tOI9AABbpOMfK739wfDXmv1usCk+3RkKj1hQy4/fjhiwa2xlrA==",
 });
 
 describe("lockfile refresh guard", () => {
@@ -91,8 +91,8 @@ describe("lockfile refresh guard", () => {
       {
         name: "hono",
         from: "4.13.7",
-        to: "4.13.11",
-        integrity: "sha512-/SMX/RQNJn7oNmFwH6DtwDqcrzZU2otm1FD6OJe2cWF6cfy/F8hq0XVBv7xW3FTJshRQwuBnXHDq2kNsdZnshg==",
+        to: "4.13.13",
+        integrity: "sha512-CQ46U0ZkAGmbT/4UxdzzGJpacP2IeKgY4a5/tOI9AABbpOMfK739wfDXmv1usCk+3RkKj1hQy4/fjhiwa2xlrA==",
       },
     ]);
   });
@@ -158,9 +158,9 @@ describe("lockfile refresh guard", () => {
   it("rejects changes to another package version", () => {
     const unexpected = lockfile({
       followVersion: "1.16.1",
-      honoVersion: "4.13.11",
+      honoVersion: "4.13.13",
       followIntegrity: "sha512-FNvFGzoMLWmE6Yj9spb/zjd7yiNCHiAW9/Tg9CXrQ8wuu32HtlJOwWO11OJafl5FfY3DxTdQ0vj42zU1kvv5jg==",
-      honoIntegrity: "sha512-/SMX/RQNJn7oNmFwH6DtwDqcrzZU2otm1FD6OJe2cWF6cfy/F8hq0XVBv7xW3FTJshRQwuBnXHDq2kNsdZnshg==",
+      honoIntegrity: "sha512-CQ46U0ZkAGmbT/4UxdzzGJpacP2IeKgY4a5/tOI9AABbpOMfK739wfDXmv1usCk+3RkKj1hQy4/fjhiwa2xlrA==",
       unrelatedVersion: "3.1.0",
     });
     expect(() => validateLockfileRefresh({
