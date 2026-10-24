@@ -165,17 +165,48 @@ function replaceUnique(text: string, before: string, after: string) {
   return text.slice(0, first) + after + text.slice(first + before.length);
 }
 
-function realCheckoutFixture() {
-  const baseLockfileText = readFileSync(fileURLToPath(new URL("../pnpm-lock.yaml", import.meta.url)), "utf8");
-  const baseManifestText = readFileSync(fileURLToPath(new URL("../package.json", import.meta.url)), "utf8");
-  const rawManifestText = replaceUnique(baseManifestText, '"vite": "6.4.3"', '"vite": "6.4.5"');
-  const oldIntegrity = "sha512-NTKlcQjlAK7MlQoyb6LgaqHc8sso/pVyUJYWMws3jg21uTJw/LddqIFPcPqP6PzpgbIcZyKI85sFE4HBrQDA8A==";
-  let rawLockfileText = baseLockfileText
-    .replaceAll("vite@6.4.3", "vite@6.4.5")
-    .replaceAll(viteContext("6.4.3"), viteContext("6.4.5"));
-  rawLockfileText = replaceUnique(rawLockfileText, "        specifier: 6.4.3\n", "        specifier: 6.4.5\n");
-  rawLockfileText = replaceUnique(rawLockfileText, oldIntegrity, core.INTEGRITY);
-  return { baseManifestText, rawManifestText, baseLockfileText, rawLockfileText };
+const OLD_VITE_INTEGRITY = "sha512-NTKlcQjlAK7MlQoyb6LgaqHc8sso/pVyUJYWMws3jg21uTJw/LddqIFPcPqP6PzpgbIcZyKI85sFE4HBrQDA8A==";
+
+function checkoutFilesAtVersion(manifestText: string, lockfileText: string, from: string, to: string) {
+  const locator = `vite@${from}`;
+  if (!lockfileText.includes(locator)) throw new Error("checkout lockfile locator mismatch");
+  const integrityFrom = from === "6.4.3" ? OLD_VITE_INTEGRITY : core.INTEGRITY;
+  const integrityTo = to === "6.4.3" ? OLD_VITE_INTEGRITY : core.INTEGRITY;
+  let nextLockfileText = lockfileText
+    .replaceAll(locator, `vite@${to}`)
+    .replaceAll(viteContext(from), viteContext(to));
+  nextLockfileText = replaceUnique(nextLockfileText, `        specifier: ${from}\n`, `        specifier: ${to}\n`);
+  nextLockfileText = replaceUnique(nextLockfileText, integrityFrom, integrityTo);
+  return {
+    manifestText: replaceUnique(manifestText, `"vite": "${from}"`, `"vite": "${to}"`),
+    lockfileText: nextLockfileText,
+  };
+}
+
+function realCheckoutFixture(requestedSourceVersion?: "6.4.3" | "6.4.5") {
+  const checkoutLockfileText = readFileSync(fileURLToPath(new URL("../pnpm-lock.yaml", import.meta.url)), "utf8");
+  const checkoutManifestText = readFileSync(fileURLToPath(new URL("../package.json", import.meta.url)), "utf8");
+  const packageJson = JSON.parse(checkoutManifestText) as { devDependencies?: { vite?: string } };
+  const checkoutVersion = packageJson.devDependencies?.vite;
+  if (checkoutVersion !== "6.4.3" && checkoutVersion !== "6.4.5") {
+    throw new Error(`unsupported checkout Vite pin: ${String(checkoutVersion)}`);
+  }
+  const sourceVersion = requestedSourceVersion ?? checkoutVersion;
+  const sourceFiles = checkoutVersion === sourceVersion
+    ? { manifestText: checkoutManifestText, lockfileText: checkoutLockfileText }
+    : checkoutFilesAtVersion(checkoutManifestText, checkoutLockfileText, checkoutVersion, sourceVersion);
+  const fromVersion = sourceVersion === "6.4.3" ? "6.4.3" : "6.4.5";
+  const toVersion = sourceVersion === "6.4.3" ? "6.4.5" : "6.4.3";
+  const targetFiles = checkoutFilesAtVersion(sourceFiles.manifestText, sourceFiles.lockfileText, fromVersion, toVersion);
+  const baseFiles = sourceVersion === "6.4.3" ? sourceFiles : targetFiles;
+  const rawFiles = sourceVersion === "6.4.3" ? targetFiles : sourceFiles;
+  return {
+    baseManifestText: baseFiles.manifestText,
+    rawManifestText: rawFiles.manifestText,
+    baseLockfileText: baseFiles.lockfileText,
+    rawLockfileText: rawFiles.lockfileText,
+    sourceVersion,
+  };
 }
 
 function rawLockWith(change: (lock: any) => void, driftRaw = false) {
@@ -209,6 +240,16 @@ describe("Vite 6.4.3 to 6.4.5 lockfile core", () => {
     expect(result.lockfileText).toContain(`vitest: ${newVitestContext}`);
     expect(result.lockfileText).not.toContain("vite@6.4.3");
     expect(result.lockfileText).not.toContain("4.1.11(4.1.11(");
+  });
+
+  it("accepts a checkout fixture already pinned to 6.4.5 by synthesizing the 6.4.3 preimage", () => {
+    const input = realCheckoutFixture("6.4.5");
+    expect(input.sourceVersion).toBe("6.4.5");
+    expect(JSON.parse(input.rawManifestText).devDependencies.vite).toBe("6.4.5");
+    expect(JSON.parse(input.baseManifestText).devDependencies.vite).toBe("6.4.3");
+    const result = core.projectViteLockfileCore(input);
+    expect(result.lockfileText).toContain("vite@6.4.5:");
+    expect(result.hashes.projectedLockfileSha256).toMatch(/^[a-f0-9]{64}$/);
   });
 
   it("uses the real bare Vitest context for coverage and rejects a duplicated wrapper", () => {

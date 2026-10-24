@@ -44,17 +44,47 @@ function replaceUnique(text: string, before: string, after: string) {
   return text.slice(0, index) + after + text.slice(index + before.length);
 }
 
-function realRawInput() {
-  const baseManifestText = readFileSync(fileURLToPath(new URL("../package.json", import.meta.url)), "utf8");
-  const baseLockfileText = readFileSync(fileURLToPath(new URL("../pnpm-lock.yaml", import.meta.url)), "utf8");
-  const rawManifestText = replaceUnique(baseManifestText, '"vite": "6.4.3"', '"vite": "6.4.5"');
-  const oldIntegrity = "sha512-NTKlcQjlAK7MlQoyb6LgaqHc8sso/pVyUJYWMws3jg21uTJw/LddqIFPcPqP6PzpgbIcZyKI85sFE4HBrQDA8A==";
-  let rawLockfileText = baseLockfileText
-    .replaceAll("vite@6.4.3", "vite@6.4.5")
-    .replaceAll(viteContext("6.4.3"), viteContext("6.4.5"));
-  rawLockfileText = replaceUnique(rawLockfileText, "        specifier: 6.4.3\n", "        specifier: 6.4.5\n");
-  rawLockfileText = replaceUnique(rawLockfileText, oldIntegrity, core.INTEGRITY);
-  return { baseManifestText, rawManifestText, baseLockfileText, rawLockfileText };
+const OLD_VITE_INTEGRITY = "sha512-NTKlcQjlAK7MlQoyb6LgaqHc8sso/pVyUJYWMws3jg21uTJw/LddqIFPcPqP6PzpgbIcZyKI85sFE4HBrQDA8A==";
+
+function checkoutFilesAtVersion(manifestText: string, lockfileText: string, from: string, to: string) {
+  if (!lockfileText.includes(`vite@${from}`)) throw new Error("checkout lockfile locator mismatch");
+  const integrityFrom = from === "6.4.3" ? OLD_VITE_INTEGRITY : core.INTEGRITY;
+  const integrityTo = to === "6.4.3" ? OLD_VITE_INTEGRITY : core.INTEGRITY;
+  let nextLockfileText = lockfileText
+    .replaceAll(`vite@${from}`, `vite@${to}`)
+    .replaceAll(viteContext(from), viteContext(to));
+  nextLockfileText = replaceUnique(nextLockfileText, `        specifier: ${from}\n`, `        specifier: ${to}\n`);
+  nextLockfileText = replaceUnique(nextLockfileText, integrityFrom, integrityTo);
+  return {
+    manifestText: replaceUnique(manifestText, `"vite": "${from}"`, `"vite": "${to}"`),
+    lockfileText: nextLockfileText,
+  };
+}
+
+function realRawInput(requestedSourceVersion?: "6.4.3" | "6.4.5") {
+  const checkoutManifestText = readFileSync(fileURLToPath(new URL("../package.json", import.meta.url)), "utf8");
+  const checkoutLockfileText = readFileSync(fileURLToPath(new URL("../pnpm-lock.yaml", import.meta.url)), "utf8");
+  const packageJson = JSON.parse(checkoutManifestText) as { devDependencies?: { vite?: string } };
+  const checkoutVersion = packageJson.devDependencies?.vite;
+  if (checkoutVersion !== "6.4.3" && checkoutVersion !== "6.4.5") {
+    throw new Error(`unsupported checkout Vite pin: ${String(checkoutVersion)}`);
+  }
+  const sourceVersion = requestedSourceVersion ?? checkoutVersion;
+  const sourceFiles = checkoutVersion === sourceVersion
+    ? { manifestText: checkoutManifestText, lockfileText: checkoutLockfileText }
+    : checkoutFilesAtVersion(checkoutManifestText, checkoutLockfileText, checkoutVersion, sourceVersion);
+  const fromVersion = sourceVersion;
+  const toVersion = sourceVersion === "6.4.3" ? "6.4.5" : "6.4.3";
+  const targetFiles = checkoutFilesAtVersion(sourceFiles.manifestText, sourceFiles.lockfileText, fromVersion, toVersion);
+  const baseFiles = sourceVersion === "6.4.3" ? sourceFiles : targetFiles;
+  const rawFiles = sourceVersion === "6.4.3" ? targetFiles : sourceFiles;
+  return {
+    baseManifestText: baseFiles.manifestText,
+    rawManifestText: rawFiles.manifestText,
+    baseLockfileText: baseFiles.lockfileText,
+    rawLockfileText: rawFiles.lockfileText,
+    sourceVersion,
+  };
 }
 
 function mockIo(input: ReturnType<typeof realRawInput>, initialStatus = STATUS) {
@@ -158,13 +188,31 @@ describe("Vite lockfile refresh CLI", () => {
     expect(harness.writes).toEqual(["package.json", "pnpm-lock.yaml"]);
     expect(harness.appended).toHaveLength(1);
     expect(harness.appended[0].path).toBe("gha-output");
-    expect(harness.appended[0].content.match(/^[a-z_]+=[a-f0-9]{64}$/gm)).toHaveLength(6);
+    const outputLines = harness.appended[0].content.trimEnd().split("\n");
+    expect(outputLines).toHaveLength(cli.OUTPUT_FIELDS.length + 1);
+    expect(outputLines[0]).toBe(`base_sha=${BASE_SHA}`);
+    expect(outputLines.slice(1).map((line) => line.split("=", 1)[0])).toEqual(
+      cli.OUTPUT_FIELDS.map(([outputName]) => outputName),
+    );
+    expect(outputLines.slice(1).every((line) => /^[a-z0-9_]+=[a-f0-9]{64}$/.test(line))).toBe(true);
     expect(harness.output.join("")).not.toContain("vite@6.4.5");
     expect(harness.errors).toEqual([]);
     expect(harness.calls.every((call) => call.maxBuffer === cli.MAX_GIT_OUTPUT_BYTES)).toBe(true);
     expect(harness.calls.filter((call) => call.args[0] === "status").every((call) =>
       JSON.stringify(call.args) === JSON.stringify(["status", "--porcelain=v1", "--untracked-files=normal"]),
     )).toBe(true);
+  });
+
+  it("accepts a checkout fixture already pinned to 6.4.5 with a synthetic 6.4.3 base", () => {
+    const input = realRawInput("6.4.5");
+    expect(input.sourceVersion).toBe("6.4.5");
+    expect(JSON.parse(input.rawManifestText).devDependencies.vite).toBe("6.4.5");
+    expect(JSON.parse(input.baseManifestText).devDependencies.vite).toBe("6.4.3");
+    const harness = mockIo(input);
+    const result = cli.runCli({ env: { BASE_SHA }, io: harness.io });
+    expect(result).toBe(0);
+    expect(harness.writes).toEqual(["package.json", "pnpm-lock.yaml"]);
+    expect(harness.errors).toEqual([]);
   });
 
   it("does not write when the permitted status changes before projection", () => {

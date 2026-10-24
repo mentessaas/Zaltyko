@@ -30,15 +30,17 @@ describe("isolated CI workflow contract", () => {
     expect(workflow).toContain("resolution_mode:");
     expect(workflow).toContain("default: checks");
     expect(workflow).toContain("- lockfile-refresh");
+    expect(workflow).toContain("- vite-refresh");
     expect(workflow).toContain("expected_sha:");
+    expect(workflow).toContain("para lockfile-refresh o vite-refresh");
     expect(workflow).toMatch(/permissions:\s*\n\s+contents:\s*read/);
     expect(workflow).toMatch(/persist-credentials:\s*false/);
     expect(workflow).not.toMatch(/^\s*(push|pull_request|schedule):/m);
   });
 
   it("keeps the existing checks unconditional and isolates the optional lockfile refresh", () => {
-    const checksJob = workflow.match(/  static-and-unit:([\s\S]*?)(?=\n  lockfile-refresh:|$)/)?.[1] ?? "";
-    const refreshJob = workflow.match(/  lockfile-refresh:([\s\S]*)$/)?.[1] ?? "";
+    const checksJob = workflow.match(/  static-and-unit:([\s\S]*?)(?=\n  lockfile-refresh:|\n  vite-refresh:|$)/)?.[1] ?? "";
+    const refreshJob = workflow.match(/  lockfile-refresh:([\s\S]*?)(?=\n  vite-refresh:|$)/)?.[1] ?? "";
     const checksJobHeader = checksJob.split("\n    steps:")[0] ?? "";
     expect(checksJobHeader).not.toMatch(/^\s+if:/m);
     expect(refreshJob).toContain("if: ${{ inputs.resolution_mode == 'lockfile-refresh' }}");
@@ -91,11 +93,76 @@ describe("isolated CI workflow contract", () => {
     expect(refreshJob).not.toMatch(/\bsecrets\.|cache:|upload-artifact|git push|git commit|pnpm (?:build|typecheck|test)\b/i);
   });
 
+  it("isolates the optional Vite refresh, runs focused guards before resolution, and verifies all outputs", () => {
+    const viteJob = workflow.match(/  vite-refresh:([\s\S]*)$/)?.[1] ?? "";
+    expect(viteJob).toContain("if: ${{ inputs.resolution_mode == 'vite-refresh' }}");
+    expect(viteJob).toContain("runs-on: ubuntu-latest");
+    expect(viteJob).toContain("timeout-minutes: 15");
+    expect(viteJob).toContain("contents: read");
+    expect(viteJob).toContain("persist-credentials: false");
+    expect(viteJob).toContain("EXPECTED_SHA: ${{ inputs.expected_sha }}");
+    expect(viteJob).toContain("DISPATCH_SHA: ${{ github.sha }}");
+    expect(viteJob).toContain("DISPATCH_REF: ${{ github.ref }}");
+    expect(viteJob).toContain("branch='codex/owner-isolated-validation-20261023'");
+    expect(viteJob).toContain('[[ "$GITHUB_REF" == "refs/heads/$branch" ]]');
+    expect(viteJob).toContain('[[ "$DISPATCH_REF" == "refs/heads/$branch" ]]');
+    expect(viteJob).toContain("[[ \"$EXPECTED_SHA\" =~ ^[0-9a-f]{40}$ ]]");
+    expect(viteJob).toContain("[[ \"$DISPATCH_SHA\" == \"$head_sha\" ]]");
+    expect(viteJob).toContain("[[ \"$EXPECTED_SHA\" == \"$head_sha\" ]]");
+    expect(viteJob).toContain("version: 9.15.9");
+    expect(viteJob).toContain('node-version: "22"');
+
+    const actions = [...viteJob.matchAll(/^\s+uses:\s*(\S+)/gm)].map((match) => match[1]);
+    expect(actions).toEqual([
+      "actions/checkout@v7",
+      "pnpm/action-setup@v6",
+      "actions/setup-node@v7",
+    ]);
+
+    const branchGuard = viteJob.indexOf("Require the candidate branch and exact SHA");
+    const pnpmSetup = viteJob.indexOf("Setup pnpm 9.15.9");
+    const baseInstall = viteJob.indexOf("pnpm install --frozen-lockfile --ignore-scripts");
+    const networkIsolation = viteJob.indexOf("Verify loopback-only namespace for focused Vite guards");
+    const focusedTests = viteJob.indexOf("pnpm exec vitest run tests/ci-vite-lockfile-core.test.ts tests/ci-vite-lockfile-cli.test.ts");
+    const resolver = viteJob.indexOf("pnpm update vite@6.4.5 --lockfile-only --save-exact --ignore-scripts");
+    const projection = viteJob.indexOf("node scripts/ci/project-vite-lockfile-refresh.cjs\n");
+    const frozenInstall = viteJob.indexOf("pnpm install --frozen-lockfile --ignore-scripts", projection);
+    const verify = viteJob.indexOf("node scripts/ci/project-vite-lockfile-refresh.cjs --verify");
+    expect(branchGuard).toBeGreaterThanOrEqual(0);
+    expect(pnpmSetup).toBeGreaterThan(branchGuard);
+    expect(baseInstall).toBeGreaterThan(pnpmSetup);
+    expect(networkIsolation).toBeGreaterThan(baseInstall);
+    expect(focusedTests).toBeGreaterThan(networkIsolation);
+    expect(resolver).toBeGreaterThan(focusedTests);
+    expect(projection).toBeGreaterThan(resolver);
+    expect(frozenInstall).toBeGreaterThan(projection);
+    expect(verify).toBeGreaterThan(frozenInstall);
+    expect(viteJob).toContain("sudo unshare --net");
+    expect(viteJob).toContain('ip link set lo up && test "$(ip -o link show | wc -l)" -eq 1');
+    expect(viteJob).toContain("--preserve-env=PATH,HOME,CI,NODE_ENV");
+    expect(viteJob).not.toContain("--no-optional");
+
+    for (const [envName, outputName] of [
+      ["EXPECTED_BASE_MANIFEST_SHA256", "base_manifest_sha256"],
+      ["EXPECTED_RAW_MANIFEST_SHA256", "raw_manifest_sha256"],
+      ["EXPECTED_PROJECTED_MANIFEST_SHA256", "projected_manifest_sha256"],
+      ["EXPECTED_BASE_LOCKFILE_SHA256", "base_lockfile_sha256"],
+      ["EXPECTED_RAW_LOCKFILE_SHA256", "raw_lockfile_sha256"],
+      ["EXPECTED_PROJECTED_LOCKFILE_SHA256", "projected_lockfile_sha256"],
+    ]) {
+      expect(viteJob).toContain(`${envName}: \${{ steps.vite-lockfile-projection.outputs.${outputName} }}`);
+    }
+    expect(viteJob).not.toMatch(/\bsecrets\.|cache:|upload-artifact|git push|git commit|pnpm (?:build|typecheck)\b/i);
+    expect(viteJob).not.toContain("project-targeted-lockfile-refresh.cjs");
+    const oldRefreshJob = workflow.match(/  lockfile-refresh:([\s\S]*?)(?=\n  vite-refresh:|$)/)?.[1] ?? "";
+    expect(oldRefreshJob).toContain("pnpm update --depth 99 --lockfile-only --no-save --ignore-scripts follow-redirects hono");
+  });
+
   it("uses local placeholders and avoids cache, provider credentials, and deployments", () => {
     expect(workflow).toContain("http://127.0.0.1:54321");
     expect(workflow).toContain("postgresql://local:local@127.0.0.1:54322/local_ci");
     expect(workflow).not.toMatch(/\bsecrets\./i);
-    const checksJob = workflow.match(/  static-and-unit:([\s\S]*?)(?=\n  lockfile-refresh:|$)/)?.[1] ?? "";
+    const checksJob = workflow.match(/  static-and-unit:([\s\S]*?)(?=\n  lockfile-refresh:|\n  vite-refresh:|$)/)?.[1] ?? "";
     const actions = [...checksJob.matchAll(/^\s+uses:\s*(\S+)/gm)].map((match) => match[1]);
     expect(actions).toEqual([
       "actions/checkout@v7",
@@ -129,9 +196,10 @@ describe("isolated CI workflow contract", () => {
   });
 
   it("keeps static gates and runs checks in the network namespace", () => {
+    const checksJob = workflow.match(/  static-and-unit:([\s\S]*?)(?=\n  lockfile-refresh:|\n  vite-refresh:|$)/)?.[1] ?? "";
     expect(workflow).toContain("sudo unshare --net");
     expect(workflow).toContain('ip link set lo up && test "$(ip -o link show | wc -l)" -eq 1');
-    expect(workflow.match(/run: sudo --preserve-env=[^\n]* unshare --net -- bash -euc/g)).toHaveLength(7);
+    expect(checksJob.match(/run: sudo --preserve-env=[^\n]* unshare --net -- bash -euc/g)).toHaveLength(7);
     for (const check of [
       "pnpm exec vitest run tests/ci-isolated-workflow-contract.test.ts",
       "pnpm lint",

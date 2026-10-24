@@ -11,8 +11,9 @@ on:
         options:
           - checks
           - lockfile-refresh
+          - vite-refresh
       expected_sha:
-        description: "SHA completo del HEAD seleccionado (solo para lockfile-refresh)"
+        description: "SHA completo del HEAD seleccionado (para lockfile-refresh o vite-refresh)"
         type: string
         required: false
         default: ""
@@ -153,3 +154,76 @@ jobs:
         run: |
           node scripts/ci/project-targeted-lockfile-refresh.cjs --verify "$EXPECTED_PROJECTED_LOCK_SHA256"
           node scripts/ci/validate-lockfile-refresh.cjs
+
+  vite-refresh:
+    name: Propose Vite 6 patch lockfile refresh
+    if: ${{ inputs.resolution_mode == 'vite-refresh' }}
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    permissions:
+      contents: read
+    env:
+      EXPECTED_SHA: ${{ inputs.expected_sha }}
+      DISPATCH_SHA: ${{ github.sha }}
+      DISPATCH_REF: ${{ github.ref }}
+    steps:
+      - name: Checkout without persisted credentials
+        uses: actions/checkout@v7
+        with:
+          persist-credentials: false
+
+      - name: Require the candidate branch and exact SHA
+        shell: bash
+        run: |
+          set -euo pipefail
+          branch='codex/owner-isolated-validation-20261023'
+          head_sha="$(git rev-parse HEAD)"
+          [[ "$GITHUB_REF" == "refs/heads/$branch" ]]
+          [[ "$DISPATCH_REF" == "refs/heads/$branch" ]]
+          [[ "$EXPECTED_SHA" =~ ^[0-9a-f]{40}$ ]]
+          [[ "$DISPATCH_SHA" == "$head_sha" ]]
+          [[ "$EXPECTED_SHA" == "$head_sha" ]]
+
+      - name: Setup pnpm 9.15.9
+        uses: pnpm/action-setup@v6
+        with:
+          version: 9.15.9
+
+      - name: Setup Node.js 22
+        uses: actions/setup-node@v7
+        with:
+          node-version: "22"
+
+      # Vitest transforms the focused TypeScript tests with esbuild. Its platform
+      # binary is an optional dependency, so keep optionals while scripts remain disabled.
+      - name: Install frozen base dependencies without lifecycle scripts
+        run: pnpm install --frozen-lockfile --ignore-scripts
+
+      - name: Verify loopback-only namespace for focused Vite guards
+        run: sudo unshare --net -- bash -euc 'ip link set lo up && test "$(ip -o link show | wc -l)" -eq 1 && test -z "$(ip route show default)" && test -z "$(ip -6 route show default)"' isolated-check
+
+      - name: Run focused Vite core and CLI tests before resolution
+        run: sudo --preserve-env=PATH,HOME,CI,NODE_ENV unshare --net -- bash -euc 'ip link set lo up && exec "$@"' isolated-check pnpm exec vitest run tests/ci-vite-lockfile-core.test.ts tests/ci-vite-lockfile-cli.test.ts
+
+      - name: Resolve only the pinned Vite patch
+        run: pnpm update vite@6.4.5 --lockfile-only --save-exact --ignore-scripts
+
+      - name: Project only the approved Vite manifest and lock blocks
+        id: vite-lockfile-projection
+        env:
+          BASE_SHA: ${{ inputs.expected_sha }}
+        run: node scripts/ci/project-vite-lockfile-refresh.cjs
+
+      - name: Verify projected lock with a frozen install
+        run: pnpm install --frozen-lockfile --ignore-scripts
+
+      - name: Verify hashes and guards before printing the diff
+        env:
+          BASE_SHA: ${{ inputs.expected_sha }}
+          EXPECTED_BASE_MANIFEST_SHA256: ${{ steps.vite-lockfile-projection.outputs.base_manifest_sha256 }}
+          EXPECTED_RAW_MANIFEST_SHA256: ${{ steps.vite-lockfile-projection.outputs.raw_manifest_sha256 }}
+          EXPECTED_PROJECTED_MANIFEST_SHA256: ${{ steps.vite-lockfile-projection.outputs.projected_manifest_sha256 }}
+          EXPECTED_BASE_LOCKFILE_SHA256: ${{ steps.vite-lockfile-projection.outputs.base_lockfile_sha256 }}
+          EXPECTED_RAW_LOCKFILE_SHA256: ${{ steps.vite-lockfile-projection.outputs.raw_lockfile_sha256 }}
+          EXPECTED_PROJECTED_LOCKFILE_SHA256: ${{ steps.vite-lockfile-projection.outputs.projected_lockfile_sha256 }}
+        run: node scripts/ci/project-vite-lockfile-refresh.cjs --verify
