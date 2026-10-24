@@ -117,10 +117,10 @@ if not path.is_file():
     raise SystemExit(0)
 matches = [
     line for line in path.read_text(encoding="utf-8", errors="replace").splitlines()
-    if re.search(r"error|failed|fatal|denied|cannot|not found|timeout|invalid|refused|unknown flag|unknown command|sqlstate", line, re.I)
+    if re.search(r"error|failed|fatal|denied|cannot|could not|not found|not running|timeout|invalid|refused|unknown flag|unknown command|sqlstate|connection|database", line, re.I)
 ]
 print("Sanitized marker-query error excerpt:")
-for line in matches[-8:]:
+for line in matches[-16:]:
     line = re.sub(r"\x1b\[[0-9;]*[A-Za-z]", "", line)
     line = re.sub(r"(?i)\b(?:postgres(?:ql)?|https?)://\S+", "<redacted-connection>", line)
     line = re.sub(r"\beyJ[A-Za-z0-9_-]+\.[A-Za-z0-9_-]+\.[A-Za-z0-9_-]+\b", "<redacted-jwt>", line)
@@ -175,7 +175,7 @@ cp "$ROOT/supabase/migrations/$MIGRATION_NAME" "$CI_WORKDIR/supabase/migrations/
 
 # The schema snapshot refuses to run without this database-local marker. It is
 # set only on the disposable runner database, never on the linked sandbox.
-if ! "$CLI" --workdir "$CI_WORKDIR" db query --local \
+if ! "$CLI" --debug --workdir "$CI_WORKDIR" db query --local \
   "ALTER DATABASE postgres SET app.schema_snapshot_replay = 'ci-empty-replay';" \
   >"$RESET_LOG" 2>&1; then
   diagnose_marker_failure
