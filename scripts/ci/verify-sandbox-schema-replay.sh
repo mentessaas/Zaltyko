@@ -3,7 +3,8 @@ set -euo pipefail
 umask 077
 
 readonly EXPECTED_BRANCH="codex/owner-isolated-validation-20261023"
-readonly ROLE_PROBE_NAME="20261024172152_sandbox_replay_principal_probe.sql"
+readonly ROLE_PROBE_NAME="20261024172151_sandbox_replay_principal_probe.sql"
+readonly AUTH_JWT_MIGRATION_NAME="20261024172152_supabase_auth_jwt_platform_prerequisite.sql"
 readonly MIGRATION_NAME="20261024172153_sandbox_schema_snapshot_baseline.sql"
 readonly TENANT_MIGRATION_NAME="20261024172154_sandbox_tenant_isolation.sql"
 readonly GUARD_PROBE_NAME="20261024172155_sandbox_schema_guard_probe.sql"
@@ -39,6 +40,8 @@ readonly STATUS_LOG="$RUNNER_TEMP/$PROJECT_ID-status.json"
 readonly STATUS_ERROR_LOG="$RUNNER_TEMP/$PROJECT_ID-status.stderr"
 readonly LOCAL_DB_URL_FILE="$RUNNER_TEMP/$PROJECT_ID-local-db-url"
 readonly ROLE_GUARD_FILE="$RUNNER_TEMP/$PROJECT_ID-role-guard.sql"
+readonly AUTH_JWT_ERROR_LOG="$RUNNER_TEMP/$PROJECT_ID-auth-jwt-state.stderr"
+readonly AUTH_JWT_MIGRATION_FILE="$RUNNER_TEMP/$PROJECT_ID-auth-jwt-migration.sql"
 readonly MARKED_BASELINE_FILE="$RUNNER_TEMP/$PROJECT_ID-marked-baseline.sql"
 readonly REPLAY_LOG="$RUNNER_TEMP/$PROJECT_ID-replay.log"
 readonly TENANT_LOG="$RUNNER_TEMP/$PROJECT_ID-tenant.log"
@@ -54,6 +57,7 @@ cleanup() {
     "$RUNNER_TEMP/supabase-schema-replay-cli-$SUPABASE_CLI_VERSION" \
     "$RUNNER_TEMP/supabase_${SUPABASE_CLI_VERSION}_linux_amd64.tar.gz" \
     "$START_LOG" "$STATUS_LOG" "$STATUS_ERROR_LOG" "$LOCAL_DB_URL_FILE" "$ROLE_GUARD_FILE" \
+    "$AUTH_JWT_ERROR_LOG" "$AUTH_JWT_MIGRATION_FILE" \
     "$MARKED_BASELINE_FILE" "$REPLAY_LOG" "$TENANT_LOG" "$GUARD_LOG" "$UNMARKED_GUARD_LOG"
 }
 trap cleanup EXIT
@@ -393,6 +397,58 @@ if ! "$CLI" --workdir "$CI_WORKDIR" migration up --db-url "$LOCAL_DB_URL" \
   diagnose_marker_failure
   fail "The disposable session could not restore and verify the Supabase replay role."
 fi
+
+# The native Postgres-only stack intentionally excludes the Auth service, so
+# its database may not have Auth's standard auth.jwt() helper installed. The
+# application snapshot references that platform helper but does not capture
+# the auth schema. Reuse the helper when present; otherwise install the exact
+# upstream Supabase Auth implementation only in this disposable CI database.
+if ! AUTH_JWT_STATE_CSV="$("$CLI" --workdir "$CI_WORKDIR" --output csv db query \
+  --db-url "$LOCAL_DB_URL" \
+  "SELECT COALESCE(pg_get_function_result(to_regprocedure('auth.jwt()')) = 'jsonb', false) AS auth_jwt_returns_jsonb;" \
+  2>"$AUTH_JWT_ERROR_LOG")"; then
+  fail "Could not inspect the disposable database's standard Supabase Auth JWT helper."
+fi
+auth_jwt_state="$(printf '%s\n' "$AUTH_JWT_STATE_CSV" | tail -n 1 | tr -d '\r')"
+unset AUTH_JWT_STATE_CSV
+case "$auth_jwt_state" in
+  true|t)
+    printf 'Verified disposable platform prerequisite: auth.jwt() returns jsonb.\n'
+    ;;
+  false|f)
+    python3 - "$ROLE_GUARD_FILE" "$AUTH_JWT_MIGRATION_FILE" <<'PY'
+from pathlib import Path
+import sys
+
+role_guard = Path(sys.argv[1]).read_bytes()
+destination = Path(sys.argv[2])
+auth_jwt = b"""CREATE OR REPLACE FUNCTION auth.jwt()
+RETURNS jsonb
+LANGUAGE sql STABLE
+AS $ci_supabase_auth_jwt$
+  SELECT COALESCE(
+    NULLIF(current_setting('request.jwt.claim', true), ''),
+    NULLIF(current_setting('request.jwt.claims', true), '')
+  )::jsonb
+$ci_supabase_auth_jwt$;
+"""
+with destination.open("xb") as target:
+    target.write(role_guard)
+    target.write(auth_jwt)
+destination.chmod(0o600)
+PY
+    cp -- "$AUTH_JWT_MIGRATION_FILE" "$CI_WORKDIR/supabase/migrations/$AUTH_JWT_MIGRATION_NAME"
+    if ! "$CLI" --workdir "$CI_WORKDIR" migration up --db-url "$LOCAL_DB_URL" \
+      >"$REPLAY_LOG" 2>&1; then
+      diagnose_marker_failure
+      fail "The standard Supabase Auth JWT prerequisite could not be prepared on disposable Postgres."
+    fi
+    printf 'Installed the upstream-compatible auth.jwt() helper only in disposable CI Postgres.\n'
+    ;;
+  *)
+    fail "The disposable Auth JWT helper probe returned an unexpected result."
+    ;;
+esac
 
 # Supply the replay marker after the role guard and before the snapshot. The
 # pinned CLI applies migration statements in order on one connection, so the

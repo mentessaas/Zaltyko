@@ -67,11 +67,16 @@
     "supabase_cli_version": "2.119.0",
     "supabase_cli_archive_sha256": "bf1c3ae93be98533eb8a3105dbf4564bd0b2d9dc24690d8a920f980ef975c1b4",
     "database": "fresh local Supabase Postgres only; no linked or remote database",
+    "platform_prerequisite": {
+      "function": "auth.jwt() RETURNS jsonb",
+      "source": "https://github.com/supabase/auth/blob/c3348e8f1cb31454e9783e4eb9eab1e71ad9652f/migrations/20220531120530_add_auth_jwt_function.up.sql",
+      "scope": "The pinned native Postgres-only CI stack excludes the Auth service. If this standard helper is absent, CI installs its upstream-compatible definition only in the disposable database; it is not part of the application snapshot and is never written to the source sandbox or production."
+    },
     "tenant_fixture_path": "scripts/ci/sandbox-tenant-isolation.sql",
     "tenant_fixture_sha256": "b0ffc0d3670ec51ec67169ab64094c73162c8b22405293e68bd7df6124be8ff3",
     "replay_principal": "Connect to the validated loopback endpoint as the pinned stack's built-in supabase_admin login and verify its superuser identity. Each temporary migration dynamically executes session-local SET ROLE NONE inside one DO block, then asserts the effective supabase_admin superuser before application DDL; this avoids the pinned CLI's top-level role-reset reassertion. Query-level connection overrides are discarded; CI does not grant, revoke, or create roles or change persistent role settings.",
     "replay_script_path": "scripts/ci/verify-sandbox-schema-replay.sh",
-    "replay_script_sha256": "0b364caf45d416890def8c2f2608378eff93133822a94fe80f297a440aed0ad3",
+    "replay_script_sha256": "a9d68457b7053c565c708a512fe84e64d5645452b45b631c95dab6b86d18d526",
     "execution_evidence": "This manifest records the pinned replay procedure only; record the exact commit and CI result in the external audit report after a passing run."
   },
   "scope_exclusions": [

@@ -199,7 +199,11 @@ describe("isolated CI workflow contract", () => {
     expect(replayScript).toContain('db_url_path.chmod(0o600)');
     expect(replayScript).toContain('query = urlencode([("sslmode", "disable")])');
     expect(replayScript).toContain('admin_url.username != "supabase_admin"');
-    expect(replayScript).toContain('readonly ROLE_PROBE_NAME="20261024172152_sandbox_replay_principal_probe.sql"');
+    expect(replayScript).toContain('readonly ROLE_PROBE_NAME="20261024172151_sandbox_replay_principal_probe.sql"');
+    expect(replayScript).toContain('readonly AUTH_JWT_MIGRATION_NAME="20261024172152_supabase_auth_jwt_platform_prerequisite.sql"');
+    expect(replayScript).toContain("pg_get_function_result(to_regprocedure('auth.jwt()')) = 'jsonb'");
+    expect(replayScript).toContain("CREATE OR REPLACE FUNCTION auth.jwt()");
+    expect(replayScript).toContain("Installed the upstream-compatible auth.jwt() helper only in disposable CI Postgres.");
     expect(replayScript).toContain("EXECUTE 'SET ROLE NONE';");
     expect(replayScript).toContain('role_guard = b"""DO $ci_supabase_admin_role_guard$');
     expect(replayScript).not.toContain('role_guard = b"""SET ROLE NONE;');
