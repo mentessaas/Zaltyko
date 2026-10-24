@@ -197,6 +197,8 @@ describe("isolated CI workflow contract", () => {
     expect(replayScript).toContain('python3 - "$STATUS_LOG" "$PROJECT_ID" "$CI_WORKDIR" "$LOCAL_DB_URL_FILE"');
     expect(replayScript).toContain('parsed_url.hostname not in {"127.0.0.1", "localhost", "::1"}');
     expect(replayScript).toContain('db_url_path.chmod(0o600)');
+    expect(replayScript).toContain("target.write(b\"SET app.schema_snapshot_replay = 'ci-empty-replay';\\n\")");
+    expect(replayScript).toContain("marker disappears when this query connection closes");
     expect(replayScript).toContain("--runtime native");
     expect(replayScript).toContain("--exclude rest,auth,realtime,storage,functions,studio,mail,analytics,pooler");
     expect(replayScript).toContain('"$CLI" --workdir "$CI_WORKDIR" stack stop --stack "$PROJECT_ID"');
@@ -204,11 +206,13 @@ describe("isolated CI workflow contract", () => {
     expect(replayScript).not.toContain("docker info");
     expect(replayScript).toContain("SUPABASE_ACCESS_TOKEN");
     expect(replayScript).toContain('unset LOCAL_DB_URL');
+    expect(replayScript).not.toContain("ALTER DATABASE postgres SET app.schema_snapshot_replay");
+    expect(replayScript).not.toContain("ALTER DATABASE postgres RESET app.schema_snapshot_replay");
     expect(replayScript).toContain("Refusing current-state schema baseline");
     expect(replayScript.indexOf('"$CLI" --workdir "$CI_WORKDIR" stack start'))
-      .toBeLessThan(replayScript.indexOf('cp "$ROOT/supabase/migrations/$MIGRATION_NAME"'));
-    expect(replayScript.indexOf('cp "$ROOT/supabase/migrations/$MIGRATION_NAME"'))
-      .toBeLessThan(replayScript.indexOf("ALTER DATABASE postgres SET app.schema_snapshot_replay"));
+      .toBeLessThan(replayScript.indexOf("target.write(b\"SET app.schema_snapshot_replay"));
+    expect(replayScript.indexOf("target.write(b\"SET app.schema_snapshot_replay"))
+      .toBeLessThan(replayScript.indexOf('--file "$MARKED_BASELINE_FILE" >"$REPLAY_LOG"'));
     expect(replayScript).not.toContain("db reset --linked");
     expect(replayScript).not.toContain("db push");
   });

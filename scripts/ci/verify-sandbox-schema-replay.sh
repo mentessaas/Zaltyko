@@ -34,10 +34,11 @@ readonly START_LOG="$RUNNER_TEMP/$PROJECT_ID-start.log"
 readonly STATUS_LOG="$RUNNER_TEMP/$PROJECT_ID-status.json"
 readonly STATUS_ERROR_LOG="$RUNNER_TEMP/$PROJECT_ID-status.stderr"
 readonly LOCAL_DB_URL_FILE="$RUNNER_TEMP/$PROJECT_ID-local-db-url"
-readonly RESET_LOG="$RUNNER_TEMP/$PROJECT_ID-reset.log"
+readonly MARKED_BASELINE_FILE="$RUNNER_TEMP/$PROJECT_ID-marked-baseline.sql"
+readonly REPLAY_LOG="$RUNNER_TEMP/$PROJECT_ID-replay.log"
 readonly TENANT_LOG="$RUNNER_TEMP/$PROJECT_ID-tenant.log"
 readonly GUARD_LOG="$RUNNER_TEMP/$PROJECT_ID-guard.log"
-readonly MARKER_GUARD_LOG="$RUNNER_TEMP/$PROJECT_ID-marker-guard.log"
+readonly UNMARKED_GUARD_LOG="$RUNNER_TEMP/$PROJECT_ID-unmarked-guard.log"
 local_stack_started=false
 
 cleanup() {
@@ -48,7 +49,7 @@ cleanup() {
     "$RUNNER_TEMP/supabase-schema-replay-cli-$SUPABASE_CLI_VERSION" \
     "$RUNNER_TEMP/supabase_${SUPABASE_CLI_VERSION}_linux_amd64.tar.gz" \
     "$START_LOG" "$STATUS_LOG" "$STATUS_ERROR_LOG" "$LOCAL_DB_URL_FILE" \
-    "$RESET_LOG" "$TENANT_LOG" "$GUARD_LOG" "$MARKER_GUARD_LOG"
+    "$MARKED_BASELINE_FILE" "$REPLAY_LOG" "$TENANT_LOG" "$GUARD_LOG" "$UNMARKED_GUARD_LOG"
 }
 trap cleanup EXIT
 
@@ -95,25 +96,25 @@ PY
 }
 
 diagnose_marker_failure() {
-  local diagnosis="The disposable database marker statement failed; query output remains withheld."
-  if grep -Eiq 'permission denied' "$RESET_LOG"; then
-    diagnosis="The local database connection lacks permission to set the one-run marker."
-  elif grep -Eiq 'unrecognized configuration parameter|invalid configuration parameter' "$RESET_LOG"; then
+  local diagnosis="PostgreSQL rejected the session-local baseline marker or its first replay; query output remains withheld."
+  if grep -Eiq 'permission denied' "$REPLAY_LOG"; then
+    diagnosis="The local database role could not set the session-local replay marker."
+  elif grep -Eiq 'unrecognized configuration parameter|invalid configuration parameter' "$REPLAY_LOG"; then
     diagnosis="PostgreSQL rejected the custom one-run marker setting."
-  elif grep -Eiq 'cannot run inside a transaction block' "$RESET_LOG"; then
-    diagnosis="The CLI query protocol cannot run ALTER DATABASE in its current transaction context."
-  elif grep -Eiq 'connection refused|context deadline exceeded|i/o timeout|no route to host' "$RESET_LOG"; then
+  elif grep -Eiq 'cannot run inside a transaction block' "$REPLAY_LOG"; then
+    diagnosis="The marker statement ran inside an incompatible transaction context."
+  elif grep -Eiq 'connection refused|context deadline exceeded|i/o timeout|no route to host' "$REPLAY_LOG"; then
     diagnosis="The local Postgres connection was unavailable while setting the one-run marker."
-  elif grep -Eiq 'syntax error|invalid value|does not exist' "$RESET_LOG"; then
+  elif grep -Eiq 'syntax error|invalid value|does not exist' "$REPLAY_LOG"; then
     diagnosis="PostgreSQL rejected the marker SQL or its target database."
-  elif grep -Eiq 'unknown flag|flag provided but not defined|unknown command|unknown shorthand|no such command' "$RESET_LOG"; then
+  elif grep -Eiq 'unknown flag|flag provided but not defined|unknown command|unknown shorthand|no such command' "$REPLAY_LOG"; then
     diagnosis="The pinned Supabase CLI does not accept the local marker-query command or flag."
-  elif grep -Eiq 'could not find|not found|not running|connection reset|database system is starting|failed to connect|error connecting' "$RESET_LOG"; then
+  elif grep -Eiq 'could not find|not found|not running|connection reset|database system is starting|failed to connect|error connecting' "$REPLAY_LOG"; then
     diagnosis="The pinned Supabase CLI could not resolve or connect to its disposable local Postgres endpoint."
   fi
   printf 'Safe marker diagnosis: %s\n' "$diagnosis" >&2
 
-  python3 - "$RESET_LOG" <<'PY' >&2
+  python3 - "$REPLAY_LOG" <<'PY' >&2
 from pathlib import Path
 import re
 import sys
@@ -280,23 +281,29 @@ PY
 # this runner, while --db-url can connect to its validated ephemeral endpoint.
 LOCAL_DB_URL="$(<"$LOCAL_DB_URL_FILE")"
 
-# Keep the marker-guarded current-state migration out of CLI startup. Some CLI
-# startup paths apply discovered migrations before a database-local marker can
-# be set; copy the reviewed baseline only after the empty local DB is running.
-cp "$ROOT/supabase/migrations/$MIGRATION_NAME" "$CI_WORKDIR/supabase/migrations/$MIGRATION_NAME"
+# Supply the marker only to this one database session; the snapshot guard reads
+# current_setting() and does not require a persistent database-level setting.
+# The marker setting and baseline are sent together, so no privilege or role
+# change is needed and the marker disappears when this query connection closes.
+python3 - "$ROOT/supabase/migrations/$MIGRATION_NAME" "$MARKED_BASELINE_FILE" <<'PY'
+from pathlib import Path
+import sys
 
-# The schema snapshot refuses to run without this database-local marker. It is
-# set only on the disposable runner database, never on the linked sandbox.
+source = Path(sys.argv[1])
+destination = Path(sys.argv[2])
+sql = source.read_bytes()
+if not sql.startswith(b"-- CURRENT-STATE SCHEMA SNAPSHOT;"):
+    raise SystemExit("The replay input is not the reviewed current-state baseline.")
+with destination.open("xb") as target:
+    target.write(b"SET app.schema_snapshot_replay = 'ci-empty-replay';\n")
+    target.write(sql)
+destination.chmod(0o600)
+PY
+
 if ! "$CLI" --workdir "$CI_WORKDIR" db query --db-url "$LOCAL_DB_URL" \
-  "ALTER DATABASE postgres SET app.schema_snapshot_replay = 'ci-empty-replay';" \
-  >"$RESET_LOG" 2>&1; then
+  --file "$MARKED_BASELINE_FILE" >"$REPLAY_LOG" 2>&1; then
   diagnose_marker_failure
-  fail "Could not configure the one-run marker on disposable local Postgres."
-fi
-
-if ! "$CLI" --workdir "$CI_WORKDIR" db query --db-url "$LOCAL_DB_URL" \
-  --file "$CI_WORKDIR/supabase/migrations/$MIGRATION_NAME" >"$RESET_LOG" 2>&1; then
-  fail "The baseline did not replay on an empty disposable local database; CLI output was withheld."
+  fail "The marker-guarded baseline did not replay on disposable local Postgres."
 fi
 
 if ! "$CLI" --workdir "$CI_WORKDIR" db query --db-url "$LOCAL_DB_URL" \
@@ -305,23 +312,18 @@ if ! "$CLI" --workdir "$CI_WORKDIR" db query --db-url "$LOCAL_DB_URL" \
 fi
 
 if "$CLI" --workdir "$CI_WORKDIR" db query --db-url "$LOCAL_DB_URL" \
-  --file "$CI_WORKDIR/supabase/migrations/$MIGRATION_NAME" >"$GUARD_LOG" 2>&1; then
+  --file "$MARKED_BASELINE_FILE" >"$GUARD_LOG" 2>&1; then
   fail "The current-state baseline unexpectedly allowed replay over an existing schema."
 fi
 if ! grep -Fq 'Refusing current-state schema baseline' "$GUARD_LOG"; then
   fail "Baseline reapplication failed for a reason other than its empty-schema guard."
 fi
 
-if ! "$CLI" --workdir "$CI_WORKDIR" db query --db-url "$LOCAL_DB_URL" \
-  "ALTER DATABASE postgres RESET app.schema_snapshot_replay;" \
-  >"$MARKER_GUARD_LOG" 2>&1; then
-  fail "Could not remove the one-run marker from disposable local Postgres."
-fi
 if "$CLI" --workdir "$CI_WORKDIR" db query --db-url "$LOCAL_DB_URL" \
-  --file "$CI_WORKDIR/supabase/migrations/$MIGRATION_NAME" >"$MARKER_GUARD_LOG" 2>&1; then
+  --file "$ROOT/supabase/migrations/$MIGRATION_NAME" >"$UNMARKED_GUARD_LOG" 2>&1; then
   fail "The current-state baseline unexpectedly ran without its isolated CI marker."
 fi
-if ! grep -Fq 'isolated CI replay marker is missing' "$MARKER_GUARD_LOG"; then
+if ! grep -Fq 'isolated CI replay marker is missing' "$UNMARKED_GUARD_LOG"; then
   fail "Baseline reapplication without the marker failed for an unexpected reason."
 fi
 

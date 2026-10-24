@@ -57,7 +57,7 @@
       "schema_scoped_defaults": 23
     },
     "safety_guard": [
-      "requires database-local app.schema_snapshot_replay=ci-empty-replay",
+      "requires session-local app.schema_snapshot_replay=ci-empty-replay on the isolated CI connection; it is never persisted at database scope",
       "refuses any existing relation, routine, or user-defined type in the four application schemas before DDL"
     ]
   },
@@ -69,7 +69,7 @@
     "tenant_fixture_path": "scripts/ci/sandbox-tenant-isolation.sql",
     "tenant_fixture_sha256": "b0ffc0d3670ec51ec67169ab64094c73162c8b22405293e68bd7df6124be8ff3",
     "replay_script_path": "scripts/ci/verify-sandbox-schema-replay.sh",
-    "replay_script_sha256": "e7541f5494a48f41d8a1efcd97a701fa3c847c0373cbeeece7c2a5a8fb25c01e",
+    "replay_script_sha256": "14df6abf2a941272d1a81940a266c14f44aca21a1f826fca4b150ada9fa135ad",
     "execution_evidence": "This manifest records the pinned replay procedure only; record the exact commit and CI result in the external audit report after a passing run."
   },
   "scope_exclusions": [
