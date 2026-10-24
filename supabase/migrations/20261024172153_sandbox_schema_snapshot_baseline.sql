@@ -5387,6 +5387,27 @@ $function$;
 
 ALTER FUNCTION public.is_academy_blocked_from_sending(target uuid) OWNER TO postgres;
 
+CREATE OR REPLACE FUNCTION zaltyko_private.is_super_admin()
+ RETURNS boolean
+ LANGUAGE sql
+ STABLE SECURITY DEFINER
+ SET search_path TO 'pg_catalog'
+AS $function$
+  SELECT COALESCE(
+    EXISTS (
+      SELECT 1
+      FROM public.profiles AS p
+      WHERE p.user_id = auth.uid()
+        AND p.role = 'super_admin'::public.profile_role
+        AND p.can_login = true
+        AND p.is_suspended = false
+    ),
+    false
+  )
+$function$;
+
+ALTER FUNCTION zaltyko_private.is_super_admin() OWNER TO postgres;
+
 CREATE OR REPLACE FUNCTION public.is_super_admin()
  RETURNS boolean
  LANGUAGE sql
@@ -6595,26 +6616,6 @@ $function$;
 
 ALTER FUNCTION zaltyko_private.is_assigned_coach(target_class_id uuid) OWNER TO postgres;
 
-CREATE OR REPLACE FUNCTION zaltyko_private.is_super_admin()
- RETURNS boolean
- LANGUAGE sql
- STABLE SECURITY DEFINER
- SET search_path TO 'pg_catalog'
-AS $function$
-  SELECT COALESCE(
-    EXISTS (
-      SELECT 1
-      FROM public.profiles AS p
-      WHERE p.user_id = auth.uid()
-        AND p.role = 'super_admin'::public.profile_role
-        AND p.can_login = true
-        AND p.is_suspended = false
-    ),
-    false
-  )
-$function$;
-
-ALTER FUNCTION zaltyko_private.is_super_admin() OWNER TO postgres;
 
 CREATE OR REPLACE FUNCTION zaltyko_private.row_in_current_tenant(target_tenant_id uuid)
  RETURNS boolean
