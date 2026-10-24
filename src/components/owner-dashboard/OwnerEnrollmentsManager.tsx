@@ -19,7 +19,7 @@ import {
   readPendingEnrollmentIntent,
   type PendingEnrollmentIntent,
 } from "./owner-enrollment-command-response";
-import { primaryButtonClassName, statusHref } from "./owner-enrollment-ui";
+import { monthlyInvoicesHref, primaryButtonClassName, statusHref } from "./owner-enrollment-ui";
 import {
   constrainEnrollmentStartDate,
   isEnrollmentStartDateAllowed,
@@ -604,6 +604,23 @@ export function OwnerEnrollmentsManager({
           El alta queda pendiente y reserva una plaza. No crea una cuota ni
           inicia cobros; los pagos se gestionan aparte.
         </p>
+
+        {!previewMode &&
+          (bundle.member.role === "owner" || bundle.member.role === "admin") && (
+            <p className="mt-3 text-sm leading-6 text-slate-700">
+              ¿Ya registraste la inscripción?{" "}
+              <Link
+                href={monthlyInvoicesHref(
+                  organizationId,
+                  bundle.filterLocationId ?? bundle.selectedLocationId
+                )}
+                className="font-semibold text-teal-900 underline underline-offset-2 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-teal-800"
+              >
+                Completa la familia y la persona pagadora en Cuotas mensuales
+              </Link>
+              . Allí puedes revisar las cuotas manuales antes de emitirlas.
+            </p>
+          )}
 
         {pendingStorageError ? (
           <section className="mt-5 border border-rose-700 bg-rose-50 p-4 text-sm text-rose-950" aria-label="Almacenamiento de operación pendiente">
