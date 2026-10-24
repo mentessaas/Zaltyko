@@ -648,6 +648,8 @@ module.exports = {
   MAX_DIAGNOSTIC_BYTES,
   validateSnapshotDiagnostic,
   ViteProjectionFailure,
+  parseJsonStrict,
+  projectManifest,
   assertManifestEquivalentToBase,
   assertCandidateEquivalentToBase,
   projectViteLockfileCore,

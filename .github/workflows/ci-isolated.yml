@@ -202,11 +202,13 @@ jobs:
       - name: Verify loopback-only namespace for focused Vite guards
         run: sudo unshare --net -- bash -euc 'ip link set lo up && test "$(ip -o link show | wc -l)" -eq 1 && test -z "$(ip route show default)" && test -z "$(ip -6 route show default)"' isolated-check
 
-      - name: Run focused Vite core and CLI tests before resolution
-        run: sudo --preserve-env=PATH,HOME,CI,NODE_ENV unshare --net -- bash -euc 'ip link set lo up && exec "$@"' isolated-check pnpm exec vitest run tests/ci-vite-lockfile-core.test.ts tests/ci-vite-lockfile-cli.test.ts
+      - name: Run focused Vite resolver, core, CLI, and workflow contract tests before resolution
+        run: sudo --preserve-env=PATH,HOME,CI,NODE_ENV unshare --net -- bash -euc 'ip link set lo up && exec "$@"' isolated-check pnpm exec vitest run tests/ci-vite-temporary-rollup-override.test.ts tests/ci-vite-lockfile-core.test.ts tests/ci-vite-lockfile-cli.test.ts tests/ci-isolated-workflow-contract.test.ts
 
       - name: Resolve only the pinned Vite patch
-        run: pnpm update vite@6.4.5 --lockfile-only --save-exact --ignore-scripts
+        env:
+          BASE_SHA: ${{ inputs.expected_sha }}
+        run: node scripts/ci/resolve-vite-with-baseline-rollup.cjs
 
       - name: Project only the approved Vite manifest and lock blocks
         id: vite-lockfile-projection

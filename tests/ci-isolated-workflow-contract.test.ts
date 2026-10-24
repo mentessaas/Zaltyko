@@ -123,8 +123,8 @@ describe("isolated CI workflow contract", () => {
     const pnpmSetup = viteJob.indexOf("Setup pnpm 9.15.9");
     const baseInstall = viteJob.indexOf("pnpm install --frozen-lockfile --ignore-scripts");
     const networkIsolation = viteJob.indexOf("Verify loopback-only namespace for focused Vite guards");
-    const focusedTests = viteJob.indexOf("pnpm exec vitest run tests/ci-vite-lockfile-core.test.ts tests/ci-vite-lockfile-cli.test.ts");
-    const resolver = viteJob.indexOf("pnpm update vite@6.4.5 --lockfile-only --save-exact --ignore-scripts");
+    const focusedTests = viteJob.indexOf("tests/ci-vite-temporary-rollup-override.test.ts tests/ci-vite-lockfile-core.test.ts tests/ci-vite-lockfile-cli.test.ts tests/ci-isolated-workflow-contract.test.ts");
+    const resolver = viteJob.indexOf("node scripts/ci/resolve-vite-with-baseline-rollup.cjs");
     const projection = viteJob.indexOf("node scripts/ci/project-vite-lockfile-refresh.cjs\n");
     const frozenInstall = viteJob.indexOf("pnpm install --frozen-lockfile --ignore-scripts", projection);
     const verify = viteJob.indexOf("node scripts/ci/project-vite-lockfile-refresh.cjs --verify");
@@ -134,6 +134,8 @@ describe("isolated CI workflow contract", () => {
     expect(networkIsolation).toBeGreaterThan(baseInstall);
     expect(focusedTests).toBeGreaterThan(networkIsolation);
     expect(resolver).toBeGreaterThan(focusedTests);
+    expect(viteJob).toContain("BASE_SHA: ${{ inputs.expected_sha }}");
+    expect(viteJob).not.toContain("pnpm update vite@6.4.5");
     expect(projection).toBeGreaterThan(resolver);
     expect(frozenInstall).toBeGreaterThan(projection);
     expect(verify).toBeGreaterThan(frozenInstall);
