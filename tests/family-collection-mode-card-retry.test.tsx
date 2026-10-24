@@ -6,6 +6,7 @@ import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
 import { FamilyCollectionModeCard } from "@/components/owner-dashboard/FamilyCollectionModeCard";
 import { publishOwnerPlanUsage } from "@/components/owner-dashboard/owner-plan-usage-store";
+import { PENDING_FAMILY_COLLECTION_PREFERENCE_STORAGE_KEY } from "@/components/owner-dashboard/owner-pending-family-collection-preference";
 
 const organizationId = "76000000-0000-4000-8000-000000000001";
 const familyId = "76000000-0000-4000-8000-000000000002";
@@ -44,6 +45,7 @@ function response(payload: unknown, status = 200) {
 
 beforeEach(() => {
   vi.clearAllMocks();
+  window.sessionStorage.clear();
   vi.stubGlobal("fetch", mocks.fetch);
   vi.stubGlobal("crypto", {
     randomUUID: () => key.slice("family-preference-".length),
@@ -53,6 +55,7 @@ beforeEach(() => {
 
 afterEach(() => {
   cleanup();
+  window.sessionStorage.clear();
   vi.unstubAllGlobals();
 });
 
@@ -105,6 +108,124 @@ describe("preferencia de cobro familiar", () => {
     expect(
       await screen.findByText("Preferencia manual guardada para esta familia.")
     ).toBeVisible();
+  });
+
+  it("restaura tras recargar la misma solicitud incierta y solo permite reintentarla manualmente", async () => {
+    let putAttempts = 0;
+    mocks.fetch.mockImplementation(async (_input, init) => {
+      if (init?.method !== "PUT") return response(currentPreference);
+      putAttempts += 1;
+      if (putAttempts === 1) throw new Error("acuse perdido");
+      return response(updatedPreference);
+    });
+
+    const user = userEvent.setup();
+    const firstView = render(
+      <FamilyCollectionModeCard
+        organizationId={organizationId}
+        familyId={familyId}
+        canManage
+      />
+    );
+    await user.click(await screen.findByRole("radio", { name: "Manual" }));
+    expect(await screen.findByRole("alert")).toHaveTextContent(
+      "Reintenta la misma solicitud"
+    );
+    const firstWrite = mocks.fetch.mock.calls.find(
+      ([, init]) => init?.method === "PUT"
+    );
+    expect(firstWrite).toBeDefined();
+    expect(window.sessionStorage.getItem(PENDING_FAMILY_COLLECTION_PREFERENCE_STORAGE_KEY)).toBeTruthy();
+    firstView.unmount();
+
+    render(
+      <FamilyCollectionModeCard
+        organizationId={organizationId}
+        familyId={familyId}
+        canManage
+      />
+    );
+    const retry = await screen.findByRole("button", {
+      name: "Reintentar solicitud pendiente",
+    });
+    expect(retry).toBeEnabled();
+    expect(putAttempts).toBe(1);
+    await user.click(retry);
+
+    await waitFor(() => expect(putAttempts).toBe(2));
+    const writes = mocks.fetch.mock.calls.filter(
+      ([, init]) => init?.method === "PUT"
+    );
+    expect(writes[1]).toEqual(firstWrite);
+    await waitFor(() =>
+      expect(
+        window.sessionStorage.getItem(
+          PENDING_FAMILY_COLLECTION_PREFERENCE_STORAGE_KEY
+        )
+      ).toBeNull()
+    );
+    expect(
+      await screen.findByText("Preferencia manual guardada para esta familia.")
+    ).toBeVisible();
+  });
+
+  it("bloquea nuevas claves si el registro de recuperación local está dañado", async () => {
+    mocks.fetch.mockResolvedValue(response(currentPreference));
+    window.sessionStorage.setItem(
+      PENDING_FAMILY_COLLECTION_PREFERENCE_STORAGE_KEY,
+      JSON.stringify({ version: 1, organizationId, familyId, extra: "invalid" })
+    );
+
+    render(
+      <FamilyCollectionModeCard
+        organizationId={organizationId}
+        familyId={familyId}
+        canManage
+      />
+    );
+
+    expect(await screen.findByRole("alert")).toHaveTextContent(
+      "solicitud local dañada"
+    );
+    expect(screen.getByRole("radio", { name: "Manual" })).toBeDisabled();
+    expect(mocks.fetch.mock.calls.some(([, init]) => init?.method === "PUT")).toBe(
+      false
+    );
+  });
+
+  it("no envía si sessionStorage impide guardar el comando antes del PUT", async () => {
+    mocks.fetch.mockResolvedValue(response(currentPreference));
+    const originalSetItem = Storage.prototype.setItem;
+    vi.spyOn(Storage.prototype, "setItem").mockImplementation(function (
+      this: Storage,
+      storageKey: string,
+      value: string
+    ) {
+      if (
+        this === window.sessionStorage &&
+        storageKey === PENDING_FAMILY_COLLECTION_PREFERENCE_STORAGE_KEY
+      ) {
+        throw new DOMException("Write denied", "SecurityError");
+      }
+      return originalSetItem.call(this, storageKey, value);
+    });
+
+    const user = userEvent.setup();
+    render(
+      <FamilyCollectionModeCard
+        organizationId={organizationId}
+        familyId={familyId}
+        canManage
+      />
+    );
+    await user.click(await screen.findByRole("radio", { name: "Manual" }));
+
+    expect(await screen.findByRole("alert")).toHaveTextContent(
+      "No se pudo guardar y verificar esta solicitud"
+    );
+    expect(mocks.fetch.mock.calls.some(([, init]) => init?.method === "PUT")).toBe(
+      false
+    );
   });
 
   it("no ofrece el reintento en otra familia o academia", async () => {

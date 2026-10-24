@@ -3,6 +3,13 @@
 import { useEffect, useRef, useState } from "react";
 import { OwnerOperationalReadOnlyNotice } from "./OwnerOperationalReadOnlyNotice";
 import { useOwnerPlanPolicy } from "./owner-plan-usage-store";
+import {
+  clearPendingFamilyCollectionPreference,
+  familyCollectionCommandFromSnapshot,
+  persistPendingFamilyCollectionPreference,
+  readPendingFamilyCollectionPreference,
+  type FamilyCollectionPreferenceCommand,
+} from "./owner-pending-family-collection-preference";
 
 interface FamilyCollectionPreference {
   organizationId: string;
@@ -18,14 +25,7 @@ interface FamilyCollectionPreference {
   requiresConfirmation: boolean;
 }
 
-interface FamilyCollectionCommand {
-  organizationId: string;
-  familyId: string;
-  mode: "manual" | "automatic";
-  expectedVersion: number;
-  key: string;
-  body: string;
-}
+type FamilyCollectionCommand = FamilyCollectionPreferenceCommand;
 
 function isRevision(value: unknown): value is number | null {
   return value === null || (Number.isSafeInteger(value) && Number(value) >= 0);
@@ -85,6 +85,11 @@ export function FamilyCollectionModeCard({
     useState<FamilyCollectionPreference | null>(null);
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
+  const [pendingRecoveryStatus, setPendingRecoveryStatus] = useState<
+    "checking" | "ready" | "invalid" | "unavailable"
+  >("checking");
+  const [pendingRecoveryMessage, setPendingRecoveryMessage] =
+    useState<string | null>(null);
   const saveInFlight = useRef(false);
   const pendingCommandRef = useRef<FamilyCollectionCommand | null>(null);
   const [pendingCommand, setPendingCommand] =
@@ -93,6 +98,43 @@ export function FamilyCollectionModeCard({
   currentScope.current = { organizationId, familyId };
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
   const [savedMessage, setSavedMessage] = useState<string | null>(null);
+
+  useEffect(() => {
+    if (!canManage) {
+      setPendingRecoveryStatus("ready");
+      setPendingRecoveryMessage(null);
+      return;
+    }
+
+    const stored = readPendingFamilyCollectionPreference(window.sessionStorage);
+    if (stored.status === "pending") {
+      const restored = familyCollectionCommandFromSnapshot(stored.snapshot);
+      pendingCommandRef.current = restored;
+      setPendingCommand(restored);
+      setPendingRecoveryStatus("ready");
+      setPendingRecoveryMessage(null);
+      return;
+    }
+
+    pendingCommandRef.current = null;
+    setPendingCommand(null);
+    if (stored.status === "invalid") {
+      setPendingRecoveryStatus("invalid");
+      setPendingRecoveryMessage(
+        "Hay una solicitud local dañada. No se generarán cambios nuevos hasta recuperar su estado."
+      );
+      return;
+    }
+    if (stored.status === "unavailable") {
+      setPendingRecoveryStatus("unavailable");
+      setPendingRecoveryMessage(
+        "No se pudo comprobar el almacenamiento de esta sesión. No se enviarán cambios nuevos hasta poder verificar una solicitud pendiente."
+      );
+      return;
+    }
+    setPendingRecoveryStatus("ready");
+    setPendingRecoveryMessage(null);
+  }, [canManage, familyId, organizationId]);
 
   useEffect(() => {
     if (!canManage) {
@@ -146,7 +188,12 @@ export function FamilyCollectionModeCard({
   }, [canManage, familyId, organizationId]);
 
   async function sendPreference(command: FamilyCollectionCommand) {
-    if (saveInFlight.current || writesBlocked) return;
+    if (
+      saveInFlight.current ||
+      writesBlocked ||
+      pendingRecoveryStatus !== "ready" ||
+      pendingRecoveryMessage
+    ) return;
     if (
       command.organizationId !== currentScope.current.organizationId ||
       command.familyId !== currentScope.current.familyId
@@ -157,6 +204,14 @@ export function FamilyCollectionModeCard({
       pendingCommandRef.current &&
       pendingCommandRef.current !== command
     ) {
+      return;
+    }
+
+    if (!persistPendingFamilyCollectionPreference(window.sessionStorage, command)) {
+      setPendingRecoveryStatus("invalid");
+      setPendingRecoveryMessage(
+        "No se pudo guardar y verificar esta solicitud en la sesión. No se enviará hasta poder recuperar el mismo comando."
+      );
       return;
     }
 
@@ -181,7 +236,10 @@ export function FamilyCollectionModeCard({
       const payload: unknown = await response.json().catch(() => null);
       if (!response.ok) {
         const rejected = isDefinitiveRejection(response.status, payload);
-        if (rejected && pendingCommandRef.current === command) {
+        const pendingCleared = rejected
+          ? clearPendingFamilyCollectionPreference(window.sessionStorage, command)
+          : false;
+        if (pendingCleared && pendingCommandRef.current === command) {
           pendingCommandRef.current = null;
           setPendingCommand(null);
         }
@@ -198,7 +256,9 @@ export function FamilyCollectionModeCard({
         ) {
           setErrorMessage(
             rejected
-              ? detail
+              ? pendingCleared
+                ? detail
+                : `${detail} La solicitud seguirá guardada hasta verificar su limpieza; no se creará otra clave.`
               : `${detail} Reintenta la misma solicitud para recuperar su resultado.`
           );
         }
@@ -220,7 +280,11 @@ export function FamilyCollectionModeCard({
         return;
       }
 
-      if (pendingCommandRef.current === command) {
+      const pendingCleared = clearPendingFamilyCollectionPreference(
+        window.sessionStorage,
+        command
+      );
+      if (pendingCleared && pendingCommandRef.current === command) {
         pendingCommandRef.current = null;
         setPendingCommand(null);
       }
@@ -229,11 +293,17 @@ export function FamilyCollectionModeCard({
         command.familyId === currentScope.current.familyId
       ) {
         setPreference(payload);
-        setSavedMessage(
-          command.mode === "automatic"
-            ? "Solicitud automática guardada; el cobro efectivo sigue siendo manual."
-            : "Preferencia manual guardada para esta familia."
-        );
+        if (pendingCleared) {
+          setSavedMessage(
+            command.mode === "automatic"
+              ? "Solicitud automática guardada; el cobro efectivo sigue siendo manual."
+              : "Preferencia manual guardada para esta familia."
+          );
+        } else {
+          setErrorMessage(
+            "La preferencia se guardó, pero no se pudo limpiar la solicitud local. Reintenta la misma solicitud; no se enviará una clave nueva."
+          );
+        }
       }
     } catch (error) {
       if (
@@ -258,7 +328,9 @@ export function FamilyCollectionModeCard({
       pendingCommandRef.current ||
       !preference ||
       saving ||
-      writesBlocked
+      writesBlocked ||
+      pendingRecoveryStatus !== "ready" ||
+      pendingRecoveryMessage
     ) return;
     const currentMode = preference.requiresConfirmation
       ? "manual"
@@ -326,6 +398,14 @@ export function FamilyCollectionModeCard({
           contexto original para reintentarla; no enviaremos este cambio aquí.
         </p>
       ) : null}
+      {pendingRecoveryMessage ? (
+        <p
+          className="mt-3 rounded-xl border border-red-300 bg-red-50 px-3 py-2 text-sm leading-5 text-red-900"
+          role="alert"
+        >
+          {pendingRecoveryMessage}
+        </p>
+      ) : null}
       {pendingCommand && pendingCommandMatchesScope ? (
         <div className="mt-3 rounded-xl border border-amber-300 bg-amber-50 px-3 py-3 text-sm leading-5 text-amber-950">
           <p>
@@ -334,7 +414,9 @@ export function FamilyCollectionModeCard({
           </p>
           <button
             type="button"
-            disabled={saving || writesBlocked}
+            disabled={
+              saving || writesBlocked || pendingRecoveryStatus !== "ready"
+            }
             onClick={() => void sendPreference(pendingCommand)}
             className="mt-2 min-h-11 rounded-full bg-amber-900 px-4 text-sm font-bold text-white hover:bg-amber-800 disabled:cursor-not-allowed disabled:opacity-60"
           >
@@ -356,7 +438,11 @@ export function FamilyCollectionModeCard({
           <fieldset
             className="mt-3 grid gap-2 sm:grid-cols-2"
             disabled={
-              saving || writesBlocked || pendingCommand !== null
+              saving ||
+              writesBlocked ||
+              pendingRecoveryStatus !== "ready" ||
+              pendingRecoveryMessage !== null ||
+              pendingCommand !== null
             }
           >
             <legend className="sr-only">Preferencia de cobro</legend>
