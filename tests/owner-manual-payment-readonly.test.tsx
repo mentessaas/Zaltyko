@@ -2,6 +2,7 @@
 import "@testing-library/jest-dom/vitest";
 import { act, cleanup, fireEvent, render, screen, waitFor } from "@testing-library/react";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
+import { webcrypto } from "node:crypto";
 
 const mocks = vi.hoisted(() => ({ refresh: vi.fn() }));
 vi.mock("next/navigation", () => ({ useRouter: () => ({ refresh: mocks.refresh }) }));
@@ -55,12 +56,15 @@ const policyCases: Array<[string, () => void]> = [
 beforeEach(() => {
   fetchMock.mockReset();
   mocks.refresh.mockReset();
+  window.sessionStorage.clear();
+  vi.stubGlobal("crypto", webcrypto);
   vi.stubGlobal("fetch", fetchMock);
   publishOwnerPlanUsage(organizationId, { readOnly: false, planCode: "free" });
 });
 
 afterEach(() => {
   cleanup();
+  window.sessionStorage.clear();
   vi.unstubAllGlobals();
 });
 
@@ -350,6 +354,78 @@ describe("registro manual de pagos con política de solo lectura", () => {
       (firstInit.headers as Record<string, string>)["idempotency-key"]
     );
     await screen.findByText("Pago guardado y asignado al cargo.");
+  });
+
+  it("recupera tras recargar el mismo comando sin guardar la referencia en claro", async () => {
+    fetchMock
+      .mockResolvedValueOnce({
+        ok: false,
+        status: 503,
+        json: async () => ({ detail: "Respuesta incierta" }),
+      })
+      .mockImplementationOnce(async (_input, init) => {
+        const request = JSON.parse(String(init?.body));
+        return { ok: true, status: 201, json: async () => ({ ok: true, data: request }) };
+      });
+
+    const firstRender = render(
+      <ManualPaymentForm organizationId={organizationId} charges={charges} />
+    );
+    await waitFor(() => {
+      expect(screen.getByLabelText("Fecha de recepción")).not.toHaveValue("");
+    });
+    fireEvent.change(screen.getByLabelText(/Referencia/), {
+      target: { value: "transferencia qa 741" },
+    });
+    fireEvent.click(screen.getByRole("button", { name: "Guardar pago recibido" }));
+    await waitFor(() => expect(fetchMock).toHaveBeenCalledTimes(1));
+    await screen.findByRole("alert");
+
+    const firstInit = fetchMock.mock.calls[0]?.[1] as RequestInit;
+    const firstBody = String(firstInit.body);
+    const firstKey = (firstInit.headers as Record<string, string>)["idempotency-key"];
+    const storageKey = window.sessionStorage.key(0);
+    expect(storageKey).toBe("zaltyko:pending-manual-payment:v1");
+    const pendingSnapshot = window.sessionStorage.getItem(storageKey!)!;
+    expect(pendingSnapshot).not.toContain("transferencia qa 741");
+    expect(JSON.parse(pendingSnapshot)).toMatchObject({
+      organizationId,
+      chargeId: charges[0].chargeId,
+      idempotencyKey: firstKey,
+    });
+
+    firstRender.unmount();
+    render(<ManualPaymentForm organizationId={organizationId} charges={charges} />);
+    await screen.findByRole("button", { name: "Reintentar el mismo registro" });
+    const referenceInput = screen.getByLabelText(/Referencia/);
+    expect(referenceInput).toBeEnabled();
+    fireEvent.change(referenceInput, { target: { value: "otra referencia" } });
+    fireEvent.click(screen.getByRole("button", { name: "Reintentar el mismo registro" }));
+    await screen.findByText(/no coincide con el envío pendiente/i);
+    expect(fetchMock).toHaveBeenCalledTimes(1);
+
+    fireEvent.change(referenceInput, { target: { value: "transferencia qa 741" } });
+    fireEvent.click(screen.getByRole("button", { name: "Reintentar el mismo registro" }));
+    await waitFor(() => expect(fetchMock).toHaveBeenCalledTimes(2));
+    const retryInit = fetchMock.mock.calls[1]?.[1] as RequestInit;
+    expect(String(retryInit.body)).toBe(firstBody);
+    expect((retryInit.headers as Record<string, string>)["idempotency-key"]).toBe(firstKey);
+    await screen.findByText("Pago guardado y asignado al cargo.");
+    expect(window.sessionStorage.getItem(storageKey!)).toBeNull();
+  });
+
+  it("no envía un pago si sessionStorage no se puede escribir", async () => {
+    vi.spyOn(window.sessionStorage, "setItem").mockImplementation(() => {
+      throw new DOMException("Storage denied", "SecurityError");
+    });
+    render(<ManualPaymentForm organizationId={organizationId} charges={charges} />);
+    await waitFor(() => {
+      expect(screen.getByLabelText("Fecha de recepción")).not.toHaveValue("");
+    });
+
+    fireEvent.click(screen.getByRole("button", { name: "Guardar pago recibido" }));
+    await screen.findByText(/no se pudo guardar el reintento seguro/i);
+    expect(fetchMock).not.toHaveBeenCalled();
   });
 
   it("conserva el comando incierto si un replay requiere recuperar acceso", async () => {

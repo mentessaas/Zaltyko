@@ -4,6 +4,14 @@ import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useEffect, useId, useMemo, useRef, useState } from "react";
 import { OwnerOperationalReadOnlyNotice } from "./OwnerOperationalReadOnlyNotice";
+import {
+  clearPendingManualPayment,
+  createManualPaymentRetrySnapshot,
+  persistPendingManualPayment,
+  readPendingManualPayment,
+  restoreManualPaymentRetryBody,
+  type ManualPaymentRetrySnapshot,
+} from "./manual-payment-retry-storage";
 import { formatPaymentDueDate } from "./owner-payment-date";
 import { useOwnerPlanPolicy } from "./owner-plan-usage-store";
 import { useOrganizationDraftField } from "./use-organization-draft-field";
@@ -23,6 +31,13 @@ type PaymentRequest = {
   method: ManualPaymentMethod;
   reference?: string;
   receivedAt: string;
+};
+
+type PendingPaymentRequest = {
+  key: string;
+  body: PaymentRequest;
+  snapshot: ManualPaymentRetrySnapshot;
+  referenceRequired: boolean;
 };
 
 function isMatchingManualPaymentResponse(
@@ -117,11 +132,39 @@ export function ManualPaymentForm({
     null
   );
   const [saved, setSaved] = useOrganizationDraftField(organizationId, false);
-  const [retryRequest, setRetryRequest] = useState<{
-    key: string;
-    body: PaymentRequest;
-  } | null>(null);
+  const [retryRequest, setRetryRequest] =
+    useState<PendingPaymentRequest | null>(null);
+  const [retryStorageReady, setRetryStorageReady] = useState(false);
+  const [retryStorageError, setRetryStorageError] = useState<string | null>(null);
   const paymentInFlight = useRef(false);
+
+  useEffect(() => {
+    const stored = readPendingManualPayment(window.sessionStorage);
+    if (stored.status === "pending") {
+      const { snapshot } = stored;
+      setRetryRequest({
+        key: snapshot.idempotencyKey,
+        body: {
+          organizationId: snapshot.organizationId,
+          chargeId: snapshot.chargeId,
+          amountCents: snapshot.amountCents,
+          method: snapshot.method,
+          receivedAt: snapshot.receivedAt,
+        },
+        snapshot,
+        referenceRequired: snapshot.referenceSha256 !== null,
+      });
+    } else if (stored.status === "invalid") {
+      setRetryStorageError(
+        "Hay un registro pendiente dañado. No se enviará otro pago para evitar duplicados."
+      );
+    } else if (stored.status === "unavailable") {
+      setRetryStorageError(
+        "El almacenamiento seguro de este envío no está disponible. No se enviará el pago."
+      );
+    }
+    setRetryStorageReady(true);
+  }, []);
 
   useEffect(() => {
     setToday("");
@@ -161,10 +204,36 @@ export function ManualPaymentForm({
     setError(null);
   }
 
+  function retryPendingPayment() {
+    if (!retryRequest || retryRequest.body.organizationId !== organizationId) return;
+    if (paymentInFlight.current || busy) return;
+    void restoreManualPaymentRetryBody(retryRequest.snapshot, reference)
+      .then((restored) => {
+        if (restored.status === "reference-required") {
+          setError("Vuelve a introducir la misma referencia para confirmar el reintento.");
+          return;
+        }
+        if (restored.status === "reference-mismatch") {
+          setError("La referencia no coincide con el envío pendiente. No se ha enviado el pago.");
+          return;
+        }
+        void sendPayment(
+          retryRequest.key,
+          restored.body,
+          true,
+          retryRequest.snapshot
+        );
+      })
+      .catch(() => {
+        setError("No se pudo verificar la referencia de forma segura. No se ha enviado el pago.");
+      });
+  }
+
   async function sendPayment(
     key: string,
     body: PaymentRequest,
-    isRetry = false
+    isRetry = false,
+    existingSnapshot?: ManualPaymentRetrySnapshot
   ) {
     if (paymentInFlight.current) return;
     paymentInFlight.current = true;
@@ -172,7 +241,42 @@ export function ManualPaymentForm({
       setBusy(true);
       setError(null);
       setSaved(false);
-      setRetryRequest({ key, body });
+      let snapshot = existingSnapshot;
+      if (!snapshot) {
+        try {
+          snapshot = await createManualPaymentRetrySnapshot({
+            body,
+            currency:
+              charges.find((charge) => charge.chargeId === body.chargeId)
+                ?.currency ?? "",
+            idempotencyKey: key,
+          }) ?? undefined;
+        } catch {
+          setError(
+            "No se pudo preparar la verificación segura. El pago no se ha enviado."
+          );
+          return;
+        }
+      }
+      if (
+        !snapshot ||
+        snapshot.organizationId !== body.organizationId ||
+        snapshot.chargeId !== body.chargeId ||
+        snapshot.idempotencyKey !== key ||
+        !persistPendingManualPayment(window.sessionStorage, snapshot)
+      ) {
+        setError(
+          "No se pudo guardar el reintento seguro. No se ha enviado el pago; inténtalo cuando el almacenamiento esté disponible."
+        );
+        return;
+      }
+      setRetryStorageError(null);
+      setRetryRequest({
+        key,
+        body,
+        snapshot,
+        referenceRequired: snapshot.referenceSha256 !== null,
+      });
       const response = await fetch("/api/v1/owner/billing/manual-payments", {
         method: "POST",
         headers: {
@@ -198,7 +302,13 @@ export function ManualPaymentForm({
           [408, 425, 429].includes(response.status) ||
           (isRetry && [401, 403, 404, 409].includes(response.status));
         if (!retryMayStillNeedReceipt) {
-          setRetryRequest(null);
+          if (clearPendingManualPayment(window.sessionStorage, snapshot)) {
+            setRetryRequest(null);
+          } else {
+            setError(
+              "El servidor rechazó el envío, pero no se pudo limpiar el reintento guardado. No registres otro pago hasta resolverlo."
+            );
+          }
         }
         return;
       }
@@ -214,6 +324,12 @@ export function ManualPaymentForm({
         return;
       }
 
+      if (!clearPendingManualPayment(window.sessionStorage, snapshot)) {
+        setError(
+          "El pago está confirmado, pero no se pudo limpiar su reintento seguro. Puedes reintentar el mismo envío; no creará un segundo pago."
+        );
+        return;
+      }
       setRetryRequest(null);
       setSaved(true);
       setAmount("");
@@ -234,11 +350,10 @@ export function ManualPaymentForm({
     if (paymentInFlight.current) return;
     // Resolve an existing idempotent command before blocking new writes.
     if (retryRequest) {
-      if (retryRequest.body.organizationId !== organizationId) return;
-      void sendPayment(retryRequest.key, retryRequest.body, true);
+      retryPendingPayment();
       return;
     }
-    if (dateInterpretationError) return;
+    if (!retryStorageReady || retryStorageError || dateInterpretationError) return;
     if (writesBlocked) return;
     if (!selectedCharge || !effectiveReceivedOn) return;
     const amountCents = parseAmountCents(amount);
@@ -270,7 +385,8 @@ export function ManualPaymentForm({
 
   const amountCents = parseAmountCents(amount);
   const effectiveReceivedOn = receivedOn || today;
-  const formLocked = busy || retryRequest !== null;
+  const formLocked =
+    busy || retryRequest !== null || !retryStorageReady || retryStorageError !== null;
   const retryBelongsToCurrentOrganization =
     retryRequest?.body.organizationId === organizationId;
   const retryScopeNotice =
@@ -304,18 +420,34 @@ export function ManualPaymentForm({
           dinero que ya hayas recibido y dejarlo conciliado en un solo paso.
         </p>
         {retryScopeNotice}
+        {retryStorageError && (
+          <p role="alert" className="mt-4 rounded-xl border border-rose-300 bg-rose-50 px-4 py-3 text-sm text-rose-900">
+            {retryStorageError}
+          </p>
+        )}
         {retryRequest && retryBelongsToCurrentOrganization && (
           <div className="mt-4 rounded-xl border border-amber-300 bg-amber-50 px-4 py-3 text-sm leading-6 text-amber-950">
             <p>
               Hay un envío anterior cuyo resultado no se pudo confirmar. Puedes
               consultar el mismo envío sin crear otro registro.
             </p>
+            {retryRequest.referenceRequired && (
+              <label className="mt-3 grid gap-2">
+                <span className="font-semibold">Vuelve a introducir la referencia del envío</span>
+                <input
+                  type="text"
+                  maxLength={200}
+                  value={reference}
+                  onChange={(event) => setReference(event.target.value)}
+                  disabled={busy}
+                  className="min-h-11 rounded-xl border border-amber-400 bg-white px-3 text-sm text-slate-950"
+                />
+              </label>
+            )}
             <button
               type="button"
-              disabled={busy}
-              onClick={() =>
-                void sendPayment(retryRequest.key, retryRequest.body, true)
-              }
+              disabled={busy || !retryStorageReady}
+              onClick={retryPendingPayment}
               className="mt-2 min-h-11 rounded-full bg-amber-900 px-4 text-sm font-bold text-white hover:bg-amber-800 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-amber-900 disabled:cursor-not-allowed disabled:opacity-60"
             >
               {busy ? "Comprobando…" : "Reintentar el mismo registro"}
@@ -352,6 +484,14 @@ export function ManualPaymentForm({
         cobro.
       </div>
       {retryScopeNotice}
+      {retryStorageError && (
+        <p
+          role="alert"
+          className="rounded-xl border border-rose-300 bg-rose-50 px-4 py-3 text-sm text-rose-900"
+        >
+          {retryStorageError}
+        </p>
+      )}
       <OwnerOperationalReadOnlyNotice organizationId={organizationId} />
       {dateInterpretationError && (
         <p
@@ -499,7 +639,11 @@ export function ManualPaymentForm({
               maxLength={200}
               value={reference}
               onChange={(event) => setReference(event.target.value)}
-              disabled={formLocked}
+              disabled={
+                busy ||
+                !retryStorageReady ||
+                (retryRequest !== null && !retryRequest.referenceRequired)
+              }
               placeholder="Por ejemplo, concepto de la transferencia"
               className="min-h-12 rounded-xl border border-slate-300 px-3 text-sm text-slate-950 placeholder:text-slate-400 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-teal-800 disabled:bg-slate-100"
             />
@@ -540,6 +684,8 @@ export function ManualPaymentForm({
           type="submit"
           disabled={
             busy ||
+            !retryStorageReady ||
+            retryStorageError !== null ||
             (retryRequest
               ? !retryBelongsToCurrentOrganization
               : writesBlocked ||
