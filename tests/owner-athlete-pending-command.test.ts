@@ -20,6 +20,7 @@ beforeEach(() => {
 
 afterEach(() => {
   window.sessionStorage.clear();
+  vi.restoreAllMocks();
   vi.unstubAllGlobals();
 });
 
@@ -79,7 +80,7 @@ describe("comandos pendientes de archivo/restauración de gimnastas", () => {
   });
 
   it("no envía operaciones si sessionStorage no puede guardar el comando", () => {
-    vi.spyOn(window.sessionStorage, "setItem").mockImplementation(() => {
+    vi.spyOn(Storage.prototype, "setItem").mockImplementation(() => {
       throw new DOMException("Storage denied", "SecurityError");
     });
 

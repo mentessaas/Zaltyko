@@ -42,6 +42,7 @@ function response(status: number, payload: unknown) {
 beforeEach(() => {
   vi.clearAllMocks();
   window.sessionStorage.clear();
+  vi.stubGlobal("fetch", mocks.fetch);
   let sequence = 0;
   vi.stubGlobal("crypto", {
     randomUUID: () => `40000000-0000-4000-8000-${String(++sequence).padStart(12, "0")}`,
@@ -57,6 +58,7 @@ beforeEach(() => {
 afterEach(() => {
   cleanup();
   window.sessionStorage.clear();
+  vi.restoreAllMocks();
   vi.unstubAllGlobals();
 });
 
@@ -95,7 +97,7 @@ describe("reintento del archivo de gimnastas", () => {
   });
 
   it("no envía el archivo si el navegador no permite persistir la clave antes del POST", async () => {
-    vi.spyOn(window.sessionStorage, "setItem").mockImplementation(() => {
+    vi.spyOn(Storage.prototype, "setItem").mockImplementation(() => {
       throw new DOMException("Storage denied", "SecurityError");
     });
     const user = userEvent.setup();
