@@ -49,6 +49,16 @@ module.exports = {
         changed = true;
       }
 
+      // @tailwindcss/typography pins a vulnerable postcss-selector-parser 6.0.10.
+      // Keep this major-version override scoped to that consumer.
+      if (bumped.name === "@tailwindcss/typography" && bumped.dependencies?.["postcss-selector-parser"]) {
+        bumped.dependencies = {
+          ...bumped.dependencies,
+          "postcss-selector-parser": "^7.1.6",
+        };
+        changed = true;
+      }
+
       // brace-expansion has patched releases in each supported major line.
       // Keep minimatch 3 on the 1.x line and minimatch 9/10 on the 5.x line;
       // a global override would break their peer-compatible ranges.
