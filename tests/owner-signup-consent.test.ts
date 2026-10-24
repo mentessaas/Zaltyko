@@ -161,7 +161,6 @@ describe("Owner contractual signup consent", () => {
       policyResult,
       { rows: [] },
       { rows: [{ user_id: userId }] },
-      { rows: [{ user_id: userId }] },
       { rows: [] },
     ]);
 
@@ -180,7 +179,7 @@ describe("Owner contractual signup consent", () => {
     ).resolves.toBe("recorded");
 
     expect(transaction).toHaveBeenCalledTimes(1);
-    expect(execute).toHaveBeenCalledTimes(6);
+    expect(execute).toHaveBeenCalledTimes(5);
   });
 
   it("fails closed when the consent store is unavailable", async () => {
