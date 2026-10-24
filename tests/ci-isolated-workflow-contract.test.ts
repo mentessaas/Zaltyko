@@ -197,7 +197,7 @@ describe("isolated CI workflow contract", () => {
     expect(replayScript).toContain('python3 - "$STATUS_LOG" "$PROJECT_ID" "$CI_WORKDIR" "$LOCAL_DB_URL_FILE"');
     expect(replayScript).toContain('parsed_url.hostname not in {"127.0.0.1", "localhost", "::1"}');
     expect(replayScript).toContain('db_url_path.chmod(0o600)');
-    expect(replayScript).toContain('query = urlencode([("sslmode", "disable")])');
+    expect(replayScript).toContain('query = urlencode([("role", "supabase_admin"), ("sslmode", "disable")])');
     expect(replayScript).toContain('admin_url.username != "supabase_admin"');
     expect(replayScript).toContain("target.write(b\"SET app.schema_snapshot_replay = 'ci-empty-replay';\\n\")");
     expect(replayScript).toContain("marker remains session-local through the");

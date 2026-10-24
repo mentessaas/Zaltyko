@@ -254,8 +254,9 @@ if (
 # host, port, database, and password. The stack's status URL may include these
 # values (for example `user=postgres`), so carrying its query through would
 # silently override the validated replay principal. Rebuild a minimal direct
-# loopback URL and retain only the explicit local TLS setting.
-query = urlencode([("sslmode", "disable")])
+# loopback URL, explicitly set the session role to supabase_admin, and retain
+# only the local TLS setting.
+query = urlencode([("role", "supabase_admin"), ("sslmode", "disable")])
 host = parsed_url.hostname
 authority_host = f"[{host}]" if ":" in host else host
 userinfo = "supabase_admin"
@@ -269,7 +270,7 @@ if (
     or admin_url.hostname not in {"127.0.0.1", "localhost", "::1"}
     or admin_url.port != port
     or admin_url.path != "/postgres"
-    or parse_qsl(admin_url.query) != [("sslmode", "disable")]
+    or parse_qsl(admin_url.query) != [("role", "supabase_admin"), ("sslmode", "disable")]
 ):
     raise SystemExit("The reconstructed replay URL did not preserve its pinned local target and principal.")
 safe = {
@@ -333,8 +334,15 @@ printf 'Detected replay principal: login_role=%s, replay_role=%s, login_superuse
   "$login_role" "$replay_role" "$login_is_superuser" "$replay_is_superuser" "$configured_role" "$server_address" "$server_port"
 [[ "$login_role" == "supabase_admin" && "$replay_role" == "supabase_admin" && \
    "$login_is_superuser" == "true" && "$replay_is_superuser" == "true" && \
-   "$server_address" == "127.0.0.1" && "$server_port" == "$EXPECTED_LOCAL_PORT" ]] || \
+   "$configured_role" == "supabase_admin" ]] || \
   fail "The disposable stack did not connect as its verified Supabase superuser replay principal."
+if [[ -z "$server_address" && -z "$server_port" ]]; then
+  printf 'Verified native database transport: Unix socket on the pinned loopback stack.\n'
+elif [[ "$server_address" == "127.0.0.1" && "$server_port" == "$EXPECTED_LOCAL_PORT" ]]; then
+  printf 'Verified native database transport: loopback TCP on port %s.\n' "$EXPECTED_LOCAL_PORT"
+else
+  fail "The replay query did not resolve to the pinned native database transport."
+fi
 printf 'Sanitized replay principal: login_role=%s, replay_role=%s, superuser=%s\n' \
   "$login_role" "$replay_role" "$replay_is_superuser"
 

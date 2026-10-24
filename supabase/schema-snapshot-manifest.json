@@ -68,9 +68,9 @@
     "database": "fresh local Supabase Postgres only; no linked or remote database",
     "tenant_fixture_path": "scripts/ci/sandbox-tenant-isolation.sql",
     "tenant_fixture_sha256": "b0ffc0d3670ec51ec67169ab64094c73162c8b22405293e68bd7df6124be8ff3",
-    "replay_principal": "Connect to the validated loopback endpoint as the pinned stack's built-in supabase_admin login, discard inherited query-level connection overrides, and verify its superuser flag before replay. The snapshot's role-scoped default ACLs require the Supabase platform principal; CI does not grant, revoke, or create roles.",
+    "replay_principal": "Connect to the validated loopback endpoint as the pinned stack's built-in supabase_admin login, discard inherited query-level connection overrides, set the session role to supabase_admin, and verify login/effective superuser identities plus local transport before replay. The snapshot's role-scoped default ACLs require the Supabase platform principal; CI does not grant, revoke, or create roles.",
     "replay_script_path": "scripts/ci/verify-sandbox-schema-replay.sh",
-    "replay_script_sha256": "cd01cd64303c8a2ef703029a73ad000fd543da8226241fa8bc339d447253042c",
+    "replay_script_sha256": "0f82c438feee1047103cd103973f4c5a36433f86ab91cf8420b2802e7e26983b",
     "execution_evidence": "This manifest records the pinned replay procedure only; record the exact commit and CI result in the external audit report after a passing run."
   },
   "scope_exclusions": [
