@@ -196,12 +196,12 @@ describe("sandbox PostgreSQL regularization (remote / rollback)", () => {
           familyName: "Athlete",
           idempotencyKey: `qa-block-${randomUUID()}`,
           actor,
-        })).rejects.toMatchObject({ code: "CAPACITY_FULL" });
+        })).rejects.toMatchObject({ code: "PLAN_OVER_CAPACITY" });
         expect(await snapshot(fixtureOrg, tx)).toEqual(full);
 
-        await expect(createOperationalGroup({ organizationId: fixtureOrg, locationId: fixtureLocation, programId: null, name: "QA MUST NOT EXIST", capacity: 30, idempotencyKey: `qa-block-${randomUUID()}`, actor })).rejects.toMatchObject({ code: "CAPACITY_FULL" });
+        await expect(createOperationalGroup({ organizationId: fixtureOrg, locationId: fixtureLocation, programId: null, name: "QA MUST NOT EXIST", capacity: 30, idempotencyKey: `qa-block-${randomUUID()}`, actor })).rejects.toMatchObject({ code: "PLAN_OVER_CAPACITY" });
         expect(await snapshot(fixtureOrg, tx)).toEqual(full);
-        await expect(createScheduledClass({ organizationId: fixtureOrg, locationId: fixtureLocation, programId: null, name: "QA MUST NOT EXIST", capacity: 30, effectiveFrom: "2099-10-26", effectiveTo: "2099-10-26", schedule: [{ isoWeekday: 1, startsAtLocal: "08:00", endsAtLocal: "09:00" }], idempotencyKey: `qa-block-${randomUUID()}`, actor })).rejects.toMatchObject({ code: "CAPACITY_FULL" });
+        await expect(createScheduledClass({ organizationId: fixtureOrg, locationId: fixtureLocation, programId: null, name: "QA MUST NOT EXIST", capacity: 30, effectiveFrom: "2099-10-26", effectiveTo: "2099-10-26", schedule: [{ isoWeekday: 1, startsAtLocal: "08:00", endsAtLocal: "09:00" }], idempotencyKey: `qa-block-${randomUUID()}`, actor })).rejects.toMatchObject({ code: "PLAN_OVER_CAPACITY" });
         expect(await snapshot(fixtureOrg, tx)).toEqual(full);
         const absent = (await tx.execute(sql`select (select count(*)::int from zaltyko.groups where organization_id = ${fixtureOrg}::uuid and name = 'QA MUST NOT EXIST') + (select count(*)::int from zaltyko.class_templates where organization_id = ${fixtureOrg}::uuid and name = 'QA MUST NOT EXIST') as count`)).rows[0];
         expect(absent.count).toBe(0);
