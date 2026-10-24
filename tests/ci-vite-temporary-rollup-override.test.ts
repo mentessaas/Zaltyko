@@ -62,7 +62,12 @@ function fakeIo(): FakeIo {
       manifest.devDependencies.vite = "6.4.5";
       if (io.driftManifest) manifest.devDependencies.vitest = "9.9.9";
       io.files["package.json"] = `${JSON.stringify(manifest, null, io.compactManifest ? undefined : 2)}\n`;
-      if (io.duplicateManifestKey) io.files["package.json"] = io.files["package.json"].replace(/\n}$/, ',\n  "name": "duplicate"\n}');
+      if (io.duplicateManifestKey) {
+        const text = io.files["package.json"];
+        const closingBrace = text.lastIndexOf("}");
+        io.files["package.json"] = `${text.slice(0, closingBrace)},\n  "name": "duplicate"\n}${text.slice(closingBrace + 1)}`;
+        expect(io.files["package.json"].match(/"name"\s*:/g)).toHaveLength(2);
+      }
       io.files["pnpm-lock.yaml"] = "resolver-lock\n";
       io.status = " M package.json\n M pnpm-lock.yaml\n";
       if (io.driftHeadAfterResolver) io.head = "b".repeat(40);
@@ -156,6 +161,7 @@ describe("temporary Vite Rollup resolver", () => {
     const io = fakeIo();
     io.duplicateManifestKey = true;
     expect(resolver.run({ env: { BASE_SHA: SHA }, io })).toBe(1);
+    expect(io.files["package.json"].match(/"name"\s*:/g)).toHaveLength(2);
     expect(io.writes).toEqual(["package.json"]);
     expect(io.errors.join("")).toContain("MANIFEST_DUPLICATE_KEY");
   });
