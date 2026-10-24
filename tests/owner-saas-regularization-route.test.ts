@@ -77,7 +77,9 @@ beforeEach(() => {
   mocks.getRegularizationStatus.mockResolvedValue(readOnlyStatus);
   mocks.archiveResource.mockResolvedValue({
     ...readOnlyStatus,
-    readOnly: false,
+    // Archiving the athlete removes only that excess. The group and class
+    // counts remain over Free, so writes must stay read-only.
+    readOnly: true,
     resources: readOnlyStatus.resources.map((item) =>
       item.resource === "athletes"
         ? { ...item, current: 30, excess: 0 }
@@ -166,7 +168,7 @@ describe("Owner SaaS usage and regularization HTTP boundary", () => {
     expect(mocks.archiveResource).not.toHaveBeenCalled();
   });
 
-  it("stops before archive on rate limit and returns updated server usage after an authorized archive", async () => {
+  it("stops before archive on rate limit and preserves read-only while other resource limits remain exceeded", async () => {
     mocks.rateLimit.mockResolvedValueOnce({ success: false });
     const body = {
       organizationId,
@@ -190,7 +192,14 @@ describe("Owner SaaS usage and regularization HTTP boundary", () => {
       idempotencyKey,
     });
     expect(await response.json()).toMatchObject({
-      data: { readOnly: false },
+      data: {
+        readOnly: true,
+        resources: [
+          { resource: "athletes", current: 30, limit: 30, excess: 0 },
+          { resource: "groups", current: 4, limit: 3, excess: 1 },
+          { resource: "classes", current: 11, limit: 10, excess: 1 },
+        ],
+      },
     });
   });
 
