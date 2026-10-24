@@ -70,11 +70,11 @@ describe("useDashboardData: recuperación de la consulta principal", () => {
     expect(view.result.current.loading).toBe(false);
   });
 
-  it("rechaza una respuesta sin métricas y conserva la última información válida", async () => {
+  it("rechaza una respuesta incompleta y conserva la última información válida", async () => {
     const initialData = makeDashboardData(4);
     vi.stubGlobal("fetch", vi.fn().mockResolvedValue({
       ok: true,
-      json: async () => ({ ok: true, data: { plan: {} } }),
+      json: async () => ({ ok: true, data: { metrics: makeDashboardData(3).metrics } }),
     }));
 
     const view = renderHook(() => useDashboardData({

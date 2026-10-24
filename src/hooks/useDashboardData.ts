@@ -11,6 +11,46 @@ interface UseDashboardDataOptions {
   initialData: DashboardData;
 }
 
+function isRecord(value: unknown): value is Record<string, unknown> {
+  return value !== null && typeof value === "object" && !Array.isArray(value);
+}
+
+function isFiniteNumber(value: unknown): value is number {
+  return typeof value === "number" && Number.isFinite(value);
+}
+
+function isDashboardData(value: unknown): value is DashboardData {
+  if (!isRecord(value) || !isRecord(value.metrics) || !isRecord(value.plan)) return false;
+
+  const metrics = value.metrics;
+  const plan = value.plan;
+  const requiredMetricKeys = [
+    "athletes",
+    "coaches",
+    "groups",
+    "classesThisWeek",
+    "assessments",
+    "attendancePercent",
+  ];
+  const requiredPlanNumberKeys = ["usedAthletes", "usedClasses", "athletePercent", "classPercent"];
+  const validNullableLimit = (limit: unknown) => limit === null || isFiniteNumber(limit);
+
+  return (
+    requiredMetricKeys.every((key) => isFiniteNumber(metrics[key])) &&
+    (metrics.classTemplates === undefined || isFiniteNumber(metrics.classTemplates)) &&
+    typeof plan.planCode === "string" &&
+    (plan.planNickname === null || typeof plan.planNickname === "string") &&
+    typeof plan.status === "string" &&
+    validNullableLimit(plan.athleteLimit) &&
+    validNullableLimit(plan.classLimit) &&
+    requiredPlanNumberKeys.every((key) => isFiniteNumber(plan[key])) &&
+    Array.isArray(value.upcomingClasses) &&
+    Array.isArray(value.recentActivity) &&
+    Array.isArray(value.groups) &&
+    Array.isArray(value.sportConfigBreakdown)
+  );
+}
+
 export function useDashboardData({ academyId, tenantId, initialData }: UseDashboardDataOptions) {
   const [data, setData] = useState<DashboardData>(initialData);
   const [loading, setLoading] = useState(false);
@@ -59,19 +99,8 @@ export function useDashboardData({ academyId, tenantId, initialData }: UseDashbo
         ? (payload as { ok?: unknown; data?: unknown })
         : null;
       const nextData = envelope?.data;
-      const nextMetrics = nextData && typeof nextData === "object"
-        ? Reflect.get(nextData, "metrics")
-        : null;
 
-      if (
-        envelope?.ok !== true ||
-        !nextData ||
-        typeof nextData !== "object" ||
-        Array.isArray(nextData) ||
-        !nextMetrics ||
-        typeof nextMetrics !== "object" ||
-        Array.isArray(nextMetrics)
-      ) {
+      if (envelope?.ok !== true || !isDashboardData(nextData)) {
         logger.error("Dashboard response payload is invalid", undefined, { academyId });
         setError("La respuesta del dashboard no tiene un formato válido.");
         return;
@@ -79,7 +108,7 @@ export function useDashboardData({ academyId, tenantId, initialData }: UseDashbo
       
       // Verificar nuevamente si fue cancelada antes de actualizar el estado
       if (!abortController.signal.aborted) {
-        setData(nextData as DashboardData);
+        setData(nextData);
         setError(null);
       }
     } catch (error: unknown) {
