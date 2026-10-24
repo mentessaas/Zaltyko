@@ -29,10 +29,13 @@ const snapshotTables = [
   "group_memberships",
   "groups",
   "guardians",
+  "member_location_scopes",
+  "organization_members",
   "outbox_events",
   "people",
   "session_staff",
   "sessions",
+  "staff_profiles",
 ] as const;
 
 function assertDisposableTarget() {
@@ -415,6 +418,63 @@ async function seedAttendanceFixture() {
   };
 }
 
+async function seedAttendanceCoach(
+  fixture: Awaited<ReturnType<typeof seedAttendanceFixture>>,
+  assigned: boolean
+) {
+  const userId = randomUUID();
+  const personId = randomUUID();
+  const memberId = randomUUID();
+  const staffProfileId = randomUUID();
+  await db.execute(sql`
+    insert into auth.users (id, email)
+    values (${userId}::uuid, ${"ci-coach-" + userId + "@example.invalid"})
+  `);
+  await db.execute(sql`
+    insert into zaltyko.people (id, organization_id, given_name, family_name)
+    values (
+      ${personId}::uuid,
+      ${fixture.organizationId}::uuid,
+      'Synthetic',
+      ${assigned ? "Assigned coach" : "Unassigned coach"}
+    )
+  `);
+  await db.execute(sql`
+    insert into zaltyko.organization_members (
+      id, organization_id, user_id, role, status, location_scope_mode
+    )
+    values (
+      ${memberId}::uuid,
+      ${fixture.organizationId}::uuid,
+      ${userId}::uuid,
+      'coach',
+      'active',
+      'all'
+    )
+  `);
+  await db.execute(sql`
+    insert into zaltyko.staff_profiles (id, organization_id, person_id, member_id, is_active)
+    values (
+      ${staffProfileId}::uuid,
+      ${fixture.organizationId}::uuid,
+      ${personId}::uuid,
+      ${memberId}::uuid,
+      true
+    )
+  `);
+  if (assigned) {
+    await db.execute(sql`
+      insert into zaltyko.session_staff (organization_id, session_id, staff_profile_id)
+      values (
+        ${fixture.organizationId}::uuid,
+        ${fixture.sessionId}::uuid,
+        ${staffProfileId}::uuid
+      )
+    `);
+  }
+  return { userId, memberId, staffProfileId };
+}
+
 async function seedFamilyAssociationFixture() {
   const academy = await seedEnrollmentEligibilityAcademy();
   await Promise.all([
@@ -723,6 +783,8 @@ describe("Free capacity guards on disposable PostgreSQL", () => {
       audit_count: 1,
     });
 
+    const assignedCoach = await seedAttendanceCoach(fixture, true);
+    const unassignedCoach = await seedAttendanceCoach(fixture, false);
     const beforeRosterRead = await snapshot(fixture.organizationId);
     await expect(getOwnerSessionAttendance({
       userId: fixture.actor.userId,
@@ -737,6 +799,30 @@ describe("Free capacity guards on disposable PostgreSQL", () => {
       },
     ]);
     expect(await snapshot(fixture.organizationId)).toEqual(beforeRosterRead);
+
+    const beforeCoachRead = await snapshot(fixture.organizationId);
+    await expect(getOwnerSessionAttendance({
+      userId: assignedCoach.userId,
+      organizationId: fixture.organizationId,
+      locationId: fixture.targetLocationId,
+      sessionId: fixture.sessionId,
+    })).resolves.toEqual([
+      {
+        enrollmentId: fixture.enrollmentId,
+        athleteName: "Enrollment athlete 1 Synthetic",
+        attendanceStatus: "present",
+      },
+    ]);
+    expect(await snapshot(fixture.organizationId)).toEqual(beforeCoachRead);
+
+    const beforeDeniedCoachRead = await snapshot(fixture.organizationId);
+    await expect(getOwnerSessionAttendance({
+      userId: unassignedCoach.userId,
+      organizationId: fixture.organizationId,
+      locationId: fixture.targetLocationId,
+      sessionId: fixture.sessionId,
+    })).rejects.toMatchObject({ code: "FORBIDDEN", status: 403 });
+    expect(await snapshot(fixture.organizationId)).toEqual(beforeDeniedCoachRead);
 
     const rollbackKey = "ci-attendance-rollback-" + randomUUID();
     await db.execute(sql`
