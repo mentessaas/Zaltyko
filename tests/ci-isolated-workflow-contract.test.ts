@@ -185,7 +185,8 @@ describe("isolated CI workflow contract", () => {
     expect(replayScript).toContain("diagnose_start_failure");
     expect(replayScript).toContain("diagnose_marker_failure");
     expect(replayScript).toContain("credential-bearing output remains withheld");
-    expect(replayScript).toContain('docker ps -a --filter "name=$PROJECT_ID"');
+    expect(replayScript).toContain("Sanitized CLI startup error excerpt");
+    expect(replayScript).toContain("docker ps -a --filter 'label=com.docker.compose.project'");
     expect(replayScript).toContain('"$CLI" --workdir "$CI_WORKDIR" db start');
     expect(replayScript).toContain("SUPABASE_ACCESS_TOKEN");
     expect(replayScript).toContain("db reset --local --no-seed");

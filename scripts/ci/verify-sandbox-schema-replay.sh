@@ -57,13 +57,39 @@ diagnose_start_failure() {
   printf 'Safe startup diagnosis: %s\n' "$diagnosis" >&2
 
   local container_state
-  container_state="$(docker ps -a --filter "name=$PROJECT_ID" --format '{{.Names}} | {{.Status}}' 2>/dev/null || true)"
+  container_state="$(docker ps -a --filter 'label=com.docker.compose.project' --format '{{.Names}} | {{.Status}}' 2>/dev/null || true)"
   if [[ -n "$container_state" ]]; then
-    printf 'Disposable container states (names and status only):\n%s\n' \
+    printf 'Compose container states (names and status only):\n%s\n' \
       "${container_state//$PROJECT_ID/<isolated-run>}" >&2
   else
-    printf 'No containers for the disposable Supabase project remained visible.\n' >&2
+    printf 'No Compose containers remained visible on the disposable runner.\n' >&2
   fi
+
+  docker info --format 'Docker server version: {{.ServerVersion}}; memory: {{.MemTotal}} bytes' 2>/dev/null >&2 || true
+  df -h "$RUNNER_TEMP" 2>/dev/null | tail -n 1 >&2 || true
+
+  python3 - "$START_LOG" <<'PY' >&2
+from pathlib import Path
+import re
+import sys
+
+path = Path(sys.argv[1])
+if not path.is_file():
+    raise SystemExit(0)
+matches = [
+    line for line in path.read_text(encoding="utf-8", errors="replace").splitlines()
+    if re.search(r"error|failed|fatal|denied|cannot|not found|timeout|unhealthy|invalid|refused|no space", line, re.I)
+]
+print("Sanitized CLI startup error excerpt:")
+for line in matches[-12:]:
+    line = re.sub(r"\x1b\[[0-9;]*[A-Za-z]", "", line)
+    line = re.sub(r"(?i)\b(postgres(?:ql)?://)\S+", r"\1<redacted>", line)
+    line = re.sub(r"\beyJ[A-Za-z0-9_-]+\.[A-Za-z0-9_-]+\.[A-Za-z0-9_-]+\b", "<redacted-jwt>", line)
+    line = re.sub(r"(?i)\b(?:sb_(?:publishable|secret)_|sk_(?:test|live)_|whsec_)[A-Za-z0-9_-]+", "<redacted-key>", line)
+    line = re.sub(r"(?i)\b(password|secret|token|jwt|authorization|(?:api|service[ _-]?role|anon)[ _-]?key)(\s*[:=]\s*)[^\s,;]+", r"\1\2<redacted>", line)
+    line = re.sub(r"\b[A-Za-z0-9_-]{64,}\b", "<redacted-long-value>", line)
+    print(line[:400])
+PY
 }
 
 diagnose_marker_failure() {
