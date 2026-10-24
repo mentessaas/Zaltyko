@@ -5,19 +5,11 @@ BEGIN;
 
 INSERT INTO auth.users (
   id,
-  aud,
-  role,
-  email,
-  encrypted_password,
-  email_confirmed_at,
-  raw_app_meta_data,
-  raw_user_meta_data,
-  created_at,
-  updated_at
+  email
 )
 VALUES
-  ('90000000-0000-4000-8000-000000000011','authenticated','authenticated','ci-owner-a@example.invalid','',now(),'{}'::jsonb,'{}'::jsonb,now(),now()),
-  ('90000000-0000-4000-8000-000000000022','authenticated','authenticated','ci-owner-b@example.invalid','',now(),'{}'::jsonb,'{}'::jsonb,now(),now());
+  ('90000000-0000-4000-8000-000000000011','ci-owner-a@example.invalid'),
+  ('90000000-0000-4000-8000-000000000022','ci-owner-b@example.invalid');
 
 INSERT INTO public.profiles (id, user_id, tenant_id, name, role)
 VALUES
