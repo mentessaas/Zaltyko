@@ -4,6 +4,7 @@ import { sql } from "drizzle-orm";
 
 import { db } from "@/db";
 import { recordManualPaymentForCharge } from "@/modules/billing/application/ledger-service";
+import { getOwnerOperationalSummary } from "@/modules/owner-dashboard/application/operational-summary";
 
 const trackedTables = [
   "audit_log",
@@ -198,6 +199,7 @@ function paymentCommand(input: {
   actor: { userId: string; memberId: string };
   amountCents: number;
   idempotencyKey: string;
+  receivedAt?: string;
 }) {
   return {
     organizationId: input.organizationId,
@@ -205,23 +207,25 @@ function paymentCommand(input: {
     amountCents: input.amountCents,
     method: "bank_transfer" as const,
     reference: "CI synthetic receipt",
-    receivedAt: new Date().toISOString(),
+    receivedAt: input.receivedAt ?? new Date().toISOString(),
     idempotencyKey: input.idempotencyKey,
     actor: input.actor,
   };
 }
 
 describe("manual billing ledger on disposable PostgreSQL", () => {
-  it("records one payment and allocation for concurrent replays of the same command", async () => {
+  it("records one payment and reflects it in the owner summary for concurrent replays", async () => {
     assertDisposableTarget();
     const fixture = await seedManualLedgerFixture();
     const before = await snapshot(fixture.organizationId);
+    const receivedAt = new Date().toISOString();
     const command = paymentCommand({
       organizationId: fixture.organizationId,
       chargeId: fixture.chargeIds[0]!,
       actor: fixture.actor,
       amountCents: 300,
       idempotencyKey: `ci-payment-${randomUUID()}`,
+      receivedAt,
     });
 
     const [first, replay] = await Promise.all([
@@ -277,6 +281,28 @@ describe("manual billing ledger on disposable PostgreSQL", () => {
       invoice_status: "partially_paid",
       invoice_version: 2,
     });
+
+    const organization = await db.execute(sql`
+      select default_timezone from zaltyko.organizations
+      where id = ${fixture.organizationId}::uuid
+    `);
+    const timezone = String(organization.rows[0]?.default_timezone ?? "");
+    expect(timezone).not.toBe("");
+    const paymentDay = new Intl.DateTimeFormat("sv-SE", { timeZone: timezone })
+      .format(new Date(receivedAt));
+    const beforeDashboardRead = await snapshot(fixture.organizationId);
+    const summary = await getOwnerOperationalSummary({
+      userId: fixture.userId,
+      organizationId: fixture.organizationId,
+      from: paymentDay,
+      to: paymentDay,
+    });
+    expect(summary.metrics.paymentsReceived).toMatchObject({
+      state: "available",
+      count: 1,
+      grossByCurrency: [{ currency: "EUR", amountCents: 300 }],
+    });
+    expect(await snapshot(fixture.organizationId)).toEqual(beforeDashboardRead);
   });
 
   it("rolls back the losing over-allocation after its payment insert", async () => {
