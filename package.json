@@ -65,8 +65,6 @@
     "verify:production": "tsx scripts/verify-production-ready.ts",
     "verify:permissive-policies": "tsx scripts/verify-permissive-policies.ts",
     "validate:rls": "tsx scripts/validate-rls.ts",
-    "validate:rls:semantics": "tsx scripts/validate-rls-semantics.ts",
-    "test:rls:local": "bash scripts/run-rls-semantics-local.sh",
     "test:zaltyko-domain:local": "bash scripts/run-zaltyko-domain-foundation-local.sh",
     "test:zaltyko-operations:local": "bash scripts/run-zaltyko-operational-services-local.sh",
     "test:zaltyko-monthly-billing-paging:local": "bash scripts/run-zaltyko-monthly-billing-paging-local.sh",

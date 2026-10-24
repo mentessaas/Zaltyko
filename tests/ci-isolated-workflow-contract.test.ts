@@ -3,6 +3,7 @@ import { resolve } from "node:path";
 import { describe, expect, it } from "vitest";
 
 const workflowPath = resolve(process.cwd(), ".github/workflows/ci-isolated.yml");
+const directoryWorkflowPath = resolve(process.cwd(), ".github/workflows/directory-integrity.yml");
 const vitestConfigPath = resolve(process.cwd(), "vitest.config.ts");
 const sharedSetupPath = resolve(process.cwd(), "tests/setup.ts");
 const lockfileGuardPath = resolve(process.cwd(), "scripts/ci/validate-lockfile-refresh.cjs");
@@ -22,8 +23,20 @@ const lockfileGuard = require(lockfileGuardPath) as {
 
 describe("isolated CI workflow contract", () => {
   const workflow = readFileSync(workflowPath, "utf8");
+  const directoryWorkflow = readFileSync(directoryWorkflowPath, "utf8");
   const vitestConfig = readFileSync(vitestConfigPath, "utf8");
   const sharedSetup = readFileSync(sharedSetupPath, "utf8");
+
+  it("uses existing fail-closed SQL source validators for directory changes", () => {
+    expect(directoryWorkflow).toMatch(/on:\s*[\s\S]*?pull_request:/);
+    expect(directoryWorkflow).toContain("workflow_dispatch:");
+    expect(directoryWorkflow).toContain("persist-credentials: false");
+    expect(directoryWorkflow).toContain("pnpm validate:rls");
+    expect(directoryWorkflow).toContain("pnpm check:migrations");
+    expect(directoryWorkflow).toContain("no database replay");
+    expect(directoryWorkflow).not.toContain("scripts/directory/test-local.sh");
+    expect(directoryWorkflow).not.toMatch(/\bsecrets\.|SUPABASE_ACCESS_TOKEN|SUPABASE_DB_PASSWORD|DATABASE_URL/);
+  });
 
   it("runs only on manual dispatch with read-only repository permissions", () => {
     expect(workflow).toMatch(/on:\s*\n\s+workflow_dispatch:/);
