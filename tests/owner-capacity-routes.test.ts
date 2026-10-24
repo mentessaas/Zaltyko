@@ -36,6 +36,7 @@ vi.mock("@/modules/scheduling/application/class-management-service", () => ({
 import { POST as createGroup } from "@/app/api/v1/owner/groups/route";
 import { POST as createClass } from "@/app/api/v1/owner/classes/route";
 import { OperationalError } from "@/modules/shared/domain/operational-error";
+import { MAX_CLASS_CAPACITY } from "@/modules/scheduling/domain/class-capacity";
 
 const organizationId = "10000000-0000-4000-8000-000000000001";
 const locationId = "20000000-0000-4000-8000-000000000002";
@@ -218,5 +219,33 @@ describe.each(routes)("Owner $name capacity HTTP boundary", (route) => {
       ok: true,
       data: route.expectedReceipt,
     });
+  });
+});
+
+describe("Owner class capacity and attendance roster bound", () => {
+  it("accepts the shared maximum supported by the attendance roster", async () => {
+    const response = await createClass(
+      request("/api/v1/owner/classes", {
+        ...classPayload,
+        capacity: MAX_CLASS_CAPACITY,
+      })
+    );
+
+    expect(response.status).toBe(201);
+    expect(mocks.createClass).toHaveBeenCalledWith(
+      expect.objectContaining({ capacity: MAX_CLASS_CAPACITY })
+    );
+  });
+
+  it("rejects a class capacity above the shared roster maximum before writing", async () => {
+    const response = await createClass(
+      request("/api/v1/owner/classes", {
+        ...classPayload,
+        capacity: MAX_CLASS_CAPACITY + 1,
+      })
+    );
+
+    expect(response.status).toBe(400);
+    expect(mocks.createClass).not.toHaveBeenCalled();
   });
 });

@@ -14,6 +14,7 @@ import {
   sessions,
   staffProfiles,
 } from "@/db/zaltyko-schema";
+import { MAX_CLASS_CAPACITY } from "@/modules/scheduling/domain/class-capacity";
 import { OperationalError } from "@/modules/shared/domain/operational-error";
 
 const scopeSchema = z.object({
@@ -260,7 +261,7 @@ export async function loadOwnerSessionAttendanceRoster(
       )
     )
     .orderBy(people.familyName, people.givenName)
-    .limit(500);
+    .limit(MAX_CLASS_CAPACITY);
 
   return rows.map((row) => ({
     enrollmentId: row.enrollmentId,

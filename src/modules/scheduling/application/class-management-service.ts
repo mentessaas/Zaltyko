@@ -14,6 +14,7 @@ import { operationalActorSchema } from "@/modules/shared/application/actor";
 import { OperationalError } from "@/modules/shared/domain/operational-error";
 import { assertOperationalAccess } from "@/modules/shared/infrastructure/operational-authorization";
 import { assertOrganizationResourceCapacity } from "@/modules/saas-billing/application/organization-usage";
+import { MAX_CLASS_CAPACITY } from "@/modules/scheduling/domain/class-capacity";
 import {
   appendAuditEntry,
   appendOutboxEvent,
@@ -40,7 +41,7 @@ const createScheduledClassSchema = z
     locationId: z.string().uuid(),
     programId: z.string().uuid().nullable(),
     name: z.string().trim().min(2).max(120),
-    capacity: z.number().int().positive().max(5000),
+    capacity: z.number().int().positive().max(MAX_CLASS_CAPACITY),
     effectiveFrom: z.string().date(),
     effectiveTo: z.string().date().nullable(),
     schedule: z.array(scheduleSlotSchema).min(1).max(14),

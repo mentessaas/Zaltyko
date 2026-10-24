@@ -13,6 +13,7 @@ import {
 const userId = "10000000-0000-4000-8000-000000000001";
 const policyVersion = "v2-2026-10-01";
 const rolloutAt = "2026-10-01T00:00:00.000Z";
+const signupConsentProof = "signup:register-form-v1";
 
 function authUser(input: {
   createdAt?: string;
@@ -71,7 +72,10 @@ describe("Owner contractual signup consent", () => {
 
   it("allows only a fresh signup declaration for a newly created identity", async () => {
     const user = authUser({
-      metadata: { legal_consent_version: policyVersion },
+      metadata: {
+        legal_consent_version: policyVersion,
+        legal_consent_proof: signupConsentProof,
+      },
     });
     const { store } = storeWith([policyResult, { rows: [] }]);
 
@@ -100,6 +104,21 @@ describe("Owner contractual signup consent", () => {
     });
   });
 
+  it("requires acceptance when a fresh identity has only a mutable policy version", async () => {
+    const user = authUser({
+      metadata: { legal_consent_version: policyVersion },
+    });
+    const { store } = storeWith([policyResult, { rows: [] }]);
+
+    await expect(
+      getOwnerContractualConsentRequirement(user, store)
+    ).resolves.toEqual({
+      policyVersion,
+      requiresAcceptance: true,
+      reason: "fresh_signup_consent_missing",
+    });
+  });
+
   it("issues consent and audit statements in the same transaction callback", async () => {
     const { store, execute, transaction } = storeWith([
       lockResult,
@@ -111,7 +130,12 @@ describe("Owner contractual signup consent", () => {
 
     await expect(
       recordOwnerSignupConsent(
-        authUser({ metadata: { legal_consent_version: policyVersion } }),
+        authUser({
+          metadata: {
+            legal_consent_version: policyVersion,
+            legal_consent_proof: signupConsentProof,
+          },
+        }),
         { requestKey: "owner-signup-request-01" },
         store
       )
@@ -177,6 +201,34 @@ describe("Owner contractual signup consent", () => {
     ).rejects.toMatchObject({ code: "CONSENT_REJECTED" });
     expect(execute).toHaveBeenCalledTimes(3);
   });
+
+  it.each([
+    { label: "missing", proof: undefined },
+    { label: "from another source", proof: "settings:register-form-v1" },
+  ])(
+    "rejects a fresh signup declaration with a $label source marker",
+    async ({ proof }) => {
+      const { store, execute } = storeWith([
+        lockResult,
+        policyResult,
+        { rows: [] },
+      ]);
+
+      await expect(
+        recordOwnerSignupConsent(
+          authUser({
+            metadata: {
+              legal_consent_version: policyVersion,
+              ...(proof === undefined ? {} : { legal_consent_proof: proof }),
+            },
+          }),
+          { requestKey: "owner-signup-request-04" },
+          store
+        )
+      ).rejects.toMatchObject({ code: "CONSENT_REJECTED" });
+      expect(execute).toHaveBeenCalledTimes(3);
+    }
+  );
 
   it("records an explicit current-policy acceptance for an existing identity", async () => {
     const { store, execute, transaction } = storeWith([
