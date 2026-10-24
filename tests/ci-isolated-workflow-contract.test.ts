@@ -67,7 +67,7 @@ describe("isolated CI workflow contract", () => {
 
   it("keeps the local-E2E Supabase CLI download on its separately pinned release", () => {
     expect(mainCiWorkflow).toContain(
-      "https://github.com/supabase/cli/releases/download/v2.84.2/supabase_linux_amd64.tar.gz"
+      "https://github.com/supabase/cli/releases/download/v2.84.2/supabase_2.84.2_linux_amd64.tar.gz"
     );
     expect(mainCiWorkflow).toContain("python3 scripts/ci/install_pinned_supabase_cli.py \"$archive\"");
     expect(mainCiWorkflow).toContain("scripts/ci/preload-local-e2e-images.ts");

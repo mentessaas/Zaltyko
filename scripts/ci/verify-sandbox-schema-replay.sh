@@ -100,8 +100,35 @@ diagnose_marker_failure() {
     diagnosis="The local Postgres connection was unavailable while setting the one-run marker."
   elif grep -Eiq 'syntax error|invalid value|does not exist' "$RESET_LOG"; then
     diagnosis="PostgreSQL rejected the marker SQL or its target database."
+  elif grep -Eiq 'unknown flag|flag provided but not defined|unknown command|unknown shorthand|no such command' "$RESET_LOG"; then
+    diagnosis="The pinned Supabase CLI does not accept the local marker-query command or flag."
+  elif grep -Eiq 'could not find|not found|not running|connection reset|database system is starting|failed to connect|error connecting' "$RESET_LOG"; then
+    diagnosis="The pinned Supabase CLI could not resolve or connect to its disposable local Postgres endpoint."
   fi
   printf 'Safe marker diagnosis: %s\n' "$diagnosis" >&2
+
+  python3 - "$RESET_LOG" <<'PY' >&2
+from pathlib import Path
+import re
+import sys
+
+path = Path(sys.argv[1])
+if not path.is_file():
+    raise SystemExit(0)
+matches = [
+    line for line in path.read_text(encoding="utf-8", errors="replace").splitlines()
+    if re.search(r"error|failed|fatal|denied|cannot|not found|timeout|invalid|refused|unknown flag|unknown command|sqlstate", line, re.I)
+]
+print("Sanitized marker-query error excerpt:")
+for line in matches[-8:]:
+    line = re.sub(r"\x1b\[[0-9;]*[A-Za-z]", "", line)
+    line = re.sub(r"(?i)\b(?:postgres(?:ql)?|https?)://\S+", "<redacted-connection>", line)
+    line = re.sub(r"\beyJ[A-Za-z0-9_-]+\.[A-Za-z0-9_-]+\.[A-Za-z0-9_-]+\b", "<redacted-jwt>", line)
+    line = re.sub(r"(?i)\b(?:sb_(?:publishable|secret)_|sk_(?:test|live)_|whsec_)[A-Za-z0-9_-]+", "<redacted-key>", line)
+    line = re.sub(r"(?i)\b(password|secret|token|jwt|authorization|(?:api|service[ _-]?role|anon)[ _-]?key)(\s*[:=]\s*)[^\s,;]+", r"\1\2<redacted>", line)
+    line = re.sub(r"\b[A-Za-z0-9_-]{64,}\b", "<redacted-long-value>", line)
+    print(line[:400])
+PY
 }
 
 [[ -x "$CLI" ]] || fail "The checksum-verified pinned Supabase CLI was not installed in RUNNER_TEMP."
