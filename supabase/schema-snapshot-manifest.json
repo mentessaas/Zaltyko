@@ -69,7 +69,7 @@
     "tenant_fixture_path": "scripts/ci/sandbox-tenant-isolation.sql",
     "tenant_fixture_sha256": "b0ffc0d3670ec51ec67169ab64094c73162c8b22405293e68bd7df6124be8ff3",
     "replay_script_path": "scripts/ci/verify-sandbox-schema-replay.sh",
-    "replay_script_sha256": "b12fbbbc553ea43579d9a2f33ee1ec7bb9b06239b71d5fb6c1ceee5ba5abeb45",
+    "replay_script_sha256": "e7541f5494a48f41d8a1efcd97a701fa3c847c0373cbeeece7c2a5a8fb25c01e",
     "execution_evidence": "This manifest records the pinned replay procedure only; record the exact commit and CI result in the external audit report after a passing run."
   },
   "scope_exclusions": [

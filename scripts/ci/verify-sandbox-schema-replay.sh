@@ -33,6 +33,7 @@ readonly CLI="$RUNNER_TEMP/supabase-schema-replay-cli-$SUPABASE_CLI_VERSION/supa
 readonly START_LOG="$RUNNER_TEMP/$PROJECT_ID-start.log"
 readonly STATUS_LOG="$RUNNER_TEMP/$PROJECT_ID-status.json"
 readonly STATUS_ERROR_LOG="$RUNNER_TEMP/$PROJECT_ID-status.stderr"
+readonly LOCAL_DB_URL_FILE="$RUNNER_TEMP/$PROJECT_ID-local-db-url"
 readonly RESET_LOG="$RUNNER_TEMP/$PROJECT_ID-reset.log"
 readonly TENANT_LOG="$RUNNER_TEMP/$PROJECT_ID-tenant.log"
 readonly GUARD_LOG="$RUNNER_TEMP/$PROJECT_ID-guard.log"
@@ -46,7 +47,8 @@ cleanup() {
   rm -rf -- "$CI_WORKDIR" "$CLI_HOME" \
     "$RUNNER_TEMP/supabase-schema-replay-cli-$SUPABASE_CLI_VERSION" \
     "$RUNNER_TEMP/supabase_${SUPABASE_CLI_VERSION}_linux_amd64.tar.gz" \
-    "$START_LOG" "$STATUS_LOG" "$STATUS_ERROR_LOG" "$RESET_LOG" "$TENANT_LOG" "$GUARD_LOG" "$MARKER_GUARD_LOG"
+    "$START_LOG" "$STATUS_LOG" "$STATUS_ERROR_LOG" "$LOCAL_DB_URL_FILE" \
+    "$RESET_LOG" "$TENANT_LOG" "$GUARD_LOG" "$MARKER_GUARD_LOG"
 }
 trap cleanup EXIT
 
@@ -183,14 +185,16 @@ if ! "$CLI" --workdir "$CI_WORKDIR" stack status \
   fail "The disposable native stack could not be reopened by its project name; CLI output was withheld."
 fi
 
-python3 - "$STATUS_LOG" "$PROJECT_ID" "$CI_WORKDIR" <<'PY'
+python3 - "$STATUS_LOG" "$PROJECT_ID" "$CI_WORKDIR" "$LOCAL_DB_URL_FILE" <<'PY'
 from pathlib import Path
 import json
+from urllib.parse import parse_qsl, urlencode, urlsplit, urlunsplit
 import sys
 
 status_path = Path(sys.argv[1])
 expected_name = sys.argv[2]
 expected_root = Path(sys.argv[3]).resolve()
+db_url_path = Path(sys.argv[4])
 
 try:
     payload = json.loads(status_path.read_text(encoding="utf-8"))
@@ -220,6 +224,29 @@ identity = report["identity"]
 members = report["composition"].get("members", [])
 database = next((member for member in members if member.get("service") == "database"), None)
 root_matches = Path(identity.get("project_root", "")).resolve() == expected_root
+env = report.get("env")
+db_url = env.get("DB_URL", "") if isinstance(env, dict) else ""
+try:
+    parsed_url = urlsplit(db_url)
+    port = parsed_url.port
+except ValueError:
+    parsed_url = None
+    port = None
+if (
+    parsed_url is None
+    or parsed_url.scheme not in {"postgres", "postgresql"}
+    or parsed_url.hostname not in {"127.0.0.1", "localhost", "::1"}
+    or port is None
+    or not 1 <= port <= 65535
+    or parsed_url.username != "postgres"
+    or not parsed_url.password
+    or parsed_url.path != "/postgres"
+    or parsed_url.fragment
+):
+    raise SystemExit("The stack did not provide a valid loopback Postgres URL.")
+query = [(key, value) for key, value in parse_qsl(parsed_url.query) if key != "sslmode"]
+query.append(("sslmode", "disable"))
+local_db_url = urlunsplit(parsed_url._replace(query=urlencode(query)))
 safe = {
     "name": identity.get("name"),
     "project_root_matches": root_matches,
@@ -228,6 +255,8 @@ safe = {
     "readiness": report.get("readiness"),
     "database_lifecycle": None if database is None else database.get("lifecycle"),
     "database_health": None if database is None else database.get("health"),
+    "database_host": parsed_url.hostname,
+    "database_port": port,
 }
 print("Sanitized native stack status: " + json.dumps(safe, sort_keys=True))
 
@@ -242,7 +271,14 @@ if (
     or database.get("health") != "healthy"
 ):
     raise SystemExit("The isolated native Postgres stack identity or health check failed.")
+db_url_path.write_text(local_db_url, encoding="utf-8")
+db_url_path.chmod(0o600)
 PY
+
+# Use the loopback-only URL exported by the exact native stack above. The CLI's
+# project-local --local resolver does not reopen this managed native stack in
+# this runner, while --db-url can connect to its validated ephemeral endpoint.
+LOCAL_DB_URL="$(<"$LOCAL_DB_URL_FILE")"
 
 # Keep the marker-guarded current-state migration out of CLI startup. Some CLI
 # startup paths apply discovered migrations before a database-local marker can
@@ -251,34 +287,38 @@ cp "$ROOT/supabase/migrations/$MIGRATION_NAME" "$CI_WORKDIR/supabase/migrations/
 
 # The schema snapshot refuses to run without this database-local marker. It is
 # set only on the disposable runner database, never on the linked sandbox.
-if ! "$CLI" --debug --workdir "$CI_WORKDIR" db query --local \
+if ! "$CLI" --workdir "$CI_WORKDIR" db query --db-url "$LOCAL_DB_URL" \
   "ALTER DATABASE postgres SET app.schema_snapshot_replay = 'ci-empty-replay';" \
   >"$RESET_LOG" 2>&1; then
   diagnose_marker_failure
   fail "Could not configure the one-run marker on disposable local Postgres."
 fi
 
-if ! "$CLI" --workdir "$CI_WORKDIR" db reset --local --no-seed >"$RESET_LOG" 2>&1; then
+if ! "$CLI" --workdir "$CI_WORKDIR" db query --db-url "$LOCAL_DB_URL" \
+  --file "$CI_WORKDIR/supabase/migrations/$MIGRATION_NAME" >"$RESET_LOG" 2>&1; then
   fail "The baseline did not replay on an empty disposable local database; CLI output was withheld."
 fi
 
-if ! "$CLI" --workdir "$CI_WORKDIR" db query --local --file "$ROOT/scripts/ci/sandbox-tenant-isolation.sql" >"$TENANT_LOG" 2>&1; then
+if ! "$CLI" --workdir "$CI_WORKDIR" db query --db-url "$LOCAL_DB_URL" \
+  --file "$ROOT/scripts/ci/sandbox-tenant-isolation.sql" >"$TENANT_LOG" 2>&1; then
   fail "The synthetic two-academy RLS isolation check failed; CLI output was withheld."
 fi
 
-if "$CLI" --workdir "$CI_WORKDIR" db query --local --file "$CI_WORKDIR/supabase/migrations/$MIGRATION_NAME" >"$GUARD_LOG" 2>&1; then
+if "$CLI" --workdir "$CI_WORKDIR" db query --db-url "$LOCAL_DB_URL" \
+  --file "$CI_WORKDIR/supabase/migrations/$MIGRATION_NAME" >"$GUARD_LOG" 2>&1; then
   fail "The current-state baseline unexpectedly allowed replay over an existing schema."
 fi
 if ! grep -Fq 'Refusing current-state schema baseline' "$GUARD_LOG"; then
   fail "Baseline reapplication failed for a reason other than its empty-schema guard."
 fi
 
-if ! "$CLI" --workdir "$CI_WORKDIR" db query --local \
+if ! "$CLI" --workdir "$CI_WORKDIR" db query --db-url "$LOCAL_DB_URL" \
   "ALTER DATABASE postgres RESET app.schema_snapshot_replay;" \
   >"$MARKER_GUARD_LOG" 2>&1; then
   fail "Could not remove the one-run marker from disposable local Postgres."
 fi
-if "$CLI" --workdir "$CI_WORKDIR" db query --local --file "$CI_WORKDIR/supabase/migrations/$MIGRATION_NAME" >"$MARKER_GUARD_LOG" 2>&1; then
+if "$CLI" --workdir "$CI_WORKDIR" db query --db-url "$LOCAL_DB_URL" \
+  --file "$CI_WORKDIR/supabase/migrations/$MIGRATION_NAME" >"$MARKER_GUARD_LOG" 2>&1; then
   fail "The current-state baseline unexpectedly ran without its isolated CI marker."
 fi
 if ! grep -Fq 'isolated CI replay marker is missing' "$MARKER_GUARD_LOG"; then
@@ -288,3 +328,4 @@ fi
 printf 'PASS: current-state snapshot replayed on an empty disposable Postgres database.\n'
 printf 'PASS: synthetic two-academy RLS reads, writes, and rollback were verified.\n'
 printf 'PASS: baseline guards refused populated and unmarked databases before DDL.\n'
+unset LOCAL_DB_URL

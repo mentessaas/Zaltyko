@@ -192,15 +192,18 @@ describe("isolated CI workflow contract", () => {
     expect(replayScript).toContain('"$CLI" --workdir "$CI_WORKDIR" stack status');
     expect(replayScript).toContain("Sanitized native stack status:");
     expect(replayScript).toContain('>"$STATUS_LOG" 2>"$STATUS_ERROR_LOG"');
-    expect(replayScript).toContain('"$START_LOG" "$STATUS_LOG" "$RESET_LOG"');
+    expect(replayScript).toContain('"$START_LOG" "$STATUS_LOG" "$STATUS_ERROR_LOG" "$LOCAL_DB_URL_FILE"');
+    expect(replayScript).toContain('"$CLI" --workdir "$CI_WORKDIR" db query --db-url "$LOCAL_DB_URL"');
+    expect(replayScript).toContain('python3 - "$STATUS_LOG" "$PROJECT_ID" "$CI_WORKDIR" "$LOCAL_DB_URL_FILE"');
+    expect(replayScript).toContain('parsed_url.hostname not in {"127.0.0.1", "localhost", "::1"}');
+    expect(replayScript).toContain('db_url_path.chmod(0o600)');
     expect(replayScript).toContain("--runtime native");
     expect(replayScript).toContain("--exclude rest,auth,realtime,storage,functions,studio,mail,analytics,pooler");
     expect(replayScript).toContain('"$CLI" --workdir "$CI_WORKDIR" stack stop --stack "$PROJECT_ID"');
     expect(replayScript).not.toContain("docker ps -a");
     expect(replayScript).not.toContain("docker info");
     expect(replayScript).toContain("SUPABASE_ACCESS_TOKEN");
-    expect(replayScript).toContain("db reset --local --no-seed");
-    expect(replayScript).toContain("db query --local --file");
+    expect(replayScript).toContain('unset LOCAL_DB_URL');
     expect(replayScript).toContain("Refusing current-state schema baseline");
     expect(replayScript.indexOf('"$CLI" --workdir "$CI_WORKDIR" stack start'))
       .toBeLessThan(replayScript.indexOf('cp "$ROOT/supabase/migrations/$MIGRATION_NAME"'));
