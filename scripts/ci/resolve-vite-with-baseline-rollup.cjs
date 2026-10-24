@@ -4,6 +4,7 @@
 const { execFileSync, spawnSync } = require("node:child_process");
 const { readFileSync, writeFileSync } = require("node:fs");
 const core = require("./project-vite-lockfile-core.cjs");
+const { parseStatus } = require("./project-vite-lockfile-refresh.cjs");
 
 const OVERRIDE = "vite@6.4.5>rollup";
 const ROLLUP = "4.63.1";
@@ -16,6 +17,9 @@ class ResolveFailure extends Error {
 
 function fail(code) { throw new ResolveFailure(code); }
 function ensure(value, code) { if (!value) fail(code); }
+function assertInitialStatus(status) {
+  ensure(status === "" || status === "?? node_modules/\n", "STATUS_DIRTY");
+}
 function stable(value) {
   if (Array.isArray(value)) return value.map(stable);
   if (value && typeof value === "object") {
@@ -30,7 +34,7 @@ function run({ env = process.env, io = createSystemIo() } = {}) {
     const baseSha = env.BASE_SHA || "";
     ensure(/^[a-f0-9]{40}$/.test(baseSha), "BASE_SHA_INVALID");
     ensure(io.execGit(["rev-parse", "HEAD"]).trim() === baseSha, "BASE_HEAD_MISMATCH");
-    ensure(io.execGit(["status", "--porcelain=v1", "--untracked-files=normal"]) === "", "STATUS_DIRTY");
+    assertInitialStatus(io.execGit(["status", "--porcelain=v1", "--untracked-files=normal"]));
 
     const baseManifest = io.execGit(["show", `${baseSha}:package.json`]);
     const baseLockfile = io.execGit(["show", `${baseSha}:pnpm-lock.yaml`]);
@@ -76,8 +80,8 @@ function run({ env = process.env, io = createSystemIo() } = {}) {
     const resolvedLockfile = io.readFile("pnpm-lock.yaml");
     ensure(resolvedLockfile !== baseLockfile, "LOCK_UNCHANGED");
     ensure(io.execGit(["rev-parse", "HEAD"]).trim() === baseSha, "BASE_HEAD_MISMATCH");
-    ensure(io.execGit(["status", "--porcelain=v1", "--untracked-files=normal"]) ===
-      " M package.json\n M pnpm-lock.yaml\n", "STATUS_DRIFT");
+    try { parseStatus(io.execGit(["status", "--porcelain=v1", "--untracked-files=normal"])); }
+    catch { fail("STATUS_DRIFT"); }
     ensure(io.readFile("package.json") === resolvedText, "MANIFEST_CONCURRENT_CHANGE");
     ensure(io.readFile("pnpm-lock.yaml") === resolvedLockfile, "LOCK_CONCURRENT_CHANGE");
     io.writeFile("package.json", projectedManifest);
@@ -122,4 +126,4 @@ function createSystemIo() {
 
 if (require.main === module) process.exitCode = run();
 
-module.exports = { OVERRIDE, ROLLUP, VITE, UPDATE_ARGS, filteredEnv, run };
+module.exports = { OVERRIDE, ROLLUP, VITE, UPDATE_ARGS, assertInitialStatus, filteredEnv, run };

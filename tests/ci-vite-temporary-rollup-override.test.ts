@@ -3,6 +3,7 @@ import { describe, expect, it } from "vitest";
 const resolver = require("../scripts/ci/resolve-vite-with-baseline-rollup.cjs") as {
   OVERRIDE: string;
   UPDATE_ARGS: string[];
+  assertInitialStatus: (status: string) => void;
   filteredEnv: (env: Record<string, string>) => Record<string, string>;
   run: (input: { env: Record<string, string>; io: FakeIo }) => number;
 };
@@ -27,6 +28,7 @@ type FakeIo = {
   duplicateManifestKey: boolean;
   driftHeadAfterResolver: boolean;
   driftStatusAfterResolver: boolean;
+  modulesAfterResolver: boolean;
   head: string;
   status: string;
   execGit: (args: string[]) => string;
@@ -45,6 +47,7 @@ function fakeIo(): FakeIo {
     files: { "package.json": BASE_MANIFEST, "pnpm-lock.yaml": BASE_LOCK },
     writes: [], pnpmCalls: [], failPnpm: false, driftManifest: false, compactManifest: false,
     duplicateManifestKey: false, driftHeadAfterResolver: false, driftStatusAfterResolver: false,
+    modulesAfterResolver: false,
     head: SHA, status: "",
     errors: [], execGit(args) {
       if (args[0] === "rev-parse") return `${io.head}\n`;
@@ -69,7 +72,7 @@ function fakeIo(): FakeIo {
         expect(io.files["package.json"].match(/"name"\s*:/g)).toHaveLength(2);
       }
       io.files["pnpm-lock.yaml"] = "resolver-lock\n";
-      io.status = " M package.json\n M pnpm-lock.yaml\n";
+      io.status = ` M package.json\n M pnpm-lock.yaml\n${io.modulesAfterResolver ? "?? node_modules/\n" : ""}`;
       if (io.driftHeadAfterResolver) io.head = "b".repeat(40);
       if (io.driftStatusAfterResolver) io.status += "?? unexpected.txt\n";
       return { status: 0 };
@@ -91,6 +94,13 @@ describe("temporary Vite Rollup resolver", () => {
     expect(final.pnpm.overrides).toEqual({ uuid: "^11.1.1" });
     expect(io.writes).toEqual(["package.json", "package.json"]);
     expect(io.files["pnpm-lock.yaml"]).toBe("resolver-lock\n");
+    expect(io.errors).toEqual([]);
+  });
+
+  it("accepts the permitted node_modules artifact after resolution", () => {
+    const io = fakeIo();
+    io.modulesAfterResolver = true;
+    expect(resolver.run({ env: { BASE_SHA: SHA }, io })).toBe(0);
     expect(io.errors).toEqual([]);
   });
 
@@ -126,7 +136,9 @@ describe("temporary Vite Rollup resolver", () => {
   it("requires the expected HEAD and a clean checkout before writing", () => {
     const cases: Array<[(io: FakeIo) => void, string]> = [
       [(io: FakeIo) => { io.head = "b".repeat(40); }, "BASE_HEAD_MISMATCH"],
+      [(io: FakeIo) => { io.status = "?? node_modules/\n?? node_modules/\n"; }, "STATUS_DIRTY"],
       [(io: FakeIo) => { io.status = "?? unrelated.txt\n"; }, "STATUS_DIRTY"],
+      [(io: FakeIo) => { io.status = "M  package.json\n"; }, "STATUS_DIRTY"],
     ];
     for (const [change, code] of cases) {
       const io = fakeIo();
@@ -136,6 +148,11 @@ describe("temporary Vite Rollup resolver", () => {
       expect(io.pnpmCalls).toEqual([]);
       expect(io.errors.join("")).toContain(code);
     }
+  });
+
+  it("accepts only a clean initial status or the exact node_modules artifact", () => {
+    expect(resolver.assertInitialStatus("")).toBeUndefined();
+    expect(resolver.assertInitialStatus("?? node_modules/\n")).toBeUndefined();
   });
 
   it("fails closed on resolver failure without writing the lockfile or projecting", () => {
