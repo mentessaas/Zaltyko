@@ -2,6 +2,9 @@ import { describe, expect, it } from "vitest";
 
 const projector = require("../scripts/ci/project-targeted-lockfile-refresh.cjs") as {
   BLOCKS: Array<{ section: string; baseKey: string; rawKey: string }>;
+  ProjectionFailure: new (code: string) => Error & { code: string };
+  formatFailureOutput: (error: unknown, evidence?: Record<string, unknown>) => string;
+  step: <T>(code: string, action: () => T) => T;
   assertProjectedHash: (text: string, expectedHash: string) => string;
   projectLockfileText: (input: { baseText: string; rawText: string }) => {
     candidateText: string;
@@ -94,6 +97,39 @@ const baseText = makeLockfile(
 const rawText = makeLockfile("1.16.1", "4.13.13", FOLLOW_TARGET_INTEGRITY, HONO_TARGET_INTEGRITY);
 
 describe("targeted lockfile projection", () => {
+  it("maps arbitrary errors to fixed codes and emits only validated trace fields", () => {
+    const secret = "https://private.invalid/?token=synthetic-private-token";
+    let failure: unknown;
+    try {
+      projector.step("RAW_PARSE", () => {
+        throw Object.assign(new Error(secret), { code: secret, stack: secret });
+      });
+    } catch (error) { failure = error; }
+    expect(failure).toBeInstanceOf(projector.ProjectionFailure);
+    expect((failure as Error).message).toBe("RAW_PARSE");
+    const output = projector.formatFailureOutput(failure, {
+      baseCommit: "a".repeat(40), baseSha256: "b".repeat(64), rawSha256: "c".repeat(64),
+      projectedSha256: secret,
+    });
+    expect(output).toBe(`Proyector rechazado: code=RAW_PARSE base_commit=${"a".repeat(40)} base_lock_sha256=${"b".repeat(64)} raw_resolved_sha256=${"c".repeat(64)}`);
+    expect(output).not.toContain(secret);
+    expect(projector.formatFailureOutput(new Error(secret), { baseCommit: secret })).toBe("Proyector rechazado: code=UNCLASSIFIED");
+    expect(projector.formatFailureOutput(new projector.ProjectionFailure(secret))).toBe("Proyector rechazado: code=UNCLASSIFIED");
+    const mustNotCoerce = { toString() { throw new Error(secret); } };
+    expect(projector.formatFailureOutput(failure, { baseCommit: mustNotCoerce, rawSha256: mustNotCoerce })).toBe("Proyector rechazado: code=RAW_PARSE");
+  });
+
+  it("reports target metadata rejection without leaking metadata values", () => {
+    const secret = "synthetic-private-metadata";
+    const changedMetadata = rawText.replace("    engines: {node: '>=16.9.0'}", `    engines: {node: '>=16.9.0'}\n    deprecated: '${secret}'`);
+    let failure: unknown;
+    try { projector.projectLockfileText({ baseText, rawText: changedMetadata }); }
+    catch (error) { failure = error; }
+    expect(failure).toBeInstanceOf(projector.ProjectionFailure);
+    expect((failure as Error).message).toBe("TARGET_METADATA");
+    expect(projector.formatFailureOutput(failure)).toBe("Proyector rechazado: code=TARGET_METADATA");
+  });
+
   it("copies exactly seven resolver blocks and preserves unrelated base bytes", () => {
     const rawWithOffscopeDrift = rawText
       .replace("sha512-offscope-base", "sha512-offscope-resolved")

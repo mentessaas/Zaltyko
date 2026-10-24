@@ -37,6 +37,47 @@ function assert(condition, message) {
   if (!condition) throw new Error(message);
 }
 
+const FAILURE_CODES = new Set([
+  "BASE_SHA_INVALID", "BASE_HEAD_MISMATCH", "BASE_READ", "RAW_READ", "PROJECTED_READ",
+  "BASE_FORMAT", "RAW_FORMAT", "BASE_PARSE", "RAW_PARSE", "BASE_SECTIONS", "RAW_SECTIONS",
+  "BASE_TARGET_SETS", "RAW_TARGET_SETS", "IMPORTERS_SEMANTIC_DIFF", "IMPORTERS_BYTE_DIFF",
+  "TARGET_METADATA", "RAW_REFERENCES", "BASE_BLOCK", "RAW_BLOCK", "PROJECTION_OVERLAP",
+  "PROJECTED_STRUCTURE", "PROJECTED_GUARD", "PROJECTED_HASH", "UNCLASSIFIED",
+]);
+
+class ProjectionFailure extends Error {
+  constructor(code) {
+    const safeCode = FAILURE_CODES.has(code) ? code : "UNCLASSIFIED";
+    super(safeCode);
+    this.name = "ProjectionFailure";
+    this.code = safeCode;
+  }
+}
+
+function step(code, action) {
+  try {
+    return action();
+  } catch (error) {
+    if (error instanceof ProjectionFailure) throw error;
+    throw new ProjectionFailure(code);
+  }
+}
+
+function formatFailureOutput(error, evidence = {}) {
+  const code = error instanceof ProjectionFailure && FAILURE_CODES.has(error.code)
+    ? error.code : "UNCLASSIFIED";
+  const fields = ["code=" + code];
+  if (typeof evidence.baseCommit === "string" && /^[0-9a-f]{40}$/.test(evidence.baseCommit)) fields.push("base_commit=" + evidence.baseCommit);
+  for (const [key, value] of [
+    ["base_lock_sha256", evidence.baseSha256],
+    ["raw_resolved_sha256", evidence.rawSha256],
+    ["projected_lock_sha256", evidence.projectedSha256],
+  ]) {
+    if (typeof value === "string" && /^[a-f0-9]{64}$/.test(value)) fields.push(key + "=" + value);
+  }
+  return "Proyector rechazado: " + fields.join(" ");
+}
+
 function sha256(text) {
   return createHash("sha256").update(text, "utf8").digest("hex");
 }
@@ -294,45 +335,50 @@ function assertProjectedSectionOrder(base, candidate, section) {
   );
 }
 
-function projectLockfileText({ baseText, rawText }) {
-  assertSupportedTextFormat(baseText);
-  assertSupportedTextFormat(rawText);
-  assertSectionOrder(baseText);
-  assertSectionOrder(rawText);
-  const base = parseLockfile(baseText);
-  const raw = parseLockfile(rawText);
-  assertExactTargetSets(base, false);
-  assertExactTargetSets(raw, true);
-  assert(JSON.stringify(stable(base.importers)) === JSON.stringify(stable(raw.importers)), "Importers cambiaron durante la resolución");
-  assert(sectionText(baseText, "importers", base) === sectionText(rawText, "importers", raw), "Formato de importers cambió durante la resolución");
-  assertPackageMetadataCompatible(base, raw);
-  assertRawReferences(raw);
+function projectLockfileText({ baseText, rawText, onProjected }) {
+  step("BASE_FORMAT", () => assertSupportedTextFormat(baseText));
+  step("RAW_FORMAT", () => assertSupportedTextFormat(rawText));
+  step("BASE_SECTIONS", () => assertSectionOrder(baseText));
+  step("RAW_SECTIONS", () => assertSectionOrder(rawText));
+  const base = step("BASE_PARSE", () => parseLockfile(baseText));
+  const raw = step("RAW_PARSE", () => parseLockfile(rawText));
+  step("BASE_TARGET_SETS", () => assertExactTargetSets(base, false));
+  step("RAW_TARGET_SETS", () => assertExactTargetSets(raw, true));
+  step("IMPORTERS_SEMANTIC_DIFF", () => assert(JSON.stringify(stable(base.importers)) === JSON.stringify(stable(raw.importers)), "Importers cambiaron durante la resolución"));
+  step("IMPORTERS_BYTE_DIFF", () => assert(sectionText(baseText, "importers", base) === sectionText(rawText, "importers", raw), "Formato de importers cambió durante la resolución"));
+  step("TARGET_METADATA", () => assertPackageMetadataCompatible(base, raw));
+  step("RAW_REFERENCES", () => assertRawReferences(raw));
 
   const edits = BLOCKS.map(({ section, baseKey, rawKey }) => {
-    const baseBlock = entryBlock(baseText, section, baseKey, base);
-    const rawBlock = entryBlock(rawText, section, rawKey, raw);
+    const baseBlock = step("BASE_BLOCK", () => entryBlock(baseText, section, baseKey, base));
+    const rawBlock = step("RAW_BLOCK", () => entryBlock(rawText, section, rawKey, raw));
     if (baseKey !== rawKey) {
-      assert(!Object.prototype.hasOwnProperty.call(base[section], rawKey), "Locator de destino ya existe en la base");
+      step("BASE_BLOCK", () => assert(!Object.prototype.hasOwnProperty.call(base[section], rawKey), "Locator de destino ya existe en la base"));
     }
     return { start: baseBlock.start, end: baseBlock.end, replacement: rawBlock.text };
   }).sort((left, right) => right.start - left.start);
 
-  for (let index = 1; index < edits.length; index += 1) {
-    assert(edits[index - 1].start >= edits[index].end, "Bloques proyectados se solapan");
-  }
+  step("PROJECTION_OVERLAP", () => {
+    for (let index = 1; index < edits.length; index += 1) {
+      assert(edits[index - 1].start >= edits[index].end, "Bloques proyectados se solapan");
+    }
+  });
   let candidateText = baseText;
   for (const edit of edits) {
     candidateText = candidateText.slice(0, edit.start) + edit.replacement + candidateText.slice(edit.end);
   }
 
-  assertSupportedTextFormat(candidateText);
-  assertSectionOrder(candidateText);
-  const candidate = parseLockfile(candidateText);
-  for (const section of ["packages", "snapshots"]) {
-    sectionIndex(candidateText, section, candidate);
-    assertProjectedSectionOrder(base, candidate, section);
-  }
-  validateLockfileRefresh({ beforeText: baseText, afterText: candidateText, changedFiles: [LOCKFILE_PATH] });
+  step("PROJECTED_STRUCTURE", () => {
+    assertSupportedTextFormat(candidateText);
+    assertSectionOrder(candidateText);
+    const candidate = parseLockfile(candidateText);
+    for (const section of ["packages", "snapshots"]) {
+      sectionIndex(candidateText, section, candidate);
+      assertProjectedSectionOrder(base, candidate, section);
+    }
+  });
+  onProjected?.(candidateText);
+  step("PROJECTED_GUARD", () => validateLockfileRefresh({ beforeText: baseText, afterText: candidateText, changedFiles: [LOCKFILE_PATH] }));
 
   return {
     candidateText,
@@ -360,24 +406,31 @@ function emitProjectionHashes(values) {
   process.stdout.write("Lockfile projection hashes: " + output.replaceAll("\n", " ") + "\n");
 }
 
-function main() {
+function main(evidence) {
   if (process.argv[2] === "--verify") {
-    assertProjectedHash(readFileSync(LOCKFILE_PATH, "utf8"), process.argv[3] || process.env.EXPECTED_PROJECTED_LOCK_SHA256);
+    const text = step("PROJECTED_READ", () => readFileSync(LOCKFILE_PATH, "utf8"));
+    evidence.projectedSha256 = sha256(text);
+    step("PROJECTED_HASH", () => assertProjectedHash(text, process.argv[3] || process.env.EXPECTED_PROJECTED_LOCK_SHA256));
     return;
   }
 
   const baseCommit = process.env.BASE_SHA || "";
-  assert(/^[0-9a-f]{40}$/.test(baseCommit), "BASE_SHA inválido");
-  const head = execFileSync("git", ["rev-parse", "HEAD"], { encoding: "utf8" }).trim();
-  assert(head === baseCommit, "El checkout no coincide con el commit base");
-  const baseText = execFileSync("git", ["show", baseCommit + ":" + LOCKFILE_PATH], {
+  step("BASE_SHA_INVALID", () => assert(/^[0-9a-f]{40}$/.test(baseCommit), "BASE_SHA inválido"));
+  evidence.baseCommit = baseCommit;
+  const head = step("BASE_HEAD_MISMATCH", () => execFileSync("git", ["rev-parse", "HEAD"], { encoding: "utf8" }).trim());
+  step("BASE_HEAD_MISMATCH", () => assert(head === baseCommit, "El checkout no coincide con el commit base"));
+  const baseText = step("BASE_READ", () => execFileSync("git", ["show", baseCommit + ":" + LOCKFILE_PATH], {
     encoding: "utf8",
     maxBuffer: MAX_GIT_OUTPUT_BYTES,
-  });
-  const rawText = readFileSync(LOCKFILE_PATH, "utf8");
-  const projection = projectLockfileText({ baseText, rawText });
+  }));
+  const rawText = step("RAW_READ", () => readFileSync(LOCKFILE_PATH, "utf8"));
+  evidence.baseSha256 = sha256(baseText);
+  evidence.rawSha256 = sha256(rawText);
+  const projection = projectLockfileText({ baseText, rawText, onProjected: (text) => { evidence.projectedSha256 = sha256(text); } });
   writeFileSync(LOCKFILE_PATH, projection.candidateText, "utf8");
-  assertProjectedHash(readFileSync(LOCKFILE_PATH, "utf8"), projection.projectedSha256);
+  const written = step("PROJECTED_READ", () => readFileSync(LOCKFILE_PATH, "utf8"));
+  evidence.projectedSha256 = sha256(written);
+  step("PROJECTED_HASH", () => assertProjectedHash(written, projection.projectedSha256));
   emitProjectionHashes({
     baseCommit,
     baseSha256: projection.baseSha256,
@@ -387,10 +440,11 @@ function main() {
 }
 
 if (require.main === module) {
+  const evidence = {};
   try {
-    main();
-  } catch {
-    process.stderr.write("Proyector de lockfile rechazado por contrato cerrado.\n");
+    main(evidence);
+  } catch (error) {
+    process.stderr.write(formatFailureOutput(error, evidence) + "\n");
     process.exitCode = 1;
   }
 }
@@ -398,6 +452,9 @@ if (require.main === module) {
 module.exports = {
   BLOCKS,
   MAX_GIT_OUTPUT_BYTES,
+  ProjectionFailure,
+  formatFailureOutput,
+  step,
   assertProjectedHash,
   projectLockfileText,
   sha256,
