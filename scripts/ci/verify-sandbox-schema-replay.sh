@@ -51,7 +51,7 @@ readonly REPLAY_LOG="$RUNNER_TEMP/$PROJECT_ID-replay.log"
 readonly TENANT_LOG="$RUNNER_TEMP/$PROJECT_ID-tenant.log"
 readonly GUARD_LOG="$RUNNER_TEMP/$PROJECT_ID-guard.log"
 readonly UNMARKED_GUARD_LOG="$RUNNER_TEMP/$PROJECT_ID-unmarked-guard.log"
-readonly INTEGRATION_LOG="$RUNNER_TEMP/$PROJECT_ID-capacity-integration.log"
+readonly INTEGRATION_LOG="$RUNNER_TEMP/$PROJECT_ID-postgres-integration.log"
 local_stack_started=false
 
 cleanup() {
@@ -559,9 +559,9 @@ if ! grep -Fq 'isolated CI replay marker is missing' "$UNMARKED_GUARD_LOG"; then
 fi
 
 if ! ZALTYKO_PG_INTEGRATION=1 ZALTYKO_PG_INTEGRATION_DATABASE_URL="$LOCAL_DB_URL" NODE_ENV=test \
-  pnpm exec vitest run --project web tests/saas-capacity-postgres.integration.test.ts \
+  pnpm exec vitest run --project web tests/saas-capacity-postgres.integration.test.ts tests/billing-ledger-postgres.integration.test.ts \
   >"$INTEGRATION_LOG" 2>&1; then
-  printf 'Sanitized capacity integration failure follows; connection strings and long credentials are redacted.\n' >&2
+  printf 'Sanitized PostgreSQL integration failure follows; connection strings and long credentials are redacted.\n' >&2
   python3 - "$INTEGRATION_LOG" <<'PY' >&2
 from pathlib import Path
 import re
@@ -591,6 +591,6 @@ fi
 printf 'PASS: exact baseline and its single reviewed RLS migration replayed on empty disposable Postgres.\n'
 printf 'PASS: 28-table RLS, deny-policy, anon/authenticated ACL, two-academy isolation, writes, and rollback checks passed.\n'
 printf 'PASS: baseline guards refused populated and unmarked databases before DDL.\n'
-printf 'PASS: Free limits, concurrent last-slot writes, idempotent replay, and no-partial-write denials passed on disposable local Postgres.\n'
+printf 'PASS: disposable PostgreSQL schema replay, RLS isolation, Free capacity, manual billing ledger concurrency, idempotent replay, and no-partial-write checks passed.\n'
 unset LOCAL_DB_URL
 unset EXPECTED_LOCAL_PORT

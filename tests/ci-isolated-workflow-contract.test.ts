@@ -31,6 +31,10 @@ const capacityIntegrationTestPath = resolve(
   process.cwd(),
   "tests/saas-capacity-postgres.integration.test.ts"
 );
+const billingIntegrationTestPath = resolve(
+  process.cwd(),
+  "tests/billing-ledger-postgres.integration.test.ts"
+);
 
 const lockfileGuard = require(lockfileGuardPath) as {
   MAX_GIT_OUTPUT_BYTES: number;
@@ -310,6 +314,7 @@ describe("isolated CI workflow contract", () => {
     const replayJob = workflow.match(/  schema-replay:([\s\S]*?)(?=\n  candidate-build:|$)/)?.[1] ?? "";
     const replayScript = readFileSync(resolve(process.cwd(), "scripts/ci/verify-sandbox-schema-replay.sh"), "utf8");
     const capacityIntegrationTest = readFileSync(capacityIntegrationTestPath, "utf8");
+    const billingIntegrationTest = readFileSync(billingIntegrationTestPath, "utf8");
     const replayHeader = replayJob.split("\n    steps:")[0] ?? "";
     expect(replayHeader).not.toMatch(/^\s+needs:/m);
     expect(replayJob).toContain("inputs.resolution_mode == 'schema-replay'");
@@ -334,13 +339,20 @@ describe("isolated CI workflow contract", () => {
     expect(replayScript).toContain("Sanitized CLI startup error excerpt");
     expect(replayScript).toContain("ZALTYKO_PG_INTEGRATION=1");
     expect(replayScript).toContain('pnpm exec vitest run --project web tests/saas-capacity-postgres.integration.test.ts');
+    expect(replayScript).toContain("tests/billing-ledger-postgres.integration.test.ts");
     expect(replayScript).toContain('>"$INTEGRATION_LOG" 2>&1');
     expect(replayScript).toContain("Free limits, concurrent last-slot writes, idempotent replay");
+    expect(replayScript).toContain("manual billing ledger concurrency");
     expect(capacityIntegrationTest).toContain('process.env.ZALTYKO_PG_INTEGRATION !== "1"');
     expect(capacityIntegrationTest).toContain('["127.0.0.1", "localhost", "::1"]');
     expect(capacityIntegrationTest).toContain("PLAN_OVER_CAPACITY");
     expect(capacityIntegrationTest).toContain("content_hash");
+    expect(billingIntegrationTest).toContain('process.env.ZALTYKO_PG_INTEGRATION !== "1"');
+    expect(billingIntegrationTest).toContain('"CHARGE_ALREADY_SETTLED"');
+    expect(billingIntegrationTest).toContain('"payment_allocations"');
+    expect(billingIntegrationTest).toContain('"outbox_events"');
     expect(vitestConfig).toContain("tests/saas-capacity-postgres.integration.test.ts");
+    expect(vitestConfig).toContain("tests/billing-ledger-postgres.integration.test.ts");
     expect(sharedSetup).toContain("ZALTYKO_PG_INTEGRATION_DATABASE_URL");
     expect(replayScript).toContain("export SUPABASE_EXPERIMENTAL_STACK=1");
     expect(replayScript).toContain('"$CLI" --workdir "$CI_WORKDIR" stack start');
