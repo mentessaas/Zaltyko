@@ -60,6 +60,7 @@ describe("isolated CI workflow contract", () => {
     expect(buildJob).toContain("persist-credentials: false");
     expect(buildJob).toContain("branch='codex/owner-isolated-validation-20261023'");
     expect(buildJob).toContain('[[ "$EXPECTED_SHA" == "$head_sha" ]]');
+    expect(buildJob).toContain("VERCEL_ENV: preview");
     expect(buildJob).toContain("pnpm install --frozen-lockfile");
     expect(buildJob).toContain("pnpm build");
     expect(buildJob).toContain("placeholder.supabase.co");

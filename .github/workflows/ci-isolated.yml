@@ -106,6 +106,7 @@ jobs:
       DISPATCH_SHA: ${{ github.sha }}
       DISPATCH_REF: ${{ github.ref }}
       NODE_ENV: production
+      VERCEL_ENV: preview
       NEXT_TELEMETRY_DISABLED: "1"
       NEXT_PUBLIC_APP_URL: https://candidate-build.invalid
       NEXT_PUBLIC_SUPABASE_URL: https://placeholder.supabase.co
