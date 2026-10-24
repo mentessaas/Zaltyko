@@ -65,7 +65,7 @@ describe("useDashboardData: recuperación de la consulta principal", () => {
     });
 
     expect(fetchMock).toHaveBeenCalledTimes(2);
-    expect(view.result.current.data).toBe(updatedData);
+    expect(view.result.current.data).toEqual(updatedData);
     expect(view.result.current.error).toBeNull();
     expect(view.result.current.loading).toBe(false);
   });
@@ -85,5 +85,62 @@ describe("useDashboardData: recuperación de la consulta principal", () => {
 
     await waitFor(() => expect(view.result.current.error).toBe("La respuesta del dashboard no tiene un formato válido."));
     expect(view.result.current.data).toBe(initialData);
+  });
+
+  it.each([
+    ["una clase incompleta", { upcomingClasses: [{ id: "class-a" }] }],
+    ["una actividad con fecha inválida", {
+      recentActivity: [{
+        id: "activity-a",
+        action: "athlete.created",
+        description: "Alta",
+        createdAt: "no-es-una-fecha",
+        userName: null,
+      }],
+    }],
+  ])("rechaza %s y conserva los datos anteriores", async (_description, partial) => {
+    const initialData = makeDashboardData(4);
+    const malformedData = { ...makeDashboardData(5), ...partial };
+    vi.stubGlobal("fetch", vi.fn().mockResolvedValue({
+      ok: true,
+      json: async () => ({ ok: true, data: malformedData }),
+    }));
+
+    const view = renderHook(() => useDashboardData({
+      academyId: "academy-a",
+      tenantId: null,
+      initialData,
+    }));
+
+    await waitFor(() => expect(view.result.current.error).toBe("La respuesta del dashboard no tiene un formato válido."));
+    expect(view.result.current.data).toBe(initialData);
+  });
+
+  it("convierte las fechas ISO de actividad del JSON en Date válidas", async () => {
+    const initialData = makeDashboardData(4);
+    const updatedData = {
+      ...makeDashboardData(5),
+      recentActivity: [{
+        id: "activity-a",
+        action: "athlete.created",
+        description: "Alta",
+        createdAt: "2026-10-24T15:00:00.000Z",
+        userName: null,
+      }],
+    };
+    vi.stubGlobal("fetch", vi.fn().mockResolvedValue({
+      ok: true,
+      json: async () => ({ ok: true, data: updatedData }),
+    }));
+
+    const view = renderHook(() => useDashboardData({
+      academyId: "academy-a",
+      tenantId: null,
+      initialData,
+    }));
+
+    await waitFor(() => expect(view.result.current.data.metrics.athletes).toBe(5));
+    expect(view.result.current.data.recentActivity[0]?.createdAt).toBeInstanceOf(Date);
+    expect(view.result.current.data.recentActivity[0]?.createdAt.toISOString()).toBe("2026-10-24T15:00:00.000Z");
   });
 });
