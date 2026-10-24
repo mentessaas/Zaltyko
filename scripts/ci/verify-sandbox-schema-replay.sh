@@ -306,6 +306,7 @@ fi
 role_state="$(printf '%s\n' "$ROLE_STATE_CSV" | tail -n 1 | tr -d '\r')"
 IFS=, read -r replay_role replay_is_superuser <<<"$role_state"
 unset ROLE_STATE_CSV
+printf 'Detected replay principal: role=%s, superuser=%s\n' "$replay_role" "$replay_is_superuser"
 [[ "$replay_role" == "supabase_admin" && "$replay_is_superuser" == "true" ]] || \
   fail "The disposable stack did not connect as its verified Supabase superuser replay principal."
 printf 'Sanitized replay principal: role=%s, superuser=%s\n' "$replay_role" "$replay_is_superuser"

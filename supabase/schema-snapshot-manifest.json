@@ -70,7 +70,7 @@
     "tenant_fixture_sha256": "b0ffc0d3670ec51ec67169ab64094c73162c8b22405293e68bd7df6124be8ff3",
     "replay_principal": "Connect to the validated loopback endpoint as the pinned stack's built-in supabase_admin login and verify its superuser flag before replay. The snapshot's role-scoped default ACLs require the Supabase platform principal; CI does not grant, revoke, or create roles.",
     "replay_script_path": "scripts/ci/verify-sandbox-schema-replay.sh",
-    "replay_script_sha256": "88bfa691ecb3e1662924b0701040c1690c37d69ad325d63d5f4e857590d97ae6",
+    "replay_script_sha256": "d3badbd7e1f453d98e4a14e09ad2fb0a9a279aab9c7368f5dd70e7f4686b66e5",
     "execution_evidence": "This manifest records the pinned replay procedure only; record the exact commit and CI result in the external audit report after a passing run."
   },
   "scope_exclusions": [
