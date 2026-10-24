@@ -78,9 +78,21 @@ describe("payloads de Postgres Changes", () => {
         new: { user_id: userId, plan_id: "new-plan", status: "active" },
       });
 
+      await handlerFor("subscriptions")({
+        eventType: "UPDATE",
+        old: { plan_id: "new-plan", status: "active" },
+        new: { user_id: userId, plan_id: "new-plan", status: "past_due" },
+      });
+
       handlerFor("academies")({
         eventType: "INSERT",
         old: {},
+        new: { id: academyId, name: "Academia QA", tenant_id: tenantId },
+      });
+
+      handlerFor("academies")({
+        eventType: "UPDATE",
+        old: { name: "Academia anterior" },
         new: { id: academyId, name: "Academia QA", tenant_id: tenantId },
       });
 
@@ -110,6 +122,8 @@ describe("payloads de Postgres Changes", () => {
         "Cuenta suspendida",
         "Plan actualizado",
         "Nueva academia creada",
+        "Academia actualizada",
+        "Suscripción actualizada",
         "Nueva clase creada",
         "Nuevo recibo generado",
         "Nuevo mensaje de contacto",
