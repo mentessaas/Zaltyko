@@ -138,6 +138,29 @@ describe("Owner contractual signup consent", () => {
     expect(execute).toHaveBeenCalledTimes(3);
   });
 
+  it("rejects an explicit acceptance for a different policy version", async () => {
+    const { store, execute } = storeWith([
+      lockResult,
+      policyResult,
+      { rows: [] },
+    ]);
+
+    await expect(
+      recordOwnerSignupConsent(
+        authUser({ createdAt: "2026-09-30T23:59:59.000Z" }),
+        {
+          requestKey: "owner-setup-request-02",
+          contractualAcceptance: {
+            accepted: true,
+            policyVersion: "v1-2026-08-01",
+          },
+        },
+        store
+      )
+    ).rejects.toMatchObject({ code: "CONSENT_REJECTED" });
+    expect(execute).toHaveBeenCalledTimes(3);
+  });
+
   it("rejects malformed signup policy metadata without writing a grant", async () => {
     const { store, execute } = storeWith([
       lockResult,
@@ -179,6 +202,39 @@ describe("Owner contractual signup consent", () => {
     ).resolves.toBe("recorded");
 
     expect(transaction).toHaveBeenCalledTimes(1);
+    expect(execute).toHaveBeenCalledTimes(5);
+  });
+
+  it("re-grants a revoked consent only after explicit current-policy acceptance", async () => {
+    const { store, execute } = storeWith([
+      lockResult,
+      policyResult,
+      {
+        rows: [
+          {
+            state: "revoked",
+            policy_version: policyVersion,
+            revoked_at: "2026-10-03T00:00:00.000Z",
+          },
+        ],
+      },
+      { rows: [] },
+      { rows: [] },
+    ]);
+
+    await expect(
+      recordOwnerSignupConsent(
+        authUser(),
+        {
+          requestKey: "owner-setup-request-03",
+          contractualAcceptance: {
+            accepted: true,
+            policyVersion,
+          },
+        },
+        store
+      )
+    ).resolves.toBe("re_granted");
     expect(execute).toHaveBeenCalledTimes(5);
   });
 
