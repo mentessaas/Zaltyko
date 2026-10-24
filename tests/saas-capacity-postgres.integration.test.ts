@@ -712,7 +712,8 @@ describe("Free capacity guards on disposable PostgreSQL", () => {
     } catch (error) {
       rollbackError = error;
     }
-    expect(rollbackError).toMatchObject({
+    expect(rollbackError).toBeInstanceOf(Error);
+    expect((rollbackError as Error & { cause?: unknown }).cause).toMatchObject({
       code: "23505",
       constraint: "audit_log_idempotency_uq",
     });
