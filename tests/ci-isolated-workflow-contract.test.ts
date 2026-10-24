@@ -76,7 +76,18 @@ describe("isolated CI workflow contract", () => {
         integrity: "sha512-CQ46U0ZkAGmbT/4UxdzzGJpacP2IeKgY4a5/tOI9AABbpOMfK739wfDXmv1usCk+3RkKj1hQy4/fjhiwa2xlrA==",
       },
     ]);
-    expect(refreshJob).toContain("node scripts/ci/validate-lockfile-refresh.cjs");
+    expect(refreshJob).toContain("node scripts/ci/project-targeted-lockfile-refresh.cjs");
+    expect(refreshJob).toContain("pnpm install --frozen-lockfile --ignore-scripts --no-optional");
+    expect(refreshJob).toContain(
+      "EXPECTED_PROJECTED_LOCK_SHA256: ${{ steps.targeted-lockfile-projection.outputs.projected_lock_sha256 }}"
+    );
+    expect(refreshJob).toContain('node scripts/ci/project-targeted-lockfile-refresh.cjs --verify "$EXPECTED_PROJECTED_LOCK_SHA256"');
+    const projectionIndex = refreshJob.indexOf("node scripts/ci/project-targeted-lockfile-refresh.cjs\n");
+    const frozenInstallIndex = refreshJob.indexOf("pnpm install --frozen-lockfile --ignore-scripts --no-optional", projectionIndex);
+    const finalGuardIndex = refreshJob.indexOf("node scripts/ci/validate-lockfile-refresh.cjs");
+    expect(projectionIndex).toBeGreaterThanOrEqual(0);
+    expect(frozenInstallIndex).toBeGreaterThan(projectionIndex);
+    expect(finalGuardIndex).toBeGreaterThan(frozenInstallIndex);
     expect(refreshJob).not.toMatch(/\bsecrets\.|cache:|upload-artifact|git push|git commit|pnpm (?:build|typecheck|test)\b/i);
   });
 

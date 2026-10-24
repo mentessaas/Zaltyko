@@ -137,7 +137,19 @@ jobs:
       - name: Refresh only the two approved transitive versions
         run: pnpm update --depth 99 --lockfile-only --no-save --ignore-scripts follow-redirects hono
 
-      - name: Validate lockfile scope and print sanitized diff
+      - name: Project only the seven approved lockfile blocks
+        id: targeted-lockfile-projection
         env:
           BASE_SHA: ${{ inputs.expected_sha }}
-        run: node scripts/ci/validate-lockfile-refresh.cjs
+        run: node scripts/ci/project-targeted-lockfile-refresh.cjs
+
+      - name: Verify the projected lockfile with a frozen install
+        run: pnpm install --frozen-lockfile --ignore-scripts --no-optional
+
+      - name: Revalidate the projection hash and print the guarded diff
+        env:
+          BASE_SHA: ${{ inputs.expected_sha }}
+          EXPECTED_PROJECTED_LOCK_SHA256: ${{ steps.targeted-lockfile-projection.outputs.projected_lock_sha256 }}
+        run: |
+          node scripts/ci/project-targeted-lockfile-refresh.cjs --verify "$EXPECTED_PROJECTED_LOCK_SHA256"
+          node scripts/ci/validate-lockfile-refresh.cjs
