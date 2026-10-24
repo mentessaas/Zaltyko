@@ -93,6 +93,8 @@ export function RegisterForm({
     : null;
   const directoryRegistration=Boolean(directoryNext&&/^\/(academias|events|directorio)\//.test(directoryNext)&&!directoryNext.includes('\\'));
   const [role, setRole] = useState<RegisterRole>("owner");
+  const ownerConsentPolicyUnavailable =
+    !directoryRegistration && role === "owner" && !ownerConsentPolicyVersion;
   const [termsAccepted, setTermsAccepted] = useState(false);
   const roleButtonRefs = useRef<Array<HTMLButtonElement | null>>([]);
   const [loading, setLoading] = useState(false);
@@ -121,6 +123,16 @@ export function RegisterForm({
 
   const handleRegister = async (e: React.FormEvent) => {
     e.preventDefault();
+
+    if (ownerConsentPolicyUnavailable) {
+      toast.pushToast({
+        title: "No se pudo verificar la política vigente",
+        description:
+          "No crearemos una cuenta Owner hasta poder comprobar los términos actuales. Inténtalo de nuevo más tarde.",
+        variant: "error",
+      });
+      return;
+    }
 
     // Micro-conversion: cta_click. Se emite ANTES de las validaciones para
     // que Google Ads pueda optimizar por clics en el CTA real, no por
@@ -361,6 +373,16 @@ export function RegisterForm({
   };
 
   const handleGoogleSignUp = async () => {
+    if (ownerConsentPolicyUnavailable) {
+      toast.pushToast({
+        title: "No se pudo verificar la política vigente",
+        description:
+          "No crearemos una cuenta Owner hasta poder comprobar los términos actuales. Inténtalo de nuevo más tarde.",
+        variant: "error",
+      });
+      return;
+    }
+
     if (!termsAccepted) {
       toast.pushToast({
         title: "Aceptación necesaria",
@@ -573,10 +595,26 @@ export function RegisterForm({
             .
           </span>
         </label>
+        {ownerConsentPolicyUnavailable && (
+          <p
+            id="owner-consent-policy-unavailable"
+            role="alert"
+            className="rounded-lg border border-amber-400 bg-amber-50 px-3 py-2 text-sm text-amber-950"
+          >
+            No podemos comprobar ahora los términos vigentes para crear una
+            academia. No se iniciará el alta Owner; vuelve a intentarlo más
+            tarde.
+          </p>
+        )}
         <Button
           type="submit"
           className="w-full"
-          disabled={loading || googleLoading || signupOutcomeUnknown}
+          disabled={
+            loading ||
+            googleLoading ||
+            signupOutcomeUnknown ||
+            ownerConsentPolicyUnavailable
+          }
         >
           {signupOutcomeUnknown ? (
             "Alta pendiente de confirmar"
@@ -648,11 +686,16 @@ export function RegisterForm({
             googleLoading ||
             loading ||
             !termsAccepted ||
+            ownerConsentPolicyUnavailable ||
             signupOutcomeUnknown
           }
           aria-busy={!isHydrated || googleLoading}
           aria-describedby={
-            !termsAccepted ? "google-signup-consent-hint" : undefined
+            !termsAccepted
+              ? "google-signup-consent-hint"
+              : ownerConsentPolicyUnavailable
+                ? "owner-consent-policy-unavailable"
+                : undefined
           }
         >
           {googleLoading ? (
