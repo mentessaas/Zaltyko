@@ -305,6 +305,17 @@ PY
 # project-local --local resolver does not reopen this managed native stack in
 # this runner, while --db-url can connect to its validated ephemeral endpoint.
 LOCAL_DB_URL="$(<"$LOCAL_DB_URL_FILE")"
+EXPECTED_LOCAL_PORT="$(python3 - "$LOCAL_DB_URL_FILE" <<'PY'
+from pathlib import Path
+from urllib.parse import urlsplit
+import sys
+
+port = urlsplit(Path(sys.argv[1]).read_text(encoding="utf-8")).port
+if port is None:
+    raise SystemExit("The reconstructed replay URL lost its pinned port.")
+print(port)
+PY
+)"
 
 # The local stack status returns the shared database password. Use it only on
 # the validated loopback URL, and verify that the connection really is the
@@ -312,16 +323,20 @@ LOCAL_DB_URL="$(<"$LOCAL_DB_URL_FILE")"
 # grant, revoke, or create roles.
 if ! ROLE_STATE_CSV="$("$CLI" --workdir "$CI_WORKDIR" --output csv db query \
   --db-url "$LOCAL_DB_URL" \
-  "SELECT current_user AS replay_role, rolsuper AS is_superuser FROM pg_roles WHERE rolname = current_user;")"; then
+  "SELECT session_user AS login_role, current_user AS replay_role, (SELECT rolsuper FROM pg_roles WHERE rolname = session_user) AS login_is_superuser, (SELECT rolsuper FROM pg_roles WHERE rolname = current_user) AS replay_is_superuser, current_setting('role') AS configured_role, COALESCE(inet_server_addr()::text, '') AS server_address, COALESCE(inet_server_port()::text, '') AS server_port;")"; then
   fail "Could not inspect the Supabase platform replay principal on disposable local Postgres."
 fi
 role_state="$(printf '%s\n' "$ROLE_STATE_CSV" | tail -n 1 | tr -d '\r')"
-IFS=, read -r replay_role replay_is_superuser <<<"$role_state"
+IFS=, read -r login_role replay_role login_is_superuser replay_is_superuser configured_role server_address server_port <<<"$role_state"
 unset ROLE_STATE_CSV
-printf 'Detected replay principal: role=%s, superuser=%s\n' "$replay_role" "$replay_is_superuser"
-[[ "$replay_role" == "supabase_admin" && "$replay_is_superuser" == "true" ]] || \
+printf 'Detected replay principal: login_role=%s, replay_role=%s, login_superuser=%s, replay_superuser=%s, configured_role=%s, server=%s:%s\n' \
+  "$login_role" "$replay_role" "$login_is_superuser" "$replay_is_superuser" "$configured_role" "$server_address" "$server_port"
+[[ "$login_role" == "supabase_admin" && "$replay_role" == "supabase_admin" && \
+   "$login_is_superuser" == "true" && "$replay_is_superuser" == "true" && \
+   "$server_address" == "127.0.0.1" && "$server_port" == "$EXPECTED_LOCAL_PORT" ]] || \
   fail "The disposable stack did not connect as its verified Supabase superuser replay principal."
-printf 'Sanitized replay principal: role=%s, superuser=%s\n' "$replay_role" "$replay_is_superuser"
+printf 'Sanitized replay principal: login_role=%s, replay_role=%s, superuser=%s\n' \
+  "$login_role" "$replay_role" "$replay_is_superuser"
 
 # Supply the marker as the first statement of the one-run migration. The pinned
 # CLI applies migration statements in order on a single connection; RESET ALL
@@ -381,3 +396,4 @@ printf 'PASS: current-state snapshot replayed on an empty disposable Postgres da
 printf 'PASS: synthetic two-academy RLS reads, writes, and rollback were verified.\n'
 printf 'PASS: baseline guards refused populated and unmarked databases before DDL.\n'
 unset LOCAL_DB_URL
+unset EXPECTED_LOCAL_PORT
