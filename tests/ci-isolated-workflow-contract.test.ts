@@ -193,6 +193,7 @@ describe("isolated CI workflow contract", () => {
     ].map((match) => match[1]);
     const expectedDenyPolicyRelations = [
       "public.actor_pages",
+      "public.actor_consents",
       "public.athlete_skills",
       "public.products",
       "public.sales",
@@ -234,17 +235,18 @@ describe("isolated CI workflow contract", () => {
 
     expect(baselineSha256).toBe("fd1bf2597b0dfd40dc6db824fa24773461f2776fa2ed7c994649be534c6a4b36");
     expect(manifest.baseline.sha256).toBe(baselineSha256);
-    expect(hardeningSha256).toBe("a3673a5263356811473a1f50f13d7eef55659761282be62866be0ce4271734c0");
+    expect(hardeningSha256).toBe("005d16a4b2f87727c2c47b3affe5ccd5433323fdcf02404135cbf5d11be07959");
     expect(createdRelations).toEqual([
       "public.actor_pages",
+      "public.actor_consents",
       "public.athlete_skills",
       "public.products",
       "public.sales",
     ]);
     expect(denyPolicyRelations).toEqual(expectedDenyPolicyRelations);
     expect(fixtureTenantRelations).toEqual(expectedDenyPolicyRelations);
-    expect(hardeningMigration.match(/REVOKE ALL PRIVILEGES ON TABLE public\./g)).toHaveLength(4);
-    expect(hardeningMigration.match(/TO service_role;/g)).toHaveLength(4);
+    expect(hardeningMigration.match(/REVOKE ALL PRIVILEGES ON TABLE public\./g)).toHaveLength(5);
+    expect(hardeningMigration.match(/TO service_role;/g)).toHaveLength(5);
     expect(hardeningMigration).toContain("AS RESTRICTIVE FOR ALL TO PUBLIC USING (false) WITH CHECK (false)");
 
     expect(replayScript).toContain(
@@ -291,7 +293,7 @@ describe("isolated CI workflow contract", () => {
     expect(hardeningReplayIndex).toBeLessThan(
       replayScript.indexOf('cat -- "$ROLE_GUARD_FILE" "$ROOT/scripts/ci/sandbox-tenant-isolation.sql"')
     );
-    expect(tenantFixture).toContain("required tenant relation % is missing");
+    expect(tenantFixture).toContain("required protected relation % is missing");
     expect(tenantFixture).toContain("relrowsecurity");
     expect(tenantFixture).toContain("relforcerowsecurity");
     expect(tenantFixture).toContain("p.polroles = ARRAY[0::oid]");

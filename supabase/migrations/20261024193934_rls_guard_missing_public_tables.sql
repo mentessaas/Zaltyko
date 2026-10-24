@@ -36,6 +36,23 @@ CREATE TABLE public.actor_pages (
     FOREIGN KEY (academy_id) REFERENCES public.academies(id) ON DELETE SET NULL
 );
 
+CREATE TABLE public.actor_consents (
+  id uuid DEFAULT gen_random_uuid() NOT NULL,
+  actor_page_id uuid NOT NULL,
+  guardian_user_id uuid NOT NULL,
+  guardian_relationship text NOT NULL,
+  consent_scope text NOT NULL,
+  granted_at timestamp with time zone NOT NULL,
+  expires_at timestamp with time zone,
+  revoked_at timestamp with time zone,
+  revoked_reason text,
+  ip_address text,
+  user_agent text,
+  CONSTRAINT actor_consents_pkey PRIMARY KEY (id),
+  CONSTRAINT actor_consents_actor_page_id_actor_pages_id_fk
+    FOREIGN KEY (actor_page_id) REFERENCES public.actor_pages(id) ON DELETE CASCADE
+);
+
 CREATE TABLE public.athlete_skills (
   id uuid DEFAULT gen_random_uuid() NOT NULL,
   tenant_id uuid NOT NULL,
@@ -114,17 +131,21 @@ CREATE TABLE public.sales (
 -- Match the snapshot's application owner and close inherited public-schema
 -- default table grants before granting the server-only role.
 ALTER TABLE public.actor_pages OWNER TO postgres;
+ALTER TABLE public.actor_consents OWNER TO postgres;
 ALTER TABLE public.athlete_skills OWNER TO postgres;
 ALTER TABLE public.products OWNER TO postgres;
 ALTER TABLE public.sales OWNER TO postgres;
 
 REVOKE ALL PRIVILEGES ON TABLE public.actor_pages FROM PUBLIC, anon, authenticated;
+REVOKE ALL PRIVILEGES ON TABLE public.actor_consents FROM PUBLIC, anon, authenticated;
 REVOKE ALL PRIVILEGES ON TABLE public.athlete_skills FROM PUBLIC, anon, authenticated;
 REVOKE ALL PRIVILEGES ON TABLE public.products FROM PUBLIC, anon, authenticated;
 REVOKE ALL PRIVILEGES ON TABLE public.sales FROM PUBLIC, anon, authenticated;
 
 GRANT DELETE, INSERT, MAINTAIN, REFERENCES, SELECT, TRIGGER, TRUNCATE, UPDATE
   ON TABLE public.actor_pages TO service_role;
+GRANT DELETE, INSERT, MAINTAIN, REFERENCES, SELECT, TRIGGER, TRUNCATE, UPDATE
+  ON TABLE public.actor_consents TO service_role;
 GRANT DELETE, INSERT, MAINTAIN, REFERENCES, SELECT, TRIGGER, TRUNCATE, UPDATE
   ON TABLE public.athlete_skills TO service_role;
 GRANT DELETE, INSERT, MAINTAIN, REFERENCES, SELECT, TRIGGER, TRUNCATE, UPDATE
@@ -134,6 +155,8 @@ GRANT DELETE, INSERT, MAINTAIN, REFERENCES, SELECT, TRIGGER, TRUNCATE, UPDATE
 
 ALTER TABLE public.actor_pages ENABLE ROW LEVEL SECURITY;
 ALTER TABLE public.actor_pages FORCE ROW LEVEL SECURITY;
+ALTER TABLE public.actor_consents ENABLE ROW LEVEL SECURITY;
+ALTER TABLE public.actor_consents FORCE ROW LEVEL SECURITY;
 ALTER TABLE public.athlete_skills ENABLE ROW LEVEL SECURITY;
 ALTER TABLE public.athlete_skills FORCE ROW LEVEL SECURITY;
 ALTER TABLE public.products ENABLE ROW LEVEL SECURITY;
@@ -142,6 +165,8 @@ ALTER TABLE public.sales ENABLE ROW LEVEL SECURITY;
 ALTER TABLE public.sales FORCE ROW LEVEL SECURITY;
 
 CREATE POLICY deny_all_non_bypass_access ON public.actor_pages
+  AS RESTRICTIVE FOR ALL TO PUBLIC USING (false) WITH CHECK (false);
+CREATE POLICY deny_all_non_bypass_access ON public.actor_consents
   AS RESTRICTIVE FOR ALL TO PUBLIC USING (false) WITH CHECK (false);
 CREATE POLICY deny_all_non_bypass_access ON public.athlete_skills
   AS RESTRICTIVE FOR ALL TO PUBLIC USING (false) WITH CHECK (false);
@@ -154,6 +179,9 @@ CREATE INDEX actor_pages_type_idx ON public.actor_pages USING btree (entity_type
 CREATE UNIQUE INDEX actor_pages_entity_uq ON public.actor_pages USING btree (entity_type, entity_id);
 CREATE UNIQUE INDEX actor_pages_slug_uq ON public.actor_pages USING btree (public_slug);
 CREATE INDEX actor_pages_tenant_idx ON public.actor_pages USING btree (tenant_id);
+
+CREATE INDEX actor_consents_page_idx ON public.actor_consents USING btree (actor_page_id);
+CREATE INDEX actor_consents_guardian_idx ON public.actor_consents USING btree (guardian_user_id);
 
 CREATE INDEX athlete_skills_observed_at_idx ON public.athlete_skills USING btree (observed_at);
 CREATE INDEX athlete_skills_tenant_athlete_idx ON public.athlete_skills USING btree (tenant_id, athlete_id);

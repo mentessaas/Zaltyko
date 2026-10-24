@@ -17,6 +17,7 @@ DECLARE
   v_policy_count integer;
   v_tenant_relations constant text[] := ARRAY[
     'public.actor_pages',
+    'public.actor_consents',
     'public.athlete_skills',
     'public.products',
     'public.sales',
@@ -53,7 +54,7 @@ BEGIN
   FOREACH v_relation_name IN ARRAY v_tenant_relations LOOP
     v_relation_oid := to_regclass(v_relation_name);
     IF v_relation_oid IS NULL THEN
-      RAISE EXCEPTION 'RLS guard failed: required tenant relation % is missing', v_relation_name;
+      RAISE EXCEPTION 'RLS guard failed: required protected relation % is missing', v_relation_name;
     END IF;
 
     IF NOT EXISTS (
@@ -64,7 +65,7 @@ BEGIN
         AND c.relrowsecurity
         AND c.relforcerowsecurity
     ) THEN
-      RAISE EXCEPTION 'RLS guard failed: required tenant relation % is not RLS enabled and forced', v_relation_name;
+      RAISE EXCEPTION 'RLS guard failed: required protected relation % is not RLS enabled and forced', v_relation_name;
     END IF;
 
     SELECT count(*) INTO v_policy_count

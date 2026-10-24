@@ -8,7 +8,7 @@ readonly AUTH_JWT_MIGRATION_NAME="20261024172152_supabase_auth_jwt_platform_prer
 readonly MIGRATION_NAME="20261024172153_sandbox_schema_snapshot_baseline.sql"
 readonly BASELINE_SHA256="fd1bf2597b0dfd40dc6db824fa24773461f2776fa2ed7c994649be534c6a4b36"
 readonly RLS_HARDENING_MIGRATION_NAME="20261024193934_rls_guard_missing_public_tables.sql"
-readonly RLS_HARDENING_MIGRATION_SHA256="a3673a5263356811473a1f50f13d7eef55659761282be62866be0ce4271734c0"
+readonly RLS_HARDENING_MIGRATION_SHA256="005d16a4b2f87727c2c47b3affe5ccd5433323fdcf02404135cbf5d11be07959"
 readonly TENANT_MIGRATION_NAME="20261024193935_sandbox_tenant_isolation.sql"
 readonly GUARD_PROBE_NAME="20261024193936_sandbox_schema_guard_probe.sql"
 readonly UNMARKED_PROBE_NAME="20261024193937_sandbox_schema_unmarked_guard_probe.sql"
@@ -558,7 +558,7 @@ if ! grep -Fq 'isolated CI replay marker is missing' "$UNMARKED_GUARD_LOG"; then
 fi
 
 printf 'PASS: exact baseline and its single reviewed RLS migration replayed on empty disposable Postgres.\n'
-printf 'PASS: 27-table RLS, deny-policy, anon/authenticated ACL, two-academy isolation, writes, and rollback checks passed.\n'
+printf 'PASS: 28-table RLS, deny-policy, anon/authenticated ACL, two-academy isolation, writes, and rollback checks passed.\n'
 printf 'PASS: baseline guards refused populated and unmarked databases before DDL.\n'
 unset LOCAL_DB_URL
 unset EXPECTED_LOCAL_PORT
