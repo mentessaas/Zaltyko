@@ -97,6 +97,23 @@ const baseText = makeLockfile(
 const rawText = makeLockfile("1.16.1", "4.13.13", FOLLOW_TARGET_INTEGRITY, HONO_TARGET_INTEGRITY);
 
 describe("targeted lockfile projection", () => {
+  it("distinguishes unrelated identical versions without allowing extra target edges", () => {
+    const addUnrelatedVersion = (text: string) => text.replace("  unrelated@1.0.0: {}", "  unrelated@1.0.0:\n    dependencies:\n      '@rushstack/eslint-patch': 1.16.1\n      other-dependency: 4.13.13");
+    const baseWithCollision = addUnrelatedVersion(baseText);
+    const rawWithCollision = addUnrelatedVersion(rawText);
+    const projected = projector.projectLockfileText({ baseText: baseWithCollision, rawText: rawWithCollision });
+    expect(projected.candidateText).toBe(rawWithCollision);
+    for (const field of ["dependencies", "optionalDependencies", "peerDependencies", "devDependencies"]) {
+      const badRaw = rawWithCollision.replace("      other-dependency: 4.13.13", `      other-dependency: 4.13.13\n    ${field}:\n      hono: 4.13.13`);
+      // Avoid a duplicate dependencies mapping so this tests the edge contract rather than parsing.
+      const invalid = field === "dependencies" ? rawWithCollision.replace("      other-dependency: 4.13.13", "      hono: 4.13.13") : badRaw;
+      let failure: unknown;
+      try { projector.projectLockfileText({ baseText: baseWithCollision, rawText: invalid }); }
+      catch (error) { failure = error; }
+      expect(projector.formatFailureOutput(failure)).toBe("Proyector rechazado: code=RAW_REFERENCES");
+    }
+  });
+
   it("maps arbitrary errors to fixed codes and emits only validated trace fields", () => {
     const secret = "https://private.invalid/?token=synthetic-private-token";
     let failure: unknown;

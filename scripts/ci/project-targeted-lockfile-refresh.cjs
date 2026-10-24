@@ -274,9 +274,12 @@ function assertRawReferences(lock) {
       return;
     }
     if (typeof value !== "string") return;
+    const isResolvedTargetDependency =
+      ["dependencies", "optionalDependencies", "peerDependencies", "devDependencies"].includes(path.at(-2)) &&
+      ((path.at(-1) === "follow-redirects" && value === "1.16.1") ||
+       (path.at(-1) === "hono" && value === "4.13.13"));
     const isTargetReference =
-      value === "1.16.1" ||
-      value === "4.13.13" ||
+      isResolvedTargetDependency ||
       value.includes("follow-redirects@1.16.1") ||
       value.includes("hono@4.13.13");
     if (!isTargetReference) return;
