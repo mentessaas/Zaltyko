@@ -64,7 +64,7 @@ function assertDisposableTarget() {
   ) {
     throw new Error("The integration suite refuses an unexpected PostgreSQL identity");
   }
-  for (const forbidden of [
+  const forbidden = [
     "SUPABASE_ACCESS_TOKEN",
     "SUPABASE_DB_PASSWORD",
     "SUPABASE_DB_URL",
@@ -75,10 +75,19 @@ function assertDisposableTarget() {
     "STRIPE_SAAS_TEST_SECRET_KEY",
     "STRIPE_SAAS_LIVE_SECRET_KEY",
     "VERCEL_TOKEN",
-  ]) {
-    if (process.env[forbidden]) {
+  ];
+  for (const name of forbidden) {
+    if (process.env[name]) {
       throw new Error("The integration runner contains an external database credential");
     }
+  }
+  // tests/setup.ts always installs this exact non-secret placeholder so the
+  // rest of the unit-test environment cannot accidentally reach Stripe.
+  if (
+    process.env.STRIPE_SECRET_KEY &&
+    process.env.STRIPE_SECRET_KEY !== "sk_test_mock"
+  ) {
+    throw new Error("The integration runner contains an external database credential");
   }
 }
 
