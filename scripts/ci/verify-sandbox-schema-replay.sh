@@ -3,6 +3,7 @@ set -euo pipefail
 umask 077
 
 readonly EXPECTED_BRANCH="codex/owner-isolated-validation-20261023"
+readonly ROLE_PROBE_NAME="20261024172152_sandbox_replay_principal_probe.sql"
 readonly MIGRATION_NAME="20261024172153_sandbox_schema_snapshot_baseline.sql"
 readonly TENANT_MIGRATION_NAME="20261024172154_sandbox_tenant_isolation.sql"
 readonly GUARD_PROBE_NAME="20261024172155_sandbox_schema_guard_probe.sql"
@@ -37,6 +38,7 @@ readonly START_LOG="$RUNNER_TEMP/$PROJECT_ID-start.log"
 readonly STATUS_LOG="$RUNNER_TEMP/$PROJECT_ID-status.json"
 readonly STATUS_ERROR_LOG="$RUNNER_TEMP/$PROJECT_ID-status.stderr"
 readonly LOCAL_DB_URL_FILE="$RUNNER_TEMP/$PROJECT_ID-local-db-url"
+readonly ROLE_GUARD_FILE="$RUNNER_TEMP/$PROJECT_ID-role-guard.sql"
 readonly MARKED_BASELINE_FILE="$RUNNER_TEMP/$PROJECT_ID-marked-baseline.sql"
 readonly REPLAY_LOG="$RUNNER_TEMP/$PROJECT_ID-replay.log"
 readonly TENANT_LOG="$RUNNER_TEMP/$PROJECT_ID-tenant.log"
@@ -51,7 +53,7 @@ cleanup() {
   rm -rf -- "$CI_WORKDIR" "$CLI_HOME" \
     "$RUNNER_TEMP/supabase-schema-replay-cli-$SUPABASE_CLI_VERSION" \
     "$RUNNER_TEMP/supabase_${SUPABASE_CLI_VERSION}_linux_amd64.tar.gz" \
-    "$START_LOG" "$STATUS_LOG" "$STATUS_ERROR_LOG" "$LOCAL_DB_URL_FILE" \
+    "$START_LOG" "$STATUS_LOG" "$STATUS_ERROR_LOG" "$LOCAL_DB_URL_FILE" "$ROLE_GUARD_FILE" \
     "$MARKED_BASELINE_FILE" "$REPLAY_LOG" "$TENANT_LOG" "$GUARD_LOG" "$UNMARKED_GUARD_LOG"
 }
 trap cleanup EXIT
@@ -254,9 +256,11 @@ if (
 # host, port, database, and password. The stack's status URL may include these
 # values (for example `user=postgres`), so carrying its query through would
 # silently override the validated replay principal. Rebuild a minimal direct
-# loopback URL, explicitly set the session role to supabase_admin, and retain
-# only the local TLS setting.
-query = urlencode([("role", "supabase_admin"), ("sslmode", "disable")])
+# loopback URL, discard role/host/credential overrides, and retain only the
+# explicit local TLS setting. The native stack's supabase_admin login starts
+# with current_user=postgres, so SET ROLE NONE is verified as the first SQL in
+# every temporary migration before any application DDL is allowed.
+query = urlencode([("sslmode", "disable")])
 host = parsed_url.hostname
 authority_host = f"[{host}]" if ":" in host else host
 userinfo = "supabase_admin"
@@ -270,7 +274,7 @@ if (
     or admin_url.hostname not in {"127.0.0.1", "localhost", "::1"}
     or admin_url.port != port
     or admin_url.path != "/postgres"
-    or parse_qsl(admin_url.query) != [("role", "supabase_admin"), ("sslmode", "disable")]
+    or parse_qsl(admin_url.query) != [("sslmode", "disable")]
 ):
     raise SystemExit("The reconstructed replay URL did not preserve its pinned local target and principal.")
 safe = {
@@ -319,9 +323,11 @@ PY
 )"
 
 # The local stack status returns the shared database password. Use it only on
-# the validated loopback URL, and verify that the connection really is the
-# built-in `supabase_admin` superuser before applying any snapshot SQL. Do not
-# grant, revoke, or create roles.
+# the validated loopback URL, and verify the authenticated login identity is
+# the built-in `supabase_admin` superuser. Its configured current role may be
+# postgres; every temporary migration begins with SET ROLE NONE and checks that
+# the effective role is supabase_admin before any application DDL. No role
+# memberships or persistent role settings are changed.
 if ! ROLE_STATE_CSV="$("$CLI" --workdir "$CI_WORKDIR" --output csv db query \
   --db-url "$LOCAL_DB_URL" \
   "SELECT session_user AS login_role, current_user AS replay_role, (SELECT rolsuper FROM pg_roles WHERE rolname = session_user) AS login_is_superuser, (SELECT rolsuper FROM pg_roles WHERE rolname = current_user) AS replay_is_superuser, current_setting('role') AS configured_role, COALESCE(inet_server_addr()::text, '') AS server_address, COALESCE(inet_server_port()::text, '') AS server_port;")"; then
@@ -332,10 +338,8 @@ IFS=, read -r login_role replay_role login_is_superuser replay_is_superuser conf
 unset ROLE_STATE_CSV
 printf 'Detected replay principal: login_role=%s, replay_role=%s, login_superuser=%s, replay_superuser=%s, configured_role=%s, server=%s:%s\n' \
   "$login_role" "$replay_role" "$login_is_superuser" "$replay_is_superuser" "$configured_role" "$server_address" "$server_port"
-[[ "$login_role" == "supabase_admin" && "$replay_role" == "supabase_admin" && \
-   "$login_is_superuser" == "true" && "$replay_is_superuser" == "true" && \
-   "$configured_role" == "supabase_admin" ]] || \
-  fail "The disposable stack did not connect as its verified Supabase superuser replay principal."
+[[ "$login_role" == "supabase_admin" && "$login_is_superuser" == "true" ]] || \
+  fail "The disposable stack login was not the verified Supabase superuser."
 if [[ -z "$server_address" && -z "$server_port" ]]; then
   printf 'Verified native database transport: Unix socket on the pinned loopback stack.\n'
 elif [[ "$server_address" == "127.0.0.1" && "$server_port" == "$EXPECTED_LOCAL_PORT" ]]; then
@@ -343,24 +347,62 @@ elif [[ "$server_address" == "127.0.0.1" && "$server_port" == "$EXPECTED_LOCAL_P
 else
   fail "The replay query did not resolve to the pinned native database transport."
 fi
-printf 'Sanitized replay principal: login_role=%s, replay_role=%s, superuser=%s\n' \
-  "$login_role" "$replay_role" "$replay_is_superuser"
+printf 'Sanitized replay login: role=%s, superuser=%s; initial effective role=%s, superuser=%s, configured=%s\n' \
+  "$login_role" "$login_is_superuser" "$replay_role" "$replay_is_superuser" "$configured_role"
 
-# Supply the marker as the first statement of the one-run migration. The pinned
-# CLI applies migration statements in order on a single connection; RESET ALL
-# runs before the migration, then the marker remains session-local through the
-# baseline's authored BEGIN/COMMIT. No database-level setting or role
-# membership is modified by this replay.
-python3 - "$ROOT/supabase/migrations/$MIGRATION_NAME" "$MARKED_BASELINE_FILE" <<'PY'
+# Restore the built-in login role only in the current CI session and fail
+# before schema DDL if the result is not the expected platform superuser.
+python3 - "$ROLE_GUARD_FILE" <<'PY'
+from pathlib import Path
+import sys
+
+role_guard = b"""SET ROLE NONE;
+DO $ci_supabase_admin_role_guard$
+DECLARE
+  v_is_superuser boolean;
+BEGIN
+  IF session_user <> 'supabase_admin' OR current_user <> 'supabase_admin' THEN
+    RAISE EXCEPTION 'Disposable replay did not restore the supabase_admin session role';
+  END IF;
+  SELECT rolsuper INTO v_is_superuser FROM pg_roles WHERE rolname = current_user;
+  IF v_is_superuser IS DISTINCT FROM true THEN
+    RAISE EXCEPTION 'Disposable replay role is not a superuser';
+  END IF;
+END
+$ci_supabase_admin_role_guard$;
+"""
+destination = Path(sys.argv[1])
+with destination.open("xb") as target:
+    target.write(role_guard)
+destination.chmod(0o600)
+PY
+
+# Apply the role-only probe as a temporary migration before copying the
+# snapshot. Its SET ROLE NONE and DO guard contain no application DDL; the same
+# guard is prepended to each later temporary migration, so each fresh CLI
+# connection revalidates its effective principal.
+cp -- "$ROLE_GUARD_FILE" "$CI_WORKDIR/supabase/migrations/$ROLE_PROBE_NAME"
+if ! "$CLI" --workdir "$CI_WORKDIR" migration up --db-url "$LOCAL_DB_URL" \
+  >"$REPLAY_LOG" 2>&1; then
+  diagnose_marker_failure
+  fail "The disposable session could not restore and verify the Supabase replay role."
+fi
+
+# Supply the replay marker after the role guard and before the snapshot. The
+# pinned CLI applies migration statements in order on one connection, so the
+# marker remains session-local through the baseline's authored BEGIN/COMMIT.
+python3 - "$ROOT/supabase/migrations/$MIGRATION_NAME" "$MARKED_BASELINE_FILE" "$ROLE_GUARD_FILE" <<'PY'
 from pathlib import Path
 import sys
 
 source = Path(sys.argv[1])
 destination = Path(sys.argv[2])
+role_guard = Path(sys.argv[3]).read_bytes()
 sql = source.read_bytes()
 if not sql.startswith(b"-- CURRENT-STATE SCHEMA SNAPSHOT;"):
     raise SystemExit("The replay input is not the reviewed current-state baseline.")
 with destination.open("xb") as target:
+    target.write(role_guard)
     target.write(b"SET app.schema_snapshot_replay = 'ci-empty-replay';\n")
     target.write(sql)
 destination.chmod(0o600)
@@ -373,8 +415,9 @@ if ! "$CLI" --workdir "$CI_WORKDIR" migration up --db-url "$LOCAL_DB_URL" \
   fail "The marker-guarded baseline did not replay on disposable local Postgres."
 fi
 
-cp -- "$ROOT/scripts/ci/sandbox-tenant-isolation.sql" \
-  "$CI_WORKDIR/supabase/migrations/$TENANT_MIGRATION_NAME"
+cat -- "$ROLE_GUARD_FILE" "$ROOT/scripts/ci/sandbox-tenant-isolation.sql" \
+  >"$CI_WORKDIR/supabase/migrations/$TENANT_MIGRATION_NAME"
+chmod 600 "$CI_WORKDIR/supabase/migrations/$TENANT_MIGRATION_NAME"
 if ! "$CLI" --workdir "$CI_WORKDIR" migration up --db-url "$LOCAL_DB_URL" \
   >"$TENANT_LOG" 2>&1; then
   fail "The synthetic two-academy RLS isolation check failed; CLI output was withheld."
@@ -390,8 +433,9 @@ if ! grep -Fq 'Refusing current-state schema baseline' "$GUARD_LOG"; then
 fi
 
 rm -- "$CI_WORKDIR/supabase/migrations/$GUARD_PROBE_NAME"
-cp -- "$ROOT/supabase/migrations/$MIGRATION_NAME" \
-  "$CI_WORKDIR/supabase/migrations/$UNMARKED_PROBE_NAME"
+cat -- "$ROLE_GUARD_FILE" "$ROOT/supabase/migrations/$MIGRATION_NAME" \
+  >"$CI_WORKDIR/supabase/migrations/$UNMARKED_PROBE_NAME"
+chmod 600 "$CI_WORKDIR/supabase/migrations/$UNMARKED_PROBE_NAME"
 if "$CLI" --workdir "$CI_WORKDIR" migration up --db-url "$LOCAL_DB_URL" \
   >"$UNMARKED_GUARD_LOG" 2>&1; then
   fail "The current-state baseline unexpectedly ran without its isolated CI marker."
