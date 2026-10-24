@@ -1183,8 +1183,13 @@ function hashPayload(value: Record<string, string | number>): string {
 }
 
 function stableIntegrationIdentifier(operationId: string): string {
-  const digest = createHash("sha256").update(operationId).digest("hex");
-  return `zaltyko_saas_${digest.slice(0, 8)}`;
+  const digest = createHash("sha256").update(operationId).digest();
+  // Stripe recommends an eight-letter suffix. Derive it from the durable
+  // operation ID so every retry of the same Checkout keeps the exact payload.
+  const suffix = Array.from(digest.subarray(0, 8), (value) =>
+    String.fromCharCode(97 + (value % 26))
+  ).join("");
+  return `zaltyko_saas_${suffix}`;
 }
 
 function checkoutReturnUrl(

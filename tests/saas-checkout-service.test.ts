@@ -113,6 +113,9 @@ describe("Checkout reservation guards with isolated dependencies", () => {
     const creations = mocks.provider.mock.calls.filter(([arg]) => typeof arg === "object");
     expect(creations).toHaveLength(2);
     expect(creations[0]).toEqual(creations[1]);
+    expect(creations[0][0]).toMatchObject({
+      integration_identifier: expect.stringMatching(/^zaltyko_saas_[a-z]{8}$/),
+    });
     expect(creations[0][1]).toEqual({ idempotencyKey: "stable-checkout-key" });
     expect(insert).not.toHaveBeenCalled();
   });
