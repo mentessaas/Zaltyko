@@ -38,21 +38,32 @@ readonly STATUS_LOG="$RUNNER_TEMP/$PROJECT_ID-status.json"
 readonly STATUS_ERROR_LOG="$RUNNER_TEMP/$PROJECT_ID-status.stderr"
 readonly LOCAL_DB_URL_FILE="$RUNNER_TEMP/$PROJECT_ID-local-db-url"
 readonly MARKED_BASELINE_FILE="$RUNNER_TEMP/$PROJECT_ID-marked-baseline.sql"
+readonly ROLE_SETUP_LOG="$RUNNER_TEMP/$PROJECT_ID-role-setup.log"
+readonly ROLE_CLEANUP_LOG="$RUNNER_TEMP/$PROJECT_ID-role-cleanup.log"
 readonly REPLAY_LOG="$RUNNER_TEMP/$PROJECT_ID-replay.log"
 readonly TENANT_LOG="$RUNNER_TEMP/$PROJECT_ID-tenant.log"
 readonly GUARD_LOG="$RUNNER_TEMP/$PROJECT_ID-guard.log"
 readonly UNMARKED_GUARD_LOG="$RUNNER_TEMP/$PROJECT_ID-unmarked-guard.log"
 local_stack_started=false
+temporary_admin_membership_added=false
 
 cleanup() {
   if [[ "$local_stack_started" == "true" ]]; then
+    if [[ "$temporary_admin_membership_added" == "true" && -x "$CLI" && -f "$LOCAL_DB_URL_FILE" ]]; then
+      local cleanup_db_url
+      cleanup_db_url="$(<"$LOCAL_DB_URL_FILE")"
+      "$CLI" --workdir "$CI_WORKDIR" db query --db-url "$cleanup_db_url" \
+        "REVOKE supabase_admin FROM postgres;" >/dev/null 2>&1 || true
+      unset cleanup_db_url
+    fi
     "$CLI" --workdir "$CI_WORKDIR" stack stop --stack "$PROJECT_ID" >/dev/null 2>&1 || true
   fi
   rm -rf -- "$CI_WORKDIR" "$CLI_HOME" \
     "$RUNNER_TEMP/supabase-schema-replay-cli-$SUPABASE_CLI_VERSION" \
     "$RUNNER_TEMP/supabase_${SUPABASE_CLI_VERSION}_linux_amd64.tar.gz" \
     "$START_LOG" "$STATUS_LOG" "$STATUS_ERROR_LOG" "$LOCAL_DB_URL_FILE" \
-    "$MARKED_BASELINE_FILE" "$REPLAY_LOG" "$TENANT_LOG" "$GUARD_LOG" "$UNMARKED_GUARD_LOG"
+    "$MARKED_BASELINE_FILE" "$ROLE_SETUP_LOG" "$ROLE_CLEANUP_LOG" \
+    "$REPLAY_LOG" "$TENANT_LOG" "$GUARD_LOG" "$UNMARKED_GUARD_LOG"
 }
 trap cleanup EXIT
 
@@ -100,7 +111,9 @@ PY
 
 diagnose_marker_failure() {
   local diagnosis="The disposable migration runner rejected the session-local marker or schema replay; CLI output remains withheld."
-  if grep -Eiq 'permission denied' "$REPLAY_LOG"; then
+  if grep -Eiq 'permission denied to change default privileges' "$REPLAY_LOG"; then
+    diagnosis="The disposable Postgres runner lacks membership needed to restore captured role-scoped default ACLs."
+  elif grep -Eiq 'permission denied' "$REPLAY_LOG"; then
     diagnosis="The local database role could not set the session-local replay marker."
   elif grep -Eiq 'unrecognized configuration parameter|invalid configuration parameter' "$REPLAY_LOG"; then
     diagnosis="PostgreSQL rejected the custom one-run marker setting."
@@ -284,11 +297,43 @@ PY
 # this runner, while --db-url can connect to its validated ephemeral endpoint.
 LOCAL_DB_URL="$(<"$LOCAL_DB_URL_FILE")"
 
+# The snapshot restores default ACLs created by both the local `postgres` and
+# Supabase-managed `supabase_admin` roles. PostgreSQL requires membership in a
+# target role before changing that role's default privileges. If this fresh
+# runner lacks the membership, add it only on this disposable local database;
+# the membership is revoked after the baseline and is also removed by cleanup
+# on every failure path. Never create a role or alter the captured SQL.
+if ! ROLE_STATE_CSV="$("$CLI" --workdir "$CI_WORKDIR" --output csv db query \
+  --db-url "$LOCAL_DB_URL" \
+  "SELECT current_user AS replay_role, pg_has_role(current_user, 'supabase_admin', 'member') AS has_supabase_admin_membership;")"; then
+  fail "Could not inspect replay-role membership on disposable local Postgres."
+fi
+role_state="$(printf '%s\n' "$ROLE_STATE_CSV" | tail -n 1 | tr -d '\r')"
+IFS=, read -r replay_role admin_membership <<<"$role_state"
+unset ROLE_STATE_CSV
+[[ "$replay_role" == "postgres" ]] || fail "The disposable stack did not connect as its expected postgres replay role."
+printf 'Sanitized replay role capability: role=%s, supabase_admin_membership=%s\n' \
+  "$replay_role" "$admin_membership"
+case "$admin_membership" in
+  true)
+    ;;
+  false)
+    if ! "$CLI" --workdir "$CI_WORKDIR" db query --db-url "$LOCAL_DB_URL" \
+      "GRANT supabase_admin TO postgres;" >"$ROLE_SETUP_LOG" 2>&1; then
+      fail "The disposable Postgres role cannot temporarily acquire the membership needed to replay captured default ACLs."
+    fi
+    temporary_admin_membership_added=true
+    ;;
+  *)
+    fail "PostgreSQL returned an unrecognized replay-role membership result."
+    ;;
+esac
+
 # Supply the marker as the first statement of the one-run migration. The pinned
 # CLI applies migration statements in order on a single connection; RESET ALL
 # runs before the migration, then the marker remains session-local through the
-# baseline's authored BEGIN/COMMIT. No database-level setting or role change is
-# needed, and the CLI connection closes after applying the file.
+# baseline's authored BEGIN/COMMIT. No database-level setting is used; any
+# temporary role membership is separately revoked before the tenant fixture.
 python3 - "$ROOT/supabase/migrations/$MIGRATION_NAME" "$MARKED_BASELINE_FILE" <<'PY'
 from pathlib import Path
 import sys
@@ -309,6 +354,23 @@ if ! "$CLI" --workdir "$CI_WORKDIR" migration up --db-url "$LOCAL_DB_URL" \
   >"$REPLAY_LOG" 2>&1; then
   diagnose_marker_failure
   fail "The marker-guarded baseline did not replay on disposable local Postgres."
+fi
+
+if [[ "$temporary_admin_membership_added" == "true" ]]; then
+  if ! "$CLI" --workdir "$CI_WORKDIR" db query --db-url "$LOCAL_DB_URL" \
+    "REVOKE supabase_admin FROM postgres;" >"$ROLE_CLEANUP_LOG" 2>&1; then
+    fail "The temporary replay-only role membership could not be removed from disposable Postgres."
+  fi
+  temporary_admin_membership_added=false
+  if ! ROLE_STATE_CSV="$("$CLI" --workdir "$CI_WORKDIR" --output csv db query \
+    --db-url "$LOCAL_DB_URL" \
+    "SELECT pg_has_role(current_user, 'supabase_admin', 'member') AS has_supabase_admin_membership;")"; then
+    fail "Could not verify removal of the temporary replay-only role membership."
+  fi
+  admin_membership="$(printf '%s\n' "$ROLE_STATE_CSV" | tail -n 1 | tr -d '\r')"
+  unset ROLE_STATE_CSV
+  [[ "$admin_membership" == "false" ]] || fail "The temporary replay-only role membership remained after schema replay."
+  printf 'PASS: temporary replay-only role membership was revoked before RLS fixtures.\n'
 fi
 
 cp -- "$ROOT/scripts/ci/sandbox-tenant-isolation.sql" \

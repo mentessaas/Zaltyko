@@ -68,8 +68,9 @@
     "database": "fresh local Supabase Postgres only; no linked or remote database",
     "tenant_fixture_path": "scripts/ci/sandbox-tenant-isolation.sql",
     "tenant_fixture_sha256": "b0ffc0d3670ec51ec67169ab64094c73162c8b22405293e68bd7df6124be8ff3",
+    "temporary_runner_membership": "Only when absent, CI may grant supabase_admin to postgres on the disposable native database so the captured role-scoped default ACLs can be replayed. It revokes and verifies removal before tenant fixtures; no role is created and no source or hosted database is changed.",
     "replay_script_path": "scripts/ci/verify-sandbox-schema-replay.sh",
-    "replay_script_sha256": "95df0eaafd45005be0b904d523a35933e7e55773c1ff24678f33abcc2471b78b",
+    "replay_script_sha256": "39b7a15743586037487f3ef46c1770093a982a6c3cdbbad8d1e0703a64d878f6",
     "execution_evidence": "This manifest records the pinned replay procedure only; record the exact commit and CI result in the external audit report after a passing run."
   },
   "scope_exclusions": [

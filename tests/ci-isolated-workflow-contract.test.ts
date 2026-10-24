@@ -199,6 +199,12 @@ describe("isolated CI workflow contract", () => {
     expect(replayScript).toContain('db_url_path.chmod(0o600)');
     expect(replayScript).toContain("target.write(b\"SET app.schema_snapshot_replay = 'ci-empty-replay';\\n\")");
     expect(replayScript).toContain("marker remains session-local through the");
+    expect(replayScript).toContain("pg_has_role(current_user, 'supabase_admin', 'member')");
+    expect(replayScript).toContain("lacks membership needed to restore captured role-scoped default ACLs");
+    expect(replayScript).toContain('"GRANT supabase_admin TO postgres;"');
+    expect(replayScript).toContain('"REVOKE supabase_admin FROM postgres;"');
+    expect(replayScript).toContain("temporary replay-only role membership remained after schema replay");
+    expect(replayScript).not.toContain("CREATE ROLE");
     expect(replayScript).toContain('readonly TENANT_MIGRATION_NAME="20261024172154_sandbox_tenant_isolation.sql"');
     expect(replayScript).toContain('readonly GUARD_PROBE_NAME="20261024172155_sandbox_schema_guard_probe.sql"');
     expect(replayScript).toContain('readonly UNMARKED_PROBE_NAME="20261024172156_sandbox_schema_unmarked_guard_probe.sql"');
