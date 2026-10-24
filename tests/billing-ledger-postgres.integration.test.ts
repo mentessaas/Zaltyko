@@ -13,6 +13,17 @@ const trackedTables = [
   "payment_allocations",
   "payments",
 ] as const;
+const expectedSuccessfulPaymentDeltas: Record<
+  (typeof trackedTables)[number],
+  number
+> = {
+  audit_log: 2,
+  charges: 0,
+  invoices: 0,
+  outbox_events: 2,
+  payment_allocations: 1,
+  payments: 1,
+};
 
 function assertDisposableTarget() {
   if (
@@ -224,19 +235,33 @@ describe("manual billing ledger on disposable PostgreSQL", () => {
     for (const table of trackedTables) {
       const beforeRow = before[table];
       const afterRow = after[table];
-      const expectedDelta = [
-        "payments",
-        "payment_allocations",
-        "outbox_events",
-        "audit_log",
-      ].includes(table)
-        ? 1
-        : 0;
+      const expectedDelta = expectedSuccessfulPaymentDeltas[table];
       expect(afterRow.count - beforeRow.count, table).toBe(expectedDelta);
-      if (expectedDelta === 0 && table !== "charges" && table !== "invoices") {
-        expect(afterRow.contentHash, table).toBe(beforeRow.contentHash);
-      }
     }
+    expect(after.charges.contentHash).not.toBe(before.charges.contentHash);
+    expect(after.invoices.contentHash).not.toBe(before.invoices.contentHash);
+    const outbox = await db.execute(sql`
+      select event_name, count(*)::int as count
+      from zaltyko.outbox_events
+      where organization_id = ${fixture.organizationId}::uuid
+      group by event_name
+      order by event_name
+    `);
+    expect(outbox.rows).toEqual([
+      { event_name: "payment.allocated", count: 1 },
+      { event_name: "payment.manual_recorded", count: 1 },
+    ]);
+    const audit = await db.execute(sql`
+      select action, count(*)::int as count
+      from zaltyko.audit_log
+      where organization_id = ${fixture.organizationId}::uuid
+      group by action
+      order by action
+    `);
+    expect(audit.rows).toEqual([
+      { action: "payment.allocated", count: 1 },
+      { action: "payment.manual_recorded", count: 1 },
+    ]);
     const persisted = await db.execute(sql`
       select c.status as charge_status, c.version as charge_version,
         i.status as invoice_status, i.version as invoice_version
@@ -284,19 +309,33 @@ describe("manual billing ledger on disposable PostgreSQL", () => {
     for (const table of trackedTables) {
       const beforeRow = before[table];
       const afterRow = after[table];
-      const expectedDelta = [
-        "payments",
-        "payment_allocations",
-        "outbox_events",
-        "audit_log",
-      ].includes(table)
-        ? 1
-        : 0;
+      const expectedDelta = expectedSuccessfulPaymentDeltas[table];
       expect(afterRow.count - beforeRow.count, table).toBe(expectedDelta);
-      if (expectedDelta === 0 && table !== "charges" && table !== "invoices") {
-        expect(afterRow.contentHash, table).toBe(beforeRow.contentHash);
-      }
     }
+    expect(after.charges.contentHash).not.toBe(before.charges.contentHash);
+    expect(after.invoices.contentHash).not.toBe(before.invoices.contentHash);
+    const outbox = await db.execute(sql`
+      select event_name, count(*)::int as count
+      from zaltyko.outbox_events
+      where organization_id = ${fixture.organizationId}::uuid
+      group by event_name
+      order by event_name
+    `);
+    expect(outbox.rows).toEqual([
+      { event_name: "payment.allocated", count: 1 },
+      { event_name: "payment.manual_recorded", count: 1 },
+    ]);
+    const audit = await db.execute(sql`
+      select action, count(*)::int as count
+      from zaltyko.audit_log
+      where organization_id = ${fixture.organizationId}::uuid
+      group by action
+      order by action
+    `);
+    expect(audit.rows).toEqual([
+      { action: "payment.allocated", count: 1 },
+      { action: "payment.manual_recorded", count: 1 },
+    ]);
     const persisted = await db.execute(sql`
       select c.status as charge_status, c.version as charge_version,
         i.status as invoice_status, i.version as invoice_version,

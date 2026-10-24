@@ -341,7 +341,7 @@ describe("isolated CI workflow contract", () => {
     expect(replayScript).toContain('pnpm exec vitest run --project web tests/saas-capacity-postgres.integration.test.ts');
     expect(replayScript).toContain("tests/billing-ledger-postgres.integration.test.ts");
     expect(replayScript).toContain('>"$INTEGRATION_LOG" 2>&1');
-    expect(replayScript).toContain("Free limits, concurrent last-slot writes, idempotent replay");
+    expect(replayScript).toContain("Free capacity, manual billing ledger concurrency");
     expect(replayScript).toContain("manual billing ledger concurrency");
     expect(capacityIntegrationTest).toContain('process.env.ZALTYKO_PG_INTEGRATION !== "1"');
     expect(capacityIntegrationTest).toContain('["127.0.0.1", "localhost", "::1"]');
