@@ -16,7 +16,10 @@ const core = require("../scripts/ci/project-vite-lockfile-core.cjs") as {
   INTEGRITY: string;
   SNAPSHOT_DIAGNOSTIC_KEYS: Record<string, string>;
   SNAPSHOT_DIAGNOSTIC_FIELDS: string[];
-  ViteProjectionFailure: new (code: string) => Error & { code: string };
+  MAX_DIAGNOSTIC_ROWS: number;
+  MAX_DIAGNOSTIC_BYTES: number;
+  ViteProjectionFailure: new (code: string, diagnostic?: unknown) => Error & { code: string };
+  validateSnapshotDiagnostic: (error: unknown) => boolean;
   projectViteLockfileCore: (input: {
     baseManifestText: string;
     rawManifestText: string;
@@ -243,11 +246,44 @@ describe("Vite lockfile refresh CLI", () => {
     const result = cli.runCli({ env: { BASE_SHA }, io: harness.io });
     expect(result).toBe(1);
     expect(harness.writes).toEqual([]);
-    expect(harness.errors.join("")).toContain(
-      `code=LOCK_SNAPSHOT target=vite key=${core.SNAPSHOT_DIAGNOSTIC_KEYS.vite} status=different field=dependencies`,
-    );
-    expect(harness.errors.join("")).not.toContain(marker);
-    expect(harness.errors.join("")).toMatch(/base_sha256=[a-f0-9]{64} candidate_sha256=[a-f0-9]{64}/);
+    const output = harness.errors.join("");
+    expect(output).toContain("code=LOCK_SNAPSHOT diagnostic=");
+    expect(output).not.toContain(marker);
+    const serialized = output.match(/diagnostic=(\{.*\})\n$/)?.[1];
+    expect(serialized).toBeTruthy();
+    const diagnostic = JSON.parse(serialized!);
+    expect(Buffer.byteLength(serialized!, "utf8")).toBeLessThanOrEqual(core.MAX_DIAGNOSTIC_BYTES);
+    expect(diagnostic.total).toBe(1);
+    expect(diagnostic.truncated).toBe(false);
+    expect(diagnostic.rows).toContainEqual(expect.objectContaining({
+      target: "vite",
+      field: "dependencies",
+      package: "tinyglobby",
+      status: "changed",
+      base: "0.2.17",
+      candidate: "<redacted>",
+    }));
+  });
+
+  it("does not print metadata from a forged or unvalidated snapshot error", () => {
+    const input = realRawInput();
+    const harness = mockIo(input);
+    const originalProject = core.projectViteLockfileCore;
+    core.projectViteLockfileCore = (() => {
+      throw new core.ViteProjectionFailure("LOCK_SNAPSHOT", {
+        total: 1,
+        truncated: false,
+        rows: [{ target: "vite", field: "dependencies", package: "private-marker", status: "changed" }],
+      } as any);
+    }) as typeof originalProject;
+    try {
+      const result = cli.runCli({ env: { BASE_SHA }, io: harness.io });
+      expect(result).toBe(1);
+      expect(harness.errors.join("")).toBe("Vite lockfile refresh rejected: code=LOCK_SNAPSHOT\n");
+      expect(harness.errors.join("")).not.toContain("private-marker");
+    } finally {
+      core.projectViteLockfileCore = originalProject;
+    }
   });
 
   it("does not write when the permitted status changes before projection", () => {

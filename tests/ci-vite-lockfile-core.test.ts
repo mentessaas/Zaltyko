@@ -8,7 +8,8 @@ const core = require("../scripts/ci/project-vite-lockfile-core.cjs") as {
   NEXT: string;
   INTEGRITY: string;
   ViteProjectionFailure: new (code: string) => Error & { code: string };
-  SNAPSHOT_DIAGNOSTIC_KEYS: Record<string, string>;
+  MAX_DIAGNOSTIC_ROWS: number;
+  MAX_DIAGNOSTIC_BYTES: number;
   projectViteLockfileCore: (input: {
     baseManifestText: string;
     rawManifestText: string;
@@ -263,7 +264,7 @@ describe("Vite 6.4.3 to 6.4.5 lockfile core", () => {
     expectFailure(() => core.projectViteLockfileCore({ ...input, rawLockfileText: bad }));
   });
 
-  it("reports only the closed snapshot target and safe hashes for each differing block", () => {
+  it("aggregates all six differing blocks with only bounded, safe fields", () => {
     const input = fixture();
     for (const target of ["vite", "react", "mocker", "paths", "vitest", "coverage"] as const) {
       const marker = "diagnostic-private-marker-should-not-escape";
@@ -278,20 +279,22 @@ describe("Vite 6.4.3 to 6.4.5 lockfile core", () => {
       }
       expect(caught).toBeInstanceOf(core.ViteProjectionFailure);
       expect(caught.code).toBe("LOCK_SNAPSHOT");
-      expect(caught.diagnostic).toEqual(expect.objectContaining({
+      const row = caught.diagnostic.rows.find((item: any) => item.target === target);
+      expect(row).toEqual(expect.objectContaining({
         target,
-        key: core.SNAPSHOT_DIAGNOSTIC_KEYS[target],
-        status: "different",
         field: "<unknown>",
+        status: "different",
+        baseSha256: expect.stringMatching(/^[a-f0-9]{64}$/),
+        candidateSha256: expect.stringMatching(/^[a-f0-9]{64}$/),
       }));
-      expect(caught.diagnostic.baseSha256).toMatch(/^[a-f0-9]{64}$/);
-      expect(caught.diagnostic.candidateSha256).toMatch(/^[a-f0-9]{64}$/);
+      expect(caught.diagnostic.total).toBe(1);
+      expect(caught.diagnostic.truncated).toBe(false);
       expect(JSON.stringify(caught.diagnostic)).not.toContain(marker);
       expect(caught.message).toBe("LOCK_SNAPSHOT");
     }
   });
 
-  it("reports a missing allowlisted snapshot field without weakening rejection", () => {
+  it("reports removed edges when an allowlisted optional dependency map is missing", () => {
     const input = fixture();
     const bad = rawLockWith((lock) => {
       delete lock.snapshots[newKeys.vite].optionalDependencies;
@@ -304,14 +307,90 @@ describe("Vite 6.4.3 to 6.4.5 lockfile core", () => {
     }
     expect(caught).toBeInstanceOf(core.ViteProjectionFailure);
     expect(caught.code).toBe("LOCK_SNAPSHOT");
-    expect(caught.diagnostic).toEqual(expect.objectContaining({
+    expect(caught.diagnostic.rows).toContainEqual(expect.objectContaining({
       target: "vite",
-      key: core.SNAPSHOT_DIAGNOSTIC_KEYS.vite,
-      status: "missing",
       field: "optionalDependencies",
+      package: "jiti",
+      status: "removed",
+      candidate: "<missing>",
     }));
-    expect(caught.diagnostic.baseSha256).toMatch(/^[a-f0-9]{64}$/);
-    expect(caught.diagnostic.candidateSha256).toMatch(/^[a-f0-9]{64}$/);
+    expect(caught.diagnostic.total).toBe(5);
+    expect(caught.diagnostic.truncated).toBe(false);
+  });
+
+  it("collects all six snapshot targets before rejecting", () => {
+    const input = fixture();
+    const bad = rawLockWith((lock) => {
+      for (const target of ["vite", "react", "mocker", "paths", "vitest", "coverage"] as const) {
+        lock.snapshots[newKeys[target]].diagnosticProbe = `marker-${target}`;
+      }
+    });
+    let caught: any;
+    try {
+      core.projectViteLockfileCore({ ...input, rawLockfileText: bad });
+    } catch (error) {
+      caught = error;
+    }
+    expect(caught.code).toBe("LOCK_SNAPSHOT");
+    expect(caught.diagnostic.total).toBe(6);
+    expect(caught.diagnostic.truncated).toBe(false);
+    expect(new Set(caught.diagnostic.rows.map((row: any) => row.target))).toEqual(
+      new Set(["vite", "react", "mocker", "paths", "vitest", "coverage"]),
+    );
+    expect(JSON.stringify(caught.diagnostic)).not.toContain("marker-");
+  });
+
+  it("reports changed, added, and removed edges across blocks without leaking unknown keys or values", () => {
+    const input = fixture();
+    const marker = "private-marker-diagnostic-test";
+    const prereleaseMarker = "1.2.3-private-marker";
+    const buildMarker = "1.2.3+private-marker";
+    const bad = rawLockWith((lock) => {
+      lock.snapshots[newKeys.vite].dependencies.tinyglobby = "0.2.18";
+      lock.snapshots[newKeys.vite].dependencies[marker] = "not-a-locator";
+      lock.snapshots[newKeys.vite].dependencies.postcss = prereleaseMarker;
+      lock.snapshots[newKeys.vite].dependencies.rollup = buildMarker;
+      delete lock.snapshots[newKeys.vite].optionalDependencies.jiti;
+      lock.snapshots[newKeys.react].dependencies.react = marker;
+    });
+    let caught: any;
+    try {
+      core.projectViteLockfileCore({ ...input, rawLockfileText: bad });
+    } catch (error) {
+      caught = error;
+    }
+    expect(caught.code).toBe("LOCK_SNAPSHOT");
+    const rows = caught.diagnostic.rows;
+    expect(rows).toContainEqual(expect.objectContaining({ target: "vite", field: "dependencies", package: "tinyglobby", status: "changed", base: "0.2.17", candidate: "0.2.18" }));
+    expect(rows).toContainEqual(expect.objectContaining({ target: "vite", field: "dependencies", package: "<redacted>", status: "added", candidate: "<redacted>" }));
+    expect(rows).toContainEqual(expect.objectContaining({ target: "vite", field: "optionalDependencies", package: "jiti", status: "removed", candidate: "<missing>" }));
+    expect(rows).toContainEqual(expect.objectContaining({ target: "react", field: "dependencies", package: "<redacted>", status: "added", candidate: "<redacted>" }));
+    expect(rows).toContainEqual(expect.objectContaining({ target: "vite", field: "dependencies", package: "postcss", candidate: "<redacted>" }));
+    expect(rows).toContainEqual(expect.objectContaining({ target: "vite", field: "dependencies", package: "rollup", candidate: "<redacted>" }));
+    expect(JSON.stringify(caught.diagnostic)).not.toContain(marker);
+    expect(JSON.stringify(caught.diagnostic)).not.toContain(prereleaseMarker);
+    expect(JSON.stringify(caught.diagnostic)).not.toContain(buildMarker);
+    expect(caught.diagnostic.total).toBe(rows.length);
+  });
+
+  it("caps aggregated diagnostics by rows and serialized bytes", () => {
+    const input = fixture();
+    const bad = rawLockWith((lock) => {
+      for (let index = 0; index < 48; index += 1) {
+        lock.snapshots[newKeys.vite].dependencies[`added-probe-${index}`] = "1.0.0";
+      }
+    });
+    let caught: any;
+    try {
+      core.projectViteLockfileCore({ ...input, rawLockfileText: bad });
+    } catch (error) {
+      caught = error;
+    }
+    expect(caught.code).toBe("LOCK_SNAPSHOT");
+    expect(caught.diagnostic.rows.length).toBeLessThanOrEqual(core.MAX_DIAGNOSTIC_ROWS);
+    expect(caught.diagnostic.total).toBe(48);
+    expect(caught.diagnostic.truncated).toBe(true);
+    expect(Buffer.byteLength(JSON.stringify(caught.diagnostic), "utf8")).toBeLessThanOrEqual(core.MAX_DIAGNOSTIC_BYTES);
   });
 
   it("rejects an extra Vite peer parent and an extra Vite dependency edge", () => {

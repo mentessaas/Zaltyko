@@ -40,6 +40,10 @@ const SNAPSHOT_DIAGNOSTIC_FIELDS = new Set([
   "dependencies", "optionalDependencies", "transitivePeerDependencies",
   "peerDependencies", "peerDependenciesMeta", "engines", "hasBin",
 ]);
+const MAX_DIAGNOSTIC_ROWS = 32;
+const MAX_DIAGNOSTIC_BYTES = 16 * 1024;
+const MAX_DIAGNOSTIC_LOCATOR_CHARS = 256;
+const snapshotDiagnosticAuthorities = new WeakMap();
 const FAILURE_CODES = new Set([
   "INPUT", "MANIFEST_JSON", "MANIFEST_DUPLICATE_KEY", "MANIFEST_PIN",
   "MANIFEST_SCOPE", "LOCK_FORMAT", "LOCK_TARGET_SET", "LOCK_REFERENCE",
@@ -61,27 +65,203 @@ function check(condition, code) { if (!condition) fail(code); }
 function sha256(text) { return createHash("sha256").update(text, "utf8").digest("hex"); }
 function clone(value) { return structuredClone(value); }
 
-function snapshotDiagnostic(name, status, baseBlock, candidateBlock) {
-  const fields = [...new Set([
-    ...Object.keys(baseBlock || {}),
-    ...Object.keys(candidateBlock || {}),
-  ])].filter((field) => !same(baseBlock?.[field], candidateBlock?.[field])).sort();
-  const field = fields.find((item) => SNAPSHOT_DIAGNOSTIC_FIELDS.has(item)) || "<unknown>";
-  const hashBlock = (block) => block === undefined
-    ? undefined
-    : sha256(JSON.stringify(stable(block)));
-  return new ViteProjectionFailure("LOCK_SNAPSHOT", {
-    target: name,
-    key: SNAPSHOT_DIAGNOSTIC_KEYS[name],
-    status,
-    field,
-    baseSha256: hashBlock(baseBlock),
-    candidateSha256: hashBlock(candidateBlock),
-  });
+function digest(value) { return sha256(JSON.stringify(stable(value))); }
+
+function validPackageName(value) {
+  return typeof value === "string" && value.length <= 128 &&
+    /^(?:@[a-z0-9][a-z0-9._-]{0,38}\/)?[a-z0-9][a-z0-9._-]{0,99}$/.test(value);
 }
 
-function failSnapshot(name, status, baseBlock, candidateBlock) {
-  throw snapshotDiagnostic(name, status, baseBlock, candidateBlock);
+const SEMVER_PREFIX = /^(?:0|[1-9]\d*)\.(?:0|[1-9]\d*)\.(?:0|[1-9]\d*)/;
+
+function validLocator(value, peerNames, depth = 0) {
+  if (typeof value !== "string" || value.length === 0 || value.length > MAX_DIAGNOSTIC_LOCATOR_CHARS || depth > 8) return false;
+  const version = value.match(SEMVER_PREFIX)?.[0];
+  if (!version) return false;
+  let offset = version.length;
+  while (offset < value.length) {
+    if (value[offset] !== "(") return false;
+    let nesting = 1;
+    let end = offset + 1;
+    for (; end < value.length && nesting > 0; end += 1) {
+      if (value[end] === "(") nesting += 1;
+      else if (value[end] === ")") nesting -= 1;
+    }
+    if (nesting !== 0) return false;
+    const peer = value.slice(offset + 1, end - 1);
+    const peerName = [...peerNames].sort((a, b) => b.length - a.length)
+      .find((name) => peer.startsWith(`${name}@`));
+    if (!peerName || !validLocator(peer.slice(peerName.length + 1), peerNames, depth + 1)) return false;
+    offset = end;
+  }
+  return true;
+}
+
+function blockPackageNames(blocks) {
+  const names = new Set();
+  for (const block of Object.values(blocks)) {
+    for (const field of ["dependencies", "optionalDependencies", "devDependencies"]) {
+      const map = block?.[field];
+      if (map && typeof map === "object" && !Array.isArray(map)) {
+        for (const name of Object.keys(map)) if (validPackageName(name)) names.add(name);
+      }
+    }
+    for (const name of Array.isArray(block?.transitivePeerDependencies) ? block.transitivePeerDependencies : []) {
+      if (validPackageName(name)) names.add(name);
+    }
+  }
+  return names;
+}
+
+function safePackageLabel(name, baselineNames) {
+  return baselineNames.has(name) && validPackageName(name) ? name : "<redacted>";
+}
+
+function edgeRow(target, field, name, status, baseValue, candidateValue, baselineNames, peerNames) {
+  const packageLabel = safePackageLabel(name, baselineNames);
+  const row = { target, field, package: packageLabel, status };
+  if (packageLabel === "<redacted>") row.keySha256 = sha256(String(name));
+  if (field !== "transitivePeerDependencies") {
+    const safeValue = (value) => {
+      if (value === undefined) return { label: "<missing>" };
+      if (validLocator(value, peerNames)) return { label: value };
+      return { label: "<redacted>", hash: digest(value) };
+    };
+    const base = safeValue(baseValue);
+    const candidate = safeValue(candidateValue);
+    row.base = base.label;
+    row.candidate = candidate.label;
+    if (base.hash) row.baseSha256 = base.hash;
+    if (candidate.hash) row.candidateSha256 = candidate.hash;
+  }
+  return row;
+}
+
+function snapshotDiffRows(base, normalizedBlocks) {
+  const rows = [];
+  const baseBlocks = Object.fromEntries(SNAPSHOT_TARGETS.map((name) => [name, base.snapshots[BASE_KEYS[name]]]));
+  const peerNames = blockPackageNames(baseBlocks);
+  for (const target of SNAPSHOT_TARGETS) {
+    const before = base.snapshots[BASE_KEYS[target]];
+    const after = normalizedBlocks[target];
+    const handledFields = new Set();
+    for (const field of ["dependencies", "optionalDependencies"]) {
+      const beforeMap = before?.[field] && typeof before[field] === "object" ? before[field] : {};
+      const afterMap = after?.[field] && typeof after[field] === "object" ? after[field] : {};
+      const names = [...new Set([...Object.keys(beforeMap), ...Object.keys(afterMap)])].sort();
+      for (const name of names) {
+        const hasBefore = Object.prototype.hasOwnProperty.call(beforeMap, name);
+        const hasAfter = Object.prototype.hasOwnProperty.call(afterMap, name);
+        if (hasBefore && hasAfter && same(beforeMap[name], afterMap[name])) continue;
+        rows.push(edgeRow(target, field, name, !hasBefore ? "added" : !hasAfter ? "removed" : "changed",
+          hasBefore ? beforeMap[name] : undefined, hasAfter ? afterMap[name] : undefined,
+          new Set(Object.keys(beforeMap)), peerNames));
+      }
+      handledFields.add(field);
+    }
+    const beforePeers = Array.isArray(before?.transitivePeerDependencies) ? before.transitivePeerDependencies : [];
+    const afterPeers = Array.isArray(after?.transitivePeerDependencies) ? after.transitivePeerDependencies : [];
+    for (const name of [...new Set([...beforePeers, ...afterPeers])].sort()) {
+      const hasBefore = beforePeers.includes(name);
+      const hasAfter = afterPeers.includes(name);
+      if (hasBefore === hasAfter) continue;
+      rows.push(edgeRow(target, "transitivePeerDependencies", name, hasBefore ? "removed" : "added",
+        undefined, undefined, new Set(beforePeers), peerNames));
+    }
+    handledFields.add("transitivePeerDependencies");
+
+    const allFields = [...new Set([...Object.keys(before || {}), ...Object.keys(after || {})])].sort();
+    for (const field of allFields) {
+      if (handledFields.has(field) || same(before?.[field], after?.[field])) continue;
+      const hasBefore = Object.prototype.hasOwnProperty.call(before || {}, field);
+      const hasAfter = Object.prototype.hasOwnProperty.call(after || {}, field);
+      rows.push({
+        target,
+        field: SNAPSHOT_DIAGNOSTIC_FIELDS.has(field) ? field : "<unknown>",
+        status: !hasBefore || !hasAfter ? "missing" : "different",
+        baseSha256: hasBefore ? digest(before[field]) : digest("<missing>"),
+        candidateSha256: hasAfter ? digest(after[field]) : digest("<missing>"),
+      });
+    }
+  }
+  return { rows, baseBlocks, peerNames };
+}
+
+function throwSnapshotDiagnostic(base, normalizedBlocks) {
+  const { rows: allRows, baseBlocks, peerNames } = snapshotDiffRows(base, normalizedBlocks);
+  const diagnostic = { total: allRows.length, truncated: false, rows: [] };
+  for (const row of allRows) {
+    if (diagnostic.rows.length >= MAX_DIAGNOSTIC_ROWS) { diagnostic.truncated = true; break; }
+    diagnostic.rows.push(row);
+    if (Buffer.byteLength(JSON.stringify(diagnostic), "utf8") > MAX_DIAGNOSTIC_BYTES) {
+      diagnostic.rows.pop();
+      diagnostic.truncated = true;
+      break;
+    }
+  }
+  diagnostic.truncated ||= diagnostic.rows.length < diagnostic.total;
+  const error = new ViteProjectionFailure("LOCK_SNAPSHOT", diagnostic);
+  const packageAllowlist = Object.fromEntries(SNAPSHOT_TARGETS.map((target) => [target, {
+    dependencies: new Set(Object.keys(baseBlocks[target]?.dependencies || {})),
+    optionalDependencies: new Set(Object.keys(baseBlocks[target]?.optionalDependencies || {})),
+    transitivePeerDependencies: new Set(Array.isArray(baseBlocks[target]?.transitivePeerDependencies)
+      ? baseBlocks[target].transitivePeerDependencies : []),
+  }]));
+  snapshotDiagnosticAuthorities.set(error, { diagnostic, packageAllowlist, peerNames });
+  throw error;
+}
+
+function validateSnapshotDiagnostic(error) {
+  const authority = error && snapshotDiagnosticAuthorities.get(error);
+  if (!(error instanceof ViteProjectionFailure) || error.code !== "LOCK_SNAPSHOT" || !authority) return false;
+  const diagnostic = error.diagnostic;
+  if (diagnostic !== authority.diagnostic) return false;
+  if (Object.keys(diagnostic).sort().join(",") !== "rows,total,truncated") return false;
+  if (!Number.isSafeInteger(diagnostic.total) || diagnostic.total < 1 || diagnostic.total > 1000000) return false;
+  if (!Array.isArray(diagnostic.rows) || diagnostic.rows.length > MAX_DIAGNOSTIC_ROWS) return false;
+  if (diagnostic.total < diagnostic.rows.length || diagnostic.truncated !== (diagnostic.total > diagnostic.rows.length)) return false;
+  if (Buffer.byteLength(JSON.stringify(diagnostic), "utf8") > MAX_DIAGNOSTIC_BYTES) return false;
+  const hashPattern = /^[a-f0-9]{64}$/;
+  const exactKeys = (object, allowed) => Object.keys(object).every((key) => allowed.includes(key));
+  const targets = new Set(SNAPSHOT_TARGETS);
+  for (const row of diagnostic.rows) {
+    if (!row || typeof row !== "object" || !targets.has(row.target)) return false;
+    if (row.field === "dependencies" || row.field === "optionalDependencies") {
+      if (!exactKeys(row, ["target", "field", "package", "status", "keySha256", "base", "candidate", "baseSha256", "candidateSha256"])) return false;
+      if (!["added", "removed", "changed"].includes(row.status)) return false;
+      const allowedNames = authority.packageAllowlist[row.target][row.field];
+      const isRedacted = row.package === "<redacted>";
+      if (isRedacted ? !hashPattern.test(row.keySha256 || "") : !allowedNames.has(row.package) || !validPackageName(row.package)) return false;
+      if (!isRedacted && Object.prototype.hasOwnProperty.call(row, "keySha256")) return false;
+      const safeValue = (value, hash) => {
+        if (value === "<missing>") return hash === undefined;
+        if (value === "<redacted>") return hashPattern.test(hash || "");
+        return validLocator(value, authority.peerNames) && hash === undefined;
+      };
+      if (!safeValue(row.base, row.baseSha256) || !safeValue(row.candidate, row.candidateSha256)) return false;
+      if (row.status === "added" && row.base !== "<missing>") return false;
+      if (row.status === "removed" && row.candidate !== "<missing>") return false;
+      if (row.status === "changed" && (row.base === "<missing>" || row.candidate === "<missing>")) return false;
+      continue;
+    }
+    if (row.field === "transitivePeerDependencies") {
+      if (!exactKeys(row, ["target", "field", "package", "status", "keySha256"])) return false;
+      if (row.status !== "added" && row.status !== "removed") return false;
+      const allowedNames = authority.packageAllowlist[row.target].transitivePeerDependencies;
+      const isRedacted = row.package === "<redacted>";
+      if (isRedacted ? !hashPattern.test(row.keySha256 || "") : !allowedNames.has(row.package) || !validPackageName(row.package)) return false;
+      if (!isRedacted && Object.prototype.hasOwnProperty.call(row, "keySha256")) return false;
+      continue;
+    }
+    if (!exactKeys(row, ["target", "field", "status", "baseSha256", "candidateSha256"])) return false;
+    if (!SNAPSHOT_DIAGNOSTIC_FIELDS.has(row.field) && row.field !== "<unknown>") return false;
+    if (row.status !== "missing" && row.status !== "different") return false;
+    if (row.baseSha256 !== undefined && !hashPattern.test(row.baseSha256)) return false;
+    if (row.candidateSha256 !== undefined && !hashPattern.test(row.candidateSha256)) return false;
+    if (row.status === "different" && (!row.baseSha256 || !row.candidateSha256)) return false;
+    if (row.status === "missing" && (!row.baseSha256 || !row.candidateSha256)) return false;
+  }
+  return true;
 }
 
 function stable(value) {
@@ -259,7 +439,7 @@ function normalizedSnapshotBlocks(candidate, keys) {
   for (const name of SNAPSHOT_TARGETS) {
     const candidateKey = keys[name];
     if (!candidate.snapshots || !Object.prototype.hasOwnProperty.call(candidate.snapshots, candidateKey)) {
-      failSnapshot(name, "missing", undefined, undefined);
+      fail("LOCK_SNAPSHOT");
     }
     rawBlocks[name] = clone(candidate.snapshots[candidateKey]);
   }
@@ -290,15 +470,8 @@ function normalizedSnapshotBlocks(candidate, keys) {
 
 function assertSnapshotBlocks(base, raw) {
   const normalizedBlocks = normalizedSnapshotBlocks(raw, RAW_KEYS);
-  for (const name of SNAPSHOT_TARGETS) {
-    const baseBlock = base.snapshots[BASE_KEYS[name]];
-    const candidateBlock = normalizedBlocks[name];
-    if (!same(candidateBlock, baseBlock)) {
-      const missingField = Object.keys(baseBlock || {}).some((field) =>
-        !Object.prototype.hasOwnProperty.call(candidateBlock || {}, field),
-      );
-      failSnapshot(name, missingField ? "missing" : "different", baseBlock, candidateBlock);
-    }
+  if (SNAPSHOT_TARGETS.some((name) => !same(normalizedBlocks[name], base.snapshots[BASE_KEYS[name]]))) {
+    throwSnapshotDiagnostic(base, normalizedBlocks);
   }
 }
 
@@ -471,6 +644,9 @@ module.exports = {
   INTEGRITY,
   SNAPSHOT_DIAGNOSTIC_KEYS,
   SNAPSHOT_DIAGNOSTIC_FIELDS: [...SNAPSHOT_DIAGNOSTIC_FIELDS],
+  MAX_DIAGNOSTIC_ROWS,
+  MAX_DIAGNOSTIC_BYTES,
+  validateSnapshotDiagnostic,
   ViteProjectionFailure,
   assertManifestEquivalentToBase,
   assertCandidateEquivalentToBase,
