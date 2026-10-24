@@ -8,9 +8,11 @@ import { createOperationalGroup } from "@/modules/groups/application/group-manag
 import { createAthleteForGroup } from "@/modules/groups/application/group-membership-service";
 import { createScheduledClass } from "@/modules/scheduling/application/class-management-service";
 import { createEnrollment } from "@/modules/enrollments/application/enrollment-service";
+import { recordAttendance } from "@/modules/attendance/application/attendance-service";
 
 const snapshotTables = [
   "athletes",
+  "attendance_records",
   "audit_log",
   "class_template_groups",
   "class_template_weekdays",
@@ -374,6 +376,42 @@ async function seedEnrollmentEligibilityAcademy() {
   };
 }
 
+async function seedAttendanceFixture() {
+  const academy = await seedEnrollmentEligibilityAcademy();
+  const enrollment = await createEnrollment({
+    organizationId: academy.organizationId,
+    locationId: academy.targetLocationId,
+    athleteId: academy.targetAthleteId,
+    classTemplateId: academy.classTemplateId,
+    status: "active",
+    startsOn: academy.startsOn,
+    source: "owner",
+    idempotencyKey: "ci-attendance-enrollment-" + randomUUID(),
+    actor: academy.actor,
+  });
+  const sessionId = randomUUID();
+  await db.execute(sql`
+    insert into zaltyko.sessions (
+      id, organization_id, location_id, class_template_id, status, starts_at, ends_at
+    )
+    values (
+      ${sessionId}::uuid,
+      ${academy.organizationId}::uuid,
+      ${academy.targetLocationId}::uuid,
+      ${academy.classTemplateId}::uuid,
+      'scheduled',
+      now() + interval '2 days',
+      now() + interval '2 days 1 hour'
+    )
+  `);
+
+  return {
+    ...academy,
+    enrollmentId: enrollment.id,
+    sessionId,
+  };
+}
+
 describe("Free capacity guards on disposable PostgreSQL", () => {
   it("serializes last-slot writes, replays winners once, and leaves no partial rows on denials", async () => {
     assertDisposableTarget();
@@ -595,5 +633,89 @@ describe("Free capacity guards on disposable PostgreSQL", () => {
       status: 404,
     });
     expect(await snapshot(fixture.organizationId)).toEqual(beforeRejectedEnrollment);
+  }, 45_000);
+
+  it("records attendance once under concurrent replay and rolls back partial writes", async () => {
+    assertDisposableTarget();
+    const fixture = await seedAttendanceFixture();
+    const idempotencyKey = "ci-attendance-replay-" + randomUUID();
+    const command = {
+      organizationId: fixture.organizationId,
+      expectedLocationId: fixture.targetLocationId,
+      sessionId: fixture.sessionId,
+      enrollmentId: fixture.enrollmentId,
+      status: "present" as const,
+      idempotencyKey,
+      actor: fixture.actor,
+    };
+
+    const beforeRecording = await snapshot(fixture.organizationId);
+    const concurrentResults = await Promise.all([
+      recordAttendance(command),
+      recordAttendance(command),
+    ]);
+    expect(concurrentResults[0]?.id).toBe(concurrentResults[1]?.id);
+    expect(concurrentResults[0]).toMatchObject({
+      organizationId: fixture.organizationId,
+      locationId: fixture.targetLocationId,
+      sessionId: fixture.sessionId,
+      enrollmentId: fixture.enrollmentId,
+      athleteId: fixture.targetAthleteId,
+      status: "present",
+    });
+
+    const afterRecording = await snapshot(fixture.organizationId);
+    expect(afterRecording).not.toEqual(beforeRecording);
+    expect(await recordAttendance(command)).toMatchObject({
+      id: concurrentResults[0]!.id,
+    });
+    expect(await snapshot(fixture.organizationId)).toEqual(afterRecording);
+
+    const persisted = await db.execute(sql`
+      select
+        (select count(*)::int from zaltyko.attendance_records
+          where organization_id = ${fixture.organizationId}::uuid
+            and session_id = ${fixture.sessionId}::uuid
+            and enrollment_id = ${fixture.enrollmentId}::uuid) as attendance_count,
+        (select count(*)::int from zaltyko.outbox_events
+          where organization_id = ${fixture.organizationId}::uuid
+            and event_name = 'attendance.recorded'
+            and idempotency_key = ${idempotencyKey}) as outbox_count,
+        (select count(*)::int from zaltyko.audit_log
+          where organization_id = ${fixture.organizationId}::uuid
+            and idempotency_key = ${idempotencyKey}) as audit_count
+    `);
+    expect(persisted.rows[0]).toEqual({
+      attendance_count: 1,
+      outbox_count: 1,
+      audit_count: 1,
+    });
+
+    const rollbackKey = "ci-attendance-rollback-" + randomUUID();
+    await db.execute(sql`
+      insert into zaltyko.audit_log (
+        organization_id, location_id, actor_user_id, action, target_type, idempotency_key
+      )
+      values (
+        ${fixture.organizationId}::uuid,
+        ${fixture.targetLocationId}::uuid,
+        ${fixture.actor.userId}::uuid,
+        'ci.conflict.seed',
+        'attendance',
+        ${rollbackKey}
+      )
+    `);
+    const beforeRollback = await snapshot(fixture.organizationId);
+    let rollbackError: unknown;
+    try {
+      await recordAttendance({ ...command, idempotencyKey: rollbackKey });
+    } catch (error) {
+      rollbackError = error;
+    }
+    expect(rollbackError).toMatchObject({
+      code: "23505",
+      constraint: "audit_log_idempotency_uq",
+    });
+    expect(await snapshot(fixture.organizationId)).toEqual(beforeRollback);
   }, 45_000);
 });
