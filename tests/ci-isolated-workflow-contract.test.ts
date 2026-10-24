@@ -3,7 +3,6 @@ import { resolve } from "node:path";
 import { describe, expect, it } from "vitest";
 
 const workflowPath = resolve(process.cwd(), ".github/workflows/ci-isolated.yml");
-const candidateBuildWorkflowPath = resolve(process.cwd(), ".github/workflows/candidate-build.yml");
 const directoryWorkflowPath = resolve(process.cwd(), ".github/workflows/directory-integrity.yml");
 const vitestConfigPath = resolve(process.cwd(), "vitest.config.ts");
 const sharedSetupPath = resolve(process.cwd(), "tests/setup.ts");
@@ -24,7 +23,6 @@ const lockfileGuard = require(lockfileGuardPath) as {
 
 describe("isolated CI workflow contract", () => {
   const workflow = readFileSync(workflowPath, "utf8");
-  const candidateBuildWorkflow = readFileSync(candidateBuildWorkflowPath, "utf8");
   const directoryWorkflow = readFileSync(directoryWorkflowPath, "utf8");
   const vitestConfig = readFileSync(vitestConfigPath, "utf8");
   const sharedSetup = readFileSync(sharedSetupPath, "utf8");
@@ -44,35 +42,34 @@ describe("isolated CI workflow contract", () => {
     expect(workflow).toMatch(/on:\s*\n\s+workflow_dispatch:/);
     expect(workflow).toContain("resolution_mode:");
     expect(workflow).toContain("default: checks");
+    expect(workflow).toContain("- remote-build");
     expect(workflow).toContain("- lockfile-refresh");
     expect(workflow).toContain("- vite-refresh");
     expect(workflow).toContain("expected_sha:");
-    expect(workflow).toContain("para lockfile-refresh o vite-refresh");
+    expect(workflow).toContain("SHA completo del HEAD seleccionado para build o resolución de lockfile");
     expect(workflow).toMatch(/permissions:\s*\n\s+contents:\s*read/);
     expect(workflow).toMatch(/persist-credentials:\s*false/);
     expect(workflow).not.toMatch(/^\s*(push|pull_request|schedule):/m);
   });
 
-  it("builds only an exact candidate SHA on a remote runner without secrets or deployment", () => {
-    expect(candidateBuildWorkflow).toMatch(/on:\s*\n\s+workflow_dispatch:/);
-    expect(candidateBuildWorkflow).toContain("expected_sha:");
-    expect(candidateBuildWorkflow).toMatch(/expected_sha:[\s\S]*?required:\s*true/);
-    expect(candidateBuildWorkflow).toContain("runs-on: ubuntu-latest");
-    expect(candidateBuildWorkflow).toContain("contents: read");
-    expect(candidateBuildWorkflow).toContain("persist-credentials: false");
-    expect(candidateBuildWorkflow).toContain("branch='codex/owner-isolated-validation-20261023'");
-    expect(candidateBuildWorkflow).toContain('[[ "$EXPECTED_SHA" == "$head_sha" ]]');
-    expect(candidateBuildWorkflow).toContain("pnpm install --frozen-lockfile");
-    expect(candidateBuildWorkflow).toContain("pnpm build");
-    expect(candidateBuildWorkflow).toContain("placeholder.supabase.co");
-    expect(candidateBuildWorkflow).toContain("placeholder:placeholder@placeholder:5432/placeholder");
-    expect(candidateBuildWorkflow).not.toMatch(/\bsecrets\.|SUPABASE_ACCESS_TOKEN|SUPABASE_DB_PASSWORD|SUPABASE_SERVICE_ROLE_KEY|STRIPE_SECRET_KEY|VERCEL_TOKEN|upload-artifact|uses:\s*vercel\/|actions\/deploy/i);
-    expect(candidateBuildWorkflow).not.toMatch(/^\s*(push|pull_request|schedule):/m);
-    expect(candidateBuildWorkflow).not.toMatch(/^\s*cache:/m);
+  it("builds only an exact candidate SHA on a remote runner with placeholders and no provider access", () => {
+    const buildJob = workflow.match(/  candidate-build:([\s\S]*?)(?=\n  lockfile-refresh:|$)/)?.[1] ?? "";
+    expect(buildJob).toContain("if: ${{ inputs.resolution_mode == 'remote-build' }}");
+    expect(buildJob).toContain("runs-on: ubuntu-latest");
+    expect(buildJob).toContain("contents: read");
+    expect(buildJob).toContain("persist-credentials: false");
+    expect(buildJob).toContain("branch='codex/owner-isolated-validation-20261023'");
+    expect(buildJob).toContain('[[ "$EXPECTED_SHA" == "$head_sha" ]]');
+    expect(buildJob).toContain("pnpm install --frozen-lockfile");
+    expect(buildJob).toContain("pnpm build");
+    expect(buildJob).toContain("placeholder.supabase.co");
+    expect(buildJob).toContain("placeholder:placeholder@placeholder:5432/placeholder");
+    expect(buildJob).not.toMatch(/\bsecrets\.|SUPABASE_ACCESS_TOKEN|SUPABASE_DB_PASSWORD|SUPABASE_SERVICE_ROLE_KEY|STRIPE_SECRET_KEY|VERCEL_TOKEN|upload-artifact|uses:\s*vercel\/|actions\/deploy/i);
+    expect(buildJob).not.toMatch(/^\s*cache:/m);
   });
 
   it("keeps the existing checks unconditional and isolates the optional lockfile refresh", () => {
-    const checksJob = workflow.match(/  static-and-unit:([\s\S]*?)(?=\n  lockfile-refresh:|\n  vite-refresh:|$)/)?.[1] ?? "";
+    const checksJob = workflow.match(/  static-and-unit:([\s\S]*?)(?=\n  candidate-build:|$)/)?.[1] ?? "";
     const refreshJob = workflow.match(/  lockfile-refresh:([\s\S]*?)(?=\n  vite-refresh:|$)/)?.[1] ?? "";
     const checksJobHeader = checksJob.split("\n    steps:")[0] ?? "";
     expect(checksJobHeader).not.toMatch(/^\s+if:/m);
@@ -197,7 +194,7 @@ describe("isolated CI workflow contract", () => {
     expect(workflow).toContain("http://127.0.0.1:54321");
     expect(workflow).toContain("postgresql://local:local@127.0.0.1:54322/local_ci");
     expect(workflow).not.toMatch(/\bsecrets\./i);
-    const checksJob = workflow.match(/  static-and-unit:([\s\S]*?)(?=\n  lockfile-refresh:|\n  vite-refresh:|$)/)?.[1] ?? "";
+    const checksJob = workflow.match(/  static-and-unit:([\s\S]*?)(?=\n  candidate-build:|$)/)?.[1] ?? "";
     const actions = [...checksJob.matchAll(/^\s+uses:\s*(\S+)/gm)].map((match) => match[1]);
     expect(actions).toEqual([
       "actions/checkout@v7",
@@ -231,7 +228,7 @@ describe("isolated CI workflow contract", () => {
   });
 
   it("keeps static gates and runs checks in the network namespace", () => {
-    const checksJob = workflow.match(/  static-and-unit:([\s\S]*?)(?=\n  lockfile-refresh:|\n  vite-refresh:|$)/)?.[1] ?? "";
+    const checksJob = workflow.match(/  static-and-unit:([\s\S]*?)(?=\n  candidate-build:|$)/)?.[1] ?? "";
     expect(workflow).toContain("sudo unshare --net");
     expect(workflow).toContain('ip link set lo up && test "$(ip -o link show | wc -l)" -eq 1');
     expect(checksJob.match(/run: sudo --preserve-env=[^\n]* unshare --net -- bash -euc/g)).toHaveLength(7);

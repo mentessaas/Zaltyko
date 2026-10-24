@@ -4,16 +4,17 @@ on:
   workflow_dispatch:
     inputs:
       resolution_mode:
-        description: "Ejecución habitual o propuesta remota de actualización del lockfile"
+        description: "Controles habituales, build candidato remoto o propuesta de lockfile"
         type: choice
         required: true
         default: checks
         options:
           - checks
+          - remote-build
           - lockfile-refresh
           - vite-refresh
       expected_sha:
-        description: "SHA completo del HEAD seleccionado (para lockfile-refresh o vite-refresh)"
+        description: "SHA completo del HEAD seleccionado para build o resolución de lockfile"
         type: string
         required: false
         default: ""
@@ -92,6 +93,61 @@ jobs:
       - name: Run strict static application gates
         if: always() && !cancelled() && steps.dependencies.outcome == 'success' && steps.network-isolation.outcome == 'success'
         run: sudo --preserve-env=PATH,HOME,CI,NODE_ENV,NEXT_PUBLIC_APP_URL,NEXT_PUBLIC_SUPABASE_URL,NEXT_PUBLIC_SUPABASE_ANON_KEY,DATABASE_URL,DATABASE_URL_POOL,DATABASE_URL_DIRECT,INTERNAL_AUTH_SECRET,SUPABASE_JWT_SECRET unshare --net -- bash -euc 'ip link set lo up && exec "$@"' isolated-check pnpm gate:all
+
+  candidate-build:
+    name: Remote candidate build only
+    if: ${{ inputs.resolution_mode == 'remote-build' }}
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    permissions:
+      contents: read
+    env:
+      EXPECTED_SHA: ${{ inputs.expected_sha }}
+      DISPATCH_SHA: ${{ github.sha }}
+      DISPATCH_REF: ${{ github.ref }}
+      NODE_ENV: production
+      NEXT_TELEMETRY_DISABLED: "1"
+      NEXT_PUBLIC_APP_URL: https://candidate-build.invalid
+      NEXT_PUBLIC_SUPABASE_URL: https://placeholder.supabase.co
+      NEXT_PUBLIC_SUPABASE_ANON_KEY: placeholder-anon-key-for-candidate-build
+      DATABASE_URL: postgresql://placeholder:placeholder@placeholder:5432/placeholder
+      DATABASE_URL_POOL: postgresql://placeholder:placeholder@placeholder:5432/placeholder
+      DATABASE_URL_DIRECT: postgresql://placeholder:placeholder@placeholder:5432/placeholder
+      INTERNAL_AUTH_SECRET: placeholder-internal-auth-secret-for-candidate-build
+      SUPABASE_JWT_SECRET: placeholder-supabase-jwt-secret-for-candidate-build
+    steps:
+      - name: Checkout without persisted credentials
+        uses: actions/checkout@v7
+        with:
+          persist-credentials: false
+
+      - name: Require the candidate branch and exact SHA
+        shell: bash
+        run: |
+          set -euo pipefail
+          branch='codex/owner-isolated-validation-20261023'
+          head_sha="$(git rev-parse HEAD)"
+          [[ "$GITHUB_REF" == "refs/heads/$branch" ]]
+          [[ "$DISPATCH_REF" == "refs/heads/$branch" ]]
+          [[ "$EXPECTED_SHA" =~ ^[0-9a-f]{40}$ ]]
+          [[ "$DISPATCH_SHA" == "$head_sha" ]]
+          [[ "$EXPECTED_SHA" == "$head_sha" ]]
+
+      - name: Setup pnpm 9.15.9
+        uses: pnpm/action-setup@v6
+        with:
+          version: 9.15.9
+
+      - name: Setup Node.js 20
+        uses: actions/setup-node@v7
+        with:
+          node-version: "20"
+
+      - name: Install frozen dependencies
+        run: pnpm install --frozen-lockfile
+
+      - name: Build candidate with placeholders only
+        run: pnpm build
 
   lockfile-refresh:
     name: Propose targeted dependency lockfile refresh
