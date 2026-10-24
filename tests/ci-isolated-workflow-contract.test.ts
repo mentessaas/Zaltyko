@@ -1,3 +1,4 @@
+import { createHash } from "node:crypto";
 import { readFileSync } from "node:fs";
 import { resolve } from "node:path";
 import { describe, expect, it } from "vitest";
@@ -16,6 +17,15 @@ const lockfileGuardPath = resolve(process.cwd(), "scripts/ci/validate-lockfile-r
 const imagePreloaderPath = resolve(
   process.cwd(),
   "scripts/ci/preload-local-e2e-images.ts"
+);
+const schemaBaselinePath = resolve(
+  process.cwd(),
+  "supabase/migrations/20261024172153_sandbox_schema_snapshot_baseline.sql"
+);
+const schemaSnapshotManifestPath = resolve(process.cwd(), "supabase/schema-snapshot-manifest.json");
+const schemaRlsHardeningMigrationPath = resolve(
+  process.cwd(),
+  "supabase/migrations/20261024193934_rls_guard_missing_public_tables.sql"
 );
 
 const lockfileGuard = require(lockfileGuardPath) as {
@@ -165,7 +175,132 @@ describe("isolated CI workflow contract", () => {
     expect(refreshJob).not.toMatch(/\bsecrets\.|cache:|upload-artifact|git push|git commit|pnpm (?:build|typecheck|test)\b/i);
   });
 
-  it("replays the baseline only on an exact-SHA disposable local Supabase stack", () => {
+  it("keeps the schema baseline byte-exact and authorizes one ordered RLS hardening migration", () => {
+    const baseline = readFileSync(schemaBaselinePath);
+    const manifest = JSON.parse(readFileSync(schemaSnapshotManifestPath, "utf8")) as {
+      baseline: { sha256: string };
+    };
+    const hardeningMigration = readFileSync(schemaRlsHardeningMigrationPath, "utf8");
+    const baselineSha256 = createHash("sha256").update(baseline).digest("hex");
+    const hardeningSha256 = createHash("sha256").update(hardeningMigration).digest("hex");
+    const createdRelations = [...hardeningMigration.matchAll(/CREATE TABLE public\.([a-z_]+)/g)].map(
+      (match) => `public.${match[1]}`
+    );
+    const denyPolicyRelations = [
+      ...hardeningMigration.matchAll(
+        /CREATE POLICY deny_all_non_bypass_access ON ((?:public|zaltyko)\.[a-z_]+)/g
+      ),
+    ].map((match) => match[1]);
+    const expectedDenyPolicyRelations = [
+      "public.actor_pages",
+      "public.athlete_skills",
+      "public.products",
+      "public.sales",
+      "zaltyko.audit_log",
+      "zaltyko.family_collection_preferences",
+      "zaltyko.family_payment_authorizations",
+      "zaltyko.health_score_metric_contributions",
+      "zaltyko.insight_notifications",
+      "zaltyko.insight_run_observations",
+      "zaltyko.insight_status_history",
+      "zaltyko.metric_event_consumptions",
+      "zaltyko.metric_invalidations",
+      "zaltyko.organization_bootstrap_commands",
+      "zaltyko.organization_entitlement_changes",
+      "zaltyko.organization_entitlements",
+      "zaltyko.organization_payment_provider_accounts",
+      "zaltyko.organization_saas_checkout_operations",
+      "zaltyko.organization_saas_customers",
+      "zaltyko.organization_saas_subscriptions",
+      "zaltyko.organization_saas_trials",
+      "zaltyko.organization_saas_webhook_events",
+      "zaltyko.organization_saas_webhook_payload_conflicts",
+      "zaltyko.organization_saas_webhook_reconciliation_decisions",
+      "zaltyko.organization_saas_webhook_reconciliation_results",
+      "zaltyko.outbox_events",
+      "zaltyko.payment_provider_events",
+    ];
+    const replayScript = readFileSync(
+      resolve(process.cwd(), "scripts/ci/verify-sandbox-schema-replay.sh"),
+      "utf8"
+    );
+    const tenantFixture = readFileSync(
+      resolve(process.cwd(), "scripts/ci/sandbox-tenant-isolation.sql"),
+      "utf8"
+    );
+    const fixtureTenantRelations = [
+      ...tenantFixture.matchAll(/^\s+'((?:public|zaltyko)\.[a-z_]+)',?$/gm),
+    ].map((match) => match[1]);
+
+    expect(baselineSha256).toBe("fd1bf2597b0dfd40dc6db824fa24773461f2776fa2ed7c994649be534c6a4b36");
+    expect(manifest.baseline.sha256).toBe(baselineSha256);
+    expect(hardeningSha256).toBe("a3673a5263356811473a1f50f13d7eef55659761282be62866be0ce4271734c0");
+    expect(createdRelations).toEqual([
+      "public.actor_pages",
+      "public.athlete_skills",
+      "public.products",
+      "public.sales",
+    ]);
+    expect(denyPolicyRelations).toEqual(expectedDenyPolicyRelations);
+    expect(fixtureTenantRelations).toEqual(expectedDenyPolicyRelations);
+    expect(hardeningMigration.match(/REVOKE ALL PRIVILEGES ON TABLE public\./g)).toHaveLength(4);
+    expect(hardeningMigration.match(/TO service_role;/g)).toHaveLength(4);
+    expect(hardeningMigration).toContain("AS RESTRICTIVE FOR ALL TO PUBLIC USING (false) WITH CHECK (false)");
+
+    expect(replayScript).toContain(
+      'readonly MIGRATION_NAME="20261024172153_sandbox_schema_snapshot_baseline.sql"'
+    );
+    expect(replayScript).toContain(
+      'readonly RLS_HARDENING_MIGRATION_NAME="20261024193934_rls_guard_missing_public_tables.sql"'
+    );
+    expect(replayScript).toContain(`readonly BASELINE_SHA256="${baselineSha256}"`);
+    expect(replayScript).toContain(`readonly RLS_HARDENING_MIGRATION_SHA256="${hardeningSha256}"`);
+    expect(replayScript).toContain(
+      '[[ "${#migrations[@]}" -eq 2 && "${migrations[0]}" == "$MIGRATION_NAME" && "${migrations[1]}" == "$RLS_HARDENING_MIGRATION_NAME" ]]'
+    );
+    expect(replayScript).toContain("The current-state baseline bytes differ from the reviewed snapshot.");
+    expect(replayScript).toContain("The RLS hardening migration differs from the reviewed candidate.");
+    expect(replayScript).toContain(
+      'readonly RLS_HARDENING_MIGRATION_FILE="$RUNNER_TEMP/$PROJECT_ID-rls-hardening-migration.sql"'
+    );
+    expect(replayScript).toContain(
+      'cat -- "$ROLE_GUARD_FILE" "$ROOT/supabase/migrations/$RLS_HARDENING_MIGRATION_NAME" \\\n  >"$RLS_HARDENING_MIGRATION_FILE"'
+    );
+    expect(replayScript).toContain('chmod 600 "$RLS_HARDENING_MIGRATION_FILE"');
+    expect(replayScript).toContain('cp -- "$RLS_HARDENING_MIGRATION_FILE"');
+    const baselineCopyIndex = replayScript.indexOf(
+      'cp -- "$MARKED_BASELINE_FILE" "$CI_WORKDIR/supabase/migrations/$MIGRATION_NAME"'
+    );
+    const baselineReplayIndex = replayScript.indexOf(
+      'migration up --db-url "$LOCAL_DB_URL"',
+      baselineCopyIndex
+    );
+    const hardeningConcatIndex = replayScript.indexOf(
+      'cat -- "$ROLE_GUARD_FILE" "$ROOT/supabase/migrations/$RLS_HARDENING_MIGRATION_NAME"'
+    );
+    const hardeningCopyIndex = replayScript.indexOf('cp -- "$RLS_HARDENING_MIGRATION_FILE"');
+    const hardeningReplayIndex = replayScript.indexOf(
+      'migration up --db-url "$LOCAL_DB_URL"',
+      hardeningCopyIndex
+    );
+    expect(baselineCopyIndex).toBeGreaterThanOrEqual(0);
+    expect(baselineReplayIndex).toBeGreaterThan(baselineCopyIndex);
+    expect(hardeningConcatIndex).toBeGreaterThan(baselineReplayIndex);
+    expect(hardeningCopyIndex).toBeGreaterThan(hardeningConcatIndex);
+    expect(hardeningReplayIndex).toBeGreaterThan(hardeningCopyIndex);
+    expect(hardeningReplayIndex).toBeLessThan(
+      replayScript.indexOf('cat -- "$ROLE_GUARD_FILE" "$ROOT/scripts/ci/sandbox-tenant-isolation.sql"')
+    );
+    expect(tenantFixture).toContain("required tenant relation % is missing");
+    expect(tenantFixture).toContain("relrowsecurity");
+    expect(tenantFixture).toContain("relforcerowsecurity");
+    expect(tenantFixture).toContain("p.polroles = ARRAY[0::oid]");
+    expect(tenantFixture).toContain("has_table_privilege(v_role, v_relation_oid, v_privilege)");
+    expect(tenantFixture).toContain("has_column_privilege(v_role, v_relation_oid, v_column_number, v_privilege)");
+    expect(tenantFixture).toContain("'MAINTAIN'");
+  });
+
+  it("replays the baseline and reviewed hardening migration only on an exact-SHA disposable local Supabase stack", () => {
     const replayJob = workflow.match(/  schema-replay:([\s\S]*?)(?=\n  candidate-build:|$)/)?.[1] ?? "";
     const replayScript = readFileSync(resolve(process.cwd(), "scripts/ci/verify-sandbox-schema-replay.sh"), "utf8");
     const replayHeader = replayJob.split("\n    steps:")[0] ?? "";
@@ -220,9 +355,10 @@ describe("isolated CI workflow contract", () => {
     expect(replayScript).not.toContain("GRANT supabase_admin TO postgres");
     expect(replayScript).not.toContain("REVOKE supabase_admin FROM postgres");
     expect(replayScript).not.toContain("CREATE ROLE");
-    expect(replayScript).toContain('readonly TENANT_MIGRATION_NAME="20261024172154_sandbox_tenant_isolation.sql"');
-    expect(replayScript).toContain('readonly GUARD_PROBE_NAME="20261024172155_sandbox_schema_guard_probe.sql"');
-    expect(replayScript).toContain('readonly UNMARKED_PROBE_NAME="20261024172156_sandbox_schema_unmarked_guard_probe.sql"');
+    expect(replayScript).toContain('readonly RLS_HARDENING_MIGRATION_NAME="20261024193934_rls_guard_missing_public_tables.sql"');
+    expect(replayScript).toContain('readonly TENANT_MIGRATION_NAME="20261024193935_sandbox_tenant_isolation.sql"');
+    expect(replayScript).toContain('readonly GUARD_PROBE_NAME="20261024193936_sandbox_schema_guard_probe.sql"');
+    expect(replayScript).toContain('readonly UNMARKED_PROBE_NAME="20261024193937_sandbox_schema_unmarked_guard_probe.sql"');
     expect(replayScript).toContain("--runtime native");
     expect(replayScript).toContain("--exclude rest,auth,realtime,storage,functions,studio,mail,analytics,pooler");
     expect(replayScript).toContain('"$CLI" --workdir "$CI_WORKDIR" stack stop --stack "$PROJECT_ID"');

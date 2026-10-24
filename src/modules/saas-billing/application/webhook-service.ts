@@ -15,7 +15,10 @@ import {
 } from "@/db/zaltyko-schema";
 import type { TransactionClient } from "@/lib/db-transactions";
 import { OperationalError } from "@/modules/shared/domain/operational-error";
-import { lockOrganizationForSaasMutation } from "./entitlement-service";
+import {
+  grantOrganizationEntitlement,
+  lockOrganizationForSaasMutation,
+} from "./entitlement-service";
 import {
   createSaasStripeClient,
   type SaasBillingInterval,
@@ -968,21 +971,16 @@ async function processPaidInvoice(input: {
         )
       );
   }
-  const [updatedEntitlement] = await tx
-    .update(organizationEntitlements)
-    .set({
-      planCode: mappedPrice.planCode,
-      source: "stripe_subscription",
-      sourceReference: `stripe-invoice:${invoiceId}`,
-      subscriptionId: subscriptionRowId,
-      trialId: null,
-      effectiveFrom: periodStartedAt,
-      effectiveUntil: periodEndsAt,
-      updatedAt: sql`now()`,
-    })
-    .where(eq(organizationEntitlements.organizationId, organizationId))
-    .returning({ revision: organizationEntitlements.revision });
-  if (!updatedEntitlement) throw schemaUnavailable();
+  await grantOrganizationEntitlement(tx, {
+    organizationId,
+    planCode: mappedPrice.planCode,
+    source: "stripe_subscription",
+    sourceReference: `stripe-invoice:${invoiceId}`,
+    subscriptionId: subscriptionRowId,
+    trialId: null,
+    effectiveFrom: periodStartedAt,
+    effectiveUntil: periodEndsAt,
+  });
 
   if (
     operation &&

@@ -3,6 +3,110 @@
 -- Every row is inside a transaction that is rolled back at the end.
 BEGIN;
 
+-- Do not let a tenant-scoped table disappear from the replay or silently lose
+-- its fail-closed posture. has_table_privilege checks effective ACLs, including
+-- PUBLIC grants and inherited role grants, before any client can reach RLS.
+DO $assert_server_only_tenant_relations$
+DECLARE
+  v_relation_name text;
+  v_relation_oid oid;
+  v_role name;
+  v_privilege text;
+  v_column_name name;
+  v_column_number smallint;
+  v_policy_count integer;
+  v_tenant_relations constant text[] := ARRAY[
+    'public.actor_pages',
+    'public.athlete_skills',
+    'public.products',
+    'public.sales',
+    'zaltyko.audit_log',
+    'zaltyko.family_collection_preferences',
+    'zaltyko.family_payment_authorizations',
+    'zaltyko.health_score_metric_contributions',
+    'zaltyko.insight_notifications',
+    'zaltyko.insight_run_observations',
+    'zaltyko.insight_status_history',
+    'zaltyko.metric_event_consumptions',
+    'zaltyko.metric_invalidations',
+    'zaltyko.organization_bootstrap_commands',
+    'zaltyko.organization_entitlement_changes',
+    'zaltyko.organization_entitlements',
+    'zaltyko.organization_payment_provider_accounts',
+    'zaltyko.organization_saas_checkout_operations',
+    'zaltyko.organization_saas_customers',
+    'zaltyko.organization_saas_subscriptions',
+    'zaltyko.organization_saas_trials',
+    'zaltyko.organization_saas_webhook_events',
+    'zaltyko.organization_saas_webhook_payload_conflicts',
+    'zaltyko.organization_saas_webhook_reconciliation_decisions',
+    'zaltyko.organization_saas_webhook_reconciliation_results',
+    'zaltyko.outbox_events',
+    'zaltyko.payment_provider_events'
+  ];
+  v_client_roles constant name[] := ARRAY['anon'::name, 'authenticated'::name];
+  v_table_privileges constant text[] := ARRAY[
+    'SELECT', 'INSERT', 'UPDATE', 'DELETE', 'TRUNCATE', 'REFERENCES', 'TRIGGER', 'MAINTAIN'
+  ];
+  v_column_privileges constant text[] := ARRAY['SELECT', 'INSERT', 'UPDATE', 'REFERENCES'];
+BEGIN
+  FOREACH v_relation_name IN ARRAY v_tenant_relations LOOP
+    v_relation_oid := to_regclass(v_relation_name);
+    IF v_relation_oid IS NULL THEN
+      RAISE EXCEPTION 'RLS guard failed: required tenant relation % is missing', v_relation_name;
+    END IF;
+
+    IF NOT EXISTS (
+      SELECT 1
+      FROM pg_class c
+      WHERE c.oid = v_relation_oid
+        AND c.relkind IN ('r', 'p')
+        AND c.relrowsecurity
+        AND c.relforcerowsecurity
+    ) THEN
+      RAISE EXCEPTION 'RLS guard failed: required tenant relation % is not RLS enabled and forced', v_relation_name;
+    END IF;
+
+    SELECT count(*) INTO v_policy_count
+    FROM pg_policy p
+    WHERE p.polrelid = v_relation_oid
+      AND p.polname = 'deny_all_non_bypass_access'
+      AND p.polcmd = '*'
+      AND NOT p.polpermissive
+      AND p.polroles = ARRAY[0::oid]
+      AND pg_get_expr(p.polqual, p.polrelid) = 'false'
+      AND pg_get_expr(p.polwithcheck, p.polrelid) = 'false';
+    IF v_policy_count <> 1 THEN
+      RAISE EXCEPTION 'RLS guard failed: required restrictive PUBLIC deny policy is missing or malformed on %', v_relation_name;
+    END IF;
+
+    FOREACH v_role IN ARRAY v_client_roles LOOP
+      FOREACH v_privilege IN ARRAY v_table_privileges LOOP
+        IF has_table_privilege(v_role, v_relation_oid, v_privilege) THEN
+          RAISE EXCEPTION 'RLS guard failed: role % has effective % privilege on %',
+            v_role, v_privilege, v_relation_name;
+        END IF;
+      END LOOP;
+
+      FOR v_column_name, v_column_number IN
+        SELECT a.attname, a.attnum
+        FROM pg_attribute a
+        WHERE a.attrelid = v_relation_oid
+          AND a.attnum > 0
+          AND NOT a.attisdropped
+      LOOP
+        FOREACH v_privilege IN ARRAY v_column_privileges LOOP
+          IF has_column_privilege(v_role, v_relation_oid, v_column_number, v_privilege) THEN
+            RAISE EXCEPTION 'RLS guard failed: role % has effective % privilege on %.%',
+              v_role, v_privilege, v_relation_name, v_column_name;
+          END IF;
+        END LOOP;
+      END LOOP;
+    END LOOP;
+  END LOOP;
+END
+$assert_server_only_tenant_relations$;
+
 INSERT INTO auth.users (
   id,
   email

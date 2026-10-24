@@ -6,9 +6,12 @@ readonly EXPECTED_BRANCH="codex/owner-isolated-validation-20261023"
 readonly ROLE_PROBE_NAME="20261024172151_sandbox_replay_principal_probe.sql"
 readonly AUTH_JWT_MIGRATION_NAME="20261024172152_supabase_auth_jwt_platform_prerequisite.sql"
 readonly MIGRATION_NAME="20261024172153_sandbox_schema_snapshot_baseline.sql"
-readonly TENANT_MIGRATION_NAME="20261024172154_sandbox_tenant_isolation.sql"
-readonly GUARD_PROBE_NAME="20261024172155_sandbox_schema_guard_probe.sql"
-readonly UNMARKED_PROBE_NAME="20261024172156_sandbox_schema_unmarked_guard_probe.sql"
+readonly BASELINE_SHA256="fd1bf2597b0dfd40dc6db824fa24773461f2776fa2ed7c994649be534c6a4b36"
+readonly RLS_HARDENING_MIGRATION_NAME="20261024193934_rls_guard_missing_public_tables.sql"
+readonly RLS_HARDENING_MIGRATION_SHA256="a3673a5263356811473a1f50f13d7eef55659761282be62866be0ce4271734c0"
+readonly TENANT_MIGRATION_NAME="20261024193935_sandbox_tenant_isolation.sql"
+readonly GUARD_PROBE_NAME="20261024193936_sandbox_schema_guard_probe.sql"
+readonly UNMARKED_PROBE_NAME="20261024193937_sandbox_schema_unmarked_guard_probe.sql"
 readonly SUPABASE_CLI_VERSION="2.119.0"
 readonly ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/../.." && pwd)"
 
@@ -40,6 +43,7 @@ readonly STATUS_LOG="$RUNNER_TEMP/$PROJECT_ID-status.json"
 readonly STATUS_ERROR_LOG="$RUNNER_TEMP/$PROJECT_ID-status.stderr"
 readonly LOCAL_DB_URL_FILE="$RUNNER_TEMP/$PROJECT_ID-local-db-url"
 readonly ROLE_GUARD_FILE="$RUNNER_TEMP/$PROJECT_ID-role-guard.sql"
+readonly RLS_HARDENING_MIGRATION_FILE="$RUNNER_TEMP/$PROJECT_ID-rls-hardening-migration.sql"
 readonly AUTH_JWT_ERROR_LOG="$RUNNER_TEMP/$PROJECT_ID-auth-jwt-state.stderr"
 readonly AUTH_JWT_MIGRATION_FILE="$RUNNER_TEMP/$PROJECT_ID-auth-jwt-migration.sql"
 readonly MARKED_BASELINE_FILE="$RUNNER_TEMP/$PROJECT_ID-marked-baseline.sql"
@@ -57,6 +61,7 @@ cleanup() {
     "$RUNNER_TEMP/supabase-schema-replay-cli-$SUPABASE_CLI_VERSION" \
     "$RUNNER_TEMP/supabase_${SUPABASE_CLI_VERSION}_linux_amd64.tar.gz" \
     "$START_LOG" "$STATUS_LOG" "$STATUS_ERROR_LOG" "$LOCAL_DB_URL_FILE" "$ROLE_GUARD_FILE" \
+    "$RLS_HARDENING_MIGRATION_FILE" \
     "$AUTH_JWT_ERROR_LOG" "$AUTH_JWT_MIGRATION_FILE" \
     "$MARKED_BASELINE_FILE" "$REPLAY_LOG" "$TENANT_LOG" "$GUARD_LOG" "$UNMARKED_GUARD_LOG"
 }
@@ -197,7 +202,11 @@ Path(destination).write_text(text, encoding="utf-8")
 PY
 
 mapfile -t migrations < <(find "$ROOT/supabase/migrations" -maxdepth 1 -type f -name '*.sql' -printf '%f\n' | sort)
-[[ "${#migrations[@]}" -eq 1 && "${migrations[0]}" == "$MIGRATION_NAME" ]] || fail "Expected exactly the reviewed current-state baseline migration."
+[[ "${#migrations[@]}" -eq 2 && "${migrations[0]}" == "$MIGRATION_NAME" && "${migrations[1]}" == "$RLS_HARDENING_MIGRATION_NAME" ]] || fail "Expected only the reviewed baseline and its single RLS hardening migration, in exact order."
+baseline_sha256="$(sha256sum "$ROOT/supabase/migrations/$MIGRATION_NAME" | awk '{print $1}')"
+[[ "$baseline_sha256" == "$BASELINE_SHA256" ]] || fail "The current-state baseline bytes differ from the reviewed snapshot."
+rls_hardening_sha256="$(sha256sum "$ROOT/supabase/migrations/$RLS_HARDENING_MIGRATION_NAME" | awk '{print $1}')"
+[[ "$rls_hardening_sha256" == "$RLS_HARDENING_MIGRATION_SHA256" ]] || fail "The RLS hardening migration differs from the reviewed candidate."
 
 # Start only disposable native Postgres rather than Docker images or the full
 # Supabase service stack. The stack is one-run, native mode is explicitly
@@ -504,6 +513,20 @@ if ! "$CLI" --workdir "$CI_WORKDIR" migration up --db-url "$LOCAL_DB_URL" \
   fail "The marker-guarded baseline did not replay on disposable local Postgres."
 fi
 
+# Apply only the second reviewed migration after the byte-pinned baseline has
+# replayed successfully. Keeping these applications separate preserves the
+# current-state empty-database guard and makes the order explicit.
+cat -- "$ROLE_GUARD_FILE" "$ROOT/supabase/migrations/$RLS_HARDENING_MIGRATION_NAME" \
+  >"$RLS_HARDENING_MIGRATION_FILE"
+chmod 600 "$RLS_HARDENING_MIGRATION_FILE"
+cp -- "$RLS_HARDENING_MIGRATION_FILE" \
+  "$CI_WORKDIR/supabase/migrations/$RLS_HARDENING_MIGRATION_NAME"
+if ! "$CLI" --workdir "$CI_WORKDIR" migration up --db-url "$LOCAL_DB_URL" \
+  >"$REPLAY_LOG" 2>&1; then
+  diagnose_marker_failure
+  fail "The reviewed RLS hardening migration did not apply after the current-state baseline."
+fi
+
 cat -- "$ROLE_GUARD_FILE" "$ROOT/scripts/ci/sandbox-tenant-isolation.sql" \
   >"$CI_WORKDIR/supabase/migrations/$TENANT_MIGRATION_NAME"
 chmod 600 "$CI_WORKDIR/supabase/migrations/$TENANT_MIGRATION_NAME"
@@ -534,8 +557,8 @@ if ! grep -Fq 'isolated CI replay marker is missing' "$UNMARKED_GUARD_LOG"; then
   fail "Baseline reapplication without the marker failed for an unexpected reason."
 fi
 
-printf 'PASS: current-state snapshot replayed on an empty disposable Postgres database.\n'
-printf 'PASS: synthetic two-academy RLS reads, writes, and rollback were verified.\n'
+printf 'PASS: exact baseline and its single reviewed RLS migration replayed on empty disposable Postgres.\n'
+printf 'PASS: 27-table RLS, deny-policy, anon/authenticated ACL, two-academy isolation, writes, and rollback checks passed.\n'
 printf 'PASS: baseline guards refused populated and unmarked databases before DDL.\n'
 unset LOCAL_DB_URL
 unset EXPECTED_LOCAL_PORT

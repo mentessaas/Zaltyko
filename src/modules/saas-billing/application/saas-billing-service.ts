@@ -17,6 +17,7 @@ import { getAppUrl, getDatabaseUrl } from "@/lib/env";
 import { OperationalError } from "@/modules/shared/domain/operational-error";
 import type { OwnerSaasBillingSnapshot } from "../domain/owner-saas-contract";
 import {
+  grantOrganizationEntitlement,
   lockOrganizationForSaasMutation,
   resolveEffectiveOrganizationEntitlement,
 } from "./entitlement-service";
@@ -388,21 +389,16 @@ export async function startOwnerSaasTrial(input: {
       .returning();
     if (!trial) throw schemaUnavailable();
 
-    const [updatedEntitlement] = await tx
-      .update(organizationEntitlements)
-      .set({
-        planCode: "starter",
-        source: "trial",
-        sourceReference: `saas-trial:${trial.id}`,
-        subscriptionId: null,
-        trialId: trial.id,
-        effectiveFrom: trial.startedAt,
-        effectiveUntil: trial.endsAt,
-        updatedAt: now,
-      })
-      .where(eq(organizationEntitlements.organizationId, scope.organizationId))
-      .returning({ revision: organizationEntitlements.revision });
-    if (!updatedEntitlement) throw schemaUnavailable();
+    const updatedEntitlement = await grantOrganizationEntitlement(tx, {
+      organizationId: scope.organizationId,
+      planCode: "starter",
+      source: "trial",
+      sourceReference: `saas-trial:${trial.id}`,
+      subscriptionId: null,
+      trialId: trial.id,
+      effectiveFrom: trial.startedAt,
+      effectiveUntil: trial.endsAt,
+    });
 
     return {
       trialId: trial.id,

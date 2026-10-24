@@ -207,6 +207,51 @@ describe("límite HTTP de archivo y restauración de gimnastas", () => {
     expect(mocks.state.auditReceipt).toBeNull();
   });
 
+  it("revierte la restauración si falla la auditoría dentro de la transacción", async () => {
+    mocks.state.selectedRows = [{ id: athleteA }];
+    mocks.state.updatedRows = [{ id: athleteA }];
+    mocks.state.auditError = new Error("audit insert failed");
+
+    const response = await restoreAthlete(
+      request(`/api/athletes/${athleteA}/restore`, { academyId }),
+      { ...context, params: { athleteId: athleteA } } as never,
+    );
+
+    expect(response.status).toBe(500);
+    expect(mocks.state.events).toEqual([
+      "begin", "lock", "select:auditLogs", "select:athletes", "update:active", "audit:transaction", "rollback",
+    ]);
+    expect(mocks.createAuditLog).toHaveBeenCalledWith(
+      expect.objectContaining({ resourceId: athleteA, meta: expect.objectContaining({ restored: true }) }),
+      mocks.tx,
+    );
+    expect(mocks.state.auditReceipt).toBeNull();
+  });
+
+  it("rechaza reutilizar la clave de archivo con una selección distinta sin otra mutación", async () => {
+    mocks.state.selectedRows = [{ id: athleteA }];
+    mocks.state.updatedRows = [{ id: athleteA }];
+    const first = await bulkArchive(request("/api/athletes/bulk-archive", {
+      academyId,
+      athleteIds: [athleteA],
+    }), context as never);
+    expect(first.status).toBe(200);
+    const eventCountAfterFirst = mocks.state.events.length;
+
+    const conflict = await bulkArchive(request("/api/athletes/bulk-archive", {
+      academyId,
+      athleteIds: [athleteB],
+    }), context as never);
+
+    expect(conflict.status).toBe(409);
+    expect(await json(conflict)).toMatchObject({ ok: false, code: "IDEMPOTENCY_CONFLICT" });
+    expect(mocks.state.events.slice(eventCountAfterFirst)).toEqual([
+      "begin", "lock", "select:auditLogs", "rollback",
+    ]);
+    expect(mocks.tx.update).toHaveBeenCalledOnce();
+    expect(mocks.createAuditLog).toHaveBeenCalledOnce();
+  });
+
   it("restaura con el mismo recibo y hace replay sin una segunda actualización", async () => {
     mocks.state.selectedRows = [{ id: athleteA }];
     mocks.state.updatedRows = [{ id: athleteA }];

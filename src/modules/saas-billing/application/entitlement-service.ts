@@ -1,5 +1,9 @@
-import { sql } from "drizzle-orm";
+import { eq, sql } from "drizzle-orm";
 
+import {
+  organizationEntitlementChanges,
+  organizationEntitlements,
+} from "@/db/zaltyko-schema";
 import type { TransactionClient } from "@/lib/db-transactions";
 import { OperationalError } from "@/modules/shared/domain/operational-error";
 
@@ -40,6 +44,101 @@ const PLAN_LIMITS: Record<
     academyLimit: null,
   },
 };
+
+type EntitlementGrant = Pick<
+  typeof organizationEntitlements.$inferSelect,
+  | "organizationId"
+  | "planCode"
+  | "source"
+  | "sourceReference"
+  | "subscriptionId"
+  | "trialId"
+  | "effectiveFrom"
+  | "effectiveUntil"
+>;
+
+/**
+ * Applies one canonical entitlement grant and records the exact resulting
+ * revision in the existing history table. A source reference is the stable
+ * identity of the grant (trial id or paid invoice id), so an identical replay
+ * is a no-op and a payload mismatch is an idempotency conflict. Callers must
+ * hold the organization mutation lock and use this inside their transaction.
+ */
+export async function grantOrganizationEntitlement(
+  tx: TransactionClient,
+  grant: EntitlementGrant
+): Promise<{ revision: number; replayed: boolean }> {
+  const [current] = await tx
+    .select()
+    .from(organizationEntitlements)
+    .where(eq(organizationEntitlements.organizationId, grant.organizationId))
+    .for("update")
+    .limit(1);
+  if (!current) {
+    throw new OperationalError(
+      "FEATURE_NOT_AVAILABLE",
+      "No se pudo leer el entitlement SaaS de la organización",
+      503
+    );
+  }
+
+  if (current.sourceReference === grant.sourceReference) {
+    const sameInstant = (left: Date | null, right: Date | null) =>
+      left?.getTime() === right?.getTime();
+    const sameGrant =
+      current.planCode === grant.planCode &&
+      current.source === grant.source &&
+      current.subscriptionId === grant.subscriptionId &&
+      current.trialId === grant.trialId &&
+      sameInstant(current.effectiveFrom, grant.effectiveFrom) &&
+      sameInstant(current.effectiveUntil, grant.effectiveUntil);
+    if (!sameGrant) {
+      throw new OperationalError(
+        "IDEMPOTENCY_CONFLICT",
+        "La referencia del entitlement ya se usó con otros datos",
+        409
+      );
+    }
+    return { revision: current.revision, replayed: true };
+  }
+
+  const [updated] = await tx
+    .update(organizationEntitlements)
+    .set({
+      planCode: grant.planCode,
+      revision: sql`${organizationEntitlements.revision} + 1`,
+      source: grant.source,
+      sourceReference: grant.sourceReference,
+      subscriptionId: grant.subscriptionId,
+      trialId: grant.trialId,
+      effectiveFrom: grant.effectiveFrom,
+      effectiveUntil: grant.effectiveUntil,
+      updatedAt: sql`now()`,
+    })
+    .where(eq(organizationEntitlements.organizationId, grant.organizationId))
+    .returning();
+  if (!updated) {
+    throw new OperationalError(
+      "FEATURE_NOT_AVAILABLE",
+      "No se pudo actualizar el entitlement SaaS de la organización",
+      503
+    );
+  }
+
+  await tx.insert(organizationEntitlementChanges).values({
+    organizationId: updated.organizationId,
+    revision: updated.revision,
+    planCode: updated.planCode,
+    source: updated.source,
+    sourceReference: updated.sourceReference,
+    subscriptionId: updated.subscriptionId,
+    trialId: updated.trialId,
+    effectiveFrom: updated.effectiveFrom,
+    effectiveUntil: updated.effectiveUntil,
+  });
+
+  return { revision: updated.revision, replayed: false };
+}
 
 /**
  * Serializes any SaaS entitlement/capacity mutation with trial and checkout

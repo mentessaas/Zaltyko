@@ -41,6 +41,7 @@ import { OperationalError } from "@/modules/shared/domain/operational-error";
 
 const organizationId = "10000000-0000-4000-8000-000000000001";
 const locationId = "20000000-0000-4000-8000-000000000002";
+const otherLocationId = "20000000-0000-4000-8000-000000000003";
 const athleteId = "30000000-0000-4000-8000-000000000003";
 const memberId = "40000000-0000-4000-8000-000000000004";
 const userId = "50000000-0000-4000-8000-000000000005";
@@ -222,4 +223,78 @@ describe.each(routes)("Owner $name HTTP boundary", (route) => {
       data: route.expectedReceipt,
     });
   });
+});
+
+describe("Owner enrollment POST site eligibility boundary", () => {
+  // Route tests exercise the HTTP contract; the service's SQL eligibility gate
+  // and no-write denial are covered in enrollment-site-eligibility.test.ts.
+  function mockEnrollmentEligibility(openRelationshipLocationIds: string[]) {
+    mocks.createEnrollment.mockImplementationOnce(async (command) => {
+      if (!openRelationshipLocationIds.includes(command.locationId)) {
+        throw new OperationalError(
+          "NOT_FOUND",
+          "Atleta activo no encontrado en esta sede",
+          404
+        );
+      }
+      return {
+        id: "90000000-0000-4000-8000-000000000009",
+        status: "pending",
+        startsOn: enrollmentPayload.startsOn,
+        pricePlanId: null,
+        version: 1,
+      };
+    });
+  }
+
+  it(
+    "returns the enrollment receipt when an open relationship is at the requested site",
+    async () => {
+      mockEnrollmentEligibility([locationId]);
+
+      const response = await enrollAthlete(
+        request("/api/v1/owner/enrollments", enrollmentPayload)
+      );
+
+      expect(response.status).toBe(201);
+      expect(mocks.createEnrollment).toHaveBeenCalledWith(
+        expect.objectContaining({
+          organizationId,
+          locationId,
+          athleteId,
+          classTemplateId: enrollmentPayload.classTemplateId,
+        })
+      );
+      expect(await response.json()).toMatchObject({
+        ok: true,
+        data: {
+          id: "90000000-0000-4000-8000-000000000009",
+          status: "pending",
+        },
+      });
+    }
+  );
+
+  it.each([
+    { label: "no open relationship", relationshipLocations: [] },
+    {
+      label: "an open relationship only at another site",
+      relationshipLocations: [otherLocationId],
+    },
+  ])(
+    "does not return a receipt when the athlete has $label",
+    async ({ relationshipLocations }) => {
+      mockEnrollmentEligibility(relationshipLocations);
+
+      const response = await enrollAthlete(
+        request("/api/v1/owner/enrollments", enrollmentPayload)
+      );
+
+      expect(response.status).toBe(404);
+      expect(mocks.createEnrollment).toHaveBeenCalledWith(
+        expect.objectContaining({ organizationId, locationId, athleteId })
+      );
+      expect(await response.json()).not.toHaveProperty("data");
+    }
+  );
 });
