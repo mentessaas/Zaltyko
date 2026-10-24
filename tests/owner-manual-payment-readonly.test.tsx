@@ -120,6 +120,7 @@ describe("registro manual de pagos con política de solo lectura", () => {
       fireEvent.submit(form!);
     });
 
+    await waitFor(() => expect(fetchMock).toHaveBeenCalledTimes(1));
     expect(fetchMock).toHaveBeenCalledTimes(1);
     const firstInit = fetchMock.mock.calls[0]?.[1] as RequestInit;
     const firstBody = JSON.parse(String(firstInit.body));
@@ -415,7 +416,7 @@ describe("registro manual de pagos con política de solo lectura", () => {
   });
 
   it("no envía un pago si sessionStorage no se puede escribir", async () => {
-    vi.spyOn(window.sessionStorage, "setItem").mockImplementation(() => {
+    vi.spyOn(Storage.prototype, "setItem").mockImplementation(() => {
       throw new DOMException("Storage denied", "SecurityError");
     });
     render(<ManualPaymentForm organizationId={organizationId} charges={charges} />);

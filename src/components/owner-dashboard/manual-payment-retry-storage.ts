@@ -121,7 +121,8 @@ export async function restoreManualPaymentRetryBody(
   referenceInput: string
 ): Promise<
   | { status: "ready"; body: ManualPaymentRetryBody }
-  | { status: "reference-required" | "reference-mismatch" }
+  | { status: "reference-required" }
+  | { status: "reference-mismatch" }
 > {
   const reference = referenceInput.trim();
   if (snapshot.referenceSha256 === null && reference) {
@@ -143,8 +144,8 @@ export async function restoreManualPaymentRetryBody(
       chargeId: snapshot.chargeId,
       amountCents: snapshot.amountCents,
       method: snapshot.method,
-      receivedAt: snapshot.receivedAt,
       ...(snapshot.referenceSha256 !== null ? { reference } : {}),
+      receivedAt: snapshot.receivedAt,
     },
   };
 }
