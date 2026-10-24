@@ -264,7 +264,7 @@ describe("Vite 6.4.3 to 6.4.5 lockfile core", () => {
     expectFailure(() => core.projectViteLockfileCore({ ...input, rawLockfileText: bad }));
   });
 
-  it("aggregates all six differing blocks with only bounded, safe fields", () => {
+  it("aggregates all six differing blocks and marks fields absent from base", () => {
     const input = fixture();
     for (const target of ["vite", "react", "mocker", "paths", "vitest", "coverage"] as const) {
       const marker = "diagnostic-private-marker-should-not-escape";
@@ -283,7 +283,7 @@ describe("Vite 6.4.3 to 6.4.5 lockfile core", () => {
       expect(row).toEqual(expect.objectContaining({
         target,
         field: "<unknown>",
-        status: "different",
+        status: "missing",
         baseSha256: expect.stringMatching(/^[a-f0-9]{64}$/),
         candidateSha256: expect.stringMatching(/^[a-f0-9]{64}$/),
       }));
