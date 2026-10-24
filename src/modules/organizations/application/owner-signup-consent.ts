@@ -117,6 +117,27 @@ async function readPolicy(tx: OwnerSignupConsentTransaction) {
   return { policyVersion, rolloutAt };
 }
 
+/**
+ * Returns the live policy version for the public registration form. The form
+ * may declare that version after explicit acceptance, but bootstrap still
+ * verifies the declaration against this same database policy in its own
+ * transaction. If the policy store is unavailable, callers must omit the
+ * declaration and let Owner setup require a fresh explicit acceptance.
+ */
+export async function getOwnerSignupConsentPolicyVersion(
+  storeDatabase: OwnerSignupConsentDatabase = database
+): Promise<string> {
+  try {
+    return await storeDatabase.transaction(async (tx) => {
+      const policy = await readPolicy(tx);
+      return policy.policyVersion;
+    });
+  } catch (error) {
+    if (error instanceof OwnerSignupConsentError) throw error;
+    throw new OwnerSignupConsentError("CONSENT_STORE_UNAVAILABLE");
+  }
+}
+
 async function readExisting(tx: OwnerSignupConsentTransaction, userId: string) {
   const result = await tx.execute(sql`
     select state, policy_version, revoked_at

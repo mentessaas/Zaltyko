@@ -71,16 +71,16 @@ function readAttribution(): {
 
 type RegisterRole = (typeof ROLE_OPTIONS)[number]["value"];
 
-// Must match app_config.consent.policy_version in the reviewed migration.
-const LEGAL_CONSENT_VERSION = "v1-2026-08-01";
 const LEGAL_CONSENT_PROOF = "signup:register-form-v1";
 
 export function RegisterForm({
   ownerEntry = false,
+  ownerConsentPolicyVersion = null,
   directoryDiscoveryEnabled = false,
   directoryClaimsEnabled = false,
 }: {
   ownerEntry?: boolean;
+  ownerConsentPolicyVersion?: string | null;
   directoryDiscoveryEnabled?: boolean;
   directoryClaimsEnabled?: boolean;
 } = {}) {
@@ -219,8 +219,14 @@ export function RegisterForm({
             directory_account: directoryRegistration,
             // Metadata is only a hand-off for the server-side consent record;
             // authorization must never rely on user-editable user_metadata.
-            legal_consent_version: LEGAL_CONSENT_VERSION,
-            legal_consent_proof: LEGAL_CONSENT_PROOF,
+            ...(!directoryRegistration &&
+            role === "owner" &&
+            ownerConsentPolicyVersion
+              ? {
+                  legal_consent_version: ownerConsentPolicyVersion,
+                  legal_consent_proof: LEGAL_CONSENT_PROOF,
+                }
+              : {}),
           },
           emailRedirectTo,
         },
@@ -366,14 +372,25 @@ export function RegisterForm({
 
     setGoogleLoading(true);
     try {
-      const next = directoryRegistration ? directoryNext! :
-        `/auth/redirect?initial_role=${encodeURIComponent(role)}` +
-        `&legal_consent_version=${encodeURIComponent(LEGAL_CONSENT_VERSION)}` +
-        `&legal_consent_proof=${encodeURIComponent(LEGAL_CONSENT_PROOF)}`;
+      const next = directoryRegistration
+        ? directoryNext!
+        : `/auth/redirect?initial_role=${encodeURIComponent(role)}`;
       const callbackUrl = new URL("/auth/callback", window.location.origin);
       callbackUrl.searchParams.set("next", next);
-      callbackUrl.searchParams.set("legal_consent_version", LEGAL_CONSENT_VERSION);
-      callbackUrl.searchParams.set("legal_consent_proof", LEGAL_CONSENT_PROOF);
+      if (
+        !directoryRegistration &&
+        role === "owner" &&
+        ownerConsentPolicyVersion
+      ) {
+        callbackUrl.searchParams.set(
+          "legal_consent_version",
+          ownerConsentPolicyVersion
+        );
+        callbackUrl.searchParams.set(
+          "legal_consent_proof",
+          LEGAL_CONSENT_PROOF
+        );
+      }
       if (directoryRegistration) {
         callbackUrl.searchParams.set("directory_account", "1");
       }

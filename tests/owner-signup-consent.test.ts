@@ -4,6 +4,7 @@ import type { SQL } from "drizzle-orm";
 
 import {
   getOwnerContractualConsentRequirement,
+  getOwnerSignupConsentPolicyVersion,
   OwnerSignupConsentError,
   recordOwnerSignupConsent,
   type OwnerSignupConsentDatabase,
@@ -47,6 +48,28 @@ const policyResult = {
 };
 
 describe("Owner contractual signup consent", () => {
+  it("serves the current database policy version to signup", async () => {
+    const { store, transaction, execute } = storeWith([policyResult]);
+
+    await expect(getOwnerSignupConsentPolicyVersion(store)).resolves.toBe(
+      policyVersion
+    );
+    expect(transaction).toHaveBeenCalledTimes(1);
+    expect(execute).toHaveBeenCalledTimes(1);
+  });
+
+  it("fails closed when signup cannot read the current policy version", async () => {
+    const store = {
+      transaction: vi.fn(async () => {
+        throw new Error("database unavailable");
+      }),
+    } as unknown as OwnerSignupConsentDatabase;
+
+    await expect(getOwnerSignupConsentPolicyVersion(store)).rejects.toMatchObject(
+      { code: "CONSENT_STORE_UNAVAILABLE" }
+    );
+  });
+
   it("does not ask again when the stored grant matches the current policy", async () => {
     const { store } = storeWith([
       policyResult,
