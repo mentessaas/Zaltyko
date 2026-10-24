@@ -9,6 +9,7 @@ export type OpenManualPaymentCharge = {
   familyId: string;
   locationId: string;
   locationName: string;
+  locationTimezone: string;
   invoiceReference: string;
   payerName: string | null;
   currency: string;
@@ -62,6 +63,7 @@ export async function getManualPaymentOptions(input: {
       c.family_id::text as "familyId",
       c.location_id::text as "locationId",
       l.name as "locationName",
+      l.timezone as "locationTimezone",
       i.reference as "invoiceReference",
       nullif(btrim(concat_ws(' ', p.given_name, p.family_name)), '') as "payerName",
       c.currency as "currency",
@@ -91,7 +93,7 @@ export async function getManualPaymentOptions(input: {
       )})
       and c.status in ('due', 'partially_paid')
       and i.status not in ('draft', 'void')
-    group by c.id, l.name, i.reference, p.given_name, p.family_name
+    group by c.id, l.name, l.timezone, i.reference, p.given_name, p.family_name
     having coalesce(sum(pa.amount_cents), 0) < c.amount_cents
     order by c.due_at asc, i.reference asc
     limit 250
@@ -102,6 +104,7 @@ export async function getManualPaymentOptions(input: {
     familyId: String(row.familyId),
     locationId: String(row.locationId),
     locationName: String(row.locationName),
+    locationTimezone: String(row.locationTimezone),
     invoiceReference: String(row.invoiceReference),
     payerName: typeof row.payerName === "string" ? row.payerName : null,
     currency: String(row.currency),

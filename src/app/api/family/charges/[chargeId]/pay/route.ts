@@ -1,12 +1,14 @@
 import { cookies } from "next/headers";
 
-import { apiError, apiSuccess } from "@/lib/api-response";
-import { getOptionalEnvVar } from "@/lib/env";
+import { apiError } from "@/lib/api-response";
 import { createClient } from "@/lib/supabase/server";
 import { resolveFamilyChargeAccess } from "@/lib/family/payment-access";
-import { collectCharge } from "@/lib/stripe/charge-collection-service";
 import { logger } from "@/lib/logger";
 import { z } from "zod";
+import {
+  FAMILY_AUTOMATIC_COLLECTION_DISABLED,
+  FAMILY_AUTOMATIC_COLLECTION_DISABLED_MESSAGE,
+} from "@/lib/stripe/family-automatic-collection-disabled";
 
 export const dynamic = "force-dynamic";
 
@@ -15,8 +17,8 @@ export const dynamic = "force-dynamic";
 /**
  * POST /api/family/charges/[chargeId]/pay
  *
- * Permite a un padre/madre pagar una cuota pendiente con la tarjeta guardada.
- * Verifica que el cargo pertenece a uno de sus hijos y dispara collectCharge.
+ * Verifica el acceso familiar al cargo y responde que el pago con tarjeta no
+ * está disponible en el lanzamiento manual-only.
  */
 export async function POST(request: Request) {
   try {
@@ -43,34 +45,13 @@ export async function POST(request: Request) {
       return apiError("FORBIDDEN", "No tienes acceso a este cargo.", 403);
     }
 
-    const result = await collectCharge(chargeId);
-    if (result.status === "paid") {
-      return apiSuccess({ status: "paid" });
-    }
-    if (result.status === "requires_action") {
-      const publishableKey = getOptionalEnvVar("NEXT_PUBLIC_STRIPE_PUBLISHABLE_KEY");
-      return apiError(
-        "REQUIRES_ACTION",
-        "Tu banco pide autenticación para completar el pago.",
-        409,
-        result.clientSecret && publishableKey
-          ? {
-              paymentIntentId: result.paymentIntentId,
-              clientSecret: result.clientSecret,
-              stripeAccountId: result.stripeAccountId,
-              publishableKey,
-              // Re-attach explícito del PM en `confirmCardPayment` (Stripe lo
-              // limpia del PI cuando off-session exige SCA).
-              paymentMethodId: result.paymentMethodId,
-            }
-          : undefined,
-        { headers: { "Cache-Control": "private, no-store" } }
-      );
-    }
-    if (result.status === "skipped") {
-      return apiError(result.reason, result.reason, 409);
-    }
-    return apiError(result.reason, result.reason, 402);
+    return apiError(
+      FAMILY_AUTOMATIC_COLLECTION_DISABLED,
+      FAMILY_AUTOMATIC_COLLECTION_DISABLED_MESSAGE,
+      410,
+      undefined,
+      { headers: { "Cache-Control": "private, no-store" } }
+    );
   } catch (error) {
     logger.error("Error paying family charge", error);
     return apiError("SERVER_ERROR", "No se pudo procesar el pago.", 500);

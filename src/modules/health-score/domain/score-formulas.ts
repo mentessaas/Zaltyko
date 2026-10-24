@@ -11,6 +11,26 @@ export interface ScoreContribution {
   coverage: number;
 }
 
+export type CurrencyScopedTarget = {
+  metricKey: string;
+  currency: string | null;
+};
+
+export function resolveMetricTarget<T extends CurrencyScopedTarget>(
+  targets: readonly T[],
+  metricKey: string,
+  currency: string | null
+): T | null {
+  const exact = targets.find(
+    (target) => target.metricKey === metricKey && target.currency === currency
+  );
+  if (exact || currency === null) return exact ?? null;
+
+  return targets.find(
+    (target) => target.metricKey === metricKey && target.currency === null
+  ) ?? null;
+}
+
 export function normalizeMetric(
   actual: number,
   target: number,

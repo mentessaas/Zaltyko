@@ -44,6 +44,7 @@ const metricSourceEventPrefixes = [
   "financial.",
   "benchmark.",
   "organization.bootstrapped",
+  "saas.resource_archived",
 ] as const;
 
 export function isMetricSourceEvent(eventName: string): boolean {

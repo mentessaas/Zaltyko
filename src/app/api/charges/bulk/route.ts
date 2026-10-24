@@ -136,17 +136,22 @@ export const POST = withTenant(async (request, context) => {
       });
     }
 
-    await db
+    const insertedCharges = await db
       .insert(charges)
       .values(newCharges)
       // Respaldo de BD anti-doble-cargo (índice único academy/athlete/period):
       // una carrera concurrente no duplica los cargos.
-      .onConflictDoNothing();
+      .onConflictDoNothing()
+      .returning({ id: charges.id });
+
+    // La lectura previa no ve los cargos que gane otra petición concurrente.
+    const created = insertedCharges.length;
+    const skipped = existingAthleteIds.size + newCharges.length - created;
 
     return apiCreated({
-      message: `Created ${newCharges.length} charge(s)`,
-      created: newCharges.length,
-      skipped: existingCharges.length,
+      message: `Created ${created} charge(s)`,
+      created,
+      skipped,
     });
   } catch (error) {
     return handleApiError(error, {

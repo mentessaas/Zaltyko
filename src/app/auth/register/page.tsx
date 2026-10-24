@@ -2,6 +2,9 @@ import { flag } from "@/lib/directory/contracts";
 import type { Metadata } from "next";
 import { RegisterForm } from "@/components/RegisterForm";
 import { getPublicSiteUrl } from "@/lib/seo/site-url";
+import { getOwnerSignupConsentPolicyVersion } from "@/modules/organizations/application/owner-signup-consent";
+
+export const dynamic = "force-dynamic";
 
 export const metadata: Metadata = {
   title: "Crear cuenta",
@@ -24,10 +27,19 @@ export default async function Register({
 }) {
   const query = await searchParams;
   const ownerEntry = query.role === "owner";
+  let ownerConsentPolicyVersion: string | null = null;
+  try {
+    ownerConsentPolicyVersion = await getOwnerSignupConsentPolicyVersion();
+  } catch {
+    // Registration remains available, but the client must omit a declaration
+    // it cannot bind to the current server policy. Owner setup then fails
+    // closed and asks for explicit acceptance if the policy store recovers.
+  }
 
   return (
     <RegisterForm
       ownerEntry={ownerEntry}
+      ownerConsentPolicyVersion={ownerConsentPolicyVersion}
       directoryDiscoveryEnabled={flag("catalog")}
       directoryClaimsEnabled={flag("claims")}
     />

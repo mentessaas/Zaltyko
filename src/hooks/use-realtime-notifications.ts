@@ -103,10 +103,14 @@ export function useRealtimeNotifications({
           filter: userId ? `user_id=eq.${userId}` : undefined,
         },
         (payload: any) => {
-          const oldRecord = payload.old_record as { is_suspended?: boolean; name?: string } | null;
-          const newRecord = payload.new_record as { is_suspended?: boolean; name?: string; user_id: string; id: string };
+          const oldRecord = payload.old as { is_suspended?: boolean; name?: string | null } | null;
+          const newRecord = payload.new as { is_suspended?: boolean; name?: string | null; user_id: string; id: string };
 
-          if (oldRecord?.is_suspended !== newRecord.is_suspended) {
+          if (
+            typeof oldRecord?.is_suspended === "boolean" &&
+            typeof newRecord.is_suspended === "boolean" &&
+            oldRecord.is_suspended !== newRecord.is_suspended
+          ) {
             handleNotification({
               id: `profile-${newRecord.id}-${Date.now()}`,
               type: newRecord.is_suspended ? "user_suspended" : "user_reactivated",
@@ -135,10 +139,16 @@ export function useRealtimeNotifications({
           filter: userId ? `user_id=eq.${userId}` : undefined,
         },
         async (payload) => {
-          const newRecord = (payload as any).new_record as { user_id: string; plan_id?: string; status?: string };
+          const oldRecord = payload.old as { plan_id?: string | null; status?: string | null } | null;
+          const newRecord = payload.new as { user_id: string; plan_id?: string; status?: string };
 
-          // Obtener información del plan si cambió
-          if (newRecord.plan_id) {
+          // Notificar solo cuando el payload permite confirmar que el plan cambió.
+          if (
+            oldRecord &&
+            Object.prototype.hasOwnProperty.call(oldRecord, "plan_id") &&
+            oldRecord.plan_id !== newRecord.plan_id &&
+            newRecord.plan_id
+          ) {
             const { data: plan } = await supabase.from("plans").select("code, nickname").eq("id", newRecord.plan_id).single();
 
             if (plan) {
@@ -153,7 +163,12 @@ export function useRealtimeNotifications({
             }
           }
 
-          if (newRecord.status === "canceled" || newRecord.status === "past_due") {
+          if (
+            oldRecord &&
+            Object.prototype.hasOwnProperty.call(oldRecord, "status") &&
+            oldRecord.status !== newRecord.status &&
+            (newRecord.status === "canceled" || newRecord.status === "past_due")
+          ) {
             handleNotification({
               id: `subscription-${newRecord.user_id}-${Date.now()}`,
               type: "subscription_updated",
@@ -179,8 +194,8 @@ export function useRealtimeNotifications({
           filter: tenantId ? `tenant_id=eq.${tenantId}` : undefined,
         },
         (payload) => {
-          const record = (payload as any).new_record as { id: string; name?: string; owner_id?: string } | null;
-          const oldRecord = (payload as any).old_record as { name?: string } | null;
+          const record = payload.new as { id: string; name?: string | null; owner_id?: string } | null;
+          const oldRecord = payload.old as { name?: string | null } | null;
 
           if (!record) return;
 
@@ -193,7 +208,12 @@ export function useRealtimeNotifications({
               academyId: record.id,
               timestamp: new Date().toISOString(),
             });
-          } else if (payload.eventType === "UPDATE" && oldRecord?.name !== record.name) {
+          } else if (
+            payload.eventType === "UPDATE" &&
+            oldRecord &&
+            Object.prototype.hasOwnProperty.call(oldRecord, "name") &&
+            oldRecord.name !== record.name
+          ) {
             handleNotification({
               id: `academy-${record.id}-${Date.now()}`,
               type: "academy_updated",
@@ -219,7 +239,7 @@ export function useRealtimeNotifications({
           filter: tenantId ? `tenant_id=eq.${tenantId}` : undefined,
         },
         (payload) => {
-          const record = (payload as any).new_record as { id: string; name?: string; academy_id?: string } | null;
+          const record = payload.new as { id: string; name?: string; academy_id?: string } | null;
 
           if (!record) return;
 
@@ -249,7 +269,7 @@ export function useRealtimeNotifications({
           filter: tenantId ? `tenant_id=eq.${tenantId}` : undefined,
         },
         (payload: any) => {
-          const record = payload.new_record as {
+          const record = payload.new as {
             id: string;
             tenant_id: string | null;
             academy_id: string;
@@ -296,7 +316,7 @@ export function useRealtimeNotifications({
           filter: tenantId ? `tenant_id=eq.${tenantId}` : undefined,
         },
         async (payload: any) => {
-          const record = payload.new_record as {
+          const record = payload.new as {
             id: string;
             academy_id: string;
             contact_name: string;

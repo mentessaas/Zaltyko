@@ -63,7 +63,7 @@ export async function GET(request: Request) {
   }
 }
 
-// @auth-flexible route-guard-reason: validates a fresh human session, derives the member server-side, and persists only a family preference with paid-entitlement validation, CAS, audit, and outbox.
+// @auth-flexible route-guard-reason: validates a fresh human session and the active Owner/admin scope before accepting a manual-only preference; writes retain CAS, audit, and outbox.
 export async function PUT(request: Request) {
   const user = await getCurrentUser(request);
   if (!user) return unauthenticatedResponse();

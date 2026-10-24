@@ -4,6 +4,7 @@ import { charges, refunds } from "@/db/schema";
 import { getStripeClient } from "@/lib/stripe/client";
 import { createAuditLog } from "@/lib/audit-log";
 import { withTransaction } from "@/lib/db-transactions";
+import { throwFamilyAutomaticCollectionDisabled } from "@/lib/stripe/family-automatic-collection-disabled";
 
 export type RefundResult =
   | { ok: true; refundId: string }
@@ -22,6 +23,8 @@ interface RefundParams {
  * cargo como refunded y deja auditoria. El webhook charge.refunded reconcilia.
  */
 export async function refundCharge(params: RefundParams): Promise<RefundResult> {
+  throwFamilyAutomaticCollectionDisabled();
+
   return withTransaction(async (tx) => {
     if ("execute" in tx && typeof tx.execute === "function") {
       await tx.execute(sql`select pg_advisory_xact_lock(hashtext(${params.chargeId}))`);

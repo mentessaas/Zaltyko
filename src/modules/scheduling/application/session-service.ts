@@ -10,6 +10,7 @@ import {
 } from "@/db/zaltyko-schema";
 import { operationalActorSchema } from "@/modules/shared/application/actor";
 import { OperationalError } from "@/modules/shared/domain/operational-error";
+import { assertOrganizationOperationalWritable } from "@/modules/saas-billing/application/organization-usage";
 import { assertOperationalAccess } from "@/modules/shared/infrastructure/operational-authorization";
 import {
   appendAuditEntry,
@@ -118,14 +119,47 @@ export async function materializeSessions(
         startDate: input.startDate,
         endDate: input.endDate,
       });
+      const priorIds = z.array(z.string().uuid()).safeParse(priorEvent.payload.sessionIds);
+      const priorAggregateId = z.string().uuid().safeParse(priorEvent.aggregateId);
+      const sessionCount = priorEvent.payload.sessionCount;
+      if (
+        priorEvent.aggregateType !== "class_template" ||
+        !priorAggregateId.success ||
+        priorAggregateId.data.toLowerCase() !== input.classTemplateId.toLowerCase() ||
+        !priorIds.success ||
+        !Number.isSafeInteger(sessionCount) ||
+        sessionCount !== priorIds.data.length ||
+        new Set(priorIds.data).size !== priorIds.data.length
+      ) {
+        throw new OperationalError(
+          "IDEMPOTENCY_CONFLICT",
+          "El resultado previo de generación de sesiones no es coherente",
+          409
+        );
+      }
+      const priorSessions = await loadSessionsByIds(
+        tx,
+        input.organizationId,
+        priorIds.data
+      );
+      if (
+        priorSessions.length !== priorIds.data.length ||
+        priorSessions.some(
+          (session) =>
+            session.classTemplateId !== input.classTemplateId ||
+            session.locationId !== template.locationId
+        )
+      ) {
+        throw new OperationalError(
+          "IDEMPOTENCY_CONFLICT",
+          "Las sesiones del resultado previo no coinciden con la plantilla",
+          409
+        );
+      }
+      return priorSessions;
     }
-    const priorIds = priorEvent?.payload.sessionIds;
-    if (
-      Array.isArray(priorIds) &&
-      priorIds.every((id) => typeof id === "string")
-    ) {
-      return loadSessionsByIds(tx, input.organizationId, priorIds);
-    }
+
+    await assertOrganizationOperationalWritable(tx, input.organizationId);
 
     const [schedule] = await tx
       .select({ count: sql<number>`count(*)::int` })

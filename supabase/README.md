@@ -7,9 +7,11 @@ Este directorio contiene las políticas de Row Level Security (RLS) para Zaltyko
 ### ✅ Fuentes Activas
 
 - **`migrations/*.sql`** - fuente ejecutable de producción para cambios versionados.
-- **`rls-consolidated.sql`** - snapshot consolidado de políticas RLS para revisión y bootstrap manual.
-  - Debe mantenerse sincronizado con las migraciones cuando se agregan tablas tenant-scoped.
-  - No reemplaza el historial de migraciones versionadas.
+- **`rls-consolidated.sql`** - referencia consolidada de políticas del repositorio para revisión estática.
+- **`schema-snapshots/20261024172153_sandbox_schema_snapshot_baseline.sql`** - fotografía de solo lectura del esquema actual del sandbox, con hash y procedencia en `schema-snapshot-manifest.json`.
+  - No recupera el historial de migraciones ni contiene datos de aplicación.
+  - El replay permitido es exclusivamente sobre una base vacía y desechable en CI; no aplicarlo a una base existente ni a producción.
+  - Los cambios de producción requieren un diff específico, revisión de compatibilidad y autorización separada.
 
 ### ⚠️ Archivos Deprecados
 
@@ -26,7 +28,7 @@ Estos archivos serán eliminados en futuras versiones. **NO modificar**.
 2. Seleccionar tu proyecto
 3. Ir a **SQL Editor**
 4. Aplicar primero las migraciones versionadas de `supabase/migrations`
-5. Usar `rls-consolidated.sql` solo como bootstrap/revisión cuando el entorno lo requiera
+5. Usar las fuentes consolidadas solo para revisión estática. Aplicar a cada entorno únicamente migraciones versionadas con diff revisado y autorización explícita.
 
 ### Opción 2: CLI de Supabase
 
@@ -35,11 +37,9 @@ Estos archivos serán eliminados en futuras versiones. **NO modificar**.
 supabase db push
 ```
 
-### Opción 3: Aplicar manualmente
+### Aplicación manual
 
-```bash
-psql -h <host> -U <user> -d <database> -f supabase/rls-consolidated.sql
-```
+No aplicar directamente `rls-consolidated.sql` ni `schema-snapshots/*.sql` sobre una base existente. Preparar y revisar una migración compatible para el entorno de destino.
 
 ## 📋 Validación de Políticas
 
@@ -55,7 +55,7 @@ El script de validación verificará:
 - ✅ No hay políticas duplicadas
 - ✅ Todas las tablas tenant-scoped del schema Drizzle tienen RLS en SQL
 - ✅ Todas las tablas tenant-scoped tienen al menos una política
-- ✅ Se revisan tanto `rls-consolidated.sql` como `supabase/migrations/*.sql`
+- ✅ Se revisan `rls-consolidated.sql`, `schema-snapshots/*.sql` y `supabase/migrations/*.sql`
 
 ## 🏗️ Estructura de las Políticas
 

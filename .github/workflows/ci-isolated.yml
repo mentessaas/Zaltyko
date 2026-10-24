@@ -2,6 +2,24 @@ name: Isolated CI (no credentials)
 
 on:
   workflow_dispatch:
+    inputs:
+      resolution_mode:
+        description: "Controles estáticos, replay SQL desechable, build remoto o propuesta de lockfile"
+        type: choice
+        required: true
+        default: checks
+        options:
+          - checks
+          - schema-replay
+          - remote-build
+          - checks-and-build
+          - lockfile-refresh
+          - vite-refresh
+      expected_sha:
+        description: "SHA completo del HEAD seleccionado para replay, build o resolución de lockfile"
+        type: string
+        required: false
+        default: ""
 
 permissions:
   contents: read
@@ -13,6 +31,7 @@ concurrency:
 jobs:
   static-and-unit:
     name: Isolated static and unit checks
+    if: ${{ inputs.resolution_mode != 'schema-replay' }}
     runs-on: ubuntu-latest
     timeout-minutes: 30
     env:
@@ -38,27 +57,296 @@ jobs:
         uses: actions/setup-node@v7
         with:
           node-version: "22"
-          cache: pnpm
 
       - name: Install dependencies
+        id: dependencies
         run: pnpm install --frozen-lockfile
 
+      - name: Verify loopback-only network namespace
+        id: network-isolation
+        if: always() && !cancelled() && steps.dependencies.outcome == 'success'
+        run: sudo unshare --net -- bash -euc 'ip link set lo up && test "$(ip -o link show | wc -l)" -eq 1 && test -z "$(ip route show default)" && test -z "$(ip -6 route show default)"' isolated-check
+
       - name: Verify isolated workflow contract
-        run: pnpm exec vitest run tests/ci-isolated-workflow-contract.test.ts
+        if: always() && !cancelled() && steps.dependencies.outcome == 'success' && steps.network-isolation.outcome == 'success'
+        run: sudo --preserve-env=PATH,HOME,CI,NODE_ENV,NEXT_PUBLIC_APP_URL,NEXT_PUBLIC_SUPABASE_URL,NEXT_PUBLIC_SUPABASE_ANON_KEY,DATABASE_URL,DATABASE_URL_POOL,DATABASE_URL_DIRECT,INTERNAL_AUTH_SECRET,SUPABASE_JWT_SECRET unshare --net -- bash -euc 'ip link set lo up && exec "$@"' isolated-check pnpm exec vitest run tests/ci-isolated-workflow-contract.test.ts
+
+      - name: Test pinned Supabase CLI installer with synthetic archives
+        if: always() && !cancelled() && steps.dependencies.outcome == 'success' && steps.network-isolation.outcome == 'success'
+        run: sudo --preserve-env=PATH,HOME,CI unshare --net -- bash -euc 'ip link set lo up && exec "$@"' isolated-check python3 scripts/ci/test_install_pinned_supabase_cli.py
 
       - name: Lint
-        run: pnpm lint
+        if: always() && !cancelled() && steps.dependencies.outcome == 'success' && steps.network-isolation.outcome == 'success'
+        run: sudo --preserve-env=PATH,HOME,CI,NODE_ENV,NEXT_PUBLIC_APP_URL,NEXT_PUBLIC_SUPABASE_URL,NEXT_PUBLIC_SUPABASE_ANON_KEY,DATABASE_URL,DATABASE_URL_POOL,DATABASE_URL_DIRECT,INTERNAL_AUTH_SECRET,SUPABASE_JWT_SECRET unshare --net -- bash -euc 'ip link set lo up && exec "$@"' isolated-check pnpm lint
 
       - name: Type check
-        run: pnpm typecheck
+        if: always() && !cancelled() && steps.dependencies.outcome == 'success' && steps.network-isolation.outcome == 'success'
+        run: sudo --preserve-env=PATH,HOME,CI,NODE_ENV,NEXT_PUBLIC_APP_URL,NEXT_PUBLIC_SUPABASE_URL,NEXT_PUBLIC_SUPABASE_ANON_KEY,DATABASE_URL,DATABASE_URL_POOL,DATABASE_URL_DIRECT,INTERNAL_AUTH_SECRET,SUPABASE_JWT_SECRET unshare --net -- bash -euc 'ip link set lo up && exec "$@"' isolated-check pnpm typecheck
 
       - name: Unit tests
-        run: pnpm vitest run
+        if: always() && !cancelled() && steps.dependencies.outcome == 'success' && steps.network-isolation.outcome == 'success'
+        env:
+          CI_ISOLATED: "1"
+        run: sudo --preserve-env=PATH,HOME,CI,CI_ISOLATED,NODE_ENV,NEXT_PUBLIC_APP_URL,NEXT_PUBLIC_SUPABASE_URL,NEXT_PUBLIC_SUPABASE_ANON_KEY,DATABASE_URL,DATABASE_URL_POOL,DATABASE_URL_DIRECT,INTERNAL_AUTH_SECRET,SUPABASE_JWT_SECRET unshare --net -- bash -euc 'ip link set lo up && exec "$@"' isolated-check pnpm vitest run
 
       - name: Validate RLS and migration sources
-        run: |
-          pnpm validate:rls
-          pnpm check:migrations
+        if: always() && !cancelled() && steps.dependencies.outcome == 'success' && steps.network-isolation.outcome == 'success'
+        run: sudo --preserve-env=PATH,HOME,CI,NODE_ENV,NEXT_PUBLIC_APP_URL,NEXT_PUBLIC_SUPABASE_URL,NEXT_PUBLIC_SUPABASE_ANON_KEY,DATABASE_URL,DATABASE_URL_POOL,DATABASE_URL_DIRECT,INTERNAL_AUTH_SECRET,SUPABASE_JWT_SECRET unshare --net -- bash -euc 'ip link set lo up && exec "$@"' isolated-check pnpm validate:rls
+
+      - name: Validate migration sources
+        if: always() && !cancelled() && steps.dependencies.outcome == 'success' && steps.network-isolation.outcome == 'success'
+        run: sudo --preserve-env=PATH,HOME,CI,NODE_ENV,NEXT_PUBLIC_APP_URL,NEXT_PUBLIC_SUPABASE_URL,NEXT_PUBLIC_SUPABASE_ANON_KEY,DATABASE_URL,DATABASE_URL_POOL,DATABASE_URL_DIRECT,INTERNAL_AUTH_SECRET,SUPABASE_JWT_SECRET unshare --net -- bash -euc 'ip link set lo up && exec "$@"' isolated-check pnpm check:migrations
 
       - name: Run strict static application gates
-        run: pnpm gate:all
+        if: always() && !cancelled() && steps.dependencies.outcome == 'success' && steps.network-isolation.outcome == 'success'
+        run: sudo --preserve-env=PATH,HOME,CI,NODE_ENV,NEXT_PUBLIC_APP_URL,NEXT_PUBLIC_SUPABASE_URL,NEXT_PUBLIC_SUPABASE_ANON_KEY,DATABASE_URL,DATABASE_URL_POOL,DATABASE_URL_DIRECT,INTERNAL_AUTH_SECRET,SUPABASE_JWT_SECRET unshare --net -- bash -euc 'ip link set lo up && exec "$@"' isolated-check pnpm gate:all
+
+  schema-replay:
+    name: Disposable local schema replay and tenant isolation
+    if: ${{ inputs.resolution_mode == 'schema-replay' || inputs.resolution_mode == 'checks-and-build' }}
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    permissions:
+      contents: read
+    env:
+      EXPECTED_SHA: ${{ inputs.expected_sha }}
+      DISPATCH_SHA: ${{ github.sha }}
+      DISPATCH_REF: ${{ github.ref }}
+    steps:
+      - name: Checkout without persisted credentials
+        uses: actions/checkout@v7
+        with:
+          persist-credentials: false
+
+      - name: Require the candidate branch and exact SHA
+        shell: bash
+        run: |
+          set -euo pipefail
+          branch='codex/mvp-main-bridge-20261025'
+          head_sha="$(git rev-parse HEAD)"
+          [[ "$GITHUB_REF" == "refs/heads/$branch" ]]
+          [[ "$DISPATCH_REF" == "refs/heads/$branch" ]]
+          [[ "$EXPECTED_SHA" =~ ^[0-9a-f]{40}$ ]]
+          [[ "$DISPATCH_SHA" == "$head_sha" ]]
+          [[ "$EXPECTED_SHA" == "$head_sha" ]]
+
+      - name: Setup pnpm
+        uses: pnpm/action-setup@v6
+        with:
+          version: 9.15.9
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v7
+        with:
+          node-version: "22"
+
+      - name: Install frozen dependencies for service integration checks
+        run: pnpm install --frozen-lockfile --prod=false
+
+      - name: Download the pinned Supabase CLI release archive
+        run: curl --fail --silent --show-error --location "https://github.com/supabase/cli/releases/download/v2.119.0/supabase_2.119.0_linux_amd64.tar.gz" --output "$RUNNER_TEMP/supabase_2.119.0_linux_amd64.tar.gz"
+
+      - name: Test the schema replay CLI installer with synthetic archives
+        run: python3 scripts/ci/test_install_schema_replay_supabase_cli.py
+
+      - name: Verify and install the isolated schema replay Supabase CLI
+        run: python3 scripts/ci/install_schema_replay_supabase_cli.py "$RUNNER_TEMP/supabase_2.119.0_linux_amd64.tar.gz"
+
+      - name: Replay schema on an empty disposable local database and verify isolation
+        run: bash scripts/ci/verify-sandbox-schema-replay.sh
+
+  candidate-build:
+    name: Remote candidate build only
+    needs:
+      - static-and-unit
+      - schema-replay
+    if: ${{ always() && needs.static-and-unit.result == 'success' && (inputs.resolution_mode == 'remote-build' || (inputs.resolution_mode == 'checks-and-build' && needs.schema-replay.result == 'success')) }}
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    permissions:
+      contents: read
+    env:
+      EXPECTED_SHA: ${{ inputs.expected_sha }}
+      DISPATCH_SHA: ${{ github.sha }}
+      DISPATCH_REF: ${{ github.ref }}
+      NODE_ENV: production
+      VERCEL_ENV: preview
+      NEXT_TELEMETRY_DISABLED: "1"
+      NEXT_PUBLIC_APP_URL: https://candidate-build.invalid
+      NEXT_PUBLIC_SUPABASE_URL: https://placeholder.supabase.co
+      NEXT_PUBLIC_SUPABASE_ANON_KEY: placeholder-anon-key-for-candidate-build
+      DATABASE_URL: postgresql://placeholder:placeholder@placeholder:5432/placeholder
+      DATABASE_URL_POOL: postgresql://placeholder:placeholder@placeholder:5432/placeholder
+      DATABASE_URL_DIRECT: postgresql://placeholder:placeholder@placeholder:5432/placeholder
+      INTERNAL_AUTH_SECRET: placeholder-internal-auth-secret-for-candidate-build
+      SUPABASE_JWT_SECRET: placeholder-supabase-jwt-secret-for-candidate-build
+    steps:
+      - name: Checkout without persisted credentials
+        uses: actions/checkout@v7
+        with:
+          persist-credentials: false
+
+      - name: Require the candidate branch and exact SHA
+        shell: bash
+        run: |
+          set -euo pipefail
+          branch='codex/mvp-main-bridge-20261025'
+          head_sha="$(git rev-parse HEAD)"
+          [[ "$GITHUB_REF" == "refs/heads/$branch" ]]
+          [[ "$DISPATCH_REF" == "refs/heads/$branch" ]]
+          [[ "$EXPECTED_SHA" =~ ^[0-9a-f]{40}$ ]]
+          [[ "$DISPATCH_SHA" == "$head_sha" ]]
+          [[ "$EXPECTED_SHA" == "$head_sha" ]]
+
+      - name: Setup pnpm 9.15.9
+        uses: pnpm/action-setup@v6
+        with:
+          version: 9.15.9
+
+      - name: Setup Node.js 20
+        uses: actions/setup-node@v7
+        with:
+          node-version: "20"
+
+      - name: Install frozen dependencies
+        run: pnpm install --frozen-lockfile --prod=false
+
+      - name: Build candidate with placeholders only
+        run: pnpm build
+
+  lockfile-refresh:
+    name: Propose targeted dependency lockfile refresh
+    if: ${{ inputs.resolution_mode == 'lockfile-refresh' }}
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    permissions:
+      contents: read
+    env:
+      EXPECTED_SHA: ${{ inputs.expected_sha }}
+      DISPATCH_SHA: ${{ github.sha }}
+      DISPATCH_REF: ${{ github.ref }}
+    steps:
+      - name: Checkout without persisted credentials
+        uses: actions/checkout@v7
+        with:
+          persist-credentials: false
+
+      - name: Require the candidate branch and exact SHA
+        shell: bash
+        run: |
+          set -euo pipefail
+          branch='codex/mvp-main-bridge-20261025'
+          head_sha="$(git rev-parse HEAD)"
+          [[ "$GITHUB_REF" == "refs/heads/$branch" ]]
+          [[ "$DISPATCH_REF" == "refs/heads/$branch" ]]
+          [[ "$EXPECTED_SHA" =~ ^[0-9a-f]{40}$ ]]
+          [[ "$DISPATCH_SHA" == "$head_sha" ]]
+          [[ "$EXPECTED_SHA" == "$head_sha" ]]
+
+      - name: Setup pnpm 9.15.9
+        uses: pnpm/action-setup@v6
+        with:
+          version: 9.15.9
+
+      - name: Setup Node.js 22
+        uses: actions/setup-node@v7
+        with:
+          node-version: "22"
+
+      - name: Install the existing YAML guard dependency without scripts
+        run: pnpm install --frozen-lockfile --ignore-scripts --no-optional
+
+      - name: Refresh only the two approved transitive versions
+        run: pnpm update --depth 99 --lockfile-only --no-save --ignore-scripts follow-redirects hono
+
+      - name: Project only the seven approved lockfile blocks
+        id: targeted-lockfile-projection
+        env:
+          BASE_SHA: ${{ inputs.expected_sha }}
+        run: node scripts/ci/project-targeted-lockfile-refresh.cjs
+
+      - name: Verify the projected lockfile with a frozen install
+        run: pnpm install --frozen-lockfile --ignore-scripts --no-optional
+
+      - name: Revalidate the projection hash and print the guarded diff
+        env:
+          BASE_SHA: ${{ inputs.expected_sha }}
+          EXPECTED_PROJECTED_LOCK_SHA256: ${{ steps.targeted-lockfile-projection.outputs.projected_lock_sha256 }}
+        run: |
+          node scripts/ci/project-targeted-lockfile-refresh.cjs --verify "$EXPECTED_PROJECTED_LOCK_SHA256"
+          node scripts/ci/validate-lockfile-refresh.cjs
+
+  vite-refresh:
+    name: Propose Vite 6 patch lockfile refresh
+    if: ${{ inputs.resolution_mode == 'vite-refresh' }}
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    permissions:
+      contents: read
+    env:
+      EXPECTED_SHA: ${{ inputs.expected_sha }}
+      DISPATCH_SHA: ${{ github.sha }}
+      DISPATCH_REF: ${{ github.ref }}
+    steps:
+      - name: Checkout without persisted credentials
+        uses: actions/checkout@v7
+        with:
+          persist-credentials: false
+
+      - name: Require the candidate branch and exact SHA
+        shell: bash
+        run: |
+          set -euo pipefail
+          branch='codex/mvp-main-bridge-20261025'
+          head_sha="$(git rev-parse HEAD)"
+          [[ "$GITHUB_REF" == "refs/heads/$branch" ]]
+          [[ "$DISPATCH_REF" == "refs/heads/$branch" ]]
+          [[ "$EXPECTED_SHA" =~ ^[0-9a-f]{40}$ ]]
+          [[ "$DISPATCH_SHA" == "$head_sha" ]]
+          [[ "$EXPECTED_SHA" == "$head_sha" ]]
+
+      - name: Setup pnpm 9.15.9
+        uses: pnpm/action-setup@v6
+        with:
+          version: 9.15.9
+
+      - name: Setup Node.js 22
+        uses: actions/setup-node@v7
+        with:
+          node-version: "22"
+
+      # Vitest transforms the focused TypeScript tests with esbuild. Its platform
+      # binary is an optional dependency, so keep optionals while scripts remain disabled.
+      - name: Install frozen base dependencies without lifecycle scripts
+        run: pnpm install --frozen-lockfile --ignore-scripts
+
+      - name: Verify loopback-only namespace for focused Vite guards
+        run: sudo unshare --net -- bash -euc 'ip link set lo up && test "$(ip -o link show | wc -l)" -eq 1 && test -z "$(ip route show default)" && test -z "$(ip -6 route show default)"' isolated-check
+
+      - name: Run focused Vite resolver, core, CLI, and workflow contract tests before resolution
+        run: sudo --preserve-env=PATH,HOME,CI,NODE_ENV unshare --net -- bash -euc 'ip link set lo up && exec "$@"' isolated-check pnpm exec vitest run tests/ci-vite-temporary-rollup-override.test.ts tests/ci-vite-lockfile-core.test.ts tests/ci-vite-lockfile-cli.test.ts tests/ci-isolated-workflow-contract.test.ts
+
+      - name: Resolve only the pinned Vite patch
+        env:
+          BASE_SHA: ${{ inputs.expected_sha }}
+        run: node scripts/ci/resolve-vite-with-baseline-rollup.cjs
+
+      - name: Project only the approved Vite manifest and lock blocks
+        id: vite-lockfile-projection
+        env:
+          BASE_SHA: ${{ inputs.expected_sha }}
+        run: node scripts/ci/project-vite-lockfile-refresh.cjs
+
+      - name: Verify projected lock with a frozen install
+        run: pnpm install --frozen-lockfile --ignore-scripts
+
+      - name: Verify hashes and guards before printing the diff
+        env:
+          BASE_SHA: ${{ inputs.expected_sha }}
+          EXPECTED_BASE_MANIFEST_SHA256: ${{ steps.vite-lockfile-projection.outputs.base_manifest_sha256 }}
+          EXPECTED_RAW_MANIFEST_SHA256: ${{ steps.vite-lockfile-projection.outputs.raw_manifest_sha256 }}
+          EXPECTED_PROJECTED_MANIFEST_SHA256: ${{ steps.vite-lockfile-projection.outputs.projected_manifest_sha256 }}
+          EXPECTED_BASE_LOCKFILE_SHA256: ${{ steps.vite-lockfile-projection.outputs.base_lockfile_sha256 }}
+          EXPECTED_RAW_LOCKFILE_SHA256: ${{ steps.vite-lockfile-projection.outputs.raw_lockfile_sha256 }}
+          EXPECTED_PROJECTED_LOCKFILE_SHA256: ${{ steps.vite-lockfile-projection.outputs.projected_lockfile_sha256 }}
+        run: node scripts/ci/project-vite-lockfile-refresh.cjs --verify

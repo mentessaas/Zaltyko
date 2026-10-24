@@ -5,7 +5,7 @@ import { withTenant } from "@/lib/authz";
 import { apiSuccess, apiError } from "@/lib/api-response";
 import { handleApiError } from "@/lib/api-error-handler";
 import { verifyAcademyAccess } from "@/lib/permissions";
-import { getConnectAccount, isConnectReady } from "@/lib/stripe/connect-service";
+import { FAMILY_AUTOMATIC_COLLECTION_DISABLED } from "@/lib/stripe/family-automatic-collection-disabled";
 
 const QuerySchema = z.object({
   academyId: z.string().uuid(),
@@ -14,7 +14,8 @@ const QuerySchema = z.object({
 /**
  * GET /api/payments/connect/status?academyId=...
  *
- * Estado de conexion Stripe Connect de una academia (lectura tenant-scoped).
+ * Capacidad manual-only de la academia, con validación tenant-scoped y sin
+ * consultar el estado Connect histórico.
  */
 export const GET = withTenant(async (request, context) => {
   try {
@@ -33,18 +34,22 @@ export const GET = withTenant(async (request, context) => {
       return apiError(access.reason ?? "FORBIDDEN", "Access denied", 403);
     }
 
-    const account = await getConnectAccount(parsed.data.academyId);
-
-    return apiSuccess({
-      connected: !!account,
-      ready: isConnectReady(account),
-      status: account?.onboardingStatus ?? "not_connected",
-      chargesEnabled: account?.chargesEnabled ?? false,
-      payoutsEnabled: account?.payoutsEnabled ?? false,
-      detailsSubmitted: account?.detailsSubmitted ?? false,
-      country: account?.country ?? null,
-      lastSyncedAt: account?.lastSyncedAt ?? null,
+    const response = apiSuccess({
+      connected: false,
+      ready: false,
+      status: "disabled",
+      chargesEnabled: false,
+      payoutsEnabled: false,
+      detailsSubmitted: false,
+      country: null,
+      lastSyncedAt: null,
+      collectionMode: "manual",
+      manualCollectionAvailable: true,
+      automaticCollectionEnabled: false,
+      disabledReason: FAMILY_AUTOMATIC_COLLECTION_DISABLED,
     });
+    response.headers.set("Cache-Control", "private, no-store");
+    return response;
   } catch (error) {
     return handleApiError(error, {
       endpoint: "/api/payments/connect/status",

@@ -196,6 +196,7 @@ export async function bookTrial(command: BookTrialCommand): Promise<Trial> {
         organizationId: input.organizationId,
         locationId: prior.locationId,
         actor: input.actor,
+        intent: "write",
         allowedRoles: privilegedRoles,
       });
       return prior;
@@ -321,6 +322,7 @@ export async function transitionTrial(
       organizationId: input.organizationId,
       locationId: current.locationId,
       actor: input.actor,
+      intent: "write",
       allowedRoles: privilegedRoles,
     });
 
@@ -547,6 +549,7 @@ export async function recordTrialFollowup(
           organizationId: input.organizationId,
           locationId: priorTrial.locationId,
           actor: input.actor,
+          intent: "write",
           allowedRoles: privilegedRoles,
         });
         return prior;
@@ -558,6 +561,7 @@ export async function recordTrialFollowup(
       organizationId: input.organizationId,
       locationId: trial.locationId,
       actor: input.actor,
+      intent: "write",
       allowedRoles: privilegedRoles,
     });
     if (!new Set(["completed", "no_show", "cancelled"]).has(trial.status)) {
@@ -649,6 +653,7 @@ export async function convertTrial(
       organizationId: input.organizationId,
       locationId: current.locationId,
       actor: input.actor,
+      intent: "write",
       allowedRoles: privilegedRoles,
     });
 

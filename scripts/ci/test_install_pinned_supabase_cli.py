@@ -1,157 +1,143 @@
 #!/usr/bin/env python3
-"""Mock-local safety tests for the pinned Supabase CLI tar installer."""
+"""Synthetic, network-free tests for the pinned Supabase CLI installer."""
 
 from __future__ import annotations
 
-from hashlib import sha256
-from io import BytesIO
-from pathlib import Path
+import hashlib
+import io
+import re
 import sys
 import tarfile
 import tempfile
 import unittest
-from unittest.mock import patch
+from pathlib import Path
 
 sys.path.insert(0, str(Path(__file__).resolve().parent))
-import install_pinned_supabase_cli as installer  # noqa: E402
+from install_pinned_supabase_cli import (  # noqa: E402
+    CLI_VERSION,
+    EXPECTED_LINUX_X64_SHA256,
+    InstallError,
+    install_cli,
+)
+
+
+def write_archive(path: Path, members: list[tuple[str, bytes | None, str]]) -> None:
+    """Write members as (name, bytes-or-None, kind) without extracting them."""
+    with tarfile.open(path, mode="w:gz") as archive:
+        for name, content, kind in members:
+            info = tarfile.TarInfo(name)
+            if kind == "file":
+                assert content is not None
+                info.size = len(content)
+                archive.addfile(info, io.BytesIO(content))
+            elif kind == "symlink":
+                info.type = tarfile.SYMTYPE
+                info.linkname = "../../outside"
+                archive.addfile(info)
+            else:
+                raise AssertionError(f"unsupported test member kind: {kind}")
 
 
 class PinnedSupabaseCliInstallerTests(unittest.TestCase):
     def setUp(self) -> None:
-        self.temporary = tempfile.TemporaryDirectory(prefix="zaltyko-cli-installer-test-")
-        self.root = Path(self.temporary.name)
-        self.archive = self.root / "fixture.tar.gz"
-        self.destination = self.root / "installed-cli"
-        self.payload = b"synthetic supabase cli binary fixture"
+        self.temp = tempfile.TemporaryDirectory()
+        self.root = Path(self.temp.name)
+        self.runner_temp = self.root / "runner-temp"
+        self.runner_temp.mkdir()
+        self.archive = self.root / "release.tar.gz"
 
     def tearDown(self) -> None:
-        self.temporary.cleanup()
+        self.temp.cleanup()
 
-    def write_archive(self, entries: list[tuple[tarfile.TarInfo, bytes | None]]) -> None:
-        with tarfile.open(self.archive, mode="w:gz") as archive:
-            for member, content in entries:
-                archive.addfile(member, BytesIO(content) if content is not None else None)
+    def test_installs_only_the_verified_root_binary(self) -> None:
+        payload = b"synthetic-supabase-cli"
+        write_archive(self.archive, [("supabase", payload, "file"), ("README.txt", b"ignored", "file")])
 
-    def regular_member(
-        self, name: str = "supabase", content: bytes | None = None
-    ) -> tarfile.TarInfo:
-        member = tarfile.TarInfo(name)
-        member.size = len(content if content is not None else self.payload)
-        member.mode = 0o644
-        return member
-
-    def install_with_fixture_pins(self) -> Path:
-        with (
-            patch.object(
-                installer,
-                "ARCHIVE_SHA256",
-                sha256(self.archive.read_bytes()).hexdigest(),
-            ),
-            patch.object(installer, "BINARY_SHA256", sha256(self.payload).hexdigest()),
-            patch.object(installer, "BINARY_SIZE", len(self.payload)),
-        ):
-            return installer.extract_verified_cli(self.archive, self.destination)
-
-    def test_embedded_pins_match_reviewed_release_artifact(self) -> None:
-        self.assertEqual(
-            installer.ARCHIVE_SHA256,
-            "620a5f6ea7b60f9b4fe112a5d72464ea0e53d04022035641674a2e6d121e0eb5",
-        )
-        self.assertEqual(
-            installer.BINARY_SHA256,
-            "3132b218461bf90d4cd5983b27b44031cd9b6c797c259a431b2e2520b5f7bdce",
-        )
-        self.assertEqual(installer.BINARY_SIZE, 94_924_984)
-
-    def test_extracts_pinned_binary_from_three_verified_regular_members(self) -> None:
-        self.write_archive(
-            [
-                (self.regular_member("LICENSE", b"synthetic license"), b"synthetic license"),
-                (self.regular_member("README.md", b"synthetic readme"), b"synthetic readme"),
-                (self.regular_member(), self.payload),
-            ]
+        installed = install_cli(
+            self.archive,
+            self.runner_temp,
+            expected_sha256=hashlib.sha256(payload).hexdigest(),
         )
 
-        binary = self.install_with_fixture_pins()
+        self.assertEqual(installed.read_bytes(), payload)
+        self.assertEqual(installed.parent.name, f"supabase-cli-{CLI_VERSION}")
+        self.assertEqual(installed.stat().st_mode & 0o777, 0o755)
+        self.assertEqual(sorted(path.name for path in installed.parent.iterdir()), ["supabase"])
 
-        self.assertEqual(binary.read_bytes(), self.payload)
-        self.assertTrue(binary.stat().st_mode & 0o100)
-
-    def test_rejects_wrong_archive_digest_before_opening_tar(self) -> None:
-        self.archive.write_bytes(b"not the pinned archive")
-
-        with self.assertRaisesRegex(ValueError, "archive SHA-256 mismatch"):
-            installer.extract_verified_cli(self.archive, self.destination)
-        self.assertFalse(self.destination.exists())
-
-    def test_rejects_paths_links_duplicates_missing_members_and_extras(self) -> None:
-        unsafe_members: list[list[tuple[tarfile.TarInfo, bytes | None]]] = [
-            [(self.regular_member("../supabase"), self.payload)],
-        ]
-        link = tarfile.TarInfo("README.md")
-        link.type = tarfile.SYMTYPE
-        link.linkname = "../../outside"
-        unsafe_members.append([(link, None)])
-        hardlink = tarfile.TarInfo("README.md")
-        hardlink.type = tarfile.LNKTYPE
-        hardlink.linkname = "supabase"
-        unsafe_members.append([(hardlink, None)])
-        unsafe_members.append([(self.regular_member("extra"), self.payload)])
-        unsafe_members.append(
-            [
-                (self.regular_member("LICENSE", b"license"), b"license"),
-                (self.regular_member("README.md", b"readme"), b"readme"),
-                (self.regular_member(), self.payload),
-                (self.regular_member(), self.payload),
-            ]
-        )
-        unsafe_members.append(
-            [
-                (self.regular_member("LICENSE", b"license"), b"license"),
-                (self.regular_member(), self.payload),
-            ]
-        )
-        unsafe_members.append(
-            [
-                (self.regular_member("LICENSE", b"license"), b"license"),
-                (self.regular_member("README.md", b"readme"), b"readme"),
-            ]
+    def test_does_not_extract_untrusted_paths_from_archive(self) -> None:
+        payload = b"verified-binary"
+        write_archive(
+            self.archive,
+            [("supabase", payload, "file"), ("../../outside", b"ignored", "file")],
         )
 
-        for entries in unsafe_members:
-            with self.subTest(entries=[entry[0].name for entry in entries]):
-                self.write_archive(entries)
-                with patch.object(
-                    installer,
-                    "ARCHIVE_SHA256",
-                    sha256(self.archive.read_bytes()).hexdigest(),
-                ), patch.object(installer, "BINARY_SIZE", len(self.payload)):
-                    with self.assertRaises(ValueError):
-                        installer.extract_verified_cli(self.archive, self.destination)
-                self.assertFalse(self.destination.exists())
-
-    def test_rejects_binary_digest_mismatch_and_removes_partial_install(self) -> None:
-        self.write_archive(
-            [
-                (self.regular_member("LICENSE", b"synthetic license"), b"synthetic license"),
-                (self.regular_member("README.md", b"synthetic readme"), b"synthetic readme"),
-                (self.regular_member(), self.payload),
-            ]
+        installed = install_cli(
+            self.archive,
+            self.runner_temp,
+            expected_sha256=hashlib.sha256(payload).hexdigest(),
         )
 
-        with (
-            patch.object(
-                installer,
-                "ARCHIVE_SHA256",
-                sha256(self.archive.read_bytes()).hexdigest(),
-            ),
-            patch.object(installer, "BINARY_SHA256", "0" * 64),
-            patch.object(installer, "BINARY_SIZE", len(self.payload)),
-        ):
-            with self.assertRaisesRegex(ValueError, "binary SHA-256 mismatch"):
-                installer.extract_verified_cli(self.archive, self.destination)
-        self.assertFalse(self.destination.exists())
+        self.assertEqual(installed.read_bytes(), payload)
+        self.assertFalse((self.root / "outside").exists())
+
+    def test_rejects_symlink_binary(self) -> None:
+        write_archive(self.archive, [("supabase", None, "symlink")])
+
+        with self.assertRaisesRegex(InstallError, "regular file"):
+            install_cli(self.archive, self.runner_temp, expected_sha256="0" * 64)
+
+    def test_rejects_duplicate_root_binary(self) -> None:
+        write_archive(self.archive, [("supabase", b"first", "file"), ("supabase", b"second", "file")])
+
+        with self.assertRaisesRegex(InstallError, "exactly one"):
+            install_cli(self.archive, self.runner_temp, expected_sha256="0" * 64)
+
+    def test_rejects_hash_mismatch_and_removes_staging_directory(self) -> None:
+        write_archive(self.archive, [("supabase", b"wrong-binary", "file")])
+
+        with self.assertRaisesRegex(InstallError, "SHA-256"):
+            install_cli(self.archive, self.runner_temp, expected_sha256="0" * 64)
+
+        self.assertEqual(list(self.runner_temp.iterdir()), [])
+
+    def test_refuses_overwrite_of_existing_install(self) -> None:
+        destination = self.runner_temp / "supabase-cli-2.84.2"
+        destination.mkdir()
+        sentinel = destination / "keep.txt"
+        sentinel.write_text("existing install stays intact", encoding="utf-8")
+        write_archive(self.archive, [("supabase", b"payload", "file")])
+
+        with self.assertRaisesRegex(InstallError, "already exists"):
+            install_cli(
+                self.archive,
+                self.runner_temp,
+                expected_sha256=hashlib.sha256(b"payload").hexdigest(),
+            )
+
+        self.assertEqual(sentinel.read_text(encoding="utf-8"), "existing install stays intact")
+        self.assertEqual(sorted(path.name for path in destination.iterdir()), ["keep.txt"])
+
+    def test_rejects_invalid_digest_and_nonpositive_size_limit(self) -> None:
+        write_archive(self.archive, [("supabase", b"payload", "file")])
+
+        with self.assertRaisesRegex(InstallError, "lowercase SHA-256"):
+            install_cli(self.archive, self.runner_temp, expected_sha256="not-a-digest")
+        with self.assertRaisesRegex(InstallError, "size limit must be positive"):
+            install_cli(
+                self.archive,
+                self.runner_temp,
+                expected_sha256=hashlib.sha256(b"payload").hexdigest(),
+                max_bytes=0,
+            )
+        self.assertEqual(list(self.runner_temp.iterdir()), [])
+
+    def test_pinned_digest_matches_local_e2e_guard(self) -> None:
+        source = Path(__file__).resolve().parents[1] / "lib" / "local-e2e-preflight.ts"
+        content = source.read_text(encoding="utf-8")
+        match = re.search(r'"linux-x64":\s*"([0-9a-f]{64})"', content)
+        self.assertIsNotNone(match, "the local E2E guard must pin a Linux x64 CLI digest")
+        self.assertEqual(match.group(1), EXPECTED_LINUX_X64_SHA256)
 
 
 if __name__ == "__main__":
-    unittest.main()
+    unittest.main(verbosity=2)

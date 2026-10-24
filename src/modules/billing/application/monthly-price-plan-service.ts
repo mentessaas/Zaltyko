@@ -322,6 +322,14 @@ export async function createMonthlyPricePlan(
       );
     }
 
+    await assertOperationalAccess(tx, {
+      organizationId: input.organizationId,
+      locationId: input.locationId,
+      actor: input.actor,
+      intent: "write",
+      allowedRoles: ["owner", "admin"],
+    });
+
     const [pricePlan] = await tx
       .insert(pricePlans)
       .values({

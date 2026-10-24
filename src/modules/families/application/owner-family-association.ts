@@ -1,6 +1,6 @@
 import { createHash } from "node:crypto";
 
-import { and, eq, gte, inArray, isNull, lte, or, sql } from "drizzle-orm";
+import { and, eq, gt, gte, inArray, isNull, lte, or, sql } from "drizzle-orm";
 import { z } from "zod";
 
 import { db } from "@/db";
@@ -127,32 +127,67 @@ async function verifyAthletesAtLocation(
   }
 }
 
+export function resolveFamilyMemberAssociation(
+  rows: readonly { startsOn: string; endsOn: string | null }[],
+  effectiveFrom: string
+): "already-associated" | "date-conflict" | "create" {
+  const overlappingRows = rows.filter(
+    (row) => row.endsOn === null || row.endsOn >= effectiveFrom
+  );
+  if (overlappingRows.some((row) => row.startsOn > effectiveFrom)) {
+    return "date-conflict";
+  }
+  if (overlappingRows.some((row) => row.startsOn <= effectiveFrom)) {
+    return "already-associated";
+  }
+  return "create";
+}
+
+export function familyMemberOverlapPredicate(effectiveFrom: string) {
+  return or(
+    isNull(familyMembers.endsOn),
+    gte(familyMembers.endsOn, effectiveFrom)
+  )!;
+}
+
+export function familyMemberStartsAfterPredicate(effectiveFrom: string) {
+  return gt(familyMembers.startsOn, effectiveFrom);
+}
+
+export function familyMemberStartsOnOrBeforePredicate(effectiveFrom: string) {
+  return lte(familyMembers.startsOn, effectiveFrom);
+}
+
 async function linkAthletesToFamily(
   tx: TransactionClient,
   input: OwnerFamilyAssociationCommand,
   familyId: string
 ): Promise<void> {
   for (const athleteId of input.athleteIds) {
-    const [existing] = await tx
-      .select()
+    const basePredicate = and(
+      eq(familyMembers.organizationId, input.organizationId),
+      eq(familyMembers.familyId, familyId),
+      eq(familyMembers.athleteId, athleteId),
+      familyMemberOverlapPredicate(input.effectiveFrom)
+    );
+    const [futureOverlap] = await tx
+      .select({ startsOn: familyMembers.startsOn, endsOn: familyMembers.endsOn })
       .from(familyMembers)
-      .where(
-        and(
-          eq(familyMembers.organizationId, input.organizationId),
-          eq(familyMembers.familyId, familyId),
-          eq(familyMembers.athleteId, athleteId),
-          isNull(familyMembers.endsOn)
-        )
-      )
+      .where(and(basePredicate, familyMemberStartsAfterPredicate(input.effectiveFrom)))
       .limit(1);
-    if (existing) {
-      if (existing.startsOn > input.effectiveFrom) {
-        throw new OperationalError(
-          "FAMILY_MEMBERSHIP_DATE_CONFLICT",
-          "La fecha efectiva es anterior a una relación familiar existente.",
-          409
-        );
-      }
+    if (futureOverlap) {
+      throw new OperationalError(
+        "FAMILY_MEMBERSHIP_DATE_CONFLICT",
+        "La fecha efectiva se solapa con una relación familiar existente.",
+        409
+      );
+    }
+    const [existingAssociation] = await tx
+      .select({ startsOn: familyMembers.startsOn, endsOn: familyMembers.endsOn })
+      .from(familyMembers)
+      .where(and(basePredicate, familyMemberStartsOnOrBeforePredicate(input.effectiveFrom)))
+      .limit(1);
+    if (existingAssociation) {
       continue;
     }
     await tx.insert(familyMembers).values({
@@ -209,9 +244,9 @@ export async function associateOwnerFamilyInTransaction(
     assertIdempotencyPayload(priorEvent.payload, {
       commandFingerprint: fingerprint(input),
     });
-    const familyId = priorEvent.payload.resolvedFamilyId;
-    const familyPayerId = priorEvent.payload.familyPayerId;
-    if (typeof familyId !== "string" || typeof familyPayerId !== "string") {
+    const familyId = z.string().uuid().safeParse(priorEvent.payload.resolvedFamilyId);
+    const familyPayerId = z.string().uuid().safeParse(priorEvent.payload.familyPayerId);
+    if (!familyId.success || !familyPayerId.success) {
       throw new OperationalError(
         "IDEMPOTENCY_CONFLICT",
         "La asociación previa no está disponible.",
@@ -230,7 +265,7 @@ export async function associateOwnerFamilyInTransaction(
       .where(
         and(
           eq(families.organizationId, input.organizationId),
-          eq(families.id, familyId)
+          eq(families.id, familyId.data)
         )
       )
       .limit(1);
@@ -244,7 +279,7 @@ export async function associateOwnerFamilyInTransaction(
         and(
           eq(familyPayers.organizationId, input.organizationId),
           eq(familyPayers.familyId, family.id),
-          eq(familyPayers.id, familyPayerId)
+          eq(familyPayers.id, familyPayerId.data)
         )
       )
       .limit(1);
@@ -253,7 +288,7 @@ export async function associateOwnerFamilyInTransaction(
     }
     return {
       family,
-      familyPayerId,
+      familyPayerId: familyPayerId.data,
       guardianId: priorPayer.guardianId,
       replayed: true,
     };
@@ -263,6 +298,7 @@ export async function associateOwnerFamilyInTransaction(
     organizationId: input.organizationId,
     locationId: input.locationId,
     actor: input.actor,
+    intent: "write",
     allowedRoles: ["owner", "admin", "manager"],
   });
   if (input.familyId) {

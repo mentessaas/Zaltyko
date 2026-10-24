@@ -18,6 +18,8 @@ import {
 } from "@/modules/enrollments/domain/contracts";
 import { calculateEffectiveCapacity } from "@/modules/scheduling/domain/capacity";
 import { assignEnrollmentPriceInTransaction } from "@/modules/enrollments/application/enrollment-price-service";
+import { hasEligibleEnrollmentLocationRelationship } from "@/modules/groups/application/group-athlete-location-eligibility";
+import { assertOrganizationOperationalWritable } from "@/modules/saas-billing/application/organization-usage";
 import type { TransactionClient } from "@/lib/db-transactions";
 import { operationalActorSchema } from "@/modules/shared/application/actor";
 import { OperationalError } from "@/modules/shared/domain/operational-error";
@@ -120,7 +122,8 @@ function transitionEventName(
 async function loadEnrollment(
   tx: Parameters<Parameters<typeof db.transaction>[0]>[0],
   organizationId: string,
-  enrollmentId: string
+  enrollmentId: string,
+  options: { priorResult?: boolean } = {}
 ): Promise<Enrollment> {
   const [enrollment] = await tx
     .select()
@@ -134,7 +137,11 @@ async function loadEnrollment(
     .limit(1);
 
   if (!enrollment) {
-    throw new OperationalError("NOT_FOUND", "Inscripción no encontrada", 404);
+    throw new OperationalError(
+      options.priorResult ? "IDEMPOTENCY_CONFLICT" : "NOT_FOUND",
+      options.priorResult ? "No se puede recuperar el resultado de la operación anterior" : "Inscripción no encontrada",
+      options.priorResult ? 409 : 404
+    );
   }
 
   return enrollment;
@@ -146,16 +153,29 @@ async function loadIdempotentEnrollment(
     organizationId: string;
     eventName: string;
     idempotencyKey: string;
+    expectedLocationId?: string;
     expectedPayload: Record<string, string | number | boolean | null>;
   }
 ): Promise<Enrollment | null> {
   const event = await findOutboxEvent(tx, input);
-  if (event) {
-    assertIdempotencyPayload(event.payload, input.expectedPayload);
+  if (!event) return null;
+  assertIdempotencyPayload(event.payload, input.expectedPayload);
+  if (input.expectedLocationId !== undefined && event.locationId !== input.expectedLocationId) {
+    throw new OperationalError(
+      "IDEMPOTENCY_CONFLICT",
+      "La operación anterior pertenece a una sede distinta",
+      409
+    );
   }
-  const enrollmentId = event?.payload.enrollmentId;
-  if (typeof enrollmentId !== "string") return null;
-  return loadEnrollment(tx, input.organizationId, enrollmentId);
+  const enrollmentId = z.string().uuid().safeParse(event.payload.enrollmentId);
+  if (!enrollmentId.success || event.aggregateId !== enrollmentId.data) {
+    throw new OperationalError(
+      "IDEMPOTENCY_CONFLICT",
+      "El registro de la operación anterior no identifica una inscripción coherente",
+      409
+    );
+  }
+  return loadEnrollment(tx, input.organizationId, enrollmentId.data, { priorResult: true });
 }
 
 async function assertEffectiveDateNotFuture(
@@ -322,6 +342,7 @@ export async function createEnrollmentInTransaction(
     organizationId: input.organizationId,
     eventName,
     idempotencyKey: input.idempotencyKey,
+    expectedLocationId: input.locationId,
     expectedPayload: {
       athleteId: input.athleteId,
       classTemplateId: input.classTemplateId,
@@ -345,6 +366,7 @@ export async function createEnrollmentInTransaction(
     organizationId: input.organizationId,
     locationId: input.locationId,
     actor: input.actor,
+    intent: "write",
     allowedRoles: privilegedRoles,
   });
 
@@ -362,12 +384,20 @@ export async function createEnrollmentInTransaction(
       and(
         eq(athletes.organizationId, input.organizationId),
         eq(athletes.id, input.athleteId),
-        eq(athletes.isActive, true)
+        eq(athletes.isActive, true),
+        hasEligibleEnrollmentLocationRelationship({
+          organizationId: input.organizationId,
+          locationId: input.locationId,
+        })
       )
     )
     .limit(1);
   if (!athlete) {
-    throw new OperationalError("NOT_FOUND", "Atleta activo no encontrado", 404);
+    throw new OperationalError(
+      "NOT_FOUND",
+      "Atleta activo no encontrado en esta sede",
+      404
+    );
   }
 
   await assertTemplateCapacity(tx, input);
@@ -500,6 +530,9 @@ export async function transitionEnrollmentInTransaction(
     },
   });
   if (idempotent) return idempotent;
+
+  // A replay only reads an authorized result; a new transition still needs write access.
+  await assertOrganizationOperationalWritable(tx, input.organizationId);
 
   const changesReservedEnrollmentAtStart =
     current.status === "pending" &&
@@ -665,9 +698,14 @@ export async function transferEnrollment(
       });
       const sourceId = priorEvent.payload.sourceEnrollmentId;
       const targetId = priorEvent.payload.targetEnrollmentId;
-      if (typeof sourceId === "string" && typeof targetId === "string") {
-        const source = await loadEnrollment(tx, input.organizationId, sourceId);
-        const target = await loadEnrollment(tx, input.organizationId, targetId);
+      if (
+        typeof sourceId === "string" && typeof targetId === "string" &&
+        z.string().uuid().safeParse(sourceId).success &&
+        z.string().uuid().safeParse(targetId).success &&
+        priorEvent.aggregateId === targetId
+      ) {
+        const source = await loadEnrollment(tx, input.organizationId, sourceId, { priorResult: true });
+        const target = await loadEnrollment(tx, input.organizationId, targetId, { priorResult: true });
         await assertOperationalAccess(tx, {
           organizationId: input.organizationId,
           locationId: source.locationId,
@@ -682,6 +720,11 @@ export async function transferEnrollment(
         });
         return { source, target };
       }
+      throw new OperationalError(
+        "IDEMPOTENCY_CONFLICT",
+        "El registro de la transferencia anterior no identifica un resultado coherente",
+        409
+      );
     }
 
     await tx.execute(
@@ -730,12 +773,14 @@ export async function transferEnrollment(
       organizationId: input.organizationId,
       locationId: current.locationId,
       actor: input.actor,
+      intent: "write",
       allowedRoles: privilegedRoles,
     });
     await assertOperationalAccess(tx, {
       organizationId: input.organizationId,
       locationId: input.targetLocationId,
       actor: input.actor,
+      intent: "write",
       allowedRoles: privilegedRoles,
     });
     await assertEffectiveDateNotFuture(tx, {

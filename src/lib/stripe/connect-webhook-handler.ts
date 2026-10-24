@@ -6,6 +6,10 @@ import { logger } from "@/lib/logger";
 import { recordBillingEvent, updateBillingEventStatus } from "@/lib/stripe/billing-events-service";
 import { syncConnectAccountFromStripe } from "@/lib/stripe/connect-service";
 import {
+  assertConnectEventMode,
+  getConfiguredConnectLiveMode,
+} from "@/lib/stripe/connect-event-context";
+import {
   ConnectEventRejectedError,
   reconcileChargeRefunded,
   reconcilePaymentIntentCanceled,
@@ -29,6 +33,7 @@ import {
 export async function processConnectEvent(
   event: Stripe.Event
 ): Promise<{ duplicate: boolean; rejected: boolean }> {
+  const expectedLiveMode = getConfiguredConnectLiveMode();
   const claim = await recordBillingEvent(event);
   if (!claim.shouldProcess) {
     return { duplicate: true, rejected: false };
@@ -36,6 +41,7 @@ export async function processConnectEvent(
 
   const eventId = claim.id;
   try {
+    assertConnectEventMode(event.livemode, expectedLiveMode);
     switch (event.type) {
       case "account.updated":
         if (!event.account || event.account !== (event.data.object as Stripe.Account).id) {
@@ -46,24 +52,27 @@ export async function processConnectEvent(
       case "payment_intent.succeeded":
         await reconcilePaymentIntentSucceeded(
           event.data.object as Stripe.PaymentIntent,
-          event.account ?? null
+          event.account ?? null,
+          event.livemode
         );
         break;
       case "payment_intent.payment_failed":
         await reconcilePaymentIntentFailed(
           event.data.object as Stripe.PaymentIntent,
           event.account ?? null,
+          event.livemode,
           event.id
         );
         break;
       case "payment_intent.canceled":
         await reconcilePaymentIntentCanceled(
           event.data.object as Stripe.PaymentIntent,
-          event.account ?? null
+          event.account ?? null,
+          event.livemode
         );
         break;
       case "charge.refunded":
-        await reconcileChargeRefunded(event.data.object as Stripe.Charge, event.account ?? null);
+        await reconcileChargeRefunded(event.data.object as Stripe.Charge, event.account ?? null, event.livemode);
         break;
       default:
         // Tipo no manejado: marcar procesado para no reintentar en bucle.

@@ -134,6 +134,7 @@ export default async function AcademyHealthScoreSetupPage({
             )}
           </div>
           <AcademyTargetProfileForm
+            key={scope.organization.id}
             organizationId={scope.organization.id}
             profile={profile}
           />

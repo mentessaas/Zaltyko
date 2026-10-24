@@ -2,7 +2,9 @@
 
 import Link from "next/link";
 import { usePathname, useSearchParams } from "next/navigation";
+import { useRef } from "react";
 import { ChevronDown } from "lucide-react";
+import { OwnerPlanUsage } from "./OwnerPlanUsage";
 
 type NavigationItem = {
   label: string;
@@ -17,6 +19,8 @@ function isRouteActive(pathname: string, route: string) {
 }
 
 export function OwnerWorkspaceNavigation() {
+  const mobileMoreRef = useRef<HTMLDetailsElement>(null);
+  const mobileMoreSummaryRef = useRef<HTMLElement>(null);
   const pathname = usePathname();
   const searchParams = useSearchParams();
   const organizationId = searchParams.get("organizationId");
@@ -26,6 +30,9 @@ export function OwnerWorkspaceNavigation() {
   if (locationId) context.set("locationId", locationId);
   const contextQuery = context.toString();
   const scopedQuery = contextQuery ? `?${contextQuery}` : "";
+  const organizationQuery = organizationId
+    ? `?${new URLSearchParams({ organizationId }).toString()}`
+    : "";
   const dashboardPath = pathname === "/owner/preview" ? pathname : "/owner";
   const dashboardHref = `${dashboardPath}${scopedQuery}`;
   const isDashboardPreview = pathname === "/owner/preview";
@@ -77,6 +84,15 @@ export function OwnerWorkspaceNavigation() {
         : `/owner/payments${scopedQuery}`,
       active: isRouteActive(pathname, "/owner/payments"),
     },
+    ...(!isDashboardPreview
+      ? [
+          {
+            label: "Plan",
+            href: `/owner/subscription${organizationQuery}`,
+            active: isRouteActive(pathname, "/owner/subscription"),
+          },
+        ]
+      : []),
   ];
   const mobileItems = navigationItems.slice(0, 5);
   const secondaryMobileItems = navigationItems.slice(5);
@@ -144,8 +160,8 @@ export function OwnerWorkspaceNavigation() {
                   {item.label}
                 </Link>
               ))}
-              <details className="relative min-w-0">
-                <summary className="touch-target cursor-pointer list-none px-1 text-center text-xs font-semibold text-slate-700 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-[-2px] focus-visible:outline-teal-800 [&::-webkit-details-marker]:hidden">
+              <details ref={mobileMoreRef} className="relative min-w-0">
+                <summary ref={mobileMoreSummaryRef} className="touch-target cursor-pointer list-none px-1 text-center text-xs font-semibold text-slate-700 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-[-2px] focus-visible:outline-teal-800 [&::-webkit-details-marker]:hidden">
                   <span>Más</span>
                   <ChevronDown
                     className="ml-1 h-3.5 w-3.5"
@@ -157,6 +173,10 @@ export function OwnerWorkspaceNavigation() {
                     <li key={item.label}>
                       <Link
                         href={item.href}
+                        onClick={() => {
+                          if (mobileMoreRef.current) mobileMoreRef.current.open = false;
+                          mobileMoreSummaryRef.current?.focus({ preventScroll: true });
+                        }}
                         aria-current={item.active ? "page" : undefined}
                         className="touch-target flex rounded px-3 text-sm font-semibold text-slate-800 hover:bg-slate-100 focus-visible:outline focus-visible:outline-2 focus-visible:outline-teal-800"
                       >
@@ -170,6 +190,7 @@ export function OwnerWorkspaceNavigation() {
           ) : null}
         </div>
       </header>
+      {organizationId && !preview ? <OwnerPlanUsage key={organizationId} organizationId={organizationId} compact /> : null}
     </>
   );
 }

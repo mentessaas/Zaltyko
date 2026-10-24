@@ -167,6 +167,7 @@ export function OwnerMonthlyInvoiceWorkspace({
   successMessage,
   quoteNeedsReview = false,
   busy = false,
+  writesBlocked = false,
   onFamilyChange,
   onDueDateChange,
   onRetry,
@@ -184,6 +185,7 @@ export function OwnerMonthlyInvoiceWorkspace({
   successMessage?: string;
   quoteNeedsReview?: boolean;
   busy?: boolean;
+  writesBlocked?: boolean;
   onFamilyChange: (familyId: string) => void;
   onDueDateChange: (dueDate: string) => void;
   onRetry: () => void;
@@ -222,7 +224,8 @@ export function OwnerMonthlyInvoiceWorkspace({
     selectedFamily.quoteHash &&
     selectedFamily.blockingReasons.length === 0 &&
     !hasInvoice &&
-    !busy
+    !busy &&
+    !writesBlocked
   );
 
   function issue() {
@@ -431,6 +434,7 @@ export function OwnerMonthlyInvoiceWorkspace({
                   <button
                     type="button"
                     onClick={() => onAssignPayer(selectedFamily.familyId)}
+                    disabled={busy || writesBlocked}
                     className={secondaryButtonClassName}
                   >
                     Asignar un pagador adulto
@@ -539,6 +543,7 @@ export function OwnerMonthlyInvoiceWorkspace({
                               !enrollment.assignedPrice) && (
                               <button
                                 type="button"
+                                disabled={busy || writesBlocked}
                                 onClick={() =>
                                   onAssignTariff(enrollment.enrollmentId)
                                 }
@@ -557,6 +562,7 @@ export function OwnerMonthlyInvoiceWorkspace({
                             ) && (
                               <button
                                 type="button"
+                                disabled={busy || writesBlocked}
                                 onClick={() =>
                                   onLinkFamily(enrollment.enrollmentId)
                                 }
@@ -608,6 +614,7 @@ export function OwnerMonthlyInvoiceWorkspace({
                         </span>
                         <button
                           type="button"
+                          disabled={busy || writesBlocked}
                           onClick={() => onLinkFamily(enrollment.enrollmentId)}
                           className={secondaryButtonClassName}
                           aria-label={`Vincular a una familia a ${athleteLabel(enrollment.athleteName)}`}

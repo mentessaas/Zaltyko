@@ -71,6 +71,9 @@ overrides:
   tmp: ^0.2.4
   # uuid: falta de comprobacion de limites en v3/v5/v6 con `buf` (GHSA-w5hq-g745-h8pq)
   uuid: ^11.1.1
+  # postcss-selector-parser quadratic-time selector parsing (GHSA-rj75-hqrm-r3gf).
+  # Scope the major-version override to the one transitive consumer that pins 6.0.10.
+  '@tailwindcss/typography>postcss-selector-parser': ^7.1.6
 
   # --- Pre-existing dependency hygiene pins ---
   ws: ^8.21.0

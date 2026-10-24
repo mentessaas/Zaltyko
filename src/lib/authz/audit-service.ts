@@ -2,6 +2,7 @@ import { db } from "@/db";
 import { auditLogs } from "@/db/schema/audit-logs";
 import { and, eq, ilike, gte, lte, desc, sql, count, or } from "drizzle-orm";
 import type { AuditAction, AuditModule } from "@/db/schema/audit-logs";
+import type { DatabaseClient } from "@/lib/db-transactions";
 
 export interface AuditLogFilters {
   academyId?: string;
@@ -172,8 +173,11 @@ interface CreateAuditLogParams {
   status?: "success" | "failed" | "warning";
 }
 
-export async function createAuditLog(params: CreateAuditLogParams) {
-  const [log] = await db
+export async function createAuditLog(
+  params: CreateAuditLogParams,
+  executor: DatabaseClient = db
+) {
+  const [log] = await executor
     .insert(auditLogs)
     .values({
       tenantId: params.tenantId,

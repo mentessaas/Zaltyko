@@ -1,110 +1,153 @@
 #!/usr/bin/env python3
-"""Verify and safely install the pinned Supabase CLI archive on GitHub runners."""
+"""Install the pinned Supabase CLI from a verified Linux x64 release archive.
+
+This CI helper intentionally requires RUNNER_TEMP and never writes into the
+checkout or a user home directory. It extracts only the exact regular file
+named `supabase`, verifies the binary digest, and refuses to overwrite installs.
+"""
 
 from __future__ import annotations
 
+import argparse
 import hashlib
 import os
-from pathlib import Path
+import platform
+import re
 import shutil
 import sys
 import tarfile
+import tempfile
+from pathlib import Path
+
 
 CLI_VERSION = "2.84.2"
-ARCHIVE_SHA256 = "620a5f6ea7b60f9b4fe112a5d72464ea0e53d04022035641674a2e6d121e0eb5"
-BINARY_SHA256 = "3132b218461bf90d4cd5983b27b44031cd9b6c797c259a431b2e2520b5f7bdce"
-BINARY_SIZE = 94_924_984
-ARCHIVE_MEMBER = "supabase"
-ALLOWED_ARCHIVE_MEMBERS = frozenset({"LICENSE", "README.md", ARCHIVE_MEMBER})
+EXPECTED_LINUX_X64_SHA256 = (
+    "3132b218461bf90d4cd5983b27b44031cd9b6c797c259a431b2e2520b5f7bdce"
+)
+MAX_BINARY_BYTES = 512 * 1024 * 1024
 
 
-def sha256_file(path: Path) -> str:
-    digest = hashlib.sha256()
-    with path.open("rb") as source:
-        for block in iter(lambda: source.read(1024 * 1024), b""):
-            digest.update(block)
-    return digest.hexdigest()
+class InstallError(RuntimeError):
+    """Raised when the archive is not the pinned CLI release."""
 
 
-def extract_verified_cli(archive_path: Path, destination: Path) -> Path:
-    if sha256_file(archive_path) != ARCHIVE_SHA256:
-        raise ValueError("Supabase CLI archive SHA-256 mismatch; refusing extraction.")
-
-    if destination.exists():
-        raise FileExistsError("Supabase CLI destination already exists; refusing overwrite.")
-    destination.mkdir(parents=True)
-    temporary_binary = destination / ".supabase.tmp"
-    installed_binary = destination / ARCHIVE_MEMBER
-
+def _copy_verified_member(
+    archive_path: Path,
+    binary_path: Path,
+    expected_sha256: str,
+    max_bytes: int = MAX_BINARY_BYTES,
+) -> None:
     try:
-        with tarfile.open(archive_path, mode="r:gz") as archive:
-            members = archive.getmembers()
-            seen_names: set[str] = set()
-            binary_member: tarfile.TarInfo | None = None
-            for member in members:
-                if member.name not in ALLOWED_ARCHIVE_MEMBERS:
-                    raise ValueError(
-                        f"Unexpected Supabase CLI archive member {member.name!r}."
-                    )
-                if member.name in seen_names:
-                    raise ValueError(
-                        f"Duplicate Supabase CLI archive member {member.name!r}."
-                    )
-                if not member.isfile():
-                    raise ValueError(
-                        f"Supabase CLI archive member {member.name!r} must be a regular file."
-                    )
-                seen_names.add(member.name)
-                if member.name == ARCHIVE_MEMBER:
-                    binary_member = member
+        archive = tarfile.open(archive_path, mode="r:gz")
+    except (OSError, tarfile.TarError) as error:
+        raise InstallError("Release archive is not a readable gzip tarball.") from error
 
-            if seen_names != ALLOWED_ARCHIVE_MEMBERS:
-                raise ValueError(
-                    "Supabase CLI archive must contain exactly LICENSE, README.md, and supabase regular files."
-                )
-            if binary_member is None:
-                raise ValueError("Supabase CLI archive has no regular 'supabase' binary.")
-            if binary_member.size != BINARY_SIZE:
-                raise ValueError("Supabase CLI binary size mismatch; refusing extraction.")
+    with archive:
+        matches = [member for member in archive.getmembers() if member.name == "supabase"]
+        if len(matches) != 1:
+            raise InstallError("Release archive must contain exactly one root `supabase` file.")
 
-            source = archive.extractfile(binary_member)
-            if source is None:
-                raise ValueError("Supabase CLI archive member could not be read.")
-            with source, temporary_binary.open("xb") as target:
-                shutil.copyfileobj(source, target, length=1024 * 1024)
+        member = matches[0]
+        if not member.isfile() or member.issparse():
+            raise InstallError("The root `supabase` archive member must be a regular file.")
+        if member.size <= 0 or member.size > max_bytes:
+            raise InstallError("The Supabase CLI binary has an invalid size.")
 
-        if temporary_binary.stat().st_size != BINARY_SIZE:
-            raise ValueError("Extracted Supabase CLI binary size mismatch.")
-        if sha256_file(temporary_binary) != BINARY_SHA256:
-            raise ValueError("Supabase CLI binary SHA-256 mismatch; refusing installation.")
+        source = archive.extractfile(member)
+        if source is None:
+            raise InstallError("The Supabase CLI binary could not be read from the archive.")
 
-        temporary_binary.chmod(0o755)
-        os.replace(temporary_binary, installed_binary)
-        return installed_binary
+        digest = hashlib.sha256()
+        copied = 0
+        try:
+            with source, binary_path.open("xb") as destination:
+                while True:
+                    chunk = source.read(1024 * 1024)
+                    if not chunk:
+                        break
+                    copied += len(chunk)
+                    if copied > max_bytes:
+                        raise InstallError("The Supabase CLI binary exceeds the size limit.")
+                    digest.update(chunk)
+                    destination.write(chunk)
+        except OSError as error:
+            raise InstallError("The Supabase CLI binary could not be staged safely.") from error
+
+        if copied != member.size:
+            raise InstallError("The extracted Supabase CLI size does not match the archive header.")
+        actual_sha256 = digest.hexdigest()
+        if actual_sha256 != expected_sha256:
+            raise InstallError(
+                "The Supabase CLI binary SHA-256 does not match the pinned release "
+                f"(expected {expected_sha256}, found {actual_sha256})."
+            )
+        binary_path.chmod(0o755)
+
+
+def install_cli(
+    archive_path: Path,
+    runner_temp: Path,
+    expected_sha256: str = EXPECTED_LINUX_X64_SHA256,
+    max_bytes: int = MAX_BINARY_BYTES,
+) -> Path:
+    """Verify and install the release under RUNNER_TEMP without overwriting."""
+    if not re.fullmatch(r"[0-9a-f]{64}", expected_sha256):
+        raise InstallError("The pinned Supabase CLI digest must be a lowercase SHA-256 value.")
+    if max_bytes <= 0:
+        raise InstallError("The Supabase CLI size limit must be positive.")
+    if not archive_path.is_file():
+        raise InstallError("The downloaded Supabase CLI archive is missing.")
+    if not runner_temp.is_dir():
+        raise InstallError("RUNNER_TEMP must name an existing directory.")
+
+    destination = runner_temp / f"supabase-cli-{CLI_VERSION}"
+    staging = Path(tempfile.mkdtemp(prefix=".supabase-cli-staging-", dir=runner_temp))
+    destination_created = False
+    try:
+        binary_path = staging / "supabase"
+        _copy_verified_member(archive_path, binary_path, expected_sha256, max_bytes)
+        try:
+            destination.mkdir(mode=0o755)
+        except FileExistsError as error:
+            raise InstallError(
+                "The pinned Supabase CLI destination already exists; refusing overwrite."
+            ) from error
+        destination_created = True
+        os.link(binary_path, destination / "supabase")
+    except OSError as error:
+        if destination_created:
+            shutil.rmtree(destination, ignore_errors=True)
+        raise InstallError(
+            "The verified Supabase CLI could not be published into RUNNER_TEMP."
+        ) from error
     except BaseException:
-        shutil.rmtree(destination, ignore_errors=True)
+        if destination_created:
+            shutil.rmtree(destination, ignore_errors=True)
         raise
+    finally:
+        shutil.rmtree(staging, ignore_errors=True)
+
+    return destination / "supabase"
 
 
 def main() -> int:
-    if os.environ.get("GITHUB_ACTIONS") != "true":
-        raise RuntimeError("Pinned Supabase CLI installation is restricted to GitHub Actions.")
+    parser = argparse.ArgumentParser(description=__doc__)
+    parser.add_argument("archive", type=Path, help="Downloaded Supabase CLI release tarball")
+    args = parser.parse_args()
+
     runner_temp_value = os.environ.get("RUNNER_TEMP")
     if not runner_temp_value:
-        raise RuntimeError("RUNNER_TEMP is required; refusing Supabase CLI installation.")
-    if len(sys.argv) != 2:
-        raise RuntimeError("Usage: install_pinned_supabase_cli.py <verified-release-archive>")
+        parser.error("RUNNER_TEMP is required; this installer is for disposable CI runners only.")
+    if platform.system() != "Linux" or platform.machine().lower() not in {"x86_64", "amd64"}:
+        parser.error("Only the pinned Linux x64 Supabase CLI artifact is supported.")
 
-    runner_temp = Path(runner_temp_value).resolve(strict=True)
-    archive_path = Path(sys.argv[1]).resolve(strict=True)
-    if runner_temp not in archive_path.parents:
-        raise RuntimeError("Supabase CLI archive must be inside RUNNER_TEMP.")
+    try:
+        installed = install_cli(args.archive, Path(runner_temp_value))
+    except InstallError as error:
+        print(f"Supabase CLI installation refused: {error}", file=sys.stderr)
+        return 1
 
-    binary_path = extract_verified_cli(
-        archive_path, runner_temp / f"supabase-cli-{CLI_VERSION}"
-    )
-    print(f"Verified Supabase CLI {CLI_VERSION} installed under RUNNER_TEMP.")
-    print(binary_path)
+    print(f"Installed verified Supabase CLI {CLI_VERSION} at {installed}")
     return 0
 
 

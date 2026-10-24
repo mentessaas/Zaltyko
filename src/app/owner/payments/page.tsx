@@ -100,9 +100,6 @@ export default async function OwnerPaymentsPage({
         <ManualPaymentForm
           organizationId={options.organization.id}
           charges={options.charges}
-          canManageFamilyCollectionPreferences={
-            options.canManageFamilyCollectionPreferences
-          }
         />
       </div>
     </main>

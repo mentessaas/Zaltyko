@@ -1,13 +1,25 @@
 "use client";
 
+import Link from "next/link";
 import { useRouter } from "next/navigation";
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useId, useMemo, useRef, useState } from "react";
+import { OwnerOperationalReadOnlyNotice } from "./OwnerOperationalReadOnlyNotice";
+import {
+  clearPendingManualPayment,
+  createManualPaymentRetrySnapshot,
+  persistPendingManualPayment,
+  readPendingManualPayment,
+  restoreManualPaymentRetryBody,
+  type ManualPaymentRetrySnapshot,
+} from "./manual-payment-retry-storage";
+import { formatPaymentDueDate } from "./owner-payment-date";
+import { useOwnerPlanPolicy } from "./owner-plan-usage-store";
+import { useOrganizationDraftField } from "./use-organization-draft-field";
 
 import type { OpenManualPaymentCharge } from "@/modules/billing/application/manual-payments";
-import { FamilyCollectionModeCard } from "@/components/owner-dashboard/FamilyCollectionModeCard";
 import {
-  getLocalCalendarDate,
-  localDateToReceivedAt,
+  calendarDateToReceivedAt,
+  getCalendarDateInTimezone,
 } from "@/modules/billing/domain/manual-payment-date";
 
 type ManualPaymentMethod = "cash" | "bank_transfer" | "card_terminal" | "other";
@@ -19,6 +31,13 @@ type PaymentRequest = {
   method: ManualPaymentMethod;
   reference?: string;
   receivedAt: string;
+};
+
+type PendingPaymentRequest = {
+  key: string;
+  body: PaymentRequest;
+  snapshot: ManualPaymentRetrySnapshot;
+  referenceRequired: boolean;
 };
 
 function isMatchingManualPaymentResponse(
@@ -65,59 +84,199 @@ function parseAmountCents(value: string): number | null {
 export function ManualPaymentForm({
   organizationId,
   charges,
-  canManageFamilyCollectionPreferences,
 }: {
   organizationId: string;
   charges: OpenManualPaymentCharge[];
-  canManageFamilyCollectionPreferences: boolean;
+  canManageFamilyCollectionPreferences?: boolean;
 }) {
+  const fieldIdPrefix = useId();
+  const chargeSelectId = `${fieldIdPrefix}-charge`;
+  const chargeHelpId = `${fieldIdPrefix}-charge-help`;
+  const amountInputId = `${fieldIdPrefix}-amount`;
+  const amountHelpId = `${fieldIdPrefix}-amount-help`;
+  const planPolicy = useOwnerPlanPolicy(organizationId);
+  const writesBlocked = planPolicy.status !== "ready" || planPolicy.readOnly;
   const router = useRouter();
   const firstCharge = charges[0];
-  const [chargeId, setChargeId] = useState(firstCharge?.chargeId ?? "");
+  const [chargeId, setChargeId] = useOrganizationDraftField(
+    organizationId,
+    () => firstCharge?.chargeId ?? ""
+  );
   const selectedCharge = useMemo(
     () => charges.find((charge) => charge.chargeId === chargeId) ?? null,
     [chargeId, charges]
   );
-  const [amount, setAmount] = useState(
-    firstCharge ? (firstCharge.outstandingCents / 100).toFixed(2) : ""
+  const selectedTimezone = selectedCharge?.locationTimezone ?? null;
+  const [amount, setAmount] = useOrganizationDraftField(
+    organizationId,
+    () => (firstCharge ? (firstCharge.outstandingCents / 100).toFixed(2) : "")
   );
-  const [method, setMethod] = useState<ManualPaymentMethod>("bank_transfer");
-  const [reference, setReference] = useState("");
+  const [method, setMethod] = useOrganizationDraftField<ManualPaymentMethod>(
+    organizationId,
+    "bank_transfer"
+  );
+  const [reference, setReference] = useOrganizationDraftField(organizationId, "");
   const [today, setToday] = useState("");
-  const [receivedOn, setReceivedOn] = useState("");
+  const [dateInterpretationError, setDateInterpretationError] =
+    useOrganizationDraftField<"timezone" | "received-date" | null>(
+      organizationId,
+      null
+    );
+  const [receivedOn, setReceivedOn] = useOrganizationDraftField(
+    organizationId,
+    ""
+  );
   const [busy, setBusy] = useState(false);
-  const [error, setError] = useState<string | null>(null);
-  const [saved, setSaved] = useState(false);
-  const [retryRequest, setRetryRequest] = useState<{
-    key: string;
-    body: PaymentRequest;
-  } | null>(null);
+  const [error, setError] = useOrganizationDraftField<string | null>(
+    organizationId,
+    null
+  );
+  const [saved, setSaved] = useOrganizationDraftField(organizationId, false);
+  const [retryRequest, setRetryRequest] =
+    useState<PendingPaymentRequest | null>(null);
+  const [retryStorageReady, setRetryStorageReady] = useState(false);
+  const [retryStorageError, setRetryStorageError] = useState<string | null>(null);
+  const paymentInFlight = useRef(false);
 
   useEffect(() => {
-    const localToday = getLocalCalendarDate();
-    const frame = window.requestAnimationFrame(() => {
-      setToday(localToday);
-      setReceivedOn((current) => current || localToday);
-    });
-    return () => window.cancelAnimationFrame(frame);
+    const stored = readPendingManualPayment(window.sessionStorage);
+    if (stored.status === "pending") {
+      const { snapshot } = stored;
+      setRetryRequest({
+        key: snapshot.idempotencyKey,
+        body: {
+          organizationId: snapshot.organizationId,
+          chargeId: snapshot.chargeId,
+          amountCents: snapshot.amountCents,
+          method: snapshot.method,
+          receivedAt: snapshot.receivedAt,
+        },
+        snapshot,
+        referenceRequired: snapshot.referenceSha256 !== null,
+      });
+    } else if (stored.status === "invalid") {
+      setRetryStorageError(
+        "Hay un registro pendiente dañado. No se enviará otro pago para evitar duplicados."
+      );
+    } else if (stored.status === "unavailable") {
+      setRetryStorageError(
+        "El almacenamiento seguro de este envío no está disponible. No se enviará el pago."
+      );
+    }
+    setRetryStorageReady(true);
   }, []);
 
+  useEffect(() => {
+    setToday("");
+    setDateInterpretationError(null);
+    if (!selectedTimezone) {
+      return;
+    }
+    let locationToday: string;
+    try {
+      locationToday = getCalendarDateInTimezone(new Date(), selectedTimezone);
+    } catch {
+      setDateInterpretationError("timezone");
+      return;
+    }
+    const frame = window.requestAnimationFrame(() => {
+      setToday(locationToday);
+    });
+    return () => window.cancelAnimationFrame(frame);
+  }, [organizationId, selectedTimezone]);
+
   function chooseCharge(nextChargeId: string) {
-    setChargeId(nextChargeId);
+    const currentCharge = charges.find(
+      (charge) => charge.chargeId === chargeId
+    );
     const nextCharge = charges.find(
       (charge) => charge.chargeId === nextChargeId
     );
+    if (
+      currentCharge?.locationTimezone !== nextCharge?.locationTimezone
+    ) {
+      setReceivedOn("");
+      setToday("");
+    }
+    setChargeId(nextChargeId);
     setAmount(nextCharge ? (nextCharge.outstandingCents / 100).toFixed(2) : "");
     setSaved(false);
     setError(null);
   }
 
-  async function sendPayment(key: string, body: PaymentRequest) {
-    setBusy(true);
-    setError(null);
-    setSaved(false);
-    setRetryRequest({ key, body });
+  function retryPendingPayment() {
+    if (!retryRequest || retryRequest.body.organizationId !== organizationId) return;
+    if (paymentInFlight.current || busy) return;
+    void restoreManualPaymentRetryBody(retryRequest.snapshot, reference)
+      .then((restored) => {
+        if (restored.status === "reference-required") {
+          setError("Vuelve a introducir la misma referencia para confirmar el reintento.");
+          return;
+        }
+        if (restored.status === "reference-mismatch") {
+          setError("La referencia no coincide con el envío pendiente. No se ha enviado el pago.");
+          return;
+        }
+        void sendPayment(
+          retryRequest.key,
+          restored.body,
+          true,
+          retryRequest.snapshot
+        );
+      })
+      .catch(() => {
+        setError("No se pudo verificar la referencia de forma segura. No se ha enviado el pago.");
+      });
+  }
+
+  async function sendPayment(
+    key: string,
+    body: PaymentRequest,
+    isRetry = false,
+    existingSnapshot?: ManualPaymentRetrySnapshot
+  ) {
+    if (paymentInFlight.current) return;
+    paymentInFlight.current = true;
     try {
+      setBusy(true);
+      setError(null);
+      setSaved(false);
+      let snapshot = existingSnapshot;
+      if (!snapshot) {
+        try {
+          snapshot = await createManualPaymentRetrySnapshot({
+            body,
+            currency:
+              charges.find((charge) => charge.chargeId === body.chargeId)
+                ?.currency ?? "",
+            idempotencyKey: key,
+          }) ?? undefined;
+        } catch {
+          setError(
+            "No se pudo preparar la verificación segura. El pago no se ha enviado."
+          );
+          return;
+        }
+      }
+      if (
+        !snapshot ||
+        snapshot.organizationId !== body.organizationId ||
+        snapshot.chargeId !== body.chargeId ||
+        snapshot.idempotencyKey !== key ||
+        !persistPendingManualPayment(window.sessionStorage, snapshot)
+      ) {
+        setError(
+          "No se pudo guardar el reintento seguro. No se ha enviado el pago; inténtalo cuando el almacenamiento esté disponible."
+        );
+        return;
+      }
+      setRetryStorageError(null);
+      setRetryRequest({
+        key,
+        body,
+        snapshot,
+        referenceRequired: snapshot.referenceSha256 !== null,
+      });
       const response = await fetch("/api/v1/owner/billing/manual-payments", {
         method: "POST",
         headers: {
@@ -138,7 +297,19 @@ export function ManualPaymentForm({
                 problem?.message ??
                 "No se ha podido registrar el pago.")
         );
-        if (response.status < 500) setRetryRequest(null);
+        const retryMayStillNeedReceipt =
+          response.status >= 500 ||
+          [408, 425, 429].includes(response.status) ||
+          (isRetry && [401, 403, 404, 409].includes(response.status));
+        if (!retryMayStillNeedReceipt) {
+          if (clearPendingManualPayment(window.sessionStorage, snapshot)) {
+            setRetryRequest(null);
+          } else {
+            setError(
+              "El servidor rechazó el envío, pero no se pudo limpiar el reintento guardado. No registres otro pago hasta resolverlo."
+            );
+          }
+        }
         return;
       }
 
@@ -153,6 +324,12 @@ export function ManualPaymentForm({
         return;
       }
 
+      if (!clearPendingManualPayment(window.sessionStorage, snapshot)) {
+        setError(
+          "El pago está confirmado, pero no se pudo limpiar su reintento seguro. Puedes reintentar el mismo envío; no creará un segundo pago."
+        );
+        return;
+      }
       setRetryRequest(null);
       setSaved(true);
       setAmount("");
@@ -163,17 +340,22 @@ export function ManualPaymentForm({
         "No sabemos si se guardó. Reintenta este mismo envío; la clave segura evita duplicarlo."
       );
     } finally {
+      paymentInFlight.current = false;
       setBusy(false);
     }
   }
 
   function submit(event: React.FormEvent<HTMLFormElement>) {
     event.preventDefault();
+    if (paymentInFlight.current) return;
+    // Resolve an existing idempotent command before blocking new writes.
     if (retryRequest) {
-      void sendPayment(retryRequest.key, retryRequest.body);
+      retryPendingPayment();
       return;
     }
-    if (!selectedCharge || !receivedOn) return;
+    if (!retryStorageReady || retryStorageError || dateInterpretationError) return;
+    if (writesBlocked) return;
+    if (!selectedCharge || !effectiveReceivedOn) return;
     const amountCents = parseAmountCents(amount);
     if (!amountCents || amountCents > selectedCharge.outstandingCents) {
       setError(
@@ -181,7 +363,16 @@ export function ManualPaymentForm({
       );
       return;
     }
-    const receivedAt = localDateToReceivedAt(receivedOn);
+    let receivedAt: string;
+    try {
+      receivedAt = calendarDateToReceivedAt(
+        effectiveReceivedOn,
+        selectedCharge.locationTimezone
+      );
+    } catch {
+      setDateInterpretationError("received-date");
+      return;
+    }
     void sendPayment(`owner-manual-payment:${crypto.randomUUID()}`, {
       organizationId,
       chargeId: selectedCharge.chargeId,
@@ -193,7 +384,30 @@ export function ManualPaymentForm({
   }
 
   const amountCents = parseAmountCents(amount);
-  const formLocked = busy || retryRequest !== null;
+  const effectiveReceivedOn = receivedOn || today;
+  const formLocked =
+    busy || retryRequest !== null || !retryStorageReady || retryStorageError !== null;
+  const retryBelongsToCurrentOrganization =
+    retryRequest?.body.organizationId === organizationId;
+  const retryScopeNotice =
+    retryRequest && !retryBelongsToCurrentOrganization ? (
+      <div
+        role="alert"
+        className="rounded-xl border border-amber-300 bg-amber-50 px-4 py-3 text-sm leading-6 text-amber-950"
+      >
+        <p>
+          Hay un envío de pago pendiente de confirmar en otra academia. Para
+          evitar duplicados o confusiones, resuélvelo primero en su academia de
+          origen.
+        </p>
+        <Link
+          href={`/owner/payments?organizationId=${encodeURIComponent(retryRequest.body.organizationId)}`}
+          className="mt-2 inline-block font-bold underline underline-offset-2"
+        >
+          Volver a los pagos de la academia del envío pendiente
+        </Link>
+      </div>
+    ) : null;
 
   if (charges.length === 0) {
     return (
@@ -205,6 +419,49 @@ export function ManualPaymentForm({
           Cuando la academia tenga un cargo abierto, podrás registrar aquí el
           dinero que ya hayas recibido y dejarlo conciliado en un solo paso.
         </p>
+        {retryScopeNotice}
+        {retryStorageError && (
+          <p role="alert" className="mt-4 rounded-xl border border-rose-300 bg-rose-50 px-4 py-3 text-sm text-rose-900">
+            {retryStorageError}
+          </p>
+        )}
+        {retryRequest && retryBelongsToCurrentOrganization && (
+          <div className="mt-4 rounded-xl border border-amber-300 bg-amber-50 px-4 py-3 text-sm leading-6 text-amber-950">
+            <p>
+              Hay un envío anterior cuyo resultado no se pudo confirmar. Puedes
+              consultar el mismo envío sin crear otro registro.
+            </p>
+            {retryRequest.referenceRequired && (
+              <label className="mt-3 grid gap-2">
+                <span className="font-semibold">Vuelve a introducir la referencia del envío</span>
+                <input
+                  type="text"
+                  maxLength={200}
+                  value={reference}
+                  onChange={(event) => setReference(event.target.value)}
+                  disabled={busy}
+                  className="min-h-11 rounded-xl border border-amber-400 bg-white px-3 text-sm text-slate-950"
+                />
+              </label>
+            )}
+            <button
+              type="button"
+              disabled={busy || !retryStorageReady}
+              onClick={retryPendingPayment}
+              className="mt-2 min-h-11 rounded-full bg-amber-900 px-4 text-sm font-bold text-white hover:bg-amber-800 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-amber-900 disabled:cursor-not-allowed disabled:opacity-60"
+            >
+              {busy ? "Comprobando…" : "Reintentar el mismo registro"}
+            </button>
+          </div>
+        )}
+        {error && (
+          <p
+            role="alert"
+            className="mt-4 rounded-xl border border-rose-300 bg-rose-50 px-4 py-3 text-sm text-rose-900"
+          >
+            {error}
+          </p>
+        )}
         {saved && (
           <p
             role="status"
@@ -226,15 +483,42 @@ export function ManualPaymentForm({
         Registra solo dinero que ya has recibido. Zaltyko no iniciará ningún
         cobro.
       </div>
+      {retryScopeNotice}
+      {retryStorageError && (
+        <p
+          role="alert"
+          className="rounded-xl border border-rose-300 bg-rose-50 px-4 py-3 text-sm text-rose-900"
+        >
+          {retryStorageError}
+        </p>
+      )}
+      <OwnerOperationalReadOnlyNotice organizationId={organizationId} />
+      {dateInterpretationError && (
+        <p
+          role="alert"
+          className="rounded-xl border border-amber-300 bg-amber-50 px-4 py-3 text-sm text-amber-950"
+        >
+          {dateInterpretationError === "timezone"
+            ? "No se pudo interpretar la zona horaria de esta sede. No se puede registrar el pago."
+            : "No se pudo interpretar la fecha de recepción en la zona horaria de la sede. Corrige la fecha o selecciona otra sede."}
+        </p>
+      )}
 
-      <label className="grid gap-2">
-        <span className="text-sm font-bold text-slate-900">
+      <div className="grid gap-2">
+        <label
+          htmlFor={chargeSelectId}
+          className="text-sm font-bold text-slate-900"
+        >
           Cargo pendiente
-        </span>
+        </label>
         <select
+          id={chargeSelectId}
           value={chargeId}
           onChange={(event) => chooseCharge(event.target.value)}
           disabled={formLocked}
+          aria-describedby={
+            selectedCharge ? chargeHelpId : undefined
+          }
           className="min-h-12 rounded-xl border border-slate-300 bg-white px-3 text-sm text-slate-950 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-teal-800 disabled:bg-slate-100"
         >
           {charges.map((charge) => (
@@ -246,23 +530,31 @@ export function ManualPaymentForm({
           ))}
         </select>
         {selectedCharge && (
-          <span className="text-xs leading-5 text-slate-600">
+          <span
+            id={chargeHelpId}
+            className="text-xs leading-5 text-slate-600"
+          >
             {selectedCharge.locationName} · Vence el{" "}
-            {new Intl.DateTimeFormat("es-ES", { dateStyle: "medium" }).format(
-              new Date(selectedCharge.dueAt)
+            {formatPaymentDueDate(
+              selectedCharge.dueAt,
+              selectedCharge.locationTimezone
             )}
           </span>
         )}
-      </label>
+      </div>
 
       {selectedCharge && (
         <div className="grid gap-4 sm:grid-cols-2">
-          <label className="grid gap-2">
-            <span className="text-sm font-bold text-slate-900">
+          <div className="grid gap-2">
+            <label
+              htmlFor={amountInputId}
+              className="text-sm font-bold text-slate-900"
+            >
               Importe recibido
-            </span>
+            </label>
             <span className="relative">
               <input
+                id={amountInputId}
                 type="text"
                 inputMode="decimal"
                 pattern="[0-9]+([.,][0-9]{1,2})?"
@@ -275,15 +567,18 @@ export function ManualPaymentForm({
                   (!amountCents ||
                     amountCents > selectedCharge.outstandingCents)
                 }
-                aria-describedby="manual-payment-amount-help"
+                aria-describedby={amountHelpId}
                 className="min-h-12 w-full rounded-xl border border-slate-300 px-3 pr-16 text-base text-slate-950 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-teal-800 disabled:bg-slate-100"
               />
-              <span className="pointer-events-none absolute right-3 top-1/2 -translate-y-1/2 text-sm font-semibold text-slate-500">
+              <span
+                aria-hidden="true"
+                className="pointer-events-none absolute right-3 top-1/2 -translate-y-1/2 text-sm font-semibold text-slate-500"
+              >
                 {selectedCharge.currency}
               </span>
             </span>
             <span
-              id="manual-payment-amount-help"
+              id={amountHelpId}
               className="text-xs text-slate-600"
             >
               Pendiente:{" "}
@@ -293,7 +588,7 @@ export function ManualPaymentForm({
               )}{" "}
               · Usa coma o punto decimal.
             </span>
-          </label>
+          </div>
 
           <label className="grid gap-2">
             <span className="text-sm font-bold text-slate-900">
@@ -320,9 +615,14 @@ export function ManualPaymentForm({
             </span>
             <input
               type="date"
-              value={receivedOn}
+              value={effectiveReceivedOn}
               max={today || undefined}
-              onChange={(event) => setReceivedOn(event.target.value)}
+              onChange={(event) => {
+                if (dateInterpretationError === "received-date") {
+                  setDateInterpretationError(null);
+                }
+                setReceivedOn(event.target.value);
+              }}
               disabled={formLocked}
               required
               className="min-h-12 rounded-xl border border-slate-300 px-3 text-sm text-slate-950 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-teal-800 disabled:bg-slate-100"
@@ -339,7 +639,11 @@ export function ManualPaymentForm({
               maxLength={200}
               value={reference}
               onChange={(event) => setReference(event.target.value)}
-              disabled={formLocked}
+              disabled={
+                busy ||
+                !retryStorageReady ||
+                (retryRequest !== null && !retryRequest.referenceRequired)
+              }
               placeholder="Por ejemplo, concepto de la transferencia"
               className="min-h-12 rounded-xl border border-slate-300 px-3 text-sm text-slate-950 placeholder:text-slate-400 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-teal-800 disabled:bg-slate-100"
             />
@@ -349,14 +653,6 @@ export function ManualPaymentForm({
           </label>
         </div>
       )}
-
-      {selectedCharge ? (
-        <FamilyCollectionModeCard
-          organizationId={organizationId}
-          familyId={selectedCharge.familyId}
-          canManage={canManageFamilyCollectionPreferences}
-        />
-      ) : null}
 
       {selectedCharge && amountCents && (
         <p className="border-t border-slate-200 pt-4 text-sm text-slate-700">
@@ -386,14 +682,26 @@ export function ManualPaymentForm({
       <div className="flex flex-wrap items-center gap-4">
         <button
           type="submit"
-          disabled={busy || (!retryRequest && (!selectedCharge || !receivedOn))}
+          disabled={
+            busy ||
+            !retryStorageReady ||
+            retryStorageError !== null ||
+            (retryRequest
+              ? !retryBelongsToCurrentOrganization
+              : writesBlocked ||
+                dateInterpretationError !== null ||
+                !selectedCharge ||
+                !effectiveReceivedOn)
+          }
           className="min-h-12 rounded-full bg-teal-900 px-6 text-sm font-bold text-white hover:bg-teal-800 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-teal-800 disabled:cursor-not-allowed disabled:opacity-60"
         >
           {busy
             ? "Guardando…"
-            : retryRequest
+            : retryRequest && retryBelongsToCurrentOrganization
               ? "Reintentar el mismo registro"
-              : "Guardar pago recibido"}
+              : retryRequest
+                ? "Resuelve primero el envío pendiente"
+                : "Guardar pago recibido"}
         </button>
         <span className="text-xs text-slate-500">
           {selectedCharge && amountCents

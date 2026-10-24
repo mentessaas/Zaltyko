@@ -1,0 +1,7 @@
+project_id = "zaltyko-schema-replay-ci"
+
+[db]
+major_version = 17
+
+[db.seed]
+enabled = false

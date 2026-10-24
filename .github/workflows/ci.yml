@@ -316,7 +316,7 @@ jobs:
           set -euo pipefail
           archive="$RUNNER_TEMP/supabase_linux_amd64.tar.gz"
           curl --fail --location --retry 3 \
-            https://github.com/supabase/cli/releases/download/v2.84.2/supabase_linux_amd64.tar.gz \
+            https://github.com/supabase/cli/releases/download/v2.84.2/supabase_2.84.2_linux_amd64.tar.gz \
             --output "$archive"
           python3 scripts/ci/install_pinned_supabase_cli.py "$archive"
           version_output="$("$RUNNER_TEMP/supabase-cli-2.84.2/supabase" --version)"

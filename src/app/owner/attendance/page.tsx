@@ -48,6 +48,7 @@ export default async function OwnerAttendancePage({
       userId: user.id,
       organizationId: query.data.organizationId,
       locationId: query.data.locationId,
+      sessionId: query.data.sessionId,
     });
   } catch (error) {
     if (error instanceof OperationalError) {

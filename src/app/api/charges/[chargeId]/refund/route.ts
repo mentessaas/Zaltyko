@@ -8,12 +8,14 @@ import { z } from "zod";
 
 import { db } from "@/db";
 import { charges } from "@/db/schema";
-import { apiError, apiSuccess } from "@/lib/api-response";
+import { apiError } from "@/lib/api-response";
 import { withTenant } from "@/lib/authz";
 import { handleApiError } from "@/lib/api-error-handler";
 import { getUserIdentifier, withRateLimit } from "@/lib/rate-limit";
 import { getBillingAcademyAccess } from "@/lib/billing/access";
-import { refundCharge } from "@/lib/stripe/refund-service";
+import {
+  FAMILY_AUTOMATIC_COLLECTION_DISABLED,
+} from "@/lib/stripe/family-automatic-collection-disabled";
 
 const BodySchema = z.object({
   amountCents: z.number().int().positive().nullable().optional(),
@@ -23,9 +25,8 @@ const BodySchema = z.object({
 /**
  * POST /api/charges/[chargeId]/refund
  *
- * Reembolsa (total o parcial) un cargo cobrado con tarjeta. Solo el dueño de la
- * academia. Rate-limited. La ejecución ocurre en la cuenta conectada de la
- * academia (merchant of record).
+ * Conserva el scope Owner; los reembolsos familiares desde la aplicación están
+ * deshabilitados y se derivan a soporte. Rate-limited.
  */
 const refundHandler = withTenant(async (request, context) => {
   try {
@@ -63,17 +64,13 @@ const refundHandler = withTenant(async (request, context) => {
       return apiError("REFUND_FORBIDDEN", "Solo la persona propietaria puede reembolsar", 403);
     }
 
-    const result = await refundCharge({
-      chargeId,
-      amountCents: parsed.data.amountCents ?? undefined,
-      reason: parsed.data.reason ?? undefined,
-      actorUserId: context.userId,
-    });
-
-    if (!result.ok) {
-      return apiError("REFUND_FAILED", result.reason, 409);
-    }
-    return apiSuccess({ refundId: result.refundId });
+    return apiError(
+      FAMILY_AUTOMATIC_COLLECTION_DISABLED,
+      "Los reembolsos familiares desde la aplicación no están disponibles. Contacta con soporte para revisar el caso.",
+      410,
+      undefined,
+      { headers: { "Cache-Control": "private, no-store" } }
+    );
   } catch (error) {
     return handleApiError(error, {
       endpoint: "/api/charges/[chargeId]/refund",

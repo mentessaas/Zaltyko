@@ -38,7 +38,24 @@ export default defineConfig({
           // Las suites Web no deben descubrir las pruebas del proyecto Mobile.
           // Todas las suites web forman parte del gate principal. Las pruebas
           // del proyecto Mobile se ejecutan en su propio proyecto Vitest.
-          exclude: ["node_modules", ".next", "coverage", "mobile/**"],
+          exclude: [
+            "node_modules",
+            ".next",
+            "coverage",
+            "mobile/**",
+            ...(process.env.ZALTYKO_PG_INTEGRATION === "1"
+              ? []
+              : [
+                  "tests/saas-capacity-postgres.integration.test.ts",
+                  "tests/billing-ledger-postgres.integration.test.ts",
+                ]),
+            ...(process.env.CI_ISOLATED === "1"
+              ? [
+                  "tests/saas-preview-regularization-pg.test.ts",
+                  "tests/saas-preview-readonly-boundaries-pg.test.ts",
+                ]
+              : []),
+          ],
         },
       },
       {

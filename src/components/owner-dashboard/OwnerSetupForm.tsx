@@ -3,6 +3,7 @@
 import { useRouter } from "next/navigation";
 import { useRef, useState, type FormEvent } from "react";
 import { ArrowRight, Building2, MapPin, ShieldCheck } from "lucide-react";
+import { parseOwnerSetupReceipt } from "@/components/owner-dashboard/owner-setup-response";
 
 type BootstrapRequest = {
   organizationName: string;
@@ -68,7 +69,10 @@ export function OwnerSetupForm({
             : (problem?.detail ?? "No se ha podido crear el espacio.");
         throw new Error(responseFailureMessage);
       }
-      const result = (await response.json()) as { organizationId: string };
+      const result = parseOwnerSetupReceipt(await response.json());
+      if (!result) {
+        throw new Error("La respuesta no contiene un recibo de alta válido.");
+      }
       idempotencyKey.current = null;
       setRetryRequest(null);
       router.replace(`/owner?organizationId=${result.organizationId}`);

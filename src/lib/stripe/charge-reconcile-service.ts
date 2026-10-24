@@ -6,6 +6,13 @@ import { charges, refunds } from "@/db/schema";
 import { logger } from "@/lib/logger";
 import { sendChargePaymentFailedNotification } from "@/lib/stripe/notification-service";
 import { ensureChargeReceipt } from "@/lib/receipts/ensure-charge-receipt";
+import {
+  ConnectEventRejectedError,
+  assertConnectEventMode,
+  getConfiguredConnectLiveMode,
+} from "@/lib/stripe/connect-event-context";
+
+export { ConnectEventRejectedError } from "@/lib/stripe/connect-event-context";
 
 /**
  * Reconciliacion idempotente del ledger a partir de eventos de pago de Stripe
@@ -44,11 +51,10 @@ async function findChargeForPaymentIntent(pi: Stripe.PaymentIntent): Promise<Cha
   return row ?? null;
 }
 
-export class ConnectEventRejectedError extends Error {
-  constructor(code: string) {
-    super(code);
-    this.name = "ConnectEventRejectedError";
-  }
+function assertReconciliationMode(objectMode: unknown, eventMode: boolean): void {
+  const expected = getConfiguredConnectLiveMode();
+  assertConnectEventMode(objectMode, expected);
+  assertConnectEventMode(eventMode, expected);
 }
 
 function assertPaymentIntentContext(
@@ -70,8 +76,10 @@ function assertPaymentIntentContext(
 
 export async function reconcilePaymentIntentSucceeded(
   pi: Stripe.PaymentIntent,
-  eventAccountId: string | null
+  eventAccountId: string | null,
+  eventLiveMode: boolean
 ): Promise<void> {
+  assertReconciliationMode(pi.livemode, eventLiveMode);
   const charge = await findChargeForPaymentIntent(pi);
   if (!charge) {
     logger.warn("payment_intent.succeeded sin cargo asociado", { paymentIntentId: pi.id });
@@ -105,8 +113,10 @@ export async function reconcilePaymentIntentSucceeded(
 export async function reconcilePaymentIntentFailed(
   pi: Stripe.PaymentIntent,
   eventAccountId: string | null,
+  eventLiveMode: boolean,
   stripeEventId?: string
 ): Promise<void> {
+  assertReconciliationMode(pi.livemode, eventLiveMode);
   const charge = await findChargeForPaymentIntent(pi);
   if (!charge) return;
   assertPaymentIntentContext(charge, pi, eventAccountId);
@@ -169,8 +179,10 @@ export async function reconcilePaymentIntentFailed(
 
 export async function reconcilePaymentIntentCanceled(
   pi: Stripe.PaymentIntent,
-  eventAccountId: string | null
+  eventAccountId: string | null,
+  eventLiveMode: boolean
 ): Promise<void> {
+  assertReconciliationMode(pi.livemode, eventLiveMode);
   const charge = await findChargeForPaymentIntent(pi);
   if (!charge) return;
   assertPaymentIntentContext(charge, pi, eventAccountId);
@@ -184,8 +196,10 @@ export async function reconcilePaymentIntentCanceled(
 
 export async function reconcileChargeRefunded(
   stripeCharge: Stripe.Charge,
-  eventAccountId: string | null
+  eventAccountId: string | null,
+  eventLiveMode: boolean
 ): Promise<void> {
+  assertReconciliationMode(stripeCharge.livemode, eventLiveMode);
   const [row] = await db
     .select({ id: charges.id, status: charges.status, stripeAccountId: charges.stripeAccountId, tenantId: charges.tenantId, academyId: charges.academyId, currency: charges.currency })
     .from(charges)

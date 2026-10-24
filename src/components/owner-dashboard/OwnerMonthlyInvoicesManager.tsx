@@ -1,7 +1,9 @@
 "use client";
 
 import Link from "next/link";
-import { useCallback, useEffect, useRef, useState } from "react";
+import { useCallback, useEffect, useLayoutEffect, useRef, useState } from "react";
+import { OwnerOperationalReadOnlyNotice } from "./OwnerOperationalReadOnlyNotice";
+import { useOwnerPlanPolicy } from "./owner-plan-usage-store";
 
 import {
   OwnerMonthlyInvoiceWorkspace,
@@ -13,7 +15,36 @@ import {
 } from "./OwnerMonthlyInvoiceResolutionPanel";
 
 type WorkspaceState = "loading" | "error" | "empty" | "ready";
-type RetryIssue = { key: string; body: unknown };
+type IssueBody = {
+  organizationId: string;
+  locationId: string;
+  familyId: string;
+  familyPayerId: string;
+  servicePeriod: string;
+  dueDate: string;
+  quoteHash: string;
+};
+type RetryIssue = {
+  key: string;
+  body: IssueBody;
+  scopeKey: string;
+  hasAmbiguousAttempt: boolean;
+};
+type ScopedInvoiceOptions = {
+  scopeKey: string;
+  data: MonthlyInvoiceOptionsResponse;
+};
+
+const useCommittedLayoutEffect =
+  typeof window === "undefined" ? useEffect : useLayoutEffect;
+
+function invoiceScopeKey(
+  organizationId: string,
+  locationId: string,
+  servicePeriod: string
+) {
+  return JSON.stringify([organizationId, locationId, servicePeriod]);
+}
 
 function responseData<T>(payload: unknown): T | null {
   if (payload && typeof payload === "object" && "data" in payload) {
@@ -71,12 +102,26 @@ export function OwnerMonthlyInvoicesManager({
   initialLocationId: string;
   initialServicePeriod: string;
 }) {
+  const planPolicy = useOwnerPlanPolicy(organizationId);
+  const writesBlocked = planPolicy.status !== "ready" || planPolicy.readOnly;
   const [locationId, setLocationId] = useState(initialLocationId);
   const [servicePeriod, setServicePeriod] = useState(initialServicePeriod);
-  const [options, setOptions] = useState<MonthlyInvoiceOptionsResponse>();
+  const [options, setOptions] = useState<ScopedInvoiceOptions>();
+  const currentScopeKey = invoiceScopeKey(
+    organizationId,
+    locationId,
+    servicePeriod
+  );
+  const currentScopeKeyRef = useRef(currentScopeKey);
+  useCommittedLayoutEffect(() => {
+    currentScopeKeyRef.current = currentScopeKey;
+  }, [currentScopeKey]);
+  const currentOptions =
+    options?.scopeKey === currentScopeKey ? options.data : undefined;
   const [selectedFamilyId, setSelectedFamilyId] = useState("");
   const [dueDate, setDueDate] = useState("");
   const [state, setState] = useState<WorkspaceState>("loading");
+  const [stateScopeKey, setStateScopeKey] = useState(currentScopeKey);
   const [loadError, setLoadError] = useState("");
   const [issueError, setIssueError] = useState("");
   const [successMessage, setSuccessMessage] = useState("");
@@ -88,12 +133,36 @@ export function OwnerMonthlyInvoicesManager({
   const [quoteNeedsReview, setQuoteNeedsReview] = useState(false);
   const [refreshKey, setRefreshKey] = useState(0);
   const requestSequence = useRef(0);
-  const issueRetry = useRef<RetryIssue | null>(null);
-  const currentScopeRef = useRef({
+  const [issueRetry, setIssueRetry] = useState<RetryIssue | null>(null);
+  const [issueReceipt, setIssueReceipt] = useState<{
+    organizationId: string;
+    locationId: string;
+    servicePeriod: string;
+    message: string;
+  } | null>(null);
+  const incomingSelectionScope = JSON.stringify([
     organizationId,
-    locationId: initialLocationId,
-    servicePeriod: initialServicePeriod,
-  });
+    initialLocationId,
+    initialServicePeriod,
+  ]);
+  const [localSelectionScope, setLocalSelectionScope] = useState(
+    incomingSelectionScope
+  );
+  if (localSelectionScope !== incomingSelectionScope) {
+    setLocalSelectionScope(incomingSelectionScope);
+    setLocationId(initialLocationId);
+    setServicePeriod(initialServicePeriod);
+    setSelectedFamilyId("");
+    setDueDate("");
+    setIssueError("");
+    setSuccessMessage("");
+    setResolutionNotice("");
+    setQuoteNeedsReview(false);
+  }
+  const workspaceState =
+    stateScopeKey === currentScopeKey ? state : "loading";
+  const workspaceLoadError =
+    stateScopeKey === currentScopeKey ? loadError : "";
 
   const loadOptions = useCallback(
     async (signal?: AbortSignal, preferredFamilyId?: string) => {
@@ -101,6 +170,11 @@ export function OwnerMonthlyInvoicesManager({
         return;
       }
       const requestId = ++requestSequence.current;
+      const requestScopeKey = invoiceScopeKey(
+        organizationId,
+        locationId,
+        servicePeriod
+      );
       try {
         const params = new URLSearchParams({
           organizationId,
@@ -129,7 +203,8 @@ export function OwnerMonthlyInvoicesManager({
           );
         }
         setLoadError("");
-        setOptions(data);
+        setOptions({ scopeKey: requestScopeKey, data });
+        setStateScopeKey(requestScopeKey);
         const preferredFamilyIsAvailable =
           isUuid(preferredFamilyId) &&
           data.organizationId === organizationId &&
@@ -146,6 +221,7 @@ export function OwnerMonthlyInvoicesManager({
       } catch (error) {
         if (signal?.aborted || requestSequence.current !== requestId) return;
         setOptions(undefined);
+        setStateScopeKey(requestScopeKey);
         setState("error");
         setLoadError(
           error instanceof Error
@@ -158,10 +234,9 @@ export function OwnerMonthlyInvoicesManager({
   );
 
   const loadOptionsRef = useRef(loadOptions);
-  useEffect(() => {
-    currentScopeRef.current = { organizationId, locationId, servicePeriod };
+  useCommittedLayoutEffect(() => {
     loadOptionsRef.current = loadOptions;
-  }, [loadOptions, locationId, organizationId, servicePeriod]);
+  }, [loadOptions]);
 
   useEffect(() => {
     const controller = new AbortController();
@@ -173,6 +248,7 @@ export function OwnerMonthlyInvoicesManager({
   function refreshOptions() {
     setQuoteNeedsReview(false);
     setState("loading");
+    setStateScopeKey(currentScopeKey);
     setRefreshKey((value) => value + 1);
   }
 
@@ -188,46 +264,17 @@ export function OwnerMonthlyInvoicesManager({
         : "Familia y persona pagadora vinculadas a la inscripción."
     );
     setState("loading");
-    const currentScope = currentScopeRef.current;
-    const callbackScopeMatchesCurrent =
-      currentScope.organizationId === organizationId &&
-      currentScope.locationId === locationId &&
-      currentScope.servicePeriod === servicePeriod;
+    setStateScopeKey(currentScopeKey);
     const preferredFamilyId =
-      kind === "family" &&
-      callbackScopeMatchesCurrent &&
-      isUuid(returnedFamilyId)
+      kind === "family" && isUuid(returnedFamilyId)
         ? returnedFamilyId
         : undefined;
     await loadOptionsRef.current(undefined, preferredFamilyId);
   }
 
-  async function issueInvoice(command: {
-    organizationId: string;
-    locationId: string;
-    familyId: string;
-    familyPayerId: string;
-    servicePeriod: string;
-    dueDate: string;
-    quoteHash: string;
-  }) {
+  async function sendInvoiceIssue(request: RetryIssue) {
     setIssueError("");
     setSuccessMessage("");
-    const body = {
-      organizationId: command.organizationId,
-      locationId: command.locationId,
-      familyId: command.familyId,
-      familyPayerId: command.familyPayerId,
-      servicePeriod: command.servicePeriod,
-      dueDate: command.dueDate,
-      quoteHash: command.quoteHash,
-    };
-    const previous = issueRetry.current;
-    const key =
-      previous && JSON.stringify(previous.body) === JSON.stringify(body)
-        ? previous.key
-        : `owner-monthly-invoice:${crypto.randomUUID()}`;
-    issueRetry.current = { key, body };
     setBusy(true);
     try {
       const response = await fetch(
@@ -236,62 +283,166 @@ export function OwnerMonthlyInvoicesManager({
           method: "POST",
           headers: {
             "content-type": "application/json",
-            "Idempotency-Key": key,
+            "Idempotency-Key": request.key,
           },
-          body: JSON.stringify(body),
+          body: JSON.stringify(request.body),
         }
       );
       const payload = await response.json().catch(() => null);
       if (!response.ok) {
         const code = problemCode(payload);
-        if (response.status >= 400 && response.status < 500) {
-          issueRetry.current = null;
-        }
-        if (code === "QUOTE_STALE" || code === "MONTHLY_INVOICE_BLOCKED") {
-          setQuoteNeedsReview(true);
-          setState("loading");
-          await loadOptions();
+        const knownPreCommitDomainRejection = [
+          "QUOTE_STALE",
+          "MONTHLY_INVOICE_BLOCKED",
+          "PERIOD_ALREADY_INVOICED",
+          "INVOICE_VOIDED",
+          "ENROLLMENT_ALREADY_BILLED",
+          "FAMILY_PAYER_INVALID",
+        ].includes(code ?? "");
+        // The route rejects 4xx before the service or the service transaction rolls back.
+        // A later 4xx cannot clear an operation after an ambiguous first attempt.
+        const definitiveFirstRejection =
+          !request.hasAmbiguousAttempt &&
+          ((response.status >= 400 && response.status < 500) ||
+            knownPreCommitDomainRejection);
+        if (definitiveFirstRejection) {
+          setIssueRetry((current) =>
+            current?.key === request.key ? null : current
+          );
+        } else {
+          setIssueRetry((current) =>
+            current?.key === request.key
+              ? { ...current, hasAmbiguousAttempt: true }
+              : current
+          );
         }
         if (
-          code === "PERIOD_ALREADY_INVOICED" ||
-          code === "INVOICE_VOIDED" ||
-          code === "ENROLLMENT_ALREADY_BILLED" ||
-          code === "FAMILY_PAYER_INVALID"
+          currentScopeKeyRef.current === request.scopeKey &&
+          (code === "QUOTE_STALE" || code === "MONTHLY_INVOICE_BLOCKED")
         ) {
           setQuoteNeedsReview(true);
           setState("loading");
           await loadOptions();
         }
-        throw new Error(
-          responseMessage(
-            payload,
-            "No se ha podido emitir la factura. Revisa los datos e inténtalo de nuevo."
-          )
-        );
+        if (
+          currentScopeKeyRef.current === request.scopeKey &&
+          (code === "PERIOD_ALREADY_INVOICED" ||
+            code === "INVOICE_VOIDED" ||
+            code === "ENROLLMENT_ALREADY_BILLED" ||
+            code === "FAMILY_PAYER_INVALID")
+        ) {
+          setQuoteNeedsReview(true);
+          setState("loading");
+          await loadOptions();
+        }
+        if (currentScopeKeyRef.current === request.scopeKey) {
+          setIssueError(
+            responseMessage(
+              payload,
+              "No se ha podido emitir la factura. Revisa los datos e inténtalo de nuevo."
+            )
+          );
+        }
+        return;
       }
-      issueRetry.current = null;
       const data = responseData<{
         invoiceId?: string;
         status?: string;
         chargeStatus?: string;
         collectionMode?: string;
       }>(payload);
-      setSuccessMessage(
-        data?.chargeStatus === "due" && data.collectionMode === "manual"
-          ? "Factura emitida y pendiente. No se ha registrado ni iniciado un pago."
-          : "Factura emitida; no se ha registrado ni iniciado un pago."
+      if (!isUuid(data?.invoiceId)) {
+        setIssueRetry((current) =>
+          current?.key === request.key
+            ? { ...current, hasAmbiguousAttempt: true }
+            : current
+        );
+        throw new Error(
+          "La respuesta no confirma qué factura se emitió. Conservamos la operación para reintentarla con la misma clave."
+        );
+      }
+      setIssueRetry((current) =>
+        current?.key === request.key ? null : current
       );
-      setQuoteNeedsReview(false);
-      if (data?.invoiceId) await loadOptions();
+      if (currentScopeKeyRef.current === request.scopeKey) {
+        setSuccessMessage(
+          data.chargeStatus === "due" && data.collectionMode === "manual"
+            ? "Factura emitida y pendiente. No se ha registrado ni iniciado un pago."
+            : "Factura emitida; no se ha registrado ni iniciado un pago."
+        );
+        setQuoteNeedsReview(false);
+        await loadOptionsRef.current();
+      } else {
+        setIssueReceipt({
+          organizationId: request.body.organizationId,
+          locationId: request.body.locationId,
+          servicePeriod: request.body.servicePeriod,
+          message: "La factura se emitió correctamente en la operación iniciada para el ámbito original.",
+        });
+      }
     } catch (error) {
-      setIssueError(
-        error instanceof Error
-          ? error.message
-          : "No se ha podido emitir la factura."
+      setIssueRetry((current) =>
+        current?.key === request.key
+          ? { ...current, hasAmbiguousAttempt: true }
+          : current
       );
+      if (currentScopeKeyRef.current === request.scopeKey) {
+        setIssueError(
+          error instanceof Error
+            ? error.message
+            : "No se ha podido emitir la factura."
+        );
+      }
     } finally {
       setBusy(false);
     }
+  }
+
+  async function issueInvoice(command: IssueBody) {
+    if (writesBlocked || busy) return;
+    const commandScopeKey = invoiceScopeKey(
+      command.organizationId,
+      command.locationId,
+      command.servicePeriod
+    );
+    if (
+      commandScopeKey !== currentScopeKey ||
+      !currentOptions ||
+      currentOptions.organizationId !== organizationId ||
+      currentOptions.locationId !== locationId ||
+      currentOptions.servicePeriod !== servicePeriod
+    ) {
+      setIssueError(
+        "La cotización ya no corresponde a la academia, sede y periodo visibles. Vuelve a cargarla antes de emitir."
+      );
+      return;
+    }
+    if (issueRetry) {
+      if (
+        issueRetry.scopeKey !== currentScopeKey ||
+        JSON.stringify(issueRetry.body) !== JSON.stringify(command)
+      ) {
+        setIssueError(
+          "Hay una emisión pendiente de confirmar. Reintenta exactamente esa operación en su ámbito antes de preparar otra."
+        );
+        return;
+      }
+      await sendInvoiceIssue(issueRetry);
+      return;
+    }
+    const request: RetryIssue = {
+      key: `owner-monthly-invoice:${crypto.randomUUID()}`,
+      body: command,
+      scopeKey: commandScopeKey,
+      hasAmbiguousAttempt: false,
+    };
+    setIssueRetry(request);
+    await sendInvoiceIssue(request);
+  }
+
+  function replayPendingInvoice() {
+    if (!issueRetry || issueRetry.scopeKey !== currentScopeKey || busy) return;
+    void sendInvoiceIssue(issueRetry);
   }
 
   return (
@@ -308,6 +459,7 @@ export function OwnerMonthlyInvoicesManager({
             {organizationName}
           </p>
         </div>
+        <OwnerOperationalReadOnlyNotice organizationId={organizationId} />
         {locations.length > 1 && (
           <label className="grid max-w-md gap-2">
             <span className="text-sm font-bold">Sede</span>
@@ -317,6 +469,15 @@ export function OwnerMonthlyInvoicesManager({
                 setLocationId(event.target.value);
                 setSelectedFamilyId("");
                 setState("loading");
+                setStateScopeKey(
+                  invoiceScopeKey(
+                    organizationId,
+                    event.target.value,
+                    servicePeriod
+                  )
+                );
+                setIssueError("");
+                setSuccessMessage("");
               }}
               className="min-h-11 w-full border border-slate-400 bg-white px-3 py-2 text-sm focus-visible:outline focus-visible:outline-2 focus-visible:outline-teal-800"
             >
@@ -339,6 +500,9 @@ export function OwnerMonthlyInvoicesManager({
               setSelectedFamilyId("");
               setDueDate("");
               if (!isServicePeriod(nextPeriod)) setOptions(undefined);
+              setStateScopeKey(
+                invoiceScopeKey(organizationId, locationId, nextPeriod)
+              );
               setSuccessMessage("");
               setIssueError("");
               setQuoteNeedsReview(false);
@@ -356,15 +520,63 @@ export function OwnerMonthlyInvoicesManager({
           </span>
         </label>
       </div>
+      {issueRetry && (
+        <div
+          role="status"
+          className="mx-auto grid max-w-4xl gap-3 border border-amber-500 bg-amber-50 p-4 text-sm text-amber-950"
+        >
+          <p>
+            Hay una emisión cuyo resultado sigue sin confirmar. Conservamos su
+            academia, sede, periodo, contenido y clave originales.
+          </p>
+          {issueRetry.scopeKey === currentScopeKey ? (
+            <button
+              type="button"
+              disabled={busy}
+              onClick={replayPendingInvoice}
+              className="min-h-11 w-fit border border-amber-800 px-4 py-2 font-bold underline underline-offset-2 disabled:opacity-50"
+            >
+              Reintentar la emisión pendiente
+            </button>
+          ) : (
+            <Link
+              className="min-h-11 w-fit content-center font-bold underline underline-offset-2"
+              href={`/owner/monthly-invoices?${new URLSearchParams({
+                organizationId: issueRetry.body.organizationId,
+                locationId: issueRetry.body.locationId,
+                servicePeriod: issueRetry.body.servicePeriod,
+              }).toString()}`}
+            >
+              Volver a su academia, sede y periodo
+            </Link>
+          )}
+        </div>
+      )}
+      {issueReceipt && (
+        <div role="status" className="mx-auto grid max-w-4xl gap-2 border border-teal-300 bg-teal-50 p-4 text-sm text-teal-950">
+          <p>{issueReceipt.message} El workspace visible no se ha actualizado.</p>
+          <Link
+            className="min-h-11 w-fit content-center font-bold underline underline-offset-2"
+            href={`/owner/monthly-invoices?${new URLSearchParams({
+              organizationId: issueReceipt.organizationId,
+              locationId: issueReceipt.locationId,
+              servicePeriod: issueReceipt.servicePeriod,
+            }).toString()}`}
+          >
+            Volver al ámbito de la emisión
+          </Link>
+        </div>
+      )}
       <OwnerMonthlyInvoiceWorkspace
-        state={state}
-        options={options}
+        state={workspaceState}
+        options={currentOptions}
         selectedFamilyId={selectedFamilyId}
         payerResetKey={payerResetKey}
         dueDate={dueDate}
-        errorMessage={loadError || issueError}
+        errorMessage={workspaceLoadError || issueError}
         successMessage={successMessage}
         quoteNeedsReview={quoteNeedsReview}
+        writesBlocked={writesBlocked}
         busy={busy || Boolean(resolutionAction)}
         onFamilyChange={(familyId) => {
           setSelectedFamilyId(familyId);
@@ -374,7 +586,7 @@ export function OwnerMonthlyInvoicesManager({
         onDueDateChange={setDueDate}
         onRetry={refreshOptions}
         onAssignTariff={(enrollmentId) => {
-          const enrollment = options?.families
+          const enrollment = currentOptions?.families
             .flatMap((family) => family.enrollments)
             .find((item) => item.enrollmentId === enrollmentId);
           setIssueError("");
@@ -387,8 +599,8 @@ export function OwnerMonthlyInvoicesManager({
         }}
         onLinkFamily={(enrollmentId) => {
           const enrollment = [
-            ...(options?.unassignedEnrollments ?? []),
-            ...(options?.families.flatMap((family) => family.enrollments) ??
+            ...(currentOptions?.unassignedEnrollments ?? []),
+            ...(currentOptions?.families.flatMap((family) => family.enrollments) ??
               []),
           ].find((item) => item.enrollmentId === enrollmentId);
           if (!enrollment) {
@@ -407,7 +619,7 @@ export function OwnerMonthlyInvoicesManager({
           });
         }}
         onAssignPayer={(familyId) => {
-          const family = options?.families.find(
+          const family = currentOptions?.families.find(
             (item) => item.familyId === familyId
           );
           if (!family) return;
@@ -441,10 +653,11 @@ export function OwnerMonthlyInvoicesManager({
           }
           action={resolutionAction}
           organizationId={organizationId}
+          writesBlocked={writesBlocked}
           locationId={locationId}
           defaultCurrency={defaultCurrency}
           servicePeriodStart={
-            options?.servicePeriodStart ?? `${servicePeriod}-01`
+            currentOptions?.servicePeriodStart ?? `${servicePeriod}-01`
           }
           onCancel={() => setResolutionAction(null)}
           onSaved={handleResolutionSaved}

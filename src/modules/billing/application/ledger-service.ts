@@ -25,6 +25,7 @@ import {
 import type { TransactionClient } from "@/lib/db-transactions";
 import { operationalActorSchema } from "@/modules/shared/application/actor";
 import { OperationalError } from "@/modules/shared/domain/operational-error";
+import { FAMILY_AUTOMATIC_COLLECTION_DISABLED } from "@/lib/stripe/family-automatic-collection-disabled";
 import { getChargeCollectionModeSnapshot } from "@/modules/billing/application/family-collection-preferences";
 import { assertOperationalAccess } from "@/modules/shared/infrastructure/operational-authorization";
 import {
@@ -581,6 +582,7 @@ export async function issueInvoiceInTransaction(
     organizationId: input.organizationId,
     locationId: input.locationId,
     actor: input.actor,
+    intent: "write",
     allowedRoles: financialRoles,
   });
 
@@ -591,6 +593,14 @@ export async function issueInvoiceInTransaction(
       organizationId: input.organizationId,
       familyId: input.familyId,
     }));
+  if (collectionMode === "automatic") {
+    throw new OperationalError(
+      FAMILY_AUTOMATIC_COLLECTION_DISABLED,
+      "No se pueden emitir cargos con cobro automático familiar; usa el registro manual.",
+      409,
+      { code: FAMILY_AUTOMATIC_COLLECTION_DISABLED }
+    );
+  }
 
   const now = new Date();
   const [invoice] = await tx
@@ -790,6 +800,7 @@ export async function recordManualPayment(
       organizationId: input.organizationId,
       locationId: input.locationId,
       actor: input.actor,
+      intent: "write",
       allowedRoles: financialRoles,
     });
 
@@ -944,6 +955,7 @@ export async function recordManualPaymentForCharge(
       organizationId: input.organizationId,
       locationId: charge.locationId,
       actor: input.actor,
+      intent: "write",
       allowedRoles: financialRoles,
     });
     if (charge.status === "void") {
@@ -1050,13 +1062,6 @@ export async function allocatePayment(
       input.paymentId
     );
     const charge = await loadCharge(tx, input.organizationId, input.chargeId);
-    await assertOperationalAccess(tx, {
-      organizationId: input.organizationId,
-      locationId: charge.locationId ?? payment.locationId ?? "",
-      actor: input.actor,
-      allowedRoles: financialRoles,
-    });
-
     const [prior] = await tx
       .select()
       .from(paymentAllocations)
@@ -1073,8 +1078,21 @@ export async function allocatePayment(
         chargeId: input.chargeId,
         amountCents: input.amountCents,
       });
+      await assertOperationalAccess(tx, {
+        organizationId: input.organizationId,
+        locationId: charge.locationId ?? payment.locationId ?? "",
+        actor: input.actor,
+        allowedRoles: financialRoles,
+      });
       return prior;
     }
+    await assertOperationalAccess(tx, {
+      organizationId: input.organizationId,
+      locationId: charge.locationId ?? payment.locationId ?? "",
+      actor: input.actor,
+      intent: "write",
+      allowedRoles: financialRoles,
+    });
     if (payment.currency !== charge.currency) {
       throw new OperationalError(
         "INVALID_RELATION",
@@ -1433,12 +1451,6 @@ export async function reconcileFinancialPeriod(
   }
   return db.transaction(async (tx) => {
     await lockCommand(tx, input.organizationId, input.idempotencyKey);
-    await assertOperationalAccess(tx, {
-      organizationId: input.organizationId,
-      locationId: input.authorizationLocationId,
-      actor: input.actor,
-      allowedRoles: financialRoles,
-    });
     const [prior] = await tx
       .select()
       .from(financialReconciliationRuns)
@@ -1455,8 +1467,22 @@ export async function reconcileFinancialPeriod(
         periodStart: input.periodStart,
         periodEnd: input.periodEnd,
       });
+      await assertOperationalAccess(tx, {
+        organizationId: input.organizationId,
+        locationId: input.authorizationLocationId,
+        actor: input.actor,
+        allowedRoles: financialRoles,
+      });
       return prior;
     }
+
+    await assertOperationalAccess(tx, {
+      organizationId: input.organizationId,
+      locationId: input.authorizationLocationId,
+      actor: input.actor,
+      intent: "write",
+      allowedRoles: financialRoles,
+    });
 
     const totals = await tx.execute(sql`
       with period_charges as (
