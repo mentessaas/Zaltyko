@@ -71,19 +71,14 @@ function assertDisposableTarget() {
     "SUPABASE_PROJECT_REF",
     "SUPABASE_SERVICE_ROLE_KEY",
     "E2E_TARGET_SUPABASE_PROJECT_REF",
-    "STRIPE_SECRET_KEY",
     "STRIPE_SAAS_TEST_SECRET_KEY",
     "STRIPE_SAAS_LIVE_SECRET_KEY",
     "VERCEL_TOKEN",
   ];
   const activeForbidden = forbidden.filter((name) => Boolean(process.env[name]));
-  // tests/setup.ts always installs this exact non-secret placeholder so the
-  // rest of the unit-test environment cannot accidentally reach Stripe.
-  const externalStripeSecret = Boolean(
-    process.env.STRIPE_SECRET_KEY &&
-    process.env.STRIPE_SECRET_KEY !== "sk_test_mock"
-  );
-  if (externalStripeSecret) activeForbidden.push("STRIPE_SECRET_KEY");
+  // The parent shell rejects STRIPE_SECRET_KEY before Vitest starts. The
+  // shared setup mutates this name inside Vitest's worker, so it is not a
+  // reliable external-credential signal here.
   if (activeForbidden.length > 0) {
     // Names are safe to log; secret values are deliberately never included.
     throw new Error(
