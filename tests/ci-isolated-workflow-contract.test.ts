@@ -27,6 +27,10 @@ const schemaRlsHardeningMigrationPath = resolve(
   process.cwd(),
   "supabase/migrations/20261024193934_rls_guard_missing_public_tables.sql"
 );
+const ownerBootstrapSeedMigrationPath = resolve(
+  process.cwd(),
+  "supabase/migrations/20261024223700_seed_owner_bootstrap_sport_profiles.sql"
+);
 const capacityIntegrationTestPath = resolve(
   process.cwd(),
   "tests/saas-capacity-postgres.integration.test.ts"
@@ -183,14 +187,17 @@ describe("isolated CI workflow contract", () => {
     expect(refreshJob).not.toMatch(/\bsecrets\.|cache:|upload-artifact|git push|git commit|pnpm (?:build|typecheck|test)\b/i);
   });
 
-  it("keeps the schema baseline byte-exact and authorizes one ordered RLS hardening migration", () => {
+  it("keeps the schema baseline byte-exact and authorizes the ordered RLS and Owner seed migrations", () => {
     const baseline = readFileSync(schemaBaselinePath);
     const manifest = JSON.parse(readFileSync(schemaSnapshotManifestPath, "utf8")) as {
       baseline: { sha256: string };
+      authored_reference_seed: { sha256: string };
     };
     const hardeningMigration = readFileSync(schemaRlsHardeningMigrationPath, "utf8");
+    const bootstrapSeedMigration = readFileSync(ownerBootstrapSeedMigrationPath, "utf8");
     const baselineSha256 = createHash("sha256").update(baseline).digest("hex");
     const hardeningSha256 = createHash("sha256").update(hardeningMigration).digest("hex");
+    const bootstrapSeedSha256 = createHash("sha256").update(bootstrapSeedMigration).digest("hex");
     const createdRelations = [...hardeningMigration.matchAll(/CREATE TABLE public\.([a-z_]+)/g)].map(
       (match) => `public.${match[1]}`
     );
@@ -244,6 +251,8 @@ describe("isolated CI workflow contract", () => {
     expect(baselineSha256).toBe("fd1bf2597b0dfd40dc6db824fa24773461f2776fa2ed7c994649be534c6a4b36");
     expect(manifest.baseline.sha256).toBe(baselineSha256);
     expect(hardeningSha256).toBe("005d16a4b2f87727c2c47b3affe5ccd5433323fdcf02404135cbf5d11be07959");
+    expect(manifest.authored_reference_seed.sha256).toBe(bootstrapSeedSha256);
+    expect(bootstrapSeedSha256).toBe("d8c2a0b81a0d7f75f1f94ebd0f131ab85775a6e7904e2606a980570cbc02c225");
     expect(createdRelations).toEqual([
       "public.actor_pages",
       "public.actor_consents",
@@ -263,11 +272,17 @@ describe("isolated CI workflow contract", () => {
     expect(replayScript).toContain(
       'readonly RLS_HARDENING_MIGRATION_NAME="20261024193934_rls_guard_missing_public_tables.sql"'
     );
+    expect(replayScript).toContain(
+      'readonly BOOTSTRAP_SEED_MIGRATION_NAME="20261024223700_seed_owner_bootstrap_sport_profiles.sql"'
+    );
     expect(replayScript).toContain(`readonly BASELINE_SHA256="${baselineSha256}"`);
     expect(replayScript).toContain(`readonly RLS_HARDENING_MIGRATION_SHA256="${hardeningSha256}"`);
+    expect(replayScript).toContain(`readonly BOOTSTRAP_SEED_MIGRATION_SHA256="${bootstrapSeedSha256}"`);
     expect(replayScript).toContain(
-      '[[ "${#migrations[@]}" -eq 2 && "${migrations[0]}" == "$MIGRATION_NAME" && "${migrations[1]}" == "$RLS_HARDENING_MIGRATION_NAME" ]]'
+      '[[ "${#migrations[@]}" -eq 3 && "${migrations[0]}" == "$MIGRATION_NAME" && "${migrations[1]}" == "$RLS_HARDENING_MIGRATION_NAME" && "${migrations[2]}" == "$BOOTSTRAP_SEED_MIGRATION_NAME" ]]'
     );
+    expect(bootstrapSeedMigration).toContain("'ES', 'artistic', 'unconfigured', 'identity-v1', 'identity_only'");
+    expect(bootstrapSeedMigration).toContain("'ES', 'rhythmic', 'unconfigured', 'identity-v1', 'identity_only'");
     expect(replayScript).toContain("The current-state baseline bytes differ from the reviewed snapshot.");
     expect(replayScript).toContain("The RLS hardening migration differs from the reviewed candidate.");
     expect(replayScript).toContain(
@@ -386,9 +401,9 @@ describe("isolated CI workflow contract", () => {
     expect(replayScript).not.toContain("REVOKE supabase_admin FROM postgres");
     expect(replayScript).not.toContain("CREATE ROLE");
     expect(replayScript).toContain('readonly RLS_HARDENING_MIGRATION_NAME="20261024193934_rls_guard_missing_public_tables.sql"');
-    expect(replayScript).toContain('readonly TENANT_MIGRATION_NAME="20261024193935_sandbox_tenant_isolation.sql"');
-    expect(replayScript).toContain('readonly GUARD_PROBE_NAME="20261024193936_sandbox_schema_guard_probe.sql"');
-    expect(replayScript).toContain('readonly UNMARKED_PROBE_NAME="20261024193937_sandbox_schema_unmarked_guard_probe.sql"');
+    expect(replayScript).toContain('readonly TENANT_MIGRATION_NAME="20261024223701_sandbox_tenant_isolation.sql"');
+    expect(replayScript).toContain('readonly GUARD_PROBE_NAME="20261024223702_sandbox_schema_guard_probe.sql"');
+    expect(replayScript).toContain('readonly UNMARKED_PROBE_NAME="20261024223703_sandbox_schema_unmarked_guard_probe.sql"');
     expect(replayScript).toContain("--runtime native");
     expect(replayScript).toContain("--exclude rest,auth,realtime,storage,functions,studio,mail,analytics,pooler");
     expect(replayScript).toContain('"$CLI" --workdir "$CI_WORKDIR" stack stop --stack "$PROJECT_ID"');

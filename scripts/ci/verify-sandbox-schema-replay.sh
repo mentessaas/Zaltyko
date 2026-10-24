@@ -9,9 +9,11 @@ readonly MIGRATION_NAME="20261024172153_sandbox_schema_snapshot_baseline.sql"
 readonly BASELINE_SHA256="fd1bf2597b0dfd40dc6db824fa24773461f2776fa2ed7c994649be534c6a4b36"
 readonly RLS_HARDENING_MIGRATION_NAME="20261024193934_rls_guard_missing_public_tables.sql"
 readonly RLS_HARDENING_MIGRATION_SHA256="005d16a4b2f87727c2c47b3affe5ccd5433323fdcf02404135cbf5d11be07959"
-readonly TENANT_MIGRATION_NAME="20261024193935_sandbox_tenant_isolation.sql"
-readonly GUARD_PROBE_NAME="20261024193936_sandbox_schema_guard_probe.sql"
-readonly UNMARKED_PROBE_NAME="20261024193937_sandbox_schema_unmarked_guard_probe.sql"
+readonly BOOTSTRAP_SEED_MIGRATION_NAME="20261024223700_seed_owner_bootstrap_sport_profiles.sql"
+readonly BOOTSTRAP_SEED_MIGRATION_SHA256="d8c2a0b81a0d7f75f1f94ebd0f131ab85775a6e7904e2606a980570cbc02c225"
+readonly TENANT_MIGRATION_NAME="20261024223701_sandbox_tenant_isolation.sql"
+readonly GUARD_PROBE_NAME="20261024223702_sandbox_schema_guard_probe.sql"
+readonly UNMARKED_PROBE_NAME="20261024223703_sandbox_schema_unmarked_guard_probe.sql"
 readonly SUPABASE_CLI_VERSION="2.119.0"
 readonly ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/../.." && pwd)"
 
@@ -44,6 +46,7 @@ readonly STATUS_ERROR_LOG="$RUNNER_TEMP/$PROJECT_ID-status.stderr"
 readonly LOCAL_DB_URL_FILE="$RUNNER_TEMP/$PROJECT_ID-local-db-url"
 readonly ROLE_GUARD_FILE="$RUNNER_TEMP/$PROJECT_ID-role-guard.sql"
 readonly RLS_HARDENING_MIGRATION_FILE="$RUNNER_TEMP/$PROJECT_ID-rls-hardening-migration.sql"
+readonly BOOTSTRAP_SEED_MIGRATION_FILE="$RUNNER_TEMP/$PROJECT_ID-bootstrap-seed-migration.sql"
 readonly AUTH_JWT_ERROR_LOG="$RUNNER_TEMP/$PROJECT_ID-auth-jwt-state.stderr"
 readonly AUTH_JWT_MIGRATION_FILE="$RUNNER_TEMP/$PROJECT_ID-auth-jwt-migration.sql"
 readonly MARKED_BASELINE_FILE="$RUNNER_TEMP/$PROJECT_ID-marked-baseline.sql"
@@ -63,6 +66,7 @@ cleanup() {
     "$RUNNER_TEMP/supabase_${SUPABASE_CLI_VERSION}_linux_amd64.tar.gz" \
     "$START_LOG" "$STATUS_LOG" "$STATUS_ERROR_LOG" "$LOCAL_DB_URL_FILE" "$ROLE_GUARD_FILE" \
     "$RLS_HARDENING_MIGRATION_FILE" \
+    "$BOOTSTRAP_SEED_MIGRATION_FILE" \
     "$AUTH_JWT_ERROR_LOG" "$AUTH_JWT_MIGRATION_FILE" \
     "$MARKED_BASELINE_FILE" "$REPLAY_LOG" "$TENANT_LOG" "$GUARD_LOG" "$UNMARKED_GUARD_LOG" "$INTEGRATION_LOG"
 }
@@ -111,25 +115,28 @@ PY
 }
 
 diagnose_marker_failure() {
-  local diagnosis="The disposable migration runner rejected the session-local marker or schema replay; CLI output remains withheld."
-  if grep -Eiq 'permission denied to change default privileges' "$REPLAY_LOG"; then
-    diagnosis="The disposable Postgres replay principal cannot restore the snapshot's role-scoped default ACLs."
-  elif grep -Eiq 'permission denied' "$REPLAY_LOG"; then
-    diagnosis="The local database role could not set the session-local replay marker."
-  elif grep -Eiq 'unrecognized configuration parameter|invalid configuration parameter' "$REPLAY_LOG"; then
-    diagnosis="PostgreSQL rejected the custom one-run marker setting."
-  elif grep -Eiq 'cannot run inside a transaction block' "$REPLAY_LOG"; then
-    diagnosis="The marker statement ran inside an incompatible transaction context."
-  elif grep -Eiq 'connection refused|context deadline exceeded|i/o timeout|no route to host' "$REPLAY_LOG"; then
-    diagnosis="The local Postgres connection was unavailable while setting the one-run marker."
-  elif grep -Eiq 'syntax error|invalid value|does not exist' "$REPLAY_LOG"; then
-    diagnosis="PostgreSQL rejected the marker SQL or its target database."
-  elif grep -Eiq 'unknown flag|flag provided but not defined|unknown command|unknown shorthand|no such command' "$REPLAY_LOG"; then
-    diagnosis="The pinned Supabase CLI rejected the local migration replay command or flag."
-  elif grep -Eiq 'could not find|not found|not running|connection reset|database system is starting|failed to connect|error connecting' "$REPLAY_LOG"; then
-    diagnosis="The pinned Supabase CLI could not resolve or connect to its disposable local Postgres endpoint."
+  local context="${1:-marker-guarded replay}"
+  local diagnosis="The disposable migration runner rejected ${context}; CLI output remains withheld."
+  if [[ "$context" == "marker-guarded replay" ]]; then
+    if grep -Eiq 'permission denied to change default privileges' "$REPLAY_LOG"; then
+      diagnosis="The disposable Postgres replay principal cannot restore the snapshot's role-scoped default ACLs."
+    elif grep -Eiq 'permission denied' "$REPLAY_LOG"; then
+      diagnosis="The local database role could not set the session-local replay marker."
+    elif grep -Eiq 'unrecognized configuration parameter|invalid configuration parameter' "$REPLAY_LOG"; then
+      diagnosis="PostgreSQL rejected the custom one-run marker setting."
+    elif grep -Eiq 'cannot run inside a transaction block' "$REPLAY_LOG"; then
+      diagnosis="The marker statement ran inside an incompatible transaction context."
+    elif grep -Eiq 'connection refused|context deadline exceeded|i/o timeout|no route to host' "$REPLAY_LOG"; then
+      diagnosis="The local Postgres connection was unavailable while setting the one-run marker."
+    elif grep -Eiq 'syntax error|invalid value|does not exist' "$REPLAY_LOG"; then
+      diagnosis="PostgreSQL rejected the marker SQL or its target database."
+    elif grep -Eiq 'unknown flag|flag provided but not defined|unknown command|unknown shorthand|no such command' "$REPLAY_LOG"; then
+      diagnosis="The pinned Supabase CLI rejected the local migration replay command or flag."
+    elif grep -Eiq 'could not find|not found|not running|connection reset|database system is starting|failed to connect|error connecting' "$REPLAY_LOG"; then
+      diagnosis="The pinned Supabase CLI could not resolve or connect to its disposable local Postgres endpoint."
+    fi
   fi
-  printf 'Safe marker diagnosis: %s\n' "$diagnosis" >&2
+  printf 'Safe migration diagnosis: %s\n' "$diagnosis" >&2
 
   python3 - "$REPLAY_LOG" <<'PY' >&2
 from pathlib import Path
@@ -203,11 +210,13 @@ Path(destination).write_text(text, encoding="utf-8")
 PY
 
 mapfile -t migrations < <(find "$ROOT/supabase/migrations" -maxdepth 1 -type f -name '*.sql' -printf '%f\n' | sort)
-[[ "${#migrations[@]}" -eq 2 && "${migrations[0]}" == "$MIGRATION_NAME" && "${migrations[1]}" == "$RLS_HARDENING_MIGRATION_NAME" ]] || fail "Expected only the reviewed baseline and its single RLS hardening migration, in exact order."
+[[ "${#migrations[@]}" -eq 3 && "${migrations[0]}" == "$MIGRATION_NAME" && "${migrations[1]}" == "$RLS_HARDENING_MIGRATION_NAME" && "${migrations[2]}" == "$BOOTSTRAP_SEED_MIGRATION_NAME" ]] || fail "Expected only the reviewed baseline, RLS hardening, and Owner bootstrap seed migrations, in exact order."
 baseline_sha256="$(sha256sum "$ROOT/supabase/migrations/$MIGRATION_NAME" | awk '{print $1}')"
 [[ "$baseline_sha256" == "$BASELINE_SHA256" ]] || fail "The current-state baseline bytes differ from the reviewed snapshot."
 rls_hardening_sha256="$(sha256sum "$ROOT/supabase/migrations/$RLS_HARDENING_MIGRATION_NAME" | awk '{print $1}')"
 [[ "$rls_hardening_sha256" == "$RLS_HARDENING_MIGRATION_SHA256" ]] || fail "The RLS hardening migration differs from the reviewed candidate."
+bootstrap_seed_sha256="$(sha256sum "$ROOT/supabase/migrations/$BOOTSTRAP_SEED_MIGRATION_NAME" | awk '{print $1}')"
+[[ "$bootstrap_seed_sha256" == "$BOOTSTRAP_SEED_MIGRATION_SHA256" ]] || fail "The Owner bootstrap reference seed differs from the reviewed candidate."
 
 # Start only disposable native Postgres rather than Docker images or the full
 # Supabase service stack. The stack is one-run, native mode is explicitly
@@ -431,7 +440,7 @@ PY
 cp -- "$ROLE_GUARD_FILE" "$CI_WORKDIR/supabase/migrations/$ROLE_PROBE_NAME"
 if ! "$CLI" --workdir "$CI_WORKDIR" migration up --db-url "$LOCAL_DB_URL" \
   >"$REPLAY_LOG" 2>&1; then
-  diagnose_marker_failure
+  diagnose_marker_failure "Supabase replay role probe"
   fail "The disposable session could not restore and verify the Supabase replay role."
 fi
 
@@ -477,7 +486,7 @@ PY
     cp -- "$AUTH_JWT_MIGRATION_FILE" "$CI_WORKDIR/supabase/migrations/$AUTH_JWT_MIGRATION_NAME"
     if ! "$CLI" --workdir "$CI_WORKDIR" migration up --db-url "$LOCAL_DB_URL" \
       >"$REPLAY_LOG" 2>&1; then
-      diagnose_marker_failure
+      diagnose_marker_failure "Supabase Auth JWT prerequisite"
       fail "The standard Supabase Auth JWT prerequisite could not be prepared on disposable Postgres."
     fi
     printf 'Installed the upstream-compatible auth.jwt() helper only in disposable CI Postgres.\n'
@@ -514,9 +523,9 @@ if ! "$CLI" --workdir "$CI_WORKDIR" migration up --db-url "$LOCAL_DB_URL" \
   fail "The marker-guarded baseline did not replay on disposable local Postgres."
 fi
 
-# Apply only the second reviewed migration after the byte-pinned baseline has
-# replayed successfully. Keeping these applications separate preserves the
-# current-state empty-database guard and makes the order explicit.
+# Apply the RLS hardening and then the separately hashed Owner reference seed.
+# Keeping these applications separate preserves the byte-pinned baseline guard
+# and makes every source and its order explicit.
 cat -- "$ROLE_GUARD_FILE" "$ROOT/supabase/migrations/$RLS_HARDENING_MIGRATION_NAME" \
   >"$RLS_HARDENING_MIGRATION_FILE"
 chmod 600 "$RLS_HARDENING_MIGRATION_FILE"
@@ -524,8 +533,19 @@ cp -- "$RLS_HARDENING_MIGRATION_FILE" \
   "$CI_WORKDIR/supabase/migrations/$RLS_HARDENING_MIGRATION_NAME"
 if ! "$CLI" --workdir "$CI_WORKDIR" migration up --db-url "$LOCAL_DB_URL" \
   >"$REPLAY_LOG" 2>&1; then
-  diagnose_marker_failure
+  diagnose_marker_failure "RLS hardening migration"
   fail "The reviewed RLS hardening migration did not apply after the current-state baseline."
+fi
+
+cat -- "$ROLE_GUARD_FILE" "$ROOT/supabase/migrations/$BOOTSTRAP_SEED_MIGRATION_NAME" \
+  >"$BOOTSTRAP_SEED_MIGRATION_FILE"
+chmod 600 "$BOOTSTRAP_SEED_MIGRATION_FILE"
+cp -- "$BOOTSTRAP_SEED_MIGRATION_FILE" \
+  "$CI_WORKDIR/supabase/migrations/$BOOTSTRAP_SEED_MIGRATION_NAME"
+if ! "$CLI" --workdir "$CI_WORKDIR" migration up --db-url "$LOCAL_DB_URL" \
+  >"$REPLAY_LOG" 2>&1; then
+  diagnose_marker_failure "Owner bootstrap reference seed"
+  fail "The reviewed Owner bootstrap reference seed did not apply after the current-state baseline and RLS hardening."
 fi
 
 cat -- "$ROLE_GUARD_FILE" "$ROOT/scripts/ci/sandbox-tenant-isolation.sql" \
@@ -588,7 +608,7 @@ PY
   fail "Free capacity concurrency, idempotency, or no-partial-write checks failed on disposable local Postgres."
 fi
 
-printf 'PASS: exact baseline and its single reviewed RLS migration replayed on empty disposable Postgres.\n'
+printf 'PASS: exact baseline, RLS hardening, and Owner bootstrap reference seed replayed on empty disposable Postgres.\n'
 printf 'PASS: 28-table RLS, deny-policy, anon/authenticated ACL, two-academy isolation, writes, and rollback checks passed.\n'
 printf 'PASS: baseline guards refused populated and unmarked databases before DDL.\n'
 printf 'PASS: disposable PostgreSQL schema replay, RLS isolation, Free capacity, manual billing ledger concurrency, idempotent replay, and no-partial-write checks passed.\n'
