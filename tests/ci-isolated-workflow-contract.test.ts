@@ -67,7 +67,7 @@ describe("isolated CI workflow contract", () => {
 
   it("downloads the versioned Supabase CLI release archive before verifying its pinned binary", () => {
     expect(mainCiWorkflow).toContain(
-      "https://github.com/supabase/cli/releases/download/v2.84.2/supabase_2.84.2_linux_amd64.tar.gz"
+      "https://github.com/supabase/cli/releases/download/v2.84.2/supabase_linux_amd64.tar.gz"
     );
     expect(mainCiWorkflow).toContain("python3 scripts/ci/install_pinned_supabase_cli.py \"$archive\"");
     expect(mainCiWorkflow).toContain("scripts/ci/preload-local-e2e-images.ts");
@@ -110,11 +110,11 @@ describe("isolated CI workflow contract", () => {
     expect(buildJob).not.toMatch(/^\s*cache:/m);
   });
 
-  it("keeps the existing checks unconditional and isolates the optional lockfile refresh", () => {
+  it("keeps checks on normal dispatches, isolates replay-only mode, and scopes lockfile refresh", () => {
     const checksJob = workflow.match(/  static-and-unit:([\s\S]*?)(?=\n  schema-replay:|$)/)?.[1] ?? "";
     const refreshJob = workflow.match(/  lockfile-refresh:([\s\S]*?)(?=\n  vite-refresh:|$)/)?.[1] ?? "";
     const checksJobHeader = checksJob.split("\n    steps:")[0] ?? "";
-    expect(checksJobHeader).not.toMatch(/^\s+if:/m);
+    expect(checksJobHeader).toContain("if: ${{ inputs.resolution_mode != 'schema-replay' }}");
     expect(refreshJob).toContain("if: ${{ inputs.resolution_mode == 'lockfile-refresh' }}");
     const refreshActions = [...refreshJob.matchAll(/^\s+uses:\s*(\S+)/gm)].map((match) => match[1]);
     expect(refreshActions).toEqual([
@@ -175,7 +175,7 @@ describe("isolated CI workflow contract", () => {
     expect(replayJob).toContain("runs-on: ubuntu-latest");
     expect(replayJob).toContain("contents: read");
     expect(replayJob).toContain("persist-credentials: false");
-    expect(replayJob).toContain("supabase_2.84.2_linux_amd64.tar.gz");
+    expect(replayJob).toContain("supabase_linux_amd64.tar.gz");
     expect(replayJob).toContain("python3 scripts/ci/install_pinned_supabase_cli.py");
     expect(replayJob).toContain("bash scripts/ci/verify-sandbox-schema-replay.sh");
     expect(replayJob).not.toMatch(/\bsecrets\.|SUPABASE_ACCESS_TOKEN|SUPABASE_DB_PASSWORD|VERCEL_TOKEN|STRIPE_SECRET_KEY|supabase link|--linked|actions\/deploy/i);
