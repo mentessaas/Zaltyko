@@ -18,8 +18,8 @@
   },
   "baseline": {
     "path": "supabase/migrations/20261024172153_sandbox_schema_snapshot_baseline.sql",
-    "sha256": "760c1745ab3132ffdf305b63e13468a2aca33921b1af58ba31c9267999144db9",
-    "bytes": 660074,
+    "sha256": "fd1bf2597b0dfd40dc6db824fa24773461f2776fa2ed7c994649be534c6a4b36",
+    "bytes": 660079,
     "objects": {
       "tables": 231,
       "indexes_total": 968,
@@ -60,7 +60,7 @@
       "requires session-local app.schema_snapshot_replay=ci-empty-replay on the isolated CI connection; it is never persisted at database scope",
       "refuses any existing relation, routine, or user-defined type in the four application schemas before DDL"
     ],
-    "replay_ordering_note": "Nine unchanged standalone unique-index definitions are ordered before dependent foreign-key DDL, and the unchanged security-definer superadmin helper is ordered before SQL wrappers that call it; object definitions and constraints are unchanged."
+    "replay_ordering_note": "Nine unchanged standalone unique-index definitions are ordered before dependent foreign-key DDL, and SQL security helpers are ordered before wrappers that invoke them; object definitions and constraints are unchanged."
   },
   "replay_validation": {
     "runner": "GitHub Actions disposable ubuntu-latest runner",

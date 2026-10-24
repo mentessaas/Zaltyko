@@ -5408,6 +5408,106 @@ $function$;
 
 ALTER FUNCTION zaltyko_private.is_super_admin() OWNER TO postgres;
 
+CREATE OR REPLACE FUNCTION zaltyko_private.current_profile_id()
+ RETURNS uuid
+ LANGUAGE sql
+ STABLE SECURITY DEFINER
+ SET search_path TO 'pg_catalog'
+AS $function$
+  SELECT p.id
+  FROM public.profiles AS p
+  WHERE p.user_id = auth.uid()
+  LIMIT 1
+$function$;
+
+ALTER FUNCTION zaltyko_private.current_profile_id() OWNER TO postgres;
+
+CREATE OR REPLACE FUNCTION zaltyko_private.current_tenant_id()
+ RETURNS uuid
+ LANGUAGE sql
+ STABLE SECURITY DEFINER
+ SET search_path TO 'pg_catalog'
+AS $function$
+  SELECT p.tenant_id
+  FROM public.profiles AS p
+  WHERE p.user_id = auth.uid()
+  LIMIT 1
+$function$;
+
+ALTER FUNCTION zaltyko_private.current_tenant_id() OWNER TO postgres;
+
+CREATE OR REPLACE FUNCTION zaltyko_private.is_academy_manager(target_academy_id uuid)
+ RETURNS boolean
+ LANGUAGE sql
+ STABLE SECURITY DEFINER
+ SET search_path TO 'pg_catalog'
+AS $function$
+  SELECT zaltyko_private.is_super_admin()
+    OR EXISTS (
+      SELECT 1
+      FROM public.academies AS a
+      WHERE a.id = target_academy_id
+        AND a.owner_id = zaltyko_private.current_profile_id()
+    )
+    OR EXISTS (
+      SELECT 1
+      FROM public.memberships AS m
+      WHERE m.academy_id = target_academy_id
+        AND m.user_id = auth.uid()
+        AND m.role = 'owner'::public.membership_role
+    )
+$function$;
+
+ALTER FUNCTION zaltyko_private.is_academy_manager(target_academy_id uuid) OWNER TO postgres;
+
+CREATE OR REPLACE FUNCTION zaltyko_private.is_assigned_coach(target_class_id uuid)
+ RETURNS boolean
+ LANGUAGE sql
+ STABLE SECURITY DEFINER
+ SET search_path TO 'pg_catalog'
+AS $function$
+  SELECT EXISTS (
+    SELECT 1
+    FROM public.coaches AS co
+    WHERE co.user_id = auth.uid()
+      AND (
+        EXISTS (
+          SELECT 1
+          FROM public.class_coach_assignments AS cca
+          WHERE cca.class_id = target_class_id
+            AND cca.coach_id = co.id
+        )
+        OR EXISTS (
+          SELECT 1
+          FROM public.classes AS c
+          JOIN public.groups AS g ON g.id = c.group_id
+          WHERE c.id = target_class_id
+            AND (g.coach_id = co.id OR co.id = ANY(COALESCE(g.assistant_ids, ARRAY[]::uuid[])))
+        )
+        OR EXISTS (
+          SELECT 1
+          FROM public.class_sessions AS cs
+          WHERE cs.class_id = target_class_id
+            AND cs.coach_id = co.id
+        )
+      )
+  )
+$function$;
+
+ALTER FUNCTION zaltyko_private.is_assigned_coach(target_class_id uuid) OWNER TO postgres;
+
+CREATE OR REPLACE FUNCTION zaltyko_private.row_in_current_tenant(target_tenant_id uuid)
+ RETURNS boolean
+ LANGUAGE sql
+ STABLE SECURITY DEFINER
+ SET search_path TO 'pg_catalog'
+AS $function$
+  SELECT zaltyko_private.is_super_admin()
+    OR target_tenant_id = zaltyko_private.current_tenant_id()
+$function$;
+
+ALTER FUNCTION zaltyko_private.row_in_current_tenant(target_tenant_id uuid) OWNER TO postgres;
+
 CREATE OR REPLACE FUNCTION public.is_super_admin()
  RETURNS boolean
  LANGUAGE sql
@@ -6487,33 +6587,7 @@ $function$;
 
 ALTER FUNCTION zaltyko_private.can_access_guardian(target_guardian_id uuid) OWNER TO postgres;
 
-CREATE OR REPLACE FUNCTION zaltyko_private.current_profile_id()
- RETURNS uuid
- LANGUAGE sql
- STABLE SECURITY DEFINER
- SET search_path TO 'pg_catalog'
-AS $function$
-  SELECT p.id
-  FROM public.profiles AS p
-  WHERE p.user_id = auth.uid()
-  LIMIT 1
-$function$;
 
-ALTER FUNCTION zaltyko_private.current_profile_id() OWNER TO postgres;
-
-CREATE OR REPLACE FUNCTION zaltyko_private.current_tenant_id()
- RETURNS uuid
- LANGUAGE sql
- STABLE SECURITY DEFINER
- SET search_path TO 'pg_catalog'
-AS $function$
-  SELECT p.tenant_id
-  FROM public.profiles AS p
-  WHERE p.user_id = auth.uid()
-  LIMIT 1
-$function$;
-
-ALTER FUNCTION zaltyko_private.current_tenant_id() OWNER TO postgres;
 
 CREATE OR REPLACE FUNCTION zaltyko_private.get_current_tenant()
  RETURNS uuid
@@ -6524,29 +6598,6 @@ AS $function$ SELECT zaltyko_private.current_tenant_id() $function$;
 
 ALTER FUNCTION zaltyko_private.get_current_tenant() OWNER TO postgres;
 
-CREATE OR REPLACE FUNCTION zaltyko_private.is_academy_manager(target_academy_id uuid)
- RETURNS boolean
- LANGUAGE sql
- STABLE SECURITY DEFINER
- SET search_path TO 'pg_catalog'
-AS $function$
-  SELECT zaltyko_private.is_super_admin()
-    OR EXISTS (
-      SELECT 1
-      FROM public.academies AS a
-      WHERE a.id = target_academy_id
-        AND a.owner_id = zaltyko_private.current_profile_id()
-    )
-    OR EXISTS (
-      SELECT 1
-      FROM public.memberships AS m
-      WHERE m.academy_id = target_academy_id
-        AND m.user_id = auth.uid()
-        AND m.role = 'owner'::public.membership_role
-    )
-$function$;
-
-ALTER FUNCTION zaltyko_private.is_academy_manager(target_academy_id uuid) OWNER TO postgres;
 
 CREATE OR REPLACE FUNCTION zaltyko_private.is_academy_member(target_academy_id uuid)
  RETURNS boolean
@@ -6580,54 +6631,8 @@ AS $function$ SELECT zaltyko_private.is_super_admin() $function$;
 
 ALTER FUNCTION zaltyko_private.is_admin() OWNER TO postgres;
 
-CREATE OR REPLACE FUNCTION zaltyko_private.is_assigned_coach(target_class_id uuid)
- RETURNS boolean
- LANGUAGE sql
- STABLE SECURITY DEFINER
- SET search_path TO 'pg_catalog'
-AS $function$
-  SELECT EXISTS (
-    SELECT 1
-    FROM public.coaches AS co
-    WHERE co.user_id = auth.uid()
-      AND (
-        EXISTS (
-          SELECT 1
-          FROM public.class_coach_assignments AS cca
-          WHERE cca.class_id = target_class_id
-            AND cca.coach_id = co.id
-        )
-        OR EXISTS (
-          SELECT 1
-          FROM public.classes AS c
-          JOIN public.groups AS g ON g.id = c.group_id
-          WHERE c.id = target_class_id
-            AND (g.coach_id = co.id OR co.id = ANY(COALESCE(g.assistant_ids, ARRAY[]::uuid[])))
-        )
-        OR EXISTS (
-          SELECT 1
-          FROM public.class_sessions AS cs
-          WHERE cs.class_id = target_class_id
-            AND cs.coach_id = co.id
-        )
-      )
-  )
-$function$;
-
-ALTER FUNCTION zaltyko_private.is_assigned_coach(target_class_id uuid) OWNER TO postgres;
 
 
-CREATE OR REPLACE FUNCTION zaltyko_private.row_in_current_tenant(target_tenant_id uuid)
- RETURNS boolean
- LANGUAGE sql
- STABLE SECURITY DEFINER
- SET search_path TO 'pg_catalog'
-AS $function$
-  SELECT zaltyko_private.is_super_admin()
-    OR target_tenant_id = zaltyko_private.current_tenant_id()
-$function$;
-
-ALTER FUNCTION zaltyko_private.row_in_current_tenant(target_tenant_id uuid) OWNER TO postgres;
 
 -- All standalone indexes, including unique indexes referenced by foreign keys.
 CREATE INDEX academies_contact_email_idx ON public.academies USING btree (contact_email);
