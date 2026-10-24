@@ -22,6 +22,10 @@ import { getTerminologyForSportConfig } from "@/lib/sport-config/terminology";
 import type { AthleteListItem, GroupOption } from "@/types";
 import { useTranslation } from "@/hooks/use-translation";
 import { logger } from "@/lib/logger";
+import {
+  clearOwnerAthleteCommand,
+  prepareOwnerAthleteCommand,
+} from "@/components/athletes/owner-athlete-pending-command";
 
 interface AthletesTableViewProps {
   academyId: string;
@@ -42,6 +46,13 @@ interface AthletesTableViewProps {
 
 type SortBy = "name" | "age" | "createdAt";
 type SortOrder = "asc" | "desc";
+
+function isDefinitiveNoWrite(response: Response, payload: unknown): boolean {
+  if (response.status < 400 || response.status >= 500 || response.status === 429) return false;
+  if (response.status !== 409) return true;
+  if (!payload || typeof payload !== "object" || !("code" in payload)) return false;
+  return payload.code === "ATHLETES_CHANGED" || payload.code === "ATHLETE_CHANGED";
+}
 
 export const AthletesTableView = memo(function AthletesTableView({
   academyId,
@@ -327,20 +338,44 @@ export const AthletesTableView = memo(function AthletesTableView({
       return;
     }
 
+    const prepared = prepareOwnerAthleteCommand({
+      academyId,
+      action: "bulk-archive",
+      athleteIds: Array.from(selectedAthletes),
+    });
+    if (prepared.status !== "ready") {
+      const description = prepared.status === "pending-conflict"
+        ? "Hay un archivo anterior sin resultado confirmado. Vuelve a seleccionar exactamente las mismas gimnastas para reintentar antes de iniciar otro archivo."
+        : prepared.status === "unavailable"
+          ? "El navegador no permite guardar la operación de forma segura. No se envió ningún cambio."
+          : "La selección no se pudo validar. No se envió ningún cambio.";
+      toast.pushToast({ title: "No se pudo preparar el archivo", description, variant: "error" });
+      return;
+    }
+    const command = prepared.command;
+    let outcomeUncertain = true;
+
     try {
       const response = await fetch("/api/athletes/bulk-archive", {
         method: "POST",
-        headers: { "Content-Type": "application/json", "x-academy-id": academyId },
-        body: JSON.stringify({
-          academyId,
-          athleteIds: Array.from(selectedAthletes),
-        }),
+        headers: {
+          "Content-Type": "application/json",
+          "x-academy-id": academyId,
+          "Idempotency-Key": command.idempotencyKey,
+        },
+        body: command.serializedBody,
       });
       const payload = await response.json().catch(() => ({}));
       if (!response.ok || payload?.ok !== true) {
+        if (isDefinitiveNoWrite(response, payload)) {
+          clearOwnerAthleteCommand(command);
+          outcomeUncertain = false;
+        }
         throw new Error(payload?.message ?? payload?.error ?? "No se pudieron archivar las gimnastas.");
       }
 
+      clearOwnerAthleteCommand(command);
+      outcomeUncertain = false;
       const archivedCount = Number(payload.data?.archivedCount ?? selectedAthletes.size);
       toast.pushToast({
         title: "Gimnastas archivadas",
@@ -352,7 +387,9 @@ export const AthletesTableView = memo(function AthletesTableView({
     } catch (error) {
       toast.pushToast({
         title: "No se pudieron archivar",
-        description: error instanceof Error ? error.message : "Comprueba tu conexión e inténtalo de nuevo.",
+        description: outcomeUncertain
+          ? `${error instanceof Error ? `${error.message}. ` : ""}No se confirmó el resultado. Repite el archivo con la misma selección; se reutilizará la misma operación para evitar duplicados.`
+          : error instanceof Error ? error.message : "Comprueba tu conexión e inténtalo de nuevo.",
         variant: "error",
       });
     }
@@ -363,17 +400,44 @@ export const AthletesTableView = memo(function AthletesTableView({
       return;
     }
 
+    const prepared = prepareOwnerAthleteCommand({
+      academyId,
+      action: "restore",
+      athleteIds: [athlete.id],
+    });
+    if (prepared.status !== "ready") {
+      const description = prepared.status === "pending-conflict"
+        ? "Hay una restauración anterior sin resultado confirmado. Reintenta esa misma gimnasta antes de iniciar otra operación."
+        : prepared.status === "unavailable"
+          ? "El navegador no permite guardar la operación de forma segura. No se envió ningún cambio."
+          : "La restauración no se pudo validar. No se envió ningún cambio.";
+      toast.pushToast({ title: "No se pudo preparar la restauración", description, variant: "error" });
+      return;
+    }
+    const command = prepared.command;
+    let outcomeUncertain = true;
+
     try {
       const response = await fetch(`/api/athletes/${athlete.id}/restore`, {
         method: "POST",
-        headers: { "Content-Type": "application/json", "x-academy-id": academyId },
-        body: JSON.stringify({ academyId }),
+        headers: {
+          "Content-Type": "application/json",
+          "x-academy-id": academyId,
+          "Idempotency-Key": command.idempotencyKey,
+        },
+        body: command.serializedBody,
       });
       const payload = await response.json().catch(() => ({}));
       if (!response.ok || payload?.ok !== true) {
+        if (isDefinitiveNoWrite(response, payload)) {
+          clearOwnerAthleteCommand(command);
+          outcomeUncertain = false;
+        }
         throw new Error(payload?.message ?? payload?.error ?? "No se pudo restaurar la gimnasta.");
       }
 
+      clearOwnerAthleteCommand(command);
+      outcomeUncertain = false;
       setSelectedAthletes((current) => {
         const next = new Set(current);
         next.delete(athlete.id);
@@ -388,7 +452,9 @@ export const AthletesTableView = memo(function AthletesTableView({
     } catch (error) {
       toast.pushToast({
         title: "No se pudo restaurar",
-        description: error instanceof Error ? error.message : "Comprueba tu conexión e inténtalo de nuevo.",
+        description: outcomeUncertain
+          ? `${error instanceof Error ? `${error.message}. ` : ""}No se confirmó el resultado. Repite la restauración de esta gimnasta; se reutilizará la misma operación para evitar duplicados.`
+          : error instanceof Error ? error.message : "Comprueba tu conexión e inténtalo de nuevo.",
         variant: "error",
       });
     }
