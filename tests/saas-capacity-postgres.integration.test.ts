@@ -9,6 +9,7 @@ import { createAthleteForGroup } from "@/modules/groups/application/group-member
 import { createScheduledClass } from "@/modules/scheduling/application/class-management-service";
 import { createEnrollment } from "@/modules/enrollments/application/enrollment-service";
 import { recordAttendance } from "@/modules/attendance/application/attendance-service";
+import { getOwnerSessionAttendance } from "@/modules/attendance/application/owner-session-attendance";
 
 const snapshotTables = [
   "athletes",
@@ -690,6 +691,21 @@ describe("Free capacity guards on disposable PostgreSQL", () => {
       outbox_count: 1,
       audit_count: 1,
     });
+
+    const beforeRosterRead = await snapshot(fixture.organizationId);
+    await expect(getOwnerSessionAttendance({
+      userId: fixture.actor.userId,
+      organizationId: fixture.organizationId,
+      locationId: fixture.targetLocationId,
+      sessionId: fixture.sessionId,
+    })).resolves.toEqual([
+      {
+        enrollmentId: fixture.enrollmentId,
+        athleteName: "Enrollment athlete 1 Synthetic",
+        attendanceStatus: "present",
+      },
+    ]);
+    expect(await snapshot(fixture.organizationId)).toEqual(beforeRosterRead);
 
     const rollbackKey = "ci-attendance-rollback-" + randomUUID();
     await db.execute(sql`
