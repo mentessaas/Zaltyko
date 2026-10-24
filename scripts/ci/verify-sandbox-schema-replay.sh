@@ -89,12 +89,11 @@ mapfile -t migrations < <(find "$ROOT/supabase/migrations" -maxdepth 1 -type f -
 [[ "${#migrations[@]}" -eq 1 && "${migrations[0]}" == "$MIGRATION_NAME" ]] || fail "Expected exactly the reviewed current-state baseline migration."
 cp "$ROOT/supabase/migrations/$MIGRATION_NAME" "$CI_WORKDIR/supabase/migrations/$MIGRATION_NAME"
 
-# Start only disposable local Postgres. Supabase CLI startup output includes
-# generated local credentials, so it is kept in RUNNER_TEMP and never printed.
+# Start only disposable local Postgres rather than the full Supabase service
+# stack. CLI output is kept in RUNNER_TEMP and never printed because it may
+# include generated local credentials.
 local_stack_started=true
-if ! "$CLI" --workdir "$CI_WORKDIR" start \
-  --exclude gotrue,realtime,storage-api,imgproxy,kong,postgrest,postgres-meta,studio,edge-runtime,logflare,vector,supavisor \
-  >"$START_LOG" 2>&1; then
+if ! "$CLI" --workdir "$CI_WORKDIR" db start >"$START_LOG" 2>&1; then
   diagnose_start_failure
   fail "Disposable local Postgres did not start; CLI output was withheld to avoid credential disclosure."
 fi
