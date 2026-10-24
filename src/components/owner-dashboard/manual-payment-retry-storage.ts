@@ -77,6 +77,23 @@ function parseSnapshot(value: unknown): ManualPaymentRetrySnapshot | null {
   return value as ManualPaymentRetrySnapshot;
 }
 
+function sameSnapshot(
+  left: ManualPaymentRetrySnapshot,
+  right: ManualPaymentRetrySnapshot
+): boolean {
+  return (
+    left.version === right.version &&
+    left.organizationId === right.organizationId &&
+    left.chargeId === right.chargeId &&
+    left.amountCents === right.amountCents &&
+    left.method === right.method &&
+    left.currency === right.currency &&
+    left.receivedAt === right.receivedAt &&
+    left.idempotencyKey === right.idempotencyKey &&
+    left.referenceSha256 === right.referenceSha256
+  );
+}
+
 export async function fingerprintManualPaymentReference(
   reference: string | undefined
 ): Promise<string | null> {
@@ -179,7 +196,7 @@ export function persistPendingManualPayment(
   if (!normalized) return false;
   const current = readPendingManualPayment(storage);
   if (current.status === "pending") {
-    return JSON.stringify(current.snapshot) === JSON.stringify(normalized);
+    return sameSnapshot(current.snapshot, normalized);
   }
   if (current.status !== "none") return false;
   try {
@@ -203,7 +220,7 @@ export function clearPendingManualPayment(
   if (current.status === "none") return true;
   if (
     current.status !== "pending" ||
-    JSON.stringify(current.snapshot) !== JSON.stringify(snapshot)
+    !sameSnapshot(current.snapshot, snapshot)
   ) {
     return false;
   }
