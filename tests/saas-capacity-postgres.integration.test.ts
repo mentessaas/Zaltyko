@@ -1,4 +1,5 @@
 import { randomUUID } from "node:crypto";
+import type { User } from "@supabase/supabase-js";
 import { describe, expect, it } from "vitest";
 import { sql } from "drizzle-orm";
 
@@ -11,6 +12,10 @@ import { createEnrollment } from "@/modules/enrollments/application/enrollment-s
 import { recordAttendance } from "@/modules/attendance/application/attendance-service";
 import { getOwnerSessionAttendance } from "@/modules/attendance/application/owner-session-attendance";
 import { associateOwnerFamily } from "@/modules/families/application/owner-family-association";
+import {
+  getOwnerContractualConsentRequirement,
+  recordOwnerSignupConsent,
+} from "@/modules/organizations/application/owner-signup-consent";
 
 const snapshotTables = [
   "athletes",
@@ -116,6 +121,17 @@ async function snapshot(organizationId: string) {
     sql`select * from (${rows}) snapshots order by table_name`
   );
   return result.rows;
+}
+
+async function snapshotOwnerConsent(userId: string) {
+  const result = await db.execute(sql`
+    select
+      (select count(*)::int from zaltyko.owner_signup_consents
+        where user_id = ${userId}::uuid) as consent_count,
+      (select count(*)::int from zaltyko.owner_signup_consent_audits
+        where user_id = ${userId}::uuid) as audit_count
+  `);
+  return result.rows[0];
 }
 
 async function usage(organizationId: string) {
@@ -967,5 +983,71 @@ describe("Free capacity guards on disposable PostgreSQL", () => {
       constraint: "audit_log_idempotency_uq",
     });
     expect(await snapshot(fixture.organizationId)).toEqual(beforeRollback);
+  }, 45_000);
+
+  it("persists Owner signup consent once and fails closed for an existing identity", async () => {
+    assertDisposableTarget();
+    const policyVersion = "v7-2026-10-24";
+    await db.execute(sql`
+      insert into zaltyko.owner_signup_consent_policy (singleton, policy_version, rollout_at)
+      values (true, ${policyVersion}, now() - interval '1 day')
+    `);
+
+    const freshUserId = randomUUID();
+    await db.execute(sql`
+      insert into auth.users (id, email)
+      values (${freshUserId}::uuid, ${"ci-consent-" + freshUserId + "@example.invalid"})
+    `);
+    const freshUser = {
+      id: freshUserId,
+      created_at: new Date().toISOString(),
+      user_metadata: {
+        legal_consent_version: policyVersion,
+        legal_consent_proof: "signup:register-form-v1",
+      },
+    } as User;
+
+    const beforeGrant = await snapshotOwnerConsent(freshUserId);
+    const concurrentResults = await Promise.all([
+      recordOwnerSignupConsent(freshUser, { requestKey: "ci-owner-consent-request" }),
+      recordOwnerSignupConsent(freshUser, { requestKey: "ci-owner-consent-request" }),
+    ]);
+    expect(concurrentResults.sort()).toEqual(["already_active", "recorded"]);
+    const afterGrant = await snapshotOwnerConsent(freshUserId);
+    expect(afterGrant).toEqual({ consent_count: 1, audit_count: 1 });
+    expect(afterGrant).not.toEqual(beforeGrant);
+    await expect(
+      getOwnerContractualConsentRequirement(freshUser)
+    ).resolves.toEqual({
+      policyVersion,
+      requiresAcceptance: false,
+      reason: "already_current",
+    });
+    expect(await snapshotOwnerConsent(freshUserId)).toEqual(afterGrant);
+
+    const existingUserId = randomUUID();
+    await db.execute(sql`
+      insert into auth.users (id, email)
+      values (${existingUserId}::uuid, ${"ci-consent-existing-" + existingUserId + "@example.invalid"})
+    `);
+    const existingUser = {
+      id: existingUserId,
+      created_at: new Date(Date.now() - 2 * 86_400_000).toISOString(),
+      user_metadata: {},
+    } as User;
+    const beforeRejectedGrant = await snapshotOwnerConsent(existingUserId);
+    await expect(recordOwnerSignupConsent(existingUser, {
+      requestKey: "ci-owner-consent-existing",
+    })).rejects.toMatchObject({ code: "CONSENT_REQUIRED" });
+    expect(await snapshotOwnerConsent(existingUserId)).toEqual(beforeRejectedGrant);
+
+    await expect(recordOwnerSignupConsent(existingUser, {
+      requestKey: "ci-owner-consent-explicit",
+      contractualAcceptance: { accepted: true, policyVersion },
+    })).resolves.toBe("recorded");
+    expect(await snapshotOwnerConsent(existingUserId)).toEqual({
+      consent_count: 1,
+      audit_count: 1,
+    });
   }, 45_000);
 });
