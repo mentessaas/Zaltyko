@@ -130,6 +130,19 @@ jobs:
           [[ "$DISPATCH_SHA" == "$head_sha" ]]
           [[ "$EXPECTED_SHA" == "$head_sha" ]]
 
+      - name: Setup pnpm
+        uses: pnpm/action-setup@v6
+        with:
+          version: 9.15.9
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v7
+        with:
+          node-version: "22"
+
+      - name: Install frozen dependencies for service integration checks
+        run: pnpm install --frozen-lockfile --prod=false
+
       - name: Download the pinned Supabase CLI release archive
         run: curl --fail --silent --show-error --location "https://github.com/supabase/cli/releases/download/v2.119.0/supabase_2.119.0_linux_amd64.tar.gz" --output "$RUNNER_TEMP/supabase_2.119.0_linux_amd64.tar.gz"
 

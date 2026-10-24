@@ -43,6 +43,9 @@ export default defineConfig({
             ".next",
             "coverage",
             "mobile/**",
+            ...(process.env.ZALTYKO_PG_INTEGRATION === "1"
+              ? []
+              : ["tests/saas-capacity-postgres.integration.test.ts"]),
             ...(process.env.CI_ISOLATED === "1"
               ? [
                   "tests/saas-preview-regularization-pg.test.ts",

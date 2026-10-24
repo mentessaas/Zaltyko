@@ -27,6 +27,10 @@ const schemaRlsHardeningMigrationPath = resolve(
   process.cwd(),
   "supabase/migrations/20261024193934_rls_guard_missing_public_tables.sql"
 );
+const capacityIntegrationTestPath = resolve(
+  process.cwd(),
+  "tests/saas-capacity-postgres.integration.test.ts"
+);
 
 const lockfileGuard = require(lockfileGuardPath) as {
   MAX_GIT_OUTPUT_BYTES: number;
@@ -305,6 +309,7 @@ describe("isolated CI workflow contract", () => {
   it("replays the baseline and reviewed hardening migration only on an exact-SHA disposable local Supabase stack", () => {
     const replayJob = workflow.match(/  schema-replay:([\s\S]*?)(?=\n  candidate-build:|$)/)?.[1] ?? "";
     const replayScript = readFileSync(resolve(process.cwd(), "scripts/ci/verify-sandbox-schema-replay.sh"), "utf8");
+    const capacityIntegrationTest = readFileSync(capacityIntegrationTestPath, "utf8");
     const replayHeader = replayJob.split("\n    steps:")[0] ?? "";
     expect(replayHeader).not.toMatch(/^\s+needs:/m);
     expect(replayJob).toContain("inputs.resolution_mode == 'schema-replay'");
@@ -315,6 +320,7 @@ describe("isolated CI workflow contract", () => {
     expect(replayJob).toContain("supabase_2.119.0_linux_amd64.tar.gz");
     expect(replayJob).toContain("python3 scripts/ci/test_install_schema_replay_supabase_cli.py");
     expect(replayJob).toContain("python3 scripts/ci/install_schema_replay_supabase_cli.py");
+    expect(replayJob).toContain("pnpm install --frozen-lockfile --prod=false");
     expect(replayJob).toContain("bash scripts/ci/verify-sandbox-schema-replay.sh");
     expect(replayJob).not.toMatch(/\bsecrets\.|SUPABASE_ACCESS_TOKEN|SUPABASE_DB_PASSWORD|VERCEL_TOKEN|STRIPE_SECRET_KEY|supabase link|--linked|actions\/deploy/i);
     expect(replayScript).toContain('"${GITHUB_ACTIONS:-}" == "true"');
@@ -326,6 +332,16 @@ describe("isolated CI workflow contract", () => {
     expect(replayScript).toContain("Sanitized tenant-isolation error excerpt");
     expect(replayScript).toContain("credential-bearing output remains withheld");
     expect(replayScript).toContain("Sanitized CLI startup error excerpt");
+    expect(replayScript).toContain("ZALTYKO_PG_INTEGRATION=1");
+    expect(replayScript).toContain('pnpm exec vitest run --project web tests/saas-capacity-postgres.integration.test.ts');
+    expect(replayScript).toContain('>"$INTEGRATION_LOG" 2>&1');
+    expect(replayScript).toContain("Free limits, concurrent last-slot writes, idempotent replay");
+    expect(capacityIntegrationTest).toContain('process.env.ZALTYKO_PG_INTEGRATION !== "1"');
+    expect(capacityIntegrationTest).toContain('["127.0.0.1", "localhost", "::1"]');
+    expect(capacityIntegrationTest).toContain("PLAN_OVER_CAPACITY");
+    expect(capacityIntegrationTest).toContain("content_hash");
+    expect(vitestConfig).toContain("tests/saas-capacity-postgres.integration.test.ts");
+    expect(sharedSetup).toContain("ZALTYKO_PG_INTEGRATION_DATABASE_URL");
     expect(replayScript).toContain("export SUPABASE_EXPERIMENTAL_STACK=1");
     expect(replayScript).toContain('"$CLI" --workdir "$CI_WORKDIR" stack start');
     expect(replayScript).toContain('"$CLI" --workdir "$CI_WORKDIR" stack status');

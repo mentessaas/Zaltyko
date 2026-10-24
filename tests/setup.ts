@@ -8,7 +8,18 @@ import { vi } from "vitest";
 // El test de concurrencia real de cobros (ZAL-6) usa su propio cluster
 // Postgres efímero; respeta el DATABASE_URL exportado por el script para no
 // desviarlo al postgres falso de tests.
-if (process.env.CHARGE_CONCURRENCY_TEST === "1") {
+if (process.env.ZALTYKO_PG_INTEGRATION === "1") {
+  if (process.env.CHARGE_CONCURRENCY_TEST === "1") {
+    throw new Error("Only one disposable PostgreSQL integration target may be selected");
+  }
+  const connectionString = process.env.ZALTYKO_PG_INTEGRATION_DATABASE_URL;
+  if (!connectionString) {
+    throw new Error("The disposable Zaltyko PostgreSQL integration target is missing");
+  }
+  process.env.DATABASE_URL = connectionString;
+  process.env.DATABASE_URL_POOL = connectionString;
+  process.env.DATABASE_URL_DIRECT = connectionString;
+} else if (process.env.CHARGE_CONCURRENCY_TEST === "1") {
   if (process.env.CHARGE_CONCURRENCY_DATABASE_URL) {
     // Sobreescribimos DATABASE_URL, DATABASE_URL_POOL y DATABASE_URL_DIRECT
     // porque `getDatabaseUrl()` prefiere `DATABASE_URL_POOL` y `.env` la

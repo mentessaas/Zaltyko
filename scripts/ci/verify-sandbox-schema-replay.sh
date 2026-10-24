@@ -30,7 +30,7 @@ fail() {
 [[ "${DISPATCH_SHA:-}" == "$(git -C "$ROOT" rev-parse HEAD)" ]] || fail "The checked out SHA differs from the dispatch SHA."
 [[ "${EXPECTED_SHA}" == "$(git -C "$ROOT" rev-parse HEAD)" ]] || fail "The checked out SHA differs from the approved SHA."
 
-for forbidden in SUPABASE_ACCESS_TOKEN SUPABASE_DB_PASSWORD SUPABASE_DB_URL SUPABASE_PROJECT_REF E2E_TARGET_SUPABASE_PROJECT_REF DATABASE_URL DATABASE_URL_POOL DATABASE_URL_DIRECT; do
+for forbidden in SUPABASE_ACCESS_TOKEN SUPABASE_DB_PASSWORD SUPABASE_DB_URL SUPABASE_PROJECT_REF SUPABASE_SERVICE_ROLE_KEY E2E_TARGET_SUPABASE_PROJECT_REF DATABASE_URL DATABASE_URL_POOL DATABASE_URL_DIRECT STRIPE_SECRET_KEY STRIPE_SAAS_TEST_SECRET_KEY STRIPE_SAAS_LIVE_SECRET_KEY VERCEL_TOKEN; do
   [[ -z "${!forbidden:-}" ]] || fail "Unexpected external database credential/configuration in runner environment."
 done
 
@@ -51,6 +51,7 @@ readonly REPLAY_LOG="$RUNNER_TEMP/$PROJECT_ID-replay.log"
 readonly TENANT_LOG="$RUNNER_TEMP/$PROJECT_ID-tenant.log"
 readonly GUARD_LOG="$RUNNER_TEMP/$PROJECT_ID-guard.log"
 readonly UNMARKED_GUARD_LOG="$RUNNER_TEMP/$PROJECT_ID-unmarked-guard.log"
+readonly INTEGRATION_LOG="$RUNNER_TEMP/$PROJECT_ID-capacity-integration.log"
 local_stack_started=false
 
 cleanup() {
@@ -63,7 +64,7 @@ cleanup() {
     "$START_LOG" "$STATUS_LOG" "$STATUS_ERROR_LOG" "$LOCAL_DB_URL_FILE" "$ROLE_GUARD_FILE" \
     "$RLS_HARDENING_MIGRATION_FILE" \
     "$AUTH_JWT_ERROR_LOG" "$AUTH_JWT_MIGRATION_FILE" \
-    "$MARKED_BASELINE_FILE" "$REPLAY_LOG" "$TENANT_LOG" "$GUARD_LOG" "$UNMARKED_GUARD_LOG"
+    "$MARKED_BASELINE_FILE" "$REPLAY_LOG" "$TENANT_LOG" "$GUARD_LOG" "$UNMARKED_GUARD_LOG" "$INTEGRATION_LOG"
 }
 trap cleanup EXIT
 
@@ -557,8 +558,15 @@ if ! grep -Fq 'isolated CI replay marker is missing' "$UNMARKED_GUARD_LOG"; then
   fail "Baseline reapplication without the marker failed for an unexpected reason."
 fi
 
+if ! ZALTYKO_PG_INTEGRATION=1 ZALTYKO_PG_INTEGRATION_DATABASE_URL="$LOCAL_DB_URL" NODE_ENV=test \
+  pnpm exec vitest run --project web tests/saas-capacity-postgres.integration.test.ts \
+  >"$INTEGRATION_LOG" 2>&1; then
+  fail "Free capacity concurrency, idempotency, or no-partial-write checks failed on disposable local Postgres; test output was withheld."
+fi
+
 printf 'PASS: exact baseline and its single reviewed RLS migration replayed on empty disposable Postgres.\n'
 printf 'PASS: 28-table RLS, deny-policy, anon/authenticated ACL, two-academy isolation, writes, and rollback checks passed.\n'
 printf 'PASS: baseline guards refused populated and unmarked databases before DDL.\n'
+printf 'PASS: Free limits, concurrent last-slot writes, idempotent replay, and no-partial-write denials passed on disposable local Postgres.\n'
 unset LOCAL_DB_URL
 unset EXPECTED_LOCAL_PORT
