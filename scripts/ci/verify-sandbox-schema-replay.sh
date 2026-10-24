@@ -1,5 +1,6 @@
 #!/usr/bin/env bash
 set -euo pipefail
+umask 077
 
 readonly EXPECTED_BRANCH="codex/owner-isolated-validation-20261023"
 readonly MIGRATION_NAME="20261024172153_sandbox_schema_snapshot_baseline.sql"
@@ -30,6 +31,7 @@ readonly CI_WORKDIR="$RUNNER_TEMP/$PROJECT_ID"
 readonly CLI_HOME="$RUNNER_TEMP/$PROJECT_ID-home"
 readonly CLI="$RUNNER_TEMP/supabase-schema-replay-cli-$SUPABASE_CLI_VERSION/supabase"
 readonly START_LOG="$RUNNER_TEMP/$PROJECT_ID-start.log"
+readonly STATUS_LOG="$RUNNER_TEMP/$PROJECT_ID-status.json"
 readonly RESET_LOG="$RUNNER_TEMP/$PROJECT_ID-reset.log"
 readonly TENANT_LOG="$RUNNER_TEMP/$PROJECT_ID-tenant.log"
 readonly GUARD_LOG="$RUNNER_TEMP/$PROJECT_ID-guard.log"
@@ -43,11 +45,12 @@ cleanup() {
   rm -rf -- "$CI_WORKDIR" "$CLI_HOME" \
     "$RUNNER_TEMP/supabase-schema-replay-cli-$SUPABASE_CLI_VERSION" \
     "$RUNNER_TEMP/supabase_${SUPABASE_CLI_VERSION}_linux_amd64.tar.gz" \
-    "$START_LOG" "$RESET_LOG" "$TENANT_LOG" "$GUARD_LOG" "$MARKER_GUARD_LOG"
+    "$START_LOG" "$STATUS_LOG" "$RESET_LOG" "$TENANT_LOG" "$GUARD_LOG" "$MARKER_GUARD_LOG"
 }
 trap cleanup EXIT
 
 export SUPABASE_HOME="$CLI_HOME"
+export SUPABASE_EXPERIMENTAL_STACK=1
 export SUPABASE_TELEMETRY_DISABLED=1
 
 diagnose_start_failure() {
@@ -167,6 +170,78 @@ if ! "$CLI" --workdir "$CI_WORKDIR" stack start \
   diagnose_start_failure
   fail "Disposable local Postgres did not start; CLI output was withheld to avoid credential disclosure."
 fi
+
+# `db query --local` discovers the experimental stack through its saved project
+# identity. Inspect that exact identity and the database readiness before any
+# SQL is sent; the CLI status JSON contains credentials, so keep it in RUNNER_TEMP
+# and print only an explicit allowlist of non-secret fields.
+if ! "$CLI" --workdir "$CI_WORKDIR" stack status \
+  --stack "$PROJECT_ID" \
+  --output-format json \
+  >"$STATUS_LOG" 2>&1; then
+  fail "The disposable native stack could not be reopened by its project name; CLI output was withheld."
+fi
+
+python3 - "$STATUS_LOG" "$PROJECT_ID" "$CI_WORKDIR" <<'PY'
+from pathlib import Path
+import json
+import sys
+
+status_path = Path(sys.argv[1])
+expected_name = sys.argv[2]
+expected_root = Path(sys.argv[3]).resolve()
+
+try:
+    payload = json.loads(status_path.read_text(encoding="utf-8"))
+except (OSError, json.JSONDecodeError):
+    raise SystemExit("The native stack status was not valid JSON.")
+
+def find_report(value):
+    if isinstance(value, dict):
+        if isinstance(value.get("identity"), dict) and "composition" in value and "services" in value:
+            return value
+        for child in value.values():
+            found = find_report(child)
+            if found is not None:
+                return found
+    elif isinstance(value, list):
+        for child in value:
+            found = find_report(child)
+            if found is not None:
+                return found
+    return None
+
+report = find_report(payload)
+if report is None:
+    raise SystemExit("The native stack status had no recognized stack report.")
+
+identity = report["identity"]
+members = report["composition"].get("members", [])
+database = next((member for member in members if member.get("service") == "database"), None)
+root_matches = Path(identity.get("project_root", "")).resolve() == expected_root
+safe = {
+    "name": identity.get("name"),
+    "project_root_matches": root_matches,
+    "runtime": report.get("runtime"),
+    "owner": report.get("owner"),
+    "readiness": report.get("readiness"),
+    "database_lifecycle": None if database is None else database.get("lifecycle"),
+    "database_health": None if database is None else database.get("health"),
+}
+print("Sanitized native stack status: " + json.dumps(safe, sort_keys=True))
+
+if (
+    identity.get("name") != expected_name
+    or not root_matches
+    or report.get("runtime") != "native"
+    or report.get("owner") != "reachable"
+    or report.get("readiness") != "ready"
+    or database is None
+    or database.get("lifecycle") != "running"
+    or database.get("health") != "healthy"
+):
+    raise SystemExit("The isolated native Postgres stack identity or health check failed.")
+PY
 
 # Keep the marker-guarded current-state migration out of CLI startup. Some CLI
 # startup paths apply discovered migrations before a database-local marker can

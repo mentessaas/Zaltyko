@@ -63,14 +63,14 @@
   },
   "replay_validation": {
     "runner": "GitHub Actions disposable ubuntu-latest runner",
-    "supabase_cli_version": "2.84.2",
-    "supabase_cli_binary_sha256": "3132b218461bf90d4cd5983b27b44031cd9b6c797c259a431b2e2520b5f7bdce",
+    "supabase_cli_version": "2.119.0",
+    "supabase_cli_archive_sha256": "bf1c3ae93be98533eb8a3105dbf4564bd0b2d9dc24690d8a920f980ef975c1b4",
     "database": "fresh local Supabase Postgres only; no linked or remote database",
     "tenant_fixture_path": "scripts/ci/sandbox-tenant-isolation.sql",
     "tenant_fixture_sha256": "b0ffc0d3670ec51ec67169ab64094c73162c8b22405293e68bd7df6124be8ff3",
     "replay_script_path": "scripts/ci/verify-sandbox-schema-replay.sh",
-    "replay_script_sha256": "90e652d07bd7c9334f1e6b7a8e972d318a55a45731433b463e78a85039a20e95",
-    "execution_evidence": "Record the exact commit and result in the external audit report; this manifest records provenance and replay procedure only."
+    "replay_script_sha256": "af7baba5b0494fca58e7557243265adc9d8278aa14c196e52b479dc1bb0570f6",
+    "execution_evidence": "This manifest records the pinned replay procedure only; record the exact commit and CI result in the external audit report after a passing run."
   },
   "scope_exclusions": [
     "No SQL was written to the sandbox source project or production.",
