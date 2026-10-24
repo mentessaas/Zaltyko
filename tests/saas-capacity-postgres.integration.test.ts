@@ -13,6 +13,10 @@ import { recordAttendance } from "@/modules/attendance/application/attendance-se
 import { getOwnerSessionAttendance } from "@/modules/attendance/application/owner-session-attendance";
 import { associateOwnerFamily } from "@/modules/families/application/owner-family-association";
 import {
+  bootstrapOrganization,
+  type BootstrapOrganizationCommand,
+} from "@/modules/organizations/application/bootstrap-organization";
+import {
   getOwnerContractualConsentRequirement,
   recordOwnerSignupConsent,
 } from "@/modules/organizations/application/owner-signup-consent";
@@ -132,6 +136,46 @@ async function snapshotOwnerConsent(userId: string) {
         where user_id = ${userId}::uuid) as audit_count
   `);
   return result.rows[0];
+}
+
+async function snapshotBootstrap(organizationId: string, userId: string) {
+  const result = await db.execute(sql`
+    select * from (
+      select 'organizations'::text as table_name, count(*)::int as row_count,
+        md5(coalesce(jsonb_agg(to_jsonb(r) order by to_jsonb(r)::text)::text, '[]')) as content_hash
+      from zaltyko.organizations r where r.id = ${organizationId}::uuid
+      union all
+      select 'locations', count(*)::int,
+        md5(coalesce(jsonb_agg(to_jsonb(r) order by to_jsonb(r)::text)::text, '[]'))
+      from zaltyko.locations r where r.organization_id = ${organizationId}::uuid
+      union all
+      select 'organization_members', count(*)::int,
+        md5(coalesce(jsonb_agg(to_jsonb(r) order by to_jsonb(r)::text)::text, '[]'))
+      from zaltyko.organization_members r where r.organization_id = ${organizationId}::uuid
+      union all
+      select 'organization_sports', count(*)::int,
+        md5(coalesce(jsonb_agg(to_jsonb(r) order by to_jsonb(r)::text)::text, '[]'))
+      from zaltyko.organization_sports r where r.organization_id = ${organizationId}::uuid
+      union all
+      select 'programs', count(*)::int,
+        md5(coalesce(jsonb_agg(to_jsonb(r) order by to_jsonb(r)::text)::text, '[]'))
+      from zaltyko.programs r where r.organization_id = ${organizationId}::uuid
+      union all
+      select 'audit_log', count(*)::int,
+        md5(coalesce(jsonb_agg(to_jsonb(r) order by to_jsonb(r)::text)::text, '[]'))
+      from zaltyko.audit_log r where r.organization_id = ${organizationId}::uuid
+      union all
+      select 'outbox_events', count(*)::int,
+        md5(coalesce(jsonb_agg(to_jsonb(r) order by to_jsonb(r)::text)::text, '[]'))
+      from zaltyko.outbox_events r where r.organization_id = ${organizationId}::uuid
+      union all
+      select 'organization_bootstrap_commands', count(*)::int,
+        md5(coalesce(jsonb_agg(to_jsonb(r) order by to_jsonb(r)::text)::text, '[]'))
+      from zaltyko.organization_bootstrap_commands r where r.user_id = ${userId}::uuid
+    ) snapshots
+    order by table_name
+  `);
+  return result.rows;
 }
 
 async function usage(organizationId: string) {
@@ -983,6 +1027,96 @@ describe("Free capacity guards on disposable PostgreSQL", () => {
       constraint: "audit_log_idempotency_uq",
     });
     expect(await snapshot(fixture.organizationId)).toEqual(beforeRollback);
+  }, 45_000);
+
+  it("bootstraps an Owner academy once from the seeded identity catalog", async () => {
+    assertDisposableTarget();
+    const userId = randomUUID();
+    await db.execute(sql`
+      insert into auth.users (id, email)
+      values (${userId}::uuid, ${"ci-bootstrap-" + userId + "@example.invalid"})
+    `);
+
+    const command = {
+      userId,
+      organizationName: "CI Owner bootstrap " + userId,
+      legalName: "CI Owner Academy",
+      countryCode: "ES",
+      locationName: "Sede principal",
+      idempotencyKey: "ci-owner-bootstrap-" + randomUUID(),
+      primaryDiscipline: "artistic",
+      additionalDisciplines: ["rhythmic"],
+      complementaryActivities: ["dance"],
+    } satisfies BootstrapOrganizationCommand;
+
+    const [created, concurrentReplay] = await Promise.all([
+      bootstrapOrganization(command),
+      bootstrapOrganization(command),
+    ]);
+    expect(concurrentReplay).toEqual(created);
+
+    const academy = await db.execute(sql`
+      select name, legal_name, country_code, default_currency, default_timezone, status
+      from zaltyko.organizations
+      where id = ${created.organizationId}::uuid
+    `);
+    expect(academy.rows).toEqual([{
+      name: command.organizationName,
+      legal_name: command.legalName,
+      country_code: "ES",
+      default_currency: "EUR",
+      default_timezone: "Europe/Madrid",
+      status: "trial",
+    }]);
+
+    const profileRows = await db.execute(sql`
+      select profile.discipline_key, sport.role, profile.status,
+        profile.configuration::text as configuration
+      from zaltyko.organization_sports sport
+      join zaltyko.sport_profiles profile
+        on profile.country_code = sport.country_code
+       and profile.id = sport.sport_profile_id
+      where sport.organization_id = ${created.organizationId}::uuid
+      order by profile.discipline_key
+    `);
+    expect(profileRows.rows).toEqual([
+      {
+        discipline_key: "artistic",
+        role: "primary",
+        status: "identity_only",
+        configuration: "{}",
+      },
+      {
+        discipline_key: "rhythmic",
+        role: "additional",
+        status: "identity_only",
+        configuration: "{}",
+      },
+    ]);
+
+    const createdSnapshot = await snapshotBootstrap(created.organizationId, userId);
+    expect(createdSnapshot.map((row) => [row.table_name, row.row_count])).toEqual([
+      ["audit_log", 1],
+      ["locations", 1],
+      ["organization_bootstrap_commands", 1],
+      ["organization_members", 1],
+      ["organization_sports", 2],
+      ["organizations", 1],
+      ["outbox_events", 1],
+      ["programs", 3],
+    ]);
+
+    await expect(bootstrapOrganization({
+      ...command,
+      organizationName: command.organizationName + " changed",
+    })).rejects.toMatchObject({ code: "IDEMPOTENCY_CONFLICT", status: 409 });
+    expect(await snapshotBootstrap(created.organizationId, userId)).toEqual(createdSnapshot);
+
+    await expect(bootstrapOrganization({
+      ...command,
+      idempotencyKey: "ci-owner-bootstrap-second-" + randomUUID(),
+    })).rejects.toMatchObject({ code: "INVALID_STATE_TRANSITION", status: 409 });
+    expect(await snapshotBootstrap(created.organizationId, userId)).toEqual(createdSnapshot);
   }, 45_000);
 
   it("persists Owner signup consent once and fails closed for an existing identity", async () => {

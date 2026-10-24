@@ -62,6 +62,17 @@
     ],
     "replay_ordering_note": "Nine unchanged standalone unique-index definitions are ordered before dependent foreign-key DDL, and SQL security helpers are ordered before wrappers that invoke them; object definitions and constraints are unchanged."
   },
+  "authored_reference_seed": {
+    "path": "supabase/migrations/20261024223700_seed_owner_bootstrap_sport_profiles.sql",
+    "sha256": "d8c2a0b81a0d7f75f1f94ebd0f131ab85775a6e7904e2606a980570cbc02c225",
+    "authored_on": "2026-10-24",
+    "purpose": "Provide the minimal ES identity-only gymnastics profiles required by Owner academy bootstrap after an empty schema replay.",
+    "provenance": "New application reference data derived from the bootstrap contract; not extracted from sandbox rows or recovered migration history.",
+    "rows": [
+      { "country_code": "ES", "discipline_key": "artistic", "federation_code": "unconfigured", "profile_version": "identity-v1", "status": "identity_only" },
+      { "country_code": "ES", "discipline_key": "rhythmic", "federation_code": "unconfigured", "profile_version": "identity-v1", "status": "identity_only" }
+    ]
+  },
   "replay_validation": {
     "runner": "GitHub Actions disposable ubuntu-latest runner",
     "supabase_cli_version": "2.119.0",
