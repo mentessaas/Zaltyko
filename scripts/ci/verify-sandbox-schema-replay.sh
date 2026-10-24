@@ -561,7 +561,31 @@ fi
 if ! ZALTYKO_PG_INTEGRATION=1 ZALTYKO_PG_INTEGRATION_DATABASE_URL="$LOCAL_DB_URL" NODE_ENV=test \
   pnpm exec vitest run --project web tests/saas-capacity-postgres.integration.test.ts \
   >"$INTEGRATION_LOG" 2>&1; then
-  fail "Free capacity concurrency, idempotency, or no-partial-write checks failed on disposable local Postgres; test output was withheld."
+  printf 'Sanitized capacity integration failure follows; connection strings and long credentials are redacted.\n' >&2
+  python3 - "$INTEGRATION_LOG" <<'PY' >&2
+from pathlib import Path
+import re
+import sys
+
+path = Path(sys.argv[1])
+if not path.is_file():
+    raise SystemExit(0)
+text = path.read_text(encoding="utf-8", errors="replace")
+text = re.sub(r"\x1b\[[0-9;]*[A-Za-z]", "", text)
+text = re.sub(r"(?i)\b(?:postgres(?:ql)?|https?)://[^\s\"'`)>]+", "<redacted-connection>", text)
+text = re.sub(r"\beyJ[A-Za-z0-9_-]+\.[A-Za-z0-9_-]+\.[A-Za-z0-9_-]+\b", "<redacted-jwt>", text)
+text = re.sub(r"(?i)\b(?:sb_(?:publishable|secret)_|sk_(?:test|live)_|whsec_)[A-Za-z0-9_-]+", "<redacted-key>", text)
+text = re.sub(r"(?i)\b(password|secret|token|authorization|(?:api|service[ _-]?role|anon[ _-]?key))(\s*[:=]\s*)[^\s,;]+", r"\1\2<redacted>", text)
+text = re.sub(r"\b[A-Za-z0-9_-]{48,}\b", "<redacted-long-value>", text)
+lines = text.splitlines()
+important = re.compile(r"FAIL|AssertionError|Error:|expected:|received:|Test Files|Tests\s+\d|\u23af|\u2713|\u2717|Unhandled", re.I)
+selected = [line for line in lines if important.search(line)]
+if not selected:
+    selected = lines[-24:]
+for line in selected[-32:]:
+    print(line[:320])
+PY
+  fail "Free capacity concurrency, idempotency, or no-partial-write checks failed on disposable local Postgres."
 fi
 
 printf 'PASS: exact baseline and its single reviewed RLS migration replayed on empty disposable Postgres.\n'
