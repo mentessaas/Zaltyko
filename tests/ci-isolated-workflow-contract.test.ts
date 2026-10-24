@@ -200,7 +200,9 @@ describe("isolated CI workflow contract", () => {
     expect(replayScript).toContain('query = urlencode([("sslmode", "disable")])');
     expect(replayScript).toContain('admin_url.username != "supabase_admin"');
     expect(replayScript).toContain('readonly ROLE_PROBE_NAME="20261024172152_sandbox_replay_principal_probe.sql"');
-    expect(replayScript).toContain("SET ROLE NONE;");
+    expect(replayScript).toContain("EXECUTE 'SET ROLE NONE';");
+    expect(replayScript).toContain('role_guard = b"""DO $ci_supabase_admin_role_guard$');
+    expect(replayScript).not.toContain('role_guard = b"""SET ROLE NONE;');
     expect(replayScript).toContain("session_user <> 'supabase_admin' OR current_user <> 'supabase_admin'");
     expect(replayScript).toContain("target.write(b\"SET app.schema_snapshot_replay = 'ci-empty-replay';\\n\")");
     expect(replayScript).toContain("marker remains session-local through the");

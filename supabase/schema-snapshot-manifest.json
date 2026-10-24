@@ -68,9 +68,9 @@
     "database": "fresh local Supabase Postgres only; no linked or remote database",
     "tenant_fixture_path": "scripts/ci/sandbox-tenant-isolation.sql",
     "tenant_fixture_sha256": "b0ffc0d3670ec51ec67169ab64094c73162c8b22405293e68bd7df6124be8ff3",
-    "replay_principal": "Connect to the validated loopback endpoint as the pinned stack's built-in supabase_admin login and verify its superuser identity. Each temporary migration begins with session-local SET ROLE NONE and asserts the effective supabase_admin superuser before application DDL. Query-level connection overrides are discarded; CI does not grant, revoke, or create roles or change persistent role settings.",
+    "replay_principal": "Connect to the validated loopback endpoint as the pinned stack's built-in supabase_admin login and verify its superuser identity. Each temporary migration dynamically executes session-local SET ROLE NONE inside one DO block, then asserts the effective supabase_admin superuser before application DDL; this avoids the pinned CLI's top-level role-reset reassertion. Query-level connection overrides are discarded; CI does not grant, revoke, or create roles or change persistent role settings.",
     "replay_script_path": "scripts/ci/verify-sandbox-schema-replay.sh",
-    "replay_script_sha256": "f37560b729caf00df20864ee664867ba4a87ca37ec7d9a95fe629c3ebd7b2fd2",
+    "replay_script_sha256": "0b364caf45d416890def8c2f2608378eff93133822a94fe80f297a440aed0ad3",
     "execution_evidence": "This manifest records the pinned replay procedure only; record the exact commit and CI result in the external audit report after a passing run."
   },
   "scope_exclusions": [

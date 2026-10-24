@@ -258,8 +258,11 @@ if (
 # silently override the validated replay principal. Rebuild a minimal direct
 # loopback URL, discard role/host/credential overrides, and retain only the
 # explicit local TLS setting. The native stack's supabase_admin login starts
-# with current_user=postgres, so SET ROLE NONE is verified as the first SQL in
-# every temporary migration before any application DDL is allowed.
+# with current_user=postgres. A direct SET ROLE NONE is intercepted by the
+# pinned CLI's lexical migration guard, which immediately reasserts postgres;
+# execute it dynamically inside one DO statement so the CLI leaves the
+# session-local role reset intact for the following assertions and application
+# DDL.
 query = urlencode([("sslmode", "disable")])
 host = parsed_url.hostname
 authority_host = f"[{host}]" if ":" in host else host
@@ -351,16 +354,19 @@ printf 'Sanitized replay login: role=%s, superuser=%s; initial effective role=%s
   "$login_role" "$login_is_superuser" "$replay_role" "$replay_is_superuser" "$configured_role"
 
 # Restore the built-in login role only in the current CI session and fail
-# before schema DDL if the result is not the expected platform superuser.
+# before schema DDL if the result is not the expected platform superuser. Keep
+# SET ROLE NONE dynamically nested in one DO statement: the pinned CLI only
+# recognizes top-level role-reset statements and would otherwise reassert its
+# postgres migration role immediately afterward.
 python3 - "$ROLE_GUARD_FILE" <<'PY'
 from pathlib import Path
 import sys
 
-role_guard = b"""SET ROLE NONE;
-DO $ci_supabase_admin_role_guard$
+role_guard = b"""DO $ci_supabase_admin_role_guard$
 DECLARE
   v_is_superuser boolean;
 BEGIN
+  EXECUTE 'SET ROLE NONE';
   IF session_user <> 'supabase_admin' OR current_user <> 'supabase_admin' THEN
     RAISE EXCEPTION 'Disposable replay did not restore the supabase_admin session role';
   END IF;
@@ -378,9 +384,9 @@ destination.chmod(0o600)
 PY
 
 # Apply the role-only probe as a temporary migration before copying the
-# snapshot. Its SET ROLE NONE and DO guard contain no application DDL; the same
-# guard is prepended to each later temporary migration, so each fresh CLI
-# connection revalidates its effective principal.
+# snapshot. Its dynamic SET ROLE NONE and DO guard contain no application DDL;
+# the same guard is prepended to each later temporary migration, so each fresh
+# CLI connection revalidates its effective principal.
 cp -- "$ROLE_GUARD_FILE" "$CI_WORKDIR/supabase/migrations/$ROLE_PROBE_NAME"
 if ! "$CLI" --workdir "$CI_WORKDIR" migration up --db-url "$LOCAL_DB_URL" \
   >"$REPLAY_LOG" 2>&1; then
