@@ -76,18 +76,19 @@ function assertDisposableTarget() {
     "STRIPE_SAAS_LIVE_SECRET_KEY",
     "VERCEL_TOKEN",
   ];
-  for (const name of forbidden) {
-    if (process.env[name]) {
-      throw new Error("The integration runner contains an external database credential");
-    }
-  }
+  const activeForbidden = forbidden.filter((name) => Boolean(process.env[name]));
   // tests/setup.ts always installs this exact non-secret placeholder so the
   // rest of the unit-test environment cannot accidentally reach Stripe.
-  if (
+  const externalStripeSecret = Boolean(
     process.env.STRIPE_SECRET_KEY &&
     process.env.STRIPE_SECRET_KEY !== "sk_test_mock"
-  ) {
-    throw new Error("The integration runner contains an external database credential");
+  );
+  if (externalStripeSecret) activeForbidden.push("STRIPE_SECRET_KEY");
+  if (activeForbidden.length > 0) {
+    // Names are safe to log; secret values are deliberately never included.
+    throw new Error(
+      `The integration runner contains forbidden external credential variables: ${activeForbidden.join(", ")}`
+    );
   }
 }
 
