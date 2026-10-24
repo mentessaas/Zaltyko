@@ -32,6 +32,7 @@ readonly CLI_HOME="$RUNNER_TEMP/$PROJECT_ID-home"
 readonly CLI="$RUNNER_TEMP/supabase-schema-replay-cli-$SUPABASE_CLI_VERSION/supabase"
 readonly START_LOG="$RUNNER_TEMP/$PROJECT_ID-start.log"
 readonly STATUS_LOG="$RUNNER_TEMP/$PROJECT_ID-status.json"
+readonly STATUS_ERROR_LOG="$RUNNER_TEMP/$PROJECT_ID-status.stderr"
 readonly RESET_LOG="$RUNNER_TEMP/$PROJECT_ID-reset.log"
 readonly TENANT_LOG="$RUNNER_TEMP/$PROJECT_ID-tenant.log"
 readonly GUARD_LOG="$RUNNER_TEMP/$PROJECT_ID-guard.log"
@@ -45,7 +46,7 @@ cleanup() {
   rm -rf -- "$CI_WORKDIR" "$CLI_HOME" \
     "$RUNNER_TEMP/supabase-schema-replay-cli-$SUPABASE_CLI_VERSION" \
     "$RUNNER_TEMP/supabase_${SUPABASE_CLI_VERSION}_linux_amd64.tar.gz" \
-    "$START_LOG" "$STATUS_LOG" "$RESET_LOG" "$TENANT_LOG" "$GUARD_LOG" "$MARKER_GUARD_LOG"
+    "$START_LOG" "$STATUS_LOG" "$STATUS_ERROR_LOG" "$RESET_LOG" "$TENANT_LOG" "$GUARD_LOG" "$MARKER_GUARD_LOG"
 }
 trap cleanup EXIT
 
@@ -178,7 +179,7 @@ fi
 if ! "$CLI" --workdir "$CI_WORKDIR" stack status \
   --stack "$PROJECT_ID" \
   --output-format json \
-  >"$STATUS_LOG" 2>&1; then
+  >"$STATUS_LOG" 2>"$STATUS_ERROR_LOG"; then
   fail "The disposable native stack could not be reopened by its project name; CLI output was withheld."
 fi
 

@@ -191,7 +191,7 @@ describe("isolated CI workflow contract", () => {
     expect(replayScript).toContain('"$CLI" --workdir "$CI_WORKDIR" stack start');
     expect(replayScript).toContain('"$CLI" --workdir "$CI_WORKDIR" stack status');
     expect(replayScript).toContain("Sanitized native stack status:");
-    expect(replayScript).toContain('>"$STATUS_LOG" 2>&1');
+    expect(replayScript).toContain('>"$STATUS_LOG" 2>"$STATUS_ERROR_LOG"');
     expect(replayScript).toContain('"$START_LOG" "$STATUS_LOG" "$RESET_LOG"');
     expect(replayScript).toContain("--runtime native");
     expect(replayScript).toContain("--exclude rest,auth,realtime,storage,functions,studio,mail,analytics,pooler");
