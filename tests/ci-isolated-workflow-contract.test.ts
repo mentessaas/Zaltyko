@@ -235,8 +235,13 @@ describe("isolated CI workflow contract", () => {
     expect(replayScript).toContain("Refusing current-state schema baseline");
     expect(replayScript.indexOf('"$CLI" --workdir "$CI_WORKDIR" stack start'))
       .toBeLessThan(replayScript.indexOf("target.write(b\"SET app.schema_snapshot_replay"));
-    expect(replayScript.indexOf("target.write(b\"SET app.schema_snapshot_replay"))
-      .toBeLessThan(replayScript.indexOf('migration up --db-url "$LOCAL_DB_URL"'));
+    const replayMarkerIndex = replayScript.indexOf("target.write(b\"SET app.schema_snapshot_replay");
+    const markedBaselineReplayIndex = replayScript.indexOf(
+      'migration up --db-url "$LOCAL_DB_URL"',
+      replayMarkerIndex
+    );
+    expect(replayMarkerIndex).toBeGreaterThanOrEqual(0);
+    expect(markedBaselineReplayIndex).toBeGreaterThan(replayMarkerIndex);
     expect(replayScript).not.toContain("db reset --linked");
     expect(replayScript).not.toContain("db push");
   });
