@@ -14,10 +14,10 @@ function env(
     [`${prefix}_SECRET_KEY`]: `${environment === "test" ? "rk_test" : "rk_live"}_synthetic`,
     [`${prefix}_WEBHOOK_SECRET`]: "whsec_synthetic",
     [`${prefix}_ACCOUNT_REFERENCE`]: "acct_synthetic",
-    [`${prefix}_PRICE_STARTER_MONTH`]: "price_starter_month",
-    [`${prefix}_PRICE_STARTER_YEAR`]: "price_starter_year",
-    [`${prefix}_PRICE_GROWTH_MONTH`]: "price_growth_month",
-    [`${prefix}_PRICE_GROWTH_YEAR`]: "price_growth_year",
+    [`${prefix}_PRICE_STARTER_MONTH`]: "price_startermonth",
+    [`${prefix}_PRICE_STARTER_YEAR`]: "price_starteryear",
+    [`${prefix}_PRICE_GROWTH_MONTH`]: "price_growthmonth",
+    [`${prefix}_PRICE_GROWTH_YEAR`]: "price_growthyear",
     ...values,
   };
 }
@@ -40,8 +40,8 @@ describe("SaaS Stripe environment configuration", () => {
         providerAccountReference: "acct_synthetic",
         portalEnabled: true,
         prices: {
-          starter: { month: "price_starter_month", year: "price_starter_year" },
-          growth: { month: "price_growth_month", year: "price_growth_year" },
+          starter: { month: "price_startermonth", year: "price_starteryear" },
+          growth: { month: "price_growthmonth", year: "price_growthyear" },
         },
       });
     }
