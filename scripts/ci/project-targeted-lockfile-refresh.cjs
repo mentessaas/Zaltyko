@@ -453,6 +453,10 @@ if (require.main === module) {
 }
 
 module.exports = {
+  entryBlock,
+  parseLockfile,
+  assertSupportedTextFormat,
+  assertSectionOrder,
   BLOCKS,
   MAX_GIT_OUTPUT_BYTES,
   ProjectionFailure,
