@@ -109,8 +109,8 @@ describe("límites A2 en candidatos Owner", () => {
       /from "zaltyko"\."athletes"/i.test(statement.sql)
     );
     expect(candidates).toBeDefined();
-    expect(candidates!.sql).toContain('"group_memberships"');
-    expect(candidates!.sql).toContain('"enrollments"');
+    expect(candidates!.sql).toMatch(/exists\s*\(\s*select\s+1\s+from\s+zaltyko\.group_memberships\s+eligible_membership/i);
+    expect(candidates!.sql).toMatch(/exists\s*\(\s*select\s+1\s+from\s+zaltyko\.enrollments/i);
     expect(candidates!.sql).toContain('"groups"."status" = $');
     expect(candidates!.sql).toContain('"athletes"."organization_id" = $');
     expect(candidates!.sql).toContain('"athletes"."is_active" = $');
@@ -126,7 +126,7 @@ describe("límites A2 en candidatos Owner", () => {
         "%Ana%",
       ])
     );
-    expectInnerLimitsAndOuterPage(candidates!.sql, candidates!.params, 3);
+    expectInnerLimitsAndOuterPage(candidates!.sql, candidates!.params, 1);
   });
 
   it("compila los NOT EXISTS de grupo e inscripción con límites internos y página 20", async () => {
@@ -148,7 +148,7 @@ describe("límites A2 en candidatos Owner", () => {
       /from "zaltyko"\."athletes"/i.test(statement.sql)
     );
     expect(candidates).toBeDefined();
-    expect(candidates!.sql).toContain('"group_memberships"');
+    expect(candidates!.sql).toMatch(/not\s+exists\s*\(\s*select\s+1\s+from\s+zaltyko\.group_memberships\s+eligible_membership/i);
     expect(candidates!.sql).toContain('"group_id" = $');
     expect(candidates!.sql).toContain('"athletes"."organization_id" = $');
     expect(candidates!.sql).toContain('"athletes"."is_active" = $');

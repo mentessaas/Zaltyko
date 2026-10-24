@@ -126,7 +126,7 @@ describe("enlace de recuperación en el login activo", () => {
 
   it("explica y habilita Google solo después de aceptar los términos", async () => {
     const user = userEvent.setup();
-    render(<RegisterForm />);
+    render(<RegisterForm ownerConsentPolicyVersion="v1-2026-08-01" />);
 
     const button = await screen.findByRole("button", {
       name: "Crear cuenta con Google",
@@ -182,7 +182,7 @@ describe("enlace de recuperación en el login activo", () => {
 
   it("solicita los scopes básicos de identidad al crear cuenta con Google", async () => {
     const user = userEvent.setup();
-    render(<RegisterForm />);
+    render(<RegisterForm ownerConsentPolicyVersion="v1-2026-08-01" />);
     await user.click(screen.getByRole("checkbox"));
     await user.click(await screen.findByRole("button", { name: "Crear cuenta con Google" }));
 

@@ -17,6 +17,7 @@ vi.mock("@/components/owner-dashboard/FamilyCollectionModeCard", () => ({
 }));
 
 import { ManualPaymentForm } from "@/components/owner-dashboard/ManualPaymentForm";
+import { publishOwnerPlanUsage } from "@/components/owner-dashboard/owner-plan-usage-store";
 
 const organizationId = "10000000-0000-0000-0000-000000000001";
 const charge: OpenManualPaymentCharge = {
@@ -64,6 +65,7 @@ afterEach(() => {
 beforeEach(() => {
   mockRefresh.mockReset();
   mockFetch.mockReset();
+  publishOwnerPlanUsage(organizationId, { readOnly: false, planCode: "free" });
   vi.stubGlobal("fetch", mockFetch);
   vi.stubGlobal("crypto", {
     randomUUID: () => "synthetic-payment-id",

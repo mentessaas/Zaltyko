@@ -24,7 +24,7 @@ const confirmationBodySchema = z
   .strict();
 const idempotencyKeySchema = z.string().trim().min(8).max(150);
 
-type RouteContext = { params: Promise<{ eventId: string }> | { eventId: string } };
+type RouteContext = { params: Promise<{ eventId: string }> };
 
 /** @route-auth super-admin-operator — requires a fresh human Supabase session. */
 export async function POST(request: Request, context: RouteContext) {

@@ -9,6 +9,7 @@ const pushToast = vi.hoisted(() => vi.fn());
 const signUp = vi.hoisted(() => vi.fn());
 const getUser = vi.hoisted(() => vi.fn());
 const mockFetch = vi.hoisted(() => vi.fn());
+const ownerConsentPolicyVersion = "v1-2026-08-01";
 
 vi.mock("next/navigation", () => ({
   useRouter: () => ({ push: routerPush }),
@@ -92,7 +93,7 @@ describe("registro Owner ante fallos de red", () => {
   it("muestra resultado incierto y evita un segundo alta automático o manual", async () => {
     const user = userEvent.setup();
     signUp.mockRejectedValueOnce(new TypeError("Failed to fetch"));
-    render(<RegisterForm ownerEntry />);
+    render(<RegisterForm ownerEntry ownerConsentPolicyVersion={ownerConsentPolicyVersion} />);
     await completeOwnerRegistration(user);
 
     await user.click(screen.getByRole("button", { name: "Crear cuenta" }));
@@ -128,7 +129,7 @@ describe("registro Owner ante fallos de red", () => {
       data: { user: { id: "synthetic-user" } },
       error: null,
     });
-    render(<RegisterForm ownerEntry />);
+    render(<RegisterForm ownerEntry ownerConsentPolicyVersion={ownerConsentPolicyVersion} />);
     await completeOwnerRegistration(user);
 
     await user.click(screen.getByRole("button", { name: "Crear cuenta" }));
@@ -156,7 +157,7 @@ describe("registro Owner ante fallos de red", () => {
       error: null,
     });
     mockFetch.mockResolvedValueOnce({ ok: true });
-    render(<RegisterForm />);
+    render(<RegisterForm ownerConsentPolicyVersion={ownerConsentPolicyVersion} />);
     await user.click(screen.getByRole("radio", { name: /Entrenador/ }));
     await completeOwnerRegistration(user);
 
@@ -189,7 +190,7 @@ describe("registro Owner ante fallos de red", () => {
       data: { user: null },
       error: { message: "session unavailable" },
     });
-    render(<RegisterForm ownerEntry />);
+    render(<RegisterForm ownerEntry ownerConsentPolicyVersion={ownerConsentPolicyVersion} />);
     await completeOwnerRegistration(user);
 
     await user.click(screen.getByRole("button", { name: "Crear cuenta" }));
@@ -204,7 +205,7 @@ describe("registro Owner ante fallos de red", () => {
   it("conserva el resultado incierto y no permite repetir el alta", async () => {
     const user = userEvent.setup();
     signUp.mockRejectedValueOnce(new TypeError("network dropped"));
-    render(<RegisterForm ownerEntry />);
+    render(<RegisterForm ownerEntry ownerConsentPolicyVersion={ownerConsentPolicyVersion} />);
     await completeOwnerRegistration(user);
 
     await user.click(screen.getByRole("button", { name: "Crear cuenta" }));
@@ -221,7 +222,7 @@ describe("registro Owner ante fallos de red", () => {
 
   it("no llama a Supabase si falta la aceptación de términos", async () => {
     const user = userEvent.setup();
-    render(<RegisterForm ownerEntry />);
+    render(<RegisterForm ownerEntry ownerConsentPolicyVersion={ownerConsentPolicyVersion} />);
     await completeOwnerRegistration(user, false);
 
     await user.click(screen.getByRole("button", { name: "Crear cuenta" }));

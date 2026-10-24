@@ -93,7 +93,7 @@ describe("isolated CI workflow contract", () => {
 
   it("keeps the local-E2E Supabase CLI download on its separately pinned release", () => {
     expect(mainCiWorkflow).toContain(
-      "https://github.com/supabase/cli/releases/download/v2.84.2/supabase_2.84.2_linux_amd64.tar.gz"
+      "https://github.com/supabase/cli/releases/download/v2.84.2/supabase_linux_amd64.tar.gz"
     );
     expect(mainCiWorkflow).toContain("python3 scripts/ci/install_pinned_supabase_cli.py \"$archive\"");
     expect(mainCiWorkflow).toContain("scripts/ci/preload-local-e2e-images.ts");
@@ -528,13 +528,14 @@ describe("isolated CI workflow contract", () => {
     expect(workflow).not.toMatch(/\b(STRIPE_SECRET_KEY|SUPABASE_SERVICE_ROLE_KEY|SUPABASE_ACCESS_TOKEN|E2E_TARGET_SUPABASE_PROJECT_REF|VERCEL_TOKEN)\b/);
   });
 
-  it("excludes only the remote PostgreSQL suites from isolated CI through the web project config", () => {
+  it("keeps remote PostgreSQL preview suites opt-in and out of ordinary isolated CI", () => {
     const webProjectStart = vitestConfig.indexOf('name: "web"');
     const mobileProjectStart = vitestConfig.indexOf('name: "mobile"');
     expect(webProjectStart).toBeGreaterThanOrEqual(0);
     expect(mobileProjectStart).toBeGreaterThan(webProjectStart);
     const webProjectConfig = vitestConfig.slice(webProjectStart, mobileProjectStart);
-    expect(webProjectConfig).toContain('process.env.CI_ISOLATED === "1"');
+    expect(webProjectConfig).toContain('process.env.ZALTYKO_SANDBOX_READONLY_TESTS === "1"');
+    expect(webProjectConfig).toContain('process.env.CI_ISOLATED !== "1"');
     expect(webProjectConfig).toContain('"tests/saas-preview-regularization-pg.test.ts"');
     expect(webProjectConfig).toContain('"tests/saas-preview-readonly-boundaries-pg.test.ts"');
     expect(webProjectConfig).not.toContain("--exclude");
@@ -543,6 +544,7 @@ describe("isolated CI workflow contract", () => {
     expect(unitStep).toContain('CI_ISOLATED: "1"');
     expect(unitStep).toMatch(/--preserve-env=[^\n]*\bCI_ISOLATED\b/);
     expect(unitStep).toContain("pnpm vitest run");
+    expect(unitStep).not.toContain("ZALTYKO_SANDBOX_READONLY_TESTS");
     expect(unitStep).not.toContain("--exclude");
   });
 

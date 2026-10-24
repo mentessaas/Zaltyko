@@ -11,6 +11,7 @@ import userEvent from "@testing-library/user-event";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
 import { OwnerMonthlyInvoiceResolutionPanel } from "@/components/owner-dashboard/OwnerMonthlyInvoiceResolutionPanel";
+import { publishOwnerPlanUsage } from "@/components/owner-dashboard/owner-plan-usage-store";
 
 const organizationId = "10000000-0000-4000-8000-000000000111";
 const locationId = "10000000-0000-4000-8000-000000000112";
@@ -77,6 +78,7 @@ describe("cobertura de clases al crear una tarifa Owner", () => {
   let failedCreatesRemaining: number;
 
   beforeEach(() => {
+    publishOwnerPlanUsage(organizationId, { readOnly: false, planCode: "free" });
     currentItems = [];
     optionsOverride = {};
     failedOptionsRemaining = 0;

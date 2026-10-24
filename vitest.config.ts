@@ -2,6 +2,10 @@ import { fileURLToPath, URL } from "node:url";
 import { defineConfig } from "vitest/config";
 import react from "@vitejs/plugin-react";
 
+const runSandboxReadonlyPostgresSuites =
+  process.env.ZALTYKO_SANDBOX_READONLY_TESTS === "1" &&
+  process.env.CI_ISOLATED !== "1";
+
 export default defineConfig({
   test: {
     // API-heavy suites import large route graphs. Keep one worker globally;
@@ -49,7 +53,7 @@ export default defineConfig({
                   "tests/saas-capacity-postgres.integration.test.ts",
                   "tests/billing-ledger-postgres.integration.test.ts",
                 ]),
-            ...(process.env.CI_ISOLATED === "1"
+            ...(!runSandboxReadonlyPostgresSuites
               ? [
                   "tests/saas-preview-regularization-pg.test.ts",
                   "tests/saas-preview-readonly-boundaries-pg.test.ts",

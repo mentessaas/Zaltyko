@@ -12,6 +12,7 @@ import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
 import { OwnerMonthlyInvoicesManager } from "@/components/owner-dashboard/OwnerMonthlyInvoicesManager";
 import type { MonthlyInvoiceOptionsResponse } from "@/components/owner-dashboard/OwnerMonthlyInvoiceWorkspace";
+import { publishOwnerPlanUsage } from "@/components/owner-dashboard/owner-plan-usage-store";
 
 const organizationId = "10000000-0000-4000-8000-000000000111";
 const locationId = "10000000-0000-4000-8000-000000000112";
@@ -188,6 +189,7 @@ describe("OwnerMonthlyInvoicesManager", () => {
   let deferNextMonthlyOptions: (() => Promise<Response>) | null;
 
   beforeEach(() => {
+    publishOwnerPlanUsage(organizationId, { readOnly: false, planCode: "free" });
     currentOptions = monthlyOptions();
     currentPricePlans = [
       {

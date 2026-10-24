@@ -1,4 +1,4 @@
-import { beforeAll, beforeEach, describe, expect, it, vi } from "vitest";
+import { afterEach, beforeAll, beforeEach, describe, expect, it, vi } from "vitest";
 import type Stripe from "stripe";
 
 // IDs consistentes para que las aserciones sobre argumentos del notification
@@ -266,7 +266,13 @@ beforeEach(() => {
   mockSendChargePaymentFailedNotification.mockResolvedValue(true);
   mockConstructEvent.mockImplementation(() => buildPaymentIntentFailedEvent());
   process.env.STRIPE_CONNECT_WEBHOOK_SECRET = "whsec_test_connect";
+  process.env.STRIPE_SECRET_KEY = "sk_test_connect_webhook";
   mocks.resetChargeQueue();
+});
+
+afterEach(() => {
+  delete process.env.STRIPE_CONNECT_WEBHOOK_SECRET;
+  delete process.env.STRIPE_SECRET_KEY;
 });
 
 async function postWebhook(

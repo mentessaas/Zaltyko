@@ -3,6 +3,7 @@ import { randomUUID } from "node:crypto";
 import { sql } from "drizzle-orm";
 import { db } from "@/db";
 import type { DatabaseClient, TransactionClient } from "@/lib/db-transactions";
+import { getDatabaseUrl } from "@/lib/env";
 import { getOrganizationUsage, assertOrganizationOperationalWritable, assertOrganizationResourceCapacity } from "@/modules/saas-billing/application/organization-usage";
 import { archiveResourceInTransaction, getRegularizationStatusInTransaction } from "@/modules/saas-billing/application/regularization-service";
 import { assertOperationalAccess } from "@/modules/shared/infrastructure/operational-authorization";
@@ -31,6 +32,17 @@ function target() {
   expect(process.env.VERCEL).toBe("1");
   expect(process.env.VERCEL_ENV).toBe("preview");
   expect(process.env.NEXT_PUBLIC_SUPABASE_URL).toBe("https://aeeootdmuiqkfeernskw.supabase.co");
+  let databaseBelongsToSandbox = false;
+  try {
+    const url = new URL(getDatabaseUrl());
+    const direct = url.hostname === "db.aeeootdmuiqkfeernskw.supabase.co";
+    const pooler = url.hostname.endsWith(".pooler.supabase.com") &&
+      decodeURIComponent(url.username).endsWith(".aeeootdmuiqkfeernskw");
+    databaseBelongsToSandbox = direct || pooler;
+  } catch {
+    throw new Error("Invalid sandbox PostgreSQL connection configuration");
+  }
+  expect(databaseBelongsToSandbox, "PostgreSQL must belong to the approved sandbox").toBe(true);
 }
 
 async function snapshot(organizationId: string, client: DatabaseClient = db) {

@@ -10,7 +10,7 @@ const PATCHED_DEPENDENCIES = new Map([
   ["ip-address", "^10.7.1"],
   ["js-yaml", "^4.3.2"],
   ["basic-ftp", "^6.2.1"],
-  ["dompurify", "^3.4.16"],
+  ["dompurify", "^3.4.17"],
   ["proxy-addr", "^2.0.8"],
   ["source-map-js", "^1.2.2"],
   ["@modelcontextprotocol/sdk", "^1.31.0"],
@@ -40,6 +40,18 @@ module.exports = {
           }
         }
         bumped[field] = nextDependencies;
+      }
+
+      // body-parser has patched releases in both supported major lines. Keep
+      // Express 4 on v1 and Express 5 on v2 instead of forcing an incompatible
+      // major across the dependency graph.
+      if (bumped.dependencies?.["body-parser"]) {
+        const requestedMajor = String(bumped.dependencies["body-parser"]).match(/(?:^|[^0-9])([12])(?:\.|$)/)?.[1];
+        const patchedRange = requestedMajor === "1" ? "^1.20.9" : "^2.4.0";
+        if (bumped.dependencies["body-parser"] !== patchedRange) {
+          bumped.dependencies = { ...bumped.dependencies, "body-parser": patchedRange };
+          changed = true;
+        }
       }
 
       // Next currently declares postcss 8.4.31; keep the existing patched

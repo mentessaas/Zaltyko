@@ -16,7 +16,7 @@ export const dynamic = "force-dynamic";
 const eventIdSchema = z.string().uuid();
 const emptyBodySchema = z.object({}).strict();
 
-type RouteContext = { params: Promise<{ eventId: string }> | { eventId: string } };
+type RouteContext = { params: Promise<{ eventId: string }> };
 
 async function parseEmptyBody(request: Request): Promise<boolean> {
   const raw = await request.text();

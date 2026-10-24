@@ -1,5 +1,7 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import { NextRequest } from "next/server";
+import { PgDialect } from "drizzle-orm/pg-core";
+import type { SQL } from "drizzle-orm";
 
 const mocks = vi.hoisted(() => ({
   user: vi.fn(), select: vi.fn(), insert: vi.fn(), update: vi.fn(),
@@ -16,6 +18,9 @@ function query(rows: unknown[]) {
   for (const name of ["from", "innerJoin", "where", "limit", "set", "values"]) q[name] = vi.fn(() => q);
   q.then = (resolve: (value: unknown[]) => unknown) => Promise.resolve(rows).then(resolve);
   return q;
+}
+function compiled(value: unknown) {
+  return new PgDialect().sqlToQuery(value as SQL);
 }
 function request(method: string, body?: unknown) {
   return new NextRequest(`https://zaltyko.test/api/actor-consents?actorPageId=${pageId}`, {
@@ -58,21 +63,19 @@ describe("actor consent authorization", () => {
     const q = query([{ id: "link" }]);
     mocks.select.mockReturnValue(q);
     expect((await POST(request("POST", consent))).status).toBe(200);
-    expect(q.innerJoin).toHaveBeenCalledWith(athletes, expect.objectContaining({ args: expect.arrayContaining([
-      { _op: "eq", a: athletes.tenantId, b: actorPages.tenantId },
-      { _op: "eq", a: athletes.academyId, b: actorPages.academyId },
-    ]) }));
-    expect(q.innerJoin).toHaveBeenCalledWith(guardianAthletes, expect.objectContaining({ args: expect.arrayContaining([
-      { _op: "eq", a: guardianAthletes.athleteId, b: athletes.id },
-      { _op: "eq", a: guardianAthletes.tenantId, b: athletes.tenantId },
-    ]) }));
-    expect(q.innerJoin).toHaveBeenCalledWith(profiles, expect.objectContaining({ args: expect.arrayContaining([
-      { _op: "eq", a: profiles.id, b: guardians.profileId },
-    ]) }));
-    expect(q.where).toHaveBeenCalledWith(expect.objectContaining({ args: expect.arrayContaining([
-      { _op: "eq", a: profiles.userId, b: userId },
-      { _op: "eq", a: profiles.isSuspended, b: false },
-    ]) }));
+    const joins = q.innerJoin.mock.calls as Array<[unknown, unknown]>;
+    const athleteJoin = compiled(joins.find(([table]) => table === athletes)?.[1]);
+    const guardianJoin = compiled(joins.find(([table]) => table === guardianAthletes)?.[1]);
+    const profileJoin = compiled(joins.find(([table]) => table === profiles)?.[1]);
+    const linkWhere = compiled(q.where.mock.calls[0]?.[0]);
+    expect(athleteJoin.sql).toContain('"athletes"."tenant_id" = "actor_pages"."tenant_id"');
+    expect(athleteJoin.sql).toContain('"athletes"."academy_id" = "actor_pages"."academy_id"');
+    expect(guardianJoin.sql).toContain('"guardian_athletes"."athlete_id" = "athletes"."id"');
+    expect(guardianJoin.sql).toContain('"guardian_athletes"."tenant_id" = "athletes"."tenant_id"');
+    expect(profileJoin.sql).toContain('"profiles"."id" = "guardians"."profile_id"');
+    expect(linkWhere.sql).toContain('"profiles"."user_id" =');
+    expect(linkWhere.sql).toContain('"profiles"."is_suspended" =');
+    expect(linkWhere.params).toEqual(expect.arrayContaining([pageId, userId, false]));
     expect(mocks.insert).toHaveBeenCalledWith(actorConsents);
   });
 
@@ -80,10 +83,10 @@ describe("actor consent authorization", () => {
     const history = query([]);
     mocks.select.mockReturnValueOnce(query([{ id: "link" }])).mockReturnValueOnce(history);
     expect((await GET(request("GET"))).status).toBe(200);
-    expect(history.where).toHaveBeenCalledWith(expect.objectContaining({ args: expect.arrayContaining([
-      { _op: "eq", a: actorConsents.guardianUserId, b: userId },
-      { _op: "eq", a: actorConsents.actorPageId, b: pageId },
-    ]) }));
+    const historyWhere = compiled(history.where.mock.calls[0]?.[0]);
+    expect(historyWhere.sql).toContain('"actor_consents"."guardian_user_id" =');
+    expect(historyWhere.sql).toContain('"actor_consents"."actor_page_id" =');
+    expect(historyWhere.params).toEqual([pageId, userId]);
     expect(history.limit).toHaveBeenCalledWith(100);
   });
 
@@ -91,9 +94,9 @@ describe("actor consent authorization", () => {
     const change = query([]);
     mocks.update.mockReturnValue(change);
     expect((await DELETE(request("DELETE", { actorPageId: pageId, reason: "Retirada" }))).status).toBe(200);
-    expect(change.where).toHaveBeenCalledWith(expect.objectContaining({ args: expect.arrayContaining([
-      { _op: "eq", a: actorConsents.guardianUserId, b: userId },
-    ]) }));
+    const revokeWhere = compiled(change.where.mock.calls[0]?.[0]);
+    expect(revokeWhere.sql).toContain('"actor_consents"."guardian_user_id" =');
+    expect(revokeWhere.params).toEqual([pageId, userId]);
   });
 
   it("rejects invalid page identifiers before touching the database", async () => {

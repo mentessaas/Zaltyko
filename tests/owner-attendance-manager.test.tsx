@@ -10,6 +10,7 @@ import userEvent from "@testing-library/user-event";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
 import { OwnerAttendanceManager } from "@/components/owner-dashboard/OwnerAttendanceManager";
+import { publishOwnerPlanUsage } from "@/components/owner-dashboard/owner-plan-usage-store";
 
 const organizationId = "10000000-0000-4000-8000-000000000001";
 const locationId = "10000000-0000-4000-8000-000000000002";
@@ -52,6 +53,7 @@ beforeEach(() => {
   mockFetch.mockReset();
   vi.stubGlobal("fetch", mockFetch);
   vi.stubGlobal("crypto", { randomUUID: () => "synthetic-attendance-key" });
+  publishOwnerPlanUsage(organizationId, { readOnly: false, planCode: "free" });
 });
 
 afterEach(() => {

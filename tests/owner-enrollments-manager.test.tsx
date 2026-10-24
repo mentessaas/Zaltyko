@@ -10,6 +10,7 @@ import {
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
 import { OwnerEnrollmentsManager } from "@/components/owner-dashboard/OwnerEnrollmentsManager";
+import { publishOwnerPlanUsage } from "@/components/owner-dashboard/owner-plan-usage-store";
 
 const mocks = vi.hoisted(() => ({ push: vi.fn(), refresh: vi.fn() }));
 
@@ -93,6 +94,7 @@ function enrollment(status = "active") {
 describe("OwnerEnrollmentsManager", () => {
   beforeEach(() => {
     vi.clearAllMocks();
+    publishOwnerPlanUsage(organizationId, { readOnly: false, planCode: "free" });
     vi.stubGlobal("crypto", { randomUUID: () => "synthetic-command-id" });
     vi.stubGlobal(
       "fetch",

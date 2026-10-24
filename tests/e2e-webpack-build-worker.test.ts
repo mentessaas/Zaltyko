@@ -68,7 +68,7 @@ describe("synthetic webpack build worker experiment", () => {
   const configSource = readFileSync(resolve(root, "next.config.mjs"), "utf8");
   // Exercise the actual side-effect-free selector without repeatedly loading Sentry.
   const selector = configSource.match(
-    /\.\.\.\((process\.env\.E2E_LOCAL_SUPABASE[\s\S]*?: \{\})\),/
+    /\.\.\.\(([\s\S]*?)\n\s*\?\s*\{\s*\n\s*webpackBuildWorker: true/
   )?.[1];
 
   it.each(
@@ -82,8 +82,8 @@ describe("synthetic webpack build worker experiment", () => {
     "isolates configuration for local=$local worker=$worker case=$index",
     ({ local, worker, enabled }) => {
       expect(selector).toBeDefined();
-      const config = runInNewContext(
-        selector!,
+      const actual = runInNewContext(
+        `Boolean(${selector!})`,
         {
           process: {
             env: {
@@ -96,10 +96,25 @@ describe("synthetic webpack build worker experiment", () => {
         },
         { timeout: 100 }
       );
-      expect(Object.hasOwn(config, "webpackBuildWorker")).toBe(enabled);
-      expect(config.webpackBuildWorker).toBe(enabled ? true : undefined);
+      expect(actual).toBe(enabled);
     }
   );
+
+  it("requires the exact preview branch, sandbox project, and optimization opt-in", () => {
+    const evaluate = (env: Record<string, string>) =>
+      runInNewContext(`Boolean(${selector!})`, { process: { env } }, { timeout: 100 });
+    const sandbox = {
+      VERCEL_ENV: "preview",
+      ZALTYKO_SANDBOX_PREVIEW_BRANCH: "codex/fix-f84-build-hang-20261019",
+      NEXT_PUBLIC_SUPABASE_URL: "https://aeeootdmuiqkfeernskw.supabase.co",
+      ZALTYKO_SANDBOX_PREVIEW_BUILD_OPTIMIZATIONS: "true",
+    };
+    expect(evaluate(sandbox)).toBe(true);
+    expect(evaluate({ ...sandbox, VERCEL_ENV: "production" })).toBe(false);
+    expect(evaluate({ ...sandbox, ZALTYKO_SANDBOX_PREVIEW_BRANCH: "main" })).toBe(false);
+    expect(evaluate({ ...sandbox, NEXT_PUBLIC_SUPABASE_URL: "https://other.supabase.co" })).toBe(false);
+    expect(evaluate({ ...sandbox, ZALTYKO_SANDBOX_PREVIEW_BUILD_OPTIMIZATIONS: "false" })).toBe(false);
+  });
 
   it("changes only the worker setting in the observed configuration", () => {
     const [baseline, experiment] = readConfigurations();

@@ -1,9 +1,8 @@
-import { describe, it, expect, vi, beforeEach } from "vitest";
+import { describe, it, expect, vi, beforeEach, afterEach } from "vitest";
 
 /**
- * Test de integración del motor de cobro (charge-collection-service) y de la
- * reconciliación por webhook (charge-reconcile-service), con el SDK de Stripe
- * y la capa de datos mockeados.
+ * Verifica que el motor de cobro familiar falla cerrado en modo manual-only y
+ * prueba la reconciliación de eventos Stripe de test con DB mockeada.
  *
  * Nota sobre el mock de DB: el repo NO tiene una estrategia de test-DB real
  * (Supabase/pg-mem/testcontainers). Los intentos previos de mockear `@/db` de
@@ -127,7 +126,8 @@ vi.mock("@/db/schema", async (importOriginal) => {
   return await importOriginal<typeof import("@/db/schema")>();
 });
 
-import { collectCharge } from "@/lib/stripe/charge-collection-service";
+import { collectCharge, collectDueChargesForAcademy } from "@/lib/stripe/charge-collection-service";
+import { FamilyAutomaticCollectionDisabledError } from "@/lib/stripe/family-automatic-collection-disabled";
 import {
   reconcileChargeRefunded,
   reconcilePaymentIntentCanceled,
@@ -169,135 +169,38 @@ function resetState() {
 beforeEach(() => {
   vi.clearAllMocks();
   resetState();
+  process.env.STRIPE_SECRET_KEY = "sk_test_unit_reconcile";
   getConnectAccountMock.mockResolvedValue(readyAccount);
   isConnectReadyMock.mockReturnValue(true);
   resolvePayerCustomerForAthleteMock.mockResolvedValue(payerWithCard);
   sendChargePaymentFailedNotificationMock.mockResolvedValue(true);
 });
 
+afterEach(() => {
+  delete process.env.STRIPE_SECRET_KEY;
+});
+
 describe("collectCharge", () => {
-  it("cobra con éxito y marca el cargo como pagado", async () => {
-    state.chargeRow = { ...baseCharge };
-    paymentIntentsCreate.mockResolvedValue({
-      id: "pi_1",
-      status: "succeeded",
-      latest_charge: "ch_1",
-    });
-
-    const result = await collectCharge("charge_1");
-
-    expect(result).toEqual({ ok: true, status: "paid", paymentIntentId: "pi_1" });
-    expect(paymentIntentsCreate).toHaveBeenCalledTimes(1);
-    const [payload, opts] = paymentIntentsCreate.mock.calls[0];
-    expect(payload).toMatchObject({ amount: 5000, currency: "eur", off_session: true, confirm: true });
-    expect(opts).toMatchObject({ stripeAccount: "acct_123", idempotencyKey: "charge_collect_charge_1_1" });
-
-    const lastUpdate = state.updateSets.at(-1);
-    expect(lastUpdate).toMatchObject({
-      status: "paid",
-      paymentMethod: "card",
-      stripePaymentIntentId: "pi_1",
-      stripeChargeId: "ch_1",
-      attemptCount: 1,
-    });
-    expect(lastUpdate.paidAt).toBeInstanceOf(Date);
-
-    expect(state.insertedAttempts[0]).toMatchObject({
-      chargeId: "charge_1",
-      status: "succeeded",
-      amountCents: 5000,
-    });
-  });
-
-  it("marca el cargo como requires_action y devuelve los datos para SCA", async () => {
-    state.chargeRow = { ...baseCharge };
-    paymentIntentsCreate.mockRejectedValue({
-      code: "authentication_required",
-      message: "This payment requires authentication.",
-      payment_intent: { id: "pi_2", client_secret: "pi_2_secret_abc" },
-    });
-
-    const result = await collectCharge("charge_1");
-
-    // ZAL-10: el client_secret viaja hasta el handler para que owner/familia
-    // completen el 3DS con Stripe.js sobre la cuenta conectada.
-    // `paymentMethodId` también: Stripe limpia el PM del PI cuando off-session
-    // lanza `authentication_required`, así que el servicio lo re-attach
-    // explícitamente desde `resolvePayerCustomerForAthlete.defaultPaymentMethodId`.
-    expect(result).toEqual({
-      ok: false,
-      status: "requires_action",
-      paymentIntentId: "pi_2",
-      clientSecret: "pi_2_secret_abc",
-      stripeAccountId: "acct_123",
-      paymentMethodId: "pm_1",
-    });
-    const lastUpdate = state.updateSets.at(-1);
-    expect(lastUpdate).toMatchObject({ status: "requires_action", attemptCount: 1, stripePaymentIntentId: "pi_2" });
-    expect(state.insertedAttempts[0]).toMatchObject({ status: "requires_action" });
-  });
-
-  it("marca el cargo como failed cuando la tarjeta es rechazada", async () => {
-    state.chargeRow = { ...baseCharge };
-    paymentIntentsCreate.mockRejectedValue({
-      code: "card_declined",
-      message: "Your card was declined.",
-      payment_intent: { id: "pi_3" },
-    });
-
-    const result = await collectCharge("charge_1");
-
-    expect(result).toEqual({
-      ok: false,
-      status: "failed",
-      reason: "card_declined",
-      paymentIntentId: "pi_3",
-    });
-    expect(state.updateSets.at(-1)).toMatchObject({ status: "failed" });
-    expect(state.insertedAttempts[0]).toMatchObject({ status: "failed", errorCode: "card_declined" });
-  });
-
-  it("no cobra si la familia no tiene tarjeta guardada", async () => {
-    state.chargeRow = { ...baseCharge };
-    resolvePayerCustomerForAthleteMock.mockResolvedValue({ ...payerWithCard, defaultPaymentMethodId: null });
-
-    const result = await collectCharge("charge_1");
-
-    expect(result).toEqual({ ok: false, status: "skipped", reason: "NO_SAVED_CARD" });
+  it("rechaza el cobro familiar antes de leer o mutar datos y sin llamar a Stripe", async () => {
+    await expect(collectCharge("charge_1")).rejects.toBeInstanceOf(
+      FamilyAutomaticCollectionDisabledError
+    );
+    expect(dbLike.select).not.toHaveBeenCalled();
+    expect(dbLike.execute).not.toHaveBeenCalled();
     expect(paymentIntentsCreate).not.toHaveBeenCalled();
+    expect(getConnectAccountMock).not.toHaveBeenCalled();
+    expect(isConnectReadyMock).not.toHaveBeenCalled();
+    expect(resolvePayerCustomerForAthleteMock).not.toHaveBeenCalled();
     expect(state.updateSets).toHaveLength(0);
     expect(state.insertedAttempts).toHaveLength(0);
   });
 
-  it("no cobra dos veces un cargo ya pagado (protección contra doble cobro)", async () => {
-    state.chargeRow = { ...baseCharge, status: "paid" };
-
-    const result = await collectCharge("charge_1");
-
-    expect(result).toEqual({ ok: false, status: "skipped", reason: "NOT_COLLECTIBLE:paid" });
-    expect(getConnectAccountMock).not.toHaveBeenCalled();
+  it("rechaza también el procesamiento por lotes antes de consultar cargos", async () => {
+    await expect(
+      collectDueChargesForAcademy({ academyId: "academy_1", onlyDue: true })
+    ).rejects.toBeInstanceOf(FamilyAutomaticCollectionDisabledError);
+    expect(dbLike.select).not.toHaveBeenCalled();
     expect(paymentIntentsCreate).not.toHaveBeenCalled();
-    expect(state.updateSets).toHaveLength(0);
-  });
-
-  it("pide el advisory lock antes de leer el cargo en cada intento concurrente", async () => {
-    // Limitación conocida: este mock no serializa de verdad (no hay Postgres
-    // real). Solo verificamos que el código PIDE el lock antes de leer el
-    // cargo en cada invocación — la exclusión mutua real depende de
-    // pg_advisory_xact_lock en Supabase y queda fuera de alcance aquí.
-    state.chargeRow = { ...baseCharge };
-    paymentIntentsCreate.mockResolvedValue({ id: "pi_4", status: "succeeded", latest_charge: "ch_4" });
-
-    await Promise.all([collectCharge("charge_1"), collectCharge("charge_1")]);
-
-    // collectCharge acquires one lock; successful payments also pass through
-    // ensureChargeReceipt, which acquires its own receipt lock.
-    expect(dbLike.execute.mock.calls.length).toBeGreaterThanOrEqual(2);
-    // execute (lock) siempre debe preceder al select correspondiente.
-    const executeIdx = state.callOrder.indexOf("execute");
-    const firstSelectAfter = state.callOrder.indexOf("select", executeIdx);
-    expect(executeIdx).toBeGreaterThanOrEqual(0);
-    expect(firstSelectAfter).toBeGreaterThan(executeIdx);
   });
 });
 
@@ -307,11 +210,12 @@ describe("charge-reconcile-service", () => {
 
     await reconcilePaymentIntentSucceeded({
       id: "pi_7",
+      livemode: false,
       metadata: { chargeId: "charge_2", academyId: "academy_1", tenantId: "tenant_1" },
       amount_received: 5000,
       currency: "eur",
       latest_charge: "ch_7",
-    } as any, "acct_123");
+    } as any, "acct_123", false);
 
     expect(state.updateSets.at(-1)).toMatchObject({
       status: "paid",
@@ -326,10 +230,11 @@ describe("charge-reconcile-service", () => {
 
     await reconcilePaymentIntentSucceeded({
       id: "pi_8",
+      livemode: false,
       metadata: { chargeId: "charge_3", academyId: "academy_1", tenantId: "tenant_1" },
       amount_received: 5000,
       currency: "eur",
-    } as any, "acct_123");
+    } as any, "acct_123", false);
 
     expect(state.updateSets).toHaveLength(0);
   });
@@ -343,8 +248,9 @@ describe("charge-reconcile-service", () => {
 
     await reconcilePaymentIntentFailed({
       id: "pi_9",
+      livemode: false,
       metadata: { chargeId: "charge_4", academyId: "academy_1", tenantId: "tenant_1" },
-    } as any, "acct_123");
+    } as any, "acct_123", false);
 
     expect(state.updateSets).toHaveLength(1);
     expect(state.updateSets.at(-1)).toMatchObject({ status: "failed" });
@@ -356,8 +262,9 @@ describe("charge-reconcile-service", () => {
 
     await reconcilePaymentIntentFailed({
       id: "pi_9b",
+      livemode: false,
       metadata: { chargeId: "charge_4b", academyId: "academy_1", tenantId: "tenant_1" },
-    } as any, "acct_123");
+    } as any, "acct_123", false);
 
     expect(state.updateSets).toHaveLength(1);
     expect(state.updateSets.at(-1)).toMatchObject({ status: "failed" });
@@ -369,8 +276,9 @@ describe("charge-reconcile-service", () => {
 
     await reconcilePaymentIntentCanceled({
       id: "pi_11",
+      livemode: false,
       metadata: { chargeId: "charge_6", academyId: "academy_1", tenantId: "tenant_1" },
-    } as any, "acct_123");
+    } as any, "acct_123", false);
 
     expect(state.updateSets.at(-1)).toMatchObject({ status: "pending" });
   });
@@ -386,8 +294,9 @@ describe("charge-reconcile-service", () => {
     };
 
     await reconcileChargeRefunded(
-      { id: "ch_10", amount: 5000, amount_refunded: 5000, currency: "eur" } as any,
-      "acct_123"
+      { id: "ch_10", amount: 5000, amount_refunded: 5000, currency: "eur", livemode: false } as any,
+      "acct_123",
+      false
     );
 
     expect(state.updateSets.at(-1)).toMatchObject({ status: "refunded" });
@@ -404,8 +313,9 @@ describe("charge-reconcile-service", () => {
     };
 
     await reconcileChargeRefunded(
-      { id: "ch_10", amount: 5000, amount_refunded: 5000, currency: "eur" } as any,
-      "acct_123"
+      { id: "ch_10", amount: 5000, amount_refunded: 5000, currency: "eur", livemode: false } as any,
+      "acct_123",
+      false
     );
 
     expect(state.updateSets).toHaveLength(0);
@@ -418,9 +328,11 @@ describe("charge-reconcile-service", () => {
       reconcilePaymentIntentFailed(
         {
           id: "pi_cross_account",
+          livemode: false,
           metadata: { chargeId: "charge_7", academyId: "academy_1", tenantId: "tenant_1" },
         } as any,
-        "acct_attacker"
+        "acct_attacker",
+        false
       )
     ).rejects.toThrow("CONNECT_ACCOUNT_MISMATCH");
     expect(state.updateSets).toHaveLength(0);
@@ -431,8 +343,9 @@ describe("charge-reconcile-service", () => {
 
     await expect(
       reconcilePaymentIntentFailed(
-        { id: "pi_missing_metadata", metadata: { chargeId: "charge_8" } } as any,
-        "acct_123"
+        { id: "pi_missing_metadata", livemode: false, metadata: { chargeId: "charge_8" } } as any,
+        "acct_123",
+        false
       )
     ).rejects.toThrow("CONNECT_METADATA_MISMATCH");
     expect(state.updateSets).toHaveLength(0);

@@ -194,12 +194,13 @@ beforeEach(() => {
     mocks.stripeSecretKey = "sk_test_dummy";
   });
 
-  it("devuelve 503 STRIPE_NOT_CONFIGURED cuando no hay STRIPE_SECRET_KEY", async () => {
+  it("mantiene Connect desactivado aunque haya configuración de test", async () => {
     mocks.stripeSecretKey = "";
+    mocks.getBillingAcademyAccess.mockResolvedValueOnce(ownedAcademy());
     const { POST } = await importOnboard();
     const response = await POST(await postJson("/api/payments/connect/onboard", { academyId: ACADEMY_ID }));
-    expect(response.status).toBe(503);
-    await expect(response.json()).resolves.toMatchObject({ error: "STRIPE_NOT_CONFIGURED" });
+    expect(response.status).toBe(410);
+    await expect(response.json()).resolves.toMatchObject({ error: "FAMILY_AUTOMATIC_COLLECTION_DISABLED" });
     expect(mocks.getOrCreateConnectAccount).not.toHaveBeenCalled();
   });
 
@@ -235,44 +236,16 @@ beforeEach(() => {
     expect(mocks.createOnboardingLink).not.toHaveBeenCalled();
   });
 
-  it("devuelve 200 con onboardingUrl cuando el dueno inicia el flujo", async () => {
+  it("rechaza el onboarding después de validar el acceso Owner", async () => {
     mocks.getBillingAcademyAccess.mockResolvedValueOnce(ownedAcademy());
-    mocks.selectResults.push([{ country: "ES", email: "owner@example.com" }]);
-    mocks.getOrCreateConnectAccount.mockResolvedValueOnce({
-      id: "row-1",
-      tenantId: TENANT_ID,
-      academyId: ACADEMY_ID,
-      stripeAccountId: "acct_test_123",
-      onboardingStatus: "onboarding",
-      chargesEnabled: false,
-      payoutsEnabled: false,
-      detailsSubmitted: false,
-    });
-    mocks.createOnboardingLink.mockResolvedValueOnce("https://stripe.com/onboard/acct_test_123");
-    mocks.isConnectReady.mockReturnValue(false);
 
     const { POST } = await importOnboard();
     const response = await POST(await postJson("/api/payments/connect/onboard", { academyId: ACADEMY_ID }));
 
-    expect(response.status).toBe(200);
-    await expect(response.json()).resolves.toMatchObject({
-      ok: true,
-      data: {
-        onboardingUrl: "https://stripe.com/onboard/acct_test_123",
-        status: "onboarding",
-        chargesEnabled: false,
-      },
-    });
-    expect(mocks.getOrCreateConnectAccount).toHaveBeenCalledWith(
-      expect.objectContaining({
-        academyId: ACADEMY_ID,
-        tenantId: TENANT_ID,
-        country: "ES",
-        email: "owner@example.com",
-        academyName: "Academia Test",
-      })
-    );
-    expect(mocks.createOnboardingLink).toHaveBeenCalledWith("acct_test_123", ACADEMY_ID);
+    expect(response.status).toBe(410);
+    await expect(response.json()).resolves.toMatchObject({ error: "FAMILY_AUTOMATIC_COLLECTION_DISABLED" });
+    expect(mocks.getOrCreateConnectAccount).not.toHaveBeenCalled();
+    expect(mocks.createOnboardingLink).not.toHaveBeenCalled();
   });
 });
 
@@ -320,10 +293,8 @@ describe("GET /api/payments/connect/status", () => {
     expect(mocks.getConnectAccount).not.toHaveBeenCalled();
   });
 
-  it("devuelve 200 con connected=false cuando no hay cuenta registrada", async () => {
+  it("devuelve el contrato manual-only sin consultar cuentas Connect", async () => {
     mocks.verifyAcademyAccess.mockResolvedValueOnce({ allowed: true });
-    mocks.getConnectAccount.mockResolvedValueOnce(null);
-    mocks.isConnectReady.mockReturnValue(false);
 
     const { GET } = await importStatus();
     const response = await GET(
@@ -335,31 +306,22 @@ describe("GET /api/payments/connect/status", () => {
       data: {
         connected: false,
         ready: false,
-        status: "not_connected",
+        status: "disabled",
         chargesEnabled: false,
         payoutsEnabled: false,
         detailsSubmitted: false,
         country: null,
+        collectionMode: "manual",
+        manualCollectionAvailable: true,
+        automaticCollectionEnabled: false,
+        disabledReason: "FAMILY_AUTOMATIC_COLLECTION_DISABLED",
       },
     });
+    expect(mocks.getConnectAccount).not.toHaveBeenCalled();
   });
 
-  it("devuelve 200 con todos los flags cuando la cuenta esta habilitada", async () => {
+  it("no expone una cuenta Connect histórica como habilitada", async () => {
     mocks.verifyAcademyAccess.mockResolvedValueOnce({ allowed: true });
-    mocks.getConnectAccount.mockResolvedValueOnce({
-      id: "row-1",
-      tenantId: TENANT_ID,
-      academyId: ACADEMY_ID,
-      stripeAccountId: "acct_test_123",
-      country: "ES",
-      defaultCurrency: "eur",
-      chargesEnabled: true,
-      payoutsEnabled: true,
-      detailsSubmitted: true,
-      onboardingStatus: "enabled",
-      lastSyncedAt: new Date("2026-07-29T10:00:00Z"),
-    });
-    mocks.isConnectReady.mockReturnValue(true);
 
     const { GET } = await importStatus();
     const response = await GET(
@@ -369,15 +331,17 @@ describe("GET /api/payments/connect/status", () => {
     await expect(response.json()).resolves.toMatchObject({
       ok: true,
       data: {
-        connected: true,
-        ready: true,
-        status: "enabled",
-        chargesEnabled: true,
-        payoutsEnabled: true,
-        detailsSubmitted: true,
-        country: "ES",
+        connected: false,
+        ready: false,
+        status: "disabled",
+        chargesEnabled: false,
+        payoutsEnabled: false,
+        detailsSubmitted: false,
+        country: null,
+        automaticCollectionEnabled: false,
       },
     });
+    expect(mocks.getConnectAccount).not.toHaveBeenCalled();
   });
 });
 
@@ -393,12 +357,14 @@ describe("POST /api/payments/connect/refresh", () => {
     mocks.stripeSecretKey = "sk_test_dummy";
   });
 
-  it("devuelve 503 STRIPE_NOT_CONFIGURED cuando no hay STRIPE_SECRET_KEY", async () => {
+  it("mantiene Connect desactivado aunque no haya clave Stripe", async () => {
     mocks.stripeSecretKey = "";
+    mocks.getBillingAcademyAccess.mockResolvedValueOnce(ownedAcademy());
     const { POST } = await importRefresh();
     const response = await POST(await postJson("/api/payments/connect/refresh", { academyId: ACADEMY_ID }));
-    expect(response.status).toBe(503);
-    await expect(response.json()).resolves.toMatchObject({ error: "STRIPE_NOT_CONFIGURED" });
+    expect(response.status).toBe(410);
+    await expect(response.json()).resolves.toMatchObject({ error: "FAMILY_AUTOMATIC_COLLECTION_DISABLED" });
+    expect(mocks.refreshConnectAccountStatus).not.toHaveBeenCalled();
   });
 
   it("devuelve 400 INVALID_JSON cuando el cuerpo no es JSON valido", async () => {
@@ -425,48 +391,24 @@ describe("POST /api/payments/connect/refresh", () => {
     expect(mocks.refreshConnectAccountStatus).not.toHaveBeenCalled();
   });
 
-  it("devuelve 404 CONNECT_NOT_FOUND cuando la academia no tiene cuenta", async () => {
+  it("rechaza la sincronización tras validar el acceso Owner", async () => {
     mocks.getBillingAcademyAccess.mockResolvedValueOnce(ownedAcademy());
-    mocks.refreshConnectAccountStatus.mockResolvedValueOnce(null);
 
     const { POST } = await importRefresh();
     const response = await POST(await postJson("/api/payments/connect/refresh", { academyId: ACADEMY_ID }));
-    expect(response.status).toBe(404);
-    await expect(response.json()).resolves.toMatchObject({ error: "CONNECT_NOT_FOUND" });
-    expect(mocks.isConnectReady).not.toHaveBeenCalled();
+    expect(response.status).toBe(410);
+    await expect(response.json()).resolves.toMatchObject({ error: "FAMILY_AUTOMATIC_COLLECTION_DISABLED" });
+    expect(mocks.refreshConnectAccountStatus).not.toHaveBeenCalled();
   });
 
-  it("devuelve 200 con el estado sincronizado tras refrescar", async () => {
+  it("no sincroniza el estado Connect aunque existan recursos antiguos", async () => {
     mocks.getBillingAcademyAccess.mockResolvedValueOnce(ownedAcademy());
-    mocks.refreshConnectAccountStatus.mockResolvedValueOnce({
-      id: "row-1",
-      tenantId: TENANT_ID,
-      academyId: ACADEMY_ID,
-      stripeAccountId: "acct_test_123",
-      country: "ES",
-      defaultCurrency: "eur",
-      chargesEnabled: true,
-      payoutsEnabled: true,
-      detailsSubmitted: true,
-      onboardingStatus: "enabled",
-      lastSyncedAt: new Date("2026-07-29T10:00:00Z"),
-    });
-    mocks.isConnectReady.mockReturnValue(true);
 
     const { POST } = await importRefresh();
     const response = await POST(await postJson("/api/payments/connect/refresh", { academyId: ACADEMY_ID }));
-    expect(response.status).toBe(200);
-    await expect(response.json()).resolves.toMatchObject({
-      ok: true,
-      data: {
-        ready: true,
-        status: "enabled",
-        chargesEnabled: true,
-        payoutsEnabled: true,
-        detailsSubmitted: true,
-      },
-    });
-    expect(mocks.refreshConnectAccountStatus).toHaveBeenCalledWith(ACADEMY_ID);
+    expect(response.status).toBe(410);
+    await expect(response.json()).resolves.toMatchObject({ error: "FAMILY_AUTOMATIC_COLLECTION_DISABLED" });
+    expect(mocks.refreshConnectAccountStatus).not.toHaveBeenCalled();
   });
 });
 
@@ -513,77 +455,19 @@ describe("POST /api/charges/[chargeId]/collect", () => {
     expect(mocks.collectCharge).not.toHaveBeenCalled();
   });
 
-  it("devuelve 200 con status=paid cuando collectCharge cobra", async () => {
-    mocks.selectResults.push([{ academyId: ACADEMY_ID }]);
+  it("rechaza el cobro después de validar el tenant y la academia", async () => {
+    mocks.selectResults.push([{ tenantId: TENANT_ID, academyId: ACADEMY_ID }]);
     mocks.authorizeAcademyCapability.mockResolvedValueOnce({ allowed: true });
-    mocks.collectCharge.mockResolvedValueOnce({
-      ok: true,
-      status: "paid",
-      paymentIntentId: "pi_test_123",
-    });
 
     const { POST } = await importCollect();
     const response = await POST(
       new Request(`http://localhost/api/charges/${CHARGE_ID}/collect`, { method: "POST" })
     );
-    expect(response.status).toBe(200);
-    await expect(response.json()).resolves.toMatchObject({
-      ok: true,
-      data: { status: "paid", paymentIntentId: "pi_test_123" },
-    });
-    expect(mocks.collectCharge).toHaveBeenCalledWith(CHARGE_ID);
+    expect(response.status).toBe(410);
+    await expect(response.json()).resolves.toMatchObject({ error: "FAMILY_AUTOMATIC_COLLECTION_DISABLED" });
+    expect(mocks.collectCharge).not.toHaveBeenCalled();
   });
 
-  it("devuelve 409 REQUIRES_ACTION si la tarjeta requiere autenticacion SCA", async () => {
-    mocks.selectResults.push([{ academyId: ACADEMY_ID }]);
-    mocks.authorizeAcademyCapability.mockResolvedValueOnce({ allowed: true });
-    mocks.collectCharge.mockResolvedValueOnce({
-      ok: false,
-      status: "requires_action",
-      paymentIntentId: "pi_test_456",
-    });
-
-    const { POST } = await importCollect();
-    const response = await POST(
-      new Request(`http://localhost/api/charges/${CHARGE_ID}/collect`, { method: "POST" })
-    );
-    expect(response.status).toBe(409);
-    await expect(response.json()).resolves.toMatchObject({ error: "REQUIRES_ACTION" });
-  });
-
-  it("devuelve 409 COLLECTION_SKIPPED cuando el cargo no se puede cobrar", async () => {
-    mocks.selectResults.push([{ academyId: ACADEMY_ID }]);
-    mocks.authorizeAcademyCapability.mockResolvedValueOnce({ allowed: true });
-    mocks.collectCharge.mockResolvedValueOnce({
-      ok: false,
-      status: "skipped",
-      reason: "CONNECT_NOT_READY",
-    });
-
-    const { POST } = await importCollect();
-    const response = await POST(
-      new Request(`http://localhost/api/charges/${CHARGE_ID}/collect`, { method: "POST" })
-    );
-    expect(response.status).toBe(409);
-    await expect(response.json()).resolves.toMatchObject({ error: "COLLECTION_SKIPPED" });
-  });
-
-  it("devuelve 402 COLLECTION_FAILED cuando collectCharge devuelve failed", async () => {
-    mocks.selectResults.push([{ academyId: ACADEMY_ID }]);
-    mocks.authorizeAcademyCapability.mockResolvedValueOnce({ allowed: true });
-    mocks.collectCharge.mockResolvedValueOnce({
-      ok: false,
-      status: "failed",
-      reason: "card_declined",
-    });
-
-    const { POST } = await importCollect();
-    const response = await POST(
-      new Request(`http://localhost/api/charges/${CHARGE_ID}/collect`, { method: "POST" })
-    );
-    expect(response.status).toBe(402);
-    await expect(response.json()).resolves.toMatchObject({ error: "COLLECTION_FAILED" });
-  });
 });
 
 // ============================================================================
@@ -654,10 +538,9 @@ describe("POST /api/charges/[chargeId]/refund", () => {
     expect(mocks.refundCharge).not.toHaveBeenCalled();
   });
 
-  it("devuelve 200 con refundId y propaga amountCents/reason al servicio", async () => {
+  it("rechaza el reembolso después de validar el acceso Owner", async () => {
     mocks.selectResults.push([{ academyId: ACADEMY_ID }]);
     mocks.getBillingAcademyAccess.mockResolvedValueOnce(ownedAcademy());
-    mocks.refundCharge.mockResolvedValueOnce({ ok: true, refundId: "re_test_123" });
 
     const { POST } = await importRefund();
     const response = await POST(
@@ -666,23 +549,14 @@ describe("POST /api/charges/[chargeId]/refund", () => {
         body: JSON.stringify({ amountCents: 1000, reason: "ajuste" }),
       })
     );
-    expect(response.status).toBe(200);
-    await expect(response.json()).resolves.toMatchObject({
-      ok: true,
-      data: { refundId: "re_test_123" },
-    });
-    expect(mocks.refundCharge).toHaveBeenCalledWith({
-      chargeId: CHARGE_ID,
-      amountCents: 1000,
-      reason: "ajuste",
-      actorUserId: USER_ID,
-    });
+    expect(response.status).toBe(410);
+    await expect(response.json()).resolves.toMatchObject({ error: "FAMILY_AUTOMATIC_COLLECTION_DISABLED" });
+    expect(mocks.refundCharge).not.toHaveBeenCalled();
   });
 
-  it("devuelve 200 sin pasar amountCents/reason cuando el body esta vacio", async () => {
+  it("no solicita un reembolso total aunque el body esté vacío", async () => {
     mocks.selectResults.push([{ academyId: ACADEMY_ID }]);
     mocks.getBillingAcademyAccess.mockResolvedValueOnce(ownedAcademy());
-    mocks.refundCharge.mockResolvedValueOnce({ ok: true, refundId: "re_full" });
 
     const { POST } = await importRefund();
     const response = await POST(
@@ -691,19 +565,13 @@ describe("POST /api/charges/[chargeId]/refund", () => {
         body: JSON.stringify({}),
       })
     );
-    expect(response.status).toBe(200);
-    expect(mocks.refundCharge).toHaveBeenCalledWith({
-      chargeId: CHARGE_ID,
-      amountCents: undefined,
-      reason: undefined,
-      actorUserId: USER_ID,
-    });
+    expect(response.status).toBe(410);
+    expect(mocks.refundCharge).not.toHaveBeenCalled();
   });
 
-  it("devuelve 409 REFUND_FAILED cuando refundCharge falla", async () => {
+  it("no deriva al servicio un reembolso en el lanzamiento manual-only", async () => {
     mocks.selectResults.push([{ academyId: ACADEMY_ID }]);
     mocks.getBillingAcademyAccess.mockResolvedValueOnce(ownedAcademy());
-    mocks.refundCharge.mockResolvedValueOnce({ ok: false, reason: "INVALID_AMOUNT" });
 
     const { POST } = await importRefund();
     const response = await POST(
@@ -712,8 +580,9 @@ describe("POST /api/charges/[chargeId]/refund", () => {
         body: JSON.stringify({}),
       })
     );
-    expect(response.status).toBe(409);
-    await expect(response.json()).resolves.toMatchObject({ error: "REFUND_FAILED" });
+    expect(response.status).toBe(410);
+    await expect(response.json()).resolves.toMatchObject({ error: "FAMILY_AUTOMATIC_COLLECTION_DISABLED" });
+    expect(mocks.refundCharge).not.toHaveBeenCalled();
   });
 });
 

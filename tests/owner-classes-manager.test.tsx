@@ -4,6 +4,7 @@ import { fireEvent, render, screen, waitFor } from "@testing-library/react";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
 import { OwnerClassesManager } from "@/components/owner-dashboard/OwnerClassesManager";
+import { publishOwnerPlanUsage } from "@/components/owner-dashboard/owner-plan-usage-store";
 
 const mocks = vi.hoisted(() => ({ refresh: vi.fn() }));
 
@@ -38,6 +39,7 @@ function bundle(classes: unknown[] = []) {
 describe("OwnerClassesManager", () => {
   beforeEach(() => {
     vi.clearAllMocks();
+    publishOwnerPlanUsage(organizationId, { readOnly: false, planCode: "free" });
     vi.stubGlobal("crypto", { randomUUID: () => "synthetic-command-id" });
     vi.stubGlobal(
       "fetch",

@@ -1,4 +1,4 @@
-import { beforeEach, describe, expect, it, vi } from "vitest";
+import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
 const state = vi.hoisted(() => ({
   selectResults: [] as unknown[][],
@@ -48,6 +48,7 @@ vi.mock("@/lib/stripe/client", () => ({
 vi.mock("@/lib/audit-log", () => ({ createAuditLog: state.audit }));
 
 import { refundCharge } from "@/lib/stripe/refund-service";
+import { FamilyAutomaticCollectionDisabledError } from "@/lib/stripe/family-automatic-collection-disabled";
 import { reconcileChargeRefunded } from "@/lib/stripe/charge-reconcile-service";
 
 const charge = {
@@ -64,6 +65,7 @@ const charge = {
 describe("refundCharge", () => {
   beforeEach(() => {
     vi.clearAllMocks();
+    process.env.STRIPE_SECRET_KEY = "sk_test_unit_refund";
     state.selectResults = [[charge], [{ refundedCents: 0 }], []];
     state.inserts = [];
     state.updates = [];
@@ -71,166 +73,16 @@ describe("refundCharge", () => {
     state.audit.mockResolvedValue(undefined);
   });
 
-  it("serializa, usa la cuenta conectada y registra un reembolso total una sola vez", async () => {
-    const result = await refundCharge({ chargeId: "charge_1", actorUserId: "user_1" });
-    expect(result).toEqual({ ok: true, refundId: "re_1" });
-    expect(state.execute).toHaveBeenCalledTimes(1);
-    expect(state.refundCreate).toHaveBeenCalledWith(
-      expect.objectContaining({ amount: 5000, payment_intent: "pi_1" }),
-      expect.objectContaining({ stripeAccount: "acct_1", idempotencyKey: "refund_charge_1_0_5000" })
+  afterEach(() => {
+    delete process.env.STRIPE_SECRET_KEY;
+  });
+
+  it("desactiva reembolsos antes de abrir transacción, consultar o llamar a Stripe", async () => {
+    await expect(refundCharge({ chargeId: "charge_1", actorUserId: "user_1" })).rejects.toBeInstanceOf(
+      FamilyAutomaticCollectionDisabledError
     );
-    expect(state.inserts).toHaveLength(1);
-    expect(state.updates.at(-1)).toMatchObject({ status: "refunded" });
-  });
-
-  it("registra un reembolso parcial con idempotencia por importe y conserva el cargo pagado", async () => {
-    const result = await refundCharge({
-      chargeId: "charge_1",
-      amountCents: 1500,
-      reason: "customer_request",
-      actorUserId: "user_1",
-    });
-
-    expect(result).toEqual({ ok: true, refundId: "re_1" });
-    expect(state.refundCreate).toHaveBeenCalledWith(
-      expect.objectContaining({ amount: 1500, payment_intent: "pi_1" }),
-      expect.objectContaining({
-        stripeAccount: "acct_1",
-        idempotencyKey: "refund_charge_1_0_1500",
-      })
-    );
-    expect(state.inserts).toEqual([
-      expect.objectContaining({
-        chargeId: "charge_1",
-        stripeRefundId: "re_1",
-        amountCents: 1500,
-        reason: "customer_request",
-        status: "succeeded",
-      }),
-    ]);
-    expect(state.updates).toHaveLength(0);
-  });
-
-  it("no duplica el ledger si Stripe devuelve el mismo refund al reintentar", async () => {
-    state.selectResults = [[charge], [{ refundedCents: 0 }], [{ id: "existing" }]];
-    const result = await refundCharge({ chargeId: "charge_1", actorUserId: "user_1" });
-    expect(result).toEqual({ ok: true, refundId: "re_1" });
-    expect(state.inserts).toHaveLength(0);
-  });
-
-  it("rechaza importes que superan el saldo restante", async () => {
-    state.selectResults = [[charge], [{ refundedCents: 4000 }]];
-    const result = await refundCharge({
-      chargeId: "charge_1",
-      amountCents: 1500,
-      actorUserId: "user_1",
-    });
-    expect(result).toEqual({ ok: false, reason: "INVALID_AMOUNT" });
-    expect(state.refundCreate).not.toHaveBeenCalled();
-  });
-
-  it("registra un reembolso parcial sin marcar el cargo como reembolsado", async () => {
-    const result = await refundCharge({
-      chargeId: "charge_1",
-      amountCents: 1500,
-      actorUserId: "user_1",
-    });
-
-    expect(result).toEqual({ ok: true, refundId: "re_1" });
-    expect(state.refundCreate).toHaveBeenCalledWith(
-      expect.objectContaining({ amount: 1500, payment_intent: "pi_1" }),
-      expect.objectContaining({
-        stripeAccount: "acct_1",
-        idempotencyKey: "refund_charge_1_0_1500",
-      })
-    );
-    expect(state.inserts).toEqual([
-      expect.objectContaining({
-        tenantId: "tenant_1",
-        academyId: "academy_1",
-        chargeId: "charge_1",
-        stripeRefundId: "re_1",
-        stripePaymentIntentId: "pi_1",
-        amountCents: 1500,
-        currency: "eur",
-        status: "succeeded",
-      }),
-    ]);
-    expect(state.updates).toHaveLength(0);
-  });
-
-  it("acumula dos parciales y marca el cargo como reembolsado al completar el total", async () => {
-    await refundCharge({
-      chargeId: "charge_1",
-      amountCents: 1500,
-      actorUserId: "user_1",
-    });
-    expect(state.refundCreate).toHaveBeenNthCalledWith(
-      1,
-      expect.objectContaining({ amount: 1500, payment_intent: "pi_1" }),
-      expect.objectContaining({
-        stripeAccount: "acct_1",
-        idempotencyKey: "refund_charge_1_0_1500",
-      })
-    );
-    expect(state.updates).toHaveLength(0);
-
-    state.selectResults = [[charge], [{ refundedCents: 1500 }], []];
-    state.refundCreate.mockResolvedValueOnce({ id: "re_2", status: "succeeded" });
-    const result = await refundCharge({
-      chargeId: "charge_1",
-      amountCents: 3500,
-      actorUserId: "user_1",
-    });
-
-    expect(result).toEqual({ ok: true, refundId: "re_2" });
-    expect(state.refundCreate).toHaveBeenLastCalledWith(
-      expect.objectContaining({ amount: 3500, payment_intent: "pi_1" }),
-      expect.objectContaining({
-        stripeAccount: "acct_1",
-        idempotencyKey: "refund_charge_1_1500_3500",
-      })
-    );
-    expect(state.inserts).toHaveLength(2);
-    expect(state.inserts.at(-1)).toMatchObject({
-      chargeId: "charge_1",
-      stripeRefundId: "re_2",
-      amountCents: 3500,
-    });
-    expect(state.updates).toHaveLength(1);
-    expect(state.updates[0]).toMatchObject({ status: "refunded" });
-  });
-
-  it("es idempotente si el cargo ya estaba marcado como reembolsado", async () => {
-    state.selectResults = [[{ ...charge, status: "refunded" }]];
-
-    const result = await refundCharge({
-      chargeId: "charge_1",
-      actorUserId: "user_1",
-    });
-
-    expect(result).toEqual({ ok: false, reason: "NOT_REFUNDABLE:refunded" });
-    expect(state.refundCreate).not.toHaveBeenCalled();
-    expect(state.inserts).toHaveLength(0);
-    expect(state.updates).toHaveLength(0);
-  });
-
-  it("rechaza importes cero o negativos", async () => {
-    const zeroResult = await refundCharge({
-      chargeId: "charge_1",
-      amountCents: 0,
-      actorUserId: "user_1",
-    });
-
-    state.selectResults = [[charge], [{ refundedCents: 0 }]];
-    const negativeResult = await refundCharge({
-      chargeId: "charge_1",
-      amountCents: -100,
-      actorUserId: "user_1",
-    });
-
-    expect(zeroResult).toEqual({ ok: false, reason: "INVALID_AMOUNT" });
-    expect(negativeResult).toEqual({ ok: false, reason: "INVALID_AMOUNT" });
+    expect(tx.select).not.toHaveBeenCalled();
+    expect(tx.execute).not.toHaveBeenCalled();
     expect(state.refundCreate).not.toHaveBeenCalled();
     expect(state.inserts).toHaveLength(0);
     expect(state.updates).toHaveLength(0);
@@ -240,17 +92,23 @@ describe("refundCharge", () => {
 describe("reconciliación charge.refunded tras reembolso parcial", () => {
   beforeEach(() => {
     vi.clearAllMocks();
+    process.env.STRIPE_SECRET_KEY = "sk_test_unit_refund";
     state.selectResults = [];
     state.inserts = [];
     state.updates = [];
+  });
+
+  afterEach(() => {
+    delete process.env.STRIPE_SECRET_KEY;
   });
 
   it("marca como reembolsado un cargo que todavía figura como pagado", async () => {
     state.selectResults = [[{ id: "charge_1", status: "paid", stripeAccountId: "acct_1" }]];
 
     await reconcileChargeRefunded(
-      { id: "ch_1", amount: 5000, amount_refunded: 5000, currency: "eur" } as never,
-      "acct_1"
+      { id: "ch_1", amount: 5000, amount_refunded: 5000, currency: "eur", livemode: false } as never,
+      "acct_1",
+      false
     );
 
     expect(state.updates).toHaveLength(1);
@@ -261,8 +119,9 @@ describe("reconciliación charge.refunded tras reembolso parcial", () => {
     state.selectResults = [[{ id: "charge_1", status: "refunded", stripeAccountId: "acct_1" }]];
 
     await reconcileChargeRefunded(
-      { id: "ch_1", amount: 5000, amount_refunded: 5000, currency: "eur" } as never,
-      "acct_1"
+      { id: "ch_1", amount: 5000, amount_refunded: 5000, currency: "eur", livemode: false } as never,
+      "acct_1",
+      false
     );
 
     expect(state.updates).toHaveLength(0);
@@ -273,8 +132,9 @@ describe("reconciliación charge.refunded tras reembolso parcial", () => {
 
     await expect(
       reconcileChargeRefunded(
-        { id: "ch_1", amount: 5000, amount_refunded: 5000, currency: "eur" } as never,
-        "acct_attacker"
+        { id: "ch_1", amount: 5000, amount_refunded: 5000, currency: "eur", livemode: false } as never,
+        "acct_attacker",
+        false
       )
     ).rejects.toThrow("CONNECT_ACCOUNT_MISMATCH");
     expect(state.updates).toHaveLength(0);
