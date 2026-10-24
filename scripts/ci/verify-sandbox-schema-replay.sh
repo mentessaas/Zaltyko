@@ -250,15 +250,28 @@ if (
     or parsed_url.fragment
 ):
     raise SystemExit("The stack did not provide a valid loopback Postgres URL.")
-query = [(key, value) for key, value in parse_qsl(parsed_url.query) if key != "sslmode"]
-query.append(("sslmode", "disable"))
+# Supabase CLI's libpq parser gives query parameters precedence over URL userinfo,
+# host, port, database, and password. The stack's status URL may include these
+# values (for example `user=postgres`), so carrying its query through would
+# silently override the validated replay principal. Rebuild a minimal direct
+# loopback URL and retain only the explicit local TLS setting.
+query = urlencode([("sslmode", "disable")])
 host = parsed_url.hostname
 authority_host = f"[{host}]" if ":" in host else host
 userinfo = "supabase_admin"
 if parsed_url.password is not None:
     userinfo += f":{parsed_url.password}"
 admin_netloc = f"{userinfo}@{authority_host}:{port}"
-local_db_url = urlunsplit(parsed_url._replace(netloc=admin_netloc, query=urlencode(query)))
+local_db_url = urlunsplit(parsed_url._replace(netloc=admin_netloc, query=query))
+admin_url = urlsplit(local_db_url)
+if (
+    admin_url.username != "supabase_admin"
+    or admin_url.hostname not in {"127.0.0.1", "localhost", "::1"}
+    or admin_url.port != port
+    or admin_url.path != "/postgres"
+    or parse_qsl(admin_url.query) != [("sslmode", "disable")]
+):
+    raise SystemExit("The reconstructed replay URL did not preserve its pinned local target and principal.")
 safe = {
     "name": identity.get("name"),
     "project_root_matches": root_matches,
@@ -269,6 +282,7 @@ safe = {
     "database_health": None if database is None else database.get("health"),
     "database_host": parsed_url.hostname,
     "database_port": port,
+    "database_user": admin_url.username,
 }
 print("Sanitized native stack status: " + json.dumps(safe, sort_keys=True))
 
@@ -292,12 +306,10 @@ PY
 # this runner, while --db-url can connect to its validated ephemeral endpoint.
 LOCAL_DB_URL="$(<"$LOCAL_DB_URL_FILE")"
 
-# The local stack status returns the database password for its standard
-# `postgres` endpoint user. The pinned Supabase image initializes that same
-# password for its built-in `supabase_admin` login, which is the principal
-# intended to apply platform ACL state. Use it only on the validated loopback
-# URL, and verify that the connection really is the built-in superuser before
-# applying any snapshot SQL. Do not grant, revoke, or create roles.
+# The local stack status returns the shared database password. Use it only on
+# the validated loopback URL, and verify that the connection really is the
+# built-in `supabase_admin` superuser before applying any snapshot SQL. Do not
+# grant, revoke, or create roles.
 if ! ROLE_STATE_CSV="$("$CLI" --workdir "$CI_WORKDIR" --output csv db query \
   --db-url "$LOCAL_DB_URL" \
   "SELECT current_user AS replay_role, rolsuper AS is_superuser FROM pg_roles WHERE rolname = current_user;")"; then
