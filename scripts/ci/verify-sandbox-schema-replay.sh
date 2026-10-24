@@ -66,6 +66,22 @@ diagnose_start_failure() {
   fi
 }
 
+diagnose_marker_failure() {
+  local diagnosis="The disposable database marker statement failed; query output remains withheld."
+  if grep -Eiq 'permission denied' "$RESET_LOG"; then
+    diagnosis="The local database connection lacks permission to set the one-run marker."
+  elif grep -Eiq 'unrecognized configuration parameter|invalid configuration parameter' "$RESET_LOG"; then
+    diagnosis="PostgreSQL rejected the custom one-run marker setting."
+  elif grep -Eiq 'cannot run inside a transaction block' "$RESET_LOG"; then
+    diagnosis="The CLI query protocol cannot run ALTER DATABASE in its current transaction context."
+  elif grep -Eiq 'connection refused|context deadline exceeded|i/o timeout|no route to host' "$RESET_LOG"; then
+    diagnosis="The local Postgres connection was unavailable while setting the one-run marker."
+  elif grep -Eiq 'syntax error|invalid value|does not exist' "$RESET_LOG"; then
+    diagnosis="PostgreSQL rejected the marker SQL or its target database."
+  fi
+  printf 'Safe marker diagnosis: %s\n' "$diagnosis" >&2
+}
+
 [[ -x "$CLI" ]] || fail "The checksum-verified pinned Supabase CLI was not installed in RUNNER_TEMP."
 [[ ! -e "$CI_WORKDIR" ]] || fail "Refusing to reuse an existing local Supabase workdir."
 mkdir -p "$CI_WORKDIR/supabase/migrations"
@@ -107,6 +123,7 @@ cp "$ROOT/supabase/migrations/$MIGRATION_NAME" "$CI_WORKDIR/supabase/migrations/
 if ! "$CLI" --workdir "$CI_WORKDIR" db query --local \
   "ALTER DATABASE postgres SET app.schema_snapshot_replay = 'ci-empty-replay';" \
   >"$RESET_LOG" 2>&1; then
+  diagnose_marker_failure
   fail "Could not configure the one-run marker on disposable local Postgres."
 fi
 
