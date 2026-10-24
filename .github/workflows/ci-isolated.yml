@@ -68,6 +68,10 @@ jobs:
         if: always() && !cancelled() && steps.dependencies.outcome == 'success' && steps.network-isolation.outcome == 'success'
         run: sudo --preserve-env=PATH,HOME,CI,NODE_ENV,NEXT_PUBLIC_APP_URL,NEXT_PUBLIC_SUPABASE_URL,NEXT_PUBLIC_SUPABASE_ANON_KEY,DATABASE_URL,DATABASE_URL_POOL,DATABASE_URL_DIRECT,INTERNAL_AUTH_SECRET,SUPABASE_JWT_SECRET unshare --net -- bash -euc 'ip link set lo up && exec "$@"' isolated-check pnpm exec vitest run tests/ci-isolated-workflow-contract.test.ts
 
+      - name: Test pinned Supabase CLI installer with synthetic archives
+        if: always() && !cancelled() && steps.dependencies.outcome == 'success' && steps.network-isolation.outcome == 'success'
+        run: sudo --preserve-env=PATH,HOME,CI unshare --net -- bash -euc 'ip link set lo up && exec "$@"' isolated-check python3 scripts/ci/test_install_pinned_supabase_cli.py
+
       - name: Lint
         if: always() && !cancelled() && steps.dependencies.outcome == 'success' && steps.network-isolation.outcome == 'success'
         run: sudo --preserve-env=PATH,HOME,CI,NODE_ENV,NEXT_PUBLIC_APP_URL,NEXT_PUBLIC_SUPABASE_URL,NEXT_PUBLIC_SUPABASE_ANON_KEY,DATABASE_URL,DATABASE_URL_POOL,DATABASE_URL_DIRECT,INTERNAL_AUTH_SECRET,SUPABASE_JWT_SECRET unshare --net -- bash -euc 'ip link set lo up && exec "$@"' isolated-check pnpm lint

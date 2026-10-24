@@ -1,12 +1,22 @@
 import { readFileSync } from "node:fs";
 import { resolve } from "node:path";
 import { describe, expect, it } from "vitest";
+import {
+  ACTIVE_LOCAL_SUPABASE_IMAGES,
+  EXCLUDED_LOCAL_SUPABASE_IMAGES,
+  REQUIRED_LOCAL_SUPABASE_IMAGES,
+} from "../scripts/lib/local-e2e-preflight";
 
 const workflowPath = resolve(process.cwd(), ".github/workflows/ci-isolated.yml");
+const mainCiWorkflowPath = resolve(process.cwd(), ".github/workflows/ci.yml");
 const directoryWorkflowPath = resolve(process.cwd(), ".github/workflows/directory-integrity.yml");
 const vitestConfigPath = resolve(process.cwd(), "vitest.config.ts");
 const sharedSetupPath = resolve(process.cwd(), "tests/setup.ts");
 const lockfileGuardPath = resolve(process.cwd(), "scripts/ci/validate-lockfile-refresh.cjs");
+const imagePreloaderPath = resolve(
+  process.cwd(),
+  "scripts/ci/preload-local-e2e-images.ts"
+);
 
 const lockfileGuard = require(lockfileGuardPath) as {
   MAX_GIT_OUTPUT_BYTES: number;
@@ -23,6 +33,7 @@ const lockfileGuard = require(lockfileGuardPath) as {
 
 describe("isolated CI workflow contract", () => {
   const workflow = readFileSync(workflowPath, "utf8");
+  const mainCiWorkflow = readFileSync(mainCiWorkflowPath, "utf8");
   const directoryWorkflow = readFileSync(directoryWorkflowPath, "utf8");
   const vitestConfig = readFileSync(vitestConfigPath, "utf8");
   const sharedSetup = readFileSync(sharedSetupPath, "utf8");
@@ -50,6 +61,31 @@ describe("isolated CI workflow contract", () => {
     expect(workflow).toMatch(/permissions:\s*\n\s+contents:\s*read/);
     expect(workflow).toMatch(/persist-credentials:\s*false/);
     expect(workflow).not.toMatch(/^\s*(push|pull_request|schedule):/m);
+  });
+
+  it("downloads the versioned Supabase CLI release archive before verifying its pinned binary", () => {
+    expect(mainCiWorkflow).toContain(
+      "https://github.com/supabase/cli/releases/download/v2.84.2/supabase_2.84.2_linux_amd64.tar.gz"
+    );
+    expect(mainCiWorkflow).toContain("python3 scripts/ci/install_pinned_supabase_cli.py \"$archive\"");
+    expect(mainCiWorkflow).toContain("scripts/ci/preload-local-e2e-images.ts");
+    expect(mainCiWorkflow).toContain("pnpm test:e2e:local");
+  });
+
+  it("preloads only the active pinned Supabase images on disposable GitHub Linux runners", () => {
+    const imagePreloader = readFileSync(imagePreloaderPath, "utf8");
+    expect(REQUIRED_LOCAL_SUPABASE_IMAGES).toHaveLength(13);
+    expect(EXCLUDED_LOCAL_SUPABASE_IMAGES).toHaveLength(2);
+    expect(ACTIVE_LOCAL_SUPABASE_IMAGES).toHaveLength(11);
+    expect(ACTIVE_LOCAL_SUPABASE_IMAGES).toEqual(
+      REQUIRED_LOCAL_SUPABASE_IMAGES.filter((image) =>
+        EXCLUDED_LOCAL_SUPABASE_IMAGES.every((excluded) => excluded !== image)
+      )
+    );
+    expect(imagePreloader).toContain('process.env.GITHUB_ACTIONS !== "true"');
+    expect(imagePreloader).toContain('process.platform !== "linux"');
+    expect(imagePreloader).toContain("ACTIVE_LOCAL_SUPABASE_IMAGES");
+    expect(imagePreloader).toContain('docker(["pull", image], false)');
   });
 
   it("builds only an exact candidate SHA on a remote runner with placeholders and no provider access", () => {
@@ -232,9 +268,10 @@ describe("isolated CI workflow contract", () => {
     const checksJob = workflow.match(/  static-and-unit:([\s\S]*?)(?=\n  candidate-build:|$)/)?.[1] ?? "";
     expect(workflow).toContain("sudo unshare --net");
     expect(workflow).toContain('ip link set lo up && test "$(ip -o link show | wc -l)" -eq 1');
-    expect(checksJob.match(/run: sudo --preserve-env=[^\n]* unshare --net -- bash -euc/g)).toHaveLength(7);
+    expect(checksJob.match(/run: sudo --preserve-env=[^\n]* unshare --net -- bash -euc/g)).toHaveLength(8);
     for (const check of [
       "pnpm exec vitest run tests/ci-isolated-workflow-contract.test.ts",
+      "python3 scripts/ci/test_install_pinned_supabase_cli.py",
       "pnpm lint",
       "pnpm typecheck",
       "pnpm vitest run",
@@ -244,7 +281,7 @@ describe("isolated CI workflow contract", () => {
     ]) {
       expect(workflow).toContain(check);
     }
-    expect(workflow.match(/if: always\(\) && !cancelled\(\) && steps\.dependencies\.outcome == 'success' && steps\.network-isolation\.outcome == 'success'/g)).toHaveLength(7);
+    expect(workflow.match(/if: always\(\) && !cancelled\(\) && steps\.dependencies\.outcome == 'success' && steps\.network-isolation\.outcome == 'success'/g)).toHaveLength(8);
     expect(workflow).not.toMatch(/continue-on-error:/);
   });
 
