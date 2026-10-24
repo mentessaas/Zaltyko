@@ -80,7 +80,10 @@ beforeEach(() => {
   mocks.bootstrap.mockReset();
   mocks.cookies.mockResolvedValue({});
   mocks.currentUser.mockResolvedValue({ id: userId });
-  mocks.authUser.mockResolvedValue({ id: userId, user_metadata: {} });
+  mocks.authUser.mockResolvedValue({
+    data: { user: { id: userId, user_metadata: {} } },
+    error: null,
+  });
   mocks.createClient.mockResolvedValue({
     auth: { getUser: mocks.authUser },
   });
@@ -106,7 +109,10 @@ describe("Owner organization bootstrap HTTP boundary", () => {
   });
 
   it("requires the independently verified Auth subject to match the session", async () => {
-    mocks.authUser.mockResolvedValue({ id: "50000000-0000-4000-8000-000000000001" });
+    mocks.authUser.mockResolvedValue({
+      data: { user: { id: "50000000-0000-4000-8000-000000000001" } },
+      error: null,
+    });
 
     const response = await POST(request());
 
