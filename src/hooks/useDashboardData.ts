@@ -14,10 +14,12 @@ interface UseDashboardDataOptions {
 export function useDashboardData({ academyId, tenantId, initialData }: UseDashboardDataOptions) {
   const [data, setData] = useState<DashboardData>(initialData);
   const [loading, setLoading] = useState(false);
+  const [error, setError] = useState<string | null>(null);
   const abortControllerRef = useRef<AbortController | null>(null);
 
   useEffect(() => {
     setData(initialData);
+    setError(null);
   }, [initialData]);
 
   const refresh = useCallback(async () => {
@@ -48,14 +50,37 @@ export function useDashboardData({ academyId, tenantId, initialData }: UseDashbo
 
       if (!response.ok) {
         logger.error("Failed to fetch dashboard data", undefined, { status: response.status, statusText: response.statusText });
+        setError("No se pudieron actualizar los datos del dashboard.");
         return;
       }
 
-      const payload = (await response.json()) as { ok: boolean; data: DashboardData };
+      const payload = (await response.json()) as unknown;
+      const envelope = payload && typeof payload === "object"
+        ? (payload as { ok?: unknown; data?: unknown })
+        : null;
+      const nextData = envelope?.data;
+      const nextMetrics = nextData && typeof nextData === "object"
+        ? Reflect.get(nextData, "metrics")
+        : null;
+
+      if (
+        envelope?.ok !== true ||
+        !nextData ||
+        typeof nextData !== "object" ||
+        Array.isArray(nextData) ||
+        !nextMetrics ||
+        typeof nextMetrics !== "object" ||
+        Array.isArray(nextMetrics)
+      ) {
+        logger.error("Dashboard response payload is invalid", undefined, { academyId });
+        setError("La respuesta del dashboard no tiene un formato válido.");
+        return;
+      }
       
       // Verificar nuevamente si fue cancelada antes de actualizar el estado
       if (!abortController.signal.aborted) {
-        setData(payload.data);
+        setData(nextData as DashboardData);
+        setError(null);
       }
     } catch (error: unknown) {
       const msg = error instanceof Error ? error.message : "";
@@ -63,12 +88,8 @@ export function useDashboardData({ academyId, tenantId, initialData }: UseDashbo
       if ((error instanceof Error && error.name === "AbortError") || msg.includes("aborted")) {
         return;
       }
-      // Ignorar errores de red suspendida (puede pasar durante hot reload)
-      if (msg.includes("Failed to fetch") || msg.includes("ERR_NETWORK_IO_SUSPENDED")) {
-        logger.warn("Network request was suspended, likely due to hot reload");
-        return;
-      }
       logger.error("Error fetching dashboard data:", error);
+      setError("No se pudieron actualizar los datos del dashboard.");
     } finally {
       // Solo actualizar loading si la petición no fue cancelada
       if (!abortController.signal.aborted) {
@@ -163,5 +184,6 @@ export function useDashboardData({ academyId, tenantId, initialData }: UseDashbo
     data,
     refresh,
     loading,
+    error,
   };
 }
