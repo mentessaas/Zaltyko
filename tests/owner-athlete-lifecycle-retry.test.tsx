@@ -77,7 +77,7 @@ describe("reintento del archivo de gimnastas", () => {
       />,
     );
 
-    await user.click(screen.getByRole("button", { name: `Seleccionar ${athlete.name}` }));
+    await user.click(screen.getAllByRole("button", { name: `Seleccionar ${athlete.name}` })[0]);
     await user.selectOptions(screen.getByRole("combobox", { name: "Accion por lote" }), "archive");
     await waitFor(() => expect(mocks.pushToast).toHaveBeenCalledWith(expect.objectContaining({
       title: "No se pudieron archivar",
@@ -110,11 +110,14 @@ describe("reintento del archivo de gimnastas", () => {
       />,
     );
 
-    await user.click(screen.getByRole("button", { name: `Seleccionar ${athlete.name}` }));
+    await user.click(screen.getAllByRole("button", { name: `Seleccionar ${athlete.name}` })[0]);
     await user.selectOptions(screen.getByRole("combobox", { name: "Accion por lote" }), "archive");
 
     expect(mocks.fetch.mock.calls.filter(([, init]) => init?.method === "POST")).toHaveLength(0);
-    expect(await screen.findByText("No se envió ningún cambio.")).toBeVisible();
+    expect(mocks.pushToast).toHaveBeenCalledWith(expect.objectContaining({
+      title: "No se pudo preparar el archivo",
+      description: expect.stringContaining("No se envió ningún cambio."),
+    }));
   });
 
   it("reutiliza la restauración pendiente tras perderse su respuesta", async () => {
