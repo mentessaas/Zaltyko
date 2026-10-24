@@ -386,6 +386,11 @@ function projectManifest(baseText, rawText) {
   return projected;
 }
 
+function assertManifestEquivalentToBase(baseText, candidateText) {
+  check(projectManifest(baseText, candidateText) === candidateText, "MANIFEST_SCOPE");
+  return true;
+}
+
 function projectViteLockfileCore(input) {
   try {
     const { baseManifestText, rawManifestText, baseLockfileText, rawLockfileText } = input;
@@ -426,6 +431,7 @@ module.exports = {
   NEXT,
   INTEGRITY,
   ViteProjectionFailure,
+  assertManifestEquivalentToBase,
   assertCandidateEquivalentToBase,
   projectViteLockfileCore,
   sha256,
