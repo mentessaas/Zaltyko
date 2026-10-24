@@ -87,7 +87,6 @@ PY
 
 mapfile -t migrations < <(find "$ROOT/supabase/migrations" -maxdepth 1 -type f -name '*.sql' -printf '%f\n' | sort)
 [[ "${#migrations[@]}" -eq 1 && "${migrations[0]}" == "$MIGRATION_NAME" ]] || fail "Expected exactly the reviewed current-state baseline migration."
-cp "$ROOT/supabase/migrations/$MIGRATION_NAME" "$CI_WORKDIR/supabase/migrations/$MIGRATION_NAME"
 
 # Start only disposable local Postgres rather than the full Supabase service
 # stack. CLI output is kept in RUNNER_TEMP and never printed because it may
@@ -97,6 +96,11 @@ if ! "$CLI" --workdir "$CI_WORKDIR" db start >"$START_LOG" 2>&1; then
   diagnose_start_failure
   fail "Disposable local Postgres did not start; CLI output was withheld to avoid credential disclosure."
 fi
+
+# Keep the marker-guarded current-state migration out of CLI startup. Some CLI
+# startup paths apply discovered migrations before a database-local marker can
+# be set; copy the reviewed baseline only after the empty local DB is running.
+cp "$ROOT/supabase/migrations/$MIGRATION_NAME" "$CI_WORKDIR/supabase/migrations/$MIGRATION_NAME"
 
 # The schema snapshot refuses to run without this database-local marker. It is
 # set only on the disposable runner database, never on the linked sandbox.

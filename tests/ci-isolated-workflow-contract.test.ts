@@ -191,6 +191,10 @@ describe("isolated CI workflow contract", () => {
     expect(replayScript).toContain("db query --local --file");
     expect(replayScript).toContain("--no-backup");
     expect(replayScript).toContain("Refusing current-state schema baseline");
+    expect(replayScript.indexOf('"$CLI" --workdir "$CI_WORKDIR" db start'))
+      .toBeLessThan(replayScript.indexOf('cp "$ROOT/supabase/migrations/$MIGRATION_NAME"'));
+    expect(replayScript.indexOf('cp "$ROOT/supabase/migrations/$MIGRATION_NAME"'))
+      .toBeLessThan(replayScript.indexOf("ALTER DATABASE postgres SET app.schema_snapshot_replay"));
     expect(replayScript).not.toContain("db reset --linked");
     expect(replayScript).not.toContain("db push");
   });
