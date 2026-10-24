@@ -38,7 +38,7 @@ export interface ValidationResult {
   tenantTables: SchemaTable[];
   requiredRlsTables: SchemaTable[];
   policyTables: string[];
-  coverage: number;
+  coverage: number | null;
   errors: string[];
 }
 
@@ -464,19 +464,26 @@ export function validateRLSFromSources(
   }
 
   const policyIdentities = new Set(allPolicies.map((policy) => identityKey(policy)));
-  const missingRls = requiredRlsTables.filter((table) => !rlsTables.has(identityKey(table)));
-  const missingPolicies = requiredRlsTables.filter((table) => !policyIdentities.has(identityKey(table)));
+  const analysisAvailable =
+    errors.length === 0 && schemaSources.length > 0 && sqlSources.length > 0 && requiredRlsTables.length > 0;
+  const missingRls = analysisAvailable
+    ? requiredRlsTables.filter((table) => !rlsTables.has(identityKey(table)))
+    : [];
+  const missingPolicies = analysisAvailable
+    ? requiredRlsTables.filter((table) => !policyIdentities.has(identityKey(table)))
+    : [];
   const duplicatePolicies = findDuplicatePolicies(allPolicies);
   const covered = requiredRlsTables.filter(
     (table) => rlsTables.has(identityKey(table)) && policyIdentities.has(identityKey(table))
   ).length;
-  const coverage = requiredRlsTables.length === 0 ? 0 : (covered / requiredRlsTables.length) * 100;
+  const coverage = analysisAvailable ? (covered / requiredRlsTables.length) * 100 : null;
 
   return {
     success:
       errors.length === 0 &&
       schemaSources.length > 0 &&
       sqlSources.length > 0 &&
+      analysisAvailable &&
       tenantTables.length > 0 &&
       requiredRlsTables.length > 0 &&
       duplicatePolicies.length === 0 &&
@@ -559,7 +566,7 @@ function formatTable(table: SchemaTable): string {
   return `${displayIdentity(table)} (${table.file})`;
 }
 
-function generateReport(result: ValidationResult, root: string = ROOT): string {
+export function generateReport(result: ValidationResult, root: string = ROOT): string {
   const lines: string[] = [
     "",
     "===========================================================",
@@ -569,7 +576,7 @@ function generateReport(result: ValidationResult, root: string = ROOT): string {
     `Status: ${result.success ? "PASS" : "FAIL"}`,
     `Direct tenant-scoped tables: ${result.tenantTables.length}`,
     `RLS-required table identities: ${result.requiredRlsTables.length}`,
-    `Coverage: ${result.coverage.toFixed(1)}%`,
+    `Coverage: ${result.coverage === null ? "NOT COMPUTABLE (required sources or tenant inventory unavailable)" : `${result.coverage.toFixed(1)}%`}`,
     "Coverage checks RLS and policy presence; it does not evaluate policy predicates or grants.",
     "",
   ];
@@ -591,24 +598,30 @@ function generateReport(result: ValidationResult, root: string = ROOT): string {
     lines.push("No duplicate policy declarations found inside an individual SQL source", "");
   }
 
-  if (result.missingRls.length > 0) {
-    lines.push(`RLS-REQUIRED TABLES WITHOUT RLS (${result.missingRls.length}):`);
-    result.missingRls.forEach((table) => lines.push(`  - ${formatTable(table)}`));
-    lines.push("");
+  if (result.coverage === null) {
+    lines.push("RLS and policy presence were not assessed because the required source inventory is incomplete", "");
   } else {
-    lines.push("All RLS-required tables have RLS enabled in SQL sources", "");
+    if (result.missingRls.length > 0) {
+      lines.push(`RLS-REQUIRED TABLES WITHOUT RLS (${result.missingRls.length}):`);
+      result.missingRls.forEach((table) => lines.push(`  - ${formatTable(table)}`));
+      lines.push("");
+    } else {
+      lines.push("All RLS-required tables have RLS enabled in SQL sources", "");
+    }
+
+    if (result.missingPolicies.length > 0) {
+      lines.push(`RLS-REQUIRED TABLES WITHOUT POLICIES (${result.missingPolicies.length}):`);
+      result.missingPolicies.forEach((table) => lines.push(`  - ${formatTable(table)}`));
+      lines.push("");
+    } else {
+      lines.push("All RLS-required tables have at least one policy in SQL sources", "");
+    }
   }
 
-  if (result.missingPolicies.length > 0) {
-    lines.push(`RLS-REQUIRED TABLES WITHOUT POLICIES (${result.missingPolicies.length}):`);
-    result.missingPolicies.forEach((table) => lines.push(`  - ${formatTable(table)}`));
-    lines.push("");
-  } else {
-    lines.push("All RLS-required tables have at least one policy in SQL sources", "");
-  }
-
-  lines.push("SQL sources checked:");
-  sqlFiles(root).forEach((file) => lines.push(`  - ${file.name}`));
+  lines.push("SQL sources present:");
+  const presentSqlFiles = sqlFiles(root).filter((file) => existsSync(file.path));
+  if (presentSqlFiles.length === 0) lines.push("  - none");
+  else presentSqlFiles.forEach((file) => lines.push(`  - ${file.name}`));
   lines.push("", "===========================================================");
 
   return lines.join("\n");

@@ -6,6 +6,7 @@ import {
   extractPoliciesFromSource,
   extractRlsTablesFromSource,
   extractSchemaTablesFromSource,
+  generateReport,
   validateRLS,
   validateRLSFromSources,
 } from "../scripts/validate-rls";
@@ -189,10 +190,14 @@ CREATE POLICY "zal_shared_read" ON "zaltyko"."shared" USING (true);
       "Error reading rls-consolidated.sql: ENOENT",
       "Required SQL source not found: migrations/",
     ]);
-    expect(result.missingRls.map(({ schema, table }) => `${schema}.${table}`)).toEqual([
-      "public.shared",
-      "zaltyko.shared",
-    ]);
+    expect(result.coverage).toBeNull();
+    expect(result.missingRls).toEqual([]);
+    expect(result.missingPolicies).toEqual([]);
+    const report = generateReport(result, ".");
+    expect(report).toContain("Coverage: NOT COMPUTABLE");
+    expect(report).toContain("RLS and policy presence were not assessed");
+    expect(report).not.toContain("RLS-REQUIRED TABLES WITHOUT RLS");
+    expect(report).toContain("SQL sources present:\n  - none");
   });
 
   it("falla si falta el árbol de schema, además de las fuentes SQL", () => {
@@ -236,7 +241,7 @@ CREATE POLICY "fake_read" ON public.fake USING (true);
     );
 
     expect(result.tenantTables).toEqual([]);
-    expect(result.coverage).toBe(0);
+    expect(result.coverage).toBeNull();
     expect(result.errors).toContain(
       "No tenant-scoped schema tables found; RLS coverage cannot pass with an empty inventory."
     );
