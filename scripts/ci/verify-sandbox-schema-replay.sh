@@ -4,6 +4,9 @@ umask 077
 
 readonly EXPECTED_BRANCH="codex/owner-isolated-validation-20261023"
 readonly MIGRATION_NAME="20261024172153_sandbox_schema_snapshot_baseline.sql"
+readonly TENANT_MIGRATION_NAME="20261024172154_sandbox_tenant_isolation.sql"
+readonly GUARD_PROBE_NAME="20261024172155_sandbox_schema_guard_probe.sql"
+readonly UNMARKED_PROBE_NAME="20261024172156_sandbox_schema_unmarked_guard_probe.sql"
 readonly SUPABASE_CLI_VERSION="2.119.0"
 readonly ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/../.." && pwd)"
 
@@ -96,7 +99,7 @@ PY
 }
 
 diagnose_marker_failure() {
-  local diagnosis="PostgreSQL rejected the session-local baseline marker or its first replay; query output remains withheld."
+  local diagnosis="The disposable migration runner rejected the session-local marker or schema replay; CLI output remains withheld."
   if grep -Eiq 'permission denied' "$REPLAY_LOG"; then
     diagnosis="The local database role could not set the session-local replay marker."
   elif grep -Eiq 'unrecognized configuration parameter|invalid configuration parameter' "$REPLAY_LOG"; then
@@ -108,7 +111,7 @@ diagnose_marker_failure() {
   elif grep -Eiq 'syntax error|invalid value|does not exist' "$REPLAY_LOG"; then
     diagnosis="PostgreSQL rejected the marker SQL or its target database."
   elif grep -Eiq 'unknown flag|flag provided but not defined|unknown command|unknown shorthand|no such command' "$REPLAY_LOG"; then
-    diagnosis="The pinned Supabase CLI does not accept the local marker-query command or flag."
+    diagnosis="The pinned Supabase CLI rejected the local migration replay command or flag."
   elif grep -Eiq 'could not find|not found|not running|connection reset|database system is starting|failed to connect|error connecting' "$REPLAY_LOG"; then
     diagnosis="The pinned Supabase CLI could not resolve or connect to its disposable local Postgres endpoint."
   fi
@@ -126,7 +129,7 @@ matches = [
     line for line in path.read_text(encoding="utf-8", errors="replace").splitlines()
     if re.search(r"error|failed|fatal|denied|cannot|could not|not found|not running|timeout|invalid|refused|unknown flag|unknown command|sqlstate|connection|database", line, re.I)
 ]
-print("Sanitized marker-query error excerpt:")
+print("Sanitized migration-replay error excerpt:")
 for line in matches[-16:]:
     line = re.sub(r"\x1b\[[0-9;]*[A-Za-z]", "", line)
     line = re.sub(r"(?i)\b(?:postgres(?:ql)?|https?)://\S+", "<redacted-connection>", line)
@@ -281,10 +284,11 @@ PY
 # this runner, while --db-url can connect to its validated ephemeral endpoint.
 LOCAL_DB_URL="$(<"$LOCAL_DB_URL_FILE")"
 
-# Supply the marker only to this one database session; the snapshot guard reads
-# current_setting() and does not require a persistent database-level setting.
-# The marker setting and baseline are sent together, so no privilege or role
-# change is needed and the marker disappears when this query connection closes.
+# Supply the marker as the first statement of the one-run migration. The pinned
+# CLI applies migration statements in order on a single connection; RESET ALL
+# runs before the migration, then the marker remains session-local through the
+# baseline's authored BEGIN/COMMIT. No database-level setting or role change is
+# needed, and the CLI connection closes after applying the file.
 python3 - "$ROOT/supabase/migrations/$MIGRATION_NAME" "$MARKED_BASELINE_FILE" <<'PY'
 from pathlib import Path
 import sys
@@ -300,27 +304,34 @@ with destination.open("xb") as target:
 destination.chmod(0o600)
 PY
 
-if ! "$CLI" --workdir "$CI_WORKDIR" db query --db-url "$LOCAL_DB_URL" \
-  --file "$MARKED_BASELINE_FILE" >"$REPLAY_LOG" 2>&1; then
+cp -- "$MARKED_BASELINE_FILE" "$CI_WORKDIR/supabase/migrations/$MIGRATION_NAME"
+if ! "$CLI" --workdir "$CI_WORKDIR" migration up --db-url "$LOCAL_DB_URL" \
+  >"$REPLAY_LOG" 2>&1; then
   diagnose_marker_failure
   fail "The marker-guarded baseline did not replay on disposable local Postgres."
 fi
 
-if ! "$CLI" --workdir "$CI_WORKDIR" db query --db-url "$LOCAL_DB_URL" \
-  --file "$ROOT/scripts/ci/sandbox-tenant-isolation.sql" >"$TENANT_LOG" 2>&1; then
+cp -- "$ROOT/scripts/ci/sandbox-tenant-isolation.sql" \
+  "$CI_WORKDIR/supabase/migrations/$TENANT_MIGRATION_NAME"
+if ! "$CLI" --workdir "$CI_WORKDIR" migration up --db-url "$LOCAL_DB_URL" \
+  >"$TENANT_LOG" 2>&1; then
   fail "The synthetic two-academy RLS isolation check failed; CLI output was withheld."
 fi
 
-if "$CLI" --workdir "$CI_WORKDIR" db query --db-url "$LOCAL_DB_URL" \
-  --file "$MARKED_BASELINE_FILE" >"$GUARD_LOG" 2>&1; then
+cp -- "$MARKED_BASELINE_FILE" "$CI_WORKDIR/supabase/migrations/$GUARD_PROBE_NAME"
+if "$CLI" --workdir "$CI_WORKDIR" migration up --db-url "$LOCAL_DB_URL" \
+  >"$GUARD_LOG" 2>&1; then
   fail "The current-state baseline unexpectedly allowed replay over an existing schema."
 fi
 if ! grep -Fq 'Refusing current-state schema baseline' "$GUARD_LOG"; then
   fail "Baseline reapplication failed for a reason other than its empty-schema guard."
 fi
 
-if "$CLI" --workdir "$CI_WORKDIR" db query --db-url "$LOCAL_DB_URL" \
-  --file "$ROOT/supabase/migrations/$MIGRATION_NAME" >"$UNMARKED_GUARD_LOG" 2>&1; then
+rm -- "$CI_WORKDIR/supabase/migrations/$GUARD_PROBE_NAME"
+cp -- "$ROOT/supabase/migrations/$MIGRATION_NAME" \
+  "$CI_WORKDIR/supabase/migrations/$UNMARKED_PROBE_NAME"
+if "$CLI" --workdir "$CI_WORKDIR" migration up --db-url "$LOCAL_DB_URL" \
+  >"$UNMARKED_GUARD_LOG" 2>&1; then
   fail "The current-state baseline unexpectedly ran without its isolated CI marker."
 fi
 if ! grep -Fq 'isolated CI replay marker is missing' "$UNMARKED_GUARD_LOG"; then

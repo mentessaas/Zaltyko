@@ -193,12 +193,15 @@ describe("isolated CI workflow contract", () => {
     expect(replayScript).toContain("Sanitized native stack status:");
     expect(replayScript).toContain('>"$STATUS_LOG" 2>"$STATUS_ERROR_LOG"');
     expect(replayScript).toContain('"$START_LOG" "$STATUS_LOG" "$STATUS_ERROR_LOG" "$LOCAL_DB_URL_FILE"');
-    expect(replayScript).toContain('"$CLI" --workdir "$CI_WORKDIR" db query --db-url "$LOCAL_DB_URL"');
+    expect(replayScript).toContain('"$CLI" --workdir "$CI_WORKDIR" migration up --db-url "$LOCAL_DB_URL"');
     expect(replayScript).toContain('python3 - "$STATUS_LOG" "$PROJECT_ID" "$CI_WORKDIR" "$LOCAL_DB_URL_FILE"');
     expect(replayScript).toContain('parsed_url.hostname not in {"127.0.0.1", "localhost", "::1"}');
     expect(replayScript).toContain('db_url_path.chmod(0o600)');
     expect(replayScript).toContain("target.write(b\"SET app.schema_snapshot_replay = 'ci-empty-replay';\\n\")");
-    expect(replayScript).toContain("marker disappears when this query connection closes");
+    expect(replayScript).toContain("marker remains session-local through the");
+    expect(replayScript).toContain('readonly TENANT_MIGRATION_NAME="20261024172154_sandbox_tenant_isolation.sql"');
+    expect(replayScript).toContain('readonly GUARD_PROBE_NAME="20261024172155_sandbox_schema_guard_probe.sql"');
+    expect(replayScript).toContain('readonly UNMARKED_PROBE_NAME="20261024172156_sandbox_schema_unmarked_guard_probe.sql"');
     expect(replayScript).toContain("--runtime native");
     expect(replayScript).toContain("--exclude rest,auth,realtime,storage,functions,studio,mail,analytics,pooler");
     expect(replayScript).toContain('"$CLI" --workdir "$CI_WORKDIR" stack stop --stack "$PROJECT_ID"');
@@ -212,7 +215,7 @@ describe("isolated CI workflow contract", () => {
     expect(replayScript.indexOf('"$CLI" --workdir "$CI_WORKDIR" stack start'))
       .toBeLessThan(replayScript.indexOf("target.write(b\"SET app.schema_snapshot_replay"));
     expect(replayScript.indexOf("target.write(b\"SET app.schema_snapshot_replay"))
-      .toBeLessThan(replayScript.indexOf('--file "$MARKED_BASELINE_FILE" >"$REPLAY_LOG"'));
+      .toBeLessThan(replayScript.indexOf('migration up --db-url "$LOCAL_DB_URL"'));
     expect(replayScript).not.toContain("db reset --linked");
     expect(replayScript).not.toContain("db push");
   });
