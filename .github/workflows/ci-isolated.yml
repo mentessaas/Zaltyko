@@ -131,10 +131,13 @@ jobs:
           [[ "$EXPECTED_SHA" == "$head_sha" ]]
 
       - name: Download the pinned Supabase CLI release archive
-        run: curl --fail --silent --show-error --location "https://github.com/supabase/cli/releases/download/v2.84.2/supabase_linux_amd64.tar.gz" --output "$RUNNER_TEMP/supabase_linux_amd64.tar.gz"
+        run: curl --fail --silent --show-error --location "https://github.com/supabase/cli/releases/download/v2.119.0/supabase_2.119.0_linux_amd64.tar.gz" --output "$RUNNER_TEMP/supabase_2.119.0_linux_amd64.tar.gz"
 
-      - name: Verify and install the pinned Supabase CLI
-        run: python3 scripts/ci/install_pinned_supabase_cli.py "$RUNNER_TEMP/supabase_linux_amd64.tar.gz"
+      - name: Test the schema replay CLI installer with synthetic archives
+        run: python3 scripts/ci/test_install_schema_replay_supabase_cli.py
+
+      - name: Verify and install the isolated schema replay Supabase CLI
+        run: python3 scripts/ci/install_schema_replay_supabase_cli.py "$RUNNER_TEMP/supabase_2.119.0_linux_amd64.tar.gz"
 
       - name: Replay schema on an empty disposable local database and verify isolation
         run: bash scripts/ci/verify-sandbox-schema-replay.sh

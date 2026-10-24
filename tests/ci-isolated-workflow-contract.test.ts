@@ -65,7 +65,7 @@ describe("isolated CI workflow contract", () => {
     expect(workflow).not.toMatch(/^\s*(push|pull_request|schedule):/m);
   });
 
-  it("downloads the versioned Supabase CLI release archive before verifying its pinned binary", () => {
+  it("keeps the local-E2E Supabase CLI download on its separately pinned release", () => {
     expect(mainCiWorkflow).toContain(
       "https://github.com/supabase/cli/releases/download/v2.84.2/supabase_linux_amd64.tar.gz"
     );
@@ -175,8 +175,9 @@ describe("isolated CI workflow contract", () => {
     expect(replayJob).toContain("runs-on: ubuntu-latest");
     expect(replayJob).toContain("contents: read");
     expect(replayJob).toContain("persist-credentials: false");
-    expect(replayJob).toContain("supabase_linux_amd64.tar.gz");
-    expect(replayJob).toContain("python3 scripts/ci/install_pinned_supabase_cli.py");
+    expect(replayJob).toContain("supabase_2.119.0_linux_amd64.tar.gz");
+    expect(replayJob).toContain("python3 scripts/ci/test_install_schema_replay_supabase_cli.py");
+    expect(replayJob).toContain("python3 scripts/ci/install_schema_replay_supabase_cli.py");
     expect(replayJob).toContain("bash scripts/ci/verify-sandbox-schema-replay.sh");
     expect(replayJob).not.toMatch(/\bsecrets\.|SUPABASE_ACCESS_TOKEN|SUPABASE_DB_PASSWORD|VERCEL_TOKEN|STRIPE_SECRET_KEY|supabase link|--linked|actions\/deploy/i);
     expect(replayScript).toContain('"${GITHUB_ACTIONS:-}" == "true"');
@@ -186,14 +187,17 @@ describe("isolated CI workflow contract", () => {
     expect(replayScript).toContain("diagnose_marker_failure");
     expect(replayScript).toContain("credential-bearing output remains withheld");
     expect(replayScript).toContain("Sanitized CLI startup error excerpt");
-    expect(replayScript).toContain("docker ps -a --filter 'label=com.docker.compose.project'");
-    expect(replayScript).toContain('"$CLI" --workdir "$CI_WORKDIR" db start');
+    expect(replayScript).toContain('"$CLI" --workdir "$CI_WORKDIR" stack start');
+    expect(replayScript).toContain("--runtime native");
+    expect(replayScript).toContain("--exclude rest,auth,realtime,storage,functions,studio,mail,analytics,pooler");
+    expect(replayScript).toContain('"$CLI" --workdir "$CI_WORKDIR" stack stop --stack "$PROJECT_ID"');
+    expect(replayScript).not.toContain("docker ps -a");
+    expect(replayScript).not.toContain("docker info");
     expect(replayScript).toContain("SUPABASE_ACCESS_TOKEN");
     expect(replayScript).toContain("db reset --local --no-seed");
     expect(replayScript).toContain("db query --local --file");
-    expect(replayScript).toContain("--no-backup");
     expect(replayScript).toContain("Refusing current-state schema baseline");
-    expect(replayScript.indexOf('"$CLI" --workdir "$CI_WORKDIR" db start'))
+    expect(replayScript.indexOf('"$CLI" --workdir "$CI_WORKDIR" stack start'))
       .toBeLessThan(replayScript.indexOf('cp "$ROOT/supabase/migrations/$MIGRATION_NAME"'));
     expect(replayScript.indexOf('cp "$ROOT/supabase/migrations/$MIGRATION_NAME"'))
       .toBeLessThan(replayScript.indexOf("ALTER DATABASE postgres SET app.schema_snapshot_replay"));

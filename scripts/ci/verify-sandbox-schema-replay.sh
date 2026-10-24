@@ -3,6 +3,7 @@ set -euo pipefail
 
 readonly EXPECTED_BRANCH="codex/owner-isolated-validation-20261023"
 readonly MIGRATION_NAME="20261024172153_sandbox_schema_snapshot_baseline.sql"
+readonly SUPABASE_CLI_VERSION="2.119.0"
 readonly ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/../.." && pwd)"
 
 fail() {
@@ -12,6 +13,7 @@ fail() {
 
 [[ "${GITHUB_ACTIONS:-}" == "true" ]] || fail "GitHub Actions is required."
 [[ "${RUNNER_OS:-}" == "Linux" && "$(uname -s)" == "Linux" ]] || fail "A disposable Linux runner is required."
+[[ "$(id -u)" -ne 0 ]] || fail "The native Postgres runtime must use a non-root runner account."
 [[ -n "${RUNNER_TEMP:-}" && -d "$RUNNER_TEMP" ]] || fail "RUNNER_TEMP must be an existing directory."
 [[ "${GITHUB_REF:-}" == "refs/heads/$EXPECTED_BRANCH" ]] || fail "Unexpected workflow branch."
 [[ "${DISPATCH_REF:-}" == "refs/heads/$EXPECTED_BRANCH" ]] || fail "Unexpected dispatched ref."
@@ -25,7 +27,8 @@ done
 
 readonly PROJECT_ID="zaltyko-schema-${GITHUB_RUN_ID}-${GITHUB_RUN_ATTEMPT}"
 readonly CI_WORKDIR="$RUNNER_TEMP/$PROJECT_ID"
-readonly CLI="$RUNNER_TEMP/supabase-cli-2.84.2/supabase"
+readonly CLI_HOME="$RUNNER_TEMP/$PROJECT_ID-home"
+readonly CLI="$RUNNER_TEMP/supabase-schema-replay-cli-$SUPABASE_CLI_VERSION/supabase"
 readonly START_LOG="$RUNNER_TEMP/$PROJECT_ID-start.log"
 readonly RESET_LOG="$RUNNER_TEMP/$PROJECT_ID-reset.log"
 readonly TENANT_LOG="$RUNNER_TEMP/$PROJECT_ID-tenant.log"
@@ -35,37 +38,30 @@ local_stack_started=false
 
 cleanup() {
   if [[ "$local_stack_started" == "true" ]]; then
-    "$CLI" --workdir "$CI_WORKDIR" stop --project-id "$PROJECT_ID" --no-backup >/dev/null 2>&1 || true
+    "$CLI" --workdir "$CI_WORKDIR" stack stop --stack "$PROJECT_ID" >/dev/null 2>&1 || true
   fi
-  rm -rf -- "$CI_WORKDIR" "$START_LOG" "$RESET_LOG" "$TENANT_LOG" "$GUARD_LOG" "$MARKER_GUARD_LOG"
+  rm -rf -- "$CI_WORKDIR" "$CLI_HOME" \
+    "$RUNNER_TEMP/supabase-schema-replay-cli-$SUPABASE_CLI_VERSION" \
+    "$RUNNER_TEMP/supabase_${SUPABASE_CLI_VERSION}_linux_amd64.tar.gz" \
+    "$START_LOG" "$RESET_LOG" "$TENANT_LOG" "$GUARD_LOG" "$MARKER_GUARD_LOG"
 }
 trap cleanup EXIT
 
+export SUPABASE_HOME="$CLI_HOME"
+export SUPABASE_TELEMETRY_DISABLED=1
+
 diagnose_start_failure() {
-  local diagnosis="Supabase CLI startup failed; credential-bearing output remains withheld."
-  if ! docker info --format '{{.ServerVersion}}' >/dev/null 2>&1; then
-    diagnosis="Docker daemon is unavailable to this runner."
-  elif grep -Eiq 'no space left on device' "$START_LOG"; then
+  local diagnosis="Native Supabase Postgres startup failed; credential-bearing output remains withheld."
+  if grep -Eiq 'no space left on device' "$START_LOG"; then
     diagnosis="The disposable runner ran out of disk space while starting Supabase."
   elif grep -Eiq 'port is already allocated|address already in use' "$START_LOG"; then
     diagnosis="A required local Supabase port is already in use on the disposable runner."
-  elif grep -Eiq 'pull access denied|manifest unknown|repository does not exist' "$START_LOG"; then
-    diagnosis="A required Supabase container image could not be fetched."
-  elif grep -Eiq 'unhealthy|failed to start|container exited' "$START_LOG"; then
-    diagnosis="A Supabase container failed its startup or health check."
+  elif grep -Eiq 'download|failed to extract|checksum|archive' "$START_LOG"; then
+    diagnosis="A verified native Supabase service archive could not be downloaded or prepared."
+  elif grep -Eiq 'permission denied|not a tty|must not run as root|cannot run as root' "$START_LOG"; then
+    diagnosis="The runner user does not meet the native Postgres startup requirements."
   fi
   printf 'Safe startup diagnosis: %s\n' "$diagnosis" >&2
-
-  local container_state
-  container_state="$(docker ps -a --filter 'label=com.docker.compose.project' --format '{{.Names}} | {{.Status}}' 2>/dev/null || true)"
-  if [[ -n "$container_state" ]]; then
-    printf 'Compose container states (names and status only):\n%s\n' \
-      "${container_state//$PROJECT_ID/<isolated-run>}" >&2
-  else
-    printf 'No Compose containers remained visible on the disposable runner.\n' >&2
-  fi
-
-  docker info --format 'Docker server version: {{.ServerVersion}}; memory: {{.MemTotal}} bytes' 2>/dev/null >&2 || true
   df -h "$RUNNER_TEMP" 2>/dev/null | tail -n 1 >&2 || true
 
   python3 - "$START_LOG" <<'PY' >&2
@@ -122,19 +118,25 @@ destination = Path(sys.argv[2])
 project_id = sys.argv[3]
 text = source.read_text(encoding="utf-8")
 text, replacements = re.subn(r'^project_id\s*=\s*"[^"]+"\s*$', f'project_id = "{project_id}"', text, count=1, flags=re.MULTILINE)
-if replacements != 1 or "[db.seed]" not in text or "enabled = false" not in text:
+if replacements != 1 or "[db.seed]" not in text or "enabled = false" not in text or "[experimental]" in text:
     raise SystemExit("The isolated Supabase config is not the expected migration-only template.")
+text += "\n[experimental]\nstack = true\n"
 Path(destination).write_text(text, encoding="utf-8")
 PY
 
 mapfile -t migrations < <(find "$ROOT/supabase/migrations" -maxdepth 1 -type f -name '*.sql' -printf '%f\n' | sort)
 [[ "${#migrations[@]}" -eq 1 && "${migrations[0]}" == "$MIGRATION_NAME" ]] || fail "Expected exactly the reviewed current-state baseline migration."
 
-# Start only disposable local Postgres rather than the full Supabase service
-# stack. CLI output is kept in RUNNER_TEMP and never printed because it may
-# include generated local credentials.
+# Start only disposable native Postgres rather than Docker images or the full
+# Supabase service stack. The stack is one-run, native mode is explicitly
+# selected, and all CLI state stays under RUNNER_TEMP.
 local_stack_started=true
-if ! "$CLI" --workdir "$CI_WORKDIR" db start >"$START_LOG" 2>&1; then
+if ! "$CLI" --workdir "$CI_WORKDIR" stack start \
+  --stack "$PROJECT_ID" \
+  --runtime native \
+  --preparation on-demand \
+  --exclude rest,auth,realtime,storage,functions,studio,mail,analytics,pooler \
+  >"$START_LOG" 2>&1; then
   diagnose_start_failure
   fail "Disposable local Postgres did not start; CLI output was withheld to avoid credential disclosure."
 fi
