@@ -200,8 +200,8 @@ describe("isolated CI workflow contract", () => {
     expect(replayScript).toContain("target.write(b\"SET app.schema_snapshot_replay = 'ci-empty-replay';\\n\")");
     expect(replayScript).toContain("marker remains session-local through the");
     expect(replayScript).toContain("rolsuper AS is_superuser FROM pg_roles WHERE rolname = current_user");
-    expect(replayScript).toContain('parsed_url._replace(username="supabase_admin", query=urlencode(query))');
-    expect(replayScript).toContain("role=%s, superuser=%s");
+    expect(replayScript).toContain('admin_netloc = f"{userinfo}@{authority_host}:{port}"');
+    expect(replayScript).toContain('role=%s, superuser=%s');
     expect(replayScript).not.toContain("GRANT supabase_admin TO postgres");
     expect(replayScript).not.toContain("REVOKE supabase_admin FROM postgres");
     expect(replayScript).not.toContain("CREATE ROLE");

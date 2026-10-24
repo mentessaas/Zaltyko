@@ -252,7 +252,13 @@ if (
     raise SystemExit("The stack did not provide a valid loopback Postgres URL.")
 query = [(key, value) for key, value in parse_qsl(parsed_url.query) if key != "sslmode"]
 query.append(("sslmode", "disable"))
-local_db_url = urlunsplit(parsed_url._replace(username="supabase_admin", query=urlencode(query)))
+host = parsed_url.hostname
+authority_host = f"[{host}]" if ":" in host else host
+userinfo = "supabase_admin"
+if parsed_url.password is not None:
+    userinfo += f":{parsed_url.password}"
+admin_netloc = f"{userinfo}@{authority_host}:{port}"
+local_db_url = urlunsplit(parsed_url._replace(netloc=admin_netloc, query=urlencode(query)))
 safe = {
     "name": identity.get("name"),
     "project_root_matches": root_matches,
