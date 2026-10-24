@@ -145,10 +145,10 @@ jobs:
           node-version: "20"
 
       - name: Install frozen dependencies
-        run: pnpm install --frozen-lockfile
+        run: pnpm install --frozen-lockfile --prod=false
 
       - name: Build candidate with placeholders only
-        run: pnpm build
+        run: DEBUG=next:jsconfig-paths-plugin pnpm build
 
   lockfile-refresh:
     name: Propose targeted dependency lockfile refresh
