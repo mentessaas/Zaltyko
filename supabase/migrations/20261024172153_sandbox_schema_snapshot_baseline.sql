@@ -4816,6 +4816,15 @@ ALTER TABLE zaltyko.waitlist_offers ADD CONSTRAINT waitlist_offers_dates_valid C
 ALTER TABLE zaltyko.waitlist_offers ADD CONSTRAINT waitlist_offers_idempotency_key_check CHECK (btrim(idempotency_key) <> ''::text);
 ALTER TABLE zaltyko.waitlist_offers ADD CONSTRAINT waitlist_offers_version_check CHECK (version > 0);
 ALTER TABLE zaltyko_domain_private.e2e_schema_migrations ADD CONSTRAINT e2e_schema_migrations_checksum_check CHECK (checksum ~ '^[a-f0-9]{64}$'::text);
+CREATE UNIQUE INDEX class_templates_organization_location_id_uq ON zaltyko.class_templates USING btree (organization_id, location_id, id);
+CREATE UNIQUE INDEX enrollments_organization_location_id_uq ON zaltyko.enrollments USING btree (organization_id, location_id, id);
+CREATE UNIQUE INDEX family_payers_organization_family_id_uq ON zaltyko.family_payers USING btree (organization_id, family_id, id);
+CREATE UNIQUE INDEX group_memberships_organization_id_id_uq ON zaltyko.group_memberships USING btree (organization_id, id);
+CREATE UNIQUE INDEX invoice_lines_coverage_parent_fk_uq ON zaltyko.invoice_lines USING btree (organization_id, location_id, athlete_id, price_plan_id, id);
+CREATE UNIQUE INDEX metric_run_values_organization_id_id_uq ON zaltyko.metric_run_values USING btree (organization_id, id);
+CREATE UNIQUE INDEX organization_saas_webhook_events_org_id_id_uq ON zaltyko.organization_saas_webhook_events USING btree (organization_id, id);
+CREATE UNIQUE INDEX outbox_events_organization_id_id_uq ON zaltyko.outbox_events USING btree (organization_id, id);
+CREATE UNIQUE INDEX sessions_organization_location_id_uq ON zaltyko.sessions USING btree (organization_id, location_id, id);
 ALTER TABLE public.academies ADD CONSTRAINT academies_fraud_hold_actor_id_fkey FOREIGN KEY (fraud_hold_actor_id) REFERENCES public.profiles(id) ON DELETE SET NULL;
 ALTER TABLE public.academies ADD CONSTRAINT academies_fraud_hold_cleared_actor_id_fkey FOREIGN KEY (fraud_hold_cleared_actor_id) REFERENCES public.profiles(id) ON DELETE SET NULL;
 ALTER TABLE public.academies ADD CONSTRAINT academies_owner_id_profiles_id_fk FOREIGN KEY (owner_id) REFERENCES public.profiles(id) ON DELETE CASCADE;
@@ -7110,7 +7119,6 @@ CREATE UNIQUE INDEX benchmark_profiles_key_version_uq ON zaltyko.benchmark_profi
 CREATE INDEX charges_due_status_idx ON zaltyko.charges USING btree (organization_id, status, due_at);
 CREATE INDEX charges_service_period_idx ON zaltyko.charges USING btree (organization_id, currency, service_period_start, service_period_end);
 CREATE INDEX class_templates_location_status_idx ON zaltyko.class_templates USING btree (organization_id, location_id, status);
-CREATE UNIQUE INDEX class_templates_organization_location_id_uq ON zaltyko.class_templates USING btree (organization_id, location_id, id);
 CREATE INDEX data_quality_issues_open_idx ON zaltyko.data_quality_issues USING btree (organization_id, status, detected_at DESC);
 CREATE INDEX enrollment_pauses_enrollment_idx ON zaltyko.enrollment_pauses USING btree (organization_id, enrollment_id);
 CREATE UNIQUE INDEX enrollment_pauses_one_open_uq ON zaltyko.enrollment_pauses USING btree (organization_id, enrollment_id) WHERE (ends_on IS NULL);
@@ -7121,7 +7129,6 @@ CREATE INDEX enrollment_status_history_enrollment_idx ON zaltyko.enrollment_stat
 CREATE INDEX enrollments_athlete_status_idx ON zaltyko.enrollments USING btree (organization_id, athlete_id, status);
 CREATE INDEX enrollments_class_status_idx ON zaltyko.enrollments USING btree (organization_id, class_template_id, status);
 CREATE UNIQUE INDEX enrollments_open_uq ON zaltyko.enrollments USING btree (organization_id, athlete_id, class_template_id) WHERE (status = ANY (ARRAY['pending'::zaltyko.enrollment_status, 'trial'::zaltyko.enrollment_status, 'active'::zaltyko.enrollment_status, 'paused'::zaltyko.enrollment_status]));
-CREATE UNIQUE INDEX enrollments_organization_location_id_uq ON zaltyko.enrollments USING btree (organization_id, location_id, id);
 CREATE INDEX facilities_location_idx ON zaltyko.facilities USING btree (organization_id, location_id);
 CREATE INDEX families_organization_active_idx ON zaltyko.families USING btree (organization_id, is_active);
 CREATE INDEX family_collection_preferences_mode_idx ON zaltyko.family_collection_preferences USING btree (organization_id, requested_mode, entitlement_revision);
@@ -7129,7 +7136,6 @@ CREATE INDEX family_members_athlete_idx ON zaltyko.family_members USING btree (o
 CREATE UNIQUE INDEX family_members_one_open_uq ON zaltyko.family_members USING btree (organization_id, family_id, athlete_id) WHERE (ends_on IS NULL);
 CREATE INDEX family_payers_guardian_idx ON zaltyko.family_payers USING btree (organization_id, guardian_id, ends_on);
 CREATE UNIQUE INDEX family_payers_one_primary_uq ON zaltyko.family_payers USING btree (organization_id, family_id) WHERE (is_primary AND (ends_on IS NULL));
-CREATE UNIQUE INDEX family_payers_organization_family_id_uq ON zaltyko.family_payers USING btree (organization_id, family_id, id);
 CREATE UNIQUE INDEX family_payers_organization_id_id_uq ON zaltyko.family_payers USING btree (organization_id, id);
 CREATE UNIQUE INDEX family_payment_authorizations_active_method_uq ON zaltyko.family_payment_authorizations USING btree (organization_id, payment_provider_account_id, family_payer_id) WHERE (status = 'active'::zaltyko.payment_authorization_status);
 CREATE INDEX family_payment_authorizations_payer_status_idx ON zaltyko.family_payment_authorizations USING btree (organization_id, family_id, family_payer_id, status, valid_until);
@@ -7138,7 +7144,6 @@ CREATE INDEX group_membership_history_membership_idx ON zaltyko.group_membership
 CREATE INDEX group_memberships_athlete_idx ON zaltyko.group_memberships USING btree (organization_id, athlete_id, status);
 CREATE INDEX group_memberships_group_idx ON zaltyko.group_memberships USING btree (organization_id, group_id, status);
 CREATE UNIQUE INDEX group_memberships_open_uq ON zaltyko.group_memberships USING btree (organization_id, group_id, athlete_id) WHERE (status = ANY (ARRAY['pending'::zaltyko.group_membership_status, 'active'::zaltyko.group_membership_status, 'paused'::zaltyko.group_membership_status]));
-CREATE UNIQUE INDEX group_memberships_organization_id_id_uq ON zaltyko.group_memberships USING btree (organization_id, id);
 CREATE INDEX groups_location_status_idx ON zaltyko.groups USING btree (organization_id, location_id, status);
 CREATE UNIQUE INDEX guardian_contacts_primary_kind_uq ON zaltyko.guardian_contacts USING btree (organization_id, guardian_id, kind) WHERE is_primary;
 CREATE INDEX guardians_auth_user_idx ON zaltyko.guardians USING btree (auth_user_id);
@@ -7146,7 +7151,6 @@ CREATE INDEX health_score_snapshots_dashboard_idx ON zaltyko.health_score_snapsh
 CREATE INDEX insights_inbox_idx ON zaltyko.insights USING btree (organization_id, status, priority_score DESC, last_seen_at DESC);
 CREATE INDEX insights_location_inbox_idx ON zaltyko.insights USING btree (organization_id, location_id, status, priority_score DESC);
 CREATE INDEX invoice_line_enrollments_enrollment_idx ON zaltyko.invoice_line_enrollments USING btree (organization_id, location_id, enrollment_id);
-CREATE UNIQUE INDEX invoice_lines_coverage_parent_fk_uq ON zaltyko.invoice_lines USING btree (organization_id, location_id, athlete_id, price_plan_id, id);
 CREATE INDEX invoice_lines_invoice_idx ON zaltyko.invoice_lines USING btree (organization_id, invoice_id);
 CREATE UNIQUE INDEX invoice_lines_monthly_athlete_uq ON zaltyko.invoice_lines USING btree (organization_id, invoice_id, athlete_id, service_period_start, service_period_end) WHERE ((line_type = 'monthly_fee'::text) AND (athlete_id IS NOT NULL));
 CREATE INDEX invoices_due_status_idx ON zaltyko.invoices USING btree (organization_id, status, due_at);
@@ -7154,7 +7158,6 @@ CREATE INDEX locations_organization_idx ON zaltyko.locations USING btree (organi
 CREATE INDEX member_location_scopes_location_idx ON zaltyko.member_location_scopes USING btree (organization_id, location_id);
 CREATE INDEX metric_invalidations_pending_idx ON zaltyko.metric_invalidations USING btree (organization_id, status, affected_from, affected_to);
 CREATE UNIQUE INDEX metric_run_values_natural_uq ON zaltyko.metric_run_values USING btree (metric_run_id, COALESCE(location_id, '00000000-0000-0000-0000-000000000000'::uuid), metric_key, dimensions_sha256, COALESCE(currency, ''::text));
-CREATE UNIQUE INDEX metric_run_values_organization_id_id_uq ON zaltyko.metric_run_values USING btree (organization_id, id);
 CREATE INDEX metric_runs_period_idx ON zaltyko.metric_runs USING btree (organization_id, period_end DESC, started_at DESC);
 CREATE INDEX metric_values_dashboard_idx ON zaltyko.metric_values USING btree (organization_id, period_end DESC, metric_key);
 CREATE UNIQUE INDEX metric_values_natural_uq ON zaltyko.metric_values USING btree (organization_id, COALESCE(location_id, '00000000-0000-0000-0000-000000000000'::uuid), metric_key, period_start, period_end, dimensions_sha256, formula_version, COALESCE(currency, ''::text));
@@ -7167,14 +7170,12 @@ CREATE UNIQUE INDEX organization_saas_subscriptions_organization_uq ON zaltyko.o
 CREATE INDEX organization_saas_subscriptions_status_idx ON zaltyko.organization_saas_subscriptions USING btree (organization_id, provider_status, current_period_ends_at);
 CREATE INDEX organization_saas_trials_cooldown_idx ON zaltyko.organization_saas_trials USING btree (organization_id, started_at DESC);
 CREATE UNIQUE INDEX organization_saas_trials_one_active_uq ON zaltyko.organization_saas_trials USING btree (organization_id) WHERE (status = 'active'::zaltyko.organization_saas_trial_status);
-CREATE UNIQUE INDEX organization_saas_webhook_events_org_id_id_uq ON zaltyko.organization_saas_webhook_events USING btree (organization_id, id);
 CREATE INDEX organization_saas_webhook_events_org_idx ON zaltyko.organization_saas_webhook_events USING btree (organization_id, received_at DESC) WHERE (organization_id IS NOT NULL);
 CREATE INDEX organization_saas_webhook_events_queue_idx ON zaltyko.organization_saas_webhook_events USING btree (status, received_at) WHERE (status = ANY (ARRAY['received'::text, 'failed'::text]));
 CREATE UNIQUE INDEX organization_sports_active_profile_uq ON zaltyko.organization_sports USING btree (organization_id, sport_profile_id) WHERE (status = 'active'::zaltyko.organization_sport_status);
 CREATE UNIQUE INDEX organization_sports_primary_active_uq ON zaltyko.organization_sports USING btree (organization_id) WHERE ((role = 'primary'::zaltyko.organization_sport_role) AND (status = 'active'::zaltyko.organization_sport_status));
 CREATE INDEX organization_sports_profile_idx ON zaltyko.organization_sports USING btree (country_code, sport_profile_id);
 CREATE INDEX outbox_events_dispatch_idx ON zaltyko.outbox_events USING btree (status, available_at);
-CREATE UNIQUE INDEX outbox_events_organization_id_id_uq ON zaltyko.outbox_events USING btree (organization_id, id);
 CREATE INDEX outbox_events_unsettled_freshness_idx ON zaltyko.outbox_events USING btree (organization_id, location_id, occurred_at) WHERE (status = ANY (ARRAY['pending'::zaltyko.outbox_status, 'processing'::zaltyko.outbox_status, 'failed'::zaltyko.outbox_status]));
 CREATE INDEX owner_signup_consent_audits_user_recorded_idx ON zaltyko.owner_signup_consent_audits USING btree (user_id, recorded_at);
 CREATE INDEX owner_signup_consents_policy_version_idx ON zaltyko.owner_signup_consents USING btree (policy_version);
@@ -7197,7 +7198,6 @@ CREATE UNIQUE INDEX retention_cohort_projections_scope_period_uq ON zaltyko.rete
 CREATE INDEX saas_webhook_reconciliation_event_idx ON zaltyko.organization_saas_webhook_reconciliation_decisions USING btree (organization_id, webhook_event_id, created_at DESC);
 CREATE INDEX saas_webhook_reconciliation_queue_idx ON zaltyko.organization_saas_webhook_events USING btree (reconciliation_next_attempt_at, received_at) WHERE ((reconciliation_decision_id IS NOT NULL) AND (status = ANY (ARRAY['received'::text, 'failed'::text])));
 CREATE INDEX sessions_location_start_idx ON zaltyko.sessions USING btree (organization_id, location_id, starts_at);
-CREATE UNIQUE INDEX sessions_organization_location_id_uq ON zaltyko.sessions USING btree (organization_id, location_id, id);
 CREATE INDEX spaces_facility_idx ON zaltyko.spaces USING btree (organization_id, facility_id);
 CREATE INDEX spaces_location_idx ON zaltyko.spaces USING btree (organization_id, location_id);
 CREATE INDEX trial_followups_trial_completed_idx ON zaltyko.trial_followups USING btree (organization_id, trial_id, completed_at);
