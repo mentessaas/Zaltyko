@@ -10,6 +10,7 @@ import { createScheduledClass } from "@/modules/scheduling/application/class-man
 import { createEnrollment } from "@/modules/enrollments/application/enrollment-service";
 import { recordAttendance } from "@/modules/attendance/application/attendance-service";
 import { getOwnerSessionAttendance } from "@/modules/attendance/application/owner-session-attendance";
+import { associateOwnerFamily } from "@/modules/families/application/owner-family-association";
 
 const snapshotTables = [
   "athletes",
@@ -20,9 +21,14 @@ const snapshotTables = [
   "class_templates",
   "enrollments",
   "enrollment_status_history",
+  "families",
+  "family_guardians",
+  "family_members",
+  "family_payers",
   "group_membership_history",
   "group_memberships",
   "groups",
+  "guardians",
   "outbox_events",
   "people",
   "session_staff",
@@ -273,7 +279,7 @@ async function seedEnrollmentEligibilityAcademy() {
   const memberId = randomUUID();
   const locationIds = [randomUUID(), randomUUID()];
   const groupIds = [randomUUID(), randomUUID()];
-  const classTemplateId = randomUUID();
+  const classTemplateIds = [randomUUID(), randomUUID()];
   const athletes = [0, 1].map(() => ({
     personId: randomUUID(),
     athleteId: randomUUID(),
@@ -352,15 +358,9 @@ async function seedEnrollmentEligibilityAcademy() {
     insert into zaltyko.class_templates (
       id, organization_id, location_id, name, capacity, status, effective_from
     )
-    values (
-      ${classTemplateId}::uuid,
-      ${organizationId}::uuid,
-      ${locationIds[0]}::uuid,
-      'CI enrollment class A',
-      10,
-      'active',
-      current_date
-    )
+    values
+      (${classTemplateIds[0]}::uuid, ${organizationId}::uuid, ${locationIds[0]}::uuid, 'CI enrollment class A', 10, 'active', current_date),
+      (${classTemplateIds[1]}::uuid, ${organizationId}::uuid, ${locationIds[1]}::uuid, 'CI enrollment class B', 10, 'active', current_date)
   `);
   const [dateRow] = (await db.execute(sql`select current_date::text as date`)).rows as Array<{
     date: string;
@@ -368,8 +368,10 @@ async function seedEnrollmentEligibilityAcademy() {
 
   return {
     organizationId,
-    classTemplateId,
+    classTemplateId: classTemplateIds[0]!,
+    otherSiteClassTemplateId: classTemplateIds[1]!,
     targetLocationId: locationIds[0]!,
+    otherSiteLocationId: locationIds[1]!,
     targetAthleteId: athletes[0]!.athleteId,
     otherSiteOnlyAthleteId: athletes[1]!.athleteId,
     startsOn: dateRow!.date,
@@ -411,6 +413,35 @@ async function seedAttendanceFixture() {
     enrollmentId: enrollment.id,
     sessionId,
   };
+}
+
+async function seedFamilyAssociationFixture() {
+  const academy = await seedEnrollmentEligibilityAcademy();
+  await Promise.all([
+    createEnrollment({
+      organizationId: academy.organizationId,
+      locationId: academy.targetLocationId,
+      athleteId: academy.targetAthleteId,
+      classTemplateId: academy.classTemplateId,
+      status: "active",
+      startsOn: academy.startsOn,
+      source: "owner",
+      idempotencyKey: "ci-family-enrollment-a-" + randomUUID(),
+      actor: academy.actor,
+    }),
+    createEnrollment({
+      organizationId: academy.organizationId,
+      locationId: academy.otherSiteLocationId,
+      athleteId: academy.otherSiteOnlyAthleteId,
+      classTemplateId: academy.otherSiteClassTemplateId,
+      status: "active",
+      startsOn: academy.startsOn,
+      source: "owner",
+      idempotencyKey: "ci-family-enrollment-b-" + randomUUID(),
+      actor: academy.actor,
+    }),
+  ]);
+  return academy;
 }
 
 describe("Free capacity guards on disposable PostgreSQL", () => {
@@ -725,6 +756,122 @@ describe("Free capacity guards on disposable PostgreSQL", () => {
     let rollbackError: unknown;
     try {
       await recordAttendance({ ...command, idempotencyKey: rollbackKey });
+    } catch (error) {
+      rollbackError = error;
+    }
+    expect(rollbackError).toBeInstanceOf(Error);
+    expect((rollbackError as Error & { cause?: unknown }).cause).toMatchObject({
+      code: "23505",
+      constraint: "audit_log_idempotency_uq",
+    });
+    expect(await snapshot(fixture.organizationId)).toEqual(beforeRollback);
+  }, 45_000);
+
+  it("associates families atomically, replays once, and rejects a different site without partial rows", async () => {
+    assertDisposableTarget();
+    const fixture = await seedFamilyAssociationFixture();
+    const firstKey = "ci-family-association-" + randomUUID();
+    const command = {
+      organizationId: fixture.organizationId,
+      locationId: fixture.targetLocationId,
+      athleteIds: [fixture.targetAthleteId],
+      effectiveFrom: fixture.startsOn,
+      payer: {
+        givenName: "Synthetic",
+        familyName: "Guardian A",
+        relationship: "parent" as const,
+      },
+      idempotencyKey: firstKey,
+      actor: fixture.actor,
+    };
+
+    const beforeAssociation = await snapshot(fixture.organizationId);
+    const concurrentResults = await Promise.all([
+      associateOwnerFamily(command),
+      associateOwnerFamily(command),
+    ]);
+    expect(concurrentResults[0]?.family.id).toBe(concurrentResults[1]?.family.id);
+    expect(concurrentResults[0]?.familyPayerId).toBe(concurrentResults[1]?.familyPayerId);
+    expect(concurrentResults[0]?.guardianId).toBe(concurrentResults[1]?.guardianId);
+    expect(concurrentResults.map((result) => result.replayed).sort()).toEqual([false, true]);
+
+    const afterAssociation = await snapshot(fixture.organizationId);
+    expect(afterAssociation).not.toEqual(beforeAssociation);
+    await expect(associateOwnerFamily(command)).resolves.toMatchObject({
+      family: { id: concurrentResults[0]!.family.id },
+      familyPayerId: concurrentResults[0]!.familyPayerId,
+      guardianId: concurrentResults[0]!.guardianId,
+      replayed: true,
+    });
+    expect(await snapshot(fixture.organizationId)).toEqual(afterAssociation);
+
+    const associationRows = await db.execute(sql`
+      select
+        (select count(*)::int from zaltyko.families
+          where organization_id = ${fixture.organizationId}::uuid) as family_count,
+        (select count(*)::int from zaltyko.family_members
+          where organization_id = ${fixture.organizationId}::uuid
+            and athlete_id = ${fixture.targetAthleteId}::uuid) as member_count,
+        (select count(*)::int from zaltyko.family_guardians
+          where organization_id = ${fixture.organizationId}::uuid) as family_guardian_count,
+        (select count(*)::int from zaltyko.guardians
+          where organization_id = ${fixture.organizationId}::uuid) as guardian_count,
+        (select count(*)::int from zaltyko.family_payers
+          where organization_id = ${fixture.organizationId}::uuid) as payer_count,
+        (select count(*)::int from zaltyko.outbox_events
+          where organization_id = ${fixture.organizationId}::uuid
+            and event_name = 'family.owner_associated'
+            and idempotency_key = ${firstKey}) as outbox_count,
+        (select count(*)::int from zaltyko.audit_log
+          where organization_id = ${fixture.organizationId}::uuid
+            and idempotency_key = ${firstKey}) as audit_count
+    `);
+    expect(associationRows.rows[0]).toEqual({
+      family_count: 1,
+      member_count: 1,
+      family_guardian_count: 1,
+      guardian_count: 1,
+      payer_count: 1,
+      outbox_count: 1,
+      audit_count: 1,
+    });
+
+    const beforeWrongSite = await snapshot(fixture.organizationId);
+    await expect(associateOwnerFamily({
+      ...command,
+      athleteIds: [fixture.otherSiteOnlyAthleteId],
+      idempotencyKey: "ci-family-wrong-site-" + randomUUID(),
+    })).rejects.toMatchObject({ code: "NOT_FOUND", status: 404 });
+    expect(await snapshot(fixture.organizationId)).toEqual(beforeWrongSite);
+
+    const rollbackKey = "ci-family-rollback-" + randomUUID();
+    await db.execute(sql`
+      insert into zaltyko.audit_log (
+        organization_id, location_id, actor_user_id, action, target_type, idempotency_key
+      )
+      values (
+        ${fixture.organizationId}::uuid,
+        ${fixture.otherSiteLocationId}::uuid,
+        ${fixture.actor.userId}::uuid,
+        'ci.conflict.seed',
+        'family',
+        ${rollbackKey}
+      )
+    `);
+    const beforeRollback = await snapshot(fixture.organizationId);
+    let rollbackError: unknown;
+    try {
+      await associateOwnerFamily({
+        ...command,
+        locationId: fixture.otherSiteLocationId,
+        athleteIds: [fixture.otherSiteOnlyAthleteId],
+        payer: {
+          givenName: "Synthetic",
+          familyName: "Guardian B",
+          relationship: "parent",
+        },
+        idempotencyKey: rollbackKey,
+      });
     } catch (error) {
       rollbackError = error;
     }
