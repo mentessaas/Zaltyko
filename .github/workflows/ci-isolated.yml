@@ -4,17 +4,19 @@ on:
   workflow_dispatch:
     inputs:
       resolution_mode:
-        description: "Controles habituales, build candidato remoto o propuesta de lockfile"
+        description: "Controles estáticos, replay SQL desechable, build remoto o propuesta de lockfile"
         type: choice
         required: true
         default: checks
         options:
           - checks
+          - schema-replay
           - remote-build
+          - checks-and-build
           - lockfile-refresh
           - vite-refresh
       expected_sha:
-        description: "SHA completo del HEAD seleccionado para build o resolución de lockfile"
+        description: "SHA completo del HEAD seleccionado para replay, build o resolución de lockfile"
         type: string
         required: false
         default: ""
@@ -98,9 +100,51 @@ jobs:
         if: always() && !cancelled() && steps.dependencies.outcome == 'success' && steps.network-isolation.outcome == 'success'
         run: sudo --preserve-env=PATH,HOME,CI,NODE_ENV,NEXT_PUBLIC_APP_URL,NEXT_PUBLIC_SUPABASE_URL,NEXT_PUBLIC_SUPABASE_ANON_KEY,DATABASE_URL,DATABASE_URL_POOL,DATABASE_URL_DIRECT,INTERNAL_AUTH_SECRET,SUPABASE_JWT_SECRET unshare --net -- bash -euc 'ip link set lo up && exec "$@"' isolated-check pnpm gate:all
 
+  schema-replay:
+    name: Disposable local schema replay and tenant isolation
+    needs: static-and-unit
+    if: ${{ inputs.resolution_mode == 'schema-replay' || inputs.resolution_mode == 'checks-and-build' }}
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    permissions:
+      contents: read
+    env:
+      EXPECTED_SHA: ${{ inputs.expected_sha }}
+      DISPATCH_SHA: ${{ github.sha }}
+      DISPATCH_REF: ${{ github.ref }}
+    steps:
+      - name: Checkout without persisted credentials
+        uses: actions/checkout@v7
+        with:
+          persist-credentials: false
+
+      - name: Require the candidate branch and exact SHA
+        shell: bash
+        run: |
+          set -euo pipefail
+          branch='codex/owner-isolated-validation-20261023'
+          head_sha="$(git rev-parse HEAD)"
+          [[ "$GITHUB_REF" == "refs/heads/$branch" ]]
+          [[ "$DISPATCH_REF" == "refs/heads/$branch" ]]
+          [[ "$EXPECTED_SHA" =~ ^[0-9a-f]{40}$ ]]
+          [[ "$DISPATCH_SHA" == "$head_sha" ]]
+          [[ "$EXPECTED_SHA" == "$head_sha" ]]
+
+      - name: Download the pinned Supabase CLI release archive
+        run: curl --fail --silent --show-error --location "https://github.com/supabase/cli/releases/download/v2.84.2/supabase_2.84.2_linux_amd64.tar.gz" --output "$RUNNER_TEMP/supabase_2.84.2_linux_amd64.tar.gz"
+
+      - name: Verify and install the pinned Supabase CLI
+        run: python3 scripts/ci/install_pinned_supabase_cli.py "$RUNNER_TEMP/supabase_2.84.2_linux_amd64.tar.gz"
+
+      - name: Replay schema on an empty disposable local database and verify isolation
+        run: bash scripts/ci/verify-sandbox-schema-replay.sh
+
   candidate-build:
     name: Remote candidate build only
-    if: ${{ inputs.resolution_mode == 'remote-build' }}
+    needs:
+      - static-and-unit
+      - schema-replay
+    if: ${{ always() && needs.static-and-unit.result == 'success' && (inputs.resolution_mode == 'remote-build' || (inputs.resolution_mode == 'checks-and-build' && needs.schema-replay.result == 'success')) }}
     runs-on: ubuntu-latest
     timeout-minutes: 30
     permissions:

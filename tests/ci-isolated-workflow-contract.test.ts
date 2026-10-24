@@ -53,11 +53,13 @@ describe("isolated CI workflow contract", () => {
     expect(workflow).toMatch(/on:\s*\n\s+workflow_dispatch:/);
     expect(workflow).toContain("resolution_mode:");
     expect(workflow).toContain("default: checks");
+    expect(workflow).toContain("- schema-replay");
     expect(workflow).toContain("- remote-build");
+    expect(workflow).toContain("- checks-and-build");
     expect(workflow).toContain("- lockfile-refresh");
     expect(workflow).toContain("- vite-refresh");
     expect(workflow).toContain("expected_sha:");
-    expect(workflow).toContain("SHA completo del HEAD seleccionado para build o resolución de lockfile");
+    expect(workflow).toContain("SHA completo del HEAD seleccionado para replay, build o resolución de lockfile");
     expect(workflow).toMatch(/permissions:\s*\n\s+contents:\s*read/);
     expect(workflow).toMatch(/persist-credentials:\s*false/);
     expect(workflow).not.toMatch(/^\s*(push|pull_request|schedule):/m);
@@ -90,7 +92,10 @@ describe("isolated CI workflow contract", () => {
 
   it("builds only an exact candidate SHA on a remote runner with placeholders and no provider access", () => {
     const buildJob = workflow.match(/  candidate-build:([\s\S]*?)(?=\n  lockfile-refresh:|$)/)?.[1] ?? "";
-    expect(buildJob).toContain("if: ${{ inputs.resolution_mode == 'remote-build' }}");
+    expect(buildJob).toContain("inputs.resolution_mode == 'remote-build'");
+    expect(buildJob).toContain("inputs.resolution_mode == 'checks-and-build'");
+    expect(buildJob).toContain("needs.schema-replay.result == 'success'");
+    expect(buildJob).toContain("needs.static-and-unit.result == 'success'");
     expect(buildJob).toContain("runs-on: ubuntu-latest");
     expect(buildJob).toContain("contents: read");
     expect(buildJob).toContain("persist-credentials: false");
@@ -106,7 +111,7 @@ describe("isolated CI workflow contract", () => {
   });
 
   it("keeps the existing checks unconditional and isolates the optional lockfile refresh", () => {
-    const checksJob = workflow.match(/  static-and-unit:([\s\S]*?)(?=\n  candidate-build:|$)/)?.[1] ?? "";
+    const checksJob = workflow.match(/  static-and-unit:([\s\S]*?)(?=\n  schema-replay:|$)/)?.[1] ?? "";
     const refreshJob = workflow.match(/  lockfile-refresh:([\s\S]*?)(?=\n  vite-refresh:|$)/)?.[1] ?? "";
     const checksJobHeader = checksJob.split("\n    steps:")[0] ?? "";
     expect(checksJobHeader).not.toMatch(/^\s+if:/m);
@@ -158,6 +163,31 @@ describe("isolated CI workflow contract", () => {
     expect(frozenInstallIndex).toBeGreaterThan(projectionIndex);
     expect(finalGuardIndex).toBeGreaterThan(frozenInstallIndex);
     expect(refreshJob).not.toMatch(/\bsecrets\.|cache:|upload-artifact|git push|git commit|pnpm (?:build|typecheck|test)\b/i);
+  });
+
+  it("replays the baseline only on an exact-SHA disposable local Supabase stack", () => {
+    const replayJob = workflow.match(/  schema-replay:([\s\S]*?)(?=\n  candidate-build:|$)/)?.[1] ?? "";
+    const replayScript = readFileSync(resolve(process.cwd(), "scripts/ci/verify-sandbox-schema-replay.sh"), "utf8");
+    expect(replayJob).toContain("needs: static-and-unit");
+    expect(replayJob).toContain("inputs.resolution_mode == 'schema-replay'");
+    expect(replayJob).toContain("inputs.resolution_mode == 'checks-and-build'");
+    expect(replayJob).toContain("runs-on: ubuntu-latest");
+    expect(replayJob).toContain("contents: read");
+    expect(replayJob).toContain("persist-credentials: false");
+    expect(replayJob).toContain("supabase_2.84.2_linux_amd64.tar.gz");
+    expect(replayJob).toContain("python3 scripts/ci/install_pinned_supabase_cli.py");
+    expect(replayJob).toContain("bash scripts/ci/verify-sandbox-schema-replay.sh");
+    expect(replayJob).not.toMatch(/\bsecrets\.|SUPABASE_ACCESS_TOKEN|SUPABASE_DB_PASSWORD|VERCEL_TOKEN|STRIPE_SECRET_KEY|supabase link|--linked|actions\/deploy/i);
+    expect(replayScript).toContain('"${GITHUB_ACTIONS:-}" == "true"');
+    expect(replayScript).toContain('"${RUNNER_OS:-}" == "Linux"');
+    expect(replayScript).toContain("EXPECTED_SHA");
+    expect(replayScript).toContain("SUPABASE_ACCESS_TOKEN");
+    expect(replayScript).toContain("db reset --local --no-seed");
+    expect(replayScript).toContain("db query --local --file");
+    expect(replayScript).toContain("--no-backup");
+    expect(replayScript).toContain("Refusing current-state schema baseline");
+    expect(replayScript).not.toContain("db reset --linked");
+    expect(replayScript).not.toContain("db push");
   });
 
   it("isolates the optional Vite refresh, runs focused guards before resolution, and verifies all outputs", () => {
@@ -231,7 +261,7 @@ describe("isolated CI workflow contract", () => {
     expect(workflow).toContain("http://127.0.0.1:54321");
     expect(workflow).toContain("postgresql://local:local@127.0.0.1:54322/local_ci");
     expect(workflow).not.toMatch(/\bsecrets\./i);
-    const checksJob = workflow.match(/  static-and-unit:([\s\S]*?)(?=\n  candidate-build:|$)/)?.[1] ?? "";
+    const checksJob = workflow.match(/  static-and-unit:([\s\S]*?)(?=\n  schema-replay:|$)/)?.[1] ?? "";
     const actions = [...checksJob.matchAll(/^\s+uses:\s*(\S+)/gm)].map((match) => match[1]);
     expect(actions).toEqual([
       "actions/checkout@v7",
@@ -265,7 +295,7 @@ describe("isolated CI workflow contract", () => {
   });
 
   it("keeps static gates and runs checks in the network namespace", () => {
-    const checksJob = workflow.match(/  static-and-unit:([\s\S]*?)(?=\n  candidate-build:|$)/)?.[1] ?? "";
+    const checksJob = workflow.match(/  static-and-unit:([\s\S]*?)(?=\n  schema-replay:|$)/)?.[1] ?? "";
     expect(workflow).toContain("sudo unshare --net");
     expect(workflow).toContain('ip link set lo up && test "$(ip -o link show | wc -l)" -eq 1');
     expect(checksJob.match(/run: sudo --preserve-env=[^\n]* unshare --net -- bash -euc/g)).toHaveLength(8);
