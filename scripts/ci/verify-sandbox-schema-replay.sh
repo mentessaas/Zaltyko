@@ -41,6 +41,31 @@ cleanup() {
 }
 trap cleanup EXIT
 
+diagnose_start_failure() {
+  local diagnosis="Supabase CLI startup failed; credential-bearing output remains withheld."
+  if ! docker info --format '{{.ServerVersion}}' >/dev/null 2>&1; then
+    diagnosis="Docker daemon is unavailable to this runner."
+  elif grep -Eiq 'no space left on device' "$START_LOG"; then
+    diagnosis="The disposable runner ran out of disk space while starting Supabase."
+  elif grep -Eiq 'port is already allocated|address already in use' "$START_LOG"; then
+    diagnosis="A required local Supabase port is already in use on the disposable runner."
+  elif grep -Eiq 'pull access denied|manifest unknown|repository does not exist' "$START_LOG"; then
+    diagnosis="A required Supabase container image could not be fetched."
+  elif grep -Eiq 'unhealthy|failed to start|container exited' "$START_LOG"; then
+    diagnosis="A Supabase container failed its startup or health check."
+  fi
+  printf 'Safe startup diagnosis: %s\n' "$diagnosis" >&2
+
+  local container_state
+  container_state="$(docker ps -a --filter "name=$PROJECT_ID" --format '{{.Names}} | {{.Status}}' 2>/dev/null || true)"
+  if [[ -n "$container_state" ]]; then
+    printf 'Disposable container states (names and status only):\n%s\n' \
+      "${container_state//$PROJECT_ID/<isolated-run>}" >&2
+  else
+    printf 'No containers for the disposable Supabase project remained visible.\n' >&2
+  fi
+}
+
 [[ -x "$CLI" ]] || fail "The checksum-verified pinned Supabase CLI was not installed in RUNNER_TEMP."
 [[ ! -e "$CI_WORKDIR" ]] || fail "Refusing to reuse an existing local Supabase workdir."
 mkdir -p "$CI_WORKDIR/supabase/migrations"
@@ -70,6 +95,7 @@ local_stack_started=true
 if ! "$CLI" --workdir "$CI_WORKDIR" start \
   --exclude gotrue,realtime,storage-api,imgproxy,kong,postgrest,postgres-meta,studio,edge-runtime,logflare,vector,supavisor \
   >"$START_LOG" 2>&1; then
+  diagnose_start_failure
   fail "Disposable local Postgres did not start; CLI output was withheld to avoid credential disclosure."
 fi
 

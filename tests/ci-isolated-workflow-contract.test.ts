@@ -182,6 +182,9 @@ describe("isolated CI workflow contract", () => {
     expect(replayScript).toContain('"${GITHUB_ACTIONS:-}" == "true"');
     expect(replayScript).toContain('"${RUNNER_OS:-}" == "Linux"');
     expect(replayScript).toContain("EXPECTED_SHA");
+    expect(replayScript).toContain("diagnose_start_failure");
+    expect(replayScript).toContain("credential-bearing output remains withheld");
+    expect(replayScript).toContain('docker ps -a --filter "name=$PROJECT_ID"');
     expect(replayScript).toContain("SUPABASE_ACCESS_TOKEN");
     expect(replayScript).toContain("db reset --local --no-seed");
     expect(replayScript).toContain("db query --local --file");
