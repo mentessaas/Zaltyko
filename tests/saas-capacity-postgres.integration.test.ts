@@ -7,6 +7,7 @@ import { getOrganizationUsage } from "@/modules/saas-billing/application/organiz
 import { createOperationalGroup } from "@/modules/groups/application/group-management-service";
 import { createAthleteForGroup } from "@/modules/groups/application/group-membership-service";
 import { createScheduledClass } from "@/modules/scheduling/application/class-management-service";
+import { createEnrollment } from "@/modules/enrollments/application/enrollment-service";
 
 const snapshotTables = [
   "athletes",
@@ -15,6 +16,7 @@ const snapshotTables = [
   "class_template_weekdays",
   "class_templates",
   "enrollments",
+  "enrollment_status_history",
   "group_membership_history",
   "group_memberships",
   "groups",
@@ -262,6 +264,116 @@ async function seedFreeAcademy() {
   };
 }
 
+async function seedEnrollmentEligibilityAcademy() {
+  const organizationId = randomUUID();
+  const userId = randomUUID();
+  const memberId = randomUUID();
+  const locationIds = [randomUUID(), randomUUID()];
+  const groupIds = [randomUUID(), randomUUID()];
+  const classTemplateId = randomUUID();
+  const athletes = [0, 1].map(() => ({
+    personId: randomUUID(),
+    athleteId: randomUUID(),
+  }));
+
+  await db.execute(sql`
+    insert into auth.users (id, email)
+    values (${userId}::uuid, ${"ci-enrollment-" + userId + "@example.invalid"})
+  `);
+  await db.execute(sql`
+    insert into zaltyko.organizations (id, name)
+    values (${organizationId}::uuid, ${"CI enrollment " + organizationId})
+  `);
+  await db.execute(sql`
+    insert into zaltyko.locations (id, organization_id, code, name)
+    values
+      (${locationIds[0]}::uuid, ${organizationId}::uuid, 'ci-enroll-a', 'CI enrollment site A'),
+      (${locationIds[1]}::uuid, ${organizationId}::uuid, 'ci-enroll-b', 'CI enrollment site B')
+  `);
+  await db.execute(sql`
+    insert into zaltyko.organization_members (
+      id, organization_id, user_id, role, status, location_scope_mode
+    )
+    values (
+      ${memberId}::uuid,
+      ${organizationId}::uuid,
+      ${userId}::uuid,
+      'owner',
+      'active',
+      'all'
+    )
+  `);
+
+  const peopleValues = sql.join(
+    athletes.map((athlete, index) => sql`(
+      ${athlete.personId}::uuid,
+      ${organizationId}::uuid,
+      ${"Enrollment athlete " + (index + 1)},
+      'Synthetic'
+    )`),
+    sql`, `
+  );
+  await db.execute(sql`
+    insert into zaltyko.people (id, organization_id, given_name, family_name)
+    values ${peopleValues}
+  `);
+  const athleteValues = sql.join(
+    athletes.map((athlete) => sql`(
+      ${athlete.athleteId}::uuid,
+      ${organizationId}::uuid,
+      ${athlete.personId}::uuid
+    )`),
+    sql`, `
+  );
+  await db.execute(sql`
+    insert into zaltyko.athletes (id, organization_id, person_id)
+    values ${athleteValues}
+  `);
+  await db.execute(sql`
+    insert into zaltyko.groups (
+      id, organization_id, location_id, name, capacity, status
+    )
+    values
+      (${groupIds[0]}::uuid, ${organizationId}::uuid, ${locationIds[0]}::uuid, 'CI enrollment group A', 10, 'active'),
+      (${groupIds[1]}::uuid, ${organizationId}::uuid, ${locationIds[1]}::uuid, 'CI enrollment group B', 10, 'active')
+  `);
+  await db.execute(sql`
+    insert into zaltyko.group_memberships (
+      organization_id, group_id, athlete_id, status, starts_on
+    )
+    values
+      (${organizationId}::uuid, ${groupIds[0]}::uuid, ${athletes[0]!.athleteId}::uuid, 'active', current_date),
+      (${organizationId}::uuid, ${groupIds[1]}::uuid, ${athletes[1]!.athleteId}::uuid, 'active', current_date)
+  `);
+  await db.execute(sql`
+    insert into zaltyko.class_templates (
+      id, organization_id, location_id, name, capacity, status, effective_from
+    )
+    values (
+      ${classTemplateId}::uuid,
+      ${organizationId}::uuid,
+      ${locationIds[0]}::uuid,
+      'CI enrollment class A',
+      10,
+      'active',
+      current_date
+    )
+  `);
+  const [dateRow] = (await db.execute(sql`select current_date::text as date`)).rows as Array<{
+    date: string;
+  }>;
+
+  return {
+    organizationId,
+    classTemplateId,
+    targetLocationId: locationIds[0]!,
+    targetAthleteId: athletes[0]!.athleteId,
+    otherSiteOnlyAthleteId: athletes[1]!.athleteId,
+    startsOn: dateRow!.date,
+    actor: { userId, memberId },
+  };
+}
+
 describe("Free capacity guards on disposable PostgreSQL", () => {
   it("serializes last-slot writes, replays winners once, and leaves no partial rows on denials", async () => {
     assertDisposableTarget();
@@ -440,5 +552,48 @@ describe("Free capacity guards on disposable PostgreSQL", () => {
       });
       expect(await snapshot(organizationId)).toEqual(excessSnapshot);
     }
+  }, 45_000);
+
+  it("creates an enrollment only when the athlete has an open relationship at that site", async () => {
+    assertDisposableTarget();
+    const fixture = await seedEnrollmentEligibilityAcademy();
+    const validCommand = {
+      organizationId: fixture.organizationId,
+      locationId: fixture.targetLocationId,
+      athleteId: fixture.targetAthleteId,
+      classTemplateId: fixture.classTemplateId,
+      status: "active" as const,
+      startsOn: fixture.startsOn,
+      source: "owner" as const,
+      idempotencyKey: "ci-enrollment-valid-" + randomUUID(),
+      actor: fixture.actor,
+    };
+
+    const beforeValidEnrollment = await snapshot(fixture.organizationId);
+    const enrollment = await createEnrollment(validCommand);
+    expect(enrollment).toMatchObject({
+      organizationId: fixture.organizationId,
+      locationId: fixture.targetLocationId,
+      athleteId: fixture.targetAthleteId,
+      classTemplateId: fixture.classTemplateId,
+      status: "active",
+    });
+    const afterValidEnrollment = await snapshot(fixture.organizationId);
+    expect(afterValidEnrollment).not.toEqual(beforeValidEnrollment);
+    expect(await createEnrollment(validCommand)).toMatchObject({
+      id: enrollment.id,
+    });
+    expect(await snapshot(fixture.organizationId)).toEqual(afterValidEnrollment);
+
+    const beforeRejectedEnrollment = await snapshot(fixture.organizationId);
+    await expect(createEnrollment({
+      ...validCommand,
+      athleteId: fixture.otherSiteOnlyAthleteId,
+      idempotencyKey: "ci-enrollment-wrong-site-" + randomUUID(),
+    })).rejects.toMatchObject({
+      code: "NOT_FOUND",
+      status: 404,
+    });
+    expect(await snapshot(fixture.organizationId)).toEqual(beforeRejectedEnrollment);
   }, 45_000);
 });
