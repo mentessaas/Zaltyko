@@ -193,11 +193,16 @@ CREATE POLICY "zal_shared_read" ON "zaltyko"."shared" USING (true);
     expect(result.coverage).toBeNull();
     expect(result.missingRls).toEqual([]);
     expect(result.missingPolicies).toEqual([]);
-    const report = generateReport(result, ".");
-    expect(report).toContain("Coverage: NOT COMPUTABLE");
-    expect(report).toContain("RLS and policy presence were not assessed");
-    expect(report).not.toContain("RLS-REQUIRED TABLES WITHOUT RLS");
-    expect(report).toContain("SQL sources present:\n  - none");
+    const emptyRoot = mkdtempSync(join(tmpdir(), "validate-rls-missing-sql-"));
+    try {
+      const report = generateReport(result, emptyRoot);
+      expect(report).toContain("Coverage: NOT COMPUTABLE");
+      expect(report).toContain("RLS and policy presence were not assessed");
+      expect(report).not.toContain("RLS-REQUIRED TABLES WITHOUT RLS");
+      expect(report).toContain("SQL sources present:\n  - none");
+    } finally {
+      rmSync(emptyRoot, { recursive: true, force: true });
+    }
   });
 
   it("falla si falta el árbol de schema, además de las fuentes SQL", () => {

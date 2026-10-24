@@ -168,7 +168,8 @@ describe("isolated CI workflow contract", () => {
   it("replays the baseline only on an exact-SHA disposable local Supabase stack", () => {
     const replayJob = workflow.match(/  schema-replay:([\s\S]*?)(?=\n  candidate-build:|$)/)?.[1] ?? "";
     const replayScript = readFileSync(resolve(process.cwd(), "scripts/ci/verify-sandbox-schema-replay.sh"), "utf8");
-    expect(replayJob).toContain("needs: static-and-unit");
+    const replayHeader = replayJob.split("\n    steps:")[0] ?? "";
+    expect(replayHeader).not.toMatch(/^\s+needs:/m);
     expect(replayJob).toContain("inputs.resolution_mode == 'schema-replay'");
     expect(replayJob).toContain("inputs.resolution_mode == 'checks-and-build'");
     expect(replayJob).toContain("runs-on: ubuntu-latest");

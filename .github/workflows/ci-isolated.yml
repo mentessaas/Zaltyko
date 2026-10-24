@@ -102,7 +102,6 @@ jobs:
 
   schema-replay:
     name: Disposable local schema replay and tenant isolation
-    needs: static-and-unit
     if: ${{ inputs.resolution_mode == 'schema-replay' || inputs.resolution_mode == 'checks-and-build' }}
     runs-on: ubuntu-latest
     timeout-minutes: 20
