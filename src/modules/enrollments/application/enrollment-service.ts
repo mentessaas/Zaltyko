@@ -18,6 +18,7 @@ import {
 } from "@/modules/enrollments/domain/contracts";
 import { calculateEffectiveCapacity } from "@/modules/scheduling/domain/capacity";
 import { assignEnrollmentPriceInTransaction } from "@/modules/enrollments/application/enrollment-price-service";
+import { hasEligibleEnrollmentLocationRelationship } from "@/modules/groups/application/group-athlete-location-eligibility";
 import { assertOrganizationOperationalWritable } from "@/modules/saas-billing/application/organization-usage";
 import type { TransactionClient } from "@/lib/db-transactions";
 import { operationalActorSchema } from "@/modules/shared/application/actor";
@@ -383,12 +384,20 @@ export async function createEnrollmentInTransaction(
       and(
         eq(athletes.organizationId, input.organizationId),
         eq(athletes.id, input.athleteId),
-        eq(athletes.isActive, true)
+        eq(athletes.isActive, true),
+        hasEligibleEnrollmentLocationRelationship({
+          organizationId: input.organizationId,
+          locationId: input.locationId,
+        })
       )
     )
     .limit(1);
   if (!athlete) {
-    throw new OperationalError("NOT_FOUND", "Atleta activo no encontrado", 404);
+    throw new OperationalError(
+      "NOT_FOUND",
+      "Atleta activo no encontrado en esta sede",
+      404
+    );
   }
 
   await assertTemplateCapacity(tx, input);
