@@ -1,0 +1,71 @@
+name: Candidate build (remote, no credentials)
+
+on:
+  workflow_dispatch:
+    inputs:
+      expected_sha:
+        description: "SHA completo del commit candidato que se construirá"
+        type: string
+        required: true
+
+permissions:
+  contents: read
+
+concurrency:
+  group: candidate-build-${{ github.ref }}
+  cancel-in-progress: false
+
+jobs:
+  build:
+    name: Remote candidate build only
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    permissions:
+      contents: read
+    env:
+      EXPECTED_SHA: ${{ inputs.expected_sha }}
+      DISPATCH_SHA: ${{ github.sha }}
+      DISPATCH_REF: ${{ github.ref }}
+      NODE_ENV: production
+      NEXT_TELEMETRY_DISABLED: "1"
+      NEXT_PUBLIC_APP_URL: https://candidate-build.invalid
+      NEXT_PUBLIC_SUPABASE_URL: https://placeholder.supabase.co
+      NEXT_PUBLIC_SUPABASE_ANON_KEY: placeholder-anon-key-for-candidate-build
+      DATABASE_URL: postgresql://placeholder:placeholder@placeholder:5432/placeholder
+      DATABASE_URL_POOL: postgresql://placeholder:placeholder@placeholder:5432/placeholder
+      DATABASE_URL_DIRECT: postgresql://placeholder:placeholder@placeholder:5432/placeholder
+      INTERNAL_AUTH_SECRET: placeholder-internal-auth-secret-for-candidate-build
+      SUPABASE_JWT_SECRET: placeholder-supabase-jwt-secret-for-candidate-build
+    steps:
+      - name: Checkout without persisted credentials
+        uses: actions/checkout@v7
+        with:
+          persist-credentials: false
+
+      - name: Require the candidate branch and exact SHA
+        shell: bash
+        run: |
+          set -euo pipefail
+          branch='codex/owner-isolated-validation-20261023'
+          head_sha="$(git rev-parse HEAD)"
+          [[ "$GITHUB_REF" == "refs/heads/$branch" ]]
+          [[ "$DISPATCH_REF" == "refs/heads/$branch" ]]
+          [[ "$EXPECTED_SHA" =~ ^[0-9a-f]{40}$ ]]
+          [[ "$DISPATCH_SHA" == "$head_sha" ]]
+          [[ "$EXPECTED_SHA" == "$head_sha" ]]
+
+      - name: Setup pnpm 9.15.9
+        uses: pnpm/action-setup@v6
+        with:
+          version: 9.15.9
+
+      - name: Setup Node.js 20
+        uses: actions/setup-node@v7
+        with:
+          node-version: "20"
+
+      - name: Install frozen dependencies
+        run: pnpm install --frozen-lockfile
+
+      - name: Build candidate without provider credentials
+        run: pnpm build

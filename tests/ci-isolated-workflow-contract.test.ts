@@ -3,6 +3,7 @@ import { resolve } from "node:path";
 import { describe, expect, it } from "vitest";
 
 const workflowPath = resolve(process.cwd(), ".github/workflows/ci-isolated.yml");
+const candidateBuildWorkflowPath = resolve(process.cwd(), ".github/workflows/candidate-build.yml");
 const directoryWorkflowPath = resolve(process.cwd(), ".github/workflows/directory-integrity.yml");
 const vitestConfigPath = resolve(process.cwd(), "vitest.config.ts");
 const sharedSetupPath = resolve(process.cwd(), "tests/setup.ts");
@@ -23,6 +24,7 @@ const lockfileGuard = require(lockfileGuardPath) as {
 
 describe("isolated CI workflow contract", () => {
   const workflow = readFileSync(workflowPath, "utf8");
+  const candidateBuildWorkflow = readFileSync(candidateBuildWorkflowPath, "utf8");
   const directoryWorkflow = readFileSync(directoryWorkflowPath, "utf8");
   const vitestConfig = readFileSync(vitestConfigPath, "utf8");
   const sharedSetup = readFileSync(sharedSetupPath, "utf8");
@@ -49,6 +51,24 @@ describe("isolated CI workflow contract", () => {
     expect(workflow).toMatch(/permissions:\s*\n\s+contents:\s*read/);
     expect(workflow).toMatch(/persist-credentials:\s*false/);
     expect(workflow).not.toMatch(/^\s*(push|pull_request|schedule):/m);
+  });
+
+  it("builds only an exact candidate SHA on a remote runner without secrets or deployment", () => {
+    expect(candidateBuildWorkflow).toMatch(/on:\s*\n\s+workflow_dispatch:/);
+    expect(candidateBuildWorkflow).toContain("expected_sha:");
+    expect(candidateBuildWorkflow).toMatch(/expected_sha:[\s\S]*?required:\s*true/);
+    expect(candidateBuildWorkflow).toContain("runs-on: ubuntu-latest");
+    expect(candidateBuildWorkflow).toContain("contents: read");
+    expect(candidateBuildWorkflow).toContain("persist-credentials: false");
+    expect(candidateBuildWorkflow).toContain("branch='codex/owner-isolated-validation-20261023'");
+    expect(candidateBuildWorkflow).toContain('[[ "$EXPECTED_SHA" == "$head_sha" ]]');
+    expect(candidateBuildWorkflow).toContain("pnpm install --frozen-lockfile");
+    expect(candidateBuildWorkflow).toContain("pnpm build");
+    expect(candidateBuildWorkflow).toContain("placeholder.supabase.co");
+    expect(candidateBuildWorkflow).toContain("placeholder:placeholder@placeholder:5432/placeholder");
+    expect(candidateBuildWorkflow).not.toMatch(/\bsecrets\.|SUPABASE_ACCESS_TOKEN|SUPABASE_DB_PASSWORD|SUPABASE_SERVICE_ROLE_KEY|STRIPE_SECRET_KEY|VERCEL_TOKEN|upload-artifact|uses:\s*vercel\/|actions\/deploy/i);
+    expect(candidateBuildWorkflow).not.toMatch(/^\s*(push|pull_request|schedule):/m);
+    expect(candidateBuildWorkflow).not.toMatch(/^\s*cache:/m);
   });
 
   it("keeps the existing checks unconditional and isolates the optional lockfile refresh", () => {
