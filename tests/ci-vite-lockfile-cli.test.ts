@@ -14,6 +14,9 @@ const cli = require("../scripts/ci/project-vite-lockfile-refresh.cjs") as {
 
 const core = require("../scripts/ci/project-vite-lockfile-core.cjs") as {
   INTEGRITY: string;
+  SNAPSHOT_DIAGNOSTIC_KEYS: Record<string, string>;
+  SNAPSHOT_DIAGNOSTIC_FIELDS: string[];
+  ViteProjectionFailure: new (code: string) => Error & { code: string };
   projectViteLockfileCore: (input: {
     baseManifestText: string;
     rawManifestText: string;
@@ -42,6 +45,18 @@ function replaceUnique(text: string, before: string, after: string) {
   const index = text.indexOf(before);
   if (index < 0 || text.indexOf(before, index + before.length) >= 0) throw new Error("fixture mismatch");
   return text.slice(0, index) + after + text.slice(index + before.length);
+}
+
+function replaceUniqueInSnapshotBlock(text: string, header: string, before: string, after: string) {
+  const start = text.indexOf(header);
+  if (start < 0 || text.indexOf(header, start + header.length) >= 0) throw new Error("snapshot fixture mismatch");
+  const bodyStart = start + header.length;
+  const rest = text.slice(bodyStart);
+  const nextHeader = rest.search(/\n {2}\S/);
+  const end = nextHeader < 0 ? text.length : bodyStart + nextHeader;
+  const block = text.slice(start, end);
+  const changed = replaceUnique(block, before, after);
+  return text.slice(0, start) + changed + text.slice(end);
 }
 
 const OLD_VITE_INTEGRITY = "sha512-NTKlcQjlAK7MlQoyb6LgaqHc8sso/pVyUJYWMws3jg21uTJw/LddqIFPcPqP6PzpgbIcZyKI85sFE4HBrQDA8A==";
@@ -213,6 +228,26 @@ describe("Vite lockfile refresh CLI", () => {
     expect(result).toBe(0);
     expect(harness.writes).toEqual(["package.json", "pnpm-lock.yaml"]);
     expect(harness.errors).toEqual([]);
+  });
+
+  it("prints validated snapshot diagnostics without exposing lock values", () => {
+    const input = realRawInput();
+    const marker = "diagnostic-private-marker-should-not-escape";
+    input.rawLockfileText = replaceUniqueInSnapshotBlock(
+      input.rawLockfileText,
+      `  vite@${viteContext("6.4.5")}:\n`,
+      "      tinyglobby: 0.2.17\n",
+      `      tinyglobby: ${marker}\n`,
+    );
+    const harness = mockIo(input);
+    const result = cli.runCli({ env: { BASE_SHA }, io: harness.io });
+    expect(result).toBe(1);
+    expect(harness.writes).toEqual([]);
+    expect(harness.errors.join("")).toContain(
+      `code=LOCK_SNAPSHOT target=vite key=${core.SNAPSHOT_DIAGNOSTIC_KEYS.vite} status=different field=dependencies`,
+    );
+    expect(harness.errors.join("")).not.toContain(marker);
+    expect(harness.errors.join("")).toMatch(/base_sha256=[a-f0-9]{64} candidate_sha256=[a-f0-9]{64}/);
   });
 
   it("does not write when the permitted status changes before projection", () => {

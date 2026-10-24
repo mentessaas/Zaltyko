@@ -144,6 +144,30 @@ function verifyMode(baseSha, env, io) {
 
 function sameList(a, b) { return a.length === b.length && a.every((value, index) => value === b[index]); }
 
+function safeSnapshotDiagnostic(error) {
+  if (!(error instanceof core.ViteProjectionFailure) || error.code !== "LOCK_SNAPSHOT") return "";
+  const diagnostic = error.diagnostic;
+  const targets = core.SNAPSHOT_DIAGNOSTIC_KEYS;
+  const fields = new Set([...core.SNAPSHOT_DIAGNOSTIC_FIELDS, "<unknown>"]);
+  if (!diagnostic || !Object.prototype.hasOwnProperty.call(targets, diagnostic.target)) return "";
+  if (diagnostic.key !== targets[diagnostic.target]) return "";
+  if (diagnostic.status !== "missing" && diagnostic.status !== "different") return "";
+  if (!fields.has(diagnostic.field)) return "";
+  const validHashOrMissing = (value) => value === undefined || /^[a-f0-9]{64}$/.test(value);
+  if (!validHashOrMissing(diagnostic.baseSha256) || !validHashOrMissing(diagnostic.candidateSha256)) return "";
+  if (diagnostic.status === "different" && (!diagnostic.baseSha256 || !diagnostic.candidateSha256)) return "";
+
+  const parts = [
+    `target=${diagnostic.target}`,
+    `key=${targets[diagnostic.target]}`,
+    `status=${diagnostic.status}`,
+    `field=${diagnostic.field}`,
+  ];
+  if (diagnostic.baseSha256) parts.push(`base_sha256=${diagnostic.baseSha256}`);
+  if (diagnostic.candidateSha256) parts.push(`candidate_sha256=${diagnostic.candidateSha256}`);
+  return ` ${parts.join(" ")}`;
+}
+
 function projectMode(baseSha, env, io) {
   assertHeadAndStatus(baseSha, io);
   const base = baseFiles(baseSha, io);
@@ -228,7 +252,8 @@ function runCli({ argv = [], env = process.env, io = createSystemIo() } = {}) {
     fail("VERIFY_MODE");
   } catch (error) {
     const code = error && typeof error === "object" && FAILURE_CODES.has(error.code) ? error.code : "INPUT";
-    io.writeStderr(`Vite lockfile refresh rejected: code=${code}\n`);
+    const diagnostic = code === "LOCK_SNAPSHOT" ? safeSnapshotDiagnostic(error) : "";
+    io.writeStderr(`Vite lockfile refresh rejected: code=${code}${diagnostic}\n`);
     return 1;
   }
 }

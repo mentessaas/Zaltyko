@@ -35,6 +35,11 @@ function snapshotKeys(context) {
 const BASE_KEYS = snapshotKeys(OLD_CONTEXT);
 const RAW_KEYS = snapshotKeys(NEXT_CONTEXT);
 const SNAPSHOT_TARGETS = ["vite", "react", "mocker", "paths", "vitest", "coverage"];
+const SNAPSHOT_DIAGNOSTIC_KEYS = Object.fromEntries(SNAPSHOT_TARGETS.map((name) => [name, RAW_KEYS[name]]));
+const SNAPSHOT_DIAGNOSTIC_FIELDS = new Set([
+  "dependencies", "optionalDependencies", "transitivePeerDependencies",
+  "peerDependencies", "peerDependenciesMeta", "engines", "hasBin",
+]);
 const FAILURE_CODES = new Set([
   "INPUT", "MANIFEST_JSON", "MANIFEST_DUPLICATE_KEY", "MANIFEST_PIN",
   "MANIFEST_SCOPE", "LOCK_FORMAT", "LOCK_TARGET_SET", "LOCK_REFERENCE",
@@ -42,11 +47,12 @@ const FAILURE_CODES = new Set([
 ]);
 
 class ViteProjectionFailure extends Error {
-  constructor(code) {
+  constructor(code, diagnostic) {
     const safe = FAILURE_CODES.has(code) ? code : "INPUT";
     super(safe);
     this.name = "ViteProjectionFailure";
     this.code = safe;
+    if (safe === "LOCK_SNAPSHOT" && diagnostic) this.diagnostic = diagnostic;
   }
 }
 
@@ -54,6 +60,29 @@ function fail(code) { throw new ViteProjectionFailure(code); }
 function check(condition, code) { if (!condition) fail(code); }
 function sha256(text) { return createHash("sha256").update(text, "utf8").digest("hex"); }
 function clone(value) { return structuredClone(value); }
+
+function snapshotDiagnostic(name, status, baseBlock, candidateBlock) {
+  const fields = [...new Set([
+    ...Object.keys(baseBlock || {}),
+    ...Object.keys(candidateBlock || {}),
+  ])].filter((field) => !same(baseBlock?.[field], candidateBlock?.[field])).sort();
+  const field = fields.find((item) => SNAPSHOT_DIAGNOSTIC_FIELDS.has(item)) || "<unknown>";
+  const hashBlock = (block) => block === undefined
+    ? undefined
+    : sha256(JSON.stringify(stable(block)));
+  return new ViteProjectionFailure("LOCK_SNAPSHOT", {
+    target: name,
+    key: SNAPSHOT_DIAGNOSTIC_KEYS[name],
+    status,
+    field,
+    baseSha256: hashBlock(baseBlock),
+    candidateSha256: hashBlock(candidateBlock),
+  });
+}
+
+function failSnapshot(name, status, baseBlock, candidateBlock) {
+  throw snapshotDiagnostic(name, status, baseBlock, candidateBlock);
+}
 
 function stable(value) {
   if (Array.isArray(value)) return value.map(stable);
@@ -229,7 +258,10 @@ function normalizedSnapshotBlocks(candidate, keys) {
   const rawBlocks = {};
   for (const name of SNAPSHOT_TARGETS) {
     const candidateKey = keys[name];
-    rawBlocks[name] = clone(own(candidate.snapshots, candidateKey, "LOCK_SNAPSHOT"));
+    if (!candidate.snapshots || !Object.prototype.hasOwnProperty.call(candidate.snapshots, candidateKey)) {
+      failSnapshot(name, "missing", undefined, undefined);
+    }
+    rawBlocks[name] = clone(candidate.snapshots[candidateKey]);
   }
 
   const react = rawBlocks.react;
@@ -259,7 +291,14 @@ function normalizedSnapshotBlocks(candidate, keys) {
 function assertSnapshotBlocks(base, raw) {
   const normalizedBlocks = normalizedSnapshotBlocks(raw, RAW_KEYS);
   for (const name of SNAPSHOT_TARGETS) {
-    check(same(normalizedBlocks[name], base.snapshots[BASE_KEYS[name]]), "LOCK_SNAPSHOT");
+    const baseBlock = base.snapshots[BASE_KEYS[name]];
+    const candidateBlock = normalizedBlocks[name];
+    if (!same(candidateBlock, baseBlock)) {
+      const missingField = Object.keys(baseBlock || {}).some((field) =>
+        !Object.prototype.hasOwnProperty.call(candidateBlock || {}, field),
+      );
+      failSnapshot(name, missingField ? "missing" : "different", baseBlock, candidateBlock);
+    }
   }
 }
 
@@ -430,6 +469,8 @@ module.exports = {
   OLD,
   NEXT,
   INTEGRITY,
+  SNAPSHOT_DIAGNOSTIC_KEYS,
+  SNAPSHOT_DIAGNOSTIC_FIELDS: [...SNAPSHOT_DIAGNOSTIC_FIELDS],
   ViteProjectionFailure,
   assertManifestEquivalentToBase,
   assertCandidateEquivalentToBase,
