@@ -6,6 +6,9 @@ const { readFileSync } = require("node:fs");
 const yaml = require("js-yaml");
 
 const MAX_GIT_OUTPUT_BYTES = 4 * 1024 * 1024;
+const MAX_DIAGNOSTIC_DIFFS = 200;
+const MAX_DIAGNOSTIC_PATHS = 5;
+const MAX_DIAGNOSTIC_DEPTH = 8;
 
 const versions = [
   {
@@ -21,6 +24,45 @@ const versions = [
     integrity: "sha512-CQ46U0ZkAGmbT/4UxdzzGJpacP2IeKgY4a5/tOI9AABbpOMfK739wfDXmv1usCk+3RkKj1hQy4/fjhiwa2xlrA==",
   },
 ];
+
+const KNOWN_DIAGNOSTIC_LOCATORS = new Set([
+  "follow-redirects@1.16.0",
+  "follow-redirects@1.16.1",
+  "hono@4.13.7",
+  "hono@4.13.13",
+  "axios@1.20.0",
+  "@hono/node-server@2.1.1",
+  "@hono/node-server@2.1.1(hono@4.13.7)",
+  "@hono/node-server@2.1.1(hono@4.13.13)",
+  "@modelcontextprotocol/sdk@1.32.1(zod@3.25.76)",
+]);
+const KNOWN_DIAGNOSTIC_PACKAGE_NAMES = new Set([
+  "follow-redirects",
+  "hono",
+  "axios",
+  "@hono/node-server",
+  "@modelcontextprotocol/sdk",
+  "zod",
+]);
+const SAFE_DIAGNOSTIC_FIELDS = new Set([
+  "resolution",
+  "engines",
+  "node",
+  "dependencies",
+  "peerDependencies",
+  "optionalDependencies",
+  "devDependencies",
+  "peerDependenciesMeta",
+  "transitivePeerDependencies",
+  "cpu",
+  "os",
+  "deprecated",
+  "hasBin",
+  "requiresBuild",
+  "optional",
+  "version",
+  "name",
+]);
 
 function assert(condition, message) {
   if (!condition) throw new Error(message);
@@ -129,16 +171,16 @@ function isAllowedReferencePath(path, name) {
 function normalizeLockValue(value, path = []) {
   if (Array.isArray(value)) return value.map((item, index) => normalizeLockValue(item, [...path, String(index)]));
   if (value && typeof value === "object") {
-    const normalized = {};
+    const normalized = Object.create(null);
     for (const [key, child] of Object.entries(value)) {
       let nextKey = key;
       for (const item of versions) {
         if (locatorVersion(item.name, item.from).test(nextKey)) {
-          assert(isAllowedReferencePath([...path, key], item.name), `Locator ${key} fuera de ruta permitida`);
+          assert(isAllowedReferencePath([...path, key], item.name), "Locator ajeno fuera de ruta permitida");
           nextKey = nextKey.replace(locatorVersion(item.name, item.from), `$1${item.name}@${item.to}`);
         }
       }
-      assert(!(nextKey in normalized), `Colisión al normalizar la clave ${nextKey}`);
+      assert(!(nextKey in normalized), "Colisión al normalizar claves del lockfile");
       normalized[nextKey] = normalizeLockValue(child, [...path, key]);
     }
     return normalized;
@@ -183,6 +225,113 @@ function stable(value) {
   return value;
 }
 
+function sortedKeys(left, right) {
+  const leftKeys = left && typeof left === "object" ? Object.keys(left) : [];
+  const rightKeys = right && typeof right === "object" ? Object.keys(right) : [];
+  return [...new Set([...leftKeys, ...rightKeys])].sort();
+}
+
+function safeDiagnosticPath(path, before, after) {
+  const output = [];
+  let left = before;
+  let right = after;
+
+  for (let index = 0; index < path.length && index < MAX_DIAGNOSTIC_DEPTH; index += 1) {
+    const key = path[index];
+    const ordinal = sortedKeys(left, right).indexOf(key) + 1;
+    if (index === 0) {
+      output.push(["packages", "snapshots", "importers"].includes(key) ? key : `<other-section#${Math.max(ordinal, 1)}>`);
+    } else if (index === 1) {
+      const section = path[0];
+      if ((section === "packages" || section === "snapshots") && KNOWN_DIAGNOSTIC_LOCATORS.has(key)) {
+        output.push(key);
+      } else {
+        const label = section === "importers" ? "importer" : "other-entry";
+        output.push(`<${label}#${Math.max(ordinal, 1)}>`);
+      }
+    } else if (SAFE_DIAGNOSTIC_FIELDS.has(key)) {
+      output.push(key);
+    } else if (KNOWN_DIAGNOSTIC_PACKAGE_NAMES.has(key)) {
+      output.push(key);
+    } else {
+      const label = path[index - 1] === "dependencies" || path[index - 1] === "peerDependencies"
+        ? "dependency"
+        : "field";
+      output.push(`<${label}#${Math.max(ordinal, 1)}>`);
+    }
+
+    left = left && typeof left === "object" ? left[key] : undefined;
+    right = right && typeof right === "object" ? right[key] : undefined;
+  }
+
+  if (path.length > MAX_DIAGNOSTIC_DEPTH) output.push("<depth-limit>");
+  if (path.length === 1 && path[0] === "importers") output.push("<importer#1>");
+  return output.join("/") || "<unclassified-path>";
+}
+
+function summarizeSemanticDifferences(before, after, rootPath = []) {
+  let count = 0;
+  let countTruncated = false;
+  let depthSkippedCount = 0;
+  let depthSkippedTruncated = false;
+  const paths = new Set();
+
+  function record(path) {
+    if (count === MAX_DIAGNOSTIC_DIFFS) {
+      countTruncated = true;
+      return;
+    }
+    count += 1;
+    if (paths.size < MAX_DIAGNOSTIC_PATHS) paths.add(safeDiagnosticPath(path, before, after));
+  }
+
+  function visit(left, right, path) {
+    if (countTruncated || Object.is(left, right)) return;
+    if (path.length >= MAX_DIAGNOSTIC_DEPTH) {
+      if (depthSkippedCount === MAX_DIAGNOSTIC_DIFFS) depthSkippedTruncated = true;
+      else depthSkippedCount += 1;
+      return;
+    }
+    const leftObject = left !== null && typeof left === "object";
+    const rightObject = right !== null && typeof right === "object";
+    if (!leftObject || !rightObject || Array.isArray(left) !== Array.isArray(right)) {
+      record(path);
+      return;
+    }
+
+    const keys = sortedKeys(left, right);
+    if (keys.length === 0) return;
+    for (const key of keys) {
+      if (countTruncated) return;
+      if (!Object.prototype.hasOwnProperty.call(left, key) || !Object.prototype.hasOwnProperty.call(right, key)) {
+        record([...path, key]);
+      } else {
+        visit(left[key], right[key], [...path, key]);
+      }
+    }
+  }
+
+  visit(before, after, rootPath);
+  return {
+    count: countTruncated ? `${MAX_DIAGNOSTIC_DIFFS}+` : String(count),
+    paths: [...paths],
+    countTruncated,
+    depthSkippedCount: depthSkippedTruncated ? `${MAX_DIAGNOSTIC_DIFFS}+` : String(depthSkippedCount),
+  };
+}
+
+function semanticDifferenceMessage(before, after, rootPath = []) {
+  const summary = summarizeSemanticDifferences(before, after, rootPath);
+  const paths = summary.paths.length > 0 ? summary.paths.join(", ") : "<sin-ruta-segura>";
+  const suffix = [
+    summary.countTruncated ? "; resumen truncado por límite de diferencias" : "",
+    summary.depthSkippedCount !== "0"
+      ? `; recorrido incompleto por profundidad (subárboles omitidos: ${summary.depthSkippedCount})`
+      : "",
+  ].join("");
+  return `El lockfile contiene cambios semánticos fuera de las dos versiones y sus referencias (${summary.count} diferencias observadas; rutas: ${paths}${suffix})`;
+}
+
 function assertPackage(lock, name, version, expectedIntegrity) {
   const key = `${name}@${version}`;
   const entry = lock.packages?.[key];
@@ -194,17 +343,20 @@ function assertPackage(lock, name, version, expectedIntegrity) {
   return key;
 }
 
-function assertNoStaleReferences(value, path = []) {
+function assertNoStaleReferences(value, path = [], root = value) {
   if (Array.isArray(value)) {
-    value.forEach((item, index) => assertNoStaleReferences(item, [...path, String(index)]));
+    value.forEach((item, index) => assertNoStaleReferences(item, [...path, String(index)], root));
     return;
   }
   if (value && typeof value === "object") {
     for (const [key, child] of Object.entries(value)) {
       for (const item of versions) {
-        assert(!locatorVersion(item.name, item.from).test(key), `Permanece locator antiguo ${key}`);
+        assert(
+          !locatorVersion(item.name, item.from).test(key),
+          `Permanece locator antiguo en ${safeDiagnosticPath([...path, key], root, root)}`
+        );
       }
-      assertNoStaleReferences(child, [...path, key]);
+      assertNoStaleReferences(child, [...path, key], root);
     }
     return;
   }
@@ -229,7 +381,10 @@ function assertRefreshContract(before, after) {
   );
   assert(axiosSnapshots.length > 0, "No hay snapshots de axios que permitan comprobar follow-redirects");
   for (const [key, snapshot] of axiosSnapshots) {
-    assert(snapshot.dependencies["follow-redirects"] === "1.16.1", `${key} no resuelve follow-redirects@1.16.1`);
+    assert(
+      snapshot.dependencies["follow-redirects"] === "1.16.1",
+      `${safeDiagnosticPath(["snapshots", key], after, after)} no resuelve follow-redirects@1.16.1`
+    );
   }
 
   const serverPackage = after.packages?.["@hono/node-server@2.1.1"];
@@ -239,8 +394,11 @@ function assertRefreshContract(before, after) {
   );
   assert(honoServerSnapshots.length > 0, "No aparece el snapshot de @hono/node-server");
   for (const [key, snapshot] of honoServerSnapshots) {
-    assert(key.includes("(hono@4.13.13)"), `${key} conserva un peer context obsoleto`);
-    assert(snapshot.dependencies?.hono === "4.13.13", `${key} no resuelve hono@4.13.13`);
+    assert(key.includes("(hono@4.13.13)"), `${safeDiagnosticPath(["snapshots", key], after, after)} conserva un peer context obsoleto`);
+    assert(
+      snapshot.dependencies?.hono === "4.13.13",
+      `${safeDiagnosticPath(["snapshots", key], after, after)} no resuelve hono@4.13.13`
+    );
   }
 
   const sdkSnapshots = Object.entries(after.snapshots ?? {}).filter(([key]) =>
@@ -248,11 +406,14 @@ function assertRefreshContract(before, after) {
   );
   assert(sdkSnapshots.length > 0, "No aparece el snapshot del SDK MCP esperado");
   for (const [key, sdk] of sdkSnapshots) {
-    assert(sdk.dependencies?.hono === "4.13.13", `${key} no resuelve hono@4.13.13`);
+    assert(
+      sdk.dependencies?.hono === "4.13.13",
+      `${safeDiagnosticPath(["snapshots", key], after, after)} no resuelve hono@4.13.13`
+    );
     assert(
       Object.keys(sdk.dependencies ?? {}).includes("@hono/node-server") &&
         Object.values(sdk.dependencies).some((value) => String(value).includes("hono@4.13.13")),
-      `${key} no conserva la resolución del peer node-server con hono@4.13.13`
+      `${safeDiagnosticPath(["snapshots", key], after, after)} no conserva la resolución del peer node-server con hono@4.13.13`
     );
   }
 }
@@ -261,17 +422,20 @@ function validateLockfileRefresh({ beforeText, afterText, changedFiles }) {
   assert(changedFiles.length === 1 && changedFiles[0] === "pnpm-lock.yaml", "Solo se permite modificar pnpm-lock.yaml");
   const before = yaml.load(beforeText, { schema: yaml.JSON_SCHEMA });
   const after = yaml.load(afterText, { schema: yaml.JSON_SCHEMA });
-  assert(
-    JSON.stringify(stable(before.importers)) === JSON.stringify(stable(after.importers)),
-    "Los importers del lockfile deben permanecer idénticos"
-  );
+  if (JSON.stringify(stable(before.importers)) !== JSON.stringify(stable(after.importers))) {
+    const beforeWithImporters = { importers: before.importers };
+    const afterWithImporters = { importers: after.importers };
+    throw new Error(
+      `Los importers del lockfile deben permanecer idénticos; ${semanticDifferenceMessage(beforeWithImporters, afterWithImporters)}`
+    );
+  }
   assertRefreshContract(before, after);
   assertNoStaleReferences(after);
-  assert(
-    JSON.stringify(stable(normalizeLockValue(before))) ===
-      JSON.stringify(stable(normalizeLockValue(after))),
-    "El lockfile contiene cambios semánticos fuera de las dos versiones y sus referencias"
-  );
+  const normalizedBefore = stable(normalizeLockValue(before));
+  const normalizedAfter = stable(normalizeLockValue(after));
+  if (JSON.stringify(normalizedBefore) !== JSON.stringify(normalizedAfter)) {
+    throw new Error(semanticDifferenceMessage(normalizedBefore, normalizedAfter));
+  }
 }
 
 function main() {
@@ -292,6 +456,9 @@ function main() {
 
 module.exports = {
   MAX_GIT_OUTPUT_BYTES,
+  MAX_DIAGNOSTIC_DIFFS,
+  MAX_DIAGNOSTIC_PATHS,
+  MAX_DIAGNOSTIC_DEPTH,
   TARGET_VERSIONS: versions,
   assertGitOutputWithinLimit,
   assertExpectedGitStatus,

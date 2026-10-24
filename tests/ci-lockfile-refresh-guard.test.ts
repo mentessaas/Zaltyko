@@ -1,6 +1,9 @@
 import { describe, expect, it } from "vitest";
 const {
   MAX_GIT_OUTPUT_BYTES,
+  MAX_DIAGNOSTIC_DIFFS,
+  MAX_DIAGNOSTIC_PATHS,
+  MAX_DIAGNOSTIC_DEPTH,
   TARGET_VERSIONS,
   assertGitOutputWithinLimit,
   assertExpectedGitStatus,
@@ -8,6 +11,9 @@ const {
   validateLockfileRefresh,
 } = require("../scripts/ci/validate-lockfile-refresh.cjs") as {
   MAX_GIT_OUTPUT_BYTES: number;
+  MAX_DIAGNOSTIC_DIFFS: number;
+  MAX_DIAGNOSTIC_PATHS: number;
+  MAX_DIAGNOSTIC_DEPTH: number;
   TARGET_VERSIONS: Array<{ name: string; from: string; to: string; integrity: string }>;
   assertGitOutputWithinLimit: (output: string | Buffer) => string | Buffer;
   assertExpectedGitStatus: (status: string) => void;
@@ -168,6 +174,134 @@ describe("lockfile refresh guard", () => {
       afterText: unexpected,
       changedFiles: ["pnpm-lock.yaml"],
     })).toThrow(/fuera de ruta permitida|cambios semánticos/);
+  });
+
+  it("does not expose URLs or valid-looking alphanumeric package keys", () => {
+    const urlKey = "https://registry.example/path?token=synthetic-secret@1.0.0";
+    const hostileUrlLock = refreshedLock.replace(
+      "snapshots:\n",
+      `  '${urlKey}':\n    resolution:\n      integrity: sha512-hostile\nsnapshots:\n`,
+    );
+    let urlMessage = "";
+    try {
+      validateLockfileRefresh({ beforeText: oldLock, afterText: hostileUrlLock, changedFiles: ["pnpm-lock.yaml"] });
+    } catch (error) {
+      urlMessage = (error as Error).message;
+    }
+
+    expect(urlMessage).toContain("packages/<other-entry#");
+    expect(urlMessage).not.toContain("registry.example");
+    expect(urlMessage).not.toContain("synthetic-secret");
+
+    const alphaTokenKey = "ghpabcdef1234567890@1.0.0";
+    const hostileAlphaLock = refreshedLock.replace(
+      "snapshots:\n",
+      `  '${alphaTokenKey}':\n    resolution:\n      integrity: sha512-hostile\nsnapshots:\n`,
+    );
+    let alphaMessage = "";
+    try {
+      validateLockfileRefresh({ beforeText: oldLock, afterText: hostileAlphaLock, changedFiles: ["pnpm-lock.yaml"] });
+    } catch (error) {
+      alphaMessage = (error as Error).message;
+    }
+
+    expect(alphaMessage).toContain("packages/<other-entry#");
+    expect(alphaMessage).not.toContain(alphaTokenKey);
+  });
+
+  it("reports importer changes without exposing importer values", () => {
+    const secretValue = "synthetic-private-manifest-value";
+    const withImporters = (alphaVersion: string, zetaVersion: string) =>
+      oldLock.replace(
+        "packages:\n",
+        `importers:\n  ./alpha:\n    dependencies:\n      alpha-package: ${alphaVersion}\n  ./zeta:\n    dependencies:\n      zeta-package: ${zetaVersion}\npackages:\n`,
+      );
+    let message = "";
+    try {
+      validateLockfileRefresh({
+        beforeText: withImporters("1.0.0", "1.0.0"),
+        afterText: withImporters("2.0.0", secretValue),
+        changedFiles: ["pnpm-lock.yaml"],
+      });
+    } catch (error) {
+      message = (error as Error).message;
+    }
+
+    expect(message).toContain("Los importers del lockfile deben permanecer idénticos");
+    expect(message).toContain("importers/<importer#1>");
+    expect(message).toContain("importers/<importer#2>");
+    expect(message).not.toContain("./alpha");
+    expect(message).not.toContain("./zeta");
+    expect(message).not.toContain("alpha-package");
+    expect(message).not.toContain("zeta-package");
+    expect(message).not.toContain(secretValue);
+  });
+
+  it("caps semantic difference counts and the number of reported paths", () => {
+    const additionalPackages = Array.from({ length: MAX_DIAGNOSTIC_DIFFS + 8 }, (_, index) =>
+      `  unrelated-${index}@1.0.0:\n    resolution:\n      integrity: sha512-unrelated-${index}`
+    ).join("\n");
+    const manyDifferences = refreshedLock.replace("snapshots:\n", `${additionalPackages}\nsnapshots:\n`);
+    let message = "";
+    try {
+      validateLockfileRefresh({ beforeText: oldLock, afterText: manyDifferences, changedFiles: ["pnpm-lock.yaml"] });
+    } catch (error) {
+      message = (error as Error).message;
+    }
+
+    expect(message).toContain(`${MAX_DIAGNOSTIC_DIFFS}+ diferencias observadas`);
+    expect(message).toContain("resumen truncado");
+    const reportedPaths = message.match(/rutas: (.*?); resumen truncado/)?.[1]?.split(", ") ?? [];
+    expect(reportedPaths).toHaveLength(MAX_DIAGNOSTIC_PATHS);
+  });
+
+  it("compares arrays by content when counting a separate semantic mismatch", () => {
+    const addUnchangedArray = (lock: string) =>
+      lock.replace(
+        "packages:\n",
+        "emptyObject: {}\nemptyArray: []\nunchangedList:\n  - first\n  - second\npackages:\n",
+      );
+    const additionalPackage = "  unrelated-array-check@1.0.0:\n    resolution:\n      integrity: sha512-unrelated";
+    const after = addUnchangedArray(refreshedLock).replace("snapshots:\n", `${additionalPackage}\nsnapshots:\n`);
+    let message = "";
+    try {
+      validateLockfileRefresh({
+        beforeText: addUnchangedArray(oldLock),
+        afterText: after,
+        changedFiles: ["pnpm-lock.yaml"],
+      });
+    } catch (error) {
+      message = (error as Error).message;
+    }
+
+    expect(message).toContain("1 diferencias observadas");
+    expect(message).toContain("packages/<other-entry#");
+  });
+
+  it("skips deep subtrees without counting them and continues with sibling differences", () => {
+    const nestedFields = Array.from({ length: MAX_DIAGNOSTIC_DEPTH + 4 }, (_, index) =>
+      `${"  ".repeat(index + 1)}private-field-${index}:`
+    ).join("\n");
+    const deepSubtree = `deep-unchanged:\n${nestedFields}\n${"  ".repeat(MAX_DIAGNOSTIC_DEPTH + 5)}value: private-value`;
+    const addDeepSubtree = (lock: string) => lock.replace("packages:\n", `${deepSubtree}\npackages:\n`);
+    const additionalPackage = "  unrelated-after-depth-limit@1.0.0:\n    resolution:\n      integrity: sha512-unrelated";
+    const deepLock = addDeepSubtree(refreshedLock).replace("snapshots:\n", `${additionalPackage}\nsnapshots:\n`);
+    let message = "";
+    try {
+      validateLockfileRefresh({
+        beforeText: addDeepSubtree(oldLock),
+        afterText: deepLock,
+        changedFiles: ["pnpm-lock.yaml"],
+      });
+    } catch (error) {
+      message = (error as Error).message;
+    }
+
+    expect(message).toContain("1 diferencias observadas");
+    expect(message).toContain("packages/<other-entry#");
+    expect(message).toContain("subárboles omitidos: 1");
+    expect(message).not.toContain("private-field");
+    expect(message).not.toContain("private-value");
   });
 
   it("rejects valid-looking but non-registry integrity values", () => {
