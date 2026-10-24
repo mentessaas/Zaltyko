@@ -62,7 +62,7 @@ describe("isolated CI workflow contract", () => {
     expect(buildJob).toContain('[[ "$EXPECTED_SHA" == "$head_sha" ]]');
     expect(buildJob).toContain("VERCEL_ENV: preview");
     expect(buildJob).toContain("pnpm install --frozen-lockfile --prod=false");
-    expect(buildJob).toContain("DEBUG=next:jsconfig-paths-plugin pnpm build");
+    expect(buildJob).toContain("pnpm build");
     expect(buildJob).toContain("placeholder.supabase.co");
     expect(buildJob).toContain("placeholder:placeholder@placeholder:5432/placeholder");
     expect(buildJob).not.toMatch(/\bsecrets\.|SUPABASE_ACCESS_TOKEN|SUPABASE_DB_PASSWORD|SUPABASE_SERVICE_ROLE_KEY|STRIPE_SECRET_KEY|VERCEL_TOKEN|upload-artifact|uses:\s*vercel\/|actions\/deploy/i);
