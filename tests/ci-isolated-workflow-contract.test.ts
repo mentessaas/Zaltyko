@@ -185,6 +185,8 @@ describe("isolated CI workflow contract", () => {
     expect(replayScript).toContain("EXPECTED_SHA");
     expect(replayScript).toContain("diagnose_start_failure");
     expect(replayScript).toContain("diagnose_marker_failure");
+    expect(replayScript).toContain("diagnose_tenant_failure");
+    expect(replayScript).toContain("Sanitized tenant-isolation error excerpt");
     expect(replayScript).toContain("credential-bearing output remains withheld");
     expect(replayScript).toContain("Sanitized CLI startup error excerpt");
     expect(replayScript).toContain("export SUPABASE_EXPERIMENTAL_STACK=1");

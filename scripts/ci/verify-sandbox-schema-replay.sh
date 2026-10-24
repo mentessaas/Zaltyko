@@ -149,6 +149,33 @@ for line in matches[-16:]:
 PY
 }
 
+diagnose_tenant_failure() {
+  printf 'The synthetic isolation transaction failed; sanitized PostgreSQL detail follows.\n' >&2
+
+  python3 - "$TENANT_LOG" <<'PY' >&2
+from pathlib import Path
+import re
+import sys
+
+path = Path(sys.argv[1])
+if not path.is_file():
+    raise SystemExit(0)
+matches = [
+    line for line in path.read_text(encoding="utf-8", errors="replace").splitlines()
+    if re.search(r"error|failed|fatal|denied|cannot|could not|not found|not running|timeout|invalid|refused|sqlstate|exception", line, re.I)
+]
+print("Sanitized tenant-isolation error excerpt:")
+for line in matches[-16:]:
+    line = re.sub(r"\x1b\[[0-9;]*[A-Za-z]", "", line)
+    line = re.sub(r"(?i)\b(?:postgres(?:ql)?|https?)://\S+", "<redacted-connection>", line)
+    line = re.sub(r"\beyJ[A-Za-z0-9_-]+\.[A-Za-z0-9_-]+\.[A-Za-z0-9_-]+\b", "<redacted-jwt>", line)
+    line = re.sub(r"(?i)\b(?:sb_(?:publishable|secret)_|sk_(?:test|live)_|whsec_)[A-Za-z0-9_-]+", "<redacted-key>", line)
+    line = re.sub(r"(?i)\b(password|secret|token|jwt|authorization|(?:api|service[ _-]?role|anon)[ _-]?key)(\s*[:=]\s*)[^\s,;]+", r"\1\2<redacted>", line)
+    line = re.sub(r"\b[A-Za-z0-9_-]{64,}\b", "<redacted-long-value>", line)
+    print(line[:400])
+PY
+}
+
 [[ -x "$CLI" ]] || fail "The checksum-verified pinned Supabase CLI was not installed in RUNNER_TEMP."
 [[ ! -e "$CI_WORKDIR" ]] || fail "Refusing to reuse an existing local Supabase workdir."
 mkdir -p "$CI_WORKDIR/supabase/migrations"
@@ -482,6 +509,7 @@ cat -- "$ROLE_GUARD_FILE" "$ROOT/scripts/ci/sandbox-tenant-isolation.sql" \
 chmod 600 "$CI_WORKDIR/supabase/migrations/$TENANT_MIGRATION_NAME"
 if ! "$CLI" --workdir "$CI_WORKDIR" migration up --db-url "$LOCAL_DB_URL" \
   >"$TENANT_LOG" 2>&1; then
+  diagnose_tenant_failure
   fail "The synthetic two-academy RLS isolation check failed; CLI output was withheld."
 fi
 
