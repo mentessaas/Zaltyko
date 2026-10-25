@@ -26,7 +26,8 @@ jobs:
         with:
           python-version: '3.12'
       - name: Install pinned PostgreSQL AST parser on disposable runner
-        run: python -m pip install --disable-pip-version-check --only-binary=:all: pglast==7.21
+        run: |
+          python -m pip install --disable-pip-version-check --only-binary=:all: pglast==7.21
       - name: Prepare review artefacts without a database or network
         run: |
           set -euo pipefail
