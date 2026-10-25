@@ -134,7 +134,7 @@ describe("API limits and feature contracts", () => {
       ["src/app/api/quick-actions/create-class/route.ts", ".insert(classSessions)"] as const,
       ["src/app/api/class-waiting-list/route.ts", "tx.insert(classWaitingList)"] as const,
       ["src/lib/classes/promote-waiting-list.ts", ".insert(classEnrollments)"] as const,
-      ["src/app/api/class-waiting-list/[entryId]/route.ts", "tx.delete(classWaitingList)"] as const,
+      ["src/app/api/class-waiting-list/[entryId]/route.ts", ".delete(classWaitingList)"] as const,
     ];
 
     for (const [path, writeExpression] of routes) {
