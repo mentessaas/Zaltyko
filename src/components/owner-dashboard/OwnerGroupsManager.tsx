@@ -105,6 +105,14 @@ type PendingGroupCreateState =
   | { kind: "invalid"; organizationId: string }
   | { kind: "unavailable"; organizationId: string };
 
+type PendingAthleteProfileUpdate = {
+  organizationId: string;
+  groupId: string;
+  athleteId: string;
+  idempotencyKey: string;
+  body: string;
+};
+
 function responseData<T>(payload: unknown): T | null {
   if (payload && typeof payload === "object" && "data" in payload) {
     return (payload as { data: T }).data;
@@ -241,9 +249,16 @@ export function OwnerGroupsManager({ bundle }: { bundle: GroupsBundle }) {
   const [notice, setNotice] = useOrganizationDraftField(membershipScope, "");
   const groupCreateRequestRef = useRef(false);
   const pendingMembershipRef = useRef<PendingMembershipCommand | null>(null);
+  const pendingAthleteProfileRef = useRef<PendingAthleteProfileUpdate | null>(null);
   const membershipSendingRef = useRef(false);
+  const athleteProfileSendingRef = useRef(false);
   const membershipUncertainRef = useRef(false);
   const [pendingMembership, setPendingMembership] = useState<PendingMembershipCommand | null>(null);
+  const [pendingAthleteProfile, setPendingAthleteProfile] = useState<PendingAthleteProfileUpdate | null>(null);
+  const [editingAthleteId, setEditingAthleteId] = useState<string | null>(null);
+  const [editingGivenName, setEditingGivenName] = useState("");
+  const [editingFamilyName, setEditingFamilyName] = useState("");
+  const [editingPreferredName, setEditingPreferredName] = useState("");
   const [membershipRecoveryLoadedFor, setMembershipRecoveryLoadedFor] = useState<string | null>(null);
   const [membershipRecoveryFailure, setMembershipRecoveryFailure] = useState<{ scope: string; message: string } | null>(null);
   const [foreignMembershipScope, setForeignMembershipScope] = useState<{ organizationId: string; groupId: string } | null>(null);
@@ -254,6 +269,7 @@ export function OwnerGroupsManager({ bundle }: { bundle: GroupsBundle }) {
   const scopeVersionRef = useRef(0);
   useEffect(() => { scopeVersionRef.current += 1; }, [membershipScope]);
   usePendingCommandExitWarning(pendingMembership !== null, pendingMembershipRef);
+  usePendingCommandExitWarning(pendingAthleteProfile !== null, pendingAthleteProfileRef);
   const selectedGroup = bundle.groups.find(
     (group) => group.id === bundle.selectedGroupId
   );
@@ -275,8 +291,8 @@ export function OwnerGroupsManager({ bundle }: { bundle: GroupsBundle }) {
   const membershipRecoveryReady = membershipRecoveryLoadedFor === membershipScope && membershipRecoveryFailure?.scope !== membershipScope;
   const membershipRecoveryError = membershipRecoveryFailure?.scope === membershipScope ? membershipRecoveryFailure.message : "";
   const groupCreateLocked =
-    busy || !groupCreateScopeLoaded || !membershipRecoveryReady || membershipRecoveryError !== "" || currentPendingGroupCreate !== null || pendingMembership !== null || foreignMembershipScope !== null || writesBlocked;
-  const commandsLocked = busy || !membershipRecoveryReady || membershipRecoveryError !== "" || pendingMembership !== null || foreignMembershipScope !== null || currentPendingGroupCreate !== null;
+    busy || editingAthleteId !== null || !groupCreateScopeLoaded || !membershipRecoveryReady || membershipRecoveryError !== "" || currentPendingGroupCreate !== null || pendingMembership !== null || pendingAthleteProfile !== null || foreignMembershipScope !== null || writesBlocked;
+  const commandsLocked = busy || editingAthleteId !== null || !membershipRecoveryReady || membershipRecoveryError !== "" || pendingMembership !== null || pendingAthleteProfile !== null || foreignMembershipScope !== null || currentPendingGroupCreate !== null;
   const canRetryMembership = pendingMembership?.organizationId === organizationId && pendingMembership.groupId === bundle.selectedGroupId;
   const scopedCreateAthleteRecovery = createAthleteRecovery?.scope === membershipScope ? createAthleteRecovery : null;
   const createAthleteBlocked = !scopedCreateAthleteRecovery ||
@@ -691,6 +707,7 @@ export function OwnerGroupsManager({ bundle }: { bundle: GroupsBundle }) {
       command.organizationId !== organizationId ||
       command.groupId !== bundle.selectedGroupId ||
       membershipSendingRef.current || groupCreateRequestRef.current ||
+      pendingAthleteProfileRef.current !== null || athleteProfileSendingRef.current ||
       !membershipRecoveryReady || membershipRecoveryError !== "" || foreignMembershipScope !== null ||
       currentPendingGroupCreate ||
       (pendingMembershipRef.current !== null && pendingMembershipRef.current !== command)
@@ -820,7 +837,7 @@ export function OwnerGroupsManager({ bundle }: { bundle: GroupsBundle }) {
   }
 
   function membershipCommandBlocked() {
-    return writesBlocked || !membershipRecoveryReady || membershipRecoveryError !== "" || foreignMembershipScope !== null || busy || pendingMembershipRef.current !== null || membershipSendingRef.current || groupCreateRequestRef.current || currentPendingGroupCreate !== null;
+    return writesBlocked || !membershipRecoveryReady || membershipRecoveryError !== "" || foreignMembershipScope !== null || busy || editingAthleteId !== null || pendingMembershipRef.current !== null || membershipSendingRef.current || pendingAthleteProfileRef.current !== null || athleteProfileSendingRef.current || groupCreateRequestRef.current || currentPendingGroupCreate !== null;
   }
 
   async function addAthlete(athleteId: string) {
@@ -908,6 +925,160 @@ export function OwnerGroupsManager({ bundle }: { bundle: GroupsBundle }) {
       idempotencyKey: crypto.randomUUID(),
       body: JSON.stringify({ organizationId, expectedStatus: membership.status, toStatus, effectiveOn: selectedToday }),
     });
+  }
+
+  function beginAthleteProfileEdit(
+    membership: GroupsBundle["memberships"][number]
+  ) {
+    if (commandsLocked || writesBlocked || !membership.profileVersion) return;
+    setError("");
+    setNotice("");
+    setEditingAthleteId(membership.athleteId);
+    setEditingGivenName(membership.givenName);
+    setEditingFamilyName(membership.familyName);
+    setEditingPreferredName(membership.preferredName ?? "");
+  }
+
+  async function sendAthleteProfileUpdate(
+    command: PendingAthleteProfileUpdate,
+    allowReplay = false
+  ) {
+    const pending = pendingAthleteProfileRef.current;
+    if (
+      !selectedGroup ||
+      command.organizationId !== organizationId ||
+      command.groupId !== selectedGroup.id ||
+      (pending !== null && pending !== command) ||
+      athleteProfileSendingRef.current ||
+      busy ||
+      !membershipRecoveryReady ||
+      membershipRecoveryError !== "" ||
+      foreignMembershipScope !== null ||
+      pendingMembershipRef.current !== null ||
+      membershipSendingRef.current ||
+      groupCreateRequestRef.current ||
+      currentPendingGroupCreate !== null ||
+      (!allowReplay && writesBlocked)
+    ) {
+      return;
+    }
+
+    athleteProfileSendingRef.current = true;
+    const scopeVersion = scopeVersionRef.current;
+    setError("");
+    setNotice("");
+    setBusy(true);
+    try {
+      const response = await fetch(
+        `/api/v1/owner/groups/${command.groupId}/athletes/${command.athleteId}`,
+        {
+          method: "PATCH",
+          headers: {
+            "content-type": "application/json",
+            "idempotency-key": command.idempotencyKey,
+          },
+          body: command.body,
+        }
+      );
+      const payload = await response.json().catch(() => null);
+      const receipt = responseData<{
+        athleteId: string;
+        givenName: string;
+        familyName: string;
+        preferredName: string | null;
+        profileVersion: string;
+      }>(payload);
+      if (
+        response.ok &&
+        receipt?.athleteId === command.athleteId &&
+        typeof receipt.givenName === "string" &&
+        typeof receipt.familyName === "string" &&
+        (typeof receipt.preferredName === "string" || receipt.preferredName === null) &&
+        typeof receipt.profileVersion === "string"
+      ) {
+        pendingAthleteProfileRef.current = null;
+        setPendingAthleteProfile(null);
+        setEditingAthleteId(null);
+        setNotice("Datos de la ficha actualizados.");
+        if (scopeVersionRef.current === scopeVersion) router.refresh();
+        return;
+      }
+
+      if (response.status >= 500 || response.status === 408 || response.ok) {
+        setError(
+          "No sabemos si se guardó la edición. Reintenta la misma operación para confirmar el resultado; no vuelvas a introducir los datos."
+        );
+        return;
+      }
+
+      pendingAthleteProfileRef.current = null;
+      setPendingAthleteProfile(null);
+      if (response.status === 409 && scopeVersionRef.current === scopeVersion) {
+        router.refresh();
+      }
+      setError(responseError(payload));
+    } catch {
+      setError(
+        "No sabemos si se guardó la edición. Reintenta la misma operación para confirmar el resultado; no vuelvas a introducir los datos."
+      );
+    } finally {
+      athleteProfileSendingRef.current = false;
+      setBusy(false);
+    }
+  }
+
+  function submitAthleteProfileEdit(
+    event: FormEvent<HTMLFormElement>,
+    membership: GroupsBundle["memberships"][number]
+  ) {
+    event.preventDefault();
+    if (!selectedGroup) return;
+    const pending = pendingAthleteProfileRef.current;
+    if (pending) {
+      if (
+        pending.organizationId === organizationId &&
+        pending.groupId === selectedGroup.id &&
+        pending.athleteId === membership.athleteId
+      ) {
+        void sendAthleteProfileUpdate(pending, true);
+      }
+      return;
+    }
+    if (
+      writesBlocked ||
+      !membershipRecoveryReady ||
+      membershipRecoveryError !== "" ||
+      foreignMembershipScope !== null ||
+      busy ||
+      pendingMembershipRef.current !== null ||
+      membershipSendingRef.current ||
+      groupCreateRequestRef.current ||
+      currentPendingGroupCreate !== null
+    ) return;
+
+    const givenName = editingGivenName.trim();
+    const familyName = editingFamilyName.trim();
+    const preferredName = editingPreferredName.trim() || null;
+    if (!givenName || !familyName) {
+      setError("Indica el nombre y los apellidos.");
+      return;
+    }
+    const command: PendingAthleteProfileUpdate = {
+      organizationId,
+      groupId: selectedGroup.id,
+      athleteId: membership.athleteId,
+      idempotencyKey: crypto.randomUUID(),
+      body: JSON.stringify({
+        organizationId,
+        givenName,
+        familyName,
+        preferredName,
+        expectedProfileVersion: membership.profileVersion,
+      }),
+    };
+    pendingAthleteProfileRef.current = command;
+    setPendingAthleteProfile(command);
+    void sendAthleteProfileUpdate(command);
   }
 
   return (
@@ -1513,9 +1684,96 @@ export function OwnerGroupsManager({ bundle }: { bundle: GroupsBundle }) {
                               {statusLabel(membership.status)} desde{" "}
                               {membership.startsOn}
                             </p>
+                            {editingAthleteId === membership.athleteId && (
+                              <form
+                                className="mt-4 grid gap-3 border-l-2 border-teal-800 pl-4 sm:grid-cols-2"
+                                aria-label={`Editar datos de ${membership.athleteName}`}
+                                onSubmit={(event) => submitAthleteProfileEdit(event, membership)}
+                              >
+                                <p className="text-sm leading-6 text-slate-700 sm:col-span-2">
+                                  El nombre preferido es el que se muestra en los grupos. El cambio afecta a esta ficha en toda la academia y no modifica la familia asociada.
+                                </p>
+                                <label className="block text-sm font-semibold">
+                                  Nombre de {membership.athleteName}
+                                  <input
+                                    className={`${fieldClassName} mt-2`}
+                                    value={editingGivenName}
+                                    disabled={busy || writesBlocked || pendingAthleteProfile !== null}
+                                    onChange={(event) => setEditingGivenName(event.target.value)}
+                                    maxLength={100}
+                                    autoComplete="given-name"
+                                    required
+                                  />
+                                </label>
+                                <label className="block text-sm font-semibold">
+                                  Apellidos de {membership.athleteName}
+                                  <input
+                                    className={`${fieldClassName} mt-2`}
+                                    value={editingFamilyName}
+                                    disabled={busy || writesBlocked || pendingAthleteProfile !== null}
+                                    onChange={(event) => setEditingFamilyName(event.target.value)}
+                                    maxLength={100}
+                                    autoComplete="family-name"
+                                    required
+                                  />
+                                </label>
+                                <label className="block text-sm font-semibold sm:col-span-2">
+                                  Nombre preferido de {membership.athleteName} (opcional)
+                                  <input
+                                    className={`${fieldClassName} mt-2`}
+                                    value={editingPreferredName}
+                                    disabled={busy || writesBlocked || pendingAthleteProfile !== null}
+                                    onChange={(event) => setEditingPreferredName(event.target.value)}
+                                    maxLength={100}
+                                    autoComplete="nickname"
+                                  />
+                                </label>
+                                <div className="flex flex-wrap gap-2 sm:col-span-2">
+                                  <button
+                                    type="submit"
+                                    className={primaryButtonClassName}
+                                    disabled={busy || (!pendingAthleteProfile && (writesBlocked || !membershipRecoveryReady || membershipRecoveryError !== "" || foreignMembershipScope !== null || pendingMembership !== null || currentPendingGroupCreate !== null))}
+                                  >
+                                    {pendingAthleteProfile
+                                      ? busy
+                                        ? "Guardando…"
+                                        : "Reintentar el mismo guardado"
+                                      : busy
+                                        ? "Guardando…"
+                                        : "Guardar cambios"}
+                                  </button>
+                                  {!pendingAthleteProfile && (
+                                    <button
+                                      type="button"
+                                      className={secondaryButtonClassName}
+                                      disabled={busy}
+                                      onClick={() => setEditingAthleteId(null)}
+                                    >
+                                      Cancelar
+                                    </button>
+                                  )}
+                                </div>
+                                {pendingAthleteProfile && (
+                                  <p className="text-sm text-amber-950 sm:col-span-2" role="status">
+                                    Conservamos la misma operación en esta sesión hasta confirmar su resultado.
+                                  </p>
+                                )}
+                              </form>
+                            )}
                           </div>
                           <div className="flex flex-wrap gap-2">
-                            {membership.status === "pending" && (
+                            {editingAthleteId !== membership.athleteId && (
+                              <button
+                                type="button"
+                                className={secondaryButtonClassName}
+                                aria-label={`Editar datos de ${membership.athleteName}`}
+                                disabled={commandsLocked || writesBlocked || !membership.profileVersion}
+                                onClick={() => beginAthleteProfileEdit(membership)}
+                              >
+                                Editar datos
+                              </button>
+                            )}
+                            {editingAthleteId !== membership.athleteId && membership.status === "pending" && (
                               <button
                                 type="button"
                                 className={secondaryButtonClassName}
@@ -1529,7 +1787,7 @@ export function OwnerGroupsManager({ bundle }: { bundle: GroupsBundle }) {
                                 Activar
                               </button>
                             )}
-                            {membership.status === "active" && (
+                            {editingAthleteId !== membership.athleteId && membership.status === "active" && (
                               <button
                                 type="button"
                                 className={secondaryButtonClassName}
@@ -1542,7 +1800,7 @@ export function OwnerGroupsManager({ bundle }: { bundle: GroupsBundle }) {
                                 Poner en pausa
                               </button>
                             )}
-                            {membership.status === "paused" && (
+                            {editingAthleteId !== membership.athleteId && membership.status === "paused" && (
                               <button
                                 type="button"
                                 className={secondaryButtonClassName}
@@ -1555,7 +1813,7 @@ export function OwnerGroupsManager({ bundle }: { bundle: GroupsBundle }) {
                                 Reactivar
                               </button>
                             )}
-                            <button
+                            {editingAthleteId !== membership.athleteId && <button
                               type="button"
                               className="touch-target inline-flex min-h-11 items-center justify-center border border-red-700 bg-white px-3 py-2 text-sm font-semibold text-red-900 hover:bg-red-50 focus-visible:outline focus-visible:outline-2 focus-visible:outline-red-800 disabled:opacity-50"
                               aria-label={`Dar de baja a ${membership.athleteName}`}
@@ -1565,7 +1823,7 @@ export function OwnerGroupsManager({ bundle }: { bundle: GroupsBundle }) {
                               }
                             >
                               Dar de baja
-                            </button>
+                            </button>}
                           </div>
                         </li>
                       ))}

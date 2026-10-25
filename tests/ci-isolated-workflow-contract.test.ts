@@ -338,7 +338,7 @@ describe("isolated CI workflow contract", () => {
     const billingIntegrationTest = readFileSync(billingIntegrationTestPath, "utf8");
     const replayHeader = replayJob.split("\n    steps:")[0] ?? "";
     expect(replayHeader).not.toMatch(/^\s+needs:/m);
-    expect(replayJob).not.toContain("refs/heads/codex/mvp-monthly-invoice-pg-20261025");
+    expect(replayJob).toContain("refs/heads/codex/mvp-monthly-invoice-pg-20261025");
     expect(replayJob).toContain("inputs.resolution_mode == 'schema-replay'");
     expect(replayJob).toContain("inputs.resolution_mode == 'checks-and-build'");
     expect(replayJob).toContain("runs-on: ubuntu-latest");
@@ -353,6 +353,7 @@ describe("isolated CI workflow contract", () => {
     expect(replayScript).toContain('"${GITHUB_ACTIONS:-}" == "true"');
     expect(replayScript).toContain('"${RUNNER_OS:-}" == "Linux"');
     expect(replayScript).toContain("EXPECTED_SHA");
+    expect(replayScript).toContain("codex/mvp-monthly-invoice-pg-20261025");
     expect(replayScript).toContain("diagnose_start_failure");
     expect(replayScript).toContain("diagnose_marker_failure");
     expect(replayScript).toContain("diagnose_tenant_failure");

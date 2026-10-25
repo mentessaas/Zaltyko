@@ -2,7 +2,7 @@
 set -euo pipefail
 umask 077
 
-readonly EXPECTED_BRANCH="codex/owner-isolated-validation-20261023"
+readonly ALLOWED_BRANCHES="|codex/owner-isolated-validation-20261023|codex/mvp-vertical-delivery-20261025|codex/mvp-monthly-invoice-pg-20261025|"
 readonly ROLE_PROBE_NAME="20261024172151_sandbox_replay_principal_probe.sql"
 readonly AUTH_JWT_MIGRATION_NAME="20261024172152_supabase_auth_jwt_platform_prerequisite.sql"
 readonly MIGRATION_NAME="20261024172153_sandbox_schema_snapshot_baseline.sql"
@@ -26,8 +26,10 @@ fail() {
 [[ "${RUNNER_OS:-}" == "Linux" && "$(uname -s)" == "Linux" ]] || fail "A disposable Linux runner is required."
 [[ "$(id -u)" -ne 0 ]] || fail "The native Postgres runtime must use a non-root runner account."
 [[ -n "${RUNNER_TEMP:-}" && -d "$RUNNER_TEMP" ]] || fail "RUNNER_TEMP must be an existing directory."
-[[ "${GITHUB_REF:-}" == "refs/heads/$EXPECTED_BRANCH" ]] || fail "Unexpected workflow branch."
-[[ "${DISPATCH_REF:-}" == "refs/heads/$EXPECTED_BRANCH" ]] || fail "Unexpected dispatched ref."
+branch="${GITHUB_REF#refs/heads/}"
+[[ "$ALLOWED_BRANCHES" == *"|$branch|"* ]] || fail "Unexpected workflow branch."
+[[ "${GITHUB_REF:-}" == "refs/heads/$branch" ]] || fail "Unexpected workflow branch."
+[[ "${DISPATCH_REF:-}" == "refs/heads/$branch" ]] || fail "Unexpected dispatched ref."
 [[ "${EXPECTED_SHA:-}" =~ ^[0-9a-f]{40}$ ]] || fail "A full expected commit SHA is required."
 [[ "${DISPATCH_SHA:-}" == "$(git -C "$ROOT" rev-parse HEAD)" ]] || fail "The checked out SHA differs from the dispatch SHA."
 [[ "${EXPECTED_SHA}" == "$(git -C "$ROOT" rev-parse HEAD)" ]] || fail "The checked out SHA differs from the approved SHA."

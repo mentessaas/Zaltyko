@@ -61,12 +61,36 @@ const personNameSchema = z
   .max(100)
   .refine((value) => !/[\u0000-\u001f\u007f]/u.test(value))
   .transform((value) => value.normalize("NFC").replace(/\s+/gu, " "));
+const optionalPersonNameSchema = z
+  .string()
+  .trim()
+  .max(100)
+  .refine((value) => !/[\u0000-\u001f\u007f]/u.test(value))
+  .transform((value) => {
+    const normalized = value.normalize("NFC").replace(/\s+/gu, " ");
+    return normalized || null;
+  })
+  .nullable();
 
 const createAthleteForGroupSchema = z.object({
   organizationId: z.string().uuid(),
   groupId: z.string().uuid(),
   givenName: personNameSchema,
   familyName: personNameSchema,
+  idempotencyKey: commandKeySchema,
+  actor: operationalActorSchema,
+});
+
+const updateAthleteProfileSchema = z.object({
+  organizationId: z.string().uuid(),
+  groupId: z.string().uuid(),
+  athleteId: z.string().uuid(),
+  givenName: personNameSchema,
+  familyName: personNameSchema,
+  preferredName: optionalPersonNameSchema,
+  // Keep the exact database precision returned by the roster query. Converting
+  // this token to a JavaScript Date would discard PostgreSQL microseconds.
+  expectedProfileVersion: z.string().datetime({ offset: true }),
   idempotencyKey: commandKeySchema,
   actor: operationalActorSchema,
 });
@@ -86,6 +110,9 @@ const transitionMembershipSchema = z.object({
 export type AddGroupMembershipCommand = z.infer<typeof addMembershipSchema>;
 export type CreateAthleteForGroupCommand = z.infer<
   typeof createAthleteForGroupSchema
+>;
+export type UpdateAthleteProfileCommand = z.infer<
+  typeof updateAthleteProfileSchema
 >;
 export type TransitionGroupMembershipCommand = z.infer<
   typeof transitionMembershipSchema
@@ -740,6 +767,238 @@ export async function recoverCreatedAthleteForGroup(
       );
     }
     return membership;
+  });
+}
+
+/**
+ * Updates only the athlete's given, family, and preferred names. Scope,
+ * Free-plan writability, optimistic versioning, outbox, and audit are checked
+ * in one transaction. Names never enter audit/outbox payloads.
+ */
+export async function updateAthleteProfileForGroup(
+  command: UpdateAthleteProfileCommand
+): Promise<{
+  athleteId: string;
+  givenName: string;
+  familyName: string;
+  preferredName: string | null;
+  profileVersion: string;
+}> {
+  const input = updateAthleteProfileSchema.parse(command);
+  const eventName = "athlete.profile_updated";
+
+  return db.transaction(async (tx) => {
+    await lockCommand(tx, input.organizationId, input.idempotencyKey);
+
+    const group = await assertGroupAccess(tx, {
+      organizationId: input.organizationId,
+      groupId: input.groupId,
+      actor: input.actor,
+      requireActive: false,
+      intent: "read",
+    });
+
+    const expectedPayload = {
+      athleteId: input.athleteId,
+      groupId: input.groupId,
+      expectedProfileVersion: input.expectedProfileVersion,
+    };
+    const prior = await findOutboxEvent(tx, {
+      organizationId: input.organizationId,
+      eventName,
+      idempotencyKey: input.idempotencyKey,
+    });
+
+    if (prior) {
+      assertIdempotencyPayload(prior.payload, expectedPayload);
+      if (prior.aggregateId !== input.athleteId) {
+        throw new OperationalError(
+          "IDEMPOTENCY_CONFLICT",
+          "La clave de idempotencia ya pertenece a otra ficha",
+          409
+        );
+      }
+      const [current] = await tx
+        .select({
+          athleteId: athletes.id,
+          givenName: people.givenName,
+          familyName: people.familyName,
+          preferredName: people.preferredName,
+          profileVersion: sql<string>`to_char(${people.updatedAt} at time zone 'UTC', 'YYYY-MM-DD"T"HH24:MI:SS.US"Z"')`,
+        })
+        .from(athletes)
+        .innerJoin(
+          people,
+          and(
+            eq(people.organizationId, athletes.organizationId),
+            eq(people.id, athletes.personId)
+          )
+        )
+        .where(
+          and(
+            eq(athletes.organizationId, input.organizationId),
+            eq(athletes.id, input.athleteId)
+          )
+        )
+        .limit(1);
+      if (
+        !current ||
+        prior.payload.profileVersion !== current.profileVersion ||
+        current.givenName !== input.givenName ||
+        current.familyName !== input.familyName ||
+        current.preferredName !== input.preferredName
+      ) {
+        throw new OperationalError(
+          "IDEMPOTENCY_CONFLICT",
+          "La ficha cambió después de la operación pendiente. Actualiza el roster antes de continuar.",
+          409
+        );
+      }
+      return current;
+    }
+
+    const [usedKey] = await tx
+      .select({ id: outboxEvents.id })
+      .from(outboxEvents)
+      .where(
+        and(
+          eq(outboxEvents.organizationId, input.organizationId),
+          eq(outboxEvents.idempotencyKey, input.idempotencyKey)
+        )
+      )
+      .limit(1);
+    if (usedKey) {
+      throw new OperationalError(
+        "IDEMPOTENCY_CONFLICT",
+        "La clave de idempotencia ya pertenece a otra operación",
+        409
+      );
+    }
+
+    // Lock the exact current group membership and its identity before checking
+    // the plan or changing either row. The organization lock above preserves
+    // the existing SaaS mutation lock order.
+    const locked = await tx.execute(sql`
+      select gm.id
+      from zaltyko.group_memberships gm
+      inner join zaltyko.athletes a
+        on a.organization_id = gm.organization_id and a.id = gm.athlete_id
+      inner join zaltyko.people p
+        on p.organization_id = a.organization_id and p.id = a.person_id
+      where gm.organization_id = ${input.organizationId}::uuid
+        and gm.group_id = ${input.groupId}::uuid
+        and gm.athlete_id = ${input.athleteId}::uuid
+        and gm.status in ('pending', 'active', 'paused')
+        and a.is_active
+      limit 1
+      for update of gm, a, p
+    `);
+    if (locked.rows.length !== 1) {
+      throw new OperationalError(
+        "NOT_FOUND",
+        "No se encontró una pertenencia activa para esta ficha en el grupo",
+        404
+      );
+    }
+
+    await assertOrganizationOperationalWritable(tx, input.organizationId);
+
+    const [current] = await tx
+      .select({
+        athleteId: athletes.id,
+        personId: people.id,
+        givenName: people.givenName,
+        familyName: people.familyName,
+        preferredName: people.preferredName,
+        profileVersion: sql<string>`to_char(${people.updatedAt} at time zone 'UTC', 'YYYY-MM-DD"T"HH24:MI:SS.US"Z"')`,
+      })
+      .from(athletes)
+      .innerJoin(
+        people,
+        and(
+          eq(people.organizationId, athletes.organizationId),
+          eq(people.id, athletes.personId)
+        )
+      )
+      .where(
+        and(
+          eq(athletes.organizationId, input.organizationId),
+          eq(athletes.id, input.athleteId),
+          eq(athletes.isActive, true)
+        )
+      )
+      .limit(1);
+    if (!current) {
+      throw new OperationalError("NOT_FOUND", "Ficha activa no encontrada", 404);
+    }
+    if (current.profileVersion !== input.expectedProfileVersion) {
+      throw new OperationalError(
+        "VERSION_CONFLICT",
+        "La ficha cambió desde la última lectura. Actualiza el roster y vuelve a intentarlo.",
+        409
+      );
+    }
+
+    const [updated] = await tx
+      .update(people)
+      .set({
+        givenName: input.givenName,
+        familyName: input.familyName,
+        preferredName: input.preferredName,
+        updatedAt: sql`greatest(clock_timestamp(), ${people.updatedAt} + interval '1 microsecond')`,
+      })
+      .where(
+        and(
+          eq(people.organizationId, input.organizationId),
+          eq(people.id, current.personId),
+          sql`${people.updatedAt} = ${input.expectedProfileVersion}::timestamptz`
+        )
+      )
+      .returning({
+        givenName: people.givenName,
+        familyName: people.familyName,
+        preferredName: people.preferredName,
+        profileVersion: sql<string>`to_char(${people.updatedAt} at time zone 'UTC', 'YYYY-MM-DD"T"HH24:MI:SS.US"Z"')`,
+      });
+    if (!updated) {
+      throw new OperationalError(
+        "VERSION_CONFLICT",
+        "La ficha cambió desde la última lectura. Actualiza el roster y vuelve a intentarlo.",
+        409
+      );
+    }
+
+    await appendOutboxEvent(tx, {
+      organizationId: input.organizationId,
+      locationId: group.locationId,
+      eventName,
+      aggregateType: "athlete",
+      aggregateId: input.athleteId,
+      idempotencyKey: input.idempotencyKey,
+      payload: {
+        ...expectedPayload,
+        profileVersion: updated.profileVersion,
+      },
+    });
+    await appendAuditEntry(tx, {
+      organizationId: input.organizationId,
+      locationId: group.locationId,
+      actorUserId: input.actor.userId,
+      action: eventName,
+      targetType: "athlete",
+      targetId: input.athleteId,
+      idempotencyKey: input.idempotencyKey,
+      before: {
+        personId: current.personId,
+        profileVersion: current.profileVersion,
+      },
+      after: {
+        personId: current.personId,
+        profileVersion: updated.profileVersion,
+      },
+    });
+
+    return { athleteId: input.athleteId, ...updated };
   });
 }
 

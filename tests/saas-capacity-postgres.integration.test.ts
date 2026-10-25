@@ -6,7 +6,10 @@ import { sql } from "drizzle-orm";
 import { db } from "@/db";
 import { getOrganizationUsage } from "@/modules/saas-billing/application/organization-usage";
 import { createOperationalGroup } from "@/modules/groups/application/group-management-service";
-import { createAthleteForGroup } from "@/modules/groups/application/group-membership-service";
+import {
+  createAthleteForGroup,
+  updateAthleteProfileForGroup,
+} from "@/modules/groups/application/group-membership-service";
 import { createScheduledClass } from "@/modules/scheduling/application/class-management-service";
 import { createEnrollment } from "@/modules/enrollments/application/enrollment-service";
 import { recordAttendance } from "@/modules/attendance/application/attendance-service";
@@ -212,6 +215,23 @@ async function snapshotBootstrap(organizationId: string, userId: string) {
 
 async function usage(organizationId: string) {
   return db.transaction((tx) => getOrganizationUsage(tx, organizationId));
+}
+
+async function profileVersion(organizationId: string, athleteId: string) {
+  const result = await db.execute(sql`
+    select to_char(
+      p.updated_at at time zone 'UTC',
+      'YYYY-MM-DD"T"HH24:MI:SS.US"Z"'
+    ) as profile_version
+    from zaltyko.athletes a
+    inner join zaltyko.people p
+      on p.organization_id = a.organization_id and p.id = a.person_id
+    where a.organization_id = ${organizationId}::uuid
+      and a.id = ${athleteId}::uuid
+  `);
+  const value = result.rows[0]?.profile_version;
+  if (typeof value !== "string") throw new Error("Synthetic athlete version is missing");
+  return value;
 }
 
 function assertFreeUsage(
@@ -928,6 +948,239 @@ describe("Free capacity guards on disposable PostgreSQL", () => {
       expect(await snapshot(organizationId)).toEqual(excessSnapshot);
     }
   }, 45_000);
+
+  it("updates an authorized athlete profile once, audits without names, and replays without writes", async () => {
+    assertDisposableTarget();
+    const fixture = await seedEnrollmentEligibilityAcademy();
+    const key = `ci-athlete-profile-${randomUUID()}`;
+    const command = {
+      organizationId: fixture.organizationId,
+      groupId: fixture.targetGroupId,
+      athleteId: fixture.targetAthleteId,
+      givenName: "Alicia Synthetic",
+      familyName: "Gimenez QA",
+      preferredName: "Ali QA",
+      expectedProfileVersion: await profileVersion(
+        fixture.organizationId,
+        fixture.targetAthleteId
+      ),
+      idempotencyKey: key,
+      actor: fixture.actor,
+    };
+    const before = await snapshot(fixture.organizationId);
+
+    const updated = await updateAthleteProfileForGroup(command);
+
+    expect(updated).toMatchObject({
+      athleteId: fixture.targetAthleteId,
+      givenName: command.givenName,
+      familyName: command.familyName,
+      preferredName: command.preferredName,
+    });
+    const after = await snapshot(fixture.organizationId);
+    const changedTables = new Set(["audit_log", "outbox_events", "people"]);
+    const beforeByTable = new Map(before.map((row) => [String(row.table_name), row]));
+    const afterByTable = new Map(after.map((row) => [String(row.table_name), row]));
+    for (const row of before) {
+      const table = String(row.table_name);
+      const next = afterByTable.get(table);
+      expect(next).toBeDefined();
+      const expectedCountDelta = table === "audit_log" || table === "outbox_events" ? 1 : 0;
+      expect(Number(next?.count) - Number(row.count), table).toBe(expectedCountDelta);
+      if (changedTables.has(table)) {
+        expect(next?.content_hash, table).not.toBe(row.content_hash);
+      } else {
+        expect(next?.content_hash, table).toBe(row.content_hash);
+      }
+    }
+
+    const records = await db.execute(sql`
+      select 'outbox'::text as kind, payload::text as content
+      from zaltyko.outbox_events
+      where organization_id = ${fixture.organizationId}::uuid
+        and idempotency_key = ${key}
+      union all
+      select 'audit', to_jsonb(a)::text
+      from zaltyko.audit_log a
+      where organization_id = ${fixture.organizationId}::uuid
+        and idempotency_key = ${key}
+    `);
+    expect(records.rows).toHaveLength(2);
+    for (const record of records.rows) {
+      expect(String(record.content)).not.toContain(command.givenName);
+      expect(String(record.content)).not.toContain(command.familyName);
+      expect(String(record.content)).not.toContain(command.preferredName);
+    }
+
+    await expect(updateAthleteProfileForGroup(command)).resolves.toEqual(updated);
+    expect(await snapshot(fixture.organizationId)).toEqual(after);
+    const unchangedCount = await db.execute(sql`
+      select count(*)::int as count
+      from zaltyko.outbox_events
+      where organization_id = ${fixture.organizationId}::uuid
+        and event_name = 'athlete.profile_updated'
+        and idempotency_key = ${key}
+    `);
+    expect(Number(unchangedCount.rows[0]?.count)).toBe(1);
+    expect(beforeByTable.size).toBe(afterByTable.size);
+  });
+
+  it("serializes concurrent profile edits from the same version and commits only one", async () => {
+    assertDisposableTarget();
+    const fixture = await seedEnrollmentEligibilityAcademy();
+    const expectedProfileVersion = await profileVersion(
+      fixture.organizationId,
+      fixture.targetAthleteId
+    );
+    const commands = ["First Synthetic", "Second Synthetic"].map((givenName) => ({
+      organizationId: fixture.organizationId,
+      groupId: fixture.targetGroupId,
+      athleteId: fixture.targetAthleteId,
+      givenName,
+      familyName: "Concurrent QA",
+      preferredName: null,
+      expectedProfileVersion,
+      idempotencyKey: `ci-athlete-concurrent-${randomUUID()}`,
+      actor: fixture.actor,
+    }));
+    const before = await snapshot(fixture.organizationId);
+
+    const outcomes = await Promise.allSettled(
+      commands.map((command) => updateAthleteProfileForGroup(command))
+    );
+
+    expect(outcomes.filter((outcome) => outcome.status === "fulfilled")).toHaveLength(1);
+    const rejected = outcomes.find((outcome) => outcome.status === "rejected");
+    expect(rejected).toMatchObject({
+      status: "rejected",
+      reason: { code: "VERSION_CONFLICT", status: 409 },
+    });
+    const after = await snapshot(fixture.organizationId);
+    const beforeByTable = new Map(before.map((row) => [String(row.table_name), row]));
+    const afterByTable = new Map(after.map((row) => [String(row.table_name), row]));
+    for (const row of before) {
+      const table = String(row.table_name);
+      const next = afterByTable.get(table);
+      const expectedCountDelta = table === "audit_log" || table === "outbox_events" ? 1 : 0;
+      expect(Number(next?.count) - Number(row.count), table).toBe(expectedCountDelta);
+      if (["audit_log", "outbox_events", "people"].includes(table)) {
+        expect(next?.content_hash, table).not.toBe(row.content_hash);
+      } else {
+        expect(next?.content_hash, table).toBe(row.content_hash);
+      }
+    }
+    const events = await db.execute(sql`
+      select count(*)::int as count
+      from zaltyko.outbox_events
+      where organization_id = ${fixture.organizationId}::uuid
+        and event_name = 'athlete.profile_updated'
+        and idempotency_key in (${commands[0]!.idempotencyKey}, ${commands[1]!.idempotencyKey})
+    `);
+    expect(Number(events.rows[0]?.count)).toBe(1);
+  });
+
+  it("rejects stale profile versions without changing any tenant record", async () => {
+    assertDisposableTarget();
+    const fixture = await seedEnrollmentEligibilityAcademy();
+    const before = await snapshot(fixture.organizationId);
+
+    await expect(updateAthleteProfileForGroup({
+      organizationId: fixture.organizationId,
+      groupId: fixture.targetGroupId,
+      athleteId: fixture.targetAthleteId,
+      givenName: "Stale Synthetic",
+      familyName: "Profile QA",
+      preferredName: null,
+      expectedProfileVersion: "2000-01-01T00:00:00.000000Z",
+      idempotencyKey: `ci-athlete-stale-${randomUUID()}`,
+      actor: fixture.actor,
+    })).rejects.toMatchObject({ code: "VERSION_CONFLICT", status: 409 });
+
+    expect(await snapshot(fixture.organizationId)).toEqual(before);
+  });
+
+  it("rejects profile edits outside the actor's assigned location without partial writes", async () => {
+    assertDisposableTarget();
+    const fixture = await seedEnrollmentEligibilityAcademy();
+    await db.execute(sql`
+      update zaltyko.organization_members
+      set location_scope_mode = 'selected'
+      where organization_id = ${fixture.organizationId}::uuid
+        and id = ${fixture.actor.memberId}::uuid
+    `);
+    await db.execute(sql`
+      insert into zaltyko.member_location_scopes (
+        organization_id, member_id, location_id
+      ) values (
+        ${fixture.organizationId}::uuid,
+        ${fixture.actor.memberId}::uuid,
+        ${fixture.otherSiteLocationId}::uuid
+      )
+    `);
+    const before = await snapshot(fixture.organizationId);
+
+    await expect(updateAthleteProfileForGroup({
+      organizationId: fixture.organizationId,
+      groupId: fixture.targetGroupId,
+      athleteId: fixture.targetAthleteId,
+      givenName: "Denied Synthetic",
+      familyName: "Other Site",
+      preferredName: null,
+      expectedProfileVersion: await profileVersion(
+        fixture.organizationId,
+        fixture.targetAthleteId
+      ),
+      idempotencyKey: `ci-athlete-other-site-${randomUUID()}`,
+      actor: fixture.actor,
+    })).rejects.toMatchObject({ code: "LOCATION_SCOPE_DENIED", status: 403 });
+
+    expect(await snapshot(fixture.organizationId)).toEqual(before);
+  });
+
+  it("blocks profile edits for over-limit Free academies without partial writes", async () => {
+    assertDisposableTarget();
+    const fixture = await seedEnrollmentEligibilityAcademy();
+    const extras = Array.from({ length: 29 }, () => ({
+      personId: randomUUID(),
+      athleteId: randomUUID(),
+    }));
+    await db.execute(sql`
+      insert into zaltyko.people (id, organization_id, given_name, family_name)
+      values ${sql.join(extras.map((row) => sql`(
+        ${row.personId}::uuid,
+        ${fixture.organizationId}::uuid,
+        'Synthetic excess',
+        'Athlete'
+      )`), sql`, `)}
+    `);
+    await db.execute(sql`
+      insert into zaltyko.athletes (id, organization_id, person_id)
+      values ${sql.join(extras.map((row) => sql`(
+        ${row.athleteId}::uuid,
+        ${fixture.organizationId}::uuid,
+        ${row.personId}::uuid
+      )`), sql`, `)}
+    `);
+    assertFreeUsage(await usage(fixture.organizationId), [31, 2, 2], true);
+    const before = await snapshot(fixture.organizationId);
+
+    await expect(updateAthleteProfileForGroup({
+      organizationId: fixture.organizationId,
+      groupId: fixture.targetGroupId,
+      athleteId: fixture.targetAthleteId,
+      givenName: "Blocked Synthetic",
+      familyName: "Free Read Only",
+      preferredName: null,
+      expectedProfileVersion: await profileVersion(
+        fixture.organizationId,
+        fixture.targetAthleteId
+      ),
+      idempotencyKey: `ci-athlete-over-limit-${randomUUID()}`,
+      actor: fixture.actor,
+    })).rejects.toMatchObject({ code: "PLAN_OVER_CAPACITY", status: 409 });
+
+    expect(await snapshot(fixture.organizationId)).toEqual(before);
+  });
 
   it("creates an enrollment only when the athlete has an open relationship at that site", async () => {
     assertDisposableTarget();

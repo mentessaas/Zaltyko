@@ -178,6 +178,101 @@ describe("gestión de grupos owner", () => {
     expect(screen.getByRole("button", { name: "Dar de baja a Carla Sintética" })).toBeInTheDocument();
   });
 
+  it("edita el perfil con la misma clave y cuerpo tras una respuesta ambigua, sin persistir nombres", async () => {
+    const user = userEvent.setup();
+    const bundle = {
+      ...groupBundle,
+      memberships: [{
+        id: membershipId,
+        athleteId,
+        athleteName: "Ana QA",
+        givenName: "Ana",
+        familyName: "QA",
+        preferredName: null,
+        profileVersion: "2026-10-13T09:00:00.123456Z",
+        status: "active",
+        startsOn: "2026-10-13",
+        endsOn: null,
+      }],
+    } as never;
+    mockFetch
+      .mockResolvedValueOnce({
+        ok: false,
+        status: 503,
+        json: async () => ({ detail: "No se pudo confirmar el resultado." }),
+      })
+      .mockResolvedValueOnce({
+        ok: true,
+        status: 200,
+        json: async () => ({ ok: true, data: {
+          athleteId,
+          givenName: "Alicia",
+          familyName: "Giménez",
+          preferredName: "Ali",
+          profileVersion: "2026-10-13T09:01:00.000001Z",
+        } }),
+      });
+
+    render(<OwnerGroupsManager bundle={bundle} />);
+    await waitFor(() => expect(screen.getByRole("button", { name: "Editar datos de Ana QA" })).toBeEnabled());
+    await user.click(screen.getByRole("button", { name: "Editar datos de Ana QA" }));
+    const givenName = screen.getByLabelText("Nombre de Ana QA");
+    const familyName = screen.getByLabelText("Apellidos de Ana QA");
+    const preferredName = screen.getByLabelText("Nombre preferido de Ana QA (opcional)");
+    await user.clear(givenName);
+    await user.type(givenName, "Alicia");
+    await user.clear(familyName);
+    await user.type(familyName, "Giménez");
+    await user.type(preferredName, "Ali");
+    await user.click(screen.getByRole("button", { name: "Guardar cambios" }));
+
+    expect(await screen.findByRole("alert")).toHaveTextContent("No sabemos si se guardó la edición");
+    expect(screen.getByRole("button", { name: "Reintentar el mismo guardado" })).toBeEnabled();
+    expect(givenName).toBeDisabled();
+    expect(window.sessionStorage.length).toBe(0);
+
+    await user.click(screen.getByRole("button", { name: "Reintentar el mismo guardado" }));
+    await waitFor(() => expect(mockFetch).toHaveBeenCalledTimes(2));
+    const first = mockFetch.mock.calls[0]?.[1] as RequestInit;
+    const retry = mockFetch.mock.calls[1]?.[1] as RequestInit;
+    expect(first.method).toBe("PATCH");
+    expect(first.headers).toEqual(retry.headers);
+    expect(first.body).toBe(retry.body);
+    expect(JSON.parse(String(first.body))).toEqual({
+      organizationId,
+      givenName: "Alicia",
+      familyName: "Giménez",
+      preferredName: "Ali",
+      expectedProfileVersion: "2026-10-13T09:00:00.123456Z",
+    });
+    expect(await screen.findByText("Datos de la ficha actualizados.")).toBeVisible();
+    expect(mockRefresh).toHaveBeenCalledOnce();
+  });
+
+  it("bloquea la edición de perfil cuando Free está en solo lectura", () => {
+    publishOwnerPlanUsage(organizationId, { readOnly: true, planCode: "free" });
+    const bundle = {
+      ...groupBundle,
+      memberships: [{
+        id: membershipId,
+        athleteId,
+        athleteName: "Ana QA",
+        givenName: "Ana",
+        familyName: "QA",
+        preferredName: null,
+        profileVersion: "2026-10-13T09:00:00.123456Z",
+        status: "active",
+        startsOn: "2026-10-13",
+        endsOn: null,
+      }],
+    } as never;
+
+    render(<OwnerGroupsManager bundle={bundle} />);
+
+    expect(screen.getByRole("button", { name: "Editar datos de Ana QA" })).toBeDisabled();
+    expect(mockFetch).not.toHaveBeenCalled();
+  });
+
   it("en solo lectura conserva la consulta y el historial y desactiva las altas y transiciones", async () => {
     publishOwnerPlanUsage(organizationId, { readOnly: true, planCode: "free" });
     const bundleWithHistory = {
