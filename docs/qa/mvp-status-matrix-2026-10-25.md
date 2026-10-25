@@ -8,7 +8,19 @@ y separa cuatro estados: **implementado**, **probado aisladamente**,
 demuestra que el flujo esté desplegado o validado contra un usuario y datos
 persistidos reales de sandbox.
 
-El ultimo candidato enviado es `7f75490295368259782635b19e7b5164bc14b008`.
+## Corte vigente de validación
+
+Último código publicado en la rama: `78c6e38b5359deeda2f67e6354a5d801136465d1`.
+CI `40203109015`, gates `40203109025`, integridad SQL `40203109016` y replay PG
+`40203116706` terminaron **SUCCESS**. Unitarias4914 PASS/3 omitidas; Owner
+sintético Chromium/Firefox/WebKit pasa. E2E autenticado/readiness siguen omitidos.
+Nuevas asociaciones familiares desde grupos, confirmación de pagador y persistencia
+de comandos ambiguos están en trabajo local posterior, sin CI ni sandbox todavía.
+No hay publicación en producción ni nueva entrega READY acreditada.
+
+## Cortes anteriores conservados
+
+El candidato enviado en el corte anterior fue `7f75490295368259782635b19e7b5164bc14b008`.
 Incluye edicion canonica de nombre/apellidos del gimnasta desde Owner con permisos,
 concurrencia y recuperacion de respuestas inciertas. La CI
 [`40202187222`](https://github.com/mentessaas/Zaltyko/actions/runs/40202187222)
@@ -72,19 +84,28 @@ marcador aislado. Las suites PG de capacidad/ficha y ledger manual terminaron co
 exit 0, incluyendo rollback, emision concurrente y replay idempotente. El log de
 exito no imprime el desglose individual: no se le atribuye un conteo no observado.
 Esto sustituye el fallo de asercion del run anterior; no equivale a prueba contra
-la base remota de sandbox ni a despliegue. La CI completa `40203109015` sigue activa.
+la base remota de sandbox ni a despliegue. La CI completa `40203109015` terminó SUCCESS en una lectura posterior.
 El alias del ensayo fue releido y conserva `dpl_8GL6DqKiuuZUoPs44fjbmRpHaZhY`.
+
+La suite unitaria remota del mismo corte termino con **4914 PASS y 3 omitidas**
+(642 archivos aprobados y uno omitido), job `121198362837`. El checkout registrado
+por ese job fue el merge temporal `614ae5cd2e8e2061b3801c2619cde559a86cda89`,
+con padres main `f84fd6dc` y candidato `78c6e38b`. La API GitHub y Git local
+confirman el mismo arbol `d606893bfc0a1d5f6a9f918d7763edd0cc64b053` para
+ese merge y el candidato: identidad de contenido, no de commit. Build, lint/tipos,
+movil, seguridad, RLS, Drizzle y Chromium aprobaron; Firefox y WebKit terminaron SUCCESS en una lectura posterior. La CI completa
+aprueba; el flujo autenticado sigue NO VERIFICADO.
 
 | Recorrido | Implementado en código | Probado aisladamente | Sandbox del candidato actual | Publicado |
 | --- | --- | --- | --- | --- |
 | Alta, consentimiento, confirmación, recuperación y academia | Sí, rutas Owner y bootstrap existentes. | Unitarios y Owner sintético pasan en CI; E2E autenticado **SKIPPED**. | **NO VERIFICADO** en este HEAD. | No; PR #234 requiere revisión. |
-| Familias, tutores y gimnastas | Parcial: alta y asociación familiar presentes; edición canónica Owner de nombre/apellidos implementada en 7f754902. No acredita CRUD familiar completo. | Casos SQL de ficha pasan en PG desechable; unitarias y navegadores del nuevo corte aun pendientes. | **NO VERIFICADO** en este HEAD. | No. |
+| Familias, tutores y gimnastas | Parcial: alta y asociación familiar presentes; edición canónica Owner de nombre/apellidos implementada en 7f754902. No acredita CRUD familiar completo. | Casos SQL de ficha pasan en PG desechable; unitarias y navegadores del corte78c6 pasan; diff familiar posterior pendiente. | **NO VERIFICADO** en este HEAD. | No. |
 | Grupos, clases, horarios e inscripciones | Sí, APIs y contratos presentes; las escrituras revisadas usan guard transaccional de plan. | Unitarios y navegadores Owner sintéticos pasan. | **NO VERIFICADO** en este HEAD. | No. |
 | Asistencia y cuotas manuales | Sí, incluye emisión de cuotas y registro de pagos manuales; no inicia cobros familiares automáticos. | Unitarios, E2E Owner sintético y CI pasan. | **NO VERIFICADO** en este HEAD. | No. |
 | Dashboard y experiencia móvil | Sí, proyección Owner y cliente móvil presentes. | Build remoto, job móvil y navegadores sintéticos pasan. | **NO VERIFICADO** con una academia QA autenticada en este HEAD. | No. |
 | Free: solo lectura sobre límite, archivo y contratación | Sí, el candidato aplica guard transaccional a escrituras operativas y deja lectura, archivo y cambio de plan como salidas de regularización. | Unitarios y E2E Owner sintético pasan; el SQL de snapshot se replayó desde vacío en SHA anterior con SQL idéntico. | **NO VERIFICADO** con sesiones A/B en este HEAD; límites y ausencia de efectos parciales requieren prueba sandbox. | No. |
 | Checkout, Portal, webhooks y ciclo SaaS | Código y configuración Stripe TEST presentes. | CI de código pasa; eventos de Stripe previos son evidencia histórica y no validan esta versión ni el ciclo terminal completo. | **NO VERIFICADO** en este HEAD. | No; Stripe Live y producción no se han configurado/verificado aquí. |
-| Reconstrucción SQL desde estado vacío | Snapshot y manifiesto con hash coherente; el SQL no cambió desde el replay. | Replay desechable PostgreSQL pasa para SHA `234599c9`; validación de fuentes SQL y RLS pasa en HEAD actual. | No se aplicó SQL al sandbox original ni se leyeron filas de negocio. | No. |
+| Reconstrucción SQL desde estado vacío | Snapshot y manifiesto con hash coherente; el SQL no cambió desde el replay. | Replay desechable PostgreSQL pasa para SHA `78c6e38b`; validación de fuentes SQL y RLS pasa en ese corte. | No se aplicó SQL al sandbox original ni se leyeron filas de negocio. | No. |
 
 ## Evidencia del esquema
 

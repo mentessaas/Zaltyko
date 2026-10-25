@@ -1,0 +1,388 @@
+{
+  "observedAt": "2026-10-25T14:49:40.100Z",
+  "projectId": "prj_tUepgxfFz4UMpxJ7PrCjWRC66GYT",
+  "sourceBranch": "codex/fix-f84-build-hang-20261019",
+  "deliveryBranch": "codex/mvp-main-bridge-20261025",
+  "valuesIncluded": false,
+  "applied": false,
+  "entries": [
+    {
+      "id": "ZaX2d8yi2Obcj4WC",
+      "key": "DATABASE_CA_CERT_PATH",
+      "type": "encrypted",
+      "target": [
+        "preview"
+      ],
+      "gitBranch": "codex/fix-f84-build-hang-20261019"
+    },
+    {
+      "id": "ZmTq65Y1GvemhAvd",
+      "key": "STRIPE_SAAS_TEST_PORTAL_ENABLED",
+      "type": "sensitive",
+      "target": [
+        "preview"
+      ],
+      "gitBranch": "codex/fix-f84-build-hang-20261019"
+    },
+    {
+      "id": "orAhL7kMcEYHQdCk",
+      "key": "STRIPE_SAAS_TEST_PRICE_GROWTH_YEAR",
+      "type": "sensitive",
+      "target": [
+        "preview"
+      ],
+      "gitBranch": "codex/fix-f84-build-hang-20261019"
+    },
+    {
+      "id": "kpWxghsp1kXwARv9",
+      "key": "STRIPE_SAAS_TEST_PRICE_GROWTH_MONTH",
+      "type": "sensitive",
+      "target": [
+        "preview"
+      ],
+      "gitBranch": "codex/fix-f84-build-hang-20261019"
+    },
+    {
+      "id": "KSmbGgvmIVSNovTi",
+      "key": "STRIPE_SAAS_TEST_PRICE_STARTER_YEAR",
+      "type": "sensitive",
+      "target": [
+        "preview"
+      ],
+      "gitBranch": "codex/fix-f84-build-hang-20261019"
+    },
+    {
+      "id": "S7zQrmU5LpXtkvW1",
+      "key": "STRIPE_SAAS_TEST_PRICE_STARTER_MONTH",
+      "type": "sensitive",
+      "target": [
+        "preview"
+      ],
+      "gitBranch": "codex/fix-f84-build-hang-20261019"
+    },
+    {
+      "id": "H2c22njbcYpwXHRr",
+      "key": "STRIPE_SAAS_TEST_WEBHOOK_SECRET",
+      "type": "sensitive",
+      "target": [
+        "preview"
+      ],
+      "gitBranch": "codex/fix-f84-build-hang-20261019"
+    },
+    {
+      "id": "Y5APZdTzGnZCL0sg",
+      "key": "STRIPE_SAAS_TEST_ACCOUNT_REFERENCE",
+      "type": "sensitive",
+      "target": [
+        "preview"
+      ],
+      "gitBranch": "codex/fix-f84-build-hang-20261019"
+    },
+    {
+      "id": "2zmVkIg2mnQ6zAZH",
+      "key": "NEXT_PUBLIC_SITE_URL",
+      "type": "plain",
+      "target": [
+        "preview"
+      ],
+      "gitBranch": "codex/fix-f84-build-hang-20261019"
+    },
+    {
+      "id": "fMIQLDBNCH8oXvWq",
+      "key": "CRON_SECRET",
+      "type": "encrypted",
+      "target": [
+        "preview"
+      ],
+      "gitBranch": "codex/fix-f84-build-hang-20261019"
+    },
+    {
+      "id": "wpY4muIA08WI2ACT",
+      "key": "NEXT_PUBLIC_APP_URL",
+      "type": "plain",
+      "target": [
+        "preview"
+      ],
+      "gitBranch": "codex/fix-f84-build-hang-20261019"
+    },
+    {
+      "id": "BVboQvywBjzYIqBl",
+      "key": "NEXT_PUBLIC_SENTRY_DSN",
+      "type": "plain",
+      "target": [
+        "preview"
+      ],
+      "gitBranch": "codex/fix-f84-build-hang-20261019"
+    },
+    {
+      "id": "dNyCjPRHqGP06HTO",
+      "key": "SENTRY_DSN",
+      "type": "encrypted",
+      "target": [
+        "preview"
+      ],
+      "gitBranch": "codex/fix-f84-build-hang-20261019"
+    },
+    {
+      "id": "KJc4sPSPtLJRcr3F",
+      "key": "STRIPE_SAAS_LIVE_SECRET_KEY",
+      "type": "encrypted",
+      "target": [
+        "preview"
+      ],
+      "gitBranch": "codex/fix-f84-build-hang-20261019"
+    },
+    {
+      "id": "IWS9gRFPiAb6bSoj",
+      "key": "SENTRY_AUTH_TOKEN",
+      "type": "encrypted",
+      "target": [
+        "preview"
+      ],
+      "gitBranch": "codex/fix-f84-build-hang-20261019"
+    },
+    {
+      "id": "RhFL4T8OvHVHOXMT",
+      "key": "STRIPE_WEBHOOK_SECRET",
+      "type": "encrypted",
+      "target": [
+        "preview"
+      ],
+      "gitBranch": "codex/fix-f84-build-hang-20261019"
+    },
+    {
+      "id": "G1eXlkJHLoXB2BGB",
+      "key": "STRIPE_CONNECT_WEBHOOK_SECRET",
+      "type": "encrypted",
+      "target": [
+        "preview"
+      ],
+      "gitBranch": "codex/fix-f84-build-hang-20261019"
+    },
+    {
+      "id": "ECPHST0hp5RcX9S4",
+      "key": "KV_REST_API_REDIS_URL",
+      "type": "encrypted",
+      "target": [
+        "preview"
+      ],
+      "gitBranch": "codex/fix-f84-build-hang-20261019"
+    },
+    {
+      "id": "YpYcLUseeEbkwTh7",
+      "key": "KV_REST_API_READ_ONLY_TOKEN",
+      "type": "encrypted",
+      "target": [
+        "preview"
+      ],
+      "gitBranch": "codex/fix-f84-build-hang-20261019"
+    },
+    {
+      "id": "w9xTCNcrgJPqvecE",
+      "key": "KV_REST_API_URL",
+      "type": "sensitive",
+      "target": [
+        "preview"
+      ],
+      "gitBranch": "codex/fix-f84-build-hang-20261019"
+    },
+    {
+      "id": "OQBoAqNm6czhKy5O",
+      "key": "KV_REST_API_KV_URL",
+      "type": "encrypted",
+      "target": [
+        "preview"
+      ],
+      "gitBranch": "codex/fix-f84-build-hang-20261019"
+    },
+    {
+      "id": "Q0R1QAqu24Gque4y",
+      "key": "GOOGLE_CLIENT_ID",
+      "type": "encrypted",
+      "target": [
+        "preview"
+      ],
+      "gitBranch": "codex/fix-f84-build-hang-20261019"
+    },
+    {
+      "id": "xhTtdiJwBXPWZpmz",
+      "key": "KV_REST_API_TOKEN",
+      "type": "sensitive",
+      "target": [
+        "preview"
+      ],
+      "gitBranch": "codex/fix-f84-build-hang-20261019"
+    },
+    {
+      "id": "WiSCiOrq1fkHc0uA",
+      "key": "MAILGUN_API_KEY",
+      "type": "encrypted",
+      "target": [
+        "preview"
+      ],
+      "gitBranch": "codex/fix-f84-build-hang-20261019"
+    },
+    {
+      "id": "u43FjbRQMCTnbO8k",
+      "key": "TWILIO_AUTH_TOKEN",
+      "type": "encrypted",
+      "target": [
+        "preview"
+      ],
+      "gitBranch": "codex/fix-f84-build-hang-20261019"
+    },
+    {
+      "id": "av0p2ZKZs6P5ycjE",
+      "key": "BREVO_API_KEY",
+      "type": "encrypted",
+      "target": [
+        "preview"
+      ],
+      "gitBranch": "codex/fix-f84-build-hang-20261019"
+    },
+    {
+      "id": "voU32qGYu9UPeIww",
+      "key": "TWILIO_ACCOUNT_SID",
+      "type": "encrypted",
+      "target": [
+        "preview"
+      ],
+      "gitBranch": "codex/fix-f84-build-hang-20261019"
+    },
+    {
+      "id": "JXaE6A7gy1timLRh",
+      "key": "NEXT_PUBLIC_DEV_FEATURES",
+      "type": "encrypted",
+      "target": [
+        "preview"
+      ],
+      "gitBranch": "codex/fix-f84-build-hang-20261019"
+    },
+    {
+      "id": "tE6OAyls7XOoUS4N",
+      "key": "NEXT_PUBLIC_DISABLE_ANALYTICS",
+      "type": "encrypted",
+      "target": [
+        "preview"
+      ],
+      "gitBranch": "codex/fix-f84-build-hang-20261019"
+    },
+    {
+      "id": "Ht9yT8anLkXS2Vhk",
+      "key": "DISABLE_ONBOARDING_AUTOMATIONS",
+      "type": "sensitive",
+      "target": [
+        "preview"
+      ],
+      "gitBranch": "codex/fix-f84-build-hang-20261019"
+    },
+    {
+      "id": "4kr5pTB5mJkKLUL7",
+      "key": "STRIPE_SAAS_TEST_SECRET_KEY",
+      "type": "sensitive",
+      "target": [
+        "preview"
+      ],
+      "gitBranch": "codex/fix-f84-build-hang-20261019"
+    },
+    {
+      "id": "7emZ9tYSxrEdnBXh",
+      "key": "STRIPE_SAAS_ENVIRONMENT",
+      "type": "sensitive",
+      "target": [
+        "preview"
+      ],
+      "gitBranch": "codex/fix-f84-build-hang-20261019"
+    },
+    {
+      "id": "Tq82XW1FaHAmH32t",
+      "key": "NEXT_PUBLIC_STRIPE_PUBLISHABLE_KEY",
+      "type": "encrypted",
+      "target": [
+        "preview"
+      ],
+      "gitBranch": "codex/fix-f84-build-hang-20261019"
+    },
+    {
+      "id": "SGrbQjhoHAITAPJ5",
+      "key": "STRIPE_SECRET_KEY",
+      "type": "sensitive",
+      "target": [
+        "preview"
+      ],
+      "gitBranch": "codex/fix-f84-build-hang-20261019"
+    },
+    {
+      "id": "H4IF71yJSyutZQbO",
+      "key": "DATABASE_POOL_MAX",
+      "type": "sensitive",
+      "target": [
+        "preview"
+      ],
+      "gitBranch": "codex/fix-f84-build-hang-20261019"
+    },
+    {
+      "id": "Sq4HsSjlWeRqgztR",
+      "key": "NODE_EXTRA_CA_CERTS",
+      "type": "sensitive",
+      "target": [
+        "preview"
+      ],
+      "gitBranch": "codex/fix-f84-build-hang-20261019"
+    },
+    {
+      "id": "YgbTGjSTfafwHm0Q",
+      "key": "SUPABASE_SERVICE_ROLE_KEY",
+      "type": "sensitive",
+      "target": [
+        "preview"
+      ],
+      "gitBranch": "codex/fix-f84-build-hang-20261019"
+    },
+    {
+      "id": "TmyWIn0YhClLNVlr",
+      "key": "NEXT_PUBLIC_SUPABASE_ANON_KEY",
+      "type": "encrypted",
+      "target": [
+        "preview"
+      ],
+      "gitBranch": "codex/fix-f84-build-hang-20261019"
+    },
+    {
+      "id": "Nop7thMSD4bZZ5WV",
+      "key": "NEXT_PUBLIC_SUPABASE_URL",
+      "type": "encrypted",
+      "target": [
+        "preview"
+      ],
+      "gitBranch": "codex/fix-f84-build-hang-20261019"
+    },
+    {
+      "id": "cBkXGm8co5CAmMSb",
+      "key": "DATABASE_URL_DIRECT",
+      "type": "sensitive",
+      "target": [
+        "preview"
+      ],
+      "gitBranch": "codex/fix-f84-build-hang-20261019"
+    },
+    {
+      "id": "zofNtg14vA2Jv2iI",
+      "key": "DATABASE_URL_POOL",
+      "type": "sensitive",
+      "target": [
+        "preview"
+      ],
+      "gitBranch": "codex/fix-f84-build-hang-20261019"
+    },
+    {
+      "id": "a7DJ1sjl0N2GPSH0",
+      "key": "DATABASE_URL",
+      "type": "sensitive",
+      "target": [
+        "preview"
+      ],
+      "gitBranch": "codex/fix-f84-build-hang-20261019"
+    }
+  ]
+}

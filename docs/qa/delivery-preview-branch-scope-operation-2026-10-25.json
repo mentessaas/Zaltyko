@@ -1,0 +1,11 @@
+{
+  "observedAt": "2026-10-25T15:02:05.593Z",
+  "candidateSha": "78c6e38b5359deeda2f67e6354a5d801136465d1",
+  "projectId": "prj_tUepgxfFz4UMpxJ7PrCjWRC66GYT",
+  "operationFailed": true,
+  "attempted": 42,
+  "restored": 42,
+  "sourceScopesConfirmed": true,
+  "deploymentId": "dpl_8C9MRH1gm5sx9RHt7yxoosyLUwPm",
+  "valuesIncluded": false
+}

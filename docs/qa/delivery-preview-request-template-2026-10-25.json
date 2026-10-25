@@ -14,14 +14,16 @@
     "ZALTYKO_DELIVERY_PREVIEW": "true",
     "SAAS_QA_SHORT_PAID_ENABLED": "false",
     "SAAS_QA_SHORT_PAID_RUN": "",
-    "SAAS_QA_SHORT_PAID_EXPIRES_AT": ""
+    "SAAS_QA_SHORT_PAID_EXPIRES_AT": "",
+    "NODE_EXTRA_CA_CERTS": ""
   },
   "build": {
     "env": {
       "ZALTYKO_DELIVERY_PREVIEW": "true",
       "SAAS_QA_SHORT_PAID_ENABLED": "false",
       "SAAS_QA_SHORT_PAID_RUN": "",
-      "SAAS_QA_SHORT_PAID_EXPIRES_AT": ""
+      "SAAS_QA_SHORT_PAID_EXPIRES_AT": "",
+      "NODE_EXTRA_CA_CERTS": ""
     }
   },
   "meta": {

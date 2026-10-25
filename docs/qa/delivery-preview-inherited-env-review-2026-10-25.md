@@ -60,3 +60,21 @@ del sandbox en la rama antigua; no debe ampliarse a preview global ni produccion
 Antes de usar temporalmente ese conjunto para una entrega, conservar el manifiesto
 de IDs/tipos/alcances sin valores, confirmar todos los controles y restaurar los
 alcances originales incluso ante fallo. No rotar valores ni crear roles para ello.
+
+
+## Corte efectivo: candidato 78c6e38b, alcances restaurados
+
+Las42 variables sandbox se trasladaron temporalmente por ID a la rama de entrega sin enviar valores ni cambiar tipos; las42 se restauraron y su ID/tipo/target/rama se releían iguales al origen. Manifiesto y reporte JSON separados conservan solo metadatos públicos. El primer deployment dpl_8C9MRH1gm5sx9RHt7yxoosyLUwPm fue cancelado prematuramente durante la hidratación de metadatos; una lectura posterior mostró191 claves y todas las42 requeridas. No tratar una lista env vacía transitoria como fallo de aislamiento.
+
+El redeploy sin overrides dpl_Gjx1VZH1b2CHo6fCvVzEjP7Ajg2m terminó ERROR: resolvió163 claves y perdió24 overrides. La herencia efectiva no queda acreditada y no debe reutilizarse para esta entrega.
+
+Una solicitud directa nueva con los alcances sandbox temporalmente presentes creó dpl_HmnwaCCDPfps15iCUvNPpekTpb6b, SHA78c6e38b exacto, targetnull. Resolvió191 claves, incluidas las42 requeridas. Sus controles Supabase/DB, Stripe test, catálogo, Redis, TLS verificado y proveedores apagados resultaron true. Se detuvo antes de tipos/Next porque NODE_EXTRA_CA_CERTS no quedó vacío: databaseCaOnly=false/globalCaEmpty=false, aunque la ruta dedicada y el certificado sí existen. No omitir el control ni debilitar TLS. La próxima solicitud necesita declarar explícitamente ese valor público vacío en env y build.env, manteniendo DATABASE_CA_CERT_PATH dedicado. No se recuperó ningún secreto.
+
+Todos estos intentos dejaron intacto el alias congelado y restauraron los42 alcances originales. No hay nueva preview READY ni evidencia autenticada del candidato. Fuente: metadatos API y líneas booleanas filtradas de build; no se guardan logs completos ni valores. La CI40203109015 y replaySQL40203116706 sí terminaron SUCCESS para78c6e38b; no acreditan los cambios de familias posteriores sin commit.
+
+
+## CA resuelta; rechazo de capacidad distinguido del exceso
+
+Solicitud dpl_2pH3xwHmABpywcW5RBdhZsGZvqTv para78c6e38b, con NODE_EXTRA_CA_CERTS vacío explícito en env/build.env. Las42 variables se restauraron de nuevo por ID/tipo/target/rama. Preflight: todos los14 booleanos true; no se relajó TLS ni aislamiento. El gate remoto ejecutó221 pruebas:220PASS y1FAIL, por lo que no empezó tipos/Next ni publicó.
+
+Fallo localizado en tests/saas-preview-regularization-pg.test.ts: tras regularizar la fixture transaccional a30/3/10, el test de altas31/4/11 esperaba PLAN_OVER_CAPACITY, pero recibió CAPACITY_FULL. Ese resultado corresponde a cupo lleno sin excedente; PLAN_OVER_CAPACITY se conserva en las aserciones previas con excedente. Se corrigen únicamente esas tres expectativas posteriores, manteniendo snapshot22tablas tras cada rechazo, cero recursos remanentes de fixture y rollback externo obligatorio. La corrección necesita nueva CI/gate remoto; no se afirma PASS por inspección. No se modificaron los datos protegidos ni las fechas del ensayo.

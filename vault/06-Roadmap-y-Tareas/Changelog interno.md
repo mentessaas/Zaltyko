@@ -12525,3 +12525,17 @@ Modelo separado, reclamación manual, administración, importación revisada, fi
 - Fuente: docs/qa/delivery-preview-inherited-env-review-2026-10-25.md. No se leyeron valores secretos, no se cambiaron credenciales ni se creo deployment.
 - Importancia: posible alternativa a recuperar/rotar secretos para construir entrega separada; aun no probada con el conjunto sensible ni en runtime.
 - Siguiente paso: completar controles remotos y preparar manifiesto/restitucion del alcance antes de cualquier operacion mayor. No afirmar preview lista.
+
+## 2026-10-25 — Unitarias e identidad de arbol del candidato
+
+- Evidencia: job121198362837 de CI40203109015 completo 4914 PASS/3 omitidas. Checkout de merge temporal614ae5cd y candidato78c6e38b tienen mismo arbol d606893bfc0a1d5f6a9f918d7763edd0cc64b053; API GitHub y Git local cotejados.
+- Fuente: docs/qa/mvp-status-matrix-2026-10-25.md. Build y Chromium aprobados; Firefox/WebKit todavia pendientes. No acredita E2E autenticado del candidato ni publicacion.
+- Cambio operativo preparado: manifiesto de42 IDs/tipos/alcances de variables preview, sin valores y applied=false. Ninguna variable sensible movida.
+- Siguiente paso: completar navegadores y revisar asociacion familiar vertical en implementacion separada Backend/Owner. No cambios productivos ni builds locales.
+
+
+## 2026-10-25 — Familias y configuración de entrega, corte sin publicación
+
+- Asociación de familia desde la ficha de grupo, sin exigir inscripción previa en clase; tutor adulto y pagador, alcance de sede y replay verificable. Confirmación explícita de cambio de pagador exigida también por servidor y conservando fingerprints legacy. Suite PostgreSQL nueva integrada al runner aislado. Implementación pendiente de CI y comprobación sandbox; no confundir revisión estática con ejecución.
+- Revisión detectó pérdida de comando ambiguo al desmontar el panel mensual; corrección de persistencia exacta en curso. No se publica con ese hallazgo abierto.
+- Vercel:42 alcances sandbox movidos/restaurados sin leer/reemplazar valores; los42 ID/tipos/scopes se confirmaron restaurados. El intento directo78c6 resolvió todas las claves, pero preflight bloqueó NODE_EXTRA_CA_CERTS no vacío. No hubo Next ni preview READY. Ensayo y producción intactos. Evidencia: docs/qa/delivery-preview-inherited-env-review-2026-10-25.md.
