@@ -4,12 +4,18 @@ import { sql } from "drizzle-orm";
 
 import { db } from "@/db";
 import { recordManualPaymentForCharge } from "@/modules/billing/application/ledger-service";
+import {
+  getMonthlyInvoiceOptions,
+  issueMonthlyInvoice,
+} from "@/modules/billing/application/monthly-invoice-service";
 import { getOwnerOperationalSummary } from "@/modules/owner-dashboard/application/operational-summary";
 
 const trackedTables = [
   "audit_log",
   "charges",
   "invoices",
+  "invoice_lines",
+  "invoice_line_enrollments",
   "outbox_events",
   "payment_allocations",
   "payments",
@@ -21,6 +27,8 @@ const expectedSuccessfulPaymentDeltas: Record<
   audit_log: 2,
   charges: 0,
   invoices: 0,
+  invoice_lines: 0,
+  invoice_line_enrollments: 0,
   outbox_events: 2,
   payment_allocations: 1,
   payments: 1,
@@ -190,6 +198,186 @@ async function seedManualLedgerFixture() {
     memberId,
     chargeIds,
     actor: { userId, memberId },
+  };
+}
+
+async function seedMonthlyInvoiceFixture() {
+  const organizationId = randomUUID();
+  const userId = randomUUID();
+  const memberId = randomUUID();
+  const locationId = randomUUID();
+  const familyId = randomUUID();
+  const athletePersonId = randomUUID();
+  const athleteId = randomUUID();
+  const guardianPersonId = randomUUID();
+  const guardianId = randomUUID();
+  const familyPayerId = randomUUID();
+  const classTemplateId = randomUUID();
+  const enrollmentId = randomUUID();
+  const pricePlanId = randomUUID();
+  const priceAssignmentId = randomUUID();
+  const idempotencyKey = `ci-monthly-invoice-${randomUUID()}`;
+  const servicePeriod = "2099-10";
+  const periodStart = "2099-10-01";
+  const periodEnd = "2099-10-31";
+
+  await db.execute(sql`
+    insert into auth.users (id, email)
+    values (${userId}::uuid, ${`ci-monthly-${userId}@example.invalid`})
+  `);
+  await db.execute(sql`
+    insert into zaltyko.organizations (id, name)
+    values (${organizationId}::uuid, ${`CI monthly invoice ${organizationId}`})
+  `);
+  await db.execute(sql`
+    insert into zaltyko.locations (id, organization_id, code, name, timezone)
+    values (
+      ${locationId}::uuid, ${organizationId}::uuid,
+      'ci-monthly', 'CI monthly invoice site', 'Europe/Madrid'
+    )
+  `);
+  await db.execute(sql`
+    insert into zaltyko.organization_members (
+      id, organization_id, user_id, role, status, location_scope_mode
+    ) values (
+      ${memberId}::uuid, ${organizationId}::uuid, ${userId}::uuid,
+      'owner', 'active', 'all'
+    )
+  `);
+  await db.execute(sql`
+    insert into zaltyko.people (id, organization_id, given_name, family_name)
+    values
+      (${athletePersonId}::uuid, ${organizationId}::uuid, 'CI Athlete', 'Monthly'),
+      (${guardianPersonId}::uuid, ${organizationId}::uuid, 'CI Guardian', 'Monthly')
+  `);
+  await db.execute(sql`
+    insert into zaltyko.athletes (id, organization_id, person_id)
+    values (${athleteId}::uuid, ${organizationId}::uuid, ${athletePersonId}::uuid)
+  `);
+  await db.execute(sql`
+    insert into zaltyko.families (id, organization_id)
+    values (${familyId}::uuid, ${organizationId}::uuid)
+  `);
+  await db.execute(sql`
+    insert into zaltyko.guardians (id, organization_id, person_id)
+    values (${guardianId}::uuid, ${organizationId}::uuid, ${guardianPersonId}::uuid)
+  `);
+  await db.execute(sql`
+    insert into zaltyko.family_guardians (
+      organization_id, family_id, guardian_id, relationship,
+      can_view_athletes, can_manage_enrollments, is_active
+    ) values (
+      ${organizationId}::uuid, ${familyId}::uuid, ${guardianId}::uuid,
+      'parent', true, true, true
+    )
+  `);
+  await db.execute(sql`
+    insert into zaltyko.family_members (
+      organization_id, family_id, athlete_id, relationship, starts_on
+    ) values (
+      ${organizationId}::uuid, ${familyId}::uuid, ${athleteId}::uuid,
+      'parent', ${periodStart}::date
+    )
+  `);
+  await db.execute(sql`
+    insert into zaltyko.family_payers (
+      id, organization_id, family_id, guardian_id, is_primary, starts_on
+    ) values (
+      ${familyPayerId}::uuid, ${organizationId}::uuid, ${familyId}::uuid,
+      ${guardianId}::uuid, true, ${periodStart}::date
+    )
+  `);
+  await db.execute(sql`
+    insert into zaltyko.class_templates (
+      id, organization_id, location_id, name, capacity, status, effective_from
+    ) values (
+      ${classTemplateId}::uuid, ${organizationId}::uuid, ${locationId}::uuid,
+      'CI monthly class', 12, 'active', '2099-01-01'::date
+    )
+  `);
+  await db.execute(sql`
+    insert into zaltyko.enrollments (
+      id, organization_id, location_id, athlete_id, class_template_id,
+      status, starts_on, source
+    ) values (
+      ${enrollmentId}::uuid, ${organizationId}::uuid, ${locationId}::uuid,
+      ${athleteId}::uuid, ${classTemplateId}::uuid,
+      'active', ${periodStart}::date, 'owner'
+    )
+  `);
+  await db.execute(sql`
+    insert into zaltyko.price_plans (
+      id, organization_id, name, cadence, amount_cents, currency, is_active
+    ) values (
+      ${pricePlanId}::uuid, ${organizationId}::uuid, 'CI monthly plan',
+      'monthly', 1900, 'EUR', true
+    )
+  `);
+  await db.execute(sql`
+    insert into zaltyko.enrollment_price_assignments (
+      id, organization_id, location_id, enrollment_id, price_plan_id,
+      unit_amount_cents, currency, starts_on
+    ) values (
+      ${priceAssignmentId}::uuid, ${organizationId}::uuid, ${locationId}::uuid,
+      ${enrollmentId}::uuid, ${pricePlanId}::uuid,
+      1900, 'EUR', ${periodStart}::date
+    )
+  `);
+  await db.execute(sql`
+    insert into zaltyko.price_plan_class_template_coverage (
+      organization_id, location_id, price_plan_id, class_template_id, starts_on
+    ) values (
+      ${organizationId}::uuid, ${locationId}::uuid, ${pricePlanId}::uuid,
+      ${classTemplateId}::uuid, ${periodStart}::date
+    )
+  `);
+
+  return {
+    organizationId,
+    userId,
+    memberId,
+    locationId,
+    familyId,
+    familyPayerId,
+    enrollmentId,
+    priceAssignmentId,
+    servicePeriod,
+    periodStart,
+    periodEnd,
+    dueDate: periodEnd,
+    idempotencyKey,
+    actor: { userId, memberId },
+  };
+}
+
+async function monthlyInvoiceCommand(
+  fixture: Awaited<ReturnType<typeof seedMonthlyInvoiceFixture>>
+) {
+  const options = await getMonthlyInvoiceOptions({
+    organizationId: fixture.organizationId,
+    locationId: fixture.locationId,
+    servicePeriod: fixture.servicePeriod,
+    actor: fixture.actor,
+  });
+  const family = options.families.find(
+    (item) => item.familyId === fixture.familyId
+  );
+  if (!family?.quoteHash) {
+    const reasons = family?.blockingReasons.join(", ") ?? "family missing";
+    throw new Error(
+      `The synthetic monthly invoice fixture is not issuable: ${reasons}`
+    );
+  }
+  return {
+    organizationId: fixture.organizationId,
+    locationId: fixture.locationId,
+    servicePeriod: fixture.servicePeriod,
+    familyId: fixture.familyId,
+    familyPayerId: fixture.familyPayerId,
+    dueDate: fixture.dueDate,
+    quoteHash: family.quoteHash,
+    idempotencyKey: fixture.idempotencyKey,
+    actor: fixture.actor,
   };
 }
 
@@ -385,5 +573,111 @@ describe("manual billing ledger on disposable PostgreSQL", () => {
       payment_count: 1,
       allocation_count: 1,
     });
+  });
+});
+
+describe("monthly manual invoice issuance on disposable PostgreSQL", () => {
+  it("issues one invoice for concurrent retries and persists the manual ledger once", async () => {
+    assertDisposableTarget();
+    const fixture = await seedMonthlyInvoiceFixture();
+    const command = await monthlyInvoiceCommand(fixture);
+    const before = await snapshot(fixture.organizationId);
+
+    const [first, retry] = await Promise.all([
+      issueMonthlyInvoice(command),
+      issueMonthlyInvoice(command),
+    ]);
+
+    expect([first.replayed, retry.replayed].sort()).toEqual([false, true]);
+    expect(first.invoice.id).toBe(retry.invoice.id);
+    const issued = first.replayed ? retry : first;
+    expect(issued.invoice).toMatchObject({
+      status: "issued",
+      totalAmountCents: 1900,
+      currency: "EUR",
+      familyId: fixture.familyId,
+      familyPayerId: fixture.familyPayerId,
+    });
+    expect(issued.collectionMode).toBe("manual");
+    expect(issued.chargeStatus).toBe("due");
+    expect(issued.charges).toHaveLength(1);
+    expect(issued.charges[0]?.status).toBe("due");
+    expect(issued.lines).toHaveLength(1);
+    expect(issued.lines[0]).toMatchObject({
+      athleteId: expect.any(String),
+      enrollmentId: fixture.enrollmentId,
+      amountCents: 1900,
+      currency: "EUR",
+      coveredEnrollments: [
+        expect.objectContaining({
+          enrollmentId: fixture.enrollmentId,
+          assignmentId: fixture.priceAssignmentId,
+        }),
+      ],
+    });
+
+    const after = await snapshot(fixture.organizationId);
+    const expectedDeltas = {
+      audit_log: 3,
+      charges: 1,
+      invoices: 1,
+      invoice_lines: 1,
+      invoice_line_enrollments: 1,
+      outbox_events: 3,
+      payment_allocations: 0,
+      payments: 0,
+    } as const;
+    for (const table of trackedTables) {
+      expect(after[table].count - before[table].count, table).toBe(
+        expectedDeltas[table]
+      );
+    }
+
+    const outbox = await db.execute(sql`
+      select event_name, count(*)::int as count
+      from zaltyko.outbox_events
+      where organization_id = ${fixture.organizationId}::uuid
+      group by event_name
+      order by event_name
+    `);
+    expect(outbox.rows).toEqual([
+      { event_name: "charge.due", count: 1 },
+      { event_name: "invoice.issued", count: 1 },
+      { event_name: "invoice.monthly_issued", count: 1 },
+    ]);
+
+    const audit = await db.execute(sql`
+      select action, count(*)::int as count
+      from zaltyko.audit_log
+      where organization_id = ${fixture.organizationId}::uuid
+      group by action
+      order by action
+    `);
+    expect(audit.rows).toEqual([
+      { action: "charge.due", count: 1 },
+      { action: "invoice.issued", count: 1 },
+      { action: "invoice.monthly_issued", count: 1 },
+    ]);
+  });
+
+  it("rolls back invoice, line, charge, audit, and outbox writes on a ledger conflict", async () => {
+    assertDisposableTarget();
+    const fixture = await seedMonthlyInvoiceFixture();
+    const command = await monthlyInvoiceCommand(fixture);
+    await db.execute(sql`
+      insert into zaltyko.outbox_events (
+        organization_id, location_id, event_name, event_version,
+        aggregate_type, aggregate_id, idempotency_key, payload, occurred_at
+      ) values (
+        ${fixture.organizationId}::uuid, ${fixture.locationId}::uuid,
+        'charge.due', 1, 'charge', ${randomUUID()}::uuid,
+        ${`${fixture.idempotencyKey}:charge:0`}, '{}'::jsonb, now()
+      )
+    `);
+    const before = await snapshot(fixture.organizationId);
+
+    await expect(issueMonthlyInvoice(command)).rejects.toThrow();
+
+    expect(await snapshot(fixture.organizationId)).toEqual(before);
   });
 });

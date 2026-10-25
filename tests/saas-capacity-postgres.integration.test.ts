@@ -127,6 +127,38 @@ async function snapshot(organizationId: string) {
   return result.rows;
 }
 
+function expectSnapshotDeltas(
+  before: Awaited<ReturnType<typeof snapshot>>,
+  after: Awaited<ReturnType<typeof snapshot>>,
+  expectedDeltas: Partial<Record<(typeof snapshotTables)[number], number>>
+) {
+  const beforeByTable = new Map(
+    before.map((row) => [String(row.table_name), row])
+  );
+  const afterByTable = new Map(
+    after.map((row) => [String(row.table_name), row])
+  );
+  for (const table of snapshotTables) {
+    const beforeRow = beforeByTable.get(table);
+    const afterRow = afterByTable.get(table);
+    expect(beforeRow, `${table} before`).toBeDefined();
+    expect(afterRow, `${table} after`).toBeDefined();
+    const expected = expectedDeltas[table] ?? 0;
+    expect(Number(afterRow?.count) - Number(beforeRow?.count), table).toBe(
+      expected
+    );
+    if (expected === 0) {
+      expect(afterRow?.content_hash, `${table} content`).toBe(
+        beforeRow?.content_hash
+      );
+    } else {
+      expect(afterRow?.content_hash, `${table} content`).not.toBe(
+        beforeRow?.content_hash
+      );
+    }
+  }
+}
+
 async function snapshotOwnerConsent(userId: string) {
   const result = await db.execute(sql`
     select
@@ -433,6 +465,7 @@ async function seedEnrollmentEligibilityAcademy() {
     organizationId,
     classTemplateId: classTemplateIds[0]!,
     otherSiteClassTemplateId: classTemplateIds[1]!,
+    targetGroupId: groupIds[0]!,
     targetLocationId: locationIds[0]!,
     otherSiteLocationId: locationIds[1]!,
     targetAthleteId: athletes[0]!.athleteId,
@@ -441,6 +474,158 @@ async function seedEnrollmentEligibilityAcademy() {
     actor: { userId, memberId },
   };
 }
+
+describe("operational capacity concurrency on disposable PostgreSQL", () => {
+  it("admits only one athlete into the final group place with no partial loser rows", async () => {
+    assertDisposableTarget();
+    const academy = await seedEnrollmentEligibilityAcademy();
+    await db.execute(sql`
+      update zaltyko.groups set capacity = 2
+      where organization_id = ${academy.organizationId}::uuid
+        and id = ${academy.targetGroupId}::uuid
+    `);
+    const commands = [0, 1].map((index) => ({
+      organizationId: academy.organizationId,
+      groupId: academy.targetGroupId,
+      givenName: `Concurrent group-capacity ${index}`,
+      familyName: "Synthetic athlete",
+      idempotencyKey: `ci-group-seat-${randomUUID()}`,
+      actor: academy.actor,
+    }));
+    const before = await snapshot(academy.organizationId);
+
+    const results = await Promise.allSettled(
+      commands.map((command) => createAthleteForGroup(command))
+    );
+    const winners = results.filter((result) => result.status === "fulfilled");
+    const failures = results.filter(
+      (result): result is PromiseRejectedResult => result.status === "rejected"
+    );
+    expect(winners).toHaveLength(1);
+    expect(failures).toHaveLength(1);
+    expect(failures[0]?.reason).toMatchObject({
+      code: "GROUP_CAPACITY_FULL",
+      status: 409,
+    });
+
+    const after = await snapshot(academy.organizationId);
+    expectSnapshotDeltas(before, after, {
+      audit_log: 1,
+      athletes: 1,
+      group_membership_history: 1,
+      group_memberships: 1,
+      outbox_events: 2,
+      people: 1,
+    });
+    const occupancy = await db.execute(sql`
+      select count(*)::int as count
+      from zaltyko.group_memberships
+      where organization_id = ${academy.organizationId}::uuid
+        and group_id = ${academy.targetGroupId}::uuid
+        and status in ('pending', 'active', 'paused')
+    `);
+    expect(Number(occupancy.rows[0]?.count)).toBe(2);
+    const attemptedPeople = await db.execute(sql`
+      select count(*)::int as count
+      from zaltyko.people
+      where organization_id = ${academy.organizationId}::uuid
+        and given_name in (${commands[0]!.givenName}, ${commands[1]!.givenName})
+    `);
+    expect(Number(attemptedPeople.rows[0]?.count)).toBe(1);
+  });
+
+  it("admits only one enrollment into the final class place with no partial loser rows", async () => {
+    assertDisposableTarget();
+    const academy = await seedEnrollmentEligibilityAcademy();
+    const startsOn = academy.startsOn;
+    const firstClassmate = await createAthleteForGroup({
+      organizationId: academy.organizationId,
+      groupId: academy.targetGroupId,
+      givenName: "Class-capacity first",
+      familyName: "Synthetic athlete",
+      idempotencyKey: `ci-classmate-first-${randomUUID()}`,
+      actor: academy.actor,
+    });
+    const secondClassmate = await createAthleteForGroup({
+      organizationId: academy.organizationId,
+      groupId: academy.targetGroupId,
+      givenName: "Class-capacity second",
+      familyName: "Synthetic athlete",
+      idempotencyKey: `ci-classmate-second-${randomUUID()}`,
+      actor: academy.actor,
+    });
+    await createEnrollment({
+      organizationId: academy.organizationId,
+      locationId: academy.targetLocationId,
+      athleteId: academy.targetAthleteId,
+      classTemplateId: academy.classTemplateId,
+      status: "active",
+      startsOn,
+      source: "owner",
+      idempotencyKey: `ci-class-capacity-existing-${randomUUID()}`,
+      actor: academy.actor,
+    });
+    await db.execute(sql`
+      update zaltyko.class_templates set capacity = 2
+      where organization_id = ${academy.organizationId}::uuid
+        and id = ${academy.classTemplateId}::uuid
+    `);
+    const commands = [firstClassmate.athleteId, secondClassmate.athleteId].map(
+      (athleteId) => ({
+        organizationId: academy.organizationId,
+        locationId: academy.targetLocationId,
+        athleteId,
+        classTemplateId: academy.classTemplateId,
+        status: "active" as const,
+        startsOn,
+        source: "owner" as const,
+        idempotencyKey: `ci-class-seat-${randomUUID()}`,
+        actor: academy.actor,
+      })
+    );
+    const before = await snapshot(academy.organizationId);
+
+    const results = await Promise.allSettled(
+      commands.map((command) => createEnrollment(command))
+    );
+    const winners = results.filter((result) => result.status === "fulfilled");
+    const failures = results.filter(
+      (result): result is PromiseRejectedResult => result.status === "rejected"
+    );
+    expect(winners).toHaveLength(1);
+    expect(failures).toHaveLength(1);
+    expect(failures[0]?.reason).toMatchObject({
+      code: "CAPACITY_FULL",
+      status: 409,
+    });
+
+    const after = await snapshot(academy.organizationId);
+    expectSnapshotDeltas(before, after, {
+      audit_log: 1,
+      enrollment_status_history: 1,
+      enrollments: 1,
+      outbox_events: 1,
+    });
+    const persisted = await db.execute(sql`
+      select count(*)::int as count
+      from zaltyko.enrollments
+      where organization_id = ${academy.organizationId}::uuid
+        and class_template_id = ${academy.classTemplateId}::uuid
+        and status in ('pending', 'trial', 'active', 'paused')
+    `);
+    expect(Number(persisted.rows[0]?.count)).toBe(2);
+    const receipts = await db.execute(sql`
+      select count(*)::int as count
+      from zaltyko.outbox_events
+      where organization_id = ${academy.organizationId}::uuid
+        and idempotency_key in (
+          ${commands[0]!.idempotencyKey},
+          ${commands[1]!.idempotencyKey}
+        )
+    `);
+    expect(Number(receipts.rows[0]?.count)).toBe(1);
+  });
+});
 
 async function seedAttendanceFixture() {
   const academy = await seedEnrollmentEligibilityAcademy();
