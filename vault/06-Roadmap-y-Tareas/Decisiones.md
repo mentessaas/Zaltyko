@@ -1226,3 +1226,12 @@ GitHub/Vercel reconfirmadas11:57UTC. Preparar una corrida automática de candida
 distinto, sin merge/deploy/DDL. Disponibilidad Hub y runtime NO VERIFICADOS;
 gates destino/recovery/rolapp/seguridad/review siguen NO-GO. Detalle:
 [evidencia local](../../docs/qa/logflare-hub-primary-2026-10-15.md).
+
+## 2026-10-25 — No promover una remediación con auditoría roja
+
+| Campo | Valor |
+| --- | --- |
+| Evidencia | CI de PR #236 en `main` pasó build remoto y varios controles, pero `Dependency Security & SBOM` detectó vulnerabilidades de producción. La comprobación de Zod 4 aún no se ha ejecutado para el nuevo lockfile. |
+| Decisión | Mantener la rama sin merge ni promoción hasta que la auditoría de dependencias y los checks obligatorios del SHA actualizado pasen, con revisión independiente donde GitHub la exija. No omitir ni relajar gates. |
+| Consecuencia | Una corrección de seguridad no se presenta como publicada hasta validar el árbol resultante; los cambios permanecen aislados de producción. |
+| Estado | Aplicable a PR #236; remediación ampliada en preparación. No se ha desplegado. |

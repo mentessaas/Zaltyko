@@ -1161,3 +1161,10 @@ Catálogo remoto autorizadoMain15oct: prod no tiene namespaceszaltyko/domain_pri
 - Fuente vigente: [`release-gates-summary-2026-10-15.md`](../../docs/qa/release-gates-summary-2026-10-15.md). Prioridad comercial: recibir usuarios esta semana; no prometer fecha hasta cerrar los gates.
 
 - Actualización: diagnóstico CI endurecido a etiquetas fijas sin stderr arbitrario, revisión QA103 GO y 13/13 pruebas PASS; shell-quote móvil1.11.0 de Frontend bb8b94ba integrado selectivamente con evidencia local 337/337. Pendientes nueva CI y alcance de 23 avisos high npm móvil (no asumir que son 23 vulnerabilidades distintas). Producción public139/RLS139 sin tablas zaltyko; Sandbox public138/RLS138 y zaltyko80/RLS80, solo metadatos, sin prueba de políticas/procedencia. Usuario permite intervenir si necesario; por ahora sin DDL/datos/despliegues. Preparar compatibilidad y recuperación antes de aplicar.
+
+## P0 — Cerrar advisories de dependencias web antes de integrar PR #236 — 2026-10-25
+
+- CI `40173405349` sobre el primer SHA de PR #236 informó 14 rutas vulnerables de producción, incluidas advisories críticas de Next.js y DOMPurify y una alta de `body-parser`/Zod. El parche de `follow-redirects` no elimina esos hallazgos.
+- En curso: actualizar solo a versiones parcheadas y revisar la transición mayor de Zod 3 a 4.
+- Criterio de cierre: auditoría/SBOM sin advisories aplicables, checks remotos obligatorios verdes para el SHA actual y revisión de compatibilidad; no merge ni despliegue antes.
+- Sin cambios en datos, proveedores, sandbox o producción durante esta remediación.
