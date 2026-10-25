@@ -605,7 +605,10 @@ describe("monthly manual invoice issuance on disposable PostgreSQL", () => {
     expect(issued.lines).toHaveLength(1);
     expect(issued.lines[0]).toMatchObject({
       athleteId: expect.any(String),
-      enrollmentId: fixture.enrollmentId,
+      // Monthly athlete-level lines can cover multiple enrollments; the
+      // normalized coverage rows carry those IDs, so the legacy singular
+      // enrollment_id column must remain null.
+      enrollmentId: null,
       amountCents: 1900,
       currency: "EUR",
       coveredEnrollments: [
