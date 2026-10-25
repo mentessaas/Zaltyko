@@ -8,24 +8,50 @@ y separa cuatro estados: **implementado**, **probado aisladamente**,
 demuestra que el flujo esté desplegado o validado contra un usuario y datos
 persistidos reales de sandbox.
 
-El candidato inicial revisado fue `234599c92051714b9953393221a5e1be5069cbea`
-(PR #234). El typecheck remoto de ese SHA detectó una incompatibilidad de tipo
-en `src/lib/limits.ts`; se corrigió en este candidato con `{ ...usage }`. La
-corrección aún debe pasar CI en el SHA posterior. No se ejecutó build ni suite
-localmente.
+El plan indicó partir de `f626351`, pero el candidato publicado en PR #234
+termina en `1637221798bee56b8aee9db176a277429103db40` y apunta a `main` desde
+`f84fd6dc316e41aa7b6a599e67dc8cf2ea0dd74c`. `f626351` no es ancestro de ese
+HEAD. No se hizo reset ni rebase; esta diferencia de procedencia queda abierta
+para revisión antes de promoción. El PR tiene 418 archivos (+59.034/-5.476),
+está abierto y GitHub exige revisión independiente.
+
+Hay además una integración pendiente con la PR #236 de seguridad de dependencias
+(también abierta y `REVIEW_REQUIRED`). GitHub devuelve 94 rutas compartidas con
+la PR #234, incluidos `package.json`, `pnpm-lock.yaml`, `pnpm-workspace.yaml` y
+`pnpmfile.cjs`. Ambas CI pasan por separado, pero no validan una rama combinada;
+por ejemplo, actualizan `@sentry/nextjs` a versiones distintas (`10.76.2` en
+#234 y `10.75.2` en #236). Resolver y volver a validar esta integración antes
+de fusionar o publicar cualquiera de los dos candidatos.
+
+La CI remota exacta del HEAD actual terminó **SUCCESS** en el run
+[`40193392534`](https://github.com/mentessaas/Zaltyko/actions/runs/40193392534):
+lint/tipos, unitarios, build remoto, móvil, Chromium, Firefox, WebKit, controles
+RLS, integridad Drizzle, SBOM/seguridad y gate Owner sintético. No se ejecutó
+ningún build ni prueba en este Mac. Los jobs de E2E autenticado, readiness de
+credenciales, smoke, público y Lighthouse quedaron **SKIPPED**; no cuentan como
+aprobados. La integridad de fuentes SQL exacta del HEAD pasó en
+[`40193392553`](https://github.com/mentessaas/Zaltyko/actions/runs/40193392553)
+y los gates operativos en [`40193392526`](https://github.com/mentessaas/Zaltyko/actions/runs/40193392526).
+
+La reconstrucción aislada de PostgreSQL desde vacío pasó en el run
+[`40190197121`](https://github.com/mentessaas/Zaltyko/actions/runs/40190197121)
+para `234599c92051714b9953393221a5e1be5069cbea`. No hay cambios bajo `supabase/`
+desde ese SHA hasta el HEAD actual, por lo que el SQL revisado es idéntico; la
+CI de fuentes SQL del HEAD actual es una comprobación estática, no un segundo
+replay. Ninguna base existente recibió SQL.
 
 ## Estado por recorrido
 
 | Recorrido | Implementado en código | Probado aisladamente | Sandbox del candidato actual | Publicado |
 | --- | --- | --- | --- | --- |
-| Alta, consentimiento, confirmación, recuperación y academia | Sí, rutas Owner y contrato de bootstrap existentes. | **Pendiente de cierre CI.** El E2E autenticado de la CI del candidato inicial fue omitido por falta de credenciales de test. | **NO VERIFICADO.** Las sesiones QA A/B autorizadas no están disponibles en el runtime actual. | No. PR #234 es una rama de revisión. |
-| Familias, tutores y gimnastas | Sí, APIs y contratos presentes; se endurecieron rutas de escritura académica en el candidato. | **Pendiente de cierre CI** para el SHA corregido; la CI inicial terminó durante el typecheck. | **NO VERIFICADO** para este SHA. | No. |
-| Grupos, clases, horarios e inscripciones | Sí, APIs y contratos presentes; el guard de plan cubre las escrituras revisadas. | **Pendiente de cierre CI** para el SHA corregido. | **NO VERIFICADO** para este SHA. | No. |
-| Asistencia y cuotas manuales | Sí. Incluye endpoints de opciones/emisión de factura mensual y registro manual de pagos; no inicia cobros a familias. | **Pendiente de cierre CI** para el SHA corregido. | **NO VERIFICADO** para este SHA. | No. |
-| Dashboard y experiencia móvil | Sí, proyección Owner y cliente móvil presentes. | El job móvil de CI del SHA inicial pasó; unitarios, build y navegadores sintéticos seguían pendientes al corte. Revalidar con el SHA corregido. | **NO VERIFICADO** para este SHA. | No. |
-| Free: solo lectura sobre límite, archivo y contratación | Sí. El candidato amplía el guard a las escrituras académicas; lectura, archivo y cambio de plan quedan disponibles. | Migraciones Drizzle, cobertura RLS, gates estáticos y móvil pasaron en el SHA inicial; typecheck falló y otros jobs no habían terminado. La repetición exacta del candidato corregido está pendiente. | **NO VERIFICADO**; no se desplegó este candidato. | No. |
-| Checkout, Portal, webhooks y ciclo SaaS | Código y configuración de Stripe test existen. | Hay evidencias históricas de eventos de test, pero no acreditan el candidato actual ni un ciclo terminal completo. | **Histórico anterior; NO VERIFICADO en este candidato.** | No. Stripe Live no configurado ni verificado por esta matriz. |
-| Reconstrucción SQL desde estado vacío | Snapshot actual del sandbox y manifiesto presentes y con hash coherente. | Replay aislado en GitHub Actions lanzado para el SHA inicial; **pendiente de resultado**. | Se consultó solo catálogo, migraciones y extensiones del proyecto `aeeootdmuiqkfeernskw`; no se aplicó SQL ni se leyeron filas de negocio. | No se aplicó sobre ninguna base existente. |
+| Alta, consentimiento, confirmación, recuperación y academia | Sí, rutas Owner y bootstrap existentes. | Unitarios y Owner sintético pasan en CI; E2E autenticado **SKIPPED**. | **NO VERIFICADO** en este HEAD. | No; PR #234 requiere revisión. |
+| Familias, tutores y gimnastas | Sí, APIs y contratos presentes; el candidato endurece escrituras académicas. | Unitarios y navegadores Owner sintéticos pasan; no prueban cuentas reales. | **NO VERIFICADO** en este HEAD. | No. |
+| Grupos, clases, horarios e inscripciones | Sí, APIs y contratos presentes; las escrituras revisadas usan guard transaccional de plan. | Unitarios y navegadores Owner sintéticos pasan. | **NO VERIFICADO** en este HEAD. | No. |
+| Asistencia y cuotas manuales | Sí, incluye emisión de cuotas y registro de pagos manuales; no inicia cobros familiares automáticos. | Unitarios, E2E Owner sintético y CI pasan. | **NO VERIFICADO** en este HEAD. | No. |
+| Dashboard y experiencia móvil | Sí, proyección Owner y cliente móvil presentes. | Build remoto, job móvil y navegadores sintéticos pasan. | **NO VERIFICADO** con una academia QA autenticada en este HEAD. | No. |
+| Free: solo lectura sobre límite, archivo y contratación | Sí, el candidato aplica guard transaccional a escrituras operativas y deja lectura, archivo y cambio de plan como salidas de regularización. | Unitarios y E2E Owner sintético pasan; el SQL de snapshot se replayó desde vacío en SHA anterior con SQL idéntico. | **NO VERIFICADO** con sesiones A/B en este HEAD; límites y ausencia de efectos parciales requieren prueba sandbox. | No. |
+| Checkout, Portal, webhooks y ciclo SaaS | Código y configuración Stripe TEST presentes. | CI de código pasa; eventos de Stripe previos son evidencia histórica y no validan esta versión ni el ciclo terminal completo. | **NO VERIFICADO** en este HEAD. | No; Stripe Live y producción no se han configurado/verificado aquí. |
+| Reconstrucción SQL desde estado vacío | Snapshot y manifiesto con hash coherente; el SQL no cambió desde el replay. | Replay desechable PostgreSQL pasa para SHA `234599c9`; validación de fuentes SQL y RLS pasa en HEAD actual. | No se aplicó SQL al sandbox original ni se leyeron filas de negocio. | No. |
 
 ## Evidencia del esquema
 
@@ -45,9 +71,9 @@ localmente.
 - Extensiones instaladas observadas: `btree_gist`, `pg_stat_statements`,
   `pgcrypto`, `plpgsql`, `supabase_vault` y `uuid-ossp`.
 - Replay remoto desechable: workflow `40190197121`, job
-  `121159357193`, ejecución Linux efímera. El job aún estaba ejecutando al
-  redactar esta matriz. No usa credenciales de Supabase/Vercel/Stripe y no
-  escribe en el sandbox de origen.
+  `121159357193`, ejecución Linux efímera; **SUCCESS**. No usa credenciales de
+  Supabase/Vercel/Stripe y no escribe en el sandbox de origen. El SHA actual
+  conserva exactamente los mismos archivos SQL.
 
 ## CI del candidato inicial
 
@@ -66,15 +92,21 @@ Run `40189930084`, SHA `234599c92051714b9953393221a5e1be5069cbea`:
 
 ## Decisiones y siguiente paso
 
-1. Esperar la CI del SHA corregido y el replay aislado; corregir fallos
-   concretos sin ejecutar builds ni pruebas en el Mac.
-2. Recuperar acceso **solo** a las sesiones existentes A y B desde el sandbox
-   para la prueba autenticada. No crear cuentas ni cambiar contraseñas, roles,
-   fechas o suscripciones.
-3. Revalidar el límite Free y las escrituras denegadas en la preview del
-   candidato, con comprobación de ausencia de registros parciales.
-4. Completar los huecos demostrados por los resultados y actualizar esta
-   matriz antes de cualquier promoción.
-5. Mantener producción sin cambios. La configuración y apertura pública
-   requieren los gates de producción, revisión de compatibilidad y permisos
-   separados descritos en el plan del MVP.
+1. Obtener revisión independiente de PR #234 y resolver explícitamente la
+   diferencia de procedencia entre `f626351` y la base/HEAD reales del PR;
+   reconciliar también las 94 rutas compartidas con PR #236 y volver a pasar CI
+   sobre la combinación antes de integrar.
+2. Ejecutar E2E autenticado contra **este candidato** usando solo las dos
+   sesiones QA existentes y el sandbox autorizado. CI omitió ese job por falta
+   de credenciales configuradas. Hubo una restauración histórica de sesiones y
+   lecturas de uso en otra preview, pero no acreditan este HEAD; no crear cuentas
+   ni cambiar contraseñas, roles, fechas o suscripciones para marcarlo como
+   aprobado.
+3. Probar en sandbox los límites Free y que las escrituras denegadas no dejen
+   registros parciales. Mantener intactas las cuatro academias protegidas y
+   los ensayos de caducidad/impago.
+4. Preparar preview de entrega separada y configuración productiva aislada solo
+   después de cerrar los gates anteriores; esta rama no se desplegó.
+5. Mantener producción sin cambios. Ninguna consulta ni escritura productiva,
+   migración de destino, promoción o cambio de dominio está aprobada por esta
+   matriz.

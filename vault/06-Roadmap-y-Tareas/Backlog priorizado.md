@@ -1,7 +1,7 @@
 ---
 status: active
 owner: producto
-last_reviewed: 2026-10-15
+last_reviewed: 2026-10-25
 source:
   - ../PRODUCT-ANALYSIS.md
   - ../BUSINESS-ANALYSIS.md
@@ -1164,7 +1164,9 @@ Catálogo remoto autorizadoMain15oct: prod no tiene namespaceszaltyko/domain_pri
 
 ## P0 — PR #234: hacer cumplir solo lectura Free antes de publicar
 
-- El candidato actual amplía las guardas de límites a altas y cambios de academia, documentos, tutores, clases, asistencia, cuotas y comunicaciones. Este corte añade guardas transaccionales a conversaciones/mensajes con ámbito de academia y reparación de conversaciones familiares, manteniendo las preferencias personales disponibles.
-- Se añadieron contratos estáticos que comprueban guard → escritura. En este corte solo pasó `git diff --check`; no hay evidencia de tests ni build para el diff completo hasta completar CI remoto del SHA nuevo.
-- El ensayo autenticado con las dos sesiones QA existentes A/B sigue pendiente: los handles de sesión no existen en el runtime actual. La autorización para restaurar las mismas sesiones no autoriza crear cuentas, sesiones admin ni modificar credenciales; reanudar con sus sesiones existentes cuando estén disponibles.
-- No promover la preview ni producción hasta CI, revisión independiente, reconstrucción de esquema en runner remoto y prueba autenticada del sandbox. La caducidad y el impago de las academias QA continúan `NO VERIFICADO` hasta observación autenticada actual.
+- Candidato exacto: `1637221798bee56b8aee9db176a277429103db40` en PR #234, base real `f84fd6dc316e41aa7b6a599e67dc8cf2ea0dd74c`. El plan nombró `f626351`, que no es ancestro del HEAD; resolver esta procedencia antes de promoción y no reescribir historial a ciegas.
+- CI remota del SHA actual `40193392534`: tipos, unitarios, build, móviles, Chromium/Firefox/WebKit, SBOM, integridad Drizzle, RLS y gate Owner sintético **PASS**. `40193392526` gates operativos PASS; `40193392553` validación estática SQL PASS. Replay PostgreSQL vacío `40190197121` pasó para `234599c9`; no hay cambios SQL desde ese SHA.
+- E2E autenticado, smoke, Lighthouse y público quedaron **SKIPPED**. El candidato no está comprobado contra sesiones QA reales. No usar la CI sintética como sustituto del sandbox.
+- PR #234 sigue OPEN, `REVIEW_REQUIRED` y `BLOCKED`; no desplegar ni promover. En la matriz documentada, validación autenticada/capacidad Free, ciclo SaaS en esta versión y publicación siguen pendientes.
+- Integración pendiente con PR #236 de dependencias, también `REVIEW_REQUIRED`: 94 rutas compartidas con #234, incluidos los cuatro manifiestos/lockfiles de pnpm. Las ramas pasan CI por separado, pero sus versiones de Sentry difieren (`10.76.2` frente a `10.75.2`); una combinación necesita reconciliación y CI nueva antes de fusionar.
+- La política acordada conserva datos y deja a la academia excedida en solo lectura hasta archivar excedente o contratar plan suficiente; archivo y upgrade siguen como salidas. Probar sus límites y reversión en el sandbox antes de promoción, sin tocar las cuatro academias protegidas ni alterar el ensayo de caducidad/impago.

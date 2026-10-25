@@ -1,11 +1,43 @@
 ---
 status: active
 owner: producto
-last_reviewed: 2026-10-15
+last_reviewed: 2026-10-25
 source:
   - ../docs/audits/2026-10-03-launch-and-auth-followup.md
   - ../docs/architecture/zaltyko-domain-model.md
 ---
+
+## 2026-10-25 — Bloqueo de integración entre PR #234 y #236
+
+- Consulta de solo lectura a GitHub: #234 tiene 418 archivos y #236 tiene 274;
+  comparten 94 rutas, incluidos `package.json`, `pnpm-lock.yaml`,
+  `pnpm-workspace.yaml` y `pnpmfile.cjs`.
+- Ambas ramas tienen CI verde por separado y siguen `REVIEW_REQUIRED`. El rango
+  de `@sentry/nextjs` difiere (`10.76.2` en #234, `10.75.2` en #236); CI de cada
+  rama no demuestra que la combinación sea compatible. No se hizo merge,
+  rebase, push ni despliegue.
+- Resolver la integración con revisión independiente y validar la rama
+  resultante en CI remota antes de promoción.
+
+## 2026-10-25 — PR #234 CI remota completa; publicación aún bloqueada
+
+- HEAD `1637221798bee56b8aee9db176a277429103db40`; CI `40193392534`
+  **SUCCESS**. Lint/tipos, unitarios, build remoto, móvil, Chromium, Firefox,
+  WebKit, SBOM/seguridad, integridad Drizzle, RLS y gate Owner sintético pasan.
+  Gates adicionales `40193392526` y `40193392553` pasan. No se ejecutó build ni
+  prueba en el Mac.
+- E2E autenticado, readiness de credenciales, smoke, público y Lighthouse
+  quedaron **SKIPPED**. El candidato aún no está validado con sesiones QA reales.
+- Replay PostgreSQL desechable `40190197121` **SUCCESS** en SHA `234599c9`;
+  el HEAD actual no modifica archivos bajo `supabase/`, así que no cambia el
+  SQL probado. El replay no aplicó SQL en sandbox/producción.
+- PR #234 sigue OPEN/BLOCKED/`REVIEW_REQUIRED`. El plan citó `f626351`, pero el
+  PR usa base `f84fd6dc` y `f626351` no es ancestro del HEAD. No se hizo
+  rebase/reset ni se desplegó.
+- La matriz QA y el backlog reflejan gates verdes, skips y bloqueos restantes.
+  Próximo paso: revisión independiente, resolver procedencia y E2E autenticado
+  usando únicamente sesiones existentes; después comprobar límites y ausencia
+  de efectos parciales en sandbox antes de cualquier preview de entrega.
 
 ## Cierre CI exacto — 2026-10-16, 08:10 UTC
 

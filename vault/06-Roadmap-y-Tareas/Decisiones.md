@@ -1,12 +1,25 @@
 ---
 status: active
 owner: producto
-last_reviewed: 2026-10-15
+last_reviewed: 2026-10-25
 source:
   - ../AGENTS.md
 ---
 
 # Decisiones
+
+## 2026-10-25 — Free sobre capacidad: conservar datos y solo lectura
+
+- **Decisión humana:** si una academia supera cualquier límite de Free, conservar
+  sus datos y dejar la operativa en solo lectura hasta regularizar. Mantener
+  disponibles tanto el archivo explícito del excedente como la contratación
+  de capacidad suficiente.
+- **Alcance:** política funcional del producto; no autoriza cambios en
+  producción ni sobre las cuatro academias protegidas del sandbox. El candidato
+  PR #234 implementa guardas transaccionales en rutas de escritura revisadas.
+- **Verificación:** CI remota `40193392534` pasó en `1637221798bee56b8aee9db176a277429103db40`.
+  E2E autenticado fue omitido; aplicación de la política con sesiones reales y
+  ausencia de efectos parciales siguen **NO VERIFICADAS** en este HEAD.
 
 ## Cierre CI exacto — 2026-10-16, 08:10 UTC
 
