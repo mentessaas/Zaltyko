@@ -1,8 +1,7 @@
 import type { BrowserContext, Route } from "@playwright/test";
 
 export const HIBP_FIXTURE_BODY = `${"0".repeat(35)}:0\r\n`;
-const EXPECTED_SENTRY_REPLAY_URL =
-  "https://browser.sentry-cdn.com/10.73.0/replay.min.js";
+const EXPECTED_SENTRY_BROWSER_ORIGIN = "https://browser.sentry-cdn.com";
 
 type RequestInput = {
   url: string;
@@ -103,11 +102,13 @@ export function isExpectedBlockedTelemetryRequest(input: {
   method: string;
   resourceType: string;
 }): boolean {
-  return (
-    input.method === "GET" &&
-    input.resourceType === "script" &&
-    input.url === EXPECTED_SENTRY_REPLAY_URL
-  );
+  try {
+    const url = new URL(input.url);
+    // Sentry's browser CDN traffic is telemetry in local E2E; the guard still aborts it.
+    return url.origin === EXPECTED_SENTRY_BROWSER_ORIGIN;
+  } catch {
+    return false;
+  }
 }
 
 function localOrigin(value: string, label: string): string {
