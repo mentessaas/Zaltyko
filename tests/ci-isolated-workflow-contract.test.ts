@@ -126,6 +126,7 @@ describe("isolated CI workflow contract", () => {
     expect(buildJob).toContain("contents: read");
     expect(buildJob).toContain("persist-credentials: false");
     expect(buildJob).toContain("refs/heads/codex/mvp-vertical-delivery-20261025");
+    expect(buildJob).toContain("refs/heads/codex/mvp-monthly-invoice-pg-20261025");
     expect(buildJob).toContain('branch="${GITHUB_REF#refs/heads/}"');
     expect(buildJob).toContain('[[ "$EXPECTED_SHA" == "$head_sha" ]]');
     expect(buildJob).toContain("VERCEL_ENV: preview");
@@ -337,6 +338,7 @@ describe("isolated CI workflow contract", () => {
     const billingIntegrationTest = readFileSync(billingIntegrationTestPath, "utf8");
     const replayHeader = replayJob.split("\n    steps:")[0] ?? "";
     expect(replayHeader).not.toMatch(/^\s+needs:/m);
+    expect(replayJob).not.toContain("refs/heads/codex/mvp-monthly-invoice-pg-20261025");
     expect(replayJob).toContain("inputs.resolution_mode == 'schema-replay'");
     expect(replayJob).toContain("inputs.resolution_mode == 'checks-and-build'");
     expect(replayJob).toContain("runs-on: ubuntu-latest");
