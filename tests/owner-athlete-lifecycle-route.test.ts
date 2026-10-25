@@ -69,6 +69,10 @@ const mocks = vi.hoisted(() => {
       resourceId: params.resourceId ?? "",
     };
   });
+  const lockAcademyOperationalWrites = vi.fn(async (client: typeof tx) => {
+    await client.execute();
+  });
+  const assertWithinPlanLimits = vi.fn(async () => ({ readOnly: false }));
   const withTransaction = vi.fn(async <T>(callback: (client: typeof tx) => Promise<T>) => {
     state.events.push("begin");
     try {
@@ -82,7 +86,16 @@ const mocks = vi.hoisted(() => {
   });
   const authorizeAcademyCapability = vi.fn(async () => ({ allowed: state.allowed }));
 
-  return { state, tables, tx, createAuditLog, withTransaction, authorizeAcademyCapability };
+  return {
+    state,
+    tables,
+    tx,
+    createAuditLog,
+    withTransaction,
+    authorizeAcademyCapability,
+    lockAcademyOperationalWrites,
+    assertWithinPlanLimits,
+  };
 });
 
 vi.mock("@/db/schema", () => ({ athletes: mocks.tables.athletes, auditLogs: mocks.tables.auditLogs }));
@@ -90,6 +103,10 @@ vi.mock("@/lib/authz", () => ({ withTenant: (handler: unknown) => handler }));
 vi.mock("@/lib/authz/resource-scope", () => ({ authorizeAcademyCapability: mocks.authorizeAcademyCapability }));
 vi.mock("@/lib/authz/audit-service", () => ({ createAuditLog: mocks.createAuditLog }));
 vi.mock("@/lib/db-transactions", () => ({ withTransaction: mocks.withTransaction }));
+vi.mock("@/lib/limits", () => ({
+  lockAcademyOperationalWrites: mocks.lockAcademyOperationalWrites,
+  assertWithinPlanLimits: mocks.assertWithinPlanLimits,
+}));
 vi.mock("@/lib/rate-limit", () => ({
   getUserIdentifier: () => "synthetic-user",
   withRateLimit: (handler: unknown) => handler,
@@ -219,7 +236,7 @@ describe("límite HTTP de archivo y restauración de gimnastas", () => {
 
     expect(response.status).toBe(500);
     expect(mocks.state.events).toEqual([
-      "begin", "lock", "select:auditLogs", "select:athletes", "update:active", "audit:transaction", "rollback",
+      "begin", "lock", "lock", "select:auditLogs", "select:athletes", "update:active", "audit:transaction", "rollback",
     ]);
     expect(mocks.createAuditLog).toHaveBeenCalledWith(
       expect.objectContaining({ resourceId: athleteA, meta: expect.objectContaining({ restored: true }) }),
@@ -246,7 +263,7 @@ describe("límite HTTP de archivo y restauración de gimnastas", () => {
     expect(conflict.status).toBe(409);
     expect(await json(conflict)).toMatchObject({ ok: false, code: "IDEMPOTENCY_CONFLICT" });
     expect(mocks.state.events.slice(eventCountAfterFirst)).toEqual([
-      "begin", "lock", "select:auditLogs", "rollback",
+      "begin", "lock", "lock", "select:auditLogs", "rollback",
     ]);
     expect(mocks.tx.update).toHaveBeenCalledOnce();
     expect(mocks.createAuditLog).toHaveBeenCalledOnce();
@@ -262,6 +279,7 @@ describe("límite HTTP de archivo y restauración de gimnastas", () => {
     const first = await restoreAthlete(request(path, body), restoreContext);
     expect(first.status).toBe(200);
     expect(await json(first)).toMatchObject({ ok: true, data: { restored: true, replayed: false } });
+    expect(mocks.assertWithinPlanLimits).toHaveBeenCalledWith(tenantId, academyId, "athletes", mocks.tx);
     expect(mocks.createAuditLog).toHaveBeenCalledWith(
       expect.objectContaining({ resourceId: athleteA, meta: expect.objectContaining({ restored: true }) }),
       mocks.tx,
