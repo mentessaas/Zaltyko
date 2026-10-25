@@ -52,7 +52,12 @@ describe("directorio Owner de familias", () => {
     );
 
     expect(screen.getByRole("heading", { name: "Familias de la sede" })).toBeInTheDocument();
-    expect(screen.getByText("Gimnasta sintética")).toBeInTheDocument();
+    expect(
+      screen.getByRole("heading", { name: "Gimnasta sintética" })
+    ).toBeInTheDocument();
+    expect(
+      screen.getAllByText("Gimnasta sintética", { selector: "li" })
+    ).toHaveLength(1);
     expect(screen.getByText("Responsable sintético")).toBeInTheDocument();
     expect(screen.getByText("Principal")).toBeInTheDocument();
     expect(
