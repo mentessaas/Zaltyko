@@ -34,6 +34,7 @@ import {
 } from "./lib/e2e-schema-replay";
 import {
   E2E_LOCAL_SCHEMA_POST_SNAPSHOT_MIGRATIONS,
+  E2E_LOCAL_SCHEMA_TEST_SEEDS,
   E2E_LOCAL_SCHEMA_SNAPSHOT,
 } from "./lib/e2e-domain-migrations";
 import {
@@ -258,6 +259,11 @@ void (async () => {
       ...E2E_LOCAL_SCHEMA_POST_SNAPSHOT_MIGRATIONS.map((migration) => ({
         ...migration,
         sourcePath: resolve(root, "supabase", "migrations", migration.filename),
+        isGuardedSnapshot: false,
+      })),
+      ...E2E_LOCAL_SCHEMA_TEST_SEEDS.map((seed) => ({
+        ...seed,
+        sourcePath: resolve(root, "scripts", "e2e-local", seed.filename),
         isGuardedSnapshot: false,
       })),
     ];

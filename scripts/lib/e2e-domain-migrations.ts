@@ -51,3 +51,13 @@ export const E2E_LOCAL_SCHEMA_POST_SNAPSHOT_MIGRATIONS = [
     sha256: "d8c2a0b81a0d7f75f1f94ebd0f131ab85775a6e7904e2606a980570cbc02c225",
   },
 ] as const;
+
+// A policy row is required to exercise the fail-closed Owner signup flow. This
+// synthetic policy seed is deliberately outside supabase/migrations so it can
+// only be applied by the disposable local browser runner.
+export const E2E_LOCAL_SCHEMA_TEST_SEEDS = [
+  {
+    filename: "owner-signup-consent-policy.sql",
+    sha256: "60ce4bb87e3945e3051d96dbc0890b92be427ab9271cdd73d54c5ac4f4696947",
+  },
+] as const;

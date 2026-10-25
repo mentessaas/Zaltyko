@@ -7,6 +7,7 @@ import { describe, expect, it } from "vitest";
 import {
   E2E_DOMAIN_MIGRATIONS,
   E2E_LOCAL_SCHEMA_POST_SNAPSHOT_MIGRATIONS,
+  E2E_LOCAL_SCHEMA_TEST_SEEDS,
   E2E_LOCAL_SCHEMA_SNAPSHOT,
   E2E_LOCAL_OWNER_MONTHLY_TARIFF_MIGRATIONS,
   E2E_LOCAL_OWNER_SIGNUP_MIGRATIONS,
@@ -119,6 +120,22 @@ describe("local Owner E2E migration boundary", () => {
           "d8c2a0b81a0d7f75f1f94ebd0f131ab85775a6e7904e2606a980570cbc02c225",
       },
     ]);
+    expect(E2E_LOCAL_SCHEMA_TEST_SEEDS).toHaveLength(1);
+    expect(E2E_LOCAL_SCHEMA_TEST_SEEDS[0]?.filename).toBe(
+      "owner-signup-consent-policy.sql"
+    );
+    expect(E2E_LOCAL_SCHEMA_TEST_SEEDS[0]?.filename).not.toContain(
+      "supabase/migrations"
+    );
+    const localConsentSeed = readFileSync(
+      resolve(process.cwd(), "scripts/e2e-local/owner-signup-consent-policy.sql"),
+      "utf8"
+    );
+    expect(localConsentSeed).toContain("v1-2026-10-25");
+    expect(localConsentSeed).toContain("ON CONFLICT (singleton)");
+    expect(createHash("sha256").update(localConsentSeed).digest("hex")).toBe(
+      E2E_LOCAL_SCHEMA_TEST_SEEDS[0]?.sha256
+    );
 
     for (const migration of E2E_LOCAL_SCHEMA_POST_SNAPSHOT_MIGRATIONS) {
       const source = readFileSync(
