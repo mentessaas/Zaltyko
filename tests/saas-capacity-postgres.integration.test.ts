@@ -2162,6 +2162,7 @@ describe("Free capacity guards on disposable PostgreSQL", () => {
       updateOwnerFamilyPayerProfile({
         ...command,
         givenName: "Blocked edit",
+        expectedProfileVersion: updated.profileVersion,
         idempotencyKey: "ci-family-payer-readonly-" + randomUUID(),
       })
     ).rejects.toMatchObject({ code: "PLAN_OVER_CAPACITY", status: 409 });
