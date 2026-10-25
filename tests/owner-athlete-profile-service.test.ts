@@ -12,6 +12,7 @@ const mocks = vi.hoisted(() => ({
   appendOutbox: vi.fn(),
   state: {
     profile: null as Record<string, unknown> | null,
+    targetLocationIds: [] as string[],
     affectedLocationIds: [] as string[],
     hasGuardianIdentity: false,
     hasStaffIdentity: false,
@@ -121,6 +122,7 @@ function makeTransaction() {
     return {
       rows: [
         {
+          target_location_ids: mocks.state.targetLocationIds,
           location_ids: mocks.state.affectedLocationIds,
           has_guardian_identity: mocks.state.hasGuardianIdentity,
           has_staff_identity: mocks.state.hasStaffIdentity,
@@ -171,6 +173,7 @@ beforeEach(() => {
     familyName: "López",
   };
   mocks.state.affectedLocationIds = [locationA];
+  mocks.state.targetLocationIds = [locationA];
   mocks.state.hasGuardianIdentity = false;
   mocks.state.hasStaffIdentity = false;
   mocks.state.deniedLocationId = null;
@@ -204,7 +207,7 @@ beforeEach(() => {
 });
 
 describe("actualización del perfil canónico de gimnasta", () => {
-  it("lee los campos separados después de comprobar todas las sedes relacionadas", async () => {
+  it("lee los campos separados comprobando solo la sede propia seleccionada", async () => {
     mocks.state.affectedLocationIds = [locationB, locationA];
     makeTransaction();
 
@@ -217,11 +220,74 @@ describe("actualización del perfil canónico de gimnasta", () => {
       })
     ).resolves.toEqual({ athleteId, givenName: "Ana", familyName: "López" });
 
-    expect(mocks.state.accesses).toEqual([
-      { locationId: locationA },
-      { locationId: locationB },
-    ]);
+    expect(mocks.state.accesses).toEqual([{ locationId: locationA }]);
     expect(mocks.state.writes).toHaveLength(0);
+  });
+
+  it("no revela una ficha que carece de ancla propia en la sede solicitada", async () => {
+    mocks.state.targetLocationIds = [];
+    mocks.state.affectedLocationIds = [locationA];
+    makeTransaction();
+
+    await expect(
+      getOwnerAthleteProfile({
+        organizationId,
+        locationId: locationA,
+        athleteId,
+        actor: originalActor,
+      })
+    ).rejects.toMatchObject({ code: "NOT_FOUND", status: 404 });
+
+    expect(mocks.state.accesses).toHaveLength(0);
+    expect(mocks.state.writes).toHaveLength(0);
+  });
+
+  it("no usa la sede de una hermana para leer la ficha propia de otra sede", async () => {
+    mocks.state.targetLocationIds = [locationB];
+    mocks.state.affectedLocationIds = [locationA, locationB];
+    makeTransaction();
+
+    await expect(
+      getOwnerAthleteProfile({
+        organizationId,
+        locationId: locationA,
+        athleteId,
+        actor: originalActor,
+      })
+    ).rejects.toMatchObject({ code: "NOT_FOUND", status: 404 });
+
+    expect(mocks.state.accesses).toHaveLength(0);
+    expect(mocks.state.writes).toHaveLength(0);
+  });
+
+  it("exige el contexto de sede propio incluso para acceso de todas las sedes", async () => {
+    mocks.state.targetLocationIds = [locationB];
+    mocks.state.affectedLocationIds = [locationA, locationB];
+    mocks.assertAccess.mockImplementation(async (_tx, request) => {
+      mocks.state.accesses.push({ locationId: request.locationId });
+      return { locationScopeMode: "all" };
+    });
+    makeTransaction();
+
+    await expect(
+      getOwnerAthleteProfile({
+        organizationId,
+        locationId: locationA,
+        athleteId,
+        actor: originalActor,
+      })
+    ).rejects.toMatchObject({ code: "NOT_FOUND", status: 404 });
+    expect(mocks.state.accesses).toHaveLength(0);
+
+    await expect(
+      getOwnerAthleteProfile({
+        organizationId,
+        locationId: locationB,
+        athleteId,
+        actor: originalActor,
+      })
+    ).resolves.toMatchObject({ athleteId, givenName: "Ana", familyName: "López" });
+    expect(mocks.state.accesses).toEqual([{ locationId: locationB }]);
   });
 
   it("autoriza todas las sedes afectadas y mantiene PII fuera de auditoría/outbox", async () => {
@@ -337,6 +403,7 @@ describe("actualización del perfil canónico de gimnasta", () => {
   ])("rechaza replay si cambió %s", async (_label, change) => {
     const original = input();
     mocks.state.affectedLocationIds = [locationA, locationB];
+    mocks.state.targetLocationIds = [locationA, locationB];
     mocks.findEvent.mockResolvedValue(priorEvent(original));
     const { update } = makeTransaction();
 

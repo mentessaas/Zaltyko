@@ -55,6 +55,9 @@ export default defineConfig({
                   "tests/owner-family-onboarding-postgres.integration.test.ts",
                   "tests/owner-guardian-contacts-postgres.integration.test.ts",
                   "tests/owner-attendance-sessions-postgres.integration.test.ts",
+                  "tests/owner-guardian-profile-postgres.integration.test.ts",
+                  "tests/owner-athlete-profile-isolation-pg.test.ts",
+                  "tests/owner-athlete-archive-pg.test.ts",
                 ]),
             ...(!runSandboxReadonlyPostgresSuites
               ? [

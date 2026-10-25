@@ -79,6 +79,7 @@ type ProfileRow = OwnerAthleteProfile & {
 };
 
 type AffectedProfileScope = {
+  targetLocationIds: string[];
   locationIds: string[];
   hasGuardianIdentity: boolean;
   hasStaffIdentity: boolean;
@@ -155,11 +156,11 @@ async function loadAthleteProfile(
 }
 
 /**
- * A person row is shared by every canonical role in an organization. Resolve
- * all locations that can display this name before authorizing a profile read
- * or write. Family siblings are included because one guardian identity can be
- * attached to athletes at different sites; staff identities require org-wide
- * scope below because staff_profiles has no location column.
+ * A person row is shared by every canonical role in an organization. Keep the
+ * target athlete's own locations separate from the broader write scope: family
+ * siblings are included for shared-person mutations, never as a read anchor.
+ * Staff identities require org-wide scope for writes because staff_profiles
+ * has no location column.
  */
 async function loadAffectedProfileScope(
   tx: TransactionClient,
@@ -168,7 +169,36 @@ async function loadAffectedProfileScope(
   }
 ): Promise<AffectedProfileScope> {
   const result = await tx.execute(sql`
-    with related_athletes as (
+    with target_athlete_locations as (
+      select academy_group.location_id
+      from zaltyko.group_memberships as membership
+      join zaltyko.groups as academy_group
+        on academy_group.organization_id = membership.organization_id
+       and academy_group.id = membership.group_id
+      where membership.organization_id = ${input.organizationId}::uuid
+        and membership.athlete_id = ${input.athleteId}::uuid
+      union
+      select enrollment.location_id
+      from zaltyko.enrollments as enrollment
+      where enrollment.organization_id = ${input.organizationId}::uuid
+        and enrollment.athlete_id = ${input.athleteId}::uuid
+      union
+      select attendance.location_id
+      from zaltyko.attendance_records as attendance
+      where attendance.organization_id = ${input.organizationId}::uuid
+        and attendance.athlete_id = ${input.athleteId}::uuid
+      union
+      select trial.location_id
+      from zaltyko.trials as trial
+      where trial.organization_id = ${input.organizationId}::uuid
+        and trial.athlete_id = ${input.athleteId}::uuid
+      union
+      select waitlist.location_id
+      from zaltyko.waitlist_entries as waitlist
+      where waitlist.organization_id = ${input.organizationId}::uuid
+        and waitlist.athlete_id = ${input.athleteId}::uuid
+    ),
+    related_athletes as (
       select ${input.athleteId}::uuid as athlete_id
       union
       select family_member.athlete_id
@@ -218,6 +248,14 @@ async function loadAffectedProfileScope(
     )
     select
       coalesce(
+        array(
+          select distinct target_athlete_locations.location_id
+          from target_athlete_locations
+          order by target_athlete_locations.location_id
+        ),
+        array[]::uuid[]
+      ) as target_location_ids,
+      coalesce(
         array_agg(distinct affected_locations.location_id order by affected_locations.location_id),
         array[]::uuid[]
       ) as location_ids,
@@ -237,11 +275,14 @@ async function loadAffectedProfileScope(
   `);
 
   const row = result.rows[0];
+  const rawTargetLocationIds = row?.target_location_ids;
   const rawLocationIds = row?.location_ids;
+  const parsedTargetLocationIds = z.array(z.guid()).safeParse(rawTargetLocationIds);
   const parsedLocationIds = z.array(z.guid()).safeParse(rawLocationIds);
   const guardianIdentity = z.boolean().safeParse(row?.has_guardian_identity);
   const staffIdentity = z.boolean().safeParse(row?.has_staff_identity);
   if (
+    !parsedTargetLocationIds.success ||
     !parsedLocationIds.success ||
     !guardianIdentity.success ||
     !staffIdentity.success
@@ -254,6 +295,7 @@ async function loadAffectedProfileScope(
   }
 
   return {
+    targetLocationIds: [...new Set(parsedTargetLocationIds.data)].sort(),
     locationIds: [...new Set(parsedLocationIds.data)].sort(),
     hasGuardianIdentity: guardianIdentity.data,
     hasStaffIdentity: staffIdentity.data,
@@ -266,7 +308,21 @@ async function assertProfileScopeAccess(
   scope: AffectedProfileScope,
   intent?: "write"
 ): Promise<void> {
-  if (!scope.locationIds.length || !scope.locationIds.includes(input.locationId)) {
+  // A family sibling can broaden the write scope of a shared person, but it
+  // must never become the site anchor for this athlete's own profile.
+  if (!scope.targetLocationIds.includes(input.locationId)) {
+    throw new OperationalError(
+      "NOT_FOUND",
+      "La gimnasta no está vinculada a esta sede",
+      404
+    );
+  }
+
+  // Reads need only authorize the target athlete's selected site. A write may
+  // update a person shared with a guardian/staff identity, so it still checks
+  // the complete related-location union below before mutating.
+  const accessLocationIds = intent ? scope.locationIds : [input.locationId];
+  if (accessLocationIds.length === 0) {
     throw new OperationalError(
       "NOT_FOUND",
       "La gimnasta no está vinculada a esta sede",
@@ -275,7 +331,7 @@ async function assertProfileScopeAccess(
   }
 
   let memberLocationScopeMode: string | undefined;
-  for (const locationId of scope.locationIds) {
+  for (const locationId of accessLocationIds) {
     const member = await assertOperationalAccess(tx, {
       organizationId: input.organizationId,
       locationId,

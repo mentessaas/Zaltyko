@@ -1,6 +1,10 @@
 "use client";
 
 import { useEffect, useRef, useState } from "react";
+import {
+  OwnerGuardianProfileEditor,
+  readPendingOwnerGuardianProfile,
+} from "@/components/owner-dashboard/OwnerGuardianProfileEditor";
 
 export const PENDING_OWNER_GUARDIAN_CONTACT_STORAGE_KEY =
   "zaltyko:pending-owner-guardian-contact:v1";
@@ -278,6 +282,10 @@ export function OwnerGuardianContactsEditor({
   const scopeKey = `${organizationId}:${locationId}:${guardianId}`;
   const scopeKeyRef = useRef(scopeKey);
   scopeKeyRef.current = scopeKey;
+  const contactLockRef = useRef({ scopeKey, locked: false });
+  const profileLockRef = useRef({ scopeKey, locked: false });
+  if (contactLockRef.current.scopeKey !== scopeKey) contactLockRef.current = { scopeKey, locked: false };
+  if (profileLockRef.current.scopeKey !== scopeKey) profileLockRef.current = { scopeKey, locked: false };
   const mountedRef = useRef(false);
   const sendingRef = useRef(false);
   const requestRef = useRef<AbortController | null>(null);
@@ -297,6 +305,9 @@ export function OwnerGuardianContactsEditor({
   const [message, setMessage] = useState("");
   const [messageKind, setMessageKind] = useState<"error" | "status">("error");
   const [loadRevision, setLoadRevision] = useState(0);
+  const [profileOpen, setProfileOpen] = useState(false);
+  const [profileActive, setProfileActive] = useState(false);
+  const [profileDisplayName, setProfileDisplayName] = useState(displayName);
 
   function setCurrentContacts(next: OwnerGuardianContacts) {
     contactsRef.current = next;
@@ -306,7 +317,18 @@ export function OwnerGuardianContactsEditor({
   }
 
   function notifyPending(active: boolean, key = scopeKey) {
-    callbackRef.current?.(key, active);
+    if (key !== scopeKeyRef.current) return;
+    contactLockRef.current = { scopeKey: key, locked: active };
+    const profileLocked = profileLockRef.current.scopeKey === key && profileLockRef.current.locked;
+    callbackRef.current?.(key, active || profileLocked);
+  }
+
+  function notifyProfileLock(key: string, locked: boolean) {
+    if (key !== scopeKeyRef.current) return;
+    profileLockRef.current = { scopeKey: key, locked };
+    setProfileActive(locked);
+    const contactLocked = contactLockRef.current.scopeKey === key && contactLockRef.current.locked;
+    callbackRef.current?.(key, locked || contactLocked);
   }
 
   useEffect(() => {
@@ -324,6 +346,17 @@ export function OwnerGuardianContactsEditor({
     // eslint-disable-next-line react-hooks/set-state-in-effect
     setEditingKind(null);
     sendingRef.current = false;
+    const restoredProfile = readPendingOwnerGuardianProfile(scope);
+    if (restoredProfile.kind !== "none") {
+      // Keep the recovery editor mounted for pending, corrupt, or unavailable
+      // markers. It owns the exact-command recovery UI and must not be hidden.
+      // eslint-disable-next-line react-hooks/set-state-in-effect
+      setProfileOpen(true);
+      // eslint-disable-next-line react-hooks/set-state-in-effect
+      setProfileActive(true);
+      profileLockRef.current = { scopeKey, locked: true };
+      notifyProfileLock(scopeKey, true);
+    }
     const restored = readPendingOwnerGuardianContact(scope);
     if (restored.kind === "pending") {
       // eslint-disable-next-line react-hooks/set-state-in-effect
@@ -392,7 +425,9 @@ export function OwnerGuardianContactsEditor({
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [scopeKey, loadRevision]);
 
-  const operationLocked = Boolean(pending || pendingBlocked || saving);
+  const contactOperationLocked = Boolean(pending || pendingBlocked || saving);
+  const profileOperationLocked = profileOpen || profileActive;
+  const operationLocked = contactOperationLocked || profileOperationLocked;
 
   async function sendPending(command: PendingOwnerGuardianContact, previouslyUncertain: boolean) {
     if (sendingRef.current || !mountedRef.current || scopeKeyRef.current !== `${command.organizationId}:${command.locationId}:${command.guardianId}`) return;
@@ -577,14 +612,43 @@ export function OwnerGuardianContactsEditor({
   const editingValue = editingKind === "email" ? emailValue : phoneValue;
 
   return (
-    <section aria-label={`Contactos de ${displayName}`} className="mt-4 w-full border border-slate-300 bg-slate-50 p-4 sm:col-span-2">
+    <section aria-label={`Contactos de ${profileDisplayName}`} className="mt-4 w-full border border-slate-300 bg-slate-50 p-4 sm:col-span-2">
       <div className="flex flex-col gap-2 sm:flex-row sm:items-start sm:justify-between">
         <div>
           <h4 className="font-bold">Contactos del pagador</h4>
           <p className="mt-1 text-sm text-slate-700">Editar estos datos no crea una cuenta, no envía mensajes y no verifica el contacto.</p>
         </div>
-        {onClose && <button type="button" className={secondaryButtonClassName} onClick={onClose} disabled={operationLocked || saving}>Cerrar contactos</button>}
+        <div className="flex flex-wrap gap-2">
+          <button type="button" className={secondaryButtonClassName} aria-expanded={profileOpen} onClick={() => {
+            if (profileOpen || disabled || contactOperationLocked) return;
+            notifyProfileLock(scopeKey, true);
+            setProfileOpen(true);
+          }} disabled={disabled || operationLocked || saving}>
+            {profileOpen ? "Perfil abierto" : "Editar nombre del tutor"}
+          </button>
+          {onClose && <button type="button" className={secondaryButtonClassName} onClick={onClose} disabled={operationLocked || saving}>Cerrar contactos</button>}
+        </div>
       </div>
+
+      {profileOpen && (
+        <OwnerGuardianProfileEditor
+          key={`${organizationId}:${locationId}:${guardianId}`}
+          organizationId={organizationId}
+          locationId={locationId}
+          guardianId={guardianId}
+          // Do not feed the profile's own lock back into this prop: an exact
+          // manual replay must remain available while the parent is locked.
+          disabled={disabled || contactOperationLocked}
+          onLockChange={notifyProfileLock}
+          onSaved={(profile) => {
+            setProfileDisplayName(`${profile.givenName} ${profile.familyName}`.trim());
+          }}
+          onClose={() => {
+            notifyProfileLock(scopeKey, false);
+            setProfileOpen(false);
+          }}
+        />
+      )}
 
       {loading && <p role="status" className="mt-3 text-sm text-slate-700">Cargando contactos…</p>}
       {loadError && (

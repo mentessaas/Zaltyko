@@ -10,6 +10,28 @@ persistidos reales de sandbox.
 
 ## Corte vigente de validación
 
+Corte posterior: `0504f78bafdd67db27c17420404802d8b2864973` terminó con
+CI completa `40213750248` SUCCESS y replay PostgreSQL `40213810321` SUCCESS.
+La repetición de WebKit pasó con el mismo código de producto; no se ha demostrado
+la causa del fallo intermitente anterior. El candidato añade captura PNG de
+fallos sintéticos durante tres días, sin trazas, estado de autenticación ni vídeos.
+
+**No publicar ese corte:** la revisión estática posterior encontró que la lectura
+de una ficha podía aceptar como sede propia la de un hermano de su familia.
+El parche separa las sedes del objetivo del ámbito ampliado necesario para editar
+una persona compartida. Es un hallazgo estático; no acredita exposición de datos
+reales. El parche y su regresión PostgreSQL aún no tienen validación remota.
+
+También están implementados, pendientes de revisión final y CI remota, la edición
+versionada del nombre del tutor y el archivo ordinario de gimnastas. El archivo
+conserva identidad, familia, asistencia y deudas, termina vínculos operativos y
+permanece disponible para Owner/Admin de todas las sedes aunque haya exceso SaaS.
+No exime otras escrituras del bloqueo. Las tres nuevas suites PostgreSQL están
+incluidas en el runner desechable y excluidas de la suite unitaria ordinaria.
+No se ha ejecutado ninguna prueba ni build en el Mac ni desplegado estos cambios.
+
+Los párrafos siguientes conservan los cortes históricos, no el estado vigente.
+
 Último código enviado: `be8ae1735ebc5818559133e04cbe6a36fbc80f59`.
 Replay PostgreSQL `40211462505` SUCCESS: reconstrucción vacía, RLS/ACL,
 aislación entre academias y las cinco suites nativas terminaron con exit0.
@@ -268,3 +290,43 @@ acciónoficialupload-artifactv7 fijada acf430e030ddbb5b0abf93d22962f4752f3646cd9
 No se suben trace/video/HTML/estado/cookies/red ni se cambian producto o asserts.
 El siguiente push de esta evidencia también permite que GitGuardian reanalice el
 hallazgo ya clasificado; no se fabrica uncheck ni se omite el gate requerido.
+
+
+### Siguiente entrega: huecos demostrados y bloqueo de aislamiento
+
+La ejecución0504f78b solo añade diagnóstico y documentación sobre el producto be8.
+PG40213810321 y GitGuardian121230335867 terminaron SUCCESS; CI40213750248
+sigue pendiente deWebKit al corte. No se despliega0504 aunque esaCI pase: revisión
+estática detectó un defecto de aislamiento en GET del perfil de gimnasta.
+
+`loadAffectedProfileScope` une las sedes propias con las de hermanos de familia.
+`assertProfileScopeAccess` usa esa unión para autorizar lectura del target; por tanto,
+un gestor con sedeA podría leer el nombre del target sin ancla propiaA, aprovechando
+el vínculo de un hermanoA. Es evidencia estática, no exposición remota comprobada.
+La corrección debe exigir sede propia del target paraGET y conservar la unión
+solo para proteger modificaciones de la identidad compartida. Se prepara regresión
+para targetB/hermanoA y target sin relaciones; sin aflojar permisos.
+
+Huecos de operativa demostrados: el archivo ordinario de gimnasta no existe fuera
+de la regularización por excedente; el nombre del tutor no tiene edición canónica.
+Se preparan API/servidor/UI/pruebas para ambos como siguiente entrega, sin tocar
+la ruta de regularización, datos remotos, cuotas históricas ni fixtures del ensayo.
+La ficha sin grupo necesita comando explícito de alta y primera asignación: las
+rutas actuales exigen ancla previa en sede. No se elimina ese requisito ni se
+inventa un grupo automático; el vínculo familiar anterior requiere revisar todos
+sus consumidores antes de habilitarlo. Sigue pendiente, no se marca implementado.
+
+
+## Lote pendiente de CI — perfiles y archivo ordinario
+
+Revisión estática independiente sin P1/P2 demostrables para archivo/UI y perfil
+tutor; no equivale a prueba ejecutada. El PATCH del tutor exige origen propio
+antes de resolver scope. El perfil abierto/pending bloquea cierre y mutaciones
+vecinas sin bloquear su propio reintento exacto. Nuevas pruebas cubren ese estado
+tras remount y marcadores inválidos. El recorrido sintético autenticado remoto
+incluye renombrar al tutor, verificar DB y recarga, y archivar al gimnasta como
+última escritura preservando familia, asistencia y ledger. El vínculo familiar
+usa fecha civil actual de la sede consultada en la DB desechable; la cuota sigue
+en el periodo siguiente. No se cambiaron aserciones/timeouts del paso WebKit
+históricamente intermitente. Suite PostgreSQL nativa ampliada de cinco a ocho
+archivos. Todo este lote sigue pendiente de ejecución remota al registrar la nota.

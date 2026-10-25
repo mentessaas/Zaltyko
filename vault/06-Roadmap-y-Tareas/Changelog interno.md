@@ -12608,3 +12608,32 @@ Job121221283687 terminó5008PASS/3FAIL/3omitidas (647archivosPASS/1FAIL/1omitido
 - Siguiente paso: cerrarFirefox/WebKit ycheckseguridad antes de publicar entrega aislada. No se tocó producción, ensayo, proveedores ni se hicieron pruebas/builds locales.
 
 - Cierre be8: CI40211452403 FAILURE soloWebKit/gateagregado. POSTmembershipaceptado/UUIDválido, texto esperado ausente15s en spec489; no fuebuildtimeout(169772,824ms). Chromium/Firefox y5011unitariasPASS/3omitidas. Se investiga antes de publicar; no se degradaelgate.
+
+
+### 2026-10-25 — siguiente entrega y fallo estático de aislamiento
+
+- Hallazgo: GET del perfil de gimnasta autoriza sedes con la unión de familiares; un hermano enA puede abrir lectura de un target sin anclaA. Fuente: owner-athlete-profile.ts, revisión estática de0504. No se afirma exposición de datos reales. Se bloquea publicación y se prepara exigir anclaPROPIA paraGET, manteniendo unión para proteger PATCH de identidad compartida.
+- Huecos MVP: archivo normal de ficha imposible bajo límite (RESOURCE_NOT_OVER_LIMIT), y falta corrección del nombre del tutor. Agentes implementan módulos/rutas/componentes separados, sin escrituras concurrentes sobre los mismos archivos. No se han ejecutado todavía ni aplicado a sandbox.
+- Ficha sin grupo: modelo de sede ya se expresa mediante relaciones; requiere alta y primera asignación explícitas y auditar consumidores familiares, sin grupos ficticios ni relajación de permisos parciales. Permanece pendiente.
+- Corte0504: replayPG40213810321 y GitGuardian121230335867 SUCCESS. CI40213750248 pendiente deWebKit; candidato no publicable por el hallazgo aunque CI pase. Sin builds/pruebas locales, SQL remoto, cambios en ensayo o efectos productivos.
+
+
+### 2026-10-25 — integración de regresiones nativas pendiente de ejecución
+
+CI0504 completa y replay PostgreSQL confirmados SUCCESS mediante GitHub. No
+publicar ese corte: el parche posterior de aislamiento de ficha por sede propia
+está pendiente de sus propios gates. Integradas las suites de perfil tutor,
+aislamiento de ficha y archivo ordinario en el runner PostgreSQL remoto; hash del
+runner actualizado sin cambiar la base SQL. Archivo Owner conserva historial y
+saldos y no levanta el bloqueo de otras escrituras. No pruebas/builds locales,
+consultas al ensayo, migraciones remotas ni despliegues en esta ronda.
+
+
+### 2026-10-25 — lote de perfiles/archivo preparado para CI remota
+
+Revisiones estáticas independientes de archivo y coordinación del perfil tutor
+sin P1/P2 demostrables. Same-origin añadido al PATCH nuevo y pruebas de rechazo;
+locks mantienen recuperación manual y bloquean cierre/otras mutaciones. E2E
+sintético ampliado con tutor persistido/recarga y archivo final con preservación
+del ledger y asistencia. Fecha familiar usa hoy civil de la sede desechable,
+cuota conserva mes siguiente. No ejecutado todavía; sin builds ni tests en Mac.

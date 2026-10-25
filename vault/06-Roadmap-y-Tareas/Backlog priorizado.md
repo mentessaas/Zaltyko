@@ -1183,3 +1183,23 @@ Catálogo remoto autorizadoMain15oct: prod no tiene namespaceszaltyko/domain_pri
 - Seguimiento `40175242597` (`72c0588bb11ad6096e13f2b1b149c0708d7debad`): lint, build, unitarias y gates de seguridad/database pasan. Chromium, Firefox y WebKit fallaron solo el conteo del guard de red: detectaron peticiones bloqueadas al origen exacto de Sentry CDN, ninguna continuó a la red. Parche local reconoce ese origen como telemetría esperada, mantiene los abortos y prueba script y envelope. `git diff --check` pasa; no se hicieron pruebas/builds locales. Enviar una sola nueva revisión remota cuando el diff y el registro estén verificados.
 - Seguimiento `40176727314` (`42007c840929ed3b1b961d667c9c28934d645bc4`): Chromium y Firefox pasan con el ajuste de clasificación, junto con build, unitarias, lint y controles de seguridad/database. WebKit llegó al límite interno de 240 s al preparar su E2E; generó las páginas, pero no acabó optimización/trazas. Aumentar solo su límite de build en Actions a 360 s conforme al límite remoto previamente autorizado; conservar 240 s fuera de GitHub Actions. Pendiente CI remota; sin builds/tests locales, merge ni deployment.
 - Seguimiento `40178355617` (`230f8171b025dcb1958c27aa70d72f32fb758b5a`): falló una aserción estática que aún exigía el timeout antiguo; el parche actualiza ese contrato. WebKit con el nuevo límite y build/unitarias todavía pendientes al corte. No lanzar otra corrida hasta que cierre esta CI; no se ejecutó nada localmente.
+
+
+## 2026-10-25 — Huecos demostrados antes de cerrar el MVP
+
+- **P1 aislamiento de ficha por sede propia:** parche preparado y regresión
+  PostgreSQL integrada; pendiente de CI remota del nuevo commit. La sede de un
+  hermano no puede autorizar la lectura de la ficha objetivo.
+- **Alta familia/gimnasta antes del grupo:** los contratos actuales exigen un
+  ancla previa y forman un ciclo. Implementar bandeja organizativa persistente
+  solo Owner/Admin de todas las sedes y primera asignación explícita a grupo real.
+  No grupos ocultos, anclas derivadas de familia/auditoría ni relajación de rutas
+  limitadas por sede. Contador SaaS incluye pendientes; resumen de entrenamiento
+  por sede no debe contarlos como participantes. No requiere migración según
+  revisión estática del esquema, pero sigue pendiente de implementación completa
+  y comprobación autenticada.
+- **Fechas de regularización histórica:** el archivo ordinario nuevo conserva
+  `ends_on` pasado y evita rangos invertidos. Revisar el mismo patrón en el servicio
+  de regularización existente sin cambiar el ensayo ni reescribir su historial.
+- **Publicación:** base SQL reconstruida en CI no demuestra esquema productivo.
+  Catálogo test no acredita Live; ver auditoría externa production-release-base-readonly.

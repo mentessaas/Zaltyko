@@ -14,6 +14,7 @@ vi.mock("next/navigation", () => ({
 }));
 
 import { OwnerGroupsManager } from "@/components/owner-dashboard/OwnerGroupsManager";
+import { PENDING_OWNER_ATHLETE_ARCHIVE_STORAGE_KEY } from "@/components/owner-dashboard/OwnerAthleteArchiveEditor";
 import {
   beginOwnerPlanUsageRead,
   markOwnerPlanUsageUnavailable,
@@ -65,6 +66,14 @@ const groupBundle = {
     },
   ],
   selectedGroupId: groupId,
+} as never;
+
+const ownerGroupBundleWithAthlete = {
+  ...groupBundle,
+  member: { id: "owner-1", role: "owner", locationScopeMode: "all" },
+  memberships: [
+    { id: membershipId, athleteId, athleteName: "Ana Sintética", status: "active", startsOn: "2026-10-13" },
+  ],
 } as never;
 
 beforeEach(() => {
@@ -176,6 +185,118 @@ describe("gestión de grupos owner", () => {
     expect(screen.getByRole("button", { name: "Dar de baja a Bea Sintética" })).toBeInTheDocument();
     expect(screen.getByRole("button", { name: "Reactivar a Carla Sintética" })).toBeInTheDocument();
     expect(screen.getByRole("button", { name: "Dar de baja a Carla Sintética" })).toBeInTheDocument();
+  });
+
+  it("permite al owner archivar incluso en solo lectura y refresca uso solo tras recibo válido", async () => {
+    publishOwnerPlanUsage(organizationId, { readOnly: true, planCode: "free" });
+    mockFetch.mockResolvedValueOnce({
+      ok: true,
+      status: 201,
+      json: async () => ({ ok: true, data: { athleteId, isActive: false, replayed: false } }),
+    });
+    const dispatch = vi.spyOn(window, "dispatchEvent");
+    const user = userEvent.setup();
+    render(<OwnerGroupsManager bundle={ownerGroupBundleWithAthlete} />);
+
+    const archiveButton = await screen.findByRole("button", { name: "Archivar ficha de Ana Sintética" });
+    await waitFor(() => expect(archiveButton).toBeEnabled());
+    expect(screen.getByRole("button", { name: "Dar de baja a Ana Sintética" })).toBeDisabled();
+    expect(screen.getByRole("button", { name: "Crear grupo" })).toBeDisabled();
+
+    await user.click(archiveButton);
+    expect(screen.getByText(/Archivar no borra la ficha/)).toBeVisible();
+    await user.click(screen.getByRole("button", { name: "Confirmar archivo" }));
+
+    await waitFor(() => expect(mockFetch).toHaveBeenCalledOnce());
+    expect(mockFetch.mock.calls[0]?.[0]).toBe(`/api/v1/owner/athletes/${athleteId}/archive`);
+    const request = mockFetch.mock.calls[0]?.[1] as RequestInit;
+    expect(request.method).toBe("POST");
+    expect(JSON.parse(String(request.body))).toEqual({ organizationId, locationId });
+    expect(request.headers).toMatchObject({ "idempotency-key": "00000000-0000-4000-8000-000000000007" });
+    await waitFor(() => expect(mockRefresh).toHaveBeenCalledOnce());
+    expect(window.sessionStorage.getItem(PENDING_OWNER_ATHLETE_ARCHIVE_STORAGE_KEY)).toBeNull();
+    expect(dispatch).toHaveBeenCalledWith(expect.objectContaining({ type: "zaltyko:plan-usage-changed" }));
+  });
+
+  it("oculta el archivo a roles sin ámbito completo y lo ofrece a admin de todas las sedes", async () => {
+    const managerBundle = {
+      ...ownerGroupBundleWithAthlete,
+      member: { id: "manager-1", role: "manager", locationScopeMode: "all" },
+    } as never;
+    const scopedOwnerBundle = {
+      ...ownerGroupBundleWithAthlete,
+      member: { id: "owner-1", role: "owner", locationScopeMode: "selected" },
+    } as never;
+
+    const view = render(<OwnerGroupsManager bundle={managerBundle} />);
+    expect(screen.queryByRole("button", { name: /Archivar ficha de/ })).not.toBeInTheDocument();
+    view.rerender(<OwnerGroupsManager bundle={scopedOwnerBundle} />);
+    expect(screen.queryByRole("button", { name: /Archivar ficha de/ })).not.toBeInTheDocument();
+    view.rerender(<OwnerGroupsManager bundle={{
+      ...ownerGroupBundleWithAthlete,
+      member: { id: "admin-1", role: "admin", locationScopeMode: "all" },
+    } as never} />);
+    expect(await screen.findByRole("button", { name: "Archivar ficha de Ana Sintética" })).toBeInTheDocument();
+    expect(mockFetch).not.toHaveBeenCalled();
+  });
+
+  it("bloquea otras escrituras y enlaza al alcance original si hay un archivo pendiente ajeno", async () => {
+    const originalGroupId = "20000000-0000-4000-8000-000000000004";
+    const pending = {
+      version: 1,
+      organizationId,
+      locationId,
+      groupId: originalGroupId,
+      athleteId,
+      idempotencyKey: "archive-pending-command",
+      body: JSON.stringify({ organizationId, locationId }),
+    };
+    window.sessionStorage.setItem(PENDING_OWNER_ATHLETE_ARCHIVE_STORAGE_KEY, JSON.stringify(pending));
+    render(<OwnerGroupsManager bundle={ownerGroupBundleWithAthlete} />);
+
+    const originalLink = await screen.findByRole("link", { name: "Volver al grupo original para resolver el archivo" });
+    expect(originalLink).toHaveAttribute("href", `/owner/groups?organizationId=${organizationId}&locationId=${locationId}&groupId=${originalGroupId}`);
+    expect(screen.getByRole("button", { name: "Crear grupo" })).toBeDisabled();
+    expect(screen.getByRole("button", { name: "Dar de baja a Ana Sintética" })).toBeDisabled();
+    expect(screen.queryByRole("button", { name: "Archivar ficha de Ana Sintética" })).not.toBeInTheDocument();
+    expect(mockFetch).not.toHaveBeenCalled();
+  });
+
+  it("conserva el archivo pendiente fuera de la lista y permite reintentar solo en su grupo original", async () => {
+    const pending = {
+      version: 1,
+      organizationId,
+      locationId,
+      groupId,
+      athleteId,
+      idempotencyKey: "archive-original-key",
+      body: JSON.stringify({ organizationId, locationId }),
+    };
+    window.sessionStorage.setItem(PENDING_OWNER_ATHLETE_ARCHIVE_STORAGE_KEY, JSON.stringify(pending));
+    mockFetch.mockResolvedValueOnce({
+      ok: true,
+      status: 200,
+      json: async () => ({ ok: true, data: { athleteId, isActive: false, replayed: true } }),
+    });
+    const dispatch = vi.spyOn(window, "dispatchEvent");
+    const user = userEvent.setup();
+    const emptyOriginalGroup = { ...ownerGroupBundleWithAthlete, memberships: [] } as never;
+    render(<OwnerGroupsManager bundle={emptyOriginalGroup} />);
+
+    const trigger = await screen.findByRole("button", { name: "Resolver archivo pendiente de ficha seleccionada" });
+    expect(screen.getByText(/La ficha ya no aparece en las pertenencias actuales/)).toBeVisible();
+    expect(mockFetch).not.toHaveBeenCalled();
+    await user.click(trigger);
+    await user.click(screen.getByRole("button", { name: "Reintentar archivo" }));
+
+    await waitFor(() => expect(mockFetch).toHaveBeenCalledOnce());
+    expect(mockFetch.mock.calls[0]?.[0]).toBe(`/api/v1/owner/athletes/${athleteId}/archive`);
+    const request = mockFetch.mock.calls[0]?.[1] as RequestInit;
+    expect(request.headers).toMatchObject({ "idempotency-key": pending.idempotencyKey });
+    expect(request.body).toBe(pending.body);
+    await waitFor(() => expect(mockRefresh).toHaveBeenCalledOnce());
+    expect(window.sessionStorage.getItem(PENDING_OWNER_ATHLETE_ARCHIVE_STORAGE_KEY)).toBeNull();
+    expect(dispatch).toHaveBeenCalledWith(expect.objectContaining({ type: "zaltyko:plan-usage-changed" }));
   });
 
   it("en solo lectura conserva la consulta y el historial y desactiva las altas y transiciones", async () => {
