@@ -26,6 +26,7 @@ import {
   groups,
   guardians,
   locations,
+  memberLocationScopes,
   outboxEvents,
   people,
   type Family,

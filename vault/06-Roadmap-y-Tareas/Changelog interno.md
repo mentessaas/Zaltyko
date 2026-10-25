@@ -12547,3 +12547,17 @@ Modelo separado, reclamación manual, administración, importación revisada, fi
 - Cambiar el pagador principal requiere confirmación explícita en ambos clientes y API; el fingerprint ausente/false conserva compatibilidad de comandos antiguos. Se rechaza una segunda familia solapada porque el contrato mensual actual solo admite una relación inequívoca para emitir la cuota; sucesión no solapada y replay histórico siguen disponibles. No se implementa pago dividido.
 - Panel de resolución mensual persiste/relee cuerpo exacto y clave antes del envío; recuperación manual tras remount sin autoenvío, cercas de ámbito y rechazo de almacenamiento inválido. Revisión independiente estática de ese panel sin P1/P2; no equivale a test ejecutado.
 - Nueve casos PG de familia añadidos al runner desechable y excluidos del gate unitario ordinario salvo flagPG. Cubren concurrencia, rollback15tablas, ámbito/replay, confirmación y solapamientos. Pendientes CI remota, replayPG y sandbox; no hubo test/build/servicio local, SQL remoto nuevo ni cambio en el ensayo.
+
+
+## 2026-10-25 — Correcciones por evidencia de CI familiar
+
+- ReplayPG40207666295:13PASS previos y9FAIL de la nueva suite por fixture con4grupos enFree3. Fixture corregida a3grupos; ambas gimnastasB comparten el tercero y A mantiene dos para probar deduplicación. Se añade precondición explícita uso3/3/0/readOnlyfalse. No se modifica ningún límite del producto.
+- Typecheck remoto del18e4f0fe detectó import omitido memberLocationScopes y ampliación accidental del literal method en el objeto de validación de sessionStorage. Se añade el import y anotación Omit<PendingResolutionCommand,...>; no hay cast que eluda validación. Nueva ejecución pendiente.
+- Primer dispatch40207633011 fue rechazado antes de instalación/PG por SHA esperado incorrecto; ya había terminado cuando se intentó cancelar. No cuenta como prueba. Segundo dispatch usó SHAexacto18e4f0fea3e0f6eb44d01432e07d1a947e5fe721.
+
+
+## 2026-10-25 — Paginación de pagos manuales preparada para CI
+
+- Lista anterior truncaba silenciosamente en250cargos. GETopciones ahora pagina50+1 por due_at/ref/id, conserva microsegundos y vuelve a comprobar actor/academia/sedes en cada consulta. Cursor es posición no confiable, no autorización ni secreto nuevo.
+- Owner muestra Cargar más, retiene selección/importe y permite reintentar la lectura. Cambio de props/academia/sede/página aborta la solicitud e invalida respuesta/finally antiguos; evita mezclar cargos entre ámbitos. No cambia POST ni registro de dinero.
+- Revisión independiente estática sinP1/P2; root revisó el nuevo PGreal de251cargos,6páginas,desempates y señuelos de otra sede/academia. Incluye rechazo de cursor con alcance distinto. Unitarios/UI/ruta yPG añadidos pero no ejecutados localmente. Pendientes CI yPGremotos, sandbox y publicación. No datos del ensayo ni producción modificados.

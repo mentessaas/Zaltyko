@@ -99,7 +99,9 @@ export default async function OwnerPaymentsPage({
 
         <ManualPaymentForm
           organizationId={options.organization.id}
+          locationId={options.selectedLocationId}
           charges={options.charges}
+          nextCursor={options.nextCursor}
         />
       </div>
     </main>

@@ -3,6 +3,7 @@
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useEffect, useId, useMemo, useRef, useState } from "react";
+import { z } from "zod";
 import { OwnerOperationalReadOnlyNotice } from "./OwnerOperationalReadOnlyNotice";
 import {
   clearPendingManualPayment,
@@ -39,6 +40,44 @@ type PendingPaymentRequest = {
   snapshot: ManualPaymentRetrySnapshot;
   referenceRequired: boolean;
 };
+
+type ManualPaymentOptionsRequest = {
+  id: number;
+  generation: number;
+  pageIdentity: object;
+  scopeKey: string;
+  cursor: string;
+  controller: AbortController;
+};
+
+type LoadedManualPaymentPage = {
+  identity: object;
+  charges: OpenManualPaymentCharge[];
+  cursor: string | null;
+};
+
+const manualPaymentOptionsResponseSchema = z.object({
+  ok: z.literal(true),
+  data: z.object({
+    charges: z.array(
+      z.object({
+        chargeId: z.string().uuid(),
+        familyId: z.string().uuid(),
+        locationId: z.string().uuid(),
+        locationName: z.string(),
+        locationTimezone: z.string(),
+        invoiceReference: z.string(),
+        payerName: z.string().nullable(),
+        currency: z.string().regex(/^[A-Z]{3}$/),
+        dueAt: z.string(),
+        totalCents: z.number().int().nonnegative().safe(),
+        allocatedCents: z.number().int().nonnegative().safe(),
+        outstandingCents: z.number().int().positive().safe(),
+      })
+    ),
+    nextCursor: z.string().min(1).max(4096).nullable(),
+  }),
+});
 
 function isMatchingManualPaymentResponse(
   value: unknown,
@@ -83,10 +122,14 @@ function parseAmountCents(value: string): number | null {
 
 export function ManualPaymentForm({
   organizationId,
+  locationId = null,
   charges,
+  nextCursor = null,
 }: {
   organizationId: string;
+  locationId?: string | null;
   charges: OpenManualPaymentCharge[];
+  nextCursor?: string | null;
   canManageFamilyCollectionPreferences?: boolean;
 }) {
   const fieldIdPrefix = useId();
@@ -97,14 +140,36 @@ export function ManualPaymentForm({
   const planPolicy = useOwnerPlanPolicy(organizationId);
   const writesBlocked = planPolicy.status !== "ready" || planPolicy.readOnly;
   const router = useRouter();
-  const firstCharge = charges[0];
+  const paginationPageIdentity = useMemo(
+    () => ({}),
+    [organizationId, locationId, charges, nextCursor]
+  );
+  const [loadedPage, setLoadedPage] = useState<LoadedManualPaymentPage>(() => ({
+    identity: paginationPageIdentity,
+    charges,
+    cursor: nextCursor,
+  }));
+  const pageMatchesCurrentProps =
+    loadedPage.identity === paginationPageIdentity;
+  const loadedCharges = pageMatchesCurrentProps ? loadedPage.charges : charges;
+  const pageCursor = pageMatchesCurrentProps ? loadedPage.cursor : nextCursor;
+  const [loadingMore, setLoadingMore] = useState(false);
+  const [loadMoreError, setLoadMoreError] = useState(false);
+  const paginationScopeKey = JSON.stringify([organizationId, locationId]);
+  const paginationGeneration = useRef(0);
+  const paginationRequestSequence = useRef(0);
+  const activePaginationRequest = useRef<ManualPaymentOptionsRequest | null>(
+    null
+  );
+  const paginationMounted = useRef(false);
+  const firstCharge = loadedCharges[0];
   const [chargeId, setChargeId] = useOrganizationDraftField(
     organizationId,
     () => firstCharge?.chargeId ?? ""
   );
   const selectedCharge = useMemo(
-    () => charges.find((charge) => charge.chargeId === chargeId) ?? null,
-    [chargeId, charges]
+    () => loadedCharges.find((charge) => charge.chargeId === chargeId) ?? null,
+    [chargeId, loadedCharges]
   );
   const selectedTimezone = selectedCharge?.locationTimezone ?? null;
   const [amount, setAmount] = useOrganizationDraftField(
@@ -137,6 +202,35 @@ export function ManualPaymentForm({
   const [retryStorageReady, setRetryStorageReady] = useState(false);
   const [retryStorageError, setRetryStorageError] = useState<string | null>(null);
   const paymentInFlight = useRef(false);
+
+  useEffect(() => {
+    paginationMounted.current = true;
+    return () => {
+      paginationMounted.current = false;
+      paginationGeneration.current += 1;
+      activePaginationRequest.current?.controller.abort();
+      activePaginationRequest.current = null;
+    };
+  }, []);
+
+  useEffect(() => {
+    paginationGeneration.current += 1;
+    activePaginationRequest.current?.controller.abort();
+    activePaginationRequest.current = null;
+    setLoadedPage({
+      identity: paginationPageIdentity,
+      charges,
+      cursor: nextCursor,
+    });
+    setLoadingMore(false);
+    setLoadMoreError(false);
+  }, [
+    organizationId,
+    locationId,
+    charges,
+    nextCursor,
+    paginationPageIdentity,
+  ]);
 
   useEffect(() => {
     const stored = readPendingManualPayment(window.sessionStorage);
@@ -186,10 +280,10 @@ export function ManualPaymentForm({
   }, [organizationId, selectedTimezone]);
 
   function chooseCharge(nextChargeId: string) {
-    const currentCharge = charges.find(
+    const currentCharge = loadedCharges.find(
       (charge) => charge.chargeId === chargeId
     );
-    const nextCharge = charges.find(
+    const nextCharge = loadedCharges.find(
       (charge) => charge.chargeId === nextChargeId
     );
     if (
@@ -202,6 +296,83 @@ export function ManualPaymentForm({
     setAmount(nextCharge ? (nextCharge.outstandingCents / 100).toFixed(2) : "");
     setSaved(false);
     setError(null);
+  }
+
+  async function loadMoreCharges() {
+    const activeRequest = activePaginationRequest.current;
+    if (
+      !pageMatchesCurrentProps ||
+      !pageCursor ||
+      (activeRequest?.generation === paginationGeneration.current &&
+        activeRequest.scopeKey === paginationScopeKey) ||
+      formLocked
+    ) {
+      return;
+    }
+    const request: ManualPaymentOptionsRequest = {
+      id: ++paginationRequestSequence.current,
+      generation: paginationGeneration.current,
+      pageIdentity: paginationPageIdentity,
+      scopeKey: paginationScopeKey,
+      cursor: pageCursor,
+      controller: new AbortController(),
+    };
+    activePaginationRequest.current = request;
+    const isCurrentRequest = () => {
+      const active = activePaginationRequest.current;
+      return (
+        paginationMounted.current &&
+        paginationGeneration.current === request.generation &&
+        active !== null &&
+        active.id === request.id &&
+        active.pageIdentity === request.pageIdentity &&
+        active.scopeKey === request.scopeKey
+      );
+    };
+
+    setLoadingMore(true);
+    setLoadMoreError(false);
+    try {
+      const params = new URLSearchParams({
+        organizationId,
+        cursor: request.cursor,
+      });
+      if (locationId) params.set("locationId", locationId);
+      const response = await fetch(
+        `/api/v1/owner/billing/manual-payments?${params.toString()}`,
+        {
+          headers: { accept: "application/json" },
+          signal: request.controller.signal,
+        }
+      );
+      if (!isCurrentRequest()) return;
+      const raw: unknown = await response.json().catch(() => null);
+      if (!isCurrentRequest()) return;
+      const parsed = manualPaymentOptionsResponseSchema.safeParse(raw);
+      if (!response.ok || !parsed.success) throw new Error("page-unavailable");
+
+      setLoadedPage((current) => {
+        if (current.identity !== request.pageIdentity) return current;
+        const known = new Set(current.charges.map((charge) => charge.chargeId));
+        return {
+          identity: current.identity,
+          charges: [
+            ...current.charges,
+            ...parsed.data.data.charges.filter(
+              (charge) => !known.has(charge.chargeId)
+            ),
+          ],
+          cursor: parsed.data.data.nextCursor,
+        };
+      });
+    } catch {
+      if (isCurrentRequest()) setLoadMoreError(true);
+    } finally {
+      if (isCurrentRequest()) {
+        activePaginationRequest.current = null;
+        setLoadingMore(false);
+      }
+    }
   }
 
   function retryPendingPayment() {
@@ -247,7 +418,7 @@ export function ManualPaymentForm({
           snapshot = await createManualPaymentRetrySnapshot({
             body,
             currency:
-              charges.find((charge) => charge.chargeId === body.chargeId)
+              loadedCharges.find((charge) => charge.chargeId === body.chargeId)
                 ?.currency ?? "",
             idempotencyKey: key,
           }) ?? undefined;
@@ -409,7 +580,7 @@ export function ManualPaymentForm({
       </div>
     ) : null;
 
-  if (charges.length === 0) {
+  if (loadedCharges.length === 0) {
     return (
       <div className="rounded-3xl border border-slate-200 bg-white p-6 sm:p-8">
         <h2 className="font-display text-xl font-bold text-slate-950">
@@ -521,7 +692,7 @@ export function ManualPaymentForm({
           }
           className="min-h-12 rounded-xl border border-slate-300 bg-white px-3 text-sm text-slate-950 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-teal-800 disabled:bg-slate-100"
         >
-          {charges.map((charge) => (
+          {loadedCharges.map((charge) => (
             <option key={charge.chargeId} value={charge.chargeId}>
               {charge.payerName ?? "Pagador sin nombre"} ·{" "}
               {charge.invoiceReference} ·{" "}
@@ -529,6 +700,23 @@ export function ManualPaymentForm({
             </option>
           ))}
         </select>
+        {pageCursor && (
+          <div className="grid justify-items-start gap-2">
+            <button
+              type="button"
+              onClick={() => void loadMoreCharges()}
+              disabled={!pageMatchesCurrentProps || loadingMore || formLocked}
+              className="min-h-11 rounded-full border border-slate-400 bg-white px-4 text-sm font-semibold text-slate-800 hover:bg-slate-50 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-teal-800 disabled:cursor-not-allowed disabled:opacity-60"
+            >
+              {loadingMore ? "Cargando cargos…" : "Cargar más cargos"}
+            </button>
+            {loadMoreError && (
+              <p role="alert" className="text-sm text-rose-800">
+                No se pudieron cargar más cargos. Reintenta sin cambiar el pago seleccionado.
+              </p>
+            )}
+          </div>
+        )}
         {selectedCharge && (
           <span
             id={chargeHelpId}

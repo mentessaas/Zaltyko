@@ -180,3 +180,13 @@ Run `40189930084`, SHA `234599c92051714b9953393221a5e1be5069cbea`:
 ## Entrega familiar posterior a085d092a — pendiente de ejecución
 
 Nueva asociación familia/tutor desde grupo sin inscripción previa en clase, confirmación de cambio de pagador en cliente/servidor y rechazo de familia simultánea que haría ambigua la cuota manual. Misma familia, sucesión posterior y replay histórico conservados. El panel mensual conserva comandos ambiguos en sessionStorage con reintento manual exacto tras desmontaje y cercas de ámbito. Nueve casos PostgreSQL añadidos al runner aislado, con snapshot15tablas para rechazos/rollback. Estos cambios están implementados y revisados estáticamente, pero NO VERIFICADOS por CI, sandbox o publicación en este corte. Contactos de tutores y CRUD familiar completo siguen pendientes; no se declara terminada la vertical completa.
+
+
+### Primer replay de entrega familiar: no aprobado
+
+Run40207633011 fue rechazado por expected_sha erróneo antes de instalar o iniciarPG; la cancelación llegó tras su terminación. Run40207666295 usó el SHA correcto18e4f0fea3e0f6eb44d01432e07d1a947e5fe721 y ejecutóPGaislado:13PASS previos y9FAIL de familia. Las nueve fallaron porque la fixture sembró4grupos bajoFree3 y quedó en sololectura. Se ajusta exclusivamente a3grupos (dosA y unoB compartido por dos gimnastas), con precondición explícita de uso3/3/0 y readOnlyfalse. No se relajan guards del producto ni snapshots. Nueva ejecución pendiente.
+
+
+### Pagos manuales: implementación posterior a18e4f0fe
+
+Paginación50+1 sustituye tope silencioso250; siguiente página con cursor de posición reautorizado y orden total due_at/ref/id conservando microsegundos. UI conserva selección y descarta respuestas antiguas al cambiar ámbito. Nuevo caso PGreal251cargos/seispáginas/otra sede/academia y casos UI/unidad/ruta pendientes de CI. No nueva infraestructura/secreto, sin cambio del POST monetario. Sandbox/publicación NO VERIFICADOS.

@@ -1,4 +1,6 @@
+import { createHash } from "node:crypto";
 import { sql } from "drizzle-orm";
+import { z } from "zod";
 
 import { db } from "@/db";
 import { resolveOwnerScope } from "@/modules/owner-dashboard/application/owner-scope";
@@ -19,6 +21,89 @@ export type OpenManualPaymentCharge = {
   outstandingCents: number;
 };
 
+const PAGE_SIZE = 50;
+const cursorPayloadSchema = z.object({
+  version: z.literal(1),
+  userId: z.guid(),
+  memberId: z.guid(),
+  role: z.enum(["owner", "admin"]),
+  organizationId: z.guid(),
+  selectedLocationId: z.guid().nullable(),
+  locationScopeHash: z.string().regex(/^[a-f0-9]{64}$/),
+  lastDueAt: z.string().datetime({ offset: true }),
+  lastInvoiceReference: z.string().min(1).max(200),
+  lastChargeId: z.guid(),
+});
+type ManualPaymentCursor = z.infer<typeof cursorPayloadSchema>;
+
+function locationScopeHash(locationIds: string[]): string {
+  return createHash("sha256")
+    .update(JSON.stringify([...locationIds].sort()))
+    .digest("hex");
+}
+
+function encodeCursor(payload: ManualPaymentCursor): string {
+  return Buffer.from(JSON.stringify(payload), "utf8").toString("base64url");
+}
+
+// The cursor is an untrusted position hint, never an authorization grant.
+// Each request resolves the actor and location scope again, compares that
+// scope with the cursor payload, and applies the current scope in SQL.
+function decodeCursor(
+  value: string | undefined,
+  expectedScope: Omit<
+    ManualPaymentCursor,
+    "version" | "lastDueAt" | "lastInvoiceReference" | "lastChargeId"
+  >
+): Pick<
+  ManualPaymentCursor,
+  "lastDueAt" | "lastInvoiceReference" | "lastChargeId"
+> | null {
+  if (!value) return null;
+  if (value.length > 4096) {
+    throw new OperationalError("INVALID_RELATION", "Cursor inválido", 400);
+  }
+
+  const encodedPayload = value;
+  if (
+    !encodedPayload ||
+    !/^[A-Za-z0-9_-]+$/.test(encodedPayload)
+  ) {
+    throw new OperationalError("INVALID_RELATION", "Cursor inválido", 400);
+  }
+
+  let payload: ManualPaymentCursor;
+  try {
+    payload = cursorPayloadSchema.parse(
+      JSON.parse(Buffer.from(encodedPayload, "base64url").toString("utf8"))
+    );
+  } catch {
+    throw new OperationalError("INVALID_RELATION", "Cursor inválido", 400);
+  }
+
+  if (
+    payload.version !== 1 ||
+    payload.userId !== expectedScope.userId ||
+    payload.memberId !== expectedScope.memberId ||
+    payload.role !== expectedScope.role ||
+    payload.organizationId !== expectedScope.organizationId ||
+    payload.selectedLocationId !== expectedScope.selectedLocationId ||
+    payload.locationScopeHash !== expectedScope.locationScopeHash
+  ) {
+    throw new OperationalError(
+      "INVALID_RELATION",
+      "El cursor ya no coincide con el alcance autorizado",
+      400
+    );
+  }
+
+  return {
+    lastDueAt: payload.lastDueAt,
+    lastInvoiceReference: payload.lastInvoiceReference,
+    lastChargeId: payload.lastChargeId,
+  };
+}
+
 function safeCents(value: unknown): number {
   const cents = Number(value);
   if (!Number.isSafeInteger(cents) || cents < 0) {
@@ -36,6 +121,7 @@ export async function getManualPaymentOptions(input: {
   userId: string;
   organizationId?: string;
   locationId?: string;
+  cursor?: string;
 }) {
   const scope = await resolveOwnerScope(input);
   if (!(scope.member.role === "owner" || scope.member.role === "admin")) {
@@ -57,6 +143,15 @@ export async function getManualPaymentOptions(input: {
     );
   }
 
+  const cursor = decodeCursor(input.cursor, {
+    userId: input.userId,
+    memberId: scope.member.id,
+    role: scope.member.role as "owner" | "admin",
+    organizationId: scope.organization.id,
+    selectedLocationId: scope.selectedLocationId,
+    locationScopeHash: locationScopeHash(visibleLocationIds),
+  });
+
   const result = await db.execute(sql`
     select
       c.id::text as "chargeId",
@@ -68,6 +163,10 @@ export async function getManualPaymentOptions(input: {
       nullif(btrim(concat_ws(' ', p.given_name, p.family_name)), '') as "payerName",
       c.currency as "currency",
       c.due_at::text as "dueAt",
+      to_char(
+        c.due_at at time zone 'UTC',
+        'YYYY-MM-DD"T"HH24:MI:SS.US"Z"'
+      ) as "cursorDueAt",
       c.amount_cents::text as "totalCents",
       coalesce(sum(pa.amount_cents), 0)::text as "allocatedCents",
       (c.amount_cents - coalesce(sum(pa.amount_cents), 0))::text as "outstandingCents"
@@ -93,13 +192,23 @@ export async function getManualPaymentOptions(input: {
       )})
       and c.status in ('due', 'partially_paid')
       and i.status not in ('draft', 'void')
+      and (
+        ${cursor?.lastDueAt ?? null}::timestamptz is null
+        or (c.due_at, i.reference, c.id) > (
+          ${cursor?.lastDueAt ?? null}::timestamptz,
+          ${cursor?.lastInvoiceReference ?? null}::text,
+          ${cursor?.lastChargeId ?? null}::uuid
+        )
+      )
     group by c.id, l.name, l.timezone, i.reference, p.given_name, p.family_name
     having coalesce(sum(pa.amount_cents), 0) < c.amount_cents
-    order by c.due_at asc, i.reference asc
-    limit 250
+    order by c.due_at asc, i.reference asc, c.id asc
+    limit ${PAGE_SIZE + 1}
   `);
 
-  const charges: OpenManualPaymentCharge[] = result.rows.map((row) => ({
+  const hasMore = result.rows.length > PAGE_SIZE;
+  const pageRows = result.rows.slice(0, PAGE_SIZE);
+  const charges: OpenManualPaymentCharge[] = pageRows.map((row) => ({
     chargeId: String(row.chargeId),
     familyId: String(row.familyId),
     locationId: String(row.locationId),
@@ -117,7 +226,25 @@ export async function getManualPaymentOptions(input: {
   return {
     organization: scope.organization,
     locations: scope.locations,
+    selectedLocationId: scope.selectedLocationId,
     canManageFamilyCollectionPreferences: scope.canViewOrganizationAggregate,
     charges,
+    nextCursor:
+      hasMore && pageRows.length > 0
+        ? encodeCursor({
+            version: 1,
+            userId: input.userId,
+            memberId: scope.member.id,
+            role: scope.member.role as "owner" | "admin",
+            organizationId: scope.organization.id,
+            selectedLocationId: scope.selectedLocationId,
+            locationScopeHash: locationScopeHash(visibleLocationIds),
+            // Keep PostgreSQL's full microsecond precision; converting through
+            // Date would truncate it and could repeat rows at a page boundary.
+            lastDueAt: String(pageRows.at(-1)?.cursorDueAt),
+            lastInvoiceReference: String(pageRows.at(-1)?.invoiceReference),
+            lastChargeId: String(pageRows.at(-1)?.chargeId),
+          })
+        : null,
   };
 }

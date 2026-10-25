@@ -359,7 +359,10 @@ function decodePendingResolutionCommand(raw: string): PendingResolutionCommand |
     const expectedMethod = operation === "assign-tariff" ? "PATCH" : "POST";
     if (value.endpoint !== expectedEndpoint || value.method !== expectedMethod) return null;
 
-    const commandWithoutBody = {
+    const commandWithoutBody: Omit<
+      PendingResolutionCommand,
+      "body" | "hasAmbiguousAttempt"
+    > = {
       scopeKey: value.scopeKey,
       organizationId: value.organizationId,
       locationId: value.locationId,

@@ -3,6 +3,7 @@ import { describe, expect, it } from "vitest";
 import { sql } from "drizzle-orm";
 
 import { db } from "@/db";
+import { getOrganizationUsage } from "@/modules/saas-billing/application/organization-usage";
 import {
   associateOwnerFamily,
   getOwnerFamilyOptions,
@@ -119,7 +120,9 @@ async function seedGroupOnlyFixture() {
     personId: randomUUID(),
     athleteId: randomUUID(),
   }));
-  const groupIds = Array.from({ length: 4 }, () => randomUUID());
+  // Keep the fixture within Free: duplicate membership coverage uses two A
+  // groups, and both B athletes share the third group.
+  const groupIds = Array.from({ length: 3 }, () => randomUUID());
 
   await db.execute(sql`
     insert into auth.users (id, email)
@@ -178,8 +181,7 @@ async function seedGroupOnlyFixture() {
     ) values
       (${groupIds[0]}::uuid, ${organizationId}::uuid, ${locationIds[0]}::uuid, 'CI family group A1', 20, 'active'),
       (${groupIds[1]}::uuid, ${organizationId}::uuid, ${locationIds[0]}::uuid, 'CI family group A2', 20, 'active'),
-      (${groupIds[2]}::uuid, ${organizationId}::uuid, ${locationIds[1]}::uuid, 'CI family group B1', 20, 'active'),
-      (${groupIds[3]}::uuid, ${organizationId}::uuid, ${locationIds[1]}::uuid, 'CI family group B2', 20, 'active')
+      (${groupIds[2]}::uuid, ${organizationId}::uuid, ${locationIds[1]}::uuid, 'CI family group B1', 20, 'active')
   `);
   await db.execute(sql`
     insert into zaltyko.group_memberships (
@@ -188,11 +190,18 @@ async function seedGroupOnlyFixture() {
       (${organizationId}::uuid, ${groupIds[0]}::uuid, ${athleteRows[0]!.athleteId}::uuid, 'active', current_date),
       (${organizationId}::uuid, ${groupIds[1]}::uuid, ${athleteRows[0]!.athleteId}::uuid, 'active', current_date),
       (${organizationId}::uuid, ${groupIds[2]}::uuid, ${athleteRows[1]!.athleteId}::uuid, 'active', current_date),
-      (${organizationId}::uuid, ${groupIds[3]}::uuid, ${athleteRows[2]!.athleteId}::uuid, 'active', current_date)
+      (${organizationId}::uuid, ${groupIds[2]}::uuid, ${athleteRows[2]!.athleteId}::uuid, 'active', current_date)
   `);
   const [dateRow] = (await db.execute(sql`
     select current_date::text as date
   `)).rows as Array<{ date: string }>;
+  const fixtureUsage = await db.transaction((tx) =>
+    getOrganizationUsage(tx, organizationId)
+  );
+  expect(fixtureUsage.readOnly).toBe(false);
+  expect(fixtureUsage.resources.map((resource) => resource.current)).toEqual([
+    3, 3, 0,
+  ]);
 
   return {
     organizationId,

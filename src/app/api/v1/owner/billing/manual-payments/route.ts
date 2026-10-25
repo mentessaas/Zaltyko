@@ -18,6 +18,7 @@ import { OperationalError } from "@/modules/shared/domain/operational-error";
 const querySchema = z.object({
   organizationId: z.guid().optional(),
   locationId: z.guid().optional(),
+  cursor: z.string().trim().min(1).max(4096).optional(),
 });
 
 const paymentBodySchema = z

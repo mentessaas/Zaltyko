@@ -31,7 +31,7 @@ vi.mock("@/modules/billing/application/ledger-service", () => ({
   recordManualPaymentForCharge: mocks.recordManualPaymentForCharge,
 }));
 
-import { POST } from "@/app/api/v1/owner/billing/manual-payments/route";
+import { GET, POST } from "@/app/api/v1/owner/billing/manual-payments/route";
 
 const organizationId = "10000000-0000-4000-8000-000000000001";
 const memberId = "20000000-0000-4000-8000-000000000002";
@@ -62,6 +62,12 @@ function request(body: unknown = payload, key = idempotencyKey) {
   );
 }
 
+function optionsRequest(query: string) {
+  return new Request(
+    `https://example.invalid/api/v1/owner/billing/manual-payments?${query}`
+  );
+}
+
 beforeEach(() => {
   Object.values(mocks).forEach((mock) => mock.mockReset());
   mocks.currentUser.mockResolvedValue({ id: userId });
@@ -86,6 +92,46 @@ beforeEach(() => {
 });
 
 describe("Owner manual-payment HTTP boundary", () => {
+  it("reuses the authenticated organization and location scope for a cursor page", async () => {
+    const cursor = Buffer.from("opaque-cursor", "utf8").toString("base64url");
+    mocks.getManualPaymentOptions.mockResolvedValue({
+      organization: { id: organizationId },
+      locations: [],
+      selectedLocationId: null,
+      canManageFamilyCollectionPreferences: false,
+      charges: [],
+      nextCursor: null,
+    });
+
+    const response = await GET(
+      optionsRequest(
+        new URLSearchParams({
+          organizationId,
+          locationId: "70000000-0000-4000-8000-000000000007",
+          cursor,
+        }).toString()
+      )
+    );
+
+    expect(response.status).toBe(200);
+    expect(response.headers.get("cache-control")).toBe("private, no-store");
+    expect(mocks.getManualPaymentOptions).toHaveBeenCalledWith({
+      userId,
+      organizationId,
+      locationId: "70000000-0000-4000-8000-000000000007",
+      cursor,
+    });
+  });
+
+  it("rejects malformed cursor parameters before loading payment options", async () => {
+    const response = await GET(
+      optionsRequest(`organizationId=${organizationId}&cursor=${encodeURIComponent("not a cursor")}`)
+    );
+
+    expect(response.status).toBe(400);
+    expect(mocks.getManualPaymentOptions).not.toHaveBeenCalled();
+  });
+
   it("requires the session before parsing or resolving tenant scope", async () => {
     mocks.currentUser.mockResolvedValue(null);
     const malformed = new Request(

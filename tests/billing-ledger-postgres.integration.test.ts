@@ -3,6 +3,7 @@ import { describe, expect, it } from "vitest";
 import { sql } from "drizzle-orm";
 
 import { db } from "@/db";
+import { getManualPaymentOptions } from "@/modules/billing/application/manual-payments";
 import { recordManualPaymentForCharge } from "@/modules/billing/application/ledger-service";
 import {
   getMonthlyInvoiceOptions,
@@ -208,6 +209,171 @@ async function seedManualLedgerFixture() {
     memberId,
     chargeIds,
     actor: { userId, memberId },
+  };
+}
+
+async function seedManualPaymentPaginationFixture() {
+  const organizationId = randomUUID();
+  const otherOrganizationId = randomUUID();
+  const userId = randomUUID();
+  const memberId = randomUUID();
+  const locationId = randomUUID();
+  const otherLocationId = randomUUID();
+  const otherOrganizationLocationId = randomUUID();
+  const familyId = randomUUID();
+  const otherOrganizationFamilyId = randomUUID();
+  const invoiceId = randomUUID();
+  const otherLocationInvoiceId = randomUUID();
+  const otherOrganizationInvoiceId = randomUUID();
+  const otherLocationLineId = randomUUID();
+  const otherOrganizationLineId = randomUUID();
+  const otherLocationChargeId = randomUUID();
+  const otherOrganizationChargeId = randomUUID();
+  const chargeIds = Array.from({ length: 251 }, () => randomUUID());
+  const lineIds = Array.from({ length: chargeIds.length }, () => randomUUID());
+  const dueAt = "2026-10-31 22:00:00.123456+00";
+  const servicePeriodStart = "2026-10-01";
+  const servicePeriodEnd = "2026-10-31";
+
+  await db.transaction(async (tx) => {
+    await tx.execute(sql`
+      insert into auth.users (id, email)
+      values (${userId}::uuid, ${`ci-pagination-${userId}@example.invalid`})
+    `);
+    await tx.execute(sql`
+      insert into zaltyko.organizations (id, name)
+      values
+        (${organizationId}::uuid, ${`CI pagination ${organizationId}`}),
+        (${otherOrganizationId}::uuid, ${`CI pagination other ${otherOrganizationId}`})
+    `);
+    await tx.execute(sql`
+      insert into zaltyko.locations (id, organization_id, code, name)
+      values
+        (${locationId}::uuid, ${organizationId}::uuid, 'ci-page-main', 'CI pagination main'),
+        (${otherLocationId}::uuid, ${organizationId}::uuid, 'ci-page-other', 'CI pagination other site'),
+        (${otherOrganizationLocationId}::uuid, ${otherOrganizationId}::uuid, 'ci-page-foreign', 'CI pagination other academy')
+    `);
+    await tx.execute(sql`
+      insert into zaltyko.organization_members (
+        id, organization_id, user_id, role, status, location_scope_mode
+      ) values (
+        ${memberId}::uuid, ${organizationId}::uuid, ${userId}::uuid,
+        'owner', 'active', 'all'
+      )
+    `);
+    await tx.execute(sql`
+      insert into zaltyko.families (id, organization_id)
+      values
+        (${familyId}::uuid, ${organizationId}::uuid),
+        (${otherOrganizationFamilyId}::uuid, ${otherOrganizationId}::uuid)
+    `);
+    await tx.execute(sql`
+      insert into zaltyko.invoices (
+        id, organization_id, location_id, family_id, reference, status,
+        currency, total_amount_cents, issued_at, due_at, idempotency_key
+      ) values
+        (
+          ${invoiceId}::uuid, ${organizationId}::uuid, ${locationId}::uuid,
+          ${familyId}::uuid, ${`CI-PAGE-${organizationId}`}, 'issued',
+          'EUR', ${chargeIds.length * 100}, now(), ${dueAt}::timestamptz,
+          ${`ci-page-invoice-${organizationId}`}
+        ),
+        (
+          ${otherLocationInvoiceId}::uuid, ${organizationId}::uuid,
+          ${otherLocationId}::uuid, ${familyId}::uuid,
+          ${`CI-PAGE-OTHER-${organizationId}`}, 'issued', 'EUR', 100,
+          now(), ${dueAt}::timestamptz, ${`ci-page-other-invoice-${organizationId}`}
+        ),
+        (
+          ${otherOrganizationInvoiceId}::uuid, ${otherOrganizationId}::uuid,
+          ${otherOrganizationLocationId}::uuid, ${otherOrganizationFamilyId}::uuid,
+          ${`CI-PAGE-FOREIGN-${otherOrganizationId}`}, 'issued', 'EUR', 100,
+          now(), ${dueAt}::timestamptz, ${`ci-page-foreign-invoice-${otherOrganizationId}`}
+        )
+    `);
+    await tx.execute(sql`
+      insert into zaltyko.invoice_lines (
+        id, organization_id, invoice_id, location_id, line_type, quantity,
+        unit_amount_cents, amount_cents, currency, service_period_start,
+        service_period_end
+      )
+      select line_id, ${organizationId}::uuid, ${invoiceId}::uuid,
+        ${locationId}::uuid, 'ci_manual_fee', 1, 100, 100, 'EUR',
+        ${servicePeriodStart}::date, ${servicePeriodEnd}::date
+      from unnest(${lineIds}::uuid[]) as line_rows(line_id)
+    `);
+    await tx.execute(sql`
+      insert into zaltyko.invoice_lines (
+        id, organization_id, invoice_id, location_id, line_type, quantity,
+        unit_amount_cents, amount_cents, currency, service_period_start,
+        service_period_end
+      ) values
+        (
+          ${otherLocationLineId}::uuid, ${organizationId}::uuid,
+          ${otherLocationInvoiceId}::uuid, ${otherLocationId}::uuid,
+          'ci_manual_fee', 1, 100, 100, 'EUR',
+          ${servicePeriodStart}::date, ${servicePeriodEnd}::date
+        ),
+        (
+          ${otherOrganizationLineId}::uuid, ${otherOrganizationId}::uuid,
+          ${otherOrganizationInvoiceId}::uuid, ${otherOrganizationLocationId}::uuid,
+          'ci_manual_fee', 1, 100, 100, 'EUR',
+          ${servicePeriodStart}::date, ${servicePeriodEnd}::date
+        )
+    `);
+    await tx.execute(sql`
+      insert into zaltyko.charges (
+        id, organization_id, location_id, invoice_id, invoice_line_id,
+        family_id, status, amount_cents, currency, due_at,
+        service_period_start, service_period_end, idempotency_key
+      )
+      select seeded.charge_id, ${organizationId}::uuid, ${locationId}::uuid,
+        ${invoiceId}::uuid, seeded.line_id, ${familyId}::uuid,
+        'due', 100, 'EUR',
+        case when seeded.item_index = ${chargeIds.length}
+          then ${dueAt}::timestamptz + interval '1 microsecond'
+          else ${dueAt}::timestamptz
+        end,
+        ${servicePeriodStart}::date, ${servicePeriodEnd}::date,
+        ${`ci-page-charge-${organizationId}-`} || seeded.item_index::text
+      from unnest(${chargeIds}::uuid[], ${lineIds}::uuid[])
+        with ordinality as seeded(charge_id, line_id, item_index)
+    `);
+    await tx.execute(sql`
+      insert into zaltyko.charges (
+        id, organization_id, location_id, invoice_id, invoice_line_id,
+        family_id, status, amount_cents, currency, due_at,
+        service_period_start, service_period_end, idempotency_key
+      ) values
+        (
+          ${otherLocationChargeId}::uuid, ${organizationId}::uuid,
+          ${otherLocationId}::uuid, ${otherLocationInvoiceId}::uuid,
+          ${otherLocationLineId}::uuid, ${familyId}::uuid,
+          'due', 100, 'EUR', ${dueAt}::timestamptz,
+          ${servicePeriodStart}::date, ${servicePeriodEnd}::date,
+          ${`ci-page-other-charge-${organizationId}`}
+        ),
+        (
+          ${otherOrganizationChargeId}::uuid, ${otherOrganizationId}::uuid,
+          ${otherOrganizationLocationId}::uuid, ${otherOrganizationInvoiceId}::uuid,
+          ${otherOrganizationLineId}::uuid, ${otherOrganizationFamilyId}::uuid,
+          'due', 100, 'EUR', ${dueAt}::timestamptz,
+          ${servicePeriodStart}::date, ${servicePeriodEnd}::date,
+          ${`ci-page-foreign-charge-${otherOrganizationId}`}
+        )
+    `);
+  });
+
+  return {
+    organizationId,
+    otherOrganizationId,
+    userId,
+    locationId,
+    otherLocationId,
+    otherOrganizationLocationId,
+    chargeIds,
+    otherLocationChargeId,
+    otherOrganizationChargeId,
   };
 }
 
@@ -445,6 +611,86 @@ function paymentCommand(input: {
 }
 
 describe("manual billing ledger on disposable PostgreSQL", () => {
+  it("keyset-paginates more than 250 real charges without crossing academy or site scope", async () => {
+    assertDisposableTarget();
+    const fixture = await seedManualPaymentPaginationFixture();
+    const seenChargeIds: string[] = [];
+    const pageSizes: number[] = [];
+    let cursor: string | undefined;
+    let firstNextCursor: string | null = null;
+
+    for (let pageNumber = 0; pageNumber < 8; pageNumber += 1) {
+      const page = await getManualPaymentOptions({
+        userId: fixture.userId,
+        organizationId: fixture.organizationId,
+        locationId: fixture.locationId,
+        ...(cursor ? { cursor } : {}),
+      });
+      expect(page.selectedLocationId).toBe(fixture.locationId);
+      expect(
+        page.charges.every((charge) => charge.locationId === fixture.locationId)
+      ).toBe(true);
+      pageSizes.push(page.charges.length);
+      seenChargeIds.push(...page.charges.map((charge) => charge.chargeId));
+
+      if (pageNumber === 0) firstNextCursor = page.nextCursor;
+      if (!page.nextCursor) break;
+      cursor = page.nextCursor;
+    }
+
+    expect(pageSizes).toEqual([50, 50, 50, 50, 50, 1]);
+    expect(seenChargeIds).toHaveLength(251);
+    expect(new Set(seenChargeIds).size).toBe(251);
+    expect(seenChargeIds).not.toContain(fixture.otherLocationChargeId);
+    expect(seenChargeIds).not.toContain(fixture.otherOrganizationChargeId);
+
+    const expected = await db.execute(sql`
+      select c.id::text as charge_id
+      from zaltyko.charges c
+      inner join zaltyko.invoices i
+        on i.organization_id = c.organization_id and i.id = c.invoice_id
+      where c.organization_id = ${fixture.organizationId}::uuid
+        and c.location_id = ${fixture.locationId}::uuid
+        and c.status in ('due', 'partially_paid')
+        and i.status not in ('draft', 'void')
+        and c.id = any(${fixture.chargeIds}::uuid[])
+      order by c.due_at asc, i.reference asc, c.id asc
+    `);
+    expect(seenChargeIds).toEqual(
+      expected.rows.map((row) => String(row.charge_id))
+    );
+
+    const firstCursorPayload = JSON.parse(
+      Buffer.from(firstNextCursor ?? "", "base64url").toString("utf8")
+    ) as {
+      lastDueAt?: unknown;
+      lastInvoiceReference?: unknown;
+      lastChargeId?: unknown;
+    };
+    expect(firstCursorPayload.lastDueAt).toBe("2026-10-31T22:00:00.123456Z");
+    expect(firstCursorPayload.lastInvoiceReference).toBe(
+      `CI-PAGE-${fixture.organizationId}`
+    );
+    expect(firstCursorPayload.lastChargeId).toBe(seenChargeIds[49]);
+
+    await expect(
+      getManualPaymentOptions({
+        userId: fixture.userId,
+        organizationId: fixture.organizationId,
+        locationId: fixture.otherLocationId,
+        cursor: firstNextCursor ?? undefined,
+      })
+    ).rejects.toMatchObject({ code: "INVALID_RELATION", status: 400 });
+
+    await expect(
+      getManualPaymentOptions({
+        userId: fixture.userId,
+        organizationId: fixture.otherOrganizationId,
+        locationId: fixture.otherOrganizationLocationId,
+      })
+    ).rejects.toMatchObject({ code: "FORBIDDEN", status: 403 });
+  }, 45_000);
+
   it("records one payment and reflects it in the owner summary for concurrent replays", async () => {
     assertDisposableTarget();
     const fixture = await seedManualLedgerFixture();
