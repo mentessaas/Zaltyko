@@ -1,0 +1,31 @@
+{
+  "name": "zaltyko",
+  "project": "prj_tUepgxfFz4UMpxJ7PrCjWRC66GYT",
+  "deploymentId": "dpl_8GL6DqKiuuZUoPs44fjbmRpHaZhY",
+  "gitSource": {
+    "type": "github",
+    "repoId": 1092275227,
+    "ref": "codex/mvp-main-bridge-20261025",
+    "sha": "REPLACE_WITH_CI_VERIFIED_FULL_SHA"
+  },
+  "withLatestCommit": false,
+  "autoAssignCustomDomains": false,
+  "env": {
+    "ZALTYKO_DELIVERY_PREVIEW": "true",
+    "SAAS_QA_SHORT_PAID_ENABLED": "false",
+    "SAAS_QA_SHORT_PAID_RUN": "",
+    "SAAS_QA_SHORT_PAID_EXPIRES_AT": ""
+  },
+  "build": {
+    "env": {
+      "ZALTYKO_DELIVERY_PREVIEW": "true",
+      "SAAS_QA_SHORT_PAID_ENABLED": "false",
+      "SAAS_QA_SHORT_PAID_RUN": "",
+      "SAAS_QA_SHORT_PAID_EXPIRES_AT": ""
+    }
+  },
+  "meta": {
+    "purpose": "mvp-delivery-sandbox",
+    "sandboxRef": "aeeootdmuiqkfeernskw"
+  }
+}

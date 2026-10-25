@@ -22,3 +22,8 @@ Cerrar CI y revision del parche. Revisar contrato API para fuente exacta, contro
 ## Preflight de entrega preparado
 
 El build heredado ejecuta preview-sandbox-build.sh y preview-build-preflight.cjs. El preflight anterior exige banderas short-paid del ensayo; no debe reutilizarse tal cual como una entrega independiente. Se añade modo ZALTYKO_DELIVERY_PREVIEW=true que exige rama exacta codex/mvp-main-bridge-20261025, SAAS_QA_SHORT_PAID_ENABLED=false y RUN/EXPIRES_AT vacios. Se mantienen los controles TLS/CA, base, Stripe test/cuenta/catalogo, Redis exacto y proveedores desactivados. El modo historico no cambia. La creacion del deployment debera aplicar esas variables tanto a runtime como build, no solo exportarlas en el shell del build. Las pruebas de preflight usan variables sinteticas y solo procesos de validacion; se ejecutaran remotamente, no en Mac. Pendientes CI y revision.
+
+
+## Solicitud preparada, no enviada
+
+Template delivery-preview-request-template-2026-10-25.json contiene solo IDs publicos, flags y SHA placeholder deliberadamente no valido. No es evidencia de deployment. CLI56.5 local usa env y build.env, y autoAssignCustomDomains=false para --skip-domain; se inspecciono codigo instalado, no se ejecuto deploy. SDK oficial documenta deploymentId, gitSource y withLatestCommit. Antes de enviar, sustituir SHA por exacto con CI/review, confirmar que API combina nueva fuente con herencia y rechazar cualquier destino no preview. Verificar en respuesta fuente, proyecto, tipo y configuracion antes de continuar; cualquier fallo de preflight cancela el avance sin cambiar el alias del ensayo.
