@@ -12810,3 +12810,7 @@ CI1e66: capturaPNG confirma rechazo de hasSameOrigin en PATCH de perfil. Runner 
 
 
 La revisión del manifiesto detectó además que el hash registrado del fixture SQL de aislamiento no correspondía a los bytes versionados en HEAD (idénticos al archivo actual). Se corrige solo ese metadato a51480aba756d3c1b581da0c28e1ac3bcfee024e3ba2eef038982bbb09f23b06c; el SQL y sus aserciones no cambian. Se conserva la evidencia de replay anterior sin afirmar que el metadato antiguo fuera correcto.
+
+## 2026-10-25 — Callback de confirmación caducado y alta real de entregas
+
+Logs Auth del sandbox aeeootdmuiqkfeernskw a22:50:59UTC acreditan422 flow_state_expired en intercambio PKCE, tras confirmación auténtica del correo a22:50:57UTC. Se distingue esta caducidad del fallo genérico, conserva next sanitizado y muestra instrucción persistente de login/recuperación. No se amplían plazos ni se acepta sesión sin intercambio válido. Pruebas nuevas cubren caducidad, destino externo, error distinto y éxito; ejecución exclusivamente CI remota pendiente. La cuenta humana de entregas accede por contraseña y creó academia0242c134-872b-45ca-a2bf-c64ece52a15b mediante UI; no se usaron fixtures del ensayo. Preview aún474369ea; corrección no desplegada. Fuente docs/qa/delivery-email-callback-2026-10-25.md. Sin builds/tests locales ni cambios del ensayo.
