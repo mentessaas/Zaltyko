@@ -96,6 +96,7 @@ export default async function OwnerFamiliesPage({
 
   return (
     <OwnerFamiliesDirectory
+      key={`${scope.organization.id}:${locationId}`}
       organizationId={scope.organization.id}
       organizationName={scope.organization.name}
       locations={scope.locations}
