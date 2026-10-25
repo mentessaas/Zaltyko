@@ -8,6 +8,18 @@ source:
 ---
 
 
+## 2026-10-25 — Paquete exacto de revisión de instalación, pendiente CI
+
+- Lectura catalog-only con READ ONLY/timeout/ROLLBACK confirma PK de Auth
+  exactamente id, btree_gist1.7 disponible/no instalado y cero defaults globales
+  postgres/supabase_admin relevantes. No filas personales, secretos ni DDL/DML.
+- Se prepara artefacto CI adicional con DDL/owners/ACL del rehearsal, extensión
+  btree_gist1.7 como prerrequisito explícito y guard incondicional que aborta antes
+  de DDL. applyReady=false, ROLLBACK; no es archivo de migración ni autorización.
+- Runner remoto comprueba el rechazo exacto y conservación de canaries antes de
+  ejecutar el rehearsal anterior. Sin builds/pruebas locales ni despliegues;
+  resultado de esta ampliación todavía pendiente.
+
 ## 2026-10-25 — Rehearsal canónico en CI desechable, PASS
 
 - Se amplía el workflow separado con PostgreSQL17.6 efímero, sin secretos

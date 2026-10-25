@@ -70,6 +70,7 @@ readonly SQL_REL="${1:-artifacts/canonical-domain-rehearsal.sql}"
 readonly MANIFEST_REL="${2:-artifacts/canonical-domain-proposal.json}"
 readonly SQL_FILE="$ROOT/$SQL_REL"
 readonly MANIFEST_FILE="$ROOT/$MANIFEST_REL"
+readonly INSTALLATION_REVIEW_FILE="$ROOT/artifacts/canonical-domain-installation-review.sql"
 readonly ARTIFACT_DIR="$ROOT/artifacts"
 readonly RUN_DIR="$(mktemp -d "$RUNNER_TEMP/canonical-domain-rehearsal.XXXXXX")"
 readonly SETUP_SQL="$RUN_DIR/setup-canaries.sql"
@@ -80,6 +81,7 @@ readonly SETUP_LOG="$RUN_DIR/setup.log"
 readonly REHEARSAL_LOG="$RUN_DIR/rehearsal.log"
 readonly GUARD_LOG="$RUN_DIR/existing-schema-guard.log"
 readonly VERIFY_LOG="$RUN_DIR/verify.log"
+readonly INSTALLATION_REVIEW_LOG="$RUN_DIR/installation-review-hard-stop.log"
 trap 'rm -rf -- "$RUN_DIR"' EXIT
 
 [[ -d "$ARTIFACT_DIR" ]] || fail "The artifact directory is missing; generate the review artefact first."
@@ -672,6 +674,31 @@ guard_sql = sql[: begin_match.end()] + "\nCREATE SCHEMA zaltyko;\n" + sql[begin_
 guard_path.write_text(guard_sql, encoding="utf-8")
 PY
 
+python3 - "$MANIFEST_FILE" "$INSTALLATION_REVIEW_FILE" <<'PY'
+from hashlib import sha256
+import json
+from pathlib import Path
+import sys
+
+manifest = json.loads(Path(sys.argv[1]).read_text(encoding="utf-8"))
+sql_path = Path(sys.argv[2])
+record = manifest.get("installationReview")
+if not isinstance(record, dict) or record.get("path") != "artifacts/canonical-domain-installation-review.sql":
+    raise SystemExit("Missing exact installation review artifact provenance.")
+if not sql_path.is_file() or sql_path.is_symlink():
+    raise SystemExit("Installation review artifact is missing or is a symlink.")
+sql_bytes = sql_path.read_bytes()
+if record.get("sha256") != sha256(sql_bytes).hexdigest() or record.get("sizeBytes") != len(sql_bytes):
+    raise SystemExit("Installation review artifact hash or size differs from the generated manifest.")
+if record.get("applyReady") is not False:
+    raise SystemExit("Installation review must remain not apply-ready.")
+sql = sql_bytes.decode("utf-8")
+if "RAISE EXCEPTION 'REVIEW_ONLY_INSTALLATION_NOT_APPROVED';" not in sql:
+    raise SystemExit("Installation review hard-stop source is missing.")
+if not sql.rstrip().endswith("ROLLBACK;"):
+    raise SystemExit("Installation review must end with ROLLBACK.")
+PY
+
 cat >"$SETUP_SQL" <<'SQL'
 BEGIN;
 DO $rehearsal_preflight$
@@ -868,6 +895,16 @@ if ! "${psql_base[@]}" --file "$ASSERT_SQL" >"$VERIFY_LOG" 2>&1; then
   fail_with_safe_log_lines "Pre-rehearsal canary verification failed." "$VERIFY_LOG"
 fi
 
+if "${psql_base[@]}" --file "$INSTALLATION_REVIEW_FILE" >"$INSTALLATION_REVIEW_LOG" 2>&1; then
+  fail "Installation review SQL unexpectedly executed without its unconditional hard stop."
+fi
+if ! grep -Eq 'ERROR:[[:space:]]+REVIEW_ONLY_INSTALLATION_NOT_APPROVED$' "$INSTALLATION_REVIEW_LOG"; then
+  fail_with_safe_log_lines "Installation review failed for a reason other than its exact hard stop." "$INSTALLATION_REVIEW_LOG"
+fi
+if ! "${psql_base[@]}" --file "$ASSERT_SQL" >"$VERIFY_LOG" 2>&1; then
+  fail_with_safe_log_lines "Installation review hard-stop attempt changed canaries or left canonical objects." "$VERIFY_LOG"
+fi
+
 # Only the generated rehearsal connection receives the session-local marker.
 if ! env PGOPTIONS="-c app.canonical_domain_rehearsal=ci-explicit" "${psql_base[@]}" \
   --file "$REHEARSAL_SQL" >"$REHEARSAL_LOG" 2>&1; then
@@ -898,5 +935,6 @@ sql_sha256="$(sha256sum "$SQL_FILE" | awk '{print $1}')"
 fixture_sha256="$(sha256sum "$TENANT_FIXTURE" | awk '{print $1}')"
 printf 'PASS: guarded canonical SQL rehearsal on synthetic PostgreSQL 17; rollback, pre-DDL existing-schema refusal, 92 forced-RLS tables, 64 policies, 16 routines, ACL allow/deny, and canary preservation verified.\n'
 printf 'PASS: synthetic tenant-row SELECT/denial fixture executed inside the rehearsal transaction.\n'
+printf 'PASS: installation review SQL refused execution with its exact unconditional hard stop; canaries and absent canonical schemas verified afterward.\n'
 printf 'Evidence hashes: canonical SQL %s; tenant fixture %s.\n' "$sql_sha256" "$fixture_sha256"
 printf 'Boundary: this is an isolated blank-database rehearsal, not migration history, production approval, or a full Supabase Auth environment.\n'

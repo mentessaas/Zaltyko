@@ -42,7 +42,8 @@ jobs:
             --manifest supabase/schema-snapshot-manifest.json \
             --output artifacts/canonical-domain-proposal.sql \
             --manifest-output artifacts/canonical-domain-proposal.json \
-            --rehearsal-output artifacts/canonical-domain-rehearsal.sql
+            --rehearsal-output artifacts/canonical-domain-rehearsal.sql \
+            --installation-review-output artifacts/canonical-domain-installation-review.sql
       - name: Preserve proposal for independent review; never apply SQL
         uses: actions/upload-artifact@v7
         with:

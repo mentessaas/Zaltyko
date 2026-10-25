@@ -7,13 +7,20 @@ pública de su configuración: `jegxfahsvugilbthbked`, distinto del sandbox
 `aeeootdmuiqkfeernskw`. Transacción `BEGIN READ ONLY`, timeout de cinco segundos
 y `ROLLBACK`; `transaction_read_only=on` confirmado en la respuesta.
 
-- `auth.users.id` existe, es UUID y no admite nulos; la tabla tiene clave primaria.
-  Esta consulta no demuestra que dicha clave primaria sea exclusivamente `id`.
+- `auth.users.id` existe, es UUID y no admite nulos. La lectura posterior de
+  `pg_constraint.conkey`, expandida con orden de columnas y `pg_attribute`,
+  confirmó la clave primaria exactamente `{id}`.
 - `auth.uid()` devuelve UUID y `auth.jwt()` JSONB; ambas son SECURITY INVOKER.
 - `extensions.gen_random_uuid()` devuelve UUID y es SECURITY INVOKER.
 - Existen los roles `anon`, `authenticated`, `postgres` y `service_role`.
 - El corte previo confirma 139 tablas públicas y ausencia de `zaltyko` y
   `zaltyko_domain_private`; `btree_gist` no está instalado.
+- `pg_available_extensions` confirma `btree_gist` 1.7 disponible sin instalar;
+  `pgcrypto` 1.3 y `uuid-ossp` 1.1 ya instalados. Disponibilidad no aprueba
+  instalación ni demuestra que el rol futuro pueda ejecutarla.
+- No hay filas de `pg_default_acl` para `postgres`/`supabase_admin` globales
+  ni en los dos namespaces canónicos ausentes. No se consultaron ACL de datos
+  personales ni se alteraron defaults.
 
 ## Fuente
 
@@ -30,7 +37,8 @@ de producción. La ausencia de namespace no autoriza aplicar un baseline complet
 
 ## Siguiente paso
 
-Generar una propuesta AST de los dos namespaces nuevos, excluir el ledger E2E,
-conservar los objetos legacy y revisar cuerpos de funciones/permisos. Validar
-remotamente contra PostgreSQL aislado con objetos legacy presentes. Aplicar SQL
-productivo continúa pendiente de un diff exacto revisado y autorización separada.
+La propuesta AST y el rehearsal PostgreSQL desechable 40229946414 ya pasaron;
+ver canonical-domain-proposal-design-2026-10-25.md. Falta convertir ese estado
+deseado en un paquete específico de revisión de instalación, sin reutilizar
+los guards de CI como si acreditaran el destino productivo. Aplicar SQL sigue
+pendiente de un diff exacto revisado y autorización separada.

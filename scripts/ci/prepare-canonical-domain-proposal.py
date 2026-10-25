@@ -402,6 +402,161 @@ def render_rehearsal_sql(
     return sql_text.encode("utf-8"), details
 
 
+def render_installation_review_sql(
+    *,
+    ddl: list[str],
+    schemas: set[str],
+    owners: list[tuple[int, str]],
+    grants: list[tuple[int, str]],
+    defaults: list[tuple[int, str]],
+    default_scopes: list[set[str]],
+    roles: set[str],
+) -> tuple[bytes, dict[str, Any]]:
+    if schemas != TARGET_SCHEMAS:
+        raise ProposalError(f"Installation review requires exactly the two source schemas; got {sorted(schemas)}")
+    if len(defaults) != 2 or default_scopes != [{"zaltyko"}, {"zaltyko"}]:
+        raise ProposalError("Expected the two pinned postgres default ACL grants in schema zaltyko")
+
+    def dedupe(lines: list[tuple[int, str]]) -> list[tuple[list[int], str]]:
+        by_sql: dict[str, list[int]] = {}
+        for source_line, sql in lines:
+            by_sql.setdefault(sql, []).append(source_line)
+        return [(source_lines, sql) for sql, source_lines in by_sql.items()]
+
+    unique_owners = dedupe(owners)
+    unique_grants = dedupe(grants)
+    unique_defaults = dedupe(defaults)
+    required_roles = sorted((roles | {"postgres", "anon", "authenticated", "service_role"}) - {"PUBLIC"})
+    role_literals = ", ".join(quote_literal(role) for role in required_roles)
+    default_reset_sql, object_reset_sql = scoped_acl_normalization_sql()
+    sql_lines = [
+        "-- EXACT INSTALLATION REVIEW CANDIDATE; NOT AN APPROVED OR EXECUTABLE MIGRATION.",
+        "-- Expected target Supabase project ref (metadata only): jegxfahsvugilbthbked.",
+        "-- The source snapshot came from a different sandbox; target compatibility is not implied.",
+        "-- This file intentionally stops at REVIEW_ONLY_INSTALLATION_NOT_APPROVED before any DDL.",
+        "BEGIN;",
+        "SET LOCAL statement_timeout = '5s';",
+        "SET LOCAL lock_timeout = '1s';",
+        "DO $installation_review_hard_stop$",
+        "BEGIN",
+        "  RAISE EXCEPTION 'REVIEW_ONLY_INSTALLATION_NOT_APPROVED';",
+        "END",
+        "$installation_review_hard_stop$;",
+        "-- All statements below are inert review material behind the unconditional exception above.",
+        "-- A future migration requires a separately reviewed SQL file, its own CLI filename, and explicit authorization.",
+        "DO $installation_review_preconditions$",
+        "DECLARE v_role text;",
+        "BEGIN",
+        "  IF EXISTS (SELECT 1 FROM pg_namespace WHERE nspname = ANY (ARRAY['zaltyko','zaltyko_domain_private'])) THEN",
+        "    RAISE EXCEPTION 'canonical target schemas must both be absent';",
+        "  END IF;",
+        f"  FOREACH v_role IN ARRAY ARRAY[{role_literals}] LOOP",
+        "    IF NOT EXISTS (SELECT 1 FROM pg_roles WHERE rolname = v_role) THEN",
+        "      RAISE EXCEPTION 'required existing role % is absent; roles are never created here', v_role;",
+        "    END IF;",
+        "  END LOOP;",
+        "END",
+        "$installation_review_preconditions$;",
+        "-- This prerequisite was separately confirmed available at version 1.7 but not installed in the target.",
+        "CREATE EXTENSION btree_gist WITH SCHEMA extensions VERSION '1.7';",
+        "-- The next two schemas must be absent; CREATE deliberately has no IF NOT EXISTS clause.",
+        *[f"CREATE SCHEMA {quote_identifier(schema)};" for schema in sorted(TARGET_SCHEMAS)],
+        *default_reset_sql,
+        "-- AST-selected definitions for the two canonical schemas only; no role/auth/data/E2E/public/legacy creation.",
+        *ddl,
+        "-- Exact source owner statements, applied after the selected objects exist.",
+        *[f"-- source lines {','.join(map(str, lines))}: owner AST\n{sql}" for lines, sql in unique_owners],
+        *object_reset_sql,
+        "-- Exact target-only ACL AST statements, deduplicated by deparsed SQL.",
+        *[f"-- source lines {','.join(map(str, lines))}: explicit source ACL\n{sql}" for lines, sql in unique_grants],
+        "-- Exact canonical-schema default ACL AST statements.",
+        *[f"-- source lines {','.join(map(str, lines))}: explicit source default ACL\n{sql}" for lines, sql in unique_defaults],
+        "ROLLBACK;",
+        "",
+    ]
+    sql_bytes = "\n".join(sql_lines).encode("utf-8")
+    details = {
+        "applyReady": False,
+        "purpose": "exact-installation-review-only-hard-stop",
+        "expectedTargetProjectRef": "jegxfahsvugilbthbked",
+        "expectedTargetProjectRefIsMetadataOnly": True,
+        "sourceSnapshotProjectRef": EXPECTED_PROJECT_REF,
+        "targetMatchOrApproval": False,
+        "hardStop": {
+            "unconditional": True,
+            "exception": "REVIEW_ONLY_INSTALLATION_NOT_APPROVED",
+            "position": "after BEGIN/local timeouts and before any DDL",
+            "futureAuthorizationBoundary": "A future separately reviewed SQL migration needs its own CLI filename and explicit authorization.",
+        },
+        "preconditions": {
+            "exactlyTwoCanonicalSchemasAbsent": True,
+            "requiredRoles": required_roles,
+            "rolesCreated": False,
+            "authObjectsCreated": False,
+            "supabasePlatformObjectsCreated": False,
+            "applicationDataOrLedgerSeeded": False,
+            "proposedExtensionInstallation": [
+                {"name": "btree_gist", "schema": "extensions", "version": "1.7", "ifNotExists": False,
+                 "ddlEmitted": True, "ddlExecutedByGenerator": False},
+            ],
+            "extensionAvailabilityReadOnlyConfirmed": True,
+        },
+        "readOnlyTargetCatalogFacts": {
+            "provenance": "Coordinator-provided read-only catalog inspection dated 2026-10-25; not re-queried by this generator and not a persistent-state guarantee.",
+            "authUsersPrimaryKeyColumns": ["id"],
+            "authUidReturnType": "uuid",
+            "authJwtReturnType": "jsonb",
+            "extensionsSchemaPresent": True,
+            "uuidSupport": {
+                "pgcrypto": {"version": "1.3", "installed": True},
+                "uuid-ossp": {"version": "1.1", "installed": True},
+                "gen_random_uuidReturnType": "uuid",
+            },
+            "requiredRolesExist": ["postgres", "anon", "authenticated", "service_role"],
+            "canonicalSchemasPresent": 0,
+            "publicTableCount": 139,
+            "legacySchemaPresent": True,
+            "btreeGist": {"version": "1.7", "available": True, "installed": False},
+            "relevantGlobalDefaultPrivileges": {"postgres": 0, "supabase_admin": 0},
+        },
+        "routineReview": {
+            "bodiesStaticallyReviewed": True,
+            "securityDefiners": 4,
+            "reviewSource": "docs/qa/canonical-domain-routine-acl-review-2026-10-25.md",
+            "limitations": "Static review and PG17 disposable rehearsal do not prove production compatibility or authorize apply.",
+        },
+        "postgresql17DisposableRehearsal": {
+            "status": "SUCCESS",
+            "runId": "40229946414",
+            "doesNotApproveProductionApply": True,
+        },
+        "scope": {
+            "includedSchemas": sorted(TARGET_SCHEMAS),
+            "excludedSchemaObjectsOnly": ["public", "zaltyko_private", "auth", "extensions", "vault"],
+            "extensionsException": "Only the explicit btree_gist 1.7 prerequisite statement targets the existing extensions schema; no other extensions-schema object is selected.",
+            "excludedObjects": sorted(f"{schema}.{name}" for schema, name in EXCLUDED_TABLES),
+            "dataStatements": 0,
+            "ledgerStatements": 0,
+            "roleCreationStatements": 0,
+            "authObjectCreationStatements": 0,
+        },
+        "statementCounts": {
+            "proposedExtensionPrerequisite": 1,
+            "schemaCreate": len(TARGET_SCHEMAS),
+            "objectDdl": len(ddl),
+            "ownerAstStatements": len(unique_owners),
+            "sourceAclAstStatements": len(unique_grants),
+            "sourceDefaultAclAstStatements": len(unique_defaults),
+        },
+        "mandatoryReview": [
+            "The SQL is deliberately blocked by an unconditional exception and always ends in ROLLBACK.",
+            "The target-project ref is expected metadata only; the source snapshot belongs to another project.",
+            "No live/project connection, migration ledger change, apply, promotion, or deployment is performed or authorized.",
+        ],
+    }
+    return sql_bytes, details
+
+
 def target_for(statement: Any) -> tuple[str | None, str | None]:
     kind = type(statement).__name__
     if kind in {"CreateStmt", "CreateSeqStmt", "IndexStmt", "AlterTableStmt"}:
@@ -565,6 +720,7 @@ def parse_args() -> argparse.Namespace:
     parser.add_argument("--output", required=True)
     parser.add_argument("--manifest-output", required=True)
     parser.add_argument("--rehearsal-output")
+    parser.add_argument("--installation-review-output")
     return parser.parse_args()
 
 
@@ -578,8 +734,12 @@ def main() -> int:
     output_path = safe_output_path(args.output)
     manifest_output_path = safe_output_path(args.manifest_output)
     rehearsal_path = safe_output_path(args.rehearsal_output) if args.rehearsal_output else None
-    if len({path for path in (output_path, manifest_output_path, rehearsal_path) if path is not None}) != 2 + (1 if rehearsal_path else 0):
+    installation_path = safe_output_path(args.installation_review_output) if args.installation_review_output else None
+    artifact_paths = [output_path, manifest_output_path]
+    artifact_paths.extend(path for path in (rehearsal_path, installation_path) if path is not None)
+    if len(set(artifact_paths)) != len(artifact_paths):
         raise ProposalError("SQL and JSON outputs must be different files")
+    scoped_review_requested = rehearsal_path is not None or installation_path is not None
 
     snapshot_bytes = snapshot_path.read_bytes()
     manifest_bytes = manifest_path.read_bytes()
@@ -680,7 +840,7 @@ def main() -> int:
             omitted["extension_prerequisite_not_emitted"] += 1
             continue
         if kind == "AlterOwnerStmt":
-            if rehearsal_path is None:
+            if not scoped_review_requested:
                 omitted["ownership_requires_manual_review"] += 1
                 continue
             record = owner_source_line(statement, line)
@@ -697,7 +857,7 @@ def main() -> int:
                 omitted["ownership_requires_manual_review"] += 1
             continue
         if kind == "AlterDefaultPrivilegesStmt":
-            if rehearsal_path is None:
+            if not scoped_review_requested:
                 omitted["default_acl_requires_manual_review"] += 1
                 continue
             schemas, classified = default_privilege_schemas(statement)
@@ -722,7 +882,7 @@ def main() -> int:
                 omitted["default_acl_requires_manual_review"] += 1
             continue
         if kind == "GrantStmt":
-            if rehearsal_path is None:
+            if not scoped_review_requested:
                 omitted["acl_requires_manual_review"] += 1
                 continue
             targets, classified = grant_target_objects(statement)
@@ -756,7 +916,7 @@ def main() -> int:
 
         schema, name = target_for(statement)
         if kind == "AlterTableStmt" and is_owner_alter_table(statement):
-            if rehearsal_path is None:
+            if not scoped_review_requested:
                 omitted["table_ownership_requires_manual_review"] += 1
                 continue
             record = {"schema": schema, "name": name, "objectType": "OBJECT_TABLE", "sourceLine": line}
@@ -854,6 +1014,40 @@ def main() -> int:
         if node_name(getattr(rehearsal_roundtrip[-1].stmt, "kind", None)) != "TRANS_STMT_ROLLBACK":
             raise ProposalError("Rehearsal SQL must end in ROLLBACK")
 
+    installation_bytes: bytes | None = None
+    installation_details: dict[str, Any] | None = None
+    if installation_path is not None:
+        installation_bytes, installation_details = render_installation_review_sql(
+            ddl=rehearsal_ddl,
+            schemas=rehearsal_schema_names,
+            owners=rehearsal_owner_sql,
+            grants=rehearsal_grant_sql,
+            defaults=rehearsal_default_acl_sql,
+            default_scopes=[set(record["schemas"]) for record in rehearsal_default_acl_records],
+            roles=rehearsal_roles,
+        )
+        installation_roundtrip = parse_sql(installation_bytes.decode("utf-8"))
+        if len(installation_roundtrip) < 6 or type(installation_roundtrip[3].stmt).__name__ != "DoStmt":
+            raise ProposalError("Installation review hard-stop must parse before any DDL")
+        extension_stmt = installation_roundtrip[5].stmt
+        extension_options = {
+            getattr(option, "defname", ""): getattr(getattr(option, "arg", None), "sval", None)
+            for option in (getattr(extension_stmt, "options", ()) or ())
+        }
+        if (
+            type(extension_stmt).__name__ != "CreateExtensionStmt"
+            or getattr(extension_stmt, "extname", None) != "btree_gist"
+            or extension_options.get("schema") != "extensions"
+            or extension_options.get("new_version") != "1.7"
+            or any(getattr(option, "defname", None) == "if_not_exists"
+                   for option in (getattr(extension_stmt, "options", ()) or ()))
+        ):
+            raise ProposalError("Installation review must parse the exact btree_gist 1.7 prerequisite without IF NOT EXISTS")
+        if type(installation_roundtrip[-1].stmt).__name__ != "TransactionStmt":
+            raise ProposalError("Installation review SQL does not end in a parsed transaction statement")
+        if node_name(getattr(installation_roundtrip[-1].stmt, "kind", None)) != "TRANS_STMT_ROLLBACK":
+            raise ProposalError("Installation review SQL must end in ROLLBACK")
+
     output_manifest = {
         "artifactKind": "review-only-canonical-schema-sql-proposal",
         "applyReady": False,
@@ -931,12 +1125,26 @@ def main() -> int:
             ],
         }
 
+    if installation_path is not None and installation_bytes is not None and installation_details is not None:
+        output_manifest["installationReview"] = {
+            "path": str(installation_path.relative_to(REPO_ROOT)),
+            "sha256": sha256_bytes(installation_bytes),
+            "sizeBytes": len(installation_bytes),
+            **installation_details,
+            "ownerAstSources": rehearsal_owner_records,
+            "explicitAclAstSources": rehearsal_acl_records,
+            "explicitDefaultAclAstSources": rehearsal_default_acl_records,
+        }
+
     output_path.parent.mkdir(parents=True, exist_ok=True)
     manifest_output_path.parent.mkdir(parents=True, exist_ok=True)
     output_path.write_bytes(proposal_bytes)
     if rehearsal_path is not None and rehearsal_bytes is not None:
         rehearsal_path.parent.mkdir(parents=True, exist_ok=True)
         rehearsal_path.write_bytes(rehearsal_bytes)
+    if installation_path is not None and installation_bytes is not None:
+        installation_path.parent.mkdir(parents=True, exist_ok=True)
+        installation_path.write_bytes(installation_bytes)
     manifest_output_path.write_text(json.dumps(output_manifest, indent=2, ensure_ascii=False) + "\n", encoding="utf-8")
     print(json.dumps({
         "result": "proposal_generated_review_only",
@@ -945,6 +1153,7 @@ def main() -> int:
         "includedStatements": len(included_sql),
         "includedObjects": len(included_objects),
         "rehearsalSql": str(rehearsal_path.relative_to(REPO_ROOT)) if rehearsal_path else None,
+        "installationReviewSql": str(installation_path.relative_to(REPO_ROOT)) if installation_path else None,
         "applyReady": False,
     }, ensure_ascii=False))
     return 0
