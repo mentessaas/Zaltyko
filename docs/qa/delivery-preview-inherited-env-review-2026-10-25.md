@@ -44,3 +44,19 @@ CI40199478736 termino SUCCESS, incluidos Chromium/Firefox/WebKit. Se envio una s
 La primera solicitud dpl_ADr6BZQaTyahJ6VrJN5FPNnngLXH dejo projectSettings.buildCommand=null y env/build.env vacios al leerla. Se cancelo y quedo CANCELED; no seguir ese despliegue. La documentacion del SDK sobre herencia no basta cuando se combina con nueva gitSource.
 
 Segunda solicitud acotada: meta.action=redeploy, forceNew=1 y projectSettings explicitos (comando sandbox y pnpm congelado), mismo SHA/ref y sin alias. dpl_9jSqfyDYSZMQXpzCpZAcHHNmYrpz termino ERROR. El preflight fue ejecutado y bloqueo ANTES de tipos/Next: deliveryIsolation y target preview true, pero DB/TLS CA dedicada, configuracion SaaS test, Redis y aislamiento de proveedores no pasaron. Los metadatos contienen167 claves frente188 del origen: no acreditar herencia de los overrides secretos que se pasaron originalmente por CLI. No hubo preview READY ni validacion autenticada del candidato; no repetir despliegues hasta preparar configuracion explicita completa. No registrar valores ni logs completos. El template fija ahora los comandos obligatorios, pero NO resuelve esa falta de configuracion.
+
+## Alternativa de alcance de rama: prueba reversible
+
+El SDK oficial permite PATCH /v9/projects/{project}/env/{id} con gitBranch y target,
+sin enviar value. Fuente: https://github.com/vercel/sdk/blob/main/docs/models/editprojectenvrequestbody.md
+y https://github.com/vercel/sdk/blob/main/src/funcs/projectsEditProjectEnv.ts.
+Se comprobo SOLO con DATABASE_CA_CERT_PATH, variable no secreta, target preview:
+la API confirmo nueva rama, mismo ID y mismo tipo. Se devolvio inmediatamente a
+codex/fix-f84-build-hang-20261019 y se confirmo restauracion exacta de rama/target/ID.
+No se enviaron valores ni se modificaron variables sensibles; no hubo deployment.
+Esto prueba el cambio de alcance de una variable publica, no la herencia de un
+build ni un conjunto secreto completo. La lista actual contiene 42 variables
+del sandbox en la rama antigua; no debe ampliarse a preview global ni produccion.
+Antes de usar temporalmente ese conjunto para una entrega, conservar el manifiesto
+de IDs/tipos/alcances sin valores, confirmar todos los controles y restaurar los
+alcances originales incluso ante fallo. No rotar valores ni crear roles para ello.

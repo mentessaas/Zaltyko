@@ -12518,3 +12518,10 @@ Modelo separado, reclamación manual, administración, importación revisada, fi
 - Evidencia: suites PG de capacidad/ficha y ledger manual exit0, incluidos rollback, concurrencia y replay; el log exitoso no imprime conteo individual. No confundir con sandbox autenticado.
 - Fuente: docs/qa/mvp-status-matrix-2026-10-25.md y https://github.com/mentessaas/Zaltyko/actions/runs/40203116706.
 - Siguiente paso: completar CI40203109015 y configuracion de preview separada. Alias del ensayo releido intacto; sin pruebas/builds locales ni cambios productivos.
+
+## 2026-10-25 — Prueba reversible de alcance de variable Vercel
+
+- Hallazgo: API oficial admite modificar gitBranch sin enviar value. Se probo solo DATABASE_CA_CERT_PATH, no secreta, de preview antigua a rama de entrega y se restauro inmediatamente; mismo ID/tipo y target preview confirmados.
+- Fuente: docs/qa/delivery-preview-inherited-env-review-2026-10-25.md. No se leyeron valores secretos, no se cambiaron credenciales ni se creo deployment.
+- Importancia: posible alternativa a recuperar/rotar secretos para construir entrega separada; aun no probada con el conjunto sensible ni en runtime.
+- Siguiente paso: completar controles remotos y preparar manifiesto/restitucion del alcance antes de cualquier operacion mayor. No afirmar preview lista.
