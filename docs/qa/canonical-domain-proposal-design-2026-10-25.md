@@ -35,9 +35,39 @@ El manifiesto enumera referencias externas cualificadas que sí aparecen en AST,
 
 Revisar el artefacto de salida en CI remota; comprobar cobertura y orden contra el snapshot; comparar cada objeto y dependencia contra el catálogo vigente mediante el preflight de solo lectura autorizado; diseñar por separado ACL/owners/default privileges; redactar y revisar un DDL nuevo versionado con hashes propios y precondiciones. Ningún paso de este generador autoriza aplicar SQL ni reemplazar el ledger existente.
 
+## Rehearsal efímero de ACL y ownership
+
+- La opción nueva `--rehearsal-output artifacts/canonical-domain-rehearsal.sql` produce un segundo artefacto y añade `sqlRehearsal` al JSON existente, sin modificar el campo ni los bytes del borrador `sqlProposal`. El runner debe pasar la opción expresamente y publicar ambos SQL junto al mismo manifiesto.
+- El segundo SQL es únicamente para una base desechable PostgreSQL 17.6 llamada `zaltyko_canonical_rehearsal_ci`. Antes de cualquier DDL comprueba el nombre exacto de base, el GUC externo `app.canonical_domain_rehearsal=ci-explicit`, que ambos schemas no existan y que existan `postgres`, `anon`, `authenticated` y `service_role`. El llamador establece el marcador mediante su entorno de conexión; el SQL no se autoriza a sí mismo. Después de la comprobación fija el GUC local y asume `postgres`; no crea roles ni instala extensiones.
+- Crea ambos schemas sin `IF NOT EXISTS`, limpia ACL predeterminadas únicamente dentro de esos schemas, reproduce el DDL seleccionado, difiere los `ALTER OWNER` (incluidos los `ALTER TABLE ... OWNER`) hasta que existan los objetos, normaliza ACL de schemas/tablas/secuencias/rutinas/enums dentro del alcance y reaplica las sentencias de grants/default grants del snapshot seleccionadas por AST. Grants exactamente repetidos se deduplican, conservando las líneas fuente en el manifiesto. Los grants explícitos a `PUBLIC` observados quedan identificados; no se consideran una recomendación de seguridad.
+- La limpieza de ACL predeterminadas está limitada a schemas objetivo y creadores `postgres` y `supabase_admin` cuando este último existe. La limpieza de objetos revoca ACL de roles (excepto el owner `postgres`) y `PUBLIC` dentro de los dos schemas; las funciones pierden el `PUBLIC EXECUTE` implícito antes de restaurar solo los grants explícitos del snapshot. Se normaliza `USAGE` de los enums seleccionados, pero no ACL de los tipos compuestos generados por tablas, siguiendo la distinción de defaults de plataforma del snapshot. Ningún bloque `DO` de normalización ACL del snapshot ni DDL de `public`, `zaltyko_private` o el ledger E2E se copia al rehearsal.
+- El SQL termina en `ROLLBACK`; el manifiesto informa `applyReady: false`, propósito `ephemeral-postgresql-rehearsal-only`, hash y tamaño exactos. Aunque el replay llegue a completarse en CI efímera, eso no convierte el archivo en migración aplicable. Owners/grants, rutinas `SECURITY DEFINER`, cuerpos de funciones y sus efectos siguen necesitando revisión independiente.
+- El generador aún no se ha ejecutado con `--rehearsal-output` en CI en esta revisión. Sintaxis/replay de PostgreSQL, disponibilidad de roles/extensiones en el runner y ACL efectivas permanecen pendientes del job efímero. No se ejecutó parser, SQL, tests, build, conexión ni servicio local/remoto en esta modificación.
+
 **Verificación de esta tarea:** no se ejecutaron el generador, `pglast`, SQL, tests, build, servicios, consultas remotas ni despliegues. El resultado de AST parsing/round-trip está **PENDIENTE DE CI**. El artefacto no fue generado, revisado ni aplicado en esta tarea.
 
 **Vault:** el coordinador registró la preparación y sus límites en
 `vault/06-Roadmap-y-Tareas/Changelog interno.md`. La lectura de prerrequisitos
 productivos realizada por el coordinador se documenta por separado; no forma
 parte de la verificación estática del generador descrita arriba.
+
+## Resultado remoto posterior del coordinador
+
+CI [40228139489](https://github.com/mentessaas/Zaltyko/actions/runs/40228139489)
+SUCCESS en `e6968c3e921ed310f706602a247639381c448f72`. Se generaron 1394
+sentencias con equivalencia AST comprobada individualmente: dos esquemas,
+92 tablas, 61 enums, 851 restricciones, 107 índices, 64 policies, 16 rutinas,
+17 triggers y 184 alteraciones de tabla adicionales. Cuatro rutinas se
+identifican como SECURITY DEFINER y siguen pendientes de revisión de cuerpo/ACL.
+
+SQL: 348043 bytes, SHA-256
+`3d8ad235ed8f73989114a262c64acf6071ca6870e4082ebb04c2a461f544e8ea`,
+verificado tras descargar el artefacto. `applyReady=false`, ROLLBACK final;
+no se ejecutó SQL contra PostgreSQL, sandbox ni producción. Esto verifica
+generación y procedencia; no dependencias completas, permisos ni replay.
+
+Fallos previos conservados: YAML de instalación rechazado antes de ejecutar;
+posterior rechazo del round-trip al reutilizar el buffer RawStream. Corregidos
+con bloque YAML y serializador nuevo por sentencia. La clasificación posterior
+de restricciones y opciones Boolean se verificó mediante conteos fijos del
+snapshot y detección exacta de cuatro definidores, sin retirar controles.

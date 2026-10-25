@@ -1,4 +1,4 @@
-name: Canonical domain SQL proposal (no database)
+name: Canonical domain proposal and isolated SQL rehearsal
 
 on:
   push:
@@ -6,6 +6,8 @@ on:
     paths:
       - .github/workflows/canonical-domain-proposal.yml
       - scripts/ci/prepare-canonical-domain-proposal.py
+      - scripts/ci/verify-canonical-domain-rehearsal.sh
+      - scripts/ci/canonical-domain-tenant-isolation.sql
       - supabase/schema-snapshot-manifest.json
       - supabase/schema-snapshots/20261024172153_sandbox_schema_snapshot_baseline.sql
   workflow_dispatch:
@@ -39,11 +41,49 @@ jobs:
             --snapshot supabase/schema-snapshots/20261024172153_sandbox_schema_snapshot_baseline.sql \
             --manifest supabase/schema-snapshot-manifest.json \
             --output artifacts/canonical-domain-proposal.sql \
-            --manifest-output artifacts/canonical-domain-proposal.json
+            --manifest-output artifacts/canonical-domain-proposal.json \
+            --rehearsal-output artifacts/canonical-domain-rehearsal.sql
       - name: Preserve proposal for independent review; never apply SQL
         uses: actions/upload-artifact@v7
         with:
           name: canonical-domain-proposal-${{ github.sha }}
-          path: artifacts/canonical-domain-proposal.*
+          path: artifacts/canonical-domain-*
           retention-days: 3
           if-no-files-found: error
+
+  rehearsal:
+    name: Disposable PG17 rehearsal; preserve legacy and roll back
+    needs: proposal
+    runs-on: ubuntu-latest
+    timeout-minutes: 8
+    services:
+      postgres:
+        image: postgres:17.6
+        env:
+          POSTGRES_DB: zaltyko_canonical_rehearsal_ci
+          POSTGRES_USER: postgres
+          POSTGRES_PASSWORD: ci_only_no_external_access
+        ports:
+          - 55432:5432
+        options: >-
+          --health-cmd "pg_isready -U postgres -d zaltyko_canonical_rehearsal_ci"
+          --health-interval 5s
+          --health-timeout 3s
+          --health-retries 10
+    steps:
+      - uses: actions/checkout@v7
+        with:
+          persist-credentials: false
+      - name: Download only this commit's review artefacts
+        uses: actions/download-artifact@9000827ccba6bdab643e8b6fd33ac0654aef8333 # v8
+        with:
+          name: canonical-domain-proposal-${{ github.sha }}
+          path: artifacts
+      - name: Rehearse only against disposable loopback PostgreSQL
+        env:
+          CANONICAL_DOMAIN_REHEARSAL_CI: '1'
+          CANONICAL_REHEARSAL_DATABASE_URL: postgresql://postgres:ci_only_no_external_access@127.0.0.1:55432/zaltyko_canonical_rehearsal_ci?sslmode=disable
+        run: >-
+          bash scripts/ci/verify-canonical-domain-rehearsal.sh
+          artifacts/canonical-domain-rehearsal.sql
+          artifacts/canonical-domain-proposal.json

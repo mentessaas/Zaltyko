@@ -8,6 +8,17 @@ source:
 ---
 
 
+## 2026-10-25 — Rehearsal canónico en CI desechable, preparado
+
+- Se amplía el workflow separado con PostgreSQL17.6 efímero, sin secretos
+  externos: artefacto por SHA, destino loopback fijo y marcador externo antes
+  del DDL. El SQL canónico conserva ROLLBACK y no es una migración aplicable.
+- Revisión estática de rutinas/ACL y fixture sintético de dos academias/sedes;
+  se preservan owner, defaults acotados, canaries public/legacy y rechazo
+  previo a DDL si existe un esquema canónico. Los tests se ejecutarán solo
+  remotamente; resultado de replay todavía pendiente en este corte.
+- No hay cambios de datos, Auth, configuración, despliegue ni ensayo remoto.
+
 ## 2026-10-25 — Propuesta canónica por AST, sin ejecución SQL
 
 - Preparación de un generador CI-only con parser PostgreSQL17 fijado y hashes
@@ -19,7 +30,12 @@ source:
   revisión y pruebas PostgreSQL remotas. Generación AST no equivale a replay.
 - Workflow separado, sin credenciales ni DB: instala parser fijado en runner,
   ejecuta generador en namespace sin red y conserva artefactos tres días.
-  Validación de esta nueva preparación todavía pendiente; no se ejecutó localmente.
+  Generación remota40228139489 SUCCESS en e6968c3e:1394 sentencias,
+  92 tablas/851 restricciones/16 rutinas, cuatro SECURITY DEFINER identificadas.
+  Artefacto348043 bytes, SHA3d8ad235ed8f73989114a262c64acf6071ca6870e4082ebb04c2a461f544e8ea
+  verificado tras descarga; no se ejecutó localmente ni se aplicó SQL.
+  Se corrigieron YAML, reutilización del buffer RawStream y clasificación AST
+  de restricciones/seguridad; controles conservados, inventario exacto exigido.
 - Catálogo productivo READ ONLY confirma prerrequisitos Auth/UUID y nombres de
   roles, sin leer usuarios ni cambiar SQL/configuración. Detalle y límites en
   `docs/qa/production-platform-prerequisites-2026-10-25.md`.

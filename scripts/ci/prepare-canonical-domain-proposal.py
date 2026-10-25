@@ -65,6 +65,7 @@ def require_ci_environment() -> None:
         "SUPABASE_ACCESS_TOKEN",
         "SUPABASE_SERVICE_ROLE_KEY",
         "STRIPE_SECRET_KEY",
+        "CANONICAL_REHEARSAL_DATABASE_URL",
     )
     present = [name for name in forbidden if os.environ.get(name)]
     if present:
@@ -91,6 +92,14 @@ def strings_from_name(nodes: Iterable[Any]) -> list[str]:
     return values
 
 
+def ast_node_list(value: Any) -> tuple[Any, ...]:
+    if value is None:
+        return ()
+    if isinstance(value, (tuple, list)):
+        return tuple(value)
+    return (value,)
+
+
 def qname_parts(name_nodes: Iterable[Any]) -> tuple[str | None, str | None]:
     parts = strings_from_name(name_nodes)
     if not parts:
@@ -104,6 +113,293 @@ def rangevar_parts(rangevar: Any) -> tuple[str | None, str | None]:
     if rangevar is None:
         return None, None
     return getattr(rangevar, "schemaname", None), getattr(rangevar, "relname", None)
+
+
+def node_name(node: Any) -> str | None:
+    """Return a PostgreSQL enum value's symbolic name when pglast exposes one."""
+    return getattr(node, "name", None)
+
+
+def object_name_parts(value: Any) -> tuple[str | None, str | None]:
+    """Classify an AST object name without inspecting/decomposing SQL text."""
+    if value is None:
+        return None, None
+    if type(value).__name__ == "RangeVar":
+        return rangevar_parts(value)
+    if type(value).__name__ == "ObjectWithArgs":
+        return qname_parts(getattr(value, "objname", ()) or ())
+    if type(value).__name__ == "TypeName":
+        return qname_parts(getattr(value, "names", ()) or ())
+    if isinstance(value, (tuple, list)):
+        return qname_parts(value)
+    return None, None
+
+
+def owner_target(statement: Any) -> tuple[str | None, str | None]:
+    relation = getattr(statement, "relation", None)
+    if relation is not None:
+        return rangevar_parts(relation)
+    object_type = node_name(getattr(statement, "objectType", None))
+    object_value = getattr(statement, "object", None)
+    if object_type == "OBJECT_SCHEMA":
+        names = strings_from_name(ast_node_list(object_value))
+        return (names[-1], None) if names else (None, None)
+    return object_name_parts(object_value)
+
+
+def grant_target_objects(statement: Any) -> tuple[list[tuple[str | None, str | None]], bool]:
+    """Return schema/name pairs addressed by an ACL AST, failing closed on unknown nodes."""
+    target_type = node_name(getattr(statement, "targtype", None))
+    object_type = node_name(getattr(statement, "objtype", None))
+    objects = getattr(statement, "objects", ()) or ()
+    if target_type == "ACL_TARGET_ALL_IN_SCHEMA":
+        schemas = strings_from_name(objects)
+        return [(schema, None) for schema in schemas], bool(schemas)
+    if target_type != "ACL_TARGET_OBJECT" or not objects:
+        return [], False
+
+    targets: list[tuple[str | None, str | None]] = []
+    for obj in objects:
+        if object_type == "OBJECT_SCHEMA":
+            names = strings_from_name((obj,))
+            if len(names) != 1:
+                return targets, False
+            targets.append((names[0], None))
+            continue
+        schema, name = object_name_parts(obj)
+        if schema is None:
+            return targets, False
+        targets.append((schema, name))
+    return targets, True
+
+
+def default_privilege_schemas(statement: Any) -> tuple[set[str], bool]:
+    schemas: set[str] = set()
+    found = False
+    for option in getattr(statement, "options", ()) or ():
+        if getattr(option, "defname", None) != "schemas":
+            continue
+        found = True
+        values = getattr(option, "arg", None)
+        try:
+            schemas.update(strings_from_name(ast_node_list(values)))
+        except ProposalError:
+            return schemas, False
+    return schemas, found and bool(schemas)
+
+
+def sql_for(statement: Any, RawStream: Any) -> str:
+    sql = RawStream(semicolon_after_last_statement=True)(statement).strip()
+    return sql if sql.endswith(";") else sql + ";"
+
+
+def quote_identifier(value: str) -> str:
+    return '"' + value.replace('"', '""') + '"'
+
+
+def quote_literal(value: str) -> str:
+    return "'" + value.replace("'", "''") + "'"
+
+
+def owner_source_line(statement: Any, line: int) -> dict[str, Any]:
+    schema, name = owner_target(statement)
+    object_type = node_name(getattr(statement, "objectType", None))
+    if schema is None:
+        raise ProposalError(f"Cannot classify owner target {object_type} at source line {line}")
+    return {"schema": schema, "name": name, "objectType": object_type, "sourceLine": line}
+
+
+def role_name(role_spec: Any) -> str | None:
+    value = getattr(role_spec, "rolename", None)
+    if value:
+        return value
+    if node_name(getattr(role_spec, "roletype", None)) == "ROLESPEC_PUBLIC":
+        return "PUBLIC"
+    return None
+
+
+def role_names_from_ast(value: Any) -> list[str]:
+    names: list[str] = []
+    for role in value or ():
+        name = role_name(role)
+        if name is None:
+            raise ProposalError("ACL AST contains an unclassified role specification")
+        names.append(name)
+    return names
+
+
+def scoped_acl_normalization_sql() -> tuple[list[str], list[str]]:
+    schema_array = "ARRAY[" + ", ".join("'" + schema + "'" for schema in sorted(TARGET_SCHEMAS)) + "]"
+    default_acl_reset = [
+        "-- Newly authored ACL normalization, restricted to the two absent rehearsal schemas.",
+        "-- Does not copy or execute the snapshot's global/public/legacy DO blocks.",
+        "DO $canonical_rehearsal_default_acl_reset$",
+        "DECLARE v_creator text; v_schema text; v_role text; v_kind text;",
+        "BEGIN",
+        "  FOREACH v_creator IN ARRAY ARRAY['postgres','supabase_admin'] LOOP",
+        "    IF EXISTS (SELECT 1 FROM pg_roles WHERE rolname = v_creator) THEN",
+        f"      FOREACH v_schema IN ARRAY {schema_array} LOOP",
+        "        FOREACH v_kind IN ARRAY ARRAY['TABLES','SEQUENCES','FUNCTIONS','TYPES'] LOOP",
+        "          EXECUTE format('ALTER DEFAULT PRIVILEGES FOR ROLE %I IN SCHEMA %I REVOKE ALL ON %s FROM PUBLIC', v_creator, v_schema, v_kind);",
+        "          FOR v_role IN SELECT rolname FROM pg_roles WHERE rolname <> v_creator ORDER BY rolname LOOP",
+        "            EXECUTE format('ALTER DEFAULT PRIVILEGES FOR ROLE %I IN SCHEMA %I REVOKE ALL ON %s FROM %I', v_creator, v_schema, v_kind, v_role);",
+        "          END LOOP;",
+        "        END LOOP;",
+        "      END LOOP;",
+        "    END IF;",
+        "  END LOOP;",
+        "END",
+        "$canonical_rehearsal_default_acl_reset$;",
+    ]
+    object_acl_reset = [
+        "-- Object-level normalization is emitted after all selected DDL and ownership statements.",
+        "DO $canonical_rehearsal_object_acl_reset$",
+        "DECLARE v_schema text; v_role text; v_type text;",
+        "BEGIN",
+        f"  FOREACH v_schema IN ARRAY {schema_array} LOOP",
+        "    EXECUTE format('REVOKE ALL PRIVILEGES ON SCHEMA %I FROM PUBLIC', v_schema);",
+        "    EXECUTE format('REVOKE ALL PRIVILEGES ON ALL TABLES IN SCHEMA %I FROM PUBLIC', v_schema);",
+        "    EXECUTE format('REVOKE ALL PRIVILEGES ON ALL SEQUENCES IN SCHEMA %I FROM PUBLIC', v_schema);",
+        "    EXECUTE format('REVOKE ALL PRIVILEGES ON ALL ROUTINES IN SCHEMA %I FROM PUBLIC', v_schema);",
+        "    FOR v_role IN SELECT rolname FROM pg_roles WHERE rolname <> 'postgres' ORDER BY rolname LOOP",
+        "      EXECUTE format('REVOKE ALL PRIVILEGES ON SCHEMA %I FROM %I', v_schema, v_role);",
+        "      EXECUTE format('REVOKE ALL PRIVILEGES ON ALL TABLES IN SCHEMA %I FROM %I', v_schema, v_role);",
+        "      EXECUTE format('REVOKE ALL PRIVILEGES ON ALL SEQUENCES IN SCHEMA %I FROM %I', v_schema, v_role);",
+        "      EXECUTE format('REVOKE ALL PRIVILEGES ON ALL ROUTINES IN SCHEMA %I FROM %I', v_schema, v_role);",
+        "      FOR v_type IN SELECT t.typname FROM pg_type t JOIN pg_namespace n ON n.oid = t.typnamespace WHERE n.nspname = v_schema AND t.typtype = 'e' ORDER BY t.typname LOOP",
+        "        EXECUTE format('REVOKE USAGE ON TYPE %I.%I FROM %I', v_schema, v_type, v_role);",
+        "      END LOOP;",
+        "    END LOOP;",
+        "    FOR v_type IN SELECT t.typname FROM pg_type t JOIN pg_namespace n ON n.oid = t.typnamespace WHERE n.nspname = v_schema AND t.typtype = 'e' ORDER BY t.typname LOOP",
+        "      EXECUTE format('REVOKE USAGE ON TYPE %I.%I FROM PUBLIC', v_schema, v_type);",
+        "    END LOOP;",
+        "  END LOOP;",
+        "END",
+        "$canonical_rehearsal_object_acl_reset$;",
+    ]
+    return default_acl_reset, object_acl_reset
+
+
+def render_rehearsal_sql(
+    *,
+    ddl: list[str],
+    schemas: set[str],
+    owners: list[tuple[int, str]],
+    grants: list[tuple[int, str]],
+    defaults: list[tuple[int, str]],
+    default_scopes: list[set[str]],
+    roles: set[str],
+) -> tuple[bytes, dict[str, Any]]:
+    if schemas != TARGET_SCHEMAS:
+        raise ProposalError(f"Rehearsal requires exactly the two source schemas; got {sorted(schemas)}")
+    if len(defaults) != 2 or default_scopes != [{"zaltyko"}, {"zaltyko"}]:
+        raise ProposalError("Expected the two pinned postgres default ACL grants in schema zaltyko")
+
+    def dedupe(lines: list[tuple[int, str]]) -> list[tuple[list[int], str]]:
+        by_sql: dict[str, list[int]] = {}
+        for source_line, sql in lines:
+            by_sql.setdefault(sql, []).append(source_line)
+        return [(source_lines, sql) for sql, source_lines in by_sql.items()]
+
+    unique_owners = dedupe(owners)
+    unique_grants = dedupe(grants)
+    unique_defaults = dedupe(defaults)
+    default_reset_sql, object_reset_sql = scoped_acl_normalization_sql()
+    required_roles = sorted(role for role in roles if role and role != "PUBLIC")
+    role_literals = ", ".join(quote_literal(role) for role in required_roles)
+    guard_sql = [
+        "-- CI-ONLY CANONICAL DOMAIN REHEARSAL",
+        "-- CI-only PostgreSQL 17.6 rehearsal. Never apply to a persistent/shared database.",
+        "-- Required external environment: CANONICAL_DOMAIN_REHEARSAL_CI=1 and PGOPTIONS with app.canonical_domain_rehearsal=ci-explicit.",
+        "-- The SQL verifies the session marker and disposable database identity before any schema mutation.",
+        "BEGIN;",
+        "SET LOCAL statement_timeout = '5s';",
+        "SET LOCAL lock_timeout = '1s';",
+        "DO $canonical_rehearsal_preconditions$",
+        "DECLARE v_role text;",
+        "BEGIN",
+        "  IF current_database() IS DISTINCT FROM 'zaltyko_canonical_rehearsal_ci' THEN",
+        "    RAISE EXCEPTION 'wrong database for canonical rehearsal';",
+        "  END IF;",
+        "  IF current_setting('app.canonical_domain_rehearsal', true) IS DISTINCT FROM 'ci-explicit' THEN",
+        "    RAISE EXCEPTION 'missing external canonical rehearsal session marker';",
+        "  END IF;",
+        "  IF session_user <> 'postgres' AND NOT pg_has_role(session_user, 'postgres', 'MEMBER') THEN",
+        "    RAISE EXCEPTION 'session user cannot assume the source owner role postgres';",
+        "  END IF;",
+        f"  FOREACH v_role IN ARRAY ARRAY[{role_literals}] LOOP",
+        "    IF NOT EXISTS (SELECT 1 FROM pg_roles WHERE rolname = v_role) THEN",
+        "      RAISE EXCEPTION 'required source role % is absent', v_role;",
+        "    END IF;",
+        "  END LOOP;",
+        "  IF EXISTS (SELECT 1 FROM pg_namespace WHERE nspname = ANY (ARRAY['zaltyko','zaltyko_domain_private'])) THEN",
+        "    RAISE EXCEPTION 'canonical target schema already exists; refusing rehearsal';",
+        "  END IF;",
+        "END",
+        "$canonical_rehearsal_preconditions$;",
+        "SET LOCAL app.canonical_domain_rehearsal = 'ci-explicit';",
+        "SET LOCAL ROLE postgres;",
+        "-- CREATE SCHEMA has no IF NOT EXISTS: races or partial preexisting state fail closed.",
+        *[f"CREATE SCHEMA {quote_identifier(schema)};" for schema in sorted(TARGET_SCHEMAS)],
+        *default_reset_sql,
+        "-- Canonical object definitions selected by the pinned AST classifier; no E2E ledger/public/legacy DDL.",
+        *ddl,
+        "-- Ownership statements are replayed only after all selected objects exist.",
+        *[f"-- source lines {','.join(map(str, lines))}: owner AST\n{sql}" for lines, sql in unique_owners],
+        *object_reset_sql,
+        "-- Exact, AST-classified source GRANT/REVOKE statements, deduplicated by SQL AST serialization.",
+        *[f"-- source lines {','.join(map(str, lines))}: explicit source ACL\n{sql}" for lines, sql in unique_grants],
+        "-- Exact, target-scoped source default ACL grants, applied after normalization.",
+        *[f"-- source lines {','.join(map(str, lines))}: explicit source default ACL\n{sql}" for lines, sql in unique_defaults],
+        "ROLLBACK;",
+        "",
+    ]
+    sql_text = "\n".join(guard_sql)
+    details = {
+        "purpose": "ephemeral-postgresql-rehearsal-only",
+        "applyReady": False,
+        "requiredDatabase": "zaltyko_canonical_rehearsal_ci",
+        "requiredExternalSessionMarker": "app.canonical_domain_rehearsal=ci-explicit",
+        "requiredRunnerEnvironmentMarker": "CANONICAL_DOMAIN_REHEARSAL_CI=1",
+        "requiredSessionRole": "postgres (directly or assumable by session_user)",
+        "requiredRoles": required_roles,
+        "preconditions": [
+            "Both target schemas must be absent at the beginning of the transaction.",
+            "Source owner/grantee roles required by selected AST statements must already exist; no roles are created.",
+            "PostgreSQL 17.6 disposable database only, matching pinned snapshot parser major.",
+        ],
+        "scope": {
+            "includedSchemas": sorted(TARGET_SCHEMAS),
+            "excludedSchemas": ["public", "zaltyko_private", "auth", "extensions", "vault"],
+            "excludedObjects": sorted(f"{schema}.{name}" for schema, name in EXCLUDED_TABLES),
+            "extensionInstallation": False,
+        },
+        "statements": {
+            "schemaCreate": len(TARGET_SCHEMAS),
+            "objectDdl": len(ddl),
+            "ownerAstStatements": len(unique_owners),
+            "sourceAclAstStatements": len(unique_grants),
+            "sourceDefaultAclAstStatements": len(unique_defaults),
+            "deduplicatedOwnerSourceLines": [lines for lines, _ in unique_owners if len(lines) > 1],
+            "deduplicatedAclSourceLines": [lines for lines, _ in unique_grants if len(lines) > 1],
+        },
+        "normalization": {
+            "authoredForRehearsal": True,
+            "scope": sorted(TARGET_SCHEMAS),
+            "defaultAclCreators": ["postgres", "supabase_admin when present"],
+            "defaultAclKinds": ["TABLES", "SEQUENCES", "FUNCTIONS", "TYPES"],
+            "objectAclKinds": ["SCHEMA", "TABLES", "SEQUENCES", "ROUTINES", "enum TYPE USAGE"],
+            "effect": "Revokes ACL entries within the two newly-created schemas before reapplying explicit source grants; does not alter global defaults, PUBLIC, or legacy namespaces.",
+            "implicitPublicExecute": "Revoked from all routines in target schemas, then only explicit source grants are restored.",
+            "generatedCompositeTypeAcl": "Not explicitly normalized; source snapshot preserves platform defaults for generated row types.",
+        },
+        "mandatoryReview": [
+            "All routine bodies and SECURITY DEFINER behavior remain unverified by the outer SQL AST.",
+            "Source ACLs are reproduced as observed, including explicit PUBLIC grants; their security suitability is not endorsed.",
+            "This transaction is rolled back and cannot be treated as an installation or migration mechanism.",
+        ],
+    }
+    return sql_text.encode("utf-8"), details
 
 
 def target_for(statement: Any) -> tuple[str | None, str | None]:
@@ -268,6 +564,7 @@ def parse_args() -> argparse.Namespace:
     parser.add_argument("--manifest", required=True)
     parser.add_argument("--output", required=True)
     parser.add_argument("--manifest-output", required=True)
+    parser.add_argument("--rehearsal-output")
     return parser.parse_args()
 
 
@@ -280,7 +577,8 @@ def main() -> int:
         raise ProposalError("Only the pinned approved snapshot and manifest are accepted")
     output_path = safe_output_path(args.output)
     manifest_output_path = safe_output_path(args.manifest_output)
-    if output_path == manifest_output_path:
+    rehearsal_path = safe_output_path(args.rehearsal_output) if args.rehearsal_output else None
+    if len({path for path in (output_path, manifest_output_path, rehearsal_path) if path is not None}) != 2 + (1 if rehearsal_path else 0):
         raise ProposalError("SQL and JSON outputs must be different files")
 
     snapshot_bytes = snapshot_path.read_bytes()
@@ -319,6 +617,15 @@ def main() -> int:
     source_text = snapshot_bytes.decode("utf-8")
     parsed = parse_sql(source_text)
     included_sql: list[str] = []
+    rehearsal_ddl: list[str] = []
+    rehearsal_owner_sql: list[tuple[int, str]] = []
+    rehearsal_grant_sql: list[tuple[int, str]] = []
+    rehearsal_default_acl_sql: list[tuple[int, str]] = []
+    rehearsal_acl_records: list[dict[str, Any]] = []
+    rehearsal_owner_records: list[dict[str, Any]] = []
+    rehearsal_default_acl_records: list[dict[str, Any]] = []
+    rehearsal_roles: set[str] = {"postgres", "anon", "authenticated", "service_role"}
+    rehearsal_schema_names: set[str] = set()
     included_objects: list[dict[str, Any]] = []
     omitted = Counter()
     omitted_e2e: list[dict[str, Any]] = []
@@ -329,9 +636,6 @@ def main() -> int:
 
     known_non_object = {
         "VariableSetStmt": "pg_dump_session_setting",
-        "AlterOwnerStmt": "ownership_requires_manual_review",
-        "AlterDefaultPrivilegesStmt": "default_acl_requires_manual_review",
-        "GrantStmt": "acl_requires_manual_review",
     }
     supported_scoped = {
         "CreateSchemaStmt",
@@ -375,6 +679,75 @@ def main() -> int:
             }
             omitted["extension_prerequisite_not_emitted"] += 1
             continue
+        if kind == "AlterOwnerStmt":
+            if rehearsal_path is None:
+                omitted["ownership_requires_manual_review"] += 1
+                continue
+            record = owner_source_line(statement, line)
+            if record["schema"] in TARGET_SCHEMAS and (record["schema"], record["name"] or "") not in EXCLUDED_TABLES:
+                sql = sql_for(statement, RawStream)
+                rehearsal_owner_sql.append((line, sql))
+                rehearsal_owner_records.append(record)
+                owner = role_name(getattr(statement, "newowner", None))
+                if not owner:
+                    raise ProposalError(f"Cannot classify owner role at source line {line}")
+                rehearsal_roles.add(owner)
+                omitted["ownership_requires_manual_review"] += 1
+            else:
+                omitted["ownership_requires_manual_review"] += 1
+            continue
+        if kind == "AlterDefaultPrivilegesStmt":
+            if rehearsal_path is None:
+                omitted["default_acl_requires_manual_review"] += 1
+                continue
+            schemas, classified = default_privilege_schemas(statement)
+            if not classified:
+                raise ProposalError(f"Cannot classify default ACL scope at source line {line}")
+            if schemas.intersection(TARGET_SCHEMAS) and not schemas.issubset(TARGET_SCHEMAS):
+                raise ProposalError(f"Mixed-scope default ACL at source line {line}; refusing partial replay")
+            if schemas.issubset(TARGET_SCHEMAS):
+                sql = sql_for(statement, RawStream)
+                rehearsal_default_acl_sql.append((line, sql))
+                action = getattr(statement, "action", None)
+                rehearsal_default_acl_records.append({"sourceLine": line, "schemas": sorted(schemas), "sql": sql})
+                for option in getattr(statement, "options", ()) or ():
+                    if getattr(option, "defname", None) == "roles":
+                        rehearsal_roles.update(role_names_from_ast(ast_node_list(getattr(option, "arg", None))))
+                rehearsal_roles.update(
+                    name for name in role_names_from_ast(getattr(action, "grantees", ()) or ())
+                    if name != "PUBLIC"
+                )
+                omitted["default_acl_requires_manual_review"] += 1
+            else:
+                omitted["default_acl_requires_manual_review"] += 1
+            continue
+        if kind == "GrantStmt":
+            if rehearsal_path is None:
+                omitted["acl_requires_manual_review"] += 1
+                continue
+            targets, classified = grant_target_objects(statement)
+            if not classified:
+                raise ProposalError(f"Cannot classify ACL targets at source line {line}")
+            scopes = {schema for schema, _ in targets}
+            target_scopes = scopes.intersection(TARGET_SCHEMAS)
+            if target_scopes and scopes - TARGET_SCHEMAS:
+                raise ProposalError(f"Mixed-scope ACL at source line {line}; refusing partial replay")
+            target_e2e = [target for target in targets if (target[0], target[1] or "") in EXCLUDED_TABLES]
+            if target_e2e:
+                if len(target_e2e) != len(targets):
+                    raise ProposalError(f"ACL combines E2E and canonical objects at source line {line}")
+                omitted["acl_requires_manual_review"] += 1
+                continue
+            if target_scopes:
+                sql = sql_for(statement, RawStream)
+                rehearsal_grant_sql.append((line, sql))
+                grantees = [role_name(value) for value in getattr(statement, "grantees", ()) or ()]
+                rehearsal_acl_records.append({"sourceLine": line, "targetObjects": targets, "grantees": grantees, "sql": sql})
+                rehearsal_roles.update(name for name in grantees if name and name != "PUBLIC")
+                omitted["acl_requires_manual_review"] += 1
+            else:
+                omitted["acl_requires_manual_review"] += 1
+            continue
         if kind in known_non_object:
             omitted[known_non_object[kind]] += 1
             continue
@@ -383,7 +756,17 @@ def main() -> int:
 
         schema, name = target_for(statement)
         if kind == "AlterTableStmt" and is_owner_alter_table(statement):
-            omitted["table_ownership_requires_manual_review"] += 1
+            if rehearsal_path is None:
+                omitted["table_ownership_requires_manual_review"] += 1
+                continue
+            record = {"schema": schema, "name": name, "objectType": "OBJECT_TABLE", "sourceLine": line}
+            if schema in TARGET_SCHEMAS and (schema, name or "") not in EXCLUDED_TABLES:
+                sql = sql_for(statement, RawStream)
+                rehearsal_owner_sql.append((line, sql))
+                rehearsal_owner_records.append(record)
+                omitted["table_ownership_requires_manual_review"] += 1
+            else:
+                omitted["table_ownership_requires_manual_review"] += 1
             continue
         if schema not in TARGET_SCHEMAS:
             omitted[f"out_of_scope:{kind}"] += 1
@@ -394,13 +777,15 @@ def main() -> int:
             continue
 
         # RawStream retains its output buffer; use one instance per statement.
-        sql = RawStream(semicolon_after_last_statement=True)(statement).strip()
-        if not sql.endswith(";"):
-            sql += ";"
+        sql = sql_for(statement, RawStream)
         reparsed = parse_sql(sql)
         if len(reparsed) != 1 or reparsed[0].stmt != statement:
             raise ProposalError(f"AST round-trip mismatch for {kind} at source line {line}")
         included_sql.append(f"-- snapshot source line {line}: {kind}\n{sql}")
+        if kind == "CreateSchemaStmt":
+            rehearsal_schema_names.add(schema or "")
+        else:
+            rehearsal_ddl.append(f"-- snapshot source line {line}: {kind}\n{sql}")
         included_objects.extend(object_records(statement, schema or "", name or "", line))
         for reference in external_ast_references(statement, line):
             external_references.add((reference["sourceLine"], reference["kind"], reference["name"]))
@@ -450,6 +835,24 @@ def main() -> int:
         "",
     ])
     proposal_bytes = proposal_sql.encode("utf-8")
+
+    rehearsal_bytes: bytes | None = None
+    rehearsal_details: dict[str, Any] | None = None
+    if rehearsal_path is not None:
+        rehearsal_bytes, rehearsal_details = render_rehearsal_sql(
+            ddl=rehearsal_ddl,
+            schemas=rehearsal_schema_names,
+            owners=rehearsal_owner_sql,
+            grants=rehearsal_grant_sql,
+            defaults=rehearsal_default_acl_sql,
+            default_scopes=[set(record["schemas"]) for record in rehearsal_default_acl_records],
+            roles=rehearsal_roles,
+        )
+        rehearsal_roundtrip = parse_sql(rehearsal_bytes.decode("utf-8"))
+        if not rehearsal_roundtrip or type(rehearsal_roundtrip[-1].stmt).__name__ != "TransactionStmt":
+            raise ProposalError("Rehearsal SQL does not end in a parsed transaction statement")
+        if node_name(getattr(rehearsal_roundtrip[-1].stmt, "kind", None)) != "TRANS_STMT_ROLLBACK":
+            raise ProposalError("Rehearsal SQL must end in ROLLBACK")
 
     output_manifest = {
         "artifactKind": "review-only-canonical-schema-sql-proposal",
@@ -510,9 +913,30 @@ def main() -> int:
         ],
     }
 
+    if rehearsal_path is not None and rehearsal_bytes is not None and rehearsal_details is not None:
+        output_manifest["sqlRehearsal"] = {
+            "path": str(rehearsal_path.relative_to(REPO_ROOT)),
+            "sha256": sha256_bytes(rehearsal_bytes),
+            "sizeBytes": len(rehearsal_bytes),
+            "includedStatements": sum(
+                value for value in rehearsal_details["statements"].values()
+                if isinstance(value, int)
+            ),
+            **rehearsal_details,
+            "ownerAstSources": rehearsal_owner_records,
+            "explicitAclAstSources": rehearsal_acl_records,
+            "explicitDefaultAclAstSources": rehearsal_default_acl_records,
+            "explicitPublicGrants": [
+                record for record in rehearsal_acl_records if "PUBLIC" in record["grantees"]
+            ],
+        }
+
     output_path.parent.mkdir(parents=True, exist_ok=True)
     manifest_output_path.parent.mkdir(parents=True, exist_ok=True)
     output_path.write_bytes(proposal_bytes)
+    if rehearsal_path is not None and rehearsal_bytes is not None:
+        rehearsal_path.parent.mkdir(parents=True, exist_ok=True)
+        rehearsal_path.write_bytes(rehearsal_bytes)
     manifest_output_path.write_text(json.dumps(output_manifest, indent=2, ensure_ascii=False) + "\n", encoding="utf-8")
     print(json.dumps({
         "result": "proposal_generated_review_only",
@@ -520,6 +944,7 @@ def main() -> int:
         "manifest": str(manifest_output_path.relative_to(REPO_ROOT)),
         "includedStatements": len(included_sql),
         "includedObjects": len(included_objects),
+        "rehearsalSql": str(rehearsal_path.relative_to(REPO_ROOT)) if rehearsal_path else None,
         "applyReady": False,
     }, ensure_ascii=False))
     return 0
