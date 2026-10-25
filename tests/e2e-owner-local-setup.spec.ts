@@ -1887,6 +1887,7 @@ test.describe("Isolated local Supabase Owner setup", () => {
     await expect(createIntakeButton).toBeEnabled();
     await page.getByLabel("Nombre", { exact: true }).fill(intakeGivenName);
     await page.getByLabel("Apellidos", { exact: true }).fill(intakeFamilyName);
+    await expect(page.getByRole("combobox", { name: "Relación familiar inicial", exact: true })).toBeVisible();
     await page.getByLabel("Relación familiar inicial", { exact: true }).selectOption("parent");
     await page.getByLabel("Fecha efectiva del vínculo familiar", { exact: true }).fill(intakeGroup.local_date);
 

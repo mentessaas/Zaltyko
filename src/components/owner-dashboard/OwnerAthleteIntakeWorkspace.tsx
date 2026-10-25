@@ -719,11 +719,12 @@ export function OwnerAthleteIntakeWorkspace({ organizationId, organizationName }
             <label className="text-sm font-semibold">Apellidos
               <input className={`${fieldClassName} mt-2`} autoComplete="family-name" maxLength={100} value={familyName} onChange={(event) => setFamilyName(event.target.value)} disabled={newWritesDisabled} required />
             </label>
-            <label className="text-sm font-semibold">Relación familiar inicial
-              <select className={`${fieldClassName} mt-2`} value={relationship} onChange={(event) => setRelationship(event.target.value as Relationship)} disabled={newWritesDisabled}>
+            <div className="text-sm font-semibold">
+              <label htmlFor="intake-family-relationship">Relación familiar inicial</label>
+              <select id="intake-family-relationship" className={`${fieldClassName} mt-2`} value={relationship} onChange={(event) => setRelationship(event.target.value as Relationship)} disabled={newWritesDisabled}>
                 {RELATIONSHIPS.map((option) => <option key={option} value={option}>{relationshipLabel(option)}</option>)}
               </select>
-            </label>
+            </div>
             <label className="text-sm font-semibold">Fecha efectiva del vínculo familiar
               <input className={`${fieldClassName} mt-2`} type="date" value={familyStartsOn} onChange={(event) => setFamilyStartsOn(event.target.value)} disabled={newWritesDisabled} required />
             </label>
@@ -781,8 +782,9 @@ export function OwnerAthleteIntakeWorkspace({ organizationId, organizationName }
                   ) : null}
                   {assignment?.athleteId === athlete.athleteId ? (
                     <form className="mt-4 grid gap-4 border border-slate-300 bg-slate-50 p-4 sm:grid-cols-2" onSubmit={submitAssignment}>
-                      <label className="text-sm font-semibold">Grupo y sede
-                        <select className={`${fieldClassName} mt-2`} value={assignment.groupId} onChange={(event) => setAssignment((current) => current ? { ...current, groupId: event.target.value } : current)} disabled={newWritesDisabled} required>
+                      <div className="text-sm font-semibold">
+                        <label htmlFor={`intake-group-${athlete.athleteId}`}>Grupo y sede</label>
+                        <select id={`intake-group-${athlete.athleteId}`} className={`${fieldClassName} mt-2`} value={assignment.groupId} onChange={(event) => setAssignment((current) => current ? { ...current, groupId: event.target.value } : current)} disabled={newWritesDisabled} required>
                           <option value="">Selecciona un grupo disponible</option>
                           {data.eligibleGroups.map((group) => (
                             <option key={group.groupId} value={group.groupId}>
@@ -791,7 +793,7 @@ export function OwnerAthleteIntakeWorkspace({ organizationId, organizationName }
                           ))}
                         </select>
                         {data.eligibleGroups.length === 0 ? <span className="mt-2 block text-xs text-slate-600">No hay grupos activos con plazas disponibles en las sedes autorizadas.</span> : null}
-                      </label>
+                      </div>
                       <label className="text-sm font-semibold">Fecha civil de inicio en la sede
                         <input className={`${fieldClassName} mt-2`} type="date" aria-describedby={`assignment-date-help-${athlete.athleteId}`} value={assignment.startsOn} onChange={(event) => setAssignment((current) => current ? { ...current, startsOn: event.target.value } : current)} disabled={newWritesDisabled} required />
                       </label>

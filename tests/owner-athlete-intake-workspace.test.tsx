@@ -107,6 +107,7 @@ describe("bandeja Owner de gimnastas sin asignación", () => {
     render(<OwnerAthleteIntakeWorkspace organizationId={ORGANIZATION_ID} organizationName="Club Norte" />);
 
     expect(await screen.findByRole("heading", { name: "Luna Ríos" })).toBeInTheDocument();
+    expect(screen.getByRole("combobox", { name: "Relación familiar inicial", exact: true })).toBeInTheDocument();
     expect(screen.getByText("Madre, padre o progenitor · fecha efectiva 2026-10-24 · faltan datos de tutor/pagador")).toBeInTheDocument();
     expect(screen.getByText(/No crea tutor, pagador, cuenta ni envía mensajes/u)).toBeInTheDocument();
   });
@@ -243,7 +244,7 @@ describe("bandeja Owner de gimnastas sin asignación", () => {
     render(<OwnerAthleteIntakeWorkspace organizationId={ORGANIZATION_ID} organizationName="Club Norte" />);
     await screen.findByRole("heading", { name: "Luna Ríos" });
     fireEvent.click(screen.getByRole("button", { name: "Asignar a un grupo" }));
-    fireEvent.change(screen.getByLabelText("Grupo y sede"), { target: { value: GROUP_ID } });
+    fireEvent.change(screen.getByRole("combobox", { name: "Grupo y sede", exact: true }), { target: { value: GROUP_ID } });
     fireEvent.change(screen.getByLabelText("Fecha civil de inicio en la sede"), { target: { value: "2026-10-25" } });
     fireEvent.submit(screen.getByRole("button", { name: "Asignar gimnasta" }).closest("form")!);
 

@@ -9,6 +9,11 @@ source:
 
 ## 2026-10-25 — Intake y regularización pasan PostgreSQL; origen sintético pendiente
 
+- Corte posterior `7a42421a`: PostgreSQL `40220734876`, build y unitarias
+  5084 PASS/3 omitidas. Chromium supera perfil/archivo; NextURL localhost
+  resuelve el rechazo previo. El recorrido nuevo se detiene en la etiqueta
+  exacta del select familiar. Se separan label/select con htmlFor/id, también
+  en grupo/sede, manteniendo assertions y timeout. Validación remota pendiente.
 - `ab97a47c`: replay remoto `40219817117` SUCCESS, diez suites nativas,
   reconstrucción vacía, ACL/RLS y aislamiento. Build y controles estáticos
   de `40219808150` pasan; no se ejecutan pruebas ni builds en el Mac.

@@ -10,6 +10,17 @@ persistidos reales de sandbox.
 
 ## Corte vigente de validación
 
+`7a42421ac04fd82a4ed3d63d328927cb9b638eeb`: PostgreSQL remoto
+`40220734876` SUCCESS; CI `40220720889` build, lint/tipos, controles SQL,
+móvil, seguridad y unitarias 5084 PASS/3 omitidas. Chromium superó perfil
+del tutor y archivo (origen canónico resuelto), pero agotó 300s esperando
+la etiqueta exacta del selector familiar en el alta nueva. Se separan
+etiquetas y selects con htmlFor/id, también para grupo/sede; regresión
+unitaria por rol/nombre accesible y assert visible previo al selector E2E.
+No se amplían timeouts ni se retiran comprobaciones. Corrección aún sin CI.
+Árbol del merge temporal CI `4960aa78` y HEAD idénticos:
+`40a6b41a6b03078a41f66595480fba3f48466aa6`. Sin publicación de esta entrega.
+
 `ab97a47cb7db404458df8e8147d95c3d68b0b447`: replay remoto
 `40219817117` SUCCESS con diez suites PostgreSQL, reconstrucción vacía,
 ACL/RLS, aislamiento, concurrencia y rechazo sin escrituras parciales.
