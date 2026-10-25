@@ -49,6 +49,24 @@ type CreateClassBody = {
   }>;
 };
 
+type PendingClassDetailsUpdate = {
+  organizationId: string;
+  classTemplateId: string;
+  expectedUpdatedAt: string;
+  name: string;
+  capacity: number;
+  key: string;
+  body: string;
+};
+
+type ClassDetailsDraft = {
+  organizationId: string;
+  classTemplateId: string;
+  expectedUpdatedAt: string;
+  name: string;
+  capacity: string;
+};
+
 const weekdayOptions = [
   { value: 1, label: "Lunes" },
   { value: 2, label: "Martes" },
@@ -153,6 +171,16 @@ export function OwnerClassesManager({ bundle }: { bundle: ClassesBundle }) {
   const [pendingScopeLoadedFor, setPendingScopeLoadedFor] = useState<string | null>(null);
   const [pendingStorageError, setPendingStorageError] = useState("");
   const [blockedMarkerPersistenceFailed, setBlockedMarkerPersistenceFailed] = useState(false);
+  const [editingClass, setEditingClass] = useState<ClassDetailsDraft | null>(null);
+  const [pendingClassUpdate, setPendingClassUpdate] = useState<PendingClassDetailsUpdate | null>(null);
+  const [classUpdateBusy, setClassUpdateBusy] = useState(false);
+  const classUpdateInFlightRef = useRef(false);
+  const currentClassEdit =
+    editingClass?.organizationId === organizationId ? editingClass : null;
+  const currentPendingClassUpdate =
+    pendingClassUpdate?.organizationId === organizationId
+      ? pendingClassUpdate
+      : null;
   usePendingCommandExitWarning(retryRequest !== null, pendingRequestRef);
   const nextSlotId = useRef(1);
 
@@ -348,6 +376,129 @@ export function OwnerClassesManager({ bundle }: { bundle: ClassesBundle }) {
       body: JSON.stringify(body),
       previouslyUncertain: false,
       blocked: false,
+    });
+  }
+
+  function beginClassEdit(classItem: ClassesBundle["classes"][number]) {
+    setError("");
+    setNotice("");
+    setPendingClassUpdate(null);
+    setEditingClass({
+      organizationId,
+      classTemplateId: classItem.id,
+      expectedUpdatedAt: classItem.updatedAtVersion,
+      name: classItem.name,
+      capacity: String(classItem.capacity),
+    });
+  }
+
+  async function sendClassUpdate(command: PendingClassDetailsUpdate) {
+    if (
+      classUpdateInFlightRef.current ||
+      command.organizationId !== currentOrganizationRef.current
+    ) return;
+    classUpdateInFlightRef.current = true;
+    setClassUpdateBusy(true);
+    setError("");
+    setNotice("");
+    setPendingClassUpdate(command);
+    try {
+      const response = await fetch(
+        `/api/v1/owner/classes/${encodeURIComponent(command.classTemplateId)}`,
+        {
+          method: "PATCH",
+          headers: {
+            "content-type": "application/json",
+            "idempotency-key": command.key,
+          },
+          body: command.body,
+        }
+      );
+      if (currentOrganizationRef.current !== command.organizationId) return;
+      const payload = await response.json().catch(() => null);
+      if (!response.ok) {
+        const message =
+          typeof payload?.message === "string"
+            ? payload.message
+            : typeof payload?.detail === "string"
+              ? payload.detail
+              : "No se pudo actualizar la clase. Actualiza la lista y revisa el estado antes de volver a intentarlo.";
+        setPendingClassUpdate(null);
+        setError(message);
+        if (response.status === 409) router.refresh();
+        return;
+      }
+
+      const data = payload?.data;
+      if (
+        payload?.ok !== true ||
+        data?.id !== command.classTemplateId ||
+        data?.name !== command.name ||
+        data?.capacity !== command.capacity ||
+        typeof data?.updatedAtVersion !== "string"
+      ) {
+        setError("No se pudo confirmar el acuse de esta edición. Reintenta el mismo envío para comprobarlo sin duplicar cambios.");
+        return;
+      }
+
+      setPendingClassUpdate(null);
+      setEditingClass(null);
+      setNotice("Clase actualizada. El horario semanal y las sesiones generadas no han cambiado.");
+      router.refresh();
+    } catch {
+      if (currentOrganizationRef.current === command.organizationId) {
+        setError("No sabemos si se guardó. Reintenta este mismo envío; conservaremos la clave y el cuerpo para evitar duplicar cambios.");
+      }
+    } finally {
+      classUpdateInFlightRef.current = false;
+      setClassUpdateBusy(false);
+    }
+  }
+
+  function submitClassEdit(event: FormEvent<HTMLFormElement>) {
+    event.preventDefault();
+    if (!currentClassEdit || writesBlocked || classUpdateBusy) return;
+    if (currentPendingClassUpdate) {
+      void sendClassUpdate(currentPendingClassUpdate);
+      return;
+    }
+
+    const classItem = bundle.classes.find(
+      (item) => item.id === currentClassEdit.classTemplateId
+    );
+    const capacityValue = Number(currentClassEdit.capacity);
+    const trimmedName = currentClassEdit.name.trim();
+    if (
+      !classItem ||
+      classItem.updatedAtVersion !== currentClassEdit.expectedUpdatedAt ||
+      trimmedName.length < 2 ||
+      trimmedName.length > 120 ||
+      !Number.isInteger(capacityValue) ||
+      capacityValue < 1 ||
+      capacityValue > 5000
+    ) {
+      setError("La clase cambió o los datos no son válidos. Actualiza la lista antes de guardar.");
+      return;
+    }
+    if (trimmedName === classItem.name && capacityValue === classItem.capacity) {
+      setError("No hay cambios que guardar.");
+      return;
+    }
+
+    const body = JSON.stringify({
+      organizationId,
+      expectedUpdatedAt: currentClassEdit.expectedUpdatedAt,
+      name: trimmedName,
+      capacity: capacityValue,
+    });
+    void sendClassUpdate({
+      organizationId,
+      classTemplateId: classItem.id,
+      expectedUpdatedAt: currentClassEdit.expectedUpdatedAt,
+      name: trimmedName,
+      capacity: capacityValue,
+      key: `owner-class-update:${crypto.randomUUID()}`,
+      body,
     });
   }
 
@@ -738,6 +889,82 @@ export function OwnerClassesManager({ bundle }: { bundle: ClassesBundle }) {
                         {classItem.capacity} plazas
                       </span>
                     </div>
+                    {currentClassEdit?.classTemplateId === classItem.id ? (
+                      <form
+                        onSubmit={submitClassEdit}
+                        aria-label={`Editar ${classItem.name}`}
+                        className="mt-4 grid gap-3 border border-teal-800 bg-teal-50 p-4 sm:grid-cols-[minmax(0,1fr)_9rem_auto_auto] sm:items-end"
+                      >
+                        <label className="grid gap-2 text-sm font-semibold text-slate-900">
+                          Nombre de la clase
+                          <input
+                            value={currentClassEdit.name}
+                            onChange={(event) => {
+                              setEditingClass({ ...currentClassEdit, name: event.target.value });
+                              setPendingClassUpdate(null);
+                            }}
+                            disabled={classUpdateBusy || currentPendingClassUpdate !== null || writesBlocked}
+                            minLength={2}
+                            maxLength={120}
+                            required
+                            className={fieldClassName}
+                          />
+                        </label>
+                        <label className="grid gap-2 text-sm font-semibold text-slate-900">
+                          Plazas
+                          <input
+                            type="number"
+                            min={1}
+                            max={5000}
+                            step={1}
+                            inputMode="numeric"
+                            value={currentClassEdit.capacity}
+                            onChange={(event) => {
+                              setEditingClass({ ...currentClassEdit, capacity: event.target.value });
+                              setPendingClassUpdate(null);
+                            }}
+                            disabled={classUpdateBusy || currentPendingClassUpdate !== null || writesBlocked}
+                            required
+                            className={fieldClassName}
+                          />
+                        </label>
+                        <button
+                          type="submit"
+                          disabled={classUpdateBusy || writesBlocked}
+                          className={primaryButtonClassName}
+                        >
+                          {classUpdateBusy
+                            ? "Guardando…"
+                            : currentPendingClassUpdate
+                              ? "Reintentar mismo cambio"
+                              : "Guardar cambios"}
+                        </button>
+                        <button
+                          type="button"
+                          onClick={() => {
+                            setEditingClass(null);
+                            setPendingClassUpdate(null);
+                            setError("");
+                          }}
+                          disabled={classUpdateBusy || currentPendingClassUpdate !== null}
+                          className="touch-target min-h-11 border border-slate-400 bg-white px-3 text-sm font-semibold text-slate-800 disabled:opacity-50"
+                        >
+                          Cancelar
+                        </button>
+                        <p className="text-xs leading-5 text-slate-700 sm:col-span-4">
+                          Solo cambia el nombre y la capacidad. El horario, la sede y las sesiones existentes se conservan.
+                        </p>
+                      </form>
+                    ) : (
+                      <button
+                        type="button"
+                        onClick={() => beginClassEdit(classItem)}
+                        disabled={classUpdateBusy || writesBlocked || currentClassEdit !== null}
+                        className="touch-target mt-3 min-h-11 border border-slate-400 bg-white px-3 text-sm font-semibold text-slate-800 hover:bg-slate-50 disabled:cursor-not-allowed disabled:opacity-50"
+                      >
+                        Editar nombre y plazas
+                      </button>
+                    )}
                     <ul className="mt-4 flex flex-wrap gap-2">
                       {classItem.schedule.map((slot) => (
                         <li

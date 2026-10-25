@@ -6,8 +6,11 @@ import { db } from "@/db";
 import {
   classTemplates,
   classTemplateWeekdays,
+  enrollments,
   locations,
+  outboxEvents,
   programs,
+  spaces,
 } from "@/db/zaltyko-schema";
 import { resolveOwnerScope } from "@/modules/owner-dashboard/application/owner-scope";
 import { operationalActorSchema } from "@/modules/shared/application/actor";
@@ -15,11 +18,13 @@ import { OperationalError } from "@/modules/shared/domain/operational-error";
 import { assertOperationalAccess } from "@/modules/shared/infrastructure/operational-authorization";
 import { assertOrganizationResourceCapacity } from "@/modules/saas-billing/application/organization-usage";
 import { MAX_CLASS_CAPACITY } from "@/modules/scheduling/domain/class-capacity";
+import { calculateEffectiveCapacity } from "@/modules/scheduling/domain/capacity";
 import {
   appendAuditEntry,
   appendOutboxEvent,
   assertIdempotencyPayload,
   findOutboxEvent,
+  lockCapacity,
   lockCommand,
 } from "@/modules/shared/infrastructure/transactional-records";
 import { materializeSessions } from "@/modules/scheduling/application/session-service";
@@ -81,8 +86,275 @@ export type CreateScheduledClassCommand = z.infer<
 >;
 
 const classCreatedEvent = "class_template.created";
+const classUpdatedEvent = "class_template.details_updated";
 const generationHorizonDays = 120;
 const ownerRoles = ["owner", "admin", "manager"] as const;
+const openEnrollmentStatuses = ["pending", "trial", "active", "paused"] as const;
+
+const updateClassDetailsSchema = z
+  .object({
+    organizationId: z.string().uuid(),
+    classTemplateId: z.string().uuid(),
+    expectedUpdatedAt: z.string().datetime({ precision: 6 }),
+    name: z.string().trim().min(2).max(120).optional(),
+    capacity: z.number().int().positive().max(MAX_CLASS_CAPACITY).optional(),
+    idempotencyKey: z.string().trim().min(8).max(180),
+    actor: operationalActorSchema,
+  })
+  .strict()
+  .refine((input) => input.name !== undefined || input.capacity !== undefined, {
+    message: "Indica el nuevo nombre o la nueva capacidad.",
+  });
+
+export type UpdateClassDetailsCommand = z.infer<typeof updateClassDetailsSchema>;
+
+function classLabelHash(value: string): string {
+  return createHash("sha256").update(value).digest("hex");
+}
+
+export async function updateClassDetails(command: UpdateClassDetailsCommand) {
+  const input = updateClassDetailsSchema.parse(command);
+
+  return db.transaction(async (tx) => {
+    await lockCommand(tx, input.organizationId, input.idempotencyKey);
+
+    const prior = await findOutboxEvent(tx, {
+      organizationId: input.organizationId,
+      eventName: classUpdatedEvent,
+      idempotencyKey: input.idempotencyKey,
+    });
+    if (prior) {
+      const expectedLabelDigest =
+        input.name === undefined ? null : classLabelHash(input.name);
+      const expectedCapacity = input.capacity;
+      assertIdempotencyPayload(prior.payload, {
+        classTemplateId: input.classTemplateId,
+        expectedUpdatedAt: input.expectedUpdatedAt,
+        requestedLabelDigest: expectedLabelDigest,
+        requestedCapacity: expectedCapacity ?? null,
+      });
+      if (prior.aggregateId !== input.classTemplateId) {
+        throw new OperationalError(
+          "IDEMPOTENCY_CONFLICT",
+          "La clave de idempotencia ya pertenece a otra clase",
+          409
+        );
+      }
+
+      const [current] = await tx
+        .select({
+          id: classTemplates.id,
+          locationId: classTemplates.locationId,
+          name: classTemplates.name,
+          capacity: classTemplates.capacity,
+          updatedAtVersion: sql<string>`to_char(${classTemplates.updatedAt} at time zone 'UTC', 'YYYY-MM-DD"T"HH24:MI:SS.US"Z"')`,
+        })
+        .from(classTemplates)
+        .where(
+          and(
+            eq(classTemplates.organizationId, input.organizationId),
+            eq(classTemplates.id, input.classTemplateId),
+            eq(classTemplates.status, "active")
+          )
+        )
+        .limit(1);
+      if (
+        !current ||
+        current.updatedAtVersion !== prior.payload.updatedAtVersion ||
+        classLabelHash(current.name) !== prior.payload.resultLabelDigest ||
+        current.capacity !== prior.payload.resultCapacity
+      ) {
+        throw new OperationalError(
+          "IDEMPOTENCY_CONFLICT",
+          "La clase cambió después de la operación pendiente. Actualiza la lista antes de continuar.",
+          409
+        );
+      }
+      await assertOperationalAccess(tx, {
+        organizationId: input.organizationId,
+        locationId: current.locationId,
+        actor: input.actor,
+        allowedRoles: ownerRoles,
+      });
+      return current;
+    }
+
+    const [usedKey] = await tx
+      .select({ id: outboxEvents.id })
+      .from(outboxEvents)
+      .where(
+        and(
+          eq(outboxEvents.organizationId, input.organizationId),
+          eq(outboxEvents.idempotencyKey, input.idempotencyKey)
+        )
+      )
+      .limit(1);
+    if (usedKey) {
+      throw new OperationalError(
+        "IDEMPOTENCY_CONFLICT",
+        "La clave de idempotencia ya pertenece a otra operación",
+        409
+      );
+    }
+
+    await lockCapacity(tx, input.organizationId, input.classTemplateId);
+    const locked = await tx.execute(sql`
+      select id from zaltyko.class_templates
+      where organization_id = ${input.organizationId}::uuid
+        and id = ${input.classTemplateId}::uuid
+        and status = 'active'
+      for update
+    `);
+    if (locked.rows.length !== 1) {
+      throw new OperationalError("NOT_FOUND", "Clase activa no encontrada", 404);
+    }
+
+    const [current] = await tx
+      .select({
+        id: classTemplates.id,
+        locationId: classTemplates.locationId,
+        name: classTemplates.name,
+        capacity: classTemplates.capacity,
+        spaceCapacity: spaces.capacity,
+        updatedAtVersion: sql<string>`to_char(${classTemplates.updatedAt} at time zone 'UTC', 'YYYY-MM-DD"T"HH24:MI:SS.US"Z"')`,
+      })
+      .from(classTemplates)
+      .leftJoin(
+        spaces,
+        and(
+          eq(spaces.organizationId, classTemplates.organizationId),
+          eq(spaces.id, classTemplates.defaultSpaceId),
+          eq(spaces.locationId, classTemplates.locationId)
+        )
+      )
+      .where(
+        and(
+          eq(classTemplates.organizationId, input.organizationId),
+          eq(classTemplates.id, input.classTemplateId),
+          eq(classTemplates.status, "active")
+        )
+      )
+      .limit(1);
+    if (!current) {
+      throw new OperationalError("NOT_FOUND", "Clase activa no encontrada", 404);
+    }
+    await assertOperationalAccess(tx, {
+      organizationId: input.organizationId,
+      locationId: current.locationId,
+      actor: input.actor,
+      intent: "write",
+      allowedRoles: ownerRoles,
+    });
+
+    if (current.updatedAtVersion !== input.expectedUpdatedAt) {
+      throw new OperationalError(
+        "VERSION_CONFLICT",
+        "La clase cambió desde la última lectura. Actualiza la lista y vuelve a intentarlo.",
+        409
+      );
+    }
+
+    const nextName = input.name ?? current.name;
+    const nextCapacity = input.capacity ?? current.capacity;
+    if (nextName === current.name && nextCapacity === current.capacity) {
+      throw new OperationalError("INVALID_RELATION", "No hay cambios que guardar", 422);
+    }
+
+    if (nextCapacity !== current.capacity) {
+      const [occupancy] = await tx
+        .select({ count: sql<number>`count(*)::int` })
+        .from(enrollments)
+        .where(
+          and(
+            eq(enrollments.organizationId, input.organizationId),
+            eq(enrollments.classTemplateId, input.classTemplateId),
+            inArray(enrollments.status, openEnrollmentStatuses)
+          )
+        );
+      const effectiveCapacity = calculateEffectiveCapacity({
+        templateCapacity: nextCapacity,
+        spaceCapacity: current.spaceCapacity,
+      });
+      if (Number(occupancy?.count ?? 0) > effectiveCapacity) {
+        throw new OperationalError(
+          "CAPACITY_FULL",
+          "No se puede reducir la capacidad por debajo de las inscripciones abiertas. No se ha cambiado la clase.",
+          409,
+          { openEnrollments: Number(occupancy?.count ?? 0), effectiveCapacity }
+        );
+      }
+    }
+
+    const [updated] = await tx
+      .update(classTemplates)
+      .set({
+        name: nextName,
+        capacity: nextCapacity,
+        updatedAt: sql`greatest(clock_timestamp(), ${classTemplates.updatedAt} + interval '1 microsecond')`,
+      })
+      .where(
+        and(
+          eq(classTemplates.organizationId, input.organizationId),
+          eq(classTemplates.id, input.classTemplateId),
+          sql`${classTemplates.updatedAt} = ${input.expectedUpdatedAt}::timestamptz`
+        )
+      )
+      .returning({
+        id: classTemplates.id,
+        locationId: classTemplates.locationId,
+        name: classTemplates.name,
+        capacity: classTemplates.capacity,
+        updatedAtVersion: sql<string>`to_char(${classTemplates.updatedAt} at time zone 'UTC', 'YYYY-MM-DD"T"HH24:MI:SS.US"Z"')`,
+      });
+    if (!updated) {
+      throw new OperationalError(
+        "VERSION_CONFLICT",
+        "La clase cambió desde la última lectura. Actualiza la lista y vuelve a intentarlo.",
+        409
+      );
+    }
+
+    const nameHash = classLabelHash(nextName);
+    await appendOutboxEvent(tx, {
+      organizationId: input.organizationId,
+      locationId: current.locationId,
+      eventName: classUpdatedEvent,
+      aggregateType: "class_template",
+      aggregateId: current.id,
+      idempotencyKey: input.idempotencyKey,
+      payload: {
+        classTemplateId: current.id,
+        expectedUpdatedAt: input.expectedUpdatedAt,
+        requestedLabelDigest:
+          input.name === undefined ? null : classLabelHash(input.name),
+        requestedCapacity: input.capacity ?? null,
+        resultLabelDigest: nameHash,
+        resultCapacity: updated.capacity,
+        updatedAtVersion: updated.updatedAtVersion,
+        labelChanged: nextName !== current.name,
+        changedCapacity: nextCapacity !== current.capacity,
+      },
+    });
+    await appendAuditEntry(tx, {
+      organizationId: input.organizationId,
+      locationId: current.locationId,
+      actorUserId: input.actor.userId,
+      action: classUpdatedEvent,
+      targetType: "class_template",
+      targetId: current.id,
+      idempotencyKey: input.idempotencyKey,
+      before: {
+        classLabelHash: classLabelHash(current.name),
+        capacity: current.capacity,
+      },
+      after: {
+        classLabelHash: nameHash,
+        capacity: updated.capacity,
+      },
+    });
+    return updated;
+  });
+}
 
 function addDays(date: string, days: number): string {
   const value = new Date(`${date}T00:00:00.000Z`);
@@ -376,6 +648,7 @@ export async function getOwnerClassesPageData(input: {
         locationName: locations.name,
         programId: classTemplates.programId,
         programName: programs.name,
+        updatedAtVersion: sql<string>`to_char(${classTemplates.updatedAt} at time zone 'UTC', 'YYYY-MM-DD"T"HH24:MI:SS.US"Z"')`,
       })
       .from(classTemplates)
       .innerJoin(

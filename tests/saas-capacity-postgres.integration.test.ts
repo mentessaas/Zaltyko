@@ -10,7 +10,10 @@ import {
   createAthleteForGroup,
   updateAthleteProfileForGroup,
 } from "@/modules/groups/application/group-membership-service";
-import { createScheduledClass } from "@/modules/scheduling/application/class-management-service";
+import {
+  createScheduledClass,
+  updateClassDetails,
+} from "@/modules/scheduling/application/class-management-service";
 import { createEnrollment } from "@/modules/enrollments/application/enrollment-service";
 import { recordAttendance } from "@/modules/attendance/application/attendance-service";
 import { getOwnerSessionAttendance } from "@/modules/attendance/application/owner-session-attendance";
@@ -495,6 +498,38 @@ async function seedEnrollmentEligibilityAcademy() {
   };
 }
 
+async function classTemplateVersion(organizationId: string, classTemplateId: string) {
+  const result = await db.execute(sql`
+    select to_char(updated_at at time zone 'UTC', 'YYYY-MM-DD"T"HH24:MI:SS.US"Z"') as version
+    from zaltyko.class_templates
+    where organization_id = ${organizationId}::uuid
+      and id = ${classTemplateId}::uuid
+  `);
+  const version = result.rows[0]?.version;
+  if (typeof version !== "string") throw new Error("Class version was not returned");
+  return version;
+}
+
+function expectOnlyClassDetailsWrites(
+  before: Awaited<ReturnType<typeof snapshot>>,
+  after: Awaited<ReturnType<typeof snapshot>>
+) {
+  const mutableTables = new Set(["class_templates", "audit_log", "outbox_events"]);
+  const beforeByTable = new Map(before.map((row) => [String(row.table_name), row]));
+  const afterByTable = new Map(after.map((row) => [String(row.table_name), row]));
+  for (const [table, beforeRow] of beforeByTable) {
+    const afterRow = afterByTable.get(table);
+    expect(afterRow, `${table} after`).toBeDefined();
+    const countDelta = table === "audit_log" || table === "outbox_events" ? 1 : 0;
+    expect(Number(afterRow?.count) - Number(beforeRow.count), table).toBe(countDelta);
+    if (mutableTables.has(table)) {
+      expect(afterRow?.content_hash, `${table} content`).not.toBe(beforeRow.content_hash);
+    } else {
+      expect(afterRow?.content_hash, `${table} content`).toBe(beforeRow.content_hash);
+    }
+  }
+}
+
 describe("operational capacity concurrency on disposable PostgreSQL", () => {
   it("admits only one athlete into the final group place with no partial loser rows", async () => {
     assertDisposableTarget();
@@ -644,6 +679,222 @@ describe("operational capacity concurrency on disposable PostgreSQL", () => {
         )
     `);
     expect(Number(receipts.rows[0]?.count)).toBe(1);
+  });
+});
+
+describe("Owner class details on disposable PostgreSQL", () => {
+  it("updates class details once, keeps names out of audit events and replays without writes", async () => {
+    assertDisposableTarget();
+    const fixture = await seedEnrollmentEligibilityAcademy();
+    const command = {
+      organizationId: fixture.organizationId,
+      classTemplateId: fixture.classTemplateId,
+      expectedUpdatedAt: await classTemplateVersion(fixture.organizationId, fixture.classTemplateId),
+      name: "CI artistic advanced class",
+      capacity: 16,
+      idempotencyKey: `ci-class-details-${randomUUID()}`,
+      actor: fixture.actor,
+    };
+    const before = await snapshot(fixture.organizationId);
+
+    const updated = await updateClassDetails(command);
+
+    expect(updated).toMatchObject({
+      id: fixture.classTemplateId,
+      name: command.name,
+      capacity: command.capacity,
+    });
+    expect(updated.updatedAtVersion).not.toBe(command.expectedUpdatedAt);
+    const after = await snapshot(fixture.organizationId);
+    expectOnlyClassDetailsWrites(before, after);
+
+    const records = await db.execute(sql`
+      select payload::text as content
+      from zaltyko.outbox_events
+      where organization_id = ${fixture.organizationId}::uuid
+        and idempotency_key = ${command.idempotencyKey}
+      union all
+      select to_jsonb(a)::text
+      from zaltyko.audit_log a
+      where organization_id = ${fixture.organizationId}::uuid
+        and idempotency_key = ${command.idempotencyKey}
+    `);
+    expect(records.rows).toHaveLength(2);
+    for (const record of records.rows) {
+      expect(String(record.content)).not.toContain(command.name);
+      expect(String(record.content)).not.toContain('"name"');
+    }
+
+    await expect(updateClassDetails(command)).resolves.toEqual(updated);
+    expect(await snapshot(fixture.organizationId)).toEqual(after);
+    const receipts = await db.execute(sql`
+      select count(*)::int as count
+      from zaltyko.outbox_events
+      where organization_id = ${fixture.organizationId}::uuid
+        and event_name = 'class_template.details_updated'
+        and idempotency_key = ${command.idempotencyKey}
+    `);
+    expect(Number(receipts.rows[0]?.count)).toBe(1);
+  });
+
+  it("rejects stale class versions without changing tenant records", async () => {
+    assertDisposableTarget();
+    const fixture = await seedEnrollmentEligibilityAcademy();
+    const before = await snapshot(fixture.organizationId);
+
+    await expect(updateClassDetails({
+      organizationId: fixture.organizationId,
+      classTemplateId: fixture.classTemplateId,
+      expectedUpdatedAt: "2000-01-01T00:00:00.000000Z",
+      name: "Stale class edit",
+      idempotencyKey: `ci-class-details-stale-${randomUUID()}`,
+      actor: fixture.actor,
+    })).rejects.toMatchObject({ code: "VERSION_CONFLICT", status: 409 });
+
+    expect(await snapshot(fixture.organizationId)).toEqual(before);
+  });
+
+  it("rejects edits outside the actor's assigned location without partial writes", async () => {
+    assertDisposableTarget();
+    const fixture = await seedEnrollmentEligibilityAcademy();
+    await db.execute(sql`
+      update zaltyko.organization_members
+      set location_scope_mode = 'selected'
+      where organization_id = ${fixture.organizationId}::uuid
+        and id = ${fixture.actor.memberId}::uuid
+    `);
+    await db.execute(sql`
+      insert into zaltyko.member_location_scopes (
+        organization_id, member_id, location_id
+      ) values (
+        ${fixture.organizationId}::uuid,
+        ${fixture.actor.memberId}::uuid,
+        ${fixture.otherSiteLocationId}::uuid
+      )
+    `);
+    const before = await snapshot(fixture.organizationId);
+
+    await expect(updateClassDetails({
+      organizationId: fixture.organizationId,
+      classTemplateId: fixture.classTemplateId,
+      expectedUpdatedAt: await classTemplateVersion(fixture.organizationId, fixture.classTemplateId),
+      name: "Denied other-site class edit",
+      idempotencyKey: `ci-class-details-other-site-${randomUUID()}`,
+      actor: fixture.actor,
+    })).rejects.toMatchObject({ code: "LOCATION_SCOPE_DENIED", status: 403 });
+
+    expect(await snapshot(fixture.organizationId)).toEqual(before);
+  });
+
+  it("serializes concurrent edits from one version and commits only one", async () => {
+    assertDisposableTarget();
+    const fixture = await seedEnrollmentEligibilityAcademy();
+    const expectedUpdatedAt = await classTemplateVersion(fixture.organizationId, fixture.classTemplateId);
+    const commands = ["Concurrent class A", "Concurrent class B"].map((name) => ({
+      organizationId: fixture.organizationId,
+      classTemplateId: fixture.classTemplateId,
+      expectedUpdatedAt,
+      name,
+      idempotencyKey: `ci-class-details-concurrent-${randomUUID()}`,
+      actor: fixture.actor,
+    }));
+    const before = await snapshot(fixture.organizationId);
+
+    const outcomes = await Promise.allSettled(commands.map((command) => updateClassDetails(command)));
+
+    expect(outcomes.filter((outcome) => outcome.status === "fulfilled")).toHaveLength(1);
+    const rejected = outcomes.find((outcome) => outcome.status === "rejected");
+    expect(rejected).toMatchObject({
+      status: "rejected",
+      reason: { code: "VERSION_CONFLICT", status: 409 },
+    });
+    expectOnlyClassDetailsWrites(before, await snapshot(fixture.organizationId));
+    const receipts = await db.execute(sql`
+      select count(*)::int as count
+      from zaltyko.outbox_events
+      where organization_id = ${fixture.organizationId}::uuid
+        and event_name = 'class_template.details_updated'
+        and idempotency_key in (${commands[0]!.idempotencyKey}, ${commands[1]!.idempotencyKey})
+    `);
+    expect(Number(receipts.rows[0]?.count)).toBe(1);
+  });
+
+  it("keeps capacity above open enrollment occupancy and rolls back the whole edit", async () => {
+    assertDisposableTarget();
+    const fixture = await seedEnrollmentEligibilityAcademy();
+    const secondAthlete = await createAthleteForGroup({
+      organizationId: fixture.organizationId,
+      groupId: fixture.targetGroupId,
+      givenName: "Class capacity second",
+      familyName: "Synthetic athlete",
+      idempotencyKey: `ci-class-capacity-second-${randomUUID()}`,
+      actor: fixture.actor,
+    });
+    for (const athleteId of [fixture.targetAthleteId, secondAthlete.athleteId]) {
+      await createEnrollment({
+        organizationId: fixture.organizationId,
+        locationId: fixture.targetLocationId,
+        athleteId,
+        classTemplateId: fixture.classTemplateId,
+        status: "active",
+        startsOn: fixture.startsOn,
+        source: "owner",
+        idempotencyKey: `ci-class-capacity-enrollment-${randomUUID()}`,
+        actor: fixture.actor,
+      });
+    }
+    const before = await snapshot(fixture.organizationId);
+
+    await expect(updateClassDetails({
+      organizationId: fixture.organizationId,
+      classTemplateId: fixture.classTemplateId,
+      expectedUpdatedAt: await classTemplateVersion(fixture.organizationId, fixture.classTemplateId),
+      name: "Must roll back with capacity",
+      capacity: 1,
+      idempotencyKey: `ci-class-capacity-reject-${randomUUID()}`,
+      actor: fixture.actor,
+    })).rejects.toMatchObject({ code: "CAPACITY_FULL", status: 409 });
+
+    expect(await snapshot(fixture.organizationId)).toEqual(before);
+  });
+
+  it("blocks writes for over-limit Free academies without partial changes", async () => {
+    assertDisposableTarget();
+    const fixture = await seedEnrollmentEligibilityAcademy();
+    const extraAthletes = Array.from({ length: 29 }, () => ({
+      personId: randomUUID(),
+      athleteId: randomUUID(),
+    }));
+    await db.execute(sql`
+      insert into zaltyko.people (id, organization_id, given_name, family_name)
+      values ${sql.join(extraAthletes.map((row) => sql`(
+        ${row.personId}::uuid,
+        ${fixture.organizationId}::uuid,
+        'Synthetic excess',
+        'Class capacity QA'
+      )`), sql`, `)}
+    `);
+    await db.execute(sql`
+      insert into zaltyko.athletes (id, organization_id, person_id)
+      values ${sql.join(extraAthletes.map((row) => sql`(
+        ${row.athleteId}::uuid,
+        ${fixture.organizationId}::uuid,
+        ${row.personId}::uuid
+      )`), sql`, `)}
+    `);
+    assertFreeUsage(await usage(fixture.organizationId), [31, 2, 2], true);
+    const before = await snapshot(fixture.organizationId);
+
+    await expect(updateClassDetails({
+      organizationId: fixture.organizationId,
+      classTemplateId: fixture.classTemplateId,
+      expectedUpdatedAt: await classTemplateVersion(fixture.organizationId, fixture.classTemplateId),
+      name: "Blocked while over Free limit",
+      idempotencyKey: `ci-class-free-readonly-${randomUUID()}`,
+      actor: fixture.actor,
+    })).rejects.toMatchObject({ code: "PLAN_OVER_CAPACITY", status: 409 });
+
+    expect(await snapshot(fixture.organizationId)).toEqual(before);
   });
 });
 

@@ -1,7 +1,7 @@
 // @vitest-environment jsdom
 import "@testing-library/jest-dom/vitest";
 import { useLayoutEffect } from "react";
-import { act, cleanup, fireEvent, render, screen, waitFor } from "@testing-library/react";
+import { act, cleanup, fireEvent, render, screen, waitFor, within } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
@@ -26,6 +26,24 @@ const baseBundle = {
 };
 type Bundle = Parameters<typeof OwnerClassesManager>[0]["bundle"];
 const bundle = baseBundle as unknown as Bundle;
+const classUpdatedAt = "2026-10-24T12:00:00.123456Z";
+const classWithSchedule = {
+  id: classId,
+  name: "Artística iniciación",
+  capacity: 12,
+  effectiveFrom: today,
+  effectiveTo: null,
+  locationId,
+  locationName: "Sede sintética",
+  programId,
+  programName: "Gimnasia artística",
+  updatedAtVersion: classUpdatedAt,
+  schedule: [{ id: "slot-1", isoWeekday: 1, startsAtLocal: "17:00", endsAtLocal: "18:00" }],
+};
+const bundleWithClass = {
+  ...baseBundle,
+  classes: [classWithSchedule],
+} as unknown as Bundle;
 const validReceipt = {
   ok: true,
   data: { id: classId, name: "Artística iniciación", sessionCount: 18, generatedThrough: "2027-02-19" },
@@ -35,6 +53,9 @@ function response(status: number, payload: unknown) {
 }
 function writes() {
   return mocks.fetch.mock.calls.filter(([, init]) => init?.method === "POST");
+}
+function classUpdates() {
+  return mocks.fetch.mock.calls.filter(([, init]) => init?.method === "PATCH");
 }
 
 beforeEach(() => {
@@ -182,14 +203,109 @@ describe("reintento de creación de clases", () => {
 
   it("en solo lectura desactiva la creación y conserva la consulta de clases y la regularización", async () => {
     publishOwnerPlanUsage(organizationId, { readOnly: true, planCode: "free" });
-    render(<OwnerClassesManager bundle={bundle} />);
+    render(<OwnerClassesManager bundle={bundleWithClass} />);
 
     expect(await screen.findByRole("button", { name: "Crear clase y sesiones" })).toBeDisabled();
     expect(screen.getByText(/La academia está en solo lectura/)).toBeVisible();
     expect(screen.getByRole("link", { name: "Uso y regularización" })).toHaveAttribute("href", `/owner/subscription?organizationId=${organizationId}#regularizar`);
     expect(screen.getByRole("heading", { name: "Clases de tu academia" })).toBeVisible();
     expect(screen.getByLabelText("Nombre de la clase")).toBeDisabled();
+    expect(screen.getByRole("button", { name: "Editar nombre y plazas" })).toBeDisabled();
     expect(writes()).toHaveLength(0);
+    expect(classUpdates()).toHaveLength(0);
+  });
+
+  it("edita nombre y plazas con versión e idempotencia sin alterar horario, sede o sesiones", async () => {
+    const updatedAtVersion = "2026-10-24T12:00:01.000001Z";
+    mocks.fetch.mockResolvedValueOnce(response(200, {
+      ok: true,
+      data: {
+        id: classId,
+        name: "Artística avanzada",
+        capacity: 16,
+        updatedAtVersion,
+      },
+    }));
+    const user = userEvent.setup();
+    render(<OwnerClassesManager bundle={bundleWithClass} />);
+
+    await user.click(screen.getByRole("button", { name: "Editar nombre y plazas" }));
+    const form = screen.getByRole("form", { name: "Editar Artística iniciación" });
+    await user.clear(within(form).getByLabelText("Nombre de la clase"));
+    await user.type(within(form).getByLabelText("Nombre de la clase"), "Artística avanzada");
+    await user.clear(within(form).getByLabelText("Plazas"));
+    await user.type(within(form).getByLabelText("Plazas"), "16");
+    await user.click(within(form).getByRole("button", { name: "Guardar cambios" }));
+
+    expect(classUpdates()).toHaveLength(1);
+    const [url, init] = classUpdates()[0]!;
+    expect(url).toBe(`/api/v1/owner/classes/${classId}`);
+    expect(init?.headers).toMatchObject({
+      "content-type": "application/json",
+      "idempotency-key": expect.stringMatching(/^owner-class-update:/),
+    });
+    expect(JSON.parse(String(init?.body))).toEqual({
+      organizationId,
+      expectedUpdatedAt: classUpdatedAt,
+      name: "Artística avanzada",
+      capacity: 16,
+    });
+    expect(String(init?.body)).not.toMatch(/schedule|locationId|effectiveFrom|session/i);
+    expect(await screen.findByRole("status")).toHaveTextContent("El horario semanal y las sesiones generadas no han cambiado");
+    expect(mocks.refresh).toHaveBeenCalledOnce();
+    expect(writes()).toHaveLength(0);
+  });
+
+  it("reintenta la misma edición con el mismo cuerpo y clave después de una respuesta ambigua", async () => {
+    mocks.fetch
+      .mockRejectedValueOnce(new TypeError("Network response lost"))
+      .mockResolvedValueOnce(response(200, {
+        ok: true,
+        data: {
+          id: classId,
+          name: "Artística iniciación",
+          capacity: 14,
+          updatedAtVersion: "2026-10-24T12:00:01.000001Z",
+        },
+      }));
+    const user = userEvent.setup();
+    render(<OwnerClassesManager bundle={bundleWithClass} />);
+
+    await user.click(screen.getByRole("button", { name: "Editar nombre y plazas" }));
+    const form = screen.getByRole("form", { name: "Editar Artística iniciación" });
+    await user.clear(within(form).getByLabelText("Plazas"));
+    await user.type(within(form).getByLabelText("Plazas"), "14");
+    await user.click(within(form).getByRole("button", { name: "Guardar cambios" }));
+    expect(await screen.findByRole("alert")).toHaveTextContent("Reintenta este mismo envío");
+    const firstRequest = classUpdates()[0]?.[1];
+
+    await user.click(within(form).getByRole("button", { name: "Reintentar mismo cambio" }));
+
+    expect(classUpdates()).toHaveLength(2);
+    expect(classUpdates()[1]?.[1]).toEqual(firstRequest);
+    expect(mocks.refresh).toHaveBeenCalledOnce();
+  });
+
+  it("no muestra el borrador de edición de otra academia tras cambiar el contexto", async () => {
+    const otherOrganizationId = "50000000-0000-4000-8000-000000000001";
+    publishOwnerPlanUsage(otherOrganizationId, { readOnly: false, planCode: "free" });
+    const user = userEvent.setup();
+    const view = render(<OwnerClassesManager bundle={bundleWithClass} />);
+    await user.click(screen.getByRole("button", { name: "Editar nombre y plazas" }));
+    expect(screen.getByLabelText("Plazas")).toHaveValue(12);
+
+    view.rerender(
+      <OwnerClassesManager
+        bundle={{
+          ...bundleWithClass,
+          organization: { ...baseBundle.organization, id: otherOrganizationId },
+        } as Bundle}
+      />
+    );
+
+    expect(screen.queryByLabelText("Plazas")).not.toBeInTheDocument();
+    expect(screen.getByRole("button", { name: "Editar nombre y plazas" })).toBeEnabled();
+    expect(classUpdates()).toHaveLength(0);
   });
 
   it("conserva cuerpo y clave tras un nombre contradictorio y los libera con el recibo coincidente", async () => {
