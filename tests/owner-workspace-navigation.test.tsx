@@ -77,4 +77,21 @@ describe("navegación móvil Owner", () => {
       );
     }
   });
+
+  it("abre Gimnastas con el contexto de academia y sin arrastrar una sede", () => {
+    const organizationId = "80000000-0000-4000-8000-000000000001";
+    const locationId = "80000000-0000-4000-8000-000000000002";
+    navigationMocks.pathname = "/owner/athletes";
+    navigationMocks.search = `organizationId=${organizationId}&locationId=${locationId}`;
+    render(<OwnerWorkspaceNavigation />);
+
+    const desktopNavigation = within(screen.getByRole("navigation", { name: "Principal", hidden: true }));
+    const mobileNavigation = within(screen.getByRole("navigation", { name: "Navegación móvil", hidden: true }));
+    for (const navigation of [desktopNavigation, mobileNavigation]) {
+      const athletesLink = navigation.getByRole("link", { name: "Gimnastas", hidden: true });
+      expect(athletesLink).toHaveAttribute("href", `/owner/athletes?organizationId=${organizationId}`);
+      expect(athletesLink).toHaveAttribute("aria-current", "page");
+      expect(athletesLink.getAttribute("href")).not.toContain(locationId);
+    }
+  });
 });

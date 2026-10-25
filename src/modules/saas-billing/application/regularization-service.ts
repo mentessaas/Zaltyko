@@ -90,7 +90,10 @@ export async function archiveResourceInTransaction(tx: TransactionClient, input:
     const predicate = resource === "athletes" ? sql`m.athlete_id = ${input.resourceId}::uuid` : sql`m.group_id = ${input.resourceId}::uuid`;
     await tx.execute(sql`
       with candidates as materialized (
-        select m.id, m.status, greatest(m.starts_on, (current_timestamp at time zone l.timezone)::date) as ends_on
+        select m.id, m.status, greatest(
+          m.starts_on,
+          least(coalesce(m.ends_on, (current_timestamp at time zone l.timezone)::date), (current_timestamp at time zone l.timezone)::date)
+        ) as ends_on
         from zaltyko.group_memberships m
         join zaltyko.groups g on g.organization_id = m.organization_id and g.id = m.group_id
         join zaltyko.locations l on l.organization_id = g.organization_id and l.id = g.location_id
@@ -106,7 +109,10 @@ export async function archiveResourceInTransaction(tx: TransactionClient, input:
     const predicate = resource === "athletes" ? sql`e.athlete_id = ${input.resourceId}::uuid` : sql`e.class_template_id = ${input.resourceId}::uuid`;
     await tx.execute(sql`
       with candidates as materialized (
-        select e.id, e.status, greatest(e.starts_on, (current_timestamp at time zone l.timezone)::date) as ends_on
+        select e.id, e.status, greatest(
+          e.starts_on,
+          least(coalesce(e.ends_on, (current_timestamp at time zone l.timezone)::date), (current_timestamp at time zone l.timezone)::date)
+        ) as ends_on
         from zaltyko.enrollments e join zaltyko.locations l on l.organization_id = e.organization_id and l.id = e.location_id
         where e.organization_id = ${input.organizationId}::uuid and ${predicate} and e.status in ('pending','trial','active','paused') for update of e
       ), changed as (

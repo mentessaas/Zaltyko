@@ -99,6 +99,9 @@ describe("sandbox PostgreSQL regularization (remote / rollback)", () => {
     const group = groups[3];
     const cls = classes[10];
     const membership = randomUUID();
+    const futureMembership = randomUUID();
+    const historicalEnrollment = randomUUID();
+    const futureEnrollment = randomUUID();
     const session = randomUUID();
     const outcome = await db.transaction(async tx => {
       await tx.execute(sql`set local statement_timeout = '15000'`);
@@ -118,7 +121,7 @@ describe("sandbox PostgreSQL regularization (remote / rollback)", () => {
       await tx.execute(sql`insert into zaltyko.people (id, organization_id, given_name, family_name) values ${sql.join(people.map((item, index) => sql`(${item.person}::uuid, ${fixtureOrg}::uuid, ${`QA ${index + 1}`}, 'Synthetic rollback')`), sql`, `)}`);
       await tx.execute(sql`insert into zaltyko.athletes (id, organization_id, person_id) values ${sql.join(people.slice(0, 30).map(item => sql`(${item.athlete}::uuid, ${fixtureOrg}::uuid, ${item.person}::uuid)`), sql`, `)}`);
       await tx.execute(sql`insert into zaltyko.groups (id, organization_id, location_id, name, capacity, status) values ${sql.join(groups.map((id, index) => sql`(${id}::uuid, ${fixtureOrg}::uuid, ${fixtureLocation}::uuid, ${`QA rollback group ${index + 1}`}, 30, 'active')`), sql`, `)}`);
-      await tx.execute(sql`insert into zaltyko.class_templates (id, organization_id, location_id, name, capacity, status, effective_from) values ${sql.join(classes.map((id, index) => sql`(${id}::uuid, ${fixtureOrg}::uuid, ${fixtureLocation}::uuid, ${`QA rollback class ${index + 1}`}, 30, 'active', current_date)`), sql`, `)}`);
+      await tx.execute(sql`insert into zaltyko.class_templates (id, organization_id, location_id, name, capacity, status, effective_from) values ${sql.join(classes.map((id, index) => sql`(${id}::uuid, ${fixtureOrg}::uuid, ${fixtureLocation}::uuid, ${`QA rollback class ${index + 1}`}, 30, 'active', current_date - 30)`), sql`, `)}`);
       await tx.execute(sql`insert into zaltyko.sessions (id, organization_id, location_id, class_template_id, status, starts_at, ends_at) values (${session}::uuid, ${fixtureOrg}::uuid, ${fixtureLocation}::uuid, ${cls}::uuid, 'scheduled', current_timestamp + interval '1 day', current_timestamp + interval '1 day 1 hour')`);
       const initial = await getOrganizationUsage(tx, fixtureOrg);
       expect(initial.readOnly).toBe(true);
@@ -134,7 +137,17 @@ describe("sandbox PostgreSQL regularization (remote / rollback)", () => {
       expect(await snapshot(fixtureOrg, tx)).toEqual(withinLimitSnapshot);
 
       await tx.execute(sql`insert into zaltyko.athletes (id, organization_id, person_id) values (${athlete.athlete}::uuid, ${fixtureOrg}::uuid, ${athlete.person}::uuid), (${secondExcessAthlete.athlete}::uuid, ${fixtureOrg}::uuid, ${secondExcessAthlete.person}::uuid)`);
-      await tx.execute(sql`insert into zaltyko.group_memberships (id, organization_id, group_id, athlete_id, status, starts_on) values (${membership}::uuid, ${fixtureOrg}::uuid, ${group}::uuid, ${athlete.athlete}::uuid, 'active', current_date)`);
+      await tx.execute(sql`insert into zaltyko.group_memberships (id, organization_id, group_id, athlete_id, status, starts_on, ends_on) values (${membership}::uuid, ${fixtureOrg}::uuid, ${group}::uuid, ${athlete.athlete}::uuid, 'active', current_date - 10, current_date - 3)`);
+      await tx.execute(sql`insert into zaltyko.group_memberships (id, organization_id, group_id, athlete_id, status, starts_on) values (${futureMembership}::uuid, ${fixtureOrg}::uuid, ${groups[0]}::uuid, ${secondExcessAthlete.athlete}::uuid, 'pending', current_date + 10)`);
+      await tx.execute(sql`insert into zaltyko.enrollments (id, organization_id, location_id, athlete_id, class_template_id, status, starts_on, ends_on, source) values (${historicalEnrollment}::uuid, ${fixtureOrg}::uuid, ${fixtureLocation}::uuid, ${athlete.athlete}::uuid, ${classes[0]}::uuid, 'active', current_date - 10, current_date - 3, 'owner'), (${futureEnrollment}::uuid, ${fixtureOrg}::uuid, ${fixtureLocation}::uuid, ${secondExcessAthlete.athlete}::uuid, ${classes[1]}::uuid, 'pending', current_date + 10, null, 'owner')`);
+      const historicalDatesBefore = (await tx.execute(sql`
+        select
+          (select ends_on::text from zaltyko.group_memberships where organization_id = ${fixtureOrg}::uuid and id = ${membership}::uuid) as membership_ends_on,
+          (select ends_on::text from zaltyko.enrollments where organization_id = ${fixtureOrg}::uuid and id = ${historicalEnrollment}::uuid) as enrollment_ends_on,
+          (select ends_on < (current_timestamp at time zone l.timezone)::date from zaltyko.group_memberships m join zaltyko.groups g on g.organization_id = m.organization_id and g.id = m.group_id join zaltyko.locations l on l.organization_id = g.organization_id and l.id = g.location_id where m.organization_id = ${fixtureOrg}::uuid and m.id = ${membership}::uuid) as membership_is_historical,
+          (select e.ends_on < (current_timestamp at time zone l.timezone)::date from zaltyko.enrollments e join zaltyko.locations l on l.organization_id = e.organization_id and l.id = e.location_id where e.organization_id = ${fixtureOrg}::uuid and e.id = ${historicalEnrollment}::uuid) as enrollment_is_historical
+      `)).rows[0];
+      expect(historicalDatesBefore).toMatchObject({ membership_is_historical: true, enrollment_is_historical: true });
       const overLimit = await getOrganizationUsage(tx, fixtureOrg);
       expect(overLimit.resources.map(item => item.current)).toEqual([32, 4, 11]);
       const overLimitSnapshot = await snapshot(fixtureOrg, tx);
@@ -162,9 +175,29 @@ describe("sandbox PostgreSQL regularization (remote / rollback)", () => {
       expect(kept.is_active).toBe(false); expect(kept.id).toBe(athlete.person); expect(kept.open).toBe(0);
       const history = (await tx.execute(sql`select count(*)::int as count from zaltyko.group_membership_history where organization_id = ${fixtureOrg}::uuid and membership_id = ${membership}::uuid and from_status = 'active' and to_status = 'ended'`)).rows[0];
       expect(history.count).toBe(1);
+      const retainedHistoricalDates = (await tx.execute(sql`
+        select
+          (select ends_on::text from zaltyko.group_memberships where organization_id = ${fixtureOrg}::uuid and id = ${membership}::uuid) as membership_ends_on,
+          (select ends_on::text from zaltyko.enrollments where organization_id = ${fixtureOrg}::uuid and id = ${historicalEnrollment}::uuid) as enrollment_ends_on,
+          (select effective_on::text from zaltyko.group_membership_history where organization_id = ${fixtureOrg}::uuid and membership_id = ${membership}::uuid and to_status = 'ended') as membership_effective_on,
+          (select effective_on::text from zaltyko.enrollment_status_history where organization_id = ${fixtureOrg}::uuid and enrollment_id = ${historicalEnrollment}::uuid and to_status = 'cancelled') as enrollment_effective_on
+      `)).rows[0];
+      expect(retainedHistoricalDates.membership_ends_on).toBe(historicalDatesBefore.membership_ends_on);
+      expect(retainedHistoricalDates.enrollment_ends_on).toBe(historicalDatesBefore.enrollment_ends_on);
+      expect(retainedHistoricalDates.membership_ends_on).toBe(retainedHistoricalDates.membership_effective_on);
+      expect(retainedHistoricalDates.enrollment_ends_on).toBe(retainedHistoricalDates.enrollment_effective_on);
       await expect(archiveResourceInTransaction(tx, { ...base, resource: "athletes", resourceId: athlete.athlete, idempotencyKey: `qa-archive-${randomUUID()}` })).rejects.toMatchObject({ code: "NOT_FOUND" });
       const secondAthleteArchive = await archiveResourceInTransaction(tx, { ...base, resource: "athletes", resourceId: secondExcessAthlete.athlete, idempotencyKey: `qa-archive-${randomUUID()}` });
       expect(secondAthleteArchive.resources[0].current).toBe(30);
+      const futureDates = (await tx.execute(sql`
+        select
+          (select starts_on::text from zaltyko.group_memberships where organization_id = ${fixtureOrg}::uuid and id = ${futureMembership}::uuid) as membership_starts_on,
+          (select ends_on::text from zaltyko.group_memberships where organization_id = ${fixtureOrg}::uuid and id = ${futureMembership}::uuid) as membership_ends_on,
+          (select starts_on::text from zaltyko.enrollments where organization_id = ${fixtureOrg}::uuid and id = ${futureEnrollment}::uuid) as enrollment_starts_on,
+          (select ends_on::text from zaltyko.enrollments where organization_id = ${fixtureOrg}::uuid and id = ${futureEnrollment}::uuid) as enrollment_ends_on
+      `)).rows[0];
+      expect(futureDates.membership_ends_on).toBe(futureDates.membership_starts_on);
+      expect(futureDates.enrollment_ends_on).toBe(futureDates.enrollment_starts_on);
       const afterAthleteExcess = await snapshot(fixtureOrg, tx);
       await expect(archiveResourceInTransaction(tx, { ...base, resource: "athletes", resourceId: withinLimitAthlete.athlete, idempotencyKey: `qa-archive-${randomUUID()}` })).rejects.toMatchObject({ code: "RESOURCE_NOT_OVER_LIMIT" });
       expect(await snapshot(fixtureOrg, tx)).toEqual(afterAthleteExcess);

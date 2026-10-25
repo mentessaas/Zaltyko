@@ -247,7 +247,7 @@ describe("perfil canónico de tutor", () => {
       "lock command",
       expect.stringContaining("for update of guardian"),
       expect.stringContaining("for update of person"),
-      expect.stringContaining("select guardian.id as guardian_id"),
+      expect.stringMatching(/select\s+guardian\.id as guardian_id/u),
     ]);
     const outboxInput = mocks.appendOutbox.mock.calls[0]?.[1] as Record<string, unknown>;
     expect(outboxInput).toMatchObject({ aggregateType: "guardian", aggregateId: guardianId });

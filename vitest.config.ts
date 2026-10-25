@@ -58,6 +58,8 @@ export default defineConfig({
                   "tests/owner-guardian-profile-postgres.integration.test.ts",
                   "tests/owner-athlete-profile-isolation-pg.test.ts",
                   "tests/owner-athlete-archive-pg.test.ts",
+                  "tests/owner-athlete-intake-pg.test.ts",
+                  "tests/owner-regularization-dates-pg.test.ts",
                 ]),
             ...(!runSandboxReadonlyPostgresSuites
               ? [

@@ -1203,3 +1203,8 @@ Catálogo remoto autorizadoMain15oct: prod no tiene namespaceszaltyko/domain_pri
   de regularización existente sin cambiar el ensayo ni reescribir su historial.
 - **Publicación:** base SQL reconstruida en CI no demuestra esquema productivo.
   Catálogo test no acredita Live; ver auditoría externa production-release-base-readonly.
+
+
+## 2026-10-25 — Guard de contacto en waitlist canónica (antes de exponerla)
+
+Auditoría estática: `assertGuardianCanContactAthlete` en waitlist-service valida vínculo familiar sin comprobar starts_on efectivo, actividad de familia/tutor ni ancla operativa en sede destino. No se localizó caller de joinWaitlist en rutas de app: explotación pública NO VERIFICADA; no se afirma envío de correo. Antes de conectar esa lista, pasar locationId al guard y exigir relación vigente por fecha civil de sede, familia/tutor activos y vínculo operativo exacto, con positivos y rechazos nativosPG/snapshots sin parciales. No se amplía la lista de espera dentro de esta entrega del MVP.

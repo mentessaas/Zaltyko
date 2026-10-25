@@ -1523,7 +1523,11 @@ test.describe("Isolated local Supabase Owner setup", () => {
     );
     await profileRegion.getByRole("button", { name: "Guardar nombre del tutor" }).click();
     const tutorProfilePatch = await tutorProfilePatchPromise;
-    expect(tutorProfilePatch.status()).toBe(200);
+    // Observe the real browser origin; never inject a header to bypass CSRF.
+    expect(await tutorProfilePatch.request().headerValue("origin")).toBe(new URL(page.url()).origin);
+    const tutorProfileResponse = await tutorProfilePatch.json();
+    expect({ status: tutorProfilePatch.status(), problemType: tutorProfileResponse?.type ?? null })
+      .toEqual({ status: 200, problemType: null });
     const tutorPatchBody = tutorProfilePatch.request().postDataJSON() as Record<string, unknown>;
     expect(tutorPatchBody).toMatchObject({
       organizationId: result.organizationId,
@@ -1534,7 +1538,7 @@ test.describe("Isolated local Supabase Owner setup", () => {
       givenName: renamedTutorGivenName,
       familyName: renamedTutorFamilyName,
     });
-    const tutorPatchReceipt = (await tutorProfilePatch.json()) as {
+    const tutorPatchReceipt = tutorProfileResponse as {
       ok: boolean;
       data: { guardianId: string; givenName: string; familyName: string; updatedAt: string; replayed: boolean };
     };
@@ -1616,7 +1620,7 @@ test.describe("Isolated local Supabase Owner setup", () => {
     await expect(reloadedProfileRegion.getByLabel("Nombre", { exact: true })).toHaveValue(renamedTutorGivenName);
     await expect(reloadedProfileRegion.getByLabel("Apellidos", { exact: true })).toHaveValue(renamedTutorFamilyName);
 
-    // Archive is deliberately the final UI write, after snapshots, billing,
+    // Archive closes the original athlete fixture after its snapshots, billing,
     // attendance, responsive checks, and cross-tenant/site denial checks.
     const archiveBeforeRows = await pool.query<{
       athlete_is_active: boolean | null;
@@ -1822,6 +1826,343 @@ test.describe("Isolated local Supabase Owner setup", () => {
         enrollment_history: archiveBefore.enrollments.length,
       },
     ]);
+
+    // Exercise intake after the original fixture assertions. The effective
+    // date comes from the selected synthetic site's timezone.
+    const intakeGroupRows = await pool.query<{
+      location_id: string;
+      group_status: string;
+      capacity: number | null;
+      location_active: boolean;
+      timezone: string;
+      local_date: string;
+      occupancy: number;
+    }>(
+      `select academy_group.location_id::text as location_id,
+              academy_group.status as group_status,
+              academy_group.capacity,
+              location.is_active as location_active,
+              location.timezone,
+              (current_timestamp at time zone location.timezone)::date::text as local_date,
+              (select count(*)::int
+                 from zaltyko.group_memberships as membership
+                where membership.organization_id = academy_group.organization_id
+                  and membership.group_id = academy_group.id
+                  and membership.status in ('pending', 'active', 'paused')) as occupancy
+         from zaltyko.groups as academy_group
+         join zaltyko.locations as location
+           on location.organization_id = academy_group.organization_id
+          and location.id = academy_group.location_id
+        where academy_group.organization_id = $1::uuid
+          and academy_group.id = $2::uuid`,
+      [result.organizationId, ownerGroupId]
+    );
+    expect(intakeGroupRows.rows).toHaveLength(1);
+    const intakeGroup = intakeGroupRows.rows[0]!;
+    expect(intakeGroup.location_id).toBe(result.locationId);
+    expect(intakeGroup.group_status).toBe("active");
+    expect(intakeGroup.location_active).toBe(true);
+    expect(intakeGroup.timezone).toBeTruthy();
+    expect(intakeGroup.local_date).toMatch(/^\d{4}-\d{2}-\d{2}$/u);
+    expect(intakeGroup.capacity).toBe(2);
+    expect(intakeGroup.occupancy).toBeLessThan(intakeGroup.capacity ?? 0);
+
+    const intakeGivenName = `Bandeja ${runId.slice(0, 8)}`;
+    const intakeFamilyName = `QA ${runId.slice(0, 8)}`;
+    const intakeAthleteName = `${intakeGivenName} ${intakeFamilyName}`;
+    const intakeUrl = `/owner/athletes?organizationId=${encodeURIComponent(result.organizationId)}`;
+    const intakeListPath = "/api/v1/owner/athlete-intake";
+    const intakeListResponse = (response: import("@playwright/test").Response) => {
+      const responseUrl = new URL(response.url());
+      return responseUrl.pathname === intakeListPath &&
+        response.request().method() === "GET" &&
+        responseUrl.searchParams.get("organizationId") === result.organizationId;
+    };
+
+    const initialIntakeListPromise = page.waitForResponse(intakeListResponse);
+    await page.goto(intakeUrl);
+    expect((await initialIntakeListPromise).status()).toBe(200);
+    await expect(page.getByRole("heading", { name: "Gimnastas", exact: true })).toBeVisible();
+    const createIntakeButton = page.getByRole("button", { name: "Crear ficha y familia", exact: true });
+    await expect(createIntakeButton).toBeEnabled();
+    await page.getByLabel("Nombre", { exact: true }).fill(intakeGivenName);
+    await page.getByLabel("Apellidos", { exact: true }).fill(intakeFamilyName);
+    await page.getByLabel("Relación familiar inicial", { exact: true }).selectOption("parent");
+    await page.getByLabel("Fecha efectiva del vínculo familiar", { exact: true }).fill(intakeGroup.local_date);
+
+    const createIntakeRequestPromise = page.waitForRequest(
+      (request) => new URL(request.url()).pathname === intakeListPath && request.method() === "POST"
+    );
+    const createIntakeResponsePromise = page.waitForResponse(
+      (response) => new URL(response.url()).pathname === intakeListPath && response.request().method() === "POST"
+    );
+    const createdIntakeListPromise = page.waitForResponse(intakeListResponse);
+    await createIntakeButton.click();
+    const createIntakeRequest = await createIntakeRequestPromise;
+    const createIntakeResponse = await createIntakeResponsePromise;
+    expect(createIntakeResponse.status()).toBe(201);
+    expect(createIntakeRequest.postDataJSON()).toEqual({
+      organizationId: result.organizationId,
+      givenName: intakeGivenName,
+      familyName: intakeFamilyName,
+      family: { kind: "new", relationship: "parent", startsOn: intakeGroup.local_date },
+    });
+    const createIntakeKey = createIntakeRequest.headers()["idempotency-key"];
+    expect(createIntakeKey).toMatch(/^[0-9a-f-]{36}$/iu);
+    const createIntakeReceipt = (await createIntakeResponse.json()) as {
+      ok: boolean;
+      data: { athleteId: string; familyId: string; incompleteFamily: boolean; replayed: boolean };
+    };
+    expect(createIntakeReceipt.ok).toBe(true);
+    expect(Object.keys(createIntakeReceipt.data).sort()).toEqual([
+      "athleteId", "familyId", "incompleteFamily", "replayed",
+    ]);
+    expect(createIntakeReceipt.data).toMatchObject({ incompleteFamily: true, replayed: false });
+    const intakeAthleteId = createIntakeReceipt.data.athleteId;
+    const intakeFamilyId = createIntakeReceipt.data.familyId;
+    expect(intakeAthleteId).toMatch(/^[0-9a-f-]{36}$/iu);
+    expect(intakeFamilyId).toMatch(/^[0-9a-f-]{36}$/iu);
+
+    const createdListPayload = await (await createdIntakeListPromise).json() as {
+      ok: boolean;
+      data: {
+        items: Array<{
+          athleteId: string;
+          givenName: string;
+          familyName: string;
+          incompleteFamily: boolean;
+          familySummaries: Array<{ familyId: string; relationship: string; startsOn: string; incompleteFamily: boolean }>;
+        }>;
+      };
+    };
+    expect(createdListPayload.ok).toBe(true);
+    const createdListItem = createdListPayload.data.items.find((item) => item.athleteId === intakeAthleteId);
+    expect(createdListItem).toEqual({
+      athleteId: intakeAthleteId,
+      givenName: intakeGivenName,
+      familyName: intakeFamilyName,
+      incompleteFamily: true,
+      familySummaries: [{
+        familyId: intakeFamilyId,
+        relationship: "parent",
+        startsOn: intakeGroup.local_date,
+        incompleteFamily: true,
+      }],
+    });
+    const intakeListRow = page.locator("li").filter({ hasText: intakeAthleteName });
+    await expect(intakeListRow).toHaveCount(1);
+    await expect(intakeListRow).toContainText("Familia incompleta: falta asociar un tutor/pagador.");
+
+    const intakeBeforeAssignmentRows = await pool.query<{
+      person_id: string;
+      athlete_id: string;
+      family_id: string;
+      given_name: string;
+      family_name: string;
+      athlete_active: boolean;
+      family_active: boolean;
+      relationship: string;
+      family_starts_on: string;
+      family_ends_on: string | null;
+      membership_count: number;
+      enrollment_count: number;
+      guardian_link_count: number;
+      payer_count: number;
+    }>(
+      `select person.id::text as person_id, athlete.id::text as athlete_id,
+              family.id::text as family_id, person.given_name, person.family_name,
+              athlete.is_active as athlete_active, family.is_active as family_active,
+              family_member.relationship, family_member.starts_on::text as family_starts_on,
+              family_member.ends_on::text as family_ends_on,
+              (select count(*)::int from zaltyko.group_memberships as membership
+                where membership.organization_id = athlete.organization_id and membership.athlete_id = athlete.id) as membership_count,
+              (select count(*)::int from zaltyko.enrollments as enrollment
+                where enrollment.organization_id = athlete.organization_id and enrollment.athlete_id = athlete.id) as enrollment_count,
+              (select count(*)::int from zaltyko.family_guardians as family_guardian
+                where family_guardian.organization_id = family.organization_id and family_guardian.family_id = family.id) as guardian_link_count,
+              (select count(*)::int from zaltyko.family_payers as payer
+                where payer.organization_id = family.organization_id and payer.family_id = family.id) as payer_count
+         from zaltyko.athletes as athlete
+         join zaltyko.people as person on person.organization_id = athlete.organization_id and person.id = athlete.person_id
+         join zaltyko.family_members as family_member on family_member.organization_id = athlete.organization_id and family_member.athlete_id = athlete.id
+         join zaltyko.families as family on family.organization_id = family_member.organization_id and family.id = family_member.family_id
+        where athlete.organization_id = $1::uuid and athlete.id = $2::uuid and family.id = $3::uuid`,
+      [result.organizationId, intakeAthleteId, intakeFamilyId]
+    );
+    expect(intakeBeforeAssignmentRows.rows).toHaveLength(1);
+    const intakeBeforeAssignment = intakeBeforeAssignmentRows.rows[0]!;
+    expect(intakeBeforeAssignment).toMatchObject({
+      person_id: expect.stringMatching(/^[0-9a-f-]{36}$/iu),
+      athlete_id: intakeAthleteId,
+      family_id: intakeFamilyId,
+      given_name: intakeGivenName,
+      family_name: intakeFamilyName,
+      athlete_active: true,
+      family_active: true,
+      relationship: "parent",
+      family_starts_on: intakeGroup.local_date,
+      family_ends_on: null,
+      membership_count: 0,
+      enrollment_count: 0,
+      guardian_link_count: 0,
+      payer_count: 0,
+    });
+
+    const intakeReloadListPromise = page.waitForResponse(intakeListResponse);
+    await page.reload();
+    const intakeReloadPayload = await (await intakeReloadListPromise).json() as typeof createdListPayload;
+    expect(intakeReloadPayload.ok).toBe(true);
+    expect(intakeReloadPayload.data.items.find((item) => item.athleteId === intakeAthleteId)).toMatchObject({
+      athleteId: intakeAthleteId,
+      incompleteFamily: true,
+      familySummaries: [{ familyId: intakeFamilyId, relationship: "parent", startsOn: intakeGroup.local_date, incompleteFamily: true }],
+    });
+    expect(intakeBeforeAssignment.membership_count).toBe(0);
+    await expect(page.locator("li").filter({ hasText: intakeAthleteName })).toHaveCount(1);
+
+    await page.locator("li").filter({ hasText: intakeAthleteName })
+      .getByRole("button", { name: "Asignar a un grupo", exact: true }).click();
+    const groupSelect = page.getByLabel("Grupo y sede", { exact: true });
+    await expect(groupSelect.locator(`option[value="${ownerGroupId}"]`)).toHaveCount(1);
+    await groupSelect.selectOption(ownerGroupId);
+    await page.getByLabel("Fecha civil de inicio en la sede", { exact: true }).fill(intakeGroup.local_date);
+    const assignmentEndpoint = `/api/v1/owner/athlete-intake/${intakeAthleteId}/assign`;
+    const assignIntakeRequestPromise = page.waitForRequest(
+      (request) => new URL(request.url()).pathname === assignmentEndpoint && request.method() === "POST"
+    );
+    const assignIntakeResponsePromise = page.waitForResponse(
+      (response) => new URL(response.url()).pathname === assignmentEndpoint && response.request().method() === "POST"
+    );
+    const assignedIntakeListPromise = page.waitForResponse(intakeListResponse);
+    await page.getByRole("button", { name: "Asignar gimnasta", exact: true }).click();
+    const assignIntakeRequest = await assignIntakeRequestPromise;
+    const assignIntakeResponse = await assignIntakeResponsePromise;
+    expect(assignIntakeResponse.status()).toBe(201);
+    expect(assignIntakeRequest.postDataJSON()).toEqual({
+      organizationId: result.organizationId,
+      groupId: ownerGroupId,
+      startsOn: intakeGroup.local_date,
+    });
+    const assignIntakeKey = assignIntakeRequest.headers()["idempotency-key"];
+    expect(assignIntakeKey).toMatch(/^[0-9a-f-]{36}$/iu);
+    const assignIntakeReceipt = (await assignIntakeResponse.json()) as {
+      ok: boolean;
+      data: { athleteId: string; groupId: string; membershipId: string; startsOn: string; replayed: boolean };
+    };
+    expect(assignIntakeReceipt.ok).toBe(true);
+    expect(Object.keys(assignIntakeReceipt.data).sort()).toEqual([
+      "athleteId", "groupId", "membershipId", "replayed", "startsOn",
+    ]);
+    expect(assignIntakeReceipt.data).toEqual({
+      athleteId: intakeAthleteId,
+      groupId: ownerGroupId,
+      membershipId: expect.stringMatching(/^[0-9a-f-]{36}$/iu),
+      startsOn: intakeGroup.local_date,
+      replayed: false,
+    });
+    const assignedIntakeListPayload = await (await assignedIntakeListPromise).json() as {
+      ok: boolean;
+      data: { items: Array<{ athleteId: string }> };
+    };
+    expect(assignedIntakeListPayload.ok).toBe(true);
+    expect(assignedIntakeListPayload.data.items.some((item) => item.athleteId === intakeAthleteId)).toBe(false);
+    await expect(page.locator("li").filter({ hasText: intakeAthleteName })).toHaveCount(0);
+
+    const intakeAfterAssignmentRows = await pool.query<{
+      membership_id: string;
+      group_id: string;
+      membership_status: string;
+      membership_starts_on: string;
+      membership_ends_on: string | null;
+      open_membership_count: number;
+      enrollment_count: number;
+      history_count: number;
+      from_status: string | null;
+      to_status: string | null;
+      history_key: string | null;
+      effective_on: string | null;
+    }>(
+      `select membership.id::text as membership_id,
+              membership.group_id::text as group_id,
+              membership.status as membership_status,
+              membership.starts_on::text as membership_starts_on,
+              membership.ends_on::text as membership_ends_on,
+              (select count(*)::int from zaltyko.group_memberships as open_membership
+                where open_membership.organization_id = membership.organization_id
+                  and open_membership.athlete_id = membership.athlete_id
+                  and open_membership.status in ('pending', 'active', 'paused')) as open_membership_count,
+              (select count(*)::int from zaltyko.enrollments as enrollment
+                where enrollment.organization_id = membership.organization_id
+                  and enrollment.athlete_id = membership.athlete_id) as enrollment_count,
+              (select count(*)::int from zaltyko.group_membership_history as history
+                where history.organization_id = membership.organization_id
+                  and history.membership_id = membership.id) as history_count,
+              history.from_status,
+              history.to_status,
+              history.idempotency_key as history_key,
+              history.effective_on::text as effective_on
+         from zaltyko.group_memberships as membership
+         left join zaltyko.group_membership_history as history
+           on history.organization_id = membership.organization_id and history.membership_id = membership.id
+        where membership.organization_id = $1::uuid
+          and membership.athlete_id = $2::uuid`,
+      [result.organizationId, intakeAthleteId]
+    );
+    expect(intakeAfterAssignmentRows.rows).toHaveLength(1);
+    const intakeAfterAssignment = intakeAfterAssignmentRows.rows[0]!;
+    expect(intakeAfterAssignment).toMatchObject({
+      membership_id: assignIntakeReceipt.data.membershipId,
+      group_id: ownerGroupId,
+      membership_status: "active",
+      membership_starts_on: intakeGroup.local_date,
+      membership_ends_on: null,
+      open_membership_count: 1,
+      enrollment_count: 0,
+      history_count: 1,
+      from_status: null,
+      to_status: "active",
+      history_key: assignIntakeKey,
+      effective_on: intakeGroup.local_date,
+    });
+
+    const assignedIntakeReloadListPromise = page.waitForResponse(intakeListResponse);
+    await page.reload();
+    const assignedIntakeReloadPayload = await (await assignedIntakeReloadListPromise).json() as {
+      ok: boolean;
+      data: { items: Array<{ athleteId: string }> };
+    };
+    expect(assignedIntakeReloadPayload.ok).toBe(true);
+    expect(assignedIntakeReloadPayload.data.items.some((item) => item.athleteId === intakeAthleteId)).toBe(false);
+    await expect(page.locator("li").filter({ hasText: intakeAthleteName })).toHaveCount(0);
+
+    await page.goto(ownerGroupsUrl);
+    await expect(page.getByRole("heading", { name: "Grupos y equipos", exact: true })).toBeVisible();
+    const assignedAthleteRow = page.locator("li").filter({ hasText: intakeAthleteName });
+    await expect(assignedAthleteRow).toHaveCount(1);
+    const openAssignedAthleteProfilePromise = page.waitForResponse((response) => {
+      const responseUrl = new URL(response.url());
+      return responseUrl.pathname === `/api/v1/owner/athletes/${intakeAthleteId}` &&
+        response.request().method() === "GET";
+    });
+    await assignedAthleteRow.getByRole("button", {
+      name: `Editar ficha de ${intakeAthleteName}`,
+      exact: true,
+    }).click();
+    const assignedAthleteProfileResponse = await openAssignedAthleteProfilePromise;
+    expect(assignedAthleteProfileResponse.status()).toBe(200);
+    const profileUrl = new URL(assignedAthleteProfileResponse.url());
+    expect(profileUrl.searchParams.get("organizationId")).toBe(result.organizationId);
+    expect(profileUrl.searchParams.get("locationId")).toBe(intakeGroup.location_id);
+    const assignedAthleteProfile = await assignedAthleteProfileResponse.json() as {
+      ok: boolean;
+      data: { athleteId: string; givenName: string; familyName: string };
+    };
+    expect(assignedAthleteProfile).toEqual({
+      ok: true,
+      data: { athleteId: intakeAthleteId, givenName: intakeGivenName, familyName: intakeFamilyName },
+    });
+    await expect(assignedAthleteRow.getByLabel("Nombre", { exact: true })).toHaveValue(intakeGivenName);
+    await expect(assignedAthleteRow.getByLabel("Apellidos", { exact: true })).toHaveValue(intakeFamilyName);
   });
 });
 

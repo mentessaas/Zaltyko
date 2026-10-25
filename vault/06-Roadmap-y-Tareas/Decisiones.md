@@ -1261,3 +1261,8 @@ gates destino/recovery/rolapp/seguridad/review siguen NO-GO. Detalle:
 | Decisión | Mantener la rama sin merge ni promoción hasta que la auditoría de dependencias y los checks obligatorios del SHA actualizado pasen, con revisión independiente donde GitHub la exija. No omitir ni relajar gates. |
 | Consecuencia | Una corrección de seguridad no se presenta como publicada hasta validar el árbol resultante; los cambios permanecen aislados de producción. |
 | Estado | Aplicable a PR #236; remediación ampliada en preparación. No se ha desplegado. |
+
+
+## 2026-10-25 — Alta organizativa sin grupo ficticio
+
+Se prepara una bandeja de gimnastas sin asignación operativa, exclusiva para Owner/Admin con acceso a todas las sedes. Alta transaccional de persona, gimnasta y familia explícita, con límite SaaS y recibo idempotente. No se inventa tutor/pagador ni se usa familia/outbox como ancla de sede. La primera asignación requiere grupo y sede reales activos, plaza y fecha civil actual de esa sede; conserva sin cambios las reglas de acceso por sede existentes. Fechas familiares se muestran como efectivas, no se presentan relaciones futuras como vigentes. Implementación pendiente de CI y recorrido sandbox, no publicada.

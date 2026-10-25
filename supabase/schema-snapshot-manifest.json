@@ -84,10 +84,10 @@
       "scope": "The pinned native Postgres-only CI stack excludes the Auth service. If this standard helper is absent, CI installs its upstream-compatible definition only in the disposable database; it is not part of the application snapshot and is never written to the source sandbox or production."
     },
     "tenant_fixture_path": "scripts/ci/sandbox-tenant-isolation.sql",
-    "tenant_fixture_sha256": "b0ffc0d3670ec51ec67169ab64094c73162c8b22405293e68bd7df6124be8ff3",
+    "tenant_fixture_sha256": "51480aba756d3c1b581da0c28e1ac3bcfee024e3ba2eef038982bbb09f23b06c",
     "replay_principal": "Connect to the validated loopback endpoint as the pinned stack's built-in supabase_admin login and verify its superuser identity. Each temporary migration dynamically executes session-local SET ROLE NONE inside one DO block, then asserts the effective supabase_admin superuser before application DDL; this avoids the pinned CLI's top-level role-reset reassertion. Query-level connection overrides are discarded; CI does not grant, revoke, or create roles or change persistent role settings.",
     "replay_script_path": "scripts/ci/verify-sandbox-schema-replay.sh",
-    "replay_script_sha256": "92d819141be6f1d1fcb4dc6a7c7c543acb2eb378f6509272e926c253bd73d141",
+    "replay_script_sha256": "e2d391effb3b745ec214bd07523d4eb76e525579588d59a23d2869d853878e69",
     "execution_evidence": "This manifest records the pinned replay procedure only; record the exact commit and CI result in the external audit report after a passing run."
   },
   "scope_exclusions": [

@@ -51,6 +51,11 @@ export function OwnerWorkspaceNavigation() {
       active: isRouteActive(pathname, "/owner/groups"),
     },
     {
+      label: "Gimnastas",
+      href: `/owner/athletes${organizationQuery}`,
+      active: isRouteActive(pathname, "/owner/athletes"),
+    },
+    {
       label: "Clases",
       href: `/owner/classes${scopedQuery}`,
       active: isRouteActive(pathname, "/owner/classes"),

@@ -12642,3 +12642,16 @@ cuota conserva mes siguiente. No ejecutado todavía; sin builds ni tests en Mac.
 ## 2026-10-25 — Validación remota del lote 576db57c
 
 Replay nativo remoto40217881995 SUCCESS para ocho suites, reconstrucción vacía y aislamiento. Build remoto40217622706 SUCCESS, pero unitarias8FAIL/5060PASS/3omitidas y Chromium falla por selector ambiguo. Se preparan correcciones de pruebas sin desactivar guards; no despliegue de esta entrega ni producción. Intake separado todavía en implementación, no validado. Ningún test/build/servicio local.
+
+
+## 2026-10-25 — Intake y fechas de regularización en preparación
+
+Alta sin grupo: servicio/rutas/bandeja Owner y pruebas nuevas preparadas. Revisión encontró carrera de doble submit durante preflight; corrección requerida antes de integrar. Se añaden suites PostgreSQL completamente sintéticas de intake y preservación de fechas del archivo por regularización; la suite antigua que depende de fixtures reales NO se ejecuta. El runner remoto pasa de ocho a diez suites; el manifiesto actualiza su hash y corrige el hash obsoleto del fixture de aislamiento sin cambiar su SQL. Sin SQL remoto/migraciones/despliegue/producción ni builds/tests locales. Pendiente evidencia por commit.
+
+
+## 2026-10-25 — Origen en harness sintético
+
+CI1e66: capturaPNG confirma rechazo de hasSameOrigin en PATCH de perfil. Runner usa navegador127.0.0.1 y Next sin hostname explícito; código upstreamNext15.5.12 construye Request URL a partir del hostname del servidor o fallback. Se fija --hostname al hostname loopback de BASE_URL únicamente en E2E_LOCAL_SUPABASE y se observa Origin real en test sin inyectarlo. Guard CSRF de producto intacto. Hipótesis/corrección pendiente de próximoCI; no afirmar resuelto en runtime ni producción. Unit restante corrige expectativa de whitespace preservando el orden de locks.
+
+
+La revisión del manifiesto detectó además que el hash registrado del fixture SQL de aislamiento no correspondía a los bytes versionados en HEAD (idénticos al archivo actual). Se corrige solo ese metadato a51480aba756d3c1b581da0c28e1ac3bcfee024e3ba2eef038982bbb09f23b06c; el SQL y sus aserciones no cambian. Se conserva la evidencia de replay anterior sin afirmar que el metadato antiguo fuera correcto.

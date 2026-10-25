@@ -10,6 +10,18 @@ persistidos reales de sandbox.
 
 ## Corte vigente de validación
 
+Corte1e66: PostgreSQL40218353564 SUCCESS y build40218342190 SUCCESS;
+unitarias5067PASS/1FAIL/3omitidas (expectativa de whitespace SQL, corregida),
+Chromium rechaza PATCH de perfil con403. Captura PNG del runner confirma
+mensaje de origen, no denegación de tenant. Se fija exclusivamente hostname
+loopback del servidor sintético al mismo host validado del navegador y se observa
+Origin real sin inyectarlo; pendiente CI, no se relaja hasSameOrigin ni producción.
+Nuevo lote intake/fechas/E2E aún sin ejecución ni publicación.
+
+Correcciones de pruebas enviadas en `1e66b4d4ce555a1589674c34a6d755d93c1664bd`.
+CI40218342190 y replayPG40218353564 en curso. Review GitHub obligatoria
+sigue REVIEW_REQUIRED; no promoción, merge ni despliegue de esta entrega.
+
 Corte posterior de `576db57c`: el build remoto pasó, pero las unitarias
 fallaron (5060 PASS, 8 FAIL, 3 omitidas) y Chromium rechazó un selector
 ambiguo de familia existente. Se corrigen mocks de UPDATE/colas entre tests,
