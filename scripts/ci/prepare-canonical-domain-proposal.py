@@ -312,7 +312,6 @@ def main() -> int:
 
     source_text = snapshot_bytes.decode("utf-8")
     parsed = parse_sql(source_text)
-    render = RawStream(semicolon_after_last_statement=True)
     included_sql: list[str] = []
     included_objects: list[dict[str, Any]] = []
     omitted = Counter()
@@ -388,7 +387,8 @@ def main() -> int:
             omitted["e2e_ledger_excluded"] += 1
             continue
 
-        sql = render(statement).strip()
+        # RawStream retains its output buffer; use one instance per statement.
+        sql = RawStream(semicolon_after_last_statement=True)(statement).strip()
         if not sql.endswith(";"):
             sql += ";"
         reparsed = parse_sql(sql)
