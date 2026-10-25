@@ -235,7 +235,7 @@ if candidate_sql.count(candidate_extension) != 1 or re.search(r"(?i)CREATE\s+EXT
 preconditions_start = candidate_sql.find("DO $canonical_installation_preconditions$")
 preconditions_end = candidate_sql.find("$canonical_installation_preconditions$;", preconditions_start)
 extension_start = candidate_sql.find(candidate_extension)
-schema_create_start = candidate_sql.find("CREATE SCHEMA zaltyko;")
+schema_create_start = candidate_sql.find('CREATE SCHEMA "zaltyko";')
 if (preconditions_start < 0 or preconditions_end < preconditions_start
         or extension_start < preconditions_end or schema_create_start < preconditions_end):
     raise SystemExit("The migration candidate must guard mode, target database, and existing schemas before DDL.")
