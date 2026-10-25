@@ -82,9 +82,11 @@ function parseAmountCents(value: string): number | null {
 }
 
 export function ManualPaymentForm({
+  actorUserId,
   organizationId,
   charges,
 }: {
+  actorUserId: string;
   organizationId: string;
   charges: OpenManualPaymentCharge[];
   canManageFamilyCollectionPreferences?: boolean;
@@ -139,7 +141,19 @@ export function ManualPaymentForm({
   const paymentInFlight = useRef(false);
 
   useEffect(() => {
-    const stored = readPendingManualPayment(window.sessionStorage);
+    setRetryRequest(null);
+    setRetryStorageError(null);
+    setRetryStorageReady(false);
+    let stored: ReturnType<typeof readPendingManualPayment>;
+    try {
+      stored = readPendingManualPayment(
+        window.localStorage,
+        actorUserId,
+        window.sessionStorage
+      );
+    } catch {
+      stored = { status: "unavailable" };
+    }
     if (stored.status === "pending") {
       const { snapshot } = stored;
       setRetryRequest({
@@ -160,11 +174,11 @@ export function ManualPaymentForm({
       );
     } else if (stored.status === "unavailable") {
       setRetryStorageError(
-        "El almacenamiento seguro de este envío no está disponible. No se enviará el pago."
+        "El almacenamiento local de este envío no está disponible. No se enviará el pago."
       );
     }
     setRetryStorageReady(true);
-  }, []);
+  }, [actorUserId]);
 
   useEffect(() => {
     setToday("");
@@ -245,6 +259,7 @@ export function ManualPaymentForm({
       if (!snapshot) {
         try {
           snapshot = await createManualPaymentRetrySnapshot({
+            actorUserId,
             body,
             currency:
               charges.find((charge) => charge.chargeId === body.chargeId)
@@ -263,10 +278,10 @@ export function ManualPaymentForm({
         snapshot.organizationId !== body.organizationId ||
         snapshot.chargeId !== body.chargeId ||
         snapshot.idempotencyKey !== key ||
-        !persistPendingManualPayment(window.sessionStorage, snapshot)
+        !persistPendingManualPayment(window.localStorage, snapshot)
       ) {
         setError(
-          "No se pudo guardar el reintento seguro. No se ha enviado el pago; inténtalo cuando el almacenamiento esté disponible."
+          "No se pudo guardar el reintento local. No se ha enviado el pago; inténtalo cuando el almacenamiento esté disponible."
         );
         return;
       }
@@ -302,7 +317,7 @@ export function ManualPaymentForm({
           [408, 425, 429].includes(response.status) ||
           (isRetry && [401, 403, 404, 409].includes(response.status));
         if (!retryMayStillNeedReceipt) {
-          if (clearPendingManualPayment(window.sessionStorage, snapshot)) {
+          if (clearPendingManualPayment(window.localStorage, snapshot)) {
             setRetryRequest(null);
           } else {
             setError(
@@ -324,7 +339,7 @@ export function ManualPaymentForm({
         return;
       }
 
-      if (!clearPendingManualPayment(window.sessionStorage, snapshot)) {
+      if (!clearPendingManualPayment(window.localStorage, snapshot)) {
         setError(
           "El pago está confirmado, pero no se pudo limpiar su reintento seguro. Puedes reintentar el mismo envío; no creará un segundo pago."
         );
@@ -431,6 +446,10 @@ export function ManualPaymentForm({
               Hay un envío anterior cuyo resultado no se pudo confirmar. Puedes
               consultar el mismo envío sin crear otro registro.
             </p>
+            <p className="mt-2">
+              Este navegador conserva los datos mínimos del reintento hasta
+              resolverlo. La referencia bancaria no se guarda en claro.
+            </p>
             {retryRequest.referenceRequired && (
               <label className="mt-3 grid gap-2">
                 <span className="font-semibold">Vuelve a introducir la referencia del envío</span>
@@ -481,7 +500,8 @@ export function ManualPaymentForm({
     >
       <div className="rounded-2xl border border-teal-900/15 bg-teal-50 px-4 py-3 text-sm leading-6 text-teal-950">
         Registra solo dinero que ya has recibido. Zaltyko no iniciará ningún
-        cobro.
+        cobro. Si se pierde la respuesta, este navegador conservará el mismo
+        reintento vinculado a tu usuario hasta confirmar el resultado.
       </div>
       {retryScopeNotice}
       {retryStorageError && (

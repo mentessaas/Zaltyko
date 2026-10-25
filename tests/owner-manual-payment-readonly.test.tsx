@@ -17,6 +17,8 @@ import type { OpenManualPaymentCharge } from "@/modules/billing/application/manu
 import { getCalendarDateInTimezone } from "@/modules/billing/domain/manual-payment-date";
 
 const organizationId = "74000000-0000-4000-8000-000000000001";
+const actorUserId = "74000000-0000-4000-8000-000000000008";
+const otherActorUserId = "74000000-0000-4000-8000-000000000009";
 const otherOrganizationId = "74000000-0000-4000-8000-000000000005";
 const timezoneSwitchOrganizationId = "74000000-0000-4000-8000-000000000007";
 const charges: OpenManualPaymentCharge[] = [
@@ -56,6 +58,7 @@ const policyCases: Array<[string, () => void]> = [
 beforeEach(() => {
   fetchMock.mockReset();
   mocks.refresh.mockReset();
+  window.localStorage.clear();
   window.sessionStorage.clear();
   vi.stubGlobal("crypto", webcrypto);
   vi.stubGlobal("fetch", fetchMock);
@@ -64,6 +67,7 @@ beforeEach(() => {
 
 afterEach(() => {
   cleanup();
+  window.localStorage.clear();
   window.sessionStorage.clear();
   vi.restoreAllMocks();
   vi.unstubAllGlobals();
@@ -104,6 +108,7 @@ describe("registro manual de pagos con política de solo lectura", () => {
 
     render(
       <ManualPaymentForm
+        actorUserId={actorUserId}
         organizationId={organizationId}
         charges={[...charges, secondCharge]}
       />
@@ -186,6 +191,7 @@ describe("registro manual de pagos con política de solo lectura", () => {
     ];
     render(
       <ManualPaymentForm
+        actorUserId={actorUserId}
         organizationId={timezoneSwitchOrganizationId}
         charges={locationCharges}
       />
@@ -209,7 +215,7 @@ describe("registro manual de pagos con política de solo lectura", () => {
 
   it.each(policyCases)("deshabilita el envío y bloquea el handler si la política indica %s", async (_reason, setPolicy) => {
     act(() => setPolicy());
-    render(<ManualPaymentForm organizationId={organizationId} charges={charges} />);
+    render(<ManualPaymentForm actorUserId={actorUserId} organizationId={organizationId} charges={charges} />);
 
     await waitFor(() => {
       expect(screen.getByLabelText("Fecha de recepción")).not.toHaveValue("");
@@ -255,7 +261,7 @@ describe("registro manual de pagos con política de solo lectura", () => {
     });
 
     const { rerender } = render(
-      <ManualPaymentForm organizationId={organizationId} charges={charges} />
+      <ManualPaymentForm actorUserId={actorUserId} organizationId={organizationId} charges={charges} />
     );
     await waitFor(() => {
       expect(screen.getByLabelText("Fecha de recepción")).not.toHaveValue("");
@@ -276,6 +282,7 @@ describe("registro manual de pagos con política de solo lectura", () => {
 
     rerender(
       <ManualPaymentForm
+        actorUserId={actorUserId}
         organizationId={otherOrganizationId}
         charges={otherOrganizationCharges}
       />
@@ -298,7 +305,7 @@ describe("registro manual de pagos con política de solo lectura", () => {
     expect(fetchMock).toHaveBeenCalledTimes(1);
 
     rerender(
-      <ManualPaymentForm organizationId={organizationId} charges={[]} />
+      <ManualPaymentForm actorUserId={actorUserId} organizationId={organizationId} charges={[]} />
     );
     const retryButton = screen.getByRole("button", {
       name: "Reintentar el mismo registro",
@@ -334,7 +341,7 @@ describe("registro manual de pagos con política de solo lectura", () => {
       };
     });
 
-    render(<ManualPaymentForm organizationId={organizationId} charges={charges} />);
+    render(<ManualPaymentForm actorUserId={actorUserId} organizationId={organizationId} charges={charges} />);
     await waitFor(() => {
       expect(screen.getByLabelText("Fecha de recepción")).not.toHaveValue("");
     });
@@ -371,7 +378,7 @@ describe("registro manual de pagos con política de solo lectura", () => {
       });
 
     const firstRender = render(
-      <ManualPaymentForm organizationId={organizationId} charges={charges} />
+      <ManualPaymentForm actorUserId={actorUserId} organizationId={organizationId} charges={charges} />
     );
     await waitFor(() => {
       expect(screen.getByLabelText("Fecha de recepción")).not.toHaveValue("");
@@ -386,18 +393,19 @@ describe("registro manual de pagos con política de solo lectura", () => {
     const firstInit = fetchMock.mock.calls[0]?.[1] as RequestInit;
     const firstBody = String(firstInit.body);
     const firstKey = (firstInit.headers as Record<string, string>)["idempotency-key"];
-    const storageKey = window.sessionStorage.key(0);
-    expect(storageKey).toBe("zaltyko:pending-manual-payment:v1");
-    const pendingSnapshot = window.sessionStorage.getItem(storageKey!)!;
+    const storageKey = window.localStorage.key(0);
+    expect(storageKey).toBe(`zaltyko:pending-manual-payment:v2:${actorUserId}`);
+    const pendingSnapshot = window.localStorage.getItem(storageKey!)!;
     expect(pendingSnapshot).not.toContain("transferencia qa 741");
     expect(JSON.parse(pendingSnapshot)).toMatchObject({
+      actorUserId,
       organizationId,
       chargeId: charges[0].chargeId,
       idempotencyKey: firstKey,
     });
 
     firstRender.unmount();
-    render(<ManualPaymentForm organizationId={organizationId} charges={charges} />);
+    render(<ManualPaymentForm actorUserId={actorUserId} organizationId={organizationId} charges={charges} />);
     await screen.findByRole("button", { name: "Reintentar el mismo registro" });
     const referenceInput = screen.getByLabelText(/Referencia/);
     expect(referenceInput).toBeEnabled();
@@ -413,21 +421,99 @@ describe("registro manual de pagos con política de solo lectura", () => {
     expect(String(retryInit.body)).toBe(firstBody);
     expect((retryInit.headers as Record<string, string>)["idempotency-key"]).toBe(firstKey);
     await screen.findByText("Pago guardado y asignado al cargo.");
-    expect(window.sessionStorage.getItem(storageKey!)).toBeNull();
+    expect(window.localStorage.getItem(storageKey!)).toBeNull();
   });
 
-  it("no envía un pago si sessionStorage no se puede escribir", async () => {
+  it("no envía un pago si localStorage no se puede escribir", async () => {
     vi.spyOn(Storage.prototype, "setItem").mockImplementation(() => {
       throw new DOMException("Storage denied", "SecurityError");
     });
-    render(<ManualPaymentForm organizationId={organizationId} charges={charges} />);
+    render(<ManualPaymentForm actorUserId={actorUserId} organizationId={organizationId} charges={charges} />);
     await waitFor(() => {
       expect(screen.getByLabelText("Fecha de recepción")).not.toHaveValue("");
     });
 
     fireEvent.click(screen.getByRole("button", { name: "Guardar pago recibido" }));
-    await screen.findByText(/no se pudo guardar el reintento seguro/i);
+    await screen.findByText(/no se pudo guardar el reintento local/i);
     expect(fetchMock).not.toHaveBeenCalled();
+  });
+
+  it("migra un reintento de sesión anterior al almacenamiento persistente del usuario", async () => {
+    window.sessionStorage.setItem(
+      "zaltyko:pending-manual-payment:v1",
+      JSON.stringify({
+        version: 1,
+        organizationId,
+        chargeId: charges[0].chargeId,
+        amountCents: 5000,
+        method: "bank_transfer",
+        currency: "EUR",
+        receivedAt: "2026-10-20T12:00:00.000Z",
+        idempotencyKey:
+          "owner-manual-payment:74000000-0000-4000-8000-000000000099",
+        referenceSha256: null,
+      })
+    );
+
+    render(
+      <ManualPaymentForm
+        actorUserId={actorUserId}
+        organizationId={organizationId}
+        charges={charges}
+      />
+    );
+
+    await screen.findByRole("button", { name: "Reintentar el mismo registro" });
+    const key = `zaltyko:pending-manual-payment:v2:${actorUserId}`;
+    expect(JSON.parse(window.localStorage.getItem(key)!)).toMatchObject({
+      version: 2,
+      actorUserId,
+      organizationId,
+      chargeId: charges[0].chargeId,
+    });
+    expect(
+      window.sessionStorage.getItem("zaltyko:pending-manual-payment:v1")
+    ).toBeNull();
+    expect(fetchMock).not.toHaveBeenCalled();
+  });
+
+  it("no muestra el reintento de otro usuario autenticado en el mismo navegador", async () => {
+    fetchMock.mockResolvedValueOnce({
+      ok: false,
+      status: 503,
+      json: async () => ({ detail: "Respuesta incierta" }),
+    });
+    const firstRender = render(
+      <ManualPaymentForm
+        actorUserId={actorUserId}
+        organizationId={organizationId}
+        charges={charges}
+      />
+    );
+    await waitFor(() => {
+      expect(screen.getByLabelText("Fecha de recepción")).not.toHaveValue("");
+    });
+    fireEvent.click(screen.getByRole("button", { name: "Guardar pago recibido" }));
+    await waitFor(() => expect(fetchMock).toHaveBeenCalledTimes(1));
+    const originalKey = `zaltyko:pending-manual-payment:v2:${actorUserId}`;
+    const originalSnapshot = window.localStorage.getItem(originalKey);
+    expect(originalSnapshot).not.toBeNull();
+
+    firstRender.unmount();
+    render(
+      <ManualPaymentForm
+        actorUserId={otherActorUserId}
+        organizationId={organizationId}
+        charges={charges}
+      />
+    );
+    await waitFor(() => {
+      expect(screen.getByRole("button", { name: "Guardar pago recibido" })).toBeEnabled();
+    });
+    expect(
+      screen.queryByRole("button", { name: "Reintentar el mismo registro" })
+    ).not.toBeInTheDocument();
+    expect(window.localStorage.getItem(originalKey)).toBe(originalSnapshot);
   });
 
   it("conserva el comando incierto si un replay requiere recuperar acceso", async () => {
@@ -448,7 +534,7 @@ describe("registro manual de pagos con política de solo lectura", () => {
       };
     });
 
-    render(<ManualPaymentForm organizationId={organizationId} charges={charges} />);
+    render(<ManualPaymentForm actorUserId={actorUserId} organizationId={organizationId} charges={charges} />);
     await waitFor(() => {
       expect(screen.getByLabelText("Fecha de recepción")).not.toHaveValue("");
     });

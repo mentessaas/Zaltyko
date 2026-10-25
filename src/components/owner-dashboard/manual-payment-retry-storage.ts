@@ -5,7 +5,8 @@ export type ManualPaymentMethod =
   | "other";
 
 export type ManualPaymentRetrySnapshot = Readonly<{
-  version: 1;
+  version: 2;
+  actorUserId: string;
   organizationId: string;
   chargeId: string;
   amountCents: number;
@@ -25,11 +26,15 @@ export type ManualPaymentRetryBody = Readonly<{
   reference?: string;
 }>;
 
-export const PENDING_MANUAL_PAYMENT_STORAGE_KEY =
+const PENDING_MANUAL_PAYMENT_STORAGE_PREFIX =
+  "zaltyko:pending-manual-payment:v2";
+const LEGACY_PENDING_MANUAL_PAYMENT_STORAGE_KEY =
   "zaltyko:pending-manual-payment:v1";
 
-const SNAPSHOT_KEYS =
+const SNAPSHOT_KEYS_V1 =
   "amountCents,chargeId,currency,idempotencyKey,method,organizationId,receivedAt,referenceSha256,version";
+const SNAPSHOT_KEYS_V2 =
+  "actorUserId,amountCents,chargeId,currency,idempotencyKey,method,organizationId,receivedAt,referenceSha256,version";
 const UUID =
   /^[0-9a-f]{8}-[0-9a-f]{4}-[1-8][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/iu;
 const HASH = /^[0-9a-f]{64}$/u;
@@ -52,8 +57,10 @@ function isRecord(value: unknown): value is Record<string, unknown> {
 function parseSnapshot(value: unknown): ManualPaymentRetrySnapshot | null {
   if (
     !isRecord(value) ||
-    Object.keys(value).sort().join(",") !== SNAPSHOT_KEYS ||
-    value.version !== 1 ||
+    Object.keys(value).sort().join(",") !== SNAPSHOT_KEYS_V2 ||
+    value.version !== 2 ||
+    typeof value.actorUserId !== "string" ||
+    !UUID.test(value.actorUserId) ||
     typeof value.organizationId !== "string" ||
     !UUID.test(value.organizationId) ||
     typeof value.chargeId !== "string" ||
@@ -77,12 +84,48 @@ function parseSnapshot(value: unknown): ManualPaymentRetrySnapshot | null {
   return value as ManualPaymentRetrySnapshot;
 }
 
+type LegacyManualPaymentRetrySnapshot = Omit<
+  ManualPaymentRetrySnapshot,
+  "version" | "actorUserId"
+> & { version: 1 };
+
+function parseLegacySnapshot(
+  value: unknown
+): LegacyManualPaymentRetrySnapshot | null {
+  if (
+    !isRecord(value) ||
+    Object.keys(value).sort().join(",") !== SNAPSHOT_KEYS_V1 ||
+    value.version !== 1 ||
+    typeof value.organizationId !== "string" ||
+    !UUID.test(value.organizationId) ||
+    typeof value.chargeId !== "string" ||
+    !UUID.test(value.chargeId) ||
+    !Number.isSafeInteger(value.amountCents) ||
+    Number(value.amountCents) <= 0 ||
+    typeof value.method !== "string" ||
+    !METHODS.has(value.method as ManualPaymentMethod) ||
+    typeof value.currency !== "string" ||
+    !CURRENCY.test(value.currency) ||
+    typeof value.receivedAt !== "string" ||
+    !Number.isFinite(Date.parse(value.receivedAt)) ||
+    typeof value.idempotencyKey !== "string" ||
+    !KEY.test(value.idempotencyKey) ||
+    (value.referenceSha256 !== null &&
+      (typeof value.referenceSha256 !== "string" ||
+        !HASH.test(value.referenceSha256)))
+  ) {
+    return null;
+  }
+  return value as LegacyManualPaymentRetrySnapshot;
+}
+
 function sameSnapshot(
   left: ManualPaymentRetrySnapshot,
   right: ManualPaymentRetrySnapshot
 ): boolean {
   return (
     left.version === right.version &&
+    left.actorUserId === right.actorUserId &&
     left.organizationId === right.organizationId &&
     left.chargeId === right.chargeId &&
     left.amountCents === right.amountCents &&
@@ -112,16 +155,19 @@ export async function fingerprintManualPaymentReference(
 }
 
 export async function createManualPaymentRetrySnapshot(args: {
+  actorUserId: string;
   body: ManualPaymentRetryBody;
   currency: string;
   idempotencyKey: string;
 }): Promise<ManualPaymentRetrySnapshot | null> {
   if (!CURRENCY.test(args.currency)) return null;
+  if (!UUID.test(args.actorUserId)) return null;
   const referenceSha256 = await fingerprintManualPaymentReference(
     args.body.reference
   );
   return parseSnapshot({
-    version: 1,
+    version: 2,
+    actorUserId: args.actorUserId,
     organizationId: args.body.organizationId,
     chargeId: args.body.chargeId,
     amountCents: args.body.amountCents,
@@ -167,13 +213,31 @@ export async function restoreManualPaymentRetryBody(
   };
 }
 
-export function readPendingManualPayment(storage: StorageLike):
+export function pendingManualPaymentStorageKey(
+  actorUserId: string
+): string | null {
+  if (!UUID.test(actorUserId)) return null;
+  return `${PENDING_MANUAL_PAYMENT_STORAGE_PREFIX}:${actorUserId}`;
+}
+
+export function readPendingManualPayment(
+  storage: StorageLike,
+  actorUserId: string,
+  legacyStorage?: StorageLike
+):
   | { status: "none" }
   | { status: "pending"; snapshot: ManualPaymentRetrySnapshot }
   | { status: "invalid" | "unavailable" } {
+  const storageKey = pendingManualPaymentStorageKey(actorUserId);
+  if (!storageKey) return { status: "invalid" };
+
+  let raw: string | null;
   try {
-    const raw = storage.getItem(PENDING_MANUAL_PAYMENT_STORAGE_KEY);
-    if (raw === null) return { status: "none" };
+    raw = storage.getItem(storageKey);
+  } catch {
+    return { status: "unavailable" };
+  }
+  if (raw !== null) {
     if (raw.length > MAX_SNAPSHOT_LENGTH) return { status: "invalid" };
     let parsed: unknown;
     try {
@@ -182,8 +246,66 @@ export function readPendingManualPayment(storage: StorageLike):
       return { status: "invalid" };
     }
     const snapshot = parseSnapshot(parsed);
-    return snapshot ? { status: "pending", snapshot } : { status: "invalid" };
+    return snapshot && snapshot.actorUserId === actorUserId
+      ? { status: "pending", snapshot }
+      : { status: "invalid" };
+  }
+
+  if (!legacyStorage) return { status: "none" };
+  let legacyRaw: string | null;
+  try {
+    legacyRaw = legacyStorage.getItem(
+      LEGACY_PENDING_MANUAL_PAYMENT_STORAGE_KEY
+    );
   } catch {
+    return { status: "unavailable" };
+  }
+  if (legacyRaw === null) return { status: "none" };
+  if (legacyRaw.length > MAX_SNAPSHOT_LENGTH) return { status: "invalid" };
+
+  let legacyValue: unknown;
+  try {
+    legacyValue = JSON.parse(legacyRaw);
+  } catch {
+    return { status: "invalid" };
+  }
+  const legacySnapshot = parseLegacySnapshot(legacyValue);
+  if (!legacySnapshot) return { status: "invalid" };
+  const migrated = parseSnapshot({
+    ...legacySnapshot,
+    version: 2,
+    actorUserId,
+  });
+  if (!migrated) return { status: "invalid" };
+  const encoded = JSON.stringify(migrated);
+  try {
+    storage.setItem(storageKey, encoded);
+    if (storage.getItem(storageKey) !== encoded) {
+      return { status: "unavailable" };
+    }
+    if (
+      legacyStorage.getItem(LEGACY_PENDING_MANUAL_PAYMENT_STORAGE_KEY) !==
+      legacyRaw
+    ) {
+      storage.removeItem(storageKey);
+      return { status: "unavailable" };
+    }
+    legacyStorage.removeItem(LEGACY_PENDING_MANUAL_PAYMENT_STORAGE_KEY);
+    if (
+      legacyStorage.getItem(LEGACY_PENDING_MANUAL_PAYMENT_STORAGE_KEY) !== null
+    ) {
+      storage.removeItem(storageKey);
+      return { status: "unavailable" };
+    }
+    return { status: "pending", snapshot: migrated };
+  } catch {
+    try {
+      if (storage.getItem(storageKey) === encoded) {
+        storage.removeItem(storageKey);
+      }
+    } catch {
+      // Keep the migration fail-closed if either storage cannot be reconciled.
+    }
     return { status: "unavailable" };
   }
 }
@@ -193,16 +315,17 @@ export function persistPendingManualPayment(
   snapshot: ManualPaymentRetrySnapshot
 ): boolean {
   const normalized = parseSnapshot(snapshot);
-  if (!normalized) return false;
-  const current = readPendingManualPayment(storage);
+  const storageKey = pendingManualPaymentStorageKey(snapshot.actorUserId);
+  if (!normalized || !storageKey) return false;
+  const current = readPendingManualPayment(storage, snapshot.actorUserId);
   if (current.status === "pending") {
     return sameSnapshot(current.snapshot, normalized);
   }
   if (current.status !== "none") return false;
   try {
     const encoded = JSON.stringify(normalized);
-    storage.setItem(PENDING_MANUAL_PAYMENT_STORAGE_KEY, encoded);
-    const saved = readPendingManualPayment(storage);
+    storage.setItem(storageKey, encoded);
+    const saved = readPendingManualPayment(storage, snapshot.actorUserId);
     return (
       saved.status === "pending" &&
       JSON.stringify(saved.snapshot) === encoded
@@ -216,7 +339,9 @@ export function clearPendingManualPayment(
   storage: StorageLike,
   snapshot: ManualPaymentRetrySnapshot
 ): boolean {
-  const current = readPendingManualPayment(storage);
+  const storageKey = pendingManualPaymentStorageKey(snapshot.actorUserId);
+  if (!storageKey) return false;
+  const current = readPendingManualPayment(storage, snapshot.actorUserId);
   if (current.status === "none") return true;
   if (
     current.status !== "pending" ||
@@ -225,8 +350,10 @@ export function clearPendingManualPayment(
     return false;
   }
   try {
-    storage.removeItem(PENDING_MANUAL_PAYMENT_STORAGE_KEY);
-    return readPendingManualPayment(storage).status === "none";
+    storage.removeItem(storageKey);
+    return (
+      readPendingManualPayment(storage, snapshot.actorUserId).status === "none"
+    );
   } catch {
     return false;
   }
