@@ -1,0 +1,48 @@
+name: Canonical domain SQL proposal (no database)
+
+on:
+  push:
+    branches: [codex/mvp-main-bridge-20261025]
+    paths:
+      - .github/workflows/canonical-domain-proposal.yml
+      - scripts/ci/prepare-canonical-domain-proposal.py
+      - supabase/schema-snapshot-manifest.json
+      - supabase/schema-snapshots/20261024172153_sandbox_schema_snapshot_baseline.sql
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  proposal:
+    if: github.repository == 'mentessaas/Zaltyko' && github.ref == 'refs/heads/codex/mvp-main-bridge-20261025'
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - uses: actions/checkout@v7
+        with:
+          persist-credentials: false
+      - uses: actions/setup-python@v6
+        with:
+          python-version: '3.12'
+      - name: Install pinned PostgreSQL AST parser on disposable runner
+        run: python -m pip install --disable-pip-version-check --only-binary=:all: pglast==7.21
+      - name: Prepare review artefacts without a database or network
+        run: |
+          set -euo pipefail
+          mkdir -p artifacts
+          sudo --preserve-env=PATH,GITHUB_ACTIONS,RUNNER_OS,GITHUB_SHA unshare --net -- bash -euc '
+            test -z "$(ip route show default)"
+            exec "$@"
+          ' proposal python scripts/ci/prepare-canonical-domain-proposal.py \
+            --snapshot supabase/schema-snapshots/20261024172153_sandbox_schema_snapshot_baseline.sql \
+            --manifest supabase/schema-snapshot-manifest.json \
+            --output artifacts/canonical-domain-proposal.sql \
+            --manifest-output artifacts/canonical-domain-proposal.json
+      - name: Preserve proposal for independent review; never apply SQL
+        uses: actions/upload-artifact@v7
+        with:
+          name: canonical-domain-proposal-${{ github.sha }}
+          path: artifacts/canonical-domain-proposal.*
+          retention-days: 3
+          if-no-files-found: error

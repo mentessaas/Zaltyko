@@ -10,6 +10,31 @@ persistidos reales de sandbox.
 
 ## Corte vigente de validación
 
+Candidato `474369eade24bd2d647290eefc4523e6c814eb83`: CI40221784665
+COMPLETED/SUCCESS, incluidos Chromium/Firefox/WebKit, 5084 unitarias PASS
+(3 omitidas), build, tipos/lint, seguridad/móvil y controles SQL. Replay
+PostgreSQL40221815751 SUCCESS con diez suites nativas. El árbol del merge CI
+c2c649fc es idéntico al HEAD:3dd21b4ee4df158d0c9b8cf8ca5a95bedbc5fcbb.
+
+Preview de entregas diferenciada READY:
+https://zaltyko-delivery-preview.vercel.app → dpl_BH3CCeYirKqdZsQg5YehLCkyzYhZ,
+SHA474 exacto. Preflight14 booleanos true, gate remoto225 PASS, tipos PASS,
+Next249391ms bajo360000,653 trazas/cero faltantes/CA incluida.
+Health2026-10-25T19:20:59UTC: databaseok61.84ms,cronAuthmissing esperado.
+Los42 alcances originales restaurados y comprobados; alias del ensayo sigue
+fijo en dpl_8GL6DqKiuuZUoPs44fjbmRpHaZhY. Cero builds/pruebas locales.
+
+No acredita aún recorrido autenticado de esta entrega: registro dedicado
+preparado con contraseña vacía y condiciones sin aceptar; dos nuevos callbacks
+solo preparados, SIN guardar, pendientes de confirmación del control navegador.
+No cuenta ni correo nuevos creados/enviados. Producción NO publicada.
+Catálogo productivo de solo lectura:139 tablas en public; esquemas canónicos ausentes;
+requiere nuevo diff específico y autorización SQL separada. Main exige revisión
+externa, sin bypass. Impago terminal natural pendiente de26 de octubre, ensayo intacto.
+
+Los cortes que siguen son históricos y no sustituyen el estado anterior.
+
+
 `7a42421ac04fd82a4ed3d63d328927cb9b638eeb`: PostgreSQL remoto
 `40220734876` SUCCESS; CI `40220720889` build, lint/tipos, controles SQL,
 móvil, seguridad y unitarias 5084 PASS/3 omitidas. Chromium superó perfil

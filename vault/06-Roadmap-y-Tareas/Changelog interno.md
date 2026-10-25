@@ -7,6 +7,47 @@ source:
   - ../docs/architecture/zaltyko-domain-model.md
 ---
 
+
+## 2026-10-25 — Propuesta canónica por AST, sin ejecución SQL
+
+- Preparación de un generador CI-only con parser PostgreSQL17 fijado y hashes
+  del snapshot/manifiesto autorizados. Selecciona únicamente objetos nuevos de
+  `zaltyko` y `zaltyko_domain_private`; excluye public, helpers legacy, ledger
+  E2E, ACL/owners y bloques dinámicos del baseline. No reconstruye historia.
+- El artefacto termina en ROLLBACK y declara `applyReady=false`: cuerpos de
+  rutinas, permisos explícitos, extensión, seeds y compatibilidad aún requieren
+  revisión y pruebas PostgreSQL remotas. Generación AST no equivale a replay.
+- Workflow separado, sin credenciales ni DB: instala parser fijado en runner,
+  ejecuta generador en namespace sin red y conserva artefactos tres días.
+  Validación de esta nueva preparación todavía pendiente; no se ejecutó localmente.
+- Catálogo productivo READ ONLY confirma prerrequisitos Auth/UUID y nombres de
+  roles, sin leer usuarios ni cambiar SQL/configuración. Detalle y límites en
+  `docs/qa/production-platform-prerequisites-2026-10-25.md`.
+- Preview474 y ensayo conservados. No aplicación productiva, nuevo despliegue,
+  cambios de Auth ni efectos sobre fixtures; revisión externa sigue obligatoria.
+
+## 2026-10-25 — Entrega sandbox474 lista; producción pendiente
+
+- CI40221784665 y replayPG40221815751 SUCCESS para474369ea;5084 unitarias,
+  tres navegadores sintéticos y diez suites PostgreSQL. Aislamiento/archivo,
+  tutor y alta sin grupo/asignación posterior incluidos, sin relajar guards.
+- Preview diferenciada https://zaltyko-delivery-preview.vercel.app READY,
+  deployment dpl_BH3CCeYirKqdZsQg5YehLCkyzYhZ. Preflight14 controles aprobados,225 pruebas,
+  tipos,Next249391ms/360000,artefacto653 trazas/cero faltantes. Health DB ok 61.84ms.
+  Se restauraron42 alcances; alias/fixtures del ensayo intactos. Nada pesado local.
+- Alta real dedicada pendiente del humano (contraseña/condiciones) y de guardar
+  dos callbacks preparados del nuevo alias. No se envió correo ni creó cuenta.
+- QA A/B: renovación normal de las mismas sesiones con getUser/IDs verificados;
+  sin cuentas nuevas, contraseñas, roles ni datos cambiados. No prueba impago.
+- Catálogo productivo read-only:139 tablas en public, esquemascanónicosausentes,
+  helper privado legacy conservado. Nuevo diff SQL específico y autorización separada;
+  snapshot vacío no se aplica allí. Main mantiene revisión externa obligatoria.
+- Evidencia duradera externa: documentacion/Zaltyko/auditoria-2026-10-25/
+  current-mvp-candidate-readiness.md,production-domain-gap-proposal.md,
+  desired-canonical-domain-inventory.json y delivery-474369ea-scope-operation.json.
+  Inventario basado en snapshot aprobado, sin fingir historia ni datos de clientes.
+
+
 ## 2026-10-25 — Intake y regularización pasan PostgreSQL; origen sintético pendiente
 
 - Corte posterior `7a42421a`: PostgreSQL `40220734876`, build y unitarias
