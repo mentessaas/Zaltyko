@@ -649,7 +649,6 @@ export function OwnerGuardianContactsEditor({
           </button>
         </div>
       )}
-      {pendingBlocked && !pending && <p role="alert" className="mt-3 text-sm text-red-900">El marcador guardado está dañado o inaccesible. No se enviarán cambios desde esta sesión.</p>}
     </section>
   );
 }

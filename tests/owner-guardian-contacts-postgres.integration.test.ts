@@ -7,6 +7,7 @@ import {
   getOwnerGuardianContacts,
   updateOwnerGuardianContact,
 } from "@/modules/families/application/owner-guardian-contacts";
+import { getOrganizationUsage } from "@/modules/saas-billing/application/organization-usage";
 
 const snapshotTables = [
   "audit_log",
@@ -238,6 +239,46 @@ async function seedPartialManager(fixture: Awaited<ReturnType<typeof seedGuardia
   return { userId, memberId };
 }
 
+async function seedPrimaryGuardianEmail(
+  fixture: Awaited<ReturnType<typeof seedGuardianFixture>>,
+  value: string
+) {
+  const contactId = randomUUID();
+  await db.execute(sql`
+    insert into zaltyko.guardian_contacts (
+      id, organization_id, guardian_id, kind, value, normalized_value,
+      is_primary, verified_at
+    ) values (
+      ${contactId}::uuid, ${fixture.organizationId}::uuid,
+      ${fixture.guardianId}::uuid, 'email', ${value}, ${value}, true, now()
+    )
+  `);
+  return contactId;
+}
+
+async function addThirtyActiveAthletes(
+  fixture: Awaited<ReturnType<typeof seedGuardianFixture>>
+) {
+  await db.execute(sql`
+    with inserted_people as (
+      insert into zaltyko.people (id, organization_id, given_name, family_name)
+      select gen_random_uuid(), ${fixture.organizationId}::uuid, 'Synthetic limit', series.n::text
+      from generate_series(1, 30) as series(n)
+      returning id
+    )
+    insert into zaltyko.athletes (id, organization_id, person_id)
+    select gen_random_uuid(), ${fixture.organizationId}::uuid, inserted_people.id
+    from inserted_people
+  `);
+}
+
+async function captureError<T>(promise: Promise<T>) {
+  return promise.then(
+    () => null,
+    (error: unknown) => error as Error & { code?: string; status?: number }
+  );
+}
+
 function patch(
   fixture: Awaited<ReturnType<typeof seedGuardianFixture>>,
   input: {
@@ -368,6 +409,118 @@ describe("Owner guardian contacts against disposable PostgreSQL", () => {
     expect(serialized).not.toContain("previousValueHash");
     expect(serialized).not.toContain("nextValueHash");
     expect(serialized).not.toContain("valueHash");
+  }, 45_000);
+
+  it("does not expose a guardian from another academy or mutate its data", async () => {
+    assertDisposableTarget();
+    const requester = await seedGuardianFixture();
+    const target = await seedGuardianFixture();
+    const privateValue = "target.guardian@example.test";
+    await seedPrimaryGuardianEmail(target, privateValue);
+    const before = await snapshot(target.organizationId);
+    const foreignScope = {
+      organizationId: target.organizationId,
+      locationId: target.locationId,
+      guardianId: target.guardianId,
+      actor: requester.actor,
+    };
+
+    const readError = await captureError(getOwnerGuardianContacts(foreignScope));
+    expect(readError).toMatchObject({ code: "FORBIDDEN", status: 403 });
+    expect(String(readError)).not.toContain(privateValue);
+
+    const patchError = await captureError(updateOwnerGuardianContact({
+      ...foreignScope,
+      kind: "email",
+      expectedContactId: null,
+      expectedValue: null,
+      expectedUpdatedAt: null,
+      value: "attacker@example.test",
+      idempotencyKey: `ci-contact-foreign-academy-${randomUUID()}`,
+    }));
+    expect(patchError).toMatchObject({ code: "FORBIDDEN", status: 403 });
+    expect(String(patchError)).not.toContain(privateValue);
+    expect(await snapshot(target.organizationId)).toEqual(before);
+  }, 45_000);
+
+  it("does not expose or change a guardian through an unlinked location", async () => {
+    assertDisposableTarget();
+    const fixture = await seedGuardianFixture();
+    const privateValue = "unlinked.guardian@example.test";
+    await seedPrimaryGuardianEmail(fixture, privateValue);
+    const unlinkedLocationId = randomUUID();
+    await db.execute(sql`
+      insert into zaltyko.locations (id, organization_id, code, name, timezone)
+      values (
+        ${unlinkedLocationId}::uuid, ${fixture.organizationId}::uuid,
+        ${`ci-unlinked-${unlinkedLocationId.slice(0, 8)}`}, 'CI unlinked location', 'Europe/Madrid'
+      )
+    `);
+    const current = await getOwnerGuardianContacts({
+      organizationId: fixture.organizationId,
+      locationId: fixture.locationId,
+      guardianId: fixture.guardianId,
+      actor: fixture.actor,
+    });
+    const before = await snapshot(fixture.organizationId);
+    const unlinkedScope = {
+      organizationId: fixture.organizationId,
+      locationId: unlinkedLocationId,
+      guardianId: fixture.guardianId,
+      actor: fixture.actor,
+    };
+
+    const readError = await captureError(getOwnerGuardianContacts(unlinkedScope));
+    expect(readError).toMatchObject({ code: "NOT_FOUND", status: 404 });
+    expect(String(readError)).not.toContain(privateValue);
+
+    const patchError = await captureError(updateOwnerGuardianContact({
+      ...unlinkedScope,
+      kind: "email",
+      expectedContactId: current.contacts.email!.contactId,
+      expectedValue: current.contacts.email!.value,
+      expectedUpdatedAt: current.contacts.email!.updatedAt,
+      value: "changed@example.test",
+      idempotencyKey: `ci-contact-unlinked-location-${randomUUID()}`,
+    }));
+    expect(patchError).toMatchObject({ code: "NOT_FOUND", status: 404 });
+    expect(String(patchError)).not.toContain(privateValue);
+    expect(await snapshot(fixture.organizationId)).toEqual(before);
+  }, 45_000);
+
+  it("replays an applied command read-only but blocks a new edit with no partial effects", async () => {
+    assertDisposableTarget();
+    const fixture = await seedGuardianFixture();
+    const command = {
+      key: `ci-contact-readonly-replay-${randomUUID()}`,
+      value: "readonly.replay@example.test",
+    };
+    const applied = await patch(fixture, command);
+    expect(applied.replayed).toBe(false);
+
+    await addThirtyActiveAthletes(fixture);
+    const usage = await db.transaction((tx) => getOrganizationUsage(tx, fixture.organizationId));
+    expect(usage.planCode).toBe("free");
+    expect(usage.readOnly).toBe(true);
+    expect(usage.resources).toContainEqual({ resource: "athletes", current: 31, limit: 30, excess: 1 });
+
+    const beforeReplay = await snapshot(fixture.organizationId);
+    const replay = await patch(fixture, command);
+    expect(replay).toMatchObject({
+      replayed: true,
+      contacts: { email: { contactId: applied.contacts.email?.contactId } },
+    });
+    expect(await snapshot(fixture.organizationId)).toEqual(beforeReplay);
+
+    const editError = await captureError(patch(fixture, {
+      key: `ci-contact-readonly-edit-${randomUUID()}`,
+      expectedContactId: applied.contacts.email!.contactId,
+      expectedValue: applied.contacts.email!.value,
+      expectedUpdatedAt: applied.contacts.email!.updatedAt,
+      value: "blocked.edit@example.test",
+    }));
+    expect(editError).toMatchObject({ code: "PLAN_OVER_CAPACITY", status: 409 });
+    expect(await snapshot(fixture.organizationId)).toEqual(beforeReplay);
   }, 45_000);
 
   it("promotes a prior secondary contact but clears its verification after the primary changes", async () => {

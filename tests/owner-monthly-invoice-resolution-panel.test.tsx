@@ -388,7 +388,7 @@ describe("ámbito del panel de resolución de facturas", () => {
     fireEvent.click(screen.getByRole("checkbox", { name: confirmationName }));
     expect(screen.getByRole("checkbox", { name: confirmationName })).toBeChecked();
 
-    fireEvent.change(screen.getByLabelText("Fecha efectiva"), { target: { value: "2026-01-02" } });
+    fireEvent.change(screen.getByLabelText(/^Fecha efectiva/), { target: { value: "2026-01-02" } });
     expect(screen.getByRole("checkbox", { name: confirmationName })).not.toBeChecked();
     expect(screen.getByRole("button", { name: "Guardar vínculo" })).toBeDisabled();
 

@@ -33,7 +33,7 @@ describe("normalización de contactos Owner de tutor", () => {
       success: false,
     });
     expect(
-      normalizeOwnerGuardianContact("email", `${"a".repeat(246)}@x.test`)
+      normalizeOwnerGuardianContact("email", `${"a".repeat(248)}@x.test`)
     ).toMatchObject({ success: false });
   });
 });

@@ -72,6 +72,8 @@ export default async function OwnerAttendancePage({
       locationId={data.locationId}
       sessions={data.sessions}
       initialSessionId={query.data.sessionId}
+      initialNextCursor={data.nextCursor}
+      selectedSession={data.selectedSession}
     />
   );
 }

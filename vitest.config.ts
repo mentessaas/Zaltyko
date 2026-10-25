@@ -54,6 +54,7 @@ export default defineConfig({
                   "tests/billing-ledger-postgres.integration.test.ts",
                   "tests/owner-family-onboarding-postgres.integration.test.ts",
                   "tests/owner-guardian-contacts-postgres.integration.test.ts",
+                  "tests/owner-attendance-sessions-postgres.integration.test.ts",
                 ]),
             ...(!runSandboxReadonlyPostgresSuites
               ? [

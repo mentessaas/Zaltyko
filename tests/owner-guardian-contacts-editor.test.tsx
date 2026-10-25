@@ -104,7 +104,7 @@ async function openEmailEditor(user: ReturnType<typeof userEvent.setup>) {
 }
 
 beforeEach(() => {
-  vi.clearAllMocks();
+  mocks.fetch.mockReset();
   window.sessionStorage.clear();
   generatedKeyIndex = 0;
   vi.stubGlobal("crypto", { randomUUID: () => generatedKeys[generatedKeyIndex++] ?? generatedKeys[generatedKeys.length - 1] });
@@ -158,7 +158,7 @@ describe("contactos del tutor en Owner", () => {
     await user.type(screen.getByLabelText("Teléfono"), "612345678");
     await user.click(screen.getByRole("button", { name: "Guardar teléfono" }));
 
-    expect(await screen.findByRole("alert")).toHaveTextContent("prefijo internacional E.164");
+    expect(await screen.findByRole("alert")).toHaveTextContent("formato internacional E.164, con + y prefijo de país explícito");
     expect(mocks.fetch).toHaveBeenCalledOnce();
     expect(readPendingOwnerGuardianContact({ organizationId, locationId, guardianId }, window.sessionStorage).kind).toBe("none");
   });
@@ -215,7 +215,6 @@ describe("contactos del tutor en Owner", () => {
   it("al confirmar un replay actualiza la ficha con el estado actual del servidor, no con el cuerpo antiguo", async () => {
     mocks.fetch.mockResolvedValueOnce(response(200, getPayload()))
       .mockRejectedValueOnce(new Error("connection reset"))
-      .mockResolvedValueOnce(response(200, getPayload()))
       .mockResolvedValueOnce(response(200, patchPayload(guardianId, "later@example.test", true)));
     const user = userEvent.setup();
     render(<OwnerGuardianContactsEditor {...props()} />);
@@ -229,6 +228,8 @@ describe("contactos del tutor en Owner", () => {
     expect(await screen.findByRole("status")).toHaveTextContent("se muestran los contactos actuales");
     expect(screen.getByText("later@example.test")).toBeVisible();
     expect(screen.queryByText("new@example.test")).not.toBeInTheDocument();
+    expect(mocks.fetch).toHaveBeenCalledTimes(3);
+    expect(mocks.fetch.mock.calls[2]).toEqual(mocks.fetch.mock.calls[1]);
     expect(readPendingOwnerGuardianContact({ organizationId, locationId, guardianId }, window.sessionStorage).kind).toBe("none");
   });
 

@@ -1,7 +1,7 @@
 "use client";
 
 import Link from "next/link";
-import { useEffect, useLayoutEffect, useRef, useState } from "react";
+import { useEffect, useLayoutEffect, useMemo, useRef, useState } from "react";
 import { OwnerOperationalReadOnlyNotice } from "./OwnerOperationalReadOnlyNotice";
 import { useOwnerPlanPolicy } from "./owner-plan-usage-store";
 import {
@@ -35,6 +35,14 @@ type SessionOption = {
   startsAt: string;
   timezone: string;
   retryOnly?: boolean;
+};
+type SessionPageState = {
+  identity: string;
+  sessions: SessionOption[];
+  nextCursor: string | null;
+  loading: boolean;
+  error: string;
+  consumedCursors: string[];
 };
 type AttendanceCommand = {
   organizationId: string;
@@ -100,6 +108,66 @@ function responseError(payload: unknown): string {
   return "No se ha podido guardar la asistencia. Inténtalo de nuevo.";
 }
 
+function sessionOption(value: unknown): value is SessionOption {
+  if (!value || typeof value !== "object") return false;
+  const candidate = value as Record<string, unknown>;
+  return (
+    typeof candidate.id === "string" &&
+    candidate.id.length > 0 &&
+    typeof candidate.className === "string" &&
+    typeof candidate.startsAt === "string" &&
+    !Number.isNaN(Date.parse(candidate.startsAt)) &&
+    typeof candidate.timezone === "string" &&
+    candidate.timezone.length > 0 &&
+    (candidate.retryOnly === undefined ||
+      typeof candidate.retryOnly === "boolean")
+  );
+}
+
+function sessionPageData(
+  payload: unknown,
+  organizationId: string,
+  locationId: string
+): { sessions: SessionOption[]; nextCursor: string | null } | null {
+  const data = responseData<unknown>(payload);
+  if (!data || typeof data !== "object") return null;
+  const candidate = data as Record<string, unknown>;
+  const organization = candidate.organization;
+  if (
+    !organization ||
+    typeof organization !== "object" ||
+    (organization as Record<string, unknown>).id !== organizationId ||
+    candidate.locationId !== locationId ||
+    !Array.isArray(candidate.sessions) ||
+    (candidate.nextCursor !== null &&
+      (typeof candidate.nextCursor !== "string" ||
+        candidate.nextCursor.length === 0)) ||
+    !candidate.sessions.every(sessionOption)
+  ) {
+    return null;
+  }
+
+  const sessions = candidate.sessions as SessionOption[];
+  if (new Set(sessions.map((session) => session.id)).size !== sessions.length) {
+    return null;
+  }
+
+  return {
+    sessions,
+    nextCursor: candidate.nextCursor as string | null,
+  };
+}
+
+function sessionPageError(payload: unknown): string {
+  if (payload && typeof payload === "object") {
+    const detail = "detail" in payload ? payload.detail : undefined;
+    const message = "message" in payload ? payload.message : undefined;
+    if (typeof detail === "string") return detail;
+    if (typeof message === "string") return message;
+  }
+  return "No se han podido cargar más sesiones. Comprueba la conexión e inténtalo de nuevo.";
+}
+
 function formatSessionDate(value: string, timezone: string): string {
   const date = new Date(value);
   if (Number.isNaN(date.getTime())) return value;
@@ -115,24 +183,86 @@ export function OwnerAttendanceManager({
   locationId,
   sessions,
   initialSessionId,
+  initialNextCursor,
+  selectedSession: requestedSession,
 }: {
   organizationId: string;
   locationId: string;
   sessions: SessionOption[];
   initialSessionId?: string | null;
+  initialNextCursor?: string | null;
+  selectedSession?: SessionOption | null;
 }) {
   const planPolicy = useOwnerPlanPolicy(organizationId);
   const writesBlocked = planPolicy.status !== "ready" || planPolicy.readOnly;
+  const initialSessionOptions = useMemo(
+    () =>
+      requestedSession &&
+      !sessions.some((session) => session.id === requestedSession.id)
+        ? [...sessions, requestedSession]
+        : sessions,
+    [requestedSession, sessions]
+  );
+  const sessionPageIdentity = JSON.stringify([
+    organizationId,
+    locationId,
+    initialSessionId ?? null,
+    initialNextCursor ?? null,
+    initialSessionOptions,
+  ]);
+  const initialSessionPageState = useMemo<SessionPageState>(
+    () => ({
+      identity: sessionPageIdentity,
+      sessions: initialSessionOptions,
+      nextCursor: initialNextCursor ?? null,
+      loading: false,
+      error: "",
+      consumedCursors: [],
+    }),
+    [initialNextCursor, initialSessionOptions, sessionPageIdentity]
+  );
+  const [sessionPageState, setSessionPageState] = useState<SessionPageState>(
+    initialSessionPageState
+  );
+  const pageRequestController = useRef<AbortController | null>(null);
+  const pageRequestGeneration = useRef(0);
+  const pageRequestLoading = useRef(false);
+  const activeSessionPageIdentity = useRef(sessionPageIdentity);
+  const sessionPage =
+    sessionPageState.identity === sessionPageIdentity
+      ? sessionPageState
+      : initialSessionPageState;
+  const sessionOptions = sessionPage.sessions;
+
+  useCommittedLayoutEffect(() => {
+    if (activeSessionPageIdentity.current === sessionPageIdentity) return;
+    activeSessionPageIdentity.current = sessionPageIdentity;
+    pageRequestGeneration.current += 1;
+    pageRequestController.current?.abort();
+    pageRequestController.current = null;
+    pageRequestLoading.current = false;
+    setSessionPageState(initialSessionPageState);
+  }, [initialSessionPageState, sessionPageIdentity]);
+
+  useEffect(
+    () => () => {
+      pageRequestGeneration.current += 1;
+      pageRequestController.current?.abort();
+      pageRequestController.current = null;
+    },
+    []
+  );
+
   const selectionScope = JSON.stringify([
     organizationId,
     locationId,
     initialSessionId ?? null,
   ]);
   const initialSelection = initialSessionId
-    ? sessions.some((session) => session.id === initialSessionId)
+    ? sessionOptions.some((session) => session.id === initialSessionId)
       ? initialSessionId
       : ""
-    : (sessions[0]?.id ?? "");
+    : (sessionOptions[0]?.id ?? "");
   const [selection, setSelection] = useState({
     scope: selectionScope,
     sessionId: initialSelection,
@@ -140,14 +270,14 @@ export function OwnerAttendanceManager({
   const sessionId =
     selection.scope === selectionScope &&
     (selection.sessionId === "" ||
-      sessions.some((session) => session.id === selection.sessionId))
+      sessionOptions.some((session) => session.id === selection.sessionId))
       ? selection.sessionId
       : initialSelection;
   const requestedSessionUnavailable = Boolean(
     initialSessionId &&
-      !sessions.some((session) => session.id === initialSessionId)
+      !sessionOptions.some((session) => session.id === initialSessionId)
   );
-  const selectedSession = sessions.find((session) => session.id === sessionId);
+  const selectedSession = sessionOptions.find((session) => session.id === sessionId);
   const currentScopeKey = attendanceScopeKey(
     organizationId,
     locationId,
@@ -193,6 +323,93 @@ export function OwnerAttendanceManager({
     saveFeedback.scopeKey === currentScopeKey ? saveFeedback.notice : "";
   const [refreshKey, setRefreshKey] = useState(0);
   const requestSequence = useRef(0);
+
+  async function loadMoreSessions() {
+    const cursor = sessionPage.nextCursor;
+    if (!cursor || sessionPage.loading || pageRequestLoading.current) return;
+
+    pageRequestLoading.current = true;
+    pageRequestController.current?.abort();
+    const controller = new AbortController();
+    pageRequestController.current = controller;
+    const requestGeneration = ++pageRequestGeneration.current;
+    const requestIdentity = sessionPageIdentity;
+    const params = new URLSearchParams({
+      organizationId,
+      locationId,
+      cursor,
+    });
+    setSessionPageState((current) =>
+      current.identity === requestIdentity
+        ? { ...current, loading: true, error: "" }
+        : current
+    );
+
+    const isCurrentRequest = () =>
+      !controller.signal.aborted &&
+      pageRequestGeneration.current === requestGeneration &&
+      activeSessionPageIdentity.current === requestIdentity;
+
+    try {
+      const response = await fetch(
+        `/api/v1/owner/attendance/sessions?${params.toString()}`,
+        { cache: "no-store", signal: controller.signal }
+      );
+      const payload = await response.json().catch(() => null);
+      if (!response.ok) throw new Error(sessionPageError(payload));
+      const page = sessionPageData(payload, organizationId, locationId);
+      if (!page) {
+        throw new Error(
+          "La respuesta de sesiones no coincide con esta academia y sede. Vuelve a intentarlo."
+        );
+      }
+      if (
+        page.nextCursor !== null &&
+        (page.nextCursor === cursor ||
+          sessionPage.consumedCursors.includes(page.nextCursor))
+      ) {
+        throw new Error(
+          "La paginación no avanzó de forma segura. Vuelve a intentarlo más tarde."
+        );
+      }
+      if (!isCurrentRequest()) return;
+
+      setSessionPageState((current) => {
+        if (current.identity !== requestIdentity) return current;
+        const knownIds = new Set(current.sessions.map((session) => session.id));
+        return {
+          ...current,
+          sessions: [
+            ...current.sessions,
+            ...page.sessions.filter((session) => !knownIds.has(session.id)),
+          ],
+          nextCursor: page.nextCursor,
+          consumedCursors: [...current.consumedCursors, cursor],
+          loading: false,
+          error: "",
+        };
+      });
+    } catch (cause) {
+      if (!isCurrentRequest()) return;
+      setSessionPageState((current) =>
+        current.identity === requestIdentity
+          ? {
+              ...current,
+              loading: false,
+              error:
+                cause instanceof Error && cause.name !== "TypeError"
+                  ? cause.message
+                  : "No se han podido cargar más sesiones. Comprueba la conexión e inténtalo de nuevo.",
+            }
+          : current
+      );
+    } finally {
+      if (pageRequestGeneration.current === requestGeneration) {
+        pageRequestLoading.current = false;
+        pageRequestController.current = null;
+      }
+    }
+  }
 
   useEffect(() => {
     const stored = readAttendanceRetries(window.sessionStorage);
@@ -455,7 +672,11 @@ export function OwnerAttendanceManager({
             );
           })}
 
-        {sessions.length === 0 && !initialSessionId ? (
+        {sessionOptions.length === 0 &&
+        !initialSessionId &&
+        !sessionPage.nextCursor &&
+        !sessionPage.loading &&
+        !sessionPage.error ? (
           <p className="border border-slate-300 bg-white p-5 text-sm leading-6 text-slate-700">
             Aún no hay sesiones para pasar lista. Crea una clase recurrente para
             preparar sus sesiones.
@@ -479,7 +700,7 @@ export function OwnerAttendanceManager({
                 aria-label="Seleccionar sesión"
               >
                 <option value="">Selecciona una sesión</option>
-                {sessions.map((session) => (
+                {sessionOptions.map((session) => (
                   <option key={session.id} value={session.id}>
                     {session.className} ·{" "}
                     {formatSessionDate(session.startsAt, session.timezone)}
@@ -487,6 +708,34 @@ export function OwnerAttendanceManager({
                 ))}
               </select>
             </label>
+            {sessionPage.loading && (
+              <p role="status" aria-live="polite" className="text-sm text-slate-600">
+                Cargando más sesiones…
+              </p>
+            )}
+            {sessionPage.error && (
+              <div role="alert" className="border border-red-300 bg-red-50 p-4 text-sm text-red-900">
+                <p>{sessionPage.error}</p>
+                <button
+                  type="button"
+                  onClick={() => void loadMoreSessions()}
+                  disabled={sessionPage.loading}
+                  className="mt-3 underline underline-offset-2 disabled:opacity-50"
+                >
+                  Reintentar carga de sesiones
+                </button>
+              </div>
+            )}
+            {!sessionPage.error && sessionPage.nextCursor && (
+              <button
+                type="button"
+                onClick={() => void loadMoreSessions()}
+                disabled={sessionPage.loading}
+                className={buttonClassName}
+              >
+                {sessionPage.loading ? "Cargando sesiones…" : "Cargar más sesiones"}
+              </button>
+            )}
             {requestedSessionUnavailable && (
               <p role="status" className="border border-amber-300 bg-amber-50 p-4 text-sm text-amber-950">
                 La sesión solicitada no está disponible en esta sede. No hemos

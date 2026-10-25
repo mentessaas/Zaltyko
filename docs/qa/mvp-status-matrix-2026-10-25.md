@@ -212,3 +212,14 @@ Hueco demostrado: la asociación familiar no permitía gestionar el correo/telé
 ### Replaya004af54:24PASS/4FAIL — bloqueo de payload corregido, pendiente de rerun
 
 Run40209662912 reconstruyó PG y terminó24PASS/4FAIL de28casos. Las tres suites previas pasan, incluidos251cargos paginados y nueve casos de familia. Cuatro casos nuevos de contacto fallaron antes del commit por `assertAnalyticsSafePayload`: guardianId está prohibido dentro de payload por política vigente. Se conserva guardianId exclusivamente en aggregateId (ya comparado explícitamente en replay) y se elimina su redundancia del payload y de la comparación de payload; actor/fingerprint permanecen exigidos. No se modifica la política ni su expresión regular. El caso PG exige ahora ausencia de guardianId en payload. Nueva ejecución requerida; no se atribuye PASS al bloque contacto. Gates40209655742 y SQL40209655758 SUCCESS; CI principal sigue en ejecución.
+
+
+### Unitariosa004af54 —4986PASS/12FAIL/3omitidas
+
+Job121218042399 cerró con643archivosPASS/3FAIL/1omitido. Quedaron fallos de los nuevos tests de contactos (copy/receipt/almacenamiento), un fixture de email que solo medía253 pese a esperar rechazo por superar254, y selector exacto de la fecha efectiva que incluía ayuda accesible. Se investigan/corrigen sin rebajar contratos. CI principal no es verde. Build y lint/tipos del mismo corte sí terminaronPASS.
+
+### Asistencia: paginación de sesiones preparada
+
+El selector anterior limitaba100sin señalizar truncamiento. GET y SSR ahora ofrecen páginas50+1 por(starts_at exacto,id), nextCursor y selectedSession separado si fue solicitado expresamente y no está en la página. Cada solicitud vuelve a autorizar actor/academia/sede, estadosscheduled/completed y ventana móvil±30d; el cursor no lleva filtros confiables ni secretos. No equivale a snapshot consistente ante cambios de datos/tiempo. UI carga más sin repetir POST, preserva selección y descarta respuestas viejas de otro ámbito. Nuevo PG105sesiones y testsHTTP/UI preparados; sin pruebas/build locales. El runner solo ejecuta esta suite enPGdesechableCI.
+
+Contactos suma tres casosPG adicionales: aislamiento entre academias, sede sin vínculo y replay trasFree31/30con nueva escritura rechazada sin efectos parciales. Pendientes de ejecución remota.

@@ -12580,3 +12580,10 @@ Modelo separado, reclamación manual, administración, importación revisada, fi
 
 - PG40209662912 del a004af54:24PASS/4FAIL. Capacidad, ledger251cargos y familia pasan; contactos bloqueados por payloadguardianId restringido. La corrección retira ese campo redundante del payload y lo valida por aggregateId antes del replay; actor/fingerprint siguen obligatorios. No se relaja assertAnalyticsSafePayload ni SQL/permisos. Nuevo replay pendiente.
 - El hash del runner actualizado no modifica el snapshot SQL. La edición de contacto mantiene seis microsegundos y limpia verificación al cambiar destino. Se retiraron hashes directos adicionales de email/teléfono; commandFingerprint conserva función de idempotencia y no se presenta como anonimización de datos.
+
+
+## 2026-10-25 — Asistencia sin truncamiento silencioso, pendiente de CI
+
+- Auditoría demostró selector de asistencia limitado a100sin cursor/aviso. Entrega prepara GETpaginado50+1, keyset microsegundos/id, scopeverificado y selectedSessiondirecto separado. Ventana±30d actual y status permanecen; no cambia POSTasistencia. UI conserva selección y protege contra respuestas viejas de otra academia/sede. PG105sesiones y pruebasHTTP/UI añadidos, no ejecutados localmente ni acreditados en sandbox.
+- Unitariosa004af54:4986PASS/12FAIL/3omitidas. Fallos identificados en nuevos testscontactos y selectorfecha mensual; email demasiado largo de la fixture medía253 y se corrige a255 sin cambiar límite254. El build/lint/tipos sí pasan, pero no se publica con fallos unitarios/PG.
+- Contactos añadePGaislamiento academia/sede y replay bajo sololectura, con snapshot15sinmutación rechazada. Sin cambios enSQL remoto, producción ni ensayo.
