@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useRef, useState, type FormEvent } from "react";
+import { OwnerGuardianContactsEditor } from "@/components/owner-dashboard/OwnerGuardianContactsEditor";
 
 export const PENDING_OWNER_ATHLETE_FAMILY_ASSOCIATION_STORAGE_KEY =
   "zaltyko:pending-owner-athlete-family-association:v1";
@@ -40,6 +41,7 @@ type SessionStorageLike = Pick<Storage, "getItem" | "setItem" | "removeItem">;
 type FamilyRelationship = "parent" | "legal_guardian" | "foster_guardian" | "other";
 type FamilyPayerOption = {
   familyPayerId: string;
+  guardianId?: string;
   displayName: string | null;
   isPrimary: boolean;
 };
@@ -250,13 +252,18 @@ function readFamilyOptions(payload: unknown): FamilyOption[] | null {
     const payers: FamilyPayerOption[] = [];
     const payerIds = new Set<string>();
     for (const payer of value.payers) {
-      if (!isRecord(payer) || !exactKeys(payer, ["familyPayerId", "displayName", "isPrimary"]) ||
+      const hasGuardianId = isRecord(payer) && Object.hasOwn(payer, "guardianId");
+      if (!isRecord(payer) || !exactKeys(payer, hasGuardianId
+        ? ["familyPayerId", "guardianId", "displayName", "isPrimary"]
+        : ["familyPayerId", "displayName", "isPrimary"]) ||
         !isUuid(payer.familyPayerId) ||
+        (hasGuardianId && !isUuid(payer.guardianId)) ||
         !(payer.displayName === null || typeof payer.displayName === "string") ||
         typeof payer.isPrimary !== "boolean" || payerIds.has(payer.familyPayerId)) return null;
       payerIds.add(payer.familyPayerId);
       payers.push({
         familyPayerId: payer.familyPayerId,
+        ...(hasGuardianId ? { guardianId: payer.guardianId as string } : {}),
         displayName: payer.displayName,
         isPrimary: payer.isPrimary,
       });
@@ -356,6 +363,8 @@ export function OwnerAthleteFamilyAssociationEditor({
   const [relationship, setRelationship] = useState<"parent" | "legal_guardian" | "foster_guardian" | "other">("parent");
   const [effectiveDate, setEffectiveDate] = useState(effectiveFrom);
   const [confirmPrimaryPayerChange, setConfirmPrimaryPayerChange] = useState(false);
+  const [guardianContactsOpen, setGuardianContactsOpen] = useState(false);
+  const [contactPendingScopeKey, setContactPendingScopeKey] = useState<string | null>(null);
   const [localPending, setLocalPending] = useState<PendingOwnerAthleteFamilyAssociation | null>(null);
   const [message, setMessage] = useState("");
   const [messageKind, setMessageKind] = useState<"error" | "status">("error");
@@ -371,6 +380,9 @@ export function OwnerAthleteFamilyAssociationEditor({
   const selectedFamily = families.find((item) => item.familyId === familyId) ?? null;
   const selectedPayer = selectedFamily?.payers.find((payer) => payer.familyPayerId === familyPayerId) ?? null;
   const selectedPayerWillBePromoted = Boolean(selectedPayer && !selectedPayer.isPrimary);
+  const selectedGuardianId = selectedPayer?.guardianId && isUuid(selectedPayer.guardianId) ? selectedPayer.guardianId : null;
+  const selectedContactScopeKey = selectedGuardianId ? `${organizationId}:${locationId}:${selectedGuardianId}` : "";
+  const contactCommandPending = Boolean(selectedContactScopeKey && contactPendingScopeKey === selectedContactScopeKey);
   const validEffectiveDate = isDateValue(effectiveDate);
   const titleId = `athlete-family-association-title-${athleteId}`;
   const idPrefix = `athlete-family-association-${athleteId}`;
@@ -389,6 +401,10 @@ export function OwnerAthleteFamilyAssociationEditor({
     setOptionsLoaded(false);
     // eslint-disable-next-line react-hooks/set-state-in-effect
     setMessage("");
+    // eslint-disable-next-line react-hooks/set-state-in-effect
+    setGuardianContactsOpen(false);
+    // eslint-disable-next-line react-hooks/set-state-in-effect
+    setContactPendingScopeKey(null);
     // A previous request may still resolve after this scope changes. Its
     // durable session marker continues to fence writes, but it must not leave
     // this editor's new scope stuck in a visual saving state.
@@ -466,7 +482,7 @@ export function OwnerAthleteFamilyAssociationEditor({
   }
 
   function closeEditor() {
-    if (activePending || saving) return;
+    if (activePending || contactCommandPending || saving) return;
     controllerRef.current?.abort();
     loadingRef.current = false;
     setLoadingOptions(false);
@@ -476,17 +492,35 @@ export function OwnerAthleteFamilyAssociationEditor({
   }
 
   function changeFamily(nextFamilyId: string) {
+    if (activePending || contactCommandPending) return;
     const nextFamily = families.find((item) => item.familyId === nextFamilyId);
     setFamilyId(nextFamilyId);
     setFamilyPayerId(nextFamily?.payers.find((payer) => payer.isPrimary)?.familyPayerId ?? nextFamily?.payers[0]?.familyPayerId ?? "");
     setConfirmPrimaryPayerChange(false);
+    setGuardianContactsOpen(false);
   }
 
   function changeMode(nextMode: "create" | "existing") {
+    if (activePending || contactCommandPending) return;
     setMode(nextMode);
     setMessage("");
     setConfirmPrimaryPayerChange(false);
+    setGuardianContactsOpen(false);
     if (nextMode === "existing") void loadFamilyOptions();
+  }
+
+  function changePayer(nextPayerId: string) {
+    if (activePending || contactCommandPending) return;
+    setFamilyPayerId(nextPayerId);
+    setConfirmPrimaryPayerChange(false);
+    setGuardianContactsOpen(false);
+  }
+
+  function handleContactPendingChange(contactScopeKey: string, active: boolean) {
+    setContactPendingScopeKey((current) => {
+      if (active) return contactScopeKey;
+      return current === contactScopeKey ? null : current;
+    });
   }
 
   async function sendAssociation(command: PendingOwnerAthleteFamilyAssociation, previouslyUncertain = false) {
@@ -590,7 +624,7 @@ export function OwnerAthleteFamilyAssociationEditor({
 
   async function submit(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
-    if (activePending || saving || sendingRef.current || readOnly || disabled) return;
+    if (activePending || contactCommandPending || saving || sendingRef.current || readOnly || disabled) return;
     if (!isDateValue(effectiveDate)) {
       setMessage("Selecciona una fecha efectiva válida.");
       return;
@@ -696,7 +730,7 @@ export function OwnerAthleteFamilyAssociationEditor({
               <p className="mt-1 text-sm text-slate-700">Vincula a {athleteName} con una familia y una persona adulta responsable.</p>
             </div>
             {!activePending && (
-              <button type="button" className={secondaryButtonClassName} onClick={closeEditor} disabled={saving}>
+              <button type="button" className={secondaryButtonClassName} onClick={closeEditor} disabled={saving || contactCommandPending}>
                 Cerrar asociación
               </button>
             )}
@@ -723,7 +757,7 @@ export function OwnerAthleteFamilyAssociationEditor({
 
               <form className="mt-4 grid gap-4 sm:grid-cols-2" onSubmit={(event) => void submit(event)}>
                 {allowExistingFamilies && (
-                  <fieldset className="grid gap-2 sm:col-span-2" disabled={loadingOptions || disabled || readOnly}>
+                  <fieldset className="grid gap-2 sm:col-span-2" disabled={loadingOptions || disabled || readOnly || contactCommandPending || Boolean(activePending)}>
                     <legend className="text-sm font-semibold">¿Cómo quieres asociar la familia?</legend>
                     <label className="flex min-h-11 items-center gap-2 text-sm">
                       <input type="radio" name={`${idPrefix}-mode`} value="create" checked={mode === "create"} onChange={() => changeMode("create")} />
@@ -740,7 +774,7 @@ export function OwnerAthleteFamilyAssociationEditor({
                   <>
                     <label className="block text-sm font-semibold sm:col-span-2" htmlFor={`${idPrefix}-family`}>
                       Familia existente
-                      <select id={`${idPrefix}-family`} className={`${fieldClassName} mt-2`} value={familyId} onChange={(event) => changeFamily(event.target.value)} disabled={disabled || readOnly || loadingOptions || !optionsLoaded || saving} required>
+                      <select id={`${idPrefix}-family`} className={`${fieldClassName} mt-2`} value={familyId} onChange={(event) => changeFamily(event.target.value)} disabled={disabled || readOnly || loadingOptions || !optionsLoaded || saving || contactCommandPending || Boolean(activePending)} required>
                         <option value="">Selecciona una familia</option>
                         {familiesWithPayers.map((family) => {
                           const names = family.athletes.map((athlete) => athlete.athleteName?.trim()).filter((name): name is string => Boolean(name));
@@ -751,7 +785,7 @@ export function OwnerAthleteFamilyAssociationEditor({
                     </label>
                     <label className="block text-sm font-semibold sm:col-span-2" htmlFor={`${idPrefix}-payer`}>
                       Persona pagadora de esta familia
-                      <select id={`${idPrefix}-payer`} className={`${fieldClassName} mt-2`} value={familyPayerId} onChange={(event) => { setFamilyPayerId(event.target.value); setConfirmPrimaryPayerChange(false); }} disabled={disabled || readOnly || loadingOptions || !optionsLoaded || !selectedFamily || saving} required>
+                      <select id={`${idPrefix}-payer`} className={`${fieldClassName} mt-2`} value={familyPayerId} onChange={(event) => changePayer(event.target.value)} disabled={disabled || readOnly || loadingOptions || !optionsLoaded || !selectedFamily || saving || contactCommandPending || Boolean(activePending)} required>
                         <option value="">Selecciona una persona pagadora</option>
                         {selectedFamily?.payers.map((payer) => (
                           <option key={payer.familyPayerId} value={payer.familyPayerId}>
@@ -762,7 +796,7 @@ export function OwnerAthleteFamilyAssociationEditor({
                     </label>
                     {selectedPayerWillBePromoted && (
                       <label className="flex items-start gap-2 border border-amber-400 bg-amber-50 p-3 text-sm text-slate-900 sm:col-span-2">
-                        <input type="checkbox" className="mt-1 min-h-6 min-w-6" checked={confirmPrimaryPayerChange} onChange={(event) => setConfirmPrimaryPayerChange(event.target.checked)} disabled={disabled || readOnly || saving} />
+                        <input type="checkbox" className="mt-1 min-h-6 min-w-6" checked={confirmPrimaryPayerChange} onChange={(event) => setConfirmPrimaryPayerChange(event.target.checked)} disabled={disabled || readOnly || saving || contactCommandPending || Boolean(activePending)} />
                         Confirmo que esta persona pasará a ser el pagador principal de toda la familia.
                       </label>
                     )}
@@ -772,15 +806,15 @@ export function OwnerAthleteFamilyAssociationEditor({
                   <>
                     <label className="block text-sm font-semibold" htmlFor={`${idPrefix}-given-name`}>
                       Nombre de la persona adulta responsable
-                      <input id={`${idPrefix}-given-name`} className={`${fieldClassName} mt-2`} value={givenName} onChange={(event) => setGivenName(event.target.value)} autoComplete="off" maxLength={100} disabled={disabled || readOnly || saving} required />
+                      <input id={`${idPrefix}-given-name`} className={`${fieldClassName} mt-2`} value={givenName} onChange={(event) => setGivenName(event.target.value)} autoComplete="off" maxLength={100} disabled={disabled || readOnly || saving || contactCommandPending || Boolean(activePending)} required />
                     </label>
                     <label className="block text-sm font-semibold" htmlFor={`${idPrefix}-family-name`}>
                       Apellidos
-                      <input id={`${idPrefix}-family-name`} className={`${fieldClassName} mt-2`} value={familyName} onChange={(event) => setFamilyName(event.target.value)} autoComplete="off" maxLength={100} disabled={disabled || readOnly || saving} required />
+                      <input id={`${idPrefix}-family-name`} className={`${fieldClassName} mt-2`} value={familyName} onChange={(event) => setFamilyName(event.target.value)} autoComplete="off" maxLength={100} disabled={disabled || readOnly || saving || contactCommandPending || Boolean(activePending)} required />
                     </label>
                     <label className="block text-sm font-semibold" htmlFor={`${idPrefix}-relationship`}>
                       Relación con la gimnasta
-                      <select id={`${idPrefix}-relationship`} className={`${fieldClassName} mt-2`} value={relationship} onChange={(event) => setRelationship(event.target.value as typeof relationship)} disabled={disabled || readOnly || saving} required>
+                      <select id={`${idPrefix}-relationship`} className={`${fieldClassName} mt-2`} value={relationship} onChange={(event) => setRelationship(event.target.value as typeof relationship)} disabled={disabled || readOnly || saving || contactCommandPending || Boolean(activePending)} required>
                         <option value="parent">Madre o padre</option>
                         <option value="legal_guardian">Tutor/a legal</option>
                         <option value="foster_guardian">Acogimiento familiar</option>
@@ -793,15 +827,40 @@ export function OwnerAthleteFamilyAssociationEditor({
 
                 <label className="block text-sm font-semibold sm:col-span-2" htmlFor={`${idPrefix}-effective-from`}>
                   Fecha de inicio de la asociación
-                  <input id={`${idPrefix}-effective-from`} type="date" className={`${fieldClassName} mt-2`} value={effectiveDate} onChange={(event) => setEffectiveDate(event.target.value)} disabled={disabled || readOnly || saving} required />
+                  <input id={`${idPrefix}-effective-from`} type="date" className={`${fieldClassName} mt-2`} value={effectiveDate} onChange={(event) => setEffectiveDate(event.target.value)} disabled={disabled || readOnly || saving || contactCommandPending || Boolean(activePending)} required />
                 </label>
                 {!validEffectiveDate && <p role="alert" className="text-sm text-red-900 sm:col-span-2">No se ha podido determinar una fecha válida para la sede.</p>}
                 <div className="flex flex-wrap gap-2 sm:col-span-2">
-                  <button type="submit" className={primaryButtonClassName} disabled={disabled || readOnly || saving || !validEffectiveDate || (mode === "existing" && (!optionsLoaded || !selectedFamily || !selectedPayer || (selectedPayerWillBePromoted && !confirmPrimaryPayerChange)))}>
+                  <button type="submit" className={primaryButtonClassName} disabled={disabled || readOnly || saving || contactCommandPending || Boolean(activePending) || !validEffectiveDate || (mode === "existing" && (!optionsLoaded || !selectedFamily || !selectedPayer || (selectedPayerWillBePromoted && !confirmPrimaryPayerChange)))}>
                     {saving ? "Guardando…" : "Asociar familia"}
                   </button>
                 </div>
               </form>
+              {mode === "existing" && allowExistingFamilies && selectedPayer && selectedGuardianId && !activePending && (
+                <div className="mt-4 border-t border-slate-200 pt-4 sm:col-span-2">
+                  <button
+                    type="button"
+                    className={secondaryButtonClassName}
+                    aria-expanded={guardianContactsOpen}
+                    disabled={disabled || readOnly || saving || contactCommandPending}
+                    onClick={() => setGuardianContactsOpen((open) => !open)}
+                  >
+                    {guardianContactsOpen ? "Ocultar contactos" : `Contactos de ${selectedPayer.displayName?.trim() || "la persona pagadora"}`}
+                  </button>
+                  {guardianContactsOpen && (
+                    <OwnerGuardianContactsEditor
+                      key={selectedContactScopeKey}
+                      organizationId={organizationId}
+                      locationId={locationId}
+                      guardianId={selectedGuardianId}
+                      displayName={selectedPayer.displayName?.trim() || "la persona pagadora"}
+                      disabled={disabled || readOnly || Boolean(activePending)}
+                      onPendingChange={handleContactPendingChange}
+                      onClose={() => setGuardianContactsOpen(false)}
+                    />
+                  )}
+                </div>
+              )}
             </>
           )}
         </section>

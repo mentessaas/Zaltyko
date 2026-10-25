@@ -195,3 +195,12 @@ Paginación50+1 sustituye tope silencioso250; siguiente página con cursor de po
 ### Replay59da53f5:20PASS y3FAIL de fixtures
 
 Run40208221416 reconstruyóPGaislado y ejecutó23casos:20PASS y3FAIL. El nuevo caso251cargos falló por cast42846 al interpolar arrays Drizzle como tupla; se corrigen solo las entradas de fixture a ARRAY[...]::uuid[] con parámetros tipados. Dos casosfamilia usaban atletasB/C con sedeA y fueron rechazados por elegibilidad; sus comandos se anclan a sedeB real sin cambiar guardas. Estas correcciones de fixtures están pendientes de un nuevo replay; no son PASS aún. Build y lint/tipos remotos del59da pasan al corte; unitarios y navegadores siguen pendientes.
+
+
+### Correcciones tras unitarios del59da53f5 — no aprobadas aún
+
+CI40208193151: build, lint/tipos, seguridad, SQL, mobile y recorridos sintéticos Chromium/Firefox PASS; unitarios FAIL y WebKit aún en curso al corte. La suite no está aprobada. Los fallos identificados son hash del runner desactualizado en manifiesto (no cambió el SQL snapshot), mocks de probes familiares/confirmación, labels duplicados y contaminación de sessionStorage entre casos mensuales. Se corrigen fixtures sin retirar la persistencia ni los guards. El cursor de pagos ahora rechaza caracteres fuera de base64url en la frontera HTTP antes de invocar el servicio.
+
+### Contactos de tutores — implementación pendiente de gates
+
+Hueco demostrado: la asociación familiar no permitía gestionar el correo/teléfono principal del tutor desde Owner. Nuevo GET/PATCH exige actor y academia/sede verificados, rol permitido y alcance de todas las sedes por tratarse de PII compartida. Guarda transaccional con clave idempotente, versión exacta de seis microsegundos y conservación de contactos anteriores; cambiar destino no acredita verificación ni envía mensajes. UI conserva el comando exacto ante respuesta incierta y recupera explícitamente; no crea cuentas ni activa proveedores. Se incluyen pruebas HTTP/UI y cinco casos PG reales en el runner desechable; nada ejecutado localmente. Implementación, revisión y pruebas remotas siguen siendo estados separados. No se publica con CI roja.

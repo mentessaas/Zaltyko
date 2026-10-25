@@ -193,6 +193,7 @@ describe("OwnerMonthlyInvoicesManager", () => {
   let deferNextMonthlyOptions: (() => Promise<Response>) | null;
 
   beforeEach(() => {
+    window.sessionStorage.clear();
     publishOwnerPlanUsage(organizationId, { readOnly: false, planCode: "free" });
     currentOptions = monthlyOptions();
     currentPricePlans = [
@@ -327,6 +328,7 @@ describe("OwnerMonthlyInvoicesManager", () => {
 
   afterEach(() => {
     cleanup();
+    window.sessionStorage.clear();
     vi.unstubAllGlobals();
     vi.clearAllMocks();
   });

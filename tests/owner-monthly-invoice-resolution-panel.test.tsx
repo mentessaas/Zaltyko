@@ -376,8 +376,13 @@ describe("ámbito del panel de resolución de facturas", () => {
       },
     }));
     render(<OwnerMonthlyInvoiceResolutionPanel {...panelProps({ action: familyAction })} />);
-    await screen.findByRole("option", { name: "Gimnasta A" });
-    fireEvent.change(screen.getByLabelText("Familia"), { target: { value: familyId } });
+    const familySelect = await screen.findByLabelText("Familia");
+    await waitFor(() =>
+      expect(
+        familySelect.querySelector(`option[value="${familyId}"]`)
+      ).not.toBeNull()
+    );
+    fireEvent.change(familySelect, { target: { value: familyId } });
     fireEvent.change(screen.getByLabelText("Persona pagadora"), { target: { value: secondaryPayerId } });
     const confirmationName = /cambiará el pagador principal de toda la familia/i;
     fireEvent.click(screen.getByRole("checkbox", { name: confirmationName }));

@@ -1009,6 +1009,7 @@ export async function getOwnerFamilyOptions(input: {
           .select({
             familyId: familyPayers.familyId,
             familyPayerId: familyPayers.id,
+            guardianId: familyPayers.guardianId,
             isPrimary: familyPayers.isPrimary,
             displayName: sql<string>`nullif(btrim(concat_ws(' ', ${people.givenName}, ${people.familyName})), '')`,
           })
@@ -1066,6 +1067,7 @@ export async function getOwnerFamilyOptions(input: {
         athletes: [...(membersByFamily.get(familyId)?.values() ?? [])],
         payers: (payersByFamily.get(familyId) ?? []).map((payer) => ({
           familyPayerId: payer.familyPayerId,
+          guardianId: payer.guardianId,
           displayName: payer.displayName,
           isPrimary: payer.isPrimary,
         })),

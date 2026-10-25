@@ -586,7 +586,7 @@ if ! grep -Fq 'isolated CI replay marker is missing' "$UNMARKED_GUARD_LOG"; then
 fi
 
 if ! ZALTYKO_PG_INTEGRATION=1 ZALTYKO_PG_INTEGRATION_DATABASE_URL="$LOCAL_DB_URL" NODE_ENV=test \
-  pnpm exec vitest run --project web tests/saas-capacity-postgres.integration.test.ts tests/billing-ledger-postgres.integration.test.ts tests/owner-family-onboarding-postgres.integration.test.ts \
+  pnpm exec vitest run --project web tests/saas-capacity-postgres.integration.test.ts tests/billing-ledger-postgres.integration.test.ts tests/owner-family-onboarding-postgres.integration.test.ts tests/owner-guardian-contacts-postgres.integration.test.ts \
   >"$INTEGRATION_LOG" 2>&1; then
   printf 'Sanitized PostgreSQL integration failure follows; connection strings and long credentials are redacted.\n' >&2
   python3 - "$INTEGRATION_LOG" <<'PY' >&2

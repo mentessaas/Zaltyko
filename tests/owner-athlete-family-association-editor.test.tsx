@@ -1,7 +1,7 @@
 // @vitest-environment jsdom
 import "@testing-library/jest-dom/vitest";
 import type { ComponentProps } from "react";
-import { act, cleanup, render, screen, waitFor } from "@testing-library/react";
+import { act, cleanup, render, screen, waitFor, within } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
@@ -24,6 +24,7 @@ const membershipId = "40000000-0000-4000-8000-000000000005";
 const payerId = "40000000-0000-4000-8000-000000000006";
 const familyId = "40000000-0000-4000-8000-000000000007";
 const otherPayerId = "40000000-0000-4000-8000-000000000008";
+const guardianId = "40000000-0000-4000-8000-000000000011";
 const today = "2026-10-25";
 
 function response(status: number, payload: unknown) {
@@ -50,6 +51,18 @@ const familyOptionsPayload = {
   },
 };
 const createdReceipt = { ok: true, data: { familyId, familyPayerId: payerId } };
+const familyOptionsWithGuardian = {
+  ok: true,
+  data: {
+    families: [{
+      ...familyOptionsPayload.data.families[0],
+      payers: familyOptionsPayload.data.families[0].payers.map((payer, index) => ({
+        ...payer,
+        guardianId: index === 0 ? guardianId : "40000000-0000-4000-8000-000000000012",
+      })),
+    }],
+  },
+};
 
 function editorProps(overrides: Partial<ComponentProps<typeof OwnerAthleteFamilyAssociationEditor>> = {}) {
   return {
@@ -210,6 +223,79 @@ describe("asociación familiar desde una pertenencia Owner", () => {
     expect(mocks.fetch).not.toHaveBeenCalled();
   });
 
+  it("abre contactos solo para el pagador de una familia existente y fuera del formulario de asociación", async () => {
+    const post = deferred<ReturnType<typeof response>>();
+    const currentContacts = {
+      ok: true,
+      data: {
+        guardianId,
+        contacts: {
+          email: { contactId: "40000000-0000-4000-8000-000000000013", value: "old@example.test", verifiedAt: null, updatedAt: "2026-10-24T10:00:00.000Z" },
+          phone: null,
+        },
+      },
+    };
+    const changedContacts = {
+      ok: true,
+      data: {
+        guardianId,
+        replayed: false,
+        contacts: {
+          email: { contactId: "40000000-0000-4000-8000-000000000014", value: "new@example.test", verifiedAt: null, updatedAt: "2026-10-25T10:00:00.000Z" },
+          phone: null,
+        },
+      },
+    };
+    mocks.fetch.mockResolvedValueOnce(response(200, familyOptionsWithGuardian))
+      .mockResolvedValueOnce(response(200, currentContacts))
+      .mockReturnValueOnce(post.promise);
+    const user = userEvent.setup();
+    render(<OwnerAthleteFamilyAssociationEditor {...editorProps()} />);
+    await user.click(screen.getByRole("button", { name: "Vincular familia a Ana García" }));
+    await user.click(await screen.findByRole("radio", { name: "Elegir una familia existente" }));
+    await user.selectOptions(screen.getByLabelText("Familia existente"), familyId);
+    await user.selectOptions(screen.getByLabelText("Persona pagadora de esta familia"), payerId);
+
+    const openContacts = screen.getByRole("button", { name: "Contactos de María García" });
+    await user.click(openContacts);
+    const contactsRegion = await screen.findByRole("region", { name: "Contactos de María García" });
+    expect(contactsRegion.closest("form")).toBeNull();
+    expect(mocks.fetch.mock.calls[1][0]).toBe(`/api/v1/owner/guardians/${guardianId}/contacts?organizationId=${organizationId}&locationId=${locationId}`);
+    await user.click(await screen.findByRole("button", { name: "Editar correo" }));
+    await user.clear(screen.getByLabelText("Correo electrónico"));
+    await user.type(screen.getByLabelText("Correo electrónico"), " New@Example.Test ");
+    await user.click(screen.getByRole("button", { name: "Guardar correo" }));
+
+    await waitFor(() => expect(mocks.fetch).toHaveBeenCalledTimes(3));
+    const [url, init] = mocks.fetch.mock.calls[2];
+    expect(url).toBe(`/api/v1/owner/guardians/${guardianId}/contacts`);
+    expect(init.method).toBe("PATCH");
+    expect(init.headers).toEqual({
+      "content-type": "application/json",
+      "Idempotency-Key": "40000000-0000-4000-8000-000000000099",
+    });
+    expect(JSON.parse(init.body)).toEqual({
+      organizationId,
+      locationId,
+      kind: "email",
+      expectedContactId: "40000000-0000-4000-8000-000000000013",
+      expectedValue: "old@example.test",
+      expectedUpdatedAt: "2026-10-24T10:00:00.000Z",
+      value: "new@example.test",
+    });
+    expect(screen.getByLabelText("Familia existente")).toBeDisabled();
+    expect(screen.getByLabelText("Persona pagadora de esta familia")).toBeDisabled();
+    expect(screen.getByRole("button", { name: "Cerrar asociación" })).toBeDisabled();
+
+    await act(async () => {
+      post.resolve(response(200, changedContacts));
+      await post.promise;
+    });
+    expect(await screen.findByRole("status")).toHaveTextContent("No se ha enviado correo ni verificado");
+    expect(screen.getByLabelText("Familia existente")).toBeEnabled();
+    expect(screen.getByLabelText("Persona pagadora de esta familia")).toBeEnabled();
+  });
+
   it("ignora doble envío mientras una primera petición sigue pendiente", async () => {
     const post = deferred<ReturnType<typeof response>>();
     mocks.fetch.mockResolvedValueOnce(response(200, { ok: true, data: { families: [] } })).mockReturnValueOnce(post.promise);
@@ -349,7 +435,7 @@ describe("asociación familiar desde una pertenencia Owner", () => {
     await user.click(open);
     await screen.findByRole("region", { name: "Asociar familia" });
     await user.type(screen.getByLabelText("Nombre de la persona adulta responsable"), "María");
-    await user.type(screen.getByLabelText("Apellidos"), "García");
+    await user.type(within(screen.getByRole("region", { name: "Asociar familia" })).getByLabelText("Apellidos"), "García");
     await user.click(screen.getByRole("button", { name: "Asociar familia" }));
 
     expect(await screen.findByRole("alert")).toHaveTextContent("No sabemos si se guardó");

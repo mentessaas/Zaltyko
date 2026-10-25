@@ -12567,3 +12567,10 @@ Modelo separado, reclamación manual, administración, importación revisada, fi
 
 - PG40208221416:20PASS/3FAIL; fallos localizados en arrays SQL de la fixture251cargos (42846) y dos comandos de familia enviados desde sedeA para gimnastasB/C. Se corrigen ARRAYtipado y sedeB correspondiente, conservando snapshots/rechazos/concurrencia. No se modifica producción, datos del ensayo ni guardsdelproducto.
 - Build y lint/tipos del59da53f5 pasan; unitarios/navegadores pendientes al registrar. Las correcciones necesitan nueva ejecución remota, no se ejecutaron localmente.
+
+
+## 2026-10-25 — Diagnóstico unitario y contactos de tutores
+
+- CI40208193151 del59da53f5 falló en unitarios pese a build/lint/tipos y varios gates PASS. Corregidos mocks de consultas familiares, scopes de labels y limpieza de sessionStorage entre tests; se conserva el bloqueo de comandos inciertos del producto. Hash del runner se recalcula sin modificar el snapshot SQL. Cursor HTTP restringido a base64url. Nueva ejecución remota pendiente.
+- Contactos de tutores preparados como entrega vertical: GET/PATCH all-sites, optimistic version con microsegundos, replay por actor y clave, datos anteriores conservados y verificación invalidada al cambiar destino. No envíos ni Auth/proveedores nuevos. Cinco casos PG adicionales integrados en CI desechable y excluidos del gate unitario ordinario. Revisión estática detectó ajustes de replay y privacidad que se corrigen antes del commit; sin alegar PASS ni sandbox/publicación.
+- Producción y preview del ensayo conservadas; no build/test/servicio local. Impago terminal pendiente del próximo intento natural, sin forzarlo.

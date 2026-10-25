@@ -271,7 +271,13 @@ function makeNoReplayTransaction(overlappingRows: Array<{
   };
   scopeAllowed = true;
   const family = { id: familyId, organizationId, isActive: true };
-  const payer = { id: payerId, guardianId, startsOn: "2026-01-01", endsOn: null };
+  const payer = {
+    id: payerId,
+    guardianId,
+    isPrimary: true,
+    startsOn: "2026-01-01",
+    endsOn: null,
+  };
   const membershipReads: Array<{ whereSql: string; params: unknown[]; limit: number }> = [];
   const memberInserts: Array<Record<string, unknown>> = [];
   const selectBuilder = (distinct = false) => {
@@ -296,15 +302,20 @@ function makeNoReplayTransaction(overlappingRows: Array<{
         if (table === familyMembers) {
           membershipReads.push({ whereSql, params, limit: count });
           const effectiveFrom = "2026-10-01";
+          const checkingOtherFamilies = whereSql.includes("not in");
           const scoped = overlappingRows.filter(row =>
             params.includes(row.organizationId)
-            && params.includes(row.familyId)
+            && (checkingOtherFamilies
+              ? row.familyId !== familyId
+              : params.includes(row.familyId) && row.familyId === familyId)
             && params.includes(row.athleteId)
             && row.organizationId === organizationId
-            && row.familyId === familyId
             && row.athleteId === athleteId
             && (row.endsOn === null || row.endsOn >= effectiveFrom)
           );
+          if (checkingOtherFamilies) {
+            return scoped.slice(0, count).map(({ startsOn, endsOn }) => ({ startsOn, endsOn }));
+          }
           const candidates = whereSql.includes("starts_on >")
             ? scoped.filter(row => row.startsOn > effectiveFrom)
             : scoped.filter(row => row.startsOn <= effectiveFrom);
@@ -451,12 +462,15 @@ describe("intervalos de pertenencia familiar", () => {
       status: 409,
     });
 
-    expect(membershipReads).toHaveLength(1);
-    expect(membershipReads[0]?.limit).toBe(1);
-    expect(membershipReads[0]?.whereSql).toContain("family_members.organization_id");
-    expect(membershipReads[0]?.whereSql).toContain("family_members.family_id");
-    expect(membershipReads[0]?.whereSql).toContain("family_members.athlete_id");
-    expect([organizationId, familyId, athleteId].every(value => membershipReads[0]?.params.includes(value))).toBe(true);
+    expect(membershipReads).toHaveLength(2);
+    expect(membershipReads[0]?.whereSql).toContain("family_members.family_id not in");
+    expect(membershipReads[1]?.whereSql).toContain("family_members.starts_on >");
+    expect(membershipReads.every(({ limit }) => limit === 1)).toBe(true);
+    expect(membershipReads.every(({ whereSql, params }) =>
+      ["family_members.organization_id", "family_members.family_id", "family_members.athlete_id"]
+        .every(column => whereSql.includes(column))
+      && [organizationId, familyId, athleteId].every(value => params.includes(value))
+    )).toBe(true);
     expect(memberInserts).toEqual([]);
   });
 
@@ -467,8 +481,8 @@ describe("intervalos de pertenencia familiar", () => {
 
     await associateWithoutReplay(tx);
 
-    expect(membershipReads).toHaveLength(2);
-    expect(membershipReads.map(read => read.limit)).toEqual([1, 1]);
+    expect(membershipReads).toHaveLength(3);
+    expect(membershipReads.map(read => read.limit)).toEqual([1, 1, 1]);
     expect(membershipReads.every(({ params }) =>
       [organizationId, familyId, athleteId].every(value => params.includes(value))
     )).toBe(true);
@@ -482,15 +496,15 @@ describe("intervalos de pertenencia familiar", () => {
   it("inserta cuando no hay solapamiento dentro de la organización, familia y gimnasta consultadas", async () => {
     const { tx, membershipReads, memberInserts } = makeNoReplayTransaction([
       { organizationId: "10000000-0000-4000-8000-000000000099", familyId, athleteId, startsOn: "2026-11-01", endsOn: null },
-      { organizationId, familyId: "10000000-0000-4000-8000-000000000098", athleteId, startsOn: "2026-11-01", endsOn: null },
+      { organizationId, familyId: "10000000-0000-4000-8000-000000000098", athleteId, startsOn: "2026-08-01", endsOn: "2026-09-30" },
       { organizationId, familyId, athleteId: "10000000-0000-4000-8000-000000000097", startsOn: "2026-11-01", endsOn: null },
       { organizationId, familyId, athleteId, startsOn: "2026-01-01", endsOn: "2026-09-30" },
     ]);
 
     await associateWithoutReplay(tx);
 
-    expect(membershipReads).toHaveLength(2);
-    expect(membershipReads.map(read => read.limit)).toEqual([1, 1]);
+    expect(membershipReads).toHaveLength(3);
+    expect(membershipReads.map(read => read.limit)).toEqual([1, 1, 1]);
     expect(membershipReads.every(({ params }) =>
       [organizationId, familyId, athleteId].every(value => params.includes(value))
     )).toBe(true);
