@@ -8,7 +8,7 @@ import { verifyAcademyAccess } from "@/lib/permissions";
 import { FAMILY_AUTOMATIC_COLLECTION_DISABLED } from "@/lib/stripe/family-automatic-collection-disabled";
 
 const QuerySchema = z.object({
-  academyId: z.string().uuid(),
+  academyId: z.guid(),
 });
 
 /**

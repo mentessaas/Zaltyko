@@ -8,6 +8,19 @@ source:
 
 # Decisiones
 
+## 2026-10-25 — Reunir dependencias y MVP conservando ambos historiales
+
+- Integrar la rama de PR #236 en #234 sin rebase ni force-push. Mantener las
+  versiones más recientes ya bloqueadas en el MVP, el guard de red estricto y
+  las guardas operativas; incorporar compatibilidad UUID-like y parche Zod
+  transitivo. La combinación requiere controles remotos y revisión propios.
+- El origen `f626351` continúa hasta `d5b8d961` en el checkout recuperado.
+  La importación `f0bc9383` conserva todos sus 1.939 blobs de producto y cinco
+  archivos adicionales de main. Esta comparación acredita procedencia del
+  árbol; no convierte la importación en continuidad de commits.
+- Sin aplicación SQL ni despliegues en esta integración; las fixtures del
+  ensayo y producción permanecen fuera de sus efectos.
+
 ## 2026-10-25 — Free sobre capacidad: conservar datos y solo lectura
 
 - **Decisión humana:** si una academia supera cualquier límite de Free, conservar
@@ -1239,3 +1252,12 @@ GitHub/Vercel reconfirmadas11:57UTC. Preparar una corrida automática de candida
 distinto, sin merge/deploy/DDL. Disponibilidad Hub y runtime NO VERIFICADOS;
 gates destino/recovery/rolapp/seguridad/review siguen NO-GO. Detalle:
 [evidencia local](../../docs/qa/logflare-hub-primary-2026-10-15.md).
+
+## 2026-10-25 — No promover una remediación con auditoría roja
+
+| Campo | Valor |
+| --- | --- |
+| Evidencia | CI de PR #236 en `main` pasó build remoto y varios controles, pero `Dependency Security & SBOM` detectó vulnerabilidades de producción. La comprobación de Zod 4 aún no se ha ejecutado para el nuevo lockfile. |
+| Decisión | Mantener la rama sin merge ni promoción hasta que la auditoría de dependencias y los checks obligatorios del SHA actualizado pasen, con revisión independiente donde GitHub la exija. No omitir ni relajar gates. |
+| Consecuencia | Una corrección de seguridad no se presenta como publicada hasta validar el árbol resultante; los cambios permanecen aislados de producción. |
+| Estado | Aplicable a PR #236; remediación ampliada en preparación. No se ha desplegado. |

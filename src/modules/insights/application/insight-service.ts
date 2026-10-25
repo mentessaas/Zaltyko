@@ -49,7 +49,7 @@ const activeInsightStatuses = [
 
 const candidateSchema = z.object({
   entityType: z.string().trim().min(1).max(80),
-  entityId: z.string().uuid().optional(),
+  entityId: z.guid().optional(),
   title: z.string().trim().min(1).max(180),
   detail: z.string().trim().min(1).max(600),
   evidence: z.record(z.string(), z.unknown()),
@@ -69,15 +69,15 @@ const candidateSchema = z.object({
 });
 
 const runInsightEvaluationSchema = z.object({
-  organizationId: z.string().uuid(),
-  authorizationLocationId: z.string().uuid(),
-  targetLocationId: z.string().uuid().optional(),
+  organizationId: z.guid(),
+  authorizationLocationId: z.guid(),
+  targetLocationId: z.guid().optional(),
   ruleKey: z.string().trim().min(1).max(80),
   ruleVersion: z.number().int().positive().default(1),
   evaluatedAt: z.string().datetime({ offset: true }),
   sourceWatermark: z.string().datetime({ offset: true }),
-  sourceMetricRunId: z.string().uuid().optional(),
-  sourceHealthScoreSnapshotId: z.string().uuid().optional(),
+  sourceMetricRunId: z.guid().optional(),
+  sourceHealthScoreSnapshotId: z.guid().optional(),
   idempotencyKey: z.string().trim().min(8).max(150),
   candidates: z.array(candidateSchema).max(500),
   actor: evaluationActorSchema,
@@ -557,18 +557,18 @@ export async function runInsightEvaluation(
 const dispositionSchema = z.discriminatedUnion("transition", [
   z.object({
     transition: z.literal("view"),
-    organizationId: z.string().uuid(),
-    authorizationLocationId: z.string().uuid(),
-    insightId: z.string().uuid(),
+    organizationId: z.guid(),
+    authorizationLocationId: z.guid(),
+    insightId: z.guid(),
     expectedVersion: z.number().int().positive(),
     idempotencyKey: z.string().trim().min(8).max(150),
     actor: operationalActorSchema,
   }),
   z.object({
     transition: z.literal("snooze"),
-    organizationId: z.string().uuid(),
-    authorizationLocationId: z.string().uuid(),
-    insightId: z.string().uuid(),
+    organizationId: z.guid(),
+    authorizationLocationId: z.guid(),
+    insightId: z.guid(),
     expectedVersion: z.number().int().positive(),
     snoozedUntil: z.string().datetime({ offset: true }),
     idempotencyKey: z.string().trim().min(8).max(150),
@@ -576,9 +576,9 @@ const dispositionSchema = z.discriminatedUnion("transition", [
   }),
   z.object({
     transition: z.literal("dismiss"),
-    organizationId: z.string().uuid(),
-    authorizationLocationId: z.string().uuid(),
-    insightId: z.string().uuid(),
+    organizationId: z.guid(),
+    authorizationLocationId: z.guid(),
+    insightId: z.guid(),
     expectedVersion: z.number().int().positive(),
     reason: z.string().trim().min(3).max(300),
     idempotencyKey: z.string().trim().min(8).max(150),
@@ -716,13 +716,13 @@ export async function changeInsightDisposition(
 }
 
 const recordActionSchema = z.object({
-  organizationId: z.string().uuid(),
-  authorizationLocationId: z.string().uuid(),
-  insightId: z.string().uuid(),
+  organizationId: z.guid(),
+  authorizationLocationId: z.guid(),
+  insightId: z.guid(),
   expectedVersion: z.number().int().positive(),
   actionKey: z.string().trim().min(1).max(80),
   targetEntityType: z.string().trim().min(1).max(80),
-  targetEntityId: z.string().uuid().optional(),
+  targetEntityId: z.guid().optional(),
   beforeValue: z.record(z.string(), z.unknown()),
   evaluationWindowDays: z.number().int().min(1).max(365),
   idempotencyKey: z.string().trim().min(8).max(150),
@@ -949,9 +949,9 @@ export async function recordInsightAction(
 }
 
 const completeActionSchema = z.object({
-  organizationId: z.string().uuid(),
-  authorizationLocationId: z.string().uuid(),
-  actionId: z.string().uuid(),
+  organizationId: z.guid(),
+  authorizationLocationId: z.guid(),
+  actionId: z.guid(),
   outcome: z.enum(["positive", "neutral", "negative", "not_measurable"]),
   afterValue: z.record(z.string(), z.unknown()),
   notes: z.string().trim().max(500).optional(),

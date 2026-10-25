@@ -5,7 +5,7 @@ import { apiSuccess, apiError } from "@/lib/api-response";
 import { logger } from "@/lib/logger";
 
 const querySchema = z.object({
-  academyId: z.string().uuid(),
+  academyId: z.guid(),
   q: z.string().min(2),
   limit: z.coerce.number().int().min(1).max(100).default(20),
   type: z.enum(["athlete", "coach", "class", "group", "event", "academy"]).optional(),

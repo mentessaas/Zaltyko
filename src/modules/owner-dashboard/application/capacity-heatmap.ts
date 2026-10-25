@@ -6,10 +6,10 @@ import { resolveOwnerScope } from "@/modules/owner-dashboard/application/owner-s
 import { OperationalError } from "@/modules/shared/domain/operational-error";
 
 export const capacityHeatmapQuerySchema = z.object({
-  organizationId: z.string().uuid().optional(),
-  locationId: z.string().uuid().optional(),
-  programId: z.string().uuid().optional(),
-  groupId: z.string().uuid().optional(),
+  organizationId: z.guid().optional(),
+  locationId: z.guid().optional(),
+  programId: z.guid().optional(),
+  groupId: z.guid().optional(),
   asOf: z.string().date().optional(),
   cursor: z.string().max(500).optional(),
   limit: z.coerce.number().int().min(1).max(50).default(20),

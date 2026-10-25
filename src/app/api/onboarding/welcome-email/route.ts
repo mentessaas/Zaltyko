@@ -12,8 +12,8 @@ import { sendEmailWithLogging } from "@/lib/email/email-service";
 import { escapeHtml } from "@/lib/email/escape-html";
 
 const BodySchema = z.object({
-  academyId: z.string().uuid(),
-  userId: z.string().uuid(),
+  academyId: z.guid(),
+  userId: z.guid(),
 });
 
 export async function POST(request: Request) {

@@ -43,11 +43,11 @@ const openEnrollmentStatuses = [
 ] as const;
 
 const createEnrollmentSchema = z.object({
-  organizationId: z.string().uuid(),
-  locationId: z.string().uuid(),
-  athleteId: z.string().uuid(),
-  classTemplateId: z.string().uuid(),
-  pricePlanId: z.string().uuid().nullable().optional(),
+  organizationId: z.guid(),
+  locationId: z.guid(),
+  athleteId: z.guid(),
+  classTemplateId: z.guid(),
+  pricePlanId: z.guid().nullable().optional(),
   status: z.enum(["pending", "trial", "active"]),
   startsOn: z.string().date(),
   source: z.enum([
@@ -59,14 +59,14 @@ const createEnrollmentSchema = z.object({
     "transfer",
     "api",
   ]),
-  sourceEntityId: z.string().uuid().nullable().optional(),
+  sourceEntityId: z.guid().nullable().optional(),
   idempotencyKey: commandKeySchema,
   actor: operationalActorSchema,
 });
 
 const transitionEnrollmentSchema = z.object({
-  organizationId: z.string().uuid(),
-  enrollmentId: z.string().uuid(),
+  organizationId: z.guid(),
+  enrollmentId: z.guid(),
   expectedVersion: z.number().int().positive(),
   toStatus: enrollmentStatusSchema,
   effectiveOn: z.string().date(),
@@ -76,11 +76,11 @@ const transitionEnrollmentSchema = z.object({
 });
 
 const transferEnrollmentCommandSchema = z.object({
-  organizationId: z.string().uuid(),
-  enrollmentId: z.string().uuid(),
+  organizationId: z.guid(),
+  enrollmentId: z.guid(),
   expectedVersion: z.number().int().positive(),
-  targetLocationId: z.string().uuid(),
-  targetClassTemplateId: z.string().uuid(),
+  targetLocationId: z.guid(),
+  targetClassTemplateId: z.guid(),
   startsOn: z.string().date(),
   idempotencyKey: commandKeySchema,
   actor: operationalActorSchema,

@@ -9,8 +9,8 @@ import { logger } from "@/lib/logger";
 import { getBillingAcademyAccess } from "@/lib/billing/access";
 
 const BodySchema = z.object({
-  academyId: z.string().uuid({
-    message: "El ID de la academia debe ser un UUID válido",
+  academyId: z.guid({
+    error: "El ID de la academia debe ser un UUID válido",
   }),
   limit: z
     .number()

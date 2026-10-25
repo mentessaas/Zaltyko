@@ -124,9 +124,9 @@ const targetSchema = Object.fromEntries(
   targetDefinitions.map(({ key }) => [key, ratioTarget])
 ) as Record<TargetMetricKey, typeof ratioTarget>;
 export const academyTargetProfileSchema = z.object({
-  organizationId: z.string().uuid(),
-  authorizationLocationId: z.string().uuid(),
-  actor: z.object({ userId: z.string().uuid(), memberId: z.string().uuid() }),
+  organizationId: z.guid(),
+  authorizationLocationId: z.guid(),
+  actor: z.object({ userId: z.guid(), memberId: z.guid() }),
   targets: z.object(targetSchema),
   idempotencyKey: z.string().trim().min(8).max(150),
 });

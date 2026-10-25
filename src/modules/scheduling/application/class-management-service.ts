@@ -37,9 +37,9 @@ const scheduleSlotSchema = z
 
 const createScheduledClassSchema = z
   .object({
-    organizationId: z.string().uuid(),
-    locationId: z.string().uuid(),
-    programId: z.string().uuid().nullable(),
+    organizationId: z.guid(),
+    locationId: z.guid(),
+    programId: z.guid().nullable(),
     name: z.string().trim().min(2).max(120),
     capacity: z.number().int().positive().max(MAX_CLASS_CAPACITY),
     effectiveFrom: z.string().date(),

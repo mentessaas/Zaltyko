@@ -30,7 +30,7 @@ const SendMessageSchema = z.object({
   attachmentUrl: z.string().url().optional(),
   attachmentType: z.enum(["image", "file", "video"]).optional(),
   attachmentName: z.string().max(255).optional(),
-  replyToId: z.string().uuid().optional(),
+  replyToId: z.guid().optional(),
 });
 
 /**

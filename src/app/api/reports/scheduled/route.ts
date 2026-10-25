@@ -10,9 +10,9 @@ import { verifyAcademyAccess } from "@/lib/permissions";
 
 export const dynamic = 'force-dynamic';
 
-const querySchema = z.object({ academyId: z.string().uuid() });
+const querySchema = z.object({ academyId: z.guid() });
 const createSchema = z.object({
-  academyId: z.string().uuid(),
+  academyId: z.guid(),
   reportType: z.enum(["attendance", "financial", "events"]),
   name: z.string().trim().min(1).max(200),
   frequency: z.enum(["daily", "weekly", "monthly"]),

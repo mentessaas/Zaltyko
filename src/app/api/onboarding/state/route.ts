@@ -13,13 +13,13 @@ import { verifyAcademyAccess } from "@/lib/permissions";
 export const dynamic = 'force-dynamic';
 
 const bodySchema = z.object({
-  academyId: z.string().uuid().optional(),
+  academyId: z.guid().optional(),
   step: z.enum(WIZARD_STEP_KEYS),
   notes: z.string().max(2000).optional(),
 });
 
 const querySchema = z.object({
-  academyId: z.string().uuid().optional(),
+  academyId: z.guid().optional(),
 });
 
 export const GET = withTenant(async (request, context) => {

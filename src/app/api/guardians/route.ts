@@ -13,7 +13,7 @@ import { withTransaction } from "@/lib/db-transactions";
 import { assertAcademyOperationalWritable, lockAcademyOperationalWrites } from "@/lib/limits";
 
 const GuardianSchema = z.object({
-  athleteId: z.string().uuid().optional(),
+  athleteId: z.guid().optional(),
   name: z.string().trim().min(1).max(120),
   email: z.string().email().optional().or(z.literal("")),
   phone: z.string().optional().or(z.literal("")),
@@ -23,14 +23,14 @@ const GuardianSchema = z.object({
 });
 
 const CreateBodySchema = z.object({
-  academyId: z.string().uuid(),
+  academyId: z.guid(),
   guardian: GuardianSchema,
-  athleteIds: z.array(z.string().uuid()).max(100).optional(),
+  athleteIds: z.array(z.guid()).max(100).optional(),
 });
 
 const filterSchema = z.object({
-  athleteId: z.string().uuid().optional(),
-  academyId: z.string().uuid().optional(),
+  athleteId: z.guid().optional(),
+  academyId: z.guid().optional(),
   page: z.coerce.number().int().min(1).optional(),
   limit: z.coerce.number().int().min(1).max(200).optional(),
 });

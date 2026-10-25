@@ -10,8 +10,8 @@ import { logger } from "@/lib/logger";
 import { apiError, apiSuccess } from "@/lib/api-response";
 
 const bodySchema = z.object({
-  athleteId: z.string().uuid(),
-  academyId: z.string().uuid(),
+  athleteId: z.guid(),
+  academyId: z.guid(),
 });
 
 const handler = withTenant(async (request: Request, context) => {

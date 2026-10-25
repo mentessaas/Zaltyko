@@ -20,14 +20,14 @@ import { reportDateSchema, validateReportPeriod } from "@/lib/reports/query-sche
 export const dynamic = 'force-dynamic';
 
 const exportSchema = z.object({
-  academyId: z.string().uuid(),
+  academyId: z.guid(),
   format: z.enum(["pdf", "excel"]).default("pdf"),
   startDate: reportDateSchema,
   endDate: reportDateSchema,
-  athleteId: z.string().uuid().optional(),
-  groupId: z.string().uuid().optional(),
-  classId: z.string().uuid().optional(),
-  sportConfigId: z.string().uuid().optional(),
+  athleteId: z.guid().optional(),
+  groupId: z.guid().optional(),
+  classId: z.guid().optional(),
+  sportConfigId: z.guid().optional(),
   reportType: z.enum(["athlete", "group", "general"]).default("general"),
 }).superRefine(validateReportPeriod);
 

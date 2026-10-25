@@ -31,16 +31,16 @@ const commandKeySchema = z.string().trim().min(8).max(150);
 const privilegedRoles = ["owner", "manager", "admin"] as const;
 
 const bookTrialSchema = z.object({
-  organizationId: z.string().uuid(),
-  athleteId: z.string().uuid(),
-  sessionId: z.string().uuid(),
+  organizationId: z.guid(),
+  athleteId: z.guid(),
+  sessionId: z.guid(),
   idempotencyKey: commandKeySchema,
   actor: operationalActorSchema,
 });
 
 const transitionTrialSchema = z.object({
-  organizationId: z.string().uuid(),
-  trialId: z.string().uuid(),
+  organizationId: z.guid(),
+  trialId: z.guid(),
   expectedVersion: z.number().int().positive(),
   toStatus: z.enum(["attended", "completed", "no_show", "cancelled"]),
   effectiveAt: z.string().datetime({ offset: true }),
@@ -49,8 +49,8 @@ const transitionTrialSchema = z.object({
 });
 
 const recordTrialFollowupSchema = z.object({
-  organizationId: z.string().uuid(),
-  trialId: z.string().uuid(),
+  organizationId: z.guid(),
+  trialId: z.guid(),
   channel: z.enum(["email", "phone", "sms", "in_person"]),
   outcome: z.enum([
     "contacted",
@@ -66,11 +66,11 @@ const recordTrialFollowupSchema = z.object({
 });
 
 const convertTrialSchema = z.object({
-  organizationId: z.string().uuid(),
-  trialId: z.string().uuid(),
+  organizationId: z.guid(),
+  trialId: z.guid(),
   expectedVersion: z.number().int().positive(),
-  targetLocationId: z.string().uuid(),
-  targetClassTemplateId: z.string().uuid(),
+  targetLocationId: z.guid(),
+  targetClassTemplateId: z.guid(),
   startsOn: z.string().date(),
   idempotencyKey: commandKeySchema,
   actor: operationalActorSchema,

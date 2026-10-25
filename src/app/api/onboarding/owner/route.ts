@@ -50,7 +50,7 @@ import { recordOwnerSignupConsent } from "@/lib/consent/owner-consent-store";
 import { getUserSubscription } from "@/lib/limits";
 
 const bodySchema = z.object({
-  directoryEntryId:z.string().uuid().optional(),
+  directoryEntryId:z.guid().optional(),
   directoryActivation:z.literal(true).optional(),
   fullName: z.string().trim().min(2).max(120),
   academyName: z.string().trim().min(3).max(120),

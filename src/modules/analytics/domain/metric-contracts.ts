@@ -33,8 +33,8 @@ export const metricDefinitionSchema = z.object({
 
 export const metricResultSchema = z
   .object({
-    organizationId: z.string().uuid(),
-    locationId: z.string().uuid().nullable(),
+    organizationId: z.guid(),
+    locationId: z.guid().nullable(),
     metricCode: metricCodeSchema,
     definitionVersion: z.number().int().positive(),
     periodStart: z.string().date(),

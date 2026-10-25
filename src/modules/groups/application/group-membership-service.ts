@@ -45,9 +45,9 @@ const membershipReasonCodes = [
 type MembershipStatus = GroupMembership["status"];
 
 const addMembershipSchema = z.object({
-  organizationId: z.string().uuid(),
-  groupId: z.string().uuid(),
-  athleteId: z.string().uuid(),
+  organizationId: z.guid(),
+  groupId: z.guid(),
+  athleteId: z.guid(),
   startsOn: z.string().date(),
   status: z.enum(["pending", "active"]),
   idempotencyKey: commandKeySchema,
@@ -63,8 +63,8 @@ const personNameSchema = z
   .transform((value) => value.normalize("NFC").replace(/\s+/gu, " "));
 
 const createAthleteForGroupSchema = z.object({
-  organizationId: z.string().uuid(),
-  groupId: z.string().uuid(),
+  organizationId: z.guid(),
+  groupId: z.guid(),
   givenName: personNameSchema,
   familyName: personNameSchema,
   idempotencyKey: commandKeySchema,
@@ -72,9 +72,9 @@ const createAthleteForGroupSchema = z.object({
 });
 
 const transitionMembershipSchema = z.object({
-  organizationId: z.string().uuid(),
-  membershipId: z.string().uuid(),
-  groupId: z.string().uuid().optional(),
+  organizationId: z.guid(),
+  membershipId: z.guid(),
+  groupId: z.guid().optional(),
   expectedStatus: openStatusSchema,
   toStatus: z.enum(["active", "paused", "ended"]),
   effectiveOn: z.string().date(),

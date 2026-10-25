@@ -11,19 +11,19 @@ function normalizePayloadKey(key: string): string {
 }
 
 export const domainEventSchema = z.object({
-  eventId: z.string().uuid(),
+  eventId: z.guid(),
   eventName: z.string().regex(/^[a-z][a-z0-9_-]*\.[a-z][a-z0-9_.-]*$/),
   eventVersion: z.number().int().positive(),
-  organizationId: z.string().uuid(),
-  locationId: z.string().uuid().nullable(),
+  organizationId: z.guid(),
+  locationId: z.guid().nullable(),
   occurredAt: z.string().datetime({ offset: true }),
   actor: z.object({
     type: z.enum(["user", "system", "integration"]),
-    id: z.string().uuid().nullable(),
+    id: z.guid().nullable(),
   }),
   entity: z.object({
     type: z.string().trim().min(1),
-    id: z.string().uuid(),
+    id: z.guid(),
   }),
   idempotencyKey: z.string().trim().min(8).max(200),
   payload: z.record(z.string(), z.unknown()),

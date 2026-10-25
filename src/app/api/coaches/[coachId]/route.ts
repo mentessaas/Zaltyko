@@ -17,7 +17,7 @@ const UpdateSchema = z.object({
   photoUrl: z.string().url().optional().nullable(),
   isPublic: z.boolean().optional(),
   specialties: z.array(z.string()).optional().nullable(),
-  sportConfigIds: z.array(z.string().uuid()).optional(),
+  sportConfigIds: z.array(z.guid()).optional(),
 });
 
 async function getCoach(coachId: string) {

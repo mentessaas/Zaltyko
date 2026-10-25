@@ -27,7 +27,7 @@ interface RouteContext {
 export async function GET(request: Request, context: RouteContext) {
   try {
     const { id } = await context.params;
-    if (!z.string().uuid().safeParse(id).success) {
+    if (!z.guid().safeParse(id).success) {
       return NextResponse.json({ error: "INVALID_ACADEMY_ID" }, { status: 400 });
     }
 

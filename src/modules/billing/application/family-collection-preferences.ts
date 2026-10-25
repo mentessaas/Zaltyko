@@ -22,9 +22,9 @@ import { FAMILY_AUTOMATIC_COLLECTION_DISABLED } from "@/lib/stripe/family-automa
 import { assertOrganizationOperationalWritable } from "@/modules/saas-billing/application/organization-usage";
 
 const inputSchema = z.object({
-  userId: z.string().uuid(),
-  organizationId: z.string().uuid(),
-  familyId: z.string().uuid(),
+  userId: z.guid(),
+  organizationId: z.guid(),
+  familyId: z.guid(),
 });
 
 const commandSchema = inputSchema.extend({

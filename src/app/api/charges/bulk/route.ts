@@ -12,9 +12,9 @@ import { withTransaction } from "@/lib/db-transactions";
 import { assertAcademyOperationalWritable, lockAcademyOperationalWrites } from "@/lib/limits";
 
 const BulkCreateChargesSchema = z.object({
-  academyId: z.string().uuid(),
-  groupId: z.string().uuid(),
-  billingItemId: z.string().uuid(),
+  academyId: z.guid(),
+  groupId: z.guid(),
+  billingItemId: z.guid(),
   period: z.string().regex(/^\d{4}-\d{2}$/), // Format: YYYY-MM
   dueDate: z.string().optional(), // ISO date string
 });

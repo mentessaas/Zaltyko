@@ -23,10 +23,10 @@ import {
 } from "@/modules/shared/infrastructure/transactional-records";
 
 const recordAttendanceSchema = z.object({
-  organizationId: z.string().uuid(),
-  expectedLocationId: z.string().uuid().optional(),
-  sessionId: z.string().uuid(),
-  enrollmentId: z.string().uuid(),
+  organizationId: z.guid(),
+  expectedLocationId: z.guid().optional(),
+  sessionId: z.guid(),
+  enrollmentId: z.guid(),
   status: z.enum(["present", "absent", "excused", "late"]),
   idempotencyKey: z.string().trim().min(8).max(180),
   actor: operationalActorSchema,

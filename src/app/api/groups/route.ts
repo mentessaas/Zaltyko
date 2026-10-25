@@ -25,10 +25,10 @@ const DISCIPLINES = ["artistica", "ritmica", "general"] as const;
 // PR 10 (Operate P2): `.nullable().optional()` en `level`/`coachId` porque el
 // form de grupo puede limpiar esos campos (clear field). Antes, `null` → 400.
 const GroupBodySchema = z.object({
-  academyId: z.string().uuid(),
+  academyId: z.guid(),
   name: z.string().trim().min(1).max(120),
   discipline: z.enum(DISCIPLINES),
-  sportConfigId: z.string().uuid().optional().nullable(),
+  sportConfigId: z.guid().optional().nullable(),
   programCode: z.string().trim().min(1).max(80).optional().nullable(),
   levelCode: z.string().trim().min(1).max(80).optional().nullable(),
   categoryCode: z.string().trim().min(1).max(80).optional().nullable(),
@@ -36,15 +36,15 @@ const GroupBodySchema = z.object({
   technicalFocus: z.string().max(500).optional().nullable(),
   apparatus: z.array(z.string().trim().min(1).max(120)).max(12).optional(),
   sessionBlocks: z.array(z.string().trim().min(1).max(160)).max(8).optional(),
-  coachId: z.string().uuid().nullable().optional(),
-  assistantIds: z.array(z.string().uuid()).optional(),
-  athleteIds: z.array(z.string().uuid()).optional(),
+  coachId: z.guid().nullable().optional(),
+  assistantIds: z.array(z.guid()).optional(),
+  athleteIds: z.array(z.guid()).optional(),
   color: z
     .string()
     .regex(/^#([0-9a-fA-F]{3}){1,2}$/)
     .optional(),
   monthlyFeeCents: z.number().int().min(0).nullable().optional(), // Cuota mensual en céntimos
-  billingItemId: z.string().uuid().nullable().optional(), // Concepto de cobro asociado
+  billingItemId: z.guid().nullable().optional(), // Concepto de cobro asociado
 });
 
 export const GET = withTenant(async (request, context) => {

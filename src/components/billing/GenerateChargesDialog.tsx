@@ -34,7 +34,7 @@ interface GenerateChargesDialogProps {
 
 const formSchema = z.object({
   scope: z.enum(["all", "group"]),
-  groupId: z.string().uuid().optional(),
+  groupId: z.guid().optional(),
   period: z.string().regex(/^\d{4}-\d{2}$/, "El periodo debe tener formato YYYY-MM"),
   skipDuplicates: z.boolean().default(true),
 });

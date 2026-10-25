@@ -17,7 +17,7 @@ import { toCommercialPlanSlug } from "@/lib/growth/contracts";
 import { recordGrowthEvent } from "@/lib/growth/events";
 
 const BodySchema = z.object({
-  academyId: z.string().uuid(),
+  academyId: z.guid(),
   // `pro` = Starter y `premium` = Growth. Network es venta acompañada.
   planCode: z.enum(["pro", "premium"]),
   billingInterval: z.enum(["month", "year"]).default("month"),

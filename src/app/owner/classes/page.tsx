@@ -18,8 +18,8 @@ export const metadata: Metadata = {
 };
 
 const querySchema = z.object({
-  organizationId: z.string().uuid().optional(),
-  locationId: z.string().uuid().optional(),
+  organizationId: z.guid().optional(),
+  locationId: z.guid().optional(),
 });
 
 export default async function OwnerClassesPage({

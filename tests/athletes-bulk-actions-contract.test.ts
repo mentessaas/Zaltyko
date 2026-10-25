@@ -60,7 +60,7 @@ describe("athletes bulk actions contract", () => {
   it("requires tenant, academy capability, bounded ids and atomic update on the server", () => {
     expect(route).toContain("withTenant");
     expect(route).toContain('permission: "athletes:delete"');
-    expect(route).toContain("z.string().uuid()");
+    expect(route).toContain("z.guid()");
     expect(route).toContain(".max(100");
     expect(route).toContain("withTransaction");
     expect(route).toContain("inArray(athletes.id");

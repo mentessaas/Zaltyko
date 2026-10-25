@@ -7,7 +7,7 @@ import { apiSuccess, apiError } from "@/lib/api-response";
 import { verifyAcademyAccess } from "@/lib/permissions";
 
 const bodySchema = z.object({
-  academyId: z.string().uuid().optional(),
+  academyId: z.guid().optional(),
   key: z.enum(CHECKLIST_KEYS),
   status: z.enum(["pending", "completed", "skipped"]).optional(),
 });

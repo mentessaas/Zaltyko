@@ -19,17 +19,17 @@ import {
 } from "@/lib/progress/session-context";
 
 const scoreSchema = z.object({
-  skillId: z.string().uuid(),
+  skillId: z.guid(),
   score: z.number().int().min(1).max(10),
   comments: z.string().nullable().optional(),
 });
 
 const createAssessmentSchema = z.object({
-  sessionId: z.string().uuid().nullable().optional(),
+  sessionId: z.guid().nullable().optional(),
   assessmentDate: z.string(), // YYYY-MM-DD
   assessmentType: z.enum(["technical", "artistic", "execution", "coach_feedback", "competition", "practice"]),
   apparatus: z.string().nullable().optional(),
-  sportConfigId: z.string().uuid().nullable().optional(),
+  sportConfigId: z.guid().nullable().optional(),
   scores: z.array(scoreSchema).optional(),
   overallComment: z.string().nullable().optional(),
   totalScore: z.number().nullable().optional(),
@@ -372,7 +372,7 @@ export const PATCH = withTenant(async (request, context) => {
     if (!context.tenantId) return apiError("TENANT_REQUIRED", "Tenant context is required", 400);
     const assessmentId = new URL(request.url).searchParams.get("assessmentId");
     if (!assessmentId) return apiError("ASSESSMENT_ID_REQUIRED", "Assessment ID is required", 400);
-    if (!z.string().uuid().safeParse(assessmentId).success) return apiError("ASSESSMENT_ID_INVALID", "Assessment ID is invalid", 400);
+    if (!z.guid().safeParse(assessmentId).success) return apiError("ASSESSMENT_ID_INVALID", "Assessment ID is invalid", 400);
 
     const [assessment] = await db
       .select({ id: athleteAssessments.id, academyId: athleteAssessments.academyId, tenantId: athleteAssessments.tenantId })

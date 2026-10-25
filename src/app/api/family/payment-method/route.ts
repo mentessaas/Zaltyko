@@ -53,7 +53,7 @@ export async function GET(request: Request) {
   try {
     const url = new URL(request.url);
     const academyId = url.searchParams.get("academyId");
-    if (!academyId || !z.string().uuid().safeParse(academyId).success) {
+    if (!academyId || !z.guid().safeParse(academyId).success) {
       return NextResponse.json({ error: "VALIDATION_ERROR" }, { status: 400 });
     }
     const auth = await authenticate(academyId);
@@ -84,7 +84,7 @@ export async function GET(request: Request) {
 }
 
 const SaveSchema = z.object({
-  academyId: z.string().uuid(),
+  academyId: z.guid(),
   paymentMethodId: z.string().min(1),
 });
 
@@ -117,7 +117,7 @@ export async function POST(request: Request) {
   }
 }
 
-const DeleteSchema = z.object({ academyId: z.string().uuid() });
+const DeleteSchema = z.object({ academyId: z.guid() });
 
 /**
  * DELETE /api/family/payment-method

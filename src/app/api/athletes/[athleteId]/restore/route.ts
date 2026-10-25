@@ -13,7 +13,7 @@ import { withTransaction } from "@/lib/db-transactions";
 import { assertWithinPlanLimits, lockAcademyOperationalWrites } from "@/lib/limits";
 
 const BodySchema = z.object({
-  academyId: z.string().uuid(),
+  academyId: z.guid(),
 });
 
 class RestoreConflictError extends Error {

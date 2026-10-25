@@ -15,24 +15,24 @@ const canManageCommunication = (role?: string) =>
   ["owner", "admin", "super_admin"].includes(role ?? "");
 
 const querySchema = z.object({
-  academyId: z.string().uuid().optional(),
+  academyId: z.guid().optional(),
   channel: z.string().optional(),
   status: z.string().optional(),
-  sportConfigId: z.string().uuid().optional(),
+  sportConfigId: z.guid().optional(),
   limit: z.string().transform(Number).pipe(z.number().min(1).max(100)).optional(),
   offset: z.string().transform(Number).pipe(z.number().min(0)).optional(),
 });
 
 const createHistorySchema = z.object({
-  academyId: z.string().uuid().optional().nullable(),
+  academyId: z.guid().optional().nullable(),
   phone: z.string().optional().default(""),
   channel: z.string().optional().default("whatsapp"),
   direction: z.string().optional().default("outbound"),
   status: z.string().optional().default("pending"),
   message: z.string().optional(),
   body: z.string().optional(),
-  templateId: z.string().uuid().optional().nullable(),
-  sportConfigId: z.string().uuid().optional().nullable(),
+  templateId: z.guid().optional().nullable(),
+  sportConfigId: z.guid().optional().nullable(),
   meta: z.record(z.string(), z.unknown()).optional(),
 });
 

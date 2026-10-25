@@ -14,7 +14,7 @@ import { withTransaction } from "@/lib/db-transactions";
 import { assertAcademyOperationalWritable, lockAcademyOperationalWrites } from "@/lib/limits";
 
 const createExtraClassSchema = z.object({
-  classId: z.string().uuid(),
+  classId: z.guid(),
 });
 
 export const GET = withTenant(async (request, context) => {

@@ -25,9 +25,7 @@ const coverageInputSchema = z
   .object({
     classTemplateIds: z
       .array(
-        z
-          .string()
-          .uuid()
+        z.guid()
           .transform((id) => id.toLowerCase())
       )
       .min(1)
@@ -58,8 +56,8 @@ const coverageInputSchema = z
 
 const inputSchema = z
   .object({
-    organizationId: z.string().uuid(),
-    locationId: z.string().uuid(),
+    organizationId: z.guid(),
+    locationId: z.guid(),
     name: z.string().trim().min(1).max(100),
     amountCents: z.number().int().safe().positive().max(2_147_483_647),
     currency: z
@@ -68,7 +66,7 @@ const inputSchema = z
       .optional(),
     coverage: coverageInputSchema,
     idempotencyKey: z.string().trim().min(8).max(180),
-    actor: z.object({ userId: z.string().uuid(), memberId: z.string().uuid() }),
+    actor: z.object({ userId: z.guid(), memberId: z.guid() }),
   })
   .strict();
 

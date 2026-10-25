@@ -7,6 +7,22 @@ source:
   - ../docs/architecture/zaltyko-domain-model.md
 ---
 
+## 2026-10-25 — Integración local de #236 en el MVP y procedencia acreditada
+
+- Resueltos los 13 conflictos conservando validación de entorno, guardas de
+  capacidad y bloqueo de red estricto del MVP. UUID-like conserva el contrato
+  anterior mediante `z.guid()`. Sentry ya resolvía `10.76.2` en ambos padres;
+  se mantienen además Vite `6.4.5`, Hono `4.13.13` y selector-parser parcheado.
+- Se elimina Zod `3.25.76` transitivo y se conserva body-parser en su línea API
+  para los tres campos de dependencias. Regresión nueva de hook/grafo pendiente
+  de CI; no se ejecuta en el Mac. No hay cambios SQL ni nuevas dependencias.
+- Procedencia: `f626351` es ancestro de `d5b8d961`, cuyo árbol de producto tiene
+  1.939 blobs idénticos en la importación `f0bc9383`; se conservan cinco archivos
+  adicionales de main y ambas historias. Fuente:
+  `docs/qa/mvp-integration-provenance-2026-10-25.md`.
+- La CI del padre no acredita el merge nuevo. Pendientes una CI remota del
+  candidato integrado, revisión independiente y validación autenticada sandbox.
+
 ## 2026-10-25 — Bloqueo de integración entre PR #234 y #236
 
 - Consulta de solo lectura a GitHub: #234 tiene 418 archivos y #236 tiene 274;
@@ -12414,3 +12430,17 @@ Modelo separado, reclamación manual, administración, importación revisada, fi
 - Las operaciones de conversación que crean varias filas ahora agrupan conversación, participantes, mensaje inicial y resumen en una transacción. El envío directo y el envío desde una conversación verifican pertenencia y estado actual dentro del bloqueo de academia antes de escribir; los fallos de notificación no convierten un mensaje ya confirmado en una respuesta 500.
 - Se añadieron contratos estáticos para estas rutas. Solo se ejecutó `git diff --check`; no se ejecutaron pruebas, instalaciones ni builds locales. El CI remoto del nuevo SHA aún está pendiente.
 - Las sesiones QA A/B no están presentes en el runtime actual (`shortRun`, `shortHttp` y `shortRefreshAuth` ausentes); no se generaron credenciales ni se hizo una nueva prueba autenticada. La caducidad y el impago siguen `NO VERIFICADO` en esta ejecución. Sin cambios de datos, migraciones, deployment, Stripe Live ni producción.
+
+
+## 2026-10-25 — Remediación de advisories de dependencias en PR #236
+
+- Evidencia de partida: CI `40173405349` en SHA `07f81ef5e9777b4324cf6d4fcfd5817878adbe0a`. Unitarias, lint/tipos, RLS, integridad de migraciones, build remoto, móvil y GitGuardian pasaron; `Dependency Security & SBOM` falló con 14 rutas vulnerables (3 críticas, 4 altas, 4 moderadas, 3 bajas). E2E sintético de Firefox/WebKit aún estaba en curso; el autenticado se omitió por el gate de credenciales.
+- Cambio preparado en la rama aislada: parches de Next 15.5.28, Sentry 10.76.2, DOMPurify 3.4.17, `body-parser` 1.20.9/2.4.0, Zod 4.6.7 y `follow-redirects` 1.16.1. El salto Zod 3→4 requiere comprobar compatibilidad completa en CI antes de integrar.
+- `pnpm-lock.yaml` se resolvió con `pnpm install --lockfile-only --ignore-scripts`: 1.369 paquetes resueltos, cero descargados/agregados; no se instalaron dependencias ni se ejecutaron tests o builds localmente.
+- Estado de este corte: cambios pendientes de commit y nueva CI remota. PR #236 sigue abierto; sin merge, deployment ni cambios de sandbox/producción.
+- Actualización 2026-10-25: CI `40174265519` sobre `492ad418ecd8262fc2c470e9f21af64cd5e01918` confirmó que auditoría de dependencias, RLS, migraciones, móvil y GitGuardian pasan, pero fallan lint/tipos (55 errores), build y 80 pruebas unitarias por incompatibilidades de la migración Zod 3→4. Corrección local pendiente de enviar: `z.record` con claves y valores explícitos, errores Zod con `.issues`, detección de variables obligatorias compatible con Zod 4 y reemplazo de 678 validadores `.uuid()` por `z.guid()` para mantener la aceptación histórica de UUID-like de PostgreSQL; se añade regresión en `tests/lib/validators.test.ts`. No se ejecutaron builds ni pruebas locales; aún no hay resultado de la nueva CI. PR #236 sin merge ni despliegue.
+- Resultado parcial de CI `40175242597`, SHA `72c0588bb11ad6096e13f2b1b149c0708d7debad`: lint/tipos, build, unitarias, SBOM, RLS, migraciones, móvil y GitGuardian pasan. Chromium y Firefox fallaron la aserción del guard porque el fixture esperaba Replay CDN `10.73.0` mientras el lockfile actualizado solicita `10.76.2`; las peticiones continuaron bloqueadas. WebKit terminó igual: reportó más tráfico bloqueado al origen exacto de Sentry CDN durante el recorrido, sin dejarlo salir. E2E autenticado/public y smoke quedaron omitidos por configuración del workflow. Ajuste local pendiente de CI: clasificar ese origen como telemetría esperada y seguir abortando todas sus peticiones; no se ejecutó localmente ni se ha enviado. Sin merge/despliegue.
+- Ajuste local tras los tres resultados de navegador: la lista de telemetría esperada reconoce solo `https://browser.sentry-cdn.com` y el guard sigue abortando sus peticiones; el reporte excluye query strings. Se añadió prueba para script y envelope, incluida la aserción de que no se ejecuta `continue()` de red. `git diff --check` pasa. Sin ejecución local de tests/build; nueva CI aún pendiente.
+- CI `40176727314`, SHA `42007c840929ed3b1b961d667c9c28934d645bc4`: lint, tipos, unitarias, build separado, seguridad/SBOM, RLS, migraciones, móvil, GitGuardian y Chromium/Firefox pasan. WebKit vuelve a fallar dentro del E2E porque el build de preparación agotó su timeout interno de 240 s tras compilar y generar 294 páginas; no alcanzó a completar optimización/trazas. E2E autenticado/público y smoke omitidos por el gate de credenciales. Ajuste local pendiente: límite de 360 s solo para el build del runner en GitHub Actions; el límite local queda en 240 s. No se ejecutó localmente ni se ha enviado.
+- Motivo y límite de la próxima corrida: el log WebKit reporta 240.224 s de CPU/build y timeout de 240.000 ms, con páginas generadas y stack Supabase efímero limpiado. Se añadió rama remota explícita de 360 s (seis minutos) usando el límite aprobado; setup, builds locales y timeout local permanecen en 240 s. `git diff --check` y revisión del diff pasan; no se ejecutó nada localmente. Pendiente enviar una única CI remota.
+- CI `40178355617` sobre `230f8171b025dcb1958c27aa70d72f32fb758b5a`: la aserción de `tests/e2e-local-runner-safety.test.ts` conservaba el contrato anterior de 240 s y falló; no es una falla del nuevo límite. El build, unitarias y navegadores seguían en curso al cierre de esta nota. Se actualizó la aserción estática local; sin tests/build locales ni nuevo push.

@@ -26,7 +26,7 @@ const DISCIPLINES = ["artistica", "ritmica", "general"] as const;
 const GroupUpdateSchema = z.object({
   name: z.string().trim().min(1).max(120).optional(),
   discipline: z.enum(DISCIPLINES).optional(),
-  sportConfigId: z.string().uuid().nullable().optional(),
+  sportConfigId: z.guid().nullable().optional(),
   programCode: z.string().trim().min(1).max(80).nullable().optional(),
   levelCode: z.string().trim().min(1).max(80).nullable().optional(),
   categoryCode: z.string().trim().min(1).max(80).nullable().optional(),
@@ -34,16 +34,16 @@ const GroupUpdateSchema = z.object({
   technicalFocus: z.string().max(500).optional().nullable(),
   apparatus: z.array(z.string().trim().min(1).max(120)).max(12).optional(),
   sessionBlocks: z.array(z.string().trim().min(1).max(160)).max(8).optional(),
-  coachId: z.string().uuid().nullable().optional(),
-  assistantIds: z.array(z.string().uuid()).optional(),
-  athleteIds: z.array(z.string().uuid()).optional(),
+  coachId: z.guid().nullable().optional(),
+  assistantIds: z.array(z.guid()).optional(),
+  athleteIds: z.array(z.guid()).optional(),
   color: z
     .string()
     .regex(/^#([0-9a-fA-F]{3}){1,2}$/)
     .nullable()
     .optional(),
   monthlyFeeCents: z.number().int().min(0).nullable().optional(), // Cuota mensual en céntimos
-  billingItemId: z.string().uuid().nullable().optional(), // Concepto de cobro asociado
+  billingItemId: z.guid().nullable().optional(), // Concepto de cobro asociado
 });
 
 // Handler for PATCH - separated to apply rate limiting

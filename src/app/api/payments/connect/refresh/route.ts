@@ -12,7 +12,7 @@ import {
 } from "@/lib/stripe/family-automatic-collection-disabled";
 
 const BodySchema = z.object({
-  academyId: z.string().uuid(),
+  academyId: z.guid(),
 });
 
 /**

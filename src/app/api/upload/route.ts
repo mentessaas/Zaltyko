@@ -8,7 +8,7 @@ import { verifyAcademyAccess } from "@/lib/permissions";
 import { IMAGE_UPLOADS, validateUpload } from "@/lib/uploads/file-security";
 
 const UploadFieldsSchema = z.object({
-  academyId: z.string().uuid(),
+  academyId: z.guid(),
   folder: z.string().regex(/^[a-zA-Z0-9/_-]+$/).default("uploads"),
 });
 

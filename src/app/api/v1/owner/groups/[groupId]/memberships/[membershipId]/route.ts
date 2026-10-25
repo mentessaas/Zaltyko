@@ -15,12 +15,12 @@ import { OperationalError } from "@/modules/shared/domain/operational-error";
 import { resolveOwnerScope } from "@/modules/owner-dashboard/application/owner-scope";
 
 const paramsSchema = z.object({
-  groupId: z.string().uuid(),
-  membershipId: z.string().uuid(),
+  groupId: z.guid(),
+  membershipId: z.guid(),
 });
 const bodySchema = z
   .object({
-    organizationId: z.string().uuid(),
+    organizationId: z.guid(),
     expectedStatus: z.enum(["pending", "active", "paused"]),
     toStatus: z.enum(["active", "paused", "ended"]),
     effectiveOn: z.string().date(),

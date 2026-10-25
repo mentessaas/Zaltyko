@@ -11,6 +11,7 @@ const PATCHED_DEPENDENCIES = new Map([
   ["js-yaml", "^4.3.2"],
   ["basic-ftp", "^6.2.1"],
   ["dompurify", "^3.4.17"],
+  ["zod", "^4.6.7"],
   ["proxy-addr", "^2.0.8"],
   ["source-map-js", "^1.2.2"],
   ["@modelcontextprotocol/sdk", "^1.31.0"],
@@ -42,14 +43,16 @@ module.exports = {
         bumped[field] = nextDependencies;
       }
 
-      // body-parser has patched releases in both supported major lines. Keep
-      // Express 4 on v1 and Express 5 on v2 instead of forcing an incompatible
-      // major across the dependency graph.
-      if (bumped.dependencies?.["body-parser"]) {
-        const requestedMajor = String(bumped.dependencies["body-parser"]).match(/(?:^|[^0-9])([12])(?:\.|$)/)?.[1];
-        const patchedRange = requestedMajor === "1" ? "^1.20.9" : "^2.4.0";
-        if (bumped.dependencies["body-parser"] !== patchedRange) {
-          bumped.dependencies = { ...bumped.dependencies, "body-parser": patchedRange };
+      // body-parser has distinct patched lines for Express 4 and 5. Preserve
+      // the dependency major while lifting each vulnerable range to its fix.
+      for (const field of ["dependencies", "optionalDependencies", "devDependencies"]) {
+        const dependencies = bumped[field];
+        if (!dependencies?.["body-parser"]) continue;
+        const range = String(dependencies["body-parser"]);
+        const major = Number.parseInt(range.replace(/^[^0-9]*/, "").split(".")[0], 10);
+        const patchedRange = major === 1 ? "^1.20.9" : major === 2 ? "^2.4.0" : undefined;
+        if (patchedRange && dependencies["body-parser"] !== patchedRange) {
+          bumped[field] = { ...dependencies, "body-parser": patchedRange };
           changed = true;
         }
       }

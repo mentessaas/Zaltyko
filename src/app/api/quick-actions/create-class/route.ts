@@ -22,7 +22,7 @@ export const POST = withTenant(async (req, context) => {
 
         const { classId, academyId, date, startTime, endTime } = body;
 
-        if (!z.string().uuid().safeParse(classId).success || !z.string().uuid().safeParse(academyId).success) {
+        if (!z.guid().safeParse(classId).success || !z.guid().safeParse(academyId).success) {
             return apiError("VALIDATION_ERROR", "classId y academyId válidos son requeridos", 400);
         }
         const academyScope = await authorizeAcademyCapability({

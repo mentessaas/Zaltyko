@@ -39,11 +39,11 @@ const optionalUuid = z
   .trim()
   .optional()
   .transform((value) => (value ? value : undefined))
-  .pipe(z.string().uuid().optional());
+  .pipe(z.guid().optional());
 
 const CsvRowSchema = z.object({
   name: z.string().trim().min(1).max(120),
-  academyId: z.string().uuid().optional(),
+  academyId: z.guid().optional(),
   dob: z.string().optional(),
   level: z.string().optional(),
   status: z.enum(athleteStatusOptions).optional(),
@@ -145,7 +145,7 @@ const handler = withTenant(async (request, context) => {
 
   const tenantOverride = (formData as unknown as { get(name: string): unknown }).get("tenantId");
   const requestedTenantId = typeof tenantOverride === "string" ? tenantOverride.trim() : "";
-  if (requestedTenantId && !z.string().uuid().safeParse(requestedTenantId).success) {
+  if (requestedTenantId && !z.guid().safeParse(requestedTenantId).success) {
     return apiError("INVALID_TENANT_ID", "Tenant ID must be a valid UUID", 400);
   }
   // Solo super_admin puede operar sobre otro tenant; el resto siempre queda

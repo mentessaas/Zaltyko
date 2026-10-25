@@ -28,7 +28,7 @@ export const POST = withTenant(async (request, context) => {
 
     const formData = await request.formData();
     const file = formData.get("file");
-    const academyId = z.string().uuid().safeParse(formData.get("academyId"));
+    const academyId = z.guid().safeParse(formData.get("academyId"));
     if (!academyId.success) return apiError("ACADEMY_ID_REQUIRED", "Academy ID is required", 400);
     const academyAccess = await verifyAcademyAccess(academyId.data, context.tenantId);
     if (!academyAccess.allowed) return apiError("ACADEMY_ACCESS_DENIED", "Academy access denied", 403);

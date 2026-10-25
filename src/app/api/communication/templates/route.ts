@@ -12,8 +12,8 @@ export const dynamic = 'force-dynamic';
 // `variables` porque el form de creación de plantilla puede limpiar esos
 // campos (clear field). Antes, `null` → 400.
 const createTemplateSchema = z.object({
-  academyId: z.string().uuid(),
-  sportConfigId: z.string().uuid().optional().nullable(),
+  academyId: z.guid(),
+  sportConfigId: z.guid().optional().nullable(),
   name: z.string().min(1).max(200),
   description: z.string().nullable().optional(),
   channel: z.enum(["whatsapp", "email", "push", "in_app"]).default("whatsapp"),
@@ -26,9 +26,9 @@ const createTemplateSchema = z.object({
 });
 
 const querySchema = z.object({
-  academyId: z.string().uuid(),
+  academyId: z.guid(),
   channel: z.enum(["whatsapp", "email", "push", "in_app"]).optional(),
-  sportConfigId: z.string().uuid().optional(),
+  sportConfigId: z.guid().optional(),
   includeGlobal: z.enum(["true", "false"]).optional().default("true"),
 });
 

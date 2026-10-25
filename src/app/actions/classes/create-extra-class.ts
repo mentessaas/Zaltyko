@@ -26,8 +26,8 @@ import { AppError, NotFoundError } from "@/lib/errors";
 import { assertWithinPlanLimits, lockAcademyOperationalWrites } from "@/lib/limits";
 
 const createExtraClassSchema = z.object({
-  athleteId: z.string().uuid(),
-  coachId: z.string().uuid(),
+  athleteId: z.guid(),
+  coachId: z.guid(),
   startTime: z.string(), // ISO datetime string
   endTime: z.string(), // ISO datetime string
   duration: z.number().int().min(15).max(180).optional(), // minutos, para validación
@@ -35,7 +35,7 @@ const createExtraClassSchema = z.object({
   createCharge: z.boolean().default(false),
   amountCents: z.number().int().min(0).optional(), // Monto en céntimos para el cargo
   notes: z.string().optional(),
-  academyId: z.string().uuid(),
+  academyId: z.guid(),
 });
 
 /**

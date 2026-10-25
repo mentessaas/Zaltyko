@@ -12,8 +12,8 @@ import { assertAcademyOperationalWritable, lockAcademyOperationalWrites } from "
 import { handleApiError } from "@/lib/api-error-handler";
 
 const RecordPaymentSchema = z.object({
-    chargeId: z.string().uuid(),
-    academyId: z.string().uuid(),
+    chargeId: z.guid(),
+    academyId: z.guid(),
     amountCents: z.number().int().positive(),
     paymentMethod: z.enum(["cash", "transfer", "bizum", "card_manual", "other"]),
     idempotencyKey: z.string().min(1).max(200).optional(),

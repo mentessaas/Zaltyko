@@ -8,8 +8,8 @@ import { completeInsightAction } from "@/modules/insights/application/insight-se
 import { OperationalError } from "@/modules/shared/domain/operational-error";
 
 const bodySchema = z.object({
-  organizationId: z.string().uuid().optional(),
-  locationId: z.string().uuid().optional(),
+  organizationId: z.guid().optional(),
+  locationId: z.guid().optional(),
   outcome: z.enum(["positive", "neutral", "negative", "not_measurable"]),
   afterValue: z.record(z.string(), z.unknown()),
   notes: z.string().trim().max(500).optional(),
@@ -32,7 +32,7 @@ export async function POST(
   }
   const payload = await request.json().catch(() => null);
   const parsedParams = z
-    .object({ actionId: z.string().uuid() })
+    .object({ actionId: z.guid() })
     .safeParse(await params);
   const parsed = bodySchema.safeParse({
     ...(payload && typeof payload === "object" ? payload : {}),

@@ -8,22 +8,25 @@ y separa cuatro estados: **implementado**, **probado aisladamente**,
 demuestra que el flujo esté desplegado o validado contra un usuario y datos
 persistidos reales de sandbox.
 
-El plan indicó partir de `f626351`, pero el candidato publicado en PR #234
+El último candidato comprobado en CI de PR #234
 termina en `1637221798bee56b8aee9db176a277429103db40` y apunta a `main` desde
 `f84fd6dc316e41aa7b6a599e67dc8cf2ea0dd74c`. `f626351` no es ancestro de ese
-HEAD. No se hizo reset ni rebase; esta diferencia de procedencia queda abierta
-para revisión antes de promoción. El PR tiene 418 archivos (+59.034/-5.476),
+HEAD. La comparación posterior acredita una importación desde `d5b8d961`,
+descendiente de `f626351`, con sus 1.939 blobs de producto idénticos y cinco
+archivos adicionales de main. Véase [procedencia e integración](mvp-integration-provenance-2026-10-25.md).
+El PR tenía 418 archivos (+59.034/-5.476) en ese corte,
 está abierto y GitHub exige revisión independiente.
 
-Hay además una integración pendiente con la PR #236 de seguridad de dependencias
+Se ha preparado localmente la integración con la PR #236 de seguridad de dependencias
 (también abierta y `REVIEW_REQUIRED`). GitHub devuelve 94 rutas compartidas con
 la PR #234, incluidos `package.json`, `pnpm-lock.yaml`, `pnpm-workspace.yaml` y
 `pnpmfile.cjs`. Ambas CI pasan por separado, pero no validan una rama combinada;
 por ejemplo, actualizan `@sentry/nextjs` a versiones distintas (`10.76.2` en
-#234 y `10.75.2` en #236). Resolver y volver a validar esta integración antes
-de fusionar o publicar cualquiera de los dos candidatos.
+#234 y `10.75.2` en #236), aunque ambos lockfiles resolvían `10.76.2`.
+Los conflictos ya están resueltos localmente; la nueva combinación aún necesita
+CI y revisión antes de integrar o publicar.
 
-La CI remota exacta del HEAD actual terminó **SUCCESS** en el run
+La CI remota del último HEAD comprobado, `16372217`, terminó **SUCCESS** en el run
 [`40193392534`](https://github.com/mentessaas/Zaltyko/actions/runs/40193392534):
 lint/tipos, unitarios, build remoto, móvil, Chromium, Firefox, WebKit, controles
 RLS, integridad Drizzle, SBOM/seguridad y gate Owner sintético. No se ejecutó
@@ -92,10 +95,10 @@ Run `40189930084`, SHA `234599c92051714b9953393221a5e1be5069cbea`:
 
 ## Decisiones y siguiente paso
 
-1. Obtener revisión independiente de PR #234 y resolver explícitamente la
-   diferencia de procedencia entre `f626351` y la base/HEAD reales del PR;
-   reconciliar también las 94 rutas compartidas con PR #236 y volver a pasar CI
-   sobre la combinación antes de integrar.
+1. Obtener revisión independiente de PR #234 y CI de la nueva integración con
+   PR #236. La procedencia desde `f626351` está acreditada por comparación de
+   los blobs del origen recuperado y su importación; revisar ese registro junto
+   a las resoluciones antes de integrar.
 2. Ejecutar E2E autenticado contra **este candidato** usando solo las dos
    sesiones QA existentes y el sandbox autorizado. CI omitió ese job por falta
    de credenciales configuradas. Hubo una restauración histórica de sesiones y

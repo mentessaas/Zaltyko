@@ -1,6 +1,6 @@
 import { z } from "zod";
 
-export const uuidSchema = z.string().uuid("Invalid UUID format");
+export const uuidSchema = z.guid("Invalid UUID format");
 
 export function validateUuid(id: string): { valid: boolean; error?: string } {
   const result = uuidSchema.safeParse(id);

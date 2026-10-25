@@ -12,7 +12,7 @@ import { withTransaction } from "@/lib/db-transactions";
 import { assertAcademyOperationalWritable, lockAcademyOperationalWrites } from "@/lib/limits";
 
 const bodySchema = z.object({
-  classId: z.string().uuid(),
+  classId: z.guid(),
   startDate: z.string().date(), // Fecha de calendario YYYY-MM-DD
   endDate: z.string().date(), // Fecha de calendario YYYY-MM-DD
 });

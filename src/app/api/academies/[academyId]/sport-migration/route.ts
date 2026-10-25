@@ -21,8 +21,8 @@ import { assertAcademyOperationalWritable, lockAcademyOperationalWrites } from "
 
 const migrationSchema = z.object({
   entityType: z.enum(["athletes", "groups", "classes", "coaches"]),
-  sportConfigId: z.string().uuid(),
-  ids: z.array(z.string().uuid()).optional().default([]),
+  sportConfigId: z.guid(),
+  ids: z.array(z.guid()).optional().default([]),
   applyAll: z.boolean().optional().default(false),
 });
 

@@ -12,8 +12,8 @@ import { withTransaction } from "@/lib/db-transactions";
 import { assertAcademyOperationalWritable, lockAcademyOperationalWrites } from "@/lib/limits";
 
 const AddToWaitingListSchema = z.object({
-  classId: z.string().uuid(),
-  athleteId: z.string().uuid(),
+  classId: z.guid(),
+  athleteId: z.guid(),
   notes: z.string().optional(),
 });
 
@@ -111,7 +111,7 @@ export const POST = withTenant(async (request, context) => {
 });
 
 const filterSchema = z.object({
-  classId: z.string().uuid().optional(),
+  classId: z.guid().optional(),
   page: z.coerce.number().int().min(1).optional(),
   limit: z.coerce.number().int().min(1).max(200).optional(),
 });

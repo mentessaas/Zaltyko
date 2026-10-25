@@ -11,7 +11,7 @@ import { authorizeAcademyCapability } from "@/lib/authz/resource-scope";
 // que el form de edición de beca puede limpiar (clear field). Antes, `null`
 // → 400. Booleans (`autoRenew`/`isActive`) y `endDate` ya estaban correctos.
 const updateSchema = z.object({
-  athleteId: z.string().uuid().nullable().optional(),
+  athleteId: z.guid().nullable().optional(),
   name: z.string().min(1).nullable().optional(),
   description: z.string().nullable().optional(),
   discountType: z.enum(["percentage", "fixed"]).nullable().optional(),

@@ -15,9 +15,9 @@ import { withTransaction } from "@/lib/db-transactions";
 import { lockAcademyOperationalWrites } from "@/lib/limits";
 
 const BodySchema = z.object({
-  academyId: z.string().uuid(),
+  academyId: z.guid(),
   athleteIds: z
-    .array(z.string().uuid())
+    .array(z.guid())
     .min(1, "Selecciona al menos una gimnasta")
     .max(100, "Puedes archivar como máximo 100 gimnastas por operación")
     .refine((ids) => new Set(ids).size === ids.length, "La selección contiene duplicados"),

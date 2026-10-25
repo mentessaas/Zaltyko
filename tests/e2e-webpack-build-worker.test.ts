@@ -139,7 +139,10 @@ describe("synthetic webpack build worker experiment", () => {
   it("sets the marker only in the build invocation, outside inherited and server environments", () => {
     expect(runner.match(/ZALTYKO_E2E_WEBPACK_BUILD_WORKER/g)).toHaveLength(1);
     expect(runner).toMatch(
-      /nextBuild\.args,\s*\{\s*\.\.\.childEnv,\s*NODE_ENV: "production",\s*ZALTYKO_E2E_WEBPACK_BUILD_WORKER: "true",\s*\},\s*LOCAL_E2E_TIMEOUTS\.build,\s*abortController\.signal/
+      /const buildTimeoutMs =\s*process\.env\.GITHUB_ACTIONS === "true"\s*\?\s*LOCAL_E2E_TIMEOUTS\.ciBuild\s*:\s*LOCAL_E2E_TIMEOUTS\.build/
+    );
+    expect(runner).toMatch(
+      /nextBuild\.args,\s*\{\s*\.\.\.childEnv,\s*NODE_ENV: "production",\s*ZALTYKO_E2E_WEBPACK_BUILD_WORKER: "true",\s*\},\s*buildTimeoutMs,\s*abortController\.signal/
     );
     expect(runner).toMatch(
       /playwrightCli\.args,|const playwrightArgs = playwrightCli\.args/

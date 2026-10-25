@@ -349,6 +349,10 @@ void (async () => {
     console.log(
       "Building the app against the disposable local Supabase stack."
     );
+    const buildTimeoutMs =
+      process.env.GITHUB_ACTIONS === "true"
+        ? LOCAL_E2E_TIMEOUTS.ciBuild
+        : LOCAL_E2E_TIMEOUTS.build;
     const progress = createBuildProgressObserver();
     const buildTraceCatalog = createBuildTraceCatalog(root);
     await withBuildDiagnostic(
@@ -363,7 +367,7 @@ void (async () => {
                 NODE_ENV: "production",
                 ZALTYKO_E2E_WEBPACK_BUILD_WORKER: "true",
               },
-              LOCAL_E2E_TIMEOUTS.build,
+              buildTimeoutMs,
               abortController.signal,
               "pipe",
               progress.push
