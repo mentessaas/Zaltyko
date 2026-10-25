@@ -20,6 +20,7 @@ import {
 import { createEnrollment } from "@/modules/enrollments/application/enrollment-service";
 import { recordAttendance } from "@/modules/attendance/application/attendance-service";
 import { getOwnerSessionAttendance } from "@/modules/attendance/application/owner-session-attendance";
+import { getOwnerOperationalSummary } from "@/modules/owner-dashboard/application/operational-summary";
 import { associateOwnerFamily } from "@/modules/families/application/owner-family-association";
 import {
   bootstrapOrganization,
@@ -1669,6 +1670,78 @@ describe("Free capacity guards on disposable PostgreSQL", () => {
       outbox_count: 1,
       audit_count: 1,
     });
+
+    const periodResult = await db.execute(sql`
+      select
+        to_char(
+          (session.starts_at at time zone organization.default_timezone)::date,
+          'YYYY-MM-DD'
+        ) as organization_date,
+        to_char(
+          (session.starts_at at time zone location.timezone)::date,
+          'YYYY-MM-DD'
+        ) as location_date
+      from zaltyko.sessions session
+      join zaltyko.organizations organization
+        on organization.id = session.organization_id
+      join zaltyko.locations location
+        on location.organization_id = session.organization_id
+       and location.id = session.location_id
+      where session.organization_id = ${fixture.organizationId}::uuid
+        and session.id = ${fixture.sessionId}::uuid
+    `);
+    const organizationDate = String(
+      periodResult.rows[0]?.organization_date ?? ""
+    );
+    const locationDate = String(periodResult.rows[0]?.location_date ?? "");
+    expect(organizationDate).toMatch(/^\d{4}-\d{2}-\d{2}$/);
+    expect(locationDate).toMatch(/^\d{4}-\d{2}-\d{2}$/);
+    const organizationPeriod = [organizationDate, locationDate].sort();
+
+    const beforeOrganizationSummary = await snapshot(fixture.organizationId);
+    const organizationSummary = await getOwnerOperationalSummary({
+      userId: fixture.actor.userId,
+      organizationId: fixture.organizationId,
+      from: organizationPeriod[0]!,
+      to: organizationPeriod.at(-1)!,
+    });
+    expect(organizationSummary).toMatchObject({
+      scope: { kind: "organization", organizationId: fixture.organizationId },
+      metrics: {
+        activeAthletes: 2,
+        activeGroups: 2,
+        attendanceRecords: 1,
+        paymentsReceived: { state: "available", count: 0, grossByCurrency: [] },
+      },
+    });
+    expect(await snapshot(fixture.organizationId)).toEqual(
+      beforeOrganizationSummary
+    );
+
+    const beforeLocationSummary = await snapshot(fixture.organizationId);
+    const locationSummary = await getOwnerOperationalSummary({
+      userId: fixture.actor.userId,
+      organizationId: fixture.organizationId,
+      locationId: fixture.targetLocationId,
+      from: locationDate,
+      to: locationDate,
+    });
+    expect(locationSummary).toMatchObject({
+      scope: {
+        kind: "location",
+        organizationId: fixture.organizationId,
+        locationId: fixture.targetLocationId,
+        locationIds: [fixture.targetLocationId],
+      },
+      metrics: {
+        activeAthletes: 1,
+        activeGroups: 1,
+        attendanceRecords: 1,
+      },
+    });
+    expect(await snapshot(fixture.organizationId)).toEqual(
+      beforeLocationSummary
+    );
 
     const assignedCoach = await seedAttendanceCoach(fixture, true);
     const unassignedCoach = await seedAttendanceCoach(fixture, false);
