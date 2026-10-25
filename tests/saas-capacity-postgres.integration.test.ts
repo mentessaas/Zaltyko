@@ -20,6 +20,10 @@ import {
   getOwnerContractualConsentRequirement,
   recordOwnerSignupConsent,
 } from "@/modules/organizations/application/owner-signup-consent";
+import {
+  getOwnerAthleteProfile,
+  updateOwnerAthleteProfile,
+} from "@/modules/athletes/application/owner-athlete-profile";
 
 const snapshotTables = [
   "athletes",
@@ -136,6 +140,23 @@ async function snapshotOwnerConsent(userId: string) {
         where user_id = ${userId}::uuid) as audit_count
   `);
   return result.rows[0];
+}
+
+async function snapshotAthleteProfileWrites(organizationId: string) {
+  const rows = sql.join(
+    ["people", "athletes", "audit_log", "outbox_events"].map((table) => sql`
+      select ${table}::text as table_name,
+        count(*)::int as count,
+        md5(coalesce(jsonb_agg(to_jsonb(r) order by to_jsonb(r)::text)::text, '[]')) as content_hash
+      from ${sql.identifier("zaltyko")}.${sql.identifier(table)} r
+      where r.organization_id = ${organizationId}::uuid
+    `),
+    sql` union all `
+  );
+  const result = await db.execute(
+    sql`select * from (${rows}) snapshots order by table_name`
+  );
+  return result.rows;
 }
 
 async function snapshotBootstrap(organizationId: string, userId: string) {
@@ -1183,5 +1204,236 @@ describe("Free capacity guards on disposable PostgreSQL", () => {
       consent_count: 1,
       audit_count: 1,
     });
+  }, 45_000);
+});
+
+describe("canonical athlete profiles on disposable PostgreSQL", () => {
+  it("authorizes every linked site, serializes expected-name edits, and replays current values", async () => {
+    assertDisposableTarget();
+    const fixture = await seedEnrollmentEligibilityAcademy();
+    const otherSiteGroupId = randomUUID();
+    await db.execute(sql`
+      insert into zaltyko.groups (
+        id, organization_id, location_id, name, capacity, status
+      )
+      values (
+        ${otherSiteGroupId}::uuid,
+        ${fixture.organizationId}::uuid,
+        ${fixture.otherSiteLocationId}::uuid,
+        'CI profile second-site group',
+        10,
+        'active'
+      )
+    `);
+    await db.execute(sql`
+      insert into zaltyko.group_memberships (
+        organization_id, group_id, athlete_id, status, starts_on
+      )
+      values (
+        ${fixture.organizationId}::uuid,
+        ${otherSiteGroupId}::uuid,
+        ${fixture.targetAthleteId}::uuid,
+        'active',
+        current_date
+      )
+    `);
+
+    const scopedUserId = randomUUID();
+    const scopedMemberId = randomUUID();
+    await db.execute(sql`
+      insert into auth.users (id, email)
+      values (${scopedUserId}::uuid, ${"ci-profile-scoped-" + scopedUserId + "@example.invalid"})
+    `);
+    await db.execute(sql`
+      insert into zaltyko.organization_members (
+        id, organization_id, user_id, role, status, location_scope_mode
+      )
+      values (
+        ${scopedMemberId}::uuid,
+        ${fixture.organizationId}::uuid,
+        ${scopedUserId}::uuid,
+        'manager',
+        'active',
+        'selected'
+      )
+    `);
+    await db.execute(sql`
+      insert into zaltyko.member_location_scopes (
+        organization_id, member_id, location_id
+      )
+      values (
+        ${fixture.organizationId}::uuid,
+        ${scopedMemberId}::uuid,
+        ${fixture.targetLocationId}::uuid
+      )
+    `);
+
+    const profileScope = {
+      organizationId: fixture.organizationId,
+      locationId: fixture.targetLocationId,
+      athleteId: fixture.targetAthleteId,
+      actor: fixture.actor,
+    };
+    const initial = await getOwnerAthleteProfile(profileScope);
+    expect(initial).toEqual({
+      athleteId: fixture.targetAthleteId,
+      givenName: "Enrollment athlete 1",
+      familyName: "Synthetic",
+    });
+
+    const firstCommand = {
+      ...profileScope,
+      expectedGivenName: initial.givenName,
+      expectedFamilyName: initial.familyName,
+      givenName: "Profile First Edit",
+      familyName: "Synthetic",
+      idempotencyKey: "ci-profile-first-" + randomUUID(),
+    };
+    const firstResult = await updateOwnerAthleteProfile(firstCommand);
+    expect(firstResult).toMatchObject({
+      givenName: "Profile First Edit",
+      familyName: "Synthetic",
+      replayed: false,
+    });
+
+    const secondCommand = {
+      ...profileScope,
+      expectedGivenName: firstResult.givenName,
+      expectedFamilyName: firstResult.familyName,
+      givenName: "Profile Current Edit",
+      familyName: "Synthetic",
+      idempotencyKey: "ci-profile-second-" + randomUUID(),
+    };
+    await updateOwnerAthleteProfile(secondCommand);
+    const beforeExactReplay = await snapshotAthleteProfileWrites(
+      fixture.organizationId
+    );
+    await expect(updateOwnerAthleteProfile(firstCommand)).resolves.toEqual({
+      athleteId: fixture.targetAthleteId,
+      givenName: "Profile Current Edit",
+      familyName: "Synthetic",
+      replayed: true,
+    });
+    expect(await snapshotAthleteProfileWrites(fixture.organizationId)).toEqual(
+      beforeExactReplay
+    );
+
+    const concurrentCommands = ["Concurrent Edit A", "Concurrent Edit B"].map(
+      (givenName) => ({
+        ...profileScope,
+        expectedGivenName: "Profile Current Edit",
+        expectedFamilyName: "Synthetic",
+        givenName,
+        familyName: "Synthetic",
+        idempotencyKey: "ci-profile-race-" + randomUUID(),
+      })
+    );
+    const beforeConcurrentRace = await snapshotAthleteProfileWrites(
+      fixture.organizationId
+    );
+    const concurrentResults = await Promise.allSettled(
+      concurrentCommands.map((command) => updateOwnerAthleteProfile(command))
+    );
+    const winners = concurrentResults.filter(
+      (result): result is PromiseFulfilledResult<Awaited<ReturnType<typeof updateOwnerAthleteProfile>>> =>
+        result.status === "fulfilled"
+    );
+    const conflicts = concurrentResults.filter(
+      (result): result is PromiseRejectedResult => result.status === "rejected"
+    );
+    expect(winners).toHaveLength(1);
+    expect(conflicts).toHaveLength(1);
+    expect(conflicts[0]?.reason).toMatchObject({
+      code: "VERSION_CONFLICT",
+      status: 409,
+    });
+    const afterConcurrentRace = await snapshotAthleteProfileWrites(
+      fixture.organizationId
+    );
+    expect(afterConcurrentRace).not.toEqual(beforeConcurrentRace);
+    const profileEventCount = await db.execute(sql`
+      select count(*)::int as count
+      from zaltyko.outbox_events
+      where organization_id = ${fixture.organizationId}::uuid
+        and event_name = 'athlete.profile_updated'
+        and aggregate_id = ${fixture.targetAthleteId}::uuid
+    `);
+    expect(profileEventCount.rows[0]?.count).toBe(3);
+
+    const current = await getOwnerAthleteProfile(profileScope);
+    expect(["Concurrent Edit A", "Concurrent Edit B"]).toContain(current.givenName);
+    const beforeDeniedWrite = await snapshotAthleteProfileWrites(fixture.organizationId);
+    await expect(
+      updateOwnerAthleteProfile({
+        ...profileScope,
+        actor: { userId: scopedUserId, memberId: scopedMemberId },
+        expectedGivenName: current.givenName,
+        expectedFamilyName: current.familyName,
+        givenName: "Unauthorized Cross-Site Edit",
+        familyName: current.familyName,
+        idempotencyKey: "ci-profile-cross-site-" + randomUUID(),
+      })
+    ).rejects.toMatchObject({
+      code: "LOCATION_SCOPE_DENIED",
+      status: 403,
+    });
+    expect(await snapshotAthleteProfileWrites(fixture.organizationId)).toEqual(
+      beforeDeniedWrite
+    );
+  }, 45_000);
+
+  it("rolls back the profile, athlete timestamp, outbox and audit when the receipt insert conflicts", async () => {
+    assertDisposableTarget();
+    const fixture = await seedEnrollmentEligibilityAcademy();
+    const profileScope = {
+      organizationId: fixture.organizationId,
+      locationId: fixture.targetLocationId,
+      athleteId: fixture.targetAthleteId,
+      actor: fixture.actor,
+    };
+    const original = await getOwnerAthleteProfile(profileScope);
+    const idempotencyKey = "ci-profile-audit-conflict-" + randomUUID();
+    await db.execute(sql`
+      insert into zaltyko.audit_log (
+        organization_id,
+        location_id,
+        actor_user_id,
+        action,
+        target_type,
+        target_id,
+        idempotency_key,
+        before,
+        after,
+        metadata
+      )
+      values (
+        ${fixture.organizationId}::uuid,
+        ${fixture.targetLocationId}::uuid,
+        ${fixture.actor.userId}::uuid,
+        'qa.profile_receipt_conflict',
+        'athlete',
+        ${fixture.targetAthleteId}::uuid,
+        ${idempotencyKey},
+        '{}'::jsonb,
+        '{}'::jsonb,
+        '{}'::jsonb
+      )
+    `);
+    const before = await snapshotAthleteProfileWrites(fixture.organizationId);
+
+    await expect(
+      updateOwnerAthleteProfile({
+        ...profileScope,
+        expectedGivenName: original.givenName,
+        expectedFamilyName: original.familyName,
+        givenName: "This Update Must Roll Back",
+        familyName: original.familyName,
+        idempotencyKey,
+      })
+    ).rejects.toBeDefined();
+
+    expect(await snapshotAthleteProfileWrites(fixture.organizationId)).toEqual(
+      before
+    );
   }, 45_000);
 });

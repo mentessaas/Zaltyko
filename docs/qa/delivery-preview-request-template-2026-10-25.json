@@ -26,6 +26,13 @@
   },
   "meta": {
     "purpose": "mvp-delivery-sandbox",
-    "sandboxRef": "aeeootdmuiqkfeernskw"
+    "sandboxRef": "aeeootdmuiqkfeernskw",
+    "action": "redeploy"
+  },
+  "projectSettings": {
+    "framework": "nextjs",
+    "buildCommand": "bash preview-sandbox-build.sh",
+    "nodeVersion": "22.x",
+    "installCommand": "pnpm install --frozen-lockfile"
   }
 }

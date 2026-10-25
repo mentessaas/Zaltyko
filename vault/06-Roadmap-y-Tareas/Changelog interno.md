@@ -12489,3 +12489,11 @@ Modelo separado, reclamación manual, administración, importación revisada, fi
 - Fuente: tests/billing-ledger-postgres.integration.test.ts; el runner verify-sandbox-schema-replay.sh ya selecciona este archivo.
 - Importancia: codigo de pruebas preparado no equivale a ejecucion ni validacion en sandbox. No hay escrituras en fixtures protegidas.
 - Siguiente paso: ejecutar el replay y las suites solo en GitHub Linux desechable tras integrar el candidato; no se ejecutaron tests/builds/servicios en Mac.
+
+
+## 2026-10-25 — Ficha canonica y bloqueo de configuracion de entrega
+
+- Cambio: GET/PATCH Owner de nombre/apellidos, scope de todas las sedes afectadas por identidad compartida, expected fields, locks, replay con nombres actuales, auditoria/outbox sin nombres en claro. UI conserva mismo cuerpo/clave y bloquea operaciones mientras la respuesta es incierta; normaliza NFC/espacios como servidor.
+- Fuente: owner-athlete-profile.ts, ruta Owner athletes, OwnerAthleteProfileEditor, tests unitarios/ruta/UI y casos PG en saas-capacity-postgres.integration.test.ts. Revision estatica independiente sin P1/P2 antes del ajuste menor de normalizacion y su regresion; pruebas pendientes. Fingerprints derivados de nombres no son datos anonimos.
+- Evidencia: CI40199478736 SUCCESS completo para91eb0c21; no acredita estos cambios nuevos. Intento de delivery separado cancelado por comando ausente; segundo bloqueado por preflight por configuracion no heredada. Alias del ensayo conservado, produccion intacta.
+- Siguiente paso: CI y replay PG del nuevo SHA; resolver configuracion explicita sandbox de la entrega sin usar proveedores compartidos ni rotar credenciales existentes. No nuevos despliegues hasta resolverlo.
