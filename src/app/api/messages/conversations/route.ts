@@ -7,6 +7,9 @@ import { z } from "zod";
 
 import { withTenant } from "@/lib/authz";
 import { apiSuccess, apiError } from "@/lib/api-response";
+import { handleApiError } from "@/lib/api-error-handler";
+import { withTransaction } from "@/lib/db-transactions";
+import { assertAcademyOperationalWritable, lockAcademyOperationalWrites } from "@/lib/limits";
 import {
   conversations,
   conversationParticipants,
@@ -282,54 +285,79 @@ export const POST = withTenant(async (request, context) => {
       }
     }
 
-    // Create conversation
-    const [newConversation] = await db
-      .insert(conversations)
-      .values({
-        tenantId,
-        academyId: academyId || null,
-        title: title || null,
-        metadata: conversationMetadata,
-      })
-      .returning();
+    const created = await withTransaction(async (tx) => {
+      if (academyId) {
+        await lockAcademyOperationalWrites(tx, academyId);
+        await assertAcademyOperationalWritable(tenantId, academyId, tx);
 
-    // Add all participants including the current user
-    const allParticipantIds = [profile.id, ...uniqueParticipantIds];
-    await db.insert(conversationParticipants).values(
-      allParticipantIds.map((userId) => ({
-        conversationId: newConversation.id,
-        userId,
-        role: userId === profile.id ? "owner" : "member",
-        notificationsEnabled: "true",
-      }))
-    );
+        const [currentAcademy] = await tx
+          .select({ id: academies.id })
+          .from(academies)
+          .where(and(eq(academies.id, academyId), eq(academies.tenantId, tenantId)))
+          .limit(1);
+        const currentMemberships = await tx
+          .select({ userId: memberships.userId })
+          .from(memberships)
+          .where(and(
+            eq(memberships.academyId, academyId),
+            inArray(memberships.userId, [profile.userId, ...participantProfiles.map((item) => item.userId)])
+          ))
+          .limit(101);
+        if (!currentAcademy || new Set(currentMemberships.map((item) => item.userId)).size !== participantProfiles.length + 1) {
+          return { kind: "forbidden" as const };
+        }
+      }
 
-    // Send initial message if provided
-    if (initialMessage) {
-      const [message] = await db
-        .insert(conversationMessages)
+      const [newConversation] = await tx
+        .insert(conversations)
         .values({
-          conversationId: newConversation.id,
-          senderId: profile.id,
-          content: initialMessage,
+          tenantId,
+          academyId: academyId || null,
+          title: title || null,
+          metadata: conversationMetadata,
         })
         .returning();
 
-      // Update conversation last message
-      await db
-        .update(conversations)
-        .set({
-          lastMessagePreview: initialMessage.substring(0, 100),
-          lastMessageAt: new Date(),
-        })
-        .where(eq(conversations.id, newConversation.id));
+      const allParticipantIds = [profile.id, ...uniqueParticipantIds];
+      await tx.insert(conversationParticipants).values(
+        allParticipantIds.map((userId) => ({
+          conversationId: newConversation.id,
+          userId,
+          role: userId === profile.id ? "owner" : "member",
+          notificationsEnabled: "true",
+        }))
+      );
 
-      return apiSuccess({ id: newConversation.id, messageId: message.id });
+      let messageId: string | undefined;
+      if (initialMessage) {
+        const [message] = await tx
+          .insert(conversationMessages)
+          .values({
+            conversationId: newConversation.id,
+            senderId: profile.id,
+            content: initialMessage,
+          })
+          .returning({ id: conversationMessages.id, createdAt: conversationMessages.createdAt });
+        messageId = message.id;
+
+        await tx
+          .update(conversations)
+          .set({
+            lastMessagePreview: initialMessage.substring(0, 100),
+            lastMessageAt: message.createdAt,
+          })
+          .where(and(eq(conversations.id, newConversation.id), eq(conversations.tenantId, tenantId)));
+      }
+
+      return { kind: "ok" as const, conversationId: newConversation.id, messageId };
+    });
+
+    if (created.kind === "forbidden") {
+      return apiError("FORBIDDEN", "La academia o la pertenencia de los destinatarios ha cambiado", 403);
     }
-
-    return apiSuccess({ id: newConversation.id });
+    return apiSuccess({ id: created.conversationId, ...(created.messageId ? { messageId: created.messageId } : {}) });
   } catch (error) {
     logger.error("Error creating conversation:", error);
-    return apiError("INTERNAL_ERROR", "Error al crear conversación", 500);
+    return handleApiError(error, { endpoint: "/api/messages/conversations", method: "POST" });
   }
 });

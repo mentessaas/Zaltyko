@@ -1,13 +1,15 @@
 export const dynamic = 'force-dynamic';
 
 import { apiSuccess, apiError } from "@/lib/api-response";
-import { and, asc, count, eq, sql } from "drizzle-orm";
+import { and, asc, count, eq, isNull, sql } from "drizzle-orm";
 import { z } from "zod";
 
 import { db } from "@/db";
 import { athletes, classWaitingList, classes } from "@/db/schema";
 import { handleApiError } from "@/lib/api-error-handler";
 import { withTenant } from "@/lib/authz";
+import { withTransaction } from "@/lib/db-transactions";
+import { assertAcademyOperationalWritable, lockAcademyOperationalWrites } from "@/lib/limits";
 
 const AddToWaitingListSchema = z.object({
   classId: z.string().uuid(),
@@ -23,74 +25,86 @@ export const POST = withTenant(async (request, context) => {
       return apiError("TENANT_REQUIRED", "Tenant ID is required", 400);
     }
 
-    // Verificar que la clase existe
-    const [classRow] = await db
-      .select()
+    // Resolve the lock key first, then re-read the class and athlete after the
+    // academy lock so a concurrent archive cannot leave a partial waitlist row.
+    const [candidateClass] = await db
+      .select({ academyId: classes.academyId })
       .from(classes)
-      .where(and(eq(classes.id, body.classId), eq(classes.tenantId, context.tenantId)))
+      .where(and(eq(classes.id, body.classId), eq(classes.tenantId, context.tenantId), isNull(classes.deletedAt)))
       .limit(1);
 
-    if (!classRow) {
+    if (!candidateClass) {
       return apiError("CLASS_NOT_FOUND", "Class not found", 404);
     }
 
-    // Verificar que el atleta existe
-    const [athlete] = await db
+    const outcome = await withTransaction(async (tx) => {
+      await lockAcademyOperationalWrites(tx, candidateClass.academyId);
+      await assertAcademyOperationalWritable(context.tenantId!, candidateClass.academyId, tx);
+
+      const [classRow] = await tx
+      .select()
+      .from(classes)
+      .where(and(eq(classes.id, body.classId), eq(classes.tenantId, context.tenantId!), eq(classes.academyId, candidateClass.academyId), isNull(classes.deletedAt)))
+      .limit(1);
+
+      if (!classRow) return { kind: "class_missing" as const };
+
+      const [athlete] = await tx
       .select()
       .from(athletes)
       .where(and(
         eq(athletes.id, body.athleteId),
-        eq(athletes.tenantId, context.tenantId),
+        eq(athletes.tenantId, context.tenantId!),
         eq(athletes.academyId, classRow.academyId),
+        isNull(athletes.deletedAt),
+        eq(athletes.status, "active"),
       ))
       .limit(1);
 
-    if (!athlete) {
-      return apiError("ATHLETE_NOT_FOUND", "Athlete not found", 404);
-    }
+      if (!athlete) return { kind: "athlete_missing" as const };
 
-    // Verificar que no esté ya en la lista
-    const [existing] = await db
+      const [existing] = await tx
       .select()
       .from(classWaitingList)
       .where(
         and(
           eq(classWaitingList.classId, body.classId),
           eq(classWaitingList.athleteId, body.athleteId),
-          eq(classWaitingList.tenantId, context.tenantId),
+          eq(classWaitingList.tenantId, context.tenantId!),
         )
       )
       .limit(1);
 
-    if (existing) {
-      return apiError("ALREADY_IN_WAITING_LIST", "Already in waiting list", 409);
-    }
+      if (existing) return { kind: "already_listed" as const };
 
-    // Obtener la siguiente posición
-    const [{ maxPosition }] = await db
+      const [{ maxPosition }] = await tx
       .select({ maxPosition: sql<number>`COALESCE(MAX(${classWaitingList.position}), 0)` })
       .from(classWaitingList)
-      .where(and(eq(classWaitingList.classId, body.classId), eq(classWaitingList.tenantId, context.tenantId)));
+      .where(and(eq(classWaitingList.classId, body.classId), eq(classWaitingList.tenantId, context.tenantId!)));
 
-    const position = (maxPosition ?? 0) + 1;
+      const position = (maxPosition ?? 0) + 1;
 
-    const entryId = crypto.randomUUID();
+      const entryId = crypto.randomUUID();
 
-    const [createdEntry] = await db.insert(classWaitingList).values({
-      id: entryId,
-      tenantId: context.tenantId,
-      academyId: classRow.academyId,
-      classId: body.classId,
-      athleteId: body.athleteId,
-      position,
-      notes: body.notes ?? null,
-    }).onConflictDoNothing({ target: [classWaitingList.tenantId, classWaitingList.classId, classWaitingList.athleteId] }).returning({ id: classWaitingList.id, position: classWaitingList.position });
+      const [createdEntry] = await tx.insert(classWaitingList).values({
+        id: entryId,
+        tenantId: context.tenantId!,
+        academyId: classRow.academyId,
+        classId: body.classId,
+        athleteId: body.athleteId,
+        position,
+        notes: body.notes ?? null,
+      }).onConflictDoNothing({ target: [classWaitingList.tenantId, classWaitingList.classId, classWaitingList.athleteId] }).returning({ id: classWaitingList.id, position: classWaitingList.position });
 
-    if (!createdEntry) {
-      return apiError("ALREADY_IN_WAITING_LIST", "Already in waiting list", 409);
-    }
+      if (!createdEntry) return { kind: "already_listed" as const };
+      return { kind: "created" as const, id: createdEntry.id, position: createdEntry.position };
+    });
 
-    return apiSuccess({ ok: true, id: entryId, position });
+    if (outcome.kind === "class_missing") return apiError("CLASS_NOT_FOUND", "Class not found", 404);
+    if (outcome.kind === "athlete_missing") return apiError("ATHLETE_NOT_FOUND", "Athlete not found", 404);
+    if (outcome.kind === "already_listed") return apiError("ALREADY_IN_WAITING_LIST", "Already in waiting list", 409);
+
+    return apiSuccess({ ok: true, id: outcome.id, position: outcome.position });
   } catch (error) {
     return handleApiError(error);
   }

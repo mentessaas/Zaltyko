@@ -1,14 +1,14 @@
-import { and, eq } from "drizzle-orm";
+import { and, eq, gt, sql } from "drizzle-orm";
 
 import { db } from "@/db";
-import { academies, athletes, classes, groups, plans, subscriptions, profiles } from "@/db/schema";
+import { academyTrials, academies, athletes, classes, groups, plans, subscriptions, profiles } from "@/db/schema";
 import { LimitError, type PlanCode, type LimitResource } from "./limits/errors";
 import type { UpgradePlanCode } from "./limits/errors";
 import { PRODUCT_PLAN_BY_CODE } from "@/lib/plans/catalog";
-import { NotFoundError } from "@/lib/errors";
+import { AppError, NotFoundError } from "@/lib/errors";
 import { getResourceCount } from "./limits/resource-counters";
-import { getAcademyTrialStatus } from "@/lib/billing/trial-service";
 import { hasSubscriptionAccess } from "@/lib/billing/subscription-status";
+import { getAcademyTrialStatus } from "@/lib/billing/trial-service";
 import type { DatabaseClient } from "@/lib/db-transactions";
 
 export type { PlanCode, LimitResource };
@@ -48,8 +48,11 @@ const ATHLETE_LIMITS: Record<PlanCode, number | null> = {
   premium: PRODUCT_PLAN_BY_CODE.premium.athleteLimit,
 };
 
-export async function getUserSubscription(userId: string): Promise<ActiveSubscription> {
-  const [row] = await db
+export async function getUserSubscription(
+  userId: string,
+  client: DatabaseClient = db
+): Promise<ActiveSubscription> {
+  const [row] = await client
     .select({
       planCode: plans.code,
       planNickname: plans.nickname,
@@ -88,9 +91,26 @@ export async function getUserSubscription(userId: string): Promise<ActiveSubscri
   };
 }
 
-export async function getActiveSubscription(academyId: string): Promise<ActiveSubscription> {
-  const trial = await getAcademyTrialStatus(academyId);
-  if (trial.active) {
+export async function getActiveSubscription(
+  academyId: string,
+  client: DatabaseClient = db
+): Promise<ActiveSubscription> {
+  const now = new Date();
+  // Keep the existing trial lifecycle side effect for ordinary callers. The
+  // transactional limit guard must use its own client and therefore reads the
+  // effective end time without expiring the trial through the global db.
+  let trialIsActive: boolean;
+  if (client === db) {
+    trialIsActive = (await getAcademyTrialStatus(academyId, now)).active;
+  } else {
+    const [activeTrial] = await client
+      .select({ id: academyTrials.id })
+      .from(academyTrials)
+      .where(and(eq(academyTrials.academyId, academyId), eq(academyTrials.status, "active"), gt(academyTrials.endsAt, now)))
+      .limit(1);
+    trialIsActive = Boolean(activeTrial);
+  }
+  if (trialIsActive) {
     return {
       planCode: "pro",
       status: "trialing",
@@ -102,7 +122,7 @@ export async function getActiveSubscription(academyId: string): Promise<ActiveSu
     };
   }
 
-  const [academy] = await db
+  const [academy] = await client
     .select({
       ownerId: academies.ownerId,
     })
@@ -120,7 +140,7 @@ export async function getActiveSubscription(academyId: string): Promise<ActiveSu
     };
   }
 
-  const [owner] = await db
+  const [owner] = await client
     .select({
       userId: profiles.userId,
     })
@@ -138,7 +158,7 @@ export async function getActiveSubscription(academyId: string): Promise<ActiveSu
     };
   }
 
-  return getUserSubscription(owner.userId);
+  return getUserSubscription(owner.userId, client);
 }
 
 export interface LimitEvaluation {
@@ -222,44 +242,164 @@ export async function assertWithinPlanLimits(
   resource: LimitResource,
   client: DatabaseClient = db
 ): Promise<void> {
-  await assertAcademyTenant(academyId, tenantId, client);
-
-  const subscription = await getActiveSubscription(academyId);
-
-  // Obtener el límite según el recurso
-  let limit: number | null;
-  switch (resource) {
-    case "athletes":
-      limit = subscription.athleteLimit;
-      break;
-    case "classes":
-      limit = subscription.classLimit;
-      break;
-    case "groups":
-      limit = subscription.groupLimit;
-      break;
-    default:
-      throw new Error(`Resource ${resource} is not supported for academy-level limits`);
+  // La política elegida conserva los datos y bloquea toda operación cuando
+  // cualquier recurso supera el plan. Se evalúa también durante las altas de
+  // cada tipo, para que crear un recurso distinto no permita seguir operando.
+  const usage = await assertAcademyOperationalWritable(tenantId, academyId, client);
+  const resourceUsage = usage.resources.find((item) => item.resource === resource);
+  if (!resourceUsage) {
+    throw new Error(`Resource ${resource} is not supported for academy-level limits`);
   }
-
-  // Si no hay límite, no validar
-  if (limit === null) {
-    return;
-  }
-
-  // Obtener conteo actual
-  const currentCount = await getResourceCount(resource, academyId, tenantId, undefined, client);
-  const evaluation = evaluateLimit(subscription.planCode, limit, currentCount, resource);
+  const evaluation = evaluateLimit(usage.planCode, resourceUsage.limit, resourceUsage.current, resource);
 
   if (evaluation.exceeded) {
     throw new LimitError("LIMIT_REACHED", {
       code: "LIMIT_REACHED",
       resource,
-      currentCount,
-      limit,
+      currentCount: resourceUsage.current,
+      limit: resourceUsage.limit!,
       upgradeTo: evaluation.upgradeTo,
     });
   }
+}
+
+export interface AcademyOperationalUsage {
+  planCode: PlanCode;
+  readOnly: boolean;
+  resources: Array<{
+    resource: Extract<LimitResource, "athletes" | "groups" | "classes">;
+    current: number;
+    limit: number | null;
+    excess: number;
+  }>;
+}
+
+/**
+ * Computes the legacy academy's effective usage across all capped resources.
+ * Counts are scoped by both academy and tenant. A resource is over capacity
+ * only when current usage is greater than its plan limit; a full but compliant
+ * academy may still use its remaining operations.
+ */
+export async function getAcademyOperationalUsage(
+  tenantId: string,
+  academyId: string,
+  client: DatabaseClient = db
+): Promise<AcademyOperationalUsage> {
+  await assertAcademyTenant(academyId, tenantId, client);
+  const subscription = await getActiveSubscription(academyId, client);
+  const resourceLimits = [
+    { resource: "athletes" as const, limit: subscription.athleteLimit },
+    { resource: "groups" as const, limit: subscription.groupLimit },
+    { resource: "classes" as const, limit: subscription.classLimit },
+  ];
+
+  const resources: AcademyOperationalUsage["resources"] = [];
+  for (const item of resourceLimits) {
+    const current = await getResourceCount(item.resource, academyId, tenantId, undefined, client);
+    if (!Number.isSafeInteger(current) || current < 0) {
+      throw new AppError(
+        "No se pudo comprobar el uso del plan. Inténtalo de nuevo.",
+        "PLAN_USAGE_UNAVAILABLE",
+        503
+      );
+    }
+    if (item.limit !== null && (!Number.isSafeInteger(item.limit) || item.limit < 0)) {
+      throw new AppError(
+        "No se pudo comprobar el límite del plan. Inténtalo de nuevo.",
+        "PLAN_USAGE_UNAVAILABLE",
+        503
+      );
+    }
+    resources.push({
+      ...item,
+      current,
+      excess: item.limit === null ? 0 : Math.max(0, current - item.limit),
+    });
+  }
+
+  return {
+    planCode: subscription.planCode,
+    readOnly: resources.some((resource) => resource.excess > 0),
+    resources,
+  };
+}
+
+/**
+ * Rejects operational writes while any legacy academy resource is over plan.
+ * Call from inside the transaction that performs the write and after taking
+ * the academy advisory lock. Read/query, archive, and plan-upgrade routes are
+ * intentionally outside this guard so owners can regularize their account.
+ */
+export async function assertAcademyOperationalWritable(
+  tenantId: string,
+  academyId: string,
+  client: DatabaseClient = db
+): Promise<AcademyOperationalUsage> {
+  if (client !== db) {
+    await lockAcademySubscriptionStatus(client, tenantId, academyId);
+  }
+
+  const usage = await getAcademyOperationalUsage(tenantId, academyId, client);
+  if (!usage.readOnly) return usage;
+
+  throw new AppError(
+    "La academia está en solo lectura porque supera los límites de su plan. Archiva el excedente o contrata capacidad suficiente desde Plan. Los datos se conservan.",
+    "PLAN_OVER_CAPACITY",
+    409,
+    usage
+  );
+}
+
+/**
+ * Serializes capacity reads/writes with subscription lifecycle updates. The
+ * caller already holds the academy lock, so both paths use academy -> owner
+ * subscription as their lock order.
+ */
+async function lockAcademySubscriptionStatus(
+  client: DatabaseClient,
+  tenantId: string,
+  academyId: string
+): Promise<void> {
+  const [owner] = await client
+    .select({ userId: profiles.userId })
+    .from(academies)
+    .innerJoin(profiles, eq(academies.ownerId, profiles.id))
+    .where(and(eq(academies.id, academyId), eq(academies.tenantId, tenantId)))
+    .limit(1);
+
+  if (owner?.userId) await lockUserSubscriptionStatus(client, owner.userId);
+}
+
+/** Uses the same advisory key for status webhook updates and capacity guards. */
+export async function lockUserSubscriptionStatus(
+  client: DatabaseClient,
+  userId: string
+): Promise<void> {
+  const executor = client as DatabaseClient & { execute?: (query: unknown) => Promise<unknown> };
+  if (typeof executor.execute !== "function") {
+    throw new AppError(
+      "No se pudo asegurar el estado del plan. Inténtalo de nuevo.",
+      "SUBSCRIPTION_LOCK_UNAVAILABLE",
+      503
+    );
+  }
+  await executor.execute(sql`select pg_advisory_xact_lock(hashtext(${userId}))`);
+}
+
+/** Serialize legacy operational writes against capacity and archive actions. */
+export async function lockAcademyOperationalWrites(
+  client: DatabaseClient,
+  academyId: string
+): Promise<void> {
+  const executor = client as DatabaseClient & { execute?: (query: unknown) => Promise<unknown> };
+  if (typeof executor.execute !== "function") {
+    throw new AppError(
+      "No se pudo asegurar la operación de la academia. Inténtalo de nuevo.",
+      "OPERATIONAL_LOCK_UNAVAILABLE",
+      503
+    );
+  }
+  await executor.execute(sql`select pg_advisory_xact_lock(hashtext(${academyId}))`);
 }
 
 export async function checkPlanLimitViolations(userId: string, newPlanCode: PlanCode): Promise<{

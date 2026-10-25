@@ -4,11 +4,13 @@ import { and, asc, eq, inArray, isNull, sql } from "drizzle-orm";
 import { z } from "zod";
 
 import { db } from "@/db";
-import { athletes, guardians, guardianAthletes } from "@/db/schema";
+import { academies, athletes, guardians, guardianAthletes } from "@/db/schema";
 import { withTenant } from "@/lib/authz";
 import { authorizeAcademyCapability } from "@/lib/authz/resource-scope";
 import { handleApiError } from "@/lib/api-error-handler";
 import { apiSuccess, apiError, apiCreated } from "@/lib/api-response";
+import { withTransaction } from "@/lib/db-transactions";
+import { assertAcademyOperationalWritable, lockAcademyOperationalWrites } from "@/lib/limits";
 
 const GuardianSchema = z.object({
   athleteId: z.string().uuid().optional(),
@@ -233,47 +235,60 @@ export const POST = withTenant(async (request, context) => {
 
     const guardianId = crypto.randomUUID();
 
-    if (body.athleteIds?.length) {
-      const scopedAthletes = await db
-        .select({ id: athletes.id })
-        .from(athletes)
-        .where(and(
-          eq(athletes.tenantId, context.tenantId),
-          eq(athletes.academyId, body.academyId),
-          inArray(athletes.id, body.athleteIds),
-          isNull(athletes.deletedAt),
-        ))
-        .limit(100);
-      if (scopedAthletes.length !== new Set(body.athleteIds).size) {
-        return apiError("ATHLETE_ACCESS_DENIED", "One or more athletes do not belong to this academy", 403);
-      }
-    }
+    const created = await withTransaction(async (tx) => {
+      await lockAcademyOperationalWrites(tx, body.academyId);
+      await assertAcademyOperationalWritable(context.tenantId!, body.academyId, tx);
 
-    // Create guardian
-    await db.insert(guardians).values({
-      id: guardianId,
-      tenantId: context.tenantId,
-      name: body.guardian.name,
-      email: body.guardian.email || null,
-      phone: body.guardian.phone || null,
-      relationship: body.guardian.relationship || null,
-      notifyEmail: body.guardian.notifyEmail ?? true,
-      notifySms: body.guardian.notifySms ?? false,
+      const [academy] = await tx
+        .select({ id: academies.id })
+        .from(academies)
+        .where(and(eq(academies.id, body.academyId), eq(academies.tenantId, context.tenantId!)))
+        .limit(1);
+      if (!academy) return false;
+
+      if (body.athleteIds?.length) {
+        const scopedAthletes = await tx
+          .select({ id: athletes.id })
+          .from(athletes)
+          .where(and(
+            eq(athletes.tenantId, context.tenantId!),
+            eq(athletes.academyId, body.academyId),
+            inArray(athletes.id, body.athleteIds),
+            isNull(athletes.deletedAt),
+          ))
+          .limit(100);
+        if (scopedAthletes.length !== new Set(body.athleteIds).size) {
+          return false;
+        }
+      }
+
+      await tx.insert(guardians).values({
+        id: guardianId,
+        tenantId: context.tenantId!,
+        name: body.guardian.name,
+        email: body.guardian.email || null,
+        phone: body.guardian.phone || null,
+        relationship: body.guardian.relationship || null,
+        notifyEmail: body.guardian.notifyEmail ?? true,
+        notifySms: body.guardian.notifySms ?? false,
+      });
+
+      if (body.athleteIds?.length) {
+        const associations = body.athleteIds.map(athleteId => ({
+          id: crypto.randomUUID(),
+          tenantId: context.tenantId!,
+          guardianId,
+          athleteId,
+          relationship: body.guardian.relationship || null,
+          isPrimary: false,
+        }));
+
+        await tx.insert(guardianAthletes).values(associations).onConflictDoNothing();
+      }
+      return true;
     });
 
-    // Associate with athletes if provided
-    if (body.athleteIds?.length) {
-      const associations = body.athleteIds.map(athleteId => ({
-        id: crypto.randomUUID(),
-        tenantId: context.tenantId,
-        guardianId,
-        athleteId,
-        relationship: body.guardian.relationship || null,
-        isPrimary: false,
-      }));
-
-      await db.insert(guardianAthletes).values(associations).onConflictDoNothing();
-    }
+    if (!created) return apiError("ATHLETE_ACCESS_DENIED", "Academy or athletes changed; no guardian was created", 409);
 
     return apiCreated({ id: guardianId });
   } catch (error) {

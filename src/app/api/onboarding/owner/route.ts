@@ -47,6 +47,7 @@ import { trackEvent } from "@/lib/analytics";
 import { enqueueOnboardingOwnerD0 } from "@/lib/onboarding-owner-integration";
 import { logger } from "@/lib/logger";
 import { recordOwnerSignupConsent } from "@/lib/consent/owner-consent-store";
+import { getUserSubscription } from "@/lib/limits";
 
 const bodySchema = z.object({
   directoryEntryId:z.string().uuid().optional(),
@@ -387,6 +388,56 @@ export async function POST(request: Request) {
       };
     }
 
+    const activeVariants = Array.from(
+      new Set([
+        parsed.data.disciplineVariant,
+        ...(parsed.data.activeDisciplineVariants ?? []),
+      ])
+    );
+    let starterGroupCount = 0;
+    let starterClassCount = 0;
+    for (const variant of activeVariants) {
+      const specialization = resolveAcademySpecialization({
+        countryCode: parsed.data.countryCode,
+        country: parsed.data.country,
+        disciplineVariant: variant,
+        academyType: mapDisciplineVariantToAcademyType(variant),
+        specializationStatus: "configured",
+      });
+      const presets = getStarterGroupPresets(specialization);
+      const selectedKeys =
+        parsed.data.starterGroupsByVariant?.[variant] ??
+        (variant === parsed.data.disciplineVariant
+          ? parsed.data.starterGroupKeys
+          : undefined) ??
+        presets.map((preset) => preset.key);
+      const selectedGroups = presets.filter((preset) => selectedKeys.includes(preset.key));
+      starterGroupCount += selectedGroups.length;
+      starterClassCount += getStarterClassPresets(specialization, selectedGroups).length;
+    }
+
+    const subscription = await getUserSubscription(user.id, tx);
+    if (subscription.groupLimit !== null && starterGroupCount > subscription.groupLimit) {
+      return {
+        error: apiError(
+          "PLAN_LIMIT_REACHED",
+          "La configuración inicial supera el límite de grupos de tu plan. Reduce los grupos de inicio o mejora el plan antes de crear la academia.",
+          402,
+          { resource: "groups", currentCount: starterGroupCount, limit: subscription.groupLimit }
+        ),
+      };
+    }
+    if (subscription.classLimit !== null && starterClassCount > subscription.classLimit) {
+      return {
+        error: apiError(
+          "PLAN_LIMIT_REACHED",
+          "La configuración inicial supera el límite de clases de tu plan. Reduce las clases de inicio o mejora el plan antes de crear la academia.",
+          402,
+          { resource: "classes", currentCount: starterClassCount, limit: subscription.classLimit }
+        ),
+      };
+    }
+
     const result = await createAcademy(
       {
         // A public listing is approved evidence. Never let the activation form
@@ -426,12 +477,6 @@ export async function POST(request: Request) {
       await tx.execute(sql`UPDATE directory_entries SET academy_id=${result.id}::uuid,updated_at=now() WHERE id=${directoryId}::uuid`);
       await tx.execute(sql`INSERT INTO directory_audit(entry_id,actor_id,action,metadata) VALUES(${directoryId}::uuid,${user.id}::uuid,'saas_activated',${JSON.stringify({academyId:result.id})}::jsonb)`);
     }
-    const activeVariants = Array.from(
-      new Set([
-        parsed.data.disciplineVariant,
-        ...(parsed.data.activeDisciplineVariants ?? []),
-      ])
-    );
     const activeConfigByVariant = new Map<
       string,
       Awaited<ReturnType<typeof activateAcademySportConfig>>

@@ -9,7 +9,8 @@ import { academies, athletes, coaches, groupAthletes, groups } from "@/db/schema
 import { withTenant } from "@/lib/authz";
 import { authorizeAcademyCapability } from "@/lib/authz/resource-scope";
 import { getUserIdentifier, withRateLimit } from "@/lib/rate-limit";
-import { assertWithinPlanLimits } from "@/lib/limits";
+import { assertWithinPlanLimits, lockAcademyOperationalWrites } from "@/lib/limits";
+import { withTransaction } from "@/lib/db-transactions";
 import { LimitError } from "@/lib/limits/errors";
 import { markChecklistItem, markWizardStep } from "@/lib/onboarding";
 import { logEvent } from "@/lib/event-logging";
@@ -278,11 +279,11 @@ const createGroupHandler = withTenant(async (request, context) => {
     throw error;
   }
 
-  const [group] = await db.transaction(async (tx) => {
+  const [group] = await withTransaction(async (tx) => {
     // La comprobación temprana mejora el mensaje, pero esta segunda
     // comprobación dentro del lock es la que garantiza el límite ante dos
     // creaciones concurrentes.
-    await tx.execute(sql`select pg_advisory_xact_lock(hashtext(${body.academyId}))`);
+    await lockAcademyOperationalWrites(tx, body.academyId);
     await assertWithinPlanLimits(tenantId, body.academyId, "groups", tx);
 
     const [createdGroup] = await tx

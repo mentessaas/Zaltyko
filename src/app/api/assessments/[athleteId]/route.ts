@@ -9,6 +9,7 @@ import { withTenant } from "@/lib/authz";
 import { authorizeAcademyCapability } from "@/lib/authz/resource-scope";
 import { handleApiError } from "@/lib/api-error-handler";
 import { withTransaction } from "@/lib/db-transactions";
+import { assertAcademyOperationalWritable, lockAcademyOperationalWrites } from "@/lib/limits";
 import { apiSuccess, apiError } from "@/lib/api-response";
 import { getAcademySportConfigOptions, verifyAcademySportConfig } from "@/lib/sport-config/service";
 import { verifyProgressAccess } from "@/lib/progress/service";
@@ -187,6 +188,8 @@ export const POST = withTenant(async (request, context) => {
     });
 
     await withTransaction(async (tx) => {
+      await lockAcademyOperationalWrites(tx, athleteRow.academyId);
+      await assertAcademyOperationalWritable(context.tenantId!, athleteRow.academyId, tx);
       await tx.insert(athleteAssessments).values({
         id: assessmentId,
         tenantId: context.tenantId,
@@ -379,7 +382,14 @@ export const PATCH = withTenant(async (request, context) => {
     if (!assessment) return apiError("ASSESSMENT_NOT_FOUND", "Evaluación no encontrada", 404);
     const scope = await authorizeAcademyCapability({ context, resourceTenantId: assessment.tenantId, academyId: assessment.academyId, permission: "athletes:update" });
     if (!scope.allowed) return apiError("ASSESSMENT_NOT_FOUND", "Evaluación no encontrada", 404);
-    const [updated] = await db.update(athleteAssessments).set({ visibleToGuardians: body.data.visibleToGuardians }).where(eq(athleteAssessments.id, assessment.id)).returning({ id: athleteAssessments.id, visibleToGuardians: athleteAssessments.visibleToGuardians });
+    const [updated] = await withTransaction(async (tx) => {
+      await lockAcademyOperationalWrites(tx, assessment.academyId);
+      await assertAcademyOperationalWritable(context.tenantId!, assessment.academyId, tx);
+      return tx.update(athleteAssessments)
+        .set({ visibleToGuardians: body.data.visibleToGuardians })
+        .where(and(eq(athleteAssessments.id, assessment.id), eq(athleteAssessments.tenantId, context.tenantId!)))
+        .returning({ id: athleteAssessments.id, visibleToGuardians: athleteAssessments.visibleToGuardians });
+    });
     return apiSuccess({ assessment: updated });
   } catch (error) { return handleApiError(error); }
 });

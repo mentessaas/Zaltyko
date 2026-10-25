@@ -2,7 +2,7 @@
 
 import { revalidatePath } from "next/cache";
 import { cookies } from "next/headers";
-import { and, eq } from "drizzle-orm";
+import { and, eq, isNull } from "drizzle-orm";
 import { z } from "zod";
 import { db } from "@/db";
 import {
@@ -22,6 +22,8 @@ import { withTransaction } from "@/lib/db-transactions";
 import { createClient } from "@/lib/supabase/server";
 import { logger } from "@/lib/logger";
 import { getCurrencyForCountry } from "@/lib/currency";
+import { AppError, NotFoundError } from "@/lib/errors";
+import { assertWithinPlanLimits, lockAcademyOperationalWrites } from "@/lib/limits";
 
 const createExtraClassSchema = z.object({
   athleteId: z.string().uuid(),
@@ -152,16 +154,34 @@ export async function createExtraClassAction(input: z.infer<typeof createExtraCl
     const startTimeOnly = `${String(startDate.getHours()).padStart(2, "0")}:${String(startDate.getMinutes()).padStart(2, "0")}`;
     const endTimeOnly = `${String(endDate.getHours()).padStart(2, "0")}:${String(endDate.getMinutes()).padStart(2, "0")}`;
 
-    // Obtener nombre del atleta
-    const [athleteWithName] = await db
-      .select({ name: athletes.name })
-      .from(athletes)
-      .where(eq(athletes.id, body.athleteId))
-      .limit(1);
-
-    const className = `Clase extra - ${athleteWithName?.name ?? "Atleta"} - ${startDate.toLocaleDateString("es-ES", { day: "numeric", month: "short" })}`;
-
     await withTransaction(async (tx) => {
+      await lockAcademyOperationalWrites(tx, body.academyId);
+      await assertWithinPlanLimits(tenantId, body.academyId, "classes", tx);
+
+      const [currentAthlete] = await tx
+        .select({ id: athletes.id, name: athletes.name })
+        .from(athletes)
+        .where(and(
+          eq(athletes.id, body.athleteId),
+          eq(athletes.academyId, body.academyId),
+          eq(athletes.tenantId, tenantId),
+          isNull(athletes.deletedAt),
+        ))
+        .limit(1);
+      if (!currentAthlete) throw new NotFoundError("El atleta ya no pertenece a esta academia");
+
+      const [currentCoach] = await tx
+        .select({ id: coaches.id })
+        .from(coaches)
+        .where(and(
+          eq(coaches.id, body.coachId),
+          eq(coaches.academyId, body.academyId),
+        ))
+        .limit(1);
+      if (!currentCoach) throw new NotFoundError("El entrenador ya no pertenece a esta academia");
+
+      const className = `Clase extra - ${currentAthlete.name} - ${startDate.toLocaleDateString("es-ES", { day: "numeric", month: "short" })}`;
+
       // Crear la clase
       await tx.insert(classes).values({
         id: classId,
@@ -234,6 +254,12 @@ export async function createExtraClassAction(input: z.infer<typeof createExtraCl
     return { ok: true, classId };
   } catch (error: any) {
     logger.error("Error en createExtraClassAction:", error);
+    if (error instanceof AppError) {
+      return {
+        error: error.code ?? "REQUEST_FAILED",
+        message: error.message,
+      };
+    }
     if (error instanceof z.ZodError) {
       return {
         error: "VALIDATION_ERROR",

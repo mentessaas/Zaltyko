@@ -1,9 +1,10 @@
 export const dynamic = 'force-dynamic';
 
-import { and, eq, desc } from "drizzle-orm";
+import { and, eq, desc, isNull } from "drizzle-orm";
 import { z } from "zod";
 
 import { db } from "@/db";
+import { athletes } from "@/db/schema";
 import { athleteDocuments } from "@/db/schema/athlete-documents";
 import { withTenant } from "@/lib/authz";
 import { authorizeAthleteResource } from "@/lib/authz/resource-scope";
@@ -12,6 +13,8 @@ import { DOCUMENT_TYPES } from "@/types/athletes";
 import { apiSuccess, apiError, apiCreated } from "@/lib/api-response";
 import { createSignedUrl, deleteFile } from "@/lib/supabase/storage-helpers";
 import { logger } from "@/lib/logger";
+import { withTransaction } from "@/lib/db-transactions";
+import { assertAcademyOperationalWritable, lockAcademyOperationalWrites } from "@/lib/limits";
 
 const STORAGE_PATH_PREFIX = (tenantId: string, academyId: string, athleteId: string) =>
   `${tenantId}/${academyId}/athletes/${athleteId}/documents/`;
@@ -123,7 +126,30 @@ export const POST = withTenant(async (request, context) => {
       alertSent: false,
     };
 
-    const [inserted] = await db.insert(athleteDocuments).values(insertValues as typeof athleteDocuments.$inferInsert).returning({ id: athleteDocuments.id });
+    const inserted = await withTransaction(async (tx) => {
+      await lockAcademyOperationalWrites(tx, scope.resource!.academyId);
+      await assertAcademyOperationalWritable(context.tenantId!, scope.resource!.academyId, tx);
+
+      const [currentAthlete] = await tx
+        .select({ id: athletes.id })
+        .from(athletes)
+        .where(and(
+          eq(athletes.id, athleteId),
+          eq(athletes.tenantId, context.tenantId!),
+          eq(athletes.academyId, scope.resource!.academyId),
+          isNull(athletes.deletedAt),
+        ))
+        .limit(1);
+      if (!currentAthlete) return null;
+
+      const [row] = await tx
+        .insert(athleteDocuments)
+        .values(insertValues as typeof athleteDocuments.$inferInsert)
+        .returning({ id: athleteDocuments.id });
+      return row ?? null;
+    });
+
+    if (!inserted) return apiError("ATHLETE_NOT_FOUND", "Athlete not found", 404);
 
     return apiCreated({ id: inserted.id });
   } catch (error) {
@@ -154,20 +180,39 @@ export const DELETE = withTenant(async (request, context) => {
       return apiError(scope.reason ?? "ATHLETE_ACCESS_DENIED", "Athlete not found", 404);
     }
 
-    const [document] = await db
-      .delete(athleteDocuments)
-      .where(and(
-        eq(athleteDocuments.id, documentId),
-        eq(athleteDocuments.athleteId, athleteId),
-        eq(athleteDocuments.tenantId, context.tenantId)
-      ))
-      .returning({ fileUrl: athleteDocuments.fileUrl });
+    const deleted = await withTransaction(async (tx) => {
+      await lockAcademyOperationalWrites(tx, scope.resource!.academyId);
+      await assertAcademyOperationalWritable(context.tenantId!, scope.resource!.academyId, tx);
+
+      const [currentAthlete] = await tx
+        .select({ id: athletes.id })
+        .from(athletes)
+        .where(and(
+          eq(athletes.id, athleteId),
+          eq(athletes.tenantId, context.tenantId!),
+          eq(athletes.academyId, scope.resource!.academyId),
+          isNull(athletes.deletedAt),
+        ))
+        .limit(1);
+      if (!currentAthlete) return null;
+
+      const [row] = await tx
+        .delete(athleteDocuments)
+        .where(and(
+          eq(athleteDocuments.id, documentId),
+          eq(athleteDocuments.athleteId, athleteId),
+          eq(athleteDocuments.tenantId, context.tenantId!),
+        ))
+        .returning({ fileUrl: athleteDocuments.fileUrl });
+      return row ?? null;
+    });
+    if (!deleted) return apiError("DOCUMENT_NOT_FOUND", "Document not found", 404);
 
     // Keep Storage in sync with metadata. Legacy external URLs are not ours
     // to delete; private paths are safe because the record was scope-checked.
-    if (document?.fileUrl && !document.fileUrl.startsWith("http")) {
+    if (deleted.fileUrl && !deleted.fileUrl.startsWith("http")) {
       try {
-        await deleteFile(document.fileUrl);
+        await deleteFile(deleted.fileUrl);
       } catch (error) {
         // Metadata deletion remains successful; surface an operational signal
         // without making a user retry and risk duplicate records.

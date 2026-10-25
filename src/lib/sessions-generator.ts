@@ -2,6 +2,7 @@ import { and, eq, gte, lte } from "drizzle-orm";
 
 import { db } from "@/db";
 import { classCoachAssignments, classSessions, classWeekdays, classes } from "@/db/schema";
+import type { DatabaseClient } from "@/lib/db-transactions";
 import { addCalendarDays, formatCalendarDate, parseCalendarDate } from "@/lib/date-utils";
 
 export interface GenerateSessionsOptions {
@@ -29,12 +30,13 @@ export interface GenerateSessionsResult {
  * @returns Resultado con estadísticas y sesiones creadas
  */
 export async function generateRecurringSessions(
-  options: GenerateSessionsOptions
+  options: GenerateSessionsOptions,
+  client: DatabaseClient = db
 ): Promise<GenerateSessionsResult> {
   const { classId, tenantId, startDate, endDate } = options;
 
   // Obtener información de la clase
-  const [classData] = await db
+  const [classData] = await client
     .select({
       id: classes.id,
       sportConfigId: classes.sportConfigId,
@@ -49,7 +51,7 @@ export async function generateRecurringSessions(
     throw new Error("CLASS_NOT_FOUND");
   }
 
-  const weekdayRows = await db
+  const weekdayRows = await client
     .select({ weekday: classWeekdays.weekday })
     .from(classWeekdays)
     .where(and(eq(classWeekdays.classId, classId), eq(classWeekdays.tenantId, tenantId)))
@@ -62,7 +64,7 @@ export async function generateRecurringSessions(
   }
 
   // Obtener coach asignado a la clase (tomar el primero si hay múltiples)
-  const [coachAssignment] = await db
+  const [coachAssignment] = await client
     .select({
       coachId: classCoachAssignments.coachId,
     })
@@ -92,7 +94,7 @@ export async function generateRecurringSessions(
   }
 
   // Obtener sesiones existentes en el rango para evitar duplicados
-  const existingSessions = await db
+  const existingSessions = await client
     .select({
       sessionDate: classSessions.sessionDate,
     })
@@ -197,7 +199,7 @@ export async function generateRecurringSessions(
       status: "scheduled" as const,
     }));
 
-    const insertedSessions = await db
+    const insertedSessions = await client
       .insert(classSessions)
       .values(values)
       .onConflictDoNothing({ target: [classSessions.classId, classSessions.sessionDate] })

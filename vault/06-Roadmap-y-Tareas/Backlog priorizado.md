@@ -1161,3 +1161,10 @@ Catálogo remoto autorizadoMain15oct: prod no tiene namespaceszaltyko/domain_pri
 - Fuente vigente: [`release-gates-summary-2026-10-15.md`](../../docs/qa/release-gates-summary-2026-10-15.md). Prioridad comercial: recibir usuarios esta semana; no prometer fecha hasta cerrar los gates.
 
 - Actualización: diagnóstico CI endurecido a etiquetas fijas sin stderr arbitrario, revisión QA103 GO y 13/13 pruebas PASS; shell-quote móvil1.11.0 de Frontend bb8b94ba integrado selectivamente con evidencia local 337/337. Pendientes nueva CI y alcance de 23 avisos high npm móvil (no asumir que son 23 vulnerabilidades distintas). Producción public139/RLS139 sin tablas zaltyko; Sandbox public138/RLS138 y zaltyko80/RLS80, solo metadatos, sin prueba de políticas/procedencia. Usuario permite intervenir si necesario; por ahora sin DDL/datos/despliegues. Preparar compatibilidad y recuperación antes de aplicar.
+
+## P0 — PR #234: hacer cumplir solo lectura Free antes de publicar
+
+- El candidato actual amplía las guardas de límites a altas y cambios de academia, documentos, tutores, clases, asistencia, cuotas y comunicaciones. Este corte añade guardas transaccionales a conversaciones/mensajes con ámbito de academia y reparación de conversaciones familiares, manteniendo las preferencias personales disponibles.
+- Se añadieron contratos estáticos que comprueban guard → escritura. En este corte solo pasó `git diff --check`; no hay evidencia de tests ni build para el diff completo hasta completar CI remoto del SHA nuevo.
+- El ensayo autenticado con las dos sesiones QA existentes A/B sigue pendiente: los handles de sesión no existen en el runtime actual. La autorización para restaurar las mismas sesiones no autoriza crear cuentas, sesiones admin ni modificar credenciales; reanudar con sus sesiones existentes cuando estén disponibles.
+- No promover la preview ni producción hasta CI, revisión independiente, reconstrucción de esquema en runner remoto y prueba autenticada del sandbox. La caducidad y el impago de las academias QA continúan `NO VERIFICADO` hasta observación autenticada actual.

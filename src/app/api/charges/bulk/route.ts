@@ -8,6 +8,8 @@ import { withTenant } from "@/lib/authz";
 import { authorizeAcademyCapability } from "@/lib/authz/resource-scope";
 import { handleApiError } from "@/lib/api-error-handler";
 import { verifyGroupAccess } from "@/lib/permissions";
+import { withTransaction } from "@/lib/db-transactions";
+import { assertAcademyOperationalWritable, lockAcademyOperationalWrites } from "@/lib/limits";
 
 const BulkCreateChargesSchema = z.object({
   academyId: z.string().uuid(),
@@ -136,13 +138,17 @@ export const POST = withTenant(async (request, context) => {
       });
     }
 
-    const insertedCharges = await db
-      .insert(charges)
-      .values(newCharges)
-      // Respaldo de BD anti-doble-cargo (índice único academy/athlete/period):
-      // una carrera concurrente no duplica los cargos.
-      .onConflictDoNothing()
-      .returning({ id: charges.id });
+    const insertedCharges = await withTransaction(async (tx) => {
+      await lockAcademyOperationalWrites(tx, body.academyId);
+      await assertAcademyOperationalWritable(context.tenantId!, body.academyId, tx);
+      return tx
+        .insert(charges)
+        .values(newCharges)
+        // Respaldo de BD anti-doble-cargo (índice único academy/athlete/period):
+        // una carrera concurrente no duplica los cargos.
+        .onConflictDoNothing()
+        .returning({ id: charges.id });
+    });
 
     // La lectura previa no ve los cargos que gane otra petición concurrente.
     const created = insertedCharges.length;

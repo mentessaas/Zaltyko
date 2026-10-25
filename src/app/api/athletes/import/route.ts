@@ -15,7 +15,12 @@ import {
 } from "@/db/schema";
 import { athleteStatusOptions } from "@/lib/athletes/constants";
 import { withTenant } from "@/lib/authz";
-import { assertWithinPlanLimits, getActiveSubscription } from "@/lib/limits";
+import {
+  assertAcademyOperationalWritable,
+  assertWithinPlanLimits,
+  getActiveSubscription,
+  lockAcademyOperationalWrites,
+} from "@/lib/limits";
 import { getResourceCount } from "@/lib/limits/resource-counters";
 import { withRateLimit, getUserIdentifier } from "@/lib/rate-limit";
 import { handleApiError } from "@/lib/api-error-handler";
@@ -237,6 +242,18 @@ const handler = withTenant(async (request, context) => {
     requiresConfirmation: dryRun,
     batchId: undefined as string | undefined,
   };
+
+  // Rechazar academias ya en solo lectura antes de crear incluso el registro
+  // de lote. Cada inserción vuelve a validar bajo el mismo bloqueo dentro de
+  // su transacción para cubrir cambios concurrentes durante una importación.
+  if (!dryRun) {
+    for (const academyId of Array.from(validAcademyIds).sort()) {
+      await withTransaction(async (tx) => {
+        await lockAcademyOperationalWrites(tx, academyId);
+        await assertAcademyOperationalWritable(effectiveTenantId, academyId, tx);
+      });
+    }
+  }
 
   // Crear el lote antes de insertar filas permite que cada atleta quede
   // asociado al mismo identificador incluso si una fila aislada falla. Si el
@@ -460,6 +477,8 @@ const handler = withTenant(async (request, context) => {
         // asignación a grupo o modalidad, no dejamos una gimnasta huérfana ni
         // obligamos al owner a reparar la importación manualmente.
         await withTransaction(async (tx) => {
+          await lockAcademyOperationalWrites(tx, resolvedAcademyId);
+          await assertAcademyOperationalWritable(effectiveTenantId, resolvedAcademyId, tx);
           await tx.insert(athletes).values({
             id: athleteId,
             tenantId: effectiveTenantId,

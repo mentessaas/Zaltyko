@@ -5,6 +5,7 @@ import { db } from "@/db";
 import { academies, profiles, subscriptions } from "@/db/schema";
 import { extractMetadataValue } from "@/lib/stripe/metadata-utils";
 import { getStripeClient } from "@/lib/stripe/client";
+import type { DatabaseClient } from "@/lib/db-transactions";
 
 export interface AcademyContext {
   academyId: string | null;
@@ -16,13 +17,14 @@ export interface AcademyContext {
  * Resuelve el contexto de academia desde un ID
  */
 export async function resolveAcademyContext(
-  academyId: string | null | undefined
+  academyId: string | null | undefined,
+  client: DatabaseClient = db
 ): Promise<{ academyId: string | null; tenantId: string | null }> {
   if (!academyId) {
     return { academyId: null, tenantId: null };
   }
 
-  const [academy] = await db
+  const [academy] = await client
     .select({ tenantId: academies.tenantId })
     .from(academies)
     .where(eq(academies.id, academyId))
@@ -38,7 +40,8 @@ export async function resolveAcademyContext(
  * Obtiene el contexto de academia desde los metadatos de una suscripción
  */
 export async function getAcademyContextFromSubscription(
-  subscription: Stripe.Subscription
+  subscription: Stripe.Subscription,
+  client: DatabaseClient = db
 ): Promise<AcademyContext> {
   const metadata = subscription.metadata;
   const userId =
@@ -59,7 +62,7 @@ export async function getAcademyContextFromSubscription(
   // El academyId explícito de metadata es canónico. Resolverlo primero evita
   // atribuir el evento a la primera academia de un owner multi-academia.
   if (academyId) {
-    const context = await resolveAcademyContext(academyId);
+    const context = await resolveAcademyContext(academyId, client);
     if (context.tenantId) {
       return { ...context, userId };
     }
@@ -67,14 +70,14 @@ export async function getAcademyContextFromSubscription(
 
   // Compatibilidad con suscripciones antiguas sin academyId en metadata.
   if (userId) {
-    const [profile] = await db
+    const [profile] = await client
       .select({ id: profiles.id })
       .from(profiles)
       .where(eq(profiles.userId, userId))
       .limit(1);
 
     if (profile) {
-      const [academy] = await db
+      const [academy] = await client
         .select({ id: academies.id, tenantId: academies.tenantId })
         .from(academies)
         .where(eq(academies.ownerId, profile.id))

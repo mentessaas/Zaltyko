@@ -25,6 +25,7 @@ import { getAcademySportConfigOptions, verifyAcademySportConfig } from "@/lib/sp
 import { normalizeApparatusCodes } from "@/lib/sport-config/validation";
 import { isValidClassTimeRange } from "@/lib/classes/time-validation";
 import { assertCoachesCanHandleSportConfig } from "@/lib/coaches/sport-scope";
+import { assertAcademyOperationalWritable, lockAcademyOperationalWrites } from "@/lib/limits";
 import {
   hasMixedSportConfigGroups,
   normalizeClassApparatus,
@@ -503,6 +504,23 @@ export const PUT = withTenant(async (request, context) => {
     // Usar transacción para garantizar atomicidad
     try {
       await withTransaction(async (tx) => {
+        await lockAcademyOperationalWrites(tx, currentClass.academyId);
+        await assertAcademyOperationalWritable(currentClass.tenantId, currentClass.academyId, tx);
+        const [currentWriteClass] = await tx
+          .select({ id: classes.id })
+          .from(classes)
+          .where(and(
+            eq(classes.id, classId),
+            eq(classes.tenantId, currentClass.tenantId),
+            eq(classes.academyId, currentClass.academyId),
+            isNull(classes.deletedAt),
+          ))
+          .limit(1);
+        if (!currentWriteClass) {
+          const error: any = new Error("CLASS_NOT_FOUND");
+          error.status = 404;
+          throw error;
+        }
         const updates: Record<string, unknown> = {};
 
         if (body.name !== undefined) updates.name = body.name;
@@ -534,7 +552,12 @@ export const PUT = withTenant(async (request, context) => {
           await tx
             .update(classes)
             .set(updates)
-            .where(eq(classes.id, classId));
+            .where(and(
+              eq(classes.id, classId),
+              eq(classes.tenantId, currentClass.tenantId),
+              eq(classes.academyId, currentClass.academyId),
+              isNull(classes.deletedAt),
+            ));
         }
 
         if (normalizedWeekdays !== null) {
@@ -667,6 +690,23 @@ export const DELETE = withTenant(async (_request, context) => {
     }
 
     await withTransaction(async (tx) => {
+      await lockAcademyOperationalWrites(tx, classRow.academyId);
+      await assertAcademyOperationalWritable(classRow.tenantId, classRow.academyId, tx);
+      const [currentClass] = await tx
+        .select({ id: classes.id })
+        .from(classes)
+        .where(and(
+          eq(classes.id, classId),
+          eq(classes.tenantId, classRow.tenantId),
+          eq(classes.academyId, classRow.academyId),
+          isNull(classes.deletedAt),
+        ))
+        .limit(1);
+      if (!currentClass) {
+        const error: any = new Error("CLASS_NOT_FOUND");
+        error.status = 404;
+        throw error;
+      }
       try {
         await tx
           .delete(classWeekdays)

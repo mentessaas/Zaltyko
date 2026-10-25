@@ -8,6 +8,8 @@ import { withTenant } from "@/lib/authz";
 import { generateRecurringSessions } from "@/lib/sessions-generator";
 import { logger } from "@/lib/logger";
 import { authorizeClassResource } from "@/lib/authz/resource-scope";
+import { withTransaction } from "@/lib/db-transactions";
+import { assertAcademyOperationalWritable, lockAcademyOperationalWrites } from "@/lib/limits";
 
 const bodySchema = z.object({
   classId: z.string().uuid(),
@@ -59,11 +61,15 @@ export const POST = withTenant(async (request, context) => {
   }
 
   try {
-    const result = await generateRecurringSessions({
-      classId: body.classId,
-      tenantId: scope.resource!.tenantId,
-      startDate,
-      endDate,
+    const result = await withTransaction(async (tx) => {
+      await lockAcademyOperationalWrites(tx, scope.resource!.academyId);
+      await assertAcademyOperationalWritable(scope.resource!.tenantId, scope.resource!.academyId, tx);
+      return generateRecurringSessions({
+        classId: body.classId,
+        tenantId: scope.resource!.tenantId,
+        startDate,
+        endDate,
+      }, tx);
     });
 
     return apiSuccess({

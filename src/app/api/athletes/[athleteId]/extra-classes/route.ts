@@ -1,6 +1,6 @@
 export const dynamic = 'force-dynamic';
 
-import { and, eq, desc } from "drizzle-orm";
+import { and, eq, desc, isNull } from "drizzle-orm";
 import { z } from "zod";
 import { randomUUID } from "crypto";
 
@@ -9,6 +9,9 @@ import { athleteExtraClasses, athletes, classes, classWeekdays, classCoachAssign
 import { withTenant } from "@/lib/authz";
 import { handleApiError } from "@/lib/api-error-handler";
 import { apiSuccess, apiError, apiCreated } from "@/lib/api-response";
+import { authorizeAcademyCapability } from "@/lib/authz/resource-scope";
+import { withTransaction } from "@/lib/db-transactions";
+import { assertAcademyOperationalWritable, lockAcademyOperationalWrites } from "@/lib/limits";
 
 const createExtraClassSchema = z.object({
   classId: z.string().uuid(),
@@ -29,17 +32,26 @@ export const GET = withTenant(async (request, context) => {
 
     // Verify athlete belongs to tenant
     const [athlete] = await db
-      .select({ id: athletes.id, academyId: athletes.academyId })
+      .select({ id: athletes.id, academyId: athletes.academyId, tenantId: athletes.tenantId })
       .from(athletes)
       .where(and(
         eq(athletes.id, athleteId),
-        eq(athletes.tenantId, context.tenantId)
+        eq(athletes.tenantId, context.tenantId),
+        isNull(athletes.deletedAt),
       ))
       .limit(1);
 
     if (!athlete) {
       return apiError("ATHLETE_NOT_FOUND", "Athlete not found", 404);
     }
+
+    const scope = await authorizeAcademyCapability({
+      context,
+      resourceTenantId: athlete.tenantId,
+      academyId: athlete.academyId,
+      permission: "athletes:read",
+    });
+    if (!scope.allowed) return apiError("ATHLETE_NOT_FOUND", "Athlete not found", 404);
 
     // Get extra classes with class details
     const extraClasses = await db
@@ -122,7 +134,8 @@ export const POST = withTenant(async (request, context) => {
       .from(athletes)
       .where(and(
         eq(athletes.id, athleteId),
-        eq(athletes.tenantId, context.tenantId)
+        eq(athletes.tenantId, context.tenantId),
+        isNull(athletes.deletedAt),
       ))
       .limit(1);
 
@@ -130,13 +143,23 @@ export const POST = withTenant(async (request, context) => {
       return apiError("ATHLETE_NOT_FOUND", "Athlete not found", 404);
     }
 
+    const scope = await authorizeAcademyCapability({
+      context,
+      resourceTenantId: context.tenantId,
+      academyId: athlete.academyId,
+      permission: "athletes:update",
+    });
+    if (!scope.allowed) return apiError("ATHLETE_NOT_FOUND", "Athlete not found", 404);
+
     // Verify class exists and belongs to same academy
     const [classInfo] = await db
       .select({ id: classes.id })
       .from(classes)
       .where(and(
         eq(classes.id, body.classId),
-        eq(classes.academyId, athlete.academyId)
+        eq(classes.academyId, athlete.academyId),
+        eq(classes.tenantId, context.tenantId),
+        isNull(classes.deletedAt),
       ))
       .limit(1);
 
@@ -145,14 +168,43 @@ export const POST = withTenant(async (request, context) => {
     }
 
     const enrollmentId = randomUUID();
+    const created = await withTransaction(async (tx) => {
+      await lockAcademyOperationalWrites(tx, athlete.academyId);
+      await assertAcademyOperationalWritable(context.tenantId!, athlete.academyId, tx);
 
-    await db.insert(athleteExtraClasses).values({
-      id: enrollmentId,
-      tenantId: context.tenantId,
-      academyId: athlete.academyId,
-      athleteId,
-      classId: body.classId,
+      const [currentAthlete] = await tx
+        .select({ id: athletes.id })
+        .from(athletes)
+        .where(and(
+          eq(athletes.id, athleteId),
+          eq(athletes.tenantId, context.tenantId!),
+          eq(athletes.academyId, athlete.academyId),
+          isNull(athletes.deletedAt),
+        ))
+        .limit(1);
+      const [currentClass] = await tx
+        .select({ id: classes.id })
+        .from(classes)
+        .where(and(
+          eq(classes.id, body.classId),
+          eq(classes.academyId, athlete.academyId),
+          eq(classes.tenantId, context.tenantId!),
+          isNull(classes.deletedAt),
+        ))
+        .limit(1);
+      if (!currentAthlete || !currentClass) return false;
+
+      await tx.insert(athleteExtraClasses).values({
+        id: enrollmentId,
+        tenantId: context.tenantId!,
+        academyId: athlete.academyId,
+        athleteId,
+        classId: body.classId,
+      });
+      return true;
     });
+
+    if (!created) return apiError("ATHLETE_OR_CLASS_NOT_FOUND", "Athlete or class not found", 404);
 
     return apiCreated({ id: enrollmentId });
   } catch (error) {
@@ -181,7 +233,7 @@ export const DELETE = withTenant(async (request, context) => {
 
     // Verify enrollment belongs to this athlete and tenant
     const [enrollment] = await db
-      .select({ id: athleteExtraClasses.id })
+      .select({ id: athleteExtraClasses.id, academyId: athleteExtraClasses.academyId })
       .from(athleteExtraClasses)
       .where(and(
         eq(athleteExtraClasses.id, enrollmentId),
@@ -194,9 +246,29 @@ export const DELETE = withTenant(async (request, context) => {
       return apiError("ENROLLMENT_NOT_FOUND", "Enrollment not found", 404);
     }
 
-    await db
-      .delete(athleteExtraClasses)
-      .where(eq(athleteExtraClasses.id, enrollmentId));
+    const scope = await authorizeAcademyCapability({
+      context,
+      resourceTenantId: context.tenantId,
+      academyId: enrollment.academyId,
+      permission: "athletes:update",
+    });
+    if (!scope.allowed) return apiError("ENROLLMENT_NOT_FOUND", "Enrollment not found", 404);
+
+    const deleted = await withTransaction(async (tx) => {
+      await lockAcademyOperationalWrites(tx, enrollment.academyId);
+      await assertAcademyOperationalWritable(context.tenantId!, enrollment.academyId, tx);
+      const [row] = await tx
+        .delete(athleteExtraClasses)
+        .where(and(
+          eq(athleteExtraClasses.id, enrollmentId),
+          eq(athleteExtraClasses.athleteId, athleteId),
+          eq(athleteExtraClasses.tenantId, context.tenantId!),
+        ))
+        .returning({ id: athleteExtraClasses.id });
+      return Boolean(row);
+    });
+
+    if (!deleted) return apiError("ENROLLMENT_NOT_FOUND", "Enrollment not found", 404);
 
     return apiSuccess({ ok: true });
   } catch (error) {

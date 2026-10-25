@@ -57,6 +57,10 @@ vi.mock("@/lib/logger", () => ({ logger: { error: vi.fn() } }));
 vi.mock("@/lib/api-error-handler", () => ({
   handleApiError: () => new Response(null, { status: 500 }),
 }));
+vi.mock("@/lib/limits", () => ({
+  assertAcademyOperationalWritable: vi.fn().mockResolvedValue(undefined),
+  lockAcademyOperationalWrites: vi.fn().mockResolvedValue(undefined),
+}));
 
 async function setup(kind: Kind, existing = false) {
   const athletes = [{ id: "athlete-a", name: "QA A", groupId: GROUP_ID },

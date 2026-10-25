@@ -6,7 +6,7 @@ import { z } from "zod";
 
 import { db } from "@/db";
 import { academies, athleteSportConfigs, athletes, familyContacts, guardianAthletes, groupAthletes, groups } from "@/db/schema";
-import { assertWithinPlanLimits, getUpgradeInfo } from "@/lib/limits";
+import { assertWithinPlanLimits, getUpgradeInfo, lockAcademyOperationalWrites } from "@/lib/limits";
 import { LimitError } from "@/lib/limits/errors";
 import { withTenant } from "@/lib/authz";
 import { authorizeAcademyCapability } from "@/lib/authz/resource-scope";
@@ -220,7 +220,7 @@ const createAthleteHandler = withTenant(async (request, context) => {
 
     // Usar transacción para garantizar atomicidad
     await withTransaction(async (tx) => {
-      await tx.execute(sql`select pg_advisory_xact_lock(hashtext(${body.academyId}))`);
+      await lockAcademyOperationalWrites(tx, body.academyId);
       await assertWithinPlanLimits(context.tenantId!, body.academyId, "athletes", tx);
       // Crear atleta
       await tx.insert(athletes).values({

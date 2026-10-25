@@ -18,6 +18,8 @@ import {
   isProgramCodeAllowed,
 } from "@/lib/sport-config/validation";
 import { NextResponse } from "next/server";
+import { withTransaction, type DatabaseClient } from "@/lib/db-transactions";
+import { assertAcademyOperationalWritable, lockAcademyOperationalWrites } from "@/lib/limits";
 
 // Validador custom para fechas en actualización
 const updateDateStringSchema = z
@@ -114,10 +116,10 @@ async function upsertAthleteSportConfig(params: {
   programCode: string | null;
   levelCode: string | null;
   categoryCode: string | null;
-}) {
+}, client: DatabaseClient = db) {
   if (!params.sportConfigId) return;
 
-  await db
+  await client
     .insert(athleteSportConfigs)
     .values({
       id: randomUUID(),
@@ -313,20 +315,28 @@ const updateAthleteHandler = withTenant(async (request, context) => {
 
   updates.updatedAt = new Date();
 
-  const [updated] = await db
-    .update(athletes)
-    .set(updates)
-    .where(eq(athletes.id, athleteId))
-    .returning();
-
-  await upsertAthleteSportConfig({
-    tenantId: existing.tenantId,
-    athleteId,
-    sportConfigId: nextSportConfigId,
-    programCode: nextProgramCode,
-    levelCode: nextLevelCode,
-    categoryCode: nextCategoryCode,
+  const [updated] = await withTransaction(async (tx) => {
+    await lockAcademyOperationalWrites(tx, existing.academyId);
+    await assertAcademyOperationalWritable(existing.tenantId, existing.academyId, tx);
+    const [row] = await tx
+      .update(athletes)
+      .set(updates)
+      .where(and(eq(athletes.id, athleteId), eq(athletes.tenantId, existing.tenantId), isNull(athletes.deletedAt)))
+      .returning();
+    if (row) {
+      await upsertAthleteSportConfig({
+        tenantId: existing.tenantId,
+        athleteId,
+        sportConfigId: nextSportConfigId,
+        programCode: nextProgramCode,
+        levelCode: nextLevelCode,
+        categoryCode: nextCategoryCode,
+      }, tx);
+    }
+    return [row];
   });
+
+  if (!updated) return apiError("ATHLETE_NOT_FOUND", "Athlete not found", 404);
 
   return apiSuccess(updated);
 });
@@ -469,38 +479,67 @@ const patchAthleteHandler = withTenant(async (request, context) => {
     return apiSuccess({ ok: true });
   }
 
-  await db.update(athletes).set(updates).where(eq(athletes.id, athleteId));
-
-  if (body.groupId !== undefined) {
+  const updated = await withTransaction(async (tx) => {
+    await lockAcademyOperationalWrites(tx, athleteRow.academyId);
+    await assertAcademyOperationalWritable(athleteRow.tenantId, athleteRow.academyId, tx);
     if (nextGroupId) {
-      await db
-        .insert(groupAthletes)
-        .values({
-          id: randomUUID(),
-          tenantId: athleteRow.tenantId,
-          groupId: nextGroupId,
-          athleteId,
-        })
-        .onConflictDoNothing();
-
-      await syncChargesForAthleteCurrentPeriod({
-        academyId: athleteRow.academyId,
-        athleteId,
-        groupId: nextGroupId,
-      });
-    } else {
-      await db.delete(groupAthletes).where(eq(groupAthletes.athleteId, athleteId));
+      const [currentGroup] = await tx
+        .select({ id: groups.id })
+        .from(groups)
+        .where(and(
+          eq(groups.id, nextGroupId),
+          eq(groups.tenantId, athleteRow.tenantId),
+          eq(groups.academyId, athleteRow.academyId),
+          isNull(groups.deletedAt),
+        ))
+        .limit(1);
+      if (!currentGroup) return false;
     }
-  }
 
-  await upsertAthleteSportConfig({
-    tenantId: athleteRow.tenantId,
-    athleteId,
-    sportConfigId: nextSportConfigId,
-    programCode: nextProgramCode,
-    levelCode: nextLevelCode,
-    categoryCode: nextCategoryCode,
+    const [row] = await tx.update(athletes)
+      .set(updates)
+      .where(and(eq(athletes.id, athleteId), eq(athletes.tenantId, athleteRow.tenantId), isNull(athletes.deletedAt)))
+      .returning({ id: athletes.id });
+    if (!row) return false;
+
+    if (body.groupId !== undefined) {
+      if (nextGroupId) {
+        await tx.insert(groupAthletes)
+          .values({
+            id: randomUUID(),
+            tenantId: athleteRow.tenantId,
+            groupId: nextGroupId,
+            athleteId,
+          })
+          .onConflictDoNothing();
+      } else {
+        await tx.delete(groupAthletes).where(and(
+          eq(groupAthletes.athleteId, athleteId),
+          eq(groupAthletes.tenantId, athleteRow.tenantId),
+        ));
+      }
+    }
+
+    await upsertAthleteSportConfig({
+      tenantId: athleteRow.tenantId,
+      athleteId,
+      sportConfigId: nextSportConfigId,
+      programCode: nextProgramCode,
+      levelCode: nextLevelCode,
+      categoryCode: nextCategoryCode,
+    }, tx);
+    return true;
   });
+
+  if (!updated) return apiError("ATHLETE_NOT_FOUND", "Athlete or group not found", 404);
+
+  if (body.groupId !== undefined && nextGroupId) {
+    await syncChargesForAthleteCurrentPeriod({
+      academyId: athleteRow.academyId,
+      athleteId,
+      groupId: nextGroupId,
+    });
+  }
 
   return apiSuccess({ ok: true });
 });
@@ -540,21 +579,27 @@ const deleteAthleteHandler = withTenant(async (_request, context) => {
   // Baja no destructiva: soft delete preserva historial financiero y evaluaciones.
   // Exige estado archived antes de permitir el archivado para evitar borrados accidentales.
   if (athleteRow.status !== "archived") {
-    const [archived] = await db
-      .update(athletes)
-      .set({ status: "archived", deletedAt: new Date() })
-      .where(and(eq(athletes.id, athleteId), isNull(athletes.deletedAt)))
-      .returning({ id: athletes.id });
+    const [archived] = await withTransaction(async (tx) => {
+      await lockAcademyOperationalWrites(tx, athleteRow.academyId);
+      return tx
+        .update(athletes)
+        .set({ status: "archived", deletedAt: new Date() })
+        .where(and(eq(athletes.id, athleteId), eq(athletes.tenantId, athleteRow.tenantId), isNull(athletes.deletedAt)))
+        .returning({ id: athletes.id });
+    });
     if (!archived) {
       return apiError("ATHLETE_NOT_FOUND", "Athlete not found", 404);
     }
     return apiSuccess({ ok: true, archived: true });
   }
 
-  await db
-    .update(athletes)
-    .set({ deletedAt: new Date() })
-    .where(eq(athletes.id, athleteId));
+  await withTransaction(async (tx) => {
+    await lockAcademyOperationalWrites(tx, athleteRow.academyId);
+    await tx
+      .update(athletes)
+      .set({ deletedAt: new Date() })
+      .where(and(eq(athletes.id, athleteId), eq(athletes.tenantId, athleteRow.tenantId)));
+  });
 
   return apiSuccess({ ok: true, deleted: true });
 });

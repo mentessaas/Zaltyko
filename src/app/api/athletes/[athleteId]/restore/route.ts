@@ -10,6 +10,7 @@ import { createAuditLog } from "@/lib/authz/audit-service";
 import { handleApiError } from "@/lib/api-error-handler";
 import { getUserIdentifier, withRateLimit } from "@/lib/rate-limit";
 import { withTransaction } from "@/lib/db-transactions";
+import { assertWithinPlanLimits, lockAcademyOperationalWrites } from "@/lib/limits";
 
 const BodySchema = z.object({
   academyId: z.string().uuid(),
@@ -77,6 +78,7 @@ const restoreAthleteHandler = withTenant(async (request, context) => {
     const commandScope = "legacy-athlete-restore:v1";
     const commandLock = `${commandScope}:${context.tenantId}:${context.userId}:${idempotencyKey}`;
     const result = await withTransaction(async (tx) => {
+      await lockAcademyOperationalWrites(tx, parsed.data.academyId);
       await tx.execute(sql`select pg_advisory_xact_lock(hashtextextended(${commandLock}, 0))`);
       const [prior] = await tx
         .select({ meta: auditLogs.meta, resourceId: auditLogs.resourceId })
@@ -106,6 +108,8 @@ const restoreAthleteHandler = withTenant(async (request, context) => {
         }
         return { restored: true, replayed: true };
       }
+
+      await assertWithinPlanLimits(context.tenantId!, parsed.data.academyId, "athletes", tx);
 
       const [existing] = await tx
         .select({ id: athletes.id })

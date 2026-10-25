@@ -12,6 +12,7 @@ import { createAuditLog } from "@/lib/authz/audit-service";
 import { handleApiError } from "@/lib/api-error-handler";
 import { withRateLimit, getUserIdentifier } from "@/lib/rate-limit";
 import { withTransaction } from "@/lib/db-transactions";
+import { lockAcademyOperationalWrites } from "@/lib/limits";
 
 const BodySchema = z.object({
   academyId: z.string().uuid(),
@@ -83,6 +84,7 @@ const bulkArchiveHandler = withTenant(async (request, context) => {
     const commandScope = "legacy-athlete-bulk-archive:v1";
     const commandLock = `${commandScope}:${context.tenantId}:${context.userId}:${idempotencyKey}`;
     const result = await withTransaction(async (tx) => {
+      await lockAcademyOperationalWrites(tx, parsed.data.academyId);
       await tx.execute(sql`select pg_advisory_xact_lock(hashtextextended(${commandLock}, 0))`);
       const [prior] = await tx
         .select({ meta: auditLogs.meta, resourceId: auditLogs.resourceId })

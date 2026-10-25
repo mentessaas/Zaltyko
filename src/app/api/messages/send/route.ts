@@ -11,6 +11,9 @@ import { z } from "zod";
 
 import { withTenant } from "@/lib/authz";
 import { apiSuccess, apiError } from "@/lib/api-response";
+import { handleApiError } from "@/lib/api-error-handler";
+import { withTransaction } from "@/lib/db-transactions";
+import { assertAcademyOperationalWritable, lockAcademyOperationalWrites } from "@/lib/limits";
 import {
   conversations,
   conversationParticipants,
@@ -144,70 +147,104 @@ export const POST = withTenant(async (request, context) => {
       }
     }
 
-    // If no existing conversation, create one
-    if (!conversationId) {
-      const [newConversation] = await db
-        .insert(conversations)
-        .values({
-          tenantId,
-          academyId: academyId || null,
-          metadata: { type: "p2p", context: "general" },
-        })
+    const sent = await withTransaction(async (tx) => {
+      if (academyId) {
+        await lockAcademyOperationalWrites(tx, academyId);
+        await assertAcademyOperationalWritable(tenantId, academyId, tx);
+
+        const [currentAcademy] = await tx
+          .select({ id: academies.id })
+          .from(academies)
+          .where(and(eq(academies.id, academyId), eq(academies.tenantId, tenantId)))
+          .limit(1);
+        const currentMemberships = await tx
+          .select({ userId: memberships.userId })
+          .from(memberships)
+          .where(and(
+            eq(memberships.academyId, academyId),
+            inArray(memberships.userId, [profile.userId, recipient.userId])
+          ))
+          .limit(2);
+        if (!currentAcademy || new Set(currentMemberships.map((item) => item.userId)).size !== 2) {
+          return { kind: "forbidden" as const };
+        }
+      }
+
+      let currentConversationId = conversationId;
+      if (currentConversationId) {
+        const [currentConversation] = await tx
+          .select({ id: conversations.id, academyId: conversations.academyId })
+          .from(conversations)
+          .where(and(
+            eq(conversations.id, currentConversationId),
+            eq(conversations.tenantId, tenantId),
+            academyId ? eq(conversations.academyId, academyId) : sql`${conversations.academyId} IS NULL`,
+            sql`${conversations.metadata}->>'type' = 'p2p'`,
+          ))
+          .limit(1);
+        if (!currentConversation) return { kind: "forbidden" as const };
+
+        const currentParticipants = await tx
+          .select({ userId: conversationParticipants.userId })
+          .from(conversationParticipants)
+          .where(eq(conversationParticipants.conversationId, currentConversationId))
+          .limit(3);
+        const ids = new Set(currentParticipants.map((item) => item.userId));
+        if (ids.size !== 2 || !ids.has(profile.id) || !ids.has(recipientId)) {
+          return { kind: "forbidden" as const };
+        }
+      } else {
+        const [newConversation] = await tx
+          .insert(conversations)
+          .values({
+            tenantId,
+            academyId: academyId || null,
+            metadata: { type: "p2p", context: "general" },
+          })
+          .returning();
+
+        currentConversationId = newConversation.id;
+        await tx.insert(conversationParticipants).values([
+          { conversationId: currentConversationId, userId: profile.id, role: "member", notificationsEnabled: "true" },
+          { conversationId: currentConversationId, userId: recipientId, role: "member", notificationsEnabled: "true" },
+        ]);
+      }
+
+      const [message] = await tx
+        .insert(conversationMessages)
+        .values({ conversationId: currentConversationId, senderId: profile.id, content: content.trim() })
         .returning();
 
-      conversationId = newConversation.id;
+      await tx
+        .update(conversations)
+        .set({
+          lastMessagePreview: content.substring(0, 100),
+          lastMessageAt: message.createdAt,
+          updatedAt: new Date(),
+        })
+        .where(and(eq(conversations.id, currentConversationId), eq(conversations.tenantId, tenantId)));
 
-      // Add participants
-      await db.insert(conversationParticipants).values([
-        {
-          conversationId,
-          userId: profile.id,
-          role: "member",
-          notificationsEnabled: "true",
-        },
-        {
-          conversationId,
-          userId: recipientId,
-          role: "member",
-          notificationsEnabled: "true",
-        },
-      ]);
+      const [recipientParticipant] = await tx
+        .select({
+          notificationsEnabled: conversationParticipants.notificationsEnabled,
+          mutedUntil: conversationParticipants.mutedUntil,
+        })
+        .from(conversationParticipants)
+        .where(and(
+          eq(conversationParticipants.conversationId, currentConversationId),
+          eq(conversationParticipants.userId, recipientId)
+        ))
+        .limit(1);
+
+      return { kind: "ok" as const, conversationId: currentConversationId, message, recipientParticipant };
+    });
+
+    if (sent.kind === "forbidden") {
+      return apiError("FORBIDDEN", "La conversación o la pertenencia a la academia ha cambiado", 403);
     }
 
-    // Send the message
-    const [message] = await db
-      .insert(conversationMessages)
-      .values({
-        conversationId,
-        senderId: profile.id,
-        content: content.trim(),
-      })
-      .returning();
-
-    // Update conversation last message
-    await db
-      .update(conversations)
-      .set({
-        lastMessagePreview: content.substring(0, 100),
-        lastMessageAt: new Date(),
-        updatedAt: new Date(),
-      })
-      .where(eq(conversations.id, conversationId));
-
-    // Send notifications to recipient
-    const [recipientParticipant] = await db
-      .select({
-        notificationsEnabled: conversationParticipants.notificationsEnabled,
-        mutedUntil: conversationParticipants.mutedUntil,
-      })
-      .from(conversationParticipants)
-      .where(
-        and(
-          eq(conversationParticipants.conversationId, conversationId),
-          eq(conversationParticipants.userId, recipientId)
-        )
-      )
-      .limit(1);
+    conversationId = sent.conversationId;
+    const { message, recipientParticipant } = sent;
 
     const shouldNotify =
       recipientParticipant &&
@@ -221,19 +258,23 @@ export const POST = withTenant(async (request, context) => {
         : `/dashboard/messages/${conversationId}`;
 
       // In-app notification
-      await createNotification({
-        userId: recipientId,
-        tenantId,
-        type: "new_message",
-        title: "Nuevo mensaje",
-        message: content.substring(0, 100),
-        data: {
-          conversationId,
-          messageId: message.id,
-          senderId: profile.id,
-          url: messageUrl,
-        },
-      });
+      try {
+        await createNotification({
+          userId: recipientId,
+          tenantId,
+          type: "new_message",
+          title: "Nuevo mensaje",
+          message: content.substring(0, 100),
+          data: {
+            conversationId,
+            messageId: message.id,
+            senderId: profile.id,
+            url: messageUrl,
+          },
+        });
+      } catch (notificationError) {
+        logger.warn("Direct message notification could not be delivered", { conversationId, error: notificationError });
+      }
 
       // Push notification
       sendPushToUser(recipientId, {
@@ -256,6 +297,6 @@ export const POST = withTenant(async (request, context) => {
     });
   } catch (error) {
     logger.error("Error sending message:", error);
-    return apiError("INTERNAL_ERROR", "Error al enviar mensaje", 500);
+    return handleApiError(error, { endpoint: "/api/messages/send", method: "POST" });
   }
 });

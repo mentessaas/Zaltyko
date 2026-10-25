@@ -9,6 +9,7 @@ import { withTenant } from "@/lib/authz";
 import { authorizeAcademyCapability } from "@/lib/authz/resource-scope";
 import { handleApiError } from "@/lib/api-error-handler";
 import { withTransaction } from "@/lib/db-transactions";
+import { assertAcademyOperationalWritable, lockAcademyOperationalWrites } from "@/lib/limits";
 import { apiSuccess, apiError } from "@/lib/api-response";
 import { getAcademySportConfigOptions, verifyAcademySportConfig } from "@/lib/sport-config/service";
 import { verifyProgressAccess } from "@/lib/progress/service";
@@ -185,6 +186,8 @@ export const POST = withTenant(async (request, context) => {
     });
 
     await withTransaction(async (tx) => {
+      await lockAcademyOperationalWrites(tx, athleteRow.academyId);
+      await assertAcademyOperationalWritable(context.tenantId!, athleteRow.academyId, tx);
       // Create the assessment
       await tx.insert(athleteAssessments).values({
         id: assessmentId,

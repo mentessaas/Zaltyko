@@ -89,6 +89,11 @@ function mockDb() {
   }));
 }
 
+vi.mock("@/lib/limits", () => ({
+  assertAcademyOperationalWritable: vi.fn().mockResolvedValue(undefined),
+  lockAcademyOperationalWrites: vi.fn().mockResolvedValue(undefined),
+}));
+
 describe("ZAL-957: empleo", () => {
   beforeEach(() => {
     vi.resetModules();

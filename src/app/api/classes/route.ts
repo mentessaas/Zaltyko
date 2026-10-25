@@ -6,7 +6,7 @@ import { z } from "zod";
 
 import { db } from "@/db";
 import { academies, classCoachAssignments, classGroups, classWeekdays, classes, coaches, groups } from "@/db/schema";
-import { assertWithinPlanLimits } from "@/lib/limits";
+import { assertWithinPlanLimits, lockAcademyOperationalWrites } from "@/lib/limits";
 import { withTenant } from "@/lib/authz";
 import { authorizeAcademyCapability } from "@/lib/authz/resource-scope";
 import { getUserIdentifier, withRateLimit } from "@/lib/rate-limit";
@@ -281,9 +281,7 @@ const createClassHandler = withTenant(async (request, context) => {
       // El límite y las filas relacionadas deben confirmarse juntas. El lock
       // por academia evita que dos pestañas creen clases por encima del plan
       // y evita dejar una clase huérfana si falla weekdays/classGroups.
-      if (typeof (tx as { execute?: unknown }).execute === "function") {
-        await tx.execute(sql`select pg_advisory_xact_lock(hashtext(${body.academyId}))`);
-      }
+      await lockAcademyOperationalWrites(tx, body.academyId);
       await assertWithinPlanLimits(context.tenantId!, body.academyId, "classes", tx);
 
       await tx.insert(classes).values({

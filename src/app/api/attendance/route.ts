@@ -11,6 +11,7 @@ import { getClassAthletes } from "@/lib/classes/get-class-athletes";
 import { verifyAttendanceWriteAccess } from "@/lib/attendance/service";
 import { markAcademyActivationIfReady } from "@/lib/onboarding";
 import { trackEvent } from "@/lib/analytics";
+import { assertAcademyOperationalWritable, lockAcademyOperationalWrites } from "@/lib/limits";
 
 const entrySchema = z.object({
   athleteId: z.string().uuid(),
@@ -101,6 +102,9 @@ export const POST = withTenant(async (request, context) => {
 
     // Usar transacción para garantizar atomicidad
     await withTransaction(async (tx) => {
+      await lockAcademyOperationalWrites(tx, sessionRow.academyId);
+      await assertAcademyOperationalWritable(context.tenantId!, sessionRow.academyId, tx);
+
       for (const entry of body.entries) {
         const status = entry.status ?? "present";
         const notes = entry.notes ?? null;

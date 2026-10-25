@@ -10,6 +10,8 @@ import { withTenant } from "@/lib/authz";
 import { authorizeAcademyCapability } from "@/lib/authz/resource-scope";
 import { handleApiError } from "@/lib/api-error-handler";
 import { logEvent } from "@/lib/event-logging";
+import { withTransaction } from "@/lib/db-transactions";
+import { assertAcademyOperationalWritable, lockAcademyOperationalWrites } from "@/lib/limits";
 
 const CreateChargeSchema = z.object({
   academyId: z.string().uuid(),
@@ -290,24 +292,28 @@ export const POST = withTenant(async (request, context) => {
       if (!classRow) return apiError("CLASS_NOT_FOUND", "Class not found", 404);
     }
 
-    const [charge] = await db
-      .insert(charges)
-      .values({
-        tenantId: context.tenantId,
-        academyId: body.academyId,
-        athleteId: body.athleteId,
-        billingItemId: body.billingItemId ?? null,
-        classId: body.classId ?? null,
-        label: finalLabel,
-        amountCents: finalAmountCents,
-        currency: finalCurrency.toLowerCase(),
-        period: body.period,
-        dueDate: body.dueDate ? body.dueDate.split("T")[0] : null, // Convert to YYYY-MM-DD string
-        status: "pending",
-        paymentMethod: body.paymentMethod ?? null,
-        notes: body.notes ?? null,
-      })
-      .returning();
+    const [charge] = await withTransaction(async (tx) => {
+      await lockAcademyOperationalWrites(tx, body.academyId);
+      await assertAcademyOperationalWritable(context.tenantId!, body.academyId, tx);
+      return tx
+        .insert(charges)
+        .values({
+          tenantId: context.tenantId!,
+          academyId: body.academyId,
+          athleteId: body.athleteId,
+          billingItemId: body.billingItemId ?? null,
+          classId: body.classId ?? null,
+          label: finalLabel,
+          amountCents: finalAmountCents,
+          currency: finalCurrency.toLowerCase(),
+          period: body.period,
+          dueDate: body.dueDate ? body.dueDate.split("T")[0] : null, // Convert to YYYY-MM-DD string
+          status: "pending",
+          paymentMethod: body.paymentMethod ?? null,
+          notes: body.notes ?? null,
+        })
+        .returning();
+    });
 
     // Log event for Super Admin metrics
     await logEvent({

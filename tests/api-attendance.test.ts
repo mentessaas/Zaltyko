@@ -10,6 +10,7 @@ let classAthletes: Array<{
   groupSportConfigId: string | null;
 }> = [];
 let coachClassScope = { allowed: true as boolean, reason: undefined as string | undefined };
+let operationalWriteFailure: Error | null = null;
 
 const createSelectChain = (resolveAt: "limit" | "where", result: any[]) => {
   const chain: Record<string, unknown> = {};
@@ -45,6 +46,7 @@ describe("API /api/attendance", () => {
       },
     ];
     coachClassScope = { allowed: true, reason: undefined };
+    operationalWriteFailure = null;
 
     vi.doMock("@/lib/authz", () => ({
       withTenant:
@@ -84,6 +86,13 @@ describe("API /api/attendance", () => {
 
     vi.doMock("@/lib/attendance/service", () => ({
       verifyAttendanceWriteAccess: vi.fn(async () => coachClassScope),
+    }));
+
+    vi.doMock("@/lib/limits", () => ({
+      lockAcademyOperationalWrites: vi.fn().mockResolvedValue(undefined),
+      assertAcademyOperationalWritable: vi.fn(async () => {
+        if (operationalWriteFailure) throw operationalWriteFailure;
+      }),
     }));
 
     const attendanceModule = await import("@/app/api/attendance/route");
@@ -130,6 +139,32 @@ describe("API /api/attendance", () => {
     // Además de las dos filas de asistencia se persiste el hito de producto
     // idempotente `first_attendance_recorded`.
     expect(insertCalls.length).toBeGreaterThanOrEqual(2);
+  });
+
+  it("rechaza asistencia en solo lectura antes de crear registros", async () => {
+    operationalWriteFailure = Object.assign(new Error("PLAN_OVER_CAPACITY"), { status: 409 });
+    selectQueue.push(
+      createSelectChain("limit", [
+        {
+          id: "11111111-1111-4111-8111-111111111111",
+          classId: "44444444-4444-4444-8444-444444444444",
+          academyId: "55555555-5555-4555-8555-555555555555",
+          sessionSportConfigId: null,
+          classSportConfigId: null,
+        },
+      ])
+    );
+    const response = await POST(new Request("http://localhost/api/attendance", {
+      method: "POST",
+      body: JSON.stringify({
+        sessionId: "11111111-1111-4111-8111-111111111111",
+        entries: [{ athleteId: "22222222-2222-4222-8222-222222222222" }],
+      }),
+      headers: { "Content-Type": "application/json" },
+    }), {} as any);
+
+    expect(response.status).toBe(409);
+    expect(insertCalls).toHaveLength(0);
   });
 
   it("rechaza registro de asistencia cuando el entrenador no está asignado a la clase", async () => {
