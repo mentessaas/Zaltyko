@@ -12471,3 +12471,12 @@ Modelo separado, reclamación manual, administración, importación revisada, fi
 - Fuente: preview-build-preflight.cjs y tests/delivery-preview-preflight.test.ts; docs/qa/delivery-preview-inherited-env-review-2026-10-25.md.
 - Importancia: no propagar configuracion del ensayo a entregas nuevas ni aceptar produccion por herencia.
 - Siguiente paso: gates remotos/revision y overrides runtime/build explicitos antes de crear preview; no desplegado.
+
+
+## 2026-10-25 — Cierre de evidencia y hueco de ficha Owner
+
+- Hallazgo: la gestion canonica permite alta minima/asociacion, pero no editar nombre y apellidos. La ruta legacy /api/athletes/[athleteId] opera sobre otro esquema; no acredita el recorrido Owner.
+- Fuente: OwnerGroupsManager, rutas Owner families/options y associations, memberships PATCH; matriz docs/qa/mvp-status-matrix-2026-10-25.md.
+- Importancia: la matriz deja de marcar todo el ciclo de familias/gimnastas como implementado. Se prepara servicio/ruta canonicos sin enlazar el modelo legacy.
+- Evidencia remota: CI40197832794 SUCCESS completo para b270d9f2. CI40199478736 para91eb0c21 acredita unitarias, tipos, build, Chromium y Firefox; WebKit pendiente al corte. No prueba sandbox ni produccion.
+- Siguiente paso: integrar edicion con permisos y reintentos, completar prueba PG emision manual, verificar remotamente y validar preview diferenciada; ensayo congelado intacto.

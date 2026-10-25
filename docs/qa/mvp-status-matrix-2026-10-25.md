@@ -8,11 +8,20 @@ y separa cuatro estados: **implementado**, **probado aisladamente**,
 demuestra que el flujo esté desplegado o validado contra un usuario y datos
 persistidos reales de sandbox.
 
-El candidato publicado en la rama es `b270d9f212efa74979bd262305fb8b17f3667137`.
-Integra PR #236 sobre PR #234 y añade el parche de compatibilidad Chromium BiDi,
-una regresión del parser real y comprobaciones HTTP de roles comerciales.
-Su CI [`40197832794`](https://github.com/mentessaas/Zaltyko/actions/runs/40197832794)
-está en curso; no hereda el PASS del padre.
+El candidato de entrega preparado es `91eb0c21e2337d9b4dcbf47b170044fe4ef35551`.
+Incluye aislamiento de preview de entregas: rama exacta y ensayo short-paid desactivado,
+sin relajar controles de base, TLS, Stripe TEST, Redis ni proveedores externos.
+La CI [`40199478736`](https://github.com/mentessaas/Zaltyko/actions/runs/40199478736)
+ya acredita unitarias, lint/tipos, build, móvil, seguridad/SBOM, RLS, integridad
+Drizzle y Owner sintético Chromium. Firefox sigue en curso y WebKit en cola al corte;
+no contar la suite completa como PASS todavía. Gates operativos `40199478745` e
+integridad de fuentes SQL `40199478752` terminaron SUCCESS.
+
+El candidato anterior `b270d9f212efa74979bd262305fb8b17f3667137` pasó la CI
+[`40197832794`](https://github.com/mentessaas/Zaltyko/actions/runs/40197832794),
+incluidos los tres navegadores sintéticos, el parser BiDi real y las denegaciones
+HTTP de roles comerciales. QA revisó estáticamente ese cambio y el aislamiento
+posterior `e1f781f4` sin P1/P2; eso no sustituye la aprobación requerida por GitHub.
 
 El padre integrado `8ff33d7e02322456db7bcac54a7a5b6a4bc0d983` pasó la CI completa
 [`40196302196`](https://github.com/mentessaas/Zaltyko/actions/runs/40196302196):
@@ -29,7 +38,7 @@ main, con cinco archivos adicionales de main. No equivale a ascendencia Git
 directa ni a despliegue. Véase [procedencia e integración](mvp-integration-provenance-2026-10-25.md).
 PR #234 sigue pendiente de revisión independiente y ningún despliegue nuevo
 ha sido creado. La revisión inicial de QA detectó la incompatibilidad BiDi;
-la revisión del parche posterior está pendiente.
+la revisión estática del parche posterior quedó realizada sin P1/P2. La aprobación requerida por GitHub sigue pendiente.
 
 La reconstrucción aislada de PostgreSQL desde vacío pasó en el run
 [`40190197121`](https://github.com/mentessaas/Zaltyko/actions/runs/40190197121)
@@ -43,7 +52,7 @@ replay. Ninguna base existente recibió SQL.
 | Recorrido | Implementado en código | Probado aisladamente | Sandbox del candidato actual | Publicado |
 | --- | --- | --- | --- | --- |
 | Alta, consentimiento, confirmación, recuperación y academia | Sí, rutas Owner y bootstrap existentes. | Unitarios y Owner sintético pasan en CI; E2E autenticado **SKIPPED**. | **NO VERIFICADO** en este HEAD. | No; PR #234 requiere revisión. |
-| Familias, tutores y gimnastas | Sí, APIs y contratos presentes; el candidato endurece escrituras académicas. | Unitarios y navegadores Owner sintéticos pasan; no prueban cuentas reales. | **NO VERIFICADO** en este HEAD. | No. |
+| Familias, tutores y gimnastas | Parcial: alta de gimnasta y asociación familiar presentes. Edición de ficha Owner pendiente de implementación acreditada; la ruta legacy usa otro esquema y no prueba este recorrido. | Unitarios y navegadores Owner sintéticos pasan; no prueban cuentas reales. | **NO VERIFICADO** en este HEAD. | No. |
 | Grupos, clases, horarios e inscripciones | Sí, APIs y contratos presentes; las escrituras revisadas usan guard transaccional de plan. | Unitarios y navegadores Owner sintéticos pasan. | **NO VERIFICADO** en este HEAD. | No. |
 | Asistencia y cuotas manuales | Sí, incluye emisión de cuotas y registro de pagos manuales; no inicia cobros familiares automáticos. | Unitarios, E2E Owner sintético y CI pasan. | **NO VERIFICADO** en este HEAD. | No. |
 | Dashboard y experiencia móvil | Sí, proyección Owner y cliente móvil presentes. | Build remoto, job móvil y navegadores sintéticos pasan. | **NO VERIFICADO** con una academia QA autenticada en este HEAD. | No. |
@@ -73,7 +82,18 @@ replay. Ninguna base existente recibió SQL.
   Supabase/Vercel/Stripe y no escribe en el sandbox de origen. El SHA actual
   conserva exactamente los mismos archivos SQL.
 
-## CI del candidato inicial
+## Evidencia autenticada del ensayo congelado (no del candidato)
+
+El 25 de octubre, ambas sesiones QA existentes dieron GET usage 200 en
+`dpl_8GL6DqKiuuZUoPs44fjbmRpHaZhY`: Free, solo lectura y excedentes
+31/30 gimnastas, 4/3 grupos, 11/10 clases. Stripe TEST confirma A cancelada
+y B past_due, factura abierta con dos intentos y siguiente intento natural
+2026-10-26T09:17:29Z. Los dos eventos de fallo de B constan firmados y procesados
+en sandbox. No acredita agotamiento terminal ni ausencia de grant nuevo sin
+consulta específica del ledger. No se hicieron escrituras de rechazo ni archivo.
+Las sesiones y observaciones están documentadas en la auditoría durable de 2026-10-22.
+
+## CI del candidato inicial (histórico)
 
 Run `40189930084`, SHA `234599c92051714b9953393221a5e1be5069cbea`:
 
