@@ -1743,6 +1743,64 @@ describe("Free capacity guards on disposable PostgreSQL", () => {
       beforeLocationSummary
     );
 
+    const managerUserId = randomUUID();
+    const managerMemberId = randomUUID();
+    await db.execute(sql`
+      insert into auth.users (id, email)
+      values (
+        ${managerUserId}::uuid,
+        ${"ci-summary-manager-" + managerUserId + "@example.invalid"}
+      )
+    `);
+    await db.execute(sql`
+      insert into zaltyko.organization_members (
+        id, organization_id, user_id, role, status, location_scope_mode
+      )
+      values (
+        ${managerMemberId}::uuid,
+        ${fixture.organizationId}::uuid,
+        ${managerUserId}::uuid,
+        'manager',
+        'active',
+        'selected'
+      )
+    `);
+    await db.execute(sql`
+      insert into zaltyko.member_location_scopes (
+        organization_id, member_id, location_id
+      ) values (
+        ${fixture.organizationId}::uuid,
+        ${managerMemberId}::uuid,
+        ${fixture.targetLocationId}::uuid
+      )
+    `);
+
+    const beforeManagerSummary = await snapshot(fixture.organizationId);
+    const managerSummary = await getOwnerOperationalSummary({
+      userId: managerUserId,
+      organizationId: fixture.organizationId,
+      from: locationDate,
+      to: locationDate,
+    });
+    expect(managerSummary).toMatchObject({
+      scope: {
+        kind: "location",
+        organizationId: fixture.organizationId,
+        locationId: fixture.targetLocationId,
+        locationIds: [fixture.targetLocationId],
+      },
+      metrics: {
+        activeAthletes: 1,
+        activeGroups: 1,
+        attendanceRecords: 1,
+        paymentsReceived: {
+          state: "unavailable",
+          reason: "financial_access_required",
+        },
+      },
+    });
+    expect(await snapshot(fixture.organizationId)).toEqual(beforeManagerSummary);
+
     const assignedCoach = await seedAttendanceCoach(fixture, true);
     const unassignedCoach = await seedAttendanceCoach(fixture, false);
     const beforeRosterRead = await snapshot(fixture.organizationId);
