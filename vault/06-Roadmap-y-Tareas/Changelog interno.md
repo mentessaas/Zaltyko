@@ -12598,3 +12598,13 @@ Modelo separado, reclamación manual, administración, importación revisada, fi
 ### Corrección de los tres unitarios restantes del06f7cb48
 
 Job121221283687 terminó5008PASS/3FAIL/3omitidas (647archivosPASS/1FAIL/1omitido). Dos expectativas del test de contactos no coincidían con la interfaz: mayúscula de «Se muestran...» y botón que correctamente no se renderiza ante GETinválido. El tercer caso intentaba simular sessionStoragebloqueado espiando la instancia Storage, que jsdom trata como almacenamiento con propiedades nombradas; no interceptó setItem y permitió el PATCH de la fixture. Se espía Storage.prototype.setItem para comprobar realmente que el producto no envía nada cuando falla persistencia. No se cambia producto ni se retiran los asserts de fetchúnico/marcadorvacío. Cambios pendientes de nuevaCI, sin pruebas locales.
+
+
+### 2026-10-25 — candidato be8 y triage de fixture sintético
+
+- Fuente: CI40211452403 parcial; PG40211462505 SUCCESS; gates40211452398 ySQL40211452390 SUCCESS. Cinco suitesPGexit0, build/lint/tipos/unitarios/Chromium PASS; Firefox/WebKit pendientes. MergeCI9a1e8fbb yHEADbe8 árbolidéntico01d27c50a369a7c87049fbfe7c3c88f344a49fd5.
+- Hallazgo GitGuardian38975292: URI de prueba con passwordliteral synthetic. Clasificado por dashboard como Not a secret (false positive), sin desactivar escáner ni cambiar reglas. CheckGitHub anterior sigueFAILURE al corte; rerequestAPI404 no repetido. No credencialreal detectada en esa ocurrencia.
+- Importancia: mantener evidencia por commit y no confundir PGdesechable con sandbox ni clasificarcheckPASS sin observarlo.
+- Siguiente paso: cerrarFirefox/WebKit ycheckseguridad antes de publicar entrega aislada. No se tocó producción, ensayo, proveedores ni se hicieron pruebas/builds locales.
+
+- Cierre be8: CI40211452403 FAILURE soloWebKit/gateagregado. POSTmembershipaceptado/UUIDválido, texto esperado ausente15s en spec489; no fuebuildtimeout(169772,824ms). Chromium/Firefox y5011unitariasPASS/3omitidas. Se investiga antes de publicar; no se degradaelgate.

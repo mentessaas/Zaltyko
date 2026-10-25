@@ -10,16 +10,39 @@ persistidos reales de sandbox.
 
 ## Corte vigente de validación
 
-Último código enviado a la rama: `06f7cb489a3c856e02f8b08f0961dd6418e4ae3f`.
-CI `40210735619`, gates `40210735472`, integridad SQL `40210735562` y replay PG
-`40210746095` están pendientes/en ejecución. No son PASS todavía. Incluye contactos
-de tutores, asociaciones familiares, persistencia de comandos y paginación de pagos
-manuales y sesiones de asistencia. El cortea004 tuvo12fallos unitarios y4dePG;
-los arreglos posteriores requieren nueva ejecución. No se hereda su build PASS.
+Último código enviado: `be8ae1735ebc5818559133e04cbe6a36fbc80f59`.
+Replay PostgreSQL `40211462505` SUCCESS: reconstrucción vacía, RLS/ACL,
+aislación entre academias y las cinco suites nativas terminaron con exit0.
+Incluyen los casos de251cargos,105sesiones y contactos; no se extrapola a sandbox.
+Gates operativos `40211452398` e integridad SQL `40211452390` SUCCESS.
+CI `40211452403` FAILURE: unitarias, build, lint/tipos, móvil, seguridad/SBOM,
+RLS, integridad Drizzle y Chromium/Firefox SUCCESS. WebKit falló en
+`tests/e2e-owner-local-setup.spec.ts:489`: POST de membership aceptado yUUIDválido,
+pero el nombre esperado no apareció en15s. No atribuir aún causa a producto o test.
+Job121223429088, build169772,824ms; no fue un timeout de build.
+Unitarias:5011PASS/3omitidas,648archivosPASS/1omitido; duración369,10s.
+Fuente directa: log del job121223429063.
+Los jobs autenticados/públicos omitidos no equivalen a pruebas aprobadas.
+Árbol del mergeCI9a1e8fbb y del candidatobe8 coinciden:
+`01d27c50a369a7c87049fbfe7c3c88f344a49fd5`.
+
+GitGuardian incidente38975292 detectó la URI del fixture
+`tests/delivery-preview-preflight.test.ts:22`, commit e1f781f4, con password
+literal `synthetic`. Inspección del parche y clasificación mediante sesión
+GitHub existente: Ignored / Not a secret (false positive). Sin cambios de
+reglas, escáner, credenciales ni rotaciones; el check GitHub anterior aún FAILURE
+al corte, no declararlo PASS por la clasificación. La API de rerequest devolvió404;
+no se insiste ni se fabrica un check. Fuente: dashboard de GitGuardian y API Checks.
 
 Última validación completa histórica:78c6e38b, CI40203109015 yPG40203116706 SUCCESS.
-Esto no acredita los cambios posteriores. No hay publicación en producción ni nueva
-entrega READY acreditada. El ensayo conserva su alias y recursos protegidos.
+No hay publicación en producción ni nueva entrega READY acreditada.
+El ensayo conserva su alias, sesiones A/B y recursos protegidos.
+
+Revisión estática de alta: no se documenta una identidad Owner remota disponible
+fuera del ensayo. A/B no se reutilizan para altas. Un Owner/Admin con academia
+recibe409 al repetir bootstrap; la UI también redirige Manager. El recorrido nuevo
+requiere identidad QA dedicada sin membresías, buzón y consentimiento reales.
+No crear cuentas ni confirmar administrativamente para presentar un alta verificada.
 
 ## Cortes anteriores conservados
 
@@ -233,3 +256,15 @@ Run40210746095 terminó31PASS/2FAIL de33casos. Las cuatro suites de capacidad, l
 ### Corrección de los tres unitarios restantes del06f7cb48
 
 Job121221283687 terminó5008PASS/3FAIL/3omitidas (647archivosPASS/1FAIL/1omitido). Dos expectativas del test de contactos no coincidían con la interfaz: mayúscula de «Se muestran...» y botón que correctamente no se renderiza ante GETinválido. El tercer caso intentaba simular sessionStoragebloqueado espiando la instancia Storage, que jsdom trata como almacenamiento con propiedades nombradas; no interceptó setItem y permitió el PATCH de la fixture. Se espía Storage.prototype.setItem para comprobar realmente que el producto no envía nada cuando falla persistencia. No se cambia producto ni se retiran los asserts de fetchúnico/marcadorvacío. Cambios pendientes de nuevaCI, sin pruebas locales.
+
+
+### Diagnóstico WebKit sin rebajar la prueba
+
+Revisión estática: fixturegiven/familyName, insertSQL yconcat_ws delbundle coinciden;
+router.refresh ocurre después del recibo confirmado. No se demuestra causa para
+cambiar selector, tiempo ni forzar refreshmanual. La ejecución no conservóPNG.
+Se añade solo upload de test-results/**/test-failed-*.png, failure-only, retención3d,
+acciónoficialupload-artifactv7 fijada acf430e030ddbb5b0abf93d22962f4752f3646cd9.
+No se suben trace/video/HTML/estado/cookies/red ni se cambian producto o asserts.
+El siguiente push de esta evidencia también permite que GitGuardian reanalice el
+hallazgo ya clasificado; no se fabrica uncheck ni se omite el gate requerido.
