@@ -21,7 +21,11 @@ import { createEnrollment } from "@/modules/enrollments/application/enrollment-s
 import { recordAttendance } from "@/modules/attendance/application/attendance-service";
 import { getOwnerSessionAttendance } from "@/modules/attendance/application/owner-session-attendance";
 import { getOwnerOperationalSummary } from "@/modules/owner-dashboard/application/operational-summary";
-import { associateOwnerFamily } from "@/modules/families/application/owner-family-association";
+import {
+  associateOwnerFamily,
+  getOwnerFamilyOptions,
+} from "@/modules/families/application/owner-family-association";
+import { updateOwnerFamilyPayerProfile } from "@/modules/families/application/owner-family-management";
 import {
   bootstrapOrganization,
   type BootstrapOrganizationCommand,
@@ -1985,6 +1989,183 @@ describe("Free capacity guards on disposable PostgreSQL", () => {
       constraint: "audit_log_idempotency_uq",
     });
     expect(await snapshot(fixture.organizationId)).toEqual(beforeRollback);
+  }, 45_000);
+
+  it("updates a family payer atomically, replays once, and rejects stale or out-of-site writes", async () => {
+    assertDisposableTarget();
+    const fixture = await seedFamilyAssociationFixture();
+    const association = await associateOwnerFamily({
+      organizationId: fixture.organizationId,
+      locationId: fixture.targetLocationId,
+      athleteIds: [fixture.targetAthleteId],
+      effectiveFrom: fixture.startsOn,
+      payer: {
+        givenName: "Synthetic",
+        familyName: "Guardian",
+        relationship: "parent",
+      },
+      idempotencyKey: "ci-family-payer-seed-" + randomUUID(),
+      actor: fixture.actor,
+    });
+    const familyOptions = await getOwnerFamilyOptions({
+      organizationId: fixture.organizationId,
+      locationId: fixture.targetLocationId,
+      actor: fixture.actor,
+    });
+    const payer = familyOptions.families
+      .find((family) => family.familyId === association.family.id)
+      ?.payers.find((item) => item.familyPayerId === association.familyPayerId);
+    expect(payer).toBeDefined();
+
+    const idempotencyKey = "ci-family-payer-update-" + randomUUID();
+    const command = {
+      organizationId: fixture.organizationId,
+      locationId: fixture.targetLocationId,
+      familyPayerId: association.familyPayerId,
+      expectedProfileVersion: payer!.profileVersion,
+      givenName: "  Updated  ",
+      familyName: "  Guardian Name  ",
+      idempotencyKey,
+      actor: fixture.actor,
+    };
+    const beforeUpdate = await snapshot(fixture.organizationId);
+    const updated = await updateOwnerFamilyPayerProfile(command);
+    expect(updated).toMatchObject({
+      familyPayerId: association.familyPayerId,
+      givenName: "Updated",
+      familyName: "Guardian Name",
+      replayed: false,
+    });
+    const afterUpdate = await snapshot(fixture.organizationId);
+    expect(afterUpdate).not.toEqual(beforeUpdate);
+    const beforeByTable = new Map(
+      beforeUpdate.map((row) => [String(row.table_name), row])
+    );
+    const afterByTable = new Map(
+      afterUpdate.map((row) => [String(row.table_name), row])
+    );
+    for (const table of snapshotTables) {
+      const beforeRow = beforeByTable.get(table);
+      const afterRow = afterByTable.get(table);
+      expect(beforeRow, `${table} before`).toBeDefined();
+      expect(afterRow, `${table} after`).toBeDefined();
+      const expectedCountDelta =
+        table === "audit_log" || table === "outbox_events" ? 1 : 0;
+      expect(
+        Number(afterRow?.count) - Number(beforeRow?.count),
+        `${table} row count`
+      ).toBe(expectedCountDelta);
+      if (table === "people") {
+        expect(afterRow?.content_hash, `${table} content`).not.toBe(
+          beforeRow?.content_hash
+        );
+      } else if (expectedCountDelta === 0) {
+        expect(afterRow?.content_hash, `${table} content`).toBe(
+          beforeRow?.content_hash
+        );
+      } else {
+        expect(afterRow?.content_hash, `${table} content`).not.toBe(
+          beforeRow?.content_hash
+        );
+      }
+    }
+
+    const records = await db.execute(sql`
+      select
+        (select count(*)::int from zaltyko.outbox_events
+          where organization_id = ${fixture.organizationId}::uuid
+            and event_name = 'family.payer_profile_updated'
+            and idempotency_key = ${idempotencyKey}) as outbox_count,
+        (select count(*)::int from zaltyko.audit_log
+          where organization_id = ${fixture.organizationId}::uuid
+            and action = 'family.payer_profile_updated'
+            and idempotency_key = ${idempotencyKey}) as audit_count,
+        (select count(*)::int from zaltyko.outbox_events
+          where organization_id = ${fixture.organizationId}::uuid
+            and event_name = 'family.payer_profile_updated'
+            and idempotency_key = ${idempotencyKey}
+            and (payload ? 'givenName' or payload ? 'familyName')) as outbox_pii_count,
+        (select count(*)::int from zaltyko.audit_log
+          where organization_id = ${fixture.organizationId}::uuid
+            and action = 'family.payer_profile_updated'
+            and idempotency_key = ${idempotencyKey}
+            and (coalesce(before::text, '') || coalesce(after::text, ''))
+              like '%Updated%Guardian Name%') as audit_pii_count
+    `);
+    expect(records.rows[0]).toEqual({
+      outbox_count: 1,
+      audit_count: 1,
+      outbox_pii_count: 0,
+      audit_pii_count: 0,
+    });
+
+    await expect(updateOwnerFamilyPayerProfile(command)).resolves.toMatchObject({
+      familyPayerId: association.familyPayerId,
+      givenName: "Updated",
+      familyName: "Guardian Name",
+      replayed: true,
+    });
+    const afterReplay = await snapshot(fixture.organizationId);
+    expect(afterReplay).toEqual(afterUpdate);
+
+    const beforeWrongSite = await snapshot(fixture.organizationId);
+    await expect(
+      updateOwnerFamilyPayerProfile({
+        ...command,
+        locationId: fixture.otherSiteLocationId,
+        idempotencyKey: "ci-family-payer-site-" + randomUUID(),
+      })
+    ).rejects.toMatchObject({ code: "NOT_FOUND", status: 404 });
+    expect(await snapshot(fixture.organizationId)).toEqual(beforeWrongSite);
+
+    const beforeStaleVersion = await snapshot(fixture.organizationId);
+    await expect(
+      updateOwnerFamilyPayerProfile({
+        ...command,
+        givenName: "Stale write",
+        expectedProfileVersion: payer!.profileVersion,
+        idempotencyKey: "ci-family-payer-stale-" + randomUUID(),
+      })
+    ).rejects.toMatchObject({ code: "VERSION_CONFLICT", status: 409 });
+    expect(await snapshot(fixture.organizationId)).toEqual(beforeStaleVersion);
+
+    const overCapacityRows = Array.from({ length: 29 }, () => ({
+      personId: randomUUID(),
+      athleteId: randomUUID(),
+    }));
+    await db.execute(sql`
+      insert into zaltyko.people (id, organization_id, given_name, family_name)
+      values ${sql.join(
+        overCapacityRows.map((row) => sql`(
+          ${row.personId}::uuid,
+          ${fixture.organizationId}::uuid,
+          'Synthetic over-capacity',
+          'Athlete'
+        )`),
+        sql`, `
+      )}
+    `);
+    await db.execute(sql`
+      insert into zaltyko.athletes (id, organization_id, person_id)
+      values ${sql.join(
+        overCapacityRows.map((row) => sql`(
+          ${row.athleteId}::uuid,
+          ${fixture.organizationId}::uuid,
+          ${row.personId}::uuid
+        )`),
+        sql`, `
+      )}
+    `);
+    assertFreeUsage(await usage(fixture.organizationId), [31, 2, 2], true);
+    const beforeReadOnlyWrite = await snapshot(fixture.organizationId);
+    await expect(
+      updateOwnerFamilyPayerProfile({
+        ...command,
+        givenName: "Blocked edit",
+        idempotencyKey: "ci-family-payer-readonly-" + randomUUID(),
+      })
+    ).rejects.toMatchObject({ code: "PLAN_OVER_CAPACITY", status: 409 });
+    expect(await snapshot(fixture.organizationId)).toEqual(beforeReadOnlyWrite);
   }, 45_000);
 
   it("bootstraps an Owner academy once from the seeded identity catalog", async () => {

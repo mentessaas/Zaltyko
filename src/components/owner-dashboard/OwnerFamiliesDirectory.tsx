@@ -1,13 +1,17 @@
 "use client";
 
 import Link from "next/link";
-import { useMemo, useState } from "react";
+import { useRouter } from "next/navigation";
+import { useMemo, useState, type FormEvent } from "react";
 
 type FamilyDirectoryItem = {
   familyId: string;
   athletes: Array<{ athleteId: string; athleteName: string | null }>;
   payers: Array<{
     familyPayerId: string;
+    givenName: string;
+    familyName: string;
+    profileVersion: string;
     displayName: string | null;
     isPrimary: boolean;
   }>;
@@ -46,7 +50,17 @@ export function OwnerFamiliesDirectory({
   families: FamilyDirectoryItem[];
   canManageBilling: boolean;
 }) {
+  const router = useRouter();
   const [search, setSearch] = useState("");
+  const [editingPayer, setEditingPayer] = useState<{
+    familyPayerId: string;
+    profileVersion: string;
+  } | null>(null);
+  const [payerForm, setPayerForm] = useState({ givenName: "", familyName: "" });
+  const [payerSaveState, setPayerSaveState] = useState<
+    "idle" | "saving" | "saved" | "error"
+  >("idle");
+  const [payerSaveMessage, setPayerSaveMessage] = useState("");
   const normalizedSearch = normalizeSearchText(search);
   const filteredFamilies = useMemo(() => {
     if (!normalizedSearch) return families;
@@ -68,6 +82,51 @@ export function OwnerFamiliesDirectory({
     organizationId,
     locationId: selectedLocationId,
   }).toString()}`;
+
+  async function savePayerProfile(event: FormEvent<HTMLFormElement>) {
+    event.preventDefault();
+    if (!editingPayer || payerSaveState === "saving") return;
+    setPayerSaveState("saving");
+    setPayerSaveMessage("");
+    try {
+      const response = await fetch(
+        `/api/v1/owner/families/payers/${editingPayer.familyPayerId}`,
+        {
+          method: "PATCH",
+          headers: {
+            "content-type": "application/json",
+            "idempotency-key": `family-payer-${crypto.randomUUID()}`,
+          },
+          body: JSON.stringify({
+            organizationId,
+            locationId: selectedLocationId,
+            expectedProfileVersion: editingPayer.profileVersion,
+            givenName: payerForm.givenName,
+            familyName: payerForm.familyName,
+          }),
+        }
+      );
+      const payload = await response.json().catch(() => null);
+      if (!response.ok) {
+        throw new Error(
+          typeof payload?.detail === "string"
+            ? payload.detail
+            : "No se pudo guardar. Actualiza la página e inténtalo de nuevo."
+        );
+      }
+      setPayerSaveState("saved");
+      setPayerSaveMessage("Responsable actualizado.");
+      setEditingPayer(null);
+      router.refresh();
+    } catch (error) {
+      setPayerSaveState("error");
+      setPayerSaveMessage(
+        error instanceof Error
+          ? error.message
+          : "No se pudo guardar. Actualiza la página e inténtalo de nuevo."
+      );
+    }
+  }
 
   return (
     <main className="min-h-screen bg-[#F1F3EF] px-5 py-6 text-slate-950 sm:py-10">
@@ -247,6 +306,27 @@ export function OwnerFamiliesDirectory({
                                       Principal
                                     </span>
                                   ) : null}
+                                  {canManageBilling ? (
+                                    <button
+                                      type="button"
+                                      className="ml-2 rounded px-1 text-xs font-semibold text-teal-900 underline underline-offset-2 hover:text-teal-700"
+                                      aria-label={`Editar responsable ${payer.displayName ?? "de la familia"}`}
+                                      onClick={() => {
+                                        setEditingPayer({
+                                          familyPayerId: payer.familyPayerId,
+                                          profileVersion: payer.profileVersion,
+                                        });
+                                        setPayerForm({
+                                          givenName: payer.givenName,
+                                          familyName: payer.familyName,
+                                        });
+                                        setPayerSaveState("idle");
+                                        setPayerSaveMessage("");
+                                      }}
+                                    >
+                                      Editar nombre
+                                    </button>
+                                  ) : null}
                                 </li>
                               ))}
                             </ul>
@@ -255,6 +335,69 @@ export function OwnerFamiliesDirectory({
                               Falta asignar un responsable para facturar.
                             </p>
                           )}
+                          {canManageBilling &&
+                          editingPayer &&
+                          family.payers.some(
+                            (payer) =>
+                              payer.familyPayerId === editingPayer.familyPayerId
+                          ) ? (
+                            <form
+                              className="mt-3 grid gap-3 rounded-xl border border-teal-200 bg-teal-50 p-3"
+                              onSubmit={savePayerProfile}
+                              aria-label="Editar datos del responsable"
+                            >
+                              <label className="grid gap-1 text-sm font-semibold">
+                                Nombre
+                                <input
+                                  autoComplete="given-name"
+                                  required
+                                  maxLength={100}
+                                  value={payerForm.givenName}
+                                  onChange={(event) =>
+                                    setPayerForm((current) => ({
+                                      ...current,
+                                      givenName: event.target.value,
+                                    }))
+                                  }
+                                  className="min-h-10 rounded-lg border border-slate-300 bg-white px-3"
+                                />
+                              </label>
+                              <label className="grid gap-1 text-sm font-semibold">
+                                Apellidos
+                                <input
+                                  autoComplete="family-name"
+                                  required
+                                  maxLength={100}
+                                  value={payerForm.familyName}
+                                  onChange={(event) =>
+                                    setPayerForm((current) => ({
+                                      ...current,
+                                      familyName: event.target.value,
+                                    }))
+                                  }
+                                  className="min-h-10 rounded-lg border border-slate-300 bg-white px-3"
+                                />
+                              </label>
+                              <div className="flex flex-wrap gap-2">
+                                <button
+                                  type="submit"
+                                  disabled={payerSaveState === "saving"}
+                                  className="min-h-10 rounded-full bg-teal-800 px-4 text-sm font-bold text-white disabled:opacity-60"
+                                >
+                                  {payerSaveState === "saving"
+                                    ? "Guardando…"
+                                    : "Guardar nombre"}
+                                </button>
+                                <button
+                                  type="button"
+                                  className="min-h-10 rounded-full border border-slate-400 bg-white px-4 text-sm font-semibold"
+                                  onClick={() => setEditingPayer(null)}
+                                >
+                                  Cancelar
+                                </button>
+                              </div>
+                            </form>
+                          ) : null}
                         </div>
                       </div>
                     </li>
@@ -264,6 +407,18 @@ export function OwnerFamiliesDirectory({
             )}
           </section>
         )}
+        {payerSaveMessage ? (
+          <p
+            role="status"
+            className={
+              payerSaveState === "error"
+                ? "text-sm font-semibold text-red-800"
+                : "text-sm font-semibold text-teal-900"
+            }
+          >
+            {payerSaveMessage}
+          </p>
+        ) : null}
       </div>
     </main>
   );

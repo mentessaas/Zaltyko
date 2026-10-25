@@ -606,6 +606,9 @@ export async function getOwnerFamilyOptions(input: {
             familyId: familyPayers.familyId,
             familyPayerId: familyPayers.id,
             isPrimary: familyPayers.isPrimary,
+            givenName: people.givenName,
+            familyName: people.familyName,
+            profileVersion: sql<string>`to_char(${people.updatedAt} at time zone 'UTC', 'YYYY-MM-DD"T"HH24:MI:SS.US"Z"')`,
             displayName: sql<string>`nullif(btrim(concat_ws(' ', ${people.givenName}, ${people.familyName})), '')`,
           })
           .from(familyPayers)
@@ -668,6 +671,9 @@ export async function getOwnerFamilyOptions(input: {
         athletes: [...(membersByFamily.get(familyId)?.values() ?? [])],
         payers: (payersByFamily.get(familyId) ?? []).map((payer) => ({
           familyPayerId: payer.familyPayerId,
+          givenName: payer.givenName,
+          familyName: payer.familyName,
+          profileVersion: payer.profileVersion,
           displayName: payer.displayName,
           isPrimary: payer.isPrimary,
         })),

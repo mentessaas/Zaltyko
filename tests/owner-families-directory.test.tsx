@@ -1,6 +1,6 @@
 // @vitest-environment jsdom
 import "@testing-library/jest-dom/vitest";
-import { cleanup, fireEvent, render, screen } from "@testing-library/react";
+import { cleanup, fireEvent, render, screen, waitFor } from "@testing-library/react";
 import type { ReactNode } from "react";
 import { afterEach, describe, expect, it, vi } from "vitest";
 
@@ -9,10 +9,19 @@ vi.mock("next/link", () => ({
     <a href={href}>{children}</a>
   ),
 }));
+const navigation = vi.hoisted(() => ({ refresh: vi.fn() }));
+vi.mock("next/navigation", () => ({
+  useRouter: () => ({ refresh: navigation.refresh }),
+}));
 
 import { OwnerFamiliesDirectory } from "@/components/owner-dashboard/OwnerFamiliesDirectory";
 
-afterEach(() => cleanup());
+afterEach(() => {
+  cleanup();
+  vi.unstubAllGlobals();
+  vi.restoreAllMocks();
+  navigation.refresh.mockClear();
+});
 
 const baseProps = {
   organizationId: "80000000-0000-4000-8000-000000000001",
@@ -42,6 +51,9 @@ describe("directorio Owner de familias", () => {
             payers: [
               {
                 familyPayerId: "80000000-0000-4000-8000-000000000006",
+                givenName: "Responsable",
+                familyName: "sintético",
+                profileVersion: "2026-10-25T06:00:00.000000Z",
                 displayName: "Responsable sintético",
                 isPrimary: true,
               },
@@ -120,6 +132,9 @@ describe("directorio Owner de familias", () => {
             payers: [
               {
                 familyPayerId: "80000000-0000-4000-8000-000000000006",
+                givenName: "José",
+                familyName: "Pérez",
+                profileVersion: "2026-10-25T06:00:00.000000Z",
                 displayName: "José Pérez",
                 isPrimary: true,
               },
@@ -145,6 +160,9 @@ describe("directorio Owner de familias", () => {
     fireEvent.change(search, { target: { value: "jose perez" } });
 
     expect(screen.getByText("José Pérez")).toBeInTheDocument();
+    expect(
+      screen.getByRole("button", { name: "Editar responsable José Pérez" })
+    ).toBeInTheDocument();
     expect(screen.queryByText("Otra gimnasta")).not.toBeInTheDocument();
     expect(screen.getByText("1 de 2 familias")).toBeInTheDocument();
 
@@ -152,5 +170,114 @@ describe("directorio Owner de familias", () => {
     expect(
       screen.getByRole("heading", { name: "No hay familias que coincidan" })
     ).toBeInTheDocument();
+  });
+
+  it("permite abrir y cancelar la edición del nombre sin ofrecer cambios de contacto", () => {
+    render(
+      <OwnerFamiliesDirectory
+        {...baseProps}
+        canManageBilling
+        families={[
+          {
+            familyId: "80000000-0000-4000-8000-000000000004",
+            athletes: [],
+            payers: [
+              {
+                familyPayerId: "80000000-0000-4000-8000-000000000006",
+                givenName: "José",
+                familyName: "Pérez",
+                profileVersion: "2026-10-25T06:00:00.000000Z",
+                displayName: "José Pérez",
+                isPrimary: true,
+              },
+            ],
+          },
+        ]}
+      />
+    );
+
+    fireEvent.click(
+      screen.getByRole("button", { name: "Editar responsable José Pérez" })
+    );
+    expect(
+      screen.getByRole("form", { name: "Editar datos del responsable" })
+    ).toBeInTheDocument();
+    expect(screen.getByLabelText("Nombre")).toHaveValue("José");
+    expect(screen.getByLabelText("Apellidos")).toHaveValue("Pérez");
+    expect(screen.queryByLabelText(/correo|teléfono/i)).not.toBeInTheDocument();
+
+    fireEvent.click(screen.getByRole("button", { name: "Cancelar" }));
+    expect(
+      screen.queryByRole("form", { name: "Editar datos del responsable" })
+    ).not.toBeInTheDocument();
+  });
+
+  it("envía solo el nombre versionado del responsable y actualiza el directorio", async () => {
+    const fetchMock = vi.fn().mockResolvedValue({
+      ok: true,
+      json: async () => ({ data: { replayed: false } }),
+    });
+    vi.stubGlobal("fetch", fetchMock);
+    vi.spyOn(crypto, "randomUUID").mockReturnValue(
+      "40000000-0000-4000-8000-000000000001"
+    );
+
+    render(
+      <OwnerFamiliesDirectory
+        {...baseProps}
+        canManageBilling
+        families={[
+          {
+            familyId: "80000000-0000-4000-8000-000000000004",
+            athletes: [],
+            payers: [
+              {
+                familyPayerId: "80000000-0000-4000-8000-000000000006",
+                givenName: "José",
+                familyName: "Pérez",
+                profileVersion: "2026-10-25T06:00:00.000000Z",
+                displayName: "José Pérez",
+                isPrimary: true,
+              },
+            ],
+          },
+        ]}
+      />
+    );
+
+    fireEvent.click(
+      screen.getByRole("button", { name: "Editar responsable José Pérez" })
+    );
+    fireEvent.change(screen.getByLabelText("Nombre"), {
+      target: { value: "Josefina" },
+    });
+    fireEvent.change(screen.getByLabelText("Apellidos"), {
+      target: { value: "Pérez López" },
+    });
+    fireEvent.click(screen.getByRole("button", { name: "Guardar nombre" }));
+
+    await waitFor(() => expect(fetchMock).toHaveBeenCalledOnce());
+    expect(fetchMock).toHaveBeenCalledWith(
+      "/api/v1/owner/families/payers/80000000-0000-4000-8000-000000000006",
+      expect.objectContaining({
+        method: "PATCH",
+        headers: expect.objectContaining({
+          "idempotency-key":
+            "family-payer-40000000-0000-4000-8000-000000000001",
+        }),
+      })
+    );
+    const requestInit = fetchMock.mock.calls[0]?.[1] as RequestInit;
+    expect(JSON.parse(String(requestInit.body))).toEqual({
+      organizationId: baseProps.organizationId,
+      locationId: baseProps.selectedLocationId,
+      expectedProfileVersion: "2026-10-25T06:00:00.000000Z",
+      givenName: "Josefina",
+      familyName: "Pérez López",
+    });
+    expect(navigation.refresh).toHaveBeenCalledOnce();
+    expect(screen.getByRole("status")).toHaveTextContent(
+      "Responsable actualizado."
+    );
   });
 });
