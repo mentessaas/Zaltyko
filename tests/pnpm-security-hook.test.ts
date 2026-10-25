@@ -1,5 +1,6 @@
 import { createRequire } from "node:module";
 import { readFileSync } from "node:fs";
+import { pathToFileURL } from "node:url";
 import { describe, expect, it } from "vitest";
 import { load } from "js-yaml";
 
@@ -68,5 +69,27 @@ describe("patched dependency compatibility", () => {
     for (const [, snapshot] of browserProtocol) {
       expect(snapshot.dependencies?.zod).toBe("4.6.7");
     }
+  });
+});
+
+// Exercise the actual published protocol parser, not just the lockfile graph.
+// A patched version number alone cannot establish a cross-major override is safe.
+describe("Chromium BiDi runtime compatibility", () => {
+  it("reports invalid protocol input as InvalidArgumentException rather than crashing", async () => {
+    const puppeteerRequire = createRequire(require.resolve("puppeteer-core"));
+    const bidiEntry = puppeteerRequire.resolve("chromium-bidi");
+    const parserUrl = new URL("./protocol-parser/protocol-parser.js", pathToFileURL(bidiEntry));
+    const parser = await import(/* @vite-ignore */ parserUrl.href);
+    expect(parser.Browser.parseRemoveUserContextParameters({ userContext: "qa-context" }))
+      .toEqual({ userContext: "qa-context" });
+    let failure: unknown;
+    try {
+      parser.Browser.parseRemoveUserContextParameters({ userContext: 17 });
+    } catch (error) {
+      failure = error;
+    }
+    expect(failure).toBeInstanceOf(Error);
+    expect(failure).not.toBeInstanceOf(TypeError);
+    expect((failure as Error).message).toMatch(/userContext|invalid/i);
   });
 });

@@ -53,3 +53,15 @@ Ejecutar los controles remotos del commit integrado y obtener revisión
 independiente. Después validar el candidato en una preview de entrega separada,
 con autenticación y persistencia sandbox, antes de promover aplicación alguna.
 Las fixtures del ensayo y la preview del ensayo permanecen protegidas.
+
+
+## Revision independiente posterior: compatibilidad pendiente
+
+QA encontro que chromium-bidi 17.0.2 publicado declara zod ^3.24.1. Se contrasto el manifiesto del registro npm y el tarball publicado: parseObject accede a parseResult.error.errors, propiedad incompatible con Zod 4. El main upstream ya declara Zod 4 pero no prueba que el tarball 17.0.2 lo soporte. La CI del SHA 8ff33d7e no acredita esta ruta. Se prepara una comprobacion del parser real con entrada valida e invalida; no se ha ejecutado localmente ni debe considerarse PASS. No se publica hasta resolver y verificar la compatibilidad remotamente.
+
+Correccion de alcance: readiness y E2E autenticado estan desactivados mediante if:false; su skip no acredita falta de credenciales. No se reactivan los pasos que aplican migraciones o preparan fixtures protegidas.
+
+
+### Correccion preparada del parser publicado
+
+Parche pnpm acotado a chromium-bidi 17.0.2: parseResult.error.errors pasa a parseResult.error.issues. Se conserva el protocolo publicado y Zod 4.6.7; no se degrada a una version vulnerable. Los tres z.record del generador publicado ya usan dos argumentos. El parche y su hash MD5/Base32 quedan declarados en manifest y lockfile, siguiendo el mecanismo existente de braces. La comprobacion remota del parser importa el paquete realmente instalado, acepta userContext string y exige que un numero se rechace sin TypeError. Pendiente de instalacion congelada y prueba remota; ninguna ejecucion local.

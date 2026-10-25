@@ -12444,3 +12444,12 @@ Modelo separado, reclamación manual, administración, importación revisada, fi
 - CI `40176727314`, SHA `42007c840929ed3b1b961d667c9c28934d645bc4`: lint, tipos, unitarias, build separado, seguridad/SBOM, RLS, migraciones, móvil, GitGuardian y Chromium/Firefox pasan. WebKit vuelve a fallar dentro del E2E porque el build de preparación agotó su timeout interno de 240 s tras compilar y generar 294 páginas; no alcanzó a completar optimización/trazas. E2E autenticado/público y smoke omitidos por el gate de credenciales. Ajuste local pendiente: límite de 360 s solo para el build del runner en GitHub Actions; el límite local queda en 240 s. No se ejecutó localmente ni se ha enviado.
 - Motivo y límite de la próxima corrida: el log WebKit reporta 240.224 s de CPU/build y timeout de 240.000 ms, con páginas generadas y stack Supabase efímero limpiado. Se añadió rama remota explícita de 360 s (seis minutos) usando el límite aprobado; setup, builds locales y timeout local permanecen en 240 s. `git diff --check` y revisión del diff pasan; no se ejecutó nada localmente. Pendiente enviar una única CI remota.
 - CI `40178355617` sobre `230f8171b025dcb1958c27aa70d72f32fb758b5a`: la aserción de `tests/e2e-local-runner-safety.test.ts` conservaba el contrato anterior de 240 s y falló; no es una falla del nuevo límite. El build, unitarias y navegadores seguían en curso al cierre de esta nota. Se actualizó la aserción estática local; sin tests/build locales ni nuevo push.
+
+
+## 2026-10-25 — Compatibilidad de dependencia de navegador
+
+- Hallazgo: chromium-bidi 17.0.2 publicado conserva error.errors de Zod 3; el override Zod 4 necesita adaptar esa lectura.
+- Cambio: parche pnpm minimo errors a issues y regresion del parser real con entrada valida/invalida. No cambia rutas ni datos de negocio.
+- Fuente: docs/qa/mvp-integration-provenance-2026-10-25.md, manifiesto/tarball npm de chromium-bidi 17.0.2.
+- Importancia: una version parcheada en lockfile no acredita compatibilidad runtime.
+- Siguiente paso: validacion remota congelada antes de publicar; no probado localmente.

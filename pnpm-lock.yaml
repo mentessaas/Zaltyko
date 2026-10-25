@@ -15,6 +15,9 @@ patchedDependencies:
   braces@3.0.3:
     hash: dymdrenw7322ki6dxkzzldxbhm
     path: patches/braces@3.0.3.patch
+  chromium-bidi@17.0.2:
+    hash: 5f3gk64hsiu5o6p5mbimhtazxe
+    path: patches/chromium-bidi@17.0.2.patch
 
 importers:
 
@@ -9768,7 +9771,7 @@ snapshots:
 
   chrome-trace-event@1.0.4: {}
 
-  chromium-bidi@17.0.2(devtools-protocol@0.0.1687809):
+  chromium-bidi@17.0.2(patch_hash=5f3gk64hsiu5o6p5mbimhtazxe)(devtools-protocol@0.0.1687809):
     dependencies:
       devtools-protocol: 0.0.1687809
       mitt: 3.0.1
@@ -12149,7 +12152,7 @@ snapshots:
   puppeteer-core@25.12.0(proxy-agent@8.0.2)(yauzl@2.10.0):
     dependencies:
       '@puppeteer/browsers': 3.2.3(proxy-agent@8.0.2)(yauzl@2.10.0)
-      chromium-bidi: 17.0.2(devtools-protocol@0.0.1687809)
+      chromium-bidi: 17.0.2(patch_hash=5f3gk64hsiu5o6p5mbimhtazxe)(devtools-protocol@0.0.1687809)
       devtools-protocol: 0.0.1687809
       typed-query-selector: 2.12.3
       webdriver-bidi-protocol: 0.4.3
