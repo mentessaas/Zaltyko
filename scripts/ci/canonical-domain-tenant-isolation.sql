@@ -16,9 +16,9 @@ INSERT INTO zaltyko.organizations(id, name) VALUES
  ('70000000-0000-4000-8000-000000000101', 'CI canonical A'),
  ('70000000-0000-4000-8000-000000000102', 'CI canonical B');
 INSERT INTO zaltyko.locations(id, organization_id, code, name) VALUES
- ('70000000-0000-4000-8000-000000000201', '70000000-0000-4000-8000-000000000101', 'A1', 'CI A selected'),
- ('70000000-0000-4000-8000-000000000202', '70000000-0000-4000-8000-000000000101', 'A2', 'CI A excluded'),
- ('70000000-0000-4000-8000-000000000203', '70000000-0000-4000-8000-000000000102', 'B1', 'CI B');
+ ('70000000-0000-4000-8000-000000000201', '70000000-0000-4000-8000-000000000101', 'a1', 'CI A selected'),
+ ('70000000-0000-4000-8000-000000000202', '70000000-0000-4000-8000-000000000101', 'a2', 'CI A excluded'),
+ ('70000000-0000-4000-8000-000000000203', '70000000-0000-4000-8000-000000000102', 'b1', 'CI B');
 INSERT INTO zaltyko.organization_members(id, organization_id, user_id, role, status, location_scope_mode) VALUES
  ('70000000-0000-4000-8000-000000000301', '70000000-0000-4000-8000-000000000101', '70000000-0000-4000-8000-000000000001', 'owner', 'active', 'selected'),
  ('70000000-0000-4000-8000-000000000302', '70000000-0000-4000-8000-000000000102', '70000000-0000-4000-8000-000000000002', 'owner', 'active', 'all');
@@ -35,8 +35,8 @@ BEGIN
     RAISE EXCEPTION 'Organization A positive/cross-tenant isolation failed';
   END IF;
   IF (SELECT count(*) FROM zaltyko.locations) <> 1
-     OR NOT EXISTS (SELECT 1 FROM zaltyko.locations WHERE code='A1')
-     OR EXISTS (SELECT 1 FROM zaltyko.locations WHERE code IN ('A2','B1')) THEN
+     OR NOT EXISTS (SELECT 1 FROM zaltyko.locations WHERE code='a1')
+     OR EXISTS (SELECT 1 FROM zaltyko.locations WHERE code IN ('a2','b1')) THEN
     RAISE EXCEPTION 'Location A positive/cross-location isolation failed';
   END IF;
   IF (SELECT count(*) FROM zaltyko.organization_members) <> 1 THEN
@@ -66,7 +66,7 @@ BEGIN
     RAISE EXCEPTION 'Organization B positive/cross-tenant isolation failed';
   END IF;
   IF (SELECT count(*) FROM zaltyko.locations) <> 1
-     OR NOT EXISTS (SELECT 1 FROM zaltyko.locations WHERE code='B1') THEN
+     OR NOT EXISTS (SELECT 1 FROM zaltyko.locations WHERE code='b1') THEN
     RAISE EXCEPTION 'Location B positive/cross-tenant isolation failed';
   END IF;
 END

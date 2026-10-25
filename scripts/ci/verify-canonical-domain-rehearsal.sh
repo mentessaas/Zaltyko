@@ -6,7 +6,7 @@ umask 077
 # synthetic PostgreSQL service. This is not a migration or an apply command.
 readonly EXPECTED_BRANCH="codex/mvp-main-bridge-20261025"
 readonly EXPECTED_SNAPSHOT_SHA256="fd1bf2597b0dfd40dc6db824fa24773461f2776fa2ed7c994649be534c6a4b36"
-readonly EXPECTED_TENANT_FIXTURE_SHA256="ff8f52319356b17ac2457cda34dca0a01bfa6442498766c55d83a58020adafed"
+readonly EXPECTED_TENANT_FIXTURE_SHA256="04dd16835406198d3ebb12f3396674bbc279e5dcd7500e5c30fefb24a2bf6d4c"
 readonly ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/../.." && pwd -P)"
 readonly TENANT_FIXTURE="$ROOT/scripts/ci/canonical-domain-tenant-isolation.sql"
 
