@@ -75,8 +75,20 @@ describe("API /api/class-sessions", () => {
       },
     }));
 
+    vi.doMock("@/lib/limits", () => ({
+      assertAcademyOperationalWritable: vi.fn().mockResolvedValue({ readOnly: false }),
+      lockAcademyOperationalWrites: vi.fn().mockResolvedValue(undefined),
+    }));
+
     vi.doMock("@/lib/authz/resource-scope", () => ({
-      authorizeClassResource: vi.fn().mockResolvedValue({ allowed: true }),
+      authorizeClassResource: vi.fn().mockResolvedValue({
+        allowed: true,
+        resource: {
+          id: "class-123",
+          tenantId: "tenant-123",
+          academyId: "11111111-1111-4111-8111-111111111111",
+        },
+      }),
     }));
 
     const mainModule = await import("@/app/api/class-sessions/route");
@@ -96,7 +108,17 @@ describe("API /api/class-sessions", () => {
     selectQueue.push(
       createSelectChain({
         resolveAt: "orderBy",
-        result: [{ id: "22222222-2222-4222-8222-222222222222" }],
+        result: [{ id: "22222222-2222-4222-8222-222222222222", academyId: "11111111-1111-4111-8111-111111111111" }],
+      })
+    );
+    selectQueue.push(
+      createSelectChain({
+        resolveAt: "limit",
+        result: [{
+          id: "22222222-2222-4222-8222-222222222222",
+          academyId: "11111111-1111-4111-8111-111111111111",
+          sportConfigId: null,
+        }],
       })
     );
     selectQueue.push(
@@ -171,6 +193,12 @@ describe("API /api/class-sessions", () => {
   });
 
   it("actualiza una sesión existente", async () => {
+    selectQueue.push(
+      createSelectChain({
+        resolveAt: "limit",
+        result: [{ id: "session-1", classId: "class-123" }],
+      })
+    );
     selectQueue.push(
       createSelectChain({
         resolveAt: "limit",

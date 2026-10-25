@@ -113,7 +113,7 @@ describe("API limits and feature contracts", () => {
 
   it("guards legacy operational writes under the academy lock", () => {
     const routes = [
-      ["src/app/api/attendance/route.ts", ".insert(attendance)"] as const,
+      ["src/app/api/attendance/route.ts", ".insert(attendanceRecords)"] as const,
       ["src/app/api/charges/route.ts", ".insert(charges)"] as const,
       ["src/app/api/charges/bulk/route.ts", ".insert(charges)"] as const,
       ["src/app/api/charges/generate-monthly/route.ts", ".insert(charges)"] as const,

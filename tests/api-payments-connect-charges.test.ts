@@ -594,6 +594,11 @@ const importRemind = () => import("@/app/api/charges/[chargeId]/remind/route");
 
 describe("POST /api/charges/[chargeId]/remind", () => {
   beforeEach(() => {
+    vi.resetModules();
+    vi.doMock("@/lib/limits", () => ({
+      assertAcademyOperationalWritable: vi.fn().mockResolvedValue({ readOnly: false }),
+      lockAcademyOperationalWrites: vi.fn().mockResolvedValue(undefined),
+    }));
     mocks.selectResults = [];
   });
 

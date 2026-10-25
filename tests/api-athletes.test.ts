@@ -83,6 +83,8 @@ describe("API /api/athletes", () => {
 
     vi.doMock("@/lib/limits", () => ({
       assertWithinPlanLimits: assertWithinPlanLimitsMock,
+      assertAcademyOperationalWritable: vi.fn().mockResolvedValue({ readOnly: false }),
+      lockAcademyOperationalWrites: vi.fn().mockResolvedValue(undefined),
     }));
 
     vi.doMock("@/lib/billing/sync-charges", () => ({

@@ -47,6 +47,8 @@ describe("API /api/classes", () => {
 
     vi.doMock("@/lib/limits", () => ({
       assertWithinPlanLimits: vi.fn().mockResolvedValue(undefined),
+      assertAcademyOperationalWritable: vi.fn().mockResolvedValue({ readOnly: false }),
+      lockAcademyOperationalWrites: vi.fn().mockResolvedValue(undefined),
     }));
     const limitsModule = await import("@/lib/limits");
     assertWithinPlanLimits = limitsModule.assertWithinPlanLimits as unknown as ReturnType<
