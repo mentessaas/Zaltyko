@@ -383,7 +383,9 @@ test.describe("Isolated local Supabase Owner setup", () => {
       await expect(classOption).toHaveCount(1);
       expect(await classOption.getAttribute("value")).toBe(classTemplateId);
       await classSelect.selectOption(classTemplateId);
-      const search = createEnrollment.getByLabel("Gimnasta");
+      const search = createEnrollment.getByRole("searchbox", {
+        name: "Gimnasta",
+      });
       await search.fill(athleteGivenName);
       await expect(
         page.getByRole("list", { name: "Resultados de búsqueda" })
