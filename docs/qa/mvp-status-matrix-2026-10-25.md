@@ -10,6 +10,23 @@ persistidos reales de sandbox.
 
 ## Corte vigente de validación
 
+`ab97a47cb7db404458df8e8147d95c3d68b0b447`: replay remoto
+`40219817117` SUCCESS con diez suites PostgreSQL, reconstrucción vacía,
+ACL/RLS, aislamiento, concurrencia y rechazo sin escrituras parciales.
+CI `40219808150`: build, lint/tipos, SQL, móvil y seguridad SUCCESS;
+unitarias 5082 PASS, 2 FAIL y 3 omitidas; otros navegadores pendientes al corte.
+Los fallos de UI se corrigen separando ayuda mediante aria-describedby de la
+etiqueta de fecha y conservando Asistencia en los cinco accesos diarios móviles
+(Gimnastas permanece en Más). Chromium FAIL por
+`invalid-origin` en el PATCH del tutor: fijar el hostname a la IP no bastó.
+Next 15.5.12 `NextURL.parseURL` sustituye las IP loopback por `localhost`
+(fuente oficial: `packages/next/src/server/web/next-url.ts`, líneas 22–30).
+El harness pasa ahora navegador y servidor a `localhost`, conservando puerto,
+guards de red y CSRF de producto sin cambios. Nueva ejecución aún pendiente.
+No hay preview nueva READY ni publicación de esta entrega.
+
+Los cortes siguientes son históricos.
+
 Corte1e66: PostgreSQL40218353564 SUCCESS y build40218342190 SUCCESS;
 unitarias5067PASS/1FAIL/3omitidas (expectativa de whitespace SQL, corregida),
 Chromium rechaza PATCH de perfil con403. Captura PNG del runner confirma

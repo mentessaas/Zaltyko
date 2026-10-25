@@ -7,6 +7,21 @@ source:
   - ../docs/architecture/zaltyko-domain-model.md
 ---
 
+## 2026-10-25 — Intake y regularización pasan PostgreSQL; origen sintético pendiente
+
+- `ab97a47c`: replay remoto `40219817117` SUCCESS, diez suites nativas,
+  reconstrucción vacía, ACL/RLS y aislamiento. Build y controles estáticos
+  de `40219808150` pasan; no se ejecutan pruebas ni builds en el Mac.
+- Chromium sigue rechazando el PATCH del tutor por origen. El código oficial
+  Next 15.5.12 normaliza IP loopback a localhost en NextURL.parseURL; fijar
+  hostname a 127.0.0.1 no corrige esa normalización. El harness usa ahora
+  localhost tanto en navegador como servidor. No se relaja CSRF ni la red.
+- Corrección pendiente de CI remota; sin preview READY nueva ni producción.
+- Unitarias del corte: 5082 PASS, 2 FAIL, 3 omitidas. Se separa la ayuda de
+  fecha del nombre accesible con aria-describedby y se conserva Asistencia
+  entre los cinco accesos diarios móviles, dejando Gimnastas en Más.
+  No se eliminan las aserciones que detectaron ambos problemas.
+
 ## 2026-10-25 — Integración local de #236 en el MVP y procedencia acreditada
 
 - Resueltos los 13 conflictos conservando validación de entorno, guardas de

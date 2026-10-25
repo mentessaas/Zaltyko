@@ -323,7 +323,10 @@ void (async () => {
     const databaseUrl = required(values, "DB_URL");
     await replayPinnedE2ESchema(databaseUrl, pinnedSchemaSources);
     const appPort = await findAvailablePort();
-    const appUrl = `http://127.0.0.1:${appPort}`;
+    // NextURL normalizes loopback IPs to localhost. Use that canonical host
+    // for both the browser Origin and the route Request URL; retain strict
+    // same-origin checks rather than allowing equivalent loopback aliases.
+    const appUrl = `http://localhost:${appPort}`;
     const childEnv: NodeJS.ProcessEnv = {
       ...safeEnvironment,
       NODE_ENV: "test",

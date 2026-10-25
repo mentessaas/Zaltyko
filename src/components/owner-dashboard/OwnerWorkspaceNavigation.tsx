@@ -99,8 +99,12 @@ export function OwnerWorkspaceNavigation() {
         ]
       : []),
   ];
-  const mobileItems = navigationItems.slice(0, 5);
-  const secondaryMobileItems = navigationItems.slice(5);
+  // Keep attendance among the five daily tasks. The organization-wide intake
+  // stays available under More without displacing a location-scoped task.
+  const mobileItems = navigationItems
+    .filter((item) => !item.href.startsWith("/owner/athletes"))
+    .slice(0, 5);
+  const secondaryMobileItems = navigationItems.filter((item) => !mobileItems.includes(item));
 
   return (
     <>

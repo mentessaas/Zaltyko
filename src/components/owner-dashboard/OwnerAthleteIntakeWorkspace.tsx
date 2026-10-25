@@ -793,9 +793,9 @@ export function OwnerAthleteIntakeWorkspace({ organizationId, organizationName }
                         {data.eligibleGroups.length === 0 ? <span className="mt-2 block text-xs text-slate-600">No hay grupos activos con plazas disponibles en las sedes autorizadas.</span> : null}
                       </label>
                       <label className="text-sm font-semibold">Fecha civil de inicio en la sede
-                        <input className={`${fieldClassName} mt-2`} type="date" value={assignment.startsOn} onChange={(event) => setAssignment((current) => current ? { ...current, startsOn: event.target.value } : current)} disabled={newWritesDisabled} required />
-                        <span className="mt-2 block text-xs font-normal text-slate-600">La primera asignación solo admite la fecha de hoy según la sede; el servidor la comprobará.</span>
+                        <input className={`${fieldClassName} mt-2`} type="date" aria-describedby={`assignment-date-help-${athlete.athleteId}`} value={assignment.startsOn} onChange={(event) => setAssignment((current) => current ? { ...current, startsOn: event.target.value } : current)} disabled={newWritesDisabled} required />
                       </label>
+                      <p id={`assignment-date-help-${athlete.athleteId}`} className="text-xs text-slate-600 sm:col-span-2">La primera asignación solo admite la fecha de hoy según la sede; el servidor la comprobará.</p>
                       <div className="sm:col-span-2">
                         <button type="submit" className={primaryButtonClassName} disabled={newWritesDisabled || !data.eligibleGroups.some((group) => group.groupId === assignment.groupId)}>Asignar gimnasta</button>
                       </div>
