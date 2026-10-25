@@ -66,6 +66,7 @@ const { makeQuery, mocks, tables } = vi.hoisted(() => {
     if (node.op === "isNull") return actual === null;
     if (node.op === "lte") return String(actual) <= String(expected);
     if (node.op === "gte") return String(actual) >= String(expected);
+    if (node.op === "gt") return String(actual) > String(expected);
     return true;
   }
 
@@ -154,6 +155,7 @@ vi.mock("drizzle-orm", () => {
   return {
     and: condition("and"),
     eq: condition("eq"),
+    gt: condition("gt"),
     gte: condition("gte"),
     inArray: condition("inArray"),
     isNull: condition("isNull"),

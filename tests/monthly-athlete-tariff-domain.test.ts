@@ -5,10 +5,10 @@ import {
   pricePlanClassTemplateCoverageSchema,
 } from "@/modules/billing/domain/monthly-athlete-tariff";
 
-const organizationId = "10000000-0000-0000-0000-000000000001";
-const locationId = "10000000-0000-0000-0000-000000000011";
-const pricePlanId = "10000000-0000-0000-0000-000000000901";
-const classTemplateId = "10000000-0000-0000-0000-000000000801";
+const organizationId = "10000000-0000-4000-8000-000000000001";
+const locationId = "10000000-0000-4000-8000-000000000011";
+const pricePlanId = "10000000-0000-4000-8000-000000000901";
+const classTemplateId = "10000000-0000-4000-8000-000000000801";
 
 function coverage(
   startsOn: string,
@@ -32,21 +32,21 @@ function coverage(
 }
 
 const firstCoveredEnrollment = {
-  enrollmentId: "10000000-0000-0000-0000-000000000851",
+  enrollmentId: "10000000-0000-4000-8000-000000000851",
   classTemplateId,
   className: "Clase Base",
-  assignmentId: "10000000-0000-0000-0000-000000000861",
+  assignmentId: "10000000-0000-4000-8000-000000000861",
 };
 
 const secondCoveredEnrollment = {
-  enrollmentId: "10000000-0000-0000-0000-000000000852",
-  classTemplateId: "10000000-0000-0000-0000-000000000803",
+  enrollmentId: "10000000-0000-4000-8000-000000000852",
+  classTemplateId: "10000000-0000-4000-8000-000000000803",
   className: "Clase Complementaria",
-  assignmentId: "10000000-0000-0000-0000-000000000862",
+  assignmentId: "10000000-0000-4000-8000-000000000862",
 };
 
 const line = {
-  athleteId: "10000000-0000-0000-0000-000000000401",
+  athleteId: "10000000-0000-4000-8000-000000000401",
   athleteName: "Atleta Sintética",
   pricePlanId,
   pricePlanName: "Tarifa mensual",
@@ -85,7 +85,7 @@ describe("monthly athlete tariff coverage contract", () => {
       coverage("2026-10-31", "2026-10-31"),
       coverage("2026-11-01", null),
       coverage("2026-10-01", null, {
-        pricePlanId: "20000000-0000-0000-0000-000000000901",
+        pricePlanId: "20000000-0000-4000-8000-000000000901",
       }),
     ];
 

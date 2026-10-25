@@ -115,17 +115,17 @@ describe("API /api/coaches", () => {
     selectQueue.push(
       createSelectChain({
         resolveAt: "limit",
-        result: [{ id: "22222222-2222-2222-2222-222222222222", userId: "user-789" }],
+        result: [{ id: "22222222-2222-4222-8222-222222222222", userId: "user-789" }],
       })
     );
 
     const request = new Request("http://localhost/api/coaches", {
       method: "POST",
       body: JSON.stringify({
-        academyId: "11111111-1111-1111-1111-111111111111",
+        academyId: "11111111-1111-4111-8111-111111111111",
         name: "Laura Sánchez",
         email: "laura@example.com",
-        profileId: "22222222-2222-2222-2222-222222222222",
+        profileId: "22222222-2222-4222-8222-222222222222",
       }),
       headers: { "Content-Type": "application/json" },
     });
@@ -137,7 +137,7 @@ describe("API /api/coaches", () => {
 
     const coachInsert = insertCalls[0];
     expect(coachInsert?.payload).toMatchObject({
-      academyId: "11111111-1111-1111-1111-111111111111",
+      academyId: "11111111-1111-4111-8111-111111111111",
       name: "Laura Sánchez",
       email: "laura@example.com",
       tenantId: "tenant-123",
@@ -145,7 +145,7 @@ describe("API /api/coaches", () => {
 
     const membershipInsert = insertCalls[1];
     expect(membershipInsert?.payload).toMatchObject({
-      academyId: "11111111-1111-1111-1111-111111111111",
+      academyId: "11111111-1111-4111-8111-111111111111",
       role: "coach",
       userId: "user-789",
     });
@@ -161,7 +161,7 @@ describe("API /api/coaches", () => {
             name: "Luis Romero",
             email: "coach@example.com",
             phone: "+34 600 000 001",
-            academyId: "11111111-1111-1111-1111-111111111111",
+            academyId: "11111111-1111-4111-8111-111111111111",
             academyName: "Gymna Training Center",
             createdAt: new Date().toISOString(),
           },
@@ -184,14 +184,14 @@ describe("API /api/coaches", () => {
             coachId: "coach-1",
             classId: "class-1",
             className: "Equipo FIG Avanzado",
-            classAcademyId: "11111111-1111-1111-1111-111111111111",
+            classAcademyId: "11111111-1111-4111-8111-111111111111",
           },
         ],
       })
     );
 
     const request = new Request(
-      "http://localhost/api/coaches?includeAssignments=true&academyId=11111111-1111-1111-1111-111111111111",
+      "http://localhost/api/coaches?includeAssignments=true&academyId=11111111-1111-4111-8111-111111111111",
       {
         method: "GET",
       }

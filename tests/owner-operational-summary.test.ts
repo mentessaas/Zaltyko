@@ -20,8 +20,8 @@ vi.mock("@/modules/owner-dashboard/application/owner-scope", () => ({
 import { getOwnerOperationalSummary } from "@/modules/owner-dashboard/application/operational-summary";
 import { OperationalError } from "@/modules/shared/domain/operational-error";
 
-const allowedLocation = "30000000-0000-0000-0000-000000000010";
-const organizationId = "30000000-0000-0000-0000-000000000001";
+const allowedLocation = "30000000-0000-4000-8000-000000000010";
+const organizationId = "30000000-0000-4000-8000-000000000001";
 
 function ownerScope(role: "owner" | "admin" | "manager", all = false) {
   return {
@@ -38,7 +38,7 @@ function ownerScope(role: "owner" | "admin" | "manager", all = false) {
     locations: [
       { id: allowedLocation, name: "Sede Centro" },
       ...(all
-        ? [{ id: "30000000-0000-0000-0000-000000000011", name: "Sede Norte" }]
+        ? [{ id: "30000000-0000-4000-8000-000000000011", name: "Sede Norte" }]
         : []),
     ],
     selectedLocationId: all ? null : allowedLocation,
@@ -112,7 +112,7 @@ describe("owner operational summary", () => {
             timezone: "Europe/Madrid",
           },
           {
-            id: "30000000-0000-0000-0000-000000000011",
+            id: "30000000-0000-4000-8000-000000000011",
             name: "Sede Norte",
             timezone: "Europe/Madrid",
           },
@@ -139,7 +139,7 @@ describe("owner operational summary", () => {
     expect(result.scope).toMatchObject({
       kind: "organization",
       locationId: null,
-      locationIds: [allowedLocation, "30000000-0000-0000-0000-000000000011"],
+      locationIds: [allowedLocation, "30000000-0000-4000-8000-000000000011"],
       timezoneMode: "per_location",
     });
     expect(result.metrics).toMatchObject({
@@ -165,7 +165,7 @@ describe("owner operational summary", () => {
     expect(queries[2].sql).toContain("g.status = 'active'");
     expect(queries[2].params).toContain(organizationId);
     expect(queries[2].params).toContain(allowedLocation);
-    expect(queries[2].params).toContain("30000000-0000-0000-0000-000000000011");
+    expect(queries[2].params).toContain("30000000-0000-4000-8000-000000000011");
     expect(queries[3].sql).toContain("session.starts_at");
     expect(queries[4].sql).toContain(
       "payment.status in ('succeeded', 'partially_refunded', 'refunded')"
@@ -314,7 +314,7 @@ describe("owner operational summary", () => {
         getOwnerOperationalSummary({
           userId: "user-1",
           organizationId,
-          locationId: "30000000-0000-0000-0000-000000000099",
+          locationId: "30000000-0000-4000-8000-000000000099",
         })
       ).rejects.toMatchObject({ code });
       expect(mocks.execute).not.toHaveBeenCalled();

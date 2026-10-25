@@ -166,7 +166,8 @@ function optionsWithNewlyLinkedFamily(
 }
 
 function response(data: unknown, status = 200) {
-  return new Response(JSON.stringify({ data }), {
+  const body = status >= 200 && status < 300 ? { ok: true, data } : data;
+  return new Response(JSON.stringify(body), {
     status,
     headers: { "content-type": "application/json" },
   });
@@ -210,7 +211,7 @@ describe("OwnerMonthlyInvoicesManager", () => {
     failFamilyAssociationOnce = false;
     deferFamilyAssociationResponse = null;
     deferNextMonthlyOptions = null;
-    vi.stubGlobal("crypto", { randomUUID: () => "synthetic-idempotency-key" });
+    vi.stubGlobal("crypto", { randomUUID: () => "10000000-0000-4000-8000-000000000911" });
     vi.stubGlobal(
       "fetch",
       vi.fn(async (input: RequestInfo | URL, init?: RequestInit) => {
@@ -337,6 +338,13 @@ describe("OwnerMonthlyInvoicesManager", () => {
     );
   }
 
+  async function findPrimaryFamilySelect() {
+    const selects = await screen.findAllByLabelText("Familia");
+    const select = selects[0];
+    if (!select) throw new Error("No se encontró el selector principal de familia.");
+    return select;
+  }
+
   it("asigna una tarifa desde el catálogo con PATCH y recarga el presupuesto", async () => {
     currentOptions = monthlyOptions({
       families: [
@@ -361,7 +369,7 @@ describe("OwnerMonthlyInvoicesManager", () => {
     const user = userEvent.setup();
     renderManager();
 
-    await user.selectOptions(await screen.findByLabelText("Familia"), familyId);
+    await user.selectOptions(await findPrimaryFamilySelect(), familyId);
 
     await user.click(
       await screen.findByRole("button", {
@@ -388,7 +396,7 @@ describe("OwnerMonthlyInvoicesManager", () => {
       );
     expect(patchCall?.[1]?.method).toBe("PATCH");
     expect(patchCall?.[1]?.headers).toMatchObject({
-      "Idempotency-Key": "owner-price-assignment:synthetic-idempotency-key",
+      "Idempotency-Key": "owner-price-assignment:10000000-0000-4000-8000-000000000911",
     });
     expect(JSON.parse(String(patchCall?.[1]?.body))).toEqual({
       organizationId,
@@ -407,7 +415,7 @@ describe("OwnerMonthlyInvoicesManager", () => {
     const user = userEvent.setup();
     renderManager();
 
-    await user.selectOptions(await screen.findByLabelText("Familia"), familyId);
+    await user.selectOptions(await findPrimaryFamilySelect(), familyId);
     await user.click(
       await screen.findByRole("button", {
         name: "Asignar tarifa mensual a Gimnasta sintética",
@@ -438,7 +446,7 @@ describe("OwnerMonthlyInvoicesManager", () => {
     });
     expect(createCall[1]?.method).toBe("POST");
     expect(createCall[1]?.headers).toMatchObject({
-      "Idempotency-Key": "owner-monthly-price-plan:synthetic-idempotency-key",
+      "Idempotency-Key": "owner-monthly-price-plan:10000000-0000-4000-8000-000000000911",
     });
     expect(JSON.parse(String(createCall[1]?.body))).toEqual({
       organizationId,
@@ -487,7 +495,7 @@ describe("OwnerMonthlyInvoicesManager", () => {
     const user = userEvent.setup();
     renderManager();
 
-    await user.selectOptions(await screen.findByLabelText("Familia"), familyId);
+    await user.selectOptions(await findPrimaryFamilySelect(), familyId);
     await user.click(
       await screen.findByRole("button", {
         name: "Asignar tarifa mensual a Gimnasta sintética",
@@ -519,7 +527,7 @@ describe("OwnerMonthlyInvoicesManager", () => {
     const user = userEvent.setup();
     renderManager();
 
-    await user.selectOptions(await screen.findByLabelText("Familia"), familyId);
+    await user.selectOptions(await findPrimaryFamilySelect(), familyId);
     await user.click(
       await screen.findByRole("button", {
         name: "Asignar tarifa mensual a Gimnasta sintética",
@@ -617,7 +625,7 @@ describe("OwnerMonthlyInvoicesManager", () => {
       effectiveFrom: "2026-10-01",
     });
     expect(associationCall?.[1]?.headers).toMatchObject({
-      "Idempotency-Key": "owner-family-association:synthetic-idempotency-key",
+      "Idempotency-Key": "owner-family-association:10000000-0000-4000-8000-000000000911",
     });
   });
 
@@ -727,7 +735,7 @@ describe("OwnerMonthlyInvoicesManager", () => {
           "Familia y persona pagadora vinculadas"
         )
       );
-      expect(screen.getByLabelText("Familia")).toHaveValue("");
+      expect(screen.getAllByLabelText("Familia")[0]).toHaveValue("");
       expect(screen.getByLabelText("Quién paga")).toHaveValue("");
     }
   );
@@ -833,7 +841,7 @@ describe("OwnerMonthlyInvoicesManager", () => {
         "2026-11"
       )
     );
-    expect(screen.getByLabelText("Familia")).toHaveValue("");
+    expect(screen.getAllByLabelText("Familia")[0]).toHaveValue("");
 
     expect(resolveOldOptions).toBeDefined();
     await act(async () => {
@@ -843,7 +851,7 @@ describe("OwnerMonthlyInvoicesManager", () => {
     expect(document.querySelector('input[type="month"]')).toHaveValue(
       "2026-11"
     );
-    expect(screen.getByLabelText("Familia")).toHaveValue("");
+    expect(screen.getAllByLabelText("Familia")[0]).toHaveValue("");
     expect(
       screen.queryByRole("button", {
         name: "Asignar tarifa mensual a Gimnasta sin familia",
@@ -941,7 +949,7 @@ describe("OwnerMonthlyInvoicesManager", () => {
           .at(-1)?.[0]
       ).toContain("servicePeriod=2026-11")
     );
-    expect(screen.getByLabelText("Familia")).toHaveValue("");
+    expect(screen.getAllByLabelText("Familia")[0]).toHaveValue("");
     expect(screen.getByLabelText("Quién paga")).toHaveValue("");
   });
 
@@ -967,8 +975,8 @@ describe("OwnerMonthlyInvoicesManager", () => {
     vi.stubGlobal("crypto", {
       randomUUID: vi
         .fn()
-        .mockReturnValueOnce("owner-family-association-key-1")
-        .mockReturnValueOnce("owner-family-association-key-2"),
+        .mockReturnValueOnce("10000000-0000-4000-8000-000000000912")
+        .mockReturnValueOnce("10000000-0000-4000-8000-000000000913"),
     });
     const user = userEvent.setup();
     renderManager();
@@ -1014,7 +1022,7 @@ describe("OwnerMonthlyInvoicesManager", () => {
     expect(associationCalls[0]?.[1]?.body).toBe(associationCalls[1]?.[1]?.body);
     expect(associationCalls[0]?.[1]?.headers).toMatchObject({
       "Idempotency-Key":
-        "owner-family-association:owner-family-association-key-1",
+        "owner-family-association:10000000-0000-4000-8000-000000000912",
     });
   });
 
@@ -1071,7 +1079,7 @@ describe("OwnerMonthlyInvoicesManager", () => {
   it("emite con el total del servidor y conserva el copy cuando el DTO no confirma chargeStatus", async () => {
     const user = userEvent.setup();
     renderManager();
-    await user.selectOptions(await screen.findByLabelText("Familia"), familyId);
+    await user.selectOptions(await findPrimaryFamilySelect(), familyId);
     await user.selectOptions(screen.getByLabelText("Quién paga"), payerId);
     fireEvent.change(screen.getByLabelText("Fecha de vencimiento"), {
       target: { value: "2026-10-31" },
@@ -1091,7 +1099,7 @@ describe("OwnerMonthlyInvoicesManager", () => {
     });
     expect(issueCall?.[1]?.method).toBe("POST");
     expect(issueCall?.[1]?.headers).toMatchObject({
-      "Idempotency-Key": "owner-monthly-invoice:synthetic-idempotency-key",
+      "Idempotency-Key": "owner-monthly-invoice:10000000-0000-4000-8000-000000000911",
     });
     const body = JSON.parse(String(issueCall?.[1]?.body));
     expect(body).toEqual({

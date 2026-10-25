@@ -51,6 +51,7 @@ function eligibleLocationRelationship(input: {
         and eligible_group.location_id in (${locationIds})
         and eligible_group.status = 'active'
         ${excludedGroup}
+      limit ${1}
     )
     or exists (
       select 1
@@ -59,6 +60,7 @@ function eligibleLocationRelationship(input: {
         and eligible_enrollment.athlete_id = ${athletes.id}
         and eligible_enrollment.location_id in (${locationIds})
         and eligible_enrollment.status in (${enrollmentStatuses})
+      limit ${1}
     )
   )`;
 }

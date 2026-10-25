@@ -68,7 +68,7 @@ describe("synthetic webpack build worker experiment", () => {
   const configSource = readFileSync(resolve(root, "next.config.mjs"), "utf8");
   // Exercise the actual side-effect-free selector without repeatedly loading Sentry.
   const selector = configSource.match(
-    /\.\.\.\(([\s\S]*?)\n\s*\?\s*\{\s*\n\s*webpackBuildWorker: true/
+    /\.\.\.\(([\s\S]*?)\)\s*(?:(?:\/\/[^\n]*)(?:\r?\n|$)\s*)*\?\s*\{\s*webpackBuildWorker: true/
   )?.[1];
 
   it.each(
@@ -116,7 +116,7 @@ describe("synthetic webpack build worker experiment", () => {
     expect(evaluate({ ...sandbox, ZALTYKO_SANDBOX_PREVIEW_BUILD_OPTIMIZATIONS: "false" })).toBe(false);
   });
 
-  it("changes only the worker setting in the observed configuration", () => {
+  it("changes only the three gated build optimization settings in the observed configuration", () => {
     const [baseline, experiment] = readConfigurations();
     expect(baseline.hasWorker).toBe(false);
     expect(experiment.hasWorker).toBe(true);
@@ -129,6 +129,8 @@ describe("synthetic webpack build worker experiment", () => {
       });
     }
     delete experiment.experimental.webpackBuildWorker;
+    delete experiment.experimental.parallelServerBuildTraces;
+    delete experiment.experimental.serverMinification;
     delete experiment.worker;
     experiment.hasWorker = false;
     expect(experiment).toEqual(baseline);

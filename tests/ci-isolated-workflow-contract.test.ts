@@ -18,6 +18,10 @@ const imagePreloaderPath = resolve(
   process.cwd(),
   "scripts/ci/preload-local-e2e-images.ts"
 );
+const imagePreloaderImplementationPath = resolve(
+  process.cwd(),
+  "scripts/lib/local-e2e-image-preloader.ts"
+);
 const schemaBaselinePath = resolve(
   process.cwd(),
   "supabase/schema-snapshots/20261024172153_sandbox_schema_snapshot_baseline.sql"
@@ -102,6 +106,10 @@ describe("isolated CI workflow contract", () => {
 
   it("preloads only the active pinned Supabase images on disposable GitHub Linux runners", () => {
     const imagePreloader = readFileSync(imagePreloaderPath, "utf8");
+    const imagePreloaderImplementation = readFileSync(
+      imagePreloaderImplementationPath,
+      "utf8"
+    );
     expect(REQUIRED_LOCAL_SUPABASE_IMAGES).toHaveLength(13);
     expect(EXCLUDED_LOCAL_SUPABASE_IMAGES).toHaveLength(2);
     expect(ACTIVE_LOCAL_SUPABASE_IMAGES).toHaveLength(11);
@@ -112,10 +120,13 @@ describe("isolated CI workflow contract", () => {
     );
     expect(imagePreloader).toContain('process.env.GITHUB_ACTIONS !== "true"');
     expect(imagePreloader).toContain('process.platform !== "linux"');
-    expect(imagePreloader).toContain("ACTIVE_LOCAL_SUPABASE_IMAGES");
     expect(imagePreloader).toContain("preloadLocalE2eImages(process.env");
     expect(imagePreloader).toContain("../lib/local-e2e-image-preloader");
     expect(imagePreloader).not.toContain('docker(["pull", image], false)');
+    expect(imagePreloaderImplementation).toContain("ACTIVE_LOCAL_SUPABASE_IMAGES");
+    expect(imagePreloaderImplementation).toContain("resolveLocalDockerEndpoint");
+    expect(imagePreloaderImplementation).toContain("pullPinnedImageWithDigestFallback");
+    expect(imagePreloaderImplementation).toContain('env.GITHUB_ACTIONS !== "true"');
   });
 
   it("builds only an exact candidate SHA on a remote runner with placeholders and no provider access", () => {
@@ -536,8 +547,15 @@ describe("isolated CI workflow contract", () => {
     expect(webProjectStart).toBeGreaterThanOrEqual(0);
     expect(mobileProjectStart).toBeGreaterThan(webProjectStart);
     const webProjectConfig = vitestConfig.slice(webProjectStart, mobileProjectStart);
-    expect(webProjectConfig).toContain('process.env.ZALTYKO_SANDBOX_READONLY_TESTS === "1"');
-    expect(webProjectConfig).toContain('process.env.CI_ISOLATED !== "1"');
+    const projectSelectionGuard = vitestConfig.slice(
+      0,
+      vitestConfig.indexOf("export default defineConfig")
+    );
+    expect(projectSelectionGuard).toContain(
+      'process.env.ZALTYKO_SANDBOX_READONLY_TESTS === "1"'
+    );
+    expect(projectSelectionGuard).toContain('process.env.CI_ISOLATED !== "1"');
+    expect(webProjectConfig).toContain("...(!runSandboxReadonlyPostgresSuites");
     expect(webProjectConfig).toContain('"tests/saas-preview-regularization-pg.test.ts"');
     expect(webProjectConfig).toContain('"tests/saas-preview-readonly-boundaries-pg.test.ts"');
     expect(webProjectConfig).not.toContain("--exclude");

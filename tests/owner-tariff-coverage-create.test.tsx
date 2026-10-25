@@ -41,7 +41,8 @@ const classTemplates = [
 ];
 
 function response(data: unknown, status = 200) {
-  return new Response(JSON.stringify({ data }), {
+  const body = status >= 200 && status < 300 ? { ok: true, data } : data;
+  return new Response(JSON.stringify(body), {
     status,
     headers: { "content-type": "application/json" },
   });
@@ -86,8 +87,8 @@ describe("cobertura de clases al crear una tarifa Owner", () => {
     vi.stubGlobal("crypto", {
       randomUUID: vi
         .fn()
-        .mockReturnValueOnce("tariff-coverage-key")
-        .mockReturnValue("tariff-coverage-key-next"),
+        .mockReturnValueOnce("10000000-0000-4000-8000-000000000921")
+        .mockReturnValue("10000000-0000-4000-8000-000000000922"),
     });
     vi.stubGlobal(
       "fetch",
@@ -225,7 +226,7 @@ describe("cobertura de clases al crear una tarifa Owner", () => {
     expect(postCalls).toHaveLength(1);
     expect(postCalls[0]?.[1]?.method).toBe("POST");
     expect(postCalls[0]?.[1]?.headers).toMatchObject({
-      "Idempotency-Key": "owner-monthly-price-plan:tariff-coverage-key",
+      "Idempotency-Key": "owner-monthly-price-plan:10000000-0000-4000-8000-000000000921",
     });
     expect(JSON.parse(String(postCalls[0]?.[1]?.body))).toEqual({
       organizationId,

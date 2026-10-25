@@ -19,11 +19,11 @@ vi.mock("@/components/owner-dashboard/FamilyCollectionModeCard", () => ({
 import { ManualPaymentForm } from "@/components/owner-dashboard/ManualPaymentForm";
 import { publishOwnerPlanUsage } from "@/components/owner-dashboard/owner-plan-usage-store";
 
-const organizationId = "10000000-0000-0000-0000-000000000001";
+const organizationId = "10000000-0000-4000-8000-000000000001";
 const charge: OpenManualPaymentCharge = {
-  chargeId: "10000000-0000-0000-0000-000000000301",
-  familyId: "10000000-0000-0000-0000-000000000201",
-  locationId: "10000000-0000-0000-0000-000000000101",
+  chargeId: "10000000-0000-4000-8000-000000000301",
+  familyId: "10000000-0000-4000-8000-000000000201",
+  locationId: "10000000-0000-4000-8000-000000000101",
   locationName: "Sede Centro",
   invoiceReference: "FAC-2026-014",
   payerName: "Familia de prueba",
@@ -68,7 +68,7 @@ beforeEach(() => {
   publishOwnerPlanUsage(organizationId, { readOnly: false, planCode: "free" });
   vi.stubGlobal("fetch", mockFetch);
   vi.stubGlobal("crypto", {
-    randomUUID: () => "synthetic-payment-id",
+    randomUUID: () => "10000000-0000-4000-8000-000000000009",
   });
 });
 
@@ -184,7 +184,7 @@ describe("registro manual de pagos en el dashboard owner", () => {
     const retryRequest = mockFetch.mock.calls[1]?.[1] as RequestInit;
     expect(firstRequest.headers).toEqual(retryRequest.headers);
     expect(firstRequest.headers).toMatchObject({
-      "idempotency-key": "owner-manual-payment:synthetic-payment-id",
+      "idempotency-key": "owner-manual-payment:10000000-0000-4000-8000-000000000009",
     });
     expect(firstRequest.body).toBe(retryRequest.body);
     expect(JSON.parse(String(firstRequest.body))).toMatchObject({

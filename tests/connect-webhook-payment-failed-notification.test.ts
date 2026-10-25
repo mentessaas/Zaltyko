@@ -3,10 +3,10 @@ import type Stripe from "stripe";
 
 // IDs consistentes para que las aserciones sobre argumentos del notification
 // service no dependan de magia literal en cada test.
-const TENANT_ID = "00000000-0000-0000-0000-0000000000a1";
-const ACADEMY_ID = "00000000-0000-0000-0000-0000000000a2";
-const ATHLETE_ID = "00000000-0000-0000-0000-0000000000a3";
-const CHARGE_ID = "00000000-0000-0000-0000-0000000000a4";
+const TENANT_ID = "00000000-0000-4000-8000-0000000000a1";
+const ACADEMY_ID = "00000000-0000-4000-8000-0000000000a2";
+const ATHLETE_ID = "00000000-0000-4000-8000-0000000000a3";
+const CHARGE_ID = "00000000-0000-4000-8000-0000000000a4";
 const STRIPE_ACCOUNT_ID = "acct_test_123";
 const PAYMENT_INTENT_ID = "pi_test_failed_123";
 const EVENT_ID = "evt_test_failed_456";

@@ -103,9 +103,23 @@ describe("OwnerEnrollmentsManager", () => {
         .mockImplementation(
           async (_input: RequestInfo | URL, init?: RequestInit) => {
             if (init?.method === "POST") {
+              const body = String(init.body);
+              const idempotencyKey = new Headers(init.headers).get("idempotency-key");
+              const command = JSON.parse(body) as {
+                startsOn: string;
+                pricePlanId: string | null;
+              };
               return new Response(
                 JSON.stringify({
-                  data: { id: enrollmentId, status: "pending", version: 1 },
+                  ok: true,
+                  data: {
+                    id: enrollmentId,
+                    status: "pending",
+                    version: 1,
+                    startsOn: command.startsOn,
+                    pricePlanId: command.pricePlanId,
+                    commandReceipt: { body, idempotencyKey },
+                  },
                 }),
                 { status: 201, headers: { "content-type": "application/json" } }
               );
@@ -113,7 +127,14 @@ describe("OwnerEnrollmentsManager", () => {
             if (init?.method === "PATCH") {
               return new Response(
                 JSON.stringify({
-                  data: { id: enrollmentId, status: "paused", version: 2 },
+                  ok: true,
+                  data: {
+                    id: enrollmentId,
+                    status: "paused",
+                    version: 2,
+                    startsOn: "2026-10-13",
+                    endsOn: null,
+                  },
                 }),
                 { status: 200, headers: { "content-type": "application/json" } }
               );
@@ -121,10 +142,11 @@ describe("OwnerEnrollmentsManager", () => {
             if (String(_input).includes("/owner/price-plans/options")) {
               return new Response(
                 JSON.stringify({
+                  ok: true,
                   data: {
                     items: [
                       {
-                        id: "synthetic-price-plan",
+                        id: "10000000-0000-4000-8000-000000000009",
                         name: "Tarifa mensual sintética",
                         amountCents: 2700,
                         currency: "EUR",
@@ -138,6 +160,7 @@ describe("OwnerEnrollmentsManager", () => {
             }
             return new Response(
               JSON.stringify({
+                ok: true,
                 data: { items: [{ id: athleteId, name: "Luz Sintética" }] },
               }),
               { status: 200, headers: { "content-type": "application/json" } }
@@ -175,7 +198,7 @@ describe("OwnerEnrollmentsManager", () => {
       athleteId,
       classTemplateId,
       startsOn: "2026-10-13",
-      pricePlanId: "synthetic-price-plan",
+      pricePlanId: "10000000-0000-4000-8000-000000000009",
     });
     expect(await screen.findByRole("status")).toHaveTextContent(
       "Inscripción pendiente registrada. No se ha generado ningún cobro."

@@ -52,7 +52,7 @@ function renderAttendance(
 beforeEach(() => {
   mockFetch.mockReset();
   vi.stubGlobal("fetch", mockFetch);
-  vi.stubGlobal("crypto", { randomUUID: () => "synthetic-attendance-key" });
+  vi.stubGlobal("crypto", { randomUUID: () => "10000000-0000-4000-8000-000000000007" });
   publishOwnerPlanUsage(organizationId, { readOnly: false, planCode: "free" });
 });
 
@@ -89,7 +89,16 @@ describe("pase de lista Owner (mock del contrato greenfield acordado)", () => {
       .mockResolvedValueOnce({
         ok: true,
         status: 200,
-        json: async () => ({ ok: true, data: {} }),
+        json: async () => ({
+          ok: true,
+          data: {
+            id: "10000000-0000-4000-8000-000000000008",
+            sessionId,
+            enrollmentId,
+            status: "present",
+            recordedAt: "2026-10-13T17:00:00.000Z",
+          },
+        }),
       });
 
     renderAttendance();
@@ -131,7 +140,7 @@ describe("pase de lista Owner (mock del contrato greenfield acordado)", () => {
     expect(firstPost?.[1]?.headers).toEqual(retryPost?.[1]?.headers);
     expect(firstPost?.[1]?.body).toBe(retryPost?.[1]?.body);
     expect(firstPost?.[1]?.headers).toMatchObject({
-      "Idempotency-Key": "owner-attendance:synthetic-attendance-key",
+      "Idempotency-Key": "owner-attendance:10000000-0000-4000-8000-000000000007",
     });
     expect(JSON.parse(String(firstPost?.[1]?.body))).toEqual({
       organizationId,
