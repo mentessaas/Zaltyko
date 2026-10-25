@@ -81,6 +81,7 @@ describe("local E2E runner process safety", () => {
   it("keeps finite setup, build, stop, and browser envelope limits", () => {
     expect(LOCAL_E2E_TIMEOUTS.setup).toBe(240_000);
     expect(LOCAL_E2E_TIMEOUTS.build).toBe(240_000);
+    expect(LOCAL_E2E_TIMEOUTS.ciBuild).toBe(360_000);
     expect(LOCAL_E2E_TIMEOUTS.stop).toBe(120_000);
     expect(LOCAL_E2E_TIMEOUTS.browser).toBe(540_000);
     expect(Object.values(LOCAL_E2E_TIMEOUTS).every(Number.isFinite)).toBe(true);
