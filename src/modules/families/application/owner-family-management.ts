@@ -405,7 +405,7 @@ export async function updateOwnerFamilyLifecycle(
 
     if (current.is_active === desiredIsActive) {
       throw new OperationalError(
-        input.action === "archive" ? "FAMILY_ALREADY_ARCHIVED" : "FAMILY_ALREADY_ACTIVE",
+        "INVALID_STATE_TRANSITION",
         input.action === "archive"
           ? "La familia ya está archivada"
           : "La familia ya está activa",

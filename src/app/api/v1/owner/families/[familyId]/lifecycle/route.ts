@@ -9,7 +9,10 @@ import {
   rateLimit,
   rateLimitExceededResponse,
 } from "@/lib/rate-limit";
-import { hasSameOrigin } from "@/modules/saas-billing/application/owner-access";
+import {
+  hasSameOrigin,
+  resolveSaasOwnerScope,
+} from "@/modules/saas-billing/application/owner-access";
 import { updateOwnerFamilyLifecycle } from "@/modules/families/application/owner-family-management";
 import { OperationalError } from "@/modules/shared/domain/operational-error";
 
@@ -53,10 +56,14 @@ export async function POST(
   }
 
   try {
+    const scope = await resolveSaasOwnerScope({
+      userId: user.id,
+      organizationId: body.data.organizationId,
+    });
     const limited = await rateLimit({
       identifier: getVerifiedTenantRateLimitIdentifier(
         request,
-        body.data.organizationId
+        scope.organizationId
       ),
       ...getLimitForRoute(new URL(request.url).pathname),
     });
