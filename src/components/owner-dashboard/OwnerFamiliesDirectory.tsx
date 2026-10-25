@@ -1,4 +1,7 @@
+"use client";
+
 import Link from "next/link";
+import { useMemo, useState } from "react";
 
 type FamilyDirectoryItem = {
   familyId: string;
@@ -19,6 +22,15 @@ function familyLabel(family: FamilyDirectoryItem, index: number): string {
   return names.length ? names.join(", ") : `Familia ${index + 1}`;
 }
 
+function normalizeSearchText(value: string): string {
+  return value
+    .normalize("NFD")
+    .replace(/\p{Diacritic}/gu, "")
+    .toLocaleLowerCase("es")
+    .replace(/\s+/gu, " ")
+    .trim();
+}
+
 export function OwnerFamiliesDirectory({
   organizationId,
   organizationName,
@@ -34,6 +46,20 @@ export function OwnerFamiliesDirectory({
   families: FamilyDirectoryItem[];
   canManageBilling: boolean;
 }) {
+  const [search, setSearch] = useState("");
+  const normalizedSearch = normalizeSearchText(search);
+  const filteredFamilies = useMemo(() => {
+    if (!normalizedSearch) return families;
+    return families.filter((family) => {
+      const searchableNames = [
+        ...family.athletes.map((athlete) => athlete.athleteName ?? ""),
+        ...family.payers.map((payer) => payer.displayName ?? ""),
+      ];
+      return searchableNames.some((name) =>
+        normalizeSearchText(name).includes(normalizedSearch)
+      );
+    });
+  }, [families, normalizedSearch]);
   const monthlyInvoicesHref = `/owner/monthly-invoices?${new URLSearchParams({
     organizationId,
     locationId: selectedLocationId,
@@ -129,69 +155,101 @@ export function OwnerFamiliesDirectory({
                   Familias vinculadas
                 </h2>
                 <p className="mt-1 text-sm text-slate-600">
-                  {families.length} {families.length === 1 ? "familia" : "familias"}
+                  {normalizedSearch
+                    ? `${filteredFamilies.length} de ${families.length} familias`
+                    : `${families.length} ${families.length === 1 ? "familia" : "familias"}`}
                 </p>
               </div>
+              <label className="grid w-full gap-2 text-sm font-semibold text-slate-800 sm:max-w-sm">
+                Buscar gimnasta o responsable
+                <input
+                  type="search"
+                  value={search}
+                  onChange={(event) => setSearch(event.target.value)}
+                  placeholder="Nombre o apellidos"
+                  aria-describedby="owner-families-search-help"
+                  className="min-h-11 rounded-xl border border-slate-300 bg-white px-3 text-sm font-normal"
+                />
+              </label>
             </div>
-            <ul className="grid gap-4 lg:grid-cols-2">
-              {families.map((family, index) => {
-                const primaryPayers = family.payers.filter(
-                  (payer) => payer.isPrimary
-                );
-                const otherPayers = family.payers.filter(
-                  (payer) => !payer.isPrimary
-                );
-                return (
-                  <li
-                    key={family.familyId}
-                    className="rounded-3xl border border-slate-200 bg-white p-5 shadow-sm sm:p-6"
-                  >
-                    <h3 className="font-display text-lg font-bold text-slate-950">
-                      {familyLabel(family, index)}
-                    </h3>
-                    <div className="mt-4 grid gap-4 sm:grid-cols-2">
-                      <div>
-                        <h4 className="text-xs font-bold uppercase tracking-wide text-slate-500">
-                          Gimnastas
-                        </h4>
-                        <ul className="mt-2 grid gap-1 text-sm text-slate-800">
-                          {family.athletes.map((athlete) => (
-                            <li key={athlete.athleteId}>
-                              {athlete.athleteName?.trim() || "Nombre no disponible"}
-                            </li>
-                          ))}
-                        </ul>
-                      </div>
-                      <div>
-                        <h4 className="text-xs font-bold uppercase tracking-wide text-slate-500">
-                          Responsables de pago
-                        </h4>
-                        {family.payers.length ? (
-                          <ul className="mt-2 grid gap-2 text-sm text-slate-800">
-                            {[...primaryPayers, ...otherPayers].map((payer) => (
-                              <li key={payer.familyPayerId}>
-                                <span>
-                                  {payer.displayName?.trim() || "Nombre no disponible"}
-                                </span>
-                                {payer.isPrimary ? (
-                                  <span className="ml-2 rounded-full bg-teal-50 px-2 py-1 text-xs font-semibold text-teal-900">
-                                    Principal
-                                  </span>
-                                ) : null}
+            <p id="owner-families-search-help" className="sr-only">
+              La búsqueda se limita a las familias cargadas para esta sede.
+            </p>
+            <p aria-live="polite" className="sr-only">
+              {normalizedSearch
+                ? `${filteredFamilies.length} de ${families.length} familias encontradas`
+                : `${families.length} ${families.length === 1 ? "familia" : "familias"} cargadas`}
+            </p>
+            {filteredFamilies.length === 0 ? (
+              <div className="rounded-2xl border border-dashed border-slate-300 bg-white p-6">
+                <h3 className="font-semibold text-slate-900">
+                  No hay familias que coincidan
+                </h3>
+                <p className="mt-1 text-sm text-slate-600">
+                  Prueba con otro nombre de gimnasta o responsable.
+                </p>
+              </div>
+            ) : (
+              <ul className="grid gap-4 lg:grid-cols-2">
+                {filteredFamilies.map((family, index) => {
+                  const primaryPayers = family.payers.filter(
+                    (payer) => payer.isPrimary
+                  );
+                  const otherPayers = family.payers.filter(
+                    (payer) => !payer.isPrimary
+                  );
+                  return (
+                    <li
+                      key={family.familyId}
+                      className="rounded-3xl border border-slate-200 bg-white p-5 shadow-sm sm:p-6"
+                    >
+                      <h3 className="font-display text-lg font-bold text-slate-950">
+                        {familyLabel(family, index)}
+                      </h3>
+                      <div className="mt-4 grid gap-4 sm:grid-cols-2">
+                        <div>
+                          <h4 className="text-xs font-bold uppercase tracking-wide text-slate-500">
+                            Gimnastas
+                          </h4>
+                          <ul className="mt-2 grid gap-1 text-sm text-slate-800">
+                            {family.athletes.map((athlete) => (
+                              <li key={athlete.athleteId}>
+                                {athlete.athleteName?.trim() || "Nombre no disponible"}
                               </li>
                             ))}
                           </ul>
-                        ) : (
-                          <p className="mt-2 text-sm text-amber-900">
-                            Falta asignar un responsable para facturar.
-                          </p>
-                        )}
+                        </div>
+                        <div>
+                          <h4 className="text-xs font-bold uppercase tracking-wide text-slate-500">
+                            Responsables de pago
+                          </h4>
+                          {family.payers.length ? (
+                            <ul className="mt-2 grid gap-2 text-sm text-slate-800">
+                              {[...primaryPayers, ...otherPayers].map((payer) => (
+                                <li key={payer.familyPayerId}>
+                                  <span>
+                                    {payer.displayName?.trim() || "Nombre no disponible"}
+                                  </span>
+                                  {payer.isPrimary ? (
+                                    <span className="ml-2 rounded-full bg-teal-50 px-2 py-1 text-xs font-semibold text-teal-900">
+                                      Principal
+                                    </span>
+                                  ) : null}
+                                </li>
+                              ))}
+                            </ul>
+                          ) : (
+                            <p className="mt-2 text-sm text-amber-900">
+                              Falta asignar un responsable para facturar.
+                            </p>
+                          )}
+                        </div>
                       </div>
-                    </div>
-                  </li>
-                );
-              })}
-            </ul>
+                    </li>
+                  );
+                })}
+              </ul>
+            )}
           </section>
         )}
       </div>

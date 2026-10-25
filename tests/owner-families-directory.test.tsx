@@ -1,6 +1,6 @@
 // @vitest-environment jsdom
 import "@testing-library/jest-dom/vitest";
-import { cleanup, render, screen } from "@testing-library/react";
+import { cleanup, fireEvent, render, screen } from "@testing-library/react";
 import type { ReactNode } from "react";
 import { afterEach, describe, expect, it, vi } from "vitest";
 
@@ -85,5 +85,56 @@ describe("directorio Owner de familias", () => {
       "href",
       "/owner/enrollments?organizationId=80000000-0000-4000-8000-000000000001&locationId=80000000-0000-4000-8000-000000000002"
     );
+  });
+
+  it("busca por gimnasta o responsable sin distinguir mayúsculas ni tildes", () => {
+    render(
+      <OwnerFamiliesDirectory
+        {...baseProps}
+        canManageBilling
+        families={[
+          {
+            familyId: "80000000-0000-4000-8000-000000000004",
+            athletes: [
+              {
+                athleteId: "80000000-0000-4000-8000-000000000005",
+                athleteName: "Gimnasta Álvarez",
+              },
+            ],
+            payers: [
+              {
+                familyPayerId: "80000000-0000-4000-8000-000000000006",
+                displayName: "José Pérez",
+                isPrimary: true,
+              },
+            ],
+          },
+          {
+            familyId: "80000000-0000-4000-8000-000000000007",
+            athletes: [
+              {
+                athleteId: "80000000-0000-4000-8000-000000000008",
+                athleteName: "Otra gimnasta",
+              },
+            ],
+            payers: [],
+          },
+        ]}
+      />
+    );
+
+    const search = screen.getByRole("searchbox", {
+      name: "Buscar gimnasta o responsable",
+    });
+    fireEvent.change(search, { target: { value: "jose perez" } });
+
+    expect(screen.getByText("José Pérez")).toBeInTheDocument();
+    expect(screen.queryByText("Otra gimnasta")).not.toBeInTheDocument();
+    expect(screen.getByText("1 de 2 familias")).toBeInTheDocument();
+
+    fireEvent.change(search, { target: { value: "sin coincidencia" } });
+    expect(
+      screen.getByRole("heading", { name: "No hay familias que coincidan" })
+    ).toBeInTheDocument();
   });
 });
