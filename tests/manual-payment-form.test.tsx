@@ -25,6 +25,7 @@ const charge: OpenManualPaymentCharge = {
   familyId: "10000000-0000-4000-8000-000000000201",
   locationId: "10000000-0000-4000-8000-000000000101",
   locationName: "Sede Centro",
+  locationTimezone: "Europe/Madrid",
   invoiceReference: "FAC-2026-014",
   payerName: "Familia de prueba",
   currency: "EUR",

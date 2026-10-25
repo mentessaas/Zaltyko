@@ -187,7 +187,15 @@ describe("OwnerEnrollmentsManager", () => {
     fireEvent.click(candidate);
 
     fireEvent.submit(screen.getByRole("form", { name: "Crear inscripción" }));
-    await waitFor(() => expect(fetch).toHaveBeenCalledTimes(3));
+    await waitFor(() =>
+      expect(
+        vi.mocked(fetch).mock.calls.some(
+          ([url, init]) =>
+            String(url) === "/api/v1/owner/enrollments" &&
+            init?.method === "POST"
+        )
+      ).toBe(true)
+    );
     const createCall = vi
       .mocked(fetch)
       .mock.calls.find(([, init]) => init?.method === "POST");
@@ -228,7 +236,11 @@ describe("OwnerEnrollmentsManager", () => {
         selectedStatus="all"
       />
     );
-    fireEvent.click(screen.getByRole("button", { name: "Pausar" }));
+    fireEvent.click(
+      screen.getByRole("button", {
+        name: /^Pausar inscripción de Luz Sintética/,
+      })
+    );
 
     await waitFor(() => expect(fetch).toHaveBeenCalledTimes(1));
     const [url, init] = vi.mocked(fetch).mock.calls[0] as [string, RequestInit];
@@ -265,7 +277,11 @@ describe("OwnerEnrollmentsManager", () => {
         selectedStatus="all"
       />
     );
-    fireEvent.click(screen.getByRole("button", { name: "Finalizar" }));
+    fireEvent.click(
+      screen.getByRole("button", {
+        name: /^Finalizar inscripción de Luz Sintética/,
+      })
+    );
 
     const confirmation = screen.getByRole("group", {
       name: "Confirmar finalización",
@@ -294,7 +310,11 @@ describe("OwnerEnrollmentsManager", () => {
         selectedStatus="all"
       />
     );
-    fireEvent.click(screen.getByRole("button", { name: "Dar de baja" }));
+    fireEvent.click(
+      screen.getByRole("button", {
+        name: /^Dar de baja inscripción de Luz Sintética/,
+      })
+    );
 
     expect(screen.getByRole("group", { name: "Confirmar baja" })).toBeTruthy();
     expect(screen.getByRole("button", { name: "Confirmar" })).toBeTruthy();

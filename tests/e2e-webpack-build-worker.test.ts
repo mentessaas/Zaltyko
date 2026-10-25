@@ -68,7 +68,7 @@ describe("synthetic webpack build worker experiment", () => {
   const configSource = readFileSync(resolve(root, "next.config.mjs"), "utf8");
   // Exercise the actual side-effect-free selector without repeatedly loading Sentry.
   const selector = configSource.match(
-    /\.\.\.\(([\s\S]*?)\)\s*(?:(?:\/\/[^\n]*)(?:\r?\n|$)\s*)*\?\s*\{\s*webpackBuildWorker: true/
+    /\.\.\.\(([\s\S]*?)\/\/ Trace the completed server output while edge\/client compilation runs\./
   )?.[1];
 
   it.each(

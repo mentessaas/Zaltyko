@@ -220,6 +220,7 @@ function buildPaymentIntentFailedEvent(opts: {
         object: "payment_intent",
         amount: 5000,
         currency: "eur",
+        livemode: false,
         status: "requires_payment_method",
         last_payment_error: {
           code: errorCode,

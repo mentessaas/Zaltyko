@@ -31,7 +31,14 @@ describe("SQL source RLS validator", () => {
       const protectedRelations = [...extractRlsTablesFromSource(source)];
       expect(protectedRelations).toEqual([JSON.stringify(["private", "lead_trials"])]);
       expect(protectedRelations).not.toContain(JSON.stringify(["public", "lead_trials"]));
-      expect(extractPoliciesFromSource(source, file)).toEqual([]);
+      expect(extractPoliciesFromSource(source, file)).toMatchObject([
+        { schema: "private", table: "lead_trials" },
+      ]);
+      expect(
+        extractPoliciesFromSource(source, file).some(
+          (policy) => policy.schema === "public" && policy.table === "lead_trials"
+        )
+      ).toBe(false);
     } finally { rmSync(dir, { recursive: true, force: true }); }
   });
 });

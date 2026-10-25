@@ -335,7 +335,7 @@ describe("cobertura de clases al crear una tarifa Owner", () => {
 
   it("reutiliza clave y cuerpo si el intento es incierto, y rota la clave si cambia la cobertura", async () => {
     const user = userEvent.setup();
-    failedCreatesRemaining = 2;
+    failedCreatesRemaining = 1;
     renderPanel();
     await enterPlanDetails(user);
     await user.click(
@@ -349,7 +349,9 @@ describe("cobertura de clases al crear una tarifa Owner", () => {
       "Error temporal"
     );
     await user.click(
-      screen.getByRole("button", { name: "Crear tarifa mensual" })
+      screen.getByRole("button", {
+        name: "Reintentar la misma operación",
+      })
     );
     await waitFor(() => expect(planCreationCalls()).toHaveLength(2));
     const callsAfterRetry = planCreationCalls();

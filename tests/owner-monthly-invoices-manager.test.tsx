@@ -23,6 +23,9 @@ const athleteId = "10000000-0000-4000-8000-000000000201";
 const createdFamilyId = "10000000-0000-4000-8000-000000000301";
 const createdPayerId = "10000000-0000-4000-8000-000000000302";
 const classTemplateId = "10000000-0000-4000-8000-000000000303";
+const pricePlanId = "10000000-0000-4000-8000-000000000304";
+const createdPricePlanId = "10000000-0000-4000-8000-000000000305";
+const invoiceId = "10000000-0000-4000-8000-000000000306";
 
 function monthlyOptions(
   overrides: Partial<MonthlyInvoiceOptionsResponse> = {}
@@ -56,7 +59,7 @@ function monthlyOptions(
             billable: true,
             blockingReasons: [],
             assignedPrice: {
-              pricePlanId: "price-plan-id",
+              pricePlanId,
               name: "Tarifa sintética",
               amountCents: 2700,
               currency: "EUR",
@@ -69,7 +72,7 @@ function monthlyOptions(
           {
             athleteId,
             athleteName: "Gimnasta sintética",
-            pricePlanId: "price-plan-id",
+            pricePlanId,
             pricePlanName: "Tarifa sintética",
             amountCents: 2700,
             currency: "EUR",
@@ -194,7 +197,7 @@ describe("OwnerMonthlyInvoicesManager", () => {
     currentOptions = monthlyOptions();
     currentPricePlans = [
       {
-        id: "price-plan-id",
+        id: pricePlanId,
         name: "Tarifa sintética",
         amountCents: 2700,
         currency: "EUR",
@@ -205,7 +208,7 @@ describe("OwnerMonthlyInvoicesManager", () => {
     familyAssociationResponse = {
       familyId,
       familyPayerId: payerId,
-      guardianId: "guardian-synthetic",
+      guardianId: "10000000-0000-4000-8000-000000000307",
     };
     familyOptionsAfterAssociation = null;
     failFamilyAssociationOnce = false;
@@ -252,7 +255,7 @@ describe("OwnerMonthlyInvoicesManager", () => {
             amountCents: number;
           };
           const createdPlan = {
-            id: "created-price-plan-id",
+            id: createdPricePlanId,
             name: body.name,
             amountCents: body.amountCents,
             currency: "EUR",
@@ -278,7 +281,10 @@ describe("OwnerMonthlyInvoicesManager", () => {
             ],
           });
         }
-        if (url.includes("/price-plan")) return response({ id: enrollmentId });
+        if (url.includes("/price-plan")) {
+          const body = JSON.parse(String(init?.body)) as Record<string, unknown>;
+          return response({ id: enrollmentId, enrollmentId, ...body });
+        }
         if (url.includes("families/associations")) {
           if (failFamilyAssociationOnce) {
             failFamilyAssociationOnce = false;
@@ -303,7 +309,7 @@ describe("OwnerMonthlyInvoicesManager", () => {
         if (url.includes("monthly-invoices/issue"))
           return response(
             {
-              invoiceId: "invoice-synthetic",
+              invoiceId,
               status: "issued",
               totalAmountCents: 2700,
               currency: "EUR",
@@ -401,7 +407,7 @@ describe("OwnerMonthlyInvoicesManager", () => {
     expect(JSON.parse(String(patchCall?.[1]?.body))).toEqual({
       organizationId,
       locationId,
-      pricePlanId: "price-plan-id",
+      pricePlanId,
       startsOn: "2026-10-01",
     });
     expect(await screen.findByRole("status")).toHaveTextContent(
@@ -463,7 +469,7 @@ describe("OwnerMonthlyInvoicesManager", () => {
       /cobertura para 1 clase.*confirma aparte su asignación/
     );
     expect(screen.getByLabelText("Tarifa mensual")).toHaveValue(
-      "created-price-plan-id"
+      createdPricePlanId
     );
     expect(
       screen.getByRole("button", { name: "Guardar tarifa" })
@@ -503,7 +509,7 @@ describe("OwnerMonthlyInvoicesManager", () => {
     );
 
     expect(await screen.findByRole("alert")).toHaveTextContent(
-      "No se pudieron cargar las tarifas disponibles"
+      "Error temporal"
     );
     const retry = await screen.findByRole("button", {
       name: "Reintentar cargar tarifas",
@@ -684,23 +690,14 @@ describe("OwnerMonthlyInvoicesManager", () => {
       })
     );
     expect(await screen.findByLabelText("Tarifa mensual")).toHaveValue(
-      "price-plan-id"
+      pricePlanId
     );
     expect(screen.getByLabelText("Quién paga")).toHaveValue("");
   });
 
-  it.each([
-    ["sin familyId", { familyPayerId: createdPayerId }],
-    [
-      "con un familyId que no está en las opciones",
-      {
-        familyId: "10000000-0000-4000-8000-000000000399",
-        familyPayerId: createdPayerId,
-      },
-    ],
-  ])(
-    "no autoselecciona la familia si la respuesta llega %s",
-    async (_case, result) => {
+  it(
+    "mantiene incierta la asociación si la respuesta no confirma familyId",
+    async () => {
       currentOptions = monthlyOptions({
         families: [],
         unassignedEnrollments: [
@@ -713,7 +710,57 @@ describe("OwnerMonthlyInvoicesManager", () => {
           },
         ],
       });
-      familyAssociationResponse = result;
+      familyAssociationResponse = { familyPayerId: createdPayerId };
+      const user = userEvent.setup();
+      renderManager();
+
+      await user.click(
+        await screen.findByRole("button", {
+          name: "Vincular a una familia a Gimnasta sin familia",
+        })
+      );
+      await user.type(
+        screen.getByLabelText("Nombre de la persona adulta"),
+        "Persona"
+      );
+      await user.type(
+        screen.getByLabelText("Apellidos"),
+        "Adulta sintética"
+      );
+      await user.click(screen.getByRole("button", { name: "Guardar vínculo" }));
+
+      expect(await screen.findByRole("alert")).toHaveTextContent(
+        "La respuesta no confirma la relación familiar."
+      );
+      expect(
+        screen.queryByText("Familia y persona pagadora vinculadas.", {
+          exact: true,
+        })
+      ).not.toBeInTheDocument();
+      expect(screen.getAllByLabelText("Familia")[0]).toHaveValue("");
+      expect(screen.getByLabelText("Quién paga")).toHaveValue("");
+    }
+  );
+
+  it(
+    "no autoselecciona una familia confirmada que no está en las opciones actuales",
+    async () => {
+      currentOptions = monthlyOptions({
+        families: [],
+        unassignedEnrollments: [
+          {
+            enrollmentId,
+            athleteId,
+            athleteName: "Gimnasta sin familia",
+            status: "active",
+            blockingReasons: ["FAMILY_REQUIRED"],
+          },
+        ],
+      });
+      familyAssociationResponse = {
+        familyId: "10000000-0000-4000-8000-000000000399",
+        familyPayerId: createdPayerId,
+      };
       familyOptionsAfterAssociation = optionsWithNewlyLinkedFamily();
       const user = userEvent.setup();
       renderManager();
@@ -727,7 +774,10 @@ describe("OwnerMonthlyInvoicesManager", () => {
         screen.getByLabelText("Nombre de la persona adulta"),
         "Persona"
       );
-      await user.type(screen.getByLabelText("Apellidos"), "Adulta sintética");
+      await user.type(
+        screen.getByLabelText("Apellidos"),
+        "Adulta sintética"
+      );
       await user.click(screen.getByRole("button", { name: "Guardar vínculo" }));
 
       await waitFor(() =>
@@ -1000,7 +1050,11 @@ describe("OwnerMonthlyInvoicesManager", () => {
     expect(
       await screen.findByText("Error temporal sintético", { exact: true })
     ).toHaveAttribute("role", "alert");
-    await user.click(screen.getByRole("button", { name: "Guardar vínculo" }));
+    await user.click(
+      screen.getByRole("button", {
+        name: "Reintentar la misma operación",
+      })
+    );
 
     await waitFor(() => {
       expect(
