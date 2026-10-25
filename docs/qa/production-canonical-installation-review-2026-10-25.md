@@ -15,7 +15,7 @@ El delta de revisión previsto queda limitado a:
 | `btree_gist` | 1.7 disponible, no instalado | Instalar 1.7 en `extensions`, sujeto a revisión y autorización |
 | `zaltyko` | Ausente | Crear sus 92 tablas, 61 enums, restricciones, índices, policies, rutinas y triggers del inventario fijado |
 | `zaltyko_domain_private` | Ausente | Crear cinco helpers canónicos; excluir ledger E2E y sus objetos ligados |
-| Propiedad/ACL | Objetos nuevos | Conservar owner `postgres`, grants explícitos y dos defaults acotados; sin reset global/public/legacy |
+| Propiedad/ACL | Objetos canónicos nuevos | Conservar owner `postgres`, grants explícitos y dos defaults acotados; sin reset global/public/legacy. Esto no describe los objetos internos de `btree_gist` trusted |
 | Auth/UUID | Prerrequisitos presentes | Referenciar funciones y PK existentes; no recrear Auth, roles ni usuarios |
 | Filas y suscripciones | Fuera de alcance | Sin seeds, backfill, fixtures, compras ni cambios de suscripción |
 

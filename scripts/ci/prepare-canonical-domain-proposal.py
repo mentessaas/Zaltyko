@@ -29,6 +29,7 @@ MANIFEST_REL = Path("supabase/schema-snapshot-manifest.json")
 EXPECTED_SNAPSHOT_SHA256 = "fd1bf2597b0dfd40dc6db824fa24773461f2776fa2ed7c994649be534c6a4b36"
 EXPECTED_MANIFEST_SHA256 = "80c65acbb72345925b932fba2032259c6f7138a7c85da14c2babf6a23e34c6cc"
 EXPECTED_PROJECT_REF = "aeeootdmuiqkfeernskw"
+EXPECTED_MIGRATION_CANDIDATE_FILENAME = "20261025202902_canonical_domain_installation_candidate.sql"
 TARGET_SCHEMAS = {"zaltyko", "zaltyko_domain_private"}
 EXCLUDED_TABLES = {("zaltyko_domain_private", "e2e_schema_migrations")}
 PGLAST_VERSION = "v7.21"
@@ -228,15 +229,20 @@ def role_names_from_ast(value: Any) -> list[str]:
     return names
 
 
-def scoped_acl_normalization_sql() -> tuple[list[str], list[str]]:
+def scoped_acl_normalization_sql(
+    *,
+    default_acl_creators: tuple[str, ...] = ("postgres", "supabase_admin"),
+    scope_label: str = "rehearsal",
+) -> tuple[list[str], list[str]]:
     schema_array = "ARRAY[" + ", ".join("'" + schema + "'" for schema in sorted(TARGET_SCHEMAS)) + "]"
+    creator_array = "ARRAY[" + ",".join(quote_literal(role) for role in default_acl_creators) + "]"
     default_acl_reset = [
-        "-- Newly authored ACL normalization, restricted to the two absent rehearsal schemas.",
+        f"-- Newly authored ACL normalization, restricted to the two absent {scope_label} schemas.",
         "-- Does not copy or execute the snapshot's global/public/legacy DO blocks.",
         "DO $canonical_rehearsal_default_acl_reset$",
         "DECLARE v_creator text; v_schema text; v_role text; v_kind text;",
         "BEGIN",
-        "  FOREACH v_creator IN ARRAY ARRAY['postgres','supabase_admin'] LOOP",
+        f"  FOREACH v_creator IN ARRAY {creator_array} LOOP",
         "    IF EXISTS (SELECT 1 FROM pg_roles WHERE rolname = v_creator) THEN",
         f"      FOREACH v_schema IN ARRAY {schema_array} LOOP",
         "        FOREACH v_kind IN ARRAY ARRAY['TABLES','SEQUENCES','FUNCTIONS','TYPES'] LOOP",
@@ -557,6 +563,154 @@ def render_installation_review_sql(
     return sql_bytes, details
 
 
+def render_migration_candidate_sql(
+    *,
+    ddl: list[str],
+    schemas: set[str],
+    owners: list[tuple[int, str]],
+    grants: list[tuple[int, str]],
+    defaults: list[tuple[int, str]],
+    default_scopes: list[set[str]],
+    roles: set[str],
+) -> tuple[bytes, dict[str, Any]]:
+    if schemas != TARGET_SCHEMAS:
+        raise ProposalError(f"Migration candidate requires exactly the two source schemas; got {sorted(schemas)}")
+    if len(defaults) != 2 or default_scopes != [{"zaltyko"}, {"zaltyko"}]:
+        raise ProposalError("Expected the two pinned postgres default ACL grants in schema zaltyko")
+
+    def dedupe(lines: list[tuple[int, str]]) -> list[tuple[list[int], str]]:
+        by_sql: dict[str, list[int]] = {}
+        for source_line, sql in lines:
+            by_sql.setdefault(sql, []).append(source_line)
+        return [(source_lines, sql) for sql, source_lines in by_sql.items()]
+
+    unique_owners = dedupe(owners)
+    unique_grants = dedupe(grants)
+    unique_defaults = dedupe(defaults)
+    required_roles = sorted((roles | {"postgres", "anon", "authenticated", "service_role"}) - {"PUBLIC"})
+    role_literals = ", ".join(quote_literal(role) for role in required_roles)
+    default_reset_sql, object_reset_sql = scoped_acl_normalization_sql(
+        default_acl_creators=("postgres",),
+        scope_label="new canonical",
+    )
+    sql_lines = [
+        "-- PROPOSED INSTALLATION CANDIDATE; applyReady=false; approvedForProduction=false.",
+        f"-- CLI provenance filename: {EXPECTED_MIGRATION_CANDIDATE_FILENAME}.",
+        f"-- Source snapshot SHA-256: {EXPECTED_SNAPSHOT_SHA256}.",
+        "-- Source project is sandbox aeeootdmuiqkfeernskw; this is new DDL, not recovered migration history.",
+        "-- Expected production project ref is an external attestation, not proof of connection identity.",
+        "-- Production execution requires an independently authorized runner to verify the database URL/project.",
+        "-- CI mode is restricted to the named disposable database; no mode marker authorizes production by itself.",
+        "BEGIN;",
+        "SET LOCAL statement_timeout = '5s';",
+        "SET LOCAL lock_timeout = '1s';",
+        "DO $canonical_installation_preconditions$",
+        "DECLARE v_role text; v_mode text;",
+        "BEGIN",
+        "  v_mode := current_setting('app.canonical_installation_mode', true);",
+        "  IF v_mode IS DISTINCT FROM 'ci' AND v_mode IS DISTINCT FROM 'production-reviewed-20261025202902' THEN",
+        "    RAISE EXCEPTION 'canonical installation mode is not approved';",
+        "  END IF;",
+        "  IF v_mode = 'ci' AND current_database() IS DISTINCT FROM 'zaltyko_canonical_rehearsal_ci' THEN",
+        "    RAISE EXCEPTION 'wrong database for canonical installation CI';",
+        "  END IF;",
+        "  IF v_mode = 'production-reviewed-20261025202902' AND current_setting('app.canonical_installation_target_project_ref', true) IS DISTINCT FROM 'jegxfahsvugilbthbked' THEN",
+        "    RAISE EXCEPTION 'missing production target project attestation';",
+        "  END IF;",
+        "  IF EXISTS (SELECT 1 FROM pg_namespace WHERE nspname = ANY (ARRAY['zaltyko','zaltyko_domain_private'])) THEN",
+        "    RAISE EXCEPTION 'canonical installation target schema already exists; refusing candidate';",
+        "  END IF;",
+        "  IF current_setting('server_version_num')::integer / 10000 <> 17 THEN",
+        "    RAISE EXCEPTION 'PostgreSQL 17 is required for canonical installation candidate';",
+        "  END IF;",
+        f"  FOREACH v_role IN ARRAY ARRAY[{role_literals}] LOOP",
+        "    IF NOT EXISTS (SELECT 1 FROM pg_roles WHERE rolname = v_role) THEN",
+        "      RAISE EXCEPTION 'required existing role % is absent; roles are never created here', v_role;",
+        "    END IF;",
+        "  END LOOP;",
+        "  IF session_user <> 'postgres' AND NOT pg_has_role(session_user, 'postgres', 'MEMBER') THEN",
+        "    RAISE EXCEPTION 'session user cannot assume the source owner role postgres';",
+        "  END IF;",
+        "  IF EXISTS (SELECT 1 FROM pg_extension WHERE extname = 'btree_gist') THEN",
+        "    RAISE EXCEPTION 'btree_gist is already installed; refusing non-idempotent candidate';",
+        "  END IF;",
+        "  IF NOT EXISTS (SELECT 1 FROM pg_available_extension_versions WHERE name = 'btree_gist' AND version = '1.7') THEN",
+        "    RAISE EXCEPTION 'btree_gist 1.7 is unavailable';",
+        "  END IF;",
+        "END",
+        "$canonical_installation_preconditions$;",
+        "SET LOCAL ROLE postgres;",
+        "CREATE EXTENSION btree_gist WITH SCHEMA extensions VERSION '1.7';",
+        "-- CREATE SCHEMA has no IF NOT EXISTS; races or existing state fail closed.",
+        *[f"CREATE SCHEMA {quote_identifier(schema)};" for schema in sorted(TARGET_SCHEMAS)],
+        *default_reset_sql,
+        "-- AST-selected canonical DDL only; no E2E ledger, public, legacy, Auth, roles, or data.",
+        *ddl,
+        "-- Exact source owner statements, applied after the selected objects exist.",
+        *[f"-- source lines {','.join(map(str, lines))}: owner AST\n{sql}" for lines, sql in unique_owners],
+        *object_reset_sql,
+        "-- Exact target-only ACL AST statements, deduplicated by deparsed SQL.",
+        *[f"-- source lines {','.join(map(str, lines))}: explicit source ACL\n{sql}" for lines, sql in unique_grants],
+        "-- Exact canonical-schema default ACL AST statements.",
+        *[f"-- source lines {','.join(map(str, lines))}: explicit source default ACL\n{sql}" for lines, sql in unique_defaults],
+        "COMMIT;",
+        "",
+    ]
+    sql_bytes = "\n".join(sql_lines).encode("utf-8")
+    details = {
+        "applyReady": False,
+        "approvedForProduction": False,
+        "cliProvenanceFilename": EXPECTED_MIGRATION_CANDIDATE_FILENAME,
+        "expectedTargetProjectRef": "jegxfahsvugilbthbked",
+        "targetProjectRefIsExternalAttestationNotIdentityProof": True,
+        "requiredExternalSessionMarkers": {
+            "ci": "app.canonical_installation_mode=ci",
+            "productionReviewed": "app.canonical_installation_mode=production-reviewed-20261025202902 and app.canonical_installation_target_project_ref=jegxfahsvugilbthbked",
+        },
+        "independentRunnerDatabaseUrlIdentityCheckRequiredForAnyProductionExecution": True,
+        "preconditions": {
+            "exactlyTwoCanonicalSchemasAbsent": True,
+            "postgresqlMajor": 17,
+            "rolesMustAlreadyExist": required_roles,
+            "sessionMustBeAbleToAssumeRole": "postgres",
+            "btreeGistMustBeAvailableButNotInstalled": {"version": "1.7", "schema": "extensions"},
+            "noRolesAuthPlatformDataOrLedgerCreated": True,
+        },
+        "normalization": {
+            "defaultAclCreators": ["postgres"],
+            "scope": sorted(TARGET_SCHEMAS),
+            "doesNotAlterSupabaseAdminDefaultsOrAnyGlobalDefaultAcl": True,
+            "reason": "The installation candidate creates new objects as postgres; production catalog inspection found postgres cannot assume supabase_admin.",
+        },
+        "readOnlyTargetCatalogFacts": {
+            "inspectedOn": "2026-10-25",
+            "provenance": "Coordinator-provided production catalog inspection; not re-queried by the generator and not a persistent-state guarantee.",
+            "supabaseAdminExists": True,
+            "postgresCanAssumeSupabaseAdmin": False,
+            "postgresIsSuperuser": False,
+        },
+        "testCiInstallationExactFilePlannedOnly": True,
+        "aclSourceLines": [line for lines, _ in unique_grants for line in lines],
+        "ownerSourceLines": [line for lines, _ in unique_owners for line in lines],
+        "defaultAclSourceLines": [line for lines, _ in unique_defaults for line in lines],
+        "statementCounts": {
+            "extensionPrerequisite": 1,
+            "schemaCreate": len(TARGET_SCHEMAS),
+            "objectDdl": len(ddl),
+            "ownerAstStatements": len(unique_owners),
+            "sourceAclAstStatements": len(unique_grants),
+            "sourceDefaultAclAstStatements": len(unique_defaults),
+            "defaultAclResetCreators": ["postgres"],
+        },
+        "limitations": [
+            "The production mode marker is not proof of database URL or project identity; any production execution needs an independently authorized runner-side target check.",
+            "This generated candidate is not approved for production and does not itself authorize execution.",
+            "The CI mode can only proceed when current_database() is zaltyko_canonical_rehearsal_ci; CI use is still limited to the disposable runner.",
+        ],
+    }
+    return sql_bytes, details
+
+
 def target_for(statement: Any) -> tuple[str | None, str | None]:
     kind = type(statement).__name__
     if kind in {"CreateStmt", "CreateSeqStmt", "IndexStmt", "AlterTableStmt"}:
@@ -721,6 +875,7 @@ def parse_args() -> argparse.Namespace:
     parser.add_argument("--manifest-output", required=True)
     parser.add_argument("--rehearsal-output")
     parser.add_argument("--installation-review-output")
+    parser.add_argument("--migration-candidate-output")
     return parser.parse_args()
 
 
@@ -735,11 +890,16 @@ def main() -> int:
     manifest_output_path = safe_output_path(args.manifest_output)
     rehearsal_path = safe_output_path(args.rehearsal_output) if args.rehearsal_output else None
     installation_path = safe_output_path(args.installation_review_output) if args.installation_review_output else None
+    migration_candidate_path = safe_output_path(args.migration_candidate_output) if args.migration_candidate_output else None
+    if migration_candidate_path is not None and migration_candidate_path.relative_to(REPO_ROOT) != Path("artifacts") / EXPECTED_MIGRATION_CANDIDATE_FILENAME:
+        raise ProposalError(f"Migration candidate output must be artifacts/{EXPECTED_MIGRATION_CANDIDATE_FILENAME}")
     artifact_paths = [output_path, manifest_output_path]
-    artifact_paths.extend(path for path in (rehearsal_path, installation_path) if path is not None)
+    artifact_paths.extend(path for path in (rehearsal_path, installation_path, migration_candidate_path) if path is not None)
     if len(set(artifact_paths)) != len(artifact_paths):
         raise ProposalError("SQL and JSON outputs must be different files")
-    scoped_review_requested = rehearsal_path is not None or installation_path is not None
+    scoped_review_requested = (
+        rehearsal_path is not None or installation_path is not None or migration_candidate_path is not None
+    )
 
     snapshot_bytes = snapshot_path.read_bytes()
     manifest_bytes = manifest_path.read_bytes()
@@ -1048,6 +1208,40 @@ def main() -> int:
         if node_name(getattr(installation_roundtrip[-1].stmt, "kind", None)) != "TRANS_STMT_ROLLBACK":
             raise ProposalError("Installation review SQL must end in ROLLBACK")
 
+    migration_candidate_bytes: bytes | None = None
+    migration_candidate_details: dict[str, Any] | None = None
+    if migration_candidate_path is not None:
+        migration_candidate_bytes, migration_candidate_details = render_migration_candidate_sql(
+            ddl=rehearsal_ddl,
+            schemas=rehearsal_schema_names,
+            owners=rehearsal_owner_sql,
+            grants=rehearsal_grant_sql,
+            defaults=rehearsal_default_acl_sql,
+            default_scopes=[set(record["schemas"]) for record in rehearsal_default_acl_records],
+            roles=rehearsal_roles,
+        )
+        candidate_roundtrip = parse_sql(migration_candidate_bytes.decode("utf-8"))
+        if len(candidate_roundtrip) < 8 or type(candidate_roundtrip[3].stmt).__name__ != "DoStmt":
+            raise ProposalError("Migration candidate preconditions must parse before any DDL")
+        candidate_extension_stmt = candidate_roundtrip[5].stmt
+        candidate_extension_options = {
+            getattr(option, "defname", ""): getattr(getattr(option, "arg", None), "sval", None)
+            for option in (getattr(candidate_extension_stmt, "options", ()) or ())
+        }
+        if (
+            type(candidate_extension_stmt).__name__ != "CreateExtensionStmt"
+            or getattr(candidate_extension_stmt, "extname", None) != "btree_gist"
+            or candidate_extension_options.get("schema") != "extensions"
+            or candidate_extension_options.get("new_version") != "1.7"
+            or any(getattr(option, "defname", None) == "if_not_exists"
+                   for option in (getattr(candidate_extension_stmt, "options", ()) or ()))
+        ):
+            raise ProposalError("Migration candidate must parse the exact btree_gist 1.7 prerequisite without IF NOT EXISTS")
+        if type(candidate_roundtrip[-1].stmt).__name__ != "TransactionStmt":
+            raise ProposalError("Migration candidate does not end in a parsed transaction statement")
+        if node_name(getattr(candidate_roundtrip[-1].stmt, "kind", None)) != "TRANS_STMT_COMMIT":
+            raise ProposalError("Migration candidate must end in COMMIT")
+
     output_manifest = {
         "artifactKind": "review-only-canonical-schema-sql-proposal",
         "applyReady": False,
@@ -1136,6 +1330,17 @@ def main() -> int:
             "explicitDefaultAclAstSources": rehearsal_default_acl_records,
         }
 
+    if migration_candidate_path is not None and migration_candidate_bytes is not None and migration_candidate_details is not None:
+        output_manifest["migrationCandidate"] = {
+            "path": str(migration_candidate_path.relative_to(REPO_ROOT)),
+            "sha256": sha256_bytes(migration_candidate_bytes),
+            "sizeBytes": len(migration_candidate_bytes),
+            **migration_candidate_details,
+            "ownerAstSources": rehearsal_owner_records,
+            "explicitAclAstSources": rehearsal_acl_records,
+            "explicitDefaultAclAstSources": rehearsal_default_acl_records,
+        }
+
     output_path.parent.mkdir(parents=True, exist_ok=True)
     manifest_output_path.parent.mkdir(parents=True, exist_ok=True)
     output_path.write_bytes(proposal_bytes)
@@ -1145,6 +1350,9 @@ def main() -> int:
     if installation_path is not None and installation_bytes is not None:
         installation_path.parent.mkdir(parents=True, exist_ok=True)
         installation_path.write_bytes(installation_bytes)
+    if migration_candidate_path is not None and migration_candidate_bytes is not None:
+        migration_candidate_path.parent.mkdir(parents=True, exist_ok=True)
+        migration_candidate_path.write_bytes(migration_candidate_bytes)
     manifest_output_path.write_text(json.dumps(output_manifest, indent=2, ensure_ascii=False) + "\n", encoding="utf-8")
     print(json.dumps({
         "result": "proposal_generated_review_only",
@@ -1154,6 +1362,7 @@ def main() -> int:
         "includedObjects": len(included_objects),
         "rehearsalSql": str(rehearsal_path.relative_to(REPO_ROOT)) if rehearsal_path else None,
         "installationReviewSql": str(installation_path.relative_to(REPO_ROOT)) if installation_path else None,
+        "migrationCandidateSql": str(migration_candidate_path.relative_to(REPO_ROOT)) if migration_candidate_path else None,
         "applyReady": False,
     }, ensure_ascii=False))
     return 0

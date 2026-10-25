@@ -21,6 +21,15 @@ y `ROLLBACK`; `transaction_read_only=on` confirmado en la respuesta.
 - No hay filas de `pg_default_acl` para `postgres`/`supabase_admin` globales
   ni en los dos namespaces canónicos ausentes. No se consultaron ACL de datos
   personales ni se alteraron defaults.
+- `postgres` tiene BYPASSRLS, CREATEDB y CREATEROLE; no es superusuario ni
+  miembro de `supabase_admin`, rol que sí existe. Tiene CREATE en la base y
+  CREATE/USAGE en `extensions`, USAGE de `auth`, REFERENCES de `auth.users` y
+  EXECUTE de `auth.uid()`/`auth.jwt()`. Son privilegios de ese rol en el corte,
+  no de cualquier credencial futura de aplicación.
+- El control de `btree_gist`1.7 declara `trusted=true`, `relocatable=true` y
+  `superuser=true`. Se preservan los tres valores del catálogo; todavía no se
+  instaló en producción. El candidato debe probarse sin SUPERUSER y no intentar
+  modificar defaults de `supabase_admin`.
 
 ## Fuente
 

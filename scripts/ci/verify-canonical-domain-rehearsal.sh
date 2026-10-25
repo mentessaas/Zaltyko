@@ -2,8 +2,8 @@
 set -Eeuo pipefail
 umask 077
 
-# Executes only a guarded, transactional schema rehearsal on the workflow's
-# synthetic PostgreSQL service. This is not a migration or an apply command.
+# Rehearses and then installs the generated candidate only on the workflow's
+# exact disposable PostgreSQL service. This never applies to an external DB.
 readonly EXPECTED_BRANCH="codex/mvp-main-bridge-20261025"
 readonly EXPECTED_SNAPSHOT_SHA256="fd1bf2597b0dfd40dc6db824fa24773461f2776fa2ed7c994649be534c6a4b36"
 readonly EXPECTED_TENANT_FIXTURE_SHA256="04dd16835406198d3ebb12f3396674bbc279e5dcd7500e5c30fefb24a2bf6d4c"
@@ -68,26 +68,39 @@ unset PGHOST PGHOSTADDR PGPORT PGDATABASE PGUSER PGPASSWORD PGSERVICE PGSERVICEF
 
 readonly SQL_REL="${1:-artifacts/canonical-domain-rehearsal.sql}"
 readonly MANIFEST_REL="${2:-artifacts/canonical-domain-proposal.json}"
+readonly CANDIDATE_REL="artifacts/20261025202902_canonical_domain_installation_candidate.sql"
 readonly SQL_FILE="$ROOT/$SQL_REL"
 readonly MANIFEST_FILE="$ROOT/$MANIFEST_REL"
 readonly INSTALLATION_REVIEW_FILE="$ROOT/artifacts/canonical-domain-installation-review.sql"
+readonly CANDIDATE_FILE="$ROOT/$CANDIDATE_REL"
 readonly ARTIFACT_DIR="$ROOT/artifacts"
 readonly RUN_DIR="$(mktemp -d "$RUNNER_TEMP/canonical-domain-rehearsal.XXXXXX")"
 readonly SETUP_SQL="$RUN_DIR/setup-canaries.sql"
 readonly ASSERT_SQL="$RUN_DIR/assert-rehearsal.sql"
 readonly REHEARSAL_SQL="$RUN_DIR/canonical-domain-rehearsal-ci.sql"
 readonly GUARD_SQL="$RUN_DIR/canonical-domain-existing-schema-guard-ci.sql"
+readonly CANDIDATE_ASSERT_SQL="$RUN_DIR/assert-installed-candidate.sql"
+readonly DROP_EXTENSION_SQL="$RUN_DIR/drop-ci-btree-gist.sql"
+readonly PREPARE_CANDIDATE_ROLE_SQL="$RUN_DIR/prepare-candidate-role.sql"
 readonly SETUP_LOG="$RUN_DIR/setup.log"
 readonly REHEARSAL_LOG="$RUN_DIR/rehearsal.log"
 readonly GUARD_LOG="$RUN_DIR/existing-schema-guard.log"
 readonly VERIFY_LOG="$RUN_DIR/verify.log"
 readonly INSTALLATION_REVIEW_LOG="$RUN_DIR/installation-review-hard-stop.log"
+readonly CANDIDATE_DEFAULT_GUARD_LOG="$RUN_DIR/candidate-default-guard.log"
+readonly EXTENSION_RESET_LOG="$RUN_DIR/drop-ci-extension.log"
+readonly CANDIDATE_ROLE_LOG="$RUN_DIR/prepare-candidate-role.log"
+readonly CANDIDATE_INSTALL_LOG="$RUN_DIR/candidate-install.log"
+readonly CANDIDATE_REPLAY_LOG="$RUN_DIR/candidate-replay.log"
+readonly CANDIDATE_VERIFY_LOG="$RUN_DIR/candidate-verify.log"
 trap 'rm -rf -- "$RUN_DIR"' EXIT
 
 [[ -d "$ARTIFACT_DIR" ]] || fail "The artifact directory is missing; generate the review artefact first."
 [[ -f "$SQL_FILE" && ! -L "$SQL_FILE" ]] || fail "The generated rehearsal SQL is missing or is a symlink."
 [[ -f "$MANIFEST_FILE" && ! -L "$MANIFEST_FILE" ]] || fail "The generator manifest is missing or is a symlink."
 [[ -f "$TENANT_FIXTURE" && ! -L "$TENANT_FIXTURE" ]] || fail "The reviewed synthetic tenant fixture is missing or is a symlink."
+[[ -f "$INSTALLATION_REVIEW_FILE" && ! -L "$INSTALLATION_REVIEW_FILE" ]] || fail "The review-only installation SQL is missing or is a symlink."
+[[ -f "$CANDIDATE_FILE" && ! -L "$CANDIDATE_FILE" ]] || fail "The timestamped migration candidate SQL is missing or is a symlink."
 
 python3 - "$CANONICAL_REHEARSAL_DATABASE_URL" <<'PY'
 from urllib.parse import parse_qsl, unquote, urlsplit
@@ -118,7 +131,7 @@ if actual != expected:
     raise SystemExit("The rehearsal URL is not the exact synthetic loopback database target.")
 PY
 
-python3 - "$ROOT" "$SQL_FILE" "$MANIFEST_FILE" "$TENANT_FIXTURE" "$REHEARSAL_SQL" "$GUARD_SQL" "$GITHUB_SHA" "$EXPECTED_SNAPSHOT_SHA256" "$EXPECTED_TENANT_FIXTURE_SHA256" <<'PY'
+python3 - "$ROOT" "$SQL_FILE" "$MANIFEST_FILE" "$TENANT_FIXTURE" "$REHEARSAL_SQL" "$GUARD_SQL" "$CANDIDATE_FILE" "$CANDIDATE_ASSERT_SQL" "$GITHUB_SHA" "$EXPECTED_SNAPSHOT_SHA256" "$EXPECTED_TENANT_FIXTURE_SHA256" <<'PY'
 from hashlib import sha256
 import json
 import re
@@ -131,14 +144,18 @@ manifest_path = Path(sys.argv[3]).resolve(strict=True)
 fixture_path = Path(sys.argv[4]).resolve(strict=True)
 rehearsal_path = Path(sys.argv[5])
 guard_path = Path(sys.argv[6])
-commit = sys.argv[7]
-snapshot_sha = sys.argv[8]
-fixture_sha = sys.argv[9]
+candidate_path = Path(sys.argv[7]).resolve(strict=True)
+candidate_assert_path = Path(sys.argv[8])
+commit = sys.argv[9]
+snapshot_sha = sys.argv[10]
+fixture_sha = sys.argv[11]
 
 expected_sql = root / "artifacts/canonical-domain-rehearsal.sql"
 expected_manifest = root / "artifacts/canonical-domain-proposal.json"
 expected_fixture = root / "scripts/ci/canonical-domain-tenant-isolation.sql"
-if sql_path != expected_sql or manifest_path != expected_manifest or fixture_path != expected_fixture:
+expected_candidate = root / "artifacts/20261025202902_canonical_domain_installation_candidate.sql"
+if (sql_path != expected_sql or manifest_path != expected_manifest or fixture_path != expected_fixture
+        or candidate_path != expected_candidate):
     raise SystemExit("The rehearsal inputs differ from the approved artifact and fixture paths.")
 
 try:
@@ -146,8 +163,10 @@ try:
     sql = sql_path.read_text(encoding="utf-8")
     fixture = fixture_path.read_text(encoding="utf-8")
     fixture_bytes = fixture_path.read_bytes()
+    candidate_bytes = candidate_path.read_bytes()
+    candidate_sql = candidate_bytes.decode("utf-8")
 except (OSError, UnicodeError, json.JSONDecodeError):
-    raise SystemExit("The rehearsal artifact, manifest, or synthetic tenant fixture is unreadable.")
+    raise SystemExit("A rehearsal, installation candidate, manifest, or synthetic fixture artifact is unreadable.")
 
 record = manifest.get("sqlRehearsal")
 source = manifest.get("source")
@@ -171,6 +190,65 @@ if scope.get("includedSchemas") != ["zaltyko", "zaltyko_domain_private"]:
     raise SystemExit("The rehearsal scope must be limited to the two canonical schemas.")
 if sha256(fixture_bytes).hexdigest() != fixture_sha:
     raise SystemExit("The synthetic tenant fixture differs from its pinned CI source hash.")
+
+candidate_record = manifest.get("migrationCandidate")
+if not isinstance(candidate_record, dict):
+    raise SystemExit("The generator manifest is missing migration-candidate provenance.")
+if candidate_record.get("path") != "artifacts/20261025202902_canonical_domain_installation_candidate.sql":
+    raise SystemExit("The generator manifest names a different timestamped migration candidate.")
+if candidate_record.get("sha256") != sha256(candidate_bytes).hexdigest():
+    raise SystemExit("The migration candidate does not match its generator-manifest SHA-256.")
+if candidate_record.get("sizeBytes") != len(candidate_bytes):
+    raise SystemExit("The migration candidate size differs from its generator-manifest size.")
+if candidate_record.get("applyReady") is not False or candidate_record.get("approvedForProduction") is not False:
+    raise SystemExit("The migration candidate must remain unapproved and not apply-ready.")
+candidate_lines = candidate_sql.splitlines()
+candidate_non_comments = [
+    line.strip() for line in candidate_lines if line.strip() and not line.lstrip().startswith("--")
+]
+if not candidate_non_comments or candidate_non_comments[0].upper() != "BEGIN;":
+    raise SystemExit("The timestamped migration candidate must start with BEGIN.")
+if candidate_non_comments[-1].upper() != "COMMIT;":
+    raise SystemExit("The timestamped migration candidate must end with COMMIT.")
+if len(re.findall(r"(?im)^\s*BEGIN\s*;\s*$", candidate_sql)) != 1:
+    raise SystemExit("The timestamped migration candidate must contain one outer BEGIN.")
+if len(re.findall(r"(?im)^\s*COMMIT\s*;\s*$", candidate_sql)) != 1:
+    raise SystemExit("The timestamped migration candidate must contain one final COMMIT.")
+if re.search(r"(?im)^\s*ROLLBACK\s*;\s*$", candidate_sql):
+    raise SystemExit("The timestamped migration candidate must be a distinct installation artifact, not rehearsal SQL.")
+if re.search(r"(?m)^\s*\\", candidate_sql):
+    raise SystemExit("psql meta-commands are forbidden in the timestamped migration candidate.")
+if "-- PROPOSED INSTALLATION CANDIDATE; applyReady=false; approvedForProduction=false." not in "\n".join(candidate_lines[:8]):
+    raise SystemExit("The migration-candidate review boundary header is missing.")
+if not re.search(
+    r"(?is)current_setting\s*\(\s*'app\.canonical_installation_mode'\s*,\s*true\s*\)",
+    candidate_sql,
+):
+    raise SystemExit("The migration candidate lacks its external installation-mode guard.")
+if not re.search(r"(?is)current_database\s*\(\s*\)\s+IS\s+DISTINCT\s+FROM\s+'zaltyko_canonical_rehearsal_ci'", candidate_sql):
+    raise SystemExit("The migration candidate lacks the exact disposable-database guard for CI mode.")
+if "canonical installation target schema already exists; refusing candidate" not in candidate_sql:
+    raise SystemExit("The migration candidate lacks the stable fail-closed existing-schema guard.")
+candidate_extension = "CREATE EXTENSION btree_gist WITH SCHEMA extensions VERSION '1.7';"
+if candidate_sql.count(candidate_extension) != 1 or re.search(r"(?i)CREATE\s+EXTENSION\s+IF\s+NOT\s+EXISTS\s+btree_gist", candidate_sql):
+    raise SystemExit("The migration candidate must contain exactly one non-idempotent btree_gist 1.7 prerequisite.")
+preconditions_start = candidate_sql.find("DO $canonical_installation_preconditions$")
+preconditions_end = candidate_sql.find("$canonical_installation_preconditions$;", preconditions_start)
+extension_start = candidate_sql.find(candidate_extension)
+schema_create_start = candidate_sql.find("CREATE SCHEMA zaltyko;")
+if (preconditions_start < 0 or preconditions_end < preconditions_start
+        or extension_start < preconditions_end or schema_create_start < preconditions_end):
+    raise SystemExit("The migration candidate must guard mode, target database, and existing schemas before DDL.")
+preconditions_sql = candidate_sql[preconditions_start:preconditions_end]
+required_ci_guard_fragments = (
+    "v_mode := current_setting('app.canonical_installation_mode', true);",
+    "RAISE EXCEPTION 'canonical installation mode is not approved';",
+    "IF v_mode = 'ci' AND current_database() IS DISTINCT FROM 'zaltyko_canonical_rehearsal_ci' THEN",
+    "RAISE EXCEPTION 'wrong database for canonical installation CI';",
+    "RAISE EXCEPTION 'canonical installation target schema already exists; refusing candidate';",
+)
+if any(fragment not in preconditions_sql for fragment in required_ci_guard_fragments):
+    raise SystemExit("The migration candidate's pre-DDL CI mode, exact database, or existing-schema guard changed.")
 
 lines = sql.splitlines()
 non_comments = [line.strip() for line in lines if line.strip() and not line.lstrip().startswith("--")]
@@ -667,6 +745,48 @@ if re.search(r"(?im)^\s*ROLLBACK\s*;", fixture) or re.search(r"(?im)^\s*COMMIT\s
     raise SystemExit("Transaction terminator found in the tenant fixture.")
 rehearsal_path.write_text(prefix + assertions + "\n" + fixture.rstrip() + "\nROLLBACK;\n", encoding="utf-8")
 
+candidate_postcondition = """\
+DO $canonical_installation_candidate_postcondition$
+DECLARE
+  v_superuser boolean;
+  v_bypass_rls boolean;
+  v_createdb boolean;
+  v_createrole boolean;
+BEGIN
+  IF current_database() IS DISTINCT FROM 'zaltyko_canonical_rehearsal_ci'
+     OR current_setting('app.canonical_installation_mode', true) IS DISTINCT FROM 'ci' THEN
+    RAISE EXCEPTION 'Canonical installation candidate assertion guard failed';
+  END IF;
+  SELECT rolsuper, rolbypassrls, rolcreatedb, rolcreaterole
+    INTO v_superuser, v_bypass_rls, v_createdb, v_createrole
+  FROM pg_roles WHERE rolname = 'postgres';
+  IF v_superuser OR NOT v_bypass_rls OR NOT v_createdb OR NOT v_createrole
+     OR pg_has_role('postgres', 'supabase_admin', 'MEMBER')
+     OR NOT pg_has_role('postgres', 'authenticated', 'MEMBER')
+     OR NOT pg_has_role('postgres', 'anon', 'MEMBER') THEN
+    RAISE EXCEPTION 'Synthetic candidate role flags or membership do not match the constrained installation target';
+  END IF;
+  IF (SELECT count(*) FROM pg_extension e
+      JOIN pg_namespace n ON n.oid = e.extnamespace
+      WHERE e.extname = 'btree_gist' AND e.extversion = '1.7' AND n.nspname = 'extensions') <> 1
+     OR (SELECT count(*) FROM pg_extension WHERE extname = 'btree_gist') <> 1 THEN
+    RAISE EXCEPTION 'Canonical installation candidate did not persist the exact btree_gist 1.7 extension';
+  END IF;
+END
+$canonical_installation_candidate_postcondition$;
+"""
+candidate_assert_path.write_text(
+    "BEGIN;\n"
+    "SET LOCAL app.canonical_domain_rehearsal = 'ci-explicit';\n"
+    "SET LOCAL app.canonical_installation_mode = 'ci';\n"
+    + candidate_postcondition
+    + assertions
+    + "\n"
+    + fixture.rstrip()
+    + "\nROLLBACK;\n",
+    encoding="utf-8",
+)
+
 begin_match = re.search(r"(?im)^\s*BEGIN\s*;\s*$", sql)
 if begin_match is None:
     raise SystemExit("The guarded negative copy could not locate the opening transaction.")
@@ -876,6 +996,92 @@ END
 $rehearsal_postcondition$;
 SQL
 
+cat >"$DROP_EXTENSION_SQL" <<'SQL'
+BEGIN;
+SET LOCAL app.canonical_installation_mode = 'ci';
+DO $canonical_ci_extension_reset_guard$
+BEGIN
+  IF current_database() IS DISTINCT FROM 'zaltyko_canonical_rehearsal_ci'
+     OR current_user <> 'postgres'
+     OR session_user <> 'postgres'
+     OR current_setting('server_version_num')::integer NOT BETWEEN 170000 AND 179999
+     OR current_setting('app.canonical_installation_mode', true) IS DISTINCT FROM 'ci' THEN
+    RAISE EXCEPTION 'Disposable btree_gist reset target guard failed';
+  END IF;
+  IF to_regnamespace('zaltyko') IS NOT NULL
+     OR to_regnamespace('zaltyko_domain_private') IS NOT NULL THEN
+    RAISE EXCEPTION 'Canonical schemas must be absent before disposable btree_gist reset';
+  END IF;
+  IF (SELECT count(*) FROM pg_extension e
+      JOIN pg_namespace n ON n.oid = e.extnamespace
+      WHERE e.extname = 'btree_gist' AND e.extversion = '1.7' AND n.nspname = 'extensions') <> 1
+     OR (SELECT count(*) FROM pg_extension WHERE extname = 'btree_gist') <> 1 THEN
+    RAISE EXCEPTION 'Expected exactly the synthetic extensions.btree_gist 1.7 prerequisite';
+  END IF;
+END
+$canonical_ci_extension_reset_guard$;
+DROP EXTENSION btree_gist;
+COMMIT;
+SQL
+
+cat >"$PREPARE_CANDIDATE_ROLE_SQL" <<'SQL'
+BEGIN;
+SET LOCAL app.canonical_installation_mode = 'ci';
+DO $canonical_candidate_role_precondition$
+DECLARE
+  v_superuser boolean;
+  v_bypass_rls boolean;
+  v_createdb boolean;
+  v_createrole boolean;
+BEGIN
+  IF current_database() IS DISTINCT FROM 'zaltyko_canonical_rehearsal_ci'
+     OR current_user <> 'postgres'
+     OR session_user <> 'postgres'
+     OR current_setting('server_version_num')::integer NOT BETWEEN 170000 AND 179999
+     OR current_setting('app.canonical_installation_mode', true) IS DISTINCT FROM 'ci' THEN
+    RAISE EXCEPTION 'Candidate role preparation is restricted to the exact disposable PostgreSQL 17 database';
+  END IF;
+  IF to_regnamespace('zaltyko') IS NOT NULL
+     OR to_regnamespace('zaltyko_domain_private') IS NOT NULL
+     OR EXISTS (SELECT 1 FROM pg_roles WHERE rolname = 'supabase_admin') THEN
+    RAISE EXCEPTION 'Candidate role preparation requires absent canonical schemas and synthetic supabase_admin role';
+  END IF;
+  SELECT rolsuper, rolbypassrls, rolcreatedb, rolcreaterole
+    INTO v_superuser, v_bypass_rls, v_createdb, v_createrole
+  FROM pg_roles WHERE rolname = 'postgres';
+  IF NOT v_superuser OR NOT v_bypass_rls OR NOT v_createdb OR NOT v_createrole THEN
+    RAISE EXCEPTION 'Disposable postgres role did not begin with the expected CI service flags';
+  END IF;
+  IF NOT EXISTS (SELECT 1 FROM pg_roles WHERE rolname = 'anon')
+     OR NOT EXISTS (SELECT 1 FROM pg_roles WHERE rolname = 'authenticated') THEN
+    RAISE EXCEPTION 'Synthetic Auth roles are required before candidate role preparation';
+  END IF;
+END
+$canonical_candidate_role_precondition$;
+CREATE ROLE supabase_admin NOLOGIN NOSUPERUSER NOCREATEDB NOCREATEROLE NOREPLICATION;
+GRANT anon, authenticated TO postgres;
+ALTER ROLE postgres NOSUPERUSER;
+DO $canonical_candidate_role_postcondition$
+DECLARE
+  v_superuser boolean;
+  v_bypass_rls boolean;
+  v_createdb boolean;
+  v_createrole boolean;
+BEGIN
+  SELECT rolsuper, rolbypassrls, rolcreatedb, rolcreaterole
+    INTO v_superuser, v_bypass_rls, v_createdb, v_createrole
+  FROM pg_roles WHERE rolname = 'postgres';
+  IF v_superuser OR NOT v_bypass_rls OR NOT v_createdb OR NOT v_createrole
+     OR pg_has_role('postgres', 'supabase_admin', 'MEMBER')
+     OR NOT pg_has_role('postgres', 'authenticated', 'MEMBER')
+     OR NOT pg_has_role('postgres', 'anon', 'MEMBER') THEN
+    RAISE EXCEPTION 'Constrained candidate role flags or synthetic membership were not established';
+  END IF;
+END
+$canonical_candidate_role_postcondition$;
+COMMIT;
+SQL
+
 psql_base=(psql --no-psqlrc --no-password --quiet --set=ON_ERROR_STOP=1 --dbname "$CANONICAL_REHEARSAL_DATABASE_URL")
 db_ready=false
 for ((attempt = 1; attempt <= 30; attempt++)); do
@@ -931,10 +1137,61 @@ if ! "${psql_base[@]}" --file "$ASSERT_SQL" >"$VERIFY_LOG" 2>&1; then
   fail "The rejected namespace transaction changed canaries or left canonical objects behind."
 fi
 
+# Candidate execution is a separate phase reached only after the transactional
+# rehearsal rollback and the existing-schema refusal have both been verified.
+# First prove the candidate's mode guard fails closed with no session marker.
+if "${psql_base[@]}" --file "$CANDIDATE_FILE" >"$CANDIDATE_DEFAULT_GUARD_LOG" 2>&1; then
+  fail "The migration candidate unexpectedly ran without its explicit CI installation-mode marker."
+fi
+if ! grep -Fq "canonical installation mode is not approved" "$CANDIDATE_DEFAULT_GUARD_LOG"; then
+  fail_with_safe_log_lines "The candidate's unmarked-mode probe failed for a reason other than its exact fail-closed guard." "$CANDIDATE_DEFAULT_GUARD_LOG"
+fi
+if ! "${psql_base[@]}" --file "$ASSERT_SQL" >"$VERIFY_LOG" 2>&1; then
+  fail_with_safe_log_lines "The candidate's unmarked-mode rejection changed canaries or left canonical objects." "$VERIFY_LOG"
+fi
+
+# The generated candidate creates btree_gist 1.7 itself. Remove only the
+# synthetic prerequisite installed for the rehearsal, with an explicit CI
+# marker, exact disposable database check, and canonical-schema absence guard.
+if ! env PGOPTIONS="-c app.canonical_installation_mode=ci" "${psql_base[@]}" \
+  --file "$DROP_EXTENSION_SQL" >"$EXTENSION_RESET_LOG" 2>&1; then
+  fail_with_safe_log_lines "Guarded removal of the synthetic btree_gist prerequisite failed." "$EXTENSION_RESET_LOG"
+fi
+
+if ! env PGOPTIONS="-c app.canonical_installation_mode=ci" "${psql_base[@]}" \
+  --file "$PREPARE_CANDIDATE_ROLE_SQL" >"$CANDIDATE_ROLE_LOG" 2>&1; then
+  fail_with_safe_log_lines "Preparation of the disposable postgres role flags for candidate installation failed." "$CANDIDATE_ROLE_LOG"
+fi
+
+if ! env PGOPTIONS="-c app.canonical_installation_mode=ci" "${psql_base[@]}" \
+  --file "$CANDIDATE_FILE" >"$CANDIDATE_INSTALL_LOG" 2>&1; then
+  fail_with_safe_log_lines "The explicitly CI-marked installation candidate failed on the disposable database." "$CANDIDATE_INSTALL_LOG"
+fi
+
+if ! "${psql_base[@]}" --file "$CANDIDATE_ASSERT_SQL" >"$CANDIDATE_VERIFY_LOG" 2>&1; then
+  fail_with_safe_log_lines "The committed candidate failed full schema, ACL, RLS, tenant-fixture, extension, or canary assertions." "$CANDIDATE_VERIFY_LOG"
+fi
+
+# Replaying the exact candidate against its own installed state must refuse
+# before further DDL, then leave that already-installed state unchanged.
+if env PGOPTIONS="-c app.canonical_installation_mode=ci" "${psql_base[@]}" \
+  --file "$CANDIDATE_FILE" >"$CANDIDATE_REPLAY_LOG" 2>&1; then
+  fail "The migration candidate unexpectedly accepted a replay after successful installation."
+fi
+if ! grep -Fq "canonical installation target schema already exists; refusing candidate" "$CANDIDATE_REPLAY_LOG"; then
+  fail_with_safe_log_lines "Candidate replay failed for a reason other than the exact existing-schema refusal." "$CANDIDATE_REPLAY_LOG"
+fi
+if ! "${psql_base[@]}" --file "$CANDIDATE_ASSERT_SQL" >"$CANDIDATE_VERIFY_LOG" 2>&1; then
+  fail_with_safe_log_lines "Candidate replay rejection changed installed schema, ACLs, tenant fixture, extension, or canaries." "$CANDIDATE_VERIFY_LOG"
+fi
+
 sql_sha256="$(sha256sum "$SQL_FILE" | awk '{print $1}')"
 fixture_sha256="$(sha256sum "$TENANT_FIXTURE" | awk '{print $1}')"
+candidate_sha256="$(sha256sum "$CANDIDATE_FILE" | awk '{print $1}')"
 printf 'PASS: guarded canonical SQL rehearsal on synthetic PostgreSQL 17; rollback, pre-DDL existing-schema refusal, 92 forced-RLS tables, 64 policies, 16 routines, ACL allow/deny, and canary preservation verified.\n'
 printf 'PASS: synthetic tenant-row SELECT/denial fixture executed inside the rehearsal transaction.\n'
 printf 'PASS: installation review SQL refused execution with its exact unconditional hard stop; canaries and absent canonical schemas verified afterward.\n'
+printf 'PASS: timestamped candidate failed closed without CI marker, then installed only on the exact disposable database; full assertions, fixture rollback, btree_gist 1.7, replay refusal, and post-replay state verified.\n'
 printf 'Evidence hashes: canonical SQL %s; tenant fixture %s.\n' "$sql_sha256" "$fixture_sha256"
+printf 'Candidate artifact hash: %s.\n' "$candidate_sha256"
 printf 'Boundary: this is an isolated blank-database rehearsal, not migration history, production approval, or a full Supabase Auth environment.\n'

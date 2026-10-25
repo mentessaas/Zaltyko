@@ -8,7 +8,19 @@ source:
 ---
 
 
-## 2026-10-25 — Paquete exacto de revisión de instalación, pendiente CI
+## 2026-10-25 — Candidato de migración con privilegios acotados, pendiente CI
+
+- Nombre generado por CLI2.84.2:20261025202902_canonical_domain_installation_candidate.sql;
+  apartado vacío fuera del historial aplicable. Su SQL se genera solo en CI.
+- Catálogo READ ONLY identifica postgres sinSUPERUSER ni membresía supabase_admin,
+  con BYPASSRLS/CREATEDB/CREATEROLE y privilegios necesarios de Auth/extensions.
+  El candidato normaliza defaults solo para postgres, sin elevar permisos.
+- CI separa bootstrap superuser del propietario de aplicación y reduce este
+  último antes de instalar el mismo archivo con COMMIT. Exige rechazo sin modo,
+  aislamiento/ACL tras instalación y rechazo de reinstalación sin efectos.
+  Nada se ejecuta en producción ni en el Mac; resultado remoto pendiente.
+
+## 2026-10-25 — Paquete exacto de revisión de instalación, CI PASS
 
 - Lectura catalog-only con READ ONLY/timeout/ROLLBACK confirma PK de Auth
   exactamente id, btree_gist1.7 disponible/no instalado y cero defaults globales
@@ -18,7 +30,10 @@ source:
   de DDL. applyReady=false, ROLLBACK; no es archivo de migración ni autorización.
 - Runner remoto comprueba el rechazo exacto y conservación de canaries antes de
   ejecutar el rehearsal anterior. Sin builds/pruebas locales ni despliegues;
-  resultado de esta ampliación todavía pendiente.
+  CI40230685030 SUCCESS en2512032f: hard-stop exacto comprobado y rehearsal
+  anterior íntegro PASS. Artefacto392960bytes/SHA31b61d2da95ed080bdfcb78d7baab9059f700375f39be15ee54749096c6a8643
+  descargado/hash comprobado; propuesta/rehearsal conservan hashes anteriores.
+  Evidencia durable auditoria-2026-10-25/canonical-installation-review-2512032f/RESULTADO.md.
 
 ## 2026-10-25 — Rehearsal canónico en CI desechable, PASS
 
