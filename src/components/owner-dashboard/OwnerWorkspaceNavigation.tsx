@@ -93,6 +93,11 @@ export function OwnerWorkspaceNavigation() {
           },
         ]
       : []),
+    {
+      label: "Familias",
+      href: `/owner/families${scopedQuery}`,
+      active: isRouteActive(pathname, "/owner/families"),
+    },
   ];
   const mobileItems = navigationItems.slice(0, 5);
   const secondaryMobileItems = navigationItems.slice(5);

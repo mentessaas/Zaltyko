@@ -77,4 +77,30 @@ describe("navegación móvil Owner", () => {
       );
     }
   });
+
+  it("conserva la academia y sede y marca Familias como actual", () => {
+    const organizationId = "80000000-0000-4000-8000-000000000001";
+    const locationId = "80000000-0000-4000-8000-000000000002";
+    navigationMocks.pathname = "/owner/families";
+    navigationMocks.search = `organizationId=${organizationId}&locationId=${locationId}`;
+    render(<OwnerWorkspaceNavigation />);
+
+    const desktopNavigation = within(
+      screen.getByRole("navigation", { name: "Principal", hidden: true })
+    );
+    const mobileNavigation = within(
+      screen.getByRole("navigation", { name: "Navegación móvil", hidden: true })
+    );
+    for (const navigation of [desktopNavigation, mobileNavigation]) {
+      const familiesLink = navigation.getByRole("link", {
+        name: "Familias",
+        hidden: true,
+      });
+      expect(familiesLink).toHaveAttribute(
+        "href",
+        `/owner/families?organizationId=${organizationId}&locationId=${locationId}`
+      );
+      expect(familiesLink).toHaveAttribute("aria-current", "page");
+    }
+  });
 });
