@@ -8,13 +8,23 @@ y separa cuatro estados: **implementado**, **probado aisladamente**,
 demuestra que el flujo esté desplegado o validado contra un usuario y datos
 persistidos reales de sandbox.
 
-El candidato de entrega preparado es `91eb0c21e2337d9b4dcbf47b170044fe4ef35551`.
+El ultimo candidato enviado es `7f75490295368259782635b19e7b5164bc14b008`.
+Incluye edicion canonica de nombre/apellidos del gimnasta desde Owner con permisos,
+concurrencia y recuperacion de respuestas inciertas. La CI
+[`40202187222`](https://github.com/mentessaas/Zaltyko/actions/runs/40202187222)
+ha completado build, lint/tipos, movil, RLS, integridad Drizzle, seguridad y Chromium;
+unitarias, Firefox y WebKit siguen pendientes al corte. No es PASS completo.
+El replay PG `40202214967` completo ocho casos de capacidad/ficha y cuatro de
+facturacion, pero fallo la asercion del quinto caso: Drizzle envuelve el error
+PostgreSQL en `cause`. La correccion de esa asercion conserva los snapshots y esta
+pendiente de un nuevo replay remoto. No afirmar rollback validado por ese caso aun.
+
+El candidato anterior de entrega es `91eb0c21e2337d9b4dcbf47b170044fe4ef35551`.
 Incluye aislamiento de preview de entregas: rama exacta y ensayo short-paid desactivado,
 sin relajar controles de base, TLS, Stripe TEST, Redis ni proveedores externos.
 La CI [`40199478736`](https://github.com/mentessaas/Zaltyko/actions/runs/40199478736)
 ya acredita unitarias, lint/tipos, build, móvil, seguridad/SBOM, RLS, integridad
-Drizzle y Owner sintético Chromium. Firefox sigue en curso y WebKit en cola al corte;
-no contar la suite completa como PASS todavía. Gates operativos `40199478745` e
+Drizzle y Owner sintético Chromium/Firefox/WebKit: SUCCESS completo. Gates operativos `40199478745` e
 integridad de fuentes SQL `40199478752` terminaron SUCCESS.
 
 El candidato anterior `b270d9f212efa74979bd262305fb8b17f3667137` pasó la CI
@@ -36,8 +46,10 @@ La procedencia desde `f626351` se conserva mediante el origen `d5b8d961`,
 descendiente suyo, y una importación de sus 1.939 blobs `src` idénticos sobre
 main, con cinco archivos adicionales de main. No equivale a ascendencia Git
 directa ni a despliegue. Véase [procedencia e integración](mvp-integration-provenance-2026-10-25.md).
-PR #234 sigue pendiente de revisión independiente y ningún despliegue nuevo
-ha sido creado. La revisión inicial de QA detectó la incompatibilidad BiDi;
+PR #234 sigue pendiente de aprobación requerida por GitHub. Dos intentos de preview
+de entrega no llegaron a READY: uno cancelado y otro bloqueado por el preflight
+al no heredar configuracion aislada completa. El alias del ensayo se conserva.
+La revisión inicial de QA detectó la incompatibilidad BiDi;
 la revisión estática del parche posterior quedó realizada sin P1/P2. La aprobación requerida por GitHub sigue pendiente.
 
 La reconstrucción aislada de PostgreSQL desde vacío pasó en el run
@@ -52,7 +64,7 @@ replay. Ninguna base existente recibió SQL.
 | Recorrido | Implementado en código | Probado aisladamente | Sandbox del candidato actual | Publicado |
 | --- | --- | --- | --- | --- |
 | Alta, consentimiento, confirmación, recuperación y academia | Sí, rutas Owner y bootstrap existentes. | Unitarios y Owner sintético pasan en CI; E2E autenticado **SKIPPED**. | **NO VERIFICADO** en este HEAD. | No; PR #234 requiere revisión. |
-| Familias, tutores y gimnastas | Parcial: alta de gimnasta y asociación familiar presentes. Edición de ficha Owner pendiente de implementación acreditada; la ruta legacy usa otro esquema y no prueba este recorrido. | Unitarios y navegadores Owner sintéticos pasan; no prueban cuentas reales. | **NO VERIFICADO** en este HEAD. | No. |
+| Familias, tutores y gimnastas | Parcial: alta y asociación familiar presentes; edición canónica Owner de nombre/apellidos implementada en 7f754902. No acredita CRUD familiar completo. | Casos SQL de ficha pasan en PG desechable; unitarias y navegadores del nuevo corte aun pendientes. | **NO VERIFICADO** en este HEAD. | No. |
 | Grupos, clases, horarios e inscripciones | Sí, APIs y contratos presentes; las escrituras revisadas usan guard transaccional de plan. | Unitarios y navegadores Owner sintéticos pasan. | **NO VERIFICADO** en este HEAD. | No. |
 | Asistencia y cuotas manuales | Sí, incluye emisión de cuotas y registro de pagos manuales; no inicia cobros familiares automáticos. | Unitarios, E2E Owner sintético y CI pasan. | **NO VERIFICADO** en este HEAD. | No. |
 | Dashboard y experiencia móvil | Sí, proyección Owner y cliente móvil presentes. | Build remoto, job móvil y navegadores sintéticos pasan. | **NO VERIFICADO** con una academia QA autenticada en este HEAD. | No. |
@@ -124,7 +136,7 @@ Run `40189930084`, SHA `234599c92051714b9953393221a5e1be5069cbea`:
    registros parciales. Mantener intactas las cuatro academias protegidas y
    los ensayos de caducidad/impago.
 4. Preparar preview de entrega separada y configuración productiva aislada solo
-   después de cerrar los gates anteriores; esta rama no se desplegó.
+   después de cerrar los gates anteriores; los intentos de esta rama no llegaron a READY.
 5. Mantener producción sin cambios. Ninguna consulta ni escritura productiva,
    migración de destino, promoción o cambio de dominio está aprobada por esta
    matriz.
