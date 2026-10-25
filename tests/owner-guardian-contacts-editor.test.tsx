@@ -225,7 +225,7 @@ describe("contactos del tutor en Owner", () => {
     expect(await screen.findByRole("alert")).toHaveTextContent("No sabemos si se guardó el contacto");
     await user.click(screen.getByRole("button", { name: "Reintentar la misma operación" }));
 
-    expect(await screen.findByRole("status")).toHaveTextContent("se muestran los contactos actuales");
+    expect(await screen.findByRole("status")).toHaveTextContent(/se muestran los contactos actuales/i);
     expect(screen.getByText("later@example.test")).toBeVisible();
     expect(screen.queryByText("new@example.test")).not.toBeInTheDocument();
     expect(mocks.fetch).toHaveBeenCalledTimes(3);
@@ -235,7 +235,7 @@ describe("contactos del tutor en Owner", () => {
 
   it("no envía PATCH si sessionStorage impide persistir y releer el comando", async () => {
     mocks.fetch.mockResolvedValueOnce(response(200, getPayload()));
-    const setItem = vi.spyOn(window.sessionStorage, "setItem").mockImplementation(() => {
+    const setItem = vi.spyOn(Storage.prototype, "setItem").mockImplementation(() => {
       throw new DOMException("blocked", "SecurityError");
     });
     const user = userEvent.setup();
@@ -397,7 +397,7 @@ describe("contactos del tutor en Owner", () => {
     render(<OwnerGuardianContactsEditor {...props()} />);
 
     expect(await screen.findByRole("alert")).toHaveTextContent("formato esperado");
-    expect(screen.getByRole("button", { name: "Editar correo" })).toBeDisabled();
+    expect(screen.queryByRole("button", { name: "Editar correo" })).not.toBeInTheDocument();
     expect(mocks.fetch).toHaveBeenCalledOnce();
   });
 });

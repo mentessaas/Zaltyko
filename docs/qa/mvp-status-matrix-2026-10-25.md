@@ -228,3 +228,8 @@ Contactos suma tres casosPG adicionales: aislamiento entre academias, sede sin v
 ### Replay06f7cb48:31PASS/2FAIL — limpieza incompatible de fixture
 
 Run40210746095 terminó31PASS/2FAIL de33casos. Las cuatro suites de capacidad, ledger, familias y contactos pasan, incluidos los nuevos rechazos entre academias/sede y replay de contacto bajo sololectura. La suite de sesiones falló al terminar cada caso porque su finally borraba la organización y disparaba la protección append-only de organization_entitlement_changes. Esa limpieza podía ocultar el resultado del cuerpo; no se acredita aún la paginación105sesiones. Se retira solo ese borrado: UUIDaislados sobreviven hasta destrucción completa de la base desechable por el runner. Sin desactivar triggers ni borrar historia. Rerun necesario; fuenteSQLbaseline intacta. Gates40210735472 e integridad40210735562 SUCCESS; lint/tipos del mismo candidato PASS al corte y resto CIpendiente.
+
+
+### Corrección de los tres unitarios restantes del06f7cb48
+
+Job121221283687 terminó5008PASS/3FAIL/3omitidas (647archivosPASS/1FAIL/1omitido). Dos expectativas del test de contactos no coincidían con la interfaz: mayúscula de «Se muestran...» y botón que correctamente no se renderiza ante GETinválido. El tercer caso intentaba simular sessionStoragebloqueado espiando la instancia Storage, que jsdom trata como almacenamiento con propiedades nombradas; no interceptó setItem y permitió el PATCH de la fixture. Se espía Storage.prototype.setItem para comprobar realmente que el producto no envía nada cuando falla persistencia. No se cambia producto ni se retiran los asserts de fetchúnico/marcadorvacío. Cambios pendientes de nuevaCI, sin pruebas locales.

@@ -12593,3 +12593,8 @@ Modelo separado, reclamación manual, administración, importación revisada, fi
 
 - PG40210746095:31PASS/2FAIL. Capacidad, ledger, familia y contactos pasan; sesiones fallaron en finally al borrar organización, cuyo cascade chocó con historial de entitlement append-only. Se retira cleanupSQL por fila y se deja limpieza a destrucción completa de la base desechable del runner. No se altera trigger/política ni se da por validado el cuerpo105sesiones aún.
 - Lint/tipos remotos y gatesestáticos/SQL del06f7cb48 PASS; CIunit/build/navegadores pendientes al corte. Sin pruebas/build locales, datos del ensayo ni producción.
+
+
+### Corrección de los tres unitarios restantes del06f7cb48
+
+Job121221283687 terminó5008PASS/3FAIL/3omitidas (647archivosPASS/1FAIL/1omitido). Dos expectativas del test de contactos no coincidían con la interfaz: mayúscula de «Se muestran...» y botón que correctamente no se renderiza ante GETinválido. El tercer caso intentaba simular sessionStoragebloqueado espiando la instancia Storage, que jsdom trata como almacenamiento con propiedades nombradas; no interceptó setItem y permitió el PATCH de la fixture. Se espía Storage.prototype.setItem para comprobar realmente que el producto no envía nada cuando falla persistencia. No se cambia producto ni se retiran los asserts de fetchúnico/marcadorvacío. Cambios pendientes de nuevaCI, sin pruebas locales.
