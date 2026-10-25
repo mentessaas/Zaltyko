@@ -167,6 +167,10 @@ jobs:
         run: pnpm install --frozen-lockfile --ignore-workspace
 
       - name: Run unit tests with coverage
+        # Preview PostgreSQL suites require a separate explicit integration
+        # gate and must never be discovered by ordinary PR unit tests.
+        env:
+          CI_ISOLATED: "1"
         run: pnpm vitest run --coverage
 
       - name: Upload coverage to Codecov

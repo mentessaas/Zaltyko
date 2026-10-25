@@ -11,6 +11,7 @@ import { createOperationalGroup } from "@/modules/groups/application/group-manag
 import { createScheduledClass } from "@/modules/scheduling/application/class-management-service";
 import { createEnrollmentInTransaction } from "@/modules/enrollments/application/enrollment-service";
 import { isMetricSourceEvent } from "@/modules/analytics/application/metric-engine";
+import { getDatabaseUrl } from "@/lib/env";
 
 // Remote-only. The existing QA academy is observed, never reactivated or archived.
 // Successful mutation coverage uses ONE separate synthetic organization and rolls back.
@@ -28,9 +29,25 @@ const observedTables = [
 ] as const;
 
 function target() {
+  // Never let this rollback-backed integration suite connect merely because
+  // preview-looking application variables happen to be present. The database
+  // must be explicitly opted in and its effective PostgreSQL URL must resolve
+  // to the one approved sandbox before the first query is issued.
+  expect(process.env.ZALTYKO_PG_INTEGRATION).toBe("1");
   expect(process.env.VERCEL).toBe("1");
   expect(process.env.VERCEL_ENV).toBe("preview");
   expect(process.env.NEXT_PUBLIC_SUPABASE_URL).toBe("https://aeeootdmuiqkfeernskw.supabase.co");
+  let direct = false;
+  let pooler = false;
+  try {
+    const url = new URL(getDatabaseUrl());
+    direct = url.hostname === "db.aeeootdmuiqkfeernskw.supabase.co";
+    pooler = url.hostname.endsWith(".pooler.supabase.com") &&
+      decodeURIComponent(url.username).endsWith(".aeeootdmuiqkfeernskw");
+  } catch {
+    throw new Error("Invalid sandbox PostgreSQL connection configuration");
+  }
+  expect(direct || pooler, "PostgreSQL must belong to the approved sandbox").toBe(true);
 }
 
 async function snapshot(organizationId: string, client: DatabaseClient = db) {
