@@ -117,7 +117,6 @@ export async function replayPinnedE2ESchema(
   let currentSource = "snapshot replay marker";
 
   try {
-    await client.connect();
     await client.query(SNAPSHOT_REPLAY_MARKER);
 
     for (const source of sources) {
