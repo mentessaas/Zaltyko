@@ -12511,3 +12511,10 @@ Modelo separado, reclamación manual, administración, importación revisada, fi
 - Cambio: delimitar el campo a la region accesible Editar ficha de gimnasta y comprobar el valor cargado Ana; conservar las aserciones de bloqueo y desbloqueo de pertenencias.
 - Fuente: tests/owner-athlete-profile-editor.test.tsx y CI40202187222. Sin cambio de producto ni relajacion del guard.
 - Siguiente paso: validar la correccion en nueva CI remota. Sin ejecucion local.
+
+## 2026-10-25 — Replay PG corregido aprobado
+
+- Hallazgo: run remoto 40203116706 del SHA78c6e38b termino SUCCESS. El runner acredita baseline desde vacio, hardening/seed desechables, ACL/RLS de 28 tablas, aislamiento de dos academias y rechazo de baseline sobre base poblada o sin marcador.
+- Evidencia: suites PG de capacidad/ficha y ledger manual exit0, incluidos rollback, concurrencia y replay; el log exitoso no imprime conteo individual. No confundir con sandbox autenticado.
+- Fuente: docs/qa/mvp-status-matrix-2026-10-25.md y https://github.com/mentessaas/Zaltyko/actions/runs/40203116706.
+- Siguiente paso: completar CI40203109015 y configuracion de preview separada. Alias del ensayo releido intacto; sin pruebas/builds locales ni cambios productivos.

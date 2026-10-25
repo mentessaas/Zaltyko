@@ -61,6 +61,20 @@ replay. Ninguna base existente recibió SQL.
 
 ## Estado por recorrido
 
+### Corte posterior: PostgreSQL del commit corregido
+
+El run [`40203116706`](https://github.com/mentessaas/Zaltyko/actions/runs/40203116706)
+termino **SUCCESS** para `78c6e38b5359deeda2f67e6354a5d801136465d1`.
+El runner reconstruyo el snapshot exacto en PostgreSQL desechable, aplico el
+hardening y seed de referencia solo alli, comprobo ACL/RLS y aislamiento de dos
+academias sobre 28 tablas, y rechazo aplicar el baseline a una base poblada o sin
+marcador aislado. Las suites PG de capacidad/ficha y ledger manual terminaron con
+exit 0, incluyendo rollback, emision concurrente y replay idempotente. El log de
+exito no imprime el desglose individual: no se le atribuye un conteo no observado.
+Esto sustituye el fallo de asercion del run anterior; no equivale a prueba contra
+la base remota de sandbox ni a despliegue. La CI completa `40203109015` sigue activa.
+El alias del ensayo fue releido y conserva `dpl_8GL6DqKiuuZUoPs44fjbmRpHaZhY`.
+
 | Recorrido | Implementado en código | Probado aisladamente | Sandbox del candidato actual | Publicado |
 | --- | --- | --- | --- | --- |
 | Alta, consentimiento, confirmación, recuperación y academia | Sí, rutas Owner y bootstrap existentes. | Unitarios y Owner sintético pasan en CI; E2E autenticado **SKIPPED**. | **NO VERIFICADO** en este HEAD. | No; PR #234 requiere revisión. |
