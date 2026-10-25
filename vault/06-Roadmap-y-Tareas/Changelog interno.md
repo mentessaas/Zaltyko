@@ -12504,3 +12504,10 @@ Modelo separado, reclamación manual, administración, importación revisada, fi
 - Cambio: comprobar cause.code 23505 y la restriccion audit_log_idempotency_uq. Se conservan snapshots de ocho tablas y comprobaciones de ausencia de registros parciales.
 - Fuente: tests/billing-ledger-postgres.integration.test.ts y log del run remoto. El build, lint y tipos de CI40202187222 pasaron; la suite completa seguia pendiente al observarla.
 - Siguiente paso: repetir replay remoto sobre el commit corregido; no considerar este ajuste probado hasta obtener ese resultado. Sin pruebas ni builds locales.
+
+## 2026-10-25 — Selector de ficha en prueba integrada Owner
+
+- Hallazgo: job remoto Unit Tests 121195499118 termino con 4913 PASS, 3 omitidas y un fallo; el selector global Nombre encontraba tambien el formulario de alta de gimnasta.
+- Cambio: delimitar el campo a la region accesible Editar ficha de gimnasta y comprobar el valor cargado Ana; conservar las aserciones de bloqueo y desbloqueo de pertenencias.
+- Fuente: tests/owner-athlete-profile-editor.test.tsx y CI40202187222. Sin cambio de producto ni relajacion del guard.
+- Siguiente paso: validar la correccion en nueva CI remota. Sin ejecucion local.

@@ -1,7 +1,7 @@
 // @vitest-environment jsdom
 import "@testing-library/jest-dom/vitest";
 import type { ComponentProps } from "react";
-import { act, cleanup, render, screen, waitFor } from "@testing-library/react";
+import { act, cleanup, render, screen, waitFor, within } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
@@ -261,7 +261,8 @@ describe("edición de ficha Owner", () => {
     const edit = await screen.findByRole("button", { name: "Editar ficha de Ana García López" });
     await waitFor(() => expect(screen.getByRole("button", { name: "Dar de baja a Ana García López" })).toBeEnabled());
     await user.click(edit);
-    await screen.findByLabelText("Nombre");
+    const editor = await screen.findByRole("region", { name: "Editar ficha de gimnasta" });
+    expect(await within(editor).findByLabelText("Nombre")).toHaveValue("Ana");
     expect(screen.getByRole("button", { name: "Dar de baja a Ana García López" })).toBeDisabled();
     await user.click(screen.getByRole("button", { name: "Cerrar editor" }));
     expect(screen.getByRole("button", { name: "Dar de baja a Ana García López" })).toBeEnabled();
