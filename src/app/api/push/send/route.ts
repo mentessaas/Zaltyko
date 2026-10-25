@@ -15,7 +15,7 @@ const sendPushSchema = z.object({
   title: z.string().min(1).max(100),
   body: z.string().min(1).max(500),
   icon: z.string().url().optional(),
-  data: z.record(z.unknown()).optional(),
+  data: z.record(z.string(), z.unknown()).optional(),
   tag: z.string().optional(),
   requireInteraction: z.boolean().optional(),
   alsoCreateInApp: z.boolean().optional(),

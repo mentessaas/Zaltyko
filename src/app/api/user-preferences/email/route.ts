@@ -13,7 +13,7 @@ import { logger } from "@/lib/logger";
 export const dynamic = 'force-dynamic';
 
 const updateSchema = z.object({
-  emailNotifications: z.record(z.boolean()).optional(),
+  emailNotifications: z.record(z.string(), z.boolean()).optional(),
 });
 
 export const PUT = async (request: Request) => {

@@ -88,7 +88,7 @@ export const GET = withTenant(async (request, context) => {
           "VALIDATION_ERROR",
           "Parámetros de consulta inválidos",
           400,
-          error.errors.map((e) => ({
+          error.issues.map((e) => ({
             field: e.path.join("."),
             message: e.message,
           }))

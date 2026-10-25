@@ -113,7 +113,9 @@ describe("isolated CI workflow contract", () => {
     expect(imagePreloader).toContain('process.env.GITHUB_ACTIONS !== "true"');
     expect(imagePreloader).toContain('process.platform !== "linux"');
     expect(imagePreloader).toContain("ACTIVE_LOCAL_SUPABASE_IMAGES");
-    expect(imagePreloader).toContain('docker(["pull", image], false)');
+    expect(imagePreloader).toContain("preloadLocalE2eImages(process.env");
+    expect(imagePreloader).toContain("../lib/local-e2e-image-preloader");
+    expect(imagePreloader).not.toContain('docker(["pull", image], false)');
   });
 
   it("builds only an exact candidate SHA on a remote runner with placeholders and no provider access", () => {

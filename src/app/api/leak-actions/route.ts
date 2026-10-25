@@ -16,7 +16,7 @@ const createSchema = z.object({
   classId: z.string().uuid().optional(),
   channel: z.enum(["whatsapp", "email", "push", "in_app"]).default("whatsapp"),
   message: z.string().max(2000).optional(),
-  payload: z.record(z.unknown()).default({}),
+  payload: z.record(z.string(), z.unknown()).default({}),
 });
 
 export const POST = withTenant(async (request, context) => {

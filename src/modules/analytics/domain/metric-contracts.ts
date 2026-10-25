@@ -44,7 +44,7 @@ export const metricResultSchema = z
     denominator: z.number().finite().nullable(),
     coverage: z.number().min(0).max(1),
     qualityStatus: metricQualityStatusSchema,
-    dimensions: z.record(z.string()),
+    dimensions: z.record(z.string(), z.string()),
     calculatedAt: z.string().datetime({ offset: true }),
     sourceWatermark: z.string().datetime({ offset: true }),
   })

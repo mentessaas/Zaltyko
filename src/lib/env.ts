@@ -107,6 +107,18 @@ const publicEnvSchema = z.object({
   NEXT_PUBLIC_STRIPE_PUBLISHABLE_KEY: z.string().optional(),
 });
 
+function isMissingEnvironmentIssue(
+  issue: z.ZodError["issues"][number],
+  environment: Record<string, unknown>
+): boolean {
+  const key = issue.path[0];
+  return (
+    issue.code === "invalid_type" &&
+    typeof key === "string" &&
+    environment[key] === undefined
+  );
+}
+
 /**
  * Valida y parsea las variables de entorno del servidor
  * Usa safeParse para no fallar si faltan variables opcionales
@@ -124,12 +136,12 @@ function validateServerEnv() {
   if (!result.success) {
     // Solo lanzar error si hay variables requeridas faltantes
     // Las variables opcionales no causarán error
-    const requiredErrors = result.error.errors.filter(
-      (err) => err.code === "invalid_type" && err.received === "undefined"
+    const requiredErrors = result.error.issues.filter((issue) =>
+      isMissingEnvironmentIssue(issue, cleanedEnv)
     );
     if (requiredErrors.length > 0) {
       const missingVars = requiredErrors
-        .map((err) => err.path.join("."))
+        .map((issue) => issue.path.join("."))
         .join(", ");
       throw new Error(`Required environment variables missing: ${missingVars}`);
     }
@@ -138,7 +150,7 @@ function validateServerEnv() {
     if (process.env.NODE_ENV === "development") {
       console.warn(
         "Algunas variables de entorno tienen problemas de validación:",
-        result.error.errors
+        result.error.issues
       );
     }
     return cleanedEnv as z.infer<typeof serverEnvSchema>;
@@ -173,12 +185,12 @@ function validatePublicEnv() {
   const result = publicEnvSchema.safeParse(process.env);
   if (!result.success) {
     // Solo lanzar error si hay variables requeridas faltantes
-    const requiredErrors = result.error.errors.filter(
-      (err) => err.code === "invalid_type" && err.received === "undefined"
+    const requiredErrors = result.error.issues.filter((issue) =>
+      isMissingEnvironmentIssue(issue, process.env)
     );
     if (requiredErrors.length > 0) {
       const missingVars = requiredErrors
-        .map((err) => err.path.join("."))
+        .map((issue) => issue.path.join("."))
         .join(", ");
       throw new Error(
         `Required public environment variables missing: ${missingVars}`

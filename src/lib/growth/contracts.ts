@@ -36,7 +36,7 @@ const safePropertyValue = z.union([
 ]);
 
 const safeProperties = z
-  .record(safePropertyValue)
+  .record(z.string(), safePropertyValue)
   .default({})
   .superRefine((properties, context) => {
     const entries = Object.entries(properties);

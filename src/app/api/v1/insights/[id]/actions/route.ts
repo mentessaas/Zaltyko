@@ -14,7 +14,7 @@ const bodySchema = z.object({
   actionKey: z.string().trim().min(1).max(80),
   targetEntityType: z.string().trim().min(1).max(80),
   targetEntityId: z.string().uuid().optional(),
-  beforeValue: z.record(z.unknown()),
+  beforeValue: z.record(z.string(), z.unknown()),
   evaluationWindowDays: z.number().int().min(1).max(365),
   idempotencyKey: z.string().trim().min(8).max(150),
 });

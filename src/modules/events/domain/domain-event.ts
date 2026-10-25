@@ -26,7 +26,7 @@ export const domainEventSchema = z.object({
     id: z.string().uuid(),
   }),
   idempotencyKey: z.string().trim().min(8).max(200),
-  payload: z.record(z.unknown()),
+  payload: z.record(z.string(), z.unknown()),
 });
 
 export type DomainEvent = z.infer<typeof domainEventSchema>;

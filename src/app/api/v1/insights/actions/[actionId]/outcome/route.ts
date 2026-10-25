@@ -11,7 +11,7 @@ const bodySchema = z.object({
   organizationId: z.string().uuid().optional(),
   locationId: z.string().uuid().optional(),
   outcome: z.enum(["positive", "neutral", "negative", "not_measurable"]),
-  afterValue: z.record(z.unknown()),
+  afterValue: z.record(z.string(), z.unknown()),
   notes: z.string().trim().max(500).optional(),
   idempotencyKey: z.string().trim().min(8).max(150),
 });

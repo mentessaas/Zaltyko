@@ -33,7 +33,7 @@ const createHistorySchema = z.object({
   body: z.string().optional(),
   templateId: z.string().uuid().optional().nullable(),
   sportConfigId: z.string().uuid().optional().nullable(),
-  meta: z.record(z.unknown()).optional(),
+  meta: z.record(z.string(), z.unknown()).optional(),
 });
 
 export const GET = withTenant(async (request, context) => {

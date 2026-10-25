@@ -16,7 +16,7 @@ const querySchema = z.object({
 
 const createSchema = z.object({
   academyId: z.string().uuid(),
-  answers: z.record(z.union([z.boolean(), z.number(), z.string()])),
+  answers: z.record(z.string(), z.union([z.boolean(), z.number(), z.string()])),
 });
 
 export const GET = withTenant(async (request, context) => {
