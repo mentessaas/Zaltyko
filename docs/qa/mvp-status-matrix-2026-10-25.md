@@ -100,8 +100,8 @@ Run `40189930084`, SHA `234599c92051714b9953393221a5e1be5069cbea`:
    los blobs del origen recuperado y su importación; revisar ese registro junto
    a las resoluciones antes de integrar.
 2. Ejecutar E2E autenticado contra **este candidato** usando solo las dos
-   sesiones QA existentes y el sandbox autorizado. CI omitió ese job por falta
-   de credenciales configuradas. Hubo una restauración histórica de sesiones y
+   sesiones QA existentes y el sandbox autorizado. CI omite ese job mediante `if:false`; no se comprobó
+   disponibilidad de credenciales a partir de ese skip. Hubo una restauración histórica de sesiones y
    lecturas de uso en otra preview, pero no acreditan este HEAD; no crear cuentas
    ni cambiar contraseñas, roles, fechas o suscripciones para marcarlo como
    aprobado.

@@ -12453,3 +12453,12 @@ Modelo separado, reclamación manual, administración, importación revisada, fi
 - Fuente: docs/qa/mvp-integration-provenance-2026-10-25.md, manifiesto/tarball npm de chromium-bidi 17.0.2.
 - Importancia: una version parcheada en lockfile no acredita compatibilidad runtime.
 - Siguiente paso: validacion remota congelada antes de publicar; no probado localmente.
+
+
+## 2026-10-25 — Cobertura HTTP de permisos SaaS
+
+- Hallazgo: el replay SQL no acredita permisos comerciales de los roles greenfield por HTTP. El E2E desechable ya dispone de dos Owners y una membresia coach cruzada.
+- Cambio: reutiliza esas identidades en CI remota para exigir usage propio 200, academia ajena 404 y coach/manager/admin 403; restaura coach al final para las denegaciones operativas existentes.
+- Fuente: tests/e2e-owner-local-setup.spec.ts; resolveSaasOwnerScope.
+- Importancia: prueba sesion real y contrato de ruta, no mocks de autenticacion.
+- Siguiente paso: ejecucion remota pendiente. No modifica fixtures sandbox ni demuestra validacion del candidato en sandbox.

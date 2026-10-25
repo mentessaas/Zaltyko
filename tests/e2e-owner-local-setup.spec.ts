@@ -1249,6 +1249,31 @@ test.describe("Isolated local Supabase Owner setup", () => {
       );
       expect(syntheticCoach.rows).toHaveLength(1);
 
+      // Real HTTP/session authorization against this disposable runner database.
+      // Owning another academy must not grant commercial access here, even
+      // when the same identity is an active operational member in this academy.
+      const ownUsageUrl = new URL("/api/v1/owner/saas/usage", appOrigin);
+      ownUsageUrl.searchParams.set("organizationId", result.organizationId);
+      expect((await page.request.get(ownUsageUrl.toString())).status()).toBe(200);
+      const foreignUsageUrl = new URL("/api/v1/owner/saas/usage", appOrigin);
+      foreignUsageUrl.searchParams.set("organizationId", secondOrganization.organizationId);
+      expect((await page.request.get(foreignUsageUrl.toString())).status()).toBe(404);
+      expect((await secondOwnerPage.request.get(foreignUsageUrl.toString())).status()).toBe(200);
+      for (const commercialDeniedRole of ["coach", "manager", "admin"]) {
+        await pool.query(
+          `update zaltyko.organization_members set role = $1
+            where organization_id = $2::uuid and id = $3::uuid`,
+          [commercialDeniedRole, result.organizationId, syntheticCoach.rows[0]!.member_id]
+        );
+        expect((await secondOwnerPage.request.get(ownUsageUrl.toString())).status()).toBe(403);
+      }
+      // Restore the synthetic coach for the existing operational denial checks.
+      await pool.query(
+        `update zaltyko.organization_members set role = 'coach'
+          where organization_id = $1::uuid and id = $2::uuid`,
+        [result.organizationId, syntheticCoach.rows[0]!.member_id]
+      );
+
       await expectPersistedOwnerSignupConsent(
         secondUserId,
         secondBootstrapIdempotencyKey
