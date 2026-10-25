@@ -207,7 +207,7 @@ describe("gestión de grupos owner", () => {
           ok: true,
           data: {
             id: groupId,
-            name: "Iniciación",
+            name: "Iniciación avanzada",
             capacity: 12,
             updatedAtVersion: "2026-10-13T09:01:00.000001Z",
           },

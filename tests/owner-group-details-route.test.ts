@@ -94,8 +94,12 @@ describe("Owner group details HTTP boundary", () => {
 
   it("rejects extra actor fields, missing changes, invalid capacity, and IDs", async () => {
     expect((await PATCH(request(), context("not-a-uuid"))).status).toBe(400);
-    expect((await PATCH(request({ organizationId, expectedUpdatedAt }))).status).toBe(400);
-    expect((await PATCH(request({ ...body, capacity: 0 }))).status).toBe(400);
+    expect(
+      (await PATCH(request({ organizationId, expectedUpdatedAt }), context())).status
+    ).toBe(400);
+    expect(
+      (await PATCH(request({ ...body, capacity: 0 }), context())).status
+    ).toBe(400);
 
     const response = await PATCH(
       request({ ...body, actor: { userId, memberId }, role: "owner" }),

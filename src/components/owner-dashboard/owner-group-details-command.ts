@@ -85,14 +85,19 @@ export function readPendingOwnerGroupDetailsUpdate(
   organizationId: string
 ): PendingState {
   if (!UUID.test(organizationId)) return { status: "invalid" };
+  let raw: string | null;
   try {
-    const raw = storage.getItem(ownerGroupDetailsStorageKey(organizationId));
-    if (raw === null) return { status: "none" };
-    if (raw.length > 8192) return { status: "invalid" };
+    raw = storage.getItem(ownerGroupDetailsStorageKey(organizationId));
+  } catch {
+    return { status: "unavailable" };
+  }
+  if (raw === null) return { status: "none" };
+  if (raw.length > 8192) return { status: "invalid" };
+  try {
     const command = decode(JSON.parse(raw), organizationId);
     return command ? { status: "pending", command } : { status: "invalid" };
   } catch {
-    return { status: "unavailable" };
+    return { status: "invalid" };
   }
 }
 
