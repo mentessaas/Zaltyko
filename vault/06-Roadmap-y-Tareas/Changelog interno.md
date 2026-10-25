@@ -8,17 +8,21 @@ source:
 ---
 
 
-## 2026-10-25 — Candidato de migración con privilegios acotados, pendiente CI
+## 2026-10-25 — Candidato de migración con privilegios acotados, CI PASS
 
 - Nombre generado por CLI2.84.2:20261025202902_canonical_domain_installation_candidate.sql;
-  apartado vacío fuera del historial aplicable. Su SQL se genera solo en CI.
+  apartado fuera del historial aplicable. Su SQL se generó solo en CI y se copió
+  sin edición; SHA256 00ead5a3869bb335f2f17e58ebaaacac2bdc1ae4504493b473c68393359dab00.
 - Catálogo READ ONLY identifica postgres sinSUPERUSER ni membresía supabase_admin,
   con BYPASSRLS/CREATEDB/CREATEROLE y privilegios necesarios de Auth/extensions.
   El candidato normaliza defaults solo para postgres, sin elevar permisos.
 - CI separa bootstrap superuser del propietario de aplicación y reduce este
   último antes de instalar el mismo archivo con COMMIT. Exige rechazo sin modo,
   aislamiento/ACL tras instalación y rechazo de reinstalación sin efectos.
-  Nada se ejecuta en producción ni en el Mac; resultado remoto pendiente.
+  CI40232012970 SUCCESS acredita esos controles en PG17.6 desechable. Nada se
+  ejecutó en producción ni en el Mac. applyReady/approvedForProduction=false;
+  aplicación requiere revisión y autorización humana específica separada.
+  Evidencia: docs/qa/canonical-installation-candidate-proof-2026-10-25.md.
 
 ## 2026-10-25 — Paquete exacto de revisión de instalación, CI PASS
 

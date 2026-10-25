@@ -11,8 +11,12 @@ La CLI Supabase 2.84.2 creó el nombre
 `20261025202902_canonical_domain_installation_candidate.sql` mediante
 `supabase migration new canonical_domain_installation_candidate`. Se apartó
 inmediatamente el archivo vacío a esta carpeta, antes de añadir cualquier SQL.
-Su contenido final se generará en CI a partir del AST y el snapshot fijados;
-no se editará mediante recortes de texto del dump.
+Su contenido se generó en CI a partir del AST y el snapshot fijados y se copió
+sin edición desde el artefacto. No procede de recortes de texto del dump.
+CI40232012970 comprobó la instalación y el rechazo de replay del archivo exacto.
+SHA-256: `00ead5a3869bb335f2f17e58ebaaacac2bdc1ae4504493b473c68393359dab00`.
+Ver `docs/qa/canonical-installation-candidate-proof-2026-10-25.md` para evidencia
+y límites; sigue pendiente de revisión y autorización productiva separada.
 
 El alcance propuesto es la extensión `btree_gist`1.7 y los dos namespaces
 canónicos ausentes, con sus objetos, propietarios y permisos revisados. No
