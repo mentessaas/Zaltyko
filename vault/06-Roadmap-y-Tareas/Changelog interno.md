@@ -12587,3 +12587,9 @@ Modelo separado, reclamación manual, administración, importación revisada, fi
 - Auditoría demostró selector de asistencia limitado a100sin cursor/aviso. Entrega prepara GETpaginado50+1, keyset microsegundos/id, scopeverificado y selectedSessiondirecto separado. Ventana±30d actual y status permanecen; no cambia POSTasistencia. UI conserva selección y protege contra respuestas viejas de otra academia/sede. PG105sesiones y pruebasHTTP/UI añadidos, no ejecutados localmente ni acreditados en sandbox.
 - Unitariosa004af54:4986PASS/12FAIL/3omitidas. Fallos identificados en nuevos testscontactos y selectorfecha mensual; email demasiado largo de la fixture medía253 y se corrige a255 sin cambiar límite254. El build/lint/tipos sí pasan, pero no se publica con fallos unitarios/PG.
 - Contactos añadePGaislamiento academia/sede y replay bajo sololectura, con snapshot15sinmutación rechazada. Sin cambios enSQL remoto, producción ni ensayo.
+
+
+## 2026-10-25 — Historial inmutable conservado también en fixture
+
+- PG40210746095:31PASS/2FAIL. Capacidad, ledger, familia y contactos pasan; sesiones fallaron en finally al borrar organización, cuyo cascade chocó con historial de entitlement append-only. Se retira cleanupSQL por fila y se deja limpieza a destrucción completa de la base desechable del runner. No se altera trigger/política ni se da por validado el cuerpo105sesiones aún.
+- Lint/tipos remotos y gatesestáticos/SQL del06f7cb48 PASS; CIunit/build/navegadores pendientes al corte. Sin pruebas/build locales, datos del ensayo ni producción.

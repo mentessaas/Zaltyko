@@ -181,101 +181,87 @@ describe("Owner attendance session keyset pagination on disposable PostgreSQL", 
     assertDisposableTarget();
     const fixture = await seedFixture();
 
-    try {
-      const first = await getOwnerAttendanceSessionOptions({
-        userId: fixture.userId,
-        organizationId: fixture.organizationId,
-        locationId: fixture.locationId,
-      });
-      expect(first.sessions).toHaveLength(50);
-      expect(first.nextCursor).toBeTruthy();
-      expect(first.selectedSession).toBeNull();
+    const first = await getOwnerAttendanceSessionOptions({
+      userId: fixture.userId,
+      organizationId: fixture.organizationId,
+      locationId: fixture.locationId,
+    });
+    expect(first.sessions).toHaveLength(50);
+    expect(first.nextCursor).toBeTruthy();
+    expect(first.selectedSession).toBeNull();
 
-      const cursorPayload = JSON.parse(
-        Buffer.from(first.nextCursor!, "base64url").toString("utf8")
-      ) as { startsAt: string; id: string };
-      expect(cursorPayload.startsAt).toMatch(/\.000050Z$/);
-      expect(cursorPayload.id).toBe(fixture.sessionIds[49]);
+    const cursorPayload = JSON.parse(
+      Buffer.from(first.nextCursor!, "base64url").toString("utf8")
+    ) as { startsAt: string; id: string };
+    expect(cursorPayload.startsAt).toMatch(/\.000050Z$/);
+    expect(cursorPayload.id).toBe(fixture.sessionIds[49]);
 
-      const second = await getOwnerAttendanceSessionOptions({
-        userId: fixture.userId,
-        organizationId: fixture.organizationId,
-        locationId: fixture.locationId,
-        cursor: first.nextCursor!,
-        sessionId: fixture.outOfWindowSessionId,
-      });
-      expect(second.sessions).toHaveLength(50);
-      expect(second.nextCursor).toBeTruthy();
-      expect(second.selectedSession).toMatchObject({
-        id: fixture.outOfWindowSessionId,
-        retryOnly: true,
-      });
+    const second = await getOwnerAttendanceSessionOptions({
+      userId: fixture.userId,
+      organizationId: fixture.organizationId,
+      locationId: fixture.locationId,
+      cursor: first.nextCursor!,
+      sessionId: fixture.outOfWindowSessionId,
+    });
+    expect(second.sessions).toHaveLength(50);
+    expect(second.nextCursor).toBeTruthy();
+    expect(second.selectedSession).toMatchObject({
+      id: fixture.outOfWindowSessionId,
+      retryOnly: true,
+    });
 
-      const third = await getOwnerAttendanceSessionOptions({
-        userId: fixture.userId,
-        organizationId: fixture.organizationId,
-        locationId: fixture.locationId,
-        cursor: second.nextCursor!,
-      });
-      expect(third.sessions).toHaveLength(5);
-      expect(third.nextCursor).toBeNull();
+    const third = await getOwnerAttendanceSessionOptions({
+      userId: fixture.userId,
+      organizationId: fixture.organizationId,
+      locationId: fixture.locationId,
+      cursor: second.nextCursor!,
+    });
+    expect(third.sessions).toHaveLength(5);
+    expect(third.nextCursor).toBeNull();
 
-      const receivedIds = [
-        ...first.sessions.map((session) => session.id),
-        ...second.sessions.map((session) => session.id),
-        ...third.sessions.map((session) => session.id),
-      ];
-      expect(receivedIds).toEqual(fixture.sessionIds);
-      expect(new Set(receivedIds).size).toBe(105);
-      expect(receivedIds).not.toContain(fixture.outOfWindowSessionId);
-      expect(receivedIds).not.toContain(fixture.cancelledSessionId);
-      expect(receivedIds).not.toContain(fixture.otherLocationSessionId);
+    const receivedIds = [
+      ...first.sessions.map((session) => session.id),
+      ...second.sessions.map((session) => session.id),
+      ...third.sessions.map((session) => session.id),
+    ];
+    expect(receivedIds).toEqual(fixture.sessionIds);
+    expect(new Set(receivedIds).size).toBe(105);
+    expect(receivedIds).not.toContain(fixture.outOfWindowSessionId);
+    expect(receivedIds).not.toContain(fixture.cancelledSessionId);
+    expect(receivedIds).not.toContain(fixture.otherLocationSessionId);
 
-      const separateLocationPage = await getOwnerAttendanceSessionOptions({
-        userId: fixture.userId,
-        organizationId: fixture.organizationId,
-        locationId: fixture.otherLocationId,
-      });
-      expect(separateLocationPage.sessions.map((session) => session.id)).toEqual([
-        fixture.otherLocationSessionId,
-      ]);
-    } finally {
-      await db.execute(sql`
-        delete from zaltyko.organizations where id = ${fixture.organizationId}::uuid
-      `);
-      await db.execute(sql`
-        delete from auth.users where id = ${fixture.userId}::uuid
-      `);
-    }
+    const separateLocationPage = await getOwnerAttendanceSessionOptions({
+      userId: fixture.userId,
+      organizationId: fixture.organizationId,
+      locationId: fixture.otherLocationId,
+    });
+    expect(separateLocationPage.sessions.map((session) => session.id)).toEqual([
+      fixture.otherLocationSessionId,
+    ]);
+    // UUID-isolated fixtures remain until the runner destroys the whole
+    // disposable database; append-only entitlement history must not be deleted.
   });
 
   it("rejects a valid position cursor when replayed under a different authorized site", async () => {
     assertDisposableTarget();
     const fixture = await seedFixture();
 
-    try {
-      const first = await getOwnerAttendanceSessionOptions({
+    const first = await getOwnerAttendanceSessionOptions({
+      userId: fixture.userId,
+      organizationId: fixture.organizationId,
+      locationId: fixture.locationId,
+    });
+    expect(first.nextCursor).toBeTruthy();
+
+    await expect(
+      getOwnerAttendanceSessionOptions({
         userId: fixture.userId,
         organizationId: fixture.organizationId,
-        locationId: fixture.locationId,
-      });
-      expect(first.nextCursor).toBeTruthy();
-
-      await expect(
-        getOwnerAttendanceSessionOptions({
-          userId: fixture.userId,
-          organizationId: fixture.organizationId,
-          locationId: fixture.otherLocationId,
-          cursor: first.nextCursor!,
-        })
-      ).rejects.toMatchObject({ code: "INVALID_RELATION" });
-    } finally {
-      await db.execute(sql`
-        delete from zaltyko.organizations where id = ${fixture.organizationId}::uuid
-      `);
-      await db.execute(sql`
-        delete from auth.users where id = ${fixture.userId}::uuid
-      `);
-    }
+        locationId: fixture.otherLocationId,
+        cursor: first.nextCursor!,
+      })
+    ).rejects.toMatchObject({ code: "INVALID_RELATION" });
+    // UUID-isolated fixtures remain until the runner destroys the whole
+    // disposable database; append-only entitlement history must not be deleted.
   });
 });

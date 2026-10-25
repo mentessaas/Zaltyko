@@ -10,12 +10,12 @@ persistidos reales de sandbox.
 
 ## Corte vigente de validación
 
-Último código enviado a la rama: `a004af54cc82d9086c793af0c13ec6d9c2053e50`.
-CI `40209655845`, gates `40209655742`, integridad SQL `40209655758` y replay PG
-`40209662912` están pendientes/en ejecución. No son PASS todavía. Incluye contactos
-de tutores, asociaciones familiares, persistencia de comandos y paginación de pagos.
-El corte anterior59da tuvo fallos unitarios y de fixturesPG; su CI quedó cancelada
-al comenzar este candidato. Los éxitos parciales se conservan como parciales.
+Último código enviado a la rama: `06f7cb489a3c856e02f8b08f0961dd6418e4ae3f`.
+CI `40210735619`, gates `40210735472`, integridad SQL `40210735562` y replay PG
+`40210746095` están pendientes/en ejecución. No son PASS todavía. Incluye contactos
+de tutores, asociaciones familiares, persistencia de comandos y paginación de pagos
+manuales y sesiones de asistencia. El cortea004 tuvo12fallos unitarios y4dePG;
+los arreglos posteriores requieren nueva ejecución. No se hereda su build PASS.
 
 Última validación completa histórica:78c6e38b, CI40203109015 yPG40203116706 SUCCESS.
 Esto no acredita los cambios posteriores. No hay publicación en producción ni nueva
@@ -223,3 +223,8 @@ Job121218042399 cerró con643archivosPASS/3FAIL/1omitido. Quedaron fallos de los
 El selector anterior limitaba100sin señalizar truncamiento. GET y SSR ahora ofrecen páginas50+1 por(starts_at exacto,id), nextCursor y selectedSession separado si fue solicitado expresamente y no está en la página. Cada solicitud vuelve a autorizar actor/academia/sede, estadosscheduled/completed y ventana móvil±30d; el cursor no lleva filtros confiables ni secretos. No equivale a snapshot consistente ante cambios de datos/tiempo. UI carga más sin repetir POST, preserva selección y descarta respuestas viejas de otro ámbito. Nuevo PG105sesiones y testsHTTP/UI preparados; sin pruebas/build locales. El runner solo ejecuta esta suite enPGdesechableCI.
 
 Contactos suma tres casosPG adicionales: aislamiento entre academias, sede sin vínculo y replay trasFree31/30con nueva escritura rechazada sin efectos parciales. Pendientes de ejecución remota.
+
+
+### Replay06f7cb48:31PASS/2FAIL — limpieza incompatible de fixture
+
+Run40210746095 terminó31PASS/2FAIL de33casos. Las cuatro suites de capacidad, ledger, familias y contactos pasan, incluidos los nuevos rechazos entre academias/sede y replay de contacto bajo sololectura. La suite de sesiones falló al terminar cada caso porque su finally borraba la organización y disparaba la protección append-only de organization_entitlement_changes. Esa limpieza podía ocultar el resultado del cuerpo; no se acredita aún la paginación105sesiones. Se retira solo ese borrado: UUIDaislados sobreviven hasta destrucción completa de la base desechable por el runner. Sin desactivar triggers ni borrar historia. Rerun necesario; fuenteSQLbaseline intacta. Gates40210735472 e integridad40210735562 SUCCESS; lint/tipos del mismo candidato PASS al corte y resto CIpendiente.
