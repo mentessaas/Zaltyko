@@ -76,7 +76,9 @@ describe("patched dependency compatibility", () => {
 // A patched version number alone cannot establish a cross-major override is safe.
 describe("Chromium BiDi runtime compatibility", () => {
   it("reports invalid protocol input as InvalidArgumentException rather than crashing", async () => {
-    const puppeteerRequire = createRequire(require.resolve("puppeteer-core"));
+    const lhciRequire = createRequire(require.resolve("@lhci/cli/package.json"));
+    const lighthouseRequire = createRequire(lhciRequire.resolve("lighthouse/package.json"));
+    const puppeteerRequire = createRequire(lighthouseRequire.resolve("puppeteer-core/package.json"));
     const bidiEntry = puppeteerRequire.resolve("chromium-bidi");
     const parserUrl = new URL("./protocol-parser/protocol-parser.js", pathToFileURL(bidiEntry));
     const parser = await import(/* @vite-ignore */ parserUrl.href);
