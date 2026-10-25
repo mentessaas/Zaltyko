@@ -12480,3 +12480,12 @@ Modelo separado, reclamación manual, administración, importación revisada, fi
 - Importancia: la matriz deja de marcar todo el ciclo de familias/gimnastas como implementado. Se prepara servicio/ruta canonicos sin enlazar el modelo legacy.
 - Evidencia remota: CI40197832794 SUCCESS completo para b270d9f2. CI40199478736 para91eb0c21 acredita unitarias, tipos, build, Chromium y Firefox; WebKit pendiente al corte. No prueba sandbox ni produccion.
 - Siguiente paso: integrar edicion con permisos y reintentos, completar prueba PG emision manual, verificar remotamente y validar preview diferenciada; ensayo congelado intacto.
+
+
+## 2026-10-25 — Prueba PG de emision mensual manual
+
+- Hallazgo: la suite PG cubria registro de pagos, pero no emision mensual nueva sobre el ledger real desechable.
+- Cambio: tres casos adicionales crean familia/pagador/tarifa/inscripcion sinteticos y comprueban emision unica concurrente, replays, conflicto de parametros, cotizacion obsoleta y rollback inducido por unicidad de auditoria. Comparan ocho tablas del ledger antes/despues.
+- Fuente: tests/billing-ledger-postgres.integration.test.ts; el runner verify-sandbox-schema-replay.sh ya selecciona este archivo.
+- Importancia: codigo de pruebas preparado no equivale a ejecucion ni validacion en sandbox. No hay escrituras en fixtures protegidas.
+- Siguiente paso: ejecutar el replay y las suites solo en GitHub Linux desechable tras integrar el candidato; no se ejecutaron tests/builds/servicios en Mac.
