@@ -651,7 +651,7 @@ BEGIN
                 AND p.proname = 'guard_saas_webhook_requeue')
             OR (t.tgname = 'saas_webhook_reconciliation_result_insert_guard'
                 AND c.relname = 'organization_saas_webhook_reconciliation_results'
-                AND p.proname = 'guard_saas_reconciliation_result_insert')) <> 2 THEN
+                AND p.proname = 'guard_saas_reconciliation_result_insert'))) <> 2 THEN
       RAISE EXCEPTION 'PUBLIC trigger-only guard binding mismatch';
     END IF;
   ELSE
