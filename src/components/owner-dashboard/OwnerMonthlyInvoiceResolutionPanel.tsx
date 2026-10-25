@@ -66,6 +66,25 @@ type PendingResolutionCommand = {
   serializedBody: string;
 };
 
+export const PENDING_OWNER_MONTHLY_RESOLUTION_STORAGE_KEY =
+  "zaltyko:pending-monthly-invoice-resolution:v1";
+const pendingResolutionStorageVersion = 1;
+const maxPendingResolutionStorageLength = 65_536;
+
+type PendingResolutionStorageRead =
+  | { kind: "none" }
+  | { kind: "pending"; command: PendingResolutionCommand }
+  | { kind: "invalid" }
+  | { kind: "unavailable" };
+
+type PendingResolutionStorageRecord = Omit<
+  PendingResolutionCommand,
+  "body"
+> & {
+  version: typeof pendingResolutionStorageVersion;
+  fingerprint: string;
+};
+
 function resolutionScopeKey(input: {
   organizationId: string;
   locationId: string;
@@ -149,6 +168,338 @@ function isDateValue(value: unknown): value is string {
   );
 }
 
+function isRecord(value: unknown): value is Record<string, unknown> {
+  return value !== null && typeof value === "object" && !Array.isArray(value);
+}
+
+function hasExactKeys(
+  value: Record<string, unknown>,
+  expected: readonly string[]
+): boolean {
+  const actual = Object.keys(value).sort();
+  const keys = [...expected].sort();
+  return (
+    actual.length === keys.length &&
+    actual.every((key, index) => key === keys[index])
+  );
+}
+
+function isUniqueUuidArray(value: unknown, minimum = 1, maximum = 100): value is string[] {
+  if (!Array.isArray(value) || value.length < minimum || value.length > maximum) {
+    return false;
+  }
+  return value.every(isUuid) && new Set(value).size === value.length;
+}
+
+function pendingResolutionFingerprint(
+  command: Omit<PendingResolutionCommand, "body" | "hasAmbiguousAttempt">
+): string {
+  // This binds the persisted scope, route, idempotency key, and exact body bytes.
+  // It detects partial or mismatched sessionStorage records; server authorization
+  // and idempotency remain the security boundary.
+  return JSON.stringify([
+    command.scopeKey,
+    command.organizationId,
+    command.locationId,
+    command.servicePeriod,
+    command.actionKey,
+    command.operation,
+    command.endpoint,
+    command.method,
+    command.key,
+    command.serializedBody,
+  ]);
+}
+
+function validatePendingResolutionBody(
+  operation: PendingResolutionCommand["operation"],
+  actionKey: string,
+  organizationId: string,
+  locationId: string,
+  serializedBody: string
+): unknown | null {
+  let value: unknown;
+  try {
+    value = JSON.parse(serializedBody);
+  } catch {
+    return null;
+  }
+  if (!isRecord(value) || value.organizationId !== organizationId || value.locationId !== locationId) {
+    return null;
+  }
+
+  if (operation === "create-price-plan") {
+    if (
+      !actionKey.startsWith("tariff:") ||
+      !isUuid(actionKey.slice("tariff:".length)) ||
+      !hasExactKeys(value, ["organizationId", "locationId", "name", "amountCents", "coverage"]) ||
+      typeof value.name !== "string" || value.name.trim().length === 0 ||
+      value.name.trim() !== value.name || value.name.length > 100 ||
+      typeof value.amountCents !== "number" ||
+      !Number.isSafeInteger(value.amountCents) ||
+      (value.amountCents as number) <= 0 ||
+      !isRecord(value.coverage) ||
+      !hasExactKeys(value.coverage, ["classTemplateIds", "startsOn", "endsOn"]) ||
+      !isUniqueUuidArray(value.coverage.classTemplateIds, 1, 100) ||
+      !isDateValue(value.coverage.startsOn) ||
+      !(value.coverage.endsOn === null ||
+        (isDateValue(value.coverage.endsOn) && value.coverage.endsOn >= value.coverage.startsOn))
+    ) return null;
+    return value;
+  }
+
+  if (operation === "assign-tariff") {
+    const enrollmentId = actionKey.startsWith("tariff:")
+      ? actionKey.slice("tariff:".length)
+      : "";
+    if (
+      !isUuid(enrollmentId) ||
+      !hasExactKeys(value, ["organizationId", "locationId", "pricePlanId", "startsOn"]) ||
+      !isUuid(value.pricePlanId) ||
+      !isDateValue(value.startsOn)
+    ) return null;
+    return value;
+  }
+
+  const familyAction = actionKey.startsWith("family:");
+  const payerAction = actionKey.startsWith("payer:");
+  const actionTargetId = familyAction
+    ? actionKey.slice("family:".length)
+    : payerAction
+      ? actionKey.slice("payer:".length)
+      : "";
+  if (!isUuid(actionTargetId)) return null;
+
+  const hasFamilyId = Object.hasOwn(value, "familyId");
+  if (
+    !hasExactKeys(value, hasFamilyId
+      ? ["organizationId", "locationId", "familyId", "athleteIds", "payer", "effectiveFrom"]
+      : ["organizationId", "locationId", "athleteIds", "payer", "effectiveFrom"]) ||
+    (hasFamilyId && !isUuid(value.familyId)) ||
+    !isUniqueUuidArray(value.athleteIds, 1, 50) ||
+    (familyAction && value.athleteIds.length !== 1) ||
+    (payerAction && value.familyId !== actionTargetId) ||
+    !isDateValue(value.effectiveFrom) ||
+    !isRecord(value.payer)
+  ) return null;
+
+  const payer = value.payer;
+  const hasConfirmation = Object.hasOwn(payer, "confirmPrimaryPayerChange");
+  if (Object.hasOwn(payer, "familyPayerId")) {
+    if (
+      !hasFamilyId ||
+      !hasExactKeys(payer, hasConfirmation
+        ? ["familyPayerId", "confirmPrimaryPayerChange"]
+        : ["familyPayerId"]) ||
+      !isUuid(payer.familyPayerId) ||
+      (hasConfirmation && typeof payer.confirmPrimaryPayerChange !== "boolean")
+    ) return null;
+  } else if (
+    !hasExactKeys(payer, hasConfirmation
+      ? ["givenName", "familyName", "relationship", "confirmPrimaryPayerChange"]
+      : ["givenName", "familyName", "relationship"]) ||
+    typeof payer.givenName !== "string" || payer.givenName.trim().length === 0 ||
+    payer.givenName.trim() !== payer.givenName || payer.givenName.length > 100 ||
+    typeof payer.familyName !== "string" || payer.familyName.trim().length === 0 ||
+    payer.familyName.trim() !== payer.familyName || payer.familyName.length > 100 ||
+    !["parent", "legal_guardian", "foster_guardian", "other"].includes(String(payer.relationship)) ||
+    (hasConfirmation && typeof payer.confirmPrimaryPayerChange !== "boolean")
+  ) return null;
+
+  return value;
+}
+
+function decodePendingResolutionCommand(raw: string): PendingResolutionCommand | null {
+  if (raw.length > maxPendingResolutionStorageLength) return null;
+  try {
+    const value: unknown = JSON.parse(raw);
+    if (!isRecord(value) || !hasExactKeys(value, [
+      "version", "scopeKey", "organizationId", "locationId", "servicePeriod",
+      "actionKey", "operation", "endpoint", "method", "key",
+      "hasAmbiguousAttempt", "serializedBody", "fingerprint",
+    ])) return null;
+    if (
+      value.version !== pendingResolutionStorageVersion ||
+      !isUuid(value.organizationId) || !isUuid(value.locationId) ||
+      typeof value.servicePeriod !== "string" || !/^\d{4}-(0[1-9]|1[0-2])$/.test(value.servicePeriod) ||
+      typeof value.actionKey !== "string" ||
+      !["create-price-plan", "assign-tariff", "associate-family"].includes(String(value.operation)) ||
+      (value.method !== "POST" && value.method !== "PATCH") ||
+      typeof value.key !== "string" || value.key.trim() !== value.key ||
+      value.key.length < 8 || value.key.length > 180 ||
+      typeof value.hasAmbiguousAttempt !== "boolean" ||
+      typeof value.serializedBody !== "string" || value.serializedBody.length > 24_000 ||
+      typeof value.fingerprint !== "string"
+    ) return null;
+
+    const operation = value.operation as PendingResolutionCommand["operation"];
+    const expectedScopeKey = resolutionScopeKey({
+      organizationId: value.organizationId,
+      locationId: value.locationId,
+      servicePeriod: value.servicePeriod,
+      actionKey: value.actionKey,
+    });
+    if (value.scopeKey !== expectedScopeKey) return null;
+
+    const expectedKeyPrefix = operation === "create-price-plan"
+      ? "owner-monthly-price-plan"
+      : operation === "assign-tariff"
+        ? "owner-price-assignment"
+        : "owner-family-association";
+    const keyNonce = value.key.startsWith(`${expectedKeyPrefix}:`)
+      ? value.key.slice(expectedKeyPrefix.length + 1)
+      : "";
+    if (!isUuid(keyNonce)) return null;
+
+    const expectedEndpoint = operation === "create-price-plan"
+      ? "/api/v1/owner/billing/price-plans"
+      : operation === "assign-tariff"
+        ? `/api/v1/owner/enrollments/${encodeURIComponent(value.actionKey.slice("tariff:".length))}/price-plan`
+        : "/api/v1/owner/families/associations";
+    const expectedMethod = operation === "assign-tariff" ? "PATCH" : "POST";
+    if (value.endpoint !== expectedEndpoint || value.method !== expectedMethod) return null;
+
+    const commandWithoutBody = {
+      scopeKey: value.scopeKey,
+      organizationId: value.organizationId,
+      locationId: value.locationId,
+      servicePeriod: value.servicePeriod,
+      actionKey: value.actionKey,
+      operation,
+      endpoint: value.endpoint,
+      method: value.method,
+      key: value.key,
+      serializedBody: value.serializedBody,
+    };
+    if (value.fingerprint !== pendingResolutionFingerprint(commandWithoutBody)) return null;
+    const body = validatePendingResolutionBody(
+      operation,
+      value.actionKey,
+      value.organizationId,
+      value.locationId,
+      value.serializedBody
+    );
+    if (!body) return null;
+
+    return {
+      scopeKey: value.scopeKey,
+      organizationId: value.organizationId,
+      locationId: value.locationId,
+      servicePeriod: value.servicePeriod,
+      actionKey: value.actionKey,
+      operation,
+      endpoint: value.endpoint,
+      method: value.method,
+      key: value.key,
+      hasAmbiguousAttempt: value.hasAmbiguousAttempt,
+      body,
+      serializedBody: value.serializedBody,
+    };
+  } catch {
+    return null;
+  }
+}
+
+function readPendingResolutionCommand(): PendingResolutionStorageRead {
+  try {
+    const raw = window.sessionStorage.getItem(PENDING_OWNER_MONTHLY_RESOLUTION_STORAGE_KEY);
+    if (raw === null) return { kind: "none" };
+    const command = decodePendingResolutionCommand(raw);
+    return command ? { kind: "pending", command } : { kind: "invalid" };
+  } catch {
+    return { kind: "unavailable" };
+  }
+}
+
+function pendingResolutionRecord(command: PendingResolutionCommand): PendingResolutionStorageRecord {
+  const { body: _body, ...persisted } = command;
+  return {
+    version: pendingResolutionStorageVersion,
+    ...persisted,
+    fingerprint: pendingResolutionFingerprint(command),
+  };
+}
+
+function samePendingResolutionCommand(
+  left: PendingResolutionCommand,
+  right: PendingResolutionCommand,
+  includeAmbiguous = true
+): boolean {
+  return (
+    left.scopeKey === right.scopeKey &&
+    left.organizationId === right.organizationId &&
+    left.locationId === right.locationId &&
+    left.servicePeriod === right.servicePeriod &&
+    left.actionKey === right.actionKey &&
+    left.operation === right.operation &&
+    left.endpoint === right.endpoint &&
+    left.method === right.method &&
+    left.key === right.key &&
+    left.serializedBody === right.serializedBody &&
+    (!includeAmbiguous || left.hasAmbiguousAttempt === right.hasAmbiguousAttempt)
+  );
+}
+
+function persistPendingResolutionCommand(
+  command: PendingResolutionCommand,
+  options: { allowCreate?: boolean; allowAmbiguousUpgrade?: boolean } = {}
+): boolean {
+  try {
+    const read = readPendingResolutionCommand();
+    if (read.kind === "unavailable" || read.kind === "invalid") return false;
+    if (read.kind === "none") {
+      if (!options.allowCreate) return false;
+    } else if (!samePendingResolutionCommand(read.command, command, false)) {
+      return false;
+    } else if (read.command.hasAmbiguousAttempt !== command.hasAmbiguousAttempt) {
+      if (
+        !options.allowAmbiguousUpgrade ||
+        !command.hasAmbiguousAttempt ||
+        read.command.hasAmbiguousAttempt
+      ) return false;
+    } else {
+      return true;
+    }
+
+    window.sessionStorage.setItem(
+      PENDING_OWNER_MONTHLY_RESOLUTION_STORAGE_KEY,
+      JSON.stringify(pendingResolutionRecord(command))
+    );
+    const verified = readPendingResolutionCommand();
+    return verified.kind === "pending" &&
+      samePendingResolutionCommand(verified.command, command);
+  } catch {
+    return false;
+  }
+}
+
+function pendingResolutionCommandMatchesStorage(
+  command: PendingResolutionCommand
+): boolean {
+  const read = readPendingResolutionCommand();
+  return read.kind === "pending" && samePendingResolutionCommand(read.command, command);
+}
+
+function clearPendingResolutionCommand(
+  command: PendingResolutionCommand
+): boolean {
+  try {
+    const stored = readPendingResolutionCommand();
+    // Another mounted instance may already have cleared this same key after a
+    // validated terminal receipt. The caller only clears after validating its
+    // own success or definitive first-attempt rejection.
+    if (stored.kind === "none") return true;
+    if (
+      stored.kind !== "pending" ||
+      !samePendingResolutionCommand(stored.command, command)
+    ) return false;
+    window.sessionStorage.removeItem(PENDING_OWNER_MONTHLY_RESOLUTION_STORAGE_KEY);
+    return window.sessionStorage.getItem(PENDING_OWNER_MONTHLY_RESOLUTION_STORAGE_KEY) === null;
+  } catch {
+    return false;
+  }
+}
+
 function isClassTemplateOption(value: unknown): value is ClassTemplateOption {
   if (!value || typeof value !== "object") return false;
   const option = value as Partial<ClassTemplateOption>;
@@ -202,10 +553,19 @@ export function OwnerMonthlyInvoiceResolutionPanel({
   };
   const currentScopeKey = resolutionScopeKey(currentScope);
   const currentScopeKeyRef = useRef(currentScopeKey);
+  const payerConfirmationScopeKeyRef = useRef(currentScopeKey);
   const onSavedRef = useRef(onSaved);
+  const [primaryPayerConfirmationKey, setPrimaryPayerConfirmationKey] =
+    useState<string | null>(null);
   useCommittedLayoutEffect(() => {
     currentScopeKeyRef.current = currentScopeKey;
     onSavedRef.current = onSaved;
+    if (payerConfirmationScopeKeyRef.current !== currentScopeKey) {
+      payerConfirmationScopeKeyRef.current = currentScopeKey;
+      // Scope changes invalidate consent captured for the prior operation.
+      // eslint-disable-next-line react-hooks/set-state-in-effect
+      setPrimaryPayerConfirmationKey(null);
+    }
   }, [currentScopeKey, onSaved]);
   const [loading, setLoading] = useState(true);
   const [busy, setBusy] = useState(false);
@@ -262,6 +622,8 @@ export function OwnerMonthlyInvoiceResolutionPanel({
   const pendingCommandRef = useRef<PendingResolutionCommand | null>(null);
   const [pendingCommand, setPendingCommand] =
     useState<PendingResolutionCommand | null>(null);
+  const [pendingStorageReady, setPendingStorageReady] = useState(false);
+  const [pendingStorageError, setPendingStorageError] = useState("");
   const [commandReceipt, setCommandReceipt] = useState<{
     organizationId: string;
     locationId: string;
@@ -269,6 +631,40 @@ export function OwnerMonthlyInvoiceResolutionPanel({
     message: string;
   } | null>(null);
   usePendingCommandExitWarning(pendingCommand !== null, pendingCommandRef);
+
+  useEffect(() => {
+    const stored = readPendingResolutionCommand();
+    if (stored.kind === "none") {
+      setPendingStorageReady(true);
+      return;
+    }
+    if (stored.kind === "unavailable") {
+      setPendingStorageError(
+        "No podemos leer el marcador seguro de esta sesión. No se enviarán cambios desde este panel."
+      );
+      setPendingStorageReady(true);
+      return;
+    }
+    if (stored.kind === "invalid") {
+      setPendingStorageError(
+        "El marcador de una operación anterior no supera la validación. No se enviarán cambios desde este panel."
+      );
+      setPendingStorageReady(true);
+      return;
+    }
+
+    // After a remount, the request may or may not have reached the server.
+    // Upgrade only metadata; the exact serialized body and idempotency key stay fixed.
+    const restored = { ...stored.command, hasAmbiguousAttempt: true };
+    pendingCommandRef.current = restored;
+    setPendingCommand(restored);
+    if (!persistPendingResolutionCommand(restored, { allowAmbiguousUpgrade: true })) {
+      setPendingStorageError(
+        "No pudimos releer y verificar la operación pendiente. Conservamos el marcador y no la reenviaremos."
+      );
+    }
+    setPendingStorageReady(true);
+  }, []);
 
   function recordLateReceipt(
     command: PendingResolutionCommand,
@@ -302,6 +698,32 @@ export function OwnerMonthlyInvoiceResolutionPanel({
     ? classTemplates
     : [];
   const currentFamilies = familyOptionsMatchCurrentScope ? families : [];
+  const associationFamilyId =
+    action.kind === "payer" ? action.familyId : selectedFamilyId;
+  const selectedFamily = currentFamilies.find(
+    (family) => family.familyId === associationFamilyId
+  );
+  const selectedFamilyPayer = selectedFamily?.payers.find(
+    (payer) => payer.familyPayerId === selectedPayerId
+  );
+  const primaryPayerWillChange = Boolean(
+    associationFamilyId &&
+      selectedFamily &&
+      (selectedFamilyPayer
+        ? !selectedFamilyPayer.isPrimary
+        : selectedFamily.payers.some((payer) => payer.isPrimary))
+  );
+  const currentPayerConfirmationKey = JSON.stringify([
+    currentScopeKey,
+    associationFamilyId || null,
+    selectedFamilyPayer?.familyPayerId ?? null,
+    effectiveFrom,
+    selectedFamilyPayer ? null : givenName.trim(),
+    selectedFamilyPayer ? null : familyName.trim(),
+    selectedFamilyPayer ? null : relationship,
+  ]);
+  const primaryPayerChangeConfirmed =
+    primaryPayerConfirmationKey === currentPayerConfirmationKey;
   const canCreatePricePlan =
     !currentLoading &&
     !busy &&
@@ -440,7 +862,11 @@ export function OwnerMonthlyInvoiceResolutionPanel({
     method: PendingResolutionCommand["method"],
     body: unknown
   ) {
-    if (pendingCommandRef.current) return null;
+    if (
+      !pendingStorageReady ||
+      pendingStorageError ||
+      pendingCommandRef.current
+    ) return null;
     const command: PendingResolutionCommand = {
       ...currentScope,
       scopeKey: currentScopeKey,
@@ -452,29 +878,65 @@ export function OwnerMonthlyInvoiceResolutionPanel({
       body,
       serializedBody: JSON.stringify(body),
     };
+    if (!persistPendingResolutionCommand(command, { allowCreate: true })) {
+      setPendingStorageError(
+        "No pudimos guardar y releer la operación exacta en esta sesión. No se enviará."
+      );
+      return null;
+    }
     pendingCommandRef.current = command;
     setPendingCommand(command);
     return command;
   }
 
   function clearPendingCommand(command: PendingResolutionCommand) {
-    if (pendingCommandRef.current?.key !== command.key) return;
+    if (
+      pendingCommandRef.current?.key !== command.key ||
+      !clearPendingResolutionCommand(command)
+    ) {
+      setPendingStorageError(
+        "No pudimos verificar ni limpiar el marcador pendiente. Se conserva la operación para evitar duplicados."
+      );
+      return false;
+    }
     pendingCommandRef.current = null;
     setPendingCommand(null);
+    return true;
   }
 
   function markPendingCommandAmbiguous(command: PendingResolutionCommand) {
     const current = pendingCommandRef.current;
-    if (current?.key !== command.key || current.hasAmbiguousAttempt) return;
-    const updated = { ...current, hasAmbiguousAttempt: true };
-    pendingCommandRef.current = updated;
-    setPendingCommand(updated);
+    if (current?.key !== command.key) return;
+    const updated = current.hasAmbiguousAttempt
+      ? current
+      : { ...current, hasAmbiguousAttempt: true };
+    if (updated !== current) {
+      pendingCommandRef.current = updated;
+      setPendingCommand(updated);
+    }
+    if (!persistPendingResolutionCommand(updated, {
+      allowCreate: true,
+      allowAmbiguousUpgrade: true,
+    })) {
+      setPendingStorageError(
+        "No pudimos persistir la incertidumbre de la operación. No se permitirá reenviarla desde este panel."
+      );
+    }
   }
 
   async function sendPendingCommand(
     command: PendingResolutionCommand,
     fallback: string
   ): Promise<{ response: Response; payload: unknown } | null> {
+    if (!pendingResolutionCommandMatchesStorage(command)) {
+      setPendingStorageError(
+        "El marcador guardado no coincide con la operación pendiente. No se enviará otra solicitud."
+      );
+      setError(
+        "No se pudo verificar la operación pendiente en esta sesión. No se ha enviado."
+      );
+      return null;
+    }
     setBusy(true);
     setError("");
     try {
@@ -498,7 +960,9 @@ export function OwnerMonthlyInvoiceResolutionPanel({
           ((response.status >= 400 && response.status < 500) ||
             knownPreCommitDomainRejection);
         if (definitiveFirstRejection) {
-          clearPendingCommand(command);
+          if (!clearPendingCommand(command)) {
+            markPendingCommandAmbiguous(command);
+          }
         } else {
           markPendingCommandAmbiguous(command);
         }
@@ -518,7 +982,13 @@ export function OwnerMonthlyInvoiceResolutionPanel({
   }
 
   async function createPricePlan() {
-    if (blocked || currentLoading || pendingCommandRef.current) return;
+    if (
+      blocked ||
+      currentLoading ||
+      !pendingStorageReady ||
+      pendingStorageError ||
+      pendingCommandRef.current
+    ) return;
     if (action.kind !== "tariff") return;
     const name = newPricePlanName.trim();
     const amountCents = parseMonthlyAmountCents(newPricePlanAmount);
@@ -580,7 +1050,13 @@ export function OwnerMonthlyInvoiceResolutionPanel({
   }
 
   async function saveTariff() {
-    if (blocked || currentLoading || pendingCommandRef.current) return;
+    if (
+      blocked ||
+      currentLoading ||
+      !pendingStorageReady ||
+      pendingStorageError ||
+      pendingCommandRef.current
+    ) return;
     if (
       action.kind !== "tariff" ||
       !currentPricePlans.some((plan) => plan.id === selectedPricePlanId) ||
@@ -607,40 +1083,49 @@ export function OwnerMonthlyInvoiceResolutionPanel({
   }
 
   async function saveAssociation() {
-    if (blocked || currentLoading || pendingCommandRef.current) return;
+    if (
+      blocked ||
+      currentLoading ||
+      !pendingStorageReady ||
+      pendingStorageError ||
+      pendingCommandRef.current
+    ) return;
     if (action.kind === "tariff") return;
-    const familyId =
-      action.kind === "payer" ? action.familyId : selectedFamilyId;
     const uniqueAthleteIds = [...new Set(athleteIds)];
-    const selectedFamily = currentFamilies.find(
-      (family) => family.familyId === familyId
-    );
-    const existingPayerId = selectedFamily?.payers.some(
-      (payer) => payer.familyPayerId === selectedPayerId
-    )
-      ? selectedPayerId
-      : "";
     if (
       uniqueAthleteIds.length === 0 ||
       !effectiveFrom ||
-      (!existingPayerId && (!givenName.trim() || !familyName.trim()))
+      (associationFamilyId && !selectedFamily) ||
+      (!selectedFamilyPayer && (!givenName.trim() || !familyName.trim()))
     ) {
       setError(
         "Selecciona la familia y las gimnastas, y completa el nombre de la persona pagadora adulta."
       );
       return;
     }
+    if (primaryPayerWillChange && !primaryPayerChangeConfirmed) {
+      setError("Confirma el cambio de pagador principal antes de continuar.");
+      return;
+    }
     const body = {
       organizationId,
       locationId,
-      ...(familyId ? { familyId } : {}),
+      ...(associationFamilyId ? { familyId: associationFamilyId } : {}),
       athleteIds: uniqueAthleteIds,
-      payer: existingPayerId
-        ? { familyPayerId: existingPayerId }
+      payer: selectedFamilyPayer
+        ? {
+            familyPayerId: selectedFamilyPayer.familyPayerId,
+            ...(primaryPayerWillChange
+              ? { confirmPrimaryPayerChange: true }
+              : {}),
+          }
         : {
             givenName: givenName.trim(),
             familyName: familyName.trim(),
             relationship,
+            ...(primaryPayerWillChange
+              ? { confirmPrimaryPayerChange: true }
+              : {}),
           },
       effectiveFrom,
     };
@@ -690,7 +1175,13 @@ export function OwnerMonthlyInvoiceResolutionPanel({
         );
         return;
       }
-      clearPendingCommand(command);
+      if (!clearPendingCommand(command)) {
+        markPendingCommandAmbiguous(command);
+        setError(
+          "El servidor confirmó la tarifa, pero no pudimos limpiar el marcador. Conservamos la operación para comprobarla con la misma clave."
+        );
+        return;
+      }
       if (command.scopeKey !== currentScopeKeyRef.current) {
         recordLateReceipt(
           command,
@@ -733,7 +1224,13 @@ export function OwnerMonthlyInvoiceResolutionPanel({
         );
         return;
       }
-      clearPendingCommand(command);
+      if (!clearPendingCommand(command)) {
+        markPendingCommandAmbiguous(command);
+        setError(
+          "El servidor confirmó la asignación, pero no pudimos limpiar el marcador. Conservamos la operación para comprobarla con la misma clave."
+        );
+        return;
+      }
       if (command.scopeKey !== currentScopeKeyRef.current) {
         recordLateReceipt(
           command,
@@ -753,7 +1250,13 @@ export function OwnerMonthlyInvoiceResolutionPanel({
       );
       return;
     }
-    clearPendingCommand(command);
+    if (!clearPendingCommand(command)) {
+      markPendingCommandAmbiguous(command);
+      setError(
+        "El servidor confirmó el vínculo, pero no pudimos limpiar el marcador. Conservamos la operación para comprobarla con la misma clave."
+      );
+      return;
+    }
     if (command.scopeKey !== currentScopeKeyRef.current) {
       recordLateReceipt(
         command,
@@ -769,6 +1272,8 @@ export function OwnerMonthlyInvoiceResolutionPanel({
     if (
       !command ||
       command.scopeKey !== currentScopeKey ||
+      !pendingStorageReady ||
+      Boolean(pendingStorageError) ||
       busy
     ) {
       return;
@@ -776,9 +1281,6 @@ export function OwnerMonthlyInvoiceResolutionPanel({
     void resolvePendingCommand(command);
   }
 
-  const selectedFamily = currentFamilies.find(
-    (family) => family.familyId === selectedFamilyId
-  );
   const pendingMatchesCurrentScope =
     pendingCommand?.scopeKey === currentScopeKey;
 
@@ -815,7 +1317,7 @@ export function OwnerMonthlyInvoiceResolutionPanel({
           {pendingMatchesCurrentScope ? (
             <button
               type="button"
-              disabled={busy}
+              disabled={busy || !pendingStorageReady || Boolean(pendingStorageError)}
               onClick={replayPendingCommand}
               className={`${primaryButtonClassName} w-fit`}
             >
@@ -850,6 +1352,12 @@ export function OwnerMonthlyInvoiceResolutionPanel({
             Volver al ámbito de la operación
           </Link>
         </div>
+      )}
+
+      {pendingStorageError && (
+        <p role="alert" className="border border-red-300 bg-red-50 p-3 text-sm text-red-900">
+          {pendingStorageError}
+        </p>
       )}
 
       {currentLoading && <p role="status">Cargando opciones…</p>}
@@ -1109,6 +1617,7 @@ export function OwnerMonthlyInvoiceResolutionPanel({
                 onChange={(event) => {
                   setSelectedFamilyId(event.target.value);
                   setSelectedPayerId("");
+                  setPrimaryPayerConfirmationKey(null);
                 }}
                 disabled={busy}
                 className={fieldClassName}
@@ -1152,13 +1661,14 @@ export function OwnerMonthlyInvoiceResolutionPanel({
                   <input
                     type="checkbox"
                     checked={athleteIds.includes(athlete.athleteId)}
-                    onChange={(event) =>
+                    onChange={(event) => {
                       setAthleteIds((current) =>
                         event.target.checked
                           ? [...new Set([...current, athlete.athleteId])]
                           : current.filter((id) => id !== athlete.athleteId)
-                      )
-                    }
+                      );
+                      setPrimaryPayerConfirmationKey(null);
+                    }}
                     disabled={busy}
                     className="h-5 w-5 accent-teal-800"
                   />
@@ -1171,7 +1681,10 @@ export function OwnerMonthlyInvoiceResolutionPanel({
               <span className="text-sm font-bold">Persona pagadora</span>
               <select
                 value={selectedPayerId}
-                onChange={(event) => setSelectedPayerId(event.target.value)}
+                onChange={(event) => {
+                  setSelectedPayerId(event.target.value);
+                  setPrimaryPayerConfirmationKey(null);
+                }}
                 disabled={busy}
                 className={fieldClassName}
               >
@@ -1188,7 +1701,7 @@ export function OwnerMonthlyInvoiceResolutionPanel({
             </label>
           ) : null}
 
-          {!selectedPayerId && (
+          {!selectedFamilyPayer && (
             <div className="grid gap-4 sm:grid-cols-2">
               <label className="grid gap-2">
                 <span className="text-sm font-bold">
@@ -1196,7 +1709,10 @@ export function OwnerMonthlyInvoiceResolutionPanel({
                 </span>
                 <input
                   value={givenName}
-                  onChange={(event) => setGivenName(event.target.value)}
+                  onChange={(event) => {
+                    setGivenName(event.target.value);
+                    setPrimaryPayerConfirmationKey(null);
+                  }}
                   disabled={busy}
                   required
                   maxLength={100}
@@ -1207,7 +1723,10 @@ export function OwnerMonthlyInvoiceResolutionPanel({
                 <span className="text-sm font-bold">Apellidos</span>
                 <input
                   value={familyName}
-                  onChange={(event) => setFamilyName(event.target.value)}
+                  onChange={(event) => {
+                    setFamilyName(event.target.value);
+                    setPrimaryPayerConfirmationKey(null);
+                  }}
                   disabled={busy}
                   required
                   maxLength={100}
@@ -1220,9 +1739,10 @@ export function OwnerMonthlyInvoiceResolutionPanel({
                 </span>
                 <select
                   value={relationship}
-                  onChange={(event) =>
-                    setRelationship(event.target.value as typeof relationship)
-                  }
+                  onChange={(event) => {
+                    setRelationship(event.target.value as typeof relationship);
+                    setPrimaryPayerConfirmationKey(null);
+                  }}
                   disabled={busy}
                   className={fieldClassName}
                 >
@@ -1235,12 +1755,32 @@ export function OwnerMonthlyInvoiceResolutionPanel({
             </div>
           )}
 
+          {primaryPayerWillChange && (
+            <label className="flex min-h-11 items-start gap-3 border border-amber-400 bg-amber-50 p-3 text-sm text-amber-950">
+              <input
+                type="checkbox"
+                checked={primaryPayerChangeConfirmed}
+                onChange={(event) =>
+                  setPrimaryPayerConfirmationKey(
+                    event.target.checked ? currentPayerConfirmationKey : null
+                  )
+                }
+                disabled={busy}
+                className="mt-1 h-5 w-5 accent-teal-800"
+              />
+              Confirmo que esta operación cambiará el pagador principal de toda la familia.
+            </label>
+          )}
+
           <label className="grid max-w-md gap-2">
             <span className="text-sm font-bold">Fecha efectiva</span>
             <input
               type="date"
               value={effectiveFrom}
-              onChange={(event) => setEffectiveFrom(event.target.value)}
+              onChange={(event) => {
+                setEffectiveFrom(event.target.value);
+                setPrimaryPayerConfirmationKey(null);
+              }}
               disabled={busy}
               required
               className={fieldClassName}
@@ -1273,7 +1813,13 @@ export function OwnerMonthlyInvoiceResolutionPanel({
             type="button"
             onClick={() => void saveTariff()}
             disabled={
-              blocked || busy || currentLoading || currentPricePlans.length === 0 || !selectedPricePlanId
+              blocked ||
+              busy ||
+              currentLoading ||
+              !pendingStorageReady ||
+              Boolean(pendingStorageError) ||
+              currentPricePlans.length === 0 ||
+              !selectedPricePlanId
             }
             className={primaryButtonClassName}
           >
@@ -1283,7 +1829,14 @@ export function OwnerMonthlyInvoiceResolutionPanel({
           <button
             type="button"
             onClick={() => void saveAssociation()}
-            disabled={blocked || busy || currentLoading}
+            disabled={
+              blocked ||
+              busy ||
+              currentLoading ||
+              !pendingStorageReady ||
+              Boolean(pendingStorageError) ||
+              (primaryPayerWillChange && !primaryPayerChangeConfirmed)
+            }
             className={primaryButtonClassName}
           >
             {busy ? "Guardando…" : "Guardar vínculo"}

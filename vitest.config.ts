@@ -52,6 +52,7 @@ export default defineConfig({
               : [
                   "tests/saas-capacity-postgres.integration.test.ts",
                   "tests/billing-ledger-postgres.integration.test.ts",
+                  "tests/owner-family-onboarding-postgres.integration.test.ts",
                 ]),
             ...(!runSandboxReadonlyPostgresSuites
               ? [

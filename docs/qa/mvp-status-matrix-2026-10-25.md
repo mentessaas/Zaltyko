@@ -175,3 +175,8 @@ Run `40189930084`, SHA `234599c92051714b9953393221a5e1be5069cbea`:
 5. Mantener producción sin cambios. Ninguna consulta ni escritura productiva,
    migración de destino, promoción o cambio de dominio está aprobada por esta
    matriz.
+
+
+## Entrega familiar posterior a085d092a — pendiente de ejecución
+
+Nueva asociación familia/tutor desde grupo sin inscripción previa en clase, confirmación de cambio de pagador en cliente/servidor y rechazo de familia simultánea que haría ambigua la cuota manual. Misma familia, sucesión posterior y replay histórico conservados. El panel mensual conserva comandos ambiguos en sessionStorage con reintento manual exacto tras desmontaje y cercas de ámbito. Nueve casos PostgreSQL añadidos al runner aislado, con snapshot15tablas para rechazos/rollback. Estos cambios están implementados y revisados estáticamente, pero NO VERIFICADOS por CI, sandbox o publicación en este corte. Contactos de tutores y CRUD familiar completo siguen pendientes; no se declara terminada la vertical completa.

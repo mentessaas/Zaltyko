@@ -17,6 +17,12 @@ import {
   type PendingOwnerAthleteProfileUpdate,
 } from "./OwnerAthleteProfileEditor";
 import {
+  OwnerAthleteFamilyAssociationEditor,
+  pendingOwnerAthleteFamilyAssociationMatches,
+  readPendingOwnerAthleteFamilyAssociation,
+  type PendingOwnerAthleteFamilyAssociation,
+} from "./OwnerAthleteFamilyAssociationEditor";
+import {
   clearPendingGroupAthleteCreate,
   decodeGroupAthleteRecovery,
   decodePendingGroupAthleteCreate,
@@ -261,6 +267,13 @@ export function OwnerGroupsManager({ bundle }: { bundle: GroupsBundle }) {
   const profilePendingRef = useRef<PendingOwnerAthleteProfileUpdate | null>(null);
   const activeAthleteProfileKeyRef = useRef<string | null>(null);
   const [profileRecoveryAttempt, setProfileRecoveryAttempt] = useState(0);
+  const [familyRecoveryLoadedFor, setFamilyRecoveryLoadedFor] = useState<string | null>(null);
+  const [familyRecoveryIssue, setFamilyRecoveryIssue] = useState<string | null>(null);
+  const [pendingAthleteFamilyAssociation, setPendingAthleteFamilyAssociation] = useState<PendingOwnerAthleteFamilyAssociation | null>(null);
+  const [activeAthleteFamilyAssociationKey, setActiveAthleteFamilyAssociationKey] = useState<string | null>(null);
+  const familyPendingRef = useRef<PendingOwnerAthleteFamilyAssociation | null>(null);
+  const activeAthleteFamilyAssociationKeyRef = useRef<string | null>(null);
+  const [familyRecoveryAttempt, setFamilyRecoveryAttempt] = useState(0);
   const [createAthleteRecovery, setCreateAthleteRecovery] = useState<CreateAthleteRecoveryState | null>(null);
   const [createAthleteRecoveryAttempt, setCreateAthleteRecoveryAttempt] = useState(0);
   const retryMembershipRef = useRef<HTMLButtonElement | null>(null);
@@ -268,6 +281,7 @@ export function OwnerGroupsManager({ bundle }: { bundle: GroupsBundle }) {
   useEffect(() => { scopeVersionRef.current += 1; }, [membershipScope]);
   usePendingCommandExitWarning(pendingMembership !== null, pendingMembershipRef);
   usePendingCommandExitWarning(pendingAthleteProfile !== null, profilePendingRef);
+  usePendingCommandExitWarning(pendingAthleteFamilyAssociation !== null, familyPendingRef);
   const selectedGroup = bundle.groups.find(
     (group) => group.id === bundle.selectedGroupId
   );
@@ -290,10 +304,21 @@ export function OwnerGroupsManager({ bundle }: { bundle: GroupsBundle }) {
   const membershipRecoveryError = membershipRecoveryFailure?.scope === membershipScope ? membershipRecoveryFailure.message : "";
   const profileRecoveryReady = profileRecoveryLoadedFor === organizationId;
   const profileRecoveryBlocked = !profileRecoveryReady || profileRecoveryIssue !== null || pendingAthleteProfile !== null || activeAthleteProfileKey !== null;
+  const familyRecoveryReady = familyRecoveryLoadedFor === organizationId;
+  const familyRecoveryBlocked = !familyRecoveryReady || familyRecoveryIssue !== null || pendingAthleteFamilyAssociation !== null || activeAthleteFamilyAssociationKey !== null;
+  const nonFamilyCommandsLocked = busy || !membershipRecoveryReady || membershipRecoveryError !== "" || pendingMembership !== null || foreignMembershipScope !== null || currentPendingGroupCreate !== null;
+  const pendingFamilyAssociationVisible = Boolean(selectedGroup && pendingAthleteFamilyAssociation && bundle.memberships.some((membership) =>
+    pendingOwnerAthleteFamilyAssociationMatches(pendingAthleteFamilyAssociation, {
+      organizationId,
+      locationId: selectedGroup.locationId,
+      groupId: selectedGroup.id,
+      athleteId: membership.athleteId,
+    })
+  ));
   const groupCreateLocked =
-    busy || !groupCreateScopeLoaded || !membershipRecoveryReady || membershipRecoveryError !== "" || currentPendingGroupCreate !== null || pendingMembership !== null || foreignMembershipScope !== null || profileRecoveryBlocked || writesBlocked;
-  const baseCommandsLocked = busy || !membershipRecoveryReady || membershipRecoveryError !== "" || pendingMembership !== null || foreignMembershipScope !== null || currentPendingGroupCreate !== null;
-  const commandsLocked = baseCommandsLocked || profileRecoveryBlocked;
+    busy || !groupCreateScopeLoaded || !membershipRecoveryReady || membershipRecoveryError !== "" || currentPendingGroupCreate !== null || pendingMembership !== null || foreignMembershipScope !== null || profileRecoveryBlocked || familyRecoveryBlocked || writesBlocked;
+  const baseCommandsLocked = nonFamilyCommandsLocked || profileRecoveryBlocked || familyRecoveryBlocked;
+  const commandsLocked = baseCommandsLocked;
   const canRetryMembership = pendingMembership?.organizationId === organizationId && pendingMembership.groupId === bundle.selectedGroupId;
   const scopedCreateAthleteRecovery = createAthleteRecovery?.scope === membershipScope ? createAthleteRecovery : null;
   const createAthleteBlocked = !scopedCreateAthleteRecovery ||
@@ -366,6 +391,76 @@ export function OwnerGroupsManager({ bundle }: { bundle: GroupsBundle }) {
     }
     setProfileRecoveryLoadedFor(organizationId);
   }, [organizationId, profileRecoveryAttempt]);
+
+  function updateActiveAthleteFamilyAssociation(key: string, active: boolean) {
+    if (active) {
+      activeAthleteFamilyAssociationKeyRef.current = key;
+      setActiveAthleteFamilyAssociationKey(key);
+    } else if (activeAthleteFamilyAssociationKeyRef.current === key) {
+      activeAthleteFamilyAssociationKeyRef.current = null;
+      setActiveAthleteFamilyAssociationKey(null);
+    }
+  }
+
+  function updatePendingAthleteFamilyAssociation(command: PendingOwnerAthleteFamilyAssociation | null) {
+    if (command) {
+      familyPendingRef.current = command;
+      setPendingAthleteFamilyAssociation(command);
+      const current = readPendingOwnerAthleteFamilyAssociation();
+      if (current.kind !== "pending" ||
+        current.command.idempotencyKey !== command.idempotencyKey ||
+        current.command.body !== command.body) {
+        setFamilyRecoveryIssue(current.kind === "invalid"
+          ? "La asociación familiar pendiente está dañada. No se permitirán cambios hasta recuperar su estado."
+          : "No se pudo confirmar el cuerpo y la clave guardados de la asociación familiar. No se permitirán cambios hasta comprobar la operación.");
+        setFamilyRecoveryLoadedFor(organizationId);
+        return;
+      }
+      familyPendingRef.current = current.command;
+      setPendingAthleteFamilyAssociation(current.command);
+      setFamilyRecoveryIssue(null);
+      setFamilyRecoveryLoadedFor(organizationId);
+      return;
+    }
+
+    const current = readPendingOwnerAthleteFamilyAssociation();
+    if (current.kind === "none") {
+      familyPendingRef.current = null;
+      setPendingAthleteFamilyAssociation(null);
+      setFamilyRecoveryIssue(null);
+      setFamilyRecoveryLoadedFor(organizationId);
+    } else if (current.kind === "pending") {
+      familyPendingRef.current = current.command;
+      setPendingAthleteFamilyAssociation(current.command);
+      setFamilyRecoveryIssue(null);
+      setFamilyRecoveryLoadedFor(organizationId);
+    } else {
+      setFamilyRecoveryIssue(current.kind === "invalid"
+        ? "La asociación familiar pendiente está dañada. No se permitirán cambios hasta recuperar su estado."
+        : "No se pudo comprobar el almacenamiento de esta sesión. No se permitirán cambios hasta verificar la asociación pendiente.");
+      setFamilyRecoveryLoadedFor(organizationId);
+    }
+  }
+
+  useEffect(() => {
+    const result = readPendingOwnerAthleteFamilyAssociation();
+    if (result.kind === "pending") {
+      familyPendingRef.current = result.command;
+      setPendingAthleteFamilyAssociation(result.command);
+      setFamilyRecoveryIssue(null);
+    } else if (result.kind === "none") {
+      familyPendingRef.current = null;
+      setPendingAthleteFamilyAssociation(null);
+      setFamilyRecoveryIssue(null);
+    } else {
+      familyPendingRef.current = null;
+      setPendingAthleteFamilyAssociation(null);
+      setFamilyRecoveryIssue(result.kind === "invalid"
+        ? "La asociación familiar pendiente está dañada. No se permitirán cambios hasta recuperar su estado."
+        : "No se pudo comprobar el almacenamiento de esta sesión. No se permitirán cambios hasta verificar la asociación pendiente.");
+    }
+    setFamilyRecoveryLoadedFor(organizationId);
+  }, [organizationId, familyRecoveryAttempt]);
 
   useEffect(() => {
     if (canRetryMembership && !busy) retryMembershipRef.current?.focus();
@@ -551,7 +646,7 @@ export function OwnerGroupsManager({ bundle }: { bundle: GroupsBundle }) {
     if (createOpen) {
       setCreateOpen(false);
       setGroupCreateValidation({ fieldErrors: {}, summary: "" });
-    } else if (writesAllowed) {
+    } else if (writesAllowed && !familyRecoveryBlocked) {
       setCreateOpen(true);
     }
   }
@@ -561,7 +656,9 @@ export function OwnerGroupsManager({ bundle }: { bundle: GroupsBundle }) {
       command.organizationId !== organizationId ||
       groupCreateRequestRef.current || membershipSendingRef.current || pendingMembershipRef.current ||
       profilePendingRef.current !== null || activeAthleteProfileKeyRef.current !== null ||
-      !profileRecoveryReady || profileRecoveryIssue !== null || pendingAthleteProfile !== null
+      !profileRecoveryReady || profileRecoveryIssue !== null || pendingAthleteProfile !== null ||
+      familyPendingRef.current !== null || activeAthleteFamilyAssociationKeyRef.current !== null ||
+      !familyRecoveryReady || familyRecoveryIssue !== null || pendingAthleteFamilyAssociation !== null
     ) {
       return;
     }
@@ -654,6 +751,8 @@ export function OwnerGroupsManager({ bundle }: { bundle: GroupsBundle }) {
       pendingMembershipRef.current || membershipSendingRef.current ||
       profilePendingRef.current || activeAthleteProfileKeyRef.current ||
       !profileRecoveryReady || profileRecoveryIssue !== null || pendingAthleteProfile !== null ||
+      familyPendingRef.current || activeAthleteFamilyAssociationKeyRef.current ||
+      !familyRecoveryReady || familyRecoveryIssue !== null || pendingAthleteFamilyAssociation !== null ||
       pendingGroupCreateLoadedFor !== organizationId
     ) {
       return;
@@ -735,7 +834,7 @@ export function OwnerGroupsManager({ bundle }: { bundle: GroupsBundle }) {
 
   async function searchAthletes(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
-    if (commandsLocked || pendingMembershipRef.current || membershipSendingRef.current || groupCreateRequestRef.current || profilePendingRef.current || activeAthleteProfileKeyRef.current || !profileRecoveryReady || profileRecoveryIssue !== null || pendingAthleteProfile !== null) return;
+    if (commandsLocked || pendingMembershipRef.current || membershipSendingRef.current || groupCreateRequestRef.current || profilePendingRef.current || activeAthleteProfileKeyRef.current || !profileRecoveryReady || profileRecoveryIssue !== null || pendingAthleteProfile !== null || familyPendingRef.current || activeAthleteFamilyAssociationKeyRef.current || !familyRecoveryReady || familyRecoveryIssue !== null || pendingAthleteFamilyAssociation !== null) return;
     setError("");
     setNotice("");
     if (!selectedGroup || candidateQuery.trim().length < 2) {
@@ -781,6 +880,8 @@ export function OwnerGroupsManager({ bundle }: { bundle: GroupsBundle }) {
       currentPendingGroupCreate ||
       profilePendingRef.current || activeAthleteProfileKeyRef.current ||
       !profileRecoveryReady || profileRecoveryIssue !== null || pendingAthleteProfile !== null ||
+      familyPendingRef.current || activeAthleteFamilyAssociationKeyRef.current ||
+      !familyRecoveryReady || familyRecoveryIssue !== null || pendingAthleteFamilyAssociation !== null ||
       (pendingMembershipRef.current !== null && pendingMembershipRef.current !== command)
     ) return;
     let activeCommand = command;
@@ -908,7 +1009,7 @@ export function OwnerGroupsManager({ bundle }: { bundle: GroupsBundle }) {
   }
 
   function membershipCommandBlocked() {
-    return writesBlocked || !membershipRecoveryReady || membershipRecoveryError !== "" || foreignMembershipScope !== null || busy || pendingMembershipRef.current !== null || membershipSendingRef.current || groupCreateRequestRef.current || currentPendingGroupCreate !== null || profilePendingRef.current !== null || activeAthleteProfileKeyRef.current !== null || !profileRecoveryReady || profileRecoveryIssue !== null || pendingAthleteProfile !== null;
+    return writesBlocked || !membershipRecoveryReady || membershipRecoveryError !== "" || foreignMembershipScope !== null || busy || pendingMembershipRef.current !== null || membershipSendingRef.current || groupCreateRequestRef.current || currentPendingGroupCreate !== null || profilePendingRef.current !== null || activeAthleteProfileKeyRef.current !== null || !profileRecoveryReady || profileRecoveryIssue !== null || pendingAthleteProfile !== null || familyPendingRef.current !== null || activeAthleteFamilyAssociationKeyRef.current !== null || !familyRecoveryReady || familyRecoveryIssue !== null || pendingAthleteFamilyAssociation !== null;
   }
 
   async function addAthlete(athleteId: string) {
@@ -1030,7 +1131,7 @@ export function OwnerGroupsManager({ bundle }: { bundle: GroupsBundle }) {
           <button
             type="button"
             className={primaryButtonClassName}
-            disabled={(!writesAllowed && !createOpen) || busy || !groupCreateScopeLoaded || !membershipRecoveryReady || membershipRecoveryError !== "" || currentPendingGroupCreate !== null || pendingMembership !== null || foreignMembershipScope !== null || profileRecoveryBlocked}
+            disabled={(!writesAllowed && !createOpen) || busy || !groupCreateScopeLoaded || !membershipRecoveryReady || membershipRecoveryError !== "" || currentPendingGroupCreate !== null || pendingMembership !== null || foreignMembershipScope !== null || profileRecoveryBlocked || familyRecoveryBlocked}
             onClick={toggleGroupCreateForm}
           >
             <Plus className="h-4 w-4" aria-hidden="true" />
@@ -1054,6 +1155,28 @@ export function OwnerGroupsManager({ bundle }: { bundle: GroupsBundle }) {
             <button type="button" className={`${secondaryButtonClassName} mt-3`} onClick={() => setProfileRecoveryAttempt((attempt) => attempt + 1)}>
               Volver a comprobar ficha pendiente
             </button>
+          </section>
+        )}
+        {familyRecoveryIssue && familyRecoveryReady && (
+          <section role="alert" className="mt-5 border border-amber-700 bg-amber-50 p-4 text-sm text-slate-950">
+            <p>{familyRecoveryIssue}</p>
+            <button type="button" className={`${secondaryButtonClassName} mt-3`} onClick={() => setFamilyRecoveryAttempt((attempt) => attempt + 1)}>
+              Volver a comprobar asociación familiar pendiente
+            </button>
+          </section>
+        )}
+        {!familyRecoveryReady && (
+          <p role="status" className="mt-5 text-sm text-slate-700">Comprobando si hay una asociación familiar pendiente…</p>
+        )}
+        {pendingAthleteFamilyAssociation && (
+          <section role="status" aria-labelledby="pending-family-association-title" className="mt-5 border border-amber-700 bg-amber-50 p-4 text-sm text-slate-950">
+            <h2 id="pending-family-association-title" className="font-bold">Asociación familiar pendiente de confirmar</h2>
+            <p className="mt-2 leading-6">Conservamos el cuerpo y la clave de la solicitud original. No iniciaremos otras escrituras hasta confirmar el resultado. Reintenta solo desde el botón de esta gimnasta; nunca enviaremos la operación automáticamente.</p>
+            {!pendingFamilyAssociationVisible && (
+              <Link className="mt-2 inline-flex min-h-11 items-center font-semibold underline" href={`/owner/groups?organizationId=${encodeURIComponent(pendingAthleteFamilyAssociation.organizationId)}&locationId=${encodeURIComponent(pendingAthleteFamilyAssociation.locationId)}&groupId=${encodeURIComponent(pendingAthleteFamilyAssociation.groupId)}`}>
+                Volver al grupo original para reintentar
+              </Link>
+            )}
           </section>
         )}
         {pendingAthleteProfile && !bundle.memberships.some((membership) =>
@@ -1165,7 +1288,7 @@ export function OwnerGroupsManager({ bundle }: { bundle: GroupsBundle }) {
                 <button
                   type="button"
                   className={`${primaryButtonClassName} mt-3`}
-                  disabled={busy}
+                  disabled={busy || familyRecoveryBlocked || profileRecoveryBlocked}
                   onClick={retryPendingGroupCreate}
                 >
                   {busy
@@ -1625,6 +1748,17 @@ export function OwnerGroupsManager({ bundle }: { bundle: GroupsBundle }) {
                         const profileEditorDisabled = baseCommandsLocked || !profileRecoveryReady || profileRecoveryIssue !== null ||
                           (pendingAthleteProfile !== null && !profileCommandMatches) ||
                           (activeAthleteProfileKey !== null && activeAthleteProfileKey !== profileEditorKey);
+                        const familyAssociationKey = `${organizationId}:${selectedGroup.locationId}:${selectedGroup.id}:${membership.athleteId}`;
+                        const familyAssociationCommandMatches = pendingOwnerAthleteFamilyAssociationMatches(pendingAthleteFamilyAssociation, {
+                          organizationId,
+                          locationId: selectedGroup.locationId,
+                          groupId: selectedGroup.id,
+                          athleteId: membership.athleteId,
+                        });
+                        const familyAssociationEditorDisabled = nonFamilyCommandsLocked || profileRecoveryBlocked ||
+                          !familyRecoveryReady || familyRecoveryIssue !== null ||
+                          (pendingAthleteFamilyAssociation !== null && !familyAssociationCommandMatches) ||
+                          (activeAthleteFamilyAssociationKey !== null && activeAthleteFamilyAssociationKey !== familyAssociationKey);
                         const profileScopeVersion = scopeVersionRef.current;
                         return (
                         <li
@@ -1653,6 +1787,24 @@ export function OwnerGroupsManager({ bundle }: { bundle: GroupsBundle }) {
                               pendingCommand={pendingAthleteProfile}
                               onActiveChange={(active) => updateActiveAthleteProfile(profileEditorKey, active)}
                               onPendingCommandChange={updatePendingAthleteProfile}
+                              onSaved={() => {
+                                if (scopeVersionRef.current === profileScopeVersion) router.refresh();
+                              }}
+                            />
+                            <OwnerAthleteFamilyAssociationEditor
+                              key={`family:${familyAssociationKey}`}
+                              organizationId={organizationId}
+                              locationId={selectedGroup.locationId}
+                              groupId={selectedGroup.id}
+                              athleteId={membership.athleteId}
+                              athleteName={membership.athleteName}
+                              effectiveFrom={selectedToday}
+                              allowExistingFamilies={bundle.member.locationScopeMode === "all"}
+                              disabled={familyAssociationEditorDisabled}
+                              readOnly={writesBlocked}
+                              pendingCommand={pendingAthleteFamilyAssociation}
+                              onActiveChange={updateActiveAthleteFamilyAssociation}
+                              onPendingCommandChange={updatePendingAthleteFamilyAssociation}
                               onSaved={() => {
                                 if (scopeVersionRef.current === profileScopeVersion) router.refresh();
                               }}

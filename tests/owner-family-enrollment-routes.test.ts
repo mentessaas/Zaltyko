@@ -225,6 +225,63 @@ describe.each(routes)("Owner $name HTTP boundary", (route) => {
   });
 });
 
+describe("Owner family association primary payer confirmation", () => {
+  it("accepts and forwards explicit confirmation for a primary payer change", async () => {
+    const payload = {
+      ...familyPayload,
+      familyId: "70000000-0000-4000-8000-000000000007",
+      payer: {
+        familyPayerId: "80000000-0000-4000-8000-000000000008",
+        confirmPrimaryPayerChange: true,
+      },
+    };
+
+    const response = await associateFamily(
+      request("/api/v1/owner/families/associations", payload)
+    );
+
+    expect(response.status).toBe(201);
+    expect(mocks.associateOwnerFamily).toHaveBeenCalledWith({
+      ...payload,
+      idempotencyKey,
+      actor: { userId, memberId },
+    });
+  });
+
+  it("returns the confirmation requirement without invoking another path", async () => {
+    mocks.associateOwnerFamily.mockRejectedValueOnce(
+      new OperationalError(
+        "PRIMARY_PAYER_CONFIRMATION_REQUIRED",
+        "Confirma el cambio de responsable principal antes de continuar.",
+        422,
+        { field: "payer.confirmPrimaryPayerChange" }
+      )
+    );
+
+    const response = await associateFamily(
+      request("/api/v1/owner/families/associations", {
+        ...familyPayload,
+        familyId: "70000000-0000-4000-8000-000000000007",
+        payer: {
+          familyPayerId: "80000000-0000-4000-8000-000000000008",
+        },
+      })
+    );
+    const body = (await response.json()) as {
+      type: string;
+      status: number;
+      errors: { field: string };
+    };
+
+    expect(response.status).toBe(422);
+    expect(body).toMatchObject({
+      type: "https://zaltyko.com/problems/primary-payer-confirmation-required",
+      status: 422,
+      errors: { field: "payer.confirmPrimaryPayerChange" },
+    });
+  });
+});
+
 describe("Owner enrollment POST site eligibility boundary", () => {
   // Route tests exercise the HTTP contract; the service's SQL eligibility gate
   // and no-write denial are covered in enrollment-site-eligibility.test.ts.

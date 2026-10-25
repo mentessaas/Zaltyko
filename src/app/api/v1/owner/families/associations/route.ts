@@ -29,6 +29,7 @@ const bodySchema = z
         relationship: z
           .enum(["parent", "legal_guardian", "foster_guardian", "other"])
           .optional(),
+        confirmPrimaryPayerChange: z.boolean().optional(),
       })
       .strict(),
   })

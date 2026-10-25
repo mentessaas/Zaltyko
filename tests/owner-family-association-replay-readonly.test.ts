@@ -36,11 +36,13 @@ vi.mock("@/modules/shared/infrastructure/transactional-records", async importOri
 });
 
 import {
+  auditLog,
   athletes,
   families,
   familyMembers,
   familyPayers,
   memberLocationScopes,
+  outboxEvents,
   organizationMembers,
 } from "@/db/zaltyko-schema";
 import type { TransactionClient } from "@/lib/db-transactions";
@@ -77,6 +79,19 @@ const commandFingerprint = createHash("sha256")
     relationship: "parent",
   }))
   .digest("hex");
+const existingFamilyCommandFingerprint = createHash("sha256")
+  .update(JSON.stringify({
+    organizationId,
+    locationId,
+    familyId,
+    athleteIds: [athleteId],
+    effectiveFrom: "2026-10-01",
+    familyPayerId: payerId,
+    givenName: null,
+    familyName: null,
+    relationship: null,
+  }))
+  .digest("hex");
 const priorEvent = {
   payload: {
     resolvedFamilyId: familyId,
@@ -109,6 +124,9 @@ function makeTransaction() {
   const rows = new Map<unknown, unknown[]>([
     [families, [family]],
     [familyPayers, [payer]],
+    [auditLog, [{ actorUserId: actor.userId, locationId, targetId: familyId }]],
+    [memberLocationScopes, [{ id: "synthetic-location-scope", locationId }]],
+    [outboxEvents, [{ id: "synthetic-association-event", locationId }]],
   ]);
   const select = vi.fn(() => {
     let table: unknown;
@@ -120,6 +138,7 @@ function makeTransaction() {
     };
     const query = {
       from: (value: unknown) => { table = value; return query; },
+      innerJoin: () => query,
       where: (clause: Parameters<PgDialect["sqlToQuery"]>[0]) => {
         const compiled = dialect.sqlToQuery(clause);
         params = compiled.params;
@@ -129,23 +148,29 @@ function makeTransaction() {
       limit: async () => {
         if (table === organizationMembers) {
           const matches = params.length === 4
-            && matchesBound("organization_members.id", actor.memberId)
-            && matchesBound("organization_members.user_id", actor.userId)
+            && matchesBound("organization_members.id", member.id)
+            && matchesBound("organization_members.user_id", member.userId)
             && matchesBound("organization_members.organization_id", organizationId)
             && matchesBound("organization_members.status", "active")
-            && member.id === actor.memberId
-            && member.userId === actor.userId
             && member.organizationId === organizationId
             && member.status === "active";
           return matches ? [member] : [];
         }
         if (table === memberLocationScopes) {
-          const matches = scopeAllowed
-            && params.length === 3
-            && matchesBound("member_location_scopes.organization_id", organizationId)
-            && matchesBound("member_location_scopes.member_id", actor.memberId)
-            && matchesBound("member_location_scopes.location_id", locationId);
-          return matches ? [{ id: "synthetic-location-scope" }] : [];
+          const rowsForMember = rows.get(table) ?? [];
+          const matchesMember = params.includes(organizationId) &&
+            (params.includes(actor.memberId) || params.includes(member.id));
+          if (!matchesMember) return [];
+          if (whereSql.includes("member_location_scopes.location_id =")) {
+            const matchesLocation = scopeAllowed &&
+              matchesBound("member_location_scopes.location_id", locationId);
+            return matchesLocation
+              ? rowsForMember.filter((row) =>
+                  (row as { locationId?: string }).locationId === locationId
+                )
+              : [];
+          }
+          return rowsForMember;
         }
         if (table === families) {
           const matches = params.length === 2
@@ -159,6 +184,16 @@ function makeTransaction() {
             && matchesBound("family_payers.family_id", familyId)
             && matchesBound("family_payers.id", payerId);
           return matches ? rows.get(table) ?? [] : [];
+        }
+        if (table === outboxEvents) {
+          const eventRows = rows.get(table) ?? [];
+          const allowedIds = params.filter(
+            (value): value is string => typeof value === "string" && value !== organizationId
+          );
+          return eventRows.filter((row) => {
+            const location = (row as { locationId?: string | null }).locationId;
+            return location === null || location === undefined || !allowedIds.includes(location);
+          }).slice(0, 1);
         }
         return rows.get(table) ?? [];
       },
@@ -174,6 +209,28 @@ function makeTransaction() {
     write,
     execute,
     setMemberRole: (role: string) => { member.role = role; },
+    setMemberIdentity: (userId: string, memberId: string) => {
+      member.userId = userId;
+      member.id = memberId;
+    },
+    setAssociationLocations: (locations: Array<string | null>) => {
+      rows.set(
+        outboxEvents,
+        locations.map((locationId, index) => ({
+          id: `synthetic-association-event-${index}`,
+          locationId,
+        }))
+      );
+    },
+    setAuthorizedLocations: (locations: string[]) => {
+      rows.set(
+        memberLocationScopes,
+        locations.map((locationId, index) => ({
+          id: `synthetic-location-scope-${index}`,
+          locationId,
+        }))
+      );
+    },
     setLocationScope: (mode: string, allowed: boolean) => {
       member.locationScopeMode = mode;
       scopeAllowed = allowed;
@@ -181,7 +238,11 @@ function makeTransaction() {
   };
 }
 
-function replay(tx: TransactionClient, athleteIds = [athleteId]) {
+function replay(
+  tx: TransactionClient,
+  athleteIds = [athleteId],
+  replayActor = actor
+) {
   return associateOwnerFamilyInTransaction(tx, {
     organizationId,
     locationId,
@@ -189,7 +250,7 @@ function replay(tx: TransactionClient, athleteIds = [athleteId]) {
     effectiveFrom: "2026-10-01",
     payer: { givenName: "Ana", familyName: "López", relationship: "parent" },
     idempotencyKey,
-    actor,
+    actor: replayActor,
   });
 }
 
@@ -270,7 +331,15 @@ function makeNoReplayTransaction(overlappingRows: Array<{
   }));
   const execute = vi.fn(async () => []);
   const tx = { select, selectDistinct, execute, insert, update } as unknown as TransactionClient;
-  return { tx, membershipReads, memberInserts, insert };
+  return {
+    tx,
+    membershipReads,
+    memberInserts,
+    insert,
+    setMemberLocationScopeMode: (mode: string) => {
+      member.locationScopeMode = mode;
+    },
+  };
 }
 
 function associateWithoutReplay(tx: TransactionClient) {
@@ -292,6 +361,7 @@ beforeEach(() => {
   priorEvent.payload.resolvedFamilyId = familyId;
   priorEvent.payload.familyPayerId = payerId;
   priorEvent.payload.commandFingerprint = commandFingerprint;
+  priorEvent.payload.actorMemberId = actor.memberId;
   mocks.lock.mockResolvedValue(undefined);
   mocks.findEvent.mockImplementation(async (_tx, input) => {
     if (
@@ -468,6 +538,21 @@ describe("replay de asociación familiar en solo lectura", () => {
     expect(mocks.appendOutbox).not.toHaveBeenCalled();
   });
 
+  it("recupera un recibo antiguo usando el actorUserId auditado cuando no guardaba actorMemberId", async () => {
+    const { tx, write, execute } = makeTransaction();
+    delete priorEvent.payload.actorMemberId;
+
+    await expect(replay(tx)).resolves.toMatchObject({
+      family: { id: familyId },
+      familyPayerId: payerId,
+      guardianId,
+      replayed: true,
+    });
+
+    expect(write).not.toHaveBeenCalled();
+    expect(execute).not.toHaveBeenCalled();
+  });
+
   it("sigue denegando el replay a roles sin acceso", async () => {
     const { tx, write, execute, setMemberRole } = makeTransaction();
     setMemberRole("coach");
@@ -476,6 +561,118 @@ describe("replay de asociación familiar en solo lectura", () => {
 
     expect(mocks.assertAccess).toHaveBeenCalledOnce();
     expect(mocks.assertWritable).not.toHaveBeenCalled();
+    expect(write).not.toHaveBeenCalled();
+    expect(execute).not.toHaveBeenCalled();
+    expect(mocks.appendAudit).not.toHaveBeenCalled();
+    expect(mocks.appendOutbox).not.toHaveBeenCalled();
+  });
+
+  it("revalida todas las sedes antes de leer el replay de una familia existente", async () => {
+    const { tx, write, execute, setLocationScope } = makeTransaction();
+    priorEvent.payload.commandFingerprint = existingFamilyCommandFingerprint;
+    setLocationScope("selected", true);
+
+    await expect(
+      associateOwnerFamilyInTransaction(tx, {
+        organizationId,
+        locationId,
+        familyId,
+        athleteIds: [athleteId],
+        effectiveFrom: "2026-10-01",
+        payer: { familyPayerId: payerId },
+        idempotencyKey,
+        actor,
+      })
+    ).rejects.toMatchObject({
+      code: "LOCATION_SCOPE_DENIED",
+      status: 403,
+    });
+
+    expect(mocks.assertAccess).toHaveBeenCalledOnce();
+    expect(write).not.toHaveBeenCalled();
+    expect(execute).not.toHaveBeenCalled();
+    expect(mocks.appendAudit).not.toHaveBeenCalled();
+    expect(mocks.appendOutbox).not.toHaveBeenCalled();
+  });
+
+  it("permite recuperar una creación perdida desde la misma sede a su autor con alcance parcial", async () => {
+    const { tx, family, write, execute, setLocationScope } = makeTransaction();
+    priorEvent.payload.commandFingerprint = commandFingerprint;
+    setLocationScope("selected", true);
+
+    await expect(replay(tx)).resolves.toEqual({
+      family,
+      familyPayerId: payerId,
+      guardianId,
+      replayed: true,
+    });
+
+    expect(mocks.assertAccess).toHaveBeenCalledOnce();
+    expect(write).not.toHaveBeenCalled();
+    expect(execute).not.toHaveBeenCalled();
+    expect(mocks.appendAudit).not.toHaveBeenCalled();
+    expect(mocks.appendOutbox).not.toHaveBeenCalled();
+  });
+
+  it("deniega el replay de una creación a otro usuario aunque tenga acceso a la sede", async () => {
+    const { tx, write, execute, setLocationScope, setMemberIdentity } = makeTransaction();
+    const otherActor = {
+      userId: "10000000-0000-4000-8000-000000000099",
+      memberId: "10000000-0000-4000-8000-000000000098",
+    };
+    setMemberIdentity(otherActor.userId, otherActor.memberId);
+    setLocationScope("selected", true);
+
+    await expect(replay(tx, [athleteId], otherActor)).rejects.toMatchObject({
+      code: "LOCATION_SCOPE_DENIED",
+      status: 403,
+    });
+
+    expect(write).not.toHaveBeenCalled();
+    expect(execute).not.toHaveBeenCalled();
+    expect(mocks.appendAudit).not.toHaveBeenCalled();
+    expect(mocks.appendOutbox).not.toHaveBeenCalled();
+  });
+
+  it("deniega replay parcial si el historial de asociación de la familia incluye otra sede", async () => {
+    const { tx, write, execute, setLocationScope, setAssociationLocations } =
+      makeTransaction();
+    setLocationScope("selected", true);
+    setAssociationLocations([locationId, "10000000-0000-4000-8000-000000000020"]);
+
+    await expect(replay(tx)).rejects.toMatchObject({
+      code: "LOCATION_SCOPE_DENIED",
+      status: 403,
+    });
+
+    expect(write).not.toHaveBeenCalled();
+    expect(execute).not.toHaveBeenCalled();
+    expect(mocks.appendAudit).not.toHaveBeenCalled();
+    expect(mocks.appendOutbox).not.toHaveBeenCalled();
+  });
+
+  it("permite replay a alcance parcial cuando todas las sedes relacionadas están autorizadas", async () => {
+    const {
+      tx,
+      family,
+      write,
+      execute,
+      setLocationScope,
+      setAssociationLocations,
+      setAuthorizedLocations,
+    } = makeTransaction();
+    const otherLocationId = "10000000-0000-4000-8000-000000000020";
+    setLocationScope("selected", true);
+    setAssociationLocations([locationId, otherLocationId]);
+    setAuthorizedLocations([locationId, otherLocationId]);
+
+    await expect(replay(tx)).resolves.toEqual({
+      family,
+      familyPayerId: payerId,
+      guardianId,
+      replayed: true,
+    });
+
     expect(write).not.toHaveBeenCalled();
     expect(execute).not.toHaveBeenCalled();
     expect(mocks.appendAudit).not.toHaveBeenCalled();
@@ -526,5 +723,19 @@ describe("replay de asociación familiar en solo lectura", () => {
     expect(execute).not.toHaveBeenCalled();
     expect(mocks.appendAudit).not.toHaveBeenCalled();
     expect(mocks.appendOutbox).not.toHaveBeenCalled();
+  });
+
+  it("deniega modificar una familia existente con alcance parcial antes de escribir", async () => {
+    const { tx, memberInserts, insert, setMemberLocationScopeMode } =
+      makeNoReplayTransaction([]);
+    setMemberLocationScopeMode("selected");
+
+    await expect(associateWithoutReplay(tx)).rejects.toMatchObject({
+      code: "LOCATION_SCOPE_DENIED",
+      status: 403,
+    });
+
+    expect(memberInserts).toEqual([]);
+    expect(insert).not.toHaveBeenCalled();
   });
 });

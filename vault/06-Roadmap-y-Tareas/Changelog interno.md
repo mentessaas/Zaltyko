@@ -12539,3 +12539,11 @@ Modelo separado, reclamación manual, administración, importación revisada, fi
 - Asociación de familia desde la ficha de grupo, sin exigir inscripción previa en clase; tutor adulto y pagador, alcance de sede y replay verificable. Confirmación explícita de cambio de pagador exigida también por servidor y conservando fingerprints legacy. Suite PostgreSQL nueva integrada al runner aislado. Implementación pendiente de CI y comprobación sandbox; no confundir revisión estática con ejecución.
 - Revisión detectó pérdida de comando ambiguo al desmontar el panel mensual; corrección de persistencia exacta en curso. No se publica con ese hallazgo abierto.
 - Vercel:42 alcances sandbox movidos/restaurados sin leer/reemplazar valores; los42 ID/tipos/scopes se confirmaron restaurados. El intento directo78c6 resolvió todas las claves, pero preflight bloqueó NODE_EXTRA_CA_CERTS no vacío. No hubo Next ni preview READY. Ensayo y producción intactos. Evidencia: docs/qa/delivery-preview-inherited-env-review-2026-10-25.md.
+
+
+## 2026-10-25 — Entrega familiar preparada para CI remota
+
+- Ficha de grupo permite crear/asociar familia y tutor adulto antes de la inscripción en clase. El servidor comprueba pertenencia activa de sede, alcance de recursos familiares compartidos y actor del replay. No crea cuentas Auth ni envía correos.
+- Cambiar el pagador principal requiere confirmación explícita en ambos clientes y API; el fingerprint ausente/false conserva compatibilidad de comandos antiguos. Se rechaza una segunda familia solapada porque el contrato mensual actual solo admite una relación inequívoca para emitir la cuota; sucesión no solapada y replay histórico siguen disponibles. No se implementa pago dividido.
+- Panel de resolución mensual persiste/relee cuerpo exacto y clave antes del envío; recuperación manual tras remount sin autoenvío, cercas de ámbito y rechazo de almacenamiento inválido. Revisión independiente estática de ese panel sin P1/P2; no equivale a test ejecutado.
+- Nueve casos PG de familia añadidos al runner desechable y excluidos del gate unitario ordinario salvo flagPG. Cubren concurrencia, rollback15tablas, ámbito/replay, confirmación y solapamientos. Pendientes CI remota, replayPG y sandbox; no hubo test/build/servicio local, SQL remoto nuevo ni cambio en el ensayo.
