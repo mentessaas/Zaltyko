@@ -438,7 +438,7 @@ describe("registro manual de pagos con política de solo lectura", () => {
     expect(fetchMock).not.toHaveBeenCalled();
   });
 
-  it("migra un reintento de sesión anterior al almacenamiento persistente del usuario", async () => {
+  it("exige confirmar el reintento v1 no vinculado antes de asociarlo a la cuenta actual", async () => {
     window.sessionStorage.setItem(
       "zaltyko:pending-manual-payment:v1",
       JSON.stringify({
@@ -463,8 +463,22 @@ describe("registro manual de pagos con política de solo lectura", () => {
       />
     );
 
-    await screen.findByRole("button", { name: "Reintentar el mismo registro" });
+    await screen.findByRole("button", {
+      name: "Confirmar y preparar el mismo reintento",
+    });
     const key = `zaltyko:pending-manual-payment:v2:${actorUserId}`;
+    expect(window.localStorage.getItem(key)).toBeNull();
+    expect(
+      window.sessionStorage.getItem("zaltyko:pending-manual-payment:v1")
+    ).not.toBeNull();
+    expect(fetchMock).not.toHaveBeenCalled();
+
+    fireEvent.click(
+      screen.getByRole("button", {
+        name: "Confirmar y preparar el mismo reintento",
+      })
+    );
+    await screen.findByRole("button", { name: "Reintentar el mismo registro" });
     expect(JSON.parse(window.localStorage.getItem(key)!)).toMatchObject({
       version: 2,
       actorUserId,

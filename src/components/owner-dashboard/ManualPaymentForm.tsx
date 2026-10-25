@@ -7,6 +7,7 @@ import { OwnerOperationalReadOnlyNotice } from "./OwnerOperationalReadOnlyNotice
 import {
   clearPendingManualPayment,
   createManualPaymentRetrySnapshot,
+  migrateLegacyPendingManualPayment,
   persistPendingManualPayment,
   readPendingManualPayment,
   restoreManualPaymentRetryBody,
@@ -136,12 +137,14 @@ export function ManualPaymentForm({
   const [saved, setSaved] = useOrganizationDraftField(organizationId, false);
   const [retryRequest, setRetryRequest] =
     useState<PendingPaymentRequest | null>(null);
+  const [legacyRetryPending, setLegacyRetryPending] = useState(false);
   const [retryStorageReady, setRetryStorageReady] = useState(false);
   const [retryStorageError, setRetryStorageError] = useState<string | null>(null);
   const paymentInFlight = useRef(false);
 
   useEffect(() => {
     setRetryRequest(null);
+    setLegacyRetryPending(false);
     setRetryStorageError(null);
     setRetryStorageReady(false);
     let stored: ReturnType<typeof readPendingManualPayment>;
@@ -168,6 +171,8 @@ export function ManualPaymentForm({
         snapshot,
         referenceRequired: snapshot.referenceSha256 !== null,
       });
+    } else if (stored.status === "legacy-pending") {
+      setLegacyRetryPending(true);
     } else if (stored.status === "invalid") {
       setRetryStorageError(
         "Hay un registro pendiente dañado. No se enviará otro pago para evitar duplicados."
@@ -219,6 +224,12 @@ export function ManualPaymentForm({
   }
 
   function retryPendingPayment() {
+    if (retryRequest?.snapshot.actorUserId !== actorUserId) {
+      setError(
+        "Este envío pendiente pertenece a otra cuenta. Vuelve a entrar con la cuenta que lo inició."
+      );
+      return;
+    }
     if (!retryRequest || retryRequest.body.organizationId !== organizationId) return;
     if (paymentInFlight.current || busy) return;
     void restoreManualPaymentRetryBody(retryRequest.snapshot, reference)
@@ -243,6 +254,45 @@ export function ManualPaymentForm({
       });
   }
 
+  function confirmLegacyRetryForCurrentUser() {
+    let result: ReturnType<typeof migrateLegacyPendingManualPayment>;
+    try {
+      result = migrateLegacyPendingManualPayment(
+        window.localStorage,
+        window.sessionStorage,
+        actorUserId
+      );
+    } catch {
+      result = { status: "unavailable" };
+    }
+    if (result.status !== "pending") {
+      setRetryStorageError(
+        result.status === "none"
+          ? "El envío anterior ya no está disponible en este navegador. Comprueba el historial antes de registrar otro pago."
+          : "No se pudo recuperar de forma segura el envío anterior. No se ha enviado un pago."
+      );
+      setLegacyRetryPending(false);
+      return;
+    }
+
+    const { snapshot } = result;
+    setRetryRequest({
+      key: snapshot.idempotencyKey,
+      body: {
+        organizationId: snapshot.organizationId,
+        chargeId: snapshot.chargeId,
+        amountCents: snapshot.amountCents,
+        method: snapshot.method,
+        receivedAt: snapshot.receivedAt,
+      },
+      snapshot,
+      referenceRequired: snapshot.referenceSha256 !== null,
+    });
+    setLegacyRetryPending(false);
+    setRetryStorageError(null);
+    setError(null);
+  }
+
   async function sendPayment(
     key: string,
     body: PaymentRequest,
@@ -256,6 +306,12 @@ export function ManualPaymentForm({
       setError(null);
       setSaved(false);
       let snapshot = existingSnapshot;
+      if (snapshot && snapshot.actorUserId !== actorUserId) {
+        setError(
+          "Este envío pendiente pertenece a otra cuenta. Vuelve a entrar con la cuenta que lo inició."
+        );
+        return;
+      }
       if (!snapshot) {
         try {
           snapshot = await createManualPaymentRetrySnapshot({
@@ -369,6 +425,7 @@ export function ManualPaymentForm({
       return;
     }
     if (!retryStorageReady || retryStorageError || dateInterpretationError) return;
+    if (legacyRetryPending) return;
     if (writesBlocked) return;
     if (!selectedCharge || !effectiveReceivedOn) return;
     const amountCents = parseAmountCents(amount);
@@ -401,11 +458,27 @@ export function ManualPaymentForm({
   const amountCents = parseAmountCents(amount);
   const effectiveReceivedOn = receivedOn || today;
   const formLocked =
-    busy || retryRequest !== null || !retryStorageReady || retryStorageError !== null;
+    busy ||
+    retryRequest !== null ||
+    legacyRetryPending ||
+    !retryStorageReady ||
+    retryStorageError !== null;
+  const retryBelongsToCurrentActor =
+    retryRequest?.snapshot.actorUserId === actorUserId;
   const retryBelongsToCurrentOrganization =
     retryRequest?.body.organizationId === organizationId;
   const retryScopeNotice =
-    retryRequest && !retryBelongsToCurrentOrganization ? (
+    retryRequest && !retryBelongsToCurrentActor ? (
+      <div
+        role="alert"
+        className="rounded-xl border border-amber-300 bg-amber-50 px-4 py-3 text-sm leading-6 text-amber-950"
+      >
+        <p>
+          Hay un envío pendiente vinculado a otra cuenta. Vuelve a entrar con la
+          cuenta que inició ese envío; no se ha vuelto a enviar el pago.
+        </p>
+      </div>
+    ) : retryRequest && !retryBelongsToCurrentOrganization ? (
       <div
         role="alert"
         className="rounded-xl border border-amber-300 bg-amber-50 px-4 py-3 text-sm leading-6 text-amber-950"
@@ -423,6 +496,27 @@ export function ManualPaymentForm({
         </Link>
       </div>
     ) : null;
+  const legacyRetryNotice = legacyRetryPending ? (
+    <div
+      role="alert"
+      className="rounded-xl border border-amber-300 bg-amber-50 px-4 py-3 text-sm leading-6 text-amber-950"
+    >
+      <p>
+        Hay un envío incierto guardado por una versión anterior y no está
+        vinculado a una cuenta. Comprueba primero el historial de cuotas. Si el
+        cargo sigue pendiente, puedes recuperarlo con la cuenta actual; se
+        conservará la misma clave y no se enviará hasta que confirmes el reintento.
+      </p>
+      <button
+        type="button"
+        disabled={!retryStorageReady || busy}
+        onClick={confirmLegacyRetryForCurrentUser}
+        className="mt-2 min-h-11 rounded-full bg-amber-900 px-4 text-sm font-bold text-white hover:bg-amber-800 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-amber-900 disabled:cursor-not-allowed disabled:opacity-60"
+      >
+        Confirmar y preparar el mismo reintento
+      </button>
+    </div>
+  ) : null;
 
   if (charges.length === 0) {
     return (
@@ -435,12 +529,15 @@ export function ManualPaymentForm({
           dinero que ya hayas recibido y dejarlo conciliado en un solo paso.
         </p>
         {retryScopeNotice}
+        {legacyRetryNotice}
         {retryStorageError && (
           <p role="alert" className="mt-4 rounded-xl border border-rose-300 bg-rose-50 px-4 py-3 text-sm text-rose-900">
             {retryStorageError}
           </p>
         )}
-        {retryRequest && retryBelongsToCurrentOrganization && (
+        {retryRequest &&
+          retryBelongsToCurrentOrganization &&
+          retryBelongsToCurrentActor && (
           <div className="mt-4 rounded-xl border border-amber-300 bg-amber-50 px-4 py-3 text-sm leading-6 text-amber-950">
             <p>
               Hay un envío anterior cuyo resultado no se pudo confirmar. Puedes
@@ -465,7 +562,7 @@ export function ManualPaymentForm({
             )}
             <button
               type="button"
-              disabled={busy || !retryStorageReady}
+              disabled={busy || !retryStorageReady || !retryBelongsToCurrentActor}
               onClick={retryPendingPayment}
               className="mt-2 min-h-11 rounded-full bg-amber-900 px-4 text-sm font-bold text-white hover:bg-amber-800 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-amber-900 disabled:cursor-not-allowed disabled:opacity-60"
             >
@@ -504,6 +601,7 @@ export function ManualPaymentForm({
         reintento vinculado a tu usuario hasta confirmar el resultado.
       </div>
       {retryScopeNotice}
+      {legacyRetryNotice}
       {retryStorageError && (
         <p
           role="alert"
@@ -707,7 +805,7 @@ export function ManualPaymentForm({
             !retryStorageReady ||
             retryStorageError !== null ||
             (retryRequest
-              ? !retryBelongsToCurrentOrganization
+              ? !retryBelongsToCurrentOrganization || !retryBelongsToCurrentActor
               : writesBlocked ||
                 dateInterpretationError !== null ||
                 !selectedCharge ||
@@ -717,7 +815,9 @@ export function ManualPaymentForm({
         >
           {busy
             ? "Guardando…"
-            : retryRequest && retryBelongsToCurrentOrganization
+            : retryRequest &&
+                retryBelongsToCurrentOrganization &&
+                retryBelongsToCurrentActor
               ? "Reintentar el mismo registro"
               : retryRequest
                 ? "Resuelve primero el envío pendiente"

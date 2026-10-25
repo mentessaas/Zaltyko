@@ -227,6 +227,7 @@ export function readPendingManualPayment(
 ):
   | { status: "none" }
   | { status: "pending"; snapshot: ManualPaymentRetrySnapshot }
+  | { status: "legacy-pending" }
   | { status: "invalid" | "unavailable" } {
   const storageKey = pendingManualPaymentStorageKey(actorUserId);
   if (!storageKey) return { status: "invalid" };
@@ -271,6 +272,47 @@ export function readPendingManualPayment(
   }
   const legacySnapshot = parseLegacySnapshot(legacyValue);
   if (!legacySnapshot) return { status: "invalid" };
+  return { status: "legacy-pending" };
+}
+
+/**
+ * Claims an unbound v1 retry only after the current user explicitly confirms
+ * it. The old format has no actor ID, so reading it must never silently bind
+ * it to whichever account happens to be signed in.
+ */
+export function migrateLegacyPendingManualPayment(
+  storage: StorageLike,
+  legacyStorage: StorageLike,
+  actorUserId: string
+):
+  | { status: "pending"; snapshot: ManualPaymentRetrySnapshot }
+  | { status: "none" | "invalid" | "unavailable" } {
+  const storageKey = pendingManualPaymentStorageKey(actorUserId);
+  if (!storageKey) return { status: "invalid" };
+
+  let legacyRaw: string | null;
+  try {
+    legacyRaw = legacyStorage.getItem(
+      LEGACY_PENDING_MANUAL_PAYMENT_STORAGE_KEY
+    );
+  } catch {
+    return { status: "unavailable" };
+  }
+  if (legacyRaw === null) return { status: "none" };
+  if (legacyRaw.length > MAX_SNAPSHOT_LENGTH) return { status: "invalid" };
+
+  let legacyValue: unknown;
+  try {
+    legacyValue = JSON.parse(legacyRaw);
+  } catch {
+    return { status: "invalid" };
+  }
+  const legacySnapshot = parseLegacySnapshot(legacyValue);
+  if (!legacySnapshot) return { status: "invalid" };
+
+  const existing = readPendingManualPayment(storage, actorUserId);
+  if (existing.status !== "none") return { status: "unavailable" };
+
   const migrated = parseSnapshot({
     ...legacySnapshot,
     version: 2,
@@ -287,25 +329,18 @@ export function readPendingManualPayment(
       legacyStorage.getItem(LEGACY_PENDING_MANUAL_PAYMENT_STORAGE_KEY) !==
       legacyRaw
     ) {
-      storage.removeItem(storageKey);
       return { status: "unavailable" };
     }
     legacyStorage.removeItem(LEGACY_PENDING_MANUAL_PAYMENT_STORAGE_KEY);
     if (
       legacyStorage.getItem(LEGACY_PENDING_MANUAL_PAYMENT_STORAGE_KEY) !== null
     ) {
-      storage.removeItem(storageKey);
       return { status: "unavailable" };
     }
     return { status: "pending", snapshot: migrated };
   } catch {
-    try {
-      if (storage.getItem(storageKey) === encoded) {
-        storage.removeItem(storageKey);
-      }
-    } catch {
-      // Keep the migration fail-closed if either storage cannot be reconciled.
-    }
+    // Keep the new copy if the two storage operations cannot be reconciled.
+    // A later read still blocks on this actor-specific pending command.
     return { status: "unavailable" };
   }
 }
