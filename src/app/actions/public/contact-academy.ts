@@ -10,7 +10,7 @@ import { rateLimit } from "@/lib/rate-limit";
 import { logger } from "@/lib/logger";
 
 const ContactAcademySchema = z.object({
-  academyId: z.string().uuid(),
+  academyId: z.guid(),
   name: z.string().min(2).max(100),
   email: z.string().email(),
   phone: z.string().optional(),

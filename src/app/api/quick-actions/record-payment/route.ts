@@ -10,8 +10,8 @@ import { authorizeAcademyCapability } from "@/lib/authz/resource-scope";
 import { ensureChargeReceipt } from "@/lib/receipts/ensure-charge-receipt";
 
 const RecordPaymentSchema = z.object({
-    chargeId: z.string().uuid(),
-    academyId: z.string().uuid(),
+    chargeId: z.guid(),
+    academyId: z.guid(),
     amountCents: z.number().int().positive(),
     paymentMethod: z.enum(["cash", "transfer", "bizum", "card_manual", "other"]),
     idempotencyKey: z.string().min(1).max(200).optional(),

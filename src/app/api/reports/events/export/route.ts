@@ -11,8 +11,8 @@ export const dynamic = "force-dynamic";
 export const runtime = "nodejs";
 
 const exportSchema = z.object({
-  academyId: z.string().uuid(),
-  eventId: z.string().uuid().optional(),
+  academyId: z.guid(),
+  eventId: z.guid().optional(),
   startDate: z.string().date().optional(),
   endDate: z.string().date().optional(),
 });

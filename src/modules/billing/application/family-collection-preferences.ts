@@ -21,9 +21,9 @@ import {
 import { OperationalError } from "@/modules/shared/domain/operational-error";
 
 const inputSchema = z.object({
-  userId: z.string().uuid(),
-  organizationId: z.string().uuid(),
-  familyId: z.string().uuid(),
+  userId: z.guid(),
+  organizationId: z.guid(),
+  familyId: z.guid(),
 });
 
 const commandSchema = inputSchema.extend({

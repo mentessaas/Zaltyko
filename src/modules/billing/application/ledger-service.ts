@@ -41,19 +41,19 @@ const financialRoles = ["owner", "admin"] as const;
 
 const invoiceLineCoverageSchema = z
   .object({
-    enrollmentId: z.string().uuid(),
-    classTemplateId: z.string().uuid(),
+    enrollmentId: z.guid(),
+    classTemplateId: z.guid(),
     className: z.string().trim().min(2).max(120),
-    assignmentId: z.string().uuid(),
+    assignmentId: z.guid(),
   })
   .strict();
 
 const invoiceLineSchema = z
   .object({
-    athleteId: z.string().uuid().optional(),
+    athleteId: z.guid().optional(),
     coveredEnrollments: z.array(invoiceLineCoverageSchema).min(1).optional(),
-    enrollmentId: z.string().uuid().optional(),
-    pricePlanId: z.string().uuid().optional(),
+    enrollmentId: z.guid().optional(),
+    pricePlanId: z.guid().optional(),
     lineType: z.string().trim().min(1).max(80),
     quantity: z.number().int().positive().safe(),
     unitAmountCents: z.number().int().nonnegative().safe(),
@@ -126,10 +126,10 @@ const invoiceLineSchema = z
 
 const issueInvoiceSchema = z
   .object({
-    organizationId: z.string().uuid(),
-    locationId: z.string().uuid(),
-    familyId: z.string().uuid(),
-    familyPayerId: z.string().uuid().optional(),
+    organizationId: z.guid(),
+    locationId: z.guid(),
+    familyId: z.guid(),
+    familyPayerId: z.guid().optional(),
     reference: z.string().trim().min(1).max(80),
     currency: currencySchema,
     dueAt: z.string().datetime({ offset: true }),
@@ -161,9 +161,9 @@ const issueInvoiceSchema = z
   });
 
 const allocatePaymentSchema = z.object({
-  organizationId: z.string().uuid(),
-  paymentId: z.string().uuid(),
-  chargeId: z.string().uuid(),
+  organizationId: z.guid(),
+  paymentId: z.guid(),
+  chargeId: z.guid(),
   amountCents: z.number().int().positive(),
   allocatedAt: z.string().datetime({ offset: true }),
   idempotencyKey: commandKeySchema,
@@ -171,10 +171,10 @@ const allocatePaymentSchema = z.object({
 });
 
 const recordManualPaymentSchema = z.object({
-  organizationId: z.string().uuid(),
-  locationId: z.string().uuid(),
-  familyId: z.string().uuid(),
-  familyPayerId: z.string().uuid().optional(),
+  organizationId: z.guid(),
+  locationId: z.guid(),
+  familyId: z.guid(),
+  familyPayerId: z.guid().optional(),
   amountCents: z.number().int().positive(),
   currency: currencySchema,
   method: z.enum(["cash", "bank_transfer", "card_terminal", "other"]),
@@ -185,8 +185,8 @@ const recordManualPaymentSchema = z.object({
 });
 
 const recordManualPaymentForChargeSchema = z.object({
-  organizationId: z.string().uuid(),
-  chargeId: z.string().uuid(),
+  organizationId: z.guid(),
+  chargeId: z.guid(),
   amountCents: z.number().int().positive().safe(),
   method: z.enum(["cash", "bank_transfer", "card_terminal", "other"]),
   reference: z.string().trim().min(1).max(200).optional(),
@@ -196,8 +196,8 @@ const recordManualPaymentForChargeSchema = z.object({
 });
 
 const reconcileFinancialPeriodSchema = z.object({
-  organizationId: z.string().uuid(),
-  authorizationLocationId: z.string().uuid(),
+  organizationId: z.guid(),
+  authorizationLocationId: z.guid(),
   currency: currencySchema,
   periodStart: z.string().date(),
   periodEnd: z.string().date(),
@@ -207,10 +207,10 @@ const reconcileFinancialPeriodSchema = z.object({
 });
 
 const providerBasePayload = z.object({
-  organizationId: z.string().uuid(),
-  locationId: z.string().uuid(),
-  familyId: z.string().uuid(),
-  familyPayerId: z.string().uuid().optional(),
+  organizationId: z.guid(),
+  locationId: z.guid(),
+  familyId: z.guid(),
+  familyPayerId: z.guid().optional(),
   amountCents: z.number().int().positive(),
   currency: currencySchema,
 });
@@ -219,7 +219,7 @@ const providerPayloadSchema = z.discriminatedUnion("type", [
   providerBasePayload
     .extend({
       type: z.literal("payment.failed"),
-      invoiceId: z.string().uuid(),
+      invoiceId: z.guid(),
       providerAttemptId: z.string().trim().min(1).max(200),
       failureCode: z.string().trim().min(1).max(80),
       attemptedAt: z.string().datetime({ offset: true }),
@@ -228,7 +228,7 @@ const providerPayloadSchema = z.discriminatedUnion("type", [
   providerBasePayload
     .extend({
       type: z.literal("payment.succeeded"),
-      invoiceId: z.string().uuid(),
+      invoiceId: z.guid(),
       providerAttemptId: z.string().trim().min(1).max(200),
       providerPaymentId: z.string().trim().min(1).max(200),
       attemptedAt: z.string().datetime({ offset: true }),
@@ -237,9 +237,9 @@ const providerPayloadSchema = z.discriminatedUnion("type", [
   z
     .object({
       type: z.literal("refund.succeeded"),
-      organizationId: z.string().uuid(),
-      paymentId: z.string().uuid(),
-      paymentAllocationId: z.string().uuid(),
+      organizationId: z.guid(),
+      paymentId: z.guid(),
+      paymentAllocationId: z.guid(),
       amountCents: z.number().int().positive(),
       currency: currencySchema,
       providerRefundId: z.string().trim().min(1).max(200),

@@ -16,14 +16,14 @@ import { resolveOwnerScope } from "@/modules/owner-dashboard/application/owner-s
 import { OperationalError } from "@/modules/shared/domain/operational-error";
 
 const querySchema = z.object({
-  organizationId: z.string().uuid().optional(),
-  locationId: z.string().uuid().optional(),
+  organizationId: z.guid().optional(),
+  locationId: z.guid().optional(),
 });
 
 const paymentBodySchema = z
   .object({
-    organizationId: z.string().uuid(),
-    chargeId: z.string().uuid(),
+    organizationId: z.guid(),
+    chargeId: z.guid(),
     amountCents: z.number().int().positive().safe(),
     method: z.enum(["cash", "bank_transfer", "card_terminal", "other"]),
     reference: z.string().trim().min(1).max(200).optional(),

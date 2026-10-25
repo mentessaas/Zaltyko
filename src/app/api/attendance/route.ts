@@ -13,13 +13,13 @@ import { markAcademyActivationIfReady } from "@/lib/onboarding";
 import { trackEvent } from "@/lib/analytics";
 
 const entrySchema = z.object({
-  athleteId: z.string().uuid(),
+  athleteId: z.guid(),
   status: z.enum(["present", "absent", "late", "excused"]).optional(),
   notes: z.string().optional(),
 });
 
 const upsertBodySchema = z.object({
-  sessionId: z.string().uuid(),
+  sessionId: z.guid(),
   entries: z.array(entrySchema).min(1).max(500).superRefine((entries, ctx) => {
     const seen = new Set<string>();
     entries.forEach((entry, index) => {
@@ -144,8 +144,8 @@ export const POST = withTenant(async (request, context) => {
 });
 
 const querySchema = z.object({
-  sessionId: z.string().uuid().optional(),
-  academyId: z.string().uuid().optional(),
+  sessionId: z.guid().optional(),
+  academyId: z.guid().optional(),
 });
 
 export const GET = withTenant(async (request, context) => {

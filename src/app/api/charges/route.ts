@@ -12,10 +12,10 @@ import { handleApiError } from "@/lib/api-error-handler";
 import { logEvent } from "@/lib/event-logging";
 
 const CreateChargeSchema = z.object({
-  academyId: z.string().uuid(),
-  athleteId: z.string().uuid(),
-  billingItemId: z.string().uuid().optional(),
-  classId: z.string().uuid().optional().nullable(),
+  academyId: z.guid(),
+  athleteId: z.guid(),
+  billingItemId: z.guid().optional(),
+  classId: z.guid().optional().nullable(),
   label: z.string().min(1),
   amountCents: z.number().int().positive(),
   // La UI trabaja con códigos ISO en mayúsculas y los conceptos pueden usar
@@ -66,11 +66,11 @@ const safeNumberSchema = (fieldName: string, min?: number, max?: number) =>
     );
 
 const QuerySchema = z.object({
-  academyId: z.string().uuid(),
+  academyId: z.guid(),
   period: z.string().regex(/^\d{4}-\d{2}$/).optional(),
-  groupId: z.string().uuid().optional(),
-  athleteId: z.string().uuid().optional(),
-  sportConfigId: z.string().uuid().optional(),
+  groupId: z.guid().optional(),
+  athleteId: z.guid().optional(),
+  sportConfigId: z.guid().optional(),
   status: z.string().optional(), // Allow comma-separated values like "pending,overdue"
   page: safeNumberSchema("page", 1).pipe(z.number().int().min(1).optional().default(1)),
   limit: safeNumberSchema("limit", 1, 200).pipe(z.number().int().min(1).max(200).optional().default(50)),
@@ -88,7 +88,7 @@ export const GET = withTenant(async (request, context) => {
           "VALIDATION_ERROR",
           "Parámetros de consulta inválidos",
           400,
-          error.errors.map((e) => ({
+          error.issues.map((e) => ({
             field: e.path.join("."),
             message: e.message,
           }))

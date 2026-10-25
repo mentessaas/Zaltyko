@@ -14,11 +14,11 @@ import { z } from "zod";
 export type FinancialReportKind = "summary" | "monthly" | "delinquency" | "projections";
 
 const reportSchema = z.object({
-  academyId: z.string().uuid(),
+  academyId: z.guid(),
   startDate: reportDateSchema,
   endDate: reportDateSchema,
-  athleteId: z.string().uuid().optional(),
-  sportConfigId: z.string().uuid().optional(),
+  athleteId: z.guid().optional(),
+  sportConfigId: z.guid().optional(),
   months: z.coerce.number().int().min(1).max(24).default(3),
 }).superRefine(validateReportPeriod);
 

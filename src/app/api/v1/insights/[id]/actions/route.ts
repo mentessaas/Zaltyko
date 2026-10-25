@@ -8,13 +8,13 @@ import { recordInsightAction } from "@/modules/insights/application/insight-serv
 import { OperationalError } from "@/modules/shared/domain/operational-error";
 
 const bodySchema = z.object({
-  organizationId: z.string().uuid().optional(),
-  locationId: z.string().uuid().optional(),
+  organizationId: z.guid().optional(),
+  locationId: z.guid().optional(),
   expectedVersion: z.number().int().positive(),
   actionKey: z.string().trim().min(1).max(80),
   targetEntityType: z.string().trim().min(1).max(80),
-  targetEntityId: z.string().uuid().optional(),
-  beforeValue: z.record(z.unknown()),
+  targetEntityId: z.guid().optional(),
+  beforeValue: z.record(z.string(), z.unknown()),
   evaluationWindowDays: z.number().int().min(1).max(365),
   idempotencyKey: z.string().trim().min(8).max(150),
 });
@@ -35,7 +35,7 @@ export async function POST(
   }
   const payload = await request.json().catch(() => null);
   const parsedParams = z
-    .object({ id: z.string().uuid() })
+    .object({ id: z.guid() })
     .safeParse(await params);
   const parsed = bodySchema.safeParse({
     ...(payload && typeof payload === "object" ? payload : {}),

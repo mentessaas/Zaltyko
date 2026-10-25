@@ -14,7 +14,7 @@ import { logger } from "@/lib/logger";
 
 export const dynamic = "force-dynamic";
 
-const BodySchema = z.object({ academyId: z.string().uuid() });
+const BodySchema = z.object({ academyId: z.guid() });
 
 /**
  * POST /api/family/payment-method/setup-intent

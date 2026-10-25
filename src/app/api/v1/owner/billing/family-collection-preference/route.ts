@@ -10,8 +10,8 @@ import {
 import { OperationalError } from "@/modules/shared/domain/operational-error";
 
 const querySchema = z.object({
-  organizationId: z.string().uuid(),
-  familyId: z.string().uuid(),
+  organizationId: z.guid(),
+  familyId: z.guid(),
 });
 
 const bodySchema = querySchema

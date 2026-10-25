@@ -46,13 +46,13 @@ const waitlistPreferencesSchema = z
 
 const joinWaitlistSchema = z
   .object({
-    organizationId: z.string().uuid(),
-    locationId: z.string().uuid(),
-    athleteId: z.string().uuid(),
-    classTemplateId: z.string().uuid().nullable().optional(),
-    programId: z.string().uuid().nullable().optional(),
-    sourceTrialId: z.string().uuid().nullable().optional(),
-    contactGuardianId: z.string().uuid().nullable().optional(),
+    organizationId: z.guid(),
+    locationId: z.guid(),
+    athleteId: z.guid(),
+    classTemplateId: z.guid().nullable().optional(),
+    programId: z.guid().nullable().optional(),
+    sourceTrialId: z.guid().nullable().optional(),
+    contactGuardianId: z.guid().nullable().optional(),
     contactable: z.boolean().default(false),
     contactConsentStatus: z
       .enum(["unknown", "granted", "denied", "revoked"])
@@ -103,10 +103,10 @@ const joinWaitlistSchema = z
   });
 
 const sendWaitlistOfferSchema = z.object({
-  organizationId: z.string().uuid(),
-  waitlistEntryId: z.string().uuid(),
+  organizationId: z.guid(),
+  waitlistEntryId: z.guid(),
   expectedVersion: z.number().int().positive(),
-  classTemplateId: z.string().uuid(),
+  classTemplateId: z.guid(),
   startsOn: z.string().date(),
   expiresAt: z.string().datetime({ offset: true }),
   idempotencyKey: commandKeySchema,
@@ -114,8 +114,8 @@ const sendWaitlistOfferSchema = z.object({
 });
 
 const acceptWaitlistOfferSchema = z.object({
-  organizationId: z.string().uuid(),
-  offerId: z.string().uuid(),
+  organizationId: z.guid(),
+  offerId: z.guid(),
   expectedVersion: z.number().int().positive(),
   idempotencyKey: commandKeySchema,
   actor: operationalActorSchema,

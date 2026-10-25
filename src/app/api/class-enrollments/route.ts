@@ -18,9 +18,9 @@ import { hasScheduleConflictForAthlete } from "@/lib/classes/schedule-conflicts"
 import { withTransaction } from "@/lib/db-transactions";
 
 const BodySchema = z.object({
-  academyId: z.string().uuid(),
-  classId: z.string().uuid(),
-  athleteId: z.string().uuid(),
+  academyId: z.guid(),
+  classId: z.guid(),
+  athleteId: z.guid(),
 });
 
 /**

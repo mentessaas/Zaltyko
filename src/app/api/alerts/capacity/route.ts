@@ -7,7 +7,7 @@ import { apiSuccess, apiError } from "@/lib/api-response";
 import { logger } from "@/lib/logger";
 
 const querySchema = z.object({
-  academyId: z.string().uuid(),
+  academyId: z.guid(),
   threshold: z.coerce.number().finite().min(0).max(100).optional(),
 });
 

@@ -1,8 +1,8 @@
 import { z } from "zod";
 
 export const operationalActorSchema = z.object({
-  userId: z.string().uuid(),
-  memberId: z.string().uuid(),
+  userId: z.guid(),
+  memberId: z.guid(),
 });
 
 export type OperationalActor = z.infer<typeof operationalActorSchema>;
@@ -11,7 +11,7 @@ export type OperationalActor = z.infer<typeof operationalActorSchema>;
 export const systemActorSchema = z.object({
   type: z.literal("system"),
   jobKey: z.literal("zaltyko-outbox"),
-  correlationId: z.string().uuid(),
+  correlationId: z.guid(),
 });
 
 export type SystemActor = z.infer<typeof systemActorSchema>;

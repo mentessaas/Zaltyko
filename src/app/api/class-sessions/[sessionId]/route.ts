@@ -11,7 +11,7 @@ const updateSchema = z.object({
   sessionDate: z.string().optional(),
   startTime: z.string().nullable().optional(),
   endTime: z.string().nullable().optional(),
-  coachId: z.string().uuid().nullable().optional(),
+  coachId: z.guid().nullable().optional(),
   status: z.string().optional(),
   notes: z.string().nullable().optional(),
 });

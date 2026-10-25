@@ -12,7 +12,7 @@ import { getUserIdentifier, withRateLimit } from "@/lib/rate-limit";
 import { withTransaction } from "@/lib/db-transactions";
 
 const BodySchema = z.object({
-  academyId: z.string().uuid(),
+  academyId: z.guid(),
 });
 
 class RestoreConflictError extends Error {

@@ -9,8 +9,8 @@ const MAX_PERIOD_DAYS = 366;
 
 export const ownerOperationalSummaryQuerySchema = z
   .object({
-    organizationId: z.string().uuid().optional(),
-    locationId: z.string().uuid().optional(),
+    organizationId: z.guid().optional(),
+    locationId: z.guid().optional(),
     from: z.string().date().optional(),
     to: z.string().date().optional(),
   })

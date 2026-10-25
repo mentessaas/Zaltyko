@@ -49,7 +49,7 @@ import { logger } from "@/lib/logger";
 import { recordOwnerSignupConsent } from "@/lib/consent/owner-consent-store";
 
 const bodySchema = z.object({
-  directoryEntryId:z.string().uuid().optional(),
+  directoryEntryId:z.guid().optional(),
   directoryActivation:z.literal(true).optional(),
   fullName: z.string().trim().min(2).max(120),
   academyName: z.string().trim().min(3).max(120),
@@ -68,14 +68,14 @@ const bodySchema = z.object({
   region: z.string().trim().max(80).optional(),
   city: z.string().trim().max(80).optional(),
   activeProgramCodesByVariant: z
-    .record(z.array(z.string().trim().min(1).max(80)))
+    .record(z.string(), z.array(z.string().trim().min(1).max(80)))
     .optional(),
   activeApparatusCodesByVariant: z
-    .record(z.array(z.string().trim().min(1).max(80)))
+    .record(z.string(), z.array(z.string().trim().min(1).max(80)))
     .optional(),
   starterGroupKeys: z.array(z.string().trim().min(1).max(80)).optional(),
   starterGroupsByVariant: z
-    .record(z.array(z.string().trim().min(1).max(80)))
+    .record(z.string(), z.array(z.string().trim().min(1).max(80)))
     .optional(),
   /**
    * ZAL-157: UTMs first-touch leídos por el cliente

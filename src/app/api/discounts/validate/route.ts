@@ -6,7 +6,7 @@ import { db } from "@/db";
 import { discounts } from "@/db/schema";
 
 const validateCodeSchema = z.object({
-  academyId: z.string().uuid(),
+  academyId: z.guid(),
   code: z.string(),
   amount: z.number().optional(),
 });

@@ -17,7 +17,7 @@ import { useAcademyContext } from "@/hooks/use-academy-context";
 // Esquema Zod para validacion declarativa. Reemplaza validacion ad-hoc
 // que estaba antes en handleSubmit.
 const quickClassSchema = z.object({
-    classId: z.string().uuid({ message: "Selecciona una clase valida" }),
+    classId: z.guid({ error: "Selecciona una clase valida" }),
     date: z.string().regex(/^\d{4}-\d{2}-\d{2}$/, "Fecha invalida (YYYY-MM-DD)"),
 });
 

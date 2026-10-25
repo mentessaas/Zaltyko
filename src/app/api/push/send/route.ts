@@ -11,11 +11,11 @@ import { and, eq } from "drizzle-orm";
 export const dynamic = 'force-dynamic';
 
 const sendPushSchema = z.object({
-  userId: z.string().uuid(),
+  userId: z.guid(),
   title: z.string().min(1).max(100),
   body: z.string().min(1).max(500),
   icon: z.string().url().optional(),
-  data: z.record(z.unknown()).optional(),
+  data: z.record(z.string(), z.unknown()).optional(),
   tag: z.string().optional(),
   requireInteraction: z.boolean().optional(),
   alsoCreateInApp: z.boolean().optional(),

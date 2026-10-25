@@ -99,8 +99,12 @@ function validateServerEnv() {
   if (!result.success) {
     // Solo lanzar error si hay variables requeridas faltantes
     // Las variables opcionales no causarán error
-    const requiredErrors = result.error.errors.filter(
-      (err) => err.code === "invalid_type" && err.received === "undefined"
+    const requiredErrors = result.error.issues.filter(
+      (err) =>
+        err.code === "invalid_type" &&
+        err.path.length === 1 &&
+        typeof err.path[0] === "string" &&
+        cleanedEnv[err.path[0]] === undefined
     );
     if (requiredErrors.length > 0) {
       const missingVars = requiredErrors.map((err) => err.path.join(".")).join(", ");
@@ -109,7 +113,7 @@ function validateServerEnv() {
     // Si hay errores de validación pero no son de variables requeridas, usar los valores
     // originales pero loguear los errores en desarrollo
     if (process.env.NODE_ENV === "development") {
-      console.warn("Algunas variables de entorno tienen problemas de validación:", result.error.errors);
+      console.warn("Algunas variables de entorno tienen problemas de validación:", result.error.issues);
     }
     return cleanedEnv as z.infer<typeof serverEnvSchema>;
   }
@@ -138,8 +142,12 @@ function validatePublicEnv() {
   const result = publicEnvSchema.safeParse(process.env);
   if (!result.success) {
     // Solo lanzar error si hay variables requeridas faltantes
-    const requiredErrors = result.error.errors.filter(
-      (err) => err.code === "invalid_type" && err.received === "undefined"
+    const requiredErrors = result.error.issues.filter(
+      (err) =>
+        err.code === "invalid_type" &&
+        err.path.length === 1 &&
+        typeof err.path[0] === "string" &&
+        process.env[err.path[0]] === undefined
     );
     if (requiredErrors.length > 0) {
       const missingVars = requiredErrors.map((err) => err.path.join(".")).join(", ");

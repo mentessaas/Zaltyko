@@ -13,7 +13,7 @@ import { sendEmailWithLogging } from "@/lib/email/email-service";
 import { escapeHtml } from "@/lib/email/escape-html";
 
 const BodySchema = z.object({
-  profileId: z.string().uuid(),
+  profileId: z.guid(),
   subject: z.string().min(1).max(200),
   message: z.string().min(1).max(5000),
   type: z.enum(["email", "notification"]).default("email"),

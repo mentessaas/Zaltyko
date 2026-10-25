@@ -45,7 +45,7 @@ export const bootstrapOrganizationRequestSchema =
 
 export const bootstrapOrganizationSchema =
   bootstrapOrganizationRequestFieldsSchema
-    .extend({ userId: z.string().uuid() })
+    .extend({ userId: z.guid() })
     .and(academyOfferingsSchema);
 
 export type BootstrapOrganizationCommand = z.input<

@@ -13,13 +13,13 @@ import { reportDateSchema, validateReportPeriod } from "@/lib/reports/query-sche
 export const dynamic = "force-dynamic";
 
 const emailSchema = z.object({
-  academyId: z.string().uuid(),
-  athleteId: z.string().uuid(),
+  academyId: z.guid(),
+  athleteId: z.guid(),
   email: z.string().email().max(320),
   startDate: reportDateSchema,
   endDate: reportDateSchema,
-  skillId: z.string().uuid().optional(),
-  sportConfigId: z.string().uuid().optional(),
+  skillId: z.guid().optional(),
+  sportConfigId: z.guid().optional(),
 }).superRefine(validateReportPeriod);
 
 export const POST = withTenant(async (request, context) => {

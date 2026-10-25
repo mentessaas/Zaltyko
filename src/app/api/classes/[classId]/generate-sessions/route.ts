@@ -10,7 +10,7 @@ import { logger } from "@/lib/logger";
 import { authorizeClassResource } from "@/lib/authz/resource-scope";
 
 const bodySchema = z.object({
-  classId: z.string().uuid(),
+  classId: z.guid(),
   startDate: z.string().date(), // Fecha de calendario YYYY-MM-DD
   endDate: z.string().date(), // Fecha de calendario YYYY-MM-DD
 });

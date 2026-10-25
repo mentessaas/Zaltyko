@@ -11,18 +11,18 @@ import { requireLeakProfitabilityFeature } from "@/lib/product/leak-profitabilit
 export const dynamic = "force-dynamic";
 
 const querySchema = z.object({
-  academyId: z.string().uuid(),
+  academyId: z.guid(),
 });
 
 const createSchema = z.object({
-  academyId: z.string().uuid(),
+  academyId: z.guid(),
   label: z.string().min(1).max(200),
   category: z.string().min(1).max(80).default("other"),
   amountCents: z.number().int().min(0),
   currency: z.string().length(3).default("EUR"),
   recurrence: z.enum(["monthly", "one_time"]).default("monthly"),
   appliesToType: z.enum(["academy", "class", "coach", "sport_config"]).default("academy"),
-  appliesToId: z.string().uuid().optional(),
+  appliesToId: z.guid().optional(),
   expenseDate: z.string().regex(/^\d{4}-\d{2}-\d{2}$/),
   notes: z.string().max(1000).optional(),
   isActive: z.boolean().default(true),

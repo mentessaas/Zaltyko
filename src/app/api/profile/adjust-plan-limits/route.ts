@@ -15,7 +15,7 @@ import { escapeHtml } from "@/lib/email/escape-html";
 import { getProductPlanPublicName } from "@/lib/plans/catalog";
 
 const BodySchema = z.object({
-  academyIdsToKeep: z.array(z.string().uuid()).optional(),
+  academyIdsToKeep: z.array(z.guid()).optional(),
 });
 
 export const POST = withTenant(async (request, context) => {

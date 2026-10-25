@@ -39,8 +39,8 @@ vi.mock("@/components/owner-dashboard/OwnerDashboardView", () => ({
 vi.mock("@/modules/owner-dashboard/application/get-owner-dashboard", () => ({
   getOwnerDashboard: mocks.dashboard,
   ownerDashboardQuerySchema: z.object({
-    organizationId: z.string().uuid().optional(),
-    locationId: z.string().uuid().optional(),
+    organizationId: z.guid().optional(),
+    locationId: z.guid().optional(),
     from: z.string().optional(),
     to: z.string().optional(),
     programId: z.string().optional(),

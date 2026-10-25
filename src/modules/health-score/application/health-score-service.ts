@@ -39,9 +39,9 @@ const dimensions = [
 ] as const;
 
 const calculateHealthScoreSchema = z.object({
-  organizationId: z.string().uuid(),
-  metricRunId: z.string().uuid(),
-  benchmarkProfileId: z.string().uuid(),
+  organizationId: z.guid(),
+  metricRunId: z.guid(),
+  benchmarkProfileId: z.guid(),
   scoreVersionKey: z.string().trim().min(1).default("zaltyko_owner_health"),
   scoreVersion: z.number().int().positive().default(1),
   idempotencyKey: z.string().trim().min(8).max(150),

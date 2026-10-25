@@ -174,49 +174,72 @@ describe("local browser network guard", () => {
     }
   );
 
-  it("classifies only the observed Sentry replay script as expected blocked telemetry", () => {
+  it("classifies only the Sentry browser CDN as expected blocked telemetry", () => {
     expect(
       isExpectedBlockedTelemetryRequest({
-        url: "https://browser.sentry-cdn.com/10.73.0/replay.min.js",
+        url: "https://browser.sentry-cdn.com/10.76.2/replay.min.js",
         method: "GET",
         resourceType: "script",
       })
     ).toBe(true);
     expect(
       isExpectedBlockedTelemetryRequest({
-        url: "https://browser.sentry-cdn.com/10.73.0/envelope/",
+        url: "https://browser.sentry-cdn.com/10.76.2/envelope/",
         method: "POST",
         resourceType: "fetch",
+      })
+    ).toBe(true);
+    expect(
+      isExpectedBlockedTelemetryRequest({
+        url: "https://browser.sentry-cdn.com/10.76.2/envelope/?sentry_key=synthetic",
+        method: "POST",
+        resourceType: "fetch",
+      })
+    ).toBe(true);
+    expect(
+      isExpectedBlockedTelemetryRequest({
+        url: "https://browser.sentry-cdn.com.evil.invalid/10.77.0/replay.min.js",
+        method: "GET",
+        resourceType: "script",
       })
     ).toBe(false);
     expect(
       isExpectedBlockedTelemetryRequest({
-        url: "https://browser.sentry-cdn.com/10.73.0/replay.min.js?unexpected=1",
+        url: "not a URL",
         method: "GET",
         resourceType: "script",
       })
     ).toBe(false);
   });
 
-  it("continues blocking the exact Sentry script and records it separately", async () => {
+  it("continues blocking Sentry CDN requests and records them separately", async () => {
     const { context, handler } = fakeContext();
     const networkReport = await installLocalE2ENetworkGuard(context, {
       baseUrl: "http://127.0.0.1:43123",
       supabaseUrl: "http://127.0.0.1:54321",
     });
     const route = fakeRoute({
-      url: "https://browser.sentry-cdn.com/10.73.0/replay.min.js",
+      url: "https://browser.sentry-cdn.com/10.76.2/replay.min.js",
       resourceType: "script",
+    });
+    const envelopeRoute = fakeRoute({
+      url: "https://browser.sentry-cdn.com/10.76.2/envelope/?sentry_key=synthetic",
+      method: "POST",
+      resourceType: "fetch",
     });
 
     await handler()(route);
+    await handler()(envelopeRoute);
 
     expect(route.abort).toHaveBeenCalledWith("blockedbyclient");
+    expect(envelopeRoute.abort).toHaveBeenCalledWith("blockedbyclient");
     expect(route.continue).not.toHaveBeenCalled();
+    expect(envelopeRoute.continue).not.toHaveBeenCalled();
     expect(networkReport()).toEqual({
       unexpectedBlockedRequests: [],
       expectedBlockedTelemetryRequests: [
-        "https://browser.sentry-cdn.com/10.73.0/replay.min.js",
+        "https://browser.sentry-cdn.com/10.76.2/replay.min.js",
+        "https://browser.sentry-cdn.com/10.76.2/envelope/",
       ],
     });
   });

@@ -19,7 +19,7 @@ import { logger } from "@/lib/logger";
 export const dynamic = "force-dynamic";
 
 const ListConversationsSchema = z.object({
-  academyId: z.string().uuid().optional(),
+  academyId: z.guid().optional(),
   limit: z.coerce.number().int().min(1).max(100).default(50),
   offset: z.coerce.number().int().min(0).default(0),
 });
@@ -154,8 +154,8 @@ export const GET = withTenant(async (request, context) => {
  * POST - Crear nueva conversación
  */
 const CreateConversationSchema = z.object({
-  participantIds: z.array(z.string().uuid()).min(1).max(100),
-  academyId: z.string().uuid().optional(),
+  participantIds: z.array(z.guid()).min(1).max(100),
+  academyId: z.guid().optional(),
   title: z.string().min(1).max(255).optional(),
   initialMessage: z.string().min(1).max(2000).optional(),
   metadata: z

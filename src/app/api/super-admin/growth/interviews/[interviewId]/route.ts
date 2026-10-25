@@ -9,7 +9,7 @@ import { withSuperAdmin } from "@/lib/authz";
 import { CommercialInterviewInputSchema } from "@/lib/growth/contracts";
 import { toCommercialInterviewValues } from "@/lib/growth/interviews";
 
-const ParamsSchema = z.object({ interviewId: z.string().uuid() });
+const ParamsSchema = z.object({ interviewId: z.guid() });
 
 /** @resource-scope super-admin — withSuperAdmin verifies the global authority. */
 

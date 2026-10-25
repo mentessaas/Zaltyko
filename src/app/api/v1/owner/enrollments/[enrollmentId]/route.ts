@@ -14,10 +14,10 @@ import { transitionEnrollment } from "@/modules/enrollments/application/enrollme
 import { OperationalError } from "@/modules/shared/domain/operational-error";
 import { resolveOwnerScope } from "@/modules/owner-dashboard/application/owner-scope";
 
-const paramsSchema = z.object({ enrollmentId: z.string().uuid() });
+const paramsSchema = z.object({ enrollmentId: z.guid() });
 const bodySchema = z
   .object({
-    organizationId: z.string().uuid(),
+    organizationId: z.guid(),
     expectedVersion: z.number().int().positive(),
     toStatus: z.enum(["active", "paused", "cancelled", "completed"]),
     effectiveOn: z.string().date(),

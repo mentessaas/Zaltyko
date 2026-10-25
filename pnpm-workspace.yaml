@@ -60,8 +60,13 @@ overrides:
   'eslint>ajv': ^6.14.0
   # basic-ftp: CPU DoS in Unix directory listing parser (GHSA-c475-qrg2-pj4r)
   basic-ftp: ^6.2.1
-  # DOMPurify: in-place sanitization hooks can leave handlers armed (GHSA-p98j-92pf-mc4p)
-  dompurify: ^3.4.16
+  # DOMPurify: patched hook and template sanitization issues (GHSA-mrv2-3pqr-j5jr, GHSA-cg2g-xh64-v4q7)
+  dompurify: ^3.4.17
+  # body-parser: reject compressed trailing-byte DoS in both supported majors (GHSA-27r3-jxmh-p828)
+  'body-parser@1': ^1.20.9
+  'body-parser@2': ^2.4.0
+  # Zod: collection validation resource-exhaustion fix (GHSA-mrhx-c7xc-m3w5)
+  zod: ^4.6.7
   # Lighthouse 13 upgrades its Puppeteer toolchain and removes vulnerable extract-zip
   # from @puppeteer/browsers; the Lighthouse job runs on Node 22.12+.
   lighthouse: ^13.5.0

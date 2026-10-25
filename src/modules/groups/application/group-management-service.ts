@@ -25,9 +25,9 @@ import { resolveOwnerScope } from "@/modules/owner-dashboard/application/owner-s
 const openMembershipStatuses = ["pending", "active", "paused"] as const;
 const commandKeySchema = z.string().trim().min(8).max(180);
 const createGroupSchema = z.object({
-  organizationId: z.string().uuid(),
-  locationId: z.string().uuid(),
-  programId: z.string().uuid().nullable(),
+  organizationId: z.guid(),
+  locationId: z.guid(),
+  programId: z.guid().nullable(),
   name: z.string().trim().min(2).max(120),
   capacity: z.number().int().positive().max(5000).nullable(),
   idempotencyKey: commandKeySchema,

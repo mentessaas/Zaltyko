@@ -18,7 +18,7 @@ export const GET = withTenant(async (_request, context) => {
   if (!receiptId) {
     return apiError("RECEIPT_ID_REQUIRED", "ID de recibo requerido", 400);
   }
-  if (!z.string().uuid().safeParse(receiptId).success) {
+  if (!z.guid().safeParse(receiptId).success) {
     return apiError("INVALID_RECEIPT_ID", "ID de recibo inválido", 400);
   }
 

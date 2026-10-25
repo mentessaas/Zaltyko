@@ -47,8 +47,8 @@ export const CreateAcademyBodySchema = z.object({
   city: z.string().optional(),
   academyType: z.enum(ACADEMY_TYPES).optional(),
   disciplineVariant: z.enum(DISCIPLINE_VARIANTS).optional(),
-  tenantId: z.string().uuid().optional(),
-  ownerProfileId: z.string().uuid().optional(),
+  tenantId: z.guid().optional(),
+  ownerProfileId: z.guid().optional(),
   /**
    * ZAL-157: UTMs first-touch del signup. Todas las keys son opcionales —
    * si llegan vacías se persisten los defaults `direct/none/...` para
@@ -67,7 +67,7 @@ export const CreateAcademyBodySchema = z.object({
 });
 
 export const QuerySchema = z.object({
-  tenantId: z.string().uuid().optional(),
+  tenantId: z.guid().optional(),
   academyType: z.enum(ACADEMY_TYPES).optional(),
 });
 

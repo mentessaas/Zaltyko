@@ -17,21 +17,21 @@ import { resolveOwnerScope } from "@/modules/owner-dashboard/application/owner-s
 
 const querySchema = z
   .object({
-    organizationId: z.string().uuid(),
-    locationId: z.string().uuid(),
-    classTemplateId: z.string().uuid(),
+    organizationId: z.guid(),
+    locationId: z.guid(),
+    classTemplateId: z.guid(),
     q: z.string().trim().min(2).max(80),
   })
   .strict();
 
 const bodySchema = z
   .object({
-    organizationId: z.string().uuid(),
-    locationId: z.string().uuid(),
-    athleteId: z.string().uuid(),
-    classTemplateId: z.string().uuid(),
+    organizationId: z.guid(),
+    locationId: z.guid(),
+    athleteId: z.guid(),
+    classTemplateId: z.guid(),
     startsOn: z.string().date(),
-    pricePlanId: z.string().uuid().nullable().optional(),
+    pricePlanId: z.guid().nullable().optional(),
   })
   .strict();
 

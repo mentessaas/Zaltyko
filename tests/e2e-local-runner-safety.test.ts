@@ -44,7 +44,10 @@ describe("local E2E runner wiring", () => {
       "runAllowExitCode(\n      playwrightCli.command"
     );
     expect(runnerSource).toMatch(
-      /withBuildDiagnostic\(\s*\(\) =>\s*withBuildHostResourceMetrics\(\s*\(\) =>\s*run\(\s*nextBuild\.command,\s*nextBuild\.args,\s*\{\s*\.\.\.childEnv,\s*NODE_ENV: "production",\s*ZALTYKO_E2E_WEBPACK_BUILD_WORKER: "true",\s*\},\s*LOCAL_E2E_TIMEOUTS\.build,\s*abortController\.signal,\s*"pipe",\s*progress\.push\s*\)/
+      /const buildTimeoutMs =\s*process\.env\.GITHUB_ACTIONS === "true"\s*\?\s*LOCAL_E2E_TIMEOUTS\.ciBuild\s*:\s*LOCAL_E2E_TIMEOUTS\.build/
+    );
+    expect(runnerSource).toMatch(
+      /withBuildDiagnostic\(\s*\(\) =>\s*withBuildHostResourceMetrics\(\s*\(\) =>\s*run\(\s*nextBuild\.command,\s*nextBuild\.args,\s*\{\s*\.\.\.childEnv,\s*NODE_ENV: "production",\s*ZALTYKO_E2E_WEBPACK_BUILD_WORKER: "true",\s*\},\s*buildTimeoutMs,\s*abortController\.signal,\s*"pipe",\s*progress\.push\s*\)/
     );
     expect(playwrightConfigSource).toContain(
       'localCliEntrypoint(process.cwd(), "next")'
