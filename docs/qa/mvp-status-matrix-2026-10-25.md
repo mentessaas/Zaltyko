@@ -10,6 +10,35 @@ persistidos reales de sandbox.
 
 ## Corte vigente de validación
 
+Paquete SQL exacto versionado en d0f0af43: candidato
+`20261025202902_canonical_domain_installation_candidate.sql`, SHA-256
+`00ead5a3869bb335f2f17e58ebaaacac2bdc1ae4504493b473c68393359dab00`.
+CI40232300015 SUCCESS: coincide byte a byte con generación, instalación en
+PG17.6 desechable con propietario NOSUPERUSER/sin membresía supabase_admin,
+inventario/ACL/RLS/aislamiento, rechazo sin modo y de replay. Revisión estática
+independiente sin P1/P2 confirmado para presentar a aprobación humana; no es
+autorización de aplicación. Fuente: canonical-installation-candidate-proof-2026-10-25.md.
+CI general40232303782 sigue en curso al corte: no se declara PASS global del
+HEAD documental/herramientas. El código de aplicación desplegado sigue SHA474.
+
+### Matriz vigente — aplicación474 y preparación SQL posterior
+
+| Recorrido | Implementado | Probado aisladamente | Comprobado en sandbox de entregas | Publicado |
+| --- | --- | --- | --- | --- |
+| Alta, consentimiento, correo, recuperación y academia | Rutas y contratos presentes. | CI474 Owner sintético y unitarios PASS; Auth alojado no cubierto. | Pendiente: callbacks preparados sin guardar y alta sin contraseña ni aceptación. | No. |
+| Familias, tutores y gimnastas | Alta sin grupo, asignación posterior, asociaciones, edición de tutor/contactos y archivo ordinario presentes. No se declara CRUD ilimitado ajeno a estos contratos. | CI474 5084 unitarias PASS/3 omitidas; tres navegadores y diez suites PostgreSQL nativas PASS en su alcance. | Recorrido real de la entrega NO VERIFICADO. | No. |
+| Grupos, clases e inscripciones | Contratos de capacidad, sede, alta/cancelación y guard SaaS presentes. | CI474 Owner sintético/PG PASS. | Recorrido real de la entrega NO VERIFICADO. | No. |
+| Asistencia, cuotas y pagos manuales | Contratos/UI presentes, reintentos y recibos idempotentes. | CI474 Owner sintético/PG PASS. | Persistencia de la entrega con sesión real NO VERIFICADA. | No. |
+| Dashboard y experiencia móvil | Proyecciones y navegación presentes. | CI474 build/job móvil/tres navegadores PASS. | Datos persistidos y vistas375/768/1280 de esta entrega NO VERIFICADOS. | No. |
+| Free y regularización | Solo lectura por excedente, archivo y contratación disponibles en código. | Guardas/denegaciones y regularización sintéticas PASS; no reemplazan snapshots remotos. | Ensayo protegido independiente; no se alteró para validar esta entrega. | No. |
+| SaaS y contratación | Implementación y recursos Stripe TEST previos presentes. | CI474 código PASS; eventos históricos test separados de esta entrega. | Impago terminal natural pendiente de la ventana26oct; Live NO VERIFICADO. | No. |
+| Base SQL | Snapshot con procedencia, selección AST y candidato exacto fuera del historial aplicable. | CI40232300015 instalación/ACL/aislamiento/replay PASS en PG desechable. | Sin aplicación de candidato en sandbox alojado. | No; falta autorización SQL específica y revalidación del destino. |
+
+La aprobación externa de PR234, el acceso Auth dedicado y la autorización SQL
+productiva son gates distintos. Ninguno se sustituye por otro ni por una CI
+verde. Las filas históricas posteriores conservan su fecha/alcance y no son
+la matriz vigente.
+
 Herramientas SQL posteriores al candidato de aplicación: ensayo remoto
 40229946414 SUCCESS en edd3bf75. Reproducción canónica con ACL/defaults,
 aislamiento sintético de dos academias/sedes, denegaciones sin filas parciales,

@@ -8,6 +8,19 @@ source:
 ---
 
 
+## 2026-10-25 — Procedimiento MVP y guía productiva histórica
+
+- production-setup.md se marca histórica: proponía Storage por bucket_id sin
+  aislamiento de academia y activación cron/Realtime fuera del plan actual.
+  No se ejecutó ninguna receta ni se cambió infraestructura/configuración.
+- Nuevo procedimiento docs/deployment/mvp-release-procedure-2026-10-25.md:
+  Auth real, revisión externa, SQL separado, preflight sin sandbox/TEST en Live,
+  control de12crons locales antes de staging, build remoto sin dominio y
+  promoción del mismo artefacto production. No afirma cron real activado/apagado
+  por el JSON ni que skip-domain evite tareas. Fuente oficial Vercel consultada.
+- Matriz separa el estado vigente474 de cortes históricos; CI40232303782 aún
+  en curso al corte. No builds/tests/servicios locales ni publicación ejecutada.
+
 ## 2026-10-25 — Candidato de migración con privilegios acotados, CI PASS
 
 - Nombre generado por CLI2.84.2:20261025202902_canonical_domain_installation_candidate.sql;
