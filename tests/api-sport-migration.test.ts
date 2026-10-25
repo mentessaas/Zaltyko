@@ -16,6 +16,10 @@ const COACH_ID = "88888888-8888-8888-8888-888888888888";
 let selectQueue: unknown[][] = [];
 let insertCalls: Array<{ table: unknown; payload: unknown }> = [];
 let updateCalls: Array<{ table: unknown; data: unknown }> = [];
+const limitMocks = {
+  lockAcademyOperationalWrites: vi.fn(async () => undefined),
+  assertAcademyOperationalWritable: vi.fn(async () => ({ readOnly: false })),
+};
 
 function createSelectChain(result: unknown[]) {
   const chain: Record<string, unknown> = {};
@@ -61,6 +65,7 @@ describe("API /api/academies/[academyId]/sport-migration", () => {
     selectQueue = [];
     insertCalls = [];
     updateCalls = [];
+    vi.clearAllMocks();
 
     vi.doMock("@/lib/authz", () => ({
       withTenant:
@@ -85,6 +90,8 @@ describe("API /api/academies/[academyId]/sport-migration", () => {
         tenantId: TENANT_ID,
       }),
     }));
+
+    vi.doMock("@/lib/limits", () => limitMocks);
 
     vi.doMock("@/db", () => ({
       db: {
@@ -155,6 +162,8 @@ describe("API /api/academies/[academyId]/sport-migration", () => {
 
     expect(response.status).toBe(200);
     await expect(response.json()).resolves.toMatchObject({ data: { updated: 1 } });
+    expect(limitMocks.lockAcademyOperationalWrites).toHaveBeenCalledWith(expect.anything(), ACADEMY_ID);
+    expect(limitMocks.assertAcademyOperationalWritable).toHaveBeenCalledWith(TENANT_ID, ACADEMY_ID, expect.anything());
     expect(updateCalls[0]?.data).toMatchObject({ primarySportConfigId: SPORT_CONFIG_ID });
     expect(insertCalls[0]?.payload).toEqual([
       expect.objectContaining({

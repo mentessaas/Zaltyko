@@ -130,7 +130,7 @@ describe("API limits and feature contracts", () => {
       ["src/app/api/classes/[classId]/exceptions/[exceptionId]/route.ts", "tx.delete(classExceptions)"] as const,
       ["src/app/api/athletes/import/route.ts", "tx.insert(athletes)"] as const,
       ["src/app/api/class-sessions/route.ts", ".insert(classSessions)"] as const,
-      ["src/app/api/class-sessions/[sessionId]/route.ts", "tx.update(classSessions)"] as const,
+      ["src/app/api/class-sessions/[sessionId]/route.ts", ".update(classSessions)"] as const,
       ["src/app/api/quick-actions/create-class/route.ts", ".insert(classSessions)"] as const,
       ["src/app/api/class-waiting-list/route.ts", "tx.insert(classWaitingList)"] as const,
       ["src/lib/classes/promote-waiting-list.ts", "tx.insert(classEnrollments)"] as const,
@@ -345,7 +345,7 @@ describe("API limits and feature contracts", () => {
     const lock = profileCompletion.indexOf("lockAcademyOperationalWrites(tx");
     const writable = profileCompletion.indexOf("assertAcademyOperationalWritable(", lock);
     const capacity = profileCompletion.indexOf('"athletes", tx', writable);
-    const write = profileCompletion.indexOf("tx.insert(athletes)", capacity);
+    const write = profileCompletion.indexOf(".insert(athletes)", capacity);
     expect(lock).toBeGreaterThanOrEqual(0);
     expect(writable).toBeGreaterThan(lock);
     expect(capacity).toBeGreaterThan(writable);

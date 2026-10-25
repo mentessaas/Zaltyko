@@ -177,7 +177,7 @@ describe("límite HTTP de archivo y restauración de gimnastas", () => {
       mocks.tx,
     );
     expect(mocks.state.events).toEqual([
-      "begin", "lock", "select:auditLogs", "select:athletes", "update:archived", "audit:transaction", "commit",
+      "begin", "lock", "lock", "select:auditLogs", "select:athletes", "update:archived", "audit:transaction", "commit",
     ]);
 
     const replay = await bulkArchive(request("/api/athletes/bulk-archive", body), context as never);
@@ -202,7 +202,7 @@ describe("límite HTTP de archivo y restauración de gimnastas", () => {
 
     expect(response.status).toBe(500);
     expect(mocks.state.events).toEqual([
-      "begin", "lock", "select:auditLogs", "select:athletes", "update:archived", "audit:transaction", "rollback",
+      "begin", "lock", "lock", "select:auditLogs", "select:athletes", "update:archived", "audit:transaction", "rollback",
     ]);
     expect(mocks.state.auditReceipt).toBeNull();
   });
