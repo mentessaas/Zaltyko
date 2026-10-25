@@ -20,13 +20,13 @@ import { getUserPermissions } from "@/lib/authz/permissions-service";
 // `customPermissions` y `groupsAssigned` porque el form de invitación puede
 // limpiar esos campos (clear field). Antes, `null` → 400.
 const bodySchema = z.object({
-  academyId: z.string().uuid(),
+  academyId: z.guid(),
   email: z.string().email(),
   role: z.enum(["coach", "parent", "admin", "athlete"]),
-  roleId: z.string().uuid().nullable().optional(),
+  roleId: z.guid().nullable().optional(),
   customPermissions: z.array(z.enum(permissionEnum.enumValues)).nullable().optional(),
   customMessage: z.string().nullable().optional(),
-  groupsAssigned: z.array(z.string().uuid()).nullable().optional(),
+  groupsAssigned: z.array(z.guid()).nullable().optional(),
   expiresInDays: z.number().int().min(1).max(30).default(7),
   sendEmail: z.boolean().default(true),
 });

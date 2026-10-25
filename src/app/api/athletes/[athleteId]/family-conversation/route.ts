@@ -17,7 +17,7 @@ import { verifyCoachAthleteScope } from "@/lib/permissions";
 export const dynamic = "force-dynamic";
 
 const BodySchema = z.object({
-  guardianId: z.string().uuid(),
+  guardianId: z.guid(),
 });
 
 export const POST = withTenant(async (request, context) => {

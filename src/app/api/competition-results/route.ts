@@ -14,15 +14,15 @@ import { handleApiError } from "@/lib/api-error-handler";
 import { getAcademySportConfigOptions, verifyAcademySportConfig } from "@/lib/sport-config/service";
 
 const querySchema = z.object({
-  eventId: z.string().uuid().optional(),
-  athleteId: z.string().uuid().optional(),
-  sportConfigId: z.string().uuid().optional(),
+  eventId: z.guid().optional(),
+  athleteId: z.guid().optional(),
+  sportConfigId: z.guid().optional(),
 });
 
 const resultSchema = z.object({
-  athleteId: z.string().uuid(),
-  eventId: z.string().uuid().optional().nullable(),
-  sportConfigId: z.string().uuid().optional().nullable(),
+  athleteId: z.guid(),
+  eventId: z.guid().optional().nullable(),
+  sportConfigId: z.guid().optional().nullable(),
   apparatus: z.string().trim().min(1).max(120).optional().nullable(),
   dScore: z.number().int().min(0).optional().nullable(),
   eScore: z.number().int().min(0).optional().nullable(),

@@ -22,7 +22,7 @@ export function registerUserTools(server: any) {
     'get_user_profile',
     'Obtiene información de un perfil de usuario por ID',
     {
-      userId: z.string().uuid(),
+      userId: z.guid(),
     },
     async ({ userId }: { userId: string }, context?: McpAuthContext) => {
       try {

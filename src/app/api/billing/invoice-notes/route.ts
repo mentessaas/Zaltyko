@@ -8,11 +8,11 @@ import { apiSuccess, apiError } from "@/lib/api-response";
 import { logger } from "@/lib/logger";
 
 const BodySchema = z.object({
-  academyId: z.string().uuid({
-    message: "El ID de la academia debe ser un UUID válido",
+  academyId: z.guid({
+    error: "El ID de la academia debe ser un UUID válido",
   }),
-  invoiceId: z.string().uuid({
-    message: "El ID del recibo debe ser un UUID válido",
+  invoiceId: z.guid({
+    error: "El ID del recibo debe ser un UUID válido",
   }),
   notes: z
     .string()

@@ -7,7 +7,7 @@ import { getCurrentProfile, withTenant } from "@/lib/authz";
 import { apiCreated, apiError, apiSuccess } from "@/lib/api-response";
 import { verifyAcademyAccessForProfile } from "@/lib/permissions";
 
-const idSchema = z.string().uuid();
+const idSchema = z.guid();
 
 type SupportContext = {
   tenantId: string;

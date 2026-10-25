@@ -11,7 +11,7 @@ import { handleApiError } from "@/lib/api-error-handler";
 import { apiSuccess, apiError, apiCreated } from "@/lib/api-response";
 
 const createExtraClassSchema = z.object({
-  classId: z.string().uuid(),
+  classId: z.guid(),
 });
 
 export const GET = withTenant(async (request, context) => {

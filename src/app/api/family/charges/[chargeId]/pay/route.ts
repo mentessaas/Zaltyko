@@ -34,7 +34,7 @@ export async function POST(request: Request) {
     if (!user || !user.email) {
       return apiError("UNAUTHORIZED", "Sesión no válida.", 401);
     }
-    if (!z.string().uuid().safeParse(chargeId).success) {
+    if (!z.guid().safeParse(chargeId).success) {
       return apiError("INVALID_CHARGE_ID", "Identificador de cargo inválido.", 400);
     }
 

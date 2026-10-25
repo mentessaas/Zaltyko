@@ -16,7 +16,7 @@ import {
 } from "@/lib/stripe/connect-service";
 
 const BodySchema = z.object({
-  academyId: z.string().uuid(),
+  academyId: z.guid(),
 });
 
 /**

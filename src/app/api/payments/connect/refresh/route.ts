@@ -10,7 +10,7 @@ import { getBillingAcademyAccess } from "@/lib/billing/access";
 import { refreshConnectAccountStatus, isConnectReady } from "@/lib/stripe/connect-service";
 
 const BodySchema = z.object({
-  academyId: z.string().uuid(),
+  academyId: z.guid(),
 });
 
 /**

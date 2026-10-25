@@ -8,7 +8,7 @@ import { verifyAcademyAccess } from "@/lib/permissions";
 import { getConnectAccount, isConnectReady } from "@/lib/stripe/connect-service";
 
 const QuerySchema = z.object({
-  academyId: z.string().uuid(),
+  academyId: z.guid(),
 });
 
 /**

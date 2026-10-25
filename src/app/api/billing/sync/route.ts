@@ -11,7 +11,7 @@ import { logger } from "@/lib/logger";
 import { getBillingAcademyAccess } from "@/lib/billing/access";
 
 const bodySchema = z.object({
-  academyId: z.string().uuid(),
+  academyId: z.guid(),
 });
 
 function unixToDate(value?: number | null): Date | null {

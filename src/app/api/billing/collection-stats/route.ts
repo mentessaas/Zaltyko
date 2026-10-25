@@ -10,7 +10,7 @@ import { currentPeriod, getCollectionStats } from "@/lib/billing/collection-stat
 export const dynamic = "force-dynamic";
 
 const QuerySchema = z.object({
-  academyId: z.string().uuid(),
+  academyId: z.guid(),
   period: z
     .string()
     .regex(/^\d{4}-\d{2}$/)

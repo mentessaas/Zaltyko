@@ -8,8 +8,8 @@ import { changeInsightDisposition } from "@/modules/insights/application/insight
 import { OperationalError } from "@/modules/shared/domain/operational-error";
 
 const bodySchema = z.object({
-  organizationId: z.string().uuid().optional(),
-  locationId: z.string().uuid().optional(),
+  organizationId: z.guid().optional(),
+  locationId: z.guid().optional(),
   expectedVersion: z.number().int().positive(),
   reason: z.string().trim().min(3).max(300),
   idempotencyKey: z.string().trim().min(8).max(150),
@@ -31,7 +31,7 @@ export async function POST(
   }
   const payload = await request.json().catch(() => null);
   const parsedParams = z
-    .object({ id: z.string().uuid() })
+    .object({ id: z.guid() })
     .safeParse(await params);
   const parsed = bodySchema.safeParse({
     ...(payload && typeof payload === "object" ? payload : {}),

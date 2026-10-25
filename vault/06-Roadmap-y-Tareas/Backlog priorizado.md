@@ -1168,3 +1168,4 @@ Catálogo remoto autorizadoMain15oct: prod no tiene namespaceszaltyko/domain_pri
 - En curso: actualizar solo a versiones parcheadas y revisar la transición mayor de Zod 3 a 4.
 - Criterio de cierre: auditoría/SBOM sin advisories aplicables, checks remotos obligatorios verdes para el SHA actual y revisión de compatibilidad; no merge ni despliegue antes.
 - Sin cambios en datos, proveedores, sandbox o producción durante esta remediación.
+- Actualización 2026-10-25: run `40174265519` para SHA `492ad418ecd8262fc2c470e9f21af64cd5e01918` pasó seguridad/SBOM, RLS, integridad de migraciones, móvil y GitGuardian; fallaron lint/tipos, build y 80 tests por cambios de Zod 4. El parche local adapta records, issues, variables requeridas y conserva UUID-like mediante `z.guid()` (678 usos) con regresión; falta enviar este candidato y obtener CI verde. No hubo build/test local, merge ni deployment.

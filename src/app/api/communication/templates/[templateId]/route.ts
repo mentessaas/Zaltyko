@@ -12,7 +12,7 @@ export const dynamic = 'force-dynamic';
 // edición de plantilla puede limpiar (clear field). Antes, `null` → 400.
 // Booleans (`isSystem`/`isActive`) y enum `channel` se quedan como estaban.
 const updateTemplateSchema = z.object({
-  sportConfigId: z.string().uuid().optional().nullable(),
+  sportConfigId: z.guid().optional().nullable(),
   name: z.string().min(1).max(200).nullable().optional(),
   description: z.string().nullable().optional(),
   channel: z.enum(["whatsapp", "email", "push", "in_app"]).optional(),

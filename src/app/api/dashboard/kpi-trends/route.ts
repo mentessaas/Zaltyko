@@ -6,7 +6,7 @@ import { getKpiTrends, EMPTY_TRENDS } from "@/lib/dashboard/kpi-trends";
 import { logger } from "@/lib/logger";
 
 const querySchema = z.object({
-  academyId: z.string().uuid(),
+  academyId: z.guid(),
   days: z.coerce.number().int().min(2).max(90).optional(),
 });
 

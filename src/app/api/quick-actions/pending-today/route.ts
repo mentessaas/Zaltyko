@@ -20,7 +20,7 @@ export const GET = withTenant(async (req, context) => {
     try {
         const { tenantId } = context;
         const requestedAcademyId = new URL(req.url).searchParams.get("academyId") ?? context.profile.activeAcademyId;
-        const academyId = z.string().uuid().safeParse(requestedAcademyId).success ? requestedAcademyId : null;
+        const academyId = z.guid().safeParse(requestedAcademyId).success ? requestedAcademyId : null;
         if (!academyId) return apiError("ACADEMY_REQUIRED", "Academia requerida", 400);
         const academyScope = await authorizeAcademyCapability({
             context,

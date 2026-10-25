@@ -20,9 +20,9 @@ import { logger } from "@/lib/logger";
 import { getCurrencyForCountry } from "@/lib/currency";
 
 const GenerateMonthlyChargesSchema = z.object({
-  academyId: z.string().uuid(),
-  groupId: z.string().uuid().nullable().optional(),
-  sportConfigId: z.string().uuid().nullable().optional(),
+  academyId: z.guid(),
+  groupId: z.guid().nullable().optional(),
+  sportConfigId: z.guid().nullable().optional(),
   period: z
     .string()
     .regex(/^\d{4}-\d{2}$/, "El periodo debe tener formato YYYY-MM"),

@@ -11,7 +11,7 @@ export const GET = withTenant(async (_request, context) => {
   const params = context.params as { academyId?: string };
   const academyId = params?.academyId;
 
-  if (!academyId || !z.string().uuid().safeParse(academyId).success) {
+  if (!academyId || !z.guid().safeParse(academyId).success) {
     return apiError("ACADEMY_ID_REQUIRED", "Academy ID is required", 400);
   }
 

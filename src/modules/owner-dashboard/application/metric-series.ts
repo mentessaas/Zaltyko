@@ -8,8 +8,8 @@ import { resolveOwnerScope } from "@/modules/owner-dashboard/application/owner-s
 import { OperationalError } from "@/modules/shared/domain/operational-error";
 
 export const metricSeriesQuerySchema = z.object({
-  organizationId: z.string().uuid().optional(),
-  locationId: z.string().uuid().optional(),
+  organizationId: z.guid().optional(),
+  locationId: z.guid().optional(),
   from: z.string().date().optional(),
   to: z.string().date().optional(),
   currency: z.string().regex(/^[A-Z]{3}$/).optional(),
@@ -35,7 +35,7 @@ function decodeCursor(value?: string): MetricCursor | null {
     return z.object({
       periodEnd: z.string().date(),
       computedAt: z.string().datetime(),
-      id: z.string().uuid(),
+      id: z.guid(),
     }).parse(JSON.parse(Buffer.from(value, "base64url").toString("utf8")));
   } catch {
     throw new OperationalError("INVALID_RELATION", "Cursor de métricas inválido", 400);

@@ -22,8 +22,8 @@ import type { TransactionClient } from "@/lib/db-transactions";
 
 const materializeSessionsSchema = z
   .object({
-    organizationId: z.string().uuid(),
-    classTemplateId: z.string().uuid(),
+    organizationId: z.guid(),
+    classTemplateId: z.guid(),
     startDate: z.string().date(),
     endDate: z.string().date(),
     idempotencyKey: z.string().trim().min(8).max(180),

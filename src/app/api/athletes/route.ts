@@ -59,15 +59,15 @@ const dateStringSchema = z
   });
 
 const BodySchema = z.object({
-  academyId: z.string().uuid(),
+  academyId: z.guid(),
   name: z.string().trim().min(1).max(120),
   dob: dateStringSchema,
   level: z.string().nullable().optional(),
   status: z.enum(athleteStatusOptions).optional(),
   age: z.number().int().min(0).optional(),
   contacts: z.array(ContactSchema).optional(),
-  groupId: z.string().uuid().optional(),
-  primarySportConfigId: z.string().uuid().nullable().optional(),
+  groupId: z.guid().optional(),
+  primarySportConfigId: z.guid().nullable().optional(),
   programCode: z.string().trim().min(1).max(80).nullable().optional(),
   levelCode: z.string().trim().min(1).max(80).nullable().optional(),
   categoryCode: z.string().trim().min(1).max(80).nullable().optional(),
@@ -363,11 +363,11 @@ const filterSchema = z.object({
         ),
     ])
     .optional(),
-  academyId: z.string().uuid().optional(),
+  academyId: z.guid().optional(),
   minAge: z.coerce.number().min(0).optional(),
   maxAge: z.coerce.number().min(0).optional(),
-  groupId: z.string().uuid().optional(),
-  sportConfigId: z.string().uuid().optional(),
+  groupId: z.guid().optional(),
+  sportConfigId: z.guid().optional(),
   page: z.coerce.number().int().min(1).optional(),
   limit: z.coerce.number().int().min(1).max(200).optional(),
 });

@@ -20,8 +20,8 @@ export {
 } from "@/modules/owner-dashboard/domain/dashboard-layout";
 
 const inputSchema = z.object({
-  organizationId: z.string().uuid(),
-  userId: z.string().uuid(),
+  organizationId: z.guid(),
+  userId: z.guid(),
 });
 
 export type OwnerDashboardLayout = {

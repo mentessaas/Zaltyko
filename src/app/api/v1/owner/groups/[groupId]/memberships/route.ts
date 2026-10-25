@@ -18,22 +18,22 @@ import { searchGroupAthleteOptions } from "@/modules/groups/application/group-ma
 import { OperationalError } from "@/modules/shared/domain/operational-error";
 import { resolveOwnerScope } from "@/modules/owner-dashboard/application/owner-scope";
 
-const paramsSchema = z.object({ groupId: z.string().uuid() });
+const paramsSchema = z.object({ groupId: z.guid() });
 const querySchema = z.object({
-  organizationId: z.string().uuid(),
+  organizationId: z.guid(),
   q: z.string().trim().min(2).max(80),
 });
 const existingAthleteBodySchema = z
   .object({
-    organizationId: z.string().uuid(),
-    athleteId: z.string().uuid(),
+    organizationId: z.guid(),
+    athleteId: z.guid(),
     startsOn: z.string().date(),
     status: z.enum(["pending", "active"]),
   })
   .strict();
 const newAthleteBodySchema = z
   .object({
-    organizationId: z.string().uuid(),
+    organizationId: z.guid(),
     newAthlete: z
       .object({
         givenName: z.string().trim().min(1).max(100),

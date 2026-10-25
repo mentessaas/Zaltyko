@@ -9,17 +9,17 @@ import { authorizeAcademyCapability } from "@/lib/authz/resource-scope";
 import { recordGrowthEvent } from "@/lib/growth/events";
 
 const CreateSchema = z.object({
-  academyId: z.string().uuid(),
-  leadId: z.string().uuid().nullable().optional(),
+  academyId: z.guid(),
+  leadId: z.guid().nullable().optional(),
   scheduledAt: z.string().datetime({ offset: true }).nullable().optional(),
-  idempotencyKey: z.string().uuid(),
+  idempotencyKey: z.guid(),
 });
 
 export const GET = withTenant(async (request, context) => {
   if (!context.tenantId) return apiError("TENANT_REQUIRED", "Tenant requerido", 400);
   const url = new URL(request.url);
   const academyId = url.searchParams.get("academyId");
-  if (!academyId || !z.string().uuid().safeParse(academyId).success) {
+  if (!academyId || !z.guid().safeParse(academyId).success) {
     return apiError("ACADEMY_REQUIRED", "Academia no válida", 400);
   }
   const scope = await authorizeAcademyCapability({ context, resourceTenantId: context.tenantId, academyId, permission: "billing:read" });

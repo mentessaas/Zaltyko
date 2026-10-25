@@ -28,11 +28,11 @@ const sendWhatsAppSchema = z.object({
   academyId: z.string().optional(),
   phone: z.string().min(1, "Phone is required").optional(),
   recipientType: z.enum(["all", "class", "group", "selected"]).optional(),
-  recipientIds: z.array(z.string().uuid()).optional().default([]),
-  sportConfigId: z.string().uuid().optional().nullable(),
+  recipientIds: z.array(z.guid()).optional().default([]),
+  sportConfigId: z.guid().optional().nullable(),
   scheduledAt: z.string().optional(),
-  templateId: z.string().uuid().optional(),
-  historyId: z.string().uuid().optional(),
+  templateId: z.guid().optional(),
+  historyId: z.guid().optional(),
 });
 
 export const dynamic = 'force-dynamic';

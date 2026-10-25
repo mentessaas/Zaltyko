@@ -7,7 +7,7 @@ describe("event file upload tenant contract", () => {
     const route = readFileSync("src/app/api/events/upload/route.ts", "utf8");
     expect(source).toContain('formData.append("eventId", eventId)');
     expect(source).not.toContain('"x-academy-id": eventId');
-    expect(route).toContain('z.string().uuid().safeParse(eventId)');
+    expect(route).toContain('z.guid().safeParse(eventId)');
     expect(route).toContain('eq(events.tenantId, context.tenantId)');
   });
 });

@@ -24,7 +24,7 @@ export function registerAthleteTools(server: any) {
    *   'get_athlete_details',
    *   'Obtiene información detallada de un atleta por ID',
    *   {
-   *     athleteId: z.string().uuid(),
+   *     athleteId: z.guid(),
    *   },
    *   async ({ athleteId }: { athleteId: string }, context?: McpAuthContext) => {
    *     // Implementation here

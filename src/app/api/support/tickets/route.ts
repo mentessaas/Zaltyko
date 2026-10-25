@@ -12,11 +12,11 @@ const ticketSchema = z.object({
   description: z.string().trim().min(10).max(10_000),
   category: z.enum(["technical", "billing", "account", "feature_request", "other"]),
   priority: z.enum(["low", "medium", "high", "urgent"]).default("medium"),
-  academyId: z.string().uuid().optional(),
+  academyId: z.guid().optional(),
 });
 
 const querySchema = z.object({
-  academyId: z.string().uuid().optional(),
+  academyId: z.guid().optional(),
   status: z.enum(["open", "in_progress", "waiting", "resolved", "closed"]).optional(),
   priority: z.enum(["low", "medium", "high", "urgent"]).optional(),
   category: z.enum(["technical", "billing", "account", "feature_request", "other"]).optional(),

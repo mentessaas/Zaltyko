@@ -31,11 +31,11 @@ import { getUserIdentifier, withRateLimit } from "@/lib/rate-limit";
 export const dynamic = "force-dynamic";
 
 const GroupAlertSchema = z.object({
-  sessionId: z.string().uuid(),
+  sessionId: z.guid(),
   content: z.string().trim().min(1).max(2000),
 }).strict();
 
-const AcademyQuerySchema = z.object({ academyId: z.string().uuid() });
+const AcademyQuerySchema = z.object({ academyId: z.guid() });
 
 const groupAlertHandler = withTenant(async (request, context) => {
   const query = AcademyQuerySchema.safeParse({

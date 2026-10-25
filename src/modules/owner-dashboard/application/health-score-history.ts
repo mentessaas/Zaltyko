@@ -12,8 +12,8 @@ import { resolveOwnerScope } from "@/modules/owner-dashboard/application/owner-s
 import { OperationalError } from "@/modules/shared/domain/operational-error";
 
 export const healthScoreHistoryQuerySchema = z.object({
-  organizationId: z.string().uuid().optional(),
-  locationId: z.string().uuid().optional(),
+  organizationId: z.guid().optional(),
+  locationId: z.guid().optional(),
   cursor: z.string().max(500).optional(),
   limit: z.coerce.number().int().min(1).max(50).default(20),
 });
@@ -32,7 +32,7 @@ function decodeCursor(cursor?: string): HistoryCursor | null {
     return z.object({
       periodEnd: z.string().date(),
       computedAt: z.string().datetime(),
-      id: z.string().uuid(),
+      id: z.guid(),
     }).parse(JSON.parse(Buffer.from(cursor, "base64url").toString("utf8")));
   } catch {
     throw new OperationalError("INVALID_RELATION", "Cursor de historial inválido", 400);

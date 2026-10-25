@@ -9,11 +9,11 @@ import { authorizeAcademyCapability } from "@/lib/authz/resource-scope";
 import { recordGrowthEvent } from "@/lib/growth/events";
 
 const BodySchema = z.object({
-  academyId: z.string().uuid(),
+  academyId: z.guid(),
   outcome: z.enum(["attended", "no_show", "won", "lost", "follow_up"]),
   notes: z.string().trim().max(2_000).nullable().optional(),
   nextActionAt: z.string().datetime({ offset: true }).nullable().optional(),
-  idempotencyKey: z.string().uuid(),
+  idempotencyKey: z.guid(),
   metadata: z.record(z.string(), z.union([z.string(), z.number(), z.boolean(), z.null()])).optional(),
 });
 

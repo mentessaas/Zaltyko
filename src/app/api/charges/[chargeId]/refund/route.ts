@@ -35,7 +35,7 @@ const refundHandler = withTenant(async (request, context) => {
     if (!chargeId) {
       return apiError("CHARGE_ID_REQUIRED", "Charge ID is required", 400);
     }
-    if (!z.string().uuid().safeParse(chargeId).success) {
+    if (!z.guid().safeParse(chargeId).success) {
       return apiError("INVALID_CHARGE_ID", "Charge ID is invalid", 400);
     }
 

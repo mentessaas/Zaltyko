@@ -23,7 +23,7 @@ import { NextResponse } from "next/server";
 // PR 10 (Operate P2): `.nullable().optional()` en startTime/endTime/capacity
 // porque el form de clase puede limpiarlos al crear/editar. Antes, `null` → 400.
 const bodySchema = z.object({
-  academyId: z.string().uuid(),
+  academyId: z.guid(),
   name: z.string().trim().min(1).max(120),
   weekdays: z.array(z.number().int().min(0).max(6)).max(7).optional(),
   startTime: z.string().nullable().optional(),
@@ -32,8 +32,8 @@ const bodySchema = z.object({
   technicalFocus: z.string().max(500).optional().nullable(),
   apparatus: z.array(z.string().trim().min(1).max(120)).max(12).optional(),
   isExtra: z.boolean().optional().default(false),
-  groupId: z.string().uuid().nullable().optional(),
-  sportConfigId: z.string().uuid().nullable().optional(),
+  groupId: z.guid().nullable().optional(),
+  sportConfigId: z.guid().nullable().optional(),
   allowsFreeTrial: z.boolean().optional().default(false),
   waitingListEnabled: z.boolean().optional().default(false),
   cancellationHoursBefore: z.number().int().min(0).max(168).optional().default(24),
@@ -41,8 +41,8 @@ const bodySchema = z.object({
 });
 
 const querySchema = z.object({
-  academyId: z.string().uuid().optional(),
-  sportConfigId: z.string().uuid().optional(),
+  academyId: z.guid().optional(),
+  sportConfigId: z.guid().optional(),
   includeAssignments: z
     .string()
     .transform((value) => value === "true" || value === "1")

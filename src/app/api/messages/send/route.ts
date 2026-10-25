@@ -25,9 +25,9 @@ import { logger } from "@/lib/logger";
 export const dynamic = "force-dynamic";
 
 const SendDirectMessageSchema = z.object({
-  recipientId: z.string().uuid(),
+  recipientId: z.guid(),
   content: z.string().trim().min(1).max(5000),
-  academyId: z.string().uuid().optional(),
+  academyId: z.guid().optional(),
   initialMessage: z.boolean().optional(),
 });
 

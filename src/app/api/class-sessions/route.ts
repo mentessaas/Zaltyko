@@ -9,12 +9,12 @@ import { academies, classSessions, classes, coaches } from "@/db/schema";
 import { withTenant } from "@/lib/authz";
 
 const bodySchema = z.object({
-  academyId: z.string().uuid(),
-  classId: z.string().uuid(),
+  academyId: z.guid(),
+  classId: z.guid(),
   sessionDate: z.string().regex(/^\d{4}-\d{2}-\d{2}$/, "Fecha YYYY-MM-DD requerida"),
   startTime: z.string().regex(/^([01]\d|2[0-3]):[0-5]\d(?::[0-5]\d)?$/, "Hora HH:mm inválida").optional(),
   endTime: z.string().regex(/^([01]\d|2[0-3]):[0-5]\d(?::[0-5]\d)?$/, "Hora HH:mm inválida").optional(),
-  coachId: z.string().uuid().optional(),
+  coachId: z.guid().optional(),
   status: z.string().optional(),
   notes: z.string().max(2000).optional(),
 }).superRefine((value, ctx) => {
@@ -24,9 +24,9 @@ const bodySchema = z.object({
 });
 
 const querySchema = z.object({
-  classId: z.string().uuid().optional(),
-  academyId: z.string().uuid().optional(),
-  coachId: z.string().uuid().optional(),
+  classId: z.guid().optional(),
+  academyId: z.guid().optional(),
+  coachId: z.guid().optional(),
   from: z.string().optional(),
   to: z.string().optional(),
 });

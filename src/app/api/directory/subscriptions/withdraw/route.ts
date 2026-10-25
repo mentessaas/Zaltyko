@@ -10,7 +10,7 @@ export async function POST(request: Request) {
       return apiError("INVALID_ORIGIN", "Origen no permitido", 403);
     const { id, token } = z
       .object({
-        id: z.string().uuid(),
+        id: z.guid(),
         token: z.string().regex(/^[a-f0-9]{64}$/),
       })
       .parse(await request.json());

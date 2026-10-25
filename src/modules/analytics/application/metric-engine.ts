@@ -53,9 +53,9 @@ export function isMetricSourceEvent(eventName: string): boolean {
 }
 
 const recomputeMetricsSchema = z.object({
-  organizationId: z.string().uuid(),
-  authorizationLocationId: z.string().uuid(),
-  targetLocationId: z.string().uuid().optional(),
+  organizationId: z.guid(),
+  authorizationLocationId: z.guid(),
+  targetLocationId: z.guid().optional(),
   periodStart: z.string().date(),
   periodEnd: z.string().date(),
   currency: z.string().regex(/^[A-Z]{3}$/),
@@ -67,8 +67,8 @@ const recomputeMetricsSchema = z.object({
 export type RecomputeMetricsCommand = z.infer<typeof recomputeMetricsSchema>;
 
 const consumeMetricEventSchema = z.object({
-  organizationId: z.string().uuid(),
-  outboxEventId: z.string().uuid(),
+  organizationId: z.guid(),
+  outboxEventId: z.guid(),
   handlerVersion: z.number().int().positive().default(1),
 });
 

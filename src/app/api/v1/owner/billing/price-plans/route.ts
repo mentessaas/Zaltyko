@@ -16,8 +16,8 @@ import { OperationalError } from "@/modules/shared/domain/operational-error";
 
 const bodySchema = z
   .object({
-    organizationId: z.string().uuid(),
-    locationId: z.string().uuid(),
+    organizationId: z.guid(),
+    locationId: z.guid(),
     name: z.string().trim().min(1).max(100),
     amountCents: z.number().int().safe().positive().max(2_147_483_647),
     currency: z
@@ -28,9 +28,7 @@ const bodySchema = z
       .object({
         classTemplateIds: z
           .array(
-            z
-              .string()
-              .uuid()
+            z.guid()
               .transform((id) => id.toLowerCase())
           )
           .min(1)

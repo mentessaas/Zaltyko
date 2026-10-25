@@ -20,7 +20,7 @@ import { logger } from "@/lib/logger";
 import { verifyAcademyAccess } from "@/lib/permissions";
 
 const createLinkRequestSchema = z.object({
-  academyId: z.string().uuid(),
+  academyId: z.guid(),
   email: z.string().email(),
   role: z.enum(["coach", "parent", "admin", "athlete"]),
   message: z.string().max(500).optional(),

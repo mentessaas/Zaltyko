@@ -16,7 +16,7 @@ const UpdateSchema = z
     name: z.string().trim().min(2).max(100).optional(),
     description: z.string().trim().max(500).nullable().optional(),
     permissions: z.array(PermissionSchema).max(permissionEnum.enumValues.length).optional(),
-    inheritsFrom: z.string().uuid().nullable().optional(),
+    inheritsFrom: z.guid().nullable().optional(),
     isActive: z.boolean().optional(),
   })
   .refine((value) => Object.keys(value).length > 0, "No hay cambios");
