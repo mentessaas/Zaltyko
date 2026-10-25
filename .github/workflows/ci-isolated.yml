@@ -122,7 +122,11 @@ jobs:
         shell: bash
         run: |
           set -euo pipefail
-          branch='codex/owner-isolated-validation-20261023'
+          case "$GITHUB_REF" in
+            refs/heads/codex/owner-isolated-validation-20261023|refs/heads/codex/mvp-vertical-delivery-20261025) ;;
+            *) echo "Ref is not an allowlisted isolated candidate branch." >&2; exit 1 ;;
+          esac
+          branch="${GITHUB_REF#refs/heads/}"
           head_sha="$(git rev-parse HEAD)"
           [[ "$GITHUB_REF" == "refs/heads/$branch" ]]
           [[ "$DISPATCH_REF" == "refs/heads/$branch" ]]
@@ -190,7 +194,11 @@ jobs:
         shell: bash
         run: |
           set -euo pipefail
-          branch='codex/owner-isolated-validation-20261023'
+          case "$GITHUB_REF" in
+            refs/heads/codex/owner-isolated-validation-20261023|refs/heads/codex/mvp-vertical-delivery-20261025) ;;
+            *) echo "Ref is not an allowlisted isolated candidate branch." >&2; exit 1 ;;
+          esac
+          branch="${GITHUB_REF#refs/heads/}"
           head_sha="$(git rev-parse HEAD)"
           [[ "$GITHUB_REF" == "refs/heads/$branch" ]]
           [[ "$DISPATCH_REF" == "refs/heads/$branch" ]]

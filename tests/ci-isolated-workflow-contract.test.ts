@@ -35,6 +35,10 @@ const capacityIntegrationTestPath = resolve(
   process.cwd(),
   "tests/saas-capacity-postgres.integration.test.ts"
 );
+const previewRegularizationTestPath = resolve(
+  process.cwd(),
+  "tests/saas-preview-regularization-pg.test.ts"
+);
 const billingIntegrationTestPath = resolve(
   process.cwd(),
   "tests/billing-ledger-postgres.integration.test.ts"
@@ -121,7 +125,8 @@ describe("isolated CI workflow contract", () => {
     expect(buildJob).toContain("runs-on: ubuntu-latest");
     expect(buildJob).toContain("contents: read");
     expect(buildJob).toContain("persist-credentials: false");
-    expect(buildJob).toContain("branch='codex/owner-isolated-validation-20261023'");
+    expect(buildJob).toContain("refs/heads/codex/mvp-vertical-delivery-20261025");
+    expect(buildJob).toContain('branch="${GITHUB_REF#refs/heads/}"');
     expect(buildJob).toContain('[[ "$EXPECTED_SHA" == "$head_sha" ]]');
     expect(buildJob).toContain("VERCEL_ENV: preview");
     expect(buildJob).toContain("pnpm install --frozen-lockfile --prod=false");
@@ -525,6 +530,19 @@ describe("isolated CI workflow contract", () => {
     expect(unitStep).toMatch(/--preserve-env=[^\n]*\bCI_ISOLATED\b/);
     expect(unitStep).toContain("pnpm vitest run");
     expect(unitStep).not.toContain("--exclude");
+  });
+
+  it("requires explicit opt-in and the approved sandbox PostgreSQL host before preview integration queries", () => {
+    const regularizationTest = readFileSync(previewRegularizationTestPath, "utf8");
+    const mainUnitStep = mainCiWorkflow.match(
+      /- name: Run unit tests with coverage\n([\s\S]*?)(?=\n      - name:|$)/
+    )?.[1] ?? "";
+    expect(regularizationTest).toContain('process.env.ZALTYKO_PG_INTEGRATION).toBe("1")');
+    expect(regularizationTest).toContain('url.hostname === "db.aeeootdmuiqkfeernskw.supabase.co"');
+    expect(regularizationTest).toContain('decodeURIComponent(url.username).endsWith(".aeeootdmuiqkfeernskw")');
+    expect(regularizationTest).toContain('"PostgreSQL must belong to the approved sandbox"');
+    expect(mainUnitStep).toContain('CI_ISOLATED: "1"');
+    expect(mainUnitStep).toContain("pnpm vitest run --coverage");
   });
 
   it("keeps Drizzle schema and SQL implementations real in shared test setup", () => {
