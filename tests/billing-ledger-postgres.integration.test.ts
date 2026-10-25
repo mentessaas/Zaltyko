@@ -212,6 +212,15 @@ async function seedManualLedgerFixture() {
   };
 }
 
+function uuidArraySql(values: readonly string[]) {
+  if (values.length === 0) return sql`ARRAY[]::uuid[]`;
+
+  return sql`ARRAY[${sql.join(
+    values.map((id) => sql`${id}::uuid`),
+    sql`, `
+  )}]::uuid[]`;
+}
+
 async function seedManualPaymentPaginationFixture() {
   const organizationId = randomUUID();
   const otherOrganizationId = randomUUID();
@@ -231,6 +240,8 @@ async function seedManualPaymentPaginationFixture() {
   const otherOrganizationChargeId = randomUUID();
   const chargeIds = Array.from({ length: 251 }, () => randomUUID());
   const lineIds = Array.from({ length: chargeIds.length }, () => randomUUID());
+  const chargeIdsArray = uuidArraySql(chargeIds);
+  const lineIdsArray = uuidArraySql(lineIds);
   const dueAt = "2026-10-31 22:00:00.123456+00";
   const servicePeriodStart = "2026-10-01";
   const servicePeriodEnd = "2026-10-31";
@@ -300,7 +311,7 @@ async function seedManualPaymentPaginationFixture() {
       select line_id, ${organizationId}::uuid, ${invoiceId}::uuid,
         ${locationId}::uuid, 'ci_manual_fee', 1, 100, 100, 'EUR',
         ${servicePeriodStart}::date, ${servicePeriodEnd}::date
-      from unnest(${lineIds}::uuid[]) as line_rows(line_id)
+      from unnest(${lineIdsArray}) as line_rows(line_id)
     `);
     await tx.execute(sql`
       insert into zaltyko.invoice_lines (
@@ -336,7 +347,7 @@ async function seedManualPaymentPaginationFixture() {
         end,
         ${servicePeriodStart}::date, ${servicePeriodEnd}::date,
         ${`ci-page-charge-${organizationId}-`} || seeded.item_index::text
-      from unnest(${chargeIds}::uuid[], ${lineIds}::uuid[])
+      from unnest(${chargeIdsArray}, ${lineIdsArray})
         with ordinality as seeded(charge_id, line_id, item_index)
     `);
     await tx.execute(sql`
@@ -653,7 +664,7 @@ describe("manual billing ledger on disposable PostgreSQL", () => {
         and c.location_id = ${fixture.locationId}::uuid
         and c.status in ('due', 'partially_paid')
         and i.status not in ('draft', 'void')
-        and c.id = any(${fixture.chargeIds}::uuid[])
+        and c.id = any(${uuidArraySql(fixture.chargeIds)})
       order by c.due_at asc, i.reference asc, c.id asc
     `);
     expect(seenChargeIds).toEqual(

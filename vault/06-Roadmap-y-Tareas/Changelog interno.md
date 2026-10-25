@@ -12561,3 +12561,9 @@ Modelo separado, reclamación manual, administración, importación revisada, fi
 - Lista anterior truncaba silenciosamente en250cargos. GETopciones ahora pagina50+1 por due_at/ref/id, conserva microsegundos y vuelve a comprobar actor/academia/sedes en cada consulta. Cursor es posición no confiable, no autorización ni secreto nuevo.
 - Owner muestra Cargar más, retiene selección/importe y permite reintentar la lectura. Cambio de props/academia/sede/página aborta la solicitud e invalida respuesta/finally antiguos; evita mezclar cargos entre ámbitos. No cambia POST ni registro de dinero.
 - Revisión independiente estática sinP1/P2; root revisó el nuevo PGreal de251cargos,6páginas,desempates y señuelos de otra sede/academia. Incluye rechazo de cursor con alcance distinto. Unitarios/UI/ruta yPG añadidos pero no ejecutados localmente. Pendientes CI yPGremotos, sandbox y publicación. No datos del ensayo ni producción modificados.
+
+
+## 2026-10-25 — Segundo replay: corrección exclusiva de fixtures
+
+- PG40208221416:20PASS/3FAIL; fallos localizados en arrays SQL de la fixture251cargos (42846) y dos comandos de familia enviados desde sedeA para gimnastasB/C. Se corrigen ARRAYtipado y sedeB correspondiente, conservando snapshots/rechazos/concurrencia. No se modifica producción, datos del ensayo ni guardsdelproducto.
+- Build y lint/tipos del59da53f5 pasan; unitarios/navegadores pendientes al registrar. Las correcciones necesitan nueva ejecución remota, no se ejecutaron localmente.

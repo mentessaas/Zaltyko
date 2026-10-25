@@ -190,3 +190,8 @@ Run40207633011 fue rechazado por expected_sha erróneo antes de instalar o inici
 ### Pagos manuales: implementación posterior a18e4f0fe
 
 Paginación50+1 sustituye tope silencioso250; siguiente página con cursor de posición reautorizado y orden total due_at/ref/id conservando microsegundos. UI conserva selección y descarta respuestas antiguas al cambiar ámbito. Nuevo caso PGreal251cargos/seispáginas/otra sede/academia y casos UI/unidad/ruta pendientes de CI. No nueva infraestructura/secreto, sin cambio del POST monetario. Sandbox/publicación NO VERIFICADOS.
+
+
+### Replay59da53f5:20PASS y3FAIL de fixtures
+
+Run40208221416 reconstruyóPGaislado y ejecutó23casos:20PASS y3FAIL. El nuevo caso251cargos falló por cast42846 al interpolar arrays Drizzle como tupla; se corrigen solo las entradas de fixture a ARRAY[...]::uuid[] con parámetros tipados. Dos casosfamilia usaban atletasB/C con sedeA y fueron rechazados por elegibilidad; sus comandos se anclan a sedeB real sin cambiar guardas. Estas correcciones de fixtures están pendientes de un nuevo replay; no son PASS aún. Build y lint/tipos remotos del59da pasan al corte; unitarios y navegadores siguen pendientes.

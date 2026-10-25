@@ -440,6 +440,7 @@ describe("family onboarding against disposable PostgreSQL", () => {
     const commands = [
       {
         ...createFamilyCommand(fixture, `ci-family-overlap-race-a-${randomUUID()}`),
+        locationId: fixture.locationB,
         athleteIds: [fixture.athleteB],
         payer: {
           givenName: "Synthetic Race A",
@@ -449,6 +450,7 @@ describe("family onboarding against disposable PostgreSQL", () => {
       },
       {
         ...createFamilyCommand(fixture, `ci-family-overlap-race-b-${randomUUID()}`),
+        locationId: fixture.locationB,
         athleteIds: [fixture.athleteB],
         payer: {
           givenName: "Synthetic Race B",
@@ -512,6 +514,7 @@ describe("family onboarding against disposable PostgreSQL", () => {
     const fixture = await seedGroupOnlyFixture();
     const firstCommand = {
       ...createFamilyCommand(fixture, `ci-family-succession-first-${randomUUID()}`),
+      locationId: fixture.locationB,
       athleteIds: [fixture.athleteC],
     };
     const first = await associateOwnerFamily(firstCommand);
@@ -550,6 +553,7 @@ describe("family onboarding against disposable PostgreSQL", () => {
         `ci-family-succession-second-${randomUUID()}`
       ),
       athleteIds: [fixture.athleteC],
+      locationId: fixture.locationB,
       effectiveFrom: successorStart,
     });
     expect(successor.family.id).not.toBe(first.family.id);
