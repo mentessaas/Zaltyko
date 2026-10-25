@@ -1,6 +1,5 @@
 /* eslint-disable no-console */
 import {
-  cpSync,
   mkdtempSync,
   mkdirSync,
   readFileSync,
@@ -9,7 +8,7 @@ import {
 } from "node:fs";
 import { tmpdir } from "node:os";
 import { basename, join, resolve } from "node:path";
-import { randomUUID } from "node:crypto";
+import { createHash, randomUUID } from "node:crypto";
 import { createServer } from "node:net";
 
 import {
@@ -31,9 +30,8 @@ import {
 } from "./lib/local-e2e-preflight";
 import { resolveLocalDockerEndpoint } from "./lib/local-docker-endpoint";
 import {
-  E2E_DOMAIN_MIGRATIONS,
-  E2E_LOCAL_OWNER_MONTHLY_TARIFF_MIGRATIONS,
-  E2E_LOCAL_OWNER_SIGNUP_MIGRATIONS,
+  E2E_LOCAL_SCHEMA_POST_SNAPSHOT_MIGRATIONS,
+  E2E_LOCAL_SCHEMA_SNAPSHOT,
 } from "./lib/e2e-domain-migrations";
 import {
   createBuildTraceCatalog,
@@ -245,15 +243,54 @@ void (async () => {
 
     const migrationDirectory = join(projectDirectory, "supabase", "migrations");
     mkdirSync(migrationDirectory, { recursive: true });
-    const localMigrations = [
-      ...E2E_DOMAIN_MIGRATIONS,
-      ...E2E_LOCAL_OWNER_SIGNUP_MIGRATIONS,
-      ...E2E_LOCAL_OWNER_MONTHLY_TARIFF_MIGRATIONS,
+    const localSchemaSources = [
+      {
+        ...E2E_LOCAL_SCHEMA_SNAPSHOT,
+        sourcePath: resolve(
+          root,
+          "supabase",
+          "schema-snapshots",
+          E2E_LOCAL_SCHEMA_SNAPSHOT.filename
+        ),
+        isGuardedSnapshot: true,
+      },
+      ...E2E_LOCAL_SCHEMA_POST_SNAPSHOT_MIGRATIONS.map((migration) => ({
+        ...migration,
+        sourcePath: resolve(root, "supabase", "migrations", migration.filename),
+        isGuardedSnapshot: false,
+      })),
     ];
-    for (const filename of localMigrations) {
-      cpSync(
-        resolve(root, "supabase", "migrations", filename),
-        join(migrationDirectory, filename)
+    for (const migration of localSchemaSources) {
+      const sql = readFileSync(migration.sourcePath);
+      const actualSha256 = createHash("sha256").update(sql).digest("hex");
+      if (actualSha256 !== migration.sha256) {
+        throw new Error(
+          `The reviewed disposable E2E schema source changed: ${migration.filename}.`
+        );
+      }
+
+      if (
+        migration.isGuardedSnapshot &&
+        !sql.toString("utf8").startsWith("-- CURRENT-STATE SCHEMA SNAPSHOT;")
+      ) {
+        throw new Error(
+          "The disposable E2E baseline is not labeled as a current-state schema snapshot."
+        );
+      }
+
+      const replaySql = migration.isGuardedSnapshot
+        ? Buffer.concat([
+            Buffer.from(
+              "SET app.schema_snapshot_replay = 'ci-empty-replay';\n",
+              "utf8"
+            ),
+            sql,
+          ])
+        : sql;
+      writeFileSync(
+        join(migrationDirectory, migration.filename),
+        replaySql,
+        { flag: "wx", mode: 0o600 }
       );
     }
 
