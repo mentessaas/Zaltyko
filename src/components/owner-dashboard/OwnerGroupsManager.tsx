@@ -27,6 +27,12 @@ import {
   snapshotFromGroupMembershipCommand,
   type GroupMembershipCommand,
 } from "./owner-pending-group-membership";
+import {
+  clearPendingOwnerGroupDetailsUpdate,
+  persistPendingOwnerGroupDetailsUpdate,
+  readPendingOwnerGroupDetailsUpdate,
+  type PendingOwnerGroupDetailsUpdate,
+} from "./owner-group-details-command";
 
 type GroupsBundle = Awaited<
   ReturnType<
@@ -111,6 +117,14 @@ type PendingAthleteProfileUpdate = {
   athleteId: string;
   idempotencyKey: string;
   body: string;
+};
+
+type GroupDetailsDraft = {
+  organizationId: string;
+  groupId: string;
+  expectedUpdatedAt: string;
+  name: string;
+  capacity: string;
 };
 
 function responseData<T>(payload: unknown): T | null {
@@ -259,6 +273,18 @@ export function OwnerGroupsManager({ bundle }: { bundle: GroupsBundle }) {
   const [editingGivenName, setEditingGivenName] = useState("");
   const [editingFamilyName, setEditingFamilyName] = useState("");
   const [editingPreferredName, setEditingPreferredName] = useState("");
+  const [editingGroup, setEditingGroup] = useState<GroupDetailsDraft | null>(null);
+  const [pendingGroupDetails, setPendingGroupDetails] =
+    useState<PendingOwnerGroupDetailsUpdate | null>(null);
+  const [groupDetailsRecoveryLoadedFor, setGroupDetailsRecoveryLoadedFor] =
+    useState<string | null>(null);
+  const [groupDetailsRecoveryFailure, setGroupDetailsRecoveryFailure] =
+    useState<{ organizationId: string; message: string } | null>(null);
+  const [groupDetailsRecoveryAttempt, setGroupDetailsRecoveryAttempt] =
+    useState(0);
+  const [groupDetailsBusy, setGroupDetailsBusy] = useState(false);
+  const groupDetailsInFlightRef = useRef(false);
+  const pendingGroupDetailsRef = useRef<PendingOwnerGroupDetailsUpdate | null>(null);
   const [membershipRecoveryLoadedFor, setMembershipRecoveryLoadedFor] = useState<string | null>(null);
   const [membershipRecoveryFailure, setMembershipRecoveryFailure] = useState<{ scope: string; message: string } | null>(null);
   const [foreignMembershipScope, setForeignMembershipScope] = useState<{ organizationId: string; groupId: string } | null>(null);
@@ -270,8 +296,12 @@ export function OwnerGroupsManager({ bundle }: { bundle: GroupsBundle }) {
   useEffect(() => { scopeVersionRef.current += 1; }, [membershipScope]);
   usePendingCommandExitWarning(pendingMembership !== null, pendingMembershipRef);
   usePendingCommandExitWarning(pendingAthleteProfile !== null, pendingAthleteProfileRef);
+  usePendingCommandExitWarning(pendingGroupDetails !== null, pendingGroupDetailsRef);
   const selectedGroup = bundle.groups.find(
     (group) => group.id === bundle.selectedGroupId
+  );
+  const canManageGroupDetails = ["owner", "manager", "admin"].includes(
+    bundle.member.role
   );
   const selectedToday = selectedGroup
     ? (bundle.localTodayByLocation[selectedGroup.locationId] ?? "")
@@ -280,6 +310,20 @@ export function OwnerGroupsManager({ bundle }: { bundle: GroupsBundle }) {
     pendingGroupCreate?.organizationId === organizationId
       ? pendingGroupCreate
       : null;
+  const currentPendingGroupDetails =
+    pendingGroupDetails?.organizationId === organizationId
+      ? pendingGroupDetails
+      : null;
+  const currentEditingGroup =
+    editingGroup?.organizationId === organizationId &&
+    editingGroup.groupId === bundle.selectedGroupId
+      ? editingGroup
+      : null;
+  const groupDetailsRecoveryReady = groupDetailsRecoveryLoadedFor === organizationId;
+  const groupDetailsRecoveryError =
+    groupDetailsRecoveryFailure?.organizationId === organizationId
+      ? groupDetailsRecoveryFailure.message
+      : "";
   const replayableGroupCreate =
     currentPendingGroupCreate?.kind === "replayable"
       ? currentPendingGroupCreate.command
@@ -291,8 +335,8 @@ export function OwnerGroupsManager({ bundle }: { bundle: GroupsBundle }) {
   const membershipRecoveryReady = membershipRecoveryLoadedFor === membershipScope && membershipRecoveryFailure?.scope !== membershipScope;
   const membershipRecoveryError = membershipRecoveryFailure?.scope === membershipScope ? membershipRecoveryFailure.message : "";
   const groupCreateLocked =
-    busy || editingAthleteId !== null || !groupCreateScopeLoaded || !membershipRecoveryReady || membershipRecoveryError !== "" || currentPendingGroupCreate !== null || pendingMembership !== null || pendingAthleteProfile !== null || foreignMembershipScope !== null || writesBlocked;
-  const commandsLocked = busy || editingAthleteId !== null || !membershipRecoveryReady || membershipRecoveryError !== "" || pendingMembership !== null || pendingAthleteProfile !== null || foreignMembershipScope !== null || currentPendingGroupCreate !== null;
+    busy || editingAthleteId !== null || currentEditingGroup !== null || groupDetailsBusy || currentPendingGroupDetails !== null || !groupDetailsRecoveryReady || groupDetailsRecoveryError !== "" || !groupCreateScopeLoaded || !membershipRecoveryReady || membershipRecoveryError !== "" || currentPendingGroupCreate !== null || pendingMembership !== null || pendingAthleteProfile !== null || foreignMembershipScope !== null || writesBlocked;
+  const commandsLocked = busy || editingAthleteId !== null || currentEditingGroup !== null || groupDetailsBusy || currentPendingGroupDetails !== null || !groupDetailsRecoveryReady || groupDetailsRecoveryError !== "" || !membershipRecoveryReady || membershipRecoveryError !== "" || pendingMembership !== null || pendingAthleteProfile !== null || foreignMembershipScope !== null || currentPendingGroupCreate !== null;
   const canRetryMembership = pendingMembership?.organizationId === organizationId && pendingMembership.groupId === bundle.selectedGroupId;
   const scopedCreateAthleteRecovery = createAthleteRecovery?.scope === membershipScope ? createAthleteRecovery : null;
   const createAthleteBlocked = !scopedCreateAthleteRecovery ||
@@ -300,6 +344,36 @@ export function OwnerGroupsManager({ bundle }: { bundle: GroupsBundle }) {
   const createStorageKey = `zaltyko:pending-group-create:v2:${organizationId}`;
   const legacyCreateStorageKey = `zaltyko:pending-group-create:${organizationId}`;
   const createAthleteStorageKey = `zaltyko:pending-group-athlete:${organizationId}:${bundle.selectedGroupId ?? "none"}`;
+
+  useEffect(() => {
+    setGroupDetailsRecoveryLoadedFor(null);
+    let result: ReturnType<typeof readPendingOwnerGroupDetailsUpdate>;
+    try {
+      result = readPendingOwnerGroupDetailsUpdate(
+        window.sessionStorage,
+        organizationId
+      );
+    } catch {
+      result = { status: "unavailable" };
+    }
+    if (result.status === "invalid" || result.status === "unavailable") {
+      setGroupDetailsRecoveryFailure({
+        organizationId,
+        message:
+          result.status === "invalid"
+            ? "Hay una edición de grupo pendiente que no se puede verificar. No se permitirán más cambios hasta revisar su estado."
+            : "No se pudo comprobar la edición de grupo pendiente en esta sesión. No se iniciarán más cambios hasta recuperar el almacenamiento.",
+      });
+      pendingGroupDetailsRef.current = null;
+      setPendingGroupDetails(null);
+    } else {
+      setGroupDetailsRecoveryFailure(null);
+      const pending = result.status === "pending" ? result.command : null;
+      pendingGroupDetailsRef.current = pending;
+      setPendingGroupDetails(pending);
+    }
+    setGroupDetailsRecoveryLoadedFor(organizationId);
+  }, [organizationId, groupDetailsRecoveryAttempt]);
 
   useEffect(() => {
     if (canRetryMembership && !busy) retryMembershipRef.current?.focus();
@@ -1081,6 +1155,237 @@ export function OwnerGroupsManager({ bundle }: { bundle: GroupsBundle }) {
     void sendAthleteProfileUpdate(command);
   }
 
+  function setPendingGroupDetailsCommand(
+    command: PendingOwnerGroupDetailsUpdate | null
+  ) {
+    pendingGroupDetailsRef.current = command;
+    setPendingGroupDetails(command);
+  }
+
+  function clearPendingGroupDetailsCommand(
+    command: PendingOwnerGroupDetailsUpdate
+  ): boolean {
+    try {
+      if (
+        clearPendingOwnerGroupDetailsUpdate(window.sessionStorage, command)
+      ) {
+        setPendingGroupDetailsCommand(null);
+        return true;
+      }
+    } catch {
+      // Keep the exact request available for a safe retry if session storage fails.
+    }
+    return false;
+  }
+
+  async function sendGroupDetailsUpdate(
+    command: PendingOwnerGroupDetailsUpdate
+  ) {
+    if (
+      groupDetailsInFlightRef.current ||
+      busy ||
+      editingAthleteId !== null ||
+      pendingMembershipRef.current !== null ||
+      membershipSendingRef.current ||
+      pendingAthleteProfileRef.current !== null ||
+      athleteProfileSendingRef.current ||
+      groupCreateRequestRef.current ||
+      currentPendingGroupCreate !== null ||
+      command.organizationId !== organizationId ||
+      (pendingGroupDetailsRef.current !== null &&
+        pendingGroupDetailsRef.current !== command)
+    ) {
+      return;
+    }
+    let body: Record<string, unknown>;
+    try {
+      body = JSON.parse(command.body) as Record<string, unknown>;
+    } catch {
+      setGroupDetailsRecoveryFailure({
+        organizationId,
+        message:
+          "La edición pendiente no se puede leer. No enviaremos una operación distinta; contacta con soporte para revisar esta sesión.",
+      });
+      return;
+    }
+    let stored = false;
+    try {
+      stored = persistPendingOwnerGroupDetailsUpdate(
+        window.sessionStorage,
+        command
+      );
+    } catch {
+      stored = false;
+    }
+    if (!stored) {
+      setGroupDetailsRecoveryFailure({
+        organizationId,
+        message:
+          "No se pudo conservar la clave y el cuerpo de esta edición. No se ha enviado; recupera el almacenamiento de sesión antes de reintentar.",
+      });
+      return;
+    }
+    groupDetailsInFlightRef.current = true;
+    setPendingGroupDetailsCommand(command);
+    setGroupDetailsBusy(true);
+    setError("");
+    setNotice("");
+    const scopeVersion = scopeVersionRef.current;
+    try {
+      const response = await fetch(
+        `/api/v1/owner/groups/${encodeURIComponent(command.groupId)}`,
+        {
+          method: "PATCH",
+          headers: {
+            "content-type": "application/json",
+            "idempotency-key": command.idempotencyKey,
+          },
+          body: command.body,
+        }
+      );
+      const payload = await response.json().catch(() => null);
+      const receipt = responseData<{
+        id: string;
+        name: string;
+        capacity: number | null;
+        updatedAtVersion: string;
+      }>(payload);
+      if (
+        response.ok &&
+        payload?.ok === true &&
+        receipt?.id === command.groupId &&
+        receipt.name === body.name &&
+        receipt.capacity === body.capacity &&
+        typeof receipt.updatedAtVersion === "string"
+      ) {
+        if (!clearPendingGroupDetailsCommand(command)) {
+          setError(
+            "El servidor confirmó el cambio, pero no se pudo retirar la clave pendiente de esta sesión. Reintenta el mismo envío para confirmar el recibo sin duplicar la edición."
+          );
+          return;
+        }
+        setEditingGroup(null);
+        setNotice("Grupo actualizado. La sede, actividad y pertenencias se conservaron.");
+        if (scopeVersionRef.current === scopeVersion) router.refresh();
+        return;
+      }
+
+      if (response.status >= 500 || response.status === 408 || response.ok) {
+        setError(
+          "No sabemos si se guardó la edición. Reintenta el mismo envío para confirmar el resultado; conservamos su clave y su cuerpo para evitar duplicados."
+        );
+        return;
+      }
+
+      if (!clearPendingGroupDetailsCommand(command)) {
+        setError(
+          "El servidor rechazó la edición, pero no se pudo retirar la clave pendiente de esta sesión. No inicies otro cambio hasta recuperar el almacenamiento."
+        );
+        return;
+      }
+      setEditingGroup(null);
+      if (response.status === 409 && scopeVersionRef.current === scopeVersion) {
+        router.refresh();
+      }
+      setError(responseError(payload));
+    } catch {
+      setError(
+        "No sabemos si se guardó la edición. Reintenta el mismo envío para confirmar el resultado; conservamos su clave y su cuerpo para evitar duplicados."
+      );
+    } finally {
+      groupDetailsInFlightRef.current = false;
+      setGroupDetailsBusy(false);
+    }
+  }
+
+  function beginGroupDetailsEdit() {
+    if (
+      !selectedGroup ||
+      !canManageGroupDetails ||
+      commandsLocked ||
+      writesBlocked
+    ) return;
+    setError("");
+    setNotice("");
+    setEditingGroup({
+      organizationId,
+      groupId: selectedGroup.id,
+      expectedUpdatedAt: selectedGroup.updatedAtVersion,
+      name: selectedGroup.name,
+      capacity:
+        selectedGroup.capacity === null ? "" : String(selectedGroup.capacity),
+    });
+  }
+
+  function submitGroupDetailsEdit(event: FormEvent<HTMLFormElement>) {
+    event.preventDefault();
+    if (!selectedGroup || !currentEditingGroup || writesBlocked || groupDetailsBusy) {
+      return;
+    }
+    const pending = pendingGroupDetailsRef.current;
+    if (pending) {
+      if (
+        pending.organizationId === organizationId &&
+        pending.groupId === selectedGroup.id
+      ) {
+        void sendGroupDetailsUpdate(pending);
+      }
+      return;
+    }
+
+    const name = currentEditingGroup.name.trim();
+    const capacityText = currentEditingGroup.capacity.trim();
+    const capacityValue = capacityText === "" ? null : Number(capacityText);
+    if (
+      selectedGroup.updatedAtVersion !== currentEditingGroup.expectedUpdatedAt ||
+      name.length < 2 ||
+      name.length > 120 ||
+      (capacityValue !== null &&
+        (!Number.isInteger(capacityValue) ||
+          capacityValue < 1 ||
+          capacityValue > 5000))
+    ) {
+      setError(
+        "El grupo cambió o los datos no son válidos. Actualiza la lista antes de guardar."
+      );
+      return;
+    }
+    if (name === selectedGroup.name && capacityValue === selectedGroup.capacity) {
+      setError("No hay cambios que guardar.");
+      return;
+    }
+
+    const command: PendingOwnerGroupDetailsUpdate = {
+      version: 1,
+      organizationId,
+      groupId: selectedGroup.id,
+      idempotencyKey: `owner-group-update:${crypto.randomUUID()}`,
+      body: JSON.stringify({
+        organizationId,
+        expectedUpdatedAt: currentEditingGroup.expectedUpdatedAt,
+        name,
+        capacity: capacityValue,
+      }),
+    };
+    let stored = false;
+    try {
+      stored = persistPendingOwnerGroupDetailsUpdate(
+        window.sessionStorage,
+        command
+      );
+    } catch {
+      stored = false;
+    }
+    if (!stored) {
+      setError(
+        "No se pudo guardar la edición pendiente en esta sesión. No se ha enviado; inténtalo de nuevo cuando el almacenamiento esté disponible."
+      );
+      return;
+    }
+    setPendingGroupDetailsCommand(command);
+    void sendGroupDetailsUpdate(command);
+  }
+
   return (
     <main className="min-h-[100dvh] bg-[#F1F3EF] px-4 py-6 text-slate-950 sm:px-6 lg:px-10">
       <div className="mx-auto max-w-[92rem]">
@@ -1113,7 +1418,7 @@ export function OwnerGroupsManager({ bundle }: { bundle: GroupsBundle }) {
           <button
             type="button"
             className={primaryButtonClassName}
-            disabled={(!writesAllowed && !createOpen) || busy || !groupCreateScopeLoaded || !membershipRecoveryReady || membershipRecoveryError !== "" || currentPendingGroupCreate !== null || pendingMembership !== null || foreignMembershipScope !== null}
+            disabled={(!writesAllowed && !createOpen) || busy || currentEditingGroup !== null || groupDetailsBusy || currentPendingGroupDetails !== null || !groupDetailsRecoveryReady || groupDetailsRecoveryError !== "" || !groupCreateScopeLoaded || !membershipRecoveryReady || membershipRecoveryError !== "" || currentPendingGroupCreate !== null || pendingMembership !== null || foreignMembershipScope !== null}
             onClick={toggleGroupCreateForm}
           >
             <Plus className="h-4 w-4" aria-hidden="true" />
@@ -1122,6 +1427,65 @@ export function OwnerGroupsManager({ bundle }: { bundle: GroupsBundle }) {
         </header>
 
         <OwnerOperationalReadOnlyNotice organizationId={organizationId} />
+
+        {!groupDetailsRecoveryReady && (
+          <p role="status" className="mt-5 text-sm text-slate-700">
+            Comprobando si hay una edición de grupo pendiente…
+          </p>
+        )}
+        {groupDetailsRecoveryError && (
+          <section
+            role="alert"
+            className="mt-5 border border-amber-700 bg-amber-50 p-4 text-sm text-slate-950"
+          >
+            <p>{groupDetailsRecoveryError}</p>
+            <button
+              type="button"
+              className={`${secondaryButtonClassName} mt-3`}
+              onClick={() =>
+                setGroupDetailsRecoveryAttempt((attempt) => attempt + 1)
+              }
+            >
+              Volver a comprobar edición pendiente
+            </button>
+          </section>
+        )}
+        {currentPendingGroupDetails && (
+          <section
+            role="status"
+            aria-labelledby="pending-group-details-title"
+            className="mt-5 border border-amber-700 bg-amber-50 p-4 text-sm text-slate-950"
+          >
+            <h2 id="pending-group-details-title" className="font-bold">
+              Edición de grupo pendiente de confirmar
+            </h2>
+            <p className="mt-2 leading-6">
+              Conservamos la solicitud y su clave. Repite exactamente el mismo
+              envío para consultar el resultado sin duplicar el cambio.
+            </p>
+            {bundle.selectedGroupId === currentPendingGroupDetails.groupId ? (
+              <button
+                type="button"
+                className={`${primaryButtonClassName} mt-3`}
+                disabled={groupDetailsBusy}
+                onClick={() =>
+                  void sendGroupDetailsUpdate(currentPendingGroupDetails)
+                }
+              >
+                {groupDetailsBusy
+                  ? "Comprobando resultado…"
+                  : "Reintentar el mismo guardado"}
+              </button>
+            ) : (
+              <Link
+                className="mt-3 inline-flex min-h-11 items-center font-semibold underline"
+                href={`/owner/groups?organizationId=${encodeURIComponent(organizationId)}&groupId=${encodeURIComponent(currentPendingGroupDetails.groupId)}`}
+              >
+                Volver al grupo original
+              </Link>
+            )}
+          </section>
+        )}
 
         {membershipRecoveryFailure?.scope === membershipScope && (
           <section role="alert" className="mt-5 border border-amber-700 bg-amber-50 p-4 text-sm text-slate-950">
@@ -1504,11 +1868,98 @@ export function OwnerGroupsManager({ bundle }: { bundle: GroupsBundle }) {
                       · {selectedGroup.locationName}
                     </p>
                   </div>
-                  <span className="inline-flex min-h-9 items-center border border-slate-300 px-3 text-sm font-semibold">
-                    {selectedGroup.memberCount} de{" "}
-                    {selectedGroup.capacity ?? "∞"} plazas
-                  </span>
+                  <div className="flex flex-wrap items-center gap-2">
+                    <span className="inline-flex min-h-9 items-center border border-slate-300 px-3 text-sm font-semibold">
+                      {selectedGroup.memberCount} de{" "}
+                      {selectedGroup.capacity ?? "∞"} plazas
+                    </span>
+                    {selectedGroup.status === "active" && canManageGroupDetails && (
+                      <button
+                        type="button"
+                        className={secondaryButtonClassName}
+                        disabled={commandsLocked || writesBlocked}
+                        onClick={beginGroupDetailsEdit}
+                      >
+                        Editar grupo
+                      </button>
+                    )}
+                  </div>
                 </div>
+
+                {currentEditingGroup && (
+                  <form
+                    className="mt-4 grid gap-4 border border-slate-300 bg-slate-50 p-4 sm:grid-cols-2"
+                    onSubmit={submitGroupDetailsEdit}
+                  >
+                    <label className="block text-sm font-semibold">
+                      Nombre del grupo
+                      <input
+                        className={`${fieldClassName} mt-2`}
+                        value={currentEditingGroup.name}
+                        disabled={groupDetailsBusy || writesBlocked}
+                        maxLength={120}
+                        minLength={2}
+                        required
+                        onChange={(event) =>
+                          setEditingGroup((current) =>
+                            current && current.organizationId === organizationId
+                              ? { ...current, name: event.target.value }
+                              : current
+                          )
+                        }
+                      />
+                    </label>
+                    <label className="block text-sm font-semibold">
+                      Plazas máximas
+                      <input
+                        className={`${fieldClassName} mt-2`}
+                        type="number"
+                        aria-label="Plazas máximas"
+                        min="1"
+                        max="5000"
+                        step="1"
+                        inputMode="numeric"
+                        value={currentEditingGroup.capacity}
+                        disabled={groupDetailsBusy || writesBlocked}
+                        aria-describedby="group-details-capacity-help"
+                        onChange={(event) =>
+                          setEditingGroup((current) =>
+                            current && current.organizationId === organizationId
+                              ? { ...current, capacity: event.target.value }
+                              : current
+                          )
+                        }
+                      />
+                      <span
+                        id="group-details-capacity-help"
+                        className="mt-1 block text-xs font-normal text-slate-600"
+                      >
+                        Déjalo vacío para no fijar un máximo. No se puede bajar
+                        por debajo de las pertenencias abiertas.
+                      </span>
+                    </label>
+                    <div className="flex flex-wrap gap-2 sm:col-span-2">
+                      <button
+                        type="submit"
+                        className={primaryButtonClassName}
+                        disabled={groupDetailsBusy || writesBlocked}
+                      >
+                        {groupDetailsBusy ? "Guardando…" : "Guardar cambios"}
+                      </button>
+                      <button
+                        type="button"
+                        className={secondaryButtonClassName}
+                        disabled={groupDetailsBusy}
+                        onClick={() => {
+                          setEditingGroup(null);
+                          setError("");
+                        }}
+                      >
+                        Cancelar
+                      </button>
+                    </div>
+                  </form>
+                )}
 
                 {selectedGroup.status !== "active" ? (
                   <p className="mt-4 border border-amber-500 bg-amber-50 p-3 text-sm text-amber-950">

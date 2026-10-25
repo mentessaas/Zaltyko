@@ -62,6 +62,7 @@ const groupBundle = {
       programId,
       programName: "Gimnasia artística",
       memberCount: 0,
+      updatedAtVersion: "2026-10-13T09:00:00.123456Z",
     },
   ],
   selectedGroupId: groupId,
@@ -141,6 +142,107 @@ describe("gestión de grupos owner", () => {
 
     expect(screen.getByLabelText("Añadir una gimnasta")).toBeVisible();
     expect(screen.getByText(/Puedes añadir una ficha activa desde el buscador/)).toBeVisible();
+    expect(mockFetch).not.toHaveBeenCalled();
+  });
+
+  it("edita nombre y capacidad del grupo con versión e idempotencia", async () => {
+    const user = userEvent.setup();
+    mockFetch.mockResolvedValueOnce({
+      ok: true,
+      status: 200,
+      json: async () => ({
+        ok: true,
+        data: {
+          id: groupId,
+          name: "Equipo juvenil",
+          capacity: 18,
+          updatedAtVersion: "2026-10-13T09:01:00.000001Z",
+        },
+      }),
+    });
+
+    render(<OwnerGroupsManager bundle={groupBundle} />);
+    await waitFor(() =>
+      expect(screen.getByRole("button", { name: "Editar grupo" })).toBeEnabled()
+    );
+    await user.click(screen.getByRole("button", { name: "Editar grupo" }));
+    const name = screen.getByLabelText("Nombre del grupo");
+    const capacity = screen.getByLabelText("Plazas máximas");
+    await user.clear(name);
+    await user.type(name, "Equipo juvenil");
+    await user.clear(capacity);
+    await user.type(capacity, "18");
+    await user.click(screen.getByRole("button", { name: "Guardar cambios" }));
+
+    await waitFor(() => expect(mockFetch).toHaveBeenCalledOnce());
+    const [url, init] = mockFetch.mock.calls[0] as [string, RequestInit];
+    expect(url).toBe(`/api/v1/owner/groups/${groupId}`);
+    expect(init.method).toBe("PATCH");
+    expect(JSON.parse(String(init.body))).toEqual({
+      organizationId,
+      expectedUpdatedAt: "2026-10-13T09:00:00.123456Z",
+      name: "Equipo juvenil",
+      capacity: 18,
+    });
+    expect((init.headers as Record<string, string>)["idempotency-key"]).toMatch(
+      /^owner-group-update:/
+    );
+    expect(await screen.findByText(/Grupo actualizado/)).toBeVisible();
+    expect(window.sessionStorage.length).toBe(0);
+    expect(mockRefresh).toHaveBeenCalledOnce();
+  });
+
+  it("reintenta exactamente la misma edición tras una respuesta ambigua", async () => {
+    const user = userEvent.setup();
+    mockFetch
+      .mockResolvedValueOnce({
+        ok: false,
+        status: 503,
+        json: async () => ({ detail: "Resultado temporalmente desconocido." }),
+      })
+      .mockResolvedValueOnce({
+        ok: true,
+        status: 200,
+        json: async () => ({
+          ok: true,
+          data: {
+            id: groupId,
+            name: "Iniciación",
+            capacity: 12,
+            updatedAtVersion: "2026-10-13T09:01:00.000001Z",
+          },
+        }),
+      });
+
+    render(<OwnerGroupsManager bundle={groupBundle} />);
+    await waitFor(() =>
+      expect(screen.getByRole("button", { name: "Editar grupo" })).toBeEnabled()
+    );
+    await user.click(screen.getByRole("button", { name: "Editar grupo" }));
+    await user.clear(screen.getByLabelText("Nombre del grupo"));
+    await user.type(screen.getByLabelText("Nombre del grupo"), "Iniciación avanzada");
+    await user.click(screen.getByRole("button", { name: "Guardar cambios" }));
+
+    await waitFor(() =>
+      expect(screen.getByRole("button", { name: "Reintentar el mismo guardado" })).toBeEnabled()
+    );
+    expect(window.sessionStorage.length).toBe(1);
+    await user.click(screen.getByRole("button", { name: "Reintentar el mismo guardado" }));
+    await waitFor(() => expect(mockFetch).toHaveBeenCalledTimes(2));
+    const first = mockFetch.mock.calls[0]?.[1] as RequestInit;
+    const retry = mockFetch.mock.calls[1]?.[1] as RequestInit;
+    expect(first.headers).toEqual(retry.headers);
+    expect(first.body).toBe(retry.body);
+    expect(await screen.findByText(/Grupo actualizado/)).toBeVisible();
+    expect(window.sessionStorage.length).toBe(0);
+  });
+
+  it("bloquea la edición del grupo cuando Free está en solo lectura", async () => {
+    publishOwnerPlanUsage(organizationId, { readOnly: true, planCode: "free" });
+    render(<OwnerGroupsManager bundle={groupBundle} />);
+    await waitFor(() =>
+      expect(screen.getByRole("button", { name: "Editar grupo" })).toBeDisabled()
+    );
     expect(mockFetch).not.toHaveBeenCalled();
   });
 

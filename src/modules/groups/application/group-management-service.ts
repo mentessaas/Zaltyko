@@ -1,3 +1,4 @@
+import { createHash } from "node:crypto";
 import { and, asc, eq, inArray, notExists, sql } from "drizzle-orm";
 import { z } from "zod";
 
@@ -8,6 +9,7 @@ import {
   groups,
   locations,
   people,
+  outboxEvents,
   programs,
 } from "@/db/zaltyko-schema";
 import { operationalActorSchema } from "@/modules/shared/application/actor";
@@ -18,6 +20,7 @@ import {
   appendOutboxEvent,
   assertIdempotencyPayload,
   findOutboxEvent,
+  lockGroupCapacity,
   lockCommand,
 } from "@/modules/shared/infrastructure/transactional-records";
 import { resolveOwnerScope } from "@/modules/owner-dashboard/application/owner-scope";
@@ -27,6 +30,7 @@ import { hasEligibleGroupLocationRelationship } from "./group-athlete-location-e
 
 const openMembershipStatuses = ["pending", "active", "paused"] as const;
 const commandKeySchema = z.string().trim().min(8).max(180);
+const groupDetailsUpdatedEvent = "group.details_updated";
 const createGroupSchema = z.object({
   organizationId: z.string().uuid(),
   locationId: z.string().uuid(),
@@ -38,6 +42,27 @@ const createGroupSchema = z.object({
 });
 
 export type CreateGroupCommand = z.infer<typeof createGroupSchema>;
+
+const updateGroupDetailsSchema = z
+  .object({
+    organizationId: z.string().uuid(),
+    groupId: z.string().uuid(),
+    expectedUpdatedAt: z.string().datetime({ precision: 6 }),
+    name: z.string().trim().min(2).max(120).optional(),
+    capacity: z.number().int().positive().max(5000).nullable().optional(),
+    idempotencyKey: commandKeySchema,
+    actor: operationalActorSchema,
+  })
+  .strict()
+  .refine((input) => input.name !== undefined || input.capacity !== undefined, {
+    message: "Indica el nuevo nombre o la nueva capacidad.",
+  });
+
+export type UpdateGroupDetailsCommand = z.infer<typeof updateGroupDetailsSchema>;
+
+function groupLabelHash(value: string): string {
+  return createHash("sha256").update(value).digest("hex");
+}
 
 const privilegedRoles = ["owner", "manager", "admin"] as const;
 
@@ -195,6 +220,286 @@ export async function createOperationalGroup(command: CreateGroupCommand) {
   });
 }
 
+export async function updateOperationalGroupDetails(
+  command: UpdateGroupDetailsCommand
+) {
+  const input = updateGroupDetailsSchema.parse(command);
+
+  return db.transaction(async (tx) => {
+    await lockCommand(tx, input.organizationId, input.idempotencyKey);
+
+    const prior = await findOutboxEvent(tx, {
+      organizationId: input.organizationId,
+      eventName: groupDetailsUpdatedEvent,
+      idempotencyKey: input.idempotencyKey,
+    });
+    if (prior) {
+      assertIdempotencyPayload(prior.payload, {
+        groupId: input.groupId,
+        expectedUpdatedAt: input.expectedUpdatedAt,
+        requestedLabelDigest:
+          input.name === undefined ? null : groupLabelHash(input.name),
+        capacityProvided: input.capacity !== undefined,
+        requestedCapacity: input.capacity ?? null,
+      });
+      if (prior.aggregateId !== input.groupId) {
+        throw new OperationalError(
+          "IDEMPOTENCY_CONFLICT",
+          "La clave de idempotencia ya pertenece a otro grupo",
+          409
+        );
+      }
+
+      // Keep replay under the same resource lock order as the original write.
+      // Otherwise a concurrent edit could change the row between verification
+      // and receipt, or a membership write could race the capacity snapshot.
+      await lockGroupCapacity(tx, input.organizationId, input.groupId);
+
+      const [current] = await tx
+        .select({
+          id: groups.id,
+          locationId: groups.locationId,
+          name: groups.name,
+          capacity: groups.capacity,
+          status: groups.status,
+          updatedAtVersion: sql<string>`to_char(${groups.updatedAt} at time zone 'UTC', 'YYYY-MM-DD"T"HH24:MI:SS.US"Z"')`,
+        })
+        .from(groups)
+        .where(
+          and(
+            eq(groups.organizationId, input.organizationId),
+            eq(groups.id, input.groupId),
+            eq(groups.status, "active")
+          )
+        )
+        .limit(1);
+      if (
+        !current ||
+        current.updatedAtVersion !== prior.payload.updatedAtVersion ||
+        groupLabelHash(current.name) !== prior.payload.resultLabelDigest ||
+        current.capacity !== prior.payload.resultCapacity
+      ) {
+        throw new OperationalError(
+          "IDEMPOTENCY_CONFLICT",
+          "El grupo cambió después de la operación pendiente. Actualiza la lista antes de continuar.",
+          409
+        );
+      }
+      const [activeLocation] = await tx
+        .select({ id: locations.id })
+        .from(locations)
+        .where(
+          and(
+            eq(locations.organizationId, input.organizationId),
+            eq(locations.id, current.locationId),
+            eq(locations.isActive, true)
+          )
+        )
+        .limit(1);
+      if (!activeLocation) {
+        throw new OperationalError(
+          "LOCATION_SCOPE_DENIED",
+          "La sede del grupo no está disponible",
+          404
+        );
+      }
+      await assertOperationalAccess(tx, {
+        organizationId: input.organizationId,
+        locationId: current.locationId,
+        actor: input.actor,
+        allowedRoles: privilegedRoles,
+      });
+      return current;
+    }
+
+    const [usedKey] = await tx
+      .select({ id: outboxEvents.id })
+      .from(outboxEvents)
+      .where(
+        and(
+          eq(outboxEvents.organizationId, input.organizationId),
+          eq(outboxEvents.idempotencyKey, input.idempotencyKey)
+        )
+      )
+      .limit(1);
+    if (usedKey) {
+      throw new OperationalError(
+        "IDEMPOTENCY_CONFLICT",
+        "La clave de idempotencia ya pertenece a otra operación",
+        409
+      );
+    }
+
+    await lockGroupCapacity(tx, input.organizationId, input.groupId);
+    const locked = await tx.execute(sql`
+      select id from zaltyko.groups
+      where organization_id = ${input.organizationId}::uuid
+        and id = ${input.groupId}::uuid
+        and status = 'active'
+      for update
+    `);
+    if (locked.rows.length !== 1) {
+      throw new OperationalError("NOT_FOUND", "Grupo activo no encontrado", 404);
+    }
+
+    const [current] = await tx
+      .select({
+        id: groups.id,
+        locationId: groups.locationId,
+        name: groups.name,
+        capacity: groups.capacity,
+        status: groups.status,
+        updatedAtVersion: sql<string>`to_char(${groups.updatedAt} at time zone 'UTC', 'YYYY-MM-DD"T"HH24:MI:SS.US"Z"')`,
+      })
+      .from(groups)
+      .where(
+        and(
+          eq(groups.organizationId, input.organizationId),
+          eq(groups.id, input.groupId),
+          eq(groups.status, "active")
+        )
+      )
+      .limit(1);
+    if (!current) {
+      throw new OperationalError("NOT_FOUND", "Grupo activo no encontrado", 404);
+    }
+    const [activeLocation] = await tx
+      .select({ id: locations.id })
+      .from(locations)
+      .where(
+        and(
+          eq(locations.organizationId, input.organizationId),
+          eq(locations.id, current.locationId),
+          eq(locations.isActive, true)
+        )
+      )
+      .limit(1);
+    if (!activeLocation) {
+      throw new OperationalError(
+        "LOCATION_SCOPE_DENIED",
+        "La sede del grupo no está disponible",
+        404
+      );
+    }
+    await assertOperationalAccess(tx, {
+      organizationId: input.organizationId,
+      locationId: current.locationId,
+      actor: input.actor,
+      intent: "write",
+      allowedRoles: privilegedRoles,
+    });
+    if (current.updatedAtVersion !== input.expectedUpdatedAt) {
+      throw new OperationalError(
+        "VERSION_CONFLICT",
+        "El grupo cambió desde la última lectura. Actualiza la lista y vuelve a intentarlo.",
+        409
+      );
+    }
+
+    const nextName = input.name ?? current.name;
+    const nextCapacity =
+      input.capacity === undefined ? current.capacity : input.capacity;
+    if (nextName === current.name && nextCapacity === current.capacity) {
+      throw new OperationalError(
+        "INVALID_RELATION",
+        "No hay cambios que guardar",
+        422
+      );
+    }
+
+    if (nextCapacity !== current.capacity && nextCapacity !== null) {
+      const [occupancy] = await tx
+        .select({ count: sql<number>`count(*)::int` })
+        .from(groupMemberships)
+        .where(
+          and(
+            eq(groupMemberships.organizationId, input.organizationId),
+            eq(groupMemberships.groupId, input.groupId),
+            inArray(groupMemberships.status, [...openMembershipStatuses])
+          )
+        );
+      if (Number(occupancy?.count ?? 0) > nextCapacity) {
+        throw new OperationalError(
+          "GROUP_CAPACITY_BELOW_OCCUPANCY",
+          "No se puede reducir la capacidad por debajo de las pertenencias abiertas. No se ha cambiado el grupo.",
+          409,
+          { openMemberships: Number(occupancy?.count ?? 0), nextCapacity }
+        );
+      }
+    }
+
+    const [updated] = await tx
+      .update(groups)
+      .set({
+        name: nextName,
+        capacity: nextCapacity,
+        updatedAt: sql`greatest(clock_timestamp(), ${groups.updatedAt} + interval '1 microsecond')`,
+      })
+      .where(
+        and(
+          eq(groups.organizationId, input.organizationId),
+          eq(groups.id, input.groupId),
+          sql`${groups.updatedAt} = ${input.expectedUpdatedAt}::timestamptz`
+        )
+      )
+      .returning({
+        id: groups.id,
+        locationId: groups.locationId,
+        name: groups.name,
+        capacity: groups.capacity,
+        status: groups.status,
+        updatedAtVersion: sql<string>`to_char(${groups.updatedAt} at time zone 'UTC', 'YYYY-MM-DD"T"HH24:MI:SS.US"Z"')`,
+      });
+    if (!updated) {
+      throw new OperationalError(
+        "VERSION_CONFLICT",
+        "El grupo cambió desde la última lectura. Actualiza la lista y vuelve a intentarlo.",
+        409
+      );
+    }
+
+    await appendOutboxEvent(tx, {
+      organizationId: input.organizationId,
+      locationId: current.locationId,
+      eventName: groupDetailsUpdatedEvent,
+      aggregateType: "group",
+      aggregateId: current.id,
+      idempotencyKey: input.idempotencyKey,
+      payload: {
+        groupId: current.id,
+        expectedUpdatedAt: input.expectedUpdatedAt,
+        requestedLabelDigest:
+          input.name === undefined ? null : groupLabelHash(input.name),
+        capacityProvided: input.capacity !== undefined,
+        requestedCapacity: input.capacity ?? null,
+        resultLabelDigest: groupLabelHash(updated.name),
+        resultCapacity: updated.capacity,
+        updatedAtVersion: updated.updatedAtVersion,
+        labelChanged: nextName !== current.name,
+        changedCapacity: nextCapacity !== current.capacity,
+      },
+    });
+    await appendAuditEntry(tx, {
+      organizationId: input.organizationId,
+      locationId: current.locationId,
+      actorUserId: input.actor.userId,
+      action: groupDetailsUpdatedEvent,
+      targetType: "group",
+      targetId: current.id,
+      idempotencyKey: input.idempotencyKey,
+      before: {
+        labelDigest: groupLabelHash(current.name),
+        capacity: current.capacity,
+      },
+      after: {
+        labelDigest: groupLabelHash(updated.name),
+        capacity: updated.capacity,
+      },
+    });
+    return updated;
+  });
+}
+
 export async function getOwnerGroupsPageData(input: {
   userId: string;
   organizationId?: string;
@@ -254,6 +559,7 @@ export async function getOwnerGroupsPageData(input: {
         timezone: locations.timezone,
         programId: groups.programId,
         programName: programs.name,
+        updatedAtVersion: sql<string>`to_char(${groups.updatedAt} at time zone 'UTC', 'YYYY-MM-DD"T"HH24:MI:SS.US"Z"')`,
       })
       .from(groups)
       .innerJoin(

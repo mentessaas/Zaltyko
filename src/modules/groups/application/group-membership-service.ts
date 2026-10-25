@@ -295,6 +295,20 @@ export async function addGroupMembership(
     }
 
     await lockGroupCapacity(tx, input.organizationId, group.id);
+    const [lockedGroup] = await tx
+      .select({ capacity: groups.capacity })
+      .from(groups)
+      .where(
+        and(
+          eq(groups.organizationId, input.organizationId),
+          eq(groups.id, group.id),
+          eq(groups.status, "active")
+        )
+      )
+      .limit(1);
+    if (!lockedGroup) {
+      throw new OperationalError("NOT_FOUND", "Grupo activo no encontrado", 404);
+    }
 
     const [existing] = await tx
       .select({ id: groupMemberships.id })
@@ -316,7 +330,7 @@ export async function addGroupMembership(
       );
     }
 
-    if (group.capacity !== null) {
+    if (lockedGroup.capacity !== null) {
       const [occupancy] = await tx
         .select({ count: sql<number>`count(*)::int` })
         .from(groupMemberships)
@@ -327,7 +341,7 @@ export async function addGroupMembership(
             inArray(groupMemberships.status, [...openStatuses])
           )
         );
-      if (Number(occupancy?.count ?? 0) >= group.capacity) {
+      if (Number(occupancy?.count ?? 0) >= lockedGroup.capacity) {
         throw new OperationalError(
           "GROUP_CAPACITY_FULL",
           "El grupo no tiene plazas disponibles",
@@ -527,6 +541,20 @@ export async function createAthleteForGroup(
         ).limits.athleteLimit
     );
     await lockGroupCapacity(tx, input.organizationId, group.id);
+    const [lockedGroup] = await tx
+      .select({ capacity: groups.capacity })
+      .from(groups)
+      .where(
+        and(
+          eq(groups.organizationId, input.organizationId),
+          eq(groups.id, group.id),
+          eq(groups.status, "active")
+        )
+      )
+      .limit(1);
+    if (!lockedGroup) {
+      throw new OperationalError("NOT_FOUND", "Grupo activo no encontrado", 404);
+    }
 
     const [dateRow] = await tx
       .select({
@@ -556,7 +584,7 @@ export async function createAthleteForGroup(
       );
     }
 
-    if (group.capacity !== null) {
+    if (lockedGroup.capacity !== null) {
       const [occupancy] = await tx
         .select({ count: sql<number>`count(*)::int` })
         .from(groupMemberships)
@@ -567,7 +595,7 @@ export async function createAthleteForGroup(
             inArray(groupMemberships.status, [...openStatuses])
           )
         );
-      if (Number(occupancy?.count ?? 0) >= group.capacity) {
+      if (Number(occupancy?.count ?? 0) >= lockedGroup.capacity) {
         throw new OperationalError(
           "GROUP_CAPACITY_FULL",
           "El grupo no tiene plazas disponibles",

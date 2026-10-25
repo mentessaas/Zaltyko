@@ -5,7 +5,10 @@ import { sql } from "drizzle-orm";
 
 import { db } from "@/db";
 import { getOrganizationUsage } from "@/modules/saas-billing/application/organization-usage";
-import { createOperationalGroup } from "@/modules/groups/application/group-management-service";
+import {
+  createOperationalGroup,
+  updateOperationalGroupDetails,
+} from "@/modules/groups/application/group-management-service";
 import {
   createAthleteForGroup,
   updateAthleteProfileForGroup,
@@ -510,6 +513,18 @@ async function classTemplateVersion(organizationId: string, classTemplateId: str
   return version;
 }
 
+async function groupVersion(organizationId: string, groupId: string) {
+  const result = await db.execute(sql`
+    select to_char(updated_at at time zone 'UTC', 'YYYY-MM-DD"T"HH24:MI:SS.US"Z"') as version
+    from zaltyko.groups
+    where organization_id = ${organizationId}::uuid
+      and id = ${groupId}::uuid
+  `);
+  const version = result.rows[0]?.version;
+  if (typeof version !== "string") throw new Error("Group version was not returned");
+  return version;
+}
+
 function expectOnlyClassDetailsWrites(
   before: Awaited<ReturnType<typeof snapshot>>,
   after: Awaited<ReturnType<typeof snapshot>>
@@ -530,7 +545,130 @@ function expectOnlyClassDetailsWrites(
   }
 }
 
+function expectOnlyGroupDetailsWrites(
+  before: Awaited<ReturnType<typeof snapshot>>,
+  after: Awaited<ReturnType<typeof snapshot>>
+) {
+  const mutableTables = new Set(["groups", "audit_log", "outbox_events"]);
+  const beforeByTable = new Map(before.map((row) => [String(row.table_name), row]));
+  const afterByTable = new Map(after.map((row) => [String(row.table_name), row]));
+  for (const [table, beforeRow] of beforeByTable) {
+    const afterRow = afterByTable.get(table);
+    expect(afterRow, `${table} after`).toBeDefined();
+    const countDelta = table === "audit_log" || table === "outbox_events" ? 1 : 0;
+    expect(Number(afterRow?.count) - Number(beforeRow.count), table).toBe(countDelta);
+    if (mutableTables.has(table)) {
+      expect(afterRow?.content_hash, `${table} content`).not.toBe(beforeRow.content_hash);
+    } else {
+      expect(afterRow?.content_hash, `${table} content`).toBe(beforeRow.content_hash);
+    }
+  }
+}
+
 describe("operational capacity concurrency on disposable PostgreSQL", () => {
+  it("updates group details atomically, rejects capacity below occupancy, and replays without duplicate writes", async () => {
+    assertDisposableTarget();
+    const academy = await seedEnrollmentEligibilityAcademy();
+    await createAthleteForGroup({
+      organizationId: academy.organizationId,
+      groupId: academy.targetGroupId,
+      givenName: "Group-details occupancy",
+      familyName: "Synthetic athlete",
+      idempotencyKey: `ci-group-details-member-${randomUUID()}`,
+      actor: academy.actor,
+    });
+    const expectedUpdatedAt = await groupVersion(
+      academy.organizationId,
+      academy.targetGroupId
+    );
+    const beforeRejectedUpdate = await snapshot(academy.organizationId);
+    const blockedCommand = {
+      organizationId: academy.organizationId,
+      groupId: academy.targetGroupId,
+      expectedUpdatedAt,
+      name: "Should not be saved",
+      capacity: 1,
+      idempotencyKey: `ci-group-details-blocked-${randomUUID()}`,
+      actor: academy.actor,
+    };
+
+    await expect(updateOperationalGroupDetails(blockedCommand)).rejects.toMatchObject({
+      code: "GROUP_CAPACITY_BELOW_OCCUPANCY",
+      status: 409,
+      details: { openMemberships: 2, nextCapacity: 1 },
+    });
+    expectSnapshotDeltas(
+      beforeRejectedUpdate,
+      await snapshot(academy.organizationId),
+      {}
+    );
+
+    const command = {
+      organizationId: academy.organizationId,
+      groupId: academy.targetGroupId,
+      expectedUpdatedAt,
+      name: "CI group edited",
+      capacity: 3,
+      idempotencyKey: `ci-group-details-success-${randomUUID()}`,
+      actor: academy.actor,
+    };
+    const beforeUpdate = await snapshot(academy.organizationId);
+    const updated = await updateOperationalGroupDetails(command);
+    expect(updated).toMatchObject({
+      id: academy.targetGroupId,
+      name: command.name,
+      capacity: command.capacity,
+    });
+    expect(typeof updated.updatedAtVersion).toBe("string");
+    const afterUpdate = await snapshot(academy.organizationId);
+    expectOnlyGroupDetailsWrites(beforeUpdate, afterUpdate);
+
+    const eventRows = await db.execute(sql`
+      select payload::text as payload
+      from zaltyko.outbox_events
+      where organization_id = ${academy.organizationId}::uuid
+        and event_name = 'group.details_updated'
+        and idempotency_key = ${command.idempotencyKey}
+    `);
+    const eventPayload = String(eventRows.rows[0]?.payload ?? "");
+    expect(eventPayload).toContain("requestedLabelDigest");
+    expect(eventPayload).not.toContain(command.name);
+    const auditRows = await db.execute(sql`
+      select coalesce("before"::text, '') || coalesce("after"::text, '') as details
+      from zaltyko.audit_log
+      where organization_id = ${academy.organizationId}::uuid
+        and action = 'group.details_updated'
+        and idempotency_key = ${command.idempotencyKey}
+    `);
+    const auditDetails = String(auditRows.rows[0]?.details ?? "");
+    expect(auditDetails).toContain("labelDigest");
+    expect(auditDetails).not.toContain(command.name);
+
+    await expect(updateOperationalGroupDetails(command)).resolves.toMatchObject({
+      id: academy.targetGroupId,
+      name: command.name,
+      capacity: command.capacity,
+      updatedAtVersion: updated.updatedAtVersion,
+    });
+    expectSnapshotDeltas(afterUpdate, await snapshot(academy.organizationId), {});
+
+    const staleCommand = {
+      ...command,
+      name: "Stale group edit",
+      idempotencyKey: `ci-group-details-stale-${randomUUID()}`,
+    };
+    const beforeStaleUpdate = await snapshot(academy.organizationId);
+    await expect(updateOperationalGroupDetails(staleCommand)).rejects.toMatchObject({
+      code: "VERSION_CONFLICT",
+      status: 409,
+    });
+    expectSnapshotDeltas(
+      beforeStaleUpdate,
+      await snapshot(academy.organizationId),
+      {}
+    );
+  });
+
   it("admits only one athlete into the final group place with no partial loser rows", async () => {
     assertDisposableTarget();
     const academy = await seedEnrollmentEligibilityAcademy();
