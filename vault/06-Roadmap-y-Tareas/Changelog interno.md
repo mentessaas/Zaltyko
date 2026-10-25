@@ -12574,3 +12574,9 @@ Modelo separado, reclamación manual, administración, importación revisada, fi
 - CI40208193151 del59da53f5 falló en unitarios pese a build/lint/tipos y varios gates PASS. Corregidos mocks de consultas familiares, scopes de labels y limpieza de sessionStorage entre tests; se conserva el bloqueo de comandos inciertos del producto. Hash del runner se recalcula sin modificar el snapshot SQL. Cursor HTTP restringido a base64url. Nueva ejecución remota pendiente.
 - Contactos de tutores preparados como entrega vertical: GET/PATCH all-sites, optimistic version con microsegundos, replay por actor y clave, datos anteriores conservados y verificación invalidada al cambiar destino. No envíos ni Auth/proveedores nuevos. Cinco casos PG adicionales integrados en CI desechable y excluidos del gate unitario ordinario. Revisión estática detectó ajustes de replay y privacidad que se corrigen antes del commit; sin alegar PASS ni sandbox/publicación.
 - Producción y preview del ensayo conservadas; no build/test/servicio local. Impago terminal pendiente del próximo intento natural, sin forzarlo.
+
+
+## 2026-10-25 — Replay de contactos detecta protección de eventos
+
+- PG40209662912 del a004af54:24PASS/4FAIL. Capacidad, ledger251cargos y familia pasan; contactos bloqueados por payloadguardianId restringido. La corrección retira ese campo redundante del payload y lo valida por aggregateId antes del replay; actor/fingerprint siguen obligatorios. No se relaja assertAnalyticsSafePayload ni SQL/permisos. Nuevo replay pendiente.
+- El hash del runner actualizado no modifica el snapshot SQL. La edición de contacto mantiene seis microsegundos y limpia verificación al cambiar destino. Se retiraron hashes directos adicionales de email/teléfono; commandFingerprint conserva función de idempotencia y no se presenta como anonimización de datos.

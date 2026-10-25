@@ -460,7 +460,6 @@ export async function updateOwnerGuardianContact(
         );
       }
       assertIdempotencyPayload(prior.payload, {
-        guardianId: input.guardianId,
         actorUserId: input.actor.userId,
         actorMemberId: input.actor.memberId,
         commandFingerprint: fingerprint,
@@ -557,7 +556,6 @@ export async function updateOwnerGuardianContact(
       idempotencyKey: input.idempotencyKey,
       occurredAt,
       payload: {
-        guardianId: input.guardianId,
         contactId: resultingContactId,
         actorUserId: input.actor.userId,
         actorMemberId: input.actor.memberId,

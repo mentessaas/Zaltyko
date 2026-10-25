@@ -301,7 +301,6 @@ describe("Owner guardian contacts against disposable PostgreSQL", () => {
     `);
     expect(receiptRows.rows).toHaveLength(1);
     expect(receiptRows.rows[0]?.payload).toMatchObject({
-      guardianId: fixture.guardianId,
       contactId: first.contacts.email?.contactId,
       actorUserId: fixture.actor.userId,
       actorMemberId: fixture.actor.memberId,
@@ -309,6 +308,7 @@ describe("Owner guardian contacts against disposable PostgreSQL", () => {
       changed: true,
     });
     expect(receiptRows.rows[0]?.payload).toHaveProperty("commandFingerprint");
+    expect(receiptRows.rows[0]?.payload).not.toHaveProperty("guardianId");
     expect(receiptRows.rows[0]?.payload).not.toHaveProperty("previousValueHash");
     expect(receiptRows.rows[0]?.payload).not.toHaveProperty("nextValueHash");
 

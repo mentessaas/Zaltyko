@@ -10,13 +10,16 @@ persistidos reales de sandbox.
 
 ## Corte vigente de validación
 
-Último código publicado en la rama: `78c6e38b5359deeda2f67e6354a5d801136465d1`.
-CI `40203109015`, gates `40203109025`, integridad SQL `40203109016` y replay PG
-`40203116706` terminaron **SUCCESS**. Unitarias4914 PASS/3 omitidas; Owner
-sintético Chromium/Firefox/WebKit pasa. E2E autenticado/readiness siguen omitidos.
-Nuevas asociaciones familiares desde grupos, confirmación de pagador y persistencia
-de comandos ambiguos están en trabajo local posterior, sin CI ni sandbox todavía.
-No hay publicación en producción ni nueva entrega READY acreditada.
+Último código enviado a la rama: `a004af54cc82d9086c793af0c13ec6d9c2053e50`.
+CI `40209655845`, gates `40209655742`, integridad SQL `40209655758` y replay PG
+`40209662912` están pendientes/en ejecución. No son PASS todavía. Incluye contactos
+de tutores, asociaciones familiares, persistencia de comandos y paginación de pagos.
+El corte anterior59da tuvo fallos unitarios y de fixturesPG; su CI quedó cancelada
+al comenzar este candidato. Los éxitos parciales se conservan como parciales.
+
+Última validación completa histórica:78c6e38b, CI40203109015 yPG40203116706 SUCCESS.
+Esto no acredita los cambios posteriores. No hay publicación en producción ni nueva
+entrega READY acreditada. El ensayo conserva su alias y recursos protegidos.
 
 ## Cortes anteriores conservados
 
@@ -204,3 +207,8 @@ CI40208193151: build, lint/tipos, seguridad, SQL, mobile y recorridos sintético
 ### Contactos de tutores — implementación pendiente de gates
 
 Hueco demostrado: la asociación familiar no permitía gestionar el correo/teléfono principal del tutor desde Owner. Nuevo GET/PATCH exige actor y academia/sede verificados, rol permitido y alcance de todas las sedes por tratarse de PII compartida. Guarda transaccional con clave idempotente, versión exacta de seis microsegundos y conservación de contactos anteriores; cambiar destino no acredita verificación ni envía mensajes. UI conserva el comando exacto ante respuesta incierta y recupera explícitamente; no crea cuentas ni activa proveedores. Se incluyen pruebas HTTP/UI y cinco casos PG reales en el runner desechable; nada ejecutado localmente. Implementación, revisión y pruebas remotas siguen siendo estados separados. No se publica con CI roja.
+
+
+### Replaya004af54:24PASS/4FAIL — bloqueo de payload corregido, pendiente de rerun
+
+Run40209662912 reconstruyó PG y terminó24PASS/4FAIL de28casos. Las tres suites previas pasan, incluidos251cargos paginados y nueve casos de familia. Cuatro casos nuevos de contacto fallaron antes del commit por `assertAnalyticsSafePayload`: guardianId está prohibido dentro de payload por política vigente. Se conserva guardianId exclusivamente en aggregateId (ya comparado explícitamente en replay) y se elimina su redundancia del payload y de la comparación de payload; actor/fingerprint permanecen exigidos. No se modifica la política ni su expresión regular. El caso PG exige ahora ausencia de guardianId en payload. Nueva ejecución requerida; no se atribuye PASS al bloque contacto. Gates40209655742 y SQL40209655758 SUCCESS; CI principal sigue en ejecución.
