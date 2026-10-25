@@ -12497,3 +12497,10 @@ Modelo separado, reclamación manual, administración, importación revisada, fi
 - Fuente: owner-athlete-profile.ts, ruta Owner athletes, OwnerAthleteProfileEditor, tests unitarios/ruta/UI y casos PG en saas-capacity-postgres.integration.test.ts. Revision estatica independiente sin P1/P2 antes del ajuste menor de normalizacion y su regresion; pruebas pendientes. Fingerprints derivados de nombres no son datos anonimos.
 - Evidencia: CI40199478736 SUCCESS completo para91eb0c21; no acredita estos cambios nuevos. Intento de delivery separado cancelado por comando ausente; segundo bloqueado por preflight por configuracion no heredada. Alias del ensayo conservado, produccion intacta.
 - Siguiente paso: CI y replay PG del nuevo SHA; resolver configuracion explicita sandbox de la entrega sin usar proveedores compartidos ni rotar credenciales existentes. No nuevos despliegues hasta resolverlo.
+
+## 2026-10-25 — Ajuste de asercion del rollback PG
+
+- Hallazgo: replay remoto 40202214967 del SHA 7f754902 completo ocho casos de capacidad/ficha y cuatro de facturacion; fallo la asercion del quinto caso porque Drizzle envuelve el error PostgreSQL en cause.
+- Cambio: comprobar cause.code 23505 y la restriccion audit_log_idempotency_uq. Se conservan snapshots de ocho tablas y comprobaciones de ausencia de registros parciales.
+- Fuente: tests/billing-ledger-postgres.integration.test.ts y log del run remoto. El build, lint y tipos de CI40202187222 pasaron; la suite completa seguia pendiente al observarla.
+- Siguiente paso: repetir replay remoto sobre el commit corregido; no considerar este ajuste probado hasta obtener ese resultado. Sin pruebas ni builds locales.

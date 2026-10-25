@@ -783,7 +783,10 @@ describe("monthly manual invoice issuance on disposable PostgreSQL", () => {
     const before = await snapshotMonthlyInvoiceLedger(fixture.organizationId);
 
     await expect(issueMonthlyInvoice(command)).rejects.toMatchObject({
-      code: "23505",
+      cause: {
+        code: "23505",
+        constraint: "audit_log_idempotency_uq",
+      },
     });
 
     expect(await snapshotMonthlyInvoiceLedger(fixture.organizationId)).toEqual(
