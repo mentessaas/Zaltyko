@@ -12462,3 +12462,12 @@ Modelo separado, reclamación manual, administración, importación revisada, fi
 - Fuente: tests/e2e-owner-local-setup.spec.ts; resolveSaasOwnerScope.
 - Importancia: prueba sesion real y contrato de ruta, no mocks de autenticacion.
 - Siguiente paso: ejecucion remota pendiente. No modifica fixtures sandbox ni demuestra validacion del candidato en sandbox.
+
+
+## 2026-10-25 — Aislamiento de preview de entregas
+
+- Hallazgo: el preflight heredado requiere las banderas del ensayo short-paid.
+- Cambio: modo de entrega exige rama exacta y banderas del ensayo desactivadas/vacias, conserva TLS, sandbox, Stripe test y Redis exclusivos.
+- Fuente: preview-build-preflight.cjs y tests/delivery-preview-preflight.test.ts; docs/qa/delivery-preview-inherited-env-review-2026-10-25.md.
+- Importancia: no propagar configuracion del ensayo a entregas nuevas ni aceptar produccion por herencia.
+- Siguiente paso: gates remotos/revision y overrides runtime/build explicitos antes de crear preview; no desplegado.

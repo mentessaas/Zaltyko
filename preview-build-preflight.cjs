@@ -1,10 +1,13 @@
 // Fail closed before building this explicitly authorized sandbox preview.
 const e = process.env;
+const deliveryMode = e.ZALTYKO_DELIVERY_PREVIEW === 'true';
+const deliveryBranch = 'codex/mvp-main-bridge-20261025';
 const checks = {
   databaseCaOnly: e.DATABASE_CA_CERT_PATH === 'certs/supabase-root-ca.crt' && !e.NODE_EXTRA_CA_CERTS && require('node:fs').existsSync(e.DATABASE_CA_CERT_PATH),
   verifiedTls: e.NODE_TLS_REJECT_UNAUTHORIZED !== '0' && !e.NODE_NO_WARNINGS && !(e.NODE_OPTIONS || '').includes('--no-warnings'),
   preview: e.VERCEL_ENV === 'preview',
-  shortPaidQa: e.SAAS_QA_SHORT_PAID_ENABLED === 'true' && e.SAAS_QA_SHORT_PAID_RUN === 'short-paid-expiry-20261021-v3' && e.SAAS_QA_SHORT_PAID_EXPIRES_AT === '2026-10-22T18:30:00Z',
+  deliveryIsolation: !deliveryMode || (e.VERCEL_GIT_COMMIT_REF === deliveryBranch && e.SAAS_QA_SHORT_PAID_ENABLED === 'false' && !e.SAAS_QA_SHORT_PAID_RUN && !e.SAAS_QA_SHORT_PAID_EXPIRES_AT),
+  shortPaidQa: deliveryMode || (e.SAAS_QA_SHORT_PAID_ENABLED === 'true' && e.SAAS_QA_SHORT_PAID_RUN === 'short-paid-expiry-20261021-v3' && e.SAAS_QA_SHORT_PAID_EXPIRES_AT === '2026-10-22T18:30:00Z'),
   supabase: e.NEXT_PUBLIC_SUPABASE_URL === 'https://aeeootdmuiqkfeernskw.supabase.co',
   stripeTest: e.STRIPE_SECRET_KEY?.startsWith('sk_test_') === true,
   saasTest: e.STRIPE_SAAS_ENVIRONMENT === 'test' && e.STRIPE_SAAS_TEST_SECRET_KEY?.startsWith('sk_test_') === true,
