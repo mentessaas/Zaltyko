@@ -47,6 +47,56 @@ export type PinnedSchemaSource = {
   isGuardedSnapshot: boolean;
 };
 
+async function connectAsSchemaReplayRole(connectionString: string) {
+  for (const role of ["supabase_admin", "postgres"]) {
+    const target = new URL(connectionString);
+    target.username = role;
+    const client = new Client({
+      connectionString: target.toString(),
+      application_name: "zaltyko-disposable-e2e-schema-replay",
+      connectionTimeoutMillis: 5_000,
+      ssl: false,
+    });
+
+    try {
+      await client.connect();
+      const { rows } = await client.query<{
+        canAlterPostgresDefaults: boolean;
+        canAlterSupabaseAdminDefaults: boolean;
+        canCreateInPublic: boolean;
+        canCreateInTargetDatabase: boolean;
+        isSuperuser: boolean;
+      }>(`
+        SELECT
+          role.rolsuper AS "isSuperuser",
+          pg_has_role(current_user, 'postgres', 'MEMBER') AS "canAlterPostgresDefaults",
+          pg_has_role(current_user, 'supabase_admin', 'MEMBER') AS "canAlterSupabaseAdminDefaults",
+          has_database_privilege(current_user, current_database(), 'CREATE') AS "canCreateInTargetDatabase",
+          has_schema_privilege(current_user, 'public', 'CREATE') AS "canCreateInPublic"
+        FROM pg_roles AS role
+        WHERE role.rolname = current_user
+      `);
+      const privileges = rows[0];
+      const canReplay =
+        privileges?.isSuperuser ||
+        (privileges?.canAlterPostgresDefaults &&
+          privileges.canAlterSupabaseAdminDefaults &&
+          privileges.canCreateInTargetDatabase &&
+          privileges.canCreateInPublic);
+
+      if (canReplay) return client;
+    } catch {
+      // Try the next known local role without exposing connection details.
+    }
+
+    await client.end().catch(() => undefined);
+  }
+
+  throw new Error(
+    "Refusing schema replay: neither local Supabase role has the privileges required to restore the pinned default ACLs."
+  );
+}
+
 /** Apply pinned source files over one connection so the guard marker stays session-local. */
 export async function replayPinnedE2ESchema(
   connectionString: string,
@@ -63,12 +113,7 @@ export async function replayPinnedE2ESchema(
     );
   }
 
-  const client = new Client({
-    connectionString,
-    application_name: "zaltyko-disposable-e2e-schema-replay",
-    connectionTimeoutMillis: 5_000,
-    ssl: false,
-  });
+  const client = await connectAsSchemaReplayRole(connectionString);
   let currentSource = "snapshot replay marker";
 
   try {

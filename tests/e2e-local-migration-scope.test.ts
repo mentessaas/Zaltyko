@@ -101,6 +101,9 @@ describe("local Owner E2E migration boundary", () => {
     expect(schemaReplay).toContain(
       "SET app.schema_snapshot_replay = 'ci-empty-replay';"
     );
+    expect(schemaReplay).toContain('["supabase_admin", "postgres"]');
+    expect(schemaReplay).toContain("canAlterSupabaseAdminDefaults");
+    expect(schemaReplay).toContain("canAlterPostgresDefaults");
     expect(localRunner).toContain("replayPinnedE2ESchema(databaseUrl");
     expect(localRunner).not.toContain("migrationDirectory");
     expect(E2E_LOCAL_SCHEMA_POST_SNAPSHOT_MIGRATIONS).toEqual([
