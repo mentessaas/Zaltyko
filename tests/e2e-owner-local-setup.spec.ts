@@ -1385,6 +1385,7 @@ async function expectPersistedOwnerSignupConsent(
   const persisted = await pool.query<{
     state: string;
     policy_version: string;
+    current_policy_version: string;
     source: string;
     consent_proof: string;
     grant_events: number;
@@ -1392,6 +1393,9 @@ async function expectPersistedOwnerSignupConsent(
   }>(
     `select consent.state,
             consent.policy_version,
+            (select policy_version
+               from zaltyko.owner_signup_consent_policy
+              where singleton = true) as current_policy_version,
             consent.source,
             consent.consent_proof,
             (select count(*)::int
@@ -1404,16 +1408,17 @@ async function expectPersistedOwnerSignupConsent(
       where consent.user_id = $1::uuid`,
     [ownerUserId]
   );
-  expect(persisted.rows).toEqual([
-    {
-      state: "granted",
-      policy_version: "v1-2026-08-01",
-      source: "signup",
-      consent_proof: consentProof,
-      grant_events: 1,
-      total_events: 1,
-    },
-  ]);
+  expect(persisted.rows).toHaveLength(1);
+  expect(persisted.rows[0]).toMatchObject({
+    state: "granted",
+    source: "signup",
+    consent_proof: consentProof,
+    grant_events: 1,
+    total_events: 1,
+  });
+  expect(persisted.rows[0]?.policy_version).toBe(
+    persisted.rows[0]?.current_policy_version
+  );
 }
 
 function dashboardRange(...instants: string[]): { from: string; to: string } {
