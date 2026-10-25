@@ -346,7 +346,7 @@ export async function assertAcademyOperationalWritable(
     "La academia está en solo lectura porque supera los límites de su plan. Archiva el excedente o contrata capacidad suficiente desde Plan. Los datos se conservan.",
     "PLAN_OVER_CAPACITY",
     409,
-    usage
+    { ...usage }
   );
 }
 
