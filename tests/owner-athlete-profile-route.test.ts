@@ -98,8 +98,8 @@ describe("Owner athlete profile HTTP boundary", () => {
 
   it("rejects malformed IDs, unsupported personal fields, and missing idempotency", async () => {
     expect((await PATCH(request(), context({ athleteId: "not-a-uuid" }))).status).toBe(400);
-    expect((await PATCH(request({ ...body, dateOfBirth: "2012-01-01" }))).status).toBe(400);
-    expect((await PATCH(request(body, ""))).status).toBe(400);
+    expect((await PATCH(request({ ...body, dateOfBirth: "2012-01-01" }), context())).status).toBe(400);
+    expect((await PATCH(request(body, ""), context())).status).toBe(400);
     expect(mocks.ownerScope).not.toHaveBeenCalled();
     expect(mocks.updateAthleteProfileForGroup).not.toHaveBeenCalled();
   });
