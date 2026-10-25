@@ -77,6 +77,7 @@ describe("cobertura de clases al crear una tarifa Owner", () => {
   let optionsOverride: Record<string, unknown>;
   let failedOptionsRemaining: number;
   let failedCreatesRemaining: number;
+  let createFailureStatus: number;
 
   beforeEach(() => {
     publishOwnerPlanUsage(organizationId, { readOnly: false, planCode: "free" });
@@ -84,6 +85,7 @@ describe("cobertura de clases al crear una tarifa Owner", () => {
     optionsOverride = {};
     failedOptionsRemaining = 0;
     failedCreatesRemaining = 0;
+    createFailureStatus = 503;
     vi.stubGlobal("crypto", {
       randomUUID: vi
         .fn()
@@ -118,7 +120,7 @@ describe("cobertura de clases al crear una tarifa Owner", () => {
           if (failedCreatesRemaining > 0) {
             failedCreatesRemaining -= 1;
             return new Response(JSON.stringify({ detail: "Error temporal" }), {
-              status: 503,
+              status: createFailureStatus,
               headers: { "content-type": "application/json" },
             });
           }
@@ -333,7 +335,7 @@ describe("cobertura de clases al crear una tarifa Owner", () => {
     expect(planCreationCalls()).toHaveLength(0);
   });
 
-  it("reutiliza clave y cuerpo si el intento es incierto, y rota la clave si cambia la cobertura", async () => {
+  it("reutiliza la misma clave y cuerpo al reintentar un intento incierto", async () => {
     const user = userEvent.setup();
     failedCreatesRemaining = 1;
     renderPanel();
@@ -355,9 +357,30 @@ describe("cobertura de clases al crear una tarifa Owner", () => {
     );
     await waitFor(() => expect(planCreationCalls()).toHaveLength(2));
     const callsAfterRetry = planCreationCalls();
+    expect(callsAfterRetry).toHaveLength(2);
     expect(callsAfterRetry[0]?.[1]?.body).toBe(callsAfterRetry[1]?.[1]?.body);
     expect(callsAfterRetry[0]?.[1]?.headers).toEqual(
       callsAfterRetry[1]?.[1]?.headers
+    );
+    expect(
+      JSON.parse(String(callsAfterRetry[1]?.[1]?.body)).coverage.classTemplateIds
+    ).toEqual([artClassId]);
+  });
+
+  it("rota la clave si cambia la cobertura después de un rechazo definitivo", async () => {
+    const user = userEvent.setup();
+    failedCreatesRemaining = 1;
+    createFailureStatus = 422;
+    renderPanel();
+    await enterPlanDetails(user);
+    await user.click(
+      screen.getByRole("checkbox", { name: "Gimnasia artística" })
+    );
+    await user.click(
+      screen.getByRole("button", { name: "Crear tarifa mensual" })
+    );
+    expect(await screen.findByRole("alert")).toHaveTextContent(
+      "Error temporal"
     );
 
     await user.click(
@@ -366,13 +389,11 @@ describe("cobertura de clases al crear una tarifa Owner", () => {
     await user.click(
       screen.getByRole("button", { name: "Crear tarifa mensual" })
     );
-    await waitFor(() => expect(planCreationCalls()).toHaveLength(3));
+    await waitFor(() => expect(planCreationCalls()).toHaveLength(2));
     const finalCalls = planCreationCalls();
-    expect(finalCalls[2]?.[1]?.headers).not.toEqual(
-      finalCalls[1]?.[1]?.headers
-    );
+    expect(finalCalls[1]?.[1]?.headers).not.toEqual(finalCalls[0]?.[1]?.headers);
     expect(
-      JSON.parse(String(finalCalls[2]?.[1]?.body)).coverage.classTemplateIds
+      JSON.parse(String(finalCalls[1]?.[1]?.body)).coverage.classTemplateIds
     ).toEqual([artClassId, rhythmicClassId]);
   });
 });

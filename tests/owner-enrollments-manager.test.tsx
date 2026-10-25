@@ -7,6 +7,7 @@ import {
   waitFor,
   within,
 } from "@testing-library/react";
+import userEvent from "@testing-library/user-event";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
 import { OwnerEnrollmentsManager } from "@/components/owner-dashboard/OwnerEnrollmentsManager";
@@ -153,6 +154,8 @@ describe("OwnerEnrollmentsManager", () => {
                         cadence: "monthly",
                       },
                     ],
+                    organizationId,
+                    locationId,
                   },
                 }),
                 { status: 200, headers: { "content-type": "application/json" } }
@@ -171,22 +174,23 @@ describe("OwnerEnrollmentsManager", () => {
   });
 
   it("crea una inscripción pendiente en un formulario y avisa que no cobra", async () => {
+    const user = userEvent.setup();
     render(<OwnerEnrollmentsManager bundle={bundle()} selectedStatus="all" />);
     expect(screen.getByRole("heading", { name: "Inscripciones" })).toBeTruthy();
     expect(screen.getByText(/No crea una cuota ni inicia cobros/)).toBeTruthy();
 
-    fireEvent.change(screen.getByLabelText("Clase"), {
-      target: { value: classTemplateId },
-    });
-    fireEvent.change(screen.getByLabelText("Gimnasta"), {
-      target: { value: "Luz" },
-    });
+    await user.selectOptions(screen.getByLabelText("Clase"), classTemplateId);
+    await user.type(screen.getByLabelText("Gimnasta"), "Luz");
     const candidate = await screen.findByRole("button", {
       name: "Luz Sintética",
     });
-    fireEvent.click(candidate);
+    await user.click(candidate);
 
-    fireEvent.submit(screen.getByRole("form", { name: "Crear inscripción" }));
+    const submit = screen.getByRole("button", {
+      name: "Registrar inscripción pendiente",
+    });
+    await waitFor(() => expect(submit).toBeEnabled());
+    await user.click(submit);
     await waitFor(() =>
       expect(
         vi.mocked(fetch).mock.calls.some(
@@ -209,7 +213,7 @@ describe("OwnerEnrollmentsManager", () => {
       pricePlanId: "10000000-0000-4000-8000-000000000009",
     });
     expect(await screen.findByRole("status")).toHaveTextContent(
-      "Inscripción pendiente registrada. No se ha generado ningún cobro."
+      "Inscripción registrada. Consulta el estado actualizado en el listado. Este envío no genera ningún cobro."
     );
     expect(mocks.refresh).toHaveBeenCalledTimes(1);
   });
@@ -253,7 +257,7 @@ describe("OwnerEnrollmentsManager", () => {
       effectiveOn: "2026-10-13",
     });
     expect(await screen.findByRole("status")).toHaveTextContent(
-      "Inscripción actualizada."
+      "Operación confirmada. Consulta el estado actualizado en el listado."
     );
     expect(mocks.refresh).toHaveBeenCalledTimes(1);
   });
@@ -284,11 +288,11 @@ describe("OwnerEnrollmentsManager", () => {
     );
 
     const confirmation = screen.getByRole("group", {
-      name: "Confirmar finalización",
+      name: /Confirmar finalización de/,
     });
     fireEvent.click(
       within(confirmation).getByRole("button", {
-        name: "Confirmar",
+        name: /Confirmar finalización de/,
       })
     );
 
@@ -316,8 +320,12 @@ describe("OwnerEnrollmentsManager", () => {
       })
     );
 
-    expect(screen.getByRole("group", { name: "Confirmar baja" })).toBeTruthy();
-    expect(screen.getByRole("button", { name: "Confirmar" })).toBeTruthy();
+    const confirmation = screen.getByRole("group", {
+      name: /Confirmar baja de/,
+    });
+    expect(
+      within(confirmation).getByRole("button", { name: /Confirmar baja de/ })
+    ).toBeTruthy();
     expect(fetch).not.toHaveBeenCalled();
   });
 

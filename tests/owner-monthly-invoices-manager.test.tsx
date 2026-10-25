@@ -729,9 +729,9 @@ describe("OwnerMonthlyInvoicesManager", () => {
       );
       await user.click(screen.getByRole("button", { name: "Guardar vínculo" }));
 
-      expect(await screen.findByRole("alert")).toHaveTextContent(
-        "La respuesta no confirma la relación familiar."
-      );
+      expect(
+        await screen.findByText(/La respuesta no confirma la relación familiar\./)
+      ).toHaveAttribute("role", "alert");
       expect(
         screen.queryByText("Familia y persona pagadora vinculadas.", {
           exact: true,
