@@ -1,7 +1,6 @@
 /* eslint-disable no-console */
 import {
   mkdtempSync,
-  mkdirSync,
   readFileSync,
   rmSync,
   writeFileSync,
@@ -29,6 +28,10 @@ import {
   verifySupabaseCliBinary,
 } from "./lib/local-e2e-preflight";
 import { resolveLocalDockerEndpoint } from "./lib/local-docker-endpoint";
+import {
+  replayPinnedE2ESchema,
+  type PinnedSchemaSource,
+} from "./lib/e2e-schema-replay";
 import {
   E2E_LOCAL_SCHEMA_POST_SNAPSHOT_MIGRATIONS,
   E2E_LOCAL_SCHEMA_SNAPSHOT,
@@ -241,8 +244,6 @@ void (async () => {
       abortController.signal
     );
 
-    const migrationDirectory = join(projectDirectory, "supabase", "migrations");
-    mkdirSync(migrationDirectory, { recursive: true });
     const localSchemaSources = [
       {
         ...E2E_LOCAL_SCHEMA_SNAPSHOT,
@@ -260,6 +261,7 @@ void (async () => {
         isGuardedSnapshot: false,
       })),
     ];
+    const pinnedSchemaSources: PinnedSchemaSource[] = [];
     for (const migration of localSchemaSources) {
       const sql = readFileSync(migration.sourcePath);
       const actualSha256 = createHash("sha256").update(sql).digest("hex");
@@ -278,20 +280,11 @@ void (async () => {
         );
       }
 
-      const replaySql = migration.isGuardedSnapshot
-        ? Buffer.concat([
-            Buffer.from(
-              "SET app.schema_snapshot_replay = 'ci-empty-replay';\n",
-              "utf8"
-            ),
-            sql,
-          ])
-        : sql;
-      writeFileSync(
-        join(migrationDirectory, migration.filename),
-        replaySql,
-        { flag: "wx", mode: 0o600 }
-      );
+      pinnedSchemaSources.push({
+        filename: migration.filename,
+        sql,
+        isGuardedSnapshot: migration.isGuardedSnapshot,
+      });
     }
 
     // Keep this stack's identity unique even when multiple local runs overlap.
@@ -322,6 +315,7 @@ void (async () => {
     );
     const supabaseUrl = required(values, "API_URL");
     const databaseUrl = required(values, "DB_URL");
+    await replayPinnedE2ESchema(databaseUrl, pinnedSchemaSources);
     const appPort = await findAvailablePort();
     const appUrl = `http://127.0.0.1:${appPort}`;
     const childEnv: NodeJS.ProcessEnv = {

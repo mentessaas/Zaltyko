@@ -11,6 +11,7 @@ import {
   E2E_LOCAL_OWNER_MONTHLY_TARIFF_MIGRATIONS,
   E2E_LOCAL_OWNER_SIGNUP_MIGRATIONS,
 } from "../scripts/lib/e2e-domain-migrations";
+import { assertDisposableE2EDatabaseUrl } from "../scripts/lib/e2e-schema-replay";
 
 const ownerConsentMigration =
   "20261013235142_owner_signup_consent_canonical.sql";
@@ -93,10 +94,15 @@ describe("local Owner E2E migration boundary", () => {
       resolve(process.cwd(), "scripts/run-e2e-local.ts"),
       "utf8"
     );
-    expect(localRunner).toContain(
+    const schemaReplay = readFileSync(
+      resolve(process.cwd(), "scripts/lib/e2e-schema-replay.ts"),
+      "utf8"
+    );
+    expect(schemaReplay).toContain(
       "SET app.schema_snapshot_replay = 'ci-empty-replay';"
     );
-    expect(localRunner).toContain("writeFileSync(");
+    expect(localRunner).toContain("replayPinnedE2ESchema(databaseUrl");
+    expect(localRunner).not.toContain("migrationDirectory");
     expect(E2E_LOCAL_SCHEMA_POST_SNAPSHOT_MIGRATIONS).toEqual([
       {
         filename: "20261024193934_rls_guard_missing_public_tables.sql",
@@ -116,6 +122,32 @@ describe("local Owner E2E migration boundary", () => {
       );
       expect(createHash("sha256").update(source).digest("hex")).toBe(
         migration.sha256
+      );
+    }
+  });
+
+  it("refuses schema replay targets outside the disposable loopback database", () => {
+    expect(() =>
+      assertDisposableE2EDatabaseUrl(
+        "postgresql://postgres:local-only@127.0.0.1:54322/postgres"
+      )
+    ).not.toThrow();
+    expect(() =>
+      assertDisposableE2EDatabaseUrl(
+        "postgresql://postgres:local-only@[::1]:54322/postgres"
+      )
+    ).not.toThrow();
+
+    for (const unsafeTarget of [
+      "postgresql://postgres:secret@db.example.com:5432/postgres",
+      "postgresql://service_role:secret@127.0.0.1:54322/postgres",
+      "postgresql://postgres:secret@127.0.0.1:54322/other",
+      "postgresql://postgres:secret@127.0.0.1:54322/postgres?host=db.example.com",
+      "postgresql://postgres:secret@localhost:54322/postgres",
+      "not-a-database-url",
+    ]) {
+      expect(() => assertDisposableE2EDatabaseUrl(unsafeTarget)).toThrow(
+        "Refusing schema replay"
       );
     }
   });

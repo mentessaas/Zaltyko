@@ -213,7 +213,7 @@ describe("OwnerEnrollmentsManager", () => {
       pricePlanId: "10000000-0000-4000-8000-000000000009",
     });
     const successStatus = await screen.findByText(
-      "Inscripción registrada. Consulta el estado actualizado en el listado. Este envío no genera ningún cobro."
+      "Inscripción registrada. Consulta su estado actualizado en el listado. Este envío no genera ningún cobro."
     );
     expect(successStatus).toHaveAttribute("role", "status");
     expect(mocks.refresh).toHaveBeenCalledTimes(1);
