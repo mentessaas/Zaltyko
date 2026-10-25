@@ -527,6 +527,7 @@ export async function getOwnerFamilyOptions(input: {
   organizationId: string;
   locationId: string;
   actor: z.infer<typeof operationalActorSchema>;
+  includeArchived?: boolean;
 }) {
   return db.transaction(async (tx) => {
     await assertOperationalAccess(tx, {
@@ -552,9 +553,17 @@ export async function getOwnerFamilyOptions(input: {
     const localDate = new Intl.DateTimeFormat("sv-SE", {
       timeZone: location.timezone,
     }).format(new Date());
+    const familyConditions = [
+      eq(families.organizationId, input.organizationId),
+    ];
+    if (!input.includeArchived) {
+      familyConditions.push(eq(families.isActive, true));
+    }
     const memberRows = await tx
       .select({
         familyId: families.id,
+        isActive: families.isActive,
+        familyVersion: sql<string>`to_char(${families.updatedAt} at time zone 'UTC', 'YYYY-MM-DD"T"HH24:MI:SS.US"Z"')`,
         athleteId: athletes.id,
         athleteName: sql<string>`nullif(btrim(concat_ws(' ', ${people.givenName}, ${people.familyName})), '')`,
       })
@@ -593,13 +602,16 @@ export async function getOwnerFamilyOptions(input: {
         )
       )
       .where(
-        and(
-          eq(families.organizationId, input.organizationId),
-          eq(families.isActive, true)
-        )
+        and(...familyConditions)
       )
       .limit(1000);
     const familyIds = [...new Set(memberRows.map((row) => row.familyId))];
+    const familyStateById = new Map(
+      memberRows.map((row) => [
+        row.familyId,
+        { isActive: row.isActive, familyVersion: row.familyVersion },
+      ])
+    );
     const payerRows = familyIds.length
       ? await tx
           .select({
@@ -668,6 +680,8 @@ export async function getOwnerFamilyOptions(input: {
     return {
       families: familyIds.map((familyId) => ({
         familyId,
+        isActive: familyStateById.get(familyId)?.isActive ?? false,
+        familyVersion: familyStateById.get(familyId)?.familyVersion ?? "",
         athletes: [...(membersByFamily.get(familyId)?.values() ?? [])],
         payers: (payersByFamily.get(familyId) ?? []).map((payer) => ({
           familyPayerId: payer.familyPayerId,

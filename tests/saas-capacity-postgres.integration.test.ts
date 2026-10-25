@@ -25,7 +25,10 @@ import {
   associateOwnerFamily,
   getOwnerFamilyOptions,
 } from "@/modules/families/application/owner-family-association";
-import { updateOwnerFamilyPayerProfile } from "@/modules/families/application/owner-family-management";
+import {
+  updateOwnerFamilyLifecycle,
+  updateOwnerFamilyPayerProfile,
+} from "@/modules/families/application/owner-family-management";
 import {
   bootstrapOrganization,
   type BootstrapOrganizationCommand,
@@ -2167,6 +2170,176 @@ describe("Free capacity guards on disposable PostgreSQL", () => {
       })
     ).rejects.toMatchObject({ code: "PLAN_OVER_CAPACITY", status: 409 });
     expect(await snapshot(fixture.organizationId)).toEqual(beforeReadOnlyWrite);
+  }, 45_000);
+
+  it("archives and restores a family without deleting linked operational or billing history", async () => {
+    assertDisposableTarget();
+    const fixture = await seedFamilyAssociationFixture();
+    const association = await associateOwnerFamily({
+      organizationId: fixture.organizationId,
+      locationId: fixture.targetLocationId,
+      athleteIds: [fixture.targetAthleteId],
+      effectiveFrom: fixture.startsOn,
+      payer: {
+        givenName: "Synthetic",
+        familyName: "Archive guardian",
+        relationship: "parent",
+      },
+      idempotencyKey: "ci-family-archive-seed-" + randomUUID(),
+      actor: fixture.actor,
+    });
+    const versionResult = await db.execute(sql`
+      select to_char(
+        updated_at at time zone 'UTC',
+        'YYYY-MM-DD"T"HH24:MI:SS.US"Z"'
+      ) as family_version
+      from zaltyko.families
+      where organization_id = ${fixture.organizationId}::uuid
+        and id = ${association.family.id}::uuid
+    `);
+    const activeVersion = String(versionResult.rows[0]?.family_version);
+    const beforeArchive = await snapshot(fixture.organizationId);
+    const archiveKey = "ci-family-archive-" + randomUUID();
+    const archiveCommand = {
+      userId: fixture.actor.userId,
+      organizationId: fixture.organizationId,
+      familyId: association.family.id,
+      action: "archive" as const,
+      expectedFamilyVersion: activeVersion,
+      idempotencyKey: archiveKey,
+    };
+
+    const archived = await updateOwnerFamilyLifecycle(archiveCommand);
+    expect(archived).toMatchObject({
+      familyId: association.family.id,
+      isActive: false,
+      replayed: false,
+    });
+    const afterArchive = await snapshot(fixture.organizationId);
+    const beforeArchiveByTable = new Map(
+      beforeArchive.map((row) => [String(row.table_name), row])
+    );
+    const afterArchiveByTable = new Map(
+      afterArchive.map((row) => [String(row.table_name), row])
+    );
+    for (const table of snapshotTables) {
+      const beforeRow = beforeArchiveByTable.get(table);
+      const afterRow = afterArchiveByTable.get(table);
+      expect(beforeRow, `${table} before archive`).toBeDefined();
+      expect(afterRow, `${table} after archive`).toBeDefined();
+      const expectedCountDelta =
+        table === "audit_log" || table === "outbox_events" ? 1 : 0;
+      expect(
+        Number(afterRow?.count) - Number(beforeRow?.count),
+        `${table} row count`
+      ).toBe(expectedCountDelta);
+      if (table === "families") {
+        expect(afterRow?.content_hash).not.toBe(beforeRow?.content_hash);
+      } else if (expectedCountDelta === 0) {
+        expect(afterRow?.content_hash, `${table} retained data`).toBe(
+          beforeRow?.content_hash
+        );
+      }
+    }
+
+    const archivedFamily = await db.execute(sql`
+      select is_active from zaltyko.families
+      where organization_id = ${fixture.organizationId}::uuid
+        and id = ${association.family.id}::uuid
+    `);
+    expect(archivedFamily.rows).toEqual([{ is_active: false }]);
+    const hiddenFromOperationalOptions = await getOwnerFamilyOptions({
+      organizationId: fixture.organizationId,
+      locationId: fixture.targetLocationId,
+      actor: fixture.actor,
+    });
+    expect(
+      hiddenFromOperationalOptions.families.some(
+        (family) => family.familyId === association.family.id
+      )
+    ).toBe(false);
+    const archivedHistory = await getOwnerFamilyOptions({
+      organizationId: fixture.organizationId,
+      locationId: fixture.targetLocationId,
+      actor: fixture.actor,
+      includeArchived: true,
+    });
+    expect(archivedHistory.families).toContainEqual(
+      expect.objectContaining({
+        familyId: association.family.id,
+        isActive: false,
+      })
+    );
+    await expect(updateOwnerFamilyLifecycle(archiveCommand)).resolves.toMatchObject({
+      ...archived,
+      replayed: true,
+    });
+    expect(await snapshot(fixture.organizationId)).toEqual(afterArchive);
+
+    const collisionKey = "ci-family-archive-collision-" + randomUUID();
+    await db.execute(sql`
+      insert into zaltyko.audit_log (
+        organization_id, location_id, actor_user_id, action, target_type,
+        idempotency_key
+      )
+      values (
+        ${fixture.organizationId}::uuid,
+        ${fixture.targetLocationId}::uuid,
+        ${fixture.actor.userId}::uuid,
+        'ci.family.archive.collision',
+        'family',
+        ${collisionKey}
+      )
+    `);
+    const beforeCollision = await snapshot(fixture.organizationId);
+    await expect(
+      updateOwnerFamilyLifecycle({
+        ...archiveCommand,
+        action: "restore",
+        expectedFamilyVersion: archived.familyVersion,
+        idempotencyKey: collisionKey,
+      })
+    ).rejects.toBeDefined();
+    expect(await snapshot(fixture.organizationId)).toEqual(beforeCollision);
+
+    const restoreKey = "ci-family-restore-" + randomUUID();
+    const restored = await updateOwnerFamilyLifecycle({
+      ...archiveCommand,
+      action: "restore",
+      expectedFamilyVersion: archived.familyVersion,
+      idempotencyKey: restoreKey,
+    });
+    expect(restored).toMatchObject({
+      familyId: association.family.id,
+      isActive: true,
+      replayed: false,
+    });
+    const activeAgain = await getOwnerFamilyOptions({
+      organizationId: fixture.organizationId,
+      locationId: fixture.targetLocationId,
+      actor: fixture.actor,
+    });
+    expect(activeAgain.families).toContainEqual(
+      expect.objectContaining({
+        familyId: association.family.id,
+        isActive: true,
+      })
+    );
+
+    await expect(
+      updateOwnerFamilyLifecycle({
+        ...archiveCommand,
+        expectedFamilyVersion: activeVersion,
+        idempotencyKey: "ci-family-archive-stale-" + randomUUID(),
+      })
+    ).rejects.toMatchObject({ code: "VERSION_CONFLICT", status: 409 });
+    await expect(
+      updateOwnerFamilyLifecycle({
+        ...archiveCommand,
+        organizationId: randomUUID(),
+        idempotencyKey: "ci-family-archive-cross-org-" + randomUUID(),
+      })
+    ).rejects.toMatchObject({ code: "NOT_FOUND", status: 404 });
   }, 45_000);
 
   it("bootstraps an Owner academy once from the seeded identity catalog", async () => {

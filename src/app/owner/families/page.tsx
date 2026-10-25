@@ -80,6 +80,8 @@ export default async function OwnerFamiliesPage({
       organizationId: scope.organization.id,
       locationId,
       actor: { userId: user.id, memberId: scope.member.id },
+      includeArchived:
+        scope.member.role === "owner" && scope.canViewOrganizationAggregate,
     });
     families = options.families;
   } catch (error) {
@@ -103,6 +105,9 @@ export default async function OwnerFamiliesPage({
       selectedLocationId={locationId}
       families={families}
       canManageBilling={scope.member.role === "owner" || scope.member.role === "admin"}
+      canManageFamilies={
+        scope.member.role === "owner" && scope.canViewOrganizationAggregate
+      }
     />
   );
 }

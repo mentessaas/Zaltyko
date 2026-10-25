@@ -5,6 +5,7 @@ import { db } from "@/db";
 import type { TransactionClient } from "@/lib/db-transactions";
 import { operationalActorSchema } from "@/modules/shared/application/actor";
 import { OperationalError } from "@/modules/shared/domain/operational-error";
+import { resolveSaasOwnerScope } from "@/modules/saas-billing/application/owner-access";
 import { assertOperationalAccess } from "@/modules/shared/infrastructure/operational-authorization";
 import {
   appendAuditEntry,
@@ -283,6 +284,203 @@ export async function updateOwnerFamilyPayerProfile(
       givenName: input.givenName,
       familyName: input.familyName,
       profileVersion,
+      replayed: false,
+    };
+  });
+}
+
+const familyLifecycleSchema = z
+  .object({
+    userId: z.string().uuid(),
+    organizationId: z.string().uuid(),
+    familyId: z.string().uuid(),
+    action: z.enum(["archive", "restore"]),
+    expectedFamilyVersion: z.string().datetime({ precision: 6 }),
+    idempotencyKey: z.string().trim().min(8).max(180),
+  })
+  .strict();
+
+export type UpdateOwnerFamilyLifecycleCommand = z.infer<
+  typeof familyLifecycleSchema
+>;
+
+/**
+ * Archives a family without deleting its linked athletes, guardians,
+ * enrollments, invoices, payments, or history. Restoring the family only
+ * re-enables future associations; it does not rewrite any linked records.
+ */
+export async function updateOwnerFamilyLifecycle(
+  command: UpdateOwnerFamilyLifecycleCommand
+): Promise<{
+  familyId: string;
+  isActive: boolean;
+  familyVersion: string;
+  replayed: boolean;
+}> {
+  const input = familyLifecycleSchema.parse(command);
+  const desiredIsActive = input.action === "restore";
+  const eventName =
+    input.action === "archive" ? "family.archived" : "family.restored";
+
+  return db.transaction(async (tx) => {
+    await resolveSaasOwnerScope({
+      userId: input.userId,
+      organizationId: input.organizationId,
+      tx,
+    });
+    await lockCommand(tx, input.organizationId, input.idempotencyKey);
+
+    const currentResult = await tx.execute(sql`
+      select
+        id::text as family_id,
+        is_active,
+        to_char(
+          updated_at at time zone 'UTC',
+          'YYYY-MM-DD"T"HH24:MI:SS.US"Z"'
+        ) as family_version
+      from zaltyko.families
+      where organization_id = ${input.organizationId}::uuid
+        and id = ${input.familyId}::uuid
+      for update
+    `);
+    const current = currentResult.rows[0] as
+      | {
+          family_id: string;
+          is_active: boolean;
+          family_version: string;
+        }
+      | undefined;
+    if (!current) {
+      throw new OperationalError("NOT_FOUND", "Familia no encontrada", 404);
+    }
+
+    const prior = await findOutboxEvent(tx, {
+      organizationId: input.organizationId,
+      eventName,
+      idempotencyKey: input.idempotencyKey,
+    });
+    if (prior) {
+      assertIdempotencyPayload(prior.payload, {
+        familyId: input.familyId,
+        action: input.action,
+        expectedFamilyVersion: input.expectedFamilyVersion,
+      });
+      const recordedVersion = prior.payload.familyVersion;
+      if (
+        prior.aggregateType !== "family" ||
+        prior.aggregateId !== input.familyId ||
+        prior.payload.isActive !== desiredIsActive ||
+        typeof recordedVersion !== "string" ||
+        current.is_active !== desiredIsActive ||
+        current.family_version !== recordedVersion
+      ) {
+        throw new OperationalError(
+          "IDEMPOTENCY_CONFLICT",
+          "La familia cambió después de la operación pendiente. Actualiza la página antes de reintentar.",
+          409
+        );
+      }
+      return {
+        familyId: current.family_id,
+        isActive: current.is_active,
+        familyVersion: current.family_version,
+        replayed: true,
+      };
+    }
+
+    const [usedKey] = await tx.execute(sql`
+      select id
+      from zaltyko.outbox_events
+      where organization_id = ${input.organizationId}::uuid
+        and idempotency_key = ${input.idempotencyKey}
+      limit 1
+    `).then((result) => result.rows);
+    if (usedKey) {
+      throw new OperationalError(
+        "IDEMPOTENCY_CONFLICT",
+        "La clave de idempotencia ya pertenece a otra operación",
+        409
+      );
+    }
+
+    if (current.is_active === desiredIsActive) {
+      throw new OperationalError(
+        input.action === "archive" ? "FAMILY_ALREADY_ARCHIVED" : "FAMILY_ALREADY_ACTIVE",
+        input.action === "archive"
+          ? "La familia ya está archivada"
+          : "La familia ya está activa",
+        409
+      );
+    }
+    if (current.family_version !== input.expectedFamilyVersion) {
+      throw new OperationalError(
+        "VERSION_CONFLICT",
+        "La familia cambió. Actualiza la página antes de continuar.",
+        409
+      );
+    }
+
+    const updatedResult = await tx.execute(sql`
+      update zaltyko.families
+      set is_active = ${desiredIsActive}, updated_at = current_timestamp
+      where organization_id = ${input.organizationId}::uuid
+        and id = ${input.familyId}::uuid
+        and updated_at = ${input.expectedFamilyVersion}::timestamptz
+      returning
+        id::text as family_id,
+        is_active,
+        to_char(
+          updated_at at time zone 'UTC',
+          'YYYY-MM-DD"T"HH24:MI:SS.US"Z"'
+        ) as family_version
+    `);
+    const updated = updatedResult.rows[0] as
+      | {
+          family_id: string;
+          is_active: boolean;
+          family_version: string;
+        }
+      | undefined;
+    if (!updated) {
+      throw new OperationalError(
+        "VERSION_CONFLICT",
+        "La familia cambió. Actualiza la página antes de continuar.",
+        409
+      );
+    }
+
+    await appendAuditEntry(tx, {
+      organizationId: input.organizationId,
+      locationId: null,
+      actorUserId: input.userId,
+      action: eventName,
+      targetType: "family",
+      targetId: input.familyId,
+      idempotencyKey: input.idempotencyKey,
+      before: { isActive: current.is_active },
+      after: { isActive: updated.is_active },
+      metadata: { reason: "owner_request" },
+    });
+    await appendOutboxEvent(tx, {
+      organizationId: input.organizationId,
+      locationId: null,
+      eventName,
+      aggregateType: "family",
+      aggregateId: input.familyId,
+      idempotencyKey: input.idempotencyKey,
+      payload: {
+        familyId: input.familyId,
+        action: input.action,
+        expectedFamilyVersion: input.expectedFamilyVersion,
+        familyVersion: updated.family_version,
+        isActive: updated.is_active,
+      },
+    });
+
+    return {
+      familyId: updated.family_id,
+      isActive: updated.is_active,
+      familyVersion: updated.family_version,
       replayed: false,
     };
   });

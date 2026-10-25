@@ -42,6 +42,8 @@ describe("directorio Owner de familias", () => {
         families={[
           {
             familyId: "80000000-0000-4000-8000-000000000004",
+            isActive: true,
+            familyVersion: "2026-10-25T06:00:00.000000Z",
             athletes: [
               {
                 athleteId: "80000000-0000-4000-8000-000000000005",
@@ -123,6 +125,8 @@ describe("directorio Owner de familias", () => {
         families={[
           {
             familyId: "80000000-0000-4000-8000-000000000004",
+            isActive: true,
+            familyVersion: "2026-10-25T06:00:00.000000Z",
             athletes: [
               {
                 athleteId: "80000000-0000-4000-8000-000000000005",
@@ -142,6 +146,8 @@ describe("directorio Owner de familias", () => {
           },
           {
             familyId: "80000000-0000-4000-8000-000000000007",
+            isActive: true,
+            familyVersion: "2026-10-25T06:00:00.000000Z",
             athletes: [
               {
                 athleteId: "80000000-0000-4000-8000-000000000008",
@@ -180,6 +186,8 @@ describe("directorio Owner de familias", () => {
         families={[
           {
             familyId: "80000000-0000-4000-8000-000000000004",
+            isActive: true,
+            familyVersion: "2026-10-25T06:00:00.000000Z",
             athletes: [],
             payers: [
               {
@@ -212,6 +220,61 @@ describe("directorio Owner de familias", () => {
     ).not.toBeInTheDocument();
   });
 
+  it("confirma un archivo familiar reversible conservando gimnastas y facturación", async () => {
+    const fetchMock = vi.fn().mockResolvedValue({
+      ok: true,
+      json: async () => ({ data: { isActive: false, replayed: false } }),
+    });
+    vi.stubGlobal("fetch", fetchMock);
+    vi.spyOn(crypto, "randomUUID").mockReturnValue(
+      "40000000-0000-4000-8000-000000000009"
+    );
+
+    render(
+      <OwnerFamiliesDirectory
+        {...baseProps}
+        canManageBilling
+        canManageFamilies
+        families={[
+          {
+            familyId: "80000000-0000-4000-8000-000000000004",
+            isActive: true,
+            familyVersion: "2026-10-25T06:00:00.000000Z",
+            athletes: [
+              {
+                athleteId: "80000000-0000-4000-8000-000000000005",
+                athleteName: "Gimnasta sintética",
+              },
+            ],
+            payers: [],
+          },
+        ]}
+      />
+    );
+
+    fireEvent.click(screen.getByRole("button", { name: "Archivar familia" }));
+    expect(screen.getByText(/Gimnastas, responsables, inscripciones, facturas/)).toBeInTheDocument();
+    fireEvent.click(screen.getByRole("button", { name: "Confirmar archivo" }));
+
+    await waitFor(() => expect(fetchMock).toHaveBeenCalledOnce());
+    expect(fetchMock).toHaveBeenCalledWith(
+      "/api/v1/owner/families/80000000-0000-4000-8000-000000000004/lifecycle",
+      expect.objectContaining({
+        method: "POST",
+        headers: expect.objectContaining({
+          "idempotency-key": "family-archive-40000000-0000-4000-8000-000000000009",
+        }),
+        body: JSON.stringify({
+          organizationId: baseProps.organizationId,
+          action: "archive",
+          expectedFamilyVersion: "2026-10-25T06:00:00.000000Z",
+        }),
+      })
+    );
+    expect(screen.getByRole("status")).toHaveTextContent(/Familia archivada/);
+    expect(navigation.refresh).toHaveBeenCalledOnce();
+  });
+
   it("envía solo el nombre versionado del responsable y actualiza el directorio", async () => {
     const fetchMock = vi.fn().mockResolvedValue({
       ok: true,
@@ -229,6 +292,8 @@ describe("directorio Owner de familias", () => {
         families={[
           {
             familyId: "80000000-0000-4000-8000-000000000004",
+            isActive: true,
+            familyVersion: "2026-10-25T06:00:00.000000Z",
             athletes: [],
             payers: [
               {

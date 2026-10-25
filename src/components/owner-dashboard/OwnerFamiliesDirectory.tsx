@@ -6,6 +6,8 @@ import { useMemo, useState, type FormEvent } from "react";
 
 type FamilyDirectoryItem = {
   familyId: string;
+  isActive: boolean;
+  familyVersion: string;
   athletes: Array<{ athleteId: string; athleteName: string | null }>;
   payers: Array<{
     familyPayerId: string;
@@ -42,6 +44,7 @@ export function OwnerFamiliesDirectory({
   selectedLocationId,
   families,
   canManageBilling,
+  canManageFamilies = false,
 }: {
   organizationId: string;
   organizationName: string;
@@ -49,6 +52,7 @@ export function OwnerFamiliesDirectory({
   selectedLocationId: string;
   families: FamilyDirectoryItem[];
   canManageBilling: boolean;
+  canManageFamilies?: boolean;
 }) {
   const router = useRouter();
   const [search, setSearch] = useState("");
@@ -61,6 +65,14 @@ export function OwnerFamiliesDirectory({
     "idle" | "saving" | "saved" | "error"
   >("idle");
   const [payerSaveMessage, setPayerSaveMessage] = useState("");
+  const [pendingFamilyAction, setPendingFamilyAction] = useState<{
+    familyId: string;
+    action: "archive" | "restore";
+  } | null>(null);
+  const [familyLifecycleState, setFamilyLifecycleState] = useState<
+    "idle" | "saving" | "error"
+  >("idle");
+  const [familyLifecycleMessage, setFamilyLifecycleMessage] = useState("");
   const normalizedSearch = normalizeSearchText(search);
   const filteredFamilies = useMemo(() => {
     if (!normalizedSearch) return families;
@@ -124,6 +136,52 @@ export function OwnerFamiliesDirectory({
         error instanceof Error
           ? error.message
           : "No se pudo guardar. Actualiza la página e inténtalo de nuevo."
+      );
+    }
+  }
+
+  async function saveFamilyLifecycle(family: FamilyDirectoryItem) {
+    if (!pendingFamilyAction || familyLifecycleState === "saving") return;
+    setFamilyLifecycleState("saving");
+    setFamilyLifecycleMessage("");
+    try {
+      const response = await fetch(
+        `/api/v1/owner/families/${family.familyId}/lifecycle`,
+        {
+          method: "POST",
+          headers: {
+            "content-type": "application/json",
+            "idempotency-key": `family-${pendingFamilyAction.action}-${crypto.randomUUID()}`,
+          },
+          body: JSON.stringify({
+            organizationId,
+            action: pendingFamilyAction.action,
+            expectedFamilyVersion: family.familyVersion,
+          }),
+        }
+      );
+      const payload = await response.json().catch(() => null);
+      if (!response.ok) {
+        throw new Error(
+          typeof payload?.detail === "string"
+            ? payload.detail
+            : "No se pudo actualizar la familia. Recarga la página e inténtalo de nuevo."
+        );
+      }
+      setFamilyLifecycleState("idle");
+      setFamilyLifecycleMessage(
+        pendingFamilyAction.action === "archive"
+          ? "Familia archivada. Sus registros e historial se conservan."
+          : "Familia reactivada. Sus registros e historial se conservan."
+      );
+      setPendingFamilyAction(null);
+      router.refresh();
+    } catch (error) {
+      setFamilyLifecycleState("error");
+      setFamilyLifecycleMessage(
+        error instanceof Error
+          ? error.message
+          : "No se pudo actualizar la familia. Recarga la página e inténtalo de nuevo."
       );
     }
   }
@@ -262,9 +320,20 @@ export function OwnerFamiliesDirectory({
                       key={family.familyId}
                       className="rounded-3xl border border-slate-200 bg-white p-5 shadow-sm sm:p-6"
                     >
-                      <h3 className="font-display text-lg font-bold text-slate-950">
-                        {familyLabel(family, index)}
-                      </h3>
+                      <div className="flex flex-wrap items-center justify-between gap-2">
+                        <h3 className="font-display text-lg font-bold text-slate-950">
+                          {familyLabel(family, index)}
+                        </h3>
+                        <span
+                          className={
+                            family.isActive
+                              ? "rounded-full bg-emerald-50 px-3 py-1 text-xs font-semibold text-emerald-900"
+                              : "rounded-full bg-slate-100 px-3 py-1 text-xs font-semibold text-slate-700"
+                          }
+                        >
+                          {family.isActive ? "Activa" : "Archivada"}
+                        </span>
+                      </div>
                       {canManageBilling ? (
                         <Link
                           href={`/owner/monthly-invoices?${new URLSearchParams({
@@ -274,8 +343,61 @@ export function OwnerFamiliesDirectory({
                           }).toString()}`}
                           className="mt-3 inline-flex min-h-11 items-center rounded-full border border-teal-800 px-4 text-sm font-semibold text-teal-900 hover:bg-teal-50 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-teal-800"
                         >
-                          Abrir facturación de {familyLabel(family, index)}
+                          {family.isActive ? "Abrir" : "Consultar"} facturación de {familyLabel(family, index)}
                         </Link>
+                      ) : null}
+                      {canManageFamilies ? (
+                        <div className="mt-3">
+                          <button
+                            type="button"
+                            className="min-h-10 rounded-full border border-slate-400 bg-white px-4 text-sm font-semibold text-slate-800 hover:bg-slate-50 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-teal-800"
+                            onClick={() => {
+                              setPendingFamilyAction({
+                                familyId: family.familyId,
+                                action: family.isActive ? "archive" : "restore",
+                              });
+                              setFamilyLifecycleState("idle");
+                              setFamilyLifecycleMessage("");
+                            }}
+                          >
+                            {family.isActive ? "Archivar familia" : "Reactivar familia"}
+                          </button>
+                          {pendingFamilyAction?.familyId === family.familyId ? (
+                            <div
+                              className="mt-3 grid gap-3 rounded-xl border border-amber-300 bg-amber-50 p-3"
+                              role="group"
+                              aria-label={`${pendingFamilyAction.action === "archive" ? "Confirmar archivo" : "Confirmar reactivación"} de ${familyLabel(family, index)}`}
+                            >
+                              <p className="text-sm leading-6 text-amber-950">
+                                {pendingFamilyAction.action === "archive"
+                                  ? "La familia dejará de estar disponible para nuevas asociaciones y las nuevas cuotas señalarán que está archivada. Gimnastas, responsables, inscripciones, facturas, pagos e historial no se borran ni se archivan."
+                                  : "La familia volverá a estar disponible para futuras asociaciones. Sus inscripciones, facturas, pagos e historial existentes no se reescriben."}
+                              </p>
+                              <div className="flex flex-wrap gap-2">
+                                <button
+                                  type="button"
+                                  disabled={familyLifecycleState === "saving"}
+                                  className="min-h-10 rounded-full bg-teal-800 px-4 text-sm font-bold text-white disabled:opacity-60"
+                                  onClick={() => void saveFamilyLifecycle(family)}
+                                >
+                                  {familyLifecycleState === "saving"
+                                    ? "Guardando…"
+                                    : pendingFamilyAction.action === "archive"
+                                      ? "Confirmar archivo"
+                                      : "Confirmar reactivación"}
+                                </button>
+                                <button
+                                  type="button"
+                                  disabled={familyLifecycleState === "saving"}
+                                  className="min-h-10 rounded-full border border-slate-400 bg-white px-4 text-sm font-semibold disabled:opacity-60"
+                                  onClick={() => setPendingFamilyAction(null)}
+                                >
+                                  Cancelar
+                                </button>
+                              </div>
+                            </div>
+                          ) : null}
+                        </div>
                       ) : null}
                       <div className="mt-4 grid gap-4 sm:grid-cols-2">
                         <div>
@@ -306,7 +428,7 @@ export function OwnerFamiliesDirectory({
                                       Principal
                                     </span>
                                   ) : null}
-                                  {canManageBilling ? (
+                                  {canManageBilling && family.isActive ? (
                                     <button
                                       type="button"
                                       className="ml-2 rounded px-1 text-xs font-semibold text-teal-900 underline underline-offset-2 hover:text-teal-700"
@@ -417,6 +539,18 @@ export function OwnerFamiliesDirectory({
             }
           >
             {payerSaveMessage}
+          </p>
+        ) : null}
+        {familyLifecycleMessage ? (
+          <p
+            role={familyLifecycleState === "error" ? "alert" : "status"}
+            className={
+              familyLifecycleState === "error"
+                ? "text-sm font-semibold text-red-800"
+                : "text-sm font-semibold text-teal-900"
+            }
+          >
+            {familyLifecycleMessage}
           </p>
         ) : null}
       </div>
