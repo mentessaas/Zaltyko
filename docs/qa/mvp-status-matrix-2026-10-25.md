@@ -10,6 +10,14 @@ persistidos reales de sandbox.
 
 ## Corte vigente de validación
 
+Herramientas SQL posteriores al candidato de aplicación: ensayo remoto
+40229946414 SUCCESS en edd3bf75. Reproducción canónica con ACL/defaults,
+aislamiento sintético de dos academias/sedes, denegaciones sin filas parciales,
+canaries y ROLLBACK, sobre PostgreSQL17.6 desechable. Artefactos con hashes
+verificados; no ejecución local ni cambio de sandbox/producción. Este resultado
+no sustituye validación autenticada de la entrega ni un diff SQL productivo
+revisado y autorizado. Fuente: canonical-domain-proposal-design-2026-10-25.md.
+
 Candidato `474369eade24bd2d647290eefc4523e6c814eb83`: CI40221784665
 COMPLETED/SUCCESS, incluidos Chromium/Firefox/WebKit, 5084 unitarias PASS
 (3 omitidas), build, tipos/lint, seguridad/móvil y controles SQL. Replay

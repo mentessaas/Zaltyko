@@ -8,7 +8,7 @@ source:
 ---
 
 
-## 2026-10-25 — Rehearsal canónico en CI desechable, preparado
+## 2026-10-25 — Rehearsal canónico en CI desechable, PASS
 
 - Se amplía el workflow separado con PostgreSQL17.6 efímero, sin secretos
   externos: artefacto por SHA, destino loopback fijo y marcador externo antes
@@ -16,7 +16,14 @@ source:
 - Revisión estática de rutinas/ACL y fixture sintético de dos academias/sedes;
   se preservan owner, defaults acotados, canaries public/legacy y rechazo
   previo a DDL si existe un esquema canónico. Los tests se ejecutarán solo
-  remotamente; resultado de replay todavía pendiente en este corte.
+  remotamente. CI40229946414 SUCCESS en edd3bf75:92 tablas RLS forzada,
+  64 policies,16 rutinas,61 enums,defaults/ACL, aislamiento sintético y rollback.
+  Hash rehearsal d0c888a0367ace20c555ff2ea09383b334153cf3016f1e837cd9a6e38b9f23f4
+  verificado tras descarga; propuesta anterior conserva su hash.
+- Dos rechazos previos del runner corregidos sin retirar controles: paréntesis
+  de subconsulta y códigos sintéticos de sede en mayúsculas. No equivalen a
+  fallos acreditados del producto. Auth sintético no acredita login Supabase;
+  no se aprueba upgrade ni aplicación productiva.
 - No hay cambios de datos, Auth, configuración, despliegue ni ensayo remoto.
 
 ## 2026-10-25 — Propuesta canónica por AST, sin ejecución SQL

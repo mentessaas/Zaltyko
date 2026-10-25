@@ -53,6 +53,40 @@ parte de la verificación estática del generador descrita arriba.
 
 ## Resultado remoto posterior del coordinador
 
+### Ensayo aislado completado
+
+CI [40229946414](https://github.com/mentessaas/Zaltyko/actions/runs/40229946414)
+SUCCESS en `edd3bf75ef6c197a480549958841f6b507ded381`, 25 de octubre,
+20:16:41 UTC. Generación AST y rehearsal PostgreSQL17.6 desechable aprobados:
+92 tablas con RLS forzada, 64 policies, 16 rutinas/cuatro definidores,
+61 enums, ACL de rutinas/esquemas/tablas representativas y los dos defaults
+acotados. Fixture de dos academias y tres sedes: lecturas permitidas/denegadas,
+INSERT/UPDATE de cliente rechazados sin filas parciales. Se comprobó ROLLBACK,
+preservación de canaries public/legacy y rechazo de esquema existente antes
+del DDL del artefacto. Auth es un stand-in SQL, no un login Supabase real.
+
+SQL rehearsal SHA-256:
+`d0c888a0367ace20c555ff2ea09383b334153cf3016f1e837cd9a6e38b9f23f4`.
+Fixture SHA-256:
+`04dd16835406198d3ebb12f3396674bbc279e5dcd7500e5c30fefb24a2bf6d4c`.
+Artefactos descargados y hashes comprobados sin ejecutarlos en el Mac.
+El SQL de propuesta conserva SHA `3d8ad235ed8f73989114a262c64acf6071ca6870e4082ebb04c2a461f544e8ea`.
+
+Fallos previos del runner conservados: 40229718696 rechazó un paréntesis
+faltante en la aserción de asociación de triggers; 40229812250 rechazó códigos
+sintéticos de sede en mayúsculas mediante locations_code_check. Se cerró la
+subconsulta y se pasaron únicamente los códigos fixture a minúsculas, con nuevo
+pin de hash. No se retiraron restricciones ni aserciones.
+
+Esto verifica un ensayo transaccional en blanco con plataforma sintética.
+No verifica un upgrade sobre datos existentes, la plataforma Supabase completa,
+todos los permisos de cada objeto ni un recorrido autenticado de la entrega.
+No es historial migratorio recuperado ni autorización de aplicación productiva;
+`applyReady=false` y ROLLBACK permanecen intactos. El diff productivo revisado
+y su autorización separada siguen pendientes.
+
+### Generación previa sin ejecución SQL
+
 CI [40228139489](https://github.com/mentessaas/Zaltyko/actions/runs/40228139489)
 SUCCESS en `e6968c3e921ed310f706602a247639381c448f72`. Se generaron 1394
 sentencias con equivalencia AST comprobada individualmente: dos esquemas,
