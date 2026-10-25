@@ -206,6 +206,18 @@ export function OwnerFamiliesDirectory({
                       <h3 className="font-display text-lg font-bold text-slate-950">
                         {familyLabel(family, index)}
                       </h3>
+                      {canManageBilling ? (
+                        <Link
+                          href={`/owner/monthly-invoices?${new URLSearchParams({
+                            organizationId,
+                            locationId: selectedLocationId,
+                            familyId: family.familyId,
+                          }).toString()}`}
+                          className="mt-3 inline-flex min-h-11 items-center rounded-full border border-teal-800 px-4 text-sm font-semibold text-teal-900 hover:bg-teal-50 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-teal-800"
+                        >
+                          Abrir facturación de {familyLabel(family, index)}
+                        </Link>
+                      ) : null}
                       <div className="mt-4 grid gap-4 sm:grid-cols-2">
                         <div>
                           <h4 className="text-xs font-bold uppercase tracking-wide text-slate-500">

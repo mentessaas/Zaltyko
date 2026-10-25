@@ -15,6 +15,7 @@ vi.mock("@/components/owner-dashboard/OwnerOperationalReadOnlyNotice", () => ({
 vi.mock("@/components/owner-dashboard/OwnerMonthlyInvoiceWorkspace", () => ({
   OwnerMonthlyInvoiceWorkspace: (props: {
     state: string;
+    selectedFamilyId: string;
     options?: { organizationId: string; locationId: string; servicePeriod: string };
     onIssue: (command: {
       organizationId: string;
@@ -33,6 +34,7 @@ vi.mock("@/components/owner-dashboard/OwnerMonthlyInvoiceWorkspace", () => ({
           ? `${props.options.organizationId}:${props.options.locationId}:${props.options.servicePeriod}`
           : "sin-opciones"}
       </output>
+      <output data-testid="selected-family">{props.selectedFamilyId}</output>
       <button
         type="button"
         onClick={() =>
@@ -75,7 +77,12 @@ const organizationB = "10000000-0000-4000-8000-000000000002";
 const locationB = "20000000-0000-4000-8000-000000000002";
 const fetchMock = vi.fn();
 
-function optionsResponse(organizationId: string, locationId: string, servicePeriod: string) {
+function optionsResponse(
+  organizationId: string,
+  locationId: string,
+  servicePeriod: string,
+  families: Array<{ familyId: string }> = []
+) {
   return {
     ok: true,
     status: 200,
@@ -90,7 +97,7 @@ function optionsResponse(organizationId: string, locationId: string, servicePeri
         timezone: "Europe/Madrid",
         pricingNote: "",
         pricePlans: [],
-        families: [],
+        families,
         unassignedEnrollments: [],
       },
     }),
@@ -119,6 +126,57 @@ afterEach(() => {
 });
 
 describe("ámbito de facturas mensuales", () => {
+  it("preselecciona una familia contextual solo si pertenece a las opciones autorizadas", async () => {
+    publishOwnerPlanUsage(organizationA, { readOnly: false, planCode: "free" });
+    const familyId = "30000000-0000-4000-8000-000000000001";
+    fetchMock.mockImplementation((input: string | URL | Request) => {
+      const params = new URL(String(input), "http://localhost").searchParams;
+      return Promise.resolve(
+        optionsResponse(
+          params.get("organizationId") ?? "",
+          params.get("locationId") ?? "",
+          params.get("servicePeriod") ?? "",
+          [{ familyId }]
+        )
+      );
+    });
+
+    render(
+      <OwnerMonthlyInvoicesManager
+        organizationId={organizationA}
+        organizationName="Academia A"
+        defaultCurrency="EUR"
+        locations={[{ id: locationA, name: "Sede A" }]}
+        initialLocationId={locationA}
+        initialServicePeriod="2026-01"
+        initialFamilyId={familyId}
+      />
+    );
+
+    await waitFor(() =>
+      expect(screen.getByTestId("selected-family")).toHaveTextContent(familyId)
+    );
+  });
+
+  it("ignora una familia contextual que no aparece en las opciones de su sede", async () => {
+    publishOwnerPlanUsage(organizationA, { readOnly: false, planCode: "free" });
+    render(
+      <OwnerMonthlyInvoicesManager
+        organizationId={organizationA}
+        organizationName="Academia A"
+        defaultCurrency="EUR"
+        locations={[{ id: locationA, name: "Sede A" }]}
+        initialLocationId={locationA}
+        initialServicePeriod="2026-01"
+        initialFamilyId="30000000-0000-4000-8000-000000000099"
+      />
+    );
+
+    await waitFor(() =>
+      expect(screen.getByTestId("selected-family")).toBeEmptyDOMElement()
+    );
+  });
+
   it("oculta las opciones anteriores y rechaza emitir A tras cambiar a la academia B", async () => {
     publishOwnerPlanUsage(organizationA, { readOnly: false, planCode: "free" });
     publishOwnerPlanUsage(organizationB, { readOnly: false, planCode: "free" });

@@ -19,6 +19,7 @@ export const metadata: Metadata = {
 const querySchema = z.object({
   organizationId: z.string().uuid().optional(),
   locationId: z.string().uuid().optional(),
+  familyId: z.string().uuid().optional(),
   servicePeriod: z
     .string()
     .regex(/^\d{4}-(0[1-9]|1[0-2])$/)
@@ -52,6 +53,7 @@ export default async function OwnerMonthlyInvoicesPage({
     organizationId:
       typeof raw.organizationId === "string" ? raw.organizationId : undefined,
     locationId: typeof raw.locationId === "string" ? raw.locationId : undefined,
+    familyId: typeof raw.familyId === "string" ? raw.familyId : undefined,
     servicePeriod:
       typeof raw.servicePeriod === "string" ? raw.servicePeriod : undefined,
   });
@@ -99,6 +101,7 @@ export default async function OwnerMonthlyInvoicesPage({
       initialServicePeriod={
         query.data.servicePeriod ?? currentSpainServicePeriod()
       }
+      initialFamilyId={query.data.familyId}
     />
   );
 }

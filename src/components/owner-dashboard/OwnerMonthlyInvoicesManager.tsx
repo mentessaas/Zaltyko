@@ -94,6 +94,7 @@ export function OwnerMonthlyInvoicesManager({
   locations,
   initialLocationId,
   initialServicePeriod,
+  initialFamilyId,
 }: {
   organizationId: string;
   organizationName: string;
@@ -101,6 +102,7 @@ export function OwnerMonthlyInvoicesManager({
   locations: Array<{ id: string; name: string }>;
   initialLocationId: string;
   initialServicePeriod: string;
+  initialFamilyId?: string;
 }) {
   const planPolicy = useOwnerPlanPolicy(organizationId);
   const writesBlocked = planPolicy.status !== "ready" || planPolicy.readOnly;
@@ -118,7 +120,7 @@ export function OwnerMonthlyInvoicesManager({
   }, [currentScopeKey]);
   const currentOptions =
     options?.scopeKey === currentScopeKey ? options.data : undefined;
-  const [selectedFamilyId, setSelectedFamilyId] = useState("");
+  const [selectedFamilyId, setSelectedFamilyId] = useState(initialFamilyId ?? "");
   const [dueDate, setDueDate] = useState("");
   const [state, setState] = useState<WorkspaceState>("loading");
   const [stateScopeKey, setStateScopeKey] = useState(currentScopeKey);
@@ -144,6 +146,7 @@ export function OwnerMonthlyInvoicesManager({
     organizationId,
     initialLocationId,
     initialServicePeriod,
+    initialFamilyId ?? "",
   ]);
   const [localSelectionScope, setLocalSelectionScope] = useState(
     incomingSelectionScope
@@ -152,7 +155,7 @@ export function OwnerMonthlyInvoicesManager({
     setLocalSelectionScope(incomingSelectionScope);
     setLocationId(initialLocationId);
     setServicePeriod(initialServicePeriod);
-    setSelectedFamilyId("");
+    setSelectedFamilyId(initialFamilyId ?? "");
     setDueDate("");
     setIssueError("");
     setSuccessMessage("");
@@ -241,9 +244,9 @@ export function OwnerMonthlyInvoicesManager({
   useEffect(() => {
     const controller = new AbortController();
     // eslint-disable-next-line react-hooks/set-state-in-effect -- initial state is already loading; this call starts the async server read.
-    void loadOptions(controller.signal);
+    void loadOptions(controller.signal, initialFamilyId);
     return () => controller.abort();
-  }, [loadOptions, refreshKey]);
+  }, [initialFamilyId, loadOptions, refreshKey]);
 
   function refreshOptions() {
     setQuoteNeedsReview(false);

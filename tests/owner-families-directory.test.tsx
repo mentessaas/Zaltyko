@@ -66,6 +66,14 @@ describe("directorio Owner de familias", () => {
       "href",
       "/owner/monthly-invoices?organizationId=80000000-0000-4000-8000-000000000001&locationId=80000000-0000-4000-8000-000000000002"
     );
+    expect(
+      screen.getByRole("link", {
+        name: "Abrir facturación de Gimnasta sintética",
+      })
+    ).toHaveAttribute(
+      "href",
+      "/owner/monthly-invoices?organizationId=80000000-0000-4000-8000-000000000001&locationId=80000000-0000-4000-8000-000000000002&familyId=80000000-0000-4000-8000-000000000004"
+    );
   });
 
   it("explica el estado vacío sin invitar a crear cuentas ni enviar correo", () => {
@@ -85,6 +93,9 @@ describe("directorio Owner de familias", () => {
     expect(screen.getByText(/No se crean cuentas familiares ni se envían correos/)).toBeInTheDocument();
     expect(
       screen.queryByRole("link", { name: "Vincular familias y responsables desde cuotas" })
+    ).not.toBeInTheDocument();
+    expect(
+      screen.queryByRole("link", { name: /Abrir facturación de/ })
     ).not.toBeInTheDocument();
     expect(screen.getByRole("link", { name: "Ver inscripciones" })).toHaveAttribute(
       "href",
