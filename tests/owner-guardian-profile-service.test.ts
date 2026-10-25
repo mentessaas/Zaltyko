@@ -128,7 +128,7 @@ function makeTransaction() {
       return { rows: [{ person_id: mocks.state.personId }] };
     }
     if (normalizedSql.includes("for update of person")) return { rows: [{ id: mocks.state.personId }] };
-    if (normalizedSql.startsWith("update zaltyko.people")) {
+    if (normalizedSql.trimStart().startsWith("update zaltyko.people")) {
       return { rows: [mocks.state.updated ?? {
         id: mocks.state.personId,
         given_name: "Ana María",
@@ -155,7 +155,10 @@ function priorEvent(input: TestCommand = command()) {
 }
 
 beforeEach(() => {
-  vi.clearAllMocks();
+  // Clear queued one-shot results as well as call history. A denied replay can
+  // intentionally skip findOutboxEvent, and its queued event must not leak
+  // into a later stale-version scenario.
+  vi.resetAllMocks();
   mocks.state.profile = profile();
   mocks.state.updated = null;
   mocks.state.queries = [];
@@ -209,7 +212,7 @@ describe("perfil canónico de tutor", () => {
       locationId,
       allowedRoles: ["owner", "admin", "manager"],
     }));
-    expect(mocks.state.queries.join(" ")).toContain("family_guardians.organization_id = guardian.organization_id");
+    expect(mocks.state.queries.join(" ")).toContain("family_guardian.organization_id = guardian.organization_id");
   });
 
   it("deniega perfil compartido a una sede parcial antes de leerlo", async () => {

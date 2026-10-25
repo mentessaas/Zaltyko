@@ -12637,3 +12637,8 @@ locks mantienen recuperación manual y bloquean cierre/otras mutaciones. E2E
 sintético ampliado con tutor persistido/recarga y archivo final con preservación
 del ledger y asistencia. Fecha familiar usa hoy civil de la sede desechable,
 cuota conserva mes siguiente. No ejecutado todavía; sin builds ni tests en Mac.
+
+
+## 2026-10-25 — Validación remota del lote 576db57c
+
+Replay nativo remoto40217881995 SUCCESS para ocho suites, reconstrucción vacía y aislamiento. Build remoto40217622706 SUCCESS, pero unitarias8FAIL/5060PASS/3omitidas y Chromium falla por selector ambiguo. Se preparan correcciones de pruebas sin desactivar guards; no despliegue de esta entrega ni producción. Intake separado todavía en implementación, no validado. Ningún test/build/servicio local.

@@ -56,7 +56,7 @@ afterEach(() => {
 
 describe("edición del perfil compartido del tutor", () => {
   it("normaliza Unicode NFC y espacios sin separar los apellidos", () => {
-    expect(normalizeGuardianProfileName("  Ana   Ma\u0301ria  ")).toBe("Ana María");
+    expect(normalizeGuardianProfileName("  Ana   Mari\u0301a  ")).toBe("Ana María");
   });
 
   it("lee la versión exacta, persiste el comando antes del PATCH y confirma una escritura", async () => {
@@ -101,6 +101,8 @@ describe("edición del perfil compartido del tutor", () => {
       .mockResolvedValueOnce(response(200, getPayload()))
       .mockRejectedValueOnce(new TypeError("network lost"))
       .mockResolvedValueOnce(response(200, getPayload({ givenName: "Ana María", familyName: "López Ruiz", updatedAt: newUpdatedAt })))
+      // Manual recovery re-reads current authorization/version before PATCH.
+      .mockResolvedValueOnce(response(200, getPayload({ givenName: "Ana María", familyName: "López Ruiz", updatedAt: newUpdatedAt })))
       .mockResolvedValueOnce(response(200, patchPayload({ updatedAt: "2026-10-25T09:36:00.000001Z", replayed: true })));
     const user = userEvent.setup();
     const { unmount } = render(<OwnerGuardianProfileEditor {...props()} />);
@@ -119,9 +121,10 @@ describe("edición del perfil compartido del tutor", () => {
     expect(mocks.fetch).toHaveBeenCalledTimes(4);
     await user.click(screen.getByRole("button", { name: "Comprobar y reintentar el mismo cambio" }));
     expect(await screen.findByText("La operación ya estaba registrada; se muestran los nombres actuales del tutor.")).toBeVisible();
-    expect(mocks.fetch).toHaveBeenCalledTimes(5);
+    expect(mocks.fetch).toHaveBeenCalledTimes(6);
+    expect(mocks.fetch.mock.calls[4][1]?.method).not.toBe("PATCH");
     const firstPatch = mocks.fetch.mock.calls[2][1] as RequestInit;
-    const retryPatch = mocks.fetch.mock.calls[4][1] as RequestInit;
+    const retryPatch = mocks.fetch.mock.calls[5][1] as RequestInit;
     expect(retryPatch.body).toBe(firstPatch.body);
     expect(retryPatch.headers).toEqual(firstPatch.headers);
     expect(window.sessionStorage.getItem(scopedKey())).toBeNull();

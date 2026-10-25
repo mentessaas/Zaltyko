@@ -303,7 +303,6 @@ describe("actualización del perfil canónico de gimnasta", () => {
 
     expect(mocks.state.accesses).toEqual([
       { locationId: locationA },
-      { locationId: locationB },
       { locationId: locationA, intent: "write" },
       { locationId: locationB, intent: "write" },
     ]);
@@ -330,7 +329,8 @@ describe("actualización del perfil canónico de gimnasta", () => {
 
     expect(mocks.state.accesses).toEqual([
       { locationId: locationA },
-      { locationId: locationB },
+      { locationId: locationA, intent: "write" },
+      { locationId: locationB, intent: "write" },
     ]);
     expect(update).not.toHaveBeenCalled();
     expect(mocks.appendOutbox).not.toHaveBeenCalled();

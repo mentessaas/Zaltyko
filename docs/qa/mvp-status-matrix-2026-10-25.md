@@ -10,6 +10,21 @@ persistidos reales de sandbox.
 
 ## Corte vigente de validación
 
+Corte posterior de `576db57c`: el build remoto pasó, pero las unitarias
+fallaron (5060 PASS, 8 FAIL, 3 omitidas) y Chromium rechazó un selector
+ambiguo de familia existente. Se corrigen mocks de UPDATE/colas entre tests,
+expectativas de autorización por sede, un literal Unicode mal acentuado,
+la relectura previa al replay y selección por rol combobox. No se eliminan
+asserts de aislamiento/persistencia y no se publica este corte fallido.
+
+Candidato actual enviado: `576db57c3ef75c28b738849e1c9cbd5f2e0f63d5`.
+Replay PostgreSQL remoto `40217881995` SUCCESS: reconstrucción vacía,
+RLS/ACL, aislamiento y las ocho suites nativas, incluidas ficha por sede,
+perfil de tutor y archivo ordinario. CI `40217622706` en curso al corte:
+lint/tipos, RLS, migraciones, móvil y seguridad SUCCESS; build, unitarias
+y navegadores aún no acreditados. No hay despliegue de esta entrega.
+Las referencias siguientes conservan estados históricos.
+
 Corte posterior: `0504f78bafdd67db27c17420404802d8b2864973` terminó con
 CI completa `40213750248` SUCCESS y replay PostgreSQL `40213810321` SUCCESS.
 La repetición de WebKit pasó con el mismo código de producto; no se ha demostrado

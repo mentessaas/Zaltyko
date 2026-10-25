@@ -1475,7 +1475,9 @@ test.describe("Isolated local Supabase Owner setup", () => {
     await openFamilyEditor.click();
     expect((await familyOptionsResponsePromise).status()).toBe(200);
     await page.getByRole("radio", { name: "Elegir una familia existente" }).check();
-    await page.getByLabel("Familia existente").selectOption(associationData.data.familyId);
+    await page
+      .getByRole("combobox", { name: /^Familia existente/u })
+      .selectOption(associationData.data.familyId);
     await expect(page.getByLabel("Persona pagadora de esta familia")).toHaveValue(
       tutorBefore.family_payer_id
     );
@@ -1589,7 +1591,9 @@ test.describe("Isolated local Supabase Owner setup", () => {
     await openExistingFamilyAfterReload.click();
     expect((await reloadFamilyOptionsResponsePromise).status()).toBe(200);
     await page.getByRole("radio", { name: "Elegir una familia existente" }).check();
-    await page.getByLabel("Familia existente").selectOption(associationData.data.familyId);
+    await page
+      .getByRole("combobox", { name: /^Familia existente/u })
+      .selectOption(associationData.data.familyId);
     const reloadedContactsButton = page.getByRole("button", {
       name: "Contactos de " + renamedTutorName,
       exact: true,
