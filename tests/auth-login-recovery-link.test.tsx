@@ -124,6 +124,24 @@ describe("enlace de recuperación en el login activo", () => {
     });
   });
 
+  it("no permite editar ni enviar el alta antes de hidratar y habilita los campos después", () => {
+    const markup = renderToString(
+      <RegisterForm ownerEntry ownerConsentPolicyVersion="v1-2026-08-01" />
+    );
+    const document = new DOMParser().parseFromString(markup, "text/html");
+    for (const name of ["fullName", "email", "password", "termsAccepted"]) {
+      expect(document.querySelector(`[name="${name}"]`)).toHaveAttribute("disabled");
+    }
+    expect(document.querySelector('button[type="submit"]')).toHaveAttribute("disabled");
+
+    render(<RegisterForm ownerEntry ownerConsentPolicyVersion="v1-2026-08-01" />);
+    expect(screen.getByLabelText("Nombre completo")).toBeEnabled();
+    expect(screen.getByLabelText("Correo electrónico")).toBeEnabled();
+    expect(screen.getByLabelText("Contraseña")).toBeEnabled();
+    expect(screen.getByRole("checkbox")).toBeEnabled();
+    expect(screen.getByRole("button", { name: "Crear cuenta", exact: true })).toBeEnabled();
+  });
+
   it("explica y habilita Google solo después de aceptar los términos", async () => {
     const user = userEvent.setup();
     render(<RegisterForm ownerConsentPolicyVersion="v1-2026-08-01" />);

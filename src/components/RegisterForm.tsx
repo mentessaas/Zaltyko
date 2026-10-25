@@ -502,6 +502,7 @@ export function RegisterForm({
               <button
                 key={option.value}
                 type="button"
+                disabled={!isHydrated}
                 ref={(element) => {
                   roleButtonRefs.current[index] = element;
                 }}
@@ -539,6 +540,7 @@ export function RegisterForm({
           <Label htmlFor="fullName">Nombre completo</Label>
           <Input
             id="fullName"
+            disabled={!isHydrated}
             name="fullName"
             type="text"
             value={fullName}
@@ -552,6 +554,7 @@ export function RegisterForm({
           <Label htmlFor="email">Correo electrónico</Label>
           <Input
             id="email"
+            disabled={!isHydrated}
             name="email"
             type="email"
             value={email}
@@ -565,6 +568,7 @@ export function RegisterForm({
           <Label htmlFor="password">Contraseña</Label>
           <Input
             id="password"
+            disabled={!isHydrated}
             name="password"
             type="password"
             value={password}
@@ -578,6 +582,7 @@ export function RegisterForm({
           <input
             type="checkbox"
             name="termsAccepted"
+            disabled={!isHydrated}
             checked={termsAccepted}
             onChange={(event) => setTermsAccepted(event.target.checked)}
             aria-required="true"
@@ -610,6 +615,7 @@ export function RegisterForm({
           type="submit"
           className="w-full"
           disabled={
+            !isHydrated ||
             loading ||
             googleLoading ||
             signupOutcomeUnknown ||

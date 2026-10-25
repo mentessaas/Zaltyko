@@ -10,6 +10,21 @@ persistidos reales de sandbox.
 
 ## Corte vigente de validación
 
+Control posterior: CI40234163820 de670d15a3 falla Chromium en signup y gate
+agregado; Firefox/WebKit y demás gates técnicos PASS. Corrección de interacción
+antes de hidratación en revisión, todavía no acreditada. Dos callbacks de
+entregas guardados/releídos con confirmación humana; alta dedicada pendiente
+de contraseña/condiciones humanas. PR234 sin aprobación externa. Hallazgos
+GitGuardian sintéticos documentados en delivery-access-review-gates-2026-10-25.md.
+
+Actualización posterior 2026-10-25T22:25Z: el humano autorizó el archivo SQL
+00ead5a3 y el destino jegxfahsvugilbthbked. Aplicado y revalidado: migración
+nativa20261025222531,92 tablas vacías/RLS forzada, ACL previstas y catálogos
+public/legacy conservados según los tres digests. Instalación SQL productiva
+concluida; aplicación productiva y recorrido autenticado siguen NO VERIFICADOS.
+Fuente: canonical-production-application-2026-10-25.md. Las referencias inferiores
+a autorización pendiente o esquemas ausentes son cortes históricos superados.
+
 Paquete SQL exacto versionado en d0f0af43: candidato
 `20261025202902_canonical_domain_installation_candidate.sql`, SHA-256
 `00ead5a3869bb335f2f17e58ebaaacac2bdc1ae4504493b473c68393359dab00`.

@@ -229,6 +229,11 @@ test.describe("Isolated local Supabase Owner setup", () => {
     await termsCheckbox.check();
     await expect(termsCheckbox).toBeChecked();
 
+    // No aceptar un click sin envío si la hidratación descartó un campo.
+    await expect(page.getByLabel("Nombre completo")).toHaveValue(ownerName!);
+    await expect(page.getByLabel("Correo electrónico")).toHaveValue(email!);
+    await expect(page.getByLabel("Contraseña")).toHaveValue(password!);
+
     const signupResponsePromise = page.waitForResponse(
       (response) =>
         response.url().includes("/auth/v1/signup") &&

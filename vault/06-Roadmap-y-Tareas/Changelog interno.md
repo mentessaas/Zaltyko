@@ -8,6 +8,29 @@ source:
 ---
 
 
+## 2026-10-25 — Callbacks de entregas y corrección de alta previa a hidratación
+
+- Dos callbacks de entregas guardados con confirmación humana en sandbox y
+  releídos tras recarga; Site URL y dos redirects del ensayo conservados.
+- CI670 falla Chromium esperando signup: captura con nombre vacío pese a fill.
+  Se bloquea edición/submit hasta hidratación y se añade regresión; CI pendiente.
+- GitGuardian marca dos contraseñas sintéticas de contenedor loopback CI:
+  incidentes38997039/38997394 documentados, sin ignorarlos ni rotar credenciales.
+- PR234 sigue requiriendo revisión externa; registro dedicado requiere entrada
+  humana de contraseña y condiciones. No builds/pruebas locales ni deployment.
+- Fuente docs/qa/delivery-access-review-gates-2026-10-25.md.
+
+## 2026-10-25 — Instalación SQL productiva exacta autorizada y aplicada
+
+- Humano autoriza únicamente candidato00ead5a3/destino jegxfahsvugilbthbked.
+  Preflight coincide; apply_migration confirma éxito, registro20261025222531.
+- 92 tablas vacías con RLS forzada,64 políticas,16 rutinas y ACL comprobadas;
+  btree_gist1.7 en extensions. Tres digests public/legacy sin cambios.
+- Advisor conserva WARN de contraseñas filtradas y añade30 INFO RLS sin
+  políticas (deny por defecto). No cambios de Auth, aplicación o proveedores.
+- Evidencia docs/qa/canonical-production-application-2026-10-25.md y JSON anexo.
+  No builds/tests locales, fixtures productivas ni despliegue en esta ronda.
+
 ## 2026-10-25 — Procedimiento MVP y guía productiva histórica
 
 - production-setup.md se marca histórica: proponía Storage por bucket_id sin
