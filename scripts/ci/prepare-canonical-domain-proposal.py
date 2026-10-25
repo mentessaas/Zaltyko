@@ -199,7 +199,13 @@ def routine_security_mode(statement: Any) -> str:
         if getattr(option, "defname", None) != "security":
             continue
         found_security_option = True
-        value = getattr(getattr(option, "arg", None), "sval", None)
+        argument = getattr(option, "arg", None)
+        if type(argument).__name__ == "Boolean":
+            value = getattr(argument, "boolval", None)
+            if type(value) is bool:
+                modes.add("definer" if value else "invoker")
+                continue
+        value = getattr(argument, "sval", None)
         if isinstance(value, str):
             modes.add(value.lower())
     if len(modes) == 1:
@@ -240,7 +246,7 @@ def object_records(statement: Any, schema: str, name: str, line: int) -> list[di
         records: list[dict[str, Any]] = []
         for command in getattr(statement, "cmds", ()) or ():
             subtype = getattr(getattr(command, "subtype", None), "name", "")
-            definition = getattr(command, "def", None)
+            definition = getattr(command, "def_", None)
             if subtype == "AT_AddConstraint" and definition is not None:
                 records.append({
                     "schema": schema,
@@ -414,6 +420,16 @@ def main() -> int:
 
     if not included_sql:
         raise ProposalError("AST selection produced an empty proposal")
+    expected_counts = {
+        "schema": 2, "table": 92, "enum_type": 61, "routine": 16,
+        "constraint": 851, "index": 107, "policy": 64, "trigger": 17,
+    }
+    actual_counts = Counter(entry["kind"] for entry in included_objects)
+    for object_kind, expected_count in expected_counts.items():
+        if actual_counts[object_kind] != expected_count:
+            raise ProposalError(f"Pinned inventory mismatch for {object_kind}: expected {expected_count}, got {actual_counts[object_kind]}")
+    if sum(entry["securityDefiner"] is True for entry in security_definer_candidates) != 4:
+        raise ProposalError("Pinned routine inventory must identify four SECURITY DEFINER routines")
     if sum(1 for entry in omitted_e2e if entry["schema"] == "zaltyko_domain_private") < 3:
         raise ProposalError("Expected E2E ledger and its attached DDL to be excluded; review classifier")
     if not extension_prerequisites:
