@@ -10,6 +10,10 @@ source:
 
 ## 2026-10-25 — Callbacks de entregas y corrección de alta previa a hidratación
 
+- CI536 confirma ChromiumPASS31,1s, build/lint/tipos y controlesPASS. Regresión
+  unitaria falla por matcher jest-dom sobre elemento de documento DOMParser;
+  se cambia a hasAttribute manteniendo la comprobación SSR. Nueva CI pendiente.
+
 - Dos callbacks de entregas guardados con confirmación humana en sandbox y
   releídos tras recarga; Site URL y dos redirects del ensayo conservados.
 - CI670 falla Chromium esperando signup: captura con nombre vacío pese a fill.

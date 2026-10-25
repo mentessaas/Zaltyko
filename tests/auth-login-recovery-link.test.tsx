@@ -128,11 +128,11 @@ describe("enlace de recuperación en el login activo", () => {
     const markup = renderToString(
       <RegisterForm ownerEntry ownerConsentPolicyVersion="v1-2026-08-01" />
     );
-    const document = new DOMParser().parseFromString(markup, "text/html");
+    const ssrDocument = new DOMParser().parseFromString(markup, "text/html");
     for (const name of ["fullName", "email", "password", "termsAccepted"]) {
-      expect(document.querySelector(`[name="${name}"]`)).toHaveAttribute("disabled");
+      expect(ssrDocument.querySelector(`[name="${name}"]`)?.hasAttribute("disabled")).toBe(true);
     }
-    expect(document.querySelector('button[type="submit"]')).toHaveAttribute("disabled");
+    expect(ssrDocument.querySelector('button[type="submit"]')?.hasAttribute("disabled")).toBe(true);
 
     render(<RegisterForm ownerEntry ownerConsentPolicyVersion="v1-2026-08-01" />);
     expect(screen.getByLabelText("Nombre completo")).toBeEnabled();

@@ -54,6 +54,13 @@ de GitHub. No crear cuentas confirmadas administrativamente para ocultar este ga
 
 ## Siguiente paso
 
+Actualización de CI53684255: ChromiumPASS,1 prueba31,1s; build/lint/tipos/móvil/
+seguridad/RLS/DrizzlePASS. UnitariasFAIL en la regresión nueva: jest-dom rechaza
+HTMLInputElement de DOMParser por documento/realm distinto, aunque disabled está
+presente. Se corrige usando hasAttribute sobre el DOM parseado; se mantiene la
+misma aserción semántica y los controles del cliente. Producto sin nuevo cambio.
+No se declara PASS de unitarias ni se hereda el resultado entre commits.
+
 Validar la corrección exclusivamente en CI remota. Humano completa contraseña/
 condiciones/Crear cuenta en la pestaña de entregas; después comprobar correo real.
 Revisor distinto del autor aprueba PR234 para el commit definitivo.
