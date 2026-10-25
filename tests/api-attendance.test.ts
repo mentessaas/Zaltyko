@@ -34,12 +34,12 @@ describe("API /api/attendance", () => {
     insertCalls = [];
     classAthletes = [
       {
-        id: "22222222-2222-2222-2222-222222222222",
+        id: "22222222-2222-4222-8222-222222222222",
         primarySportConfigId: null,
         groupSportConfigId: null,
       },
       {
-        id: "33333333-3333-3333-3333-333333333333",
+        id: "33333333-3333-4333-8333-333333333333",
         primarySportConfigId: null,
         groupSportConfigId: null,
       },
@@ -100,9 +100,9 @@ describe("API /api/attendance", () => {
     selectQueue.push(
       createSelectChain("limit", [
         {
-          id: "11111111-1111-1111-1111-111111111111",
-          classId: "44444444-4444-4444-4444-444444444444",
-          academyId: "55555555-5555-5555-5555-555555555555",
+          id: "11111111-1111-4111-8111-111111111111",
+          classId: "44444444-4444-4444-8444-444444444444",
+          academyId: "55555555-5555-4555-8555-555555555555",
           sessionSportConfigId: null,
           classSportConfigId: null,
         },
@@ -112,11 +112,11 @@ describe("API /api/attendance", () => {
     const request = new Request("http://localhost/api/attendance", {
       method: "POST",
       body: JSON.stringify({
-        sessionId: "11111111-1111-1111-1111-111111111111",
+        sessionId: "11111111-1111-4111-8111-111111111111",
         entries: [
-          { athleteId: "22222222-2222-2222-2222-222222222222", status: "present" },
+          { athleteId: "22222222-2222-4222-8222-222222222222", status: "present" },
           {
-            athleteId: "33333333-3333-3333-3333-333333333333",
+            athleteId: "33333333-3333-4333-8333-333333333333",
             status: "late",
             notes: "Llegó 5 minutos tarde",
           },
@@ -137,9 +137,9 @@ describe("API /api/attendance", () => {
     selectQueue.push(
       createSelectChain("limit", [
         {
-          id: "11111111-1111-1111-1111-111111111111",
-          classId: "44444444-4444-4444-4444-444444444444",
-          academyId: "55555555-5555-5555-5555-555555555555",
+          id: "11111111-1111-4111-8111-111111111111",
+          classId: "44444444-4444-4444-8444-444444444444",
+          academyId: "55555555-5555-4555-8555-555555555555",
           sessionSportConfigId: null,
           classSportConfigId: null,
         },
@@ -149,9 +149,9 @@ describe("API /api/attendance", () => {
     const request = new Request("http://localhost/api/attendance", {
       method: "POST",
       body: JSON.stringify({
-        sessionId: "11111111-1111-1111-1111-111111111111",
+        sessionId: "11111111-1111-4111-8111-111111111111",
         entries: [
-          { athleteId: "22222222-2222-2222-2222-222222222222", status: "present" },
+          { athleteId: "22222222-2222-4222-8222-222222222222", status: "present" },
         ],
       }),
       headers: { "Content-Type": "application/json" },
@@ -171,8 +171,8 @@ describe("API /api/attendance", () => {
     selectQueue.push(
       createSelectChain("limit", [
         {
-          classId: "44444444-4444-4444-4444-444444444444",
-          academyId: "55555555-5555-5555-5555-555555555555",
+          classId: "44444444-4444-4444-8444-444444444444",
+          academyId: "55555555-5555-4555-8555-555555555555",
         },
       ])
     );
@@ -180,8 +180,8 @@ describe("API /api/attendance", () => {
       createSelectChain("where", [
         {
           id: "attendance-1",
-          sessionId: "11111111-1111-1111-1111-111111111111",
-          athleteId: "22222222-2222-2222-2222-222222222222",
+          sessionId: "11111111-1111-4111-8111-111111111111",
+          athleteId: "22222222-2222-4222-8222-222222222222",
           status: "present",
           notes: "Gran ejecución",
           recordedAt: new Date().toISOString(),
@@ -190,7 +190,7 @@ describe("API /api/attendance", () => {
     );
 
     const request = new Request(
-      "http://localhost/api/attendance?sessionId=11111111-1111-1111-1111-111111111111",
+      "http://localhost/api/attendance?sessionId=11111111-1111-4111-8111-111111111111",
       {
         method: "GET",
       }
@@ -201,7 +201,7 @@ describe("API /api/attendance", () => {
     const body = await response.json();
     expect(body.data.items).toHaveLength(1);
     expect(body.data.items[0]).toMatchObject({
-      sessionId: "11111111-1111-1111-1111-111111111111",
+      sessionId: "11111111-1111-4111-8111-111111111111",
       status: "present",
     });
   });

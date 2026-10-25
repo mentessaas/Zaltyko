@@ -96,25 +96,25 @@ describe("API /api/class-sessions", () => {
     selectQueue.push(
       createSelectChain({
         resolveAt: "orderBy",
-        result: [{ id: "22222222-2222-2222-2222-222222222222" }],
+        result: [{ id: "22222222-2222-4222-8222-222222222222" }],
       })
     );
     selectQueue.push(
       createSelectChain({
         resolveAt: "limit",
-        result: [{ id: "33333333-3333-3333-3333-333333333333" }],
+        result: [{ id: "33333333-3333-4333-8333-333333333333" }],
       })
     );
 
     const request = new Request("http://localhost/api/class-sessions", {
       method: "POST",
       body: JSON.stringify({
-        academyId: "11111111-1111-1111-1111-111111111111",
-        classId: "22222222-2222-2222-2222-222222222222",
+        academyId: "11111111-1111-4111-8111-111111111111",
+        classId: "22222222-2222-4222-8222-222222222222",
         sessionDate: "2025-05-12",
         startTime: "17:00",
         endTime: "19:00",
-        coachId: "33333333-3333-3333-3333-333333333333",
+        coachId: "33333333-3333-4333-8333-333333333333",
       }),
       headers: { "Content-Type": "application/json" },
     });
@@ -125,7 +125,7 @@ describe("API /api/class-sessions", () => {
     expect(body.data).toHaveProperty("id");
     const sessionInsert = insertCalls[0];
     expect(sessionInsert?.payload).toMatchObject({
-      classId: "22222222-2222-2222-2222-222222222222",
+      classId: "22222222-2222-4222-8222-222222222222",
       sessionDate: "2025-05-12",
       startTime: "17:00",
       endTime: "19:00",
@@ -143,11 +143,11 @@ describe("API /api/class-sessions", () => {
             startTime: "17:00",
             endTime: "19:00",
             status: "scheduled",
-            classId: "22222222-2222-2222-2222-222222222222",
+            classId: "22222222-2222-4222-8222-222222222222",
             className: "Equipo FIG Avanzado",
-            academyId: "11111111-1111-1111-1111-111111111111",
+            academyId: "11111111-1111-4111-8111-111111111111",
             academyName: "Gymna Training Center",
-            coachId: "33333333-3333-3333-3333-333333333333",
+            coachId: "33333333-3333-4333-8333-333333333333",
             coachName: "Luis Romero",
           },
         ],
