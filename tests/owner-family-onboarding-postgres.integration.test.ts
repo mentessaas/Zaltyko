@@ -328,6 +328,41 @@ function addExistingFamilyMemberCommand(
 }
 
 describe("family onboarding against disposable PostgreSQL", () => {
+  it("completes an intake family without replacing its member link or duplicating concurrent retries", async () => {
+    assertDisposableTarget();
+    const fixture = await seedGroupOnlyFixture();
+    const familyId = randomUUID();
+    await db.execute(sql`
+      insert into zaltyko.families (id, organization_id)
+      values (${familyId}::uuid, ${fixture.organizationId}::uuid)
+    `);
+    await db.execute(sql`
+      insert into zaltyko.family_members (organization_id, family_id, athlete_id, relationship, starts_on)
+      values (${fixture.organizationId}::uuid, ${familyId}::uuid,
+        ${fixture.athleteA}::uuid, 'other', ${fixture.effectiveFrom}::date)
+    `);
+    const options = await getOwnerFamilyOptions({
+      organizationId: fixture.organizationId, locationId: fixture.locationA, actor: fixture.ownerActor,
+    });
+    expect(options.families.find((family) => family.familyId === familyId)).toMatchObject({
+      payers: [], athletes: [{ athleteId: fixture.athleteA }],
+    });
+    const before = await snapshot(fixture.organizationId);
+    const command = { ...createFamilyCommand(fixture, `ci-family-complete-${randomUUID()}`), familyId };
+    const results = await Promise.all([associateOwnerFamily(command), associateOwnerFamily(command)]);
+    expect(results.map((result) => result.replayed).sort()).toEqual([false, true]);
+    expect(results.every((result) => result.family.id === familyId)).toBe(true);
+    expect(results[0]!.familyPayerId).toBe(results[1]!.familyPayerId);
+    const after = await snapshot(fixture.organizationId);
+    expect(after.families).toEqual(before.families);
+    expect(after.family_members).toEqual(before.family_members);
+    for (const table of ["family_payers", "family_guardians", "guardians", "people", "audit_log", "outbox_events"] as const) {
+      expect(after[table].count - before[table].count).toBe(1);
+    }
+    await expect(associateOwnerFamily(command)).resolves.toMatchObject({ replayed: true });
+    expect(await snapshot(fixture.organizationId)).toEqual(after);
+  }, 45_000);
+
   it("associates an active group-only athlete once under concurrent retry and lists it once", async () => {
     assertDisposableTarget();
     const fixture = await seedGroupOnlyFixture();

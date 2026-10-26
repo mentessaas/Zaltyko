@@ -12863,3 +12863,4 @@ Revisión externa y CI exactas aprobadas. Entregas ahora dpl_9C1oMxrJiGSRWpNDVQS
 - Hallazgo sandbox: el alta crea familia sin pagador; crear otra desde Grupos devuelve solapamiento. Fixture QA Cierre Entrega 20261026, sin modificar el ensayo.
 - Interfaz ofrece completar únicamente una familia sin pagador vinculada a esa gimnasta, con alcance completo. Reutiliza contrato existente familyId + adulto nuevo; conserva guardas del servidor y clave/cuerpo de reintento. Sin SQL ni ampliación de permisos.
 - Añadida cobertura de respuesta perdida/recarga y denegación por familia ajena, ambigüedad y sede limitada. Validación remota pendiente; no se ejecutaron pruebas ni builds locales.
+- Regresión PostgreSQL añadida para familia vacía: dos peticiones concurrentes deben crear un único responsable/pagador y mantener exactamente familia y vínculo originales; replay sin efectos. Se ejecutará exclusivamente en base efímera de CI.
