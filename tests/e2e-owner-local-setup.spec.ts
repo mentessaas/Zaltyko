@@ -2182,6 +2182,43 @@ test.describe("Isolated local Supabase Owner setup", () => {
     });
     await expect(assignedAthleteRow.getByLabel("Nombre", { exact: true })).toHaveValue(intakeGivenName);
     await expect(assignedAthleteRow.getByLabel("Apellidos", { exact: true })).toHaveValue(intakeFamilyName);
+
+    await assignedAthleteRow.getByRole("button", { name: "Cerrar editor", exact: true }).click();
+    await assignedAthleteRow.getByRole("button", { name: `Vincular familia a ${intakeAthleteName}`, exact: true }).click();
+    await assignedAthleteRow.getByRole("radio", { name: "Completar la familia actual de esta gimnasta", exact: true }).check();
+    await assignedAthleteRow.getByLabel("Nombre de la persona adulta responsable", { exact: true }).fill("Responsable Intake");
+    await assignedAthleteRow.getByLabel("Apellidos", { exact: true }).fill("QA Completion");
+    await assignedAthleteRow.getByLabel("Fecha de inicio de la asociación", { exact: true }).fill(intakeGroup.local_date);
+    const completeFamilyResponsePromise = page.waitForResponse((response) =>
+      new URL(response.url()).pathname === "/api/v1/owner/families/associations" && response.request().method() === "POST"
+    );
+    await assignedAthleteRow.getByRole("button", { name: "Asociar familia", exact: true }).click();
+    const completeFamilyResponse = await completeFamilyResponsePromise;
+    expect(completeFamilyResponse.status()).toBe(201);
+    expect(completeFamilyResponse.request().postDataJSON()).toEqual({
+      organizationId: result.organizationId,
+      locationId: intakeGroup.location_id,
+      familyId: intakeFamilyId,
+      athleteIds: [intakeAthleteId],
+      effectiveFrom: intakeGroup.local_date,
+      payer: { givenName: "Responsable Intake", familyName: "QA Completion", relationship: "parent" },
+    });
+    await expect(assignedAthleteRow.getByRole("status")).toContainText("Familia vinculada");
+    const completedFamilyRows = await pool.query<{
+      family_id: string; member_count: number; payer_count: number; guardian_count: number;
+    }>(
+      `select member.family_id::text as family_id,
+        count(distinct member.id)::int as member_count,
+        count(distinct payer.id)::int as payer_count,
+        count(distinct guardian.id)::int as guardian_count
+       from zaltyko.family_members member
+       left join zaltyko.family_payers payer on payer.organization_id = member.organization_id and payer.family_id = member.family_id
+       left join zaltyko.family_guardians guardian on guardian.organization_id = member.organization_id and guardian.family_id = member.family_id
+       where member.organization_id = $1::uuid and member.athlete_id = $2::uuid
+       group by member.family_id`,
+      [result.organizationId, intakeAthleteId]
+    );
+    expect(completedFamilyRows.rows).toEqual([{ family_id: intakeFamilyId, member_count: 1, payer_count: 1, guardian_count: 1 }]);
   });
 });
 
