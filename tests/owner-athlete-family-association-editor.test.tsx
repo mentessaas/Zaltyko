@@ -1,6 +1,8 @@
 // @vitest-environment jsdom
 import "@testing-library/jest-dom/vitest";
 import type { ComponentProps } from "react";
+import { renderToString } from "react-dom/server";
+import { hydrateRoot } from "react-dom/client";
 import { act, cleanup, render, screen, waitFor, within } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
@@ -115,6 +117,31 @@ afterEach(() => {
 });
 
 describe("asociación familiar desde una pertenencia Owner", () => {
+  it("bloquea el botón SSR hasta hidratar y abre la familia en el primer clic habilitado", async () => {
+    mocks.fetch.mockResolvedValueOnce(response(200, { ok: true, data: { families: [] } }));
+    const container = document.createElement("div");
+    container.innerHTML = renderToString(<OwnerAthleteFamilyAssociationEditor {...editorProps()} />);
+    document.body.appendChild(container);
+    const button = within(container).getByRole("button", { name: "Vincular familia a Ana García" });
+    expect(button).toBeDisabled();
+    button.click();
+    expect(mocks.fetch).not.toHaveBeenCalled();
+    let root: ReturnType<typeof hydrateRoot> | undefined;
+    try {
+      await act(async () => {
+        root = hydrateRoot(container, <OwnerAthleteFamilyAssociationEditor {...editorProps()} />);
+      });
+      await waitFor(() => expect(button).toBeEnabled());
+      await userEvent.setup().click(button);
+      expect(await within(container).findByRole("region", { name: "Asociar familia" })).toBeVisible();
+      await waitFor(() => expect(mocks.fetch).toHaveBeenCalledOnce());
+      expect(mocks.fetch.mock.calls[0][0]).toBe(`/api/v1/owner/families/options?organizationId=${organizationId}&locationId=${locationId}`);
+    } finally {
+      await act(async () => root?.unmount());
+      container.remove();
+    }
+  });
+
   it("carga opciones de familias con GET y muestra error sin permitir una selección inventada", async () => {
     mocks.fetch.mockResolvedValueOnce(response(503, { detail: "Servicio no disponible" }));
     const user = userEvent.setup();

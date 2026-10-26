@@ -1611,6 +1611,7 @@ test.describe("Isolated local Supabase Owner setup", () => {
         candidate.request().method() === "GET"
     );
     await openExistingFamilyAfterReload.click();
+    await expect(openExistingFamilyAfterReload).toHaveAttribute("aria-expanded", "true");
     expect((await reloadFamilyOptionsResponsePromise).status()).toBe(200);
     await page.getByRole("radio", { name: "Elegir una familia existente" }).check();
     await page

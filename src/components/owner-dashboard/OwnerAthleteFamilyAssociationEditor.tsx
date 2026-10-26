@@ -349,6 +349,7 @@ export function OwnerAthleteFamilyAssociationEditor({
   const loadingRef = useRef(false);
   const sendingRef = useRef(false);
   const mountedRef = useRef(false);
+  const [interactive, setInteractive] = useState(false);
   const onActiveChangeRef = useRef(onActiveChange);
   onActiveChangeRef.current = onActiveChange;
   const [isOpen, setIsOpen] = useState(false);
@@ -415,6 +416,10 @@ export function OwnerAthleteFamilyAssociationEditor({
     setSaving(false);
     sendingRef.current = false;
     setEffectiveDate(effectiveFrom);
+    // SSR exposes the control before its handlers and initial scope reset are
+    // ready. Do not accept a click that hydration could silently discard.
+    // eslint-disable-next-line react-hooks/set-state-in-effect
+    setInteractive(true);
     return () => {
       mountedRef.current = false;
       controllerRef.current?.abort();
@@ -702,7 +707,7 @@ export function OwnerAthleteFamilyAssociationEditor({
     void sendAssociation(activePending, true);
   }
 
-  const buttonDisabled = disabled || (!activePending && readOnly);
+  const buttonDisabled = !interactive || disabled || (!activePending && readOnly);
   const familiesWithPayers = families.filter((family) => family.payers.length > 0);
 
   return (
@@ -711,7 +716,7 @@ export function OwnerAthleteFamilyAssociationEditor({
         <button
           type="button"
           className={secondaryButtonClassName}
-          disabled={disabled || saving}
+          disabled={!interactive || disabled || saving}
           onClick={retryPendingAssociation}
         >
           {saving ? "Comprobando familia…" : `Reintentar asociación familiar de ${athleteName}`}
