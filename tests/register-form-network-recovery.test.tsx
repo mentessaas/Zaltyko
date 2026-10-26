@@ -90,6 +90,31 @@ async function completeOwnerRegistration(
 }
 
 describe("registro Owner ante fallos de red", () => {
+  it("un next del directorio no cambia el alta Owner ni omite su consentimiento", async () => {
+    const previousUrl = window.location.href;
+    window.history.replaceState({}, "", "/auth/register?next=%2Facademias%2Fqa");
+    try {
+      const user = userEvent.setup();
+      signUp.mockRejectedValueOnce(new TypeError("Failed to fetch"));
+      render(<RegisterForm ownerEntry ownerConsentPolicyVersion={ownerConsentPolicyVersion} />);
+      await completeOwnerRegistration(user);
+      await user.click(screen.getByRole("button", { name: "Crear cuenta" }));
+      await waitFor(() => expect(signUp).toHaveBeenCalledOnce());
+      expect(signUp.mock.calls[0][0].options).toMatchObject({
+        data: {
+          initial_role: "owner",
+          directory_account: false,
+          legal_consent_version: ownerConsentPolicyVersion,
+          legal_consent_proof: "signup:register-form-v1",
+        },
+        emailRedirectTo: `${window.location.origin}/auth/callback?next=%2Fauth%2Fredirect`,
+      });
+      expect(screen.queryByRole("radio", { name: /Proveedor/ })).not.toBeInTheDocument();
+    } finally {
+      window.history.replaceState({}, "", previousUrl);
+    }
+  });
+
   it("muestra resultado incierto y evita un segundo alta automático o manual", async () => {
     const user = userEvent.setup();
     signUp.mockRejectedValueOnce(new TypeError("Failed to fetch"));

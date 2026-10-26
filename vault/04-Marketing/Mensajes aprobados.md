@@ -19,6 +19,8 @@ La promesa se limita a gimnastas/familias, grupos/clases/inscripciones, asistenc
 
 ## Promesa principal
 
+La entrada pública `/auth/register`, con o sin parámetros de rol, presenta únicamente la cuenta de dirección y creación de academia en esta apertura. No anuncia alta de proveedores, marketplace ni un portal familiar verificado. Se conserva el acceso de cuentas existentes y los contratos internos por rol; no se reclasifican usuarios. Corrección preparada el26oct, pendiente de CI y publicación del nuevo commit.
+
 Gestiona tu academia deportiva sin perder el foco en lo que importa: formar atletas.
 
 ## Enfoque comercial inicial

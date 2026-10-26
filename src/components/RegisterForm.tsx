@@ -91,7 +91,10 @@ export function RegisterForm({
   const directoryNext = isHydrated
     ? new URLSearchParams(window.location.search).get("next")
     : null;
-  const directoryRegistration=Boolean(directoryNext&&/^\/(academias|events|directorio)\//.test(directoryNext)&&!directoryNext.includes('\\'));
+  const directoryRegistration = !ownerEntry && Boolean(
+    directoryNext && /^\/(academias|events|directorio)\//.test(directoryNext) &&
+    !directoryNext.includes('\\')
+  );
   const [role, setRole] = useState<RegisterRole>("owner");
   const ownerConsentPolicyUnavailable =
     !directoryRegistration && role === "owner" && !ownerConsentPolicyVersion;
@@ -481,7 +484,7 @@ export function RegisterForm({
         ? [
             "Primero crearás el acceso personal.",
             "Después configurarás la academia en un formulario breve.",
-            "Podrás invitar a entrenadores y familias desde tu espacio.",
+            "Podrás organizar gimnastas, clases y cuotas con pagos manuales.",
           ]
         : [
             "Padres, atletas, entrenadores y proveedores pueden tener cuenta propia.",

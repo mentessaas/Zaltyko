@@ -8,6 +8,10 @@ source:
 ---
 
 
+## 2026-10-26 — Entrada pública de registro limitada al MVP
+
+Revisión estática encontró que `/auth/register` sin role=owner seguía ofreciendo proveedores y marketplace, excluidos por el alcance humano de apertura. La página ahora fija ownerEntry y deshabilita las opciones del directorio; metadata y mensaje de bienvenida describen academia/gimnastas/cuotas manuales. Un next histórico de directorio no puede cambiar el flujo Owner ni omitir el handoff de consentimiento. No se cambian login, usuarios existentes, contratos/API de otros roles, esquema, Auth remoto ni fixtures del ensayo. Pruebas añadidas: página Owner con política disponible/no disponible y formulario con next de directorio conservando metadatos/consentimiento/callback Owner. Ejecución exclusivamente remota pendiente; no tests ni builds locales. Precios intactos. Mensajes aprobados revisados y actualizados.
+
 ## 2026-10-25 — Callbacks de entregas y corrección de alta previa a hidratación
 
 - CI536 confirma ChromiumPASS31,1s, build/lint/tipos y controlesPASS. Regresión

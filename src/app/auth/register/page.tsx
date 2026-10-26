@@ -1,4 +1,3 @@
-import { flag } from "@/lib/directory/contracts";
 import type { Metadata } from "next";
 import { RegisterForm } from "@/components/RegisterForm";
 import { getPublicSiteUrl } from "@/lib/seo/site-url";
@@ -8,25 +7,19 @@ export const dynamic = "force-dynamic";
 
 export const metadata: Metadata = {
   title: "Crear cuenta",
-  description: "Crea tu cuenta personal en Zaltyko y elige si vas a gestionar una academia, entrenar, acompañar a una familia o publicar servicios",
+  description: "Crea tu cuenta personal en Zaltyko y configura tu academia de gimnasia.",
   alternates: {
     canonical: `${getPublicSiteUrl()}/auth/register`,
   },
   openGraph: {
     title: "Crear cuenta",
-    description: "Crea una cuenta personal en Zaltyko y elige tu rol inicial; la academia se configura después",
+    description: "Crea tu cuenta de dirección; la academia se configura después.",
     url: `${getPublicSiteUrl()}/auth/register`,
     type: "website",
   },
 };
 
-export default async function Register({
-  searchParams,
-}: {
-  searchParams: Promise<Record<string, string | string[] | undefined>>;
-}) {
-  const query = await searchParams;
-  const ownerEntry = query.role === "owner";
+export default async function Register() {
   let ownerConsentPolicyVersion: string | null = null;
   try {
     ownerConsentPolicyVersion = await getOwnerSignupConsentPolicyVersion();
@@ -38,10 +31,10 @@ export default async function Register({
 
   return (
     <RegisterForm
-      ownerEntry={ownerEntry}
+      ownerEntry
       ownerConsentPolicyVersion={ownerConsentPolicyVersion}
-      directoryDiscoveryEnabled={flag("catalog")}
-      directoryClaimsEnabled={flag("claims")}
+      directoryDiscoveryEnabled={false}
+      directoryClaimsEnabled={false}
     />
   );
 }
