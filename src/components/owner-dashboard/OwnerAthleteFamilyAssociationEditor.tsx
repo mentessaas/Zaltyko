@@ -95,7 +95,7 @@ function decodeAssociationBody(
     ) return null;
 
     const payer = value.payer;
-    if (hasFamilyId) {
+    if (hasFamilyId && Object.hasOwn(payer, "familyPayerId")) {
       const hasPayerConfirmation = Object.hasOwn(payer, "confirmPrimaryPayerChange");
       if (!exactKeys(payer, hasPayerConfirmation
         ? ["familyPayerId", "confirmPrimaryPayerChange"]
@@ -126,6 +126,7 @@ function decodeAssociationBody(
     return {
       organizationId: command.organizationId,
       locationId: command.locationId,
+      ...(hasFamilyId ? { familyId: value.familyId as string } : {}),
       athleteIds: [command.athleteId],
       effectiveFrom: value.effectiveFrom,
       payer: {
@@ -355,7 +356,7 @@ export function OwnerAthleteFamilyAssociationEditor({
   const [saving, setSaving] = useState(false);
   const [families, setFamilies] = useState<FamilyOption[]>([]);
   const [optionsLoaded, setOptionsLoaded] = useState(false);
-  const [mode, setMode] = useState<"create" | "existing">("create");
+  const [mode, setMode] = useState<"create" | "existing" | "complete">("create");
   const [familyId, setFamilyId] = useState("");
   const [familyPayerId, setFamilyPayerId] = useState("");
   const [givenName, setGivenName] = useState("");
@@ -377,6 +378,8 @@ export function OwnerAthleteFamilyAssociationEditor({
     ? pendingCommand
     : null;
   const activePending = matchingLocalPending ?? recoveredCommand;
+  const incompleteFamilies = families.filter((family) => family.payers.length === 0 && family.athletes.some((athlete) => athlete.athleteId === athleteId));
+  const incompleteFamily = allowExistingFamilies && optionsLoaded && incompleteFamilies.length === 1 ? incompleteFamilies[0] : null;
   const selectedFamily = families.find((item) => item.familyId === familyId) ?? null;
   const selectedPayer = selectedFamily?.payers.find((payer) => payer.familyPayerId === familyPayerId) ?? null;
   const selectedPayerWillBePromoted = Boolean(selectedPayer && !selectedPayer.isPrimary);
@@ -500,7 +503,7 @@ export function OwnerAthleteFamilyAssociationEditor({
     setGuardianContactsOpen(false);
   }
 
-  function changeMode(nextMode: "create" | "existing") {
+  function changeMode(nextMode: "create" | "existing" | "complete") {
     if (activePending || contactCommandPending) return;
     setMode(nextMode);
     setMessage("");
@@ -646,6 +649,13 @@ export function OwnerAthleteFamilyAssociationEditor({
         ...(selectedPayerWillBePromoted ? { confirmPrimaryPayerChange: true } : {}),
       };
     } else {
+      if (mode === "complete") {
+        if (!incompleteFamily) {
+          setMessage("No se pudo confirmar una única familia incompleta de esta gimnasta. Actualiza las opciones antes de continuar.");
+          return;
+        }
+        selectedExistingFamilyId = incompleteFamily.familyId;
+      }
       const normalizedGivenName = givenName.trim().normalize("NFC").replace(/\s+/gu, " ");
       const normalizedFamilyName = familyName.trim().normalize("NFC").replace(/\s+/gu, " ");
       if (!normalizedGivenName || !normalizedFamilyName) {
@@ -749,7 +759,7 @@ export function OwnerAthleteFamilyAssociationEditor({
                 </button>
               )}
               {allowExistingFamilies && !loadingOptions && optionsLoaded && familiesWithPayers.length === 0 && (
-                <p className="mt-3 text-sm text-slate-700">No hay familias activas con una persona pagadora disponible en esta sede. Puedes crear una familia nueva.</p>
+                <p className="mt-3 text-sm text-slate-700">No hay familias activas con una persona pagadora disponible en esta sede. Si esta gimnasta tiene una familia incompleta, complétala; crea una nueva solo si todavía no tiene vínculo familiar.</p>
               )}
               {!allowExistingFamilies && (
                 <p className="mt-3 border border-sky-300 bg-sky-50 p-3 text-sm text-slate-800">Tu acceso está limitado a una sede. Puedes crear una familia nueva aquí; la selección de familias existentes requiere acceso a todas las sedes porque el pagador es un dato compartido.</p>
@@ -763,6 +773,12 @@ export function OwnerAthleteFamilyAssociationEditor({
                       <input type="radio" name={`${idPrefix}-mode`} value="create" checked={mode === "create"} onChange={() => changeMode("create")} />
                       Crear una familia nueva
                     </label>
+                    {incompleteFamily && (
+                      <label className="flex min-h-11 items-center gap-2 text-sm">
+                        <input type="radio" name={`${idPrefix}-mode`} value="complete" checked={mode === "complete"} onChange={() => changeMode("complete")} />
+                        Completar la familia actual de esta gimnasta
+                      </label>
+                    )}
                     <label className="flex min-h-11 items-center gap-2 text-sm">
                       <input type="radio" name={`${idPrefix}-mode`} value="existing" checked={mode === "existing"} onChange={() => changeMode("existing")} />
                       Elegir una familia existente
@@ -821,7 +837,7 @@ export function OwnerAthleteFamilyAssociationEditor({
                         <option value="other">Otra persona responsable</option>
                       </select>
                     </label>
-                    <p className="self-end text-sm text-slate-700">Esta persona será el pagador principal de la nueva familia. No se crea una cuenta ni se envía correo; tampoco se registran cuotas ni se inicia ningún cobro.</p>
+                    <p className="self-end text-sm text-slate-700">{mode === "complete" ? "Esta persona completará la familia ya vinculada y será su pagador principal. Se conserva el vínculo existente." : "Esta persona será el pagador principal de la nueva familia."} No se crea una cuenta ni se envía correo; tampoco se registran cuotas ni se inicia ningún cobro.</p>
                   </>
                 )}
 
@@ -831,7 +847,7 @@ export function OwnerAthleteFamilyAssociationEditor({
                 </label>
                 {!validEffectiveDate && <p role="alert" className="text-sm text-red-900 sm:col-span-2">No se ha podido determinar una fecha válida para la sede.</p>}
                 <div className="flex flex-wrap gap-2 sm:col-span-2">
-                  <button type="submit" className={primaryButtonClassName} disabled={disabled || readOnly || saving || contactCommandPending || Boolean(activePending) || !validEffectiveDate || (mode === "existing" && (!optionsLoaded || !selectedFamily || !selectedPayer || (selectedPayerWillBePromoted && !confirmPrimaryPayerChange)))}>
+                  <button type="submit" className={primaryButtonClassName} disabled={disabled || readOnly || saving || contactCommandPending || Boolean(activePending) || !validEffectiveDate || (mode === "complete" && !incompleteFamily) || (mode === "existing" && (!optionsLoaded || !selectedFamily || !selectedPayer || (selectedPayerWillBePromoted && !confirmPrimaryPayerChange)))}>
                     {saving ? "Guardando…" : "Asociar familia"}
                   </button>
                 </div>

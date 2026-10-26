@@ -159,6 +159,51 @@ describe("asociación familiar desde una pertenencia Owner", () => {
     expect(readPendingOwnerAthleteFamilyAssociation(window.sessionStorage)).toEqual({ kind: "none" });
   });
 
+  it("completa la familia vinculada sin crear otra y conserva el comando tras perder la respuesta", async () => {
+    mocks.fetch.mockResolvedValueOnce(response(200, {
+      ok: true, data: { families: [{ familyId, athletes: [{ athleteId, athleteName: "Ana García" }], payers: [] }] },
+    })).mockRejectedValueOnce(new Error("connection reset"))
+      .mockResolvedValueOnce(response(200, createdReceipt));
+    const user = userEvent.setup();
+    const first = render(<OwnerAthleteFamilyAssociationEditor {...editorProps()} />);
+    await user.click(screen.getByRole("button", { name: "Vincular familia a Ana García" }));
+    await user.click(await screen.findByRole("radio", { name: "Completar la familia actual de esta gimnasta" }));
+    await user.type(screen.getByLabelText("Nombre de la persona adulta responsable"), "María");
+    await user.type(screen.getByLabelText("Apellidos"), "García");
+    await user.click(screen.getByRole("button", { name: "Asociar familia" }));
+    expect(await screen.findByRole("alert")).toHaveTextContent("No sabemos si se guardó");
+    const originalRequest = mocks.fetch.mock.calls[1];
+    expect(JSON.parse(originalRequest[1].body)).toEqual({
+      organizationId, locationId, familyId, athleteIds: [athleteId], effectiveFrom: today,
+      payer: { givenName: "María", familyName: "García", relationship: "parent" },
+    });
+    const recovered = readPendingOwnerAthleteFamilyAssociation(window.sessionStorage);
+    if (recovered.kind !== "pending") throw new Error("expected recoverable completion");
+    first.unmount();
+    render(<OwnerAthleteFamilyAssociationEditor {...editorProps({ pendingCommand: recovered.command })} />);
+    expect(mocks.fetch).toHaveBeenCalledTimes(2);
+    await user.click(screen.getByRole("button", { name: "Reintentar asociación familiar de Ana García" }));
+    await waitFor(() => expect(mocks.fetch).toHaveBeenCalledTimes(3));
+    expect(mocks.fetch.mock.calls[2]).toEqual(originalRequest);
+    expect(await screen.findByRole("status")).toHaveTextContent("Familia vinculada");
+    expect(readPendingOwnerAthleteFamilyAssociation(window.sessionStorage).kind).toBe("none");
+  });
+
+  it.each(["other-athlete", "ambiguous", "scoped"])("no ofrece completar una familia fuera del caso autorizado: %s", async (scenario) => {
+    const incomplete = { familyId, athletes: [{ athleteId, athleteName: "Ana García" }], payers: [] };
+    const families = scenario === "other-athlete"
+      ? [{ ...incomplete, athletes: [{ athleteId: membershipId, athleteName: "Otra gimnasta" }] }]
+      : scenario === "ambiguous" ? [incomplete, { ...incomplete, familyId: otherPayerId }] : [incomplete];
+    mocks.fetch.mockResolvedValueOnce(response(200, { ok: true, data: { families } }));
+    const user = userEvent.setup();
+    render(<OwnerAthleteFamilyAssociationEditor {...editorProps({ allowExistingFamilies: scenario !== "scoped" })} />);
+    await user.click(screen.getByRole("button", { name: "Vincular familia a Ana García" }));
+    await screen.findByRole("region", { name: "Asociar familia" });
+    if (scenario !== "scoped") await screen.findByText(/No hay familias activas/);
+    expect(screen.queryByRole("radio", { name: "Completar la familia actual de esta gimnasta" })).not.toBeInTheDocument();
+    expect(mocks.fetch.mock.calls.filter(([, init]) => init?.method === "POST")).toHaveLength(0);
+  });
+
   it("solo ofrece familia existente con alcance completo y exige confirmar el cambio de pagador principal", async () => {
     mocks.fetch.mockResolvedValueOnce(response(200, familyOptionsPayload)).mockResolvedValueOnce(response(201, {
       ok: true,

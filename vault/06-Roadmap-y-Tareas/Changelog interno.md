@@ -12853,3 +12853,13 @@ No se ejecutaron pruebas, instalaciones, servicios ni builds locales. Revisión 
 ## 2026-10-26 — Preparación del futuro autónomo sin afirmar un alta inexistente
 
 Declaración humana: Elvis Valdes Inerarte, futuro autónomo en España, alta todavía pendiente; hola@zaltyko.com oficial. Perfil único con NIF/domicilio vacíos y verificaciones independientes pendientes. Términos y privacidad muestran futuro titular y contratación aún cerrada; se retiran plazos comerciales heredados no acreditados. Servicio y acciones Owner bloquean Checkout Live antes de efectos mientras falte cierre; test, Portal y eventos conservados. Pruebas nuevas de rechazo sin reservas/proveedor y condiciones independientes; solo ejecución remota pendiente. Sin migraciones, cambios de credenciales, consultas al ensayo, despliegues ni builds/tests locales. Guía docs/deployment/spain-seller-activation-2026-10-26.md y Pricing/Decisiones/Backlog actualizados.
+
+
+## 2026-10-26 — Preview esencial c0b705ef publicada
+
+Revisión externa y CI exactas aprobadas. Entregas ahora dpl_9C1oMxrJiGSRWpNDVQS1cs3yVyeX, READY;226 pruebas remotas/tipos/Next206663ms/artefacto PASS. Health DB108.33ms;404 módulos retirados;401 API privada sin sesión; Owner humano muestra resumen persistido y navegación esencial. Alias del ensayo intacto.42 ámbitos env restaurados/verificados; no valores retenidos. Producción no modificada, cero builds locales. Pendiente recorrido alojado completo y matriz dos academias/sedes del nuevo candidato, cierre fiscal/Live antes de publicar producción. Evidencia fuera del checkout: auditorias/2026-10-26/delivery-c0b705-published.md. Esta nota posterior al despliegue no forma parte del commit desplegado.
+
+### 2026-10-26 — Completar familia incompleta tras alta Owner
+- Hallazgo sandbox: el alta crea familia sin pagador; crear otra desde Grupos devuelve solapamiento. Fixture QA Cierre Entrega 20261026, sin modificar el ensayo.
+- Interfaz ofrece completar únicamente una familia sin pagador vinculada a esa gimnasta, con alcance completo. Reutiliza contrato existente familyId + adulto nuevo; conserva guardas del servidor y clave/cuerpo de reintento. Sin SQL ni ampliación de permisos.
+- Añadida cobertura de respuesta perdida/recarga y denegación por familia ajena, ambigüedad y sede limitada. Validación remota pendiente; no se ejecutaron pruebas ni builds locales.
