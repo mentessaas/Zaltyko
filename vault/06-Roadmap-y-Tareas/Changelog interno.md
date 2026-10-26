@@ -12866,3 +12866,8 @@ Revisión externa y CI exactas aprobadas. Entregas ahora dpl_9C1oMxrJiGSRWpNDVQS
 - Regresión PostgreSQL añadida para familia vacía: dos peticiones concurrentes deben crear un único responsable/pagador y mantener exactamente familia y vínculo originales; replay sin efectos. Se ejecutará exclusivamente en base efímera de CI.
 - CI f95da2ee: PostgreSQL y build PASS; unitarias5131PASS/9fallos/3omitidas. Los nueve fallos pertenecen al editor por cola de mock no consumida en el nuevo caso de sede limitada. Se reinicia fetch entre casos y no se encola una respuesta cuando no debe existir consulta; se conservan las aserciones. Pendiente nueva CI remota.
 - El E2E sintético remoto amplía el recorrido real: alta con familia vacía → grupo → completar responsable por UI. Comprueba HTTP201, body con familia original y SQL con un vínculo/pagador/responsable. Pendiente ejecución en los tres navegadores.
+
+
+## 2026-10-26 — Cuota existente con diagnóstico preciso
+
+Hallazgo en delivery1536f814: emisión QA35EUR correcta, pero PERIOD_ALREADY_INVOICED no tenía etiqueta y mostraba un supuesto dato de inscripción incorrecto. Se traducen los dos motivos de factura existente/anulada y el encabezado pasa a Revisa el estado de la cuota; no cambian canIssue, idempotencia, API, SQL ni emisión. Verificación alojada previa: pago parcial10EUR/saldo25 persistido tras recarga; exceso25,01 rechazado por formulario; segundo pago25 liquida; resumen3cobros70EUR con histórico35. No se presenta como snapshot SQL alojado ni prueba HTTP del rechazo. Corrección de textos pendiente CI remota/revisión; sin pruebas ni builds locales.

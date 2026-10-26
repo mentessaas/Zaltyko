@@ -142,6 +142,10 @@ function reasonLabel(reason: string): string {
     NO_ACTIVE_ENROLLMENTS:
       "No hay inscripciones activas para facturar en este periodo.",
     CURRENCY_MISMATCH: "Las tarifas no usan una misma moneda.",
+    PERIOD_ALREADY_INVOICED:
+      "Este periodo ya está facturado para esta familia.",
+    INVOICE_VOIDED:
+      "La factura de este periodo está anulada; no se puede emitir otra desde esta pantalla.",
   };
   return (
     labels[reason] ?? "Esta factura requiere revisar un dato de la inscripción."
@@ -451,7 +455,7 @@ export function OwnerMonthlyInvoiceWorkspace({
                     id="monthly-invoice-blockers-heading"
                     className="font-bold text-amber-950"
                   >
-                    Completa estos datos antes de emitir
+                    Revisa el estado de la cuota
                   </h3>
                   <ul className="grid gap-2">
                     {selectedFamily.blockingReasons.map((reason) => (
