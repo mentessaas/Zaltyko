@@ -1266,3 +1266,16 @@ gates destino/recovery/rolapp/seguridad/review siguen NO-GO. Detalle:
 ## 2026-10-25 — Alta organizativa sin grupo ficticio
 
 Se prepara una bandeja de gimnastas sin asignación operativa, exclusiva para Owner/Admin con acceso a todas las sedes. Alta transaccional de persona, gimnasta y familia explícita, con límite SaaS y recibo idempotente. No se inventa tutor/pagador ni se usa familia/outbox como ancla de sede. La primera asignación requiere grupo y sede reales activos, plaza y fecha civil actual de esa sede; conserva sin cambios las reglas de acceso por sede existentes. Fechas familiares se muestran como efectivas, no se presentan relaciones futuras como vigentes. Implementación pendiente de CI y recorrido sandbox, no publicada.
+
+
+## 2026-10-26 — Alcance de apertura pública esencial
+
+**Título:** primera versión para academias de gimnasia en España, español y EUR.
+
+**Hallazgos:** la portada, FAQs, ayuda y catálogo prometían capacidades avanzadas no acreditadas. El resumen Owner consultaba Health Score, retención y capacidad antes de mostrar actividad persistida. El manifiesto conservaba doce tareas programadas heredadas.
+
+**Fuente:** plan humano de apertura pública del 26 de octubre; código de esta rama a partir de aac0c5e33. Aprobación humana posterior: los importes de Starter/Growth son base sin IVA. La identidad fiscal del vendedor y el tratamiento aplicable siguen pendientes; no se deducen del hecho de cobrar una suscripción.
+
+**Decisión e importancia:** publicar solo acceso, academia, gimnastas/familias, grupos/clases/inscripciones, asistencia, cuotas/pagos manuales y resumen. Health Score/Insights quedan sin navegación y sus páginas directas devuelven404. El resumen no consulta métricas avanzadas. Los embudos históricos /modules/* redirigen a /features y salen del sitemap. No se incluyen tareas programadas en el candidato. Se mantienen intactos contratos API, precios base, límites y esquema; no se activa un worker global.
+
+**Siguiente paso:** CI remota completa del nuevo commit, revisión externa vigente y comprobación en delivery con academias separadas; después controles productivos y comerciales. No equivale a un lanzamiento ni a validar producción. Se conserva el ensayo natural sin consultas ni escrituras en esta ronda.

@@ -3,6 +3,7 @@ import { z } from "zod";
 import { OperationalError } from "@/modules/shared/domain/operational-error";
 
 const mocks = vi.hoisted(() => ({
+  scope: vi.fn(),
   dashboard: vi.fn(),
   summary: vi.fn(),
   notFound: vi.fn(),
@@ -33,22 +34,20 @@ vi.mock("@/lib/auth/resolve-user-home", () => ({
   resolveUserHome: mocks.resolveUserHome,
 }));
 vi.mock("@/lib/logger", () => ({ logger: { error: mocks.error } }));
-vi.mock("@/components/owner-dashboard/OwnerDashboardView", () => ({
-  OwnerDashboardView: () => null,
+vi.mock("@/modules/owner-dashboard/application/owner-scope", () => ({
+  resolveOwnerScope: mocks.scope,
 }));
 vi.mock("@/modules/owner-dashboard/application/get-owner-dashboard", () => ({
   getOwnerDashboard: mocks.dashboard,
-  ownerDashboardQuerySchema: z.object({
-    organizationId: z.guid().optional(),
-    locationId: z.guid().optional(),
-    from: z.string().optional(),
-    to: z.string().optional(),
-    programId: z.string().optional(),
-    groupId: z.string().optional(),
-  }),
 }));
 vi.mock("@/modules/owner-dashboard/application/operational-summary", () => ({
   getOwnerOperationalSummary: mocks.summary,
+  ownerOperationalSummaryQuerySchema: z.object({
+    organizationId: z.guid().optional(),
+    locationId: z.guid().optional(),
+    from: z.string().date().optional(),
+    to: z.string().date().optional(),
+  }),
 }));
 vi.mock("@/modules/owner-dashboard/application/capacity-heatmap", () => ({
   getCapacityHeatmap: async () => null,
@@ -80,9 +79,12 @@ describe("Owner page operational summary boundary", () => {
       destination: "academy_workspace",
       redirectUrl: "/app/synthetic-legacy-academy/dashboard",
     });
-    mocks.dashboard.mockResolvedValue({
-      organization: { id: organizationId },
-      scope: { locationId },
+    mocks.scope.mockResolvedValue({
+      organization: { id: organizationId, name: "QA", defaultCurrency: "EUR" },
+      member: { id: "synthetic-member", role: "owner", locationScopeMode: "all" },
+      locations: [{ id: locationId, name: "Sede QA" }],
+      selectedLocationId: null,
+      canViewOrganizationAggregate: true,
     });
     mocks.summary.mockResolvedValue({ synthetic: "summary" });
     mocks.notFound.mockImplementation(() => {
@@ -147,7 +149,7 @@ describe("Owner page operational summary boundary", () => {
     expect(mocks.legacyMemberships).not.toHaveBeenCalled();
     expect(mocks.dashboard).not.toHaveBeenCalled();
   });
-  it("does not silently narrow an organization aggregate to the score's default site", async () => {
+  it("does not silently narrow an organization aggregate to a default site", async () => {
     const page = await OwnerDashboardPage({
       searchParams: Promise.resolve({ organizationId }),
     });
@@ -159,6 +161,8 @@ describe("Owner page operational summary boundary", () => {
       to: undefined,
     });
     expect(page.props.operationalSummary).toEqual({ synthetic: "summary" });
+    expect(mocks.scope).toHaveBeenCalledWith({ userId: "synthetic-user", organizationId });
+    expect(mocks.dashboard).not.toHaveBeenCalled();
   });
   it("passes selected site and dates, but not program/group filters", async () => {
     await OwnerDashboardPage({
@@ -196,5 +200,20 @@ describe("Owner page operational summary boundary", () => {
         searchParams: Promise.resolve({ organizationId, locationId }),
       })
     ).rejects.toThrow("NOT_FOUND");
+  });
+  it("rejects an unauthorized academy before loading its summary", async () => {
+    mocks.scope.mockRejectedValueOnce(new OperationalError("FORBIDDEN", "denied", 403));
+    await expect(OwnerDashboardPage({ searchParams: Promise.resolve({ organizationId }) })).rejects.toThrow("NOT_FOUND");
+    expect(mocks.summary).not.toHaveBeenCalled();
+  });
+  it("sends a user without canonical membership to setup", async () => {
+    mocks.scope.mockRejectedValueOnce(new OperationalError("FORBIDDEN", "denied", 403));
+    await expect(OwnerDashboardPage({ searchParams: Promise.resolve({}) })).rejects.toThrow("REDIRECT:/owner/setup");
+    expect(mocks.summary).not.toHaveBeenCalled();
+  });
+  it("rejects an invalid date before loading scope or data", async () => {
+    await expect(OwnerDashboardPage({ searchParams: Promise.resolve({ organizationId, from: "invalid" }) })).rejects.toThrow("NOT_FOUND");
+    expect(mocks.scope).not.toHaveBeenCalled();
+    expect(mocks.summary).not.toHaveBeenCalled();
   });
 });

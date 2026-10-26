@@ -9,6 +9,7 @@
  */
 
 import { describe, expect, it } from "vitest";
+import { ESSENTIAL_FAQS, ESSENTIAL_FEATURES } from "@/lib/launch/essential-public-catalog";
 import { readdirSync, readFileSync, statSync } from "node:fs";
 import { join } from "node:path";
 
@@ -169,13 +170,14 @@ describe("L2 — copy pública presente en componentes", () => {
   const faq = readSiteFile("src/app/(site)/home/FaqSection.tsx");
   const pricing = readSiteFile("src/app/(site)/pricing.tsx");
 
-  it("ComparisonSection afirma features clave", () => {
-    expect(comparison).toContain("Registro y seguimiento de pagos");
+  it("la portada publica solo capacidades esenciales y no estadísticas o módulos avanzados", () => {
+    const home = readSiteFile("src/app/page.tsx");
+    for (const retired of ["ComparisonSection", "SocialProofSection", "ModulesSection", "SeoExtendedSection"]) {
+      expect(home).not.toContain(retired);
+    }
+    expect(ESSENTIAL_FEATURES).toHaveLength(5);
+    expect(ESSENTIAL_FEATURES.flatMap(item => item.features).join(" ")).not.toMatch(/Health Score|retención|portal familiar|cobro automático|rúbrica/i);
     expect(comparison).not.toContain("Cobros automáticos");
-    expect(comparison).toContain("Pase de lista por sesión");
-    expect(comparison).toContain("Evaluaciones con rúbrica");
-    expect(comparison).toContain("7 días de Starter sin tarjeta");
-    expect(comparison).toContain("Importación base desde Excel");
   });
 
   it("explica el cobro familiar manual del lanzamiento sin prometer automatización", () => {
@@ -194,23 +196,26 @@ describe("L2 — copy pública presente en componentes", () => {
     expect(seoExtended).toContain("Pagos registrados y pendientes a la vista");
     expect(help).toContain("No en este lanzamiento");
     expect(llmsFull).toContain("Zaltyko no inicia cargos automáticos a las familias");
-    expect(planCatalog).toContain("Gestión de cuotas, registro manual de pagos y reportes básicos");
+    expect(planCatalog).toContain("Asistencia y cuotas mensuales con pagos manuales");
     expect(homeModules).not.toContain("avisos automáticos a familias");
     expect(seoExtended).not.toContain("Cobros automáticos y recordatorios programados");
   });
 
   it("FaqSection contiene respuesta RGPD sobre menores", () => {
-    expect(faq).toContain("protección de datos de menores");
-    expect(faq).toContain("aísla los datos por academia");
-    expect(faq).toContain("controles de acceso por rol");
-    expect(faq).toContain("No hay permanencia ni penalizaciones");
-    expect(faq).toContain("verificado en móvil");
+    expect(ESSENTIAL_FAQS.map(item => `${item.question} ${item.answer}`).join(" ")).toContain("protección de datos de menores");
+    expect(ESSENTIAL_FAQS.map(item => `${item.question} ${item.answer}`).join(" ")).toContain("aísla los datos por academia");
+    expect(ESSENTIAL_FAQS.map(item => `${item.question} ${item.answer}`).join(" ")).toContain("controles de acceso por rol");
+    expect(ESSENTIAL_FAQS.map(item => item.answer).join(" ")).toContain("hasta archivar el excedente o contratar capacidad suficiente");
+    expect(ESSENTIAL_FAQS.map(item => item.answer).join(" ")).toContain("web adaptable a móvil");
   });
 
   it("Network mantiene el mismo precio base y matiz sales-assisted en las FAQs", () => {
     const home = readSiteFile("src/app/page.tsx");
     const faqPage = readSiteFile("src/app/(site)/faq/page.tsx");
-    for (const copy of [faq, home, faqPage]) {
+    expect(faqPage).toContain("ESSENTIAL_FAQS");
+    expect(faq).toContain("ESSENTIAL_FAQS");
+    expect(home).toContain("ESSENTIAL_FAQS");
+    for (const copy of [ESSENTIAL_FAQS.map(item => item.answer).join(" ")]) {
       expect(copy).toContain("Network parte de 99€/mes");
       expect(copy).toContain("propuesta final");
     }
@@ -218,11 +223,13 @@ describe("L2 — copy pública presente en componentes", () => {
 
   it("la FAQ de cancelación distingue Free de los planes de pago", () => {
     const faqPage = readSiteFile("src/app/(site)/faq/page.tsx");
-    expect(faqPage).toContain("Los planes de pago se renuevan mensualmente; Free no tiene coste ni renovación.");
+    expect(faqPage).toContain("ESSENTIAL_FAQS");
+    expect(ESSENTIAL_FAQS.map(item => item.answer).join(" ")).toContain("Al finalizar el periodo de acceso, la academia vuelve a Free");
   });
 
   it("PricingSection comunica prueba explícita y comparación mensual/anual", () => {
     const copy = pricing.replace(/\s+/g, " ");
+    expect(copy).toContain("Precios sin IVA");
     expect(copy).toContain("7 días de Starter sin tarjeta");
     expect(copy).toContain("una activación por academia cada 12 meses");
     expect(copy).toContain("Empieza gratis y configura tu academia");

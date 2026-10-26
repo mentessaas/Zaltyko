@@ -1,3 +1,4 @@
+import { readFileSync } from "node:fs";
 import { describe, expect, it } from "vitest";
 import { getComparisonSlugs } from "@/lib/seo/comparativas";
 import { getBlogSlugs } from "@/lib/seo/blog";
@@ -27,16 +28,6 @@ describe("sitemap coverage", () => {
     "/integraciones",
   ] as const;
 
-  const REQUIRED_MODULE_ROUTES = [
-    "/modules/gestion-atletas",
-    "/modules/clases-horarios",
-    "/modules/pagos-administracion",
-    "/modules/comunicacion",
-    "/modules/eventos-competiciones",
-    "/modules/dashboard-reportes",
-    "/modules/directorio-academias",
-  ] as const;
-
   // El sitemap se construye por composición de mapas en src/app/sitemap.ts.
   // Aquí verificamos que las constantes que el sitemap debe cubrir contienen
   // exactamente las rutas esperadas. Si en el futuro se añade una ruta
@@ -59,15 +50,7 @@ describe("sitemap coverage", () => {
     "/integraciones",
   ];
 
-  const sitemapModuleRoutes = [
-    "/modules/gestion-atletas",
-    "/modules/clases-horarios",
-    "/modules/pagos-administracion",
-    "/modules/comunicacion",
-    "/modules/eventos-competiciones",
-    "/modules/dashboard-reportes",
-    "/modules/directorio-academias",
-  ];
+  const sitemapModuleRoutes: string[] = [];
 
   it("cubre todas las rutas públicas requeridas", () => {
     for (const route of REQUIRED_PUBLIC_ROUTES) {
@@ -75,10 +58,10 @@ describe("sitemap coverage", () => {
     }
   });
 
-  it("cubre todas las rutas de módulos requeridas", () => {
-    for (const route of REQUIRED_MODULE_ROUTES) {
-      expect(sitemapModuleRoutes).toContain(route);
-    }
+  it("no indexa módulos históricos que redirigen a la versión esencial", () => {
+    const source = readFileSync("src/app/sitemap.ts", "utf8");
+    expect(source).not.toContain("/modules/");
+    expect(readFileSync("src/app/(site)/modules/layout.tsx", "utf8")).toContain('redirect("/features")');
   });
 
   it("no emite rutas de app privada (noindex, app, api, dashboard, super-admin, dev)", () => {

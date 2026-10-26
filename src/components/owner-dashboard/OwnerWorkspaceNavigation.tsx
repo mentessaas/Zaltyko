@@ -73,16 +73,6 @@ export function OwnerWorkspaceNavigation() {
       active: isRouteActive(pathname, "/owner/attendance"),
     },
     {
-      label: "Insights",
-      href: `/owner/insights${scopedQuery}`,
-      active: isRouteActive(pathname, "/owner/insights"),
-    },
-    {
-      label: "Capacidad",
-      href: `${dashboardHref}#capacity`,
-      active: false,
-    },
-    {
       label: "Cobros",
       href: isDashboardPreview
         ? "#metric-collection_rate"

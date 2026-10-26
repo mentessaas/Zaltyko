@@ -1048,6 +1048,18 @@ test.describe("Isolated local Supabase Owner setup", () => {
     await expect(dashboardLink).toBeVisible();
     await expect(dashboardLink).toHaveAttribute("href", `/owner?${scope}`);
 
+    await expect(primaryNavigation.getByRole("link", { name: /Insights|Capacidad|Health Score|Retención/i })).toHaveCount(0);
+    for (const viewport of [{ width: 375, height: 812 }, { width: 768, height: 1024 }, { width: 1280, height: 900 }]) {
+      await page.setViewportSize(viewport);
+      await expect(page.getByRole("region", { name: "Tu academia en marcha" })).toBeVisible();
+      expect(await page.evaluate(() => document.documentElement.scrollWidth > window.innerWidth)).toBe(false);
+      await expect(page.getByRole("navigation", { name: "Operaciones de la academia" }).getByRole("link", { name: "Cuotas mensuales" })).toBeVisible();
+    }
+    for (const path of ["insights", "health-score/setup"]) {
+      const retiredResponse = await page.request.get(`/owner/${path}?${scope}`);
+      expect(retiredResponse.status()).toBe(404);
+    }
+
     const persisted = await pool.query<{
       organization_name: string;
       location_name: string;

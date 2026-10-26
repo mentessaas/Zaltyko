@@ -15,6 +15,17 @@ source:
   - ../07-Auditorias-y-Riesgos/Auditoria MVP gimnasia - 2026-06-23.md
   - ../07-Auditorias-y-Riesgos/Registro de riesgos.md (bloqueantes con Elvis)
 ---
+## P0 vigente — apertura esencial España, 2026-10-26
+
+- Validar por commit el resumen esencial y superficies comerciales reducidas en CI remota y delivery. Sin builds/tests pesados en Mac.
+- Cerrar matriz finita de aislamiento, dos sedes, concurrencia, reintentos, ausencia de efectos parciales, Free30/3/10 y navegación375/768/1280.
+- Completar configuración productiva y Stripe Live con evidencia nueva, sin asumir que test o una lectura antigua lo acreditan.
+- Confirmar titular vendedor/NIF/domicilio, tratamiento fiscal y soporte. Usuario confirma importes base sin IVA; no aportó todavía identidad del vendedor ni confirmación de soporte. No cobrar hasta resolverlo.
+- Revisar superficies públicas históricas y módulos fuera de alcance antes de exponer un dominio productivo. El cambio actual retira navegación y embudos /modules/*; no certifica todo el contenido SEO heredado ni todos los handlers legacy.
+- Preservar ensayo natural: primer rechazo no equivale a agotamiento terminal. No forzar ni consultar sus recursos desde esta entrega.
+- Nuevas migraciones productivas requieren diff y autorización aparte; ninguna incluida en esta entrega.
+
+
 ## P0 — Cerrar el recorrido MVP publicado — 2026-10-14
 
 ## Cierre CI exacto — 2026-10-16, 08:10 UTC

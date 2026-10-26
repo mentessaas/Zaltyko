@@ -1,68 +1,30 @@
 import { NextResponse } from "next/server";
 
-const LLMS_CONTENT = `
-# Zaltyko - Software para Gestión de Academias de Gimnasia
+const LLMS_CONTENT = `# Zaltyko — Software para academias de gimnasia
 
-> Para el detalle completo de planes, copy aprobado y mensajes de marketing,
-> consulta también \`/llms-full.txt\` (la spec llms.txt recomienda ambos).
+Detalle: /llms-full.txt.
 
-## Descripción General
+Lanzamiento en España, español y euros.
+- Registro, consentimiento, confirmación y recuperación de cuenta.
+- Gimnastas, familias y responsables; alta, edición y archivo.
+- Grupos, clases, inscripciones y asistencia por sesión.
+- Cuotas familiares mensuales y registro manual de pagos.
+- Resumen calculado desde datos persistidos y navegación adaptable.
 
-Zaltyko es una plataforma especializada en la dirección de academias de gimnasia artística femenina, gimnasia artística masculina y gimnasia rítmica. La plataforma cubre gestión de gimnastas, grupos, horarios, cobros, eventos, familias y seguimiento técnico.
+Zaltyko no inicia cargos automáticos a las familias.
+La suscripción SaaS de la academia es independiente de esas cuotas.
+Health Score, retención, IA, marketplace y funciones avanzadas no forman parte de esta versión.
 
-## Estructura del Sitio
+Free: 30 gimnastas, 3 grupos y 10 clases activas.
+Starter: 19 €/mes o 190 €/año, hasta 75 gimnastas.
+Growth: 49 €/mes o 490 €/año, hasta 200 gimnastas.
+Precios sin IVA. Network desde 99 €/mes, contratación acompañada.
+Prueba de Starter de 7 días sin tarjeta, una por academia cada 12 meses.
+Al terminar el acceso se aplican límites Free: si hay excedente, solo lectura hasta archivar o contratar capacidad.
 
-### Páginas Principales
-- / - Homepage con información general
-- /pricing - Planes y precios
-- /academias - Directorio de academias
-- /features - Funcionalidades detalladas
-
-### Cluster Pages (Contenido Localizado)
-El sitio incluye páginas de cluster específicas por país y modalidad para artística y rítmica:
-
-**España:**
-- /es/gimnasia-artistica/espana - Gimnasia Artística en España
-- /es/gimnasia-ritmica/espana - Gimnasia Rítmica en España
-
-**México:**
-- /es/gimnasia-artistica/mexico
-- /es/gimnasia-ritmica/mexico
-
-**Argentina, Colombia, Chile, Perú:**
-- gimnasia artística y gimnasia rítmica para cada país
-
-**Contenido en Inglés:**
-- /en/* - Versiones en inglés de todas las páginas
-
-### Módulos de la Plataforma
-- /modules/gestion-atletas - Gestión de gimnastas federadas y federados
-- /modules/clases-horarios - Programación de clases
-- /modules/eventos-competiciones - Inscripciones a competiciones
-- /modules/pagos-administracion - Cobros y cuotas
-- /modules/comunicacion - Mensajería y notificaciones
-
-### Onboarding
-- /onboarding - Registro de nuevas academias
-- /onboarding/athlete - Registro como atleta
-- /onboarding/coach - Registro como entrenador
-
-## Datos de Contacto
-
-- Email: hola@zaltyko.com
-- Website: https://zaltyko.com
-- Social: Twitter (@zaltyko), LinkedIn (company/zaltyko), Instagram (@zaltyko)
-
-## Localización
-
-- Idiomas soportados: Español (es), Inglés (en)
-- Divisas: EUR (Europa), USD (Latinoamérica)
-- Federaciones deportivas integradas: RFEG (España), FMGM (México), CGG (Argentina), FCG (Colombia), FGCh (Chile), FPG (Perú)
-
-## Categorías De Gimnastas Soportadas
-
-- Gimnasia Artística: Base, Alevín, Infantil, Junior, Senior, Absoluta
-- Gimnasia Rítmica: Base, Preinfantil, Infantil, Juvenil, Senior
+Rutas: /, /features, /pricing, /faq, /ayuda, /auth/register?role=owner.
+Condiciones: /terminos. Privacidad: /politica-privacidad.
+Contacto: hola@zaltyko.com.
 `;
 
 export async function GET() {

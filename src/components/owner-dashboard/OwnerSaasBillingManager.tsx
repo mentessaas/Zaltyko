@@ -1004,6 +1004,7 @@ export function OwnerSaasBillingManager({
                         {priceSubtitle(code, interval)}
                       </span>
                     </p>
+                    <p className="mt-1 text-sm text-slate-600">Precios sin IVA.</p>
                     {interval === "year" ? (
                       <p className="mt-1 text-sm text-slate-600">
                         Pago anual por adelantado.

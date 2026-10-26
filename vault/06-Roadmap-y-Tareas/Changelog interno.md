@@ -12814,3 +12814,37 @@ La revisión del manifiesto detectó además que el hash registrado del fixture 
 ## 2026-10-25 — Callback de confirmación caducado y alta real de entregas
 
 Logs Auth del sandbox aeeootdmuiqkfeernskw a22:50:59UTC acreditan422 flow_state_expired en intercambio PKCE, tras confirmación auténtica del correo a22:50:57UTC. Se distingue esta caducidad del fallo genérico, conserva next sanitizado y muestra instrucción persistente de login/recuperación. No se amplían plazos ni se acepta sesión sin intercambio válido. Pruebas nuevas cubren caducidad, destino externo, error distinto y éxito; ejecución exclusivamente CI remota pendiente. La cuenta humana de entregas accede por contraseña y creó academia0242c134-872b-45ca-a2bf-c64ece52a15b mediante UI; no se usaron fixtures del ensayo. Preview aún474369ea; corrección no desplegada. Fuente docs/qa/delivery-email-callback-2026-10-25.md. Sin builds/tests locales ni cambios del ensayo.
+
+
+## 2026-10-26 — GitGuardian PR234 clasificado y reevaluado
+
+Se verificaron las ocurrencias exactas 38997039 (6b504e6, runner de rehearsal) y 38997394 (d64fe2d, workflow de rehearsal): contraseña sintética del PostgreSQL17.6 desechable de CI, destino exacto127.0.0.1:55432 y base zaltyko_canonical_rehearsal_ci. Guards rechazan destino distinto y credenciales externas. Ambas clasificadas individualmente en workspace835500 como Ignored / Test credential; no cambio de reglas ni desactivación de escaneo. No se rotó ninguna credencial real ni reescribió historia.
+
+Re-run exclusivamente GitGuardian mediante GitHub: check121324341418 SUCCESS,72 commits escaneados, sin hallazgos pendientes; HEADaac0c5e33bcb278f7f982cc59fa8f2c27f53495f intacto. CI40242556143,Static40242556127 y SQL sources40242556288 conservan SUCCESS. La PR sigue BLOCKED/REVIEW_REQUIRED porque main exige una aprobación externa con permiso write, dismiss_stale_reviews=true, sin codeowner obligatorio. Autor mentessaas; colaborador elvisvaldes tiene push/write. El revisor humano debe revisar Files changed y enviar Review changes / Approve / Submit review; no autoaprobación ni bypass. No se envió solicitud/mensaje a terceros.
+
+Sin builds/tests/servicios locales, deployments, consultas al ensayo ni cambios de producción. Corrección del callback aún no publicada en delivery. Captura /private/tmp/zaltyko-gitguardian-pass-20261026.png. Evidencia GitHub https://github.com/mentessaas/Zaltyko/runs/121324341418 . Esta nota local no se empuja para conservar el HEAD ya validado y evitar reejecutar toda la CI por documentación.
+
+
+### 2026-10-26 — Preview de entregas aprobada y publicada
+
+HEAD aac0c5e33 aprobado por elvisvaldes; PR234 abierta sin merge. Delivery alias apunta a dpl_8Noeoyp1AMAYu6XKowh8vYbw27uu READY.14 checks previos,225 pruebas,tipos,300 páginas,653 trazas/cero faltantes;health200 DB64,91ms. Dashboard QA autenticado releído:1 gimnasta,1 grupo,1 asistencia,1 pago manual sintético35EUR;capacidad1/10. Aviso visual callback no comprobado porque la sesión activa redirige al dashboard;sin nuevos correos. Health Score/retención pendientes.42 scopes temporales restaurados y verificados;readback env vacío no se presenta como evidencia. Producción y ensayo no tocados;sin builds locales. Evidencia externa: auditoria-2026-10-25/delivery-aac-deployment-20261026.json.
+
+
+### 2026-10-26 — Controles posteriores de entrega
+
+Navegación Owner solo lectura: dashboard/grupo2gimnastas y1grupo;inscripciones1activa;1asistencia/35EUR conservados. Cuotas sin familia/pagador/vencimiento no permite emitir. No se modificaron incorporaciones posteriores del usuario. Outbox sin filtro por organización y cierre global de insights impiden invocación segura con ensayo congelado: no se llamó ni activócron. Pendiente solución acotada yCIremota. Evidencia externa: delivery-post-release-checks-20261026.md. Sin código,despliegue,producción ni builds locales.
+
+
+## 2026-10-26 — Alcance de apertura pública esencial
+
+**Título:** primera versión para academias de gimnasia en España, español y EUR.
+
+**Hallazgos:** la portada, FAQs, ayuda y catálogo prometían capacidades avanzadas no acreditadas. El resumen Owner consultaba Health Score, retención y capacidad antes de mostrar actividad persistida. El manifiesto conservaba doce tareas programadas heredadas.
+
+**Fuente:** plan humano de apertura pública del 26 de octubre; código de esta rama a partir de aac0c5e33. Aprobación humana posterior: los importes de Starter/Growth son base sin IVA. La identidad fiscal del vendedor y el tratamiento aplicable siguen pendientes; no se deducen del hecho de cobrar una suscripción.
+
+**Cambios preparados:** publicar solo acceso, academia, gimnastas/familias, grupos/clases/inscripciones, asistencia, cuotas/pagos manuales y resumen. Health Score/Insights quedan sin navegación y sus páginas directas devuelven404. El resumen no consulta métricas avanzadas. Los embudos históricos /modules/* redirigen a /features y salen del sitemap. No se incluyen tareas programadas en el candidato. Se mantienen intactos contratos API, precios base, límites y esquema; no se activa un worker global.
+
+**Siguiente paso:** CI remota completa del nuevo commit, revisión externa vigente y comprobación en delivery con academias separadas; después controles productivos y comerciales. No equivale a un lanzamiento ni a validar producción. Se conserva el ensayo natural sin consultas ni escrituras en esta ronda.
+
+No se ejecutaron pruebas, instalaciones, servicios ni builds locales. Revisión estática y git diff --check sin errores. Nuevas pruebas cubren scope/denegaciones, resumen no disponible, navegación sin módulos avanzados, rutas retiradas y ausencia de crons; ejecución pendiente de CI remota. No hay migraciones ni cambios de credenciales.

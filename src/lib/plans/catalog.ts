@@ -63,9 +63,9 @@ export const PRODUCT_PLANS: ProductPlan[] = [
     checkoutMode: "self-serve",
     features: [
       "Hasta 75 gimnastas · 1 academia",
-      "Gestión de cuotas, registro manual de pagos y reportes básicos",
-      "Portal familiar limitado: horarios, avisos, progreso publicado y cuotas",
-      "Comunicación interna con familias",
+      "Familias, grupos, clases e inscripciones",
+      "Asistencia y cuotas mensuales con pagos manuales",
+      "Resumen de actividad y cobros registrados",
     ],
   },
   {
@@ -90,8 +90,8 @@ export const PRODUCT_PLANS: ProductPlan[] = [
     features: [
       "Hasta 200 gimnastas · 1 academia",
       "Todo lo de Starter",
-      "Reportes ejecutivos y automatizaciones (el cobro familiar automático aún no está disponible)",
-      "Soporte prioritario",
+      "10 grupos y 40 clases activas",
+      "Cuotas y pagos familiares con registro manual",
     ],
   },
   {
@@ -100,7 +100,7 @@ export const PRODUCT_PLANS: ProductPlan[] = [
     internalName: "Network",
     priceEurCents: 9900,
     description:
-      "Para academias multi-sede o equipos que necesitan límites amplios y soporte prioritario.",
+      "Para academias multi-sede con límites amplios y puesta en marcha acompañada.",
     shortDescription: "Multi-sede con onboarding acompañado",
     athleteLimit: null,
     groupLimit: null,
@@ -113,8 +113,8 @@ export const PRODUCT_PLANS: ProductPlan[] = [
       "Gimnastas ilimitadas",
       "Multi-sede con onboarding acompañado",
       "Grupos y clases ilimitados",
-      "Reportes de dirección",
-      "Soporte prioritario",
+      "Operativa y resumen por sede",
+      "Alcance y puesta en marcha acordados por contacto",
     ],
   },
 ];

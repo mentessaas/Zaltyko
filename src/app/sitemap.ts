@@ -26,21 +26,21 @@ export const revalidate = 0;
 // freshness. Sin este mapa el sitemap marcaba TODO como modificado hoy, lo que
 // diluía la señal.
 const PUBLIC_LAST_UPDATED: Record<string, string> = {
-  "/": "2026-09-18",
-  "/features": "2026-09-18",
-  "/pricing": "2026-09-18",
+  "/": "2026-10-26",
+  "/features": "2026-10-26",
+  "/pricing": "2026-10-26",
   "/academias": "2026-09-15",
   "/coaches": "2026-09-12",
   "/marketplace": "2026-09-10",
   "/empleo": "2026-09-15",
   "/events": "2026-09-12",
-  "/faq": "2026-09-18",
+  "/faq": "2026-10-26",
   "/contact": "2026-08-20",
-  "/ayuda": "2026-09-10",
+  "/ayuda": "2026-10-26",
   "/sobre-nosotros": "2026-08-25",
   "/terminos": "2026-07-15",
   "/politica-privacidad": "2026-07-15",
-  "/integraciones": "2026-08-30",
+  "/integraciones": "2026-10-26",
   "/comparativas": "2026-09-18",
   "/blog": "2026-09-18",
 };
@@ -63,16 +63,6 @@ async function loadBlogPostDates(): Promise<BlogPostDate[]> {
   return out;
 }
 
-const MODULE_LAST_UPDATED: Record<string, string> = {
-  "/modules/gestion-atletas": "2026-09-10",
-  "/modules/clases-horarios": "2026-09-10",
-  "/modules/pagos-administracion": "2026-09-10",
-  "/modules/comunicacion": "2026-09-10",
-  "/modules/eventos-competiciones": "2026-09-10",
-  "/modules/dashboard-reportes": "2026-09-10",
-  "/modules/directorio-academias": "2026-09-10",
-};
-
 const CLUSTER_LAST_UPDATED = "2026-09-10";
 
 const PUBLIC_ROUTES = [
@@ -91,16 +81,6 @@ const PUBLIC_ROUTES = [
   "/terminos",
   "/politica-privacidad",
   "/integraciones",
-] as const;
-
-const MODULE_ROUTES = [
-  "/modules/gestion-atletas",
-  "/modules/clases-horarios",
-  "/modules/pagos-administracion",
-  "/modules/comunicacion",
-  "/modules/eventos-competiciones",
-  "/modules/dashboard-reportes",
-  "/modules/directorio-academias",
 ] as const;
 
 const CLUSTER_LOCALES: Locale[] = ["es", "en"];
@@ -126,13 +106,6 @@ export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
     lastModified: parseLastUpdated(PUBLIC_LAST_UPDATED[path], today),
     changeFrequency: "weekly" as const,
     priority: path === "/" ? 1 : 0.8,
-  }));
-
-  const moduleRoutes = MODULE_ROUTES.map((path) => ({
-    url: `${baseUrl}${path}`,
-    lastModified: parseLastUpdated(MODULE_LAST_UPDATED[path], today),
-    changeFrequency: "monthly" as const,
-    priority: 0.6,
   }));
 
   const clusterLastModified = parseLastUpdated(CLUSTER_LAST_UPDATED, today);
@@ -218,7 +191,6 @@ export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
 
   return [
     ...routes,
-    ...moduleRoutes,
     ...localizedHomepages,
     ...modalityPages,
     ...clusterPages,

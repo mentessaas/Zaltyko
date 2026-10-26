@@ -10,9 +10,6 @@ import { cn } from "@/lib/utils";
 import { buttonVariants } from "@/components/ui/button";
 
 const links = [
-  { href: "/academias", label: "Academias" },
-  { href: "/events", label: "Eventos" },
-  { href: "/blog", label: "Blog" },
   { href: "/features", label: "Producto" },
   { href: "/pricing", label: "Precios" },
   { href: "/ayuda", label: "Ayuda" },

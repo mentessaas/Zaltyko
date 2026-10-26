@@ -69,6 +69,7 @@ describe("Owner dashboard navigation", () => {
     const desktopNavigation = screen.getByRole("navigation", {
       name: "Principal",
     });
+    expect(within(desktopNavigation).queryByRole("link", { name: /Insights|Capacidad|Health Score|Retención/i })).not.toBeInTheDocument();
     expect(
       within(desktopNavigation).getByRole("link", { name: "Resumen" })
     ).toHaveAttribute("aria-current", "page");
@@ -115,10 +116,10 @@ describe("Owner dashboard navigation", () => {
 
     fireEvent.click(within(mobileNavigation).getByText("Más"));
     expect(
-      within(mobileNavigation).getByRole("link", { name: "Insights" })
+      within(mobileNavigation).getByRole("link", { name: "Gimnastas" })
     ).toHaveAttribute(
       "href",
-      `/owner/insights?organizationId=${organizationId}&locationId=${locationId}`
+      `/owner/athletes?organizationId=${organizationId}`
     );
     expect(
       within(mobileNavigation).getByRole("link", { name: "Cobros" })
@@ -129,14 +130,14 @@ describe("Owner dashboard navigation", () => {
   });
 
   it("marks the current module and keeps its academy and location scope", () => {
-    routeState.pathname = "/owner/insights";
+    routeState.pathname = "/owner/classes";
     renderOwnerWorkspace();
 
     const desktopNavigation = screen.getByRole("navigation", {
       name: "Principal",
     });
     expect(
-      within(desktopNavigation).getByRole("link", { name: "Insights" })
+      within(desktopNavigation).getByRole("link", { name: "Clases" })
     ).toHaveAttribute("aria-current", "page");
     expect(
       within(desktopNavigation).getByRole("link", { name: "Resumen" })
