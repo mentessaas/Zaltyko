@@ -326,6 +326,14 @@ jobs:
       - name: Install dependencies
         run: pnpm install --frozen-lockfile
 
+      # The Azure Ubuntu mirror exhausted this job's 30m budget while fetching
+      # WebKit OS packages. Keep the full dependency install and signed sources.
+      - name: Verify isolated runner APT source preparation
+        run: python3 scripts/ci/test_prepare_playwright_apt.py
+
+      - name: Use primary Ubuntu archive for browser dependencies
+        run: sudo env GITHUB_ACTIONS=true python3 scripts/ci/prepare_playwright_apt.py
+
       - name: Install Playwright browser
         run: pnpm exec playwright install --with-deps "${{ matrix.project }}"
 

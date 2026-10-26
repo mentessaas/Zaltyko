@@ -10,6 +10,10 @@ source:
 
 ## 2026-10-26 — Segunda academia de entregas y aislamiento autenticado
 
+Corrección CI autorizada: WebKit de a390841d agotó30min descargando dependencias Ubuntu desde azure.archive.ubuntu.com; no llegó a ejecutar pruebas. Preparación del runner cambia únicamente URI de ese mirror a https://archive.ubuntu.com/ubuntu, conservando Signed-By, suites, componentes y security.ubuntu.com. Tres pruebas sintéticas se ejecutarán en CI, no en Mac. Instalación Playwright --with-deps, matriz de tres navegadores, límite30min y gates intactos. Sin deployment ni consultas al ensayo/producción. Pendiente resultado remoto del nuevo commit.
+
+Ampliación de evidencia alojada: cinco escrituras cruzadas rechazadas (grupos en ambos sentidos, sede/actividad ajenas y clase con sede ajena). Comparación79 tablas por academia antes/después de cada intento: sin cambios de negocio; tres adiciones audit_log de acceso denegado verificadas aparte, hashes previos intactos al excluir solo esas filas. Fuente durable externa: /Users/elvisvaldesinerarte/projects/Zaltyko/auditorias/2026-10-26/delivery-cross-write-e09.md. Runtimee09, no nuevo deployment. CIa390841d pasa build/tipos/lint/seguridad/SQL/móvil/Chromium; unitarias y otros navegadores pendientes al corte. Nota de evidencia conservada localmente sin cambiar head ni cancelar esa CI.
+
 QA B creada desde alta humana y correo real; callback normal abre setup y academia independiente sin trial. Lecturas de uso propias200 y ajenas404 en ambos sentidos; grupos/clases ajenos403. Clases y opciones de cuotas propias200, mezcla de sede ajena403 en ambos sentidos. No acredita escrituras cruzadas ni permisos por sede dentro de una misma academia. Fuente: docs/qa/delivery-academy-isolation-2026-10-26.md. Ensayo y producción intactos, ninguna prueba/build local. CI d6:5144 unitarias PASS y una expectativa antigua del directorio falla; se corrige esa expectativa, dos regresiones nuevas PASS. Navegadores restantes pendientes al corte, no se declara CI verde ni despliegue nuevo.
 
 ## 2026-10-26 — Entrada pública de registro limitada al MVP
