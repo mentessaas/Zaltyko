@@ -480,7 +480,7 @@ export async function middleware(req: NextRequest) {
   if (isOutsideEssentialLaunch(pathname)) {
     const response = new NextResponse(null, { status: 404 });
     response.headers.set("Cache-Control", "no-store");
-    response.headers.set("X-Robots-Tag", "noindex, nofollow");
+    response.headers.set("X-Robots-Tag", "noindex, nofollow, noarchive");
     return applySecurityHeaders(response, nonce);
   }
   if (isRetiredLaunchMarketing(pathname)) {

@@ -228,18 +228,19 @@ describe("middleware", () => {
     expect(response.headers.get("x-middleware-next")).toBe("1");
   });
 
-  it("keeps the canonical public route /sobre-nosotros unlocalized", async () => {
+  it("withdraws the historical company story without localizing or forwarding parameters", async () => {
     const response = await middleware(
       new NextRequest("https://zaltyko.test/sobre-nosotros", {
         headers: { "accept-language": "en-US" },
       })
     );
 
-    expect(response.headers.get("location")).toBeNull();
-    expect(response.headers.get("x-middleware-next")).toBe("1");
+    expect(response.status).toBe(307);
+    expect(response.headers.get("location")).toBe("https://zaltyko.test/features");
+    expect(response.headers.get("x-middleware-next")).toBeNull();
   });
 
-  it("keeps SEO cluster routes localized", async () => {
+  it("sends historical SEO clusters to the essential Spanish capabilities", async () => {
     const response = await middleware(
       new NextRequest("https://zaltyko.test/gimnasia-artistica/espana", {
         headers: { "accept-language": "es-ES" },
@@ -248,7 +249,7 @@ describe("middleware", () => {
 
     expect(response.status).toBe(307);
     expect(response.headers.get("location")).toBe(
-      "https://zaltyko.test/es/gimnasia-artistica/espana"
+      "https://zaltyko.test/features"
     );
   });
 });
