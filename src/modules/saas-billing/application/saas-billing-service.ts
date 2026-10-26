@@ -14,6 +14,7 @@ import {
 } from "@/db/zaltyko-schema";
 import type { TransactionClient } from "@/lib/db-transactions";
 import { getAppUrl, getDatabaseUrl } from "@/lib/env";
+import { isSaasCheckoutEnabled } from "@/lib/launch/commercial-launch-profile";
 import { OperationalError } from "@/modules/shared/domain/operational-error";
 import type { OwnerSaasBillingSnapshot } from "../domain/owner-saas-contract";
 import {
@@ -230,12 +231,12 @@ export async function getOwnerSaasBillingSnapshot(input: {
       actions: {
         canStartTrial: trialEligible && !quarantinedEvent,
         canCheckoutStarter:
-          Boolean(config) &&
+          Boolean(config && isSaasCheckoutEnabled(config.environment)) &&
           !isPaid &&
           !hasOpenSubscription &&
           !pendingOperation && !quarantinedEvent,
         canCheckoutGrowth:
-          Boolean(config) &&
+          Boolean(config && isSaasCheckoutEnabled(config.environment)) &&
           !isPaid &&
           !hasOpenSubscription &&
           !pendingOperation && !quarantinedEvent,
@@ -426,6 +427,8 @@ export async function createOwnerSaasCheckout(input: {
 }> {
   const config = getSaasStripeConfig();
   if (!config) throw providerConfigUnavailable();
+  // Reject before reserving a DB operation, creating a customer or calling Stripe.
+  if (!isSaasCheckoutEnabled(config.environment)) throw providerConfigUnavailable();
   const stripe = createSaasStripeClient(config);
   const checkoutIdentity: ShortPaidCheckoutIdentity = {
     organizationId: input.organizationId,

@@ -12848,3 +12848,8 @@ Navegación Owner solo lectura: dashboard/grupo2gimnastas y1grupo;inscripciones1
 **Siguiente paso:** CI remota completa del nuevo commit, revisión externa vigente y comprobación en delivery con academias separadas; después controles productivos y comerciales. No equivale a un lanzamiento ni a validar producción. Se conserva el ensayo natural sin consultas ni escrituras en esta ronda.
 
 No se ejecutaron pruebas, instalaciones, servicios ni builds locales. Revisión estática y git diff --check sin errores. Nuevas pruebas cubren scope/denegaciones, resumen no disponible, navegación sin módulos avanzados, rutas retiradas y ausencia de crons; ejecución pendiente de CI remota. No hay migraciones ni cambios de credenciales.
+
+
+## 2026-10-26 — Preparación del futuro autónomo sin afirmar un alta inexistente
+
+Declaración humana: Elvis Valdes Inerarte, futuro autónomo en España, alta todavía pendiente; hola@zaltyko.com oficial. Perfil único con NIF/domicilio vacíos y verificaciones independientes pendientes. Términos y privacidad muestran futuro titular y contratación aún cerrada; se retiran plazos comerciales heredados no acreditados. Servicio y acciones Owner bloquean Checkout Live antes de efectos mientras falte cierre; test, Portal y eventos conservados. Pruebas nuevas de rechazo sin reservas/proveedor y condiciones independientes; solo ejecución remota pendiente. Sin migraciones, cambios de credenciales, consultas al ensayo, despliegues ni builds/tests locales. Guía docs/deployment/spain-seller-activation-2026-10-26.md y Pricing/Decisiones/Backlog actualizados.

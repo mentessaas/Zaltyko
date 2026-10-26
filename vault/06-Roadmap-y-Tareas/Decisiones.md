@@ -8,6 +8,14 @@ source:
 
 # Decisiones
 
+## 2026-10-26 — Vendedor previsto y contratación Live cerrada durante el alta
+
+**Hallazgo/fuente:** Elvis confirma que venderá como autónomo en España, pero todavía no ha formalizado el alta; nombre Elvis Valdes Inerarte y correo oficial hola@zaltyko.com. Precios base sin IVA. No aporta NIF ni domicilio profesional.
+
+**Decisión/importancia:** preparar un perfil único y textos con estado de preparación, sin afirmar alta efectiva. Checkout Live se rechaza antes de reservar operaciones o llamar al proveedor hasta acreditar alta, identidad, buzón operativo, fiscalidad, cálculo del impuesto, textos y apertura. Completar datos no habilita cargos automáticamente. Portal/webhooks y Stripe test se conservan. No configurar impuestos automáticos ni usar datos ficticios.
+
+**Siguiente paso:** CI/revisión del cambio y completar solo con los datos reales tras el alta. El contrato fiscal de Checkout sigue pendiente de implementación específica y prueba. Guía docs/deployment/spain-seller-activation-2026-10-26.md. No cambio productivo ni del ensayo.
+
 ## 2026-10-25 — Reunir dependencias y MVP conservando ambos historiales
 
 - Integrar la rama de PR #236 en #234 sin rebase ni force-push. Mantener las

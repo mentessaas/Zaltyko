@@ -12,6 +12,7 @@ const footerLinks = {
     { label: "Iniciar sesión", href: "/auth/login" },
   ],
   legal: [
+    { label: "Identificación del titular", href: "/terminos#titular" },
     { label: "Términos del servicio", href: "/terminos" },
     { label: "Política de privacidad", href: "/politica-privacidad" },
     { label: "Cookies", href: "/politica-privacidad#cookies" },

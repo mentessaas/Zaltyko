@@ -19,6 +19,8 @@ La promesa se limita a gimnastas/familias, grupos/clases/inscripciones, asistenc
 
 ## Fuente de verdad comercial
 
+Actualización humana26oct2026: vendedor previsto Elvis Valdes Inerarte, futuro autónomo en España; alta todavía pendiente. Correo oficial hola@zaltyko.com confirmado por el titular, no prueba de entrega. NIF/domicilio/territorio y tratamiento fiscal pendientes. Perfil único en src/lib/launch/commercial-launch-profile.ts y guía docs/deployment/spain-seller-activation-2026-10-26.md. Contratación Live bloqueada hasta alta, datos, soporte operativo, contrato fiscal probado, textos y publicación aprobados; test no cambia. No hay impuestos automáticos ni modificación del catálogo.
+
 Esta nota debe revisarse antes de cambiar landing, checkout, limites de plan o discurso de ventas.
 
 ## Planes documentados

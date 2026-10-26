@@ -83,6 +83,17 @@ beforeEach(() => {
 });
 
 describe("Checkout reservation guards with isolated dependencies", () => {
+  it("rejects Live before provider calls or partial database reservations while seller setup is pending", async () => {
+    mocks.config.mockReturnValue({ environment: "live", providerAccountReference: "acct_synthetic" });
+    await expect(createOwnerSaasCheckout(input)).rejects.toMatchObject({
+      status: 503, details: { code: "BILLING_CONFIGURATION_UNAVAILABLE" },
+    });
+    expect(mocks.transaction).not.toHaveBeenCalled();
+    expect(mocks.provider).not.toHaveBeenCalled();
+    expect(insert).not.toHaveBeenCalled();
+    expect(update).not.toHaveBeenCalled();
+    expect(mocks.dbUpdate).not.toHaveBeenCalled();
+  });
   it("retries the same provider key after session creation succeeds but local saving fails", async () => {
     const operation = { id: "operation", organizationId, planCode: "starter", billingInterval: "month", requestHash,
       status: "recovery_required", checkoutSessionReference: null, createdAt: new Date(at.getTime() - 60000),

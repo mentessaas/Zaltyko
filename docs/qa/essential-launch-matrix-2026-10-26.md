@@ -30,7 +30,7 @@ Base de trabajo aac0c5e33bcb278f7f982cc59fa8f2c27f53495f, rama codex/mvp-main-br
 
 ## Bloqueos concretos antes de cobrar
 
-Identidad del vendedor (autónomo/sociedad, NIF y domicilio), fiscalidad aplicable y precio final, condiciones/privacy y correo de soporte operativo. No se inventan ni se deducen de Stripe test. Usuario confirmó precios sin IVA; no confirmó los otros datos. Revalidar configuración Live propia y DNS/DB/TLS/Auth/correo/Redis/observabilidad sin heredar sandbox. Primera venta auténtica, sin compras reales de prueba.
+Actualización humana26oct: futuro vendedor Elvis Valdes Inerarte como autónomo en España, alta aún pendiente; hola@zaltyko.com confirmado como correo oficial, entrega/respuesta no verificadas. Faltan NIF/domicilio, alta efectiva, fiscalidad aplicable y precio final y revisión de condiciones/privacy. Precios base sin IVA. Perfil único y borradores preparados en `src/lib/launch/commercial-launch-profile.ts`; Checkout Live bloqueado antes de operaciones parciales mientras falten comprobaciones. Ver [activación del vendedor](../deployment/spain-seller-activation-2026-10-26.md). Revalidar configuración Live propia y DNS/DB/TLS/Auth/correo/Redis/observabilidad sin heredar sandbox. Primera venta auténtica, sin compras reales de prueba.
 
 Fuentes oficiales consultadas26oct2026: [LSSI art10](https://www.boe.es/buscar/act.php?id=BOE-A-2002-13758#a10), [facturación art6](https://www.boe.es/buscar/act.php?id=BOE-A-2012-14696#a6), [AEAT tipos IVA](https://www3.agenciatributaria.gob.es/Sede/iva/calculo-iva-repercutido-clientes/tipos-impositivos-iva.html). El tipo general21% es referencia, no resolución fiscal del vendedor o cualquier operación.
 

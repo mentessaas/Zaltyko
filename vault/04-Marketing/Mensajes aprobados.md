@@ -120,3 +120,8 @@ Usar en entrevistas, demos manuales y documentos internos; no publicar como prom
 ## Regla
 
 Todo cambio de copy publico debe revisarse contra [[Inventario de producto]] y [[Pricing]].
+
+
+### Vendedor y precios — declaración humana26oct2026
+
+Promotor y futuro titular: Elvis Valdes Inerarte, España; no afirmar alta de autónomo hasta que sea efectiva. Correo oficial hola@zaltyko.com (recepción/respuesta pendiente de comprobación). Precios base sin IVA. Información legal aún en preparación y contratación Live cerrada; nunca publicar NIF/domicilio ficticios ni totales fiscales no confirmados.

@@ -1219,3 +1219,8 @@ Catálogo remoto autorizadoMain15oct: prod no tiene namespaceszaltyko/domain_pri
 ## 2026-10-25 — Guard de contacto en waitlist canónica (antes de exponerla)
 
 Auditoría estática: `assertGuardianCanContactAthlete` en waitlist-service valida vínculo familiar sin comprobar starts_on efectivo, actividad de familia/tutor ni ancla operativa en sede destino. No se localizó caller de joinWaitlist en rutas de app: explotación pública NO VERIFICADA; no se afirma envío de correo. Antes de conectar esa lista, pasar locationId al guard y exigir relación vigente por fecha civil de sede, familia/tutor activos y vínculo operativo exacto, con positivos y rechazos nativosPG/snapshots sin parciales. No se amplía la lista de espera dentro de esta entrega del MVP.
+
+
+## 2026-10-26 — Cierre fiscal del vendedor antes de Live
+
+Elvis Valdes Inerarte prevé alta como autónomo en España, aún pendiente. Completar NIF/domicilio/alta efectiva y confirmar territorio/tratamiento fiscal; comprobar recepción/respuesta de hola@zaltyko.com, cerrar términos/privacidad/encargo e implementar impuesto e importe final de Checkout antes de abrir. El perfil comercial bloquea Live en servidor y acciones, conserva test/Portal/eventos firmados. No marcar verificaciones solo por rellenar datos. Guía docs/deployment/spain-seller-activation-2026-10-26.md. CI remota del cambio pendiente; sin despliegue productivo.
