@@ -1224,3 +1224,11 @@ Auditoría estática: `assertGuardianCanContactAthlete` en waitlist-service vali
 ## 2026-10-26 — Cierre fiscal del vendedor antes de Live
 
 Elvis Valdes Inerarte prevé alta como autónomo en España, aún pendiente. Completar NIF/domicilio/alta efectiva y confirmar territorio/tratamiento fiscal; comprobar recepción/respuesta de hola@zaltyko.com, cerrar términos/privacidad/encargo e implementar impuesto e importe final de Checkout antes de abrir. El perfil comercial bloquea Live en servidor y acciones, conserva test/Portal/eventos firmados. No marcar verificaciones solo por rellenar datos. Guía docs/deployment/spain-seller-activation-2026-10-26.md. CI remota del cambio pendiente; sin despliegue productivo.
+
+
+## 2026-10-26 — Gates alojados restantes sobre candidato definitivo
+
+- Completar segundo registro QA de entregas con contraseña/consentimiento humanos y confirmar correo; no reutilizar usuarios ni academias del ensayo. Mantener pendientes matriz alojada dos academias/dos sedes, denegaciones y recuperación sobre candidato definitivo.
+- Completar aceptación visual375/768/1280: geometría correcta no sustituye revisión visual cuando la captura tiene escala distinta.
+- Defecto menor reproducido: enlace residual del directorio retirado en registro con flagfalse; guard y regresiones preparados, pendientes CI/revisión/publicación.
+- Mantener cierre fiscal/Live y primera academia externa como gates independientes; los rechazos Free sin parciales de e09 no equivalen a producción.

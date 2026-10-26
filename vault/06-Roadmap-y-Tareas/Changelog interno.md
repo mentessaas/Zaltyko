@@ -12875,3 +12875,10 @@ Revisión externa y CI exactas aprobadas. Entregas ahora dpl_9C1oMxrJiGSRWpNDVQS
 ## 2026-10-26 — Cuota existente con diagnóstico preciso
 
 Hallazgo en delivery1536f814: emisión QA35EUR correcta, pero PERIOD_ALREADY_INVOICED no tenía etiqueta y mostraba un supuesto dato de inscripción incorrecto. Se traducen los dos motivos de factura existente/anulada y el encabezado pasa a Revisa el estado de la cuota; no cambian canIssue, idempotencia, API, SQL ni emisión. Verificación alojada previa: pago parcial10EUR/saldo25 persistido tras recarga; exceso25,01 rechazado por formulario; segundo pago25 liquida; resumen3cobros70EUR con histórico35. No se presenta como snapshot SQL alojado ni prueba HTTP del rechazo. Corrección de textos pendiente CI remota/revisión; sin pruebas ni builds locales.
+
+
+## 2026-10-26 — Validación alojada e09 y enlace de directorio residual
+
+Delivery e09: asistencia guardada/releída, dashboard30gimnastas/3grupos/1asistencia/3pagos sintéticos70EUR, cuota35EUR ya emitida bloquea duplicado. Gimnasta31,grupo4,clase11 rechazados por UI:18 tablas comparadas antes/después de cada intento sin diferencias. Solo academia de entregas; no ensayo ni producción. Geometría375/768/1280 sin overflow, aceptación visual completa pendiente por diferencia de escala de capturas.
+
+El formulario público aún renderiza Buscar academias públicas aunque discovery está apagado. Se condiciona el bloque a la bandera explícita y se añaden regresiones de render real con bandera false/true; sin cambiar consentimiento, API, SQL ni auth. CI remota del parche pendiente; e09 publicado intacto. Segundo registro QA preparado, requiere contraseña y aceptación humanas. Evidencia docs/qa/delivery-authenticated-e09f8acc-2026-10-26.md; cero builds/tests locales.

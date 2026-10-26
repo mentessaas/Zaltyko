@@ -90,6 +90,33 @@ async function completeOwnerRegistration(
 }
 
 describe("registro Owner ante fallos de red", () => {
+  it("no ofrece un directorio deshabilitado en el alta esencial", () => {
+    render(
+      <RegisterForm
+        ownerEntry
+        ownerConsentPolicyVersion={ownerConsentPolicyVersion}
+        directoryDiscoveryEnabled={false}
+        directoryClaimsEnabled={false}
+      />
+    );
+    expect(screen.queryByRole("link", { name: "Buscar academias públicas" })).not.toBeInTheDocument();
+    expect(screen.queryByText(/Búscala antes de crear otro espacio/)).not.toBeInTheDocument();
+    expect(screen.getByRole("button", { name: "Crear cuenta", exact: true })).toBeEnabled();
+  });
+
+  it("conserva la búsqueda solo cuando el directorio está habilitado explícitamente", () => {
+    render(
+      <RegisterForm
+        ownerEntry
+        ownerConsentPolicyVersion={ownerConsentPolicyVersion}
+        directoryDiscoveryEnabled
+        directoryClaimsEnabled={false}
+      />
+    );
+    expect(screen.getByRole("link", { name: "Buscar academias públicas" })).toHaveAttribute("href", "/academias");
+    expect(screen.queryByText(/reclamación gratuita/)).not.toBeInTheDocument();
+  });
+
   it("un next del directorio no cambia el alta Owner ni omite su consentimiento", async () => {
     const previousUrl = window.location.href;
     window.history.replaceState({}, "", "/auth/register?next=%2Facademias%2Fqa");

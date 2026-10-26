@@ -525,7 +525,7 @@ export function RegisterForm({
               </button>
             ))}
           </div>}
-          {role === "owner" && !directoryRegistration && (
+          {role === "owner" && !directoryRegistration && directoryDiscoveryEnabled && (
             <div className="rounded-lg border border-zaltyko-teal/30 bg-zaltyko-teal/5 px-3 py-2 text-xs text-muted-foreground">
               <span className="font-semibold text-foreground">¿Tu academia ya está en Zaltyko?</span> Búscala antes de crear otro espacio.
               <p className="mt-2">
