@@ -101,6 +101,7 @@ const managerBundle = {
 
 beforeEach(() => {
   vi.clearAllMocks();
+  mocks.fetch.mockReset();
   window.sessionStorage.clear();
   vi.stubGlobal("fetch", mocks.fetch);
   vi.stubGlobal("crypto", { randomUUID: () => "40000000-0000-4000-8000-000000000099" });
@@ -194,12 +195,13 @@ describe("asociación familiar desde una pertenencia Owner", () => {
     const families = scenario === "other-athlete"
       ? [{ ...incomplete, athletes: [{ athleteId: membershipId, athleteName: "Otra gimnasta" }] }]
       : scenario === "ambiguous" ? [incomplete, { ...incomplete, familyId: otherPayerId }] : [incomplete];
-    mocks.fetch.mockResolvedValueOnce(response(200, { ok: true, data: { families } }));
+    if (scenario !== "scoped") mocks.fetch.mockResolvedValueOnce(response(200, { ok: true, data: { families } }));
     const user = userEvent.setup();
     render(<OwnerAthleteFamilyAssociationEditor {...editorProps({ allowExistingFamilies: scenario !== "scoped" })} />);
     await user.click(screen.getByRole("button", { name: "Vincular familia a Ana García" }));
     await screen.findByRole("region", { name: "Asociar familia" });
     if (scenario !== "scoped") await screen.findByText(/No hay familias activas/);
+    else expect(mocks.fetch).not.toHaveBeenCalled();
     expect(screen.queryByRole("radio", { name: "Completar la familia actual de esta gimnasta" })).not.toBeInTheDocument();
     expect(mocks.fetch.mock.calls.filter(([, init]) => init?.method === "POST")).toHaveLength(0);
   });
