@@ -8,6 +8,10 @@ source:
 ---
 
 
+## 2026-10-26 — Segunda academia de entregas y aislamiento autenticado
+
+QA B creada desde alta humana y correo real; callback normal abre setup y academia independiente sin trial. Lecturas de uso propias200 y ajenas404 en ambos sentidos; grupos/clases ajenos403. Clases y opciones de cuotas propias200, mezcla de sede ajena403 en ambos sentidos. No acredita escrituras cruzadas ni permisos por sede dentro de una misma academia. Fuente: docs/qa/delivery-academy-isolation-2026-10-26.md. Ensayo y producción intactos, ninguna prueba/build local. CI d6:5144 unitarias PASS y una expectativa antigua del directorio falla; se corrige esa expectativa, dos regresiones nuevas PASS. Navegadores restantes pendientes al corte, no se declara CI verde ni despliegue nuevo.
+
 ## 2026-10-26 — Entrada pública de registro limitada al MVP
 
 Revisión estática encontró que `/auth/register` sin role=owner seguía ofreciendo proveedores y marketplace, excluidos por el alcance humano de apertura. La página ahora fija ownerEntry y deshabilita las opciones del directorio; metadata y mensaje de bienvenida describen academia/gimnastas/cuotas manuales. Un next histórico de directorio no puede cambiar el flujo Owner ni omitir el handoff de consentimiento. No se cambian login, usuarios existentes, contratos/API de otros roles, esquema, Auth remoto ni fixtures del ensayo. Pruebas añadidas: página Owner con política disponible/no disponible y formulario con next de directorio conservando metadatos/consentimiento/callback Owner. Ejecución exclusivamente remota pendiente; no tests ni builds locales. Precios intactos. Mensajes aprobados revisados y actualizados.

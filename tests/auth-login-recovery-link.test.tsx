@@ -71,17 +71,17 @@ describe("enlace de recuperación en el login activo", () => {
     expect(screen.getByLabelText("Contraseña")).toBeVisible();
   });
 
-  it("permite consultar academias públicas antes del alta aunque el catálogo externo siga apagado", () => {
+  it("no ofrece academias públicas cuando el directorio está apagado", () => {
     render(<RegisterForm />);
 
     expect(
-      screen.getByRole("link", {
+      screen.queryByRole("link", {
         name: "Buscar academias públicas",
       })
-    ).toHaveAttribute("href", "/academias");
+    ).not.toBeInTheDocument();
     expect(
-      screen.getByText(/Solo aparecen fichas públicas/)
-    ).toBeVisible();
+      screen.queryByText(/Solo aparecen fichas públicas/)
+    ).not.toBeInTheDocument();
     expect(
       screen.queryByText(/solicitar su reclamación gratuita/)
     ).not.toBeInTheDocument();

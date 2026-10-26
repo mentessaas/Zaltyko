@@ -17,6 +17,7 @@ source:
 ---
 ## P0 vigente — apertura esencial España, 2026-10-26
 
+- Aislamiento alojado e09: dos academias independientes, lecturas propias200/ajenas403-404 y mezcla de sedes ajenas403 comprobadas en uso, grupos, clases y opciones de cuotas según matriz. Pendientes escrituras cruzadas, candidatos de inscripción completos y roles restringidos entre sedes de una misma academia. Fuente docs/qa/delivery-academy-isolation-2026-10-26.md.
 - Validar por commit el resumen esencial y superficies comerciales reducidas en CI remota y delivery. Sin builds/tests pesados en Mac.
 - Cerrar matriz finita de aislamiento, dos sedes, concurrencia, reintentos, ausencia de efectos parciales, Free30/3/10 y navegación375/768/1280.
 - Completar configuración productiva y Stripe Live con evidencia nueva, sin asumir que test o una lectura antigua lo acreditan.
