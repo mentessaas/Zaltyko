@@ -36,4 +36,12 @@ Fuentes oficiales consultadas26oct2026: [LSSI art10](https://www.boe.es/buscar/a
 
 ## Próximo gate
 
-Commit y CI remota completa, revisión externa del HEAD resultante y validación autenticada delivery. Revisión de contenido SEO histórico y superficies legacy aún pendiente antes de dominio público. No reducir controles SQL ni presentar una preview como producción.
+Commit y CI remota completa, revisión externa del HEAD resultante y validación autenticada delivery. El recorte de rutas también cierra el marketplace histórico (UI/API), directorios y eventos públicos; comparativas/blog/historia de empresa y clusters SEO redirigen a /features. Sitemap solo esencial y sin consultas de datos. Estos cambios requieren la nueva CI; no cambian el deployment del ensayo. No reducir controles SQL ni presentar una preview como producción.
+
+
+## Revisión remota26oct08:23UTC
+
+- Supabase productivo jegxfahsvugilbthbked: metadatos ACTIVE_HEALTHY, Postgres17.6. La revisión de seguridad devuelve30 avisos informativos RLS sin política (tablas internas de servidor, no inferir exposición) y un aviso de protección de contraseñas filtradas desactivada. Se debe contrastar ACL/roles efectivos y configuración Auth antes de abrir; no se ha cambiado nada. [Aviso RLS](https://supabase.com/docs/guides/database/database-linter?lint=0008_rls_enabled_no_policy), [protección de contraseñas](https://supabase.com/docs/guides/auth/password-security#password-strength-and-leaked-password-protection).
+- Stripe: conector requiere reautenticación. El perfil CLI zaltyko coincide con la cuenta prevista pero su credencial Live exige reconfiguración al intentar GET /v1/account. No se pudo leer la configuración Live; presencia local de clave no acredita vigencia. No se consultaron pagos ni se crearon objetos.
+- Ensayo SQL remoto40291849023 SUCCESS sobre5c1e32d0: propuesta coincide byte a byte e instalación/ACL/RLS/aislamiento en PostgreSQL17.6 desechable. No se reaplicó SQL productivo.
+- CI40291341905 sobre5c1e32d0: build/tipos/lint/móvil/seguridad/RLS/Drizzle/GitGuardian PASS. Unitarias5094PASS/5fallos/3omitidas: cinco contratos antiguos aún exigían anunciar portal o importación. Se actualizan al alcance aprobado, conservando controles de importación y pagos. Chromium recorrió la operativa y móvil, y detectó200 en una ruta retirada por streaming; se corrige en middleware antes del render, conservando la aserción404. Los resultados no acreditan el diff corrector pendiente de CI.

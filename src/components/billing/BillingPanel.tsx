@@ -63,7 +63,7 @@ const PLAN_COPY: Record<string, { title: string; description: string }> = {
   },
   pro: {
     title: "Starter",
-    description: "Cuotas y registro manual de pagos, portal familiar limitado y reportes básicos",
+    description: "Cuotas y registro manual de pagos, familias y responsables y reportes básicos",
   },
   premium: {
     title: "Growth",
@@ -87,7 +87,7 @@ function resolvePlanTitle(plan: PlanSummary) {
 
 function resolvePlanDescription(plan: PlanSummary, athletesTermLower: string) {
   if (plan.code === "free") return `Hasta 30 ${athletesTermLower} · ideal para academias en lanzamiento`;
-  if (plan.code === "pro") return `Hasta 75 ${athletesTermLower} · portal familiar limitado y pagos registrados`;
+  if (plan.code === "pro") return `Hasta 75 ${athletesTermLower} · familias y responsables y pagos registrados`;
   return PLAN_COPY[plan.code]?.description ?? "Plan sincronizado automáticamente desde Stripe.";
 }
 

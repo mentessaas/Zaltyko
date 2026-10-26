@@ -631,7 +631,7 @@ export function getUpgradeInfo(planCode: PlanCode): {
       benefits: [
         "Hasta 75 gimnastas",
         "Pagos recurrentes",
-        "Portal familiar limitado",
+        "Familias y responsables",
         "Reportes básicos",
       ],
     };

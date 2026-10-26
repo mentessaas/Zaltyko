@@ -1058,6 +1058,7 @@ test.describe("Isolated local Supabase Owner setup", () => {
     for (const path of ["insights", "health-score/setup"]) {
       const retiredResponse = await page.request.get(`/owner/${path}?${scope}`);
       expect(retiredResponse.status()).toBe(404);
+      expect(retiredResponse.headers()["x-robots-tag"]).toContain("noindex");
     }
 
     const persisted = await pool.query<{

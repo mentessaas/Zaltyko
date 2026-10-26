@@ -64,7 +64,7 @@ export const PRODUCT_PLANS: ProductPlan[] = [
     features: [
       "Hasta 75 gimnastas · 1 academia",
       "Familias, grupos, clases e inscripciones",
-      "Asistencia y cuotas mensuales con pagos manuales",
+      "Asistencia y cuotas mensuales con registro manual de pagos",
       "Resumen de actividad y cobros registrados",
     ],
   },

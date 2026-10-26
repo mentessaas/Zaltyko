@@ -196,7 +196,7 @@ describe("L2 — copy pública presente en componentes", () => {
     expect(seoExtended).toContain("Pagos registrados y pendientes a la vista");
     expect(help).toContain("No en este lanzamiento");
     expect(llmsFull).toContain("Zaltyko no inicia cargos automáticos a las familias");
-    expect(planCatalog).toContain("Asistencia y cuotas mensuales con pagos manuales");
+    expect(planCatalog).toContain("Asistencia y cuotas mensuales con registro manual de pagos");
     expect(homeModules).not.toContain("avisos automáticos a familias");
     expect(seoExtended).not.toContain("Cobros automáticos y recordatorios programados");
   });
@@ -333,11 +333,10 @@ describe("L2 — claims de módulos alineados con capacidades verificadas", () =
     }
   });
 
-  it("la FAQ de importación separa gimnastas de datos familiares", () => {
+  it("la FAQ esencial no promete importaciones sin validar", () => {
     const faqPage = readSiteFile("src/app/(site)/faq/page.tsx");
-    expect(faqPage).toContain("importar gimnastas desde Excel o CSV");
-    expect(faqPage).toContain("Los datos de familias se vinculan después desde cada expediente");
-    expect(faqPage).not.toContain("importar gimnastas y familias");
+    expect(faqPage).toContain("ESSENTIAL_FAQS");
+    expect(ESSENTIAL_FAQS.map(item => item.answer).join(" ")).not.toMatch(/importa[rn]?|Excel|CSV/i);
   });
 
   it("describe las exportaciones como apoyo operativo revisable", () => {
@@ -352,31 +351,22 @@ describe("L2 — claims de módulos alineados con capacidades verificadas", () =
     expect(features).not.toContain("bg-primary-dark");
   });
 
-  it("mantiene el alcance del portal familiar consistente en pantallas de plan", () => {
-    const planScreens = [
-      readSiteFile("src/app/dashboard/account-form.tsx"),
-      readSiteFile("src/components/billing/BillingPanel.tsx"),
-      readSiteFile("src/components/billing/BillingSummary.tsx"),
-      readSiteFile("src/components/profiles/OptimizedOwnerProfile.tsx"),
-      readSiteFile("src/lib/limits.ts"),
-    ];
-    for (const copy of planScreens) {
-      const normalized = copy.toLowerCase();
-      expect(normalized).toContain("portal familiar limitado");
-      expect(normalized).not.toContain("portal familias");
+  it("las pantallas de planes no prometen un portal familiar fuera del lanzamiento", () => {
+    for (const file of [
+      "src/app/dashboard/account-form.tsx", "src/components/billing/BillingPanel.tsx",
+      "src/components/billing/BillingSummary.tsx", "src/components/profiles/OptimizedOwnerProfile.tsx",
+      "src/lib/limits.ts", "src/lib/plans/catalog.ts",
+    ]) {
+      const copy = readSiteFile(file).toLowerCase();
+      expect(copy).not.toMatch(/portal familiar|portal familias|portal de familias/);
     }
-
-    const catalog = readSiteFile("src/lib/plans/catalog.ts").toLowerCase();
-    const indicator = readSiteFile("src/components/onboarding/LimitIndicator.tsx");
-    expect(catalog).toContain("portal familiar limitado");
-    expect(indicator).toContain("benefits: plan.features");
-    expect(indicator.toLowerCase()).not.toContain("portal familias");
+    expect(readSiteFile("src/components/onboarding/LimitIndicator.tsx")).toContain("benefits: plan.features");
   });
 
-  it("no presenta el portal familiar como una capacidad ilimitada en el escaparate", () => {
+  it("el escaparate no promete un portal para familias", () => {
     const home = readSiteFile("src/app/page.tsx").toLowerCase();
-    expect(home).toContain("portal familiar limitado");
-    expect(home).not.toContain("portal de familias");
+    expect(home).not.toMatch(/portal familiar|portal de familias/);
+    expect(ESSENTIAL_FEATURES.flatMap(item => item.features).join(" ")).not.toMatch(/portal familiar/i);
   });
 
   it("no publica funciones de eventos o documentos que aún no son operativas", () => {
