@@ -256,8 +256,11 @@ describe("L2 — copy pública presente en componentes", () => {
     expect(privacy).not.toContain("Mentes SaaS S.L.");
     expect(terms).toContain("Zaltyko se reserva");
     expect(privacy).toContain("operada bajo la marca Zaltyko");
-    expect(terms).toContain("13 de septiembre de 2026");
-    expect(privacy).toContain("13 de septiembre de 2026");
+    expect(terms).toContain("26 de octubre de 2026");
+    expect(privacy).toContain("26 de octubre de 2026");
+    // Both documents must expose the same actual seller and pending-status notice.
+    expect(terms).toContain("<SellerIdentification />");
+    expect(privacy).toContain("<SellerIdentification />");
   });
 
   it("los CTAs públicos no confunden cuenta con academia", () => {
