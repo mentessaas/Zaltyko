@@ -28,7 +28,7 @@ const sections = [
     title: "3. Planes, pagos y suscripción",
     paragraphs: [
       "El catálogo incluye Free, Starter y Growth. Starter tiene un precio base de 19 €/mes o 190 €/año; Growth, de 49 €/mes o 490 €/año. Estos precios no incluyen IVA. El impuesto aplicable y el importe final deberán mostrarse antes de confirmar la contratación. Network requiere contratación acompañada.",
-      "La contratación de pago permanece cerrada durante la preparación del alta y de la información fiscal del vendedor. Las pruebas de contratación en sandbox no son compras reales.",
+      "La suscripción SaaS de la academia es independiente de las cuotas de sus familias, cuyos pagos se registran manualmente. Las pruebas de contratación en sandbox no son compras reales.",
       "Puedes cancelar o cambiar de plan en cualquier momento desde el portal de suscripción. Si solicitas la baja, el plan continuará activo hasta el final del periodo en curso.",
     ],
   },
