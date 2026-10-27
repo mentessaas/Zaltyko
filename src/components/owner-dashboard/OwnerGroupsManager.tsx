@@ -1948,7 +1948,7 @@ export function OwnerGroupsManager({ bundle }: { bundle: GroupsBundle }) {
                           groupId: selectedGroup.id,
                           athleteId: membership.athleteId,
                         });
-                        const profileEditorDisabled = baseCommandsLocked || !profileRecoveryReady || profileRecoveryIssue !== null ||
+                        const profileEditorDisabled = nonFamilyCommandsLocked || familyRecoveryBlocked || !profileRecoveryReady || profileRecoveryIssue !== null ||
                           (pendingAthleteProfile !== null && !profileCommandMatches) ||
                           (activeAthleteProfileKey !== null && activeAthleteProfileKey !== profileEditorKey);
                         const familyAssociationKey = `${organizationId}:${selectedGroup.locationId}:${selectedGroup.id}:${membership.athleteId}`;

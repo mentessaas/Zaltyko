@@ -254,6 +254,44 @@ describe("edición de ficha Owner", () => {
     if (pending.kind === "pending") expect(pending.command.locationId).toBe(locationId);
   });
 
+  it.each([false, true])("permite recuperar la ficha desde el gestor conservando clave y bloqueo de otras escrituras (recarga=%s)", async (reload) => {
+    mocks.fetch.mockResolvedValueOnce(response(200, profilePayload))
+      .mockRejectedValueOnce(new Error("response lost after commit"))
+      .mockResolvedValueOnce(response(200, {
+        ok: true,
+        data: { athleteId, givenName: "Ana actual", familyName: "García López", replayed: true },
+      }));
+    const user = userEvent.setup();
+    const view = render(<OwnerGroupsManager bundle={bundle} />);
+    const edit = await screen.findByRole("button", { name: "Editar ficha de Ana García López" });
+    await waitFor(() => expect(edit).toBeEnabled());
+    await user.click(edit);
+    const name = await screen.findByLabelText("Nombre");
+    await user.clear(name);
+    await user.type(name, "Ana actual");
+    const save = screen.getByRole("button", { name: "Guardar ficha" });
+    expect(save).toBeEnabled();
+    await user.click(save);
+    await screen.findByText(/No sabemos si se guardó la ficha/);
+    const original = mocks.fetch.mock.calls[1][1];
+    if (reload) {
+      view.unmount();
+      render(<OwnerGroupsManager bundle={bundle} />);
+    }
+    const retry = await screen.findByRole("button", { name: "Reintentar ficha de Ana García López" });
+    await waitFor(() => expect(retry).toBeEnabled());
+    expect(screen.getByRole("button", { name: "Dar de baja a Ana García López" })).toBeDisabled();
+    await user.click(retry);
+    expect(await screen.findByText("Ficha actualizada.")).toBeVisible();
+    expect(mocks.fetch).toHaveBeenCalledTimes(3);
+    const replay = mocks.fetch.mock.calls[2][1];
+    expect(replay.method).toBe("PATCH");
+    expect(replay.body).toBe(original.body);
+    expect(replay.headers["Idempotency-Key"]).toBe(original.headers["Idempotency-Key"]);
+    expect(readPendingOwnerAthleteProfile(window.sessionStorage).kind).toBe("none");
+    expect(screen.getByRole("button", { name: "Dar de baja a Ana García López" })).toBeEnabled();
+  });
+
   it("frena las transiciones de pertenencia mientras la ficha se está editando", async () => {
     mocks.fetch.mockResolvedValueOnce(response(200, profilePayload));
     const user = userEvent.setup();
