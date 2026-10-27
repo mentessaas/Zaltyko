@@ -150,20 +150,20 @@ export function OwnerWorkspaceNavigation() {
           {showNavigation ? (
             <nav
               aria-label="Navegación móvil"
-              className="mt-3 grid grid-cols-6 border-t border-slate-300 pt-2 xl:hidden"
+              className="mt-3 grid grid-cols-3 gap-1 border-t border-slate-300 pt-2 sm:grid-cols-6 xl:hidden"
             >
               {mobileItems.map((item) => (
                 <Link
                   key={item.label}
                   href={item.href}
                   aria-current={item.active ? "page" : undefined}
-                  className={`touch-target min-w-0 px-1 text-center text-xs font-semibold leading-tight focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-[-2px] focus-visible:outline-teal-800 ${item.active ? "text-teal-900" : "text-slate-700"}`}
+                  className={`touch-target flex min-w-0 items-center justify-center whitespace-nowrap px-1 text-center text-xs font-semibold leading-tight focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-[-2px] focus-visible:outline-teal-800 ${item.active ? "text-teal-900" : "text-slate-700"}`}
                 >
                   {item.label}
                 </Link>
               ))}
               <details ref={mobileMoreRef} className="relative min-w-0">
-                <summary ref={mobileMoreSummaryRef} className="touch-target cursor-pointer list-none px-1 text-center text-xs font-semibold text-slate-700 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-[-2px] focus-visible:outline-teal-800 [&::-webkit-details-marker]:hidden">
+                <summary ref={mobileMoreSummaryRef} className="touch-target flex cursor-pointer list-none items-center justify-center whitespace-nowrap px-1 text-center text-xs font-semibold text-slate-700 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-[-2px] focus-visible:outline-teal-800 [&::-webkit-details-marker]:hidden">
                   <span>Más</span>
                   <ChevronDown
                     className="ml-1 h-3.5 w-3.5"

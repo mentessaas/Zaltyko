@@ -12914,3 +12914,11 @@ Se añade Cerrar sesión en la cabecera compartida Owner, visible en móvil/escr
 ## 2026-10-27 — Mock de navegación del dashboard compatible con logout
 
 CI40464607495 sobre51baa1e6: cuatro pruebas de owner-dashboard-navigation fallan porque su mock de next/navigation no exporta useRouter, ahora requerido por la cabecera compartida. Se añade únicamente el router simulado con replace/refresh, conservando las cuatro pruebas y todas sus aserciones. Las pruebas específicas de cierre de sesión permanecen intactas. No cambia código productivo, workflow ni controles. Validación pendiente de CI remota completa del nuevo commit; sin tests/builds locales, sin desplegar ni consultar producción o el ensayo.
+
+## 2026-10-27 — Logout publicado y probado en entregas ab067043
+
+Aprobación externa exacta y CI completa SUCCESS (tres navegadores sintéticos). Publicado solo delivery-preview: dpl_GnNq4NtSNoRPGQzttQwv96ERvcXD READY, preflight/226pruebas/tipos/artefacto PASS,297páginas,health DB104,69ms.42ámbitos env restaurados/verificados sin cambiar valores. Botón visible en QA A; clic real sale al login, acceso posterior Owner exige autenticación y usage devuelve UNAUTHENTICATED. Login humano preparado con correo QA A y contraseña vacía.31e anterior conservado; ensayo/producción no consultados ni alterados, cero builds/tests locales. Evidencia auditorias/2026-10-27/delivery-ab067043-logout-validation.md fuera de checkout. Nota sin commit para conservar SHA aprobado/publicado.
+
+## 2026-10-27 — QA A actual y corrección móvil demostrada
+
+QA A humana enab067043: resumen30/3/1/3pagos70EUR,usageFree30/3/10,2inscripciones activas,Presente persistido,cuota35EUR noviembre impide duplicado y cobros sin pendientes. Lecturas ajenas denegadasNOT_FOUND/403; no se atribuyen escrituras/snapshots actuales. A375px no hay scrollhorizontal pero capturaCDP demuestra solapamiento de Inscripciones/Asistencia. Se corrige grid móvil3columnas bajo640/6desde640, alineación de objetivos y etiquetas completas; nuevo E2E remoto mide texto contenido,44pxmínimo y nointersección. PendienteCI/revisión/publicación,ab067preview intacta. Sin producción/ensayo/builds locales. Matriz vigente del corte docs/qa/essential-release-current-2026-10-27.md separa gates técnicos, ensayo natural y bloqueos vendedor/fiscal/Live. Nota anterior de publicación se incorpora sin reescribir historia.

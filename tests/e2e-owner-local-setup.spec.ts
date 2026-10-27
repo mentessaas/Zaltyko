@@ -1053,6 +1053,31 @@ test.describe("Isolated local Supabase Owner setup", () => {
       await page.setViewportSize(viewport);
       await expect(page.getByRole("region", { name: "Tu academia en marcha" })).toBeVisible();
       expect(await page.evaluate(() => document.documentElement.scrollWidth > window.innerWidth)).toBe(false);
+      if (viewport.width < 1280) {
+        const mobileNavigation = page.getByRole("navigation", { name: "Navegación móvil" });
+        await expect(mobileNavigation).toBeVisible();
+        const targets = await mobileNavigation.locator(":scope > a, :scope > details > summary").evaluateAll((elements) => elements.map((element) => {
+          const box = element.getBoundingClientRect();
+          const text = document.createRange();
+          text.selectNodeContents(element);
+          const textBox = text.getBoundingClientRect();
+          return { label: element.textContent?.trim(), left: box.left, right: box.right, top: box.top, bottom: box.bottom, width: box.width, height: box.height, textLeft: textBox.left, textRight: textBox.right };
+        }));
+        expect(targets).toHaveLength(6);
+        for (const target of targets) {
+          expect(target.width, target.label).toBeGreaterThanOrEqual(44);
+          expect(target.height, target.label).toBeGreaterThanOrEqual(44);
+          expect(target.textLeft, target.label).toBeGreaterThanOrEqual(target.left - 1);
+          expect(target.textRight, target.label).toBeLessThanOrEqual(target.right + 1);
+        }
+        for (let index = 0; index < targets.length; index++) {
+          for (const other of targets.slice(index + 1)) {
+            const target = targets[index];
+            const overlaps = target.left < other.right && other.left < target.right && target.top < other.bottom && other.top < target.bottom;
+            expect(overlaps, `${target.label} / ${other.label}`).toBe(false);
+          }
+        }
+      }
       await expect(page.getByRole("navigation", { name: "Operaciones de la academia" }).getByRole("link", { name: "Cuotas mensuales" })).toBeVisible();
     }
     for (const path of ["insights", "health-score/setup"]) {
