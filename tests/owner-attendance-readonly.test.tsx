@@ -20,7 +20,7 @@ const receipt = (url: string, init: { body?: string }) => {
   return { ok: true, data: { id: "80000000-0000-4000-8000-000000000009", sessionId: session, enrollmentId: command.enrollmentId, status: command.status, recordedAt: "2026-10-23T16:00:00.000Z" } };
 };
 const attendanceProblem = (status: number) => ({
-  type: "https://zaltyko.com/problems/invalid-session-attendance-command",
+  type: status === 403 ? "https://zaltyko.com/problems/location-scope-denied" : "https://zaltyko.com/problems/invalid-session-attendance-command",
   title: "Datos de asistencia incompletos",
   status,
   detail: "Comprueba el comando de asistencia.",
@@ -662,13 +662,13 @@ describe("asistencia Owner en solo lectura", () => {
     expect(await screen.findByText("Asistencia guardada.")).toBeVisible();
   });
 
-  it("no libera una intención incierta ante 400 de validación y la recupera tras recargar", async () => {
+  it.each([400, 403])("no libera una intención incierta ante HTTP %i y la recupera tras recargar", async (status) => {
     let postCount = 0;
     fetchMock.mockImplementation(async (url, init) => {
       if (init?.method === "POST") {
         postCount += 1;
         if (postCount === 1) return { ok: false, status: 503, json: async () => ({ detail: "Sin confirmación" }) };
-        if (postCount === 2) return { ok: false, status: 400, json: async () => attendanceProblem(400) };
+        if (postCount === 2) return { ok: false, status, json: async () => attendanceProblem(status) };
         return { ok: true, status: 201, json: async () => receipt(String(url), init) };
       }
       return { ok: true, status: 200, json: async () => ({ ok: true, data: { items: [{ enrollmentId, athleteName: "Ana Sintética", attendanceStatus: null }] } }) };
@@ -734,13 +734,13 @@ describe("asistencia Owner en solo lectura", () => {
     recovered.unmount();
   });
 
-  it("libera un primer rechazo 400 de validación con envelope válido", async () => {
+  it.each([400, 403])("libera un primer rechazo HTTP %i con envelope válido", async (status) => {
     let postCount = 0;
     fetchMock.mockImplementation(async (url, init) => {
       if (init?.method === "POST") {
         postCount += 1;
         return postCount === 1
-          ? { ok: false, status: 400, json: async () => attendanceProblem(400) }
+          ? { ok: false, status, json: async () => attendanceProblem(status) }
           : { ok: true, status: 201, json: async () => receipt(String(url), init) };
       }
       return { ok: true, status: 200, json: async () => ({ ok: true, data: { items: [{ enrollmentId, athleteName: "Ana Sintética", attendanceStatus: null }] } }) };
@@ -755,6 +755,9 @@ describe("asistencia Owner en solo lectura", () => {
     fireEvent.change(screen.getByLabelText("Asistencia de Ana Sintética"), { target: { value: "absent" } });
     fireEvent.click(screen.getByRole("button", { name: "Guardar asistencia de Ana Sintética" }));
     expect(await screen.findByText("Comprueba el comando de asistencia.")).toBeVisible();
+    expect(screen.queryByText(/No sabemos si se guardó/)).not.toBeInTheDocument();
+    expect(screen.queryByRole("button", { name: "Reintentar guardado de Ana Sintética" })).not.toBeInTheDocument();
+    expect(screen.getByLabelText("Asistencia de Ana Sintética")).toBeEnabled();
     expect(screen.getByRole("button", { name: "Guardar asistencia de Ana Sintética" })).toBeEnabled();
     fireEvent.click(screen.getByRole("button", { name: "Guardar asistencia de Ana Sintética" }));
     await waitFor(() => expect(postCount).toBe(2));

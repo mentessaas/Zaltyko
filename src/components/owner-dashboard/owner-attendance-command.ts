@@ -115,6 +115,10 @@ export function validAttendanceReceipt(payload: unknown, request: AttendanceRetr
 
 const DEFINITIVE_BUSINESS_REJECTIONS = new Map<number, Set<string>>([
   [400, new Set(["https://zaltyko.com/problems/invalid-session-attendance-command"])],
+  [403, new Set([
+    "https://zaltyko.com/problems/location-scope-denied",
+    "https://zaltyko.com/problems/forbidden",
+  ])],
   [409, new Set([
     "https://zaltyko.com/problems/invalid-state-transition",
     "https://zaltyko.com/problems/invalid-relation",
@@ -123,8 +127,9 @@ const DEFINITIVE_BUSINESS_REJECTIONS = new Map<number, Set<string>>([
 ]);
 
 export function isDefinitiveAttendanceRejection(status: number, payload: unknown, previouslyUncertain: boolean): boolean {
-  if (status === 401 || status === 403 || status === 404 || status === 429 || !isRecord(payload)) return false;
-  if (status === 400 && previouslyUncertain) return false;
+  if (status === 401 || status === 404 || status === 429 || !isRecord(payload)) return false;
+  // A later denial cannot establish whether an earlier lost response committed.
+  if ((status === 400 || status === 403) && previouslyUncertain) return false;
   return payload.status === status && typeof payload.title === "string" && payload.title.trim().length > 0 &&
     typeof payload.detail === "string" && payload.detail.trim().length > 0 &&
     DEFINITIVE_BUSINESS_REJECTIONS.get(status)?.has(String(payload.type)) === true;
