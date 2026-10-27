@@ -12896,3 +12896,17 @@ Hallazgo en delivery1536f814: emisión QA35EUR correcta, pero PERIOD_ALREADY_INV
 Delivery e09: asistencia guardada/releída, dashboard30gimnastas/3grupos/1asistencia/3pagos sintéticos70EUR, cuota35EUR ya emitida bloquea duplicado. Gimnasta31,grupo4,clase11 rechazados por UI:18 tablas comparadas antes/después de cada intento sin diferencias. Solo academia de entregas; no ensayo ni producción. Geometría375/768/1280 sin overflow, aceptación visual completa pendiente por diferencia de escala de capturas.
 
 El formulario público aún renderiza Buscar academias públicas aunque discovery está apagado. Se condiciona el bloque a la bandera explícita y se añaden regresiones de render real con bandera false/true; sin cambiar consentimiento, API, SQL ni auth. CI remota del parche pendiente; e09 publicado intacto. Segundo registro QA preparado, requiere contraseña y aceptación humanas. Evidencia docs/qa/delivery-authenticated-e09f8acc-2026-10-26.md; cero builds/tests locales.
+
+
+## 2026-10-27 — Preview aprobada 31e18a87 y QA B actual
+
+Revisión elvisvaldes APPROVED sobre31e18a87 a06:29:23UTC; CI40426105055 y controles fuente/operacional/GitGuardian SUCCESS, tres navegadores sintéticos PASS. Publicado solo alias de entregas a dpl_7XoNyXJW2vPQkFQPzk6Ph3HCABms READY. Instalación congelada/preflight/226pruebas/tipos/Next271672ms bajo360s/artefacto653trazados sin faltantes PASS; health DB104,24ms.42ámbitos de variables restaurados/releídos, sin actualizar valores. API de metadatos devuelve env vacío: aserción auxiliar de nombres no disponible; preflight remoto efectivo sí PASS, sin repetir deployment.
+
+QA B sesión existente: lectura propia y vacío correctos; academia/sede A denegadas403/404; API sin sesión401. Una clase sintética acotada a una sesión creada y releída por UI/API, contador0→1; inscripciones la ofrece, sin candidatos propios; cuotas vacías sin cargos. Sin cuentas, facturas, pagos, SQL manual, proveedores ni nuevas sesiones administrativas. Pendiente cambiar sesión a QA A para repetir dirección inversa y recorrido poblado en este mismo artefacto; pruebas e09 no sustituyen runtime31e. Ensayo/producción no consultados ni alterados, sin builds/tests/instalaciones locales. Evidencia fuera del checkout auditorias/2026-10-27/delivery-31e18a87-validation.md. Nota posterior al despliegue queda sin commit para conservar el SHA aprobado.
+
+
+## 2026-10-27 — Salida de sesión visible en Owner
+
+Defecto confirmado en31e por UI y código: navegación Owner carece de salida incluso en setup; para cambiar a QA A hubo que retirar únicamente las cookies Auth del origen de entregas, sin revocación global. El humano inició QA A y el resumen muestra30gimnastas/3grupos/1asistencia/3pagos70EUR.
+
+Se añade Cerrar sesión en la cabecera compartida Owner, visible en móvil/escritorio y setup, ausente de la vista sintética. Usa Supabase signOut con scope local, espera el resultado antes de reemplazar la ruta por /auth/login y refrescar, bloquea doble envío y permite reintentar errores sin fingir salida correcta. No modifica datos, roles, permisos, contraseñas ni otras sesiones del usuario. Cabecera móvil se mantiene hasta xl para acomodar la acción sin comprimir los enlaces. Pruebas nuevas de espera/doble clic, fallos devueltos/lanzados y reintento, presencia en setup y exclusión sintética. Solo diff-check local; pruebas/tipos/build pendientes exclusivamente CI remota. Preview31e y ensayo intactos; este parche requiere controles y revisión del nuevo commit antes de desplegar.

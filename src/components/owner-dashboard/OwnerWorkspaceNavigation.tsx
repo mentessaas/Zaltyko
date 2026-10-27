@@ -5,6 +5,7 @@ import { usePathname, useSearchParams } from "next/navigation";
 import { useRef } from "react";
 import { ChevronDown } from "lucide-react";
 import { OwnerPlanUsage } from "./OwnerPlanUsage";
+import { OwnerSignOutButton } from "./OwnerSignOutButton";
 
 type NavigationItem = {
   label: string;
@@ -126,7 +127,7 @@ export function OwnerWorkspaceNavigation() {
             {showNavigation ? (
               <nav
                 aria-label="Principal"
-                className="hidden min-w-0 items-center gap-1 lg:flex"
+                className="hidden min-w-0 items-center gap-1 xl:flex"
               >
                 {navigationItems.map((item) => (
                   <Link
@@ -140,14 +141,16 @@ export function OwnerWorkspaceNavigation() {
                 ))}
               </nav>
             ) : null}
-            <span className="shrink-0 rounded-full border border-slate-300 px-3 py-2 text-xs font-semibold text-slate-600">
-              {preview ? "Vista sintética" : "Área privada"}
-            </span>
+            {preview ? (
+              <span className="shrink-0 rounded-full border border-slate-300 px-3 py-2 text-xs font-semibold text-slate-600">
+                Vista sintética
+              </span>
+            ) : <OwnerSignOutButton />}
           </div>
           {showNavigation ? (
             <nav
               aria-label="Navegación móvil"
-              className="mt-3 grid grid-cols-6 border-t border-slate-300 pt-2 lg:hidden"
+              className="mt-3 grid grid-cols-6 border-t border-slate-300 pt-2 xl:hidden"
             >
               {mobileItems.map((item) => (
                 <Link

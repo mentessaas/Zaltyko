@@ -10,6 +10,7 @@ const navigationMocks = vi.hoisted(() => ({
 }));
 
 vi.mock("next/navigation", () => ({
+  useRouter: () => ({ replace: vi.fn(), refresh: vi.fn() }),
   usePathname: () => navigationMocks.pathname,
   useSearchParams: () => new URLSearchParams(navigationMocks.search),
 }));
@@ -36,6 +37,18 @@ afterEach(() => {
 });
 
 describe("navegación móvil Owner", () => {
+  it("ofrece salida de sesión también durante la creación de academia", () => {
+    navigationMocks.pathname = "/owner/setup";
+    navigationMocks.search = "";
+    render(<OwnerWorkspaceNavigation />);
+    expect(screen.getByRole("button", { name: "Cerrar sesión" })).toBeEnabled();
+    expect(screen.queryByRole("navigation", { name: "Principal", hidden: true })).toBeNull();
+  });
+
+  it("no ofrece una salida de sesión en la vista sintética", () => {
+    render(<OwnerWorkspaceNavigation />);
+    expect(screen.queryByRole("button", { name: "Cerrar sesión" })).toBeNull();
+  });
   it("cierra Más al activar el anchor de Cobros en preview aunque no cambie la ruta", () => {
     render(<OwnerWorkspaceNavigation />);
     const details = screen.getByText("Más").closest("details") as HTMLDetailsElement | null;
