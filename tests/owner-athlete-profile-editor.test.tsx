@@ -65,7 +65,7 @@ const bundle = {
 } as unknown as Parameters<typeof OwnerGroupsManager>[0]["bundle"];
 
 beforeEach(() => {
-  vi.clearAllMocks();
+  vi.resetAllMocks();
   window.sessionStorage.clear();
   vi.stubGlobal("crypto", { randomUUID: () => "40000000-0000-4000-8000-000000000099" });
   vi.stubGlobal("fetch", mocks.fetch);
@@ -266,7 +266,8 @@ describe("edición de ficha Owner", () => {
     const edit = await screen.findByRole("button", { name: "Editar ficha de Ana García López" });
     await waitFor(() => expect(edit).toBeEnabled());
     await user.click(edit);
-    const name = await screen.findByLabelText("Nombre");
+    const editor = await screen.findByRole("region", { name: "Editar ficha de gimnasta" });
+    const name = await within(editor).findByLabelText("Nombre", { exact: true });
     await user.clear(name);
     await user.type(name, "Ana actual");
     const save = screen.getByRole("button", { name: "Guardar ficha" });
