@@ -4,7 +4,7 @@ import Link from "next/link";
 import { usePathname, useSearchParams } from "next/navigation";
 import { useRef } from "react";
 import { ChevronDown } from "lucide-react";
-import { OwnerPlanUsage } from "./OwnerPlanUsage";
+import { OwnerOperationalPolicy } from "./OwnerOperationalPolicy";
 import { OwnerSignOutButton } from "./OwnerSignOutButton";
 
 type NavigationItem = {
@@ -192,7 +192,7 @@ export function OwnerWorkspaceNavigation() {
           ) : null}
         </div>
       </header>
-      {organizationId && !preview ? <OwnerPlanUsage key={organizationId} organizationId={organizationId} compact /> : null}
+      {organizationId && !preview ? <OwnerOperationalPolicy key={`${organizationId}:${locationId ?? ""}`} organizationId={organizationId} locationId={locationId} /> : null}
     </>
   );
 }

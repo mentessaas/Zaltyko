@@ -21,8 +21,8 @@ vi.mock("next/link", () => ({
   ),
 }));
 
-vi.mock("@/components/owner-dashboard/OwnerPlanUsage", () => ({
-  OwnerPlanUsage: () => null,
+vi.mock("@/components/owner-dashboard/OwnerOperationalPolicy", () => ({
+  OwnerOperationalPolicy: () => null,
 }));
 
 import { OwnerWorkspaceNavigation } from "@/components/owner-dashboard/OwnerWorkspaceNavigation";
