@@ -13,6 +13,7 @@ const searchParams = vi.hoisted(() => new URLSearchParams());
 const routeState = vi.hoisted(() => ({ pathname: "/owner" }));
 
 vi.mock("next/navigation", () => ({
+  useRouter: () => ({ replace: vi.fn(), refresh: vi.fn() }),
   usePathname: () => routeState.pathname,
   useSearchParams: () => searchParams,
 }));
