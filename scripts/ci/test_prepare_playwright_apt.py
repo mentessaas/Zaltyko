@@ -2,7 +2,7 @@
 
 import unittest
 
-from prepare_playwright_apt import rewrite_sources
+from prepare_playwright_apt import rewrite_sources, rewrite_mirror_list
 
 
 class PlaywrightAptTests(unittest.TestCase):
@@ -31,6 +31,23 @@ class PlaywrightAptTests(unittest.TestCase):
             rewrite_sources(original),
             original.replace("https://azure.archive.ubuntu.com/ubuntu noble", "https://archive.ubuntu.com/ubuntu noble"),
         )
+
+    def test_mirror_file_entries_preserve_metadata_comments_and_other_mirrors(self):
+        original = (
+            "# http://azure.archive.ubuntu.com/ubuntu is historical\n"
+            "http://azure.archive.ubuntu.com/ubuntu/\tpriority:1\n"
+            "  https://azure.archive.ubuntu.com/ubuntu\n"
+            "http://security.ubuntu.com/ubuntu/\n"
+            "https://azure.archive.ubuntu.com.evil.test/ubuntu\n"
+            "https://azure.archive.ubuntu.com/ubuntu-extra\n"
+        )
+        expected = original.replace(
+            "http://azure.archive.ubuntu.com/ubuntu/\t", "https://archive.ubuntu.com/ubuntu/\t"
+        ).replace(
+            "  https://azure.archive.ubuntu.com/ubuntu\n", "  https://archive.ubuntu.com/ubuntu\n"
+        )
+        self.assertEqual(rewrite_mirror_list(original), expected)
+        self.assertEqual(rewrite_mirror_list(expected), expected)
 
     def test_unrelated_and_lookalike_repositories_are_unchanged(self):
         for value in (

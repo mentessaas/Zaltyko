@@ -8,6 +8,10 @@ source:
 ---
 
 
+## 2026-10-27 — APT mirror-file en runners de navegadores
+
+CI40417855338: Chromium/Firefox y5146 unitarias PASS(3skip); WebKit cancelado al límite30min durante instalación, sin ejecutar E2E. Logs muestran mirror+file:/etc/apt/apt-mirrors.txt y descargas Azure; el helper previo no contemplaba esa indirection y no imprimió cambio. Se añade reescritura acotada del archivo de mirrors y descubrimiento de fuentes .list/.sources, sin modificar firmas/suites/componentes/repositorios ajenos. Regresión de mirror-file con metadata, comentarios, lookalikes e idempotencia pendiente de CI remota; no pruebas/build locales. Sin despliegues, producción ni ensayo. Monitor9a0 cerrado por fallo terminal; nuevo candidato requerirá todos los gates y revisión externa.
+
 ## 2026-10-26 — Segunda academia de entregas y aislamiento autenticado
 
 Seguimiento27oct: CI f1323f43 instala Firefox correctamente, pero el E2E agota300s esperando families/options tras recarga (línea1608); captura mantiene editor cerrado. El botón SSR podía aceptar clic antes de handlers/reset inicial. Se mantiene deshabilitado hasta completar el efecto inicial y se añade regresión SSR→hidratación→primer clic→GET único. Causa de la captura compatible con carrera de hidratación; confirmación del arreglo pendiente de CI remota, sin aumentar timeouts ni retirar la comprobación de persistencia. WebKit del mismo run sigue en curso; no declarar PASS. Sin ejecución local de pruebas/build, deployment, SQL o consulta al ensayo/producción.
