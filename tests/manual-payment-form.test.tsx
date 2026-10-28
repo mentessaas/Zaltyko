@@ -470,13 +470,8 @@ describe("registro manual de pagos en el dashboard owner", () => {
     expect(
       screen.getByLabelText("Fecha original de recepción")
     ).toHaveValue(receivedOn);
-    expect(screen.getByText("Importe original").parentElement).toHaveTextContent(
-      "12,50"
-    );
-    expect(
-      screen.getByText("Saldo actual del cargo").parentElement
-    ).toHaveTextContent("22,50");
-    expect(screen.getByText(/Importe original:/)).toHaveTextContent("12,50");
+    expect(screen.getByText(/Saldo actual del cargo: 22,50/u)).toBeVisible();
+    expect(screen.getByText(/Importe original: 12,50/u)).toBeVisible();
 
     await user.click(retryButton);
     expect(await screen.findByRole("status")).toHaveTextContent(
