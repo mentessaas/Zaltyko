@@ -1,5 +1,12 @@
 // @vitest-environment jsdom
-import { act, cleanup, render, screen, waitFor } from "@testing-library/react";
+import {
+  act,
+  cleanup,
+  fireEvent,
+  render,
+  screen,
+  waitFor,
+} from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { webcrypto } from "node:crypto";
@@ -19,6 +26,7 @@ vi.mock("@/components/owner-dashboard/FamilyCollectionModeCard", () => ({
 
 import { ManualPaymentForm } from "@/components/owner-dashboard/ManualPaymentForm";
 import { publishOwnerPlanUsage } from "@/components/owner-dashboard/owner-plan-usage-store";
+import { getCalendarDateInTimezone } from "@/modules/billing/domain/manual-payment-date";
 
 const organizationId = "10000000-0000-4000-8000-000000000001";
 const actorId = "10000000-0000-4000-8000-000000000099";
@@ -372,6 +380,119 @@ describe("registro manual de pagos en el dashboard owner", () => {
       method: "bank_transfer",
     });
     expect(mockRefresh).toHaveBeenCalledOnce();
+  });
+
+  it("tras recargar conserva a la vista el pago parcial original y distingue el saldo actual", async () => {
+    const user = userEvent.setup();
+    const receivedOn = getCalendarDateInTimezone(
+      new Date(Date.now() - 36 * 60 * 60 * 1000),
+      charge.locationTimezone
+    );
+    const originalCharge: OpenManualPaymentCharge = {
+      ...charge,
+      totalCents: 3500,
+      allocatedCents: 0,
+      outstandingCents: 3500,
+    };
+    const updatedCharge: OpenManualPaymentCharge = {
+      ...originalCharge,
+      allocatedCents: 1250,
+      outstandingCents: 2250,
+    };
+    mockFetch
+      .mockResolvedValueOnce({
+        ok: true,
+        status: 201,
+        json: async () => {
+          throw new Error("respuesta perdida después de guardar");
+        },
+      })
+      .mockImplementationOnce(async (_url, init) =>
+        successfulResponseForBody(String(init?.body))
+      );
+
+    const firstPage = render(
+      <ManualPaymentForm
+        actorId={actorId}
+        organizationId={organizationId}
+        charges={[originalCharge]}
+        canManageFamilyCollectionPreferences={false}
+      />
+    );
+
+    const amountInput = screen.getByLabelText("Importe recibido");
+    await waitFor(() => expect(amountInput).toBeEnabled());
+    await user.clear(amountInput);
+    await user.type(amountInput, "12,50");
+    await user.selectOptions(screen.getByLabelText("Método de pago"), "cash");
+    fireEvent.change(screen.getByLabelText("Fecha de recepción"), {
+      target: { value: receivedOn },
+    });
+    await user.click(
+      screen.getByRole("button", { name: "Guardar pago recibido" })
+    );
+
+    expect(await screen.findByRole("alert")).toHaveTextContent(
+      "No sabemos si se guardó. Reintenta este mismo envío"
+    );
+    expect(mockFetch).toHaveBeenCalledOnce();
+    const originalRequest = mockFetch.mock.calls[0]?.[1] as RequestInit;
+    const originalBody = String(originalRequest.body);
+    const originalHeaders = originalRequest.headers;
+    expect(JSON.parse(originalBody)).toMatchObject({
+      organizationId,
+      chargeId: originalCharge.chargeId,
+      amountCents: 1250,
+      method: "cash",
+    });
+    firstPage.unmount();
+
+    render(
+      <ManualPaymentForm
+        actorId={actorId}
+        organizationId={organizationId}
+        charges={[updatedCharge]}
+        canManageFamilyCollectionPreferences={false}
+      />
+    );
+
+    const retryButton = await screen.findByRole("button", {
+      name: "Reintentar el mismo registro",
+    });
+    await waitFor(() => expect(retryButton).toBeEnabled());
+    expect(mockFetch).toHaveBeenCalledOnce();
+    expect(screen.getByLabelText("Importe del envío original")).toHaveValue(
+      "12.50"
+    );
+    expect(screen.getByLabelText("Método del envío original")).toHaveValue(
+      "cash"
+    );
+    expect(
+      screen.getByLabelText("Fecha original de recepción")
+    ).toHaveValue(receivedOn);
+    expect(screen.getByText("Importe original").parentElement).toHaveTextContent(
+      "12,50"
+    );
+    expect(
+      screen.getByText("Saldo actual del cargo").parentElement
+    ).toHaveTextContent("22,50");
+    expect(screen.getByText(/Importe original:/)).toHaveTextContent("12,50");
+
+    await user.click(retryButton);
+    expect(await screen.findByRole("status")).toHaveTextContent(
+      "Pago guardado y asignado al cargo."
+    );
+    expect(mockFetch).toHaveBeenCalledTimes(2);
+    const retryRequest = mockFetch.mock.calls[1]?.[1] as RequestInit;
+    expect(retryRequest.headers).toEqual(originalHeaders);
+    expect(retryRequest.body).toBe(originalBody);
+    expect(JSON.parse(String(retryRequest.body))).toMatchObject({
+      organizationId,
+      chargeId: originalCharge.chargeId,
+      amountCents: 1250,
+      method: "cash",
+      receivedAt: JSON.parse(originalBody).receivedAt,
+    });
   });
 
   it("admite coma decimal al registrar un pago parcial", async () => {

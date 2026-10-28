@@ -122,6 +122,31 @@ function formatMoney(cents: number, currency: string): string {
   }
 }
 
+function formatManualPaymentMethod(method: ManualPaymentMethod): string {
+  const labels: Record<ManualPaymentMethod, string> = {
+    cash: "Efectivo",
+    bank_transfer: "Transferencia",
+    card_terminal: "Tarjeta en el local",
+    other: "Otro",
+  };
+  return labels[method];
+}
+
+function getRetryReceivedOn(
+  request: PendingPaymentRequest,
+  charge: OpenManualPaymentCharge | null
+): string | null {
+  if (!charge) return null;
+  try {
+    return getCalendarDateInTimezone(
+      new Date(request.body.receivedAt),
+      charge.locationTimezone
+    );
+  } catch {
+    return null;
+  }
+}
+
 function parseAmountCents(value: string): number | null {
   const normalized = value.trim().replace(",", ".");
   if (!/^\d+(?:\.\d{1,2})?$/.test(normalized)) return null;
@@ -996,6 +1021,37 @@ export function ManualPaymentForm({
 
   const amountCents = parseAmountCents(amount);
   const effectiveReceivedOn = receivedOn || today;
+  const retryBelongsToCurrentOrganization =
+    retryRequest?.body.organizationId === organizationId;
+  const retryForCurrentOrganization = retryBelongsToCurrentOrganization
+    ? retryRequest
+    : null;
+  const retryCharge = retryForCurrentOrganization
+    ? (loadedCharges.find(
+        (charge) => charge.chargeId === retryForCurrentOrganization.body.chargeId
+      ) ?? null)
+    : null;
+  const retryReceivedOn = retryForCurrentOrganization
+    ? getRetryReceivedOn(retryForCurrentOrganization, retryCharge)
+    : null;
+  const formCharge = retryForCurrentOrganization
+    ? retryCharge
+    : selectedCharge;
+  const displayedChargeId = retryForCurrentOrganization
+    ? retryForCurrentOrganization.body.chargeId
+    : chargeId;
+  const displayedAmount = retryForCurrentOrganization
+    ? (retryForCurrentOrganization.body.amountCents / 100).toFixed(2)
+    : amount;
+  const displayedAmountCents =
+    retryForCurrentOrganization?.body.amountCents ?? amountCents;
+  const displayedMethod =
+    retryForCurrentOrganization?.body.method ?? method;
+  const displayedReceivedOn = retryForCurrentOrganization
+    ? (retryReceivedOn ?? "")
+    : effectiveReceivedOn;
+  const displayedCurrency =
+    retryForCurrentOrganization?.snapshot.currency ?? selectedCharge?.currency;
   const formLocked =
     busy ||
     retryRequest !== null ||
@@ -1004,8 +1060,6 @@ export function ManualPaymentForm({
     legacyRecoveryRequired ||
     !retryStorageReady ||
     retryStorageError !== null;
-  const retryBelongsToCurrentOrganization =
-    retryRequest?.body.organizationId === organizationId;
   const retryScopeNotice =
     retryRequest && !retryBelongsToCurrentOrganization ? (
       <div
@@ -1095,6 +1149,38 @@ export function ManualPaymentForm({
               Hay un envío anterior cuyo resultado no se pudo confirmar. Puedes
               consultar el mismo envío sin crear otro registro.
             </p>
+            <dl className="mt-3 grid gap-2 rounded-lg bg-white/70 p-3 sm:grid-cols-2">
+              <div>
+                <dt className="font-semibold">Importe original</dt>
+                <dd>
+                  {formatMoney(
+                    retryRequest.body.amountCents,
+                    retryRequest.snapshot.currency
+                  )}
+                </dd>
+              </div>
+              <div>
+                <dt className="font-semibold">Método original</dt>
+                <dd>{formatManualPaymentMethod(retryRequest.body.method)}</dd>
+              </div>
+              <div>
+                <dt className="font-semibold">Fecha original de recepción</dt>
+                <dd>
+                  {retryReceivedOn ?? retryRequest.body.receivedAt}
+                </dd>
+              </div>
+              <div>
+                <dt className="font-semibold">Saldo actual del cargo</dt>
+                <dd>
+                  {retryCharge
+                    ? formatMoney(
+                        retryCharge.outstandingCents,
+                        retryCharge.currency
+                      )
+                    : "No disponible entre los cargos pendientes"}
+                </dd>
+              </div>
+            </dl>
             {retryRequest.referenceRequired && (
               <label className="mt-3 grid gap-2">
                 <span className="font-semibold">Vuelve a introducir la referencia del envío</span>
@@ -1181,14 +1267,17 @@ export function ManualPaymentForm({
         </label>
         <select
           id={chargeSelectId}
-          value={chargeId}
+          value={displayedChargeId}
           onChange={(event) => chooseCharge(event.target.value)}
           disabled={formLocked}
-          aria-describedby={
-            selectedCharge ? chargeHelpId : undefined
-          }
+          aria-describedby={formCharge ? chargeHelpId : undefined}
           className="min-h-12 rounded-xl border border-slate-300 bg-white px-3 text-sm text-slate-950 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-teal-800 disabled:bg-slate-100"
         >
+          {retryForCurrentOrganization && !retryCharge && (
+            <option value={retryForCurrentOrganization.body.chargeId}>
+              Cargo del envío original (saldo actual no disponible)
+            </option>
+          )}
           {loadedCharges.map((charge) => (
             <option key={charge.chargeId} value={charge.chargeId}>
               {charge.payerName ?? "Pagador sin nombre"} ·{" "}
@@ -1214,28 +1303,30 @@ export function ManualPaymentForm({
             )}
           </div>
         )}
-        {selectedCharge && (
+        {formCharge && (
           <span
             id={chargeHelpId}
             className="text-xs leading-5 text-slate-600"
           >
-            {selectedCharge.locationName} · Vence el{" "}
+            {formCharge.locationName} · Vence el{" "}
             {formatPaymentDueDate(
-              selectedCharge.dueAt,
-              selectedCharge.locationTimezone
+              formCharge.dueAt,
+              formCharge.locationTimezone
             )}
           </span>
         )}
       </div>
 
-      {selectedCharge && (
+      {formCharge && (
         <div className="grid gap-4 sm:grid-cols-2">
           <div className="grid gap-2">
             <label
               htmlFor={amountInputId}
               className="text-sm font-bold text-slate-900"
             >
-              Importe recibido
+              {retryForCurrentOrganization
+                ? "Importe del envío original"
+                : "Importe recibido"}
             </label>
             <span className="relative">
               <input
@@ -1243,14 +1334,14 @@ export function ManualPaymentForm({
                 type="text"
                 inputMode="decimal"
                 pattern="[0-9]+([.,][0-9]{1,2})?"
-                value={amount}
+                value={displayedAmount}
                 onChange={(event) => setAmount(event.target.value)}
                 disabled={formLocked}
                 required
                 aria-invalid={
+                  !retryForCurrentOrganization &&
                   amount.trim().length > 0 &&
-                  (!amountCents ||
-                    amountCents > selectedCharge.outstandingCents)
+                  (!amountCents || amountCents > formCharge.outstandingCents)
                 }
                 aria-describedby={amountHelpId}
                 className="min-h-12 w-full rounded-xl border border-slate-300 px-3 pr-16 text-base text-slate-950 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-teal-800 disabled:bg-slate-100"
@@ -1259,28 +1350,27 @@ export function ManualPaymentForm({
                 aria-hidden="true"
                 className="pointer-events-none absolute right-3 top-1/2 -translate-y-1/2 text-sm font-semibold text-slate-500"
               >
-                {selectedCharge.currency}
+                {displayedCurrency ?? formCharge.currency}
               </span>
             </span>
             <span
               id={amountHelpId}
               className="text-xs text-slate-600"
             >
-              Pendiente:{" "}
-              {formatMoney(
-                selectedCharge.outstandingCents,
-                selectedCharge.currency
-              )}{" "}
-              · Usa coma o punto decimal.
+              {retryForCurrentOrganization
+                ? `Saldo actual del cargo: ${retryCharge ? formatMoney(retryCharge.outstandingCents, retryCharge.currency) : "no disponible"}. El importe original del envío se conserva para el reintento.`
+                : `Pendiente: ${formatMoney(formCharge.outstandingCents, formCharge.currency)} · Usa coma o punto decimal.`}
             </span>
           </div>
 
           <label className="grid gap-2">
             <span className="text-sm font-bold text-slate-900">
-              Método de pago
+              {retryForCurrentOrganization
+                ? "Método del envío original"
+                : "Método de pago"}
             </span>
             <select
-              value={method}
+              value={displayedMethod}
               onChange={(event) =>
                 setMethod(event.target.value as ManualPaymentMethod)
               }
@@ -1296,11 +1386,13 @@ export function ManualPaymentForm({
 
           <label className="grid gap-2">
             <span className="text-sm font-bold text-slate-900">
-              Fecha de recepción
+              {retryForCurrentOrganization
+                ? "Fecha original de recepción"
+                : "Fecha de recepción"}
             </span>
             <input
               type="date"
-              value={effectiveReceivedOn}
+              value={displayedReceivedOn}
               max={today || undefined}
               onChange={(event) => {
                 if (dateInterpretationError === "received-date") {
@@ -1339,11 +1431,15 @@ export function ManualPaymentForm({
         </div>
       )}
 
-      {selectedCharge && amountCents && (
+      {formCharge && displayedAmountCents && (
         <p className="border-t border-slate-200 pt-4 text-sm text-slate-700">
-          Se asignarán {formatMoney(amountCents, selectedCharge.currency)} a{" "}
-          {selectedCharge.invoiceReference}. Si el importe es parcial, el cargo
-          conservará su saldo pendiente.
+          {retryForCurrentOrganization
+            ? `Importe del envío original: ${formatMoney(displayedAmountCents, displayedCurrency ?? formCharge.currency)} a `
+            : `Se asignarán ${formatMoney(displayedAmountCents, formCharge.currency)} a `}
+          {formCharge.invoiceReference}.
+          {retryForCurrentOrganization
+            ? " Se volverá a consultar este mismo envío; el saldo actual aparece arriba."
+            : " Si el importe es parcial, el cargo conservará su saldo pendiente."}
         </p>
       )}
 
@@ -1392,8 +1488,10 @@ export function ManualPaymentForm({
                 : "Guardar pago recibido"}
         </button>
         <span className="text-xs text-slate-500">
-          {selectedCharge && amountCents
-            ? `Total a registrar: ${formatMoney(amountCents, selectedCharge.currency)}`
+          {formCharge && displayedAmountCents
+            ? retryForCurrentOrganization
+              ? `Importe original: ${formatMoney(displayedAmountCents, displayedCurrency ?? formCharge.currency)}`
+              : `Total a registrar: ${formatMoney(displayedAmountCents, formCharge.currency)}`
             : "Elige un cargo e indica el importe recibido."}
         </span>
       </div>
