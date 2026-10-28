@@ -9,6 +9,10 @@ vi.mock("next/navigation", () => ({ useRouter: () => ({ refresh: mocks.refresh }
 
 import { ManualPaymentForm } from "@/components/owner-dashboard/ManualPaymentForm";
 import {
+  fingerprintManualPaymentActor,
+  LEGACY_PENDING_MANUAL_PAYMENT_STORAGE_KEY,
+} from "@/components/owner-dashboard/manual-payment-retry-storage";
+import {
   beginOwnerPlanUsageRead,
   markOwnerPlanUsageUnavailable,
   publishOwnerPlanUsage,
@@ -468,6 +472,99 @@ describe("registro manual de pagos con política de solo lectura", () => {
     const retryInit = fetchMock.mock.calls[1]?.[1] as RequestInit;
     expect(retryInit.body).toBe(firstInit.body);
     expect(retryInit.headers).toEqual(firstInit.headers);
+  });
+
+  it("no reasigna un v1 a otra sesión ni lo envía hasta aceptar y reintentar", async () => {
+    const previousActorId = "74000000-0000-4000-8000-000000000098";
+    const legacySnapshot = {
+      version: 1,
+      organizationId,
+      chargeId: charges[0].chargeId,
+      amountCents: 1250,
+      method: "bank_transfer",
+      currency: "EUR",
+      receivedAt: "2026-10-28T10:00:00.000Z",
+      idempotencyKey: "owner-manual-payment:74000000-0000-4000-8000-000000000025",
+      referenceSha256: null,
+    };
+    const legacyRaw = JSON.stringify(legacySnapshot);
+    window.sessionStorage.setItem(
+      LEGACY_PENDING_MANUAL_PAYMENT_STORAGE_KEY,
+      legacyRaw
+    );
+    fetchMock.mockImplementationOnce(async (_input, init) => {
+      const request = JSON.parse(String(init?.body));
+      return { ok: true, status: 201, json: async () => ({ ok: true, data: request }) };
+    });
+
+    const previousSession = render(
+      <ManualPaymentForm
+        actorId={previousActorId}
+        organizationId={organizationId}
+        charges={charges}
+      />
+    );
+    await screen.findByRole("button", {
+      name: "Vincular el envío antiguo a esta sesión",
+    });
+    expect(window.localStorage.length).toBe(0);
+    expect(
+      window.sessionStorage.getItem(LEGACY_PENDING_MANUAL_PAYMENT_STORAGE_KEY)
+    ).toBe(legacyRaw);
+    expect(fetchMock).not.toHaveBeenCalled();
+    previousSession.unmount();
+
+    render(
+      <ManualPaymentForm
+        actorId={actorId}
+        organizationId={organizationId}
+        charges={charges}
+      />
+    );
+    fireEvent.click(
+      await screen.findByRole("button", {
+        name: "Vincular el envío antiguo a esta sesión",
+      })
+    );
+    await screen.findByText(/quedó vinculado a esta sesión/i);
+
+    expect(fetchMock).not.toHaveBeenCalled();
+    expect(
+      window.sessionStorage.getItem(LEGACY_PENDING_MANUAL_PAYMENT_STORAGE_KEY)
+    ).toBeNull();
+    const storedKey = window.localStorage.key(0);
+    expect(storedKey).toMatch(/^zaltyko:pending-manual-payment:v2:/);
+    const storedSnapshot = JSON.parse(
+      window.localStorage.getItem(storedKey!)!
+    ) as Record<string, unknown>;
+    expect(storedSnapshot).toMatchObject({
+      actorScopeHash: await fingerprintManualPaymentActor(actorId),
+      organizationId,
+      chargeId: legacySnapshot.chargeId,
+      amountCents: legacySnapshot.amountCents,
+      idempotencyKey: legacySnapshot.idempotencyKey,
+    });
+    expect(storedSnapshot.actorScopeHash).not.toBe(
+      await fingerprintManualPaymentActor(previousActorId)
+    );
+
+    fireEvent.click(
+      screen.getByRole("button", { name: "Reintentar el mismo registro" })
+    );
+    await screen.findByText("Pago guardado y asignado al cargo.");
+    expect(fetchMock).toHaveBeenCalledTimes(1);
+    expect(JSON.parse(String(fetchMock.mock.calls[0]?.[1]?.body))).toMatchObject({
+      organizationId,
+      chargeId: legacySnapshot.chargeId,
+      amountCents: legacySnapshot.amountCents,
+      method: legacySnapshot.method,
+      receivedAt: legacySnapshot.receivedAt,
+    });
+    expect(
+      (fetchMock.mock.calls[0]?.[1]?.headers as Record<string, string>)[
+        "idempotency-key"
+      ]
+    ).toBe(legacySnapshot.idempotencyKey);
   });
 
   it("bloquea un segundo pago desde una pestaña con saldo antiguo", async () => {

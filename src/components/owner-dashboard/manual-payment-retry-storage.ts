@@ -342,6 +342,18 @@ function decodeJson(raw: string): unknown | null {
   }
 }
 
+export function readLegacyPendingManualPayment(
+  storage: ManualPaymentRetryStorageLike
+): "none" | "pending" | "invalid" | "unavailable" {
+  try {
+    const raw = storage.getItem(LEGACY_PENDING_MANUAL_PAYMENT_STORAGE_KEY);
+    if (raw === null) return "none";
+    return parseLegacySnapshot(decodeJson(raw)) ? "pending" : "invalid";
+  } catch {
+    return "unavailable";
+  }
+}
+
 export function readPendingManualPayments(
   storage: ManualPaymentRetryStorageLike,
   actorScopeHash: string

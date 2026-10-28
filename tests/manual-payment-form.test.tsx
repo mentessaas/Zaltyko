@@ -147,6 +147,7 @@ describe("registro manual de pagos en el dashboard owner", () => {
     );
 
     const amount = screen.getByLabelText(/Importe recibido/);
+    await waitFor(() => expect(amount).toBeEnabled());
     await user.clear(amount);
     await user.type(amount, "12,50");
     await user.click(screen.getByRole("button", { name: "Cargar más cargos" }));
@@ -391,6 +392,7 @@ describe("registro manual de pagos en el dashboard owner", () => {
     const amount = screen.getByLabelText(/Importe recibido/);
     expect(amount).toHaveAttribute("inputmode", "decimal");
     expect(screen.getByText(/Usa coma o punto decimal/)).toBeVisible();
+    await waitFor(() => expect(amount).toBeEnabled());
     await user.clear(amount);
     await user.type(amount, "12,50");
 

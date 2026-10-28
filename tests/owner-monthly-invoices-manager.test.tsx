@@ -1365,7 +1365,7 @@ describe("OwnerMonthlyInvoicesManager", () => {
 
   it("no envía una factura cuando el almacenamiento de sesión rechaza la intención", async () => {
     const user = userEvent.setup();
-    vi.spyOn(window.sessionStorage, "setItem").mockImplementation(() => {
+    vi.spyOn(Storage.prototype, "setItem").mockImplementation(() => {
       throw new Error("Storage denied");
     });
     renderManager();

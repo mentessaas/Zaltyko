@@ -43,7 +43,7 @@ vi.mock("@/components/owner-dashboard/OwnerMonthlyInvoiceWorkspace", () => ({
             familyPayerId: "40000000-0000-4000-8000-000000000001",
             servicePeriod: "2026-01",
             dueDate: "2026-01-31",
-            quoteHash: "quote-from-academy-a",
+            quoteHash: previousQuoteHash,
           })
         }
       >
@@ -59,7 +59,7 @@ vi.mock("@/components/owner-dashboard/OwnerMonthlyInvoiceWorkspace", () => ({
             familyPayerId: "40000000-0000-4000-8000-000000000001",
             servicePeriod: "2026-01",
             dueDate: "2026-02-05",
-            quoteHash: "corrected-quote-after-stale-response",
+            quoteHash: correctedQuoteHash,
           })
         }
       >
@@ -73,6 +73,8 @@ const organizationA = "10000000-0000-4000-8000-000000000001";
 const locationA = "20000000-0000-4000-8000-000000000001";
 const organizationB = "10000000-0000-4000-8000-000000000002";
 const locationB = "20000000-0000-4000-8000-000000000002";
+const previousQuoteHash = "a".repeat(64);
+const correctedQuoteHash = "b".repeat(64);
 const fetchMock = vi.fn();
 
 function optionsResponse(organizationId: string, locationId: string, servicePeriod: string) {
@@ -301,6 +303,7 @@ describe("ámbito de facturas mensuales", () => {
     );
     await waitFor(() => expect(screen.getByTestId("workspace-scope")).toHaveTextContent(`${organizationA}:${locationA}:2026-01`));
     fireEvent.click(screen.getByRole("button", { name: "Emitir cotización anterior" }));
+    await waitFor(() => expect(finishIssue).toBeTypeOf("function"));
 
     view.rerender(
       <OwnerMonthlyInvoicesManager

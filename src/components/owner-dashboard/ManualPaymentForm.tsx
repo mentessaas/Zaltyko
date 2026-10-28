@@ -15,6 +15,7 @@ import {
   persistPendingManualPayment,
   persistResolvedManualPaymentMarker,
   readAllPendingManualPayments,
+  readLegacyPendingManualPayment,
   readResolvedManualPaymentMarker,
   restoreManualPaymentRetryBody,
   withManualPaymentRetryLock,
@@ -241,6 +242,8 @@ export function ManualPaymentForm({
   const [actorScopeHash, setActorScopeHash] = useState<string | null>(null);
   const [pendingCount, setPendingCount] = useState(0);
   const [otherActorPending, setOtherActorPending] = useState(false);
+  const [legacyRecoveryRequired, setLegacyRecoveryRequired] = useState(false);
+  const [legacyRecoveryBusy, setLegacyRecoveryBusy] = useState(false);
   const paymentInFlight = useRef(false);
 
   useEffect(() => {
@@ -279,6 +282,8 @@ export function ManualPaymentForm({
     setRetryRequest(null);
     setPendingCount(0);
     setOtherActorPending(false);
+    setLegacyRecoveryRequired(false);
+    setLegacyRecoveryBusy(false);
     setActorScopeHash(null);
     setRetryStorageError(null);
 
@@ -308,18 +313,21 @@ export function ManualPaymentForm({
         if (!durableStorage || !legacyStorage) {
           throw new Error("storage-unavailable");
         }
-        const pending = await withManualPaymentRetryLock(async () => {
-          const migration = migrateLegacyPendingManualPayment(
-            legacyStorage,
-            durableStorage,
-            scopeHash
-          );
-          if (migration === "invalid") throw new Error("storage-invalid");
-          if (migration === "unavailable") throw new Error("storage-unavailable");
-          return readAllPendingManualPayments(durableStorage);
+        const storedState = await withManualPaymentRetryLock(async () => {
+          const legacyStatus = readLegacyPendingManualPayment(legacyStorage);
+          if (legacyStatus === "invalid") throw new Error("storage-invalid");
+          if (legacyStatus === "unavailable") {
+            throw new Error("storage-unavailable");
+          }
+          return {
+            legacyStatus,
+            pending: readAllPendingManualPayments(durableStorage),
+          };
         });
         if (!active) return;
         setActorScopeHash(scopeHash);
+        setLegacyRecoveryRequired(storedState.legacyStatus === "pending");
+        const pending = storedState.pending;
         if (pending.status === "pending") {
           applyPending(pending.snapshots);
         } else if (pending.status === "invalid") {
@@ -351,12 +359,31 @@ export function ManualPaymentForm({
         );
         return;
       }
+      const legacyStorage = getBrowserStorage("sessionStorage");
+      if (!legacyStorage) {
+        setRetryStorageError(
+          "No se pudo comprobar si queda un envío antiguo sin recuperar. No registres otro pago hasta recuperar el almacenamiento."
+        );
+        return;
+      }
       if (!currentScopeHash) return;
-      void withManualPaymentRetryLock(async () =>
-        readAllPendingManualPayments(durableStorage)
-      )
-        .then((pending) => {
+      void withManualPaymentRetryLock(async () => ({
+        pending: readAllPendingManualPayments(durableStorage),
+        legacyStatus: readLegacyPendingManualPayment(legacyStorage),
+      }))
+        .then((storedState) => {
           if (!active) return;
+          if (
+            storedState.legacyStatus === "invalid" ||
+            storedState.legacyStatus === "unavailable"
+          ) {
+            setRetryStorageError(
+              "No se pudo verificar el envío antiguo pendiente. No registres otro pago hasta resolverlo."
+            );
+            return;
+          }
+          setLegacyRecoveryRequired(storedState.legacyStatus === "pending");
+          const pending = storedState.pending;
           if (pending.status === "pending") {
             applyPending(pending.snapshots);
             setRetryStorageError(null);
@@ -573,6 +600,93 @@ export function ManualPaymentForm({
       .catch(() => {
         setError("No se pudo verificar la referencia de forma segura. No se ha enviado el pago.");
       });
+  }
+
+  async function recoverLegacyPendingPayment() {
+    if (
+      !legacyRecoveryRequired ||
+      legacyRecoveryBusy ||
+      !retryStorageReady ||
+      !actorScopeHash
+    ) {
+      return;
+    }
+    setLegacyRecoveryBusy(true);
+    setError(null);
+    try {
+      await withManualPaymentRetryLock(async () => {
+        const durableStorage = getBrowserStorage("localStorage");
+        const legacyStorage = getBrowserStorage("sessionStorage");
+        if (!durableStorage || !legacyStorage) {
+          throw new Error("legacy-storage-unavailable");
+        }
+        const legacyStatus = readLegacyPendingManualPayment(legacyStorage);
+        if (legacyStatus === "invalid" || legacyStatus === "unavailable") {
+          throw new Error("legacy-storage-invalid");
+        }
+        const pending = readAllPendingManualPayments(durableStorage);
+        if (pending.status === "invalid" || pending.status === "unavailable") {
+          throw new Error("retry-storage-unavailable");
+        }
+        if (pending.status === "pending" && pending.snapshots.length > 0) {
+          const actorSnapshots = pending.snapshots.filter(
+            (snapshot) => snapshot.actorScopeHash === actorScopeHash
+          );
+          setPendingCount(actorSnapshots.length);
+          setOtherActorPending(actorSnapshots.length !== pending.snapshots.length);
+          setRetryRequest(
+            actorSnapshots[0]
+              ? toPendingPaymentRequest(actorSnapshots[0])
+              : null
+          );
+          setError(
+            "Resuelve primero el otro envío pendiente; el envío antiguo seguirá guardado para recuperarlo después."
+          );
+          return;
+        }
+        if (legacyStatus === "none") {
+          setLegacyRecoveryRequired(false);
+          setError("El envío antiguo ya no está pendiente. Se volvió a comprobar el almacenamiento.");
+          return;
+        }
+
+        const migration = migrateLegacyPendingManualPayment(
+          legacyStorage,
+          durableStorage,
+          actorScopeHash
+        );
+        if (migration !== "migrated") {
+          throw new Error("legacy-recovery-failed");
+        }
+        const recovered = readAllPendingManualPayments(durableStorage);
+        if (recovered.status !== "pending") {
+          throw new Error("legacy-recovery-failed");
+        }
+        const actorSnapshots = recovered.snapshots.filter(
+          (snapshot) => snapshot.actorScopeHash === actorScopeHash
+        );
+        if (actorSnapshots.length === 0) {
+          throw new Error("legacy-recovery-failed");
+        }
+        setPendingCount(actorSnapshots.length);
+        setOtherActorPending(actorSnapshots.length !== recovered.snapshots.length);
+        setRetryRequest(toPendingPaymentRequest(actorSnapshots[0]!));
+        setLegacyRecoveryRequired(false);
+        setError(
+          "El envío antiguo quedó vinculado a esta sesión y conserva su clave original. No se ha enviado; pulsa Reintentar el mismo registro para consultar su resultado."
+        );
+      });
+    } catch (error: unknown) {
+      setError(
+        error instanceof Error && error.message === "legacy-storage-invalid"
+          ? "No se pudo validar el envío antiguo. Se conserva sin modificar y no se ha enviado."
+          : error instanceof Error && error.message === "legacy-recovery-failed"
+            ? "No se pudo recuperar el envío antiguo. Se conserva para revisión y no se ha enviado."
+            : "No se pudo coordinar la recuperación. El envío antiguo se conserva y no se ha enviado."
+      );
+    } finally {
+      setLegacyRecoveryBusy(false);
+    }
   }
 
   async function sendPayment(
@@ -842,6 +956,7 @@ export function ManualPaymentForm({
       retryPendingPayment();
       return;
     }
+    if (legacyRecoveryRequired) return;
     if (pendingCount > 0 || otherActorPending) return;
     if (!retryStorageReady || retryStorageError || dateInterpretationError) return;
     if (writesBlocked) return;
@@ -886,6 +1001,7 @@ export function ManualPaymentForm({
     retryRequest !== null ||
     pendingCount > 0 ||
     otherActorPending ||
+    legacyRecoveryRequired ||
     !retryStorageReady ||
     retryStorageError !== null;
   const retryBelongsToCurrentOrganization =
@@ -918,6 +1034,42 @@ export function ManualPaymentForm({
       inició para reintentar ese mismo registro antes de crear otro pago.
     </div>
   ) : null;
+  const legacyRecoveryNotice = legacyRecoveryRequired ? (
+    <div
+      role="alert"
+      className="rounded-xl border border-amber-300 bg-amber-50 px-4 py-3 text-sm leading-6 text-amber-950"
+    >
+      <p>
+        Hay un envío antiguo que no conserva qué usuario lo inició. Si lo
+        recuperas, quedará vinculado a la sesión autenticada actual. El servidor
+        volverá a comprobar los permisos y no se enviará hasta que pulses
+        «Reintentar el mismo registro».
+      </p>
+      {(pendingCount > 0 || otherActorPending) && (
+        <p className="mt-2">
+          Resuelve primero el otro envío pendiente; este registro antiguo
+          permanecerá guardado.
+        </p>
+      )}
+      <button
+        type="button"
+        disabled={
+          busy ||
+          legacyRecoveryBusy ||
+          !retryStorageReady ||
+          retryStorageError !== null ||
+          pendingCount > 0 ||
+          otherActorPending
+        }
+        onClick={() => void recoverLegacyPendingPayment()}
+        className="mt-3 min-h-11 rounded-full bg-amber-900 px-4 text-sm font-bold text-white hover:bg-amber-800 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-amber-900 disabled:cursor-not-allowed disabled:opacity-60"
+      >
+        {legacyRecoveryBusy
+          ? "Recuperando…"
+          : "Vincular el envío antiguo a esta sesión"}
+      </button>
+    </div>
+  ) : null;
 
   if (loadedCharges.length === 0) {
     return (
@@ -931,6 +1083,7 @@ export function ManualPaymentForm({
         </p>
         {retryScopeNotice}
         {otherActorPendingNotice}
+        {legacyRecoveryNotice}
         {retryStorageError && (
           <p role="alert" className="mt-4 rounded-xl border border-rose-300 bg-rose-50 px-4 py-3 text-sm text-rose-900">
             {retryStorageError}
@@ -998,6 +1151,7 @@ export function ManualPaymentForm({
       </div>
       {retryScopeNotice}
       {otherActorPendingNotice}
+      {legacyRecoveryNotice}
       {retryStorageError && (
         <p
           role="alert"
@@ -1221,6 +1375,7 @@ export function ManualPaymentForm({
               ? !retryBelongsToCurrentOrganization
               : pendingCount > 0 ||
                 otherActorPending ||
+                legacyRecoveryRequired ||
                 writesBlocked ||
                 dateInterpretationError !== null ||
                 !selectedCharge ||
